@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>playerdetails.xml</FileName>
+  <Version>3.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:06:21</FetchedDate>
+  <UserSupporterTier>none</UserSupporterTier>
+  <Player>
+    <PlayerID>468921494</PlayerID>
+    <FirstName>Alberto</FirstName>
+    <NickName></NickName>
+    <LastName>Gutiérrez Caviedes</LastName>
+    <PlayerNumber>9</PlayerNumber>
+    <PlayerCategoryID>0</PlayerCategoryID>
+    <OwnerNotes></OwnerNotes>
+    <Age>30</Age>
+    <AgeDays>45</AgeDays>
+    <NextBirthDay>2026-11-02 00:00:00</NextBirthDay>
+    <GenderID>1</GenderID>
+    <ArrivalDate>2024-03-15 20:00:00</ArrivalDate>
+    <PlayerForm>8</PlayerForm>
+    <Cards>0</Cards>
+    <InjuryLevel>-1</InjuryLevel>
+    <Statement></Statement>
+    <TrainerData>
+      <TrainerType>2</TrainerType>
+      <TrainerSkillLevel>0</TrainerSkillLevel>
+    </TrainerData>
+    <Agreeability>3</Agreeability>
+    <Aggressiveness>2</Aggressiveness>
+    <Honesty>4</Honesty>
+    <Experience>13</Experience>
+    <Loyalty>7</Loyalty>
+    <MotherClubBonus>False</MotherClubBonus>
+    <MotherClub>
+      <TeamID>999999</TeamID>
+      <TeamName>Otro Equipo FC</TeamName>
+    </MotherClub>
+    <Leadership>4</Leadership>
+    <Specialty>0</Specialty>
+    <NativeCountryID>19</NativeCountryID>
+    <NativeLeagueID>19</NativeLeagueID>
+    <NativeLeagueName>Colombia</NativeLeagueName>
+    <TSI>227410</TSI>
+    <OwningTeam>
+      <TeamID>537758</TeamID>
+      <TeamName>Pulgas Arrechas</TeamName>
+      <LeagueID>19</LeagueID>
+    </OwningTeam>
+    <Salary>72312</Salary>
+    <IsAbroad>False</IsAbroad>
+    <PlayerSkills>
+      <StaminaSkill>9</StaminaSkill>
+      <KeeperSkill>1</KeeperSkill>
+      <PlaymakerSkill>7</PlaymakerSkill>
+      <ScorerSkill>18</ScorerSkill>
+      <PassingSkill>9</PassingSkill>
+      <WingerSkill>4</WingerSkill>
+      <DefenderSkill>4</DefenderSkill>
+      <SetPiecesSkill>9</SetPiecesSkill>
+    </PlayerSkills>
+    <Caps>0</Caps>
+    <CapsU20>0</CapsU20>
+    <CareerGoals>58</CareerGoals>
+    <CareerHattricks>3</CareerHattricks>
+    <LeagueGoals>12</LeagueGoals>
+    <CupGoals Available="True">2</CupGoals>
+    <FriendliesGoals>1</FriendliesGoals>
+    <MatchesCurrentTeam>40</MatchesCurrentTeam>
+    <GoalsCurrentTeam>30</GoalsCurrentTeam>
+    <AssistsCurrentTeam>8</AssistsCurrentTeam>
+    <CareerAssists>21</CareerAssists>
+    <TransferListed>False</TransferListed>
+    <LastMatch>
+      <Date>2026-07-19 16:00:00</Date>
+      <MatchId>123456789</MatchId>
+      <PositionCode>13</PositionCode>
+      <PlayedMinutes>90</PlayedMinutes>
+      <Rating>8.5</Rating>
+      <RatingEndOfGame>8.2</RatingEndOfGame>
+    </LastMatch>
+  </Player>
+</HattrickData>

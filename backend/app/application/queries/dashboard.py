@@ -1,0 +1,208 @@
+"""DashboardQueryService — lado de lectura (CQRS).
+
+No pasa por el dominio ni por repositorios de escritura: lee directamente los
+snapshots más recientes. En PostgreSQL esto se sustituirá por la vista
+materializada `mv_team_dashboard` (docs/02) sin cambiar este contrato.
+"""
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.application.dto.dashboard import (
+    Alert,
+    DashboardResponse,
+    FinanceSummary,
+    PlayerRow,
+    SquadSummary,
+    TrainingSummary,
+)
+from app.domain.engines.economy_engine import structural_balance
+from app.domain.value_objects.ht_constants import (
+    CONFIDENCE,
+    TEAM_SPIRIT,
+    training_name,
+)
+from app.infrastructure.db import models as m
+
+STALE_AFTER = timedelta(hours=12)
+# columna en DB → clave camelCase en la API (consistencia de contrato)
+SKILL_COLS = {
+    "keeper": "keeper",
+    "defending": "defending",
+    "playmaking": "playmaking",
+    "winger": "winger",
+    "passing": "passing",
+    "scoring": "scoring",
+    "set_pieces": "setPieces",
+}
+
+
+class DashboardQueryService:
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    async def get(self, team_id: int, now: datetime | None = None) -> DashboardResponse | None:
+        now = now or datetime.now(UTC)
+        team = await self._s.get(m.Team, team_id)
+        if team is None:
+            return None
+
+        last_sync = await self._s.scalar(
+            select(m.Sync)
+            .where(m.Sync.team_id == team_id, m.Sync.status.in_(("completed", "partial")))
+            .order_by(m.Sync.started_at.desc())
+            .limit(1)
+        )
+        synced_at = last_sync.finished_at or last_sync.started_at if last_sync else None
+        stale = True
+        if synced_at is not None:
+            ref = synced_at if synced_at.tzinfo else synced_at.replace(tzinfo=UTC)
+            stale = (now - ref) > STALE_AFTER
+
+        resp = DashboardResponse(
+            team_id=team_id,
+            team_name=team.name,
+            league_name=team.league_name,
+            series_name=team.series_name,
+            synced_at=synced_at,
+            sync_id=last_sync.id if last_sync else None,
+            stale=stale,
+        )
+
+        rows = await self._latest_players(team_id)
+        players = [snap for snap, _ in rows]
+        if rows:
+            resp.squad = self._squad(players)
+            top = sorted(rows, key=lambda r: -r[0].salary)[:5]
+            resp.top_salaries = [self._row(snap, ident) for snap, ident in top]
+
+        econ = await self._s.scalar(
+            select(m.EconomySnapshot)
+            .where(m.EconomySnapshot.team_id == team_id)
+            .order_by(m.EconomySnapshot.captured_at.desc())
+            .limit(1)
+        )
+        if econ:
+            # CHPP entrega importes en la moneda base del juego: hay que dividir
+            # por la tasa del país o se muestran inflados (Colombia = 10).
+            rate = team.currency_rate or 1.0
+
+            def local(v: int) -> int:
+                return int(round(v / rate))
+
+            resp.finance = FinanceSummary(
+                cash=local(econ.cash),
+                expected_cash=local(econ.expected_cash),
+                weekly_delta=local(econ.expected_weeks_total),
+                income_sum=local(econ.income_sum),
+                costs_sum=local(econ.costs_sum),
+                costs_players=local(econ.costs_players),
+                fan_club_size=econ.fan_club_size,          # no es dinero
+                last_weeks_total=local(econ.last_weeks_total),
+                structural_balance=local(structural_balance(
+                    econ.income_sponsors, econ.income_spectators,
+                    econ.costs_players, econ.costs_staff, econ.costs_arena,
+                )),
+                currency=team.currency_name or "",
+            )
+
+        tr = await self._s.scalar(
+            select(m.TrainingSnapshot)
+            .where(m.TrainingSnapshot.team_id == team_id)
+            .order_by(m.TrainingSnapshot.captured_at.desc())
+            .limit(1)
+        )
+        if tr:
+            resp.training = TrainingSummary(
+                type_id=tr.training_type,
+                type_name=training_name(tr.training_type),
+                level=tr.training_level,
+                stamina_part=tr.stamina_part,
+                trainer_name=tr.trainer_name,
+                morale=tr.morale,
+                morale_name=TEAM_SPIRIT.get(tr.morale, "?"),
+                confidence=tr.self_confidence,
+                confidence_name=CONFIDENCE.get(tr.self_confidence, "?"),
+            )
+
+        resp.alerts = self._alerts(resp, players)
+        return resp
+
+    async def _latest_players(
+        self, team_id: int
+    ) -> list[tuple[m.PlayerSnapshot, m.Player]]:
+        """Último snapshot por jugador (equivalente al DISTINCT ON de PostgreSQL)."""
+        latest = (
+            select(
+                m.PlayerSnapshot.player_id.label("pid"),
+                func.max(m.PlayerSnapshot.captured_at).label("mx"),
+            )
+            .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+            .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+            .group_by(m.PlayerSnapshot.player_id)
+            .subquery()
+        )
+        stmt = (
+            select(m.PlayerSnapshot, m.Player)
+            .join(
+                latest,
+                (m.PlayerSnapshot.player_id == latest.c.pid)
+                & (m.PlayerSnapshot.captured_at == latest.c.mx),
+            )
+            .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+        )
+        return [(r[0], r[1]) for r in (await self._s.execute(stmt)).all()]
+
+    def _squad(self, players: list[m.PlayerSnapshot]) -> SquadSummary:
+        n = len(players)
+        avg_age = sum(p.age_years + p.age_days / 112 for p in players) / n
+        return SquadSummary(
+            player_count=n,
+            avg_age=round(avg_age, 1),
+            total_tsi=sum(p.tsi for p in players),
+            total_salary=sum(p.salary for p in players),
+            injured_count=sum(1 for p in players if p.injury_level > -1),
+        )
+
+    def _row(self, p: m.PlayerSnapshot, ident: m.Player) -> PlayerRow:
+        return PlayerRow(
+            ht_player_id=ident.ht_player_id,
+            name=f"{ident.first_name} {ident.last_name}",
+            age_years=p.age_years,
+            age_days=p.age_days,
+            tsi=p.tsi,
+            form=p.form,
+            stamina=p.stamina,
+            salary=p.salary,
+            injury_level=p.injury_level,
+            skills={alias: getattr(p, col) or 0 for col, alias in SKILL_COLS.items()},
+        )
+
+    def _alerts(
+        self, resp: DashboardResponse, players: list[m.PlayerSnapshot]
+    ) -> list[Alert]:
+        out: list[Alert] = []
+        if resp.stale:
+            out.append(Alert(kind="sync", severity="info",
+                             message="Los datos no se sincronizan hace más de 12 horas."))
+        if resp.squad and resp.squad.injured_count:
+            out.append(Alert(kind="injury", severity="warning",
+                             message=f"{resp.squad.injured_count} jugador(es) lesionado(s)."))
+        if resp.finance and resp.squad:
+            weeks = (
+                resp.finance.cash // abs(resp.finance.weekly_delta)
+                if resp.finance.weekly_delta < 0
+                else None
+            )
+            if weeks is not None and weeks < 8:
+                out.append(Alert(
+                    kind="finance", severity="danger",
+                    message=f"Con el balance actual la caja aguanta ~{weeks} semanas.",
+                ))
+        if players:
+            veterans = [p for p in players if p.age_years >= 33]
+            if veterans:
+                out.append(Alert(kind="squad", severity="info",
+                                 message=f"{len(veterans)} jugador(es) de 33+ años en plantilla."))
+        return out

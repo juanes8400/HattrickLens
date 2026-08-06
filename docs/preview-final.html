@@ -1,0 +1,359 @@
+<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hattrick Lens — Pulgas Arrechas</title><style>
+:root[data-theme=dark]{--bg:#0a0a0b;--bg-subtle:#111113;--bg-elev:#17171a;--border:#26262b;--text:#ededef;--muted:#8b8b93;--accent:#4f7cff;--accent-soft:#4f7cff22;--pos:#2fbf71;--pos-soft:#2fbf7122;--neg:#e5484d;--neg-soft:#e5484d22;--warn:#f5a524;--warn-soft:#f5a52422}
+:root[data-theme=light]{--bg:#fafafa;--bg-subtle:#fff;--bg-elev:#f2f2f4;--border:#e4e4e7;--text:#18181b;--muted:#71717a;--accent:#3b63e0;--accent-soft:#3b63e01a;--pos:#1a9e5c;--pos-soft:#1a9e5c1a;--neg:#d1383d;--neg-soft:#d1383d1a;--warn:#c98a10;--warn-soft:#c98a101a}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.app{display:flex;min-height:100vh}
+.sidebar{width:236px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{display:flex;align-items:center;gap:8px;padding:6px 10px;margin-bottom:10px;font-weight:600;font-size:15px}
+.logo .lens{width:22px;height:22px;border-radius:6px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700}
+.team-select{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;background:var(--bg-subtle)}
+.team-select .crest{width:26px;height:26px;border-radius:6px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.team-select small{color:var(--muted);display:block;font-size:11px}
+.nav a{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;color:var(--muted);text-decoration:none;font-size:13.5px;cursor:pointer}
+.nav a:hover{background:var(--bg-elev);color:var(--text)}
+.nav a.active{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.nav .sect{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:14px 10px 4px}
+.main{flex:1;min-width:0}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);z-index:5}
+.crumb{color:var(--muted);font-size:13px}.crumb b{color:var(--text);font-weight:500}
+.search{flex:1;max-width:400px;display:flex;align-items:center;gap:8px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--muted);font-size:13px}
+.kbd{margin-left:auto;font-size:11px;border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+.syncbtn{display:flex;align-items:center;gap:7px;background:var(--pos-soft);color:var(--pos);border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;margin-left:auto}
+.theme{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:7px 10px;cursor:pointer}
+.content{padding:24px;max-width:1240px}
+h1{font-size:20px;font-weight:600;margin-bottom:2px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:16px}
+.card{background:var(--bg-subtle);border:1px solid var(--border);border-radius:10px;padding:16px}
+.card .lbl{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.card .val{font-size:25px;font-weight:600;letter-spacing:-.02em}
+.card .hint{font-size:12px;color:var(--muted);margin-top:4px}
+.two{grid-template-columns:2fr 1fr;align-items:start}
+.half{grid-template-columns:1fr 1fr;align-items:start}
+@media(max-width:1000px){.two,.half{grid-template-columns:1fr}.sidebar{display:none}}
+.panel{background:var(--bg-subtle);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.panel .head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.panel .head b{font-size:14px;font-weight:600}.panel .head span{font-size:12px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:right;padding:8px 10px;color:var(--muted);font-weight:500;font-size:12px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg-elev)}
+.pname{white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.sk{border-radius:4px}.sk.hi{background:var(--pos-soft);color:var(--pos);font-weight:600}
+.sk.mid{background:var(--accent-soft);color:var(--accent)}.sk.low{color:var(--muted)}
+.me td{background:var(--accent-soft)}
+.hbar{display:flex;align-items:center;gap:10px;margin:7px 0}
+.hbar .n{width:180px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar .t{flex:1;height:14px;background:var(--bg-elev);border-radius:4px}
+.hbar .t>div{height:14px;border-radius:4px;background:var(--accent);opacity:.85}
+.hbar .t>div.pos{background:var(--pos)}.hbar .t>div.neg{background:var(--neg)}
+.hbar .v{width:96px;text-align:right;font-size:12px}
+.view{display:none}.view.on{display:block}
+.pitch{background:linear-gradient(180deg,#14532d22,#14532d0d);border:1px solid var(--border);border-radius:10px;padding:18px}
+.row{display:flex;justify-content:center;gap:10px;margin:12px 0;flex-wrap:wrap}
+.slot{background:var(--bg-subtle);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:136px;text-align:center}
+.slot .p{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .r{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.slot .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.ins{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.ins:last-child{border-bottom:none}
+.ins .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.ins b{display:block;font-size:13.5px;margin-bottom:2px}
+.ins p{font-size:12.5px;color:var(--muted);line-height:1.5}
+.ins .act{font-size:12.5px;color:var(--accent);margin-top:4px}
+.pill{display:inline-block;font-size:11px;border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:2px}
+.pill.g{background:var(--pos-soft);color:var(--pos)}.pill.b{background:var(--accent-soft);color:var(--accent)}
+.tag{font-size:10px;border-radius:4px;padding:1px 5px;margin-left:5px}
+.tag.cal{background:var(--pos-soft);color:var(--pos)}.tag.asm{background:var(--accent-soft);color:var(--accent)}
+.foot{color:var(--muted);font-size:12px;padding:20px 24px;border-top:1px solid var(--border);margin-top:30px}
+.note{font-size:12px;color:var(--muted);padding:10px 16px;line-height:1.55}
+</style></head><body><div class="app"><aside class="sidebar"><div class="logo"><span class="lens">HL</span> Hattrick Lens</div><div class="team-select"><span class="crest">PA</span><div><div>Pulgas Arrechas</div><small>Serie V.92 · Colombia</small></div></div><nav class="nav" id="nav"><a data-v="dashboard" class="active">Dashboard</a><a data-v="equipo">Equipo</a><a data-v="posiciones">Posiciones</a><a data-v="alineacion">Alineación</a><a data-v="entrenamiento">Entrenamiento</a><a data-v="experiencia">Experiencia</a><div class="sect">Competición</div><a data-v="partidos">Partidos</a><a data-v="liga">Liga</a><a data-v="predicciones">Predicciones</a><div class="sect">Club</div><a data-v="economia">Economía</a><a data-v="estadio">Estadio</a><a data-v="transferencias">Transferencias</a><a data-v="academia">Academia</a><div class="sect">Inteligencia</div><a data-v="alertas">Alertas</a><a data-v="calibracion">Calibración</a></nav></aside><div class="main"><div class="topbar"><span class="crumb"><b id="crumb">Dashboard</b> · Pulgas Arrechas</span><div class="search">Buscar jugador, módulo, acción…<span class="kbd">⌘K</span></div><button class="syncbtn">● Sincronizado</button><button class="theme" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐</button></div><div class="content" id="content"></div><div class="foot">Hattrick Lens · 199 tests en verde · datos reales vía CHPP · This application uses information from the online game service Hattrick.org. This use has been approved by the developers and copyright owners of Hattrick.org, Extralives AB.</div></div></div><script>const D={"positions":{"Alberto Gutiérrez Caviedes":{"best":["Delantero",8.66,"assumed"],"all":[["Delantero",8.66,"assumed"],["Delantero hacia banda",7.75,"assumed"],["Delantero defensivo",6.81,"assumed"],["Medio ofensivo",4.39,"assumed"],["Extremo ofensivo",4.3,"calibrated"],["Extremo hacia el medio",4.11,"assumed"],["Medio",4.1,"calibrated"],["Extremo",3.79,"assumed"],["Medio defensivo",3.71,"assumed"],["Medio hacia banda",3.64,"assumed"],["Extremo defensivo",3.6,"assumed"],["Lateral hacia el medio",3.3,"assumed"],["Lateral",3.25,"assumed"],["Lateral ofensivo",3.25,"assumed"],["Defensa central ofensivo",2.92,"assumed"],["Defensa central",2.28,"assumed"],["Defensa central hacia lateral",2.12,"assumed"],["Portero",1.61,"calibrated"],["Lateral defensivo",1.57,"calibrated"]]},"Anders Ebbesen":{"best":["Portero",9.64,"calibrated"],"all":[["Portero",9.64,"calibrated"],["Lateral defensivo",8.72,"calibrated"],["Defensa central",3.65,"assumed"],["Defensa central hacia lateral",3.35,"assumed"],["Defensa central ofensivo",3.32,"assumed"],["Lateral",3.23,"assumed"],["Lateral hacia el medio",3.13,"assumed"],["Lateral ofensivo",2.81,"assumed"],["Extremo ofensivo",2.36,"calibrated"],["Medio defensivo",2.08,"assumed"],["Extremo defensivo",1.95,"assumed"],["Delantero",1.94,"assumed"],["Delantero hacia banda",1.79,"assumed"],["Delantero defensivo",1.59,"assumed"],["Medio",1.58,"calibrated"],["Medio ofensivo",1.45,"assumed"],["Medio hacia banda",1.41,"assumed"],["Extremo",1.4,"assumed"],["Extremo hacia el medio",1.16,"assumed"]]},"Aydin Davey":{"best":["Lateral defensivo",5.43,"calibrated"],"all":[["Lateral defensivo",5.43,"calibrated"],["Lateral",5.33,"assumed"],["Defensa central",5.19,"assumed"],["Defensa central hacia lateral",4.95,"assumed"],["Defensa central ofensivo",4.95,"assumed"],["Lateral ofensivo",4.89,"assumed"],["Lateral hacia el medio",4.83,"assumed"],["Extremo defensivo",4.02,"assumed"],["Medio defensivo",3.72,"assumed"],["Delantero",3.49,"assumed"],["Extremo ofensivo",3.42,"calibrated"],["Delantero hacia banda",3.42,"assumed"],["Extremo",3.41,"assumed"],["Delantero defensivo",3.3,"assumed"],["Medio",3.11,"calibrated"],["Medio ofensivo",3.09,"assumed"],["Extremo hacia el medio",3.05,"assumed"],["Medio hacia banda",3.03,"assumed"],["Portero",1.76,"calibrated"]]},"Bořivoj Rouš":{"best":["Lateral",5.32,"assumed"],"all":[["Lateral",5.32,"assumed"],["Lateral defensivo",5.16,"calibrated"],["Lateral ofensivo",4.96,"assumed"],["Lateral hacia el medio",4.93,"assumed"],["Defensa central ofensivo",4.89,"assumed"],["Defensa central",4.83,"assumed"],["Defensa central hacia lateral",4.58,"assumed"],["Extremo defensivo",4.41,"assumed"],["Extremo ofensivo",4.3,"calibrated"],["Medio defensivo",4.18,"assumed"],["Delantero defensivo",4.06,"assumed"],["Extremo",4.0,"assumed"],["Medio ofensivo",3.95,"assumed"],["Delantero",3.85,"assumed"],["Medio",3.8,"calibrated"],["Extremo hacia el medio",3.8,"assumed"],["Delantero hacia banda",3.76,"assumed"],["Medio hacia banda",3.58,"assumed"],["Portero",1.76,"calibrated"]]},"Cándido Cacheiro":{"best":["Medio",1.43,"calibrated"],"all":[["Medio",1.43,"calibrated"],["Medio ofensivo",1.24,"assumed"],["Medio defensivo",1.22,"assumed"],["Medio hacia banda",1.21,"assumed"],["Portero",1.12,"calibrated"],["Lateral hacia el medio",0.93,"assumed"],["Defensa central ofensivo",0.92,"assumed"],["Extremo hacia el medio",0.87,"assumed"],["Defensa central",0.85,"assumed"],["Extremo ofensivo",0.82,"calibrated"],["Delantero defensivo",0.77,"assumed"],["Lateral defensivo",0.37,"calibrated"],["Defensa central hacia lateral",0.37,"assumed"],["Lateral",0.37,"assumed"],["Lateral ofensivo",0.37,"assumed"],["Delantero",0.3,"assumed"],["Delantero hacia banda",0.3,"assumed"],["Extremo",0.27,"assumed"],["Extremo defensivo",0.27,"assumed"]]},"Ciprian Marinași":{"best":["Extremo ofensivo",4.78,"calibrated"],"all":[["Extremo ofensivo",4.78,"calibrated"],["Extremo hacia el medio",4.06,"assumed"],["Extremo",4.05,"assumed"],["Extremo defensivo",3.87,"assumed"],["Lateral ofensivo",3.65,"assumed"],["Medio hacia banda",3.65,"assumed"],["Medio",3.42,"calibrated"],["Lateral",3.4,"assumed"],["Medio ofensivo",3.38,"assumed"],["Delantero hacia banda",3.29,"assumed"],["Delantero defensivo",3.26,"assumed"],["Medio defensivo",3.21,"assumed"],["Delantero",3.0,"assumed"],["Lateral hacia el medio",2.61,"assumed"],["Defensa central hacia lateral",2.5,"assumed"],["Defensa central ofensivo",2.46,"assumed"],["Defensa central",2.17,"assumed"],["Lateral defensivo",2.02,"calibrated"],["Portero",1.69,"calibrated"]]},"Edward Koszel":{"best":["Lateral defensivo",4.96,"calibrated"],"all":[["Lateral defensivo",4.96,"calibrated"],["Defensa central",4.54,"assumed"],["Lateral",4.36,"assumed"],["Defensa central ofensivo",4.29,"assumed"],["Defensa central hacia lateral",4.22,"assumed"],["Lateral hacia el medio",4.14,"assumed"],["Lateral ofensivo",3.93,"assumed"],["Medio defensivo",3.49,"assumed"],["Extremo defensivo",3.05,"assumed"],["Medio",3.03,"calibrated"],["Medio ofensivo",2.85,"assumed"],["Medio hacia banda",2.78,"assumed"],["Extremo ofensivo",2.52,"calibrated"],["Extremo",2.46,"assumed"],["Delantero defensivo",2.37,"assumed"],["Extremo hacia el medio",2.26,"assumed"],["Delantero",2.26,"assumed"],["Delantero hacia banda",2.23,"assumed"],["Portero",2.11,"calibrated"]]},"Florin Tilvar":{"best":["Lateral defensivo",3.15,"calibrated"],"all":[["Lateral defensivo",3.15,"calibrated"],["Defensa central",2.97,"assumed"],["Lateral",2.95,"assumed"],["Defensa central ofensivo",2.83,"assumed"],["Defensa central hacia lateral",2.79,"assumed"],["Lateral hacia el medio",2.76,"assumed"],["Lateral ofensivo",2.68,"assumed"],["Delantero",2.15,"assumed"],["Extremo defensivo",2.13,"assumed"],["Medio defensivo",2.06,"assumed"],["Delantero hacia banda",2.04,"assumed"],["Delantero defensivo",1.93,"assumed"],["Extremo",1.78,"assumed"],["Extremo ofensivo",1.73,"calibrated"],["Medio ofensivo",1.72,"assumed"],["Medio",1.71,"calibrated"],["Medio hacia banda",1.62,"assumed"],["Extremo hacia el medio",1.58,"assumed"],["Portero",1.54,"calibrated"]]},"Henryk Derc":{"best":["Lateral",5.0,"assumed"],"all":[["Lateral",5.0,"assumed"],["Lateral ofensivo",4.73,"assumed"],["Lateral defensivo",4.59,"calibrated"],["Lateral hacia el medio",4.54,"assumed"],["Defensa central ofensivo",4.46,"assumed"],["Defensa central",4.36,"assumed"],["Extremo defensivo",4.33,"assumed"],["Extremo ofensivo",4.32,"calibrated"],["Defensa central hacia lateral",4.2,"assumed"],["Delantero defensivo",4.12,"assumed"],["Delantero",4.11,"assumed"],["Extremo",4.03,"assumed"],["Delantero hacia banda",4.0,"assumed"],["Extremo hacia el medio",3.81,"assumed"],["Medio defensivo",3.76,"assumed"],["Medio ofensivo",3.64,"assumed"],["Medio",3.42,"calibrated"],["Medio hacia banda",3.31,"assumed"],["Portero",1.69,"calibrated"]]},"Herilala Njakanirina":{"best":["Delantero",9.86,"assumed"],"all":[["Delantero",9.86,"assumed"],["Medio",9.32,"calibrated"],["Delantero hacia banda",9.0,"assumed"],["Medio ofensivo",8.96,"assumed"],["Delantero defensivo",8.93,"assumed"],["Medio defensivo",8.14,"assumed"],["Medio hacia banda",8.08,"assumed"],["Extremo ofensivo",6.47,"calibrated"],["Extremo hacia el medio",6.33,"assumed"],["Extremo",5.27,"assumed"],["Extremo defensivo",5.05,"assumed"],["Lateral hacia el medio",4.96,"assumed"],["Lateral ofensivo",4.6,"assumed"],["Lateral",4.57,"assumed"],["Defensa central ofensivo",4.46,"assumed"],["Defensa central",3.44,"assumed"],["Defensa central hacia lateral",3.04,"assumed"],["Portero",1.76,"calibrated"],["Lateral defensivo",1.6,"calibrated"]]},"Hugo Chauvel":{"best":["Medio",3.64,"calibrated"],"all":[["Medio",3.64,"calibrated"],["Medio defensivo",3.56,"assumed"],["Medio ofensivo",3.46,"assumed"],["Medio hacia banda",3.23,"assumed"],["Lateral hacia el medio",3.14,"assumed"],["Lateral",3.13,"assumed"],["Defensa central ofensivo",3.1,"assumed"],["Defensa central",2.98,"assumed"],["Lateral ofensivo",2.94,"assumed"],["Lateral defensivo",2.79,"calibrated"],["Delantero defensivo",2.79,"assumed"],["Defensa central hacia lateral",2.73,"assumed"],["Extremo ofensivo",2.72,"calibrated"],["Extremo defensivo",2.6,"assumed"],["Extremo hacia el medio",2.55,"assumed"],["Delantero",2.51,"assumed"],["Delantero hacia banda",2.43,"assumed"],["Extremo",2.38,"assumed"],["Portero",1.46,"calibrated"]]},"Jorge Salas":{"best":["Lateral",7.13,"assumed"],"all":[["Lateral",7.13,"assumed"],["Lateral defensivo",6.91,"calibrated"],["Lateral ofensivo",6.78,"assumed"],["Extremo defensivo",6.19,"assumed"],["Defensa central",6.09,"assumed"],["Defensa central hacia lateral",6.08,"assumed"],["Lateral hacia el medio",6.04,"assumed"],["Defensa central ofensivo",6.02,"assumed"],["Extremo ofensivo",5.95,"calibrated"],["Extremo",5.72,"assumed"],["Delantero hacia banda",5.15,"assumed"],["Delantero",5.12,"assumed"],["Extremo hacia el medio",5.06,"assumed"],["Delantero defensivo",4.95,"assumed"],["Medio defensivo",3.93,"assumed"],["Medio ofensivo",3.57,"assumed"],["Medio hacia banda",3.4,"assumed"],["Medio",3.11,"calibrated"],["Portero",2.39,"calibrated"]]},"Karl-Ove Palmén":{"best":["Lateral defensivo",4.42,"calibrated"],"all":[["Lateral defensivo",4.42,"calibrated"],["Lateral",4.42,"assumed"],["Lateral ofensivo",4.26,"assumed"],["Extremo defensivo",3.86,"assumed"],["Extremo ofensivo",3.8,"calibrated"],["Defensa central hacia lateral",3.8,"assumed"],["Defensa central",3.74,"assumed"],["Defensa central ofensivo",3.67,"assumed"],["Lateral hacia el medio",3.66,"assumed"],["Extremo",3.59,"assumed"],["Extremo hacia el medio",3.16,"assumed"],["Delantero hacia banda",2.7,"assumed"],["Delantero defensivo",2.68,"assumed"],["Delantero",2.53,"assumed"],["Medio defensivo",2.46,"assumed"],["Medio hacia banda",2.22,"assumed"],["Medio ofensivo",2.19,"assumed"],["Portero",2.11,"calibrated"],["Medio",1.96,"calibrated"]]},"Klaus Bahlek":{"best":["Lateral",6.97,"assumed"],"all":[["Lateral",6.97,"assumed"],["Lateral ofensivo",6.77,"assumed"],["Extremo defensivo",6.49,"assumed"],["Extremo ofensivo",6.46,"calibrated"],["Lateral defensivo",6.26,"calibrated"],["Extremo",6.22,"assumed"],["Lateral hacia el medio",5.67,"assumed"],["Defensa central hacia lateral",5.65,"assumed"],["Defensa central ofensivo",5.55,"assumed"],["Defensa central",5.48,"assumed"],["Extremo hacia el medio",5.43,"assumed"],["Delantero hacia banda",5.28,"assumed"],["Delantero",5.19,"assumed"],["Delantero defensivo",5.07,"assumed"],["Medio defensivo",3.04,"assumed"],["Medio ofensivo",2.96,"assumed"],["Medio hacia banda",2.75,"assumed"],["Medio",2.19,"calibrated"],["Portero",1.69,"calibrated"]]},"Krisztofer Nátor":{"best":["Lateral defensivo",3.33,"calibrated"],"all":[["Lateral defensivo",3.33,"calibrated"],["Lateral",3.16,"assumed"],["Lateral hacia el medio",3.06,"assumed"],["Defensa central ofensivo",3.05,"assumed"],["Defensa central",3.03,"assumed"],["Lateral ofensivo",2.9,"assumed"],["Defensa central hacia lateral",2.81,"assumed"],["Medio defensivo",2.73,"assumed"],["Medio ofensivo",2.56,"assumed"],["Medio",2.54,"calibrated"],["Extremo defensivo",2.48,"assumed"],["Extremo ofensivo",2.42,"calibrated"],["Medio hacia banda",2.3,"assumed"],["Delantero defensivo",2.23,"assumed"],["Extremo",2.19,"assumed"],["Extremo hacia el medio",2.14,"assumed"],["Delantero",1.9,"assumed"],["Delantero hacia banda",1.86,"assumed"],["Portero",1.46,"calibrated"]]},"Lander Fripont":{"best":["Lateral defensivo",3.76,"calibrated"],"all":[["Lateral defensivo",3.76,"calibrated"],["Lateral",3.55,"assumed"],["Lateral ofensivo",3.31,"assumed"],["Defensa central",3.2,"assumed"],["Defensa central hacia lateral",3.13,"assumed"],["Defensa central ofensivo",3.11,"assumed"],["Lateral hacia el medio",3.1,"assumed"],["Extremo defensivo",2.87,"assumed"],["Extremo ofensivo",2.61,"calibrated"],["Extremo",2.58,"assumed"],["Delantero",2.55,"assumed"],["Delantero hacia banda",2.5,"assumed"],["Delantero defensivo",2.36,"assumed"],["Extremo hacia el medio",2.2,"assumed"],["Medio defensivo",1.76,"assumed"],["Portero",1.54,"calibrated"],["Medio ofensivo",1.53,"assumed"],["Medio hacia banda",1.38,"assumed"],["Medio",1.26,"calibrated"]]},"Leopoldo Campus":{"best":["Lateral defensivo",6.09,"calibrated"],"all":[["Lateral defensivo",6.09,"calibrated"],["Lateral",5.68,"assumed"],["Defensa central",5.41,"assumed"],["Defensa central ofensivo",5.24,"assumed"],["Lateral hacia el medio",5.18,"assumed"],["Lateral ofensivo",5.18,"assumed"],["Defensa central hacia lateral",5.12,"assumed"],["Extremo defensivo",4.36,"assumed"],["Extremo ofensivo",3.83,"calibrated"],["Extremo",3.77,"assumed"],["Medio defensivo",3.54,"assumed"],["Delantero defensivo",3.33,"assumed"],["Extremo hacia el medio",3.31,"assumed"],["Medio ofensivo",3.05,"assumed"],["Delantero",3.05,"assumed"],["Delantero hacia banda",3.04,"assumed"],["Medio",2.81,"calibrated"],["Medio hacia banda",2.73,"assumed"],["Portero",1.69,"calibrated"]]},"Nestori Paasu":{"best":["Lateral defensivo",5.57,"calibrated"],"all":[["Lateral defensivo",5.57,"calibrated"],["Lateral",5.15,"assumed"],["Defensa central",5.04,"assumed"],["Defensa central ofensivo",4.93,"assumed"],["Lateral hacia el medio",4.91,"assumed"],["Defensa central hacia lateral",4.65,"assumed"],["Lateral ofensivo",4.62,"assumed"],["Delantero",4.07,"assumed"],["Extremo defensivo",3.84,"assumed"],["Delantero defensivo",3.78,"assumed"],["Delantero hacia banda",3.77,"assumed"],["Medio defensivo",3.45,"assumed"],["Extremo ofensivo",3.25,"calibrated"],["Extremo",3.25,"assumed"],["Medio ofensivo",3.05,"assumed"],["Extremo hacia el medio",2.92,"assumed"],["Medio",2.81,"calibrated"],["Medio hacia banda",2.56,"assumed"],["Portero",1.69,"calibrated"]]},"Raúl Cobos":{"best":["Medio",8.63,"calibrated"],"all":[["Medio",8.63,"calibrated"],["Medio ofensivo",8.59,"assumed"],["Medio defensivo",8.2,"assumed"],["Medio hacia banda",7.24,"assumed"],["Lateral hacia el medio",6.93,"assumed"],["Defensa central ofensivo",6.55,"assumed"],["Extremo ofensivo",6.5,"calibrated"],["Delantero defensivo",6.44,"assumed"],["Lateral",6.39,"assumed"],["Lateral defensivo",6.01,"calibrated"],["Extremo hacia el medio",5.94,"assumed"],["Lateral ofensivo",5.89,"assumed"],["Defensa central",5.84,"assumed"],["Extremo defensivo",5.62,"assumed"],["Extremo",5.29,"assumed"],["Defensa central hacia lateral",5.03,"assumed"],["Delantero",4.58,"assumed"],["Delantero hacia banda",4.33,"assumed"],["Portero",1.76,"calibrated"]]},"Rian Antuma":{"best":["Lateral",4.74,"assumed"],"all":[["Lateral",4.74,"assumed"],["Lateral defensivo",4.56,"calibrated"],["Lateral ofensivo",4.49,"assumed"],["Defensa central",4.36,"assumed"],["Defensa central hacia lateral",4.27,"assumed"],["Defensa central ofensivo",4.24,"assumed"],["Lateral hacia el medio",4.17,"assumed"],["Extremo defensivo",3.89,"assumed"],["Extremo ofensivo",3.79,"calibrated"],["Medio defensivo",3.76,"assumed"],["Extremo",3.49,"assumed"],["Medio",3.42,"calibrated"],["Medio hacia banda",3.39,"assumed"],["Medio ofensivo",3.3,"assumed"],["Extremo hacia el medio",3.28,"assumed"],["Delantero defensivo",2.85,"assumed"],["Delantero hacia banda",2.71,"assumed"],["Delantero",2.55,"assumed"],["Portero",1.69,"calibrated"]]},"Robert Horhoi":{"best":["Portero",3.14,"calibrated"],"all":[["Portero",3.14,"calibrated"],["Lateral defensivo",2.24,"calibrated"],["Extremo ofensivo",1.26,"calibrated"],["Lateral",0.95,"assumed"],["Lateral ofensivo",0.95,"assumed"],["Lateral hacia el medio",0.94,"assumed"],["Defensa central ofensivo",0.92,"assumed"],["Extremo",0.9,"assumed"],["Extremo hacia el medio",0.89,"assumed"],["Extremo defensivo",0.88,"assumed"],["Delantero defensivo",0.73,"assumed"],["Delantero",0.69,"assumed"],["Delantero hacia banda",0.68,"assumed"],["Medio ofensivo",0.4,"assumed"],["Defensa central",0.37,"assumed"],["Defensa central hacia lateral",0.37,"assumed"],["Medio",0.35,"calibrated"],["Medio hacia banda",0.35,"assumed"],["Medio defensivo",0.35,"assumed"]]},"Seri Sungkeet":{"best":["Lateral defensivo",5.27,"calibrated"],"all":[["Lateral defensivo",5.27,"calibrated"],["Lateral",5.08,"assumed"],["Defensa central",4.83,"assumed"],["Defensa central ofensivo",4.83,"assumed"],["Lateral hacia el medio",4.83,"assumed"],["Lateral ofensivo",4.66,"assumed"],["Defensa central hacia lateral",4.5,"assumed"],["Medio defensivo",4.18,"assumed"],["Extremo defensivo",4.01,"assumed"],["Medio ofensivo",3.85,"assumed"],["Extremo ofensivo",3.83,"calibrated"],["Medio",3.8,"calibrated"],["Delantero defensivo",3.76,"assumed"],["Delantero",3.6,"assumed"],["Extremo",3.53,"assumed"],["Medio hacia banda",3.48,"assumed"],["Delantero hacia banda",3.46,"assumed"],["Extremo hacia el medio",3.37,"assumed"],["Portero",1.76,"calibrated"]]},"Viktor Markoč":{"best":["Extremo ofensivo",4.68,"calibrated"],"all":[["Extremo ofensivo",4.68,"calibrated"],["Extremo hacia el medio",4.02,"assumed"],["Extremo",3.95,"assumed"],["Extremo defensivo",3.74,"assumed"],["Medio hacia banda",3.73,"assumed"],["Medio",3.56,"calibrated"],["Medio ofensivo",3.51,"assumed"],["Lateral ofensivo",3.47,"assumed"],["Delantero hacia banda",3.45,"assumed"],["Delantero defensivo",3.41,"assumed"],["Medio defensivo",3.28,"assumed"],["Delantero",3.22,"assumed"],["Lateral",3.21,"assumed"],["Lateral hacia el medio",2.5,"assumed"],["Defensa central ofensivo",2.33,"assumed"],["Defensa central hacia lateral",2.3,"assumed"],["Defensa central",2.0,"assumed"],["Lateral defensivo",1.7,"calibrated"],["Portero",1.61,"calibrated"]]},"Volodymyr Manakin":{"best":["Lateral defensivo",1.26,"calibrated"],"all":[["Lateral defensivo",1.26,"calibrated"],["Portero",1.12,"calibrated"],["Extremo ofensivo",1.02,"calibrated"],["Defensa central",0.37,"assumed"],["Defensa central hacia lateral",0.37,"assumed"],["Defensa central ofensivo",0.37,"assumed"],["Lateral",0.37,"assumed"],["Lateral hacia el medio",0.37,"assumed"],["Lateral ofensivo",0.37,"assumed"],["Medio",0.35,"calibrated"],["Medio hacia banda",0.35,"assumed"],["Medio ofensivo",0.35,"assumed"],["Medio defensivo",0.35,"assumed"],["Delantero",0.3,"assumed"],["Delantero defensivo",0.3,"assumed"],["Delantero hacia banda",0.3,"assumed"],["Extremo",0.27,"assumed"],["Extremo hacia el medio",0.27,"assumed"],["Extremo defensivo",0.27,"assumed"]]}},"calibration":{"keeper":{"label":"Portero","confidence":"calibrated","observations":3,"r2":0.9951,"maxError":0.344},"wingback_defensive":{"label":"Lateral defensivo","confidence":"calibrated","observations":13,"r2":0.9686,"maxError":0.319},"winger_offensive":{"label":"Extremo ofensivo","confidence":"calibrated","observations":24,"r2":0.9879,"maxError":0.425},"inner_midfield":{"label":"Medio","confidence":"calibrated","observations":3,"r2":0.9944,"maxError":0.313},"central_defender":{"label":"Defensa central","confidence":"assumed","observations":0,"r2":null,"maxError":null},"central_defender_towards_wing":{"label":"Defensa central hacia lateral","confidence":"assumed","observations":0,"r2":null,"maxError":null},"central_defender_offensive":{"label":"Defensa central ofensivo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"wingback":{"label":"Lateral","confidence":"assumed","observations":0,"r2":null,"maxError":null},"wingback_towards_middle":{"label":"Lateral hacia el medio","confidence":"assumed","observations":0,"r2":null,"maxError":null},"wingback_offensive":{"label":"Lateral ofensivo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"inner_midfield_towards_wing":{"label":"Medio hacia banda","confidence":"assumed","observations":0,"r2":null,"maxError":null},"inner_midfield_offensive":{"label":"Medio ofensivo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"inner_midfield_defensive":{"label":"Medio defensivo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"winger":{"label":"Extremo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"winger_towards_middle":{"label":"Extremo hacia el medio","confidence":"assumed","observations":0,"r2":null,"maxError":null},"winger_defensive":{"label":"Extremo defensivo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"forward":{"label":"Delantero","confidence":"assumed","observations":0,"r2":null,"maxError":null},"forward_defensive":{"label":"Delantero defensivo","confidence":"assumed","observations":0,"r2":null,"maxError":null},"forward_towards_wing":{"label":"Delantero hacia banda","confidence":"assumed","observations":0,"r2":null,"maxError":null}},"lineup":{"formation":"5-3-2","total":75.15,"calibrated":0.18,"ranking":{"5-3-2":75.15,"5-4-1":74.61,"4-4-2":73.91,"4-5-1":73.37,"4-3-3":73.37,"3-4-3":72.28,"3-5-2":71.97,"5-5-0":70.05},"players":[["Portero","Anders Ebbesen",9.64,"calibrated"],["Lateral","Jorge Salas",7.13,"assumed"],["Defensa central","Leopoldo Campus",5.41,"assumed"],["Defensa central","Nestori Paasu",5.04,"assumed"],["Defensa central","Aydin Davey",5.19,"assumed"],["Lateral","Bořivoj Rouš",5.32,"assumed"],["Extremo","Ciprian Marinași",4.05,"assumed"],["Medio","Raúl Cobos",8.63,"calibrated"],["Extremo","Klaus Bahlek",6.22,"assumed"],["Delantero","Alberto Gutiérrez Caviedes",8.66,"assumed"],["Delantero","Herilala Njakanirina",9.86,"assumed"]],"bench":[["Hugo Chauvel",18930],["Henryk Derc",16210],["Edward Koszel",15480],["Krisztofer Nátor",13630],["Seri Sungkeet",13330],["Viktor Markoč",11270],["Karl-Ove Palmén",10070]]},"weather":{"rain":74.66,"cloudy":75.15,"partly":75.15,"sun":75.64},"training":{"skill":"passing","exposure":0.75,"players":[["Florin Tilvar","20.83",4,10.0],["Rian Antuma","21.19",5,10.3],["Karl-Ove Palmén","20.91",7,10.4],["Lander Fripont","20.89",7,10.4],["Aydin Davey","22.20",5,10.8],["Bořivoj Rouš","23.65",8,11.9],["Ciprian Marinași","24.3",6,11.9],["Viktor Markoč","23.89",7,11.9],["Henryk Derc","23.104",9,12.2],["Anders Ebbesen","27.50",1,12.3],["Edward Koszel","25.88",4,12.5],["Leopoldo Campus","24.72",8,12.5],["Seri Sungkeet","24.99",7,12.5],["Jorge Salas","24.70",10,12.7],["Hugo Chauvel","25.51",8,12.9],["Krisztofer Nátor","25.104",8,13.2],["Nestori Paasu","26.57",8,13.6],["Klaus Bahlek","27.81",13,14.8],["Raúl Cobos","28.68",15,15.6],["Herilala Njakanirina","30.1",13,16.4],["Alberto Gutiérrez Caviedes","30.97",13,17.1],["Robert Horhoi","41.27",1,23.0],["Cándido Cacheiro","42.33",0,24.1],["Volodymyr Manakin","44.52",0,26.6]]},"valuations":[["Anders Ebbesen",1199893,779930,1739845,"set_pieces",20,0,"vende ahora: su valor solo va a bajar"],["Alberto Gutiérrez Caviedes",213893,139031,310145,"scoring",18,0,"vende ahora: su valor solo va a bajar"],["Raúl Cobos",90183,58619,130765,"passing",15,0,"vende ahora: su valor solo va a bajar"],["Herilala Njakanirina",70988,46142,102933,"scoring",15,0,"vende ahora: su valor solo va a bajar"],["Jorge Salas",56517,36736,81950,"defending",13,0,"vende ahora: su valor solo va a bajar"],["Leopoldo Campus",55374,35993,80292,"defending",13,0,"vende ahora: su valor solo va a bajar"],["Klaus Bahlek",39473,25657,57236,"defending",13,0,"vende ahora: su valor solo va a bajar"],["Edward Koszel",30550,19858,44298,"defending",12,0,"vende ahora: su valor solo va a bajar"],["Nestori Paasu",28888,18777,41887,"defending",12,0,"vende ahora: su valor solo va a bajar"],["Aydin Davey",25621,16654,37151,"defending",11,0,"vende ahora: su valor solo va a bajar"],["Viktor Markoč",23784,15459,34486,"winger",11,0,"vende ahora: su valor solo va a bajar"],["Krisztofer Nátor",18255,11866,26470,"defending",11,0,"vende ahora: su valor solo va a bajar"],["Karl-Ove Palmén",17482,11363,25349,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Rian Antuma",16305,10598,23642,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Lander Fripont",15901,10336,23057,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Henryk Derc",14780,9607,21432,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Bořivoj Rouš",14348,9326,20804,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Ciprian Marinași",13625,8857,19757,"winger",10,0,"vende ahora: su valor solo va a bajar"],["Seri Sungkeet",13004,8453,18856,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Hugo Chauvel",12649,8222,18341,"defending",10,0,"vende ahora: su valor solo va a bajar"],["Florin Tilvar",10586,6881,15349,"defending",9,0,"vende ahora: su valor solo va a bajar"],["Robert Horhoi",1802,1171,2613,"set_pieces",12,13,"espera 13 semanas y ganarás un 5% más"],["Volodymyr Manakin",263,171,381,"set_pieces",8,9,"espera 9 semanas y ganarás un 12% más"],["Cándido Cacheiro",33,21,48,"playmaking",4,12,"espera 12 semanas y ganarás un 6% más"]],"roi":{"player":"Florin Tilvar","rows":[[4,5,-243,10.0,-24],[5,6,-282,10.0,-28],[6,7,-372,10.0,-37]]},"experience":[["Volodymyr Manakin",16,9],["Robert Horhoi",13,9],["Cándido Cacheiro",10,9],["Alberto Gutiérrez Caviedes",9,9],["Herilala Njakanirina",9,9],["Raúl Cobos",9,9],["Anders Ebbesen",7,9],["Klaus Bahlek",6,9]],"match":{"sectors":[["Mediocampo",14,15,-1],["Defensa derecha",45,30,15],["Defensa central",61,27,34],["Defensa izquierda",43,25,18],["Ataque derecha",10,28,-18],["Ataque central",9,27,-18],["Ataque izquierda",13,24,-11]],"hatstats":[223,206],"loddar":[105.72,100.69],"verdict":"inferior en generación y en definición","strengths":["Defensa derecha","Defensa central","Defensa izquierda"],"weaknesses":["Ataque derecha","Ataque central","Ataque izquierda"],"possession":[48,44]},"matches":[["Pulgas Arrechas","C. A. CHACO F. E.",1,2,"2026-06-24",9,"FINISHED"],["Atletico di Colombia","Pulgas Arrechas",0,2,"2026-06-28",1,"FINISHED"],["Pulgas Arrechas","Lakers Doggy Dog",6,7,"2026-07-01",9,"FINISHED"],["Pulgas Arrechas","etbenianos1",1,2,"2026-07-05",1,"FINISHED"],["Pulgas Arrechas","Aracelis",0,3,"2026-07-06",50,"FINISHED"],["Pulgas Arrechas","FC Žárovky",0,3,"2026-07-06",50,"FINISHED"],["Pulgas Arrechas","FC TOPNICI1",0,2,"2026-07-07",50,"FINISHED"],["Pulgas Arrechas","Atletico La Quebrada",0,2,"2026-07-07",50,"FINISHED"],["fc maitoutou","Pulgas Arrechas",4,0,"2026-07-08",50,"FINISHED"],["Pulgas Arrechas","FC De Horna De Dolna",0,0,"2026-07-08",50,"FINISHED"],["Pulgas Arrechas","Nibelungen Korps",1,5,"2026-07-08",9,"FINISHED"],["Pulgas Arrechas","A.S. Balù Calcio 2015",6,1,"2026-07-09",50,"FINISHED"]],"league":[[1,"LosNeithas F.C",0,0,0,2512155],[2,"etbenianos1",0,0,0,2688899],[3,"Pulgas Arrechas",0,0,0,537758],[4,"Nariño Rayo",0,0,0,3271521],[5,"Atletico di Colombia",0,0,0,3347253],[6,"NeiNacional F.C.",0,0,0,3357872],[7,"Cauca CF",0,0,0,3271519],[8,"San Andrés y Providencia Real",0,0,0,3271520]],"arena":{"occupancy":{"general":100.0,"preferentes":100.0,"tribunas":53.52516654330126,"palcos":100.0},"total":91.6,"soldout":["general","preferentes","palcos"],"lost":95437,"revenue":692784,"full":788220,"expansion":[[5000,2250000,243250,"se amortiza en 9.2 temporadas"],[10000,4500000,486500,"se amortiza en 9.2 temporadas"],[20000,9000000,973000,"se amortiza en 9.2 temporadas"]]},"economy":{"structural":-216741,"cash":21034174,"forecast":[[4,20106370,20132727,20154840],[13,18067111,18103852,18142628],[26,15124536,15174614,15229324],[39,12182775,12246373,12310670],[52,9244351,9316801,9392647]],"broke":null},"academy":{"invested":11240000,"earned":0,"net":-11240000,"seasons":35,"verdict":"en pérdidas: aún no has vendido ningún canterano"},"insights":[["warning","8 jugador(es) caros de entrenar","Volodymyr Manakin tiene 44 años y necesita 26.6 semanas por nivel. Un jugador de 20 tarda ~7,5.","Considera entrenar a los jóvenes: la edad pesa 4,6% por año, el nivel solo 0,8%.","entrenamiento"],["warning","Tu club pierde dinero cada semana","El balance sin transferencias es -216,741 US$ por semana. Con la caja actual aguantas unas 97 semanas.","Recorta salarios o sube ingresos: vender jugadores solo tapa el agujero.","economía"],["warning","Tu academia no ha recuperado la inversión","Llevas 11,240,000 US$ invertidos y has generado 0. Diferencia: -11,240,000.","Decide si el proyecto de cantera compensa o si ese dinero rinde más en el mercado.","academia"],["opportunity","3 sector(es) agotados en el estadio","La asistencia observada ya no mide tu demanda real: está limitada por la capacidad. Además dejas de ingresar 95,437 US$ por asientos vacíos en otros sectores.","Valora ampliar los sectores que se llenan, no los que sobran.","estadio"],["info","5 jugadores de 30+ años","Su valor de mercado cae rápido a partir de los 28.","Revisa la ventana óptima de venta de cada uno en el módulo de transferencias.","equipo"]],"players":[["Alberto Gutiérrez Caviedes",30,97,201460,5,7,72312,0,1,4,7,4,13,18,9,9],["Anders Ebbesen",27,50,50350,6,8,24252,0,15,8,2,1,1,3,22,7],["Aydin Davey",22,20,14880,7,8,3900,0,1,11,4,5,5,4,1,3],["Bořivoj Rouš",23,65,11880,7,7,1596,0,1,10,5,5,8,4,1,3],["Cándido Cacheiro",42,33,0,2,1,300,0,0,0,4,0,0,0,0,10],["Ciprian Marinași",24,3,7130,6,8,1452,0,1,4,5,10,6,2,4,3],["Edward Koszel",25,88,15480,5,7,4692,0,2,12,5,4,4,3,1,4],["Florin Tilvar",20,83,1670,4,5,876,2,1,9,3,3,4,4,1,2],["Henryk Derc",23,104,16210,6,7,1272,5,1,10,5,6,9,5,1,3],["Herilala Njakanirina",30,1,262400,7,7,32052,1,1,5,13,6,13,15,2,9],["Hugo Chauvel",25,51,18930,3,7,2916,4,1,10,9,5,8,5,1,5],["Jorge Salas",24,70,78940,7,7,11244,0,2,13,4,9,10,5,1,5],["Karl-Ove Palmén",20,91,10070,5,6,2040,4,2,10,3,8,7,2,1,2],["Klaus Bahlek",27,81,179090,6,7,16836,0,1,13,3,11,13,5,2,6],["Krisztofer Nátor",25,104,13630,3,7,3636,0,1,11,6,4,8,3,4,3],["Lander Fripont",20,89,7980,4,7,1308,0,1,10,2,5,7,4,5,2],["Leopoldo Campus",24,72,40720,6,7,9684,0,1,13,4,5,8,3,1,3],["Nestori Paasu",26,57,25920,6,7,6084,0,1,12,4,3,8,6,3,3],["Raúl Cobos",28,68,206720,7,6,18804,0,1,11,12,3,15,4,1,9],["Rian Antuma",21,19,8840,6,7,1668,0,1,10,5,7,5,2,3,3],["Robert Horhoi",41,27,160,3,1,408,0,6,0,0,0,1,0,12,13],["Seri Sungkeet",24,99,13330,7,8,1980,0,1,10,5,4,7,4,4,3],["Viktor Markoč",23,89,11270,5,7,1116,5,1,4,6,11,7,3,4,3],["Volodymyr Manakin",44,52,0,4,1,300,2,0,0,0,0,0,0,8,16]]};</script>
+<script>const NF = new Intl.NumberFormat("es-CO");
+const money = v => "$ " + NF.format(Math.round(v));
+const short = v => {
+  const a = Math.abs(v), s = v < 0 ? "−" : "";
+  if (a >= 1e6) return s + (a / 1e6).toFixed(2).replace(".", ",") + " M";
+  if (a >= 1e3) return s + Math.round(a / 1e3) + " k";
+  return s + Math.round(a);
+};
+const SPECS = {1:"Técnico",2:"Rápido",3:"Potente",4:"Imprevisible",5:"Cabeceador",6:"Regenerativo",8:"Portero de apoyo"};
+const skCls = v => v >= 15 ? "sk hi" : v >= 10 ? "sk mid" : v >= 6 ? "sk" : "sk low";
+const tag = c => `<span class="tag ${c === "calibrated" ? "cal" : "asm"}">${c === "calibrated" ? "calibrado" : "supuesto"}</span>`;
+const el = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d; };
+
+function bars(items, cls) {
+  const mx = Math.max(...items.map(i => Math.abs(i[1]))) || 1;
+  return items.map(([n, v, lab]) =>
+    `<div class="hbar"><div class="n">${n}</div><div class="t"><div class="${cls || ""}" style="width:${Math.max(2, Math.abs(v) / mx * 100)}%"></div></div><div class="v num">${lab !== undefined ? lab : short(v)}</div></div>`
+  ).join("");
+}
+
+function panel(title, meta, body) {
+  return `<div class="panel"><div class="head"><b>${title}</b><span>${meta || ""}</span></div>${body}</div>`;
+}
+
+function kpi(lbl, val, hint, tone) {
+  const c = tone === "pos" ? "color:var(--pos)" : tone === "neg" ? "color:var(--neg)" : "";
+  return `<div class="card"><div class="lbl">${lbl}</div><div class="val num" style="${c}">${val}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
+}
+
+/* ── tabla de plantilla, ordenable ─────────────────────────────── */
+const COLS = [["Jugador", 0], ["Mejor posición", -1], ["Edad", 1], ["TSI", 3], ["For", 4], ["Res", 5],
+  ["Po", 8], ["De", 9], ["Jg", 10], ["La", 11], ["Pa", 12], ["An", 13], ["BP", 14], ["Salario", 6]];
+let sk = 3, sd = -1;
+
+function rosterTable(id) {
+  const rows = [...D.players].sort((a, b) => {
+    if (sk === -1) { const x = D.positions[a[0]].best[1], y = D.positions[b[0]].best[1]; return sd * (x - y); }
+    const x = a[sk], y = b[sk];
+    return typeof x === "string" ? sd * x.localeCompare(y) : sd * (x - y);
+  });
+  let h = "<table><thead><tr>";
+  for (const [l, i] of COLS) h += `<th data-k="${i}" style="${i === -1 || i === 0 ? "text-align:left" : ""}">${l}${i === sk ? (sd < 0 ? " ↓" : " ↑") : ""}</th>`;
+  h += "</tr></thead><tbody>";
+  for (const p of rows) {
+    const bp = D.positions[p[0]].best;
+    const spec = SPECS[p[7]] ? `<span class="tag asm">${SPECS[p[7]]}</span>` : "";
+    h += `<tr><td class="pname">${p[0]}${spec}</td>`;
+    h += `<td style="text-align:left;white-space:nowrap">${bp[0]} <b class="num" style="color:${bp[2] === "calibrated" ? "var(--pos)" : "var(--accent)"}">${bp[1].toFixed(2)}</b></td>`;
+    h += `<td class="num"${p[1] >= 33 ? ' style="color:var(--muted)"' : ""}>${p[1]}.${p[2]}</td>`;
+    h += `<td class="num">${NF.format(p[3])}</td><td class="num">${p[4]}</td><td class="num">${p[5]}</td>`;
+    for (let i = 8; i <= 14; i++) h += `<td class="num ${skCls(p[i])}">${p[i]}</td>`;
+    h += `<td class="num" style="color:var(--muted)">${NF.format(p[6])}</td></tr>`;
+  }
+  const node = document.getElementById(id);
+  node.innerHTML = h + "</tbody></table>";
+  node.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const k = +th.dataset.k;
+    if (k === sk) sd *= -1; else { sk = k; sd = (k === 0) ? 1 : -1; }
+    rosterTable(id);
+  });
+}
+
+/* ── vistas ────────────────────────────────────────────────────── */
+const V = {};
+
+V.dashboard = () => {
+  const e = D.economy, a = D.arena, lu = D.lineup;
+  const tsi = D.players.reduce((s, p) => s + p[3], 0);
+  const sal = D.players.reduce((s, p) => s + p[6], 0);
+  const edad = D.players.reduce((s, p) => s + p[1] + p[2] / 112, 0) / D.players.length;
+  return `<h1>Buenas, juanes840</h1><div class="sub">24 jugadores · sin lesiones · temporada 83 recién empezada</div>
+  <div class="grid kpis">
+    ${kpi("Caja", short(e.cash), "estructural " + short(e.structural) + "/sem", "")}
+    ${kpi("Balance estructural", short(e.structural), "sin transferencias", "neg")}
+    ${kpi("Salarios", short(sal), D.players.length + " jugadores")}
+    ${kpi("TSI total", NF.format(tsi), "edad media " + edad.toFixed(1))}
+  </div>
+  <div class="grid two"><div>
+    ${panel("Mejor once posible", lu.formation + " · rating " + lu.total, `<div class="note">El optimizador prueba las 8 formaciones y resuelve la asignación óptima de 24 jugadores a 11 puestos. No elige el mejor por puesto: eso da peores equipos.</div>` + bars(lu.players.slice(0, 6).map(x => [x[0] + " · " + x[1], x[2], x[2].toFixed(2)])))}
+    ${panel("Próximas subidas de nivel", "entrenando pases", bars(D.training.players.slice(0, 6).map(x => [x[0] + " · " + x[1], 20 - x[3], x[3].toFixed(1) + " sem"]), "pos"))}
+  </div><div>
+    ${panel("Alertas", D.insights.length + " activas", D.insights.slice(0, 4).map(i =>
+      `<div class="ins"><div class="dot" style="background:var(--${i[0] === "danger" ? "neg" : i[0] === "warning" ? "warn" : i[0] === "opportunity" ? "pos" : "muted"})"></div><div><b>${i[1]}</b><p>${i[2]}</p></div></div>`).join(""))}
+    ${panel("Estadio", a.total + "% de ocupación", `<div class="note">Sectores agotados: <b>${a.soldout.join(", ")}</b>. Dejas de ingresar ${money(a.lost)} por asientos vacíos en Tribunas.</div>`)}
+  </div></div>`;
+};
+
+V.equipo = () => {
+  const buckets = [["17-21", 0], ["22-24", 0], ["25-27", 0], ["28-30", 0], ["31+", 0]];
+  D.players.forEach(p => { const a = p[1]; buckets[a <= 21 ? 0 : a <= 24 ? 1 : a <= 27 ? 2 : a <= 30 ? 3 : 4][1]++; });
+  return `<h1>Equipo</h1><div class="sub">Plantilla completa con la mejor posición calculada de cada jugador</div>
+  ${panel("Plantilla", "clic en las columnas para ordenar", '<div id="roster" style="overflow-x:auto"></div>')}
+  <div class="grid half">
+    ${panel("Distribución de edades", "", `<div style="padding:10px 16px">${bars(buckets.map(b => [b[0] + " años", b[1], b[1]]))}</div>`)}
+    ${panel("Top TSI", "", `<div style="padding:10px 16px">${bars([...D.players].sort((a, b) => b[3] - a[3]).slice(0, 8).map(p => [p[0], p[3], NF.format(p[3])]))}</div>`)}
+  </div>`;
+};
+
+V.posiciones = () => {
+  const names = Object.keys(D.positions);
+  const sel = window.__pos || names[0];
+  const p = D.positions[sel];
+  const opts = names.map(n => `<option${n === sel ? " selected" : ""}>${n}</option>`).join("");
+  const rows = p.all.map(r => `<div class="hbar"><div class="n">${r[0]}</div><div class="t"><div class="${r[2] === "calibrated" ? "pos" : ""}" style="width:${r[1] / 11 * 100}%"></div></div><div class="v num">${r[1].toFixed(2)}${r[2] === "calibrated" ? " ✓" : ""}</div></div>`).join("");
+  return `<h1>Posiciones</h1><div class="sub">Las 19 variantes de posición con sus órdenes individuales · el motor central del producto</div>
+  ${panel("Rating por posición", "✓ = calibrado con datos reales",
+    `<div style="padding:12px 16px"><select id="possel" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;margin-bottom:12px">${opts}</select>${rows}</div>`)}
+  <div class="note">Cuatro posiciones están ajustadas contra ratings observados en Hattrick Control (extremo ofensivo con 24 observaciones y R² 0,988; lateral defensivo con 13; medio y portero con 3). Las otras quince se anclaron a la escala de su familia y están marcadas como supuestas.</div>`;
+};
+
+V.alineacion = () => {
+  const lu = D.lineup;
+  const byLine = { por: [], def: [], med: [], del: [] };
+  lu.players.forEach(a => {
+    const l = a[0].toLowerCase();
+    if (l.includes("portero")) byLine.por.push(a);
+    else if (l.includes("defensa") || l.includes("lateral")) byLine.def.push(a);
+    else if (l.includes("delantero")) byLine.del.push(a);
+    else byLine.med.push(a);
+  });
+  const slot = a => `<div class="slot"><div class="l">${a[0]}</div><div class="p">${a[1]}</div><div class="r" style="color:${a[3] === "calibrated" ? "var(--pos)" : "var(--accent)"}">${a[2].toFixed(2)}</div></div>`;
+  const rank = Object.entries(lu.ranking).map(([f, v]) => [f, v, v.toFixed(1)]);
+  const wx = Object.entries(D.weather).map(([w, v]) => [{ rain: "Lluvia", cloudy: "Nublado", partly: "Parcial", sun: "Sol" }[w], v, v.toFixed(1)]);
+  return `<h1>Alineación <span class="pill b">${lu.formation}</span></h1>
+  <div class="sub">Asignación óptima resuelta con el algoritmo húngaro · rating total ${lu.total}</div>
+  <div class="pitch">
+    <div class="row">${byLine.del.map(slot).join("")}</div>
+    <div class="row">${byLine.med.map(slot).join("")}</div>
+    <div class="row">${byLine.def.map(slot).join("")}</div>
+    <div class="row">${byLine.por.map(slot).join("")}</div>
+  </div>
+  <div class="grid half" style="margin-top:14px">
+    ${panel("Ranking de formaciones", "rating total", `<div style="padding:10px 16px">${bars(rank)}</div>`)}
+    ${panel("Impacto del clima", "sobre el mismo once", `<div style="padding:10px 16px">${bars(wx)}</div><div class="note">El clima favorece o perjudica según la especialidad de cada jugador: los técnicos rinden con sol, los potentes con lluvia.</div>`)}
+  </div>
+  ${panel("Banquillo", "por TSI", `<div style="padding:10px 16px">${bars(lu.bench.map(b => [b[0], b[1], NF.format(b[1])]))}</div>`)}`;
+};
+
+V.entrenamiento = () => {
+  const t = D.training, roi = D.roi;
+  return `<h1>Entrenamiento <span class="pill g">pases largos</span></h1>
+  <div class="sub">Intensidad 100% · resistencia 25% · entrenador Volodymyr Manakin (excelente) · 10 asistentes</div>
+  <div class="grid kpis">
+    ${kpi("Exposición efectiva", (t.exposure * 100).toFixed(0) + "%", "intensidad x (1 − resistencia)")}
+    ${kpi("Subida más próxima", t.players[0][3].toFixed(1) + " sem", t.players[0][0])}
+    ${kpi("Más lento", t.players[t.players.length - 1][3].toFixed(1) + " sem", t.players[t.players.length - 1][0])}
+    ${kpi("Valor por semana", short(roi.rows[0][4]), "entrenando a " + roi.player)}
+  </div>
+  ${panel("Semanas hasta el próximo nivel", "modelo calibrado · error < 0,1 semanas",
+    `<div style="padding:10px 16px">${bars(t.players.slice(0, 14).map(p => [p[0] + " · " + p[1] + " · pases " + p[2], 20 - p[3], p[3].toFixed(1) + " sem"]), "pos")}</div>
+     <div class="note">La edad manda: cumplir un año encarece el entrenamiento un 4,6%, subir un nivel solo un 0,8%. Por eso dos jugadores de la misma edad tardan lo mismo aunque tengan niveles muy distintos.</div>`)}
+  ${panel("Retorno del entrenamiento", roi.player,
+    "<table><thead><tr><th>Nivel</th><th>Ganancia de valor</th><th>Semanas</th><th>Valor por semana</th></tr></thead><tbody>" +
+    roi.rows.map(r => `<tr><td>${r[0]} → ${r[1]}</td><td class="num">${money(r[2])}</td><td class="num">${r[3]}</td><td class="num" style="color:var(--pos)">${money(r[4])}</td></tr>`).join("") +
+    "</tbody></table>")}`;
+};
+
+V.experiencia = () => `<h1>Experiencia</h1>
+  <div class="sub">Un partido de liga vale 1,0 · un amistoso internacional 0,2 · hacen falta ~26,3 para subir nivel</div>
+  ${panel("Experiencia de la plantilla", "verificado con error 0,0000",
+    `<div style="padding:10px 16px">${bars(D.experience.map(e => [e[0], e[1], "nivel " + e[1]]))}</div>
+     <div class="note">Los pesos se dedujeron de la pantalla Experiencia de Hattrick Control y reconstruyen sus 19 filas con error cero. La experiencia no se entrena, se acumula: por eso un veterano es difícil de reemplazar aunque sus skills sean peores.</div>`)}`;
+
+V.partidos = () => {
+  const m = D.match;
+  const sect = m.sectors.map(s => `<div class="hbar"><div class="n">${s[0]}</div><div class="t"><div class="${s[3] > 0 ? "pos" : "neg"}" style="width:${Math.min(100, s[1] / 65 * 100)}%"></div></div><div class="v num">${s[1]} vs ${s[2]}</div></div>`).join("");
+  return `<h1>Partidos</h1><div class="sub">Último de liga · Pulgas Arrechas 1 — 2 etbenianos1</div>
+  <div class="grid kpis">
+    ${kpi("HatStats", m.hatstats[0] + " – " + m.hatstats[1], m.hatstats[0] > m.hatstats[1] ? "ventaja propia" : "ventaja rival")}
+    ${kpi("LoddarStats", m.loddar[0].toFixed(1) + " – " + m.loddar[1].toFixed(1))}
+    ${kpi("Posesión 1ª/2ª", m.possession[0] + "% / " + m.possession[1] + "%")}
+    ${kpi("Sectores ganados", m.strengths.length + " de 7", m.strengths.join(", ") || "—", "pos")}
+  </div>
+  ${panel("Ratings por sector", "propio vs rival", `<div style="padding:10px 16px">${sect}</div>
+    <div class="note"><b>Diagnóstico:</b> ${m.verdict}. Fuerte en ${m.strengths.join(", ") || "nada"}; débil en ${m.weaknesses.join(", ") || "nada"}.</div>`)}
+  ${panel("Historial de partidos", "últimos " + D.matches.length,
+    "<table><thead><tr><th>Fecha</th><th>Partido</th><th>Res.</th><th>Tipo</th></tr></thead><tbody>" +
+    D.matches.map(x => `<tr><td>${x[4]}</td><td style="text-align:left">${x[0]} — ${x[1]}</td><td class="num">${x[2] < 0 ? "—" : x[2] + " : " + x[3]}</td><td style="color:var(--muted)">${{ 1: "Liga", 2: "Clasificación", 3: "Copa", 4: "Amistoso", 5: "Amistoso int.", 8: "Torneo", 9: "Amistoso int." }[x[5]] || x[5]}</td></tr>`).join("") +
+    "</tbody></table>")}`;
+};
+
+V.liga = () => panel("Serie V.92", "temporada 83 · jornada 0",
+  "<table><thead><tr><th>#</th><th>Equipo</th><th>Pts</th><th>GF</th><th>GC</th></tr></thead><tbody>" +
+  D.league.map(t => `<tr class="${t[5] === 537758 ? "me" : ""}"><td class="num">${t[0]}</td><td style="text-align:left">${t[1]}</td><td class="num">${t[2]}</td><td class="num">${t[3]}</td><td class="num">${t[4]}</td></tr>`).join("") +
+  "</tbody></table>");
+
+V.predicciones = () => {
+  const dist = [2.4, 22.9, 69.0, 5.2, 0.5, 0, 0, 0];
+  return `<h1>Predicciones <span class="pill b">10.000 simulaciones</span></h1>
+  <div class="sub">Monte Carlo con priors Poisson del archivo de la temporada anterior</div>
+  <div class="grid kpis">${kpi("P(campeón)", "2,4%")}${kpi("P(top 2)", "25,4%")}${kpi("P(descenso)", "0,0%", "", "pos")}${kpi("Posición esperada", "2,8", "28,4 puntos")}</div>
+  ${panel("Distribución de posiciones finales", "% de simulaciones",
+    `<div style="padding:10px 16px">${bars(dist.map((v, i) => [(i + 1) + "º puesto", Math.max(v, 0.3), v.toFixed(1) + "%"]), "pos")}</div>
+     <div class="note">Los partidos ya jugados de la temporada en curso entran como hechos, no se simulan. El modelo se re-estima tras cada jornada sincronizada, y como guardamos histórico podrás ver cómo evoluciona tu probabilidad de ascenso a lo largo de la temporada.</div>`)}`;
+};
+
+V.economia = () => {
+  const e = D.economy;
+  return `<h1>Economía</h1><div class="sub">Proyección a 52 semanas con bandas de confianza</div>
+  <div class="grid kpis">
+    ${kpi("Caja", short(e.cash))}
+    ${kpi("Balance estructural", short(e.structural) + "/sem", "sin transferencias", "neg")}
+    ${kpi("Caja a 52 semanas", short(e.forecast[4][2]), "mediana")}
+    ${kpi("Se queda sin caja", e.broke ? "semana " + e.broke : "no ocurre", "en el horizonte de un año", e.broke ? "neg" : "pos")}
+  </div>
+  ${panel("Proyección de caja", "p10 · p50 · p90",
+    "<table><thead><tr><th>Semana</th><th>p10</th><th>Mediana</th><th>p90</th></tr></thead><tbody>" +
+    e.forecast.map(f => `<tr><td>${f[0]}</td><td class="num" style="color:var(--muted)">${money(f[1])}</td><td class="num">${money(f[2])}</td><td class="num" style="color:var(--muted)">${money(f[3])}</td></tr>`).join("") +
+    "</tbody></table><div class='note'>Con menos de cuatro semanas de histórico se usa un modelo bottom-up de salarios, staff, estadio y patrocinio. A partir de ahí compiten cinco modelos de series temporales y gana el que mejor prediga tu propio histórico.</div>")}`;
+};
+
+V.estadio = () => {
+  const a = D.arena;
+  const occ = Object.entries(a.occupancy).map(([k, v]) => [{ general: "Grada General", preferentes: "Preferentes", tribunas: "Tribunas", palcos: "Palcos" }[k], v, v.toFixed(1) + "%"]);
+  return `<h1>Estadio <span class="pill g">${a.total}% ocupación</span></h1>
+  <div class="sub">Chapecoense · 60.002 asientos · construido en 2017 y sin modificar desde entonces</div>
+  <div class="grid kpis">
+    ${kpi("Ingresos del partido", money(a.revenue))}
+    ${kpi("A estadio lleno", money(a.full))}
+    ${kpi("Dejas de ingresar", money(a.lost), "asientos vacíos", "neg")}
+    ${kpi("Sectores agotados", a.soldout.length + " de 4", a.soldout.join(", "), "pos")}
+  </div>
+  ${panel("Ocupación por sector", "partido de liga", `<div style="padding:10px 16px">${bars(occ, "pos")}</div>
+    <div class="note">Tres sectores al 100% significa que la asistencia observada ya no mide tu demanda real: está limitada por la capacidad. Ignorar eso lleva a subestimar el retorno de una ampliación.</div>`)}
+  ${panel("Simulador de ampliación", "Grada General",
+    "<table><thead><tr><th>Asientos</th><th>Coste de obra</th><th>Neto por temporada</th><th>Veredicto</th></tr></thead><tbody>" +
+    a.expansion.map(x => `<tr><td class="num">${NF.format(x[0])}</td><td class="num">${money(x[1])}</td><td class="num" style="color:var(--pos)">${money(x[2])}</td><td style="text-align:right;color:var(--muted)">${x[3]}</td></tr>`).join("") +
+    "</tbody></table><div class='note'>Los costes por asiento son parámetros de ejemplo hasta calibrarlos con datos reales de Hattrick.</div>")}`;
+};
+
+V.transferencias = () => panel("Valoración de la plantilla", "precio esperado con banda",
+  "<table><thead><tr><th>Jugador</th><th>Skill dominante</th><th>Precio esperado</th><th>Banda</th><th>Recomendación</th></tr></thead><tbody>" +
+  D.valuations.slice(0, 14).map(v => `<tr><td class="pname">${v[0]}</td><td style="text-align:right;color:var(--muted)">${v[4]} ${v[5]}</td><td class="num">${money(v[1])}</td><td class="num" style="color:var(--muted)">${short(v[2])}–${short(v[3])}</td><td style="text-align:right;font-size:12px;color:${v[6] === 0 ? "var(--warn)" : "var(--muted)"}">${v[7]}</td></tr>`).join("") +
+  "</tbody></table><div class='note'>Los coeficientes de precio están marcados como supuestos: no hemos observado ventas suficientes. El motor está construido para recalibrarse contra tus propias transferencias en cuanto haya muestras, y por eso la banda es deliberadamente ancha.</div>");
+
+V.academia = () => {
+  const a = D.academy;
+  return `<h1>Academia</h1><div class="sub">Cantera cerrada actualmente · nivel "no sabe" · inversión semanal 0</div>
+  <div class="grid kpis">
+    ${kpi("Invertido histórico", short(a.invested), a.seasons + " temporadas", "neg")}
+    ${kpi("Ingresos por ventas", short(a.earned))}
+    ${kpi("Resultado neto", short(a.net), "", "neg")}
+    ${kpi("Estado", "Cerrada", "temporada 83 sin gasto")}
+  </div>
+  ${panel("Rentabilidad de la cantera", "desde la temporada 47",
+    `<div class="note"><b>${a.verdict}</b>. Hattrick Control muestra la inversión acumulada y los ingresos por categoría en dos tablas que nunca cruza; esta es la pregunta que ninguna herramienta de Hattrick responde hoy.<br><br>Con la academia cerrada el módulo no tiene datos vivos. Al reabrirla se activan la estimación de potencial, el ranking interno y la alerta de fecha límite de promoción.</div>`)}`;
+};
+
+V.alertas = () => panel("Centro de alertas", D.insights.length + " activas",
+  D.insights.map(i => {
+    const col = i[0] === "danger" ? "neg" : i[0] === "warning" ? "warn" : i[0] === "opportunity" ? "pos" : "muted";
+    return `<div class="ins"><div class="dot" style="background:var(--${col})"></div><div style="flex:1"><b>${i[1]}</b><p>${i[2]}</p>${i[3] ? `<div class="act">→ ${i[3]}</div>` : ""}</div><div style="font-size:11px;color:var(--muted)">${i[4]}</div></div>`;
+  }).join(""));
+
+V.calibracion = () => {
+  const c = D.calibration;
+  const rows = Object.entries(c).sort((a, b) => (b[1].observations || 0) - (a[1].observations || 0));
+  return `<h1>Calibración</h1><div class="sub">De dónde sale cada número · transparencia sobre lo verificado y lo supuesto</div>
+  ${panel("Estado del motor de posiciones", "4 de 19 calibradas",
+    "<table><thead><tr><th>Posición</th><th>Confianza</th><th>Observaciones</th><th>R²</th><th>Error máx</th></tr></thead><tbody>" +
+    rows.map(([k, v]) => `<tr><td>${v.label}</td><td style="text-align:right">${tag(v.confidence)}</td><td class="num">${v.observations || "—"}</td><td class="num">${v.r2 ? v.r2.toFixed(4) : "—"}</td><td class="num">${v.maxError ? v.maxError.toFixed(2) : "—"}</td></tr>`).join("") +
+    "</tbody></table>")}
+  <div class="note">Cuatro motores más están calibrados con datos reales: entrenamiento (R² 0,999 sobre 18 observaciones), experiencia (error 0,0000 sobre 19), precio de entrada de estadio (exacto) y exposición al entrenamiento juvenil. El registro completo, incluidos los tres errores que cometimos y cómo los desmintieron los datos, está en docs/16.</div>`;
+};
+
+/* ── navegación ────────────────────────────────────────────────── */
+function render(view) {
+  document.getElementById("content").innerHTML = (V[view] || (() => "<div class='note'>Módulo en construcción</div>"))();
+  if (view === "equipo") rosterTable("roster");
+  if (view === "posiciones") {
+    const s = document.getElementById("possel");
+    if (s) s.onchange = () => { window.__pos = s.value; render("posiciones"); };
+  }
+  window.scrollTo(0, 0);
+}
+document.getElementById("nav").addEventListener("click", e => {
+  const a = e.target.closest("a[data-v]");
+  if (!a) return;
+  document.querySelectorAll("#nav a").forEach(x => x.classList.remove("active"));
+  a.classList.add("active");
+  document.getElementById("crumb").textContent = a.textContent.trim();
+  render(a.dataset.v);
+});
+render("dashboard");
+</script></body></html>

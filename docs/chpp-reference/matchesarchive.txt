@@ -1,0 +1,69 @@
+<HattrickData>
+-<Team>
+<TeamID> : unsigned Integer
+The team's TeamID.
+</TeamID>
+<TeamName> : String
+The full name of the team.
+</TeamName>
+<FirstMatchDate> : DateTime
+First date to show matches in archive from.
+</FirstMatchDate>
+<LastMatchDate> : DateTime
+Last date to show matches in archive to.
+</LastMatchDate>
+-<MatchList>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique identifier of the match.
+</MatchID>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the Away team in the match. (Negative for street teams)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the Away team in the match.
+</AwayTeamName>
+</AwayTeam>
+<MatchDate> : DateTime
+The start date and time (kick-off) of the match.
+</MatchDate>
+<MatchType> : MatchTypeID
+Integer defining the type of match.
+</MatchType>
+<MatchContextId> : unsigned Integer
+This will be either LeagueLevelUnitId (for League), CupId (Cup, Hattrick Masters, World Cup and U-20 World Cup) or 0 for friendly and qualification
+</MatchContextId>
+<SourceSystem> : String
+The name of the source system that playes the match
+</SourceSystem>
+<MatchRuleId> : MatchRuleID
+This will contain the rules that's in place for the ladder or tournament in question. It's provided for all matchtypes and defaults to 0 = No rules
+</MatchRuleId>
+<CupId> : unsigned Integer
+Integer defining the id of the cup.
+</CupId>
+<CupLevel> : unsigned Integer
+1 = National/Divisional cup, 2 = Challenger cup, 3 = Consolation cup. 0 if MatchType is not 3.
+</CupLevel>
+<CupLevelIndex> : unsigned Integer
+In Challenger cups: 1 = Emerald (start week 2), 2 = Ruby (start week 3), 3 = Sapphire (start week 4). Always 1 for National/Divisional (main cups) and Consolation cups. 0 if MatchType is not 3.
+</CupLevelIndex>
+<HomeGoals> : unsigned Integer*
+The current number of goals in the match for the home team. If the match is still upcoming or ongoing, this tag is not sent.
+</HomeGoals>
+<AwayGoals> : unsigned Integer*
+The current number of goals in the match for the away team. If the match is still upcoming or ongoing, this tag is not sent.
+</AwayGoals>
+</Match>
+</MatchList>
+</Team>
+</HattrickData>

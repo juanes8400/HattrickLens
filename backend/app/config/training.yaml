@@ -1,0 +1,144 @@
+# Training constants — HTC-compatible profile
+#
+# Hattrick Control 3.50.02.1619 exposes per-training controls plus modifiers.
+# Its Defaults.dat and unnamed combining helper are absent from the supplied
+# dump, so the numeric values below remain explicit, editable compatibility
+# values rather than claimed official game constants. See
+# docs/reference/HATTRICK_CONTROL_3_50_REVERSE_ENGINEERING.md.
+
+reference:
+  implementation: Hattrick Control 3.50.02.1619
+  status: structural
+  source_files: [UEntrenamiento.pas, UEntrenamiento.dfm, UOptions.pas, UOptions.dfm]
+  recovered: "Tipo de entrenamiento, semanas por habilidad y modificadores de entrenador, ayudantes, intensidad, condición y edad."
+  pending: "Valores de Defaults.dat y rutina auxiliar que combina los modificadores."
+  numeric_profile: HTC-compatible, pending calibration
+#
+# FORMULA
+#
+#   weeks = base_weeks[skill]
+#         ÷ (1 + assistant_level_sum × 3.5%)
+#         × (1 + 6% × (age − 17))
+#         × (1 + 10% × max(7 − coach_level, 0) − 5% if excellent)
+#         × (1 − 1% × (intensity − 100))
+#         ÷ (1 − stamina_share)
+#
+# Assistants add training speed, so their factor divides waiting time.
+# Conditioning diverts capacity from the primary skill, so its remaining share
+# divides waiting time too. Validate every coefficient with CHPP pop intervals.
+#
+# Lens receives the SUM of assistant levels. The cap and coefficient are visible
+# compatibility-profile settings, not hidden game constants.
+
+# Weeks to gain one level for the reference player (17 years old).
+# Compatibility defaults. Hattrick Control stores these as editable controls;
+# replace them with restored Defaults.dat values when available.
+base_weeks:
+  stamina: 1
+  keeper: 4
+  defending: 8
+  playmaking: 7
+  passing: 5
+  winger: 5
+  scoring: 6
+  set_pieces: 2
+
+reference_age: 17
+age_increase_per_year: 0.06        # linear, per year above 17
+
+# Assistant configuration for the compatibility profile.
+max_assistants: 2
+max_assistant_level: 5
+assistant_bonus_per_level: 0.035
+assistant_level_sum_cap: 10        # 2 assistants × level 5
+default_assistant_level_sum: 10    # the validation club is at the ceiling
+
+# Coach profile. The CHPP-to-profile correspondence remains provisional.
+coach_reference_level: 7
+coach_penalty_per_level: 0.10
+excellent_coach_level: 8
+apply_excellent_coach_bonus: true
+excellent_coach_bonus: 0.05
+
+# Training-intensity compatibility multiplier.
+intensity_factor_per_point: 0.01
+
+# Stamina share reduces capacity available to the main skill. Its remaining
+# capacity is the denominator: weeks ÷ (1 − share). This corrects the old
+# inverse direction, which made more stamina predict faster primary training.
+apply_stamina_share: true
+default_stamina_share: 12.5
+
+# Minutes and position. 90 minutes in the trained position is full training.
+full_training_minutes: 90
+position_training_share:
+  full: 1.0
+  partial: 0.5
+  none: 0.0
+
+# Alternative age profile retained only for comparison.
+alternative_age_model:
+  enabled: false
+  age_factor_per_year: 0.0463      # exponential: (1 + f) ^ (age − 17)
+  level_exponent: 0.068
+
+# Youth training exposure weights, read from Hattrick Control's own
+# "Valoración del entrenamiento" panel.
+youth_exposure:
+  primary_training: 1.0
+  secondary_training: 0.8
+  primary_position: 1.0
+  secondary_position: 0.5
+  official_match: 1.0
+  friendly_match: 0.5
+
+# ── Cierre de la fórmula: correspondencias con los datos reales del CHPP ──────
+#
+# Estas tablas traducen valores leídos de la API a los términos de la fórmula.
+# Dos de ellas están MARCADAS COMO PROVISIONALES porque no venían en las tablas
+# de traducción oficiales que se recibieron; se confirman con el usuario o
+# cruzando con playerdetails. Se prefiere dejarlas visibles y configurables a
+# inventar un mapa escondido (como pasó una vez con el tipo de entrenamiento 10).
+
+# SkillID de trainingevents → habilidad interna. Confirmado contra CHPP DataTypes.
+skill_id_map:
+  1: keeper
+  2: stamina
+  3: set_pieces
+  4: defending
+  5: scoring
+  6: winger
+  7: passing
+  8: playmaking
+  9: trainer
+  10: leadership
+  11: experience
+
+# TrainingType (leído de training.TrainingType) → habilidad que entrena.
+# Confirmado contra la tabla de traducción oficial (translations.xml).
+training_type_to_skill:
+  1: stamina
+  2: set_pieces
+  3: defending
+  4: scoring
+  5: winger
+  6: scoring          # "Anotación y balón parado": primaria anotación
+  7: passing
+  8: playmaking
+  9: keeper
+  10: passing         # "Pases (Defensas y centro del campo completo)"
+  11: defending
+  12: winger
+
+# TrainerSkillLevel (1–5 en stafflist) → nivel_entrenador de la fórmula, cuya
+# escala de referencia es 7 (bueno) / 8 (excelente). La correspondencia entre
+# ambas escalas es PROVISIONAL: la API entrega 1–5 y la fórmula se calibró en
+# la escala nominal 7/8, así que esto es lo único que queda por reconciliar.
+trainer_skill_to_formula_level:
+  1: 4
+  2: 5
+  3: 6
+  4: 7
+  5: 8
+# Un TrainerSkillLevel de 5 se considera "excelente" a efectos del −5%.
+excellent_trainer_skill_level: 5

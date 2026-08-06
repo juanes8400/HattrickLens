@@ -1,0 +1,30 @@
+<HattrickData>
+-<League>
+<LeagueID> : unsigned Integer
+The globally unique LeagueID for the league.
+</LeagueID>
+<LeagueName> : String
+The name of the league.
+</LeagueName>
+-<Region>
+<RegionID> : unsigned Integer
+The globally unique RegionID.
+</RegionID>
+<RegionName> : String
+The region name.
+</RegionName>
+<NumberOfUsers> : unsigned Integer
+The number of active users in the region.
+</NumberOfUsers>
+<NumberOfOnline> : unsigned Integer
+The number of users currently online from the region.
+</NumberOfOnline>
+<WeatherID> : WeatherID
+Integer defining the current weather.
+</WeatherID>
+<TomorrowWeatherID> : WeatherID
+Integer defining the forecast for tomorrow.
+</TomorrowWeatherID>
+</Region>
+</League>
+</HattrickData>

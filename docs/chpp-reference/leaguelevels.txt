@@ -1,0 +1,42 @@
+<HattrickData>
+<LeagueID> : unsigned Integer
+The ID number of the League (for instance Sverige, USA, England...).
+</LeagueID>
+<Season> : unsigned Integer
+Current season of this league.
+</Season>
+<NrOfLeagueLevels> : unsigned Integer
+Number of league levels in this league.
+</NrOfLeagueLevels>
+-<LeagueLevelList>
+-<LeagueLevelItem>
+<LeagueLevel> : unsigned Integer
+Indicates the division/level. 1 is the top division, the second best is 2 and so on.
+</LeagueLevel>
+<NrOfLeagueLevelUnits> : String
+Number of league level units (series) in this league.
+</NrOfLeagueLevelUnits>
+<NrOfTeams> : unsigned Integer
+Number of teams in this league level units (series).
+</NrOfTeams>
+<LeagueLevelUnitIdList> : String
+Comma-separated list of LeagueLevelUnitIDs in this league level.
+</LeagueLevelUnitIdList>
+<NrOfSharedPromotionSlotsPerSeries> : unsigned Integer
+Number of promotional slots shared per series.
+</NrOfSharedPromotionSlotsPerSeries>
+<NrOfDirectPromotionSlotsPerSeries> : unsigned Integer
+Number of direct promotion slots per series.
+</NrOfDirectPromotionSlotsPerSeries>
+<NrOfQualificationPromotionSlotsPerSeries> : unsigned Integer
+Number of qualification promotion slots per series.
+</NrOfQualificationPromotionSlotsPerSeries>
+<NrOfDirectDemotionSlotsPerSeries> : unsigned Integer
+Number of direct demotion slots per series.
+</NrOfDirectDemotionSlotsPerSeries>
+<NrOfQualificationDemotionSlotsPerSeries> : unsigned Integer
+Number of qualification demotion slots per series.
+</NrOfQualificationDemotionSlotsPerSeries>
+</LeagueLevelItem>
+</LeagueLevelList>
+</HattrickData>

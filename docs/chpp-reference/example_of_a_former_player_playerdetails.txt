@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>playerdetails.xml</FileName>
+  <Version>3.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-05 02:48:32</FetchedDate>
+  <UserSupporterTier>silver</UserSupporterTier>
+  <IsPlayingMatch>False</IsPlayingMatch>
+  <Player>
+    <PlayerID>495018863</PlayerID>
+    <FirstName>Lander</FirstName>
+    <NickName></NickName>
+    <LastName>Fripont</LastName>
+    <PlayerNumber>33</PlayerNumber>
+    <Age>20</Age>
+    <AgeDays>105</AgeDays>
+    <NextBirthDay>2026-08-12 00:00:00</NextBirthDay>
+    <GenderID>1</GenderID>
+    <ArrivalDate>2026-08-03 14:37:00</ArrivalDate>
+    <PlayerForm>5</PlayerForm>
+    <Cards>0</Cards>
+    <InjuryLevel>-1</InjuryLevel>
+    <Statement></Statement>
+    <PlayerLanguage>Français &amp; Vlaams</PlayerLanguage>
+    <PlayerLanguageID>27</PlayerLanguageID>
+    <TrainerData />
+    <OwningTeam>
+      <TeamID>1423828</TeamID>
+      <TeamName>Seixinho FC</TeamName>
+      <LeagueID>25</LeagueID>
+    </OwningTeam>
+    <Salary>13080</Salary>
+    <IsAbroad>True</IsAbroad>
+    <Agreeability>3</Agreeability>
+    <Aggressiveness>3</Aggressiveness>
+    <Honesty>2</Honesty>
+    <Experience>2</Experience>
+    <Loyalty>2</Loyalty>
+    <MotherClubBonus>False</MotherClubBonus>
+    <MotherClub>
+      <TeamID>840122</TeamID>
+      <TeamName>Les Bianconeri</TeamName>
+    </MotherClub>
+    <Leadership>6</Leadership>
+    <Specialty>0</Specialty>
+    <NativeCountryID>38</NativeCountryID>
+    <NativeLeagueID>44</NativeLeagueID>
+    <NativeLeagueName>Belgium</NativeLeagueName>
+    <TSI>9170</TSI>
+    <PlayerSkills>
+      <StaminaSkill>8</StaminaSkill>
+    </PlayerSkills>
+    <Caps>0</Caps>
+    <CapsU20>0</CapsU20>
+    <CareerGoals>1</CareerGoals>
+    <CareerHattricks>0</CareerHattricks>
+    <LeagueGoals>0</LeagueGoals>
+    <CupGoals>0</CupGoals>
+    <FriendliesGoals>0</FriendliesGoals>
+    <MatchesCurrentTeam>0</MatchesCurrentTeam>
+    <GoalsCurrentTeam>0</GoalsCurrentTeam>
+    <AssistsCurrentTeam>0</AssistsCurrentTeam>
+    <CareerAssists>0</CareerAssists>
+    <TransferListed>False</TransferListed>
+    <TransferDetails />
+  </Player>
+</HattrickData>

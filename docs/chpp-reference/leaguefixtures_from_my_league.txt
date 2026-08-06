@@ -1,0 +1,746 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>leaguefixtures.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-02 16:53:50</FetchedDate>
+  <LeagueLevelUnitID>34162</LeagueLevelUnitID>
+  <LeagueLevelUnitName>V.92</LeagueLevelUnitName>
+  <Season>83</Season>
+  <Match>
+    <MatchID>770453108</MatchID>
+    <MatchRound>1</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-07-26 23:40:00</MatchDate>
+    <HomeGoals>4</HomeGoals>
+    <AwayGoals>0</AwayGoals>
+  </Match>
+  <Match>
+    <MatchID>770453109</MatchID>
+    <MatchRound>1</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-07-26 23:40:00</MatchDate>
+    <HomeGoals>0</HomeGoals>
+    <AwayGoals>0</AwayGoals>
+  </Match>
+  <Match>
+    <MatchID>770453110</MatchID>
+    <MatchRound>1</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-07-26 23:40:00</MatchDate>
+    <HomeGoals>2</HomeGoals>
+    <AwayGoals>1</AwayGoals>
+  </Match>
+  <Match>
+    <MatchID>770453111</MatchID>
+    <MatchRound>1</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-07-26 23:40:00</MatchDate>
+    <HomeGoals>2</HomeGoals>
+    <AwayGoals>1</AwayGoals>
+  </Match>
+  <Match>
+    <MatchID>770453112</MatchID>
+    <MatchRound>2</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-02 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453113</MatchID>
+    <MatchRound>2</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-02 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453114</MatchID>
+    <MatchRound>2</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-02 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453115</MatchID>
+    <MatchRound>2</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-02 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453116</MatchID>
+    <MatchRound>3</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-09 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453117</MatchID>
+    <MatchRound>3</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-09 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453118</MatchID>
+    <MatchRound>3</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-09 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453119</MatchID>
+    <MatchRound>3</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-09 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453120</MatchID>
+    <MatchRound>4</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-16 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453121</MatchID>
+    <MatchRound>4</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-16 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453122</MatchID>
+    <MatchRound>4</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-16 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453123</MatchID>
+    <MatchRound>4</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-16 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453124</MatchID>
+    <MatchRound>5</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-23 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453125</MatchID>
+    <MatchRound>5</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-23 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453126</MatchID>
+    <MatchRound>5</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-23 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453127</MatchID>
+    <MatchRound>5</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-23 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453128</MatchID>
+    <MatchRound>6</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-30 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453129</MatchID>
+    <MatchRound>6</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-30 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453130</MatchID>
+    <MatchRound>6</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-30 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453131</MatchID>
+    <MatchRound>6</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-08-30 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453132</MatchID>
+    <MatchRound>7</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-06 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453133</MatchID>
+    <MatchRound>7</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-06 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453134</MatchID>
+    <MatchRound>7</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-06 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453136</MatchID>
+    <MatchRound>7</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-06 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453135</MatchID>
+    <MatchRound>8</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-13 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453137</MatchID>
+    <MatchRound>8</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-13 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453138</MatchID>
+    <MatchRound>8</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-13 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453139</MatchID>
+    <MatchRound>8</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-13 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453140</MatchID>
+    <MatchRound>9</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-20 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453141</MatchID>
+    <MatchRound>9</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-20 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453142</MatchID>
+    <MatchRound>9</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-20 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453143</MatchID>
+    <MatchRound>9</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-20 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453144</MatchID>
+    <MatchRound>10</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-27 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453145</MatchID>
+    <MatchRound>10</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-27 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453146</MatchID>
+    <MatchRound>10</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-27 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453147</MatchID>
+    <MatchRound>10</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-09-27 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453148</MatchID>
+    <MatchRound>11</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-04 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453149</MatchID>
+    <MatchRound>11</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-04 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453150</MatchID>
+    <MatchRound>11</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-04 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453151</MatchID>
+    <MatchRound>11</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-04 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453152</MatchID>
+    <MatchRound>12</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-11 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453153</MatchID>
+    <MatchRound>12</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-11 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453154</MatchID>
+    <MatchRound>12</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-11 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453155</MatchID>
+    <MatchRound>12</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-11 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453156</MatchID>
+    <MatchRound>13</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271520</AwayTeamID>
+      <AwayTeamName>San Andrés y Providencia Real</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-18 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453157</MatchID>
+    <MatchRound>13</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3357872</AwayTeamID>
+      <AwayTeamName>NeiNacional F.C.</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-18 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453158</MatchID>
+    <MatchRound>13</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271519</HomeTeamID>
+      <HomeTeamName>Cauca CF</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-18 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453159</MatchID>
+    <MatchRound>13</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2512155</HomeTeamID>
+      <HomeTeamName>LosNeithas F.C</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271521</AwayTeamID>
+      <AwayTeamName>Nariño Rayo</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-18 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453160</MatchID>
+    <MatchRound>14</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271520</HomeTeamID>
+      <HomeTeamName>San Andrés y Providencia Real</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3271519</AwayTeamID>
+      <AwayTeamName>Cauca CF</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-25 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453161</MatchID>
+    <MatchRound>14</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3357872</HomeTeamID>
+      <HomeTeamName>NeiNacional F.C.</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>3347253</AwayTeamID>
+      <AwayTeamName>Atletico di Colombia</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-25 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453162</MatchID>
+    <MatchRound>14</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3271521</HomeTeamID>
+      <HomeTeamName>Nariño Rayo</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-25 23:40:00</MatchDate>
+  </Match>
+  <Match>
+    <MatchID>770453164</MatchID>
+    <MatchRound>14</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>2688899</HomeTeamID>
+      <HomeTeamName>etbenianos1</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2512155</AwayTeamID>
+      <AwayTeamName>LosNeithas F.C</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-10-25 23:40:00</MatchDate>
+  </Match>
+</HattrickData>

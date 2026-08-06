@@ -1,0 +1,144 @@
+<HattrickData>
+-<YouthTeam>
+<YouthTeamID> : unsigned Integer
+The globally unique YouthTeamID.
+</YouthTeamID>
+<YouthTeamName> : String
+The full team name.
+</YouthTeamName>
+<ShortTeamName> : String
+The short team name.
+</ShortTeamName>
+<CreatedDate> : DateTime
+The date when the youth team was created.
+</CreatedDate>
+<UserID> : unsigned Integer
+The globally unique UserID for the owner of the team.
+</UserID>
+<GenderID> : GenderID
+The gender of the youth team.
+</GenderID>
+<LeagueSystemID> : LeagueSystemID
+The system type of the league for this team.
+</LeagueSystemID>
+-<Country>
+<CountryID> : unsigned Integer
+The globally unique CountryID.
+</CountryID>
+<CountryName> : String
+The name of the country.
+</CountryName>
+</Country>
+-<Region>
+<RegionID> : unsigned Integer
+The globally unique RegionID.
+</RegionID>
+<RegionName> : String
+The name of the region.
+</RegionName>
+</Region>
+-<YouthArena>
+<YouthArenaID> : unsigned Integer
+The globally unique YouthArenaID.
+</YouthArenaID>
+<YouthArenaName> : String
+The arena name.
+</YouthArenaName>
+</YouthArena>
+-<YouthLeague>
+<YouthLeagueID> : unsigned Integer
+The globally unique YouthLeagueID.
+</YouthLeagueID>
+<YouthLeagueName> : String
+The name of the youth league
+</YouthLeagueName>
+<YouthLeagueStatus> : YouthLeagueStatusID
+The status of the youth league
+</YouthLeagueStatus>
+</YouthLeague>
+-<OwningTeam>
+<MotherTeamID> : unsigned Integer
+The globally unique TeamID of the motherteam.
+</MotherTeamID>
+<MotherTeamName> : String
+The name of the motherteam
+</MotherTeamName>
+</OwningTeam>
+-<YouthTrainer>
+<YouthPlayerID> : unsigned Integer
+The globally unique YouthPlayerID of the trainer.
+</YouthPlayerID>
+</YouthTrainer>
+<NextTrainingMatchDate> : DateTime
+The date that the next friendly match can be booked. (Will be less than today if it can be booked now. If a friendly is already booked it will be more than 3 weeks into the future.)
+</NextTrainingMatchDate>
+-<ScoutList>
+-<Scout>
+<YouthScoutID> : unsigned Integer
+The globally unique YouthScoutID.
+</YouthScoutID>
+<ScoutName> : String
+The name of the scout.
+</ScoutName>
+<Age> : unsigned Integer
+The age of the scout.
+</Age>
+-<Country>
+<CountryID> : unsigned Integer
+The globally unique CountryID.
+</CountryID>
+<CountryName> : String
+The name of the country.
+</CountryName>
+</Country>
+-<Region>
+<RegionID> : unsigned Integer
+The globally unique RegionID.
+</RegionID>
+<RegionName> : String
+The name of the region.
+</RegionName>
+</Region>
+-<InCountry>
+<CountryID> : unsigned Integer
+The globally unique CountryID.
+</CountryID>
+<CountryName> : String
+The name of the country.
+</CountryName>
+</InCountry>
+-<InRegion>
+<RegionID> : unsigned Integer
+The globally unique RegionID.
+</RegionID>
+<RegionName> : String
+The name of the region.
+</RegionName>
+</InRegion>
+<HiredDate> : DateTime
+The date the team hired the scout.
+</HiredDate>
+<LastCalled> : DateTime
+The date of when the scout was last called by the team.
+</LastCalled>
+<PlayerTypeSearch> : ScoutSearchTypeID
+Specifies which type of player the scout is currently searching for.
+</PlayerTypeSearch>
+<HofPlayerId> : unsigned Integer
+The id of the hall of fame player associated with this scout. 0 if none.
+</HofPlayerId>
+-<Travel>
+<TravelStartDate> : DateTime
+The date the scout started his travel.
+</TravelStartDate>
+<TravelLength> : unsigned Integer
+How far the travel is in kilometers.
+</TravelLength>
+<TravelType> : ScoutTravelTypeID
+By which mean the scout is traveling.
+</TravelType>
+</Travel>
+</Scout>
+</ScoutList>
+</YouthTeam>
+</HattrickData>

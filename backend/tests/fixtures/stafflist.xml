@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>stafflist.xml</FileName>
+  <Version>1.0</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-22 09:00:00</FetchedDate>
+  <StaffList>
+    <Trainer>
+      <TrainerId>434712334</TrainerId>
+      <Name>Volodymyr Manakin</Name>
+      <Age>48</Age>
+      <AgeDays>12</AgeDays>
+      <ContractDate>2021-09-07 16:10:00</ContractDate>
+      <Cost>28500</Cost>
+      <CountryID>50</CountryID>
+      <TrainerType>2</TrainerType>
+      <Leadership>5</Leadership>
+      <TrainerSkillLevel>5</TrainerSkillLevel>
+      <TrainerStatus>2</TrainerStatus>
+    </Trainer>
+    <StaffMembers>
+      <Staff>
+        <Name>Diego Mendoza</Name>
+        <StaffId>901</StaffId>
+        <StaffType>1</StaffType>
+        <StaffLevel>3</StaffLevel>
+        <HiredDate>2024-01-10 00:00:00</HiredDate>
+        <Cost>9200</Cost>
+        <HofPlayerId>0</HofPlayerId>
+      </Staff>
+      <Staff>
+        <Name>Ana Restrepo</Name>
+        <StaffId>902</StaffId>
+        <StaffType>2</StaffType>
+        <StaffLevel>2</StaffLevel>
+        <HiredDate>2024-03-02 00:00:00</HiredDate>
+        <Cost>6100</Cost>
+        <HofPlayerId>0</HofPlayerId>
+      </Staff>
+    </StaffMembers>
+    <TotalStaffMembers>2</TotalStaffMembers>
+    <TotalCost>15300</TotalCost>
+  </StaffList>
+</HattrickData>

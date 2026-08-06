@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: backend}}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: {POSTGRES_USER: hattricklens, POSTGRES_PASSWORD: hattricklens, POSTGRES_DB: hattricklens_test}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hattricklens" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --frozen
+      - run: uv run ruff check app
+      - run: uv run ruff format --check app
+      - run: uv run mypy app/domain app/application
+      - run: uv run pytest -q --cov=app --cov-fail-under=80
+        env:
+          DATABASE_URL: postgresql+asyncpg://hattricklens:hattricklens@localhost:5432/hattricklens_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test
+          TOKEN_ENCRYPTION_KEY: dGVzdC1rZXktbm90LXJlYWwtdGVzdC1rZXktbm90LXJlYWw=
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: frontend}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run typecheck
+      - run: npm run build
+
+  docker:
+    if: github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions: {packages: write, contents: read}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with: {registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}"}
+      - uses: docker/build-push-action@v6
+        with: {context: backend, push: true, tags: "ghcr.io/${{ github.repository }}/api:${{ github.sha }}"}
+      - uses: docker/build-push-action@v6
+        with: {context: frontend, push: true, tags: "ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}"}

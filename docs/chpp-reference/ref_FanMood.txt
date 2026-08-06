@@ -1,0 +1,13 @@
+Mood	Description
+11	Sending love poems to you
+10	dancing in the streets
+9	high on life
+8	delirious
+7	satisfied
+6	content
+5	calm
+4	disappointed
+3	irritated
+2	angry
+1	furious
+0	murderous

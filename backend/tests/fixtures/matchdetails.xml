@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matchdetails.xml</FileName>
+  <Version>3.1</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:06:22</FetchedDate>
+  <UserSupporterTier>none</UserSupporterTier>
+  <SourceSystem>Hattrick</SourceSystem>
+  <Match>
+    <MatchID>765274387</MatchID>
+    <MatchType>1</MatchType>
+    <MatchContextId>34162</MatchContextId>
+    <MatchRuleId>0</MatchRuleId>
+    <CupLevel>0</CupLevel>
+    <CupLevelIndex>0</CupLevelIndex>
+    <MatchDate>2026-07-05 23:40:00</MatchDate>
+    <FinishedDate>2026-07-06 01:25:00</FinishedDate>
+    <AddedMinutes>0</AddedMinutes>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+      <DressURI>//res.hattrick.org/kits/1/1/1/1/matchKitSmall.png</DressURI>
+      <Formation>5-5-0</Formation>
+      <HomeGoals>1</HomeGoals>
+      <TacticType>1</TacticType>
+      <TacticSkill>11</TacticSkill>
+      <RatingMidfield>14</RatingMidfield>
+      <RatingRightDef>45</RatingRightDef>
+      <RatingMidDef>61</RatingMidDef>
+      <RatingLeftDef>43</RatingLeftDef>
+      <RatingRightAtt>10</RatingRightAtt>
+      <RatingMidAtt>9</RatingMidAtt>
+      <RatingLeftAtt>13</RatingLeftAtt>
+      <TeamAttitude>-1</TeamAttitude>
+      <RatingIndirectSetPiecesDef>24</RatingIndirectSetPiecesDef>
+      <RatingIndirectSetPiecesAtt>13</RatingIndirectSetPiecesAtt>
+      <NrOfChancesLeft>3</NrOfChancesLeft>
+      <NrOfChancesCenter>0</NrOfChancesCenter>
+      <NrOfChancesRight>1</NrOfChancesRight>
+      <NrOfChancesSpecialEvents>0</NrOfChancesSpecialEvents>
+      <NrOfChancesOther>0</NrOfChancesOther>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+      <DressURI>//res.hattrick.org/kits/1/1/1/2/matchKitSmall.png</DressURI>
+      <Formation>4-4-2</Formation>
+      <AwayGoals>2</AwayGoals>
+      <TacticType>4</TacticType>
+      <TacticSkill>11</TacticSkill>
+      <RatingMidfield>15</RatingMidfield>
+      <RatingRightDef>30</RatingRightDef>
+      <RatingMidDef>27</RatingMidDef>
+      <RatingLeftDef>25</RatingLeftDef>
+      <RatingRightAtt>28</RatingRightAtt>
+      <RatingMidAtt>27</RatingMidAtt>
+      <RatingLeftAtt>24</RatingLeftAtt>
+      <RatingIndirectSetPiecesDef>22</RatingIndirectSetPiecesDef>
+      <RatingIndirectSetPiecesAtt>19</RatingIndirectSetPiecesAtt>
+      <NrOfChancesLeft>1</NrOfChancesLeft>
+      <NrOfChancesCenter>1</NrOfChancesCenter>
+      <NrOfChancesRight>1</NrOfChancesRight>
+      <NrOfChancesSpecialEvents>1</NrOfChancesSpecialEvents>
+      <NrOfChancesOther>1</NrOfChancesOther>
+    </AwayTeam>
+    <Arena>
+      <ArenaID>537758</ArenaID>
+      <ArenaName>Chapecoense</ArenaName>
+      <WeatherID>3</WeatherID>
+      <SoldTotal>54979</SoldTotal>
+      <SoldTerraces>34130</SoldTerraces>
+      <SoldBasic>13639</SoldBasic>
+      <SoldRoof>5785</SoldRoof>
+      <SoldVIP>1425</SoldVIP>
+    </Arena>
+    <MatchOfficials>
+      <Referee>
+        <RefereeId>435438950</RefereeId>
+        <RefereeName>Nicola Bonaventura</RefereeName>
+        <RefereeCountryId>4</RefereeCountryId>
+        <RefereeCountryName>Italia</RefereeCountryName>
+        <RefereeTeamId>51288</RefereeTeamId>
+        <RefereeTeamname>cirstea</RefereeTeamname>
+      </Referee>
+      <RefereeAssistant1>
+        <RefereeId>447325747</RefereeId>
+        <RefereeName>Eliecer Carpio</RefereeName>
+        <RefereeCountryId>147</RefereeCountryId>
+        <RefereeCountryName>Cuba</RefereeCountryName>
+        <RefereeTeamId>2012611</RefereeTeamId>
+        <RefereeTeamname>Socialistica</RefereeTeamname>
+      </RefereeAssistant1>
+      <RefereeAssistant2>
+        <RefereeId>436392460</RefereeId>
+        <RefereeName>Jumaa’ Bin Jabr Al-Mansouri</RefereeName>
+        <RefereeCountryId>141</RefereeCountryId>
+        <RefereeCountryName>Dawlat Qatar</RefereeCountryName>
+        <RefereeTeamId>2020128</RefereeTeamId>
+        <RefereeTeamname>Jah Lions</RefereeTeamname>
+      </RefereeAssistant2>
+    </MatchOfficials>
+    <Scorers>
+      <Goal Index="0">
+        <ScorerPlayerID>492741358</ScorerPlayerID>
+        <ScorerPlayerName>Keng Dunsatit</ScorerPlayerName>
+        <ScorerTeamID>537758</ScorerTeamID>
+        <ScorerHomeGoals>1</ScorerHomeGoals>
+        <ScorerAwayGoals>0</ScorerAwayGoals>
+        <ScorerMinute>34</ScorerMinute>
+        <MatchPart>1</MatchPart>
+      </Goal>
+      <Goal Index="1">
+        <ScorerPlayerID>498059668</ScorerPlayerID>
+        <ScorerPlayerName>Jorge Federico Aquino</ScorerPlayerName>
+        <ScorerTeamID>2688899</ScorerTeamID>
+        <ScorerHomeGoals>1</ScorerHomeGoals>
+        <ScorerAwayGoals>1</ScorerAwayGoals>
+        <ScorerMinute>37</ScorerMinute>
+        <MatchPart>1</MatchPart>
+      </Goal>
+      <Goal Index="2">
+        <ScorerPlayerID>481249171</ScorerPlayerID>
+        <ScorerPlayerName>Sami Suutarinen</ScorerPlayerName>
+        <ScorerTeamID>2688899</ScorerTeamID>
+        <ScorerHomeGoals>1</ScorerHomeGoals>
+        <ScorerAwayGoals>2</ScorerAwayGoals>
+        <ScorerMinute>71</ScorerMinute>
+        <MatchPart>2</MatchPart>
+      </Goal>
+    </Scorers>
+    <Bookings>
+      <Booking Index="0">
+        <BookingPlayerID>490702763</BookingPlayerID>
+        <BookingPlayerName>Aydin Davey</BookingPlayerName>
+        <BookingTeamID>537758</BookingTeamID>
+        <BookingType>1</BookingType>
+        <BookingMinute>68</BookingMinute>
+        <MatchPart>2</MatchPart>
+      </Booking>
+    </Bookings>
+    <Injuries />
+    <PossessionFirstHalfHome>48</PossessionFirstHalfHome>
+    <PossessionFirstHalfAway>52</PossessionFirstHalfAway>
+    <PossessionSecondHalfHome>44</PossessionSecondHalfHome>
+    <PossessionSecondHalfAway>56</PossessionSecondHalfAway>
+  </Match>
+</HattrickData>

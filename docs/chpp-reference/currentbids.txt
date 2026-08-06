@@ -1,0 +1,32 @@
+<HattrickData>
+<TeamId> : unsigned Integer
+Globally unique identifier of the team whose bids are shown.
+</TeamId>
+-<BidItems TrackingTypeId='trackingTypeId'>
+-<BidItem>
+<TransferId> : unsigned Integer
+Unique id for the transfer. Only needed for the ignore functionality.
+</TransferId>
+<PlayerId> : unsigned Integer
+The globally unique playerID for the transferlisted player.
+</PlayerId>
+<PlayerName> : String
+The name for the transferlisted player.
+</PlayerName>
+-<HighestBid>
+<Amount> : Money
+Amount of the highest bid.
+</Amount>
+<TeamId> : unsigned Integer
+Id of the team holding the highest bid.
+</TeamId>
+<TeamName> : String
+Name of the team holding the highest bid.
+</TeamName>
+</HighestBid>
+<Deadline> : DateTime
+The transfer deadline.
+</Deadline>
+</BidItem>
+</BidItems>
+</HattrickData>

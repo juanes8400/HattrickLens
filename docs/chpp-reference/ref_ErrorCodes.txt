@@ -1,0 +1,37 @@
+ErrorCodes
+Code	Description
+-1	No information
+0	Not logged in
+1	Access Denied
+2	File Not Specified
+3	File not supported
+4	POST not supported
+5	Must use POST for this action
+6	Only for Supporters
+7	Not supported version
+10	Invalid parameter
+50	Unknown TeamID
+51	Unknown MatchID
+52	Unknown ActionType
+53	MatchID not subscribed to
+54	Unknown YouthTeamID
+55	Unknown YouthPlayerID
+56	Unknown PlayerID
+57	Unknown LeagueID
+58	Unknown LeagueLevelUnitID
+59	This request is only allowed for teams owned by the requesting user himself, and the requested team is not owned by this user
+60	Unknown TournamentId
+61	Unknown LadderId
+62	The youth player is now a senior player. The senior player ID is available in the SeniorPlayerID element for the error.
+63	Missing required parameters.
+64	The player has become a coach.
+70	Challenge failed
+71	Bid failed
+80	Banned from international friendly
+81	Banned from transfers
+90	Hattrick is down for maintenance, please try again later
+91	Hattrick youth academy is down for maintenance, please try again later
+92	Hattrick transfer market is down for maintenance, please try again later
+93	HTOIntegrated platform is down for maintenance, please try again later
+99	Other undefined error
+Anything else	Internal .NET error. Please specify this errorcode whenever you report a problem.

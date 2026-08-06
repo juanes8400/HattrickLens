@@ -1,0 +1,23 @@
+<HattrickData>
+<UserSupporterTier> : supporterTier
+Indicates which Supporter package the fetching user has, or empty if not a Supporter.
+</UserSupporterTier>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+-<PlayerEvents Available='Boolean'>
+-<PlayerEvent>
+<EventDate> : DateTime
+Date and time when the event was recorded.
+</EventDate>
+<PlayerEventTypeID> : unsigned Integer
+An identifier to show which type of event it is. No list of events will be available. Each CHPP will have to collect an eventlist him-/herself.
+</PlayerEventTypeID>
+<EventText> : String (HTML encoded)
+The description of the event, as shown in the HTML-output. May contain HTML-tags.
+</EventText>
+</PlayerEvent>
+</PlayerEvents>
+</Player>
+</HattrickData>

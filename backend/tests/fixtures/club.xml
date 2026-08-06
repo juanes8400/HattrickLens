@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>club.xml</FileName>
+  <Version>1.0</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-22 09:00:00</FetchedDate>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <Staff>
+      <AssistantTrainerLevels>7</AssistantTrainerLevels>
+      <FinancialDirectorLevels>0</FinancialDirectorLevels>
+      <FormCoachLevels>3</FormCoachLevels>
+      <MedicLevels>2</MedicLevels>
+      <SpokespersonLevels>0</SpokespersonLevels>
+      <SportPsychologistLevels>1</SportPsychologistLevels>
+      <TacticalAssistantLevels>0</TacticalAssistantLevels>
+    </Staff>
+    <YouthSquad>
+      <Investment>11240</Investment>
+      <HasPromoted>False</HasPromoted>
+      <YouthLevel>4</YouthLevel>
+    </YouthSquad>
+  </Team>
+</HattrickData>

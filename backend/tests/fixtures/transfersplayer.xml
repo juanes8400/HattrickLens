@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>transfersplayer.xml</FileName>
+  <Version>1.1</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-03 15:05:59</FetchedDate>
+  <Transfers>
+    <StartDate>2026-08-03 14:36:00</StartDate>
+    <EndDate>2026-05-03 13:12:00</EndDate>
+    <Player>
+      <PlayerID>495018863</PlayerID>
+      <PlayerName>Lander Fripont</PlayerName>
+      <TeamId>1423828</TeamId>
+    </Player>
+    <Transfer>
+      <TransferID>388548167</TransferID>
+      <Deadline>2026-08-03 14:36:00</Deadline>
+      <Buyer>
+        <BuyerTeamID>1423828</BuyerTeamID>
+        <BuyerTeamName>Seixinho FC</BuyerTeamName>
+      </Buyer>
+      <Seller>
+        <SellerTeamID>537758</SellerTeamID>
+        <SellerTeamName>Pulgas Arrechas</SellerTeamName>
+      </Seller>
+      <Price>2860000</Price>
+      <TSI>9170</TSI>
+    </Transfer>
+    <Transfer>
+      <TransferID>386941213</TransferID>
+      <Deadline>2026-05-16 16:10:00</Deadline>
+      <Buyer>
+        <BuyerTeamID>537758</BuyerTeamID>
+        <BuyerTeamName>Pulgas Arrechas</BuyerTeamName>
+      </Buyer>
+      <Seller>
+        <SellerTeamID>1300449</SellerTeamID>
+        <SellerTeamName>ks polnoc</SellerTeamName>
+      </Seller>
+      <Price>1800000</Price>
+      <TSI>7180</TSI>
+    </Transfer>
+    <Transfer>
+      <TransferID>386717997</TransferID>
+      <Deadline>2026-05-03 13:12:00</Deadline>
+      <Buyer>
+        <BuyerTeamID>1300449</BuyerTeamID>
+        <BuyerTeamName>ks polnoc</BuyerTeamName>
+      </Buyer>
+      <Seller>
+        <SellerTeamID>840122</SellerTeamID>
+        <SellerTeamName>Les Bianconeri</SellerTeamName>
+      </Seller>
+      <Price>500000</Price>
+      <TSI>5630</TSI>
+    </Transfer>
+  </Transfers>
+</HattrickData>

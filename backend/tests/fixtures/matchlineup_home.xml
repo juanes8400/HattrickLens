@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matchlineup.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-26 22:51:01</FetchedDate>
+  <MatchID>765274387</MatchID>
+  <IsYouth>False</IsYouth>
+  <MatchType>1</MatchType>
+  <MatchContextId>34162</MatchContextId>
+  <MatchDate>2026-07-05 23:40:00</MatchDate>
+  <HomeTeam>
+    <HomeTeamID>537758</HomeTeamID>
+    <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+  </HomeTeam>
+  <AwayTeam>
+    <AwayTeamID>2688899</AwayTeamID>
+    <AwayTeamName>etbenianos1</AwayTeamName>
+  </AwayTeam>
+  <Arena>
+    <ArenaID>537758</ArenaID>
+    <ArenaName>Chapecoense</ArenaName>
+  </Arena>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <ExperienceLevel>3</ExperienceLevel>
+    <Lineup>
+      <Player>
+        <PlayerID>484953367</PlayerID>
+        <RoleID>1</RoleID>
+        <PlayerName>Seri Sungkeet</PlayerName>
+        <RatingStars>2</RatingStars>
+        <PositionCode>1</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>485629701</PlayerID>
+        <RoleID>2</RoleID>
+        <PlayerName>Bořivoj Rouš</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>2</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>492756056</PlayerID>
+        <RoleID>3</RoleID>
+        <PlayerName>Ciro Silvestroni</PlayerName>
+        <RatingStars>6</RatingStars>
+        <PositionCode>3</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>492741358</PlayerID>
+        <RoleID>4</RoleID>
+        <PlayerName>Keng Dunsatit</PlayerName>
+        <RatingStars>5.5</RatingStars>
+        <PositionCode>4</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>490702763</PlayerID>
+        <RoleID>5</RoleID>
+        <PlayerName>Aydin Davey</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>5</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>480175747</PlayerID>
+        <RoleID>6</RoleID>
+        <PlayerName>Arnau Monclús</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>6</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>490282786</PlayerID>
+        <RoleID>7</RoleID>
+        <PlayerName>Mimmo Minucci</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>7</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>490866294</PlayerID>
+        <RoleID>8</RoleID>
+        <PlayerName>Manolo Giraldo</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>8</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>485798447</PlayerID>
+        <RoleID>9</RoleID>
+        <PlayerName>Henryk Derc</PlayerName>
+        <RatingStars>4.5</RatingStars>
+        <PositionCode>9</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+    </Lineup>
+  </Team>
+</HattrickData>

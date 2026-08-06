@@ -1,0 +1,21 @@
+<HattrickData>
+-<PlayerList>
+-<YouthPlayer>
+<YouthPlayerID> : unsigned Integer
+The globally unique youthPlayerID.
+</YouthPlayerID>
+<FirstName> : String
+Player's FirstName name.
+</FirstName>
+<NickName> : String
+Player's NickName name.
+</NickName>
+<LastName> : String
+Player's LastName name.
+</LastName>
+<GenderID> : GenderID
+The player gender
+</GenderID>
+</YouthPlayer>
+</PlayerList>
+</HattrickData>

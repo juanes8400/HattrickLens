@@ -1,0 +1,9 @@
+SeasonExpectation	Description
+7	We are so much better than this devision!
+6	We have to win this season
+5	Aim for the title!
+4	We belong in the top4
+3	A mid table finish is nice
+2	We will have to fight to stay up
+1	Every day in this devision is a bonus
+0	We are not worthy of this devision

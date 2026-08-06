@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>economy.xml</FileName>
+  <Version>1.4</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-01 15:20:40</FetchedDate>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <Cash>32561020</Cash>
+    <ExpectedCash>43994123</ExpectedCash>
+    <SponsorsPopularity Available="True">0</SponsorsPopularity>
+    <SupportersPopularity Available="True">9</SupportersPopularity>
+    <FanClubSize>2409</FanClubSize>
+    <IncomeSpectators>6826231</IncomeSpectators>
+    <IncomeSponsors>1035000</IncomeSponsors>
+    <IncomeSponsorBonuses>205000</IncomeSponsorBonuses>
+    <IncomeFinancial>0</IncomeFinancial>
+    <IncomeSoldPlayers>12251300</IncomeSoldPlayers>
+    <IncomeSoldPlayersCommission>600</IncomeSoldPlayersCommission>
+    <IncomeTemporary>900</IncomeTemporary>
+    <IncomeSum>20319031</IncomeSum>
+    <CostsArena>409828</CostsArena>
+    <CostsPlayers>4688400</CostsPlayers>
+    <CostsFinancial>0</CostsFinancial>
+    <CostsStaff>530400</CostsStaff>
+    <CostsBoughtPlayers>2927300</CostsBoughtPlayers>
+    <CostsArenaBuilding>0</CostsArenaBuilding>
+    <CostsTemporary>130000</CostsTemporary>
+    <CostsYouth>200000</CostsYouth>
+    <CostsSum>8885928</CostsSum>
+    <ExpectedWeeksTotal>11433103</ExpectedWeeksTotal>
+    <LastIncomeSpectators>2110008</LastIncomeSpectators>
+    <LastIncomeSponsors>1035000</LastIncomeSponsors>
+    <LastIncomeFinancial>0</LastIncomeFinancial>
+    <LastIncomeSoldPlayers>35804202</LastIncomeSoldPlayers>
+    <LastIncomeSoldPlayersCommission>2205292</LastIncomeSoldPlayersCommission>
+    <LastIncomeTemporary>0</LastIncomeTemporary>
+    <LastIncomeSum>41359502</LastIncomeSum>
+    <LastCostsArena>409828</LastCostsArena>
+    <LastCostsPlayers>2324280</LastCostsPlayers>
+    <LastCostsFinancial>0</LastCostsFinancial>
+    <LastCostsStaff>530400</LastCostsStaff>
+    <LastCostsBoughtPlayers>221675710</LastCostsBoughtPlayers>
+    <LastCostsArenaBuilding>0</LastCostsArenaBuilding>
+    <LastCostsTemporary>200000</LastCostsTemporary>
+    <LastCostsYouth>0</LastCostsYouth>
+    <LastCostsSum>225140218</LastCostsSum>
+    <LastWeeksTotal>-183780716</LastWeeksTotal>
+  </Team>
+</HattrickData>

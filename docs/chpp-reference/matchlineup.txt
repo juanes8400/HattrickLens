@@ -1,0 +1,130 @@
+<HattrickData>
+<MatchID> : unsigned Integer
+The globally unique identifier of the match.
+</MatchID>
+<SourceSystem> : sourceSystem
+Specifies which source system the match belongs to, this replace the old isYouth param
+</SourceSystem>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the Away team in the match. (Negative for street teams)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the Away team in the match.
+</AwayTeamName>
+</AwayTeam>
+<MatchType> : MatchTypeID
+Integer defining the type of match.
+</MatchType>
+<MatchContextId> : unsigned Integer
+This will be either LeagueLevelUnitId (for League), CupId (Cup, Hattrick Masters, World Cup and U-20 World Cup), LadderId, TournamentId, or 0 for friendly, qualification, single matches and preparation matches.
+</MatchContextId>
+-<Arena>
+<ArenaID> : unsigned Integer
+The globally unique arenaID.
+</ArenaID>
+<ArenaName> : String
+The name of the arena.
+</ArenaName>
+</Arena>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique teamID.
+</TeamID>
+<TeamName> : String
+The team's full name.
+</TeamName>
+<ExperienceLevel> : SkillLevel
+The aggregated experience level of the team.
+</ExperienceLevel>
+<StyleOfPlay> : coachModifier
+The style of play used in the match. Value will always be 0 for youth matches.
+</StyleOfPlay>
+-<StartingLineup>
+-<Player>
+<PlayerID> : unsigned Integer
+Globally unique ID of the player.
+</PlayerID>
+<RoleID> : MatchRoleID
+An integer indicating which formal 'slot' (Role) the player has filled in the match.
+</RoleID>
+<FirstName> : String
+The first name of the player.
+</FirstName>
+<LastName> : String
+The last name of the player.
+</LastName>
+<NickName> : String
+The nick name of the player.
+</NickName>
+<Behaviour> : MatchBehaviourID
+An integer indicating the individual order or repositioning that the player has played with. Not provided for Captain and Set Pieces taker.
+</Behaviour>
+</Player>
+</StartingLineup>
+-<Substitutions>
+-<Substitution>
+<TeamID> : unsigned Integer
+The globally unique TeamID for which the orders were sent.
+</TeamID>
+<SubjectPlayerID> : unsigned Integer
+If a/ substitution: The player leaving. If b/ behaviour change: The player changing his behaviour. Or c/ position swap: the first player that will change his position.
+</SubjectPlayerID>
+<ObjectPlayerID> : unsigned Integer
+The player entering (or once more the player changing behaviour). Or if position swap, the player to swap with.
+</ObjectPlayerID>
+<OrderType> : matchOrderTypeID
+The type of the order.
+</OrderType>
+<NewPositionId> : MatchRoleID
+An integer representing the new position for the (entering or staying) player.
+</NewPositionId>
+<NewPositionBehaviour> : MatchBehaviourID
+An integer representing the new behaviour for the (entering or staying) player.
+</NewPositionBehaviour>
+<MatchMinute> : unsigned Integer
+An integer indicating in which minute the order was executed.
+</MatchMinute>
+<MatchPart> : matchPart
+Which part of the match the order was executed.
+</MatchPart>
+</Substitution>
+</Substitutions>
+-<Lineup>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<RoleID> : MatchRoleID
+An integer indicating which formal 'slot' (Role) the player has filled in the match. All games are 553 based.
+</RoleID>
+<FirstName> : String
+The first name of the player.
+</FirstName>
+<LastName> : String
+The last name of the player.
+</LastName>
+<NickName> : String
+The nick name of the player.
+</NickName>
+<RatingStars> : Float
+The number of stars the player is rated for.
+</RatingStars>
+<RatingStarsEndOfMatch> : Float
+The number of stars the player is rated for at the end of the game. This element is not provided for youth.
+</RatingStarsEndOfMatch>
+<Behaviour> : MatchBehaviourID
+An integer indicating the individual order or repositioning that the player has played with.
+</Behaviour>
+</Player>
+</Lineup>
+</Team>
+</HattrickData>

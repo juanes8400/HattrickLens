@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>playerevents.xml</FileName>
+  <Version>1.3</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-05 02:52:41</FetchedDate>
+  <UserSupporterTier>silver</UserSupporterTier>
+  <Player>
+    <PlayerID>492550691</PlayerID>
+    <PlayerEvents Available="True">
+      <PlayerEvent>
+        <EventDate>2026-07-12 18:25:00</EventDate>
+        <PlayerEventTypeID>42</PlayerEventTypeID>
+        <EventText>Parte del equipo que se coronó campeón de &lt;a href="/World/Series/?LeagueLevelUnitID=34162"&gt;V.92&lt;/a&gt; (&lt;a href="/World/Leagues/League.aspx?LeagueID=19"&gt;Colombia&lt;/a&gt;) en la temporada 82.</EventText>
+      </PlayerEvent>
+      <PlayerEvent>
+        <EventDate>2026-03-30 11:32:00</EventDate>
+        <PlayerEventTypeID>43</PlayerEventTypeID>
+        <EventText>La práctica hace la perfección. Reconocido como el jugador del equipo que más mejoró por entrenamiento en la temporada 81.</EventText>
+      </PlayerEvent>
+      <PlayerEvent>
+        <EventDate>2026-01-28 13:35:00</EventDate>
+        <PlayerEventTypeID>34</PlayerEventTypeID>
+        <EventText>Un nuevo reto que afrontar. Llega al club transferido desde Iker F.C.</EventText>
+      </PlayerEvent>
+      <PlayerEvent>
+        <EventDate>2025-12-08 09:26:00</EventDate>
+        <PlayerEventTypeID>43</PlayerEventTypeID>
+        <EventText>La práctica hace la perfección. Reconocido como el jugador del equipo que más mejoró por entrenamiento en la temporada 80.</EventText>
+      </PlayerEvent>
+      <PlayerEvent>
+        <EventDate>2025-06-01 13:54:00</EventDate>
+        <PlayerEventTypeID>20</PlayerEventTypeID>
+        <EventText>Fue ascendido desde el equipo juvenil de &lt;a href="/Club/?TeamID=639929" title="Iker F.C"&gt;Iker F.C&lt;/a&gt; con 17 años y 5 días en Salto.</EventText>
+      </PlayerEvent>
+      <PlayerEvent>
+        <EventDate>2024-12-15 13:48:00</EventDate>
+        <PlayerEventTypeID>21</PlayerEventTypeID>
+        <EventText>Fue descubierto por Guillermo Lucero de Jesús y firmó contrato por &lt;a href="/Club/Youth/?YouthTeamID=2762341"&gt;Canteriano&lt;/a&gt;.</EventText>
+      </PlayerEvent>
+    </PlayerEvents>
+  </Player>
+</HattrickData>

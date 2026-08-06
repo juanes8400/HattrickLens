@@ -1,0 +1,97 @@
+<HattrickData>
+<UserSupporterTier> : supporterTier
+Indicates which Supporter package the fetching user has, or empty if not a Supporter.
+</UserSupporterTier>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique TeamID.
+</TeamID>
+<TeamName> : String
+The name of the team.
+</TeamName>
+<TrainingLevel> : unsigned Integer
+The current training level for the team in percent.
+</TrainingLevel>
+<NewTrainingLevel Available='Boolean'> : unsigned Integer
+The goal training level for the team in percent.
+</NewTrainingLevel>
+<TrainingType> : trainingType
+Integer defining the type of training.
+</TrainingType>
+<StaminaTrainingPart> : unsigned Integer
+The current part of training level, in percent, used on stamina trainging.
+</StaminaTrainingPart>
+<LastTrainingTrainingType> : trainingType
+The trainingtype that took place last training.
+</LastTrainingTrainingType>
+<LastTrainingTrainingLevel> : unsigned Integer
+The training intensity that was used the last training.
+</LastTrainingTrainingLevel>
+<LastTrainingStaminaTrainingPart> : unsigned Integer
+The stamina share that was used the last training.
+</LastTrainingStaminaTrainingPart>
+-<Trainer>
+<TrainerID> : unsigned Integer
+The globally unique PlayerID for the trainer.
+</TrainerID>
+<TrainerName> : String
+The name of the trainer.
+</TrainerName>
+<ArrivalDate> : DateTime
+The date the trainer became trainer of the team.
+</ArrivalDate>
+</Trainer>
+-<SpecialTraining>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique PlayerID for the player with special training instructions.
+</PlayerID>
+<SpecialTrainingTypeID> : unsigned Integer
+The type of special training is always 1 = Stamina
+</SpecialTrainingTypeID>
+</Player>
+<TrainerName> : String
+The name of the trainer.
+</TrainerName>
+<ArrivalDate> : DateTime
+The date the trainer became trainer of the team.
+</ArrivalDate>
+</SpecialTraining>
+<Morale Available='Boolean'> : TeamSpiritID
+The morale/team spirit of the team.
+</Morale>
+<SelfConfidence Available='Boolean'> : SelfConfidenceID
+The self confidence of the team.
+</SelfConfidence>
+<Experience442> : SkillLevel
+The team's experience of playing 4-4-2.
+</Experience442>
+<Experience433> : SkillLevel
+The team's experience of playing 4-3-3.
+</Experience433>
+<Experience451> : SkillLevel
+The team's experience of playing 4-5-1.
+</Experience451>
+<Experience352> : SkillLevel
+The team's experience of playing 3-5-2.
+</Experience352>
+<Experience532> : SkillLevel
+The team's experience of playing 5-3-2.
+</Experience532>
+<Experience343> : SkillLevel
+The team's experience of playing 3-4-3.
+</Experience343>
+<Experience541> : SkillLevel
+The team's experience of playing 5-4-1.
+</Experience541>
+<Experience523> : SkillLevel
+The team's experience of playing 5-2-3.
+</Experience523>
+<Experience550> : SkillLevel
+The team's experience of playing 5-5-0.
+</Experience550>
+<Experience253> : SkillLevel
+The team's experience of playing 2-5-3.
+</Experience253>
+</Team>
+</HattrickData>

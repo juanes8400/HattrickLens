@@ -1,0 +1,44 @@
+<HattrickData>
+<LeagueLevelUnitID> : unsigned Integer
+The ID number of the LeagueLevelUnit.
+</LeagueLevelUnitID>
+<LeagueLevelUnitName> : String
+The name of the LeagueLevelUnit.
+</LeagueLevelUnitName>
+<Season> : String
+The season that the returned data applies to.
+</Season>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique match indentifier.
+</MatchID>
+<MatchRound> : unsigned Integer
+MatchRound that the match is part of.
+</MatchRound>
+-<HomeTeam>
+<HomeTeamID> : unsigned Integer
+The home team's TeamID.
+</HomeTeamID>
+<HomeTeamName> : String
+The home team's full name.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : unsigned Integer
+The away team's TeamID.
+</AwayTeamID>
+<AwayTeamName> : String
+The away team's full name.
+</AwayTeamName>
+</AwayTeam>
+<MatchDate> : DateTime
+The date indicating when kick-off takes/took place.
+</MatchDate>
+<HomeGoals> : unsigned Integer*
+The final number of goals that the home team scored. This parameter is only sent for matches that are finished.
+</HomeGoals>
+<AwayGoals> : unsigned Integer*
+The final number of goals that the away team scored. This parameter is only sent for matches that are finished.
+</AwayGoals>
+</Match>
+</HattrickData>

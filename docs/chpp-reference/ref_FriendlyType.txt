@@ -1,0 +1,4 @@
+FriendlyType	Description
+0	Normal Rules
+1	Cup Rules
+12	National team friendly

@@ -1,0 +1,116 @@
+<HattrickData>
+-<TransferSearch>
+<ItemCount> : unsigned Integer
+Total items matching the search criteria. If over 100, -1 is returned (as an analogy to "many").
+</ItemCount>
+<PageSize> : unsigned Integer
+How many results are being shown.
+</PageSize>
+<PageIndex> : unsigned Integer
+What page is being shown.
+</PageIndex>
+-<TransferResults>
+-<TransferResult>
+<PlayerId> : unsigned Integer
+The globally unique playerId.
+</PlayerId>
+<FirstName> : String
+Player's FirstName name.
+</FirstName>
+<NickName> : String
+Player's NickName name.
+</NickName>
+<LastName> : String
+Player's LastName name.
+</LastName>
+<NativeCountryID> : unsigned Integer
+CountryID of the country where the player was born.
+</NativeCountryID>
+<AskingPrice> : Money
+The original asking price.
+</AskingPrice>
+<Deadline> : DateTime
+The transfer deadline. Can be even a few hours in the past.
+</Deadline>
+<HighestBid> : Money
+The highest bid made for the player so far. Returns 0 if no bids have been made.
+</HighestBid>
+-<BidderTeam>
+<TeamID> : unsigned Integer
+The globally unique TeamID.
+</TeamID>
+<TeamName> : String
+The full team name.
+</TeamName>
+</BidderTeam>
+-<Details>
+<Age> : unsigned Integer
+The age of the player in years.
+</Age>
+<AgeDays> : unsigned Integer
+The amount of days past since last birthday.
+</AgeDays>
+<Salary> : Money
+The Salary for the player.
+</Salary>
+<TSI> : unsigned Integer
+The Total Skill Index (TSI) of the player.
+</TSI>
+<PlayerForm> : SkillLevel
+The current form, given as an integer with 1 indicating disastrous, 2 for wretched and so on.
+</PlayerForm>
+<Experience> : SkillLevel
+The experience of the player.
+</Experience>
+<Leadership> : SkillLevel
+The leadership of the player.
+</Leadership>
+<Specialty> : SpecialtyID
+Integer indicating the specialty (if any) of the player.
+</Specialty>
+<Cards> : unsigned Integer
+The number of currently accumulated cards. If the player is suspended, this will return 3 (whether the player has actually accumulated 3 bookings, or if he has become suspended by being sent off after 2 bookings in the same game). If a match is running this value is not available
+</Cards>
+<InjuryLevel> : Integer
+The number of weeks the player is predicted to be injured. If the player is bruised, a value of 0 is returned. If the player is healthy, a value of -1 is returned. If a match is running this value is not available
+</InjuryLevel>
+<StaminaSkill> : SkillLevel
+The stamina skill of the player.
+</StaminaSkill>
+<KeeperSkill> : SkillLevel
+The keeper skill of the player.
+</KeeperSkill>
+<PlaymakerSkill> : SkillLevel
+The playmaker skill of the player.
+</PlaymakerSkill>
+<ScorerSkill> : SkillLevel
+The scorer skill of the player.
+</ScorerSkill>
+<PassingSkill> : SkillLevel
+The passing skill of the player.
+</PassingSkill>
+<WingerSkill> : SkillLevel
+The winger skill of the player.
+</WingerSkill>
+<DefenderSkill> : SkillLevel
+The defender skill of the player.
+</DefenderSkill>
+<SetPiecesSkill> : SkillLevel
+The set pieces skill of the player.
+</SetPiecesSkill>
+-<SellerTeam>
+<TeamID> : unsigned Integer
+The globally unique TeamID.
+</TeamID>
+<TeamName> : String
+The full team name.
+</TeamName>
+<LeagueId> : unsigned Integer
+The globally unique LeagueId where the team plays.
+</LeagueId>
+</SellerTeam>
+</Details>
+</TransferResult>
+</TransferResults>
+</TransferSearch>
+</HattrickData>

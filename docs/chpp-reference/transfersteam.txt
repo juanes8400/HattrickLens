@@ -1,0 +1,82 @@
+<HattrickData>
+-<Team>
+<TeamID> : unsigned Integer
+Globally unique identifier of the team.
+</TeamID>
+<TeamName> : String
+The full name of the team.
+</TeamName>
+<ActivatedDate> : DateTime
+The date when the user got this team.
+</ActivatedDate>
+</Team>
+-<Stats>
+<TotalSumOfBuys> : Money
+The total sum in SEK of all the bought players for this team.
+</TotalSumOfBuys>
+<TotalSumOfSales> : Money
+The total sum in SEK of all the sold players for this team.
+</TotalSumOfSales>
+<NumberOfBuys> : unsigned Integer
+The total number of bought players.
+</NumberOfBuys>
+<NumberOfSales> : unsigned Integer
+The total number of sold players.
+</NumberOfSales>
+</Stats>
+-<Transfers>
+<PageIndex> : unsigned Integer
+The pageIndex retrieved.
+</PageIndex>
+<Pages> : unsigned Integer
+The total number of pages available.
+</Pages>
+<StartDate> : DateTime
+The oldest date of the selected transfers list.
+</StartDate>
+<EndDate> : DateTime
+The latest date of the selected transfers list.
+</EndDate>
+-<Transfer>
+<TransferID> : unsigned Integer
+A globally unique identifier of a particular transfer.
+</TransferID>
+<Deadline> : DateTime
+The date when bidding closed for the transfer.
+</Deadline>
+-<Player>
+<PlayerID> : unsigned Integer
+Globally unique identifier of the player.
+</PlayerID>
+<PlayerName> : String
+The full name of the player.
+</PlayerName>
+<TSI> : unsigned Integer
+The Total Skill Index (TSI) of the player at the time he was sent to the transfer list.
+</TSI>
+<TransferType> : Char
+Char of either 'S' or 'B', representing if the transfer was a Sale or a Buy, seen from the sought for team's point of view.
+</TransferType>
+-<Buyer>
+<BuyerTeamID> : unsigned Integer
+Globally unique identifier of the buyer team.
+</BuyerTeamID>
+<BuyerTeamName> : String
+The full name of the buyer team.
+</BuyerTeamName>
+</Buyer>
+-<Seller>
+<SellerTeamID> : unsigned Integer
+Globally unique identifier of the Seller team.
+</SellerTeamID>
+<SellerTeamName> : String
+The full name of the Seller team.
+</SellerTeamName>
+</Seller>
+<Price> : Money
+The final price that the buyer paid.
+</Price>
+</Player>
+</Transfer>
+</Transfers>
+</HattrickData>

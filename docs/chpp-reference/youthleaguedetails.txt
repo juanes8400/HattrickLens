@@ -1,0 +1,60 @@
+<HattrickData>
+<YouthLeagueID> : unsigned Integer
+The ID number of the Youth League (series).
+</YouthLeagueID>
+<YouthLeagueName> : String
+The name of the Youth League.
+</YouthLeagueName>
+<YouthLeagueType> : YouthLeagueType
+The type of the league: regional, national or international.
+</YouthLeagueType>
+<Season> : unsigned Integer
+The season of the league.
+</Season>
+<LastMatchRound> : unsigned Integer
+The the last match round played for the league.
+</LastMatchRound>
+<NrOfTeamsInLeague> : unsigned Integer
+Number of teams in the league.
+</NrOfTeamsInLeague>
+<LeagueSystemID> : LeagueSystemID
+The system type of the league.
+</LeagueSystemID>
+-<Teams>
+-<Team>
+<TeamID> : unsigned Integer
+The team id.
+</TeamID>
+<TeamName> : unsigned Integer
+The team name.
+</TeamName>
+<Position> : unsigned Integer
+The position in the league.
+</Position>
+<PositionChange> : positionChange
+How the team is moving in the league.
+</PositionChange>
+<Matches> : unsigned Integer
+Matches played.
+</Matches>
+<GoalsFor> : unsigned Integer
+Goals for.
+</GoalsFor>
+<GoalsAgainst> : unsigned Integer
+Goals against.
+</GoalsAgainst>
+<Points> : unsigned Integer
+Points.
+</Points>
+<Won> : unsigned Integer
+Number of Won.
+</Won>
+<Draws> : unsigned Integer
+Number of Draws.
+</Draws>
+<Lost> : unsigned Integer
+Number of Lost.
+</Lost>
+</Team>
+</Teams>
+</HattrickData>

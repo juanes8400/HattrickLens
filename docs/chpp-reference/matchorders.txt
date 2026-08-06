@@ -1,0 +1,173 @@
+<HattrickData>
+<MatchID> : unsigned Integer
+The globally unique identifier of the match.
+</MatchID>
+<sourceSystem> : sourceSystem
+Specifies which source system the match belongs to, this replace the old isYouth param
+</sourceSystem>
+-<MatchData Available='Boolean'>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the Away team in the match. (Negative for street teams)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the Away team in the match.
+</AwayTeamName>
+</AwayTeam>
+-<Arena>
+<ArenaID> : unsigned Integer
+The globally unique arenaID.
+</ArenaID>
+<ArenaName> : String
+The name of the arena.
+</ArenaName>
+</Arena>
+<MatchDate> : DateTime
+The kick-off date and time of the match.
+</MatchDate>
+<MatchType> : MatchTypeID
+Integer defining the type of match.
+</MatchType>
+<Attitude> : MatchTeamAttitude
+Integer value representing the the team attitude specified for the match. Only shown to the owner of the team - otherwise omitted.
+</Attitude>
+<TacticType> : MatchTacticType
+Integer value representing the team tactic type specified for the match.
+</TacticType>
+<CoachModifier> : coachModifier
+Integer value representing the style of play the team will use in the match. The value ranges from -10 (100% defensive) to 10 (100% offensive). The attribute Available specifies if the value has been set or not.
+</CoachModifier>
+-<Lineup>
+-<Positions>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<RoleID> : MatchRoleID
+An integer indicating which formal 'slot' (Role) the player has filled in the match, before the repositionings take effect. So, there can only be one (or zero) player with a particular RoleID (contrary to how PositionCode works).
+</RoleID>
+<FirstName> : String
+First name of the player.
+</FirstName>
+<NickName> : String
+Nick name of the player.
+</NickName>
+<LastName> : String
+Last name of the player.
+</LastName>
+<Behaviour> : MatchBehaviourID
+An integer indicating the individual order or repositioning that the player has played with.
+</Behaviour>
+</Player>
+</Positions>
+-<Bench>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<RoleID> : MatchRoleID
+An integer indicating which formal 'slot' (Role) the player has filled in the match, before the repositionings take effect. So, there can only be one (or zero) player with a particular RoleID (contrary to how PositionCode works).
+</RoleID>
+<FirstName> : String
+First name of the player.
+</FirstName>
+<NickName> : String
+Nick name of the player.
+</NickName>
+<LastName> : String
+Last name of the player.
+</LastName>
+</Player>
+</Bench>
+-<Kickers>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<RoleID> : MatchRoleID
+An integer indicating which formal 'slot' (Role) the player has filled in the match, before the repositionings take effect. So, there can only be one (or zero) player with a particular RoleID (contrary to how PositionCode works).
+</RoleID>
+<FirstName> : String
+First name of the player.
+</FirstName>
+<NickName> : String
+Nick name of the player.
+</NickName>
+<LastName> : String
+Last name of the player.
+</LastName>
+</Player>
+</Kickers>
+-<SetPieces>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<FirstName> : String
+First name of the player.
+</FirstName>
+<NickName> : String
+Nick name of the player.
+</NickName>
+<LastName> : String
+Last name of the player.
+</LastName>
+</SetPieces>
+-<Captain>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<FirstName> : String
+First name of the player.
+</FirstName>
+<NickName> : String
+Nick name of the player.
+</NickName>
+<LastName> : String
+Last name of the player.
+</LastName>
+</Captain>
+</Lineup>
+-<PlayerOrders>
+-<PlayerOrder>
+<PlayerOrderID> : unsigned Integer
+The globally unique PlayerOrderID.
+</PlayerOrderID>
+<MatchMinuteCriteria> : unsigned Integer
+An integer indicating in which minute the order should be executed at the earliest.
+</MatchMinuteCriteria>
+<GoalDiffCriteria> : unsigned Integer
+An integer representing different standings also required to trigger the order.
+</GoalDiffCriteria>
+<RedCardCriteria> : unsigned Integer
+An integer representing different red card events also required to trigger the order.
+</RedCardCriteria>
+<SubjectPlayerID> : unsigned Integer
+If a/ substitution: The player leaving. If b/ behaviour change: The player changing his behaviour. Or c/ position swap: the first player that will change his position.
+</SubjectPlayerID>
+<ObjectPlayerID> : unsigned Integer
+The player entering (or once more the player changing behaviour). Or if position swap, the player to swap with.
+</ObjectPlayerID>
+<OrderType> : matchOrderTypeID
+The type of the order.
+</OrderType>
+<NewPositionId> : MatchRoleID
+An integer representing the new position for the (entering or staying) player.
+</NewPositionId>
+<NewPositionBehaviour> : MatchBehaviourID
+An integer representing the new behaviour for the (entering or staying) player.
+</NewPositionBehaviour>
+<PlayerOrderExtraInteger> : MatchBehaviourID
+An integer representing the new behaviour for the (entering or staying) player. (It will always have the value 0, as it is not used by the new match engine.)
+</PlayerOrderExtraInteger>
+</PlayerOrder>
+</PlayerOrders>
+</MatchData>
+</HattrickData>

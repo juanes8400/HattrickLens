@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>worlddetails.xml</FileName>
+  <Version>1.8</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-22 09:00:00</FetchedDate>
+  <LeagueList>
+    <League>
+      <LeagueID>19</LeagueID>
+      <LeagueName>Colombia</LeagueName>
+      <Season>84</Season>
+      <SeasonOffset>-12</SeasonOffset>
+      <MatchRound>3</MatchRound>
+      <ShortName>Colombia</ShortName>
+      <Continent>South America</Continent>
+      <ZoneName>South America</ZoneName>
+      <EnglishName>Colombia</EnglishName>
+      <Country Available="True">
+        <CountryID>18</CountryID>
+        <CountryName>Colombia</CountryName>
+        <CurrencyName>US$</CurrencyName>
+        <CurrencyRate>10.0</CurrencyRate>
+        <CountryCode>CO</CountryCode>
+        <DateFormat>DD/MM/YYYY</DateFormat>
+        <TimeFormat>hh.mm</TimeFormat>
+      </Country>
+      <Cups>
+        <Cup>
+          <CupID>18</CupID>
+          <CupName>Copa Colombia</CupName>
+          <CupLeagueLevel>0</CupLeagueLevel>
+          <CupLevel>1</CupLevel>
+          <CupLevelIndex>1</CupLevelIndex>
+          <MatchRound>2</MatchRound>
+          <MatchRoundsLeft>9</MatchRoundsLeft>
+        </Cup>
+        <Cup>
+          <CupID>528</CupID>
+          <CupName>Copa Macarena Esmeralda</CupName>
+          <CupLeagueLevel>0</CupLeagueLevel>
+          <CupLevel>2</CupLevel>
+          <CupLevelIndex>1</CupLevelIndex>
+          <MatchRound>1</MatchRound>
+          <MatchRoundsLeft>10</MatchRoundsLeft>
+        </Cup>
+        <Cup>
+          <CupID>657</CupID>
+          <CupName>Copa Cocuy Rubí</CupName>
+          <CupLeagueLevel>0</CupLeagueLevel>
+          <CupLevel>2</CupLevel>
+          <CupLevelIndex>2</CupLevelIndex>
+          <MatchRound>0</MatchRound>
+          <MatchRoundsLeft>10</MatchRoundsLeft>
+        </Cup>
+        <Cup>
+          <CupID>786</CupID>
+          <CupName>Copa Tayrona Zafiro</CupName>
+          <CupLeagueLevel>0</CupLeagueLevel>
+          <CupLevel>2</CupLevel>
+          <CupLevelIndex>3</CupLevelIndex>
+          <MatchRound>-1</MatchRound>
+          <MatchRoundsLeft>0</MatchRoundsLeft>
+        </Cup>
+        <Cup>
+          <CupID>915</CupID>
+          <CupName>Copa Peor Es Nada</CupName>
+          <CupLeagueLevel>0</CupLeagueLevel>
+          <CupLevel>3</CupLevel>
+          <CupLevelIndex>1</CupLevelIndex>
+          <MatchRound>0</MatchRound>
+          <MatchRoundsLeft>10</MatchRoundsLeft>
+        </Cup>
+      </Cups>
+      <NationalTeamId>3011</NationalTeamId>
+      <U20TeamId>3052</U20TeamId>
+      <ActiveTeams>1655</ActiveTeams>
+      <ActiveUsers>1612</ActiveUsers>
+      <WaitingUsers>0</WaitingUsers>
+      <TrainingDate>2026-07-24 08:00:00</TrainingDate>
+      <EconomyDate>2026-07-27 00:00:00</EconomyDate>
+      <CupMatchDate>2026-07-23 23:40:00</CupMatchDate>
+      <SeriesMatchDate>2026-07-25 19:00:00</SeriesMatchDate>
+      <NumberOfLevels>7</NumberOfLevels>
+    </League>
+  </LeagueList>
+</HattrickData>

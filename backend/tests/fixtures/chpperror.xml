@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>chpperror.xml</FileName>
+  <Version>1.1</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-05 03:05:21</FetchedDate>
+  <Error> (56) Additional Info: null</Error>
+  <ErrorCode>56</ErrorCode>
+  <ErrorGUID>c018c33c-1036-4e62-947e-2fe51c2cd3d6</ErrorGUID>
+  <Server>chpp83.hattrick.org</Server>
+  <Request>/chppxml.ashx?file=playerdetails&amp;version=3.2&amp;playerID=487725337</Request>
+  <LineNumber>95</LineNumber>
+</HattrickData>

@@ -1,0 +1,64 @@
+<HattrickData>
+-<Cup>
+<CupID> : CupID
+The global unique CupID.
+</CupID>
+<CupSeason> : unsigned Integer
+The season of the matches.
+</CupSeason>
+<CupRound> : unsigned Integer
+The cupround of the matches.
+</CupRound>
+<CupName> : String
+The name of the cup.
+</CupName>
+-<MatchList>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique identifier of the match.
+</MatchID>
+<MatchDate> : DateTime
+The start date (kick-off) of the match.
+</MatchDate>
+-<HomeTeam>
+<TeamId> : unsigned Integer
+The hometeam's TeamId.
+</TeamId>
+<TeamName> : String
+The full name of the hometeam.
+</TeamName>
+</HomeTeam>
+-<AwayTeam>
+<TeamId> : unsigned Integer
+The awayteam's TeamId.
+</TeamId>
+<TeamName> : String
+The full name of the awayteam.
+</TeamName>
+</AwayTeam>
+-<MatchResult Available='Boolean'>
+<HomeGoals> : unsigned Integer
+The number of goals for the home team.
+</HomeGoals>
+<AwayGoals> : unsigned Integer
+The number of goals for the away team.
+</AwayGoals>
+</MatchResult>
+-<LeagueInfo Available='Boolean'>
+<HomeLeagueID> : unsigned Integer
+The LeagueID of the home team in the match.
+</HomeLeagueID>
+<AwayLeagueID> : unsigned Integer
+The LeagueID of the away team in the match.
+</AwayLeagueID>
+<HomeLeagueName> : String
+The league name of the home team in the match.
+</HomeLeagueName>
+<AwayLeagueName> : String
+The league name of the away team in the match.
+</AwayLeagueName>
+</LeagueInfo>
+</Match>
+</MatchList>
+</Cup>
+</HattrickData>

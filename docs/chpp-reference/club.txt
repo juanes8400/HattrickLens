@@ -1,0 +1,44 @@
+<HattrickData>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique TeamID.
+</TeamID>
+<TeamName> : String
+The name of the team.
+</TeamName>
+-<Staff>
+<AssistantTrainerLevels> : unsigned Integer
+The level of the Assistant Trainers.
+</AssistantTrainerLevels>
+<FinancialDirectorLevels> : unsigned Integer
+The level of the Financial Director.
+</FinancialDirectorLevels>
+<FormCoachLevels> : unsigned Integer
+The level of the Form Coache.
+</FormCoachLevels>
+<MedicLevels> : unsigned Integer
+The level of the Medic.
+</MedicLevels>
+<SpokespersonLevels> : unsigned Integer
+The level of the Spokesperson.
+</SpokespersonLevels>
+<SportPsychologistLevels> : unsigned Integer
+The level of the Sport Psychologist.
+</SportPsychologistLevels>
+<TacticalAssistantLevels> : unsigned Integer
+The level of the Tactical Assistant.
+</TacticalAssistantLevels>
+</Staff>
+-<YouthSquad>
+<Investment> : Money
+The weekly youth squad invstment.
+</Investment>
+<HasPromoted> : Boolean
+Boolean value indicating if the team has promoted a youth player this week.
+</HasPromoted>
+<YouthLevel> : unsigned Integer
+The current level of the youth squad.
+</YouthLevel>
+</YouthSquad>
+</Team>
+</HattrickData>

@@ -1,0 +1,182 @@
+<HattrickData>
+-<YouthPlayer>
+<YouthPlayerID> : unsigned Integer
+The globally unique youthPlayerID.
+</YouthPlayerID>
+<FirstName> : String
+Player's FirstName name.
+</FirstName>
+<NickName> : String
+Player's NickName name.
+</NickName>
+<LastName> : String
+Player's LastName name.
+</LastName>
+<Age> : unsigned Integer
+The age of the player in years.
+</Age>
+<AgeDays> : unsigned Integer
+The amount of days past since last birthday.
+</AgeDays>
+<GenderID> : GenderID
+The player gender
+</GenderID>
+<ArrivalDate> : DateTime
+The datetime, when the player was pulled to the youth team.
+</ArrivalDate>
+<CanBePromotedIn> : unsigned Integer
+Number in days, when the player can be promoted to senior squad
+</CanBePromotedIn>
+<PlayerNumber> : unsigned Integer<!-- This elements is only shown if the user has supporter -->
+The number (1 to 99) that the owner of the team has assigned this player.
+</PlayerNumber>
+<Statement> : String (HTML encoded)
+If the owner is a HT Supporter, he may have provided a Statement from his players.
+</Statement>
+<NativeCountryID> : unsigned Integer
+CountryID of the country where the player was born.
+</NativeCountryID>
+<NativeCountryName> : String
+CountryName of the country where the player was born
+</NativeCountryName>
+<OwnerNotes> : String (HTML encoded)
+The notes owner has set. Only visible to owner.
+</OwnerNotes>
+<PlayerCategoryID> : PlayerCategoryID<!-- This elements is only shown if the user has supporter -->
+The CategoryID assigned by the owner. Only visible to owner.
+</PlayerCategoryID>
+<Cards> : unsigned Integer
+The number of currently accumulated cards. If the player is suspended, this will return 3 (whether the player has actually accumulated 3 bookings, or if he has become suspended by being sent off after 2 bookings in the same game). If a match is running this value is not available
+</Cards>
+<InjuryLevel> : Integer
+The number of weeks the player is predicted to be injured. If the player is bruised, a value of 0 is returned. If the player is healthy, a value of -1 is returned. If a match is running this value is not available
+</InjuryLevel>
+<Specialty> : SpecialtyID
+Integer indicating the specialty (if he has any and if it is already revealed). Will be 0 on no or unknown specialty.
+</Specialty>
+<CareerGoals> : unsigned Integer
+The total number of goals throughout this player's carreer. Empty if the team is playing a match.
+</CareerGoals>
+<CareerHattricks> : unsigned Integer
+The total number of hattricks throughout this player's carreer. Empty if the team is playing a match.
+</CareerHattricks>
+<LeagueGoals> : unsigned Integer
+The number of goals in the league this season. Empty if the team is playing a match.
+</LeagueGoals>
+<FriendlyGoals> : unsigned Integer
+The number of goals made in friendlies this season. Empty if the team is playing a match.
+</FriendlyGoals>
+-<OwningYouthTeam>
+<YouthTeamID> : unsigned Integer
+The globally unique YouthTeamID of the team owning the youth player.
+</YouthTeamID>
+<YouthTeamName> : String
+The full youth team name of the team owning the youth player.
+</YouthTeamName>
+<YouthTeamLeagueID> : unsigned Integer
+YouthLeagueID for the league of the youth team owning the youth player.
+</YouthTeamLeagueID>
+-<SeniorTeam>
+<SeniorTeamID> : unsigned Integer
+The globally unique SeniorTeamID.
+</SeniorTeamID>
+<SeniorTeamName> : String
+The full senior team name.
+</SeniorTeamName>
+</SeniorTeam>
+</OwningYouthTeam>
+-<PlayerSkills>
+<KeeperSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current keeper skill of the player. Empty if IsAvailable=false.
+</KeeperSkill>
+<KeeperSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The keeper skill cap of the player. Empty if IsAvailable=false.
+</KeeperSkillMax>
+<DefenderSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current defender skill of the player. Empty if IsAvailable=false.
+</DefenderSkill>
+<DefenderSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The defender skill cap of the player. Empty if IsAvailable=false.
+</DefenderSkillMax>
+<PlaymakerSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current playmaker skill of the player. Empty if IsAvailable=false.
+</PlaymakerSkill>
+<PlaymakerSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The playmaker skill cap of the player. Empty if IsAvailable=false.
+</PlaymakerSkillMax>
+<WingerSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current winger skill of the player. Empty if IsAvailable=false.
+</WingerSkill>
+<WingerSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The winger skill cap of the player. Empty if IsAvailable=false.
+</WingerSkillMax>
+<ScorerSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current scorer skill of the player. Empty if IsAvailable=false.
+</ScorerSkill>
+<ScorerSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The scorer skill cap of the player. Empty if IsAvailable=false.
+</ScorerSkillMax>
+<PassingSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current passing skill of the player. Empty if IsAvailable=false.
+</PassingSkill>
+<PassingSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The passing skill cap of the player. Empty if IsAvailable=false.
+</PassingSkillMax>
+<SetPiecesSkill IsAvailable='Boolean' IsMaxReached='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The current set pieces skill of the player. Empty if IsAvailable=false.
+</SetPiecesSkill>
+<SetPiecesSkillMax IsAvailable='Boolean' MayUnlock='Boolean'> : unsigned Integer
+The set pieces skill cap of the player. Empty if IsAvailable=false.
+</SetPiecesSkillMax>
+</PlayerSkills>
+-<ScoutCall>
+-<Scout>
+<ScoutId> : unsigned Integer
+The unique scoutID.
+</ScoutId>
+<ScoutName> : String
+The name of the scout.
+</ScoutName>
+</Scout>
+<ScoutingRegionID> : unsigned Integer
+The unique regionID the scout was looking for players while he scouted this youth player.
+</ScoutingRegionID>
+-<ScoutComments>
+-<ScoutComment>
+<CommentText> : String
+The comment text.
+</CommentText>
+<CommentType> : ScoutCommentTypeID
+The type the comment belongs too.
+</CommentType>
+<CommentVariation> : unsigned Integer
+The text variant of the comment for given CommentType.
+</CommentVariation>
+<CommentSkillType> : ScoutCommentSkillTypeID
+The skill named in the comment (0 if there is no skill). Will be youthPlayerId if CommentType=1.
+</CommentSkillType>
+<CommentSkillLevel> : SkillLevel
+The skill level named in the comment (0 if there is no skill level named). Will be the player age if CommentType=1.
+</CommentSkillLevel>
+</ScoutComment>
+</ScoutComments>
+</ScoutCall>
+-<LastMatch>
+<Date> : DateTime
+Date of the last played match.
+</Date>
+<YouthMatchID> : unsigned Integer
+The unique YouthMatchID of the last played match.
+</YouthMatchID>
+<PositionCode> : MatchRoleID
+Played position in the last match.
+</PositionCode>
+<PlayedMinutes> : unsigned Integer
+Minutes played in the last match.
+</PlayedMinutes>
+<Rating> : Float
+The players average rating in the last played match.
+</Rating>
+</LastMatch>
+</YouthPlayer>
+</HattrickData>

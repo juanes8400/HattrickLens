@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matches.xml</FileName>
+  <Version>2.9</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:06:21</FetchedDate>
+  <IsYouth>False</IsYouth>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <ShortTeamName>Arrechas</ShortTeamName>
+    <League>
+      <LeagueID>19</LeagueID>
+      <LeagueName>Colombia</LeagueName>
+    </League>
+    <LeagueLevelUnit>
+      <LeagueLevelUnitID>34162</LeagueLevelUnitID>
+      <LeagueLevelUnitName>V.92</LeagueLevelUnitName>
+      <LeagueLevel>5</LeagueLevel>
+    </LeagueLevelUnit>
+    <MatchList>
+      <Match>
+        <MatchID>766747512</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>2238309</AwayTeamID>
+          <AwayTeamName>C. A. CHACO F. E.</AwayTeamName>
+          <AwayTeamNameShortName>CHACO</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-06-24 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>765274382</MatchID>
+        <HomeTeam>
+          <HomeTeamID>3347253</HomeTeamID>
+          <HomeTeamName>Atletico di Colombia</HomeTeamName>
+          <HomeTeamNameShortName>Atletico</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>537758</AwayTeamID>
+          <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+          <AwayTeamNameShortName>Arrechas</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-06-28 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>1</MatchType>
+        <MatchContextId>34162</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>766811764</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>3314705</AwayTeamID>
+          <AwayTeamName>Lakers Doggy Dog</AwayTeamName>
+          <AwayTeamNameShortName>Lakers</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-01 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>6</HomeGoals>
+        <AwayGoals>7</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>765274387</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>2688899</AwayTeamID>
+          <AwayTeamName>etbenianos1</AwayTeamName>
+          <AwayTeamNameShortName>etbenianos1</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-05 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>1</MatchType>
+        <MatchContextId>34162</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41316619</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>121076</AwayTeamID>
+          <AwayTeamName>Aracelis</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-06 06:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41368248</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>1680597</AwayTeamID>
+          <AwayTeamName>FC Žárovky</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-06 18:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41413134</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>155916</AwayTeamID>
+          <AwayTeamName>FC TOPNICI1</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-07 06:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41457209</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>494196</AwayTeamID>
+          <AwayTeamName>Atletico La Quebrada</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-07 18:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41502343</MatchID>
+        <HomeTeam>
+          <HomeTeamID>1539962</HomeTeamID>
+          <HomeTeamName>fc maitoutou</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>537758</AwayTeamID>
+          <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-08 06:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41546715</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>1122358</AwayTeamID>
+          <AwayTeamName>FC De Horna De Dolna</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-08 18:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>766936285</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>620759</AwayTeamID>
+          <AwayTeamName>Nibelungen Korps</AwayTeamName>
+          <AwayTeamNameShortName>Nibelungen</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-08 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>5</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41591874</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>238547</AwayTeamID>
+          <AwayTeamName>A.S. Balù Calcio 2015</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-09 06:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>6</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>41636214</MatchID>
+        <HomeTeam>
+          <HomeTeamID>1723813</HomeTeamID>
+          <HomeTeamName>migliese4</HomeTeamName>
+          <HomeTeamNameShortName></HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>537758</AwayTeamID>
+          <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+          <AwayTeamNameShortName></AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-09 18:55:00</MatchDate>
+        <SourceSystem>HTOIntegrated</SourceSystem>
+        <MatchType>50</MatchType>
+        <MatchContextId>3116068</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>767088314</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>896987</AwayTeamID>
+          <AwayTeamName>SFC Triangel</AwayTeamName>
+          <AwayTeamNameShortName>Triangel</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-12 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>6</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>767076804</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>174832</AwayTeamID>
+          <AwayTeamName>FC Bänk</AwayTeamName>
+          <AwayTeamNameShortName>Bänk</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-15 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>767153643</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>787450</AwayTeamID>
+          <AwayTeamName>Fc Aittakorven Salamat</AwayTeamName>
+          <AwayTeamNameShortName>Aittakorven</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-19 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+        <Status>FINISHED</Status>
+      </Match>
+      <Match>
+        <MatchID>767370369</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID>
+          <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+          <HomeTeamNameShortName>Arrechas</HomeTeamNameShortName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>2370641</AwayTeamID>
+          <AwayTeamName>Leones de la Selva</AwayTeamName>
+          <AwayTeamNameShortName>Leones</AwayTeamNameShortName>
+        </AwayTeam>
+        <MatchDate>2026-07-22 23:40:00</MatchDate>
+        <SourceSystem>Hattrick</SourceSystem>
+        <MatchType>3</MatchType>
+        <MatchContextId>18</MatchContextId>
+        <CupLevel>1</CupLevel>
+        <CupLevelIndex>1</CupLevelIndex>
+        <OrdersGiven>True</OrdersGiven>
+        <Status>UPCOMING</Status>
+      </Match>
+    </MatchList>
+  </Team>
+</HattrickData>

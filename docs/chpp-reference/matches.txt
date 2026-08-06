@@ -1,0 +1,91 @@
+<HattrickData>
+-<Team>
+<TeamID> : unsigned Integer
+The team's TeamID.
+</TeamID>
+<TeamName> : String
+The full name of the team.
+</TeamName>
+<ShortTeamName> : String
+The short team name. Only available when isYouth is false.
+</ShortTeamName>
+-<League>
+<LeagueID> : unsigned Integer
+The globally unique LeagueID.
+</LeagueID>
+<LeagueName> : String
+The league name.
+</LeagueName>
+-<LeagueLevelUnit>
+<LeagueLevelUnitID> : unsigned Integer
+The globally unique LeagueLevelUnitID.
+</LeagueLevelUnitID>
+<LeagueLevelUnitName> : String
+The name of the LeagueLevelUnit.
+</LeagueLevelUnitName>
+<LeagueLevel> : unsigned Integer
+Integer value stating the relative level of the LeagueLevelUnit, with 1 indicating the league's top series.
+</LeagueLevel>
+</LeagueLevelUnit>
+</League>
+-<MatchList>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique identifier of the match.
+</MatchID>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+<HomeTeamShortName> : String
+The short team name of the Home team in the match.
+</HomeTeamShortName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the Away team in the match. (Negative for street teams)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the Away team in the match.
+</AwayTeamName>
+<AwayTeamShortName> : String
+The short team name of the Away team in the match.
+</AwayTeamShortName>
+</AwayTeam>
+<MatchDate> : DateTime
+The start date and time (kick-off) of the match.
+</MatchDate>
+<SourceSystem> : sourceSystem
+SourceSytem tells from witch system the match is ex: hattrick, youth, htointegrated
+</SourceSystem>
+<MatchType> : MatchTypeID
+Integer defining the type of match.
+</MatchType>
+<MatchContextId> : unsigned Integer
+This will be either LeagueLevelUnitId (for League), CupId (Cup, Hattrick Masters, World Cup and U-20 World Cup), LadderId, TournamentId, or 0 for friendly, qualification, single matches and preparation matches.
+</MatchContextId>
+<CupLevel> : unsigned Integer
+1 = National/Divisional cup, 2 = Challenger cup, 3 = Consolation cup. 0 if MatchType is not 3.
+</CupLevel>
+<CupLevelIndex> : unsigned Integer
+In Challenger cups: 1 = Emerald (start week 2), 2 = Ruby (start week 3), 3 = Sapphire (start week 4). Always 1 for National/Divisional (main cups) and Consolation cups. 0 if MatchType is not 3.
+</CupLevelIndex>
+<HomeGoals> : unsigned Integer
+The current number of goals in the match for the home team.
+</HomeGoals>
+<AwayGoals> : unsigned Integer
+The current number of goals in the match for the away team.
+</AwayGoals>
+<Status> : MatchStatus
+Specifying whether the match is FINISHED, ONGOING or UPCOMING.
+</Status>
+<OrdersGiven> : Boolean*
+A boolean value only supplied for upcoming matches (haven't started yet) of your own team that signifies whether you have given orders or not. If the request is for another team than your own (even if it is for your opponent), this data is not sent.
+</OrdersGiven>
+</Match>
+</MatchList>
+</Team>
+</HattrickData>

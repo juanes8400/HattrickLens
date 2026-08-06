@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matchlineup.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-26 22:51:22</FetchedDate>
+  <MatchID>765274387</MatchID>
+  <IsYouth>False</IsYouth>
+  <MatchType>1</MatchType>
+  <MatchContextId>34162</MatchContextId>
+  <MatchDate>2026-07-05 23:40:00</MatchDate>
+  <HomeTeam>
+    <HomeTeamID>537758</HomeTeamID>
+    <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+  </HomeTeam>
+  <AwayTeam>
+    <AwayTeamID>2688899</AwayTeamID>
+    <AwayTeamName>etbenianos1</AwayTeamName>
+  </AwayTeam>
+  <Arena>
+    <ArenaID>537758</ArenaID>
+    <ArenaName>Chapecoense</ArenaName>
+  </Arena>
+  <Team>
+    <TeamID>2688899</TeamID>
+    <TeamName>etbenianos1</TeamName>
+    <ExperienceLevel>4</ExperienceLevel>
+    <Lineup>
+      <Player>
+        <PlayerID>498576155</PlayerID>
+        <RoleID>1</RoleID>
+        <PlayerName>Nereo Urquiza</PlayerName>
+        <RatingStars>3.5</RatingStars>
+        <PositionCode>1</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>499280214</PlayerID>
+        <RoleID>2</RoleID>
+        <PlayerName>Tzvetelin Mishonov</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>2</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498629801</PlayerID>
+        <RoleID>3</RoleID>
+        <PlayerName>Martiniano Koffmann</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>3</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059665</PlayerID>
+        <RoleID>4</RoleID>
+        <PlayerName>Albeiro Erazo</PlayerName>
+        <RatingStars>4</RatingStars>
+        <PositionCode>4</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059668</PlayerID>
+        <RoleID>5</RoleID>
+        <PlayerName>Jorge Federico Aquino</PlayerName>
+        <RatingStars>4</RatingStars>
+        <PositionCode>5</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059677</PlayerID>
+        <RoleID>6</RoleID>
+        <PlayerName>Eliécer Castro</PlayerName>
+        <RatingStars>5</RatingStars>
+        <PositionCode>6</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>481249171</PlayerID>
+        <RoleID>7</RoleID>
+        <PlayerName>Sami Suutarinen</PlayerName>
+        <RatingStars>6</RatingStars>
+        <PositionCode>7</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>480991404</PlayerID>
+        <RoleID>8</RoleID>
+        <PlayerName>Gioele Arosio</PlayerName>
+        <RatingStars>4.5</RatingStars>
+        <PositionCode>8</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059669</PlayerID>
+        <RoleID>9</RoleID>
+        <PlayerName>Josué Sepúlveda</PlayerName>
+        <RatingStars>4.5</RatingStars>
+        <PositionCode>9</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>485337184</PlayerID>
+        <RoleID>10</RoleID>
+        <PlayerName>Carlos Alberto Hernández</PlayerName>
+        <RatingStars>6</RatingStars>
+        <PositionCode>10</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059678</PlayerID>
+        <RoleID>11</RoleID>
+        <PlayerName>Vladimiro Puyo</PlayerName>
+        <RatingStars>6</RatingStars>
+        <PositionCode>11</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059676</PlayerID>
+        <RoleID>13</RoleID>
+        <PlayerName>Hernán Menkes</PlayerName>
+        <RatingStars>0</RatingStars>
+        <PositionCode>13</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498790107</PlayerID>
+        <RoleID>14</RoleID>
+        <PlayerName>Marcelo Schattenhofer</PlayerName>
+        <RatingStars>0</RatingStars>
+        <PositionCode>14</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059670</PlayerID>
+        <RoleID>15</RoleID>
+        <PlayerName>Luis Francisco Cárdenas</PlayerName>
+        <RatingStars>0</RatingStars>
+        <PositionCode>15</PositionCode>
+        <Behaviour>0</Behaviour>
+      </Player>
+      <Player>
+        <PlayerID>498059678</PlayerID>
+        <RoleID>17</RoleID>
+        <PlayerName>Vladimiro Puyo</PlayerName>
+      </Player>
+      <Player>
+        <PlayerID>498059665</PlayerID>
+        <RoleID>18</RoleID>
+        <PlayerName>Albeiro Erazo</PlayerName>
+      </Player>
+      <Player>
+        <PlayerID>498059680</PlayerID>
+        <RoleID>19</RoleID>
+        <PlayerName>Javier Carvajal</PlayerName>
+        <RatingStars>5.5</RatingStars>
+      </Player>
+    </Lineup>
+  </Team>
+</HattrickData>

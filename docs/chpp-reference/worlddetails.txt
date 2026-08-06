@@ -1,0 +1,135 @@
+<HattrickData>
+-<LeagueList>
+-<League>
+<LeagueID> : unsigned Integer
+The globally unique LeagueID.
+</LeagueID>
+<LeagueName> : String
+The League name.
+</LeagueName>
+<Season> : unsigned Integer
+The current season number of the league.
+</Season>
+<SeasonOffset> : Integer
+The season offset to swedish's season.
+</SeasonOffset>
+<MatchRound> : unsigned Integer
+The current match round of the league.
+</MatchRound>
+<ShortName> : String
+The short name of the league (used in some places with little room on the site).
+</ShortName>
+<Continent> : String
+The name of the continent it is defined to be part of in Hattrick.
+</Continent>
+<ZoneName> : String
+The name of the zone the league is defined to be part of in Hattrick.
+</ZoneName>
+<EnglishName> : String
+The English name of the league.
+</EnglishName>
+<LeagueSystemID> : LeagueSystemID
+The system type of the league.
+</LeagueSystemID>
+<LanguageId> : unsigned Integer
+The ID of the default language of the league.
+</LanguageId>
+<LanguageName> : String
+The name of the default language of the league.
+</LanguageName>
+-<Country Available='Boolean'>
+<CountryID> : unsigned Integer
+The globally unique CountryID of country.
+</CountryID>
+<CountryName> : String
+The name of the country.
+</CountryName>
+<CurrencyName> : String
+The name of the currency in this country.
+</CurrencyName>
+<CurrencyRate> : Decimal
+Decimal value specifying the relative currency rate to SEK (swedish krona).
+</CurrencyRate>
+<CountryCode> : String
+The country code for this country.
+</CountryCode>
+<DateFormat> : String
+The date format for users of this country using ISO_8601
+</DateFormat>
+<TimeFormat> : String
+The time format for users of this country using ISO_8601
+</TimeFormat>
+</Country>
+-<Cups>
+-<Cup>
+<CupID> : unsigned Integer
+Globally unique CupID.
+</CupID>
+<CupName> : String
+Name of the cup.
+</CupName>
+<CupLeagueLevel> : unsigned Integer
+LeagueLevel for the cup. 0 = National (LeagueLevel 1-6), 7-9 = Divisional.
+</CupLeagueLevel>
+<CupLevel> : unsigned Integer
+Level of the cup. 1 = National/Divisional, 2 = Challenger, 3 = Consolation.
+</CupLevel>
+<CupLevelIndex> : unsigned Integer
+Index of the cup. Always 1 for National and Consolation cups, for Challenger cup: 1 = Emerald, 2 = Ruby, 3 = Sapphire.
+</CupLevelIndex>
+<MatchRound> : unsigned Integer
+The last played matchround (or currently played if matches are ongoing). (Note that this is different from TeamDetails!).
+</MatchRound>
+<MatchRoundsLeft> : unsigned Integer
+How many rounds are left of this cup.
+</MatchRoundsLeft>
+</Cup>
+</Cups>
+<NationalTeamId> : unsigned Integer
+The id of the national team of the league.
+</NationalTeamId>
+<U20teamId> : unsigned Integer
+The id of the U-20 national team of the league.
+</U20teamId>
+<ActiveTeams> : unsigned Integer
+Integer specifying the number of active teams in the league, as of last daily count.
+</ActiveTeams>
+<ActiveUsers> : unsigned Integer
+Integer specifying the number of active users in the league, as of last daily count.
+</ActiveUsers>
+<WaitingUsers> : unsigned Integer
+Integer specifying the number of users on the waiting list in the league. These users are not included in the ActiveUsers, so ActiveUsers + WaitingUsers would give a sort of total number of users.
+</WaitingUsers>
+<TrainingDate> : DateTime
+The date and time when the next training update will start in this league.
+</TrainingDate>
+<EconomyDate> : DateTime
+The date and time when the next economy update will start in this league.
+</EconomyDate>
+<CupMatchDate> : DateTime
+The date and time when the next cup round is being checked for (that is, there are not necessarily any matches to play, if the cup has been finished).
+</CupMatchDate>
+<SeriesMatchDate> : DateTime
+The date and time when the next series match round starts. Some leagues may have several series match dates - then this data gives the date when the first batch for the league starts.
+</SeriesMatchDate>
+<Sequence1> : DateTime
+Time and date for an upcoming daily update.
+</Sequence1>
+<Sequence2> : DateTime
+Time and date for an upcoming daily update.
+</Sequence2>
+<Sequence3> : DateTime
+Time and date for an upcoming daily update.
+</Sequence3>
+<Sequence5> : DateTime
+Time and date for an upcoming daily update.
+</Sequence5>
+<Sequence7> : DateTime
+Time and date for an upcoming daily update, including the confidence.
+</Sequence7>
+<NumberOfLevels> : unsigned Integer
+Integer representing the number of LeagueLevels (divisions) active for this league.
+</NumberOfLevels>
+</League>
+</LeagueList>
+</HattrickData>

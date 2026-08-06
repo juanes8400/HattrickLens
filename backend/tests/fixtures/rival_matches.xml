@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matches.xml</FileName>
+  <Version>2.9</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:06:22</FetchedDate>
+  <UserSupporterTier>none</UserSupporterTier>
+  <Team>
+    <TeamID>2688899</TeamID>
+    <TeamName>etbenianos1</TeamName>
+    <MatchList>
+      <Match>
+        <MatchID>950000</MatchID>
+        <HomeTeam>
+          <HomeTeamID>2688899</HomeTeamID>
+          <HomeTeamName>etbenianos1</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>3000000</AwayTeamID>
+          <AwayTeamName>Muy Viejo FC</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-06-01 20:00:00</MatchDate>
+        <MatchType>1</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>950001</MatchID>
+        <HomeTeam>
+          <HomeTeamID>2688899</HomeTeamID>
+          <HomeTeamName>etbenianos1</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>3000001</AwayTeamID>
+          <AwayTeamName>Oponente A</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-10 20:00:00</MatchDate>
+        <MatchType>1</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>950002</MatchID>
+        <HomeTeam>
+          <HomeTeamID>3000002</HomeTeamID>
+          <HomeTeamName>Oponente B</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>2688899</AwayTeamID>
+          <AwayTeamName>etbenianos1</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-12 20:00:00</MatchDate>
+        <MatchType>9</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>950003</MatchID>
+        <HomeTeam>
+          <HomeTeamID>2688899</HomeTeamID>
+          <HomeTeamName>etbenianos1</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>3000003</AwayTeamID>
+          <AwayTeamName>Oponente C</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-15 20:00:00</MatchDate>
+        <MatchType>1</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>950004</MatchID>
+        <HomeTeam>
+          <HomeTeamID>3000004</HomeTeamID>
+          <HomeTeamName>Oponente D</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>2688899</AwayTeamID>
+          <AwayTeamName>etbenianos1</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-18 20:00:00</MatchDate>
+        <MatchType>9</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>950005</MatchID>
+        <HomeTeam>
+          <HomeTeamID>2688899</HomeTeamID>
+          <HomeTeamName>etbenianos1</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>3000005</AwayTeamID>
+          <AwayTeamName>Duelo Bot FC</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-19 20:00:00</MatchDate>
+        <MatchType>62</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>5</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>950006</MatchID>
+        <HomeTeam>
+          <HomeTeamID>2688899</HomeTeamID>
+          <HomeTeamName>etbenianos1</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>3000006</AwayTeamID>
+          <AwayTeamName>Oponente E</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-20 20:00:00</MatchDate>
+        <MatchType>1</MatchType>
+        <Status>FINISHED</Status>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </Match>
+    </MatchList>
+  </Team>
+</HattrickData>

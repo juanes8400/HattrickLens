@@ -1,0 +1,10 @@
+MatchExpectation	Description
+8	We will win
+7	We are favourites
+6	We have the edge
+5	It will be a close affair
+4	They have the edge
+3	They are favourites
+2	We will lose
+1	We are outclassed
+0	Better not show up

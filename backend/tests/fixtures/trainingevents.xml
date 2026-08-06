@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>trainingevents.xml</FileName>
+  <Version>1.0</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-22 09:00:00</FetchedDate>
+  <UserSupporterTier>none</UserSupporterTier>
+  <Player>
+    <PlayerID>1</PlayerID>
+    <TrainingEvents>
+      <TrainingEvent><SkillID>7</SkillID><OldLevel>7</OldLevel><NewLevel>8</NewLevel><Season>83</Season><MatchRound>13</MatchRound><DayNumber>3</DayNumber></TrainingEvent>
+      <TrainingEvent><SkillID>7</SkillID><OldLevel>6</OldLevel><NewLevel>7</NewLevel><Season>83</Season><MatchRound>6</MatchRound><DayNumber>3</DayNumber></TrainingEvent>
+    </TrainingEvents>
+  </Player>
+  <Player>
+    <PlayerID>2</PlayerID>
+    <TrainingEvents>
+      <TrainingEvent><SkillID>7</SkillID><OldLevel>4</OldLevel><NewLevel>5</NewLevel><Season>83</Season><MatchRound>11</MatchRound><DayNumber>3</DayNumber></TrainingEvent>
+      <TrainingEvent><SkillID>7</SkillID><OldLevel>5</OldLevel><NewLevel>6</NewLevel><Season>84</Season><MatchRound>2</MatchRound><DayNumber>3</DayNumber></TrainingEvent>
+    </TrainingEvents>
+  </Player>
+  <Player>
+    <PlayerID>3</PlayerID>
+    <TrainingEvents>
+      <TrainingEvent><SkillID>6</SkillID><OldLevel>8</OldLevel><NewLevel>9</NewLevel><Season>84</Season><MatchRound>1</MatchRound><DayNumber>3</DayNumber></TrainingEvent>
+    </TrainingEvents>
+  </Player>
+</HattrickData>

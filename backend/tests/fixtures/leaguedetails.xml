@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>leaguedetails.xml</FileName>
+  <Version>1.6</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:06:23</FetchedDate>
+  <LeagueID>19</LeagueID>
+  <LeagueName>Colombia</LeagueName>
+  <LeagueLevel>5</LeagueLevel>
+  <MaxLevel>5</MaxLevel>
+  <LeagueLevelUnitID>34162</LeagueLevelUnitID>
+  <LeagueLevelUnitName>V.92</LeagueLevelUnitName>
+  <CurrentMatchRound>1</CurrentMatchRound>
+  <Rank>62</Rank>
+  <Team>
+    <UserId>14308672</UserId>
+    <TeamID>2512155</TeamID>
+    <TeamName>LosNeithas F.C</TeamName>
+    <Position>1</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>14415294</UserId>
+    <TeamID>2688899</TeamID>
+    <TeamName>etbenianos1</TeamName>
+    <Position>2</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>10857807</UserId>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <Position>3</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>0</UserId>
+    <TeamID>3271521</TeamID>
+    <TeamName>Nariño Rayo</TeamName>
+    <Position>4</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>14689498</UserId>
+    <TeamID>3347253</TeamID>
+    <TeamName>Atletico di Colombia</TeamName>
+    <Position>5</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>14701318</UserId>
+    <TeamID>3357872</TeamID>
+    <TeamName>NeiNacional F.C.</TeamName>
+    <Position>6</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>0</UserId>
+    <TeamID>3271519</TeamID>
+    <TeamName>Cauca CF</TeamName>
+    <Position>7</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+  <Team>
+    <UserId>0</UserId>
+    <TeamID>3271520</TeamID>
+    <TeamName>San Andrés y Providencia Real</TeamName>
+    <Position>8</Position>
+    <PositionChange>0</PositionChange>
+    <Matches>0</Matches>
+    <GoalsFor>0</GoalsFor>
+    <GoalsAgainst>0</GoalsAgainst>
+    <Points>0</Points>
+    <Won>0</Won>
+    <Draws>0</Draws>
+    <Lost>0</Lost>
+  </Team>
+</HattrickData>

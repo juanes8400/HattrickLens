@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+
+# This reference is tabular source material; trailing tabs encode empty columns.
+docs/chpp-reference/ref_MatchEventTypes_2.txt whitespace=-blank-at-eol

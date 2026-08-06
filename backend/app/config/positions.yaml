@@ -1,0 +1,197 @@
+# Matrices de aporte posicional — Manual no Escrito de Hattrick
+#
+# Fuente operativa: https://wiki.hattrick.org/wiki/Manual_no_Escrito
+# Las cifras son las contribuciones relativas publicadas por puesto y orden
+# individual. No se ajustan contra estrellas ni observaciones de Hattrick
+# Control. Cada rol declara a qué sector aporta cada habilidad, de modo que
+# el motor puede explicar tanto el índice como sus efectos tácticos.
+#
+# Los sectores laterales representan el costado propio del jugador. La
+# alineación futura conserva el lado real y aplicará las penalizaciones por
+# superpoblación que también enumera el Manual.
+
+source:
+  name: Manual no Escrito
+  url: https://wiki.hattrick.org/wiki/Manual_no_Escrito
+  type: community-research
+  matrix: relative-position-contributions
+
+reference:
+  implementation: Hattrick Control 3.50.02.1619
+  status: structural
+  source_files: [UEquipo.pas, UEquipo.dfm]
+  recovered: "Entradas de la calculadora y los 19 roles de posición."
+  pending: "Matriz numérica de la rutina auxiliar de HallarFormulas."
+
+# Factores individuales del Manual no Escrito, aplicados a las habilidades de
+# campo antes de multiplicarlas por cada contribución posicional.
+adjustments:
+  form: "((forma - 0.5) / 7) ^ 0.45"
+  stamina: "((condicion + 6.5) / 14) ^ 0.6"
+  experience: "ln(experiencia) * 4 / 3, sumado a cada habilidad"
+  loyalty: "nivel_de_fidelidad / 19, sumado a cada habilidad"
+
+positions:
+  keeper:
+    label: Portero
+    contributions:
+      central_defence: {keeper: 0.87, defending: 0.35}
+      side_defence: {keeper: 0.61, defending: 0.25}
+
+  central_defender:
+    label: Defensa central
+    contributions:
+      central_defence: {defending: 1.00}
+      side_defence: {defending: 0.26}
+      midfield: {playmaking: 0.25}
+
+  central_defender_towards_wing:
+    label: Defensa central hacia lateral
+    contributions:
+      central_defence: {defending: 0.67}
+      side_defence: {defending: 0.81}
+      midfield: {playmaking: 0.15}
+      side_attack: {winger: 0.26}
+
+  central_defender_offensive:
+    label: Defensa central ofensivo
+    contributions:
+      central_defence: {defending: 0.73}
+      side_defence: {defending: 0.20}
+      midfield: {playmaking: 0.40}
+
+  wingback:
+    label: Lateral
+    contributions:
+      central_defence: {defending: 0.38}
+      side_defence: {defending: 0.92}
+      midfield: {playmaking: 0.15}
+      side_attack: {winger: 0.59}
+
+  wingback_towards_middle:
+    label: Lateral hacia el medio
+    contributions:
+      central_defence: {defending: 0.70}
+      side_defence: {defending: 0.75}
+      midfield: {playmaking: 0.20}
+      side_attack: {winger: 0.35}
+
+  wingback_offensive:
+    label: Lateral ofensivo
+    contributions:
+      central_defence: {defending: 0.35}
+      side_defence: {defending: 0.74}
+      midfield: {playmaking: 0.20}
+      side_attack: {winger: 0.69}
+
+  wingback_defensive:
+    label: Lateral defensivo
+    contributions:
+      central_defence: {defending: 0.43}
+      side_defence: {defending: 1.00}
+      midfield: {playmaking: 0.10}
+      side_attack: {winger: 0.45}
+
+  inner_midfield:
+    label: Medio
+    contributions:
+      central_defence: {defending: 0.40}
+      side_defence: {defending: 0.09}
+      midfield: {playmaking: 1.00}
+      central_attack: {passing: 0.33, scoring: 0.22}
+      side_attack: {passing: 0.13}
+
+  inner_midfield_towards_wing:
+    label: Medio hacia banda
+    contributions:
+      central_defence: {defending: 0.33}
+      side_defence: {defending: 0.24}
+      midfield: {playmaking: 0.90}
+      central_attack: {passing: 0.23}
+      side_attack: {winger: 0.59, passing: 0.31}
+
+  inner_midfield_offensive:
+    label: Medio ofensivo
+    contributions:
+      central_defence: {defending: 0.16}
+      side_defence: {defending: 0.04}
+      midfield: {playmaking: 0.95}
+      central_attack: {passing: 0.49, scoring: 0.31}
+      side_attack: {passing: 0.18}
+
+  inner_midfield_defensive:
+    label: Medio defensivo
+    contributions:
+      central_defence: {defending: 0.58}
+      side_defence: {defending: 0.14}
+      midfield: {playmaking: 0.95}
+      central_attack: {passing: 0.18, scoring: 0.13}
+      side_attack: {passing: 0.07}
+
+  winger:
+    label: Extremo
+    contributions:
+      central_defence: {defending: 0.20}
+      side_defence: {defending: 0.35}
+      midfield: {playmaking: 0.45}
+      central_attack: {passing: 0.11}
+      side_attack: {winger: 0.86, passing: 0.26}
+
+  winger_towards_middle:
+    label: Extremo hacia el medio
+    contributions:
+      central_defence: {defending: 0.25}
+      side_defence: {defending: 0.29}
+      midfield: {playmaking: 0.55}
+      central_attack: {passing: 0.16}
+      side_attack: {winger: 0.74, passing: 0.15}
+
+  winger_offensive:
+    label: Extremo ofensivo
+    contributions:
+      central_defence: {defending: 0.13}
+      side_defence: {defending: 0.22}
+      midfield: {playmaking: 0.30}
+      central_attack: {scoring: 0.13}
+      side_attack: {winger: 1.00, passing: 0.29}
+
+  winger_defensive:
+    label: Extremo defensivo
+    contributions:
+      central_defence: {defending: 0.25}
+      side_defence: {defending: 0.61}
+      midfield: {playmaking: 0.30}
+      central_attack: {passing: 0.05}
+      side_attack: {winger: 0.69, passing: 0.21}
+
+  forward:
+    label: Delantero
+    contributions:
+      midfield: {playmaking: 0.25}
+      central_attack: {scoring: 1.00, passing: 0.33}
+      side_attack: {scoring: 0.27, passing: 0.14, winger: 0.24}
+
+  forward_defensive:
+    label: Delantero defensivo
+    contributions:
+      midfield: {playmaking: 0.35}
+      central_attack: {scoring: 0.56, passing: 0.53}
+      side_attack: {scoring: 0.13, passing: 0.31, winger: 0.13}
+
+  forward_towards_wing:
+    label: Delantero hacia banda
+    contributions:
+      midfield: {playmaking: 0.15}
+      central_attack: {scoring: 0.66, passing: 0.23}
+      side_attack: {scoring: 0.70, passing: 0.27, winger: 0.85}
+
+# Funciones de decisión que el Manual sí concreta. No son aportes de una
+# posición de campo, por eso se mantienen aparte de la matriz anterior.
+special_roles:
+  captain:
+    label: Capitán
+    formula: "3 × liderazgo + 2 × experiencia"
+  set_piece_taker:
+    label: Lanzador de faltas
+    formula: "pelota_parada + experiencia"
+    note: "Para TLD el Manual identifica BP y XP como las únicas habilidades relevantes."

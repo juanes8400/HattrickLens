@@ -1,0 +1,147 @@
+<HattrickData>
+-<Manager>
+<UserId> : unsigned Integer
+The globally unique UserID.
+</UserId>
+<Loginname> : String
+The 'username' or 'nickname' used in Forums and around the site.
+</Loginname>
+<SupporterTier> : String
+The current level of Hattrick Supporter that the user has. Empty if not a Supporter.
+</SupporterTier>
+-<LastLogins>
+<LoginTime> : String
+Repeter with Login Time information
+</LoginTime>
+</LastLogins>
+-<Language>
+<LanguageId> : unsigned Integer
+The globally unique LanguageID.
+</LanguageId>
+<LanguageName> : String
+The language name.
+</LanguageName>
+</Language>
+-<Country>
+<CountryId> : unsigned Integer
+The globally unique CountryID.
+</CountryId>
+<CountryName> : String
+The country name
+</CountryName>
+</Country>
+-<Currency>
+<CurrencyName> : String
+The name of the currency.
+</CurrencyName>
+<CurrencyRate> : Decimal
+Decimal value specifying the relative currency rate to SEK (swedish krona).
+</CurrencyRate>
+</Currency>
+-<Teams>
+-<Team>
+<TeamId> : unsigned Integer
+The globally unique TeamID.
+</TeamId>
+<TeamName> : String
+The full team name
+</TeamName>
+<GenderID> : GenderID
+The gender of the team.
+</GenderID>
+<LeagueSystemID> : LeagueSystemID
+The system type of the league for the team.
+</LeagueSystemID>
+-<Arena>
+<ArenaId> : unsigned Integer
+The globally unique ArenaID.
+</ArenaId>
+<ArenaName> : String
+The arena name.
+</ArenaName>
+</Arena>
+-<League>
+<LeagueId> : unsigned Integer
+The globally unique LeagueID
+</LeagueId>
+<LeagueName> : String
+The League name.
+</LeagueName>
+<Season> : unsigned Integer
+The Current Season.
+</Season>
+</League>
+-<Country>
+<CountryId> : unsigned Integer
+The globally unique CountryId
+</CountryId>
+<CountryName> : String
+The Country name.
+</CountryName>
+</Country>
+-<LeagueLevelUnit>
+<LeagueLevelUnitId> : unsigned Integer
+The globally unique LeagueLevelUnitID.
+</LeagueLevelUnitId>
+<LeagueLevelUnitName> : String
+The name of the LeagueLevelUnit
+</LeagueLevelUnitName>
+</LeagueLevelUnit>
+-<Region>
+<RegionId> : unsigned Integer
+The globally unique RegionID.
+</RegionId>
+<RegionName> : String
+The Region name
+</RegionName>
+</Region>
+-<YouthTeam>
+<YouthTeamId> : unsigned Integer
+If the Team has a Youth academy the ID is represented here.
+</YouthTeamId>
+<YouthTeamName> : String
+If the Team has a Youth academy the team name is represented here.
+</YouthTeamName>
+-<YouthLeague>
+<YouthLeagueId> : unsigned Integer
+The globally unique YouthLeagueID.
+</YouthLeagueId>
+<YouthLeagueName> : String
+The name of the youth league.
+</YouthLeagueName>
+</YouthLeague>
+</YouthTeam>
+</Team>
+</Teams>
+-<NationalTeamCoach>
+-<NationalTeam>
+<NationalTeamId> : unsigned Integer
+The globally unique NationalTeamID.
+</NationalTeamId>
+<NationalTeamName> : String
+The name of the national team.
+</NationalTeamName>
+</NationalTeam>
+</NationalTeamCoach>
+-<NationalTeamAssistant>
+-<NationalTeam>
+<NationalTeamId> : unsigned Integer
+The globally unique NationalTeamID.
+</NationalTeamId>
+<NationalTeamName> : String
+The name of the national team.
+</NationalTeamName>
+</NationalTeam>
+</NationalTeamAssistant>
+-<Avatar>
+<BackgroundImage> : URI
+The URL to the card background-image. This will show a silouette for non-supporter teams.
+</BackgroundImage>
+-<Layer x='unsigned Integer' y='unsigned Integer'>
+<Image> : URI
+The URL to the bodypart item.
+</Image>
+</Layer>
+</Avatar>
+</Manager>
+</HattrickData>

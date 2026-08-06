@@ -1,0 +1,64 @@
+<HattrickData>
+<LeagueID> : unsigned Integer
+The ID number of the League (for instance Sverige, USA, England...) that this LeaguelevelUnit is part of.
+</LeagueID>
+<LeagueName> : String
+The name of the League (for instance Sverige, USA, England...) that this LeaguelevelUnit is part of.
+</LeagueName>
+<LeagueLevel> : unsigned Integer
+Indicates the division/level this LeaguelevelUnit is located on. 1 is the top division, the second best is 2 and so on.
+</LeagueLevel>
+<MaxLevel> : unsigned Integer
+How many divisions/levels there are in this league.
+</MaxLevel>
+<LeagueLevelUnitID> : unsigned Integer
+The ID number of the LeagueLevelUnit.
+</LeagueLevelUnitID>
+<LeagueLevelUnitName> : String
+The name of the LeagueLevelUnit.
+</LeagueLevelUnitName>
+<CurrentMatchRound> : String
+Current match round.
+</CurrentMatchRound>
+<Rank> : unsigned Integer
+Ranking of the LeaagueLevelUnit.
+</Rank>
+-<Team>
+<UserId> : unsigned Integer
+The globally unique UserID.
+</UserId>
+<TeamID> : unsigned Integer
+The globally unique team indentifier.
+</TeamID>
+<Position> : unsigned Integer
+Position in the table.
+</Position>
+<PositionChange> : positionChange
+How the team is moving in the league.
+</PositionChange>
+<TeamName> : String
+The team's full name.
+</TeamName>
+<Matches> : unsigned Integer
+How many matches the team has played.
+</Matches>
+<GoalsFor> : unsigned Integer
+How many goals the team has scored.
+</GoalsFor>
+<GoalsAgainst> : unsigned Integer
+How many goals the team has allowed their opponents to score.
+</GoalsAgainst>
+<Points> : unsigned Integer
+How many points the team has.
+</Points>
+<Won> : unsigned Integer
+How many matches the team has won.
+</Won>
+<Draws> : unsigned Integer
+How many draws the team has.
+</Draws>
+<Lost> : unsigned Integer
+How many matches the team has lost.
+</Lost>
+</Team>
+</HattrickData>

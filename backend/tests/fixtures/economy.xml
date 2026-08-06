@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>economy.xml</FileName>
+  <Version>1.1</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-20 17:22:46</FetchedDate>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <Cash>210341736</Cash>
+    <ExpectedCash>223855664</ExpectedCash>
+    <SponsorsPopularity Available="True">0</SponsorsPopularity>
+    <SupportersPopularity Available="True">6</SupportersPopularity>
+    <FanClubSize>2406</FanClubSize>
+    <IncomeSpectators>152100</IncomeSpectators>
+    <IncomeSponsors>1035000</IncomeSponsors>
+    <IncomeFinancial>0</IncomeFinancial>
+    <IncomeTemporary>15476336</IncomeTemporary>
+    <IncomeSum>16868436</IncomeSum>
+    <CostsArena>409828</CostsArena>
+    <CostsPlayers>2324280</CostsPlayers>
+    <CostsFinancial>0</CostsFinancial>
+    <CostsStaff>530400</CostsStaff>
+    <CostsTemporary>90000</CostsTemporary>
+    <CostsYouth>0</CostsYouth>
+    <CostsSum>3354508</CostsSum>
+    <ExpectedWeeksTotal>13513928</ExpectedWeeksTotal>
+    <LastIncomeSpectators>322460</LastIncomeSpectators>
+    <LastIncomeSponsors>1025000</LastIncomeSponsors>
+    <LastIncomeFinancial>0</LastIncomeFinancial>
+    <LastIncomeTemporary>42672530</LastIncomeTemporary>
+    <LastIncomeSum>44239990</LastIncomeSum>
+    <LastCostsArena>409828</LastCostsArena>
+    <LastCostsPlayers>1395600</LastCostsPlayers>
+    <LastCostsFinancial>0</LastCostsFinancial>
+    <LastCostsStaff>530400</LastCostsStaff>
+    <LastCostsTemporary>94268200</LastCostsTemporary>
+    <LastCostsYouth>0</LastCostsYouth>
+    <LastCostsSum>96604028</LastCostsSum>
+    <LastWeeksTotal>-52364038</LastWeeksTotal>
+  </Team>
+</HattrickData>

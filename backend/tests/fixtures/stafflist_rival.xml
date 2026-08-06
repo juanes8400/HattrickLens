@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>stafflist.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-01 20:58:14</FetchedDate>
+  <StaffList>
+    <Trainer>
+      <TrainerId>513928918</TrainerId>
+      <Name>Nicolas Moreno</Name>
+      <Age>40</Age>
+      <AgeDays>43</AgeDays>
+      <ContractDate>2026-07-12 05:46:00</ContractDate>
+      <Cost>50000</Cost>
+      <CountryID>18</CountryID>
+      <TrainerType>2</TrainerType>
+      <Leadership>4</Leadership>
+      <TrainerSkillLevel>3</TrainerSkillLevel>
+      <TrainerStatus>2</TrainerStatus>
+    </Trainer>
+  </StaffList>
+</HattrickData>

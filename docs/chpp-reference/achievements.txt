@@ -1,0 +1,36 @@
+<HattrickData>
+<MaxPoints> : unsigned Integer
+The maximum number of points a user currently can achieve
+</MaxPoints>
+-<AchievementList>
+-<Achievement>
+<AchievementTypeID> : unsigned Integer
+The AchievementTypeID (integer). NOTE. We do not provide a list of available achievements.
+</AchievementTypeID>
+<AchievementTitle> : String
+The title for the achievement
+</AchievementTitle>
+<AchievementText> : String
+The text describing the achievement
+</AchievementText>
+<CategoryID> : AchievementCategoryID
+The CategoryID (integer) the achievement belongs to
+</CategoryID>
+<EventDate> : DateTime
+The date when achievement was awarded
+</EventDate>
+<Points> : unsigned Integer
+Points awarded for achievement
+</Points>
+<Multilevel> : Boolean
+True if AchievementTypeID has multiple levels.
+</Multilevel>
+<Rank> : unsigned Integer
+The user's current rank in this achievement, where 1 = best rank possible.
+</Rank>
+<NumberOfEvents> : unsigned Integer
+Global number of users been awarded this achievement
+</NumberOfEvents>
+</Achievement>
+</AchievementList>
+</HattrickData>

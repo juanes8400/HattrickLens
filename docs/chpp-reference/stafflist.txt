@@ -1,0 +1,70 @@
+<HattrickData>
+-<StaffList>
+-<Trainer>
+<TrainerId> : unsigned Integer
+The id for the trainer.
+</TrainerId>
+<Name> : String
+The name of the trainer.
+</Name>
+<Age> : unsigned Integer
+The age of the trainer in years.
+</Age>
+<AgeDays> : unsigned Integer
+The amount of days past since last birthday.
+</AgeDays>
+<ContractDate> : DateTime
+The start date of the contract.
+</ContractDate>
+<Cost> : unsigned Integer
+The cost per week for the trainer.
+</Cost>
+<CountryID> : unsigned Integer
+CountryID of the country where the trainer was born.
+</CountryID>
+<TrainerType> : unsigned Integer
+0 = Defensive, 1 = Offensive, 2 = Balanced
+</TrainerType>
+<Leadership> : SkillLevel
+The leadership of the trainer.
+</Leadership>
+<TrainerSkillLevel> : unsigned Integer
+The trainer skill level, from 1 (lowest) to 5 (highest).
+</TrainerSkillLevel>
+<TrainerStatus> : unsigned Integer
+1 = PlayingTrainer, 2 = OnlyTrainer, 3 = HoFTrainer
+</TrainerStatus>
+</Trainer>
+-<StaffMembers>
+-<Staff>
+<Name> : String
+The name of the staff.
+</Name>
+<StaffId> : unsigned Integer
+The id for the staff.
+</StaffId>
+<StaffType> : StaffType
+The type.
+</StaffType>
+<StaffLevel> : unsigned Integer
+The level of the staff member.
+</StaffLevel>
+<HiredDate> : DateTime
+The date and time that the staff was hired.
+</HiredDate>
+<Cost> : unsigned Integer
+The cost per week for the staff.
+</Cost>
+<HofPlayerId> : unsigned Integer
+The id of the hall of fame player associated with this staff member. 0 if none.
+</HofPlayerId>
+</Staff>
+</StaffMembers>
+<TotalStaffMembers> : unsigned Integer
+Total of Staff Members in the staff
+</TotalStaffMembers>
+<TotalCost> : unsigned Integer
+Total cost per week for all the staff members
+</TotalCost>
+</StaffList>
+</HattrickData>

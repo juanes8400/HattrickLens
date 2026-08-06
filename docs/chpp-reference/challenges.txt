@@ -1,0 +1,102 @@
+<HattrickData>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique nationalTeamID.
+</TeamID>
+<TeamName> : String
+The team name.
+</TeamName>
+-<ChallengesByMe>
+-<Challenge>
+<TrainingMatchID> : unsigned Integer
+The globally unique identifier for the challenge/offer.
+</TrainingMatchID>
+<MatchTime> : unsigned Integer
+The match start time.
+</MatchTime>
+<MatchID> : unsigned Integer
+The matchid for the match that was created for an accepted challenge.
+</MatchID>
+<FriendlyType> : unsigned Integer
+Integer defining the type of friendly.
+</FriendlyType>
+-<Opponent>
+<TeamID> : unsigned Integer
+The globally unique nationalTeamID.
+</TeamID>
+<TeamName> : String
+The team name.
+</TeamName>
+<LogoURL> : URI
+The url for the opponent's logo, if it has one.
+</LogoURL>
+-<Arena>
+<ArenaID> : unsigned Integer
+The globally unique arenaID.
+</ArenaID>
+<ArenaName> : String
+The name of the arena.
+</ArenaName>
+</Arena>
+-<Country>
+<CountryID> : unsigned Integer
+The globally unique CountryID.
+</CountryID>
+<CountryName> : String
+The country name.
+</CountryName>
+</Country>
+<IsAgreed> : Boolean
+Indicating whether the challenge/offer has been accepted and the match arranged.
+</IsAgreed>
+</Opponent>
+</Challenge>
+</ChallengesByMe>
+-<OffersByOthers>
+-<Offer>
+<TrainingMatchID> : unsigned Integer
+The globally unique identifier for the challenge/offer.
+</TrainingMatchID>
+<MatchTime> : unsigned Integer
+The match start time.
+</MatchTime>
+<MatchID> : unsigned Integer
+The matchid for the match that was created for an accepted challenge.
+</MatchID>
+<FriendlyType> : unsigned Integer
+Integer defining the type of friendly.
+</FriendlyType>
+-<Opponent>
+<TeamID> : unsigned Integer
+The globally unique nationalTeamID.
+</TeamID>
+<TeamName> : String
+The team name.
+</TeamName>
+<LogoURL> : URI
+The url for the opponent's logo, if it has one.
+</LogoURL>
+-<Arena>
+<ArenaID> : unsigned Integer
+The globally unique arenaID.
+</ArenaID>
+<ArenaName> : String
+The name of the arena.
+</ArenaName>
+</Arena>
+-<League>
+<LeagueID> : unsigned Integer
+The globally unique LeagueID.
+</LeagueID>
+<LeagueName> : String
+The League name.
+</LeagueName>
+</League>
+<IsAgreed> : Boolean
+Indicating whether the challenge/offer has been accepted and the match arranged.
+</IsAgreed>
+</Opponent>
+</Offer>
+</OffersByOthers>
+</Team>
+</HattrickData>

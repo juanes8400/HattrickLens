@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>managercompendium.xml</FileName>
+  <Version>1.5</Version>
+  <FetchedDate>2026-08-06 12:00:00</FetchedDate>
+  <Manager>
+    <UserId>445566</UserId>
+    <Loginname>manager-rival</Loginname>
+    <LastLogins>
+      <LoginTime>2026-08-03 18:30:00 : 200.118.***.***</LoginTime>
+      <LoginTime>2026-08-06 08:45:00 : 191.156.***.***</LoginTime>
+    </LastLogins>
+    <Teams>
+      <Team>
+        <TeamId>2688899</TeamId>
+        <TeamName>etbenianos1</TeamName>
+      </Team>
+    </Teams>
+  </Manager>
+</HattrickData>

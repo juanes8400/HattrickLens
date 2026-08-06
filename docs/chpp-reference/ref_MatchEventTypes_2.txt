@@ -1,0 +1,27 @@
+In general, SubjectTeamId is the team that the event belongs to, SubjectPlayerId is the main (and sometimes only) player in the event and ObjectPlayerId is, if exists, the other player.
+
+However, there are a few specific events that those tags don't have the usual information
+
+EventTypeID	SubjectPlayerId	ObjectPlayerId	SubjectTeamId
+23	Home lineup	Away lineup	
+24	Home lineup	Away lineup	
+25		Region ID	
+27	Home team ID	Away team ID	
+30-33	Arena ID	Sold seats	Seats in total
+35	Arena ID	Temporary seats	
+40		Midfield possession	
+61	Organisation level		
+64	Trainer ID	Organisation level	
+68	Pressing tactic level		
+75		Added minutes	
+331-336	Tactic level		
+451		Cup ID	
+454		Injury weeks	
+456		Goals ever	
+457		Goals this league	
+458		Goals this cup	
+464		Sold seats	
+465	1st place league team ID		
+466		2nd place league team ID	
+468	6th place league team ID		
+469		7th place league team ID	

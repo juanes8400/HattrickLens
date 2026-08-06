@@ -1,0 +1,101 @@
+<HattrickData>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique TeamID for logged on user.
+</TeamID>
+<FanClubId> : unsigned Integer
+The globally unique FanclubID.
+</FanClubId>
+<FanClubName> : String*
+The name of the fanclub. If the user have not set a fanclub name the container is empty.
+</FanClubName>
+<FanMood> : unsigned Integer
+The popularity among the supporters of the team. If a match is running this value is not available
+</FanMood>
+<Members> : unsigned Integer
+The size of the team's fanclub.
+</Members>
+<FanSeasonExpectation> : unsigned Integer
+The expectations for current season.
+</FanSeasonExpectation>
+-<PlayedMatches>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique MatchID for the match.
+</MatchID>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the away team in the match. (Negative for street teams)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the away team in the match.
+</AwayTeamName>
+</AwayTeam>
+<MatchDate> : DateTime
+The start date (kick-off) of the match.
+</MatchDate>
+<MatchType> : MatchTypeID
+Integer defining the type of match
+</MatchType>
+<HomeGoals> : unsigned Integer
+The current number of goals in the match for the home team.
+</HomeGoals>
+<AwayGoals> : unsigned Integer
+The current number of goals in the match for the away team.
+</AwayGoals>
+<FanMatchExpectation> : unsigned Integer
+Expectation for the match.
+</FanMatchExpectation>
+<FanMoodAfterMatch> : unsigned Integer
+Fan mood after the match.
+</FanMoodAfterMatch>
+<Weather> : WeatherID
+Wheather during the match.
+</Weather>
+<SoldSeats> : unsigned Integer
+The total number of sold seats.
+</SoldSeats>
+</Match>
+</PlayedMatches>
+-<UpcomingMatches>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique MatchID for the match.
+</MatchID>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the away team in the match. (Negative for street teams)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the away team in the match.
+</AwayTeamName>
+</AwayTeam>
+<MatchDate> : DateTime
+The start date (kick-off) of the match.
+</MatchDate>
+<MatchType> : MatchTypeID
+Integer defining the type of match.
+</MatchType>
+<FanMatchExpectation> : unsigned Integer
+Expectation for the match.
+</FanMatchExpectation>
+</Match>
+</UpcomingMatches>
+</Team>
+</HattrickData>

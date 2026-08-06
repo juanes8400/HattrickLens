@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>leaguefixtures.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-02 16:43:29</FetchedDate>
+  <LeagueLevelUnitID>34162</LeagueLevelUnitID>
+  <LeagueLevelUnitName>V.92</LeagueLevelUnitName>
+  <Season>83</Season>
+  <Match>
+    <MatchID>765274382</MatchID>
+    <MatchRound>1</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>3347253</HomeTeamID>
+      <HomeTeamName>Atletico di Colombia</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>537758</AwayTeamID>
+      <AwayTeamName>Pulgas Arrechas</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-06-28 23:40:00</MatchDate>
+    <HomeGoals>0</HomeGoals>
+    <AwayGoals>2</AwayGoals>
+  </Match>
+  <Match>
+    <MatchID>765274387</MatchID>
+    <MatchRound>2</MatchRound>
+    <HomeTeam>
+      <HomeTeamID>537758</HomeTeamID>
+      <HomeTeamName>Pulgas Arrechas</HomeTeamName>
+    </HomeTeam>
+    <AwayTeam>
+      <AwayTeamID>2688899</AwayTeamID>
+      <AwayTeamName>etbenianos1</AwayTeamName>
+    </AwayTeam>
+    <MatchDate>2026-07-05 23:40:00</MatchDate>
+    <HomeGoals>1</HomeGoals>
+    <AwayGoals>2</AwayGoals>
+  </Match>
+</HattrickData>

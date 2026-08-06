@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <Arena>
+    <ArenaID>537758</ArenaID>
+    <ArenaName>Chapecoense</ArenaName>
+    <Team>
+      <TeamID>537758</TeamID>
+      <TeamName>Pulgas Arrechas</TeamName>
+    </Team>
+    <CurrentCapacity Available="true">
+      <RebuiltDate>2026-01-01 00:00:00</RebuiltDate>
+      <Terraces>40000</Terraces>
+      <Basic>15000</Basic>
+      <Roof>6000</Roof>
+      <VIP>1500</VIP>
+      <Total>62500</Total>
+    </CurrentCapacity>
+  </Arena>
+</HattrickData>

@@ -1,0 +1,342 @@
+<HattrickData>
+<SourceSystem> : sourceSystem
+Which sourceSystem the request was made for.
+</SourceSystem>
+<UserSupporterTier> : supporterTier
+Indicates which Supporter package the fetching user has, or empty if not a Supporter.
+</UserSupporterTier>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique identifier of the match.
+</MatchID>
+<MatchType> : MatchTypeID
+Integer defining the type of match.
+</MatchType>
+<MatchContextId> : unsigned Integer
+This will be either LeagueLevelUnitId (for League), CupId (Cup, Hattrick Masters, World Cup and U-20 World Cup), LadderId, TournamentId, or 0 for friendly, qualification, single matches and preparation matches.
+</MatchContextId>
+<MatchRuleId> : MatchRuleID
+This will contain the rules that's in place for the ladder or tournament in question. It's provided for all matchtypes and defaults to 0 = No rules
+</MatchRuleId>
+<CupLevel> : unsigned Integer
+1 = National/Divisional cup, 2 = Challenger cup, 3 = Consolation cup. 0 if MatchType is not 3.
+</CupLevel>
+<CupLevelIndex> : unsigned Integer
+In Challenger cups: 1 = Emerald (start week 2), 2 = Ruby (start week 3), 3 = Sapphire (start week 4). Always 1 for National/Divisional (main cups) and Consolation cups. 0 if MatchType is not 3.
+</CupLevelIndex>
+<MatchDate> : DateTime
+The start date and time (kick-off) of the match.
+</MatchDate>
+<FinishedDate> : DateTime*
+The date and time when the match was finished. Not supplied until it is finished.
+</FinishedDate>
+<AddedMinutes> : Integer
+How many minutes of added time the match had. Not supplied until it is finished.
+</AddedMinutes>
+-<HomeTeam>
+<HomeTeamID> : Integer
+The teamID of the Home team in the match. (Negative for street teams.)
+</HomeTeamID>
+<HomeTeamName> : String
+The team name of the Home team in the match.
+</HomeTeamName>
+<DressURI> : URI
+URI to an image representing the dress of the team. FOR SENIORS ONLY
+</DressURI>
+<Formation> : String
+Character string (x-x-x) representing the formation the team started with.
+</Formation>
+<HomeGoals> : unsigned Integer
+The current number of goals in the match for the home team.
+</HomeGoals>
+<TacticType> : MatchTacticType
+Integer value representing the the team tactic type specified for the match.
+</TacticType>
+<TacticSkill> : SkillLevel
+Integer value representing the tactic skill of the team.
+</TacticSkill>
+<RatingMidfield> : MatchRating
+Integer value representing the midfield rating of the team.
+</RatingMidfield>
+<RatingRightDef> : MatchRating
+Integer value representing the right defence rating of the team.
+</RatingRightDef>
+<RatingMidDef> : MatchRating
+Integer value representing the middle defence rating of the team.
+</RatingMidDef>
+<RatingLeftDef> : MatchRating
+Integer value representing the left defence rating of the team.
+</RatingLeftDef>
+<RatingRightAtt> : MatchRating
+Integer value representing the right attack rating of the team.
+</RatingRightAtt>
+<RatingMidAtt> : MatchRating
+Integer value representing the middle attack rating of the team.
+</RatingMidAtt>
+<RatingLeftAtt> : MatchRating
+Integer value representing the left attack rating of the team.
+</RatingLeftAtt>
+<TeamAttitude> : MatchTeamAttitude
+Integer value representing the the team attitude specified for the match. Only shown to the owner of the team - otherwise omitted.
+</TeamAttitude>
+<RatingIndirectSetPiecesDef> : MatchRating
+Integer value representing the defensive indirect set pieces rating of the team.
+</RatingIndirectSetPiecesDef>
+<RatingIndirectSetPiecesAtt> : MatchRating
+Integer value representing the attacking indirect set pieces rating of the team.
+</RatingIndirectSetPiecesAtt>
+<NrOfChancesLeft> : unsigned Integer
+Number of chances the team had on the left side.
+</NrOfChancesLeft>
+<NrOfChancesCenter> : unsigned Integer
+Number of chances the team had in the middle.
+</NrOfChancesCenter>
+<NrOfChancesRight> : unsigned Integer
+Number of chances the team had on the right side.
+</NrOfChancesRight>
+<NrOfChancesSpecialEvents> : unsigned Integer
+Number of special event chances.
+</NrOfChancesSpecialEvents>
+<NrOfChancesOther> : unsigned Integer
+Number of chances of other types that doesn't fit into any of the above categories.
+</NrOfChancesOther>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : Integer
+The teamID of the Away team in the match. (Negative for street teams.)
+</AwayTeamID>
+<AwayTeamName> : String
+The team name of the Away team in the match.
+</AwayTeamName>
+<DressURI> : URI
+URI to an image representing the dress of the team. FOR SENIORS ONLY
+</DressURI>
+<Formation> : String
+Character string (x-x-x) representing the formation the team started with.
+</Formation>
+<AwayGoals> : unsigned Integer
+The current number of goals in the match for the away team.
+</AwayGoals>
+<TacticType> : MatchTacticType
+Integer value representing the the team tactic type specified for the match.
+</TacticType>
+<TacticSkill> : SkillLevel
+Integer value representing the tactic skill of the team.
+</TacticSkill>
+<RatingMidfield> : MatchRating
+Integer value representing the midfield rating of the team.
+</RatingMidfield>
+<RatingRightDef> : MatchRating
+Integer value representing the right defence rating of the team.
+</RatingRightDef>
+<RatingMidDef> : MatchRating
+Integer value representing the middle defence rating of the team.
+</RatingMidDef>
+<RatingLeftDef> : MatchRating
+Integer value representing the left defence rating of the team.
+</RatingLeftDef>
+<RatingRightAtt> : MatchRating
+Integer value representing the right attack rating of the team.
+</RatingRightAtt>
+<RatingMidAtt> : MatchRating
+Integer value representing the middle attack rating of the team.
+</RatingMidAtt>
+<RatingLeftAtt> : MatchRating
+Integer value representing the left attack rating of the team.
+</RatingLeftAtt>
+<TeamAttitude> : MatchTeamAttitude
+Integer value representing the the team attitude specified for the match. Only shown to the owner of the team - otherwise omitted.
+</TeamAttitude>
+<RatingIndirectSetPiecesDef> : MatchRating
+Integer value representing the defensive indirect set pieces rating of the team.
+</RatingIndirectSetPiecesDef>
+<RatingIndirectSetPiecesAtt> : MatchRating
+Integer value representing the attacking indirect set pieces rating of the team.
+</RatingIndirectSetPiecesAtt>
+<NrOfChancesLeft> : unsigned Integer
+Number of chances the team had on the left side.
+</NrOfChancesLeft>
+<NrOfChancesCenter> : unsigned Integer
+Number of chances the team had in the middle.
+</NrOfChancesCenter>
+<NrOfChancesRight> : unsigned Integer
+Number of chances the team had on the right side.
+</NrOfChancesRight>
+<NrOfChancesSpecialEvents> : unsigned Integer
+Number of special event chances.
+</NrOfChancesSpecialEvents>
+<NrOfChancesOther> : unsigned Integer
+Number of chances of other types that doesn't fit into any of the above categories.
+</NrOfChancesOther>
+</AwayTeam>
+-<Arena>
+<ArenaID> : unsigned Integer
+The globally unique arenaID.
+</ArenaID>
+<ArenaName> : String
+The name of the arena.
+</ArenaName>
+<WeatherID> : WeatherID
+Integer defining the weather during the match.
+</WeatherID>
+<SoldTotal> : unsigned Integer
+The total number of sold tickets (number of spectators).
+</SoldTotal>
+<SoldTerraces> : unsigned Integer
+The number of sold tickets for the teraces section.
+</SoldTerraces>
+<SoldBasic> : unsigned Integer
+The number of sold tickets for the basic seating section.
+</SoldBasic>
+<SoldRoof> : unsigned Integer
+The number of sold tickets for the seating under roof section.
+</SoldRoof>
+<SoldVIP> : unsigned Integer
+The number of sold tickets for the VIP section.
+</SoldVIP>
+</Arena>
+-<MatchOfficials>
+-<Referee>
+<RefereeId> : unsigned Integer
+The globally unique PlayerID for the referee.
+</RefereeId>
+<RefereeName> : String
+The name of the referee.
+</RefereeName>
+<RefereeCountryId> : unsigned Integer
+The countryID of the country the referee is from.
+</RefereeCountryId>
+<RefereeCountryName> : String
+The name of the country the referee is from.
+</RefereeCountryName>
+<RefereeTeamId> : unsigned Integer
+The teamId of the team that the referee is a Hall of Fame member of.
+</RefereeTeamId>
+<RefereeTeamname> : String
+The name of the team that the referee is a Hall of Fame member of.
+</RefereeTeamname>
+</Referee>
+-<RefereeAssistant1>
+<RefereeId> : unsigned Integer
+The globally unique PlayerID for the referee.
+</RefereeId>
+<RefereeName> : String
+The name of the referee.
+</RefereeName>
+<RefereeCountryId> : unsigned Integer
+The countryID of the country the referee is from.
+</RefereeCountryId>
+<RefereeCountryName> : String
+The name of the country the referee is from.
+</RefereeCountryName>
+<RefereeTeamId> : unsigned Integer
+The teamId of the team that the referee is a Hall of Fame member of.
+</RefereeTeamId>
+<RefereeTeamname> : String
+The name of the team that the referee is a Hall of Fame member of.
+</RefereeTeamname>
+</RefereeAssistant1>
+-<RefereeAssistant2>
+<RefereeId> : unsigned Integer
+The globally unique PlayerID for the referee.
+</RefereeId>
+<RefereeName> : String
+The name of the referee.
+</RefereeName>
+<RefereeCountryId> : unsigned Integer
+The countryID of the country the referee is from.
+</RefereeCountryId>
+<RefereeCountryName> : String
+The name of the country the referee is from.
+</RefereeCountryName>
+<RefereeTeamId> : unsigned Integer
+The teamId of the team that the referee is a Hall of Fame member of.
+</RefereeTeamId>
+<RefereeTeamname> : String
+The name of the team that the referee is a Hall of Fame member of.
+</RefereeTeamname>
+</RefereeAssistant2>
+</MatchOfficials>
+-<Scorers>
+-<Goal Index='unsigned Integer'>
+<ScorerPlayerID> : unsigned Integer
+The globally unique PlayerID for the scorer.
+</ScorerPlayerID>
+<ScorerPlayerName> : String
+The name of the scorer.
+</ScorerPlayerName>
+<ScorerTeamID> : Integer
+The teamID of the team that scored.
+</ScorerTeamID>
+<ScorerHomeGoals> : unsigned Integer
+The number of goals for the home team after the goal.
+</ScorerHomeGoals>
+<ScorerAwayGoals> : unsigned Integer
+The number of goals for the away team after the goal.
+</ScorerAwayGoals>
+<ScorerMinute> : unsigned Integer
+The minute that the goal was scored in.
+</ScorerMinute>
+<MatchPart> : matchPart
+Which part of the match the goal was scored in.
+</MatchPart>
+</Goal>
+</Scorers>
+-<Bookings>
+-<Booking Index='unsigned Integer'>
+<BookingPlayerID> : unsigned Integer
+The globally unique PlayerID for the booked player.
+</BookingPlayerID>
+<BookingPlayerName> : String
+The name of the booked player.
+</BookingPlayerName>
+<BookingTeamID> : Integer
+The teamID of the team that suffered the booking.
+</BookingTeamID>
+<BookingType> : unsigned Integer
+Specifies whether it was a warning (BookingType=1) or red card (BookingType=2).
+</BookingType>
+<BookingMinute> : unsigned Integer
+The minute that the booking happened.
+</BookingMinute>
+<MatchPart> : matchPart
+Which part of the match the booking happened.
+</MatchPart>
+</Booking>
+</Bookings>
+-<Injuries>
+-<Injury Index='unsigned Integer'>
+<InjuryPlayerID> : unsigned Integer
+The globally unique PlayerID for the injured player.
+</InjuryPlayerID>
+<InjuryPlayerName> : String
+The name of the injured player.
+</InjuryPlayerName>
+<InjuryTeamID> : Integer
+The teamID of the team that suffered the injury.
+</InjuryTeamID>
+<InjuryType> : unsigned Integer
+Specifies whether it was a bruise (InjuryType=1) or an injury (InjuryType=2).
+</InjuryType>
+<InjuryMinute> : unsigned Integer
+The minute that the injury happened.
+</InjuryMinute>
+<MatchPart> : matchPart
+Which part of the match the booking happened.
+</MatchPart>
+</Injury>
+</Injuries>
+<PossessionFirstHalfHome> : unsigned Integer
+Home team's ball possession in % for first half.
+</PossessionFirstHalfHome>
+<PossessionFirstHalfAway> : unsigned Integer
+Away team's ball possession in % for first half.
+</PossessionFirstHalfAway>
+<PossessionSecondHalfHome> : unsigned Integer
+Home team's ball possession in % for second half.
+</PossessionSecondHalfHome>
+<PossessionSecondHalfAway> : unsigned Integer
+Away team's ball possession in % for second half.
+</PossessionSecondHalfAway>
+</Match>
+</HattrickData>

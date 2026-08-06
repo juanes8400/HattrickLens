@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>transfersteam.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:06:21</FetchedDate>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <ActivatedDate>2024-01-01 00:00:00</ActivatedDate>
+  </Team>
+  <Stats>
+    <TotalSumOfBuys>1750000</TotalSumOfBuys>
+    <TotalSumOfSales>2860000</TotalSumOfSales>
+    <NumberOfBuys>1</NumberOfBuys>
+    <NumberOfSales>1</NumberOfSales>
+  </Stats>
+  <Transfers>
+    <PageIndex>0</PageIndex>
+    <Pages>1</Pages>
+    <StartDate>2024-01-01 00:00:00</StartDate>
+    <EndDate>2026-08-03 14:36:00</EndDate>
+    <Transfer>
+      <TransferID>900001</TransferID>
+      <Deadline>2024-03-15 20:00:00</Deadline>
+      <TransferType>B</TransferType>
+      <Price>1750000</Price>
+      <Player>
+        <PlayerID>468921494</PlayerID>
+        <PlayerName>Alberto Gutiérrez Caviedes</PlayerName>
+        <TSI>150000</TSI>
+      </Player>
+      <Buyer>
+        <BuyerTeamID>537758</BuyerTeamID>
+        <BuyerTeamName>Pulgas Arrechas</BuyerTeamName>
+      </Buyer>
+      <Seller>
+        <SellerTeamID>999999</SellerTeamID>
+        <SellerTeamName>Otro Equipo FC</SellerTeamName>
+      </Seller>
+    </Transfer>
+    <Transfer>
+      <TransferID>388548167</TransferID>
+      <Deadline>2026-08-03 14:36:00</Deadline>
+      <TransferType>S</TransferType>
+      <Price>2860000</Price>
+      <Player>
+        <!-- ID fuera de players.xml a propósito: este fixture es compartido
+             por pruebas de sync genérico que cuentan snapshotsWritten
+             exactos (ver test_sync_endpoint_auth.py); un jugador que SÍ
+             existiera ahí inflaría ese conteo. -->
+        <PlayerID>900000002</PlayerID>
+        <PlayerName>Lander Fripont</PlayerName>
+        <TSI>9170</TSI>
+      </Player>
+      <Buyer>
+        <BuyerTeamID>1423828</BuyerTeamID>
+        <BuyerTeamName>Seixinho FC</BuyerTeamName>
+      </Buyer>
+      <Seller>
+        <SellerTeamID>537758</SellerTeamID>
+        <SellerTeamName>Pulgas Arrechas</SellerTeamName>
+      </Seller>
+    </Transfer>
+  </Transfers>
+</HattrickData>

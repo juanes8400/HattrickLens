@@ -1,0 +1,58 @@
+<HattrickData>
+<YouthLeagueID> : unsigned Integer
+The ID number of the Youth League (series).
+</YouthLeagueID>
+<YouthLeagueName> : String
+The name of the Youth League.
+</YouthLeagueName>
+<YouthLeagueType> : YouthLeagueType
+The type of the league: regional, national or international.
+</YouthLeagueType>
+<Season> : unsigned Integer
+The season of the league
+</Season>
+<LastMatchRound> : unsigned Integer
+The the last match round played for the league.
+</LastMatchRound>
+<NrOfTeamsInLeague> : unsigned Integer
+Number of teams in the league.
+</NrOfTeamsInLeague>
+-<Matches>
+-<Match>
+<MatchID> : unsigned Integer
+The globally unique match indentifier.
+</MatchID>
+<MatchRound> : unsigned Integer
+MatchRound that the match is part of.
+</MatchRound>
+<Status> : MatchStatus
+Match status.
+</Status>
+-<HomeTeam>
+<HomeTeamID> : unsigned Integer
+The home team's TeamID.
+</HomeTeamID>
+<HomeTeamName> : String
+The home team's full name.
+</HomeTeamName>
+</HomeTeam>
+-<AwayTeam>
+<AwayTeamID> : unsigned Integer
+The away team's TeamID.
+</AwayTeamID>
+<AwayTeamName> : String
+The away team's full name.
+</AwayTeamName>
+</AwayTeam>
+<MatchDate> : DateTime
+The date indicating when kick-off takes/took place.
+</MatchDate>
+<HomeGoals> : unsigned Integer*
+The final number of goals that the home team scored. This parameter is only sent for matches that are finished.
+</HomeGoals>
+<AwayGoals> : unsigned Integer*
+The final number of goals that the away team scored. This parameter is only sent for matches that are finished.
+</AwayGoals>
+</Match>
+</Matches>
+</HattrickData>

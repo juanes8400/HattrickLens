@@ -1,0 +1,198 @@
+<HattrickData>
+<UserSupporterTier> : supporterTier
+Indicates which Supporter package the fetching user has, or empty if not a Supporter.
+</UserSupporterTier>
+<IsYouth> : Boolean
+Always false, for youth players, use dedicated youth XML files.
+</IsYouth>
+<ActionType> : String
+The requested ActionType.
+</ActionType>
+<IsPlayingMatch> : Boolean
+Indicated if the player is currently playing in a match.
+</IsPlayingMatch>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique TeamID.
+</TeamID>
+<TeamName> : String
+The full team name.
+</TeamName>
+-<PlayerList>
+-<Player>
+<PlayerID> : unsigned Integer
+The globally unique playerID.
+</PlayerID>
+<FirstName> : String
+Player's FirstName name.
+</FirstName>
+<NickName> : String
+Player's NickName name.
+</NickName>
+<LastName> : String
+Player's LastName name.
+</LastName>
+<PlayerNumber> : unsigned Integer
+The number (1 to 99) that the owner of the team has assigned this player.
+</PlayerNumber>
+<Age> : unsigned Integer
+The age of the player in years.
+</Age>
+<AgeDays> : unsigned Integer
+The amount of days past since last birthday.
+</AgeDays>
+<GenderID> : GenderID
+The gender of the player
+</GenderID>
+<ArrivalDate> : DateTime
+The date of arrival to current team
+</ArrivalDate>
+<OwnerNotes> : String
+The owner notes for the player. Only visible to owner.
+</OwnerNotes>
+<TSI> : unsigned Integer
+The Total Skill Index (TSI) of the player.
+</TSI>
+<PlayerForm> : SkillLevel
+The current form, given as an integer with 1 indicating disastrous, 2 for wretched and so on.
+</PlayerForm>
+<Statement> : String (HTML encoded)
+If the owner is a HT Supporter, he may have provided a Statement from his players.
+</Statement>
+<Experience> : SkillLevel
+The experience of the player.
+</Experience>
+<Loyalty> : SkillLevel
+The loyalty of the player.
+</Loyalty>
+<MotherClubBonus> : Boolean
+Whether the player gains the mother club bonus.
+</MotherClubBonus>
+<Leadership> : SkillLevel
+The leadership of the player.
+</Leadership>
+<Salary> : Money
+The salary of the player. The container is empty If the player has no owner.
+</Salary>
+<IsAbroad> : Boolean*
+The abroad status of the player, given as an integer. true for beeing in home country, false for beeing in a team abroad. The container is empty If the player has no owner.
+</IsAbroad>
+<Agreeability> : PlayerAgreeability
+The agreeability of the player.
+</Agreeability>
+<Aggressiveness> : PlayerAggressiveness
+The aggressiveness of the player.
+</Aggressiveness>
+<Honesty> : PlayerHonesty
+The honesty of the player.
+</Honesty>
+<LeagueGoals> : unsigned Integer
+The number of goals in the league this season. If a match is running this value is not available
+</LeagueGoals>
+<CupGoals> : unsigned Integer
+The number of goals in the cup this season. If a match is running this value is not available
+</CupGoals>
+<FriendliesGoals> : unsigned Integer
+The number of goals in friendlies this season. If a match is running this value is not available
+</FriendliesGoals>
+<CareerGoals> : unsigned Integer
+The total number of goals throughout this player's carreer. If a match is running this value is not available
+</CareerGoals>
+<CareerHattricks> : unsigned Integer
+The total number of hattricks throughout this player's carreer. If a match is running this value is not available
+</CareerHattricks>
+<MatchesCurrentTeam> : unsigned Integer
+The total number of matches for current team. If a match is running this value is not available
+</MatchesCurrentTeam>
+<GoalsCurrentTeam> : unsigned Integer
+The total number of goals for current team. If a match is running this value is not available
+</GoalsCurrentTeam>
+<AssistsCurrentTeam> : unsigned Integer
+The number of assists for the current team.
+</AssistsCurrentTeam>
+<CareerAssists> : unsigned Integer
+The number of assists through out the whole player's career
+</CareerAssists>
+<Specialty> : SpecialtyID
+Integer indicating the specialty (if any) of the player.
+</Specialty>
+<TransferListed> : Boolean
+Is the player on transfer list?
+</TransferListed>
+<NationalTeamID> : unsigned Integer*
+If the player is enrolled on a national team, this is that national team's ID.
+</NationalTeamID>
+<CountryID> : unsigned Integer
+CountryID of the country where the player was born.
+</CountryID>
+<Caps> : unsigned Integer
+The number of matches played for the national team.
+</Caps>
+<CapsU20> : unsigned Integer
+The number of matches played for the U-20 national team.
+</CapsU20>
+<Cards> : unsigned Integer
+The number of currently accumulated cards. If the player is suspended, this will return 3 (whether the player has actually accumulated 3 bookings, or if he has become suspended by being sent off after 2 bookings in the same game).
+</Cards>
+<InjuryLevel> : Integer
+The number of weeks the player is predicted to be injured. If the player is bruised, a value of 0 is returned. If the player is healthy, a value of -1 is returned.
+</InjuryLevel>
+<StaminaSkill> : SkillLevel
+The stamina skill of the player (visible for everyone from v1.8 on)
+</StaminaSkill>
+<KeeperSkill> : SkillLevel
+The keeper skill of the player.
+</KeeperSkill>
+<PlaymakerSkill> : SkillLevel
+The playmaker skill of the player.
+</PlaymakerSkill>
+<ScorerSkill> : SkillLevel
+The scorer skill of the player.
+</ScorerSkill>
+<PassingSkill> : SkillLevel
+The passing skill of the player.
+</PassingSkill>
+<WingerSkill> : SkillLevel
+The winger skill of the player.
+</WingerSkill>
+<DefenderSkill> : SkillLevel
+The defender skill of the player.
+</DefenderSkill>
+<SetPiecesSkill> : SkillLevel
+The set pieces skill of the player.
+</SetPiecesSkill>
+<PlayerCategoryId> : PlayerCategoryID
+The category set for the player.
+</PlayerCategoryId>
+-<TrainerData>
+<TrainerType> : unsigned Integer
+0 = defensive, 1 = offensive, 2 = balanced
+</TrainerType>
+<TrainerSkillLevel> : unsigned Integer
+The trainer skill level, from 1 (lowest) to 5 (highest).
+</TrainerSkillLevel>
+</TrainerData>
+-<LastMatch>
+<Date> : DateTime
+Date of last played match.
+</Date>
+<MatchId> : unsigned Integer
+Id of the last played match.
+</MatchId>
+<PositionCode> : MatchRoleID
+Played position in the last match.
+</PositionCode>
+<PlayedMinutes> : unsigned Integer
+Minutes played in the last match.
+</PlayedMinutes>
+<Rating> : Float
+The players average rating in the game.
+</Rating>
+<RatingEndOfGame> : Float
+The players rating at the end of the game.
+</RatingEndOfGame>
+</LastMatch>
+</Player>
+</PlayerList>
+</Team>
+</HattrickData>

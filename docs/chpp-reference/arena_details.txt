@@ -1,0 +1,80 @@
+<HattrickData>
+-<Arena>
+<ArenaID> : unsigned Integer
+The globally unique arenaID.
+</ArenaID>
+<ArenaName> : String
+The name of the arena.
+</ArenaName>
+<ArenaImage> : String
+URL to an image of the arena
+</ArenaImage>
+<ArenaFallbackImage> : String
+The default image for an arena of this size, use this only when the ArenaImage fails to load.
+</ArenaFallbackImage>
+-<Team>
+<TeamID> : unsigned Integer
+The globally unique teamID.
+</TeamID>
+<TeamName> : String
+The name of the team.
+</TeamName>
+</Team>
+-<League>
+<LeagueID> : unsigned Integer
+The globally unique leagueID.
+</LeagueID>
+<LeagueName> : String
+The name of the league.
+</LeagueName>
+</League>
+-<Region>
+<RegionID> : unsigned Integer
+The globally unique regionID.
+</RegionID>
+<RegionName> : String
+The name of the region.
+</RegionName>
+</Region>
+-<CurrentCapacity>
+<RebuiltDate> : DateTime
+The date when current capacity was reached. If the arena is under construction an attribute named Available is set to false and the container is then empty, otherwise Available is set to true.
+</RebuiltDate>
+<Terraces> : unsigned Integer
+The current capacity on the terraces.
+</Terraces>
+<Basic> : unsigned Integer
+The current capacity on the basic seats.
+</Basic>
+<Roof> : unsigned Integer
+The current capacity on the seats under roof.
+</Roof>
+<VIP> : unsigned Integer
+The current capacity in the VIP lounge.
+</VIP>
+<Total> : unsigned Integer
+The arenas current total capacity.
+</Total>
+</CurrentCapacity>
+-<ExpandedCapacity>
+<ExpansionDate> : DateTime
+The preliminary date when the expansion is finished.
+</ExpansionDate>
+<Terraces> : unsigned Integer
+The expanded capacity on the terraces.
+</Terraces>
+<Basic> : unsigned Integer
+The expanded capacity on the basic seats.
+</Basic>
+<Roof> : unsigned Integer
+The expanded capacity on the seats under roof.
+</Roof>
+<VIP> : unsigned Integer
+The expanded capacity in the VIP lounge.
+</VIP>
+<Total> : unsigned Integer
+The expanded current total capacity.
+</Total>
+</ExpandedCapacity>
+</Arena>
+</HattrickData>
