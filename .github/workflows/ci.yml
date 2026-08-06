@@ -22,7 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --frozen
+      # The initial repository has no committed uv.lock yet. Let uv resolve and
+      # create the ephemeral runner lock instead of failing before validation.
+      - run: uv sync
       - run: uv run ruff check app
       - run: uv run ruff format --check app
       - run: uv run mypy app/domain app/application
@@ -42,7 +44,6 @@ jobs:
         with: {node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json}
       - run: npm ci
       - run: npm run lint
-      - run: npm run typecheck
       - run: npm run typecheck
       - run: npm run build
 
