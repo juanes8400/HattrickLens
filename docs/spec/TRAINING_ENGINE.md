@@ -1,261 +1,143 @@
-# TRAINING_ENGINE
+# Training Engine
 
-# Training Engine Specification
+## Alcance
 
-## Purpose
+El motor estima el entrenamiento técnico del primer equipo, registra pops
+confirmados y proyecta niveles futuros. La estructura de las pantallas puede
+inspirarse en Hattrick Control; la matemática procede de la fórmula comunitaria
+pública de HT-Tools.
 
-The Training Engine is responsible for estimating, tracking and forecasting player development. It converts CHPP data into precise training progress, expected skill increases ("pops"), historical evolution and financial impact.
+No es código del servidor de Hattrick. Los datos privados del manager se usan
+para aplicar y contrastar la fórmula, nunca para ajustar sus coeficientes.
 
----
+## Entradas
 
-# Responsibilities
+- Tipo de entrenamiento (`TrainingType`, leído de `training.xml`).
+- Intensidad y porcentaje dedicado a resistencia (`training.xml`).
+- Nivel del entrenador y niveles combinados de hasta dos asistentes
+  (`stafflist.xml`).
+- Edad, nivel entero de habilidad y minutos/posición del jugador.
+- Subnivel decimal opcional. CHPP no lo publica; si no se conoce se usa 0,0.
 
-- Detect current training type automatically from CHPP.
-- Calculate effective training for every player.
-- Estimate progress toward the next skill level.
-- Predict future skill pops.
-- Maintain historical training records.
-- Measure ROI of training and transfers.
+El liderazgo del entrenador se muestra como información del club, pero no
+forma parte de la velocidad de entrenamiento.
 
----
+## Fórmula 1: HT-Tools
 
-# Inputs
+Primero se calcula el coeficiente semanal efectivo:
 
-- Training type
-- Training intensity
-- Stamina share
-- Coach level
-- Coach leadership
-- Assistant coach levels (0–2 assistants)
-- Player age
-- Current skill level
-- Minutes played
-- Position played
-- Training percentage by position
-- Season / Week
+```text
+K = K_entrenamiento × K_entrenador × K_asistentes
+    × intensidad/100 × (1 − resistencia/100) × exposición
+```
 
----
+El trabajo acumulado de una habilidad es una función por tramos:
 
-# Functional Views
+```text
+F(s) = (s^1,72 − 1) / (6,0896 × 1,72)                     si s < 9
+F(s) = 2,45426 + (s − 5)^1,96 / (4,7371 × 1,96)           si s ≥ 9
+```
 
-1. Training Overview
-2. Training Settings
-3. Player Progress
-4. Pop History
-5. Forecast
-6. Purchases
-7. Sales
-8. Weekly History
+La fecha del pop se obtiene sobre el reloj de edad público:
 
----
+```text
+reloj_pop = reloj_edad(edad)
+           + (F(nivel + 1) − F(nivel + subnivel)) / K
 
-# Player Table
+semanas = 16 × (reloj_edad_inverso(reloj_pop) − edad)
+```
 
-Columns:
+Consecuencias importantes:
 
-- Player
-- Nationality
-- Age
-- Effective Training %
-- Weeks Trained
-- Current Skill
-- Estimated Progress
-- Expected Pop Week
-- Player ID
+- el nivel sí modifica el costo: 5→6 no tarda lo mismo que 14→15;
+- el subnivel solo reduce el trabajo restante del nivel actual;
+- la edad no se modela con un `+6%` lineal, sino con su reloj tabulado;
+- Pases cortos y Pases largos tienen coeficientes diferentes.
 
----
+## Coeficientes por tipo
 
-# Training Settings
+| TrainingType | Modo | K |
+|---:|---|---:|
+| 2 | Balón parado | 0,941 |
+| 3 | Defensa | 0,206 |
+| 4 | Anotación | 0,218 |
+| 5 | Lateral | 0,315 |
+| 6 | Tiros | 0,097 |
+| 7 | Pases cortos | 0,237 |
+| 8 | Jugadas | 0,220 |
+| 9 | Portería | 0,335 |
+| 10 | Pases largos | 0,178 |
+| 11 | Posiciones defensivas | 0,094 |
+| 12 | Ataques laterales | 0,219 |
 
-Display current configuration:
+Resistencia no se calcula con esta fórmula técnica; conserva su motor de
+referencia separado.
 
-- Training Type
-- Training Intensity
-- Stamina Share
-- Coach Level
-- Coach Leadership
-- Assistant Coaches
-- Effective Training Speed
+## Entrenador y asistentes
 
----
+`StaffLevel` 1–5 se convierte directamente a la escala 4–8 de la fórmula.
 
-# Historical Progress
+| Escala de fórmula | K entrenador |
+|---:|---:|
+| 4 | 0,774 |
+| 5 | 0,867 |
+| 6 | 0,943 |
+| 7 | 1,000 |
+| 8 | 1,045 |
 
-Store every week's snapshot.
+```text
+K_asistentes = 0,66 + 0,032 × suma_de_niveles
+```
 
-Fields:
+La suma está limitada a 10: dos asistentes de nivel 5. No es el número de
+asistentes.
 
-- Season
-- Week
-- Player
-- Skill
-- Estimated Progress
-- Minutes
-- Training %
+## Edad
 
-Historical data is immutable.
+El reloj acumulado para edades enteras 17–34 es:
 
----
+```text
+0,000; 16,000; 31,704; 47,117; 62,246; 77,094; 91,668;
+105,972; 120,012; 133,791; 147,316; 160,591; 173,620;
+186,408; 198,960; 211,279; 223,370; 235,238
+```
 
-# Pop History
+Lens interpola los días entre cumpleaños. Para mayores de 34 prolonga el
+último tramo publicado y muestra esa limitación; no ajusta una curva con datos
+privados.
 
-For every completed pop:
+## Minutos y posiciones
 
-- Player
-- Skill
-- Previous Level
-- New Level
-- Date
-- Weeks Required
-- Age
+```text
+exposición = min(minutos / 90, 1) × proporción_de_la_posición
+```
 
----
+- 90 minutos en una posición completa: 100%.
+- 45 minutos en una posición completa: 50%.
+- 90 minutos en una posición parcial: 50%.
+- una posición no entrenable: 0%.
 
-# Forecast
+## Pops e historial
 
-Predict:
+Los pops de `trainingevents.xml` y los cambios entre snapshots son hechos
+observados. Sirven para:
 
-- Next Skill Pop
-- Estimated Week
-- Remaining Weeks
-- Confidence
+- mostrar el historial;
+- contar semanas desde el último pop;
+- contrastar diferencia entre semanas observadas y estimadas;
+- detectar un posible error de implementación.
 
----
+No actualizan, calibran ni reemplazan los coeficientes públicos.
 
-# Minutes Calculation
+## Límites visibles
 
-90 minutes = 100% training.
+- CHPP no publica el subnivel decimal.
+- La edad histórica usada para contrastar un pop puede no ser la edad exacta
+  de aquella semana si no existe el snapshot correspondiente.
+- La tabla pública de edad termina en 34.
+- Una proyección es una estimación, nunca un hecho futuro.
 
-Effective Training % = Minutes Played / 90
+## Fuente
 
-Examples:
-
-- 90 min = 100%
-- 45 min = 50%
-- 30 min = 33.3%
-
-If position receives partial training, multiply by positional percentage.
-
-Examples:
-
-- Wing Back under Winger training = 50%
-- Winger under Playmaking training = 50%
-
-Final Effective Training:
-
-Minutes Factor × Position Factor
-
----
-
-# Base Training Times
-
-Reference player:
-
-- 17 years old
-- Solid coach
-- Assistant level 5
-- 100% intensity
-
-| Skill | Base Weeks |
-|--------|-----------:|
-| Stamina | 1 |
-| Goalkeeping | 4 |
-| Defending | 8 |
-| Playmaking | 7 |
-| Passing | 5 |
-| Winger | 5 |
-| Scoring | 6 |
-| Set Pieces | 2 |
-
----
-
-# Modifiers
-
-## Age
-
-Each year above 17:
-
-+6% training time
-
----
-
-## Coach
-
-Each level below Solid:
-
-+10% training time
-
-Excellent coach:
-
-5% faster than Solid.
-
----
-
-## Assistant Coaches
-
-Each assistant contributes:
-
-| Level | Bonus |
-|------:|------:|
-|1|3.5%|
-|2|7.0%|
-|3|10.5%|
-|4|14.0%|
-|5|17.5%|
-
-Maximum two assistants.
-
-Total Bonus = Assistant1 + Assistant2
-
-Adjusted Weeks = Base Weeks / (1 + Total Bonus)
-
----
-
-## Training Intensity
-
-Each percentage below 100% increases required weeks proportionally.
-
----
-
-# Progress Estimation
-
-Estimated Progress = Weeks Completed / Adjusted Weeks
-
-Expressed as percentage.
-
----
-
-# Business Rules
-
-- Training never exceeds 100%.
-- Historical weeks are immutable.
-- Predictions refresh after every synchronization.
-- Position training percentages are configurable.
-- All constants live in configuration.
-
----
-
-# Outputs
-
-- Progress %
-- Expected Pop Date
-- Remaining Weeks
-- Historical Timeline
-- Training ROI
-
----
-
-# Future Enhancements
-
-- Confidence intervals
-- Bayesian estimation
-- Multi-skill forecasting
-- Transfer timing optimizer
-- AI training planner
-- Financial optimization
-
----
-
-# Success Criteria
-
-Managers should know who is training efficiently, how much progress each player has made, exactly when the next skill increase is expected, and how training decisions affect both sporting performance and long-term financial returns.
+- Implementación pública: <https://github.com/ventouris/hattricktools/blob/master/static/js/training.js>
+- Contexto general: <https://wiki.hattrick.org/wiki/Training>

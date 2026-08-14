@@ -76,29 +76,27 @@ export function EnginePage() {
         </div>
       </Panel>
 
-      <Panel title="Motor de entrenamiento" meta="perfil compatible HTC">
+      <Panel title="Motor de entrenamiento" meta="fórmula comunitaria HT-Tools">
         <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
           <code className="block rounded bg-[var(--surface-2)] p-3 font-mono text-[11px] text-[var(--text)]">
-            semanas = base[habilidad] ÷ (1 + Σniveles_de_máx_2_ayudantes × 3,5%) ×
-            (1 + 6% × (edad − 17)) × (1 + 10% × max(7 − nivel_entrenador, 0) − 5% si es excelente)
-            × (1 − 1% × (intensidad − 100)) ÷ (1 − %condición)
+            K = K_entrenamiento × K_entrenador × K_ayudantes × intensidad ×
+            (1 − %condición) × exposición; semanas = 16 ×
+            (reloj_edad⁻¹(reloj_edad + (F(siguiente) − F(actual)) ÷ K) − edad)
           </code>
           <p>
-            Hattrick Control confirma las entradas y que cada tipo tiene su propio control de
-            semanas, pero esta extracción no contiene su <code>Defaults.dat</code> ni la rutina
-            auxiliar que une los modificadores. Por eso los coeficientes siguen siendo un perfil
-            visible y calibrable, no una fórmula oficial escondida.
+            La función <code>F</code> cambia por tramos según el nivel de habilidad. Por eso Pases
+            5→6 y Pases 14→15 ya tienen costos distintos. El reloj de edad aplica la desaceleración
+            propia de cada edad, en lugar de sumar un porcentaje lineal fijo.
           </p>
           <p>
-            Los ayudantes aportan velocidad y por eso reducen las semanas. En sentido contrario,
-            dedicar parte del entrenamiento a condición deja menos capacidad para la habilidad
-            primaria y aumenta las semanas: ahora se divide por la capacidad restante, no se la
-            multiplica.
+            El tipo CHPP selecciona su coeficiente concreto: Pases cortos y Pases largos, por
+            ejemplo, no son intercambiables. Entrenador, ayudantes, intensidad, condición y
+            minutos en una posición entrenable completan el coeficiente de velocidad.
           </p>
           <p>
-            Los valores del club —ayudantes, intensidad, condición y entrenador— sí se leen del
-            CHPP. La confianza de cada previsión sube solamente cuando los pops reales permiten
-            validar el perfil completo.
+            Los valores del club se leen del CHPP. Los coeficientes son la estimación pública de
+            HT-Tools: no son constantes oficiales de Hattrick y no se ajustan estadísticamente con
+            los datos privados del manager. Los pops reales sirven únicamente para contrastarla.
           </p>
           {formula.data && <ReferenceNote reference={formula.data.reference} />}
         </div>
@@ -119,22 +117,14 @@ export function EnginePage() {
       <Panel title="Conflictos abiertos">
         <ul className="space-y-2 p-4 text-xs leading-relaxed text-[var(--muted)]">
           <li>
-            <b className="text-[var(--text)]">Forma del factor de edad.</b> Es la manera en que el
-            tiempo de entrenamiento crece con la edad. El perfil actual la describe{" "}
-            <i>lineal</i>: cada año suma un 6% fijo sobre el tiempo base, así que de 17 a 27 años
-            el tiempo se multiplica por 1,60. El ajuste sobre las 18 observaciones prefiere una{" "}
-            <i>exponencial</i>: cada año multiplica por 1,0463, de modo que el recargo se acumula
-            sobre el del año anterior y crece más despacio al principio y más rápido al final. En
-            el rango de edades del plantel casi coinciden; se separan en los extremos. Se usa la
-            lineal como perfil visible, y la exponencial queda disponible en configuración hasta
-            poder contrastarla con la rutina auxiliar de Hattrick Control.
+            <b className="text-[var(--text)]">Subnivel desconocido.</b> CHPP publica el nivel entero,
+            pero no el avance decimal interno. Hasta observar un pop, la proyección parte de 0,0;
+            por eso es una estimación conservadora, no una fecha prometida.
           </li>
           <li>
-            <b className="text-[var(--text)]">Escala del entrenador.</b> Es lo único que queda por
-            reconciliar en la fórmula: el CHPP entrega el nivel del entrenador en escala 1–5
-            (stafflist) mientras que el perfil usa una escala nominal 7/8. La
-            correspondencia vive en configuración marcada como provisional, y el panel de arriba
-            la muestra en la nota del entrenador en vez de esconderla.
+            <b className="text-[var(--text)]">Mayores de 34.</b> La tabla pública de edad termina en
+            34. Lens prolonga el último tramo conocido y lo declara, sin ajustar una curva con los
+            datos privados del club.
           </li>
         </ul>
       </Panel>
@@ -297,13 +287,7 @@ function ExperiencePanel({
   );
 }
 
-/**
- * Días reales por transición de Fidelidad. A diferencia de Experiencia, no
- * hay ningún valor configurado de partida: Hattrick nunca publicó esta
- * fórmula, así que cada transición de nivel (N→N+1) solo existe aquí una
- * vez que se ha visto una subida limpia real — la tabla se rellena sola,
- * transición por transición, a medida que se sincroniza.
- */
+/** Fórmula única de Fidelidad basada en días calendario desde la compra. */
 function LoyaltyPanel({
   data,
   isLoading,
@@ -313,101 +297,58 @@ function LoyaltyPanel({
   isLoading: boolean;
   isError: boolean;
 }) {
-  if (isLoading) return <Panel title="Días por nivel de Fidelidad"><Loading /></Panel>;
+  if (isLoading) return <Panel title="Fórmula de Fidelidad"><Loading /></Panel>;
   if (isError || !data) {
     return (
-      <Panel title="Días por nivel de Fidelidad">
-        <Note>No se pudo leer la calibración de fidelidad.</Note>
+      <Panel title="Fórmula de Fidelidad">
+        <Note>No se pudo leer el modelo de fidelidad.</Note>
       </Panel>
     );
   }
 
   return (
     <Panel
-      title="Días por nivel de Fidelidad"
-      meta={
-        data.transitions.length > 0
-          ? `${data.transitions.length} transición(es) calibrada(s)`
-          : "sin transiciones calibradas todavía"
-      }
+      title="Fórmula de Fidelidad"
+      meta={`${data.fullDays} días · ${data.seasons} temporadas`}
     >
       <div className="grid gap-4 border-b border-[var(--border)] p-4 sm:grid-cols-3">
-        <Kpi
-          label="Transiciones calibradas"
-          value={String(data.transitions.length)}
-          hint="de hasta 20 posibles (0→1 … 19→20)"
-        />
-        <Kpi label="Subidas observadas (limpias)" value={String(data.totalObservations)} />
-        <Kpi
-          label="Cruces vistos"
-          value={String(data.crossingsSeen)}
-          hint={
-            data.discardedCrossings > 0
-              ? `${data.discardedCrossings} descartado(s): salto de más de un nivel o sin ancla`
-              : undefined
-          }
-        />
+        <Kpi label="Nivel máximo" value={String(data.maxLevel)} />
+        <Kpi label="Curva completa" value={`${data.fullDays} días`} />
+        <Kpi label="Equivalencia" value={`${data.seasons} temporadas`} />
       </div>
 
       <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
         <p>
-          Hattrick y Hattrick Control no publican ninguna fórmula para Fidelidad. El intervalo
-          real parece constante entre jugadores para una misma transición de nivel, pero no
-          entre niveles distintos — subir de 1 a 2 es rápido, subir de 19 a 20 puede tardar
-          temporadas. Por eso aquí se calibra una tabla, transición por transición, en vez de un
-          solo número como en Experiencia.
+          La única entrada es la diferencia en días calendario entre hoy y la fecha de compra.
+          No se usan pops, promedios ni transiciones observadas.
         </p>
 
-        {data.transitions.length > 0 ? (
-          <div>
-            <b className="text-[var(--text)]">Días reales por transición</b>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {data.transitions.map((t) => (
-                <span
-                  key={t.fromLevel}
-                  className="rounded bg-[var(--surface-2)] px-2 py-1 font-mono text-[11px] text-[var(--text)]"
-                  title={
-                    t.stdDev != null
-                      ? `${t.observations} observación(es) · desviación ${t.stdDev.toFixed(1)} días`
-                      : `${t.observations} observación(es)`
-                  }
-                >
-                  {t.fromLevel} → {t.toLevel}: {t.avgDays.toFixed(1)} días ({t.observations})
-                </span>
-              ))}
-            </div>
-            <p className="mt-2">
-              La ficha de cada jugador usa esta tabla para mostrar un progreso decimal real
-              dentro de su nivel actual — solo cuando su transición ya está aquí.
-            </p>
+        <code className="block rounded bg-[var(--surface-2)] p-3 font-mono text-[11px] text-[var(--text)]">
+          {data.formula}
+        </code>
+
+        <div>
+          <b className="text-[var(--text)]">Primer día de cada nivel</b>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {data.thresholds.map((threshold) => (
+              <span
+                key={threshold.level}
+                className="rounded bg-[var(--surface-2)] px-2 py-1 font-mono text-[11px] text-[var(--text)]"
+              >
+                N{threshold.level}: día {threshold.day}
+              </span>
+            ))}
           </div>
-        ) : (
-          <p>
-            Todavía no se ha observado ninguna subida limpia de fidelidad en esta cuenta. Cada
-            sincronización que capture una subida real añade la primera fila de la tabla.
-          </p>
-        )}
+        </div>
 
         <ReferenceNote reference={data.reference} />
-
-        {data.levelUps.length > 0 && (
-          <div>
-            <b className="text-[var(--text)]">Subidas registradas</b>
-            <ul className="mt-2 space-y-1 font-mono text-[11px]">
-              {data.levelUps.map((lu, i) => (
-                <li key={i}>
-                  {lu.player}: {lu.fromLevel} → {lu.toLevel} en {lu.daysElapsed} días
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
     </Panel>
   );
 }
 
 const INPUT_LABELS: Record<string, string> = {
+  training_type: "Tipo de entrenamiento CHPP",
   assistant_level_sum: "Ayudantes (suma de niveles)",
   intensity: "Intensidad",
   stamina_share: "% condición",
@@ -418,7 +359,7 @@ const INPUT_LABELS: Record<string, string> = {
  * Cierre de la fórmula de entrenamiento. Esta es la pantalla que responde
  * «¿de dónde sale este número?» sin dejar ningún valor puesto a mano
  * escondido: cada término muestra si se lee del CHPP o sigue siendo un
- * supuesto, y la fórmula se valida contra subidas que Hattrick confirma.
+ * supuesto, y la fórmula se contrasta con subidas que Hattrick confirma.
  */
 function FormulaPanel({
   data,
@@ -449,7 +390,7 @@ function FormulaPanel({
   return (
     <Panel
       title="Fórmula de entrenamiento"
-      meta={data.allRead ? "datos CHPP completos · perfil HTC estructural" : "faltan datos CHPP"}
+      meta={data.allRead ? "datos CHPP completos · fórmula HT-Tools" : "faltan datos CHPP"}
     >
       <div className="border-b border-[var(--border)] p-4">
         <div
@@ -500,7 +441,7 @@ function FormulaPanel({
       <div className="border-t border-[var(--border)] p-4">
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-medium">
-            Validación contra subidas confirmadas
+            Contraste con subidas confirmadas
           </span>
           <span className="text-xs text-[var(--muted)]">
             entrena: {data.trainedSkill}
@@ -552,8 +493,13 @@ function FormulaPanel({
       </div>
 
       <div className="border-t border-[var(--border)] p-4 text-xs leading-relaxed text-[var(--muted)]">
+        {(data.limitations ?? []).map((limitation, i) => (
+          <p key={`l${i}`} className={i > 0 ? "mt-2" : ""}>
+            Límite: {limitation}
+          </p>
+        ))}
         {data.notes.map((n, i) => (
-          <p key={i} className={i > 0 ? "mt-2" : ""}>
+          <p key={i} className="mt-2">
             {n}
           </p>
         ))}

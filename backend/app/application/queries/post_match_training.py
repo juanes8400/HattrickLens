@@ -110,6 +110,7 @@ class PostMatchTrainingService:
             if ctx is not None
             else default_setup(
                 training_target(training.training_type) if training else "playmaking",
+                training_type=training.training_type if training else None,
                 intensity=training.training_level if training else 100,
                 stamina_share=training.stamina_part if training else None,
             )
@@ -187,7 +188,10 @@ class PostMatchTrainingService:
                 "name": f"{ident.first_name} {ident.last_name}",
                 "age_years": snap.age_years,
                 "age_days": snap.age_days,
-                "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
+                "skills": {
+                    **{c: getattr(snap, c) or 0 for c in SKILL_COLS},
+                    "stamina": snap.stamina or 0,
+                },
                 "last_match_ht_id": snap.last_match_ht_id,
                 "last_match_position_code": snap.last_match_position_code,
                 "last_match_played_minutes": snap.last_match_played_minutes,
@@ -305,6 +309,7 @@ class PostMatchTrainingService:
         skill = training_target(training_type)
         candidate_setup = TrainingSetup(
             skill=skill or setup.skill,
+            training_type=training_type,
             intensity=setup.intensity,
             stamina_share=setup.stamina_share,
             coach_level=setup.coach_level,
@@ -332,13 +337,17 @@ class PostMatchTrainingService:
                 continue
 
             level = int(p["skills"].get(skill, 0))
-            speed = weeks_to_next_level(
-                skill,
-                level,
-                int(p["age_years"]),
-                int(p["age_days"]),
-                setup=candidate_setup,
-                exposure=exposure,
+            speed = (
+                None
+                if skill == "stamina"
+                else weeks_to_next_level(
+                    skill,
+                    level,
+                    int(p["age_years"]),
+                    int(p["age_days"]),
+                    setup=candidate_setup,
+                    exposure=exposure,
+                )
             )
             equivalent_minutes = exposure * 90
             age = float(p["age_years"]) + float(p["age_days"]) / 112.0
@@ -347,7 +356,7 @@ class PostMatchTrainingService:
             development_score += exposure * age_weight * level_weight
             total_equivalent_minutes += equivalent_minutes
             total_exposure += exposure
-            if speed.weeks_to_next_level <= 3.0:
+            if speed is not None and speed.weeks_to_next_level <= 3.0:
                 pops_soon += 1
             trainees.append({
                 "htPlayerId": p["ht_player_id"],
@@ -355,10 +364,14 @@ class PostMatchTrainingService:
                 "exposure": round(exposure, 3),
                 "equivalentMinutes": round(equivalent_minutes, 1),
                 "currentLevel": level,
-                "weeksToPop": speed.weeks_to_next_level,
+                "weeksToPop": speed.weeks_to_next_level if speed is not None else None,
             })
 
-        trainees.sort(key=lambda x: (-x["exposure"], x["weeksToPop"], x["name"]))
+        trainees.sort(key=lambda x: (
+            -x["exposure"],
+            x["weeksToPop"] if x["weeksToPop"] is not None else float("inf"),
+            x["name"],
+        ))
         score = total_equivalent_minutes + development_score * 10.0 + pops_soon * 30.0
         trained_count = len(trainees)
         rationale = [
@@ -369,7 +382,9 @@ class PostMatchTrainingService:
         if pops_soon:
             rationale.append(f"{pops_soon} posible(s) subida(s) en <= 3 semanas")
         if training_type in DEPRECATED_TRAINING_TYPES:
-            rationale.append("tipo obsoleto según CHPP: no compite por la recomendación")
+            rationale.append(
+                "tipo obsoleto según CHPP: no compite y sus semanas usan un motor separado"
+            )
         return {
             "trainingType": training_type,
             "name": training_name(training_type),

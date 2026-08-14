@@ -1,30 +1,34 @@
 # 07 — Algoritmos y Motores Matemáticos
 
-Todos viven en `domain/services/` como funciones puras, parametrizadas por tablas de coeficientes versionadas en DB (`model_coefficients`) para poder recalibrar sin deploy. Los coeficientes exactos de Hattrick no son públicos: se parte de los valores establecidos por la comunidad (Schum, HO!, unificados) y se **recalibran continuamente con los propios datos** (pops observados, precios observados) — ventaja competitiva del histórico append-only.
+Todos viven en `domain/services/` como funciones puras, parametrizadas por tablas de coeficientes versionadas. Los coeficientes exactos de Hattrick no son públicos: se parte de fuentes generales explícitas —Manual no Escrito, documentación oficial o valores comunitarios con procedencia—. Los datos privados del manager sirven para aplicar y comprobar los modelos, nunca para ajustar regresiones o reestimar sus parámetros.
 
 ## 1. Training Engine
 
 ### Velocidad de entrenamiento
-Modelo multiplicativo estándar de la comunidad:
 
+Se usa la fórmula comunitaria pública de HT-Tools:
+
+```text
+K = K_tipo · K_entrenador · K_asistentes · intensidad
+    · (1 − resistencia) · exposición
+
+semanas = 16 · (reloj_edad⁻¹(reloj_edad
+          + (F(nivel+1) − F(nivel+subnivel))/K) − edad)
 ```
-Δskill_semana = K(skill_type) · f_edad(age) · f_nivel(skill_actual)
-              · f_coach(coach_level) · f_assist(assistants)
-              · f_intensidad(I) · f_stamina(1 - S) · f_minutos(min_posición/90)
-```
 
-- `K`: constante por skill (portero ≫ lento; playmaking rápido…), tabla inicial de comunidad.
-- `f_edad ≈ (1+d)^(-(age-17))`: decaimiento por edad (d≈0.05/año, calibrable).
-- `f_nivel`: coste creciente por nivel (curva convexa; tiempos-por-nivel de comunidad interpolados con spline monótono).
-- `f_minutos`: full/partial position según minutos jugados en el slot entrenable (osmosis para no entrenados).
-- Cross-training: matriz `C[skill_entrenada][skill_secundaria]` con tasas secundarias.
+- `F` es una función por tramos: el costo crece con el nivel.
+- `reloj_edad` es la tabla pública 17–34, interpolada por días.
+- `K_tipo` distingue cada `TrainingType`, incluidos Pases cortos y largos.
+- `exposición` combina minutos/90 y la proporción full/partial de la posición.
+- Todos los coeficientes y la fuente están en `training.yaml` y
+  `docs/spec/TRAINING_ENGINE.md`.
 
-### Sub-nivel y expected pop date
-El sub-nivel real es oculto. Se estima con un **filtro bayesiano** por jugador-skill:
+### Subnivel y fecha estimada del pop
 
-- Estado: `x ∈ [0,1)` fracción hacia el próximo nivel. Prior tras un pop: `x=0` (varianza baja); jugador recién comprado: prior uniforme, refinado con TSI.
-- Cada semana: `x += Δskill_semana` (predicción); observaciones que actualizan: pop observado (colapsa a 0 el excedente), TSI (mapa TSI↔skills), rating en partidos.
-- **Expected Pop Date** = semanas hasta `x=1` al ritmo actual → se muestra con intervalo (p10-p90 usando varianza del filtro).
+CHPP no publica el subnivel. Lens usa 0,0 salvo que exista un dato general
+explícito; no lo infiere con TSI, ratings ni regresiones sobre la cuenta del
+manager. Un pop confirmado reinicia el conteo histórico, pero no altera los
+coeficientes ni crea una precisión decimal ficticia.
 
 ### Training ROI
 `training_value_semana = Δvalor_mercado(skills+Δ) - Δvalor(depreciación por edad) - coste_prorrateado(coach, asistentes, salario)`. Comparador de entrenamientos = mismo roster evaluado bajo cada training type a horizonte H, ordenado por NPV.
@@ -42,7 +46,7 @@ Derivados: **overpriced/underpriced** = precio observado vs predicho (z-score); 
 ## 3. Ratings y predicción de partidos
 
 ### Ratings de sector
-A partir de alineación + skills + forma + experiencia + spirit + táctica se estiman ratings por sector con la fórmula comunitaria (pesos por posición/rol y comportamientos individuales). Se calibra contra `match_team_ratings` reales del propio equipo (regresión de residuos) — cada partido sincronizado mejora el modelo.
+A partir de alineación + skills + forma + experiencia + spirit + táctica se estiman ratings por sector con la fórmula comunitaria (pesos por posición/rol y comportamientos individuales). Los `match_team_ratings` reales del propio equipo permiten medir el error y detectar fallos de implementación, pero no ajustar una regresión de residuos ni modificar los coeficientes.
 
 ### Probabilidad de victoria (modelo de encuentro)
 Hattrick resuelve el partido por posesión y ocasiones; se modela fielmente:

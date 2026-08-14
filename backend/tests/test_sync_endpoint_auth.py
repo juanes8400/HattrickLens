@@ -135,9 +135,10 @@ def test_sync_runs_for_real_with_a_valid_session(
     # único partido cuyo matchID coincide con el fixture estático).
     # +2 (2026-08-12: club + stafflist entraron a DEFAULT_FILES — antes sólo
     # se sincronizaban una vez a mano al conectar la cuenta, nunca de nuevo
-    # con el "Sincronizar" normal — ver sync_team.py) = 102.
+    # con el "Sincronizar" normal) + 5 pops confirmados de trainingevents
+    # (2026-08-14: por fin entró materialmente en DEFAULT_FILES) = 107.
     assert body["syncId"] > 0
-    assert body["snapshotsWritten"] == 102
+    assert body["snapshotsWritten"] == 107
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

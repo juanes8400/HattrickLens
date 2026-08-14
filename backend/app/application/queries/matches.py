@@ -30,9 +30,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
-    season_at_offset,
+    season_for_datetime,
     season_week_label,
-    season_week_offset_for,
+    season_week_for_datetime,
 )
 from app.domain.engines.match_analysis import (
     CHANCE_ZONE_LABELS,
@@ -256,8 +256,7 @@ class MatchesQueryService:
         match_season: dict[int, int | None] = {}
         seasons_seen: set[int] = set()
         for match in all_played:
-            offset = season_week_offset_for(world, match.played_at)
-            s = season_at_offset(world, weeks_offset=offset)
+            s = season_for_datetime(world, match.played_at)
             match_season[match.ht_match_id] = s
             if s is not None:
                 seasons_seen.add(s)
@@ -372,9 +371,7 @@ class MatchesQueryService:
                     RatingSeriesPoint(
                         ht_match_id=match.ht_match_id,
                         date=date,
-                        season_week=season_week_label(
-                            world, weeks_offset=season_week_offset_for(world, match.played_at)
-                        ),
+                        season_week=season_week_for_datetime(world, match.played_at),
                         opponent=opponent,
                         result=result,
                         goals_for=own_goals,

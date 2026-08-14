@@ -14,8 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
     changes_only,
-    season_week_label,
-    season_week_offset_for,
+    season_week_for_datetime,
 )
 from app.domain.engines.staff_effects import STAFF_FIELD_TO_EFFECT_FN
 from app.domain.value_objects.ht_constants import CONFIDENCE, TEAM_SPIRIT
@@ -200,9 +199,7 @@ class ClubQueryService:
             "staffHistory": [
                 {
                     "capturedAt": _date(row.captured_at),
-                    "seasonWeek": season_week_label(
-                        world, weeks_offset=season_week_offset_for(world, row.captured_at)
-                    ),
+                    "seasonWeek": season_week_for_datetime(world, row.captured_at),
                     "roles": _staff_levels(row),
                     "trainerSkillLevel": row.trainer_skill_level,
                 }

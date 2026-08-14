@@ -19,34 +19,36 @@ mostrar, y se dice explícitamente en vez de poner un cero.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.squad import SKILL_COLS
+from app.application.queries.player_history import PlayerHistoryQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.weekly import (
     SEASON_WEEKS,
     latest_per_iso_week,
-    season_week_label,
     season_week_offset_for,
+    season_week_label,
+    season_week_for_datetime,
 )
 from app.domain.engines import training_engine as te
+from app.domain.engines.loyalty_engine import days_for_level, loyalty_decimal, loyalty_level
 from app.domain.value_objects.ht_constants import SKILL_LABELS, skill_name, training_name
 from app.infrastructure.db import models as m
 
-# `stamina` es entrenable (base_weeks la incluye) pero vive en su propia
-# columna de PlayerSnapshot, no en el diccionario `skills` de las 7 técnicas.
-TRAINABLE_SKILLS: dict[str, str] = {**SKILL_LABELS, "stamina": "Resistencia"}
+# Resistencia vive en su motor de referencia propio y no se mezcla con esta
+# fórmula de habilidades técnicas.
+TRAINABLE_SKILLS: dict[str, str] = dict(SKILL_LABELS)
 SKILL_ORDER: list[str] = [
-    "stamina", "keeper", "defending", "playmaking", "passing", "winger", "scoring", "set_pieces",
+    "keeper", "defending", "playmaking", "passing", "winger", "scoring", "set_pieces",
 ]
 
 
 def _level_of(player_row: dict[str, Any], skill: str) -> int:
-    if skill == "stamina":
-        return int(player_row.get("stamina") or 0)
     return int(player_row.get("skills", {}).get(skill, 0))
 
 
@@ -92,6 +94,49 @@ class TrainingSquadView:
     rows: list[SquadTrainingRow]
     weekly_log: list[WeeklyLogEntry]
     include_this_week: bool
+    notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ExperienceRow:
+    ht_player_id: int
+    name: str
+    native_country: str | None
+    age_years: int
+    age_days: int
+    level: int
+    level_name: str
+    decimal_level: float | None
+    points: float | None
+    points_per_level: float
+    remaining_points: float | None
+    progress_pct: int | None
+    breakdown: dict[str, float]
+    unscored_national_matches: int
+
+
+@dataclass
+class LoyaltyRow:
+    ht_player_id: int
+    name: str
+    native_country: str | None
+    age_years: int
+    age_days: int
+    reported_level: int
+    calculated_level: int | None
+    level_name: str
+    decimal_level: float | None
+    progress_pct: int | None
+    days_in_club: int | None
+    next_level: int | None
+    days_to_next_level: int | None
+    date_source: str | None
+
+
+@dataclass
+class DevelopmentView:
+    experience: list[ExperienceRow]
+    loyalty: list[LoyaltyRow]
     notes: list[str] = field(default_factory=list)
 
 
@@ -170,6 +215,10 @@ class TrainingSquadQueryService:
                 "age_years": snap.age_years,
                 "age_days": snap.age_days,
                 "stamina": snap.stamina,
+                "experience": snap.experience,
+                "loyalty": snap.loyalty,
+                "purchased_at": ident.purchased_at,
+                "purchased_at_manual": ident.purchased_at_manual,
                 "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
             }
             for snap, ident in rows
@@ -187,7 +236,7 @@ class TrainingSquadQueryService:
         out = []
         for snap in deduped:
             season_week = (
-                season_week_label(world, weeks_offset=season_week_offset_for(world, snap.captured_at))
+                season_week_for_datetime(world, snap.captured_at)
                 if world is not None else None
             )
             out.append(WeeklyLogEntry(
@@ -214,6 +263,67 @@ class TrainingSquadQueryService:
         ).scalars().all()
         return list(rows)
 
+    async def _snapshot_pop_weeks(
+        self,
+        team_id: int,
+        skill: str,
+        current_levels: dict[int, int],
+        world: m.WorldContext | None,
+        include_this_week: bool,
+    ) -> dict[int, int]:
+        """Use an observed snapshot increase when CHPP exposes no event.
+
+        This is still real evidence: Lens saw the skill change between two
+        ``players.xml`` snapshots. The exact day inside that interval is not
+        known, so the first sync containing the new level becomes the baseline
+        and elapsed time is deliberately kept at whole-week precision.
+
+        NULL stays distinct from level 0. Older rows created before a skill
+        field existed can be NULL, and NULL -> 13 must never become a fake pop.
+        """
+        if world is None or skill not in SKILL_ORDER:
+            return {}
+
+        skill_column = getattr(m.PlayerSnapshot, skill)
+        observed = (
+            await self._s.execute(
+                select(
+                    m.Player.ht_player_id,
+                    m.PlayerSnapshot.captured_at,
+                    skill_column,
+                )
+                .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+                .where(
+                    m.Player.team_id == team_id,
+                    m.Player.left_team_at.is_(None),
+                )
+                .order_by(m.Player.ht_player_id, m.PlayerSnapshot.captured_at)
+            )
+        ).all()
+
+        previous: dict[int, int] = {}
+        first_seen_at_current: dict[int, Any] = {}
+        for ht_player_id, captured_at, observed_level in observed:
+            if observed_level is None:
+                continue
+            level = int(observed_level)
+            old_level = previous.get(ht_player_id)
+            if (
+                old_level is not None
+                and level > old_level
+                and level == current_levels.get(ht_player_id)
+            ):
+                first_seen_at_current[ht_player_id] = captured_at
+            previous[ht_player_id] = level
+
+        weeks: dict[int, int] = {}
+        for ht_player_id, captured_at in first_seen_at_current.items():
+            elapsed = -season_week_offset_for(world, captured_at)
+            if not include_this_week:
+                elapsed -= 1
+            weeks[ht_player_id] = max(0, elapsed)
+        return weeks
+
     async def squad_view(
         self, team_id: int, skill: str | None = None, include_this_week: bool = True,
     ) -> TrainingSquadView | None:
@@ -225,7 +335,11 @@ class TrainingSquadQueryService:
             return None
 
         chosen_skill = skill or ctx.trained_skill
-        setup = replace(ctx.setup, skill=chosen_skill)
+        setup = replace(
+            ctx.setup,
+            skill=chosen_skill,
+            training_type=(ctx.setup.training_type if chosen_skill == ctx.trained_skill else None),
+        )
         world = await self._world(team)
         skill_id = _skill_id_for(chosen_skill)
 
@@ -238,8 +352,22 @@ class TrainingSquadQueryService:
             for u in await self._pops_for_skill(team_id, skill_id):
                 pops_by_player.setdefault(u.ht_player_id, []).append(u)
 
+        roster = await self._roster(team_id)
+        current_levels = {
+            p["ht_player_id"]: _level_of(p, chosen_skill)
+            for p in roster
+        }
+        snapshot_pop_weeks = await self._snapshot_pop_weeks(
+            team_id,
+            chosen_skill,
+            current_levels,
+            world,
+            include_this_week,
+        )
+
         rows: list[SquadTrainingRow] = []
-        for p in await self._roster(team_id):
+        snapshot_references_used = 0
+        for p in roster:
             level = _level_of(p, chosen_skill)
             speed = te.weeks_to_next_level(chosen_skill, level, p["age_years"], p["age_days"], setup=setup)
             weeks_total = speed.weeks_to_next_level
@@ -252,6 +380,9 @@ class TrainingSquadQueryService:
                 pop_week = last_pop.season * SEASON_WEEKS + last_pop.match_round
                 elapsed = now_week - pop_week - (0 if include_this_week else 1)
                 weeks_elapsed = max(0, elapsed)
+            elif p["ht_player_id"] in snapshot_pop_weeks:
+                weeks_elapsed = snapshot_pop_weeks[p["ht_player_id"]]
+                snapshot_references_used += 1
 
             progress_pct = (
                 round(weeks_elapsed / weeks_total * 100, 1)
@@ -280,6 +411,13 @@ class TrainingSquadQueryService:
                 "las semanas transcurridas quedan sin dato para todos."
             )
 
+        if snapshot_references_used:
+            notes.append(
+                f"En {snapshot_references_used} jugador(es), trainingevents.xml no expuso "
+                "el historial y se usó como referencia la primera sincronización real "
+                "donde Lens observó el nuevo nivel."
+            )
+
         return TrainingSquadView(
             skill=chosen_skill,
             skill_label=TRAINABLE_SKILLS.get(chosen_skill, chosen_skill),
@@ -288,6 +426,118 @@ class TrainingSquadQueryService:
             rows=rows,
             weekly_log=await self._weekly_log(team_id, world),
             include_this_week=include_this_week,
+            notes=notes,
+        )
+
+    async def development_view(self, team_id: int) -> DevelopmentView | None:
+        """Progreso de Experiencia y Fidelidad para toda la plantilla.
+
+        Experiencia reutiliza el historial real de partidos/minutos del motor
+        de experiencia. Fidelidad reutiliza exclusivamente la fecha de llegada
+        y la curva temporal acordada; no ajusta ninguna regresión con datos de
+        la cuenta.
+        """
+        team = await self._s.get(m.Team, team_id)
+        if team is None:
+            return None
+
+        roster = await self._roster(team_id)
+        history = PlayerHistoryQueryService(self._s)
+        experience_rows: list[ExperienceRow] = []
+        loyalty_rows: list[LoyaltyRow] = []
+        missing_purchase_dates = 0
+        today = datetime.now(UTC).date()
+
+        for player in roster:
+            progress = await history.experience_progress(player["ht_player_id"])
+            level = int(player["experience"])
+            fraction = (
+                progress.points / progress.points_per_level
+                if progress is not None and progress.points_per_level > 0
+                else None
+            )
+            experience_rows.append(ExperienceRow(
+                ht_player_id=player["ht_player_id"],
+                name=player["name"],
+                native_country=player["native_country"],
+                age_years=player["age_years"],
+                age_days=player["age_days"],
+                level=level,
+                level_name=skill_name(level),
+                decimal_level=(round(level + fraction, 2) if fraction is not None else None),
+                points=(progress.points if progress is not None else None),
+                points_per_level=(progress.points_per_level if progress is not None else 100.0),
+                remaining_points=(progress.remaining_points if progress is not None else None),
+                progress_pct=(progress.percent if progress is not None else None),
+                breakdown=(progress.breakdown if progress is not None else {}),
+                unscored_national_matches=(
+                    progress.unscored_national_matches if progress is not None else 0
+                ),
+            ))
+
+            joined_at = player["purchased_at"] or player["purchased_at_manual"]
+            date_source = (
+                "transferencia" if player["purchased_at"] is not None
+                else "manual" if player["purchased_at_manual"] is not None
+                else None
+            )
+            days_in_club: int | None = None
+            calculated: int | None = None
+            decimal: float | None = None
+            next_level: int | None = None
+            days_to_next: int | None = None
+            progress_pct: int | None = None
+            if joined_at is not None:
+                joined_date = (
+                    joined_at if joined_at.tzinfo else joined_at.replace(tzinfo=UTC)
+                ).date()
+                days_in_club = max((today - joined_date).days, 0)
+                calculated = loyalty_level(days_in_club)
+                decimal = loyalty_decimal(days_in_club)
+                if calculated is not None and decimal is not None:
+                    if calculated >= 20:
+                        progress_pct = 100
+                    else:
+                        progress_pct = int(round((decimal - calculated) * 100))
+                        next_level = calculated + 1
+                        days_to_next = max(days_for_level(next_level) - days_in_club, 0)
+            else:
+                missing_purchase_dates += 1
+
+            display_level = calculated if calculated is not None else int(player["loyalty"])
+            loyalty_rows.append(LoyaltyRow(
+                ht_player_id=player["ht_player_id"],
+                name=player["name"],
+                native_country=player["native_country"],
+                age_years=player["age_years"],
+                age_days=player["age_days"],
+                reported_level=int(player["loyalty"]),
+                calculated_level=calculated,
+                level_name=skill_name(display_level),
+                decimal_level=decimal,
+                progress_pct=progress_pct,
+                days_in_club=days_in_club,
+                next_level=next_level,
+                days_to_next_level=days_to_next,
+                date_source=date_source,
+            ))
+
+        experience_rows.sort(key=lambda row: (row.progress_pct is None, -(row.progress_pct or 0)))
+        loyalty_rows.sort(key=lambda row: (row.days_in_club is None, -(row.days_in_club or 0)))
+        notes = [
+            "Experiencia suma los puntos de partidos y minutos reales observados desde el nivel "
+            "actual; no estima partidos anteriores al primer snapshot disponible.",
+            "Fidelidad usa solo días calendario desde la compra o la fecha manual de llegada y "
+            "la curva temporal acordada.",
+        ]
+        if missing_purchase_dates:
+            notes.append(
+                f"{missing_purchase_dates} jugador(es) no tienen fecha de llegada: se muestra el "
+                "nivel CHPP, pero no un progreso decimal inventado."
+            )
+        return DevelopmentView(
+            experience=experience_rows,
+            loyalty=loyalty_rows,
             notes=notes,
         )
 
@@ -302,7 +552,11 @@ class TrainingSquadQueryService:
             return None
 
         chosen_skill = skill or ctx.trained_skill
-        setup = replace(ctx.setup, skill=chosen_skill)
+        setup = replace(
+            ctx.setup,
+            skill=chosen_skill,
+            training_type=(ctx.setup.training_type if chosen_skill == ctx.trained_skill else None),
+        )
 
         player_row = next(
             (p for p in await self._roster(team_id) if p["ht_player_id"] == ht_player_id), None,

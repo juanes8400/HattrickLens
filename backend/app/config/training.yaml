@@ -1,70 +1,107 @@
-# Training constants — HTC-compatible profile
+# Training constants — public HT-Tools community formula
 #
-# Hattrick Control 3.50.02.1619 exposes per-training controls plus modifiers.
-# Its Defaults.dat and unnamed combining helper are absent from the supplied
-# dump, so the numeric values below remain explicit, editable compatibility
-# values rather than claimed official game constants. See
-# docs/reference/HATTRICK_CONTROL_3_50_REVERSE_ENGINEERING.md.
+# Clean-room implementation of the mathematics published by HT-Tools and used
+# by HT Utilities. These are community estimates, not Hattrick server code and
+# not coefficients fitted from this manager's private account data.
 
 reference:
-  implementation: Hattrick Control 3.50.02.1619
-  status: structural
-  source_files: [UEntrenamiento.pas, UEntrenamiento.dfm, UOptions.pas, UOptions.dfm]
-  recovered: "Tipo de entrenamiento, semanas por habilidad y modificadores de entrenador, ayudantes, intensidad, condición y edad."
-  pending: "Valores de Defaults.dat y rutina auxiliar que combina los modificadores."
-  numeric_profile: HTC-compatible, pending calibration
+  implementation: HT-Tools community training formula
+  status: ported
+  source_files:
+    - https://github.com/ventouris/hattricktools/blob/master/static/js/training.js
+    - https://wiki.hattrick.org/wiki/Training
+  recovered: "Función por tramos del nivel, reloj de edad, coeficientes de entrenamiento, entrenador, ayudantes, intensidad y resistencia."
+  pending: "El subnivel exacto no existe en CHPP y la tabla pública de edad termina en 34; Lens declara ambos límites."
+  numeric_profile: HT-Tools community estimate; no private-data fitting
 #
 # FORMULA
 #
-#   weeks = base_weeks[skill]
-#         ÷ (1 + assistant_level_sum × 3.5%)
-#         × (1 + 6% × (age − 17))
-#         × (1 + 10% × max(7 − coach_level, 0) − 5% if excellent)
-#         × (1 − 1% × (intensity − 100))
-#         ÷ (1 − stamina_share)
+#   K = K_training × K_coach × K_assistants × intensity
+#       × (1 − stamina_share) × exposure
 #
-# Assistants add training speed, so their factor divides waiting time.
-# Conditioning diverts capacity from the primary skill, so its remaining share
-# divides waiting time too. Validate every coefficient with CHPP pop intervals.
+#   F(s) = (s^1.72 − 1) / (6.0896 × 1.72)                      if s < 9
+#        = 2.45426 + (s − 5)^1.96 / (4.7371 × 1.96)            if s >= 9
 #
-# Lens receives the SUM of assistant levels. The cap and coefficient are visible
-# compatibility-profile settings, not hidden game constants.
+#   pop_clock = age_clock(age) + (F(next_level) − F(current_skill)) / K
+#   weeks = 16 × (inverse_age_clock(pop_clock) − age)
+#
+# Coefficient of each senior-team training mode in the public implementation.
+training_coefficients:
+  goalkeeping: 0.335
+  defending: 0.206
+  defensive_positions: 0.094
+  winger: 0.315
+  winger_partial: 0.1575
+  wing_attacks: 0.219
+  playmaking: 0.220
+  playmaking_partial: 0.110
+  scoring: 0.218
+  shooting: 0.097
+  short_passes: 0.237
+  through_passes: 0.178
+  set_pieces: 0.941
+  set_pieces_bonus: 1.183
 
-# Weeks to gain one level for the reference player (17 years old).
-# Compatibility defaults. Hattrick Control stores these as editable controls;
-# replace them with restored Defaults.dat values when available.
-base_weeks:
-  stamina: 1
-  keeper: 4
-  defending: 8
-  playmaking: 7
-  passing: 5
-  winger: 5
-  scoring: 6
-  set_pieces: 2
+# CHPP trainingType → public formula mode.
+training_type_to_mode:
+  2: set_pieces
+  3: defending
+  4: scoring
+  5: winger
+  6: shooting
+  7: short_passes
+  8: playmaking
+  9: goalkeeping
+  10: through_passes
+  11: defensive_positions
+  12: wing_attacks
 
-reference_age: 17
-age_increase_per_year: 0.06        # linear, per year above 17
+# Mode used when the user explores a skill other than the currently synced
+# training. Stamina is intentionally absent: the formula models technical
+# senior-team training, while stamina has its own reference engine.
+default_training_mode_by_skill:
+  keeper: goalkeeping
+  defending: defending
+  playmaking: playmaking
+  passing: short_passes
+  winger: winger
+  scoring: scoring
+  set_pieces: set_pieces
 
-# Assistant configuration for the compatibility profile.
+# Accumulated age clock for exact Hattrick ages 17..34. Between birthdays Lens
+# interpolates linearly. Above 34 it extrapolates the last published segment and
+# marks that limitation in model metadata.
+age_clock:
+  start_age: 17
+  values: [0.000, 16.000, 31.704, 47.117, 62.246, 77.094, 91.668, 105.972, 120.012, 133.791, 147.316, 160.591, 173.620, 186.408, 198.960, 211.279, 223.370, 235.238]
+age_speed_coefficients: [1.000, 0.982, 0.963, 0.946, 0.928, 0.911, 0.894, 0.877, 0.861, 0.845, 0.830, 0.814, 0.799, 0.784, 0.770, 0.756, 0.742, 0.728]
+
+skill_curve:
+  split_level: 9
+  low_power: 1.72
+  low_scale: 6.0896
+  high_offset: 2.45426
+  high_shift: 5
+  high_power: 1.96
+  high_scale: 4.7371
+
+# Assistant coefficient from the public HT-Tools formula.
 max_assistants: 2
 max_assistant_level: 5
-assistant_bonus_per_level: 0.035
+assistant_base_coefficient: 0.66
+assistant_bonus_per_level: 0.032
 assistant_level_sum_cap: 10        # 2 assistants × level 5
-default_assistant_level_sum: 10    # the validation club is at the ceiling
+default_assistant_level_sum: 10
 
-# Coach profile. The CHPP-to-profile correspondence remains provisional.
-coach_reference_level: 7
-coach_penalty_per_level: 0.10
-apply_excellent_coach_bonus: true
-excellent_coach_bonus: 0.05
+# Formula scale 4..8. stafflist.xml exposes 1..5 and the mapping below converts
+# it directly. Leadership does not affect training speed.
+coach_coefficients:
+  4: 0.774
+  5: 0.867
+  6: 0.943
+  7: 1.000
+  8: 1.045
 
-# Training-intensity compatibility multiplier.
-intensity_factor_per_point: 0.01
-
-# Stamina share reduces capacity available to the main skill. Its remaining
-# capacity is the denominator: weeks ÷ (1 − share). This corrects the old
-# inverse direction, which made more stamina predict faster primary training.
 apply_stamina_share: true
 default_stamina_share: 12.5
 
@@ -74,12 +111,6 @@ position_training_share:
   full: 1.0
   partial: 0.5
   none: 0.0
-
-# Alternative age profile retained only for comparison.
-alternative_age_model:
-  enabled: false
-  age_factor_per_year: 0.0463      # exponential: (1 + f) ^ (age − 17)
-  level_exponent: 0.068
 
 # Youth training exposure weights, read from Hattrick Control's own
 # "Valoración del entrenamiento" panel.
@@ -94,10 +125,8 @@ youth_exposure:
 # ── Cierre de la fórmula: correspondencias con los datos reales del CHPP ──────
 #
 # Estas tablas traducen valores leídos de la API a los términos de la fórmula.
-# Dos de ellas están MARCADAS COMO PROVISIONALES porque no venían en las tablas
-# de traducción oficiales que se recibieron; se confirman con el usuario o
-# cruzando con playerdetails. Se prefiere dejarlas visibles y configurables a
-# inventar un mapa escondido (como pasó una vez con el tipo de entrenamiento 10).
+# Se mantienen visibles y configurables para que el tipo CHPP que alimenta
+# cada modo matemático nunca quede escondido.
 
 # SkillID de trainingevents → habilidad interna. Confirmado contra CHPP DataTypes.
 skill_id_map:
@@ -129,15 +158,14 @@ training_type_to_skill:
   11: defending
   12: winger
 
-# TrainerSkillLevel (1–5 en stafflist) → nivel_entrenador de la fórmula, cuya
-# escala de referencia es 7 (bueno) / 8 (excelente). La correspondencia entre
-# ambas escalas es PROVISIONAL: la API entrega 1–5 y la fórmula se calibró en
-# la escala nominal 7/8, así que esto es lo único que queda por reconciliar.
+# TrainerSkillLevel (1–5 en stafflist) → escala 4–8 usada por la fórmula
+# pública. Es un desplazamiento directo: 1→4, ..., 5→8.
 trainer_skill_to_formula_level:
   1: 4
   2: 5
   3: 6
   4: 7
   5: 8
-# Un TrainerSkillLevel de 5 se considera "excelente" a efectos del −5%.
+# Se conserva para compatibilidad de la respuesta; el coeficiente del nivel 8
+# ya incorpora el efecto y el motor no aplica un segundo bono.
 excellent_trainer_skill_level: 5

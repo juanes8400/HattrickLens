@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import start_of_iso_week
+from app.domain.engines.sync_diff import diff_training
 from app.domain.value_objects.ht_constants import CONFIDENCE, TEAM_SPIRIT
 from app.infrastructure.db import models as m
 
@@ -25,6 +26,7 @@ PLAYER_METRICS: tuple[tuple[str, str, str], ...] = (
     ("form", "Forma", "FO"),
     ("stamina", "Resistencia", "CO"),
     ("experience", "Experiencia", "EX"),
+    ("loyalty", "Fidelidad", "FI"),
     ("keeper", "Portería", "PO"),
     ("defending", "Defensa", "DE"),
     ("playmaking", "Jugadas", "JU"),
@@ -358,14 +360,68 @@ async def _changes_for_sync(
 ) -> list[dict[str, str]]:
     if sync_id is None:
         return []
-    rows = (
+    rows = list((
         await session.execute(
             select(m.SyncChange)
             .where(m.SyncChange.sync_id == sync_id)
             .order_by(m.SyncChange.id)
         )
-    ).scalars().all()
-    return [{"category": row.category, "summary": row.summary} for row in rows]
+    ).scalars().all())
+
+    # Las filas antiguas de Entrenamiento se guardaron con `-1` como valor
+    # previo porque el repositorio no incluía moral/confianza en
+    # `get_last_values`. Se reconstruyen desde los snapshots inmediatos para
+    # que el histórico ya almacenado también sea correcto, sin reescribirlo.
+    current_training = await session.scalar(
+        select(m.TrainingSnapshot)
+        .where(m.TrainingSnapshot.sync_id == sync_id)
+        .order_by(m.TrainingSnapshot.id.desc())
+        .limit(1)
+    )
+    rebuilt_training: list[str] | None = None
+    if current_training is not None:
+        previous_training = await session.scalar(
+            select(m.TrainingSnapshot)
+            .where(
+                m.TrainingSnapshot.team_id == current_training.team_id,
+                m.TrainingSnapshot.captured_at < current_training.captured_at,
+            )
+            .order_by(m.TrainingSnapshot.captured_at.desc(), m.TrainingSnapshot.id.desc())
+            .limit(1)
+        )
+
+        def values(snapshot: m.TrainingSnapshot) -> dict[str, Any]:
+            return {
+                "training_type": snapshot.training_type,
+                "training_level": snapshot.training_level,
+                "trainer_name": snapshot.trainer_name,
+                "morale": snapshot.morale,
+                "self_confidence": snapshot.self_confidence,
+            }
+
+        rebuilt_training = diff_training(
+            values(previous_training) if previous_training is not None else None,
+            values(current_training),
+        )
+
+    changes: list[dict[str, str]] = []
+    training_inserted = False
+    for row in rows:
+        if row.category == "entrenamiento" and rebuilt_training is not None:
+            if not training_inserted:
+                changes.extend(
+                    {"category": "entrenamiento", "summary": summary}
+                    for summary in rebuilt_training
+                )
+                training_inserted = True
+            continue
+        changes.append({"category": row.category, "summary": row.summary})
+    if rebuilt_training and not training_inserted:
+        changes.extend(
+            {"category": "entrenamiento", "summary": summary}
+            for summary in rebuilt_training
+        )
+    return changes
 
 
 async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str, Any]:

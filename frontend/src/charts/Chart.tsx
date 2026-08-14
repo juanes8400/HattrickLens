@@ -2,6 +2,7 @@ import * as echarts from "echarts";
 import ReactECharts from "echarts-for-react";
 import type { EChartsOption } from "echarts";
 import { useIsDarkTheme } from "../hooks/useTheme";
+import { number } from "../hooks/useFormat";
 
 /**
  * Single ECharts wrapper. UI_GUIDELINES.md requires zoom, tooltips, PNG export
@@ -42,7 +43,10 @@ for (const [name, c] of Object.entries(AXIS_THEME)) {
     valueAxis: {
       axisLine: { lineStyle: { color: c.line } },
       axisTick: { lineStyle: { color: c.line } },
-      axisLabel: { color: c.muted },
+      axisLabel: {
+        color: c.muted,
+        formatter: (value: number) => number(value),
+      },
       splitLine: { lineStyle: { color: c.line } },
     },
   });
@@ -70,12 +74,15 @@ export function Chart({
   height = 280,
   dark,
   ariaLabel,
+  onEvents,
 }: {
   option: EChartsOption;
   height?: number;
   /** Overrides theme auto-detection; normally left unset. */
   dark?: boolean;
   ariaLabel: string;
+  /** Event handlers passed to ECharts (for example, clickable data points). */
+  onEvents?: Record<string, (...args: unknown[]) => void>;
 }) {
   const isDarkTheme = useIsDarkTheme();
   const resolvedDark = dark ?? isDarkTheme;
@@ -87,6 +94,7 @@ export function Chart({
         theme={resolvedDark ? "ht-dark" : "ht-light"}
         style={{ height }}
         opts={{ renderer: "canvas" }}
+        onEvents={onEvents}
         notMerge
       />
     </div>

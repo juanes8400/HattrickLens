@@ -62,6 +62,7 @@ FILE_LABELS: dict[str, str] = {
 DEFAULT_FILES = [
     "players", "training", "economy", "teamdetails", "leaguedetails", "leaguefixtures",
     "matches", "transfersteam", "currentbids", "worlddetails", "club", "stafflist",
+    "trainingevents",
 ]
 # worlddetails, 2026-08-04: única fuente de la temporada ACTUAL de Hattrick
 # (leaguedetails.xml no la trae). Antes no estaba en el sync por defecto, así
@@ -71,8 +72,11 @@ DEFAULT_FILES = [
 # depende de que esté fresca para calcular la temporada de CUALQUIER fecha
 # por aritmética pura (112 días/temporada, igual que la edad), no solo de
 # fechas con un Standing sincronizado cerca.
-# club, stafflist, worlddetails, trainingevents cierran la fórmula de
-# entrenamiento: aportan los valores que antes se ponían a mano.
+# club, stafflist, worlddetails y trainingevents cierran la fórmula de
+# entrenamiento: aportan los valores que antes se ponían a mano. Corrección
+# 2026-08-14: trainingevents estaba documentado aquí y tenía parser/handler,
+# pero faltaba materialmente en DEFAULT_FILES; el sync normal nunca traía las
+# referencias de los pops y "Entrenamiento actual" quedaba entero sin dato.
 # CORRECCIÓN 2026-08-12, pedido explícito: club y stafflist NO estaban en
 # esta lista pese al comentario de arriba — solo se sincronizaban una vez, a
 # mano, al conectar la cuenta. El "Sincronizar" normal nunca los refrescaba,

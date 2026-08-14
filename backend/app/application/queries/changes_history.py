@@ -36,6 +36,7 @@ METRICS: tuple[tuple[str, str, str], ...] = (
     ("set_pieces", "Balón parado", "skill"),
     ("stamina", "Condición", "skill"),
     ("experience", "Experiencia", "experience"),
+    ("loyalty", "Fidelidad", "loyalty"),
     ("form", "Forma", "form"),
 )
 
@@ -113,7 +114,9 @@ async def build_changes_history(
     # comparar contra el mismo tipo.
     cutoff = ((now or datetime.now(UTC)) - CHANGES_VISIBILITY_WINDOW).replace(tzinfo=None)
 
-    grouped: dict[str, list[dict[str, Any]]] = {"skill": [], "experience": [], "form": []}
+    grouped: dict[str, list[dict[str, Any]]] = {
+        "skill": [], "experience": [], "loyalty": [], "form": [],
+    }
     for entries in snapshots.values():
         for (previous, _), (current, player) in zip(entries, entries[1:]):
             captured_at = current.captured_at
@@ -150,6 +153,7 @@ async def build_changes_history(
         "selectedPlayerId": selected_player,
         "skillChanges": grouped["skill"],
         "experienceChanges": grouped["experience"],
+        "loyaltyChanges": grouped["loyalty"],
         "formChanges": grouped["form"],
         "series": series,
     }

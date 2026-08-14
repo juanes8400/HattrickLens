@@ -15,7 +15,7 @@ from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
-from app.application.queries.weekly import season_week_label, season_week_offset_for
+from app.application.queries.weekly import season_week_for_datetime, season_week_label
 from app.domain.engines import insights as ins
 from app.domain.engines.career_stage_engine import classify_career_stage
 from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
@@ -30,9 +30,8 @@ from app.domain.engines.lineup_optimizer import (
     best_lineup,
     weather_impact,
 )
-from app.domain.engines.loyalty_engine import calibrate as loyalty_calibrate
+from app.domain.engines.loyalty_engine import loyalty_decimal as calculate_loyalty_decimal
 from app.domain.engines.loyalty_engine import model_info as loyalty_model_info
-from app.domain.engines.loyalty_engine import progress_within_level as loyalty_progress
 from app.domain.engines.position_engine import rate_all
 from app.domain.engines.pricing_engine import (
     SALARY_FIELD_SKILLS,
@@ -47,6 +46,7 @@ from app.domain.engines.training_engine import (
     TrainingSetup,
     default_setup as default_training_setup,
     model_info as training_model_info,
+    training_mode,
     weeks_to_next_level,
 )
 from app.domain.value_objects.ht_constants import match_role_name, training_target
@@ -160,6 +160,7 @@ async def player_detail(
         trained_skill = training_target(tr.training_type) if tr else None
         setup = default_training_setup(
             trained_skill or "playmaking",
+            training_type=tr.training_type if tr else None,
             intensity=tr.training_level if tr else 100,
             stamina_share=tr.stamina_part if tr else None,
         )
@@ -174,7 +175,7 @@ async def player_detail(
     # HL-15x #97: ritmo semanal REAL de la fórmula (1/semanas) — no es el
     # acumulado real por partidos jugados (esa tabla posición→entrenamiento
     # todavía no está verificada, ver Nota en el panel), pero sí es un
-    # porcentaje real derivado de la fórmula ya calibrada, no un supuesto.
+    # porcentaje derivado de la fórmula comunitaria, no un valor observado.
     weekly_training_progress_pct = (
         round(training_speed.weekly_progress * 100, 1) if training_speed else None
     )
@@ -216,7 +217,7 @@ async def player_detail(
 
     def _season_week(captured_at: str) -> str | None:
         when = datetime.fromisoformat(captured_at)
-        return season_week_label(world, weeks_offset=season_week_offset_for(world, when))
+        return season_week_for_datetime(world, when)
 
     squad = await SquadQueryService(session).get(team_id)
     squad_player = (
@@ -261,29 +262,16 @@ async def player_detail(
         and _season_week(match_rating_history[-1].captured_at) == current_week_label
     )
 
-    # HL-15x, pedido explícito 2026-08-10: progreso decimal real de Fidelidad
-    # (p.ej. 5.62 en vez de solo "5") cuando ya hay calibración real para la
-    # transición en la que está el jugador — ver loyalty_engine.py. Sin
-    # calibración para esa transición, se cae de vuelta al nivel entero (el
-    # frontend hace ese fallback con `loyaltyDecimal ?? loyalty`).
+    # Fidelidad usa exclusivamente los días calendario transcurridos desde la
+    # compra. La parte decimal es la misma curva antes de aplicar floor; no se
+    # calibra con pops ni con el historial de snapshots.
     loyalty_decimal: float | None = None
-    if squad_player is not None and squad_player.loyalty is not None:
-        level_started_at = await history_svc.loyalty_level_started_at(ht_player_id)
-        if level_started_at is not None:
-            loyalty_observations, _ = await history_svc.loyalty_level_up_observations(team_id)
-            loyalty_cal = loyalty_calibrate(loyalty_observations)
-            now = (
-                world.refreshed_at
-                if world is not None and world.refreshed_at is not None
-                else datetime.now(UTC)
-            )
-            now_aware = now if now.tzinfo else now.replace(tzinfo=UTC)
-            started_aware = (
-                level_started_at if level_started_at.tzinfo
-                else level_started_at.replace(tzinfo=UTC)
-            )
-            days_at_level = (now_aware - started_aware).days
-            loyalty_decimal = loyalty_progress(squad_player.loyalty, days_at_level, loyalty_cal)
+    if joined_at is not None:
+        purchase_date = (
+            joined_at if joined_at.tzinfo else joined_at.replace(tzinfo=UTC)
+        ).date()
+        days_since_purchase = max((datetime.now(UTC).date() - purchase_date).days, 0)
+        loyalty_decimal = calculate_loyalty_decimal(days_since_purchase)
 
     # HL-15x, pedido explícito 2026-08-10: proyección de Resistencia (líneas
     # punteadas en "Evolución de habilidades") según la tabla de Federación
@@ -664,6 +652,7 @@ async def training_forecast(
         skill = training_target(tr.training_type) if tr else None
         setup = default_training_setup(
             skill or "playmaking",
+            training_type=tr.training_type if tr else None,
             intensity=tr.training_level if tr else 100,
             stamina_share=tr.stamina_part if tr else None,
         )
@@ -760,7 +749,8 @@ async def team_insights(
             # 100/0 en silencio (bug real corregido 2026-08-14: antes las
             # ignoraba aunque ya las tenía).
             setup = ctx.setup if ctx else default_training_setup(
-                trained_skill, intensity=tr.training_level, stamina_share=tr.stamina_part,
+                trained_skill, training_type=tr.training_type,
+                intensity=tr.training_level, stamina_share=tr.stamina_part,
             )
             trainees = [
                 {"name": p["name"], "age_years": p["age_years"],
@@ -997,41 +987,16 @@ async def experience_calibration(
 
 
 @router.get(
-    "/teams/{team_id}/loyalty/calibration",
-    summary="Días reales por transición de Fidelidad, descubiertos por observación",
+    "/teams/{team_id}/loyalty/model",
+    summary="Fórmula de Fidelidad según los días transcurridos desde la compra",
 )
-async def loyalty_calibration(
+async def loyalty_model(
     team_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    """A diferencia de Experiencia, Fidelidad no tiene ninguna fórmula
-    publicada que usar como valor de partida: ni Hattrick ni Hattrick
-    Control documentan cuántos días toma subir de un nivel a otro.
-
-    El intervalo real es constante entre jugadores para una misma
-    transición de nivel, pero NO entre niveles distintos (1→2 es rápido,
-    19→20 puede tardar temporadas) — así que en vez de un solo número se
-    calibra una tabla, transición por transición, cada una con su propia
-    cuenta de observaciones limpias.
-    """
-    await roster(session, team_id)          # 404s on an unknown team
-
-    history = PlayerHistoryQueryService(session)
-    level_ups, crossings_seen = await history.loyalty_level_up_observations(team_id)
-    cal = loyalty_calibrate(level_ups)
-    info = loyalty_model_info(cal)
-    info["crossingsSeen"] = crossings_seen
-    info["discardedCrossings"] = crossings_seen - len(level_ups)
-    info["levelUps"] = [
-        {
-            "player": lu.player,
-            "fromLevel": lu.from_level,
-            "toLevel": lu.to_level,
-            "daysElapsed": lu.days_elapsed,
-        }
-        for lu in level_ups
-    ]
-    return info
+    """Expone la única regla usada por la ficha y sus umbrales enteros."""
+    await roster(session, team_id)  # 404s on an unknown team
+    return loyalty_model_info()
 
 
 @router.get(
@@ -1056,15 +1021,13 @@ async def training_formula(
         raise HTTPException(404, f"team {team_id} not found")
 
     s = ctx.setup
+    model = training_model_info()
     return {
         "trainedSkill": ctx.trained_skill,
         "allRead": ctx.all_read,
-        "formula": (
-            "semanas = base[hab] ÷ (1 + Σayudantes×3,5%) × (1 + 6%·(edad−17)) "
-            "× (1 + 10%·max(7−entrenador,0) − 5% si excelente) "
-            "× (1 − 1%·(intensidad−100)) ÷ (1 − %condición)"
-        ),
-        "reference": training_model_info()["reference"],
+        "formula": model["formula"],
+        "reference": model["reference"],
+        "limitations": model["limitations"],
         "inputs": {
             key: {
                 "value": p.value,
@@ -1076,6 +1039,8 @@ async def training_formula(
         },
         "setup": {
             "skill": s.skill,
+            "trainingType": s.training_type,
+            "trainingMode": training_mode(s.skill, s.training_type),
             "intensity": s.intensity,
             "staminaShare": s.stamina_share,
             "coachLevel": s.coach_level,
@@ -1104,9 +1069,9 @@ async def training_squad(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Cada jugador activo, para la habilidad elegida: nivel actual, semanas
-    transcurridas desde la última subida confirmada contra las que predice la
-    fórmula, y % de avance — más la configuración de entrenamiento vigente y
-    su histórico semanal."""
+    transcurridas desde la última subida confirmada por Hattrick o detectada
+    entre snapshots reales, % de avance, configuración vigente e histórico
+    semanal."""
     view = await TrainingSquadQueryService(session).squad_view(
         team_id, skill=skill, include_this_week=include_this_week,
     )
@@ -1120,6 +1085,8 @@ async def training_squad(
         "includeThisWeek": view.include_this_week,
         "setup": {
             "skill": s.skill,
+            "trainingType": s.training_type,
+            "trainingMode": training_mode(s.skill, s.training_type),
             "intensity": s.intensity,
             "staminaShare": s.stamina_share,
             "coachLevel": s.coach_level,
@@ -1151,6 +1118,64 @@ async def training_squad(
                 "trainerName": entry.trainer_name,
             }
             for entry in view.weekly_log
+        ],
+        "notes": view.notes,
+    }
+
+
+@router.get(
+    "/teams/{team_id}/training/development",
+    summary="Progreso de Experiencia y Fidelidad de la plantilla",
+)
+async def training_development(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Dos vistas de desarrollo no entrenable, calculadas por sus motores.
+
+    Experiencia se reconstruye con partidos/minutos reales. Fidelidad se
+    calcula desde la fecha de llegada. Ninguna de las dos ajusta una regresión
+    con los datos privados de la cuenta.
+    """
+    view = await TrainingSquadQueryService(session).development_view(team_id)
+    if view is None:
+        raise HTTPException(404, f"team {team_id} not found")
+    return {
+        "experience": [
+            {
+                "htPlayerId": row.ht_player_id,
+                "name": row.name,
+                "nativeCountry": row.native_country,
+                "age": f"{row.age_years}.{row.age_days}",
+                "level": row.level,
+                "levelName": row.level_name,
+                "decimalLevel": row.decimal_level,
+                "points": row.points,
+                "pointsPerLevel": row.points_per_level,
+                "remainingPoints": row.remaining_points,
+                "progressPct": row.progress_pct,
+                "breakdown": row.breakdown,
+                "unscoredNationalMatches": row.unscored_national_matches,
+            }
+            for row in view.experience
+        ],
+        "loyalty": [
+            {
+                "htPlayerId": row.ht_player_id,
+                "name": row.name,
+                "nativeCountry": row.native_country,
+                "age": f"{row.age_years}.{row.age_days}",
+                "reportedLevel": row.reported_level,
+                "calculatedLevel": row.calculated_level,
+                "levelName": row.level_name,
+                "decimalLevel": row.decimal_level,
+                "progressPct": row.progress_pct,
+                "daysInClub": row.days_in_club,
+                "nextLevel": row.next_level,
+                "daysToNextLevel": row.days_to_next_level,
+                "dateSource": row.date_source,
+            }
+            for row in view.loyalty
         ],
         "notes": view.notes,
     }

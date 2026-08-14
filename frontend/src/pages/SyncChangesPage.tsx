@@ -198,7 +198,12 @@ function lastSyncAggregate(data: LastSyncChanges): AggregateMetric[] {
 }
 
 function mergedHistoryEvents(data: ChangesHistory): HistoricalPlayerChange[] {
-  return [...data.skillChanges, ...data.experienceChanges, ...data.formChanges];
+  return [
+    ...data.skillChanges,
+    ...data.experienceChanges,
+    ...data.loyaltyChanges,
+    ...data.formChanges,
+  ];
 }
 
 function historyGroups(data: ChangesHistory): PlayerChangeGroup[] {
@@ -293,7 +298,7 @@ export function SyncChangesPage() {
           <Tabs
             tabs={[
               { key: "latest", label: "Último snapshot" },
-              { key: "history", label: "Histórico" },
+              { key: "history", label: "Última semana" },
             ]}
             active={changesTab}
             onChange={setChangesTab}

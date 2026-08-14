@@ -14,7 +14,9 @@ from app.application.queries.weekly import (
     changes_only,
     iso_week_key,
     latest_per_iso_week,
+    season_for_datetime,
     season_week_label,
+    season_week_for_datetime,
     season_week_offset_for,
     start_of_iso_week,
 )
@@ -90,6 +92,26 @@ def test_season_week_label_rolls_over_into_the_next_season_for_forecasts() -> No
     # dentro de la 83; una semana más ya cruza a la temporada 84, semana 1.
     assert season_week_label(WORLD, weeks_offset=13) == "83-16"
     assert season_week_label(WORLD, weeks_offset=14) == "84-01"
+
+
+def test_datetime_helpers_keep_a_later_timestamp_in_the_same_week_and_season() -> None:
+    """Regresión del caso real de Riccardo Comolli: worlddetails se leyó a
+    las 14:06 y la venta ocurrió a las 15:18 del mismo viernes. Una resta de
+    datetimes producía ``timedelta.days == -1`` e inventaba la temporada 84;
+    ambas fechas pertenecen en realidad a la misma semana 83-03."""
+    just_after_sync = NOW.replace(hour=15, minute=18)
+    assert season_week_for_datetime(WORLD, just_after_sync) == "83-03"
+    assert season_for_datetime(WORLD, just_after_sync) == 83
+
+
+def test_datetime_helpers_cross_exact_boundaries_in_past_and_future() -> None:
+    five_weeks_ago = datetime(2026, 7, 5, 13, 25, 12, tzinfo=UTC)
+    fourteen_weeks_ahead = datetime(2026, 11, 15, 13, 25, 12, tzinfo=UTC)
+
+    assert season_week_for_datetime(WORLD, five_weeks_ago) == "82-14"
+    assert season_for_datetime(WORLD, five_weeks_ago) == 82
+    assert season_week_for_datetime(WORLD, fourteen_weeks_ahead) == "84-01"
+    assert season_for_datetime(WORLD, fourteen_weeks_ahead) == 84
 
 
 def test_changes_only_keeps_the_first_point_and_only_real_changes() -> None:

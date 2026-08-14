@@ -150,6 +150,13 @@ export const useTrainingSquad = (skill?: string | null, includeThisWeek = true) 
     queryFn: () => api.trainingSquad(TEAM_ID, skill, includeThisWeek),
   });
 
+export const useTrainingDevelopment = (enabled = true) =>
+  useQuery({
+    queryKey: ["training-development", TEAM_ID],
+    queryFn: () => api.trainingDevelopment(TEAM_ID),
+    enabled,
+  });
+
 export const usePlayerTrainingLevels = (htPlayerId: number | null, skill?: string | null) =>
   useQuery({
     queryKey: ["player-training-levels", TEAM_ID, htPlayerId, skill ?? "default"],

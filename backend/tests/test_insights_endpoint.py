@@ -85,4 +85,6 @@ def test_the_clubs_own_trainer_is_excluded_from_expensive_training_alert(
     assert training_alert is not None
     flagged = training_alert["evidence"]["players"]
     assert "Volodymyr Manakin" not in flagged
-    assert "Robert Horhoi" in flagged
+    # La fórmula por tramos ya no castiga por edad solamente: un nivel técnico
+    # nulo puede seguir siendo barato, mientras un nivel alto sí cruza el umbral.
+    assert "Raúl Cobos" in flagged

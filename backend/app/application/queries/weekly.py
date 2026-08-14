@@ -131,3 +131,29 @@ def season_at_offset(world: "m.WorldContext | None", *, weeks_offset: int = 0) -
     idx = _week_index(world) + weeks_offset
     season, _week = divmod(idx, SEASON_WEEKS)
     return season
+
+
+def season_week_for_datetime(
+    world: "m.WorldContext | None", when: datetime,
+) -> str | None:
+    """Temporada-semana exacta de una fecha pasada, presente o futura.
+
+    Esta es la entrada canónica para fechas reales. Mantiene juntas las dos
+    partes que no deben volver a implementarse por separado: convertir la
+    fecha a un desplazamiento de semanas ISO y aplicar ese desplazamiento al
+    ancla ``Season``/``MatchRound`` entregada por ``worlddetails.xml``.
+    """
+    return season_week_label(
+        world,
+        weeks_offset=season_week_offset_for(world, when),
+    )
+
+
+def season_for_datetime(
+    world: "m.WorldContext | None", when: datetime,
+) -> int | None:
+    """Número de temporada exacto para una fecha pasada, presente o futura."""
+    return season_at_offset(
+        world,
+        weeks_offset=season_week_offset_for(world, when),
+    )

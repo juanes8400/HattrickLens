@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  useClub,
   usePlayerTrainingLevels,
   usePostMatchTraining,
+  useTrainingDevelopment,
   useTrainingFormula,
   useTrainingSquad,
 } from "../hooks/useTeam";
@@ -13,57 +15,151 @@ import { Tabs } from "../components/Tabs";
 import { Chart } from "../charts/Chart";
 import { barOption } from "../charts/chartOptions";
 import type {
+  ClubStaffRole,
+  ClubStaffRoleEffect,
   ConfirmedLevelUp,
   LevelForecastMilestone,
   PostMatchTrainingOption,
+  TrainingExperienceRow,
+  TrainingLoyaltyRow,
   TrainingSquadPlayerRow,
   TrainingSquadWeeklyLogEntry,
 } from "../services/api";
+import {
+  staffEffectLines,
+  trainerTrainingSpeedPct,
+  trainingStaffLevelColor,
+} from "../utils/staffEffects";
+import { skillLevelLabel } from "../utils/skillLevels";
 
-type TrainingSection = "plantilla" | "posteriori";
+type TrainingSection = "datos" | "plantilla" | "experiencia" | "fidelidad" | "posteriori";
 type PlayerTab = "mejoras" | "prevision";
 
-const squadColumns: Column<TrainingSquadPlayerRow>[] = [
+const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
+  league: "Liga",
+  cup: "Copa nacional",
+  cup_secondary: "Copa secundaria",
+  qualification: "Promoción",
+  friendly: "Amistoso",
+  friendly_international: "Amistoso internacional",
+  tournament: "Torneo",
+  masters: "Masters",
+  national_team_friendly: "Selección amistoso",
+  youth_league: "Liga juvenil",
+  youth_friendly: "Amistoso juvenil",
+};
+
+function decimal(value: number, digits = 2): string {
+  return value.toLocaleString("es-CO", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function ProgressCell({ value }: { value: number | null }) {
+  if (value == null) return <span className="text-[var(--muted)]">sin referencia</span>;
+  const bounded = Math.max(0, Math.min(100, value));
+  return (
+    <div className="flex min-w-28 items-center justify-end gap-2">
+      <div className="h-2 w-20 overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${bounded}%` }} />
+      </div>
+      <span className="w-9 text-right text-xs tabular-nums">{bounded.toFixed(0)}%</span>
+    </div>
+  );
+}
+
+function scaledEffect(
+  effect: ClubStaffRoleEffect,
+  memberLevel: number,
+  combinedLevel: number,
+): ClubStaffRoleEffect {
+  const share = combinedLevel > 0 ? memberLevel / combinedLevel : 0;
+  const scale = (value: number | undefined) =>
+    value == null ? undefined : Number((value * share).toFixed(3));
+  return {
+    trainingSpeedPct: scale(effect.trainingSpeedPct),
+    injuryRiskPp: scale(effect.injuryRiskPp),
+    backgroundForm: scale(effect.backgroundForm),
+  };
+}
+
+function AssistantCards({ role }: { role: ClubStaffRole }) {
+  if (role.members.length === 0) {
+    return (
+      <p className="p-4 text-sm font-medium text-[var(--danger)]">
+        Actualmente no hay asistentes de entrenador registrados.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {role.members.map((member) => {
+          const lines = role.effect
+            ? staffEffectLines(scaledEffect(role.effect, member.level, role.level))
+            : [];
+          return (
+            <div key={member.name} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <strong className="text-sm">{member.name}</strong>
+                <span className={`shrink-0 text-xs font-semibold tabular-nums ${trainingStaffLevelColor(member.level)}`}>
+                  Nivel {member.level}/5
+                </span>
+              </div>
+              {lines.length > 0 && (
+                <ul className="mt-3 space-y-1 border-t border-[var(--border)] pt-3 text-xs text-[var(--positive)]">
+                  {lines.map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {role.effect && (
+        <div className="rounded-md border border-[var(--border)] px-3 py-2">
+          <p className="text-xs font-medium">Aporte combinado · nivel {role.level}</p>
+          <ul className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--positive)]">
+            {staffEffectLines(role.effect).map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function squadColumns(skillLabel: string): Column<TrainingSquadPlayerRow>[] {
+  return [
   {
-    key: "nativeCountry",
-    header: "País",
+    key: "training",
+    header: "Entrenamiento",
     align: "left",
-    optional: true,
-    value: (r) => r.nativeCountry ?? "",
+    value: () => skillLabel,
+    render: () => <span className="font-medium">{skillLabel}</span>,
   },
   {
     key: "player",
-    header: "Jugador",
+    header: "Nombre",
     align: "left",
     value: (r) => r.name,
     render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
   },
+  {
+    key: "nativeCountry",
+    header: "Nac.",
+    align: "left",
+    value: (r) => r.nativeCountry ?? "",
+    render: (r) => (
+      <span className="text-xs text-[var(--muted)]">
+        {r.nativeCountry ?? "—"}
+      </span>
+    ),
+  },
   { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
   {
-    key: "level",
-    header: "Nivel",
-    value: (r) => r.level,
-    render: (r) => (
-      <span>
-        <b className="tabular-nums">{r.level}</b>{" "}
-        <span className="text-[var(--muted)]">· {r.levelName}</span>
-      </span>
-    ),
-  },
-  {
-    key: "weeks",
-    header: "Semanas",
-    value: (r) => r.weeksElapsed ?? -1,
-    render: (r) => (
-      <span className="tabular-nums">
-        {r.hasReference ? r.weeksElapsed : <span className="text-[var(--muted)]">—</span>}
-        <span className="text-[var(--muted)]"> / {r.weeksTotal.toFixed(1)}</span>
-      </span>
-    ),
-  },
-  {
     key: "progress",
-    header: "% Progreso",
+    header: "%",
     value: (r) => r.progressPct ?? -1,
     render: (r) =>
       r.progressPct == null ? (
@@ -79,6 +175,201 @@ const squadColumns: Column<TrainingSquadPlayerRow>[] = [
           <span className="tabular-nums text-xs">{r.progressPct.toFixed(0)}%</span>
         </div>
       ),
+  },
+  {
+    key: "weeks",
+    header: "Semanas",
+    value: (r) => r.weeksElapsed ?? -1,
+    render: (r) => (
+      <span className="tabular-nums whitespace-nowrap">
+        {r.hasReference && r.weeksElapsed != null ? (
+          r.weeksElapsed.toFixed(1)
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        )}
+        <span className="text-[var(--muted)]"> / {r.weeksTotal.toFixed(1)}</span>
+      </span>
+    ),
+  },
+  {
+    key: "level",
+    header: "Nivel",
+    value: (r) => r.level,
+    render: (r) => (
+      <span className="whitespace-nowrap">
+        <span>{r.levelName}</span>{" "}
+        <span className="text-xs tabular-nums text-[var(--muted)]">({r.level})</span>
+      </span>
+    ),
+  },
+  {
+    key: "htPlayerId",
+    header: "PlayerID",
+    value: (r) => r.htPlayerId,
+    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
+  },
+];
+}
+
+const experienceColumns: Column<TrainingExperienceRow>[] = [
+  {
+    key: "player",
+    header: "Nombre",
+    align: "left",
+    value: (r) => r.name,
+    render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
+  },
+  {
+    key: "nativeCountry",
+    header: "Nac.",
+    align: "left",
+    value: (r) => r.nativeCountry ?? "",
+    render: (r) => <span className="text-xs text-[var(--muted)]">{r.nativeCountry ?? "—"}</span>,
+  },
+  { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
+  {
+    key: "level",
+    header: "Experiencia",
+    value: (r) => r.decimalLevel ?? r.level,
+    render: (r) => (
+      <span className="whitespace-nowrap">
+        <span>{r.levelName}</span>{" "}
+        <span className="text-xs tabular-nums text-[var(--muted)]">
+          ({r.decimalLevel == null ? r.level : decimal(r.decimalLevel)})
+        </span>
+      </span>
+    ),
+  },
+  {
+    key: "progress",
+    header: "Progreso",
+    value: (r) => r.progressPct ?? -1,
+    render: (r) => <ProgressCell value={r.progressPct} />,
+  },
+  {
+    key: "points",
+    header: "Puntos",
+    value: (r) => r.points ?? -1,
+    render: (r) =>
+      r.points == null ? (
+        <span className="text-[var(--muted)]">—</span>
+      ) : (
+        <span className="whitespace-nowrap tabular-nums">
+          {decimal(r.points, 1)} <span className="text-[var(--muted)]">/ {decimal(r.pointsPerLevel, 0)}</span>
+        </span>
+      ),
+  },
+  {
+    key: "remaining",
+    header: "Faltan",
+    value: (r) => r.remainingPoints ?? Number.MAX_SAFE_INTEGER,
+    render: (r) =>
+      r.remainingPoints == null ? "—" : <span className="tabular-nums">{decimal(r.remainingPoints, 1)} pts</span>,
+  },
+  {
+    key: "breakdown",
+    header: "Partidos contabilizados",
+    align: "left",
+    value: (r) => Object.values(r.breakdown).reduce((sum, points) => sum + points, 0),
+    render: (r) => {
+      const parts = Object.entries(r.breakdown).map(
+        ([kind, points]) => `${EXPERIENCE_TYPE_LABELS[kind] ?? kind}: ${decimal(points, 1)}`,
+      );
+      if (r.unscoredNationalMatches > 0) {
+        parts.push(`Selección sin puntaje: ${r.unscoredNationalMatches}`);
+      }
+      return parts.length > 0 ? (
+        <span className="text-xs text-[var(--muted)]">{parts.join(" · ")}</span>
+      ) : (
+        <span className="text-xs text-[var(--muted)]">Aún sin partidos observados</span>
+      );
+    },
+  },
+  {
+    key: "htPlayerId",
+    header: "PlayerID",
+    value: (r) => r.htPlayerId,
+    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
+  },
+];
+
+const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
+  {
+    key: "player",
+    header: "Nombre",
+    align: "left",
+    value: (r) => r.name,
+    render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
+  },
+  {
+    key: "nativeCountry",
+    header: "Nac.",
+    align: "left",
+    value: (r) => r.nativeCountry ?? "",
+    render: (r) => <span className="text-xs text-[var(--muted)]">{r.nativeCountry ?? "—"}</span>,
+  },
+  { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
+  {
+    key: "daysInClub",
+    header: "Días en el club",
+    value: (r) => r.daysInClub ?? -1,
+    render: (r) =>
+      r.daysInClub == null ? <span className="text-[var(--muted)]">sin fecha</span> : r.daysInClub,
+  },
+  {
+    key: "level",
+    header: "Fidelidad",
+    value: (r) => r.decimalLevel ?? r.reportedLevel,
+    render: (r) => (
+      <span className="whitespace-nowrap">
+        <span>{r.levelName}</span>{" "}
+        <span className="text-xs tabular-nums text-[var(--muted)]">
+          ({r.decimalLevel == null ? r.reportedLevel : decimal(r.decimalLevel)})
+        </span>
+      </span>
+    ),
+  },
+  {
+    key: "progress",
+    header: "Al siguiente nivel",
+    value: (r) => r.progressPct ?? -1,
+    render: (r) => <ProgressCell value={r.progressPct} />,
+  },
+  {
+    key: "next",
+    header: "Próximo nivel",
+    value: (r) => r.daysToNextLevel ?? Number.MAX_SAFE_INTEGER,
+    render: (r) => {
+      if (r.daysInClub == null) return <span className="text-[var(--muted)]">—</span>;
+      if (r.nextLevel == null) return <span className="text-[var(--positive)]">Máximo alcanzado</span>;
+      return (
+        <span className="whitespace-nowrap">
+          {skillLevelLabel(r.nextLevel)} ({r.nextLevel}){" "}
+          <span className="text-xs text-[var(--muted)]">en {r.daysToNextLevel} día(s)</span>
+        </span>
+      );
+    },
+  },
+  {
+    key: "source",
+    header: "Fecha base",
+    align: "left",
+    value: (r) => r.dateSource ?? "",
+    render: (r) => (
+      <span className="text-xs text-[var(--muted)]">
+        {r.dateSource === "transferencia"
+          ? "Transferencia CHPP"
+          : r.dateSource === "manual"
+            ? "Fecha manual"
+            : "No disponible"}
+      </span>
+    ),
+  },
+  {
+    key: "htPlayerId",
+    header: "PlayerID",
+    value: (r) => r.htPlayerId,
+    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
   },
 ];
 
@@ -161,7 +452,7 @@ const optionColumns: Column<PostMatchTrainingOption>[] = [
 ];
 
 export function TrainingPage() {
-  const [section, setSection] = useState<TrainingSection>("plantilla");
+  const [section, setSection] = useState<TrainingSection>("datos");
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [includeThisWeek, setIncludeThisWeek] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
@@ -169,7 +460,11 @@ export function TrainingPage() {
 
   const squad = useTrainingSquad(selectedSkill, includeThisWeek);
   const postMatch = usePostMatchTraining();
+  const development = useTrainingDevelopment(
+    section === "experiencia" || section === "fidelidad",
+  );
   const formula = useTrainingFormula();
+  const club = useClub();
   const playerLevels = usePlayerTrainingLevels(selectedPlayerId, selectedSkill);
 
   if (squad.isLoading || postMatch.isLoading) return <Loading />;
@@ -183,6 +478,10 @@ export function TrainingPage() {
 
   const recommendation = post?.recommendation ?? null;
   const currentName = post?.currentTraining?.name ?? "sin dato";
+  const staff = club.data?.staff ?? null;
+  const assistantRole = staff?.roles.find((role) => role.key === "assistant_trainer_levels") ?? null;
+  const trainerName = data.weeklyLog[0]?.trainerName || "Sin dato";
+  const trainerSpeed = staff ? trainerTrainingSpeedPct(staff.trainer.skillLevel) : null;
 
   return (
     <div className="space-y-4">
@@ -195,61 +494,88 @@ export function TrainingPage() {
 
       <Tabs
         tabs={[
-          { key: "plantilla", label: "Plantilla" },
+          { key: "datos", label: "Datos Entrenamiento" },
+          { key: "plantilla", label: "Entrenamiento actual" },
+          { key: "experiencia", label: "Experiencia" },
+          { key: "fidelidad", label: "Fidelidad" },
           { key: "posteriori", label: "A posteriori" },
         ]}
         active={section}
         onChange={setSection}
       />
 
-      {section === "plantilla" && (
-        <>
-          <div>
-            <h2 className="mb-2 text-sm font-semibold">Configuración de entrenamiento actual</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <Kpi label="Tipo" value={currentName} />
-              <Kpi label="Intensidad" value={`${data.setup.intensity}%`} />
-              <Kpi
-                label="Condición"
-                value={`${data.setup.staminaShare}%`}
-                hint="parte de resistencia"
-              />
-              <Kpi
-                label="Entrenador"
-                value={`Nivel ${data.setup.coachLevel}`}
-                hint={data.setup.coachIsExcellent ? "Excelente" : "Normal"}
-              />
-              <Kpi
-                label="Ayudantes"
-                value={`suma ${data.setup.assistantLevelSum}`}
-                hint="niveles combinados"
-              />
-            </div>
+      {section === "datos" && (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Kpi label="Entrenamiento" value={currentName} />
+            <Kpi label="% de entrenamiento" value={`${data.setup.intensity}%`} />
+            <Kpi label="% condición" value={`${data.setup.staminaShare}%`} />
           </div>
 
-          {data.weeklyLog.length > 0 && (
-            <>
-              <Panel
-                title="Historial de configuración semanal"
-                meta={`${data.weeklyLog.length} semana(s) registradas`}
-              >
-                <Note>
-                  Cada fila es una lectura real de training.xml al momento de una sincronización —
-                  no un valor interpolado.
-                </Note>
-              </Panel>
-              <DataTable
-                rows={data.weeklyLog}
-                columns={weeklyLogColumns}
-                rowKey={(r) => r.date}
-                initialSort="date"
-                csvName="entrenamiento-historial-semanal"
-              />
-            </>
-          )}
+          <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)]">
+            <Panel title="Entrenador" meta="training.xml + stafflist.xml">
+              {club.isLoading ? (
+                <Loading />
+              ) : (
+                <dl className="space-y-3 p-4 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[var(--muted)]">Nombre</dt>
+                    <dd className="text-right font-medium">{trainerName}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[var(--muted)]">Nivel de entrenador</dt>
+                    <dd className={`font-semibold tabular-nums ${trainingStaffLevelColor(staff?.trainer.skillLevel)}`}>
+                      {staff ? `${staff.trainer.skillLevel}/5` : "Sin dato"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-[var(--muted)]">Nivel de liderazgo</dt>
+                    <dd>
+                      {staff
+                        ? `${skillLevelLabel(staff.trainer.leadership, true)} (${staff.trainer.leadership})`
+                        : "Sin dato"}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-3">
+                    <dt className="text-[var(--muted)]">Velocidad de entrenamiento</dt>
+                    <dd className="tabular-nums font-medium text-[var(--positive)]">
+                      {trainerSpeed == null ? "Sin dato" : `${trainerSpeed}%`}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </Panel>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">Plantilla — {data.skillLabel}</h2>
+            <Panel
+              title="Asistentes de entrenador"
+              meta={
+                assistantRole
+                  ? `${assistantRole.members.length} asistente(s) · nivel combinado ${assistantRole.level}`
+                  : "stafflist.xml"
+              }
+            >
+              {club.isLoading ? (
+                <Loading />
+              ) : club.isError ? (
+                <Note>No pudimos cargar el cuerpo técnico.</Note>
+              ) : assistantRole ? (
+                <AssistantCards role={assistantRole} />
+              ) : (
+                <Note>Sin datos de asistentes. Sincroniza para leer stafflist.xml.</Note>
+              )}
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {section === "plantilla" && (
+        <>
+          <Panel
+            title="Progreso hacia el próximo nivel"
+            meta={`${data.players.length} jugadores actuales · ordenados por progreso`}
+          >
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+            <h2 className="text-sm font-semibold">Entrenamiento actual</h2>
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <span className="text-[var(--muted)]">Habilidad</span>
@@ -278,7 +604,7 @@ export function TrainingPage() {
 
           <DataTable
             rows={data.players}
-            columns={squadColumns}
+            columns={squadColumns(data.skillLabel)}
             rowKey={(r) => r.htPlayerId}
             initialSort="progress"
             csvName="entrenamiento-plantilla"
@@ -286,25 +612,45 @@ export function TrainingPage() {
             onRowClick={(r) => setSelectedPlayerId(r.htPlayerId)}
             emptyMessage="Sin jugadores en la plantilla."
           />
+          </Panel>
           <Note>
-            Las semanas transcurridas se cuentan en semanas de temporada completas desde la última
-            subida confirmada — no con la precisión de días que muestra Hattrick Control, porque HT
-            Lens sincroniza bajo pedido y no corre en segundo plano.
+            Las semanas transcurridas se cuentan desde la última subida confirmada por Hattrick o,
+            cuando esa fuente no expone el historial, desde la primera sincronización real en que
+            Lens observó el nuevo nivel. La precisión es semanal porque Lens sincroniza bajo pedido.
             {data.notes.length > 0 ? ` ${data.notes.join(" ")}` : ""}
           </Note>
+
+          {data.weeklyLog.length > 0 && (
+            <Panel
+              title="Historial de configuración semanal"
+              meta={`${data.weeklyLog.length} semana(s) registradas`}
+            >
+              <Note>
+                Cada fila es una lectura real de training.xml al momento de una sincronización —
+                no un valor interpolado.
+              </Note>
+              <DataTable
+                rows={data.weeklyLog}
+                columns={weeklyLogColumns}
+                rowKey={(r) => r.date}
+                initialSort="date"
+                csvName="entrenamiento-historial-semanal"
+              />
+            </Panel>
+          )}
 
           {validation && (
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">
               {validation.observations > 0 ? (
                 <>
-                  Precisión del modelo: error medio de{" "}
+                  Contraste con pops reales: diferencia media de{" "}
                   <b className="text-[var(--text)]">
                     {validation.meanErrorWeeks == null ? "—" : `${validation.meanErrorWeeks} sem`}
                   </b>{" "}
                   sobre {validation.observations} subida(s) confirmada(s) de {formula.data?.trainedSkill}.
                 </>
               ) : (
-                <>Todavía no hay dos subidas seguidas de {formula.data?.trainedSkill} para validar el modelo.</>
+                <>Todavía no hay dos subidas seguidas de {formula.data?.trainedSkill} para contrastar la fórmula.</>
               )}{" "}
               <Link to="/engine" className="underline hover:text-[var(--text)]">
                 ver el detalle en Motor
@@ -371,7 +717,7 @@ export function TrainingPage() {
                     meta={`hasta nivel 20 · ${playerLevels.data.forecast.length} nivel(es)`}
                   >
                     <Note>
-                      Cadena completa desde el nivel actual: cada escalón usa la fórmula validada,
+                      Cadena completa desde el nivel actual: cada escalón usa la fórmula comunitaria,
                       encadenando la edad proyectada para que el siguiente nivel cueste lo que
                       realmente costaría a esa edad.
                     </Note>
@@ -387,6 +733,71 @@ export function TrainingPage() {
                 </>
               )}
             </div>
+          )}
+        </>
+      )}
+
+      {section === "experiencia" && (
+        <>
+          {development.isLoading && <Loading />}
+          {development.isError && <ErrorState error={development.error} />}
+          {development.data && (
+            <>
+              <Panel
+                title="Experiencia"
+                meta={`${development.data.experience.length} jugadores · partidos y minutos reales`}
+              >
+                <Note>
+                  El nivel entero viene de players.xml. La fracción suma los puntos de los partidos
+                  que Lens realmente observó desde la primera lectura del nivel actual, ponderados por
+                  minutos jugados; no se reconstruyen partidos anteriores ni se calibra con tu plantilla.
+                </Note>
+                <DataTable
+                  rows={development.data.experience}
+                  columns={experienceColumns}
+                  rowKey={(r) => r.htPlayerId}
+                  initialSort="progress"
+                  csvName="entrenamiento-experiencia"
+                  emptyMessage="Sin jugadores para calcular experiencia."
+                />
+              </Panel>
+              {development.data.experience.some((row) => row.unscoredNationalMatches > 0) && (
+                <Note>
+                  Los partidos competitivos de selección confirmados sin competencia o ronda
+                  identificable se muestran, pero no reciben un puntaje inventado.
+                </Note>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {section === "fidelidad" && (
+        <>
+          {development.isLoading && <Loading />}
+          {development.isError && <ErrorState error={development.error} />}
+          {development.data && (
+            <>
+              <Panel
+                title="Fidelidad"
+                meta={`${development.data.loyalty.length} jugadores · antigüedad real en el club`}
+              >
+                <Note>
+                  Fidelidad se calcula solo con los días calendario desde la compra: 1 + 19 ×
+                  √(días / 336), limitada al nivel 20. El nivel entero es la parte entera de esa
+                  misma curva; no usa regresiones ni pops de tu cuenta.
+                </Note>
+                <DataTable
+                  rows={development.data.loyalty}
+                  columns={loyaltyColumns}
+                  rowKey={(r) => r.htPlayerId}
+                  initialSort="daysInClub"
+                  csvName="entrenamiento-fidelidad"
+                  emptyMessage="Sin jugadores para calcular fidelidad."
+                />
+              </Panel>
+              {development.data.notes.slice(2).map((note) => <Note key={note}>{note}</Note>)}
+            </>
           )}
         </>
       )}
@@ -450,7 +861,7 @@ export function TrainingPage() {
                     <li key={p.htPlayerId} className="flex items-center justify-between gap-3">
                       <PlayerLink htPlayerId={p.htPlayerId} name={p.name} />
                       <span className="text-xs tabular-nums text-[var(--muted)]">
-                        {(p.exposure * 100).toFixed(0)}% · {p.weeksToPop.toFixed(1)} sem
+                        {(p.exposure * 100).toFixed(0)}% · {p.weeksToPop == null ? "—" : `${p.weeksToPop.toFixed(1)} sem`}
                       </span>
                     </li>
                   ))}

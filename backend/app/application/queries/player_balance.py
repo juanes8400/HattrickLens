@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.weekly import season_for_datetime
 from app.domain.engines.player_balance import (
     PlayerBalance,
     PlayerTransferRecord,
@@ -28,7 +29,6 @@ from app.domain.value_objects.ht_constants import (
     SPECIALTIES,
     training_skill_name,
 )
-from app.domain.value_objects.skill import Age
 from app.infrastructure.db import models as m
 
 # Habilidad más alta de un jugador en el momento de la venta — pedido
@@ -419,24 +419,17 @@ class PlayerBalanceQueryService:
             return candidates[0] if candidates else None
 
         # Temporada de Hattrick en la semana de cada venta (para el desglose
-        # "por Temporada" — pedido explícitamente). CORRECCIÓN 2026-08-04:
-        # antes se bracketeaba contra `Standing` (solo cubre desde que esta
-        # app sincronizó leaguedetails.xml por primera vez, así que TODO lo
-        # anterior caía en un único cubo "la temporada inmediatamente
-        # anterior"). El usuario pidió el mismo tipo de cálculo que la edad:
-        # una temporada dura exactamente 112 días reales, igual que un "año"
-        # de jugador (`Age.DAYS_PER_YEAR`) — así que temporada = temporada
-        # ACTUAL menos los días transcurridos desde la venta, entre 112. Es
-        # aritmética pura, funciona para cualquier fecha por vieja que sea,
-        # sin depender de qué tan atrás haya Standing sincronizado.
-        #
-        # CORRECCIÓN 2026-08-04 (bis): `worlddetails.xml` trae la temporada
+        # "por Temporada"). `worlddetails.xml` trae la temporada
         # de TODOS los países, no una sola — cada uno tiene la SUYA (Suecia
         # 95, Colombia 83, Grecia 80, verificado en vivo). Antes se cogía
         # "la fila de WorldContext más reciente" sin más, lo cual da
         # cualquier país al azar en cuanto hay más de una fila — ahora se
         # filtra por `Team.ht_league_id` (de teamdetails.xml), el país real
-        # de ESTE equipo.
+        # de ESTE equipo. La fecha ya no se resta contra el instante arbitrario
+        # del último sync: se convierte con la regla semanal canónica, anclada
+        # en Season + MatchRound. Así funciona igual en pasado, presente y
+        # futuro, y una venta posterior por minutos al sync nunca inventa la
+        # temporada siguiente.
         world = (
             await self._s.scalar(
                 select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
@@ -444,11 +437,10 @@ class PlayerBalanceQueryService:
             if team.ht_league_id is not None else None
         )
         def season_at(when: datetime | None) -> str:
-            if when is None or world is None or world.refreshed_at is None:
+            if when is None:
                 return _UNKNOWN_SEASON
-            elapsed_days = (world.refreshed_at - when).days
-            season = world.season - elapsed_days // Age.DAYS_PER_YEAR
-            return f"Temporada {season}"
+            season = season_for_datetime(world, when)
+            return _UNKNOWN_SEASON if season is None else f"Temporada {season}"
 
         # Comisión de club anterior EXACTA — HL-161, 2026-08-14. Reemplaza
         # por completo el reparto heurístico de "reventa futura de origen

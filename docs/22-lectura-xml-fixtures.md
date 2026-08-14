@@ -201,7 +201,8 @@ Cada recomendacion debe poder rastrearse a uno de estos XML. Ejemplos:
   detalles de partido.
 - "Tu plan por bandas no tuvo volumen" viene de `matchdetails.NrOfChancesLeft`
   y `NrOfChancesRight`.
-- "La formula de entrenamiento esta calibrada" viene de `trainingevents`.
+- "La fórmula pública de entrenamiento se contrastó con pops reales" viene de
+  `trainingevents`; esos eventos no recalibran sus coeficientes.
 - "Tu caja aguanta" viene de `economy` + `worlddetails.CurrencyRate`.
 - "Este fichaje esta en ROI positivo/negativo" viene de `transfersteam` +
   valoracion actual.

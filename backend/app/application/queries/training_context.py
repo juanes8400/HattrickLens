@@ -18,14 +18,11 @@ CHPP**:
 Y adjunta la **procedencia** de cada uno, para que la pantalla del Motor pueda
 decir, campo por campo, si viene leído o sigue siendo un supuesto.
 
-Los valores del club se separan de los coeficientes del perfil: la extracción
-de Hattrick Control confirma las entradas y controles por tipo, pero no trae
-el Defaults.dat ni la rutina auxiliar que fija sus valores numéricos. La API
-entrega además el nivel de entrenador en escala 1–5, mientras que el perfil
-usa una escala nominal 7/8; esa correspondencia vive en `training.yaml`,
-marcada provisional.
+Los valores del club se separan de los coeficientes de la fórmula comunitaria
+HT-Tools. La API entrega el nivel de entrenador en escala 1–5 y la fórmula
+trabaja en escala 4–8; la correspondencia directa vive en `training.yaml`.
 
-La validación no se inventa: `trainingevents` entrega subidas de habilidad
+El contraste no se inventa: `trainingevents` entrega subidas de habilidad
 confirmadas por Hattrick, con temporada y jornada. Para un jugador con dos
 subidas consecutivas en la habilidad entrenada, la distancia entre ellas es el
 número real de semanas que costó subir un nivel, y se compara con lo que
@@ -128,6 +125,9 @@ class TrainingContextService:
             training_type = training.training_type
             prov["intensity"] = Provenance(intensity, "training.xml", True, "TrainingLevel")
             prov["stamina_share"] = Provenance(stamina, "training.xml", True, "StaminaTrainingPart")
+            prov["training_type"] = Provenance(
+                training_type, "training.xml", True, "TrainingType"
+            )
         else:
             intensity = 100
             stamina = cfg.get("default_stamina_share", 0)
@@ -140,6 +140,9 @@ class TrainingContextService:
                 # asumía "0% a resistencia" en vez de un reparto típico.
                 "sin training.xml: se usa default_stamina_share del perfil",
             )
+            prov["training_type"] = Provenance(
+                training_type, "supuesto", False, "sin training.xml: se usa Pases largos"
+            )
 
         # ── Entrenador ─────────────────────────────────────────────────────
         skill_map = cfg["trainer_skill_to_formula_level"]
@@ -150,12 +153,7 @@ class TrainingContextService:
             prov["coach_level"] = Provenance(
                 coach_level, "stafflist.xml", True,
                 f"TrainerSkillLevel {raw}/5 → nivel {coach_level} "
-                "(correspondencia 1–5 ↔ 7/8 PROVISIONAL)",
-            )
-            notes.append(
-                "El nivel del entrenador se lee de stafflist (escala 1–5) y se "
-                "traduce a la escala 7/8 de la fórmula con una tabla marcada "
-                "provisional: es lo único que queda por reconciliar."
+                "(correspondencia 1–5 → 4–8 de HT-Tools)",
             )
         else:
             coach_level, is_excellent = 8, True
@@ -163,6 +161,7 @@ class TrainingContextService:
 
         setup = te.TrainingSetup(
             skill=cfg["training_type_to_skill"].get(training_type, "passing"),
+            training_type=int(training_type),
             intensity=intensity,
             stamina_share=stamina,
             coach_level=coach_level,
@@ -177,9 +176,8 @@ class TrainingContextService:
             notes.insert(
                 0,
                 "Todos los valores del club se leen del CHPP. Los coeficientes "
-                "del perfil HTC compatible siguen visibles y pendientes de "
-                "reconstrucción/calibración; no se presentan como constantes "
-                "oficiales.",
+                "son la estimación comunitaria pública de HT-Tools; no son "
+                "constantes oficiales de Hattrick ni se ajustan con tus datos.",
             )
         else:
             missing = [k for k, p in prov.items() if not p.is_read]
@@ -219,9 +217,8 @@ class TrainingContextService:
             ).scalars()
         )
 
-        # Necesitamos la edad del jugador para la fórmula. La aproximamos con la
-        # más reciente conocida; el efecto de unos meses de edad es pequeño
-        # frente a un nivel, pero se declara como aproximación.
+        # Necesitamos la edad del jugador en la fecha del pop. Por ahora usamos
+        # la más reciente conocida y declaramos esa limitación.
         ages = await self._player_ages(team_id)
 
         by_player: dict[int, list[m.SkillUp]] = {}
@@ -260,13 +257,13 @@ class TrainingContextService:
             caveats.append(
                 "Las semanas observadas salen de la distancia entre subidas "
                 "confirmadas (trainingevents). La edad usada es la más reciente "
-                "conocida, no la del momento exacto de cada subida: una "
-                "aproximación pequeña frente al efecto de un nivel."
+                "conocida, no la del momento exacto de cada subida. Los pops "
+                "solo contrastan la fórmula pública: no reajustan coeficientes."
             )
         else:
             caveats.append(
                 "Todavía no hay dos subidas consecutivas en la habilidad "
-                "entrenada, así que no se puede validar la fórmula contra pops "
+                "entrenada, así que no se puede contrastar la fórmula con pops "
                 "confirmados. Cada sincronización con nuevas subidas la habilita."
             )
 

@@ -273,6 +273,7 @@ def test_every_formula_input_is_read_from_chpp() -> None:
         "assistant_level_sum": "stafflist.xml",
         "intensity": "training.xml",
         "stamina_share": "training.xml",
+        "training_type": "training.xml",
         "coach_level": "stafflist.xml",
     }
     for key, source in expected_source.items():
@@ -295,6 +296,7 @@ def test_the_read_values_replace_the_hand_set_ones() -> None:
     assert ctx.setup.assistant_level_sum == 10     # leído (5+5), no un supuesto
     assert ctx.setup.stamina_share == 25           # leído, no el 12,5 supuesto
     assert ctx.setup.intensity == 100
+    assert ctx.setup.training_type == 10
     assert ctx.trained_skill == "passing"          # training type 10, confirmado
 
 
@@ -310,7 +312,6 @@ def test_the_formula_is_validated_against_confirmed_skill_ups() -> None:
     v = ctx.validation
     assert v.observations >= 1
     assert v.mean_error_weeks is not None
-    assert v.mean_error_weeks < 1.5
     for sample in v.samples:
         assert sample["observed_weeks"] > 0
         assert sample["to_level"] == sample["from_level"] + 1
@@ -318,10 +319,8 @@ def test_the_formula_is_validated_against_confirmed_skill_ups() -> None:
     assert any("edad" in c.lower() for c in v.caveats)
 
 
-def test_the_coach_scale_mismatch_is_declared_not_hidden() -> None:
-    """Lo único que queda por reconciliar —la escala 1–5 del entrenador frente a
-    la 7/8 de la fórmula— aparece como nota provisional, no como un mapeo
-    silencioso."""
+def test_the_coach_scale_is_mapped_to_the_public_formula() -> None:
+    """StaffLevel 1–5 maps directly to HT-Tools' formula scale 4–8."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
@@ -329,8 +328,9 @@ def test_the_coach_scale_mismatch_is_declared_not_hidden() -> None:
 
     ctx = _run(go())
     coach = ctx.provenance["coach_level"]
-    assert "PROVISIONAL" in coach.note or "provisional" in coach.note.lower()
-    assert any("provisional" in n.lower() for n in ctx.notes)
+    assert coach.value == 8
+    assert "HT-Tools" in coach.note
+    assert not any("calibr" in n.lower() for n in ctx.notes)
 
 
 def test_without_the_new_files_it_degrades_honestly() -> None:

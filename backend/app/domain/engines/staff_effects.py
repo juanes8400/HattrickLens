@@ -18,8 +18,8 @@ extrapolar más allá.
 
 La velocidad de entrenamiento del asistente de entrenador NO se duplica
 aquí: reutiliza `training_engine._config()["assistant_bonus_per_level"]`,
-la MISMA constante (3.5%/nivel) que ya alimenta la fórmula real de
-semanas-hasta-el-siguiente-nivel — una sola fuente de verdad.
+la MISMA constante comunitaria (3,2 puntos de coeficiente por nivel) que
+alimenta la fórmula de semanas-hasta-el-siguiente-nivel.
 """
 from __future__ import annotations
 

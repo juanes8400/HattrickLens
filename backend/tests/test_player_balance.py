@@ -1032,17 +1032,14 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
             # correcto que ya prueban los otros tests de este archivo.
             snap.captured_at = datetime(2026, 1, 1)
 
-            # season_at (2026-08-04): temporada = temporada ACTUAL (de
-            # worlddetails.xml) menos días transcurridos / 112, igual que la
-            # edad — ya no depende de Standing. `seeded_session()` ya
-            # sincroniza worlddetails (temporada 84 en el fixture real, para
-            # el país real de Colombia — LeagueID 19); solo hace falta que
-            # el equipo apunte a ese mismo país (`ht_league_id`, de
-            # teamdetails.xml, no sincronizado en `seeded_session()`) y
-            # ajustar `refreshed_at` al mismo instante de la venta -> 0 días
-            # transcurridos -> misma temporada.
+            # `seeded_session()` sincroniza worlddetails (temporada 84,
+            # semana 3, Colombia — LeagueID 19). La venta se fija una hora
+            # DESPUÉS del sync, reproduciendo el bug real de Comolli: la
+            # fórmula antigua veía un timedelta negativo, floor-dividía a
+            # -1 e inventaba la temporada 85. La regla semanal canónica debe
+            # mantenerla en la misma semana y temporada.
             world = await s.scalar(select(m.WorldContext))
-            world.refreshed_at = datetime(2026, 3, 1, 15, 30)
+            world.refreshed_at = datetime(2026, 3, 1, 14, 30)
             team = await s.get(m.Team, team_id)
             team.ht_league_id = world.ht_league_id
 

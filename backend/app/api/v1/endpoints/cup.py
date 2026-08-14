@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.arena import _camel
-from app.application.queries.weekly import season_at_offset, season_week_offset_for
+from app.application.queries.weekly import season_for_datetime
 from app.domain.engines.arena_engine import ArenaCapacity, Attendance, analyse_match
 from app.domain.engines.match_analysis import hatstats
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
@@ -417,7 +417,7 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
     def match_season(mt: m.Match) -> int | None:
         if world is None:
             return None
-        return season_at_offset(world, weeks_offset=season_week_offset_for(world, mt.played_at))
+        return season_for_datetime(world, mt.played_at)
 
     def cup_row_of(mt: m.Match) -> m.WorldCup | None:
         candidates = [

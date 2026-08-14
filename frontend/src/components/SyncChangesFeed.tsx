@@ -21,7 +21,58 @@ const CATEGORY_TONE: Record<string, string> = {
   "economía": "bg-[var(--surface-2)] text-[var(--muted)]",
 };
 
-function classify(summary: string): { kind: string; tone: string } {
+type NumericDelta = {
+  label: string;
+  before: number;
+  after: number;
+  good: boolean | null;
+  afterDisplay?: string;
+  stateLabel?: string;
+};
+
+const TEAM_SPIRIT_LEVELS: Record<string, number> = {
+  "como en la guerra fría": 0,
+  "muy agresivos": 1,
+  tensos: 2,
+  susceptibles: 3,
+  serenos: 4,
+  calmados: 5,
+  contentos: 6,
+  encantados: 7,
+  eufóricos: 8,
+  "por las nubes": 9,
+  "paraíso en la tierra": 10,
+};
+
+const CONFIDENCE_LEVELS: Record<string, number> = {
+  inexistente: 0,
+  "por los suelos": 1,
+  "muy baja": 2,
+  baja: 3,
+  decente: 4,
+  sólida: 5,
+  alta: 6,
+  "muy alta": 7,
+  exagerada: 8,
+  desmedida: 9,
+};
+
+function metricTone(label: string): string {
+  const key = label.toLocaleLowerCase("es");
+  if (key === "salario") return "text-[var(--warning)]";
+  if (["experiencia", "fidelidad", "liderazgo"].includes(key)) {
+    return "text-[var(--positive)]";
+  }
+  if (key === "lesión") return "text-[var(--danger)]";
+  return "text-[var(--accent)]";
+}
+
+function classify(summary: string, numeric: NumericDelta | null): { kind: string; tone: string } {
+  // La segunda columna nombra QUÉ cambió. La dirección ya vive en el
+  // triángulo, el color y el delta de la tercera columna; decir "Subida" o
+  // "Bajada" aquí duplicaba esa señal y ocultaba rubros como "Pases".
+  if (numeric) return { kind: numeric.label, tone: metricTone(numeric.label) };
+
   const lower = summary.toLowerCase();
   if (lower.includes("subio") || lower.includes("subió")) {
     return { kind: "Subida", tone: "text-[var(--positive)]" };
@@ -73,8 +124,6 @@ function splitPlayerSummary(summary: string): { title: string; detail: string } 
 // 2026-08-13: los números deben verse con el mismo formato bonito que ya usa
 // Economía (valor, triángulo verde/rojo según si el cambio es bueno o malo,
 // delta con signo), no como texto plano con una flecha "->".
-type NumericDelta = { label: string; before: number; after: number; good: boolean | null };
-
 const NEUTRAL_LABELS = new Set(["salario", "nivel de entrenamiento", "tipo"]);
 
 function stripLabel(raw: string): string {
@@ -83,6 +132,32 @@ function stripLabel(raw: string): string {
 
 function parseNumericDelta(detail: string): NumericDelta | null {
   const toNum = (raw: string) => Number(raw.replace(/,/g, ""));
+
+  const state = detail.match(/^(Espíritu del equipo|Confianza):\s*(.+?)\s*->\s*(.+?)\s*$/i);
+  if (state) {
+    const label = state[1] ?? "";
+    const beforeRaw = state[2] ?? "";
+    const afterRaw = state[3] ?? "";
+    const levels = label.toLocaleLowerCase("es").startsWith("espíritu")
+      ? TEAM_SPIRIT_LEVELS
+      : CONFIDENCE_LEVELS;
+    const levelOf = (raw: string): number | null => {
+      const numeric = Number(raw);
+      if (Number.isFinite(numeric)) return numeric;
+      return levels[raw.toLocaleLowerCase("es")] ?? null;
+    };
+    const before = levelOf(beforeRaw);
+    const after = levelOf(afterRaw);
+    if (before != null && after != null) {
+      return {
+        label,
+        before,
+        after,
+        good: after > before,
+        stateLabel: afterRaw,
+      };
+    }
+  }
 
   let m = detail.match(/^(.+?)\s+(subió|bajó)\s+de\s+([\d,.]+)\s+a\s+([\d,.]+)\s*$/i);
   if (m) {
@@ -113,14 +188,39 @@ function parseNumericDelta(detail: string): NumericDelta | null {
   return null;
 }
 
-function NumberDelta({ parsed }: { parsed: NumericDelta }) {
+function NumberDelta({
+  parsed,
+  showLabel = true,
+}: {
+  parsed: NumericDelta;
+  showLabel?: boolean;
+}) {
   const delta = parsed.after - parsed.before;
   const tone =
     parsed.good === true ? "text-[var(--positive)]" : parsed.good === false ? "text-[var(--danger)]" : "text-[var(--muted)]";
+  if (parsed.stateLabel) {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1.5 tabular-nums">
+        <span className="font-semibold text-[var(--text)]">
+          {parsed.label} {parsed.stateLabel}
+        </span>
+        <span className="text-[var(--muted)]">{number(parsed.before)}</span>
+        <span className={clsx("font-semibold", tone)}>
+          {parsed.good === true ? "▲" : parsed.good === false ? "▼" : "→"}
+        </span>
+        <span className="font-semibold text-[var(--text)]">{number(parsed.after)}</span>
+        <span className={clsx("font-semibold", tone)}>
+          ({delta > 0 ? "+" : ""}{number(delta)})
+        </span>
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1.5 tabular-nums">
-      <span className="font-medium text-[var(--text)]">{parsed.label}</span>
-      <span className="font-semibold text-[var(--text)]">{number(parsed.after)}</span>
+      {showLabel && <span className="font-medium text-[var(--text)]">{parsed.label}</span>}
+      <span className="font-semibold text-[var(--text)]">
+        {parsed.afterDisplay ?? number(parsed.after)}
+      </span>
       <span className={clsx("font-semibold", tone)}>
         {parsed.good === true && "▲ "}
         {parsed.good === false && "▼ "}
@@ -199,12 +299,12 @@ export function SyncChangesFeed({
           {playerChanges.length === 0 ? (
             <p className="p-3 text-sm text-[var(--muted)]">Sin cambios de jugadores en esta sincronización.</p>
           ) : (
-            <ul className="divide-y divide-[var(--border)]">
-              {playerChanges.slice(0, 12).map((change, index) => {
+            <ul className="max-h-[32rem] divide-y divide-[var(--border)] overflow-y-auto overscroll-contain">
+              {playerChanges.map((change, index) => {
                 const parsed = splitPlayerSummary(change.summary);
-                const kind = classify(change.summary);
                 const htPlayerId = playerLinks?.[parsed.title];
                 const numeric = parseNumericDelta(parsed.detail);
+                const kind = classify(change.summary, numeric);
                 return (
                   <li key={`${change.summary}-${index}`} className="grid gap-1 px-3 py-2 sm:grid-cols-[11rem_5rem_1fr]">
                     <span className="font-medium">
@@ -216,7 +316,7 @@ export function SyncChangesFeed({
                     </span>
                     <span className={clsx("text-xs font-semibold", kind.tone)}>{kind.kind}</span>
                     {numeric ? (
-                      <NumberDelta parsed={numeric} />
+                      <NumberDelta parsed={numeric} showLabel={false} />
                     ) : (
                       <span className="text-sm text-[var(--muted)]">{parsed.detail}</span>
                     )}

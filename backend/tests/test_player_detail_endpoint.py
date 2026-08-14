@@ -1,11 +1,16 @@
-"""GET /teams/{id}/players/{ht_player_id} — HL-141: sueldo estimado exacto.
+"""GET /teams/{id}/players/{ht_player_id} — ficha de jugador.
 
 No hay test HTTP previo para este endpoint (solo se probaban los motores por
 separado); este cubre el campo nuevo `salaryEstimate` end-to-end, sobre la
 plantilla real de Pulgas Arrechas.
 """
-from fastapi.testclient import TestClient
+from datetime import UTC, datetime, timedelta
 
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from app.domain.engines.loyalty_engine import loyalty_decimal
+from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.main import app
 from tests.conftest import seeded_session
@@ -14,10 +19,22 @@ PLAYER_HT_ID = 468921494  # DefenderSkill 4, SetPiecesSkill 9 en el fixture real
 KEEPER_HT_ID = 476719421  # KeeperSkill 15 en el fixture real
 
 
-def _client() -> tuple[TestClient, int]:
+def _client(*, purchased_days_ago: int | None = None) -> tuple[TestClient, int]:
     import asyncio
 
     factory, team_id = asyncio.run(seeded_session())
+
+    if purchased_days_ago is not None:
+        async def set_purchase_date() -> None:
+            async with factory() as s:
+                player = await s.scalar(
+                    select(m.Player).where(m.Player.ht_player_id == PLAYER_HT_ID)
+                )
+                assert player is not None
+                player.purchased_at = datetime.now(UTC) - timedelta(days=purchased_days_ago)
+                await s.commit()
+
+        asyncio.run(set_purchase_date())
 
     async def override_get_session():
         async with factory() as s:
@@ -76,17 +93,17 @@ def test_player_detail_projects_salary_after_the_next_pop_when_trainable() -> No
         app.dependency_overrides.clear()
 
 
-def test_player_detail_loyalty_decimal_is_honest_without_evidence() -> None:
-    """Una sola sincronización nunca contiene una subida de fidelidad
-    observada — sin esa evidencia, `loyaltyDecimal` debe ser `None`, nunca
-    un decimal inventado. El nivel entero sigue disponible en `loyalty`."""
-    client, team_id = _client()
+def test_player_detail_loyalty_decimal_uses_purchase_date_formula() -> None:
+    """El decimal depende únicamente de hoy menos la fecha de compra."""
+    client, team_id = _client(purchased_days_ago=91)
     try:
         resp = client.get(f"/api/v1/teams/{team_id}/players/{PLAYER_HT_ID}")
         assert resp.status_code == 200
         body = resp.json()
-        assert body["loyaltyDecimal"] is None
-        assert body["loyalty"] is None or isinstance(body["loyalty"], int)
+        assert body["purchasedAt"] is not None
+        purchased = datetime.fromisoformat(body["purchasedAt"]).date()
+        days = max((datetime.now(UTC).date() - purchased).days, 0)
+        assert body["loyaltyDecimal"] == loyalty_decimal(days)
     finally:
         app.dependency_overrides.clear()
 

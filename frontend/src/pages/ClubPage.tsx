@@ -2,29 +2,11 @@ import { Chart } from "../charts/Chart";
 import { proportionalTimelineOption, timelineOption } from "../charts/chartOptions";
 import { DateRangeFilter, useDateRangeFilter } from "../components/DateRangeFilter";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { StaffRoleCard } from "../components/StaffRoleCard";
 import { useClub } from "../hooks/useTeam";
-import { date, money, number } from "../hooks/useFormat";
-import type { ClubStaffRole, ClubStaffRoleEffect } from "../services/api";
-
-/** Aporte real de cada puesto, según las tablas oficiales de Hattrick que
- * pasó el usuario 2026-08-12 — cada línea sólo aparece si el efecto trae
- * ese campo (distinto por rol: asistente de entrenador vs. director
- * financiero no comparten ninguna clave). */
-function staffEffectLines(effect: ClubStaffRoleEffect): string[] {
-  const lines: string[] = [];
-  if (effect.trainingSpeedPct != null) lines.push(`Velocidad de entrenamiento +${effect.trainingSpeedPct}%`);
-  if (effect.recoverySpeedPct != null) lines.push(`Velocidad de recuperación +${effect.recoverySpeedPct}%`);
-  if (effect.backgroundForm != null && effect.backgroundForm !== 0) lines.push(`Forma de fondo +${effect.backgroundForm}`);
-  if (effect.injuryRiskPp != null && effect.injuryRiskPp !== 0) lines.push(`Riesgo de lesión +${effect.injuryRiskPp} pp`);
-  if (effect.injuryRiskReductionPp != null && effect.injuryRiskReductionPp !== 0) lines.push(`Riesgo de lesión −${effect.injuryRiskReductionPp} pp`);
-  if (effect.teamSpirit != null && effect.teamSpirit !== 0) lines.push(`Espíritu del equipo +${effect.teamSpirit}`);
-  if (effect.confidence != null && effect.confidence !== 0) lines.push(`Confianza +${effect.confidence}`);
-  if (effect.maxFunds != null) lines.push(`Fondos máximos ${money(effect.maxFunds, "US$")}`);
-  if (effect.weeklyReturn != null) lines.push(`Retorno semanal ${money(effect.weeklyReturn, "US$")}`);
-  if (effect.extraOrders != null && effect.extraOrders !== 0) lines.push(`+${effect.extraOrders} órdenes extra`);
-  if (effect.styleFlexibilityPp != null && effect.styleFlexibilityPp !== 0) lines.push(`Flexibilidad de estilo +${effect.styleFlexibilityPp} pp`);
-  return lines;
-}
+import { date, number } from "../hooks/useFormat";
+import { trainerTrainingSpeedPct, trainingStaffLevelColor } from "../utils/staffEffects";
+import { skillLevelLabel } from "../utils/skillLevels";
 
 /** Club y staff: las tres subpestañas de Hattrick Control reunidas sin perder
  * la distinción entre dato actual y serie observada. */
@@ -166,8 +148,22 @@ export function ClubPage() {
           {staff ? (
             <dl className="space-y-3 p-4 text-sm">
               <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Tipo</dt><dd>{staff.trainer.typeLabel}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Nivel</dt><dd>{staff.trainer.skillLevel}/5</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Liderazgo</dt><dd>{staff.trainer.leadership}</dd></div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--muted)]">Nivel</dt>
+                <dd className={`font-semibold ${trainingStaffLevelColor(staff.trainer.skillLevel)}`}>
+                  {staff.trainer.skillLevel}/5
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--muted)]">Liderazgo</dt>
+                <dd>{skillLevelLabel(staff.trainer.leadership, true)} ({staff.trainer.leadership})</dd>
+              </div>
+              <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-3">
+                <dt className="text-[var(--muted)]">Velocidad de entrenamiento</dt>
+                <dd className="font-medium text-[var(--positive)]">
+                  {trainerTrainingSpeedPct(staff.trainer.skillLevel)}%
+                </dd>
+              </div>
             </dl>
           ) : <Note>Sin datos de entrenador todavía.</Note>}
         </Panel>
@@ -206,36 +202,6 @@ export function ClubPage() {
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
         {data.notes.map((note) => <Note key={note}>{note}</Note>)}
       </div>
-    </div>
-  );
-}
-
-function StaffRoleCard({ role }: { role: ClubStaffRole }) {
-  return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-      <div className="flex items-baseline justify-between">
-        <span className="text-xs text-[var(--muted)]">{role.label}</span>
-        <span className="tabular-nums text-sm font-semibold">{role.level}</span>
-      </div>
-      {role.members.length > 0 ? (
-        <ul className="mt-2 space-y-0.5 text-xs text-[var(--muted)]">
-          {role.members.map((member, i) => (
-            <li key={i} className="flex justify-between gap-2">
-              <span className="truncate">{member.name}</span>
-              <span className="tabular-nums shrink-0">{member.level}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-[var(--muted)]">Sin nadie en este puesto.</p>
-      )}
-      {role.level > 0 && role.effect && (
-        <ul className="mt-2 space-y-0.5 border-t border-[var(--border)] pt-2 text-xs text-[var(--positive)]">
-          {staffEffectLines(role.effect).map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

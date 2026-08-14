@@ -334,7 +334,7 @@ V.calibracion = () => {
     "<table><thead><tr><th>Posición</th><th>Confianza</th><th>Observaciones</th><th>R²</th><th>Error máx</th></tr></thead><tbody>" +
     rows.map(([k, v]) => `<tr><td>${v.label}</td><td style="text-align:right">${tag(v.confidence)}</td><td class="num">${v.observations || "—"}</td><td class="num">${v.r2 ? v.r2.toFixed(4) : "—"}</td><td class="num">${v.maxError ? v.maxError.toFixed(2) : "—"}</td></tr>`).join("") +
     "</tbody></table>")}
-  <div class="note">Cuatro motores más están calibrados con datos reales: entrenamiento (R² 0,999 sobre 18 observaciones), experiencia (error 0,0000 sobre 19), precio de entrada de estadio (exacto) y exposición al entrenamiento juvenil. El registro completo, incluidos los tres errores que cometimos y cómo los desmintieron los datos, está en docs/16.</div>`;
+  <div class="note">El entrenamiento usa un perfil lineal de coeficientes explícitos. Los datos privados del manager sirven para mostrar hechos y comprobar resultados, nunca para ajustar regresiones o reestimar la fórmula.</div>`;
 };
 
 /* ── navegación ────────────────────────────────────────────────── */

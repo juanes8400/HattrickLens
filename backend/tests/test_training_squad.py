@@ -2,11 +2,13 @@
 Hattrick Control: HL-2xx, pedido explícito con capturas de referencia
 2026-08-14 ("un módulo así es el que quiero para Entrenamiento")."""
 import asyncio
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.application.queries.training_squad import TrainingSquadQueryService
+from app.domain.engines.loyalty_engine import loyalty_decimal, loyalty_level
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.main import app
@@ -39,18 +41,18 @@ def test_squad_view_lists_every_active_player_for_the_current_skill() -> None:
     assert view.skill == "passing"  # el tipo real de training.xml del fixture
     assert len(view.rows) > 0
     assert all(r.weeks_total > 0 for r in view.rows)
-    assert len(view.available_skills) == 8  # las 7 técnicas + resistencia
+    assert len(view.available_skills) == 7  # las 7 habilidades técnicas
 
 
-def test_squad_view_can_switch_to_any_trainable_skill() -> None:
+def test_squad_view_can_switch_to_any_supported_technical_skill() -> None:
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
-            return await TrainingSquadQueryService(s).squad_view(team_id, skill="stamina")
+            return await TrainingSquadQueryService(s).squad_view(team_id, skill="scoring")
 
     view = _run(go())
-    assert view.skill == "stamina"
-    assert view.skill_label == "Resistencia"
+    assert view.skill == "scoring"
+    assert view.skill_label == "Anotación"
 
 
 def test_squad_view_is_honest_about_missing_reference_points() -> None:
@@ -67,6 +69,48 @@ def test_squad_view_is_honest_about_missing_reference_points() -> None:
     assert all(r.has_reference is False for r in view.rows)
 
 
+def test_squad_view_uses_a_real_snapshot_pop_when_trainingevents_is_unavailable() -> None:
+    """A skill change seen in two real players.xml snapshots is valid fallback
+    evidence; only its exact day inside the sync interval remains unknown."""
+    async def go():
+        factory, team_id = await seeded_session()
+        async with factory() as s:
+            world = await s.scalar(select(m.WorldContext))
+            team = await s.get(m.Team, team_id)
+            assert world is not None and team is not None
+            team.ht_league_id = world.ht_league_id
+
+            latest = await s.scalar(
+                select(m.PlayerSnapshot)
+                .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+                .order_by(m.PlayerSnapshot.captured_at.desc())
+            )
+            assert latest is not None and latest.passing is not None
+            values = {
+                column.name: getattr(latest, column.name)
+                for column in m.PlayerSnapshot.__table__.columns
+                if column.name != "id"
+            }
+            values["captured_at"] = latest.captured_at + timedelta(days=7)
+            values["passing"] = latest.passing + 1
+            values["content_hash"] = b"observed-passing-pop"
+            s.add(m.PlayerSnapshot(**values))
+            world.refreshed_at = values["captured_at"] + timedelta(days=14)
+            await s.commit()
+
+            view = await TrainingSquadQueryService(s).squad_view(team_id, skill="passing")
+            player = await s.get(m.Player, latest.player_id)
+            row = next(r for r in view.rows if r.ht_player_id == player.ht_player_id)
+            return row, view.notes
+
+    row, notes = _run(go())
+    assert row.has_reference is True
+    assert row.weeks_elapsed == 2
+    assert row.progress_pct is not None
+    assert any("primera sincronización real" in note for note in notes)
+
+
 def test_squad_view_includes_the_weekly_training_log() -> None:
     async def go():
         factory, team_id = await seeded_session()
@@ -76,6 +120,51 @@ def test_squad_view_includes_the_weekly_training_log() -> None:
     view = _run(go())
     assert len(view.weekly_log) > 0
     assert view.weekly_log[0].training_type  # nombre real, no vacío
+
+
+def test_development_view_uses_experience_history_and_the_fixed_loyalty_curve() -> None:
+    async def go():
+        factory, team_id = await seeded_session()
+        async with factory() as s:
+            player = await s.scalar(
+                select(m.Player).where(
+                    m.Player.team_id == team_id,
+                    m.Player.left_team_at.is_(None),
+                )
+            )
+            assert player is not None
+            player.purchased_at = datetime.now(UTC) - timedelta(days=91)
+            await s.commit()
+
+            view = await TrainingSquadQueryService(s).development_view(team_id)
+            assert view is not None
+            exp_row = next(r for r in view.experience if r.ht_player_id == player.ht_player_id)
+            loyalty_row = next(r for r in view.loyalty if r.ht_player_id == player.ht_player_id)
+            return exp_row, loyalty_row
+
+    exp_row, loyalty_row = _run(go())
+    assert exp_row.points_per_level == 100
+    assert exp_row.progress_pct is not None
+    assert loyalty_row.days_in_club == 91
+    assert loyalty_row.calculated_level == loyalty_level(91)
+    assert loyalty_row.decimal_level == loyalty_decimal(91)
+    assert loyalty_row.date_source == "transferencia"
+
+
+def test_development_view_never_invents_loyalty_progress_without_a_join_date() -> None:
+    async def go():
+        factory, team_id = await seeded_session()
+        async with factory() as s:
+            view = await TrainingSquadQueryService(s).development_view(team_id)
+            assert view is not None
+            return view
+
+    view = _run(go())
+    undated = [row for row in view.loyalty if row.date_source is None]
+    assert undated
+    assert all(row.decimal_level is None for row in undated)
+    assert all(row.progress_pct is None for row in undated)
+    assert any("no tienen fecha de llegada" in note for note in view.notes)
 
 
 # ── Previsión por jugador ────────────────────────────────────────────────────
@@ -226,7 +315,7 @@ def test_training_squad_endpoint_shape() -> None:
         assert len(body["players"]) > 0
         assert "weeksElapsed" in body["players"][0]
         assert "progressPct" in body["players"][0]
-        assert len(body["availableSkills"]) == 8
+        assert len(body["availableSkills"]) == 7
         assert "weeklyLog" in body
     finally:
         app.dependency_overrides.clear()
@@ -239,6 +328,22 @@ def test_training_squad_endpoint_accepts_a_skill_override() -> None:
         resp = client.get(f"/api/v1/teams/{team_id}/training/squad", params={"skill": "scoring"})
         assert resp.status_code == 200
         assert resp.json()["skill"] == "scoring"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_training_development_endpoint_shape() -> None:
+    factory, team_id = _run(seeded_session())
+    client = _client(factory, team_id)
+    try:
+        resp = client.get(f"/api/v1/teams/{team_id}/training/development")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["experience"]) > 0
+        assert len(body["loyalty"]) == len(body["experience"])
+        assert "pointsPerLevel" in body["experience"][0]
+        assert "daysInClub" in body["loyalty"][0]
+        assert "notes" in body
     finally:
         app.dependency_overrides.clear()
 

@@ -1,4 +1,5 @@
 import type { EChartsOption } from "echarts";
+import { number } from "../hooks/useFormat";
 
 /** Horizontal bars — the most common shape in this product. */
 export function barOption(
@@ -246,7 +247,7 @@ export function highlightedScatterOption(
       formatter: (p: unknown) => {
         const item = p as { value: [number, number, string] };
         const [x, y, name] = item.value;
-        return `${name}<br/>${xName}: ${x}<br/>${yName}: ${y.toLocaleString()}`;
+        return `${name}<br/>${xName}: ${number(x)}<br/>${yName}: ${number(y)}`;
       },
     },
     series: [

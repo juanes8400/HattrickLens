@@ -38,35 +38,29 @@ nunca fijarse en código.
 
 ---
 
-## 2. Velocidad de entrenamiento 🔶 Calibrado · R² 0,999
+## 2. Velocidad de entrenamiento · fórmula comunitaria pública
 
-**Modelo.**
+La fórmula lineal anterior quedó **refutada y retirada**. La fórmula vigente es el
+modelo público por tramos de HT-Tools, documentado completo en
+`docs/spec/TRAINING_ENGINE.md`:
 
+```text
+K = K_entrenamiento × K_entrenador × K_asistentes
+    × intensidad × (1 − resistencia) × exposición
+
+semanas = 16 × (reloj_edad⁻¹(reloj_edad
+          + (F(nivel+1) − F(nivel+subnivel))/K) − edad)
 ```
-semanas_para_subir = 5,750 × 1,0463^(edad−17) × nivel^0,068
-```
 
-**Método.** Ajuste por mínimos cuadrados sobre 18 observaciones (edad, nivel, semanas)
-leídas de la pantalla "Entrenamiento actual" de HC, con entrenador excelente, diez
-asistentes e intensidad 100%. Error máximo 0,07 semanas.
+**Estado: fuente comunitaria reproducida.** No es una fórmula oficial del servidor.
+Su función de habilidad, reloj de edad y coeficientes salen de la implementación
+pública de HT-Tools; los valores del club salen del CHPP.
 
-**Lo importante del hallazgo.** La edad domina y el nivel actual es casi irrelevante:
-cumplir un año encarece el entrenamiento un 4,6%; subir un nivel, un 0,8%.
-
-**❌ Refutado.** El diseño original asumía un exponente de nivel de **0,60** — 28
-veces más fuerte que el real. Bajo ese supuesto, un jugador de nivel 15 tardaría
-cuatro veces más que uno de nivel 4 a la misma edad, lo que es falso. Peor aún:
-existía un test (`test_higher_level_trains_slower`) que **pasaba en verde**
-verificando esa creencia equivocada. Sustituido por una regresión paramétrica contra
-las 18 observaciones reales.
-
-**Lección de proceso.** Un test que codifica una suposición del autor no verifica
-nada: solo congela el error. Los tests de motores de dominio deben contrastar contra
-observaciones del mundo, no contra la intuición de quien los escribe.
-
-**Pendiente.** Los factores de entrenador, asistentes, intensidad y minutos jugados
-no están aislados en estos datos porque son constantes en la muestra. Se calibrarán
-con snapshots propios al variar la configuración.
+Los datos privados del manager sirven para aplicar la fórmula, mostrar pops y
+contrastar errores, nunca para ajustar coeficientes. Por instrucción expresa del
+propietario del 14 de agosto de 2026, está prohibido hacer regresiones,
+autoaprendizaje o estimación de parámetros con esos datos. Cualquier variante
+obtenida de ese modo fue retirada y no debe reintroducirse.
 
 ---
 

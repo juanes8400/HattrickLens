@@ -1,8 +1,9 @@
-"""Training Engine. Spec: docs/spec/TRAINING_ENGINE.md."""
+"""Public HT-Tools training formula and Lens' CHPP adapters."""
 import pytest
 
 from app.domain.engines.training_engine import (
     TrainingSetup,
+    age_clock,
     age_factor,
     assistant_factor,
     coach_factor,
@@ -10,18 +11,23 @@ from app.domain.engines.training_engine import (
     default_setup,
     forecast_level_chain,
     forecast_pops,
+    inverse_age_clock,
     model_info,
+    skill_cost,
+    training_coefficient,
     training_exposure,
+    training_mode,
     weeks_to_next_level,
 )
 
-# The validation squad: two assistant coaches at level 5, so the SUM OF THEIR
-# LEVELS is 10 — the game's ceiling. Excellent coach, 100% intensity. The
-# stamina share is the one quantity the data cannot separate from the coach
-# factor; 12.5% is what an excellent coach implies.
 PULGAS = TrainingSetup(
-    skill="passing", intensity=100, stamina_share=12.5,
-    coach_level=8, coach_is_excellent=True, assistant_level_sum=10,
+    skill="passing",
+    training_type=10,
+    intensity=100,
+    stamina_share=12.5,
+    coach_level=8,
+    coach_is_excellent=True,
+    assistant_level_sum=10,
 )
 
 SQUAD = [
@@ -34,159 +40,131 @@ SQUAD = [
 ]
 
 
-# ── The canonical formula ───────────────────────────────────────────────────
-
-def test_formula_terms_behave_as_specified() -> None:
-    # 1 + Σlevels × 3.5% is a speed multiplier, where Σlevels is the sum of the levels of at
-    # most two assistants — 5+5, 3+2, 1+0 — and never a head-count.
-    assert assistant_factor(0) == 1.0
-    assert assistant_factor(10) == pytest.approx(1.35, rel=1e-6)
-    assert assistant_factor(5 + 5) == assistant_factor(10)
-    assert assistant_factor(3 + 2) == assistant_factor(5)
-    assert assistant_factor(1 + 0) == assistant_factor(1)
-
-    # 1 + 10% × max(7 − level, 0) − 5% if excellent.
-    # The penalty applies BELOW the reference level; above it the term is zero,
-    # which is what keeps the excellent bonus from being counted twice.
-    assert coach_factor(7, False) == pytest.approx(1.0)
-    assert coach_factor(7, True) == pytest.approx(0.95)
-    assert coach_factor(5, False) == pytest.approx(1.20)      # weak coach costs
-    assert coach_factor(8, False) == pytest.approx(1.00)      # no extra reward
-    assert coach_factor(8, True) == coach_factor(7, True)     # bonus only once
-
-    # 1 + 6% × (age − 17)
+def test_public_formula_coefficients_are_ported_exactly() -> None:
+    assert assistant_factor(0) == pytest.approx(0.66)
+    assert assistant_factor(5) == pytest.approx(0.82)
+    assert assistant_factor(10) == pytest.approx(0.98)
+    assert coach_factor(4) == pytest.approx(0.774)
+    assert coach_factor(7) == pytest.approx(1.0)
+    assert coach_factor(8) == pytest.approx(1.045)
     assert age_factor(17) == pytest.approx(1.0)
-    assert age_factor(27) == pytest.approx(1.60)
+    assert age_factor(27) == pytest.approx(0.83)
 
 
-def test_age_is_the_dominant_factor() -> None:
+def test_piecewise_skill_cost_matches_the_published_equations() -> None:
+    low = (8**1.72 - 1) / (6.0896 * 1.72)
+    high = 2.45426 + (14 - 5) ** 1.96 / (4.7371 * 1.96)
+    assert skill_cost(8) == pytest.approx(low)
+    assert skill_cost(14) == pytest.approx(high)
+    assert skill_cost(15) - skill_cost(14) > skill_cost(6) - skill_cost(5)
+
+
+def test_age_clock_interpolates_and_is_invertible() -> None:
+    assert age_clock(17) == pytest.approx(0)
+    assert age_clock(18) == pytest.approx(16)
+    assert age_clock(18.5) == pytest.approx((16 + 31.704) / 2)
+    for age in (17.0, 20.75, 28.2, 34.0, 41.25):
+        assert inverse_age_clock(age_clock(age)) == pytest.approx(age)
+
+
+def test_current_skill_level_now_changes_the_wait() -> None:
+    low = weeks_to_next_level("passing", 5, 24, setup=PULGAS).weeks_to_next_level
+    high = weeks_to_next_level("passing", 14, 24, setup=PULGAS).weeks_to_next_level
+    assert high > low * 2
+
+
+def test_age_makes_the_same_level_slower() -> None:
     young = weeks_to_next_level("passing", 8, 20, setup=PULGAS).weeks_to_next_level
     old = weeks_to_next_level("passing", 8, 28, setup=PULGAS).weeks_to_next_level
-    assert old > young * 1.3
+    assert old > young
 
 
-def test_current_level_does_not_affect_the_canonical_formula() -> None:
-    """A deliberate property: the formula has no level term."""
-    low = weeks_to_next_level("passing", 3, 24, setup=PULGAS).weeks_to_next_level
-    high = weeks_to_next_level("passing", 17, 24, setup=PULGAS).weeks_to_next_level
-    assert low == high
+def test_chpp_training_type_selects_the_specific_mode() -> None:
+    assert training_mode("passing", 7) == "short_passes"
+    assert training_mode("passing", 10) == "through_passes"
+    assert training_coefficient("passing", 7) == pytest.approx(0.237)
+    assert training_coefficient("passing", 10) == pytest.approx(0.178)
+
+    short = weeks_to_next_level(
+        "passing", 8, 20, setup=TrainingSetup("passing", training_type=7)
+    )
+    through = weeks_to_next_level(
+        "passing", 8, 20, setup=TrainingSetup("passing", training_type=10)
+    )
+    assert short.training_mode == "short_passes"
+    assert through.training_mode == "through_passes"
+    assert through.weeks_to_next_level > short.weeks_to_next_level
 
 
-def test_alternative_model_reintroduces_a_level_effect() -> None:
-    low = weeks_to_next_level(
-        "passing", 3, 24, setup=PULGAS, use_alternative_age_model=True
-    ).weeks_to_next_level
-    high = weeks_to_next_level(
-        "passing", 17, 24, setup=PULGAS, use_alternative_age_model=True
-    ).weeks_to_next_level
-    assert high > low
+def test_sublevel_shortens_the_remaining_wait_without_fitting_it() -> None:
+    integer_only = weeks_to_next_level("passing", 8, 20, setup=PULGAS)
+    half_level = weeks_to_next_level(
+        "passing", 8, 20, setup=PULGAS, current_sublevel=0.5
+    )
+    assert half_level.weeks_to_next_level < integer_only.weeks_to_next_level
+    assert half_level.current_skill == pytest.approx(8.5)
+    with pytest.raises(ValueError, match="sublevel"):
+        weeks_to_next_level("passing", 8, 20, setup=PULGAS, current_sublevel=1)
 
 
-# ── Per-skill base times: the gap the first implementation had ──────────────
-
-def test_each_skill_has_its_own_base_time() -> None:
-    keeper = weeks_to_next_level("keeper", 5, 17, setup=TrainingSetup("keeper"))
-    defending = weeks_to_next_level("defending", 5, 17, setup=TrainingSetup("defending"))
-    assert defending.base_weeks == 2 * keeper.base_weeks
-    assert defending.weeks_to_next_level > keeper.weeks_to_next_level
-
-
-def test_base_weeks_match_the_specification() -> None:
-    assert model_info()["baseWeeks"] == {
-        "stamina": 1, "keeper": 4, "defending": 8, "playmaking": 7,
-        "passing": 5, "winger": 5, "scoring": 6, "set_pieces": 2,
-    }
-
-
-# ── Setup modifiers ─────────────────────────────────────────────────────────
-
-def test_the_assistant_term_spans_exactly_the_games_range() -> None:
-    """From 0 to 5+5, assistants add up to 35% training speed."""
-    def at(n: int) -> float:
-        return weeks_to_next_level(
-            "passing", 8, 24, setup=TrainingSetup("passing", assistant_level_sum=n)
-        ).weeks_to_next_level
-
-    assert at(10) / at(0) == pytest.approx(1 / 1.35, rel=0.01)  # weeks are rounded
-    assert at(0) > at(5) > at(10)
-
-
-def test_the_level_sum_cannot_exceed_two_assistants_at_level_five() -> None:
-    """A head-count passed where a level sum belongs is a silent, expensive
-    error: every forecast shifts and nothing looks wrong. So it raises."""
-    TrainingSetup("passing", assistant_level_sum=10)          # 5+5, the ceiling
-    for impossible in (11, 13, 27):
-        with pytest.raises(ValueError, match="SUM OF LEVELS"):
+def test_assistant_level_sum_is_capped_by_validation() -> None:
+    TrainingSetup("passing", assistant_level_sum=10)
+    for impossible in (11, 13, 27, -1):
+        with pytest.raises(ValueError):
             TrainingSetup("passing", assistant_level_sum=impossible)
-    with pytest.raises(ValueError):
-        TrainingSetup("passing", assistant_level_sum=-1)
 
 
-def test_the_bonus_coefficient_has_the_correct_ceiling_speed() -> None:
-    """5+5 assistants yield the documented 35% speed bonus."""
-    assert pytest.approx(0.35) == 10 * 0.035
-    assert assistant_factor(10) == pytest.approx(1.35)
-
-
-def test_excellent_coach_is_five_percent_faster() -> None:
-    plain = weeks_to_next_level(
-        "passing", 8, 24, setup=TrainingSetup("passing", coach_is_excellent=False)
+def test_more_assistants_and_a_better_coach_reduce_weeks() -> None:
+    no_assistants = weeks_to_next_level(
+        "passing", 8, 24, setup=TrainingSetup("passing", assistant_level_sum=0)
     ).weeks_to_next_level
-    excellent = weeks_to_next_level(
-        "passing", 8, 24, setup=TrainingSetup("passing", coach_is_excellent=True)
+    max_assistants = weeks_to_next_level(
+        "passing", 8, 24, setup=TrainingSetup("passing", assistant_level_sum=10)
     ).weeks_to_next_level
-    assert excellent < plain
+    assert max_assistants < no_assistants
+
+    level_4 = weeks_to_next_level(
+        "passing", 8, 24, setup=TrainingSetup("passing", coach_level=4)
+    ).weeks_to_next_level
+    level_5 = weeks_to_next_level(
+        "passing", 8, 24, setup=TrainingSetup("passing", coach_level=8)
+    ).weeks_to_next_level
+    assert level_5 < level_4
 
 
-def test_stamina_share_lengthens_the_main_skill_wait() -> None:  # noqa: D401
-    """The primary skill receives only the capacity left after stamina work."""
+def test_intensity_stamina_and_exposure_have_the_right_direction() -> None:
     full = weeks_to_next_level(
-        "passing", 8, 24, setup=TrainingSetup("passing", stamina_share=0)
+        "passing", 8, 24,
+        setup=TrainingSetup("passing", intensity=100, stamina_share=0),
     ).weeks_to_next_level
-    shared = weeks_to_next_level(
-        "passing", 8, 24, setup=TrainingSetup("passing", stamina_share=25)
+    reduced_intensity = weeks_to_next_level(
+        "passing", 8, 24,
+        setup=TrainingSetup("passing", intensity=80, stamina_share=0),
     ).weeks_to_next_level
-    assert shared == pytest.approx(full / 0.75, rel=0.02)
-
-
-def test_lower_intensity_adds_weeks() -> None:
-    full = weeks_to_next_level(
-        "passing", 8, 24, setup=TrainingSetup("passing", intensity=100)
+    stamina_diversion = weeks_to_next_level(
+        "passing", 8, 24,
+        setup=TrainingSetup("passing", intensity=100, stamina_share=25),
     ).weeks_to_next_level
-    reduced = weeks_to_next_level(
-        "passing", 8, 24, setup=TrainingSetup("passing", intensity=80)
+    half_exposure = weeks_to_next_level(
+        "passing", 8, 24,
+        setup=TrainingSetup("passing", intensity=100, stamina_share=0), exposure=0.5,
     ).weeks_to_next_level
-    assert reduced > full
+    assert reduced_intensity > full
+    assert stamina_diversion > full
+    assert half_exposure > full
 
 
-# ── Fallback setup ───────────────────────────────────────────────────────────
-# HL-2xx, 2026-08-14: four call sites used to hardcode
-# `coach_level=8, coach_is_excellent=True, assistant_level_sum=10` (one of
-# them with `stamina_share=0`, silently contradicting the yaml's own
-# `default_stamina_share`). `default_setup()` is the single place that now
-# owns those compatibility defaults.
-
-def test_default_setup_reads_its_defaults_from_config() -> None:
+def test_default_setup_uses_config_and_preserves_real_zero() -> None:
     setup = default_setup("passing")
-    assert setup.assistant_level_sum == 10   # default_assistant_level_sum in training.yaml
+    assert setup.assistant_level_sum == 10
     assert setup.coach_level == 8
-    assert setup.coach_is_excellent is True
-    assert setup.intensity == 100
-    assert setup.stamina_share == pytest.approx(12.5)  # default_stamina_share in training.yaml
+    assert setup.stamina_share == pytest.approx(12.5)
 
-
-def test_default_setup_prefers_a_real_reading_over_the_default() -> None:
-    """`stamina_share=0` from a real sync must NOT be treated as "missing" —
-    only `None` (no training.xml at all) falls back to the config default."""
-    real = default_setup("passing", intensity=90, stamina_share=0)
+    real = default_setup("passing", training_type=10, intensity=90, stamina_share=0)
+    assert real.training_type == 10
     assert real.intensity == 90
     assert real.stamina_share == 0
 
-    missing = default_setup("passing", stamina_share=None)
-    assert missing.stamina_share == pytest.approx(12.5)
-
-
-# ── Minutes and position ────────────────────────────────────────────────────
 
 def test_training_exposure_follows_the_ninety_minute_rule() -> None:
     assert training_exposure(90, "full") == 1.0
@@ -196,72 +174,35 @@ def test_training_exposure_follows_the_ninety_minute_rule() -> None:
     assert training_exposure(120, "full") == 1.0
 
 
-def test_partial_exposure_doubles_the_wait() -> None:
-    full = weeks_to_next_level("passing", 8, 24, setup=PULGAS, exposure=1.0)
-    half = weeks_to_next_level("passing", 8, 24, setup=PULGAS, exposure=0.5)
-    assert half.weeks_to_next_level == pytest.approx(full.weeks_to_next_level * 2, rel=0.02)
-
-
-# ── Forecast ────────────────────────────────────────────────────────────────
-
-def test_forecast_orders_by_soonest_pop() -> None:
+def test_forecast_orders_by_soonest_pop_and_declares_unknown_sublevel() -> None:
     out = forecast_pops(SQUAD, PULGAS)
-    assert out[0].player == "Florin Tilvar"          # youngest
-    assert out == sorted(out, key=lambda f: f.weeks_remaining)
+    assert out == sorted(out, key=lambda forecast: forecast.weeks_remaining)
+    assert all(forecast.confidence == "integer_level_only" for forecast in out)
+    with_history = forecast_pops(SQUAD, PULGAS, weeks_already_trained={1: 1.0})
+    observed = next(forecast for forecast in with_history if forecast.player == "Florin Tilvar")
+    assert observed.confidence == "estimated_from_pop"
+    assert 0 < observed.progress < 1
 
 
-def test_forecast_declares_missing_history() -> None:
-    assert all(f.confidence == "no_history" for f in forecast_pops(SQUAD, PULGAS))
-    with_history = forecast_pops(SQUAD, PULGAS, weeks_already_trained={1: 3.0})
-    first = next(f for f in with_history if f.player == "Florin Tilvar")
-    assert first.confidence == "estimated"
-    assert 0 < first.progress < 1
-
-
-def test_older_players_are_expensive_to_train() -> None:
-    weeks = {f.player: f.weeks_remaining for f in forecast_pops(SQUAD, PULGAS)}
-    assert weeks["Raúl Cobos"] > weeks["Florin Tilvar"] * 1.3
-
-
-# ── Cascading multi-level forecast (HL-2xx, "Previsión subidas") ───────────
-
-def test_forecast_level_chain_climbs_one_level_at_a_time() -> None:
+def test_forecast_level_chain_compounds_skill_cost_and_age() -> None:
     chain = forecast_level_chain("passing", 14, 27, 0, PULGAS, max_levels=6)
-    assert [m.level for m in chain] == [15, 16, 17, 18, 19, 20]
+    assert [milestone.level for milestone in chain] == [15, 16, 17, 18, 19, 20]
+    assert [m.weeks_from_now for m in chain] == sorted(m.weeks_from_now for m in chain)
+    assert chain[-1].weeks_for_this_level > chain[0].weeks_for_this_level
+    assert forecast_level_chain("passing", 20, 27, 0, PULGAS) == []
 
 
-def test_forecast_level_chain_stops_at_the_top_of_the_scale() -> None:
-    """Level 20 ("divino") is the last real name in SKILL_LEVELS — cascading
-    a forecast past it would compound a guess, so the chain stops there
-    even if the caller asks for more levels."""
-    chain = forecast_level_chain("passing", 18, 27, 0, PULGAS, max_levels=15)
-    assert [m.level for m in chain] == [19, 20]
-
-    already_there = forecast_level_chain("passing", 20, 27, 0, PULGAS, max_levels=5)
-    assert already_there == []
-
-
-def test_forecast_level_chain_weeks_and_age_compound() -> None:
-    """Age feeds back into each next level's speed — a real property of the
-    formula, not just cumulative addition — so later levels must cost more
-    weeks than the first, and the projected age must climb through the
-    chain (never reset or go backwards)."""
-    chain = forecast_level_chain("passing", 10, 20, 0, PULGAS, max_levels=5)
-    weeks_per_level = [m.weeks_for_this_level for m in chain]
-    assert weeks_per_level == sorted(weeks_per_level)  # strictly non-decreasing
-    assert weeks_per_level[-1] > weeks_per_level[0]
-
-    cumulative = [m.weeks_from_now for m in chain]
-    assert cumulative == sorted(cumulative)
-
-    ages = [(m.age_years, m.age_days) for m in chain]
-    assert ages == sorted(ages)
-
-
-# ── Choosing what to train ──────────────────────────────────────────────────
-
-def test_compare_training_types_ranks_by_speed() -> None:
+def test_compare_training_types_uses_only_supported_technical_skills() -> None:
     ranking = compare_training_types(SQUAD, PULGAS)
-    assert set(ranking) == set(model_info()["baseWeeks"])
+    assert set(ranking) == {
+        "keeper", "defending", "playmaking", "passing", "winger", "scoring", "set_pieces"
+    }
     assert list(ranking.values()) == sorted(ranking.values())
-    assert next(iter(ranking)) == "stamina"          # cheapest base time
+
+
+def test_model_metadata_declares_source_and_limits() -> None:
+    info = model_info()
+    assert info["engine"] == "HT-Tools community formula"
+    assert info["reference"]["status"] == "ported"
+    assert "private-data fitting" in info["reference"]["numeric_profile"]
+    assert any("subnivel" in limitation.lower() for limitation in info["limitations"])

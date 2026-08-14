@@ -1,9 +1,12 @@
-const NF = new Intl.NumberFormat("es-CO");
-
-export const number = (v: number) => NF.format(Math.round(v));
+// Separador de miles único para toda la aplicación. No dependemos del locale
+// disponible en el navegador: el formato visible siempre es 1.234.567.
+export const number = (v: number) =>
+  Math.round(v)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 export const money = (v: number, currency = "") =>
-  `${NF.format(Math.round(v))}${currency ? ` ${currency}` : ""}`;
+  `${number(v)}${currency ? ` ${currency}` : ""}`;
 
 export const htAge = (years: number, days: number) => `${years}.${days}`;
 

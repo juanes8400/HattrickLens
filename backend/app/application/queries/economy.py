@@ -33,9 +33,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
     latest_per_iso_week,
-    season_at_offset,
+    season_for_datetime,
     season_week_label,
-    season_week_offset_for,
+    season_week_for_datetime,
 )
 from app.domain.engines import timeseries as ts
 from app.domain.engines.economy_engine import (
@@ -265,9 +265,7 @@ class EconomyQueryService:
         series = [
             SeriesPoint(
                 date=_iso(s.captured_at),
-                season_week=season_week_label(
-                    world, weeks_offset=season_week_offset_for(world, s.captured_at)
-                ),
+                season_week=season_week_for_datetime(world, s.captured_at),
                 cash=conv(s.cash),
                 income=conv(s.last_income_sum),
                 costs=conv(s.last_costs_sum),
@@ -390,7 +388,7 @@ class EconomyQueryService:
         # pantalla Detalles de Hattrick Control, y que la tabla que pidió el
         # usuario replicar.
         seasons = [
-            season_at_offset(world, weeks_offset=season_week_offset_for(world, s.captured_at))
+            season_for_datetime(world, s.captured_at)
             for s in snaps
         ]
         weekly_rows = [

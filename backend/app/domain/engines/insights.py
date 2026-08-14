@@ -59,7 +59,10 @@ def inefficient_training(
             f"{peor['name']} tiene {peor['age_years']} años y necesita "
             f"{peor['weeks_to_pop']:.1f} semanas por nivel. Un jugador de 20 tarda ~7,5."
         ),
-        action="Considera entrenar a los jóvenes: la edad pesa 4,6% por año, el nivel solo 0,8%.",
+        action=(
+            "Compara sus semanas con las de los jóvenes: la fórmula pública "
+            "encarece el entrenamiento tanto por edad como por nivel de habilidad."
+        ),
         module="entrenamiento",
         evidence={"players": [t["name"] for t in caros]},
     )]

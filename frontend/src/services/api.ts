@@ -5,7 +5,11 @@
  * module only transports data; every number it returns was computed by an
  * engine on the server.
  */
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
+// En desarrollo usamos el proxy de Vite (`/api` → backend). Mantener la
+// petición en el mismo origen evita que `localhost` y `127.0.0.1` creen
+// sesiones distintas o que el navegador bloquee la llamada entre puertos.
+// Los despliegues pueden seguir definiendo VITE_API_URL explícitamente.
+const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
 export class ApiError extends Error {
   constructor(
@@ -121,7 +125,7 @@ export const api = {
   experienceModel: (teamId: number) =>
     request<ExperienceModel>(`/teams/${teamId}/experience/calibration`),
   loyaltyModel: (teamId: number) =>
-    request<LoyaltyModel>(`/teams/${teamId}/loyalty/calibration`),
+    request<LoyaltyModel>(`/teams/${teamId}/loyalty/model`),
   economy: (teamId: number, horizonWeeks = 52) =>
     request<Economy>(`/teams/${teamId}/economy?horizon_weeks=${horizonWeeks}`),
   arena: (teamId: number, fillRate?: number) => {
@@ -170,6 +174,8 @@ export const api = {
     const qs = q.toString();
     return request<TrainingSquad>(`/teams/${teamId}/training/squad${qs ? `?${qs}` : ""}`);
   },
+  trainingDevelopment: (teamId: number) =>
+    request<TrainingDevelopment>(`/teams/${teamId}/training/development`),
   playerTrainingLevels: (teamId: number, htPlayerId: number, skill?: string | null) => {
     const q = new URLSearchParams();
     if (skill) q.set("skill", skill);
@@ -512,10 +518,8 @@ export interface ActivePlayerDetail {
     confidence: string;
   } | null;
   loyalty: number | null;
-  // Progreso decimal real (p.ej. 5.62) cuando ya hay calibración observada
-  // para la transición en la que está el jugador (ver /loyalty/calibration)
-  // — `null` cuando no hay evidencia todavía, y la ficha usa el nivel
-  // entero (`loyalty`) como respaldo.
+  // Curva continua de Fidelidad calculada solo con días desde la compra.
+  // Es `null` únicamente cuando no existe una fecha de compra disponible.
   loyaltyDecimal: number | null;
   // Proyección de Resistencia, tabla Federación Ocerin — `null` sin
   // WorldContext propio o con la edad fuera de la tabla (17-36).
@@ -871,7 +875,7 @@ export interface TrainingForecast {
     htPlayerId: number;
     age: string;
     currentLevel: number;
-    weeksToPop: number;
+    weeksToPop: number | null;
   }[];
 }
 
@@ -969,27 +973,13 @@ export interface ExperienceModel {
   reference: CalculationReference;
 }
 
-/** Días reales por transición de Fidelidad (N→N+1), calibrados por
- *  observación propia — no hay valor configurado de partida como en
- *  Experiencia: cada transición sin observaciones simplemente no aparece
- *  en `transitions`. */
+/** Fórmula de Fidelidad basada únicamente en días desde la compra. */
 export interface LoyaltyModel {
-  transitions: {
-    fromLevel: number;
-    toLevel: number;
-    avgDays: number;
-    observations: number;
-    stdDev: number | null;
-  }[];
-  totalObservations: number;
-  crossingsSeen: number;
-  discardedCrossings: number;
-  levelUps: {
-    player: string;
-    fromLevel: number;
-    toLevel: number;
-    daysElapsed: number;
-  }[];
+  formula: string;
+  maxLevel: number;
+  fullDays: number;
+  seasons: number;
+  thresholds: { level: number; day: number }[];
   reference: CalculationReference;
 }
 
@@ -1031,6 +1021,7 @@ export interface ChangesHistory {
   selectedPlayerId: number | null;
   skillChanges: HistoricalPlayerChange[];
   experienceChanges: HistoricalPlayerChange[];
+  loyaltyChanges: HistoricalPlayerChange[];
   formChanges: HistoricalPlayerChange[];
   series: {
     capturedAt: string;
@@ -1945,9 +1936,12 @@ export interface TrainingFormula {
   trainedSkill: string;
   allRead: boolean;
   formula: string;
+  limitations?: string[];
   inputs: Record<string, FormulaInput>;
   setup: {
     skill: string;
+    trainingType: number | null;
+    trainingMode: string;
     intensity: number;
     staminaShare: number;
     coachLevel: number;
@@ -2001,6 +1995,8 @@ export interface TrainingSquad {
   includeThisWeek: boolean;
   setup: {
     skill: string;
+    trainingType: number | null;
+    trainingMode: string;
     intensity: number;
     staminaShare: number;
     coachLevel: number;
@@ -2009,6 +2005,44 @@ export interface TrainingSquad {
   };
   players: TrainingSquadPlayerRow[];
   weeklyLog: TrainingSquadWeeklyLogEntry[];
+  notes: string[];
+}
+
+export interface TrainingExperienceRow {
+  htPlayerId: number;
+  name: string;
+  nativeCountry: string | null;
+  age: string;
+  level: number;
+  levelName: string;
+  decimalLevel: number | null;
+  points: number | null;
+  pointsPerLevel: number;
+  remainingPoints: number | null;
+  progressPct: number | null;
+  breakdown: Record<string, number>;
+  unscoredNationalMatches: number;
+}
+
+export interface TrainingLoyaltyRow {
+  htPlayerId: number;
+  name: string;
+  nativeCountry: string | null;
+  age: string;
+  reportedLevel: number;
+  calculatedLevel: number | null;
+  levelName: string;
+  decimalLevel: number | null;
+  progressPct: number | null;
+  daysInClub: number | null;
+  nextLevel: number | null;
+  daysToNextLevel: number | null;
+  dateSource: "transferencia" | "manual" | null;
+}
+
+export interface TrainingDevelopment {
+  experience: TrainingExperienceRow[];
+  loyalty: TrainingLoyaltyRow[];
   notes: string[];
 }
 

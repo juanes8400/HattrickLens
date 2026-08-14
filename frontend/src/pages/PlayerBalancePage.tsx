@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import { Chart } from "../charts/Chart";
 import { Column, DataTable } from "../components/DataTable";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
-import { date, money } from "../hooks/useFormat";
+import { date, money, number } from "../hooks/useFormat";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
 import { api } from "../services/api";
@@ -82,7 +83,7 @@ function compactNumber(value: number): string {
   return new Intl.NumberFormat("es-CO", {
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(value);
+  }).format(value).replace(",", ".");
 }
 
 // Rojo/gris/verde de las cascadas y el mapa de calor de ROI — deben coincidir
@@ -177,7 +178,7 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
-type SectionKey = "resumen" | "desgloses" | "detalle";
+type SectionKey = "resumen" | "totales" | "desgloses" | "detalle";
 
 // Interruptor coqueto reutilizado por los 2 toggles compartidos (pedido
 // explícitamente 2026-08-04/05) — antes duplicado inline en cada sección.
@@ -304,7 +305,11 @@ function buildWaterfallOption(
       type: "category", data: labels,
       axisLabel: { rotate: 0, interval: forceAllLabels ? 0 : "auto", fontSize: 11 },
     },
-    yAxis: { type: "value", name: currency },
+    yAxis: {
+      type: "value",
+      name: currency,
+      axisLabel: { formatter: (value: number) => number(value) },
+    },
     legend: { data: ["Ganancia", "Pérdida", "Subtotal"], bottom: 0 },
     tooltip: {
       trigger: "axis",
@@ -461,6 +466,7 @@ function HorizontalBarPanel({
 export function PlayerBalancePage() {
   const { data, isLoading, isError, error } = usePlayerBalance();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const isDark = useIsDarkTheme();
   const [section, setSection] = useState<SectionKey>("resumen");
   const [seasonFilter, setSeasonFilter] = useState<string>("all");
@@ -644,8 +650,10 @@ export function PlayerBalancePage() {
   );
   const DOT_COLS = 26;
   const dotRowCount = Math.max(1, Math.ceil(dotRows.length / DOT_COLS));
+  const dotChartHeight = Math.max(220, dotRowCount * 20 + 90);
   const dotPoints = dotRows.map((r, i) => ({
     name: r.name,
+    htPlayerId: r.htPlayerId,
     symbol: r.isAcademyGraduate ? HEART_SYMBOL : "circle",
     symbolSize: r.isAcademyGraduate ? 15 : 13,
     value: [
@@ -656,8 +664,30 @@ export function PlayerBalancePage() {
       r.salePrice,
       r.soldAt,
       r.trainingAtSale ?? UNKNOWN_TRAINING,
-    ] as [number, number, number, number, number, string | null, string],
+      r.htPlayerId,
+    ] as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      string | null,
+      string,
+      number,
+    ],
   }));
+  const openDotPlayer = (...args: unknown[]) => {
+    const params = args[0] as
+      | { value?: unknown; data?: { htPlayerId?: unknown } }
+      | undefined;
+    const htPlayerId = Number(
+      params?.data?.htPlayerId ??
+        (Array.isArray(params?.value) ? params.value[7] : undefined),
+    );
+    if (Number.isInteger(htPlayerId) && htPlayerId > 0) {
+      navigate(`/players/${htPlayerId}`);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -696,6 +726,7 @@ export function PlayerBalancePage() {
         <Tabs
           tabs={[
             { key: "resumen", label: "Resumen" },
+            { key: "totales", label: "Totales" },
             { key: "desgloses", label: "Desgloses" },
             { key: "detalle", label: `Detalle (${detalleRows.length})` },
           ]}
@@ -774,37 +805,6 @@ export function PlayerBalancePage() {
 
       {section === "resumen" && (
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <Kpi
-              label="Total de compras"
-              value={money(data.transferTotalBuys, data.currency)}
-            />
-            <Kpi
-              label="Total de ventas"
-              value={money(data.transferTotalSales, data.currency)}
-            />
-            <Kpi
-              label="Número de compras"
-              value={String(data.transferNumberBuys)}
-            />
-            <Kpi
-              label="Número de ventas"
-              value={String(data.transferNumberSales)}
-            />
-            <Kpi
-              label="Diferencia"
-              value={money(
-                data.transferTotalSales - data.transferTotalBuys,
-                data.currency,
-              )}
-              tone={
-                data.transferTotalSales - data.transferTotalBuys >= 0
-                  ? "positive"
-                  : "danger"
-              }
-            />
-          </div>
-
           {dotBase.length > 0 && (
             <Panel
               title="Cada transferencia"
@@ -831,9 +831,11 @@ export function PlayerBalancePage() {
                   Ningún jugador vendido coincide con estos filtros.
                 </p>
               ) : (
-                <Chart
-                  ariaLabel="Diagrama de puntos: una bolita por transferencia vendida, ordenadas según el criterio elegido, coloreadas por ROI de rojo (pérdida) a verde (ganancia), forma por origen (comprado o canterano)"
-                  option={{
+                <div className="relative">
+                  <Chart
+                    ariaLabel="Diagrama de puntos: una bolita enlazada a la ficha de cada exjugador vendido, ordenadas según el criterio elegido, coloreadas por ROI de rojo (pérdida) a verde (ganancia), forma por origen (comprado o canterano)"
+                    onEvents={{ click: openDotPlayer }}
+                    option={{
                     grid: {
                       left: 8,
                       right: 8,
@@ -885,13 +887,14 @@ export function PlayerBalancePage() {
                               number,
                               string | null,
                               string,
+                              number,
                             ]
                           | undefined;
                         if (!v) return "";
                         const [, , , roi, salePrice, soldAt, training] = v;
                         return (
                           `${p?.name ?? ""}<br/>Venta: ${money(salePrice, data.currency)}<br/>` +
-                          `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Entrenamiento: ${training}`
+                          `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Entrenamiento: ${training}<br/><b>Haz clic para abrir la ficha</b>`
                         );
                       },
                     },
@@ -899,15 +902,74 @@ export function PlayerBalancePage() {
                       {
                         type: "scatter",
                         data: dotPoints,
+                        cursor: "pointer",
                         itemStyle: { opacity: 0.88 },
                       },
                     ],
-                  }}
-                  height={Math.max(220, dotRowCount * 20 + 90)}
-                />
+                    }}
+                    height={dotChartHeight}
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-2 bottom-12 top-2"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${DOT_COLS + 1}, minmax(0, 1fr))`,
+                      gridTemplateRows: `repeat(${dotRowCount + 1}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {dotRows.map((row, index) => (
+                      <Link
+                        key={`${row.htPlayerId}-${row.soldAt ?? index}`}
+                        to={`/players/${row.htPlayerId}`}
+                        aria-label={`Abrir ficha de ${row.name}`}
+                        title={`${row.name} · Venta: ${money(row.salePrice, data.currency)} · ROI: ${row.roiPct.toFixed(1)}%`}
+                        className="pointer-events-auto h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+                        style={{
+                          gridColumn: (index % DOT_COLS) + 2,
+                          gridRow: Math.floor(index / DOT_COLS) + 2,
+                          justifySelf: "start",
+                          alignSelf: "start",
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
             </Panel>
           )}
+        </div>
+      )}
+
+      {section === "totales" && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <Kpi
+            label="Total de compras"
+            value={money(data.transferTotalBuys, data.currency)}
+          />
+          <Kpi
+            label="Total de ventas"
+            value={money(data.transferTotalSales, data.currency)}
+          />
+          <Kpi
+            label="Número de compras"
+            value={number(data.transferNumberBuys)}
+          />
+          <Kpi
+            label="Número de ventas"
+            value={number(data.transferNumberSales)}
+          />
+          <Kpi
+            label="Diferencia"
+            value={money(
+              data.transferTotalSales - data.transferTotalBuys,
+              data.currency,
+            )}
+            tone={
+              data.transferTotalSales - data.transferTotalBuys >= 0
+                ? "positive"
+                : "danger"
+            }
+          />
         </div>
       )}
 
@@ -1011,7 +1073,14 @@ function intCol(
       const v = accessor(r);
       return v === "?" ? -Infinity : v;
     },
-    render: (r) => <span className="tabular-nums">{String(accessor(r))}</span>,
+    render: (r) => {
+      const value = accessor(r);
+      return (
+        <span className="tabular-nums">
+          {value === "?" ? "?" : number(value)}
+        </span>
+      );
+    },
   };
 }
 
@@ -1043,14 +1112,14 @@ function skillCol(
       // desconocido, o conocido pero igual al de entrada) es solo el
       // número, nunca un "(0)" que dé a entender un cambio que no hubo.
       if (exit === "?" || exit === entry)
-        return <span className="tabular-nums">{entry}</span>;
+        return <span className="tabular-nums">{number(entry)}</span>;
       const delta = exit - entry;
-      const deltaLabel = delta > 0 ? `+${delta}` : `${delta}`;
+      const deltaLabel = `${delta > 0 ? "+" : ""}${number(delta)}`;
       const deltaClass =
         delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]";
       return (
         <span className="tabular-nums">
-          {entry} <span className={deltaClass}>({deltaLabel})</span>
+          {number(entry)} <span className={deltaClass}>({deltaLabel})</span>
         </span>
       );
     },

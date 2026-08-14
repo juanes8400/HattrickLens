@@ -17,13 +17,14 @@ from app.domain.engines.staff_effects import (
 def test_assistant_trainer_matches_the_official_worked_example() -> None:
     """"Combinación de entrenadores asistentes de nivel 10: 6 semanas" — el
     propio texto dice que sin asistente son 8 semanas y con el combo de
-    nivel 5 (un solo empleado) son 7; el 3.5%/nivel ya está verificado en
-    training_engine.py, aquí solo se confirma que este módulo reutiliza esa
-    MISMA constante en vez de una copia que pueda desincronizarse."""
+    nivel 5 (un solo empleado) son 7. Aquí se confirma que el módulo reutiliza
+    el aporte de 0,032/nivel de la fórmula comunitaria en
+    training_engine.py, en vez de mantener una copia que pueda desincronizarse.
+    """
     single_five = assistant_trainer_effect(5)
     combo_ten = assistant_trainer_effect(10)
-    assert single_five["trainingSpeedPct"] == 17.5   # 5 × 3.5%
-    assert combo_ten["trainingSpeedPct"] == 35.0      # 10 × 3.5%
+    assert single_five["trainingSpeedPct"] == 16.0   # 5 × 3,2 puntos
+    assert combo_ten["trainingSpeedPct"] == 32.0     # 10 × 3,2 puntos
 
 
 def test_assistant_trainer_injury_risk_and_form_match_the_table() -> None:

@@ -19,6 +19,7 @@ def _player_snapshot(sync_id: int, player_id: int, captured_at: datetime, **upda
         "form": 5,
         "stamina": 7,
         "experience": 4,
+        "loyalty": 5,
         "salary": 50_000,
         "keeper": 2,
         "defending": 6,
@@ -148,6 +149,7 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
                         tsi=11_000,
                         form=6,
                         playmaking=8,
+                        loyalty=6,
                     ),
                     _training(changed_sync.id, team.id, changed_at, morale=6),
                     _economy(changed_sync.id, team.id, changed_at, fans=2_409),
@@ -156,6 +158,22 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
                         team_id=team.id,
                         category="jugadores",
                         summary="Jugador Prueba: Jugadas subió de 7 a 8",
+                        created_at=changed_at,
+                    ),
+                    # Formato defectuoso que dejaron versiones anteriores:
+                    # la consulta debe reconstruirlo desde los snapshots.
+                    m.SyncChange(
+                        sync_id=changed_sync.id,
+                        team_id=team.id,
+                        category="entrenamiento",
+                        summary="Espíritu del equipo: -1 -> Contentos",
+                        created_at=changed_at,
+                    ),
+                    m.SyncChange(
+                        sync_id=changed_sync.id,
+                        team_id=team.id,
+                        category="entrenamiento",
+                        summary="Confianza: -1 -> Sólida",
                         created_at=changed_at,
                     ),
                 ]
@@ -190,15 +208,22 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
         assert report["changes"] == []
         assert report["reportSyncId"] == changed_sync.id
         assert report["reportIsLatest"] is False
+        assert {
+            item["summary"]
+            for item in report["reportChanges"]
+            if item["category"] == "entrenamiento"
+        } == {"Espíritu del equipo: Encantados -> Contentos"}
         assert report["playerRows"][0]["tsiDelta"] == 1_000
         assert {c["key"] for c in report["playerRows"][0]["changes"]} == {
             "form",
+            "loyalty",
             "playmaking",
         }
         metrics = {metric["key"]: metric for metric in report["summary"]}
         assert metrics["tsi"]["upCount"] == 1
         assert metrics["tsi"]["upTotal"] == 1_000
         assert metrics["playmaking"]["net"] == 1
+        assert metrics["loyalty"]["net"] == 1
         club = {change["key"]: change for change in report["clubChanges"]}
         assert club["team_spirit"]["before"] == 7
         assert club["team_spirit"]["current"] == 6

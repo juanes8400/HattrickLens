@@ -78,9 +78,9 @@ allows **at most two** assistant coaches, each up to level 5, and the training
 formula takes the **sum of their levels** — 5+5, 3+2, 1+0. It is never a
 head-count. The maximum possible value is therefore **10**.
 
-This also explains the 3.5% coefficient: 10 × 3.5% = 35%, so the denominator
-`1 − Σ×3.5%` bottoms out at 0.65 and can never approach zero. The cap is the
-game's own limit, not a numerical guard bolted on afterwards.
+La fórmula comunitaria vigente usa la suma dentro de
+`K_asistentes = 0,66 + 0,032 × suma`. Con nivel combinado 10, el coeficiente
+es 0,98. El límite 10 es una regla del juego, no un guard numérico agregado.
 
 **What this refutes.** A previous version of this file claimed the observed
 weeks required a level sum near 12.7 and concluded that Hattrick Control's
@@ -89,101 +89,36 @@ exceeds what two level-5 assistants can produce. The 10 on screen **is** the sum
 of levels, and the club is at the ceiling. `TrainingSetup` now raises on any
 value above 10, so this class of error cannot recur silently.
 
-**What it costs.** Removing that free parameter re-opens a question it had been
-papering over. See §5.
-
 **Implementation:** `assistant_level_sum_cap: 10` in `app/config/training.yaml`,
 enforced by `validate_assistant_level_sum`.
 
 ---
 
-## 5. Training formula — supplied and validated
+## 5. Training formula — fórmula pública HT-Tools
 
-The specification lists the modifiers but not the equation that combines them.
-Supplied by the domain expert and implemented verbatim:
+La fórmula lineal anterior quedó refutada. No diferenciaba el costo de una
+subida 3→4 y una 17→18. El motor vigente porta la función por tramos, reloj de
+edad y coeficientes públicos de HT-Tools; ver `TRAINING_ENGINE.md`.
 
+```text
+K = K_entrenamiento × K_entrenador × K_asistentes
+    × intensidad × (1 − resistencia) × exposición
+
+semanas = 16 × (reloj_edad⁻¹(reloj_edad
+          + (F(nivel+1) − F(nivel+subnivel))/K) − edad)
 ```
-weeks = base_weeks[skill]
-      ÷ (1 + Σ levels of at most 2 assistants × 3.5%)       ← max sum = 10
-      × (1 + 6% × (age − 17))
-      × (1 + 10% × max(7 − coach_level, 0) − 5% if the coach is excellent)
-      × (1 − 1% × (intensity − 100))
-      × (1 − stamina_share)
-```
 
-**The coach term applies below the reference level, not above it.** `max(7 − level, 0)`
-means a weak coach costs weeks while a strong one simply stops costing them.
-Because the term is zero at level 7 and above, the 5% excellent bonus cannot be
-counted twice — which is what the earlier `max(level − 7, 0)` reading did.
+**Private-data boundary.** Account snapshots may be used to apply the formula,
+show observed pops and detect implementation errors, but never to fit its
+coefficients. A previous draft attempted to infer combined coach/stamina terms
+from this manager's observations. That inference is retired and its numerical
+results must not be restored. Formula parameters require a general external
+source with explicit provenance.
 
-| Coach | Factor |
-|---|---:|
-| level 5, not excellent | 1.20 |
-| level 7, excellent | 0.95 |
-| level 8, excellent | 0.95 |
-
-**Retired validation.** The 18-value fit below was made while the assistant
-speed term was accidentally multiplied into weeks. It is kept as an audit trail,
-but is not used by Lens and is not evidence for the corrected model. New error
-figures will come only from comparable CHPP pop intervals. The old model, against 18 observed "weeks to next level" values from Hattrick
-Control, using the squad's real configuration — excellent coach at level 8,
-100% intensity, 25% stamina share — the formula reaches **mean error 0.185
-weeks, maximum 0.786, R² 0.936**:
-
-| Player | Hattrick Control | HT Lens |
-|---|---:|---:|
-| Florin Tilvar | 7.2 | 7.6 |
-| Karl-Ove Palmén | 7.5 | 7.6 |
-| Aydin Davey | 8.1 | 8.3 |
-| Hugo Chauvel | 9.5 | 9.5 |
-| Klaus Bahlek | 10.7 | 10.2 |
-| Raúl Cobos | 11.4 | 10.6 |
-
-**Identifiability — the honest caveat.** Every constant multiplier in this
-formula is confounded with the others when only one training configuration is
-observed. Two of them are now pinned by facts rather than fitting:
-
-- base weeks per skill: from the specification (passing = 5)
-- assistant level sum: **10**, and it cannot be anything else — two assistants
-  at level 5 is the game's ceiling (§4)
-
-That leaves the coach factor and the stamina share, and the data identifies only
-their **product: 0.8304**. Several readings fit equally well:
-
-| Reading | Coach factor | Stamina share | Mean error | R² |
-|---|---:|---:|---:|---:|
-| Excellent coach, level 8 | 0.95 | 12.5% | 0.185 | 0.936 |
-| Level 7, not excellent | 1.00 | 17% | 0.186 | 0.936 |
-| Level 6, excellent | 1.05 | 20% | 0.217 | 0.933 |
-| Level 6, not excellent | 1.10 | 25% | 0.191 | 0.929 |
-
-The engine uses the first, because an excellent coach is what the club's staff
-screen shows. But 0.95 × 0.875 and 1.00 × 0.83 are the same number, and no
-amount of data from *this* configuration will separate them. Settling it needs a
-second configuration: a change in this club's setup, or another club's data.
-
-What is worth noting is that the stamina share **must** be in the formula. With
-the assistant sum pinned at 10, the required product is 0.8304, and the coach
-factor alone cannot go below 0.95. Something below 1 is mandatory, and the
-stamina share is the only candidate the formula offers.
-
-**Assistant direction, corrected.** Each assistant level contributes 3.5% of
-training speed. The waiting time is therefore divided by
-`1 + Σ×3.5%`. At the legal maximum of two level-5 assistants, that is a 35%
-speed bonus and 74.1% of the no-assistant wait. The prior inverse expression
-was a mathematical direction error and is no longer used.
-
-**Stamina share belongs in the formula**, as the multiplier `(1 − share)`:
-effort diverted to stamina is effort the main skill does not have to wait for.
-An earlier reading excluded it; with the coach term corrected, including it is
-what reproduces the observed weeks.
-
-**One property worth knowing:** the formula has no term for the current skill
-level, so a player at level 3 and one at level 17 of the same age take exactly
-the same time. This agrees with the measured level effect of 0.068 in the
-exponent — negligible next to 6% per year of age. An exponential age model with
-a level term fits the same data more tightly (R² 0.999) and stays available in
-configuration for comparison.
+**Propiedades corregidas.** El nivel actual sí cambia el costo. El subnivel,
+cuando se conoce, reduce el trabajo restante. Pases cortos y largos seleccionan
+coeficientes diferentes según `TrainingType`. La resistencia reduce la parte
+disponible para la habilidad técnica.
 
 ---
 
@@ -218,29 +153,11 @@ page, including how many more crossings are needed before the number changes.
 
 ## Open numeric conflicts
 
-Two credible sources still disagree. Both values live in configuration; final
-tuning is deferred until enough history has accumulated to settle them with
-observed pops rather than argument.
-
-| Constant | Specification | Measured | Default in use |
-|---|---|---|---|
-| Age factor shape | linear, 6% per year | exponential, 4.63% per year, R² 0.999 | linear (canonical formula) |
-| Coach factor × stamina share | not stated | product = 0.8304, factors not separable | 0.95 × 0.875 |
-| Assistant term direction | more assistants → more weeks | the only sign that fits | as supplied |
-
-The experience constant has left this table: it is no longer a conflict to be
-argued but a quantity the engine measures and reports with its uncertainty
-(§6).
-
-**On "the shape of the age factor".** The shape is how training time grows with
-age. *Linear* means each year adds a flat 6% of the base time, so 17 → 27 years
-multiplies it by 1.60. *Exponential* means each year multiplies by 1.0463, so
-the surcharge compounds on the previous year's — slower at first, faster later.
-Across the squad's actual age range the two nearly coincide; they separate at
-the extremes. The linear form is used because it is the canonical formula.
-
-The full record, including the assumptions that were later disproved, is in
-`docs/16-calibracion-y-supuestos.md`.
+The training coefficients now come from the public HT-Tools implementation.
+Private account history is not an admissible source for fitting or choosing
+between parameter values. It may only contrast whether Lens applies that
+external formula consistently. Age uses the published clock table, not the
+retired linear `+6%` approximation.
 
 ---
 
@@ -289,44 +206,30 @@ datos del club.
 
 ---
 
-## 9. La fórmula de entrenamiento, cerrada: de supuestos a lecturas del CHPP
+## 9. La fórmula de entrenamiento: datos CHPP, coeficientes públicos
 
-Durante meses el motor de entrenamiento descansó sobre tres valores puestos a
-mano —suma de niveles de ayudantes (10), nivel del entrenador (excelente) y
-%condición (12,5%)— que ajustaban las 18 semanas observadas pero que no venían
-del juego. El par entrenador × condición ni siquiera era separable: los datos
-solo lo identificaban como producto (0,8304).
-
-Con los esquemas reales del CHPP, cada término pasa a leerse:
+Cada valor particular del club se lee de su fuente real:
 
 | Término | Ficha CHPP | Campo |
 |---|---|---|
-| Ayudantes | `club` | `AssistantTrainerLevels` (entero 0–10) |
+| Tipo | `training` | `TrainingType` |
 | Intensidad | `training` | `TrainingLevel` |
-| %condición | `training` | `StaminaTrainingPart` |
+| % condición | `training` | `StaminaTrainingPart` |
+| Ayudantes | `stafflist` | suma de `StaffLevel` para `StaffType=1` |
 | Entrenador | `stafflist` | `TrainerSkillLevel` (1–5) |
 
-Al leer la intensidad y la condición por separado, el producto entrenador ×
-condición **se rompe**: la condición deja de ser una incógnita y el entrenador
-queda anclado a su valor. `TrainingContextService` construye el `TrainingSetup`
-solo con estos valores y adjunta la **procedencia** de cada uno (fichero CHPP o
-supuesto), expuesta en `GET /teams/{id}/training/formula` y en la pantalla del
-Motor.
+`TrainingContextService` adjunta la procedencia de cada entrada y la expone en
+`GET /teams/{id}/training/formula`. El tipo selecciona además el coeficiente
+correcto de HT-Tools; en particular, tipo 7 (Pases cortos) y tipo 10 (Pases
+largos) ya no comparten un número genérico.
 
-**Validación sin inferir.** `trainingevents` entrega subidas de habilidad
-confirmadas por Hattrick, con temporada y jornada. La distancia entre dos
-subidas consecutivas en la habilidad entrenada es el número real de semanas que
-costó subir un nivel, y se compara con la predicción de la fórmula alimentada
-con el contexto real: sobre las subidas del club de validación, error medio
-0,3 semanas. Antes esos pops se *inferían* comparando fotos de la plantilla;
-ahora son evidencia directa.
+**Contraste sin inferencia.** `trainingevents` aporta pops confirmados. La
+distancia entre dos pops permite mostrar semanas observadas frente a semanas
+estimadas, pero no calibra, corrige ni reemplaza la fórmula pública.
 
-**Lo único que queda.** El CHPP entrega el nivel del entrenador en escala 1–5
-mientras que la fórmula se calibró en la escala nominal 7/8. La correspondencia
-vive en `training.yaml` marcada como provisional y se muestra en la nota del
-entrenador, en vez de resolverse con un mapeo silencioso — la misma cautela que
-evitó perpetuar el error del «tipo de entrenamiento 10».
+**Límites restantes.** CHPP no publica el subnivel decimal y la tabla pública
+de edad acaba en 34. Ambos límites aparecen en la interfaz; no se completan con
+regresiones sobre la cuenta del manager.
 
-**Implementación:** parsers `club`/`stafflist`/`worlddetails`/`trainingevents`,
-migración `0006` (staff_snapshots, world_context, skill_ups),
-`app/application/queries/training_context.py`.
+**Implementación:** `app/domain/engines/training_engine.py`,
+`app/application/queries/training_context.py` y `app/config/training.yaml`.

@@ -284,6 +284,11 @@ class SqlAlchemyTrainingRepository:
             "training_type": snap.training_type,
             "training_level": snap.training_level,
             "trainer_name": snap.trainer_name,
+            # Estos dos campos también forman parte de `diff_training`.
+            # Omitirlos convertía el centinela -1 de «sin dato» en un nivel
+            # anterior ficticio y producía cambios como «-1 -> Calmados».
+            "morale": snap.morale,
+            "self_confidence": snap.self_confidence,
         }
 
     async def append(

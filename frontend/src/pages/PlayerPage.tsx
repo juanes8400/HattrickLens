@@ -13,6 +13,7 @@ import { TEAM_ID, usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
 import { date, htAge, money, number } from "../hooks/useFormat";
 import { api } from "../services/api";
 import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
+import { skillLevelLabel } from "../utils/skillLevels";
 
 const SKILL_LABELS: Record<string, string> = {
   keeper: "Portería", defending: "Defensa", playmaking: "Jugadas", winger: "Lateral",
@@ -20,20 +21,13 @@ const SKILL_LABELS: Record<string, string> = {
   experience: "Experiencia", loyalty: "Fidelidad", form: "Forma", stamina: "Condición",
 };
 
-const SKILL_LEVELS = [
-  "nulo", "desastroso", "horrible", "pobre", "débil", "insuficiente",
-  "aceptable", "bueno", "excelente", "formidable", "destacado", "brillante",
-  "magnífico", "clase mundial", "sobrenatural", "titánico", "extraterrestre",
-  "mítico", "mágico", "utópico", "divino",
-];
-
 const DETAIL_SKILLS = [
   "experience", "form", "stamina", "keeper", "defending", "playmaking",
   "passing", "winger", "scoring", "set_pieces",
 ];
 
 function skillLevel(level: number): string {
-  return SKILL_LEVELS[level] ?? `divino+${level - 20}`;
+  return skillLevelLabel(level);
 }
 
 // HL-15x #94: 3 radares agrupados en vez de uno de 9 ejes — agrupación
@@ -698,6 +692,11 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
   if (isError) return <ErrorState error={error} />;
 
   const row = balance?.players.find((p) => p.htPlayerId === data.htPlayerId);
+  const listingCostPerAttempt =
+    row && row.listingCount > 0 ? row.listingCost / row.listingCount : 0;
+  const undatedListingCount = row
+    ? Math.max(row.listingCount - row.listingAttempts.length, 0)
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -786,26 +785,34 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
               />
             </div>
           </Panel>
-          {row.listingAttempts.length > 0 && (
+          {row.listingCount > 0 && (
             <Panel
               title="Intentos de venta"
               meta={
                 row.listingAttempts.length < row.listingCount
-                  ? `${row.listingCount} en total · solo los ${row.listingAttempts.length} más recientes quedaron registrados con fecha y puja`
-                  : `${row.listingCount} en total`
+                  ? `${number(row.listingCount)} en total · ${money(listingCostPerAttempt, balance!.currency)} por intento · ${money(row.listingCost, balance!.currency)} de costo total · solo los ${number(row.listingAttempts.length)} más recientes quedaron registrados con fecha`
+                  : `${number(row.listingCount)} en total · ${money(listingCostPerAttempt, balance!.currency)} por intento · ${money(row.listingCost, balance!.currency)} de costo total`
               }
             >
               <ul className="divide-y divide-[var(--border)] p-4 text-sm">
                 {row.listingAttempts.map((attempt, i) => (
                   <li key={i} className="flex justify-between gap-3 py-1.5">
                     <span className="text-[var(--muted)]">{date(attempt.detectedAt)}</span>
-                    <span className="tabular-nums">
-                      {attempt.highestBid != null
-                        ? money(attempt.highestBid, balance!.currency)
-                        : "sin pujas todavía"}
+                    <span className="tabular-nums font-medium">
+                      Costo: {money(listingCostPerAttempt, balance!.currency)}
                     </span>
                   </li>
                 ))}
+                {undatedListingCount > 0 && (
+                  <li className="flex justify-between gap-3 py-1.5">
+                    <span className="text-[var(--muted)]">
+                      {number(undatedListingCount)} intento{undatedListingCount === 1 ? "" : "s"} anterior{undatedListingCount === 1 ? "" : "es"} sin fecha registrada
+                    </span>
+                    <span className="tabular-nums font-medium">
+                      Costo: {money(undatedListingCount * listingCostPerAttempt, balance!.currency)}
+                    </span>
+                  </li>
+                )}
               </ul>
             </Panel>
           )}

@@ -19,6 +19,7 @@ def _snapshot(sync_id: int, player_id: int, captured_at: datetime, **updates):
         "form": 5,
         "stamina": 7,
         "experience": 4,
+        "loyalty": 5,
         "salary": 5_000,
         "keeper": 1,
         "defending": 6,
@@ -61,7 +62,10 @@ def test_changes_history_uses_all_real_snapshot_deltas_and_selected_series() -> 
             session.add_all(
                 [
                     _snapshot(first.id, player.id, now),
-                    _snapshot(second.id, player.id, second_time, passing=7, experience=5, form=6),
+                    _snapshot(
+                        second.id, player.id, second_time,
+                        passing=7, experience=5, loyalty=6, form=6,
+                    ),
                 ]
             )
             await session.commit()
@@ -72,6 +76,7 @@ def test_changes_history_uses_all_real_snapshot_deltas_and_selected_series() -> 
         assert len(result["series"]) == 2
         assert [(event["key"], event["delta"]) for event in result["skillChanges"]] == [("passing", 1)]
         assert [(event["key"], event["delta"]) for event in result["experienceChanges"]] == [("experience", 1)]
+        assert [(event["key"], event["delta"]) for event in result["loyaltyChanges"]] == [("loyalty", 1)]
         assert [(event["key"], event["delta"]) for event in result["formChanges"]] == [("form", 1)]
         await engine.dispose()
 
