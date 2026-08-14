@@ -35,10 +35,15 @@ class PlayerRepository(Protocol):
 
     async def mark_departed(
         self, team_id: int, current_ht_player_ids: set[int], captured_at: datetime
-    ) -> int:
+    ) -> list[Any]:
         """Un jugador del equipo que no vino en el último `players.xml` ya no
         está: se marca `left_team_at`, nunca se borra (histórico). Devuelve
-        cuántos se marcaron."""
+        las filas `Player` marcadas (no solo el conteo) — HL-2xx: el llamador
+        necesita `sale_price`/`purchase_price` de cada una para anunciar la
+        salida en "Qué cambió", y esos campos sólo están completos DESPUÉS de
+        que `transfersteam` (si es parte del mismo sync) corra, así que el
+        propio objeto ORM se pasa hacia arriba en vez de construir el mensaje
+        aquí mismo."""
         ...
 
     async def append_match_rating_if_new(

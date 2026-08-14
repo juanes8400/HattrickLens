@@ -1,22 +1,22 @@
 """Constantes del juego Hattrick. Dominio puro, sin I/O.
 
-Se mantienen aqui, y no hardcodeadas en la UI, para que backend, workers y
-AI Assistant compartan una unica fuente de verdad.
+Se mantienen aquí, y no hardcodeadas en la UI, para que backend, workers y
+AI Assistant compartan una única fuente de verdad.
 """
 
-# IDs de trainingType de CHPP DataTypes. 0 y 1 estan marcados como deprecated
-# por CHPP, pero se conservan para interpretar historico o XML antiguos.
+# IDs de trainingType de CHPP DataTypes. 0 y 1 están marcados como deprecated
+# por CHPP, pero se conservan para interpretar histórico o XML antiguos.
 TRAINING_TYPES: dict[int, str] = {
     0: "General (obsoleto)",
     1: "Resistencia (obsoleto)",
-    2: "Balon parado",
+    2: "Balón parado",
     3: "Defensa",
-    4: "Anotacion",
+    4: "Anotación",
     5: "Lateral",
-    6: "Anotacion y balon parado",
+    6: "Anotación y balón parado",
     7: "Pases",
     8: "Jugadas",
-    9: "Porteria",
+    9: "Portería",
     10: "Pases (defensas y centrocampistas)",
     11: "Defensa (porteros, defensas y centrocampistas)",
     12: "Lateral (extremos y delanteros)",
@@ -39,19 +39,19 @@ TRAINING_TARGET_SKILL: dict[int, str] = {
 }
 
 SKILL_LABELS: dict[str, str] = {
-    "keeper": "Porteria",
+    "keeper": "Portería",
     "defending": "Defensa",
     "playmaking": "Jugadas",
     "winger": "Lateral",
     "passing": "Pases",
-    "scoring": "Anotacion",
-    "set_pieces": "Balon parado",
+    "scoring": "Anotación",
+    "set_pieces": "Balón parado",
 }
 
 SPECIALTIES: dict[int, str] = {
     0: "",
-    1: "Tecnico",
-    2: "Rapido",
+    1: "Técnico",
+    2: "Rápido",
     3: "Potente",
     4: "Imprevisible",
     5: "Cabeceador",
@@ -60,12 +60,12 @@ SPECIALTIES: dict[int, str] = {
 }
 
 PLAYER_AGREEABILITY: dict[int, str] = {
-    0: "antipatica",
-    1: "polemica",
+    0: "antipática",
+    1: "polémica",
     2: "agradable",
-    3: "carismatica",
+    3: "carismática",
     4: "popular",
-    5: "querido companero de equipo",
+    5: "querido compañero de equipo",
 }
 PLAYER_AGGRESSIVENESS: dict[int, str] = {
     0: "tranquila",
@@ -85,7 +85,7 @@ PLAYER_HONESTY: dict[int, str] = {
 }
 
 TEAM_SPIRIT: dict[int, str] = {
-    0: "Como en la Guerra Fria",
+    0: "Como en la Guerra Fría",
     1: "Muy agresivos",
     2: "Tensos",
     3: "Susceptibles",
@@ -93,9 +93,9 @@ TEAM_SPIRIT: dict[int, str] = {
     5: "Calmados",
     6: "Contentos",
     7: "Encantados",
-    8: "Euforicos",
+    8: "Eufóricos",
     9: "Por las nubes",
-    10: "Paraiso en la Tierra",
+    10: "Paraíso en la Tierra",
 }
 
 CONFIDENCE: dict[int, str] = {
@@ -116,7 +116,7 @@ SKILL_LEVELS: tuple[str, ...] = (
     "desastroso",
     "horrible",
     "pobre",
-    "debil",
+    "débil",
     "insuficiente",
     "aceptable",
     "bueno",
@@ -124,14 +124,14 @@ SKILL_LEVELS: tuple[str, ...] = (
     "formidable",
     "destacado",
     "brillante",
-    "magnifico",
+    "magnífico",
     "clase mundial",
     "sobrenatural",
-    "titanico",
+    "titánico",
     "extraterrestre",
-    "mitico",
-    "magico",
-    "utopico",
+    "mítico",
+    "mágico",
+    "utópico",
     "divino",
 )
 
@@ -194,7 +194,7 @@ MATCH_POSITION_KEEPER = 1
 
 
 def match_position_name(code: int) -> str:
-    return MATCH_POSITION_NAMES.get(code, f"posicion {code}")
+    return MATCH_POSITION_NAMES.get(code, f"posición {code}")
 
 
 MATCH_TYPE_LEAGUE = 1
@@ -221,21 +221,21 @@ MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY_CUP_RULES = 106
 
 MATCH_TYPE_NAMES: dict[int, str] = {
     MATCH_TYPE_LEAGUE: "Liga",
-    MATCH_TYPE_QUALIFICATION: "Promocion",
+    MATCH_TYPE_QUALIFICATION: "Promoción",
     MATCH_TYPE_CUP: "Copa",
     MATCH_TYPE_FRIENDLY: "Amistoso",
     MATCH_TYPE_FRIENDLY_CUP_RULES: "Amistoso (reglas de copa)",
     MATCH_TYPE_MASTERS: "Hattrick Masters",
     MATCH_TYPE_INTERNATIONAL_FRIENDLY: "Amistoso internacional",
     MATCH_TYPE_INTERNATIONAL_FRIENDLY_CUP_RULES: "Amistoso internacional (reglas de copa)",
-    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE: "Seleccion nacional",
-    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES: "Seleccion nacional (reglas de copa)",
-    MATCH_TYPE_NATIONAL_TEAM_FRIENDLY: "Amistoso de seleccion",
+    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE: "Selección nacional",
+    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES: "Selección nacional (reglas de copa)",
+    MATCH_TYPE_NATIONAL_TEAM_FRIENDLY: "Amistoso de selección",
     MATCH_TYPE_TOURNAMENT_LEAGUE: "Torneo: liga",
     MATCH_TYPE_TOURNAMENT_PLAYOFF: "Torneo: playoff",
     MATCH_TYPE_DUEL: "Duelo",
     MATCH_TYPE_LADDER: "Escalera",
-    MATCH_TYPE_PREPARATION: "Preparacion",
+    MATCH_TYPE_PREPARATION: "Preparación",
     MATCH_TYPE_YOUTH_LEAGUE: "Liga juvenil",
     MATCH_TYPE_YOUTH_FRIENDLY: "Amistoso juvenil",
     MATCH_TYPE_YOUTH_FRIENDLY_CUP_RULES: "Amistoso juvenil (reglas de copa)",
@@ -308,7 +308,7 @@ TACTIC_TYPES: dict[int, str] = {
 
 
 def tactic_type_name(code: int) -> str:
-    return TACTIC_TYPES.get(code, f"tactica {code}")
+    return TACTIC_TYPES.get(code, f"táctica {code}")
 
 
 TEAM_ATTITUDE: dict[int, str] = {
@@ -352,7 +352,7 @@ def match_behaviour_name(code: int) -> str:
 
 
 PLAYER_CATEGORY: dict[int, str] = {
-    0: "Sin categoria",
+    0: "Sin categoría",
     1: "Portero",
     2: "Lateral",
     3: "Defensa central",
@@ -367,22 +367,40 @@ PLAYER_CATEGORY: dict[int, str] = {
 
 
 def player_category_name(code: int) -> str:
-    return PLAYER_CATEGORY.get(code, f"categoria {code}")
+    return PLAYER_CATEGORY.get(code, f"categoría {code}")
 
 
 STAFF_TYPES: dict[int, str] = {
     1: "Asistente de entrenador",
-    2: "Medico",
+    2: "Médico",
     3: "Portavoz",
-    4: "Psicologo deportivo",
+    4: "Psicólogo deportivo",
     5: "Entrenador de forma",
     6: "Director financiero",
-    7: "Asistente tactico",
+    7: "Asistente táctico",
 }
 
 
 def staff_type_name(code: int) -> str:
     return STAFF_TYPES.get(code, f"staff {code}")
+
+
+# 2026-08-12, corrección: `club.xml` dejó de traer los niveles agregados por
+# puesto (`AssistantTrainerLevels` y hermanos) — verificado en vivo, la
+# versión actual (1.1) sólo trae `<Specialists>` (booleanos) y `<YouthSquad>`.
+# El desglose real, persona por persona, siempre vivió en `stafflist.xml`
+# (`StaffType`/`StaffLevel` de cada `<Staff>`) — este mapa agrupa esos
+# miembros reales en la misma columna de `StaffSnapshot` que antes llenaba
+# (mal, con datos obsoletos) el fichero `club`.
+STAFF_TYPE_TO_FIELD: dict[int, str] = {
+    1: "assistant_trainer_levels",
+    2: "medic_levels",
+    3: "spokesperson_levels",
+    4: "sport_psychologist_levels",
+    5: "form_coach_levels",
+    6: "financial_director_levels",
+    7: "tactical_assistant_levels",
+}
 
 
 # MatchRoleID de CHPP DataTypes, usado en LastMatch y ordenes modernas.
@@ -422,11 +440,11 @@ MATCH_ROLE_NAMES: dict[int, str] = {
     211: "Backup (delantero)",
     212: "Backup (extremo)",
     213: "Backup (extra)",
-    17: "Especialista balon parado",
-    18: "Capitan",
-    19: "Entro por el titular 1",
-    20: "Entro por el titular 2",
-    21: "Entro por el titular 3",
+    17: "Especialista balón parado",
+    18: "Capitán",
+    19: "Entró por el titular 1",
+    20: "Entró por el titular 2",
+    21: "Entró por el titular 3",
     22: "Lanzador de penalti 1",
     23: "Lanzador de penalti 2",
     24: "Lanzador de penalti 3",
@@ -445,4 +463,60 @@ MATCH_ROLE_NAMES: dict[int, str] = {
 
 
 def match_role_name(code: int) -> str:
-    return MATCH_ROLE_NAMES.get(code, f"posicion {code} (sin traducir)")
+    return MATCH_ROLE_NAMES.get(code, f"posición {code} (sin traducir)")
+
+
+# 2026-08-09, corregido tras un caso real: `matchlineup.xml` sirve un
+# esquema DISTINTO de `RoleID` según la versión pedida. Sin `version`
+# explícito, CHPP responde v1.2 — ahí `RoleID` es solo un índice secuencial
+# (1, 2, 3... orden de aparición en el XML, sin significado táctico) y la
+# única columna con la posición real es `PositionCode` (1-16,
+# MATCH_POSITION_*). Pidiendo `version=1.4` (verificado en vivo, matchID
+# 770453114, playerID 468921494: Alberto Gutiérrez Caviedes salió con
+# RoleID=112 = "Delantero medio" — jugó de delantero, no de interior como
+# decía su PositionCode v1.2), `RoleID` pasa a usar el MISMO esquema 100+
+# que `MATCH_ROLE_NAMES` (LastMatch de playerdetails.xml). Estos frozensets
+# agrupan ese esquema 100+ igual que los MATCH_POSITION_* de arriba agrupan
+# el 1-16 — para cuando el llamador pide v1.4+ y por tanto lee `role_id`
+# como posición real, no `position_code` (que a v1.4+ es redundante y a
+# v1.5+ directamente desaparece del XML).
+MATCH_ROLE_KEEPER: frozenset[int] = frozenset({100})
+MATCH_ROLE_WINGBACK: frozenset[int] = frozenset({101, 105})
+MATCH_ROLE_CENTRAL_DEFENDER: frozenset[int] = frozenset({102, 103, 104})
+MATCH_ROLE_WINGER: frozenset[int] = frozenset({106, 110})
+MATCH_ROLE_INNER_MIDFIELDER: frozenset[int] = frozenset({107, 108, 109})
+MATCH_ROLE_FORWARD: frozenset[int] = frozenset({111, 112, 113})
+
+# 2026-08-09, pedido explícitamente: siglas cortas para "Última semana" en
+# Posiciones — el lado (derecho/izquierdo/medio) no importa, pero SÍ la
+# orden individual real (Ofensivo/Defensivo/Hacia el medio/Hacia la
+# banda), que antes no se mostraba porque vive en un campo aparte
+# (`Behaviour` de matchlineup.xml, no `LastMatch` de playerdetails.xml).
+# Los cupos "extra" (Behaviour 5/6/7: delantero/interior/defensa extra) y
+# "Normal"/"Sin cambio" (0/-1) no llevan sufijo — solo se muestra la
+# posición base.
+MATCH_ROLE_SHORT_LABELS: dict[frozenset[int], str] = {
+    MATCH_ROLE_KEEPER: "Portero",
+    MATCH_ROLE_WINGBACK: "DL",
+    MATCH_ROLE_CENTRAL_DEFENDER: "DC",
+    MATCH_ROLE_WINGER: "Ex",
+    MATCH_ROLE_INNER_MIDFIELDER: "Medio",
+    MATCH_ROLE_FORWARD: "Del",
+}
+MATCH_BEHAVIOUR_SHORT_SUFFIXES: dict[int, str] = {
+    1: "of",
+    2: "def",
+    3: "h M",
+    4: "h L",
+}
+
+
+def match_role_short_label(role_id: int, behaviour: int | None) -> str:
+    base = next(
+        (label for roles, label in MATCH_ROLE_SHORT_LABELS.items() if role_id in roles),
+        None,
+    )
+    if base is None:
+        return match_role_name(role_id)
+    suffix = MATCH_BEHAVIOUR_SHORT_SUFFIXES.get(behaviour) if behaviour is not None else None
+    return f"{base} {suffix}" if suffix else base

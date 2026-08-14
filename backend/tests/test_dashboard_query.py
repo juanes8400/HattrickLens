@@ -56,7 +56,8 @@ def test_dashboard_reflects_synced_data() -> None:
         assert d.squad is not None
         assert d.squad.player_count == 24
         assert d.squad.total_tsi == 1197060
-        assert d.squad.total_salary == 2207280
+        # Convertido a moneda local (tasa de Colombia = 10), igual que finance.cash.
+        assert d.squad.total_salary == 220728
         assert d.squad.injured_count == 0
         assert 27.0 < d.squad.avg_age < 27.5
 
@@ -80,7 +81,7 @@ def test_dashboard_reflects_synced_data() -> None:
 
         # top salarios ordenado desc, con nombres resueltos desde la identidad
         assert d.top_salaries[0].name == "Alberto Gutiérrez Caviedes"
-        assert d.top_salaries[0].salary == 723120
+        assert d.top_salaries[0].salary == 72312
         assert d.top_salaries[0].skills["scoring"] == 18
         assert d.top_salaries[0].skills["setPieces"] == 9  # contrato camelCase
 

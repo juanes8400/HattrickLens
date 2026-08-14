@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.squad import SKILL_COLS
 from app.application.queries.weekly import latest_per_iso_week
 from app.domain.engines import experience_engine as exp
+from app.domain.engines import loyalty_engine as loy
 from app.domain.engines.stats import gaussian_kde, kde_grid, percentile_rank
 from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_CUP,
@@ -27,11 +28,10 @@ from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
     MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
     MATCH_TYPE_QUALIFICATION,
-    MATCH_TYPE_TOURNAMENT_LEAGUE,
-    MATCH_TYPE_TOURNAMENT_PLAYOFF,
     MATCH_TYPE_YOUTH_FRIENDLY,
     MATCH_TYPE_YOUTH_FRIENDLY_CUP_RULES,
     MATCH_TYPE_YOUTH_LEAGUE,
+    NON_OFFICIAL_MATCH_TYPES,
 )
 from app.infrastructure.db import models as m
 
@@ -46,6 +46,10 @@ from app.infrastructure.db import models as m
 # puntuar, en `MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES` (ver
 # `experience_progress`). Es preferible una observación descartada a
 # contaminar la media.
+#
+# 2026-08-11, pedido explícito: Torneo liga/playoff (además de Escalera,
+# Duelo y Preparación, que ya estaban fuera) tampoco cuenta — son partidos
+# de mentiras, así que quedan fuera de `NON_OFFICIAL_MATCH_TYPES` y de aquí.
 MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
     MATCH_TYPE_LEAGUE: "league",
     MATCH_TYPE_QUALIFICATION: "qualification",
@@ -54,8 +58,6 @@ MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
     MATCH_TYPE_FRIENDLY_CUP_RULES: "friendly",
     MATCH_TYPE_INTERNATIONAL_FRIENDLY: "friendly_international",
     MATCH_TYPE_INTERNATIONAL_FRIENDLY_CUP_RULES: "friendly_international",
-    MATCH_TYPE_TOURNAMENT_LEAGUE: "tournament",
-    MATCH_TYPE_TOURNAMENT_PLAYOFF: "tournament",
     MATCH_TYPE_MASTERS: "masters",
     MATCH_TYPE_NATIONAL_TEAM_FRIENDLY: "national_team_friendly",
     MATCH_TYPE_YOUTH_LEAGUE: "youth_league",
@@ -152,20 +154,27 @@ class PlayerHistoryQueryService:
         ]
 
     async def match_rating_history(self, ht_player_id: int) -> list[MatchRatingPoint]:
+        # Escaleras, Duelos, Torneos y Preparación no son partidos reales —
+        # pedido explícito 2026-08-11: fuera del historial de ratings. Un
+        # `outerjoin` (no inner) porque un rating sin fila `Match` todavía
+        # (orden de sync) no es un partido de mentiras confirmado — se
+        # mantiene en vez de descartarlo por una duda.
         stmt = (
-            select(m.PlayerMatchRating)
+            select(m.PlayerMatchRating, m.Match)
             .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
+            .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
             .where(m.Player.ht_player_id == ht_player_id)
             .order_by(m.PlayerMatchRating.captured_at.asc())
         )
-        rows = (await self._s.execute(stmt)).scalars().all()
+        rows = (await self._s.execute(stmt)).all()
         return [
             MatchRatingPoint(
                 ht_match_id=r.ht_match_id, captured_at=r.captured_at.isoformat(),
                 position_code=r.position_code, played_minutes=r.played_minutes,
                 rating=r.rating,
             )
-            for r in rows
+            for r, match in rows
+            if match is None or match.match_type not in NON_OFFICIAL_MATCH_TYPES
         ]
 
     async def squad_distributions(
@@ -460,6 +469,104 @@ class PlayerHistoryQueryService:
                 previous_level = level
 
         return observations, crossings_seen
+
+    async def loyalty_level_up_observations(
+        self, team_id: int
+    ) -> tuple[list[loy.LoyaltyLevelUp], int]:
+        """Misma disciplina de intervalo-real-únicamente que
+        `experience_level_up_observations`, pero para `loyalty`: no existe
+        ninguna fórmula publicada contra la que contrastar, así que cada
+        observación limpia (un solo nivel de salto, con ancla real) es la
+        única evidencia posible — ver `loyalty_engine.py`."""
+        rows = (
+            await self._s.execute(
+                select(
+                    m.Player.id, m.Player.first_name, m.Player.last_name,
+                    m.PlayerSnapshot.captured_at, m.PlayerSnapshot.loyalty,
+                )
+                .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+                .where(m.Player.team_id == team_id)
+                .order_by(m.Player.id, m.PlayerSnapshot.captured_at)
+            )
+        ).all()
+
+        snapshots_by_player: dict[int, list[tuple[str, datetime, int]]] = {}
+        for player_id, first, last, captured_at, level in rows:
+            name = f"{first} {last}".strip()
+            snapshots_by_player.setdefault(int(player_id), []).append(
+                (name, captured_at, int(level or 0))
+            )
+
+        observations: list[loy.LoyaltyLevelUp] = []
+        crossings_seen = 0
+        for snapshots in snapshots_by_player.values():
+            snapshots = latest_per_iso_week(snapshots, lambda item: item[1])
+            if not snapshots:
+                continue
+
+            name, _, previous_level = snapshots[0]
+            level_started_at: datetime | None = None
+
+            for _, captured_at, level in snapshots[1:]:
+                if level == previous_level:
+                    continue
+
+                if level < previous_level:
+                    previous_level = level
+                    level_started_at = None
+                    continue
+
+                crossings_seen += 1
+                is_single_level_pop = level == previous_level + 1
+                if is_single_level_pop and level_started_at is not None:
+                    days = (captured_at - level_started_at).days
+                    if days > 0:
+                        observations.append(
+                            loy.LoyaltyLevelUp(
+                                player=name, from_level=previous_level,
+                                to_level=level, days_elapsed=days,
+                            )
+                        )
+
+                level_started_at = captured_at if is_single_level_pop else None
+                previous_level = level
+
+        return observations, crossings_seen
+
+    async def loyalty_level_started_at(self, ht_player_id: int) -> datetime | None:
+        """Cuándo empezó el nivel de fidelidad ACTUAL de este jugador —
+        solo si lo vimos subir con un salto limpio de un nivel (mismo
+        criterio que `loyalty_level_up_observations`). `None` si nunca
+        vimos esa subida (pudo pasar antes de que esta cuenta empezara a
+        sincronizar) o si el último salto visto fue de más de un nivel."""
+        rows = (
+            await self._s.execute(
+                select(m.PlayerSnapshot.captured_at, m.PlayerSnapshot.loyalty)
+                .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+                .where(m.Player.ht_player_id == ht_player_id)
+                .order_by(m.PlayerSnapshot.captured_at.asc())
+            )
+        ).all()
+        snapshots = latest_per_iso_week(
+            [(row.captured_at, int(row.loyalty or 0)) for row in rows],
+            lambda item: item[0],
+        )
+        if not snapshots:
+            return None
+
+        previous_level = snapshots[0][1]
+        level_started_at: datetime | None = None
+        for captured_at, level in snapshots[1:]:
+            if level == previous_level:
+                continue
+            if level < previous_level:
+                previous_level = level
+                level_started_at = None
+                continue
+            is_single_level_pop = level == previous_level + 1
+            level_started_at = captured_at if is_single_level_pop else None
+            previous_level = level
+        return level_started_at
 
     async def _latest_snapshots_by_ht_id(self, team_id: int) -> dict[int, m.PlayerSnapshot]:
         """Último snapshot real de cada jugador activo de la plantilla,

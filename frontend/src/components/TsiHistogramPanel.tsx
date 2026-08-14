@@ -69,7 +69,7 @@ export function TsiHistogramPanel({
             checked={excludeKeeper}
             onChange={(e) => onExcludeKeeperChange(e.target.checked)}
           />
-          Excluir arquero
+          Excluir nuestro arquero
         </label>
         <div className="flex overflow-hidden rounded border border-[var(--border)] text-xs">
           <button

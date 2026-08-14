@@ -76,6 +76,22 @@ def _band(b: Any) -> dict[str, Any] | None:
     return {
         "weeks": b.weeks, "p10": b.p10, "p50": b.p50, "p90": b.p90,
         "model": b.model, "backtestMae": b.backtest_mae, "candidates": b.candidates,
+        "weekLabels": b.week_labels,
+    }
+
+
+def _income_breakdown(b: Any) -> dict[str, Any]:
+    return {
+        "spectators": b.spectators, "sponsors": b.sponsors, "financial": b.financial,
+        "subtotal": b.subtotal, "other": b.other, "total": b.total,
+    }
+
+
+def _costs_breakdown(b: Any) -> dict[str, Any]:
+    return {
+        "arena": b.arena, "players": b.players, "financial": b.financial,
+        "staff": b.staff, "youth": b.youth, "subtotal": b.subtotal,
+        "other": b.other, "total": b.total,
     }
 
 
@@ -89,7 +105,7 @@ def _serialise(d: Any) -> dict[str, Any]:
         "structuralBalance": d.structural_balance,
         "weeksOfHistory": d.weeks_of_history,
         "series": [
-            {"date": p.date, "cash": p.cash, "income": p.income,
+            {"date": p.date, "seasonWeek": p.season_week, "cash": p.cash, "income": p.income,
              "costs": p.costs, "balance": p.balance, "isAnomaly": p.is_anomaly}
             for p in d.series
         ],
@@ -138,4 +154,19 @@ def _serialise(d: Any) -> dict[str, Any]:
         "recommendedModel": d.recommended_model,
         "recommendationReason": d.recommendation_reason,
         "anomalies": d.anomalies,
+        "weeklyBreakdown": [
+            {
+                "seasonWeek": row.season_week, "date": row.date, "isCurrent": row.is_current,
+                "income": _income_breakdown(row.income), "costs": _costs_breakdown(row.costs),
+            }
+            for row in d.weekly_breakdown
+        ],
+        "seasonBreakdownTotals": [
+            {
+                "season": row.season,
+                "income": _income_breakdown(row.income), "costs": _costs_breakdown(row.costs),
+            }
+            for row in d.season_breakdown_totals
+        ],
+        "minWeeksForTimeseries": d.min_weeks_for_timeseries,
     }

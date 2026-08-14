@@ -106,11 +106,11 @@ class PlayerBalance:
     is_sold: bool
 
 
-def _weeks_owned(purchased_at: datetime, end: datetime) -> int:
+def weeks_owned(purchased_at: datetime, end: datetime) -> int:
     return max((end - purchased_at).days // 7, 0)
 
 
-def _salary_at(history: list[SalarySnapshot], target: datetime) -> int:
+def salary_at(history: list[SalarySnapshot], target: datetime) -> int:
     """Último salario conocido en o antes de `target` — el mismo
     carry-forward que ya usa el resto de la app para huecos entre syncs
     (si el salario no cambió, sencillamente no hay snapshot nuevo). Si no
@@ -125,9 +125,9 @@ def _salary_at(history: list[SalarySnapshot], target: datetime) -> int:
 def _total_salary(purchased_at: datetime, end: datetime, history: list[SalarySnapshot]) -> int:
     """Semana a semana desde la compra hasta `end`, más UNA semana extra —
     el primer sueldo se paga completo el día de la compra, no se prorratea."""
-    weeks = _weeks_owned(purchased_at, end)
+    weeks = weeks_owned(purchased_at, end)
     return sum(
-        _salary_at(history, purchased_at + timedelta(weeks=w))
+        salary_at(history, purchased_at + timedelta(weeks=w))
         for w in range(weeks + 1)
     )
 

@@ -20,8 +20,6 @@ from app.domain.engines.insights import (
     relegation_danger,
     salary_market_mismatch,
     sector_standouts,
-    sell_candidates,
-    sell_window_approaching,
     sold_out_sectors,
     sponsor_popularity_trend,
     stale_data,
@@ -103,14 +101,6 @@ def test_injuries_and_ageing() -> None:
     ]
     assert injuries(squad)[0].severity is Severity.WARNING
     assert ageing_squad(squad)[0].severity is Severity.INFO
-
-
-def test_sell_candidates_detects_peak() -> None:
-    out = sell_candidates([
-        {"name": "Veterano", "best_week": 0, "price_now": 500_000},
-        {"name": "Joven", "best_week": 20, "price_now": 300_000},
-    ])
-    assert out and "Veterano" in out[0].detail
 
 
 def test_collect_orders_by_urgency() -> None:
@@ -222,15 +212,6 @@ def test_sector_standouts_names_the_top_contributor() -> None:
     assert out and "Ancker" in out[0].title
 
 
-def test_sell_window_approaching_is_only_the_near_future() -> None:
-    out = sell_window_approaching([
-        {"ht_player_id": 1, "name": "Pronto", "best_week": 2},
-        {"ht_player_id": 2, "name": "Lejos", "best_week": 30},
-        {"ht_player_id": 3, "name": "Ya", "best_week": 0},
-    ])
-    assert len(out) == 1 and "Pronto" in out[0].title
-
-
 # ── Economía ─────────────────────────────────────────────────────────────────
 
 def test_income_concentration_flags_a_dominant_source() -> None:
@@ -277,6 +258,12 @@ def test_promotion_chance_fires_for_a_leader() -> None:
     lider = {**RELEGATION_ROW, "promotion_probability": 0.6, "relegation_probability": 0.0}
     out = promotion_chance(lider)
     assert out and out[0].severity is Severity.OPPORTUNITY
+    # `promotion_probability` es en realidad P(terminar 1º) — nunca prometer
+    # "ascenso" sin más: el ascenso real depende del ranking nacional de
+    # campeones, que el motor no modela (ver season_simulator.py).
+    assert "ascender" not in out[0].title.lower()
+    assert "1º" in out[0].title
+    assert "ranking nacional" in out[0].detail
 
 
 def test_next_match_forecast_labels_favorite_and_underdog() -> None:

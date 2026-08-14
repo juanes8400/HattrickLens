@@ -17,7 +17,7 @@ from app.application.dto.dashboard import (
     SquadSummary,
     TrainingSummary,
 )
-from app.domain.engines.economy_engine import structural_balance
+from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
 from app.domain.value_objects.ht_constants import (
     CONFIDENCE,
     TEAM_SPIRIT,
@@ -47,6 +47,9 @@ class DashboardQueryService:
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
+        # CHPP entrega importes en la moneda base del juego: hay que dividir
+        # por la tasa del país o se muestran inflados (Colombia = 10).
+        rate = team.currency_rate or 1.0
 
         last_sync = await self._s.scalar(
             select(m.Sync)
@@ -73,9 +76,9 @@ class DashboardQueryService:
         rows = await self._latest_players(team_id)
         players = [snap for snap, _ in rows]
         if rows:
-            resp.squad = self._squad(players)
+            resp.squad = self._squad(players, rate)
             top = sorted(rows, key=lambda r: -r[0].salary)[:5]
-            resp.top_salaries = [self._row(snap, ident) for snap, ident in top]
+            resp.top_salaries = [self._row(snap, ident, rate) for snap, ident in top]
 
         econ = await self._s.scalar(
             select(m.EconomySnapshot)
@@ -84,9 +87,6 @@ class DashboardQueryService:
             .limit(1)
         )
         if econ:
-            # CHPP entrega importes en la moneda base del juego: hay que dividir
-            # por la tasa del país o se muestran inflados (Colombia = 10).
-            rate = team.currency_rate or 1.0
 
             def local(v: int) -> int:
                 return int(round(v / rate))
@@ -101,7 +101,8 @@ class DashboardQueryService:
                 fan_club_size=econ.fan_club_size,          # no es dinero
                 last_weeks_total=local(econ.last_weeks_total),
                 structural_balance=local(structural_balance(
-                    econ.income_sponsors, econ.income_spectators,
+                    total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses),
+                    econ.income_spectators,
                     econ.costs_players, econ.costs_staff, econ.costs_arena,
                 )),
                 currency=team.currency_name or "",
@@ -154,18 +155,18 @@ class DashboardQueryService:
         )
         return [(r[0], r[1]) for r in (await self._s.execute(stmt)).all()]
 
-    def _squad(self, players: list[m.PlayerSnapshot]) -> SquadSummary:
+    def _squad(self, players: list[m.PlayerSnapshot], rate: float) -> SquadSummary:
         n = len(players)
         avg_age = sum(p.age_years + p.age_days / 112 for p in players) / n
         return SquadSummary(
             player_count=n,
             avg_age=round(avg_age, 1),
             total_tsi=sum(p.tsi for p in players),
-            total_salary=sum(p.salary for p in players),
+            total_salary=int(round(sum(p.salary for p in players) / rate)),
             injured_count=sum(1 for p in players if p.injury_level > -1),
         )
 
-    def _row(self, p: m.PlayerSnapshot, ident: m.Player) -> PlayerRow:
+    def _row(self, p: m.PlayerSnapshot, ident: m.Player, rate: float) -> PlayerRow:
         return PlayerRow(
             ht_player_id=ident.ht_player_id,
             name=f"{ident.first_name} {ident.last_name}",
@@ -174,7 +175,7 @@ class DashboardQueryService:
             tsi=p.tsi,
             form=p.form,
             stamina=p.stamina,
-            salary=p.salary,
+            salary=int(round(p.salary / rate)),
             injury_level=p.injury_level,
             skills={alias: getattr(p, col) or 0 for col, alias in SKILL_COLS.items()},
         )

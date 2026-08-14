@@ -56,7 +56,6 @@ default_assistant_level_sum: 10    # the validation club is at the ceiling
 # Coach profile. The CHPP-to-profile correspondence remains provisional.
 coach_reference_level: 7
 coach_penalty_per_level: 0.10
-excellent_coach_level: 8
 apply_excellent_coach_bonus: true
 excellent_coach_bonus: 0.05
 

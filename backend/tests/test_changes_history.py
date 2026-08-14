@@ -111,13 +111,51 @@ def test_changes_history_uses_only_the_last_snapshot_of_each_iso_week() -> None:
                 _snapshot(syncs[3].id, player.id, monday + timedelta(days=7), passing=8),
             ])
             await session.commit()
-            result = await build_changes_history(session, team.id, player.ht_player_id)
+            fixed_now = monday + timedelta(days=7, hours=1)
+            result = await build_changes_history(
+                session, team.id, player.ht_player_id, now=fixed_now
+            )
 
         # Week 31 closes at 7; week 32 closes at 8. The intra-week 5→6 and
         # 6→7 transitions remain auditable in storage but are not UI diffs.
         assert [(event["before"], event["current"], event["delta"])
                 for event in result["skillChanges"] if event["key"] == "passing"] == [(7, 8, 1)]
         assert [point["tsi"] for point in result["series"]] == [10_000, 10_000]
+        await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_changes_history_series_salary_is_converted_to_local_currency() -> None:
+    """CHPP da el salario en la moneda base del juego, no en la local
+    (Colombia = tasa 10) — igual que en sync_comparison.py, el gráfico de
+    la ficha del jugador debe dividir por la tasa o se ve 10x inflado."""
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        now = datetime.now(UTC)
+        async with factory() as session:
+            team = m.Team(ht_team_id=1, name="Equipo", currency_rate=10.0)
+            session.add(team)
+            await session.flush()
+            player = m.Player(ht_player_id=11, team_id=team.id, first_name="Ana", last_name="Prueba")
+            session.add(player)
+            await session.flush()
+
+            sync = m.Sync(user_id=1, team_id=team.id, kind="players", status="completed", started_at=now, finished_at=now)
+            session.add(sync)
+            await session.flush()
+            session.add(_snapshot(sync.id, player.id, now, salary=123_450))
+            await session.commit()
+
+            result = await build_changes_history(session, team.id, player.ht_player_id)
+
+        assert result["series"][0]["salary"] == 12_345
         await engine.dispose()
 
     asyncio.run(scenario())

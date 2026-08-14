@@ -1,21 +1,46 @@
 import { Chart } from "../charts/Chart";
-import { timelineOption } from "../charts/chartOptions";
+import { proportionalTimelineOption, timelineOption } from "../charts/chartOptions";
 import { DateRangeFilter, useDateRangeFilter } from "../components/DateRangeFilter";
-import { ErrorState, GaugeBar, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import { useClub } from "../hooks/useTeam";
-import { date } from "../hooks/useFormat";
+import { date, money, number } from "../hooks/useFormat";
+import type { ClubStaffRole, ClubStaffRoleEffect } from "../services/api";
+
+/** Aporte real de cada puesto, según las tablas oficiales de Hattrick que
+ * pasó el usuario 2026-08-12 — cada línea sólo aparece si el efecto trae
+ * ese campo (distinto por rol: asistente de entrenador vs. director
+ * financiero no comparten ninguna clave). */
+function staffEffectLines(effect: ClubStaffRoleEffect): string[] {
+  const lines: string[] = [];
+  if (effect.trainingSpeedPct != null) lines.push(`Velocidad de entrenamiento +${effect.trainingSpeedPct}%`);
+  if (effect.recoverySpeedPct != null) lines.push(`Velocidad de recuperación +${effect.recoverySpeedPct}%`);
+  if (effect.backgroundForm != null && effect.backgroundForm !== 0) lines.push(`Forma de fondo +${effect.backgroundForm}`);
+  if (effect.injuryRiskPp != null && effect.injuryRiskPp !== 0) lines.push(`Riesgo de lesión +${effect.injuryRiskPp} pp`);
+  if (effect.injuryRiskReductionPp != null && effect.injuryRiskReductionPp !== 0) lines.push(`Riesgo de lesión −${effect.injuryRiskReductionPp} pp`);
+  if (effect.teamSpirit != null && effect.teamSpirit !== 0) lines.push(`Espíritu del equipo +${effect.teamSpirit}`);
+  if (effect.confidence != null && effect.confidence !== 0) lines.push(`Confianza +${effect.confidence}`);
+  if (effect.maxFunds != null) lines.push(`Fondos máximos ${money(effect.maxFunds, "US$")}`);
+  if (effect.weeklyReturn != null) lines.push(`Retorno semanal ${money(effect.weeklyReturn, "US$")}`);
+  if (effect.extraOrders != null && effect.extraOrders !== 0) lines.push(`+${effect.extraOrders} órdenes extra`);
+  if (effect.styleFlexibilityPp != null && effect.styleFlexibilityPp !== 0) lines.push(`Flexibilidad de estilo +${effect.styleFlexibilityPp} pp`);
+  return lines;
+}
 
 /** Club y staff: las tres subpestañas de Hattrick Control reunidas sin perder
  * la distinción entre dato actual y serie observada. */
 export function ClubPage() {
   const { data, isLoading, isError, error } = useClub();
 
-  const moodLabels = (data?.moodHistory ?? []).map((item) => date(item.capturedAt));
-  const fanLabels = (data?.supporterHistory ?? []).map((item) => date(item.capturedAt));
-  const staffLabels = (data?.staffHistory ?? []).map((item) => date(item.capturedAt));
-  const mood = useDateRangeFilter(moodLabels);
-  const fan = useDateRangeFilter(fanLabels);
-  const staffRange = useDateRangeFilter(staffLabels);
+  // Timestamps ISO reales (no el "dd/mm/yyyy" de `date()`) para que el
+  // filtro de rango compare fechas correctamente — comparar cadenas
+  // "dd/mm/yyyy" como si fueran ISO da resultados sin sentido, mismo
+  // patrón ya usado en EconomyPage/PlayerPage.
+  const moodTimestamps = (data?.moodHistory ?? []).map((item) => item.capturedAt);
+  const fanTimestamps = (data?.supporterHistory ?? []).map((item) => item.capturedAt);
+  const staffTimestamps = (data?.staffHistory ?? []).map((item) => item.capturedAt);
+  const mood = useDateRangeFilter(moodTimestamps);
+  const fan = useDateRangeFilter(fanTimestamps);
+  const staffRange = useDateRangeFilter(staffTimestamps);
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -39,7 +64,7 @@ export function ClubPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi
           label="Espíritu del equipo"
           value={current.spirit ? `${current.spirit.label} (${current.spirit.level})` : "Sin dato"}
@@ -58,6 +83,11 @@ export function ClubPage() {
           value={staff ? String(staff.totalLevels) : "Sin dato"}
           hint={staff ? `entrenador ${staff.trainer.typeLabel.toLowerCase()} · nivel ${staff.trainer.skillLevel}` : undefined}
         />
+        <Kpi
+          label="Inversión juvenil"
+          value={staff ? number(staff.youthInvestment) : "Sin dato"}
+          hint={staff ? `nivel juvenil ${staff.youthLevel}` : undefined}
+        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -68,8 +98,8 @@ export function ClubPage() {
                 <DateRangeFilter range={mood.range} onChange={mood.setRange} min={mood.min} max={mood.max} />
               </div>
               <Chart
-                ariaLabel="Evolución observada de espíritu y confianza"
-                option={timelineOption(pick(moodLabels, mood.indices), [
+                ariaLabel="Evolución observada de espíritu y confianza, un punto por cada cambio real"
+                option={proportionalTimelineOption(pick(moodTimestamps, mood.indices), [
                   { name: "Espíritu", values: pick(data.moodHistory.map((item) => item.spirit), mood.indices) },
                   { name: "Confianza", values: pick(data.moodHistory.map((item) => item.confidence), mood.indices) },
                 ])}
@@ -81,37 +111,44 @@ export function ClubPage() {
           )}
         </Panel>
 
-        <Panel title="Afición y patrocinadores" meta={`${data.supporterHistory.length} lectura(s)`}>
+        <Panel title="Socios y afición" meta={`${data.supporterHistory.length} lectura(s)`}>
           {hasFanHistory ? (
             <>
               <div className="border-b border-[var(--border)] px-4 py-2">
                 <DateRangeFilter range={fan.range} onChange={fan.setRange} min={fan.min} max={fan.max} />
               </div>
               <Chart
-                ariaLabel="Socios y popularidad de aficionados y patrocinadores"
+                ariaLabel="Evolución observada de socios y popularidad de aficionados, un punto por cada cambio real"
                 option={{
-                  legend: { bottom: 0 },
+                  legend: { bottom: 0, type: "scroll" },
                   grid: { left: 48, right: 48, top: 24, bottom: 40, containLabel: true },
-                  xAxis: { type: "category", data: pick(fanLabels, fan.indices), boundaryGap: false },
+                  xAxis: { type: "time" },
                   yAxis: [
                     { type: "value", name: "Socios", splitLine: { lineStyle: { opacity: 0.15 } } },
                     { type: "value", name: "Popularidad", min: 0, max: 9 },
                   ],
                   dataZoom: [{ type: "inside" }],
+                  tooltip: { trigger: "axis" },
                   series: [
-                    { name: "Socios", type: "line", data: pick(data.supporterHistory.map((item) => item.fanClubSize), fan.indices), smooth: true },
-                    { name: "Afición", type: "line", yAxisIndex: 1, data: pick(data.supporterHistory.map((item) => item.supportersPopularity), fan.indices), smooth: true },
-                    { name: "Patrocinadores", type: "line", yAxisIndex: 1, data: pick(data.supporterHistory.map((item) => item.sponsorsPopularity), fan.indices), smooth: true },
+                    {
+                      name: "Socios", type: "line", symbol: "circle", symbolSize: 6,
+                      data: pick(fanTimestamps, fan.indices).map((t, i) => [
+                        t, pick(data.supporterHistory.map((item) => item.fanClubSize), fan.indices)[i],
+                      ]),
+                    },
+                    {
+                      name: "Afición", type: "line", yAxisIndex: 1, symbol: "circle", symbolSize: 6,
+                      data: pick(fanTimestamps, fan.indices).map((t, i) => [
+                        t, pick(data.supporterHistory.map((item) => item.supportersPopularity), fan.indices)[i],
+                      ]),
+                    },
                   ],
                 }}
                 height={240}
               />
             </>
           ) : (
-            <Note>
-              {current.sponsors ? `Patrocinadores: ${current.sponsors.popularityLabel}. ` : ""}
-              El histórico aparecerá al acumular sincronizaciones.
-            </Note>
+            <Note>El histórico aparecerá al acumular sincronizaciones con un valor distinto.</Note>
           )}
         </Panel>
       </div>
@@ -120,7 +157,7 @@ export function ClubPage() {
         <Panel title="Cuerpo técnico" meta={staff ? `lectura ${date(staff.capturedAt)}` : "sin dato"}>
           {staff ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-              {staff.roles.map((role) => <GaugeBar key={role.key} label={role.label} value={role.level} max={10} />)}
+              {staff.roles.map((role) => <StaffRoleCard key={role.key} role={role} />)}
             </div>
           ) : <Note>Sincroniza el club para cargar stafflist y la distribución del cuerpo técnico.</Note>}
         </Panel>
@@ -131,7 +168,6 @@ export function ClubPage() {
               <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Tipo</dt><dd>{staff.trainer.typeLabel}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Nivel</dt><dd>{staff.trainer.skillLevel}/5</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Liderazgo</dt><dd>{staff.trainer.leadership}</dd></div>
-              <div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Inversión juvenil</dt><dd>{staff.youthInvestment.toLocaleString("es-CO")}</dd></div>
             </dl>
           ) : <Note>Sin datos de entrenador todavía.</Note>}
         </Panel>
@@ -146,9 +182,12 @@ export function ClubPage() {
             />
           </div>
           <Chart
-            ariaLabel="Evolución observada de niveles del cuerpo técnico"
+            ariaLabel="Evolución observada de niveles del cuerpo técnico, eje temporada-semana"
             option={timelineOption(
-              pick(staffLabels, staffRange.indices),
+              pick(
+                data.staffHistory.map((item) => item.seasonWeek ?? date(item.capturedAt)),
+                staffRange.indices,
+              ),
               staff.roles.map((role) => ({
                 name: role.label,
                 values: pick(
@@ -167,6 +206,36 @@ export function ClubPage() {
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
         {data.notes.map((note) => <Note key={note}>{note}</Note>)}
       </div>
+    </div>
+  );
+}
+
+function StaffRoleCard({ role }: { role: ClubStaffRole }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs text-[var(--muted)]">{role.label}</span>
+        <span className="tabular-nums text-sm font-semibold">{role.level}</span>
+      </div>
+      {role.members.length > 0 ? (
+        <ul className="mt-2 space-y-0.5 text-xs text-[var(--muted)]">
+          {role.members.map((member, i) => (
+            <li key={i} className="flex justify-between gap-2">
+              <span className="truncate">{member.name}</span>
+              <span className="tabular-nums shrink-0">{member.level}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-[var(--muted)]">Sin nadie en este puesto.</p>
+      )}
+      {role.level > 0 && role.effect && (
+        <ul className="mt-2 space-y-0.5 border-t border-[var(--border)] pt-2 text-xs text-[var(--positive)]">
+          {staffEffectLines(role.effect).map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -488,47 +488,6 @@ def sector_standouts(standouts: list[dict[str, Any]]) -> list[Insight]:
     ]
 
 
-# ── Transferencias ──────────────────────────────────────────────────────────
-
-def sell_candidates(valuations: list[dict[str, Any]], top: int = 3) -> list[Insight]:
-    """HL-101: jugadores que han pasado su pico de valor."""
-    pasados = [v for v in valuations if v.get("best_week", 1) == 0]
-    if not pasados:
-        return []
-    caros = sorted(pasados, key=lambda v: -v.get("price_now", 0))[:top]
-    p = caros[0]
-    return [Insight(
-        key="market.sell_now",
-        severity=Severity.OPPORTUNITY,
-        title=f"{len(pasados)} jugador(es) en su pico de valor",
-        detail=f"{p['name']} no va a valer más de lo que vale hoy.",
-        action="Su valor solo puede bajar a partir de ahora: es el momento de vender.",
-        module="transferencias",
-        evidence={"players": [c["name"] for c in caros]},
-    )]
-
-
-def sell_window_approaching(
-    valuations: list[dict[str, Any]], weeks_min: int = 1, weeks_max: int = 4
-) -> list[Insight]:
-    """HL-101, jugador a jugador: la ventana de venta se acerca, no ha
-    llegado todavía — aviso con antelación, no solo cuando ya pasó."""
-    out: list[Insight] = []
-    for v in valuations:
-        week = v.get("best_week", 0)
-        if weeks_min <= week <= weeks_max:
-            out.append(Insight(
-                key=f"player.sell_window_soon.{v['ht_player_id']}",
-                severity=Severity.INFO,
-                title=f"La ventana de venta de {v['name']} se acerca",
-                detail=f"El modelo proyecta su pico de valor en ~{week} semana(s).",
-                action="Empieza a sondear el mercado si piensas venderlo en su punto máximo.",
-                module="transferencias",
-                evidence={"player": v["name"], "bestWeek": week},
-            ))
-    return out
-
-
 # ── Academia ────────────────────────────────────────────────────────────────
 
 def academy_roi(invested: int, earned: int, currency: str = "") -> list[Insight]:
@@ -638,15 +597,24 @@ def relegation_playoff_risk(own: dict[str, Any], threshold: float = 0.35) -> lis
 
 
 def promotion_chance(own: dict[str, Any], threshold: float = 0.4) -> list[Insight]:
+    """`promotion_probability` es en realidad P(terminar 1º) — idéntica a
+    `title_probability`, ver season_simulator.py. El 1º de una división
+    intermedia asciende directo o juega promoción según el ranking nacional
+    de campeones, que ningún fichero CHPP expone — así que el título de
+    este insight no puede prometer "ascenso" sin más."""
     p = own.get("promotion_probability", 0.0)
     if p < threshold:
         return []
     return [Insight(
         key="league.promotion_chance",
         severity=Severity.OPPORTUNITY,
-        title=f"{p:.0%} de probabilidad de ascender",
-        detail=f"Posición esperada: {own.get('expected_position')}.",
-        action="Con opciones reales de ascenso, cada punto pesa más de lo habitual.",
+        title=f"{p:.0%} de probabilidad de terminar 1º",
+        detail=(
+            f"Posición esperada: {own.get('expected_position')}. El ascenso "
+            "directo o la promoción dependen del ranking nacional de "
+            "campeones — no modelado."
+        ),
+        action="Con opciones reales de terminar 1º, cada punto pesa más de lo habitual.",
         module="liga",
         evidence={"promotionProbability": p},
     )]

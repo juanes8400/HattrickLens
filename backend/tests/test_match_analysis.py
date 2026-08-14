@@ -1,6 +1,5 @@
 """HL-071 a HL-074 · Análisis de partido con los datos reales del 1-2 vs etbenianos1."""
 from app.domain.engines.match_analysis import (
-    ChanceKind,
     ChanceTally,
     aggregate_conversion,
     analyse,
@@ -28,7 +27,7 @@ def test_loddar_is_positive_and_ordered() -> None:
 
 def test_analysis_detects_our_real_problem() -> None:
     """Defensa central 61 contra ataque 9-13: el partido real lo dijo claro."""
-    a = analyse(PULGAS, ETBENIANOS, ChanceTally(normal=3), ChanceTally(normal=4, normal_goals=2))
+    a = analyse(PULGAS, ETBENIANOS, ChanceTally(left=3), ChanceTally(left=4, goals=2))
     assert "Defensa central" in a.strengths
     assert any("Ataque" in w for w in a.weaknesses)
 
@@ -37,26 +36,25 @@ def test_conversion_diagnoses_finishing_vs_creation() -> None:
     # Genero más que el rival pero convierto peor
     a = analyse(
         PULGAS, ETBENIANOS,
-        ChanceTally(normal=10, normal_goals=1),
-        ChanceTally(normal=6, normal_goals=3),
+        ChanceTally(left=10, goals=1),
+        ChanceTally(left=6, goals=3),
     )
     assert "definición" in a.verdict
 
     # Convierto bien pero llego poco
     b = analyse(
         PULGAS, ETBENIANOS,
-        ChanceTally(normal=3, normal_goals=2),
-        ChanceTally(normal=10, normal_goals=2),
+        ChanceTally(left=3, goals=2),
+        ChanceTally(left=10, goals=2),
     )
     assert "generación" in b.verdict
 
 
-def test_chance_tally_rates() -> None:
-    t = ChanceTally(normal=9, normal_goals=3, special=3, special_goals=1, counter=1)
+def test_chance_tally_totals() -> None:
+    t = ChanceTally(left=9, center=3, right=1, goals=4)
     assert t.total == 13
     assert t.goals == 4
-    assert t.rate(ChanceKind.NORMAL) == 3 / 9
-    assert t.rate(ChanceKind.COUNTER) == 0.0
+    assert t.conversion == 4 / 13
 
 
 def test_sector_dominance_and_delta() -> None:
@@ -68,14 +66,16 @@ def test_sector_dominance_and_delta() -> None:
 
 def test_aggregate_conversion_over_several_matches() -> None:
     m = [
-        (ChanceTally(normal=5, normal_goals=1), ChanceTally(normal=4, normal_goals=2)),
-        (ChanceTally(normal=5, normal_goals=2), ChanceTally(normal=6, normal_goals=3)),
+        (ChanceTally(left=5, goals=1), ChanceTally(left=4, goals=2)),
+        (ChanceTally(left=5, goals=2), ChanceTally(left=6, goals=3)),
     ]
     agg = aggregate_conversion(m)
     assert agg["ownChances"] == 10
     assert agg["opponentChances"] == 10
     assert agg["ownConversion"] == 0.3
     assert agg["opponentConversion"] == 0.5
+    assert agg["ownLeft"] == 10
+    assert agg["opponentLeft"] == 10
 
 
 def test_no_chances_is_reported_not_invented() -> None:

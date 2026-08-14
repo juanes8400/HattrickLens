@@ -7,9 +7,9 @@ del partido" e "ingresos a estadio lleno" aísla ese sector:
 
     (630.527 - 535.090) / (10.808 - 5.785) = 19,0000 exacto
 
-Los otros tres precios necesitan un partido donde esos sectores NO se llenen.
-Se dejan como parámetros con el valor por defecto del consenso de la comunidad
-y se marcan como no verificados: `TICKET_PRICES_VERIFIED`.
+Los otros tres precios (General, Preferentes, Palcos) los confirmó el usuario
+directamente — 2026-08-13, "para toda la herramienta" — así que los cuatro
+sectores están verificados: `TICKET_PRICES_VERIFIED`.
 
 DEMANDA INSATISFECHA. Cuando un sector se llena, la asistencia observada es un
 límite inferior de la demanda real — está censurada. Ignorar eso lleva a
@@ -20,14 +20,14 @@ from dataclasses import dataclass
 
 SECTORS = ("general", "preferentes", "tribunas", "palcos")
 
-# Precio por asiento en moneda local. Solo 'tribunas' está verificado.
+# Precio por asiento en moneda local. Los cuatro sectores están verificados.
 TICKET_PRICES: dict[str, float] = {
-    "general": 9.5,
-    "preferentes": 14.0,
-    "tribunas": 19.0,      # verificado exactamente
-    "palcos": 47.5,
+    "general": 7.0,
+    "preferentes": 10.0,
+    "tribunas": 19.0,      # verificado exactamente contra un partido real
+    "palcos": 35.0,
 }
-TICKET_PRICES_VERIFIED = {"tribunas"}
+TICKET_PRICES_VERIFIED = {"general", "preferentes", "tribunas", "palcos"}
 
 
 @dataclass(frozen=True)

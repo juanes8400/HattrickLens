@@ -9,7 +9,7 @@ calcular el resultado. Nunca inventa un valor de mercado para un jugador
 que sigue sin venderse.
 """
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,11 +19,8 @@ from app.domain.engines.player_balance import (
     PlayerTransferRecord,
     SalarySnapshot,
     compute_balance,
-)
-from app.domain.engines.resale_bonus import (
-    ConfirmedSale,
-    WeeklyIncome,
-    distribute_resale_bonus,
+    salary_at,
+    weeks_owned,
 )
 from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
@@ -108,6 +105,27 @@ _BID_HOUR_LABELS_ORDER = [_format_hour_range(h, h + 2) for h in range(0, 24, 2)]
 
 
 @dataclass
+class SalaryWeekSegment:
+    """Tramo de semanas consecutivas con el mismo sueldo, en la misma
+    temporada — pedido explícitamente para la ficha de ex-jugador ("11
+    semanas con X sueldo en temporada W, 4 semanas con Y sueldo en
+    temporada Z") en vez de un solo total acumulado."""
+    weeks: int
+    salary: int
+    season: str
+
+
+@dataclass
+class ListingAttemptRow:
+    """Un intento de venta enumerado (no solo contado) — pedido
+    explícitamente 2026-08-08. Solo cubre intentos detectados desde que
+    existe `player_listing_attempts` (0038); anteriores a esa fecha siguen
+    solo en el contador `listing_count`."""
+    highest_bid: int | None
+    detected_at: str
+
+
+@dataclass
 class PlayerBalanceRow:
     ht_player_id: int
     name: str
@@ -118,9 +136,17 @@ class PlayerBalanceRow:
     sale_price: int | None
     sold_at: str | None
     salary_total: int
+    salary_breakdown: list[SalaryWeekSegment]
     listing_count: int
+    listing_attempts: list[ListingAttemptRow]
     listing_cost: int
     agent_pct: float | None
+    # HL-161, 2026-08-14: comisión de club anterior EXACTA — suma de
+    # `PreviousClubBonus.amount` (convertida) para este jugador, si el club
+    # al que se lo vendimos ya lo revendió. 0.0 si todavía no hay ninguna
+    # reventa detectada (nunca una aproximación repartida entre candidatos:
+    # ver `previous_club_bonus.py`, reemplaza por completo el reparto
+    # heurístico que vivía en `resale_bonus.py`).
     resale_bonus_share: float
     saldo: float | None
     is_sold: bool
@@ -275,7 +301,11 @@ class PlayerBalanceQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def get(self, team_id: int, season: str | None = None) -> PlayerBalanceResponse | None:
+    async def get(
+        self,
+        team_id: int,
+        season: str | None = None,
+    ) -> PlayerBalanceResponse | None:
         """`season`: filtro general de temporadas, pedido explícitamente
         2026-08-04 — `None`/"all" trae todo (comportamiento de siempre); un
         valor real de `by_season` (p. ej. "Temporada 83") limita "Detalle" y
@@ -349,6 +379,28 @@ class PlayerBalanceQueryService:
             )
             snapshots_by_player.setdefault(snap.player_id, []).append(snap)
 
+        # Intentos de venta enumerados — pedido explícitamente 2026-08-08,
+        # solo cubre lo detectado desde que existe player_listing_attempts
+        # (0038); `listing_count` sigue siendo el total real (puede ser
+        # mayor si hubo intentos antes de esa fecha).
+        listing_attempt_rows = list(
+            (
+                await self._s.execute(
+                    select(m.PlayerListingAttempt)
+                    .where(m.PlayerListingAttempt.player_id.in_(player_ids))
+                    .order_by(m.PlayerListingAttempt.detected_at)
+                )
+            ).scalars()
+        )
+        listing_attempts_by_player: dict[int, list[ListingAttemptRow]] = {}
+        for attempt in listing_attempt_rows:
+            listing_attempts_by_player.setdefault(attempt.player_id, []).append(
+                ListingAttemptRow(
+                    highest_bid=conv(attempt.highest_bid),
+                    detected_at=attempt.detected_at.isoformat(),
+                )
+            )
+
         def snapshot_at(player_id: int, when: datetime) -> m.PlayerSnapshot | None:
             candidates = [
                 s for s in snapshots_by_player.get(player_id, []) if s.captured_at <= when
@@ -398,43 +450,23 @@ class PlayerBalanceQueryService:
             season = world.season - elapsed_days // Age.DAYS_PER_YEAR
             return f"Temporada {season}"
 
-        # Reparto de reventa futura de origen desconocido: necesita las
-        # ventas confirmadas (transfersteam.xml) y el ingreso semanal YA
-        # CERRADO de economy.xml. 2026-08-05, confirmado explícitamente:
-        # solo entre las ventas de la MISMA temporada que el ingreso "de
-        # más" — nunca repartido entre toda la historia (una reventa que
-        # Hattrick acredita esta temporada solo puede venir de alguien que
-        # vendiste hace relativamente poco, no de un traspaso de hace 10
-        # temporadas).
-        confirmed_sales = [
-            ConfirmedSale(
-                ht_player_id=p.ht_player_id, sale_price=conv(p.sale_price) or 0, sold_at=p.sold_at,
-                season=season_at(p.sold_at),
+        # Comisión de club anterior EXACTA — HL-161, 2026-08-14. Reemplaza
+        # por completo el reparto heurístico de "reventa futura de origen
+        # desconocido" que vivía aquí (repartida proporcionalmente entre
+        # candidatos, `resale_bonus.py`, ya eliminado): cada reventa real
+        # de un ex-jugador nuestro es una fila propia en
+        # `previous_club_bonuses`, calculada partido a partido cuando se
+        # detecta (ver `_check_previous_club_bonus` en sync_team.py) — no
+        # una aproximación.
+        bonus_rows = (
+            await self._s.execute(
+                select(m.PreviousClubBonus.ht_player_id, m.PreviousClubBonus.amount)
+                .where(m.PreviousClubBonus.player_id.in_([p.id for p in players]))
             )
-            for p in players
-            if p.sale_price is not None and p.sold_at is not None
-        ]
-        economy_rows = list(
-            (
-                await self._s.execute(
-                    select(m.EconomySnapshot)
-                    .where(
-                        m.EconomySnapshot.team_id == team_id,
-                        m.EconomySnapshot.last_income_sold_players.isnot(None),
-                    )
-                    .order_by(m.EconomySnapshot.captured_at)
-                )
-            ).scalars()
-        )
-        weekly_income = [
-            WeeklyIncome(
-                closed_at=row.captured_at,
-                income_sold_players=conv(row.last_income_sold_players) or 0,
-                season=season_at(row.captured_at),
-            )
-            for row in economy_rows
-        ]
-        resale_shares = distribute_resale_bonus(weekly_income, confirmed_sales)
+        ).all()
+        resale_shares: dict[int, float] = {}
+        for ht_player_id, amount in bonus_rows:
+            resale_shares[ht_player_id] = resale_shares.get(ht_player_id, 0.0) + (conv(amount) or 0)
 
         # Entrenamiento activo en la semana de cada venta (para agrupar
         # el saldo por tipo de entrenamiento — pedido explícitamente).
@@ -455,6 +487,27 @@ class PlayerBalanceQueryService:
             if not candidates:
                 return None
             return training_skill_name(candidates[-1].training_type)
+
+        def salary_breakdown(
+            purchased_at: datetime | None, end: datetime | None, history: list[SalarySnapshot],
+        ) -> list[SalaryWeekSegment]:
+            """Mismo recorrido semana a semana que `_total_salary` en el
+            motor de dominio (misma cuenta de semanas, mismo carry-forward),
+            pero agrupando tramos consecutivos de igual sueldo Y temporada
+            en vez de sumarlos — pedido explícitamente para la ficha de
+            ex-jugador en vez de un solo total acumulado."""
+            if purchased_at is None or end is None:
+                return []
+            segments: list[SalaryWeekSegment] = []
+            for w in range(weeks_owned(purchased_at, end) + 1):
+                week_date = purchased_at + timedelta(weeks=w)
+                amount = salary_at(history, week_date)
+                season = season_at(week_date)
+                if segments and segments[-1].salary == amount and segments[-1].season == season:
+                    segments[-1].weeks += 1
+                else:
+                    segments.append(SalaryWeekSegment(weeks=1, salary=amount, season=season))
+            return segments
 
         rows: list[PlayerBalanceRow] = []
         total_saldo = 0.0
@@ -529,6 +582,9 @@ class PlayerBalanceQueryService:
                 as_of=datetime.now(UTC).replace(tzinfo=None),
             )
             balance: PlayerBalance = compute_balance(record)
+            salary_breakdown_rows = salary_breakdown(
+                purchased_at, effective_sold_at or record.as_of, record.salary_history,
+            )
 
             training_label = training_at(effective_sold_at) if effective_sold_at else None
             # Reutilizado tanto en la fila (para el filtro general de
@@ -609,7 +665,9 @@ class PlayerBalanceQueryService:
                     sale_price=effective_sale_price,
                     sold_at=effective_sold_at.isoformat() if effective_sold_at else None,
                     salary_total=balance.salary_total,
+                    salary_breakdown=salary_breakdown_rows,
                     listing_count=p.listing_count,
+                    listing_attempts=listing_attempts_by_player.get(p.id, []),
                     listing_cost=balance.listing_cost,
                     agent_pct=balance.agent_pct if balance.is_sold else None,
                     resale_bonus_share=balance.resale_bonus_share,

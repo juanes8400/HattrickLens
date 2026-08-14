@@ -14,9 +14,11 @@ from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHis
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.training_context import TrainingContextService
+from app.application.queries.training_squad import TrainingSquadQueryService
+from app.application.queries.weekly import season_week_label, season_week_offset_for
 from app.domain.engines import insights as ins
 from app.domain.engines.career_stage_engine import classify_career_stage
-from app.domain.engines.economy_engine import structural_balance
+from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
 from app.domain.engines.experience_engine import (
     calibrate,
 )
@@ -28,13 +30,13 @@ from app.domain.engines.lineup_optimizer import (
     best_lineup,
     weather_impact,
 )
+from app.domain.engines.loyalty_engine import calibrate as loyalty_calibrate
+from app.domain.engines.loyalty_engine import model_info as loyalty_model_info
+from app.domain.engines.loyalty_engine import progress_within_level as loyalty_progress
 from app.domain.engines.position_engine import rate_all
 from app.domain.engines.pricing_engine import (
     SALARY_FIELD_SKILLS,
     estimate_salary,
-    optimal_sell_window,
-    training_roi,
-    value_player,
 )
 from app.domain.engines.team_rating_engine import (
     SECTOR_LABELS,
@@ -43,10 +45,15 @@ from app.domain.engines.team_rating_engine import (
 )
 from app.domain.engines.training_engine import (
     TrainingSetup,
+    default_setup as default_training_setup,
     model_info as training_model_info,
     weeks_to_next_level,
 )
 from app.domain.value_objects.ht_constants import match_role_name, training_target
+from app.domain.value_objects.stamina_reference import (
+    age_after_weeks,
+    stamina_forecast_level,
+)
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 
@@ -75,6 +82,11 @@ async def roster(session: AsyncSession, team_id: int) -> tuple[list[dict[str, An
             # antes se ponían a 0 a mano porque no se persistían todavía.
             "specialty": snap.specialty,
             "leadership": snap.leadership,
+            # 2026-08-09: bug real corregido de paso — sin esto,
+            # _loyalty_bonus() en position_engine.py siempre daba 0 (ningún
+            # llamador pasaba "loyalty"), pese a que positions.yaml ya
+            # declara la fidelidad como ajuste del Manual.
+            "loyalty": snap.loyalty,
             "injury_level": snap.injury_level,
             "is_transfer_listed": snap.is_transfer_listed,
             "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
@@ -132,7 +144,6 @@ async def player_detail(
     # no deben desplazar la mejor posición de cancha en la ficha.
     field_ranked = rate_all(p)
     ranked = field_ranked + [r for r in rate_all(p, include_special=True) if r.is_special_role]
-    v = value_player(p["skills"], p["age_years"], p["age_days"], p["form"], p["specialty"], rate_)
 
     tr = await session.scalar(
         select(m.TrainingSnapshot)
@@ -147,11 +158,10 @@ async def player_detail(
         trained_skill = ctx.trained_skill
     else:
         trained_skill = training_target(tr.training_type) if tr else None
-        setup = TrainingSetup(
-            skill=trained_skill or "playmaking",
+        setup = default_training_setup(
+            trained_skill or "playmaking",
             intensity=tr.training_level if tr else 100,
-            stamina_share=tr.stamina_part if tr else 0,
-            coach_level=8, coach_is_excellent=True, assistant_level_sum=10,
+            stamina_share=tr.stamina_part if tr else None,
         )
     training_speed = (
         weeks_to_next_level(
@@ -168,14 +178,8 @@ async def player_detail(
     weekly_training_progress_pct = (
         round(training_speed.weekly_progress * 100, 1) if training_speed else None
     )
-    w = optimal_sell_window(
-        p["skills"], p["age_years"], p["age_days"],
-        weeks_to_next_pop=weeks_to_next_pop, trained_skill=trained_skill,
-        currency_rate=rate_,
-    )
-
-    # HL-141: fórmula de comunidad, distinta de `value_player` (precio de
-    # mercado, supuesto). Sirve para contrastar contra el sueldo real que ya
+    # HL-141: fórmula de comunidad, distinta de un modelo de precio de
+    # mercado. Sirve para contrastar contra el sueldo real que ya
     # reporta CHPP (arriba) y para proyectar el sueldo tras la próxima subida
     # de la habilidad entrenada. Solo cubre jugadores de campo — para un
     # arquero (Portero es su mejor posición) el manual no publica la fórmula
@@ -200,11 +204,120 @@ async def player_detail(
     top_skill_distributions = await history_svc.top_skill_distributions(team_id, ht_player_id)
     experience_progress = await history_svc.experience_progress(ht_player_id)
 
+    # "TT-ss" por punto — mismo filtro por `ht_league_id` que economy.py
+    # (bug real corregido 2026-08-09: "la fila de WorldContext más reciente"
+    # daba cualquier país al azar en cuanto había más de uno).
+    world = (
+        await session.scalar(
+            select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+        )
+        if team.ht_league_id is not None else None
+    )
+
+    def _season_week(captured_at: str) -> str | None:
+        when = datetime.fromisoformat(captured_at)
+        return season_week_label(world, weeks_offset=season_week_offset_for(world, when))
+
     squad = await SquadQueryService(session).get(team_id)
     squad_player = (
         next((sp for sp in squad.players if sp.ht_player_id == ht_player_id), None)
         if squad is not None else None
     )
+
+    # HL-15x, pedido explícito 2026-08-10: "cuándo entró al equipo" para el
+    # punto más antiguo del radar — la compra real es más honesta que "la
+    # primera vez que sincronizamos", que puede ser meses después de que el
+    # jugador ya estaba en el club. `purchased_at_manual` (HL-161) es el
+    # respaldo para jugadores que llegaron antes de que existiera el
+    # tracking de compras; si tampoco hay eso, el radar sigue cayendo de
+    # vuelta al primer snapshot real (sin inventar una fecha).
+    player_row = await session.scalar(
+        select(m.Player).where(
+            m.Player.team_id == team_id, m.Player.ht_player_id == ht_player_id
+        )
+    )
+    joined_at = (
+        (player_row.purchased_at or player_row.purchased_at_manual)
+        if player_row is not None else None
+    )
+    joined_season_week = _season_week(joined_at.isoformat()) if joined_at is not None else None
+    # "Precio de compra" se declara "real, de transfersteam.xml" — a
+    # diferencia de arriba, aquí NUNCA se usa el respaldo manual, para no
+    # ponerle un "TT-ss" real a una fecha que en realidad es una estimación.
+    purchased_at_season_week = (
+        _season_week(player_row.purchased_at.isoformat())
+        if player_row is not None and player_row.purchased_at is not None
+        else None
+    )
+
+    # HL-15x, pedido explícito 2026-08-10: ¿jugó esta semana? — señal simple
+    # para la barrita de la habilidad entrenada (el rojo del ritmo semanal
+    # solo se muestra si jugó) y para Forma (no hay fórmula propia, solo se
+    # marca que algo pudo haber cambiado).
+    current_week_label = season_week_label(world, weeks_offset=0)
+    played_this_week = bool(
+        match_rating_history
+        and current_week_label is not None
+        and _season_week(match_rating_history[-1].captured_at) == current_week_label
+    )
+
+    # HL-15x, pedido explícito 2026-08-10: progreso decimal real de Fidelidad
+    # (p.ej. 5.62 en vez de solo "5") cuando ya hay calibración real para la
+    # transición en la que está el jugador — ver loyalty_engine.py. Sin
+    # calibración para esa transición, se cae de vuelta al nivel entero (el
+    # frontend hace ese fallback con `loyaltyDecimal ?? loyalty`).
+    loyalty_decimal: float | None = None
+    if squad_player is not None and squad_player.loyalty is not None:
+        level_started_at = await history_svc.loyalty_level_started_at(ht_player_id)
+        if level_started_at is not None:
+            loyalty_observations, _ = await history_svc.loyalty_level_up_observations(team_id)
+            loyalty_cal = loyalty_calibrate(loyalty_observations)
+            now = (
+                world.refreshed_at
+                if world is not None and world.refreshed_at is not None
+                else datetime.now(UTC)
+            )
+            now_aware = now if now.tzinfo else now.replace(tzinfo=UTC)
+            started_aware = (
+                level_started_at if level_started_at.tzinfo
+                else level_started_at.replace(tzinfo=UTC)
+            )
+            days_at_level = (now_aware - started_aware).days
+            loyalty_decimal = loyalty_progress(squad_player.loyalty, days_at_level, loyalty_cal)
+
+    # HL-15x, pedido explícito 2026-08-10: proyección de Resistencia (líneas
+    # punteadas en "Evolución de habilidades") según la tabla de Federación
+    # Ocerin — asume que el % de entrenamiento de resistencia actual se
+    # mantiene constante hacia adelante; `None` si no hay WorldContext propio
+    # (no hay forma de etiquetar "TT-ss" futuras) o la edad ya no está
+    # cubierta por la tabla (17-36).
+    stamina_forecast: dict[str, Any] | None = None
+    if world is not None:
+        current_stamina_pct = setup.effective_stamina_intensity
+        forecast_season_weeks: list[str | None] = []
+        forecast_levels: list[int] = []
+        for weeks_ahead in range(1, 9):
+            proj_years, proj_days = age_after_weeks(
+                p["age_years"], p["age_days"], weeks_ahead
+            )
+            level = stamina_forecast_level(proj_years, current_stamina_pct)
+            if level is None:
+                continue
+            forecast_season_weeks.append(season_week_label(world, weeks_offset=weeks_ahead))
+            forecast_levels.append(level)
+        # Nivel esperado HOY con el % real actual — la barrita de Resistencia
+        # lo compara contra el nivel real (`p["stamina"]`) para decidir si el
+        # rojo se agrega (sube) o se come parte del azul (baja).
+        current_expected_level = stamina_forecast_level(
+            p["age_years"], current_stamina_pct
+        )
+        if forecast_levels or current_expected_level is not None:
+            stamina_forecast = {
+                "seasonWeeks": forecast_season_weeks,
+                "levels": forecast_levels,
+                "trainingPct": round(current_stamina_pct, 1),
+                "currentExpectedLevel": current_expected_level,
+            }
 
     # HL-15x #87: preclasificación de "en qué momento de su vida está" — motor
     # puro, aquí solo se ensamblan las señales reales que necesita.
@@ -268,18 +381,10 @@ async def player_detail(
              "isSpecialRole": r.is_special_role}
             for r in ranked
         ],
-        "valuation": {
-            "expectedPrice": v.expected_price, "low": v.low, "high": v.high,
-            "confidence": v.confidence,
-        },
         "training": {
             "trainedSkill": trained_skill,
             "weeksToPop": round(weeks_to_next_pop, 1) if weeks_to_next_pop is not None else None,
             "weeklyProgressPct": weekly_training_progress_pct,
-        },
-        "sellWindow": {
-            "bestWeek": w.best_week, "peakPrice": w.peak_price,
-            "priceNow": w.price_now, "verdict": w.verdict,
         },
         "salaryEstimate": (
             {
@@ -292,6 +397,11 @@ async def player_detail(
             else None
         ),
         "loyalty": squad_player.loyalty if squad_player is not None else None,
+        "loyaltyDecimal": loyalty_decimal,
+        "staminaForecast": stamina_forecast,
+        "joinedSeasonWeek": joined_season_week,
+        "purchasedAtSeasonWeek": purchased_at_season_week,
+        "playedThisWeek": played_this_week,
         # HL-15x, pedido explícitamente 2026-08-05: "¿este jugador ha jugado
         # con la selección nacional?" — Caps/CapsU20 de playerdetails.xml,
         # totales de carrera. None = todavía no se ha pedido playerdetails
@@ -348,6 +458,7 @@ async def player_detail(
         # hoy puede tener pocos puntos (cuenta nueva), se devuelve así.
         "history": {
             "dates": [pt.captured_at for pt in snapshot_history],
+            "seasonWeeks": [_season_week(pt.captured_at) for pt in snapshot_history],
             "tsi": [pt.tsi for pt in snapshot_history],
             "salary": [int(round(pt.salary / rate_)) for pt in snapshot_history],
             "skills": {
@@ -360,7 +471,8 @@ async def player_detail(
         # sincronizado nunca para este jugador.
         "matchRatingHistory": [
             {
-                "matchId": pt.ht_match_id, "date": pt.captured_at, "rating": pt.rating,
+                "matchId": pt.ht_match_id, "date": pt.captured_at,
+                "seasonWeek": _season_week(pt.captured_at), "rating": pt.rating,
                 "position": match_role_name(pt.position_code),
                 "minutes": pt.played_minutes,
             }
@@ -550,11 +662,10 @@ async def training_forecast(
         skill = ctx.trained_skill
     else:
         skill = training_target(tr.training_type) if tr else None
-        setup = TrainingSetup(
-            skill=skill or "playmaking",
+        setup = default_training_setup(
+            skill or "playmaking",
             intensity=tr.training_level if tr else 100,
-            stamina_share=tr.stamina_part if tr else 0,
-            coach_level=8, coach_is_excellent=True, assistant_level_sum=10,
+            stamina_share=tr.stamina_part if tr else None,
         )
 
     trainer_ht_id = tr.trainer_ht_id if tr else None
@@ -580,98 +691,6 @@ async def training_forecast(
         "exposure": round(setup.effective_intensity, 3),
         "players": out,
     }
-
-
-@router.get("/teams/{team_id}/valuations", summary="Valoración de la plantilla (HL-101)")
-async def valuations(
-    team_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> list[dict[str, Any]]:
-    players, team = await roster(session, team_id)
-    rate_ = team.currency_rate or 1.0
-
-    # La ventana de venta compara ganancia por entrenamiento contra pérdida por
-    # edad: sin el entrenamiento real (misma fuente que /training/forecast),
-    # el motor no ve ninguna ganancia posible y "vende ahora" sale para
-    # cualquier edad, incluso jugadores jóvenes con recorrido.
-    tr = await session.scalar(
-        select(m.TrainingSnapshot)
-        .where(m.TrainingSnapshot.team_id == team_id)
-        .order_by(m.TrainingSnapshot.captured_at.desc())
-        .limit(1)
-    )
-    ctx = await TrainingContextService(session).get(team_id)
-    trained_skill: str | None
-    if ctx is not None:
-        setup = ctx.setup
-        trained_skill = ctx.trained_skill
-    else:
-        trained_skill = training_target(tr.training_type) if tr else None
-        setup = TrainingSetup(
-            skill=trained_skill or "playmaking",
-            intensity=tr.training_level if tr else 100,
-            stamina_share=tr.stamina_part if tr else 0,
-            coach_level=8, coach_is_excellent=True, assistant_level_sum=10,
-        )
-
-    out = []
-    for p in players:
-        v = value_player(p["skills"], p["age_years"], p["age_days"],
-                         p["form"], p["specialty"], rate_)
-        weeks_to_next_pop = (
-            weeks_to_next_level(
-                trained_skill, p["skills"].get(trained_skill, 0),
-                p["age_years"], p["age_days"], setup=setup,
-            ).weeks_to_next_level
-            if trained_skill else None
-        )
-        w = optimal_sell_window(p["skills"], p["age_years"], p["age_days"],
-                                weeks_to_next_pop=weeks_to_next_pop,
-                                trained_skill=trained_skill,
-                                currency_rate=rate_)
-        out.append({
-            "player": p["name"], "htPlayerId": p["ht_player_id"],
-            "age": f"{p['age_years']}.{p['age_days']}",
-            "expectedPrice": v.expected_price, "low": v.low, "high": v.high,
-            "dominantSkill": v.dominant_skill, "dominantLevel": v.dominant_level,
-            "bestWeek": w.best_week, "verdict": w.verdict,
-            "confidence": v.confidence,
-        })
-    return sorted(out, key=lambda x: -x["expectedPrice"])
-
-
-@router.get("/teams/{team_id}/training/roi", summary="Retorno del entrenamiento (HL-036)")
-async def roi(
-    team_id: int,
-    ht_player_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> list[dict[str, Any]]:
-    players, team = await roster(session, team_id)
-    p = next((x for x in players if x["ht_player_id"] == ht_player_id), None)
-    if p is None:
-        raise HTTPException(404, "jugador no encontrado")
-    tr = await session.scalar(
-        select(m.TrainingSnapshot)
-        .where(m.TrainingSnapshot.team_id == team_id)
-        .order_by(m.TrainingSnapshot.captured_at.desc()).limit(1)
-    )
-    skill = training_target(tr.training_type) if tr else "playmaking"
-    if skill is None:
-        raise HTTPException(
-            422,
-            f"El tipo de entrenamiento actual (id {tr.training_type if tr else '?'}) "
-            "no entrena una única habilidad de jugador, así que no se puede "
-            "proyectar el ROI.",
-        )
-    weeks = weeks_to_next_level(
-        skill, p["skills"].get(skill, 0), p["age_years"], p["age_days"]
-    ).weeks_to_next_level
-    return [
-        {"skill": r.skill, "fromLevel": r.from_level, "toLevel": r.to_level,
-         "valueGain": r.value_gain, "weeks": r.weeks, "valuePerWeek": r.value_per_week}
-        for r in training_roi(p["skills"], skill, p["age_years"], p["age_days"],
-                              weeks, currency_rate=team.currency_rate or 1.0)
-    ]
 
 
 @router.get("/teams/{team_id}/insights", summary="Alertas accionables (HL-130)")
@@ -736,9 +755,13 @@ async def team_insights(
             # El propio entrenador (identificado por TrainerID en training.xml,
             # no por heurísticas como TSI) no es una decisión de entrenamiento
             # de nadie: se excluye de las alertas de entrenamiento.
-            setup = ctx.setup if ctx else TrainingSetup(
-                skill=trained_skill, coach_level=8, coach_is_excellent=True,
-                assistant_level_sum=10)
+            # `tr` ya está confirmado no-None por el `if tr:` de arriba — el
+            # supuesto debe leer su intensidad/condición reales, no caer en
+            # 100/0 en silencio (bug real corregido 2026-08-14: antes las
+            # ignoraba aunque ya las tenía).
+            setup = ctx.setup if ctx else default_training_setup(
+                trained_skill, intensity=tr.training_level, stamina_share=tr.stamina_part,
+            )
             trainees = [
                 {"name": p["name"], "age_years": p["age_years"],
                  "weeks_to_pop": weeks_to_next_level(
@@ -749,14 +772,13 @@ async def team_insights(
             ]
             groups += [ins.inefficient_training(trainees), ins.upcoming_pops(trainees)]
 
-    # ── Plantilla: posición natural, sueldo de mercado, ventana de venta ──
+    # ── Plantilla: posición natural, sueldo de mercado ──
     for p in players:
         p["best_position"] = rate_all(p)[0].position
     groups.append(ins.thin_keeper_depth(players))
 
     salary_rows: list[dict[str, Any]] = []
     wage_players: list[dict[str, Any]] = []
-    valuations_rows: list[dict[str, Any]] = []
     total_salary_local = 0
     for p in players:
         salary_local = int(round(p["salary"] / rate_))
@@ -775,28 +797,9 @@ async def team_insights(
                 "real_salary": salary_local, "estimated_salary": est.weekly_salary,
             })
 
-        weeks_to_next_pop = (
-            weeks_to_next_level(
-                trained_skill, p["skills"].get(trained_skill, 0),
-                p["age_years"], p["age_days"], setup=setup,
-            ).weeks_to_next_level
-            if trained_skill and setup else None
-        )
-        w = optimal_sell_window(
-            p["skills"], p["age_years"], p["age_days"],
-            weeks_to_next_pop=weeks_to_next_pop, trained_skill=trained_skill,
-            currency_rate=rate_,
-        )
-        valuations_rows.append({
-            "ht_player_id": p["ht_player_id"], "name": p["name"],
-            "best_week": w.best_week, "price_now": w.price_now,
-        })
-
     groups += [
         ins.salary_market_mismatch(salary_rows),
         ins.wage_concentration(wage_players, total_salary_local, currency),
-        ins.sell_candidates(valuations_rows),
-        ins.sell_window_approaching(valuations_rows),
     ]
 
     # ── Alineación óptima: titulares lesionados, aportadores por sector ──
@@ -826,15 +829,16 @@ async def team_insights(
 
     # ── Economía ────────────────────────────────────────────────────────
     if econ:
+        sponsors_total = total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses)
         structural = int(structural_balance(
-            econ.income_sponsors, econ.income_spectators,
+            sponsors_total, econ.income_spectators,
             econ.costs_players, econ.costs_staff, econ.costs_arena,
         ) / rate_)
         groups.append(ins.structural_deficit(structural, int(econ.cash / rate_), currency))
 
         income_items = [
             ("Espectadores", int((econ.income_spectators or 0) / rate_)),
-            ("Patrocinadores", int((econ.income_sponsors or 0) / rate_)),
+            ("Patrocinadores", int(sponsors_total / rate_)),
             ("Financieros", int((econ.income_financial or 0) / rate_)),
             ("Temporales", int((econ.income_temporary or 0) / rate_)),
         ]
@@ -993,6 +997,44 @@ async def experience_calibration(
 
 
 @router.get(
+    "/teams/{team_id}/loyalty/calibration",
+    summary="Días reales por transición de Fidelidad, descubiertos por observación",
+)
+async def loyalty_calibration(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """A diferencia de Experiencia, Fidelidad no tiene ninguna fórmula
+    publicada que usar como valor de partida: ni Hattrick ni Hattrick
+    Control documentan cuántos días toma subir de un nivel a otro.
+
+    El intervalo real es constante entre jugadores para una misma
+    transición de nivel, pero NO entre niveles distintos (1→2 es rápido,
+    19→20 puede tardar temporadas) — así que en vez de un solo número se
+    calibra una tabla, transición por transición, cada una con su propia
+    cuenta de observaciones limpias.
+    """
+    await roster(session, team_id)          # 404s on an unknown team
+
+    history = PlayerHistoryQueryService(session)
+    level_ups, crossings_seen = await history.loyalty_level_up_observations(team_id)
+    cal = loyalty_calibrate(level_ups)
+    info = loyalty_model_info(cal)
+    info["crossingsSeen"] = crossings_seen
+    info["discardedCrossings"] = crossings_seen - len(level_ups)
+    info["levelUps"] = [
+        {
+            "player": lu.player,
+            "fromLevel": lu.from_level,
+            "toLevel": lu.to_level,
+            "daysElapsed": lu.days_elapsed,
+        }
+        for lu in level_ups
+    ]
+    return info
+
+
+@router.get(
     "/teams/{team_id}/training/formula",
     summary="La fórmula de entrenamiento con la procedencia de cada valor (HL-030)",
 )
@@ -1048,6 +1090,118 @@ async def training_formula(
             "caveats": ctx.validation.caveats,
         },
         "notes": ctx.notes,
+    }
+
+
+@router.get(
+    "/teams/{team_id}/training/squad",
+    summary="Vista de plantilla por entrenamiento — la pestaña que HC deja vacía",
+)
+async def training_squad(
+    team_id: int,
+    skill: str | None = Query(default=None),
+    include_this_week: bool = Query(default=True),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Cada jugador activo, para la habilidad elegida: nivel actual, semanas
+    transcurridas desde la última subida confirmada contra las que predice la
+    fórmula, y % de avance — más la configuración de entrenamiento vigente y
+    su histórico semanal."""
+    view = await TrainingSquadQueryService(session).squad_view(
+        team_id, skill=skill, include_this_week=include_this_week,
+    )
+    if view is None:
+        raise HTTPException(404, f"team {team_id} not found")
+    s = view.setup
+    return {
+        "skill": view.skill,
+        "skillLabel": view.skill_label,
+        "availableSkills": [{"skill": s_, "label": lbl} for s_, lbl in view.available_skills],
+        "includeThisWeek": view.include_this_week,
+        "setup": {
+            "skill": s.skill,
+            "intensity": s.intensity,
+            "staminaShare": s.stamina_share,
+            "coachLevel": s.coach_level,
+            "coachIsExcellent": s.coach_is_excellent,
+            "assistantLevelSum": s.assistant_level_sum,
+        },
+        "players": [
+            {
+                "htPlayerId": r.ht_player_id,
+                "name": r.name,
+                "nativeCountry": r.native_country,
+                "age": f"{r.age_years}.{r.age_days}",
+                "level": r.level,
+                "levelName": r.level_name,
+                "weeksElapsed": r.weeks_elapsed,
+                "weeksTotal": r.weeks_total,
+                "progressPct": r.progress_pct,
+                "hasReference": r.has_reference,
+            }
+            for r in view.rows
+        ],
+        "weeklyLog": [
+            {
+                "seasonWeek": entry.season_week,
+                "date": entry.date,
+                "trainingType": entry.training_type,
+                "intensity": entry.intensity,
+                "staminaShare": entry.stamina_share,
+                "trainerName": entry.trainer_name,
+            }
+            for entry in view.weekly_log
+        ],
+        "notes": view.notes,
+    }
+
+
+@router.get(
+    "/teams/{team_id}/players/{ht_player_id}/training/levels",
+    summary="Subidas confirmadas y previsión de niveles futuros de un jugador",
+)
+async def player_training_levels(
+    team_id: int,
+    ht_player_id: int,
+    skill: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """«Mejoras» (subidas confirmadas por trainingevents) y «Previsión
+    subidas» (cascada de niveles futuros con la fórmula) para un jugador —
+    la vista individual de Hattrick Control."""
+    history = await TrainingSquadQueryService(session).player_levels(team_id, ht_player_id, skill=skill)
+    if history is None:
+        raise HTTPException(404, f"team {team_id} or player {ht_player_id} not found")
+    return {
+        "htPlayerId": history.ht_player_id,
+        "name": history.name,
+        "skill": history.skill,
+        "skillLabel": history.skill_label,
+        "currentLevel": history.current_level,
+        "currentLevelName": history.current_level_name,
+        "confirmed": [
+            {
+                "seasonWeek": c.season_week,
+                "fromLevel": c.from_level,
+                "fromLevelName": c.from_level_name,
+                "toLevel": c.to_level,
+                "toLevelName": c.to_level_name,
+                "weeksBetween": c.weeks_between,
+            }
+            for c in history.confirmed
+        ],
+        "forecast": [
+            {
+                "level": f.level,
+                "levelName": f.level_name,
+                "weeksForThisLevel": f.weeks_for_this_level,
+                "weeksFromNow": f.weeks_from_now,
+                "seasonWeek": f.season_week,
+                "age": f"{f.age_years}.{f.age_days}",
+            }
+            for f in history.forecast
+        ],
+        "notes": history.notes,
     }
 
 

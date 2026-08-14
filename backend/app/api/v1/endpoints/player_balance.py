@@ -28,10 +28,10 @@ async def player_balance(
 ) -> dict[str, Any]:
     """Precio de compra + salario acumulado + coste de cada intento de
     venta, contra el precio real de venta menos la comisión del agente —
-    más la parte que le toca de cualquier reventa futura de origen
-    desconocido. Nunca usa una valoración de mercado hipotética para un
-    jugador que sigue sin venderse: esa cifra es 0 hasta que la venta sea
-    real."""
+    más la comisión EXACTA de club anterior (HL-161, 2026-08-14) de
+    cualquier reventa detectada de un ex-jugador nuestro. Nunca usa una
+    valoración de mercado hipotética para un jugador que sigue sin
+    venderse: esa cifra es 0 hasta que la venta sea real."""
     data = await PlayerBalanceQueryService(session).get(team_id, season=season)
     if data is None:
         raise HTTPException(404, f"team {team_id} not found")

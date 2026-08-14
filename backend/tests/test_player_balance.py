@@ -662,6 +662,13 @@ def test_currentbids_counts_a_new_appearance_as_one_listing_attempt() -> None:
             other = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 222))
             assert other.listing_count == 0
             assert other.currently_listed is False
+            # 2026-08-08: cada aparición nueva también queda enumerada, no
+            # solo contada.
+            attempts = list((await u.session.execute(
+                select(m.PlayerListingAttempt).where(m.PlayerListingAttempt.player_id == player.id)
+            )).scalars())
+            assert len(attempts) == 1
+            assert attempts[0].highest_bid is None
 
         # Segundo sync: 111 SIGUE listado — no debe sumar un segundo intento.
         async with uow as u:
@@ -690,6 +697,33 @@ def test_currentbids_counts_a_new_appearance_as_one_listing_attempt() -> None:
         async with uow as u:
             player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
             assert player.listing_count == 2
+            attempts = list((await u.session.execute(
+                select(m.PlayerListingAttempt)
+                .where(m.PlayerListingAttempt.player_id == player.id)
+                .order_by(m.PlayerListingAttempt.detected_at)
+            )).scalars())
+            assert len(attempts) == 2  # una fila por cada aparición nueva
+
+    asyncio.run(run())
+
+
+def test_currentbids_records_the_highest_bid_at_the_moment_of_detection() -> None:
+    async def run() -> None:
+        uow, team_id = await _setup_roster([111])
+        handler = SyncTeamHandler(uow, chpp=None)  # type: ignore[arg-type]
+
+        async with uow as u:
+            payload = {"listed_players": [{"ht_player_id": 111, "highest_bid": 250000}]}
+            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
+            await u.commit()
+
+        async with uow as u:
+            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
+            attempts = list((await u.session.execute(
+                select(m.PlayerListingAttempt).where(m.PlayerListingAttempt.player_id == player.id)
+            )).scalars())
+            assert len(attempts) == 1
+            assert attempts[0].highest_bid == 250000
 
     asyncio.run(run())
 
@@ -812,80 +846,6 @@ def test_salary_extrapolates_across_sync_gaps() -> None:
     balance = compute_balance(record)
     # semanas 0,1 = 1000 (último conocido); semanas 2,3,4 = 1500 → 5 semanas
     assert balance.salary_total == 1000 * 2 + 1500 * 3
-
-
-# ── Reparto de reventa futura de origen desconocido ─────────────────────────
-
-from app.domain.engines.resale_bonus import (  # noqa: E402
-    ConfirmedSale,
-    WeeklyIncome,
-    distribute_resale_bonus,
-)
-
-
-def test_resale_bonus_ignores_income_fully_explained_by_a_direct_sale() -> None:
-    """Si el ingreso reportado por CHPP esa semana coincide (o es menor)
-    con lo que sabemos que vendimos directamente, no hay "misterio" que
-    repartir."""
-    sold_at = datetime(2026, 6, 1, tzinfo=UTC)
-    sales = [ConfirmedSale(ht_player_id=1, sale_price=100000, sold_at=sold_at, season="Temporada 83")]
-    weekly = [WeeklyIncome(closed_at=sold_at, income_sold_players=100000, season="Temporada 83")]
-    shares = distribute_resale_bonus(weekly, sales)
-    assert shares[1] == 0.0
-
-
-def test_resale_bonus_splits_unexplained_income_proportional_to_sale_price() -> None:
-    """Dos ventas previas (100.000 y 300.000 — 1:3). Una semana posterior
-    sin venta directa nuestra reporta 40.000 de "más" — se reparte 1:3."""
-    sold_at_1 = datetime(2026, 1, 1, tzinfo=UTC)
-    sold_at_2 = datetime(2026, 2, 1, tzinfo=UTC)
-    sales = [
-        ConfirmedSale(ht_player_id=1, sale_price=100000, sold_at=sold_at_1, season="Temporada 83"),
-        ConfirmedSale(ht_player_id=2, sale_price=300000, sold_at=sold_at_2, season="Temporada 83"),
-    ]
-    mystery_week = datetime(2026, 6, 1, tzinfo=UTC)
-    weekly = [WeeklyIncome(closed_at=mystery_week, income_sold_players=40000, season="Temporada 83")]
-    shares = distribute_resale_bonus(weekly, sales)
-    assert shares[1] == pytest.approx(10000)   # 1/4 de 40.000
-    assert shares[2] == pytest.approx(30000)   # 3/4 de 40.000
-
-
-def test_resale_bonus_only_splits_among_sales_up_to_that_week() -> None:
-    """Una venta FUTURA (posterior a la semana del misterio) no puede
-    haber generado ese ingreso — no participa del reparto."""
-    early_sale = datetime(2026, 1, 1, tzinfo=UTC)
-    late_sale = datetime(2026, 12, 1, tzinfo=UTC)
-    sales = [
-        ConfirmedSale(ht_player_id=1, sale_price=100000, sold_at=early_sale, season="Temporada 83"),
-        ConfirmedSale(ht_player_id=2, sale_price=100000, sold_at=late_sale, season="Temporada 83"),
-    ]
-    mystery_week = datetime(2026, 6, 1, tzinfo=UTC)
-    weekly = [WeeklyIncome(closed_at=mystery_week, income_sold_players=50000, season="Temporada 83")]
-    shares = distribute_resale_bonus(weekly, sales)
-    assert shares[1] == pytest.approx(50000)
-    assert shares[2] == 0.0
-
-
-def test_resale_bonus_only_splits_among_sales_of_the_same_season() -> None:
-    """Confirmado explícitamente por el usuario 2026-08-05: una reventa que
-    Hattrick acredita ESTA temporada no puede venir de un traspaso de hace
-    varias temporadas — aunque cronológicamente sea anterior a la semana
-    del misterio, una venta de otra temporada no participa del reparto."""
-    old_season_sale = datetime(2022, 1, 1, tzinfo=UTC)
-    same_season_sale = datetime(2026, 2, 1, tzinfo=UTC)
-    sales = [
-        ConfirmedSale(
-            ht_player_id=1, sale_price=100000, sold_at=old_season_sale, season="Temporada 49"
-        ),
-        ConfirmedSale(
-            ht_player_id=2, sale_price=100000, sold_at=same_season_sale, season="Temporada 83"
-        ),
-    ]
-    mystery_week = datetime(2026, 6, 1, tzinfo=UTC)
-    weekly = [WeeklyIncome(closed_at=mystery_week, income_sold_players=50000, season="Temporada 83")]
-    shares = distribute_resale_bonus(weekly, sales)
-    assert shares[1] == 0.0
-    assert shares[2] == pytest.approx(50000)
 
 
 # ── Servicio de consulta: end-to-end contra datos reales sincronizados ──────
@@ -1100,7 +1060,7 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
     assert data is not None
     assert data.by_season == {"Temporada 84": pytest.approx(data.total_saldo)}
     assert data.by_age_bucket == {"29–31": pytest.approx(data.total_saldo)}
-    assert data.by_top_skill == {"Anotacion": pytest.approx(data.total_saldo)}
+    assert data.by_top_skill == {"Anotación": pytest.approx(data.total_saldo)}
     assert data.by_bid_hour == {"2:00 a 4:00 p.m.": pytest.approx(data.total_saldo)}
 
 

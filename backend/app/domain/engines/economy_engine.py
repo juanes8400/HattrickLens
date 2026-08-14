@@ -31,6 +31,19 @@ SEASON_WEEKS = 16
 HOME_MATCHES_PER_SEASON = 7
 
 
+def total_sponsor_income(income_sponsors: int, income_sponsor_bonuses: int | None) -> int:
+    """Patrocinio real de la semana: IncomeSponsors + IncomeSponsorBonuses.
+
+    2026-08-09, bug real corregido a pedido del usuario: cada lugar que
+    calculaba "balance estructural" o mostraba "Patrocinadores" leía solo
+    `income_sponsors`, dejando afuera el bono — pese a que la tabla
+    "Finanzas de esta semana" (economy.py, `_income_items`) ya sumaba los
+    dos. Única fuente de verdad para el total de patrocinio: todo lugar que
+    lea patrocinio para un cálculo debe pasar por aquí, no releer el campo
+    crudo."""
+    return income_sponsors + (income_sponsor_bonuses or 0)
+
+
 def structural_balance(
     income_sponsors: int,
     income_spectators: int,
@@ -40,7 +53,11 @@ def structural_balance(
 ) -> int:
     """Balance semanal sin transferencias, con la taquilla ya amortizada.
     Única fuente de verdad: cualquier pantalla que muestre "balance
-    estructural" debe llamar a esta función, no reimplementar la suma."""
+    estructural" debe llamar a esta función, no reimplementar la suma.
+
+    `income_sponsors` debe venir YA sumado con el bono (ver
+    `total_sponsor_income`) — esta función no lo hace por sí misma porque
+    no siempre tiene el snapshot completo a mano, solo los escalares."""
     gate_per_week = (
         income_spectators * SEASON_WEEKS // HOME_MATCHES_PER_SEASON
         if income_spectators else 0

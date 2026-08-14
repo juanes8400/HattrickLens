@@ -7,6 +7,8 @@ from app.domain.engines.training_engine import (
     assistant_factor,
     coach_factor,
     compare_training_types,
+    default_setup,
+    forecast_level_chain,
     forecast_pops,
     model_info,
     training_exposure,
@@ -157,6 +159,33 @@ def test_lower_intensity_adds_weeks() -> None:
     assert reduced > full
 
 
+# ── Fallback setup ───────────────────────────────────────────────────────────
+# HL-2xx, 2026-08-14: four call sites used to hardcode
+# `coach_level=8, coach_is_excellent=True, assistant_level_sum=10` (one of
+# them with `stamina_share=0`, silently contradicting the yaml's own
+# `default_stamina_share`). `default_setup()` is the single place that now
+# owns those compatibility defaults.
+
+def test_default_setup_reads_its_defaults_from_config() -> None:
+    setup = default_setup("passing")
+    assert setup.assistant_level_sum == 10   # default_assistant_level_sum in training.yaml
+    assert setup.coach_level == 8
+    assert setup.coach_is_excellent is True
+    assert setup.intensity == 100
+    assert setup.stamina_share == pytest.approx(12.5)  # default_stamina_share in training.yaml
+
+
+def test_default_setup_prefers_a_real_reading_over_the_default() -> None:
+    """`stamina_share=0` from a real sync must NOT be treated as "missing" —
+    only `None` (no training.xml at all) falls back to the config default."""
+    real = default_setup("passing", intensity=90, stamina_share=0)
+    assert real.intensity == 90
+    assert real.stamina_share == 0
+
+    missing = default_setup("passing", stamina_share=None)
+    assert missing.stamina_share == pytest.approx(12.5)
+
+
 # ── Minutes and position ────────────────────────────────────────────────────
 
 def test_training_exposure_follows_the_ninety_minute_rule() -> None:
@@ -192,6 +221,41 @@ def test_forecast_declares_missing_history() -> None:
 def test_older_players_are_expensive_to_train() -> None:
     weeks = {f.player: f.weeks_remaining for f in forecast_pops(SQUAD, PULGAS)}
     assert weeks["Raúl Cobos"] > weeks["Florin Tilvar"] * 1.3
+
+
+# ── Cascading multi-level forecast (HL-2xx, "Previsión subidas") ───────────
+
+def test_forecast_level_chain_climbs_one_level_at_a_time() -> None:
+    chain = forecast_level_chain("passing", 14, 27, 0, PULGAS, max_levels=6)
+    assert [m.level for m in chain] == [15, 16, 17, 18, 19, 20]
+
+
+def test_forecast_level_chain_stops_at_the_top_of_the_scale() -> None:
+    """Level 20 ("divino") is the last real name in SKILL_LEVELS — cascading
+    a forecast past it would compound a guess, so the chain stops there
+    even if the caller asks for more levels."""
+    chain = forecast_level_chain("passing", 18, 27, 0, PULGAS, max_levels=15)
+    assert [m.level for m in chain] == [19, 20]
+
+    already_there = forecast_level_chain("passing", 20, 27, 0, PULGAS, max_levels=5)
+    assert already_there == []
+
+
+def test_forecast_level_chain_weeks_and_age_compound() -> None:
+    """Age feeds back into each next level's speed — a real property of the
+    formula, not just cumulative addition — so later levels must cost more
+    weeks than the first, and the projected age must climb through the
+    chain (never reset or go backwards)."""
+    chain = forecast_level_chain("passing", 10, 20, 0, PULGAS, max_levels=5)
+    weeks_per_level = [m.weeks_for_this_level for m in chain]
+    assert weeks_per_level == sorted(weeks_per_level)  # strictly non-decreasing
+    assert weeks_per_level[-1] > weeks_per_level[0]
+
+    cumulative = [m.weeks_from_now for m in chain]
+    assert cumulative == sorted(cumulative)
+
+    ages = [(m.age_years, m.age_days) for m in chain]
+    assert ages == sorted(ages)
 
 
 # ── Choosing what to train ──────────────────────────────────────────────────

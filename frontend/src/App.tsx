@@ -9,7 +9,6 @@ import { ConnectedPage } from "./pages/ConnectedPage";
 import { PositionsPage } from "./pages/PositionsPage";
 import { LineupPage } from "./pages/LineupPage";
 import { TrainingPage } from "./pages/TrainingPage";
-import { TransfersPage } from "./pages/TransfersPage";
 import { PlayerBalancePage } from "./pages/PlayerBalancePage";
 import { InsightsPage } from "./pages/InsightsPage";
 import { EnginePage } from "./pages/EnginePage";
@@ -24,10 +23,24 @@ import { RivalPage } from "./pages/RivalPage";
 import { RivalPickerPage } from "./pages/RivalPickerPage";
 import { WelcomePage } from "./pages/WelcomePage";
 import { NextMatchPage } from "./pages/NextMatchPage";
-import { hasActiveTeam } from "./hooks/useTeam";
+import { SetupPage } from "./pages/SetupPage";
+import { hasActiveTeam, useDashboard } from "./hooks/useTeam";
+import { ErrorState, Loading } from "./components/Panels";
 
 function RequireTeam({ children }: { children: ReactNode }) {
   return hasActiveTeam() ? children : <Navigate to="/welcome" replace />;
+}
+
+function RequireImportedTeam({ children }: { children: ReactNode }) {
+  const dashboard = useDashboard();
+  if (dashboard.isLoading) {
+    return <main className="grid min-h-screen place-items-center"><Loading /></main>;
+  }
+  if (dashboard.isError) {
+    return <main className="grid min-h-screen place-items-center p-6"><ErrorState error={dashboard.error} /></main>;
+  }
+  if (!dashboard.data?.syncedAt) return <Navigate to="/setup" replace />;
+  return children;
 }
 
 export function App() {
@@ -35,7 +48,8 @@ export function App() {
     <Routes>
       <Route path="connected" element={<ConnectedPage />} />
       <Route path="welcome" element={<WelcomePage />} />
-      <Route element={<RequireTeam><AppLayout /></RequireTeam>}>
+      <Route path="setup" element={<RequireTeam><SetupPage /></RequireTeam>} />
+      <Route element={<RequireTeam><RequireImportedTeam><AppLayout /></RequireImportedTeam></RequireTeam>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="club" element={<ClubPage />} />
@@ -44,7 +58,6 @@ export function App() {
         <Route path="positions" element={<PositionsPage />} />
         <Route path="lineup" element={<LineupPage />} />
         <Route path="training" element={<TrainingPage />} />
-        <Route path="transfers" element={<TransfersPage />} />
         <Route path="transfers/balance" element={<PlayerBalancePage />} />
         <Route path="academy" element={<AcademyPage />} />
         <Route path="matches" element={<MatchesPage />} />

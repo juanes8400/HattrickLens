@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.application.commands.sync_team import FILE_VERSIONS
 from app.core.config import settings
 from app.infrastructure.chpp.client import CHPPClient, CHPPOAuthDance
@@ -99,6 +100,62 @@ async def refresh(
     response = Response(status_code=204)
     _set_session_cookies(response, user.id)
     return response
+
+
+@router.get("/session")
+async def session_profile(
+    session: AsyncSession = Depends(get_session),
+    user: m.User = Depends(get_current_user),
+) -> dict[str, object]:
+    """Identidad CHPP y clubes disponibles, sin exponer credenciales.
+
+    El frontend usa este contrato para distinguir una sesión real de un
+    ``team_id`` huérfano en localStorage, ofrecer selección cuando la cuenta
+    tenga más de un club y saber si cada club ya completó su importación
+    inicial.
+    """
+    token = await session.scalar(
+        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
+    )
+    teams = list((await session.scalars(
+        select(m.Team)
+        .where(m.Team.owner_user_id == user.id)
+        .order_by(m.Team.name, m.Team.id)
+    )).all())
+
+    team_rows: list[dict[str, object]] = []
+    for team in teams:
+        last_sync = await session.scalar(
+            select(m.Sync)
+            .where(
+                m.Sync.team_id == team.id,
+                m.Sync.status.in_(("completed", "partial")),
+            )
+            .order_by(m.Sync.started_at.desc())
+            .limit(1)
+        )
+        synced_at = None
+        if last_sync is not None:
+            synced_at = last_sync.finished_at or last_sync.started_at
+        team_rows.append({
+            "id": team.id,
+            "htTeamId": team.ht_team_id,
+            "name": team.name,
+            "leagueName": team.league_name,
+            "seriesName": team.series_name,
+            "syncedAt": synced_at,
+            "hasImportedData": synced_at is not None,
+        })
+
+    return {
+        "user": {
+            "id": user.id,
+            "htUserId": user.ht_user_id,
+            "loginName": user.login_name,
+        },
+        "connectionStatus": token.status if token is not None else "missing",
+        "teams": team_rows,
+    }
 
 
 @router.get("/callback")

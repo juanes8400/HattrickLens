@@ -8,7 +8,9 @@ elegí yo, no lecturas del juego.
 Este servicio construye el mismo `TrainingSetup` **leyendo cada valor del
 CHPP**:
 
-- ayudantes  ← `club.AssistantTrainerLevels`
+- ayudantes  ← suma de `stafflist.StaffLevel` de los asistentes de entrenador
+  (StaffType=1) — `club.AssistantTrainerLevels` dejó de existir (verificado
+  en vivo 2026-08-12, ver `parse_club`)
 - intensidad ← `training.TrainingLevel`
 - %condición ← `training.StaminaTrainingPart`
 - entrenador ← `stafflist.TrainerSkillLevel`
@@ -106,8 +108,11 @@ class TrainingContextService:
         if staff is not None:
             assistants = min(staff.assistant_trainer_levels, cfg["assistant_level_sum_cap"])
             prov["assistant_level_sum"] = Provenance(
-                assistants, "club.xml", True,
-                "AssistantTrainerLevels: nivel agregado 0–10 leído de la API",
+                assistants, "stafflist.xml", True,
+                # HL-2xx, 2026-08-12: club.xml dejó de traer el agregado
+                # (verificado en vivo) — ahora es la suma real de los
+                # asistentes de entrenador (StaffType=1) de stafflist.xml.
+                "Suma de niveles de los asistentes de entrenador reales (StaffType=1)",
             )
         else:
             assistants = int(cfg.get("default_assistant_level_sum", 10))
@@ -124,9 +129,17 @@ class TrainingContextService:
             prov["intensity"] = Provenance(intensity, "training.xml", True, "TrainingLevel")
             prov["stamina_share"] = Provenance(stamina, "training.xml", True, "StaminaTrainingPart")
         else:
-            intensity, stamina, training_type = 100, 0, 10
+            intensity = 100
+            stamina = cfg.get("default_stamina_share", 0)
+            training_type = 10
             prov["intensity"] = Provenance(100, "supuesto", False, "sin training.xml")
-            prov["stamina_share"] = Provenance(0, "supuesto", False, "sin training.xml")
+            prov["stamina_share"] = Provenance(
+                stamina, "supuesto", False,
+                # HL-2xx, 2026-08-14: antes caía en 0 en vez del default_stamina_share
+                # del yaml (12.5) — contradecía el propio default documentado y
+                # asumía "0% a resistencia" en vez de un reparto típico.
+                "sin training.xml: se usa default_stamina_share del perfil",
+            )
 
         # ── Entrenador ─────────────────────────────────────────────────────
         skill_map = cfg["trainer_skill_to_formula_level"]

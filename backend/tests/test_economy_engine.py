@@ -13,6 +13,7 @@ from app.domain.engines.economy_engine import (
     estimate_residuals,
     forecast_cash,
     structural_balance,
+    total_sponsor_income,
 )
 
 # Semana 83-01 de Pulgas Arrechas
@@ -58,6 +59,21 @@ def test_structural_balance_with_no_gate_income_this_week() -> None:
         costs_players=200_000, costs_staff=50_000, costs_arena=40_000,
     )
     assert result == 100_000 - 200_000 - 50_000 - 40_000
+
+
+def test_total_sponsor_income_adds_the_bonus() -> None:
+    """2026-08-09, bug real corregido a pedido del usuario: el patrocinio
+    real de la semana incluye IncomeSponsorBonuses, no solo IncomeSponsors
+    — la tabla "Finanzas de esta semana" ya los sumaba, pero el balance
+    estructural (dashboard, insights, la proyección de Economía) leía solo
+    el campo base."""
+    assert total_sponsor_income(103_500, 20_500) == 124_000
+
+
+def test_total_sponsor_income_handles_a_missing_bonus() -> None:
+    """CHPP no siempre expone el bono (campo opcional) — ausente, no cero
+    fabricado, pero el total no debe romperse por eso."""
+    assert total_sponsor_income(103_500, None) == 103_500
 
 
 def test_forecast_is_monotone_in_bands() -> None:

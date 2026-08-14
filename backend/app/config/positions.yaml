@@ -195,3 +195,23 @@ special_roles:
     label: Lanzador de faltas
     formula: "pelota_parada + experiencia"
     note: "Para TLD el Manual identifica BP y XP como las únicas habilidades relevantes."
+  # 2026-08-09, pedido explícitamente: el lanzador de PENALTIS (incluye
+  # penales de tanda) es una orden distinta de "Lanzador de faltas" (TLD)
+  # — en Hattrick real tienen su propio código (MATCH_ROLE_NAMES 22-32,
+  # "Lanzador de penalti 1..11", una lista de prioridad de hasta 11
+  # lanzadores) y su propia fórmula.
+  #
+  # Fórmula y coeficientes: aportados directamente por el usuario
+  # 2026-08-09 (no verificados de forma independiente por este asistente
+  # contra la fuente primaria — a diferencia del resto de esta matriz, que
+  # sí viene del wiki del Manual no Escrito citado arriba). Se incorporan
+  # tal cual se pidió.
+  penalty_taker:
+    label: Lanzador de penaltis
+    formula: "(experiencia × 1.5 + pelota_parada × 0.7 + anotación × 0.3) × (1.10 si Técnico, si no ×1)"
+    coefficients:
+      experience: 1.5
+      set_pieces: 0.7
+      scoring: 0.3
+      technical_specialty_bonus: 0.10
+    note: "Fuente: aportada por el usuario, sin verificación independiente contra el wiki todavía."

@@ -206,3 +206,60 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
         await engine.dispose()
 
     asyncio.run(scenario())
+
+
+def test_player_report_converts_salary_from_base_currency_to_local() -> None:
+    """CHPP siempre da salario en la moneda base del juego, no en la local
+    (Colombia = tasa 10). El reporte debe dividir por la tasa del equipo,
+    igual que ya hace squad.py — si no, el salario se ve 10x inflado."""
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        now = datetime.now(UTC)
+        async with factory() as session:
+            team = m.Team(ht_team_id=537758, name="Pulgas Arrechas", currency_rate=10.0)
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=123, team_id=team.id, first_name="Jugador", last_name="Prueba",
+            )
+            session.add(player)
+            await session.flush()
+
+            old_sync = m.Sync(
+                user_id=1, team_id=team.id, kind="players", status="completed",
+                started_at=now, finished_at=now,
+            )
+            session.add(old_sync)
+            await session.flush()
+            session.add(_player_snapshot(old_sync.id, player.id, now, salary=100_000))
+
+            changed_at = now + timedelta(days=7)
+            changed_sync = m.Sync(
+                user_id=1, team_id=team.id, kind="players", status="completed",
+                started_at=changed_at, finished_at=changed_at,
+            )
+            session.add(changed_sync)
+            await session.flush()
+            session.add(
+                _player_snapshot(changed_sync.id, player.id, changed_at, salary=150_000)
+            )
+            await session.commit()
+
+            report = await build_sync_comparison(session, team.id)
+
+        row = report["playerRows"][0]
+        assert row["salary"] == 15_000
+        assert row["salaryDelta"] == 5_000
+        summary = {metric["key"]: metric for metric in report["summary"]}
+        assert summary["salary"]["net"] == 5_000
+        await engine.dispose()
+
+    asyncio.run(scenario())

@@ -75,6 +75,15 @@ class TrainingSetup:
     def effective_intensity(self) -> float:
         return max(self.intensity / 100 * (1 - self.stamina_share / 100), 0.0)
 
+    @property
+    def effective_stamina_intensity(self) -> float:
+        """% real de la intensidad total dedicado a resistencia — el
+        complemento de `effective_intensity` (que resta esta porción de la
+        habilidad primaria). Unidad: puntos porcentuales (0-100), igual que
+        las columnas de la tabla de referencia de Resistencia
+        (stamina_reference.py)."""
+        return max(self.intensity * self.stamina_share / 100, 0.0)
+
 
 @dataclass(frozen=True)
 class TrainingSpeed:
@@ -145,6 +154,32 @@ def age_factor(age_years: int, age_days: int = 0, alternative: bool = False) -> 
     return float(1.0 + cfg["age_increase_per_year"] * (age - cfg["reference_age"]))
 
 
+def default_setup(
+    skill: str,
+    *,
+    intensity: int = 100,
+    stamina_share: float | None = None,
+) -> TrainingSetup:
+    """The `TrainingSetup` to fall back to when club/stafflist haven't synced
+    yet — coach and assistant assumptions read from `training.yaml` instead of
+    duplicated as magic numbers at each call site (HL-2xx, 2026-08-14: found
+    four independent copies of `coach_level=8, coach_is_excellent=True,
+    assistant_level_sum=10`, one of which silently used `stamina_share=0`
+    instead of the yaml's own `default_stamina_share`)."""
+    cfg = _config()
+    return TrainingSetup(
+        skill=skill,
+        intensity=intensity,
+        stamina_share=(
+            stamina_share if stamina_share is not None
+            else float(cfg.get("default_stamina_share", 0))
+        ),
+        coach_level=8,
+        coach_is_excellent=True,
+        assistant_level_sum=int(cfg.get("default_assistant_level_sum", 10)),
+    )
+
+
 def training_exposure(minutes: int, position_share: str = "full") -> float:
     """How much of the week's training a player actually received."""
     cfg = _config()
@@ -195,6 +230,63 @@ def weeks_to_next_level(
         stamina_factor=round(stamina_f, 4),
         weeks_to_next_level=round(max(weeks, 0.1), 2),
     )
+
+
+@dataclass(frozen=True)
+class LevelMilestone:
+    """One future level in a cascading forecast — the tab Hattrick Control
+    calls "Previsión subidas" (per player, not per squad)."""
+
+    level: int
+    weeks_for_this_level: float
+    weeks_from_now: float          # cumulative from today
+    age_years: int
+    age_days: int
+
+
+DAYS_PER_HT_YEAR = 112  # 16-week season × 7 days; a player ages 1 year/season
+
+
+def forecast_level_chain(
+    skill: str,
+    current_level: int,
+    age_years: int,
+    age_days: int,
+    setup: TrainingSetup,
+    exposure: float = 1.0,
+    max_levels: int = 15,
+) -> list[LevelMilestone]:
+    """Every future level from `current_level + 1` onward, each predicted
+    with the age the player will actually HAVE when they get there — age
+    compounds through the chain, so later levels cost more weeks than a
+    naive per-level look would suggest (matches Hattrick Control's own
+    table, where weeks-per-level climbs step over step as the player ages
+    into it).
+
+    Stops at level 20 ("divino", the top of `SKILL_LEVELS`) even if
+    `max_levels` would reach further — beyond that a level name is a
+    guess, and cascading a forecast through a guess compounds the guess.
+    """
+    out: list[LevelMilestone] = []
+    cumulative_weeks = 0.0
+    level = current_level
+    total_days = age_years * DAYS_PER_HT_YEAR + age_days
+    steps = min(max_levels, max(0, 20 - current_level))
+    for _ in range(steps):
+        ay, ad = divmod(total_days, DAYS_PER_HT_YEAR)
+        speed = weeks_to_next_level(skill, level, int(ay), int(ad), setup, exposure)
+        cumulative_weeks += speed.weeks_to_next_level
+        total_days += speed.weeks_to_next_level * 7
+        level += 1
+        new_ay, new_ad = divmod(total_days, DAYS_PER_HT_YEAR)
+        out.append(LevelMilestone(
+            level=level,
+            weeks_for_this_level=speed.weeks_to_next_level,
+            weeks_from_now=round(cumulative_weeks, 1),
+            age_years=int(new_ay),
+            age_days=int(round(new_ad)),
+        ))
+    return out
 
 
 @dataclass

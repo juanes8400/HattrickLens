@@ -11,9 +11,15 @@ mediocampo y táctica, la segunda con anotación y suerte. Confundirlas lleva a
 fichar delanteros cuando el problema es que la pelota no llega.
 
 Sobre la muestra: las tasas de conversión son ruidosas. Con menos de una
-docena de ocasiones de un tipo, la diferencia entre 20% y 40% es azar. El
-servicio devuelve el tamaño de muestra junto a cada tasa para que la cifra no
-se lea sola.
+docena de ocasiones la diferencia entre 20% y 40% es azar. El servicio
+devuelve el tamaño de muestra junto a la tasa para que la cifra no se lea
+sola.
+
+2026-08-12, pedido explícito: los partidos NO oficiales (Escaleras/Duelos/
+Torneos/Preparación) se excluyen SIEMPRE, sin botón que los reactive — ver
+`NON_OFFICIAL_MATCH_TYPES`. El botón que existía para eso ahora controla los
+Amistosos (`FRIENDLY_MATCH_TYPES`), que sí son partidos reales, solo que no
+cuentan para el historial competitivo por defecto.
 """
 from __future__ import annotations
 
@@ -23,23 +29,39 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.weekly import (
+    season_at_offset,
+    season_week_label,
+    season_week_offset_for,
+)
 from app.domain.engines.match_analysis import (
+    CHANCE_ZONE_LABELS,
+    CHANCE_ZONES,
     SECTORS,
     ChanceTally,
     analyse,
     hatstats,
     loddar_stats,
 )
-from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
+from app.domain.value_objects.ht_constants import (
+    NON_OFFICIAL_MATCH_TYPES,
+    is_friendly_match_type,
+)
 from app.infrastructure.db import models as m
 
 # Por debajo de esto una tasa de conversión es una anécdota, no una medida.
 MIN_CHANCES_FOR_A_RATE = 12
 
-# Identificadores de evento de Hattrick agrupados por tipo de ocasión.
-# Mapa parcial y declarado como tal: se completa al sincronizar matchdetails.
-GOAL_EVENTS = range(100, 200)
-CHANCE_EVENTS = range(200, 400)
+_BEST_METRICS = (
+    ("hatstats", "Valoración"),
+    ("midfield", "Mediocampo"),
+    ("right_def", "Defensa derecha"),
+    ("central_def", "Defensa central"),
+    ("left_def", "Defensa izquierda"),
+    ("right_att", "Ataque derecha"),
+    ("central_att", "Ataque central"),
+    ("left_att", "Ataque izquierda"),
+)
 
 
 @dataclass
@@ -69,19 +91,34 @@ class MatchRow:
 
 
 @dataclass
-class ConversionRate:
-    kind: str
+class ZoneChances:
+    zone: str
     label: str
-    chances: int
-    goals: int
-    rate: float
+    own: int
+    opponent: int
+
+
+@dataclass
+class ConversionSummary:
+    own_chances: int
+    own_goals: int
+    own_conversion: float
+    opponent_chances: int
+    opponent_goals: int
+    opponent_conversion: float
     is_reliable: bool
+    zones: list[ZoneChances]
 
 
 @dataclass
 class RatingSeriesPoint:
+    ht_match_id: int
     date: str
+    season_week: str | None
     opponent: str
+    result: str
+    goals_for: int
+    goals_against: int
     midfield: int
     defence: int
     attack: int
@@ -104,8 +141,30 @@ class MatchDetail:
     verdict: str
     strengths: list[str]
     weaknesses: list[str]
-    own_chances: dict[str, int]
-    opponent_chances: dict[str, int]
+    own_chances: dict[str, int | float]
+    opponent_chances: dict[str, int | float]
+
+
+@dataclass
+class HomeAwayRow:
+    scope: str
+    label: str
+    played: int
+    won: int
+    drawn: int
+    lost: int
+    goals_for: int
+    goals_against: int
+
+
+@dataclass
+class BestRating:
+    metric: str
+    label: str
+    value: int
+    date: str
+    opponent: str
+    ht_match_id: int
 
 
 @dataclass
@@ -117,10 +176,18 @@ class MatchesResponse:
     goals_against: int
     matches: list[MatchRow]
     rating_series: list[RatingSeriesPoint]
-    conversion: list[ConversionRate]
+    conversion: ConversionSummary
     avg_hatstats: float | None
     best_match: MatchRow | None
     worst_match: MatchRow | None
+    available_seasons: list[int]
+    current_season: int | None
+    selected_season: int | None
+    season_label: str
+    include_friendlies: bool
+    home_away: list[HomeAwayRow]
+    results_pie: dict[str, int]
+    best_ratings: list[BestRating]
     notes: list[str] = field(default_factory=list)
 
 
@@ -131,7 +198,20 @@ class MatchesQueryService:
     async def _team(self, team_id: int) -> m.Team | None:
         return await self._s.get(m.Team, team_id)
 
-    async def _played(self, ht_team_id: int, include_non_official: bool = False) -> list[m.Match]:
+    async def _world(self, team: m.Team) -> m.WorldContext | None:
+        if team.ht_league_id is None:
+            return None
+        return await self._s.scalar(
+            select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+        )
+
+    async def _played(self, ht_team_id: int) -> list[m.Match]:
+        """Partidos oficiales de ESTE equipo. Los no-oficiales (Escaleras,
+        Duelos, Torneos, Preparación) se excluyen aquí siempre — no hay
+        override en ningún punto de la herramienta (pedido explícito
+        2026-08-12). Los Amistosos SÍ se incluyen: el filtro de amistosos se
+        aplica después, sobre esta misma lista, para que el selector de
+        temporadas no dependa de si están visibles o no."""
         query = (
             select(m.Match)
             .where(
@@ -139,9 +219,8 @@ class MatchesQueryService:
                 | (m.Match.away_team_ht_id == ht_team_id)
             )
             .where(m.Match.home_goals >= 0)
+            .where(m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
         )
-        if not include_non_official:
-            query = query.where(m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
         rows = await self._s.execute(query.order_by(m.Match.played_at))
         return list(rows.scalars())
 
@@ -159,7 +238,7 @@ class MatchesQueryService:
         return {(r.ht_match_id, r.is_home): r for r in rows.scalars()}
 
     async def overview(
-        self, team_id: int, include_non_official: bool = False
+        self, team_id: int, *, include_friendlies: bool = False, season: int | None = None
     ) -> MatchesResponse | None:
         """Nombrado `overview` y no `list` a propósito: un método `list` en el
         cuerpo de la clase tapa el builtin, y las anotaciones `list[...]` de los
@@ -167,21 +246,72 @@ class MatchesQueryService:
         team = await self._team(team_id)
         if team is None:
             return None
-        played = await self._played(team.ht_team_id, include_non_official)
-        if not played:
+        all_played = await self._played(team.ht_team_id)
+        if not all_played:
             return None
+
+        world = await self._world(team)
+        current_season = world.season if world is not None else None
+
+        match_season: dict[int, int | None] = {}
+        seasons_seen: set[int] = set()
+        for match in all_played:
+            offset = season_week_offset_for(world, match.played_at)
+            s = season_at_offset(world, weeks_offset=offset)
+            match_season[match.ht_match_id] = s
+            if s is not None:
+                seasons_seen.add(s)
+        available_seasons = sorted(seasons_seen, reverse=True)
+
+        played = [
+            p for p in all_played
+            if (include_friendlies or not is_friendly_match_type(p.match_type))
+            and (season is None or match_season.get(p.ht_match_id) == season)
+        ]
+
+        if season is None:
+            season_label = "Todas las temporadas"
+        elif current_season is not None and season == current_season:
+            season_label = f"Temporada actual ({season})"
+        else:
+            season_label = f"Temporada {season}"
+
+        if not played:
+            return MatchesResponse(
+                team_name=team.name,
+                matches_played=0, record="0-0-0", goals_for=0, goals_against=0,
+                matches=[], rating_series=[],
+                conversion=ConversionSummary(
+                    own_chances=0, own_goals=0, own_conversion=0.0,
+                    opponent_chances=0, opponent_goals=0, opponent_conversion=0.0,
+                    is_reliable=False, zones=[],
+                ),
+                avg_hatstats=None, best_match=None, worst_match=None,
+                available_seasons=available_seasons, current_season=current_season,
+                selected_season=season, season_label=season_label,
+                include_friendlies=include_friendlies,
+                home_away=[], results_pie={"won": 0, "drawn": 0, "lost": 0},
+                best_ratings=[],
+                notes=["No hay partidos con estos filtros."],
+            )
 
         ratings = await self._ratings([p.ht_match_id for p in played])
         rows: list[MatchRow] = []
         series: list[RatingSeriesPoint] = []
         won = drawn = lost = 0
         gf = ga = 0
+        home_played = home_won = home_drawn = home_lost = home_gf = home_ga = 0
+        away_played = away_won = away_drawn = away_lost = away_gf = away_ga = 0
+        own_tally = ChanceTally()
+        opp_tally = ChanceTally()
+        best: dict[str, BestRating] = {}
 
         for match in played:
             is_home = match.home_team_ht_id == team.ht_team_id
             own_goals = match.home_goals if is_home else match.away_goals
             opp_goals = match.away_goals if is_home else match.home_goals
             opponent = match.away_team_name if is_home else match.home_team_name
+            date = _iso(match.played_at)
             gf += own_goals
             ga += opp_goals
             if own_goals > opp_goals:
@@ -194,6 +324,21 @@ class MatchesQueryService:
                 lost += 1
                 result = "D"
 
+            if is_home:
+                home_played += 1
+                home_gf += own_goals
+                home_ga += opp_goals
+                home_won += result == "V"
+                home_drawn += result == "E"
+                home_lost += result == "D"
+            else:
+                away_played += 1
+                away_gf += own_goals
+                away_ga += opp_goals
+                away_won += result == "V"
+                away_drawn += result == "E"
+                away_lost += result == "D"
+
             own_r = ratings.get((match.ht_match_id, is_home))
             opp_r = ratings.get((match.ht_match_id, not is_home))
             own_dict = _rating_dict(own_r)
@@ -202,7 +347,7 @@ class MatchesQueryService:
             rows.append(
                 MatchRow(
                     ht_match_id=match.ht_match_id,
-                    date=_iso(match.played_at),
+                    date=date,
                     match_type=match.match_type,
                     opponent=opponent,
                     is_home=is_home,
@@ -216,10 +361,24 @@ class MatchesQueryService:
                 )
             )
             if own_r:
+                own_tally.left += own_r.chances_left
+                own_tally.center += own_r.chances_center
+                own_tally.right += own_r.chances_right
+                own_tally.special += own_r.chances_special
+                own_tally.other += own_r.chances_other
+                own_tally.goals += own_goals
+
                 series.append(
                     RatingSeriesPoint(
-                        date=_iso(match.played_at),
+                        ht_match_id=match.ht_match_id,
+                        date=date,
+                        season_week=season_week_label(
+                            world, weeks_offset=season_week_offset_for(world, match.played_at)
+                        ),
                         opponent=opponent,
+                        result=result,
+                        goals_for=own_goals,
+                        goals_against=opp_goals,
                         midfield=own_r.midfield,
                         defence=own_r.right_def + own_r.central_def + own_r.left_def,
                         attack=own_r.right_att + own_r.central_att + own_r.left_att,
@@ -227,32 +386,76 @@ class MatchesQueryService:
                     )
                 )
 
-        tallies = await self._tallies(team.ht_team_id, [p.ht_match_id for p in played])
-        conversion = _conversion_rates(tallies)
+                candidates = {
+                    "hatstats": hs or 0,
+                    "midfield": own_r.midfield,
+                    "right_def": own_r.right_def,
+                    "central_def": own_r.central_def,
+                    "left_def": own_r.left_def,
+                    "right_att": own_r.right_att,
+                    "central_att": own_r.central_att,
+                    "left_att": own_r.left_att,
+                }
+                for metric, label in _BEST_METRICS:
+                    value = candidates[metric]
+                    current_best = best.get(metric)
+                    if current_best is None or value > current_best.value:
+                        best[metric] = BestRating(
+                            metric=metric, label=label, value=value, date=date,
+                            opponent=opponent, ht_match_id=match.ht_match_id,
+                        )
+            if opp_r:
+                opp_tally.left += opp_r.chances_left
+                opp_tally.center += opp_r.chances_center
+                opp_tally.right += opp_r.chances_right
+                opp_tally.special += opp_r.chances_special
+                opp_tally.other += opp_r.chances_other
+                opp_tally.goals += opp_goals
+
+        conversion = ConversionSummary(
+            own_chances=own_tally.total, own_goals=own_tally.goals,
+            own_conversion=round(own_tally.conversion, 4),
+            opponent_chances=opp_tally.total, opponent_goals=opp_tally.goals,
+            opponent_conversion=round(opp_tally.conversion, 4),
+            is_reliable=own_tally.total >= MIN_CHANCES_FOR_A_RATE
+            and opp_tally.total >= MIN_CHANCES_FOR_A_RATE,
+            zones=[
+                ZoneChances(
+                    zone=z, label=CHANCE_ZONE_LABELS[z],
+                    own=getattr(own_tally, z), opponent=getattr(opp_tally, z),
+                )
+                for z in CHANCE_ZONES
+            ],
+        )
 
         rated = [r for r in rows if r.hatstats is not None]
         hs_values = [r.hatstats for r in rated if r.hatstats is not None]
         avg_hs = round(sum(hs_values) / len(hs_values), 1) if hs_values else None
 
         notes: list[str] = []
-        if not include_non_official:
-            notes.append(
-                "Escaleras y Duelos no se muestran (no son partidos oficiales): "
-                "actívalos con el botón de arriba si quieres verlos."
-            )
         if not rated:
             notes.append(
                 "Todavía no hay ratings por sector sincronizados, así que los "
                 "índices HatStats y LoddarStats están vacíos. Llegan con el "
                 "detalle de partido."
             )
-        weak = [c.label for c in conversion if not c.is_reliable and c.chances]
-        if weak:
+        if rated and not conversion.is_reliable and conversion.own_chances:
             notes.append(
-                f"Muestra corta en {', '.join(weak)}: por debajo de "
-                f"{MIN_CHANCES_FOR_A_RATE} ocasiones la tasa de conversión es "
-                "ruido, no señal. Se muestra igualmente, marcada."
+                f"Muestra corta: por debajo de {MIN_CHANCES_FOR_A_RATE} "
+                "ocasiones la tasa de conversión es ruido, no señal. Se "
+                "muestra igualmente, marcada."
             )
+
+        home_away = [
+            HomeAwayRow(
+                scope="home", label="Local", played=home_played, won=home_won,
+                drawn=home_drawn, lost=home_lost, goals_for=home_gf, goals_against=home_ga,
+            ),
+            HomeAwayRow(
+                scope="away", label="Visitante", played=away_played, won=away_won,
+                drawn=away_drawn, lost=away_lost, goals_for=away_gf, goals_against=away_ga,
+            ),
+        ]
 
         return MatchesResponse(
             team_name=team.name,
@@ -266,6 +469,14 @@ class MatchesQueryService:
             avg_hatstats=avg_hs,
             best_match=max(rated, key=lambda r: r.hatstats or 0) if rated else None,
             worst_match=min(rated, key=lambda r: r.hatstats or 0) if rated else None,
+            available_seasons=available_seasons,
+            current_season=current_season,
+            selected_season=season,
+            season_label=season_label,
+            include_friendlies=include_friendlies,
+            home_away=home_away,
+            results_pie={"won": won, "drawn": drawn, "lost": lost},
+            best_ratings=sorted(best.values(), key=lambda b: [m[0] for m in _BEST_METRICS].index(b.metric)),
             notes=notes,
         )
 
@@ -286,7 +497,10 @@ class MatchesQueryService:
         if own_r is None:
             return None
 
-        own_chances, opp_chances = await self._match_tallies(ht_match_id, team.ht_team_id)
+        own_goals = match.home_goals if is_home else match.away_goals
+        opp_goals = match.away_goals if is_home else match.home_goals
+        own_chances = _side_tally(own_r, own_goals)
+        opp_chances = _side_tally(opp_r, opp_goals)
         possession = (own_r.possession_first_half, own_r.possession_second_half)
         result = analyse(
             own_ratings=_rating_dict(own_r),
@@ -296,8 +510,6 @@ class MatchesQueryService:
             possession=possession,
         )
 
-        own_goals = match.home_goals if is_home else match.away_goals
-        opp_goals = match.away_goals if is_home else match.home_goals
         return MatchDetail(
             ht_match_id=ht_match_id,
             date=_iso(match.played_at),
@@ -323,58 +535,14 @@ class MatchesQueryService:
             opponent_chances=_tally_dict(opp_chances),
         )
 
-    async def _events(self, ht_match_ids: list[int]) -> list[m.MatchEvent]:
-        if not ht_match_ids:
-            return []
-        rows = await self._s.execute(
-            select(m.MatchEvent).where(m.MatchEvent.ht_match_id.in_(ht_match_ids))
-        )
-        return list(rows.scalars())
 
-    async def _match_tallies(
-        self, ht_match_id: int, ht_team_id: int
-    ) -> tuple[ChanceTally, ChanceTally]:
-        events = await self._events([ht_match_id])
-        own = _tally([e for e in events if e.subject_team_ht_id == ht_team_id])
-        opp = _tally([e for e in events if e.subject_team_ht_id not in (ht_team_id, 0)])
-        return own, opp
-
-    async def _tallies(self, ht_team_id: int, ht_match_ids: list[int]) -> ChanceTally:
-        events = await self._events(ht_match_ids)
-        return _tally([e for e in events if e.subject_team_ht_id == ht_team_id])
-
-
-def _tally(events: list[m.MatchEvent]) -> ChanceTally:
-    """Cuenta ocasiones y goles. Sin eventos devuelve ceros, y las tasas que
-    salen de ahí se marcan como no fiables aguas arriba."""
-    t = ChanceTally()
-    for e in events:
-        is_goal = e.event_type_id in GOAL_EVENTS
-        is_chance = is_goal or e.event_type_id in CHANCE_EVENTS
-        if not is_chance:
-            continue
-        t.normal += 1
-        if is_goal:
-            t.normal_goals += 1
-    return t
-
-
-def _conversion_rates(t: ChanceTally) -> list[ConversionRate]:
-    out = []
-    for kind, label, chances, goals in [
-        ("normal", "Ocasiones normales", t.normal, t.normal_goals),
-        ("special", "Eventos especiales", t.special, t.special_goals),
-        ("counter", "Contraataques", t.counter, t.counter_goals),
-        ("total", "Total", t.total, t.goals),
-    ]:
-        out.append(
-            ConversionRate(
-                kind=kind, label=label, chances=chances, goals=goals,
-                rate=round(goals / chances, 4) if chances else 0.0,
-                is_reliable=chances >= MIN_CHANCES_FOR_A_RATE,
-            )
-        )
-    return out
+def _side_tally(r: m.MatchRating | None, goals: int) -> ChanceTally:
+    if r is None:
+        return ChanceTally(goals=goals)
+    return ChanceTally(
+        left=r.chances_left, center=r.chances_center, right=r.chances_right,
+        special=r.chances_special, other=r.chances_other, goals=goals,
+    )
 
 
 def _rating_dict(r: m.MatchRating | None) -> dict[str, int]:
@@ -387,12 +555,12 @@ def _rating_dict(r: m.MatchRating | None) -> dict[str, int]:
     }
 
 
-def _tally_dict(t: ChanceTally) -> dict[str, int]:
+def _tally_dict(t: ChanceTally) -> dict[str, int | float]:
     return {
-        "normal": t.normal, "normalGoals": t.normal_goals,
-        "special": t.special, "specialGoals": t.special_goals,
-        "counter": t.counter, "counterGoals": t.counter_goals,
+        "left": t.left, "center": t.center, "right": t.right,
+        "special": t.special, "other": t.other,
         "total": t.total, "goals": t.goals,
+        "conversion": round(t.conversion, 4),
     }
 
 

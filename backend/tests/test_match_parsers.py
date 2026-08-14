@@ -5,6 +5,7 @@ from app.infrastructure.chpp.parsers import (
     parse_arenadetails,
     parse_leaguedetails,
     parse_matchdetails,
+    parse_matchorders,
     parse_matches,
     parse_transfersplayer,
 )
@@ -21,6 +22,47 @@ def test_parse_matches_real_fixture() -> None:
     assert all(537758 in (m["home_team_id"], m["away_team_id"]) for m in ms)
     jugados = [m for m in ms if m["status"] == "FINISHED"]
     assert jugados and all(m["home_goals"] >= 0 for m in jugados)
+    upcoming = next(m for m in ms if m["ht_match_id"] == 767370369)
+    assert upcoming["source_system"] == "hattrick"
+    assert upcoming["orders_given"] is True
+
+
+def test_parse_matchorders_reads_only_the_submitted_starting_lineup() -> None:
+    data = parse_matchorders((FIXTURES / "matchorders.xml").read_bytes())
+    assert data["available"] is True
+    assert data["ht_match_id"] == 767370369
+    assert data["source_system"] == "hattrick"
+    assert data["tactic_type"] == 2
+    assert data["attitude"] == 0
+    assert data["coach_modifier"] == 1
+    assert len(data["positions"]) == 11
+    assert data["positions"][0] == {
+        "ht_player_id": 476719421,
+        "role_id": 100,
+        "behaviour": 0,
+    }
+    assert data["prediction"] is None
+
+
+def test_parse_matchorders_predict_ratings_has_a_distinct_contract() -> None:
+    data = parse_matchorders((FIXTURES / "matchorders_predictratings.xml").read_bytes())
+
+    assert data["ht_match_id"] == 41877309
+    assert data["available"] is False  # predictratings no incluye este atributo
+    assert data["positions"] == []
+    assert data["prediction"] == {
+        "tactic_type": 2,
+        "tactic_skill": 19,
+        "ratings": {
+            "midfield": 18,
+            "right_def": 70,
+            "central_def": 90,
+            "left_def": 65,
+            "right_att": 28,
+            "central_att": 32,
+            "left_att": 56,
+        },
+    }
 
 
 def test_parse_matchdetails_real_fixture() -> None:
@@ -39,7 +81,10 @@ def test_parse_matchdetails_real_fixture() -> None:
     assert d["possession"]["second_half_home"] == 44
     assert d["arena"]["sold_terraces"] == 34130
     assert d["arena"]["sold_vip"] == 1425
-    assert isinstance(d["events"], list)
+    # matchdetails.xml v3.1 real no trae `<Event>`/EventTypeID (verificado en
+    # vivo) — solo conteos de ocasiones por zona, por lado.
+    assert home["chances"] == {"left": 3, "center": 0, "right": 1, "special": 0, "other": 0}
+    assert away["chances"] == {"left": 1, "center": 1, "right": 1, "special": 1, "other": 1}
 
 
 def test_parse_arenadetails_current_capacity() -> None:

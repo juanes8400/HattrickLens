@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from app.infrastructure.chpp.parsers import (
+    parse_currentbids,
     parse_economy,
     parse_managercompendium,
     parse_playerdetails,
@@ -110,10 +111,26 @@ def test_parse_playerdetails_real_fixture() -> None:
     assert data["native_league_name"] == "Colombia"
     assert data["last_match"] == {
         "ht_match_id": 123456789, "position_code": 13,
-        "played_minutes": 90, "rating": 8.5,
+        "played_minutes": 90, "rating": 8.5, "played_at": "2026-07-19 16:00:00",
     }
     assert data["age_years"] == 30
     assert data["age_days"] == 45
+
+
+def test_parse_playerdetails_ignores_the_all_zero_last_match_sentinel() -> None:
+    """Bug real 2026-08-09: cuando CHPP no tiene un último partido real
+    para un jugador, `<LastMatch>` sigue presente pero con todo en cero
+    (`MatchId=0`, `Date=0001-01-01...`) — nunca un partido real de
+    Hattrick, cuyo ID nunca es 0. Antes esto se colaba como si
+    PositionCode=0 fuera una posición real: `match_role_name(0)` no
+    traduce nada y muestra el feo fallback "posicion 0 (sin traducir)" en
+    "Última posición"/"Última semana". Debe leerse como "sin dato", igual
+    que cualquier otro sentinel de esta app (-1 en matchlineup, etc.)."""
+    data = parse_playerdetails(
+        (FIXTURES / "playerdetails_no_last_match.xml").read_bytes()
+    )
+    assert data["ht_player_id"] == 511319764
+    assert "last_match" not in data
 
 
 def test_parse_playerdetails_detects_chpp_error() -> None:
@@ -159,6 +176,38 @@ def test_parse_transfersteam_real_fixture() -> None:
         "number_of_buys": 1,
         "number_of_sales": 1,
     }
+
+
+def test_parse_currentbids_reads_highest_bid_and_handles_no_bids_yet() -> None:
+    """`HighestBid/Amount` es un nodo anidado, no un hermano de `PlayerId`
+    — pedido explícitamente 2026-08-08 para enumerar intentos de venta con
+    su precio. Un jugador recién listado sin pujas todavía no trae el nodo
+    `HighestBid`: debe leerse `None`, nunca 0 (0 sería una puja real)."""
+    xml = b"""<?xml version="1.0" encoding="utf-8"?>
+    <HattrickData>
+      <TeamId>537758</TeamId>
+      <BidItems TrackingTypeID="1">
+        <BidItem>
+          <PlayerId>484269024</PlayerId>
+          <PlayerName>Jorge Salas</PlayerName>
+          <HighestBid>
+            <Amount>2000000</Amount>
+            <TeamId>1</TeamId>
+            <TeamName>Comprador</TeamName>
+          </HighestBid>
+          <Deadline>2026-08-10 20:00:00</Deadline>
+        </BidItem>
+        <BidItem>
+          <PlayerId>111</PlayerId>
+          <PlayerName>Sin pujas</PlayerName>
+          <Deadline>2026-08-10 20:00:00</Deadline>
+        </BidItem>
+      </BidItems>
+    </HattrickData>"""
+    data = parse_currentbids(xml)
+    listed = {p["ht_player_id"]: p for p in data["listed_players"]}
+    assert listed[484269024]["highest_bid"] == 2000000
+    assert listed[111]["highest_bid"] is None
 
 
 def test_parse_training_real_fixture() -> None:

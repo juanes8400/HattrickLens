@@ -15,8 +15,11 @@ router = APIRouter()
 @router.get("/teams/{team_id}/matches", summary="Partidos, ratings y conversión")
 async def matches(
     team_id: int,
-    include_non_official: bool = Query(
-        False, description="Incluir Escaleras/Duelos (no son partidos oficiales)"
+    include_friendlies: bool = Query(
+        False, description="Incluir Amistosos en el historial"
+    ),
+    season: int | None = Query(
+        None, description="Filtrar por temporada. Ausente = todas las temporadas"
     ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -26,8 +29,14 @@ async def matches(
     dos» son el mismo 1-2 y piden decisiones opuestas. Las tasas vienen con su
     tamaño de muestra y marcadas como fiables o no, porque con pocas ocasiones
     la diferencia entre un 20% y un 40% es azar.
+
+    Escaleras, Duelos, Torneos y Preparación se excluyen siempre — no son
+    partidos oficiales y no hay override para ellos en ningún punto de la
+    herramienta.
     """
-    data = await MatchesQueryService(session).overview(team_id, include_non_official)
+    data = await MatchesQueryService(session).overview(
+        team_id, include_friendlies=include_friendlies, season=season
+    )
     if data is None:
         raise HTTPException(404, f"no played matches for team {team_id}")
     return cast(dict[str, Any], _camel(asdict(data)))

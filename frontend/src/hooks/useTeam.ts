@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../services/api";
-import type { PitchZoneScope } from "../services/api";
+import type { Formation, PitchZoneScope } from "../services/api";
 
 /**
  * El equipo activo. Antes de conectar con Hattrick no hay ninguno real, así
@@ -27,6 +27,17 @@ export function hasActiveTeam(): boolean {
 export function setActiveTeamId(teamId: number): void {
   localStorage.setItem(TEAM_ID_STORAGE_KEY, String(teamId));
 }
+
+export function clearActiveTeamId(): void {
+  localStorage.removeItem(TEAM_ID_STORAGE_KEY);
+}
+
+export const useSessionProfile = () =>
+  useQuery({
+    queryKey: ["session-profile"],
+    queryFn: api.sessionProfile,
+    staleTime: 5 * 60_000,
+  });
 
 export const useDashboard = () =>
   useQuery({ queryKey: ["dashboard", TEAM_ID], queryFn: () => api.dashboard(TEAM_ID) });
@@ -61,9 +72,6 @@ export const usePostMatchTraining = () =>
     queryFn: () => api.postMatchTraining(TEAM_ID),
   });
 
-export const useValuations = () =>
-  useQuery({ queryKey: ["valuations", TEAM_ID], queryFn: () => api.valuations(TEAM_ID) });
-
 export const useInsights = () =>
   useQuery({ queryKey: ["insights", TEAM_ID], queryFn: () => api.insights(TEAM_ID) });
 
@@ -76,22 +84,28 @@ export const useExperienceModel = () =>
     queryFn: () => api.experienceModel(TEAM_ID),
   });
 
+export const useLoyaltyModel = () =>
+  useQuery({
+    queryKey: ["loyalty-model", TEAM_ID],
+    queryFn: () => api.loyaltyModel(TEAM_ID),
+  });
+
 export const useEconomy = (horizonWeeks = 52) =>
   useQuery({
     queryKey: ["economy", TEAM_ID, horizonWeeks],
     queryFn: () => api.economy(TEAM_ID, horizonWeeks),
   });
 
-export const useArena = (fillRate?: number, includeNonOfficial = false) =>
+export const useArena = (fillRate?: number) =>
   useQuery({
-    queryKey: ["arena", TEAM_ID, fillRate ?? null, includeNonOfficial],
-    queryFn: () => api.arena(TEAM_ID, fillRate, includeNonOfficial),
+    queryKey: ["arena", TEAM_ID, fillRate ?? null],
+    queryFn: () => api.arena(TEAM_ID, fillRate),
   });
 
-export const useMatches = (includeNonOfficial = false) =>
+export const useMatches = (includeFriendlies = false, season?: number | null) =>
   useQuery({
-    queryKey: ["matches", TEAM_ID, includeNonOfficial],
-    queryFn: () => api.matches(TEAM_ID, includeNonOfficial),
+    queryKey: ["matches", TEAM_ID, includeFriendlies, season ?? null],
+    queryFn: () => api.matches(TEAM_ID, includeFriendlies, season),
   });
 
 export const useMatchDetail = (htMatchId: number | null) =>
@@ -105,6 +119,14 @@ export const useLeague = (runs = 10000) =>
   useQuery({
     queryKey: ["league", TEAM_ID, runs],
     queryFn: () => api.league(TEAM_ID, runs),
+  });
+
+export const useLeagueTeamOfWeek = (
+  scope: "week" | "season", formation: Formation, round?: number,
+) =>
+  useQuery({
+    queryKey: ["league-team-of-week", TEAM_ID, scope, formation, round],
+    queryFn: () => api.leagueTeamOfWeek(TEAM_ID, scope, formation, round),
   });
 
 export const useAcademy = () =>
@@ -122,10 +144,30 @@ export const useTrainingFormula = () =>
     queryFn: () => api.trainingFormula(TEAM_ID),
   });
 
-export const useLeagueComparison = (logTsi: boolean, excludeKeeper: boolean, top11: boolean) =>
+export const useTrainingSquad = (skill?: string | null, includeThisWeek = true) =>
+  useQuery({
+    queryKey: ["training-squad", TEAM_ID, skill ?? "default", includeThisWeek],
+    queryFn: () => api.trainingSquad(TEAM_ID, skill, includeThisWeek),
+  });
+
+export const usePlayerTrainingLevels = (htPlayerId: number | null, skill?: string | null) =>
+  useQuery({
+    queryKey: ["player-training-levels", TEAM_ID, htPlayerId, skill ?? "default"],
+    queryFn: () => api.playerTrainingLevels(TEAM_ID, htPlayerId as number, skill),
+    enabled: htPlayerId != null,
+  });
+
+// La comparativa de TSI de liga pide las plantillas de 7-8 rivales a CHPP —
+// carga sola al entrar a /league (2026-08-08: revertido el arranque
+// colapsado del 2026-08-05). `enabled` queda disponible por si otro caller
+// necesita retrasar el fetch, pero por defecto en `true`.
+export const useLeagueComparison = (
+  logTsi: boolean, excludeKeeper: boolean, top11: boolean, enabled = true,
+) =>
   useQuery({
     queryKey: ["league-comparison", TEAM_ID, logTsi, excludeKeeper, top11],
     queryFn: () => api.leagueComparison(TEAM_ID, logTsi, excludeKeeper, top11),
+    enabled,
   });
 
 export const useSyncChanges = () =>

@@ -159,6 +159,14 @@ def _bool(node: Element, tag: str, default: bool = False) -> bool:
     return _txt(node, tag, str(default)).lower() in ("true", "1")
 
 
+def _optional_bool(node: Element, tag: str) -> bool | None:
+    """Boolean* de CHPP: diferencia `false` de campo no suministrado."""
+    el = node.find(tag)
+    if el is None or el.text is None or not el.text.strip():
+        return None
+    return el.text.strip().lower() in ("true", "1")
+
+
 @register("players")
 def parse_players(xml: bytes) -> dict[str, Any]:
     """players.xml (2.8) trae bastante más de lo que se usó históricamente:
@@ -283,12 +291,30 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         out["caps"] = _int(node, "Caps")
     if node.find("CapsU20") is not None:
         out["caps_u20"] = _int(node, "CapsU20")
-    if last_match is not None:
+    # 2026-08-09, bug real: cuando CHPP no tiene un último partido real que
+    # contar, `<LastMatch>` SIGUE presente pero con todo en cero/vacío
+    # (`MatchId=0`, `Date=0001-01-01`, `PositionCode=0`...) — un sentinel
+    # "sin dato", no una posición real. `if last_match is not None` solo
+    # comprueba que el ELEMENTO existe, así que ese cero se colaba como si
+    # `PositionCode=0` fuera real: `match_role_name(0)` cae al fallback
+    # "posicion 0 (sin traducir)" y ESO es lo que se mostraba (Comparativa
+    # de liga y, para cualquier jugador propio en la misma situación,
+    # "Última semana" en Posiciones). `MatchId == 0` es la señal fiable de
+    # sentinel — un matchID real de Hattrick nunca es 0.
+    if last_match is not None and _int(last_match, "MatchId") != 0:
         out["last_match"] = {
             "ht_match_id": _int(last_match, "MatchId"),
             "position_code": _int(last_match, "PositionCode"),
             "played_minutes": _int(last_match, "PlayedMinutes"),
             "rating": _float(last_match, "Rating"),
+            # 2026-08-09, pedido explícitamente: "Última semana"/"Último
+            # partido" solo debe mostrar dato si el partido fue de verdad
+            # reciente — `LastMatch` es literalmente "el último partido con
+            # datos de este jugador", que para uno que casi no juega puede
+            # ser de hace más de un año (caso real: Volodymyr Manakin,
+            # 2025-04-02). Sin esta fecha no hay forma de distinguir "jugó
+            # la semana pasada" de "no juega hace mucho".
+            "played_at": _txt(last_match, "Date", ""),
         }
     return out
 
@@ -421,6 +447,12 @@ def parse_currentbids(xml: bytes) -> dict[str, Any]:
             "ht_player_id": _int(node, "PlayerId"),
             "player_name": _txt(node, "PlayerName", ""),
             "deadline": _txt(node, "Deadline", ""),
+            # 2026-08-08: precio de la puja más alta en el momento de la
+            # detección — `None` si CHPP todavía no reporta ninguna puja
+            # (nodo `HighestBid` ausente, no 0 real).
+            "highest_bid": (
+                _int(node, "HighestBid/Amount") if node.find("HighestBid") is not None else None
+            ),
         })
     return {"listed_players": listed}
 
@@ -482,8 +514,119 @@ def parse_matches(xml: bytes) -> dict[str, Any]:
             "away_goals": _int(mt, "AwayGoals", -1),
             "cup_level": _int(mt, "CupLevel", -1),
             "cup_level_index": _int(mt, "CupLevelIndex", -1),
+            "source_system": _txt(mt, "SourceSystem", "").lower() or None,
+            "orders_given": _optional_bool(mt, "OrdersGiven"),
         })
     return {"matches": out}
+
+
+@register("matchesarchive")
+def parse_matchesarchive(xml: bytes) -> dict[str, Any]:
+    """matchesarchive.xml — HL-161, 2026-08-14: lista de partidos de UN
+    equipo entre dos fechas (`FirstMatchDate`/`LastMatchDate`), sin importar
+    cuándo se sincronizó por primera vez esta app. Verificado en vivo contra
+    el equipo real (teamID, ventana 2025-07-28→2025-09-28): a diferencia de
+    `matches.xml` (que solo da lo reciente/próximo), esta acción sí retrocede
+    a temporadas ya cerradas — es la pieza que faltaba para reconstruir
+    cuántos partidos jugó con nosotros un jugador que ya se fue.
+
+    Trae menos campos que `matches.xml`: sin `Status`, `CupLevel(Index)`,
+    `SourceSystem` ni `OrdersGiven` — ninguno existe en este fichero, así
+    que no se inventan aquí con un default."""
+    root = ElementTree.fromstring(xml)
+    out = []
+    for mt in root.iterfind(".//Match"):
+        home = mt.find("HomeTeam")
+        away = mt.find("AwayTeam")
+        out.append({
+            "ht_match_id": _int(mt, "MatchID"),
+            "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
+            "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
+            "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
+            "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
+            "match_date": _txt(mt, "MatchDate", ""),
+            "match_type": _int(mt, "MatchType"),
+            "home_goals": _int(mt, "HomeGoals", -1),
+            "away_goals": _int(mt, "AwayGoals", -1),
+        })
+    return {"matches": out}
+
+
+@register("matchorders")
+def parse_matchorders(xml: bytes) -> dict[str, Any]:
+    """Órdenes enviadas o predicción oficial (`matchorders.xml` 3.0).
+
+    `MatchData Available=false` no es un error: significa que el partido no
+    pertenece al usuario o que las órdenes ya no están disponibles. La
+    alineación titular vive en `Lineup/Positions`, separada del banco y de los
+    lanzadores; solo esa lista debe alimentar cálculos del once inicial.
+
+    Con `actionType=predictratings`, en cambio, CHPP devuelve otro contrato:
+    `MatchData` no lleva el atributo `Available` y contiene directamente la
+    táctica, su nivel y los siete ratings. Se detecta por los tags de rating,
+    no por el atributo, para no confundir una predicción válida con órdenes
+    privadas/no disponibles.
+    """
+    root = ElementTree.fromstring(xml)
+    match_data = root.find("MatchData")
+    if match_data is None:
+        match_data = root.find(".//MatchData")
+    is_rating_prediction = bool(
+        match_data is not None and match_data.find("RatingMidfield") is not None
+    )
+    available = bool(
+        match_data is not None
+        and match_data.attrib.get("Available", "").strip().lower() in ("true", "1")
+    )
+
+    positions: list[dict[str, Any]] = []
+    if available and match_data is not None:
+        for player in match_data.iterfind("./Lineup/Positions/Player"):
+            player_id = _int(player, "PlayerID")
+            if player_id <= 0:
+                continue
+            positions.append({
+                "ht_player_id": player_id,
+                "role_id": _int(player, "RoleID"),
+                "behaviour": _int(player, "Behaviour"),
+            })
+
+    coach_modifier: int | None = None
+    if match_data is not None:
+        coach = match_data.find("CoachModifier")
+        if coach is not None and coach.text and coach.text.strip():
+            coach_modifier = int(coach.text)
+
+    prediction: dict[str, Any] | None = None
+    if is_rating_prediction and match_data is not None:
+        prediction = {
+            "tactic_type": _int(match_data, "TacticType"),
+            "tactic_skill": _int(match_data, "TacticSkill"),
+            "ratings": {
+                "midfield": _int(match_data, "RatingMidfield"),
+                "right_def": _int(match_data, "RatingRightDef"),
+                "central_def": _int(match_data, "RatingMidDef"),
+                "left_def": _int(match_data, "RatingLeftDef"),
+                "right_att": _int(match_data, "RatingRightAtt"),
+                "central_att": _int(match_data, "RatingMidAtt"),
+                "left_att": _int(match_data, "RatingLeftAtt"),
+            },
+        }
+
+    return {
+        "ht_match_id": _int(root, "MatchID"),
+        "source_system": (
+            _txt(root, "SourceSystem", "") or _txt(root, "sourceSystem", "")
+        ).lower() or None,
+        "available": available,
+        "match_date": _txt(match_data, "MatchDate", "") if match_data is not None else "",
+        "match_type": _int(match_data, "MatchType") if match_data is not None else 0,
+        "attitude": _int(match_data, "Attitude") if match_data is not None else None,
+        "tactic_type": _int(match_data, "TacticType") if match_data is not None else None,
+        "coach_modifier": coach_modifier,
+        "positions": positions,
+        "prediction": prediction,
+    }
 
 
 @register("matchdetails")
@@ -526,17 +669,17 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
             # bandera, ese "tag ausente" se confundía con el código real -1.
             "attitude": _int(t, "TeamAttitude", -1),
             "attitude_is_read": t.find("TeamAttitude") is not None,
+            # HL-2xx, 2026-08-12: se asumía un `<Event>`/EventTypeID por
+            # ocasión (nunca existió en la v3.1 real, verificado en vivo).
+            # Lo real es un conteo por zona, sin desglose de goles por zona.
+            "chances": {
+                "left": _int(t, "NrOfChancesLeft"),
+                "center": _int(t, "NrOfChancesCenter"),
+                "right": _int(t, "NrOfChancesRight"),
+                "special": _int(t, "NrOfChancesSpecialEvents"),
+                "other": _int(t, "NrOfChancesOther"),
+            },
         }
-
-    events = [
-        {
-            "minute": _int(ev, "Minute"),
-            "type_id": _int(ev, "EventTypeID"),
-            "subject_team_id": _int(ev, "SubjectTeamID"),
-            "text": _txt(ev, "EventText", ""),
-        }
-        for ev in root.iterfind(".//Event")
-    ]
 
     arena_el = mt.find("Arena")
 
@@ -564,7 +707,6 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
             "sold_roof": _int(arena_el if arena_el is not None else mt, "SoldRoof"),
             "sold_vip": _int(arena_el if arena_el is not None else mt, "SoldVIP"),
         },
-        "events": events,
     }
 
 
@@ -618,15 +760,39 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     Un partido ya finalizado es un hecho público permanente — no choca con la
     regla CHPP de "nunca histórico de un rival" (esa regla es sobre trackear
     el estado de una cuenta ajena a lo largo del tiempo, no sobre leer el
-    reporte público de un partido que ya se jugó)."""
+    reporte público de un partido que ya se jugó).
+
+    2026-08-09, corregido tras un caso real: `RoleID` cambia de significado
+    según la versión pedida (verificado en vivo, matchID 770453114). Sin
+    `version` explícito (lo que hace este parser desde siempre) CHPP sirve
+    ~1.2: ahí `RoleID` es solo un índice secuencial (1, 2, 3... orden de
+    aparición, sin significado táctico) y la posición real está en
+    `PositionCode` (1-16, MATCH_POSITION_* en ht_constants.py) — así sigue
+    llamándolo `rivals.py` para el marcaje al hombre, y así debe seguir. A
+    partir de v1.4, `RoleID` pasa a usar el esquema 100+ real
+    (MATCH_ROLE_*, MATCH_ROLE_NAMES) y `PositionCode` deja de aportar nada
+    nuevo; desde v1.5 `PositionCode` directamente desaparece del XML. A
+    partir de v2.1 además: `PlayerName` se parte en `FirstName`+`LastName`
+    (se reconstruye aquí para no romper a los llamadores existentes), y
+    aparece `<StartingLineup>` (el once ORIGINAL, antes de cualquier
+    cambio) junto al `<Lineup>` de siempre (que en 2.1 ya refleja el
+    estado FINAL tras cada `<Substitution>` — con el RoleID real que
+    ocupó cada suplente al entrar, algo que ninguna versión anterior
+    daba). Por eso este parser solo lee `<Lineup>`, nunca
+    `<StartingLineup>` — leer ambos duplicaría a todo titular que no fue
+    sustituido."""
     root = ElementTree.fromstring(xml)
     team = root.find(".//Team")
     if team is None:
         return {}
+    lineup = team.find("Lineup")
     players = [
         {
             "ht_player_id": _int(p, "PlayerID"),
-            "name": _txt(p, "PlayerName", ""),
+            "name": (
+                _txt(p, "PlayerName", "")
+                or f"{_txt(p, 'FirstName', '')} {_txt(p, 'LastName', '')}".strip()
+            ),
             "role_id": _int(p, "RoleID"),
             "position_code": _int(p, "PositionCode", -1),
             "rating_stars": _float(p, "RatingStars"),
@@ -635,7 +801,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
             "rating_stars_end": _float(p, "RatingStarsEndOfMatch"),
             "behaviour": _int(p, "Behaviour"),
         }
-        for p in team.iterfind(".//Player")
+        for p in (lineup.iterfind("Player") if lineup is not None else [])
     ]
     return {
         "ht_match_id": _int(root, "MatchID"),
@@ -794,26 +960,20 @@ def parse_economy(xml: bytes) -> dict[str, Any]:
 
 @register("club")
 def parse_club(xml: bytes) -> dict[str, Any]:
-    """Staff del club. La pieza que cierra la fórmula de entrenamiento:
-    `AssistantTrainerLevels` es el nivel agregado de ayudantes (0–10) que hasta
-    ahora se fijaba a mano. También los otros seis puestos de staff y la
-    inversión juvenil real."""
+    """Inversión juvenil real. HL-2xx, 2026-08-12: `club.xml` v1.1 (verificado
+    en vivo) YA NO trae `<Staff>` ni los niveles agregados por puesto
+    (`AssistantTrainerLevels` y hermanos) — solo `<Specialists>` (booleanos
+    de si hay o no un especialista de cada tipo) y `<YouthSquad>`. El
+    desglose real de staff (persona por persona, con su nivel de verdad)
+    siempre vivió en `stafflist.xml` — ver `parse_stafflist` y
+    `STAFF_TYPE_TO_FIELD` en ht_constants.py."""
     root = ElementTree.fromstring(xml)
     team = root.find(".//Team")
     if team is None:
         return {}
-    staff = team.find("Staff")
     youth = team.find("YouthSquad")
-    s = staff if staff is not None else team
     return {
         "ht_team_id": _int(team, "TeamID"),
-        "assistant_trainer_levels": _int(s, "AssistantTrainerLevels"),
-        "financial_director_levels": _int(s, "FinancialDirectorLevels"),
-        "form_coach_levels": _int(s, "FormCoachLevels"),
-        "medic_levels": _int(s, "MedicLevels"),
-        "spokesperson_levels": _int(s, "SpokespersonLevels"),
-        "sport_psychologist_levels": _int(s, "SportPsychologistLevels"),
-        "tactical_assistant_levels": _int(s, "TacticalAssistantLevels"),
         "youth_investment": _int(youth, "Investment") if youth is not None else 0,
         "youth_level": _int(youth, "YouthLevel") if youth is not None else 0,
         "youth_has_promoted": _txt(youth, "HasPromoted", "False").lower() in ("true", "1")

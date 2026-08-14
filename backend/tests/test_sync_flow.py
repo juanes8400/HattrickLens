@@ -4,6 +4,8 @@ Verifica el invariante central del producto: append-only + diffing —
 un segundo sync sin cambios NO escribe filas nuevas.
 """
 import asyncio
+import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,12 @@ class FakeCHPP:
 
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
         self.calls += 1
+        if file == "matchorders" and params.get("actionType") == "predictratings":
+            predicted = get_parser(file)(
+                (FIXTURES / "matchorders_predictratings.xml").read_bytes()
+            )
+            predicted["ht_match_id"] = params["matchID"]
+            return predicted
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
 
 
@@ -115,18 +123,31 @@ def test_matches_are_upserted_by_ht_match_id() -> None:
         # matchdetails (765274387) — los demás partidos "pendientes" del
         # backfill no tienen fixture propio y se descartan sin escribir
         # nada (ver el guard en `_backfill_missing_match_details`).
-        assert first.snapshots_written == 20
+        assert first.snapshots_written == 21
         assert first.unchanged == 0
 
         second = await handler.execute(cmd)
         assert second.snapshots_written == 0
-        assert second.unchanged == 17
+        assert second.unchanged == 18
 
         from sqlalchemy import func, select
 
         async with uow as u:
             total = await u.session.scalar(select(func.count()).select_from(m.Match))
             assert total == 17  # sin duplicados por ht_match_id
+            upcoming = await u.session.scalar(
+                select(m.Match).where(m.Match.ht_match_id == 767370369)
+            )
+            assert upcoming is not None
+            assert upcoming.source_system == "hattrick"
+            assert upcoming.orders_given is True
+            assert upcoming.submitted_tactic_type == 2
+            assert len(json.loads(upcoming.submitted_lineup_json or "[]")) == 11
+            assert upcoming.submitted_tactic_skill == 19
+            assert upcoming.submitted_rating_midfield == 18
+            assert upcoming.submitted_rating_central_def == 90
+            assert upcoming.submitted_rating_left_att == 56
+            assert upcoming.submitted_ratings_captured_at is not None
 
     asyncio.run(run())
 
@@ -174,6 +195,113 @@ def test_players_missing_from_a_later_sync_are_marked_departed() -> None:
             assert len(active) == 4
             assert len(departed) == 20
             assert {p.ht_player_id for p in active} == kept_ids
+
+    asyncio.run(run())
+
+
+def test_a_player_released_without_a_sale_is_also_announced() -> None:
+    """HL-2xx, pedido explícito: no sólo las ventas — un jugador despedido
+    (o cuyo préstamo terminó, etc.) SIN ninguna transacción en
+    `transfersteam.xml` también debe verse en "Qué cambió", aunque no haya
+    precio que anunciar."""
+    async def run() -> None:
+        from sqlalchemy import select
+
+        uow, chpp, team_id = await _setup()
+        handler = SyncTeamHandler(uow, chpp)
+        full_roster = get_parser("players")((FIXTURES / "players.xml").read_bytes())
+        released_player = full_roster["players"][4]
+        released_name = f"{released_player['first_name']} {released_player['last_name']}".strip()
+
+        await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["players"])
+        )
+
+        reduced = {"players": full_roster["players"][:4]}
+
+        class ReducedRosterCHPP:
+            async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+                return reduced if file == "players" else {}
+
+        handler2 = SyncTeamHandler(uow, ReducedRosterCHPP())
+        result2 = await handler2.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["players"])
+        )
+
+        assert {"category": "jugadores", "summary": f"{released_name} salió de la plantilla"} \
+            in result2.changes
+
+        async with uow as u:
+            change_row = await u.session.scalar(
+                select(m.SyncChange).where(
+                    m.SyncChange.summary == f"{released_name} salió de la plantilla"
+                )
+            )
+            assert change_row is not None
+
+    asyncio.run(run())
+
+
+def test_a_player_sold_in_the_same_sync_is_announced_as_a_change() -> None:
+    """HL-2xx, bug real: un jugador que sale del roster Y aparece vendido en
+    `transfersteam.xml` del MISMO sync no generaba ninguna entrada en "Qué
+    cambió" — `mark_departed` (fichero `players`) no sabe todavía el precio,
+    y `_persist_transfers` (fichero `transfersteam`, que corre después en la
+    misma pasada) nunca anunciaba nada. La venta debe verse igual, sin
+    importar el orden de los ficheros."""
+    async def run() -> None:
+        from sqlalchemy import select
+
+        uow, chpp, team_id = await _setup()
+        handler = SyncTeamHandler(uow, chpp)
+        full_roster = get_parser("players")((FIXTURES / "players.xml").read_bytes())
+        sold_player = full_roster["players"][4]
+        sold_name = f"{sold_player['first_name']} {sold_player['last_name']}".strip()
+
+        await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["players"])
+        )
+
+        reduced = {"players": full_roster["players"][:4]}
+        transfers_payload = {
+            "stats": {},
+            "transfers": [{
+                "ht_player_id": sold_player["ht_player_id"],
+                "transfer_type": "S",
+                "seller_team_id": 537758,
+                "buyer_team_id": 999999,
+                "price": 8_690_000,
+                "deadline": "2026-08-12 15:08:00",
+                "tsi": 5000,
+            }],
+        }
+
+        class SoldPlayerCHPP:
+            async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+                if file == "players":
+                    return reduced
+                if file == "transfersteam":
+                    return transfers_payload
+                return {}
+
+        handler2 = SyncTeamHandler(uow, SoldPlayerCHPP())
+        result2 = await handler2.execute(
+            SyncTeamCommand(
+                user_id=1, team_id=team_id, ht_team_id=537758,
+                files=["players", "transfersteam"],
+            )
+        )
+
+        assert any(
+            c["category"] == "jugadores" and c["summary"] == f"{sold_name} se vendió por 8,690,000"
+            for c in result2.changes
+        )
+
+        async with uow as u:
+            change_row = await u.session.scalar(
+                select(m.SyncChange).where(m.SyncChange.summary.like(f"{sold_name} se vendió%"))
+            )
+            assert change_row is not None
 
     asyncio.run(run())
 
@@ -376,8 +504,76 @@ def test_player_details_persists_last_match_and_mother_club() -> None:
             assert snap.last_match_position_code == 13
             assert snap.last_match_played_minutes == 90
             assert snap.last_match_rating == 8.5
+            # 2026-08-09, pedido explícitamente: sin esta fecha, "Último
+            # partido" no puede distinguir un dato reciente de uno viejo
+            # (ver test_squad_last_match_recency.py para el filtro). SQLite
+            # devuelve el valor sin tzinfo aunque se guardara con
+            # `.replace(tzinfo=UTC)` — mismo patrón ya visto en
+            # analysis.py/changes_history.py, se compara naive.
+            assert snap.last_match_played_at == datetime(2026, 7, 19, 16, 0)
+            # El fixture matchlineup.xml genérico es de OTRO equipo
+            # (etbenianos1) y no incluye a este jugador — el best-effort de
+            # `_fetch_last_match_behaviour` debe quedarse en None sin
+            # romper el resto de playerdetails (ver
+            # test_player_details_fills_in_the_real_individual_order abajo
+            # para el caso en que sí aparece).
+            assert snap.last_match_behaviour_code is None
             assert snap.career_caps == 0
             assert snap.career_caps_u20 == 0
+
+    asyncio.run(run())
+
+
+def test_player_details_fills_in_the_real_individual_order() -> None:
+    """2026-08-09, pedido explícitamente: "Última semana" solo mostraba la
+    posición base, nunca si la orden individual real fue
+    Ofensivo/Defensivo/Hacia el medio/Hacia la banda — ese dato vive en
+    `Behaviour` de matchlineup.xml PARA EL PARTIDO CONCRETO de
+    `LastMatch`, no en `LastMatch` mismo. `_fetch_last_match_behaviour`
+    encadena esa segunda llamada automáticamente."""
+    class BehaviourCHPP(FakeCHPP):
+        async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+            if file == "matchlineup":
+                self.calls += 1
+                return {
+                    "ht_match_id": params["matchID"],
+                    "ht_team_id": params["teamID"],
+                    "team_name": "Pulgas Arrechas",
+                    "players": [{
+                        "ht_player_id": 468921494, "name": "Alberto Gutiérrez Caviedes",
+                        "role_id": 112, "position_code": 112,
+                        "rating_stars": 11.5, "rating_stars_end": 11.0, "behaviour": 1,
+                    }],
+                }
+            return await super().fetch(file, version, **params)
+
+    async def run() -> None:
+        uow, _, team_id = await _setup()
+        handler = SyncTeamHandler(uow, BehaviourCHPP())
+
+        await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["players"])
+        )
+        result = await handler.execute_player_details(
+            SyncPlayerDetailsCommand(user_id=1, team_id=team_id, ht_player_id=468921494)
+        )
+        assert result.status == "completed"
+
+        from sqlalchemy import select
+
+        async with uow as u:
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 468921494)
+            )
+            assert player is not None
+            snap = await u.session.scalar(
+                select(m.PlayerSnapshot)
+                .where(m.PlayerSnapshot.player_id == player.id)
+                .order_by(m.PlayerSnapshot.captured_at.desc())
+                .limit(1)
+            )
+            assert snap is not None
+            assert snap.last_match_behaviour_code == 1  # Ofensivo
 
     asyncio.run(run())
 

@@ -6,12 +6,18 @@ requiere una llamada adicional ni infiere estados que Hattrick no entregue.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.queries.weekly import latest_per_iso_week
+from app.application.queries.weekly import (
+    changes_only,
+    season_week_label,
+    season_week_offset_for,
+)
+from app.domain.engines.staff_effects import STAFF_FIELD_TO_EFFECT_FN
 from app.domain.value_objects.ht_constants import CONFIDENCE, TEAM_SPIRIT
 from app.infrastructure.db import models as m
 
@@ -25,6 +31,14 @@ STAFF_FIELDS: tuple[tuple[str, str], ...] = (
     ("financial_director_levels", "Directores financieros"),
     ("spokesperson_levels", "Portavoces"),
 )
+# HL-2xx, 2026-08-12: el mismo código StaffType de stafflist.xml usado para
+# sumar las columnas de arriba (ver STAFF_TYPE_TO_FIELD en sync_team.py),
+# aquí para agrupar el roster real (nombres) bajo cada rol.
+STAFF_FIELD_TO_TYPE: dict[str, int] = {
+    "assistant_trainer_levels": 1, "medic_levels": 2, "spokesperson_levels": 3,
+    "sport_psychologist_levels": 4, "form_coach_levels": 5,
+    "financial_director_levels": 6, "tactical_assistant_levels": 7,
+}
 
 TRAINER_TYPES = {0: "Defensivo", 1: "Ofensivo", 2: "Equilibrado"}
 POPULARITY = {
@@ -38,9 +52,36 @@ def _date(value: Any) -> str:
     return value.isoformat() if value is not None else ""
 
 
+def _staff_members(row: m.StaffSnapshot) -> list[dict[str, Any]]:
+    if not row.staff_members_json:
+        return []
+    try:
+        return list(json.loads(row.staff_members_json))
+    except (ValueError, TypeError):
+        return []
+
+
 def _staff_levels(row: m.StaffSnapshot) -> list[dict[str, Any]]:
+    members = _staff_members(row)
     return [
-        {"key": key, "label": label, "level": int(getattr(row, key) or 0)}
+        {
+            "key": key,
+            "label": label,
+            "level": int(getattr(row, key) or 0),
+            "members": [
+                {"name": mem.get("name", ""), "level": mem.get("level", 0)}
+                for mem in members
+                if mem.get("staff_type") == STAFF_FIELD_TO_TYPE[key]
+            ],
+            # HL-2xx, 2026-08-12, pedido explícito: el aporte real de este
+            # puesto según las tablas oficiales de Hattrick — `None` para
+            # Portavoz, que ya no está entre las categorías vigentes que
+            # documentó el usuario, así que no hay tabla real que aplicar.
+            "effect": (
+                STAFF_FIELD_TO_EFFECT_FN[key](int(getattr(row, key) or 0))
+                if key in STAFF_FIELD_TO_EFFECT_FN else None
+            ),
+        }
         for key, label in STAFF_FIELDS
     ]
 
@@ -71,6 +112,16 @@ class ClubQueryService:
             .where(m.StaffSnapshot.team_id == team_id)
             .order_by(m.StaffSnapshot.captured_at)
         )).scalars())
+
+        # "TT-ss" para "Evolución del staff" — mismo patrón que economy.py:
+        # ancla al WorldContext del país del equipo (por ht_league_id), no
+        # inventa temporada/semana si worlddetails no se ha sincronizado.
+        world = (
+            await self._s.scalar(
+                select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+            )
+            if team.ht_league_id is not None else None
+        )
 
         latest_training = training[-1] if training else None
         latest_economy = economy[-1] if economy else None
@@ -119,13 +170,6 @@ class ClubQueryService:
                     }
                     if latest_economy is not None else None
                 ),
-                "sponsors": (
-                    {
-                        "popularity": latest_economy.sponsors_popularity,
-                        "popularityLabel": POPULARITY.get(latest_economy.sponsors_popularity, "Sin dato"),
-                    }
-                    if latest_economy is not None else None
-                ),
             },
             "staff": current_staff,
             "moodHistory": [
@@ -134,24 +178,38 @@ class ClubQueryService:
                     "spirit": row.morale,
                     "confidence": row.self_confidence,
                 }
-                for row in latest_per_iso_week(training, lambda item: item.captured_at)
+                # HL-2xx, 2026-08-12: un punto por CAMBIO real de espíritu o
+                # confianza, no uno por semana ISO — si dos syncs seguidos
+                # leen el mismo valor, no es un dato nuevo.
+                for row in changes_only(
+                    training, lambda item: item.captured_at,
+                    lambda item: (item.morale, item.self_confidence),
+                )
             ],
             "supporterHistory": [
                 {
                     "capturedAt": _date(row.captured_at),
                     "fanClubSize": row.fan_club_size,
                     "supportersPopularity": row.supporters_popularity,
-                    "sponsorsPopularity": row.sponsors_popularity,
                 }
-                for row in latest_per_iso_week(economy, lambda item: item.captured_at)
+                for row in changes_only(
+                    economy, lambda item: item.captured_at,
+                    lambda item: (item.fan_club_size, item.supporters_popularity),
+                )
             ],
             "staffHistory": [
                 {
                     "capturedAt": _date(row.captured_at),
+                    "seasonWeek": season_week_label(
+                        world, weeks_offset=season_week_offset_for(world, row.captured_at)
+                    ),
                     "roles": _staff_levels(row),
                     "trainerSkillLevel": row.trainer_skill_level,
                 }
-                for row in latest_per_iso_week(staff, lambda item: item.captured_at)
+                for row in changes_only(
+                    staff, lambda item: item.captured_at,
+                    lambda item: tuple(getattr(item, key) for key, _ in STAFF_FIELDS),
+                )
             ],
             "notes": [
                 "Los valores actuales vienen de club, training, stafflist y economy del CHPP.",

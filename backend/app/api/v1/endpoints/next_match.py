@@ -1,6 +1,7 @@
 """Análisis de decisión para el próximo partido del equipo conectado."""
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -11,12 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
-from app.api.v1.endpoints.rivals import fetch_rival_matches_and_lineups
+from app.api.v1.endpoints.rivals import _submitted_players, fetch_rival_matches_and_lineups
 from app.domain.engines.lineup_optimizer import best_formation
 from app.domain.engines.next_match_analysis import direct_condition_summary, probable_starters
 from app.domain.value_objects.ht_constants import (
     FRIENDLY_MATCH_TYPES,
     NON_OFFICIAL_MATCH_TYPES,
+    match_behaviour_name,
+    match_role_name,
     match_type_name,
 )
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
@@ -98,6 +101,51 @@ async def next_match_analysis(
     rival_players = rival_data.players_raw
     rival_matches = rival_data.matches
     rivals = probable_starters(rival_players, rival_data.appearances)
+    submitted_players = _submitted_players(upcoming, own_players)
+    submitted_orders: dict[str, Any] | None = None
+    if submitted_players and upcoming.submitted_lineup_json:
+        by_id = {int(player["ht_player_id"]): player for player in submitted_players}
+        try:
+            submitted_rows = json.loads(upcoming.submitted_lineup_json)
+        except (TypeError, ValueError):
+            submitted_rows = []
+        submitted_lineup = []
+        for row in submitted_rows:
+            if not isinstance(row, dict):
+                continue
+            player = by_id.get(int(row.get("ht_player_id", 0)))
+            if player is None:
+                continue
+            role_id = int(row.get("role_id", 0))
+            behaviour = int(row.get("behaviour", 0))
+            submitted_lineup.append({
+                "ht_player_id": player["ht_player_id"],
+                "name": player["name"],
+                "position": match_role_name(role_id),
+                "role_id": role_id,
+                "behaviour": behaviour,
+                "behaviour_label": match_behaviour_name(behaviour),
+                "stamina": player["stamina"],
+                "form": player["form"],
+                "experience": player["experience"],
+            })
+        submitted_orders = {
+            "match_id": upcoming.ht_match_id,
+            "captured_at": upcoming.submitted_orders_captured_at,
+            "ratings_captured_at": upcoming.submitted_ratings_captured_at,
+            "tactic_type": upcoming.submitted_tactic_type,
+            "tactic_skill": upcoming.submitted_tactic_skill,
+            "ratings": {
+                "midfield": upcoming.submitted_rating_midfield,
+                "right_def": upcoming.submitted_rating_right_def,
+                "central_def": upcoming.submitted_rating_central_def,
+                "left_def": upcoming.submitted_rating_left_def,
+                "right_att": upcoming.submitted_rating_right_att,
+                "central_att": upcoming.submitted_rating_central_att,
+                "left_att": upcoming.submitted_rating_left_att,
+            },
+            "lineup": submitted_lineup,
+        }
     try:
         own_lineup, own_ranking = best_formation(own_players)
         own_xi = [
@@ -122,14 +170,17 @@ async def next_match_analysis(
         own_formation = None
         own_xi = own_players[:11]
 
+    condition_reference = submitted_players or own_xi
     own_condition_players = [
         {
-            "line": "Tu once recomendado",
+            "line": (
+                "Tu alineación enviada" if submitted_players else "Tu once recomendado"
+            ),
             "stamina": int(player["stamina"]),
             "form": int(player["form"]),
             "experience": int(player["experience"]),
         }
-        for player in own_xi
+        for player in condition_reference
     ]
     rival_condition = direct_condition_summary(rivals)
     own_condition = direct_condition_summary(own_condition_players)
@@ -160,11 +211,20 @@ async def next_match_analysis(
         },
         "own": {
             "formation": own_formation,
+            "submitted_orders": submitted_orders,
+            "condition_source": (
+                "submitted_orders" if submitted_players else "recommended_lineup"
+            ),
             "condition": own_condition,
         },
         "data_freshness": freshness,
         "notes": [
             "Forma, resistencia y experiencia del rival se leen en vivo desde players.xml 2.8. Si CHPP omite alguno, se declara ausente: nunca se convierte en cero.",
+            (
+                "Tu condición usa la alineación realmente enviada; sus ratings son la predicción oficial CHPP al minuto 0."
+                if submitted_players else
+                "Aún no hay una alineación enviada disponible: tu condición usa temporalmente el once recomendado por Hattrick Lens."
+            ),
             "El once rival es una proyección y puede cambiar hasta que el partido se juegue. Se basa solo en reportes públicos de sus últimos cinco partidos oficiales terminados.",
             "Los datos del rival no se almacenan como historial; se descartan al terminar esta consulta.",
         ],

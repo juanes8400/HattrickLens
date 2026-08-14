@@ -88,7 +88,14 @@ class TeamOutlook:
     expected_position: float
     position_distribution: dict[int, float]   # posición → probabilidad
     title_probability: float
-    promotion_probability: float              # 1º, solo si no es ya primera división
+    # OJO al consumir este campo: es la probabilidad de TERMINAR 1º (idéntica
+    # a `title_probability`), no la probabilidad real de ascender. En
+    # Hattrick, el 1º de divisiones II-VI asciende directo o juega una
+    # promoción según el ranking nacional de campeones de esa temporada — el
+    # motor no conoce ese ranking (no hay fichero CHPP que lo exponga), así
+    # que nunca puede calcular la probabilidad real de ascenso, solo la
+    # condición necesaria (terminar 1º). 0.0 si ya es la división más alta.
+    promotion_probability: float
     second_to_fourth_probability: float       # 2º-4º
     relegation_playoff_probability: float     # 5º-6º: promoción para no descender
     relegation_probability: float             # 7º-8º, solo si no es ya la última división
@@ -229,7 +236,15 @@ def best_worst_case(
             gf[:, h] += gh
             gf[:, a] += ga
 
-        key = points * 1_000_000 + gd * 1_000 + gf
+        # Desempate aleatorio estable por corrida: un empate EXACTO en puntos,
+        # diferencia de goles y goles a favor lo decide una moneda al aire por
+        # corrida, no el orden en que el equipo llegó a `records` (lo que
+        # hacía `argsort` estable por defecto — silenciosamente sesgado a
+        # favor de quien apareciera primero en la lista, siempre el mismo
+        # equipo en las 10.000 corridas). El ruido es < 1, así que nunca
+        # puede invertir una diferencia real (el salto mínimo entre dos
+        # valores distintos de gf/gd/puntos es 1).
+        key = points * 1_000_000 + gd * 1_000 + gf + rng.random((runs, n))
         order = np.argsort(-key, axis=1)
         positions = np.empty_like(order)
         rows = np.arange(runs)[:, None]
@@ -357,8 +372,12 @@ def simulate(
         gf[:, a] += ga
 
     # Orden de Hattrick: puntos, luego diferencia de goles, luego goles a favor.
-    # Se combinan en una clave única para poder ordenar de una vez.
-    key = points * 1_000_000 + gd * 1_000 + gf
+    # Se combinan en una clave única para poder ordenar de una vez. El +
+    # ruido aleatorio (< 1, nunca invierte una diferencia real de al menos 1)
+    # es el desempate final cuando los tres criterios empatan EXACTO — sin
+    # esto, `argsort` es estable y siempre favorece a quien aparezca primero
+    # en `records`, el mismo equipo en las 10.000 corridas.
+    key = points * 1_000_000 + gd * 1_000 + gf + rng.random((runs, n))
     order = np.argsort(-key, axis=1)
     positions = np.empty_like(order)
     rows = np.arange(runs)[:, None]
@@ -440,6 +459,15 @@ def simulate(
         "tácticas. Sirve para las opciones de la temporada, no para acertar un "
         "partido concreto."
     )
+    if not is_top_division:
+        caveats.append(
+            "\"Terminar 1º\" no es lo mismo que ascender: en las divisiones "
+            "II-VI de Hattrick, el campeón asciende directo o juega una "
+            "promoción según el ranking nacional de campeones de la "
+            "temporada — un dato que ningún fichero CHPP expone hoy. El "
+            "modelo calcula la probabilidad de terminar 1º, la condición "
+            "necesaria, nunca la del ascenso en sí."
+        )
 
     return SeasonSimulation(
         teams=outlooks,
@@ -494,6 +522,9 @@ def model_info() -> dict[str, object]:
         "shrinkageK": SHRINKAGE_K,
         "homeAdvantage": HOME_ADVANTAGE,
         "shrinkageFormula": "(goles + k × media_liga) / (partidos + k)",
-        "tieBreakers": ["puntos", "diferencia de goles", "goles a favor"],
+        "tieBreakers": [
+            "puntos", "diferencia de goles", "goles a favor",
+            "aleatorio (solo si los tres anteriores empatan exacto, por corrida)",
+        ],
         "doesNotModel": ["lesiones", "alineaciones", "tácticas", "clima"],
     }

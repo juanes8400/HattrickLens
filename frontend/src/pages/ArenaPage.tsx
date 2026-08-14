@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Chart } from "../charts/Chart";
 import { Column, DataTable } from "../components/DataTable";
@@ -16,8 +15,7 @@ import { api, ApiError, type Arena } from "../services/api";
  * entrar; dice cuántos asientos había.
  */
 export function ArenaPage() {
-  const [includeNonOfficial, setIncludeNonOfficial] = useState(false);
-  const { data, isLoading, isError, error } = useArena(undefined, includeNonOfficial);
+  const { data, isLoading, isError, error } = useArena();
   const qc = useQueryClient();
   const syncDetails = useMutation({
     mutationFn: () => api.syncMatchDetails(TEAM_ID),
@@ -68,23 +66,11 @@ export function ArenaPage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Estadio</h1>
-          <p className="text-sm text-[var(--muted)]">
-            Asistencia, ocupación y demanda por sector
-          </p>
-        </div>
-        <button
-          onClick={() => setIncludeNonOfficial((v) => !v)}
-          className={
-            includeNonOfficial
-              ? "shrink-0 rounded-md border border-[var(--accent)] px-3 py-1.5 text-xs text-[var(--accent)]"
-              : "shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
-          }
-        >
-          {includeNonOfficial ? "Ocultar Escaleras/Duelos" : "Mostrar Escaleras/Duelos"}
-        </button>
+      <header>
+        <h1 className="text-xl font-semibold">Estadio</h1>
+        <p className="text-sm text-[var(--muted)]">
+          Asistencia, ocupación y demanda por sector
+        </p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -220,8 +206,7 @@ function SectorTable({ data }: { data: Arena }) {
       />
       <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         La flecha ↑ marca los sectores donde la ocupación mostrada es un suelo: se agotaron,
-        así que la cifra mide asientos y no demanda. El asterisco marca precios que vienen de
-        la especificación y no se han verificado contra tu pantalla.
+        así que la cifra mide asientos y no demanda.
       </p>
     </>
   );

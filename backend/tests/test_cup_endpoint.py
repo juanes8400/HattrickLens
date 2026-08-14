@@ -3,6 +3,7 @@
 Solo hechos: partidos de copa ya jugados (resultado real) y ya programados
 (fecha confirmada, no una predicción). Nunca un pronóstico del próximo
 cruce — HL-140's mismo principio: no presentar el futuro como si fuera cierto."""
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,36 @@ from app.main import app
 
 FIXTURES = Path(__file__).parent / "fixtures"
 OWN_HT_TEAM_ID = 537758
+SUBMITTED_IDS = [
+    476719421, 471016867, 474341053, 468921494, 475735542,
+    484269024, 484830978, 493839156, 444563841, 434712334, 440329107,
+]
+
+
+async def _seed_roster(team_id: int, specs: list[tuple[int, int, int]]) -> None:
+    """specs: (ht_player_id, tsi, stamina) por jugador."""
+    gen = app.dependency_overrides[get_session]()
+    session = await gen.__anext__()
+    now = datetime.now(UTC)
+    sync = m.Sync(user_id=1, team_id=team_id, kind="test", status="completed", started_at=now)
+    session.add(sync)
+    await session.flush()
+    for index, (ht_player_id, tsi, stamina) in enumerate(specs):
+        player = m.Player(
+            ht_player_id=ht_player_id, team_id=team_id,
+            first_name="Jugador", last_name=str(index + 1),
+        )
+        session.add(player)
+        await session.flush()
+        session.add(m.PlayerSnapshot(
+            sync_id=sync.id, player_id=player.id, captured_at=now,
+            age_years=25, age_days=0, tsi=tsi, form=7, stamina=stamina,
+            experience=7, salary=1_000, keeper=1, defending=1, playmaking=1,
+            winger=1, passing=1, scoring=1, set_pieces=1,
+            content_hash=f"player-{index}".encode(),
+        ))
+    await session.commit()
+    await gen.aclose()
 
 
 class FakeCHPP:
@@ -108,6 +139,136 @@ def test_cup_lists_the_upcoming_fixture_from_the_fixture(
     assert body["status"]["stillInCup"] is True
 
 
+def test_cup_readiness_defaults_to_top_tsi_without_finished_lineup_history(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """Sin ningún partido FINISHED con alineación conocida (de Copa o Liga),
+    el único once de referencia posible es el de mayor TSI — rediseño
+    2026-08-13 en toggle top TSI / última Copa / última Liga."""
+    import asyncio
+
+    client, team_id = seeded
+    specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
+    specs.append((999999999, 1_000_000, 9))  # mayor TSI de todos, sí entra al top 11
+    asyncio.run(_seed_roster(team_id, specs))
+
+    body = client.get(f"/api/v1/teams/{team_id}/cup").json()
+    readiness = body["readiness"]
+    assert [v["mode"] for v in readiness["referenceVariants"]] == ["top_tsi"]
+    assert readiness["defaultMode"] == "top_tsi"
+    variant = readiness["referenceVariants"][0]
+    assert variant["startersCount"] == 11
+    assert variant["staminaBands"][2]["count"] == 1  # el jugador de resistencia 9 ("Preparada")
+
+
+def test_cup_readiness_hides_last_cup_variant_with_only_one_match_played(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """"Última formación en Copa" solo se ofrece con más de un partido de
+    Copa jugado esta temporada — pedido explícito 2026-08-13."""
+    import asyncio
+
+    client, team_id = seeded
+    specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
+    asyncio.run(_seed_roster(team_id, specs))
+
+    async def run() -> None:
+        gen = app.dependency_overrides[get_session]()
+        session = await gen.__anext__()
+        team = await session.get(m.Team, team_id)
+        session.add(m.Match(
+            ht_match_id=999010, played_at=datetime(2026, 6, 1, tzinfo=UTC),
+            match_type=3, status="FINISHED",
+            home_team_ht_id=team.ht_team_id, away_team_ht_id=50,
+            home_team_name="Pulgas Arrechas", away_team_name="Único Rival",
+            home_goals=2, away_goals=0, cup_level=1, cup_level_index=1,
+            submitted_lineup_json=json.dumps([{"ht_player_id": pid} for pid in SUBMITTED_IDS]),
+        ))
+        await session.commit()
+
+    asyncio.run(run())
+
+    modes = [v["mode"] for v in client.get(f"/api/v1/teams/{team_id}/cup").json()["readiness"]["referenceVariants"]]
+    assert "last_cup" not in modes
+
+
+def test_cup_readiness_shows_last_cup_variant_when_more_than_one_match_played(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """Con más de un partido de Copa jugado, "Última formación en Copa" usa
+    la alineación enviada del más reciente y se vuelve el modo por defecto."""
+    import asyncio
+
+    client, team_id = seeded
+    specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
+    asyncio.run(_seed_roster(team_id, specs))
+
+    async def run() -> None:
+        gen = app.dependency_overrides[get_session]()
+        session = await gen.__anext__()
+        team = await session.get(m.Team, team_id)
+        session.add(m.Match(
+            ht_match_id=999011, played_at=datetime(2026, 5, 1, tzinfo=UTC),
+            match_type=3, status="FINISHED",
+            home_team_ht_id=team.ht_team_id, away_team_ht_id=50,
+            home_team_name="Pulgas Arrechas", away_team_name="Rival Anterior",
+            home_goals=1, away_goals=0, cup_level=1, cup_level_index=1,
+        ))
+        session.add(m.Match(
+            ht_match_id=999012, played_at=datetime(2026, 6, 1, tzinfo=UTC),
+            match_type=3, status="FINISHED",
+            home_team_ht_id=50, away_team_ht_id=team.ht_team_id,
+            home_team_name="Rival Reciente", away_team_name="Pulgas Arrechas",
+            home_goals=0, away_goals=3, cup_level=1, cup_level_index=1,
+            submitted_lineup_json=json.dumps([{"ht_player_id": pid} for pid in SUBMITTED_IDS]),
+        ))
+        await session.commit()
+
+    asyncio.run(run())
+
+    readiness = client.get(f"/api/v1/teams/{team_id}/cup").json()["readiness"]
+    last_cup = next(v for v in readiness["referenceVariants"] if v["mode"] == "last_cup")
+    assert last_cup["sourceMatchId"] == 999012
+    assert last_cup["sourceOpponent"] == "Rival Reciente"
+    assert last_cup["startersCount"] == 11
+    assert last_cup["averageStamina"] == 5.0
+    assert readiness["defaultMode"] == "last_cup"
+
+
+def test_cup_readiness_shows_last_league_variant_from_finished_league_match(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """"Última formación en Liga" no tiene el filtro de "más de un partido":
+    basta un único partido de Liga FINISHED con alineación conocida."""
+    import asyncio
+
+    client, team_id = seeded
+    specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
+    asyncio.run(_seed_roster(team_id, specs))
+
+    async def run() -> None:
+        gen = app.dependency_overrides[get_session]()
+        session = await gen.__anext__()
+        team = await session.get(m.Team, team_id)
+        session.add(m.Match(
+            ht_match_id=999020, played_at=datetime(2026, 6, 1, tzinfo=UTC),
+            match_type=1, status="FINISHED",
+            home_team_ht_id=team.ht_team_id, away_team_ht_id=60,
+            home_team_name="Pulgas Arrechas", away_team_name="Rival de Liga",
+            home_goals=2, away_goals=2,
+            submitted_lineup_json=json.dumps([{"ht_player_id": pid} for pid in SUBMITTED_IDS]),
+        ))
+        await session.commit()
+
+    asyncio.run(run())
+
+    readiness = client.get(f"/api/v1/teams/{team_id}/cup").json()["readiness"]
+    last_league = next(v for v in readiness["referenceVariants"] if v["mode"] == "last_league")
+    assert last_league["sourceMatchId"] == 999020
+    assert last_league["sourceOpponent"] == "Rival de Liga"
+    assert last_league["startersCount"] == 11
+
+
 def test_cup_computes_record_from_finished_matches(
     seeded: tuple[TestClient, int],
 ) -> None:
@@ -183,7 +344,7 @@ def test_cup_estimates_round_by_counting_matches_in_the_same_cup_level(
     body = resp.json()
 
     earlier = next(h for h in body["history"] if h["htMatchId"] == 999002)
-    assert earlier["roundEstimate"] == 1
+    assert earlier["round"] == 1
 
     upcoming = next(nm for nm in body["nextMatches"] if nm["htMatchId"] == 767370369)
     assert upcoming["roundEstimate"] == 2
@@ -220,7 +381,10 @@ def test_cup_shows_the_national_prize_table_for_cup_level_1(
     assert table[0]["status"] == "current"
     assert table[-1]["stage"] == "Campeón"
     assert table[-1]["amount"] == 1_500_000
-    assert any("Premios oficiales" in n for n in body["notes"])
+    # 2026-08-13, pedido explícito: la nota "Premios oficiales convertidos
+    # desde SEK..." se quitó por redundante — la tabla de premios ya deja
+    # claro que son cifras convertidas.
+    assert not any("Premios oficiales" in n for n in body["notes"])
 
 
 def test_cup_uses_divisional_prizes_and_official_loss_route(
@@ -416,7 +580,7 @@ def test_cup_round_estimate_is_none_without_cup_level_data(
     resp = client.get(f"/api/v1/teams/{team_id}/cup")
     assert resp.status_code == 200
     row = next(h for h in resp.json()["history"] if h["htMatchId"] == 999003)
-    assert row["roundEstimate"] is None
+    assert row["round"] is None
 
 
 def test_cup_does_not_treat_legacy_zero_rounds_left_as_champion(

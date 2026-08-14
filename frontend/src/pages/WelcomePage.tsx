@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../services/api";
 
 function messageFor(error: unknown): string {
@@ -16,6 +17,8 @@ function messageFor(error: unknown): string {
  * manager decide iniciar el flujo OAuth oficial. */
 export function WelcomePage() {
   const [error, setError] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const sessionExpired = params.get("reason") === "session_expired";
   const connect = useMutation({
     mutationFn: api.connectChpp,
     onSuccess: ({ authorizeUrl }) => {
@@ -42,10 +45,16 @@ export function WelcomePage() {
           entrenamiento, finanzas y partidos cuando tú lo decidas.
         </p>
 
+        {sessionExpired && (
+          <p role="status" className="mt-5 rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-3 text-sm text-[var(--warning)]">
+            Tu sesión venció. Reconecta con Hattrick para continuar; tus datos guardados no se perderán.
+          </p>
+        )}
+
         <div className="mt-7 space-y-3 rounded-xl bg-[var(--surface-2)] p-4 text-sm">
           <div className="flex gap-3"><span className="font-semibold text-[var(--accent)]">01</span><p><b>Inicia sesión en Hattrick.</b><br /><span className="text-[var(--muted)]">La autorización se realiza en Hattrick.org.</span></p></div>
-          <div className="flex gap-3"><span className="font-semibold text-[var(--accent)]">02</span><p><b>Elige tu club.</b><br /><span className="text-[var(--muted)]">Volverás aquí con tu equipo real seleccionado.</span></p></div>
-          <div className="flex gap-3"><span className="font-semibold text-[var(--accent)]">03</span><p><b>Sincroniza bajo demanda.</b><br /><span className="text-[var(--muted)]">HT Lens nunca descarga datos automáticamente.</span></p></div>
+          <div className="flex gap-3"><span className="font-semibold text-[var(--accent)]">02</span><p><b>Confirma tu club.</b><br /><span className="text-[var(--muted)]">Si administras más de uno, podrás escoger con cuál trabajar.</span></p></div>
+          <div className="flex gap-3"><span className="font-semibold text-[var(--accent)]">03</span><p><b>Importa bajo demanda.</b><br /><span className="text-[var(--muted)]">HT Lens no hace una sincronización completa hasta que tú la solicitas.</span></p></div>
         </div>
 
         {error && <p role="alert" className="mt-5 rounded-lg bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">{error}</p>}

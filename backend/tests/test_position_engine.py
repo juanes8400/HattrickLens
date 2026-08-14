@@ -31,9 +31,9 @@ def _roster() -> dict[str, dict]:
 ROSTER = _roster()
 
 
-def test_specification_defines_nineteen_positions_and_two_roles() -> None:
+def test_specification_defines_nineteen_positions_and_three_roles() -> None:
     assert len(positions()) == 19
-    assert set(special_roles()) == {"captain", "set_piece_taker"}
+    assert set(special_roles()) == {"captain", "set_piece_taker", "penalty_taker"}
 
 
 def test_rate_all_covers_every_position_sorted() -> None:
@@ -44,7 +44,7 @@ def test_rate_all_covers_every_position_sorted() -> None:
 
 def test_special_roles_are_opt_in() -> None:
     assert len(rate_all(ROSTER["Raúl Cobos"])) == 19
-    assert len(rate_all(ROSTER["Raúl Cobos"], include_special=True)) == 21
+    assert len(rate_all(ROSTER["Raúl Cobos"], include_special=True)) == 22
 
 
 def test_unknown_position_raises() -> None:
@@ -126,10 +126,38 @@ def test_set_piece_taker_uses_set_pieces_and_experience_only() -> None:
     assert rate(player, "set_piece_taker").rating == 22
 
 
+def test_penalty_taker_uses_the_weighted_formula_given_by_the_user() -> None:
+    """2026-08-09, pedido explícitamente: el lanzador de PENALTIS (incluye
+    penales de tanda) no es el mismo puesto que "Lanzador de faltas" (TLD)
+    — en Hattrick real tienen su propio código. Fórmula aportada
+    directamente por el usuario:
+    (EXP×1.5 + Balón Parado×0.7 + Anotación×0.3) × (1.10 si Técnico)."""
+    player = {
+        "skills": {"set_pieces": 10, "scoring": 20}, "experience": 8, "specialty": 0,
+    }
+    # 8×1.5 + 10×0.7 + 20×0.3 = 12 + 7 + 6 = 25, sin bono (no es Técnico).
+    assert rate(player, "penalty_taker").rating == 25.0
+
+
+def test_penalty_taker_applies_the_technical_specialty_bonus() -> None:
+    player = {
+        "skills": {"set_pieces": 10, "scoring": 20}, "experience": 8, "specialty": 1,
+    }
+    # Mismo jugador que arriba, pero Técnico: 25 × 1.10 = 27.5.
+    assert rate(player, "penalty_taker").rating == 27.5
+
+
+def test_penalty_taker_ignores_a_non_technical_specialty() -> None:
+    player = {
+        "skills": {"set_pieces": 10, "scoring": 20}, "experience": 8, "specialty": 2,
+    }
+    assert rate(player, "penalty_taker").rating == 25.0
+
+
 def test_engine_reports_manual_provenance() -> None:
     info = model_info()
     assert info["positions"] == 19
-    assert info["specialRoles"] == 2
+    assert info["specialRoles"] == 3
     assert info["source"] == "Manual no Escrito"
     assert info["sourceUrl"].startswith("https://wiki.hattrick.org/")
     assert "form" in info["adjustments"]

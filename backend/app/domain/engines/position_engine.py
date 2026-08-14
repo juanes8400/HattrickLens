@@ -29,6 +29,11 @@ import yaml
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "positions.yaml"
 SOURCE_URL = "https://wiki.hattrick.org/wiki/Manual_no_Escrito"
 
+# SPECIALTIES[1] en ht_constants.py ("Tecnico") — usado solo por
+# penalty_taker (ver positions.yaml). No se importa ht_constants aquí para
+# no acoplar este motor a esa tabla completa por un solo código.
+TECHNICAL_SPECIALTY_CODE = 1
+
 
 @lru_cache(maxsize=1)
 def _config() -> dict[str, Any]:
@@ -125,6 +130,20 @@ def _special_role_score(player: dict[str, Any], position: str) -> float:
         # gives no relative coefficient, so the transparent selection index is
         # their unweighted sum rather than a fitted ratio.
         return _skill(player, "set_pieces") + experience
+    if position == "penalty_taker":
+        # A DISTINCT role from set_piece_taker (2026-08-09) — covers penalty
+        # kicks, including shootouts ("penales de tanda"). Weighted formula
+        # and the Technical-specialty bonus given directly by the user
+        # 2026-08-09 (see positions.yaml note: not independently verified by
+        # this engine against the wiki, unlike the rest of the matrix).
+        cfg = _config()["special_roles"]["penalty_taker"]["coefficients"]
+        base = (
+            experience * cfg["experience"]
+            + _skill(player, "set_pieces") * cfg["set_pieces"]
+            + _skill(player, "scoring") * cfg["scoring"]
+        )
+        is_technical = int(player.get("specialty", 0)) == TECHNICAL_SPECIALTY_CODE
+        return base * (1 + cfg["technical_specialty_bonus"]) if is_technical else base
     raise KeyError(f"unknown special role: {position}")
 
 

@@ -1,7 +1,7 @@
-"""Diff de sync: que cambio desde la ultima vez.
+"""Diff de sync: qué cambió desde la última vez.
 
-Esto es una de las cosas que Hattrick Control hace bien: despues de cargar
-datos, no te obliga a comparar de memoria. Este modulo recibe el estado viejo
+Esto es una de las cosas que Hattrick Control hace bien: después de cargar
+datos, no te obliga a comparar de memoria. Este módulo recibe el estado viejo
 y el nuevo, justo durante el sync, y devuelve frases legibles para la UI.
 """
 from dataclasses import dataclass
@@ -11,9 +11,8 @@ from app.domain.value_objects.ht_constants import CONFIDENCE, SKILL_LABELS, TEAM
 
 ECONOMY_FIELDS: dict[str, str] = {
     "cash": "Caja",
-    "sponsors_popularity": "Popularidad con patrocinadores",
-    "supporters_popularity": "Popularidad con la aficion",
-    "fan_club_size": "Pena de aficionados",
+    "supporters_popularity": "Popularidad con la afición",
+    "fan_club_size": "Aficionados",
     "income_sum": "Ingresos totales",
     "costs_sum": "Gastos totales",
 }
@@ -23,6 +22,13 @@ PLAYER_LEVEL_FIELDS: dict[str, str] = {
     "form": "Forma",
     "stamina": "Resistencia",
     "experience": "Experiencia",
+    # Pedido explícito 2026-08-14: de los campos de carácter, estos dos son
+    # los que de verdad cambian con el tiempo (fidelidad sube con la
+    # antigüedad, liderazgo con el entrenamiento correspondiente) — a
+    # diferencia de sociabilidad/agresividad/honestidad, que Hattrick trata
+    # como rasgos fijos del jugador.
+    "loyalty": "Fidelidad",
+    "leadership": "Liderazgo",
 }
 
 
@@ -35,7 +41,7 @@ def diff_player_skills(
     alta de plantilla, no como una lista enorme de "subidas" desde cero.
     """
     if old is None:
-        return [f"{player_name} se unio a la plantilla"]
+        return [f"{player_name} se unió a la plantilla"]
 
     changes: list[str] = []
     old_skills = old.get("skills", {}) or {}
@@ -43,7 +49,7 @@ def diff_player_skills(
     for skill, label in SKILL_LABELS.items():
         o, n = old_skills.get(skill), new_skills.get(skill)
         if o is not None and n is not None and o != n:
-            verb = "subio" if n > o else "bajo"
+            verb = "subió" if n > o else "bajó"
             changes.append(f"{player_name}: {label} {verb} de {o} a {n}")
 
     if old.get("tsi") != new.get("tsi"):
@@ -61,17 +67,40 @@ def diff_player_skills(
     old_injury, new_injury = old.get("injury_level", -1), new.get("injury_level", -1)
     if old_injury != new_injury:
         if new_injury == -1:
-            changes.append(f"{player_name}: se recupero de la lesion")
+            changes.append(f"{player_name}: se recuperó de la lesión")
         elif old_injury == -1:
-            changes.append(f"{player_name}: se lesiono")
+            changes.append(f"{player_name}: se lesionó")
         else:
-            changes.append(f"{player_name}: lesion de nivel {old_injury} a {new_injury}")
+            changes.append(f"{player_name}: lesión de nivel {old_injury} a {new_injury}")
 
     if old.get("is_transfer_listed") != new.get("is_transfer_listed"):
         listed = new.get("is_transfer_listed")
         changes.append(f"{player_name}: {'puesto en' if listed else 'retirado del'} mercado")
 
     return changes
+
+
+def diff_player_departure(
+    player_name: str,
+    sale_price: int | None,
+    currency: str = "",
+) -> str:
+    """2026-08-12, pedido explícito: un jugador que sale de la plantilla
+    (`mark_departed`) no pasaba por `diff_player_skills` — esa función sólo
+    compara jugadores que SÍ vienen en el roster nuevo, así que una venta
+    real quedaba invisible en "Qué cambió" pese a estar bien guardada en
+    `Player.sale_price`/`sold_at`. `sale_price` ya debe venir convertido a
+    moneda local (ver `conv()` en player_balance.py) — este módulo no conoce
+    la tasa de cambio.
+
+    2026-08-12, corrección pedida explícitamente: NO se anuncia ganancia/
+    pérdida aquí. Un delta precio_venta − precio_compra es una cifra sin la
+    comisión del agente ni el bono de TSI que sí aplica "Saldo por jugador"
+    (`player_balance.py`) — mostrarlo aquí como si fuera el resultado real
+    de la venta es engañoso. El precio de venta solo."""
+    if not sale_price:
+        return f"{player_name} salió de la plantilla"
+    return f"{player_name} se vendió por {sale_price:,} {currency}".strip()
 
 
 def diff_economy(
@@ -135,8 +164,8 @@ def diff_training(old: dict[str, Any] | None, new: dict[str, Any]) -> list[str]:
 def diff_standing(old_position: int | None, new_position: int, team_name: str) -> str | None:
     if old_position is None or old_position == new_position:
         return None
-    verb = "subio" if new_position < old_position else "bajo"
-    return f"{team_name} {verb} de la posicion {old_position} a la {new_position}"
+    verb = "subió" if new_position < old_position else "bajó"
+    return f"{team_name} {verb} de la posición {old_position} a la {new_position}"
 
 
 @dataclass(frozen=True)

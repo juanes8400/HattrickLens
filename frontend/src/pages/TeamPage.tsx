@@ -1,12 +1,11 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
 import { ErrorState, Loading } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
-import { TEAM_ID, useSquad } from "../hooks/useTeam";
+import { useSquad } from "../hooks/useTeam";
 import { htAge, money, number, relative } from "../hooks/useFormat";
-import { api, type SquadPlayer } from "../services/api";
+import type { SquadPlayer } from "../services/api";
 
 const SKILLS: [keyof SquadPlayer["skills"], string][] = [
   ["keeper", "PO"], ["defending", "DE"], ["playmaking", "JU"],
@@ -53,15 +52,6 @@ function HistoryLabel({ capturedAt, snapshots }: { capturedAt: string; snapshots
 export function TeamPage() {
   const [comparisonSyncId, setComparisonSyncId] = useState<number | null>(null);
   const squad = useSquad(undefined, comparisonSyncId);
-  const valuations = useQuery({
-    queryKey: ["valuations", TEAM_ID],
-    queryFn: () => api.valuations(TEAM_ID),
-    enabled: squad.data != null,
-  });
-  const valueByPlayer = useMemo(
-    () => new Map((valuations.data ?? []).map((valuation) => [valuation.htPlayerId, valuation])),
-    [valuations.data],
-  );
 
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
@@ -107,13 +97,6 @@ export function TeamPage() {
     })),
     { key: "tsi", header: "TSI", value: (player) => player.tsi, render: (player) => <MetricCell value={player.tsi} delta={player.deltas.tsi} /> },
     { key: "salary", header: "Salario", value: (player) => player.salary, render: (player) => <MetricCell value={player.salary} delta={player.deltas.salary} /> },
-    {
-      key: "valuation", header: "Valor estimado", value: (player) => valueByPlayer.get(player.htPlayerId)?.expectedPrice ?? -1,
-      render: (player) => {
-        const valuation = valueByPlayer.get(player.htPlayerId);
-        return valuation ? <span title={`Estimación (${valuation.confidence})`}>{money(valuation.expectedPrice, data.currency)}</span> : <span className="text-[var(--muted)]">calculando…</span>;
-      },
-    },
     { key: "purchase", header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">—</span> : money(player.purchasePrice, data.currency), optional: true },
     { key: "specialty", header: "Especialidad", align: "left", value: (player) => player.specialty, optional: true },
     { key: "loyalty", header: "Fidelidad", value: (player) => player.loyalty, optional: true },

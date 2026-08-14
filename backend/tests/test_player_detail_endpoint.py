@@ -74,3 +74,35 @@ def test_player_detail_projects_salary_after_the_next_pop_when_trainable() -> No
             assert est["afterNextPop"] >= est["weeklySalary"]
     finally:
         app.dependency_overrides.clear()
+
+
+def test_player_detail_loyalty_decimal_is_honest_without_evidence() -> None:
+    """Una sola sincronización nunca contiene una subida de fidelidad
+    observada — sin esa evidencia, `loyaltyDecimal` debe ser `None`, nunca
+    un decimal inventado. El nivel entero sigue disponible en `loyalty`."""
+    client, team_id = _client()
+    try:
+        resp = client.get(f"/api/v1/teams/{team_id}/players/{PLAYER_HT_ID}")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["loyaltyDecimal"] is None
+        assert body["loyalty"] is None or isinstance(body["loyalty"], int)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_player_detail_stamina_forecast_shape_when_present() -> None:
+    """`staminaForecast` es `None` sin WorldContext propio (no hay forma de
+    etiquetar semanas futuras); cuando existe, sus tres listas/campos deben
+    venir bien formados y del mismo tamaño."""
+    client, team_id = _client()
+    try:
+        resp = client.get(f"/api/v1/teams/{team_id}/players/{PLAYER_HT_ID}")
+        assert resp.status_code == 200
+        forecast = resp.json()["staminaForecast"]
+        if forecast is not None:
+            assert len(forecast["seasonWeeks"]) == len(forecast["levels"])
+            assert all(3 <= lvl <= 9 for lvl in forecast["levels"])
+            assert isinstance(forecast["trainingPct"], (int, float))
+    finally:
+        app.dependency_overrides.clear()

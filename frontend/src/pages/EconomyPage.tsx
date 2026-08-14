@@ -10,15 +10,25 @@ import {
   Panel,
   ProjectionPanel,
 } from "../components/Panels";
+import { Tabs } from "../components/Tabs";
 import { money } from "../hooks/useFormat";
 import { useEconomy } from "../hooks/useTeam";
-import type { Economy, ForecastBand } from "../services/api";
+import type { CostsBreakdown, Economy, ForecastBand, IncomeBreakdown } from "../services/api";
 
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
+type EconomySection = "resumen" | "proyeccion" | "detalles";
+type Horizon = "4" | "8" | "12" | "16";
 
+/**
+ * Economía, en 3 secciones (2026-08-09, pedido explícito: mismo patrón de
+ * `Tabs` píldora ya usado en Liga/Saldo por jugador) — Resumen es lo que
+ * Hattrick ya reportó, Proyección es nuestro modelo, Detalles es la
+ * pantalla equivalente de Hattrick Control (desglose semana a semana).
+ */
 export function EconomyPage() {
-  const [horizon, setHorizon] = useState(8);
-  const { data, isLoading, isError, error } = useEconomy(horizon);
+  const [section, setSection] = useState<EconomySection>("resumen");
+  const [horizon, setHorizon] = useState<Horizon>("8");
+  const { data, isLoading, isError, error } = useEconomy(Number(horizon));
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -26,53 +36,60 @@ export function EconomyPage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex items-end justify-between gap-4">
+      <header className="space-y-3">
         <div>
           <h1 className="text-xl font-semibold">Economía</h1>
           <p className="text-sm text-[var(--muted)]">
             {data.weeksOfHistory} semana(s) de histórico
           </p>
         </div>
-        <label className="text-xs text-[var(--muted)]">
-          Horizonte del escenario
-          <select
-            className="ml-2 rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--text)]"
-            value={horizon}
-            onChange={(event) => setHorizon(Number(event.target.value))}
-          >
-            <option value={4}>4 semanas</option>
-            <option value={8}>8 semanas</option>
-            <option value={12}>12 semanas</option>
-            <option value={16}>16 semanas</option>
-          </select>
-        </label>
+        <Tabs
+          tabs={[
+            { key: "resumen", label: "Resumen" },
+            { key: "proyeccion", label: "Proyección" },
+            { key: "detalles", label: "Detalles" },
+          ]}
+          active={section}
+          onChange={setSection}
+        />
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Kpi label="Caja actual" value={money(data.expectedCash, data.currency)} />
-        <Kpi
-          label="Resultado de la última semana"
-          value={money(data.weeklyBalance, data.currency)}
-          tone={data.weeklyBalance >= 0 ? "positive" : "danger"}
-        />
-      </div>
+      {section === "resumen" && (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Kpi label="Caja actual" value={money(data.expectedCash, data.currency)} />
+            <Kpi
+              label="Resultado de la última semana"
+              value={money(data.weeklyBalance, data.currency)}
+              tone={data.weeklyBalance >= 0 ? "positive" : "danger"}
+            />
+          </div>
 
-      <WeeklyFinanceTable data={data} />
-      <HattrickFlow data={data} />
-      <ObservedHistory data={data} />
-      <BalanceWindowsTable data={data} />
+          <WeeklyFinanceTable data={data} />
+          <HattrickFlow data={data} />
+          <ObservedHistory data={data} />
+          <BalanceWindowsTable data={data} />
 
-      {data.anomalies.length > 0 && (
-        <Panel title="Anomalías observadas" meta="desviación robusta (MAD)">
-          <ul className="space-y-1 p-4 text-xs text-[var(--muted)]">
-            {data.anomalies.map((anomaly, index) => (
-              <li key={index}>{anomaly}</li>
-            ))}
-          </ul>
-        </Panel>
+          {data.anomalies.length > 0 && (
+            <Panel title="Anomalías observadas" meta="desviación robusta (MAD)">
+              <ul className="space-y-1 p-4 text-xs text-[var(--muted)]">
+                {data.anomalies.map((anomaly, index) => (
+                  <li key={index}>{anomaly}</li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+        </div>
       )}
 
-      <ForecastPanel data={data} horizon={horizon} />
+      {section === "proyeccion" && (
+        <div className="space-y-4">
+          <ForecastPanel data={data} horizon={horizon} onHorizonChange={setHorizon} />
+          {!data.timeseriesForecast && <ProjectionTeaser data={data} />}
+        </div>
+      )}
+
+      {section === "detalles" && <DetailsSection data={data} />}
     </div>
   );
 }
@@ -320,7 +337,9 @@ function observedEconomyOption(
     grid: { left: 50, right: 16, top: 24, bottom: 40, containLabel: true },
     xAxis: {
       type: "category",
-      data: points.map((point) => point.date),
+      // "TT-ss" (temporada-semana, p. ej. "83-05") — cae a la fecha ISO si
+      // el equipo todavía no sincronizó worlddetails.xml.
+      data: points.map((point) => point.seasonWeek ?? point.date),
       boundaryGap: false,
     },
     yAxis: {
@@ -433,7 +452,22 @@ function MoneyCell({
   );
 }
 
-function ForecastPanel({ data, horizon }: { data: Economy; horizon: number }) {
+const HORIZON_OPTIONS: { key: Horizon; label: string }[] = [
+  { key: "4", label: "4 semanas" },
+  { key: "8", label: "8 semanas" },
+  { key: "12", label: "12 semanas" },
+  { key: "16", label: "16 semanas" },
+];
+
+function ForecastPanel({
+  data,
+  horizon,
+  onHorizonChange,
+}: {
+  data: Economy;
+  horizon: Horizon;
+  onHorizonChange: (h: Horizon) => void;
+}) {
   const [showBoth, setShowBoth] = useState(false);
   const preferred =
     data.recommendedModel === "bottom_up"
@@ -453,7 +487,7 @@ function ForecastPanel({ data, horizon }: { data: Economy; horizon: number }) {
   const deltaPct = data.expectedCash !== 0 ? (deltaAbs / Math.abs(data.expectedCash)) * 100 : 0;
 
   // Coincidencia entre modelos: sólo cuando hay serie de tiempo con la que
-  // contrastar — antes de las 8 semanas de histórico no existe.
+  // contrastar — antes de las N semanas de histórico no existe.
   const timeseriesFinal = data.timeseriesForecast
     ? data.timeseriesForecast.p50[data.timeseriesForecast.p50.length - 1] ?? null
     : null;
@@ -466,8 +500,12 @@ function ForecastPanel({ data, horizon }: { data: Economy; horizon: number }) {
   return (
     <ProjectionPanel
       title="Escenario de caja, no resultado real"
-      meta={`+${horizon} semanas · modelo ${data.recommendedModel}`}
+      meta={`modelo ${data.recommendedModel}`}
     >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
+        <span className="text-xs text-[var(--muted)]">Horizonte del escenario</span>
+        <Tabs tabs={HORIZON_OPTIONS} active={horizon} onChange={onHorizonChange} />
+      </div>
       <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-3">
         <Kpi
           label="Autonomía al ritmo actual"
@@ -491,7 +529,7 @@ function ForecastPanel({ data, horizon }: { data: Economy; horizon: number }) {
           hint={
             modelsAgreePct != null
               ? "qué tan cerca terminan estructural y serie de tiempo"
-              : "la serie de tiempo aún no existe — ver el motivo abajo"
+              : "la serie de tiempo aún no existe — ver el aviso abajo"
           }
           tone={modelsAgreePct != null && modelsAgreePct < 70 ? "danger" : undefined}
         />
@@ -518,6 +556,64 @@ function ForecastPanel({ data, horizon }: { data: Economy; horizon: number }) {
   );
 }
 
+/** Aviso de que viene un modelo mejor, sin fabricar un solo número — barra
+ * de progreso real (semanas de histórico / umbral) más un boceto abstracto
+ * (sin ejes ni cifras) que solo ilustra "banda de incertidumbre", nunca un
+ * resultado simulado. 2026-08-09, pedido explícito. */
+function ProjectionTeaser({ data }: { data: Economy }) {
+  const progress = Math.min(data.weeksOfHistory / data.minWeeksForTimeseries, 1);
+  const remaining = Math.max(data.minWeeksForTimeseries - data.weeksOfHistory, 0);
+
+  return (
+    <Panel
+      title="Viene un modelo más completo"
+      meta={`${data.weeksOfHistory}/${data.minWeeksForTimeseries} semanas`}
+    >
+      <div className="space-y-3 p-4">
+        <p className="text-xs leading-relaxed text-[var(--muted)]">
+          Con {data.minWeeksForTimeseries} semanas de histórico se activa un segundo
+          modelo — de series de tiempo, que elige entre naive, drift, suavizado
+          exponencial y Holt-Winters según cuál habría predicho mejor tu propio
+          historial — para contrastarlo con la proyección estructural de arriba.
+          {remaining > 0 ? ` Faltan ${remaining} semana(s).` : ""}
+        </p>
+        <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+          <div
+            className="h-full rounded-full bg-[var(--accent)] transition-all"
+            style={{ width: `${progress * 100}%` }}
+          />
+        </div>
+        <TeaserSketch />
+      </div>
+    </Panel>
+  );
+}
+
+/** Boceto puramente decorativo — sin ejes, sin cifras, sin datos reales ni
+ * simulados. Solo comunica "banda de proyección", nunca un resultado. */
+function TeaserSketch() {
+  return (
+    <svg
+      viewBox="0 0 240 60"
+      className="h-14 w-full text-[var(--muted)] opacity-50"
+      aria-hidden="true"
+    >
+      <path
+        d="M0,48 Q60,20 120,32 T240,10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeDasharray="5 4"
+      />
+      <path
+        d="M0,58 Q60,34 120,46 T240,26 L240,4 Q180,26 120,14 T0,30 Z"
+        fill="var(--accent)"
+        opacity="0.12"
+      />
+    </svg>
+  );
+}
+
 /** Una sola línea de tiempo: caja real observada hasta hoy, y desde ahí la
  * banda proyectada — en vez de dos gráficas separadas con ejes distintos que
  * obligan a comparar mentalmente dónde termina una y empieza la otra. */
@@ -526,17 +622,29 @@ function unifiedCashOption(
   preferred: ForecastBand,
   showBoth: boolean,
 ): EChartsOption {
-  const histDates = data.series.map((p) => p.date);
+  // "TT-ss" (temporada-semana, p. ej. "83-05") — cae a la fecha ISO/"+N"
+  // relativo si el equipo todavía no sincronizó worlddetails.xml.
+  const histLabels = data.series.map((p) => p.seasonWeek ?? p.date);
   const histCash = data.series.map((p) => p.cash);
-  const today = histDates[histDates.length - 1] ?? "hoy";
-  const labels = [...histDates, ...preferred.weeks.map((w) => `+${w}`)];
-  const bridge = histCash[histCash.length - 1] ?? 0;
+  const today = histLabels[histLabels.length - 1] ?? "hoy";
+  const forecastLabels = preferred.weeks.map(
+    (w, i) => preferred.weekLabels[i] ?? `+${w}`,
+  );
+  const labels = [...histLabels, ...forecastLabels];
+  // La semana en curso ("hoy", último punto de `series`) todavía no cerró:
+  // el snapshot trae la caja cruda a mitad de semana, pero Hattrick ya
+  // calculó y publica cómo va a cerrar esa misma semana en "Esta semana"
+  // (`expectedCash`) — pedido explícito 2026-08-11. Ese es el número real
+  // de "Caja real" para esa semana, no el crudo del snapshot; así "Caja
+  // real" y el arranque de la proyección coinciden en el mismo punto.
+  if (histCash.length > 0) histCash[histCash.length - 1] = data.expectedCash;
+  const bridge = data.expectedCash;
   const gap = (n: number): (number | null)[] => Array(n).fill(null);
 
   const actual: (number | null)[] = [...histCash, ...gap(preferred.weeks.length)];
-  const median: (number | null)[] = [...gap(histDates.length - 1), bridge, ...preferred.p50];
-  const low: (number | null)[] = [...gap(histDates.length - 1), bridge, ...preferred.p10];
-  const high: (number | null)[] = [...gap(histDates.length - 1), bridge, ...preferred.p90];
+  const median: (number | null)[] = [...gap(histLabels.length - 1), bridge, ...preferred.p50];
+  const low: (number | null)[] = [...gap(histLabels.length - 1), bridge, ...preferred.p10];
+  const high: (number | null)[] = [...gap(histLabels.length - 1), bridge, ...preferred.p90];
 
   const series: NonNullable<EChartsOption["series"]> = [
     {
@@ -544,7 +652,11 @@ function unifiedCashOption(
       stack: "band", symbol: "none",
     },
     {
-      name: "p10–p90", type: "line",
+      // Nombrada "p90" (no "p10–p90") para que el label de la leyenda diga
+      // lo mismo que el tooltip — pedido explícito 2026-08-13. La serie
+      // sigue dibujando el delta apilado (p90 - p10) para la banda; el
+      // tooltip ya calcula y muestra el p90 real a partir de ese delta.
+      name: "p90", type: "line",
       data: high.map((h, i) => (h == null || low[i] == null ? null : h - (low[i] as number))),
       lineStyle: { opacity: 0 }, areaStyle: { color: "#4f7cff", opacity: 0.16 },
       stack: "band", symbol: "none",
@@ -575,7 +687,7 @@ function unifiedCashOption(
     series.push({
       name: `Proyección ${data.timeseriesForecast.model}`, type: "line", smooth: true,
       symbol: "none", lineStyle: { width: 2 },
-      data: [...gap(histDates.length - 1), bridge, ...data.timeseriesForecast.p50],
+      data: [...gap(histLabels.length - 1), bridge, ...data.timeseriesForecast.p50],
     });
   }
 
@@ -587,8 +699,203 @@ function unifiedCashOption(
     dataZoom: [{ type: "inside" }],
     tooltip: {
       trigger: "axis",
-      valueFormatter: (value) => (value == null ? "—" : Number(value).toLocaleString("es-CO")),
+      // La serie "p90" dibuja el delta apilado (p90 - p10) para pintar la
+      // banda — su valor crudo no dice nada por sí solo. Pedido explícito
+      // 2026-08-11: mostrar el p90 real (p10 + ese delta) en vez de
+      // ocultarlo o mostrar el delta sin explicar qué es.
+      formatter: (params) => {
+        const items = Array.isArray(params) ? params : [params];
+        if (items.length === 0) return "";
+        const axisLabel = String(items[0]?.name ?? "");
+        const byName = new Map(items.map((p) => [String(p.seriesName), p]));
+        const fmt = (v: unknown) => (v == null ? null : Number(v).toLocaleString("es-CO"));
+        const rows: string[] = [];
+        const push = (marker: unknown, label: string, value: unknown) => {
+          const formatted = fmt(value);
+          if (formatted != null) rows.push(`${marker} ${label}: <b>${formatted}</b>`);
+        };
+
+        const p10Item = byName.get("p10");
+        const deltaItem = byName.get("p90");
+        const p90Value =
+          p10Item?.value != null && deltaItem?.value != null
+            ? Number(p10Item.value) + Number(deltaItem.value)
+            : null;
+        // El marcador debe ser el de la propia serie "p90" (verde), no el
+        // de "p10" (azul) — antes tomaba prestado el de p10Item y el color
+        // no coincidía con el de la leyenda. Pedido explícito 2026-08-13.
+        if (deltaItem) push(deltaItem.marker, "p90", p90Value);
+
+        for (const name of ["Proyección central", "p10", "Caja real"]) {
+          const item = byName.get(name);
+          if (item) push(item.marker, name, item.value);
+        }
+        for (const [name, item] of byName) {
+          if (name.startsWith("Proyección ") && name !== "Proyección central") {
+            push(item.marker, name, item.value);
+          }
+        }
+
+        return `${axisLabel}<br/>${rows.join("<br/>")}`;
+      },
     },
     series,
   };
+}
+
+// ── Detalles ────────────────────────────────────────────────────────────────
+// Réplica de la pantalla Detalles de Hattrick Control (referencia visual del
+// usuario 2026-08-09): desglose semana a semana con SubTotal (lo
+// recurrente/estructural) y Otros (lo ligado a compraventa de jugadores o a
+// algo puntual), más los totales acumulados por temporada.
+
+type BreakdownRow = { key: string; label: React.ReactNode };
+
+function DetailsSection({ data }: { data: Economy }) {
+  const weeklyRows = data.weeklyBreakdown.map((row) => ({
+    key: row.date,
+    label: (
+      <span className="whitespace-nowrap">
+        {row.seasonWeek ?? row.date}
+        {row.isCurrent && (
+          <span className="ml-1.5 rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]">
+            en curso
+          </span>
+        )}
+      </span>
+    ),
+    income: row.income,
+    costs: row.costs,
+  }));
+  const seasonRows = data.seasonBreakdownTotals.map((row) => ({
+    key: String(row.season),
+    label: `Temporada ${row.season}`,
+    income: row.income,
+    costs: row.costs,
+  }));
+
+  return (
+    <div className="space-y-4">
+      <Panel title="Ingresos por semana" meta="más reciente primero">
+        <IncomeBreakdownTable rows={weeklyRows} currency={data.currency} />
+      </Panel>
+      <Panel title="Gastos por semana" meta="más reciente primero">
+        <CostsBreakdownTable rows={weeklyRows} currency={data.currency} />
+      </Panel>
+      {seasonRows.length > 0 && (
+        <>
+          <Panel title="Total ingresos por temporada">
+            <IncomeBreakdownTable rows={seasonRows} currency={data.currency} />
+          </Panel>
+          <Panel title="Total gastos por temporada">
+            <CostsBreakdownTable rows={seasonRows} currency={data.currency} />
+          </Panel>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BreakdownTd({
+  value,
+  currency,
+  emphasis,
+  tone,
+}: {
+  value: number | null;
+  currency: string;
+  emphasis?: boolean;
+  tone?: "positive" | "danger";
+}) {
+  return (
+    <td
+      className={`px-3 py-2.5 text-right tabular-nums ${emphasis ? "font-semibold" : ""} ${
+        tone === "positive" ? "text-[var(--positive)]" : tone === "danger" ? "text-[var(--danger)]" : ""
+      }`}
+    >
+      {value == null ? "—" : money(value, currency)}
+    </td>
+  );
+}
+
+function IncomeBreakdownTable({
+  rows,
+  currency,
+}: {
+  rows: (BreakdownRow & { income: IncomeBreakdown })[];
+  currency: string;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[680px] text-sm">
+        <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
+          <tr>
+            <th className="px-3 py-3 font-medium">Semana</th>
+            <th className="px-3 py-3 text-right font-medium">Aficionados</th>
+            <th className="px-3 py-3 text-right font-medium">Patrocinados</th>
+            <th className="px-3 py-3 text-right font-medium">Financieros</th>
+            <th className="px-3 py-3 text-right font-medium">SubTotal</th>
+            <th className="px-3 py-3 text-right font-medium">Otros</th>
+            <th className="px-3 py-3 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border)]">
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className="px-3 py-2.5">{row.label}</td>
+              <BreakdownTd value={row.income.spectators} currency={currency} />
+              <BreakdownTd value={row.income.sponsors} currency={currency} />
+              <BreakdownTd value={row.income.financial} currency={currency} />
+              <BreakdownTd value={row.income.subtotal} currency={currency} emphasis />
+              <BreakdownTd value={row.income.other} currency={currency} />
+              <BreakdownTd value={row.income.total} currency={currency} emphasis tone="positive" />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CostsBreakdownTable({
+  rows,
+  currency,
+}: {
+  rows: (BreakdownRow & { costs: CostsBreakdown })[];
+  currency: string;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[820px] text-sm">
+        <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
+          <tr>
+            <th className="px-3 py-3 font-medium">Semana</th>
+            <th className="px-3 py-3 text-right font-medium">Estadio</th>
+            <th className="px-3 py-3 text-right font-medium">Jugadores</th>
+            <th className="px-3 py-3 text-right font-medium">Financieros</th>
+            <th className="px-3 py-3 text-right font-medium">Empleados</th>
+            <th className="px-3 py-3 text-right font-medium">Canteranos</th>
+            <th className="px-3 py-3 text-right font-medium">SubTotal</th>
+            <th className="px-3 py-3 text-right font-medium">Otros</th>
+            <th className="px-3 py-3 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border)]">
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className="px-3 py-2.5">{row.label}</td>
+              <BreakdownTd value={row.costs.arena} currency={currency} />
+              <BreakdownTd value={row.costs.players} currency={currency} />
+              <BreakdownTd value={row.costs.financial} currency={currency} />
+              <BreakdownTd value={row.costs.staff} currency={currency} />
+              <BreakdownTd value={row.costs.youth} currency={currency} />
+              <BreakdownTd value={row.costs.subtotal} currency={currency} emphasis />
+              <BreakdownTd value={row.costs.other} currency={currency} />
+              <BreakdownTd value={row.costs.total} currency={currency} emphasis tone="danger" />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }

@@ -113,17 +113,19 @@ class ArenaQueryService:
         self,
         team_id: int,
         fill_rate: float | None = None,
-        include_non_official: bool = False,
     ) -> ArenaResponse | None:
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
-        query = select(m.StadiumHistory).where(m.StadiumHistory.team_id == team_id)
-        if not include_non_official:
-            # Escaleras/Duelos no son partidos oficiales — mezclarlos aquí
-            # sesga la calibración de precios, la ocupación media y el
-            # retorno estimado de ampliar el estadio.
-            query = query.where(m.StadiumHistory.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
+        # Escaleras/Duelos/Torneos/Preparación se excluyen siempre (2026-08-12,
+        # pedido explícito: "de TODOS los lugares de esta herramienta... ni
+        # con botón, ni sin botón") — mezclarlos aquí sesga la calibración de
+        # precios, la ocupación media y el retorno estimado de ampliar el estadio.
+        query = (
+            select(m.StadiumHistory)
+            .where(m.StadiumHistory.team_id == team_id)
+            .where(m.StadiumHistory.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
+        )
         rows = list(
             (await self._s.execute(query.order_by(m.StadiumHistory.played_at))).scalars()
         )
@@ -200,11 +202,6 @@ class ArenaQueryService:
         ]
 
         notes: list[str] = []
-        if not include_non_official:
-            notes.append(
-                "Escaleras y Duelos no se cuentan aquí (no son partidos oficiales): "
-                "actívalos con el botón de arriba si quieres incluir su asistencia."
-            )
         if capacity_is_real:
             notes.append(
                 "CHPP entrega el aforo actual del estadio, no un aforo histórico por partido. "

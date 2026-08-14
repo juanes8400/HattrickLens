@@ -171,7 +171,7 @@ class SqlAlchemyPlayerRepository:
 
     async def mark_departed(
         self, team_id: int, current_ht_player_ids: set[int], captured_at: datetime
-    ) -> int:
+    ) -> list[m.Player]:
         rows = (
             await self._s.execute(
                 select(m.Player).where(
@@ -182,7 +182,7 @@ class SqlAlchemyPlayerRepository:
         departed = [p for p in rows if p.ht_player_id not in current_ht_player_ids]
         for p in departed:
             p.left_team_at = captured_at
-        return len(departed)
+        return departed
 
     async def append_match_rating_if_new(
         self,

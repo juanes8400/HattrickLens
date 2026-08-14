@@ -74,6 +74,42 @@ def seeded_user() -> tuple[TestClient, int]:
         async with factory() as s:
             user = m.User(ht_user_id=555, login_name="tester", created_at=datetime.now(UTC))
             s.add(user)
+            await s.flush()
+            team = m.Team(
+                ht_team_id=537758,
+                owner_user_id=user.id,
+                name="Pulgas Arrechas",
+                league_name="Colombia",
+                series_name="V.92",
+            )
+            s.add(team)
+            other = m.User(ht_user_id=777, login_name="other", created_at=datetime.now(UTC))
+            s.add(other)
+            await s.flush()
+            s.add(m.Team(
+                ht_team_id=999999,
+                owner_user_id=other.id,
+                name="Otro club",
+                league_name="España",
+                series_name="VI.1",
+            ))
+            s.add(m.CHPPToken(
+                user_id=user.id,
+                oauth_token_enc=b"test-token",
+                oauth_secret_enc=b"test-secret",
+                status="active",
+                ht_user_id=555,
+            ))
+            await s.flush()
+            now = datetime.now(UTC)
+            s.add(m.Sync(
+                user_id=user.id,
+                team_id=team.id,
+                kind="initial",
+                status="completed",
+                started_at=now,
+                finished_at=now,
+            ))
             await s.commit()
             return user.id
 
@@ -130,4 +166,31 @@ def test_refresh_endpoint_rejects_an_unknown_user(
     client, _user_id = seeded_user
     client.cookies.set(REFRESH_COOKIE_NAME, create_refresh_token(999_999))
     resp = client.post("/api/v1/auth/chpp/refresh")
+    assert resp.status_code == 401
+
+
+def test_session_profile_lists_owned_clubs_and_import_state(
+    seeded_user: tuple[TestClient, int],
+) -> None:
+    client, user_id = seeded_user
+    client.cookies.set(COOKIE_NAME, create_session_token(user_id))
+
+    resp = client.get("/api/v1/auth/chpp/session")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["user"] == {"id": user_id, "htUserId": 555, "loginName": "tester"}
+    assert body["connectionStatus"] == "active"
+    assert len(body["teams"]) == 1
+    assert body["teams"][0]["name"] == "Pulgas Arrechas"
+    assert body["teams"][0]["seriesName"] == "V.92"
+    assert body["teams"][0]["hasImportedData"] is True
+    assert body["teams"][0]["syncedAt"] is not None
+
+
+def test_session_profile_requires_an_authenticated_manager(
+    seeded_user: tuple[TestClient, int],
+) -> None:
+    client, _user_id = seeded_user
+    resp = client.get("/api/v1/auth/chpp/session")
     assert resp.status_code == 401

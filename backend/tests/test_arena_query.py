@@ -154,16 +154,18 @@ def test_fill_rate_can_be_overridden_and_is_declared() -> None:
     assert not any("fijada a mano" in n for n in base.notes)
 
 
-def test_unverified_ticket_prices_are_declared_as_such() -> None:
+def test_all_ticket_prices_are_verified() -> None:
+    """Los cuatro precios los confirmó el usuario para toda la herramienta
+    (2026-08-13) — ya no hay un sector "de la especificación, sin verificar",
+    así que esa nota no debe aparecer."""
     async def go():
         factory, team_id = await _with_stadium(HALF_EMPTY)
         async with factory() as s:
             return await ArenaQueryService(s).get(team_id)
 
     d = _run(go())
-    verified = [s for s in d.sectors if s.price_is_verified]
-    assert verified, "al menos tribunas está verificado contra la pantalla real"
-    assert any("no está verificado" in n or "especificación" in n for n in d.notes)
+    assert all(s.price_is_verified for s in d.sectors)
+    assert not any("no está verificado" in n or "especificación" in n for n in d.notes)
 
 
 def test_capacity_is_never_below_what_was_actually_sold() -> None:
@@ -207,10 +209,12 @@ def test_without_a_sector_breakdown_censoring_cannot_be_evaluated() -> None:
     assert any("orientativas" in n for n in d.notes)
 
 
-def test_non_official_matches_are_excluded_from_stadium_stats_by_default() -> None:
+def test_non_official_matches_are_always_excluded_from_stadium_stats() -> None:
     """Escaleras/Duelos (MatchType 50/62, HL-146) no deben sesgar la
-    ocupación media, la calibración de precios ni el retorno de ampliar."""
-    async def go(include_non_official: bool):
+    ocupación media, la calibración de precios ni el retorno de ampliar —
+    y no hay override para incluirlos (2026-08-12, pedido explícito: "de
+    TODOS los lugares de esta herramienta... ni con botón, ni sin botón")."""
+    async def go():
         factory, team_id = await _with_stadium(HALF_EMPTY)
         async with factory() as s:
             s.add(m.StadiumHistory(
@@ -224,17 +228,10 @@ def test_non_official_matches_are_excluded_from_stadium_stats_by_default() -> No
             ))
             await s.commit()
         async with factory() as s:
-            return await ArenaQueryService(s).get(
-                team_id, include_non_official=include_non_official
-            )
+            return await ArenaQueryService(s).get(team_id)
 
-    default = _run(go(False))
-    assert default.matches_analysed == 3
-    assert any("Escaleras y Duelos no se cuentan" in n for n in default.notes)
-
-    included = _run(go(True))
-    assert included.matches_analysed == 4
-    assert not any("Escaleras y Duelos no se cuentan" in n for n in included.notes)
+    d = _run(go())
+    assert d.matches_analysed == 3
 
 
 def test_a_team_without_stadium_history_returns_none() -> None:

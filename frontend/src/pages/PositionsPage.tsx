@@ -53,8 +53,20 @@ const ROLE_TABS: RoleTab[] = [
       { key: "forward_towards_wing", label: "Delantero hacia banda" },
     ],
   },
-  { id: "captain", label: "Capitán", orders: [{ key: "captain", label: "Capitán" }] },
-  { id: "setpieces", label: "Situaciones fijas", orders: [{ key: "set_piece_taker", label: "Lanzador de faltas" }] },
+  {
+    // 2026-08-09, pedido explícitamente: "Capitán" y "Situaciones fijas"
+    // fusionados en una sola pestaña "Otros" — todas son decisiones de
+    // plantilla que no son una posición de campo.
+    id: "other", label: "Otros", orders: [
+      { key: "captain", label: "Capitán" },
+      { key: "set_piece_taker", label: "Lanzador de faltas" },
+      // 2026-08-09, pedido explícitamente tras verificar la fuente: orden
+      // DISTINTA de "Lanzador de faltas" (TLD) — en Hattrick real tienen
+      // su propio código y fórmula (Experiencia + Anotación + Balón
+      // Parado, ver positions.yaml), no son el mismo puesto.
+      { key: "penalty_taker", label: "Lanzador de penaltis" },
+    ],
+  },
 ];
 
 const SKILL_COLUMNS: [keyof SquadPlayer["skills"], string][] = [
@@ -92,7 +104,12 @@ export function PositionsPage() {
     },
     { key: "age", header: "Edad", value: (player) => player.ageYears + player.ageDays / 112, render: (player) => htAge(player.ageYears, player.ageDays) },
     {
-      key: "lastWeek", header: "Última semana", align: "left", value: (player) => player.lastMatchRating ?? -1,
+      // 2026-08-09, pedido explícitamente: renombrado de "Última semana" —
+      // el backend ya filtra a partidos de los últimos 7 días (caso real,
+      // Volodymyr Manakin: su LastMatch de CHPP era de hace más de un
+      // año), así que "sin dato" aquí es honesto: o no hay partido
+      // reciente, o no hay dato en absoluto.
+      key: "lastMatch", header: "Último partido", align: "left", value: (player) => player.lastMatchRating ?? -1,
       render: (player) => player.lastMatchPosition
         ? <span className="whitespace-nowrap">{player.lastMatchPosition} <Rating value={player.lastMatchRating} /></span>
         : <span className="text-[var(--muted)]">sin dato</span>,

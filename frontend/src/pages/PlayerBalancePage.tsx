@@ -53,6 +53,48 @@ function seasonSortKey(label: string): [number, number] {
   return [0, Number(label.replace("Temporada ", "")) || 0];
 }
 
+// Mismo formato de 12 horas que `_format_hour_range` en el backend
+// (player_balance.py) — necesario para poder ordenar cronológicamente los
+// bloques de 2 horas que llegan como texto ("2:00 a 4:00 p.m."), ya que el
+// desglose por hora se recalcula aquí, en el cliente, sobre las filas
+// filtradas.
+function splitHour12(hour: number): [number, string] {
+  const period = hour < 12 ? "a.m." : "p.m.";
+  return [hour % 12 || 12, period];
+}
+function formatHourRange(start: number, end: number): string {
+  const [startH12, startPeriod] = splitHour12(start);
+  const [endH12, endPeriod] = splitHour12(end % 24);
+  if (startPeriod === endPeriod) return `${startH12}:00 a ${endH12}:00 ${endPeriod}`;
+  return `${startH12}:00 ${startPeriod} a ${endH12}:00 ${endPeriod}`;
+}
+const BID_HOUR_LABELS_ORDER = Array.from({ length: 12 }, (_, i) =>
+  formatHourRange(i * 2, i * 2 + 2),
+);
+function bidHourSortKey(label: string): number {
+  const i = BID_HOUR_LABELS_ORDER.indexOf(label);
+  return i === -1 ? BID_HOUR_LABELS_ORDER.length : i;
+}
+
+// Abrevia cifras grandes de moneda en los ejes de las gráficas ("2,4 M" en
+// vez de "2400000") — pedido explícitamente 2026-08-11, se veían feas.
+function compactNumber(value: number): string {
+  return new Intl.NumberFormat("es-CO", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+// Rojo/gris/verde de las cascadas y el mapa de calor de ROI — deben coincidir
+// EXACTAMENTE con --danger/--muted/--positive de index.css en el tema activo
+// (pedido explícitamente: los colores de las gráficas se veían distintos a
+// los de las etiquetas de texto — antes los gráficos usaban siempre el hex
+// del tema oscuro sin importar el tema real).
+const CHART_COLORS = {
+  dark: { positive: "#2fbf71", danger: "#e5484d", muted: "#8b8b93" },
+  light: { positive: "#1a9e5c", danger: "#d1383d", muted: "#71717a" },
+};
+
 // Icono de corazón (Material Design), viewBox 0 0 24 24 — ECharts acepta
 // una ruta SVG como símbolo de un scatter vía `path://`.
 const HEART_SYMBOL =
@@ -226,7 +268,10 @@ function waterfallBarRenderer(color: string): CustomSeriesRenderItem {
 function buildWaterfallOption(
   entries: [string, number][],
   currency: string,
+  isDark: boolean,
+  forceAllLabels = false,
 ): EChartsOption {
+  const colors = CHART_COLORS[isDark ? "dark" : "light"];
   const labels: string[] = [];
   const gains: WaterfallDatum[] = [];
   const losses: WaterfallDatum[] = [];
@@ -250,8 +295,15 @@ function buildWaterfallOption(
   return {
     // Pedido explícitamente 2026-08-04: ningún eje de las cascadas va en
     // diagonal, aunque las etiquetas sean largas ("Temporada 83", "2:00 a
-    // 4:00 p.m.") — ECharts oculta las que no quepan en vez de rotarlas.
-    xAxis: { type: "category", data: labels, axisLabel: { rotate: 0 } },
+    // 4:00 p.m."). `forceAllLabels` fuerza `interval: 0` SOLO donde hace
+    // falta (pocas categorías fijas, como "De la compra a la venta" — ahí
+    // ECharts se comía "Sueldos" al decidir que no cabía); con muchas
+    // categorías (temporadas, horas) `interval: 0` las amontona ilegibles,
+    // así que esas dejan el auto-hide de ECharts tal cual.
+    xAxis: {
+      type: "category", data: labels,
+      axisLabel: { rotate: 0, interval: forceAllLabels ? 0 : "auto", fontSize: 11 },
+    },
     yAxis: { type: "value", name: currency },
     legend: { data: ["Ganancia", "Pérdida", "Subtotal"], bottom: 0 },
     tooltip: {
@@ -268,19 +320,28 @@ function buildWaterfallOption(
       {
         name: "Ganancia",
         type: "custom",
-        renderItem: waterfallBarRenderer("#2fbf71"),
+        // Un series `custom` dibuja sus barras a mano en `renderItem`, así
+        // que ECharts no tiene de dónde sacar el color del ícono de la
+        // leyenda — sin `itemStyle.color` aquí, cae al azul/verde/naranja
+        // de su paleta por defecto, distinto del rojo/verde/gris real de
+        // las barras (justo el bug reportado: "los colores están
+        // diferentes a los de los labels").
+        itemStyle: { color: colors.positive },
+        renderItem: waterfallBarRenderer(colors.positive),
         data: gains,
       },
       {
         name: "Pérdida",
         type: "custom",
-        renderItem: waterfallBarRenderer("#e5484d"),
+        itemStyle: { color: colors.danger },
+        renderItem: waterfallBarRenderer(colors.danger),
         data: losses,
       },
       {
         name: "Subtotal",
         type: "custom",
-        renderItem: waterfallBarRenderer("#8b8b93"),
+        itemStyle: { color: colors.muted },
+        renderItem: waterfallBarRenderer(colors.muted),
         data: subtotals,
       },
     ],
@@ -293,20 +354,96 @@ function WaterfallPanel({
   ariaLabel,
   entries,
   currency,
+  isDark,
+  forceAllLabels = false,
 }: {
   title: string;
   meta: string;
   ariaLabel: string;
   entries: [string, number][];
   currency: string;
+  isDark: boolean;
+  forceAllLabels?: boolean;
 }) {
   if (entries.length === 0) return null;
   return (
     <Panel title={title} meta={meta}>
       <Chart
         ariaLabel={ariaLabel}
-        option={buildWaterfallOption(entries, currency)}
+        option={buildWaterfallOption(entries, currency, isDark, forceAllLabels)}
         height={280}
+      />
+    </Panel>
+  );
+}
+
+/**
+ * Barras horizontales — mismo lenguaje visual que la cascada (verde/rojo por
+ * signo, mismo tooltip, mismo eje de moneda) pero sin el efecto de flotar
+ * desde un acumulado: para "Entrenamiento" y "Habilidad más alta" el orden
+ * de las categorías no tiene un antes/después real, así que apilarlas en
+ * cascada sugería una secuencia que no existe. Pedido explícitamente.
+ */
+function buildHorizontalBarOption(
+  entries: [string, number][],
+  currency: string,
+  isDark: boolean,
+): EChartsOption {
+  const colors = CHART_COLORS[isDark ? "dark" : "light"];
+  const sorted = [...entries].sort((a, b) => a[1] - b[1]);
+  const labels = sorted.map(([label]) => label);
+  const values = sorted.map(([, value]) => value);
+  return {
+    xAxis: {
+      type: "value", name: currency,
+      axisLabel: { formatter: (value: number) => compactNumber(value) },
+    },
+    yAxis: { type: "category", data: labels, axisLabel: { fontSize: 11 } },
+    grid: { left: 140, right: 24, top: 12, bottom: 24 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      formatter: (params) => {
+        const p = Array.isArray(params) ? params[0] : params;
+        const idx = p?.dataIndex ?? 0;
+        return `${labels[idx] ?? ""}<br/>${money(values[idx] ?? 0, currency)}`;
+      },
+    },
+    series: [
+      {
+        type: "bar",
+        data: values,
+        itemStyle: {
+          color: (params) =>
+            (params.value as number) >= 0 ? colors.positive : colors.danger,
+        },
+      },
+    ],
+  };
+}
+
+function HorizontalBarPanel({
+  title,
+  meta,
+  ariaLabel,
+  entries,
+  currency,
+  isDark,
+}: {
+  title: string;
+  meta: string;
+  ariaLabel: string;
+  entries: [string, number][];
+  currency: string;
+  isDark: boolean;
+}) {
+  if (entries.length === 0) return null;
+  return (
+    <Panel title={title} meta={meta}>
+      <Chart
+        ariaLabel={ariaLabel}
+        option={buildHorizontalBarOption(entries, currency, isDark)}
+        height={Math.max(180, entries.length * 34 + 60)}
       />
     </Panel>
   );
@@ -336,7 +473,7 @@ export function PlayerBalancePage() {
   const [originFilter, setOriginFilter] = useState<
     "all" | "bought" | "academy"
   >("all");
-  const [ignoreUnknownTraining, setIgnoreUnknownTraining] = useState(false);
+  const [ignoreUnknownData, setIgnoreUnknownData] = useState(false);
   const [ignoreFired, setIgnoreFired] = useState(false);
   const syncTransfers = useMutation({
     mutationFn: () => api.syncTransfersHistory(TEAM_ID),
@@ -353,12 +490,15 @@ export function PlayerBalancePage() {
   // "Todas" no toca nada; una temporada real recorta Detalle, el scatter y
   // los desgloses no-temporada a las ventas cerradas esa temporada — mismo
   // criterio que ya usa cada fila (`seasonAtSale`), nunca un cálculo nuevo.
+  // "Todas" siempre primero (opción fija, fuera de esta lista) y luego de
+  // la temporada más reciente a la más antigua — pedido explícitamente
+  // 2026-08-08; "Temporada desconocida" se queda al final igual que antes.
   const seasonOptions = Array.from(
     new Set(soldRows.map((r) => r.seasonAtSale ?? UNKNOWN_SEASON)),
   ).sort((a, b) => {
     const [ka, na] = seasonSortKey(a);
     const [kb, nb] = seasonSortKey(b);
-    return ka - kb || na - nb;
+    return ka - kb || nb - na;
   });
   const soldRowsInSeason =
     seasonFilter === "all"
@@ -380,8 +520,16 @@ export function PlayerBalancePage() {
       (r) => (r.trainingAtSale ?? UNKNOWN_TRAINING) === trainingFilter,
     );
   }
-  if (ignoreUnknownTraining) {
-    filteredRows = filteredRows.filter((r) => r.trainingAtSale != null);
+  if (ignoreUnknownData) {
+    // "etc." = cualquier dimensión usada en los desgloses de Desgloses, no
+    // solo entrenamiento — pedido explícitamente al renombrar el toggle.
+    filteredRows = filteredRows.filter(
+      (r) =>
+        r.trainingAtSale != null &&
+        typeof r.ageAtSale === "number" &&
+        r.topSkillAtSale != null &&
+        r.bidHourAtSale != null,
+    );
   }
   if (originFilter === "bought")
     filteredRows = filteredRows.filter((r) => !r.isAcademyGraduate);
@@ -435,7 +583,9 @@ export function PlayerBalancePage() {
   const topSkillEntries = Object.entries(byTopSkill).sort(
     (a, b) => b[1] - a[1],
   );
-  const bidHourEntries = Object.entries(byBidHour);
+  const bidHourEntries = Object.entries(byBidHour).sort(
+    (a, b) => bidHourSortKey(a[0]) - bidHourSortKey(b[0]),
+  );
 
   // Cascada del ciclo financiero de las operaciones cerradas. Solo entran
   // filas cuyo saldo es calculable y cuya venta/comisión están disponibles:
@@ -611,9 +761,9 @@ export function PlayerBalancePage() {
           </select>
         </label>
         <ToggleSwitch
-          checked={ignoreUnknownTraining}
-          onChange={() => setIgnoreUnknownTraining((v) => !v)}
-          label="Ignorar entrenamiento desconocido"
+          checked={ignoreUnknownData}
+          onChange={() => setIgnoreUnknownData((v) => !v)}
+          label="Ignorar datos desconocidos (entrenamiento, edad, etc.)"
         />
         <ToggleSwitch
           checked={ignoreFired}
@@ -708,7 +858,11 @@ export function PlayerBalancePage() {
                       dimension: 2,
                       min: -DOT_ROI_COLOR_BOUND,
                       max: DOT_ROI_COLOR_BOUND,
-                      inRange: { color: ["#e5484d", "#8b8b93", "#2fbf71"] },
+                      inRange: {
+                        color: isDark
+                          ? [CHART_COLORS.dark.danger, CHART_COLORS.dark.muted, CHART_COLORS.dark.positive]
+                          : [CHART_COLORS.light.danger, CHART_COLORS.light.muted, CHART_COLORS.light.positive],
+                      },
                       text: ["Ganancia", "Pérdida"],
                       textStyle: { color: isDark ? "#ededef" : "#18181b" },
                       orient: "horizontal",
@@ -765,6 +919,8 @@ export function PlayerBalancePage() {
             ariaLabel="Cascada del ciclo financiero: gasto de compra, sueldos e intentos de venta como valores negativos; venta como valor positivo; y comisiones como valor negativo"
             entries={financialFlowEntries}
             currency={data.currency}
+            isDark={isDark}
+            forceAllLabels
           />
           <div className="grid gap-4 lg:grid-cols-2">
             <WaterfallPanel
@@ -773,13 +929,15 @@ export function PlayerBalancePage() {
               ariaLabel="Cascada del saldo neto, repartido por la temporada de Hattrick en la que se vendió cada jugador"
               entries={seasonEntries}
               currency={data.currency}
+              isDark={isDark}
             />
-            <WaterfallPanel
+            <HorizontalBarPanel
               title="Saldo por entrenamiento en el momento de la venta"
               meta="ventas cerradas"
-              ariaLabel="Cascada del saldo neto, repartido por el tipo de entrenamiento activo cuando se vendió cada jugador"
+              ariaLabel="Barras horizontales del saldo neto, repartido por el tipo de entrenamiento activo cuando se vendió cada jugador"
               entries={trainingEntries}
               currency={data.currency}
+              isDark={isDark}
             />
             <WaterfallPanel
               title="Saldo por edad en el momento de la venta"
@@ -787,13 +945,15 @@ export function PlayerBalancePage() {
               ariaLabel="Cascada del saldo neto, repartido por la edad del jugador cuando se vendió"
               entries={ageEntries}
               currency={data.currency}
+              isDark={isDark}
             />
-            <WaterfallPanel
+            <HorizontalBarPanel
               title="Saldo por habilidad más alta"
               meta="ventas cerradas · sin contar Balón Parado"
-              ariaLabel="Cascada del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió, sin contar Balón Parado"
+              ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió, sin contar Balón Parado"
               entries={topSkillEntries}
               currency={data.currency}
+              isDark={isDark}
             />
             <WaterfallPanel
               title="Saldo por hora de cierre de la puja"
@@ -801,6 +961,7 @@ export function PlayerBalancePage() {
               ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en hora de Hattrick, en el que se cerró cada puja de venta"
               entries={bidHourEntries}
               currency={data.currency}
+              isDark={isDark}
             />
           </div>
         </div>

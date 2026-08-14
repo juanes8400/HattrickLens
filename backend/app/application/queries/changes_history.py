@@ -68,8 +68,13 @@ async def build_changes_history(
     session: AsyncSession,
     team_id: int,
     player_ht_id: int | None = None,
+    *,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Return every saved player delta plus one player's chronological series."""
+    team = await session.get(m.Team, team_id)
+    currency_rate = (team.currency_rate or 1.0) if team else 1.0
+
     rows = (
         await session.execute(
             select(m.PlayerSnapshot, m.Player)
@@ -106,7 +111,7 @@ async def build_changes_history(
     # `captured_at` de SQLite llega naive aunque la columna sea aware (mismo
     # caso que `sold_at` en sync_team.py) — el cutoff se calcula naive para
     # comparar contra el mismo tipo.
-    cutoff = (datetime.now(UTC) - CHANGES_VISIBILITY_WINDOW).replace(tzinfo=None)
+    cutoff = ((now or datetime.now(UTC)) - CHANGES_VISIBILITY_WINDOW).replace(tzinfo=None)
 
     grouped: dict[str, list[dict[str, Any]]] = {"skill": [], "experience": [], "form": []}
     for entries in snapshots.values():
@@ -133,7 +138,7 @@ async def build_changes_history(
                 {
                     "capturedAt": snapshot.captured_at.isoformat(),
                     "tsi": snapshot.tsi,
-                    "salary": snapshot.salary,
+                    "salary": int(round(snapshot.salary / currency_rate)),
                     "form": snapshot.form,
                     "experience": snapshot.experience,
                     "stamina": snapshot.stamina,

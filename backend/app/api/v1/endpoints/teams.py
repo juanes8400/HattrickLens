@@ -12,8 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_dashboard_service, get_squad_service
 from app.application.commands.sync_team import (
+    FILE_VERSIONS,
     SyncMatchDetailsCommand,
     SyncPlayerDetailsCommand,
+    SyncPreviousClubBonusCommand,
     SyncTeamCommand,
     SyncTeamHandler,
     SyncTransfersHistoryCommand,
@@ -99,6 +101,7 @@ async def trigger_sync(
 
 def _result_payload(result: Any) -> dict[str, Any]:
     return {
+        "syncId": result.sync_id,
         "status": result.status,
         "snapshotsWritten": result.snapshots_written,
         "unchanged": result.unchanged,
@@ -244,7 +247,7 @@ async def trigger_match_details_sync(
         arena_capacity: dict[str, int] | None = None
         try:
             arena = await client.fetch(
-                "arenadetails", version="latest", teamID=team.ht_team_id
+                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=team.ht_team_id
             )
             arena_capacity = arena.get("current_capacity")
         except (CHPPAuthError, CHPPUnavailableError):
@@ -412,6 +415,74 @@ async def trigger_purchase_price_sync(
     return {
         "playersProcessed": len(ht_player_ids),
         "snapshotsWritten": snapshots_written,
+        "errors": errors,
+    }
+
+
+@router.post("/{team_id}/players/previous-club-bonus/sync", status_code=200)
+async def trigger_previous_club_bonus_backfill(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+    user: m.User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """HL-161, 2026-08-14, pedido explícitamente ("backfill masivo de
+    todos los ex-jugadores"): recorre TODOS los jugadores alguna vez
+    vendidos por este club (no solo los recién revisados — a diferencia
+    del monitoreo automático acotado dentro del sync normal) buscando, uno
+    por uno, si el club al que se los vendimos ya los revendió — y si es
+    así, calcula y guarda la comisión exacta de club anterior. Reemplaza
+    por completo el reparto heurístico que antes vivía en
+    `resale_bonus.py`. Costoso (una llamada a transfersplayer.xml por
+    jugador, más matchesarchive+matchlineup la primera vez que encuentra
+    una reventa real) — por eso es un botón explícito, no parte del sync
+    normal."""
+    team = await session.get(m.Team, team_id)
+    if team is None:
+        raise HTTPException(404, f"team {team_id} not found")
+    if team.owner_user_id != user.id:
+        raise HTTPException(403, "este equipo no está conectado a tu sesión")
+
+    token_row = await session.scalar(
+        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
+    )
+    if token_row is None or token_row.status != "active":
+        raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
+
+    ht_player_ids = (
+        await session.execute(
+            select(m.Player.ht_player_id).where(
+                m.Player.team_id == team_id, m.Player.sold_at.is_not(None),
+            )
+        )
+    ).scalars().all()
+
+    client = CHPPClient(
+        decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
+    )
+    bonuses_found = 0
+    errors: list[str] = []
+    try:
+        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(SessionLocal), client)
+        for ht_player_id in ht_player_ids:
+            r = await handler.execute_previous_club_bonus(
+                SyncPreviousClubBonusCommand(
+                    user_id=user.id, team_id=team_id, ht_player_id=ht_player_id
+                )
+            )
+            bonuses_found += r.snapshots_written
+            errors.extend(r.errors)
+    except CHPPAuthError as exc:
+        token_row.status = "revoked"
+        await session.commit()
+        raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPUnavailableError as exc:
+        raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
+    finally:
+        await client.aclose()
+
+    return {
+        "playersProcessed": len(ht_player_ids),
+        "bonusesFound": bonuses_found,
         "errors": errors,
     }
 

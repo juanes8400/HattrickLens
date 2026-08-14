@@ -26,25 +26,32 @@ def _run(coro):
 
 # ── Los parsers nuevos leen lo que tienen que leer ──────────────────────────
 
-def test_club_parser_reads_the_assistant_level_the_formula_needed() -> None:
-    """`AssistantTrainerLevels` es un entero único 0–10: la variable que antes
-    se fijaba a mano. No es una cuenta de ayudantes."""
+def test_club_parser_no_longer_reads_dead_staff_fields() -> None:
+    """2026-08-12, corrección: club.xml v1.1 (verificado en vivo contra la
+    cuenta real) ya no trae `<Staff>` ni `AssistantTrainerLevels` — solo
+    `<Specialists>` (booleanos) y `<YouthSquad>`. El parser no debe fingir
+    que sigue leyendo un campo que Hattrick dejó de enviar."""
     data = get_parser("club")((FIXTURES / "club.xml").read_bytes())
-    assert data["assistant_trainer_levels"] == 7
-    assert 0 <= data["assistant_trainer_levels"] <= 10
+    assert "assistant_trainer_levels" not in data
+    assert "form_coach_levels" not in data
+    assert "medic_levels" not in data
     assert data["youth_investment"] == 11240
-    assert data["form_coach_levels"] == 3
-    assert data["medic_levels"] == 2
+    assert data["youth_level"] == 4
 
 
-def test_stafflist_parser_reads_the_real_trainer() -> None:
+def test_stafflist_parser_reads_the_real_trainer_and_staff() -> None:
+    """El desglose real de asistentes vive aquí, no en club.xml — 2 personas
+    de nivel 5 cada una (StaffType=1), no un agregado misterioso."""
     data = get_parser("stafflist")((FIXTURES / "stafflist.xml").read_bytes())
     tr = data["trainer"]
     assert tr["skill_level"] == 5
     assert tr["trainer_type"] == 2
     assert tr["trainer_type_name"] == "equilibrado"
     assert tr["leadership"] == 5
-    assert data["total_staff"] == 2
+    assert data["total_staff"] == 3
+    assistants = [m for m in data["staff_members"] if m["staff_type"] == 1]
+    assert len(assistants) == 2
+    assert all(a["level"] == 5 for a in assistants)
 
 
 def test_worlddetails_parser_reads_currency_and_calendar() -> None:
@@ -167,11 +174,58 @@ def test_sync_persists_staff_world_and_skill_ups() -> None:
     staff, world, ups = _run(go())
     assert len(staff) == 1
     # club y stafflist rellenan la MISMA fila, no dos.
-    assert staff[0].assistant_trainer_levels == 7
+    # 10 = 5+5, los dos asistentes de entrenador reales del fixture
+    # (StaffType=1) — ya no un agregado de club.xml (ver parse_club).
+    assert staff[0].assistant_trainer_levels == 10
     assert staff[0].trainer_skill_level == 5
     assert len(world) == 1
     assert world[0].season == 84
     assert len(ups) == 5
+
+
+def test_a_missing_trainer_element_does_not_wipe_the_last_known_trainer() -> None:
+    """2026-08-12, riesgo real encontrado al verificar en vivo: CHPP a veces
+    omite `<Trainer>` por completo de stafflist.xml. Antes de esta guarda,
+    ese "sin dato" se escribía como 0/tipo-por-defecto en cada sync — ahora
+    que club+stafflist entran en cada sync normal (ver DEFAULT_FILES), eso
+    habría borrado el entrenador real en la próxima sincronización."""
+    from typing import Any
+
+    async def go():
+        from sqlalchemy import select
+
+        factory, team_id = await seeded_session()
+
+        no_trainer_payload = dict(
+            get_parser("stafflist")((FIXTURES / "stafflist.xml").read_bytes())
+        )
+        no_trainer_payload["trainer"] = {}
+
+        class NoTrainerCHPP:
+            async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+                return no_trainer_payload if file == "stafflist" else {}
+
+        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), NoTrainerCHPP())
+        await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["stafflist"])
+        )
+
+        async with factory() as s:
+            rows = (
+                await s.execute(
+                    select(m.StaffSnapshot)
+                    .where(m.StaffSnapshot.team_id == team_id)
+                    .order_by(m.StaffSnapshot.captured_at.desc())
+                )
+            ).scalars().all()
+            return rows[0]
+
+    latest = _run(go())
+    assert latest.trainer_skill_level == 5   # el real, no reseteado a 0
+    assert latest.trainer_type == 2
+    assert latest.trainer_leadership == 5
+    # El roster de asistentes SÍ se actualiza — <StaffMembers> siguió llegando.
+    assert latest.assistant_trainer_levels == 10
 
 
 def test_skill_ups_are_idempotent() -> None:
@@ -214,7 +268,9 @@ def test_every_formula_input_is_read_from_chpp() -> None:
     assert ctx.all_read is True
 
     expected_source = {
-        "assistant_level_sum": "club.xml",
+        # 2026-08-12: club.xml dejó de traer este agregado (verificado en
+        # vivo) — ahora es la suma real de asistentes de stafflist.xml.
+        "assistant_level_sum": "stafflist.xml",
         "intensity": "training.xml",
         "stamina_share": "training.xml",
         "coach_level": "stafflist.xml",
@@ -226,15 +282,17 @@ def test_every_formula_input_is_read_from_chpp() -> None:
 
 
 def test_the_read_values_replace_the_hand_set_ones() -> None:
-    """Los valores que yo había fijado (Σ=10, condición 12,5%) se sustituyen por
-    los leídos (Σ=7, condición 25%)."""
+    """El %condición fijado a mano (12,5%) se sustituye por el leído (25%).
+    El agregado de ayudantes fijado a mano también era 10 — coincide con el
+    real (2 asistentes de nivel 5), pero por una razón distinta: éste es la
+    suma de personas reales de stafflist.xml, no un número inventado."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
             return await TrainingContextService(s).get(team_id)
 
     ctx = _run(go())
-    assert ctx.setup.assistant_level_sum == 7      # leído, no el 10 supuesto
+    assert ctx.setup.assistant_level_sum == 10     # leído (5+5), no un supuesto
     assert ctx.setup.stamina_share == 25           # leído, no el 12,5 supuesto
     assert ctx.setup.intensity == 100
     assert ctx.trained_skill == "passing"          # training type 10, confirmado
@@ -295,3 +353,23 @@ def test_without_the_new_files_it_degrades_honestly() -> None:
     # intensidad y condición sí, porque vienen de training, que sí se sincronizó
     assert ctx.provenance["intensity"].is_read is True
     assert any("faltan" in n.lower() or "supuesto" in n.lower() for n in ctx.notes)
+
+
+def test_without_training_xml_stamina_falls_back_to_the_configured_default() -> None:
+    """Bug real corregido 2026-08-14: sin training.xml, el supuesto de
+    %condición caía en 0 en vez del `default_stamina_share` (12.5) que el
+    propio training.yaml documenta para este caso — 0% habría predicho un
+    entrenamiento más rápido de lo que ese supuesto pretende representar."""
+    async def go():
+        from sqlalchemy import delete
+
+        factory, team_id = await seeded_session()
+        async with factory() as s:
+            await s.execute(delete(m.TrainingSnapshot))
+            await s.commit()
+        async with factory() as s:
+            return await TrainingContextService(s).get(team_id)
+
+    ctx = _run(go())
+    assert ctx.provenance["stamina_share"].is_read is False
+    assert ctx.setup.stamina_share == 12.5

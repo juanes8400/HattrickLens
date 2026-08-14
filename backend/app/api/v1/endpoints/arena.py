@@ -22,9 +22,6 @@ async def arena(
             "válida cuando ningún sector se agotó."
         ),
     ),
-    include_non_official: bool = Query(
-        False, description="Incluir Escaleras/Duelos (no son partidos oficiales)"
-    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """El estadio, con la censura de demanda declarada en vez de escondida.
@@ -34,10 +31,12 @@ async def arena(
     media es decidir con un número que no puede decirte que te quedaste corto,
     así que la respuesta marca qué sectores están censurados y trata su
     ocupación como un suelo.
+
+    Escaleras, Duelos, Torneos y Preparación se excluyen siempre — no son
+    partidos oficiales y no hay override para ellos en ningún punto de la
+    herramienta.
     """
-    data = await ArenaQueryService(session).get(
-        team_id, fill_rate=fill_rate, include_non_official=include_non_official
-    )
+    data = await ArenaQueryService(session).get(team_id, fill_rate=fill_rate)
     if data is None:
         raise HTTPException(404, f"no stadium history for team {team_id}")
     return cast(dict[str, Any], _camel(asdict(data)))

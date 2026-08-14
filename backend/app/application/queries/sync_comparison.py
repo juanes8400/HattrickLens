@@ -98,7 +98,7 @@ async def _previous_player_snapshot(
 
 
 async def _player_report(
-    session: AsyncSession, team_id: int, sync_id: int
+    session: AsyncSession, team_id: int, sync_id: int, currency_rate: float
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     result = await session.execute(
         select(m.PlayerSnapshot, m.Player)
@@ -118,7 +118,7 @@ async def _player_report(
                     "name": f"{player.first_name} {player.last_name}".strip(),
                     "tsi": current.tsi,
                     "tsiDelta": None,
-                    "salary": current.salary,
+                    "salary": int(round(current.salary / currency_rate)),
                     "salaryDelta": None,
                     "isNew": True,
                     "changes": [
@@ -142,7 +142,10 @@ async def _player_report(
             after = getattr(current, key)
             if before is None or after is None or before == after:
                 continue
-            delta = int(after) - int(before)
+            if key == "salary":
+                before = before / currency_rate
+                after = after / currency_rate
+            delta = int(round(after)) - int(round(before))
             _record_delta(summary, key, delta)
             if key not in {"tsi", "salary"}:
                 changes.append(
@@ -184,7 +187,8 @@ async def _player_report(
             )
 
         tsi_delta = current.tsi - previous.tsi
-        salary_delta = current.salary - previous.salary
+        current_salary = int(round(current.salary / currency_rate))
+        salary_delta = current_salary - int(round(previous.salary / currency_rate))
         if changes or tsi_delta or salary_delta:
             rows.append(
                 {
@@ -192,7 +196,7 @@ async def _player_report(
                     "name": f"{player.first_name} {player.last_name}".strip(),
                     "tsi": current.tsi,
                     "tsiDelta": tsi_delta,
-                    "salary": current.salary,
+                    "salary": current_salary,
                     "salaryDelta": salary_delta,
                     "isNew": False,
                     "changes": changes,
@@ -244,6 +248,8 @@ def _club_item(
     before: int | None,
     current: int | None,
     names: dict[int, str] | None = None,
+    *,
+    good: bool | None = None,
 ) -> dict[str, Any]:
     def display(value: int | None) -> str | None:
         if value is None:
@@ -252,6 +258,12 @@ def _club_item(
             return f"{value:,}".replace(",", ".")
         return f"{names.get(value, 'Nivel')} ({value})"
 
+    delta = None if before is None or current is None else current - before
+    if good is None or delta is None or delta == 0:
+        is_good = None
+    else:
+        is_good = (delta > 0) if good else (delta < 0)
+
     return {
         "key": key,
         "label": label,
@@ -259,13 +271,14 @@ def _club_item(
         "current": current,
         "beforeDisplay": display(before),
         "currentDisplay": display(current),
-        "delta": None if before is None or current is None else current - before,
+        "delta": delta,
         "changed": before is not None and current is not None and before != current,
+        "isGood": is_good,
     }
 
 
 async def _club_report(
-    session: AsyncSession, team_id: int, sync: m.Sync
+    session: AsyncSession, team_id: int, sync: m.Sync, currency_rate: float
 ) -> list[dict[str, Any]]:
     training, old_training, _ = await _snapshot_for_sync_or_before(
         session, m.TrainingSnapshot, team_id, sync
@@ -294,27 +307,46 @@ async def _club_report(
             )
         )
     if economy is not None:
+        def conv(value: int | None) -> int | None:
+            return None if value is None else int(round(value / currency_rate))
+
         items.extend(
             (
                 _club_item(
+                    "cash",
+                    "Caja",
+                    conv(old_economy.cash if old_economy else None),
+                    conv(economy.cash),
+                    good=True,
+                ),
+                _club_item(
+                    "income_sum",
+                    "Ingresos totales",
+                    conv(old_economy.income_sum if old_economy else None),
+                    conv(economy.income_sum),
+                    good=True,
+                ),
+                _club_item(
+                    "costs_sum",
+                    "Gastos totales",
+                    conv(old_economy.costs_sum if old_economy else None),
+                    conv(economy.costs_sum),
+                    good=False,
+                ),
+                _club_item(
                     "fan_club_size",
-                    "Número de socios",
+                    "Aficionados",
                     old_economy.fan_club_size if old_economy else None,
                     economy.fan_club_size,
+                    good=True,
                 ),
                 _club_item(
                     "supporters_popularity",
-                    "Aficionados",
+                    "Popularidad con la afición",
                     old_economy.supporters_popularity if old_economy else None,
                     economy.supporters_popularity,
                     POPULARITY,
-                ),
-                _club_item(
-                    "sponsors_popularity",
-                    "Patrocinadores",
-                    old_economy.sponsors_popularity if old_economy else None,
-                    economy.sponsors_popularity,
-                    POPULARITY,
+                    good=True,
                 ),
             )
         )
@@ -343,6 +375,9 @@ async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str
     An empty repeated sync also must not erase the last useful comparison: the
     UI reports both timestamps and says explicitly when the report is older.
     """
+
+    team = await session.get(m.Team, team_id)
+    currency_rate = (team.currency_rate or 1.0) if team else 1.0
 
     normal_sync_filter: Iterable[Any] = (
         m.Sync.team_id == team_id,
@@ -383,8 +418,8 @@ async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str
 
     latest_changes = await _changes_for_sync(session, latest.id)
     report_changes = await _changes_for_sync(session, report_sync.id)
-    player_rows, summary = await _player_report(session, team_id, report_sync.id)
-    club_changes = await _club_report(session, team_id, report_sync)
+    player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
+    club_changes = await _club_report(session, team_id, report_sync, currency_rate)
 
     return {
         "syncId": latest.id,

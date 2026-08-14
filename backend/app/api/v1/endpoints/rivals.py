@@ -21,12 +21,13 @@ otro país; decisión de producto confirmada con el usuario). Preparación
 diferencia de Duelos/Escaleras, es contra un rival real con su plantilla
 real.
 """
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -34,6 +35,7 @@ from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
 from app.application.commands.sync_team import FILE_VERSIONS
 from app.domain.engines.lineup_optimizer import best_formation
+from app.domain.engines.next_match_analysis import probable_starters
 from app.domain.engines.rival_scouting import (
     analyse_side_rotation,
     estimate_win_probability,
@@ -69,8 +71,14 @@ MAX_MATCHES_ANALYSED = 5
 # de ht_constants (esa la siguen usando next_match/arena/matches tal cual,
 # sin tocar). Selección nacional nunca cuenta aquí — se juega con otro
 # cuerpo técnico, a veces otro país, y no dice nada de cómo juega el CLUB
-# rival. Preparación (pretemporada) sí puede contar, pero solo como
-# amistoso: a diferencia de Duelos/Escaleras es contra una plantilla real.
+# rival.
+#
+# 2026-08-11, pedido explícito y más reciente: Preparación (pretemporada)
+# se excluye siempre, junto con Torneo liga/playoff, Duelo y Escalera — los
+# 5 son partidos de mentiras y deben ignorarse en TODA la herramienta, sin
+# excepción. Reemplaza la regla anterior ("Preparación sí cuenta como
+# amistoso porque es contra una plantilla real") — se deja este comentario
+# como historial, no como regla vigente.
 _NATIONAL_TEAM_MATCH_TYPES = frozenset({
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
@@ -78,11 +86,9 @@ _NATIONAL_TEAM_MATCH_TYPES = frozenset({
 })
 _RIVAL_ALWAYS_EXCLUDED_MATCH_TYPES = frozenset({
     MATCH_TYPE_TOURNAMENT_LEAGUE, MATCH_TYPE_TOURNAMENT_PLAYOFF,
-    MATCH_TYPE_DUEL, MATCH_TYPE_LADDER,
+    MATCH_TYPE_DUEL, MATCH_TYPE_LADDER, MATCH_TYPE_PREPARATION,
 }) | _NATIONAL_TEAM_MATCH_TYPES
-_RIVAL_FRIENDLY_MATCH_TYPES = (
-    (FRIENDLY_MATCH_TYPES - {MATCH_TYPE_NATIONAL_TEAM_FRIENDLY}) | {MATCH_TYPE_PREPARATION}
-)
+_RIVAL_FRIENDLY_MATCH_TYPES = FRIENDLY_MATCH_TYPES - {MATCH_TYPE_NATIONAL_TEAM_FRIENDLY}
 
 # stafflist.xml versión 1.0/"latest" (FILE_VERSIONS["stafflist"], usada para el
 # propio equipo) deniega para un equipo ajeno — verificado en vivo:
@@ -93,6 +99,16 @@ _RIVAL_FRIENDLY_MATCH_TYPES = (
 # ambas versiones: son el mismo fichero con reglas de acceso distintas.
 RIVAL_STAFFLIST_VERSION = "1.2"
 MANAGER_COMPENDIUM_VERSION = "1.5"
+# matchlineup.xml SIN versión explícita ya resolvía a esto (verificado en
+# vivo 2026-08-09) — se fija aquí para que quede auditable, no implícito.
+# Esta es la versión VIEJA: `PositionCode` (1-16, MATCH_POSITION_* en
+# ht_constants.py) es la casilla de formación del arranque, la que usa el
+# marcaje al hombre de esta página. NO confundir con la versión que pide
+# `team_of_the_week.py` (2.1) para "Mejor alineación" — ese usa `RoleID`
+# (100+, MATCH_ROLE_*), un campo con esquema distinto que en esta versión
+# vieja es solo un índice secuencial sin significado. Ver docstring de
+# `parse_matchlineup` en app/infrastructure/chpp/parsers/__init__.py.
+MATCHLINEUP_POSITION_CODE_VERSION = "1.2"
 
 
 def _days_since_last_login(payload: dict[str, Any]) -> int | None:
@@ -154,6 +170,75 @@ def _avg(values: Any) -> float | None:
     nunca 0 disfrazado de medida."""
     vals = list(values)
     return round(sum(vals) / len(vals), 1) if vals else None
+
+
+def _submitted_players(
+    match: m.Match | None, players: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Resuelve el once enviado contra el roster actual conservando el orden.
+
+    Nueve es el mínimo legal para iniciar. Si faltan más jugadores en el
+    roster actual (por venta, migración incompleta o JSON corrupto), se descarta
+    la referencia completa en vez de presentar un promedio parcial engañoso.
+    """
+    if match is None or not match.submitted_lineup_json:
+        return []
+    try:
+        rows = json.loads(match.submitted_lineup_json)
+        player_ids = [
+            int(row["ht_player_id"])
+            for row in rows
+            if isinstance(row, dict) and row.get("ht_player_id")
+        ]
+    except (TypeError, ValueError, KeyError):
+        return []
+    by_id = {int(player["ht_player_id"]): player for player in players}
+    resolved = [by_id[player_id] for player_id in player_ids if player_id in by_id]
+    return resolved if 9 <= len(resolved) <= 11 else []
+
+
+def _submitted_rating_prediction(match: m.Match | None) -> dict[str, int] | None:
+    """Los siete ratings CHPP de minuto 0, o nada si falta un solo sector."""
+    if match is None:
+        return None
+    values = {
+        "midfield": match.submitted_rating_midfield,
+        "right_def": match.submitted_rating_right_def,
+        "central_def": match.submitted_rating_central_def,
+        "left_def": match.submitted_rating_left_def,
+        "right_att": match.submitted_rating_right_att,
+        "central_att": match.submitted_rating_central_att,
+        "left_att": match.submitted_rating_left_att,
+    }
+    if any(value is None for value in values.values()):
+        return None
+    return {key: int(value) for key, value in values.items() if value is not None}
+
+
+async def _submitted_match_against(
+    session: AsyncSession, own_ht_team_id: int, rival_ht_team_id: int,
+) -> m.Match | None:
+    """Próximo partido exacto contra el rival con órdenes ya sincronizadas."""
+    return await session.scalar(
+        select(m.Match)
+        .where(
+            or_(
+                and_(
+                    m.Match.home_team_ht_id == own_ht_team_id,
+                    m.Match.away_team_ht_id == rival_ht_team_id,
+                ),
+                and_(
+                    m.Match.away_team_ht_id == own_ht_team_id,
+                    m.Match.home_team_ht_id == rival_ht_team_id,
+                ),
+            ),
+            ~m.Match.status.ilike("finished"),
+            m.Match.orders_given.is_(True),
+            m.Match.submitted_lineup_json.is_not(None),
+        )
+        .order_by(m.Match.played_at.asc())
+        .limit(1)
+    )
 
 
 def _most_recent_by_date(
@@ -297,7 +382,8 @@ async def fetch_rival_matches_and_lineups(
     for mt in matches:
         lineup = (
             await client.fetch(
-                "matchlineup", matchID=mt["ht_match_id"], matchType=mt["match_type"],
+                "matchlineup", version=MATCHLINEUP_POSITION_CODE_VERSION,
+                matchID=mt["ht_match_id"], matchType=mt["match_type"],
                 teamID=rival_ht_team_id,
             )
         )["players"]
@@ -353,6 +439,11 @@ async def rival_scouting(
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     own_players, _ = await roster(session, team_id)
+    submitted_match = await _submitted_match_against(
+        session, team.ht_team_id, rival_ht_team_id
+    )
+    submitted_own_players = _submitted_players(submitted_match, own_players)
+    submitted_prediction = _submitted_rating_prediction(submitted_match)
 
     # Mis últimos partidos reales ya sincronizados, de los tipos permitidos
     # — para saber en qué posición jugó cada uno de MIS jugadores
@@ -383,11 +474,19 @@ async def rival_scouting(
     pitch_own_include_competitive, pitch_own_include_friendlies = _pitch_scope_toggles(
         pitch_zone_scope, include_competitive, include_friendlies
     )
-    pitch_own_sector_ratings = (
+    historical_pitch_own_sector_ratings = (
         own_sector_ratings if pitch_zone_scope == "mixed"
         else await _own_pitch_ratings(
             session, team, pitch_own_include_competitive, pitch_own_include_friendlies
         )
+    )
+    # La predicción oficial de las órdenes enviadas tiene prioridad para el
+    # lado propio. El selector sigue recortando el historial del rival; si la
+    # predicción no existe, ambos lados vuelven al historial comparable.
+    pitch_own_sector_ratings = (
+        [submitted_prediction]
+        if submitted_prediction is not None
+        else historical_pitch_own_sector_ratings
     )
 
     client = CHPPClient(
@@ -454,7 +553,8 @@ async def rival_scouting(
         for mt in own_matches:
             lineup = (
                 await client.fetch(
-                    "matchlineup", matchID=mt.ht_match_id, matchType=mt.match_type,
+                    "matchlineup", version=MATCHLINEUP_POSITION_CODE_VERSION,
+                    matchID=mt.ht_match_id, matchType=mt.match_type,
                     teamID=team.ht_team_id,
                 )
             )["players"]
@@ -525,22 +625,76 @@ async def rival_scouting(
         None if own_pitch_zones is None or rival_pitch_zones is None
         else pitch_zone_duels(own_pitch_zones, rival_pitch_zones)
     )
+    own_pitch_source = (
+        {
+            "kind": "submitted_chpp_prediction",
+            "label": "CHPP · alineación enviada · minuto 0",
+            "match_id": submitted_match.ht_match_id if submitted_match else None,
+            "observations": 1,
+            "captured_at": (
+                submitted_match.submitted_ratings_captured_at if submitted_match else None
+            ),
+            "tactic_type": submitted_match.submitted_tactic_type if submitted_match else None,
+            "tactic_skill": submitted_match.submitted_tactic_skill if submitted_match else None,
+        }
+        if submitted_prediction is not None
+        else {
+            "kind": "historical_observed",
+            "label": "Histórico propio observado",
+            "match_id": None,
+            "observations": (
+                None if own_pitch_zones is None else own_pitch_zones.matches_analysed
+            ),
+            "captured_at": None,
+            "tactic_type": None,
+            "tactic_skill": None,
+        }
+    )
+    rival_pitch_source = {
+        "kind": "historical_observed",
+        "label": "Histórico rival observado",
+        "match_id": None,
+        "observations": None if rival_pitch_zones is None else rival_pitch_zones.matches_analysed,
+        "captured_at": None,
+        "tactic_type": None,
+        "tactic_skill": None,
+    }
+
+    rival_probable_rows = probable_starters(rival_players_raw, rival_data.appearances)
+    rival_by_id = {int(player["ht_player_id"]): player for player in rival_players_raw}
+    rival_probable_players = [
+        rival_by_id[int(row["ht_player_id"])]
+        for row in rival_probable_rows
+        if int(row["ht_player_id"]) in rival_by_id
+    ]
+    # Cuando existen órdenes enviadas para ESTE rival, todos los indicadores
+    # deportivos comparan ese once real contra el once rival probable. Sin
+    # órdenes se conserva el comportamiento anterior de plantilla completa.
+    comparison_own_players = submitted_own_players or own_players
+    comparison_rival_players = (
+        rival_probable_players if submitted_own_players and rival_probable_players
+        else rival_players_raw
+    )
 
     own_players_for_tsi = own_players
     rival_players_for_tsi = rival_players_raw
     if top11:
-        try:
-            best_xi_ids = {
-                a.player["ht_player_id"] for a in best_formation(own_players)[0].assignments
-            }
-            own_players_for_tsi = [p for p in own_players if p["ht_player_id"] in best_xi_ids]
-        except ValueError:
-            pass  # plantilla insuficiente para armar un once: se compara la plantilla completa
-        # Sin skills del rival no hay "mejor once" real: el TSI más alto es la
-        # única aproximación honesta a "sus titulares probables".
-        rival_players_for_tsi = sorted(
-            rival_players_raw, key=lambda p: -p["tsi"]
-        )[:11]
+        if submitted_own_players:
+            own_players_for_tsi = submitted_own_players
+            rival_players_for_tsi = rival_probable_players
+        else:
+            try:
+                best_xi_ids = {
+                    a.player["ht_player_id"] for a in best_formation(own_players)[0].assignments
+                }
+                own_players_for_tsi = [p for p in own_players if p["ht_player_id"] in best_xi_ids]
+            except ValueError:
+                pass  # plantilla insuficiente para armar un once: se compara la plantilla completa
+            # Sin skills del rival no hay "mejor once" real: el TSI más alto es la
+            # única aproximación honesta a "sus titulares probables".
+            rival_players_for_tsi = sorted(
+                rival_players_raw, key=lambda p: -p["tsi"]
+            )[:11]
 
     own_for_tsi = [
         {"tsi": p["tsi"], "position_code": own_position_by_id.get(p["ht_player_id"])}
@@ -557,18 +711,22 @@ async def rival_scouting(
     # HL-144: PROYECCIÓN, no un hecho — siempre sobre los 11 probables de cada
     # lado (independiente del toggle `top11`, que solo afecta al histograma),
     # para no comparar bancas completas de tamaño distinto.
-    try:
-        own_best11_ids = {
-            a.player["ht_player_id"] for a in best_formation(own_players)[0].assignments
-        }
-        own_best11_tsi = sum(
-            p["tsi"] for p in own_players if p["ht_player_id"] in own_best11_ids
+    if submitted_own_players:
+        own_best11_tsi = sum(p["tsi"] for p in submitted_own_players)
+        rival_best11_tsi = sum(p["tsi"] for p in rival_probable_players)
+    else:
+        try:
+            own_best11_ids = {
+                a.player["ht_player_id"] for a in best_formation(own_players)[0].assignments
+            }
+            own_best11_tsi = sum(
+                p["tsi"] for p in own_players if p["ht_player_id"] in own_best11_ids
+            )
+        except ValueError:
+            own_best11_tsi = sum(p["tsi"] for p in own_players)
+        rival_best11_tsi = sum(
+            p["tsi"] for p in sorted(rival_players_raw, key=lambda p: -p["tsi"])[:11]
         )
-    except ValueError:
-        own_best11_tsi = sum(p["tsi"] for p in own_players)
-    rival_best11_tsi = sum(
-        p["tsi"] for p in sorted(rival_players_raw, key=lambda p: -p["tsi"])[:11]
-    )
     win_probability = estimate_win_probability(own_best11_tsi, rival_best11_tsi)
 
     own_for_marking = [
@@ -577,7 +735,7 @@ async def rival_scouting(
             "position_code": own_position_by_id.get(p["ht_player_id"]),
             "defending": p["skills"]["defending"],
         }
-        for p in own_players
+        for p in (submitted_own_players or own_players)
     ]
     rival_for_marking = [
         {
@@ -623,21 +781,24 @@ async def rival_scouting(
         rival_trainer_leadership = None
     comparison = {
         "tsi": {
-            "own": _avg(p["tsi"] for p in own_players),
-            "rival": _avg(p["tsi"] for p in rival_players_raw),
+            "own": _avg(p["tsi"] for p in comparison_own_players),
+            "rival": _avg(p["tsi"] for p in comparison_rival_players),
         },
         "form": {
-            "own": _avg(p["form"] for p in own_players),
-            "rival": _avg(p["form"] for p in rival_players_raw if p["form_is_read"]),
+            "own": _avg(p["form"] for p in comparison_own_players),
+            "rival": _avg(p["form"] for p in comparison_rival_players if p["form_is_read"]),
         },
         "stamina": {
-            "own": _avg(p["stamina"] for p in own_players),
-            "rival": _avg(p["stamina"] for p in rival_players_raw if p["stamina_is_read"]),
+            "own": _avg(p["stamina"] for p in comparison_own_players),
+            "rival": _avg(
+                p["stamina"] for p in comparison_rival_players if p["stamina_is_read"]
+            ),
         },
         "experience": {
-            "own": _avg(p["experience"] for p in own_players),
+            "own": _avg(p["experience"] for p in comparison_own_players),
             "rival": _avg(
-                p["experience"] for p in rival_players_raw if p["experience_is_read"]
+                p["experience"]
+                for p in comparison_rival_players if p["experience_is_read"]
             ),
         },
         "trainer_leadership": {
@@ -656,11 +817,17 @@ async def rival_scouting(
             "se puede comparar TSI, sin nombres, posiciones, marcaje, táctica ni rotación."
         )
     if top11:
-        caveats.append(
-            "«Los 11 mejores» es tu once real (motor de posiciones) contra los 11 de mayor "
-            "TSI del rival — sin sus skills, el TSI es la única aproximación honesta a sus "
-            "titulares probables."
-        )
+        if submitted_own_players:
+            caveats.append(
+                "«Los 11» usa tu alineación realmente enviada contra el once probable del "
+                "rival, inferido por recurrencia y recencia en sus partidos públicos."
+            )
+        else:
+            caveats.append(
+                "«Los 11 mejores» es tu once real (motor de posiciones) contra los 11 de mayor "
+                "TSI del rival — sin sus skills, el TSI es la única aproximación honesta a sus "
+                "titulares probables."
+            )
     if not (include_competitive and include_friendlies):
         excluded = []
         if not include_competitive:
@@ -677,6 +844,24 @@ async def rival_scouting(
         "rival_name": rival_name,
         "matches_analysed": len(rival_matches),
         "comparison": comparison,
+        "comparison_reference": {
+            "own_source": (
+                "submitted_orders" if submitted_own_players else "full_roster"
+            ),
+            "own_label": (
+                f"Alineación enviada · partido {submitted_match.ht_match_id}"
+                if submitted_own_players and submitted_match else "Plantilla actual"
+            ),
+            "own_players": len(comparison_own_players),
+            "rival_source": (
+                "probable_recent_starters" if submitted_own_players else "full_roster"
+            ),
+            "rival_label": (
+                "Once probable · recurrencia reciente"
+                if submitted_own_players else "Plantilla pública actual"
+            ),
+            "rival_players": len(comparison_rival_players),
+        },
         "tsi_histogram": {
             "grid": histogram.grid,
             "own_density": histogram.own_density,
@@ -730,6 +915,10 @@ async def rival_scouting(
         "pitch_zones_matches_analysed": {
             "own": None if own_pitch_zones is None else own_pitch_zones.matches_analysed,
             "rival": None if rival_pitch_zones is None else rival_pitch_zones.matches_analysed,
+        },
+        "pitch_zone_sources": {
+            "own": own_pitch_source,
+            "rival": rival_pitch_source,
         },
         "pitch_zone_scope": pitch_zone_scope,
         "tactic_history": None if tactic_history is None else {

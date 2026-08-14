@@ -5,7 +5,8 @@ Usa los mismos fixtures reales que motivaron la funcionalidad: el partido
 `matchlineup` real de ambos lados (nombre real, posición real) y `players`
 del rival con TSI real pero nombres ocultos — exactamente como responde CHPP
 de verdad para un equipo que no es el tuyo."""
-from datetime import UTC, datetime
+import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -226,6 +227,85 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
     assert "baja" in wp["confidence"]
 
 
+def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """El once enviado manda en KPIs y la cancha; el rival sigue histórico."""
+    import asyncio
+    from unittest.mock import patch
+
+    from sqlalchemy import select
+
+    client, user_id, team_id, factory = seeded
+    client.cookies.set("htlens_session", create_session_token(user_id))
+
+    async def add_submitted_match() -> None:
+        async with factory() as s:
+            players = list((await s.execute(
+                select(m.Player)
+                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+                .order_by(m.Player.id)
+                .limit(11)
+            )).scalars())
+            assert len(players) == 11
+            s.add(m.Match(
+                ht_match_id=900000001,
+                played_at=datetime.now(UTC) + timedelta(days=2),
+                match_type=1,
+                status="UPCOMING",
+                home_team_ht_id=OWN_HT_TEAM_ID,
+                away_team_ht_id=RIVAL_HT_TEAM_ID,
+                home_team_name="Pulgas Arrechas",
+                away_team_name="etbenianos1",
+                home_goals=-1,
+                away_goals=-1,
+                source_system="hattrick",
+                orders_given=True,
+                submitted_lineup_json=json.dumps([
+                    {"ht_player_id": player.ht_player_id, "role_id": 100 + index, "behaviour": 0}
+                    for index, player in enumerate(players)
+                ]),
+                submitted_tactic_type=2,
+                submitted_tactic_skill=19,
+                submitted_rating_midfield=18,
+                submitted_rating_right_def=70,
+                submitted_rating_central_def=90,
+                submitted_rating_left_def=65,
+                submitted_rating_right_att=28,
+                submitted_rating_central_att=32,
+                submitted_rating_left_att=56,
+                submitted_ratings_captured_at=datetime.now(UTC),
+            ))
+            await s.commit()
+
+    asyncio.run(add_submitted_match())
+    with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
+        resp = client.get(
+            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?top11=true"
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["comparisonReference"] == {
+        "ownSource": "submitted_orders",
+        "ownLabel": "Alineación enviada · partido 900000001",
+        "ownPlayers": 11,
+        "rivalSource": "probable_recent_starters",
+        "rivalLabel": "Once probable · recurrencia reciente",
+        "rivalPlayers": 11,
+    }
+    assert body["pitchZoneSources"]["own"]["kind"] == "submitted_chpp_prediction"
+    assert body["pitchZoneSources"]["own"]["tacticSkill"] == 19
+    assert body["pitchZoneSources"]["rival"]["kind"] == "historical_observed"
+    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 5}
+    midfield = next(
+        duel for duel in body["pitchZoneDuels"] if duel["half"] == "midfield"
+    )
+    assert midfield["ownValue"] == 18
+    assert len(body["tsiHistogram"]["ownValues"]) == 11
+    assert len(body["tsiHistogram"]["rivalValues"]) == 10  # arquero excluido
+
+
 def test_comparison_reads_trainer_leadership_from_rival_stafflist(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
 ) -> None:
@@ -242,8 +322,14 @@ def test_comparison_reads_trainer_leadership_from_rival_stafflist(
 
     async def seed_staff() -> None:
         async with factory() as s:
+            # 2026-08-12: club/stafflist ahora entran en el sync por defecto
+            # (ver DEFAULT_FILES), así que el fixture `seeded` YA escribió un
+            # StaffSnapshot real al conectar — este se sella con un
+            # `captured_at` futuro para seguir siendo, sin ambigüedad, "el
+            # más reciente" y así controlar el valor que ve el test.
             s.add(m.StaffSnapshot(
-                sync_id=1, team_id=team_id, captured_at=datetime(2026, 7, 5, tzinfo=UTC),
+                sync_id=1, team_id=team_id,
+                captured_at=datetime.now(UTC) + timedelta(days=365),
                 assistant_trainer_levels=6, trainer_skill_level=4, trainer_type=2,
                 trainer_leadership=7, youth_investment=0, youth_level=0,
                 content_hash=b"\x01" * 32,
@@ -592,16 +678,16 @@ def test_non_official_matches_never_feed_tactic_history_or_rotation(
     )
 
 
-def test_national_team_matches_never_count_and_preseason_counts_as_friendly(
+def test_national_team_matches_never_count_and_preseason_never_counts_either(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
 ) -> None:
     """Decisión de producto confirmada con el usuario: los partidos de
     Selección nacional (tipo 10/11/12) nunca cuentan para la ficha de un
     rival, ni siquiera bajo el toggle competitivo — se juegan con otro
     cuerpo técnico, a veces otro país, y no dicen nada de cómo juega el
-    CLUB rival. Los de pretemporada (Preparación, tipo 80) sí cuentan, pero
-    solo bajo el toggle de Amistosos — a diferencia de Duelos/Escaleras, es
-    contra una plantilla real."""
+    CLUB rival. 2026-08-11, pedido explícito y más reciente: los de
+    pretemporada (Preparación, tipo 80) tampoco cuentan nunca — junto con
+    Torneo liga/playoff, Duelo y Escalera, son partidos de mentiras."""
     from unittest.mock import patch
 
     client, user_id, team_id, _factory = seeded
@@ -650,9 +736,8 @@ def test_national_team_matches_never_count_and_preseason_counts_as_friendly(
     assert friendlies_only.status_code == 200
     # Selección nacional (tipo 10) nunca cuenta, ni siquiera bajo "competitivo".
     assert competitive_only.json()["matchesAnalysed"] == 0
-    # Preparación (tipo 80) sí cuenta, pero solo bajo "Amistosos".
-    assert friendlies_only.json()["matchesAnalysed"] == 1
-    assert friendlies_only.json()["rivalName"] == "etbenianos1"
+    # Preparación (tipo 80) tampoco cuenta nunca, ni siquiera bajo "Amistosos".
+    assert friendlies_only.json()["matchesAnalysed"] == 0
 
 
 def test_pitch_zone_duels_pair_mirrored_flanks_on_both_halves(

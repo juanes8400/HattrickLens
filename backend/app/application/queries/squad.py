@@ -1,5 +1,5 @@
 """SquadQueryService — plantilla con ratings de posición. HL-021 y HL-022."""
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,11 +29,18 @@ from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
     PLAYER_HONESTY,
     SPECIALTIES,
-    match_role_name,
+    match_role_short_label,
 )
 from app.infrastructure.db import models as m
 
 SKILL_COLS = ("keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces")
+
+# 2026-08-09, pedido explícitamente: "Último partido" solo debe mostrar
+# dato si el partido de verdad fue reciente — caso real probado
+# (Volodymyr Manakin): `LastMatch` de playerdetails.xml puede ser de hace
+# más de un año, no "la semana pasada". La ventana se calcula contra AHORA
+# en cada consulta (nunca una fecha fija guardada).
+LAST_MATCH_RECENCY_WINDOW = timedelta(days=7)
 
 
 class SquadQueryService:
@@ -58,6 +65,7 @@ class SquadQueryService:
 
         rows = await self._latest(team_id)
         history = await self._history(team_id)
+
         baseline_at: datetime | None = None
         if comparison_sync_id is not None:
             chosen = next((item for item in history if item.sync_id == comparison_sync_id), None)
@@ -84,10 +92,32 @@ class SquadQueryService:
             skills = {c: getattr(snap, c) or 0 for c in SKILL_COLS}
             # HL-020: leadership real del jugador (players.xml), no la
             # constante 0 de antes — cierra el aporte al rating de capitán.
+            # specialty: 2026-08-09, pedido explícitamente — el lanzador de
+            # penaltis lleva un bono si el jugador es Técnico (código 1 en
+            # SPECIALTIES), así que el motor de posiciones necesita el
+            # código crudo, no solo la etiqueta ya traducida de abajo.
+            # 2026-08-09: "loyalty" faltaba aquí — _loyalty_bonus() en
+            # position_engine.py siempre devolvía 0 para TODA la app (ningún
+            # llamador la pasaba), aunque positions.yaml ya declara la
+            # fidelidad como un ajuste del Manual. Bug real, corregido de
+            # paso: ahora aporta a cualquier posición de campo, no solo al
+            # marcaje individual que la necesita explícitamente.
             player = {"skills": skills, "form": snap.form, "stamina": snap.stamina,
-                      "experience": snap.experience, "leadership": snap.leadership}
+                      "experience": snap.experience, "leadership": snap.leadership,
+                      "specialty": snap.specialty, "loyalty": snap.loyalty}
             best = best_position(player)
             here = rate(player, position) if position else None
+            # 2026-08-09: SQLite puede devolver el datetime sin tzinfo aunque
+            # se guardara con `.replace(tzinfo=UTC)` (mismo patrón defensivo
+            # que analysis.py) — sin esto, la resta con `datetime.now(UTC)`
+            # lanza TypeError si el valor vuelve naive.
+            last_match_is_recent = False
+            if snap.last_match_played_at is not None:
+                ref = (
+                    snap.last_match_played_at if snap.last_match_played_at.tzinfo
+                    else snap.last_match_played_at.replace(tzinfo=UTC)
+                )
+                last_match_is_recent = datetime.now(UTC) - ref <= LAST_MATCH_RECENCY_WINDOW
             players.append(
                 SquadPlayer(
                     ht_player_id=ident.ht_player_id,
@@ -140,11 +170,18 @@ class SquadQueryService:
                         if ident.purchased_at is not None else None
                     ),
                     last_match_position=(
-                        match_role_name(snap.last_match_position_code)
-                        if snap.last_match_position_code is not None else None
+                        match_role_short_label(
+                            snap.last_match_position_code, snap.last_match_behaviour_code,
+                        )
+                        if last_match_is_recent and snap.last_match_position_code is not None
+                        else None
                     ),
-                    last_match_rating=snap.last_match_rating,
-                    last_match_played_minutes=snap.last_match_played_minutes,
+                    last_match_rating=(
+                        snap.last_match_rating if last_match_is_recent else None
+                    ),
+                    last_match_played_minutes=(
+                        snap.last_match_played_minutes if last_match_is_recent else None
+                    ),
                     career_caps=snap.career_caps,
                     career_caps_u20=snap.career_caps_u20,
                     skills=skills,
@@ -213,7 +250,8 @@ class SquadQueryService:
         snap = row[0]
         skills = {c: getattr(snap, c) or 0 for c in SKILL_COLS}
         player = {"skills": skills, "form": snap.form, "stamina": snap.stamina,
-                  "experience": snap.experience, "leadership": snap.leadership}
+                  "experience": snap.experience, "leadership": snap.leadership,
+                  "loyalty": snap.loyalty}
         return [
             PositionRatingDTO(position=r.position, label=r.label,
                               rating=r.rating, confidence="config")

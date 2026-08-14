@@ -3,6 +3,7 @@ from app.domain.engines.sync_diff import (
     MatchState,
     diff_economy,
     diff_match,
+    diff_player_departure,
     diff_player_skills,
     diff_standing,
     diff_training,
@@ -22,19 +23,19 @@ PLAYER_OLD = {
 
 def test_new_player_is_announced_as_arrival() -> None:
     out = diff_player_skills(None, PLAYER_OLD, "Raul Cobos")
-    assert out == ["Raul Cobos se unio a la plantilla"]
+    assert out == ["Raul Cobos se unió a la plantilla"]
 
 
 def test_detects_skill_increase() -> None:
     new = {**PLAYER_OLD, "skills": {**PLAYER_OLD["skills"], "defending": 11}}
     out = diff_player_skills(PLAYER_OLD, new, "Raul Cobos")
-    assert "Raul Cobos: Defensa subio de 10 a 11" in out
+    assert "Raul Cobos: Defensa subió de 10 a 11" in out
 
 
 def test_detects_skill_decrease() -> None:
     new = {**PLAYER_OLD, "skills": {**PLAYER_OLD["skills"], "passing": 7}}
     out = diff_player_skills(PLAYER_OLD, new, "Raul Cobos")
-    assert "Raul Cobos: Pases bajo de 8 a 7" in out
+    assert "Raul Cobos: Pases bajó de 8 a 7" in out
 
 
 def test_no_change_gives_empty_list() -> None:
@@ -58,16 +59,50 @@ def test_detects_salary_form_and_stamina_changes() -> None:
 def test_detects_injury_and_recovery() -> None:
     hurt = {**PLAYER_OLD, "injury_level": 3}
     out = diff_player_skills(PLAYER_OLD, hurt, "Raul Cobos")
-    assert "Raul Cobos: se lesiono" in out
+    assert "Raul Cobos: se lesionó" in out
 
     recovered = diff_player_skills(hurt, PLAYER_OLD, "Raul Cobos")
-    assert "Raul Cobos: se recupero de la lesion" in recovered
+    assert "Raul Cobos: se recuperó de la lesión" in recovered
+
+
+def test_detects_loyalty_and_leadership_changes() -> None:
+    """Pedido explícito 2026-08-14: son los dos rasgos de carácter que sí
+    cambian con el tiempo (a diferencia de sociabilidad/agresividad/
+    honestidad, fijos), así que merecen aparecer en "Qué cambió"."""
+    new = {**PLAYER_OLD, "loyalty": 6, "leadership": 3}
+    out = diff_player_skills({**PLAYER_OLD, "loyalty": 5, "leadership": 3}, new, "Raul Cobos")
+    assert "Raul Cobos: Fidelidad 5 -> 6" in out
+    assert not any("Liderazgo" in c for c in out)  # sin cambio, no aparece
+
+    new2 = {**PLAYER_OLD, "loyalty": 5, "leadership": 4}
+    out2 = diff_player_skills({**PLAYER_OLD, "loyalty": 5, "leadership": 3}, new2, "Raul Cobos")
+    assert "Raul Cobos: Liderazgo 3 -> 4" in out2
 
 
 def test_detects_transfer_listing() -> None:
     listed = {**PLAYER_OLD, "is_transfer_listed": True}
     out = diff_player_skills(PLAYER_OLD, listed, "Raul Cobos")
     assert "Raul Cobos: puesto en mercado" in out
+
+
+def test_departure_with_sale_reports_the_price() -> None:
+    """HL-2xx: un jugador vendido debe verse en "Qué cambió", no solo en
+    `Player.sale_price` — bug real encontrado en vivo (Leopoldo Campus).
+
+    2026-08-12, corrección pedida explícitamente: SIN ganancia/pérdida — un
+    delta precio_venta − precio_compra no tiene en cuenta comisión de agente
+    ni bono de TSI, así que mostrarlo aquí como si fuera el resultado real
+    de la venta es engañoso frente a lo que sí calcula bien "Saldo por
+    jugador"."""
+    out = diff_player_departure("Leopoldo Campus", 8_690_000, "US$")
+    assert out == "Leopoldo Campus se vendió por 8,690,000 US$"
+
+
+def test_departure_without_sale_info_is_a_plain_exit() -> None:
+    """Salida sin venta conocida (retiro, fin de préstamo, etc.) — no se
+    inventa un precio."""
+    out = diff_player_departure("Leopoldo Campus", None, "US$")
+    assert out == "Leopoldo Campus salió de la plantilla"
 
 
 ECON_OLD = {
@@ -112,9 +147,9 @@ def test_economy_change_that_rounds_away_after_conversion_is_not_reported() -> N
 
 
 def test_detects_popularity_change_without_money_format() -> None:
-    new = {**ECON_OLD, "sponsors_popularity": 55}
+    new = {**ECON_OLD, "supporters_popularity": 65}
     out = diff_economy(ECON_OLD, new)
-    assert "Popularidad con patrocinadores: 50 -> 55" in out
+    assert "Popularidad con la afición: 60 -> 65" in out
 
 
 def test_no_economy_change_is_empty() -> None:
@@ -145,11 +180,11 @@ def test_standing_first_round_has_no_diff() -> None:
 
 
 def test_standing_position_improves() -> None:
-    assert diff_standing(4, 2, "Pulgas Arrechas") == "Pulgas Arrechas subio de la posicion 4 a la 2"
+    assert diff_standing(4, 2, "Pulgas Arrechas") == "Pulgas Arrechas subió de la posición 4 a la 2"
 
 
 def test_standing_position_worsens() -> None:
-    assert diff_standing(2, 5, "Pulgas Arrechas") == "Pulgas Arrechas bajo de la posicion 2 a la 5"
+    assert diff_standing(2, 5, "Pulgas Arrechas") == "Pulgas Arrechas bajó de la posición 2 a la 5"
 
 
 def test_standing_unchanged_position_is_none() -> None:

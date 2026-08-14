@@ -124,13 +124,57 @@ export function NextMatchPage() {
             <li><b>1. Sincroniza.</b> Actualiza plantilla y calendario desde la barra superior.</li>
             <li><b>2. Lee al rival.</b> Esta vista consulta en vivo sus datos actuales y sus últimos {rival.matchesAnalysed} oficiales.</li>
             <li><b>3. Prueba tu once.</b> <Link className="text-[var(--accent)] underline" to="/lineup">Abre Alineación</Link> para comparar formaciones y clima.</li>
-            <li><b>4. Decide.</b> El siguiente paso será conservar el escenario elegido y contrastarlo con el partido real tras el sync posterior.</li>
+            <li><b>4. Decide.</b> El siguiente paso será conservar el escenario elegido y contrastarlo con el partido real tras la siguiente sincronización.</li>
           </ol>
         </ProjectionPanel>
       </div>
 
+      {own.submittedOrders && (
+        <Panel
+          title="Tu alineación enviada"
+          meta={`CHPP · minuto 0 · táctica ${own.submittedOrders.tacticType ?? "—"} · nivel ${own.submittedOrders.tacticSkill ?? "—"}`}
+        >
+          <div className="grid gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
+            {own.submittedOrders.lineup.map((player) => (
+              <div key={player.htPlayerId} className="bg-[var(--surface)] px-4 py-3">
+                <div className="truncate text-sm font-medium">{player.name}</div>
+                <div className="text-xs text-[var(--muted)]">
+                  {player.position} · {player.behaviourLabel}
+                </div>
+                <div className="mt-1 text-xs tabular-nums">
+                  R {player.stamina} · F {player.form} · E {player.experience}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-px border-t border-[var(--border)] bg-[var(--border)] sm:grid-cols-4 lg:grid-cols-7">
+            {([
+              ["Medio", own.submittedOrders.ratings.midfield],
+              ["Def. der.", own.submittedOrders.ratings.rightDef],
+              ["Def. centro", own.submittedOrders.ratings.centralDef],
+              ["Def. izq.", own.submittedOrders.ratings.leftDef],
+              ["Ataq. der.", own.submittedOrders.ratings.rightAtt],
+              ["Ataq. centro", own.submittedOrders.ratings.centralAtt],
+              ["Ataq. izq.", own.submittedOrders.ratings.leftAtt],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="bg-[var(--surface)] px-3 py-2 text-center">
+                <div className="text-[10px] uppercase text-[var(--muted)]">{label}</div>
+                <div className="text-lg font-semibold tabular-nums">{value ?? "—"}</div>
+              </div>
+            ))}
+          </div>
+          <Note>
+            Esta es la orden realmente guardada en Hattrick. Los sectores son una predicción
+            oficial de inicio, no el promedio que aparecerá en el informe final.
+          </Note>
+        </Panel>
+      )}
+
       {own.formation && (
-        <Panel title="Tu once recomendado ahora" meta={`${own.formation.formation} · rating ${own.formation.totalRating.toFixed(2)}`}>
+        <Panel
+          title={own.submittedOrders ? "Alternativa recomendada por Hattrick Lens" : "Tu once recomendado ahora"}
+          meta={`${own.formation.formation} · índice ${own.formation.totalRating.toFixed(2)}`}
+        >
           <div className="grid gap-px bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
             {own.formation.lineup.map((player) => (
               <div key={player.htPlayerId} className="bg-[var(--surface)] px-4 py-3">

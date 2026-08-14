@@ -10,7 +10,7 @@ clasificación** — que son públicos y colectivos — y nunca con la ficha
 individual de los jugadores rivales.
 """
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,6 +112,11 @@ class LeagueResponse:
     rounds_played: int
     rounds_remaining: int
     standings: list[StandingRow]
+    # Clasificación Local/Visitante — pedido explícitamente 2026-08-08,
+    # calculadas desde los resultados reales (ver `_standings_from_matches`);
+    # `standings` (arriba) sigue siendo la combinada oficial de CHPP.
+    standings_home: list[StandingRow]
+    standings_away: list[StandingRow]
     history: LeagueHistory
     fixtures: list[FixtureRow]
     outlook: list[OutlookRow]
@@ -124,6 +129,193 @@ class LeagueResponse:
     is_top_division: bool = False
     is_bottom_division: bool = False
     caveats: list[str] = field(default_factory=list)
+
+
+def _history_from_matches(
+    matches: list[m.Match], rows: list[m.Standing], team_ht_id: int,
+) -> LeagueHistory:
+    """Posición/puntos reales de cada equipo después de cada jornada,
+    calculados a partir de los resultados de partidos ya conocidos —
+    `leaguefixtures.xml` trae el calendario COMPLETO de la serie, cruces
+    entre dos rivales incluidos, así que el resultado de una jornada ya
+    jugada se conoce aunque nunca se haya sincronizado una foto de
+    `leaguedetails.xml` justo en ese momento. Antes, el historial dependía
+    de que el usuario sincronizara exactamente en cada jornada — con un
+    solo sync a mitad de temporada, jornadas enteras (p. ej. la 1) se
+    quedaban sin fila aunque sus resultados fueran perfectamente
+    conocidos. 2026-08-08, pedido explícitamente tras comparar con
+    Hattrick Control.
+
+    Una jornada solo cuenta como fila del historial cuando TODOS sus
+    partidos están resueltos — un resultado suelto de una jornada en
+    curso no es una tabla comparable entre los n equipos."""
+    teams = {r.team_ht_id: r.team_name for r in rows}
+    n = len(teams)
+    if n == 0:
+        return LeagueHistory(rounds=[], teams=[])
+
+    by_round: dict[int, list[m.Match]] = {}
+    for mt in matches:
+        if mt.match_round is None or mt.home_goals < 0 or mt.away_goals < 0:
+            continue
+        if mt.home_team_ht_id not in teams or mt.away_team_ht_id not in teams:
+            continue
+        by_round.setdefault(mt.match_round, []).append(mt)
+
+    cum = {tid: {"points": 0, "gf": 0, "ga": 0} for tid in teams}
+    real_rounds: list[int] = []
+    positions_by_round: dict[int, dict[int, int]] = {}
+    points_by_round: dict[int, dict[int, int]] = {}
+    for rnd in sorted(by_round):
+        round_matches = by_round[rnd]
+        for mt in round_matches:
+            h, a = mt.home_team_ht_id, mt.away_team_ht_id
+            cum[h]["gf"] += mt.home_goals
+            cum[h]["ga"] += mt.away_goals
+            cum[a]["gf"] += mt.away_goals
+            cum[a]["ga"] += mt.home_goals
+            if mt.home_goals > mt.away_goals:
+                cum[h]["points"] += 3
+            elif mt.home_goals < mt.away_goals:
+                cum[a]["points"] += 3
+            else:
+                cum[h]["points"] += 1
+                cum[a]["points"] += 1
+        if len(round_matches) < n // 2:
+            continue  # jornada incompleta: ya sumada a `cum`, pero no es fila comparable
+        ranked = sorted(
+            teams,
+            key=lambda tid: (
+                -cum[tid]["points"], -(cum[tid]["gf"] - cum[tid]["ga"]), -cum[tid]["gf"],
+            ),
+        )
+        positions_by_round[rnd] = {tid: i + 1 for i, tid in enumerate(ranked)}
+        points_by_round[rnd] = {tid: cum[tid]["points"] for tid in teams}
+        real_rounds.append(rnd)
+
+    # Jornada 0 simbólica: 0 puntos es un HECHO para todos antes de jugar
+    # nada, no un dato inventado — se antepone sin necesitar ningún partido
+    # jugado. El puesto no tiene un valor real ahí (empate a 0 entre los n
+    # equipos, sin desempate posible), así que queda None.
+    history_rounds = [0, *real_rounds] if real_rounds else []
+    return LeagueHistory(
+        rounds=history_rounds,
+        teams=[
+            TeamHistoryRow(
+                ht_team_id=tid, name=name, is_own_team=tid == team_ht_id,
+                positions=[
+                    None if rnd == 0 else positions_by_round[rnd].get(tid)
+                    for rnd in history_rounds
+                ],
+                points=[
+                    0 if rnd == 0 else points_by_round[rnd].get(tid)
+                    for rnd in history_rounds
+                ],
+            )
+            for tid, name in teams.items()
+        ],
+    )
+
+
+def _merge_standing_snapshots(
+    history: LeagueHistory, standing_snapshots: list[m.Standing],
+) -> LeagueHistory:
+    """Complementa el historial calculado desde partidos con cualquier foto
+    real de `leaguedetails.xml` para una jornada que `leaguefixtures.xml`
+    todavía no refleja completa — CHPP a veces tarda en actualizar el
+    marcador de ese fichero aunque `leaguedetails.xml` ya sepa que la
+    jornada terminó (visto en vivo 2026-08-08: jornada 2 con Standing real,
+    pero solo 1 de 4 partidos con marcador en Match). Si los partidos YA
+    cubren esa jornada completa, esa fuente manda — nunca se pisa."""
+    by_round_team: dict[int, dict[int, m.Standing]] = {}
+    for s in standing_snapshots:
+        if s.played <= 0:
+            continue
+        by_round_team.setdefault(s.match_round, {})[s.team_ht_id] = s
+
+    real_history_rounds = [r for r in history.rounds if r != 0]
+    extra_rounds = sorted(r for r in by_round_team if r not in real_history_rounds)
+    if not extra_rounds:
+        return history
+
+    real_rounds = sorted({*real_history_rounds, *extra_rounds})
+    all_rounds = [0, *real_rounds]
+    index_in_history = {rnd: i for i, rnd in enumerate(history.rounds)}
+
+    return LeagueHistory(
+        rounds=all_rounds,
+        teams=[
+            TeamHistoryRow(
+                ht_team_id=t.ht_team_id, name=t.name, is_own_team=t.is_own_team,
+                positions=[
+                    t.positions[index_in_history[rnd]] if rnd in index_in_history
+                    else None if rnd == 0
+                    else (snap.position if (snap := by_round_team.get(rnd, {}).get(t.ht_team_id)) else None)
+                    for rnd in all_rounds
+                ],
+                points=[
+                    t.points[index_in_history[rnd]] if rnd in index_in_history
+                    else 0 if rnd == 0
+                    else (snap.points if (snap := by_round_team.get(rnd, {}).get(t.ht_team_id)) else None)
+                    for rnd in all_rounds
+                ],
+            )
+            for t in history.teams
+        ],
+    )
+
+
+def _standings_from_matches(
+    matches: list[m.Match], rows: list[m.Standing], own_team_ht_id: int, side: Literal["home", "away"],
+) -> list[StandingRow]:
+    """Clasificación Local o Visitante — pedido explícitamente 2026-08-08.
+    `leaguedetails.xml` solo da la tabla combinada; esto se calcula desde
+    los resultados reales de `leaguefixtures.xml`/`matches.xml` (los mismos
+    partidos que ya alimentan `_history_from_matches`), filtrando solo a
+    los partidos jugados como local o como visitante según `side`."""
+    teams = {r.team_ht_id: r.team_name for r in rows}
+    stats = {
+        tid: {"played": 0, "won": 0, "drawn": 0, "lost": 0, "gf": 0, "ga": 0, "points": 0}
+        for tid in teams
+    }
+    for mt in matches:
+        if mt.home_goals < 0 or mt.away_goals < 0:
+            continue
+        if side == "home":
+            team_id, gf, ga = mt.home_team_ht_id, mt.home_goals, mt.away_goals
+        else:
+            team_id, gf, ga = mt.away_team_ht_id, mt.away_goals, mt.home_goals
+        if team_id not in stats:
+            continue
+        s = stats[team_id]
+        s["played"] += 1
+        s["gf"] += gf
+        s["ga"] += ga
+        if gf > ga:
+            s["won"] += 1
+            s["points"] += 3
+        elif gf < ga:
+            s["lost"] += 1
+        else:
+            s["drawn"] += 1
+            s["points"] += 1
+
+    ordered = sorted(
+        teams,
+        key=lambda tid: (
+            -stats[tid]["points"], -(stats[tid]["gf"] - stats[tid]["ga"]), -stats[tid]["gf"],
+        ),
+    )
+    return [
+        StandingRow(
+            position=i + 1, ht_team_id=tid, name=teams[tid],
+            played=stats[tid]["played"], won=stats[tid]["won"], drawn=stats[tid]["drawn"],
+            lost=stats[tid]["lost"], goals_for=stats[tid]["gf"], goals_against=stats[tid]["ga"],
+            goal_difference=stats[tid]["gf"] - stats[tid]["ga"], points=stats[tid]["points"],
+            is_own_team=tid == own_team_ht_id,
+        )
+        for i, tid in enumerate(ordered)
+    ]
 
 
 class LeagueQueryService:
@@ -172,65 +364,6 @@ class LeagueQueryService:
             for i, r in enumerate(rows)
         ]
 
-        # Historial de posición/puntos por jornada: cada sync guarda una foto
-        # de TODA la serie (Standing, no solo el equipo propio), así que con
-        # varios syncs a lo largo de la temporada hay una serie temporal real
-        # — no una jornada, la secuencia completa. None donde falta una
-        # jornada sincronizada, nunca un valor inventado.
-        history_snapshots = list(
-            (
-                await self._s.execute(
-                    select(m.Standing)
-                    .where(
-                        m.Standing.series_ht_id == own.series_ht_id,
-                        m.Standing.season == own.season,
-                        # La foto de antes de jugar nada (todos 0 partidos,
-                        # posición sin sentido — CHPP la reparte arbitraria
-                        # entre empatados a 0) no es una jornada real.
-                        m.Standing.played > 0,
-                    )
-                    .order_by(m.Standing.match_round)
-                )
-            ).scalars()
-        )
-        real_rounds = sorted({s.match_round for s in history_snapshots})
-        # Jornada 0 simbólica: 0 puntos es un HECHO para todos antes de jugar
-        # nada, no un dato inventado — se puede anteponer sin sincronizar
-        # nada. El puesto en cambio no tiene un valor real ahí (empate a 0
-        # entre los n equipos, sin desempate posible), así que queda None:
-        # la línea de puntos arranca visiblemente en (0, 0), la de puesto
-        # simplemente no dibuja nada en esa jornada.
-        history_rounds = [0, *real_rounds] if real_rounds else []
-        by_team_round: dict[int, dict[int, m.Standing]] = {}
-        for s in history_snapshots:
-            by_team_round.setdefault(s.team_ht_id, {})[s.match_round] = s
-        history = LeagueHistory(
-            rounds=history_rounds,
-            teams=[
-                TeamHistoryRow(
-                    ht_team_id=r.team_ht_id, name=r.team_name,
-                    is_own_team=r.team_ht_id == team.ht_team_id,
-                    positions=[
-                        None if rnd == 0 else (
-                            snap.position
-                            if (snap := by_team_round.get(r.team_ht_id, {}).get(rnd))
-                            else None
-                        )
-                        for rnd in history_rounds
-                    ],
-                    points=[
-                        0 if rnd == 0 else (
-                            snap.points
-                            if (snap := by_team_round.get(r.team_ht_id, {}).get(rnd))
-                            else None
-                        )
-                        for rnd in history_rounds
-                    ],
-                )
-                for r in rows
-            ],
-        )
-
         ids = {r.team_ht_id for r in rows}
         # leaguefixtures.xml (HL-090 fix): calendario COMPLETO de la serie,
         # con jornada real — a diferencia de matches.xml (solo el equipo
@@ -265,6 +398,25 @@ class LeagueQueryService:
                     )
                 ).scalars()
             )
+
+        # Complemento: fotos reales de leaguedetails.xml para jornadas que
+        # leaguefixtures.xml todavía no cubre completas (ver
+        # `_merge_standing_snapshots`).
+        standing_snapshots = list(
+            (
+                await self._s.execute(
+                    select(m.Standing).where(
+                        m.Standing.series_ht_id == own.series_ht_id,
+                        m.Standing.season == own.season,
+                    )
+                )
+            ).scalars()
+        )
+        history = _merge_standing_snapshots(
+            _history_from_matches(matches, rows, team.ht_team_id), standing_snapshots,
+        )
+        standings_home = _standings_from_matches(matches, rows, team.ht_team_id, "home")
+        standings_away = _standings_from_matches(matches, rows, team.ht_team_id, "away")
 
         fixtures_out: list[FixtureRow] = []
         pending: list[Fixture] = []
@@ -389,6 +541,8 @@ class LeagueQueryService:
             rounds_played=sim.rounds_played,
             rounds_remaining=sim.rounds_remaining,
             standings=standings,
+            standings_home=standings_home,
+            standings_away=standings_away,
             history=history,
             fixtures=fixtures_out,
             outlook=outlook,

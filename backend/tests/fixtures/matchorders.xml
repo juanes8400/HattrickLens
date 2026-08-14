@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matchorders.xml</FileName>
+  <Version>3.0</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-07-21 03:10:00</FetchedDate>
+  <MatchID>767370369</MatchID>
+  <SourceSystem>hattrick</SourceSystem>
+  <MatchData Available="True">
+    <HomeTeam><HomeTeamID>537758</HomeTeamID><HomeTeamName>Pulgas Arrechas</HomeTeamName></HomeTeam>
+    <AwayTeam><AwayTeamID>2370641</AwayTeamID><AwayTeamName>Leones de la Selva</AwayTeamName></AwayTeam>
+    <MatchDate>2026-07-22 23:40:00</MatchDate>
+    <MatchType>3</MatchType>
+    <Attitude>0</Attitude>
+    <TacticType>2</TacticType>
+    <CoachModifier Available="True">1</CoachModifier>
+    <Lineup>
+      <Positions>
+        <Player><PlayerID>476719421</PlayerID><RoleID>100</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>471016867</PlayerID><RoleID>101</RoleID><Behaviour>3</Behaviour></Player>
+        <Player><PlayerID>474341053</PlayerID><RoleID>102</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>468921494</PlayerID><RoleID>104</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>475735542</PlayerID><RoleID>105</RoleID><Behaviour>1</Behaviour></Player>
+        <Player><PlayerID>484269024</PlayerID><RoleID>106</RoleID><Behaviour>2</Behaviour></Player>
+        <Player><PlayerID>484830978</PlayerID><RoleID>107</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>493839156</PlayerID><RoleID>109</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>444563841</PlayerID><RoleID>110</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>434712334</PlayerID><RoleID>111</RoleID><Behaviour>0</Behaviour></Player>
+        <Player><PlayerID>440329107</PlayerID><RoleID>113</RoleID><Behaviour>0</Behaviour></Player>
+      </Positions>
+    </Lineup>
+  </MatchData>
+</HattrickData>

@@ -34,6 +34,12 @@ class FakeCHPPClient:
         pass
 
     async def fetch(self, file: str, version: str = "latest", **_params: Any) -> dict[str, Any]:
+        if file == "matchorders" and _params.get("actionType") == "predictratings":
+            predicted = get_parser(file)(
+                (FIXTURES / "matchorders_predictratings.xml").read_bytes()
+            )
+            predicted["ht_match_id"] = _params["matchID"]
+            return predicted
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
 
     async def aclose(self) -> None:
@@ -127,7 +133,11 @@ def test_sync_runs_for_real_with_a_valid_session(
     # resuelto, "una vez por jugador para siempre" — cae a ~0 en syncs
     # siguientes) + 3 matchdetails (2 MatchRating + 1 StadiumHistory del
     # único partido cuyo matchID coincide con el fixture estático).
-    assert body["snapshotsWritten"] == 99
+    # +2 (2026-08-12: club + stafflist entraron a DEFAULT_FILES — antes sólo
+    # se sincronizaban una vez a mano al conectar la cuenta, nunca de nuevo
+    # con el "Sincronizar" normal — ver sync_team.py) = 102.
+    assert body["syncId"] > 0
+    assert body["snapshotsWritten"] == 102
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

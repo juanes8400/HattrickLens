@@ -61,12 +61,12 @@ def test_player_skill_change_is_recorded() -> None:
 
         first = await handler.execute(cmd)
         # primer sync: todos "se unieron a la plantilla", no cambios de skill
-        assert all("se unio a la plantilla" in c["summary"] for c in first.changes)
+        assert all("se unió a la plantilla" in c["summary"] for c in first.changes)
 
         second = await handler.execute(cmd)
         name = f"{p0['first_name']} {p0['last_name']}".strip()
         assert any(
-                c["category"] == "jugadores" and "Defensa subio" in c["summary"]
+                c["category"] == "jugadores" and "Defensa subió" in c["summary"]
             and name in c["summary"]
             for c in second.changes
         )
@@ -77,7 +77,7 @@ def test_player_skill_change_is_recorded() -> None:
                     select(m.SyncChange).where(m.SyncChange.sync_id == second.sync_id)
                 )
             ).scalars().all()
-            assert any("Defensa subio" in r.summary for r in rows)
+            assert any("Defensa subió" in r.summary for r in rows)
 
     asyncio.run(run())
 
@@ -184,7 +184,7 @@ def test_standing_position_change_is_recorded() -> None:
 
         second = await handler.execute(cmd)
         assert second.changes == [
-            {"category": "liga", "summary": "Pulgas Arrechas subio de la posicion 4 a la 2"}
+            {"category": "liga", "summary": "Pulgas Arrechas subió de la posición 4 a la 2"}
         ]
 
     asyncio.run(run())

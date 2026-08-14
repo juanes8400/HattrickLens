@@ -22,9 +22,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.training_context import TrainingContextService
-from app.domain.engines.training_engine import TrainingSetup, training_exposure, weeks_to_next_level
+from app.domain.engines.training_engine import (
+    TrainingSetup,
+    default_setup,
+    training_exposure,
+    weeks_to_next_level,
+)
 from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_NAMES,
+    NON_OFFICIAL_MATCH_TYPES,
     TRAINING_TARGET_SKILL,
     match_position_name,
     match_role_name,
@@ -102,13 +108,10 @@ class PostMatchTrainingService:
         setup = (
             ctx.setup
             if ctx is not None
-            else TrainingSetup(
-                skill=training_target(training.training_type) if training else "playmaking",
+            else default_setup(
+                training_target(training.training_type) if training else "playmaking",
                 intensity=training.training_level if training else 100,
-                stamina_share=training.stamina_part if training else 0,
-                coach_level=8,
-                coach_is_excellent=True,
-                assistant_level_sum=10,
+                stamina_share=training.stamina_part if training else None,
             )
         )
 
@@ -136,18 +139,18 @@ class PostMatchTrainingService:
         ]
 
         notes = [
-            "La recomendacion usa minutos/posiciones observados y la formula de entrenamiento actual.",
-            "La tabla posicion->entrenamiento es auditable; si sincronizamos matchlineup completo, mejora el detalle.",
+            "La recomendación usa minutos/posiciones observados y la fórmula de entrenamiento actual.",
+            "La tabla posición->entrenamiento es auditable; si sincronizamos matchlineup completo, mejora el detalle.",
         ]
         notes.extend(data_notes)
         if current_type and recommendation and recommendation["trainingType"] != current_type:
             notes.append(
-                "El entrenamiento actual no es el que mas aprovecha los minutos ya jugados esta semana."
+                "El entrenamiento actual no es el que más aprovecha los minutos ya jugados esta semana."
             )
         elif current_type and recommendation:
-            notes.append("El entrenamiento actual coincide con la mejor opcion calculada.")
+            notes.append("El entrenamiento actual coincide con la mejor opción calculada.")
         notes.append(
-            "Los trainingType obsoletos de CHPP se muestran como referencia historica, pero no compiten por la recomendacion."
+            "Los trainingType obsoletos de CHPP se muestran como referencia histórica, pero no compiten por la recomendación."
         )
 
         return {
@@ -226,6 +229,11 @@ class PostMatchTrainingService:
         segments: list[PlayedSegment] = []
         for rating, player, match in rows:
             if match is not None:
+                # Escaleras, Duelos, Torneos y Preparación no son partidos
+                # reales — pedido explícito 2026-08-11: no deben influir en
+                # qué entrenamiento conviene según los minutos jugados.
+                if match.match_type in NON_OFFICIAL_MATCH_TYPES:
+                    continue
                 played_at = _aware(match.played_at)
                 if not (since <= played_at <= deadline):
                     continue
@@ -261,7 +269,7 @@ class PostMatchTrainingService:
             return fallback, notes
 
         notes.append(
-            "No hay minutos/posiciones sincronizados. Sincroniza playerdetails o matchlineup para activar esta recomendacion."
+            "No hay minutos/posiciones sincronizados. Sincroniza playerdetails o matchlineup para activar esta recomendación."
         )
         return [], notes
 
@@ -355,13 +363,13 @@ class PostMatchTrainingService:
         trained_count = len(trainees)
         rationale = [
             f"{trained_count} jugadores reciben entrenamiento",
-            f"{sum(1 for t in trainees if t['exposure'] >= 0.99)} con exposicion full",
+            f"{sum(1 for t in trainees if t['exposure'] >= 0.99)} con exposición full",
             f"{round(total_equivalent_minutes, 1)} minutos equivalentes",
         ]
         if pops_soon:
             rationale.append(f"{pops_soon} posible(s) subida(s) en <= 3 semanas")
         if training_type in DEPRECATED_TRAINING_TYPES:
-            rationale.append("tipo obsoleto segun CHPP: no compite por la recomendacion")
+            rationale.append("tipo obsoleto según CHPP: no compite por la recomendación")
         return {
             "trainingType": training_type,
             "name": training_name(training_type),

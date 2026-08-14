@@ -5,9 +5,9 @@ plantilla, liderazgo, fidelidad).
 
 ⚠️ Las categorías y umbrales son un juicio de producto, no una fórmula
 verificada contra datos externos (a diferencia de `pricing_engine.SALARY_*`,
-que sí lo es) — se declara así en `confidence`, igual que `value_player`.
-Siempre se devuelven las señales crudas (`signals`) para que la UI pueda
-mostrar el porqué, no solo la etiqueta.
+que sí lo es) — se declara así en `confidence`. Siempre se devuelven las
+señales crudas (`signals`) para que la UI pueda mostrar el porqué, no solo
+la etiqueta.
 """
 from dataclasses import dataclass
 from typing import Any

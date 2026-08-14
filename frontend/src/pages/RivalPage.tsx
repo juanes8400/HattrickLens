@@ -157,8 +157,8 @@ export function RivalPage() {
           </div>
         </div>
         <Note>
-          Estimación {data.winProbability.confidence}. TSI de tus 11 probables (
-          {number(data.winProbability.ownTsiTotal)}) contra los 11 de mayor TSI del rival (
+          Estimación {data.winProbability.confidence}. TSI de {data.comparisonReference.ownSource === 'submitted_orders' ? 'tu alineación enviada' : 'tus 11 probables'} (
+          {number(data.winProbability.ownTsiTotal)}) contra {data.comparisonReference.rivalSource === 'probable_recent_starters' ? 'el once probable del rival' : 'los 11 de mayor TSI del rival'} (
           {number(data.winProbability.rivalTsiTotal)}).
         </Note>
       </ProjectionPanel>
@@ -264,6 +264,7 @@ export function RivalPage() {
       <PitchZoneDuelsPanel
         duels={data.pitchZoneDuels}
         matchesAnalysed={data.pitchZonesMatchesAnalysed}
+        sources={data.pitchZoneSources}
         scope={pitchZoneScope}
         onScopeChange={setPitchZoneScope}
       />
@@ -394,7 +395,12 @@ function ComparisonPanel({
   ];
 
   return (
-    <Panel title="Comparación de plantilla" meta={`${ownLabel} vs. ${rivalLabel}`}>
+    <Panel
+      title={data.comparisonReference.ownSource === "submitted_orders"
+        ? "Comparación para el partido"
+        : "Comparación de plantilla"}
+      meta={`${ownLabel} vs. ${rivalLabel}`}
+    >
       <div className="space-y-5 p-4">
         <div className="flex items-center justify-center gap-6 text-xs">
           <span className="flex items-center gap-1.5">
@@ -419,6 +425,12 @@ function ComparisonPanel({
           rivalDays={data.comparison.lastLoginDays.rival}
         />
       </div>
+      <Note>
+        TSI, forma, condición y experiencia: {data.comparisonReference.ownLabel}
+        {" "}({data.comparisonReference.ownPlayers}) contra {data.comparisonReference.rivalLabel}
+        {" "}({data.comparisonReference.rivalPlayers}). Liderazgo y última conexión siguen siendo
+        indicadores del club y del manager, no del once.
+      </Note>
     </Panel>
   );
 }
@@ -621,11 +633,13 @@ function PitchZoneScopeSelector({
 function PitchZoneDuelsPanel({
   duels,
   matchesAnalysed,
+  sources,
   scope,
   onScopeChange,
 }: {
   duels: PitchZoneDuel[] | null;
   matchesAnalysed: { own: number | null; rival: number | null };
+  sources: RivalScouting["pitchZoneSources"];
   scope: PitchZoneScope;
   onScopeChange: (v: PitchZoneScope) => void;
 }) {
@@ -633,6 +647,9 @@ function PitchZoneDuelsPanel({
     return (
       <Panel title="Duelos por zona de la cancha">
         <div className="p-4 pb-0">
+          <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+            Muestra histórica del rival
+          </div>
           <PitchZoneScopeSelector scope={scope} onScopeChange={onScopeChange} />
         </div>
         <Empty>
@@ -656,9 +673,32 @@ function PitchZoneDuelsPanel({
   return (
     <Panel
       title="Duelos por zona de la cancha"
-      meta={`tú: ${matchesAnalysed.own} · rival: ${matchesAnalysed.rival} partido(s)`}
+      meta={`${sources.own.kind === "submitted_chpp_prediction"
+        ? "tu predicción CHPP"
+        : `tú: ${matchesAnalysed.own} partido(s)`} · rival: ${matchesAnalysed.rival} partido(s)`}
     >
-      <div className="p-4 pb-0">
+      <div className="grid gap-2 p-4 pb-2 sm:grid-cols-2">
+        <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+          <div className="text-[10px] uppercase text-[var(--muted)]">Tu fuente</div>
+          <div className="text-xs font-semibold">{sources.own.label}</div>
+          {sources.own.tacticSkill != null && (
+            <div className="mt-0.5 text-[11px] text-[var(--muted)]">
+              Táctica {sources.own.tacticType} · nivel {sources.own.tacticSkill}
+            </div>
+          )}
+        </div>
+        <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+          <div className="text-[10px] uppercase text-[var(--muted)]">Fuente rival</div>
+          <div className="text-xs font-semibold">{sources.rival.label}</div>
+          <div className="mt-0.5 text-[11px] text-[var(--muted)]">
+            {sources.rival.observations ?? 0} partido(s) del filtro seleccionado
+          </div>
+        </div>
+      </div>
+      <div className="px-4 pb-0">
+        <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+          Muestra histórica del rival
+        </div>
         <PitchZoneScopeSelector scope={scope} onScopeChange={onScopeChange} />
       </div>
       <div className="p-4 pt-0">
@@ -705,11 +745,10 @@ function PitchZoneDuelsPanel({
         </div>
       </div>
       <Note>
-        Cada duelo enfrenta tu rating de sector (real, de tus partidos ya sincronizados) contra
-        el del rival (real, pedido en vivo) en el carril físico que le corresponde — tu ataque
-        izquierdo corre por el mismo lateral que defiende el derecho rival, como en cualquier
-        alineación reflejada. El % es una PROYECCIÓN simple (rating entre la suma de los dos),
-        no la fórmula real del motor de partido de Hattrick.
+        Tu lado usa primero la predicción oficial CHPP de la alineación enviada al minuto 0;
+        si no existe, vuelve al historial propio. El rival siempre usa ratings observados de
+        partidos terminados porque sus órdenes futuras son privadas. El % es una PROYECCIÓN
+        simple (rating entre la suma de ambos), no la fórmula del motor de Hattrick.
       </Note>
     </Panel>
   );

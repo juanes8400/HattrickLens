@@ -6,7 +6,6 @@ saber que conviertes el 33% de tus ocasiones y el rival el 51% es lo que
 distingue un problema de generación de uno de definición.
 """
 from dataclasses import dataclass, field
-from enum import StrEnum
 
 SECTORS = ("midfield", "right_def", "central_def", "left_def",
            "right_att", "central_att", "left_att")
@@ -18,18 +17,11 @@ SECTOR_LABELS = {
     "left_att": "Ataque izquierda",
 }
 
+CHANCE_ZONES = ("left", "center", "right", "special", "other")
 
-class ChanceKind(StrEnum):
-    NORMAL = "normal"
-    SPECIAL = "special"
-    COUNTER = "counter"
-
-
-# Clasificación de los tipos de evento de Hattrick.
-# ⚠️ Mapa parcial: los identificadores exactos se confirman con matchdetails.
-SPECIAL_EVENT_TYPES = {
-    "corner", "experience", "quick", "unpredictable",
-    "winger", "technical_vs_head", "long_shot", "tired_defender",
+CHANCE_ZONE_LABELS = {
+    "left": "Izquierda", "center": "Centro", "right": "Derecha",
+    "special": "Jugadas especiales", "other": "Otras",
 }
 
 
@@ -52,32 +44,24 @@ class SectorComparison:
 
 @dataclass
 class ChanceTally:
-    normal: int = 0
-    normal_goals: int = 0
+    """Ocasiones por zona, tal como las reporta matchdetails.xml (verificado
+    en vivo: sólo trae conteos por zona, nunca un desglose de goles por
+    zona) — `goals` es el total del partido/periodo, no atribuible a una
+    zona concreta."""
+    left: int = 0
+    center: int = 0
+    right: int = 0
     special: int = 0
-    special_goals: int = 0
-    counter: int = 0
-    counter_goals: int = 0
+    other: int = 0
+    goals: int = 0
 
     @property
     def total(self) -> int:
-        return self.normal + self.special + self.counter
-
-    @property
-    def goals(self) -> int:
-        return self.normal_goals + self.special_goals + self.counter_goals
+        return self.left + self.center + self.right + self.special + self.other
 
     @property
     def conversion(self) -> float:
         return self.goals / self.total if self.total else 0.0
-
-    def rate(self, kind: ChanceKind) -> float:
-        c, g = {
-            ChanceKind.NORMAL: (self.normal, self.normal_goals),
-            ChanceKind.SPECIAL: (self.special, self.special_goals),
-            ChanceKind.COUNTER: (self.counter, self.counter_goals),
-        }[kind]
-        return g / c if c else 0.0
 
 
 @dataclass
@@ -157,25 +141,29 @@ def analyse(
     )
 
 
-def aggregate_conversion(matches: list[tuple[ChanceTally, ChanceTally]]) -> dict[str, float]:
-    """Tasas acumuladas propias y del rival. Pestaña Resumen Eventos de HC."""
+def aggregate_conversion(matches: list[tuple[ChanceTally, ChanceTally]]) -> dict[str, float | int]:
+    """Tasas y ocasiones por zona acumuladas, propias y del rival.
+
+    Sólo se puede dar una tasa de conversión GLOBAL (goles ÷ ocasiones
+    totales): matchdetails.xml no atribuye goles a una zona concreta, así
+    que un "own_special_conversion" no sería un dato real.
+    """
     own = ChanceTally()
     opp = ChanceTally()
     for o, p in matches:
         for tally, src in ((own, o), (opp, p)):
-            tally.normal += src.normal
-            tally.normal_goals += src.normal_goals
-            tally.special += src.special
-            tally.special_goals += src.special_goals
-            tally.counter += src.counter
-            tally.counter_goals += src.counter_goals
-    return {
+            for zone in CHANCE_ZONES:
+                setattr(tally, zone, getattr(tally, zone) + getattr(src, zone))
+            tally.goals += src.goals
+    result: dict[str, float | int] = {
         "ownConversion": round(own.conversion, 4),
         "opponentConversion": round(opp.conversion, 4),
-        "ownNormal": round(own.rate(ChanceKind.NORMAL), 4),
-        "opponentNormal": round(opp.rate(ChanceKind.NORMAL), 4),
-        "ownSpecial": round(own.rate(ChanceKind.SPECIAL), 4),
-        "opponentSpecial": round(opp.rate(ChanceKind.SPECIAL), 4),
         "ownChances": own.total,
         "opponentChances": opp.total,
+        "ownGoals": own.goals,
+        "opponentGoals": opp.goals,
     }
+    for zone in CHANCE_ZONES:
+        result[f"own{zone.capitalize()}"] = getattr(own, zone)
+        result[f"opponent{zone.capitalize()}"] = getattr(opp, zone)
+    return result

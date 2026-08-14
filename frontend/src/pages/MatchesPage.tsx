@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Chart } from "../charts/Chart";
-import { radarOption } from "../charts/chartOptions";
+import { radarOption, resultsPieOption } from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
 import { MatchSectorMap } from "../components/MatchSectorMap";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import { TEAM_ID, useMatchDetail, useMatches } from "../hooks/useTeam";
 import { api } from "../services/api";
-import type { MatchRow, Matches } from "../services/api";
+import type { BestRating, HomeAwayRow, MatchRow, Matches, RatingSeriesPoint } from "../services/api";
 
 function renderStatOrDash(v: number | null) {
   return v == null ? <span className="text-[var(--muted)]">—</span> : <span>{v}</span>;
@@ -20,10 +20,16 @@ function renderStatOrDash(v: number | null) {
  * veces y metimos una» y «llegamos tres y metimos dos» son el mismo 1-2 y
  * piden decisiones opuestas: la primera pide un delantero, la segunda pide
  * mediocampo. Un marcador solo no distingue las dos situaciones.
+ *
+ * Escaleras/Duelos/Torneos/Preparación no aparecen aquí ni en ningún otro
+ * lugar de la herramienta — no son partidos oficiales y no hay botón que los
+ * reactive (2026-08-12, pedido explícito). El botón que antes los mostraba
+ * ahora controla los Amistosos, que sí son partidos reales.
  */
 export function MatchesPage() {
-  const [includeNonOfficial, setIncludeNonOfficial] = useState(false);
-  const { data, isLoading, isError, error } = useMatches(includeNonOfficial);
+  const [includeFriendlies, setIncludeFriendlies] = useState(false);
+  const [season, setSeason] = useState<number | null>(null);
+  const { data, isLoading, isError, error } = useMatches(includeFriendlies, season);
   const [selected, setSelected] = useState<number | null>(null);
   const qc = useQueryClient();
 
@@ -45,16 +51,28 @@ export function MatchesPage() {
           <h1 className="text-xl font-semibold">Partidos</h1>
           <p className="text-sm text-[var(--muted)]">Por qué se ganó o se perdió</p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <select
+            value={season ?? "all"}
+            onChange={(e) => setSeason(e.target.value === "all" ? null : Number(e.target.value))}
+            className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
+          >
+            <option value="all">Todas las temporadas</option>
+            {data.availableSeasons.map((s) => (
+              <option key={s} value={s}>
+                {s === data.currentSeason ? `Temporada actual (${s})` : `Temporada ${s}`}
+              </option>
+            ))}
+          </select>
           <button
-            onClick={() => setIncludeNonOfficial((v) => !v)}
+            onClick={() => setIncludeFriendlies((v) => !v)}
             className={
-              includeNonOfficial
+              includeFriendlies
                 ? "rounded-md border border-[var(--accent)] px-3 py-1.5 text-xs text-[var(--accent)]"
                 : "rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
             }
           >
-            {includeNonOfficial ? "Ocultar Escaleras/Duelos" : "Mostrar Escaleras/Duelos"}
+            {includeFriendlies ? "Ocultar amistosos" : "Mostrar amistosos"}
           </button>
           {missingDetails > 0 && (
             <button
@@ -81,22 +99,22 @@ export function MatchesPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Jugados" value={String(data.matchesPlayed)} hint={data.record} />
+        <Kpi label="Jugados" value={String(data.matchesPlayed)} hint={`${data.record} · ${data.seasonLabel}`} />
         <Kpi
           label="Goles"
           value={`${data.goalsFor} : ${data.goalsAgainst}`}
-          hint="a favor y en contra"
+          hint={`a favor y en contra · ${data.seasonLabel}`}
           tone={data.goalsFor >= data.goalsAgainst ? "positive" : "danger"}
         />
         <Kpi
           label="HatStats medio"
           value={data.avgHatstats == null ? "—" : data.avgHatstats.toFixed(1)}
-          hint={data.avgHatstats == null ? "faltan ratings" : "mediocampo pesa triple"}
+          hint={data.avgHatstats == null ? "faltan ratings" : `mediocampo pesa triple · ${data.seasonLabel}`}
         />
         <Kpi
           label="Mejor partido"
           value={data.bestMatch ? String(data.bestMatch.hatstats) : "—"}
-          hint={data.bestMatch ? `vs ${data.bestMatch.opponent}` : undefined}
+          hint={data.bestMatch ? `vs ${data.bestMatch.opponent} · ${data.seasonLabel}` : undefined}
           tone={data.bestMatch ? "positive" : undefined}
         />
       </div>
@@ -105,26 +123,17 @@ export function MatchesPage() {
         <Note key={i}>{n}</Note>
       ))}
 
+      <Panel title="Resumen" meta="local/visitante y mejores marcas">
+        <ResumenPanel data={data} />
+      </Panel>
+
       <Panel title="Conversión" meta="generación frente a definición">
         <ConversionPanel data={data} />
       </Panel>
 
       {data.ratingSeries.length > 0 && (
-        <Panel title="Evolución de los ratings" meta={`${data.ratingSeries.length} partidos`}>
-          <Chart ariaLabel="Evolución de los ratings de mediocampo, defensa y ataque"
-            option={{
-              xAxis: { type: "category", data: data.ratingSeries.map((p) => p.date) },
-              yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
-              tooltip: { trigger: "axis" },
-              legend: { bottom: 0 },
-              series: [
-                { name: "Mediocampo", type: "line", data: data.ratingSeries.map((p) => p.midfield), smooth: true },
-                { name: "Defensa", type: "line", data: data.ratingSeries.map((p) => p.defence), smooth: true },
-                { name: "Ataque", type: "line", data: data.ratingSeries.map((p) => p.attack), smooth: true },
-              ],
-            }}
-            height={260}
-          />
+        <Panel title="Evolución de los ratings" meta={`${data.ratingSeries.length} partidos · tt-ss`}>
+          <RatingSeriesChart points={data.ratingSeries} />
         </Panel>
       )}
 
@@ -137,21 +146,82 @@ export function MatchesPage() {
   );
 }
 
+function ResumenPanel({ data }: { data: Matches }) {
+  const homeAwayColumns: Column<HomeAwayRow>[] = [
+    { key: "label", header: "Ámbito", value: (r) => r.label },
+    { key: "played", header: "Partidos", align: "right", value: (r) => r.played },
+    { key: "won", header: "Ganados", align: "right", value: (r) => r.won },
+    { key: "drawn", header: "Empatados", align: "right", value: (r) => r.drawn },
+    { key: "lost", header: "Perdidos", align: "right", value: (r) => r.lost },
+    { key: "gf", header: "Gf", align: "right", value: (r) => r.goalsFor },
+    { key: "ga", header: "Gc", align: "right", value: (r) => r.goalsAgainst },
+  ];
+  const bestColumns: Column<BestRating>[] = [
+    { key: "label", header: "Métrica", value: (r) => r.label },
+    { key: "value", header: "Mejor valor", align: "right", value: (r) => r.value },
+    { key: "date", header: "Fecha", value: (r) => r.date },
+    {
+      key: "opponent",
+      header: "Partido",
+      value: (r) => r.opponent,
+      render: (r) => <span>vs {r.opponent}</span>,
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 p-4 lg:grid-cols-2">
+      <div className="space-y-4">
+        <DataTable
+          rows={data.homeAway}
+          columns={homeAwayColumns}
+          rowKey={(r) => r.scope}
+          csvName="local-visitante"
+          initialSort="label"
+          initialDescending={false}
+          filterPlaceholder="Filtrar…"
+        />
+        <Chart
+          ariaLabel="Distribución de resultados: ganados, empatados y perdidos"
+          option={resultsPieOption(data.resultsPie.won, data.resultsPie.drawn, data.resultsPie.lost)}
+          height={220}
+        />
+      </div>
+      <div>
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+          Mejores calificaciones
+        </h3>
+        {data.bestRatings.length ? (
+          <DataTable
+            rows={data.bestRatings}
+            columns={bestColumns}
+            rowKey={(r) => r.metric}
+            csvName="mejores-calificaciones"
+            initialSort="value"
+            filterPlaceholder="Filtrar…"
+          />
+        ) : (
+          <p className="text-xs text-[var(--muted)]">Todavía no hay ratings por sector sincronizados.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ConversionPanel({ data }: { data: Matches }) {
-  const withChances = data.conversion.filter((c) => c.chances > 0);
-  if (!withChances.length) {
+  const c = data.conversion;
+  if (!c.ownChances && !c.opponentChances) {
     return (
       <p className="p-4 text-xs text-[var(--muted)]">
-        Todavía no hay eventos de partido sincronizados, así que no se pueden contar
-        ocasiones. Llegan con el detalle de partido de CHPP.
+        Todavía no hay ocasiones por zona sincronizadas, así que no se puede calcular la
+        conversión. Llegan con el detalle de partido de CHPP.
       </p>
     );
   }
   return (
-    <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
-      {withChances.map((c) => (
-        <div key={c.kind} className="rounded-lg border border-[var(--border)] p-3">
-          <div className="text-xs text-[var(--muted)]">{c.label}</div>
+    <div className="space-y-4 p-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-[var(--border)] p-3">
+          <div className="text-xs text-[var(--muted)]">Nosotros</div>
           <div
             className={
               c.isReliable
@@ -159,17 +229,101 @@ function ConversionPanel({ data }: { data: Matches }) {
                 : "mt-2 text-2xl font-semibold tabular-nums text-[var(--muted)]"
             }
           >
-            {(c.rate * 100).toFixed(0)}%
+            {(c.ownConversion * 100).toFixed(0)}%
           </div>
           <div className="mt-1 text-xs text-[var(--muted)]">
-            {c.goals} de {c.chances}
+            {c.ownGoals} de {c.ownChances} ocasiones
             {!c.isReliable && (
               <span className="block text-[var(--danger)]">muestra corta: es ruido</span>
             )}
           </div>
         </div>
-      ))}
+        <div className="rounded-lg border border-[var(--border)] p-3">
+          <div className="text-xs text-[var(--muted)]">Rival</div>
+          <div
+            className={
+              c.isReliable
+                ? "mt-2 text-2xl font-semibold tabular-nums"
+                : "mt-2 text-2xl font-semibold tabular-nums text-[var(--muted)]"
+            }
+          >
+            {(c.opponentConversion * 100).toFixed(0)}%
+          </div>
+          <div className="mt-1 text-xs text-[var(--muted)]">
+            {c.opponentGoals} de {c.opponentChances} ocasiones
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+          Ocasiones por zona
+        </h3>
+        <div className="space-y-2">
+          {c.zones.map((z) => {
+            const max = Math.max(z.own, z.opponent, 1);
+            return (
+              <div key={z.zone} className="grid grid-cols-[110px_1fr_auto] items-center gap-2 text-xs">
+                <span className="text-[var(--muted)]">{z.label}</span>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 flex-1 overflow-hidden rounded bg-black/10">
+                    <div
+                      className="h-full bg-[var(--accent)]"
+                      style={{ width: `${(z.own / max) * 100}%` }}
+                    />
+                  </div>
+                  <div className="h-2 flex-1 overflow-hidden rounded bg-black/10">
+                    <div
+                      className="h-full bg-[var(--muted)]"
+                      style={{ width: `${(z.opponent / max) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <span className="tabular-nums">
+                  {z.own} / {z.opponent}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function RatingSeriesChart({ points }: { points: RatingSeriesPoint[] }) {
+  const labels = points.map((p) => p.seasonWeek ?? p.date);
+  return (
+    <Chart
+      ariaLabel="Evolución de los ratings de mediocampo, defensa y ataque por partido"
+      option={{
+        xAxis: { type: "category", data: labels },
+        yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
+        tooltip: {
+          trigger: "axis",
+          formatter: (params: unknown) => {
+            const arr = params as { dataIndex: number }[];
+            const idx = arr[0]?.dataIndex;
+            if (idx == null) return "";
+            const p = points[idx];
+            if (!p) return "";
+            const label = p.seasonWeek ?? p.date;
+            return [
+              `<b>${label} · vs ${p.opponent}</b>`,
+              `${p.result} ${p.goalsFor}-${p.goalsAgainst} · ${p.date}`,
+              `Medio: ${p.midfield} · Defensa: ${p.defence} · Ataque: ${p.attack}`,
+              `HatStats: ${p.hatstats}`,
+            ].join("<br/>");
+          },
+        },
+        legend: { bottom: 0 },
+        series: [
+          { name: "Mediocampo", type: "line", data: points.map((p) => p.midfield), smooth: true },
+          { name: "Defensa", type: "line", data: points.map((p) => p.defence), smooth: true },
+          { name: "Ataque", type: "line", data: points.map((p) => p.attack), smooth: true },
+        ],
+      }}
+      height={280}
+    />
   );
 }
 
@@ -203,6 +357,13 @@ function MatchTable({
       ),
     },
     {
+      key: "hatstatsOpponent",
+      header: "HatStats rival",
+      align: "right",
+      value: (r) => r.hatstatsOpponent ?? -1,
+      render: (r) => renderStatOrDash(r.hatstatsOpponent),
+    },
+    {
       key: "result",
       header: "Resultado",
       value: (r) => `${r.goalsFor}-${r.goalsAgainst}`,
@@ -221,25 +382,11 @@ function MatchTable({
       ),
     },
     {
-      key: "midfield", header: "Medio", align: "right", value: (r) => r.midfield ?? -1,
-      render: (r) => renderStatOrDash(r.midfield),
-    },
-    {
-      key: "hatstats", header: "HatStats", align: "right", value: (r) => r.hatstats ?? -1,
-      render: (r) => renderStatOrDash(r.hatstats),
-    },
-    {
-      key: "rival",
-      header: "HatStats rival",
+      key: "hatstats",
+      header: "HatStats propio",
       align: "right",
-      value: (r) => r.hatstatsOpponent ?? -1,
-      render: (r) => renderStatOrDash(r.hatstatsOpponent),
-      optional: true,
-    },
-    {
-      key: "loddar", header: "Loddar", align: "right", value: (r) => r.loddar ?? -1,
-      render: (r) => renderStatOrDash(r.loddar),
-      optional: true,
+      value: (r) => r.hatstats ?? -1,
+      render: (r) => renderStatOrDash(r.hatstats),
     },
   ];
   return (
@@ -268,6 +415,8 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
     name: s.label,
     max: Math.max(...data.sectors.flatMap((x) => [x.own, x.opponent])) + 4,
   }));
+
+  const hasChances = data.ownChances.total > 0 || data.opponentChances.total > 0;
 
   return (
     <Panel title={`${data.isHome ? "vs" : "@"} ${data.opponent} · ${data.score}`} meta={data.date}>
@@ -298,6 +447,20 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
                 {data.possession[0]}% / {data.possession[1]}%
               </div>
             </div>
+            {hasChances && (
+              <div>
+                <div className="text-[var(--muted)]">Conversión</div>
+                <div className="text-lg tabular-nums text-[var(--text)]">
+                  {(data.ownChances.conversion * 100).toFixed(0)}%{" "}
+                  <span className="text-[var(--muted)]">vs</span>{" "}
+                  {(data.opponentChances.conversion * 100).toFixed(0)}%
+                </div>
+                <div className="text-[10px] text-[var(--muted)]">
+                  {data.ownChances.goals}/{data.ownChances.total} ocasiones propias ·{" "}
+                  {data.opponentChances.goals}/{data.opponentChances.total} rivales
+                </div>
+              </div>
+            )}
           </div>
           {data.strengths.length > 0 && (
             <p>

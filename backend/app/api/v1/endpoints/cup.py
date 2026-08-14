@@ -5,6 +5,7 @@ separados de las proyecciones (probabilidad, taquilla futura y escenarios).
 La clasificación usa las dos dimensiones oficiales: CupLeagueLevel distingue
 Nacional/Divisional y CupLevel distingue Principal/Desafío/Consuelo.
 """
+import json
 from statistics import median
 from typing import Any, cast
 
@@ -13,8 +14,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.arena import _camel
+from app.application.queries.weekly import season_at_offset, season_week_offset_for
 from app.domain.engines.arena_engine import ArenaCapacity, Attendance, analyse_match
 from app.domain.engines.match_analysis import hatstats
+from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 
@@ -178,7 +181,13 @@ def _loss_destination(
     return True, name, f"La derrota trasladaría al equipo a {name}; la temporada de Copa continuaría."
 
 
-async def _readiness(session: AsyncSession, team_id: int) -> dict[str, Any]:
+async def _readiness(
+    session: AsyncSession,
+    team_id: int,
+    team_ht_id: int,
+    cup_matches: list[m.Match],
+    cup_matches_played_this_season: int,
+) -> dict[str, Any]:
     latest = (
         select(
             m.PlayerSnapshot.player_id.label("pid"),
@@ -201,19 +210,89 @@ async def _readiness(session: AsyncSession, team_id: int) -> dict[str, Any]:
         )
     ).all()
     roster = [(snap, player) for snap, player in rows]
-    reference_xi = sorted(roster, key=lambda row: row[0].tsi, reverse=True)[:11]
-    average_stamina = (
-        round(sum(snap.stamina for snap, _ in reference_xi) / len(reference_xi), 1)
-        if reference_xi else None
-    )
-    stamina_bands = [
-        {"label": "Frágil para 120'", "min": 0, "max": 5,
-         "count": sum(1 for snap, _ in reference_xi if snap.stamina <= 5)},
-        {"label": "Intermedia", "min": 6, "max": 7,
-         "count": sum(1 for snap, _ in reference_xi if 6 <= snap.stamina <= 7)},
-        {"label": "Preparada", "min": 8, "max": 20,
-         "count": sum(1 for snap, _ in reference_xi if snap.stamina >= 8)},
-    ]
+    by_ht_player_id = {player.ht_player_id: (snap, player) for snap, player in roster}
+
+    def lineup_xi(lineup_json: str | None) -> list[tuple[m.PlayerSnapshot, m.Player]] | None:
+        if not lineup_json:
+            return None
+        try:
+            submitted = json.loads(lineup_json)
+            ids = [
+                int(row["ht_player_id"])
+                for row in submitted
+                if isinstance(row, dict) and row.get("ht_player_id")
+            ]
+        except (TypeError, ValueError, KeyError):
+            return None
+        xi = [by_ht_player_id[pid] for pid in ids if pid in by_ht_player_id]
+        return xi if len(xi) >= 9 else None
+
+    def opponent_of(mt: m.Match) -> str:
+        return mt.away_team_name if mt.home_team_ht_id == team_ht_id else mt.home_team_name
+
+    def stamina_summary(xi: list[tuple[m.PlayerSnapshot, m.Player]]) -> dict[str, Any]:
+        average_stamina = round(sum(snap.stamina for snap, _ in xi) / len(xi), 1) if xi else None
+        # Resistencia (Stamina skill) va de 0 a 9, no de 0 a 20 — esa era la
+        # escala equivocada que también arrastraba el "/20" mostrado en el
+        # frontend (bug real reportado 2026-08-13).
+        stamina_bands = [
+            {"label": "Frágil para 120'", "min": 0, "max": 5,
+             "count": sum(1 for snap, _ in xi if snap.stamina <= 5)},
+            {"label": "Intermedia", "min": 6, "max": 7,
+             "count": sum(1 for snap, _ in xi if 6 <= snap.stamina <= 7)},
+            {"label": "Preparada", "min": 8, "max": 9,
+             "count": sum(1 for snap, _ in xi if snap.stamina >= 8)},
+        ]
+        return {
+            "average_stamina": average_stamina, "stamina_bands": stamina_bands,
+            "starters_count": len(xi),
+        }
+
+    top_tsi_xi = sorted(roster, key=lambda row: row[0].tsi, reverse=True)[:11]
+    variants: list[dict[str, Any]] = [{
+        "mode": "top_tsi", "label": "11 jugadores activos con mayor TSI",
+        "source_match_id": None, "source_opponent": None, "source_date": None,
+        **stamina_summary(top_tsi_xi),
+    }]
+
+    # "Última formación en Copa" solo se ofrece si ya se jugó más de un
+    # partido de Copa esta temporada — pedido explícito 2026-08-13: con un
+    # solo partido no hay nada distinto que mostrar frente al historial.
+    if cup_matches_played_this_season > 1:
+        for mt in sorted(
+            (x for x in cup_matches if x.status.upper() == "FINISHED"),
+            key=lambda x: x.played_at, reverse=True,
+        ):
+            xi = lineup_xi(mt.submitted_lineup_json)
+            if xi:
+                variants.append({
+                    "mode": "last_cup", "label": "Última formación en Copa",
+                    "source_match_id": mt.ht_match_id, "source_opponent": opponent_of(mt),
+                    "source_date": mt.played_at.date().isoformat(),
+                    **stamina_summary(xi),
+                })
+                break
+
+    league_candidates = (await session.execute(
+        select(m.Match).where(
+            ((m.Match.home_team_ht_id == team_ht_id) | (m.Match.away_team_ht_id == team_ht_id)),
+            m.Match.match_type == MATCH_TYPE_LEAGUE,
+            m.Match.status == "FINISHED",
+            m.Match.submitted_lineup_json.is_not(None),
+        ).order_by(m.Match.played_at.desc()).limit(5)
+    )).scalars().all()
+    for mt in league_candidates:
+        xi = lineup_xi(mt.submitted_lineup_json)
+        if xi:
+            variants.append({
+                "mode": "last_league", "label": "Última formación en Liga",
+                "source_match_id": mt.ht_match_id, "source_opponent": opponent_of(mt),
+                "source_date": mt.played_at.date().isoformat(),
+                **stamina_summary(xi),
+            })
+            break
+
+    default_mode = "last_cup" if any(v["mode"] == "last_cup" for v in variants) else "top_tsi"
 
     penalty_candidates = []
     for snap, player in roster:
@@ -237,9 +316,8 @@ async def _readiness(session: AsyncSession, team_id: int) -> dict[str, Any]:
     penalty_candidates.sort(key=lambda row: (-row["readiness_index"], row["name"]))
     best_keeper = max(roster, key=lambda row: row[0].keeper or 0, default=None)
     return {
-        "reference_xi_label": "11 jugadores activos con mayor TSI",
-        "average_stamina": average_stamina,
-        "stamina_bands": stamina_bands,
+        "reference_variants": variants,
+        "default_mode": default_mode,
         "penalty_candidates": penalty_candidates[:5],
         "goalkeeper": (
             {
@@ -312,8 +390,8 @@ async def _cup_economy(
         "next_share_percent": share_percent,
         "projection_basis": basis,
         "quality_note": (
-            "La asistencia es real; la taquilla se deriva de entradas por sector. "
-            "Solo el precio de Tribunas está calibrado con esta cuenta."
+            "La asistencia es real; la taquilla se deriva de entradas por sector "
+            "con los cuatro precios confirmados por el usuario."
         ),
     }
 
@@ -334,6 +412,12 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
             select(m.WorldCup).where(m.WorldCup.ht_league_id == team.ht_league_id)
         )).scalars())
     cup_by_id = {row.ht_cup_id: row for row in cups if row.ht_cup_id}
+    current_season = world.season if world is not None else None
+
+    def match_season(mt: m.Match) -> int | None:
+        if world is None:
+            return None
+        return season_at_offset(world, weeks_offset=season_week_offset_for(world, mt.played_at))
 
     def cup_row_of(mt: m.Match) -> m.WorldCup | None:
         candidates = [
@@ -415,10 +499,18 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
         classification["tier"] == "consolation",
     )
 
+    # Historial: solo la temporada actual (pedido explícito 2026-08-13), sin
+    # aviso — el usuario ya sabe que es así.
+    matches_this_season = (
+        [mt for mt in matches if match_season(mt) == current_season]
+        if current_season is not None else matches
+    )
+    played_this_season = [mt for mt in matches_this_season if mt.status.upper() == "FINISHED"]
+
     ratings_by_match = {
         row.ht_match_id: row for row in (await session.execute(
             select(m.MatchRating).where(
-                m.MatchRating.ht_match_id.in_([mt.ht_match_id for mt in played] or [-1]),
+                m.MatchRating.ht_match_id.in_([mt.ht_match_id for mt in played_this_season] or [-1]),
                 m.MatchRating.team_ht_id == team.ht_team_id,
             )
         )).scalars()
@@ -432,20 +524,26 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
             mt.away_team_ht_id if is_home else mt.home_team_ht_id,
         )
 
-    # Para partidos históricos sin ronda oficial guardada se conserva la
-    # estimación por conteo, claramente etiquetada en el contrato.
-    round_estimate: dict[int, int] = {}
+    # La ronda de cada partido NO es una estimación: cada vez que el equipo
+    # entra a una llave concreta (cup_level, cup_level_index) esa llave
+    # arranca en ronda 1 y avanza de uno en uno mientras se gana — verificado
+    # en vivo 2026-08-13 contando los partidos de "Copa Cocuy Rubí" (2
+    # jugados + el próximo) contra `current_cup_match_round`=3, que CHPP
+    # confirma como oficial. Contar posición dentro de la llave DA el número
+    # real. Se agrupa solo dentro de la temporada actual porque el índice de
+    # llave (p. ej. Desafío Rubí) se reutiliza cada temporada.
+    round_by_match_id: dict[int, int] = {}
     by_cup_key: dict[tuple[int, int], list[m.Match]] = {}
-    for mt in matches:
+    for mt in matches_this_season:
         if mt.cup_level >= 0 and mt.cup_level_index >= 0:
             by_cup_key.setdefault((mt.cup_level, mt.cup_level_index), []).append(mt)
     for group in by_cup_key.values():
         for index, mt in enumerate(sorted(group, key=lambda item: item.played_at), start=1):
-            round_estimate[mt.ht_match_id] = index
+            round_by_match_id[mt.ht_match_id] = index
 
     won = drawn = lost = goals_for = goals_against = 0
     history = []
-    for mt in played:
+    for mt in played_this_season:
         is_home, opponent, opponent_ht_id = side(mt)
         own_goals = mt.home_goals if is_home else mt.away_goals
         opp_goals = mt.away_goals if is_home else mt.home_goals
@@ -473,7 +571,7 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
             "opponent": opponent, "opponent_ht_team_id": opponent_ht_id,
             "is_home": is_home, "goals_for": own_goals, "goals_against": opp_goals,
             "result": result, "hatstats": hs,
-            "round_estimate": round_estimate.get(mt.ht_match_id),
+            "round": round_by_match_id.get(mt.ht_match_id),
             "cup_name": row.cup_name if row else None,
         })
 
@@ -530,7 +628,7 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
             "opponent": side(mt)[1], "opponent_ht_team_id": side(mt)[2],
             "is_home": side(mt)[0], "is_neutral": is_neutral,
             "venue_label": "Sede neutral" if is_neutral else "Local" if side(mt)[0] else "Visitante",
-            "round_estimate": round_estimate.get(mt.ht_match_id),
+            "round_estimate": round_by_match_id.get(mt.ht_match_id),
             "official_round": official_round,
             "cup_name": row.cup_name if row else None,
         })
@@ -565,7 +663,9 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
             },
         }
 
-    readiness = await _readiness(session, team_id)
+    readiness = await _readiness(
+        session, team_id, team.ht_team_id, matches, len(played_this_season),
+    )
     economy = await _cup_economy(session, team, next_match, rounds_left)
     experience_multiplier = 2.0 if classification["tier"] == "main" else 0.5
     impact = {
@@ -585,13 +685,8 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
         )
     if official_round is None and still_in_cup:
         notes.append(
-            "La ronda oficial todavía no está guardada. worlddetails.xml y teamdetails.xml "
-            "la entregan; el historial antiguo conserva solo una estimación por conteo."
+            "La ronda oficial todavía no está guardada. worlddetails.xml y teamdetails.xml la entregan."
         )
-    notes.append(
-        "Premios oficiales convertidos desde SEK con la tasa del país. Alcanzar una meta futura "
-        "es una posibilidad, no un ingreso realizado."
-    )
 
     return cast(dict[str, Any], _camel({
         "team_name": team.name,

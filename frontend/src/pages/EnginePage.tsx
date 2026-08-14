@@ -1,10 +1,13 @@
 import {
   useExperienceModel,
+  useLoyaltyModel,
   usePositionModel,
   useTrainingFormula,
 } from "../hooks/useTeam";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
-import type { CalculationReference, ExperienceModel, TrainingFormula } from "../services/api";
+import type {
+  CalculationReference, ExperienceModel, LoyaltyModel, TrainingFormula,
+} from "../services/api";
 
 /**
  * Transparency screen. A manager trusting decisions to this tool deserves to
@@ -14,6 +17,7 @@ import type { CalculationReference, ExperienceModel, TrainingFormula } from "../
 export function EnginePage() {
   const { data, isLoading, isError, error } = usePositionModel();
   const experience = useExperienceModel();
+  const loyalty = useLoyaltyModel();
   const formula = useTrainingFormula();
 
   if (isLoading) return <Loading />;
@@ -104,6 +108,12 @@ export function EnginePage() {
         data={experience.data}
         isLoading={experience.isLoading}
         isError={experience.isError}
+      />
+
+      <LoyaltyPanel
+        data={loyalty.data}
+        isLoading={loyalty.isLoading}
+        isError={loyalty.isError}
       />
 
       <Panel title="Conflictos abiertos">
@@ -277,6 +287,116 @@ function ExperiencePanel({
                 <li key={i}>
                   {lu.player}: {lu.fromLevel} → {lu.toLevel} con{" "}
                   {lu.pointsAccumulated.toFixed(1)} puntos
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+/**
+ * Días reales por transición de Fidelidad. A diferencia de Experiencia, no
+ * hay ningún valor configurado de partida: Hattrick nunca publicó esta
+ * fórmula, así que cada transición de nivel (N→N+1) solo existe aquí una
+ * vez que se ha visto una subida limpia real — la tabla se rellena sola,
+ * transición por transición, a medida que se sincroniza.
+ */
+function LoyaltyPanel({
+  data,
+  isLoading,
+  isError,
+}: {
+  data?: LoyaltyModel;
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) return <Panel title="Días por nivel de Fidelidad"><Loading /></Panel>;
+  if (isError || !data) {
+    return (
+      <Panel title="Días por nivel de Fidelidad">
+        <Note>No se pudo leer la calibración de fidelidad.</Note>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel
+      title="Días por nivel de Fidelidad"
+      meta={
+        data.transitions.length > 0
+          ? `${data.transitions.length} transición(es) calibrada(s)`
+          : "sin transiciones calibradas todavía"
+      }
+    >
+      <div className="grid gap-4 border-b border-[var(--border)] p-4 sm:grid-cols-3">
+        <Kpi
+          label="Transiciones calibradas"
+          value={String(data.transitions.length)}
+          hint="de hasta 20 posibles (0→1 … 19→20)"
+        />
+        <Kpi label="Subidas observadas (limpias)" value={String(data.totalObservations)} />
+        <Kpi
+          label="Cruces vistos"
+          value={String(data.crossingsSeen)}
+          hint={
+            data.discardedCrossings > 0
+              ? `${data.discardedCrossings} descartado(s): salto de más de un nivel o sin ancla`
+              : undefined
+          }
+        />
+      </div>
+
+      <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
+        <p>
+          Hattrick y Hattrick Control no publican ninguna fórmula para Fidelidad. El intervalo
+          real parece constante entre jugadores para una misma transición de nivel, pero no
+          entre niveles distintos — subir de 1 a 2 es rápido, subir de 19 a 20 puede tardar
+          temporadas. Por eso aquí se calibra una tabla, transición por transición, en vez de un
+          solo número como en Experiencia.
+        </p>
+
+        {data.transitions.length > 0 ? (
+          <div>
+            <b className="text-[var(--text)]">Días reales por transición</b>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {data.transitions.map((t) => (
+                <span
+                  key={t.fromLevel}
+                  className="rounded bg-[var(--surface-2)] px-2 py-1 font-mono text-[11px] text-[var(--text)]"
+                  title={
+                    t.stdDev != null
+                      ? `${t.observations} observación(es) · desviación ${t.stdDev.toFixed(1)} días`
+                      : `${t.observations} observación(es)`
+                  }
+                >
+                  {t.fromLevel} → {t.toLevel}: {t.avgDays.toFixed(1)} días ({t.observations})
+                </span>
+              ))}
+            </div>
+            <p className="mt-2">
+              La ficha de cada jugador usa esta tabla para mostrar un progreso decimal real
+              dentro de su nivel actual — solo cuando su transición ya está aquí.
+            </p>
+          </div>
+        ) : (
+          <p>
+            Todavía no se ha observado ninguna subida limpia de fidelidad en esta cuenta. Cada
+            sincronización que capture una subida real añade la primera fila de la tabla.
+          </p>
+        )}
+
+        <ReferenceNote reference={data.reference} />
+
+        {data.levelUps.length > 0 && (
+          <div>
+            <b className="text-[var(--text)]">Subidas registradas</b>
+            <ul className="mt-2 space-y-1 font-mono text-[11px]">
+              {data.levelUps.map((lu, i) => (
+                <li key={i}>
+                  {lu.player}: {lu.fromLevel} → {lu.toLevel} en {lu.daysElapsed} días
                 </li>
               ))}
             </ul>

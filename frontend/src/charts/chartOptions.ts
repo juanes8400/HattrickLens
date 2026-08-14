@@ -50,10 +50,14 @@ export function radarOption(
   };
 }
 
-/** Serie(s) de tiempo, categoría en el eje X (fechas ya formateadas). */
+/** Serie(s) de tiempo, categoría en el eje X (fechas ya formateadas).
+ * `dashed: true` en una serie la pinta como proyección (línea punteada,
+ * sin símbolos) en vez de dato real — p.ej. la previsión de Resistencia
+ * sobre el mismo eje que las habilidades observadas. `null` en `values`
+ * deja un hueco real en la línea (semana sin dato), no la interpola. */
 export function timelineOption(
   dates: string[],
-  series: { name: string; values: number[] }[],
+  series: { name: string; values: (number | null)[]; dashed?: boolean }[],
 ): EChartsOption {
   return {
     legend: { bottom: 0, type: "scroll" },
@@ -67,8 +71,40 @@ export function timelineOption(
       type: "line",
       data: s.values,
       smooth: false,
-      symbol: "circle",
+      symbol: s.dashed ? "none" : "circle",
       symbolSize: 5,
+      lineStyle: { width: 2, type: s.dashed ? "dashed" : "solid" },
+    })),
+  };
+}
+
+/** Serie(s) de tiempo con el eje X REALMENTE proporcional al tiempo — a
+ * diferencia de `timelineOption` (categoría, espaciado siempre igual entre
+ * puntos aunque uno esté a 3 días del anterior y otro a 3 semanas), este
+ * usa `type: "time"` con timestamps ISO reales, así que la distancia visual
+ * entre dos puntos refleja cuánto tiempo pasó de verdad entre ellos.
+ * 2026-08-12, pedido explícito para Espíritu/Confianza y Socios: esas
+ * lecturas llegan un punto por CAMBIO real de valor (ver `changes_only` en
+ * el backend), no una por semana, así que el espaciado desigual es el
+ * dato — apiñar todo en un eje de categoría lo escondería. */
+export function proportionalTimelineOption(
+  timestamps: string[],
+  series: { name: string; values: (number | null)[] }[],
+): EChartsOption {
+  return {
+    legend: { bottom: 0, type: "scroll" },
+    grid: { left: 48, right: 16, top: 24, bottom: 40, containLabel: true },
+    xAxis: { type: "time" },
+    yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
+    dataZoom: [{ type: "inside" }],
+    tooltip: { trigger: "axis" },
+    series: series.map((s) => ({
+      name: s.name,
+      type: "line",
+      data: timestamps.map((t, i) => [t, s.values[i]]),
+      smooth: false,
+      symbol: "circle",
+      symbolSize: 6,
       lineStyle: { width: 2 },
     })),
   };
@@ -163,6 +199,30 @@ export function economySankeyOption(
           formatter: (params) => String(params.name).replace(NODE_DEDUP_MARK, ""),
         },
         emphasis: { focus: "adjacency" },
+      },
+    ],
+  };
+}
+
+/** Dona de resultados (Ganados/Empatados/Perdidos). Colores fijos por
+ * estado, no por orden de categoría — igual que en el resto de la app
+ * (verde=positivo, ámbar=neutro, rojo=negativo). */
+export function resultsPieOption(won: number, drawn: number, lost: number): EChartsOption {
+  return {
+    tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
+    legend: { bottom: 0 },
+    series: [
+      {
+        type: "pie",
+        radius: ["45%", "70%"],
+        avoidLabelOverlap: true,
+        itemStyle: { borderColor: "transparent", borderWidth: 2 },
+        label: { formatter: "{b}\n{c}" },
+        data: [
+          { name: "Ganados", value: won, itemStyle: { color: "#2fbf71" } },
+          { name: "Empatados", value: drawn, itemStyle: { color: "#f5a524" } },
+          { name: "Perdidos", value: lost, itemStyle: { color: "#e5484d" } },
+        ],
       },
     ],
   };

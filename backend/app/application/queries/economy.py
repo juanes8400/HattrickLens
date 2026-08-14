@@ -23,6 +23,7 @@ El servicio devuelve las dos y dice cuál recomienda, en vez de esconder la
 elección. Con pocas semanas la estructural es la buena; cuando la serie tenga
 tamaño, el backtest decidirá sola.
 """
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -30,7 +31,12 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.queries.weekly import latest_per_iso_week
+from app.application.queries.weekly import (
+    latest_per_iso_week,
+    season_at_offset,
+    season_week_label,
+    season_week_offset_for,
+)
 from app.domain.engines import timeseries as ts
 from app.domain.engines.economy_engine import (
     HOME_MATCHES_PER_SEASON,
@@ -39,6 +45,7 @@ from app.domain.engines.economy_engine import (
     WeeklyStructure,
     estimate_residuals,
     forecast_cash,
+    total_sponsor_income,
 )
 from app.infrastructure.db import models as m
 
@@ -50,6 +57,9 @@ MIN_WEEKS_FOR_TIMESERIES = 8
 @dataclass
 class SeriesPoint:
     date: str
+    # "TT-ss" (temporada-semana, p. ej. "83-03") — `None` si el equipo
+    # todavía no sincronizó worlddetails.xml (ver weekly.season_week_label).
+    season_week: str | None
     cash: int
     income: int
     costs: int
@@ -102,6 +112,9 @@ class ForecastBand:
     model: str
     backtest_mae: float | None = None
     candidates: dict[str, float] = field(default_factory=dict)
+    # "TT-ss" por cada entrada de `weeks` (futuro, ver weekly.season_week_label)
+    # — misma longitud que `weeks`, `None` en cada una si no hay WorldContext.
+    week_labels: list[str | None] = field(default_factory=list)
 
 
 @dataclass
@@ -114,6 +127,60 @@ class SankeyWindow:
     weeks_available: int
     income: list[FinanceItem]
     costs: list[FinanceItem]
+
+
+# ── Detalles (2026-08-09, pedido explícito: "la quiero como la imagen" —
+# referencia visual de la pantalla Detalles de Hattrick Control). SubTotal /
+# Otros calca el criterio de HC: SubTotal es lo recurrente/estructural de
+# cada semana, Otros es lo ligado a compraventa de jugadores o a algo
+# puntual. CHPP no expone un campo de "Intereses" separado como HC — el más
+# parecido es CostsFinancial, que aquí se muestra aparte (no se inventa un
+# número, es un campo real ya sincronizado, solo desagrupado de "Otros"
+# donde vivía en el resto de la app).
+#
+# Todos los campos son `int | None`, no `int` — un sync viejo (el primero
+# que hizo este club, verificado en vivo 2026-08-09) puede no traer el
+# desglose de la semana cerrada en absoluto. `None` es "no lo sabemos",
+# nunca se pisa con 0 — mismo criterio que `_sum_optional` ya usa en el
+# resto de este fichero.
+@dataclass
+class IncomeBreakdown:
+    spectators: int | None    # Aficionados
+    sponsors: int | None       # Patrocinados (incl. bono si aplica — solo semana en curso)
+    financial: int | None        # Financieros
+    subtotal: int | None
+    other: int | None              # Venta de jugadores + comisión + temporal
+    total: int | None
+
+
+@dataclass
+class CostsBreakdown:
+    arena: int | None          # Estadio (mantenimiento)
+    players: int | None          # Jugadores (sueldos)
+    financial: int | None          # Financieros (lo más parecido a "Intereses" de HC)
+    staff: int | None                 # Empleados
+    youth: int | None                   # Canteranos
+    subtotal: int | None
+    other: int | None                      # Compra de jugadores + construcción de estadio + temporal
+    total: int | None
+
+
+@dataclass
+class WeeklyBreakdownRow:
+    season_week: str | None
+    date: str
+    # La semana en curso todavía no cerró — Hattrick puede seguir sumando
+    # ingresos/gastos ahí hasta el cierre real.
+    is_current: bool
+    income: IncomeBreakdown
+    costs: CostsBreakdown
+
+
+@dataclass
+class SeasonBreakdownTotals:
+    season: int
+    income: IncomeBreakdown
+    costs: CostsBreakdown
 
 
 @dataclass
@@ -134,6 +201,14 @@ class EconomyResponse:
     recommendation_reason: str
     anomalies: list[str]
     weeks_of_history: int
+    # Detalles: más reciente primero (al revés que `series`, que va
+    # ascendente porque alimenta gráficos).
+    weekly_breakdown: list[WeeklyBreakdownRow]
+    season_breakdown_totals: list[SeasonBreakdownTotals]
+    # Umbral real usado para decidir si hay serie de tiempo — expuesto para
+    # que el teaser de Proyección muestre progreso real, no un número
+    # copiado a mano que puede desincronizarse.
+    min_weeks_for_timeseries: int
 
 
 class EconomyQueryService:
@@ -173,12 +248,26 @@ class EconomyQueryService:
 
         latest = snaps[-1]
 
+        # "TT-ss" en cada punto/proyección — mismo filtro por `ht_league_id`
+        # que `season_at()` en player_balance.py (bug real corregido
+        # 2026-08-09: "la fila de WorldContext más reciente" daba cualquier
+        # país al azar en cuanto había más de uno).
+        world = (
+            await self._s.scalar(
+                select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+            )
+            if team.ht_league_id is not None else None
+        )
+
         # ── Serie observada ────────────────────────────────────────────────
         cash_series = [conv(s.cash) for s in snaps]
         anomaly_idx = set(ts.detect_anomalies(cash_series))
         series = [
             SeriesPoint(
                 date=_iso(s.captured_at),
+                season_week=season_week_label(
+                    world, weeks_offset=season_week_offset_for(world, s.captured_at)
+                ),
                 cash=conv(s.cash),
                 income=conv(s.last_income_sum),
                 costs=conv(s.last_costs_sum),
@@ -199,18 +288,37 @@ class EconomyQueryService:
         # ── Estructura semanal ─────────────────────────────────────────────
         # La taquilla se reparte entre todas las semanas: sólo entra dinero los
         # días de partido en casa, y el motor ya modela esa intermitencia.
+        #
+        # 2026-08-09, pedido explícito del usuario: la base ya no sale de UNA
+        # sola semana (`latest`) — una semana con un gasto puntual o sin
+        # partido en casa distorsionaba sola toda la proyección. Se promedian
+        # las últimas 2 semanas cerradas disponibles (`snaps[-2:]`, cae a 1
+        # sola si todavía no hay dos) para los 6 componentes por igual,
+        # incluida la taquilla — más estable, sin inventar un dato donde no
+        # lo hay: con una sola semana sincronizada el promedio de 1 es
+        # simplemente esa semana, igual que antes.
+        recent = snaps[-2:]
+
+        def avg(field: str) -> float:
+            values = [getattr(s, field) or 0 for s in recent]
+            return sum(values) / len(values)
+
+        avg_sponsors_total = sum(
+            total_sponsor_income(s.income_sponsors, s.income_sponsor_bonuses) for s in recent
+        ) / len(recent)
+        avg_spectators = avg("income_spectators")
         gate_per_home_match = (
-            conv(latest.income_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON
-            if latest.income_spectators
+            conv(avg_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON
+            if avg_spectators
             else 0
         )
         structure = WeeklyStructure(
-            salaries=conv(latest.costs_players),
-            staff=conv(latest.costs_staff),
-            arena_maintenance=conv(latest.costs_arena),
-            sponsors=conv(latest.income_sponsors),
+            salaries=conv(avg("costs_players")),
+            staff=conv(avg("costs_staff")),
+            arena_maintenance=conv(avg("costs_arena")),
+            sponsors=conv(avg_sponsors_total),
             base_gate=gate_per_home_match,
-            other_fixed=conv(latest.costs_youth) + conv(latest.costs_financial),
+            other_fixed=conv(avg("costs_youth")) + conv(avg("costs_financial")),
         )
 
         # Sesgo del modelo medido contra el histórico real, no supuesto cero.
@@ -235,20 +343,23 @@ class EconomyQueryService:
             p50=[int(v) for v in base.p50],
             p90=[int(v) for v in base.p90],
             model="bottom_up",
+            week_labels=[season_week_label(world, weeks_offset=w) for w in base.weeks],
         )
 
         # ── Ruta de series de tiempo ───────────────────────────────────────
         timeseries: ForecastBand | None = None
         if len(cash_series) >= MIN_WEEKS_FOR_TIMESERIES:
             f = ts.auto_forecast(cash_series, horizon=horizon_weeks)
+            forecast_weeks = list(range(1, horizon_weeks + 1))
             timeseries = ForecastBand(
-                weeks=list(range(1, horizon_weeks + 1)),
+                weeks=forecast_weeks,
                 p10=[int(v) for v in f.lower],
                 p50=[int(v) for v in f.point],
                 p90=[int(v) for v in f.upper],
                 model=f.model,
                 backtest_mae=f.backtest_mae,
                 candidates=f.candidates,
+                week_labels=[season_week_label(world, weeks_offset=w) for w in forecast_weeks],
             )
 
         if timeseries is None:
@@ -274,6 +385,48 @@ class EconomyQueryService:
             for i in sorted(anomaly_idx)
         ]
 
+        # ── Detalles ────────────────────────────────────────────────────────
+        # Más reciente primero (al revés que `series`) — igual que la
+        # pantalla Detalles de Hattrick Control, y que la tabla que pidió el
+        # usuario replicar.
+        seasons = [
+            season_at_offset(world, weeks_offset=season_week_offset_for(world, s.captured_at))
+            for s in snaps
+        ]
+        weekly_rows = [
+            (
+                WeeklyBreakdownRow(
+                    season_week=series[i].season_week, date=series[i].date,
+                    is_current=(i == len(snaps) - 1),
+                    income=(
+                        _income_breakdown_live(s, conv) if i == len(snaps) - 1
+                        else _income_breakdown_closed(s, conv)
+                    ),
+                    costs=(
+                        _costs_breakdown_live(s, conv) if i == len(snaps) - 1
+                        else _costs_breakdown_closed(s, conv)
+                    ),
+                ),
+                seasons[i],
+            )
+            for i, s in enumerate(snaps)
+        ]
+        weekly_rows.reverse()
+        weekly_breakdown = [row for row, _season in weekly_rows]
+
+        season_row_indices: dict[int, list[int]] = defaultdict(list)
+        for i, (_row, season) in enumerate(weekly_rows):
+            if season is not None:
+                season_row_indices[season].append(i)
+        season_breakdown_totals = [
+            SeasonBreakdownTotals(
+                season=season,
+                income=_aggregate_income([weekly_breakdown[i].income for i in indices]),
+                costs=_aggregate_costs([weekly_breakdown[i].costs for i in indices]),
+            )
+            for season, indices in sorted(season_row_indices.items(), reverse=True)
+        ]
+
         return EconomyResponse(
             team_name=team.name,
             currency=team.currency_name or "",
@@ -297,6 +450,9 @@ class EconomyQueryService:
             recommendation_reason=reason,
             anomalies=anomalies,
             weeks_of_history=len(cash_series),
+            weekly_breakdown=weekly_breakdown,
+            season_breakdown_totals=season_breakdown_totals,
+            min_weeks_for_timeseries=MIN_WEEKS_FOR_TIMESERIES,
         )
 
 
@@ -382,6 +538,108 @@ def _last_cost_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | 
             _sum_optional(snapshot.last_costs_financial, snapshot.last_costs_temporary),
         ),
     ]
+
+
+def _conv_opt(v: int | None, conv: Callable[[float | None], int]) -> int | None:
+    return None if v is None else conv(v)
+
+
+def _income_breakdown(
+    spectators: int | None, sponsors: int | None, financial: int | None,
+    sold_players: int | None, commission: int | None, temporary: int | None,
+    conv: Callable[[float | None], int],
+) -> IncomeBreakdown:
+    spectators_c = _conv_opt(spectators, conv)
+    sponsors_c = _conv_opt(sponsors, conv)
+    financial_c = _conv_opt(financial, conv)
+    subtotal = _sum_optional(spectators_c, sponsors_c, financial_c)
+    other = _sum_optional(
+        _conv_opt(sold_players, conv), _conv_opt(commission, conv), _conv_opt(temporary, conv),
+    )
+    return IncomeBreakdown(
+        spectators=spectators_c, sponsors=sponsors_c, financial=financial_c,
+        subtotal=subtotal, other=other, total=_sum_optional(subtotal, other),
+    )
+
+
+def _income_breakdown_live(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> IncomeBreakdown:
+    return _income_breakdown(
+        snapshot.income_spectators,
+        total_sponsor_income(snapshot.income_sponsors, snapshot.income_sponsor_bonuses),
+        snapshot.income_financial, snapshot.income_sold_players,
+        snapshot.income_sold_players_commission, snapshot.income_temporary, conv,
+    )
+
+
+def _income_breakdown_closed(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> IncomeBreakdown:
+    # Sin LastIncomeSponsorBonuses — ninguna versión de economy.xml lo
+    # expone para la semana ya cerrada (mismo límite que `_last_income_items`).
+    return _income_breakdown(
+        snapshot.last_income_spectators, snapshot.last_income_sponsors,
+        snapshot.last_income_financial, snapshot.last_income_sold_players,
+        snapshot.last_income_sold_players_commission, snapshot.last_income_temporary, conv,
+    )
+
+
+def _costs_breakdown(
+    arena: int | None, players: int | None, financial: int | None,
+    staff: int | None, youth: int | None,
+    bought_players: int | None, arena_building: int | None, temporary: int | None,
+    conv: Callable[[float | None], int],
+) -> CostsBreakdown:
+    arena_c = _conv_opt(arena, conv)
+    players_c = _conv_opt(players, conv)
+    financial_c = _conv_opt(financial, conv)
+    staff_c = _conv_opt(staff, conv)
+    youth_c = _conv_opt(youth, conv)
+    subtotal = _sum_optional(arena_c, players_c, financial_c, staff_c, youth_c)
+    other = _sum_optional(
+        _conv_opt(bought_players, conv), _conv_opt(arena_building, conv), _conv_opt(temporary, conv),
+    )
+    return CostsBreakdown(
+        arena=arena_c, players=players_c, financial=financial_c, staff=staff_c, youth=youth_c,
+        subtotal=subtotal, other=other, total=_sum_optional(subtotal, other),
+    )
+
+
+def _costs_breakdown_live(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> CostsBreakdown:
+    return _costs_breakdown(
+        snapshot.costs_arena, snapshot.costs_players, snapshot.costs_financial,
+        snapshot.costs_staff, snapshot.costs_youth, snapshot.costs_bought_players,
+        snapshot.costs_arena_building, snapshot.costs_temporary, conv,
+    )
+
+
+def _costs_breakdown_closed(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> CostsBreakdown:
+    return _costs_breakdown(
+        snapshot.last_costs_arena, snapshot.last_costs_players, snapshot.last_costs_financial,
+        snapshot.last_costs_staff, snapshot.last_costs_youth, snapshot.last_costs_bought_players,
+        snapshot.last_costs_arena_building, snapshot.last_costs_temporary, conv,
+    )
+
+
+def _aggregate_income(rows: list[IncomeBreakdown]) -> IncomeBreakdown:
+    return IncomeBreakdown(
+        spectators=_sum_optional(*(r.spectators for r in rows)),
+        sponsors=_sum_optional(*(r.sponsors for r in rows)),
+        financial=_sum_optional(*(r.financial for r in rows)),
+        subtotal=_sum_optional(*(r.subtotal for r in rows)),
+        other=_sum_optional(*(r.other for r in rows)),
+        total=_sum_optional(*(r.total for r in rows)),
+    )
+
+
+def _aggregate_costs(rows: list[CostsBreakdown]) -> CostsBreakdown:
+    return CostsBreakdown(
+        arena=_sum_optional(*(r.arena for r in rows)),
+        players=_sum_optional(*(r.players for r in rows)),
+        financial=_sum_optional(*(r.financial for r in rows)),
+        staff=_sum_optional(*(r.staff for r in rows)),
+        youth=_sum_optional(*(r.youth for r in rows)),
+        subtotal=_sum_optional(*(r.subtotal for r in rows)),
+        other=_sum_optional(*(r.other for r in rows)),
+        total=_sum_optional(*(r.total for r in rows)),
+    )
 
 
 def _finance_items(

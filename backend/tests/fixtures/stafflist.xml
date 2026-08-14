@@ -23,9 +23,18 @@
         <Name>Diego Mendoza</Name>
         <StaffId>901</StaffId>
         <StaffType>1</StaffType>
-        <StaffLevel>3</StaffLevel>
+        <StaffLevel>5</StaffLevel>
         <HiredDate>2024-01-10 00:00:00</HiredDate>
-        <Cost>9200</Cost>
+        <Cost>163200</Cost>
+        <HofPlayerId>0</HofPlayerId>
+      </Staff>
+      <Staff>
+        <Name>Alfonso Bacca</Name>
+        <StaffId>903</StaffId>
+        <StaffType>1</StaffType>
+        <StaffLevel>5</StaffLevel>
+        <HiredDate>2024-01-10 00:00:00</HiredDate>
+        <Cost>163200</Cost>
         <HofPlayerId>0</HofPlayerId>
       </Staff>
       <Staff>
@@ -38,7 +47,7 @@
         <HofPlayerId>0</HofPlayerId>
       </Staff>
     </StaffMembers>
-    <TotalStaffMembers>2</TotalStaffMembers>
-    <TotalCost>15300</TotalCost>
+    <TotalStaffMembers>3</TotalStaffMembers>
+    <TotalCost>332500</TotalCost>
   </StaffList>
 </HattrickData>

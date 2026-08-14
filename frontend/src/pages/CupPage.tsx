@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Column, DataTable } from "../components/DataTable";
 import { ErrorState, Kpi, Loading, Note, Panel, ProjectionPanel } from "../components/Panels";
-import { useCup, usePostMatchTraining, useRivalScouting } from "../hooks/useTeam";
+import { Tabs } from "../components/Tabs";
+import { useCup, useRivalScouting } from "../hooks/useTeam";
 import { date, money, number } from "../hooks/useFormat";
 import type {
   Cup,
@@ -10,14 +12,15 @@ import type {
   CupNextMatch,
   CupPenaltyCandidate,
   CupPrizeStage,
-  PostMatchTraining,
 } from "../services/api";
+
+type CupSection = "resumen" | "preparacion" | "historial";
 
 export function CupPage() {
   const { data, isLoading, isError, error } = useCup();
-  const training = usePostMatchTraining();
   const nextOpponentId = data?.nextMatches[0]?.opponentHtTeamId ?? null;
   const probability = useRivalScouting(nextOpponentId, false, true, false);
+  const [section, setSection] = useState<CupSection>("resumen");
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -48,199 +51,203 @@ export function CupPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Kpi
-          label="Estado"
-          value={data.status.stillInCup ? "Seguimos" : "Eliminado"}
-          hint={data.status.cupName ?? "sin Copa activa"}
-          tone={statusTone}
-        />
-        <Kpi
-          label="Instancia actual"
-          value={data.status.stageLabel ?? "—"}
-          hint={
-            data.status.officialRound != null
-              ? `ronda oficial ${data.status.officialRound}`
-              : "ronda oficial pendiente de sincronizar"
-          }
-        />
-        <Kpi
-          label="Camino al título"
-          value={data.goal.winsToTitle != null ? `${data.goal.winsToTitle} victorias` : "—"}
-          hint="desde la instancia actual"
-        />
-        <Kpi
-          label="Premio mínimo actual"
-          value={
-            data.goal.trophyOnly
-              ? "Trofeo"
-              : data.goal.securedAmount > 0
-                ? money(data.goal.securedAmount, data.currency)
-                : "Aún ninguno"
-          }
-          hint="si la participación terminara en esta instancia"
-        />
-        <Kpi
-          label="Próximo cruce"
-          value={next?.opponent ?? "—"}
-          hint={next ? `${date(next.date)} · ${next.venueLabel}` : "sin partido programado"}
-        />
-      </div>
+      <Tabs
+        tabs={[
+          { key: "resumen", label: "Resumen" },
+          { key: "preparacion", label: "Preparación" },
+          { key: "historial", label: "Historial" },
+        ]}
+        active={section}
+        onChange={setSection}
+      />
 
-      {data.prizeTable.length > 0 && (
-        <Panel
-          title="Camino hacia la meta"
-          meta="premios oficiales · lo futuro no es dinero realizado"
-        >
-          <PrizeRoad stages={data.prizeTable} currency={data.currency} />
-        </Panel>
-      )}
-
-      {data.scenarios && (
-        <Panel title="Qué ocurre con el próximo resultado" meta="reglas de avance, no pronóstico">
-          <ResultRoutes data={data} />
-        </Panel>
-      )}
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Próximo partido" meta="fecha y rival confirmados por CHPP">
-          <NextMatchesPanel matches={data.nextMatches} />
-        </Panel>
-
-        {nextOpponentId != null ? (
-          <ProjectionPanel
-            title={`Probabilidad de avanzar vs. ${next?.opponent ?? "el rival"}`}
-            meta="modelo simple por TSI, no calibrado"
-          >
-            {probability.isError ? (
-              <div className="p-4">
-                <div className="text-lg font-semibold">No disponible en esta sesión</div>
-                <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-                  El scouting del rival necesita una sesión CHPP activa. La fecha y el rival de
-                  arriba siguen siendo datos sincronizados; aquí no se sustituye la probabilidad
-                  faltante por un valor sintético.
-                </p>
-              </div>
-            ) : probability.data ? (
-              <div className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-                    {(probability.data.winProbability.ownProbability * 100).toFixed(0)}%
-                  </div>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                    <div
-                      className="h-full rounded-full bg-[var(--accent)]"
-                      style={{ width: `${probability.data.winProbability.ownProbability * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-                  Estimación {probability.data.winProbability.confidence}. TSI de los dos onces de
-                  referencia: {number(probability.data.winProbability.ownTsiTotal)} contra{" "}
-                  {number(probability.data.winProbability.rivalTsiTotal)}.
-                </p>
-              </div>
-            ) : (
-              <p className="p-4 text-xs text-[var(--muted)]">Calculando…</p>
-            )}
-          </ProjectionPanel>
-        ) : (
-          <Panel title="Probabilidad de avanzar" meta="sin rival confirmado">
-            <Note>Se activará cuando CHPP publique el próximo cruce.</Note>
-          </Panel>
-        )}
-      </div>
-
-      <Panel title="Impacto del tipo de Copa" meta="reglas aplicadas a esta competición">
-        <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3">
-          <ImpactFact
-            label="Experiencia"
-            value={`${data.impact.experienceMultiplierVsLeague}× Liga`}
-            detail={`${data.impact.experiencePointsPer90} puntos por 90 minutos`}
-          />
-          <ImpactFact
-            label="Club"
-            value={data.impact.affectsClubMood ? "Efecto completo" : "Como amistoso"}
-            detail="espíritu, confianza y aficionados"
-          />
-          <ImpactFact label="Lesiones" value="Impacto completo" detail={data.impact.injuryEffect} />
-        </div>
-      </Panel>
-
-      <div className="grid items-start gap-4 xl:grid-cols-2">
-        <Panel title="Economía observada de Copa" meta="asistencia real · ingreso derivado">
-          <div className="grid gap-3 p-4 sm:grid-cols-2">
-            <MiniMetric
-              label="Taquilla bruta observada"
-              value={money(data.economy.observedGrossGate, data.currency)}
-              detail={`${data.economy.observedHomeMatches} partido(s) de local medidos`}
+      {section === "resumen" && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <Kpi
+              label="Estado"
+              value={data.status.stillInCup ? "Seguimos" : "Eliminado"}
+              hint={data.status.cupName ?? "sin Copa activa"}
+              tone={statusTone}
             />
-            <MiniMetric
-              label="Participación histórica estimada"
-              value={money(data.economy.estimatedHistoricalShare, data.currency)}
-              detail="67% de la taquilla bruta observada"
+            <Kpi
+              label="Instancia actual"
+              value={data.status.stageLabel ?? "—"}
+              hint={
+                data.status.officialRound != null
+                  ? `ronda oficial ${data.status.officialRound}`
+                  : "ronda oficial pendiente de sincronizar"
+              }
+            />
+            <Kpi
+              label="Camino al título"
+              value={data.goal.winsToTitle != null ? `${data.goal.winsToTitle} victorias` : "—"}
+              hint="desde la instancia actual"
+            />
+            <Kpi
+              label="Premio mínimo actual"
+              value={
+                data.goal.trophyOnly
+                  ? "Trofeo"
+                  : data.goal.securedAmount > 0
+                    ? money(data.goal.securedAmount, data.currency)
+                    : "Aún ninguno"
+              }
+              hint="si la participación terminara en esta instancia"
+            />
+            <Kpi
+              label="Próximo cruce"
+              value={next?.opponent ?? "—"}
+              hint={next ? `${date(next.date)} · ${next.venueLabel}` : "sin partido programado"}
             />
           </div>
-          <Note>{data.economy.qualityNote}</Note>
-        </Panel>
 
-        <ProjectionPanel title="Ingreso del próximo partido" meta="separado de la caja real">
-          <div className="p-4">
-            <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-              {data.economy.nextGateProjection == null
-                ? "No calculable"
-                : money(data.economy.nextGateProjection, data.currency)}
+          {data.prizeTable.length > 0 && (
+            <Panel title="Camino hacia la meta">
+              <PrizeRoad stages={data.prizeTable} currency={data.currency} />
+            </Panel>
+          )}
+
+          {data.scenarios && (
+            <Panel title="Qué ocurre con el próximo resultado">
+              <ResultRoutes data={data} />
+            </Panel>
+          )}
+
+          {nextOpponentId != null ? (
+            <ProjectionPanel
+              title={`Probabilidad de avanzar vs. ${next?.opponent ?? "el rival"}`}
+              meta="modelo simple por TSI, no calibrado"
+            >
+              {probability.isError ? (
+                <div className="p-4">
+                  <div className="text-lg font-semibold">No disponible en esta sesión</div>
+                  <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+                    El scouting del rival necesita una sesión CHPP activa. La fecha y el rival de
+                    arriba siguen siendo datos sincronizados; aquí no se sustituye la probabilidad
+                    faltante por un valor sintético.
+                  </p>
+                </div>
+              ) : probability.data ? (
+                <div className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
+                      {(probability.data.winProbability.ownProbability * 100).toFixed(0)}%
+                    </div>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent)]"
+                        style={{ width: `${probability.data.winProbability.ownProbability * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                    Estimación {probability.data.winProbability.confidence}. TSI de los dos onces de
+                    referencia: {number(probability.data.winProbability.ownTsiTotal)} contra{" "}
+                    {number(probability.data.winProbability.rivalTsiTotal)}.
+                  </p>
+                </div>
+              ) : (
+                <p className="p-4 text-xs text-[var(--muted)]">Calculando…</p>
+              )}
+            </ProjectionPanel>
+          ) : (
+            <Panel title="Probabilidad de avanzar" meta="sin rival confirmado">
+              <Note>Se activará cuando CHPP publique el próximo cruce.</Note>
+            </Panel>
+          )}
+
+          <Panel title="Impacto del tipo de Copa" meta="reglas aplicadas a esta competición">
+            <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3">
+              <ImpactFact
+                label="Experiencia"
+                value={`${data.impact.experienceMultiplierVsLeague}× Liga`}
+                detail={`${data.impact.experiencePointsPer90} puntos por 90 minutos`}
+              />
+              <ImpactFact
+                label="Club"
+                value={data.impact.affectsClubMood ? "Efecto completo" : "Como amistoso"}
+                detail="espíritu, confianza y aficionados"
+              />
+              <ImpactFact label="Lesiones" value="Impacto completo" detail={data.impact.injuryEffect} />
             </div>
-            {data.economy.nextGateProjection != null && data.economy.estimatedHistoricalShare > 0 && (
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                <div
-                  className="h-full rounded-full bg-[var(--accent)]"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      (data.economy.nextGateProjection / data.economy.estimatedHistoricalShare) * 100,
-                    )}%`,
-                  }}
+          </Panel>
+        </>
+      )}
+
+      {section === "preparacion" && (
+        <>
+          <Panel title="Próximo partido" meta="fecha y rival confirmados por CHPP">
+            <NextMatchesPanel matches={data.nextMatches} />
+          </Panel>
+
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <ProjectionPanel title="Preparación para 120 minutos" meta="elige el once de referencia">
+              <StaminaReadiness data={data} />
+            </ProjectionPanel>
+            <ProjectionPanel title="Orden orientativo de penaltis">
+              <PenaltyOrder candidates={data.readiness.penaltyCandidates} data={data} />
+            </ProjectionPanel>
+          </div>
+        </>
+      )}
+
+      {section === "historial" && (
+        <>
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <Panel title="Economía observada de Copa" meta="asistencia real · ingreso derivado">
+              <div className="grid gap-3 p-4 sm:grid-cols-2">
+                <MiniMetric
+                  label="Taquilla bruta observada"
+                  value={money(data.economy.observedGrossGate, data.currency)}
+                  detail={`${data.economy.observedHomeMatches} partido(s) de local medidos`}
+                />
+                <MiniMetric
+                  label="Participación histórica estimada"
+                  value={money(data.economy.estimatedHistoricalShare, data.currency)}
+                  detail="67% de la taquilla bruta observada"
                 />
               </div>
-            )}
-            <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-              {data.economy.projectionBasis}
-            </p>
+              <Note>{data.economy.qualityNote}</Note>
+            </Panel>
+
+            <ProjectionPanel title="Ingreso del próximo partido" meta="separado de la caja real">
+              <div className="p-4">
+                <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
+                  {data.economy.nextGateProjection == null
+                    ? "No calculable"
+                    : money(data.economy.nextGateProjection, data.currency)}
+                </div>
+                {data.economy.nextGateProjection != null && data.economy.estimatedHistoricalShare > 0 && (
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent)]"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          (data.economy.nextGateProjection / data.economy.estimatedHistoricalShare) * 100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                )}
+                <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                  {data.economy.projectionBasis}
+                </p>
+              </div>
+            </ProjectionPanel>
           </div>
-        </ProjectionPanel>
-      </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-2">
-        <ProjectionPanel title="Preparación para 120 minutos" meta={data.readiness.referenceXiLabel}>
-          <StaminaReadiness data={data} />
-        </ProjectionPanel>
-        <ProjectionPanel title="Orden orientativo de penaltis" meta="índice comparativo, no probabilidad">
-          <PenaltyOrder candidates={data.readiness.penaltyCandidates} data={data} />
-        </ProjectionPanel>
-      </div>
+          {data.ladder.length > 0 && (
+            <Panel title="Trayectoria de la temporada" meta="copas y partidos realmente sincronizados">
+              <Ladder steps={data.ladder} />
+            </Panel>
+          )}
 
-      <Panel
-        title="Oportunidad de entrenamiento antes de la Copa"
-        meta="minutos equivalentes acumulados en la ventana actual"
-      >
-        <TrainingOpportunity data={training.data} />
-      </Panel>
-
-      {data.ladder.length > 0 && (
-        <Panel title="Trayectoria de la temporada" meta="copas y partidos realmente sincronizados">
-          <Ladder steps={data.ladder} />
-        </Panel>
-      )}
-
-      <Panel title="Historial" meta={`${data.history.length} partido(s) jugados`}>
-        <HistoryTable data={data} />
-      </Panel>
-
-      {data.notes.length > 0 && (
-        <Panel title="Calidad y procedencia de los datos">
-          {data.notes.map((note) => <Note key={note}>{note}</Note>)}
-        </Panel>
+          <Panel title="Historial" meta={`${data.history.length} partido(s) jugados esta temporada`}>
+            <HistoryTable data={data} />
+          </Panel>
+        </>
       )}
     </div>
   );
@@ -380,27 +387,47 @@ function MiniMetric({ label, value, detail }: { label: string; value: string; de
 }
 
 function StaminaReadiness({ data }: { data: Cup }) {
-  const total = data.readiness.staminaBands.reduce((sum, band) => sum + band.count, 0) || 1;
+  const variants = data.readiness.referenceVariants;
+  const [mode, setMode] = useState(data.readiness.defaultMode);
+  const active = variants.find((v) => v.mode === mode) ?? variants[0];
   const colors = ["var(--danger)", "var(--warning)", "var(--positive)"];
+  if (!active) return <Note>No hay jugadores activos para calcular la preparación.</Note>;
+  const total = active.staminaBands.reduce((sum, band) => sum + band.count, 0) || 1;
   return (
     <div className="p-4">
-      <div className="flex items-end justify-between gap-3">
+      {variants.length > 1 && (
+        <Tabs
+          tabs={variants.map((v) => ({ key: v.mode, label: v.label }))}
+          active={mode}
+          onChange={setMode}
+        />
+      )}
+      <div className="mt-4 flex items-end justify-between gap-3">
         <div>
           <div className="text-xs text-[var(--muted)]">Resistencia media</div>
           <div className="mt-1 text-3xl font-semibold tabular-nums">
-            {data.readiness.averageStamina ?? "—"}
-            <span className="text-sm text-[var(--muted)]"> / 20</span>
+            {active.averageStamina != null ? active.averageStamina.toFixed(1) : "—"}
+            <span className="text-sm text-[var(--muted)]"> / 9</span>
           </div>
         </div>
-        <div className="text-right text-xs text-[var(--muted)]">once de referencia por TSI</div>
+        <div className="text-right text-xs text-[var(--muted)]">
+          {active.mode === "top_tsi" ? (
+            <>{active.startersCount} jugadores activos con mayor TSI</>
+          ) : (
+            <>
+              vs. {active.sourceOpponent}
+              {active.sourceDate ? <span className="block">{date(active.sourceDate)}</span> : null}
+            </>
+          )}
+        </div>
       </div>
       <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-[var(--surface-2)]">
-        {data.readiness.staminaBands.map((band, index) => (
+        {active.staminaBands.map((band, index) => (
           <div key={band.label} style={{ width: `${(band.count / total) * 100}%`, background: colors[index] }} />
         ))}
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {data.readiness.staminaBands.map((band, index) => (
+        {active.staminaBands.map((band, index) => (
           <div key={band.label} className="rounded-lg bg-[var(--surface-2)] p-3">
             <div className="text-xl font-semibold tabular-nums" style={{ color: colors[index] }}>{band.count}</div>
             <div className="text-xs text-[var(--muted)]">{band.label}</div>
@@ -435,47 +462,6 @@ function PenaltyOrder({ candidates, data }: { candidates: CupPenaltyCandidate[];
         <div className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
           Portero de referencia: <Link to={`/players/${data.readiness.goalkeeper.htPlayerId}`} className="font-medium text-[var(--text)] hover:text-[var(--accent)]">{data.readiness.goalkeeper.name}</Link>
           {` · Portería ${data.readiness.goalkeeper.keeper}`}
-        </div>
-      )}
-      <Note>{data.readiness.penaltyMethod}</Note>
-    </div>
-  );
-}
-
-function TrainingOpportunity({ data }: { data: PostMatchTraining | undefined }) {
-  if (!data?.currentTraining) return <Note>Sin configuración de entrenamiento sincronizada.</Note>;
-  const typeKey = String(data.currentTraining.trainingType);
-  const rows = data.players
-    .map((player) => {
-      const exposure = player.exposureByTrainingType[typeKey] ?? 0;
-      return { ...player, exposure, missing: Math.max(0, 1 - exposure) };
-    })
-    .filter((player) => player.missing > 0)
-    .sort((a, b) => Number(b.exposure > 0) - Number(a.exposure > 0) || b.exposure - a.exposure)
-    .slice(0, 8);
-  return (
-    <div className="p-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted)]">
-        <span>Entrenamiento actual: <b className="text-[var(--text)]">{data.currentTraining.name}</b></span>
-        <span>Hasta {date(data.trainingWindow.to)}</span>
-      </div>
-      {rows.length === 0 ? (
-        <div className="rounded-lg bg-[var(--surface-2)] p-4 text-sm text-[var(--positive)]">
-          Todos los jugadores medidos ya tienen exposición completa para este entrenamiento.
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {rows.map((player) => (
-            <div key={player.htPlayerId} className="rounded-lg bg-[var(--surface-2)] p-3">
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <Link to={`/players/${player.htPlayerId}`} className="font-medium hover:text-[var(--accent)]">{player.name}</Link>
-                <span className="tabular-nums text-[var(--muted)]">faltan {Math.round(player.missing * 90)} min eq.</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--border)]">
-                <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${player.exposure * 100}%` }} />
-              </div>
-            </div>
-          ))}
         </div>
       )}
     </div>
@@ -532,12 +518,12 @@ function HistoryTable({ data }: { data: Cup }) {
       render: (row) => row.hatstats == null ? <span className="text-[var(--muted)]">—</span> : <span>{row.hatstats}</span>,
     },
     {
-      key: "round", header: "Ronda histórica est.", align: "right", value: (row) => row.roundEstimate ?? -1,
-      render: (row) => row.roundEstimate == null ? <span className="text-[var(--muted)]">—</span> : <span className="text-[var(--muted)]">~{row.roundEstimate}</span>, optional: true,
+      key: "round", header: "Ronda", align: "right", value: (row) => row.round ?? -1,
+      render: (row) => row.round == null ? <span className="text-[var(--muted)]">—</span> : <span>{row.round}</span>,
     },
     {
       key: "cupName", header: "Copa", value: (row) => row.cupName ?? "",
-      render: (row) => <span className="text-[var(--muted)]">{row.cupName ?? "—"}</span>, optional: true,
+      render: (row) => <span className="text-[var(--muted)]">{row.cupName ?? "—"}</span>,
     },
   ];
   return <DataTable rows={data.history} columns={columns} rowKey={(row) => row.htMatchId} csvName="copa" filterPlaceholder="Filtrar por rival…" />;
