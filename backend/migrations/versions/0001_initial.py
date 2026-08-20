@@ -61,6 +61,12 @@ def upgrade() -> None:
     )
 
     # Particionada: PK física debe incluir la clave de partición.
+    #
+    # Una sentencia por `execute`. El driver asíncrono (asyncpg) manda cada SQL
+    # como sentencia preparada, y Postgres no acepta varias dentro de una:
+    # "cannot insert multiple commands into a prepared statement". Con un
+    # driver síncrono el mismo bloque pasaba, así que esto solo se ve al
+    # migrar de verdad contra Postgres.
     op.execute("""
         CREATE TABLE player_snapshots (
             id              bigint GENERATED ALWAYS AS IDENTITY,
@@ -85,13 +91,17 @@ def upgrade() -> None:
             is_transfer_listed boolean NOT NULL DEFAULT false,
             content_hash    bytea NOT NULL,
             PRIMARY KEY (id, captured_at)
-        ) PARTITION BY RANGE (captured_at);
-
-        CREATE INDEX ix_ps_player_time ON player_snapshots (player_id, captured_at DESC);
-
-        -- Partición por defecto + primeras mensuales; el worker de mantenimiento crea futuras
-        CREATE TABLE player_snapshots_default PARTITION OF player_snapshots DEFAULT;
+        ) PARTITION BY RANGE (captured_at)
     """)
+    op.execute(
+        "CREATE INDEX ix_ps_player_time "
+        "ON player_snapshots (player_id, captured_at DESC)"
+    )
+    # Partición por defecto; el worker de mantenimiento crea las mensuales.
+    op.execute(
+        "CREATE TABLE player_snapshots_default "
+        "PARTITION OF player_snapshots DEFAULT"
+    )
 
 
 def downgrade() -> None:

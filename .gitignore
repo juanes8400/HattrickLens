@@ -33,3 +33,6 @@ Thumbs.db
 # ejecutar nada. Los fixtures XML de tests SÍ se versionan: sin ellos la suite
 # no corre en otra máquina.
 artifacts/
+
+# Claves generadas para el despliegue. Nunca al repositorio.
+claves-render.txt
