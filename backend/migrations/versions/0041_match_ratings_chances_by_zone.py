@@ -26,7 +26,11 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("chances_right", sa.SmallInteger(), nullable=False, server_default="0"))
         batch_op.add_column(sa.Column("chances_special", sa.SmallInteger(), nullable=False, server_default="0"))
         batch_op.add_column(sa.Column("chances_other", sa.SmallInteger(), nullable=False, server_default="0"))
-    op.drop_table("match_events")
+    # `match_events` tampoco tuvo nunca migración que la creara (nació de un
+    # `create_all` en local), así que en una base construida desde cero no
+    # existe y no hay nada que tirar.
+    if "match_events" in sa.inspect(op.get_bind()).get_table_names():
+        op.drop_table("match_events")
 
 
 def downgrade() -> None:
