@@ -109,6 +109,8 @@ def test_parse_playerdetails_real_fixture() -> None:
     assert data["caps"] == 0
     assert data["caps_u20"] == 0
     assert data["native_league_name"] == "Colombia"
+    assert data["native_country_id"] == 19
+    assert data["native_league_id"] == 19
     assert data["last_match"] == {
         "ht_match_id": 123456789, "position_code": 13,
         "played_minutes": 90, "rating": 8.5, "played_at": "2026-07-19 16:00:00",
@@ -139,7 +141,11 @@ def test_parse_playerdetails_detects_chpp_error() -> None:
     Hattrick — ver `_is_chpp_error`, verificado en vivo 2026-08-05 contra
     ~105 ventas viejas de esta cuenta."""
     data = parse_playerdetails((FIXTURES / "chpperror.xml").read_bytes())
-    assert data == {"chpp_error": True}
+    assert data == {
+        "chpp_error": True,
+        "chpp_error_code": 56,
+        "chpp_error_message": "(56) Additional Info: null",
+    }
 
 
 def test_parse_transfersteam_real_fixture() -> None:

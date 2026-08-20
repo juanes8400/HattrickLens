@@ -34,11 +34,16 @@ _pending: dict[str, str] = {}  # TODO producción: Redis con TTL, no memoria de 
 def _set_session_cookies(response: Response, user_id: int) -> None:
     """Instala las dos cookies de sesión: acceso (corta) y refresco (larga).
     Se usa al conectar (dev-session, callback OAuth) y al renovar."""
+    # `secure` fuera de local: publicada la app, la sesión viaja por internet y
+    # sin esta marca el navegador la mandaría también por http. En local se
+    # apaga porque ahí no hay https y la cookie no llegaría nunca.
+    seguras = settings.environment != "local"
     response.set_cookie(
         COOKIE_NAME,
         create_session_token(user_id),
         httponly=True,
         samesite="lax",
+        secure=seguras,
         max_age=settings.jwt_access_ttl_minutes * 60,
     )
     response.set_cookie(
@@ -46,6 +51,7 @@ def _set_session_cookies(response: Response, user_id: int) -> None:
         create_refresh_token(user_id),
         httponly=True,
         samesite="lax",
+        secure=seguras,
         max_age=settings.jwt_refresh_ttl_days * 86400,
     )
 
@@ -88,7 +94,7 @@ async def refresh(
     el usuario nunca la ve — solo nota (o ya no nota) que dejó de tener que
     reconectar cada `jwt_access_ttl_minutes`."""
     if htlens_refresh is None:
-        raise HTTPException(401, "no hay sesión para renovar — conecta con Hattrick")
+        raise HTTPException(401, "no hay sesión para renovar, conecta con Hattrick")
     try:
         user_id = read_user_id(htlens_refresh, expected_type="refresh")
     except SessionTokenError as exc:
@@ -233,3 +239,61 @@ async def callback(
     response = RedirectResponse(url=redirect_url)
     _set_session_cookies(response, user.id)
     return response
+
+
+@router.delete("/account", summary="Borrar la cuenta y todos sus datos")
+async def delete_account(
+    session: AsyncSession = Depends(get_session),
+    user: m.User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Borra al usuario, sus equipos y todo lo sincronizado, sin vuelta atrás.
+
+    Hace falta para publicar la app: se guardan datos de terceros (plantillas,
+    economía, transferencias) y quien los cede tiene que poder retirarlos sin
+    escribirle a nadie.
+
+    Se borra por EQUIPO y no por tabla suelta, recorriendo lo que cuelga de
+    `teams.id`: así una tabla nueva que olvide añadirse aquí deja huérfanos
+    visibles en vez de datos personales escondidos. El token CHPP cae por la
+    cascada del usuario, y con él la posibilidad de volver a leer nada de esa
+    cuenta.
+    """
+    from sqlalchemy import delete, select
+
+    equipos = list(
+        (
+            await session.execute(select(m.Team.id).where(m.Team.owner_user_id == user.id))
+        ).scalars()
+    )
+
+    # Todo lo que cuelga de un equipo, en el orden en que se puede borrar.
+    por_equipo = (
+        m.SyncChange, m.PlayerSnapshot, m.PlayerMatchRating, m.PlayerListingAttempt,
+        m.PreviousClubBonus, m.EconomySnapshot, m.TrainingSnapshot, m.Standing,
+        m.StadiumHistory, m.YouthSnapshot, m.YouthPlayer, m.FormerYouthPlayer,
+        m.StaffSnapshot, m.SkillUp, m.DismissedInsight, m.Sync, m.Player,
+    )
+    borradas = 0
+    for equipo_id in equipos:
+        for tabla in por_equipo:
+            if not hasattr(tabla, "team_id"):
+                continue
+            resultado = await session.execute(
+                delete(tabla).where(tabla.team_id == equipo_id)
+            )
+            borradas += resultado.rowcount or 0
+        await session.execute(delete(m.Team).where(m.Team.id == equipo_id))
+
+    await session.execute(delete(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
+    await session.execute(delete(m.User).where(m.User.id == user.id))
+    await session.commit()
+
+    return {
+        "deleted": True,
+        "teams": len(equipos),
+        "rows": borradas,
+        "message": (
+            "Cuenta borrada. Los partidos y las plantillas siguen en Hattrick: "
+            "esto solo borra lo que HT Lens había guardado."
+        ),
+    }

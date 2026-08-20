@@ -36,9 +36,14 @@ def test_best_team_fills_every_slot_according_to_the_chosen_formation() -> None:
 
     assert [p.name for p in team["keeper"]] == ["Portero A"]
     assert [p.name for p in team["defense"]] == ["Defensa A", "Defensa B", "Defensa C"]
-    assert [p.name for p in team["midfield"]] == [
+    # Desde 2026-08-19 la línea se reparte por sub-rol (3 interiores + 2
+    # extremos en un 3-5-2), así que dentro del bloque van primero los de
+    # dentro. Los cinco elegidos son los mismos.
+    assert set(p.name for p in team["midfield"]) == {
         "Medio A", "Medio B", "Medio C", "Medio D", "Medio E",
-    ]
+    }
+    assert [p.name for p in team["inner_midfield"]] == ["Medio C", "Medio D", "Medio E"]
+    assert [p.name for p in team["winger"]] == ["Medio A", "Medio B"]
     assert [p.name for p in team["forward"]] == ["Delantero A", "Delantero B"]
 
 
@@ -115,3 +120,49 @@ def test_best_team_picks_a_substitute_forward_using_their_real_final_role() -> N
     ]
     forward = best_team(players, formation="4-4-2")["forward"]
     assert [p.name for p in forward] == ["Alberto Gutiérrez Caviedes", "Herilala Njakanirina"]
+
+
+def test_the_split_decides_how_many_play_inside() -> None:
+    """Los selectores de Hattrick Control: el nombre de la formación no dice
+    cuántos de cada línea juegan por dentro.
+
+    2026-08-19: antes se cogían los N mejores de la línea sin mirar el
+    sub-rol, así que un once ideal podía salir con cuatro centrales y ningún
+    lateral, una alineación que el juego no deja poner.
+    """
+    players = [
+        _p(1, "Central A", 1, 103, 9.0),
+        _p(2, "Central B", 2, 102, 8.9),
+        _p(3, "Central C", 1, 104, 8.8),
+        _p(4, "Lateral A", 2, 101, 6.0),
+        _p(5, "Lateral B", 1, 105, 5.9),
+        _p(6, "Interior A", 2, 107, 9.0),
+        _p(7, "Interior B", 1, 108, 8.9),
+        _p(8, "Interior C", 2, 109, 8.8),
+        _p(9, "Extremo A", 1, 106, 6.0),
+        _p(10, "Extremo B", 2, 110, 5.9),
+    ]
+    # Un 5-3-2 con 1 interior: dos extremos entran aunque puntúen menos que
+    # los interiores que se quedan fuera.
+    team = best_team(players, "5-3-2", inner_midfielders=1)
+    assert [p.name for p in team["inner_midfield"]] == ["Interior A"]
+    assert [p.name for p in team["winger"]] == ["Extremo A", "Extremo B"]
+    # Con 3 interiores no hay hueco para ningún extremo.
+    team = best_team(players, "5-3-2", inner_midfielders=3)
+    assert len(team["inner_midfield"]) == 3
+    assert team["winger"] == []
+    # Y la defensa de cinco es siempre 3 centrales + 2 laterales, aunque los
+    # laterales puntúen mucho menos.
+    assert [p.name for p in team["wingback"]] == ["Lateral A", "Lateral B"]
+
+
+def test_an_impossible_split_falls_back_instead_of_breaking() -> None:
+    """El selector solo ofrece repartos legales, pero un número inventado en
+    la URL no puede tumbar la pantalla."""
+    from app.domain.engines.team_of_the_week import resolve_split
+
+    assert resolve_split("4-4-2", central_defenders=9) == (2, 2)
+    assert resolve_split("5-3-2", inner_midfielders=0) == (3, 1)
+    # Cinco defensas solo admiten 3 centrales: pedir 2 deja 3 laterales, que
+    # no existen.
+    assert resolve_split("5-3-2", central_defenders=2) == (3, 1)

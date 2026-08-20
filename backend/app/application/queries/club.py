@@ -17,26 +17,34 @@ from app.application.queries.weekly import (
     season_week_for_datetime,
 )
 from app.domain.engines.staff_effects import STAFF_FIELD_TO_EFFECT_FN
-from app.domain.value_objects.ht_constants import CONFIDENCE, TEAM_SPIRIT
+from app.domain.value_objects.ht_constants import (
+    CONFIDENCE,
+    STAFF_FIELD_LABELS,
+    STAFF_TYPE_TO_FIELD,
+    TEAM_SPIRIT,
+)
 from app.infrastructure.db import models as m
 
 
-STAFF_FIELDS: tuple[tuple[str, str], ...] = (
-    ("assistant_trainer_levels", "Asistentes de entrenador"),
-    ("form_coach_levels", "Entrenadores de forma"),
-    ("medic_levels", "Médicos"),
-    ("sport_psychologist_levels", "Psicólogos deportivos"),
-    ("tactical_assistant_levels", "Asistentes tácticos"),
-    ("financial_director_levels", "Directores financieros"),
-    ("spokesperson_levels", "Portavoces"),
+# Los seis puestos que Hattrick deja contratar, en el orden y con los nombres
+# de su propia página de Empleados. Nada de inventar: la lista y las etiquetas
+# viven en `ht_constants` junto al mapa de códigos, y `staff_effects.py` tiene
+# una función de efecto para cada uno — un puesto sin efecto que contar sería
+# la señal de que no existe.
+STAFF_FIELDS: tuple[tuple[str, str], ...] = tuple(
+    (field, STAFF_FIELD_LABELS[field]) for field in (
+        "assistant_trainer_levels",
+        "form_coach_levels",
+        "medic_levels",
+        "sport_psychologist_levels",
+        "tactical_assistant_levels",
+        "financial_director_levels",
+    )
 )
-# HL-2xx, 2026-08-12: el mismo código StaffType de stafflist.xml usado para
-# sumar las columnas de arriba (ver STAFF_TYPE_TO_FIELD en sync_team.py),
-# aquí para agrupar el roster real (nombres) bajo cada rol.
+# El mismo código StaffType de stafflist.xml, invertido, para agrupar el roster
+# real (los nombres) bajo cada puesto.
 STAFF_FIELD_TO_TYPE: dict[str, int] = {
-    "assistant_trainer_levels": 1, "medic_levels": 2, "spokesperson_levels": 3,
-    "sport_psychologist_levels": 4, "form_coach_levels": 5,
-    "financial_director_levels": 6, "tactical_assistant_levels": 7,
+    field: code for code, field in STAFF_TYPE_TO_FIELD.items()
 }
 
 TRAINER_TYPES = {0: "Defensivo", 1: "Ofensivo", 2: "Equilibrado"}
@@ -72,14 +80,10 @@ def _staff_levels(row: m.StaffSnapshot) -> list[dict[str, Any]]:
                 for mem in members
                 if mem.get("staff_type") == STAFF_FIELD_TO_TYPE[key]
             ],
-            # HL-2xx, 2026-08-12, pedido explícito: el aporte real de este
-            # puesto según las tablas oficiales de Hattrick — `None` para
-            # Portavoz, que ya no está entre las categorías vigentes que
-            # documentó el usuario, así que no hay tabla real que aplicar.
-            "effect": (
-                STAFF_FIELD_TO_EFFECT_FN[key](int(getattr(row, key) or 0))
-                if key in STAFF_FIELD_TO_EFFECT_FN else None
-            ),
+            # El aporte real del puesto, según las tablas oficiales de
+            # Hattrick. Los seis lo tienen; que un puesto no tuviera efecto
+            # que calcular era justo la pista de que no existía.
+            "effect": STAFF_FIELD_TO_EFFECT_FN[key](int(getattr(row, key) or 0)),
         }
         for key, label in STAFF_FIELDS
     ]
@@ -132,12 +136,24 @@ class ClubQueryService:
                 "trainer": {
                     "skillLevel": latest_staff.trainer_skill_level,
                     "type": latest_staff.trainer_type,
-                    "typeLabel": TRAINER_TYPES.get(latest_staff.trainer_type, "—"),
+                    "typeLabel": TRAINER_TYPES.get(latest_staff.trainer_type, ", "),
                     "leadership": latest_staff.trainer_leadership,
                 },
                 "roles": _staff_levels(latest_staff),
                 "totalLevels": sum(item["level"] for item in _staff_levels(latest_staff)),
-                "youthInvestment": latest_staff.youth_investment,
+                # 2026-08-15, verificado con un fetch en vivo: `club.xml`
+                # devuelve `<YouthSquad><Investment>0</Investment>` aunque el
+                # club SÍ esté invirtiendo — ese campo no refleja el gasto
+                # real. El gasto semanal de verdad es `CostsYouth` de
+                # economy.xml (200.000 SEK ÷ tasa = 20.000 US$/semana en esta
+                # cuenta), así que la cifra sale de ahí, ya convertida a
+                # moneda local igual que en Economía.
+                "youthInvestment": (
+                    round(latest_economy.costs_youth / (team.currency_rate or 1.0))
+                    if latest_economy is not None and latest_economy.costs_youth is not None
+                    else None
+                ),
+                "youthInvestmentCurrency": team.currency_name,
                 "youthLevel": latest_staff.youth_level,
             }
             if latest_staff is not None
@@ -208,8 +224,5 @@ class ClubQueryService:
                     lambda item: tuple(getattr(item, key) for key, _ in STAFF_FIELDS),
                 )
             ],
-            "notes": [
-                "Los valores actuales vienen de club, training, stafflist y economy del CHPP.",
-                "El histórico empieza con la primera sincronización de Hattrick Lens; no se inventan semanas anteriores.",
-            ],
+            "notes": [],
         }

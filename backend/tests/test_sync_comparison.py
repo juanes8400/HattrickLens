@@ -203,6 +203,23 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
             await session.commit()
 
             report = await build_sync_comparison(session, team.id)
+            # Navegación por fecha (2026-08-15): pedir explícitamente el sync
+            # con cambios devuelve esa comparación; pedir uno inexistente o
+            # sin cambios cae a la más reciente con cambios, no revienta.
+            picked = await build_sync_comparison(session, team.id, changed_sync.id)
+            fallback_repeated = await build_sync_comparison(
+                session, team.id, repeated_sync.id
+            )
+            fallback_unknown = await build_sync_comparison(session, team.id, 999_999)
+
+        # Sólo los syncs que movieron algo entran en el selector: el repetido
+        # (que confirmó que todo seguía igual) sería ruido.
+        assert [r["syncId"] for r in report["availableReports"]] == [changed_sync.id]
+        assert report["availableReports"][0]["changeCount"] == 3
+        assert picked["reportSyncId"] == changed_sync.id
+        assert picked["playerRows"] == report["playerRows"]
+        assert fallback_repeated["reportSyncId"] == changed_sync.id
+        assert fallback_unknown["reportSyncId"] == changed_sync.id
 
         assert report["syncId"] == repeated_sync.id
         assert report["changes"] == []

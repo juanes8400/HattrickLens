@@ -14,6 +14,12 @@
   --positive: #2fbf71;
   --warning: #f5a524;
   --danger: #e5484d;
+  /* Juveniles: amarillo para lo que el ojeador YA midió, y un tono apagado del
+     mismo color para el recorrido que le queda hasta el techo. Amarillo y no
+     el azul de acento porque en Juveniles nada está confirmado del todo: el
+     color dice "esto es una lectura del ojeador", no "esto es un hecho". */
+  --youth-known: #f5a524;
+  --youth-headroom: #f5a52440;
 }
 
 :root[data-theme="light"] {
@@ -28,6 +34,8 @@
   --positive: #1a9e5c;
   --warning: #c98a10;
   --danger: #d1383d;
+  --youth-known: #c98a10;
+  --youth-headroom: #c98a1033;
 }
 
 html, body, #root { height: 100%; }

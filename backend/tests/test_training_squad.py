@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.application.queries.training_squad import TrainingSquadQueryService
-from app.domain.engines.loyalty_engine import loyalty_decimal, loyalty_level
+from app.domain.engines.loyalty_engine import loyalty_decimal, loyalty_level, loyalty_progress_pct
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.main import app
@@ -69,9 +69,9 @@ def test_squad_view_is_honest_about_missing_reference_points() -> None:
     assert all(r.has_reference is False for r in view.rows)
 
 
-def test_squad_view_uses_a_real_snapshot_pop_when_trainingevents_is_unavailable() -> None:
-    """A skill change seen in two real players.xml snapshots is valid fallback
-    evidence; only its exact day inside the sync interval remains unknown."""
+def test_snapshot_pop_resets_the_observed_base_but_does_not_invent_calendar_weeks() -> None:
+    """Un cambio de nivel inicia un tramo nuevo; sin minutos posteriores no
+    hay avance que mostrar solo porque hayan pasado días de calendario."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
@@ -104,11 +104,10 @@ def test_squad_view_uses_a_real_snapshot_pop_when_trainingevents_is_unavailable(
             row = next(r for r in view.rows if r.ht_player_id == player.ht_player_id)
             return row, view.notes
 
-    row, notes = _run(go())
-    assert row.has_reference is True
-    assert row.weeks_elapsed == 2
-    assert row.progress_pct is not None
-    assert any("primera sincronización real" in note for note in notes)
+    row, _notes = _run(go())
+    assert row.has_reference is False
+    assert row.weeks_elapsed is None
+    assert row.progress_pct is None
 
 
 def test_squad_view_includes_the_weekly_training_log() -> None:
@@ -148,6 +147,7 @@ def test_development_view_uses_experience_history_and_the_fixed_loyalty_curve() 
     assert loyalty_row.days_in_club == 91
     assert loyalty_row.calculated_level == loyalty_level(91)
     assert loyalty_row.decimal_level == loyalty_decimal(91)
+    assert loyalty_row.progress_pct == loyalty_progress_pct(91)
     assert loyalty_row.date_source == "transferencia"
 
 
@@ -164,7 +164,6 @@ def test_development_view_never_invents_loyalty_progress_without_a_join_date() -
     assert undated
     assert all(row.decimal_level is None for row in undated)
     assert all(row.progress_pct is None for row in undated)
-    assert any("no tienen fecha de llegada" in note for note in view.notes)
 
 
 # ── Previsión por jugador ────────────────────────────────────────────────────
@@ -249,7 +248,7 @@ async def _seed_confirmed_pop_for_a_real_player():
     return factory, team_id, target.ht_player_id, world.season * 16 + world.match_round - (pop_season * 16 + pop_round)
 
 
-def test_squad_view_computes_weeks_elapsed_from_a_real_confirmed_pop() -> None:
+def test_confirmed_pop_alone_does_not_turn_calendar_time_into_training() -> None:
     async def go():
         return await _seed_confirmed_pop_for_a_real_player()
 
@@ -261,16 +260,114 @@ def test_squad_view_computes_weeks_elapsed_from_a_real_confirmed_pop() -> None:
 
     view = _run(reload())
     row = next(r for r in view.rows if r.ht_player_id == ht_player_id)
-    assert row.has_reference is True
-    assert row.weeks_elapsed == expected_weeks
-    assert row.progress_pct == round(expected_weeks / row.weeks_total * 100, 1)
+    assert expected_weeks > 0
+    assert row.has_reference is False
+    assert row.weeks_elapsed is None
+    assert row.progress_pct is None
 
 
-def test_include_this_week_flag_shifts_elapsed_weeks_by_one() -> None:
-    async def go():
-        return await _seed_confirmed_pop_for_a_real_player()
+async def _seed_observed_training_cycles(
+    *, previous_minutes: int | None, latest_minutes: int,
+    open_week_minutes: int | None = None,
+):
+    factory, team_id = await seeded_session()
+    async with factory() as s:
+        player = await s.scalar(
+            select(m.Player).where(
+                m.Player.team_id == team_id,
+                m.Player.left_team_at.is_(None),
+            )
+        )
+        team = await s.get(m.Team, team_id)
+        world = await s.scalar(select(m.WorldContext))
+        assert player is not None and team is not None and world is not None
+        now = datetime.now(UTC)
+        team.ht_league_id = world.ht_league_id
+        # Próximo entrenamiento dentro de seis días: el último corte fue
+        # ayer. El corte anterior ocurrió ocho días antes de hoy.
+        world.training_date = now + timedelta(days=6)
 
-    factory, team_id, ht_player_id, expected_weeks = _run(go())
+        latest_player_snapshot = await s.scalar(
+            select(m.PlayerSnapshot)
+            .where(m.PlayerSnapshot.player_id == player.id)
+            .order_by(m.PlayerSnapshot.captured_at.desc())
+        )
+        latest_training_snapshot = await s.scalar(
+            select(m.TrainingSnapshot)
+            .where(m.TrainingSnapshot.team_id == team_id)
+            .order_by(m.TrainingSnapshot.captured_at.desc())
+        )
+        assert latest_player_snapshot is not None and latest_training_snapshot is not None
+
+        # Lens ya conocía el nivel entero antes de ambos ciclos, pero nunca vio
+        # el pop anterior. Esa primera lectura es la base honesta de 0.000.
+        player_values = {
+            column.name: getattr(latest_player_snapshot, column.name)
+            for column in m.PlayerSnapshot.__table__.columns
+            if column.name != "id"
+        }
+        player_values["captured_at"] = now - timedelta(days=21)
+        player_values["content_hash"] = b"observed-level-before-training"
+        s.add(m.PlayerSnapshot(**player_values))
+
+        for days_ago, marker in ((10, b"previous-training-setup"), (3, b"latest-training-setup")):
+            training_values = {
+                column.name: getattr(latest_training_snapshot, column.name)
+                for column in m.TrainingSnapshot.__table__.columns
+                if column.name != "id"
+            }
+            training_values["captured_at"] = now - timedelta(days=days_ago)
+            training_values["training_type"] = 10  # Pases: defensas + medios
+            training_values["content_hash"] = marker
+            s.add(m.TrainingSnapshot(**training_values))
+
+        # El último corte fue AYER (training_date = hoy + 6). Un partido de
+        # hace dos días cayó dentro del ciclo ya cerrado; uno de hace seis
+        # horas pertenece a la semana en curso, cuyo entrenamiento Hattrick
+        # todavía no ha aplicado.
+        match_specs = [(990002, now - timedelta(days=2), latest_minutes)]
+        if previous_minutes is not None:
+            match_specs.append((990001, now - timedelta(days=9), previous_minutes))
+        if open_week_minutes is not None:
+            match_specs.append((990003, now - timedelta(hours=6), open_week_minutes))
+        for match_id, played_at, minutes in match_specs:
+            s.add(m.Match(
+                ht_match_id=match_id,
+                played_at=played_at,
+                match_type=1,
+                status="Finished",
+                home_team_ht_id=team.ht_team_id,
+                away_team_ht_id=999,
+                home_team_name=team.name,
+                away_team_name="Rival",
+                home_goals=1,
+                away_goals=0,
+            ))
+            s.add(m.PlayerMatchRating(
+                player_id=player.id,
+                ht_match_id=match_id,
+                position_code=109,  # medio interior: recibe Pases tipo 10
+                played_minutes=minutes,
+                rating=7.0,
+                captured_at=now,
+            ))
+        await s.commit()
+        return factory, team_id, player.ht_player_id
+
+
+def test_minutes_of_the_week_in_progress_need_the_toggle() -> None:
+    """2026-08-16, error real: los minutos del partido de anoche no aparecían.
+
+    El corte semanal de esa semana todavía no ha llegado, así que esos minutos
+    no pertenecían a ningún ciclo y se perdían — un jugador que acababa de
+    jugar 82′ salía con cero. "Incluir los partidos de esta semana" es
+    exactamente ese tramo abierto.
+    """
+    factory, team_id, ht_player_id = _run(
+        _seed_observed_training_cycles(
+            previous_minutes=None, latest_minutes=0, open_week_minutes=90,
+        )
+    )
 
     async def reload(include_this_week: bool):
         async with factory() as s:
@@ -280,8 +377,38 @@ def test_include_this_week_flag_shifts_elapsed_weeks_by_one() -> None:
 
     with_week = next(r for r in _run(reload(True)).rows if r.ht_player_id == ht_player_id)
     without_week = next(r for r in _run(reload(False)).rows if r.ht_player_id == ht_player_id)
-    assert with_week.weeks_elapsed == expected_weeks
-    assert without_week.weeks_elapsed == max(0, expected_weeks - 1)
+    assert with_week.weeks_elapsed == 1.0
+    assert with_week.current_week_minutes == 90
+    assert with_week.current_week_exposure == 1.0
+    assert without_week.weeks_elapsed is None
+    assert without_week.current_week_minutes == 0
+
+
+def test_closed_cycles_always_count_and_the_toggle_only_adds_the_open_one() -> None:
+    """Un ciclo ya cerrado es un hecho consumado: Hattrick ya aplicó ese
+    entrenamiento, así que cuenta con el toggle puesto o quitado. Lo único
+    que el toggle decide es si se suma la semana todavía en curso."""
+    factory, team_id, ht_player_id = _run(
+        _seed_observed_training_cycles(
+            previous_minutes=90, latest_minutes=45, open_week_minutes=45,
+        )
+    )
+
+    async def reload(include_this_week: bool):
+        async with factory() as s:
+            return await TrainingSquadQueryService(s).squad_view(
+                team_id, include_this_week=include_this_week,
+            )
+
+    with_week = next(r for r in _run(reload(True)).rows if r.ht_player_id == ht_player_id)
+    without_week = next(r for r in _run(reload(False)).rows if r.ht_player_id == ht_player_id)
+    assert without_week.weeks_elapsed == 1.5
+    assert without_week.current_week_minutes == 0
+    assert without_week.current_week_exposure == 0
+    assert with_week.weeks_elapsed == 2.0
+    assert with_week.current_week_minutes == 45
+    assert with_week.current_week_exposure == 0.5
+    assert with_week.has_historical_reference is True
 
 
 def test_player_levels_confirmed_list_reports_the_real_pop() -> None:
@@ -315,6 +442,7 @@ def test_training_squad_endpoint_shape() -> None:
         assert len(body["players"]) > 0
         assert "weeksElapsed" in body["players"][0]
         assert "progressPct" in body["players"][0]
+        assert "currentWeekMinutes" in body["players"][0]
         assert len(body["availableSkills"]) == 7
         assert "weeklyLog" in body
     finally:
@@ -342,6 +470,7 @@ def test_training_development_endpoint_shape() -> None:
         assert len(body["experience"]) > 0
         assert len(body["loyalty"]) == len(body["experience"])
         assert "pointsPerLevel" in body["experience"][0]
+        assert "matchCounts" in body["experience"][0]
         assert "daysInClub" in body["loyalty"][0]
         assert "notes" in body
     finally:

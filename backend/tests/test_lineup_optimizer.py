@@ -8,7 +8,6 @@ from app.domain.engines.lineup_optimizer import (
     TEAM_SPIRIT_ATTITUDE_MULTIPLIER,
     best_formation,
     best_lineup,
-    weather_impact,
 )
 from app.domain.engines.position_engine import rate
 from app.infrastructure.chpp.parsers import parse_players
@@ -37,7 +36,7 @@ def test_optimal_beats_greedy_position_by_position() -> None:
     for pos in slots:
         mejor, mejor_val = None, -1.0
         for p in ROSTER:
-            if p["ht_player_id"] in used or p.get("injury_level", -1) > -1:
+            if p["ht_player_id"] in used or p.get("injury_level", -1) >= 1:
                 continue
             v = rate(p, pos).rating
             if v > mejor_val:
@@ -62,23 +61,37 @@ def test_injured_players_are_never_selected() -> None:
     assert roster[3]["ht_player_id"] not in {a.player["ht_player_id"] for a in lu.assignments}
 
 
+def test_a_bruised_player_is_still_available() -> None:
+    """2026-08-16, error real: `InjuryLevel` 0 es MAGULLADO y en Hattrick sí
+    puede jugar. Descartarlo sacaba del mejor once a gente disponible — el
+    caso que lo destapó fue un delantero titular que desapareció por un
+    magullón."""
+    sano = [dict(p) for p in ROSTER]
+    titulares_sano = {a.player["ht_player_id"] for a in best_lineup(sano, "4-4-2").assignments}
+
+    magullado = [dict(p) for p in ROSTER]
+    tocado = next(p for p in magullado if p["ht_player_id"] in titulares_sano)
+    tocado["injury_level"] = 0
+
+    lu = best_lineup(magullado, "4-4-2")
+    assert tocado["ht_player_id"] in {a.player["ht_player_id"] for a in lu.assignments}
+
+
 def test_keeper_slot_gets_the_goalkeeper() -> None:
     lu = best_lineup(ROSTER, "4-4-2")
     portero = next(a for a in lu.assignments if a.position == "keeper")
     assert portero.player["last_name"] == "Ebbesen"
 
 
-def test_best_formation_ranks_all_eight() -> None:
+def test_best_formation_ranks_every_formation() -> None:
+    """Las diez de Hattrick, no un número escrito a mano: al añadir 5-2-3 y
+    2-5-3 el 2026-08-19 este test habría seguido en verde con ocho."""
+    from app.domain.engines.lineup_optimizer import FORMATIONS
+
     lu, ranking = best_formation(ROSTER)
-    assert len(ranking) == 8
+    assert len(ranking) == len(FORMATIONS)
     assert lu.formation == next(iter(ranking))
     assert list(ranking.values()) == sorted(ranking.values(), reverse=True)
-
-
-def test_weather_changes_the_result() -> None:
-    impacto = weather_impact(ROSTER, "4-4-2")
-    assert set(impacto) == {"rain", "cloudy", "partly", "sun"}
-    assert all(v > 0 for v in impacto.values())
 
 
 def test_not_enough_players_raises() -> None:
@@ -132,3 +145,82 @@ def test_team_spirit_attitude_table_is_monotonic_and_matches_the_manual() -> Non
     worst, best = TEAM_SPIRIT_ATTITUDE_MULTIPLIER[0], TEAM_SPIRIT_ATTITUDE_MULTIPLIER[-1]
     assert worst[0] == "Muy agresivos" and worst[1:] == (0.63, 0.72, 0.81)
     assert best[0] == "¡Paraíso en la tierra!" and best[1:] == (1.22, 1.42, 1.62)
+
+
+def test_no_formation_breaks_the_position_maximums() -> None:
+    """Máximos del juego, confirmados por el usuario el 2026-08-19: 1 portero,
+    3 defensas centrales, 2 laterales (uno por banda), 3 mediocentros,
+    2 extremos (uno por banda) y 3 delanteros.
+
+    De ahí sale la geometría de la cancha que dibuja la interfaz: con dos
+    bandas y tres por el centro, ninguna línea pasa de cinco. Una formación que
+    se saltara un máximo rompería ese dibujo en silencio.
+    """
+    from collections import Counter
+
+    from app.domain.engines.lineup_optimizer import FORMATIONS
+    from app.domain.value_objects.formations import (
+        MAX_CENTRAL_DEFENDERS,
+        MAX_FORWARDS,
+        MAX_INNER_MIDFIELDERS,
+        MAX_FLANK_PER_LINE,
+    )
+
+    MAX_PER_POSITION = {
+        "keeper": 1,
+        "central_defender": MAX_CENTRAL_DEFENDERS,
+        "wingback": MAX_FLANK_PER_LINE,
+        "inner_midfield": MAX_INNER_MIDFIELDERS,
+        "winger": MAX_FLANK_PER_LINE,
+        "forward": MAX_FORWARDS,
+    }
+
+    for nombre, puestos in FORMATIONS.items():
+        assert len(puestos) == 11, nombre
+        cuenta = Counter(puestos)
+        assert set(cuenta) <= set(MAX_PER_POSITION), nombre
+        for puesto, cuantos in cuenta.items():
+            assert cuantos <= MAX_PER_POSITION[puesto], f"{nombre}: {puesto}={cuantos}"
+        # Dos bandas y tres por el centro: cinco por línea como mucho.
+        assert cuenta["wingback"] + cuenta["central_defender"] <= 5, nombre
+        assert cuenta["winger"] + cuenta["inner_midfield"] <= 5, nombre
+
+
+def test_every_formation_name_matches_how_it_is_built() -> None:
+    """El nombre de una formación ES su composición: defensas-medios-delanteros,
+    con el extremo contando en la línea del medio (así lo cuenta Hattrick).
+
+    2026-08-19: "4-3-3" estaba armada con 3 mediocentros y 2 extremos, o sea
+    CINCO medios y un solo delantero. Era un 4-5-1 con otro nombre, y el
+    optimizador devolvía un once que no era el que se le pedía. Este test
+    compara nombre contra composición para que no vuelva a pasar en silencio.
+    """
+    from collections import Counter
+
+    from app.domain.engines.lineup_optimizer import FORMATIONS
+
+    for nombre, puestos in FORMATIONS.items():
+        cuenta = Counter(puestos)
+        defensas = cuenta["wingback"] + cuenta["central_defender"]
+        medios = cuenta["winger"] + cuenta["inner_midfield"]
+        delanteros = cuenta["forward"]
+        assert cuenta["keeper"] == 1, nombre
+        assert f"{defensas}-{medios}-{delanteros}" == nombre
+
+
+def test_the_catalogue_has_the_ten_hattrick_formations() -> None:
+    """Hattrick tiene diez. Aquí había ocho hasta 2026-08-19: faltaban 5-2-3
+    (preguntada por el usuario) y 2-5-3, así que ni el optimizador ni el once
+    ideal de la liga podían proponerlas."""
+    from app.domain.engines.lineup_optimizer import FORMATIONS
+    from app.domain.engines.team_of_the_week import FORMATIONS as TOTW
+
+    esperadas = {
+        "5-5-0", "5-4-1", "5-3-2", "5-2-3", "4-5-1",
+        "4-4-2", "4-3-3", "3-5-2", "3-4-3", "2-5-3",
+    }
+    assert set(FORMATIONS) == esperadas
+    # Las dos tablas describen lo mismo desde ángulos distintos (once completo
+    # contra conteo por línea): si se separan, el selector ofrecería una
+    # formación que la otra no sabe armar.
+    assert set(TOTW) == esperadas

@@ -121,6 +121,10 @@ class ExperienceProgress:
     points_per_level: float
     calibration_source: str
     breakdown: dict[str, float] = field(default_factory=dict)
+    # Conteo de partidos reales, separado del desglose de puntos. Un partido
+    # de 45 minutos cuenta como un partido aquí, aunque aporte medio peso al
+    # cálculo de experiencia.
+    match_counts: dict[str, int] = field(default_factory=dict)
     # Partidos de selección nacional COMPETITIVOS vistos (MatchType 10/11):
     # CHPP no distingue Mundial/Copa continental/Copa de Naciones ni sus
     # rondas con ese código, así que no se les asigna puntaje (inventar un
@@ -194,6 +198,7 @@ def progress(
     matches: MatchCount | Mapping[str, float],
     calibration: Calibration | None = None,
     unscored_national_matches: int = 0,
+    match_counts: Mapping[str, int] | None = None,
 ) -> ExperienceProgress:
     cfg = _config()
     cal = calibration or calibrate()
@@ -213,6 +218,7 @@ def progress(
         points_per_level=per_level,
         calibration_source=cal.source,
         breakdown=breakdown,
+        match_counts=dict(match_counts or {}),
         unscored_national_matches=unscored_national_matches,
     )
 

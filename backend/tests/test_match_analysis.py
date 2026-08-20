@@ -28,7 +28,7 @@ def test_loddar_is_positive_and_ordered() -> None:
 def test_analysis_detects_our_real_problem() -> None:
     """Defensa central 61 contra ataque 9-13: el partido real lo dijo claro."""
     a = analyse(PULGAS, ETBENIANOS, ChanceTally(left=3), ChanceTally(left=4, goals=2))
-    assert "Defensa central" in a.strengths
+    assert "Defensa Central" in a.strengths
     assert any("Ataque" in w for w in a.weaknesses)
 
 

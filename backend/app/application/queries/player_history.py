@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.squad import SKILL_COLS
-from app.application.queries.weekly import latest_per_iso_week
+from app.application.queries.weekly import backfill_leading_gaps, latest_per_iso_week
 from app.domain.engines import experience_engine as exp
 from app.domain.engines.stats import gaussian_kde, kde_grid, percentile_rank
 from app.domain.value_objects.ht_constants import (
@@ -142,7 +142,7 @@ class PlayerHistoryQueryService:
         rows = latest_per_iso_week(
             (await self._s.execute(stmt)).scalars().all(), lambda row: row.captured_at
         )
-        return [
+        points = [
             SnapshotPoint(
                 captured_at=snap.captured_at.isoformat(),
                 age_years=snap.age_years, age_days=snap.age_days,
@@ -151,6 +151,23 @@ class PlayerHistoryQueryService:
             )
             for snap in rows
         ]
+
+        # 2026-08-16, pedido explícito y SOLO estético: los primeros snapshots
+        # de esta cuenta se guardaron antes de que existiera la columna de
+        # fidelidad y quedaron en 0, lo que dibujaba una caída a cero al
+        # principio de la línea. Un 0 de fidelidad es legítimo en un fichaje
+        # recién llegado, así que la lectura incompleta se detecta por el
+        # liderazgo — que en Hattrick empieza en 1 y vale 0 exactamente en
+        # esos mismos snapshots. El tramo inicial se estira con la primera
+        # fidelidad conocida; nada de esto entra en ningún cálculo.
+        loyalty = [
+            None if (snap.leadership or 0) == 0 else float(snap.loyalty or 0)
+            for snap in rows
+        ]
+        for point, value in zip(points, backfill_leading_gaps(loyalty), strict=True):
+            if value is not None:
+                point.skills["loyalty"] = int(round(value))
+        return points
 
     async def match_rating_history(self, ht_player_id: int) -> list[MatchRatingPoint]:
         # Escaleras, Duelos, Torneos y Preparación no son partidos reales —
@@ -271,6 +288,13 @@ class PlayerHistoryQueryService:
         progreso real para un nivel que llevaba tiempo, pero nunca inventa
         partidos que no hemos visto.
 
+        2026-08-16, pedido explícito: al subir de nivel el contador arranca de
+        cero. El partido que provocó la subida ya se cobró en el nivel
+        anterior, así que se compara `Match.played_at` (cuándo se jugó) contra
+        el corte, y no la marca de sincronización — que es la misma para el
+        snapshot y para la ficha del partido cuando ambos llegan en el mismo
+        sync, que es siempre.
+
         2026-08-05, pedido explícitamente: cada partido puntúa proporcional
         a los minutos jugados sobre 90 (jugar 70 = 70/90 de los puntos de esa
         competencia; 90 o más = el 100%, nunca más) — `player_match_ratings`
@@ -295,9 +319,13 @@ class PlayerHistoryQueryService:
             .where(m.Player.ht_player_id == ht_player_id)
             .order_by(m.PlayerSnapshot.captured_at.asc())
         )
-        snaps = latest_per_iso_week(
-            (await self._s.execute(snap_stmt)).all(), lambda row: row.captured_at
-        )
+        # Snapshots CRUDOS, no colapsados a uno por semana: aquí se busca el
+        # instante exacto en que vimos el nivel actual por primera vez, y
+        # quedarse con la última lectura de cada semana lo corre hacia
+        # adelante. Subir de nivel un martes y volver a sincronizar el viernes
+        # movía el corte al viernes, descartando los partidos del miércoles y
+        # el jueves que ya contaban para el nivel siguiente.
+        snaps = (await self._s.execute(snap_stmt)).all()
         if not snaps:
             return None
         current_level = snaps[-1].experience
@@ -322,11 +350,21 @@ class PlayerHistoryQueryService:
             .join(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
             .where(
                 m.Player.ht_player_id == ht_player_id,
-                m.PlayerMatchRating.captured_at >= since_date,
+                # Cuándo se JUGÓ el partido, no cuándo lo sincronizamos, y
+                # estrictamente después del corte. El partido que provoca la
+                # subida y el snapshot que la revela llegan en el MISMO sync,
+                # con el mismo `captured_at`: filtrar por la marca de sync con
+                # `>=` dejaba pasar justo ese partido, así que el que pagó el
+                # nivel se contaba otra vez para el siguiente. Con `played_at`
+                # el partido queda antes del snapshot que ya refleja el nivel
+                # nuevo y el contador arranca de cero, que es lo correcto:
+                # Hattrick ya lo cobró en el nivel anterior.
+                m.Match.played_at > since_date,
             )
         )
         rows = (await self._s.execute(stmt)).all()
         counts: dict[str, float] = {"league": 0.0, "cup": 0.0, "friendly": 0.0}
+        match_counts: dict[str, int] = {}
         national_friendly_seen = 0
         national_competitive_seen = 0
         for mt, cup_level, played_minutes in rows:
@@ -334,6 +372,7 @@ class PlayerHistoryQueryService:
             category = experience_category(mt, cup_level)
             if category:
                 counts[category] = counts.get(category, 0.0) + weight
+                match_counts[category] = match_counts.get(category, 0) + 1
                 if category == "national_team_friendly":
                     national_friendly_seen += 1
             elif mt in MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES:
@@ -348,7 +387,11 @@ class PlayerHistoryQueryService:
         blind_spot = max(caps_gained - seen_national, 0) if caps_gained is not None else 0
         unscored_national_matches = national_competitive_seen + blind_spot
 
-        return exp.progress(counts, unscored_national_matches=unscored_national_matches)
+        return exp.progress(
+            counts,
+            unscored_national_matches=unscored_national_matches,
+            match_counts=match_counts,
+        )
 
     async def experience_level_up_observations(
         self, team_id: int
@@ -420,7 +463,12 @@ class PlayerHistoryQueryService:
         observations: list[exp.LevelUp] = []
         crossings_seen = 0
         for player_id, snapshots in snapshots_by_player.items():
-            snapshots = latest_per_iso_week(snapshots, lambda item: item[1])
+            # Crudos por el mismo motivo que en `experience_progress`: el
+            # intervalo se mide entre dos observaciones de subida, y quedarse
+            # con la última lectura de cada semana desplaza ese límite hacia
+            # adelante — los partidos jugados entre la subida real y el último
+            # sync de esa semana se sumaban al intervalo anterior, inflando
+            # justo la muestra con la que se calibra el modelo.
             if not snapshots:
                 continue
 

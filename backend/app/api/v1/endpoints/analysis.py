@@ -1,18 +1,20 @@
 """Endpoints de los motores de análisis. HL-034, HL-036, HL-101, HL-121, HL-130."""
+import hashlib
+from collections.abc import Collection
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints.cup import cup as get_cup_data
 from app.application.queries.academy import AcademyQueryService
 from app.application.queries.arena import ArenaQueryService
 from app.application.queries.league import LeagueQueryService
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
+from app.application.queries.team_overview import TeamOverviewQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
 from app.application.queries.weekly import season_week_for_datetime, season_week_label
@@ -28,7 +30,6 @@ from app.domain.engines.lineup_optimizer import (
     TEAM_SPIRIT_ATTITUDE_MULTIPLIER,
     best_formation,
     best_lineup,
-    weather_impact,
 )
 from app.domain.engines.loyalty_engine import loyalty_decimal as calculate_loyalty_decimal
 from app.domain.engines.loyalty_engine import model_info as loyalty_model_info
@@ -49,12 +50,23 @@ from app.domain.engines.training_engine import (
     training_mode,
     weeks_to_next_level,
 )
-from app.domain.value_objects.ht_constants import match_role_name, training_target
+from app.domain.value_objects.formations import (
+    central_defender_options,
+    inner_midfielder_options,
+    resolve_split,
+)
+from app.domain.value_objects.ht_time import ht_day
+from app.domain.value_objects.ht_constants import (
+    NON_OFFICIAL_MATCH_TYPES,
+    match_role_name,
+    training_target,
+)
 from app.domain.value_objects.stamina_reference import (
     age_after_weeks,
     stamina_forecast_level,
 )
 from app.infrastructure.db import models as m
+from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -98,7 +110,8 @@ async def roster(session: AsyncSession, team_id: int) -> tuple[list[dict[str, An
 
 @router.get(
     "/teams/{team_id}/players/{ht_player_id}",
-    summary="Ficha del jugador — hub de todos los enlaces por nombre",
+    summary="Ficha del jugador, hub de todos los enlaces por nombre",
+    dependencies=[Depends(require_team_owner)],
 )
 async def player_detail(
     team_id: int,
@@ -276,9 +289,10 @@ async def player_detail(
     # HL-15x, pedido explícito 2026-08-10: proyección de Resistencia (líneas
     # punteadas en "Evolución de habilidades") según la tabla de Federación
     # Ocerin — asume que el % de entrenamiento de resistencia actual se
-    # mantiene constante hacia adelante; `None` si no hay WorldContext propio
-    # (no hay forma de etiquetar "TT-ss" futuras) o la edad ya no está
-    # cubierta por la tabla (17-36).
+    # mantiene constante hacia adelante; `None` solo si no hay WorldContext
+    # propio (sin él no hay forma de etiquetar las "TT-ss" futuras). Las
+    # edades fuera de la tabla ya no cortan la proyección: desde 2026-08-15
+    # `stamina_forecast_level` recorta la edad al extremo más cercano.
     stamina_forecast: dict[str, Any] | None = None
     if world is not None:
         current_stamina_pct = setup.effective_stamina_intensity
@@ -289,8 +303,6 @@ async def player_detail(
                 p["age_years"], p["age_days"], weeks_ahead
             )
             level = stamina_forecast_level(proj_years, current_stamina_pct)
-            if level is None:
-                continue
             forecast_season_weeks.append(season_week_label(world, weeks_offset=weeks_ahead))
             forecast_levels.append(level)
         # Nivel esperado HOY con el % real actual — la barrita de Resistencia
@@ -299,7 +311,7 @@ async def player_detail(
         current_expected_level = stamina_forecast_level(
             p["age_years"], current_stamina_pct
         )
-        if forecast_levels or current_expected_level is not None:
+        if forecast_levels:
             stamina_forecast = {
                 "seasonWeeks": forecast_season_weeks,
                 "levels": forecast_levels,
@@ -343,6 +355,7 @@ async def player_detail(
         # playerdetails.xml. Se exponen separados de cualquier cálculo Lens
         # para que la vista Detalles pueda conservar el lenguaje de HC.
         "countryId": squad_player.country_id if squad_player is not None else 0,
+        "countryCode": squad_player.country_code if squad_player is not None else None,
         "specialty": squad_player.specialty if squad_player is not None else "",
         "leadership": p["leadership"],
         "isTransferListed": p["is_transfer_listed"],
@@ -525,38 +538,57 @@ async def player_detail(
     }
 
 
-@router.get("/teams/{team_id}/lineup", summary="Mejor once posible (HL-121)")
+@router.get(
+    "/teams/{team_id}/lineup",
+    summary="Mejor once posible (HL-121)",
+    dependencies=[Depends(require_team_owner)],
+)
 async def lineup(
     team_id: int,
-    formation: str | None = Query(None, description="Si se omite, prueba las 8"),
-    weather: str | None = Query(None, pattern="^(rain|cloudy|partly|sun)$"),
+    formation: str | None = Query(
+        None, description="Si se omite, prueba todas las del catálogo"
+    ),
+    # El reparto de cada línea: cuántos juegan por dentro. El resto va a las
+    # bandas. Solo tiene sentido con una formación concreta; sin ella se usa
+    # el reparto por defecto de cada una para poder compararlas.
+    central_defenders: int | None = None,
+    inner_midfielders: int | None = None,
     session: AsyncSession = Depends(get_session),
+    dependencies=[Depends(require_team_owner)],
 ) -> dict[str, Any]:
     players, _ = await roster(session, team_id)
     if formation and formation not in FORMATIONS:
         raise HTTPException(400, f"formación desconocida: {formation}")
     try:
         if formation:
-            lu = best_lineup(players, formation, weather=weather)
+            lu = best_lineup(players, formation, None, central_defenders, inner_midfielders)
             ranking = {formation: lu.total_rating}
         else:
-            lu, ranking = best_formation(players, weather=weather)
+            lu, ranking = best_formation(players)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
     # HL-143: segunda opinión sobre el MISMO once que ya eligió el optimizador
     # húngaro (arriba), con la fórmula exacta de contribución de la
-    # comunidad — habilidades crudas, sin forma/condición/clima. No decide
+    # comunidad — habilidades crudas, sin forma ni condición. No decide
     # nada por sí sola, solo informa.
     sector = compute_sector_ratings(
         [(a.player, a.position, a.label) for a in lu.assignments]
     )
 
+    centrales, interiores = resolve_split(
+        lu.formation, central_defenders, inner_midfielders
+    )
     return {
         "formation": lu.formation,
+        "centralDefenders": centrales,
+        "innerMidfielders": interiores,
+        # Los repartos legales de ESTA formación, que son los que el selector
+        # puede ofrecer.
+        "centralDefenderOptions": central_defender_options(lu.formation),
+        "innerMidfielderOptions": inner_midfielder_options(lu.formation),
         "totalRating": lu.total_rating,
         "manualShare": round(lu.manual_share, 2),
-        "weather": lu.weather,
         "formationRanking": ranking,
         "lineup": [
             {
@@ -583,27 +615,181 @@ async def lineup(
             ],
             "note": (
                 "Fórmula exacta de contribución posicional (Manual no Escrito), sobre "
-                "habilidades crudas — sin forma, condición ni clima, que ya tienen sus "
-                "propios paneles. No reemplaza el ranking de arriba, que sí está "
-                "contrastado contra datos reales: es una segunda mirada, complementaria."
+                "habilidades crudas: sin forma ni condición. No reemplaza el ranking "
+                "de arriba, que sí está contrastado contra datos reales."
             ),
         },
     }
 
 
-@router.get("/teams/{team_id}/lineup/weather", summary="Impacto del clima (HL-123)")
-async def lineup_weather(
+@router.get(
+    "/teams/{team_id}/lineup/hindsight",
+    summary="Alineación real del último partido contra la que propone el optimizador",
+    dependencies=[Depends(require_team_owner)],
+)
+async def lineup_hindsight(
     team_id: int,
-    formation: str = "4-4-2",
     session: AsyncSession = Depends(get_session),
-) -> dict[str, float]:
+) -> dict[str, Any]:
+    """Evaluar decisiones REALES — pedido explícito 2026-08-15.
+
+    Cruza quién jugó de verdad en el último partido (`player_match_ratings`,
+    que guarda posición y calificación por jugador) con quién habría puesto el
+    optimizador en esa misma posición.
+
+    LÍMITE IMPORTANTE, y por eso viaja en la respuesta: el optimizador corre
+    con las habilidades de HOY, no con las que el jugador tenía el día del
+    partido — no guardamos un snapshot por partido. Sirve para detectar
+    posiciones donde sistemáticamente hay una opción mejor en plantilla, no
+    para juzgar una decisión puntual del pasado con información que entonces
+    no existía.
+    """
+    from app.domain.value_objects.ht_constants import (
+        MATCH_ROLE_CENTRAL_DEFENDER,
+        MATCH_ROLE_FORWARD,
+        MATCH_ROLE_INNER_MIDFIELDER,
+        MATCH_ROLE_KEEPER,
+        MATCH_ROLE_NAMES,
+        MATCH_ROLE_WINGBACK,
+        MATCH_ROLE_WINGER,
+    )
+
+    # El partido usa puestos concretos (Defensa Central derecho/medio/izquierdo)
+    # y el optimizador razona por FAMILIA (tres plazas de defensa central, sin
+    # lado). Comparar puesto contra puesto daba "no usa este puesto" en 10 de
+    # 11 casos — comparación inútil. Se agrupa por familia y se contrastan los
+    # conjuntos de jugadores, que es la decisión real: a quién pusiste en
+    # defensa, no en qué lado exacto.
+    FAMILIES: list[tuple[str, str, frozenset[int], str]] = [
+        ("keeper", "Portería", MATCH_ROLE_KEEPER, "keeper"),
+        ("wingback", "Laterales", MATCH_ROLE_WINGBACK, "wingback"),
+        ("central_defender", "Defensa Central", MATCH_ROLE_CENTRAL_DEFENDER,
+         "central_defender"),
+        ("winger", "Extremos", MATCH_ROLE_WINGER, "winger"),
+        ("inner_midfield", "Mediocampo", MATCH_ROLE_INNER_MIDFIELDER, "inner_midfield"),
+        ("forward", "Delanteros", MATCH_ROLE_FORWARD, "forward"),
+    ]
+
+    # Último partido del que tengamos calificaciones individuales.
+    last_match_id = await session.scalar(
+        select(m.PlayerMatchRating.ht_match_id)
+        .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
+        .where(m.Player.team_id == team_id)
+        .group_by(m.PlayerMatchRating.ht_match_id)
+        .order_by(func.max(m.PlayerMatchRating.captured_at).desc())
+        .limit(1)
+    )
+    if last_match_id is None:
+        return {
+            "matchId": None,
+            "matchLabel": None,
+            "playedAt": None,
+            "proposedFormation": None,
+            "agreementCount": 0,
+            "comparableCount": 0,
+            "played": [],
+            "notes": [
+                "Todavía no hay calificaciones individuales guardadas. Llegan "
+                "con las fichas de jugador, cárgalas desde Sincronización."
+            ],
+        }
+
+    rows = list((await session.execute(
+        select(m.PlayerMatchRating, m.Player)
+        .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
+        .where(
+            m.Player.team_id == team_id,
+            m.PlayerMatchRating.ht_match_id == last_match_id,
+        )
+        .order_by(m.PlayerMatchRating.position_code)
+    )).all())
+
+    match = await session.scalar(
+        select(m.Match).where(m.Match.ht_match_id == last_match_id)
+    )
+
+    # El once que propondría HOY el optimizador, en su mejor formación.
     players, _ = await roster(session, team_id)
-    return weather_impact(players, formation)
+    proposed_by_family: dict[str, list[dict[str, Any]]] = {}
+    formation: str | None = None
+    try:
+        lu, _ranking = best_formation(players)
+        formation = lu.formation
+        for a in lu.assignments:
+            for key, _label, _codes, prefix in FAMILIES:
+                if a.position.startswith(prefix):
+                    proposed_by_family.setdefault(key, []).append({
+                        "player": a.player["name"],
+                        "htPlayerId": a.player["ht_player_id"],
+                        "rating": round(a.rating, 2),
+                    })
+                    break
+    except ValueError:
+        pass  # plantilla insuficiente: se muestra sólo lo que pasó de verdad
+
+    played_by_family: dict[str, list[dict[str, Any]]] = {}
+    for rating_row, player in rows:
+        for key, _label, codes, _prefix in FAMILIES:
+            if rating_row.position_code in codes:
+                played_by_family.setdefault(key, []).append({
+                    "player": f"{player.first_name} {player.last_name}".strip(),
+                    "htPlayerId": player.ht_player_id,
+                    "positionLabel": MATCH_ROLE_NAMES.get(
+                        rating_row.position_code, f"código {rating_row.position_code}"
+                    ),
+                    "playedMinutes": rating_row.played_minutes,
+                    "rating": rating_row.rating,
+                })
+                break
+
+    lines: list[dict[str, Any]] = []
+    kept = 0
+    total_slots = 0
+    for key, label, _codes, _prefix in FAMILIES:
+        used = played_by_family.get(key, [])
+        proposed = proposed_by_family.get(key, [])
+        if not used and not proposed:
+            continue
+        used_ids = {p["htPlayerId"] for p in used}
+        proposed_ids = {p["htPlayerId"] for p in proposed}
+        agreed_ids = used_ids & proposed_ids
+        kept += len(agreed_ids)
+        total_slots += len(used)
+        lines.append({
+            "key": key,
+            "label": label,
+            "used": [
+                {**p, "alsoProposed": p["htPlayerId"] in proposed_ids} for p in used
+            ],
+            # Quien el optimizador pondría en esta línea y tú no usaste ahí.
+            "proposedInstead": [
+                p for p in proposed if p["htPlayerId"] not in used_ids
+            ],
+            "usedCount": len(used),
+            "agreedCount": len(agreed_ids),
+        })
+
+    return {
+        "matchId": last_match_id,
+        "matchLabel": (
+            f"{match.home_team_name} {match.home_goals}-{match.away_goals} "
+            f"{match.away_team_name}"
+            if match is not None and match.home_goals >= 0
+            else None
+        ),
+        "playedAt": match.played_at.isoformat() if match is not None else None,
+        "proposedFormation": formation,
+        "agreementCount": kept,
+        "comparableCount": total_slots,
+        "lines": lines,
+        "notes": [],
+    }
 
 
 @router.get(
     "/teams/{team_id}/lineup/team-spirit",
     summary="Multiplicador de mediocampo por Espíritu de Equipo × Actitud (HL-142)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def team_spirit_multiplier(
     team_id: int, session: AsyncSession = Depends(get_session),
@@ -620,7 +806,7 @@ async def team_spirit_multiplier(
             for name, pic, normal, mots in TEAM_SPIRIT_ATTITUDE_MULTIPLIER
         ],
         "note": (
-            "Fuente: Manual no Escrito de la comunidad — los nombres de esta tabla no "
+            "Fuente: Manual no Escrito de la comunidad, los nombres de esta tabla no "
             "coinciden con los niveles de Espíritu que reporta CHPP, así que no se puede "
             "marcar cuál es tu fila actual: es una tabla explorable, no una lectura de tu "
             "equipo."
@@ -628,7 +814,9 @@ async def team_spirit_multiplier(
     }
 
 
-@router.get("/teams/{team_id}/training/forecast", summary="Previsión de subidas (HL-034)")
+@router.get("/teams/{team_id}/training/forecast", summary="Previsión de subidas (HL-034)",
+    dependencies=[Depends(require_team_owner)],
+)
 async def training_forecast(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -682,21 +870,67 @@ async def training_forecast(
     }
 
 
-@router.get("/teams/{team_id}/insights", summary="Alertas accionables (HL-130)")
-async def team_insights(
-    team_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> list[dict[str, Any]]:
-    """Catálogo de reglas de negocio, evaluadas contra los datos reales ya
-    sincronizados de este equipo — entrenamiento, plantilla, mercado,
-    economía, liga, copa, estadio, academia y cuerpo técnico.
+async def _next_match_weather_insights(
+    session: AsyncSession, team: m.Team
+) -> list[ins.Insight]:
+    """El clima del próximo partido, si el pronóstico guardado sigue vigente.
 
-    Es un motor de reglas, no un modelo de IA: cada función de
-    `domain.engines.insights` es una condición explícita y auditable sobre
-    datos reales (algunas, jugador a jugador). Solo se muestran las que
-    disparan de verdad con el estado actual — el catálogo completo es mucho
-    más grande que la lista de abajo, que es la intersección con tu equipo
-    hoy.
+    Hattrick solo publica hoy y mañana, así que el aviso vive de que el último
+    sync sea reciente: el pronóstico guardado dice de qué día era su "hoy"
+    (`forecast_taken_at`, reloj del servidor sueco) y desde ahí se sitúa el
+    partido. Si el sync es de anteayer, no se avisa nada — enseñar el clima de
+    anteayer como si fuera el de esta tarde sería peor que no decir nada.
+    """
+    # El mismo filtro que usa el sync al pedir el pronóstico: escaleras,
+    # duelos y torneos no cuentan como "el próximo partido" en esta app.
+    match = await session.scalar(
+        select(m.Match).where(
+            or_(
+                m.Match.home_team_ht_id == team.ht_team_id,
+                m.Match.away_team_ht_id == team.ht_team_id,
+            ),
+            m.Match.status.ilike("upcoming"),
+            m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES),
+        ).order_by(m.Match.played_at).limit(1)
+    )
+    if match is None:
+        return []
+    row = await session.scalar(
+        select(m.MatchWeather).where(m.MatchWeather.ht_match_id == match.ht_match_id)
+    )
+    if row is None:
+        return []
+
+    dia_partido = ht_day(match.played_at)
+    dia_pronostico = ht_day(row.forecast_taken_at)
+    if dia_partido is None or dia_pronostico is None:
+        return []
+    faltan = (dia_partido - dia_pronostico).days
+    # Solo hoy (0) y mañana (1): son los dos únicos días que trae el fichero.
+    if faltan == 0:
+        weather_id = row.weather_today
+    elif faltan == 1:
+        weather_id = row.weather_tomorrow
+    else:
+        return []
+
+    is_home = match.home_team_ht_id == team.ht_team_id
+    return ins.next_match_weather(
+        match.ht_match_id,
+        match.away_team_name if is_home else match.home_team_name,
+        is_home,
+        row.region_name,
+        weather_id,
+        tomorrow=faltan == 1,
+    )
+
+
+async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insight]:
+    """Evalúa TODO el catálogo de reglas contra los datos ya sincronizados.
+
+    Vive aparte del endpoint porque archivar una alerta también necesita
+    derivarlas: el texto que se guarda en el buzón se toma de aquí, del
+    servidor, y no de lo que mande el cliente.
     """
     players, team = await roster(session, team_id)
     rate_ = team.currency_rate or 1.0
@@ -731,7 +965,7 @@ async def team_insights(
 
     groups: list[list[ins.Insight]] = [
         ins.injuries(players), ins.ageing_squad(players),
-        ins.low_form(players), ins.high_form(players), ins.transfer_listed(players),
+        ins.low_form(players),
     ]
 
     # ── Entrenamiento ───────────────────────────────────────────────────
@@ -760,14 +994,13 @@ async def team_insights(
                 for p in players
                 if p["ht_player_id"] != tr.trainer_ht_id
             ]
-            groups += [ins.inefficient_training(trainees), ins.upcoming_pops(trainees)]
+            groups.append(ins.inefficient_training(trainees))
 
     # ── Plantilla: posición natural, sueldo de mercado ──
     for p in players:
         p["best_position"] = rate_all(p)[0].position
     groups.append(ins.thin_keeper_depth(players))
 
-    salary_rows: list[dict[str, Any]] = []
     wage_players: list[dict[str, Any]] = []
     total_salary_local = 0
     for p in players:
@@ -777,20 +1010,7 @@ async def team_insights(
             "ht_player_id": p["ht_player_id"], "name": p["name"], "salary_local": salary_local,
         })
 
-        # La fórmula de sueldo (Manual no Escrito) solo cubre jugadores de
-        # campo — igual que en /players/{id}, un arquero se omite en vez de
-        # inventarle una estimación.
-        if p["best_position"] != "keeper":
-            est = estimate_salary(p["skills"], p["skills"].get("set_pieces", 0))
-            salary_rows.append({
-                "ht_player_id": p["ht_player_id"], "name": p["name"], "currency": currency,
-                "real_salary": salary_local, "estimated_salary": est.weekly_salary,
-            })
-
-    groups += [
-        ins.salary_market_mismatch(salary_rows),
-        ins.wage_concentration(wage_players, total_salary_local, currency),
-    ]
+    groups.append(ins.wage_concentration(wage_players, total_salary_local, currency))
 
     # ── Alineación óptima: titulares lesionados, aportadores por sector ──
     try:
@@ -798,13 +1018,6 @@ async def team_insights(
     except ValueError:
         lu = None
     if lu is not None:
-        starters = [
-            {"ht_player_id": a.player["ht_player_id"], "name": a.player["name"],
-             "label": a.label, "injury_level": a.player.get("injury_level", -1)}
-            for a in lu.assignments
-        ]
-        groups.append(ins.starter_injured(starters))
-
         sector = compute_sector_ratings([(a.player, a.position, a.label) for a in lu.assignments])
         standouts = []
         for s in SECTORS:
@@ -824,7 +1037,19 @@ async def team_insights(
             sponsors_total, econ.income_spectators,
             econ.costs_players, econ.costs_staff, econ.costs_arena,
         ) / rate_)
-        groups.append(ins.structural_deficit(structural, int(econ.cash / rate_), currency))
+        # La temporada-semana de la lectura económica entra en la alerta para
+        # que sea una por semana: mismo filtro por `ht_league_id` que el resto
+        # de la app, no "el WorldContext más reciente".
+        econ_world = (
+            await session.scalar(
+                select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+            )
+            if team.ht_league_id is not None else None
+        )
+        groups.append(ins.structural_deficit(
+            structural, int(econ.cash / rate_), currency,
+            season_week=season_week_for_datetime(econ_world, econ.captured_at),
+        ))
 
         income_items = [
             ("Espectadores", int((econ.income_spectators or 0) / rate_)),
@@ -837,8 +1062,6 @@ async def team_insights(
             int(econ.cash / rate_), int(econ.expected_cash / rate_), currency))
 
         if econ_prev:
-            groups.append(ins.sponsor_popularity_trend(
-                econ_prev.sponsors_popularity, econ.sponsors_popularity))
             groups.append(ins.fan_club_trend(econ_prev.fan_club_size, econ.fan_club_size))
 
     # ── Liga ────────────────────────────────────────────────────────────
@@ -865,9 +1088,6 @@ async def team_insights(
             groups.append(ins.next_match_forecast(league.next_match))
 
     # ── Copa ────────────────────────────────────────────────────────────
-    cup_data = await get_cup_data(team_id, session)
-    groups.append(ins.cup_streak_notable(cup_data.get("currentStreak")))
-
     # ── Estadio ─────────────────────────────────────────────────────────
     arena = await ArenaQueryService(session).get(team_id)
     if arena:
@@ -907,6 +1127,9 @@ async def team_insights(
             ins.assistant_trainers_below_reference(staff_dict),
         ]
 
+    # ── Clima del próximo partido ───────────────────────────────────────
+    groups.append(await _next_match_weather_insights(session, team))
+
     # ── Sincronización ──────────────────────────────────────────────────
     if last_sync:
         synced_at = last_sync.finished_at or last_sync.started_at
@@ -914,17 +1137,192 @@ async def team_insights(
         hours = (datetime.now(UTC) - ref).total_seconds() / 3600
         groups.append(ins.stale_data(hours))
 
+    return ins.collect(*groups)
+
+
+def _fingerprint(insight: ins.Insight) -> str:
+    """Identidad del CONTENIDO de una alerta, no de su regla.
+
+    Dos alertas con la misma `key` pero distinto texto son, para el usuario,
+    dos avisos distintos: "pierdes 300.000 por semana" y "pierdes 900.000 por
+    semana" no se archivan con el mismo clic. Por eso la huella entra en el
+    filtro del buzón — archivar es acusar recibo de un hecho concreto, no
+    apagar la regla que lo detecta.
+    """
+    raw = "|".join((
+        insight.severity.value, insight.title, insight.detail, insight.action,
+    ))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _serialize(insight: ins.Insight) -> dict[str, Any]:
+    return {
+        "key": insight.key, "severity": insight.severity.value,
+        "title": insight.title, "detail": insight.detail,
+        "action": insight.action, "module": insight.module,
+        "evidence": insight.evidence,
+    }
+
+
+async def _dismissals(
+    session: AsyncSession, team_id: int, live_keys: Collection[str],
+) -> dict[str, m.DismissedInsight]:
+    """Las archivadas de este equipo, sin las que ya no pueden volver.
+
+    Se caen dos clases de fila, y las dos por lo mismo — nada las va a
+    regenerar, así que enseñarlas sería prometer un aviso que no llega:
+
+    - Las huérfanas. Una fila archivada sobrevive a su regla, de modo que al
+      borrar una regla —o al cambiarle la clave— su archivada se queda suelta
+      en la base.
+    - Las de una semana pasada. Las claves de `WEEK_SCOPED_KEY_ROOTS` llevan la
+      semana pegada; si esa clave exacta no está entre las que se derivan hoy,
+      su semana ya pasó.
+
+    `live_keys` son las claves derivadas ahora mismo, ANTES de descontar el
+    buzón: una alerta archivada de la semana en curso sigue estando ahí, que es
+    justo lo que la distingue de una caducada.
+    """
+    rows = (await session.execute(
+        select(m.DismissedInsight)
+        .where(m.DismissedInsight.team_id == team_id)
+        .order_by(m.DismissedInsight.dismissed_at.desc())
+    )).scalars()
+    return {
+        row.key: row for row in rows
+        if ins.is_known_key(row.key)
+        and (ins.week_scoped_root(row.key) is None or row.key in live_keys)
+    }
+
+
+@router.get("/teams/{team_id}/insights", summary="Alertas accionables (HL-130)",
+    dependencies=[Depends(require_team_owner)],
+)
+async def team_insights(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    """Catálogo de reglas de negocio, evaluadas contra los datos reales ya
+    sincronizados de este equipo — entrenamiento, plantilla, mercado,
+    economía, liga, copa, estadio, academia y cuerpo técnico.
+
+    Es un motor de reglas, no un modelo de IA: cada función de
+    `domain.engines.insights` es una condición explícita y auditable sobre
+    datos reales (algunas, jugador a jugador). Solo se muestran las que
+    disparan de verdad con el estado actual — el catálogo completo es mucho
+    más grande que la lista de abajo, que es la intersección con tu equipo
+    hoy.
+
+    Las archivadas en el buzón se descuelgan de aquí mientras su contenido no
+    cambie; si cambia, vuelven.
+    """
+    live = await _derive_insights(session, team_id)
+    archived = await _dismissals(session, team_id, [i.key for i in live])
     return [
-        {"key": i.key, "severity": i.severity.value, "title": i.title,
-         "detail": i.detail, "action": i.action, "module": i.module,
-         "evidence": i.evidence}
-        for i in ins.collect(*groups)
+        _serialize(i) for i in live
+        if not (i.key in archived and archived[i.key].fingerprint == _fingerprint(i))
     ]
+
+
+@router.get("/teams/{team_id}/insights/archived", summary="Buzón de alertas archivadas",
+    dependencies=[Depends(require_team_owner)],
+)
+async def team_insights_archived(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    """Lo que el usuario archivó, más reciente primero.
+
+    Guarda el texto tal como estaba al archivarlo, así que sigue siendo
+    legible aunque la condición ya no se cumpla — y `stillActive` dice
+    justamente eso: si la alerta se sigue generando hoy, idéntica.
+    """
+    live = {i.key: _fingerprint(i) for i in await _derive_insights(session, team_id)}
+    archived = await _dismissals(session, team_id, live)
+    if not archived:
+        return []
+    return [
+        {"key": row.key, "severity": row.severity, "title": row.title,
+         "detail": row.detail, "action": row.action, "module": row.module,
+         "evidence": {}, "dismissedAt": row.dismissed_at.isoformat(),
+         "stillActive": live.get(row.key) == row.fingerprint}
+        for row in archived.values()
+    ]
+
+
+@router.post("/teams/{team_id}/insights/{key}/archive", summary="Archivar una alerta",
+    dependencies=[Depends(require_team_owner)],
+)
+async def archive_insight(
+    team_id: int,
+    key: str,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Manda una alerta al buzón. El texto archivado se toma de la alerta
+    recién derivada en el servidor, no del cliente."""
+    match = next((i for i in await _derive_insights(session, team_id) if i.key == key), None)
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"La alerta '{key}' ya no está activa")
+
+    # Si esta alerta lleva la semana en la clave, las de semanas anteriores ya
+    # no valen para nada: su semana no vuelve. Se borran de la base al archivar
+    # la nueva, que si no el buzón acumularía una fila por semana durante toda
+    # la temporada.
+    root = ins.week_scoped_root(key)
+    if root is not None:
+        for vieja in (await session.execute(
+            select(m.DismissedInsight).where(
+                m.DismissedInsight.team_id == team_id,
+                m.DismissedInsight.key != key,
+                or_(m.DismissedInsight.key == root,
+                    m.DismissedInsight.key.startswith(f"{root}.")),
+            )
+        )).scalars().all():
+            await session.delete(vieja)
+
+    row = await session.scalar(
+        select(m.DismissedInsight).where(
+            m.DismissedInsight.team_id == team_id, m.DismissedInsight.key == key)
+    )
+    if row is None:
+        row = m.DismissedInsight(team_id=team_id, key=key)
+        session.add(row)
+    row.fingerprint = _fingerprint(match)
+    row.severity = match.severity.value
+    row.title = match.title
+    row.detail = match.detail
+    row.action = match.action
+    row.module = match.module
+    row.dismissed_at = datetime.now(UTC)
+    await session.commit()
+    return {"key": key, "archived": True}
+
+
+@router.delete("/teams/{team_id}/insights/{key}/archive", summary="Sacar del buzón",
+    dependencies=[Depends(require_team_owner)],
+)
+async def restore_insight(
+    team_id: int,
+    key: str,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Devuelve la alerta a la lista activa — si la condición sigue viva.
+    Si ya no se cumple, simplemente desaparece del buzón."""
+    row = await session.scalar(
+        select(m.DismissedInsight).where(
+            m.DismissedInsight.team_id == team_id, m.DismissedInsight.key == key)
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"La alerta '{key}' no está archivada")
+    await session.delete(row)
+    await session.commit()
+    return {"key": key, "archived": False}
 
 
 @router.get(
     "/teams/{team_id}/experience/calibration",
     summary="Puntos por nivel medidos, no declarados (HL-041)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def experience_calibration(
     team_id: int,
@@ -989,6 +1387,7 @@ async def experience_calibration(
 @router.get(
     "/teams/{team_id}/loyalty/model",
     summary="Fórmula de Fidelidad según los días transcurridos desde la compra",
+    dependencies=[Depends(require_team_owner)],
 )
 async def loyalty_model(
     team_id: int,
@@ -1002,6 +1401,7 @@ async def loyalty_model(
 @router.get(
     "/teams/{team_id}/training/formula",
     summary="La fórmula de entrenamiento con la procedencia de cada valor (HL-030)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def training_formula(
     team_id: int,
@@ -1060,7 +1460,8 @@ async def training_formula(
 
 @router.get(
     "/teams/{team_id}/training/squad",
-    summary="Vista de plantilla por entrenamiento — la pestaña que HC deja vacía",
+    summary="Vista de plantilla por entrenamiento, la pestaña que HC deja vacía",
+    dependencies=[Depends(require_team_owner)],
 )
 async def training_squad(
     team_id: int,
@@ -1098,6 +1499,7 @@ async def training_squad(
                 "htPlayerId": r.ht_player_id,
                 "name": r.name,
                 "nativeCountry": r.native_country,
+                "countryCode": r.country_code,
                 "age": f"{r.age_years}.{r.age_days}",
                 "level": r.level,
                 "levelName": r.level_name,
@@ -1105,6 +1507,10 @@ async def training_squad(
                 "weeksTotal": r.weeks_total,
                 "progressPct": r.progress_pct,
                 "hasReference": r.has_reference,
+                "hasHistoricalReference": r.has_historical_reference,
+                "lastImprovement": r.last_improvement,
+                "currentWeekMinutes": r.current_week_minutes,
+                "currentWeekExposure": r.current_week_exposure,
             }
             for r in view.rows
         ],
@@ -1126,6 +1532,7 @@ async def training_squad(
 @router.get(
     "/teams/{team_id}/training/development",
     summary="Progreso de Experiencia y Fidelidad de la plantilla",
+    dependencies=[Depends(require_team_owner)],
 )
 async def training_development(
     team_id: int,
@@ -1146,6 +1553,7 @@ async def training_development(
                 "htPlayerId": row.ht_player_id,
                 "name": row.name,
                 "nativeCountry": row.native_country,
+                "countryCode": row.country_code,
                 "age": f"{row.age_years}.{row.age_days}",
                 "level": row.level,
                 "levelName": row.level_name,
@@ -1155,6 +1563,8 @@ async def training_development(
                 "remainingPoints": row.remaining_points,
                 "progressPct": row.progress_pct,
                 "breakdown": row.breakdown,
+                "matchCounts": row.match_counts,
+                "lastImprovement": row.last_improvement,
                 "unscoredNationalMatches": row.unscored_national_matches,
             }
             for row in view.experience
@@ -1164,6 +1574,7 @@ async def training_development(
                 "htPlayerId": row.ht_player_id,
                 "name": row.name,
                 "nativeCountry": row.native_country,
+                "countryCode": row.country_code,
                 "age": f"{row.age_years}.{row.age_days}",
                 "reportedLevel": row.reported_level,
                 "calculatedLevel": row.calculated_level,
@@ -1171,11 +1582,29 @@ async def training_development(
                 "decimalLevel": row.decimal_level,
                 "progressPct": row.progress_pct,
                 "daysInClub": row.days_in_club,
+                "lastImprovement": row.last_improvement,
                 "nextLevel": row.next_level,
                 "daysToNextLevel": row.days_to_next_level,
                 "dateSource": row.date_source,
             }
             for row in view.loyalty
+        ],
+        "stamina": [
+            {
+                "htPlayerId": row.ht_player_id,
+                "name": row.name,
+                "nativeCountry": row.native_country,
+                "countryCode": row.country_code,
+                "age": f"{row.age_years}.{row.age_days}",
+                "level": row.level,
+                "levelName": row.level_name,
+                "effectiveTrainingPct": row.effective_training_pct,
+                "expectedLevel": row.expected_level,
+                "expectedLevelName": row.expected_level_name,
+                "trend": row.trend,
+                "lastImprovement": row.last_improvement,
+            }
+            for row in view.stamina
         ],
         "notes": view.notes,
     }
@@ -1184,6 +1613,7 @@ async def training_development(
 @router.get(
     "/teams/{team_id}/players/{ht_player_id}/training/levels",
     summary="Subidas confirmadas y previsión de niveles futuros de un jugador",
+    dependencies=[Depends(require_team_owner)],
 )
 async def player_training_levels(
     team_id: int,
@@ -1229,10 +1659,10 @@ async def player_training_levels(
         "notes": history.notes,
     }
 
-
 @router.get(
     "/teams/{team_id}/training/post-match",
     summary="Entrenamiento decidido a posteriori",
+    dependencies=[Depends(require_team_owner)],
 )
 async def post_match_training(
     team_id: int,
@@ -1250,3 +1680,67 @@ async def post_match_training(
     if result is None:
         raise HTTPException(404, f"team {team_id} not found")
     return result
+
+
+@router.get(
+    "/teams/{team_id}/overview",
+    summary="Equipo: la plantilla entera promediada por grupos",
+    dependencies=[Depends(require_team_owner)],
+)
+async def team_overview(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Promedios de plantilla agrupados para leer al equipo de un vistazo.
+
+    Cada grupo declara con qué forma se puede dibujar: `radar` solo cuando
+    todas sus métricas comparten escala, `bars` cuando cada una necesita su
+    propio techo (ver `team_overview.py`).
+    """
+    data = await TeamOverviewQueryService(session).get(team_id)
+    if data is None:
+        raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
+    return {
+        "teamName": data.team_name,
+        "playerCount": data.player_count,
+        "currency": data.currency,
+        "groups": [
+            {
+                "key": g.key, "label": g.label, "chart": g.chart, "note": g.note,
+                "weeks": g.weeks,
+                "charts": [
+                    {
+                        "key": ch.key, "title": ch.title,
+                        "scaleMin": ch.scale_min, "scaleMax": ch.scale_max,
+                        "band": ch.band,
+                        "series": [
+                            {"key": sr.key, "label": sr.label,
+                             "values": sr.values, "display": sr.display}
+                            for sr in ch.series
+                        ],
+                    }
+                    for ch in g.charts
+                ],
+                "pitch": [
+                    {"key": sl.key, "label": sl.label, "count": sl.count,
+                     "bestRating": sl.best_rating,
+                     "topPlayer": sl.top_player,
+                     "bestVariantLabel": sl.best_variant_label,
+                     "averageRating": sl.average_rating}
+                    for sl in g.pitch
+                ],
+                "specialRoles": [
+                    {"key": sr.key, "label": sr.label,
+                     "topPlayer": sr.top_player, "rating": sr.rating}
+                    for sr in g.special_roles
+                ],
+                "metrics": [
+                    {"key": mtr.key, "label": mtr.label, "value": mtr.value,
+                     "scaleMax": mtr.scale_max, "display": mtr.display,
+                     "valueLabel": mtr.value_label}
+                    for mtr in g.metrics
+                ],
+            }
+            for g in data.groups
+        ],
+    }

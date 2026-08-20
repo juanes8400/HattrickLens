@@ -20,11 +20,14 @@ def test_club_query_reunites_mood_supporters_and_staff_without_fabricating_histo
     assert data["current"]["supporters"]["fanClubSize"] > 0
     assert data["staff"] is not None
     assert data["staff"]["trainer"]["skillLevel"] > 0
+    # Los seis puestos reales de Hattrick. "Portavoz" salió de aquí el
+    # 2026-08-17: venía del club.xml viejo, no del juego.
     assert {role["key"] for role in data["staff"]["roles"]} == {
         "assistant_trainer_levels", "form_coach_levels", "medic_levels",
         "sport_psychologist_levels", "tactical_assistant_levels",
-        "financial_director_levels", "spokesperson_levels",
+        "financial_director_levels",
     }
+    assert all(role["effect"] is not None for role in data["staff"]["roles"])
     # Sólo hay una captura de cada fuente en el fixture: el servicio no crea
     # puntos intermedios para simular una evolución que no conoce.
     assert len(data["moodHistory"]) == 1
@@ -45,5 +48,8 @@ def test_club_query_reunites_mood_supporters_and_staff_without_fabricating_histo
     medics = next(r for r in data["staff"]["roles"] if r["key"] == "medic_levels")
     assert medics["level"] == 2
     assert medics["effect"]["recoverySpeedPct"] == 40.0  # nivel 2
-    spokespeople = next(r for r in data["staff"]["roles"] if r["key"] == "spokesperson_levels")
-    assert spokespeople["effect"] is None  # sin tabla oficial para Portavoz
+    # 2026-08-17: aquí se comprobaba que "Portavoz" no tuviera tabla de
+    # efecto. Esa era la pista, no el comportamiento correcto: el puesto no
+    # existe en Hattrick y ya no se enseña, así que la comprobación pasa a ser
+    # que NO esté entre los roles.
+    assert all(r["key"] != "spokesperson_levels" for r in data["staff"]["roles"])

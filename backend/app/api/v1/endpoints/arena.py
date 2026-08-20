@@ -6,12 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.arena import ArenaQueryService
+from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
 
 
-@router.get("/teams/{team_id}/arena", summary="Ocupación, demanda censurada y ampliación")
+@router.get("/teams/{team_id}/arena", summary="Ocupación, demanda censurada y ampliación",
+    dependencies=[Depends(require_team_owner)],
+)
 async def arena(
     team_id: int,
     fill_rate: float | None = Query(

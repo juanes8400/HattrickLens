@@ -182,6 +182,7 @@ export function ProgressBar({
     redWidth = Math.min(redPctRaw, Math.max(0, 100 - bluePctFull));
     redLeft = bluePctFull;
   }
+  const segmentGap = blueWidth > 0 && redWidth > 0 ? 2 : 0;
 
   return (
     <div title={tooltip} className="cursor-help">
@@ -192,15 +193,24 @@ export function ProgressBar({
           {valueLabel}
         </span>
       </div>
-      <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+      {/* Cada tramo lleva sus propias esquinas y hay 2px de aire entre ellos.
+          Antes ninguno tenía radio propio: se apoyaban en el recorte de la
+          pista, así que el rojo salía como un rectángulo de bordes rectos
+          pegado a hueso contra el azul, y sólo se redondeaba por la derecha
+          si llegaba justo al 100%. El aire sólo aparece cuando hay los dos
+          tramos, si no, dejaría un hueco contra el borde de la pista. */}
+      <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
         <div
-          className="absolute inset-y-0 left-0 bg-[var(--accent)]"
+          className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)]"
           style={{ width: `${blueWidth}%` }}
         />
         {redWidth > 0 && (
           <div
-            className="absolute inset-y-0 bg-[var(--danger)]"
-            style={{ left: `${redLeft}%`, width: `${redWidth}%` }}
+            className="absolute inset-y-0 rounded-full bg-[var(--danger)]"
+            style={{
+              left: `calc(${redLeft}% + ${segmentGap}px)`,
+              width: `max(0px, calc(${redWidth}% - ${segmentGap}px))`,
+            }}
           />
         )}
       </div>

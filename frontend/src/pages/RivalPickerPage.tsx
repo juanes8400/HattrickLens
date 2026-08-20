@@ -8,7 +8,27 @@ interface RivalRow {
   htTeamId: number;
   name: string;
   detail: string;
+  /** Puesto en la tabla — solo en las competiciones que tienen tabla. */
+  position?: number;
+  /** Fecha del cruce más reciente contra este rival — solo en las de cruces. */
+  date?: string;
 }
+
+/** Cómo se ordena una competición, que depende de qué la organiza.
+ *
+ * 2026-08-17, pedido explícito. Una liga es una tabla: el orden natural es el
+ * puesto, y el 1º arriba. Una copa no tiene tabla — es una secuencia de
+ * cruces— así que lo que sitúa a un rival es cuándo lo enfrentaste, con lo más
+ * reciente primero.
+ *
+ * Sin esto la tabla caía en el orden por defecto de `DataTable`, que es la
+ * primera columna: alfabético por nombre de equipo, que no dice nada.
+ */
+type Ordering = "table" | "date";
+
+/** Competiciones con tabla, por nombre de categoría. El resto —copas y la
+ *  Hattrick Masters— se ordenan por fecha. */
+const TABLE_ORDERED_CATEGORIES = new Set(["liga", "promoción"]);
 
 /** Orden de exhibición de las categorías — Liga primero, luego las copas en
  * el mismo orden de nivel que ya usa la página de Copa (Escalera de copas):
@@ -51,7 +71,8 @@ export function RivalPickerPage() {
     .map((s) => ({
       htTeamId: s.htTeamId,
       name: s.name,
-      detail: `${s.position}º · ${s.points} pts · ${s.played} jugados`,
+      detail: `${s.points} pts · ${s.played} jugados`,
+      position: s.position,
     }));
 
   const cupCandidates = new Map<string, Map<number, RivalRow>>();
@@ -59,22 +80,27 @@ export function RivalPickerPage() {
     cupName: string | null,
     htTeamId: number,
     name: string,
+    date: string,
     detail: string,
   ) => {
     const key = cupName ?? "Copa (nivel sin identificar)";
     if (!cupCandidates.has(key)) cupCandidates.set(key, new Map());
     // Si el mismo rival aparece dos veces en el mismo nivel (partido de ida
-    // y vuelta), se queda la entrada más reciente — no se duplica la fila.
-    cupCandidates.get(key)!.set(htTeamId, { htTeamId, name, detail });
+    // y vuelta), se queda el cruce MÁS RECIENTE — no se duplica la fila. Se
+    // compara la fecha en vez de fiarse del orden de llegada, que es lo que
+    // decide dónde queda la fila al ordenar por fecha.
+    const previous = cupCandidates.get(key)!.get(htTeamId);
+    if (previous && (previous.date ?? "") >= date) return;
+    cupCandidates.get(key)!.set(htTeamId, { htTeamId, name, date, detail });
   };
   for (const h of cup.data?.history ?? []) {
     addCupRow(
-      h.cupName, h.opponentHtTeamId, h.opponent,
-      `${h.date} · ${h.goalsFor}-${h.goalsAgainst} (${h.result})`,
+      h.cupName, h.opponentHtTeamId, h.opponent, h.date,
+      `${h.goalsFor}-${h.goalsAgainst} (${h.result})`,
     );
   }
   for (const nm of cup.data?.nextMatches ?? []) {
-    addCupRow(nm.cupName, nm.opponentHtTeamId, nm.opponent, `${nm.date} · programado`);
+    addCupRow(nm.cupName, nm.opponentHtTeamId, nm.opponent, nm.date, "programado");
   }
 
   const cupNames = [...cupCandidates.keys()].sort((a, b) => {
@@ -86,16 +112,20 @@ export function RivalPickerPage() {
     return ia - ib;
   });
 
-  const categories = [
-    { key: "liga", label: "Liga", rows: leagueRows },
+  const categories: { key: string; label: string; ordering: Ordering; rows: RivalRow[] }[] = [
+    { key: "liga", label: "Liga", ordering: "table" as Ordering, rows: leagueRows },
     ...cupNames.map((cupName) => ({
       key: cupName,
       label: cupName,
+      ordering: (TABLE_ORDERED_CATEGORIES.has(cupName.toLowerCase())
+        ? "table"
+        : "date") as Ordering,
       rows: [...cupCandidates.get(cupName)!.values()],
     })),
   ].filter((c) => c.rows.length > 0);
 
   const active = categories.find((c) => c.key === selected) ?? categories[0] ?? null;
+  const byTable = active?.ordering === "table";
 
   const columns: Column<RivalRow>[] = [
     {
@@ -109,6 +139,20 @@ export function RivalPickerPage() {
         </button>
       ),
     },
+    // La columna por la que se ordena cambia con la competición, y por eso es
+    // ella misma la que cambia: una posición que no existe en copa no debe
+    // aparecer como una columna vacía.
+    byTable
+      ? {
+          key: "position", header: "Pos.", align: "right" as const,
+          value: (r: RivalRow) => r.position ?? Number.MAX_SAFE_INTEGER,
+          render: (r: RivalRow) => (r.position != null ? `${r.position}º` : "-"),
+        }
+      : {
+          key: "date", header: "Fecha",
+          // ISO: ordenar el texto ya es ordenar cronológicamente.
+          value: (r: RivalRow) => r.date ?? "",
+        },
     { key: "detail", header: "Detalle", value: (r) => r.detail },
     { key: "id", header: "ID", align: "right", value: (r) => r.htTeamId, optional: true },
   ];
@@ -118,7 +162,7 @@ export function RivalPickerPage() {
       <header>
         <h1 className="text-xl font-semibold">Elegir rival</h1>
         <p className="text-sm text-[var(--muted)]">
-          Liga y copas ya cruzadas o programadas esta temporada — o salta directo con el ID.
+          Liga y copas ya cruzadas o programadas esta temporada, o salta directo con el ID.
         </p>
       </header>
 
@@ -174,18 +218,23 @@ export function RivalPickerPage() {
           </div>
           {active && (
             <DataTable
+              // Remonta al cambiar de competición: `DataTable` fija su columna
+              // de orden al montarse, así que sin esto la tabla de copa
+              // heredaría el orden por posición de la liga — una columna que
+              // allí ni existe, con lo que se quedaría sin ordenar.
+              key={active.key}
               rows={active.rows}
               columns={columns}
               rowKey={(r) => r.htTeamId}
+              initialSort={byTable ? "position" : "date"}
+              initialDescending={!byTable}
               filterPlaceholder="Filtrar por equipo…"
               emptyMessage="Sin equipos en esta categoría."
             />
           )}
           <Note>
-            Liga es la lista completa de tu serie (siempre los mismos rivales toda la temporada).
-            Las copas solo muestran a quien ya enfrentaste o tienes programado enfrentar esta
-            temporada en cada nivel — CHPP no revela el cruce de una ronda de copa hasta que se
-            sortea, así que no hay "todos los rivales posibles" que mostrar de antemano.
+            En copa sólo aparece quien ya enfrentaste o tienes programado: el cruce de una ronda
+            no se conoce hasta que se sortea.
           </Note>
         </Panel>
       )}

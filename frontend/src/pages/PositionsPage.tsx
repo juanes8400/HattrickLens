@@ -1,7 +1,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
-import { ErrorState, Loading, Note, Panel } from "../components/Panels";
+import { ErrorState, Loading, Panel } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { useSquad } from "../hooks/useTeam";
 import { htAge } from "../hooks/useFormat";
@@ -16,41 +16,41 @@ type RoleTab = {
 const ROLE_TABS: RoleTab[] = [
   { id: "keeper", label: "Portero", orders: [{ key: "keeper", label: "Portero" }] },
   {
-    id: "central", label: "Defensa central", orders: [
-      { key: "central_defender", label: "Defensa central" },
-      { key: "central_defender_towards_wing", label: "Defensa central hacia lateral" },
-      { key: "central_defender_offensive", label: "Defensa central ofensivo" },
+    id: "central", label: "Defensa Central", orders: [
+      { key: "central_defender", label: "Defensa Central" },
+      { key: "central_defender_towards_wing", label: "Defensa Central hacia Lateral" },
+      { key: "central_defender_offensive", label: "Defensa Central Ofensivo" },
     ],
   },
   {
-    id: "wingback", label: "Defensa lateral", orders: [
-      { key: "wingback", label: "Lateral" },
-      { key: "wingback_towards_middle", label: "Lateral hacia el medio" },
-      { key: "wingback_offensive", label: "Lateral ofensivo" },
-      { key: "wingback_defensive", label: "Lateral defensivo" },
+    id: "wingback", label: "Defensa Lateral", orders: [
+      { key: "wingback", label: "Defensa Lateral" },
+      { key: "wingback_towards_middle", label: "Defensa Lateral hacia Medio" },
+      { key: "wingback_offensive", label: "Defensa Lateral Ofensivo" },
+      { key: "wingback_defensive", label: "Defensa Lateral Defensivo" },
     ],
   },
   {
-    id: "midfield", label: "Medio", orders: [
-      { key: "inner_midfield", label: "Medio" },
-      { key: "inner_midfield_towards_wing", label: "Medio hacia banda" },
-      { key: "inner_midfield_offensive", label: "Medio ofensivo" },
-      { key: "inner_midfield_defensive", label: "Medio defensivo" },
+    id: "midfield", label: "Mediocentro", orders: [
+      { key: "inner_midfield", label: "Mediocentro" },
+      { key: "inner_midfield_towards_wing", label: "Mediocentro hacia Lateral" },
+      { key: "inner_midfield_offensive", label: "Mediocentro Ofensivo" },
+      { key: "inner_midfield_defensive", label: "Mediocentro Defensivo" },
     ],
   },
   {
     id: "winger", label: "Extremo", orders: [
       { key: "winger", label: "Extremo" },
-      { key: "winger_towards_middle", label: "Extremo hacia el medio" },
-      { key: "winger_offensive", label: "Extremo ofensivo" },
-      { key: "winger_defensive", label: "Extremo defensivo" },
+      { key: "winger_towards_middle", label: "Extremo hacia Medio" },
+      { key: "winger_offensive", label: "Extremo Ofensivo" },
+      { key: "winger_defensive", label: "Extremo Defensivo" },
     ],
   },
   {
     id: "forward", label: "Delantero", orders: [
       { key: "forward", label: "Delantero" },
-      { key: "forward_defensive", label: "Delantero defensivo" },
-      { key: "forward_towards_wing", label: "Delantero hacia banda" },
+      { key: "forward_defensive", label: "Delantero Defensivo" },
+      { key: "forward_towards_wing", label: "Delantero hacia Lateral" },
     ],
   },
   {
@@ -75,7 +75,7 @@ const SKILL_COLUMNS: [keyof SquadPlayer["skills"], string][] = [
 ];
 
 function Rating({ value }: { value: number | null | undefined }) {
-  return value == null ? <span className="text-[var(--muted)]">—</span> : (
+  return value == null ? <span className="text-[var(--muted)]">, </span> : (
     <b className="tabular-nums text-[var(--accent)]">{value.toFixed(2)}</b>
   );
 }
@@ -173,9 +173,6 @@ export function PositionsPage() {
             </label>
           ))}
         </div>
-        <Note>
-          El ranking se recalcula en el servidor para «{activeOrder.label}». Es un índice de aporte medio a los sectores, calculado con las matrices y factores del Manual no Escrito; no es una estrella ni el rating oficial de un partido.
-        </Note>
       </Panel>
 
       <DataTable

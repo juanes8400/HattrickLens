@@ -7,10 +7,11 @@ import hashlib
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.domain.engines.sync_diff import (
+    Change,
     MatchState,
     diff_economy,
     diff_match,
@@ -20,6 +21,7 @@ from app.domain.engines.sync_diff import (
     diff_training,
 )
 from app.domain.ports.chpp_gateway import CHPPGateway
+from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.ports.repositories import UnitOfWork
 
 # 2026-08-05, pedido explícitamente: "la conexión" de Hattrick Control
@@ -34,6 +36,25 @@ ProgressReporter = Callable[[str], Awaitable[None]]
 async def _report(on_progress: ProgressReporter | None, message: str) -> None:
     if on_progress is not None:
         await on_progress(message)
+
+
+def _parse_dt(value: str | None) -> datetime | None:
+    """Fecha de CHPP ("2026-08-09 05:05:00") a datetime aware en UTC, o `None`
+    si el fichero la trae vacía. CHPP no marca zona porque siempre es la hora
+    del servidor sueco — ver `ht_time.ht_to_utc`."""
+    return ht_to_utc(value)
+
+
+def _as_change_row(change: Change) -> dict[str, Any]:
+    """`Change` -> la fila que viaja en `SyncResult.changes` y termina en
+    `sync_changes`. Se guardan las dos caras: la frase (`summary`, para el
+    feed y el CSV) y el dato (`detail`, para que la UI formatee los números
+    ella misma en vez de re-parsear el texto)."""
+    return {
+        "category": change.category,
+        "summary": change.summary,
+        "detail": change.detail(),
+    }
 
 
 FILE_LABELS: dict[str, str] = {
@@ -51,6 +72,8 @@ FILE_LABELS: dict[str, str] = {
     "stafflist": "cuerpo técnico",
     "trainingevents": "subidas de entrenamiento confirmadas",
     "matchorders": "alineación y órdenes enviadas",
+    "youthplayerlist": "plantilla juvenil",
+    "youthteamdetails": "academia juvenil",
 }
 
 #  HL-140: un sync normal debe poder mostrar el diff completo — posición en
@@ -62,7 +85,10 @@ FILE_LABELS: dict[str, str] = {
 DEFAULT_FILES = [
     "players", "training", "economy", "teamdetails", "leaguedetails", "leaguefixtures",
     "matches", "transfersteam", "currentbids", "worlddetails", "club", "stafflist",
-    "trainingevents",
+    # youthteamdetails va ANTES que youthplayerlist: identifica qué academia es
+    # la viva (id + fecha de creación) y con eso el módulo de Juveniles puede
+    # acotar el ROI a la cantera actual en vez de sumar academias anteriores.
+    "youthteamdetails", "youthplayerlist",
 ]
 # worlddetails, 2026-08-04: única fuente de la temporada ACTUAL de Hattrick
 # (leaguedetails.xml no la trae). Antes no estaba en el sync por defecto, así
@@ -139,7 +165,10 @@ FILE_VERSIONS = {
     # mercado — se usa para contar intentos de venta hacia adelante, CHPP
     # no da un historial de esto.
     "currentbids": "1.0",
-    "playerdetails": "3.2", "transfersteam": "1.2", "arenadetails": "latest",
+    "playerdetails": "3.2", "transfersteam": "1.2",
+    "arenadetails": "latest",
+    # 1.2 verificado en vivo 2026-08-18: WeatherID (hoy) y TomorrowWeatherID.
+    "regiondetails": "1.2",
     # El default del servidor todavía responde 1.3. `sourceSystem` y los roles
     # modernos (100-113) de partidos de torneo requieren 3.0 — verificado en
     # vivo con tournamentmatchid=41877309.
@@ -313,6 +342,16 @@ class SyncTeamHandler:
                     params: dict[str, Any] = {"teamID": cmd.ht_team_id}
                     if file in ("leaguedetails", "leaguefixtures"):
                         params = {"leagueLevelUnitID": await self._series_ht_id(uow, cmd.team_id)}
+                    elif file == "youthplayerlist":
+                        # Sin `actionType=details` el fichero trae sólo las
+                        # identidades: ni niveles ni techos, y el motor de
+                        # academia se queda sin nada que evaluar. No lleva
+                        # teamID — CHPP resuelve el equipo juvenil del usuario.
+                        params = {"actionType": "details", "showLastMatch": "true"}
+                    elif file == "youthteamdetails":
+                        # Igual que el anterior: sin teamID, CHPP devuelve la
+                        # academia del usuario autenticado (verificado en vivo).
+                        params = {}
                     payload = await self._chpp.fetch(
                         file, version=FILE_VERSIONS.get(file, "latest"), **params
                     )
@@ -323,6 +362,17 @@ class SyncTeamHandler:
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"{file}: {exc}")
                     result.status = "partial"
+
+            # `players.xml` trae CountryID y `worlddetails.xml` trae la
+            # identidad oficial de ese país. Como worlddetails se descarga
+            # después de players en el flujo normal, el cruce se hace aquí,
+            # cuando ambos ya están persistidos. También permite completar
+            # snapshots existentes al actualizar desde una versión anterior
+            # de HT Lens, sin volver a pedir una ficha por jugador.
+            if "players" in files or "worlddetails" in files:
+                await self._backfill_native_countries_from_snapshots(
+                    uow, cmd.team_id, result
+                )
 
             from app.infrastructure.db import models as m
 
@@ -341,13 +391,16 @@ class SyncTeamHandler:
 
                 for p in result.departed_players:
                     name = f"{p.first_name} {p.last_name}".strip()
-                    summary = diff_player_departure(name, _conv(p.sale_price), currency)
-                    result.changes.append({"category": "jugadores", "summary": summary})
+                    change = diff_player_departure(name, _conv(p.sale_price), currency)
+                    result.changes.append(_as_change_row(change))
 
             for c in result.changes:
+                detail = c.get("detail")
                 uow.session.add(m.SyncChange(
                     sync_id=sync_id, team_id=cmd.team_id, category=c["category"],
-                    summary=c["summary"], created_at=captured_at,
+                    summary=c["summary"],
+                    detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+                    created_at=captured_at,
                 ))
 
             # HL-161: enriquecimiento de jugadores vendidos (edad en la
@@ -384,12 +437,21 @@ class SyncTeamHandler:
                 await self._sync_active_roster_player_details(
                     uow, cmd.team_id, captured_at, result, on_progress
                 )
+                await self._sync_training_events(
+                    uow, cmd.team_id, captured_at, result, on_progress
+                )
             if "matches" in files:
                 await self._sync_upcoming_match_orders(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
                 )
                 await self._backfill_missing_match_details(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
+                )
+                await self._sync_next_match_weather(
+                    uow, cmd.ht_team_id, captured_at, result, on_progress
+                )
+                await self._sync_rival_purchases(
+                    uow, cmd.team_id, cmd.ht_team_id, captured_at, result, on_progress
                 )
 
             await uow.syncs.finalize(
@@ -450,7 +512,10 @@ class SyncTeamHandler:
                                 | m.Player.agreeability.is_(None)
                                 | m.Player.specialty.is_(None)
                                 | m.Player.mother_club_team_id.is_(None)
-                                | (m.Player.age_years_at_sale.is_(None) & ~has_pre_sale_snapshot)
+                                | (
+                                    m.Player.age_years_at_sale.is_(None)
+                                    & ~has_pre_sale_snapshot
+                                )
                             )
                         )
                         | (
@@ -530,6 +595,66 @@ class SyncTeamHandler:
                 result.errors.append(f"destination_country:{ht_player_id}: {exc}")
                 result.status = "partial"
 
+    async def _backfill_native_countries_from_snapshots(
+        self, uow: UnitOfWork, team_id: int, result: SyncResult
+    ) -> None:
+        """Completa la nacionalidad con dos datos oficiales ya sincronizados.
+
+        `players.xml/CountryID` vive en PlayerSnapshot y
+        `worlddetails.xml/Country/CountryID` resuelve su nombre. No se
+        infiere nada por nombre, bandera o club. Esto cubre toda la plantilla
+        actual y cualquier exjugador del que HT Lens sí haya conservado al
+        menos un snapshot real.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        countries = {
+            row.country_id: row.country_name
+            for row in (
+                await uow.session.execute(
+                    select(m.WorldContext).where(
+                        m.WorldContext.country_id > 0,
+                        m.WorldContext.country_name != "",
+                    )
+                )
+            ).scalars()
+        }
+        if not countries:
+            return
+
+        latest_snapshot_id = (
+            select(m.PlayerSnapshot.id)
+            .where(m.PlayerSnapshot.player_id == m.Player.id)
+            .order_by(
+                m.PlayerSnapshot.captured_at.desc(),
+                m.PlayerSnapshot.id.desc(),
+            )
+            .limit(1)
+            .correlate(m.Player)
+            .scalar_subquery()
+        )
+        rows = (
+            await uow.session.execute(
+                select(m.Player, m.PlayerSnapshot.country_id)
+                .join(m.PlayerSnapshot, m.PlayerSnapshot.id == latest_snapshot_id)
+                .where(
+                    m.Player.team_id == team_id,
+                    (
+                        m.Player.native_country.is_(None)
+                        | (m.Player.native_country == "")
+                    ),
+                    m.PlayerSnapshot.country_id > 0,
+                )
+            )
+        ).all()
+        for player, country_id in rows:
+            country_name = countries.get(country_id)
+            if country_name:
+                player.native_country = country_name
+                result.snapshots_written += 1
+
     async def _backfill_mandatory_listing_count(
         self, uow: UnitOfWork, team_id: int, result: SyncResult
     ) -> None:
@@ -562,6 +687,279 @@ class SyncTeamHandler:
         for player in players:
             player.listing_count = 1
             result.snapshots_written += 1
+
+    async def _sync_rival_purchases(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """Fichajes de los clubes contra los que vas a jugar, 2026-08-19.
+
+        Se vigilan los de tu serie y los rivales de Copa, Masters o Promoción
+        que te queden por delante. El historial de transferencias de cualquier
+        club es público (`transfersteam.xml` responde para cualquier teamID,
+        verificado en vivo), así que esto no trackea nada privado.
+
+        Solo se anuncia lo comprado DESDE el sync anterior: sin esa marca, cada
+        sincronización repetiría los mismos fichajes para siempre. La nota del
+        fichado sale de las alineaciones de los últimos partidos de SU club,
+        también públicas; si todavía no ha jugado, se dice.
+        """
+        from sqlalchemy import or_, select
+
+        from app.domain.engines.sync_diff import diff_rival_purchase
+        from app.domain.value_objects.ht_constants import (
+            MATCH_TYPE_CUP,
+            MATCH_TYPE_LEAGUE,
+            MATCH_TYPE_MASTERS,
+            MATCH_TYPE_QUALIFICATION,
+            match_type_name,
+        )
+        from app.domain.value_objects.ht_time import ht_to_utc
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        if equipo is None:
+            return
+
+        anterior = await uow.session.scalar(
+            select(m.Sync)
+            .where(
+                m.Sync.team_id == team_id,
+                m.Sync.status.in_(("completed", "partial")),
+            )
+            .order_by(m.Sync.started_at.desc())
+            .offset(1)
+            .limit(1)
+        )
+        desde = (anterior.started_at if anterior else None) or (
+            captured_at - timedelta(days=7)
+        )
+        if desde.tzinfo is None:
+            desde = desde.replace(tzinfo=UTC)
+
+        vigilados: dict[int, str] = {}
+        if equipo.series_ht_id is not None:
+            filas = (
+                await uow.session.execute(
+                    select(m.Standing.team_ht_id)
+                    .where(m.Standing.series_ht_id == equipo.series_ht_id)
+                    .distinct()
+                )
+            ).all()
+            for fila in filas:
+                if fila.team_ht_id != ht_team_id:
+                    vigilados[fila.team_ht_id] = "tu liga"
+
+        competiciones = {
+            MATCH_TYPE_CUP,
+            MATCH_TYPE_MASTERS,
+            MATCH_TYPE_QUALIFICATION,
+            MATCH_TYPE_LEAGUE,
+        }
+        proximos = (
+            await uow.session.execute(
+                select(m.Match).where(
+                    or_(
+                        m.Match.home_team_ht_id == ht_team_id,
+                        m.Match.away_team_ht_id == ht_team_id,
+                    ),
+                    m.Match.status.ilike("upcoming"),
+                    m.Match.match_type.in_(competiciones),
+                )
+            )
+        ).scalars()
+        for partido in proximos:
+            es_local = partido.home_team_ht_id == ht_team_id
+            rival_id = partido.away_team_ht_id if es_local else partido.home_team_ht_id
+            if rival_id and rival_id != ht_team_id:
+                vigilados[rival_id] = match_type_name(partido.match_type)
+
+        if not vigilados:
+            return
+
+        await _report(on_progress, "Revisando fichajes de tus rivales...")
+        moneda = equipo.currency_name or ""
+        tasa = equipo.currency_rate or 1.0
+        for rival_id, competicion in vigilados.items():
+            try:
+                payload = await self._chpp.fetch(
+                    "transfersteam",
+                    version=FILE_VERSIONS["transfersteam"],
+                    teamID=rival_id,
+                    pageIndex=1,
+                )
+            except Exception as exc:  # noqa: BLE001 - un rival caído no tumba el sync
+                result.errors.append(f"transfersteam:{rival_id}: {exc}")
+                continue
+            nombre_club = payload.get("team_name") or str(rival_id)
+            for compra in payload.get("transfers", []):
+                if compra.get("buyer_team_id") != rival_id:
+                    continue
+                cuando = ht_to_utc(compra.get("deadline", ""))
+                if cuando is None or cuando <= desde:
+                    continue
+                nota = await self._best_recent_rating(
+                    rival_id, compra.get("ht_player_id") or 0
+                )
+                cambio = diff_rival_purchase(
+                    team_name=nombre_club,
+                    player_name=compra.get("player_name", ""),
+                    tsi=compra.get("tsi", 0),
+                    price=int(round((compra.get("price") or 0) / tasa)),
+                    competition=competicion,
+                    best_rating=nota,
+                    currency=moneda,
+                )
+                result.changes.append(_as_change_row(cambio))
+
+    async def _best_recent_rating(
+        self, ht_team_id: int, ht_player_id: int, matches_to_check: int = 3
+    ) -> float | None:
+        """La mejor nota del fichado en los últimos partidos de su club.
+
+        `None` si todavía no ha jugado ninguno: un fichaje de ayer no tiene
+        notas, y un 0 lo haría parecer malo en vez de nuevo.
+        """
+        if not ht_player_id:
+            return None
+        try:
+            partidos = (
+                await self._chpp.fetch(
+                    "matches", version=FILE_VERSIONS["matches"], teamID=ht_team_id
+                )
+            )["matches"]
+        except Exception:  # noqa: BLE001
+            return None
+        jugados = sorted(
+            (mt for mt in partidos if mt["status"].upper() == "FINISHED"),
+            key=lambda mt: mt["match_date"],
+        )[-matches_to_check:]
+        mejor: float | None = None
+        for mt in jugados:
+            try:
+                alineacion = (
+                    await self._chpp.fetch(
+                        "matchlineup",
+                        version=MATCHLINEUP_POSITION_CODE_VERSION,
+                        matchID=mt["ht_match_id"],
+                        matchType=mt["match_type"],
+                        teamID=ht_team_id,
+                    )
+                )["players"]
+            except Exception:  # noqa: BLE001
+                continue
+            for jugador in alineacion:
+                if jugador.get("ht_player_id") != ht_player_id:
+                    continue
+                nota = jugador.get("rating_stars") or 0.0
+                if nota > 0 and (mejor is None or nota > mejor):
+                    mejor = nota
+        return mejor
+
+    async def _sync_next_match_weather(
+        self,
+        uow: UnitOfWork,
+        ht_team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """El clima de la región donde se juega el próximo partido.
+
+        Hattrick pronostica a un día vista y por región, así que esto solo
+        tiene sentido para el partido inmediato: se piden dos ficheros —el
+        estadio donde se juega, para saber su región, y la región, para saber
+        su tiempo— y nada más. En un partido de visitante la región es la del
+        rival, no la propia.
+
+        La región de un estadio no cambia, así que solo se pregunta la primera
+        vez por partido; el pronóstico, en cambio, se reescribe en cada sync
+        porque cambia de un día para otro.
+        """
+        from sqlalchemy import or_, select
+
+        from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
+        from app.domain.value_objects.ht_time import ht_day, ht_to_utc
+        from app.infrastructure.db import models as m
+
+        # Escaleras, duelos y torneos quedan fuera, igual que en el resto de la
+        # app: si un duelo de mañana tapara al partido de liga, el aviso
+        # hablaría del cielo equivocado.
+        match = await uow.session.scalar(
+            select(m.Match).where(
+                or_(
+                    m.Match.home_team_ht_id == ht_team_id,
+                    m.Match.away_team_ht_id == ht_team_id,
+                ),
+                m.Match.status.ilike("upcoming"),
+                m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES),
+            ).order_by(m.Match.played_at).limit(1)
+        )
+        if match is None:
+            return
+
+        row = await uow.session.scalar(
+            select(m.MatchWeather).where(m.MatchWeather.ht_match_id == match.ht_match_id)
+        )
+        # El pronóstico solo alcanza a hoy y mañana: para un partido más lejos
+        # no hay nada que pedir todavía.
+        dias = (ht_day(match.played_at) or captured_at.date()) - (
+            ht_day(captured_at) or captured_at.date()
+        )
+        if dias.days > 1 or dias.days < 0:
+            return
+
+        await _report(on_progress, "Consultando el clima de la sede del partido...")
+        try:
+            region_id = row.ht_region_id if row is not None else 0
+            region_name = row.region_name if row is not None else ""
+            if not region_id:
+                # teamdetails y no arenadetails: el segundo responde error 59
+                # para un equipo que no gestionas, y en un partido de
+                # visitante la región que manda es la del rival.
+                detalles = await self._chpp.fetch(
+                    "teamdetails",
+                    version=FILE_VERSIONS["teamdetails"],
+                    teamID=match.home_team_ht_id,
+                )
+                local = next(
+                    (
+                        t for t in detalles.get("teams", [])
+                        if t.get("ht_team_id") == match.home_team_ht_id
+                    ),
+                    None,
+                )
+                region_id = int((local or {}).get("ht_region_id") or 0)
+                region_name = (local or {}).get("region_name", "")
+            if not region_id:
+                return
+            forecast = await self._chpp.fetch(
+                "regiondetails",
+                version=FILE_VERSIONS["regiondetails"],
+                regionID=region_id,
+            )
+            taken_at = ht_to_utc(forecast.get("fetched_at", "")) or captured_at
+            valores = {
+                "venue_ht_team_id": match.home_team_ht_id,
+                "ht_region_id": region_id,
+                "region_name": forecast.get("region_name") or region_name,
+                "weather_today": int(forecast.get("weather_today", -1)),
+                "weather_tomorrow": int(forecast.get("weather_tomorrow", -1)),
+                "forecast_taken_at": taken_at,
+                "captured_at": captured_at,
+            }
+            if row is None:
+                uow.session.add(m.MatchWeather(ht_match_id=match.ht_match_id, **valores))
+            else:
+                for campo, valor in valores.items():
+                    setattr(row, campo, valor)
+        except Exception as exc:  # noqa: BLE001 — el clima nunca tumba un sync
+            result.errors.append(f"regiondetails: {exc}")
 
     async def _sync_upcoming_match_orders(
         self,
@@ -692,8 +1090,24 @@ class SyncTeamHandler:
                             match.submitted_rating_right_att = ratings.get("right_att")
                             match.submitted_rating_central_att = ratings.get("central_att")
                             match.submitted_rating_left_att = ratings.get("left_att")
-                            match.submitted_ratings_captured_at = captured_at
                             changed = True
+                        # Fuera del `if`: la fecha no dice "cambiaron los
+                        # ratings", dice "esta predicción corresponde a la
+                        # alineación de ahora". Dentro del `if`, una predicción
+                        # idéntica dejaba la fecha vieja y la vista la marcaba
+                        # como desfasada sin serlo.
+                        match.submitted_ratings_captured_at = captured_at
+                    elif predicted_payload.get("chpp_error"):
+                        # Hattrick devolvió `chpperror.xml`. Los ratings que ya
+                        # están guardados pertenecen a otra alineación: no se
+                        # tocan, pero el fallo se registra para que la vista
+                        # pueda decir "no hay predicción" en vez de enseñar los
+                        # viejos como si fueran los de este once.
+                        result.errors.append(
+                            f"matchorders:predictratings:{match.ht_match_id}: "
+                            f"{predicted_payload['chpp_error']}"
+                        )
+                        result.status = "partial"
                 except Exception as exc:  # noqa: BLE001 — las órdenes siguen siendo útiles
                     result.errors.append(f"matchorders:predictratings:{match.ht_match_id}: {exc}")
                     result.status = "partial"
@@ -965,8 +1379,7 @@ class SyncTeamHandler:
             return  # chpp error / partido sin datos: nada que crear todavía
         date_str = payload.get("match_date", "")
         played_at = (
-            datetime.fromisoformat(date_str).replace(tzinfo=UTC)
-            if date_str else datetime.now(UTC)
+            ht_to_utc(date_str) or datetime.now(UTC)
         )
         home = payload.get("home") or {}
         away = payload.get("away") or {}
@@ -1053,8 +1466,7 @@ class SyncTeamHandler:
             # SquadQueryService, que la usa para decidir si mostrar el dato).
             played_at_str = last_match.get("played_at", "")
             snap.last_match_played_at = (
-                datetime.fromisoformat(played_at_str).replace(tzinfo=UTC)
-                if played_at_str else None
+                ht_to_utc(played_at_str)
             )
             snap.last_match_behaviour_code = await self._fetch_last_match_behaviour(
                 uow, ht_player_id, last_match.get("ht_match_id"), player.team_id,
@@ -1133,6 +1545,53 @@ class SyncTeamHandler:
             if p.get("ht_player_id") == ht_player_id:
                 return p.get("behaviour")
         return None
+
+    async def _sync_training_events(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """Subidas confirmadas por Hattrick, jugador por jugador.
+
+        CORRECCIÓN 2026-08-19: `trainingevents.xml` estaba en la lista de
+        ficheros del sync general, y ahí se pedía SIN `playerID`. Hattrick
+        responde a eso con error 56, así que la tabla `skill_ups` llevaba
+        vacía desde siempre pese a tener parser, handler y modelo. El fichero
+        solo existe por jugador, verificado en vivo: con `playerID` devuelve
+        sus eventos con `Season` y `MatchRound`, que es justo el "83-03" que
+        pide la columna "Última mejora".
+
+        Es una llamada por jugador de la plantilla activa, igual que
+        `playerdetails`. El guardado ya era idempotente: un mismo pop no se
+        cuenta dos veces.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        jugadores = (
+            await uow.session.execute(
+                select(m.Player.ht_player_id)
+                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+            )
+        ).scalars().all()
+        if not jugadores:
+            return
+        await _report(on_progress, "Leyendo subidas confirmadas por Hattrick...")
+        for ht_player_id in jugadores:
+            try:
+                payload = await self._chpp.fetch(
+                    "trainingevents",
+                    version=FILE_VERSIONS["trainingevents"],
+                    playerID=ht_player_id,
+                )
+            except Exception as exc:  # noqa: BLE001 - un jugador no tumba el sync
+                result.errors.append(f"trainingevents:{ht_player_id}: {exc}")
+                continue
+            await self._persist_skill_ups(uow, team_id, payload, captured_at, result)
 
     async def _sync_active_roster_player_details(
         self,
@@ -1233,7 +1692,7 @@ class SyncTeamHandler:
         if player.purchase_price is None:
             date_str = own_purchase.get("deadline", "")
             if date_str:
-                player.purchased_at = datetime.fromisoformat(date_str).replace(tzinfo=UTC)
+                player.purchased_at = ht_to_utc(date_str)
             player.purchase_price = own_purchase.get("price", 0)
         if player.tsi_at_purchase is None and own_purchase.get("tsi"):
             player.tsi_at_purchase = own_purchase["tsi"]
@@ -1395,7 +1854,7 @@ class SyncTeamHandler:
         price = resale.get("price", 0)
         deadline_str = resale.get("deadline", "")
         resale_deadline = (
-            datetime.fromisoformat(deadline_str).replace(tzinfo=UTC) if deadline_str else now
+            ht_to_utc(deadline_str) or now
         )
 
         uow.session.add(m.PreviousClubBonus(
@@ -1550,6 +2009,23 @@ class SyncTeamHandler:
                 wrote_anything = True
 
         native_league_name = payload.get("native_league_name")
+        if not native_league_name:
+            native_league_id = payload.get("native_league_id")
+            native_country_id = payload.get("native_country_id")
+            world = None
+            if native_league_id:
+                world = await uow.session.scalar(
+                    select(m.WorldContext).where(
+                        m.WorldContext.ht_league_id == native_league_id
+                    )
+                )
+            if world is None and native_country_id:
+                world = await uow.session.scalar(
+                    select(m.WorldContext).where(
+                        m.WorldContext.country_id == native_country_id
+                    )
+                )
+            native_league_name = world.country_name if world is not None else None
         if player.native_country is None and native_league_name:
             player.native_country = native_league_name
             wrote_anything = True
@@ -1712,11 +2188,9 @@ class SyncTeamHandler:
                 currency = team.currency_name if team else ""
                 rate = (team.currency_rate or 1.0) if team else 1.0
                 changes = diff_economy(old_values, payload, currency, rate)
-                category = "economía"
             else:
                 changes = diff_training(old_values, payload)
-                category = "entrenamiento"
-            result.changes.extend({"category": category, "summary": c} for c in changes)
+            result.changes.extend(_as_change_row(c) for c in changes)
             return
         if file in ("club", "stafflist"):
             await self._persist_staff(uow, sync_id, team_id, file, payload, captured_at, result)
@@ -1747,6 +2221,18 @@ class SyncTeamHandler:
         if file == "transfersteam":
             await self._persist_transfers(uow, team_id, ht_team_id, payload, result)
             return
+        if file == "youthplayerlist":
+            await self._persist_youth(uow, sync_id, team_id, payload, captured_at, result)
+            return
+        if file == "youthteamdetails":
+            from app.infrastructure.db import models as m
+
+            team = await uow.session.get(m.Team, team_id)
+            if team is not None and payload.get("ht_youth_team_id"):
+                team.ht_youth_team_id = payload["ht_youth_team_id"]
+                team.youth_team_name = payload.get("youth_team_name") or None
+                team.youth_academy_created_at = _parse_dt(payload.get("created_date"))
+            return
         if file != "players":
             return  # TODO: handler para arena…
         roster = payload.get("players", [])
@@ -1764,7 +2250,7 @@ class SyncTeamHandler:
             result.snapshots_written += 1
             name = f"{p['first_name']} {p['last_name']}".strip()
             changes = diff_player_skills(old_values, p, name)
-            result.changes.extend({"category": "jugadores", "summary": c} for c in changes)
+            result.changes.extend(_as_change_row(c) for c in changes)
 
         if roster:
             # Quien no vino en este players.xml ya no está en el club — se
@@ -1903,6 +2389,8 @@ class SyncTeamHandler:
             if row is None:
                 row = m.WorldContext(ht_league_id=lid)
                 uow.session.add(row)
+            row.country_id = league.get("country_id", 0)
+            row.country_code = league.get("country_code", "")
             row.league_name = league.get("league_name", "")
             row.country_name = league.get("country_name", "")
             row.season = league.get("season", 0)
@@ -1920,7 +2408,7 @@ class SyncTeamHandler:
             ):
                 raw = league.get(key) or ""
                 try:
-                    parsed = datetime.fromisoformat(raw).replace(tzinfo=UTC) if raw else None
+                    parsed = ht_to_utc(raw)
                 except ValueError:
                     parsed = None
                 setattr(row, field, parsed)
@@ -1987,6 +2475,103 @@ class SyncTeamHandler:
             ))
             result.snapshots_written += 1
 
+    YOUTH_SNAPSHOT_FIELDS = (
+        "age_years", "age_days", "minutes_last_match", "can_be_promoted_in",
+        "keeper", "keeper_max", "keeper_max_reached",
+        "defending", "defending_max", "defending_max_reached",
+        "playmaking", "playmaking_max", "playmaking_max_reached",
+        "winger", "winger_max", "winger_max_reached",
+        "passing", "passing_max", "passing_max_reached",
+        "scoring", "scoring_max", "scoring_max_reached",
+        "set_pieces", "set_pieces_max", "set_pieces_max_reached",
+    )
+
+    async def _persist_youth(
+        self,
+        uow: UnitOfWork,
+        sync_id: int,
+        team_id: int,
+        payload: dict[str, Any],
+        captured_at: datetime,
+        result: SyncResult,
+    ) -> None:
+        """Plantilla juvenil — mismo patrón append-only que la plantilla
+        principal: identidad estable en `youth_players`, un snapshot nuevo
+        sólo cuando algo cambió de verdad (hash del contenido).
+
+        2026-08-15: hasta hoy nadie descargaba `youthplayerlist`, así que la
+        pantalla de Juveniles tenía toda la lógica construida (categorías,
+        potencial, plazos, ROI) alimentándose de una tabla vacía.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        roster = payload.get("youth_players", [])
+        seen_ids: set[int] = set()
+
+        for row in roster:
+            ht_id = row.get("ht_youth_player_id", 0)
+            if not ht_id:
+                continue
+            seen_ids.add(ht_id)
+
+            youth = await uow.session.scalar(
+                select(m.YouthPlayer).where(m.YouthPlayer.ht_youth_player_id == ht_id)
+            )
+            if youth is None:
+                youth = m.YouthPlayer(
+                    ht_youth_player_id=ht_id,
+                    team_id=team_id,
+                    first_name=row.get("first_name", ""),
+                    last_name=row.get("last_name", ""),
+                    arrived_at=_parse_dt(row.get("arrival_date")),
+                )
+                uow.session.add(youth)
+                await uow.session.flush()
+            else:
+                youth.first_name = row.get("first_name") or youth.first_name
+                youth.last_name = row.get("last_name") or youth.last_name
+                # Si había salido y vuelve a aparecer, sigue en la academia.
+                youth.left_at = None
+
+            values = {f: row.get(f) for f in self.YOUTH_SNAPSHOT_FIELDS}
+            new_hash = hashlib.sha256(
+                json.dumps(values, sort_keys=True, default=str).encode()
+            ).digest()
+            last = await uow.session.scalar(
+                select(m.YouthSnapshot)
+                .where(m.YouthSnapshot.youth_player_id == youth.id)
+                .order_by(m.YouthSnapshot.captured_at.desc(), m.YouthSnapshot.id.desc())
+                .limit(1)
+            )
+            if last is not None and last.content_hash == new_hash:
+                result.unchanged += 1
+                continue
+
+            uow.session.add(m.YouthSnapshot(
+                sync_id=sync_id,
+                youth_player_id=youth.id,
+                captured_at=captured_at,
+                content_hash=new_hash,
+                **{k: (v if v is not None else None) for k, v in values.items()},
+            ))
+            result.snapshots_written += 1
+
+        # Quien ya no viene en el fichero salió de la academia (promocionado,
+        # vendido o descartado). Mismo criterio que la plantilla principal: un
+        # roster vacío NO marca a todos como salidos — sería un fetch roto.
+        if roster:
+            gone = list((await uow.session.execute(
+                select(m.YouthPlayer).where(
+                    m.YouthPlayer.team_id == team_id,
+                    m.YouthPlayer.left_at.is_(None),
+                    m.YouthPlayer.ht_youth_player_id.notin_(seen_ids),
+                )
+            )).scalars().all())
+            for youth in gone:
+                youth.left_at = captured_at
+
     async def _persist_matches(
         self, uow: UnitOfWork, ht_team_id: int, payload: dict[str, Any], result: SyncResult
     ) -> None:
@@ -2005,8 +2590,7 @@ class SyncTeamHandler:
             )
             date_str = mt.get("match_date", "")
             played_at = (
-                datetime.fromisoformat(date_str).replace(tzinfo=UTC)
-                if date_str else datetime.now(UTC)
+                ht_to_utc(date_str) or datetime.now(UTC)
             )
             before = (
                 MatchState(row.status, row.home_goals, row.away_goals)
@@ -2056,7 +2640,7 @@ class SyncTeamHandler:
                 else None
             )
             if change:
-                result.changes.append({"category": "partidos", "summary": change})
+                result.changes.append(_as_change_row(change))
 
     async def _persist_league_fixtures(
         self, uow: UnitOfWork, payload: dict[str, Any], result: SyncResult
@@ -2091,8 +2675,7 @@ class SyncTeamHandler:
             )
             date_str = mt.get("match_date", "")
             played_at = (
-                datetime.fromisoformat(date_str).replace(tzinfo=UTC)
-                if date_str else datetime.now(UTC)
+                ht_to_utc(date_str) or datetime.now(UTC)
             )
             home_goals = mt.get("home_goals")
             away_goals = mt.get("away_goals")
@@ -2328,7 +2911,7 @@ class SyncTeamHandler:
         if own is not None:
             change = diff_standing(old_position, own.get("position", 0), own.get("name", ""))
             if change:
-                result.changes.append({"category": "liga", "summary": change})
+                result.changes.append(_as_change_row(change))
 
     def _apply_buy_transfer(self, player: Any, t: dict[str, Any], result: SyncResult) -> None:
         """Núcleo de una compra — compartido por `_persist_transfers` (página
@@ -2343,7 +2926,7 @@ class SyncTeamHandler:
         # 2026-08-03, justo al arreglar el bug de parseo de más
         # arriba, que hasta entonces dejaba `buys`/`sells` siempre
         # vacíos y nunca llegaba a esta comparación).
-        purchased_at = datetime.fromisoformat(deadline) if deadline else None
+        purchased_at = ht_to_utc_naive(deadline)
         # Un jugador puede aparecer varias veces si se compró más de una
         # vez (vendido y recomprado): se queda la fecha más reciente. Si
         # es la MISMA transacción que ya conocíamos (fecha igual o más
@@ -2370,7 +2953,7 @@ class SyncTeamHandler:
     def _apply_sell_transfer(self, player: Any, t: dict[str, Any], result: SyncResult) -> None:
         """Núcleo de una venta — ver `_apply_buy_transfer`."""
         deadline = t.get("deadline") or ""
-        sold_at = datetime.fromisoformat(deadline) if deadline else None
+        sold_at = ht_to_utc_naive(deadline)
         is_new_transaction = (
             player.sold_at is None or sold_at is None or sold_at > player.sold_at
         )

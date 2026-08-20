@@ -526,7 +526,7 @@ class LeagueQueryService:
         caveats = list(sim.caveats)
         if schedule_incomplete:
             caveats.append(
-                "El calendario sincronizado sólo trae los partidos DE TU EQUIPO — "
+                "El calendario sincronizado sólo trae los partidos DE TU EQUIPO, "
                 "CHPP solo entrega el calendario completo del equipo que pides, "
                 "así que los partidos entre dos rivales (ninguno el tuyo) no están "
                 "sincronizados. Esos equipos quedan con sus puntos y diferencia de "

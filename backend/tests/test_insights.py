@@ -1,4 +1,8 @@
 """HL-130 y familia · Motor de alertas accionables."""
+import re
+from pathlib import Path
+
+from app.domain.engines import insights as ins
 from app.domain.engines.insights import (
     Severity,
     academy_roi,
@@ -7,9 +11,7 @@ from app.domain.engines.insights import (
     assistant_trainers_below_reference,
     cash_vs_expected_mismatch,
     collect,
-    cup_streak_notable,
     fan_club_trend,
-    high_form,
     income_concentration,
     inefficient_training,
     injuries,
@@ -18,16 +20,11 @@ from app.domain.engines.insights import (
     next_match_forecast,
     promotion_chance,
     relegation_danger,
-    salary_market_mismatch,
     sector_standouts,
     sold_out_sectors,
-    sponsor_popularity_trend,
     stale_data,
-    starter_injured,
     structural_deficit,
     thin_keeper_depth,
-    transfer_listed,
-    upcoming_pops,
     wage_concentration,
     youth_deadline,
     youth_star_prospect,
@@ -53,12 +50,6 @@ def test_no_warning_when_training_the_young() -> None:
     assert inefficient_training(TRAINEES[2:]) == []
 
 
-def test_upcoming_pops_are_opportunities() -> None:
-    out = upcoming_pops(TRAINEES, weeks_ahead=4)
-    assert out and out[0].severity is Severity.OPPORTUNITY
-    assert "Davey" in out[0].detail
-
-
 def test_structural_deficit_uses_real_numbers() -> None:
     out = structural_deficit(-217_000, 21_034_174, "US$")
     assert out and out[0].severity is Severity.WARNING
@@ -77,7 +68,7 @@ def test_positive_balance_produces_no_alert() -> None:
 def test_sold_out_sectors_flag_censored_demand() -> None:
     out = sold_out_sectors(["general", "preferentes", "palcos"], 95_437, "US$")
     assert out and out[0].severity is Severity.OPPORTUNITY
-    assert "95,437" in out[0].detail
+    assert "95.437" in out[0].detail
 
 
 def test_academy_roi_both_directions() -> None:
@@ -95,20 +86,61 @@ def test_youth_deadline_is_danger() -> None:
 
 def test_injuries_and_ageing() -> None:
     squad = [
-        {"name": "A", "age_years": 31, "injury_level": 2},
-        {"name": "B", "age_years": 30, "injury_level": -1},
-        {"name": "C", "age_years": 33, "injury_level": -1},
+        {"ht_player_id": 1, "name": "A", "age_years": 33, "injury_level": 2, "tsi": 900},
+        {"ht_player_id": 2, "name": "B", "age_years": 32, "injury_level": -1, "tsi": 800},
+        {"ht_player_id": 3, "name": "C", "age_years": 34, "injury_level": -1, "tsi": 700},
     ]
     assert injuries(squad)[0].severity is Severity.WARNING
     assert ageing_squad(squad)[0].severity is Severity.INFO
+
+
+def test_ageing_only_looks_at_the_top_tsi_core() -> None:
+    """2026-08-16, redefinida por el usuario: 3+ de 32 años entre los 11 de
+    más TSI. Que envejezcan los suplentes no obliga a nada; que envejezca el
+    once que juega, sí — antes bastaban tres treintañeros en cualquier parte
+    del plantel y eso se cumplía casi siempre."""
+    core = [
+        {"ht_player_id": i, "name": f"Joven {i}", "age_years": 24, "tsi": 10_000 - i}
+        for i in range(11)
+    ]
+    viejos_suplentes = [
+        {"ht_player_id": 100 + i, "name": f"Veterano {i}", "age_years": 35, "tsi": 10}
+        for i in range(4)
+    ]
+    assert ageing_squad(core + viejos_suplentes) == []
+
+    core[0]["age_years"] = 32
+    core[1]["age_years"] = 33
+    assert ageing_squad(core + viejos_suplentes) == []  # solo dos, no llega a tres
+    core[2]["age_years"] = 32
+    out = ageing_squad(core + viejos_suplentes)
+    assert out and "3 de tus 11" in out[0].title
+
+
+def test_a_bruised_player_is_not_an_injury() -> None:
+    """`InjuryLevel` 0 es magullado y puede jugar: no es una baja, así que no
+    genera aviso. Solo desde 1 (semanas fuera) cuenta como lesión."""
+    magullado = [{"ht_player_id": 1, "name": "Magullado", "injury_level": 0}]
+    assert injuries(magullado) == []
+    lesionado = [{"ht_player_id": 1, "name": "Lesionado", "injury_level": 1}]
+    assert len(injuries(lesionado)) == 1
+
+
+def test_each_injured_player_gets_his_own_alert() -> None:
+    """Agrupadas en una sola, archivar la del primer lesionado tapaba al
+    segundo. Una clave por jugador."""
+    out = injuries([
+        {"ht_player_id": 1, "name": "Uno", "injury_level": 2},
+        {"ht_player_id": 2, "name": "Dos", "injury_level": 3},
+    ])
+    assert [i.key for i in out] == ["player.injured.1", "player.injured.2"]
 
 
 def test_collect_orders_by_urgency() -> None:
     todo = collect(
         stale_data(48),
         structural_deficit(-500_000, 1_000_000),
-        upcoming_pops(TRAINEES),
-        injuries([{"name": "X", "age_years": 25, "injury_level": 1}]),
+        injuries([{"ht_player_id": 9, "name": "X", "age_years": 25, "injury_level": 1}]),
     )
     severidades = [i.severity for i in todo]
     assert severidades[0] is Severity.DANGER
@@ -129,46 +161,16 @@ def test_every_insight_has_a_message_and_module() -> None:
 
 # ── Plantilla, jugador a jugador ────────────────────────────────────────────
 
-def test_low_form_flags_horrible_or_worse() -> None:
+def test_low_form_flags_up_to_the_configured_threshold() -> None:
+    """2026-08-16, umbral fijado por el usuario en 4: una forma de 4 entra y
+    una de 5 se queda fuera."""
     out = low_form([
         {"ht_player_id": 1, "name": "Malo", "form": 1},
-        {"ht_player_id": 2, "name": "Bien", "form": 5},
+        {"ht_player_id": 2, "name": "Justo", "form": 4},
+        {"ht_player_id": 3, "name": "Bien", "form": 5},
     ])
-    assert len(out) == 1
-    assert out[0].severity is Severity.WARNING
-    assert "Malo" in out[0].title
-
-
-def test_high_form_flags_excellent_or_better() -> None:
-    out = high_form([{"ht_player_id": 1, "name": "Crack", "form": 9}])
-    assert out and out[0].severity is Severity.OPPORTUNITY
-
-
-def test_transfer_listed_only_flags_true() -> None:
-    out = transfer_listed([
-        {"ht_player_id": 1, "name": "Listado", "is_transfer_listed": True},
-        {"ht_player_id": 2, "name": "Normal", "is_transfer_listed": False},
-    ])
-    assert len(out) == 1 and "Listado" in out[0].title
-
-
-def test_salary_market_mismatch_flags_both_directions() -> None:
-    caro = salary_market_mismatch([
-        {"ht_player_id": 1, "name": "Caro", "currency": "US$",
-         "real_salary": 14_000, "estimated_salary": 5_000},
-    ])
-    assert caro[0].severity is Severity.WARNING and "overpaid" in caro[0].key
-
-    barato = salary_market_mismatch([
-        {"ht_player_id": 2, "name": "Ganga", "currency": "US$",
-         "real_salary": 1_000, "estimated_salary": 5_000},
-    ])
-    assert barato[0].severity is Severity.INFO and "underpaid" in barato[0].key
-
-    assert salary_market_mismatch([
-        {"ht_player_id": 3, "name": "Justo", "currency": "US$",
-         "real_salary": 5_000, "estimated_salary": 5_000},
-    ]) == []
+    assert [i.evidence["player"] for i in out] == ["Malo", "Justo"]
+    assert all(i.severity is Severity.WARNING for i in out)
 
 
 def test_wage_concentration_flags_a_single_heavy_salary() -> None:
@@ -178,15 +180,6 @@ def test_wage_concentration_flags_a_single_heavy_salary() -> None:
     ]
     out = wage_concentration(players, total_salary=100_000, currency="US$")
     assert len(out) == 1 and "Estrella" in out[0].title
-
-
-def test_starter_injured_only_flags_the_injured_starter() -> None:
-    starters = [
-        {"ht_player_id": 1, "name": "Sano", "label": "MC", "injury_level": -1},
-        {"ht_player_id": 2, "name": "Tocado", "label": "DFC", "injury_level": 1},
-    ]
-    out = starter_injured(starters)
-    assert len(out) == 1 and out[0].severity is Severity.DANGER and "Tocado" in out[0].title
 
 
 def test_thin_keeper_depth_escalates_with_zero_keepers() -> None:
@@ -221,17 +214,13 @@ def test_income_concentration_flags_a_dominant_source() -> None:
     assert out and "espectadores" in out[0].title.lower()
 
 
-def test_cash_vs_expected_mismatch_directions() -> None:
+def test_cash_vs_expected_mismatch_only_looks_down() -> None:
+    """2026-08-16: tener MÁS caja de la esperada no pide nada, así que la rama
+    "vas por encima" se eliminó. Solo queda el faltante."""
     peor = cash_vs_expected_mismatch(1_000_000, 2_000_000, "US$")
     assert peor[0].severity is Severity.WARNING
-    mejor = cash_vs_expected_mismatch(2_000_000, 1_000_000, "US$")
-    assert mejor[0].severity is Severity.INFO
+    assert cash_vs_expected_mismatch(2_000_000, 1_000_000, "US$") == []
     assert cash_vs_expected_mismatch(1_000_000, 1_100_000, "US$") == []
-
-
-def test_sponsor_popularity_trend_only_flags_a_real_drop() -> None:
-    assert sponsor_popularity_trend(80, 74)
-    assert sponsor_popularity_trend(80, 79) == []
 
 
 def test_fan_club_trend_only_flags_a_relative_drop() -> None:
@@ -282,15 +271,6 @@ def test_next_match_forecast_labels_favorite_and_underdog() -> None:
 
 # ── Copa, academia, estadio, staff ───────────────────────────────────────────
 
-def test_cup_streak_notable_reads_wins_and_losses() -> None:
-    victorias = cup_streak_notable({"count": 4, "result": "V"})
-    assert victorias and victorias[0].severity is Severity.OPPORTUNITY
-    derrotas = cup_streak_notable({"count": 3, "result": "D"})
-    assert derrotas and derrotas[0].severity is Severity.WARNING
-    assert cup_streak_notable({"count": 2, "result": "V"}) == []
-    assert cup_streak_notable(None) == []
-
-
 def test_youth_star_prospect_needs_a_non_provisional_verdict() -> None:
     listo = youth_star_prospect([{
         "ht_youth_player_id": 1, "name": "Promesa", "category": "crack",
@@ -324,3 +304,36 @@ def test_assistant_trainers_below_reference() -> None:
     out = assistant_trainers_below_reference({"assistant_trainer_levels": 3})
     assert out
     assert assistant_trainers_below_reference({"assistant_trainer_levels": 10}) == []
+
+
+# ── El catálogo de claves ────────────────────────────────────────────────────
+
+def test_known_key_roots_matches_the_keys_the_module_really_emits() -> None:
+    """`KNOWN_KEY_ROOTS` es lo que deja al buzón distinguir una archivada viva
+    de una huérfana, así que una lista desfasada volvería a llenarlo de avisos
+    que nunca pueden reaparecer. En vez de confiar en la memoria, se leen las
+    claves del propio fichero y se comparan.
+
+    Las claves con sufijo (`player.injured.{id}`) se escriben como f-string, de
+    modo que la raíz es todo lo que hay antes de la primera llave."""
+    fuente = Path(ins.__file__).read_text(encoding="utf-8")
+    literales = re.findall(r'key=\(?\s*f?"([^"]+)"', fuente)
+    raices = {lit.split("{")[0].rstrip(".") for lit in literales}
+    assert raices, "no se encontró ninguna clave en el módulo"
+    assert raices == set(ins.KNOWN_KEY_ROOTS)
+
+
+def test_an_orphaned_key_is_recognisable() -> None:
+    """Reglas borradas de verdad el 2026-08-16 al aplicar los veredictos. Sus
+    archivadas siguen en la base y el buzón tiene que poder tirarlas."""
+    for huerfana in (
+        "player.transfer_listed.483141997",  # la lista de transferibles no es una alerta
+        "player.overpaid.474426586",         # se fue con salario contra mercado
+        "training.pop_soon",                 # subidas de nivel próximas
+        "squad.injuries",                    # ahora se avisa una por jugador
+    ):
+        assert not ins.is_known_key(huerfana)
+
+    assert ins.is_known_key("player.injured.474559832")
+    assert ins.is_known_key("squad.ageing")
+    assert ins.is_known_key("economy.structural_deficit.83-04")

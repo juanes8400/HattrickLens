@@ -184,7 +184,7 @@ function ExperiencePanel({
         />
         <Kpi
           label="Desviación estándar"
-          value={data.standardDeviation === null ? "—" : data.standardDeviation.toFixed(2)}
+          value={data.standardDeviation === null ? ", " : data.standardDeviation.toFixed(2)}
           hint={
             interval
               ? `intervalo 95%: ${interval[0].toFixed(2)} – ${interval[1].toFixed(2)}`
@@ -453,12 +453,12 @@ function FormulaPanel({
               <Kpi label="Subidas comparadas" value={String(v.observations)} />
               <Kpi
                 label="Error medio"
-                value={v.meanErrorWeeks == null ? "—" : `${v.meanErrorWeeks} sem`}
+                value={v.meanErrorWeeks == null ? ", " : `${v.meanErrorWeeks} sem`}
                 tone="positive"
               />
               <Kpi
                 label="Error máximo"
-                value={v.maxErrorWeeks == null ? "—" : `${v.maxErrorWeeks} sem`}
+                value={v.maxErrorWeeks == null ? ", " : `${v.maxErrorWeeks} sem`}
               />
             </div>
             <table className="mt-3 w-full text-xs">

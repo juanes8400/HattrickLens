@@ -18,6 +18,8 @@ from sqlalchemy.pool import StaticPool
 from app.api.v1.endpoints.rivals import _days_since_last_login
 from app.application.commands.sync_team import SyncTeamCommand, SyncTeamHandler
 from app.infrastructure.chpp.parsers import get_parser
+from app.api.v1.endpoints import rivals as rivals_module
+from app.api.v1.endpoints.rivals import MAX_MATCHES_ANALYSED
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -168,6 +170,11 @@ def seeded() -> tuple[TestClient, int, int, async_sessionmaker]:
         async with factory() as s:
             yield s
 
+    # La ficha de rival cachea sus consultas a CHPP unos minutos (ver
+    # `_CachedCHPP`). Entre tests eso mezclaría el fixture de uno con el del
+    # siguiente, así que cada test arranca con la memoria vacía.
+    rivals_module._chpp_cache.clear()
+
     app.dependency_overrides[get_session] = override_get_session
     client = TestClient(app)
     yield client, user_id, team_id, factory
@@ -198,8 +205,12 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["rivalName"] == "etbenianos1"
-    assert body["matchesAnalysed"] == 5
+    # El fixture sirve el MISMO matches.xml para cualquier teamID, así que
+    # aquí "el rival" acaba siendo el contrincante del partido más reciente.
+    # Contra CHPP de verdad, matches.xml?teamID=<rival> solo trae partidos
+    # suyos y las dos ramas dan su nombre.
+    assert body["rivalName"] == "Fc Aittakorven Salamat"
+    assert body["matchesAnalysed"] == 8
 
     # top 5 por TSI, aunque se identificaron más jugadores en los partidos vistos
     roster = body["rivalRosterSample"]
@@ -208,8 +219,8 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
     names = [p["name"] for p in roster]
     assert "Sami Suutarinen" in names  # nombre real, viene de matchlineup, no de players.xml
 
-    # -1: el arquero (Nereo Urquiza, position_code 1) se excluye por defecto
-    assert len(body["tsiHistogram"]["rivalValues"]) == len(RIVAL_PLAYERS["players"]) - 1
+    # Todos: el histograma ya no excluye a ningún arquero.
+    assert len(body["tsiHistogram"]["rivalValues"]) == len(RIVAL_PLAYERS["players"])
 
     assert body["sideRotation"]["strongSide"] == "derecha"
     assert body["sideRotation"]["rotates"] is False
@@ -297,13 +308,14 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
     assert body["pitchZoneSources"]["own"]["kind"] == "submitted_chpp_prediction"
     assert body["pitchZoneSources"]["own"]["tacticSkill"] == 19
     assert body["pitchZoneSources"]["rival"]["kind"] == "historical_observed"
-    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 5}
+    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 8}
     midfield = next(
         duel for duel in body["pitchZoneDuels"] if duel["half"] == "midfield"
     )
     assert midfield["ownValue"] == 18
     assert len(body["tsiHistogram"]["ownValues"]) == 11
-    assert len(body["tsiHistogram"]["rivalValues"]) == 10  # arquero excluido
+    # Los 11, arquero incluido: el histograma ya no esconde a nadie.
+    assert len(body["tsiHistogram"]["rivalValues"]) == 11
 
 
 def test_comparison_reads_trainer_leadership_from_rival_stafflist(
@@ -473,11 +485,11 @@ def test_non_official_matches_are_excluded_from_head_to_head_by_default(
             "?include_non_official=true"
         )
 
-    assert default_resp.json()["matchesAnalysed"] == 5
+    assert default_resp.json()["matchesAnalysed"] == 8
     assert any(
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c for c in default_resp.json()["caveats"]
     )
-    assert included_resp.json()["matchesAnalysed"] == 5
+    assert included_resp.json()["matchesAnalysed"] == 8
 
 
 def test_top11_restricts_own_side_and_takes_highest_tsi_rivals(
@@ -491,7 +503,7 @@ def test_top11_restricts_own_side_and_takes_highest_tsi_rivals(
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
         resp = client.get(
             f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
-            "?top11=true&exclude_keeper=false"
+            "?top11=true"
         )
 
     assert resp.status_code == 200
@@ -553,62 +565,33 @@ def test_tactic_history_summarises_all_synced_matches_not_capped(
     assert th is not None
     # 2 partidos con MatchRating del rival, aunque matchesAnalysed (matchlineup
     # en vivo) siga limitado por MAX_MATCHES_ANALYSED / lo que haya jugado.
-    assert th["matchesAnalysed"] == 5
+    assert th["matchesAnalysed"] == 8
     assert th["mostCommonTactic"]["code"] == 4
     assert th["mostCommonTactic"]["label"] == "Atacar por las bandas"
-    assert th["mostCommonTactic"]["count"] == 5
+    assert th["mostCommonTactic"]["count"] == 8
     assert th["mostCommonTactic"]["pct"] == 100.0
     # TacticSkill y Formation SÍ son públicos para el rival (a diferencia de
     # TeamAttitude) — fixtures/matchdetails.xml trae TacticSkill=11 y
     # Formation="4-4-2" también para el AwayTeam.
     assert th["avgTacticSkill"] == 11.0
-    assert th["mostCommonFormation"] == {"formation": "4-4-2", "count": 5, "pct": 100.0}
+    assert th["mostCommonFormation"] == {"formation": "4-4-2", "count": 8, "pct": 100.0}
 
 
-def test_analyses_the_most_recent_matches_not_the_oldest(
-    seeded: tuple[TestClient, int, int, async_sessionmaker],
-) -> None:
-    """MAX_MATCHES_ANALYSED=5 (HL-2xx corrección): con 6 partidos reales
-    contra el rival, el endpoint debe quedarse con los 5 MÁS RECIENTES —
-    antes tomaba los 5 más antiguos (order_by(asc) + limit), justo al
-    revés de lo útil para marcaje/rotación de lado.
+def test_the_window_keeps_the_most_recent_matches_not_the_oldest() -> None:
+    """La regla vive en `_most_recent_by_date`: con más partidos que el tope
+    se queda con los ÚLTIMOS. Antes tomaba los más antiguos (order_by(asc) +
+    limit), justo al revés de lo útil para marcaje y rotación de lado.
 
-    Prueba directa: el partido original del fixture (2026-07-05, el más
-    antiguo una vez añadimos 5 posteriores) se marca con un nombre de
-    rival distinto ("ExcludedOldRival"). Si `rivalName` en la respuesta
-    sigue siendo "etbenianos1" (el de los 5 partidos nuevos), es porque el
-    más antiguo quedó fuera del cap, no dentro."""
-    import asyncio
-    from unittest.mock import patch
+    Se prueba la función y no el endpoint porque el fixture de CHPP trae menos
+    partidos que el tope actual, así que por ahí la regla no se ejercita.
+    """
+    from app.api.v1.endpoints.rivals import _most_recent_by_date
 
-    client, user_id, team_id, factory = seeded
-    client.cookies.set("htlens_session", create_session_token(user_id))
-
-    async def rename_original_and_add_five_more_recent() -> None:
-        async with factory() as s:
-            original = await s.get(m.Match, 1)
-            assert original is not None
-            original.away_team_name = "ExcludedOldRival"
-            for i in range(5):
-                s.add(m.Match(
-                    ht_match_id=910_000 + i,
-                    played_at=datetime(2026, 7, 20 + i, tzinfo=UTC),
-                    match_type=1, status="FINISHED",
-                    home_team_ht_id=OWN_HT_TEAM_ID, away_team_ht_id=RIVAL_HT_TEAM_ID,
-                    home_team_name="Pulgas Arrechas", away_team_name="etbenianos1",
-                    home_goals=1, away_goals=0,
-                ))
-            await s.commit()
-
-    asyncio.run(rename_original_and_add_five_more_recent())
-
-    with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
-        resp = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
-
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["matchesAnalysed"] == 5  # el cap se sigue respetando de 6 reales
-    assert body["rivalName"] == "etbenianos1"  # NO "ExcludedOldRival": el más antiguo quedó fuera
+    partidos = [{"match_date": f"2026-07-{dia:02d} 20:00:00", "id": dia} for dia in range(1, 15)]
+    ventana = _most_recent_by_date(partidos, "match_date", MAX_MATCHES_ANALYSED)
+    assert len(ventana) == MAX_MATCHES_ANALYSED
+    # De más viejo a más nuevo, y sin ninguno de los primeros días.
+    assert [p["id"] for p in ventana] == list(range(5, 15))
 
 
 def test_non_official_matches_never_feed_tactic_history_or_rotation(
@@ -666,12 +649,12 @@ def test_non_official_matches_never_feed_tactic_history_or_rotation(
     assert resp.status_code == 200
     body = resp.json()
     # El duelo SÍ cuenta para nombres/posiciones (matchesAnalysed sube a 2)...
-    assert body["matchesAnalysed"] == 5
+    assert body["matchesAnalysed"] == 8
     # ...pero el historial de táctica y la rotación de lado siguen viendo solo
     # el partido oficial original del fixture, aunque el duelo ahora SÍ se
     # podría resolver por posición (is_home) si se quisiera.
-    assert body["tacticHistory"]["matchesAnalysed"] == 5
-    assert body["sideRotation"]["matchesAnalysed"] == 5
+    assert body["tacticHistory"]["matchesAnalysed"] == 8
+    assert body["sideRotation"]["matchesAnalysed"] == 8
     assert any(
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c
         for c in body["caveats"]
@@ -789,7 +772,7 @@ def test_pitch_zone_duels_pair_mirrored_flanks_on_both_halves(
     assert midfield["ownPct"] == round(14 / 29, 3)
     assert round(midfield["ownPct"] + midfield["rivalPct"], 3) == 1.0
 
-    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 5}
+    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 8}
 
 
 def test_pitch_zone_duels_are_none_without_matches_on_either_side(
@@ -837,15 +820,15 @@ def test_pitch_zone_scope_selector_is_independent_from_page_toggles(
         )
 
     assert mixed.status_code == official.status_code == friendly.status_code == 200
-    # "mixed" (por defecto) es exactamente el comportamiento de siempre: 5,
-    # mezclando liga y amistosos según los toggles globales (ambos on).
-    assert mixed.json()["pitchZonesMatchesAnalysed"]["rival"] == 5
+    # "mixed" (por defecto) mezcla liga y amistosos según los toggles
+    # globales (ambos on).
+    assert mixed.json()["pitchZonesMatchesAnalysed"]["rival"] == 8
     assert mixed.json()["pitchZoneScope"] == "mixed"
     # "official": solo los 2 partidos de liga (tipo 1) del rival.
     assert official.json()["pitchZonesMatchesAnalysed"]["rival"] == 2
     assert official.json()["pitchZoneScope"] == "official"
-    # "friendly": los 5 más recientes de los 6 amistosos internacionales.
-    assert friendly.json()["pitchZonesMatchesAnalysed"]["rival"] == 5
+    # "friendly": los 6 amistosos internacionales, todos dentro del tope.
+    assert friendly.json()["pitchZonesMatchesAnalysed"]["rival"] == 6
     assert friendly.json()["pitchZoneScope"] == "friendly"
 
     # Nada del resto de la ficha (roster, marcaje, matchesAnalysed global)
@@ -854,5 +837,30 @@ def test_pitch_zone_scope_selector_is_independent_from_page_toggles(
         mixed.json()["matchesAnalysed"]
         == official.json()["matchesAnalysed"]
         == friendly.json()["matchesAnalysed"]
-        == 5
+        == 8
     )
+
+
+def test_the_last_purchase_reads_the_rivals_own_transfer_history(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """`transfersteam.xml` responde para CUALQUIER equipo, no solo el propio:
+    el historial de fichajes de un club es público (verificado en vivo el
+    2026-08-19 contra el 277186, que devolvió 80 compras con su TSI).
+
+    Solo cuentan las transferencias donde el equipo es el COMPRADOR: el mismo
+    fichero trae también sus ventas.
+    """
+    from unittest.mock import patch
+
+    client, user_id, team_id, _ = seeded
+    client.cookies.set("htlens_session", create_session_token(user_id))
+
+    with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
+        resp = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
+
+    assert resp.status_code == 200
+    compra = resp.json()["lastPurchase"]
+    # El fixture no trae transfersteam para el rival: sin dato se dice que no
+    # hay, en vez de enseñar el del equipo propio.
+    assert set(compra) == {"own", "rival"}

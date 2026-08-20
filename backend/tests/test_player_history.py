@@ -187,6 +187,34 @@ def test_top_skill_distributions_excludes_set_pieces() -> None:
     asyncio.run(run())
 
 
+async def _open_the_level_window_before(uow: SqlAlchemyUnitOfWork, ht_match_id: int) -> None:
+    """Retrasa los snapshots del jugador a antes de ese partido.
+
+    `experience_progress` solo cuenta partidos JUGADOS después de la primera
+    vez que vimos al jugador en su nivel actual. En un sync de prueba el
+    snapshot nace con la hora de ahora y el partido del fixture se jugó antes,
+    así que sin esto la ventana está cerrada y no hay nada que contar — que es
+    justo lo correcto, pero deja sin ejercitar el peso por minutos, que es lo
+    que estas pruebas miden.
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    async with uow as u:
+        match = await u.session.scalar(
+            select(m.Match).where(m.Match.ht_match_id == ht_match_id)
+        )
+        snapshots = (await u.session.execute(
+            select(m.PlayerSnapshot)
+            .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+            .where(m.Player.ht_player_id == PLAYER_ID)
+        )).scalars().all()
+        for snapshot in snapshots:
+            snapshot.captured_at = match.played_at - timedelta(days=1)
+        await u.commit()
+
+
 def test_experience_progress_counts_real_matches_by_type() -> None:
     """Cruza player_match_ratings (ya poblado por execute_player_details, con
     el ht_match_id real 123456789 del fixture LastMatch) contra matches
@@ -205,6 +233,7 @@ def test_experience_progress_counts_real_matches_by_type() -> None:
         await handler.execute_player_details(
             SyncPlayerDetailsCommand(user_id=1, team_id=team_id, ht_player_id=PLAYER_ID)
         )
+        await _open_the_level_window_before(uow, 123456789)
 
         async with uow as u:
             svc = PlayerHistoryQueryService(u.session)
@@ -269,6 +298,7 @@ def test_experience_progress_weights_by_minutes_played() -> None:
             )
             rating.played_minutes = 45  # medio partido
             await u.commit()
+        await _open_the_level_window_before(uow, 123456789)
 
         async with uow as u:
             svc = PlayerHistoryQueryService(u.session)
@@ -277,6 +307,7 @@ def test_experience_progress_weights_by_minutes_played() -> None:
         # matchdetails.xml (fixture) da MatchType 1 = liga (3.5 puntos completos)
         assert progress is not None
         assert progress.breakdown["league"] == pytest.approx(1.75)
+        assert progress.match_counts["league"] == 1
 
     asyncio.run(run())
 
@@ -302,6 +333,7 @@ def test_experience_progress_never_awards_more_than_full_match() -> None:
             )
             rating.played_minutes = 120  # prórroga
             await u.commit()
+        await _open_the_level_window_before(uow, 123456789)
 
         async with uow as u:
             svc = PlayerHistoryQueryService(u.session)
@@ -399,5 +431,150 @@ def test_dominant_skill_percentile_of_known_player() -> None:
         assert pct["value"] == 18.0
         assert pct["squadSize"] == 24
         assert 0.0 <= pct["percentile"] <= 100.0
+
+    asyncio.run(run())
+
+
+def _seed_experience_case(
+    snapshots: list[tuple[str, int]], matches: list[tuple[str, str]]
+) -> tuple[async_sessionmaker, int]:
+    """Monta a mano la historia de UN jugador: (captura, experiencia) y
+    (jugado_en, capturado_en) por partido de liga. Los timestamps son el
+    objeto del test, así que no salen de un fixture CHPP."""
+    from datetime import datetime
+
+    engine = create_async_engine(
+        "sqlite+aiosqlite://", poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    def ts(text: str) -> datetime:
+        return datetime.fromisoformat(text)
+
+    async def build() -> int:
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        async with factory() as s:
+            team = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            s.add(team)
+            await s.flush()
+            player = m.Player(
+                ht_player_id=483141997, team_id=team.id,
+                first_name="Enyo", last_name="Kasaliyski",
+            )
+            s.add(player)
+            sync = m.Sync(team_id=team.id, user_id=1, kind="players",
+                          status="completed", started_at=ts(snapshots[0][0]))
+            s.add(sync)
+            await s.flush()
+
+            for captured, level in snapshots:
+                s.add(m.PlayerSnapshot(
+                    sync_id=sync.id, player_id=player.id, captured_at=ts(captured),
+                    age_years=25, age_days=0, tsi=1000, form=5, stamina=7,
+                    experience=level, salary=1000, injury_level=-1,
+                    is_transfer_listed=False, specialty=0, loyalty=1, leadership=3,
+                    agreeability=2, aggressiveness=2, honesty=2, mother_club_bonus=False,
+                    country_id=1, league_goals=0, cup_goals=0, friendlies_goals=0,
+                    career_goals=0, career_hattricks=0, career_assists=0,
+                    player_trainer_skill_level=0, player_trainer_type=0,
+                    content_hash=f"h{captured}".encode(),
+                ))
+            for i, (played, captured) in enumerate(matches):
+                ht_match_id = 900000 + i
+                s.add(m.Match(
+                    ht_match_id=ht_match_id, played_at=ts(played),
+                    match_type=1, status="FINISHED", home_team_ht_id=537758,
+                    away_team_ht_id=1, home_team_name="Pulgas", away_team_name="Rival",
+                    home_goals=1, away_goals=0, cup_level=0, cup_level_index=0,
+                ))
+                s.add(m.PlayerMatchRating(
+                    player_id=player.id, ht_match_id=ht_match_id, position_code="im",
+                    played_minutes=90, rating=5.0, captured_at=ts(captured),
+                ))
+            await s.commit()
+        return player.id
+
+    asyncio.run(build())
+    return factory, 483141997
+
+
+def test_the_match_that_caused_the_level_up_does_not_count_for_the_next_one() -> None:
+    """Caso real de Enyo Kasaliyski, 2026-08-16.
+
+    Jugó liga el 16/08 23:40 y subió a experiencia 5; el sync del 17/08 00:22
+    trajo a la vez el snapshot con el nivel nuevo Y la ficha de ese partido,
+    con el mismo `captured_at`. Filtrando por la marca de sincronización, el
+    partido que pagó el nivel se contaba otra vez para el siguiente. Al subir
+    de nivel el contador tiene que arrancar de cero.
+    """
+    factory, ht_player_id = _seed_experience_case(
+        snapshots=[
+            ("2026-08-15 22:02:41", 4),
+            ("2026-08-17 00:22:12", 5),
+        ],
+        matches=[
+            ("2026-08-09 23:40:00", "2026-08-10 00:41:30"),
+            ("2026-08-16 23:40:00", "2026-08-17 00:22:12"),
+        ],
+    )
+
+    async def run() -> None:
+        async with factory() as s:
+            progress = await PlayerHistoryQueryService(s).experience_progress(ht_player_id)
+        assert progress is not None
+        assert progress.match_counts.get("league", 0) == 0
+        assert progress.points == 0.0
+        assert progress.percent == 0
+
+    asyncio.run(run())
+
+
+def test_matches_played_after_the_level_up_do_count() -> None:
+    """El reverso: reiniciar no puede significar dejar de contar. El partido
+    posterior a la subida sí abre el nivel nuevo."""
+    factory, ht_player_id = _seed_experience_case(
+        snapshots=[
+            ("2026-08-15 22:02:41", 4),
+            ("2026-08-17 00:22:12", 5),
+            ("2026-08-24 00:30:00", 5),
+        ],
+        matches=[
+            ("2026-08-16 23:40:00", "2026-08-17 00:22:12"),
+            ("2026-08-23 23:40:00", "2026-08-24 00:30:00"),
+        ],
+    )
+
+    async def run() -> None:
+        async with factory() as s:
+            progress = await PlayerHistoryQueryService(s).experience_progress(ht_player_id)
+        assert progress is not None
+        assert progress.match_counts.get("league", 0) == 1
+
+    asyncio.run(run())
+
+
+def test_a_second_sync_in_the_same_week_does_not_swallow_matches_after_the_pop() -> None:
+    """El corte se busca sobre snapshots crudos, no sobre la última lectura de
+    cada semana: si subes el martes y vuelves a sincronizar el viernes, el
+    partido del miércoles sigue contando para el nivel nuevo."""
+    factory, ht_player_id = _seed_experience_case(
+        snapshots=[
+            ("2026-08-10 09:00:00", 4),   # lunes, nivel viejo
+            ("2026-08-11 09:00:00", 5),   # martes, sube
+            ("2026-08-14 09:00:00", 5),   # viernes, misma semana ISO
+        ],
+        matches=[
+            ("2026-08-10 23:40:00", "2026-08-11 09:00:00"),  # el que provocó la subida
+            ("2026-08-12 23:40:00", "2026-08-14 09:00:00"),  # miércoles, ya del nivel nuevo
+        ],
+    )
+
+    async def run() -> None:
+        async with factory() as s:
+            progress = await PlayerHistoryQueryService(s).experience_progress(ht_player_id)
+        assert progress is not None
+        assert progress.match_counts.get("league", 0) == 1
 
     asyncio.run(run())

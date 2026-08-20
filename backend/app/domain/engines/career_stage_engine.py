@@ -61,25 +61,25 @@ def classify_career_stage(
             stage="sin_historial", label="Sin historial suficiente",
             rationale=(
                 "Todavía no hay dos snapshots reales en fechas distintas para comparar "
-                "tendencia de habilidades — se necesita al menos una sincronización más, "
+                "tendencia de habilidades, se necesita al menos una sincronización más, "
                 "en otra semana, para clasificar con algo de base."
             ),
-            confidence="sin evaluar — falta historial real",
+            confidence="sin evaluar, falta historial real",
             signals=signals,
         )
 
     if age_years <= YOUNG_MAX_AGE:
         rationale = (
-            f"{age_years} años — edad de formación (factor de edad {af:.2f}, subiendo). "
+            f"{age_years} años, edad de formación (factor de edad {af:.2f}, subiendo). "
             f"{skills_rising} de 7 habilidades principales han subido desde el snapshot "
             "más antiguo disponible."
             if skills_rising > 0
-            else f"{age_years} años — edad de formación, aunque el historial real todavía "
+            else f"{age_years} años, edad de formación, aunque el historial real todavía "
             "no muestra subidas de habilidad."
         )
         return CareerStage(
             stage="promesa", label="Promesa en desarrollo", rationale=rationale,
-            confidence="moderada — la edad es la señal principal; el historial de "
+            confidence="moderada, la edad es la señal principal; el historial de "
             "subidas todavía es corto",
             signals=signals,
         )
@@ -100,7 +100,7 @@ def classify_career_stage(
                 stage="rotacion", label="Pieza de rotación",
                 rationale=(
                     f"Edad óptima ({age_years} años) pero percentil {squad_percentile:.0f} "
-                    "en su habilidad dominante — por debajo de la mayoría de la plantilla "
+                    "en su habilidad dominante, por debajo de la mayoría de la plantilla "
                     "activa."
                 ),
                 confidence="moderada", signals=signals,
@@ -108,7 +108,7 @@ def classify_career_stage(
         return CareerStage(
             stage="pico", label="En su pico",
             rationale=f"{age_years} años, en el tramo de mayor factor de edad (~{af:.2f}).",
-            confidence="moderada — sin percentil de plantilla disponible para afinar más",
+            confidence="moderada, sin percentil de plantilla disponible para afinar más",
             signals=signals,
         )
 

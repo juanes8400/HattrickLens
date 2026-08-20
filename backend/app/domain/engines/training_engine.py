@@ -115,6 +115,33 @@ def coach_factor(level: int, is_excellent: bool = False) -> float:
     return float(coefficients[normalized])
 
 
+def training_efficiency_pct(
+    coach_level: int, assistant_level_sum: int | float, intensity: int, stamina_share: int,
+) -> float:
+    """Qué porcentaje del entrenamiento máximo posible está recibiendo el club.
+
+    100% es el techo del juego: entrenador 5/5, dos asistentes de nivel 5 y
+    toda la intensidad puesta en la habilidad. Se construye con los MISMOS
+    coeficientes que usa la proyección (`coach_factor`, `assistant_factor`,
+    `effective_intensity`), así que no es una regla aparte que pueda
+    desincronizarse: es el mismo número, dividido por su máximo.
+
+    La cuota de resistencia entra restando porque es lo que hace: el porcentaje
+    que va a resistencia no va a la habilidad que se entrena.
+    """
+    cfg = _config()
+    techo = (
+        coach_factor(max(cfg["coach_coefficients"]))
+        * assistant_factor(cfg["assistant_level_sum_cap"])
+    )
+    actual = (
+        coach_factor(coach_level)
+        * assistant_factor(assistant_level_sum)
+        * max(intensity / 100 * (1 - stamina_share / 100), 0.0)
+    )
+    return round(100 * actual / techo, 1) if techo > 0 else 0.0
+
+
 def training_mode(skill: str, training_type: int | None = None) -> str:
     cfg = _config()
     if training_type is not None:

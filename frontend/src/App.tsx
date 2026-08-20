@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ClubPage } from "./pages/ClubPage";
+import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 import { TeamPage } from "./pages/TeamPage";
 import { PlayerPage } from "./pages/PlayerPage";
 import { ConnectedPage } from "./pages/ConnectedPage";
@@ -13,6 +14,7 @@ import { PlayerBalancePage } from "./pages/PlayerBalancePage";
 import { InsightsPage } from "./pages/InsightsPage";
 import { EnginePage } from "./pages/EnginePage";
 import { SyncChangesPage } from "./pages/SyncChangesPage";
+import { SyncPage } from "./pages/SyncPage";
 import { EconomyPage } from "./pages/EconomyPage";
 import { ArenaPage } from "./pages/ArenaPage";
 import { MatchesPage } from "./pages/MatchesPage";
@@ -22,7 +24,6 @@ import { AcademyPage } from "./pages/AcademyPage";
 import { RivalPage } from "./pages/RivalPage";
 import { RivalPickerPage } from "./pages/RivalPickerPage";
 import { WelcomePage } from "./pages/WelcomePage";
-import { NextMatchPage } from "./pages/NextMatchPage";
 import { SetupPage } from "./pages/SetupPage";
 import { hasActiveTeam, useDashboard } from "./hooks/useTeam";
 import { ErrorState, Loading } from "./components/Panels";
@@ -53,6 +54,7 @@ export function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="club" element={<ClubPage />} />
+        <Route path="overview" element={<TeamOverviewPage />} />
         <Route path="team" element={<TeamPage />} />
         <Route path="players/:htPlayerId" element={<PlayerPage />} />
         <Route path="positions" element={<PositionsPage />} />
@@ -63,12 +65,12 @@ export function App() {
         <Route path="matches" element={<MatchesPage />} />
         <Route path="league" element={<LeaguePage />} />
         <Route path="cup" element={<CupPage />} />
-        <Route path="next-match" element={<NextMatchPage />} />
         <Route path="rivals" element={<RivalPickerPage />} />
         <Route path="rivals/:rivalHtTeamId" element={<RivalPage />} />
         <Route path="economy" element={<EconomyPage />} />
         <Route path="arena" element={<ArenaPage />} />
         <Route path="insights" element={<InsightsPage />} />
+        <Route path="sync" element={<SyncPage />} />
         <Route path="news" element={<SyncChangesPage />} />
         <Route path="engine" element={<EnginePage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

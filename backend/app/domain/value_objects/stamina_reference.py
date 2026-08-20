@@ -20,11 +20,14 @@ que ya nombra esos mismos niveles 0-20 (Resistencia solo usa el tramo 3-9
 de ese rango completo, el mismo límite real de Hattrick para esta
 habilidad).
 
-La tabla solo cubre edades 17-36: fuera de ese rango no hay evidencia, así
-que `stamina_forecast_level` devuelve `None` en vez de extrapolar. El
-porcentaje de entrenamiento SÍ se recorta al rango cubierto (5%-30%) — un
-club con menos o más esfuerzo real cae al extremo conocido más cercano en
-vez de quedarse sin previsión.
+La tabla cubre edades 17-36. Fuera de ese rango se recorta la edad al
+extremo más cercano (pedido explícito 2026-08-15: "de 40 años debe ser
+igual que 36") en vez de quedarse sin previsión: la curva de la tabla ya
+viene plana en los bordes — 34 y 35 son idénticas, y de 36 en adelante un
+jugador solo puede seguir perdiendo condición, nunca recuperarla, así que
+mantener la última fila conocida es la lectura conservadora y no inventa
+una pendiente que la tabla no respalda. Mismo criterio que ya se usaba
+para el porcentaje de entrenamiento, que también se recorta (5%-30%).
 """
 from __future__ import annotations
 
@@ -60,13 +63,20 @@ STAMINA_FORECAST_TABLE: dict[int, tuple[int, int, int, int, int]] = {
 }
 
 
-def stamina_forecast_level(age_years: int, training_pct: float) -> int | None:
+STAMINA_MIN_TABLE_AGE = min(STAMINA_FORECAST_TABLE)
+STAMINA_MAX_TABLE_AGE = max(STAMINA_FORECAST_TABLE)
+
+
+def stamina_forecast_level(age_years: int, training_pct: float) -> int:
     """Nivel esperado de Resistencia para esta edad y este % real de
-    entrenamiento de resistencia — `None` si la edad está fuera de la
-    tabla (17-36), en vez de extrapolar sin evidencia."""
-    row = STAMINA_FORECAST_TABLE.get(age_years)
-    if row is None:
-        return None
+    entrenamiento de resistencia.
+
+    La edad se recorta al rango de la tabla (17-36): un jugador de 40 lee
+    la misma fila que uno de 36, y uno de 16 la de 17. Ver el docstring
+    del módulo para por qué mantener el borde es preferible a extrapolar
+    una pendiente."""
+    clamped_age = max(STAMINA_MIN_TABLE_AGE, min(STAMINA_MAX_TABLE_AGE, age_years))
+    row = STAMINA_FORECAST_TABLE[clamped_age]
     clamped_pct = max(5.0, min(30.0, training_pct))
     bucket_idx = 0
     for i, lower_bound in enumerate(STAMINA_TRAINING_PCT_BUCKETS):

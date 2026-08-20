@@ -136,9 +136,12 @@ def test_sync_runs_for_real_with_a_valid_session(
     # +2 (2026-08-12: club + stafflist entraron a DEFAULT_FILES — antes sólo
     # se sincronizaban una vez a mano al conectar la cuenta, nunca de nuevo
     # con el "Sincronizar" normal) + 5 pops confirmados de trainingevents
-    # (2026-08-14: por fin entró materialmente en DEFAULT_FILES) = 107.
+    # (2026-08-14: por fin entró materialmente en DEFAULT_FILES) = 107
+    # +2 juveniles (2026-08-15: `youthplayerlist` entró a DEFAULT_FILES — el
+    # módulo de Juveniles estaba completo pero nadie descargaba el fichero,
+    # así que la pantalla leía de una tabla vacía) = 109.
     assert body["syncId"] > 0
-    assert body["snapshotsWritten"] == 107
+    assert body["snapshotsWritten"] == 109
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

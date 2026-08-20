@@ -80,6 +80,15 @@ class Team(Base):
     # tiene su tasa. Colombia = 10 (verificado contra Hattrick Control).
     currency_rate: Mapped[float] = mapped_column(Float, default=1.0)
     currency_name: Mapped[str] = mapped_column(String(16), default="")
+    # Academia juvenil ACTUAL — 2026-08-15. Se puede cerrar y reabrir, y cada
+    # apertura es una academia distinta con su propio id y fecha. Sin esto, el
+    # ROI de la cantera mezclaba canteranos de academias anteriores con la
+    # inversión de la actual. `None` hasta que se sincronice youthteamdetails.
+    ht_youth_team_id: Mapped[int | None] = mapped_column(BigInteger)
+    youth_team_name: Mapped[str | None] = mapped_column(String(128))
+    youth_academy_created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     # LeagueLevel de esta serie (1 = división más alta del país) y MaxLevel
     # (divisiones totales) — de leaguedetails.xml. Hacen falta para saber si
     # el 1º puede ascender (no si ya es primera) y si el 7º-8º puede
@@ -213,9 +222,9 @@ class Player(Base):
     # PlayerBalanceQueryService. Funciona para cualquier jugador, incluidos
     # los del backfill histórico de transferencias.
     mother_club_team_id: Mapped[int | None] = mapped_column(BigInteger)
-    # HL-15x: NativeLeagueName de playerdetails.xml — hecho de una vez, como
-    # mother_club_team_name. No hace falta tabla país→nombre: CHPP ya da el
-    # texto real.
+    # HL-15x: NativeLeagueName de playerdetails.xml o el cruce oficial entre
+    # players.xml/CountryID y worlddetails.xml/CountryID. Nunca se infiere
+    # desde el nombre del jugador o el club.
     native_league_name: Mapped[str | None] = mapped_column(String(128))
     # HL-15x #93: la app SUGIERE el momento de carrera (career_stage_engine),
     # el usuario CONFIRMA — nunca se sobreescribe solo. NULL = sin confirmar
@@ -271,6 +280,11 @@ class SyncChange(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     category: Mapped[str] = mapped_column(String(32))
     summary: Mapped[str] = mapped_column(String(500))
+    # El mismo cambio como dato (metric/label/before/after/kind), para que el
+    # frontend no tenga que sacar los números de `summary` con una regex —
+    # ver 0045_sync_change_detail_json.py. `None` en las filas anteriores a
+    # 2026-08-15, que se siguen leyendo con el parser de compatibilidad.
+    detail_json: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -728,7 +742,20 @@ class YouthSnapshot(Base):
     scoring_max: Mapped[int | None] = mapped_column(SmallInteger)
     set_pieces: Mapped[int | None] = mapped_column(SmallInteger)
     set_pieces_max: Mapped[int | None] = mapped_column(SmallInteger)
+    # `IsMaxReached` de CHPP: la habilidad ya tocó su techo y no subirá más,
+    # aunque el techo siga oculto. Es un dato aparte del par nivel/techo — se
+    # puede saber "ya no crece" sin saber en qué número se paró.
+    keeper_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
+    defending_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
+    playmaking_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
+    winger_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
+    passing_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
+    scoring_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
+    set_pieces_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
     minutes_last_match: Mapped[int] = mapped_column(SmallInteger, default=0)
+    # `CanBePromotedIn`: días hasta poder subirlo al primer equipo. Distinto
+    # del plazo para no perderlo por edad — ver la migración 0050.
+    can_be_promoted_in: Mapped[int | None] = mapped_column(SmallInteger)
     content_hash: Mapped[bytes] = mapped_column(LargeBinary(32))
 
     __table_args__ = (Index("ix_ys_player_time", "youth_player_id", "captured_at"),)
@@ -780,6 +807,11 @@ class WorldContext(Base):
     __tablename__ = "world_context"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_league_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    # Identidad oficial del país dentro de CHPP. `country_code` es ISO 3166-1
+    # alpha-2 (CountryCode de worlddetails.xml) y alimenta las banderas de la
+    # interfaz sin inferir nada a partir del nombre traducido.
+    country_id: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    country_code: Mapped[str] = mapped_column(String(2), default="")
     league_name: Mapped[str] = mapped_column(String(128), default="")
     country_name: Mapped[str] = mapped_column(String(128), default="")
     season: Mapped[int] = mapped_column(SmallInteger, default=0)
@@ -854,3 +886,64 @@ class SkillUp(Base):
     __table_args__ = (
         Index("ix_skillup_unique", "ht_player_id", "skill_id", "new_level", unique=True),
     )
+
+
+class DismissedInsight(Base):
+    """Alerta que el usuario archivó con la X — 2026-08-16.
+
+    Las alertas no existen como filas: `domain.engines.insights` las deriva de
+    los datos en cada petición. Lo que se guarda aquí es la decisión de
+    archivarla, más una copia del texto archivado para que el buzón pueda
+    mostrarlo aunque la condición que la disparó ya no se cumpla.
+
+    `fingerprint` (hash de severidad+título+detalle+acción) es lo que impide
+    que archivar sea silenciar: si la alerta se regenera con otro contenido —
+    otra cifra, otra severidad — la huella deja de coincidir y vuelve sola a
+    la lista activa.
+    """
+    __tablename__ = "dismissed_insights"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+    key: Mapped[str] = mapped_column(String(128))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    severity: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(String(200))
+    detail: Mapped[str] = mapped_column(String(1000))
+    action: Mapped[str] = mapped_column(String(500), default="")
+    module: Mapped[str] = mapped_column(String(64), default="")
+    dismissed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("team_id", "key", name="uq_dismissed_insight"),
+    )
+
+
+class MatchWeather(Base):
+    """Pronóstico del clima de la región donde se juega un partido — 2026-08-18.
+
+    Hattrick decide el clima por REGIÓN y solo lo publica a un día vista:
+    `regiondetails.xml` trae el de hoy y el de mañana, y nada más. Por eso
+    esta tabla guarda los dos números junto con `forecast_taken_at`, la
+    `FetchedDate` del propio fichero: sin saber qué día era "hoy" cuando se
+    pidió, los dos valores no se pueden situar en el calendario y un
+    pronóstico de anteayer se leería como el de esta tarde.
+
+    Una fila por partido: se reescribe en cada sync mientras el partido siga
+    por jugarse, porque el pronóstico cambia de un día para otro.
+    """
+    __tablename__ = "match_weather"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    # El estadio donde se juega, que es de dónde sale la región: en un partido
+    # de visitante es la del rival, no la propia.
+    venue_ht_team_id: Mapped[int] = mapped_column(BigInteger)
+    ht_region_id: Mapped[int] = mapped_column(BigInteger)
+    region_name: Mapped[str] = mapped_column(String(128), default="")
+    # -1 = CHPP no lo trajo. 0 lluvia, 1 nublado, 2 parcialmente nublado,
+    # 3 soleado — ver `domain.engines.weather`.
+    weather_today: Mapped[int] = mapped_column(SmallInteger, default=-1)
+    weather_tomorrow: Mapped[int] = mapped_column(SmallInteger, default=-1)
+    # Reloj del SERVIDOR de Hattrick, no el nuestro: es el que define qué día
+    # es "hoy" para los dos campos de arriba.
+    forecast_taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

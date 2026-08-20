@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { ClubMoraleSection, EconomySection } from "../components/SyncComparisonReport";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
 import {
@@ -10,19 +10,14 @@ import {
 } from "../components/GroupedPlayerChanges";
 import { ErrorState, Loading, Note, Panel } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
-import { TEAM_ID, useChangesHistory, useSquad, useSyncChanges } from "../hooks/useTeam";
-import { relative } from "../hooks/useFormat";
+import { useChangesHistory, useSquad, useSyncChanges } from "../hooks/useTeam";
+import { date, relative } from "../hooks/useFormat";
 import {
-  api,
   type ChangesHistory,
   type HistoricalPlayerChange,
   type LastSyncChanges,
-  type MatchDetailsSyncResult,
-  type PlayerDetailsSyncResult,
   type SyncResult,
 } from "../services/api";
-
-type FullSyncData = { sync: SyncResult; playerDetails: PlayerDetailsSyncResult; matchDetails: MatchDetailsSyncResult };
 
 function countPlayerPops(changes: SyncResult["changes"]): number {
   return changes.filter((c) => {
@@ -113,18 +108,13 @@ function actionItems(changes: SyncResult["changes"]): { title: string; detail: s
  * "dashed border, una línea, texto chico" que ya tiene el panel de
  * habilidades susceptibles a mejorar en la ficha del jugador. */
 function SyncMetaSummary({
-  fullSync,
   data,
   changes,
 }: {
-  fullSync: FullSyncData | undefined;
   data: LastSyncChanges | undefined;
   changes: SyncResult["changes"];
 }) {
   const skillPops = data ? countReportSkillPops(data) : countPlayerPops(changes);
-  const errors = fullSync
-    ? [...fullSync.sync.errors, ...fullSync.playerDetails.errors, ...fullSync.matchDetails.errors]
-    : [];
   return (
     <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -133,17 +123,7 @@ function SyncMetaSummary({
         <span>cambios nuevos: {changes.length}</span>
         <span>jugadores comparados: {data?.playerRows.length ?? 0}</span>
         <span>subidas de habilidad: {skillPops}</span>
-        {fullSync && (
-          <>
-            <span>
-              normal: {fullSync.sync.status} ({fullSync.sync.snapshotsWritten} escritos · {fullSync.sync.unchanged} sin cambios)
-            </span>
-            <span>playerdetails: {fullSync.playerDetails.playersProcessed} jugadores</span>
-            <span>matchdetails: {fullSync.matchDetails.matchesProcessed} partidos</span>
-          </>
-        )}
       </div>
-      {errors.length > 0 && <div className="mt-1 text-[var(--danger)]">Errores: {errors.join(" · ")}</div>}
     </div>
   );
 }
@@ -188,12 +168,14 @@ function lastSyncGroups(data: LastSyncChanges): PlayerChangeGroup[] {
 }
 
 function lastSyncAggregate(data: LastSyncChanges): AggregateMetric[] {
+  // `downTotal` llega del backend en negativo, porque allí es la suma de los
+  // deltas tal cual. La tarjeta lo escribe en positivo y deja el signo al
+  // color, así que se voltea aquí, en el borde.
   return data.summary.map((metric) => ({
     key: metric.key,
     label: metric.label,
-    upCount: metric.upCount,
-    downCount: metric.downCount,
-    net: metric.net,
+    upTotal: metric.upTotal,
+    downTotal: Math.abs(metric.downTotal),
   }));
 }
 
@@ -203,6 +185,7 @@ function mergedHistoryEvents(data: ChangesHistory): HistoricalPlayerChange[] {
     ...data.experienceChanges,
     ...data.loyaltyChanges,
     ...data.formChanges,
+    ...data.marketChanges,
   ];
 }
 
@@ -226,37 +209,50 @@ function historyGroups(data: ChangesHistory): PlayerChangeGroup[] {
 function historyAggregate(data: ChangesHistory): AggregateMetric[] {
   const byKey = new Map<string, AggregateMetric>();
   for (const event of mergedHistoryEvents(data)) {
-    const metric = byKey.get(event.key) ?? { key: event.key, label: event.label, upCount: 0, downCount: 0, net: 0 };
-    metric.net += event.delta;
-    if (event.delta > 0) metric.upCount += 1;
-    else if (event.delta < 0) metric.downCount += 1;
+    const metric = byKey.get(event.key)
+      ?? { key: event.key, label: event.label, upTotal: 0, downTotal: 0 };
+    if (event.delta > 0) metric.upTotal += event.delta;
+    else if (event.delta < 0) metric.downTotal += Math.abs(event.delta);
     byKey.set(event.key, metric);
   }
   return [...byKey.values()];
 }
 
-export function SyncChangesPage() {
-  const { data, isLoading, isError, error } = useSyncChanges();
-  const squad = useSquad();
-  const qc = useQueryClient();
-  const history = useChangesHistory();
-  const [changesTab, setChangesTab] = useState<"latest" | "history">("latest");
+/** Las ventanas de comparación del histórico. `weeks` es lo que se le pide al
+ *  backend, que devuelve el cambio NETO contra el cierre semanal de entonces
+ *  — no la lista de cada paso intermedio. A 16 semanas eso es la diferencia
+ *  entre leer "Pases 8 → 11" y tener que sumar tres subidas sueltas.
+ *
+ *  2026-08-17, pedido explícito. La de una semana sigue siendo la que se abre
+ *  por defecto: la vista de Cambios se pensó efímera, y las ventanas anchas
+ *  hay que ir a buscarlas. */
+const HISTORY_WINDOWS = [
+  { key: "1", weeks: 1, label: "Última semana" },
+  { key: "2", weeks: 2, label: "Hace 2 semanas" },
+  { key: "4", weeks: 4, label: "Hace 4 semanas" },
+  { key: "8", weeks: 8, label: "Hace 8 semanas" },
+  { key: "16", weeks: 16, label: "Hace 16 semanas" },
+] as const;
 
-  const fullSync = useMutation({
-    mutationFn: async () => {
-      const sync = await api.sync(TEAM_ID);
-      const playerDetails = await api.syncPlayerDetails(TEAM_ID);
-      const matchDetails = await api.syncMatchDetails(TEAM_ID);
-      return { sync, playerDetails, matchDetails };
-    },
-    onSuccess: () => qc.invalidateQueries(),
-  });
+type ChangesTab = "latest" | (typeof HISTORY_WINDOWS)[number]["key"];
+
+export function SyncChangesPage() {
+  // `null` = la comparación más reciente con cambios. Al elegir una fecha del
+  // archivo se pide esa al backend, que recalcula los +1/-1 de ese snapshot
+  // contra el inmediatamente anterior (pedido explícito 2026-08-15).
+  const [reportSyncId, setReportSyncId] = useState<number | null>(null);
+  const { data, isLoading, isError, error } = useSyncChanges(reportSyncId);
+  const squad = useSquad();
+  const [changesTab, setChangesTab] = useState<ChangesTab>("latest");
+  const window = HISTORY_WINDOWS.find((w) => w.key === changesTab);
+  // Sólo se pide histórico cuando hay una ventana activa: en "Último
+  // snapshot" no hace falta y sería una consulta de más en cada visita.
+  const history = useChangesHistory(null, window?.weeks, window != null);
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
 
-  const changes = fullSync.data?.sync.changes ?? data?.changes ?? [];
-  const syncResult = fullSync.data?.sync;
+  const changes = data?.changes ?? [];
   const actions = actionItems(changes);
   const playerLinks = Object.fromEntries(
     (squad.data?.players ?? []).map((p) => [p.name, p.htPlayerId]),
@@ -271,18 +267,39 @@ export function SyncChangesPage() {
             Última sincronización y archivo histórico: los cambios se comparan contra el cierre semanal anterior.
           </p>
         </div>
-        <button
-          onClick={() => fullSync.mutate()}
-          disabled={fullSync.isPending}
-          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {fullSync.isPending ? "Sincronizando CHPP…" : "Sincronizar todo + recalcular"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {(data?.availableReports.length ?? 0) > 0 && (
+            <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+              Comparación
+              <select
+                value={data?.reportSyncId ?? ""}
+                onChange={(e) =>
+                  setReportSyncId(e.target.value === "" ? null : Number(e.target.value))
+                }
+                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
+              >
+                {data?.availableReports.map((report, index) => (
+                  <option key={report.syncId} value={report.syncId}>
+                    {index === 0 ? "Más reciente · " : ""}
+                    {date(report.syncedAt)} ({report.changeCount} cambio
+                    {report.changeCount === 1 ? "" : "s"})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {/* 2026-08-15: sincronizar dejó de vivir aquí, se hace en una sola
+              pantalla y esa pantalla trae de vuelta a ésta. */}
+          <Link
+            to="/sync"
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+          >
+            Ir a Sincronización
+          </Link>
+        </div>
       </header>
 
-      {fullSync.isError && <ErrorState error={fullSync.error} />}
-
-      <SyncMetaSummary fullSync={fullSync.data} data={data} changes={changes} />
+      <SyncMetaSummary data={data} changes={changes} />
 
       {data && <EconomySection changes={data.clubChanges} />}
 
@@ -298,15 +315,17 @@ export function SyncChangesPage() {
           <Tabs
             tabs={[
               { key: "latest", label: "Último snapshot" },
-              { key: "history", label: "Última semana" },
+              ...HISTORY_WINDOWS.map((w) => ({ key: w.key, label: w.label })),
             ]}
             active={changesTab}
             onChange={setChangesTab}
           />
           <span className="text-xs text-[var(--muted)]">
-            {changesTab === "latest"
+            {window == null
               ? "última comparación semanal guardada"
-              : "últimos 7 días de cierres semanales"}
+              : history.data?.comparedFrom
+                ? `neto contra el cierre del ${date(history.data.comparedFrom)}`
+                : `cambio neto en ${window.weeks} semana(s)`}
           </span>
         </div>
         {changesTab === "latest" && data && (
@@ -316,12 +335,15 @@ export function SyncChangesPage() {
             emptyMessage="No hubo variaciones de jugadores en la última comparación guardada."
           />
         )}
-        {changesTab === "history" && history.isError && <ErrorState error={history.error} />}
-        {changesTab === "history" && history.data && (
+        {window != null && history.isError && <ErrorState error={history.error} />}
+        {window != null && history.data && (
           <GroupedPlayerChanges
             groups={historyGroups(history.data)}
             aggregate={historyAggregate(history.data)}
-            emptyMessage="Aún no hay dos cierres semanales distintos para detectar cambios."
+            emptyMessage={
+              `Ningún jugador cambió nada en las últimas ${window.weeks} semana(s), ` +
+              "o todavía no hay dos cierres semanales distintos que comparar."
+            }
           />
         )}
       </Panel>
@@ -355,11 +377,6 @@ export function SyncChangesPage() {
         <SyncChangesFeed changes={changes} playerLinks={playerLinks} onDismiss={() => undefined} />
       ) : null}
 
-      {syncResult?.changes.length === 0 && syncResult.status === "completed" && (
-        <Note>
-          Sincronización completada sin diferencias: eso es bueno. La base confirmó que ya estaba al día.
-        </Note>
-      )}
     </div>
   );
 }

@@ -25,14 +25,14 @@ tamaño, el backtest decidirá sola.
 """
 from collections import defaultdict
 from collections.abc import Callable
+from typing import Any
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
-    latest_per_iso_week,
     season_for_datetime,
     season_week_label,
     season_week_for_datetime,
@@ -47,6 +47,7 @@ from app.domain.engines.economy_engine import (
     forecast_cash,
     total_sponsor_income,
 )
+from app.domain.value_objects.formatting import thousands
 from app.infrastructure.db import models as m
 
 # Con menos historia que esto, un modelo de series de tiempo está ajustando
@@ -100,6 +101,10 @@ class BalanceWindow:
     # Ingresos − gastos sin compraventa de jugadores: lo que el club gana o
     # pierde operando, sin que una venta puntual maquille un negocio
     # deficitario. `None` si falta el desglose de alguna semana del tramo.
+    # `None` cuando alguna semana del tramo se leyó antes de que guardáramos el
+    # desglose de compraventa. No se avisa en pantalla: no hay nada que el
+    # usuario pueda hacer al respecto y el hueco se cierra solo en cuanto esa
+    # semana sale de la ventana.
     balance_excl_transfers: int | None
 
 
@@ -192,6 +197,14 @@ class EconomyResponse:
     weekly_balance: int
     structural_balance: int
     series: list[SeriesPoint]
+    # La semana EN CURSO, con lo que lleva acumulado hasta ahora. Va aparte de
+    # `series` a propósito: `series` son semanas cerradas y alimenta los
+    # balances acumulados, la detección de anomalías y el modelo temporal, que
+    # se corromperían con una semana a medio terminar. El gráfico sí la pinta,
+    # porque sin ella la semana de hoy no existía en ninguna parte: el
+    # histórico acababa en la anterior y la proyección empezaba en la
+    # siguiente.
+    current_week: SeriesPoint | None
     weekly_finance: WeeklyFinance
     sankey_windows: list[SankeyWindow]
     balance_windows: list[BalanceWindow]
@@ -211,19 +224,82 @@ class EconomyResponse:
     min_weeks_for_timeseries: int
 
 
+# Los totales de la semana ya cerrada. Solo los TOTALES, no el desglose: un
+# campo de detalle puede aparecer o corregirse entre dos syncs sin que haya
+# pasado ninguna semana, y eso partiría una semana en dos puntos.
+_CLOSED_WEEK_FIELDS: tuple[str, ...] = (
+    "last_income_sum", "last_costs_sum", "last_weeks_total",
+)
+
+
+@dataclass(frozen=True)
+class _WeeklyClose:
+    """Un cierre económico REAL de Hattrick.
+
+    `snapshot` es la primera lectura que ya trae los números nuevos: su `cash`
+    es la caja con la que se cerró y sus `last_*` son los flujos de esa misma
+    semana. `closed_at` es la última lectura que aún traía los viejos, o sea un
+    instante DENTRO de la semana que se estaba cerrando: de ahí sale la
+    etiqueta TT-ss.
+    """
+    closed_at: datetime
+    snapshot: m.EconomySnapshot
+
+
+def _weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
+    """Los cierres semanales que de verdad ocurrieron.
+
+    Antes esto era `latest_per_iso_week`: la última lectura de cada semana del
+    calendario. Dos fallos, los dos reportados por el usuario el 2026-08-19:
+
+    1. La semana EN CURSO entraba como si hubiera cerrado. Su última lectura
+       trae todavía la caja con la que empezó — la misma con la que cerró la
+       anterior — así que el gráfico pintaba dos semanas seguidas con la misma
+       cifra (83-03 y 83-04 en 9.017.240) y una proyección que arrancaba plana.
+    2. Una semana sin sincronizar no dejaba punto, y una con dos lecturas a
+       ambos lados del cierre dejaba la equivocada.
+
+    El cierre se detecta por los campos `last_*`, que solo se mueven cuando
+    Hattrick pasa la semana. La caja NO sirve de señal: cambia también al
+    fichar o vender a media semana.
+    """
+    def flujos(row: m.EconomySnapshot) -> tuple[Any, ...]:
+        return tuple(getattr(row, campo) for campo in _CLOSED_WEEK_FIELDS)
+
+    salida: list[_WeeklyClose] = []
+    anterior: m.EconomySnapshot | None = None
+    for fila in rows:
+        if anterior is not None and flujos(fila) == flujos(anterior):
+            # La misma foto otra vez: varias lecturas de la misma semana.
+            anterior = fila
+            continue
+        salida.append(_WeeklyClose(
+            # La semana que se estaba cerrando es la de la lectura anterior.
+            # Para la primera de todas no hay anterior, y lo más que se puede
+            # afirmar es que sus `last_*` describen la semana previa a la
+            # lectura: siete días atrás, que era el criterio de toda la serie
+            # hasta este arreglo.
+            closed_at=(
+                anterior.captured_at if anterior is not None
+                else fila.captured_at - timedelta(days=7)
+            ),
+            snapshot=fila,
+        ))
+        anterior = fila
+    return salida
+
+
 class EconomyQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def _snapshots(self, team_id: int) -> list[m.EconomySnapshot]:
+    async def _raw_snapshots(self, team_id: int) -> list[m.EconomySnapshot]:
         rows = await self._s.execute(
             select(m.EconomySnapshot)
             .where(m.EconomySnapshot.team_id == team_id)
             .order_by(m.EconomySnapshot.captured_at)
         )
-        # Las series y sus modelos temporales usan un cierre por semana. La
-        # tabla conserva todas las lecturas intrasemanales para auditoría.
-        return latest_per_iso_week(rows.scalars(), lambda row: row.captured_at)
+        return list(rows.scalars())
 
     async def get(
         self,
@@ -234,9 +310,17 @@ class EconomyQueryService:
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
-        snaps = await self._snapshots(team_id)
-        if not snaps:
+        raw = await self._raw_snapshots(team_id)
+        if not raw:
             return None
+        # La lectura más nueva de todas: de ella salen los campos VIVOS (caja
+        # de ahora, lo que lleva acumulado la semana en curso). No sirve para
+        # la serie — la semana en curso todavía no ha cerrado.
+        latest = raw[-1]
+        closes = _weekly_closes(raw)
+        if not closes:
+            return None
+        snaps = [c.snapshot for c in closes]
 
         rate = team.currency_rate or 1.0
 
@@ -245,8 +329,6 @@ class EconomyQueryService:
 
         def conv_opt(v: float | None) -> int | None:
             return None if v is None else conv(v)
-
-        latest = snaps[-1]
 
         # "TT-ss" en cada punto/proyección — mismo filtro por `ht_league_id`
         # que `season_at()` en player_balance.py (bug real corregido
@@ -262,10 +344,15 @@ class EconomyQueryService:
         # ── Serie observada ────────────────────────────────────────────────
         cash_series = [conv(s.cash) for s in snaps]
         anomaly_idx = set(ts.detect_anomalies(cash_series))
+        # Cada punto es un CIERRE real (ver `_weekly_closes`), fechado en la
+        # semana que estaba corriendo cuando Hattrick movió la caja. Hasta
+        # 2026-08-19 esto se resolvía restando siete días a la fecha de
+        # captura, y con eso el histórico entero se corría una semana:
+        # 9.017.240, que es el cierre de 83-04, aparecía como 83-03.
         series = [
             SeriesPoint(
-                date=_iso(s.captured_at),
-                season_week=season_week_for_datetime(world, s.captured_at),
+                date=_iso(c.closed_at),
+                season_week=season_week_for_datetime(world, c.closed_at),
                 cash=conv(s.cash),
                 income=conv(s.last_income_sum),
                 costs=conv(s.last_costs_sum),
@@ -274,8 +361,28 @@ class EconomyQueryService:
                 sold_players_income=conv_opt(s.last_income_sold_players),
                 bought_players_costs=conv_opt(s.last_costs_bought_players),
             )
-            for i, s in enumerate(snaps)
+            for i, (c, s) in enumerate((c, c.snapshot) for c in closes)
         ]
+
+        live_income_total = conv(latest.income_sum)
+        live_costs_total = conv(latest.costs_sum)
+        current_week = SeriesPoint(
+            date=_iso(latest.captured_at),
+            season_week=season_week_for_datetime(world, latest.captured_at),
+            # `expected_cash`, no la caja cruda: cada punto de la serie es la
+            # caja AL CIERRE de su semana (la lectura de una semana cerrada se
+            # tomó ya cerrada), así que la semana en curso tiene que decir con
+            # cuánto va a cerrar. 2026-08-16, razonado por el usuario: si hoy
+            # tienes 9.017.240 y la semana va -1.136.597, el punto siguiente es
+            # 7.880.644 — dibujar la caja cruda rompía esa aritmética a la
+            # vista.
+            cash=conv(latest.expected_cash),
+            income=live_income_total,
+            costs=live_costs_total,
+            balance=live_income_total - live_costs_total,
+            sold_players_income=conv_opt(latest.income_sold_players),
+            bought_players_costs=conv_opt(latest.costs_bought_players),
+        )
 
         live_income = _finance_items(_income_items(latest), conv)
         live_costs = _finance_items(_cost_items(latest), conv)
@@ -328,7 +435,13 @@ class EconomyQueryService:
 
         cash_now = conv(latest.cash)
         base = forecast_cash(
-            starting_cash=cash_now,
+            # El cierre ESPERADO de la semana en curso, no la caja de hoy: la
+            # semana que corre todavía tiene gastos por pasar, y arrancar de
+            # la caja de hoy los ignoraba. Además dejaba un escalón visible
+            # entre el último punto del histórico y el primero de la
+            # proyección, que en el gráfico se lee como un salto de dinero
+            # que nunca ocurre.
+            starting_cash=conv(latest.expected_cash),
             structure=structure,
             horizon_weeks=horizon_weeks,
             residual_mean=res_mean,
@@ -373,12 +486,12 @@ class EconomyQueryService:
                 timeseries.model,
                 f"El modelo «{timeseries.model}» ganó el backtest de origen "
                 f"rodante sobre {len(cash_series)} lecturas "
-                f"(MAE {timeseries.backtest_mae:,.0f}). Se mantiene la "
+                f"(MAE {thousands(timeseries.backtest_mae)}). Se mantiene la "
                 "proyección estructural al lado para contrastar.",
             )
 
         anomalies = [
-            f"{series[i].date}: caja de {series[i].cash:,} — desviación "
+            f"{series[i].date}: caja de {thousands(series[i].cash)}, desviación "
             "atípica frente al resto de la serie"
             for i in sorted(anomaly_idx)
         ]
@@ -387,28 +500,34 @@ class EconomyQueryService:
         # Más reciente primero (al revés que `series`) — igual que la
         # pantalla Detalles de Hattrick Control, y que la tabla que pidió el
         # usuario replicar.
-        seasons = [
-            season_for_datetime(world, s.captured_at)
-            for s in snaps
-        ]
+        # Cada snapshot aporta UNA semana cerrada: la anterior a su captura
+        # (ver el comentario del descuadre en `series`). La semana en curso no
+        # sale de ningún `last_*` — vive en los campos vivos del último
+        # snapshot — así que se añade como una fila propia al final, que es
+        # justo la que faltaba en el histórico.
         weekly_rows = [
             (
                 WeeklyBreakdownRow(
-                    season_week=series[i].season_week, date=series[i].date,
-                    is_current=(i == len(snaps) - 1),
-                    income=(
-                        _income_breakdown_live(s, conv) if i == len(snaps) - 1
-                        else _income_breakdown_closed(s, conv)
-                    ),
-                    costs=(
-                        _costs_breakdown_live(s, conv) if i == len(snaps) - 1
-                        else _costs_breakdown_closed(s, conv)
-                    ),
+                    season_week=series[i].season_week,
+                    date=series[i].date,
+                    is_current=False,
+                    income=_income_breakdown_closed(s, conv),
+                    costs=_costs_breakdown_closed(s, conv),
                 ),
-                seasons[i],
+                season_for_datetime(world, closes[i].closed_at),
             )
             for i, s in enumerate(snaps)
         ]
+        weekly_rows.append((
+            WeeklyBreakdownRow(
+                season_week=season_week_for_datetime(world, latest.captured_at),
+                date=_iso(latest.captured_at),
+                is_current=True,
+                income=_income_breakdown_live(latest, conv),
+                costs=_costs_breakdown_live(latest, conv),
+            ),
+            season_for_datetime(world, latest.captured_at),
+        ))
         weekly_rows.reverse()
         weekly_breakdown = [row for row, _season in weekly_rows]
 
@@ -433,6 +552,7 @@ class EconomyQueryService:
             weekly_balance=conv(latest.last_weeks_total),
             structural_balance=structure.structural_balance,
             series=series,
+            current_week=current_week,
             weekly_finance=WeeklyFinance(
                 income=live_income,
                 costs=live_costs,
@@ -507,7 +627,7 @@ def _cost_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]
 def _last_income_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]]:
     return [
         ("IncomeSpectators", "Taquillas", snapshot.last_income_spectators),
-        ("IncomeSponsors", "Patrocinadores", snapshot.last_income_sponsors),
+        ("IncomeSponsors", "Patrocinadores", _closed_sponsor_income(snapshot)),
         ("IncomeSoldPlayers", "Venta de jugadores", snapshot.last_income_sold_players),
         (
             "IncomeSoldPlayersCommission", "Comisiones",
@@ -569,11 +689,38 @@ def _income_breakdown_live(snapshot: m.EconomySnapshot, conv: Callable[[float | 
     )
 
 
+def _closed_sponsor_income(snapshot: m.EconomySnapshot) -> int | None:
+    """Patrocinadores de la semana cerrada, bono incluido.
+
+    Ninguna versión de `economy.xml` expone `LastIncomeSponsorBonuses`, así que
+    la fila de patrocinadores salía sin el bono y el desglose sumaba MENOS que
+    el total oficial. Caso real 2026-08-16: 205.000 de diferencia cada semana,
+    exactamente el bono que sí se ve en la semana en curso.
+
+    No hace falta suponerlo. `LastIncomeSum` es el total oficial y las demás
+    partidas vienen desglosadas: lo que sobra al restarlas ES el bono, por
+    definición. Es aritmética sobre datos que CHPP ya dio, no una estimación —
+    si falta cualquier pieza se devuelve la cifra sin bono en vez de inventar.
+    """
+    parts = (
+        snapshot.last_income_spectators,
+        snapshot.last_income_sponsors,
+        snapshot.last_income_sold_players,
+        snapshot.last_income_sold_players_commission,
+        snapshot.last_income_financial,
+        snapshot.last_income_temporary,
+    )
+    if snapshot.last_income_sum is None or any(p is None for p in parts):
+        return snapshot.last_income_sponsors
+    remainder = snapshot.last_income_sum - sum(p or 0 for p in parts)
+    if remainder <= 0:
+        return snapshot.last_income_sponsors
+    return (snapshot.last_income_sponsors or 0) + remainder
+
+
 def _income_breakdown_closed(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> IncomeBreakdown:
-    # Sin LastIncomeSponsorBonuses — ninguna versión de economy.xml lo
-    # expone para la semana ya cerrada (mismo límite que `_last_income_items`).
     return _income_breakdown(
-        snapshot.last_income_spectators, snapshot.last_income_sponsors,
+        snapshot.last_income_spectators, _closed_sponsor_income(snapshot),
         snapshot.last_income_financial, snapshot.last_income_sold_players,
         snapshot.last_income_sold_players_commission, snapshot.last_income_temporary, conv,
     )

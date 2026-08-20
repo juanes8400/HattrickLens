@@ -12,7 +12,7 @@ SECTORS = ("midfield", "right_def", "central_def", "left_def",
 
 SECTOR_LABELS = {
     "midfield": "Mediocampo", "right_def": "Defensa derecha",
-    "central_def": "Defensa central", "left_def": "Defensa izquierda",
+    "central_def": "Defensa Central", "left_def": "Defensa izquierda",
     "right_att": "Ataque derecha", "central_att": "Ataque central",
     "left_att": "Ataque izquierda",
 }

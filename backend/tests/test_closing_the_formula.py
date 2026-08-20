@@ -63,6 +63,8 @@ def test_worlddetails_parser_reads_currency_and_calendar() -> None:
     assert len(data["leagues"]) == 1
     colombia = data["leagues"][0]
     assert colombia["ht_league_id"] == 19
+    assert colombia["country_id"] == 18
+    assert colombia["country_code"] == "CO"
     assert colombia["country_name"] == "Colombia"
     assert colombia["currency_rate"] == 10.0
     assert colombia["currency_name"] == "US$"
@@ -180,6 +182,8 @@ def test_sync_persists_staff_world_and_skill_ups() -> None:
     assert staff[0].trainer_skill_level == 5
     assert len(world) == 1
     assert world[0].season == 84
+    assert world[0].country_id == 18
+    assert world[0].country_code == "CO"
     assert len(ups) == 5
 
 

@@ -38,7 +38,7 @@ class CHPPClient:
         except httpx.TransportError as exc:
             raise CHPPUnavailableError(str(exc)) from exc
         if resp.status_code == 401:
-            raise CHPPAuthError("token revocado — requiere re-autorización")
+            raise CHPPAuthError("token revocado, requiere re-autorización")
         resp.raise_for_status()
         return self._parse(file, resp.content)  # bytes: el XML declara su encoding
 

@@ -36,6 +36,7 @@ class SquadPlayer(Base):
     honesty: int
     honesty_label: str
     country_id: int
+    country_code: str | None
     league_goals: int
     cup_goals: int
     friendlies_goals: int

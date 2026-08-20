@@ -7,13 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.player_balance import PlayerBalanceQueryService
+from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
 
 
 @router.get(
-    "/teams/{team_id}/player-balance", summary="Saldo neto por jugador (compra, salario, venta)"
+    "/teams/{team_id}/player-balance",
+    summary="Saldo neto por jugador (compra, salario, venta)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def player_balance(
     team_id: int,
@@ -21,7 +24,7 @@ async def player_balance(
     season: str | None = Query(
         default=None,
         description=(
-            'Filtro general de temporadas (p. ej. "Temporada 83") — omitido o '
+            'Filtro general de temporadas (p. ej. "Temporada 83"), omitido o '
             '"all" trae toda la historia, como antes.'
         ),
     ),

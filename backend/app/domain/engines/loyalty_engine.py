@@ -17,6 +17,17 @@ LOYALTY_FULL_DAYS = 336
 LOYALTY_STEPS = LOYALTY_MAX_LEVEL - 1
 
 
+def _continuous_loyalty(days_since_purchase: int | float | None) -> float | None:
+    """Curva continua sin redondear, fuente única para valor y barra."""
+    if days_since_purchase is None:
+        return None
+    days = max(float(days_since_purchase), 0.0)
+    return min(
+        float(LOYALTY_MAX_LEVEL),
+        1.0 + LOYALTY_STEPS * sqrt(days / LOYALTY_FULL_DAYS),
+    )
+
+
 def loyalty_level(days_since_purchase: int | float | None) -> int | None:
     """Nivel entero de Fidelidad para la antigüedad indicada."""
     if days_since_purchase is None:
@@ -34,16 +45,26 @@ def loyalty_decimal(days_since_purchase: int | float | None) -> float | None:
     No interpola entre observaciones: es la expresión anterior antes de
     aplicar ``floor``. El nivel mostrado sigue siendo su parte entera.
     """
-    if days_since_purchase is None:
+    value = _continuous_loyalty(days_since_purchase)
+    if value is None:
         return None
-    days = max(float(days_since_purchase), 0.0)
-    return round(
-        min(
-            float(LOYALTY_MAX_LEVEL),
-            1.0 + LOYALTY_STEPS * sqrt(days / LOYALTY_FULL_DAYS),
-        ),
-        2,
-    )
+    # Truncar evita que 10,996 se muestre como 11,00 un día antes de que
+    # la curva alcance realmente el nivel 11.
+    return floor(value * 100) / 100
+
+
+def loyalty_progress_pct(days_since_purchase: int | float | None) -> float | None:
+    """Porcentaje decimal recorrido dentro del nivel actual.
+
+    Se calcula antes de redondear el valor visible de Fidelidad. Así la barra
+    conserva la precisión de la curva en lugar de quedar limitada a enteros.
+    """
+    value = _continuous_loyalty(days_since_purchase)
+    if value is None:
+        return None
+    if value >= LOYALTY_MAX_LEVEL:
+        return 100.0
+    return round((value - floor(value)) * 100, 2)
 
 
 def days_for_level(level: int) -> int:

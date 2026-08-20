@@ -40,6 +40,7 @@ Engines and modules: [POSITION_ENGINE](docs/spec/POSITION_ENGINE.md) ·
 | [14-inventario-hattrick-control](docs/14-inventario-hattrick-control.md) | 53 Hattrick Control screens catalogued |
 | [15-historias-usuario](docs/15-historias-usuario.md) | 91 user stories with acceptance criteria |
 | [16-calibracion-y-supuestos](docs/16-calibracion-y-supuestos.md) | Where every number comes from |
+| [17-desarrollo-local](docs/17-desarrollo-local.md) | Running backend/frontend by hand, common OAuth/proxy pitfalls |
 
 ## Engines
 

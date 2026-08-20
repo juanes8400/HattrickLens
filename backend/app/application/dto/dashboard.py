@@ -46,6 +46,17 @@ class TrainingSummary(Base):
     morale_name: str
     confidence: int
     confidence_name: str
+    # Cuánto del entrenamiento máximo posible está recibiendo el club: 100% es
+    # entrenador 5/5, dos asistentes de nivel 5 y toda la intensidad en la
+    # habilidad. Sale de los mismos coeficientes que la proyección.
+    efficiency_pct: float = 0.0
+    coach_level: int = 0
+    assistant_level_sum: int = 0
+    # Edad media de quienes de verdad reciben este entrenamiento, que es lo que
+    # decide si la carga está bien dirigida: entrenar Anotación con delanteros
+    # de 33 años rinde la mitad que con los de 20.
+    trained_avg_age: float | None = None
+    trained_players: int = 0
 
 
 class PlayerRow(Base):

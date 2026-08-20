@@ -119,3 +119,46 @@ def test_spokesperson_has_no_effect_function() -> None:
     """Portavoz no está entre las categorías vigentes que documentó el
     usuario — sin tabla real, no se inventa un aporte."""
     assert "spokesperson_levels" not in STAFF_FIELD_TO_EFFECT_FN
+
+
+# ── El catálogo de puestos ───────────────────────────────────────────────────
+
+def test_only_the_staff_roles_that_exist_in_hattrick_are_listed() -> None:
+    """2026-08-17: la app enseñaba siete puestos y uno no existe.
+
+    "Portavoz" venía del club.xml antiguo, que todavía declara un
+    `SpokespersonLevels`, no de la página de Empleados de Hattrick — la misma
+    de la que salieron las tablas de este módulo, que lista seis. Se delataba
+    solo: era el único puesto sin efecto que calcular.
+    """
+    from app.domain.value_objects.ht_constants import STAFF_ROLES
+
+    campos = {field for field, _, _ in STAFF_ROLES.values()}
+    assert len(STAFF_ROLES) == 6
+    assert "spokesperson_levels" not in campos
+
+    # La regla que lo detectó, convertida en red: un puesto sin efecto es un
+    # puesto que no existe, y un efecto sin puesto es código muerto.
+    assert campos == set(STAFF_FIELD_TO_EFFECT_FN)
+
+
+def test_an_unknown_staff_type_is_named_as_unknown_not_as_another_role() -> None:
+    """El código 3 quedó libre al quitar Portavoz. Si CHPP mandara un empleado
+    con ese tipo —o con uno nuevo que esta versión no conozca— hay que decir
+    que no se sabe, nunca disfrazarlo con el nombre del puesto de al lado."""
+    from app.domain.value_objects.ht_constants import staff_type_name
+
+    assert staff_type_name(2) == "Doctor"
+    assert "desconocido" in staff_type_name(3).lower()
+    assert "desconocido" in staff_type_name(99).lower()
+
+
+def test_role_names_follow_hattrick_wording() -> None:
+    """Los nombres son los de Hattrick, no los del XML viejo: el campo interno
+    sigue llamándose `medic_levels` por compatibilidad con la base, pero en
+    pantalla se lee "Doctor"."""
+    from app.domain.value_objects.ht_constants import STAFF_ROLES
+
+    por_campo = {field: singular for field, singular, _ in STAFF_ROLES.values()}
+    assert por_campo["medic_levels"] == "Doctor"
+    assert por_campo["form_coach_levels"] == "Preparador físico"

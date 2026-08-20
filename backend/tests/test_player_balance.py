@@ -93,7 +93,9 @@ def test_transfers_player_sync_finds_our_own_purchase() -> None:
             )
             assert player.purchase_price == 1800000
             # SQLite no conserva tzinfo en el viaje de ida y vuelta.
-            assert player.purchased_at == datetime(2026, 5, 16, 16, 10)
+            # 16:10 en el fichero de CHPP son horas SUECAS (CEST en mayo, UTC+2),
+            # así que se guardan como las 14:10 UTC. Ver `ht_time.ht_to_utc`.
+            assert player.purchased_at == datetime(2026, 5, 16, 14, 10)
 
     asyncio.run(run())
 
@@ -421,6 +423,42 @@ def test_execute_sync_backfills_sold_player_details_automatically_without_a_butt
             assert player.native_country == "Colombia"
             assert player.agreeability == 3
             assert player.specialty == 0
+
+    asyncio.run(run())
+
+
+def test_execute_sync_backfills_current_country_from_players_and_worlddetails() -> None:
+    """CountryID de players.xml se resuelve contra worlddetails sin inferir.
+
+    El orden real descarga players antes que worlddetails, por eso el cruce
+    debe funcionar al terminar el sync y también para snapshots anteriores.
+    """
+    async def run() -> None:
+        uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
+        async with uow as u:
+            # Equivale a una fila ya sincronizada desde el LeagueList
+            # completo de worlddetails (el fixture reducido solo trae
+            # Colombia).
+            u.session.add(m.WorldContext(
+                ht_league_id=35, country_id=35, country_name="España"
+            ))
+            await u.session.commit()
+        result = await SyncTeamHandler(uow, chpp).execute(
+            SyncTeamCommand(
+                user_id=1, team_id=team_id, ht_team_id=537758,
+                files=["players"],
+            )
+        )
+        assert result.status == "completed"
+        assert result.errors == []
+
+        async with uow as u:
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+            )
+            # El fixture players.xml identifica al jugador con CountryID=35;
+            # worlddetails resuelve 35 a España.
+            assert player.native_country == "España"
 
     asyncio.run(run())
 
@@ -981,9 +1019,11 @@ def test_player_balance_query_service_flags_academy_graduate_by_mother_club() ->
     bought_row = next(r for r in data.players if r.ht_player_id == 222)
     assert graduate_row.is_academy_graduate is True
     assert bought_row.is_academy_graduate is False
-    # Canterano real: purchase_price forzado a 0 por el motor de dominio,
-    # nunca None ni un precio inventado.
-    assert graduate_row.purchase_price == 0
+    # Canterano real: su "precio de compra" es lo que costó ascenderlo, no 0
+    # (2026-08-19). Nunca None ni un precio de mercado inventado.
+    assert graduate_row.purchase_price == graduate_row.promotion_cost
+    assert graduate_row.promotion_cost > 0
+    assert bought_row.promotion_cost == 0
     assert graduate_row.saldo is not None
 
 
@@ -1249,3 +1289,66 @@ def test_player_balance_query_service_handles_a_team_with_no_players() -> None:
     assert data is not None
     assert data.players == []
     assert data.total_saldo == 0.0
+
+
+def test_the_week_of_a_transfer_drops_the_season() -> None:
+    """2026-08-19, pedido explícito: las cascadas de Transferencias agrupan por
+    la SEMANA de la temporada, no por la temporada.
+
+    Una venta de 83-05 y otra de 81-05 son la misma columna, la 05: la
+    pregunta que responde el gráfico es en qué semana del calendario conviene
+    comprar o vender, y para eso la temporada sobra.
+    """
+    from app.application.queries.weekly import season_week_for_datetime
+
+    class _Mundo:
+        season = 83
+        match_round = 5
+        refreshed_at = datetime(2026, 8, 16, tzinfo=UTC)
+
+    etiqueta = season_week_for_datetime(_Mundo(), datetime(2026, 8, 16, tzinfo=UTC))
+    assert etiqueta is not None and "-" in etiqueta
+    semana = int(etiqueta.split("-")[1])
+    # Dos temporadas distintas, misma semana: misma columna.
+    hace_dos_temporadas = datetime(2026, 8, 16, tzinfo=UTC) - timedelta(days=112 * 2)
+    otra = season_week_for_datetime(_Mundo(), hace_dos_temporadas)
+    assert otra is not None
+    assert int(otra.split("-")[1]) == semana
+    assert otra.split("-")[0] != etiqueta.split("-")[0]
+
+
+def test_promoting_a_youth_costs_money_and_it_lands_in_his_balance() -> None:
+    """2026-08-19, aportado por el usuario: ascender a un canterano cuesta
+    20.000 en la moneda base del juego.
+
+    CHPP no publica ese cargo por ninguna parte (las nueve partidas de gasto de
+    `economy.xml` no lo incluyen), así que el número es del juego y vive
+    declarado en el motor. Hasta ahora un canterano entraba con coste 0 y su
+    saldo salía inflado por ese importe.
+    """
+    from app.domain.engines.player_balance import (
+        YOUTH_PROMOTION_COST,
+        PlayerTransferRecord,
+        compute_balance,
+    )
+
+    def canterano(coste: int) -> float | None:
+        return compute_balance(
+            PlayerTransferRecord(
+                purchase_price=None,
+                purchased_at=datetime(2026, 1, 1, tzinfo=UTC),
+                is_academy_graduate=True,
+                promotion_cost=coste,
+                salary_history=[],
+                listing_count=0,
+                sale_price=1_000_000,
+                sold_at=datetime(2026, 6, 1, tzinfo=UTC),
+            )
+        ).saldo
+
+    assert YOUTH_PROMOTION_COST == 20_000
+    con_coste = canterano(2_000)
+    gratis = canterano(0)
+    assert gratis is not None and con_coste is not None
+    # La diferencia es exactamente lo que cuesta el ascenso, ni más ni menos.
+    assert gratis - con_coste == 2_000

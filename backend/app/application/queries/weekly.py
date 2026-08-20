@@ -157,3 +157,24 @@ def season_for_datetime(
         world,
         weeks_offset=season_week_offset_for(world, when),
     )
+
+
+def backfill_leading_gaps(values: list[float | None]) -> list[float | None]:
+    """Rellena SOLO el hueco inicial de una serie con su primer valor conocido.
+
+    2026-08-16, pedido explícito y con la advertencia de que **es un cambio
+    puramente estético**: los primeros snapshots de esta cuenta se guardaron
+    antes de que existieran algunas columnas (fidelidad, rasgos), así que su
+    serie arranca con un tramo vacío que en la gráfica se ve como un salto
+    feo desde la nada.
+
+    Por eso esta función vive en la capa de presentación y NO debe usarse para
+    calcular nada: el valor que estira hacia atrás no es una medición, es la
+    primera lectura repetida. Los huecos INTERIORES se respetan tal cual —
+    esos sí significan "esa semana no se leyó" y taparlos escondería una
+    laguna real en medio de la serie.
+    """
+    first = next((i for i, value in enumerate(values) if value is not None), None)
+    if first is None or first == 0:
+        return values
+    return [values[first]] * first + values[first:]

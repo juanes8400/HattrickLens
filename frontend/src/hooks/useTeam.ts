@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
-import type { Formation, PitchZoneScope } from "../services/api";
+import type { Formation, PitchZoneMethod, PitchZoneScope } from "../services/api";
 
 /**
  * El equipo activo. Antes de conectar con Hattrick no hay ninguno real, así
@@ -57,10 +57,19 @@ export const usePlayerDetail = (htPlayerId: number) =>
     queryFn: () => api.playerDetail(TEAM_ID, htPlayerId),
   });
 
-export const useLineup = (formation?: string, weather?: string) =>
+export const useLineup = (
+  formation?: string,
+  centralDefenders?: number,
+  innerMidfielders?: number,
+) =>
   useQuery({
-    queryKey: ["lineup", TEAM_ID, formation, weather],
-    queryFn: () => api.lineup(TEAM_ID, formation, weather),
+    queryKey: [
+      "lineup", TEAM_ID, formation, centralDefenders ?? null, innerMidfielders ?? null,
+    ],
+    queryFn: () => api.lineup(TEAM_ID, formation, centralDefenders, innerMidfielders),
+    // Mover un reparto no cambia la plantilla: se conserva el once anterior
+    // mientras llega el nuevo, en vez de vaciar la pantalla entera.
+    placeholderData: (previous) => previous,
   });
 
 export const useTrainingForecast = () =>
@@ -72,8 +81,35 @@ export const usePostMatchTraining = () =>
     queryFn: () => api.postMatchTraining(TEAM_ID),
   });
 
+export const useTeamOverview = () =>
+  useQuery({ queryKey: ["team-overview", TEAM_ID], queryFn: () => api.teamOverview(TEAM_ID) });
+
 export const useInsights = () =>
   useQuery({ queryKey: ["insights", TEAM_ID], queryFn: () => api.insights(TEAM_ID) });
+
+export const useArchivedInsights = () =>
+  useQuery({
+    queryKey: ["insights-archived", TEAM_ID],
+    queryFn: () => api.archivedInsights(TEAM_ID),
+  });
+
+/** Archivar y restaurar tocan las dos listas a la vez — una alerta que sale de
+ *  la activa entra en el buzón y viceversa — así que ambas se invalidan
+ *  juntas. Si solo se refrescara una, la pantalla mostraría la misma alerta en
+ *  los dos sitios hasta el siguiente refresco. */
+function useInsightArchiveMutation(fn: (teamId: number, key: string) => Promise<unknown>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => fn(TEAM_ID, key),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["insights", TEAM_ID] });
+      queryClient.invalidateQueries({ queryKey: ["insights-archived", TEAM_ID] });
+    },
+  });
+}
+
+export const useArchiveInsight = () => useInsightArchiveMutation(api.archiveInsight);
+export const useRestoreInsight = () => useInsightArchiveMutation(api.restoreInsight);
 
 export const usePositionModel = () =>
   useQuery({ queryKey: ["position-model"], queryFn: api.positionModel });
@@ -122,11 +158,24 @@ export const useLeague = (runs = 10000) =>
   });
 
 export const useLeagueTeamOfWeek = (
-  scope: "week" | "season", formation: Formation, round?: number,
+  scope: "week" | "season",
+  formation: Formation,
+  round?: number,
+  centralDefenders?: number,
+  innerMidfielders?: number,
 ) =>
   useQuery({
-    queryKey: ["league-team-of-week", TEAM_ID, scope, formation, round],
-    queryFn: () => api.leagueTeamOfWeek(TEAM_ID, scope, formation, round),
+    queryKey: [
+      "league-team-of-week", TEAM_ID, scope, formation, round,
+      centralDefenders ?? null, innerMidfielders ?? null,
+    ],
+    queryFn: () =>
+      api.leagueTeamOfWeek(
+        TEAM_ID, scope, formation, round, centralDefenders, innerMidfielders,
+      ),
+    // Mover un reparto no cambia qué partidos se leen: se conserva el once
+    // anterior mientras llega el nuevo en vez de vaciar el panel.
+    placeholderData: (previous) => previous,
   });
 
 export const useAcademy = () =>
@@ -169,21 +218,55 @@ export const usePlayerTrainingLevels = (htPlayerId: number | null, skill?: strin
 // colapsado del 2026-08-05). `enabled` queda disponible por si otro caller
 // necesita retrasar el fetch, pero por defecto en `true`.
 export const useLeagueComparison = (
-  logTsi: boolean, excludeKeeper: boolean, top11: boolean, enabled = true,
+  logTsi: boolean, top11: boolean, enabled = true,
 ) =>
   useQuery({
-    queryKey: ["league-comparison", TEAM_ID, logTsi, excludeKeeper, top11],
-    queryFn: () => api.leagueComparison(TEAM_ID, logTsi, excludeKeeper, top11),
+    queryKey: ["league-comparison", TEAM_ID, logTsi, top11],
+    queryFn: () => api.leagueComparison(TEAM_ID, logTsi, top11),
     enabled,
+    // Los mandos de esta pantalla son post-proceso sobre los mismos XML: al
+    // cambiarlos se conserva lo que ya está pintado mientras llega lo nuevo.
+    // Sin esto la página entera se vaciaba y volvía, que es lo que se siente
+    // como "tarda un montón" aunque la respuesta tarde medio segundo.
+    placeholderData: (previous) => previous,
   });
 
-export const useSyncChanges = () =>
-  useQuery({ queryKey: ["sync-changes", TEAM_ID], queryFn: () => api.syncChanges(TEAM_ID) });
-
-export const useChangesHistory = (playerId?: number | null) =>
+export const useSyncChanges = (syncId?: number | null) =>
   useQuery({
-    queryKey: ["changes-history", TEAM_ID, playerId ?? null],
-    queryFn: () => api.changesHistory(TEAM_ID, playerId),
+    queryKey: ["sync-changes", TEAM_ID, syncId ?? null],
+    queryFn: () => api.syncChanges(TEAM_ID, syncId),
+    // Al cambiar de fecha se mantiene la tabla anterior mientras llega la
+    // nueva, en vez de parpadear a vacío en cada selección.
+    placeholderData: (previous) => previous,
+  });
+
+export const useAcademySkillScores = (params: {
+  soonMaxDays: number;
+  weightBase: number;
+  trainableMethod: string;
+  trainable: Record<string, number>;
+  trainableWeight?: number | null;
+}) =>
+  useQuery({
+    queryKey: ["academy-skill-scores", TEAM_ID, params],
+    queryFn: () => api.academySkillScores(TEAM_ID, params),
+    // Al mover un deslizador se conserva la tabla anterior mientras llega la
+    // nueva: parpadear a vacío en cada píxel haría el mando inusable.
+    placeholderData: (previous) => previous,
+  });
+
+export const useChangesHistory = (
+  playerId?: number | null,
+  weeks?: number,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ["changes-history", TEAM_ID, playerId ?? null, weeks ?? null],
+    queryFn: () => api.changesHistory(TEAM_ID, playerId, weeks),
+    enabled,
+    // Al cambiar de ventana se conserva la tabla anterior mientras llega la
+    // nueva, en vez de parpadear a vacío en cada clic.
+    placeholderData: (previous) => previous,
   });
 
 export const useCup = () =>
@@ -192,27 +275,28 @@ export const useCup = () =>
 export const useRivalScouting = (
   rivalHtTeamId: number | null,
   logTsi: boolean,
-  excludeKeeper: boolean,
   top11: boolean,
   includeCompetitive = true,
   includeFriendlies = true,
   pitchZoneScope: PitchZoneScope = "mixed",
+  pitchZoneMethodOwn: PitchZoneMethod = "submitted",
+  pitchZoneMethodRival: PitchZoneMethod = "average",
 ) =>
   useQuery({
     queryKey: [
-      "rival-scouting", TEAM_ID, rivalHtTeamId, logTsi, excludeKeeper, top11,
+      "rival-scouting", TEAM_ID, rivalHtTeamId, logTsi, top11,
       includeCompetitive, includeFriendlies, pitchZoneScope,
+      pitchZoneMethodOwn, pitchZoneMethodRival,
     ],
     queryFn: () =>
       api.rivalScouting(
-        TEAM_ID, rivalHtTeamId as number, logTsi, excludeKeeper, top11,
+        TEAM_ID, rivalHtTeamId as number, logTsi, top11,
         includeCompetitive, includeFriendlies, pitchZoneScope,
+        pitchZoneMethodOwn, pitchZoneMethodRival,
       ),
     enabled: rivalHtTeamId != null,
-  });
-
-export const useNextMatchAnalysis = () =>
-  useQuery({
-    queryKey: ["next-match-analysis", TEAM_ID],
-    queryFn: () => api.nextMatchAnalysis(TEAM_ID),
+    // Igual que en la comparativa de liga: método de zonas, TSI logarítmico y
+    // once/plantilla no piden datos nuevos a Hattrick, así que la ficha no
+    // debe desaparecer mientras se recalculan.
+    placeholderData: (previous) => previous,
   });

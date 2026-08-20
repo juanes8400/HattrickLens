@@ -1,10 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import { Column, DataTable } from "../components/DataTable";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
-import { TEAM_ID, useArena } from "../hooks/useTeam";
+import { useArena } from "../hooks/useTeam";
 import { money, number } from "../hooks/useFormat";
-import { api, ApiError, type Arena } from "../services/api";
+import { ApiError, type Arena } from "../services/api";
 
 /**
  * Estadio. HL-060, HL-061, HL-063, HL-064.
@@ -16,11 +16,6 @@ import { api, ApiError, type Arena } from "../services/api";
  */
 export function ArenaPage() {
   const { data, isLoading, isError, error } = useArena();
-  const qc = useQueryClient();
-  const syncDetails = useMutation({
-    mutationFn: () => api.syncMatchDetails(TEAM_ID),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["arena", TEAM_ID] }),
-  });
 
   if (isLoading) return <Loading />;
   if (isError) {
@@ -39,22 +34,13 @@ export function ArenaPage() {
                 La sincronización normal trae calendario y resultados. Para medir asistencia,
                 ocupación y demanda hay que pedir los reportes detallados de tus partidos como local.
               </p>
-              <button
-                onClick={() => syncDetails.mutate()}
-                disabled={syncDetails.isPending}
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
+              {/* 2026-08-15: la carga vive en Sincronización, junto al resto. */}
+              <Link
+                to="/sync"
+                className="inline-block rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)]"
               >
-                {syncDetails.isPending ? "Cargando detalles de partidos…" : "Cargar detalles de partidos"}
-              </button>
-              {syncDetails.isError && <p className="text-[var(--danger)]">No se pudieron cargar: {String(syncDetails.error)}</p>}
-              {syncDetails.isSuccess && (
-                <p>
-                  {syncDetails.data.matchesProcessed === 0
-                    ? "No había partidos pendientes."
-                    : `Procesados ${syncDetails.data.matchesProcessed} partido(s).`}
-                  {syncDetails.data.errors.length > 0 && ` Errores: ${syncDetails.data.errors.join(" · ")}`}
-                </p>
-              )}
+                Cargar detalles de partidos en Sincronización
+              </Link>
             </div>
           </Panel>
         </div>
@@ -79,8 +65,8 @@ export function ArenaPage() {
           label="Ocupación media"
           value={`${data.avgOccupancy.toFixed(1)}%`}
           hint={
-            data.demandIsCensored
-              ? "es un suelo: hubo sectores agotados"
+            data.soldOutMatches > 0
+              ? `suelo en ${data.soldOutMatches} de ${data.matchesAnalysed} partidos`
               : `sobre ${data.matchesAnalysed} partidos`
           }
         />
@@ -89,11 +75,21 @@ export function ArenaPage() {
           value={money(data.totalRevenue, data.currency)}
           hint={`${data.matchesAnalysed} partidos analizados`}
         />
+        {/* 2026-08-15: aquí había "Dejado sobre la mesa" = ingreso con el
+            estadio 100% lleno menos el real. Con 29% de ocupación media eso
+            no es dinero perdido sino una fantasía: el límite es la demanda,
+            no los asientos, y pintarlo en rojo sugería un problema que no
+            existe. Se sustituye por el único hecho comprobable: en cuántos
+            partidos se dejó gente fuera de verdad. */}
         <Kpi
-          label="Dejado sobre la mesa"
-          value={money(data.revenueLeftOnTable, data.currency)}
-          hint="con el estadio lleno en todos los partidos"
-          tone={data.revenueLeftOnTable > 0 ? "danger" : "positive"}
+          label="Partidos con sector agotado"
+          value={`${data.soldOutMatches} de ${data.matchesAnalysed}`}
+          hint={
+            data.soldOutMatches > 0
+              ? "ahí sí hubo demanda sin atender"
+              : "nunca se llenó: sobran asientos, falta demanda"
+          }
+          tone={data.soldOutMatches > 0 ? "danger" : undefined}
         />
       </div>
 
@@ -108,27 +104,75 @@ export function ArenaPage() {
         <SectorTable data={data} />
       </Panel>
 
-      <Panel title="Ocupación por partido">
+      <Panel
+        title="Ocupación por partido"
+        meta={`media ${data.avgOccupancy.toFixed(1)}%`}
+      >
         <Chart ariaLabel="Ocupación del estadio por partido, en porcentaje"
           option={{
-            xAxis: { type: "category", data: data.matches.map((m) => m.date) },
-            yAxis: { type: "value", max: 100, axisLabel: { formatter: "{value}%" } },
-            tooltip: { trigger: "axis" },
+            grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+            xAxis: {
+              type: "category",
+              // Día y mes, no la fecha ISO entera: con ocho partidos el eje
+              // era una fila de "2026-08-16" que nadie lee.
+              data: data.matches.map((m) => m.date.slice(5).replace("-", "/")),
+              axisLabel: { fontSize: 10 },
+            },
+            yAxis: {
+              type: "value", max: 100,
+              axisLabel: { formatter: "{value}%" },
+              splitLine: { lineStyle: { opacity: 0.15 } },
+            },
+            tooltip: {
+              trigger: "axis",
+              formatter: (params: unknown) => {
+                const items = (Array.isArray(params) ? params : [params]) as {
+                  dataIndex: number;
+                }[];
+                const i = items[0]?.dataIndex;
+                const m = i == null ? undefined : data.matches[i];
+                if (!m) return "";
+                return [
+                  `<b>${m.date}</b>`,
+                  `Ocupación: <b>${m.occupancy.toFixed(1)}%</b>`,
+                  `${number(m.sold)} de ${number(m.capacity)} asientos`,
+                  m.soldOutSectors.length > 0
+                    ? `Agotado: ${m.soldOutSectors.join(", ")}`
+                    : "Ningún sector agotado",
+                ].join("<br/>");
+              },
+            },
             series: [
               {
                 name: "Ocupación",
                 type: "bar",
-                data: data.matches.map((m) => m.occupancy),
-                itemStyle: { borderRadius: 3 },
+                // Un partido con algún sector agotado se pinta distinto: ahí
+                // la barra mide asientos, no demanda, y esa diferencia es
+                // justo lo que decide si conviene ampliar.
+                data: data.matches.map((m) => ({
+                  value: m.occupancy,
+                  itemStyle: {
+                    color: m.soldOutSectors.length > 0
+                      ? "var(--warning)" : "var(--accent)",
+                    borderRadius: 3,
+                  },
+                })),
+                barMaxWidth: 42,
                 markLine: {
                   silent: true,
-                  data: [{ yAxis: 100, lineStyle: { type: "dashed" } }],
-                  label: { formatter: "lleno" },
+                  symbol: "none",
+                  data: [
+                    {
+                      yAxis: data.avgOccupancy,
+                      lineStyle: { type: "dashed", color: "var(--muted)" },
+                      label: { formatter: "media", position: "insideEndTop" },
+                    },
+                  ],
                 },
               },
             ],
           }}
-          height={240}
+          height={260}
         />
       </Panel>
 
@@ -159,9 +203,22 @@ function SectorTable({ data }: { data: Arena }) {
       header: "Ocupación",
       align: "right",
       value: (r) => r.occupancy,
+      // Barra dentro de la celda: comparar seis porcentajes en columna es
+      // comparar seis longitudes, no leer seis números.
       render: (r) => (
-        <span className="tabular-nums">
-          {r.occupancy.toFixed(1)}%{r.demandIsCensored && <span title="demanda censurada"> ↑</span>}
+        <span className="flex items-center justify-end gap-2">
+          <span className="h-1.5 w-16 overflow-hidden rounded bg-[var(--surface-2)]">
+            <span
+              className="block h-full rounded"
+              style={{
+                width: `${Math.min(100, r.occupancy)}%`,
+                background: r.demandIsCensored ? "var(--warning)" : "var(--accent)",
+              }}
+            />
+          </span>
+          <span className="tabular-nums">
+            {r.occupancy.toFixed(1)}%{r.demandIsCensored && <span title="demanda censurada"> ↑</span>}
+          </span>
         </span>
       ),
     },

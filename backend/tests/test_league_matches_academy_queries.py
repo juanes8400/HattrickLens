@@ -884,14 +884,23 @@ def test_an_unrevealed_ceiling_is_unknown_not_zero() -> None:
 
     d = _run(go())
     ana = next(p for p in d.players if p.name == "Ana Cantera")
-    revealed = [s for s in ana.skills if s.is_revealed]
-    unrevealed = [s for s in ana.skills if not s.is_revealed]
+    revealed = [s for s in ana.skills if s.is_max_known]
+    unrevealed = [s for s in ana.skills if not s.is_max_known]
     assert len(revealed) == 2 and unrevealed
     assert all(s.maximum is None for s in unrevealed)
     # Un techo desconocido conserva margen de crecimiento, no lo pierde.
-    assert all(s.headroom > 0 for s in unrevealed if s.current < 8)
+    assert all(s.headroom > 0 for s in unrevealed if (s.current or 0) < 8)
+
+    # 2026-08-17: nivel actual y techo se revelan por SEPARADO, y hasta ahora
+    # el nivel sin revelar se guardaba como 0 — indistinguible de jugar a
+    # nivel 0. Ahora viaja como `None` y con su propio indicador, que es lo que
+    # decide si la barra amarilla se pinta.
+    assert all(
+        (s.current is None) != s.is_current_known for s in ana.skills
+    ), "is_current_known tiene que ir de la mano de que haya nivel"
+    # La categoría se marca provisional en la propia fila; la nota que lo
+    # explicaba se retiró en la pasada de caveats del 2026-08-16.
     assert ana.verdict_is_provisional is True
-    assert any("provisional" in n.lower() for n in d.notes)
 
 
 def test_the_deadline_overrides_everything_else() -> None:
@@ -928,6 +937,45 @@ def test_academy_roi_crosses_investment_with_income() -> None:
     assert d.graduates[0].current_team == "Otro Club"
 
 
+def test_graduate_without_squad_record_falls_back_to_gross_and_says_so() -> None:
+    """2026-08-15, pedido: el ingreso de la cantera debe salir de "Saldo por
+    jugador" (neto tras comisión + bonos de club de origen/anterior). Pero un
+    canterano vendido puede vivir SOLO en `former_youth_players`, sin ficha en
+    plantilla: ahí no hay comisión ni bonos que calcular. Se cuenta el bruto,
+    porque perderlo de la suma sería peor."""
+    async def go():
+        factory, team_id = await _with_youth()
+        async with factory() as s:
+            return await AcademyQueryService(s).get(team_id)
+
+    d = _run(go())
+    assert d.earned == 350_000
+
+
+def test_investment_counts_calendar_weeks_not_economy_snapshots() -> None:
+    """2026-08-15, bug real: la inversión contaba UN "semana" por cada snapshot
+    económico. Como los snapshots son por sync (a veces varios el mismo día),
+    34 lecturas de tres semanas se presentaban como 34 semanas y la cifra salía
+    inflada ~11x. Varias lecturas dentro de la misma semana ISO son una semana.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.application.queries.weekly import latest_per_iso_week
+
+    base = datetime(2026, 7, 27, tzinfo=UTC)  # lunes
+    same_week = [base, base + timedelta(hours=5), base + timedelta(days=2)]
+    next_week = [base + timedelta(days=7)]
+
+    class Snap:
+        def __init__(self, when: datetime) -> None:
+            self.captured_at = when
+
+    collapsed = latest_per_iso_week(
+        [Snap(w) for w in same_week + next_week], lambda s: s.captured_at
+    )
+    assert len(collapsed) == 2  # dos semanas ISO, no cuatro lecturas
+
+
 def test_academy_answers_even_with_no_youth_squad_synced() -> None:
     """El retorno y los canteranos promocionados ya se pueden calcular sin la
     plantilla juvenil. Devolver 404 escondería información disponible."""
@@ -939,4 +987,6 @@ def test_academy_answers_even_with_no_youth_squad_synced() -> None:
     d = _run(go())
     assert d is not None
     assert d.squad_size == 0
-    assert any("youthteamdetails" in n for n in d.notes)
+    # Sin la fecha de apertura el ROI cuenta también canteras anteriores: es el
+    # único caveat que sobrevivió a la pasada del 2026-08-16.
+    assert any("Sincroniza para acotar la academia" in n for n in d.notes)

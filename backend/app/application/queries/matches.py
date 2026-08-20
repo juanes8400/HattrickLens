@@ -56,7 +56,7 @@ _BEST_METRICS = (
     ("hatstats", "Valoración"),
     ("midfield", "Mediocampo"),
     ("right_def", "Defensa derecha"),
-    ("central_def", "Defensa central"),
+    ("central_def", "Defensa Central"),
     ("left_def", "Defensa izquierda"),
     ("right_att", "Ataque derecha"),
     ("central_att", "Ataque central"),
@@ -430,18 +430,6 @@ class MatchesQueryService:
         avg_hs = round(sum(hs_values) / len(hs_values), 1) if hs_values else None
 
         notes: list[str] = []
-        if not rated:
-            notes.append(
-                "Todavía no hay ratings por sector sincronizados, así que los "
-                "índices HatStats y LoddarStats están vacíos. Llegan con el "
-                "detalle de partido."
-            )
-        if rated and not conversion.is_reliable and conversion.own_chances:
-            notes.append(
-                f"Muestra corta: por debajo de {MIN_CHANCES_FOR_A_RATE} "
-                "ocasiones la tasa de conversión es ruido, no señal. Se "
-                "muestra igualmente, marcada."
-            )
 
         home_away = [
             HomeAwayRow(

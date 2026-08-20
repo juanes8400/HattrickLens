@@ -65,8 +65,11 @@ TRAINING_POSITION_SHARES: dict[int, dict[str, str]] = {
     7: {"inner_mid": "full", "winger": "full", "forward": "full"},
     8: {"inner_mid": "full", "winger": "partial"},
     9: {"keeper": "full"},
-    10: {"defender": "full", "inner_mid": "full"},
-    11: {"keeper": "full", "defender": "full", "inner_mid": "full"},
+    # En Hattrick, "defensas" incluye centrales y laterales; "centrocampistas"
+    # incluye medios interiores y extremos. La pantalla oficial de minutos de
+    # entrenamiento confirma los cuatro grupos para los tipos 10 y 11.
+    10: {"defender": "full", "wingback": "full", "inner_mid": "full", "winger": "full"},
+    11: {"defender": "full", "wingback": "full", "inner_mid": "full", "winger": "full"},
     12: {"winger": "full", "forward": "full"},
 }
 
@@ -82,6 +85,25 @@ class PlayedSegment:
     played_at: datetime | None
     match_type: int | None
     source: str
+
+
+@dataclass(frozen=True)
+class TrainingWeekExposure:
+    """Minutos equivalentes observados para el último entrenamiento cerrado."""
+
+    exposure: float
+    equivalent_minutes: float
+    matches: int
+
+
+@dataclass(frozen=True)
+class ObservedTrainingProgress:
+    """Avance técnico verificable desde la primera lectura del nivel actual."""
+
+    total_exposure: float
+    latest_exposure: float
+    latest_equivalent_minutes: float
+    observed_cycles: int
 
 
 class PostMatchTrainingService:
@@ -116,7 +138,7 @@ class PostMatchTrainingService:
             )
         )
 
-        deadline = await self._training_deadline()
+        deadline = await self._training_deadline(team_id)
         since = deadline - timedelta(days=8)
         segments, data_notes = await self._played_segments(team_id, since, deadline)
         by_player: dict[int, list[PlayedSegment]] = {}
@@ -139,20 +161,13 @@ class PostMatchTrainingService:
             for p in players
         ]
 
-        notes = [
-            "La recomendación usa minutos/posiciones observados y la fórmula de entrenamiento actual.",
-            "La tabla posición->entrenamiento es auditable; si sincronizamos matchlineup completo, mejora el detalle.",
-        ]
-        notes.extend(data_notes)
+        notes: list[str] = list(data_notes)
         if current_type and recommendation and recommendation["trainingType"] != current_type:
             notes.append(
                 "El entrenamiento actual no es el que más aprovecha los minutos ya jugados esta semana."
             )
         elif current_type and recommendation:
             notes.append("El entrenamiento actual coincide con la mejor opción calculada.")
-        notes.append(
-            "Los trainingType obsoletos de CHPP se muestran como referencia histórica, pero no compiten por la recomendación."
-        )
 
         return {
             "team": {"id": team.id, "htTeamId": team.ht_team_id, "name": team.name},
@@ -207,7 +222,17 @@ class PostMatchTrainingService:
             .limit(1)
         )
 
-    async def _training_deadline(self) -> datetime:
+    async def _training_deadline(self, team_id: int | None = None) -> datetime:
+        if team_id is not None:
+            team = await self._s.get(m.Team, team_id)
+            if team is not None and team.ht_league_id is not None:
+                team_world = await self._s.scalar(
+                    select(m.WorldContext)
+                    .where(m.WorldContext.ht_league_id == team.ht_league_id)
+                    .limit(1)
+                )
+                if team_world is not None and team_world.training_date is not None:
+                    return _aware(team_world.training_date)
         world = await self._s.scalar(
             select(m.WorldContext)
             .order_by(m.WorldContext.refreshed_at.desc().nullslast(), m.WorldContext.id.desc())
@@ -216,6 +241,185 @@ class PostMatchTrainingService:
         if world and world.training_date:
             return _aware(world.training_date)
         return datetime.now(UTC)
+
+    async def _latest_completed_training_deadline(self, team_id: int) -> datetime:
+        """Último corte semanal de entrenamiento que ya ocurrió."""
+        deadline = await self._training_deadline(team_id)
+        now = datetime.now(UTC)
+        while deadline > now:
+            deadline -= timedelta(days=7)
+        while deadline + timedelta(days=7) <= now:
+            deadline += timedelta(days=7)
+        return deadline
+
+    async def latest_completed_training_exposure(
+        self, team_id: int, training_type: int,
+    ) -> dict[int, TrainingWeekExposure]:
+        """Exposición real del ciclo de entrenamiento más reciente ya cerrado.
+
+        ``worlddetails.xml`` suele entregar la próxima fecha de entrenamiento.
+        Para no sumar partidos futuros ni una semana completa a toda la
+        plantilla, retrocedemos al último corte ya ocurrido y leemos únicamente
+        los partidos reales de los siete días anteriores. Cada jugador queda
+        limitado a 90 minutos equivalentes, tal como hace Hattrick.
+        """
+        deadline = await self._latest_completed_training_deadline(team_id)
+        since = deadline - timedelta(days=7)
+
+        segments, _notes = await self._played_segments(team_id, since, deadline)
+        by_player: dict[int, list[PlayedSegment]] = {}
+        for segment in segments:
+            # Sin fecha de partido no hay evidencia para ubicar los minutos en
+            # este ciclo. Esos LastMatch quedan disponibles como respaldo en la
+            # vista a posteriori, pero nunca se atribuyen a una semana concreta.
+            if segment.played_at is None:
+                continue
+            by_player.setdefault(segment.ht_player_id, []).append(segment)
+
+        result: dict[int, TrainingWeekExposure] = {}
+        for ht_player_id, player_segments in by_player.items():
+            exposure = min(
+                sum(
+                    self._segment_exposure(
+                        training_type, segment.position_code, segment.played_minutes,
+                    )
+                    for segment in player_segments
+                ),
+                1.0,
+            )
+            if exposure <= 0:
+                continue
+            result[ht_player_id] = TrainingWeekExposure(
+                exposure=round(exposure, 4),
+                equivalent_minutes=round(exposure * 90.0, 1),
+                matches=len({segment.ht_match_id for segment in player_segments}),
+            )
+        return result
+
+    async def observed_training_progress(
+        self,
+        team_id: int,
+        skill: str,
+        baselines: dict[int, datetime],
+        *,
+        include_latest: bool,
+    ) -> dict[int, ObservedTrainingProgress]:
+        """Suma todas las exposiciones semanales observables desde una base.
+
+        La base de cada jugador es la primera sincronización del tramo continuo
+        en su nivel entero actual. No pretende reconstruir el subnivel que tenía
+        antes de esa lectura; conserva únicamente el avance nuevo demostrado por
+        minutos, posición y tipo de entrenamiento reales.
+        """
+        if not baselines:
+            return {}
+
+        latest_deadline = await self._latest_completed_training_deadline(team_id)
+        # 2026-08-16, error real: el ciclo EN CURSO no se contaba nunca. Sus
+        # partidos ya se jugaron y sus minutos son un hecho, pero su corte
+        # todavía no ha llegado, así que no existía como ciclo — y un jugador
+        # que anoche jugó 82' aparecía con cero. `include_latest` es justo el
+        # toggle "Incluir los partidos de esta semana": lo que añade es esta
+        # semana abierta, no el último ciclo ya cerrado (ese es un hecho
+        # consumado y cuenta siempre).
+        open_deadline = latest_deadline + timedelta(days=7)
+        earliest_baseline = min(_aware(value) for value in baselines.values())
+        deadlines: list[datetime] = []
+        deadline = latest_deadline
+        while deadline > earliest_baseline:
+            deadlines.append(deadline)
+            deadline -= timedelta(days=7)
+        deadlines.reverse()
+        if include_latest:
+            deadlines.append(open_deadline)
+        if not deadlines:
+            return {}
+
+        training_rows = (
+            await self._s.execute(
+                select(m.TrainingSnapshot)
+                .where(m.TrainingSnapshot.team_id == team_id)
+                .order_by(m.TrainingSnapshot.captured_at)
+            )
+        ).scalars().all()
+        if not training_rows:
+            return {}
+
+        segments, _notes = await self._played_segments(
+            team_id,
+            deadlines[0] - timedelta(days=7),
+            deadlines[-1],
+        )
+        exact_segments = [segment for segment in segments if segment.played_at is not None]
+
+        totals: dict[int, float] = {}
+        latest_values: dict[int, float] = {}
+        cycle_counts: dict[int, int] = {}
+        for cycle_deadline in deadlines:
+            # La configuración se consulta bajo demanda. Una lectura hecha
+            # justo después del corte puede ser la primera evidencia del
+            # entrenamiento que acaba de aplicarse; una lectura anterior
+            # también sigue siendo válida si fue la más cercana. La base del
+            # jugador impide usar esta aproximación para reconstruir ciclos
+            # anteriores a la primera vez que Lens lo observó.
+            nearby_training = [
+                row
+                for row in training_rows
+                if abs((_aware(row.captured_at) - cycle_deadline).total_seconds())
+                <= timedelta(days=7).total_seconds()
+            ]
+            training = min(
+                nearby_training,
+                key=lambda row: (
+                    abs((_aware(row.captured_at) - cycle_deadline).total_seconds()),
+                    _aware(row.captured_at) > cycle_deadline,
+                ),
+                default=None,
+            )
+            if training is None or training_target(training.training_type) != skill:
+                continue
+            cycle_start = cycle_deadline - timedelta(days=7)
+            by_player: dict[int, list[PlayedSegment]] = {}
+            for segment in exact_segments:
+                played_at = _aware(segment.played_at)
+                baseline = baselines.get(segment.ht_player_id)
+                if baseline is None or cycle_deadline <= _aware(baseline):
+                    continue
+                if cycle_start < played_at <= cycle_deadline:
+                    by_player.setdefault(segment.ht_player_id, []).append(segment)
+
+            for ht_player_id, player_segments in by_player.items():
+                exposure = min(
+                    sum(
+                        self._segment_exposure(
+                            training.training_type,
+                            segment.position_code,
+                            segment.played_minutes,
+                        )
+                        for segment in player_segments
+                    ),
+                    1.0,
+                )
+                if exposure <= 0:
+                    continue
+                totals[ht_player_id] = totals.get(ht_player_id, 0.0) + exposure
+                cycle_counts[ht_player_id] = cycle_counts.get(ht_player_id, 0) + 1
+                # "Esta semana" es la que está corriendo, no la última cerrada.
+                if cycle_deadline == open_deadline:
+                    latest_values[ht_player_id] = exposure
+
+        return {
+            ht_player_id: ObservedTrainingProgress(
+                total_exposure=round(total, 4),
+                latest_exposure=round(latest_values.get(ht_player_id, 0.0), 4),
+                latest_equivalent_minutes=round(
+                    latest_values.get(ht_player_id, 0.0) * 90.0,
+                    1,
+                ),
+                observed_cycles=cycle_counts.get(ht_player_id, 0),
+            )
+            for ht_player_id, total in totals.items()
+        }
 
     async def _played_segments(
         self, team_id: int, since: datetime, deadline: datetime

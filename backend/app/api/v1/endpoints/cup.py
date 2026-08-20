@@ -19,6 +19,7 @@ from app.domain.engines.arena_engine import ArenaCapacity, Attendance, analyse_m
 from app.domain.engines.match_analysis import hatstats
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
 from app.infrastructure.db import models as m
+from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -230,6 +231,37 @@ async def _readiness(
     def opponent_of(mt: m.Match) -> str:
         return mt.away_team_name if mt.home_team_ht_id == team_ht_id else mt.home_team_name
 
+    def penalty_order(
+        xi: list[tuple[m.PlayerSnapshot, m.Player]]
+    ) -> list[dict[str, Any]]:
+        """Los tiradores de ese once, del primero al último.
+
+        2026-08-19, pedido explícito: el orden depende del once que estés
+        mirando. Antes salía de TODA la plantilla, así que podía proponer de
+        tirador a alguien que ni siquiera está en el campo cuando llegan los
+        penaltis.
+        """
+        filas = []
+        for snap, player in xi:
+            # Índice transparente para ordenar, no una probabilidad de marcar.
+            indice = (
+                (snap.set_pieces or 0) * 0.45
+                + (snap.scoring or 0) * 0.30
+                + snap.experience * 0.20
+                + (1.0 if snap.specialty == 1 else 0.0)
+            )
+            filas.append({
+                "ht_player_id": player.ht_player_id,
+                "name": f"{player.first_name} {player.last_name}",
+                "set_pieces": snap.set_pieces or 0,
+                "scoring": snap.scoring or 0,
+                "experience": snap.experience,
+                "technical": snap.specialty == 1,
+                "readiness_index": round(indice, 2),
+            })
+        filas.sort(key=lambda fila: (-fila["readiness_index"], fila["name"]))
+        return filas
+
     def stamina_summary(xi: list[tuple[m.PlayerSnapshot, m.Player]]) -> dict[str, Any]:
         average_stamina = round(sum(snap.stamina for snap, _ in xi) / len(xi), 1) if xi else None
         # Resistencia (Stamina skill) va de 0 a 9, no de 0 a 20 — esa era la
@@ -246,6 +278,9 @@ async def _readiness(
         return {
             "average_stamina": average_stamina, "stamina_bands": stamina_bands,
             "starters_count": len(xi),
+            # Los once que patearían si el partido llega a penaltis con ESTE
+            # once en el campo.
+            "penalty_candidates": penalty_order(xi),
         }
 
     top_tsi_xi = sorted(roster, key=lambda row: row[0].tsi, reverse=True)[:11]
@@ -294,31 +329,16 @@ async def _readiness(
 
     default_mode = "last_cup" if any(v["mode"] == "last_cup" for v in variants) else "top_tsi"
 
-    penalty_candidates = []
-    for snap, player in roster:
-        technical_bonus = 1.0 if snap.specialty == 1 else 0.0
-        # Índice transparente para ordenar, no una probabilidad de marcar.
-        index = (
-            (snap.set_pieces or 0) * 0.45
-            + (snap.scoring or 0) * 0.30
-            + snap.experience * 0.20
-            + technical_bonus
-        )
-        penalty_candidates.append({
-            "ht_player_id": player.ht_player_id,
-            "name": f"{player.first_name} {player.last_name}",
-            "set_pieces": snap.set_pieces or 0,
-            "scoring": snap.scoring or 0,
-            "experience": snap.experience,
-            "technical": snap.specialty == 1,
-            "readiness_index": round(index, 2),
-        })
-    penalty_candidates.sort(key=lambda row: (-row["readiness_index"], row["name"]))
     best_keeper = max(roster, key=lambda row: row[0].keeper or 0, default=None)
     return {
         "reference_variants": variants,
         "default_mode": default_mode,
-        "penalty_candidates": penalty_candidates[:5],
+        # El orden del once por defecto. Cada variante trae el suyo, y la
+        # pantalla usa el de la que esté seleccionada.
+        "penalty_candidates": next(
+            (v["penalty_candidates"] for v in variants if v["mode"] == default_mode),
+            [],
+        ),
         "goalkeeper": (
             {
                 "ht_player_id": best_keeper[1].ht_player_id,
@@ -396,7 +416,9 @@ async def _cup_economy(
     }
 
 
-@router.get("/teams/{team_id}/cup", summary="Copa: estado, meta y decisiones")
+@router.get("/teams/{team_id}/cup", summary="Copa: estado, meta y decisiones",
+    dependencies=[Depends(require_team_owner)],
+)
 async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
     team = await session.get(m.Team, team_id)
     if team is None:
@@ -677,16 +699,11 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
 
     notes = []
     if not matches:
-        notes.append("Todavía no hay partidos de Copa sincronizados; llegan con matches.xml.")
+        notes.append("Todavía no hay partidos de Copa sincronizados.")
     if team.still_in_cup is None:
-        notes.append(
-            "El estado activo se deduce temporalmente del calendario. Sincroniza teamdetails.xml "
-            "para leer StillInCup como dato oficial."
-        )
+        notes.append("Sincroniza para leer si sigues en Copa: por ahora se deduce del calendario.")
     if official_round is None and still_in_cup:
-        notes.append(
-            "La ronda oficial todavía no está guardada. worlddetails.xml y teamdetails.xml la entregan."
-        )
+        notes.append("Sincroniza para leer la ronda oficial.")
 
     return cast(dict[str, Any], _camel({
         "team_name": team.name,

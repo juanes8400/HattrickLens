@@ -109,8 +109,10 @@ def test_a_sold_out_sector_is_flagged_as_censored() -> None:
     roof = next(s for s in d.sectors if s.sector == "tribunas")
     assert roof.demand_is_censored is True
     assert roof.times_sold_out == 3
-    note = " ".join(d.notes)
-    assert "censurada" in note and "suelo" in note
+    # 2026-08-16: el párrafo que lo explicaba se retiró a petición del usuario;
+    # el hecho sigue viajando en los campos, que es lo que consumen los KPI y
+    # las alertas. Lo que NO puede pasar es que se cuele la nota contraria.
+    assert not any("Ningún sector se agotó" in n for n in d.notes)
 
     general = next(s for s in d.sectors if s.sector == "general")
     assert general.demand_is_censored is False
@@ -206,7 +208,7 @@ def test_without_a_sector_breakdown_censoring_cannot_be_evaluated() -> None:
     assert d.capacity_is_real is False
     assert d.demand_is_censored is False
     assert any("indetectable" in n for n in d.notes)
-    assert any("orientativas" in n for n in d.notes)
+    assert any("No fíes las cifras por sector" in n for n in d.notes)
 
 
 def test_non_official_matches_are_always_excluded_from_stadium_stats() -> None:

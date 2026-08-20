@@ -21,6 +21,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Mensaje legible de cualquier error: desenvuelve el `detail` de FastAPI, que
+ * a veces llega como string y a veces como `{detail: "..."}`. Vive aquí (y no
+ * en una pantalla) porque lo necesitan todas las que disparan mutaciones.
+ */
+export function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    const detail = error.detail;
+    if (typeof detail === "string") return detail;
+    if (detail && typeof detail === "object" && "detail" in detail) {
+      const inner = (detail as { detail: unknown }).detail;
+      if (typeof inner === "string") return inner;
+    }
+    return error.message;
+  }
+  return error instanceof Error ? error.message : "Error desconocido.";
+}
+
 // La cookie de acceso dura pocos minutos (`jwt_access_ttl_minutes`) a
 // propósito. La de refresco (días) la renueva en silencio: un 401 dispara
 // como mucho UN intento de /auth/refresh, compartido entre requests
@@ -60,7 +78,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
 
   let res = await doFetch();
-  const mayRefresh = path !== "/auth/chpp/refresh" && path !== "/auth/chpp/connect";
+  const mayRefresh =
+    path !== "/auth/chpp/refresh" && path !== "/auth/chpp/connect";
   if (res.status === 401 && mayRefresh) {
     const refreshed = await refreshSession();
     if (refreshed) res = await doFetch();
@@ -103,24 +122,41 @@ export const api = {
     request<PositionRating[]>(`/teams/players/${htPlayerId}/positions`),
   playerDetail: (teamId: number, htPlayerId: number) =>
     request<PlayerDetail>(`/teams/${teamId}/players/${htPlayerId}`),
-  lineup: (teamId: number, formation?: string, weather?: string) => {
+  lineup: (
+    teamId: number,
+    formation?: string,
+    centralDefenders?: number,
+    innerMidfielders?: number,
+  ) => {
     const q = new URLSearchParams();
     if (formation) q.set("formation", formation);
-    if (weather) q.set("weather", weather);
+    if (centralDefenders != null) q.set("central_defenders", String(centralDefenders));
+    if (innerMidfielders != null) q.set("inner_midfielders", String(innerMidfielders));
     const qs = q.toString();
     return request<Lineup>(`/teams/${teamId}/lineup${qs ? `?${qs}` : ""}`);
   },
-  weatherImpact: (teamId: number, formation = "4-4-2") =>
-    request<Record<string, number>>(
-      `/teams/${teamId}/lineup/weather?formation=${formation}`,
-    ),
+  lineupHindsight: (teamId: number) =>
+    request<LineupHindsight>(`/teams/${teamId}/lineup/hindsight`),
   teamSpiritMultiplier: (teamId: number) =>
     request<TeamSpiritMultiplier>(`/teams/${teamId}/lineup/team-spirit`),
   trainingForecast: (teamId: number) =>
     request<TrainingForecast>(`/teams/${teamId}/training/forecast`),
   postMatchTraining: (teamId: number) =>
     request<PostMatchTraining>(`/teams/${teamId}/training/post-match`),
+  teamOverview: (teamId: number) => request<TeamOverview>(`/teams/${teamId}/overview`),
   insights: (teamId: number) => request<Insight[]>(`/teams/${teamId}/insights`),
+  archivedInsights: (teamId: number) =>
+    request<ArchivedInsight[]>(`/teams/${teamId}/insights/archived`),
+  archiveInsight: (teamId: number, key: string) =>
+    request<{ key: string; archived: boolean }>(
+      `/teams/${teamId}/insights/${encodeURIComponent(key)}/archive`,
+      { method: "POST" },
+    ),
+  restoreInsight: (teamId: number, key: string) =>
+    request<{ key: string; archived: boolean }>(
+      `/teams/${teamId}/insights/${encodeURIComponent(key)}/archive`,
+      { method: "DELETE" },
+    ),
   positionModel: () => request<PositionModel>(`/teams/positions/model`),
   experienceModel: (teamId: number) =>
     request<ExperienceModel>(`/teams/${teamId}/experience/calibration`),
@@ -134,7 +170,11 @@ export const api = {
     const qs = q.toString();
     return request<Arena>(`/teams/${teamId}/arena${qs ? `?${qs}` : ""}`);
   },
-  matches: (teamId: number, includeFriendlies = false, season?: number | null) => {
+  matches: (
+    teamId: number,
+    includeFriendlies = false,
+    season?: number | null,
+  ) => {
     const q = new URLSearchParams();
     if (includeFriendlies) q.set("include_friendlies", "true");
     if (season != null) q.set("season", String(season));
@@ -150,33 +190,56 @@ export const api = {
     const params = new URLSearchParams();
     if (season && season !== "all") params.set("season", season);
     const qs = params.toString();
-    return request<PlayerBalance>(`/teams/${teamId}/player-balance${qs ? `?${qs}` : ""}`);
+    return request<PlayerBalance>(
+      `/teams/${teamId}/player-balance${qs ? `?${qs}` : ""}`,
+    );
   },
   syncPurchasePrices: (teamId: number) =>
-    request<PlayerDetailsSyncResult>(`/teams/${teamId}/players/purchase-price/sync`, {
-      method: "POST",
-    }),
+    request<PlayerDetailsSyncResult>(
+      `/teams/${teamId}/players/purchase-price/sync`,
+      {
+        method: "POST",
+      },
+    ),
   syncTransfersHistory: (teamId: number) =>
     request<TransfersHistorySyncResult>(`/teams/${teamId}/transfers/sync`, {
       method: "POST",
     }),
-  setManualPurchasePrice: (teamId: number, htPlayerId: number, price: number, purchasedAt?: string) =>
+  setManualPurchasePrice: (
+    teamId: number,
+    htPlayerId: number,
+    price: number,
+    purchasedAt?: string,
+  ) =>
     request<{ htPlayerId: number; purchasePriceManual: number }>(
       `/teams/${teamId}/players/${htPlayerId}/purchase-price`,
-      { method: "PUT", body: JSON.stringify({ price, purchased_at: purchasedAt ?? null }) },
+      {
+        method: "PUT",
+        body: JSON.stringify({ price, purchased_at: purchasedAt ?? null }),
+      },
     ),
   trainingFormula: (teamId: number) =>
     request<TrainingFormula>(`/teams/${teamId}/training/formula`),
-  trainingSquad: (teamId: number, skill?: string | null, includeThisWeek = true) => {
+  trainingSquad: (
+    teamId: number,
+    skill?: string | null,
+    includeThisWeek = true,
+  ) => {
     const q = new URLSearchParams();
     if (skill) q.set("skill", skill);
     if (!includeThisWeek) q.set("include_this_week", "false");
     const qs = q.toString();
-    return request<TrainingSquad>(`/teams/${teamId}/training/squad${qs ? `?${qs}` : ""}`);
+    return request<TrainingSquad>(
+      `/teams/${teamId}/training/squad${qs ? `?${qs}` : ""}`,
+    );
   },
   trainingDevelopment: (teamId: number) =>
     request<TrainingDevelopment>(`/teams/${teamId}/training/development`),
-  playerTrainingLevels: (teamId: number, htPlayerId: number, skill?: string | null) => {
+  playerTrainingLevels: (
+    teamId: number,
+    htPlayerId: number,
+    skill?: string | null,
+  ) => {
     const q = new URLSearchParams();
     if (skill) q.set("skill", skill);
     const qs = q.toString();
@@ -191,13 +254,17 @@ export const api = {
   // se descarga, no una espera muda de 15-20s. NDJSON sobre `fetch`, no
   // `EventSource` (solo hace GET, y este endpoint es un POST): se lee el
   // body como stream y se parte por saltos de línea a mano.
-  syncStream: async (teamId: number, onEvent: (event: SyncStreamEvent) => void): Promise<void> => {
-    const doSync = () => fetch(`${BASE}/teams/${teamId}/sync/stream`, {
-      method: "POST",
-      credentials: "include",
-    });
+  syncStream: async (
+    teamId: number,
+    onEvent: (event: SyncStreamEvent) => void,
+  ): Promise<void> => {
+    const doSync = () =>
+      fetch(`${BASE}/teams/${teamId}/sync/stream`, {
+        method: "POST",
+        credentials: "include",
+      });
     let res = await doSync();
-    if (res.status === 401 && await refreshSession()) res = await doSync();
+    if (res.status === 401 && (await refreshSession())) res = await doSync();
     if (res.status === 401) expireLocalSession();
     if (!res.ok || !res.body) {
       let detail: unknown;
@@ -223,12 +290,44 @@ export const api = {
     }
     if (buffer.trim()) onEvent(JSON.parse(buffer) as SyncStreamEvent);
   },
-  syncChanges: (teamId: number) =>
-    request<LastSyncChanges>(`/teams/${teamId}/sync/changes`),
-  changesHistory: (teamId: number, playerId?: number | null) =>
-    request<ChangesHistory>(
-      `/teams/${teamId}/changes/history${playerId == null ? "" : `?player_id=${playerId}`}`,
+  syncChanges: (teamId: number, syncId?: number | null) =>
+    request<LastSyncChanges>(
+      `/teams/${teamId}/sync/changes${syncId == null ? "" : `?sync_id=${syncId}`}`,
     ),
+  academySkillScores: (
+    teamId: number,
+    params: {
+      soonMaxDays: number;
+      weightBase: number;
+      trainableMethod: string;
+      trainable: Record<string, number>;
+      /** `null` = que lo sugiera la escalera. */
+      trainableWeight?: number | null;
+    },
+  ) => {
+    const q = new URLSearchParams({
+      soon_max_days: String(params.soonMaxDays),
+      weight_base: String(params.weightBase),
+      trainable_method: params.trainableMethod,
+      ...(params.trainableWeight == null
+        ? {}
+        : { trainable_weight: String(params.trainableWeight) }),
+      trainable: Object.entries(params.trainable)
+        .filter(([, n]) => n > 0)
+        .map(([skill, n]) => `${skill}:${n}`)
+        .join(","),
+    });
+    return request<AcademySkillScores>(`/teams/${teamId}/academy/skill-scores?${q}`);
+  },
+  changesHistory: (teamId: number, playerId?: number | null, weeks?: number) => {
+    const params = new URLSearchParams();
+    if (playerId != null) params.set("player_id", String(playerId));
+    if (weeks != null) params.set("weeks", String(weeks));
+    const query = params.toString();
+    return request<ChangesHistory>(
+      `/teams/${teamId}/changes/history${query ? `?${query}` : ""}`,
+    );
+  },
   syncMatchDetails: (teamId: number) =>
     request<MatchDetailsSyncResult>(`/teams/${teamId}/matches/details/sync`, {
       method: "POST",
@@ -255,36 +354,42 @@ export const api = {
     teamId: number,
     rivalHtTeamId: number,
     logTsi: boolean,
-    excludeKeeper: boolean,
     top11: boolean,
     includeCompetitive = true,
     includeFriendlies = true,
     pitchZoneScope: PitchZoneScope = "mixed",
+    pitchZoneMethodOwn: PitchZoneMethod = "submitted",
+    pitchZoneMethodRival: PitchZoneMethod = "average",
   ) =>
     request<RivalScouting>(
       `/teams/${teamId}/rivals/${rivalHtTeamId}/scouting` +
-        `?log_tsi=${logTsi}&exclude_keeper=${excludeKeeper}&top11=${top11}` +
+        `?log_tsi=${logTsi}&top11=${top11}` +
         `&include_competitive=${includeCompetitive}&include_friendlies=${includeFriendlies}` +
-        `&pitch_zone_scope=${pitchZoneScope}`,
+        `&pitch_zone_scope=${pitchZoneScope}&pitch_zone_method_own=${pitchZoneMethodOwn}` +
+        `&pitch_zone_method_rival=${pitchZoneMethodRival}`,
     ),
-  nextMatchAnalysis: (teamId: number) =>
-    request<NextMatchAnalysis>(`/teams/${teamId}/next-match/analysis`),
   leagueComparison: (
     teamId: number,
     logTsi: boolean,
-    excludeKeeper: boolean,
     top11: boolean,
   ) =>
     request<LeagueComparison>(
       `/teams/${teamId}/league/comparison` +
-        `?log_tsi=${logTsi}&exclude_keeper=${excludeKeeper}&top11=${top11}`,
+        `?log_tsi=${logTsi}&top11=${top11}`,
     ),
   leagueTeamOfWeek: (
-    teamId: number, scope: "week" | "season", formation: Formation, round?: number,
+    teamId: number,
+    scope: "week" | "season",
+    formation: Formation,
+    round?: number,
+    centralDefenders?: number,
+    innerMidfielders?: number,
   ) =>
     request<TeamOfTheWeek>(
       `/teams/${teamId}/league/team-of-the-week?scope=${scope}&formation=${formation}` +
-        (round != null ? `&round=${round}` : ""),
+        (round != null ? `&round=${round}` : "") +
+        (centralDefenders != null ? `&central_defenders=${centralDefenders}` : "") +
+        (innerMidfielders != null ? `&inner_midfielders=${innerMidfielders}` : ""),
     ),
   cup: (teamId: number) => request<Cup>(`/teams/${teamId}/cup`),
 };
@@ -322,6 +427,7 @@ export interface SquadPlayer {
   honesty: number;
   honestyLabel: string;
   countryId: number;
+  countryCode: string | null;
   leagueGoals: number;
   cupGoals: number;
   friendliesGoals: number;
@@ -344,9 +450,78 @@ export interface SquadPlayer {
   positionRating: PositionRating | null;
 }
 
+/** Cómo pintar el par antes/después de un cambio — ver `Change.kind` en
+ *  `sync_diff.py`. */
+export type SyncChangeKind = "count" | "money" | "skill" | "level" | "event";
+
+/**
+ * El mismo cambio como DATO, no como frase. Desde 2026-08-15 el backend lo
+ * guarda junto al `summary` para que la UI no tenga que sacar los números del
+ * texto con una regex — eso fue lo que rompió al unificar el separador de
+ * miles (`Number("202.210")` = 202,21, y se mostró "TSI 202").
+ */
+export interface SyncChangeDetail {
+  metric?: string;
+  label?: string;
+  subject?: string;
+  before?: number;
+  after?: number;
+  beforeLabel?: string;
+  afterLabel?: string;
+  kind?: SyncChangeKind;
+  good?: boolean;
+  currency?: string;
+}
+
+/**
+ * Comparación por LÍNEA entre quién jugó el último partido y quién pondría
+ * hoy el optimizador. Por línea y no por puesto exacto porque el optimizador
+ * asigna "defensa central" sin decidir el lado: comparar "central derecho"
+ * contra "central" produciría desacuerdos falsos.
+ */
+export interface HindsightUsedPlayer {
+  player: string;
+  htPlayerId: number;
+  positionLabel: string;
+  playedMinutes: number;
+  rating: number;
+  /** El optimizador también lo pondría en esta línea. */
+  alsoProposed: boolean;
+}
+
+export interface HindsightProposedPlayer {
+  player: string;
+  htPlayerId: number;
+  rating: number;
+}
+
+export interface HindsightLine {
+  key: string;
+  label: string;
+  used: HindsightUsedPlayer[];
+  /** A quién pondría el optimizador en esta línea y no usaste ahí. */
+  proposedInstead: HindsightProposedPlayer[];
+  usedCount: number;
+  agreedCount: number;
+}
+
+export interface LineupHindsight {
+  matchId: number | null;
+  matchLabel: string | null;
+  playedAt: string | null;
+  proposedFormation: string | null;
+  agreementCount: number;
+  comparableCount: number;
+  lines: HindsightLine[];
+  notes: string[];
+}
+
 export interface SyncChange {
   category: string;
   summary: string;
+  /** `null` en filas guardadas antes de 2026-08-15: para esas la UI cae al
+   *  parser de compatibilidad de SyncChangesFeed.tsx. */
+  detail?: SyncChangeDetail | null;
 }
 
 export interface PlayerComparisonChange {
@@ -438,6 +613,9 @@ export interface LastSyncChanges {
   playerRows: PlayerComparisonRow[];
   summary: ChangeMetricSummary[];
   clubChanges: ClubComparisonChange[];
+  /** Snapshots navegables — sólo los que tuvieron cambios reales, del más
+   *  reciente al más antiguo. Elegir uno recalcula toda la comparación. */
+  availableReports: { syncId: number; syncedAt: string; changeCount: number }[];
 }
 
 export interface MatchDetailsSyncResult {
@@ -467,7 +645,7 @@ export interface TransfersHistorySyncResult {
 // una ficha reducida — nada de habilidades/posiciones/entrenamiento (no
 // tiene sentido para alguien que ya no vemos), solo identidad y fechas. El
 // saldo/ROI se pide aparte, del mismo endpoint que ya alimenta "Detalle" en
-// Saldo por jugador (nunca se duplica ese cálculo).
+// Transferencias (nunca se duplica ese cálculo).
 export interface ExPlayerDetail {
   isExPlayer: true;
   htPlayerId: number;
@@ -490,6 +668,7 @@ export interface ActivePlayerDetail {
   salary: number;
   injuryLevel: number;
   countryId: number;
+  countryCode: string | null;
   specialty: string;
   leadership: number;
   isTransferListed: boolean;
@@ -521,8 +700,9 @@ export interface ActivePlayerDetail {
   // Curva continua de Fidelidad calculada solo con días desde la compra.
   // Es `null` únicamente cuando no existe una fecha de compra disponible.
   loyaltyDecimal: number | null;
-  // Proyección de Resistencia, tabla Federación Ocerin — `null` sin
-  // WorldContext propio o con la edad fuera de la tabla (17-36).
+  // Proyección de Resistencia, tabla Federación Ocerin — `null` solo sin
+  // WorldContext propio. Las edades fuera de la tabla (17-36) usan la fila
+  // del extremo más cercano, así que ya no cortan la proyección.
   staminaForecast: {
     seasonWeeks: (string | null)[];
     levels: number[];
@@ -672,6 +852,16 @@ export interface Dashboard {
     moraleName: string;
     confidence: number;
     confidenceName: string;
+    /** Cuánto del entrenamiento máximo posible recibe el club: 100% es
+     *  entrenador 5/5, dos asistentes de nivel 5 y toda la intensidad en la
+     *  habilidad. Mismos coeficientes que la proyección. */
+    efficiencyPct: number;
+    coachLevel: number;
+    assistantLevelSum: number;
+    /** Edad media de quienes de verdad recibieron el entrenamiento esta
+     *  semana. `null` mientras no se haya jugado ningún partido. */
+    trainedAvgAge: number | null;
+    trainedPlayers: number;
   } | null;
   topSalaries: SquadPlayer[];
   alerts: { kind: string; severity: string; message: string }[];
@@ -720,7 +910,13 @@ export interface Club {
     };
     roles: ClubStaffRole[];
     totalLevels: number;
-    youthInvestment: number;
+    // Gasto semanal REAL de la academia, ya en moneda local. Sale de
+    // `CostsYouth` (economy.xml), no del `<Investment>` de club.xml — ese
+    // campo Hattrick lo devuelve en 0 aunque el club sí esté invirtiendo
+    // (verificado con un fetch en vivo 2026-08-15). `null` si todavía no
+    // hay una lectura económica sincronizada.
+    youthInvestment: number | null;
+    youthInvestmentCurrency: string;
     youthLevel: number;
   } | null;
   moodHistory: { capturedAt: string; spirit: number; confidence: number }[];
@@ -739,9 +935,16 @@ export interface Club {
 }
 
 export interface Lineup {
+  /** Cuántos de cada línea juegan por dentro; el resto va a las bandas. El
+   *  nombre de la formación no lo dice. */
+  centralDefenders: number;
+  innerMidfielders: number;
+  /** Los repartos legales de esa formación, que son los que ofrece el
+   *  selector. */
+  centralDefenderOptions: number[];
+  innerMidfielderOptions: number[];
   formation: string;
   totalRating: number;
-  weather: string | null;
   formationRanking: Record<string, number>;
   lineup: {
     slot: number;
@@ -782,89 +985,6 @@ export interface NextMatchCondition {
   }[];
 }
 
-export interface NextMatchAnalysis {
-  match: {
-    htMatchId: number;
-    date: string;
-    matchType: number;
-    matchTypeLabel: string;
-    isHome: boolean;
-    home: string;
-    away: string;
-    rivalHtTeamId: number;
-    rivalName: string;
-  } | null;
-  message?: string;
-  rival?: {
-    htTeamId: number;
-    name: string;
-    matchesAnalysed: number;
-    selectionMethod: string;
-    condition: NextMatchCondition;
-    probableLineup: {
-      htPlayerId: number;
-      name: string;
-      positionCode: number | null;
-      line: string;
-      startsInSample: number;
-      sampleSize: number;
-      tsi: number;
-      stamina: number | null;
-      form: number | null;
-      experience: number | null;
-      ratingStars: number | null;
-      ratingStarsEnd: number | null;
-      ratingStarDrop: number | null;
-    }[];
-  };
-  own?: {
-    condition: NextMatchCondition;
-    conditionSource: "submitted_orders" | "recommended_lineup";
-    submittedOrders: {
-      matchId: number;
-      capturedAt: string | null;
-      ratingsCapturedAt: string | null;
-      tacticType: number | null;
-      tacticSkill: number | null;
-      ratings: {
-        midfield: number | null;
-        rightDef: number | null;
-        centralDef: number | null;
-        leftDef: number | null;
-        rightAtt: number | null;
-        centralAtt: number | null;
-        leftAtt: number | null;
-      };
-      lineup: {
-        htPlayerId: number;
-        name: string;
-        position: string;
-        roleId: number;
-        behaviour: number;
-        behaviourLabel: string;
-        stamina: number;
-        form: number;
-        experience: number;
-      }[];
-    } | null;
-    formation: {
-      formation: string;
-      totalRating: number;
-      ranking: Record<string, number>;
-      lineup: {
-        htPlayerId: number;
-        name: string;
-        position: string;
-        stamina: number;
-        form: number;
-        experience: number;
-        rating: number;
-      }[];
-    } | null;
-  };
-  dataFreshness?: string;
-  notes?: string[];
-}
 
 export interface TrainingForecast {
   trainingType: number | null;
@@ -936,6 +1056,109 @@ export interface PostMatchTraining {
   notes: string[];
 }
 
+/**
+ * Sección Equipo: la plantilla promediada por grupos. Cada grupo dice con
+ * qué forma se PUEDE dibujar — `radar` sólo cuando todas sus métricas
+ * comparten escala; si no, barras con el techo propio de cada una.
+ */
+export interface TeamOverviewMetric {
+  key: string;
+  label: string;
+  value: number;
+  scaleMax: number;
+  display: "level" | "money" | "number" | "count" | "ratio";
+  valueLabel: string | null;
+}
+
+export interface TeamOverviewSeries {
+  key: string;
+  label: string;
+  /** Un valor por semana, alineado con `weeks`. `null` = semana sin lectura;
+   *  nunca se rellena con ceros ni se interpola. */
+  values: (number | null)[];
+  /** "decimal" es un número con decimales que no es dinero ni un nivel de 0 a
+   *  20: la edad media de la plantilla, por ejemplo. */
+  display: "level" | "money" | "number" | "count" | "ratio" | "decimal";
+}
+
+/** Una gráfica dentro de un grupo. Un grupo lleva varias cuando sus series no
+ *  comparten escala — juntarlas en un eje daría a entender que se comparan. */
+export interface TeamOverviewChart {
+  key: string;
+  title: string;
+  scaleMin: number | null;
+  scaleMax: number | null;
+  /** Sombrea el hueco entre las dos series. El backend solo lo marca cuando
+   *  ambas miden lo MISMO sobre poblaciones distintas (plantilla contra el
+   *  once de más TSI), de modo que el área entre ellas es una cantidad real. */
+  band: boolean;
+  series: TeamOverviewSeries[];
+}
+
+/**
+ * Una línea de la cancha, con dos lecturas que NO son la misma población:
+ * `bestRating`/`topPlayer`/`bestVariantLabel` salen de evaluar a TODA la
+ * plantilla en las variantes de esa línea, mientras que `count` y
+ * `averageRating` miran solo a quienes la tienen como su mejor puesto.
+ * `count` puede ser 0 y aun así haber un mejor rating — una línea que nadie
+ * ocupa de forma natural pero alguien podría cubrir. Se pintan en bloques
+ * separados justamente para no confundirlas.
+ */
+export interface TeamOverviewPitchSlot {
+  key: string;
+  label: string;
+  count: number;
+  bestRating: number | null;
+  topPlayer: string | null;
+  bestVariantLabel: string | null;
+  averageRating: number | null;
+}
+
+/** Capitán y lanzador de faltas: recomendaciones de rol, no puestos. Su
+ *  `rating` NO está en la escala 0-20 de las posiciones — el motor los puntúa
+ *  con otra fórmula —, así que se muestra como número pelado, sin barra. */
+export interface TeamOverviewSpecialRole {
+  key: string;
+  label: string;
+  topPlayer: string | null;
+  rating: number | null;
+}
+
+export interface TeamOverviewGroup {
+  key: string;
+  label: string;
+  /** `pending` = la pestaña existe pero su contenido está por definir. */
+  chart: "line" | "bars" | "pitch" | "pending";
+  pitch: TeamOverviewPitchSlot[];
+  specialRoles: TeamOverviewSpecialRole[];
+  note: string;
+  weeks: string[];
+  charts: TeamOverviewChart[];
+  metrics: TeamOverviewMetric[];
+}
+
+export interface TeamOverview {
+  teamName: string;
+  playerCount: number;
+  currency: string;
+  groups: TeamOverviewGroup[];
+}
+
+/** "Qué entrenar" recalculado con los parámetros que elija el usuario. El
+ *  método es fijo; estos tres números son opiniones. */
+export interface AcademySkillScores {
+  soonMaxDays: number;
+  weightBase: number;
+  trainableMethod: string;
+  /** El peso que la base da a cada cubo — se pinta sobre su columna. */
+  weights: Record<string, number>;
+  /** El que sugiere la escalera (peldaño -2 de la base). */
+  suggestedTrainableWeight: number;
+  /** El que de verdad se usó: el sugerido, o el que fijó el usuario. */
+  trainableWeight: number;
+  skillScores: Academy["skillScores"];
+}
+
 export interface Insight {
   key: string;
   severity: "info" | "opportunity" | "warning" | "danger";
@@ -944,6 +1167,16 @@ export interface Insight {
   action: string;
   module: string;
   evidence: Record<string, unknown>;
+}
+
+/**
+ * Una alerta que el usuario mandó al buzón. Conserva el texto tal como estaba
+ * cuando la archivó, así que se sigue leyendo aunque la condición ya no se
+ * cumpla; `stillActive` distingue justamente esos dos casos.
+ */
+export interface ArchivedInsight extends Insight {
+  dismissedAt: string;
+  stillActive: boolean;
 }
 
 /** Points per experience level, measured rather than declared. `source` says
@@ -1017,12 +1250,20 @@ export interface HistoricalPlayerChange {
 }
 
 export interface ChangesHistory {
+  /** Ventana pedida, en semanas. */
+  weeks: number;
+  /** Fecha del cierre más antiguo con el que se comparó de verdad. Con menos
+   *  historia que la ventana pedida, esto es más viejo de lo que sugiere
+   *  `weeks` — o `null` si no hay con qué comparar. */
+  comparedFrom: string | null;
   players: { htPlayerId: number; name: string }[];
   selectedPlayerId: number | null;
   skillChanges: HistoricalPlayerChange[];
   experienceChanges: HistoricalPlayerChange[];
   loyaltyChanges: HistoricalPlayerChange[];
   formChanges: HistoricalPlayerChange[];
+  /** TSI y Salario. El salario ya viene en la moneda local del equipo. */
+  marketChanges: HistoricalPlayerChange[];
   series: {
     capturedAt: string;
     tsi: number;
@@ -1054,22 +1295,22 @@ export interface ForecastBand {
  * nunca un 0 fabricado (p. ej. el primer sync de un club no trae desglose
  * de la semana ya cerrada). */
 export interface IncomeBreakdown {
-  spectators: number | null;   // Aficionados
-  sponsors: number | null;      // Patrocinados (incl. bono en la semana en curso)
-  financial: number | null;      // Financieros
+  spectators: number | null; // Aficionados
+  sponsors: number | null; // Patrocinados (incl. bono en la semana en curso)
+  financial: number | null; // Financieros
   subtotal: number | null;
-  other: number | null;             // Venta de jugadores + comisión + temporal
+  other: number | null; // Venta de jugadores + comisión + temporal
   total: number | null;
 }
 
 export interface CostsBreakdown {
-  arena: number | null;      // Estadio (mantenimiento)
-  players: number | null;      // Jugadores (sueldos)
-  financial: number | null;      // Financieros (lo más parecido a "Intereses" de HC)
-  staff: number | null;             // Empleados
-  youth: number | null;               // Canteranos
+  arena: number | null; // Estadio (mantenimiento)
+  players: number | null; // Jugadores (sueldos)
+  financial: number | null; // Financieros (lo más parecido a "Intereses" de HC)
+  staff: number | null; // Empleados
+  youth: number | null; // Canteranos
   subtotal: number | null;
-  other: number | null;                  // Compra de jugadores + construcción + temporal
+  other: number | null; // Compra de jugadores + construcción + temporal
   total: number | null;
 }
 
@@ -1107,6 +1348,9 @@ export interface Economy {
     balance: number;
     isAnomaly: boolean;
   }[];
+  /** La semana en curso, con lo acumulado hasta ahora. Va fuera de `series`
+   * porque esa lista son semanas cerradas y alimenta balances y pronóstico. */
+  currentWeek: Economy["series"][number] | null;
   weeklyFinance: {
     income: { code: string; label: string; amount: number | null }[];
     costs: { code: string; label: string; amount: number | null }[];
@@ -1160,7 +1404,13 @@ export interface Arena {
   matchesAnalysed: number;
   avgOccupancy: number;
   totalRevenue: number;
+  /** Teórico: ingreso con el estadio 100% lleno menos el real. NO es dinero
+   *  perdido salvo que los sectores se agoten — alimenta el simulador de
+   *  ampliación, no se muestra como KPI. */
   revenueLeftOnTable: number;
+  /** Partidos donde algún sector se agotó: el único caso en que sí hubo
+   *  demanda que no se pudo atender. */
+  soldOutMatches: number;
   sectors: {
     sector: string;
     label: string;
@@ -1313,12 +1563,24 @@ export interface MatchDetail {
   strengths: string[];
   weaknesses: string[];
   ownChances: {
-    left: number; center: number; right: number; special: number; other: number;
-    total: number; goals: number; conversion: number;
+    left: number;
+    center: number;
+    right: number;
+    special: number;
+    other: number;
+    total: number;
+    goals: number;
+    conversion: number;
   };
   opponentChances: {
-    left: number; center: number; right: number; special: number; other: number;
-    total: number; goals: number; conversion: number;
+    left: number;
+    center: number;
+    right: number;
+    special: number;
+    other: number;
+    total: number;
+    goals: number;
+    conversion: number;
   };
 }
 
@@ -1456,10 +1718,34 @@ export interface Academy {
     trainingExposure: number;
     skills: {
       skill: string;
-      current: number;
+      /** Nivel al que juega hoy. `null` = el ojeador aún no lo ha dicho, que
+       *  NO es lo mismo que jugar a nivel 0. */
+      current: number | null;
+      /** Techo. Se revela por separado del nivel actual. */
       maximum: number | null;
-      isRevealed: boolean;
+      isCurrentKnown: boolean;
+      isMaxKnown: boolean;
       headroom: number;
+    }[];
+  }[];
+  /** Qué habilidad conviene entrenar, de mayor a menor. Portado de la hoja
+   *  del usuario (`AuxiJuveniles`): en juveniles se entrena una habilidad y la
+   *  reciben todos, así que la pregunta no es a quién entrenar sino qué. */
+  skillScores: {
+    skill: string;
+    label: string;
+    score: number;
+    counts: Record<string, number>;
+    trainableCount: number;
+    /** Todos los canteranos ordenados por lo que sacan en esta habilidad.
+     *  `note` es `null` cuando el ojeador no ha revelado nada — y ése es
+     *  justo el caso en que darle minutos sirve para revelarlo. */
+    players: {
+      name: string;
+      note: number | null;
+      bucket: string;
+      leavesSoon: boolean;
+      maxReached: boolean;
     }[];
   }[];
   graduates: {
@@ -1474,6 +1760,7 @@ export interface Academy {
   earned: number;
   net: number;
   seasons: number;
+  weeks: number;
   weeklyCost: number;
   breakEvenSales: number;
   roiVerdict: string;
@@ -1487,6 +1774,9 @@ export interface PlayerBalanceRow {
   htPlayerId: number;
   name: string;
   isAcademyGraduate: boolean;
+  /** Lo que costó ascenderlo desde la cantera, en moneda local. 0 para quien
+   *  llegó fichado: ese tiene precio de compra. */
+  promotionCost: number;
   isPurchasePriceManual: boolean;
   purchasePrice: number | null;
   purchasedAt: string | null;
@@ -1507,9 +1797,15 @@ export interface PlayerBalanceRow {
   isSold: boolean;
   trainingAtSale: string | null;
   seasonAtSale: string | null;
+  /** La semana de temporada (1-16) de cada movimiento, sin la temporada
+   *  delante: las cascadas de Transferencias juntan todas las semanas 05 de
+   *  cualquier temporada en la misma columna. */
+  weekAtSale: number | null;
+  weekAtPurchase: number | null;
   topSkillAtSale: string | null;
   bidHourAtSale: string | null;
   nativeCountry: string;
+  nativeCountryCode: string | null;
   character: string;
   specialty: string;
   tsiAtPurchase: number | "?";
@@ -1518,6 +1814,7 @@ export interface PlayerBalanceRow {
   commissionAmount: number | "?";
   roiPct: number | "?";
   destinationCountry: string;
+  destinationCountryCode: string | null;
   ageAtSale: number | "?";
   // 2026-08-05: tabla "Detalle" de 43 columnas.
   ageAtPurchase: number | "?";
@@ -1583,6 +1880,19 @@ export interface FormulaInput {
  * recorte propio de hasta 5 partidos del rival de ese tipo exacto. */
 export type PitchZoneScope = "mixed" | "official" | "friendly";
 
+/** Cómo se resume cada zona sobre los partidos vistos. Ver `PitchZoneMethod`
+ *  en el motor: el promedio dice cómo juega de costumbre, el máximo de lo que
+ *  es capaz, y el máximo de los tres carriles de lo que es capaz por
+ *  cualquiera de ellos. */
+export type PitchZoneMethod =
+  | "average"
+  | "max"
+  | "max_parallel"
+  | "last"
+  /** Solo para el lado propio: la predicción de minuto 0 de Hattrick para las
+   *  órdenes ya enviadas. De un rival no existe. */
+  | "submitted";
+
 /** Un duelo cabeza a cabeza por carril de la cancha. `zone` es el carril
  * físico (izquierda/centro/derecha, o "midfield" para el de medio campo);
  * `half` dice de qué mitad de la cancha es ese duelo: "own" = tu campo (tu
@@ -1608,10 +1918,35 @@ export interface PitchZoneSource {
   tacticSkill: number | null;
 }
 
+export interface LastPurchase {
+  playerName: string;
+  htPlayerId: number;
+  /** TSI en el momento de la compra. */
+  tsi: number;
+  price: number;
+  deadline: string;
+  /** Días desde la compra. La barra se llena con esto: recién comprado la
+   *  llena entera, una temporada entera la deja a cero. */
+  daysAgo: number | null;
+  /** El puesto en el que se le ha visto jugar, de las alineaciones ya leídas.
+   *  `null` si todavía no ha jugado ninguno de los partidos vistos. */
+  lastPosition: string | null;
+}
+
 export interface RivalScouting {
   rivalHtTeamId: number;
   rivalName: string | null;
   matchesAnalysed: number;
+  /** Cuántos de cada competición entran en `matchesAnalysed`: cinco partidos
+   *  no dicen lo mismo si son cinco de liga que si son tres y dos amistosos. */
+  matchesByCompetition: { label: string; count: number }[];
+  /** El último fichaje de cada lado. El TSI es el del MOMENTO de la compra,
+   *  no el de hoy: por eso viaja la fecha. `null` si el club no ha comprado
+   *  nunca o si CHPP no respondió. */
+  lastPurchase: {
+    own: LastPurchase | null;
+    rival: LastPurchase | null;
+  };
   /** TSI, forma, condición y experiencia son públicas de un rival (CHPP
    * expone esos campos aunque oculte las skills exactas). El liderazgo del
    * entrenador rival sale de su stafflist.xml v1.2 (público para cualquier
@@ -1642,7 +1977,6 @@ export interface RivalScouting {
     ownValues: number[];
     rivalValues: number[];
     logTransform: boolean;
-    excludedKeeper: boolean;
     top11: boolean;
   };
   manMarking: {
@@ -1674,6 +2008,17 @@ export interface RivalScouting {
      * EN ESE partido — 100% es "siempre el mismo lado, sin excepción". */
     dominantPct: number;
     dominantSideByMatch: string[];
+    /** Un renglón por partido con los tres carriles, del más viejo al más
+     *  reciente. Es lo que dibuja la vista de carriles: un promedio de 45
+     *  puede ser "45 siempre" o "70, 20, 45". */
+    attackByMatch: {
+      label: string;
+      date: string;
+      left: number;
+      central: number;
+      right: number;
+      best: string;
+    }[];
     rotates: boolean;
     matchesAnalysed: number;
   } | null;
@@ -1685,6 +2030,11 @@ export interface RivalScouting {
   pitchZonesMatchesAnalysed: { own: number | null; rival: number | null };
   pitchZoneSources: { own: PitchZoneSource; rival: PitchZoneSource };
   pitchZoneScope: PitchZoneScope;
+  pitchZoneMethodOwn: PitchZoneMethod;
+  pitchZoneMethodRival: PitchZoneMethod;
+  /** `false` cuando todavía no has mandado alineación: sin eso, el modo
+   *  "alineación enviada" no tiene nada que enseñar. */
+  submittedLineupAvailable: boolean;
   rivalRosterSample: { name: string; position: string | null; tsi: number }[];
   winProbability: {
     ownProbability: number;
@@ -1707,7 +2057,11 @@ export interface RivalScouting {
     } | null;
     avgTacticSkill: number | null;
     formations: { formation: string; count: number; pct: number }[];
-    mostCommonFormation: { formation: string; count: number; pct: number } | null;
+    mostCommonFormation: {
+      formation: string;
+      count: number;
+      pct: number;
+    } | null;
   } | null;
   caveats: string[];
 }
@@ -1745,7 +2099,6 @@ export interface LeagueComparison {
     ownValues: number[];
     rivalValues: number[];
     logTransform: boolean;
-    excludedKeeper: boolean;
     top11: boolean;
   };
   caveats: string[];
@@ -1767,12 +2120,44 @@ export interface TeamOfWeekPlayer {
 // Hattrick Control (nunca un reparto fijo).
 export type TeamOfWeekSlotKey = "keeper" | "defense" | "midfield" | "forward";
 
+/** Las líneas partidas por sub-rol. `defense` y `midfield` son la suma de sus
+ *  dos mitades; estas son las que permiten poner a los de banda en las orillas
+ *  de la cancha, igual que en las otras dos canchas de la app. */
+export type TeamOfWeekRoleKey =
+  | "keeper"
+  | "centralDefender"
+  | "wingback"
+  | "innerMidfield"
+  | "winger"
+  | "forward";
+
+/** Las diez de Hattrick, de la más defensiva a la más ofensiva. Hasta
+ *  2026-08-19 aquí había siete: faltaban 5-5-0, 5-2-3 y 2-5-3, así que el
+ *  selector no las ofrecía aunque el motor supiera armarlas. */
 export const FORMATIONS = [
-  "4-4-2", "3-5-2", "3-4-3", "4-5-1", "4-3-3", "5-3-2", "5-4-1",
+  "5-5-0",
+  "5-4-1",
+  "5-3-2",
+  "5-2-3",
+  "4-5-1",
+  "4-4-2",
+  "4-3-3",
+  "3-5-2",
+  "3-4-3",
+  "2-5-3",
 ] as const;
 export type Formation = (typeof FORMATIONS)[number];
 
 export interface TeamOfTheWeek {
+  /** Cuántos de cada línea juegan por dentro; el resto va a las bandas. El
+   *  nombre de la formación no lo dice: un 5-3-2 puede llevar 3 mediocentros
+   *  o 1 y dos extremos. */
+  centralDefenders: number;
+  innerMidfielders: number;
+  /** Los repartos legales para ESTA formación, que son los que el selector
+   *  puede ofrecer. Una línea de cinco solo admite 3 por dentro. */
+  centralDefenderOptions: number[];
+  innerMidfielderOptions: number[];
   scope: "week" | "season";
   formation: Formation;
   formations: Formation[];
@@ -1782,7 +2167,8 @@ export interface TeamOfTheWeek {
   lineupsFound: number;
   lineupsExpected: number;
   slotLabels: Record<TeamOfWeekSlotKey, string>;
-  positions: Record<TeamOfWeekSlotKey, TeamOfWeekPlayer[]>;
+  positions: Record<TeamOfWeekSlotKey, TeamOfWeekPlayer[]> &
+    Record<TeamOfWeekRoleKey, TeamOfWeekPlayer[]>;
   totalStars: number;
   caveats: string[];
 }
@@ -1920,6 +2306,9 @@ export interface CupReadinessVariant {
   averageStamina: number | null;
   staminaBands: { label: string; min: number; max: number; count: number }[];
   startersCount: number;
+  /** Los once que patearían si ESTE once está en el campo, del primero al
+   *  último. Cada variante trae el suyo. */
+  penaltyCandidates: CupPenaltyCandidate[];
 }
 
 export interface CupPenaltyCandidate {
@@ -1967,9 +2356,15 @@ export interface TrainingFormula {
 }
 
 export interface TrainingSquadPlayerRow {
+  /** "83-03": la semana de la última subida confirmada. Cadena vacía cuando
+   *  no hay ninguna registrada, que no es lo mismo que no haber mejorado: es
+   *  que Hattrick no reporta ninguna. */
+  lastImprovement: string;
+
   htPlayerId: number;
   name: string;
   nativeCountry: string | null;
+  countryCode: string | null;
   age: string;
   level: number;
   levelName: string;
@@ -1977,6 +2372,9 @@ export interface TrainingSquadPlayerRow {
   weeksTotal: number;
   progressPct: number | null;
   hasReference: boolean;
+  hasHistoricalReference: boolean;
+  currentWeekMinutes: number;
+  currentWeekExposure: number;
 }
 
 export interface TrainingSquadWeeklyLogEntry {
@@ -2009,9 +2407,15 @@ export interface TrainingSquad {
 }
 
 export interface TrainingExperienceRow {
+  /** "83-03": la semana de la última subida confirmada. Cadena vacía cuando
+   *  no hay ninguna registrada, que no es lo mismo que no haber mejorado: es
+   *  que Hattrick no reporta ninguna. */
+  lastImprovement: string;
+
   htPlayerId: number;
   name: string;
   nativeCountry: string | null;
+  countryCode: string | null;
   age: string;
   level: number;
   levelName: string;
@@ -2021,13 +2425,20 @@ export interface TrainingExperienceRow {
   remainingPoints: number | null;
   progressPct: number | null;
   breakdown: Record<string, number>;
+  matchCounts: Record<string, number>;
   unscoredNationalMatches: number;
 }
 
 export interface TrainingLoyaltyRow {
+  /** "83-03": la semana de la última subida confirmada. Cadena vacía cuando
+   *  no hay ninguna registrada, que no es lo mismo que no haber mejorado: es
+   *  que Hattrick no reporta ninguna. */
+  lastImprovement: string;
+
   htPlayerId: number;
   name: string;
   nativeCountry: string | null;
+  countryCode: string | null;
   age: string;
   reportedLevel: number;
   calculatedLevel: number | null;
@@ -2040,9 +2451,29 @@ export interface TrainingLoyaltyRow {
   dateSource: "transferencia" | "manual" | null;
 }
 
+export interface TrainingStaminaRow {
+  /** "83-03": la semana de la última subida confirmada. Cadena vacía cuando
+   *  no hay ninguna registrada, que no es lo mismo que no haber mejorado: es
+   *  que Hattrick no reporta ninguna. */
+  lastImprovement: string;
+
+  htPlayerId: number;
+  name: string;
+  nativeCountry: string | null;
+  countryCode: string | null;
+  age: string;
+  level: number;
+  levelName: string;
+  effectiveTrainingPct: number;
+  expectedLevel: number | null;
+  expectedLevelName: string | null;
+  trend: "sube" | "baja" | "estable" | "sin_dato";
+}
+
 export interface TrainingDevelopment {
   experience: TrainingExperienceRow[];
   loyalty: TrainingLoyaltyRow[];
+  stamina: TrainingStaminaRow[];
   notes: string[];
 }
 

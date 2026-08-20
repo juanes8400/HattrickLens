@@ -145,9 +145,11 @@ def test_match_result_change_is_recorded() -> None:
         assert first.changes == []  # partido nuevo en el calendario, no un resultado
 
         second = await handler.execute(cmd)
-        assert second.changes == [
-            {"category": "partidos", "summary": "Ganaste 2-1 vs Rival FC"}
+        assert [(c["category"], c["summary"]) for c in second.changes] == [
+            ("partidos", "Ganaste 2-1 vs Rival FC")
         ]
+        # Desde 2026-08-15 cada cambio lleva también el dato crudo.
+        assert second.changes[0]["detail"]["metric"] == "result"
 
     asyncio.run(run())
 
@@ -183,8 +185,10 @@ def test_standing_position_change_is_recorded() -> None:
         assert first.changes == []  # primera jornada vista, sin anterior
 
         second = await handler.execute(cmd)
-        assert second.changes == [
-            {"category": "liga", "summary": "Pulgas Arrechas subió de la posición 4 a la 2"}
+        assert [(c["category"], c["summary"]) for c in second.changes] == [
+            ("liga", "Pulgas Arrechas subió de la posición 4 a la 2")
         ]
+        assert second.changes[0]["detail"]["before"] == 4
+        assert second.changes[0]["detail"]["after"] == 2
 
     asyncio.run(run())

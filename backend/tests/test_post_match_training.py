@@ -9,6 +9,18 @@ from app.infrastructure.db import models as m
 from .conftest import seeded_session
 
 
+@pytest.mark.parametrize("position_code", [102, 105, 109, 110])
+def test_long_passing_trains_all_defenders_and_midfielders(position_code: int) -> None:
+    """Centrales, laterales, medios interiores y extremos reciben el tipo 10."""
+    service = PostMatchTrainingService(None)  # type: ignore[arg-type]
+    assert service._position_share(10, position_code) == "full"
+
+
+def test_long_passing_does_not_train_forwards() -> None:
+    service = PostMatchTrainingService(None)  # type: ignore[arg-type]
+    assert service._position_share(10, 113) == "none"
+
+
 @pytest.mark.asyncio
 async def test_post_match_training_counts_real_forward_minutes() -> None:
     factory, team_id = await seeded_session()

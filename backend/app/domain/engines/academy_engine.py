@@ -16,6 +16,8 @@ Lo que HC no hace y aquí sí:
 from dataclasses import dataclass
 from enum import StrEnum
 
+from app.domain.value_objects.formatting import thousands
+
 # Un juvenil puede permanecer en la academia hasta los 19 años
 MAX_YOUTH_AGE = 19
 YOUTH_SKILLS = ("keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces")
@@ -59,18 +61,40 @@ class YouthEvaluation:
     revealed_skills: int
 
 
-def _potential(skills: dict[str, YouthSkill]) -> tuple[float, str, int | None]:
-    """Puntuación de potencial: pesa el techo conocido más que lo ya alcanzado."""
-    best_key, best_val = "", -1.0
+def _potential(skills: dict[str, YouthSkill]) -> tuple[float, str, int | None, int]:
+    """Puntuación de potencial y mejor habilidad.
+
+    Devuelve `(total, mejor_habilidad, techo_revelado, techo_asumido)`.
+
+    2026-08-15, corregido al ver datos reales por primera vez: `best_skill` se
+    elegía entre TODAS las habilidades usando el techo asumido de `headroom`
+    (8 cuando no hay revelación). Con un juvenil recién llegado eso significa
+    que las siete empatan en 8, gana la primera del diccionario, y la pantalla
+    mostraba "keeper (techo 8)" como si el ojeador lo hubiera dicho. Es el
+    mismo error que este módulo promete no cometer, en espejo: presentar una
+    suposición como evidencia.
+
+    Ahora `mejor_habilidad`/`techo_revelado` sólo salen de habilidades con
+    techo REVELADO — vacío y `None` mientras no haya ninguna. El techo asumido
+    se devuelve aparte para que la categoría siga siendo provisional en vez de
+    desplomarse a "fontanero" por ignorancia.
+    """
+    best_key, best_revealed = "", -1
+    best_assumed = 0
     total = 0.0
     for key, s in skills.items():
-        techo = s.maximum if s.maximum is not None else s.current + s.headroom
+        assumed = s.maximum if s.maximum is not None else s.current + s.headroom
         # El techo es lo que importa; lo alcanzado indica cuánto falta entrenar
-        valor = techo * 1.0 + s.current * 0.3
-        total += valor
-        if techo > best_val:
-            best_key, best_val = key, float(techo)
-    return round(total, 2), best_key, (int(best_val) if best_val >= 0 else None)
+        total += assumed * 1.0 + s.current * 0.3
+        best_assumed = max(best_assumed, assumed)
+        if s.maximum is not None and s.maximum > best_revealed:
+            best_key, best_revealed = key, s.maximum
+    return (
+        round(total, 2),
+        best_key,
+        best_revealed if best_revealed >= 0 else None,
+        best_assumed,
+    )
 
 
 def _categorise(potential: float, best_max: int | None) -> Category:
@@ -100,8 +124,11 @@ def evaluate(
     skills: dict[str, YouthSkill],
 ) -> YouthEvaluation:
     """Evaluación completa de un juvenil. HL-111."""
-    potential, best_key, best_max = _potential(skills)
-    category = _categorise(potential, best_max)
+    potential, best_key, best_max, assumed_max = _potential(skills)
+    # La categoría usa el techo ASUMIDO: sin revelaciones, un juvenil recién
+    # llegado no es un fontanero, es un desconocido — y `verdict_is_provisional`
+    # (revealed < 3) ya avisa de que el veredicto puede cambiar solo.
+    category = _categorise(potential, assumed_max)
     left = days_until_deadline(age_years, age_days)
     revealed = sum(1 for s in skills.values() if s.maximum is not None)
 
@@ -109,6 +136,8 @@ def evaluate(
         advice = f"URGENTE: quedan {left} días para promocionarlo o lo pierdes"
     elif category in (Category.PLUMBER, Category.SELLABLE):
         advice = "no merece plaza de entrenamiento: despídelo y libera hueco"
+    elif revealed == 0:
+        advice = "el ojeador aún no ha revelado nada suyo: no hay con qué juzgarlo"
     elif revealed < 3:
         advice = "sigue entrenándolo: aún no conoces su techo real"
     elif age_years >= 17:
@@ -147,17 +176,24 @@ class AcademyROI:
 
 
 def academy_roi(
-    weekly_investment: int,
+    invested: int,
     weeks_invested: int,
     sales_income: int,
     average_sale_price: int = 0,
+    weekly_investment: int = 0,
 ) -> AcademyROI:
     """¿Ha valido la pena la cantera? HL-114.
 
     Caso real que motivó esta función: 11.240.000 invertidos desde la temporada
     47 y la tabla de ingresos vacía. HC muestra ambos números sin cruzarlos.
+
+    2026-08-16, corregido a petición del usuario: `invested` llega ya sumado,
+    semana a semana. Antes esta función multiplicaba el coste semanal ACTUAL
+    por el número de semanas, lo que sólo es correcto si nunca cambiaste la
+    inversión juvenil — y en cuanto la subes o la bajas, reescribe el pasado
+    con el precio de hoy. `weekly_investment` se conserva sólo para mostrar
+    "X por semana" en la ficha; ya no interviene en ningún cálculo.
     """
-    invested = weekly_investment * weeks_invested
     net = sales_income - invested
     seasons = weeks_invested // 16
     faltan = (
@@ -169,7 +205,7 @@ def academy_roi(
     if invested == 0:
         verdict = "academia cerrada: sin inversión ni retorno"
     elif net > 0:
-        verdict = f"rentable: has recuperado la inversión y ganado {net:,}"
+        verdict = f"rentable: has recuperado la inversión y ganado {thousands(net)}"
     elif average_sale_price > 0:
         verdict = f"en pérdidas: harían falta {faltan} venta(s) más para equilibrar"
     else:

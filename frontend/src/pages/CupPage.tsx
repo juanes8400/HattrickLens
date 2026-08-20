@@ -72,7 +72,7 @@ export function CupPage() {
             />
             <Kpi
               label="Instancia actual"
-              value={data.status.stageLabel ?? "—"}
+              value={data.status.stageLabel ?? "-"}
               hint={
                 data.status.officialRound != null
                   ? `ronda oficial ${data.status.officialRound}`
@@ -81,7 +81,7 @@ export function CupPage() {
             />
             <Kpi
               label="Camino al título"
-              value={data.goal.winsToTitle != null ? `${data.goal.winsToTitle} victorias` : "—"}
+              value={data.goal.winsToTitle != null ? `${data.goal.winsToTitle} victorias` : "-"}
               hint="desde la instancia actual"
             />
             <Kpi
@@ -97,7 +97,7 @@ export function CupPage() {
             />
             <Kpi
               label="Próximo cruce"
-              value={next?.opponent ?? "—"}
+              value={next?.opponent ?? "-"}
               hint={next ? `${date(next.date)} · ${next.venueLabel}` : "sin partido programado"}
             />
           </div>
@@ -181,14 +181,7 @@ export function CupPage() {
             <NextMatchesPanel matches={data.nextMatches} />
           </Panel>
 
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <ProjectionPanel title="Preparación para 120 minutos" meta="elige el once de referencia">
-              <StaminaReadiness data={data} />
-            </ProjectionPanel>
-            <ProjectionPanel title="Orden orientativo de penaltis">
-              <PenaltyOrder candidates={data.readiness.penaltyCandidates} data={data} />
-            </ProjectionPanel>
-          </div>
+          <ReferenceElevenPanels data={data} />
         </>
       )}
 
@@ -386,9 +379,46 @@ function MiniMetric({ label, value, detail }: { label: string; value: string; de
   );
 }
 
-function StaminaReadiness({ data }: { data: Cup }) {
+/**
+ * Las dos tarjetas que dependen del once de referencia, con UN solo selector.
+ *
+ * 2026-08-19, pedido explícito: el orden de penaltis tiene que moverse con el
+ * mismo toggle. Antes el estado vivía dentro de la tarjeta de resistencia y el
+ * orden salía de toda la plantilla, así que podía proponer de tirador a
+ * alguien que no está en el campo cuando llegan los penaltis.
+ */
+function ReferenceElevenPanels({ data }: { data: Cup }) {
   const variants = data.readiness.referenceVariants;
   const [mode, setMode] = useState(data.readiness.defaultMode);
+  const active = variants.find((v) => v.mode === mode) ?? variants[0];
+  return (
+    <div className="grid items-start gap-4 xl:grid-cols-2">
+      <ProjectionPanel title="Preparación para 120 minutos" meta="elige el once de referencia">
+        <StaminaReadiness data={data} mode={mode} onModeChange={setMode} />
+      </ProjectionPanel>
+      <ProjectionPanel
+        title="Orden orientativo de penaltis"
+        meta={active ? active.label.toLowerCase() : ""}
+      >
+        <PenaltyOrder
+          candidates={active?.penaltyCandidates ?? data.readiness.penaltyCandidates}
+          data={data}
+        />
+      </ProjectionPanel>
+    </div>
+  );
+}
+
+type ReferenceMode = Cup["readiness"]["defaultMode"];
+
+function StaminaReadiness({
+  data, mode, onModeChange,
+}: {
+  data: Cup;
+  mode: ReferenceMode;
+  onModeChange: (v: ReferenceMode) => void;
+}) {
+  const variants = data.readiness.referenceVariants;
   const active = variants.find((v) => v.mode === mode) ?? variants[0];
   const colors = ["var(--danger)", "var(--warning)", "var(--positive)"];
   if (!active) return <Note>No hay jugadores activos para calcular la preparación.</Note>;
@@ -399,14 +429,14 @@ function StaminaReadiness({ data }: { data: Cup }) {
         <Tabs
           tabs={variants.map((v) => ({ key: v.mode, label: v.label }))}
           active={mode}
-          onChange={setMode}
+          onChange={(v) => onModeChange(v as ReferenceMode)}
         />
       )}
       <div className="mt-4 flex items-end justify-between gap-3">
         <div>
           <div className="text-xs text-[var(--muted)]">Resistencia media</div>
           <div className="mt-1 text-3xl font-semibold tabular-nums">
-            {active.averageStamina != null ? active.averageStamina.toFixed(1) : "—"}
+            {active.averageStamina != null ? active.averageStamina.toFixed(1) : "-"}
             <span className="text-sm text-[var(--muted)]"> / 9</span>
           </div>
         </div>
@@ -515,15 +545,15 @@ function HistoryTable({ data }: { data: Cup }) {
     },
     {
       key: "hatstats", header: "HatStats", align: "right", value: (row) => row.hatstats ?? -1,
-      render: (row) => row.hatstats == null ? <span className="text-[var(--muted)]">—</span> : <span>{row.hatstats}</span>,
+      render: (row) => row.hatstats == null ? <span className="text-[var(--muted)]">, </span> : <span>{row.hatstats}</span>,
     },
     {
       key: "round", header: "Ronda", align: "right", value: (row) => row.round ?? -1,
-      render: (row) => row.round == null ? <span className="text-[var(--muted)]">—</span> : <span>{row.round}</span>,
+      render: (row) => row.round == null ? <span className="text-[var(--muted)]">, </span> : <span>{row.round}</span>,
     },
     {
       key: "cupName", header: "Copa", value: (row) => row.cupName ?? "",
-      render: (row) => <span className="text-[var(--muted)]">{row.cupName ?? "—"}</span>,
+      render: (row) => <span className="text-[var(--muted)]">{row.cupName ?? "-"}</span>,
     },
   ];
   return <DataTable rows={data.history} columns={columns} rowKey={(row) => row.htMatchId} csvName="copa" filterPlaceholder="Filtrar por rival…" />;

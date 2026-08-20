@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from app.domain.engines import weather as wx
+from app.domain.value_objects.formatting import thousands
 from app.domain.value_objects.ht_constants import skill_name
 
 
@@ -29,6 +31,90 @@ class Insight:
     action: str = ""
     module: str = ""
     evidence: dict[str, Any] = field(default_factory=dict)
+
+
+# Todas las claves que este módulo puede emitir, como raíces: varias reglas le
+# pegan detrás un sufijo con punto —el id del jugador, del canterano, el sector,
+# la semana— así que `player.injured` cubre también `player.injured.474559832`.
+#
+# Existe porque el buzón guarda una fila por alerta archivada y esa fila
+# sobrevive a la regla. Al borrar una regla —o al cambiarle la clave— sus
+# archivadas quedan huérfanas: no pueden reaparecer jamás, así que listarlas es
+# prometer un aviso que no va a llegar. Con esta lista el buzón puede
+# reconocerlas y descartarlas solo, sin que haya que acordarse de purgar la
+# base a mano cada vez.
+#
+# Si añades o renombras una regla, añade aquí su clave — hay un test que
+# compara esta lista contra las claves reales del módulo y falla si se olvida.
+KNOWN_KEY_ROOTS: frozenset[str] = frozenset({
+    "academy.deadline",
+    "academy.profitable",
+    "academy.prospect",
+    "academy.unprofitable",
+    "arena.expansion_opportunity",
+    "arena.sold_out",
+    "economy.cash_below_expected",
+    "economy.fan_club_shrinking",
+    "economy.income_concentration",
+    "economy.structural_deficit",
+    "league.next_match_favorite",
+    "league.next_match_underdog",
+    "league.promotion_chance",
+    "league.relegation_danger",
+    "league.relegation_playoff_risk",
+    "league.title_race",
+    "league.weak_attack",
+    "league.weak_defence",
+    "match.weather",
+    "player.form_low",
+    "player.injured",
+    "player.wage_concentration",
+    "squad.ageing",
+    "squad.no_natural_keeper",
+    "squad.sector_standout",
+    "squad.single_keeper",
+    "staff.assistants_low",
+    "staff.no_medic",
+    "staff.no_psychologist",
+    "sync.stale",
+    "training.inefficient",
+})
+
+
+def is_known_key(key: str) -> bool:
+    """¿Puede alguna regla viva volver a emitir esta clave?
+
+    `False` para una archivada huérfana: su regla ya no existe o cambió de
+    clave. Nunca volverá a generarse, de modo que quien la guarde puede
+    tirarla.
+    """
+    return any(
+        key == root or key.startswith(f"{root}.") for root in KNOWN_KEY_ROOTS
+    )
+
+
+# Reglas cuya clave lleva pegada la semana de temporada. Es deliberado: el
+# déficit estructural se juzga semana a semana, así que archivar el de 83-04 no
+# puede tapar el de 83-05 — clave distinta, alerta nueva.
+#
+# El precio de eso es que la archivada de una semana pasada ya no le sirve a
+# nadie: esa semana no vuelve, y su clave tampoco. Se caducan.
+WEEK_SCOPED_KEY_ROOTS: frozenset[str] = frozenset({
+    "economy.structural_deficit",
+    # El clima lleva pegado el id del partido por la misma razón: el aviso de
+    # mañana es otro aviso, no el de hoy con otra cifra. Y el partido de
+    # anteayer ya se jugó, así que su archivada tampoco le sirve a nadie.
+    "match.weather",
+})
+
+
+def week_scoped_root(key: str) -> str | None:
+    """La raíz semanal a la que pertenece esta clave, si es de las que llevan
+    semana pegada. `None` para el resto."""
+    for root in WEEK_SCOPED_KEY_ROOTS:
+        if key == root or key.startswith(f"{root}."):
+            return root
+    return None
 
 
 # ── Entrenamiento ───────────────────────────────────────────────────────────
@@ -68,45 +154,45 @@ def inefficient_training(
     )]
 
 
-def upcoming_pops(trainees: list[dict[str, Any]], weeks_ahead: float = 4.0) -> list[Insight]:
-    """HL-034: subidas próximas — la pestaña que HC tiene vacía."""
-    pronto = sorted(
-        [t for t in trainees if 0 < t["weeks_to_pop"] <= weeks_ahead],
-        key=lambda t: t["weeks_to_pop"],
-    )
-    if not pronto:
-        return []
-    p = pronto[0]
-    return [Insight(
-        key="training.pop_soon",
-        severity=Severity.OPPORTUNITY,
-        title=f"{len(pronto)} subida(s) de nivel a la vista",
-        detail=f"{p['name']} sube en ~{p['weeks_to_pop']:.1f} semanas.",
-        action="Mantén el entrenamiento y asegúrale minutos en la posición entrenable.",
-        module="entrenamiento",
-        evidence={"players": [t["name"] for t in pronto]},
-    )]
-
-
 # ── Economía ────────────────────────────────────────────────────────────────
 
-def structural_deficit(structural_balance: int, cash: int, currency: str = "") -> list[Insight]:
-    """HL-051: la operación pierde dinero aunque el titular sea positivo."""
+def structural_deficit(
+    structural_balance: int, cash: int, currency: str = "", season_week: str | None = None,
+) -> list[Insight]:
+    """HL-051: la operación pierde dinero aunque el titular sea positivo.
+
+    2026-08-16, pedido explícito: la alerta es POR SEMANA. La temporada-semana
+    entra en la clave, así que al cambiar de semana la anterior deja de estar
+    activa y nace una nueva aunque las cifras sean idénticas. Perder dinero
+    otra semana más es un hecho nuevo, no el mismo de siempre: archivarla una
+    vez no puede callar el resto del ejercicio. Las archivadas quedan en el
+    buzón como registro de qué semanas diste por enteradas.
+    """
     if structural_balance >= 0:
         return []
     semanas = cash // abs(structural_balance) if structural_balance else 999
     sev = Severity.DANGER if semanas < 20 else Severity.WARNING
     return [Insight(
-        key="economy.structural_deficit",
+        key=(
+            f"economy.structural_deficit.{season_week}"
+            if season_week else "economy.structural_deficit"
+        ),
         severity=sev,
-        title="Tu club pierde dinero cada semana",
+        title=(
+            f"Tu club pierde dinero esta semana ({season_week})"
+            if season_week else "Tu club pierde dinero cada semana"
+        ),
         detail=(
-            f"El balance sin transferencias es {structural_balance:,} {currency} por semana. "
+            f"El balance sin transferencias es {thousands(structural_balance)} {currency} por semana. "
             f"Con la caja actual aguantas unas {semanas} semanas."
         ),
         action="Recorta salarios o sube ingresos: vender jugadores solo tapa el agujero.",
         module="economía",
-        evidence={"structuralBalance": structural_balance, "weeksOfRunway": semanas},
+        evidence={
+            "structuralBalance": structural_balance,
+            "weeksOfRunway": semanas,
+            "seasonWeek": season_week,
+        },
     )]
 
 
@@ -126,7 +212,7 @@ def income_concentration(
         key="economy.income_concentration",
         severity=Severity.INFO,
         title=f"{share:.0%} de tus ingresos vienen de {label.lower()}",
-        detail=f"{value:,} {currency} de {total:,} {currency} en la última lectura.",
+        detail=f"{thousands(value)} {currency} de {thousands(total)} {currency} en la última lectura.",
         action="Diversificar (patrocinios, afición) amortigua una mala racha de resultados.",
         module="economía",
         evidence={"source": label, "share": round(share, 3)},
@@ -143,48 +229,22 @@ def cash_vs_expected_mismatch(
     ratio = max(cash, expected_cash) / max(min(cash, expected_cash), 1)
     if ratio < ratio_threshold:
         return []
+    # 2026-08-16, veredicto del usuario: solo avisa cuando la caja va PEOR.
+    # Ir mejor de lo previsto no pide ninguna decisión.
     if cash > expected_cash:
-        return [Insight(
-            key="economy.cash_above_expected",
-            severity=Severity.INFO,
-            title="Tu caja va mejor de lo que Hattrick esperaba",
-            detail=(
-                f"Caja actual {cash:,} {currency} contra {expected_cash:,} {currency} esperados."
-            ),
-            action="",
-            module="economía",
-            evidence={"cash": cash, "expectedCash": expected_cash},
-        )]
+        return []
     return [Insight(
         key="economy.cash_below_expected",
         severity=Severity.WARNING,
         title="Tu caja va peor de lo que Hattrick esperaba",
         detail=(
-            f"Caja actual {cash:,} {currency} contra {expected_cash:,} {currency} esperados."
+            f"Caja actual {thousands(cash)} {currency} contra {thousands(expected_cash)} "
+            f"{currency} esperados."
         ),
         action="Algo salió peor de lo previsto: revisa fichajes o gastos recientes.",
         module="economía",
         evidence={"cash": cash, "expectedCash": expected_cash},
     )]
-
-
-def sponsor_popularity_trend(previous: int, latest: int, drop_threshold: int = 5) -> list[Insight]:
-    """Tendencia, no umbral absoluto: no se conoce con certeza la escala
-    exacta de `SponsorsPopularity` en CHPP, así que comparar contra la
-    lectura anterior es lo único que se puede afirmar sin inventar un
-    "bajo"/"alto" arbitrario."""
-    delta = latest - previous
-    if delta <= -drop_threshold:
-        return [Insight(
-            key="economy.sponsor_popularity_drop",
-            severity=Severity.WARNING,
-            title="Tu popularidad con patrocinadores está cayendo",
-            detail=f"Bajó de {previous} a {latest} desde la última lectura.",
-            action="Suele responder a resultados y a la liga en la que juegas: revisa ambos.",
-            module="economía",
-            evidence={"previous": previous, "latest": latest},
-        )]
-    return []
 
 
 def fan_club_trend(previous: int, latest: int, drop_ratio: float = 0.05) -> list[Insight]:
@@ -199,7 +259,10 @@ def fan_club_trend(previous: int, latest: int, drop_ratio: float = 0.05) -> list
             key="economy.fan_club_shrinking",
             severity=Severity.INFO,
             title="Tu peña de aficionados está encogiendo",
-            detail=f"Bajó de {previous:,} a {latest:,} desde la última lectura ({delta:.0%}).",
+            detail=(
+                f"Bajó de {thousands(previous)} a {thousands(latest)} desde la última lectura "
+                f"({delta:.0%})."
+            ),
             action="",
             module="economía",
             evidence={"previous": previous, "latest": latest},
@@ -219,8 +282,8 @@ def sold_out_sectors(sold_out: list[str], lost_revenue: float, currency: str = "
         title=f"{len(sold_out)} sector(es) agotados en el estadio",
         detail=(
             "La asistencia observada ya no mide tu demanda real: está limitada por la "
-            f"capacidad. Además dejas de ingresar {lost_revenue:,.0f} {currency} por asientos "
-            "vacíos en otros sectores."
+            f"capacidad. Además dejas de ingresar {thousands(lost_revenue)} {currency} por "
+            "asientos vacíos en otros sectores."
         ),
         action="Valora ampliar los sectores que se llenan, no los que sobran.",
         module="estadio",
@@ -247,7 +310,7 @@ def arena_expansion_opportunity(
         title="Ampliar el estadio compensaría",
         detail=(
             f"{best['label']}: se amortizaría en ~{best['paybackSeasons']:.1f} temporadas, "
-            f"con un neto de {best['netPerSeason']:,} {currency}/temporada."
+            f"con un neto de {thousands(best['netPerSeason'])} {currency}/temporada."
         ),
         action="Revisa el simulador de ampliación para ver el resto de opciones.",
         module="estadio",
@@ -257,47 +320,71 @@ def arena_expansion_opportunity(
 
 # ── Plantilla ───────────────────────────────────────────────────────────────
 
-def ageing_squad(players: list[dict[str, Any]], threshold: int = 30) -> list[Insight]:
-    viejos = [p for p in players if p["age_years"] >= threshold]
-    if len(viejos) < 3:
+def ageing_squad(
+    players: list[dict[str, Any]], threshold: int = 32, top_n: int = 11, minimum: int = 3,
+) -> list[Insight]:
+    """2026-08-16, redefinida por el usuario: mira solo a los `top_n` de más
+    TSI, no a la plantilla entera.
+
+    Que envejezcan los suplentes no obliga a nada; que envejezca el once que
+    de verdad juega, sí. Antes bastaban tres jugadores de 30+ en cualquier
+    parte del plantel y eso se cumplía casi siempre, incluso con un equipo
+    joven cargado de veteranos de banquillo.
+    """
+    core = sorted(players, key=lambda p: p.get("tsi", 0), reverse=True)[:top_n]
+    viejos = [p for p in core if p["age_years"] >= threshold]
+    if len(viejos) < minimum:
         return []
     return [Insight(
         key="squad.ageing",
         severity=Severity.INFO,
-        title=f"{len(viejos)} jugadores de {threshold}+ años",
-        detail="Su valor de mercado cae rápido a partir de los 28.",
-        action="Revisa la ventana óptima de venta de cada uno en el módulo de transferencias.",
+        title=f"{len(viejos)} de tus {top_n} jugadores de más TSI tienen {threshold}+ años",
+        detail=", ".join(p["name"] for p in viejos),
+        action="Revisa su ventana de venta: el valor de mercado cae rápido a esta edad.",
         module="equipo",
-        evidence={"players": [p["name"] for p in viejos]},
+        evidence={"players": [p["name"] for p in viejos], "topN": top_n},
     )]
 
 
 def injuries(players: list[dict[str, Any]]) -> list[Insight]:
-    lesionados = [p for p in players if p.get("injury_level", -1) > -1]
-    if not lesionados:
-        return []
-    return [Insight(
-        key="squad.injuries",
-        severity=Severity.WARNING,
-        title=f"{len(lesionados)} jugador(es) lesionado(s)",
-        detail=", ".join(p["name"] for p in lesionados),
-        action="Revisa la alineación: el optimizador ya los excluye automáticamente.",
-        module="equipo",
-        evidence={"players": [p["name"] for p in lesionados]},
-    )]
+    """Bajas reales, una alerta por jugador.
+
+    `InjuryLevel` 0 es MAGULLADO y puede jugar, así que no es una baja y no
+    genera aviso; a partir de 1 son semanas de baja. Antes bastaba con estar
+    magullado para salir aquí como "lesionado".
+
+    Una alerta por cabeza (2026-08-16, pedido explícito): agrupadas en una
+    sola, un segundo lesionado no se distinguía del primero — la alerta ya
+    archivada seguía tapando la novedad.
+    """
+    out: list[Insight] = []
+    for p in players:
+        weeks = p.get("injury_level", -1)
+        if weeks >= 1:
+            out.append(Insight(
+                key=f"player.injured.{p['ht_player_id']}",
+                severity=Severity.WARNING,
+                title=f"{p['name']} está lesionado",
+                detail=f"Le quedan {weeks} semana(s) de baja.",
+                action="El optimizador ya lo deja fuera del once mientras dure.",
+                module="equipo",
+                evidence={"player": p["name"], "weeks": weeks},
+            ))
+    return out
 
 
 def low_form(players: list[dict[str, Any]]) -> list[Insight]:
     """Forma baja, jugador a jugador — no un resumen, una alerta con nombre.
 
     Umbral relativo a la misma escala de habilidad que usa el resto de la
-    herramienta (`skill_name`, 0-20): 2 o menos es "horrible" o peor, un nivel
-    en el que el jugador rinde muy por debajo de lo que dicen sus skills.
+    herramienta (`skill_name`, 0-20): 4 o menos es un nivel en el que el
+    jugador rinde por debajo de lo que dicen sus habilidades.
     """
     out: list[Insight] = []
     for p in players:
         form = p.get("form", -1)
-        if 0 <= form <= 2:
+        # 2026-08-16, umbral fijado por el usuario: primero de 2 a 5, luego a 4.
+        if 0 <= form <= 4:
             out.append(Insight(
                 key=f"player.form_low.{p['ht_player_id']}",
                 severity=Severity.WARNING,
@@ -309,91 +396,6 @@ def low_form(players: list[dict[str, Any]]) -> list[Insight]:
                 action="Evita depender de él en un partido decisivo hasta que se recupere.",
                 module="equipo",
                 evidence={"player": p["name"], "form": form},
-            ))
-    return out
-
-
-def high_form(players: list[dict[str, Any]]) -> list[Insight]:
-    """El reverso de `low_form`: aprovechar una buena racha mientras dura."""
-    out: list[Insight] = []
-    for p in players:
-        form = p.get("form", -1)
-        if form >= 8:
-            out.append(Insight(
-                key=f"player.form_high.{p['ht_player_id']}",
-                severity=Severity.OPPORTUNITY,
-                title=f"{p['name']} está en {skill_name(form)} forma",
-                detail=f"Forma {form}: rinde por encima de sus habilidades base ahora mismo.",
-                action="Dale minutos mientras dure la racha.",
-                module="equipo",
-                evidence={"player": p["name"], "form": form},
-            ))
-    return out
-
-
-def transfer_listed(players: list[dict[str, Any]]) -> list[Insight]:
-    """HL-13x: jugadores puestos en la lista de transferibles — CHPP lo
-    reporta como un booleano real (`Player.TransferListed`), no una
-    heurística."""
-    out: list[Insight] = []
-    for p in players:
-        if p.get("is_transfer_listed"):
-            out.append(Insight(
-                key=f"player.transfer_listed.{p['ht_player_id']}",
-                severity=Severity.INFO,
-                title=f"{p['name']} está en la lista de transferibles",
-                detail=(
-                    "Sigue entrenando y jugando mientras esté listado: no sale del equipo solo."
-                ),
-                action=(
-                    "Revisa su ficha para ver si conviene retirarlo de la lista o bajar el precio."
-                ),
-                module="transferencias",
-                evidence={"player": p["name"]},
-            ))
-    return out
-
-
-def salary_market_mismatch(
-    rows: list[dict[str, Any]], ratio_threshold: float = 1.4
-) -> list[Insight]:
-    """HL-141: sueldo real (CHPP) contra el estimado por la fórmula exacta de
-    comunidad — solo jugadores de campo, la fórmula no cubre porteros.
-
-    `ratio_threshold` es simétrico: por encima se paga de más, el inverso
-    (1/ratio_threshold) marca una posible ganga.
-    """
-    out: list[Insight] = []
-    for r in rows:
-        real, est = r["real_salary"], r["estimated_salary"]
-        if est <= 0:
-            continue
-        ratio = real / est
-        if ratio >= ratio_threshold:
-            out.append(Insight(
-                key=f"player.overpaid.{r['ht_player_id']}",
-                severity=Severity.WARNING,
-                title=f"{r['name']} cobra muy por encima de su nivel estimado",
-                detail=(
-                    f"Sueldo real {real:,} {r['currency']} contra ~{est:,} estimado por la "
-                    f"fórmula de comunidad ({ratio:.1f}× más)."
-                ),
-                action="Puede ser un fichaje caro o una plaza que ya no aporta lo que cuesta.",
-                module="economía",
-                evidence={"player": r["name"], "realSalary": real, "estimatedSalary": est},
-            ))
-        elif ratio <= 1 / ratio_threshold:
-            out.append(Insight(
-                key=f"player.underpaid.{r['ht_player_id']}",
-                severity=Severity.INFO,
-                title=f"{r['name']} cobra muy por debajo de su nivel estimado",
-                detail=(
-                    f"Sueldo real {real:,} {r['currency']} contra ~{est:,} estimado por la "
-                    f"fórmula de comunidad."
-                ),
-                action="",
-                module="economía",
-                evidence={"player": r["name"], "realSalary": real, "estimatedSalary": est},
             ))
     return out
 
@@ -414,34 +416,14 @@ def wage_concentration(
                 severity=Severity.WARNING,
                 title=f"{p['name']} se lleva {share:.0%} de la nómina",
                 detail=(
-                    f"{p['salary_local']:,} {currency} por semana de un total de "
-                    f"{total_salary:,} {currency}."
+                    f"{thousands(p['salary_local'])} {currency} por semana de un total de "
+                    f"{thousands(total_salary)} {currency}."
                 ),
                 action=(
                     "Si se lesiona o baja de forma, el golpe al balance es grande y concentrado."
                 ),
                 module="economía",
                 evidence={"player": p["name"], "share": round(share, 3)},
-            ))
-    return out
-
-
-def starter_injured(starters: list[dict[str, Any]]) -> list[Insight]:
-    """HL-13x: cruza el once ideal (motor de alineación) con las lesiones —
-    no es lo mismo estar lesionado en el banquillo que en el once titular."""
-    out: list[Insight] = []
-    for p in starters:
-        if p.get("injury_level", -1) > -1:
-            out.append(Insight(
-                key=f"player.starter_injured.{p['ht_player_id']}",
-                severity=Severity.DANGER,
-                title=f"{p['name']} es titular en tu mejor once y está lesionado",
-                detail=f"Juega de {p['label']} en la alineación óptima calculada.",
-                action=(
-                    "El optimizador ya lo excluye de la alineación real: revisa quién lo sustituye."
-                ),
-                module="equipo",
-                evidence={"player": p["name"], "position": p["label"]},
             ))
     return out
 
@@ -503,7 +485,7 @@ def academy_roi(invested: int, earned: int, currency: str = "") -> list[Insight]
             key="academy.profitable",
             severity=Severity.INFO,
             title="Tu academia ha sido rentable",
-            detail=f"Invertido {invested:,} {currency}, generado {earned:,} {currency}.",
+            detail=f"Invertido {thousands(invested)} {currency}, generado {thousands(earned)} {currency}.",
             action="",
             module="academia",
             evidence={"invested": invested, "earned": earned, "net": neto},
@@ -513,8 +495,8 @@ def academy_roi(invested: int, earned: int, currency: str = "") -> list[Insight]
         severity=Severity.WARNING,
         title="Tu academia no ha recuperado la inversión",
         detail=(
-            f"Llevas {invested:,} {currency} invertidos y has generado {earned:,}. "
-            f"Diferencia: {neto:,}."
+            f"Llevas {thousands(invested)} {currency} invertidos y has generado "
+            f"{thousands(earned)}. Diferencia: {thousands(neto)}."
         ),
         action="Decide si el proyecto de cantera compensa o si ese dinero rinde más en el mercado.",
         module="academia",
@@ -615,7 +597,7 @@ def promotion_chance(own: dict[str, Any], threshold: float = 0.4) -> list[Insigh
         detail=(
             f"Posición esperada: {own.get('expected_position')}. El ascenso "
             "directo o la promoción dependen del ranking nacional de "
-            "campeones — no modelado."
+            "campeones, no modelado."
         ),
         action="Con opciones reales de terminar 1º, cada punto pesa más de lo habitual.",
         module="liga",
@@ -656,7 +638,15 @@ def weak_attack(own: dict[str, Any], threshold: float = 0.8) -> list[Insight]:
     )]
 
 
-def weak_defence(own: dict[str, Any], threshold: float = 1.2) -> list[Insight]:
+def weak_defence(own: dict[str, Any], threshold: float = 1.25) -> list[Insight]:
+    """`defence_strength` es goles EN CONTRA sobre la media de la liga, así que
+    más alto es peor: 1,25 significa encajar un 25% por encima del promedio.
+
+    2026-08-16: el usuario pidió "<0,8" para igualar el umbral del ataque,
+    pero aplicado tal cual dispararía con las MEJORES defensas. 1,25 es el
+    espejo real de "ataque <0,80" en esta escala multiplicativa (1/0,8), que
+    era la intención.
+    """
     d = own.get("defence_strength", 1.0)
     if d <= threshold:
         return []
@@ -712,36 +702,72 @@ def next_match_forecast(next_match: dict[str, Any], edge_threshold: float = 0.55
     return []
 
 
-# ── Copa ────────────────────────────────────────────────────────────────────
+def next_match_weather(
+    ht_match_id: int,
+    rival: str,
+    is_home: bool,
+    region_name: str,
+    weather_id: int,
+    *,
+    tomorrow: bool,
+) -> list[Insight]:
+    """El clima de la región donde se juega el próximo partido — 2026-08-18.
 
-def cup_streak_notable(streak: dict[str, Any] | None, threshold: int = 3) -> list[Insight]:
-    """HL-116: solo hechos ya jugados — una racha de copa igual o más larga
-    que el umbral, en cualquier sentido."""
-    if not streak or streak.get("count", 0) < threshold:
+    Hattrick pronostica a un día vista, así que este aviso solo aparece la
+    víspera o el mismo día. Sirve para lo único que el clima decide de verdad:
+    qué especialidades rinden un 5% por encima o por debajo de lo normal.
+
+    Con nublado o parcialmente nublado el aviso también sale, y dice justo eso:
+    que no hay nada que ajustar. Callar sería dejar al manager preguntándose si
+    el dato faltaba o si no había efecto.
+    """
+    if weather_id not in wx.WEATHER_NAMES:
         return []
-    count, result = streak["count"], streak["result"]
-    if result == "V":
-        return [Insight(
-            key="cup.streak_wins",
-            severity=Severity.OPPORTUNITY,
-            title=f"{count} victorias seguidas en copa",
-            detail="Racha activa según el historial ya jugado.",
-            action="",
-            module="copa",
-            evidence={"count": count, "result": result},
-        )]
-    if result == "D":
-        return [Insight(
-            key="cup.streak_losses",
-            severity=Severity.WARNING,
-            title=f"{count} derrotas seguidas en copa",
-            detail="Racha activa según el historial ya jugado.",
-            action="Revisa si es un problema de plantilla o de calendario (rivales más fuertes).",
-            module="copa",
-            evidence={"count": count, "result": result},
-        )]
-    return []
+    cuando = "mañana" if tomorrow else "hoy"
+    sede = "en casa" if is_home else f"en casa de {rival}"
+    icono = wx.WEATHER_ICONS.get(weather_id, "")
+    suben = wx.favoured(weather_id)
+    bajan = wx.hindered(weather_id)
+    pct = f"{wx.EFFECT_PCT:.0%}"
 
+    if wx.is_neutral(weather_id):
+        detalle = (
+            f"Se juega {sede}, en {region_name}. "
+            "Ese cielo no favorece ni penaliza a ninguna especialidad."
+        )
+        accion = "Alinea por criterio deportivo: el clima no entra en la cuenta."
+    else:
+        detalle = (
+            f"Se juega {sede}, en {region_name}. "
+            f"Suben un {pct} en todas sus habilidades: {', '.join(suben)}. "
+            f"Bajan un {pct}: {', '.join(bajan)}."
+        )
+        accion = (
+            f"Si tienes a alguien {suben[0].lower()} en la banca, "
+            "este es su partido."
+        )
+    return [Insight(
+        key=f"match.weather.{ht_match_id}",
+        severity=Severity.INFO,
+        title=f"{icono} {wx.weather_name(weather_id)} {cuando} contra {rival}",
+        detail=detalle,
+        action=accion,
+        module="partidos",
+        evidence={
+            "htMatchId": ht_match_id,
+            "regionName": region_name,
+            "weatherId": weather_id,
+            "weatherName": wx.weather_name(weather_id),
+            "favoured": suben,
+            "hindered": bajan,
+            "isHome": is_home,
+            "playedTomorrow": tomorrow,
+            "venue": sede,
+        },
+    )]
+
+
+# ── Copa ────────────────────────────────────────────────────────────────────
 
 # ── Cuerpo técnico ──────────────────────────────────────────────────────────
 

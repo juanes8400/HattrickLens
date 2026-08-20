@@ -225,7 +225,7 @@ export function SetupPage() {
         {(completed || alreadyImported) && (
           <section className="grid gap-3 sm:grid-cols-3">
             <NextAction to="/news" title="Revisar cambios" detail="Pops, forma, experiencia y variaciones del club." />
-            <NextAction to="/next-match" title="Preparar el partido" detail="Rival, condición, alineación y ratings." />
+            <NextAction to="/rivals" title="Estudiar al rival" detail="Once probable, duelos por zona y rotación del ataque." />
             <NextAction to="/training" title="Revisar entrenamiento" detail="Carga, progreso y próximas subidas." />
           </section>
         )}

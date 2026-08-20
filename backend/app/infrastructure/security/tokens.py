@@ -31,6 +31,6 @@ def decrypt_token(value: bytes) -> str:
         return _fernet().decrypt(value).decode()
     except InvalidToken as exc:
         raise TokenDecryptionError(
-            "no se pudo descifrar el token — TOKEN_ENCRYPTION_KEY no coincide "
+            "no se pudo descifrar el token, TOKEN_ENCRYPTION_KEY no coincide "
             "con la que lo cifró"
         ) from exc

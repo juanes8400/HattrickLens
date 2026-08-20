@@ -14,8 +14,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.queries.weekly import season_for_datetime
+from app.application.queries.weekly import season_for_datetime, season_week_for_datetime
 from app.domain.engines.player_balance import (
+    YOUTH_PROMOTION_COST,
     PlayerBalance,
     PlayerTransferRecord,
     SalarySnapshot,
@@ -130,6 +131,10 @@ class PlayerBalanceRow:
     ht_player_id: int
     name: str
     is_academy_graduate: bool
+    # Lo que costó subirlo de la cantera, en moneda local. 0 para quien no vino
+    # de ahí. Es el "precio de compra" de un canterano: sin él, su saldo salía
+    # inflado por ese importe.
+    promotion_cost: int
     is_purchase_price_manual: bool
     purchase_price: int | None
     purchased_at: str | None
@@ -154,6 +159,12 @@ class PlayerBalanceRow:
     # 2026-08-04: filtro general de temporadas, pedido explícitamente —
     # mismo criterio que el desglose "por Temporada" (season_at).
     season_at_sale: str | None
+    # La SEMANA de temporada (1-16) de cada movimiento, sin la temporada
+    # delante: la cascada de Transferencias agrupa todas las semanas 05 de
+    # cualquier temporada en la misma columna. `None` cuando no se puede
+    # situar la fecha (sin WorldContext del país, o movimiento sin fecha).
+    week_at_sale: int | None
+    week_at_purchase: int | None
     # Reutilizados por el filtro de temporadas para recalcular los desgloses
     # "por habilidad más alta"/"por hora de puja" sobre el subconjunto
     # filtrado sin tener que rehacer la consulta — mismo criterio que
@@ -165,6 +176,7 @@ class PlayerBalanceRow:
     # verdad no hay forma de saberlo, para que se note en la tabla que es
     # un hueco y no un cero.
     native_country: str
+    native_country_code: str | None
     character: str
     specialty: str
     tsi_at_purchase: int | str
@@ -173,6 +185,7 @@ class PlayerBalanceRow:
     commission_amount: float | str
     roi_pct: float | str
     destination_country: str
+    destination_country_code: str | None
     # HL-161: edad en la venta como número decimal (años + días/112) — para
     # graficar (color por edad, pedido 2026-08-04), no para tabla. Mismo
     # criterio que el desglose "por Edad": snapshot real si existe, si no
@@ -436,6 +449,47 @@ class PlayerBalanceQueryService:
             )
             if team.ht_league_id is not None else None
         )
+        country_rows = (
+            await self._s.execute(
+                select(
+                    m.WorldContext.country_id,
+                    m.WorldContext.country_code,
+                    m.WorldContext.country_name,
+                ).where(m.WorldContext.country_code != "")
+            )
+        ).all()
+        country_codes_by_id = {
+            int(country_id): str(country_code).upper()
+            for country_id, country_code, _country_name in country_rows
+        }
+        country_names_by_id = {
+            int(country_id): str(country_name)
+            for country_id, _country_code, country_name in country_rows
+            if country_name
+        }
+        country_codes_by_name = {
+            str(country_name).strip().casefold(): str(country_code).upper()
+            for _country_id, country_code, country_name in country_rows
+            if country_name
+        }
+
+        def week_number(when: datetime | None) -> int | None:
+            """El "05" de 83-05: la semana dentro de la temporada.
+
+            Se descarta la temporada a propósito. La pregunta que responde la
+            cascada es "en qué semana del calendario me va bien vender", y
+            para eso una venta de 83-05 y otra de 81-05 son la misma semana.
+            """
+            if when is None:
+                return None
+            etiqueta = season_week_for_datetime(world, when)
+            if not etiqueta or "-" not in etiqueta:
+                return None
+            try:
+                return int(etiqueta.split("-")[1])
+            except ValueError:
+                return None
+
         def season_at(when: datetime | None) -> str:
             if when is None:
                 return _UNKNOWN_SEASON
@@ -563,6 +617,7 @@ class PlayerBalanceQueryService:
                 purchase_price=purchase_price,
                 purchased_at=purchased_at,
                 is_academy_graduate=is_academy,
+                promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
                 salary_history=salary_by_player.get(p.id, []),
                 listing_count=p.listing_count,
                 sale_price=effective_sale_price,
@@ -598,6 +653,25 @@ class PlayerBalanceQueryService:
 
             at_purchase = (
                 snapshot_at_or_after(p.id, purchased_at) if purchased_at is not None else None
+            )
+            nationality_snapshot = at_sale or at_purchase
+            if nationality_snapshot is None and snapshots_by_player.get(p.id):
+                nationality_snapshot = snapshots_by_player[p.id][-1]
+            native_country_code = (
+                country_codes_by_id.get(nationality_snapshot.country_id)
+                if nationality_snapshot is not None else None
+            )
+            if native_country_code is None and p.native_country:
+                native_country_code = country_codes_by_name.get(
+                    p.native_country.strip().casefold()
+                )
+            native_country = p.native_country or (
+                country_names_by_id.get(nationality_snapshot.country_id)
+                if nationality_snapshot is not None else None
+            )
+            destination_country_code = (
+                country_codes_by_name.get(p.destination_country.strip().casefold())
+                if p.destination_country else None
             )
             age_at_purchase: float | str = "?"
             if at_purchase is not None:
@@ -651,6 +725,7 @@ class PlayerBalanceQueryService:
                     ht_player_id=p.ht_player_id,
                     name=f"{p.first_name} {p.last_name}".strip(),
                     is_academy_graduate=is_academy,
+                    promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
                     is_purchase_price_manual=is_manual,
                     purchase_price=balance.purchase_price,
                     purchased_at=purchased_at.isoformat() if purchased_at else None,
@@ -667,9 +742,12 @@ class PlayerBalanceQueryService:
                     is_sold=balance.is_sold,
                     training_at_sale=training_label,
                     season_at_sale=season_label_for_row,
+                    week_at_sale=week_number(effective_sold_at),
+                    week_at_purchase=week_number(purchased_at),
                     top_skill_at_sale=top_skill_for_row,
                     bid_hour_at_sale=bid_hour_for_row,
-                    native_country=p.native_country or "?",
+                    native_country=native_country or "?",
+                    native_country_code=native_country_code,
                     character=character_label,
                     specialty=specialty_label,
                     tsi_at_purchase=tsi_purchase,
@@ -678,6 +756,7 @@ class PlayerBalanceQueryService:
                     commission_amount=commission_amount,
                     roi_pct=roi_pct,
                     destination_country=p.destination_country or "?",
+                    destination_country_code=destination_country_code,
                     age_at_sale=age_at_sale,
                     age_at_purchase=age_at_purchase,
                     experience_at_purchase=_skill_val(at_purchase, "experience"),

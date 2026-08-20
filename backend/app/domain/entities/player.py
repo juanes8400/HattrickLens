@@ -17,7 +17,7 @@ class Player:
     salary: int
     specialty: int | None
     skills: dict[SkillType, Skill] = field(default_factory=dict)
-    injury_level: int = -1  # -1 sano, 0 escayola, >0 semanas
+    injury_level: int = -1  # -1 sano, 0 magullado (puede jugar), >=1 semanas de baja
     is_transfer_listed: bool = False
     captured_at: datetime | None = None
 

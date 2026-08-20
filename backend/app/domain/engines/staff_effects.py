@@ -121,9 +121,10 @@ def current_injury_risk_pct(assistant_combined_level: int, doctor_level: int) ->
 
 
 # HL-2xx: qué función de efecto corresponde a cada columna de StaffSnapshot
-# (mismas claves que STAFF_FIELDS en club.py). "spokesperson_levels"
-# (Portavoz) no aparece en las categorías vigentes que pasó el usuario — sin
-# tabla oficial, no se inventa una.
+# Un efecto por puesto, con las mismas claves que `STAFF_ROLES` en
+# ht_constants. Que la lista de puestos y ésta cuadren no es casualidad: si un
+# puesto no tiene efecto que calcular, es que no existe (así se coló y así se
+# detectó "Portavoz", que venía del club.xml viejo).
 STAFF_FIELD_TO_EFFECT_FN: dict[str, Any] = {
     "assistant_trainer_levels": assistant_trainer_effect,
     "medic_levels": doctor_effect,

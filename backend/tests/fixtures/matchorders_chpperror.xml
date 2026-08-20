@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>chpperror.xml</FileName>
+  <Version>1.1</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-16 01:43:25</FetchedDate>
+  <Error>Sequence contains no matching element</Error>
+  <ErrorCode>11552150</ErrorCode>
+  <ErrorGUID>fc8f3df3-c467-40f6-81b8-10cdb6806783</ErrorGUID>
+  <Server>chpp83.hattrick.org</Server>
+  <Request>/chppxml.ashx?file=matchorders&amp;version=3.0&amp;matchID=770453120&amp;actionType=predictratings</Request>
+  <LineNumber>185</LineNumber>
+</HattrickData>

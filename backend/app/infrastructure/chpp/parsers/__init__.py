@@ -75,6 +75,12 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
         # coinciden, pero no es lo mismo semánticamente). Funciona para
         # equipos ajenos, no solo el propio — verificado en vivo 2026-08-04.
         country = t.find(".//Country")
+        # La región del club — 2026-08-18. Hattrick decide el clima por
+        # región, y esta es la única fuente que la da de un equipo AJENO:
+        # `arenadetails.xml?teamID=` responde error 59 salvo para equipos
+        # propios, verificado en vivo. Hace falta para el partido de
+        # visitante, donde manda la región del rival.
+        region = t.find(".//Region")
         teams.append({
             "ht_team_id": _int(t, "TeamID"),
             "name": _txt(t, "TeamName", ""),
@@ -89,6 +95,8 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
             "series_name": _txt(series, "LeagueLevelUnitName", "") if series is not None else "",
             "series_ht_id": _int(series, "LeagueLevelUnitID") if series is not None else 0,
             "country_name": _txt(country, "CountryName", "") if country is not None else "",
+            "ht_region_id": _int(region, "RegionID") if region is not None else 0,
+            "region_name": _txt(region, "RegionName", "") if region is not None else "",
             # Estado oficial de la Copa actual. Si StillInCup=False, los
             # demás campos pueden venir vacíos y deben limpiarse al persistir.
             "still_in_cup": _bool(cup, "StillInCup") if cup is not None else None,
@@ -244,7 +252,15 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
     CHPP, no una."""
     root = ElementTree.fromstring(xml)
     if _is_chpp_error(root):
-        return {"chpp_error": True}
+        # No borrar el diagnóstico de CHPP. El servidor responde estos
+        # errores con HTTP 200, por lo que el código y el texto son la única
+        # forma de distinguir un jugador eliminado de un dato simplemente
+        # ausente o de un problema transitorio.
+        return {
+            "chpp_error": True,
+            "chpp_error_code": _int(root, "ErrorCode"),
+            "chpp_error_message": _txt(root, "Error", "").strip(),
+        }
     node = root.find(".//Player")
     if node is None:
         return {}
@@ -268,6 +284,11 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         # HL-15x: Nacionalidad real — NativeLeagueName ya viene como texto en
         # playerdetails.xml, sin necesitar una tabla ID→país propia.
         "native_league_name": _txt(node, "NativeLeagueName", ""),
+        # Conservar también los IDs oficiales. Algunas respuestas válidas
+        # omiten el texto pero sí traen NativeLeagueID/NativeCountryID; el
+        # sync puede entonces resolver el nombre exacto contra worlddetails.
+        "native_country_id": _int(node, "NativeCountryID"),
+        "native_league_id": _int(node, "NativeLeagueID"),
         # HL-161: edad ACTUAL — playerdetails.xml funciona para cualquier
         # jugador por ID, aunque ya no esté en el equipo (verificado en vivo
         # 2026-08-04 con un jugador ya vendido). Sirve para reconstruir hacia
@@ -568,6 +589,20 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
     privadas/no disponibles.
     """
     root = ElementTree.fromstring(xml)
+    # 2026-08-15, verificado en vivo: `actionType=predictratings` puede devolver
+    # HTTP 200 con `chpperror.xml` ("Sequence contains no matching element").
+    # Sin esta rama el parser devolvía un dict con `ht_match_id=0`, el sync lo
+    # descartaba en silencio por no coincidir el ID y los ratings VIEJOS se
+    # quedaban en la base pareados con una alineación nueva.
+    if _is_chpp_error(root):
+        return {
+            "ht_match_id": 0,
+            "available": False,
+            "positions": [],
+            "prediction": None,
+            "chpp_error": _txt(root, "Error", ""),
+            "chpp_error_code": _int(root, "ErrorCode"),
+        }
     match_data = root.find("MatchData")
     if match_data is None:
         match_data = root.find(".//MatchData")
@@ -966,7 +1001,13 @@ def parse_club(xml: bytes) -> dict[str, Any]:
     de si hay o no un especialista de cada tipo) y `<YouthSquad>`. El
     desglose real de staff (persona por persona, con su nivel de verdad)
     siempre vivió en `stafflist.xml` — ver `parse_stafflist` y
-    `STAFF_TYPE_TO_FIELD` en ht_constants.py."""
+    `STAFF_TYPE_TO_FIELD` en ht_constants.py.
+
+    OJO con `youth_investment`: se sigue guardando porque es lo que trae el
+    fichero, pero **no sirve para mostrar el gasto de la academia**. Fetch en
+    vivo 2026-08-15: Hattrick devuelve `<Investment>0</Investment>` con el
+    club invirtiendo de verdad 200.000 SEK/semana. El gasto real es
+    `CostsYouth` de economy.xml — así lo leen ya `academy.py` y `club.py`."""
     root = ElementTree.fromstring(xml)
     team = root.find(".//Team")
     if team is None:
@@ -979,6 +1020,110 @@ def parse_club(xml: bytes) -> dict[str, Any]:
         "youth_has_promoted": _txt(youth, "HasPromoted", "False").lower() in ("true", "1")
         if youth is not None else False,
     }
+
+
+# youthplayerlist.xml: nombre del tag CHPP -> campo de YouthSnapshot. El
+# fichero usa "Defender/Playmaker/Scorer" donde el resto de la app dice
+# "defending/playmaking/scoring" (players.xml usa otros nombres todavía), así
+# que la traducción vive aquí y no se propaga al dominio.
+YOUTH_SKILL_TAGS: dict[str, str] = {
+    "Keeper": "keeper",
+    "Defender": "defending",
+    "Playmaker": "playmaking",
+    "Winger": "winger",
+    "Passing": "passing",
+    "Scorer": "scoring",
+    "SetPieces": "set_pieces",
+}
+
+
+def _youth_skill(skills: Element | None, tag: str) -> int | None:
+    """Nivel de una skill juvenil, o `None` si el ojeador aún no la reveló.
+
+    Distinguir "no revelado" de "cero" es el punto entero del módulo: un techo
+    desconocido no es un techo bajo (ver `academy_engine`). CHPP lo marca con
+    `IsAvailable="False"` y el elemento vacío — nunca con un 0.
+    """
+    if skills is None:
+        return None
+    node = skills.find(tag)
+    if node is None or (node.get("IsAvailable", "False").lower() != "true"):
+        return None
+    text = (node.text or "").strip()
+    return int(text) if text.isdigit() else None
+
+
+def _youth_max_reached(skills: Element | None, tag: str) -> bool:
+    """¿Esta habilidad ya tocó su techo?
+
+    CHPP lo publica como atributo `IsMaxReached` del nivel actual, y se sabe
+    aunque el techo en sí siga oculto. Importa para decidir a quién entrenar:
+    una habilidad topada no va a subir más por mucho que se entrene, así que
+    no puntúa aunque su nivel sea alto.
+    """
+    if skills is None:
+        return False
+    node = skills.find(tag)
+    if node is None:
+        return False
+    return node.get("IsMaxReached", "False").lower() == "true"
+
+
+@register("youthteamdetails")
+def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
+    """Identidad y FECHA DE CREACIÓN de la academia juvenil actual.
+
+    2026-08-15, pedido explícitamente: una academia se puede cerrar y volver a
+    abrir, y cada apertura es una academia distinta con su propio `YouthTeamID`
+    y su `CreatedDate`. Sin ese dato, el ROI de la cantera sumaba canteranos de
+    academias anteriores contra la inversión de la actual — cifras de dos cosas
+    distintas mezcladas. Verificado contra el fichero real de la cuenta.
+    """
+    root = ElementTree.fromstring(xml)
+    team = root.find(".//YouthTeam")
+    if team is None:
+        return {}
+    return {
+        "ht_youth_team_id": _int(team, "YouthTeamID"),
+        "youth_team_name": _txt(team, "YouthTeamName", ""),
+        "created_date": _txt(team, "CreatedDate", ""),
+    }
+
+
+@register("youthplayerlist")
+def parse_youthplayerlist(xml: bytes) -> dict[str, Any]:
+    """Plantilla juvenil con nivel actual y techo por habilidad.
+
+    Verificado contra el fichero real 2026-08-15. Se pide con
+    `actionType=details` para que venga `<PlayerSkills>`; sin eso el fichero
+    trae sólo identidades y el módulo de academia se queda sin nada que
+    evaluar.
+    """
+    root = ElementTree.fromstring(xml)
+    players: list[dict[str, Any]] = []
+    for p in root.findall(".//YouthPlayer"):
+        skills = p.find("PlayerSkills")
+        last_match = p.find("LastMatch")
+        row: dict[str, Any] = {
+            "ht_youth_player_id": _int(p, "YouthPlayerID"),
+            "first_name": _txt(p, "FirstName", ""),
+            "last_name": _txt(p, "LastName", ""),
+            "age_years": _int(p, "Age"),
+            "age_days": _int(p, "AgeDays"),
+            "arrival_date": _txt(p, "ArrivalDate", ""),
+            # Días que faltan para poder promocionarlo al primer equipo: es el
+            # plazo que la pantalla muestra en rojo cuando se acaba.
+            "can_be_promoted_in": _int(p, "CanBePromotedIn"),
+            "minutes_last_match": (
+                _int(last_match, "PlayedMinutes") if last_match is not None else 0
+            ),
+        }
+        for tag, field_name in YOUTH_SKILL_TAGS.items():
+            row[field_name] = _youth_skill(skills, f"{tag}Skill")
+            row[f"{field_name}_max"] = _youth_skill(skills, f"{tag}SkillMax")
+            row[f"{field_name}_max_reached"] = _youth_max_reached(skills, f"{tag}Skill")
+        players.append(row)
+    return {"youth_players": players}
 
 
 # TrainerType (stafflist): 0 defensivo, 1 ofensivo, 2 equilibrado.
@@ -1031,6 +1176,31 @@ def parse_stafflist(xml: bytes) -> dict[str, Any]:
     }
 
 
+@register("regiondetails")
+def parse_regiondetails(xml: bytes) -> dict[str, Any]:
+    """regiondetails.xml — el clima de una región, hoy y mañana.
+
+    Hattrick solo publica el pronóstico a un día vista: `WeatherID` es el de
+    HOY y `TomorrowWeatherID` el de mañana, ambos referidos al reloj del
+    servidor. Por eso se guarda también `FetchedDate`: sin saber qué día era
+    "hoy" cuando se pidió, los dos números no se pueden situar en el
+    calendario y un pronóstico de anteayer se leería como el de esta tarde.
+    """
+    root = ElementTree.fromstring(xml)
+    region = root.find(".//Region")
+    if region is None:
+        return {}
+    return {
+        "ht_region_id": _int(region, "RegionID"),
+        "region_name": _txt(region, "RegionName", ""),
+        "ht_league_id": _int(root.find(".//League"), "LeagueID")
+        if root.find(".//League") is not None else 0,
+        "weather_today": _int(region, "WeatherID", -1),
+        "weather_tomorrow": _int(region, "TomorrowWeatherID", -1),
+        "fetched_at": _txt(root, "FetchedDate", ""),
+    }
+
+
 @register("worlddetails")
 def parse_worlddetails(xml: bytes) -> dict[str, Any]:
     """Contexto del mundo: tasa de moneda, temporada, jornada, copas y fechas
@@ -1066,6 +1236,8 @@ def parse_worlddetails(xml: bytes) -> dict[str, Any]:
         leagues.append({
             "ht_league_id": _int(league, "LeagueID"),
             "league_name": _txt(league, "LeagueName", ""),
+            "country_id": _int(country, "CountryID") if country is not None else 0,
+            "country_code": _txt(country, "CountryCode", "") if country is not None else "",
             "country_name": _txt(country, "CountryName", "") if country is not None else "",
             "season": _int(league, "Season"),
             "season_offset": _int(league, "SeasonOffset"),

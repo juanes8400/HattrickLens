@@ -1,24 +1,14 @@
 import { useMemo, useState } from "react";
-import clsx from "clsx";
-import { useInsights } from "../hooks/useTeam";
+import {
+  useArchiveInsight,
+  useArchivedInsights,
+  useInsights,
+  useRestoreInsight,
+} from "../hooks/useTeam";
 import { Empty, ErrorState, Loading, Panel } from "../components/Panels";
+import { InsightRow, SEVERITIES, SeverityTally } from "../components/Insights";
+import { relative } from "../hooks/useFormat";
 import type { Insight } from "../services/api";
-
-const TONE = {
-  danger: "var(--danger)",
-  warning: "var(--warning)",
-  opportunity: "var(--positive)",
-  info: "var(--muted)",
-} as const;
-
-const SEVERITY_LABEL: Record<Insight["severity"], string> = {
-  danger: "Peligro",
-  warning: "Aviso",
-  opportunity: "Oportunidad",
-  info: "Info",
-};
-
-const SEVERITIES: Insight["severity"][] = ["danger", "warning", "opportunity", "info"];
 
 /**
  * Centro de alertas. HL-130.
@@ -34,24 +24,23 @@ const SEVERITIES: Insight["severity"][] = ["danger", "warning", "opportunity", "
  */
 export function InsightsPage() {
   const { data, isLoading, isError, error } = useInsights();
+  const archived = useArchivedInsights();
+  const archive = useArchiveInsight();
+  const restore = useRestoreInsight();
   const [activeSeverities, setActiveSeverities] = useState<Set<Insight["severity"]>>(
     new Set(SEVERITIES),
   );
   const [activeModule, setActiveModule] = useState<string>("__all__");
 
-  const counts = useMemo(() => {
-    const bySeverity: Record<string, number> = {};
-    const byModule: Record<string, number> = {};
-    for (const i of data ?? []) {
-      bySeverity[i.severity] = (bySeverity[i.severity] ?? 0) + 1;
-      byModule[i.module] = (byModule[i.module] ?? 0) + 1;
-    }
-    return { bySeverity, byModule };
+  const byModule = useMemo(() => {
+    const acc: Record<string, number> = {};
+    for (const i of data ?? []) acc[i.module] = (acc[i.module] ?? 0) + 1;
+    return acc;
   }, [data]);
 
   const modules = useMemo(
-    () => Object.keys(counts.byModule).sort((a, b) => a.localeCompare(b)),
-    [counts.byModule],
+    () => Object.keys(byModule).sort((a, b) => a.localeCompare(b)),
+    [byModule],
   );
 
   const filtered = useMemo(
@@ -83,37 +72,16 @@ export function InsightsPage() {
         <h1 className="text-xl font-semibold">Alertas</h1>
         <p className="text-sm text-[var(--muted)]">
           Reglas de negocio evaluadas contra tu plantilla, tu liga, tu copa, tu estadio, tu
-          academia y tu cuerpo técnico — ordenadas por urgencia
+          academia y tu cuerpo técnico, ordenadas por urgencia
         </p>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
-        {SEVERITIES.map((s) => {
-          const n = counts.bySeverity[s] ?? 0;
-          const on = activeSeverities.has(s);
-          return (
-            <button
-              key={s}
-              onClick={() => toggleSeverity(s)}
-              disabled={n === 0}
-              className={clsx(
-                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition",
-                on
-                  ? "border-[var(--border)] bg-[var(--surface-2)]"
-                  : "border-[var(--border)] text-[var(--muted)] opacity-50",
-                n === 0 && "cursor-not-allowed opacity-30",
-              )}
-            >
-              <span
-                aria-hidden
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ background: TONE[s] }}
-              />
-              {SEVERITY_LABEL[s]}
-              <span className="tabular-nums text-[var(--muted)]">{n}</span>
-            </button>
-          );
-        })}
+        <SeverityTally
+          insights={data ?? []}
+          onSelect={toggleSeverity}
+          active={activeSeverities}
+        />
 
         {modules.length > 1 && (
           <select
@@ -124,7 +92,7 @@ export function InsightsPage() {
             <option value="__all__">Todos los módulos ({data?.length ?? 0})</option>
             {modules.map((mod) => (
               <option key={mod} value={mod}>
-                {mod} ({counts.byModule[mod]})
+                {mod} ({byModule[mod]})
               </option>
             ))}
           </select>
@@ -143,28 +111,12 @@ export function InsightsPage() {
           filtered.length ? (
             <ul>
               {filtered.map((i) => (
-                <li
+                <InsightRow
                   key={i.key}
-                  className="flex gap-3 border-b border-[var(--border)] p-4 last:border-0"
-                >
-                  <span
-                    aria-hidden
-                    className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: TONE[i.severity] }}
-                  />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{i.title}</div>
-                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--muted)]">
-                      {i.detail}
-                    </p>
-                    {i.action && (
-                      <p className={clsx("mt-1.5 text-xs", "text-[var(--accent)]")}>
-                        → {i.action}
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-[var(--muted)]">{i.module}</span>
-                </li>
+                  insight={i}
+                  onArchive={archive.mutate}
+                  busy={archive.isPending}
+                />
               ))}
             </ul>
           ) : (
@@ -174,6 +126,32 @@ export function InsightsPage() {
           <Empty>Nada requiere tu atención ahora mismo.</Empty>
         )}
       </Panel>
+
+      {/* El buzón solo aparece cuando hay algo dentro: un panel vacío
+          permanente sería ruido en una pantalla que ya tiene filtros. */}
+      {archived.data?.length ? (
+        <Panel title="Buzón" meta={`${archived.data.length} archivada${archived.data.length === 1 ? "" : "s"}`}>
+          <ul>
+            {archived.data.map((i) => (
+              <InsightRow
+                key={i.key}
+                insight={i}
+                onRestore={restore.mutate}
+                busy={restore.isPending}
+                meta={
+                  i.stillActive
+                    ? `Archivada ${relative(i.dismissedAt)} · la condición sigue vigente`
+                    : `Archivada ${relative(i.dismissedAt)} · ya no se cumple`
+                }
+              />
+            ))}
+          </ul>
+          <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+            Archivar no apaga la regla: si la misma alerta se vuelve a generar con otra cifra
+            u otra severidad, vuelve sola a la lista de arriba.
+          </p>
+        </Panel>
+      ) : null}
     </div>
   );
 }

@@ -1,40 +1,24 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import clsx from "clsx";
-import { ApiError, api } from "../services/api";
-import type { SyncChange, SyncResult } from "../services/api";
-import { TEAM_ID, useDashboard, useSessionProfile, useSquad } from "../hooks/useTeam";
+import { api, errorMessage } from "../services/api";
+import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
-import { SyncChangesFeed } from "../components/SyncChangesFeed";
-import { SyncProgressPanel } from "../components/SyncProgressPanel";
-
-function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    const detail = error.detail;
-    if (typeof detail === "string") return detail;
-    if (detail && typeof detail === "object" && "detail" in detail) {
-      const inner = (detail as { detail: unknown }).detail;
-      if (typeof inner === "string") return inner;
-    }
-    return error.message;
-  }
-  return error instanceof Error ? error.message : "Error desconocido.";
-}
 
 const NAV = [
   { section: "Club" },
   { to: "/dashboard", label: "Dashboard" },
   { to: "/club", label: "Club y staff" },
-  { to: "/team", label: "Equipo" },
+  { to: "/overview", label: "Equipo" },
+  { to: "/team", label: "Jugadores" },
   { to: "/positions", label: "Posiciones" },
   { to: "/lineup", label: "Alineación" },
   { section: "Desarrollo" },
   { to: "/training", label: "Entrenamiento" },
   { to: "/academy", label: "Juveniles" },
-  { to: "/transfers/balance", label: "Saldo por jugador" },
+  { to: "/transfers/balance", label: "Transferencias" },
   { section: "Competición" },
-  { to: "/next-match", label: "Próximo partido" },
   { to: "/matches", label: "Partidos" },
   { to: "/league", label: "Liga" },
   { to: "/cup", label: "Copa" },
@@ -43,6 +27,9 @@ const NAV = [
   { to: "/economy", label: "Economía" },
   { to: "/arena", label: "Estadio" },
   { section: "Inteligencia" },
+  // Sincronización va justo antes de Cambios: es el orden en que se usan
+  // (sincronizas y de inmediato miras qué cambió).
+  { to: "/sync", label: "Sincronización" },
   { to: "/news", label: "Cambios" },
   { to: "/insights", label: "Alertas" },
   { to: "/engine", label: "Motor" },
@@ -94,7 +81,7 @@ function ClubNavigation({
         HT Lens
       </div>
       <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-        <div className="text-sm">{teamName ?? "—"}</div>
+        <div className="text-sm">{teamName ?? "-"}</div>
         <div className="text-xs text-[var(--muted)]">{[seriesName, leagueName].filter(Boolean).join(" · ")}</div>
       </div>
       <NavigationLinks onNavigate={onNavigate} />
@@ -105,53 +92,13 @@ function ClubNavigation({
 export function AppLayout() {
   const { data } = useDashboard();
   const profile = useSessionProfile();
-  const squad = useSquad();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const [banner, setBanner] = useState<{
     tone: "danger" | "warning" | "positive";
     text: string;
   } | null>(null);
-  const [changesPopup, setChangesPopup] = useState<SyncChange[] | null>(null);
-  const [progressLog, setProgressLog] = useState<string[] | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-
-  const sync = useMutation({
-    mutationFn: () => new Promise<SyncResult>((resolve, reject) => {
-      setProgressLog([]);
-      api.syncStream(TEAM_ID, (event) => {
-        if (event.type === "progress") {
-          setProgressLog((current) => [...(current ?? []), event.message]);
-        } else if (event.type === "done") {
-          resolve(event.result);
-        } else {
-          reject(new Error(event.message));
-        }
-      }).catch(reject);
-    }),
-    onSuccess: (result) => {
-      setProgressLog(null);
-      queryClient.invalidateQueries();
-      if (result.status === "partial") {
-        setBanner({ tone: "warning", text: `Sincronización parcial: ${result.errors.join(" · ")}` });
-        setChangesPopup(null);
-      } else if (!data?.syncedAt) {
-        setBanner({ tone: "positive", text: `Importación inicial completada: ${result.snapshotsWritten} registros guardados.` });
-        setChangesPopup(null);
-      } else if (result.changes.length === 0) {
-        setBanner({ tone: "positive", text: "Sincronización completada: no hubo cambios nuevos." });
-        setChangesPopup(null);
-      } else {
-        setBanner(null);
-        setChangesPopup(result.changes);
-      }
-    },
-    onError: (error) => {
-      setProgressLog(null);
-      setBanner({ tone: "danger", text: errorMessage(error) });
-    },
-  });
 
   const connect = useMutation({
     mutationFn: api.connectChpp,
@@ -242,9 +189,11 @@ export function AppLayout() {
             )}
           </div>
 
-          <button
-            onClick={() => sync.mutate()}
-            disabled={sync.isPending}
+          {/* 2026-08-15, pedido explícito: sincronizar ocurre en UNA pantalla,
+              no desde cualquier parte. Esto ya no dispara nada, informa de la
+              antigüedad del dato y lleva a Sincronización. */}
+          <Link
+            to="/sync"
             className={clsx(
               "rounded-md px-2 py-1.5 text-sm font-medium sm:px-3",
               data?.stale
@@ -252,8 +201,9 @@ export function AppLayout() {
                 : "bg-[var(--positive)]/15 text-[var(--positive)]",
             )}
           >
-            {sync.isPending ? "Sincronizando…" : <><span className="hidden sm:inline">Sincronizar · </span>{relative(data?.syncedAt ?? null)}</>}
-          </button>
+            <span className="hidden sm:inline">Datos de </span>
+            {relative(data?.syncedAt ?? null)}
+          </Link>
 
           <button
             onClick={() => {
@@ -266,8 +216,6 @@ export function AppLayout() {
             ●
           </button>
         </header>
-
-        {progressLog && <SyncProgressPanel lines={progressLog} />}
 
         {banner && (
           <div
@@ -284,14 +232,6 @@ export function AppLayout() {
             <span>{banner.text}</span>
             <button onClick={() => setBanner(null)} aria-label="Descartar aviso" className="shrink-0 opacity-70 hover:opacity-100">×</button>
           </div>
-        )}
-
-        {changesPopup && (
-          <SyncChangesFeed
-            changes={changesPopup}
-            onDismiss={() => setChangesPopup(null)}
-            playerLinks={Object.fromEntries((squad.data?.players ?? []).map((player) => [player.name, player.htPlayerId]))}
-          />
         )}
 
         <main className="p-4 sm:p-6"><Outlet /></main>

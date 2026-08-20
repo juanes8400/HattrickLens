@@ -1,4 +1,5 @@
 import { Chart } from "../charts/Chart";
+import { metric } from "../hooks/useFormat";
 import { Empty, Note, Panel } from "./Panels";
 
 const CURVE_COLOR = "#4f7cff";
@@ -24,7 +25,7 @@ export function PlayerDistributionPanel({
   xLabel,
   playerName,
   distribution: d,
-  formatValue = (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 1 }),
+  formatValue = (v: number) => metric(v, 1),
 }: {
   title: string;
   meta?: string;
@@ -51,8 +52,19 @@ export function PlayerDistributionPanel({
         ariaLabel={`Distribución de ${xLabel} de la plantilla, con ${playerName} resaltado`}
         height={260}
         option={{
-          grid: { left: 48, right: 16, top: 20, bottom: 44, containLabel: true },
-          xAxis: { type: "value", name: xLabel, nameLocation: "middle", nameGap: 28 },
+          grid: {
+            left: 48,
+            right: 16,
+            top: 20,
+            bottom: 44,
+            containLabel: true,
+          },
+          xAxis: {
+            type: "value",
+            name: xLabel,
+            nameLocation: "middle",
+            nameGap: 28,
+          },
           yAxis: { type: "value", show: false },
           tooltip: {
             trigger: "item",
@@ -104,8 +116,8 @@ export function PlayerDistributionPanel({
         }}
       />
       <Note>
-        {d.values.length} jugador(es) de la plantilla actual. {playerName} está en{" "}
-        <b>{formatValue(d.ownValue)}</b> (franja vertical roja).
+        {d.values.length} jugador(es) de la plantilla actual. {playerName} está
+        en <b>{formatValue(d.ownValue)}</b> (franja vertical roja).
       </Note>
     </Panel>
   );

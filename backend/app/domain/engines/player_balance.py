@@ -75,6 +75,15 @@ class SalarySnapshot:
     salary: int
 
 
+# Lo que cuesta subir a un canterano al primer equipo, en la MONEDA BASE del
+# juego (Hattrick da todo el dinero así y cada país tiene su tasa: con la de
+# Colombia, 10, son 2.000 US$). 2026-08-19, aportado por el usuario: CHPP no
+# publica este cargo por ninguna parte —las nueve partidas de gasto de
+# `economy.xml` no lo incluyen— así que el número viene del juego y se declara
+# aquí en vez de esconderlo en un cálculo.
+YOUTH_PROMOTION_COST = 20_000
+
+
 @dataclass(frozen=True)
 class PlayerTransferRecord:
     """Todo lo que hace falta saber de UN jugador para calcular su saldo.
@@ -92,6 +101,10 @@ class PlayerTransferRecord:
     # asignado a este jugador (ver `resale_bonus.py`) — 0 si no aplica.
     resale_bonus_share: float = 0.0
     as_of: datetime = field(default_factory=lambda: datetime.now(UTC))
+    # Lo que costó ascenderlo, si vino de la cantera. Se pasa en vez de leerse
+    # de una constante para que el motor siga siendo puro y para que un país
+    # con otro cargo no obligue a tocarlo.
+    promotion_cost: int = 0
 
 
 @dataclass(frozen=True)
@@ -140,7 +153,12 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
             saldo=None, is_sold=record.sale_price is not None,
         )
 
-    purchase_price = 0 if record.is_academy_graduate else (record.purchase_price or 0)
+    # Un canterano no se compra, pero ascenderlo tampoco es gratis: hasta
+    # 2026-08-19 entraba con coste 0 y su saldo salía inflado por ese importe.
+    purchase_price = (
+        record.promotion_cost if record.is_academy_graduate
+        else (record.purchase_price or 0)
+    )
     end = record.sold_at or record.as_of
     # Sin fecha de compra conocida no hay semanas que contar — 0, no negativo.
     purchased_at = record.purchased_at or end

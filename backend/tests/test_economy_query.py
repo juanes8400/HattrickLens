@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 from app.application.queries.economy import (
     MIN_WEEKS_FOR_TIMESERIES,
     EconomyQueryService,
+    _closed_sponsor_income,
 )
 from app.domain.engines.economy_engine import PlannedEvent
 from app.infrastructure.db import models as m
@@ -21,6 +22,43 @@ from tests.conftest import seeded_session
 
 def run(coro):
     return asyncio.run(coro)
+
+
+def test_closed_week_sponsors_absorb_the_bonus_chpp_never_itemises() -> None:
+    """2026-08-16, hueco real encontrado al cuadrar Economía: el desglose de
+    cada semana cerrada sumaba 205.000 MENOS que `LastIncomeSum`, todas las
+    semanas. `economy.xml` no expone `LastIncomeSponsorBonuses`, así que el
+    bono del patrocinador desaparecía de la tabla mientras el total oficial sí
+    lo incluía.
+
+    No se estima: el resto de partidas viene desglosado, así que lo que sobra
+    al restarlas del total oficial ES el bono."""
+    snap = m.EconomySnapshot(
+        last_income_sum=25_166_569,
+        last_income_spectators=0,
+        last_income_sponsors=1_035_000,
+        last_income_sold_players=18_267_485,
+        last_income_sold_players_commission=5_659_084,
+        last_income_financial=0,
+        last_income_temporary=0,
+    )
+    # 1.035.000 declarados + 205.000 de bono que CHPP no desglosa.
+    assert _closed_sponsor_income(snap) == 1_240_000
+
+
+def test_closed_week_sponsors_stay_untouched_when_a_piece_is_missing() -> None:
+    """Sin todas las partidas no hay resta posible: se devuelve la cifra
+    declarada en vez de inventar un bono."""
+    snap = m.EconomySnapshot(
+        last_income_sum=25_166_569,
+        last_income_spectators=None,
+        last_income_sponsors=1_035_000,
+        last_income_sold_players=None,
+        last_income_sold_players_commission=None,
+        last_income_financial=None,
+        last_income_temporary=None,
+    )
+    assert _closed_sponsor_income(snap) == 1_035_000
 
 
 def test_amounts_are_in_local_currency_not_game_base() -> None:
@@ -119,10 +157,47 @@ def test_series_and_forecast_carry_the_season_week_label() -> None:
 
     d = run(go())
     assert d is not None
-    assert d.series[-1].season_week == "84-03"
+    # 2026-08-16: `series` lleva dinero de semanas YA CERRADAS, así que cada
+    # punto se etiqueta con la semana anterior a su captura. La última lectura
+    # se toma en 84-03 y describe 84-02.
+    assert d.series[-1].season_week == "84-02"
     # Semana siguiente a la actual (offset +1 de la proyección estructural).
     assert d.structural_forecast.week_labels[0] == "84-04"
     assert len(d.structural_forecast.week_labels) == len(d.structural_forecast.weeks)
+
+
+def test_the_current_week_bridges_the_history_and_the_forecast() -> None:
+    """2026-08-16, roto y reportado por el usuario: al corregir el descuadre de
+    `series` (cada `last_*` describe la semana ANTERIOR a su lectura) el
+    histórico pasó a terminar en 83-03 y la proyección seguía arrancando en
+    83-05. La semana de hoy, 83-04, dejó de existir en las dos mitades.
+
+    `current_week` es el puente: no entra en `series` — esa lista son semanas
+    cerradas y alimenta balances y modelo temporal — pero el gráfico la pinta
+    al final, así que histórico y proyección vuelven a encadenar sin hueco."""
+    async def go():
+        factory, team_id = await seeded_session()
+        async with factory() as s:
+            team = await s.get(m.Team, team_id)
+            team.ht_league_id = 19
+            await s.commit()
+            return await EconomyQueryService(s).get(team_id)
+
+    d = run(go())
+    assert d is not None
+    assert d.current_week is not None
+    # Histórico cierra en 84-02, hoy es 84-03, la proyección abre en 84-04.
+    assert d.series[-1].season_week == "84-02"
+    assert d.current_week.season_week == "84-03"
+    assert d.structural_forecast.week_labels[0] == "84-04"
+    # La semana en curso NO contamina las semanas cerradas.
+    assert d.current_week not in d.series
+    assert all(p.season_week != "84-03" for p in d.series)
+    # Cada punto es la caja AL CIERRE de su semana, así que la actual lleva
+    # `expected_cash` — no la caja cruda de mitad de semana. 2026-08-16: sin
+    # esto el gráfico pintaba 9.017.240 en una semana que va -1.136.597 y
+    # cerraba en 7.880.644, y la resta no cuadraba a la vista.
+    assert d.current_week.cash == d.expected_cash
 
 
 def test_season_week_is_none_without_a_league_id() -> None:
@@ -188,13 +263,17 @@ async def _seed_two_weeks(
             content_hash=b"\x01" * 32,
             **common,
         ))
+        # Dos semanas de verdad son dos CIERRES distintos: con los `last_*`
+        # idénticos serían dos lecturas de la misma semana, que es justo como
+        # se detecta un cierre desde 2026-08-19 (ver `_weekly_closes`).
+        segunda = {**common, "last_income_sum": 1, "last_costs_sum": 1}
         s.add(m.EconomySnapshot(
             captured_at=datetime(2026, 8, 2, tzinfo=UTC),  # semana ISO 31 — la más reciente
             income_sponsors=week2_sponsors, income_sponsor_bonuses=week2_bonus,
             costs_players=week2_costs_players,
             income_sum=week2_sponsors, costs_sum=week2_costs_players + 100_000,
             content_hash=b"\x02" * 32,
-            **common,
+            **segunda,
         ))
         await s.commit()
         team_id = team.id
@@ -238,11 +317,17 @@ def test_weekly_breakdown_is_ordered_most_recent_first() -> None:
 
     d = run(go())
     assert d is not None
-    assert len(d.weekly_breakdown) == 2
+    # 2026-08-16: dos lecturas aportan DOS semanas cerradas (la anterior a
+    # cada captura) más la semana en curso, que antes no aparecía en ningún
+    # sitio porque el sitio de la última lectura lo ocupaban sus datos vivos.
+    assert len(d.weekly_breakdown) == 3
     assert d.weekly_breakdown[0].date == "2026-08-02"  # la más reciente, primero
     assert d.weekly_breakdown[0].is_current is True
-    assert d.weekly_breakdown[1].date == "2026-07-26"
-    assert d.weekly_breakdown[1].is_current is False
+    assert [row.is_current for row in d.weekly_breakdown] == [True, False, False]
+    # Cada fila cerrada lleva la fecha de la semana que describe, no la de la
+    # lectura que la trajo: si no, dos filas distintas compartían fecha.
+    assert d.weekly_breakdown[-1].date == "2026-07-19"
+    assert len({row.date for row in d.weekly_breakdown}) == 3
 
 
 def test_weekly_breakdown_never_fabricates_a_zero_for_a_week_without_closed_data() -> None:
@@ -260,15 +345,17 @@ def test_weekly_breakdown_never_fabricates_a_zero_for_a_week_without_closed_data
 
     d = run(go())
     assert d is not None
-    current, closed = d.weekly_breakdown
+    current, *closed_rows = d.weekly_breakdown
     # Semana en curso: datos reales, no None.
+    assert current.is_current is True
     assert current.income.total == 120_000  # 100.000 sponsors + 20.000 bono
     assert current.costs.total == 300_000 + 40_000 + 0 + 50_000 + 10_000
-    # Semana cerrada sin desglose real: None en cascada, no 0.
-    assert closed.income.spectators is None
-    assert closed.income.subtotal is None
-    assert closed.income.total is None
-    assert closed.costs.total is None
+    # Semanas cerradas sin desglose real: None en cascada, no 0.
+    oldest = closed_rows[-1]
+    assert oldest.income.spectators is None
+    assert oldest.income.subtotal is None
+    assert oldest.income.total is None
+    assert oldest.costs.total is None
 
 
 def test_season_breakdown_totals_group_by_season_newest_first() -> None:
@@ -292,12 +379,12 @@ def test_season_breakdown_totals_group_by_season_newest_first() -> None:
 
     d = run(go())
     assert d is not None
-    # Ambas semanas (2026-07-26 y 2026-08-02) caen en la misma temporada 83
-    # con este ancla — un solo grupo.
-    assert len(d.season_breakdown_totals) == 1
-    assert d.season_breakdown_totals[0].season == 83
-    # Solo la semana en curso (2026-08-02) tiene desglose real; la otra es
-    # None y `_sum_optional` no la cuenta como 0 fabricado, la ignora.
+    # 2026-08-16: las semanas cerradas se cuentan en la temporada a la que de
+    # verdad pertenecen (la anterior a su captura), así que la lectura del
+    # 26/07 aporta una semana de la temporada 82 y aparece un segundo grupo.
+    assert [t.season for t in d.season_breakdown_totals] == [83, 82]
+    # Solo la semana en curso tiene desglose real; las cerradas son None y
+    # `_sum_optional` no las cuenta como 0 fabricado, las ignora.
     assert d.season_breakdown_totals[0].income.total == 120_000
 
 
@@ -335,8 +422,13 @@ def _economy_row(
         income_temporary=0, income_sum=spectators,
         costs_arena=0, costs_players=0, costs_financial=0, costs_staff=0,
         costs_temporary=0, costs_youth=0, costs_sum=0,
-        expected_weeks_total=0, last_income_sum=last_income_sum, last_costs_sum=last_costs_sum,
-        last_weeks_total=last_income_sum - last_costs_sum,
+        # La taquilla de la semana cerrada entra también en su total: si dos
+        # lecturas trajeran los mismos totales serían la misma semana vista
+        # dos veces, no dos semanas (ver `_weekly_closes`).
+        expected_weeks_total=0,
+        last_income_sum=last_income_sum + (last_spectators or 0),
+        last_costs_sum=last_costs_sum,
+        last_weeks_total=last_income_sum + (last_spectators or 0) - last_costs_sum,
         last_income_spectators=last_spectators,
         last_income_sold_players=last_income_sold_players,
         last_costs_bought_players=last_costs_bought_players,

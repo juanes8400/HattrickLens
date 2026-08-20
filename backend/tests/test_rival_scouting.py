@@ -31,25 +31,20 @@ def test_kde_empty_values_returns_zero_density() -> None:
     assert gaussian_kde([], [1.0, 2.0, 3.0]) == [0.0, 0.0, 0.0]
 
 
-def test_tsi_comparison_excludes_keeper_by_position_code() -> None:
+def test_the_histogram_keeps_every_player_including_the_keepers() -> None:
+    """2026-08-18: se quitó el interruptor de "excluir nuestro arquero". Además
+    de esconder a un jugador sin que el gráfico lo dijera, descartaba también
+    al arquero del RIVAL pese a lo que prometía su etiqueta."""
     own = [{"tsi": 1000, "position_code": 1}, {"tsi": 500, "position_code": 3}]
     rival = [{"tsi": 800, "position_code": 1}, {"tsi": 400, "position_code": 7}]
-    out = tsi_kde_comparison(own, rival, exclude_keeper=True)
-    assert out.own_values == [500.0]
-    assert out.rival_values == [400.0]
-
-
-def test_tsi_comparison_never_excludes_unknown_position() -> None:
-    """Un jugador nunca visto en un matchlineup no tiene position_code: no se
-    adivina que es el arquero solo para poder excluirlo."""
-    own = [{"tsi": 500, "position_code": None}]
-    out = tsi_kde_comparison(own, [], exclude_keeper=True)
-    assert out.own_values == [500.0]
+    out = tsi_kde_comparison(own, rival)
+    assert out.own_values == [1000.0, 500.0]
+    assert out.rival_values == [800.0, 400.0]
 
 
 def test_tsi_comparison_log_transform() -> None:
     own = [{"tsi": 999, "position_code": 3}]
-    out = tsi_kde_comparison(own, [], log_transform=True, exclude_keeper=True)
+    out = tsi_kde_comparison(own, [], log_transform=True)
     assert out.own_values == [math.log1p(999)]
 
 

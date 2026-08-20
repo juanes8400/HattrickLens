@@ -96,7 +96,14 @@ class ArenaResponse:
     matches_analysed: int
     avg_occupancy: float
     total_revenue: int
+    # Ingreso teórico con el estadio 100% lleno menos el real. OJO: no es
+    # "dinero perdido" salvo que los sectores se agoten — con 29% de ocupación
+    # el límite es la demanda, no los asientos. Se conserva porque alimenta el
+    # simulador de ampliación, pero NO se muestra como KPI (2026-08-15).
     revenue_left_on_table: int
+    # Partidos en los que SÍ se dejó gente fuera: el único caso en que se
+    # puede afirmar que hubo demanda sin atender.
+    sold_out_matches: int
     sectors: list[SectorRow]
     matches: list[MatchRow]
     expansion_options: list[ExpansionOption]
@@ -160,6 +167,10 @@ class ArenaQueryService:
             for r, a, rep in zip(rows, attendances, reports, strict=True)
         ]
 
+        # Partidos donde SÍ se dejó gente fuera: el único caso en que se puede
+        # afirmar que hubo demanda sin atender.
+        sold_out_matches = sum(1 for mm in matches if mm.sold_out_sectors)
+
         sectors: list[SectorRow] = []
         censored: list[str] = []
         for s in SECTORS:
@@ -204,37 +215,24 @@ class ArenaQueryService:
         notes: list[str] = []
         if capacity_is_real:
             notes.append(
-                "CHPP entrega el aforo actual del estadio, no un aforo histórico por partido. "
-                "Se usa esa lectura actual para comparar las asistencias; si ampliaste antes, "
-                "la ocupación de partidos antiguos es una aproximación."
+                "Todas las ocupaciones se calculan con el aforo de HOY, porque no hay un "
+                "aforo histórico por partido. Si ampliaste el estadio, la ocupación de los "
+                "partidos anteriores sale más baja de lo que fue."
             )
         if not capacity_is_real:
             notes.append(
-                "CHPP no ha dado el desglose de capacidad por sector, así que se "
-                "ha repartido el total en proporción a lo vendido. Con ese "
-                "reparto un sector agotado es indetectable: la ocupación sale "
-                "igual en todos. Las cifras por sector son orientativas y la "
-                "censura de demanda NO se puede evaluar hasta que llegue el "
-                "desglose real."
+                "No fíes las cifras por sector: falta la capacidad real de cada uno, así "
+                "que el total se repartió en proporción a lo vendido. Con ese reparto la "
+                "ocupación sale idéntica en todos los sectores y un lleno es indetectable."
             )
-        if censored:
-            notes.append(
-                f"Demanda censurada en {', '.join(censored)}: esos sectores se "
-                "agotaron, así que la asistencia observada mide los asientos "
-                "disponibles, no cuánta gente quería entrar. La ocupación real "
-                "es un suelo y el retorno de una ampliación está infravalorado."
-            )
-        else:
+        # 2026-08-16: el aviso de demanda censurada se retiró a petición del
+        # usuario. El dato sigue en `demand_is_censored` y `sold_out_matches`,
+        # que es lo que consumen los KPI y las alertas — sólo se deja de
+        # imprimir el párrafo.
+        if not censored:
             notes.append(
                 "Ningún sector se agotó, así que la ocupación observada sí mide "
                 "demanda y el retorno estimado de la ampliación es directo."
-            )
-        unverified = [SECTOR_LABELS[s] for s in SECTORS if s not in TICKET_PRICES_VERIFIED]
-        if unverified:
-            notes.append(
-                f"El precio de entrada sólo está verificado para "
-                f"{', '.join(SECTOR_LABELS[s] for s in TICKET_PRICES_VERIFIED)}. "
-                f"Para {', '.join(unverified)} viene de la especificación."
             )
         if fill_rate is not None:
             notes.append(
@@ -251,6 +249,7 @@ class ArenaQueryService:
             avg_occupancy=round(observed_fill * 100, 1),
             total_revenue=total_revenue,
             revenue_left_on_table=sum(mm.revenue_left for mm in matches),
+            sold_out_matches=sold_out_matches,
             sectors=sectors,
             matches=matches,
             expansion_options=options,

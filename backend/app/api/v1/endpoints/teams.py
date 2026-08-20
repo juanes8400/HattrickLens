@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_dashboard_service, get_squad_service
+from app.api.rate_limit import limite
+from app.api.deps import get_current_user, get_dashboard_service, get_squad_service, require_team_owner
 from app.application.commands.sync_team import (
     FILE_VERSIONS,
     SyncMatchDetailsCommand,
@@ -27,7 +28,11 @@ from app.application.queries.dashboard import DashboardQueryService
 from app.application.queries.club import ClubQueryService
 from app.application.queries.squad import SquadQueryService
 from app.application.queries.sync_comparison import build_sync_comparison
-from app.application.queries.changes_history import build_changes_history
+from app.application.queries.changes_history import (
+    ALLOWED_WINDOW_WEEKS,
+    DEFAULT_WINDOW_WEEKS,
+    build_changes_history,
+)
 from app.domain.engines.position_engine import model_info
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
 from app.infrastructure.db import models as m
@@ -38,7 +43,11 @@ from app.infrastructure.security.tokens import decrypt_token
 router = APIRouter()
 
 
-@router.get("/{team_id}/club", summary="Estado, evolución y cuerpo técnico del club")
+@router.get(
+    "/{team_id}/club",
+    summary="Estado, evolución y cuerpo técnico del club",
+    dependencies=[Depends(require_team_owner)],
+)
 async def club(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -54,7 +63,14 @@ async def club(
     return data
 
 
-@router.post("/{team_id}/sync", status_code=200)
+@router.post(
+    "/{team_id}/sync",
+    status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_sync(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -112,7 +128,12 @@ def _result_payload(result: Any) -> dict[str, Any]:
     }
 
 
-@router.post("/{team_id}/sync/stream", status_code=200)
+@router.post("/{team_id}/sync/stream", status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_sync_stream(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -198,7 +219,12 @@ async def trigger_sync_stream(
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
-@router.post("/{team_id}/matches/details/sync", status_code=200)
+@router.post("/{team_id}/matches/details/sync", status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_match_details_sync(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -283,7 +309,12 @@ async def trigger_match_details_sync(
     }
 
 
-@router.post("/{team_id}/players/details/sync", status_code=200)
+@router.post("/{team_id}/players/details/sync", status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_player_details_sync(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -349,7 +380,12 @@ async def trigger_player_details_sync(
     }
 
 
-@router.post("/{team_id}/players/purchase-price/sync", status_code=200)
+@router.post("/{team_id}/players/purchase-price/sync", status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_purchase_price_sync(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -419,7 +455,12 @@ async def trigger_purchase_price_sync(
     }
 
 
-@router.post("/{team_id}/players/previous-club-bonus/sync", status_code=200)
+@router.post("/{team_id}/players/previous-club-bonus/sync", status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_previous_club_bonus_backfill(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -487,7 +528,12 @@ async def trigger_previous_club_bonus_backfill(
     }
 
 
-@router.post("/{team_id}/transfers/sync", status_code=200)
+@router.post("/{team_id}/transfers/sync", status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("sync", 6)),
+    ],
+)
 async def trigger_transfers_history_sync(
     team_id: int,
     session: AsyncSession = Depends(get_session),
@@ -547,7 +593,9 @@ class SetManualPurchasePriceBody(BaseModel):
     purchased_at: str | None = None
 
 
-@router.put("/{team_id}/players/{ht_player_id}/purchase-price", status_code=200)
+@router.put("/{team_id}/players/{ht_player_id}/purchase-price", status_code=200,
+    dependencies=[Depends(require_team_owner)],
+)
 async def set_manual_purchase_price(
     team_id: int,
     ht_player_id: int,
@@ -573,7 +621,7 @@ async def set_manual_purchase_price(
         raise HTTPException(404, f"player {ht_player_id} not found on team {team_id}")
     if player.purchase_price is not None:
         raise HTTPException(
-            409, "ya hay un precio de compra real (transfersteam/transfersplayer) — "
+            409, "ya hay un precio de compra real (transfersteam/transfersplayer), "
             "no se puede sobrescribir con uno manual"
         )
 
@@ -596,7 +644,8 @@ class ConfirmCareerStageBody(BaseModel):
 
 @router.post(
     "/{team_id}/players/{ht_player_id}/career-stage",
-    summary="Confirmar (o borrar) el momento de carrera sugerido por la app — HL-15x #93",
+    summary="Confirmar (o borrar, el momento de carrera sugerido por la app, HL-15x #93",
+    dependencies=[Depends(require_team_owner)],
 )
 async def confirm_career_stage(
     team_id: int,
@@ -615,7 +664,7 @@ async def confirm_career_stage(
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
     if body.stage is not None and body.stage not in CONFIRMABLE_CAREER_STAGES:
         raise HTTPException(
-            400, f"etapa desconocida: {body.stage} — válidas: {sorted(CONFIRMABLE_CAREER_STAGES)}"
+            400, f"etapa desconocida: {body.stage}, válidas: {sorted(CONFIRMABLE_CAREER_STAGES)}"
         )
 
     player = await session.scalar(
@@ -640,35 +689,56 @@ async def confirm_career_stage(
     }
 
 
-@router.get("/{team_id}/sync/changes", summary="Qué cambió en el último sync (HL-140)")
+@router.get("/{team_id}/sync/changes", summary="Qué cambió en el último sync (HL-140)",
+    dependencies=[Depends(require_team_owner)],
+)
 async def last_sync_changes(
     team_id: int,
+    sync_id: int | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Al estilo Hattrick Control: qué cambió desde la vez anterior, no solo
     el estado actual. Vive aparte de `POST /sync` para poder volver a verlo
-    tras recargar la página sin tener que sincronizar otra vez."""
-    return await build_sync_comparison(session, team_id)
+    tras recargar la página sin tener que sincronizar otra vez.
+
+    `sync_id` (2026-08-15, pedido explícito) permite navegar el archivo: la
+    respuesta trae en `availableReports` las fechas que SÍ tuvieron cambios,
+    y pedir una de ellas devuelve esa comparación en vez de la más reciente.
+    Un id inválido o sin cambios cae a la última — no es un error del usuario
+    pedir una fecha que ya no existe."""
+    return await build_sync_comparison(session, team_id, sync_id)
 
 
-@router.get("/{team_id}/changes/history", summary="Histórico real de cambios de jugadores")
+@router.get("/{team_id}/changes/history", summary="Histórico real de cambios de jugadores",
+    dependencies=[Depends(require_team_owner)],
+)
 async def changes_history(
     team_id: int,
     player_id: int | None = Query(None, description="Jugador a mostrar en la gráfica"),
+    weeks: int = Query(
+        DEFAULT_WINDOW_WEEKS,
+        description="Semanas hacia atrás con las que comparar (1, 2, 4, 8 o 16)",
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Archivo de Cambios: habilidades, forma, experiencia y serie de jugador.
 
-    Los eventos son diferencias entre snapshots CHPP consecutivos; los syncs
-    repetidos sin variaciones no producen filas ficticias.
+    Cada fila es la diferencia NETA contra el cierre semanal de hace `weeks`
+    semanas, salida de valores CHPP guardados; los syncs repetidos sin
+    variaciones no producen filas ficticias.
     """
-    return await build_changes_history(session, team_id, player_id)
-
+    if weeks not in ALLOWED_WINDOW_WEEKS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"weeks debe ser uno de {', '.join(map(str, ALLOWED_WINDOW_WEEKS))}",
+        )
+    return await build_changes_history(session, team_id, player_id, weeks=weeks)
 
 @router.get(
     "/{team_id}/dashboard",
     response_model=DashboardResponse,
     response_model_by_alias=True,
+    dependencies=[Depends(require_team_owner)],
 )
 async def dashboard(
     team_id: int,
@@ -690,6 +760,7 @@ async def dashboard(
     response_model=SquadResponse,
     response_model_by_alias=True,
     summary="Plantilla con rating de posición (HL-021, HL-022)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def squad(
     team_id: int,

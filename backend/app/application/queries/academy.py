@@ -16,12 +16,17 @@ información del ojeador sería confundir ignorancia con evidencia.
 cumplir el límite, por bueno que sea. Por eso los días restantes aparecen
 siempre y el consejo de promoción los antepone a cualquier otra consideración.
 """
+from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.player_balance import PlayerBalanceQueryService
+from app.application.queries.weekly import latest_per_iso_week
+from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.academy_engine import (
     YOUTH_SKILLS,
     YouthSkill,
@@ -30,20 +35,69 @@ from app.domain.engines.academy_engine import (
     rank,
     training_exposure,
 )
+from app.domain.engines.position_engine import _config as position_config
+from app.domain.value_objects.ht_constants import SKILL_LABELS, training_target
 from app.infrastructure.db import models as m
 
-SEASON_WEEKS = 16
-# Por debajo de esto, el ojeador ha revelado tan poco que cualquier categoría
+# Un año de Hattrick son 112 días. Mismo número que usa `academy_engine`.
+DAYS_PER_HT_YEAR = 112
+
+# Con menos techos revelados que esto, el veredicto sobre un canterano
 # es provisional y conviene decirlo en la ficha.
 MIN_REVEALED_FOR_A_VERDICT = 3
 
 
+@lru_cache(maxsize=1)
+def position_contributions() -> dict[str, dict[str, dict[str, float]]]:
+    """La matriz del Manual tal cual: posición -> sector -> habilidad -> coef.
+
+    Se entrega SIN agregar. Antes se sumaba aquí sobre todas las posiciones y
+    eso ya decidía el criterio a espaldas del motor; ahora el motor recibe el
+    detalle y elige qué hacer con él (ver `block_trainable`).
+    """
+    return {
+        position: {
+            sector: {skill: float(coef) for skill, coef in skills.items()}
+            for sector, skills in spec.get("contributions", {}).items()
+        }
+        for position, spec in position_config()["positions"].items()
+    }
+
+
+@dataclass
+class SkillScoreRow:
+    """Una habilidad de la academia, puntuada — ver `youth_skill_score`.
+
+    Responde "¿qué entreno?", que en juveniles es la única pregunta que
+    importa: se entrena una habilidad y la reciben todos a la vez.
+    """
+
+    skill: str
+    label: str
+    score: float
+    counts: dict[str, int]
+    trainable_count: float
+    #  Todos los canteranos ordenados por lo que sacan en esta habilidad:
+    #  es la respuesta a "¿a quién le doy los minutos?".
+    players: list[yss.PlayerNote]
+
+
 @dataclass
 class SkillRow:
+    """Una habilidad juvenil. Nivel actual y techo se revelan por SEPARADO.
+
+    El ojeador puede haber dicho "juega a nivel 5" sin decir hasta dónde
+    llegará, y al revés. Antes esto se aplastaba: el nivel desconocido se
+    guardaba como 0 —indistinguible de un 0 real— y `is_revealed` miraba sólo
+    el techo, así que una habilidad con nivel conocido se pintaba como si no
+    se supiera nada de ella.
+    """
+
     skill: str
-    current: int
+    current: int | None
     maximum: int | None
-    is_revealed: bool
+    is_current_known: bool
+    is_max_known: bool
     headroom: int
 
 
@@ -87,16 +141,117 @@ class AcademyResponse:
     earned: int
     net: int
     seasons: int
+    # Una academia recién abierta lleva semanas, no temporadas: mostrar "0
+    # temporadas" convierte un dato correcto en uno que parece un error.
+    weeks: int
     weekly_cost: int
     break_even_sales: int
     roi_verdict: str
     urgent: list[str]
+    skill_scores: list[SkillScoreRow] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
 
 class AcademyQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
+
+    async def trainable_by_method(
+        self, team_id: int, method: str, manual: dict[str, float] | None = None
+    ) -> dict[str, float]:
+        """El conteo de "entrenables" según el método elegido."""
+        if method == yss.TrainableMethod.EDIT:
+            return dict(manual or {})
+        if method == yss.TrainableMethod.SLOTS:
+            return yss.slot_trainable()
+        if method == yss.TrainableMethod.SENIOR:
+            return yss.senior_trainable(await self._senior_training_skill(team_id))
+        return yss.block_trainable(method, position_contributions())
+
+    async def _senior_training_skill(self, team_id: int) -> str | None:
+        """Qué habilidad entrena hoy el primer equipo, si se sabe."""
+        row = await self._s.scalar(
+            select(m.TrainingSnapshot)
+            .where(m.TrainingSnapshot.team_id == team_id)
+            .order_by(m.TrainingSnapshot.captured_at.desc())
+            .limit(1)
+        )
+        return training_target(row.training_type) if row is not None else None
+
+    async def skill_scores(
+        self,
+        team_id: int,
+        *,
+        soon_max_days: int = yss.SOON_MAX_DAYS,
+        weight_base: float = yss.DEFAULT_WEIGHT_BASE,
+        trainable_weight: float | None = None,
+        trainable: dict[str, float] | None = None,
+    ) -> list[SkillScoreRow] | None:
+        """El puntaje "qué entrenar" recalculado con otros parámetros.
+
+        El MÉTODO es el de la hoja del usuario y no se toca; lo que se mueve
+        son los dos números que son una opinión (dónde cae el corte del plazo,
+        cuánto separa un peldaño del siguiente) y el conteo de a cuántos les
+        llega el entrenamiento.
+        """
+        candidates = await self._candidates(team_id)
+        if candidates is None:
+            return None
+        return [
+            SkillScoreRow(
+                skill=row.skill,
+                label=SKILL_LABELS.get(row.skill, row.skill),
+                score=row.score,
+                counts=row.counts,
+                trainable_count=row.trainable_count,
+                players=row.players,
+            )
+            for row in yss.score_skills(
+                candidates,
+                trainable,
+                soon_max_days=soon_max_days,
+                weight_base=weight_base,
+                trainable_weight=trainable_weight,
+            )
+        ]
+
+    async def _candidates(self, team_id: int) -> list[yss.YouthCandidate] | None:
+        """Los canteranos de hoy, en la forma que espera el motor."""
+        pairs = await self._latest_snapshots(team_id)
+        if not pairs:
+            return None
+        out: list[yss.YouthCandidate] = []
+        for snap, player in pairs:
+            promotable_in = snap.can_be_promoted_in
+            at_promotion = (
+                snap.age_years * DAYS_PER_HT_YEAR + snap.age_days + promotable_in + 1
+                if promotable_in is not None else None
+            )
+            out.append(
+                yss.YouthCandidate(
+                    name=f"{player.first_name} {player.last_name}",
+                    age_years_at_deadline=(
+                        at_promotion // DAYS_PER_HT_YEAR if at_promotion is not None else 0
+                    ),
+                    # Sin `CanBePromotedIn` no se sabe cuándo sale. El
+                    # respaldo queda FUERA del alcance del mando para que
+                    # moverlo no voltee de golpe a todos los que no tienen el
+                    # dato — ver `UNKNOWN_DEADLINE_DAYS`.
+                    age_days_at_deadline=(
+                        at_promotion % DAYS_PER_HT_YEAR
+                        if at_promotion is not None else yss.UNKNOWN_DEADLINE_DAYS
+                    ),
+                    skills={
+                        skill: yss.YouthSkillReading(
+                            current=getattr(snap, skill),
+                            maximum=getattr(snap, f"{skill}_max"),
+                            max_reached=bool(getattr(snap, f"{skill}_max_reached", False)),
+                        )
+                        for skill in YOUTH_SKILLS
+                    },
+                )
+            )
+        return out
 
     async def _latest_snapshots(self, team_id: int) -> list[tuple[m.YouthSnapshot, m.YouthPlayer]]:
         rows = await self._s.execute(
@@ -143,8 +298,44 @@ class AcademyQueryService:
             rows_by_name[name] = (snap, player)
 
         players: list[YouthRow] = []
+        candidates: list[yss.YouthCandidate] = []
         for ev in rank(evaluations):
             snap, player = rows_by_name[ev.name]
+            # "Edad al salir": la que tendrá el día que se le pueda promocionar
+            # (`Juveniles!F`/`G` de la hoja). NO es el plazo para no perderlo
+            # por edad — son dos relojes distintos y el que decide a quién da
+            # tiempo de entrenar es éste.
+            promotable_in = snap.can_be_promoted_in
+            at_promotion = (
+                snap.age_years * DAYS_PER_HT_YEAR + snap.age_days + promotable_in + 1
+                if promotable_in is not None else None
+            )
+            candidates.append(
+                yss.YouthCandidate(
+                    name=ev.name,
+                    age_years_at_deadline=(
+                        at_promotion // DAYS_PER_HT_YEAR if at_promotion is not None else 0
+                    ),
+                    # Sin `CanBePromotedIn` no se sabe cuándo sale, y el cubo
+                    # "le queda tiempo" es el que no le da ventaja a nadie.
+                    # Sin `CanBePromotedIn` no se sabe cuándo sale. El
+                    # respaldo queda FUERA del alcance del mando para que
+                    # moverlo no voltee de golpe a todos los que no tienen el
+                    # dato — ver `UNKNOWN_DEADLINE_DAYS`.
+                    age_days_at_deadline=(
+                        at_promotion % DAYS_PER_HT_YEAR
+                        if at_promotion is not None else yss.UNKNOWN_DEADLINE_DAYS
+                    ),
+                    skills={
+                        skill: yss.YouthSkillReading(
+                            current=getattr(snap, skill),
+                            maximum=getattr(snap, f"{skill}_max"),
+                            max_reached=bool(getattr(snap, f"{skill}_max_reached", False)),
+                        )
+                        for skill in YOUTH_SKILLS
+                    },
+                )
+            )
             exposure = training_exposure(
                 minutes_main_position=snap.minutes_last_match,
                 minutes_secondary_position=0,
@@ -169,9 +360,10 @@ class AcademyQueryService:
                     skills=[
                         SkillRow(
                             skill=s,
-                            current=getattr(snap, s) or 0,
+                            current=getattr(snap, s),
                             maximum=getattr(snap, f"{s}_max"),
-                            is_revealed=getattr(snap, f"{s}_max") is not None,
+                            is_current_known=getattr(snap, s) is not None,
+                            is_max_known=getattr(snap, f"{s}_max") is not None,
                             headroom=YouthSkill(
                                 current=getattr(snap, s) or 0,
                                 maximum=getattr(snap, f"{s}_max"),
@@ -182,7 +374,7 @@ class AcademyQueryService:
                 )
             )
 
-        graduates = list(
+        all_graduates = list(
             (
                 await self._s.execute(
                     select(m.FormerYouthPlayer)
@@ -192,26 +384,108 @@ class AcademyQueryService:
             ).scalars()
         )
 
-        # Inversión: coste semanal de juveniles × semanas con snapshot económico.
-        economy = list(
-            (
-                await self._s.execute(
-                    select(m.EconomySnapshot)
-                    .where(m.EconomySnapshot.team_id == team_id)
-                    .order_by(m.EconomySnapshot.captured_at)
-                )
-            ).scalars()
-        )
+        # 2026-08-15, pedido explícitamente: una academia se cierra y se
+        # reabre, y cada apertura es una academia DISTINTA. Sumar los
+        # canteranos de academias anteriores contra la inversión de la actual
+        # es restar dos cosas que no se corresponden — en esta cuenta eran 43
+        # ventas viejas (24,6M) contra una academia de dos semanas.
+        # `youthteamdetails.CreatedDate` marca el corte. Sin ese dato todavía
+        # sincronizado no se inventa un corte: se usa todo y se avisa.
+        academy_since = team.youth_academy_created_at
+        if academy_since is not None:
+            graduates = [
+                g for g in all_graduates
+                if g.promoted_at is not None and g.promoted_at >= academy_since
+            ]
+        else:
+            graduates = all_graduates
+
+        # Inversión: suma del gasto juvenil de cada SEMANA observada.
+        #
+        # 2026-08-15, bug real encontrado al preguntar de dónde salía la cifra:
+        # esto contaba `len(economy)`, es decir un "semana" por cada snapshot
+        # económico. Pero los snapshots son por sync, no por semana: 34 lecturas
+        # cubrían del 26/07 al 15/08 — tres semanas, no treinta y cuatro. La
+        # inversión salía inflada ~11x (680.000 en vez de ~60.000).
+        #
+        # `latest_per_iso_week` colapsa a una lectura por semana ISO, que es lo
+        # que el cálculo quería decir desde el principio.
+        economy_rows = list((
+            await self._s.execute(
+                select(m.EconomySnapshot)
+                .where(m.EconomySnapshot.team_id == team_id)
+                .order_by(m.EconomySnapshot.captured_at)
+            )
+        ).scalars())
+        # La inversión tampoco puede empezar antes que la academia: cobrar
+        # semanas anteriores a su apertura infla el coste igual que sumar
+        # ventas viejas inflaba el ingreso.
+        if academy_since is not None:
+            economy_rows = [e for e in economy_rows if e.captured_at >= academy_since]
+        economy = latest_per_iso_week(economy_rows, lambda s: s.captured_at)
+        # 2026-08-16, corregido a petición del usuario: la inversión es la SUMA
+        # del gasto juvenil de cada semana observada, no el gasto de la última
+        # semana multiplicado por el número de semanas. Si subiste o bajaste la
+        # inversión juvenil alguna vez, multiplicar reescribe todo el pasado con
+        # el precio de hoy.
+        invested = sum(conv(e.costs_youth) for e in economy)
         weekly_cost = conv(economy[-1].costs_youth) if economy else 0
         weeks = len(economy)
-        sales = sum(conv(g.sold_for) for g in graduates if g.sold_for)
-        sold = [g for g in graduates if g.sold_for]
-        avg_sale = sales // len(sold) if sold else 0
+
+        # Lo ingresado por la cantera NO es el precio de venta bruto — 2026-08-15,
+        # pedido explícitamente: "todos los pagos por club de origen y club
+        # anterior". `Transferencias` ya calcula lo que de verdad entró por
+        # cada canterano y este módulo se estaba quedando con `sold_for` crudo,
+        # que ignora tres cosas:
+        #   · la comisión del agente (para un canterano, la reducida de primera
+        #     venta de cantera, no la de un fichaje),
+        #   · los bonos de club anterior/origen que se siguen cobrando cuando el
+        #     club comprador lo revende (`PreviousClubBonus`, importes exactos),
+        #   · que un canterano no tuvo precio de compra.
+        # Se reutiliza esa misma fuente para que las dos pantallas no puedan
+        # discrepar sobre lo mismo.
+        balance = await PlayerBalanceQueryService(self._s).get(team_id)
+        # Un canterano de una academia anterior sigue teniendo `MotherClub` =
+        # nosotros, así que `is_academy_graduate` por sí solo no distingue de
+        # qué academia salió. El corte lo pone la lista ya filtrada arriba.
+        current_graduate_ids = {g.ht_player_id for g in graduates}
+        all_academy_rows = [
+            r for r in (balance.players if balance else []) if r.is_academy_graduate
+        ]
+        academy_rows = [
+            r for r in all_academy_rows
+            if academy_since is None or r.ht_player_id in current_graduate_ids
+        ]
+        sold_rows = [r for r in academy_rows if r.is_sold and r.sale_price]
+        net_sales = sum(
+            round((r.sale_price or 0) * (1 - (r.agent_pct or 0.0))) for r in sold_rows
+        )
+        # Los bonos se cobran aunque el canterano ya no sea nuestro: cuentan
+        # para TODOS los canteranos vendidos, no sólo los de esta temporada.
+        resale_bonuses = round(sum(r.resale_bonus_share for r in academy_rows))
+
+        # Un canterano promocionado y vendido puede vivir SOLO en
+        # `former_youth_players` (sin fila en `players`, p. ej. si salió antes
+        # de que empezáramos a guardar plantilla). Para esos no hay comisión ni
+        # bonos que calcular: se cuenta el bruto, que es lo único que existe, y
+        # se avisa en una nota — mejor un dato incompleto y señalado que
+        # perderlo de la suma.
+        detailed_ids = {r.ht_player_id for r in academy_rows}
+        gross_only = [
+            g for g in graduates
+            if g.sold_for and g.ht_player_id not in detailed_ids
+        ]
+        gross_only_total = sum(conv(g.sold_for) for g in gross_only)
+
+        sales = net_sales + resale_bonuses + gross_only_total
+        sold_count = len(sold_rows) + len(gross_only)
+        avg_sale = (net_sales + gross_only_total) // sold_count if sold_count else 0
         roi = academy_roi(
-            weekly_investment=weekly_cost,
+            invested=invested,
             weeks_invested=weeks,
             sales_income=sales,
             average_sale_price=avg_sale,
+            weekly_investment=weekly_cost,
         )
 
         urgent = [
@@ -221,30 +495,35 @@ class AcademyQueryService:
             if p.days_until_deadline <= 21
         ]
 
+        # 2026-08-16: el usuario recorrió los caveats uno por uno y mandó borrar
+        # todos los de esta pantalla. El único que queda es el que avisa de que
+        # el ROI está inflado porque aún no sabemos cuándo abrió la academia.
         notes: list[str] = []
-        if not players:
+        if academy_since is None:
             notes.append(
-                "Todavía no hay juveniles sincronizados. La plantilla juvenil "
-                "llega con el fichero youthteamdetails de CHPP; el resto del "
-                "módulo (retorno de la academia, canteranos promocionados) ya "
-                "funciona con lo que hay."
-            )
-        provisional = [p.name for p in players if p.verdict_is_provisional]
-        if provisional:
-            notes.append(
-                f"Categoría provisional para {', '.join(provisional)}: el ojeador "
-                f"ha revelado menos de {MIN_REVEALED_FOR_A_VERDICT} techos. Un "
-                "techo sin revelar no es un techo bajo, así que la categoría "
-                "puede subir sin que el jugador mejore."
-            )
-        if weeks and weekly_cost:
-            notes.append(
-                f"La inversión se calcula como {weekly_cost:,} por semana × "
-                f"{weeks} semanas con lectura económica. Con más histórico "
-                "sincronizado la cifra se afina sola."
+                "Sincroniza para acotar la academia: sin su fecha de apertura se "
+                "cuentan también los canteranos de canteras anteriores."
             )
 
+        # `trainable` (`AuxiJuveniles!M`) se teclea a mano en la hoja: es
+        # cuántos canteranos reciben de verdad cada entrenamiento, y depende
+        # de la alineación juvenil, que CHPP no da en este fichero. Sin ese
+        # dato el sumando vale 0 y el resto del puntaje es idéntico — se
+        # prefiere un puntaje incompleto y honesto a uno estimado.
+        skill_scores = [
+            SkillScoreRow(
+                skill=row.skill,
+                label=SKILL_LABELS.get(row.skill, row.skill),
+                score=row.score,
+                counts=row.counts,
+                trainable_count=row.trainable_count,
+                players=row.players,
+            )
+            for row in yss.score_skills(candidates)
+        ]
+
         return AcademyResponse(
+            skill_scores=skill_scores,
             team_name=team.name,
             currency=team.currency_name or "",
             squad_size=len(players),
@@ -264,6 +543,7 @@ class AcademyQueryService:
             earned=roi.earned,
             net=roi.net,
             seasons=roi.seasons,
+            weeks=weeks,
             weekly_cost=roi.weekly_cost,
             break_even_sales=roi.break_even_sales,
             roi_verdict=roi.verdict,

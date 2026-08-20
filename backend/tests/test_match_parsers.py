@@ -44,6 +44,22 @@ def test_parse_matchorders_reads_only_the_submitted_starting_lineup() -> None:
     assert data["prediction"] is None
 
 
+def test_parse_matchorders_reports_a_chpp_error_instead_of_looking_empty() -> None:
+    """2026-08-15, capturado en vivo: `actionType=predictratings` devolvió HTTP
+    200 con `chpperror.xml`. Sin esta rama el parser entregaba un dict con
+    `ht_match_id=0`, el sync lo descartaba en silencio por no coincidir el ID y
+    los ratings VIEJOS se quedaban en la base pareados con una alineación
+    nueva — que es exactamente lo que la pantalla acabó enseñando como
+    "predicción oficial CHPP"."""
+    data = parse_matchorders((FIXTURES / "matchorders_chpperror.xml").read_bytes())
+
+    assert data["chpp_error"] == "Sequence contains no matching element"
+    assert data["chpp_error_code"] == 11552150
+    assert data["prediction"] is None
+    assert data["positions"] == []
+    assert data["available"] is False
+
+
 def test_parse_matchorders_predict_ratings_has_a_distinct_contract() -> None:
     data = parse_matchorders((FIXTURES / "matchorders_predictratings.xml").read_bytes())
 
@@ -100,7 +116,7 @@ def test_matchdetails_ratings_feed_the_analysis_engine() -> None:
 
     d = parse_matchdetails((FIXTURES / "matchdetails.xml").read_bytes())
     a = analyse(d["home"]["ratings"], d["away"]["ratings"], ChanceTally(), ChanceTally())
-    assert "Defensa central" in a.strengths
+    assert "Defensa Central" in a.strengths
     assert any("Ataque" in w for w in a.weaknesses)
 
 

@@ -78,8 +78,16 @@ def test_first_sync_writes_all_snapshots() -> None:
         # 24 players + training + economy + 24 playerdetails automáticos
         # (2026-08-05: "sincroniza todos los xml que importen cada vez que
         # sincronizamos" — LastMatch/Caps ya no esperan un botón aparte).
-        assert result.snapshots_written == 50
-        assert result.unchanged == 0
+        # 55 y no 50 desde el 2026-08-19: al sincronizar la plantilla se piden
+        # también las subidas confirmadas por Hattrick, una llamada por
+        # jugador (`trainingevents.xml` solo existe por playerID). El fixture
+        # trae 5 eventos.
+        assert result.snapshots_written == 55
+        # 115 repetidos ya en la PRIMERA sincronización: el fichero de subidas
+        # se pide por jugador y el fixture devuelve los mismos 5 eventos para
+        # todos, así que a partir del primero ya están guardados. Con datos
+        # reales cada jugador trae los suyos.
+        assert result.unchanged == 115
 
     asyncio.run(run())
 
@@ -97,7 +105,11 @@ def test_second_sync_without_changes_writes_nothing() -> None:
         result2 = await handler.execute(cmd)
 
         assert result2.snapshots_written == 0
-        assert result2.unchanged == 26
+        # 146: los 26 de antes más los eventos de entrenamiento que se
+        # vuelven a leer para cada jugador y ya estaban guardados. Que se
+        # cuenten como "sin cambios" es justo lo que se quiere: la segunda
+        # sincronización no escribe nada.
+        assert result2.unchanged == 146
 
         async with uow as u:
             assert await u.players.count_snapshots(team_id) == 24  # sin duplicados
@@ -228,8 +240,9 @@ def test_a_player_released_without_a_sale_is_also_announced() -> None:
             SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["players"])
         )
 
-        assert {"category": "jugadores", "summary": f"{released_name} salió de la plantilla"} \
-            in result2.changes
+        assert ("jugadores", f"{released_name} salió de la plantilla") in [
+            (c["category"], c["summary"]) for c in result2.changes
+        ]
 
         async with uow as u:
             change_row = await u.session.scalar(
@@ -293,7 +306,7 @@ def test_a_player_sold_in_the_same_sync_is_announced_as_a_change() -> None:
         )
 
         assert any(
-            c["category"] == "jugadores" and c["summary"] == f"{sold_name} se vendió por 8,690,000"
+            c["category"] == "jugadores" and c["summary"] == f"{sold_name} se vendió por 8.690.000"
             for c in result2.changes
         )
 
@@ -510,7 +523,8 @@ def test_player_details_persists_last_match_and_mother_club() -> None:
             # devuelve el valor sin tzinfo aunque se guardara con
             # `.replace(tzinfo=UTC)` — mismo patrón ya visto en
             # analysis.py/changes_history.py, se compara naive.
-            assert snap.last_match_played_at == datetime(2026, 7, 19, 16, 0)
+            # Hora sueca del fichero (CEST, UTC+2) guardada ya en UTC.
+            assert snap.last_match_played_at == datetime(2026, 7, 19, 14, 0)
             # El fixture matchlineup.xml genérico es de OTRO equipo
             # (etbenianos1) y no incluye a este jugador — el best-effort de
             # `_fetch_last_match_behaviour` debe quedarse en None sin

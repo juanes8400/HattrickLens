@@ -12,9 +12,11 @@ estado de cuenta que se esté trackeando.
 import math
 import statistics
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 from app.domain.engines.stats import gaussian_kde
+from app.domain.value_objects.formatting import thousands
 from app.domain.value_objects.ht_constants import (
     MAN_MARKING_ELIGIBLE_MARKERS,
     MAN_MARKING_ELIGIBLE_TARGETS,
@@ -38,30 +40,24 @@ class TsiDistribution:
     own_values: list[float]
     rival_values: list[float]
     log_transform: bool
-    excluded_keeper: bool
 
 
 def tsi_kde_comparison(
     own_players: list[dict[str, Any]],
     rival_players: list[dict[str, Any]],
     log_transform: bool = False,
-    exclude_keeper: bool = True,
     grid_points: int = 200,
 ) -> TsiDistribution:
     """Compara la distribución de TSI propia vs. la del rival.
 
-    Cada dict de jugador: `{"tsi": int, "position_code": int | None}`.
-    `position_code` viene de matchlineup (1 = portero); si no se conoce
-    (jugador que no ha aparecido en ningún partido visto) no se excluye nunca,
-    aunque el toggle esté activo — es más honesto no adivinar que descartar
-    a alguien que igual no es el arquero.
+    Cada dict de jugador: `{"tsi": int, ...}`. Entran TODOS: hasta 2026-08-18
+    hubo un interruptor de "excluir nuestro arquero" que, además de esconder a
+    un jugador de la plantilla sin decirlo en el gráfico, descartaba también al
+    arquero del rival pese a lo que decía su etiqueta. Un histograma de la
+    plantilla es de la plantilla entera.
     """
     def values(players: list[dict[str, Any]]) -> list[float]:
-        out = []
-        for p in players:
-            if exclude_keeper and p.get("position_code") == MATCH_POSITION_KEEPER:
-                continue
-            out.append(float(p["tsi"]))
+        out = [float(p["tsi"]) for p in players]
         if log_transform:
             out = [math.log1p(v) for v in out]
         return out
@@ -83,7 +79,6 @@ def tsi_kde_comparison(
         own_values=own_values,
         rival_values=rival_values,
         log_transform=log_transform,
-        excluded_keeper=exclude_keeper,
     )
 
 
@@ -183,16 +178,16 @@ def suggest_man_marking(
 
     rationale = (
         f"{target['name']} es el {match_position_name(target['position_code']).lower()} "
-        f"con más TSI del rival ({target.get('tsi', 0):,}). {marker['name']} puede "
+        f"con más TSI del rival ({thousands(target.get('tsi', 0))}). {marker['name']} puede "
         f"marcarlo desde {match_position_name(marker['position_code']).lower()}"
-        + ("." if efficiency == "cerca" else " — combinación \"lejos\", -65% en vez del -50% "
+        + ("." if efficiency == "cerca" else ", combinación \"lejos\", -65% en vez del -50% "
            "óptimo: no hay ningún lateral/central/interior mejor ubicado disponible.")
     )
     risk_note = (
         "Si el rival cambia su alineación antes del partido y este jugador no termina jugando "
         "(o pasa a una posición no marcable), la orden se anula pero tu jugador igual pierde un "
         "10% fijo de su contribución. Mientras la orden esté activa, tampoco contribuye al nivel "
-        "de táctica de equipo (Presionar, Contraataques...) — solo se puede dar una orden de "
+        "de táctica de equipo (Presionar, Contraataques...), solo se puede dar una orden de "
         "marcaje por partido."
     )
 
@@ -202,7 +197,7 @@ def suggest_man_marking(
         target_tsi=target.get("tsi", 0),
         marker_name=marker["name"],
         marker_position=match_position_name(marker["position_code"]),
-        confidence="aproximada — el TSI es la única señal pública de peligrosidad del rival",
+        confidence="aproximada, el TSI es la única señal pública de peligrosidad del rival",
         rationale=rationale,
         efficiency=efficiency,
         marker_loss_pct=loss_pct,
@@ -240,7 +235,7 @@ class WinProbability:
     own_tsi_total: int
     rival_tsi_total: int
     confidence: str = (
-        "baja — estimación gruesa por TSI total, no la fórmula real del motor de partido "
+        "baja, estimación gruesa por TSI total, no la fórmula real del motor de partido "
         "(que necesita habilidades reales de ambos equipos) ni está calibrada contra "
         "resultados reales"
     )
@@ -263,6 +258,17 @@ def estimate_win_probability(own_tsi_total: int, rival_tsi_total: int) -> WinPro
 
 
 @dataclass
+class AttackByMatch:
+    """El ataque de UN partido, carril por carril."""
+    label: str        # rival de aquel día, o la fecha si no se sabe
+    date: str
+    left: int
+    central: int
+    right: int
+    best: str         # "izquierda" | "centro" | "derecha"
+
+
+@dataclass
 class SideRotation:
     attack_left_avg: float
     attack_central_avg: float
@@ -277,11 +283,16 @@ class SideRotation:
     # verdad", no solo "por poco no domina siempre".
     dominant_pct: float
     dominant_side_by_match: list[str]
+    # Un renglón por partido con los tres carriles: es lo que permite ver la
+    # secuencia real en vez de tres promedios. Un promedio de 45 puede ser
+    # "45 todas las semanas" o "70, 20, 45", y para preparar un partido no es
+    # lo mismo.
+    attack_by_match: list[AttackByMatch]
     rotates: bool
     matches_analysed: int
 
 
-def analyse_side_rotation(match_ratings: list[dict[str, int]]) -> SideRotation | None:
+def analyse_side_rotation(match_ratings: list[dict[str, Any]]) -> SideRotation | None:
     """¿El rival ataca siempre por el mismo lado o rota? Usa los ratings de
     sector ya reales e históricos de los partidos jugados contra él
     (`left_att`, `central_att`, `right_att` de MatchRating).
@@ -317,6 +328,18 @@ def analyse_side_rotation(match_ratings: list[dict[str, int]]) -> SideRotation |
     dominant_pct = round(100 * dominant_count / n, 1)
     rotates = dominant_count < (n * 0.6)  # domina en menos del 60% de los partidos vistos
 
+    por_partido = [
+        AttackByMatch(
+            label=str(m.get("opponent") or m.get("match_date", ""))[:24],
+            date=str(m.get("match_date", "")),
+            left=m["left_att"],
+            central=m["central_att"],
+            right=m["right_att"],
+            best=mejor,
+        )
+        for m, mejor in zip(match_ratings, best_side_per_match, strict=True)
+    ]
+
     return SideRotation(
         attack_left_avg=round(avg["izquierda"], 1),
         attack_central_avg=round(avg["centro"], 1),
@@ -327,6 +350,7 @@ def analyse_side_rotation(match_ratings: list[dict[str, int]]) -> SideRotation |
         strong_side=strong_side,
         dominant_pct=dominant_pct,
         dominant_side_by_match=best_side_per_match,
+        attack_by_match=por_partido,
         rotates=rotates,
         matches_analysed=n,
     )
@@ -335,8 +359,26 @@ def analyse_side_rotation(match_ratings: list[dict[str, int]]) -> SideRotation |
 # ── Mapa de calor por zona de la cancha ─────────────────────────────────────
 
 
+class PitchZoneMethod(StrEnum):
+    """Cómo se resume una zona a lo largo de varios partidos.
+
+    Todas las herramientas se quedan en el promedio, y el promedio esconde
+    cosas: un rival que en un partido clavó un ataque brutal por la derecha y
+    en los otros cuatro no atacó por ahí sale flojo por la derecha. Estos
+    cuatro resúmenes responden preguntas distintas sobre los mismos datos.
+    """
+    AVERAGE = "average"            # cómo juega de costumbre
+    MAX = "max"                    # de lo que es capaz en cada zona
+    MAX_PARALLEL = "max_parallel"  # de lo que es capaz por CUALQUIER carril
+    LAST = "last"                  # con lo que salió el último día
+    # Solo para el lado PROPIO: la predicción de minuto 0 que da el mismo
+    # Hattrick para las órdenes ya enviadas. De un rival no existe, porque sus
+    # órdenes son privadas hasta que se juega.
+    SUBMITTED = "submitted"
+
+
 @dataclass
-class PitchZoneAverages:
+class PitchZoneValues:
     left_def: float
     central_def: float
     right_def: float
@@ -352,16 +394,43 @@ PITCH_ZONE_KEYS = (
 )
 
 
-def pitch_zone_averages(match_ratings: list[dict[str, int]]) -> PitchZoneAverages | None:
-    """Promedio de las 7 zonas de la cancha (3 defensa, medio, 3 ataque)
-    sobre los partidos con datos de sector ya vistos — los mismos ratings de
-    `matchdetails` que usa `analyse_side_rotation`, pero sin reducir a "lado
-    fuerte": un mapa de calor completo de la cancha, no solo el ataque."""
+# Los tres carriles de cada mitad. Sirven para el resumen "de lo que es capaz
+# por cualquier carril": un ataque que rompió por la izquierda puede volver a
+# romper por la derecha si el rival mueve a sus hombres.
+PARALLEL_ZONES: tuple[tuple[str, ...], ...] = (
+    ("left_def", "central_def", "right_def"),
+    ("left_att", "central_att", "right_att"),
+)
+
+
+def pitch_zone_values(
+    match_ratings: list[dict[str, int]],
+    method: str = PitchZoneMethod.AVERAGE,
+) -> PitchZoneValues | None:
+    """Las 7 zonas de la cancha (3 defensa, medio, 3 ataque) resumidas sobre
+    los partidos ya vistos, con los mismos ratings de `matchdetails` que usa
+    `analyse_side_rotation` pero sin reducir a "lado fuerte".
+
+    `match_ratings` llega del más viejo al más reciente: LAST se queda con el
+    último de la lista.
+    """
     if not match_ratings:
         return None
     n = len(match_ratings)
-    avg = {key: round(sum(r[key] for r in match_ratings) / n, 1) for key in PITCH_ZONE_KEYS}
-    return PitchZoneAverages(matches_analysed=n, **avg)
+    if method == PitchZoneMethod.LAST:
+        valores = {key: float(match_ratings[-1][key]) for key in PITCH_ZONE_KEYS}
+    elif method in (PitchZoneMethod.MAX, PitchZoneMethod.MAX_PARALLEL):
+        valores = {key: float(max(r[key] for r in match_ratings)) for key in PITCH_ZONE_KEYS}
+        if method == PitchZoneMethod.MAX_PARALLEL:
+            for carriles in PARALLEL_ZONES:
+                techo = max(valores[key] for key in carriles)
+                for key in carriles:
+                    valores[key] = techo
+    else:
+        valores = {
+            key: round(sum(r[key] for r in match_ratings) / n, 1) for key in PITCH_ZONE_KEYS
+        }
+    return PitchZoneValues(matches_analysed=n, **valores)
 
 
 # ── Duelos cabeza a cabeza por carril (cancha horizontal) ───────────────────
@@ -385,7 +454,7 @@ class ZoneDuel:
     rival_pct: float
 
 
-def pitch_zone_duels(own: PitchZoneAverages, rival: PitchZoneAverages) -> list[ZoneDuel]:
+def pitch_zone_duels(own: PitchZoneValues, rival: PitchZoneValues) -> list[ZoneDuel]:
     """7 duelos cabeza a cabeza: 3 en tu campo (tu defensa contra su ataque
     reflejado), 3 en el campo rival (tu ataque contra su defensa reflejada) y
     el de medio campo (posesión). El % es la misma función de contienda

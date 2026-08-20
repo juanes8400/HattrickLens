@@ -8,14 +8,16 @@ no value is inferred from presentation strings and no synthetic data is used.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines.sync_diff import diff_training
+from app.domain.value_objects.formatting import thousands
 from app.domain.value_objects.ht_constants import CONFIDENCE, TEAM_SPIRIT
 from app.infrastructure.db import models as m
 
@@ -27,6 +29,7 @@ PLAYER_METRICS: tuple[tuple[str, str, str], ...] = (
     ("stamina", "Resistencia", "CO"),
     ("experience", "Experiencia", "EX"),
     ("loyalty", "Fidelidad", "FI"),
+    ("leadership", "Liderazgo", "LI"),
     ("keeper", "Portería", "PO"),
     ("defending", "Defensa", "DE"),
     ("playmaking", "Jugadas", "JU"),
@@ -105,7 +108,14 @@ async def _player_report(
     result = await session.execute(
         select(m.PlayerSnapshot, m.Player)
         .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
-        .where(m.PlayerSnapshot.sync_id == sync_id, m.Player.team_id == team_id)
+        # Sólo la plantilla ACTUAL: las filas de quien se fue se conservan como
+        # histórico de traspasos y se marcan con `left_team_at`. Mismo criterio
+        # que en `changes_history` — ver el comentario largo de allí.
+        .where(
+            m.PlayerSnapshot.sync_id == sync_id,
+            m.Player.team_id == team_id,
+            m.Player.left_team_at.is_(None),
+        )
         .order_by(m.Player.last_name, m.Player.first_name)
     )
     summary = _metric_summary()
@@ -257,7 +267,7 @@ def _club_item(
         if value is None:
             return None
         if names is None:
-            return f"{value:,}".replace(",", ".")
+            return thousands(value)
         return f"{names.get(value, 'Nivel')} ({value})"
 
     delta = None if before is None or current is None else current - before
@@ -357,7 +367,7 @@ async def _club_report(
 
 async def _changes_for_sync(
     session: AsyncSession, sync_id: int | None
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     if sync_id is None:
         return []
     rows = list((
@@ -404,27 +414,35 @@ async def _changes_for_sync(
             values(current_training),
         )
 
-    changes: list[dict[str, str]] = []
+    def _rebuilt_rows() -> list[dict[str, Any]]:
+        return [
+            {"category": c.category, "summary": c.summary, "detail": c.detail()}
+            for c in (rebuilt_training or [])
+        ]
+
+    changes: list[dict[str, Any]] = []
     training_inserted = False
     for row in rows:
         if row.category == "entrenamiento" and rebuilt_training is not None:
             if not training_inserted:
-                changes.extend(
-                    {"category": "entrenamiento", "summary": summary}
-                    for summary in rebuilt_training
-                )
+                changes.extend(_rebuilt_rows())
                 training_inserted = True
             continue
-        changes.append({"category": row.category, "summary": row.summary})
+        changes.append({
+            "category": row.category,
+            "summary": row.summary,
+            # `None` en filas anteriores a 2026-08-15: el frontend cae a su
+            # parser de compatibilidad para esas, ver SyncChangesFeed.tsx.
+            "detail": json.loads(row.detail_json) if row.detail_json else None,
+        })
     if rebuilt_training and not training_inserted:
-        changes.extend(
-            {"category": "entrenamiento", "summary": summary}
-            for summary in rebuilt_training
-        )
+        changes.extend(_rebuilt_rows())
     return changes
 
 
-async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str, Any]:
+async def build_sync_comparison(
+    session: AsyncSession, team_id: int, sync_id: int | None = None
+) -> dict[str, Any]:
     """Return the latest sync plus the most recent meaningful comparison.
 
     Detail syncs (one row per player/match) must not hide the full team sync.
@@ -454,6 +472,7 @@ async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str
             "playerRows": [],
             "summary": list(_metric_summary().values()),
             "clubChanges": [],
+            "availableReports": [],
         }
 
     meaningful_ids = (
@@ -464,13 +483,33 @@ async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str
         )
         .distinct()
     )
-    report_sync = await session.scalar(
+
+    # Lista de fechas navegables — pedido explícito 2026-08-15: "que yo solo
+    # deba seleccionar una fecha diferente". Sólo entran los syncs que SÍ
+    # movieron algo: un sync repetido que confirmó que todo seguía igual no
+    # merece una entrada en el selector, sería ruido.
+    available = list((await session.execute(
         select(m.Sync)
         .where(*normal_sync_filter, m.Sync.id.in_(meaningful_ids))
         .order_by(m.Sync.started_at.desc())
-        .limit(1)
-    )
-    report_sync = report_sync or latest
+    )).scalars().all())
+    change_counts = dict((await session.execute(
+        select(m.SyncChange.sync_id, func.count(m.SyncChange.id))
+        .where(
+            m.SyncChange.team_id == team_id,
+            m.SyncChange.category.in_(MEANINGFUL_CATEGORIES),
+        )
+        .group_by(m.SyncChange.sync_id)
+    )).all())
+
+    # `sync_id` explícito = el usuario eligió una fecha. Se valida contra la
+    # lista navegable en vez de confiar en el parámetro: pedir un sync de otro
+    # equipo, o uno sin cambios, cae al comportamiento por defecto.
+    report_sync = None
+    if sync_id is not None:
+        report_sync = next((s for s in available if s.id == sync_id), None)
+    if report_sync is None:
+        report_sync = available[0] if available else latest
 
     latest_changes = await _changes_for_sync(session, latest.id)
     report_changes = await _changes_for_sync(session, report_sync.id)
@@ -488,4 +527,12 @@ async def build_sync_comparison(session: AsyncSession, team_id: int) -> dict[str
         "playerRows": player_rows,
         "summary": summary,
         "clubChanges": club_changes,
+        "availableReports": [
+            {
+                "syncId": s.id,
+                "syncedAt": _iso(s),
+                "changeCount": change_counts.get(s.id, 0),
+            }
+            for s in available
+        ],
     }

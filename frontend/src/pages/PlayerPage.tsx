@@ -4,9 +4,11 @@ import { Link, useParams } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import { highlightedScatterOption, radarOption, timelineOption } from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
+import { Specialty } from "../components/Specialty";
+import { CountryCell } from "../components/CountryFlag";
 import { DateRangeFilter, useDateRangeFilter } from "../components/DateRangeFilter";
 import {
-  Empty, ErrorState, Kpi, Loading, Note, Panel, ProgressBar, SkillBar,
+  Empty, ErrorState, Kpi, Loading, Panel, ProgressBar, SkillBar,
 } from "../components/Panels";
 import { PlayerDistributionPanel } from "../components/PlayerDistributionPanel";
 import { TEAM_ID, usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
@@ -308,17 +310,13 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               disabled={confirmStage.isPending}
               onChange={(e) => confirmStage.mutate(e.target.value || null)}
             >
-              <option value="">Sin confirmar — usar sugerencia de la app</option>
+              <option value="">Sin confirmar, usar sugerencia de la app</option>
               {CAREER_STAGE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
         </div>
-        <Note>
-          La app SUGIERE con reglas de producto (edad, tendencia real de habilidades,
-          percentil, liderazgo) — nunca fija la etiqueta sola: la confirmas tú arriba.
-        </Note>
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
@@ -327,11 +325,21 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             <dl className="grid gap-x-6 gap-y-2 p-4 text-sm sm:grid-cols-2">
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">PlayerID</dt><dd className="tabular-nums">{data.htPlayerId}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Edad</dt><dd>{data.age} años</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Nacionalidad</dt><dd>{data.nativeLeagueName ?? `País #${data.countryId}`}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Especialidad</dt><dd>{data.specialty || "Sin especialidad"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Carácter</dt><dd>{data.character ? `${data.character.agreeabilityLabel} (${data.character.agreeability})` : "—"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Agresividad</dt><dd>{data.character ? `${data.character.aggressivenessLabel} (${data.character.aggressiveness})` : "—"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Honestidad</dt><dd>{data.character ? `${data.character.honestyLabel} (${data.character.honesty})` : "—"}</dd></div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-[var(--muted)]">Nacionalidad</dt>
+                <dd>
+                  <CountryCell
+                    code={data.countryCode}
+                    country={data.nativeLeagueName}
+                    fallback={`País #${data.countryId}`}
+                    compact
+                  />
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Especialidad</dt><dd><Specialty specialty={data.specialty} /></dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Carácter</dt><dd>{data.character ? `${data.character.agreeabilityLabel} (${data.character.agreeability})` : "-"}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Agresividad</dt><dd>{data.character ? `${data.character.aggressivenessLabel} (${data.character.aggressiveness})` : "-"}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Honestidad</dt><dd>{data.character ? `${data.character.honestyLabel} (${data.character.honesty})` : "-"}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Liderazgo</dt><dd>{skillLevel(data.leadership)} ({data.leadership})</dd></div>
             </dl>
           </Panel>
@@ -359,8 +367,11 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Salario</dt><dd className="font-semibold tabular-nums">{money(data.salary)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Precio compra</dt><dd>{data.purchasePrice == null ? "no disponible" : money(data.purchasePrice)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Fecha compra</dt><dd>{data.purchasedAt ? date(data.purchasedAt) : "no disponible"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Lesión</dt><dd className={data.injuryLevel >= 0 ? "text-[var(--danger)]" : "text-[var(--muted)]"}>{data.injuryLevel >= 0 ? data.injuryLevel : "sin lesión"}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Último partido</dt><dd className="text-right">{data.lastMatch ? `${data.lastMatch.position} · ${data.lastMatch.rating?.toFixed(1) ?? "—"}` : "sin detalle"}</dd></div>
+              {/* Nivel 0 es magullado y SÍ puede jugar: pintarlo en rojo como
+                  una baja hacía pensar que estaba descartado. Solo desde 1
+                  (semanas de baja) es una lesión de verdad. */}
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Lesión</dt><dd className={data.injuryLevel >= 1 ? "text-[var(--danger)]" : data.injuryLevel === 0 ? "text-[var(--warning)]" : "text-[var(--muted)]"}>{data.injuryLevel >= 1 ? `${data.injuryLevel} semana(s)` : data.injuryLevel === 0 ? "magullado" : "sin lesión"}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Último partido</dt><dd className="text-right">{data.lastMatch ? `${data.lastMatch.position} · ${data.lastMatch.rating?.toFixed(1) ?? "-"}` : "sin detalle"}</dd></div>
             </dl>
           </Panel>
         </div>
@@ -426,7 +437,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         )}
       </Panel>
 
-      {/* Pedido explícito 2026-08-10: adenda, no panel principal — por eso
+      {/* Pedido explícito 2026-08-10: adenda, no panel principal, por eso
           NO usa <Panel> (borde sólido + título en negrita como el resto de
           la ficha), sino un borde punteado y una etiqueta pequeña/muted. */}
       <div className="rounded-lg border border-dashed border-[var(--border)] p-4">
@@ -446,7 +457,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             valueLabel={`${trainedSkillLevel} / ${trainedSkillMax}`}
             redFraction={trainedSkillRedFraction}
             redPlacement="append"
-            tooltip="Se entrena semana a semana con la fórmula del Manual No Escrito (ver Motor). El rojo es el ritmo semanal esperado — solo aparece si jugó un partido esta semana."
+            tooltip="Se entrena semana a semana con la fórmula del Manual No Escrito (ver Motor). El rojo es el ritmo semanal esperado, solo aparece si jugó un partido esta semana."
           />
           <ProgressBar
             label="Experiencia"
@@ -464,7 +475,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             valueLabel={`${loyaltyValueLabel} / 20`}
             redFraction={loyaltyRedFraction}
             redPlacement="append"
-            tooltip="Sube solo con tiempo en el club — Hattrick no publica la fórmula. Se calibra por observación propia, transición por transición (ver Motor). El rojo son los días ya transcurridos hacia la siguiente subida, cuando ya hay calibración."
+            tooltip="Sube solo con tiempo en el club, Hattrick no publica la fórmula. Se calibra por observación propia, transición por transición (ver Motor). El rojo son los días ya transcurridos hacia la siguiente subida, cuando ya hay calibración."
           />
           <ProgressBar
             label="Forma"
@@ -472,7 +483,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             max={8}
             valueLabel={`${data.form} / 8`}
             dot={data.playedThisWeek}
-            tooltip="Fluctúa partido a partido según rendimiento — no tenemos fórmula propia, solo la observamos. El punto rojo indica que jugó un partido esta semana."
+            tooltip="Fluctúa partido a partido según rendimiento, no tenemos fórmula propia, solo la observamos. El punto rojo indica que jugó un partido esta semana."
           />
           <ProgressBar
             label="Resistencia"
@@ -487,7 +498,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         {data.experienceProgress && data.experienceProgress.unscoredNationalMatches > 0 && (
           <div className="mt-3 text-xs text-[var(--accent)]">
             + {data.experienceProgress.unscoredNationalMatches} partido(s) de selección
-            detectado(s) desde entonces sin puntaje exacto — o es competitivo (Hattrick no
+            detectado(s) desde entonces sin puntaje exacto, o es competitivo (Hattrick no
             distingue Mundial/Copa continental/Copa de Naciones con el mismo código) o subió el
             conteo de partidos con la selección (Caps) sin que alcanzáramos a ver ese partido en
             concreto (el club jugó después y lo tapó antes del siguiente sync).
@@ -516,11 +527,6 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               )}
             />
           </div>
-          <Note>
-            Agresividad se muestra invertida (5 − nivel real: {data.character.aggressiveness}):
-            "{data.character.aggressivenessLabel}" es el rasgo deseable, igual que en los otros
-            dos ejes. Traducido con el fichero oficial de CHPP.
-          </Note>
         </Panel>
       )}
 
@@ -590,7 +596,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           </div>
         ) : (
           <Empty>
-            Todavía no hay dos semanas distintas de historial real — esta gráfica se llena a
+            Todavía no hay dos semanas distintas de historial real, esta gráfica se llena a
             medida que se sincroniza.
           </Empty>
         )}
@@ -652,7 +658,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           </div>
         ) : (
           <Empty>
-            Se llena partido a partido al sincronizar — hoy no hay ninguno todavía en esta
+            Se llena partido a partido al sincronizar, hoy no hay ninguno todavía en esta
             cuenta.
           </Empty>
         )}
@@ -682,7 +688,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
  * habilidades/posiciones/entrenamiento (no tiene sentido para alguien que
  * ya no vemos), solo las fechas en que estuvo en el equipo y las partes
  * del cálculo del ROI, en cuadritos — mismo dato ya calculado por
- * `usePlayerBalance` (el que alimenta "Detalle" en Saldo por jugador),
+ * `usePlayerBalance` (el que alimenta "Detalle" en Transferencias),
  * nunca un cálculo aparte.
  */
 function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
@@ -701,7 +707,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
   return (
     <div className="space-y-4">
       <header>
-        <Link to="/transfers/balance" className="text-xs text-[var(--accent)] hover:underline">← Saldo por jugador</Link>
+        <Link to="/transfers/balance" className="text-xs text-[var(--accent)] hover:underline">← Transferencias</Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-semibold">{data.name}</h1>
           <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-[var(--muted)] border-[var(--border)]">
@@ -714,7 +720,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
           )}
         </div>
         <p className="text-sm text-[var(--muted)]">
-          Ya no está en la plantilla — esta ficha solo trae las fechas y el saldo, no el resto
+          Ya no está en la plantilla, esta ficha solo trae las fechas y el saldo, no el resto
           del análisis de plantilla.
         </p>
       </header>
@@ -741,19 +747,26 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
 
       {row ? (
         <>
-          <Panel title="Cálculo del ROI" meta="mismo desglose que Detalle en Saldo por jugador">
+          <Panel title="Cálculo del ROI" meta="mismo desglose que Detalle en Transferencias">
             <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Kpi label="Precio de compra" value={row.purchasePrice != null ? money(row.purchasePrice, balance!.currency) : "?"} />
+              {/* De la cantera no se paga precio de mercado, se paga el
+                  ascenso: el rótulo lo dice para que la cifra no se lea como
+                  un fichaje que nunca hubo. */}
+              <Kpi
+                label={row.isAcademyGraduate ? "Coste del ascenso" : "Precio de compra"}
+                value={row.purchasePrice != null ? money(row.purchasePrice, balance!.currency) : "?"}
+                hint={row.isAcademyGraduate ? "subido desde tu cantera" : undefined}
+              />
               <Kpi label="Salario acumulado" value={money(row.salaryTotal, balance!.currency)} />
               <Kpi label="Costo de listados" value={money(row.listingCost, balance!.currency)} />
               <Kpi
                 label="Precio de venta"
-                value={row.salePrice != null ? money(row.salePrice, balance!.currency) : "—"}
+                value={row.salePrice != null ? money(row.salePrice, balance!.currency) : "-"}
                 hint={row.isDepartureWithoutSale ? "despedido" : undefined}
               />
               <Kpi
                 label="% agente"
-                value={row.agentPct != null ? `${(row.agentPct * 100).toFixed(1)}%` : "—"}
+                value={row.agentPct != null ? `${(row.agentPct * 100).toFixed(1)}%` : "-"}
                 hint={
                   row.agentPct != null && row.commissionAmount !== "?"
                     ? money(row.commissionAmount, balance!.currency)
@@ -839,7 +852,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                       : "text-2xl font-semibold tabular-nums text-[var(--danger)]"
                 }
               >
-                {row.saldo != null ? money(row.saldo, balance!.currency) : "—"}
+                {row.saldo != null ? money(row.saldo, balance!.currency) : "-"}
               </div>
             </div>
           </Panel>

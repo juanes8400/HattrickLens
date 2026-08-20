@@ -1,18 +1,22 @@
 import clsx from "clsx";
 import { PlayerLink } from "./PlayerLink";
 import { number } from "../hooks/useFormat";
-import type { SyncChange } from "../services/api";
+import type { SyncChange, SyncChangeDetail } from "../services/api";
 
 const CATEGORY_LABELS: Record<string, string> = {
   jugadores: "Jugadores",
   entrenamiento: "Entrenamiento",
   partidos: "Partidos",
   liga: "Liga",
+  rivales: "Rivales",
   economia: "Economía",
   "economía": "Economía",
 };
 
 const CATEGORY_TONE: Record<string, string> = {
+  // Los fichajes de los clubes contra los que vas a jugar no son un cambio
+  // tuyo: llevan su propio color para que no se confundan con tu plantilla.
+  rivales: "bg-[var(--warning)]/15 text-[var(--warning)]",
   jugadores: "bg-[var(--accent-soft)] text-[var(--accent)]",
   entrenamiento: "bg-[var(--positive)]/15 text-[var(--positive)]",
   partidos: "bg-[var(--warning)]/15 text-[var(--warning)]",
@@ -130,8 +134,39 @@ function stripLabel(raw: string): string {
   return raw.trim().replace(/:\s*$/, "");
 }
 
-function parseNumericDelta(detail: string): NumericDelta | null {
-  const toNum = (raw: string) => Number(raw.replace(/,/g, ""));
+/**
+ * Camino principal desde 2026-08-15: el backend manda el cambio como dato
+ * (`detail`), así que aquí no se parsea nada — sólo se decide cómo pintarlo.
+ * Devuelve `null` para eventos sin par numérico (llegó, se vendió, mercado),
+ * que se muestran como frase.
+ */
+function numericFromDetail(detail: SyncChangeDetail | null | undefined): NumericDelta | null {
+  if (!detail || detail.before == null || detail.after == null) return null;
+  if (detail.kind === "event") return null;
+  return {
+    label: detail.label ?? "",
+    before: detail.before,
+    after: detail.after,
+    good: detail.good ?? null,
+    // Un nivel con nombre propio (espíritu, confianza) muestra la etiqueta
+    // además del número, igual que hacía el parser con `stateLabel`.
+    stateLabel: detail.kind === "level" ? detail.afterLabel : undefined,
+  };
+}
+
+/**
+ * Compatibilidad para las filas guardadas ANTES de que existiera `detail`.
+ * No se usa para cambios nuevos — ver `numericFromDetail`.
+ */
+export function parseNumericDelta(detail: string): NumericDelta | null {
+  // Los números llegan dentro de la frase ya formateados. Hasta 2026-08-15 el
+  // backend usaba coma de miles ("202,210"); desde ese día usa punto, como el
+  // resto de la app ("202.210"). Hay frases de las dos épocas guardadas en
+  // `sync_changes`, así que aquí se aceptan ambas: un separador solo cuenta
+  // como de miles si lo siguen EXACTAMENTE tres dígitos — si no, es decimal.
+  // Sin ese matiz, `Number("202.210")` daba 202,21 y la UI mostraba "202".
+  const toNum = (raw: string) =>
+    Number(raw.replace(/[.,](?=\d{3}(?:\D|$))/g, "").replace(",", "."));
 
   const state = detail.match(/^(Espíritu del equipo|Confianza):\s*(.+?)\s*->\s*(.+?)\s*$/i);
   if (state) {
@@ -216,7 +251,7 @@ function NumberDelta({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 tabular-nums">
+    <span className="inline-flex items-baseline justify-end gap-1.5 whitespace-nowrap tabular-nums">
       {showLabel && <span className="font-medium text-[var(--text)]">{parsed.label}</span>}
       <span className="font-semibold text-[var(--text)]">
         {parsed.afterDisplay ?? number(parsed.after)}
@@ -302,24 +337,40 @@ export function SyncChangesFeed({
             <ul className="max-h-[32rem] divide-y divide-[var(--border)] overflow-y-auto overscroll-contain">
               {playerChanges.map((change, index) => {
                 const parsed = splitPlayerSummary(change.summary);
-                const htPlayerId = playerLinks?.[parsed.title];
-                const numeric = parseNumericDelta(parsed.detail);
+                // El nombre del jugador viene en `detail.subject` cuando el
+                // cambio es nuevo; en las filas viejas hay que sacarlo de la
+                // frase, que es de donde salía siempre.
+                const title = change.detail?.subject ?? parsed.title;
+                const htPlayerId = playerLinks?.[title];
+                const numeric =
+                  numericFromDetail(change.detail) ?? parseNumericDelta(parsed.detail);
                 const kind = classify(change.summary, numeric);
                 return (
-                  <li key={`${change.summary}-${index}`} className="grid gap-1 px-3 py-2 sm:grid-cols-[11rem_5rem_1fr]">
-                    <span className="font-medium">
+                  // Tres columnas de ancho fijo y el valor a la derecha: con
+                  // `1fr` al final cada fila empezaba su número donde
+                  // terminara el texto de al lado, así que la columna de
+                  // cifras salía en diente de sierra.
+                  <li
+                    key={`${change.summary}-${index}`}
+                    className="grid grid-cols-[1fr_5.5rem] items-baseline gap-x-3 gap-y-0.5 px-3 py-2 sm:grid-cols-[1fr_6rem_9rem]"
+                  >
+                    <span className="truncate font-medium">
                       {htPlayerId ? (
-                        <PlayerLink htPlayerId={htPlayerId} name={parsed.title} />
+                        <PlayerLink htPlayerId={htPlayerId} name={title} />
                       ) : (
-                        parsed.title
+                        title
                       )}
                     </span>
-                    <span className={clsx("text-xs font-semibold", kind.tone)}>{kind.kind}</span>
-                    {numeric ? (
-                      <NumberDelta parsed={numeric} showLabel={false} />
-                    ) : (
-                      <span className="text-sm text-[var(--muted)]">{parsed.detail}</span>
-                    )}
+                    <span className={clsx("truncate text-xs font-semibold", kind.tone)}>
+                      {kind.kind}
+                    </span>
+                    <span className="col-span-2 justify-self-end text-right sm:col-span-1">
+                      {numeric ? (
+                        <NumberDelta parsed={numeric} showLabel={false} />
+                      ) : (
+                        <span className="text-sm text-[var(--muted)]">{parsed.detail}</span>
+                      )}
+                    </span>
                   </li>
                 );
               })}
@@ -345,7 +396,8 @@ export function SyncChangesFeed({
               </div>
               <ul className="space-y-1 text-sm">
                 {items.map((item, index) => {
-                  const numeric = parseNumericDelta(item.summary);
+                  const numeric =
+                    numericFromDetail(item.detail) ?? parseNumericDelta(item.summary);
                   return (
                     <li key={`${item.summary}-${index}`}>
                       {numeric ? <NumberDelta parsed={numeric} /> : item.summary}

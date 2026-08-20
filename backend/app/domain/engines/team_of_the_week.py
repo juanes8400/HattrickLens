@@ -34,6 +34,14 @@ no con "-1, desconocido". Este motor ahora agrupa por `role_id` (no
 `position_code`)."""
 from dataclasses import dataclass
 
+from app.domain.value_objects.formations import (
+    DEFAULT_FORMATION,
+    LINE_COUNTS,
+    MAX_CENTRAL_DEFENDERS,
+    MAX_INNER_MIDFIELDERS,
+    line_splits,
+    resolve_split,
+)
 from app.domain.value_objects.ht_constants import (
     MATCH_ROLE_CENTRAL_DEFENDER,
     MATCH_ROLE_FORWARD,
@@ -55,18 +63,10 @@ DEFENSE_ROLES = MATCH_ROLE_WINGBACK | MATCH_ROLE_CENTRAL_DEFENDER
 MIDFIELD_ROLES = MATCH_ROLE_WINGER | MATCH_ROLE_INNER_MIDFIELDER
 FORWARD_ROLES = MATCH_ROLE_FORWARD
 
-# defensas-medios-delanteros por formación (siempre suman 10 + 1 portero =
-# 11), mismas 7 opciones que el selector de Hattrick Control.
-FORMATIONS: dict[str, tuple[int, int, int]] = {
-    "4-4-2": (4, 4, 2),
-    "3-5-2": (3, 5, 2),
-    "3-4-3": (3, 4, 3),
-    "4-5-1": (4, 5, 1),
-    "4-3-3": (4, 3, 3),
-    "5-3-2": (5, 3, 2),
-    "5-4-1": (5, 4, 1),
-}
-DEFAULT_FORMATION = "4-4-2"
+# El catálogo y los repartos viven en `value_objects/formations.py`, junto con
+# los del optimizador de Alineación: describen lo mismo y separados acabarían
+# significando cosas distintas.
+FORMATIONS = LINE_COUNTS
 
 SLOT_LABELS: dict[str, str] = {
     "keeper": "Portero",
@@ -99,7 +99,10 @@ class SlotPlayer:
 
 
 def best_team(
-    players: list[LineupPlayer], formation: str = DEFAULT_FORMATION
+    players: list[LineupPlayer],
+    formation: str = DEFAULT_FORMATION,
+    central_defenders: int | None = None,
+    inner_midfielders: int | None = None,
 ) -> dict[str, list[SlotPlayer]]:
     """Un mismo jugador puede aparecer en varios partidos del rango
     (temporada) — se cuenta solo su MEJOR actuación, nunca ocupa dos cupos
@@ -114,14 +117,31 @@ def best_team(
     defense_count, midfield_count, forward_count = FORMATIONS.get(
         formation, FORMATIONS[DEFAULT_FORMATION]
     )
+    # 2026-08-19: los cupos se reparten además por SUB-ROL, como en los
+    # selectores de Hattrick Control. Antes se cogían los cinco mejores
+    # defensas dieran igual laterales o centrales, y un once ideal podía
+    # salir con cuatro centrales y ningún lateral: una alineación que el
+    # juego no deja poner.
+    centrales, interiores = resolve_split(
+        formation, central_defenders, inner_midfielders
+    )
     slots: tuple[tuple[str, frozenset[int], int], ...] = (
         ("keeper", KEEPER_ROLES, 1),
-        ("defense", DEFENSE_ROLES, defense_count),
-        ("midfield", MIDFIELD_ROLES, midfield_count),
+        ("central_defender", MATCH_ROLE_CENTRAL_DEFENDER, centrales),
+        ("wingback", MATCH_ROLE_WINGBACK, defense_count - centrales),
+        ("inner_midfield", MATCH_ROLE_INNER_MIDFIELDER, interiores),
+        ("winger", MATCH_ROLE_WINGER, midfield_count - interiores),
         ("forward", FORWARD_ROLES, forward_count),
     )
     result: dict[str, list[SlotPlayer]] = {}
     for key, roles, count in slots:
+        # Cero cupos es cero jugadores. El corte de abajo compara DESPUÉS de
+        # añadir, así que con count=0 no se cumplía nunca y la línea se
+        # llenaba con toda la liga: el 5-5-0 devolvía 16 delanteros
+        # (2026-08-19).
+        if count <= 0:
+            result[key] = []
+            continue
         candidates = sorted(
             (p for p in players if p.role_id in roles and p.rating_stars > 0),
             key=lambda p: -p.rating_stars,
@@ -142,4 +162,9 @@ def best_team(
             if len(chosen) == count:
                 break
         result[key] = chosen
+    # Las cuatro líneas de siempre, para quien solo quiera pintarlas: el
+    # detalle por sub-rol se conserva al lado, que es lo que permite poner a
+    # los de banda en las orillas de la cancha.
+    result["defense"] = result["central_defender"] + result["wingback"]
+    result["midfield"] = result["inner_midfield"] + result["winger"]
     return result

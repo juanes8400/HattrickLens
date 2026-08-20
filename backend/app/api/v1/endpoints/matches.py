@@ -7,12 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.matches import MatchesQueryService
+from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
 
 
-@router.get("/teams/{team_id}/matches", summary="Partidos, ratings y conversión")
+@router.get("/teams/{team_id}/matches", summary="Partidos, ratings y conversión",
+    dependencies=[Depends(require_team_owner)],
+)
 async def matches(
     team_id: int,
     include_friendlies: bool = Query(
@@ -42,7 +45,9 @@ async def matches(
     return cast(dict[str, Any], _camel(asdict(data)))
 
 
-@router.get("/teams/{team_id}/matches/{ht_match_id}", summary="Análisis de un partido (HL-071)")
+@router.get("/teams/{team_id}/matches/{ht_match_id}", summary="Análisis de un partido (HL-071)",
+    dependencies=[Depends(require_team_owner)],
+)
 async def match_detail(
     team_id: int, ht_match_id: int, session: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:

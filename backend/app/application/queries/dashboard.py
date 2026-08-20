@@ -17,6 +17,9 @@ from app.application.dto.dashboard import (
     SquadSummary,
     TrainingSummary,
 )
+from app.application.queries.training_context import TrainingContextService
+from app.application.queries.training_squad import TrainingSquadQueryService
+from app.domain.engines import training_engine as te
 from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
 from app.domain.value_objects.ht_constants import (
     CONFIDENCE,
@@ -24,6 +27,9 @@ from app.domain.value_objects.ht_constants import (
     training_name,
 )
 from app.infrastructure.db import models as m
+
+# La temporada de Hattrick dura 112 días: 27 años y 56 días son 27,5.
+DAYS_PER_HT_YEAR = 112
 
 STALE_AFTER = timedelta(hours=12)
 # columna en DB → clave camelCase en la API (consistencia de contrato)
@@ -115,6 +121,24 @@ class DashboardQueryService:
             .limit(1)
         )
         if tr:
+            # El porcentaje y la edad media salen del MISMO contexto que usa la
+            # proyección de entrenamiento, no de una regla aparte: entrenador,
+            # asistentes e intensidad ya están resueltos ahí con su
+            # procedencia (dato real o supuesto).
+            ctx = await TrainingContextService(self._s).get(team_id)
+            eficiencia = (
+                te.training_efficiency_pct(
+                    ctx.setup.coach_level,
+                    ctx.setup.assistant_level_sum,
+                    ctx.setup.intensity,
+                    ctx.setup.stamina_share,
+                )
+                if ctx is not None else 0.0
+            )
+            # Edad media de quienes de VERDAD recibieron entrenamiento esta
+            # semana (minutos jugados en la posición que entrena), no de toda
+            # la plantilla: entrenar Anotación no le llega al portero.
+            entrenados = await self._trained_ages(team_id, ctx.trained_skill if ctx else None)
             resp.training = TrainingSummary(
                 type_id=tr.training_type,
                 type_name=training_name(tr.training_type),
@@ -125,10 +149,30 @@ class DashboardQueryService:
                 morale_name=TEAM_SPIRIT.get(tr.morale, "?"),
                 confidence=tr.self_confidence,
                 confidence_name=CONFIDENCE.get(tr.self_confidence, "?"),
+                efficiency_pct=eficiencia,
+                coach_level=ctx.setup.coach_level if ctx else 0,
+                assistant_level_sum=int(ctx.setup.assistant_level_sum) if ctx else 0,
+                trained_avg_age=round(sum(entrenados) / len(entrenados), 1) if entrenados else None,
+                trained_players=len(entrenados),
             )
 
         resp.alerts = self._alerts(resp, players)
         return resp
+
+    async def _trained_ages(self, team_id: int, skill: str | None) -> list[float]:
+        """Edades, en años con decimales, de los jugadores que recibieron el
+        entrenamiento de esta semana. Lista vacía si todavía no se ha jugado
+        ningún partido de la semana: ahí no hay a quién medir."""
+        if skill is None:
+            return []
+        vista = await TrainingSquadQueryService(self._s).squad_view(team_id, skill)
+        if vista is None:
+            return []
+        return [
+            fila.age_years + fila.age_days / DAYS_PER_HT_YEAR
+            for fila in vista.rows
+            if fila.current_week_exposure > 0
+        ]
 
     async def _latest_players(
         self, team_id: int
@@ -163,7 +207,9 @@ class DashboardQueryService:
             avg_age=round(avg_age, 1),
             total_tsi=sum(p.tsi for p in players),
             total_salary=int(round(sum(p.salary for p in players) / rate)),
-            injured_count=sum(1 for p in players if p.injury_level > -1),
+            # Solo bajas reales: el nivel 0 es magullado y puede jugar, así
+            # que contarlo inflaba el marcador de lesionados del Dashboard.
+            injured_count=sum(1 for p in players if p.injury_level >= 1),
         )
 
     def _row(self, p: m.PlayerSnapshot, ident: m.Player, rate: float) -> PlayerRow:

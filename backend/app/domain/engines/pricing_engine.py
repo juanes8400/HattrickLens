@@ -81,7 +81,7 @@ class SalaryEstimate:
     main_skill: str
     components: dict[str, int]
     confidence: str = (
-        "de comunidad (Manual no Escrito), no oficial de CHPP — contrastada contra sueldos "
+        "de comunidad (Manual no Escrito), no oficial de CHPP, contrastada contra sueldos "
         "reales de esta plantilla, con un margen de ~10-50%"
     )
 

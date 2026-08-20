@@ -39,14 +39,14 @@ positions:
       side_defence: {keeper: 0.61, defending: 0.25}
 
   central_defender:
-    label: Defensa central
+    label: Defensa Central
     contributions:
       central_defence: {defending: 1.00}
       side_defence: {defending: 0.26}
       midfield: {playmaking: 0.25}
 
   central_defender_towards_wing:
-    label: Defensa central hacia lateral
+    label: Defensa Central hacia Lateral
     contributions:
       central_defence: {defending: 0.67}
       side_defence: {defending: 0.81}
@@ -54,14 +54,14 @@ positions:
       side_attack: {winger: 0.26}
 
   central_defender_offensive:
-    label: Defensa central ofensivo
+    label: Defensa Central Ofensivo
     contributions:
       central_defence: {defending: 0.73}
       side_defence: {defending: 0.20}
       midfield: {playmaking: 0.40}
 
   wingback:
-    label: Lateral
+    label: Defensa Lateral
     contributions:
       central_defence: {defending: 0.38}
       side_defence: {defending: 0.92}
@@ -69,7 +69,7 @@ positions:
       side_attack: {winger: 0.59}
 
   wingback_towards_middle:
-    label: Lateral hacia el medio
+    label: Defensa Lateral hacia Medio
     contributions:
       central_defence: {defending: 0.70}
       side_defence: {defending: 0.75}
@@ -77,7 +77,7 @@ positions:
       side_attack: {winger: 0.35}
 
   wingback_offensive:
-    label: Lateral ofensivo
+    label: Defensa Lateral Ofensivo
     contributions:
       central_defence: {defending: 0.35}
       side_defence: {defending: 0.74}
@@ -85,7 +85,7 @@ positions:
       side_attack: {winger: 0.69}
 
   wingback_defensive:
-    label: Lateral defensivo
+    label: Defensa Lateral Defensivo
     contributions:
       central_defence: {defending: 0.43}
       side_defence: {defending: 1.00}
@@ -93,7 +93,7 @@ positions:
       side_attack: {winger: 0.45}
 
   inner_midfield:
-    label: Medio
+    label: Mediocentro
     contributions:
       central_defence: {defending: 0.40}
       side_defence: {defending: 0.09}
@@ -102,7 +102,7 @@ positions:
       side_attack: {passing: 0.13}
 
   inner_midfield_towards_wing:
-    label: Medio hacia banda
+    label: Mediocentro hacia Lateral
     contributions:
       central_defence: {defending: 0.33}
       side_defence: {defending: 0.24}
@@ -111,7 +111,7 @@ positions:
       side_attack: {winger: 0.59, passing: 0.31}
 
   inner_midfield_offensive:
-    label: Medio ofensivo
+    label: Mediocentro Ofensivo
     contributions:
       central_defence: {defending: 0.16}
       side_defence: {defending: 0.04}
@@ -120,7 +120,7 @@ positions:
       side_attack: {passing: 0.18}
 
   inner_midfield_defensive:
-    label: Medio defensivo
+    label: Mediocentro Defensivo
     contributions:
       central_defence: {defending: 0.58}
       side_defence: {defending: 0.14}
@@ -138,7 +138,7 @@ positions:
       side_attack: {winger: 0.86, passing: 0.26}
 
   winger_towards_middle:
-    label: Extremo hacia el medio
+    label: Extremo hacia Medio
     contributions:
       central_defence: {defending: 0.25}
       side_defence: {defending: 0.29}
@@ -147,7 +147,7 @@ positions:
       side_attack: {winger: 0.74, passing: 0.15}
 
   winger_offensive:
-    label: Extremo ofensivo
+    label: Extremo Ofensivo
     contributions:
       central_defence: {defending: 0.13}
       side_defence: {defending: 0.22}
@@ -156,7 +156,7 @@ positions:
       side_attack: {winger: 1.00, passing: 0.29}
 
   winger_defensive:
-    label: Extremo defensivo
+    label: Extremo Defensivo
     contributions:
       central_defence: {defending: 0.25}
       side_defence: {defending: 0.61}
@@ -172,14 +172,14 @@ positions:
       side_attack: {scoring: 0.27, passing: 0.14, winger: 0.24}
 
   forward_defensive:
-    label: Delantero defensivo
+    label: Delantero Defensivo
     contributions:
       midfield: {playmaking: 0.35}
       central_attack: {scoring: 0.56, passing: 0.53}
       side_attack: {scoring: 0.13, passing: 0.31, winger: 0.13}
 
   forward_towards_wing:
-    label: Delantero hacia banda
+    label: Delantero hacia Lateral
     contributions:
       midfield: {playmaking: 0.15}
       central_attack: {scoring: 0.66, passing: 0.23}

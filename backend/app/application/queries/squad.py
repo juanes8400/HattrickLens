@@ -83,6 +83,15 @@ class SquadQueryService:
             comparison = SquadComparison(mode="previous_change")
 
         players: list[SquadPlayer] = []
+        country_codes = {
+            int(country_id): str(country_code).upper()
+            for country_id, country_code in (
+                await self._s.execute(
+                    select(m.WorldContext.country_id, m.WorldContext.country_code)
+                    .where(m.WorldContext.country_code != "")
+                )
+            ).all()
+        }
         for snap, ident in rows:
             previous = (
                 baseline_by_player.get(snap.player_id)
@@ -145,6 +154,7 @@ class SquadQueryService:
                     honesty=snap.honesty,
                     honesty_label=PLAYER_HONESTY.get(snap.honesty, f"#{snap.honesty}"),
                     country_id=snap.country_id,
+                    country_code=country_codes.get(snap.country_id),
                     league_goals=snap.league_goals,
                     cup_goals=snap.cup_goals,
                     friendlies_goals=snap.friendlies_goals,

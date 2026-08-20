@@ -238,13 +238,35 @@ def forecast_from_history(
     return result
 
 
+# Pasar de la desviación típica a la mediana de desviaciones absolutas: para
+# datos normales las dos miden lo mismo, pero la segunda no se mueve porque
+# haya un valor disparatado.
+_MAD_TO_SIGMA = 1.4826
+
+
 def estimate_residuals(observed: list[int], predicted: list[int]) -> tuple[float, float]:
-    """Media y desviación de los residuos históricos (para realimentar el modelo).
+    """Centro y dispersión de los residuos históricos, a prueba de fichajes.
 
     Con menos de 3 observaciones devuelve (0, 0): no hay señal suficiente y es
     preferible no corregir a corregir con ruido.
+
+    Se usan mediana y MAD, no media y desviación típica — 2026-08-19, caso real
+    del usuario: sus cuatro residuos eran -17.939.155, +1.582.227, +1.825.153 y
+    +1.870.509. El primero es la semana en que compró jugadores por 22,5
+    millones. Con media y desviación, esa única semana movía el centro a
+    -3.165.316 y la dispersión a 9.850.039: la proyección se hundía y la banda
+    se abría ±13 millones, tapando por completo la línea. Con mediana y MAD el
+    centro queda en las tres semanas normales, que se parecen entre sí con
+    300.000 de margen.
+
+    Comprar y vender no es ruido semanal: es una decisión, y para eso están los
+    eventos planificados de `forecast_cash`.
     """
     if len(observed) < 3 or len(observed) != len(predicted):
         return 0.0, 0.0
     r = np.array(observed, float) - np.array(predicted, float)
-    return float(r.mean()), float(r.std(ddof=1))
+    centro = float(np.median(r))
+    dispersion = float(np.median(np.abs(r - centro))) * _MAD_TO_SIGMA
+    # Todas las semanas iguales dejan la MAD en cero y la banda en una raya.
+    # Ahí manda la volatilidad de taquilla que ya modela `forecast_cash`.
+    return centro, dispersion

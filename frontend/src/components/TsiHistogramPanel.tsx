@@ -14,7 +14,7 @@ export interface TsiHistogramData {
 
 /**
  * Histograma KDE superpuesto (propia plantilla vs. otra) con los controles
- * de TSI/log, excluir arquero y once titular / plantilla completa. Compartido
+ * de TSI/log y once titular / plantilla completa. Compartido
  * entre la ficha de un rival puntual y la comparativa de toda la liga: es el
  * mismo motor (`tsi_kde_comparison`) mirando a un solo equipo o a varios.
  */
@@ -25,8 +25,6 @@ export function TsiHistogramPanel({
   histogram: h,
   logTsi,
   onLogTsiChange,
-  excludeKeeper,
-  onExcludeKeeperChange,
   top11,
   onTop11Change,
   noteSuffix,
@@ -37,8 +35,6 @@ export function TsiHistogramPanel({
   histogram: TsiHistogramData;
   logTsi: boolean;
   onLogTsiChange: (v: boolean) => void;
-  excludeKeeper: boolean;
-  onExcludeKeeperChange: (v: boolean) => void;
   top11: boolean;
   onTop11Change: (v: boolean) => void;
   noteSuffix: string;
@@ -63,14 +59,6 @@ export function TsiHistogramPanel({
             Log(TSI+1)
           </button>
         </div>
-        <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-          <input
-            type="checkbox"
-            checked={excludeKeeper}
-            onChange={(e) => onExcludeKeeperChange(e.target.checked)}
-          />
-          Excluir nuestro arquero
-        </label>
         <div className="flex overflow-hidden rounded border border-[var(--border)] text-xs">
           <button
             className={`px-3 py-1 ${!top11 ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
@@ -153,9 +141,8 @@ export function TsiHistogramPanel({
         />
       )}
       <Note>
-        Cada curva es una estimación de densidad (kernel gaussiano, ancho de banda de
-        Silverman) sobre {h.ownValues.length} jugador(es) propios y {h.rivalValues.length}{" "}
-        {noteSuffix}. Los puntos en la base son cada jugador real.
+        Las curvas están suavizadas; los puntos en la base son cada jugador real:{" "}
+        {h.ownValues.length} propios y {h.rivalValues.length} {noteSuffix}.
       </Note>
     </Panel>
   );

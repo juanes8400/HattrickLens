@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_team_owner
 from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
 from app.application.commands.sync_team import FILE_VERSIONS, MATCHLINEUP_ROLE_VERSION
@@ -16,10 +16,20 @@ from app.domain.engines.lineup_optimizer import best_formation
 from app.domain.engines.position_engine import best_position
 from app.domain.engines.rival_scouting import tsi_kde_comparison
 from app.domain.engines.season_simulator import model_info
-from app.domain.engines.team_of_the_week import FORMATIONS, SLOT_LABELS, LineupPlayer, best_team
+from app.domain.engines.team_of_the_week import (
+    FORMATIONS,
+    MAX_CENTRAL_DEFENDERS,
+    MAX_INNER_MIDFIELDERS,
+    SLOT_LABELS,
+    LineupPlayer,
+    best_team,
+    line_splits,
+    resolve_split,
+)
 from app.domain.value_objects.ht_constants import match_role_name
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
 from app.infrastructure.db import models as m
+from app.api.rate_limit import limite
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
 
@@ -28,7 +38,7 @@ router = APIRouter()
 # 2026-08-05, pedido explícitamente: abrir la Comparativa de liga (o mover
 # cualquiera de sus 3 toggles) pedía las plantillas de los 7-8 rivales de la
 # serie a CHPP, en secuencia, cada vez — aunque ninguno de los toggles
-# (log_tsi, exclude_keeper, top11) necesite un dato nuevo de Hattrick: son
+# (log_tsi, top11) necesite un dato nuevo de Hattrick: son
 # post-proceso puro sobre el mismo TSI ya descargado. Cache en memoria (sin
 # Redis en desarrollo — mismo patrón que `_pending` en auth_chpp.py) de la
 # plantilla propia + rivales, keyed por la jornada realmente sincronizada
@@ -58,7 +68,9 @@ _LINEUP_CACHE_TTL_SECONDS = 3600
 _lineup_cache: dict[tuple[int, int], tuple[float, list[dict[str, Any]]]] = {}
 
 
-@router.get("/teams/{team_id}/league", summary="Clasificación, calendario y simulación")
+@router.get("/teams/{team_id}/league", summary="Clasificación, calendario y simulación",
+    dependencies=[Depends(require_team_owner)],
+)
 async def league(
     team_id: int,
     runs: int = Query(10000, ge=1000, le=50000, description="Simulaciones de Monte Carlo"),
@@ -85,12 +97,15 @@ async def league_model() -> dict[str, Any]:
 
 
 @router.get(
-    "/teams/{team_id}/league/comparison", summary="Comparativa de TSI contra toda la serie"
+    "/teams/{team_id}/league/comparison", summary="Comparativa de TSI contra toda la serie",
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("rivales", 30)),
+    ],
 )
 async def league_comparison(
     team_id: int,
     log_tsi: bool = False,
-    exclude_keeper: bool = True,
     top11: bool = False,
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
@@ -267,7 +282,7 @@ async def league_comparison(
         for p in top_n(players)
     ]
     histogram = tsi_kde_comparison(
-        own_for_tsi, league_for_tsi, log_transform=log_tsi, exclude_keeper=exclude_keeper
+        own_for_tsi, league_for_tsi, log_transform=log_tsi
     )
 
     return cast(dict[str, Any], _camel({
@@ -282,13 +297,12 @@ async def league_comparison(
             "own_values": histogram.own_values,
             "rival_values": histogram.rival_values,
             "log_transform": histogram.log_transform,
-            "excluded_keeper": histogram.excluded_keeper,
             "top11": top11,
         },
         "caveats": [
             "El TSI de cada rival es real (dato público de Hattrick); sus habilidades exactas "
             "y su alineación real están ocultas por CHPP para cualquier equipo que no sea "
-            "el tuyo — «excluir nuestro arquero» solo se aplica con certeza a tu "
+            "el tuyo, «excluir nuestro arquero» solo se aplica con certeza a tu "
             "plantilla, nunca a los rivales.",
             "Nada de esto se sincroniza ni se guarda: se pide en vivo cada vez que se abre "
             "esta comparativa.",
@@ -299,11 +313,24 @@ async def league_comparison(
 @router.get(
     "/teams/{team_id}/league/team-of-the-week",
     summary="Mejor alineación real de la jornada o de la temporada",
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("rivales", 30)),
+    ],
 )
 async def team_of_the_week(
     team_id: int,
     scope: Literal["week", "season"] = "week",
-    formation: Literal["4-4-2", "3-5-2", "3-4-3", "4-5-1", "4-3-3", "5-3-2", "5-4-1"] = "4-4-2",
+    # `str` y no un `Literal` con las formaciones escritas a mano: esa lista
+    # se quedó atrás al añadir 5-5-0, 5-2-3 y 2-5-3 al catálogo (2026-08-19) y
+    # el selector ofrecía formaciones que la API rechazaba con un 422. La
+    # validación buena es contra la tabla, que es la única fuente.
+    formation: str = "4-4-2",
+    # Los dos repartos de Hattrick Control: cuántos de la línea juegan por
+    # dentro. El resto va a las bandas. `None` = el reparto propio de la
+    # formación.
+    central_defenders: int | None = None,
+    inner_midfielders: int | None = None,
     match_round_param: int | None = Query(default=None, alias="round"),
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
@@ -319,6 +346,13 @@ async def team_of_the_week(
     partidos se leen. Nunca se guarda: se recalcula cada vez, con caché en
     memoria por partido (los resultados de un partido terminado no
     cambian)."""
+    if formation not in FORMATIONS:
+        raise HTTPException(
+            422,
+            f"formación desconocida: {formation}. "
+            f"Las disponibles son {', '.join(FORMATIONS)}",
+        )
+
     team = await session.get(m.Team, team_id)
     if team is None:
         raise HTTPException(404, f"team {team_id} not found")
@@ -440,13 +474,31 @@ async def team_of_the_week(
     finally:
         await client.aclose()
 
-    slots = best_team(lineup_players, formation=formation)
+    centrales, interiores = resolve_split(
+        formation, central_defenders, inner_midfielders
+    )
+    slots = best_team(
+        lineup_players,
+        formation=formation,
+        central_defenders=centrales,
+        inner_midfielders=interiores,
+    )
     total_stars = round(sum(p.rating_stars for group in slots.values() for p in group), 1)
 
     return cast(dict[str, Any], _camel({
         "scope": scope,
         "formation": formation,
         "formations": list(FORMATIONS.keys()),
+        "central_defenders": centrales,
+        "inner_midfielders": interiores,
+        # Las opciones legales de cada selector para ESTA formación: una línea
+        # de cinco solo admite 3 por dentro, y ahí el radio sale único.
+        "central_defender_options": line_splits(
+            FORMATIONS[formation][0], MAX_CENTRAL_DEFENDERS
+        ),
+        "inner_midfielder_options": line_splits(
+            FORMATIONS[formation][1], MAX_INNER_MIDFIELDERS
+        ),
         "match_round": target_round,
         "available_rounds": complete_rounds,
         "rounds_covered": rounds_covered,
@@ -457,9 +509,9 @@ async def team_of_the_week(
         "total_stars": total_stars,
         "caveats": [
             "Rating real de cada titular, público para cualquier partido ya terminado "
-            "(matchlineup.xml) — un mismo jugador solo cuenta con su mejor actuación del rango.",
+            "(matchlineup.xml), un mismo jugador solo cuenta con su mejor actuación del rango.",
             "\"De la temporada\" pesa cada jornada terminada por igual, sin importar cuándo se "
-            "sincronizó el calendario — puede tardar en reflejar la última jornada si "
+            "sincronizó el calendario, puede tardar en reflejar la última jornada si "
             "leaguefixtures.xml todavía no trae su marcador.",
         ],
     }))

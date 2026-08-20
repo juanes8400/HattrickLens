@@ -3,8 +3,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import { Chart } from "../charts/Chart";
+import { CountryCell } from "../components/CountryFlag";
 import { Column, DataTable } from "../components/DataTable";
-import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { ErrorState, Kpi, Loading, Panel } from "../components/Panels";
+import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
 import { date, money, number } from "../hooks/useFormat";
@@ -17,6 +19,10 @@ const UNKNOWN_TRAINING = "Entrenamiento desconocido";
 const UNKNOWN_SEASON = "Temporada desconocida";
 const UNKNOWN_AGE = "Edad desconocida";
 const UNKNOWN_TOP_SKILL = "?";
+/** La semana sin temporada: "05", no "83-05". Con dos dígitos para que el eje
+ *  ordene y se lea igual de la 01 a la 16. */
+const weekLabel = (n: number) => String(n).padStart(2, "0");
+const UNKNOWN_WEEK = "sin fecha";
 const UNKNOWN_BID_HOUR = "Hora desconocida";
 
 // Mismos cubos que `_age_bucket` en el backend (player_balance.py) — pedido
@@ -159,23 +165,6 @@ function signedSqrt(x: number): number {
 const DOT_ROI_COLOR_BOUND = Math.sqrt(DOT_ROI_CAP);
 function clampRoiForColor(roiPct: number): number {
   return signedSqrt(Math.max(-DOT_ROI_CAP, Math.min(DOT_ROI_CAP, roiPct)));
-}
-
-// Icono de refresco/actualizar (Material Design), viewBox 0 0 24 24 — pedido
-// explícitamente 2026-08-04 para el botón "Actualizar transferencias".
-function RefreshIcon({ spinning }: { spinning: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="currentColor"
-      className={spinning ? "animate-spin" : undefined}
-      aria-hidden="true"
-    >
-      <path d="M17.65 6.35A7.95 7.95 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L13 11h7V4l-2.35 2.35z" />
-    </svg>
-  );
 }
 
 type SectionKey = "resumen" | "totales" | "desgloses" | "detalle";
@@ -465,7 +454,6 @@ function HorizontalBarPanel({
  */
 export function PlayerBalancePage() {
   const { data, isLoading, isError, error } = usePlayerBalance();
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const isDark = useIsDarkTheme();
   const [section, setSection] = useState<SectionKey>("resumen");
@@ -481,12 +469,6 @@ export function PlayerBalancePage() {
   >("all");
   const [ignoreUnknownData, setIgnoreUnknownData] = useState(false);
   const [ignoreFired, setIgnoreFired] = useState(false);
-  const syncTransfers = useMutation({
-    mutationFn: () => api.syncTransfersHistory(TEAM_ID),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["player-balance", TEAM_ID] }),
-  });
-
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
   if (!data) return null;
@@ -559,6 +541,11 @@ export function PlayerBalancePage() {
   const byAge: Record<string, number> = {};
   const byTopSkill: Record<string, number> = {};
   const byBidHour: Record<string, number> = {};
+  // Semana de temporada (1-16), sin la temporada delante: una venta de 83-05
+  // y otra de 81-05 caen en la misma columna. La pregunta es en qué semana
+  // del calendario conviene comprar o vender, no en qué temporada.
+  const bySaleWeek: Record<string, number> = {};
+  const byPurchaseWeek: Record<string, number> = {};
   for (const r of desglosesRows) {
     if (r.saldo == null) continue;
     const season = r.seasonAtSale ?? UNKNOWN_SEASON;
@@ -574,7 +561,20 @@ export function PlayerBalancePage() {
     byTopSkill[skill] = (byTopSkill[skill] ?? 0) + r.saldo;
     const bidHour = r.bidHourAtSale ?? UNKNOWN_BID_HOUR;
     byBidHour[bidHour] = (byBidHour[bidHour] ?? 0) + r.saldo;
+    const semanaVenta = r.weekAtSale != null ? weekLabel(r.weekAtSale) : UNKNOWN_WEEK;
+    bySaleWeek[semanaVenta] = (bySaleWeek[semanaVenta] ?? 0) + r.saldo;
+    const semanaCompra =
+      r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK;
+    byPurchaseWeek[semanaCompra] = (byPurchaseWeek[semanaCompra] ?? 0) + r.saldo;
   }
+  const weekEntries = (bucket: Record<string, number>): [string, number][] =>
+    Object.entries(bucket).sort(
+      ([a], [b]) =>
+        (a === UNKNOWN_WEEK ? 99 : Number(a)) - (b === UNKNOWN_WEEK ? 99 : Number(b)),
+    );
+  const saleWeekEntries = weekEntries(bySaleWeek);
+  const purchaseWeekEntries = weekEntries(byPurchaseWeek);
+
   const seasonEntries = Object.entries(bySeason).sort(
     (a, b) =>
       seasonSortKey(a[0])[0] - seasonSortKey(b[0])[0] ||
@@ -693,34 +693,22 @@ export function PlayerBalancePage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Saldo neto por jugador</h1>
+          <h1 className="text-xl font-semibold">Transferencias</h1>
           <p className="text-sm text-[var(--muted)]">
             Cálculo del ROI: (Venta neta − (Compra + Salario + Listados) +
             Reventa) ÷ (Compra + Salario + Listados) × 100, donde Venta neta =
             Precio de venta × (1 − % agente)
           </p>
         </div>
-        <button
-          onClick={() => syncTransfers.mutate()}
-          disabled={syncTransfers.isPending}
-          className="flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--surface-2)] disabled:opacity-50"
+        {/* 2026-08-15: traer el historial de transferencias se hace desde
+            Sincronización, junto al resto de cargas CHPP. */}
+        <Link
+          to="/sync"
+          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
         >
-          <RefreshIcon spinning={syncTransfers.isPending} />
-          {syncTransfers.isPending
-            ? "Actualizando…"
-            : "Actualizar transferencias"}
-        </button>
+          Actualizar transferencias en Sincronización
+        </Link>
       </header>
-
-      {syncTransfers.isSuccess && (
-        <Note>
-          {syncTransfers.data.transfersNew} transferencia(s) nueva(s) de{" "}
-          {syncTransfers.data.transfersSeen} vista(s), en{" "}
-          {syncTransfers.data.pagesFetched} página(s).
-          {syncTransfers.data.errors.length > 0 &&
-            ` ${syncTransfers.data.errors.length} error(es).`}
-        </Note>
-      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs
@@ -759,7 +747,7 @@ export function PlayerBalancePage() {
       </div>
 
       {/* Filtros compartidos (pedido explícitamente 2026-08-05, confirmado:
-          un solo lugar, no repetidos en Resumen/Desgloses/Detalle) — los
+          un solo lugar, no repetidos en Resumen/Desgloses/Detalle), los
           mismos 4 controles afectan a las tres secciones a la vez. */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
@@ -993,6 +981,24 @@ export function PlayerBalancePage() {
               currency={data.currency}
               isDark={isDark}
             />
+            <WaterfallPanel
+              title="Saldo por semana de venta"
+              meta="la semana de la temporada, sumando todas las temporadas"
+              ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se vendió cada jugador"
+              entries={saleWeekEntries}
+              currency={data.currency}
+              isDark={isDark}
+              forceAllLabels
+            />
+            <WaterfallPanel
+              title="Saldo por semana de compra"
+              meta="la semana de la temporada, sumando todas las temporadas"
+              ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se compró cada jugador"
+              entries={purchaseWeekEntries}
+              currency={data.currency}
+              isDark={isDark}
+              forceAllLabels
+            />
             <HorizontalBarPanel
               title="Saldo por entrenamiento en el momento de la venta"
               meta="ventas cerradas"
@@ -1042,7 +1048,7 @@ export function PlayerBalancePage() {
           <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
             "Reventa" es la parte estimada de un ingreso que Hattrick reporta
             agregado y sin decir de qué jugador viene, repartida proporcional al
-            precio de venta entre todo lo que has vendido — es una aproximación,
+            precio de venta entre todo lo que has vendido, es una aproximación,
             no un dato exacto.
           </p>
         </Panel>
@@ -1185,6 +1191,9 @@ function BalanceTable({
       header: "País origen",
       align: "left",
       value: (r) => r.nativeCountry,
+      render: (r) => (
+        <CountryCell code={r.nativeCountryCode} country={r.nativeCountry} compact />
+      ),
     },
     {
       key: "character",
@@ -1258,6 +1267,7 @@ function BalanceTable({
       header: "Especialidad",
       align: "left",
       value: (r) => r.specialty,
+      render: (r) => <Specialty specialty={r.specialty} />,
     },
     skillCol(
       "tsi",
@@ -1303,6 +1313,12 @@ function BalanceTable({
               {r.isPurchasePriceManual && (
                 <span className="text-[var(--muted)]"> (manual)</span>
               )}
+              {/* Un canterano no se compró: lo que se ve es lo que costó
+                  subirlo al primer equipo. Decirlo evita leer esa cifra como
+                  un fichaje que nunca hubo. */}
+              {r.isAcademyGraduate && r.promotionCost > 0 && (
+                <span className="text-[var(--muted)]"> (ascenso)</span>
+              )}
             </span>
           );
         }
@@ -1339,7 +1355,7 @@ function BalanceTable({
       value: (r) => r.agentPct ?? -1,
       render: (r) => (
         <span className="tabular-nums">
-          {r.agentPct != null ? `${(r.agentPct * 100).toFixed(1)}%` : "—"}
+          {r.agentPct != null ? `${(r.agentPct * 100).toFixed(1)}%` : "-"}
         </span>
       ),
     },
@@ -1359,7 +1375,7 @@ function BalanceTable({
       value: (r) => r.salePrice ?? -1,
       render: (r) => (
         <span className="tabular-nums">
-          {r.salePrice != null ? money(r.salePrice, currency) : "—"}
+          {r.salePrice != null ? money(r.salePrice, currency) : "-"}
           {r.isDepartureWithoutSale && (
             <span className="text-[var(--muted)]"> (despedido)</span>
           )}
@@ -1400,7 +1416,7 @@ function BalanceTable({
                 : "font-medium tabular-nums text-[var(--danger)]"
           }
         >
-          {r.saldo != null ? money(r.saldo, currency) : "—"}
+          {r.saldo != null ? money(r.saldo, currency) : "-"}
         </span>
       ),
     },
@@ -1422,7 +1438,14 @@ function BalanceTable({
       key: "destinationCountry",
       header: "País destino",
       align: "left",
-      value: (r) => r.destinationCountry,
+      value: (r) => r.isSold ? r.destinationCountry : "Sin destino",
+      render: (r) => r.isSold ? (
+        <CountryCell code={r.destinationCountryCode} country={r.destinationCountry} compact />
+      ) : (
+        <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+          Sin destino · despedido
+        </span>
+      ),
     },
   ];
 

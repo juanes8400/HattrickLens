@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>youthplayerlist.xml</FileName>
+  <Version>1.0</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-16 00:16:33</FetchedDate>
+  <PlayerList>
+    <YouthPlayer>
+      <YouthPlayerID>424402061</YouthPlayerID>
+      <FirstName>Alirio</FirstName>
+      <NickName />
+      <LastName>Asprilla</LastName>
+      <Age>16</Age>
+      <AgeDays>55</AgeDays>
+      <ArrivalDate>2026-08-09 05:05:00</ArrivalDate>
+      <CanBePromotedIn>105</CanBePromotedIn>
+      <PlayerNumber>100</PlayerNumber>
+      <Statement />
+      <Cards>0</Cards>
+      <InjuryLevel>-1</InjuryLevel>
+      <Specialty>0</Specialty>
+      <PlayerSkills>
+        <KeeperSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <KeeperSkillMax IsAvailable="False" MayUnlock="False" />
+        <DefenderSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <DefenderSkillMax IsAvailable="False" MayUnlock="False" />
+        <PlaymakerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <PlaymakerSkillMax IsAvailable="False" MayUnlock="False" />
+        <WingerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <WingerSkillMax IsAvailable="True">5</WingerSkillMax>
+        <PassingSkill IsAvailable="True" IsMaxReached="False">5</PassingSkill>
+        <PassingSkillMax IsAvailable="True">6</PassingSkillMax>
+        <ScorerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <ScorerSkillMax IsAvailable="False" MayUnlock="False" />
+        <SetPiecesSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <SetPiecesSkillMax IsAvailable="False" MayUnlock="False" />
+      </PlayerSkills>
+      <LastMatch>
+        <YouthMatchID>145929008</YouthMatchID>
+        <Date>2026-08-13 23:10:00</Date>
+        <PositionCode>108</PositionCode>
+        <PlayedMinutes>90</PlayedMinutes>
+        <Rating>4</Rating>
+      </LastMatch>
+    </YouthPlayer>
+    <YouthPlayer>
+      <YouthPlayerID>432538331</YouthPlayerID>
+      <FirstName>Álvaro</FirstName>
+      <NickName />
+      <LastName>Toro</LastName>
+      <Age>15</Age>
+      <AgeDays>52</AgeDays>
+      <ArrivalDate>2026-08-02 05:01:00</ArrivalDate>
+      <CanBePromotedIn>172</CanBePromotedIn>
+      <PlayerNumber>100</PlayerNumber>
+      <Statement />
+      <Cards>0</Cards>
+      <InjuryLevel>-1</InjuryLevel>
+      <Specialty>0</Specialty>
+      <PlayerSkills>
+        <KeeperSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <KeeperSkillMax IsAvailable="False" MayUnlock="False" />
+        <DefenderSkill IsAvailable="True" IsMaxReached="True">7</DefenderSkill>
+        <DefenderSkillMax IsAvailable="True">7</DefenderSkillMax>
+        <PlaymakerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <PlaymakerSkillMax IsAvailable="False" MayUnlock="False" />
+        <WingerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <WingerSkillMax IsAvailable="False" MayUnlock="False" />
+        <PassingSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <PassingSkillMax IsAvailable="False" MayUnlock="False" />
+        <ScorerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <ScorerSkillMax IsAvailable="False" MayUnlock="False" />
+        <SetPiecesSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+        <SetPiecesSkillMax IsAvailable="False" MayUnlock="False" />
+      </PlayerSkills>
+    </YouthPlayer>
+  </PlayerList>
+</HattrickData>

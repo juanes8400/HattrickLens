@@ -81,3 +81,29 @@ async def seeded_session() -> tuple[async_sessionmaker, int]:
 @pytest.fixture
 def fixtures_dir() -> Path:
     return FIXTURES
+
+
+@pytest.fixture(autouse=True)
+def _sin_comprobacion_de_dueno(request: pytest.FixtureRequest):
+    """Los tests de datos no tienen que autenticarse; los de seguridad sí.
+
+    2026-08-19: `require_team_owner` se añadió a las 45 rutas con `{team_id}`
+    antes de publicar la app. Pedir sesión y comprobar el dueño en cada test de
+    forma o de cálculo no probaría nada nuevo y escondería lo que sí prueban,
+    así que aquí se desactiva la dependencia.
+
+    Que la protección FUNCIONE se comprueba aparte, en `test_team_isolation.py`,
+    donde esta desactivación no se aplica (marca `seguridad`): un test recorre
+    la aplicación entera y falla si alguna ruta con `{team_id}` se la salta, y
+    otros dos comprueban en vivo el 401 sin sesión y el 403 con el equipo de
+    otro.
+    """
+    from app.api.deps import require_team_owner
+    from app.main import app
+
+    if request.node.get_closest_marker("seguridad"):
+        yield
+        return
+    app.dependency_overrides[require_team_owner] = lambda: None
+    yield
+    app.dependency_overrides.pop(require_team_owner, None)

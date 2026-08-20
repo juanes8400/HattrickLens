@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { economySankeyOption } from "../charts/chartOptions";
 import { Chart } from "../charts/Chart";
-import { DateRangeFilter, useDateRangeFilter } from "../components/DateRangeFilter";
+import {
+  DateRangeFilter,
+  useDateRangeFilter,
+} from "../components/DateRangeFilter";
 import {
   ErrorState,
   Kpi,
@@ -11,9 +14,14 @@ import {
   ProjectionPanel,
 } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
-import { money } from "../hooks/useFormat";
+import { money, number } from "../hooks/useFormat";
 import { useEconomy } from "../hooks/useTeam";
-import type { CostsBreakdown, Economy, ForecastBand, IncomeBreakdown } from "../services/api";
+import type {
+  CostsBreakdown,
+  Economy,
+  ForecastBand,
+  IncomeBreakdown,
+} from "../services/api";
 
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
 type EconomySection = "resumen" | "proyeccion" | "detalles";
@@ -21,7 +29,7 @@ type Horizon = "4" | "8" | "12" | "16";
 
 /**
  * Economía, en 3 secciones (2026-08-09, pedido explícito: mismo patrón de
- * `Tabs` píldora ya usado en Liga/Saldo por jugador) — Resumen es lo que
+ * `Tabs` píldora ya usado en Liga/Transferencias) — Resumen es lo que
  * Hattrick ya reportó, Proyección es nuestro modelo, Detalles es la
  * pantalla equivalente de Hattrick Control (desglose semana a semana).
  */
@@ -57,7 +65,10 @@ export function EconomyPage() {
       {section === "resumen" && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Kpi label="Caja actual" value={money(data.expectedCash, data.currency)} />
+            <Kpi
+              label="Caja actual"
+              value={money(data.expectedCash, data.currency)}
+            />
             <Kpi
               label="Resultado de la última semana"
               value={money(data.weeklyBalance, data.currency)}
@@ -84,7 +95,11 @@ export function EconomyPage() {
 
       {section === "proyeccion" && (
         <div className="space-y-4">
-          <ForecastPanel data={data} horizon={horizon} onHorizonChange={setHorizon} />
+          <ForecastPanel
+            data={data}
+            horizon={horizon}
+            onHorizonChange={setHorizon}
+          />
           {!data.timeseriesForecast && <ProjectionTeaser data={data} />}
         </div>
       )}
@@ -96,7 +111,10 @@ export function EconomyPage() {
 
 function WeeklyFinanceTable({ data }: { data: Economy }) {
   const { weeklyFinance } = data;
-  const rows = Math.max(weeklyFinance.income.length, weeklyFinance.costs.length);
+  const rows = Math.max(
+    weeklyFinance.income.length,
+    weeklyFinance.costs.length,
+  );
 
   return (
     <Panel title="Finanzas de esta semana">
@@ -118,11 +136,15 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
                 <tr key={i}>
                   <td className="px-4 py-2.5">{income?.label ?? ""}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-[var(--positive)]">
-                    {income && income.amount != null ? money(income.amount, data.currency) : ""}
+                    {income && income.amount != null
+                      ? money(income.amount, data.currency)
+                      : ""}
                   </td>
                   <td className="px-4 py-2.5">{cost?.label ?? ""}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-[var(--danger)]">
-                    {cost && cost.amount != null ? money(cost.amount, data.currency) : ""}
+                    {cost && cost.amount != null
+                      ? money(cost.amount, data.currency)
+                      : ""}
                   </td>
                 </tr>
               );
@@ -140,7 +162,9 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
               </td>
             </tr>
             <tr>
-              <td className="px-4 py-3" colSpan={2}>Resultado semanal presupuestado</td>
+              <td className="px-4 py-3" colSpan={2}>
+                Resultado semanal presupuestado
+              </td>
               <td
                 className={`px-4 py-3 text-right tabular-nums ${weeklyFinance.expectedBalance >= 0 ? "text-[var(--positive)]" : "text-[var(--danger)]"}`}
                 colSpan={2}
@@ -157,7 +181,8 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
 
 function HattrickFlow({ data }: { data: Economy }) {
   const [weeks, setWeeks] = useState(1);
-  const flow = data.sankeyWindows.find((w) => w.weeks === weeks) ?? data.sankeyWindows[0];
+  const flow =
+    data.sankeyWindows.find((w) => w.weeks === weeks) ?? data.sankeyWindows[0];
 
   return (
     <Panel
@@ -203,11 +228,21 @@ function ObservedHistory({ data }: { data: Economy }) {
   });
   const toggle = (layer: ObservedLayer) =>
     setVisible((current) => ({ ...current, [layer]: !current[layer] }));
-  const dates = useMemo(() => data.series.map((point) => point.date), [data.series]);
+  // La semana en curso va al final de la serie SÓLO para pintar: sin ella el
+  // gráfico acababa en la semana pasada y Proyección arrancaba en la
+  // siguiente, así que hoy no salía en ninguna de las dos.
+  const points = useMemo(
+    () => (data.currentWeek ? [...data.series, data.currentWeek] : data.series),
+    [data.series, data.currentWeek],
+  );
+  const dates = useMemo(() => points.map((point) => point.date), [points]);
   const range = useDateRangeFilter(dates);
   const filtered = useMemo(
-    () => range.indices.map((i) => data.series[i]).filter((p): p is Economy["series"][number] => !!p),
-    [data.series, range.indices],
+    () =>
+      range.indices
+        .map((i) => points[i])
+        .filter((p): p is Economy["series"][number] => !!p),
+    [points, range.indices],
   );
   const option = useMemo(
     () => observedEconomyOption(filtered, visible),
@@ -215,7 +250,7 @@ function ObservedHistory({ data }: { data: Economy }) {
   );
 
   return (
-    <Panel title="Histórico semanal">
+    <Panel title="Economía">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 text-xs">
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           <LayerToggle
@@ -239,7 +274,12 @@ function ObservedHistory({ data }: { data: Economy }) {
             onChange={() => toggle("cash")}
           />
         </div>
-        <DateRangeFilter range={range.range} onChange={range.setRange} min={range.min} max={range.max} />
+        <DateRangeFilter
+          range={range.range}
+          onChange={range.setRange}
+          min={range.min}
+          max={range.max}
+        />
       </div>
       <Chart
         ariaLabel="Evolución semanal de ingresos, gastos, utilidad y efectivo disponible"
@@ -346,13 +386,13 @@ function observedEconomyOption(
       type: "value",
       splitLine: { lineStyle: { opacity: 0.15 } },
       axisLabel: {
-        formatter: (value: number) => value.toLocaleString("es-CO"),
+        formatter: (value: number) => number(value),
       },
     },
     dataZoom: [{ type: "inside" }],
     tooltip: {
       trigger: "axis",
-      valueFormatter: (value) => Number(value).toLocaleString("es-CO"),
+      valueFormatter: (value) => number(Number(value)),
     },
     series,
   };
@@ -372,7 +412,9 @@ function BalanceWindowsTable({ data }: { data: Economy }) {
               <th className="px-4 py-3 text-right font-medium">Ingresos</th>
               <th className="px-4 py-3 text-right font-medium">Gastos</th>
               <th className="px-4 py-3 text-right font-medium">Balance</th>
-              <th className="px-4 py-3 text-right font-medium">Balance sin transferencias</th>
+              <th className="px-4 py-3 text-right font-medium">
+                Balance sin transferencias
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
@@ -386,11 +428,6 @@ function BalanceWindowsTable({ data }: { data: Economy }) {
                       <div className="text-xs text-[var(--muted)]">
                         faltan datos: {window.weeksAvailable}/
                         {window.weeksRequested} semanas
-                      </div>
-                    )}
-                    {complete && window.balanceExclTransfers == null && (
-                      <div className="text-xs text-[var(--muted)]">
-                        sin transferencias: falta desglose de compraventa
                       </div>
                     )}
                   </td>
@@ -417,7 +454,8 @@ function BalanceWindowsTable({ data }: { data: Economy }) {
                     value={window.balanceExclTransfers}
                     currency={data.currency}
                     tone={
-                      window.balanceExclTransfers != null && window.balanceExclTransfers < 0
+                      window.balanceExclTransfers != null &&
+                      window.balanceExclTransfers < 0
                         ? "danger"
                         : "positive"
                     }
@@ -447,7 +485,7 @@ function MoneyCell({
         tone === "positive" ? "text-[var(--positive)]" : "text-[var(--danger)]"
       }`}
     >
-      {value == null ? "—" : money(value, currency)}
+      {value == null ? ", " : money(value, currency)}
     </td>
   );
 }
@@ -482,19 +520,30 @@ function ForecastPanel({
       : null;
 
   // Variación de caja proyectada: hoy vs. el final del horizonte elegido.
-  const finalValue = preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
+  const finalValue =
+    preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
   const deltaAbs = finalValue - data.expectedCash;
-  const deltaPct = data.expectedCash !== 0 ? (deltaAbs / Math.abs(data.expectedCash)) * 100 : 0;
+  const deltaPct =
+    data.expectedCash !== 0
+      ? (deltaAbs / Math.abs(data.expectedCash)) * 100
+      : 0;
 
   // Coincidencia entre modelos: sólo cuando hay serie de tiempo con la que
   // contrastar — antes de las N semanas de histórico no existe.
   const timeseriesFinal = data.timeseriesForecast
-    ? data.timeseriesForecast.p50[data.timeseriesForecast.p50.length - 1] ?? null
+    ? (data.timeseriesForecast.p50[data.timeseriesForecast.p50.length - 1] ??
+      null)
     : null;
-  const structuralFinal = data.structuralForecast.p50[data.structuralForecast.p50.length - 1] ?? null;
+  const structuralFinal =
+    data.structuralForecast.p50[data.structuralForecast.p50.length - 1] ?? null;
   const modelsAgreePct =
-    timeseriesFinal != null && structuralFinal != null && (timeseriesFinal !== 0 || structuralFinal !== 0)
-      ? (1 - Math.abs(timeseriesFinal - structuralFinal) / Math.max(Math.abs(timeseriesFinal), Math.abs(structuralFinal), 1)) * 100
+    timeseriesFinal != null &&
+    structuralFinal != null &&
+    (timeseriesFinal !== 0 || structuralFinal !== 0)
+      ? (1 -
+          Math.abs(timeseriesFinal - structuralFinal) /
+            Math.max(Math.abs(timeseriesFinal), Math.abs(structuralFinal), 1)) *
+        100
       : null;
 
   return (
@@ -503,13 +552,21 @@ function ForecastPanel({
       meta={`modelo ${data.recommendedModel}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
-        <span className="text-xs text-[var(--muted)]">Horizonte del escenario</span>
-        <Tabs tabs={HORIZON_OPTIONS} active={horizon} onChange={onHorizonChange} />
+        <span className="text-xs text-[var(--muted)]">
+          Horizonte del escenario
+        </span>
+        <Tabs
+          tabs={HORIZON_OPTIONS}
+          active={horizon}
+          onChange={onHorizonChange}
+        />
       </div>
       <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-3">
         <Kpi
           label="Autonomía al ritmo actual"
-          value={runwayWeeks != null ? `~${runwayWeeks} semanas` : "caja creciendo"}
+          value={
+            runwayWeeks != null ? `~${runwayWeeks} semanas` : "caja creciendo"
+          }
           hint={
             runwayWeeks != null
               ? `referencia estructural: ${money(data.structuralBalance, data.currency)}/sem`
@@ -525,13 +582,19 @@ function ForecastPanel({
         />
         <Kpi
           label="Coincidencia entre modelos"
-          value={modelsAgreePct != null ? `${modelsAgreePct.toFixed(0)}%` : "no disponible"}
+          value={
+            modelsAgreePct != null
+              ? `${modelsAgreePct.toFixed(0)}%`
+              : "no disponible"
+          }
           hint={
             modelsAgreePct != null
               ? "qué tan cerca terminan estructural y serie de tiempo"
-              : "la serie de tiempo aún no existe — ver el aviso abajo"
+              : "la serie de tiempo aún no existe, ver el aviso abajo"
           }
-          tone={modelsAgreePct != null && modelsAgreePct < 70 ? "danger" : undefined}
+          tone={
+            modelsAgreePct != null && modelsAgreePct < 70 ? "danger" : undefined
+          }
         />
       </div>
       <div className="border-b border-dashed border-[var(--accent)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
@@ -561,8 +624,14 @@ function ForecastPanel({
  * (sin ejes ni cifras) que solo ilustra "banda de incertidumbre", nunca un
  * resultado simulado. 2026-08-09, pedido explícito. */
 function ProjectionTeaser({ data }: { data: Economy }) {
-  const progress = Math.min(data.weeksOfHistory / data.minWeeksForTimeseries, 1);
-  const remaining = Math.max(data.minWeeksForTimeseries - data.weeksOfHistory, 0);
+  const progress = Math.min(
+    data.weeksOfHistory / data.minWeeksForTimeseries,
+    1,
+  );
+  const remaining = Math.max(
+    data.minWeeksForTimeseries - data.weeksOfHistory,
+    0,
+  );
 
   return (
     <Panel
@@ -571,10 +640,11 @@ function ProjectionTeaser({ data }: { data: Economy }) {
     >
       <div className="space-y-3 p-4">
         <p className="text-xs leading-relaxed text-[var(--muted)]">
-          Con {data.minWeeksForTimeseries} semanas de histórico se activa un segundo
-          modelo — de series de tiempo, que elige entre naive, drift, suavizado
-          exponencial y Holt-Winters según cuál habría predicho mejor tu propio
-          historial — para contrastarlo con la proyección estructural de arriba.
+          Con {data.minWeeksForTimeseries} semanas de histórico se activa un
+          segundo modelo, de series de tiempo, que elige entre naive, drift,
+          suavizado exponencial y Holt-Winters según cuál habría predicho mejor
+          tu propio historial, para contrastarlo con la proyección estructural
+          de arriba.
           {remaining > 0 ? ` Faltan ${remaining} semana(s).` : ""}
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
@@ -624,58 +694,104 @@ function unifiedCashOption(
 ): EChartsOption {
   // "TT-ss" (temporada-semana, p. ej. "83-05") — cae a la fecha ISO/"+N"
   // relativo si el equipo todavía no sincronizó worlddetails.xml.
-  const histLabels = data.series.map((p) => p.seasonWeek ?? p.date);
-  const histCash = data.series.map((p) => p.cash);
+  //
+  // `series` son semanas CERRADAS, así que termina en la anterior a hoy. La
+  // semana en curso llega aparte en `currentWeek` y hay que engancharla aquí:
+  // sin ella "hoy" apuntaba a la semana pasada y el eje saltaba de 83-03 a
+  // 83-05, dejando fuera precisamente la semana que se está jugando.
+  const historyPoints = data.currentWeek
+    ? [...data.series, data.currentWeek]
+    : data.series;
+  const histLabels = historyPoints.map((p) => p.seasonWeek ?? p.date);
+  const histCash = historyPoints.map((p) => p.cash);
   const today = histLabels[histLabels.length - 1] ?? "hoy";
   const forecastLabels = preferred.weeks.map(
     (w, i) => preferred.weekLabels[i] ?? `+${w}`,
   );
   const labels = [...histLabels, ...forecastLabels];
-  // La semana en curso ("hoy", último punto de `series`) todavía no cerró:
-  // el snapshot trae la caja cruda a mitad de semana, pero Hattrick ya
-  // calculó y publica cómo va a cerrar esa misma semana en "Esta semana"
-  // (`expectedCash`) — pedido explícito 2026-08-11. Ese es el número real
-  // de "Caja real" para esa semana, no el crudo del snapshot; así "Caja
-  // real" y el arranque de la proyección coinciden en el mismo punto.
-  if (histCash.length > 0) histCash[histCash.length - 1] = data.expectedCash;
+  // La caja de la semana en curso ya viene siendo `expectedCash` desde el
+  // backend (cada punto es la caja AL CIERRE de su semana), así que aquí no
+  // hay que pisar nada. Antes se sobrescribía el último punto a mano, lo que
+  // desde que `series` son sólo semanas cerradas habría falseado una semana
+  // ya cerrada en los equipos que aún no tienen `currentWeek`.
   const bridge = data.expectedCash;
   const gap = (n: number): (number | null)[] => Array(n).fill(null);
 
-  const actual: (number | null)[] = [...histCash, ...gap(preferred.weeks.length)];
-  const median: (number | null)[] = [...gap(histLabels.length - 1), bridge, ...preferred.p50];
-  const low: (number | null)[] = [...gap(histLabels.length - 1), bridge, ...preferred.p10];
-  const high: (number | null)[] = [...gap(histLabels.length - 1), bridge, ...preferred.p90];
+  const actual: (number | null)[] = [
+    ...histCash,
+    ...gap(preferred.weeks.length),
+  ];
+  const median: (number | null)[] = [
+    ...gap(histLabels.length - 1),
+    bridge,
+    ...preferred.p50,
+  ];
+  const low: (number | null)[] = [
+    ...gap(histLabels.length - 1),
+    bridge,
+    ...preferred.p10,
+  ];
+  const high: (number | null)[] = [
+    ...gap(histLabels.length - 1),
+    bridge,
+    ...preferred.p90,
+  ];
 
   const series: NonNullable<EChartsOption["series"]> = [
     {
-      name: "p10", type: "line", data: low, lineStyle: { opacity: 0 },
-      stack: "band", symbol: "none",
+      name: "p10",
+      type: "line",
+      data: low,
+      lineStyle: { opacity: 0 },
+      stack: "band",
+      // Imprescindible con caja proyectada en negativo: ECharts apila lo
+      // positivo y lo negativo en pilas distintas, y sin esto la banda dejaba
+      // de empezar en el p10 y empezaba en el cero del eje — por eso la línea
+      // central parecía estar fuera de la sombra.
+      stackStrategy: "all",
+      symbol: "none",
     },
     {
       // Nombrada "p90" (no "p10–p90") para que el label de la leyenda diga
       // lo mismo que el tooltip — pedido explícito 2026-08-13. La serie
       // sigue dibujando el delta apilado (p90 - p10) para la banda; el
       // tooltip ya calcula y muestra el p90 real a partir de ese delta.
-      name: "p90", type: "line",
-      data: high.map((h, i) => (h == null || low[i] == null ? null : h - (low[i] as number))),
-      lineStyle: { opacity: 0 }, areaStyle: { color: "#4f7cff", opacity: 0.16 },
-      stack: "band", symbol: "none",
+      name: "p90",
+      type: "line",
+      data: high.map((h, i) =>
+        h == null || low[i] == null ? null : h - (low[i] as number),
+      ),
+      lineStyle: { opacity: 0 },
+      areaStyle: { color: "#4f7cff", opacity: 0.16 },
+      stack: "band",
+      stackStrategy: "all",
+      symbol: "none",
     },
     {
-      name: "Proyección central", type: "line", data: median, smooth: true, symbol: "none",
+      name: "Proyección central",
+      type: "line",
+      data: median,
+      smooth: true,
+      symbol: "none",
       lineStyle: { width: 2, type: "dashed" },
       markLine: {
-        silent: true, symbol: "none",
+        silent: true,
+        symbol: "none",
         lineStyle: { color: "#e5484d", type: "dashed" },
         label: { formatter: "sin fondos" },
         data: [{ yAxis: 0 }],
       },
     },
     {
-      name: "Caja real", type: "line", data: actual, symbol: "circle", symbolSize: 5,
+      name: "Caja real",
+      type: "line",
+      data: actual,
+      symbol: "circle",
+      symbolSize: 5,
       lineStyle: { width: 2 },
       markLine: {
-        silent: true, symbol: "none",
+        silent: true,
+        symbol: "none",
         lineStyle: { color: "#94a3b8" },
         label: { formatter: "hoy", position: "end" },
         data: [{ xAxis: today }],
@@ -685,9 +801,16 @@ function unifiedCashOption(
 
   if (showBoth && data.timeseriesForecast) {
     series.push({
-      name: `Proyección ${data.timeseriesForecast.model}`, type: "line", smooth: true,
-      symbol: "none", lineStyle: { width: 2 },
-      data: [...gap(histLabels.length - 1), bridge, ...data.timeseriesForecast.p50],
+      name: `Proyección ${data.timeseriesForecast.model}`,
+      type: "line",
+      smooth: true,
+      symbol: "none",
+      lineStyle: { width: 2 },
+      data: [
+        ...gap(histLabels.length - 1),
+        bridge,
+        ...data.timeseriesForecast.p50,
+      ],
     });
   }
 
@@ -708,11 +831,12 @@ function unifiedCashOption(
         if (items.length === 0) return "";
         const axisLabel = String(items[0]?.name ?? "");
         const byName = new Map(items.map((p) => [String(p.seriesName), p]));
-        const fmt = (v: unknown) => (v == null ? null : Number(v).toLocaleString("es-CO"));
+        const fmt = (v: unknown) => (v == null ? null : number(Number(v)));
         const rows: string[] = [];
         const push = (marker: unknown, label: string, value: unknown) => {
           const formatted = fmt(value);
-          if (formatted != null) rows.push(`${marker} ${label}: <b>${formatted}</b>`);
+          if (formatted != null)
+            rows.push(`${marker} ${label}: <b>${formatted}</b>`);
         };
 
         const p10Item = byName.get("p10");
@@ -810,10 +934,14 @@ function BreakdownTd({
   return (
     <td
       className={`px-3 py-2.5 text-right tabular-nums ${emphasis ? "font-semibold" : ""} ${
-        tone === "positive" ? "text-[var(--positive)]" : tone === "danger" ? "text-[var(--danger)]" : ""
+        tone === "positive"
+          ? "text-[var(--positive)]"
+          : tone === "danger"
+            ? "text-[var(--danger)]"
+            : ""
       }`}
     >
-      {value == null ? "—" : money(value, currency)}
+      {value == null ? ", " : money(value, currency)}
     </td>
   );
 }
@@ -846,9 +974,18 @@ function IncomeBreakdownTable({
               <BreakdownTd value={row.income.spectators} currency={currency} />
               <BreakdownTd value={row.income.sponsors} currency={currency} />
               <BreakdownTd value={row.income.financial} currency={currency} />
-              <BreakdownTd value={row.income.subtotal} currency={currency} emphasis />
+              <BreakdownTd
+                value={row.income.subtotal}
+                currency={currency}
+                emphasis
+              />
               <BreakdownTd value={row.income.other} currency={currency} />
-              <BreakdownTd value={row.income.total} currency={currency} emphasis tone="positive" />
+              <BreakdownTd
+                value={row.income.total}
+                currency={currency}
+                emphasis
+                tone="positive"
+              />
             </tr>
           ))}
         </tbody>
@@ -889,9 +1026,18 @@ function CostsBreakdownTable({
               <BreakdownTd value={row.costs.financial} currency={currency} />
               <BreakdownTd value={row.costs.staff} currency={currency} />
               <BreakdownTd value={row.costs.youth} currency={currency} />
-              <BreakdownTd value={row.costs.subtotal} currency={currency} emphasis />
+              <BreakdownTd
+                value={row.costs.subtotal}
+                currency={currency}
+                emphasis
+              />
               <BreakdownTd value={row.costs.other} currency={currency} />
-              <BreakdownTd value={row.costs.total} currency={currency} emphasis tone="danger" />
+              <BreakdownTd
+                value={row.costs.total}
+                currency={currency}
+                emphasis
+                tone="danger"
+              />
             </tr>
           ))}
         </tbody>

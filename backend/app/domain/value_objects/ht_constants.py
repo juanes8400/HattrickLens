@@ -169,15 +169,15 @@ def training_target(type_id: int) -> str | None:
 # PositionCode de matchlineup.xml observado en fixtures reales.
 MATCH_POSITION_NAMES: dict[int, str] = {
     1: "Portero",
-    2: "Lateral derecho",
-    3: "Defensa central derecho",
-    4: "Defensa central medio",
-    5: "Defensa central izquierdo",
-    6: "Lateral izquierdo",
+    2: "Defensa Lateral derecho",
+    3: "Defensa Central derecho",
+    4: "Defensa Central medio",
+    5: "Defensa Central izquierdo",
+    6: "Defensa Lateral izquierdo",
     7: "Extremo derecho",
-    8: "Interior derecho",
-    9: "Interior medio",
-    10: "Interior izquierdo",
+    8: "Mediocentro derecho",
+    9: "Mediocentro medio",
+    10: "Mediocentro izquierdo",
     11: "Extremo izquierdo",
     12: "Delantero derecho",
     13: "Delantero medio",
@@ -322,27 +322,15 @@ def team_attitude_name(code: int) -> str:
     return TEAM_ATTITUDE.get(code, f"actitud {code}")
 
 
-WEATHER: dict[int, str] = {
-    0: "Lluvia",
-    1: "Cubierto",
-    2: "Parcialmente nublado",
-    3: "Soleado",
-}
-
-
-def weather_name(code: int) -> str:
-    return WEATHER.get(code, f"clima {code}")
-
-
 MATCH_BEHAVIOUR: dict[int, str] = {
     -1: "Sin cambio",
     0: "Normal",
     1: "Ofensivo",
     2: "Defensivo",
-    3: "Hacia el medio",
-    4: "Hacia la banda",
+    3: "hacia Medio",
+    4: "hacia Lateral",
     5: "Delantero extra",
-    6: "Interior extra",
+    6: "Mediocentro extra",
     7: "Defensa extra",
 }
 
@@ -354,10 +342,10 @@ def match_behaviour_name(code: int) -> str:
 PLAYER_CATEGORY: dict[int, str] = {
     0: "Sin categoría",
     1: "Portero",
-    2: "Lateral",
-    3: "Defensa central",
+    2: "Defensa Lateral",
+    3: "Defensa Central",
     4: "Extremo",
-    5: "Interior",
+    5: "Mediocentro",
     6: "Delantero",
     7: "Suplente",
     8: "Reserva",
@@ -370,19 +358,6 @@ def player_category_name(code: int) -> str:
     return PLAYER_CATEGORY.get(code, f"categoría {code}")
 
 
-STAFF_TYPES: dict[int, str] = {
-    1: "Asistente de entrenador",
-    2: "Médico",
-    3: "Portavoz",
-    4: "Psicólogo deportivo",
-    5: "Entrenador de forma",
-    6: "Director financiero",
-    7: "Asistente táctico",
-}
-
-
-def staff_type_name(code: int) -> str:
-    return STAFF_TYPES.get(code, f"staff {code}")
 
 
 # 2026-08-12, corrección: `club.xml` dejó de traer los niveles agregados por
@@ -392,29 +367,61 @@ def staff_type_name(code: int) -> str:
 # (`StaffType`/`StaffLevel` de cada `<Staff>`) — este mapa agrupa esos
 # miembros reales en la misma columna de `StaffSnapshot` que antes llenaba
 # (mal, con datos obsoletos) el fichero `club`.
-STAFF_TYPE_TO_FIELD: dict[int, str] = {
-    1: "assistant_trainer_levels",
-    2: "medic_levels",
-    3: "spokesperson_levels",
-    4: "sport_psychologist_levels",
-    5: "form_coach_levels",
-    6: "financial_director_levels",
-    7: "tactical_assistant_levels",
+# Los puestos de empleado que Hattrick deja contratar, por su StaffType de
+# stafflist.xml: código -> (campo interno, singular, plural).
+#
+# 2026-08-17: se cae "Portavoz". Estaba en la lista por herencia del club.xml
+# viejo —que aún declara un `SpokespersonLevels`— y no porque exista en el
+# juego: la página de Empleados de Hattrick, la misma de la que salieron las
+# tablas de `staff_effects.py`, lista SEIS puestos y ninguno es un portavoz.
+# Se notaba en que era el único sin modelo de efecto: no había nada que contar
+# de él porque no hace nada. Los nombres son los de Hattrick, no los del XML
+# antiguo — "Doctor" y no "Médico", "Preparador físico" y no "Entrenador de
+# forma".
+#
+# El código 3 queda sin asignar a propósito. No se sabe qué es, y ponerle un
+# nombre inventado es exactamente lo que se está corrigiendo.
+#
+# Esto es la ÚNICA lista de puestos del proyecto: antes había dos y por eso
+# sobrevivió tanto tiempo un rol que no existe.
+STAFF_ROLES: dict[int, tuple[str, str, str]] = {
+    1: ("assistant_trainer_levels", "Asistente de entrenador", "Asistentes de entrenador"),
+    2: ("medic_levels", "Doctor", "Doctores"),
+    4: ("sport_psychologist_levels", "Psicólogo deportivo", "Psicólogos deportivos"),
+    5: ("form_coach_levels", "Preparador físico", "Preparadores físicos"),
+    6: ("financial_director_levels", "Director financiero", "Directores financieros"),
+    7: ("tactical_assistant_levels", "Asistente táctico", "Asistentes tácticos"),
 }
+
+STAFF_TYPE_TO_FIELD: dict[int, str] = {
+    code: field for code, (field, _, _) in STAFF_ROLES.items()
+}
+STAFF_FIELD_LABELS: dict[str, str] = {
+    field: plural for _, (field, _, plural) in STAFF_ROLES.items()
+}
+
+
+def staff_type_name(code: int) -> str:
+    """Nombre del puesto de un empleado concreto. Si CHPP manda un tipo que
+    esta versión no conoce se dice así, en vez de disfrazarlo con el nombre de
+    otro puesto."""
+    role = STAFF_ROLES.get(code)
+    return role[1] if role else f"Puesto desconocido (tipo {code})"
+
 
 
 # MatchRoleID de CHPP DataTypes, usado en LastMatch y ordenes modernas.
 MATCH_ROLE_NAMES: dict[int, str] = {
     100: "Portero",
-    101: "Lateral derecho",
-    102: "Defensa central derecho",
-    103: "Defensa central medio",
-    104: "Defensa central izquierdo",
-    105: "Lateral izquierdo",
+    101: "Defensa Lateral derecho",
+    102: "Defensa Central derecho",
+    103: "Defensa Central medio",
+    104: "Defensa Central izquierdo",
+    105: "Defensa Lateral izquierdo",
     106: "Extremo derecho",
-    107: "Interior derecho",
-    108: "Interior medio",
-    109: "Interior izquierdo",
+    107: "Mediocentro derecho",
+    108: "Mediocentro medio",
+    109: "Mediocentro izquierdo",
     110: "Extremo izquierdo",
     111: "Delantero derecho",
     112: "Delantero medio",
@@ -489,7 +496,7 @@ MATCH_ROLE_FORWARD: frozenset[int] = frozenset({111, 112, 113})
 
 # 2026-08-09, pedido explícitamente: siglas cortas para "Última semana" en
 # Posiciones — el lado (derecho/izquierdo/medio) no importa, pero SÍ la
-# orden individual real (Ofensivo/Defensivo/Hacia el medio/Hacia la
+# orden individual real (Ofensivo/Defensivo/hacia Medio/Hacia la
 # banda), que antes no se mostraba porque vive en un campo aparte
 # (`Behaviour` de matchlineup.xml, no `LastMatch` de playerdetails.xml).
 # Los cupos "extra" (Behaviour 5/6/7: delantero/interior/defensa extra) y

@@ -60,5 +60,5 @@ class Age:
         azar de por medio, a diferencia de las habilidades)."""
         total = self.years * self.DAYS_PER_YEAR + self.days + days
         if total < 0:
-            raise ValueError("edad resultante negativa — el jugador no existía en esa fecha")
+            raise ValueError("edad resultante negativa, el jugador no existía en esa fecha")
         return Age(total // self.DAYS_PER_YEAR, total % self.DAYS_PER_YEAR)

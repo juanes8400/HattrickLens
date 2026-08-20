@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
-import { radarOption, resultsPieOption } from "../charts/chartOptions";
+import { facingBarsOption, radarOption, resultsPieOption } from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
 import { MatchSectorMap } from "../components/MatchSectorMap";
-import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
-import { TEAM_ID, useMatchDetail, useMatches } from "../hooks/useTeam";
-import { api } from "../services/api";
+import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { useMatchDetail, useMatches } from "../hooks/useTeam";
 import type { BestRating, HomeAwayRow, MatchRow, Matches, RatingSeriesPoint } from "../services/api";
 
 function renderStatOrDash(v: number | null) {
-  return v == null ? <span className="text-[var(--muted)]">—</span> : <span>{v}</span>;
+  return v == null ? <span className="text-[var(--muted)]">, </span> : <span>{v}</span>;
 }
 
 /**
@@ -31,14 +30,8 @@ export function MatchesPage() {
   const [season, setSeason] = useState<number | null>(null);
   const { data, isLoading, isError, error } = useMatches(includeFriendlies, season);
   const [selected, setSelected] = useState<number | null>(null);
-  const qc = useQueryClient();
 
   const missingDetails = data?.matches.filter((r) => r.hatstats == null).length ?? 0;
-
-  const syncDetails = useMutation({
-    mutationFn: () => api.syncMatchDetails(TEAM_ID),
-    onSuccess: () => qc.invalidateQueries(),
-  });
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -75,29 +68,17 @@ export function MatchesPage() {
             {includeFriendlies ? "Ocultar amistosos" : "Mostrar amistosos"}
           </button>
           {missingDetails > 0 && (
-            <button
-              onClick={() => syncDetails.mutate()}
-              disabled={syncDetails.isPending}
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+            // 2026-08-15: la carga se dispara desde Sincronización, no desde
+            // aquí. Esta pantalla sólo avisa de que faltan datos.
+            <Link
+              to="/sync"
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
             >
-              {syncDetails.isPending
-                ? "Sincronizando…"
-                : `Sincronizar detalles (${missingDetails} sin ratings)`}
-            </button>
+              {missingDetails} sin ratings · cargar en Sincronización
+            </Link>
           )}
         </div>
       </header>
-      {syncDetails.isSuccess && (
-        <Note>
-          {syncDetails.data.matchesProcessed === 0
-            ? "No había partidos pendientes de detalle."
-            : `Procesados ${syncDetails.data.matchesProcessed} partido(s): ` +
-              `${syncDetails.data.snapshotsWritten} ratings nuevos, ` +
-              `${syncDetails.data.unchanged} ya estaban.`}
-          {syncDetails.data.errors.length > 0 && ` Errores: ${syncDetails.data.errors.join(" · ")}`}
-        </Note>
-      )}
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Jugados" value={String(data.matchesPlayed)} hint={`${data.record} · ${data.seasonLabel}`} />
         <Kpi
@@ -108,12 +89,12 @@ export function MatchesPage() {
         />
         <Kpi
           label="HatStats medio"
-          value={data.avgHatstats == null ? "—" : data.avgHatstats.toFixed(1)}
+          value={data.avgHatstats == null ? ", " : data.avgHatstats.toFixed(1)}
           hint={data.avgHatstats == null ? "faltan ratings" : `mediocampo pesa triple · ${data.seasonLabel}`}
         />
         <Kpi
           label="Mejor partido"
-          value={data.bestMatch ? String(data.bestMatch.hatstats) : "—"}
+          value={data.bestMatch ? String(data.bestMatch.hatstats) : "-"}
           hint={data.bestMatch ? `vs ${data.bestMatch.opponent} · ${data.seasonLabel}` : undefined}
           tone={data.bestMatch ? "positive" : undefined}
         />
@@ -258,45 +239,44 @@ function ConversionPanel({ data }: { data: Matches }) {
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
           Ocasiones por zona
         </h3>
-        <div className="space-y-2">
-          {c.zones.map((z) => {
-            const max = Math.max(z.own, z.opponent, 1);
-            return (
-              <div key={z.zone} className="grid grid-cols-[110px_1fr_auto] items-center gap-2 text-xs">
-                <span className="text-[var(--muted)]">{z.label}</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded bg-black/10">
-                    <div
-                      className="h-full bg-[var(--accent)]"
-                      style={{ width: `${(z.own / max) * 100}%` }}
-                    />
-                  </div>
-                  <div className="h-2 flex-1 overflow-hidden rounded bg-black/10">
-                    <div
-                      className="h-full bg-[var(--muted)]"
-                      style={{ width: `${(z.opponent / max) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <span className="tabular-nums">
-                  {z.own} / {z.opponent}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        {/* Barras enfrentadas desde el centro: por dónde atacas tú a la
+            izquierda, por dónde te atacan a la derecha. Antes eran dos barras
+            sueltas por zona escaladas al mismo máximo, y comparar obligaba a
+            medir dos longitudes separadas y restarlas de cabeza. */}
+        <Chart
+          ariaLabel="Ocasiones generadas y concedidas por zona de la cancha"
+          height={Math.max(150, c.zones.length * 42)}
+          option={facingBarsOption(
+            c.zones.map((z) => z.label),
+            c.zones.map((z) => z.own),
+            c.zones.map((z) => z.opponent),
+            "Generadas",
+            "Concedidas",
+          )}
+        />
       </div>
     </div>
   );
 }
 
 function RatingSeriesChart({ points }: { points: RatingSeriesPoint[] }) {
-  const labels = points.map((p) => p.seasonWeek ?? p.date);
+  // Dos renglones por partido: la fecha corta arriba y contra quién debajo.
+  // Antes el eje traía solo la semana de temporada, y para saber a qué partido
+  // correspondía un pico había que abrir el tooltip uno por uno.
+  const labels = points.map((p) => {
+    const fecha = p.date.slice(5).replace("-", "/");
+    return `${fecha}
+${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
+  });
   return (
     <Chart
       ariaLabel="Evolución de los ratings de mediocampo, defensa y ataque por partido"
       option={{
-        xAxis: { type: "category", data: labels },
+        xAxis: {
+          type: "category",
+          data: labels,
+          axisLabel: { fontSize: 10, lineHeight: 13, interval: 0, hideOverlap: true },
+        },
         yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
         tooltip: {
           trigger: "axis",
@@ -316,13 +296,25 @@ function RatingSeriesChart({ points }: { points: RatingSeriesPoint[] }) {
           },
         },
         legend: { bottom: 0 },
+        // `symbol` explícito: cada partido es una observación, no un punto
+        // interpolado de una curva continua, y verlos marcados evita leer un
+        // tramo recto como si hubiera datos intermedios.
         series: [
-          { name: "Mediocampo", type: "line", data: points.map((p) => p.midfield), smooth: true },
-          { name: "Defensa", type: "line", data: points.map((p) => p.defence), smooth: true },
-          { name: "Ataque", type: "line", data: points.map((p) => p.attack), smooth: true },
+          {
+            name: "Mediocampo", type: "line", data: points.map((p) => p.midfield),
+            smooth: true, symbol: "circle", symbolSize: 7, showSymbol: true,
+          },
+          {
+            name: "Defensa", type: "line", data: points.map((p) => p.defence),
+            smooth: true, symbol: "circle", symbolSize: 7, showSymbol: true,
+          },
+          {
+            name: "Ataque", type: "line", data: points.map((p) => p.attack),
+            smooth: true, symbol: "circle", symbolSize: 7, showSymbol: true,
+          },
         ],
       }}
-      height={280}
+      height={320}
     />
   );
 }
@@ -357,13 +349,6 @@ function MatchTable({
       ),
     },
     {
-      key: "hatstatsOpponent",
-      header: "HatStats rival",
-      align: "right",
-      value: (r) => r.hatstatsOpponent ?? -1,
-      render: (r) => renderStatOrDash(r.hatstatsOpponent),
-    },
-    {
       key: "result",
       header: "Resultado",
       value: (r) => `${r.goalsFor}-${r.goalsAgainst}`,
@@ -381,12 +366,21 @@ function MatchTable({
         </span>
       ),
     },
+    // Propio antes que rival, y los dos juntos: la comparación que interesa es
+    // entre esas dos cifras, y con "Resultado" en medio había que saltársela.
     {
       key: "hatstats",
       header: "HatStats propio",
       align: "right",
       value: (r) => r.hatstats ?? -1,
       render: (r) => renderStatOrDash(r.hatstats),
+    },
+    {
+      key: "hatstatsOpponent",
+      header: "HatStats rival",
+      align: "right",
+      value: (r) => r.hatstatsOpponent ?? -1,
+      render: (r) => renderStatOrDash(r.hatstatsOpponent),
     },
   ];
   return (
@@ -406,7 +400,7 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
   if (isError || !data) {
     return (
       <Panel title="Análisis del partido">
-        <Note>Este partido no tiene ratings por sector sincronizados todavía.</Note>
+        <Empty>Sin ratings por sector.</Empty>
       </Panel>
     );
   }

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.economy import EconomyQueryService
 from app.domain.engines.economy_engine import PlannedEvent
+from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -14,6 +15,7 @@ router = APIRouter()
 @router.get(
     "/teams/{team_id}/economy",
     summary="Series y proyección a 52 semanas (HL-052/053/054/055)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def economy(
     team_id: int,
@@ -39,6 +41,7 @@ async def economy(
 @router.post(
     "/teams/{team_id}/economy/forecast",
     summary="Proyección con movimientos planificados (HL-053)",
+    dependencies=[Depends(require_team_owner)],
 )
 async def economy_with_plan(
     team_id: int,
@@ -109,6 +112,15 @@ def _serialise(d: Any) -> dict[str, Any]:
              "costs": p.costs, "balance": p.balance, "isAnomaly": p.is_anomaly}
             for p in d.series
         ],
+        "currentWeek": (
+            {
+                "date": d.current_week.date, "seasonWeek": d.current_week.season_week,
+                "cash": d.current_week.cash, "income": d.current_week.income,
+                "costs": d.current_week.costs, "balance": d.current_week.balance,
+                "isAnomaly": False,
+            }
+            if d.current_week is not None else None
+        ),
         "weeklyFinance": {
             "income": [
                 {"code": item.code, "label": item.label, "amount": item.amount}

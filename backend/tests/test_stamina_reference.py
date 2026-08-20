@@ -25,11 +25,25 @@ def test_percentage_outside_table_range_clamps_to_nearest_bucket() -> None:
     assert stamina_forecast_level(20, 99.0) == stamina_forecast_level(20, 30.0)
 
 
-def test_age_outside_table_returns_none_instead_of_extrapolating() -> None:
-    assert stamina_forecast_level(16, 20.0) is None
-    assert stamina_forecast_level(37, 20.0) is None
-    assert stamina_forecast_level(17, 20.0) is not None
-    assert stamina_forecast_level(36, 20.0) is not None
+def test_age_above_table_clamps_to_the_oldest_row() -> None:
+    """Pedido explícito 2026-08-15: "de 40 años debe ser igual que 36" —
+    fuera del rango se mantiene la fila del borde, no se extrapola una
+    pendiente que la tabla no respalda."""
+    for pct in (5.0, 12.0, 20.0, 28.0):
+        assert stamina_forecast_level(40, pct) == stamina_forecast_level(36, pct)
+        assert stamina_forecast_level(37, pct) == stamina_forecast_level(36, pct)
+        assert stamina_forecast_level(99, pct) == stamina_forecast_level(36, pct)
+
+
+def test_age_below_table_clamps_to_the_youngest_row() -> None:
+    for pct in (5.0, 12.0, 20.0, 28.0):
+        assert stamina_forecast_level(16, pct) == stamina_forecast_level(17, pct)
+        assert stamina_forecast_level(1, pct) == stamina_forecast_level(17, pct)
+
+
+def test_ages_inside_the_table_are_untouched_by_the_clamp() -> None:
+    assert stamina_forecast_level(22, 25.0) == 9
+    assert stamina_forecast_level(36, 5.0) == 3
 
 
 def test_higher_training_never_yields_a_worse_level_at_the_same_age() -> None:

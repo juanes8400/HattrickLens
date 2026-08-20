@@ -16,43 +16,20 @@ from typing import Any
 
 from app.domain.engines.position_engine import positions as _positions
 from app.domain.engines.position_engine import rate
+from app.domain.value_objects.formations import (
+    LINE_COUNTS,
+    resolve_split,
+    slots_for,
+)
 
 # Formaciones de Hattrick: (portero, defensas, medios, extremos, delanteros)
+# El catálogo vive en `value_objects/formations.py`: lo comparten este motor y
+# el del once ideal de la liga, para que "5-3-2" signifique lo mismo en las dos
+# pantallas. Aquí se conserva el nombre `FORMATIONS` con el reparto por defecto
+# de cada una, que es lo que usa el ranking de formaciones.
 FORMATIONS: dict[str, list[str]] = {
-    "5-5-0": ["keeper", "wingback", "central_defender", "central_defender",
-              "central_defender", "wingback", "winger", "inner_midfield",
-              "inner_midfield", "inner_midfield", "winger"],
-    "5-4-1": ["keeper", "wingback", "central_defender", "central_defender",
-              "central_defender", "wingback", "winger", "inner_midfield",
-              "inner_midfield", "winger", "forward"],
-    "5-3-2": ["keeper", "wingback", "central_defender", "central_defender",
-              "central_defender", "wingback", "winger", "inner_midfield",
-              "winger", "forward", "forward"],
-    "4-5-1": ["keeper", "wingback", "central_defender", "central_defender",
-              "wingback", "winger", "inner_midfield", "inner_midfield",
-              "inner_midfield", "winger", "forward"],
-    "4-4-2": ["keeper", "wingback", "central_defender", "central_defender",
-              "wingback", "winger", "inner_midfield", "inner_midfield",
-              "winger", "forward", "forward"],
-    "4-3-3": ["keeper", "wingback", "central_defender", "central_defender",
-              "wingback", "inner_midfield", "inner_midfield", "inner_midfield",
-              "winger", "forward", "winger"],
-    "3-5-2": ["keeper", "central_defender", "central_defender", "central_defender",
-              "winger", "inner_midfield", "inner_midfield", "inner_midfield",
-              "winger", "forward", "forward"],
-    "3-4-3": ["keeper", "central_defender", "central_defender", "central_defender",
-              "winger", "inner_midfield", "inner_midfield", "winger",
-              "forward", "forward", "forward"],
+    nombre: slots_for(nombre) for nombre in LINE_COUNTS
 }
-
-# Efecto del clima sobre las especialidades (pantalla Alineación de HC).
-# clave: (especialidad, clima) → multiplicador aproximado del rendimiento
-SPECIALTY_WEATHER: dict[tuple[int, str], float] = {
-    (1, "sun"): 1.05,   (1, "rain"): 0.95,    # Técnico
-    (2, "sun"): 0.97,   (2, "rain"): 0.97,    # Rápido: sufre en ambos extremos
-    (3, "sun"): 0.95,   (3, "rain"): 1.05,    # Potente
-}
-WEATHER = ("rain", "cloudy", "partly", "sun")
 
 # Penalización por saturación posicional — Manual no Escrito (wiki.hattrick.org).
 # Jugar 2 o 3 en la misma posición central resta rendimiento a TODOS los que
@@ -93,7 +70,6 @@ class Lineup:
     assignments: list[Assignment]
     total_rating: float
     bench: list[dict[str, Any]] = field(default_factory=list)
-    weather: str | None = None
 
     @property
     def manual_share(self) -> float:
@@ -156,14 +132,9 @@ def _hungarian(cost: list[list[float]]) -> list[int]:
 def _player_rating(
     player: dict[str, Any],
     position: str,
-    weather: str | None,
     overcrowd: dict[str, float] | None = None,
 ) -> float:
     value = rate(player, position).rating
-    if weather:
-        mult = SPECIALTY_WEATHER.get((player.get("specialty") or 0, weather))
-        if mult:
-            value *= mult
     if overcrowd:
         value *= overcrowd.get(position, 1.0)
     return value
@@ -173,21 +144,31 @@ def best_lineup(
     players: list[dict[str, Any]],
     formation: str = "4-4-2",
     exclude: set[int] | None = None,
-    weather: str | None = None,
+    central_defenders: int | None = None,
+    inner_midfielders: int | None = None,
 ) -> Lineup:
     """Mejor once posible para una formación. HL-121.
 
     `exclude` son ht_player_id a dejar fuera (lesionados, sancionados, vendidos).
-    `weather` ajusta por especialidad si se conoce el pronóstico. HL-123.
+
+    `central_defenders`/`inner_midfielders` son el reparto de cada línea: el
+    nombre de la formación no dice cuántos juegan por dentro, y con tres
+    mediocentros o con uno y dos extremos el once óptimo no es el mismo. Sin
+    ellos se usa el reparto por defecto de la formación.
     """
-    if formation not in FORMATIONS:
+    if formation not in LINE_COUNTS:
         raise KeyError(f"formación desconocida: {formation}")
-    slots = FORMATIONS[formation]
+    slots = slots_for(formation, central_defenders, inner_midfielders)
     exclude = exclude or set()
 
+    # 2026-08-16, corregido a petición del usuario: `InjuryLevel` 0 es
+    # MAGULLADO, y un magullado puede jugar — solo a partir de 1 (semanas de
+    # baja) el jugador está realmente descartado. Excluirlo dejaba fuera del
+    # once a gente perfectamente disponible: el caso que lo destapó fue un
+    # delantero de 15,74 que desapareció del mejor once por un magullón.
     available = [
         p for p in players
-        if p.get("ht_player_id") not in exclude and p.get("injury_level", -1) <= -1
+        if p.get("ht_player_id") not in exclude and p.get("injury_level", -1) < 1
     ]
     if len(available) < len(slots):
         raise ValueError(
@@ -202,7 +183,7 @@ def best_lineup(
     cost = [[0.0] * big for _ in range(big)]
     for i, player in enumerate(available):
         for j, pos in enumerate(slots):
-            cost[i][j] = -_player_rating(player, pos, weather, overcrowd)  # minimizar = maximizar
+            cost[i][j] = -_player_rating(player, pos, overcrowd)  # minimizar = maximizar
 
     matching = _hungarian(cost)
 
@@ -211,7 +192,7 @@ def best_lineup(
     for i, j in enumerate(matching):
         if j < len(slots):
             pos = slots[j]
-            value = _player_rating(available[i], pos, weather, overcrowd)
+            value = _player_rating(available[i], pos, overcrowd)
             assignments.append(
                 Assignment(j, pos, _positions()[pos], available[i], round(value, 2), "config")
             )
@@ -226,20 +207,22 @@ def best_lineup(
         assignments=assignments,
         total_rating=round(sum(a.rating for a in assignments), 2),
         bench=bench[:7],
-        weather=weather,
     )
 
 
 def best_formation(
     players: list[dict[str, Any]],
     exclude: set[int] | None = None,
-    weather: str | None = None,
 ) -> tuple[Lineup, dict[str, float]]:
-    """Prueba las 8 formaciones y devuelve la mejor, con el ranking completo."""
+    """Prueba TODAS las del catálogo y devuelve la mejor, con el ranking.
+
+    Cada una con su reparto por defecto: comparar un 5-3-2 con tres
+    mediocentros contra un 4-4-2 con el suyo no compararía lo mismo.
+    """
     results: dict[str, Lineup] = {}
     for f in FORMATIONS:
         try:
-            results[f] = best_lineup(players, f, exclude, weather)
+            results[f] = best_lineup(players, f, exclude)
         except ValueError:
             continue
     if not results:
@@ -248,14 +231,6 @@ def best_formation(
                sorted(results.items(), key=lambda kv: -kv[1].total_rating)}
     best = results[next(iter(ranking))]
     return best, ranking
-
-
-def weather_impact(players: list[dict[str, Any]], formation: str = "4-4-2") -> dict[str, float]:
-    """Cuánto cambia tu mejor once según el clima. HL-123."""
-    return {
-        w: best_lineup(players, formation, weather=w).total_rating
-        for w in WEATHER
-    }
 
 
 #  Manual no Escrito (wiki.hattrick.org): multiplicador de mediocampo según

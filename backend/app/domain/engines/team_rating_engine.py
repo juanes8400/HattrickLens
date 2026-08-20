@@ -23,10 +23,9 @@ la que hay:
    suman ambas.
 
 2. **Habilidades crudas, sin modificadores de partido.** No se aplica forma,
-   condición, experiencia, clima ni Espíritu de Equipo — esos ya tienen sus
-   propios paneles explorables (Ranking de formaciones, Impacto del clima,
-   Espíritu de Equipo × Actitud). Mezclarlos aquí impediría aislar qué hace
-   la fórmula de contribución en sí.
+   condición, experiencia ni Espíritu de Equipo — esos ya tienen sus propios
+   paneles explorables (Ranking de formaciones, Espíritu de Equipo × Actitud).
+   Mezclarlos aquí impediría aislar qué hace la fórmula de contribución en sí.
 """
 from dataclasses import dataclass
 from typing import Any
@@ -34,7 +33,7 @@ from typing import Any
 SECTORS = ("central_def", "lateral_def", "midfield", "central_att", "lateral_att")
 
 SECTOR_LABELS = {
-    "central_def": "Defensa central",
+    "central_def": "Defensa Central",
     "lateral_def": "Defensa lateral",
     "midfield": "Mediocampo",
     "central_att": "Ataque central",

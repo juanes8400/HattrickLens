@@ -1,8 +1,11 @@
 """Fidelidad: una sola fórmula basada en días desde la compra."""
+from math import floor, sqrt
+
 from app.domain.engines.loyalty_engine import (
     days_for_level,
     loyalty_decimal,
     loyalty_level,
+    loyalty_progress_pct,
     model_info,
 )
 
@@ -55,6 +58,18 @@ def test_decimal_is_the_same_curve_before_floor() -> None:
     assert loyalty_decimal(0) == 1.0
     assert loyalty_decimal(336) == 20.0
     assert loyalty_decimal(10_000) == 20.0
+    for level in range(2, 21):
+        day_before = days_for_level(level) - 1
+        value_before = loyalty_decimal(day_before)
+        assert value_before is not None
+        assert int(value_before) == loyalty_level(day_before)
+
+
+def test_progress_bar_preserves_decimals_from_the_continuous_curve() -> None:
+    raw = 1 + 19 * sqrt(277 / 336)
+    assert loyalty_progress_pct(277) == round((raw - floor(raw)) * 100, 2)
+    assert loyalty_progress_pct(277) != round(loyalty_progress_pct(277) or 0)
+    assert loyalty_progress_pct(336) == 100.0
 
 
 def test_model_info_exposes_formula_and_all_thresholds() -> None:

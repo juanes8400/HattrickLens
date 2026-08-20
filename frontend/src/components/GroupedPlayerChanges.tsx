@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { PlayerLink } from "./PlayerLink";
 import { Empty } from "./Panels";
+import { number } from "../hooks/useFormat";
 
 /**
  * Formato "Hattrick Control" pedido 2026-08-10: jugador por jugador,
@@ -26,14 +27,16 @@ export interface PlayerChangeGroup {
 export interface AggregateMetric {
   key: string;
   label: string;
-  upCount: number;
-  downCount: number;
-  net: number;
+  /** Cuánto sumaron las subidas. Positivo. */
+  upTotal: number;
+  /** Cuánto sumaron las bajadas, como número POSITIVO — el signo lo pone el
+   *  color, no la cifra. */
+  downTotal: number;
 }
 
 function signed(value: number): string {
   if (value === 0) return "0";
-  return `${value > 0 ? "+" : ""}${value}`;
+  return `${value > 0 ? "+" : ""}${number(value)}`;
 }
 
 /** Casos sin un par before/current numérico limpio — se muestran como una
@@ -94,32 +97,50 @@ function PlayerChangeCard({ group }: { group: PlayerChangeGroup }) {
 }
 
 function AggregateCard({ metric }: { metric: AggregateMetric }) {
+  // Las tres líneas miden LO MISMO: cuánto se movió, no cuánta gente se movió.
+  // Subidas suma lo que ganaron los que subieron, Bajadas lo que perdieron los
+  // que bajaron, y el balance es la resta — así los tres números cuadran a
+  // simple vista, que es lo que se espera de una lista de tres cifras.
+  //
+  // Contar cabezas en vez de puntos escondía el tamaño de cada movimiento: un
+  // jugador que cae tres niveles pesaba igual que uno que cae uno. Y en TSI y
+  // Salario, donde la unidad son puntos de índice y dinero, el conteo no decía
+  // nada de lo que de verdad ganó o perdió el club.
+  //
+  // Las bajadas se escriben en positivo; el signo lo pone el color. El balance
+  // sí lo lleva, y en cero se queda con el color de texto normal — un empate no
+  // es buena noticia ni mala.
+  const balance = metric.upTotal - metric.downTotal;
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">{metric.label}</div>
       <dl className="space-y-1 text-sm">
-        {metric.upCount > 0 && (
+        {metric.upTotal > 0 && (
           <div className="flex items-center justify-between">
             <dt className="text-[var(--muted)]">Subidas</dt>
-            <dd className="font-semibold tabular-nums text-[var(--positive)]">{metric.upCount} caso(s)</dd>
+            <dd className="font-semibold tabular-nums text-[var(--positive)]">
+              {number(metric.upTotal)}
+            </dd>
           </div>
         )}
-        {metric.downCount > 0 && (
+        {metric.downTotal > 0 && (
           <div className="flex items-center justify-between">
             <dt className="text-[var(--muted)]">Bajadas</dt>
-            <dd className="font-semibold tabular-nums text-[var(--danger)]">{metric.downCount} caso(s)</dd>
+            <dd className="font-semibold tabular-nums text-[var(--danger)]">
+              {number(metric.downTotal)}
+            </dd>
           </div>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-[var(--border)] pt-1">
           <dt className="text-[var(--muted)]">Balance</dt>
           <dd
             className={clsx(
               "font-semibold tabular-nums",
-              metric.net > 0 && "text-[var(--positive)]",
-              metric.net < 0 && "text-[var(--danger)]",
+              balance > 0 && "text-[var(--positive)]",
+              balance < 0 && "text-[var(--danger)]",
             )}
           >
-            {signed(metric.net)}
+            {signed(balance)}
           </dd>
         </div>
       </dl>
@@ -136,7 +157,9 @@ export function GroupedPlayerChanges({
   aggregate: AggregateMetric[];
   emptyMessage: string;
 }) {
-  const visibleAggregate = aggregate.filter((metric) => metric.upCount > 0 || metric.downCount > 0);
+  const visibleAggregate = aggregate.filter(
+    (metric) => metric.upTotal > 0 || metric.downTotal > 0,
+  );
 
   if (groups.length === 0) {
     return <Empty>{emptyMessage}</Empty>;

@@ -73,6 +73,9 @@ disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "seguridad: comprueba el aislamiento entre usuarios, con las dependencias reales",
+]
 
 [tool.importlinter]
 root_package = "app"

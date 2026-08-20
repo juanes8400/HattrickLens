@@ -49,7 +49,26 @@ def test_unrevealed_skills_are_flagged() -> None:
         scoring=(5, None), passing=(4, None), defending=(3, None),
     ))
     assert e.revealed_skills == 0
-    assert "techo real" in e.promote_advice
+    assert "no ha revelado nada" in e.promote_advice
+    # 2026-08-15: sin NINGÚN techo revelado no se nombra una "mejor
+    # habilidad". Antes el motor elegía la primera del diccionario usando el
+    # techo asumido (8 para todas, así que empataban) y la pantalla lo
+    # mostraba como si el ojeador lo hubiera dicho.
+    assert e.best_skill == ""
+    assert e.best_skill_max is None
+    # Aun así no se le degrada a "fontanero" por ignorancia: la categoría usa
+    # el techo asumido y `revealed_skills` avisa de que es provisional.
+    assert e.category is not Category.PLUMBER
+
+
+def test_best_skill_only_comes_from_revealed_ceilings() -> None:
+    """Con un techo revelado y el resto a oscuras, la mejor habilidad es la
+    revelada — aunque otra tenga un nivel actual más alto."""
+    e = evaluate("Mixto", 16, 0, _skills(
+        scoring=(9, None), passing=(2, 6),
+    ))
+    assert e.best_skill == "passing"
+    assert e.best_skill_max == 6
 
 
 def test_ranking_orders_by_potential() -> None:
@@ -69,22 +88,35 @@ def test_ready_to_promote_at_seventeen() -> None:
 
 def test_academy_roi_with_the_real_numbers() -> None:
     """Caso real: 20.000/semana desde la temporada 47, sin ventas registradas."""
-    r = academy_roi(weekly_investment=20_000, weeks_invested=562, sales_income=0)
+    r = academy_roi(invested=11_240_000, weeks_invested=562, sales_income=0)
     assert r.invested == 11_240_000
     assert r.net == -11_240_000
     assert "pérdidas" in r.verdict
     assert r.seasons == 35
 
 
+def test_academy_roi_takes_the_investment_already_summed_week_by_week() -> None:
+    """2026-08-16, pedido explícitamente: el total NO se reconstruye
+    multiplicando el coste semanal de hoy. Si la inversión juvenil cambió a
+    mitad de camino, multiplicar reescribe el pasado con el precio actual —
+    aquí 3 semanas a 10.000 y 2 a 20.000 son 70.000, no 5 × 20.000."""
+    r = academy_roi(
+        invested=70_000, weeks_invested=5, sales_income=0, weekly_investment=20_000
+    )
+    assert r.invested == 70_000
+    assert r.weekly_cost == 20_000  # sólo para mostrar "X por semana"
+    assert r.net == -70_000
+
+
 def test_academy_roi_computes_sales_needed_to_break_even() -> None:
-    r = academy_roi(20_000, 100, sales_income=500_000, average_sale_price=300_000)
+    r = academy_roi(2_000_000, 100, sales_income=500_000, average_sale_price=300_000)
     assert r.net == -1_500_000
     assert r.break_even_sales == 5
     assert "5 venta" in r.verdict
 
 
 def test_profitable_academy() -> None:
-    r = academy_roi(20_000, 100, sales_income=5_000_000)
+    r = academy_roi(2_000_000, 100, sales_income=5_000_000)
     assert r.net > 0
     assert "rentable" in r.verdict
 

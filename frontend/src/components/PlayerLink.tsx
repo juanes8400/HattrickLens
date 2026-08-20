@@ -9,14 +9,22 @@ import { Link } from "react-router-dom";
 export function PlayerLink({
   htPlayerId,
   name,
+  onDark = false,
 }: {
   htPlayerId: number;
   name: string;
+  /** Sobre el verde de la cancha: el color de texto del tema es casi negro y
+   *  ahí no se lee. Reportado el 2026-08-19 en Alineación. */
+  onDark?: boolean;
 }) {
   return (
     <Link
       to={`/players/${htPlayerId}`}
-      className="text-[var(--text)] underline decoration-[var(--border)] underline-offset-2 hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
+      className={
+        onDark
+          ? "text-white underline decoration-white/30 underline-offset-2 hover:decoration-white"
+          : "text-[var(--text)] underline decoration-[var(--border)] underline-offset-2 hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
+      }
     >
       {name}
     </Link>
