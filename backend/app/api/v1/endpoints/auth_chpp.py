@@ -5,6 +5,7 @@ Ver docs/04-chpp-sync.md para el diagrama de secuencia completo, y
 docs/spec/CORRECTIONS.md #1 para por qué es OAuth 1.0a y no OAuth2.
 """
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
