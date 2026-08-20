@@ -7,6 +7,8 @@ docs/spec/CORRECTIONS.md #1 para por qué es OAuth 1.0a y no OAuth2.
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -60,9 +62,51 @@ def _set_session_cookies(response: Response, user_id: int) -> None:
 @router.get("/connect")
 async def connect() -> dict[str, str]:
     """Arranca el baile: pide un request token y devuelve la URL de Hattrick
-    donde el usuario inicia sesión y autoriza HT Lens."""
+    donde el usuario inicia sesión y autoriza HT Lens.
+
+    Los fallos se cuentan en vez de reventar con un 500 pelado: la pantalla de
+    bienvenida enseña el `detail` cuando es texto, y sin él lo único que veía
+    quien intentaba conectarse era "inténtalo de nuevo en unos segundos", que
+    no es cierto ni ayuda si lo que pasa es que faltan las claves.
+    """
+    if not settings.chpp_consumer_key or not settings.chpp_consumer_secret:
+        raise HTTPException(
+            503,
+            "Esta instalación todavía no tiene las claves de Hattrick "
+            "configuradas, así que no puede conectar con ninguna cuenta. "
+            "Es cosa de quien la administra, no tuya.",
+        )
+    if not settings.chpp_callback_url:
+        raise HTTPException(
+            503,
+            "Falta la URL de retorno de Hattrick en la configuración; sin "
+            "ella la autorización no puede volver aquí.",
+        )
+
     dance = CHPPOAuthDance()
-    url, token, secret = await dance.get_authorize_url()
+    try:
+        url, token, secret = await dance.get_authorize_url()
+    except httpx.TimeoutException as exc:
+        raise HTTPException(
+            504,
+            "Hattrick tardó demasiado en responder. Suele ser pasajero: "
+            "espera un momento y vuelve a intentarlo.",
+        ) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            502, f"No se pudo hablar con Hattrick: {exc.__class__.__name__}."
+        ) from exc
+    except Exception as exc:
+        # El caso típico: Hattrick rechaza las claves (401 en request_token) o
+        # la URL de retorno registrada no coincide con la de la configuración.
+        raise HTTPException(
+            502,
+            "Hattrick rechazó la petición de conexión. Lo habitual es que las "
+            "claves de la aplicación no sean válidas o que la URL de retorno "
+            f"registrada en CHPP no coincida con {settings.chpp_callback_url} "
+            f"({exc.__class__.__name__}).",
+        ) from exc
+
     _pending[token] = secret
     return {"authorizeUrl": url}
 
