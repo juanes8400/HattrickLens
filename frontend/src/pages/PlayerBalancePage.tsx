@@ -1360,6 +1360,26 @@ function BalanceTable({
       ),
     },
     {
+      key: "gamesWithUs",
+      header: "Partidos con nosotros",
+      align: "right",
+      // Fija la comisión que nos toca si alguien lo revende. "?" mientras el
+      // censo no haya pasado por él: contarlo exige leer la alineación de
+      // cada partido de su etapa.
+      value: (r) => (typeof r.gamesWithUs === "number" ? r.gamesWithUs : -1),
+      render: (r) =>
+        typeof r.gamesWithUs === "number" ? (
+          <span className="tabular-nums">{r.gamesWithUs}</span>
+        ) : (
+          <span
+            className="text-[var(--muted)]"
+            title="Sin contar todavía. Se cuenta desde Sincronización › Transferencias, una sola vez por jugador."
+          >
+            ?
+          </span>
+        ),
+    },
+    {
       key: "salaryTotal",
       header: "Salario acum.",
       align: "right",

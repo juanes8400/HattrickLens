@@ -786,6 +786,38 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
               )}
             </dd>
           </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-[var(--muted)]">Partidos jugados con nosotros</dt>
+            <dd className="tabular-nums">
+              {data.gamesWithUs != null ? (
+                data.gamesWithUs
+              ) : (
+                <span
+                  className="text-[var(--muted)]"
+                  title="Contarlos exige leer la alineación de cada partido de su etapa. Se hace desde Sincronización › Transferencias, una sola vez por jugador."
+                >
+                  sin contar
+                </span>
+              )}
+            </dd>
+          </div>
+          {data.resaleClosed && (
+            <div className="flex justify-between gap-3">
+              <dt className="text-[var(--muted)]">Comisión futura</dt>
+              <dd
+                className="text-[var(--muted)]"
+                title={
+                  data.resaleClosedReason === "revendido"
+                    ? "El club que te lo compró ya lo revendió: esa comisión se cobró y no habrá otra."
+                    : data.resaleClosedReason === "despedido"
+                      ? "Ya no existe en Hattrick, así que nadie volverá a venderlo."
+                      : "Salió sin comprador, así que nunca hubo club anterior al que pagarle."
+                }
+              >
+                ya no
+              </dd>
+            </div>
+          )}
         </dl>
       </Panel>
 

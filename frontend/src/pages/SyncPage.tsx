@@ -82,6 +82,11 @@ export function SyncPage() {
     const inicio = pendientes.data?.pending ?? 0;
     if (inicio === 0) return;
     pararRef.current = false;
+    // Una pulsación es UNA pasada. La vigilancia de reventas no se agota sola
+    // —un ex-jugador sin vender puede dar dinero mañana—, así que el corte lo
+    // marca este instante: quien ya se revisó después de él no vuelve a la
+    // cola hasta que pulses otra vez.
+    const pulsacion = new Date().toISOString();
     setRellenando(true);
     setRelleno({ total: inicio, hechos: 0, quedan: inicio, error: null });
     let hechos = 0;
@@ -92,7 +97,7 @@ export function SyncPage() {
       let quedabanAntes = inicio;
       for (;;) {
         if (pararRef.current) break;
-        const lote = await api.runBackfillBatch(TEAM_ID);
+        const lote = await api.runBackfillBatch(TEAM_ID, pulsacion);
         hechos += lote.done;
         setRelleno({
           total: inicio,

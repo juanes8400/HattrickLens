@@ -235,6 +235,12 @@ class PlayerBalanceRow:
     # conoce por el historial de transferencias, asi que su coste de
     # salarios es 0 por ignorancia y el saldo sale mejor de lo que fue. La
     # tabla pone «?» en vez de un cero que parece calculado.
+    # Partidos que jugo de verdad con nosotros (al menos un minuto). Sale del
+    # censo del stint, que es una alineacion por partido y por eso se hace una
+    # sola vez. "?" mientras no se haya hecho: no se estima con lo que haya
+    # suelto, porque `player_match_ratings` solo guarda el ultimo partido de
+    # cada sync y daria un numero mucho menor que el real.
+    games_with_us: int | str = "?"
     salary_known: bool = True
 
 
@@ -739,6 +745,10 @@ class PlayerBalanceQueryService:
                     sold_at=effective_sold_at.isoformat() if effective_sold_at else None,
                     salary_total=balance.salary_total,
                     salary_known=balance.salary_known,
+                    games_with_us=(
+                        p.stint_games_played
+                        if p.stint_games_played is not None else "?"
+                    ),
                     salary_breakdown=salary_breakdown_rows,
                     listing_count=p.listing_count,
                     listing_attempts=listing_attempts_by_player.get(p.id, []),

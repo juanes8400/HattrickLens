@@ -1622,13 +1622,19 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
             await u.session.commit()
 
         handler = SyncTeamHandler(uow, chpp)
+        # Una pulsación = una pasada. La vigilancia de reventas no se agota
+        # sola (un ex-jugador sin vender sigue pudiendo dar dinero mañana), así
+        # que el corte lo marca el momento en que se pulsó.
+        pulsacion = datetime.now(UTC).replace(tzinfo=None)
 
-        # La primera pulsación recorre además el historial, que es lo que crea
+        # La primera vuelta recorre además el historial, que es lo que crea
         # las fichas de quienes esta app nunca vio: la cola crece antes de
         # empezar a bajar.
         vueltas = 0
         lote = await handler.execute_backfill_batch(
-            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=1)
+            SyncBackfillBatchCommand(
+                user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
+            )
         )
         assert lote.pages_fetched >= 1, "la primera vuelta recorre el historial"
         assert lote.players_done == 1
@@ -1636,14 +1642,18 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
         while lote.players_pending > 0 and vueltas < 50:
             vueltas += 1
             lote = await handler.execute_backfill_batch(
-                SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=1)
+                SyncBackfillBatchCommand(
+                    user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
+                )
             )
         assert lote.players_pending == 0, "el trabajo se agota"
 
         # Y una vuelta más deja la cuenta en cero otra vez, sin volver a
         # recorrer el historial: eso se hizo una vez y no se repite.
         sobrante = await handler.execute_backfill_batch(
-            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
+            SyncBackfillBatchCommand(
+                user_id=1, team_id=team_id, limite=40, revisar_desde=pulsacion,
+            )
         )
         assert sobrante.players_pending == 0
         assert sobrante.pages_fetched == 0

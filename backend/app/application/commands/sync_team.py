@@ -307,6 +307,11 @@ class SyncBackfillBatchCommand:
     user_id: int
     team_id: int
     limite: int
+    # Momento en que el usuario pulso. La vigilancia de reventas no se agota
+    # nunca -un ex-jugador sin vender sigue pudiendo darnos dinero manana-, asi
+    # que "una pulsacion" se define como UNA pasada: quien ya se reviso despues
+    # de esta marca no vuelve a la cola hasta la siguiente.
+    revisar_desde: datetime | None = None
 
 
 @dataclass
@@ -515,12 +520,21 @@ class SyncTeamHandler:
                 await self._recorrer_historial(uow, cmd.user_id, cmd.team_id, equipo, result)
 
             result.players_done = await self._backfill_sold_player_details(
-                uow, cmd.team_id, fetched_at, result, on_progress, limite=cmd.limite
+                uow, cmd.team_id, fetched_at, result, on_progress,
+                limite=cmd.limite, revisar_desde=cmd.revisar_desde,
             )
-            quedan = await self.pendientes_de_ficha(uow, cmd.team_id)
-            result.players_pending = len(
-                set(quedan["ficha"]) | set(quedan["precio"]) | set(quedan["destino"])
+            quedan = await self.pendientes_de_ficha(
+                uow, cmd.team_id, cmd.revisar_desde
             )
+            # La union de TODAS las colas, sin nombrarlas una a una: nombrarlas
+            # ya costo un fallo -al anadir el censo y la vigilancia, esta
+            # cuenta se quedo mirando solo las tres viejas y devolvia 0, con lo
+            # que la pantalla paraba tras el primer lote creyendo haber
+            # terminado.
+            pendientes_unicos: set[int] = set()
+            for cola in quedan.values():
+                pendientes_unicos |= set(cola)
+            result.players_pending = len(pendientes_unicos)
 
             await uow.syncs.finalize(
                 sync_id, status=result.status, error="; ".join(result.errors) or None,
@@ -529,7 +543,7 @@ class SyncTeamHandler:
         return result
 
     async def pendientes_de_ficha(
-        self, uow: UnitOfWork, team_id: int
+        self, uow: UnitOfWork, team_id: int, revisar_desde: datetime | None = None,
     ) -> dict[str, list[int]]:
         """Qué le falta por descargar a cada jugador, agrupado por tipo.
 
@@ -616,10 +630,18 @@ class SyncTeamHandler:
         )
         # La vigilancia de reventas: se repite hasta que el jugador queda
         # cerrado, y entonces desaparece de la cola para siempre.
-        reventa = await ids(
+        vigilancia = (
             (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
             & (~m.Player.resale_closed)
         )
+        if revisar_desde is not None:
+            # Ya revisado en esta misma pasada: fuera de la cola hasta la
+            # siguiente pulsacion.
+            vigilancia = vigilancia & (
+                m.Player.previous_club_bonus_checked_at.is_(None)
+                | (m.Player.previous_club_bonus_checked_at < revisar_desde)
+            )
+        reventa = await ids(vigilancia)
         return {
             "ficha": ficha, "precio": precio, "destino": destino,
             "censo": censo, "reventa": reventa,
@@ -633,6 +655,7 @@ class SyncTeamHandler:
         result: SyncResult,
         on_progress: ProgressReporter | None = None,
         limite: int | None = None,
+        revisar_desde: datetime | None = None,
     ) -> int:
         """Rellena lo que le falta a cada jugador, de a un lote.
 
@@ -647,7 +670,7 @@ class SyncTeamHandler:
         lo que le falte antes de pasar al siguiente, para que nunca quede una
         ficha a medias.
         """
-        pendientes = await self.pendientes_de_ficha(uow, team_id)
+        pendientes = await self.pendientes_de_ficha(uow, team_id, revisar_desde)
         ficha = set(pendientes["ficha"])
         precio = set(pendientes["precio"])
         destino = set(pendientes["destino"])
@@ -2127,11 +2150,19 @@ class SyncTeamHandler:
             jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
             return False
 
-        jugador.stint_games_played = await self._games_played_for_us(
-            equipo.ht_team_id, ht_player_id, jugador.purchased_at, salida,
-        )
-        jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
-        return True
+        # La marca se pone pase lo que pase. El recorrido es "una vez por
+        # jugador, para siempre", asi que si Hattrick falla a mitad no se
+        # vuelve a intentar en el siguiente lote: se quedaria en la cola para
+        # siempre y el trabajo no se agotaria nunca. Sin cuenta, la ficha
+        # ensena "?" en vez de un cero que parecería contado.
+        try:
+            jugador.stint_games_played = await self._games_played_for_us(
+                equipo.ht_team_id, ht_player_id, jugador.purchased_at, salida,
+            )
+            contado = True
+        finally:
+            jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
+        return contado
 
     async def _vigilar_reventa(
         self, uow: UnitOfWork, team_id: int, ht_player_id: int,

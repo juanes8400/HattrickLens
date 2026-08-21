@@ -2,6 +2,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -869,6 +870,14 @@ async def backfill_run(
         BACKFILL_BATCH_SIZE, ge=1, le=MAX_BACKFILL_BATCH,
         description="Cuántos jugadores atender en este lote",
     ),
+    since: datetime | None = Query(
+        None,
+        description=(
+            "Momento en que el usuario pulsó. Acota la vigilancia de reventas "
+            "a una sola pasada: quien ya se revisó después de esa marca no "
+            "vuelve a la cola hasta la siguiente pulsación."
+        ),
+    ),
 ) -> dict[str, Any]:
     """Un lote y para. De cada jugador se descarga TODO lo que le falte antes
     de pasar al siguiente, para que ninguna ficha quede a medias, y se
@@ -889,7 +898,10 @@ async def backfill_run(
     try:
         handler = SyncTeamHandler(SqlAlchemyUnitOfWork(SessionLocal), client)
         result = await handler.execute_backfill_batch(
-            SyncBackfillBatchCommand(user_id=user.id, team_id=team_id, limite=batch)
+            SyncBackfillBatchCommand(
+                user_id=user.id, team_id=team_id, limite=batch,
+                revisar_desde=since.replace(tzinfo=None) if since else None,
+            )
         )
     except CHPPAuthError as exc:
         token_row.status = "revoked"

@@ -153,6 +153,13 @@ async def player_detail(
                 ex_player.left_team_at.isoformat() if ex_player.left_team_at else None
             ),
             "soldAt": ex_player.sold_at.isoformat() if ex_player.sold_at else None,
+            # Partidos que jugó de verdad con nosotros. None mientras el censo
+            # no haya pasado por él: es una alineación por partido, así que la
+            # pantalla dice "sin contar" en vez de inventar un cero.
+            "gamesWithUs": ex_player.stint_games_played,
+            # Si ya no puede darnos nada más, y por qué.
+            "resaleClosed": ex_player.resale_closed,
+            "resaleClosedReason": ex_player.resale_closed_reason,
         }
     rate_ = team.currency_rate or 1.0
     htms_ahora = htms_motor.de_habilidades(

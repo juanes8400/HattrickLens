@@ -215,9 +215,14 @@ export const api = {
   /** Cuantas fichas quedan por descargar. No llama a Hattrick: solo lee la base. */
   backfillPending: (teamId: number) =>
     request<BackfillPending>(`/teams/${teamId}/backfill`),
-  /** Un lote y para. Devuelve cuantos atendio y cuantos quedan. */
-  runBackfillBatch: (teamId: number) =>
-    request<BackfillBatchResult>(`/teams/${teamId}/backfill/run`, { method: "POST" }),
+  /** Un lote y para. Devuelve cuantos atendio y cuantos quedan.
+   *  `since` es el momento en que se pulso: acota la vigilancia de reventas a
+   *  una sola pasada, porque esa cola no se agota sola. */
+  runBackfillBatch: (teamId: number, since?: string) =>
+    request<BackfillBatchResult>(
+      `/teams/${teamId}/backfill/run${since ? `?since=${encodeURIComponent(since)}` : ""}`,
+      { method: "POST" },
+    ),
   setManualPurchasePrice: (
     teamId: number,
     htPlayerId: number,
@@ -694,6 +699,11 @@ export interface ExPlayerDetail {
   purchasedAt: string | null;
   leftTeamAt: string | null;
   soldAt: string | null;
+  /** Partidos que jugo de verdad con nosotros. null = todavia sin contar. */
+  gamesWithUs: number | null;
+  /** Ya no puede darnos comision, y por que. */
+  resaleClosed: boolean;
+  resaleClosedReason: string | null;
 }
 
 export interface ActivePlayerDetail {
@@ -1837,6 +1847,8 @@ export interface PlayerBalanceRow {
   salaryTotal: number;
   /** False cuando no hay ningun salario guardado del jugador: el 0
    *  de salaryTotal es ignorancia, no un calculo. */
+  /** Partidos que jugo de verdad con nosotros; "?" si aun no se conto. */
+  gamesWithUs: number | string;
   salaryKnown: boolean;
   salaryBreakdown: { weeks: number; salary: number; season: string }[];
   listingCount: number;
