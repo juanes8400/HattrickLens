@@ -117,6 +117,12 @@ class PlayerBalance:
     resale_bonus_share: float
     saldo: float | None      # None si no se conoce el precio de compra
     is_sold: bool
+    # False cuando de ese jugador no se guardó NUNCA un salario: pasó por el
+    # club antes de que la app lo viera y solo se conoce por el historial de
+    # transferencias. Entonces `salary_total` es 0 por ignorancia, no porque
+    # no cobrara, y el saldo sale mejor de lo que fue. Se marca en vez de
+    # inventar una cifra, que es la regla del resto de la app.
+    salary_known: bool = True
 
 
 def weeks_owned(purchased_at: datetime, end: datetime) -> int:
@@ -192,4 +198,6 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         net_sale_proceeds=net_sale_proceeds,
         resale_bonus_share=record.resale_bonus_share,
         saldo=round(saldo), is_sold=is_sold,
+        # Sin un solo salario guardado no se sabe cuánto costó tenerlo.
+        salary_known=bool(record.salary_history),
     )

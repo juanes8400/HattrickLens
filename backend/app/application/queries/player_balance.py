@@ -231,6 +231,11 @@ class PlayerBalanceRow:
     # cuenta como venta a $0 (no "sigue en la plantilla" ni "desconocido").
     # Este flag distingue esa venta sintética de una venta real en la UI.
     is_departure_without_sale: bool
+    # False cuando de ese jugador no se guardo NUNCA un salario: solo se
+    # conoce por el historial de transferencias, asi que su coste de
+    # salarios es 0 por ignorancia y el saldo sale mejor de lo que fue. La
+    # tabla pone «?» en vez de un cero que parece calculado.
+    salary_known: bool = True
 
 
 def _build_breakdowns(sold_rows: list[PlayerBalanceRow]) -> dict[str, dict[str, float]]:
@@ -732,6 +737,7 @@ class PlayerBalanceQueryService:
                     sale_price=effective_sale_price,
                     sold_at=effective_sold_at.isoformat() if effective_sold_at else None,
                     salary_total=balance.salary_total,
+                    salary_known=balance.salary_known,
                     salary_breakdown=salary_breakdown_rows,
                     listing_count=p.listing_count,
                     listing_attempts=listing_attempts_by_player.get(p.id, []),

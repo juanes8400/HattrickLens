@@ -155,6 +155,13 @@ class Team(Base):
     # reciente a más vieja, un re-sync puede parar en cuanto encuentra un
     # TransferID <= esta marca en vez de volver a pedir las ~40 páginas.
     last_transfer_id_seen: Mapped[int | None] = mapped_column(BigInteger)
+    # True solo cuando alguna vez se recorrio la historia ENTERA sin
+    # errores. Sin esto, un primer intento que se corta a la mitad deja la
+    # marca de agua apuntando a lo mas reciente y la app cree para siempre
+    # que ya tiene todo, sin forma de recuperar lo anterior.
+    transfers_history_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
 
 
 class Player(Base):

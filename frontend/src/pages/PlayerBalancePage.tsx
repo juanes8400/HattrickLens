@@ -1364,9 +1364,20 @@ function BalanceTable({
       header: "Salario acum.",
       align: "right",
       value: (r) => r.salaryTotal,
-      render: (r) => (
-        <span className="tabular-nums">{money(r.salaryTotal, currency)}</span>
-      ),
+      // Un jugador que pasó por el club antes de que la app lo viera no tiene
+      // ni un salario guardado: su coste sale 0 por ignorancia, no porque no
+      // cobrara. Se marca con "?" para que no parezca una cifra calculada.
+      render: (r) =>
+        r.salaryKnown ? (
+          <span className="tabular-nums">{money(r.salaryTotal, currency)}</span>
+        ) : (
+          <span
+            className="text-[var(--muted)]"
+            title="No hay ningún salario guardado de este jugador: llegó y salió antes de que la app lo viera, así que su coste de salarios no se puede calcular y el saldo sale mejor de lo que fue."
+          >
+            ?
+          </span>
+        ),
     },
     {
       key: "salePrice",

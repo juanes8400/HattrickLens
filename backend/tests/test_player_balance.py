@@ -623,13 +623,17 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
     """Segunda vez: la marca de agua (`last_transfer_id_seen`) ya está en
     300 — la página 1 completa ya es "conocida", así que ni siquiera debe
     pedirse la página 2 (pedido explícitamente: "no debe hacer fetch en
-    todo de nuevo sino en lo que pueda o no faltarle")."""
+    todo de nuevo sino en lo que pueda o no faltarle").
+
+    Desde 2026-08-21 hace falta además `transfers_history_complete`: una marca
+    suelta ya no basta, porque podría venir de un recorrido que se cortó."""
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
             team = await u.session.get(m.Team, team_id)
             team.ht_team_id = 537758
             team.last_transfer_id_seen = 300
+            team.transfers_history_complete = True
             await u.session.commit()
 
         chpp = FakeTransfersHistoryCHPP()
@@ -1352,3 +1356,83 @@ def test_promoting_a_youth_costs_money_and_it_lands_in_his_balance() -> None:
     assert gratis is not None and con_coste is not None
     # La diferencia es exactamente lo que cuesta el ascenso, ni más ni menos.
     assert gratis - con_coste == 2_000
+
+
+def test_a_failed_first_history_run_does_not_mark_the_past_as_already_seen() -> None:
+    """2026-08-21, con la app publicada: un usuario estrenando la herramienta
+    veía Transferencias vacía salvo una operación reciente, y volver a pulsar
+    el botón no arreglaba nada.
+
+    Su primer recorrido se cortó a la mitad, pero la marca de agua se guardaba
+    igual, apuntando a lo más reciente. Desde entonces cada intento leía la
+    primera página, reconocía esa marca y concluía que ya estaba al día: el
+    hueco de temporadas anteriores no se rellenaba nunca.
+    """
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            await u.session.commit()
+
+        class CHPPQueSeCaeEnLaSegundaPagina(FakeTransfersHistoryCHPP):
+            async def fetch(self, file: str, version: str = "latest", **params: object):
+                if params.get("pageIndex") == 2:
+                    raise RuntimeError("Hattrick se cayó a mitad del recorrido")
+                return await super().fetch(file, version, **params)
+
+        handler = SyncTeamHandler(uow, CHPPQueSeCaeEnLaSegundaPagina())
+        roto = await handler.execute_transfers_history(
+            SyncTransfersHistoryCommand(user_id=1, team_id=team_id, ht_team_id=537758)
+        )
+        assert roto.status == "partial"
+
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            assert team.transfers_history_complete is False
+            # Lo importante: no puede quedar diciendo que ya vio la historia.
+            assert team.last_transfer_id_seen is None
+
+        # Y al siguiente intento, con Hattrick sano, se recorre entera.
+        sano = SyncTeamHandler(uow, FakeTransfersHistoryCHPP())
+        segundo = await sano.execute_transfers_history(
+            SyncTransfersHistoryCommand(user_id=1, team_id=team_id, ht_team_id=537758)
+        )
+        assert segundo.status == "completed"
+        assert segundo.pages_fetched == 2
+        assert segundo.transfers_new == 3
+
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            assert team.transfers_history_complete is True
+            assert team.last_transfer_id_seen == 300
+
+    asyncio.run(run())
+
+
+def test_the_watermark_is_only_trusted_once_the_history_is_known_to_be_whole() -> None:
+    """Una marca de agua heredada de un recorrido incompleto no debe frenar
+    nada: es justo el estado en el que quedaron los primeros usuarios."""
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            # Marca envenenada: apunta al final, pero nunca se recorrió todo.
+            team.last_transfer_id_seen = 300
+            team.transfers_history_complete = False
+            await u.session.commit()
+
+        chpp = FakeTransfersHistoryCHPP()
+        result = await SyncTeamHandler(uow, chpp).execute_transfers_history(
+            SyncTransfersHistoryCommand(user_id=1, team_id=team_id, ht_team_id=537758)
+        )
+        # Se ignora la marca y se recorre la historia entera.
+        assert result.pages_fetched == 2
+        assert result.transfers_new == 3
+
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            assert team.transfers_history_complete is True
+
+    asyncio.run(run())

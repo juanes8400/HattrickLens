@@ -3145,8 +3145,15 @@ class SyncTeamHandler:
             result = SyncResult(sync_id=sync_id, status="completed")
 
             team = await uow.session.get(m.Team, cmd.team_id)
-            watermark = team.last_transfer_id_seen if team is not None else None
+            # La marca de agua solo vale si alguna vez se recorrió la historia
+            # ENTERA. Si el primer intento se quedó a medias, la marca apunta a
+            # lo más reciente y haría creer que ya está todo, dejando fuera
+            # para siempre lo anterior. En ese caso se ignora y se empieza de
+            # cero, que es lo único que rellena el hueco.
+            completa = bool(team is not None and team.transfers_history_complete)
+            watermark = team.last_transfer_id_seen if (team is not None and completa) else None
             highest_seen = watermark or 0
+            recorrido_entero = False
 
             try:
                 page = 1
@@ -3168,7 +3175,10 @@ class SyncTeamHandler:
 
                     page_transfers = payload.get("transfers", [])
                     if not page_transfers:
-                        break  # página vacía más allá del final real (visto en vivo)
+                        # Página vacía más allá del final real (visto en vivo):
+                        # también es haber llegado al final de la historia.
+                        recorrido_entero = True
+                        break
 
                     own_transfers = [
                         t for t in page_transfers
@@ -3218,14 +3228,27 @@ class SyncTeamHandler:
                             highest_seen = max(highest_seen, t.get("ht_transfer_id", 0))
 
                     if reached_known:
+                        recorrido_entero = True
                         break
                     page += 1
+                else:
+                    # Se acabaron las páginas sin encontrar nada conocido:
+                    # también es haber llegado al final de la historia.
+                    recorrido_entero = True
             except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                 result.errors.append(f"transfers_history: {exc}")
                 result.status = "partial"
 
-            if team is not None and highest_seen > (watermark or 0):
-                team.last_transfer_id_seen = highest_seen
+            # La marca solo avanza si el recorrido llegó de verdad al final y
+            # sin errores. Un intento que se cortó a la mitad no puede decir
+            # "ya lo he visto todo hasta aquí": eso fue lo que dejó a los
+            # primeros usuarios con Transferencias vacía y sin forma de
+            # recuperarla, porque cada clic siguiente se paraba en la primera
+            # página creyendo estar al día.
+            if team is not None and recorrido_entero and not result.errors:
+                if highest_seen > (team.last_transfer_id_seen or 0):
+                    team.last_transfer_id_seen = highest_seen
+                team.transfers_history_complete = True
 
             await uow.syncs.finalize(
                 sync_id, status=result.status, error="; ".join(result.errors) or None,

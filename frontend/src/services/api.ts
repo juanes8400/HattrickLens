@@ -1805,6 +1805,9 @@ export interface PlayerBalanceRow {
   salePrice: number | null;
   soldAt: string | null;
   salaryTotal: number;
+  /** False cuando no hay ningun salario guardado del jugador: el 0
+   *  de salaryTotal es ignorancia, no un calculo. */
+  salaryKnown: boolean;
   salaryBreakdown: { weeks: number; salary: number; season: string }[];
   listingCount: number;
   listingAttempts: { highestBid: number | null; detectedAt: string }[];
