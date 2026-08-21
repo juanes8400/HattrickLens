@@ -61,6 +61,11 @@ class SquadPlayer(Base):
     career_caps: int | None
     career_caps_u20: int | None
     skills: dict[str, int]
+    # HTMS: valor acumulado de las siete habilidades segun la tabla de la
+    # comunidad; HTMS28, lo que tendria a los 28 entrenando sin parar. Se
+    # calculan aqui para dar el mismo numero que Foxtrick sin llamar a nadie.
+    htms: int = 0
+    htms28: int = 0
     # Diferencias contra el snapshot elegido. Se calculan en el servidor a
     # partir de player_snapshots; la tabla no interpreta textos de novedades.
     deltas: dict[str, int] = {}

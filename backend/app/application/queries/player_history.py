@@ -32,6 +32,7 @@ from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_YOUTH_LEAGUE,
     NON_OFFICIAL_MATCH_TYPES,
 )
+from app.domain.engines import htms as motor_htms
 from app.infrastructure.db import models as m
 
 # match_type real (Match.match_type) → categoría de experience_engine.
@@ -106,7 +107,21 @@ class SnapshotPoint:
     tsi: int
     salary: int
     skills: dict[str, int]
+    # HTMS de ESE momento: se recalcula por snapshot en vez de guardarse, para
+    # que un cambio en la tabla se refleje en todo el historial de golpe.
+    htms: int = 0
+    htms28: int = 0
 
+
+
+def _htms(snap: m.PlayerSnapshot) -> motor_htms.Htms:
+    """HTMS del snapshot, con las habilidades tal como estaban ese día."""
+    return motor_htms.de_habilidades(
+        snap.age_years, snap.age_days,
+        keeper=snap.keeper, defending=snap.defending, playmaking=snap.playmaking,
+        winger=snap.winger, passing=snap.passing, scoring=snap.scoring,
+        set_pieces=snap.set_pieces,
+    )
 
 @dataclass
 class MatchRatingPoint:
@@ -142,15 +157,19 @@ class PlayerHistoryQueryService:
         rows = latest_per_iso_week(
             (await self._s.execute(stmt)).scalars().all(), lambda row: row.captured_at
         )
-        points = [
-            SnapshotPoint(
-                captured_at=snap.captured_at.isoformat(),
-                age_years=snap.age_years, age_days=snap.age_days,
-                tsi=snap.tsi, salary=snap.salary,
-                skills={c: getattr(snap, c) or 0 for c in HISTORY_SKILL_COLS},
+        points = []
+        for snap in rows:
+            valor = _htms(snap)
+            points.append(
+                SnapshotPoint(
+                    captured_at=snap.captured_at.isoformat(),
+                    age_years=snap.age_years, age_days=snap.age_days,
+                    tsi=snap.tsi, salary=snap.salary,
+                    skills={c: getattr(snap, c) or 0 for c in HISTORY_SKILL_COLS},
+                    htms=valor.ability,
+                    htms28=valor.potential,
+                )
             )
-            for snap in rows
-        ]
 
         # 2026-08-16, pedido explícito y SOLO estético: los primeros snapshots
         # de esta cuenta se guardaron antes de que existiera la columna de

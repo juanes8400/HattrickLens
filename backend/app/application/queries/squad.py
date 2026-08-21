@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.engines import htms
 from app.application.dto.squad import (
     PositionRatingDTO,
     SquadComparison,
@@ -115,6 +116,10 @@ class SquadQueryService:
                       "experience": snap.experience, "leadership": snap.leadership,
                       "specialty": snap.specialty, "loyalty": snap.loyalty}
             best = best_position(player)
+            valor_htms = htms.de_habilidades(
+                snap.age_years, snap.age_days,
+                **{c: skills.get(c) for c in SKILL_COLS},
+            )
             here = rate(player, position) if position else None
             # 2026-08-09: SQLite puede devolver el datetime sin tzinfo aunque
             # se guardara con `.replace(tzinfo=UTC)` (mismo patrón defensivo
@@ -195,6 +200,8 @@ class SquadQueryService:
                     career_caps=snap.career_caps,
                     career_caps_u20=snap.career_caps_u20,
                     skills=skills,
+                    htms=valor_htms.ability,
+                    htms28=valor_htms.potential,
                     deltas=self._deltas(snap, previous, team.currency_rate or 1.0),
                     best_position=PositionRatingDTO(
                         position=best.position, label=best.label,

@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ancho de una tarjeta de la cancha, y con el todas las canchas de la app.
+   Cinco columnas mas los huecos y el margen del panel suman 4rem: si el ancho
+   de pantalla no da para 9rem por columna, la tarjeta se encoge lo justo para
+   que la formacion entera quepa sin arrastrar de lado. Por encima de 784px de
+   ancho se queda en las 9rem de siempre. */
+:root {
+  --pitch-card: min(9rem, calc((100vw - 4rem) / 5));
+  --pitch-card-font: clamp(0.6rem, 2.3vw, 0.75rem);
+}
+
 :root[data-theme="dark"] {
   --bg: #0a0a0b;
   --surface: #111113;

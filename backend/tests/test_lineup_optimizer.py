@@ -115,12 +115,19 @@ def test_overcrowding_penalises_three_central_defenders_and_forwards() -> None:
     penalización exacta (-10% DC, -13.5% DN) sobre TODOS los que comparten esa
     posición, no solo sobre el tercero."""
     lu = best_lineup(ROSTER, "3-4-3")
-    penalised = [a for a in lu.assignments if a.position in ("central_defender", "forward")]
+    # Se mira `base_position` y no `position`: desde 2026-08-21 la posición
+    # lleva la orden individual dentro ("central_defender_offensive"), pero la
+    # penalización es de la LÍNEA — un central ofensivo sigue estorbando a los
+    # otros dos centrales igual que uno normal.
+    penalised = [
+        a for a in lu.assignments
+        if a.base_position in ("central_defender", "forward")
+    ]
     assert len(penalised) == 6
 
     for a in penalised:
         raw = rate(a.player, a.position).rating
-        expected_multiplier = 0.90 if a.position == "central_defender" else 0.865
+        expected_multiplier = 0.90 if a.base_position == "central_defender" else 0.865
         assert a.rating == pytest.approx(round(raw * expected_multiplier, 2), abs=0.02)
 
 
@@ -224,3 +231,57 @@ def test_the_catalogue_has_the_ten_hattrick_formations() -> None:
     # contra conteo por línea): si se separan, el selector ofrecería una
     # formación que la otra no sabe armar.
     assert set(TOTW) == esperadas
+
+
+def test_the_optimiser_also_picks_the_individual_orders() -> None:
+    """2026-08-21, pedido por los usuarios: antes el once se resolvía solo con
+    las variantes Normal, así que proponía "Defensa Lateral" donde al equipo le
+    convenía un "Defensa Lateral Ofensivo". Ahora la orden entra en la misma
+    asignación, y por eso el once no puede salir peor que antes."""
+    con_ordenes = best_lineup(ROSTER, "4-4-2")
+    solo_normales = best_lineup(ROSTER, "4-4-2", optimize_orders=False)
+
+    assert con_ordenes.total_rating >= solo_normales.total_rating
+    # Y la casilla de la formación sigue siendo la misma en ambos casos.
+    assert (
+        [a.base_position for a in con_ordenes.assignments]
+        == [a.position for a in solo_normales.assignments]
+    )
+
+
+def test_a_pinned_order_is_respected_and_the_engine_only_picks_who_plays_it() -> None:
+    """El usuario coloca la orden a mano y la herramienta busca quién rinde
+    más así. Es el reparto de trabajo que pidió: la idea táctica es suya, la
+    aritmética nuestra."""
+    lu = best_lineup(ROSTER, "4-4-2", orders={1: "wingback_offensive"})
+    fijada = next(a for a in lu.assignments if a.slot == 1)
+
+    assert fijada.position == "wingback_offensive"
+    assert fijada.order_pinned is True
+    assert fijada.base_position == "wingback"
+    # Las demás siguen eligiéndose solas.
+    assert all(not a.order_pinned for a in lu.assignments if a.slot != 1)
+
+
+def test_pinning_an_order_never_beats_letting_the_engine_choose() -> None:
+    """Comprobación de cordura del método: fijar una orden es una restricción,
+    así que el resultado solo puede empatar o empeorar. Si saliera mejor,
+    querría decir que la búsqueda libre no estaba mirando esa variante."""
+    libre = best_lineup(ROSTER, "4-4-2")
+    fijado = best_lineup(ROSTER, "4-4-2", orders={1: "wingback_defensive"})
+    assert fijado.total_rating <= libre.total_rating + 1e-9
+
+
+def test_the_keeper_has_no_orders_to_choose_from() -> None:
+    """Hattrick no da órdenes individuales al portero; la casilla tiene una
+    sola variante y no debe inventarse ninguna."""
+    lu = best_lineup(ROSTER, "4-4-2")
+    portero = next(a for a in lu.assignments if a.base_position == "keeper")
+    assert portero.position == "keeper"
+
+
+def test_an_order_that_does_not_belong_to_the_slot_is_rejected() -> None:
+    """La casilla 3 de un 4-4-2 es un central: pedir ahí un lateral ofensivo
+    devolvía antes un once imposible, en silencio."""
+    with pytest.raises(ValueError, match="no es una orden de"):
+        best_lineup(ROSTER, "4-4-2", orders={3: "wingback_offensive"})

@@ -42,6 +42,7 @@ from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.domain.engines.position_engine import rate_all
 from app.application.queries.weekly import backfill_leading_gaps, season_week_for_datetime
 from app.domain.value_objects.ht_constants import skill_name
+from app.domain.engines import htms as htms_motor
 from app.infrastructure.db import models as m
 
 SKILL_SCALE_MAX = 20.0
@@ -113,6 +114,13 @@ COST_PER_TSI_FIELD = "cost_per_tsi"
 AGE_FIELD = "avg_age"
 DAYS_PER_HT_YEAR = 112
 TSI_TOTAL_FIELD = "tsi_total"
+
+# HTMS: el valor de las habilidades segun la tabla de la comunidad, y su
+# proyeccion a los 28. La distancia entre ambas lineas es el margen de
+# crecimiento que le queda a la plantilla entera.
+HTMS_FIELD = "htms"
+HTMS28_FIELD = "htms28"
+HTMS_TOTAL_FIELD = "htms_total"
 
 # 2026-08-17, pedido explícito: en las gráficas donde las dos líneas son la
 # MISMA magnitud sobre dos poblaciones (media de salario, media de TSI, suma de
@@ -329,6 +337,7 @@ class TeamOverviewQueryService:
         by_field: dict[str, list[float | None]] = {
             name: [] for name in (
                 *self._TIMELINE_FIELDS, COST_PER_TSI_FIELD, TSI_TOTAL_FIELD, AGE_FIELD,
+                HTMS_FIELD, HTMS28_FIELD, HTMS_TOTAL_FIELD,
                 *(f"{name}{TOP_SUFFIX}" for name in market_fields),
             )
         }
@@ -382,6 +391,30 @@ class TeamOverviewQueryService:
                 if r[1][age_years_index] is not None and r[1][age_days_index] is not None
             ]
             by_field[AGE_FIELD].append(round(_mean(edades), 2) if edades else None)
+
+            # HTMS de cada jugador con las habilidades y la edad de ESA semana.
+            valores_htms = []
+            for reading in readings:
+                fila = reading[1]
+                if fila[age_years_index] is None or fila[age_days_index] is None:
+                    continue
+                valores_htms.append(
+                    htms_motor.de_habilidades(
+                        int(fila[age_years_index]), int(fila[age_days_index]),
+                        **{c: fila[self._TIMELINE_FIELDS.index(c)] for c in SKILL_COLS},
+                    )
+                )
+            by_field[HTMS_FIELD].append(
+                round(_mean([float(v.ability) for v in valores_htms]), 2)
+                if valores_htms else None
+            )
+            by_field[HTMS28_FIELD].append(
+                round(_mean([float(v.potential) for v in valores_htms]), 2)
+                if valores_htms else None
+            )
+            by_field[HTMS_TOTAL_FIELD].append(
+                float(sum(v.ability for v in valores_htms)) if valores_htms else None
+            )
 
             _market(readings)
 
@@ -517,6 +550,48 @@ class TeamOverviewQueryService:
             ),
         )
 
+        htms_grupo = OverviewGroup(
+            key="htms", label="HTMS", chart="line", weeks=weekly.weeks,
+            charts=[
+                OverviewChart(
+                    key="htms_avg", title="HTMS actual y potencial a los 28, promedio", band=True,
+                    series=[
+                        OverviewSeries(
+                            key=HTMS_FIELD, label="HTMS de hoy",
+                            values=weekly.by_field.get(HTMS_FIELD, []),
+                            display="number",
+                        ),
+                        OverviewSeries(
+                            key=HTMS28_FIELD, label="HTMS28 (potencial a los 28 años)",
+                            values=weekly.by_field.get(HTMS28_FIELD, []),
+                            display="number",
+                        ),
+                    ],
+                ),
+                OverviewChart(
+                    key="htms_total", title="HTMS sumado de la plantilla",
+                    series=[
+                        OverviewSeries(
+                            key=HTMS_TOTAL_FIELD, label="Plantilla entera",
+                            values=weekly.by_field.get(HTMS_TOTAL_FIELD, []),
+                            display="number",
+                        ),
+                    ],
+                ),
+            ],
+            note=(
+                "HTMS pone en puntos lo que valen las siete habilidades, con la "
+                "tabla que usa la comunidad: subir de Excelente a Formidable en "
+                "Defensa vale mucho más que subir de Pobre a Débil, y por eso no "
+                "es una suma de niveles. HTMS28 proyecta esos puntos a los 28 años "
+                "suponiendo entrenamiento continuo, entrenador bueno y ayudantes "
+                "corrientes; el hueco sombreado entre las dos líneas es el margen "
+                "que le queda a la plantilla por delante. En un equipo veterano "
+                "las líneas se cruzan: ahí HTMS28 ya no dice cuánto puede crecer, "
+                "sino cuánto valía cuando estaba en su punto."
+            ),
+        )
+
         # Quién es el MEJOR de cada línea: se evalúa a toda la plantilla en
         # las variantes de esa línea y se resume con la mejor de todas. Los
         # ratings se piden al motor con los snapshots crudos (`_latest`) y no
@@ -631,5 +706,5 @@ class TeamOverviewQueryService:
             team_name=squad.team_name,
             player_count=len(players),
             currency=squad.currency,
-            groups=[skills, market, best_position, player_classes],
+            groups=[skills, market, htms_grupo, best_position, player_classes],
         )

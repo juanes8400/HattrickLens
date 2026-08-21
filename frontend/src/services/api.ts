@@ -127,11 +127,18 @@ export const api = {
     formation?: string,
     centralDefenders?: number,
     innerMidfielders?: number,
+    /** Ordenes fijadas a mano: casilla -> posicion con orden. Las que no
+     *  esten aqui las elige el motor. */
+    orders?: Record<number, string>,
   ) => {
     const q = new URLSearchParams();
     if (formation) q.set("formation", formation);
     if (centralDefenders != null) q.set("central_defenders", String(centralDefenders));
     if (innerMidfielders != null) q.set("inner_midfielders", String(innerMidfielders));
+    const fijadas = Object.entries(orders ?? {});
+    if (fijadas.length > 0) {
+      q.set("orders", fijadas.map(([slot, pos]) => `${slot}:${pos}`).join(","));
+    }
     const qs = q.toString();
     return request<Lineup>(`/teams/${teamId}/lineup${qs ? `?${qs}` : ""}`);
   },
@@ -411,6 +418,10 @@ export interface SquadPlayer {
   ageYears: number;
   ageDays: number;
   tsi: number;
+  /** Valor acumulado de las siete habilidades segun la tabla HTMS. */
+  htms: number;
+  /** Lo que tendria a los 28 entrenando sin parar desde hoy. */
+  htms28: number;
   form: number;
   stamina: number;
   experience: number;
@@ -662,6 +673,8 @@ export interface ActivePlayerDetail {
   team: { htTeamId: number; name: string };
   age: string;
   tsi: number;
+  htms: number;
+  htms28: number;
   form: number;
   stamina: number;
   experience: number;
@@ -754,6 +767,8 @@ export interface ActivePlayerDetail {
     tsi: number[];
     salary: number[];
     skills: Record<string, number[]>;
+    htms: number[];
+    htms28: number[];
   };
   matchRatingHistory: {
     matchId: number;
@@ -948,11 +963,18 @@ export interface Lineup {
   formationRanking: Record<string, number>;
   lineup: {
     slot: number;
+    /** La posicion CON su orden individual: "wingback_offensive". */
     position: string;
     label: string;
     player: string;
     htPlayerId: number;
     rating: number;
+    /** La casilla de la formacion, sin la orden. */
+    basePosition: string;
+    /** True cuando la orden la fijo el usuario, no el motor. */
+    orderPinned: boolean;
+    /** Las ordenes que Hattrick permite en esa casilla. */
+    orderOptions: { position: string; label: string }[];
   }[];
   bench: { player: string; htPlayerId: number; tsi: number }[];
   sectorRatings: {

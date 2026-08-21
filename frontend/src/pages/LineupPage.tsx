@@ -1,4 +1,5 @@
 import { useState } from "react";
+import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { api, type LineupHindsight } from "../services/api";
 import { TEAM_ID, useLineup } from "../hooks/useTeam";
@@ -37,8 +38,12 @@ export function LineupPage() {
   // él, porque un reparto de la anterior puede no ser legal aquí.
   const [centrales, setCentrales] = useState<number | undefined>(undefined);
   const [interiores, setInteriores] = useState<number | undefined>(undefined);
+  // Órdenes individuales que el usuario fijó a mano: casilla -> posición con
+  // orden. Las que no estén aquí las elige el motor dentro de la misma
+  // asignación. Cambiar de formación las borra: las casillas ya no son esas.
+  const [ordenes, setOrdenes] = useState<Record<number, string>>({});
   const { data, isLoading, isError, error } = useLineup(
-    formation || undefined, centrales, interiores,
+    formation || undefined, centrales, interiores, ordenes,
   );
 
   const spirit = useQuery({
@@ -55,19 +60,18 @@ export function LineupPage() {
   if (isError) return <ErrorState error={error} />;
   if (!data) return <Empty>Sin plantilla sincronizada.</Empty>;
 
+  // Se agrupa por `basePosition` (la casilla de la formación) y no por
+  // `position`, que desde 2026-08-21 lleva dentro la orden individual: un
+  // "Defensa Lateral Ofensivo" sigue jugando en la línea de atrás.
   const lines = {
-    forwards: data.lineup.filter((a) => a.position.startsWith("forward")),
+    forwards: data.lineup.filter((a) => a.basePosition === "forward"),
     midfield: data.lineup.filter(
-      (a) =>
-        a.position.startsWith("inner_midfield") ||
-        a.position.startsWith("winger"),
+      (a) => a.basePosition === "inner_midfield" || a.basePosition === "winger",
     ),
     defence: data.lineup.filter(
-      (a) =>
-        a.position.startsWith("central_defender") ||
-        a.position.startsWith("wingback"),
+      (a) => a.basePosition === "central_defender" || a.basePosition === "wingback",
     ),
-    keeper: data.lineup.filter((a) => a.position === "keeper"),
+    keeper: data.lineup.filter((a) => a.basePosition === "keeper"),
   };
 
   const Slot = ({ a }: { a: (typeof data.lineup)[number] }) => (
@@ -81,6 +85,36 @@ export function LineupPage() {
       <div className="tabular-nums text-sm font-semibold text-amber-300">
         {a.rating.toFixed(2)}
       </div>
+      {a.orderOptions.length > 1 && (
+        <select
+          value={ordenes[a.slot] ?? ""}
+          onChange={(e) =>
+            setOrdenes((previas) => {
+              const siguientes = { ...previas };
+              if (e.target.value) siguientes[a.slot] = e.target.value;
+              else delete siguientes[a.slot];
+              return siguientes;
+            })
+          }
+          aria-label={`Orden individual de ${a.label}`}
+          title={
+            a.orderPinned
+              ? "Orden fijada por ti: el motor solo elige quién la juega"
+              : "Orden elegida por el motor"
+          }
+          className={clsx(
+            "mt-1 w-full rounded border bg-black/50 px-1 py-0.5 text-[9px] text-white/90",
+            a.orderPinned ? "border-amber-300/70" : "border-white/25",
+          )}
+        >
+          <option value="">Automática</option>
+          {a.orderOptions.map((o) => (
+            <option key={o.position} value={o.position}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 
@@ -100,6 +134,7 @@ export function LineupPage() {
               setFormation(e.target.value);
               setCentrales(undefined);
               setInteriores(undefined);
+              setOrdenes({});
             }}
             aria-label="Formación"
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm"
@@ -151,7 +186,7 @@ export function LineupPage() {
           // ocupan las dos columnas de los bordes, y por eso un extremo cae
           // siempre sobre su lateral.
           isFlank={(a) =>
-            a.position.startsWith("winger") || a.position.startsWith("wingback")
+            a.basePosition === "winger" || a.basePosition === "wingback"
           }
           render={(a) => <Slot key={a.slot} a={a} />}
         />

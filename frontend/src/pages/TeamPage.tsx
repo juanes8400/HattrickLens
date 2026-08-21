@@ -134,6 +134,10 @@ export function TeamPage() {
       render: (player) => <MetricCell value={player.skills[key] ?? 0} delta={player.deltas[key]} />,
     })),
     { key: "tsi", header: "TSI", value: (player) => player.tsi, render: (player) => <MetricCell value={player.tsi} delta={player.deltas.tsi} /> },
+    // HTMS junto a TSI: las tres son la misma pregunta ("cuanto vale"),
+    // solo que TSI la responde con el mercado y HTMS con las habilidades.
+    { key: "htms", header: "HTMS", value: (player) => player.htms },
+    { key: "htms28", header: "HTMS28", value: (player) => player.htms28 },
     { key: "salary", header: "Salario", value: (player) => player.salary, render: (player) => <MetricCell value={player.salary} delta={player.deltas.salary} /> },
     { key: "purchase", header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">, </span> : money(player.purchasePrice, data.currency) },
     // Números primero y textos después, sin mezclarlos. Con las 27 columnas a

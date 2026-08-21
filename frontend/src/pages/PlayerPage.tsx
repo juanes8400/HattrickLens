@@ -148,6 +148,17 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
     ),
     [data],
   );
+  const htmsWeekly = useMemo(
+    () => bucketWeekly(
+      data.history.dates,
+      [
+        { name: "HTMS", values: data.history.htms },
+        { name: "HTMS28", values: data.history.htms28 },
+      ],
+      data.history.seasonWeeks,
+    ),
+    [data],
+  );
   const skillsWeekly = useMemo(() => {
     const axes = Object.keys(data.history.skills);
     return bucketWeekly(
@@ -166,6 +177,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   );
   const skillsRange = useDateRangeFilter(skillsWeekly.labels);
   const tsiRange = useDateRangeFilter(tsiWeekly.labels);
+  const htmsRange = useDateRangeFilter(htmsWeekly.labels);
   const matchRatingRange = useDateRangeFilter(matchRatingWeekly.labels);
   const confirmStage = useMutation({
     mutationFn: (stage: string | null) => api.confirmCareerStage(TEAM_ID, id, stage),
@@ -364,6 +376,8 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           <Panel title="Estado y contrato" meta={data.isTransferListed ? "en venta" : "no está en venta"}>
             <dl className="space-y-2 p-4 text-sm">
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">TSI</dt><dd className="font-semibold tabular-nums">{number(data.tsi)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">HTMS</dt><dd className="font-semibold tabular-nums">{number(data.htms)}</dd></div>
+              <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">HTMS28</dt><dd className="font-semibold tabular-nums">{number(data.htms28)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Salario</dt><dd className="font-semibold tabular-nums">{money(data.salary)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Precio compra</dt><dd>{data.purchasePrice == null ? "no disponible" : money(data.purchasePrice)}</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-[var(--muted)]">Fecha compra</dt><dd>{data.purchasedAt ? date(data.purchasedAt) : "no disponible"}</dd></div>
@@ -618,6 +632,36 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 pick(tsiWeekly.labels, tsiRange.indices),
                 tsiWeekly.series.map((s) => ({
                   name: s.name, values: pick(s.values, tsiRange.indices),
+                })),
+              )}
+            />
+          </div>
+        ) : (
+          <Empty>
+            Todavía no hay dos semanas distintas de historial real para trazar una evolución.
+          </Empty>
+        )}
+      </Panel>
+
+      <Panel
+        title="Evolución del HTMS"
+        meta="HTMS28 es una proyección con entrenamiento estándar, no una promesa"
+      >
+        {htmsWeekly.labels.length > 1 ? (
+          <div className="p-4">
+            <div className="mb-3">
+              <DateRangeFilter
+                range={htmsRange.range} onChange={htmsRange.setRange}
+                min={htmsRange.min} max={htmsRange.max}
+              />
+            </div>
+            <Chart
+              ariaLabel="Evolución semanal del HTMS y el HTMS28 del jugador"
+              height={240}
+              option={timelineOption(
+                pick(htmsWeekly.labels, htmsRange.indices),
+                htmsWeekly.series.map((s) => ({
+                  name: s.name, values: pick(s.values, htmsRange.indices),
                 })),
               )}
             />

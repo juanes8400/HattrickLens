@@ -13,38 +13,17 @@ import { api, errorMessage, type SyncResult } from "../services/api";
  * herramienta sino solo en la pantalla sincronización y de inmediato me debe
  * llevar a Cambios".
  *
- * Antes había botones de sincronizar repartidos por la app (barra superior,
- * Partidos, Estadio, Transferencias, la propia pantalla de Cambios), cada
- * uno trayendo un subconjunto distinto de ficheros CHPP. El resultado era que
- * nunca sabías qué estaba actualizado: dependía de en qué pantalla habías
- * pulsado por última vez. Aquí se ve todo junto y se decide una sola vez.
+ * 2026-08-21, por reportes de usuarios: antes había tres cargas sueltas
+ * (fichas de jugador, detalles de partido, historial de transferencias) que
+ * obligaban a decidir cuál hacía falta. Nadie puede saber eso sin conocer por
+ * dentro qué fichero alimenta qué pantalla, así que las dos primeras entran
+ * ahora en el botón normal: se trae todo, y lo que ya está guardado no se
+ * vuelve a pedir.
  *
- * Al terminar la sincronización completa se navega a Cambios, que es donde
- * está la respuesta a "¿y qué pasó?" — el mismo gesto de Hattrick Control.
+ * El historial de transferencias sigue aparte a propósito: es la única carga
+ * que recorre el pasado entero página a página, y solo hace falta una vez.
+ * También es incremental — se para en cuanto llega a lo que ya tenía.
  */
-
-type Extra = "playerDetails" | "matchDetails" | "transfers";
-
-const EXTRA_LABELS: Record<Extra, { title: string; detail: string }> = {
-  playerDetails: {
-    title: "Fichas de jugador",
-    detail:
-      "playerdetails.xml, uno por jugador: club de origen, carácter, especialidad y último " +
-      "partido. Es lo más lento del sync, por eso va aparte.",
-  },
-  matchDetails: {
-    title: "Detalles de partido",
-    detail:
-      "matchdetails.xml y las calificaciones individuales. Sin esto, Partidos y Estadio no " +
-      "pueden mostrar ratings, asistencia ni ocupación.",
-  },
-  transfers: {
-    title: "Historial de transferencias",
-    detail:
-      "transfersteam.xml paginado: precios reales de compra y venta. Sólo hace falta cuando " +
-      "faltan precios antiguos, el sync normal ya detecta las operaciones nuevas.",
-  },
-};
 
 export function SyncPage() {
   const navigate = useNavigate();
@@ -54,7 +33,7 @@ export function SyncPage() {
   const [result, setResult] = useState<SyncResult | null>(null);
 
   // Sync completo: es el que importa y el único que redirige. Va por streaming
-  // para que se vea qué fichero está bajando, en vez de una espera muda de 15-20s.
+  // para que se vea qué fichero está bajando, en vez de una espera muda.
   const fullSync = useMutation({
     mutationFn: () =>
       new Promise<SyncResult>((resolve, reject) => {
@@ -82,16 +61,12 @@ export function SyncPage() {
     onError: () => setProgressLog(null),
   });
 
-  const extras = useMutation({
-    mutationFn: async (which: Extra) => {
-      if (which === "playerDetails") return api.syncPlayerDetails(TEAM_ID);
-      if (which === "matchDetails") return api.syncMatchDetails(TEAM_ID);
-      return api.syncTransfersHistory(TEAM_ID);
-    },
+  const transfers = useMutation({
+    mutationFn: () => api.syncTransfersHistory(TEAM_ID),
     onSuccess: () => qc.invalidateQueries(),
   });
 
-  const running = fullSync.isPending || extras.isPending;
+  const running = fullSync.isPending || transfers.isPending;
 
   return (
     <div className="space-y-4">
@@ -108,8 +83,10 @@ export function SyncPage() {
       >
         <div className="space-y-3 p-4">
           <p className="text-sm text-[var(--muted)]">
-            Trae plantilla, entrenamiento, economía, calendario, clasificación, club y cuerpo
-            técnico, y compara todo contra el snapshot anterior.
+            Trae todo: plantilla, fichas de cada jugador, entrenamiento, economía, calendario,
+            detalles y calificaciones de los partidos, clasificación, club y cuerpo técnico. Lo
+            que ya está guardado no se vuelve a pedir, así que la primera vez tarda bastante más
+            que las siguientes.
           </p>
           <button
             onClick={() => fullSync.mutate()}
@@ -134,37 +111,35 @@ export function SyncPage() {
         <Note>Sincronización parcial: {result.errors.join(" · ")}</Note>
       )}
 
-      <Panel title="Cargas pesadas, sólo cuando hagan falta">
-        <div className="divide-y divide-[var(--border)]">
-          {(Object.keys(EXTRA_LABELS) as Extra[]).map((key) => (
-            <div
-              key={key}
-              className="flex flex-wrap items-start justify-between gap-3 p-4"
-            >
-              <div className="max-w-xl">
-                <div className="text-sm font-medium">{EXTRA_LABELS[key].title}</div>
-                <p className="mt-1 text-xs text-[var(--muted)]">{EXTRA_LABELS[key].detail}</p>
-              </div>
-              <button
-                onClick={() => extras.mutate(key)}
-                disabled={running}
-                className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
-              >
-                {extras.isPending && extras.variables === key ? "Cargando…" : "Cargar"}
-              </button>
-            </div>
-          ))}
+      <Panel title="Historial de transferencias">
+        <div className="flex flex-wrap items-start justify-between gap-3 p-4">
+          <div className="max-w-xl">
+            <p className="text-sm text-[var(--muted)]">
+              Recorre hacia atrás todas tus compras y ventas para recuperar los precios reales,
+              incluidos los de temporadas pasadas. Va aparte porque es un recorrido largo por el
+              pasado y normalmente solo hace falta una vez: al repetirlo se detiene en cuanto
+              llega a lo que ya tenía guardado.
+            </p>
+          </div>
+          <button
+            onClick={() => transfers.mutate()}
+            disabled={running}
+            className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
+          >
+            {transfers.isPending ? "Cargando…" : "Traer historial"}
+          </button>
         </div>
       </Panel>
 
-      {extras.isError && (
-        <Note>No se pudo completar la carga: {errorMessage(extras.error)}</Note>
+      {transfers.isError && (
+        <Note>No se pudo completar la carga: {errorMessage(transfers.error)}</Note>
       )}
-      {extras.isSuccess && <Note>Carga completada. Los datos ya están disponibles.</Note>}
-
-      <Note>
-        Son cargas pesadas y opcionales: la sincronización normal ya trae el resto.
-      </Note>
+      {transfers.isSuccess && (
+        <Note>
+          Historial al día: {transfers.data.transfersNew} operación(es) nueva(s) de{" "}
+          {transfers.data.transfersSeen} revisada(s).
+        </Note>
+      )}
     </div>
   );
 }

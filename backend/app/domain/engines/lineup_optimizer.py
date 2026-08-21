@@ -31,6 +31,58 @@ FORMATIONS: dict[str, list[str]] = {
     nombre: slots_for(nombre) for nombre in LINE_COUNTS
 }
 
+# Órdenes individuales de cada puesto. La clave es la posición "Normal" y la
+# lista, todas las variantes que Hattrick permite dar ahí — la primera es
+# siempre la Normal. El motor de posiciones ya sabe puntuar las diecinueve;
+# aquí solo se declara cuáles caben en cada casilla de la formación.
+#
+# 2026-08-21, pedido por los usuarios: antes el once se resolvía SOLO con las
+# variantes Normal, de modo que la herramienta proponía un lateral cuando lo
+# que le convenía al equipo era un lateral ofensivo. Ahora la orden se elige
+# dentro de la misma asignación: para cada pareja jugador-casilla se toma su
+# mejor variante, y el algoritmo húngaro reparte con ese valor. Es exacto,
+# porque el máximo por celda no cambia la estructura del problema.
+ORDER_VARIANTS: dict[str, tuple[str, ...]] = {
+    "keeper": ("keeper",),
+    "central_defender": (
+        "central_defender",
+        "central_defender_towards_wing",
+        "central_defender_offensive",
+    ),
+    "wingback": (
+        "wingback",
+        "wingback_towards_middle",
+        "wingback_offensive",
+        "wingback_defensive",
+    ),
+    "inner_midfield": (
+        "inner_midfield",
+        "inner_midfield_towards_wing",
+        "inner_midfield_offensive",
+        "inner_midfield_defensive",
+    ),
+    "winger": (
+        "winger",
+        "winger_towards_middle",
+        "winger_offensive",
+        "winger_defensive",
+    ),
+    "forward": (
+        "forward",
+        "forward_defensive",
+        "forward_towards_wing",
+    ),
+}
+
+# Lo que hay que sumar por línea para la penalización por saturación: una
+# variante ofensiva sigue ocupando el centro de la defensa.
+BASE_OF_VARIANT: dict[str, str] = {
+    variante: base
+    for base, variantes in ORDER_VARIANTS.items()
+    for variante in variantes
+}
+
+
 # Penalización por saturación posicional — Manual no Escrito (wiki.hattrick.org).
 # Jugar 2 o 3 en la misma posición central resta rendimiento a TODOS los que
 # la ocupan. Solo aplica a las posiciones "Normal" (DC, MC, DN): las variantes
@@ -57,11 +109,17 @@ def _overcrowd_multipliers(slots: list[str]) -> dict[str, float]:
 @dataclass
 class Assignment:
     slot: int
+    # La posición CON su orden individual: "wingback_offensive", no "wingback".
     position: str
     label: str
     player: dict[str, Any]
     rating: float
     confidence: str
+    # La casilla de la formación, sin la orden. Dos asignaciones distintas
+    # pueden compartirla (dos centrales, uno normal y otro hacia el lateral).
+    base_position: str = ""
+    # True cuando la orden la fijó el usuario y el motor no pudo elegirla.
+    order_pinned: bool = False
 
 
 @dataclass
@@ -136,8 +194,31 @@ def _player_rating(
 ) -> float:
     value = rate(player, position).rating
     if overcrowd:
-        value *= overcrowd.get(position, 1.0)
+        # Por línea: un central ofensivo sigue siendo uno de los centrales que
+        # se estorban entre sí.
+        value *= overcrowd.get(BASE_OF_VARIANT.get(position, position), 1.0)
     return value
+
+
+def _best_variant(
+    player: dict[str, Any],
+    slot: str,
+    overcrowd: dict[str, float],
+    pinned: str | None,
+) -> tuple[str, float]:
+    """La mejor orden individual para este jugador en esta casilla.
+
+    Con `pinned` no hay nada que elegir: el usuario ya decidió la orden y el
+    motor solo decide QUIÉN la juega. Es la forma de decir "aquí quiero un
+    lateral ofensivo, dime cuál de mis jugadores rinde más así".
+    """
+    variantes = (pinned,) if pinned else ORDER_VARIANTS.get(slot, (slot,))
+    mejor, valor = variantes[0], _player_rating(player, variantes[0], overcrowd)
+    for variante in variantes[1:]:
+        actual = _player_rating(player, variante, overcrowd)
+        if actual > valor:
+            mejor, valor = variante, actual
+    return mejor, valor
 
 
 def best_lineup(
@@ -146,6 +227,8 @@ def best_lineup(
     exclude: set[int] | None = None,
     central_defenders: int | None = None,
     inner_midfielders: int | None = None,
+    orders: dict[int, str] | None = None,
+    optimize_orders: bool = True,
 ) -> Lineup:
     """Mejor once posible para una formación. HL-121.
 
@@ -155,6 +238,12 @@ def best_lineup(
     nombre de la formación no dice cuántos juegan por dentro, y con tres
     mediocentros o con uno y dos extremos el once óptimo no es el mismo. Sin
     ellos se usa el reparto por defecto de la formación.
+
+    `orders` fija la orden individual de casillas concretas (índice de casilla
+    → posición con orden, p. ej. {3: "wingback_offensive"}). Para esas el
+    motor ya no elige la orden, solo el jugador. El resto se optimizan solas
+    salvo que `optimize_orders` sea False, que devuelve el comportamiento de
+    antes: todo el mundo en su variante Normal.
     """
     if formation not in LINE_COUNTS:
         raise KeyError(f"formación desconocida: {formation}")
@@ -176,14 +265,40 @@ def best_lineup(
         )
 
     overcrowd = _overcrowd_multipliers(slots)
+    fijadas = dict(orders or {})
+    # Una orden fijada tiene que caber en SU casilla. Sin esto, pedir un
+    # "lateral ofensivo" en la casilla de un central se aceptaba en silencio y
+    # devolvía un once que Hattrick no dejaría montar.
+    for indice, variante in fijadas.items():
+        if not 0 <= indice < len(slots):
+            raise ValueError(f"la casilla {indice} no existe en {formation}")
+        permitidas = ORDER_VARIANTS.get(slots[indice], (slots[indice],))
+        if variante not in permitidas:
+            raise ValueError(
+                f"«{variante}» no es una orden de {slots[indice]}; "
+                f"las de esa casilla son {', '.join(permitidas)}"
+            )
+
+    def _elegir(player: dict[str, Any], j: int) -> tuple[str, float]:
+        slot = slots[j]
+        pinned = fijadas.get(j)
+        if pinned is None and not optimize_orders:
+            pinned = slot
+        return _best_variant(player, slot, overcrowd, pinned)
 
     n = len(available)
-    # Matriz cuadrada n×n: las columnas sobrantes son "banquillo" con coste 0
+    # Matriz cuadrada n×n: las columnas sobrantes son "banquillo" con coste 0.
+    # Cada celda ya lleva la MEJOR orden de ese jugador en esa casilla, así que
+    # el húngaro sigue resolviendo una asignación normal y el resultado sigue
+    # siendo el óptimo exacto.
     big = max(len(slots), n)
     cost = [[0.0] * big for _ in range(big)]
+    elegido: dict[tuple[int, int], tuple[str, float]] = {}
     for i, player in enumerate(available):
-        for j, pos in enumerate(slots):
-            cost[i][j] = -_player_rating(player, pos, overcrowd)  # minimizar = maximizar
+        for j in range(len(slots)):
+            variante, valor = _elegir(player, j)
+            elegido[(i, j)] = (variante, valor)
+            cost[i][j] = -valor  # minimizar = maximizar
 
     matching = _hungarian(cost)
 
@@ -191,10 +306,12 @@ def best_lineup(
     used: set[int] = set()
     for i, j in enumerate(matching):
         if j < len(slots):
-            pos = slots[j]
-            value = _player_rating(available[i], pos, overcrowd)
+            pos, value = elegido[(i, j)]
             assignments.append(
-                Assignment(j, pos, _positions()[pos], available[i], round(value, 2), "config")
+                Assignment(
+                    j, pos, _positions()[pos], available[i], round(value, 2), "config",
+                    base_position=slots[j], order_pinned=j in fijadas,
+                )
             )
             used.add(i)
 

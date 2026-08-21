@@ -14,6 +14,7 @@ from app.application.queries.league import LeagueQueryService
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
+from app.domain.engines import htms as htms_motor
 from app.application.queries.team_overview import TeamOverviewQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
@@ -29,10 +30,12 @@ from app.domain.engines.lineup_optimizer import (
     FORMATIONS,
     TEAM_SPIRIT_ATTITUDE_MULTIPLIER,
     best_formation,
+    ORDER_VARIANTS,
     best_lineup,
 )
 from app.domain.engines.loyalty_engine import loyalty_decimal as calculate_loyalty_decimal
 from app.domain.engines.loyalty_engine import model_info as loyalty_model_info
+from app.domain.engines.position_engine import positions as _positions
 from app.domain.engines.position_engine import rate_all
 from app.domain.engines.pricing_engine import (
     SALARY_FIELD_SKILLS,
@@ -152,6 +155,10 @@ async def player_detail(
             "soldAt": ex_player.sold_at.isoformat() if ex_player.sold_at else None,
         }
     rate_ = team.currency_rate or 1.0
+    htms_ahora = htms_motor.de_habilidades(
+        p["age_years"], p["age_days"],
+        **{c: p["skills"].get(c) for c in SKILL_COLS},
+    )
 
     # Roles especiales (capitán y balón parado) son recomendaciones aparte:
     # no deben desplazar la mejor posición de cancha en la ficha.
@@ -418,6 +425,10 @@ async def player_detail(
         "nativeLeagueName": (
             squad_player.native_league_name if squad_player is not None else None
         ),
+        # HTMS del momento: el mismo numero que ve la comunidad en Foxtrick,
+        # calculado aqui (docs/reference/htms_formulas_hattrick.html).
+        "htms": htms_ahora.ability,
+        "htms28": htms_ahora.potential,
         "purchasePrice": squad_player.purchase_price if squad_player is not None else None,
         "purchasedAt": squad_player.purchased_at if squad_player is not None else None,
         "careerStage": {
@@ -466,6 +477,8 @@ async def player_detail(
                 col: [pt.skills[col] for pt in snapshot_history]
                 for col in HISTORY_SKILL_COLS
             },
+            "htms": [pt.htms for pt in snapshot_history],
+            "htms28": [pt.htms28 for pt in snapshot_history],
         },
         # HL-15x #21: histórico real de rating por partido (tabla aparte,
         # append-only) — puede estar vacío si playerdetails no se ha
@@ -553,18 +566,57 @@ async def lineup(
     # el reparto por defecto de cada una para poder compararlas.
     central_defenders: int | None = None,
     inner_midfielders: int | None = None,
+    orders: str | None = Query(
+        None,
+        description=(
+            "Órdenes individuales fijadas a mano, como «3:central_defender_offensive» "
+            "separadas por coma. Las casillas que no se nombren las elige el motor."
+        ),
+    ),
     session: AsyncSession = Depends(get_session),
     dependencies=[Depends(require_team_owner)],
 ) -> dict[str, Any]:
     players, _ = await roster(session, team_id)
     if formation and formation not in FORMATIONS:
         raise HTTPException(400, f"formación desconocida: {formation}")
+    fijadas: dict[int, str] = {}
+    for trozo in (orders or "").split(","):
+        if not trozo.strip():
+            continue
+        casilla, _, variante = trozo.partition(":")
+        if not variante.strip() or not casilla.strip().isdigit():
+            raise HTTPException(
+                400, f"orden mal escrita: «{trozo}» (se espera «casilla:posición»)"
+            )
+        fijadas[int(casilla)] = variante.strip()
     try:
         if formation:
-            lu = best_lineup(players, formation, None, central_defenders, inner_midfielders)
+            lu = best_lineup(
+                players, formation, None, central_defenders, inner_midfielders,
+                orders=fijadas,
+            )
             ranking = {formation: lu.total_rating}
         else:
             lu, ranking = best_formation(players)
+            # Las órdenes fijadas se refieren a las casillas de la formación
+            # que se está viendo. Sin formación elegida esa es la ganadora, así
+            # que se aplican sobre ella en una segunda pasada. Si alguna no
+            # cabe (porque la ganadora cambió y esa casilla ya es otra cosa),
+            # se descarta en silencio en vez de dejar la pantalla en un error:
+            # el usuario no pidió ninguna formación concreta.
+            if fijadas:
+                slots_ganadores = FORMATIONS[lu.formation]
+                aplicables = {
+                    indice: variante
+                    for indice, variante in fijadas.items()
+                    if 0 <= indice < len(slots_ganadores)
+                    and variante in ORDER_VARIANTS.get(
+                        slots_ganadores[indice], (slots_ganadores[indice],)
+                    )
+                }
+                if aplicables:
+                    lu = best_lineup(players, lu.formation, None, orders=aplicables)
+                    ranking[lu.formation] = lu.total_rating
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -595,6 +647,14 @@ async def lineup(
                 "slot": a.slot, "position": a.position, "label": a.label,
                 "player": a.player["name"], "htPlayerId": a.player["ht_player_id"],
                 "rating": a.rating, "confidence": a.confidence,
+                # La casilla sin la orden, y qué órdenes caben en ella: es lo
+                # que necesita la pantalla para dejar fijarla a mano.
+                "basePosition": a.base_position,
+                "orderPinned": a.order_pinned,
+                "orderOptions": [
+                    {"position": v, "label": _positions()[v]}
+                    for v in ORDER_VARIANTS.get(a.base_position, (a.base_position,))
+                ],
             }
             for a in lu.assignments
         ],

@@ -61,12 +61,14 @@ export const useLineup = (
   formation?: string,
   centralDefenders?: number,
   innerMidfielders?: number,
+  orders?: Record<number, string>,
 ) =>
   useQuery({
     queryKey: [
       "lineup", TEAM_ID, formation, centralDefenders ?? null, innerMidfielders ?? null,
+      orders ?? null,
     ],
-    queryFn: () => api.lineup(TEAM_ID, formation, centralDefenders, innerMidfielders),
+    queryFn: () => api.lineup(TEAM_ID, formation, centralDefenders, innerMidfielders, orders),
     // Mover un reparto no cambia la plantilla: se conserva el once anterior
     // mientras llega el nuevo, en vez de vaciar la pantalla entera.
     placeholderData: (previous) => previous,

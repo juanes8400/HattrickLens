@@ -67,7 +67,7 @@ def seeded() -> tuple[TestClient, int]:
     app.dependency_overrides.clear()
 
 
-def test_the_four_groups_are_served_with_the_squad_average(
+def test_the_groups_are_served_with_the_squad_average(
     seeded: tuple[TestClient, int],
 ) -> None:
     client, team_id = seeded
@@ -77,7 +77,7 @@ def test_the_four_groups_are_served_with_the_squad_average(
 
     assert body["playerCount"] > 0
     assert [g["label"] for g in body["groups"]] == [
-        "Habilidades", "Salario y TSI", "Mejor posición", "Clases de Jugador",
+        "Habilidades", "Salario y TSI", "HTMS", "Mejor posición", "Clases de Jugador",
     ]
     skills = body["groups"][0]
     # Las 7 habilidades + Experiencia, Fidelidad, Resistencia y Forma.

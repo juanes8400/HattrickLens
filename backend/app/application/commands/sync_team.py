@@ -454,6 +454,8 @@ class SyncTeamHandler:
                     uow, cmd.team_id, cmd.ht_team_id, captured_at, result, on_progress
                 )
 
+            await self._resolver_moneda(uow, cmd.team_id)
+
             await uow.syncs.finalize(
                 sync_id, status=result.status,
                 error="; ".join(result.errors) or None,
@@ -720,6 +722,8 @@ class SyncTeamHandler:
             match_type_name,
         )
         from app.domain.value_objects.ht_time import ht_to_utc
+        from sqlalchemy import select
+
         from app.infrastructure.db import models as m
 
         equipo = await uow.session.get(m.Team, team_id)
@@ -1207,6 +1211,67 @@ class SyncTeamHandler:
             except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                 result.errors.append(f"matchdetails:{ht_match_id}: {exc}")
                 result.status = "partial"
+
+    async def _resolver_moneda(self, uow: UnitOfWork, team_id: int) -> None:
+        """Deja el equipo con la moneda de su pais, sea cual sea.
+
+        Se hacia solo dentro del paso de `worlddetails`, y solo si el id de
+        liga del equipo coincidia con el de la fila que se estaba escribiendo.
+        Con eso, tres casos reales se quedaban sin moneda y ensenaban las
+        cifras en la moneda base de Hattrick, sin simbolo y multiplicadas por
+        la tasa que no era:
+
+        - equipos cuyo `ht_league_id` todavia no se habia rellenado;
+        - Hattrick Femme, que es una liga internacional y en `worlddetails`
+          no trae pais ni moneda propia: en Hattrick esos equipos manejan la
+          moneda del pais de su manager;
+        - cualquier equipo cuyo id de liga llegara despues de ese paso.
+
+        Por eso se resuelve al final de cada sync y por tres vias, de la mas
+        fiable a la menos.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        if equipo is None:
+            return
+
+        async def _contexto(condicion) -> m.WorldContext | None:
+            return await uow.session.scalar(select(m.WorldContext).where(condicion))
+
+        candidatos: list[m.WorldContext | None] = []
+        if equipo.ht_league_id is not None:
+            candidatos.append(
+                await _contexto(m.WorldContext.ht_league_id == equipo.ht_league_id)
+            )
+        if equipo.league_name:
+            candidatos.append(
+                await _contexto(m.WorldContext.league_name == equipo.league_name)
+            )
+        for fila in candidatos:
+            if fila is not None and fila.currency_name:
+                equipo.currency_name = fila.currency_name
+                equipo.currency_rate = fila.currency_rate or 1.0
+                return
+
+        # Ligas internacionales (Hattrick Femme y compañia): no tienen moneda
+        # propia, asi que se toma la de otro equipo del mismo manager, que es
+        # la de su pais y la que Hattrick le ensena.
+        if equipo.owner_user_id is not None:
+            hermano = await uow.session.scalar(
+                select(m.Team)
+                .where(
+                    m.Team.owner_user_id == equipo.owner_user_id,
+                    m.Team.id != equipo.id,
+                    m.Team.currency_name != "",
+                )
+                .limit(1)
+            )
+            if hermano is not None:
+                equipo.currency_name = hermano.currency_name
+                equipo.currency_rate = hermano.currency_rate or 1.0
 
     async def execute_match_details(self, cmd: SyncMatchDetailsCommand) -> SyncResult:
         """Ratings por sector y eventos de un partido terminado. HL-071/072.

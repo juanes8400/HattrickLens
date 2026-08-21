@@ -99,7 +99,7 @@ export function PitchGrid<T>({
     // Un solo contenedor con scroll para TODAS las filas: si cada una se
     // desplazara por su cuenta, al mover una se perdería la vertical.
     <div className="overflow-x-auto">
-      <div className="mx-auto flex w-max flex-col gap-3 px-4 py-6">
+      <div className="mx-auto flex w-max flex-col gap-2 px-2 py-4 sm:gap-3 sm:px-4 sm:py-6">
         {rows.map((fila, i) => {
           if (fila.length === 0) return null;
           const bandas = fila.filter(marca);
@@ -114,7 +114,7 @@ export function PitchGrid<T>({
             <div
               key={i}
               className="grid gap-2"
-              style={{ gridTemplateColumns: `repeat(${PITCH_COLUMNS}, ${PITCH_CARD_REM}rem)` }}
+              style={{ gridTemplateColumns: `repeat(${PITCH_COLUMNS}, var(--pitch-card))` }}
             >
               {bandas.length === 0
                 ? franja(medio, 1, PITCH_COLUMNS, "todo")
@@ -134,10 +134,17 @@ export function PitchGrid<T>({
 }
 
 /** Tarjeta de jugador con las mismas proporciones que "Mejor alineación":
- * 9rem de ancho, vidrio esmerilado sobre el verde de la cancha. */
-export const PITCH_CARD_WIDTH = "w-36";
-/** El mismo 9rem de `w-36`, en número: la rejilla necesita el valor para
- *  construir sus columnas y las dos medidas no pueden separarse. */
-export const PITCH_CARD_REM = 9;
+ * vidrio esmerilado sobre el verde de la cancha.
+ *
+ * 2026-08-21, por reportes de usuarios: el ancho era 9rem fijo, así que las
+ * cinco columnas medían 45rem y en un teléfono la cancha se salía de la
+ * pantalla — había que arrastrarla de lado para ver al extremo derecho, y el
+ * verde terminaba antes que la formación. Ahora el ancho es una variable
+ * (`--pitch-card`, en index.css) que vale 9rem cuando cabe y se encoge para
+ * llenar exactamente el ancho disponible cuando no. La geometría no cambia:
+ * siguen siendo cinco columnas y un extremo sigue cayendo sobre su lateral.
+ */
+export const PITCH_CARD_WIDTH = "w-[var(--pitch-card)]";
 export const PITCH_CARD_CLASS =
-  `${PITCH_CARD_WIDTH} shrink-0 rounded-lg border border-white/20 bg-black/40 p-1.5 text-center shadow-xl backdrop-blur`;
+  `${PITCH_CARD_WIDTH} shrink-0 rounded-lg border border-white/20 bg-black/40 p-1.5 ` +
+  "text-center text-[length:var(--pitch-card-font)] shadow-xl backdrop-blur";
