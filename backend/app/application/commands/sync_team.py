@@ -299,6 +299,16 @@ class SyncPreviousClubBonusCommand:
     ht_player_id: int
 
 
+@dataclass(frozen=True)
+class SyncBackfillBatchCommand:
+    """Un lote del relleno del pasado. `limite` es en JUGADORES: de cada uno se
+    descarga todo lo que le falte antes de pasar al siguiente."""
+
+    user_id: int
+    team_id: int
+    limite: int
+
+
 @dataclass
 class SyncResult:
     sync_id: int
@@ -320,6 +330,10 @@ class SyncResult:
     pages_fetched: int = 0
     transfers_seen: int = 0
     transfers_new: int = 0
+    # Relleno del pasado por lotes: jugadores atendidos en ESTE lote y los que
+    # siguen esperando. Es lo que la pantalla convierte en "van 87 de 515".
+    players_done: int = 0
+    players_pending: int = 0
 
 
 class SyncTeamHandler:
@@ -418,9 +432,14 @@ class SyncTeamHandler:
                 # que la resta de fechas en `_apply_player_enrichment`
                 # necesita su propio "ahora" naive, no el mismo de arriba.
                 fetched_at = datetime.now(UTC).replace(tzinfo=None)
-                await self._backfill_sold_player_details(
-                    uow, cmd.team_id, fetched_at, result, on_progress
-                )
+                # El relleno del pasado (ficha, precio antiguo y país destino
+                # de cada ex-jugador) ya NO vive aquí: era una llamada a
+                # Hattrick por jugador y sin tope, así que una cuenta con
+                # historia larga convertía cada sincronización en cientos de
+                # peticiones que se cortaban por tiempo sin terminar. Ahora va
+                # por lotes desde su propio botón, con un contador a la vista
+                # (ver `execute_backfill_batch`). Esto de aquí se queda solo
+                # con lo que es barato y cambia semana a semana.
                 await self._backfill_mandatory_listing_count(uow, cmd.team_id, result)
                 await self._backfill_previous_club_bonus(uow, cmd.team_id, result, on_progress)
 
@@ -464,25 +483,56 @@ class SyncTeamHandler:
             await uow.commit()
         return result
 
-    async def _backfill_sold_player_details(
+    async def execute_backfill_batch(
         self,
-        uow: UnitOfWork,
-        team_id: int,
-        fetched_at: datetime,
-        result: SyncResult,
+        cmd: SyncBackfillBatchCommand,
         on_progress: ProgressReporter | None = None,
-    ) -> None:
-        """Automático, sin botón (HL-161, 2026-08-04): recorre los
-        jugadores VENDIDOS a los que aún les falta algo — edad en la venta
-        (sin snapshot previo), país, carácter, especialidad, TSI en la
-        compra, o país destino — y lo rellena con una llamada CHPP cada
-        uno. Una vez resuelto, esa columna nunca vuelve a pedirse para ese
-        jugador."""
+    ) -> SyncResult:
+        """Un lote del relleno del pasado, con cuenta de lo que queda.
+
+        Nace de un reporte de usuario: la copia publicada tenía 60 precios y
+        416 nacionalidades sin resolver, y no avanzaban nunca porque el intento
+        se hacía entero dentro de la sincronización normal y se cortaba por
+        tiempo. Troceado y con su propio botón, cada pulsación termina lo que
+        empieza y se ve cuánto falta.
+        """
+        async with self._uow as uow:
+            sync_id = await uow.syncs.create(
+                cmd.user_id, cmd.team_id, kind="backfill_batch"
+            )
+            result = SyncResult(sync_id=sync_id, status="completed")
+            fetched_at = datetime.now(UTC).replace(tzinfo=None)
+
+            result.players_done = await self._backfill_sold_player_details(
+                uow, cmd.team_id, fetched_at, result, on_progress, limite=cmd.limite
+            )
+            quedan = await self.pendientes_de_ficha(uow, cmd.team_id)
+            result.players_pending = len(
+                set(quedan["ficha"]) | set(quedan["precio"]) | set(quedan["destino"])
+            )
+
+            await uow.syncs.finalize(
+                sync_id, status=result.status, error="; ".join(result.errors) or None,
+            )
+            await uow.commit()
+        return result
+
+    async def pendientes_de_ficha(
+        self, uow: UnitOfWork, team_id: int
+    ) -> dict[str, list[int]]:
+        """Qué le falta por descargar a cada jugador, agrupado por tipo.
+
+        Son tres huecos distintos, todos de una llamada por jugador y todos
+        de una sola vez en la vida: el precio de compra antiguo, la ficha
+        (nacionalidad, carácter, especialidad, edad reconstruida) y el país
+        al que se fue. Se consultan juntos porque, para quien mira la
+        pantalla, es una sola cosa: "que la ficha esté completa".
+        """
         from sqlalchemy import select
 
         from app.infrastructure.db import models as m
 
-        has_pre_sale_snapshot = (
+        hay_snapshot_antes_de_la_venta = (
             select(m.PlayerSnapshot.id)
             .where(
                 m.PlayerSnapshot.player_id == m.Player.id,
@@ -491,10 +541,9 @@ class SyncTeamHandler:
             .exists()
         )
         # 2026-08-05: mismo principio, ancla en `purchased_at` — "Edad de
-        # compra" en Detalle necesita esto para TODO jugador con compra
-        # conocida, esté vendido o siga en la plantilla, no solo los
-        # vendidos (a diferencia del resto de este backfill).
-        has_post_purchase_snapshot = (
+        # compra" en Detalle lo necesita para TODO jugador con compra
+        # conocida, esté vendido o siga en la plantilla.
+        hay_snapshot_tras_la_compra = (
             select(m.PlayerSnapshot.id)
             .where(
                 m.PlayerSnapshot.player_id == m.Player.id,
@@ -502,101 +551,125 @@ class SyncTeamHandler:
             )
             .exists()
         )
-        needs_enrichment = (
-            await uow.session.execute(
-                select(m.Player.ht_player_id).where(
-                    m.Player.team_id == team_id,
-                    ~m.Player.enrichment_attempted,
-                    (
-                        (
-                            m.Player.sold_at.is_not(None)
-                            & (
-                                m.Player.native_country.is_(None)
-                                | m.Player.agreeability.is_(None)
-                                | m.Player.specialty.is_(None)
-                                | m.Player.mother_club_team_id.is_(None)
-                                | (
-                                    m.Player.age_years_at_sale.is_(None)
-                                    & ~has_pre_sale_snapshot
-                                )
-                            )
-                        )
-                        | (
-                            m.Player.purchased_at.is_not(None)
-                            & m.Player.age_years_at_purchase.is_(None)
-                            & ~has_post_purchase_snapshot
-                        )
-                    ),
-                )
-            )
-        ).scalars().all()
-        for ht_player_id in needs_enrichment:
-            await _report(on_progress, f"Descargando ficha de ex-jugador {ht_player_id}...")
-            try:
-                wrote = await self._apply_player_enrichment(uow, ht_player_id, fetched_at)
-                result.snapshots_written += 1 if wrote else 0
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
-                result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
-                result.status = "partial"
 
-        # HL-161: precio de compra + TSI en la compra vía transfersplayer.xml.
-        # 2026-08-05, pedido explícitamente ("sincroniza todos los xml que
-        # importen"): unificada con lo que antes solo cubría el botón manual
-        # "Actualizar transferencias" (`trigger_purchase_price_sync`) — CUALQUIER
-        # jugador (vendido o activo) sin `purchase_price` conocido (real o
-        # manual), MÁS los vendidos cuyo `purchase_price` ya se resolvió ANTES
-        # de que existiera esta captura de TSI (sin este segundo caso,
-        # `tsi_at_purchase` se quedaría en "?" para siempre — visto en vivo
-        # contra la cuenta real). Sigue siendo "una vez por jugador, para
-        # siempre": `tsi_at_purchase_attempted` es el mismo flag en ambos casos.
-        needs_tsi_at_purchase = (
-            await uow.session.execute(
-                select(m.Player.ht_player_id).where(
-                    m.Player.team_id == team_id,
-                    ~m.Player.tsi_at_purchase_attempted,
-                    (
-                        (
-                            m.Player.purchase_price.is_(None)
-                            & m.Player.purchase_price_manual.is_(None)
-                        )
-                        | (
-                            m.Player.sold_at.is_not(None)
-                            & m.Player.tsi_at_purchase.is_(None)
-                        )
-                    ),
-                )
+        async def ids(condicion) -> list[int]:
+            filas = await uow.session.execute(
+                select(m.Player.ht_player_id).where(m.Player.team_id == team_id, condicion)
             )
-        ).scalars().all()
-        for ht_player_id in needs_tsi_at_purchase:
-            await _report(
-                on_progress, f"Descargando transferencias de jugador {ht_player_id}..."
-            )
-            try:
-                wrote = await self._apply_transfers_player_purchase(
-                    uow, team_id, ht_player_id
-                )
-                result.snapshots_written += 1 if wrote else 0
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
-                result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
-                result.status = "partial"
+            return list(filas.scalars().all())
 
-        needs_destination = (
-            await uow.session.execute(
-                select(m.Player.ht_player_id).where(
-                    m.Player.team_id == team_id,
-                    m.Player.buyer_team_id.is_not(None),
-                    m.Player.destination_country.is_(None),
+        ficha = await ids(
+            (~m.Player.enrichment_attempted)
+            & (
+                (
+                    m.Player.sold_at.is_not(None)
+                    & (
+                        m.Player.native_country.is_(None)
+                        | m.Player.agreeability.is_(None)
+                        | m.Player.specialty.is_(None)
+                        | m.Player.mother_club_team_id.is_(None)
+                        | (
+                            m.Player.age_years_at_sale.is_(None)
+                            & ~hay_snapshot_antes_de_la_venta
+                        )
+                    )
+                )
+                | (
+                    m.Player.purchased_at.is_not(None)
+                    & m.Player.age_years_at_purchase.is_(None)
+                    & ~hay_snapshot_tras_la_compra
                 )
             )
-        ).scalars().all()
-        for ht_player_id in needs_destination:
-            await _report(on_progress, f"Descargando país destino de jugador {ht_player_id}...")
-            try:
-                wrote = await self._apply_destination_country(uow, ht_player_id)
-                result.snapshots_written += 1 if wrote else 0
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
-                result.errors.append(f"destination_country:{ht_player_id}: {exc}")
-                result.status = "partial"
+        )
+        # 2026-08-05: "una vez por jugador, para siempre" —
+        # `tsi_at_purchase_attempted` es el mismo flag en los dos casos.
+        precio = await ids(
+            (~m.Player.tsi_at_purchase_attempted)
+            & (
+                (
+                    m.Player.purchase_price.is_(None)
+                    & m.Player.purchase_price_manual.is_(None)
+                )
+                | (m.Player.sold_at.is_not(None) & m.Player.tsi_at_purchase.is_(None))
+            )
+        )
+        destino = await ids(
+            m.Player.buyer_team_id.is_not(None)
+            & m.Player.destination_country.is_(None)
+            & (~m.Player.destination_attempted)
+        )
+        return {"ficha": ficha, "precio": precio, "destino": destino}
+
+    async def _backfill_sold_player_details(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        fetched_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+        limite: int | None = None,
+    ) -> int:
+        """Rellena lo que le falta a cada jugador, de a un lote.
+
+        2026-08-21, por reportes de usuarios: esto vivía dentro de la
+        sincronización normal y sin tope, así que una cuenta con historia
+        larga intentaba casi novecientas llamadas a Hattrick de una sentada y
+        se cortaba por tiempo antes de terminar ninguna. Ahora va por lotes,
+        desde su propio botón, y devuelve cuántos jugadores atendió para que
+        la pantalla pueda decir cuánto falta.
+
+        `limite` es en JUGADORES, no en llamadas: de cada uno se descarga TODO
+        lo que le falte antes de pasar al siguiente, para que nunca quede una
+        ficha a medias.
+        """
+        pendientes = await self.pendientes_de_ficha(uow, team_id)
+        ficha = set(pendientes["ficha"])
+        precio = set(pendientes["precio"])
+        destino = set(pendientes["destino"])
+
+        # Orden estable: el mismo lote se repetiría igual si algo fallara.
+        todos = sorted(ficha | precio | destino)
+        if limite is not None:
+            todos = todos[:limite]
+
+        for ht_player_id in todos:
+            if ht_player_id in ficha:
+                await _report(
+                    on_progress, f"Descargando ficha de ex-jugador {ht_player_id}..."
+                )
+                try:
+                    wrote = await self._apply_player_enrichment(
+                        uow, ht_player_id, fetched_at
+                    )
+                    result.snapshots_written += 1 if wrote else 0
+                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                    result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
+                    result.status = "partial"
+            if ht_player_id in precio:
+                await _report(
+                    on_progress,
+                    f"Descargando transferencias de jugador {ht_player_id}...",
+                )
+                try:
+                    wrote = await self._apply_transfers_player_purchase(
+                        uow, team_id, ht_player_id
+                    )
+                    result.snapshots_written += 1 if wrote else 0
+                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                    result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
+                    result.status = "partial"
+            if ht_player_id in destino:
+                await _report(
+                    on_progress, f"Descargando país destino de jugador {ht_player_id}..."
+                )
+                try:
+                    wrote = await self._apply_destination_country(uow, ht_player_id)
+                    result.snapshots_written += 1 if wrote else 0
+                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                    result.errors.append(f"destination_country:{ht_player_id}: {exc}")
+                    result.status = "partial"
+
+        return len(todos)
 
     async def _backfill_native_countries_from_snapshots(
         self, uow: UnitOfWork, team_id: int, result: SyncResult
@@ -2194,6 +2267,10 @@ class SyncTeamHandler:
             "teamdetails", version=FILE_VERSIONS["teamdetails"],
             teamID=player.buyer_team_id,
         )
+        # Preguntado queda preguntado, salga o no salga el pais: si no se
+        # marcara, un comprador que Hattrick no resuelve volveria a la cola en
+        # cada lote y el relleno no terminaria jamas.
+        player.destination_attempted = True
         team = next(iter(payload.get("teams", [])), None)
         country_name = team.get("country_name") if team else None
         if not country_name:

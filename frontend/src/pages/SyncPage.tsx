@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ErrorState, Note, Panel } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
@@ -66,7 +66,65 @@ export function SyncPage() {
     onSuccess: () => qc.invalidateQueries(),
   });
 
-  const running = fullSync.isPending || transfers.isPending;
+  // Relleno del pasado: la ficha completa de cada ex-jugador (nacionalidad,
+  // carácter, precio de compra antiguo, país al que se fue). Es una llamada a
+  // Hattrick por jugador, así que va por lotes: cada vuelta termina lo que
+  // empieza y la barra dice cuánto falta.
+  const pendientes = useQuery({
+    queryKey: ["backfill-pending", TEAM_ID],
+    queryFn: () => api.backfillPending(TEAM_ID),
+  });
+  const [relleno, setRelleno] = useState<{
+    total: number;
+    hechos: number;
+    quedan: number;
+    error: string | null;
+  } | null>(null);
+  const pararRef = useRef(false);
+  const [rellenando, setRellenando] = useState(false);
+
+  const completarFichas = async () => {
+    const inicio = pendientes.data?.pending ?? 0;
+    if (inicio === 0) return;
+    pararRef.current = false;
+    setRellenando(true);
+    setRelleno({ total: inicio, hechos: 0, quedan: inicio, error: null });
+    let hechos = 0;
+    try {
+      // Vuelta a vuelta hasta acabar. Cada lote es una petición corta e
+      // independiente: si algo se corta, lo ya descargado se queda guardado y
+      // al volver a pulsar se sigue donde iba, nunca desde el principio.
+      let quedabanAntes = inicio;
+      for (;;) {
+        if (pararRef.current) break;
+        const lote = await api.runBackfillBatch(TEAM_ID);
+        hechos += lote.done;
+        setRelleno({
+          total: inicio,
+          hechos: Math.min(hechos, inicio),
+          quedan: lote.pending,
+          error: lote.errors[0] ?? null,
+        });
+        if (lote.pending === 0 || lote.done === 0) break;
+        // Freno de mano: si una vuelta no reduce lo que queda, es que algo no
+        // se puede resolver y volvería a salir en la siguiente. Sin esto el
+        // bucle no terminaría nunca — pasó de verdad, con la barra marcando
+        // "55 de 11".
+        if (lote.pending >= quedabanAntes) break;
+        quedabanAntes = lote.pending;
+      }
+    } catch (reason) {
+      setRelleno((previo) =>
+        previo ? { ...previo, error: errorMessage(reason) } : previo,
+      );
+    } finally {
+      setRellenando(false);
+      await pendientes.refetch();
+      qc.invalidateQueries();
+    }
+  };
+
+  const running = fullSync.isPending || transfers.isPending || rellenando;
 
   return (
     <div className="space-y-4">
@@ -128,6 +186,86 @@ export function SyncPage() {
           >
             {transfers.isPending ? "Cargando…" : "Traer historial"}
           </button>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Completar fichas del pasado"
+        meta={
+          pendientes.data
+            ? pendientes.data.pending === 0
+              ? "todo al día"
+              : `faltan ${pendientes.data.pending} jugador(es)`
+            : "contando…"
+        }
+      >
+        <div className="space-y-3 p-4">
+          <p className="text-sm text-[var(--muted)]">
+            De cada jugador que pasó por el club se descarga su ficha completa: nacionalidad
+            (de ahí salen las banderas), carácter, precio de compra antiguo y a qué club se
+            fue. Es una consulta a Hattrick por jugador, así que va por tandas y se puede
+            parar cuando quieras. Nadie se pregunta dos veces, ni siquiera si Hattrick no
+            contesta nada de él.
+          </p>
+
+          {relleno && (
+            <div>
+              <div className="mb-1 flex items-baseline justify-between text-xs">
+                <span className="text-[var(--muted)]">
+                  {relleno.quedan === 0
+                    ? "Listo, no queda ninguna"
+                    : `${relleno.hechos} de ${relleno.total}`}
+                </span>
+                <span className="tabular-nums text-[var(--muted)]">
+                  {relleno.quedan === 0
+                    ? "100%"
+                    : `${Math.round((relleno.hechos / Math.max(relleno.total, 1)) * 100)}%`}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                <div
+                  className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
+                  style={{
+                    width: `${
+                      relleno.quedan === 0
+                        ? 100
+                        : Math.min(100, (relleno.hechos / Math.max(relleno.total, 1)) * 100)
+                    }%`,
+                  }}
+                />
+              </div>
+              {relleno.error && (
+                <p className="mt-2 text-xs text-[var(--warning)]">
+                  Hattrick falló en alguna ficha: {relleno.error}. Lo descargado se guardó;
+                  vuelve a pulsar para seguir.
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={completarFichas}
+              disabled={running || (pendientes.data?.pending ?? 0) === 0}
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
+            >
+              {rellenando
+                ? "Descargando…"
+                : (pendientes.data?.pending ?? 0) === 0
+                  ? "No queda nada por descargar"
+                  : `Completar ${pendientes.data?.pending ?? 0} ficha(s)`}
+            </button>
+            {rellenando && (
+              <button
+                onClick={() => {
+                  pararRef.current = true;
+                }}
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--accent)]"
+              >
+                Parar
+              </button>
+            )}
+          </div>
         </div>
       </Panel>
 

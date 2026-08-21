@@ -141,7 +141,10 @@ def test_sync_runs_for_real_with_a_valid_session(
     # módulo de Juveniles estaba completo pero nadie descargaba el fichero,
     # así que la pantalla leía de una tabla vacía) = 109.
     assert body["syncId"] > 0
-    assert body["snapshotsWritten"] == 109
+    # 86 y no 109 desde 2026-08-21: el relleno del pasado (ficha, precio
+    # antiguo y pais destino de cada ex-jugador) salio de la
+    # sincronizacion normal y vive en su propio boton, por lotes.
+    assert body["snapshotsWritten"] == 86
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

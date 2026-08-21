@@ -212,6 +212,12 @@ export const api = {
     request<TransfersHistorySyncResult>(`/teams/${teamId}/transfers/sync`, {
       method: "POST",
     }),
+  /** Cuantas fichas quedan por descargar. No llama a Hattrick: solo lee la base. */
+  backfillPending: (teamId: number) =>
+    request<BackfillPending>(`/teams/${teamId}/backfill`),
+  /** Un lote y para. Devuelve cuantos atendio y cuantos quedan. */
+  runBackfillBatch: (teamId: number) =>
+    request<BackfillBatchResult>(`/teams/${teamId}/backfill/run`, { method: "POST" }),
   setManualPurchasePrice: (
     teamId: number,
     htPlayerId: number,
@@ -639,6 +645,22 @@ export interface MatchDetailsSyncResult {
 export interface PlayerDetailsSyncResult {
   playersProcessed: number;
   snapshotsWritten: number;
+  errors: string[];
+}
+
+export interface BackfillPending {
+  /** Jugadores a los que les falta algo por descargar. */
+  pending: number;
+  batchSize: number;
+  detail: { profile: number; purchasePrice: number; destination: number };
+}
+
+export interface BackfillBatchResult {
+  status: string;
+  /** Jugadores atendidos en este lote. */
+  done: number;
+  /** Los que siguen esperando. */
+  pending: number;
   errors: string[];
 }
 

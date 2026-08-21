@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.application.commands.sync_team import (
+    SyncBackfillBatchCommand,
     SyncPlayerEnrichmentCommand,
     SyncTeamCommand,
     SyncTeamHandler,
@@ -384,16 +385,19 @@ def test_destination_country_backfill_uses_teamdetails_of_the_buyer() -> None:
     asyncio.run(run())
 
 
-def test_execute_sync_backfills_sold_player_details_automatically_without_a_button() -> None:
-    """Pedido explícitamente por el usuario 2026-08-04: SIN botón — el sync
-    normal (`execute()`, cuando `transfersteam` es parte del sync) debe
-    rellenar solo, automáticamente, edad/país/carácter/especialidad para
-    cualquier jugador vendido al que le falte. Esto reprodujo en vivo un
-    bug real: `execute()` le pasaba a `_apply_player_enrichment` su propio
-    `captured_at` (aware, UTC) en vez de un "ahora" naive — mismo choque de
-    naive-vs-aware que ya se vio antes con `sold_at` — y crasheaba con
-    "can't subtract offset-naive and offset-aware datetimes" en cuanto
-    había al menos un jugador vendido real que backfillear."""
+def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
+    """Edad, país, carácter y especialidad de un jugador vendido.
+
+    Hasta 2026-08-21 esto ocurría dentro de la sincronización normal, sin
+    tope. Con una cuenta de historia larga eran cientos de llamadas a
+    Hattrick en una sola petición y se cortaba por tiempo sin terminar
+    ninguna, así que ahora vive en su propio botón y va por lotes; lo que se
+    comprueba aquí es que el relleno sigue haciéndose.
+
+    El caso reprodujo además un bug real: se le pasaba un "ahora" con zona
+    horaria en vez de uno sin ella y reventaba con "can't subtract
+    offset-naive and offset-aware datetimes" en cuanto había un vendido de
+    verdad que rellenar."""
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
@@ -408,13 +412,17 @@ def test_execute_sync_backfills_sold_player_details_automatically_without_a_butt
             await u.session.commit()
 
         handler = SyncTeamHandler(uow, chpp)
-        result = await handler.execute(
+        await handler.execute(
             SyncTeamCommand(
                 user_id=1, team_id=team_id, ht_team_id=537758, files=["transfersteam"],
             )
         )
+        result = await handler.execute_backfill_batch(
+            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
+        )
         assert result.status == "completed"
         assert result.errors == []
+        assert result.players_done >= 1
 
         async with uow as u:
             player = await u.session.scalar(
@@ -1585,4 +1593,54 @@ def test_a_re_signed_player_is_not_marked_as_gone() -> None:
         async with uow as u:
             de_nuevo = await u.session.get(m.Player, vendido.id)
             assert de_nuevo.left_team_at is None
+    asyncio.run(run())
+
+
+def test_the_backfill_goes_in_batches_and_reports_what_is_left() -> None:
+    """2026-08-21, por reportes de usuarios: en la copia publicada quedaban 60
+    precios y 416 nacionalidades sin resolver y no avanzaban nunca, porque el
+    intento se hacía entero dentro de la sincronización normal y se cortaba
+    por tiempo antes de terminar. Troceado, cada pulsación termina lo que
+    empieza; y como devuelve lo que queda, la pantalla puede decir cuánto
+    falta en vez de dejar al usuario a ciegas."""
+    async def run() -> None:
+        uow, chpp, team_id, _ = await _setup_with_player(468921494)
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, chpp)
+        await handler.execute(
+            SyncTeamCommand(
+                user_id=1, team_id=team_id, ht_team_id=537758, files=["transfersteam"],
+            )
+        )
+
+        async with uow as u:
+            antes = await handler.pendientes_de_ficha(u, team_id)
+        total = len(set(antes["ficha"]) | set(antes["precio"]) | set(antes["destino"]))
+        assert total >= 1, "el fixture deja al menos un jugador por rellenar"
+
+        # Un lote de uno: atiende uno y deja el resto contado.
+        primero = await handler.execute_backfill_batch(
+            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=1)
+        )
+        assert primero.players_done == 1
+        assert primero.players_pending == total - 1
+
+        # El resto de una vez.
+        segundo = await handler.execute_backfill_batch(
+            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
+        )
+        assert segundo.players_pending == 0
+
+        # Y una tercera vuelta ya no pide nada a Hattrick: nadie se consulta
+        # dos veces, ni siquiera quien no devolvió nada.
+        tercero = await handler.execute_backfill_batch(
+            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
+        )
+        assert tercero.players_done == 0
+        assert tercero.players_pending == 0
+
     asyncio.run(run())

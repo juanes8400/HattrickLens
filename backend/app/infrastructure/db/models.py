@@ -195,6 +195,12 @@ class Player(Base):
     # alguien que entro y salio entre dos sincronizaciones: sin esto su
     # coste de salarios figuraba como 0 e inflaba su saldo.
     last_known_salary: Mapped[int | None] = mapped_column(Integer)
+    # Ya se pregunto por el pais del club comprador, con exito o sin el.
+    # Sin esta marca, un comprador cuyo pais Hattrick no resuelve se queda
+    # pendiente para siempre y el relleno por lotes nunca termina.
+    destination_attempted: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
     sold_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: edad EN EL MOMENTO DE LA VENTA, reconstruida hacia atrás desde
     # la edad actual (playerdetails.xml, válido para cualquier jugador
