@@ -454,6 +454,7 @@ class SyncTeamHandler:
                     uow, cmd.team_id, cmd.ht_team_id, captured_at, result, on_progress
                 )
 
+            await self._marcar_salidas_de_vendidos(uow, cmd.team_id)
             await self._resolver_moneda(uow, cmd.team_id)
 
             await uow.syncs.finalize(
@@ -3033,6 +3034,47 @@ class SyncTeamHandler:
         if is_new_transaction:
             result.snapshots_written += 1
 
+    async def _marcar_salidas_de_vendidos(self, uow: UnitOfWork, team_id: int) -> int:
+        """Un jugador vendido ya no esta en la plantilla: marcarlo.
+
+        `left_team_at` lo pone `mark_departed` cuando alguien DESAPARECE de
+        players.xml. Los cientos de jugadores que crea el historial de
+        transferencias nunca aparecieron ahi, asi que nunca desaparecen y se
+        quedaban con `left_team_at` en NULL — es decir, contados como plantilla
+        activa. En una cuenta con historia larga eso convertia cada
+        sincronizacion normal en ~950 llamadas a Hattrick (una ficha y un
+        entrenamiento por cada uno de los 479 "activos"), que en un plan
+        gratuito no termina nunca. Medido en produccion: 479 activos donde
+        debia haber 24.
+
+        Solo se marcan los que no tienen ningun snapshot POSTERIOR a la venta:
+        si volvio a fichar por el club, sus lecturas nuevas lo demuestran y no
+        se toca.
+        """
+        from sqlalchemy import select, update
+
+        from app.infrastructure.db import models as m
+
+        posterior_a_la_venta = (
+            select(m.PlayerSnapshot.id)
+            .where(
+                m.PlayerSnapshot.player_id == m.Player.id,
+                m.PlayerSnapshot.captured_at > m.Player.sold_at,
+            )
+            .exists()
+        )
+        resultado = await uow.session.execute(
+            update(m.Player)
+            .where(
+                m.Player.team_id == team_id,
+                m.Player.sold_at.is_not(None),
+                m.Player.left_team_at.is_(None),
+                ~posterior_a_la_venta,
+            )
+            .values(left_team_at=m.Player.sold_at)
+        )
+        return resultado.rowcount or 0
+
     def _apply_sell_transfer(self, player: Any, t: dict[str, Any], result: SyncResult) -> None:
         """Núcleo de una venta — ver `_apply_buy_transfer`."""
         deadline = t.get("deadline") or ""
@@ -3263,6 +3305,8 @@ class SyncTeamHandler:
             # primeros usuarios con Transferencias vacía y sin forma de
             # recuperarla, porque cada clic siguiente se paraba en la primera
             # página creyendo estar al día.
+            await self._marcar_salidas_de_vendidos(uow, cmd.team_id)
+
             if team is not None and recorrido_entero and not result.errors:
                 if highest_seen > (team.last_transfer_id_seen or 0):
                     team.last_transfer_id_seen = highest_seen

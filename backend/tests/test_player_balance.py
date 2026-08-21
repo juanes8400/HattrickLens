@@ -1494,3 +1494,95 @@ def test_real_snapshots_always_win_over_the_last_known_salary() -> None:
         is_academy_graduate=False, fallback_salary=99999,
     ))
     assert r.salary_total == 2000
+
+
+def test_players_known_only_from_the_transfer_history_stop_counting_as_squad() -> None:
+    """2026-08-21, medido en producción: el equipo tenía 479 jugadores
+    "activos" donde debía tener 24.
+
+    `left_team_at` lo pone el sync cuando alguien DESAPARECE de players.xml.
+    Los cientos de jugadores que crea el historial de transferencias nunca
+    aparecieron ahí, así que nunca desaparecían y se quedaban contados como
+    plantilla. Cada sincronización normal pedía entonces su ficha y su
+    entrenamiento: ~950 llamadas a Hattrick que en un plan gratuito no
+    terminan nunca, y por eso ningún relleno del pasado avanzaba.
+    """
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, FakeTransfersHistoryCHPP())
+        await handler.execute_transfers_history(
+            SyncTransfersHistoryCommand(user_id=1, team_id=team_id, ht_team_id=537758)
+        )
+
+        async with uow as u:
+            vendidos = (await u.session.execute(
+                select(m.Player).where(
+                    m.Player.team_id == team_id, m.Player.sold_at.is_not(None)
+                )
+            )).scalars().all()
+            assert vendidos, "el fixture tiene al menos una venta"
+            for p in vendidos:
+                assert p.left_team_at is not None, f"{p.last_name} sigue contando como plantilla"
+                assert p.left_team_at == p.sold_at
+
+            activos = (await u.session.execute(
+                select(m.Player).where(
+                    m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                )
+            )).scalars().all()
+            # Los comprados y nunca vendidos sí siguen siendo plantilla.
+            assert all(p.sold_at is None for p in activos)
+
+    asyncio.run(run())
+
+
+def test_a_re_signed_player_is_not_marked_as_gone() -> None:
+    """Si volvió a fichar por el club, sus lecturas posteriores a la venta lo
+    demuestran y no se le puede dar por ido."""
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, FakeTransfersHistoryCHPP())
+        await handler.execute_transfers_history(
+            SyncTransfersHistoryCommand(user_id=1, team_id=team_id, ht_team_id=537758)
+        )
+
+        async with uow as u:
+            vendido = (await u.session.execute(
+                select(m.Player).where(
+                    m.Player.team_id == team_id, m.Player.sold_at.is_not(None)
+                )
+            )).scalars().first()
+            # Vuelve al club: una lectura posterior a la venta.
+            vendido.left_team_at = None
+            sync = m.Sync(
+                user_id=1, team_id=team_id, kind="players", status="completed",
+                started_at=vendido.sold_at + timedelta(days=1),
+            )
+            u.session.add(sync)
+            await u.session.flush()
+            u.session.add(m.PlayerSnapshot(
+                sync_id=sync.id, player_id=vendido.id,
+                captured_at=vendido.sold_at + timedelta(days=1),
+                age_years=25, age_days=0, tsi=1000, form=5, stamina=5,
+                experience=5, salary=1000, content_hash=b"x",
+            ))
+            await u.session.commit()
+
+        async with uow as u:
+            await handler._marcar_salidas_de_vendidos(u, team_id)
+            await u.session.commit()
+
+        async with uow as u:
+            de_nuevo = await u.session.get(m.Player, vendido.id)
+            assert de_nuevo.left_team_at is None
+    asyncio.run(run())
