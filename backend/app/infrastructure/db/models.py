@@ -4,7 +4,7 @@ Nota particionado: en PostgreSQL, player_snapshots es RANGE(captured_at) con PK
 física (id, captured_at) — eso vive en la migración (raw SQL). El ORM mapea id
 como PK lógica; con sqlite (tests) funciona el autoincrement vía variant.
 """
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -20,8 +20,41 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator
 
 PKBigInt = BigInteger().with_variant(Integer(), "sqlite")
+
+
+class UtcDateTime(TypeDecorator):
+    """Fecha con zona en la base, SIN zona (UTC) en Python.
+
+    La aplicación entera está escrita sobre fechas ingenuas en UTC, porque es
+    lo que devuelve sqlite, que es donde se desarrolló y se probó todo. En
+    Postgres, `timestamptz` vuelve CON zona, y entonces cualquier resta contra
+    un `datetime.now(UTC).replace(tzinfo=None)` revienta con "can't subtract
+    offset-naive and offset-aware datetimes". No se ve en local, no se ve en
+    los tests, y aparece en cuanto hay datos reales en producción.
+
+    En vez de repartir conversiones por cada consulta, se normaliza una sola
+    vez, en la frontera: se guarda con zona (la columna sigue siendo
+    `timestamptz`, no hace falta migrar nada) y se lee sin ella.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+        if dialect.name == "sqlite":
+            # sqlite guarda texto sin desfase; una fecha con zona lo rompería.
+            return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo else value
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None or value.tzinfo is None:
+            return value
+        return value.astimezone(UTC).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -40,7 +73,7 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(320), unique=True, index=True)
     password_hash: Mapped[str | None] = mapped_column(String(128))
     plan: Mapped[str] = mapped_column(String(16), default="free")
-    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class CHPPToken(Base):
@@ -87,7 +120,7 @@ class Team(Base):
     ht_youth_team_id: Mapped[int | None] = mapped_column(BigInteger)
     youth_team_name: Mapped[str | None] = mapped_column(String(128))
     youth_academy_created_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
+        UtcDateTime()
     )
     # LeagueLevel de esta serie (1 = división más alta del país) y MaxLevel
     # (divisiones totales) — de leaguedetails.xml. Hacen falta para saber si
@@ -131,25 +164,25 @@ class Player(Base):
     team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), index=True)
     first_name: Mapped[str] = mapped_column(String(64))
     last_name: Mapped[str] = mapped_column(String(64))
-    left_team_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    left_team_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # Hechos de una vez, no snapshots: de transfersteam.xml (precio real de
     # compra, HL-15x) y playerdetails.xml (club madre) — no hay "sync sync_id"
     # que les corresponda, así que viven en la identidad, no en player_snapshots.
     purchase_price: Mapped[int | None] = mapped_column(Integer)
-    purchased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purchased_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: cuando ni transfersteam.xml ni transfersplayer.xml traen una
     # compra real (p. ej. el jugador llegó con el equipo antes de que
     # existiera Hattrick Manager, o CHPP no guarda tan atrás), el usuario
     # puede escribirlo a mano. Se prioriza SIEMPRE el dato real
     # (`purchase_price`) sobre el manual — nunca al revés.
     purchase_price_manual: Mapped[int | None] = mapped_column(Integer)
-    purchased_at_manual: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purchased_at_manual: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: precio real de venta, de transfersteam.xml (TransferType="S",
     # vendedor == nosotros) — mismo fichero y mecanismo que purchase_price,
     # nunca se sobrescribe una vez vendido (un jugador solo se vende una
     # vez desde este club).
     sale_price: Mapped[int | None] = mapped_column(Integer)
-    sold_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sold_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: edad EN EL MOMENTO DE LA VENTA, reconstruida hacia atrás desde
     # la edad actual (playerdetails.xml, válido para cualquier jugador
     # aunque ya no esté en el equipo) menos los días transcurridos desde
@@ -230,7 +263,7 @@ class Player(Base):
     # el usuario CONFIRMA — nunca se sobreescribe solo. NULL = sin confirmar
     # todavía, se muestra la sugerencia.
     confirmed_career_stage: Mapped[str | None] = mapped_column(String(32))
-    confirmed_career_stage_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    confirmed_career_stage_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161, 2026-08-14, pedido explícitamente ("guardar los transferID de
     # todos los jugadores para que, si hacemos backfilling, no se confunda"):
     # los TransferID exactos de transfersplayer.xml que delimitan ESTE stint
@@ -246,7 +279,7 @@ class Player(Base):
     # purchased_at→sold_at) y cacheado aquí, porque recalcularlo implica
     # tantas llamadas a CHPP como partidos oficiales tuvo la ventana.
     games_played_for_us: Mapped[int | None] = mapped_column(SmallInteger)
-    games_played_for_us_computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    games_played_for_us_computed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # "Backfill de un jugador máximo una vez [por vuelta al sync]" — igual
     # que `enrichment_attempted`/`tsi_at_purchase_attempted`: cuándo se
     # revisó por última vez transfersplayer.xml buscando una reventa nueva
@@ -254,7 +287,7 @@ class Player(Base):
     # dar resultado en el futuro (una reventa puede pasar en cualquier
     # momento), así que esto es una marca de tiempo para espaciar los
     # reintentos automáticos, no un "ya se intentó, nunca más".
-    previous_club_bonus_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    previous_club_bonus_checked_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class Sync(Base):
@@ -264,8 +297,8 @@ class Sync(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     kind: Mapped[str] = mapped_column(String(256))
     status: Mapped[str] = mapped_column(String(16), default="running")
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime] = mapped_column(UtcDateTime())
+    finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     error: Mapped[str | None] = mapped_column(String(2000))
 
 
@@ -285,7 +318,7 @@ class SyncChange(Base):
     # ver 0045_sync_change_detail_json.py. `None` en las filas anteriores a
     # 2026-08-15, que se siguen leyendo con el parser de compatibilidad.
     detail_json: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
 
 class PlayerMatchRating(Base):
@@ -305,7 +338,7 @@ class PlayerMatchRating(Base):
     position_code: Mapped[int] = mapped_column(SmallInteger)
     played_minutes: Mapped[int] = mapped_column(SmallInteger)
     rating: Mapped[float] = mapped_column(Float)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
     __table_args__ = (
         Index("ix_pmr_player_match", "player_id", "ht_match_id", unique=True),
@@ -330,7 +363,7 @@ class PlayerListingAttempt(Base):
     # (se convierte a moneda local al leer, igual que salary/purchase_price)
     # — `None` si CHPP no reportó ninguna puja todavía en ese instante.
     highest_bid: Mapped[int | None] = mapped_column(BigInteger)
-    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    detected_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
 
 class PreviousClubBonus(Base):
@@ -352,13 +385,13 @@ class PreviousClubBonus(Base):
     ht_player_id: Mapped[int] = mapped_column(BigInteger, index=True)
     resale_transfer_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     resale_price: Mapped[int] = mapped_column(BigInteger)
-    resale_deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    resale_deadline: Mapped[datetime] = mapped_column(UtcDateTime())
     buyer_team_id: Mapped[int] = mapped_column(BigInteger)
     seller_team_id: Mapped[int] = mapped_column(BigInteger)
     games_played_with_us: Mapped[int] = mapped_column(SmallInteger)
     pct_applied: Mapped[float] = mapped_column(Float)
     amount: Mapped[int] = mapped_column(BigInteger)
-    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    computed_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
 
 class EconomySnapshot(Base):
@@ -367,7 +400,7 @@ class EconomySnapshot(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
     cash: Mapped[int] = mapped_column(BigInteger)
     expected_cash: Mapped[int] = mapped_column(BigInteger)
     sponsors_popularity: Mapped[int] = mapped_column(SmallInteger)
@@ -426,7 +459,7 @@ class TrainingSnapshot(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
     training_type: Mapped[int] = mapped_column(SmallInteger)
     training_level: Mapped[int] = mapped_column(SmallInteger)
     new_training_level: Mapped[int] = mapped_column(SmallInteger)
@@ -449,7 +482,7 @@ class PlayerSnapshot(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
     age_years: Mapped[int] = mapped_column(SmallInteger)
     age_days: Mapped[int] = mapped_column(SmallInteger)
     tsi: Mapped[int] = mapped_column(Integer)
@@ -500,7 +533,7 @@ class PlayerSnapshot(Base):
     # genuinamente reciente de uno viejo (ver `SquadQueryService`, que solo
     # muestra posición/rating si esta fecha cae dentro de los últimos 7
     # días respecto a HOY, calculado en cada consulta).
-    last_match_played_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_match_played_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # 2026-08-09, pedido explícitamente: "Última semana" solo mostraba la
     # posición base (portero/defensa/lateral/medio/extremo/delantero) sin
     # decir si la orden individual fue Ofensivo/Defensivo/Hacia el
@@ -530,7 +563,7 @@ class Standing(Base):
     series_ht_id: Mapped[int] = mapped_column(BigInteger, index=True)
     season: Mapped[int] = mapped_column(SmallInteger)
     match_round: Mapped[int] = mapped_column(SmallInteger)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
     team_ht_id: Mapped[int] = mapped_column(BigInteger, index=True)
     team_name: Mapped[str] = mapped_column(String(128))
     position: Mapped[int] = mapped_column(SmallInteger)
@@ -551,7 +584,7 @@ class StadiumHistory(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True)
-    played_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    played_at: Mapped[datetime] = mapped_column(UtcDateTime())
     match_type: Mapped[int] = mapped_column(SmallInteger)
     weather: Mapped[int] = mapped_column(SmallInteger, default=-1)
     capacity_total: Mapped[int] = mapped_column(Integer)
@@ -578,7 +611,7 @@ class Match(Base):
     __tablename__ = "matches"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
-    played_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    played_at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
     match_type: Mapped[int] = mapped_column(SmallInteger)
     status: Mapped[str] = mapped_column(String(16))
     home_team_ht_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -614,7 +647,7 @@ class Match(Base):
     submitted_attitude: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_coach_modifier: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_orders_captured_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
+        UtcDateTime()
     )
     # Predicción oficial de Hattrick para esas órdenes
     # (`matchorders.xml?actionType=predictratings`). Son ratings de inicio de
@@ -628,7 +661,7 @@ class Match(Base):
     submitted_rating_central_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_rating_left_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_ratings_captured_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
+        UtcDateTime()
     )
 
 
@@ -689,12 +722,12 @@ class FormerYouthPlayer(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     ht_player_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     name: Mapped[str] = mapped_column(String(128))
-    promoted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    sold_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    promoted_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    sold_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     sold_for: Mapped[int | None] = mapped_column(Integer)
     current_team_name: Mapped[str | None] = mapped_column(String(128))
     current_tsi: Mapped[int | None] = mapped_column(Integer)
-    refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refreshed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class YouthPlayer(Base):
@@ -710,8 +743,8 @@ class YouthPlayer(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     first_name: Mapped[str] = mapped_column(String(64))
     last_name: Mapped[str] = mapped_column(String(64))
-    arrived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    arrived_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    left_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class YouthSnapshot(Base):
@@ -725,7 +758,7 @@ class YouthSnapshot(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
     youth_player_id: Mapped[int] = mapped_column(ForeignKey("youth_players.id"), index=True)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
     age_years: Mapped[int] = mapped_column(SmallInteger)
     age_days: Mapped[int] = mapped_column(SmallInteger)
     keeper: Mapped[int | None] = mapped_column(SmallInteger)
@@ -770,7 +803,7 @@ class StaffSnapshot(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
     assistant_trainer_levels: Mapped[int] = mapped_column(SmallInteger, default=0)
     form_coach_levels: Mapped[int] = mapped_column(SmallInteger, default=0)
     medic_levels: Mapped[int] = mapped_column(SmallInteger, default=0)
@@ -827,10 +860,10 @@ class WorldContext(Base):
     league_system_id: Mapped[int] = mapped_column(SmallInteger, default=1)
     currency_name: Mapped[str] = mapped_column(String(16), default="")
     currency_rate: Mapped[float] = mapped_column(Float, default=1.0)
-    training_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    cup_match_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    series_match_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    training_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    cup_match_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    series_match_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    refreshed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class WorldCup(Base):
@@ -881,7 +914,7 @@ class SkillUp(Base):
     season: Mapped[int] = mapped_column(SmallInteger)
     match_round: Mapped[int] = mapped_column(SmallInteger)
     day_number: Mapped[int] = mapped_column(SmallInteger, default=0)
-    recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    recorded_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
     __table_args__ = (
         Index("ix_skillup_unique", "ht_player_id", "skill_id", "new_level", unique=True),
@@ -911,7 +944,7 @@ class DismissedInsight(Base):
     detail: Mapped[str] = mapped_column(String(1000))
     action: Mapped[str] = mapped_column(String(500), default="")
     module: Mapped[str] = mapped_column(String(64), default="")
-    dismissed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    dismissed_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
     __table_args__ = (
         UniqueConstraint("team_id", "key", name="uq_dismissed_insight"),
@@ -945,5 +978,5 @@ class MatchWeather(Base):
     weather_tomorrow: Mapped[int] = mapped_column(SmallInteger, default=-1)
     # Reloj del SERVIDOR de Hattrick, no el nuestro: es el que define qué día
     # es "hoy" para los dos campos de arriba.
-    forecast_taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    forecast_taken_at: Mapped[datetime] = mapped_column(UtcDateTime())
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())

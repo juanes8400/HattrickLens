@@ -26,6 +26,45 @@ from app.main import app
 pytestmark = pytest.mark.seguridad
 
 
+def _rutas_reales(aplicacion) -> list[tuple[list[str], str, list]]:
+    """Todas las rutas de verdad, con las dependencias que declaran.
+
+    Desde FastAPI 0.14x, `include_router` ya NO copia las rutas: deja un
+    `_IncludedRouter` perezoso, así que `app.routes` solo enseña un puñado de
+    entradas y NINGUNA con `{team_id}`. Este test recorría esa lista y pasaba
+    sin comprobar nada — descubierto el 2026-08-20, y por eso ahora también se
+    exige que encuentre rutas.
+    """
+    from fastapi.routing import APIRoute
+
+    try:
+        from fastapi.routing import _IncludedRouter
+    except ImportError:  # versiones antiguas: ya vienen planas
+        _IncludedRouter = ()
+
+    salida: list[tuple[list[str], str, list]] = []
+
+    def recorrer(rutas, prefijo, heredadas) -> None:
+        for r in rutas:
+            if _IncludedRouter and isinstance(r, _IncludedRouter):
+                ctx = r.include_context
+                recorrer(
+                    ctx.included_router.routes,
+                    prefijo + (ctx.prefix or ""),
+                    heredadas + list(ctx.dependencies or []),
+                )
+            elif isinstance(r, APIRoute):
+                salida.append((
+                    sorted(r.methods or []),
+                    prefijo + r.path,
+                    [d.dependency for d in heredadas]
+                    + [d.dependency for d in (r.dependencies or [])],
+                ))
+
+    recorrer(aplicacion.routes, "", [])
+    return salida
+
+
 def test_every_team_route_declares_the_ownership_check() -> None:
     """El guardia de verdad: recorre la aplicación entera.
 
@@ -34,25 +73,22 @@ def test_every_team_route_declares_the_ownership_check() -> None:
     """
     from app.api.deps import require_team_owner
 
-    sin_proteger = []
-    for route in app.routes:
-        path = getattr(route, "path", "")
-        if "{team_id}" not in path:
-            continue
-        dependencias = [
-            d.call for d in getattr(route, "dependant", None).dependencies
-        ] if getattr(route, "dependant", None) else []
-        # La dependencia puede estar declarada en la ruta o anidada en otra.
-        anidadas = [
-            sub.call
-            for d in (getattr(route, "dependant", None).dependencies if route.dependant else [])
-            for sub in d.dependencies
-        ]
-        if require_team_owner not in dependencias and require_team_owner not in anidadas:
-            sin_proteger.append(f"{list(route.methods)[0]} {path}")
+    con_equipo = [r for r in _rutas_reales(app) if "{team_id}" in r[1]]
 
+    # Sin esto, el test pasaba «bien» justo cuando dejaba de mirar nada.
+    assert len(con_equipo) > 30, (
+        f"solo se encontraron {len(con_equipo)} rutas con team_id; el recorrido "
+        "de rutas dejó de funcionar y este test ya no comprueba nada"
+    )
+
+    sin_proteger = [
+        f"{metodos[0]} {ruta}"
+        for metodos, ruta, dependencias in con_equipo
+        if require_team_owner not in dependencias
+    ]
     assert sin_proteger == [], (
-        "estas rutas exponen el equipo de cualquiera:\n  " + "\n  ".join(sin_proteger)
+        "estas rutas exponen el equipo de cualquiera:\n  "
+        + "\n  ".join(sin_proteger)
     )
 
 
