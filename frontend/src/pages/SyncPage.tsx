@@ -25,6 +25,9 @@ import { api, errorMessage, type SyncResult } from "../services/api";
  * También es incremental — se para en cuanto llega a lo que ya tenía.
  */
 
+/** "1 jugador", "454 jugadores". Nunca "jugador(es)". */
+const jugadores = (n: number) => `${n} jugador${n === 1 ? "" : "es"}`;
+
 export function SyncPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -73,6 +76,7 @@ export function SyncPage() {
     total: number;
     hechos: number;
     quedan: number;
+    ultimo: string | null;
     error: string | null;
   } | null>(null);
   const pararRef = useRef(false);
@@ -88,7 +92,7 @@ export function SyncPage() {
     // cola hasta que pulses otra vez.
     const pulsacion = new Date().toISOString();
     setRellenando(true);
-    setRelleno({ total: inicio, hechos: 0, quedan: inicio, error: null });
+    setRelleno({ total: inicio, hechos: 0, quedan: inicio, ultimo: null, error: null });
     let hechos = 0;
     try {
       // Vuelta a vuelta hasta acabar. Cada lote es una petición corta e
@@ -103,6 +107,7 @@ export function SyncPage() {
           total: inicio,
           hechos: Math.min(hechos, inicio),
           quedan: lote.pending,
+          ultimo: lote.players[lote.players.length - 1] ?? null,
           error: lote.errors[0] ?? null,
         });
         if (lote.pending === 0 || lote.done === 0) break;
@@ -173,48 +178,26 @@ export function SyncPage() {
         <Note>Sincronización parcial: {result.errors.join(" · ")}</Note>
       )}
 
-      <Panel
-        title="Transferencias"
-        meta={
-          pendientes.data
-            ? pendientes.data.pending === 0
-              ? "todo al día"
-              : `faltan ${pendientes.data.pending} jugador(es)`
-            : "contando…"
-        }
-      >
+      <Panel title="Transferencias" meta={pendientes.data ? jugadores(pendientes.data.pending) : ""}>
         <div className="space-y-3 p-4">
           <p className="text-sm text-[var(--muted)]">
-            Todo tu pasado en un botón: primero el libro de compras y ventas —de donde
-            salen los jugadores que esta aplicación nunca vio— y después, de cada uno, su
-            ficha completa:
-            nacionalidad (de ahí salen las banderas), carácter, precio de compra antiguo
-            y a qué club se fue. Es una consulta a Hattrick por jugador, así que va por
-            tandas y se puede parar cuando quieras.
-          </p>
-          <p className="text-sm text-[var(--muted)]">
-            <b>Con posible comisión futura</b> son los ex-jugadores que todavía pueden
-            darte dinero: a los normales les toca cobrar en la próxima venta del club que
-            te los compró, y a los de tu cantera en todas las que vengan. Se revisan cada
-            vez que pulses, y en cuanto uno cobra —o lo despiden— desaparece de esa
-            cuenta para siempre. <b>Historial por construir</b> es el recorrido pesado:
-            partido a partido, en cuáles jugó al menos un minuto contigo. Es lo que fija
-            la comisión que te correspondería, y se hace una sola vez en la vida de cada
-            jugador.
+            Trae tu pasado entero: quién pasó por el club, por cuánto, de dónde era y en
+            cuántos partidos jugó contigo. Va de a un jugador, así que puedes pararlo y
+            seguir otro día.
           </p>
 
           {pendientes.data && (
-            <dl className="grid gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] p-3 text-xs sm:grid-cols-2">
-              <div className="flex items-baseline justify-between gap-3">
+            <dl className="divide-y divide-[var(--border)] rounded-md border border-[var(--border)] text-sm">
+              <div className="flex items-baseline justify-between gap-3 px-3 py-2">
                 <dt className="text-[var(--muted)]">Con posible comisión futura</dt>
                 <dd className="tabular-nums font-semibold">
-                  {pendientes.data.detail.resaleWatch} jugador(es)
+                  {jugadores(pendientes.data.detail.resaleWatch)}
                 </dd>
               </div>
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex items-baseline justify-between gap-3 px-3 py-2">
                 <dt className="text-[var(--muted)]">Historial por construir</dt>
                 <dd className="tabular-nums font-semibold">
-                  {pendientes.data.detail.census} jugador(es)
+                  {jugadores(pendientes.data.detail.census)}
                 </dd>
               </div>
             </dl>
@@ -222,16 +205,19 @@ export function SyncPage() {
 
           {relleno && (
             <div>
-              <div className="mb-1 flex items-baseline justify-between text-xs">
-                <span className="text-[var(--muted)]">
+              <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
+                <span className="truncate text-[var(--muted)]">
                   {relleno.quedan === 0
-                    ? "Listo, no queda ninguna"
-                    : `${relleno.hechos} de ${relleno.total}`}
+                    ? "Listo"
+                    : `${relleno.hechos} de ${relleno.total}${relleno.ultimo ? ` · ${relleno.ultimo}` : ""}`}
                 </span>
-                <span className="tabular-nums text-[var(--muted)]">
-                  {relleno.quedan === 0
-                    ? "100%"
-                    : `${Math.round((relleno.hechos / Math.max(relleno.total, 1)) * 100)}%`}
+                <span className="shrink-0 tabular-nums text-[var(--muted)]">
+                  {Math.round(
+                    relleno.quedan === 0
+                      ? 100
+                      : (relleno.hechos / Math.max(relleno.total, 1)) * 100,
+                  )}
+                  %
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
@@ -248,8 +234,8 @@ export function SyncPage() {
               </div>
               {relleno.error && (
                 <p className="mt-2 text-xs text-[var(--warning)]">
-                  Hattrick falló en alguna ficha: {relleno.error}. Lo descargado se guardó;
-                  vuelve a pulsar para seguir.
+                  Hattrick falló en una ficha. Lo descargado se guardó; vuelve a pulsar
+                  para seguir.
                 </p>
               )}
             </div>
@@ -257,8 +243,7 @@ export function SyncPage() {
 
           {!yaSincronizo && (
             <p className="text-xs text-[var(--warning)]">
-              Primero pulsa «Sincronizar ahora»: hasta que la aplicación no sepa cuál es
-              tu equipo y quién está hoy en la plantilla, no hay pasado que recorrer.
+              Primero pulsa «Sincronizar ahora».
             </p>
           )}
 
@@ -275,8 +260,8 @@ export function SyncPage() {
                 : !yaSincronizo
                   ? "Sincroniza primero"
                   : (pendientes.data?.pending ?? 0) === 0
-                    ? "No queda nada por descargar"
-                    : `Traer ${pendientes.data?.pending ?? 0} jugador(es)`}
+                    ? "Todo al día"
+                    : `Traer ${jugadores(pendientes.data?.pending ?? 0)}`}
             </button>
             {rellenando && (
               <button

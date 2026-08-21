@@ -339,6 +339,9 @@ class SyncResult:
     # siguen esperando. Es lo que la pantalla convierte en "van 87 de 515".
     players_done: int = 0
     players_pending: int = 0
+    # Nombres de los atendidos en este lote, para que la pantalla pueda decir
+    # por quien va en vez de dejar la barra quieta.
+    players_named: list[str] = field(default_factory=list)
 
 
 class SyncTeamHandler:
@@ -670,6 +673,10 @@ class SyncTeamHandler:
         lo que le falte antes de pasar al siguiente, para que nunca quede una
         ficha a medias.
         """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
         pendientes = await self.pendientes_de_ficha(uow, team_id, revisar_desde)
         ficha = set(pendientes["ficha"])
         precio = set(pendientes["precio"])
@@ -683,6 +690,11 @@ class SyncTeamHandler:
             todos = todos[:limite]
 
         for ht_player_id in todos:
+            nombre = await uow.session.scalar(
+                select(m.Player.last_name).where(m.Player.ht_player_id == ht_player_id)
+            )
+            if nombre:
+                result.players_named.append(nombre)
             if ht_player_id in ficha:
                 await _report(
                     on_progress, f"Descargando ficha de ex-jugador {ht_player_id}..."

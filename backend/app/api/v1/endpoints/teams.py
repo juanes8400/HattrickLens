@@ -47,7 +47,10 @@ router = APIRouter()
 # Cuantos jugadores atiende cada pulsacion. 40 llamadas a Hattrick es un
 # lote que cabe de sobra en el tiempo de una peticion, incluso en un plan
 # gratuito, y deja ver el avance sin que la espera canse.
-BACKFILL_BATCH_SIZE = 40
+# Un jugador por peticion. El censo de partidos tarda ~20 segundos por
+# jugador, asi que un lote grande deja la barra quieta minutos enteros: con
+# uno, avanza cada vez que termina alguien y "Parar" responde al instante.
+BACKFILL_BATCH_SIZE = 1
 MAX_BACKFILL_BATCH = 100
 
 
@@ -859,7 +862,11 @@ async def backfill_pending(
     summary="Descargar un lote de fichas pendientes",
     dependencies=[
         Depends(require_team_owner),
-        Depends(limite("sync", 30)),
+        # Cubo propio y holgado: cada peticion es UN jugador, asi que el
+        # tope real de gasto lo pone el numero de ex-jugadores, no este
+        # limite. Separado de "sync" para que rellenar el pasado no deje
+        # a nadie sin poder sincronizar.
+        Depends(limite("relleno", 1500)),
     ],
 )
 async def backfill_run(
@@ -916,5 +923,6 @@ async def backfill_run(
         "status": result.status,
         "done": result.players_done,
         "pending": result.players_pending,
+        "players": result.players_named,
         "errors": result.errors[:5],
     }

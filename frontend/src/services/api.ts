@@ -674,6 +674,8 @@ export interface BackfillBatchResult {
   done: number;
   /** Los que siguen esperando. */
   pending: number;
+  /** Apellidos de los atendidos, para decir por quien va. */
+  players: string[];
   errors: string[];
 }
 
