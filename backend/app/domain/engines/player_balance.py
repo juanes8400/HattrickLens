@@ -105,6 +105,11 @@ class PlayerTransferRecord:
     # de una constante para que el motor siga siendo puro y para que un país
     # con otro cargo no obligue a tocarlo.
     promotion_cost: int = 0
+    # El salario que Hattrick reporta de este jugador, para quien no dejo ni
+    # un snapshot: comprado y vendido entre dos sincronizaciones. No es una
+    # estimacion nuestra, es el dato que da `playerdetails.xml` — que lo
+    # devuelve incluso cuando el jugador ya juega en otro club.
+    fallback_salary: int = 0
 
 
 @dataclass(frozen=True)
@@ -141,10 +146,22 @@ def salary_at(history: list[SalarySnapshot], target: datetime) -> int:
     return history[0].salary if history else 0
 
 
-def _total_salary(purchased_at: datetime, end: datetime, history: list[SalarySnapshot]) -> int:
+def _total_salary(
+    purchased_at: datetime,
+    end: datetime,
+    history: list[SalarySnapshot],
+    fallback: int = 0,
+) -> int:
     """Semana a semana desde la compra hasta `end`, más UNA semana extra —
-    el primer sueldo se paga completo el día de la compra, no se prorratea."""
+    el primer sueldo se paga completo el día de la compra, no se prorratea.
+
+    Sin ningún snapshot se usa `fallback`: el salario que Hattrick reporta de
+    ese jugador, que sigue dándolo aunque ya juegue en otro club. No es un
+    número inventado por nosotros — o se conoce, o la casilla queda vacía.
+    """
     weeks = weeks_owned(purchased_at, end)
+    if not history:
+        return fallback * (weeks + 1)
     return sum(
         salary_at(history, purchased_at + timedelta(weeks=w))
         for w in range(weeks + 1)
@@ -168,7 +185,9 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
     end = record.sold_at or record.as_of
     # Sin fecha de compra conocida no hay semanas que contar — 0, no negativo.
     purchased_at = record.purchased_at or end
-    salary_total = _total_salary(purchased_at, end, record.salary_history)
+    salary_total = _total_salary(
+        purchased_at, end, record.salary_history, record.fallback_salary
+    )
     listing_cost = record.listing_count * LISTING_COST
 
     is_sold = record.sale_price is not None
@@ -198,6 +217,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         net_sale_proceeds=net_sale_proceeds,
         resale_bonus_share=record.resale_bonus_share,
         saldo=round(saldo), is_sold=is_sold,
-        # Sin un solo salario guardado no se sabe cuánto costó tenerlo.
-        salary_known=bool(record.salary_history),
+        # Sin snapshots y sin último salario conocido no hay forma de saber
+        # cuánto costó tenerlo.
+        salary_known=bool(record.salary_history) or record.fallback_salary > 0,
     )

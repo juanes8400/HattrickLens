@@ -1436,3 +1436,61 @@ def test_the_watermark_is_only_trusted_once_the_history_is_known_to_be_whole() -
             assert team.transfers_history_complete is True
 
     asyncio.run(run())
+
+
+def test_a_player_who_came_and_went_between_syncs_still_costs_his_salary() -> None:
+    """2026-08-21, caso real (Horst Angel): comprado el 08 y vendido el 20, y
+    la primera sincronización de la cuenta fue una hora después de que se
+    fuera. No dejó ni un snapshot, así que su coste de salarios salía 0 y su
+    saldo aparecía mejor de lo que fue.
+
+    `playerdetails.xml` sí devuelve `<Salary>` de un jugador que ya juega en
+    otro club — verificado en vivo —, así que el dato existe: no hay nada que
+    estimar, solo que guardarlo (`last_known_salary`).
+    """
+    from app.domain.engines.player_balance import (
+        PlayerTransferRecord,
+        compute_balance,
+    )
+
+    comprado = datetime(2026, 8, 8, 12, 48)
+    vendido = datetime(2026, 8, 20, 12, 40)
+
+    sin_nada = compute_balance(PlayerTransferRecord(
+        purchase_price=512000, salary_history=[], listing_count=0,
+        sale_price=712000, purchased_at=comprado, sold_at=vendido,
+        is_academy_graduate=False,
+    ))
+    assert sin_nada.salary_total == 0
+    assert sin_nada.salary_known is False
+
+    con_salario = compute_balance(PlayerTransferRecord(
+        purchase_price=512000, salary_history=[], listing_count=0,
+        sale_price=712000, purchased_at=comprado, sold_at=vendido,
+        is_academy_graduate=False, fallback_salary=4740,
+    ))
+    # 12 días son 1 semana cumplida, y el primer sueldo se paga entero: 2.
+    assert con_salario.salary_total == 4740 * 2
+    assert con_salario.salary_known is True
+    # Y el saldo empeora justo en lo que costaba tenerlo.
+    assert con_salario.saldo == sin_nada.saldo - 4740 * 2
+
+
+def test_real_snapshots_always_win_over_the_last_known_salary() -> None:
+    """El respaldo es para cuando no hay nada. Si hay historial de verdad, se
+    usa ese: es lo que cobró cada semana, medido."""
+    from app.domain.engines.player_balance import (
+        PlayerTransferRecord,
+        SalarySnapshot,
+        compute_balance,
+    )
+
+    comprado = datetime(2026, 8, 8, 12, 48)
+    r = compute_balance(PlayerTransferRecord(
+        purchase_price=512000,
+        salary_history=[SalarySnapshot(captured_at=comprado, salary=1000)],
+        listing_count=0, sale_price=712000, purchased_at=comprado,
+        sold_at=datetime(2026, 8, 20, 12, 40),
+        is_academy_graduate=False, fallback_salary=99999,
+    ))
+    assert r.salary_total == 2000

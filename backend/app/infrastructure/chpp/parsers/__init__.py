@@ -296,6 +296,12 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         # `_backfill_age_at_sale` en `application/commands/sync_team.py`.
         "age_years": _int(node, "Age"),
         "age_days": _int(node, "AgeDays"),
+        # 2026-08-21: el salario viene también para un jugador que YA NO es
+        # nuestro (verificado en vivo con uno vendido: <Salary>47400</Salary>
+        # estando ya en otro club). Es la única forma de saber lo que costaba
+        # alguien que entró y salió entre dos sincronizaciones, que si no
+        # figuraba con coste de salarios 0 e inflaba su saldo.
+        "salary": _int(node, "Salary"),
         # HL-161: Carácter y Especialidad — casi no cambian con el tiempo,
         # así que el valor de HOY sirve como base razonable para un
         # jugador ya vendido, a diferencia de la edad o las habilidades.

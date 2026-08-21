@@ -189,6 +189,12 @@ class Player(Base):
     # nunca se sobrescribe una vez vendido (un jugador solo se vende una
     # vez desde este club).
     sale_price: Mapped[int | None] = mapped_column(Integer)
+    # Ultimo salario que Hattrick reporto de este jugador, en moneda base.
+    # playerdetails.xml lo trae aunque el jugador ya juegue en otro club
+    # (verificado en vivo), y es la unica forma de saber lo que costaba
+    # alguien que entro y salio entre dos sincronizaciones: sin esto su
+    # coste de salarios figuraba como 0 e inflaba su saldo.
+    last_known_salary: Mapped[int | None] = mapped_column(Integer)
     sold_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: edad EN EL MOMENTO DE LA VENTA, reconstruida hacia atrás desde
     # la edad actual (playerdetails.xml, válido para cualquier jugador

@@ -1364,16 +1364,19 @@ function BalanceTable({
       header: "Salario acum.",
       align: "right",
       value: (r) => r.salaryTotal,
-      // Un jugador que pasó por el club antes de que la app lo viera no tiene
-      // ni un salario guardado: su coste sale 0 por ignorancia, no porque no
-      // cobrara. Se marca con "?" para que no parezca una cifra calculada.
+      // O se conoce el salario o no se conoce; nunca se estima. Lo normal es
+      // tenerlo medido semana a semana en los snapshots. Para quien entró y
+      // salió entre dos sincronizaciones no hay snapshots, pero Hattrick sigue
+      // reportando su salario en playerdetails.xml, así que ese dato también
+      // es conocido. Sin ninguna de las dos cosas, la casilla queda en "?":
+      // un 0 se leía como "no costó nada" e inflaba el saldo.
       render: (r) =>
         r.salaryKnown ? (
           <span className="tabular-nums">{money(r.salaryTotal, currency)}</span>
         ) : (
           <span
             className="text-[var(--muted)]"
-            title="No hay ningún salario guardado de este jugador: llegó y salió antes de que la app lo viera, así que su coste de salarios no se puede calcular y el saldo sale mejor de lo que fue."
+            title="De este jugador no se guardó ningún salario y Hattrick tampoco lo reporta, así que su coste no se puede calcular. El saldo sale mejor de lo que fue."
           >
             ?
           </span>

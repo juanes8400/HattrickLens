@@ -1511,6 +1511,15 @@ class SyncTeamHandler:
             player.native_league_name = league_name
             changed = True
 
+        # El salario se guarda en el propio jugador, ANTES de mirar si tiene
+        # snapshots. Quien entro y salio entre dos sincronizaciones no tiene
+        # ninguno, y es justo de quien no se sabia nada: sin esto su coste de
+        # salarios figuraba como 0 y su saldo salia mejor de lo que fue.
+        salario = payload.get("salary") or 0
+        if salario and player.last_known_salary != salario:
+            player.last_known_salary = salario
+            changed = True
+
         snap = await uow.session.scalar(
             select(m.PlayerSnapshot)
             .where(m.PlayerSnapshot.player_id == player.id)
@@ -2039,6 +2048,15 @@ class SyncTeamHandler:
             return True
 
         wrote_anything = False
+
+        # El salario, incluso de alguien que ya juega en otro club: Hattrick lo
+        # sigue devolviendo. Para un jugador que entro y salio entre dos
+        # sincronizaciones esta es la UNICA fuente, porque no dejo snapshots.
+        salario = payload.get("salary") or 0
+        if salario and player.last_known_salary != salario:
+            player.last_known_salary = salario
+            wrote_anything = True
+
         age_years = payload.get("age_years")
         age_days = payload.get("age_days")
         if (

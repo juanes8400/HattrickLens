@@ -624,6 +624,7 @@ class PlayerBalanceQueryService:
                 is_academy_graduate=is_academy,
                 promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
                 salary_history=salary_by_player.get(p.id, []),
+                fallback_salary=conv(p.last_known_salary) or 0,
                 listing_count=p.listing_count,
                 sale_price=effective_sale_price,
                 sold_at=effective_sold_at,
