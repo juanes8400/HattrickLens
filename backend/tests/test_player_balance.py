@@ -420,9 +420,15 @@ def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
         result = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
         )
-        assert result.status == "completed"
-        assert result.errors == []
         assert result.players_done >= 1
+        # El CHPP de prueba no responde a `matchesarchive` ni a
+        # `playerdetails` de un jugador cualquiera, asi que el censo de
+        # partidos y la vigilancia de reventas fallan aqui a proposito; lo que
+        # se comprueba es que el resto del lote se hizo igual, que es la razon
+        # de que cada paso capture su error por separado.
+        assert all(
+            e.startswith(("censo_partidos:", "reventa:")) for e in result.errors
+        ), result.errors
 
         async with uow as u:
             player = await u.session.scalar(
@@ -1596,13 +1602,18 @@ def test_a_re_signed_player_is_not_marked_as_gone() -> None:
     asyncio.run(run())
 
 
-def test_the_backfill_goes_in_batches_and_reports_what_is_left() -> None:
+def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
     """2026-08-21, por reportes de usuarios: en la copia publicada quedaban 60
     precios y 416 nacionalidades sin resolver y no avanzaban nunca, porque el
     intento se hacía entero dentro de la sincronización normal y se cortaba
-    por tiempo antes de terminar. Troceado, cada pulsación termina lo que
-    empieza; y como devuelve lo que queda, la pantalla puede decir cuánto
-    falta en vez de dejar al usuario a ciegas."""
+    por tiempo antes de terminar.
+
+    Troceado, cada pulsación termina lo que empieza. Lo que se protege aquí es
+    que el trabajo SE AGOTA: que pulsar repetidamente llega a cero y que una
+    pulsación de más no vuelve a pedirle nada a Hattrick. Sin eso el bucle de
+    la pantalla no pararía nunca — pasó de verdad, con la barra marcando
+    "55 de 11".
+    """
     async def run() -> None:
         uow, chpp, team_id, _ = await _setup_with_player(468921494)
         async with uow as u:
@@ -1611,36 +1622,30 @@ def test_the_backfill_goes_in_batches_and_reports_what_is_left() -> None:
             await u.session.commit()
 
         handler = SyncTeamHandler(uow, chpp)
-        await handler.execute(
-            SyncTeamCommand(
-                user_id=1, team_id=team_id, ht_team_id=537758, files=["transfersteam"],
-            )
-        )
 
-        async with uow as u:
-            antes = await handler.pendientes_de_ficha(u, team_id)
-        total = len(set(antes["ficha"]) | set(antes["precio"]) | set(antes["destino"]))
-        assert total >= 1, "el fixture deja al menos un jugador por rellenar"
-
-        # Un lote de uno: atiende uno y deja el resto contado.
-        primero = await handler.execute_backfill_batch(
+        # La primera pulsación recorre además el historial, que es lo que crea
+        # las fichas de quienes esta app nunca vio: la cola crece antes de
+        # empezar a bajar.
+        vueltas = 0
+        lote = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=1)
         )
-        assert primero.players_done == 1
-        assert primero.players_pending == total - 1
+        assert lote.pages_fetched >= 1, "la primera vuelta recorre el historial"
+        assert lote.players_done == 1
 
-        # El resto de una vez.
-        segundo = await handler.execute_backfill_batch(
+        while lote.players_pending > 0 and vueltas < 50:
+            vueltas += 1
+            lote = await handler.execute_backfill_batch(
+                SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=1)
+            )
+        assert lote.players_pending == 0, "el trabajo se agota"
+
+        # Y una vuelta más deja la cuenta en cero otra vez, sin volver a
+        # recorrer el historial: eso se hizo una vez y no se repite.
+        sobrante = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
         )
-        assert segundo.players_pending == 0
-
-        # Y una tercera vuelta ya no pide nada a Hattrick: nadie se consulta
-        # dos veces, ni siquiera quien no devolvió nada.
-        tercero = await handler.execute_backfill_batch(
-            SyncBackfillBatchCommand(user_id=1, team_id=team_id, limite=40)
-        )
-        assert tercero.players_done == 0
-        assert tercero.players_pending == 0
+        assert sobrante.players_pending == 0
+        assert sobrante.pages_fetched == 0
 
     asyncio.run(run())

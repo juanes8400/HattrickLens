@@ -61,11 +61,6 @@ export function SyncPage() {
     onError: () => setProgressLog(null),
   });
 
-  const transfers = useMutation({
-    mutationFn: () => api.syncTransfersHistory(TEAM_ID),
-    onSuccess: () => qc.invalidateQueries(),
-  });
-
   // Relleno del pasado: la ficha completa de cada ex-jugador (nacionalidad,
   // carácter, precio de compra antiguo, país al que se fue). Es una llamada a
   // Hattrick por jugador, así que va por lotes: cada vuelta termina lo que
@@ -124,7 +119,11 @@ export function SyncPage() {
     }
   };
 
-  const running = fullSync.isPending || transfers.isPending || rellenando;
+  // Transferencias solo se habilita despues de la primera sincronizacion:
+  // el recorrido del pasado necesita saber cual es tu equipo, y eso lo
+  // establece la sincronizacion normal.
+  const yaSincronizo = Boolean(dashboard?.syncedAt);
+  const running = fullSync.isPending || rellenando;
 
   return (
     <div className="space-y-4">
@@ -169,28 +168,8 @@ export function SyncPage() {
         <Note>Sincronización parcial: {result.errors.join(" · ")}</Note>
       )}
 
-      <Panel title="Historial de transferencias">
-        <div className="flex flex-wrap items-start justify-between gap-3 p-4">
-          <div className="max-w-xl">
-            <p className="text-sm text-[var(--muted)]">
-              Recorre hacia atrás todas tus compras y ventas para recuperar los precios reales,
-              incluidos los de temporadas pasadas. Va aparte porque es un recorrido largo por el
-              pasado y normalmente solo hace falta una vez: al repetirlo se detiene en cuanto
-              llega a lo que ya tenía guardado.
-            </p>
-          </div>
-          <button
-            onClick={() => transfers.mutate()}
-            disabled={running}
-            className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
-          >
-            {transfers.isPending ? "Cargando…" : "Traer historial"}
-          </button>
-        </div>
-      </Panel>
-
       <Panel
-        title="Completar fichas del pasado"
+        title="Transferencias"
         meta={
           pendientes.data
             ? pendientes.data.pending === 0
@@ -201,12 +180,40 @@ export function SyncPage() {
       >
         <div className="space-y-3 p-4">
           <p className="text-sm text-[var(--muted)]">
-            De cada jugador que pasó por el club se descarga su ficha completa: nacionalidad
-            (de ahí salen las banderas), carácter, precio de compra antiguo y a qué club se
-            fue. Es una consulta a Hattrick por jugador, así que va por tandas y se puede
-            parar cuando quieras. Nadie se pregunta dos veces, ni siquiera si Hattrick no
-            contesta nada de él.
+            Todo tu pasado en un botón: primero el libro de compras y ventas —de donde
+            salen los jugadores que esta aplicación nunca vio— y después, de cada uno, su
+            ficha completa:
+            nacionalidad (de ahí salen las banderas), carácter, precio de compra antiguo
+            y a qué club se fue. Es una consulta a Hattrick por jugador, así que va por
+            tandas y se puede parar cuando quieras.
           </p>
+          <p className="text-sm text-[var(--muted)]">
+            <b>Con posible comisión futura</b> son los ex-jugadores que todavía pueden
+            darte dinero: a los normales les toca cobrar en la próxima venta del club que
+            te los compró, y a los de tu cantera en todas las que vengan. Se revisan cada
+            vez que pulses, y en cuanto uno cobra —o lo despiden— desaparece de esa
+            cuenta para siempre. <b>Historial por construir</b> es el recorrido pesado:
+            partido a partido, en cuáles jugó al menos un minuto contigo. Es lo que fija
+            la comisión que te correspondería, y se hace una sola vez en la vida de cada
+            jugador.
+          </p>
+
+          {pendientes.data && (
+            <dl className="grid gap-2 rounded-md border border-[var(--border)] bg-[var(--bg)] p-3 text-xs sm:grid-cols-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-[var(--muted)]">Con posible comisión futura</dt>
+                <dd className="tabular-nums font-semibold">
+                  {pendientes.data.detail.resaleWatch} jugador(es)
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-[var(--muted)]">Historial por construir</dt>
+                <dd className="tabular-nums font-semibold">
+                  {pendientes.data.detail.census} jugador(es)
+                </dd>
+              </div>
+            </dl>
+          )}
 
           {relleno && (
             <div>
@@ -243,17 +250,28 @@ export function SyncPage() {
             </div>
           )}
 
+          {!yaSincronizo && (
+            <p className="text-xs text-[var(--warning)]">
+              Primero pulsa «Sincronizar ahora»: hasta que la aplicación no sepa cuál es
+              tu equipo y quién está hoy en la plantilla, no hay pasado que recorrer.
+            </p>
+          )}
+
           <div className="flex flex-wrap gap-2">
             <button
               onClick={completarFichas}
-              disabled={running || (pendientes.data?.pending ?? 0) === 0}
+              disabled={
+                running || !yaSincronizo || (pendientes.data?.pending ?? 0) === 0
+              }
               className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
             >
               {rellenando
                 ? "Descargando…"
-                : (pendientes.data?.pending ?? 0) === 0
-                  ? "No queda nada por descargar"
-                  : `Completar ${pendientes.data?.pending ?? 0} ficha(s)`}
+                : !yaSincronizo
+                  ? "Sincroniza primero"
+                  : (pendientes.data?.pending ?? 0) === 0
+                    ? "No queda nada por descargar"
+                    : `Traer ${pendientes.data?.pending ?? 0} jugador(es)`}
             </button>
             {rellenando && (
               <button
@@ -269,15 +287,6 @@ export function SyncPage() {
         </div>
       </Panel>
 
-      {transfers.isError && (
-        <Note>No se pudo completar la carga: {errorMessage(transfers.error)}</Note>
-      )}
-      {transfers.isSuccess && (
-        <Note>
-          Historial al día: {transfers.data.transfersNew} operación(es) nueva(s) de{" "}
-          {transfers.data.transfersSeen} revisada(s).
-        </Note>
-      )}
     </div>
   );
 }

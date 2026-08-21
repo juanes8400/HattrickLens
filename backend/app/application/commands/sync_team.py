@@ -441,7 +441,6 @@ class SyncTeamHandler:
                 # (ver `execute_backfill_batch`). Esto de aquí se queda solo
                 # con lo que es barato y cambia semana a semana.
                 await self._backfill_mandatory_listing_count(uow, cmd.team_id, result)
-                await self._backfill_previous_club_bonus(uow, cmd.team_id, result, on_progress)
 
             # 2026-08-05, pedido explícitamente: "tienes que sincronizar
             # todos los xml que importen cada vez que sincronizamos" — hasta
@@ -496,12 +495,24 @@ class SyncTeamHandler:
         tiempo. Troceado y con su propio botón, cada pulsación termina lo que
         empieza y se ve cuánto falta.
         """
+        from app.infrastructure.db import models as m
+
         async with self._uow as uow:
             sync_id = await uow.syncs.create(
                 cmd.user_id, cmd.team_id, kind="backfill_batch"
             )
             result = SyncResult(sync_id=sync_id, status="completed")
             fetched_at = datetime.now(UTC).replace(tzinfo=None)
+
+            # El orden lo pone la aplicación, no el usuario: primero el libro
+            # de compraventas —que es lo que CREA las fichas de los que la app
+            # nunca vio— y solo después el trabajo por jugador. Al revés no
+            # habría a quién completar. Se hace en la primera pulsación y
+            # nunca más, porque la bandera lo recuerda.
+            equipo = await uow.session.get(m.Team, cmd.team_id)
+            if equipo is not None and not equipo.transfers_history_complete:
+                await _report(on_progress, "Recorriendo el historial de transferencias...")
+                await self._recorrer_historial(uow, cmd.user_id, cmd.team_id, equipo, result)
 
             result.players_done = await self._backfill_sold_player_details(
                 uow, cmd.team_id, fetched_at, result, on_progress, limite=cmd.limite
@@ -598,7 +609,21 @@ class SyncTeamHandler:
             & m.Player.destination_country.is_(None)
             & (~m.Player.destination_attempted)
         )
-        return {"ficha": ficha, "precio": precio, "destino": destino}
+        # El censo de partidos: una vez por ex-jugador, para siempre.
+        censo = await ids(
+            (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
+            & m.Player.stint_census_at.is_(None)
+        )
+        # La vigilancia de reventas: se repite hasta que el jugador queda
+        # cerrado, y entonces desaparece de la cola para siempre.
+        reventa = await ids(
+            (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
+            & (~m.Player.resale_closed)
+        )
+        return {
+            "ficha": ficha, "precio": precio, "destino": destino,
+            "censo": censo, "reventa": reventa,
+        }
 
     async def _backfill_sold_player_details(
         self,
@@ -626,9 +651,11 @@ class SyncTeamHandler:
         ficha = set(pendientes["ficha"])
         precio = set(pendientes["precio"])
         destino = set(pendientes["destino"])
+        censo = set(pendientes["censo"])
+        reventa = set(pendientes["reventa"])
 
         # Orden estable: el mismo lote se repetiría igual si algo fallara.
-        todos = sorted(ficha | precio | destino)
+        todos = sorted(ficha | precio | destino | censo | reventa)
         if limite is not None:
             todos = todos[:limite]
 
@@ -667,6 +694,29 @@ class SyncTeamHandler:
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"destination_country:{ht_player_id}: {exc}")
+                    result.status = "partial"
+            if ht_player_id in censo:
+                await _report(
+                    on_progress,
+                    f"Contando partidos con nosotros de {ht_player_id}...",
+                )
+                try:
+                    wrote = await self._censar_partidos_del_stint(
+                        uow, team_id, ht_player_id
+                    )
+                    result.snapshots_written += 1 if wrote else 0
+                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                    result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
+                    result.status = "partial"
+            if ht_player_id in reventa:
+                await _report(
+                    on_progress, f"Revisando reventas de {ht_player_id}..."
+                )
+                try:
+                    wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
+                    result.snapshots_written += 1 if wrote else 0
+                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                    result.errors.append(f"reventa:{ht_player_id}: {exc}")
                     result.status = "partial"
 
         return len(todos)
@@ -2044,6 +2094,105 @@ class SyncTeamHandler:
             await uow.commit()
         return result
 
+    async def _censar_partidos_del_stint(
+        self, uow: UnitOfWork, team_id: int, ht_player_id: int,
+    ) -> bool:
+        """Cuántos partidos jugó de verdad con nosotros. UNA vez por jugador.
+
+        Es el trabajo más caro de toda la aplicación: el archivo de partidos
+        de su etapa, y la alineación de cada uno para ver si llegó a jugar.
+        Por eso se guarda en su ficha y no se repite jamás — un partido ya
+        jugado no cambia.
+
+        "Jugó al menos un minuto" se decide por las estrellas: `matchlineup`
+        no trae los minutos (comprobado: sus campos son PlayerID, RoleID,
+        PositionCode, RatingStars, Behaviour), y un suplente que no entró
+        trae 0 exacto, verificado en vivo el 2026-08-14.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        jugador = await uow.session.scalar(
+            select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+        )
+        if equipo is None or jugador is None:
+            return False
+
+        salida = jugador.sold_at or jugador.left_team_at
+        if jugador.purchased_at is None or salida is None:
+            # Sin etapa acotada no hay nada que recorrer; se marca censado
+            # para no volver a intentarlo en cada lote.
+            jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
+            return False
+
+        jugador.stint_games_played = await self._games_played_for_us(
+            equipo.ht_team_id, ht_player_id, jugador.purchased_at, salida,
+        )
+        jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
+        return True
+
+    async def _vigilar_reventa(
+        self, uow: UnitOfWork, team_id: int, ht_player_id: int,
+    ) -> bool:
+        """¿Sigue pudiendo darnos dinero este ex-jugador?
+
+        Una llamada mira su historial de transferencias, que es la que
+        contesta la pregunta del dinero. Solo si NO hay reventa hace falta la
+        segunda, la de su ficha, para saber si sigue existiendo: un despido o
+        un retiro lo cierran para siempre, y comprobado en vivo, Hattrick
+        responde a esa ficha con el error 56 cuando el jugador ya no está.
+        """
+        from sqlalchemy import select
+
+        from app.domain.engines import ex_player_watch as vigilancia
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        jugador = await uow.session.scalar(
+            select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+        )
+        if equipo is None or jugador is None:
+            return False
+
+        canterano = vigilancia.es_canterano(
+            jugador.mother_club_team_id, equipo.ht_team_id
+        )
+        salio_sin_comprador = jugador.sold_at is None and jugador.left_team_at is not None
+
+        revendido = False
+        if jugador.sold_at is not None:
+            revendido = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
+
+        desaparecido = False
+        # Solo se pregunta por su ficha cuando la reventa no ha zanjado nada:
+        # es la única forma de dejar de vigilar a quien ya no existe, y una
+        # llamada de más solo para los que siguen ahí fuera sin venderse.
+        if not salio_sin_comprador and not (revendido and not canterano):
+            try:
+                ficha = await self._chpp.fetch(
+                    "playerdetails", version=FILE_VERSIONS["playerdetails"],
+                    playerID=ht_player_id,
+                )
+            except Exception:  # noqa: BLE001 — best effort, se reintenta en otro lote
+                ficha = {}
+            desaparecido = vigilancia.desaparecio_de_hattrick(
+                ficha.get("chpp_error_code")
+            )
+
+        motivo = vigilancia.motivo_de_cierre(
+            canterano=canterano,
+            revendido=revendido,
+            desaparecido=desaparecido,
+            salio_sin_comprador=salio_sin_comprador,
+        )
+        jugador.previous_club_bonus_checked_at = datetime.now(UTC).replace(tzinfo=None)
+        if motivo is not None:
+            jugador.resale_closed = True
+            jugador.resale_closed_reason = motivo
+        return revendido
+
     async def _backfill_previous_club_bonus(
         self,
         uow: UnitOfWork,
@@ -3253,6 +3402,132 @@ class SyncTeamHandler:
             return parts[0], parts[1]
         return "", full_name.strip()
 
+    async def _recorrer_historial(
+        self,
+        uow: UnitOfWork,
+        user_id: int,
+        team_id: int,
+        team: Any,
+        result: SyncResult,
+    ) -> None:
+        """Recorre transfersteam.xml pagina a pagina y anota lo nuevo.
+
+        Vive aparte porque lo usan dos sitios: el boton de Transferencias,
+        que lo hace una vez antes de ponerse con los jugadores, y el
+        recorrido suelto que aun existe para reintentarlo a mano.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        # La marca de agua solo vale si alguna vez se recorrió la historia
+        # ENTERA. Si el primer intento se quedó a medias, la marca apunta a
+        # lo más reciente y haría creer que ya está todo, dejando fuera
+        # para siempre lo anterior. En ese caso se ignora y se empieza de
+        # cero, que es lo único que rellena el hueco.
+        completa = bool(team is not None and team.transfers_history_complete)
+        watermark = team.last_transfer_id_seen if (team is not None and completa) else None
+        highest_seen = watermark or 0
+        recorrido_entero = False
+
+        try:
+            page = 1
+            total_pages = 1
+            while page <= total_pages:
+                payload = await self._chpp.fetch(
+                    "transfersteam", version=FILE_VERSIONS["transfersteam"],
+                    teamID=team.ht_team_id, pageIndex=page,
+                )
+                result.pages_fetched += 1
+                total_pages = max(payload.get("pages", 1), 1)
+
+                stats = payload.get("stats") or {}
+                if stats and team is not None:
+                    team.transfer_total_buys = stats.get("total_sum_of_buys", 0)
+                    team.transfer_total_sales = stats.get("total_sum_of_sales", 0)
+                    team.transfer_number_buys = stats.get("number_of_buys", 0)
+                    team.transfer_number_sales = stats.get("number_of_sales", 0)
+
+                page_transfers = payload.get("transfers", [])
+                if not page_transfers:
+                    # Página vacía más allá del final real (visto en vivo):
+                    # también es haber llegado al final de la historia.
+                    recorrido_entero = True
+                    break
+
+                own_transfers = [
+                    t for t in page_transfers
+                    if t.get("buyer_team_id") == team.ht_team_id
+                    or t.get("seller_team_id") == team.ht_team_id
+                ]
+                # Las páginas van de más reciente a más vieja: en cuanto
+                # se ve un TransferID ya conocido, TODO lo que sigue (en
+                # esta página y en las siguientes) también lo es.
+                new_transfers = []
+                reached_known = False
+                for t in own_transfers:
+                    tid = t.get("ht_transfer_id", 0)
+                    if watermark is not None and tid <= watermark:
+                        reached_known = True
+                        break
+                    new_transfers.append(t)
+                result.transfers_seen += len(own_transfers)
+                result.transfers_new += len(new_transfers)
+
+                if new_transfers:
+                    ids = {t["ht_player_id"] for t in new_transfers}
+                    players = {
+                        p.ht_player_id: p
+                        for p in (
+                            await uow.session.execute(
+                                select(m.Player).where(m.Player.ht_player_id.in_(ids))
+                            )
+                        ).scalars()
+                    }
+                    for t in new_transfers:
+                        ht_player_id = t["ht_player_id"]
+                        player = players.get(ht_player_id)
+                        if player is None:
+                            first, last = self._split_player_name(
+                                t.get("player_name", "")
+                            )
+                            player_id = await uow.players.upsert_identity(
+                                ht_player_id, team_id, first, last
+                            )
+                            player = await uow.session.get(m.Player, player_id)
+                            players[ht_player_id] = player
+                        if t.get("transfer_type") == "B":
+                            self._apply_buy_transfer(player, t, result)
+                        elif t.get("transfer_type") == "S":
+                            self._apply_sell_transfer(player, t, result)
+                        highest_seen = max(highest_seen, t.get("ht_transfer_id", 0))
+
+                if reached_known:
+                    recorrido_entero = True
+                    break
+                page += 1
+            else:
+                # Se acabaron las páginas sin encontrar nada conocido:
+                # también es haber llegado al final de la historia.
+                recorrido_entero = True
+        except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+            result.errors.append(f"transfers_history: {exc}")
+            result.status = "partial"
+
+        # La marca solo avanza si el recorrido llegó de verdad al final y
+        # sin errores. Un intento que se cortó a la mitad no puede decir
+        # "ya lo he visto todo hasta aquí": eso fue lo que dejó a los
+        # primeros usuarios con Transferencias vacía y sin forma de
+        # recuperarla, porque cada clic siguiente se paraba en la primera
+        # página creyendo estar al día.
+        await self._marcar_salidas_de_vendidos(uow, team_id)
+
+        if team is not None and recorrido_entero and not result.errors:
+            if highest_seen > (team.last_transfer_id_seen or 0):
+                team.last_transfer_id_seen = highest_seen
+            team.transfers_history_complete = True
+
+
     async def execute_transfers_history(
         self, cmd: SyncTransfersHistoryCommand
     ) -> SyncResult:
@@ -3282,112 +3557,10 @@ class SyncTeamHandler:
             result = SyncResult(sync_id=sync_id, status="completed")
 
             team = await uow.session.get(m.Team, cmd.team_id)
-            # La marca de agua solo vale si alguna vez se recorrió la historia
-            # ENTERA. Si el primer intento se quedó a medias, la marca apunta a
-            # lo más reciente y haría creer que ya está todo, dejando fuera
-            # para siempre lo anterior. En ese caso se ignora y se empieza de
-            # cero, que es lo único que rellena el hueco.
-            completa = bool(team is not None and team.transfers_history_complete)
-            watermark = team.last_transfer_id_seen if (team is not None and completa) else None
-            highest_seen = watermark or 0
-            recorrido_entero = False
-
-            try:
-                page = 1
-                total_pages = 1
-                while page <= total_pages:
-                    payload = await self._chpp.fetch(
-                        "transfersteam", version=FILE_VERSIONS["transfersteam"],
-                        teamID=cmd.ht_team_id, pageIndex=page,
-                    )
-                    result.pages_fetched += 1
-                    total_pages = max(payload.get("pages", 1), 1)
-
-                    stats = payload.get("stats") or {}
-                    if stats and team is not None:
-                        team.transfer_total_buys = stats.get("total_sum_of_buys", 0)
-                        team.transfer_total_sales = stats.get("total_sum_of_sales", 0)
-                        team.transfer_number_buys = stats.get("number_of_buys", 0)
-                        team.transfer_number_sales = stats.get("number_of_sales", 0)
-
-                    page_transfers = payload.get("transfers", [])
-                    if not page_transfers:
-                        # Página vacía más allá del final real (visto en vivo):
-                        # también es haber llegado al final de la historia.
-                        recorrido_entero = True
-                        break
-
-                    own_transfers = [
-                        t for t in page_transfers
-                        if t.get("buyer_team_id") == cmd.ht_team_id
-                        or t.get("seller_team_id") == cmd.ht_team_id
-                    ]
-                    # Las páginas van de más reciente a más vieja: en cuanto
-                    # se ve un TransferID ya conocido, TODO lo que sigue (en
-                    # esta página y en las siguientes) también lo es.
-                    new_transfers = []
-                    reached_known = False
-                    for t in own_transfers:
-                        tid = t.get("ht_transfer_id", 0)
-                        if watermark is not None and tid <= watermark:
-                            reached_known = True
-                            break
-                        new_transfers.append(t)
-                    result.transfers_seen += len(own_transfers)
-                    result.transfers_new += len(new_transfers)
-
-                    if new_transfers:
-                        ids = {t["ht_player_id"] for t in new_transfers}
-                        players = {
-                            p.ht_player_id: p
-                            for p in (
-                                await uow.session.execute(
-                                    select(m.Player).where(m.Player.ht_player_id.in_(ids))
-                                )
-                            ).scalars()
-                        }
-                        for t in new_transfers:
-                            ht_player_id = t["ht_player_id"]
-                            player = players.get(ht_player_id)
-                            if player is None:
-                                first, last = self._split_player_name(
-                                    t.get("player_name", "")
-                                )
-                                player_id = await uow.players.upsert_identity(
-                                    ht_player_id, cmd.team_id, first, last
-                                )
-                                player = await uow.session.get(m.Player, player_id)
-                                players[ht_player_id] = player
-                            if t.get("transfer_type") == "B":
-                                self._apply_buy_transfer(player, t, result)
-                            elif t.get("transfer_type") == "S":
-                                self._apply_sell_transfer(player, t, result)
-                            highest_seen = max(highest_seen, t.get("ht_transfer_id", 0))
-
-                    if reached_known:
-                        recorrido_entero = True
-                        break
-                    page += 1
-                else:
-                    # Se acabaron las páginas sin encontrar nada conocido:
-                    # también es haber llegado al final de la historia.
-                    recorrido_entero = True
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
-                result.errors.append(f"transfers_history: {exc}")
-                result.status = "partial"
-
-            # La marca solo avanza si el recorrido llegó de verdad al final y
-            # sin errores. Un intento que se cortó a la mitad no puede decir
-            # "ya lo he visto todo hasta aquí": eso fue lo que dejó a los
-            # primeros usuarios con Transferencias vacía y sin forma de
-            # recuperarla, porque cada clic siguiente se paraba en la primera
-            # página creyendo estar al día.
-            await self._marcar_salidas_de_vendidos(uow, cmd.team_id)
-
-            if team is not None and recorrido_entero and not result.errors:
-                if highest_seen > (team.last_transfer_id_seen or 0):
-                    team.last_transfer_id_seen = highest_seen
-                team.transfers_history_complete = True
+            if team is not None:
+                await self._recorrer_historial(
+                    uow, cmd.user_id, cmd.team_id, team, result
+                )
 
             await uow.syncs.finalize(
                 sync_id, status=result.status, error="; ".join(result.errors) or None,

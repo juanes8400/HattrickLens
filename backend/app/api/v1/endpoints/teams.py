@@ -833,7 +833,9 @@ async def backfill_pending(
     handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
     async with uow:
         pendientes = await handler.pendientes_de_ficha(uow, team_id)
-    total = set(pendientes["ficha"]) | set(pendientes["precio"]) | set(pendientes["destino"])
+    total: set[int] = set()
+    for cola in pendientes.values():
+        total |= set(cola)
     return {
         "pending": len(total),
         "batchSize": BACKFILL_BATCH_SIZE,
@@ -841,6 +843,11 @@ async def backfill_pending(
             "profile": len(pendientes["ficha"]),
             "purchasePrice": len(pendientes["precio"]),
             "destination": len(pendientes["destino"]),
+            # Los dos que el usuario pidió ver de frente: a cuántos hay que
+            # construirles el historial completo esta primera vez, y cuántos
+            # siguen pudiendo darnos comisión algún día.
+            "census": len(pendientes["censo"]),
+            "resaleWatch": len(pendientes["reventa"]),
         },
     }
 

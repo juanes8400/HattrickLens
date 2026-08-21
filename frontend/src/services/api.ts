@@ -652,7 +652,15 @@ export interface BackfillPending {
   /** Jugadores a los que les falta algo por descargar. */
   pending: number;
   batchSize: number;
-  detail: { profile: number; purchasePrice: number; destination: number };
+  detail: {
+    profile: number;
+    purchasePrice: number;
+    destination: number;
+    /** A cuantos hay que construirles el historial completo esta primera vez. */
+    census: number;
+    /** Cuantos siguen pudiendo darnos comision algun dia. */
+    resaleWatch: number;
+  };
 }
 
 export interface BackfillBatchResult {

@@ -201,6 +201,24 @@ class Player(Base):
     destination_attempted: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
     )
+    # ── El pasado de un ex-jugador ──────────────────────────────────────
+    #
+    # Partidos que jugo de verdad con nosotros (al menos un minuto) durante su
+    # etapa en el club. Es lo que fija la comision de club anterior si alguien
+    # lo revende. Contarlo cuesta una alineacion por partido, asi que se hace
+    # UNA sola vez por jugador y se guarda aqui.
+    stint_games_played: Mapped[int | None] = mapped_column(SmallInteger)
+    stint_census_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # Cerrado para siempre: ya no puede darnos nada mas, asi que no se vuelve a
+    # preguntar por el nunca. Un jugador normal se cierra en cuanto lo
+    # revenden (la comision es solo de la SIGUIENTE venta) o lo despiden; un
+    # canterano cobra en cada venta futura, asi que solo lo cierra el despido.
+    resale_closed: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
+    resale_closed_reason: Mapped[str | None] = mapped_column(String(32))
+    # Cuando se le pregunto por ultima vez vive en
+    # `previous_club_bonus_checked_at`, que ya existia.
     sold_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: edad EN EL MOMENTO DE LA VENTA, reconstruida hacia atrás desde
     # la edad actual (playerdetails.xml, válido para cualquier jugador
