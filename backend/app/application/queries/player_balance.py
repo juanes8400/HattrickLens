@@ -746,8 +746,8 @@ class PlayerBalanceQueryService:
                     salary_total=balance.salary_total,
                     salary_known=balance.salary_known,
                     games_with_us=(
-                        p.stint_games_played
-                        if p.stint_games_played is not None else "?"
+                        p.games_played_for_us
+                        if p.games_played_for_us is not None else "?"
                     ),
                     salary_breakdown=salary_breakdown_rows,
                     listing_count=p.listing_count,

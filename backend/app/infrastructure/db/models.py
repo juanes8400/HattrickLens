@@ -203,12 +203,8 @@ class Player(Base):
     )
     # ── El pasado de un ex-jugador ──────────────────────────────────────
     #
-    # Partidos que jugo de verdad con nosotros (al menos un minuto) durante su
-    # etapa en el club. Es lo que fija la comision de club anterior si alguien
-    # lo revende. Contarlo cuesta una alineacion por partido, asi que se hace
-    # UNA sola vez por jugador y se guarda aqui.
-    stint_games_played: Mapped[int | None] = mapped_column(SmallInteger)
-    stint_census_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # Los partidos que jugo con nosotros viven en `games_played_for_us`, unas
+    # lineas mas abajo: ya existian para calcular la comision de club anterior.
     # Cerrado para siempre: ya no puede darnos nada mas, asi que no se vuelve a
     # preguntar por el nunca. Un jugador normal se cierra en cuanto lo
     # revenden (la comision es solo de la SIGUIENTE venta) o lo despiden; un

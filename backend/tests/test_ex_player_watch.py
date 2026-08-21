@@ -61,3 +61,21 @@ def test_home_grown_is_decided_by_the_mother_club_id() -> None:
     assert v.es_canterano(999999, 537758) is False
     assert v.es_canterano(None, 537758) is False
     assert v.es_canterano(0, 537758) is False
+
+
+def test_a_commission_already_recorded_still_counts_as_resold() -> None:
+    """Caso real (Adrian-Ioan Burlac, 442649968): no es canterano, se lo
+    revendieron en 2020 y su comisión de 234.090 lleva años guardada. Aun así
+    seguía abierto y se revisaba en cada pulsación.
+
+    La causa era confundir dos cosas: la función que busca la reventa devuelve
+    "sí" solo cuando ACABA DE ESCRIBIR una comisión nueva, y eso se estaba
+    leyendo como "existe una reventa". Para la regla de cierre lo que importa
+    es lo segundo.
+    """
+    from app.domain.engines import ex_player_watch as v
+
+    # Con la reventa ya registrada, la regla tiene que cerrarlo igual.
+    assert v.motivo_de_cierre(
+        canterano=False, revendido=True, desaparecido=False, salio_sin_comprador=False
+    ) == "revendido"

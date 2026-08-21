@@ -156,7 +156,7 @@ async def player_detail(
             # Partidos que jugó de verdad con nosotros. None mientras el censo
             # no haya pasado por él: es una alineación por partido, así que la
             # pantalla dice "sin contar" en vez de inventar un cero.
-            "gamesWithUs": ex_player.stint_games_played,
+            "gamesWithUs": ex_player.games_played_for_us,
             # Si ya no puede darnos nada más, y por qué.
             "resaleClosed": ex_player.resale_closed,
             "resaleClosedReason": ex_player.resale_closed_reason,

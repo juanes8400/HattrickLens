@@ -629,7 +629,7 @@ class SyncTeamHandler:
         # El censo de partidos: una vez por ex-jugador, para siempre.
         censo = await ids(
             (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
-            & m.Player.stint_census_at.is_(None)
+            & m.Player.games_played_for_us_computed_at.is_(None)
         )
         # La vigilancia de reventas: se repite hasta que el jugador queda
         # cerrado, y entonces desaparece de la cola para siempre.
@@ -2159,7 +2159,9 @@ class SyncTeamHandler:
         if jugador.purchased_at is None or salida is None:
             # Sin etapa acotada no hay nada que recorrer; se marca censado
             # para no volver a intentarlo en cada lote.
-            jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
+            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(
+                tzinfo=None
+            )
             return False
 
         # La marca se pone pase lo que pase. El recorrido es "una vez por
@@ -2168,12 +2170,14 @@ class SyncTeamHandler:
         # siempre y el trabajo no se agotaria nunca. Sin cuenta, la ficha
         # ensena "?" en vez de un cero que parecería contado.
         try:
-            jugador.stint_games_played = await self._games_played_for_us(
+            jugador.games_played_for_us = await self._games_played_for_us(
                 equipo.ht_team_id, ht_player_id, jugador.purchased_at, salida,
             )
             contado = True
         finally:
-            jugador.stint_census_at = datetime.now(UTC).replace(tzinfo=None)
+            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(
+                tzinfo=None
+            )
         return contado
 
     async def _vigilar_reventa(
@@ -2187,6 +2191,8 @@ class SyncTeamHandler:
         un retiro lo cierran para siempre, y comprobado en vivo, Hattrick
         responde a esa ficha con el error 56 cuando el jugador ya no está.
         """
+        from sqlalchemy import select
+
         from sqlalchemy import select
 
         from app.domain.engines import ex_player_watch as vigilancia
@@ -2204,9 +2210,22 @@ class SyncTeamHandler:
         )
         salio_sin_comprador = jugador.sold_at is None and jugador.left_team_at is not None
 
-        revendido = False
         if jugador.sold_at is not None:
-            revendido = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
+            await self._check_previous_club_bonus(uow, team_id, ht_player_id)
+
+        # "Revendido" es que EXISTA la reventa, no que se acabe de escribir.
+        # `_check_previous_club_bonus` devuelve False cuando la comisión ya
+        # estaba anotada de antes, y tomarlo por "no lo han revendido" dejaba
+        # abierto para siempre a quien ya había cobrado: caso real de
+        # Adrian-Ioan Burlac, con su comisión de 234.090 guardada desde 2020 y
+        # aun así revisado en cada pulsación.
+        revendido = (
+            await uow.session.scalar(
+                select(m.PreviousClubBonus.id).where(
+                    m.PreviousClubBonus.ht_player_id == ht_player_id
+                )
+            )
+        ) is not None
 
         desaparecido = False
         # Solo se pregunta por su ficha cuando la reventa no ha zanjado nada:

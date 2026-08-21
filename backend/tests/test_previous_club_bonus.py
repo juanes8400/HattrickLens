@@ -347,3 +347,43 @@ def test_player_balance_resale_share_is_zero_without_a_bonus_record() -> None:
         assert row.resale_bonus_share == 0.0
 
     asyncio.run(run())
+
+
+def test_an_ex_player_whose_commission_is_already_recorded_gets_closed() -> None:
+    """Caso real (Adrian-Ioan Burlac): comisión guardada desde 2020 y el
+    jugador seguía en la cola de vigilancia, para siempre. La comprobación de
+    reventa contesta False cuando no escribe nada nuevo, así que el cierre no
+    puede depender de su valor: depende de que EXISTA la fila de comisión.
+    """
+    async def run() -> None:
+        # Sin reventa nueva que encontrar: solo nuestra propia venta.
+        uow, chpp, team_id = await _setup(
+            [_transfer(1, 999, OUR_HT_TEAM_ID, 200000, "2026-01-01 12:00:00")]
+        )
+        async with uow as u:
+            jugador = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == PLAYER_ID)
+            )
+            u.session.add(m.PreviousClubBonus(
+                player_id=jugador.id, ht_player_id=PLAYER_ID,
+                resale_transfer_id=342838107, resale_price=7803000,
+                resale_deadline=datetime(2026, 7, 12, 19, 16),
+                buyer_team_id=1, seller_team_id=999,
+                games_played_with_us=10, pct_applied=0.03, amount=234090,
+                computed_at=datetime(2026, 7, 13),
+            ))
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, chpp)
+        async with uow as u:
+            await handler._vigilar_reventa(u, team_id, PLAYER_ID)
+            await u.session.commit()
+
+        async with uow as u:
+            jugador = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == PLAYER_ID)
+            )
+            assert jugador.resale_closed is True
+            assert jugador.resale_closed_reason == "revendido"
+
+    asyncio.run(run())
