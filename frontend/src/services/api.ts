@@ -223,6 +223,19 @@ export const api = {
       `/teams/${teamId}/backfill/run${since ? `?since=${encodeURIComponent(since)}` : ""}`,
       { method: "POST" },
     ),
+  /** Cada intento de venta, con su final. */
+  transferAttempts: (teamId: number) =>
+    request<TransferAttempts>(`/teams/${teamId}/transfer-attempts`),
+  /** Anota cuantas veces vieron al jugador, o ignora la pregunta. */
+  setTimesSeen: (
+    teamId: number,
+    attemptId: number,
+    cambios: { times_seen?: number; dismissed?: boolean },
+  ) =>
+    request<{ id: number; timesSeen: number | null; asked: boolean }>(
+      `/teams/${teamId}/transfer-attempts/${attemptId}`,
+      { method: "PATCH", body: JSON.stringify(cambios) },
+    ),
   /** Atribuye a mano lo que falta de una etapa cerrada, o la excluye. */
   editStint: (
     teamId: number,
@@ -674,6 +687,30 @@ export interface PlayerDetailsSyncResult {
   playersProcessed: number;
   snapshotsWritten: number;
   errors: string[];
+}
+
+export interface TransferAttemptRow {
+  id: number;
+  htPlayerId: number | null;
+  name: string;
+  detectedAt: string;
+  deadline: string | null;
+  endedAt: string | null;
+  /** Todavia en el mercado: su final no se sabe aun. */
+  open: boolean;
+  sold: boolean;
+  highestBid: number | null;
+  salePrice: number | null;
+  /** Solo lo sabe el usuario: Hattrick no lo da por CHPP. */
+  timesSeen: number | null;
+  asked: boolean;
+}
+
+export interface TransferAttempts {
+  currency: string;
+  rows: TransferAttemptRow[];
+  /** Los que terminaron y siguen sin respuesta. */
+  pendingQuestion: TransferAttemptRow[];
 }
 
 export interface BackfillPending {

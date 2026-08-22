@@ -3147,7 +3147,10 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         listed_now = {
-            p["ht_player_id"]: p.get("highest_bid")
+            p["ht_player_id"]: {
+                "highest_bid": p.get("highest_bid"),
+                "deadline": ht_to_utc_naive(p.get("deadline") or ""),
+            }
             for p in payload.get("listed_players", [])
         }
         roster = list(
@@ -3157,18 +3160,54 @@ class SyncTeamHandler:
                 )
             ).scalars()
         )
+        ahora = datetime.now(UTC).replace(tzinfo=None)
         for player in roster:
+            en_mercado = listed_now.get(player.ht_player_id)
             is_listed = player.ht_player_id in listed_now
+
+            abierto = await uow.session.scalar(
+                select(m.PlayerListingAttempt)
+                .where(
+                    m.PlayerListingAttempt.player_id == player.id,
+                    m.PlayerListingAttempt.ended_at.is_(None),
+                )
+                .order_by(m.PlayerListingAttempt.detected_at.desc())
+                .limit(1)
+            )
+
             if is_listed and not player.currently_listed:
                 player.listing_count += 1
                 result.snapshots_written += 1
+                etapa = await uow.session.scalar(
+                    select(m.PlayerStint.id)
+                    .where(
+                        m.PlayerStint.player_id == player.id,
+                        m.PlayerStint.left_at.is_(None),
+                    )
+                    .limit(1)
+                )
                 uow.session.add(
                     m.PlayerListingAttempt(
                         player_id=player.id,
-                        highest_bid=listed_now[player.ht_player_id],
-                        detected_at=datetime.now(UTC),
+                        ht_player_id=player.ht_player_id,
+                        stint_id=etapa,
+                        highest_bid=(en_mercado or {}).get("highest_bid"),
+                        last_highest_bid=(en_mercado or {}).get("highest_bid"),
+                        deadline=(en_mercado or {}).get("deadline"),
+                        detected_at=ahora,
                     )
                 )
+            elif is_listed and abierto is not None:
+                # Sigue en el mercado: se refresca lo que puede cambiar.
+                abierto.last_highest_bid = (en_mercado or {}).get("highest_bid")
+                abierto.deadline = (en_mercado or {}).get("deadline") or abierto.deadline
+                result.unchanged += 1
+            elif not is_listed and player.currently_listed and abierto is not None:
+                # Se acabo la puja. Que siga en la plantilla es la señal de
+                # que NO se vendio: una venta lo saca del equipo.
+                abierto.ended_at = ahora
+                abierto.sold = player.left_team_at is not None or player.sold_at is not None
+                result.snapshots_written += 1
             elif is_listed == player.currently_listed:
                 result.unchanged += 1
             player.currently_listed = is_listed

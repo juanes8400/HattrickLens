@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   ClubMoraleSection,
@@ -14,9 +15,10 @@ import {
 } from "../components/GroupedPlayerChanges";
 import { ErrorState, Loading, Note, Panel } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
-import { useChangesHistory, useSquad, useSyncChanges } from "../hooks/useTeam";
+import { TEAM_ID, useChangesHistory, useSquad, useSyncChanges } from "../hooks/useTeam";
 import { date, relative } from "../hooks/useFormat";
 import {
+  api,
   type ChangesHistory,
   type HistoricalPlayerChange,
   type LastSyncChanges,
@@ -240,6 +242,87 @@ const HISTORY_WINDOWS = [
 
 type ChangesTab = "latest" | (typeof HISTORY_WINDOWS)[number]["key"];
 
+
+/** Pregunta por las visitas de una puja que acaba de cerrarse.
+ *
+ * 2026-08-22, pedido por el usuario. Cuando termina un intento de venta,
+ * Hattrick cuenta en el texto de la noticia cuántas veces miraron al jugador
+ * ("fue visto 8 veces mientras estaba en la lista de transferibles"). Ese dato
+ * no viaja por CHPP por ningún lado, así que si no se anota en ese momento se
+ * pierde para siempre.
+ *
+ * Se puede ignorar, y entonces no vuelve a preguntar por ese intento: un aviso
+ * que reaparece cada vez deja de leerse a la tercera.
+ */
+function PreguntaDeVisitas() {
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["transfer-attempts", TEAM_ID],
+    queryFn: () => api.transferAttempts(TEAM_ID),
+  });
+  const [valores, setValores] = useState<Record<number, string>>({});
+
+  const responder = useMutation({
+    mutationFn: ({ id, veces }: { id: number; veces?: number }) =>
+      api.setTimesSeen(TEAM_ID, id, veces != null ? { times_seen: veces } : { dismissed: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
+  });
+
+  const pendientes = data?.pendingQuestion ?? [];
+  if (pendientes.length === 0) return null;
+
+  return (
+    <Panel
+      title="¿Cuántas veces lo vieron?"
+      meta="Hattrick solo lo dice al cerrarse la puja"
+    >
+      <div className="space-y-3 p-4">
+        <p className="text-sm text-[var(--muted)]">
+          Se acaba de cerrar una puja. En la noticia de Hattrick aparece cuántas
+          veces miraron al jugador mientras estaba en el mercado. Ese número no
+          viaja por ningún otro lado, así que si no lo anotas ahora se pierde.
+        </p>
+        {pendientes.map((p) => (
+          <div
+            key={p.id}
+            className="flex flex-wrap items-center gap-3 rounded-md border border-[var(--border)] p-3"
+          >
+            <span className="text-sm font-medium">{p.name}</span>
+            <span className="text-xs text-[var(--muted)]">
+              cerró el {date(p.deadline ?? p.endedAt)}
+            </span>
+            <input
+              type="number"
+              min={0}
+              placeholder="veces"
+              value={valores[p.id] ?? ""}
+              onChange={(e) =>
+                setValores((v) => ({ ...v, [p.id]: e.target.value }))
+              }
+              className="w-24 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+            />
+            <button
+              onClick={() =>
+                responder.mutate({ id: p.id, veces: Number(valores[p.id]) })
+              }
+              disabled={!valores[p.id]}
+              className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+            >
+              Guardar
+            </button>
+            <button
+              onClick={() => responder.mutate({ id: p.id })}
+              className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
+            >
+              No lo sé
+            </button>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
 export function SyncChangesPage() {
   // `null` = la comparación más reciente con cambios. Al elegir una fecha del
   // archivo se pide esa al backend, que recalcula los +1/-1 de ese snapshot
@@ -352,6 +435,7 @@ export function SyncChangesPage() {
         )}
       </Panel>
 
+      <PreguntaDeVisitas />
       {data && <TrainingSection changes={data.clubChanges} />}
       {data && <ClubMoraleSection changes={data.clubChanges} />}
 

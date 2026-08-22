@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import { Chart } from "../charts/Chart";
@@ -192,6 +192,7 @@ type SectionKey =
   | "totales"
   | "desgloses"
   | "roi"
+  | "intentos"
   | "detalle";
 
 // Interruptor coqueto reutilizado por los 2 toggles compartidos (pedido
@@ -944,6 +945,7 @@ export function PlayerBalancePage() {
             { key: "totales", label: "Totales" },
             { key: "desgloses", label: "Desgloses absolutos" },
             { key: "roi", label: "Desgloses ROI" },
+            { key: "intentos", label: "Intentos de transferencias" },
             { key: "detalle", label: `Detalle (${detalleRows.length})` },
           ]}
           active={section}
@@ -1318,6 +1320,8 @@ export function PlayerBalancePage() {
         </div>
       )}
 
+      {section === "intentos" && <TransferAttemptsSection />}
+
       {section === "detalle" && (
         <Panel
           title="Detalle por jugador"
@@ -1508,6 +1512,109 @@ function RoiPanel({
           Los grupos con menos de {VENTAS_PARA_FIARSE} ventas salen apagados: su
           porcentaje se mueve entero con una sola operación.
         </p>
+      </div>
+    </Panel>
+  );
+}
+
+
+/** Cada intento de venta, uno por fila.
+ *
+ * 2026-08-22, pedido por el usuario. La aplicación ya contaba cuántas veces se
+ * había listado a alguien, pero no podía enseñar CADA intento con su final. Y
+ * las visitas —"este jugador fue visto 8 veces mientras estaba en la lista de
+ * transferibles"— son el único dato de toda la app que Hattrick no entrega por
+ * CHPP: solo lo dice en el texto de la noticia, así que lo teclea el usuario.
+ *
+ * No hay relleno hacia atrás, por decisión suya: empieza desde el primer
+ * intento que se detecte.
+ */
+function TransferAttemptsSection() {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["transfer-attempts", TEAM_ID],
+    queryFn: () => api.transferAttempts(TEAM_ID),
+  });
+
+  if (isLoading) return <Loading />;
+  if (isError) return <ErrorState error={error} />;
+  if (!data || data.rows.length === 0) {
+    return (
+      <Panel title="Intentos de transferencias" meta="empieza a contar desde hoy">
+        <Empty>
+          Todavía no se ha detectado ningún intento de venta. El primero que
+          pongas en el mercado aparecerá aquí, con su plazo y su final.
+        </Empty>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel
+      title="Intentos de transferencias"
+      meta={`${data.rows.length} intento(s) desde que se empezó a contar`}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
+            <tr>
+              <th className="px-4 py-2">Jugador</th>
+              <th className="px-4 py-2">Salió al mercado</th>
+              <th className="px-4 py-2">Cierre</th>
+              <th className="px-4 py-2">Resultado</th>
+              <th className="px-4 py-2 text-right">Última puja</th>
+              <th className="px-4 py-2 text-right">Precio de venta</th>
+              <th className="px-4 py-2 text-right">Visitas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => (
+              <tr key={r.id} className="border-b border-[var(--border)]">
+                <td className="px-4 py-2">
+                  {r.htPlayerId ? (
+                    <Link
+                      to={`/players/${r.htPlayerId}`}
+                      className="text-[var(--accent)] hover:underline"
+                    >
+                      {r.name}
+                    </Link>
+                  ) : (
+                    r.name
+                  )}
+                </td>
+                <td className="px-4 py-2 tabular-nums">{date(r.detectedAt)}</td>
+                <td className="px-4 py-2 tabular-nums">
+                  {r.deadline ? date(r.deadline) : "-"}
+                </td>
+                <td className="px-4 py-2">
+                  {r.open ? (
+                    <span className="text-[var(--muted)]">en el mercado</span>
+                  ) : r.sold ? (
+                    <span className="font-medium text-[var(--positive)]">Vendido</span>
+                  ) : (
+                    <span className="text-[var(--muted)]">Se quedó</span>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums">
+                  {/* Una puja de 0 no es una puja: nadie ofreció nada. */}
+                  {r.highestBid ? money(r.highestBid, data.currency) : "-"}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums">
+                  {r.salePrice != null ? money(r.salePrice, data.currency) : "-"}
+                </td>
+                <td className="px-4 py-2 text-right tabular-nums">
+                  {r.timesSeen ?? (
+                    <span
+                      className="text-[var(--muted)]"
+                      title="Hattrick solo lo dice en el texto de la noticia al cerrarse la puja. Se anota desde Cambios."
+                    >
+                      ?
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </Panel>
   );

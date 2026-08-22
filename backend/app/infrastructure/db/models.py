@@ -398,6 +398,34 @@ class PlayerListingAttempt(Base):
     highest_bid: Mapped[int | None] = mapped_column(BigInteger)
     detected_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
+    # ── El intento como tal, de principio a fin (2026-08-22) ────────────
+    #
+    # Hasta ahora una fila era solo "apareció en el mercado tal día". Un
+    # intento de venta es mas que eso: tiene un plazo, un final y un
+    # resultado, y es lo que de verdad se quiere estudiar -a que precio se
+    # vende, en que semana, cuantas veces hubo que intentarlo-.
+    ht_player_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    #: La etapa a la que pertenece: un jugador puede intentar venderse en dos
+    #: pasos distintos por el club.
+    stint_id: Mapped[int | None] = mapped_column(ForeignKey("player_stints.id"))
+    #: Cuando cierra la puja, segun Hattrick.
+    deadline: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: Cuando se detecto que ya no estaba en el mercado.
+    ended_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: La ultima puja vista antes de que terminara.
+    last_highest_bid: Mapped[int | None] = mapped_column(BigInteger)
+    #: Termino en venta, o el jugador se quedo.
+    sold: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    #: Cuantas veces lo miraron mientras estaba listado. Hattrick solo lo dice
+    #: en el texto de las noticias, nunca por CHPP, asi que lo teclea el
+    #: usuario. `None` = todavia no lo sabemos.
+    times_seen: Mapped[int | None] = mapped_column(Integer)
+    #: El usuario ya decidio sobre este intento: lo respondio o lo ignoro. Sin
+    #: esto el aviso volveria a salir para siempre.
+    times_seen_asked: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
+
 
 class TeamTransfer(Base):
     """Cada compra y cada venta del club, tal como las cuenta Hattrick.
