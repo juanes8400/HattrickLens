@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
+import { colores } from "../charts/colors";
+import { useIsDarkTheme } from "../hooks/useTheme";
 import { Column, DataTable } from "../components/DataTable";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import { useArena } from "../hooks/useTeam";
@@ -16,6 +18,7 @@ import { ApiError, type Arena } from "../services/api";
  */
 export function ArenaPage() {
   const { data, isLoading, isError, error } = useArena();
+  const tonos = colores(useIsDarkTheme());
 
   if (isLoading) return <Loading />;
   if (isError) {
@@ -153,7 +156,7 @@ export function ArenaPage() {
                   value: m.occupancy,
                   itemStyle: {
                     color: m.soldOutSectors.length > 0
-                      ? "var(--warning)" : "var(--accent)",
+                      ? tonos.warning : tonos.accent,
                     borderRadius: 3,
                   },
                 })),
@@ -164,7 +167,7 @@ export function ArenaPage() {
                   data: [
                     {
                       yAxis: data.avgOccupancy,
-                      lineStyle: { type: "dashed", color: "var(--muted)" },
+                      lineStyle: { type: "dashed", color: tonos.muted },
                       label: { formatter: "media", position: "insideEndTop" },
                     },
                   ],

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import { Chart } from "../charts/Chart";
+import { colores } from "../charts/colors";
 import { CountryCell } from "../components/CountryFlag";
 import { Column, DataTable } from "../components/DataTable";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
@@ -798,6 +799,7 @@ export function PlayerBalancePage() {
     destino[clave] = actual;
   };
 
+  const roiPorTemporada: Record<string, Acumulado> = {};
   const roiPorSemanaCompra: Record<string, Acumulado> = {};
   const roiPorEntrenamiento: Record<string, Acumulado> = {};
   const roiPorEdad: Record<string, Acumulado> = {};
@@ -805,6 +807,7 @@ export function PlayerBalancePage() {
   const roiPorHora: Record<string, Acumulado> = {};
   for (const r of desglosesRows) {
     if (r.saldo == null || r.totalCost <= 0) continue;
+    acumular(roiPorTemporada, r.seasonAtSale ?? UNKNOWN_SEASON, r);
     acumular(
       roiPorSemanaCompra,
       r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK,
@@ -1285,6 +1288,16 @@ export function PlayerBalancePage() {
           </Note>
           <div className="grid gap-4 lg:grid-cols-2">
             <RoiPanel
+              title="ROI por temporada"
+              meta="por temporada de venta"
+              entries={Object.entries(roiPorTemporada).sort(
+                (a, b) =>
+                  seasonSortKey(a[0])[0] - seasonSortKey(b[0])[0] ||
+                  seasonSortKey(a[0])[1] - seasonSortKey(b[0])[1],
+              )}
+              isDark={isDark}
+            />
+            <RoiPanel
               title="ROI por semana de compra"
               meta="semana del calendario, no de la temporada"
               entries={Object.entries(roiPorSemanaCompra).sort((a, b) =>
@@ -1438,18 +1451,6 @@ function skillCol(
  */
 const VENTAS_PARA_FIARSE = 5;
 
-/** Verde arriba, rojo abajo — y en hexadecimal, no en `var(--…)`.
- *
- * Las graficas se pintan sobre canvas, que no sabe leer las variables de CSS:
- * un `var(--accent)` ahi no falla, se queda en el color por defecto del canvas
- * y la barra sale de un gris oscuro que no dice nada. Los positivos ademas
- * iban en azul, que no es "bueno", solo "acento". Mismos tonos que --positive
- * y --danger de index.css, uno por tema.
- */
-const COLOR_ROI = {
-  dark: { bueno: "#2fbf71", malo: "#e5484d" },
-  light: { bueno: "#1a9e5c", malo: "#d1383d" },
-} as const;
 
 /** Los cajones de "no lo sé" no son un grupo, y aquí encima mienten.
  *
@@ -1461,6 +1462,7 @@ const COLOR_ROI = {
  * y suma—, pero en un porcentaje no.
  */
 const ETIQUETAS_SIN_DATO = new Set([
+  UNKNOWN_SEASON,
   UNKNOWN_TRAINING,
   UNKNOWN_AGE,
   UNKNOWN_TOP_SKILL,
@@ -1564,8 +1566,10 @@ function RoiPanel({
     techo == null ? roi : Math.max(-techo, Math.min(techo, roi));
   const cortadas = puntos.filter((p) => seSale(p.roi)).length;
   const hayNegativos = puntos.some((p) => p.roi < 0);
-  const tonos = isDark ? COLOR_ROI.dark : COLOR_ROI.light;
-  const ejeTexto = isDark ? "#8b8b93" : "#6b7280";
+  // Verde arriba, rojo abajo. Y en hexadecimal: dentro de una gráfica, un
+  // `var(--positive)` se queda en el color por defecto del canvas.
+  const tonos = colores(isDark);
+  const ejeTexto = tonos.muted;
   const rejilla = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
 
   const limitesDelEje =
@@ -1618,7 +1622,7 @@ function RoiPanel({
             // Apagado cuando el grupo tiene pocas ventas: el número está,
             // pero no invita a sacar conclusiones.
             opacity: p.ventas < VENTAS_PARA_FIARSE ? 0.35 : 1,
-            color: p.roi >= 0 ? tonos.bueno : tonos.malo,
+            color: p.roi >= 0 ? tonos.positive : tonos.danger,
           },
         })),
         // La línea de cero, visible: un ROI negativo tiene que verse cayendo.
