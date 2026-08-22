@@ -340,9 +340,16 @@ function WelcomeAction({ to, title, detail }: { to: string; title: string; detai
  */
 function ClubRadar({ teamName }: { teamName: string }) {
   const league = useLeague();
-  const comparison = useLeagueComparison(false, true, false);
+  // Apagada a proposito: el eje de TSI sale de sumar las plantillas de los
+  // siete rivales, y eso son siete llamadas a Hattrick que nadie ha pedido al
+  // entrar al panel. Con la consulta apagada, esto devuelve lo que ya haya en
+  // cache — misma clave que usa Liga, asi que si el usuario paso por alli, el
+  // cuarto eje aparece gratis. Y si no paso, el radar se dibuja igual con los
+  // tres ejes que la clasificacion ya sabe: antes se quedaba en un aviso
+  // pidiendole al usuario que sincronizara algo que ya estaba sincronizado.
+  const comparison = useLeagueComparison(true, true, false);
 
-  if (league.isLoading || comparison.isLoading) {
+  if (league.isLoading) {
     return (
       <Panel title="Radar de fuerza">
         <div className="p-4"><Loading /></div>
@@ -351,15 +358,17 @@ function ClubRadar({ teamName }: { teamName: string }) {
   }
 
   const own = league.data?.ownOutlook;
-  const n = comparison.data?.teamsInSeries ?? 0;
+  // Cuantos equipos hay en la serie lo dice la propia clasificacion.
+  const n = comparison.data?.teamsInSeries ?? league.data?.standings.length ?? 0;
   const rank = comparison.data?.ownRank ?? 0;
   if (!own || !league.data || n < 2) {
     return (
       <Panel title="Radar de fuerza">
-        <Empty>Sincroniza la clasificación de tu liga para ver el radar.</Empty>
+        <Empty>Todavía no hay clasificación de tu serie.</Empty>
       </Panel>
     );
   }
+  const hayTsi = comparison.data != null && rank > 0;
 
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
   const attackAxis = clamp(own.attackStrength * 50);
@@ -371,17 +380,18 @@ function ClubRadar({ teamName }: { teamName: string }) {
     { name: "Ataque", max: 100 },
     { name: "Posición esperada", max: 100 },
     { name: "Defensa", max: 100 },
-    { name: "TSI en la liga", max: 100 },
+    ...(hayTsi ? [{ name: "TSI en la liga", max: 100 }] : []),
   ];
+  const ejes = hayTsi
+    ? [attackAxis, positionAxis, defenceAxis, tsiAxis]
+    : [attackAxis, positionAxis, defenceAxis];
 
   return (
     <Panel title="Radar de fuerza" meta={`relativo a ${league.data.seriesName ?? "tu liga"}`}>
       <Chart
         ariaLabel="Radar de fuerza del equipo, relativo a la media de la liga"
         height={300}
-        option={radarOption(indicators, [
-          { name: teamName, value: [attackAxis, positionAxis, defenceAxis, tsiAxis] },
-        ])}
+        option={radarOption(indicators, [{ name: teamName, value: ejes }])}
       />
       <Note>
         50 es la media de {league.data.seriesName}, 100 el mejor de la serie en ese eje.
