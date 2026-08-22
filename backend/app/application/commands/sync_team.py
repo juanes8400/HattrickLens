@@ -489,6 +489,7 @@ class SyncTeamHandler:
                 )
 
             await self._marcar_salidas_de_vendidos(uow, cmd.team_id)
+            await self._reparar_partidos_ajenos_sin_ficha(uow)
             await self._resolver_moneda(uow, cmd.team_id)
 
             await uow.syncs.finalize(
@@ -1600,6 +1601,46 @@ class SyncTeamHandler:
                 sold_vip=arena.get("sold_vip", 0),
             ))
             result.snapshots_written += 1
+
+    #: Cuantas fichas de partido ajeno se rescatan por sincronizacion. Lo
+    #: normal es que no haya ninguna; el tope existe para que un usuario que
+    #: llegue con cien huerfanos no pague cien llamadas de golpe.
+    RESCATES_DE_PARTIDO_POR_SYNC = 20
+
+    async def _reparar_partidos_ajenos_sin_ficha(self, uow: UnitOfWork) -> int:
+        """Partidos con minutos guardados pero sin ficha, que nadie cuenta.
+
+        Los minutos de un jugador salen de la casilla "ultimo partido" de su
+        ficha, y esa casilla tambien atrapa partidos que no son de nuestro
+        club: el ultimo que jugo en su equipo anterior, un amistoso
+        internacional, un partido de seleccion. Para que cuenten hace falta
+        ademas la ficha del partido, que dice de que tipo fue.
+
+        `_backfill_foreign_match_type` la pide en el momento, pero solo desde
+        que existe: los minutos guardados antes se quedaron sin ficha, y el
+        calculo de experiencia los cruza con una union estricta, asi que los
+        descartaba en silencio. Esto los recoge, y de paso cubre el caso de
+        que aquella llamada fallara.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        huerfanos = (await uow.session.execute(
+            select(m.PlayerMatchRating.ht_match_id)
+            .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
+            .where(m.Match.id.is_(None), m.PlayerMatchRating.ht_match_id != 0)
+            .distinct()
+            .limit(self.RESCATES_DE_PARTIDO_POR_SYNC)
+        )).scalars().all()
+        rescatados = 0
+        for ht_match_id in huerfanos:
+            try:
+                await self._backfill_foreign_match_type(uow, ht_match_id)
+            except Exception:  # noqa: BLE001 — best effort, como el resto
+                continue
+            rescatados += 1
+        return rescatados
 
     async def _backfill_foreign_match_type(self, uow: UnitOfWork, ht_match_id: int) -> None:
         """Crea la fila `Match` de un partido AJENO (selección nacional,
