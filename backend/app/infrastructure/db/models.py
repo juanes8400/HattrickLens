@@ -425,6 +425,10 @@ class PlayerListingAttempt(Base):
     times_seen_asked: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
     )
+    #: El precio que se pedia. Tampoco lo da CHPP: sale del mismo mensaje que
+    #: las visitas ("El precio solicitado era de 723 000 US$"), en moneda local
+    #: porque lo teclea el usuario tal como lo lee.
+    asking_price: Mapped[int | None] = mapped_column(BigInteger)
 
 
 class TeamTransfer(Base):

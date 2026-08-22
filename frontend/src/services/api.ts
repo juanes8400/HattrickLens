@@ -230,9 +230,14 @@ export const api = {
   setTimesSeen: (
     teamId: number,
     attemptId: number,
-    cambios: { times_seen?: number; dismissed?: boolean },
+    cambios: { times_seen?: number; asking_price?: number; dismissed?: boolean },
   ) =>
-    request<{ id: number; timesSeen: number | null; asked: boolean }>(
+    request<{
+      id: number;
+      timesSeen: number | null;
+      askingPrice: number | null;
+      asked: boolean;
+    }>(
       `/teams/${teamId}/transfer-attempts/${attemptId}`,
       { method: "PATCH", body: JSON.stringify(cambios) },
     ),
@@ -690,20 +695,45 @@ export interface PlayerDetailsSyncResult {
 }
 
 export interface TransferAttemptRow {
+  /** "483141997_2": el segundo intento de ese jugador. */
+  key: string;
   id: number;
+  attemptNumber: number;
   htPlayerId: number | null;
   name: string;
+
   detectedAt: string;
-  deadline: string | null;
-  endedAt: string | null;
-  /** Todavia en el mercado: su final no se sabe aun. */
+  /** Cuando cerro la puja. En un intento fallido no hay fecha de venta. */
+  closedAt: string | null;
   open: boolean;
   sold: boolean;
+
+  askingPrice: number | null;
   highestBid: number | null;
   salePrice: number | null;
-  /** Solo lo sabe el usuario: Hattrick no lo da por CHPP. */
+  /** Solo en los exitosos. */
+  agentPct: number | "?";
   timesSeen: number | null;
   asked: boolean;
+
+  tsi: number | "?";
+  age: string;
+  skills: Record<string, number | "?">;
+  specialty: string;
+  character: string;
+  nativeCountry: string;
+  snapshotAt: string | null;
+  /** La foto esta lejos del cierre: no leerla como exacta. */
+  stale: boolean;
+
+  fromAcademy: boolean;
+  purchasedAt: string | null;
+  purchasePrice: number | "?";
+  ageAtPurchase: string;
+  daysSincePurchase: number | "?";
+  gamesWithUs: number | "?";
+  salaryToDate: number | "?";
+  trainingThatWeek: string;
 }
 
 export interface TransferAttempts {

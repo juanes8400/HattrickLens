@@ -279,3 +279,132 @@ def test_a_player_still_listed_today_is_left_alone() -> None:
             assert intento.ended_at is None
 
     asyncio.run(run())
+
+
+def test_who_is_on_sale_comes_from_the_squad_not_from_the_bids() -> None:
+    """2026-08-22, pedido explícitamente: `currentbids.xml` es la lista de
+    PUJAS, y tomarlo por un censo de transferibles es la forma de equivocarse.
+
+    `TransferListed` viene con la plantilla, jugador por jugador, y responde
+    directo a la pregunta. Aquí se comprueba que ESA es la fuente: un jugador
+    marcado como transferible en su snapshot queda listado aunque no aparezca
+    en ninguna puja.
+    """
+    from app.application.commands.sync_team import SyncTeamHandler
+    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
+
+    async def run() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        captura = datetime(2026, 8, 22, 12, 0)
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            s.add(equipo)
+            await s.flush()
+            en_venta = m.Player(
+                ht_player_id=1, team_id=equipo.id, first_name="Sin", last_name="Pujas",
+            )
+            normal = m.Player(
+                ht_player_id=2, team_id=equipo.id, first_name="No", last_name="Listado",
+            )
+            s.add_all([en_venta, normal])
+            await s.flush()
+            sync = m.Sync(
+                user_id=1, team_id=equipo.id, kind="players", status="completed",
+                started_at=captura,
+            )
+            s.add(sync)
+            await s.flush()
+            for jugador, listado in ((en_venta, True), (normal, False)):
+                s.add(m.PlayerSnapshot(
+                    sync_id=sync.id, player_id=jugador.id, captured_at=captura,
+                    age_years=25, age_days=0, tsi=1000, form=5, stamina=5,
+                    experience=5, salary=1000, content_hash=b"x",
+                    is_transfer_listed=listado,
+                ))
+            await s.commit()
+            team_id = equipo.id
+
+        uow = SqlAlchemyUnitOfWork(factory)
+        handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
+        async with uow as u:
+            await handler._marcar_quien_esta_en_venta(u, team_id, captura)
+            await u.commit()
+
+        async with factory() as s:
+            uno = await s.scalar(select(m.Player).where(m.Player.ht_player_id == 1))
+            dos = await s.scalar(select(m.Player).where(m.Player.ht_player_id == 2))
+            # Sin una sola puja, y aun asi en venta.
+            assert uno.currently_listed is True
+            assert dos.currently_listed is False
+
+    asyncio.run(run())
+
+
+def test_the_asking_price_travels_with_the_visits() -> None:
+    """Del mensaje real: "El precio solicitado era de 723 000 US$". Tampoco lo
+    da CHPP, así que se teclea junto a las visitas y en la misma moneda que lee
+    el usuario."""
+    client, team_id, terminado, _ = _montar()
+    try:
+        r = client.patch(
+            f"/api/v1/teams/{team_id}/transfer-attempts/{terminado}",
+            json={"times_seen": 8, "asking_price": 723000},
+        )
+        assert r.status_code == 200
+        assert r.json()["askingPrice"] == 723000
+
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/transfer-attempts").json()
+        fila = next(f for f in cuerpo["rows"] if f["id"] == terminado)
+        assert fila["askingPrice"] == 723000
+        assert fila["timesSeen"] == 8
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_the_key_is_the_player_and_the_attempt_number() -> None:
+    """`IDdelJugador_intento`, con el número creciendo por jugador."""
+    client, team_id, terminado, abierto = _montar()
+    try:
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/transfer-attempts").json()
+        por_id = {f["id"]: f for f in cuerpo["rows"]}
+        assert por_id[terminado]["key"] == "1_1"
+        assert por_id[abierto]["key"] == "1_2"
+        assert por_id[abierto]["attemptNumber"] == 2
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_the_agent_only_charges_when_there_was_a_sale() -> None:
+    """En un intento fallido no hay agente que cobre: la casilla queda vacía,
+    no en cero, que se leería como "no cobró"."""
+    client, team_id, terminado, _ = _montar()
+    try:
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/transfer-attempts").json()
+        fila = next(f for f in cuerpo["rows"] if f["id"] == terminado)
+        assert fila["sold"] is False
+        assert fila["agentPct"] == "?"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_a_photo_far_from_the_closing_is_flagged() -> None:
+    """El estado del jugador sale de la foto más cercana al cierre. Si esa foto
+    es de días antes, el TSI y las habilidades ya no son las de ese día: se
+    marca para que no se lean como exactas."""
+    client, team_id, terminado, _ = _montar()
+    try:
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/transfer-attempts").json()
+        fila = next(f for f in cuerpo["rows"] if f["id"] == terminado)
+        # Sin ninguna foto tampoco se inventa nada.
+        assert fila["stale"] is True
+        assert fila["tsi"] == "?"
+        assert fila["skills"]["scoring"] == "?"
+    finally:
+        app.dependency_overrides.clear()

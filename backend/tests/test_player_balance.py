@@ -703,93 +703,97 @@ async def _setup_roster(ht_player_ids: list[int]) -> tuple[SqlAlchemyUnitOfWork,
     return SqlAlchemyUnitOfWork(factory), team_id
 
 
-def test_currentbids_counts_a_new_appearance_as_one_listing_attempt() -> None:
-    """CHPP no da historial de listados, solo la foto de ahora mismo — una
-    aparición nueva (no estaba listado la vez pasada) cuenta como un
-    intento más. Seguir listado del sync anterior no repite el conteo."""
+def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
+    """Quién está en venta lo dice players.xml (`TransferListed`), no
+    `currentbids.xml` — pedido explícitamente el 2026-08-22: ese fichero es la
+    lista de PUJAS, y tomarlo por un censo de transferibles es la forma de
+    equivocarse. Aquí solo enriquece: plazo y puja más alta.
+
+    Una aparición nueva abre un intento; seguir listado no abre otro.
+    """
     async def run() -> None:
         uow, team_id = await _setup_roster([111, 222])
-        # No hace falta un CHPP real: se llama directo al método de
-        # persistencia (privado, pero es la unidad que interesa probar).
         handler = SyncTeamHandler(uow, chpp=None)  # type: ignore[arg-type]
 
         async with uow as u:
+            # Lo que haría el sync de plantilla antes de llegar aquí.
+            jugador = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 111)
+            )
+            jugador.currently_listed = True
+            await u.session.commit()
+
+        async with uow as u:
             payload = {"listed_players": [{"ht_player_id": 111}]}
             await handler._persist_currentbids(u, team_id, payload, _fresh_result())
             await u.commit()
 
         async with uow as u:
-            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 111)
+            )
             assert player.listing_count == 1
-            assert player.currently_listed is True
-            other = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 222))
-            assert other.listing_count == 0
-            assert other.currently_listed is False
-            # 2026-08-08: cada aparición nueva también queda enumerada, no
-            # solo contada.
-            attempts = list((await u.session.execute(
-                select(m.PlayerListingAttempt).where(m.PlayerListingAttempt.player_id == player.id)
-            )).scalars())
-            assert len(attempts) == 1
-            assert attempts[0].highest_bid is None
-
-        # Segundo sync: 111 SIGUE listado — no debe sumar un segundo intento.
-        async with uow as u:
-            payload = {"listed_players": [{"ht_player_id": 111}]}
-            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
-            await u.commit()
-
-        async with uow as u:
-            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
-            assert player.listing_count == 1  # sin cambio
-
-        # Tercer sync: 111 se retira del mercado, luego (cuarto) vuelve a
-        # aparecer — eso SÍ es un segundo intento real.
-        async with uow as u:
-            await handler._persist_currentbids(u, team_id, {"listed_players": []}, _fresh_result())
-            await u.commit()
-        async with uow as u:
-            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
-            assert player.currently_listed is False
-            assert player.listing_count == 1
-
-        async with uow as u:
-            payload = {"listed_players": [{"ht_player_id": 111}]}
-            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
-            await u.commit()
-        async with uow as u:
-            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
-            assert player.listing_count == 2
-            attempts = list((await u.session.execute(
+            otro = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 222)
+            )
+            assert otro.listing_count == 0
+            intentos = list((await u.session.execute(
                 select(m.PlayerListingAttempt)
                 .where(m.PlayerListingAttempt.player_id == player.id)
-                .order_by(m.PlayerListingAttempt.detected_at)
             )).scalars())
-            assert len(attempts) == 2  # una fila por cada aparición nueva
+            assert len(intentos) == 1
+            assert intentos[0].ended_at is None
+
+        # Sigue listado: no se abre un segundo intento.
+        async with uow as u:
+            payload = {"listed_players": [{"ht_player_id": 111}]}
+            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
+            await u.commit()
+
+        async with uow as u:
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 111)
+            )
+            assert player.listing_count == 1
+            intentos = list((await u.session.execute(
+                select(m.PlayerListingAttempt)
+                .where(m.PlayerListingAttempt.player_id == player.id)
+            )).scalars())
+            assert len(intentos) == 1
 
     asyncio.run(run())
 
 
-def test_currentbids_records_the_highest_bid_at_the_moment_of_detection() -> None:
+def test_the_bids_file_only_enriches_the_open_attempt() -> None:
+    """La puja más alta y el plazo sí salen de `currentbids.xml`: para eso
+    está. Lo que no puede hacer es decidir quién está en venta."""
     async def run() -> None:
         uow, team_id = await _setup_roster([111])
         handler = SyncTeamHandler(uow, chpp=None)  # type: ignore[arg-type]
 
         async with uow as u:
-            payload = {"listed_players": [{"ht_player_id": 111, "highest_bid": 250000}]}
+            jugador = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 111)
+            )
+            jugador.currently_listed = True
+            await u.session.commit()
+
+        async with uow as u:
+            payload = {
+                "listed_players": [
+                    {"ht_player_id": 111, "highest_bid": 1500000,
+                     "deadline": "2026-08-26 09:00:00"},
+                ]
+            }
             await handler._persist_currentbids(u, team_id, payload, _fresh_result())
             await u.commit()
 
         async with uow as u:
-            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
-            attempts = list((await u.session.execute(
-                select(m.PlayerListingAttempt).where(m.PlayerListingAttempt.player_id == player.id)
-            )).scalars())
-            assert len(attempts) == 1
-            assert attempts[0].highest_bid == 250000
+            intento = await u.session.scalar(select(m.PlayerListingAttempt))
+            assert intento.highest_bid == 1500000
+            assert intento.deadline is not None
 
     asyncio.run(run())
-
 
 def _fresh_result():
     from app.application.commands.sync_team import SyncResult

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import clsx from "clsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
@@ -638,6 +639,12 @@ export function PlayerBalancePage() {
   const [section, setSection] = useState<SectionKey>("resumen");
   const [seasonFilter, setSeasonFilter] = useState<string>("all");
   const [dotSort, setDotSort] = useState<DotSortKey>("date");
+  // Solo para el contador de la pestaña; react-query comparte la respuesta
+  // con la sección, así que no cuesta una segunda petición.
+  const intentos = useQuery({
+    queryKey: ["transfer-attempts", TEAM_ID],
+    queryFn: () => api.transferAttempts(TEAM_ID),
+  });
   // Filtros compartidos (pedido explícitamente 2026-08-05: los mismos 4
   // controles — Entrenamiento, Origen, Ignorar entrenamiento desconocido,
   // Ignorar despedidos — en un solo lugar, afectando Resumen, Desgloses y
@@ -945,7 +952,10 @@ export function PlayerBalancePage() {
             { key: "totales", label: "Totales" },
             { key: "desgloses", label: "Desgloses absolutos" },
             { key: "roi", label: "Desgloses ROI" },
-            { key: "intentos", label: "Intentos de transferencias" },
+            {
+              key: "intentos",
+              label: `Intentos de transferencias (${intentos.data?.rows.length ?? 0})`,
+            },
             { key: "detalle", label: `Detalle (${detalleRows.length})` },
           ]}
           active={section}
@@ -1529,6 +1539,17 @@ function RoiPanel({
  * No hay relleno hacia atrás, por decisión suya: empieza desde el primer
  * intento que se detecte.
  */
+/** Las siete, con el mismo codigo corto que usa la tabla de Jugadores. */
+const SKILL_HEADERS: [string, [string, string]][] = [
+  ["keeper", ["PO", "Portería"]],
+  ["defending", ["DE", "Defensa"]],
+  ["playmaking", ["JU", "Jugadas"]],
+  ["winger", ["LA", "Lateral"]],
+  ["passing", ["PA", "Pases"]],
+  ["scoring", ["AN", "Anotación"]],
+  ["setPieces", ["BP", "Balón parado"]],
+];
+
 function TransferAttemptsSection() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["transfer-attempts", TEAM_ID],
@@ -1554,22 +1575,46 @@ function TransferAttemptsSection() {
       meta={`${data.rows.length} intento(s) desde que se empezó a contar`}
     >
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full whitespace-nowrap text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
-              <th className="px-4 py-2">Jugador</th>
-              <th className="px-4 py-2">Salió al mercado</th>
-              <th className="px-4 py-2">Cierre</th>
-              <th className="px-4 py-2">Resultado</th>
-              <th className="px-4 py-2 text-right">Última puja</th>
-              <th className="px-4 py-2 text-right">Precio de venta</th>
-              <th className="px-4 py-2 text-right">Visitas</th>
+              <th className="px-3 py-2">Identificador</th>
+              <th className="px-3 py-2">Jugador</th>
+              <th className="px-3 py-2 text-right">Intento</th>
+              <th className="px-3 py-2">Cierre de la puja</th>
+              <th className="px-3 py-2">Resultado</th>
+              <th className="px-3 py-2 text-right">Precio pedido</th>
+              <th className="px-3 py-2 text-right">Última puja</th>
+              <th className="px-3 py-2 text-right">Precio de venta</th>
+              <th className="px-3 py-2 text-right">% agente</th>
+              <th className="px-3 py-2 text-right">Visitas</th>
+              <th className="px-3 py-2">País</th>
+              <th className="px-3 py-2">Especialidad</th>
+              <th className="px-3 py-2">Carácter</th>
+              <th className="px-3 py-2 text-right">TSI</th>
+              <th className="px-3 py-2 text-right">Edad</th>
+              {SKILL_HEADERS.map(([clave, corto]) => (
+                <th key={clave} className="px-2 py-2 text-right" title={corto[1]}>
+                  {corto[0]}
+                </th>
+              ))}
+              <th className="px-3 py-2">Canterano</th>
+              <th className="px-3 py-2">Fecha de compra</th>
+              <th className="px-3 py-2 text-right">Edad de compra</th>
+              <th className="px-3 py-2 text-right">Precio compra</th>
+              <th className="px-3 py-2 text-right">Días desde la compra</th>
+              <th className="px-3 py-2 text-right">Partidos con nosotros</th>
+              <th className="px-3 py-2 text-right">Salario acumulado</th>
+              <th className="px-3 py-2">Entrenamiento</th>
             </tr>
           </thead>
           <tbody>
             {data.rows.map((r) => (
-              <tr key={r.id} className="border-b border-[var(--border)]">
-                <td className="px-4 py-2">
+              <tr key={r.key} className="border-b border-[var(--border)]">
+                <td className="px-3 py-2 font-mono text-xs text-[var(--muted)]">
+                  {r.key}
+                </td>
+                <td className="px-3 py-2">
                   {r.htPlayerId ? (
                     <Link
                       to={`/players/${r.htPlayerId}`}
@@ -1581,11 +1626,11 @@ function TransferAttemptsSection() {
                     r.name
                   )}
                 </td>
-                <td className="px-4 py-2 tabular-nums">{date(r.detectedAt)}</td>
-                <td className="px-4 py-2 tabular-nums">
-                  {r.deadline ? date(r.deadline) : "-"}
+                <td className="px-3 py-2 text-right tabular-nums">{r.attemptNumber}</td>
+                <td className="px-3 py-2 tabular-nums">
+                  {r.closedAt ? date(r.closedAt) : "-"}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-3 py-2">
                   {r.open ? (
                     <span className="text-[var(--muted)]">en el mercado</span>
                   ) : r.sold ? (
@@ -1594,23 +1639,69 @@ function TransferAttemptsSection() {
                     <span className="text-[var(--muted)]">Se quedó</span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums">
-                  {/* Una puja de 0 no es una puja: nadie ofreció nada. */}
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.askingPrice != null ? money(r.askingPrice, data.currency) : "?"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
                   {r.highestBid ? money(r.highestBid, data.currency) : "-"}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums">
+                <td className="px-3 py-2 text-right tabular-nums">
                   {r.salePrice != null ? money(r.salePrice, data.currency) : "-"}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums">
-                  {r.timesSeen ?? (
-                    <span
-                      className="text-[var(--muted)]"
-                      title="Hattrick solo lo dice en el texto de la noticia al cerrarse la puja. Se anota desde Cambios."
-                    >
-                      ?
-                    </span>
-                  )}
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.agentPct === "?" ? "-" : `${(r.agentPct * 100).toFixed(1)}%`}
                 </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.timesSeen ?? "?"}
+                </td>
+                <td className="px-3 py-2">{r.nativeCountry}</td>
+                <td className="px-3 py-2">{r.specialty}</td>
+                <td className="px-3 py-2">{r.character}</td>
+                <td
+                  className={clsx(
+                    "px-3 py-2 text-right tabular-nums",
+                    r.stale && "text-[var(--muted)]",
+                  )}
+                  title={
+                    r.stale
+                      ? "La foto más cercana al cierre es de varios días antes: no la leas como exacta."
+                      : undefined
+                  }
+                >
+                  {r.tsi === "?" ? "?" : number(r.tsi)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">{r.age}</td>
+                {SKILL_HEADERS.map(([clave]) => (
+                  <td
+                    key={clave}
+                    className={clsx(
+                      "px-2 py-2 text-right tabular-nums",
+                      r.stale && "text-[var(--muted)]",
+                    )}
+                  >
+                    {r.skills[clave] ?? "?"}
+                  </td>
+                ))}
+                <td className="px-3 py-2">{r.fromAcademy ? "Sí" : "No"}</td>
+                <td className="px-3 py-2 tabular-nums">
+                  {r.purchasedAt ? date(r.purchasedAt) : "?"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">{r.ageAtPurchase}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.purchasePrice === "?"
+                    ? "?"
+                    : money(r.purchasePrice, data.currency)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.daysSincePurchase}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">{r.gamesWithUs}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.salaryToDate === "?"
+                    ? "?"
+                    : money(r.salaryToDate, data.currency)}
+                </td>
+                <td className="px-3 py-2">{r.trainingThatWeek}</td>
               </tr>
             ))}
           </tbody>

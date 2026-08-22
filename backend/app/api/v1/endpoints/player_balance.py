@@ -134,8 +134,14 @@ async def transfer_attempts(
 
 
 class VisitasDelIntento(BaseModel):
+    """Lo que solo sabe el usuario: Hattrick lo cuenta en el texto de la
+    noticia al cerrarse la puja, nunca por CHPP."""
+
     times_seen: int | None = Field(
         None, ge=0, description="Cuántas veces lo miraron mientras estaba listado"
+    )
+    asking_price: int | None = Field(
+        None, ge=0, description="El precio que se pedía, en tu moneda"
     )
     dismissed: bool = Field(
         False, description="Ignorar la pregunta: no volver a preguntar por este intento"
@@ -162,6 +168,8 @@ async def set_times_seen(
 
     if visitas.times_seen is not None:
         intento.times_seen = visitas.times_seen
+    if visitas.asking_price is not None:
+        intento.asking_price = visitas.asking_price
     # Preguntado queda preguntado, se responda o se ignore: si no, el aviso
     # volveria a salir en cada visita a Cambios.
     intento.times_seen_asked = True
@@ -169,5 +177,6 @@ async def set_times_seen(
     return {
         "id": intento.id,
         "timesSeen": intento.times_seen,
+        "askingPrice": intento.asking_price,
         "asked": intento.times_seen_asked,
     }

@@ -261,10 +261,29 @@ function PreguntaDeVisitas() {
     queryFn: () => api.transferAttempts(TEAM_ID),
   });
   const [valores, setValores] = useState<Record<number, string>>({});
+  // El precio pedido sale del mismo mensaje que las visitas.
+  const [precios, setPrecios] = useState<Record<number, string>>({});
 
   const responder = useMutation({
-    mutationFn: ({ id, veces }: { id: number; veces?: number }) =>
-      api.setTimesSeen(TEAM_ID, id, veces != null ? { times_seen: veces } : { dismissed: true }),
+    mutationFn: ({
+      id,
+      veces,
+      precio,
+    }: {
+      id: number;
+      veces?: number;
+      precio?: number;
+    }) =>
+      api.setTimesSeen(
+        TEAM_ID,
+        id,
+        veces != null || precio != null
+          ? {
+              ...(veces != null ? { times_seen: veces } : {}),
+              ...(precio != null ? { asking_price: precio } : {}),
+            }
+          : { dismissed: true },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
   });
 
@@ -279,8 +298,8 @@ function PreguntaDeVisitas() {
       <div className="space-y-3 p-4">
         <p className="text-sm text-[var(--muted)]">
           Se acaba de cerrar una puja. En la noticia de Hattrick aparece cuántas
-          veces miraron al jugador mientras estaba en el mercado. Ese número no
-          viaja por ningún otro lado, así que si no lo anotas ahora se pierde.
+          veces miraron al jugador y a qué precio lo pedías. Ninguno de los dos
+          viaja por CHPP, así que si no los anotas ahora se pierden.
         </p>
         {pendientes.map((p) => (
           <div
@@ -289,23 +308,37 @@ function PreguntaDeVisitas() {
           >
             <span className="text-sm font-medium">{p.name}</span>
             <span className="text-xs text-[var(--muted)]">
-              cerró el {date(p.deadline ?? p.endedAt)}
+              cerró el {p.closedAt ? date(p.closedAt) : "?"}
             </span>
             <input
               type="number"
               min={0}
-              placeholder="veces"
+              placeholder="veces visto"
               value={valores[p.id] ?? ""}
               onChange={(e) =>
                 setValores((v) => ({ ...v, [p.id]: e.target.value }))
               }
-              className="w-24 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+              className="w-28 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+            />
+            <input
+              type="number"
+              min={0}
+              placeholder="precio pedido"
+              value={precios[p.id] ?? ""}
+              onChange={(e) =>
+                setPrecios((v) => ({ ...v, [p.id]: e.target.value }))
+              }
+              className="w-36 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
             />
             <button
               onClick={() =>
-                responder.mutate({ id: p.id, veces: Number(valores[p.id]) })
+                responder.mutate({
+                  id: p.id,
+                  veces: valores[p.id] ? Number(valores[p.id]) : undefined,
+                  precio: precios[p.id] ? Number(precios[p.id]) : undefined,
+                })
               }
-              disabled={!valores[p.id]}
+              disabled={!valores[p.id] && !precios[p.id]}
               className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
             >
               Guardar

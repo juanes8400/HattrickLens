@@ -399,6 +399,10 @@ class SyncTeamHandler:
                 await self._backfill_native_countries_from_snapshots(
                     uow, cmd.team_id, result
                 )
+            if "players" in files:
+                # Quien esta en venta sale de la plantilla, no de la lista de
+                # pujas. Va antes que `currentbids`, que solo enriquece.
+                await self._marcar_quien_esta_en_venta(uow, cmd.team_id, captured_at)
 
             from app.infrastructure.db import models as m
 
@@ -3127,6 +3131,32 @@ class SyncTeamHandler:
             else:
                 result.unchanged += 1
 
+    async def _marcar_quien_esta_en_venta(
+        self, uow: UnitOfWork, team_id: int, captured_at: datetime
+    ) -> None:
+        """Quien esta en el mercado, segun players.xml.
+
+        2026-08-22, pedido explicitamente: no usar `currentbids.xml` para
+        decidir quien ya NO esta en venta. Ese fichero es la lista de PUJAS y
+        tomarlo por un censo de transferibles es la forma de equivocarse.
+        `TransferListed` viene con la plantilla, jugador por jugador, y es la
+        respuesta directa a la pregunta.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        filas = (await uow.session.execute(
+            select(m.Player, m.PlayerSnapshot.is_transfer_listed)
+            .join(m.PlayerSnapshot, m.PlayerSnapshot.player_id == m.Player.id)
+            .where(
+                m.Player.team_id == team_id,
+                m.PlayerSnapshot.captured_at == captured_at,
+            )
+        )).all()
+        for jugador, en_venta in filas:
+            jugador.currently_listed = bool(en_venta)
+
     async def _persist_currentbids(
         self, uow: UnitOfWork, team_id: int, payload: dict[str, Any], result: SyncResult
     ) -> None:
@@ -3163,7 +3193,12 @@ class SyncTeamHandler:
         ahora = datetime.now(UTC).replace(tzinfo=None)
         for player in roster:
             en_mercado = listed_now.get(player.ht_player_id)
-            is_listed = player.ht_player_id in listed_now
+            # Quien esta en venta lo dice players.xml (`TransferListed`), no
+            # este fichero: `currentbids.xml` es la lista de PUJAS, y usarlo
+            # como censo de transferibles es justo la forma de equivocarse.
+            # Aqui solo sirve para enriquecer lo que ya se sabe: el plazo de
+            # cierre y la puja mas alta.
+            is_listed = player.currently_listed
 
             abierto = await uow.session.scalar(
                 select(m.PlayerListingAttempt)
@@ -3175,7 +3210,7 @@ class SyncTeamHandler:
                 .limit(1)
             )
 
-            if is_listed and not player.currently_listed:
+            if is_listed and abierto is None:
                 player.listing_count += 1
                 result.snapshots_written += 1
                 etapa = await uow.session.scalar(
@@ -3202,19 +3237,21 @@ class SyncTeamHandler:
                 abierto.last_highest_bid = (en_mercado or {}).get("highest_bid")
                 abierto.deadline = (en_mercado or {}).get("deadline") or abierto.deadline
                 result.unchanged += 1
-            elif not is_listed and player.currently_listed and abierto is not None:
+            elif not is_listed and abierto is not None:
                 # Se acabo la puja. Que siga en la plantilla es la señal de
                 # que NO se vendio: una venta lo saca del equipo.
                 abierto.ended_at = ahora
                 abierto.sold = player.left_team_at is not None or player.sold_at is not None
                 result.snapshots_written += 1
-            elif is_listed == player.currently_listed:
+            else:
                 result.unchanged += 1
-            player.currently_listed = is_listed
 
         # Y se recogen los que quedaron abiertos de antes de esta regla.
+        en_venta_ahora = {
+            p.ht_player_id for p in roster if p.currently_listed
+        }
         result.snapshots_written += await self._reparar_intentos_abiertos(
-            uow, team_id, set(listed_now)
+            uow, team_id, en_venta_ahora
         )
 
     async def _reparar_intentos_abiertos(
