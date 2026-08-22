@@ -3212,6 +3212,94 @@ class SyncTeamHandler:
                 result.unchanged += 1
             player.currently_listed = is_listed
 
+        # Y se recogen los que quedaron abiertos de antes de esta regla.
+        result.snapshots_written += await self._reparar_intentos_abiertos(
+            uow, team_id, set(listed_now)
+        )
+
+    async def _reparar_intentos_abiertos(
+        self, uow: UnitOfWork, team_id: int, listados_ahora: set[int]
+    ) -> int:
+        """Cierra intentos de venta que se quedaron abiertos para siempre.
+
+        La regla normal de cierre se dispara en la TRANSICION -estaba listado,
+        ya no lo esta-. Los intentos anteriores a esa regla se perdieron la
+        transicion y quedaron abiertos: en la cuenta del usuario, 15 intentos
+        figuraban "en el mercado" cuando solo 4 jugadores lo estaban.
+
+        La fecha de cierre se toma de lo mejor que se sepa, sin inventar:
+
+        - si el jugador salio del club despues de salir al mercado, la puja
+          termino como muy tarde ese dia, y termino en venta si hubo precio;
+        - si volvio a listarse mas tarde, el intento anterior ya habia
+          terminado antes de esa nueva salida al mercado;
+        - y si no, lo unico seguro es que a dia de hoy ya no esta listado.
+
+        `deadline` se queda vacio a proposito: el plazo real de esas pujas
+        nunca se llego a ver.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        abiertos = (await uow.session.execute(
+            select(m.PlayerListingAttempt, m.Player)
+            .join(m.Player, m.Player.id == m.PlayerListingAttempt.player_id)
+            .where(
+                m.Player.team_id == team_id,
+                m.PlayerListingAttempt.ended_at.is_(None),
+            )
+            .order_by(m.PlayerListingAttempt.detected_at)
+        )).all()
+
+        ahora = datetime.now(UTC).replace(tzinfo=None)
+        siguientes: dict[int, datetime] = {}
+        for intento, _ in reversed(abiertos):
+            anterior = siguientes.get(intento.player_id)
+            siguientes[intento.player_id] = intento.detected_at
+            intento._siguiente = anterior  # type: ignore[attr-defined]
+
+        # De un jugador que HOY esta listado, solo su ultimo intento sigue
+        # vivo: si tiene otros mas viejos es que aquellos ya terminaron.
+        ultimo_de: dict[int, int] = {}
+        for intento, jugador in abiertos:
+            ultimo_de[jugador.ht_player_id] = intento.id
+
+        cerrados = 0
+        for intento, jugador in abiertos:
+            if (
+                jugador.ht_player_id in listados_ahora
+                and ultimo_de.get(jugador.ht_player_id) == intento.id
+            ):
+                continue  # este si sigue de verdad en el mercado
+
+            # La salida buena es la de SU etapa, no la del jugador: alguien que
+            # se vendio y volvio tiene una venta vieja escrita en su ficha que
+            # no tiene nada que ver con este intento. Caso real: Acasusso,
+            # vendido en julio, de vuelta en el club y listado otra vez ahora.
+            etapa = await uow.session.scalar(
+                select(m.PlayerStint)
+                .where(
+                    m.PlayerStint.player_id == intento.player_id,
+                    m.PlayerStint.left_at.is_not(None),
+                    m.PlayerStint.left_at >= intento.detected_at,
+                )
+                .order_by(m.PlayerStint.left_at)
+                .limit(1)
+            )
+            siguiente = getattr(intento, "_siguiente", None)
+            if etapa is not None:
+                intento.ended_at = etapa.left_at
+                intento.sold = etapa.sale_price is not None
+                intento.stint_id = intento.stint_id or etapa.id
+            elif siguiente is not None:
+                intento.ended_at = siguiente
+            else:
+                intento.ended_at = ahora
+            cerrados += 1
+
+        return cerrados
+
     async def _persist_teamdetails(
         self,
         uow: UnitOfWork,
