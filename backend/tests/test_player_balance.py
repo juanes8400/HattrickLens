@@ -966,26 +966,35 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
     assert data.unknown_purchase_count == len(others)
 
 
-def test_player_balance_query_service_treats_returning_player_as_active_not_sold() -> None:
-    """Edge case real encontrado en vivo 2026-08-05 (jugador 461351045,
-    Humberto Granada): se vendió en 2022 y volvió a la plantilla en 2026
-    (recomprado) — `sold_at`/`sale_price` de esa venta vieja nunca se
-    borran (append-only, ver docstring del modelo), así que sin este
-    chequeo el jugador aparecía como "vendido" con datos de 2022 aunque
-    estuviera sentado hoy mismo en la plantilla. `left_team_at IS NULL` NO
-    sirve de señal (el backfill histórico nunca lo toca); la señal
-    correcta es un `player_snapshot` capturado DESPUÉS de esa venta —
-    prueba de que volvió a verse en el roster desde entonces. `seeded_session`
-    ya sincronizó `players.xml` de verdad, así que cada jugador real de la
-    plantilla ya tiene un snapshot con `captured_at` de hoy."""
+def test_a_returning_player_shows_one_row_per_stint() -> None:
+    """Caso real (Humberto Granada, 461351045): vendido en 2022 y de vuelta en
+    2026. Hasta 2026-08-22 la app tenía una sola fila por jugador, así que
+    tenía que ADIVINAR si "sigue en la plantilla" mirando si había snapshots
+    posteriores a la venta, y la fila mezclaba la compra nueva con la venta
+    vieja.
+
+    Con una fila por etapa la ambigüedad desaparece: la etapa cerrada está
+    vendida y la abierta está en curso, cada una con su propio saldo."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
             player = await s.scalar(
                 select(m.Player).where(m.Player.team_id == team_id).limit(1)
             )
-            player.sale_price = 9000000
-            player.sold_at = datetime(2022, 1, 1, tzinfo=UTC)
+            s.add_all([
+                m.PlayerStint(
+                    player_id=player.id, ht_player_id=player.ht_player_id,
+                    team_id=team_id, arrived_at=datetime(2021, 1, 1),
+                    arrival_price=1000000, arrival_transfer_id=1,
+                    left_at=datetime(2022, 1, 1), sale_price=9000000,
+                    sale_transfer_id=2,
+                ),
+                m.PlayerStint(
+                    player_id=player.id, ht_player_id=player.ht_player_id,
+                    team_id=team_id, arrived_at=datetime(2026, 1, 1),
+                    arrival_price=2000000, arrival_transfer_id=3,
+                ),
+            ])
             ht_player_id = player.ht_player_id
             await s.commit()
 
@@ -994,11 +1003,16 @@ def test_player_balance_query_service_treats_returning_player_as_active_not_sold
 
     data, ht_player_id = asyncio.run(go())
     assert data is not None
-    row = next(r for r in data.players if r.ht_player_id == ht_player_id)
-    assert row.is_sold is False
-    assert row.sale_price is None
-    assert row.sold_at is None
+    filas = [r for r in data.players if r.ht_player_id == ht_player_id]
+    assert len(filas) == 2, "una fila por etapa"
 
+    vendida = next(r for r in filas if r.is_sold)
+    abierta = next(r for r in filas if not r.is_sold)
+    assert vendida.sale_price == 900000      # 9.000.000 en moneda base
+    assert abierta.sale_price is None
+    assert abierta.sold_at is None
+    # Y ninguna dice haberse vendido antes de comprarse.
+    assert vendida.purchased_at < vendida.sold_at
 
 def test_player_balance_query_service_flags_academy_graduate_by_mother_club() -> None:
     """Pedido explícitamente 2026-08-04: "canterano" real =

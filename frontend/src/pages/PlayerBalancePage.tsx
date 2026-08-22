@@ -1487,7 +1487,9 @@ function BalanceTable({
     <DataTable
       rows={data}
       columns={columns}
-      rowKey={(r) => r.htPlayerId}
+      // Por ETAPA, no por jugador: quien paso dos veces por el club tiene
+      // dos filas y compartirian identificador.
+      rowKey={(r) => r.stintId ?? r.htPlayerId}
       initialSort="soldAt"
       csvName="saldo-por-jugador"
       filterPlaceholder="Filtrar jugadores…"

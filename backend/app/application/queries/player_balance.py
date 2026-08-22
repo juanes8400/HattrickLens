@@ -242,6 +242,10 @@ class PlayerBalanceRow:
     # cada sync y daria un numero mucho menor que el real.
     games_with_us: int | str = "?"
     salary_known: bool = True
+    # Identificador de la ETAPA: dos filas del mismo jugador comparten
+    # ht_player_id, asi que la pantalla necesita otra cosa para
+    # distinguirlas y para saber a cual apunta una edicion.
+    stint_id: int | None = None
 
 
 def _build_breakdowns(sold_rows: list[PlayerBalanceRow]) -> dict[str, dict[str, float]]:
@@ -385,6 +389,42 @@ class PlayerBalanceQueryService:
 
         # Historial de salario por jugador — lo que de verdad se sincronizó,
         # con huecos; el motor de dominio extrapola.
+        # Una fila por ETAPA, no por jugador (2026-08-22, pedido
+        # explícitamente). Quien pasó dos veces por el club tuvo dos
+        # inversiones distintas, con su propio precio, su propio saldo y su
+        # propio ROI; mezclarlas en una fila daba cosas imposibles, como
+        # "comprado en 2026, vendido en 2022".
+        etapas = list(
+            (
+                await self._s.execute(
+                    select(m.PlayerStint)
+                    .where(m.PlayerStint.team_id == team_id)
+                    .order_by(m.PlayerStint.left_at, m.PlayerStint.arrived_at)
+                )
+            ).scalars()
+        )
+        jugador_por_id = {p.id: p for p in players}
+
+        # Puente para quien todavía no ha recorrido su libro de
+        # transferencias: mientras no lo haga no tiene etapas, y sin este
+        # respaldo su pantalla de Transferencias saldría vacía. A cada jugador
+        # sin etapa se le arma una en memoria con lo que hay en su ficha, que
+        # es exactamente lo que la app usaba antes.
+        #
+        # Alcanza también a quien nunca se compró ni se vendió -un canterano
+        # que sigue en la plantilla no deja movimiento en el libro-, para que
+        # siga saliendo en la tabla con su compra en "?" como hasta ahora.
+        con_etapa = {e.player_id for e in etapas}
+        for p in players:
+            if p.id in con_etapa:
+                continue
+            etapas.append(m.PlayerStint(
+                player_id=p.id, ht_player_id=p.ht_player_id, team_id=team_id,
+                arrived_at=p.purchased_at, arrival_price=p.purchase_price,
+                left_at=p.sold_at or p.left_team_at, sale_price=p.sale_price,
+                buyer_team_id=p.buyer_team_id,
+                games_played_for_us=p.games_played_for_us,
+            ))
         player_ids = [p.id for p in players]
         snapshots = list(
             (
@@ -570,21 +610,24 @@ class PlayerBalanceQueryService:
         total_saldo = 0.0
         unknown_count = 0
 
-        for p in players:
+        for etapa in etapas:
+            p = jugador_por_id.get(etapa.player_id)
+            if p is None or etapa.excluded:
+                continue
             is_academy = (
                 p.mother_club_team_id is not None and p.mother_club_team_id == team.ht_team_id
             )
             # p.purchase_price viene crudo de CHPP (moneda base del juego,
             # no la local) — hay que convertirlo. p.purchase_price_manual
             # es lo que el usuario tecleó a mano, ya en su propia moneda.
-            purchase_price = conv(p.purchase_price)
-            purchased_at = p.purchased_at
+            purchase_price = conv(etapa.arrival_price)
+            purchased_at = etapa.arrived_at
             is_manual = False
             if purchase_price is None and p.purchase_price_manual is not None:
                 purchase_price = p.purchase_price_manual
                 purchased_at = p.purchased_at_manual
                 is_manual = True
-            sale_price = conv(p.sale_price)
+            sale_price = conv(etapa.sale_price)
 
             # 2026-08-05, edge case real encontrado en vivo (jugador
             # 461351045): se vendió en 2022, y volvió a la plantilla en
@@ -602,26 +645,24 @@ class PlayerBalanceQueryService:
             # es un `player_snapshot` (de `players.xml`, solo trae quien
             # está HOY en la plantilla) capturado DESPUÉS de esa salida —
             # si existe, es que volvió a verse en el roster desde entonces.
-            last_departure_at = p.sold_at or p.left_team_at
-            is_currently_active = last_departure_at is not None and any(
-                s.captured_at > last_departure_at for s in snapshots_by_player.get(p.id, [])
-            )
+            # Con etapas ya no hace falta adivinar si "sigue en la
+            # plantilla" mirando snapshots posteriores a una venta vieja: una
+            # etapa sin fecha de salida ES la etapa en curso, y una cerrada
+            # está cerrada aunque el jugador haya vuelto después en otra.
+            is_currently_active = etapa.left_at is None
             # Un jugador que sale de la plantilla SIN que transfersteam.xml
             # reporte nunca una venta real fue despedido — cuenta como
             # venta a $0, no como "sigue en la plantilla" ni "desconocido".
             # Las reglas actuales de Hattrick no tienen retiro forzoso, así
             # que "salió sin venta" es en la práctica siempre un despido.
             is_departure_without_sale = (
-                not is_currently_active and p.sold_at is None and p.left_team_at is not None
+                etapa.left_at is not None and etapa.sale_price is None
             )
-            effective_sold_at = (
-                None if is_currently_active
-                else p.sold_at or (p.left_team_at if is_departure_without_sale else None)
-            )
+            effective_sold_at = etapa.left_at
             effective_sale_price = (
                 None if is_currently_active
-                else sale_price if p.sold_at is not None
-                else (0 if is_departure_without_sale else None)
+                else sale_price if etapa.sale_price is not None
+                else 0
             )
 
             record = PlayerTransferRecord(
@@ -697,7 +738,11 @@ class PlayerBalanceQueryService:
             top_skill_for_row = _top_skill_label(at_sale) if at_sale is not None else None
             # Hora de puja: solo tiene sentido si de verdad se cerró una
             # puja real — un despido (`effective_sold_at`) no cuenta.
-            bid_hour_for_row = _bid_hour_bucket(p.sold_at) if p.sold_at is not None else None
+            bid_hour_for_row = (
+                _bid_hour_bucket(etapa.left_at)
+                if etapa.left_at is not None and etapa.sale_price is not None
+                else None
+            )
 
             days_since_purchase: int | str = "?"
             if purchased_at is not None:
@@ -735,6 +780,7 @@ class PlayerBalanceQueryService:
             rows.append(
                 PlayerBalanceRow(
                     ht_player_id=p.ht_player_id,
+                    stint_id=etapa.id,
                     name=f"{p.first_name} {p.last_name}".strip(),
                     is_academy_graduate=is_academy,
                     promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
@@ -746,8 +792,8 @@ class PlayerBalanceQueryService:
                     salary_total=balance.salary_total,
                     salary_known=balance.salary_known,
                     games_with_us=(
-                        p.games_played_for_us
-                        if p.games_played_for_us is not None else "?"
+                        etapa.games_played_for_us
+                        if etapa.games_played_for_us is not None else "?"
                     ),
                     salary_breakdown=salary_breakdown_rows,
                     listing_count=p.listing_count,

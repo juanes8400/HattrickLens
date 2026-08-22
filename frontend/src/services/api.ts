@@ -1852,6 +1852,9 @@ export interface PlayerBalanceRow {
   /** Partidos que jugo de verdad con nosotros; "?" si aun no se conto. */
   gamesWithUs: number | string;
   salaryKnown: boolean;
+  /** Identificador de la ETAPA. Dos filas del mismo jugador comparten
+   *  htPlayerId, asi que esto es lo que las distingue. */
+  stintId: number | null;
   salaryBreakdown: { weeks: number; salary: number; season: string }[];
   listingCount: number;
   listingAttempts: { highestBid: number | null; detectedAt: string }[];
