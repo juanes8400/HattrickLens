@@ -81,12 +81,14 @@ FILE_LABELS: dict[str, str] = {
 #  HL-140: un sync normal debe poder mostrar el diff completo — posición en
 # liga y resultados incluidos, no solo plantilla/economía. `teamdetails` va
 # antes que `leaguedetails` porque este último necesita `series_ht_id`.
-# `transfersteam` es una única llamada por equipo (no por jugador, a
-# diferencia de `playerdetails` — ver `execute_player_details`), así que
-# entra en el sync por defecto sin multiplicar las peticiones a CHPP.
+# `transfersteam` YA NO entra aquí (2026-08-22, pedido explícitamente): las
+# transferencias son su propio botón. Leer solo la primera página desde el sync
+# normal era la razón por la que un jugador que volvía al club pisaba su etapa
+# anterior — el libro entero, que es de donde salen las etapas, se recorre en
+# `_recorrer_historial`.
 DEFAULT_FILES = [
     "players", "training", "economy", "teamdetails", "leaguedetails", "leaguefixtures",
-    "matches", "transfersteam", "currentbids", "worlddetails", "club", "stafflist",
+    "matches", "currentbids", "worlddetails", "club", "stafflist",
     # youthteamdetails va ANTES que youthplayerlist: identifica qué academia es
     # la viva (id + fecha de creación) y con eso el módulo de Juveniles puede
     # acotar el ROI a la cantera actual en vez de sumar academias anteriores.
@@ -3365,6 +3367,164 @@ class SyncTeamHandler:
         if is_new_transaction:
             result.snapshots_written += 1
 
+    async def _guardar_transferencia(
+        self, uow: UnitOfWork, team_id: int, ht_team_id: int, t: dict[str, Any]
+    ) -> None:
+        """Anota un movimiento del libro, si no estaba ya.
+
+        Guardarlos es lo que permite reconstruir las etapas hacia atras sin
+        volver a pedirle nada a Hattrick: antes se leian y se tiraban, y de
+        cada jugador quedaba solo su ultima compra encima de su ultima venta.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        ht_transfer_id = t.get("ht_transfer_id")
+        if not ht_transfer_id:
+            return
+        # Movimientos muy antiguos llegan sin identificador de jugador. Sin el
+        # no se pueden atribuir a nadie, y meterlos todos bajo el mismo hueco
+        # creaba un jugador fantasma con decenas de etapas abiertas -visto en
+        # la cuenta del usuario, "Orduz" con quince llegadas de 2017 y ninguna
+        # salida-.
+        if not t.get("ht_player_id"):
+            return
+        ya = await uow.session.scalar(
+            select(m.TeamTransfer.id).where(
+                m.TeamTransfer.ht_transfer_id == ht_transfer_id
+            )
+        )
+        if ya is not None:
+            return
+        deadline = ht_to_utc_naive(t.get("deadline") or "")
+        if deadline is None:
+            return
+        # Compra o venta se decide por QUIEN estaba en cada lado, no por la
+        # letra de `TransferType`: en 32 movimientos reales de esta cuenta esa
+        # letra no dice "B" aunque el comprador seamos nosotros -promociones y
+        # traspasos sin dinero, entre otros-, y clasificarlos por ella dejaba
+        # esas 32 compras contadas como ventas. Con los identificadores no hay
+        # ambiguedad, y el total cuadra con el que publica Hattrick.
+        es_compra = t.get("buyer_team_id") == ht_team_id
+        uow.session.add(m.TeamTransfer(
+            team_id=team_id,
+            ht_transfer_id=ht_transfer_id,
+            ht_player_id=t.get("ht_player_id", 0),
+            player_name=t.get("player_name", "") or "",
+            deadline=deadline,
+            price=t.get("price", 0) or 0,
+            is_buy=es_compra,
+            counterpart_team_id=(
+                t.get("seller_team_id") if es_compra else t.get("buyer_team_id")
+            ),
+            tsi=t.get("tsi"),
+        ))
+
+    async def _reconstruir_etapas(self, uow: UnitOfWork, team_id: int) -> int:
+        """Rehace las etapas del club a partir del libro de transferencias.
+
+        La regla es la que cuenta Hattrick: una compra nuestra ABRE una etapa y
+        la venta siguiente la CIERRA. Una venta sin compra delante es alguien
+        que no compramos -un canterano, casi siempre-, asi que abre y cierra
+        etapa a la vez, marcada como llegada de cantera.
+
+        Se rehace entero cada vez, porque es una derivacion: lo unico que no se
+        puede recalcular -los partidos ya censados, lo que el usuario atribuyo
+        a mano y las etapas que decidio excluir- se conserva emparejando por el
+        identificador de la transferencia, que Hattrick no reutiliza.
+        """
+        from sqlalchemy import delete, select
+
+        from app.infrastructure.db import models as m
+
+        movimientos = (await uow.session.execute(
+            select(m.TeamTransfer)
+            .where(m.TeamTransfer.team_id == team_id)
+            .order_by(m.TeamTransfer.ht_player_id, m.TeamTransfer.deadline)
+        )).scalars().all()
+        if not movimientos:
+            return 0
+
+        anteriores = (await uow.session.execute(
+            select(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
+        )).scalars().all()
+
+        def clave(etapa: Any) -> tuple[int, int | None, int | None]:
+            return (
+                etapa.ht_player_id,
+                etapa.arrival_transfer_id,
+                etapa.sale_transfer_id,
+            )
+
+        guardado = {clave(e): e for e in anteriores}
+        jugadores = {
+            p.ht_player_id: p
+            for p in (await uow.session.execute(
+                select(m.Player).where(m.Player.team_id == team_id)
+            )).scalars().all()
+        }
+
+        await uow.session.execute(
+            delete(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
+        )
+        await uow.session.flush()
+
+        nuevas: list[Any] = []
+        abierta: dict[int, Any] = {}
+        for mov in movimientos:
+            jugador = jugadores.get(mov.ht_player_id)
+            if jugador is None:
+                continue
+            if mov.is_buy:
+                etapa = m.PlayerStint(
+                    player_id=jugador.id, ht_player_id=mov.ht_player_id,
+                    team_id=team_id, arrived_at=mov.deadline,
+                    arrival_price=mov.price, arrival_transfer_id=mov.ht_transfer_id,
+                )
+                abierta[mov.ht_player_id] = etapa
+                nuevas.append(etapa)
+                continue
+
+            etapa = abierta.pop(mov.ht_player_id, None)
+            if etapa is None:
+                # Vendido sin haberlo comprado: llego de la cantera (o de antes
+                # de que este libro alcance). No se inventa fecha de llegada.
+                etapa = m.PlayerStint(
+                    player_id=jugador.id, ht_player_id=mov.ht_player_id,
+                    team_id=team_id, from_academy=True,
+                )
+                nuevas.append(etapa)
+            etapa.left_at = mov.deadline
+            etapa.sale_price = mov.price
+            etapa.sale_transfer_id = mov.ht_transfer_id
+            etapa.buyer_team_id = mov.counterpart_team_id
+
+        # Quien se fue sin que nadie lo comprara no deja venta en el libro: su
+        # etapa se cierra con la fecha en que desaparecio de la plantilla y sin
+        # precio. Sin esto quedaria abierta para siempre, como si siguiera en
+        # el club.
+        for ht_player_id, etapa in abierta.items():
+            jugador = jugadores.get(ht_player_id)
+            if jugador is not None and jugador.left_team_at is not None:
+                etapa.left_at = jugador.left_team_at
+
+        for etapa in nuevas:
+            previa = guardado.get(clave(etapa))
+            if previa is None:
+                continue
+            # Lo que no se puede recalcular viaja con la etapa.
+            etapa.games_played_for_us = previa.games_played_for_us
+            etapa.games_computed_at = previa.games_computed_at
+            etapa.excluded = previa.excluded
+            etapa.training_type_manual = previa.training_type_manual
+            etapa.top_skill_manual = previa.top_skill_manual
+            etapa.age_years_manual = previa.age_years_manual
+            etapa.age_days_manual = previa.age_days_manual
+
+        uow.session.add_all(nuevas)
+        return len(nuevas)
+
     async def _marcar_salidas_de_vendidos(self, uow: UnitOfWork, team_id: int) -> int:
         """Un jugador vendido ya no esta en la plantilla: marcarlo.
 
@@ -3530,7 +3690,19 @@ class SyncTeamHandler:
         # lo más reciente y haría creer que ya está todo, dejando fuera
         # para siempre lo anterior. En ese caso se ignora y se empieza de
         # cero, que es lo único que rellena el hueco.
-        completa = bool(team is not None and team.transfers_history_complete)
+        # El libro de movimientos es nuevo (2026-08-22): quien ya tenía el
+        # historial "completo" de antes lo tiene vacío, y sin él no hay etapas
+        # que reconstruir. Mientras esté vacío se ignora la marca y se recorre
+        # todo otra vez — así la corrección alcanza también al pasado, sin que
+        # nadie tenga que pedirlo.
+        hay_libro = (
+            await uow.session.scalar(
+                select(m.TeamTransfer.id).where(m.TeamTransfer.team_id == team_id).limit(1)
+            )
+        ) is not None
+        completa = bool(
+            team is not None and team.transfers_history_complete and hay_libro
+        )
         watermark = team.last_transfer_id_seen if (team is not None and completa) else None
         highest_seen = watermark or 0
         recorrido_entero = False
@@ -3590,6 +3762,10 @@ class SyncTeamHandler:
                         ).scalars()
                     }
                     for t in new_transfers:
+                        await self._guardar_transferencia(
+                            uow, team_id, team.ht_team_id, t
+                        )
+                    for t in new_transfers:
                         ht_player_id = t["ht_player_id"]
                         player = players.get(ht_player_id)
                         if player is None:
@@ -3626,6 +3802,7 @@ class SyncTeamHandler:
         # recuperarla, porque cada clic siguiente se paraba en la primera
         # página creyendo estar al día.
         await self._marcar_salidas_de_vendidos(uow, team_id)
+        await self._reconstruir_etapas(uow, team_id)
 
         if team is not None and recorrido_entero and not result.errors:
             if highest_seen > (team.last_transfer_id_seen or 0):

@@ -648,6 +648,13 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
             team.ht_team_id = 537758
             team.last_transfer_id_seen = 300
             team.transfers_history_complete = True
+            # Desde 2026-08-22 la marca solo vale si el libro de movimientos
+            # está lleno: sin él no hay etapas que reconstruir, y el recorrido
+            # se rehace aunque la marca diga que estaba completo.
+            u.session.add(m.TeamTransfer(
+                team_id=team_id, ht_transfer_id=300, ht_player_id=1,
+                player_name="Ya", deadline=datetime(2026, 1, 1), price=1, is_buy=True,
+            ))
             await u.session.commit()
 
         chpp = FakeTransfersHistoryCHPP()
@@ -1700,5 +1707,154 @@ def test_a_whole_press_leaves_a_single_sync_row() -> None:
                 )
             )).scalars().all()
             assert len(filas) == 2
+
+    asyncio.run(run())
+
+
+def test_a_player_who_comes_back_gets_a_second_stint() -> None:
+    """2026-08-22, caso real de la base del usuario (Humberto Granada): la
+    compra y la venta vivían encima de la fila del jugador, así que volver al
+    club pisaba la etapa anterior y salía una fila imposible, "comprado el
+    01/08/2026, vendido el 17/07/2022".
+
+    Cada paso por el club es su propio registro, y se derivan del libro de
+    transferencias: una compra abre etapa y la venta siguiente la cierra.
+    """
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            u.session.add(m.Player(
+                ht_player_id=777, team_id=team_id, first_name="Ida", last_name="Vuelta",
+            ))
+            await u.session.commit()
+
+        def mov(tid: int, compra: bool, cuando: datetime, precio: int) -> m.TeamTransfer:
+            return m.TeamTransfer(
+                team_id=team_id, ht_transfer_id=tid, ht_player_id=777,
+                player_name="Ida Vuelta", deadline=cuando, price=precio,
+                is_buy=compra, counterpart_team_id=999,
+            )
+
+        async with uow as u:
+            u.session.add_all([
+                mov(1, True, datetime(2020, 1, 1), 100000),
+                mov(2, False, datetime(2020, 6, 1), 150000),
+                mov(3, True, datetime(2024, 1, 1), 300000),
+                mov(4, False, datetime(2024, 9, 1), 500000),
+            ])
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
+        async with uow as u:
+            assert await handler._reconstruir_etapas(u, team_id) == 2
+            await u.commit()
+
+        async with uow as u:
+            etapas = (await u.session.execute(
+                select(m.PlayerStint)
+                .where(m.PlayerStint.ht_player_id == 777)
+                .order_by(m.PlayerStint.arrived_at)
+            )).scalars().all()
+            assert len(etapas) == 2
+            assert etapas[0].arrival_price == 100000
+            assert etapas[0].sale_price == 150000
+            assert etapas[1].arrival_price == 300000
+            assert etapas[1].sale_price == 500000
+            # Y ninguna dice haberse vendido antes de comprarse.
+            for e in etapas:
+                assert e.arrived_at < e.left_at
+
+    asyncio.run(run())
+
+
+def test_a_sale_without_a_purchase_is_an_academy_stint() -> None:
+    """A un canterano no se le compra, así que su etapa no tiene compra
+    delante. Abrirle etapa igual es lo que permite calcular su saldo y sus
+    comisiones futuras."""
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            u.session.add(m.Player(
+                ht_player_id=888, team_id=team_id, first_name="De", last_name="Cantera",
+            ))
+            u.session.add(m.TeamTransfer(
+                team_id=team_id, ht_transfer_id=9, ht_player_id=888,
+                player_name="De Cantera", deadline=datetime(2022, 2, 25),
+                price=40000, is_buy=False, counterpart_team_id=1337055,
+            ))
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
+        async with uow as u:
+            await handler._reconstruir_etapas(u, team_id)
+            await u.commit()
+
+        async with uow as u:
+            etapa = await u.session.scalar(
+                select(m.PlayerStint).where(m.PlayerStint.ht_player_id == 888)
+            )
+            assert etapa.from_academy is True
+            assert etapa.arrived_at is None, "no se inventa una fecha de llegada"
+            assert etapa.sale_price == 40000
+            assert etapa.buyer_team_id == 1337055
+
+    asyncio.run(run())
+
+
+def test_rebuilding_stints_keeps_what_cannot_be_recalculated() -> None:
+    """Las etapas se derivan, así que se rehacen enteras. Lo que NO se puede
+    derivar —los partidos ya censados, lo atribuido a mano, lo excluido— tiene
+    que sobrevivir a la reconstrucción, o cada recorrido del historial borraría
+    el trabajo del usuario."""
+    async def run() -> None:
+        uow, team_id = await _setup_roster([])
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            u.session.add(m.Player(
+                ht_player_id=555, team_id=team_id, first_name="Con", last_name="Notas",
+            ))
+            u.session.add_all([
+                m.TeamTransfer(
+                    team_id=team_id, ht_transfer_id=11, ht_player_id=555,
+                    player_name="Con Notas", deadline=datetime(2021, 1, 1),
+                    price=1000, is_buy=True,
+                ),
+                m.TeamTransfer(
+                    team_id=team_id, ht_transfer_id=12, ht_player_id=555,
+                    player_name="Con Notas", deadline=datetime(2021, 5, 1),
+                    price=2000, is_buy=False,
+                ),
+            ])
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
+        async with uow as u:
+            await handler._reconstruir_etapas(u, team_id)
+            await u.commit()
+        async with uow as u:
+            etapa = await u.session.scalar(
+                select(m.PlayerStint).where(m.PlayerStint.ht_player_id == 555)
+            )
+            etapa.games_played_for_us = 7
+            etapa.excluded = True
+            etapa.top_skill_manual = "scoring"
+            await u.session.commit()
+
+        async with uow as u:
+            await handler._reconstruir_etapas(u, team_id)
+            await u.commit()
+
+        async with uow as u:
+            etapa = await u.session.scalar(
+                select(m.PlayerStint).where(m.PlayerStint.ht_player_id == 555)
+            )
+            assert etapa.games_played_for_us == 7
+            assert etapa.excluded is True
+            assert etapa.top_skill_manual == "scoring"
 
     asyncio.run(run())

@@ -141,10 +141,11 @@ def test_sync_runs_for_real_with_a_valid_session(
     # módulo de Juveniles estaba completo pero nadie descargaba el fichero,
     # así que la pantalla leía de una tabla vacía) = 109.
     assert body["syncId"] > 0
-    # 86 y no 109 desde 2026-08-21: el relleno del pasado (ficha, precio
-    # antiguo y pais destino de cada ex-jugador) salio de la
-    # sincronizacion normal y vive en su propio boton, por lotes.
-    assert body["snapshotsWritten"] == 86
+    # De 109 a 85 en dos pasos: primero salio de aqui el relleno del pasado
+    # (2026-08-21), que ahora vive en su propio boton por lotes; y despues
+    # el libro de transferencias (2026-08-22), que dejo de leerse a medias
+    # en el sync normal y se recorre entero desde Transferencias.
+    assert body["snapshotsWritten"] == 85
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

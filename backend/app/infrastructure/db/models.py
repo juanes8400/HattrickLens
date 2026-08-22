@@ -399,6 +399,90 @@ class PlayerListingAttempt(Base):
     detected_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
 
+class TeamTransfer(Base):
+    """Cada compra y cada venta del club, tal como las cuenta Hattrick.
+
+    Hasta 2026-08-22 el libro de transferencias se leia y se tiraba: de cada
+    jugador quedaba solo su ultima compra y su ultima venta, encima de la fila
+    del jugador. Por eso quien volvia al club pisaba su etapa anterior.
+
+    Guardarlas permite reconstruir las etapas hacia atras, con toda la historia
+    y sin volver a pedirsela a Hattrick. `ht_transfer_id` es unico: una
+    transferencia no se cuenta dos veces aunque el recorrido se repita.
+    """
+
+    __tablename__ = "team_transfers"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+    ht_transfer_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    ht_player_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    player_name: Mapped[str] = mapped_column(String(128), default="")
+    deadline: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
+    price: Mapped[int] = mapped_column(BigInteger, default=0)
+    #: True si la compramos nosotros; False si la vendimos.
+    is_buy: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: El otro club: quien nos lo vendio, o quien nos lo compro.
+    counterpart_team_id: Mapped[int | None] = mapped_column(BigInteger)
+    tsi: Mapped[int | None] = mapped_column(Integer)
+
+
+class PlayerStint(Base):
+    """Cada paso de un jugador por el club, con su propio saldo.
+
+    2026-08-22, pedido explicitamente: "cada etapa, un registro". Hasta ahora
+    la compra y la venta vivian en la fila del jugador, asi que quien volvia al
+    club pisaba su etapa anterior. En la base del usuario ya habia un caso real
+    -Humberto Granada, que salia como "comprado el 01/08/2026, vendido el
+    17/07/2022"-: una fila imposible, vendido cuatro años antes de comprarlo.
+
+    Las etapas se derivan del libro de compras y ventas, que trae cada
+    movimiento con su fecha y su precio: una compra nuestra abre etapa y la
+    venta siguiente la cierra. Nada se inventa, y por eso se puede reconstruir
+    hacia atras toda la historia.
+
+    Un canterano no tiene compra: su etapa se abre igual, marcada como llegada
+    de cantera, porque tambien tuvo un coste (el ascenso) y tambien vendio.
+    """
+
+    __tablename__ = "player_stints"
+    __table_args__ = (
+        UniqueConstraint("player_id", "arrived_at", name="uq_stint_player_arrival"),
+    )
+
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
+    ht_player_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+
+    arrived_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    arrival_price: Mapped[int | None] = mapped_column(Integer)
+    arrival_transfer_id: Mapped[int | None] = mapped_column(BigInteger)
+    #: Llego de la cantera, no de una compra.
+    from_academy: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
+
+    left_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    sale_price: Mapped[int | None] = mapped_column(Integer)
+    sale_transfer_id: Mapped[int | None] = mapped_column(BigInteger)
+    buyer_team_id: Mapped[int | None] = mapped_column(BigInteger)
+
+    #: Partidos jugados de verdad en ESTA etapa. Se cuenta una vez por etapa,
+    #: no una vez por jugador: por eso una segunda vuelta se cuenta aparte.
+    games_played_for_us: Mapped[int | None] = mapped_column(SmallInteger)
+    games_computed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+
+    #: Fuera de todos los calculos de Transferencias, por decision del usuario.
+    excluded: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+    #: Lo que el usuario atribuye a mano cuando Hattrick ya no lo da. Siempre
+    #: cede ante el dato real si algun dia aparece.
+    training_type_manual: Mapped[int | None] = mapped_column(SmallInteger)
+    top_skill_manual: Mapped[str | None] = mapped_column(String(32))
+    age_years_manual: Mapped[int | None] = mapped_column(SmallInteger)
+    age_days_manual: Mapped[int | None] = mapped_column(SmallInteger)
+
+
 class PreviousClubBonus(Base):
     """Comisión de "club anterior" EXACTA — HL-161, 2026-08-14, pedido
     explícitamente ("encontré la forma de asignar exactamente el dinero").
