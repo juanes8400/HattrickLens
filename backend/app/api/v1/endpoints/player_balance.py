@@ -180,3 +180,31 @@ async def set_times_seen(
         "askingPrice": intento.asking_price,
         "asked": intento.times_seen_asked,
     }
+
+
+@router.delete(
+    "/teams/{team_id}/transfer-attempts/{attempt_id}",
+    summary="Borrar un intento de venta",
+    dependencies=[Depends(require_team_owner)],
+)
+async def delete_transfer_attempt(
+    team_id: int,
+    attempt_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Lo borra de verdad: como si nunca hubiera llegado a la lista.
+
+    Es lo que hace el botón «No tener en cuenta» del aviso de Cambios y el de
+    la propia tabla. No hay un estado intermedio a propósito: un intento que no
+    quieres contar tampoco quieres verlo.
+    """
+    intento = await session.get(m.PlayerListingAttempt, attempt_id)
+    if intento is None:
+        raise HTTPException(404, "ese intento no existe")
+    jugador = await session.get(m.Player, intento.player_id)
+    if jugador is None or jugador.team_id != team_id:
+        raise HTTPException(404, "ese intento no es de este equipo")
+
+    await session.delete(intento)
+    await session.commit()
+    return {"deleted": attempt_id}

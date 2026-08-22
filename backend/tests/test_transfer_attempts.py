@@ -408,3 +408,58 @@ def test_a_photo_far_from_the_closing_is_flagged() -> None:
         assert fila["skills"]["scoring"] == "?"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_saying_i_do_not_know_keeps_the_row_with_question_marks() -> None:
+    """Los tres botones del aviso, tal como los definió el usuario:
+
+    - «Guardar» deja la fila con lo que escribió.
+    - «No sé» deja la fila igual, pero con "?" en lo que se preguntaba.
+    - «No tener en cuenta» la borra, como si nunca hubiera llegado a la lista.
+
+    Lo que este test protege es el del medio: no contestar no puede perder el
+    intento, solo el dato.
+    """
+    client, team_id, terminado, _ = _montar()
+    try:
+        r = client.patch(
+            f"/api/v1/teams/{team_id}/transfer-attempts/{terminado}",
+            json={"dismissed": True},
+        )
+        assert r.status_code == 200
+        assert r.json()["timesSeen"] is None
+        assert r.json()["askingPrice"] is None
+
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/transfer-attempts").json()
+        fila = next(f for f in cuerpo["rows"] if f["id"] == terminado)
+        # Sigue en la tabla, con sus huecos.
+        assert fila["timesSeen"] is None
+        assert fila["askingPrice"] is None
+        # Y ya no se vuelve a preguntar.
+        assert all(p["id"] != terminado for p in cuerpo["pendingQuestion"])
+    finally:
+        app.dependency_overrides.clear()
+
+def test_an_attempt_can_be_deleted_for_good() -> None:
+    client, team_id, terminado, abierto = _montar()
+    try:
+        r = client.delete(f"/api/v1/teams/{team_id}/transfer-attempts/{terminado}")
+        assert r.status_code == 200
+
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/transfer-attempts").json()
+        assert [f["id"] for f in cuerpo["rows"]] == [abierto]
+        # Y el que queda pasa a ser el primer intento de ese jugador.
+        assert cuerpo["rows"][0]["attemptNumber"] == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_deleting_an_attempt_of_another_team_is_refused() -> None:
+    client, team_id, terminado, _ = _montar()
+    try:
+        r = client.delete(
+            f"/api/v1/teams/{team_id + 99}/transfer-attempts/{terminado}"
+        )
+        assert r.status_code == 404
+    finally:
+        app.dependency_overrides.clear()

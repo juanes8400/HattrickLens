@@ -1551,9 +1551,14 @@ const SKILL_HEADERS: [string, [string, string]][] = [
 ];
 
 function TransferAttemptsSection() {
+  const qc = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["transfer-attempts", TEAM_ID],
     queryFn: () => api.transferAttempts(TEAM_ID),
+  });
+  const borrar = useMutation({
+    mutationFn: (id: number) => api.deleteTransferAttempt(TEAM_ID, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
   });
 
   if (isLoading) return <Loading />;
@@ -1603,9 +1608,9 @@ function TransferAttemptsSection() {
               <th className="px-3 py-2 text-right">Edad de compra</th>
               <th className="px-3 py-2 text-right">Precio compra</th>
               <th className="px-3 py-2 text-right">Días desde la compra</th>
-              <th className="px-3 py-2 text-right">Partidos con nosotros</th>
               <th className="px-3 py-2 text-right">Salario acumulado</th>
               <th className="px-3 py-2">Entrenamiento</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -1695,13 +1700,22 @@ function TransferAttemptsSection() {
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.daysSincePurchase}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{r.gamesWithUs}</td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.salaryToDate === "?"
                     ? "?"
                     : money(r.salaryToDate, data.currency)}
                 </td>
                 <td className="px-3 py-2">{r.trainingThatWeek}</td>
+                <td className="px-3 py-2">
+                  <button
+                    onClick={() => borrar.mutate(r.id)}
+                    disabled={borrar.isPending}
+                    title="Borrar este intento: como si nunca hubiera llegado a la lista"
+                    className="rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--negative)] hover:text-[var(--negative)] disabled:opacity-50"
+                  >
+                    Borrar
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

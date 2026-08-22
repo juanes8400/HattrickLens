@@ -79,7 +79,6 @@ class TransferAttemptRow:
     purchase_price: int | str
     age_at_purchase: str
     days_since_purchase: int | str
-    games_with_us: int | str
     #: Lo pagado en salarios HASTA el cierre, no hasta hoy: si no, un intento
     #: viejo ensenaria el acumulado de ahora y dos filas de la misma tabla
     #: dejarian de ser comparables.
@@ -240,10 +239,6 @@ class TransferAttemptsQueryService:
                 jugador.age_years_at_purchase, jugador.age_days_at_purchase
             ),
             days_since_purchase=(corte - llegada).days if llegada is not None else "?",
-            games_with_us=(
-                etapa.games_played_for_us
-                if etapa is not None and etapa.games_played_for_us is not None else "?"
-            ),
             salary_to_date=await self._salario_hasta(jugador, llegada, corte, conv),
             training_that_week=(
                 training_name(entrenamiento.training_type)

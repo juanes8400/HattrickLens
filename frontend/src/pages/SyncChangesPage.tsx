@@ -264,6 +264,13 @@ function PreguntaDeVisitas() {
   // El precio pedido sale del mismo mensaje que las visitas.
   const [precios, setPrecios] = useState<Record<number, string>>({});
 
+  // "No tener en cuenta" borra el intento: como si nunca hubiera llegado a la
+  // lista. No hay estado intermedio a proposito.
+  const borrar = useMutation({
+    mutationFn: (id: number) => api.deleteTransferAttempt(TEAM_ID, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
+  });
+
   const responder = useMutation({
     mutationFn: ({
       id,
@@ -282,6 +289,7 @@ function PreguntaDeVisitas() {
               ...(veces != null ? { times_seen: veces } : {}),
               ...(precio != null ? { asking_price: precio } : {}),
             }
+          // "No se": la fila se queda, con "?" en lo que se preguntaba.
           : { dismissed: true },
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
@@ -345,9 +353,17 @@ function PreguntaDeVisitas() {
             </button>
             <button
               onClick={() => responder.mutate({ id: p.id })}
+              title="No lo apunto ahora, pero el intento sigue contando"
               className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
             >
-              No lo sé
+              No sé
+            </button>
+            <button
+              onClick={() => borrar.mutate(p.id)}
+              title="Borrarlo: como si nunca hubiera llegado a la lista"
+              className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
+            >
+              No tener en cuenta
             </button>
           </div>
         ))}

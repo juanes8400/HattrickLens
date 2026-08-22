@@ -230,7 +230,11 @@ export const api = {
   setTimesSeen: (
     teamId: number,
     attemptId: number,
-    cambios: { times_seen?: number; asking_price?: number; dismissed?: boolean },
+    cambios: {
+      times_seen?: number;
+      asking_price?: number;
+      dismissed?: boolean;
+    },
   ) =>
     request<{
       id: number;
@@ -240,6 +244,12 @@ export const api = {
     }>(
       `/teams/${teamId}/transfer-attempts/${attemptId}`,
       { method: "PATCH", body: JSON.stringify(cambios) },
+    ),
+  /** Borra un intento de venta. Distinto de "no tener en cuenta". */
+  deleteTransferAttempt: (teamId: number, attemptId: number) =>
+    request<{ deleted: number }>(
+      `/teams/${teamId}/transfer-attempts/${attemptId}`,
+      { method: "DELETE" },
     ),
   /** Atribuye a mano lo que falta de una etapa cerrada, o la excluye. */
   editStint: (
@@ -731,7 +741,6 @@ export interface TransferAttemptRow {
   purchasePrice: number | "?";
   ageAtPurchase: string;
   daysSincePurchase: number | "?";
-  gamesWithUs: number | "?";
   salaryToDate: number | "?";
   trainingThatWeek: string;
 }
