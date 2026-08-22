@@ -9,7 +9,7 @@ import { ErrorState, Kpi, Loading, Panel } from "../components/Panels";
 import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
-import { date, money, number } from "../hooks/useFormat";
+import { date, money, number, parseUtc } from "../hooks/useFormat";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
 import { api, errorMessage } from "../services/api";
@@ -24,6 +24,26 @@ const UNKNOWN_TOP_SKILL = "?";
 const weekLabel = (n: number) => String(n).padStart(2, "0");
 const UNKNOWN_WEEK = "sin fecha";
 const UNKNOWN_BID_HOUR = "Hora desconocida";
+
+/** El bloque de dos horas en que se cerró la puja, EN TU RELOJ.
+ *
+ * 2026-08-22, pedido por el usuario. El servidor agrupaba por la hora UTC, que
+ * no es la de nadie: una puja cerrada a las 19:00 en Colombia caía en el bloque
+ * de medianoche. `worlddetails.xml` no sirve para arreglarlo —de cada país da
+ * `ZoneName`, y para Colombia vale "South America", una región, no una zona
+ * horaria—, así que se resuelve como se resolvió la hora de los partidos de
+ * Copa: la fecha viaja en UTC y el navegador la pone en la hora de quien mira.
+ * Así cada usuario ve la suya sin configurar nada.
+ */
+function bidHourBucket(soldAt: string | null): string {
+  if (!soldAt) return UNKNOWN_BID_HOUR;
+  const cuando = parseUtc(soldAt);
+  if (Number.isNaN(cuando.getTime())) return UNKNOWN_BID_HOUR;
+  const inicio = Math.floor(cuando.getHours() / 2) * 2;
+  const fin = (inicio + 2) % 24;
+  const dosDigitos = (h: number) => String(h).padStart(2, "0");
+  return `${dosDigitos(inicio)}:00 - ${dosDigitos(fin)}:00`;
+}
 
 // Mismos cubos que `_age_bucket` en el backend (player_balance.py) — pedido
 // explícitamente 2026-08-04 en el filtro general de temporadas: al filtrar
@@ -712,7 +732,11 @@ export function PlayerBalancePage() {
     byAge[age] = (byAge[age] ?? 0) + r.saldo;
     const skill = r.topSkillAtSale ?? UNKNOWN_TOP_SKILL;
     byTopSkill[skill] = (byTopSkill[skill] ?? 0) + r.saldo;
-    const bidHour = r.bidHourAtSale ?? UNKNOWN_BID_HOUR;
+    // El bloque se calcula aquí y no en el servidor: es el único sitio que
+    // sabe en qué huso está quien mira la pantalla. `bidHourAtSale` sigue
+    // sirviendo de señal de "hubo puja de verdad": un despido no la tiene.
+    const bidHour =
+      r.bidHourAtSale != null ? bidHourBucket(r.soldAt) : UNKNOWN_BID_HOUR;
     byBidHour[bidHour] = (byBidHour[bidHour] ?? 0) + r.saldo;
     const semanaVenta = r.weekAtSale != null ? weekLabel(r.weekAtSale) : UNKNOWN_WEEK;
     bySaleWeek[semanaVenta] = (bySaleWeek[semanaVenta] ?? 0) + r.saldo;
@@ -1178,8 +1202,8 @@ export function PlayerBalancePage() {
             />
             <WaterfallPanel
               title="Saldo por hora de cierre de la puja"
-              meta="bloques de 2 horas (Hora Hattrick)"
-              ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en hora de Hattrick, en el que se cerró cada puja de venta"
+              meta="bloques de 2 horas, en tu hora"
+              ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en la hora local de quien mira, en el que se cerró cada puja de venta"
               entries={bidHourEntries}
               currency={data.currency}
               isDark={isDark}
