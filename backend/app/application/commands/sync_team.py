@@ -505,12 +505,32 @@ class SyncTeamHandler:
         tiempo. Troceado y con su propio botón, cada pulsación termina lo que
         empieza y se ve cuánto falta.
         """
+        from sqlalchemy import select
+
         from app.infrastructure.db import models as m
 
         async with self._uow as uow:
-            sync_id = await uow.syncs.create(
-                cmd.user_id, cmd.team_id, kind="backfill_batch"
-            )
+            # UNA fila por pulsación, no por jugador. Con un jugador por
+            # petición esto creaba cientos de filas vacías que no cuentan nada
+            # y solo ensucian el histórico. El instante del clic, que ya viaja
+            # para acotar la vigilancia, sirve también para reconocer la fila
+            # de esta misma pulsación y reutilizarla.
+            sync_id = None
+            if cmd.revisar_desde is not None:
+                sync_id = await uow.session.scalar(
+                    select(m.Sync.id)
+                    .where(
+                        m.Sync.team_id == cmd.team_id,
+                        m.Sync.kind == "backfill_batch",
+                        m.Sync.started_at >= cmd.revisar_desde,
+                    )
+                    .order_by(m.Sync.id.desc())
+                    .limit(1)
+                )
+            if sync_id is None:
+                sync_id = await uow.syncs.create(
+                    cmd.user_id, cmd.team_id, kind="backfill_batch"
+                )
             result = SyncResult(sync_id=sync_id, status="completed")
             fetched_at = datetime.now(UTC).replace(tzinfo=None)
 

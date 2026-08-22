@@ -1659,3 +1659,46 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
         assert sobrante.pages_fetched == 0
 
     asyncio.run(run())
+
+
+def test_a_whole_press_leaves_a_single_sync_row() -> None:
+    """Con un jugador por petición, crear una fila de sincronización en cada
+    lote llenaba el histórico de cientos de entradas vacías que no cuentan
+    nada. El instante del clic, que ya viaja para acotar la vigilancia,
+    identifica la pulsación: una fila, no una por jugador."""
+    async def run() -> None:
+        uow, chpp, team_id, _ = await _setup_with_player(468921494)
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_team_id = 537758
+            await u.session.commit()
+
+        handler = SyncTeamHandler(uow, chpp)
+        pulsacion = datetime.now(UTC).replace(tzinfo=None)
+        for _ in range(4):
+            await handler.execute_backfill_batch(SyncBackfillBatchCommand(
+                user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
+            ))
+
+        async with uow as u:
+            filas = (await u.session.execute(
+                select(m.Sync).where(
+                    m.Sync.team_id == team_id, m.Sync.kind == "backfill_batch"
+                )
+            )).scalars().all()
+            assert len(filas) == 1, f"{len(filas)} filas para una sola pulsación"
+
+        # Otra pulsación, otra fila: el histórico distingue las dos sesiones.
+        await handler.execute_backfill_batch(SyncBackfillBatchCommand(
+            user_id=1, team_id=team_id, limite=1,
+            revisar_desde=datetime.now(UTC).replace(tzinfo=None),
+        ))
+        async with uow as u:
+            filas = (await u.session.execute(
+                select(m.Sync).where(
+                    m.Sync.team_id == team_id, m.Sync.kind == "backfill_batch"
+                )
+            )).scalars().all()
+            assert len(filas) == 2
+
+    asyncio.run(run())
