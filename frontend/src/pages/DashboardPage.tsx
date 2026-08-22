@@ -84,7 +84,16 @@ export function DashboardPage() {
         <Kpi
           label="TSI de los 11 mejores"
           value={number(data.squad?.top11Tsi ?? 0)}
-          hint={`de ${number(data.squad?.totalTsi ?? 0)} en la plantilla`}
+          // Cuánto de la plantilla cabe en once hombres. Un 92% dice que
+          // detrás del once no hay recambio equivalente, y eso el TSI total
+          // no lo enseñaba.
+          hint={
+            (data.squad?.totalTsi ?? 0) > 0
+              ? `${Math.round(
+                  ((data.squad?.top11Tsi ?? 0) / (data.squad?.totalTsi ?? 1)) * 100,
+                )}% de ${number(data.squad?.totalTsi ?? 0)} en la plantilla`
+              : "sin plantilla sincronizada"
+          }
         />
       </div>
 
