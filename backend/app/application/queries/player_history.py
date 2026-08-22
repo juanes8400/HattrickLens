@@ -39,13 +39,12 @@ from app.infrastructure.db import models as m
 # Cotejado 2026-08-05 contra docs/reference/tabla_experiencia.html: Masters,
 # amistoso de selección y liga/amistoso juvenil SÍ tienen un valor real y
 # corresponden 1:1 a un match_type, así que ya puntúan. La selección nacional
-# COMPETITIVA (10/11) sigue fuera de `MATCH_TYPE_TO_EXPERIENCE_CATEGORY` a
-# propósito: ese código no distingue Mundial/Copa continental/Copa de
-# Naciones ni sus rondas de eliminatoria (7 a 70 puntos según la tabla real),
-# así que asignarle un valor sería inventarlo — se cuenta aparte, sin
-# puntuar, en `MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES` (ver
-# `experience_progress`). Es preferible una observación descartada a
-# contaminar la media.
+# COMPETITIVA (10/11), 2026-08-22: pasa a puntuar, 14 con reglas normales y 28
+# con reglas de copa. La tabla oficial detalla mucho más --Mundial 28, su final
+# 56, Copa de Naciones 7-- pero CHPP no dice de qué competición es cada
+# partido, y estuvo fuera tanto tiempo que esos partidos sencillamente no
+# existían para el conteo. Decidido explícitamente: sumar con esos dos valores
+# es mejor que no sumar nada.
 #
 # 2026-08-11, pedido explícito: Torneo liga/playoff (además de Escalera,
 # Duelo y Preparación, que ya estaban fuera) tampoco cuenta — son partidos
@@ -60,6 +59,8 @@ MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
     MATCH_TYPE_INTERNATIONAL_FRIENDLY_CUP_RULES: "friendly_international",
     MATCH_TYPE_MASTERS: "masters",
     MATCH_TYPE_NATIONAL_TEAM_FRIENDLY: "national_team_friendly",
+    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE: "national_team_competitive",
+    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES: "national_team_competitive_cup",
     MATCH_TYPE_YOUTH_LEAGUE: "youth_league",
     MATCH_TYPE_YOUTH_FRIENDLY: "youth_friendly",
     MATCH_TYPE_YOUTH_FRIENDLY_CUP_RULES: "youth_friendly",
@@ -71,6 +72,14 @@ MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
 MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES = frozenset({
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
+})
+
+#: Las tres categorias que son "jugo con su seleccion", para restarlas de los
+#: caps y quedarnos con los partidos que Hattrick cuenta y nosotros no vimos.
+CATEGORIAS_DE_SELECCION = frozenset({
+    "national_team_friendly",
+    "national_team_competitive",
+    "national_team_competitive_cup",
 })
 
 
@@ -332,7 +341,7 @@ class PlayerHistoryQueryService:
         snap_stmt = (
             select(
                 m.PlayerSnapshot.captured_at, m.PlayerSnapshot.experience,
-                m.PlayerSnapshot.career_caps,
+                m.PlayerSnapshot.career_caps, m.PlayerSnapshot.career_caps_u20,
             )
             .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
             .where(m.Player.ht_player_id == ht_player_id)
@@ -349,14 +358,21 @@ class PlayerHistoryQueryService:
             return None
         current_level = snaps[-1].experience
         since_date = snaps[-1].captured_at
-        caps_at_since_date = snaps[-1].career_caps
+        # Absoluta MAS sub-21: los dos contadores son partidos de seleccion, y
+        # mirar solo el primero dejaba invisibles los de los juveniles.
+        def _caps(fila) -> int | None:
+            if fila.career_caps is None and fila.career_caps_u20 is None:
+                return None
+            return (fila.career_caps or 0) + (fila.career_caps_u20 or 0)
+
+        caps_at_since_date = _caps(snaps[-1])
         for row in reversed(snaps):
             if row.experience == current_level:
                 since_date = row.captured_at
-                caps_at_since_date = row.career_caps
+                caps_at_since_date = _caps(row)
             else:
                 break
-        caps_now = snaps[-1].career_caps
+        caps_now = _caps(snaps[-1])
 
         stmt = (
             select(
@@ -384,27 +400,27 @@ class PlayerHistoryQueryService:
         rows = (await self._s.execute(stmt)).all()
         counts: dict[str, float] = {"league": 0.0, "cup": 0.0, "friendly": 0.0}
         match_counts: dict[str, int] = {}
-        national_friendly_seen = 0
-        national_competitive_seen = 0
+        national_seen = 0
         for mt, cup_level, played_minutes in rows:
             weight = min(played_minutes / 90.0, 1.0) if played_minutes > 0 else 0.0
             category = experience_category(mt, cup_level)
             if category:
                 counts[category] = counts.get(category, 0.0) + weight
                 match_counts[category] = match_counts.get(category, 0) + 1
-                if category == "national_team_friendly":
-                    national_friendly_seen += 1
-            elif mt in MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES:
-                national_competitive_seen += 1
+                if category in CATEGORIAS_DE_SELECCION:
+                    national_seen += 1
 
         caps_gained = (
             caps_now - caps_at_since_date
             if caps_now is not None and caps_at_since_date is not None
             else None
         )
-        seen_national = national_friendly_seen + national_competitive_seen
-        blind_spot = max(caps_gained - seen_national, 0) if caps_gained is not None else 0
-        unscored_national_matches = national_competitive_seen + blind_spot
+        # Lo unico que queda sin puntuar es lo que no llegamos a ver: Hattrick
+        # dice que jugo tantos partidos de seleccion y nosotros encontramos
+        # menos. Los que si encontramos ya suman como cualquier otro partido.
+        unscored_national_matches = (
+            max(caps_gained - national_seen, 0) if caps_gained is not None else 0
+        )
 
         return exp.progress(
             counts,

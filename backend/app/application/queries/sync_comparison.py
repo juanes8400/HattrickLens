@@ -515,6 +515,7 @@ async def build_sync_comparison(
             "playerRows": [],
             "summary": list(_metric_summary().values()),
             "clubChanges": [],
+            "nationalMatches": [],
             "availableReports": [],
         }
 
@@ -558,6 +559,12 @@ async def build_sync_comparison(
     report_changes = await _changes_for_sync(session, report_sync.id)
     player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
     club_changes = await _club_report(session, team_id, report_sync, currency_rate)
+    anterior = next((s for s in available if s.started_at < report_sync.started_at), None)
+    national_matches = await _partidos_de_seleccion(
+        session, team_id,
+        desde=anterior.started_at if anterior else None,
+        hasta=report_sync.started_at,
+    )
 
     return {
         "syncId": latest.id,
@@ -570,6 +577,7 @@ async def build_sync_comparison(
         "playerRows": player_rows,
         "summary": summary,
         "clubChanges": club_changes,
+        "nationalMatches": national_matches,
         "availableReports": [
             {
                 "syncId": s.id,
@@ -579,3 +587,56 @@ async def build_sync_comparison(
             for s in available
         ],
     }
+
+
+#: Los tres codigos que son "jugo con su seleccion": competitiva con reglas
+#: normales, con reglas de copa, y amistoso.
+TIPOS_DE_SELECCION = (10, 11, 12)
+
+
+async def _partidos_de_seleccion(
+    session: AsyncSession, team_id: int,
+    desde: datetime | None, hasta: datetime,
+) -> list[dict[str, Any]]:
+    """"Fulano jugo 62 minutos con su seleccion" — para el informe de Cambios.
+
+    Se sitian por `Match.played_at`, no por cuando los vimos: un partido del
+    martes tiene que salir en el informe del martes aunque lo hayamos
+    descubierto el jueves.
+    """
+    filtros = [
+        m.Player.team_id == team_id,
+        m.Match.match_type.in_(TIPOS_DE_SELECCION),
+        m.Match.played_at <= hasta,
+    ]
+    if desde is not None:
+        filtros.append(m.Match.played_at > desde)
+
+    filas = (await session.execute(
+        select(
+            m.Player.ht_player_id, m.Player.first_name, m.Player.last_name,
+            m.Match.match_type, m.Match.played_at,
+            m.Match.home_team_name, m.Match.away_team_name,
+            m.PlayerMatchRating.played_minutes, m.PlayerMatchRating.rating,
+        )
+        .select_from(m.PlayerMatchRating)
+        .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
+        .join(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
+        .where(*filtros)
+        .order_by(m.Match.played_at.desc())
+    )).all()
+
+    return [
+        {
+            "htPlayerId": f.ht_player_id,
+            "name": f"{f.first_name} {f.last_name}".strip(),
+            "minutes": f.played_minutes,
+            "rating": f.rating,
+            "playedAt": f.played_at.isoformat() if f.played_at else None,
+            "competition": (
+                "Amistoso de selección" if f.match_type == 12 else "Partido de selección"
+            ),
+            "match": f"{f.home_team_name} - {f.away_team_name}".strip(" -"),
+        }
+        for f in filas
+    ]

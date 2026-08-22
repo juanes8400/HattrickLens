@@ -851,11 +851,28 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
         }
         for p in (lineup.iterfind("Player") if lineup is not None else [])
     ]
+    # El once inicial y los cambios: con esos dos, mas `<Lineup>`, los minutos
+    # de cada jugador salen exactos. Hattrick no los publica en ningun campo.
+    inicial = team.find("StartingLineup")
+    titulares = [
+        _int(p, "PlayerID")
+        for p in (inicial.iterfind("Player") if inicial is not None else [])
+    ]
+    cambios = [
+        {
+            "sale": _int(c, "SubjectPlayerID"),
+            "entra": _int(c, "ObjectPlayerID"),
+            "minuto": _int(c, "MatchMinute"),
+        }
+        for c in team.iterfind("Substitutions/Substitution")
+    ]
     return {
         "ht_match_id": _int(root, "MatchID"),
         "ht_team_id": _int(team, "TeamID"),
         "team_name": _txt(team, "TeamName", ""),
         "players": players,
+        "starting_lineup": titulares,
+        "substitutions": cambios,
     }
 
 
@@ -1214,6 +1231,55 @@ def parse_regiondetails(xml: bytes) -> dict[str, Any]:
     }
 
 
+@register("nationalteammatches")
+def parse_nationalteammatches(xml: bytes) -> dict[str, Any]:
+    """Los partidos de todas las selecciones absolutas, jugados y por jugar.
+
+    No acepta parametros: siempre devuelve lo mismo, una ventana de un mes
+    aproximadamente (verificado en vivo: 298 partidos, de anteayer a un mes
+    vista). Solo trae el NOMBRE de cada seleccion, nunca su identificador, y
+    solo selecciones absolutas: las sub-21 no aparecen.
+
+    Ojo con `MatchID`: estos partidos viven en el espacio de identificadores
+    que CHPP llama `HTOIntegrated`, no en el de los partidos de club. El mismo
+    numero existe en los dos sitios y significa cosas distintas.
+    """
+    root = ElementTree.fromstring(xml)
+    return {
+        "matches": [
+            {
+                "ht_match_id": _int(mt, "MatchID"),
+                "match_date": _txt(mt, "MatchDate", ""),
+                "match_type": _int(mt, "MatchType"),
+                "match_context_id": _int(mt, "MatchContextId"),
+                "home_team_name": _txt(mt, "HomeTeamName", ""),
+                "away_team_name": _txt(mt, "AwayTeamName", ""),
+            }
+            for mt in root.iterfind(".//Match")
+        ],
+    }
+
+
+@register("nationalteamdetails")
+def parse_nationalteamdetails(xml: bytes) -> dict[str, Any]:
+    """Nombre oficial de una seleccion, por su identificador.
+
+    Hace falta porque el listado de partidos identifica a los equipos solo por
+    nombre, y los nombres cambian: el mismo pais figura como "Madagascar" en
+    unas fotos y "Madagasikara" en otras. Preguntando aqui se compara el nombre
+    de hoy con el nombre de hoy.
+    """
+    root = ElementTree.fromstring(xml)
+    team = root.find(".//Team")
+    if team is None:
+        return {}
+    return {
+        "ht_team_id": _int(team, "TeamID"),
+        "team_name": _txt(team, "TeamName", ""),
+        "short_team_name": _txt(team, "ShortTeamName", ""),
+    }
+
+
 @register("worlddetails")
 def parse_worlddetails(xml: bytes) -> dict[str, Any]:
     """Contexto del mundo: tasa de moneda, temporada, jornada, copas y fechas
@@ -1249,6 +1315,11 @@ def parse_worlddetails(xml: bytes) -> dict[str, Any]:
         leagues.append({
             "ht_league_id": _int(league, "LeagueID"),
             "league_name": _txt(league, "LeagueName", ""),
+            # Las dos selecciones del pais. CHPP sigue llamando U20 al campo
+            # por historia; el equipo se llama "U21 <pais>" (verificado en
+            # vivo con nationalteamdetails de Francia, id 3045).
+            "national_team_id": _int(league, "NationalTeamId"),
+            "u21_team_id": _int(league, "U20TeamId"),
             "country_id": _int(country, "CountryID") if country is not None else 0,
             "country_code": _txt(country, "CountryCode", "") if country is not None else "",
             "country_name": _txt(country, "CountryName", "") if country is not None else "",

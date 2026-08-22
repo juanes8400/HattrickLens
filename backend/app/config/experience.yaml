@@ -51,6 +51,14 @@ match_points:
   tournament: 0.0            # Escaleras/Duelos/torneos: no oficiales, no dan experiencia
   masters: 17.5              # Partido HT Masters
   national_team_friendly: 3.5   # Amistoso de selecciones
+  # 2026-08-22, decidido explicitamente: la tabla oficial detalla el puntaje
+  # por competicion y ronda (Mundial 28, su final 56, Copa de Naciones 7...)
+  # pero CHPP solo distingue dos codigos, 10 y 11, y no publica de que
+  # competicion es cada partido. Se adoptan estos dos valores y se suman como
+  # cualquier otro: la alternativa no era un numero mejor, era ninguno --esos
+  # partidos desaparecian del conteo.
+  national_team_competitive: 14        # Seleccion, reglas normales
+  national_team_competitive_cup: 28    # Seleccion, reglas de copa
   youth_league: 3.5          # Partido de liga juvenil
   youth_friendly: 0.35       # Amistoso juvenil
 

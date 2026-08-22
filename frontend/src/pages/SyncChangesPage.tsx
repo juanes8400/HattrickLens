@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   ClubMoraleSection,
   EconomySection,
+  NationalTeamSection,
   TrainingSection,
 } from "../components/SyncComparisonReport";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
@@ -485,6 +486,7 @@ export function SyncChangesPage() {
       </Panel>
 
       <PreguntaDeVisitas />
+      {data && <NationalTeamSection appearances={data.nationalMatches ?? []} />}
       {data && <TrainingSection changes={data.clubChanges} />}
       {data && <ClubMoraleSection changes={data.clubChanges} />}
 

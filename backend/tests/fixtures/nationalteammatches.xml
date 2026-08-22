@@ -1,0 +1,2704 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>nationalteammatches.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-22 21:12:01</FetchedDate>
+  <UserIsSupporter>False</UserIsSupporter>
+  <UserHasClubHouse>False</UserHasClubHouse>
+  <LeagueOfficeTypeID>2</LeagueOfficeTypeID>
+  <Matches>
+    <Match>
+      <MatchID>41943634</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Rwanda</HomeTeamName>
+      <AwayTeamName>Guinea Ecuatorial</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943631</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Northern Ireland</HomeTeamName>
+      <AwayTeamName>Bahamas</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943635</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Saint Kitts and Nevis</HomeTeamName>
+      <AwayTeamName>Tahiti</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943630</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Al Yaman</HomeTeamName>
+      <AwayTeamName>Guyana</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943616</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Hayastan</HomeTeamName>
+      <AwayTeamName>Burkina Faso</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263660</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Oceania</HomeTeamName>
+      <AwayTeamName>Puerto Rico</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263657</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Mongol Uls</HomeTeamName>
+      <AwayTeamName>Haiti</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263663</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Sri Lanka</HomeTeamName>
+      <AwayTeamName>Madagasikara</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263670</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>O'zbekiston</HomeTeamName>
+      <AwayTeamName>Belize</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263646</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Senegal</HomeTeamName>
+      <AwayTeamName>Saint Vincent and the Grenadines</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943624</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Nepal</HomeTeamName>
+      <AwayTeamName>RD Congo</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943610</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Ireland</HomeTeamName>
+      <AwayTeamName>Guam</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943629</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>El Salvador</HomeTeamName>
+      <AwayTeamName>Curaçao</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263669</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Bangladesh</HomeTeamName>
+      <AwayTeamName>Comoros</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943612</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Schweiz</HomeTeamName>
+      <AwayTeamName>Tanzania</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943609</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>San Marino</HomeTeamName>
+      <AwayTeamName>Ghana</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943626</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Grenada</HomeTeamName>
+      <AwayTeamName>Moçambique</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943627</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>United Arab Emirates</HomeTeamName>
+      <AwayTeamName>Crna Gora</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943623</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>México</HomeTeamName>
+      <AwayTeamName>Al Kuwayt</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943614</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Türkiye</HomeTeamName>
+      <AwayTeamName>Al Iraq</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263637</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Cabo Verde</HomeTeamName>
+      <AwayTeamName>Barbados</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943633</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Tounes</HomeTeamName>
+      <AwayTeamName>Lubnan</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943625</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Cyprus</HomeTeamName>
+      <AwayTeamName>Algérie</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263645</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Côte d'Ivoire</HomeTeamName>
+      <AwayTeamName>Suriname</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943613</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Hong Kong</HomeTeamName>
+      <AwayTeamName>Nicaragua</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943617</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Trinidad &amp; Tobago</HomeTeamName>
+      <AwayTeamName>Guatemala</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943608</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Brasil</HomeTeamName>
+      <AwayTeamName>Al Urdun</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263644</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Dawlat Qatar</HomeTeamName>
+      <AwayTeamName>Malta</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943619</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Føroyar</HomeTeamName>
+      <AwayTeamName>Honduras</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>5</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263655</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Shqiperia</HomeTeamName>
+      <AwayTeamName>Panama</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263664</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Prateh Kampuchea</HomeTeamName>
+      <AwayTeamName>Kenya</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263668</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Chinese Taipei</HomeTeamName>
+      <AwayTeamName>Jamaica</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263643</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Cuba</HomeTeamName>
+      <AwayTeamName>Belarus</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263648</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Bahrain</HomeTeamName>
+      <AwayTeamName>República Dominicana</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263640</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Botswana</HomeTeamName>
+      <AwayTeamName>Costa Rica</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943615</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Portugal</HomeTeamName>
+      <AwayTeamName>Al Maghrib </AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263629</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Cameroon</HomeTeamName>
+      <AwayTeamName>Bolivia</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263634</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Bénin</HomeTeamName>
+      <AwayTeamName>Ecuador</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263661</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Việt Nam</HomeTeamName>
+      <AwayTeamName>Nigeria</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263652</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Nippon</HomeTeamName>
+      <AwayTeamName>Paraguay</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>6</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943621</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Hrvatska</HomeTeamName>
+      <AwayTeamName>Pakistan</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263620</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Dhivehi Raajje</HomeTeamName>
+      <AwayTeamName>Ukraina</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263638</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Indonesia</HomeTeamName>
+      <AwayTeamName>Slovensko</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263635</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Azərbaycan</HomeTeamName>
+      <AwayTeamName>Lietuva</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>5</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943611</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Severna Makedonija</HomeTeamName>
+      <AwayTeamName>Bosna i Hercegovina</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263624</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Israel</HomeTeamName>
+      <AwayTeamName>Slovenija</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263633</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Oman</HomeTeamName>
+      <AwayTeamName>Bulgaria</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263625</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Uganda</HomeTeamName>
+      <AwayTeamName>Česká republika</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263658</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>France</HomeTeamName>
+      <AwayTeamName>Hellas</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263666</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Danmark</HomeTeamName>
+      <AwayTeamName>Srbija</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263653</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Sverige</HomeTeamName>
+      <AwayTeamName>Eesti</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>5</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943632</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Guinée</HomeTeamName>
+      <AwayTeamName>Pilipinas</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263636</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Prathet Thai</HomeTeamName>
+      <AwayTeamName>Latvija</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263665</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Cymru</HomeTeamName>
+      <AwayTeamName>Magyarország</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943628</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Brunei</HomeTeamName>
+      <AwayTeamName>Malaysia</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263639</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Saudi Arabia</HomeTeamName>
+      <AwayTeamName>Österreich</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263662</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Lëtzebuerg</HomeTeamName>
+      <AwayTeamName>Belgium</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943622</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Perú</HomeTeamName>
+      <AwayTeamName>Singapore</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263641</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Kyrgyz Republic</HomeTeamName>
+      <AwayTeamName>España</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943618</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Ītyōṗṗyā</HomeTeamName>
+      <AwayTeamName>Hanguk</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>4</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263654</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Iran</HomeTeamName>
+      <AwayTeamName>Uruguay</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263630</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>South Africa</HomeTeamName>
+      <AwayTeamName>Scotland</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263628</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>India</HomeTeamName>
+      <AwayTeamName>Polska</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263667</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Palestine</HomeTeamName>
+      <AwayTeamName>Chile</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263651</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Nederland</HomeTeamName>
+      <AwayTeamName>Suomi</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263632</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Myanmar</HomeTeamName>
+      <AwayTeamName>Ísland</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263622</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Sakartvelo</HomeTeamName>
+      <AwayTeamName>România</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263649</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Liechtenstein</HomeTeamName>
+      <AwayTeamName>Rossiya</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943620</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>Kazakhstan</HomeTeamName>
+      <AwayTeamName>Misr</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263623</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>São Tomé e Príncipe</HomeTeamName>
+      <AwayTeamName>Venezuela</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263656</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>China</HomeTeamName>
+      <AwayTeamName>Colombia</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263647</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Moldova</HomeTeamName>
+      <AwayTeamName>Canada</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263642</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Angola</HomeTeamName>
+      <AwayTeamName>Norge</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263631</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Zambia</HomeTeamName>
+      <AwayTeamName>USA</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>1</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263659</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Suriyah</HomeTeamName>
+      <AwayTeamName>Argentina</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>3</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41263650</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001315</MatchContextId>
+      <HomeTeamName>Andorra</HomeTeamName>
+      <AwayTeamName>Italia</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>2</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41943607</MatchID>
+      <MatchDate>2026-08-21 20:00:00</MatchDate>
+      <MatchType>10</MatchType>
+      <MatchContextId>5001319</MatchContextId>
+      <HomeTeamName>England</HomeTeamName>
+      <AwayTeamName>Deutschland</AwayTeamName>
+      <MatchResult>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>3</AwayGoals>
+      </MatchResult>
+    </Match>
+    <Match>
+      <MatchID>41979497</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cameroon</HomeTeamName>
+      <AwayTeamName>Cuba</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979671</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Hayastan</HomeTeamName>
+      <AwayTeamName>Ītyōṗṗyā</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979681</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Pakistan</HomeTeamName>
+      <AwayTeamName>Curaçao</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979670</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Guam</HomeTeamName>
+      <AwayTeamName>Tanzania</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979667</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ireland</HomeTeamName>
+      <AwayTeamName>Ghana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979668</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Singapore</HomeTeamName>
+      <AwayTeamName>Brunei</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979474</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nederland</HomeTeamName>
+      <AwayTeamName>Uganda</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979684</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Moçambique</HomeTeamName>
+      <AwayTeamName>Al Yaman</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979687</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Hanguk</HomeTeamName>
+      <AwayTeamName>Al Kuwayt</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979495</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Lëtzebuerg</HomeTeamName>
+      <AwayTeamName>Cabo Verde</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979686</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>El Salvador</HomeTeamName>
+      <AwayTeamName>Lubnan</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979489</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>República Dominicana</HomeTeamName>
+      <AwayTeamName>Madagasikara</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979664</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Al Iraq</HomeTeamName>
+      <AwayTeamName>Trinidad &amp; Tobago</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979473</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Latvija</HomeTeamName>
+      <AwayTeamName>Suriname</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979678</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Bosna i Hercegovina</HomeTeamName>
+      <AwayTeamName>Nicaragua</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979675</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Guatemala</HomeTeamName>
+      <AwayTeamName>Burkina Faso</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979685</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Algérie</HomeTeamName>
+      <AwayTeamName>Nepal</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979690</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Bahamas</HomeTeamName>
+      <AwayTeamName>Guyana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979688</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Tahiti</HomeTeamName>
+      <AwayTeamName>Guinée</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979692</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Saint Kitts and Nevis</HomeTeamName>
+      <AwayTeamName>Guinea Ecuatorial</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979689</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Crna Gora</HomeTeamName>
+      <AwayTeamName>Northern Ireland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979677</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>England</HomeTeamName>
+      <AwayTeamName>Severna Makedonija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979483</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Chinese Taipei</HomeTeamName>
+      <AwayTeamName>Oceania</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979691</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Rwanda</HomeTeamName>
+      <AwayTeamName>Tounes</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979501</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nigeria</HomeTeamName>
+      <AwayTeamName>Sakartvelo</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979665</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kazakhstan</HomeTeamName>
+      <AwayTeamName>Cyprus</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979498</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belgium</HomeTeamName>
+      <AwayTeamName>România</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979679</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Brasil</HomeTeamName>
+      <AwayTeamName>Al Maghrib </AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979673</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Hong Kong</HomeTeamName>
+      <AwayTeamName>Føroyar</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979499</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belarus</HomeTeamName>
+      <AwayTeamName>Suomi</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979503</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cymru</HomeTeamName>
+      <AwayTeamName>Moldova</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979500</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Oman</HomeTeamName>
+      <AwayTeamName>Nippon</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979484</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>USA</HomeTeamName>
+      <AwayTeamName>Malta</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979477</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Prathet Thai</HomeTeamName>
+      <AwayTeamName>Polska</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979494</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>España</HomeTeamName>
+      <AwayTeamName>Česká republika</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979478</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Sverige</HomeTeamName>
+      <AwayTeamName>Belize</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979488</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Chile</HomeTeamName>
+      <AwayTeamName>Eesti</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979490</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Norge</HomeTeamName>
+      <AwayTeamName>Haiti</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979674</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>San Marino</HomeTeamName>
+      <AwayTeamName>Deutschland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979683</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>United Arab Emirates</HomeTeamName>
+      <AwayTeamName>Pilipinas</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979482</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Slovensko</HomeTeamName>
+      <AwayTeamName>Việt Nam</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979486</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ukraina</HomeTeamName>
+      <AwayTeamName>Magyarország</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979491</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>France</HomeTeamName>
+      <AwayTeamName>Zambia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979682</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Grenada</HomeTeamName>
+      <AwayTeamName>Malaysia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979475</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Österreich</HomeTeamName>
+      <AwayTeamName>Kyrgyz Republic</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979676</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>RD Congo</HomeTeamName>
+      <AwayTeamName>México</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979480</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Andorra</HomeTeamName>
+      <AwayTeamName>Argentina</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979487</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Senegal</HomeTeamName>
+      <AwayTeamName>China</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979479</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Srbija</HomeTeamName>
+      <AwayTeamName>Lietuva</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979485</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Uruguay</HomeTeamName>
+      <AwayTeamName>Kenya</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979672</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Schweiz</HomeTeamName>
+      <AwayTeamName>Türkiye</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979493</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Italia</HomeTeamName>
+      <AwayTeamName>Botswana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979481</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Shqiperia</HomeTeamName>
+      <AwayTeamName>Canada</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979502</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Bulgaria</HomeTeamName>
+      <AwayTeamName>Jamaica</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979669</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Hrvatska</HomeTeamName>
+      <AwayTeamName>Perú</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979666</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Al Urdun</HomeTeamName>
+      <AwayTeamName>Portugal</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979496</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Rossiya</HomeTeamName>
+      <AwayTeamName>Ecuador</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979680</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Honduras</HomeTeamName>
+      <AwayTeamName>Misr</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979492</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Scotland</HomeTeamName>
+      <AwayTeamName>Costa Rica</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979476</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Israel</HomeTeamName>
+      <AwayTeamName>Danmark</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979472</MatchID>
+      <MatchDate>2026-08-28 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>São Tomé e Príncipe</HomeTeamName>
+      <AwayTeamName>Ísland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979531</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cymru</HomeTeamName>
+      <AwayTeamName>Bulgaria</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979535</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Botswana</HomeTeamName>
+      <AwayTeamName>Cabo Verde</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979516</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Senegal</HomeTeamName>
+      <AwayTeamName>Chinese Taipei</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979556</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Haiti</HomeTeamName>
+      <AwayTeamName>Česká republika</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979524</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Italia</HomeTeamName>
+      <AwayTeamName>Lëtzebuerg</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979518</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Malta</HomeTeamName>
+      <AwayTeamName>Eesti</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979515</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belize</HomeTeamName>
+      <AwayTeamName>Argentina</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979510</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Sverige</HomeTeamName>
+      <AwayTeamName>Andorra</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979522</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>France</HomeTeamName>
+      <AwayTeamName>República Dominicana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979521</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Magyarország</HomeTeamName>
+      <AwayTeamName>Canada</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979507</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nederland</HomeTeamName>
+      <AwayTeamName>Österreich</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979532</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Moldova</HomeTeamName>
+      <AwayTeamName>Jamaica</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979523</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Norge</HomeTeamName>
+      <AwayTeamName>España</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979504</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Suriname</HomeTeamName>
+      <AwayTeamName>Ísland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979527</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>România</HomeTeamName>
+      <AwayTeamName>Suomi</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979519</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>USA</HomeTeamName>
+      <AwayTeamName>Chile</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979512</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Srbija</HomeTeamName>
+      <AwayTeamName>Uruguay</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979513</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Slovensko</HomeTeamName>
+      <AwayTeamName>Scotland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979506</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Uganda</HomeTeamName>
+      <AwayTeamName>Kyrgyz Republic</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979505</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Latvija</HomeTeamName>
+      <AwayTeamName>São Tomé e Príncipe</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979526</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Rossiya</HomeTeamName>
+      <AwayTeamName>Cameroon</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979517</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>China</HomeTeamName>
+      <AwayTeamName>Oceania</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979529</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nippon</HomeTeamName>
+      <AwayTeamName>Sakartvelo</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979520</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ukraina</HomeTeamName>
+      <AwayTeamName>Shqiperia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979509</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Israel</HomeTeamName>
+      <AwayTeamName>Prathet Thai</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979544</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Zambia</HomeTeamName>
+      <AwayTeamName>Madagasikara</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979508</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Danmark</HomeTeamName>
+      <AwayTeamName>Polska</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979511</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Lietuva</HomeTeamName>
+      <AwayTeamName>Kenya</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979528</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belgium</HomeTeamName>
+      <AwayTeamName>Belarus</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979525</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ecuador</HomeTeamName>
+      <AwayTeamName>Cuba</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979530</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Oman</HomeTeamName>
+      <AwayTeamName>Nigeria</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979514</MatchID>
+      <MatchDate>2026-08-31 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Việt Nam</HomeTeamName>
+      <AwayTeamName>Costa Rica</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979551</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Canada</HomeTeamName>
+      <AwayTeamName>Ukraina</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979546</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Costa Rica</HomeTeamName>
+      <AwayTeamName>Slovensko</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979553</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>España</HomeTeamName>
+      <AwayTeamName>Haiti</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979552</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>República Dominicana</HomeTeamName>
+      <AwayTeamName>Zambia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979557</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cameroon</HomeTeamName>
+      <AwayTeamName>Ecuador</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979559</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cuba</HomeTeamName>
+      <AwayTeamName>Rossiya</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979555</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Lëtzebuerg</HomeTeamName>
+      <AwayTeamName>Botswana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979543</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kenya</HomeTeamName>
+      <AwayTeamName>Srbija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979538</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kyrgyz Republic</HomeTeamName>
+      <AwayTeamName>Nederland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979562</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nigeria</HomeTeamName>
+      <AwayTeamName>Nippon</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979534</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ísland</HomeTeamName>
+      <AwayTeamName>Latvija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979550</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Shqiperia</HomeTeamName>
+      <AwayTeamName>Magyarország</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979547</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Chinese Taipei</HomeTeamName>
+      <AwayTeamName>China</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979561</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Suomi</HomeTeamName>
+      <AwayTeamName>Belgium</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979540</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Andorra</HomeTeamName>
+      <AwayTeamName>Belize</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979566</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Jamaica</HomeTeamName>
+      <AwayTeamName>Cymru</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979539</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Polska</HomeTeamName>
+      <AwayTeamName>Israel</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979542</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Uruguay</HomeTeamName>
+      <AwayTeamName>Lietuva</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979545</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Scotland</HomeTeamName>
+      <AwayTeamName>Việt Nam</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979537</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Prathet Thai</HomeTeamName>
+      <AwayTeamName>Danmark</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979558</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belarus</HomeTeamName>
+      <AwayTeamName>România</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979536</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Österreich</HomeTeamName>
+      <AwayTeamName>Uganda</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979563</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Sakartvelo</HomeTeamName>
+      <AwayTeamName>Oman</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979565</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Bulgaria</HomeTeamName>
+      <AwayTeamName>Moldova</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979548</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Chile</HomeTeamName>
+      <AwayTeamName>Malta</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979541</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Argentina</HomeTeamName>
+      <AwayTeamName>Sverige</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979564</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Oceania</HomeTeamName>
+      <AwayTeamName>Senegal</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979533</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>São Tomé e Príncipe</HomeTeamName>
+      <AwayTeamName>Suriname</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979560</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cabo Verde</HomeTeamName>
+      <AwayTeamName>Italia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979570</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Madagasikara</HomeTeamName>
+      <AwayTeamName>France</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979554</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Česká republika</HomeTeamName>
+      <AwayTeamName>Norge</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979549</MatchID>
+      <MatchDate>2026-09-04 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Eesti</HomeTeamName>
+      <AwayTeamName>USA</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979592</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ecuador</HomeTeamName>
+      <AwayTeamName>Cameroon</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979596</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nippon</HomeTeamName>
+      <AwayTeamName>Nigeria</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979591</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Italia</HomeTeamName>
+      <AwayTeamName>Cabo Verde</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979571</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nederland</HomeTeamName>
+      <AwayTeamName>Kyrgyz Republic</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979579</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Slovensko</HomeTeamName>
+      <AwayTeamName>Costa Rica</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979595</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belgium</HomeTeamName>
+      <AwayTeamName>Suomi</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979589</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Norge</HomeTeamName>
+      <AwayTeamName>Česká republika</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979584</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>USA</HomeTeamName>
+      <AwayTeamName>Eesti</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979594</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>România</HomeTeamName>
+      <AwayTeamName>Belarus</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979575</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Sverige</HomeTeamName>
+      <AwayTeamName>Argentina</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979578</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Việt Nam</HomeTeamName>
+      <AwayTeamName>Scotland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979576</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Lietuva</HomeTeamName>
+      <AwayTeamName>Uruguay</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979588</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Haiti</HomeTeamName>
+      <AwayTeamName>España</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979587</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>France</HomeTeamName>
+      <AwayTeamName>Madagasikara</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979574</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belize</HomeTeamName>
+      <AwayTeamName>Andorra</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979577</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Srbija</HomeTeamName>
+      <AwayTeamName>Kenya</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979569</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Uganda</HomeTeamName>
+      <AwayTeamName>Österreich</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979581</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>China</HomeTeamName>
+      <AwayTeamName>Chinese Taipei</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979599</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cymru</HomeTeamName>
+      <AwayTeamName>Jamaica</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979573</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Israel</HomeTeamName>
+      <AwayTeamName>Polska</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979597</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Moldova</HomeTeamName>
+      <AwayTeamName>Bulgaria</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979580</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Senegal</HomeTeamName>
+      <AwayTeamName>Oceania</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979585</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ukraina</HomeTeamName>
+      <AwayTeamName>Canada</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979582</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Malta</HomeTeamName>
+      <AwayTeamName>Chile</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979567</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Suriname</HomeTeamName>
+      <AwayTeamName>São Tomé e Príncipe</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979586</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Zambia</HomeTeamName>
+      <AwayTeamName>República Dominicana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979572</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Danmark</HomeTeamName>
+      <AwayTeamName>Prathet Thai</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979590</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Botswana</HomeTeamName>
+      <AwayTeamName>Lëtzebuerg</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979598</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Oman</HomeTeamName>
+      <AwayTeamName>Sakartvelo</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979593</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Rossiya</HomeTeamName>
+      <AwayTeamName>Cuba</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979568</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Latvija</HomeTeamName>
+      <AwayTeamName>Ísland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979583</MatchID>
+      <MatchDate>2026-09-07 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Magyarország</HomeTeamName>
+      <AwayTeamName>Shqiperia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979600</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ísland</HomeTeamName>
+      <AwayTeamName>Suriname</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979614</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Eesti</HomeTeamName>
+      <AwayTeamName>Malta</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979630</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Jamaica</HomeTeamName>
+      <AwayTeamName>Moldova</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979629</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nigeria</HomeTeamName>
+      <AwayTeamName>Oman</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979609</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Costa Rica</HomeTeamName>
+      <AwayTeamName>Việt Nam</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979602</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kyrgyz Republic</HomeTeamName>
+      <AwayTeamName>Uganda</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979617</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Shqiperia</HomeTeamName>
+      <AwayTeamName>Ukraina</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979607</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Andorra</HomeTeamName>
+      <AwayTeamName>Sverige</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979619</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>República Dominicana</HomeTeamName>
+      <AwayTeamName>France</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979615</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Chile</HomeTeamName>
+      <AwayTeamName>USA</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979621</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>España</HomeTeamName>
+      <AwayTeamName>Norge</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979626</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Suomi</HomeTeamName>
+      <AwayTeamName>România</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979601</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>São Tomé e Príncipe</HomeTeamName>
+      <AwayTeamName>Latvija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979624</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cuba</HomeTeamName>
+      <AwayTeamName>Ecuador</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979613</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Chinese Taipei</HomeTeamName>
+      <AwayTeamName>Senegal</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979606</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Argentina</HomeTeamName>
+      <AwayTeamName>Belize</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979623</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cabo Verde</HomeTeamName>
+      <AwayTeamName>Botswana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979618</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Madagasikara</HomeTeamName>
+      <AwayTeamName>Zambia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979620</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Česká republika</HomeTeamName>
+      <AwayTeamName>Haiti</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979622</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Lëtzebuerg</HomeTeamName>
+      <AwayTeamName>Italia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979625</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cameroon</HomeTeamName>
+      <AwayTeamName>Rossiya</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979604</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Polska</HomeTeamName>
+      <AwayTeamName>Danmark</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979603</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Österreich</HomeTeamName>
+      <AwayTeamName>Nederland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979627</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Sakartvelo</HomeTeamName>
+      <AwayTeamName>Nippon</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979611</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Oceania</HomeTeamName>
+      <AwayTeamName>China</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979628</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belarus</HomeTeamName>
+      <AwayTeamName>Belgium</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979616</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Canada</HomeTeamName>
+      <AwayTeamName>Magyarország</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979610</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Uruguay</HomeTeamName>
+      <AwayTeamName>Srbija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979632</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Bulgaria</HomeTeamName>
+      <AwayTeamName>Cymru</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979605</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Prathet Thai</HomeTeamName>
+      <AwayTeamName>Israel</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979608</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kenya</HomeTeamName>
+      <AwayTeamName>Lietuva</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979612</MatchID>
+      <MatchDate>2026-09-11 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Scotland</HomeTeamName>
+      <AwayTeamName>Slovensko</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979658</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>România</HomeTeamName>
+      <AwayTeamName>Belgium</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979640</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kenya</HomeTeamName>
+      <AwayTeamName>Uruguay</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979641</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Costa Rica</HomeTeamName>
+      <AwayTeamName>Scotland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979634</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Uganda</HomeTeamName>
+      <AwayTeamName>Nederland</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979635</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Kyrgyz Republic</HomeTeamName>
+      <AwayTeamName>Österreich</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979659</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Suomi</HomeTeamName>
+      <AwayTeamName>Belarus</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979649</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Canada</HomeTeamName>
+      <AwayTeamName>Shqiperia</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979656</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ecuador</HomeTeamName>
+      <AwayTeamName>Rossiya</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979637</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Polska</HomeTeamName>
+      <AwayTeamName>Prathet Thai</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979652</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Haiti</HomeTeamName>
+      <AwayTeamName>Norge</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979644</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Malta</HomeTeamName>
+      <AwayTeamName>USA</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979650</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Zambia</HomeTeamName>
+      <AwayTeamName>France</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979651</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Madagasikara</HomeTeamName>
+      <AwayTeamName>República Dominicana</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979638</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Belize</HomeTeamName>
+      <AwayTeamName>Sverige</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979642</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>China</HomeTeamName>
+      <AwayTeamName>Senegal</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979631</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Suriname</HomeTeamName>
+      <AwayTeamName>Latvija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979655</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cabo Verde</HomeTeamName>
+      <AwayTeamName>Lëtzebuerg</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979661</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Nippon</HomeTeamName>
+      <AwayTeamName>Oman</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979645</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Oceania</HomeTeamName>
+      <AwayTeamName>Chinese Taipei</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979639</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Argentina</HomeTeamName>
+      <AwayTeamName>Andorra</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979657</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Cuba</HomeTeamName>
+      <AwayTeamName>Cameroon</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979662</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Moldova</HomeTeamName>
+      <AwayTeamName>Cymru</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979648</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Magyarország</HomeTeamName>
+      <AwayTeamName>Ukraina</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979633</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Ísland</HomeTeamName>
+      <AwayTeamName>São Tomé e Príncipe</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979643</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Việt Nam</HomeTeamName>
+      <AwayTeamName>Slovensko</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979646</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Lietuva</HomeTeamName>
+      <AwayTeamName>Srbija</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979663</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Jamaica</HomeTeamName>
+      <AwayTeamName>Bulgaria</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979654</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Česká republika</HomeTeamName>
+      <AwayTeamName>España</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979647</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Eesti</HomeTeamName>
+      <AwayTeamName>Chile</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979660</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Sakartvelo</HomeTeamName>
+      <AwayTeamName>Nigeria</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979636</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Danmark</HomeTeamName>
+      <AwayTeamName>Israel</AwayTeamName>
+      <MatchResult />
+    </Match>
+    <Match>
+      <MatchID>41979653</MatchID>
+      <MatchDate>2026-09-18 20:00:00</MatchDate>
+      <MatchType>50</MatchType>
+      <HomeTeamName>Botswana</HomeTeamName>
+      <AwayTeamName>Italia</AwayTeamName>
+      <MatchResult />
+    </Match>
+  </Matches>
+</HattrickData>

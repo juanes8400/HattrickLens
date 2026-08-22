@@ -170,6 +170,9 @@ FILE_VERSIONS = {
     # no da un historial de esto.
     "currentbids": "1.0",
     "playerdetails": "3.2", "transfersteam": "1.2",
+    # Los dos ficheros de seleccion. `nationalteammatches` no acepta ningun
+    # parametro: siempre la misma ventana de un mes, todas las selecciones.
+    "nationalteammatches": "1.2", "nationalteamdetails": "1.9",
     "arenadetails": "latest",
     # 1.2 verificado en vivo 2026-08-18: WeatherID (hoy) y TomorrowWeatherID.
     "regiondetails": "1.2",
@@ -470,6 +473,9 @@ class SyncTeamHandler:
             if "players" in files:
                 await self._sync_active_roster_player_details(
                     uow, cmd.team_id, captured_at, result, on_progress
+                )
+                await self._censar_partidos_de_seleccion(
+                    uow, cmd.team_id, captured_at, result
                 )
                 await self._sync_training_events(
                     uow, cmd.team_id, captured_at, result, on_progress
@@ -1607,6 +1613,204 @@ class SyncTeamHandler:
     #: llegue con cien huerfanos no pague cien llamadas de golpe.
     RESCATES_DE_PARTIDO_POR_SYNC = 20
 
+    async def _censar_partidos_de_seleccion(
+        self, uow: UnitOfWork, team_id: int, captured_at: datetime,
+        result: SyncResult,
+    ) -> int:
+        """Busca los partidos de seleccion que la ficha del jugador no alcanzo.
+
+        El disparador es gratis: el contador de partidos internacionales de
+        cada jugador ya se lee en cada sincronizacion. Si a nadie le subio, no
+        se gasta ni una llamada. Y no se cuenta por ese contador --contarlo
+        seria fiarse de una resta--: solo dice donde mirar. Los partidos se
+        buscan de verdad, con su tipo y sus minutos.
+
+        Ojo con lo que NO cubre: el listado de Hattrick solo trae selecciones
+        absolutas y una ventana de un mes. Un partido de la sub-21, o uno de
+        hace dos meses, no esta ahi; esos siguen contandose como punto ciego.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        candidatos = await self._a_quien_le_subio_el_contador(uow, team_id)
+        if not candidatos:
+            return 0
+
+        listado = await self._chpp.fetch(
+            "nationalteammatches", version=FILE_VERSIONS.get("nationalteammatches", "latest"),
+        )
+        partidos = listado.get("matches", [])
+        if not partidos:
+            return 0
+
+        nombres: dict[int, str] = {}
+        censados = 0
+        for jugador, desde in candidatos:
+            foto = await uow.session.scalar(
+                select(m.PlayerSnapshot)
+                .where(m.PlayerSnapshot.player_id == jugador.id)
+                .order_by(m.PlayerSnapshot.captured_at.desc())
+                .limit(1)
+            )
+            pais = await uow.session.scalar(
+                select(m.WorldContext).where(
+                    m.WorldContext.country_id == (foto.country_id if foto else 0)
+                )
+            )
+            if pais is None or not pais.national_team_id:
+                continue
+            nombre = nombres.get(pais.national_team_id)
+            if nombre is None:
+                ficha = await self._chpp.fetch(
+                    "nationalteamdetails",
+                    version=FILE_VERSIONS.get("nationalteamdetails", "latest"),
+                    teamId=pais.national_team_id,
+                )
+                nombre = ficha.get("team_name", "")
+                nombres[pais.national_team_id] = nombre
+            if not nombre:
+                continue
+
+            for partido in partidos:
+                if nombre not in (partido["home_team_name"], partido["away_team_name"]):
+                    continue
+                cuando = ht_to_utc(partido["match_date"] or "")
+                if cuando is None:
+                    continue
+                if cuando.tzinfo is not None:
+                    cuando = cuando.astimezone(UTC).replace(tzinfo=None)
+                if cuando <= desde or cuando > datetime.now(UTC).replace(tzinfo=None):
+                    continue
+                if await self._anotar_partido_de_seleccion(
+                    uow, jugador, pais.national_team_id, partido["ht_match_id"],
+                    cuando, captured_at,
+                ):
+                    censados += 1
+                    result.snapshots_written += 1
+        return censados
+
+    async def _a_quien_le_subio_el_contador(
+        self, uow: UnitOfWork, team_id: int,
+    ) -> list[tuple[Any, datetime]]:
+        """Jugadores cuyo contador de partidos internacionales crecio.
+
+        Devuelve tambien desde cuando mirar: la marca de la foto anterior, la
+        que todavia tenia el contador viejo.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        jugadores = (await uow.session.execute(
+            select(m.Player).where(
+                m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+            )
+        )).scalars().all()
+        candidatos: list[tuple[Any, datetime]] = []
+        for jugador in jugadores:
+            fotos = (await uow.session.execute(
+                select(m.PlayerSnapshot.captured_at, m.PlayerSnapshot.career_caps,
+                       m.PlayerSnapshot.career_caps_u20)
+                .where(m.PlayerSnapshot.player_id == jugador.id)
+                .order_by(m.PlayerSnapshot.captured_at.desc())
+                .limit(2)
+            )).all()
+            if len(fotos) < 2:
+                continue
+            ahora = (fotos[0].career_caps or 0) + (fotos[0].career_caps_u20 or 0)
+            antes = (fotos[1].career_caps or 0) + (fotos[1].career_caps_u20 or 0)
+            if ahora > antes:
+                candidatos.append((jugador, fotos[1].captured_at))
+        return candidatos
+
+    async def _anotar_partido_de_seleccion(
+        self, uow: UnitOfWork, jugador: Any, ht_team_id: int,
+        ht_match_id: int, cuando: datetime, captured_at: datetime,
+    ) -> bool:
+        """Si de verdad jugo, se guarda con sus minutos. Si no, no.
+
+        Estar convocado no es jugar: un suplente que no entra tiene cero
+        minutos y no suma experiencia, igual que en el club.
+        """
+        from app.domain.engines.national_team import Cambio, minutos_jugados
+        from app.infrastructure.db import models as m
+
+        try:
+            alineacion = await self._chpp.fetch(
+                "matchlineup", version=MATCHLINEUP_ROLE_VERSION,
+                matchID=ht_match_id, teamID=ht_team_id, sourceSystem="htointegrated",
+            )
+        except Exception:  # noqa: BLE001 — best effort, como el resto del sync
+            return False
+
+        titulares = set(alineacion.get("starting_lineup", []))
+        cambios = [Cambio(**c) for c in alineacion.get("substitutions", [])]
+        minutos = minutos_jugados(titulares, cambios, jugador.ht_player_id)
+        if minutos <= 0:
+            return False
+
+        await self._backfill_foreign_match_type(uow, ht_match_id, jugado_el=cuando)
+        estrellas = next(
+            (p.get("rating_stars") or 0.0 for p in alineacion.get("players", [])
+             if p.get("ht_player_id") == jugador.ht_player_id),
+            0.0,
+        )
+        return await uow.players.append_match_rating_if_new(
+            jugador.id,
+            ht_match_id=ht_match_id,
+            position_code=0,
+            played_minutes=minutos,
+            rating=estrellas,
+            captured_at=captured_at,
+        )
+
+    async def _misma_ficha_o_la_de_seleccion(
+        self, payload: dict[str, Any], ht_match_id: int, jugado_el: datetime | None,
+    ) -> dict[str, Any]:
+        """Comprueba que la ficha sea de ESTE partido, y si no, la pide bien.
+
+        Los partidos de seleccion viven en otro espacio de identificadores, el
+        que CHPP llama `HTOIntegrated`. Pedir uno de ellos sin decirlo no da un
+        error: da OTRO partido, uno de club con el mismo numero. Verificado en
+        vivo con el 41943634 --seleccion, 2026-- que sin la marca devuelve un
+        partido de liga de 2005.
+
+        Como la casilla "ultimo partido" del jugador ya trae la fecha real, se
+        compara: si la ficha que llego es de otro dia, no es este partido, y se
+        vuelve a pedir en el otro espacio. Sin fecha con que comparar no se
+        puede saber, y se deja lo que vino.
+        """
+        if jugado_el is None:
+            return payload
+        # La fecha puede llegar con huso (recien parseada) o sin el (leida de
+        # la base): las dos formas conviven en el mismo campo.
+        if jugado_el.tzinfo is not None:
+            jugado_el = jugado_el.astimezone(UTC).replace(tzinfo=None)
+
+        def _mismo_dia(crudo: str) -> bool:
+            # `ht_to_utc` devuelve con huso y la base guarda sin el: se comparan
+            # los dos en UTC ingenuo, como el resto de la aplicacion.
+            cuando = ht_to_utc(crudo or "")
+            if cuando is None:
+                return False
+            if cuando.tzinfo is not None:
+                cuando = cuando.astimezone(UTC).replace(tzinfo=None)
+            return abs((cuando - jugado_el).days) <= 1
+
+        if _mismo_dia(payload.get("match_date", "")):
+            return payload
+        try:
+            otra = await self._chpp.fetch(
+                "matchdetails", version=FILE_VERSIONS["matchdetails"],
+                matchID=ht_match_id, sourceSystem="htointegrated",
+            )
+        except Exception:  # noqa: BLE001 — best effort, ver docstring
+            return payload
+        if not otra.get("ht_match_id"):
+            return payload
+        return otra if _mismo_dia(otra.get("match_date", "")) else payload
+
     async def _reparar_partidos_ajenos_sin_ficha(self, uow: UnitOfWork) -> int:
         """Partidos con minutos guardados pero sin ficha, que nadie cuenta.
 
@@ -1635,14 +1839,25 @@ class SyncTeamHandler:
         )).scalars().all()
         rescatados = 0
         for ht_match_id in huerfanos:
+            # La fecha real la sabe la foto del jugador que vio ese partido, y
+            # sin ella no hay forma de notar que la ficha que llega es de otro
+            # partido con el mismo numero (ver `_misma_ficha_o_la_de_seleccion`).
+            jugado_el = await uow.session.scalar(
+                select(m.PlayerSnapshot.last_match_played_at)
+                .where(m.PlayerSnapshot.last_match_ht_id == ht_match_id)
+                .order_by(m.PlayerSnapshot.captured_at.desc())
+                .limit(1)
+            )
             try:
-                await self._backfill_foreign_match_type(uow, ht_match_id)
+                await self._backfill_foreign_match_type(uow, ht_match_id, jugado_el=jugado_el)
             except Exception:  # noqa: BLE001 — best effort, como el resto
                 continue
             rescatados += 1
         return rescatados
 
-    async def _backfill_foreign_match_type(self, uow: UnitOfWork, ht_match_id: int) -> None:
+    async def _backfill_foreign_match_type(
+        self, uow: UnitOfWork, ht_match_id: int, jugado_el: datetime | None = None,
+    ) -> None:
         """Crea la fila `Match` de un partido AJENO (selección nacional,
         Masters, juvenil...) que `playerdetails.xml` expuso vía `LastMatch`
         pero que `matches.xml`/`leaguefixtures.xml` nunca traen — esos solo
@@ -1670,6 +1885,7 @@ class SyncTeamHandler:
         )
         if not payload.get("ht_match_id"):
             return  # chpp error / partido sin datos: nada que crear todavía
+        payload = await self._misma_ficha_o_la_de_seleccion(payload, ht_match_id, jugado_el)
         date_str = payload.get("match_date", "")
         played_at = (
             ht_to_utc(date_str) or datetime.now(UTC)
@@ -1801,7 +2017,9 @@ class SyncTeamHandler:
             # siempre (un partido jugado no cambia).
             ht_match_id = last_match.get("ht_match_id", 0)
             if ht_match_id:
-                await self._backfill_foreign_match_type(uow, ht_match_id)
+                await self._backfill_foreign_match_type(
+                    uow, ht_match_id, jugado_el=snap.last_match_played_at,
+                )
         # CareerAssists no está en players.xml (ver parsers) — solo aquí,
         # en playerdetails.
         if "career_assists" in payload and snap.career_assists != payload["career_assists"]:
@@ -2857,6 +3075,8 @@ class SyncTeamHandler:
             row.country_code = league.get("country_code", "")
             row.league_name = league.get("league_name", "")
             row.country_name = league.get("country_name", "")
+            row.national_team_id = league.get("national_team_id", 0)
+            row.u21_team_id = league.get("u21_team_id", 0)
             row.season = league.get("season", 0)
             row.season_offset = league.get("season_offset", 0)
             row.match_round = league.get("match_round", 0)

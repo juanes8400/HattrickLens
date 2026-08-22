@@ -92,3 +92,59 @@ def test_no_vuelve_a_pedir_lo_que_ya_tiene_ficha() -> None:
         assert len(chpp.pedidos) == 1
 
     asyncio.run(corre())
+
+
+class CHPPDeDosMundos:
+    """Un mismo numero de partido existe en dos espacios distintos.
+
+    Sin la marca `htointegrated` CHPP no da error: da OTRO partido, uno de club
+    con el mismo numero. Verificado en vivo con el 41943634.
+    """
+
+    def __init__(self) -> None:
+        self.pedidos: list[dict[str, Any]] = []
+
+    async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+        self.pedidos.append(params)
+        ficha = get_parser(file)((FIXTURES / "matchdetails.xml").read_bytes())
+        ficha["ht_match_id"] = params["matchID"]
+        if params.get("sourceSystem") == "htointegrated":
+            ficha["match_type"] = 10
+            ficha["match_date"] = "2026-08-21 20:00:00"
+        else:
+            ficha["match_type"] = 1
+            ficha["match_date"] = "2005-08-27 19:00:00"
+        return ficha
+
+
+def test_un_partido_de_seleccion_no_se_confunde_con_uno_de_2005() -> None:
+    async def corre() -> None:
+        uow, _ = await _preparar()
+        chpp = CHPPDeDosMundos()
+        async with uow:
+            await SyncTeamHandler(uow, chpp)._backfill_foreign_match_type(
+                uow, PARTIDO_AJENO, jugado_el=datetime(2026, 8, 21, 18, 0),
+            )
+            await uow.commit()
+        async with uow:
+            ficha = await uow.session.scalar(
+                select(m.Match).where(m.Match.ht_match_id == PARTIDO_AJENO)
+            )
+        assert ficha is not None
+        assert ficha.match_type == 10, "se quedo con el partido equivocado"
+        assert ficha.played_at.year == 2026
+        assert any(p.get("sourceSystem") == "htointegrated" for p in chpp.pedidos)
+
+    asyncio.run(corre())
+
+
+def test_sin_fecha_con_que_comparar_no_se_gasta_una_segunda_llamada() -> None:
+    async def corre() -> None:
+        uow, _ = await _preparar()
+        chpp = CHPPDeDosMundos()
+        async with uow:
+            await SyncTeamHandler(uow, chpp)._backfill_foreign_match_type(uow, PARTIDO_AJENO)
+            await uow.commit()
+        assert len(chpp.pedidos) == 1
+
+    asyncio.run(corre())

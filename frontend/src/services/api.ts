@@ -686,9 +686,21 @@ export interface LastSyncChanges {
   playerRows: PlayerComparisonRow[];
   summary: ChangeMetricSummary[];
   clubChanges: ClubComparisonChange[];
+  /** Partidos de selección jugados desde el informe anterior. */
+  nationalMatches: NationalMatchAppearance[];
   /** Snapshots navegables — sólo los que tuvieron cambios reales, del más
    *  reciente al más antiguo. Elegir uno recalcula toda la comparación. */
   availableReports: { syncId: number; syncedAt: string; changeCount: number }[];
+}
+
+export interface NationalMatchAppearance {
+  htPlayerId: number;
+  name: string;
+  minutes: number;
+  rating: number | null;
+  playedAt: string | null;
+  competition: string;
+  match: string;
 }
 
 export interface MatchDetailsSyncResult {

@@ -996,6 +996,11 @@ class WorldContext(Base):
     country_code: Mapped[str] = mapped_column(String(2), default="")
     league_name: Mapped[str] = mapped_column(String(128), default="")
     country_name: Mapped[str] = mapped_column(String(128), default="")
+    # Las dos selecciones del pais, para saber donde mirar cuando a un jugador
+    # de aqui le sube el contador de partidos internacionales. Vienen gratis
+    # en worlddetails, que ya se descarga entero.
+    national_team_id: Mapped[int] = mapped_column(Integer, default=0)
+    u21_team_id: Mapped[int] = mapped_column(Integer, default=0)
     season: Mapped[int] = mapped_column(SmallInteger, default=0)
     # Diferencia fija de temporada respecto a Suecia — informativo (la
     # aritmética de `season_at` en player_balance.py solo necesita `season`

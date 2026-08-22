@@ -60,6 +60,8 @@ class MatchCount:
     tournament: int = 0
     masters: int = 0
     national_team_friendly: int = 0
+    national_team_competitive: int = 0
+    national_team_competitive_cup: int = 0
     youth_league: int = 0
     youth_friendly: int = 0
 
@@ -73,6 +75,8 @@ class MatchCount:
             "tournament": self.tournament,
             "masters": self.masters,
             "national_team_friendly": self.national_team_friendly,
+            "national_team_competitive": self.national_team_competitive,
+            "national_team_competitive_cup": self.national_team_competitive_cup,
             "youth_league": self.youth_league,
             "youth_friendly": self.youth_friendly,
         }

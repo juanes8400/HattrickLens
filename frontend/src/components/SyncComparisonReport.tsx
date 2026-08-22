@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { number } from "../hooks/useFormat";
+import type { NationalMatchAppearance } from "../services/api";
 import { Empty, Panel } from "./Panels";
 import type { ClubComparisonChange } from "../services/api";
 
@@ -177,6 +178,40 @@ export function ClubMoraleSection({
       ) : (
         <TarjetasDeCambio items={items} />
       )}
+    </Panel>
+  );
+}
+
+
+/** Quién jugó con su selección y cuántos minutos.
+ *
+ * Esos partidos no están en el archivo de ningún club, así que no aparecían
+ * por ningún lado: un jugador se iba el martes, volvía con un partido más de
+ * experiencia, y en Cambios no se veía nada.
+ */
+export function NationalTeamSection({
+  appearances,
+}: {
+  appearances: NationalMatchAppearance[];
+}) {
+  if (appearances.length === 0) return null;
+  return (
+    <Panel
+      title="Con su selección"
+      meta={`${appearances.length} ${appearances.length === 1 ? "partido" : "partidos"} desde el informe anterior`}
+    >
+      <ul className="divide-y divide-[var(--border)]">
+        {appearances.map((a) => (
+          <li key={`${a.htPlayerId}-${a.playedAt}`} className="px-4 py-3 text-sm">
+            <span className="font-medium">{a.name}</span> jugó{" "}
+            <span className="tabular-nums font-medium">{a.minutes} min</span> en{" "}
+            {a.match || a.competition}
+            {a.rating ? (
+              <span className="text-[var(--muted)]"> · {a.rating} estrellas</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </Panel>
   );
 }
