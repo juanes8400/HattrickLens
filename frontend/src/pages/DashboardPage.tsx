@@ -70,13 +70,22 @@ export function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Caja" value={money(data.finance?.cash ?? 0)} hint={cur} />
         <Kpi
-          label="Balance estructural"
-          value={`${money(data.finance?.structuralBalance ?? 0)}/sem`}
-          hint="sin transferencias"
-          tone={(data.finance?.structuralBalance ?? 0) < 0 ? "danger" : "positive"}
+          label="Balance bisemanal"
+          value={money(data.finance?.biweeklyBalance ?? 0)}
+          hint="las dos semanas cerradas"
+          tone={(data.finance?.biweeklyBalance ?? 0) < 0 ? "danger" : "positive"}
         />
-        <Kpi label="Salarios" value={money(data.squad?.totalSalary ?? 0)} hint={cur} />
-        <Kpi label="TSI total" value={number(data.squad?.totalTsi ?? 0)} />
+        <Kpi
+          label="Salarios"
+          value={money(data.finance?.biweeklySalaries ?? 0)}
+          hint={`${(data.finance?.salarySharePct ?? 0)
+            .toLocaleString("es", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% de los ingresos`}
+        />
+        <Kpi
+          label="TSI de los 11 mejores"
+          value={number(data.squad?.top11Tsi ?? 0)}
+          hint={`de ${number(data.squad?.totalTsi ?? 0)} en la plantilla`}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

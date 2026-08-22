@@ -97,6 +97,14 @@ class DashboardQueryService:
             def local(v: int) -> int:
                 return int(round(v / rate))
 
+            # Las dos semanas ya cerradas que guarda Hattrick: la ultima y la
+            # de antes (`last_*`). Los ingresos llevan las ventas dentro, que
+            # es como se pidio: el porcentaje de salarios se mueve con ellas y
+            # eso es parte de la respuesta, no ruido.
+            ingresos_dos_semanas = econ.income_sum + econ.last_income_sum
+            gastos_dos_semanas = econ.costs_sum + econ.last_costs_sum
+            salarios_dos_semanas = econ.costs_players + econ.last_costs_players
+
             resp.finance = FinanceSummary(
                 cash=local(econ.cash),
                 expected_cash=local(econ.expected_cash),
@@ -111,6 +119,13 @@ class DashboardQueryService:
                     econ.income_spectators,
                     econ.costs_players, econ.costs_staff, econ.costs_arena,
                 )),
+                biweekly_balance=local(ingresos_dos_semanas - gastos_dos_semanas),
+                biweekly_income=local(ingresos_dos_semanas),
+                biweekly_salaries=local(salarios_dos_semanas),
+                salary_share_pct=(
+                    round(salarios_dos_semanas / ingresos_dos_semanas * 100, 1)
+                    if ingresos_dos_semanas > 0 else 0.0
+                ),
                 currency=team.currency_name or "",
             )
 
@@ -206,6 +221,7 @@ class DashboardQueryService:
             player_count=n,
             avg_age=round(avg_age, 1),
             total_tsi=sum(p.tsi for p in players),
+            top11_tsi=sum(sorted((p.tsi for p in players), reverse=True)[:11]),
             total_salary=int(round(sum(p.salary for p in players) / rate)),
             # Solo bajas reales: el nivel 0 es magullado y puede jugar, así
             # que contarlo inflaba el marcador de lesionados del Dashboard.

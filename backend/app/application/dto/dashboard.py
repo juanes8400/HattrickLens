@@ -17,6 +17,8 @@ class SquadSummary(Base):
     player_count: int
     avg_age: float
     total_tsi: int
+    #: Los once de mas TSI. El resto de la plantilla no juega los partidos.
+    top11_tsi: int
     total_salary: int
     injured_count: int
 
@@ -33,6 +35,14 @@ class FinanceSummary(Base):
     # Balance recurrente sin transferencias — el número que revela si la
     # operación del club es sostenible (idea tomada del "sin Otros" de HC).
     structural_balance: int = 0
+    # Dos semanas cerradas, no una. En Hattrick los partidos en casa se
+    # alternan, asi que una sola semana sale eufórica o deprimida segun cual
+    # toque; dos cubren siempre una taquilla y el numero deja de saltar.
+    biweekly_balance: int = 0
+    biweekly_income: int = 0
+    biweekly_salaries: int = 0
+    #: Salarios como parte de los ingresos, transferencias incluidas.
+    salary_share_pct: float = 0.0
     currency: str = ""
 
 

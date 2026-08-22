@@ -973,6 +973,8 @@ export interface Squad {
     averageExperience: number;
     averageTsi: number;
     totalTsi: number;
+  /** Los once de más TSI. */
+  top11Tsi: number;
     averageSalary: number;
     totalSalary: number;
   };
@@ -997,6 +999,8 @@ export interface Dashboard {
     playerCount: number;
     avgAge: number;
     totalTsi: number;
+    /** Los once de más TSI. */
+    top11Tsi: number;
     totalSalary: number;
     injuredCount: number;
   } | null;
@@ -1010,6 +1014,12 @@ export interface Dashboard {
     fanClubSize: number;
     lastWeeksTotal: number;
     structuralBalance: number;
+  /** Las dos semanas ya cerradas: cubren siempre un partido en casa. */
+  biweeklyBalance: number;
+  biweeklyIncome: number;
+  biweeklySalaries: number;
+  /** Salarios sobre los ingresos de esas dos semanas, ventas incluidas. */
+  salarySharePct: number;
     currency: string;
   } | null;
   training: {
