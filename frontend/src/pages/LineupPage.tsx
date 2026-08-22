@@ -311,9 +311,10 @@ export function LineupPage() {
 function HindsightPanel({ data }: { data: LineupHindsight }) {
   if (data.matchId == null) {
     return (
-      <Panel title="Decisiones del último partido">
+      <Panel title="Tu alineación contra la propuesta">
         <Empty>
-          {data.notes[0] ?? "Todavía no hay un partido con calificaciones para comparar."}
+          {data.notes[0] ??
+            "No has enviado alineación para ningún partido próximo."}
         </Empty>
       </Panel>
     );
@@ -326,13 +327,20 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
 
   return (
     <Panel
-      title="Decisiones del último partido"
+      title="Tu alineación contra la propuesta"
       meta={
         data.matchLabel
           ? `${data.matchLabel} · coinciden ${data.agreementCount}/${data.comparableCount}`
           : `coinciden ${data.agreementCount}/${data.comparableCount}`
       }
     >
+      {/* Contra qué se compara, dicho donde se ve: la alineación que el
+          usuario ya envió, no un partido pasado. */}
+      {data.notes[0] && (
+        <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
+          {data.notes[0]}
+        </p>
+      )}
       <div className="divide-y divide-[var(--border)]">
         {data.lines.map((line) => (
           <div key={line.key} className="grid gap-2 p-4 sm:grid-cols-[9rem_1fr]">
@@ -353,17 +361,20 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
                     {p.positionLabel}
                     {p.playedMinutes < 90 && ` · ${p.playedMinutes}′`}
                   </span>
-                  <span
-                    className={
-                      p.rating >= 7
-                        ? "tabular-nums font-semibold text-[var(--positive)]"
-                        : p.rating <= 4
-                          ? "tabular-nums font-semibold text-[var(--danger)]"
-                          : "tabular-nums font-semibold"
-                    }
-                  >
-                    {p.rating.toFixed(1)}
-                  </span>
+                  {/* El partido no se ha jugado: no hay nota que enseñar. */}
+                  {p.rating != null && (
+                    <span
+                      className={
+                        p.rating >= 7
+                          ? "tabular-nums font-semibold text-[var(--positive)]"
+                          : p.rating <= 4
+                            ? "tabular-nums font-semibold text-[var(--danger)]"
+                            : "tabular-nums font-semibold"
+                      }
+                    >
+                      {p.rating.toFixed(1)}
+                    </span>
+                  )}
                   {p.alsoProposed && (
                     <span className="text-xs text-[var(--muted)]">
                       · el optimizador coincide

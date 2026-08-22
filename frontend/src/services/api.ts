@@ -557,7 +557,8 @@ export interface HindsightUsedPlayer {
   htPlayerId: number;
   positionLabel: string;
   playedMinutes: number;
-  rating: number;
+  /** `null` mientras el partido no se haya jugado: no hay nota todavía. */
+  rating: number | null;
   /** El optimizador también lo pondría en esta línea. */
   alsoProposed: boolean;
 }

@@ -1,5 +1,6 @@
 """Endpoints de los motores de análisis. HL-034, HL-036, HL-101, HL-121, HL-130."""
 import hashlib
+import json
 from collections.abc import Collection
 from datetime import UTC, datetime
 from typing import Any
@@ -706,18 +707,22 @@ async def lineup_hindsight(
     team_id: int,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    """Evaluar decisiones REALES — pedido explícito 2026-08-15.
+    """Tu alineación enviada contra la que pondría el optimizador.
 
-    Cruza quién jugó de verdad en el último partido (`player_match_ratings`,
-    que guarda posición y calificación por jugador) con quién habría puesto el
-    optimizador en esa misma posición.
+    2026-08-22, cambiado a pedido del usuario: antes comparaba contra el
+    ÚLTIMO PARTIDO JUGADO, y eso no medía nada útil. Un partido de hace dos
+    semanas se jugó con otra formación, o con alguien dentro porque necesitaba
+    entrenar; compararse contra eso es compararse contra decisiones que ya no
+    son las de hoy.
 
-    LÍMITE IMPORTANTE, y por eso viaja en la respuesta: el optimizador corre
-    con las habilidades de HOY, no con las que el jugador tenía el día del
-    partido — no guardamos un snapshot por partido. Sirve para detectar
-    posiciones donde sistemáticamente hay una opción mejor en plantilla, no
-    para juzgar una decisión puntual del pasado con información que entonces
-    no existía.
+    Ahora mira la alineación que ya enviaste para tu próximo partido --la que
+    Hattrick guarda y esta aplicación refresca en cada sincronización mientras
+    el partido siga abierto-- y la contrasta con el once de hoy. Si cambias la
+    alineación, la comparación cambia contigo.
+
+    LÍMITE que viaja en la respuesta: el optimizador razona por familia (tres
+    plazas de defensa central, sin lado), así que compara CONJUNTOS de
+    jugadores por línea, no puesto contra puesto.
     """
     from app.domain.value_objects.ht_constants import (
         MATCH_ROLE_CENTRAL_DEFENDER,
@@ -745,34 +750,25 @@ async def lineup_hindsight(
         ("forward", "Delanteros", MATCH_ROLE_FORWARD, "forward"),
     ]
 
-    # El último partido DE ESTE CLUB del que tengamos calificaciones.
-    #
-    # Las dos condiciones importan. Sin la primera se colaba un partido ajeno:
-    # la ficha de un jugador trae su último partido, y el de alguien recién
-    # comprado es el que jugó en su club anterior. Ese partido entraba con
-    # UN solo jugador nuestro dentro, así que la comparación salía "0 de 0" en
-    # todas las líneas --portería incluida, proponiendo un portero como si no
-    # hubieras puesto ninguno-- y el marcador era de un partido que no jugaste.
-    #
-    # Y se ordena por cuándo se JUGÓ, no por cuándo lo vimos: un partido viejo
-    # descubierto hoy no es el último partido.
     equipo = await session.get(m.Team, team_id)
     if equipo is None:
         raise HTTPException(404, f"team {team_id} not found")
-    last_match_id = await session.scalar(
-        select(m.PlayerMatchRating.ht_match_id)
-        .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
-        .join(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
+
+    # El PRÓXIMO partido para el que ya enviaste alineación. No el último
+    # jugado: comparar contra un partido viejo mide decisiones que ya no son
+    # las de hoy (otra formación, alguien dentro porque le tocaba entrenar).
+    partido = await session.scalar(
+        select(m.Match)
         .where(
-            m.Player.team_id == team_id,
             (m.Match.home_team_ht_id == equipo.ht_team_id)
             | (m.Match.away_team_ht_id == equipo.ht_team_id),
+            m.Match.submitted_lineup_json.is_not(None),
+            m.Match.status.ilike("upcoming"),
         )
-        .group_by(m.PlayerMatchRating.ht_match_id, m.Match.played_at)
-        .order_by(m.Match.played_at.desc())
+        .order_by(m.Match.played_at)
         .limit(1)
     )
-    if last_match_id is None:
+    if partido is None:
         return {
             "matchId": None,
             "matchLabel": None,
@@ -780,26 +776,35 @@ async def lineup_hindsight(
             "proposedFormation": None,
             "agreementCount": 0,
             "comparableCount": 0,
-            "played": [],
+            "lines": [],
             "notes": [
-                "Todavía no hay calificaciones individuales guardadas. Llegan "
-                "con las fichas de jugador, cárgalas desde Sincronización."
+                "No has enviado alineación para ningún partido próximo. En "
+                "cuanto la mandes en Hattrick y sincronices, aquí verás en qué "
+                "coincide con la que propone la aplicación."
             ],
         }
 
-    rows = list((await session.execute(
-        select(m.PlayerMatchRating, m.Player)
-        .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
-        .where(
-            m.Player.team_id == team_id,
-            m.PlayerMatchRating.ht_match_id == last_match_id,
-        )
-        .order_by(m.PlayerMatchRating.position_code)
-    )).all())
+    try:
+        enviada = json.loads(partido.submitted_lineup_json or "[]")
+    except ValueError:
+        enviada = []
 
-    match = await session.scalar(
-        select(m.Match).where(m.Match.ht_match_id == last_match_id)
-    )
+    rows = []
+    if enviada:
+        por_id = {
+            p.ht_player_id: p
+            for p in (await session.execute(
+                select(m.Player).where(
+                    m.Player.ht_player_id.in_(
+                        [int(x.get("ht_player_id", 0)) for x in enviada]
+                    )
+                )
+            )).scalars().all()
+        }
+        for puesto in enviada:
+            jugador = por_id.get(int(puesto.get("ht_player_id", 0)))
+            if jugador is not None:
+                rows.append((int(puesto.get("role_id", 0)), jugador))
 
     # El once que propondría HOY el optimizador, en su mejor formación.
     players, _ = await roster(session, team_id)
@@ -821,17 +826,19 @@ async def lineup_hindsight(
         pass  # plantilla insuficiente: se muestra sólo lo que pasó de verdad
 
     played_by_family: dict[str, list[dict[str, Any]]] = {}
-    for rating_row, player in rows:
+    for role_id, player in rows:
         for key, _label, codes, _prefix in FAMILIES:
-            if rating_row.position_code in codes:
+            if role_id in codes:
                 played_by_family.setdefault(key, []).append({
                     "player": f"{player.first_name} {player.last_name}".strip(),
                     "htPlayerId": player.ht_player_id,
                     "positionLabel": MATCH_ROLE_NAMES.get(
-                        rating_row.position_code, f"código {rating_row.position_code}"
+                        role_id, f"código {role_id}"
                     ),
-                    "playedMinutes": rating_row.played_minutes,
-                    "rating": rating_row.rating,
+                    # La alineación aún no se ha jugado: no hay minutos ni
+                    # nota que enseñar, y la pantalla los oculta con esto.
+                    "playedMinutes": 90,
+                    "rating": None,
                 })
                 break
 
@@ -863,19 +870,16 @@ async def lineup_hindsight(
         })
 
     return {
-        "matchId": last_match_id,
-        "matchLabel": (
-            f"{match.home_team_name} {match.home_goals}-{match.away_goals} "
-            f"{match.away_team_name}"
-            if match is not None and match.home_goals >= 0
-            else None
-        ),
-        "playedAt": match.played_at.isoformat() if match is not None else None,
+        "matchId": partido.ht_match_id,
+        "matchLabel": f"{partido.home_team_name} vs {partido.away_team_name}",
+        "playedAt": partido.played_at.isoformat() if partido.played_at else None,
         "proposedFormation": formation,
         "agreementCount": kept,
         "comparableCount": total_slots,
         "lines": lines,
-        "notes": [],
+        "notes": [
+            "Comparado contra la alineación que ya enviaste para este partido."
+        ],
     }
 
 

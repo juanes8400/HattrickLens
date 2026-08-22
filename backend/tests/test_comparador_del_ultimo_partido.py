@@ -1,12 +1,14 @@
-"""El comparador tiene que mirar TU partido, no uno cualquiera.
+"""La comparacion es contra la alineacion que YA enviaste.
 
-La ficha de un jugador trae su ultimo partido, y el de alguien recien comprado
-es el que jugo en su club anterior. Ese partido llegaba en la sincronizacion
-mas reciente y se colaba como "el ultimo partido" del equipo, con un solo
-jugador nuestro dentro: la comparacion salia "0 de 0" en todas las lineas y el
-marcador era de un partido ajeno.
+2026-08-22, pedido por el usuario: comparar contra el ultimo partido jugado no
+media nada util --se jugo con otra formacion, o con alguien dentro porque
+necesitaba entrenar--. Y ademas se colaba un partido ajeno: la ficha de un
+jugador trae su ultimo partido, y el de un recien comprado es el de su club
+anterior, asi que entraba con UN solo jugador nuestro dentro y las lineas
+salian "0 de 0", porteria incluida.
 """
 import asyncio
+import json
 from datetime import datetime
 from typing import Any
 
@@ -20,12 +22,18 @@ from app.infrastructure.db.session import get_session
 from app.main import app
 
 MI_EQUIPO = 537758
-AJENO = 2163568
-PARTIDO_MIO = 111
-PARTIDO_AJENO = 222
+PROXIMO = 111
+UNO_AJENO = 222
+
+#: role_id de matchorders: 100 portero, 101-105 defensa, 106-110 medio,
+#: 111-113 ataque.
+ONCE = [
+    {"role_id": 100, "ht_player_id": 10, "behaviour": 0},
+    *[{"role_id": r, "ht_player_id": 20 + r, "behaviour": 0} for r in range(101, 111)],
+]
 
 
-def _montar() -> tuple[TestClient, int]:
+def _montar(con_alineacion: bool = True) -> tuple[TestClient, int]:
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool,
         connect_args={"check_same_thread": False},
@@ -40,47 +48,34 @@ def _montar() -> tuple[TestClient, int]:
             s.add(equipo)
             await s.flush()
 
-            s.add_all([
-                m.Match(
-                    ht_match_id=PARTIDO_MIO, played_at=datetime(2026, 8, 19, 22, 10),
-                    match_type=1, status="FINISHED",
-                    home_team_ht_id=MI_EQUIPO, away_team_ht_id=999,
-                    home_team_name="Pulgas Arrechas", away_team_name="Charta F. C.",
-                    home_goals=3, away_goals=0,
-                ),
-                # Jugado DESPUES y visto DESPUES, pero no es nuestro.
-                m.Match(
-                    ht_match_id=PARTIDO_AJENO, played_at=datetime(2026, 8, 20, 18, 0),
-                    match_type=1, status="FINISHED",
-                    home_team_ht_id=AJENO, away_team_ht_id=888,
-                    home_team_name="Santana Red Devils", away_team_name="Manculicani",
-                    home_goals=1, away_goals=0,
-                ),
-            ])
+            s.add(m.Match(
+                ht_match_id=PROXIMO, played_at=datetime(2026, 8, 23, 21, 40),
+                match_type=1, status="UPCOMING",
+                home_team_ht_id=MI_EQUIPO, away_team_ht_id=999,
+                home_team_name="Pulgas Arrechas", away_team_name="San Andrés",
+                home_goals=-1, away_goals=-1,
+                submitted_lineup_json=json.dumps(ONCE) if con_alineacion else None,
+            ))
+            # Un partido AJENO, mas reciente, con alineacion enviada de otro:
+            # no debe ganar por ser mas nuevo ni por nada.
+            s.add(m.Match(
+                ht_match_id=UNO_AJENO, played_at=datetime(2026, 8, 21, 18, 0),
+                match_type=1, status="UPCOMING",
+                home_team_ht_id=2163568, away_team_ht_id=888,
+                home_team_name="Santana Red Devils", away_team_name="Manculicani",
+                home_goals=-1, away_goals=-1,
+                submitted_lineup_json=json.dumps(ONCE),
+            ))
 
-            titular = m.Player(
+            s.add(m.Player(
                 ht_player_id=10, team_id=equipo.id,
                 first_name="Anders", last_name="Ebbesen",
-            )
-            recien_comprado = m.Player(
-                ht_player_id=20, team_id=equipo.id,
-                first_name="José Vicente", last_name="Alvargonzález",
-            )
-            s.add_all([titular, recien_comprado])
-            await s.flush()
-
-            s.add_all([
-                m.PlayerMatchRating(
-                    player_id=titular.id, ht_match_id=PARTIDO_MIO,
-                    position_code=100, played_minutes=90, rating=5.0,
-                    captured_at=datetime(2026, 8, 19, 23, 0),
-                ),
-                m.PlayerMatchRating(
-                    player_id=recien_comprado.id, ht_match_id=PARTIDO_AJENO,
-                    position_code=103, played_minutes=90, rating=4.0,
-                    captured_at=datetime(2026, 8, 22, 12, 0),   # visto mucho despues
-                ),
-            ])
+            ))
+            for r in range(101, 111):
+                s.add(m.Player(
+                    ht_player_id=20 + r, team_id=equipo.id,
+                    first_name="J", last_name=str(r),
+                ))
             await s.commit()
             return equipo.id
 
@@ -95,25 +90,47 @@ def _montar() -> tuple[TestClient, int]:
     return TestClient(app), team_id
 
 
-def test_compara_el_partido_del_club_no_el_del_fichaje() -> None:
+def test_compara_contra_la_alineacion_enviada_del_proximo_partido() -> None:
     client, team_id = _montar()
     try:
         cuerpo = client.get(f"/api/v1/teams/{team_id}/lineup/hindsight").json()
-        assert cuerpo["matchId"] == PARTIDO_MIO, (
-            f"escogio {cuerpo['matchLabel']}, que no es un partido de este club"
+        assert cuerpo["matchId"] == PROXIMO
+        assert "Pulgas Arrechas" in cuerpo["matchLabel"]
+        assert any("ya enviaste" in n for n in cuerpo["notes"]), (
+            "falta el mensaje que dice contra que se compara"
         )
-        assert "Pulgas Arrechas" in (cuerpo["matchLabel"] or "")
     finally:
         app.dependency_overrides.clear()
 
 
-def test_el_portero_que_si_jugo_no_sale_como_hueco() -> None:
-    """El sintoma que lo delató: portería 0/0 proponiendo un portero."""
+def test_el_partido_de_otro_club_no_entra() -> None:
+    client, team_id = _montar()
+    try:
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/lineup/hindsight").json()
+        assert cuerpo["matchId"] != UNO_AJENO
+        assert "Santana" not in (cuerpo["matchLabel"] or "")
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_el_portero_que_pusiste_cuenta_como_puesto() -> None:
+    """El sintoma que lo delato: porteria 0/0 proponiendo un portero."""
     client, team_id = _montar()
     try:
         cuerpo = client.get(f"/api/v1/teams/{team_id}/lineup/hindsight").json()
         porteria = next(l for l in cuerpo["lines"] if l["key"] == "keeper")
-        assert porteria["usedCount"] == 1, "puso portero y salia como que no"
+        assert porteria["usedCount"] == 1
         assert porteria["used"][0]["player"] == "Anders Ebbesen"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_sin_alineacion_enviada_lo_dice_en_vez_de_inventar() -> None:
+    client, team_id = _montar(con_alineacion=False)
+    try:
+        cuerpo = client.get(f"/api/v1/teams/{team_id}/lineup/hindsight").json()
+        assert cuerpo["matchId"] is None
+        assert cuerpo["lines"] == []
+        assert any("No has enviado alineación" in n for n in cuerpo["notes"])
     finally:
         app.dependency_overrides.clear()
