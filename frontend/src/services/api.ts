@@ -1908,6 +1908,9 @@ export interface PlayerBalanceRow {
   deltaTsi: number | "?";
   commissionAmount: number | "?";
   roiPct: number | "?";
+  /** Lo invertido en la etapa. Los desgloses ROI suman esto y el saldo
+   *  por grupo, y dividen al final. */
+  totalCost: number;
   destinationCountry: string;
   destinationCountryCode: string | null;
   ageAtSale: number | "?";

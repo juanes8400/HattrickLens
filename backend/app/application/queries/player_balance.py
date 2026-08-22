@@ -247,6 +247,9 @@ class PlayerBalanceRow:
     # ht_player_id, asi que la pantalla necesita otra cosa para
     # distinguirlas y para saber a cual apunta una edicion.
     stint_id: int | None = None
+    # Lo invertido en la etapa (compra o ascenso + salarios + listados).
+    # Lo usan los desgloses por ROI para sumar antes de dividir.
+    total_cost: int = 0
 
 
 def _build_breakdowns(sold_rows: list[PlayerBalanceRow]) -> dict[str, dict[str, float]]:
@@ -783,9 +786,16 @@ class PlayerBalanceQueryService:
             commission_amount: float | str = "?"
             if balance.is_sold and effective_sale_price is not None:
                 commission_amount = round(effective_sale_price - balance.net_sale_proceeds, 2)
+            # Lo invertido en esta etapa, expuesto aparte del ROI: los
+            # desgloses por ROI suman PRIMERO todos los componentes de cada
+            # grupo y dividen al final. Promediar los porcentajes de cada
+            # etapa daria el mismo peso a uno de 10.000 que a uno de cinco
+            # millones, que no es lo que se quiere saber.
+            total_cost = (
+                (balance.purchase_price or 0) + balance.salary_total + balance.listing_cost
+            )
             roi_pct: float | str = "?"
             if balance.saldo is not None:
-                total_cost = (balance.purchase_price or 0) + balance.salary_total + balance.listing_cost
                 if total_cost > 0:
                     roi_pct = round(balance.saldo / total_cost * 100, 2)
             saldo_per_delta_tsi: float | str = "?"
@@ -833,6 +843,7 @@ class PlayerBalanceQueryService:
                     delta_tsi=delta_tsi,
                     commission_amount=commission_amount,
                     roi_pct=roi_pct,
+                    total_cost=total_cost,
                     destination_country=p.destination_country or "?",
                     destination_country_code=destination_country_code,
                     age_at_sale=age_at_sale,

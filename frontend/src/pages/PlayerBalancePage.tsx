@@ -5,7 +5,7 @@ import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import { Chart } from "../charts/Chart";
 import { CountryCell } from "../components/CountryFlag";
 import { Column, DataTable } from "../components/DataTable";
-import { ErrorState, Kpi, Loading, Panel } from "../components/Panels";
+import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
@@ -187,7 +187,12 @@ function clampRoiForColor(roiPct: number): number {
   return signedSqrt(Math.max(-DOT_ROI_CAP, Math.min(DOT_ROI_CAP, roiPct)));
 }
 
-type SectionKey = "resumen" | "totales" | "desgloses" | "detalle";
+type SectionKey =
+  | "resumen"
+  | "totales"
+  | "desgloses"
+  | "roi"
+  | "detalle";
 
 // Interruptor coqueto reutilizado por los 2 toggles compartidos (pedido
 // explícitamente 2026-08-04/05) — antes duplicado inline en cada sección.
@@ -766,6 +771,51 @@ export function PlayerBalancePage() {
   const topSkillEntries = Object.entries(byTopSkill).sort(
     (a, b) => b[1] - a[1],
   );
+  // ── Desgloses por ROI ──────────────────────────────────────────────────
+  //
+  // La metodología, pedida así: se suman PRIMERO todos los componentes de
+  // cada grupo —lo invertido por un lado, el saldo por otro— y el porcentaje
+  // se calcula al final, sobre esos totales. Promediar los ROI individuales
+  // daría el mismo peso a un jugador de 10.000 que a uno de cinco millones.
+  type Acumulado = { saldo: number; coste: number; ventas: number };
+  const acumular = (
+    destino: Record<string, Acumulado>,
+    clave: string,
+    r: PlayerBalanceRow,
+  ) => {
+    const actual = destino[clave] ?? { saldo: 0, coste: 0, ventas: 0 };
+    actual.saldo += r.saldo ?? 0;
+    actual.coste += r.totalCost;
+    actual.ventas += 1;
+    destino[clave] = actual;
+  };
+
+  const roiPorSemanaCompra: Record<string, Acumulado> = {};
+  const roiPorEntrenamiento: Record<string, Acumulado> = {};
+  const roiPorEdad: Record<string, Acumulado> = {};
+  const roiPorHabilidad: Record<string, Acumulado> = {};
+  const roiPorHora: Record<string, Acumulado> = {};
+  for (const r of desglosesRows) {
+    if (r.saldo == null || r.totalCost <= 0) continue;
+    acumular(
+      roiPorSemanaCompra,
+      r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK,
+      r,
+    );
+    acumular(roiPorEntrenamiento, r.trainingAtSale ?? UNKNOWN_TRAINING, r);
+    acumular(
+      roiPorEdad,
+      typeof r.ageAtSale === "number" ? ageBucket(Math.floor(r.ageAtSale)) : UNKNOWN_AGE,
+      r,
+    );
+    acumular(roiPorHabilidad, r.topSkillAtSale ?? UNKNOWN_TOP_SKILL, r);
+    acumular(
+      roiPorHora,
+      r.bidHourAtSale != null ? bidHourBucket(r.soldAt) : UNKNOWN_BID_HOUR,
+      r,
+    );
+  }
+
   const bidHourEntries = Object.entries(byBidHour).sort(
     (a, b) => bidHourSortKey(a[0]) - bidHourSortKey(b[0]),
   );
@@ -892,7 +942,8 @@ export function PlayerBalancePage() {
           tabs={[
             { key: "resumen", label: "Resumen" },
             { key: "totales", label: "Totales" },
-            { key: "desgloses", label: "Desgloses" },
+            { key: "desgloses", label: "Desgloses absolutos" },
+            { key: "roi", label: "Desgloses ROI" },
             { key: "detalle", label: `Detalle (${detalleRows.length})` },
           ]}
           active={section}
@@ -1212,6 +1263,61 @@ export function PlayerBalancePage() {
         </div>
       )}
 
+      {section === "roi" && (
+        <div className="space-y-4">
+          <Note>
+            Cada grupo suma primero lo invertido y lo ganado de todas sus ventas, y
+            el porcentaje sale de esos totales. No es el promedio de los ROI de
+            cada jugador: así una venta de cinco millones pesa lo que debe frente a
+            una de diez mil.
+          </Note>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RoiPanel
+              title="ROI por semana de compra"
+              meta="semana del calendario, no de la temporada"
+              entries={Object.entries(roiPorSemanaCompra).sort((a, b) =>
+                a[0].localeCompare(b[0], "es", { numeric: true }),
+              )}
+              isDark={isDark}
+            />
+            <RoiPanel
+              title="ROI por hora de cierre de la puja"
+              meta="bloques de 2 horas, en tu hora"
+              entries={Object.entries(roiPorHora).sort((a, b) =>
+                a[0].localeCompare(b[0], "es", { numeric: true }),
+              )}
+              isDark={isDark}
+            />
+            <RoiPanel
+              title="ROI por edad al vender"
+              meta="por tramos de edad"
+              entries={Object.entries(roiPorEdad).sort((a, b) =>
+                a[0].localeCompare(b[0], "es", { numeric: true }),
+              )}
+              isDark={isDark}
+            />
+            <RoiPanel
+              title="ROI por entrenamiento al vender"
+              meta="ordenado de mejor a peor"
+              entries={Object.entries(roiPorEntrenamiento).sort(
+                (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
+              )}
+              horizontal
+              isDark={isDark}
+            />
+            <RoiPanel
+              title="ROI por habilidad más alta"
+              meta="ordenado de mejor a peor"
+              entries={Object.entries(roiPorHabilidad).sort(
+                (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
+              )}
+              horizontal
+              isDark={isDark}
+            />
+          </div>
+        </div>
+      )}
+
       {section === "detalle" && (
         <Panel
           title="Detalle por jugador"
@@ -1307,6 +1413,104 @@ function skillCol(
       );
     },
   };
+}
+
+
+/** Barras de ROI por grupo, con la línea de cero a la vista.
+ *
+ * Un grupo con dos ventas da un porcentaje que parece dato y es anécdota, así
+ * que se dibuja apagado y el número de ventas va siempre al lado. Nada se
+ * esconde: el usuario juzga.
+ */
+const VENTAS_PARA_FIARSE = 5;
+
+function RoiPanel({
+  title,
+  meta,
+  entries,
+  horizontal = false,
+  isDark,
+}: {
+  title: string;
+  meta: string;
+  entries: [string, { saldo: number; coste: number; ventas: number }][];
+  /** Para etiquetas largas: nombres de entrenamiento y de habilidad. */
+  horizontal?: boolean;
+  isDark: boolean;
+}) {
+  if (entries.length === 0) {
+    return (
+      <Panel title={title} meta="sin ventas que repartir">
+        <Empty>Todavía no hay ventas con estos datos.</Empty>
+      </Panel>
+    );
+  }
+
+  const puntos = entries.map(([clave, a]) => ({
+    clave,
+    roi: (a.saldo / a.coste) * 100,
+    ventas: a.ventas,
+  }));
+  const ejeTexto = isDark ? "#8b8b93" : "#6b7280";
+  const rejilla = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+
+  const option: EChartsOption = {
+    grid: { left: horizontal ? 180 : 48, right: 24, top: 16, bottom: 48 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      formatter: (params: unknown) => {
+        const lista = params as { dataIndex: number }[];
+        const p = puntos[lista[0]?.dataIndex ?? 0];
+        if (!p) return "";
+        return `${p.clave}<br/>ROI ${p.roi.toFixed(1)}%<br/>${p.ventas} venta(s)`;
+      },
+    },
+    xAxis: horizontal
+      ? { type: "value", axisLabel: { color: ejeTexto, formatter: "{value}%" },
+          splitLine: { lineStyle: { color: rejilla } } }
+      : { type: "category", data: puntos.map((p) => p.clave),
+          axisLabel: { color: ejeTexto, rotate: puntos.length > 8 ? 45 : 0 } },
+    yAxis: horizontal
+      ? { type: "category", data: puntos.map((p) => p.clave),
+          axisLabel: { color: ejeTexto } }
+      : { type: "value", axisLabel: { color: ejeTexto, formatter: "{value}%" },
+          splitLine: { lineStyle: { color: rejilla } } },
+    series: [
+      {
+        type: "bar",
+        data: puntos.map((p) => ({
+          value: horizontal ? [p.roi, p.clave] : p.roi,
+          itemStyle: {
+            // Apagado cuando el grupo tiene pocas ventas: el número está,
+            // pero no invita a sacar conclusiones.
+            opacity: p.ventas < VENTAS_PARA_FIARSE ? 0.35 : 1,
+            color: p.roi >= 0 ? "var(--accent)" : "#dc2626",
+          },
+        })),
+        // La línea de cero, visible: un ROI negativo tiene que verse cayendo.
+        markLine: {
+          silent: true,
+          symbol: "none",
+          lineStyle: { color: ejeTexto, type: "solid", width: 1 },
+          data: [horizontal ? { xAxis: 0 } : { yAxis: 0 }],
+          label: { show: false },
+        },
+      },
+    ],
+  };
+
+  return (
+    <Panel title={title} meta={meta}>
+      <div className="p-4">
+        <Chart ariaLabel={title} height={horizontal ? 320 : 260} option={option} />
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Los grupos con menos de {VENTAS_PARA_FIARSE} ventas salen apagados: su
+          porcentaje se mueve entero con una sola operación.
+        </p>
+      </div>
+    </Panel>
+  );
 }
 
 function BalanceTable({
