@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.application.commands.sync_team import (
+    VERSION_DEL_LIBRO,
     SyncBackfillBatchCommand,
     SyncPlayerEnrichmentCommand,
     SyncTeamCommand,
@@ -648,6 +649,9 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
             team.ht_team_id = 537758
             team.last_transfer_id_seen = 300
             team.transfers_history_complete = True
+            # Sellado con las reglas de hoy: si no, se relee entero a
+            # proposito (ver `VERSION_DEL_LIBRO`).
+            team.transfers_import_version = VERSION_DEL_LIBRO
             # Desde 2026-08-22 la marca solo vale si el libro de movimientos
             # está lleno: sin él no hay etapas que reconstruir, y el recorrido
             # se rehace aunque la marca diga que estaba completo.

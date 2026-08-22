@@ -203,6 +203,13 @@ FILE_VERSIONS = {
 # app/infrastructure/chpp/parsers/__init__.py.
 MATCHLINEUP_ROLE_VERSION = "2.1"
 
+#: Version de las reglas con que se lee el libro de transferencias. Subirla
+#: obliga a releerlo entero una vez, para todos. Historial:
+#:   1 - compra o venta por los identificadores, no por la letra del tipo.
+#:   2 - se guardan los movimientos sin identificador de jugador, y los dos
+#:       lados de los que nos tienen de comprador y de vendedor a la vez.
+VERSION_DEL_LIBRO = 2
+
 # Campos que definen "cambio real" (excluye derivados/ruido)
 HASH_FIELDS = (
     "age_years", "age_days", "tsi", "form", "stamina", "experience",
@@ -617,7 +624,15 @@ class SyncTeamHandler:
 
         async def ids(condicion) -> list[int]:
             filas = await uow.session.execute(
-                select(m.Player.ht_player_id).where(m.Player.team_id == team_id, condicion)
+                select(m.Player.ht_player_id).where(
+                    m.Player.team_id == team_id,
+                    # Salvaguardia: quien lleva prestado el numero de su
+                    # transferencia no tiene ficha en CHPP. Pedirla gastaria
+                    # una llamada para traer el jugador equivocado, o un error,
+                    # y ademas lo dejaria en la cola para siempre.
+                    ~m.Player.ht_player_id_is_transfer,
+                    condicion,
+                )
             )
             return list(filas.scalars().all())
 
@@ -2137,7 +2152,9 @@ class SyncTeamHandler:
         ht_player_ids = (
             await uow.session.execute(
                 select(m.Player.ht_player_id).where(
-                    m.Player.team_id == team_id, m.Player.left_team_at.is_(None),
+                    m.Player.team_id == team_id,
+                    m.Player.left_team_at.is_(None),
+                    ~m.Player.ht_player_id_is_transfer,
                 )
             )
         ).scalars().all()
@@ -3817,6 +3834,16 @@ class SyncTeamHandler:
         Guardarlos es lo que permite reconstruir las etapas hacia atras sin
         volver a pedirle nada a Hattrick: antes se leian y se tiraban, y de
         cada jugador quedaba solo su ultima compra encima de su ultima venta.
+
+        Dos casos que el libro trae y que hay que tratar aparte:
+
+        - Movimientos SIN identificador de jugador (54 ventas reales de esta
+          cuenta, todas anteriores a abril de 2022). Se les da el numero de la
+          transferencia, que es unico, asi que cada uno queda en su propia
+          ficha. Antes se descartaban, y con ellos 42 millones de ventas.
+        - Movimientos donde el club esta en LOS DOS lados. La venta es tan real
+          como la compra --con su salario y su comision-- asi que se anotan las
+          dos filas, igual que Hattrick, que las cuenta en sus dos totales.
         """
         from sqlalchemy import select
 
@@ -3825,43 +3852,114 @@ class SyncTeamHandler:
         ht_transfer_id = t.get("ht_transfer_id")
         if not ht_transfer_id:
             return
-        # Movimientos muy antiguos llegan sin identificador de jugador. Sin el
-        # no se pueden atribuir a nadie, y meterlos todos bajo el mismo hueco
-        # creaba un jugador fantasma con decenas de etapas abiertas -visto en
-        # la cuenta del usuario, "Orduz" con quince llegadas de 2017 y ninguna
-        # salida-.
-        if not t.get("ht_player_id"):
-            return
-        ya = await uow.session.scalar(
-            select(m.TeamTransfer.id).where(
-                m.TeamTransfer.ht_transfer_id == ht_transfer_id
-            )
-        )
-        if ya is not None:
-            return
         deadline = ht_to_utc_naive(t.get("deadline") or "")
         if deadline is None:
             return
+
+        ht_player_id = t.get("ht_player_id") or 0
+        sin_identificador = not ht_player_id
+        if sin_identificador:
+            ht_player_id = await self._identificador_prestado(uow, ht_transfer_id)
+            if ht_player_id is None:
+                return
+
         # Compra o venta se decide por QUIEN estaba en cada lado, no por la
         # letra de `TransferType`: en 32 movimientos reales de esta cuenta esa
         # letra no dice "B" aunque el comprador seamos nosotros -promociones y
         # traspasos sin dinero, entre otros-, y clasificarlos por ella dejaba
         # esas 32 compras contadas como ventas. Con los identificadores no hay
         # ambiguedad, y el total cuadra con el que publica Hattrick.
-        es_compra = t.get("buyer_team_id") == ht_team_id
-        uow.session.add(m.TeamTransfer(
-            team_id=team_id,
-            ht_transfer_id=ht_transfer_id,
-            ht_player_id=t.get("ht_player_id", 0),
-            player_name=t.get("player_name", "") or "",
-            deadline=deadline,
-            price=t.get("price", 0) or 0,
-            is_buy=es_compra,
-            counterpart_team_id=(
-                t.get("seller_team_id") if es_compra else t.get("buyer_team_id")
-            ),
-            tsi=t.get("tsi"),
-        ))
+        lados = []
+        if t.get("buyer_team_id") == ht_team_id:
+            lados.append(True)
+        if t.get("seller_team_id") == ht_team_id:
+            lados.append(False)
+        if not lados:
+            # Ni comprador ni vendedor: no es un movimiento de este club.
+            return
+
+        for es_compra in lados:
+            ya = await uow.session.scalar(
+                select(m.TeamTransfer.id).where(
+                    m.TeamTransfer.ht_transfer_id == ht_transfer_id,
+                    m.TeamTransfer.is_buy == es_compra,
+                )
+            )
+            if ya is not None:
+                continue
+            uow.session.add(m.TeamTransfer(
+                team_id=team_id,
+                ht_transfer_id=ht_transfer_id,
+                ht_player_id=ht_player_id,
+                player_name=t.get("player_name", "") or "",
+                deadline=deadline,
+                price=t.get("price", 0) or 0,
+                is_buy=es_compra,
+                counterpart_team_id=(
+                    t.get("seller_team_id") if es_compra else t.get("buyer_team_id")
+                ),
+                tsi=t.get("tsi"),
+            ))
+
+    async def _fichas_de_los_sin_identificador(
+        self, uow: UnitOfWork, team_id: int,
+        movimientos: list[Any], jugadores: dict[int, Any],
+    ) -> None:
+        """Una ficha minima para cada movimiento sin identificador de jugador.
+
+        Sin ficha no hay etapa, y sin etapa la venta no existe para ningun
+        calculo. Se crea con lo unico que el libro da: el nombre y la fecha.
+        Queda marcada, para que nadie le pida a CHPP la ficha de un numero que
+        no es de un jugador.
+        """
+        from app.infrastructure.db import models as m
+
+        nuevos = False
+        for mov in movimientos:
+            # El identificador prestado ES el de su transferencia: asi se
+            # guardo, y no hay otro movimiento que pueda coincidir.
+            if mov.ht_player_id != mov.ht_transfer_id:
+                continue
+            if mov.ht_player_id in jugadores:
+                continue
+            nombre = (mov.player_name or "").strip()
+            apellido = nombre.rsplit(" ", 1)[-1] if " " in nombre else nombre
+            jugador = m.Player(
+                ht_player_id=mov.ht_player_id,
+                ht_player_id_is_transfer=True,
+                team_id=team_id,
+                first_name=nombre[: -len(apellido) - 1] if apellido != nombre else "",
+                last_name=apellido or "?",
+                left_team_at=mov.deadline if not mov.is_buy else None,
+                sold_at=mov.deadline if not mov.is_buy else None,
+                sale_price=mov.price if not mov.is_buy else None,
+            )
+            uow.session.add(jugador)
+            jugadores[mov.ht_player_id] = jugador
+            nuevos = True
+        if nuevos:
+            await uow.session.flush()
+
+    async def _identificador_prestado(
+        self, uow: UnitOfWork, ht_transfer_id: int,
+    ) -> int | None:
+        """El numero de la transferencia, prestado como identificador.
+
+        Salvaguardia: solo se presta si NADIE lo tiene ya. Los numeros de
+        transferencia y los de jugador salen de contadores distintos y podrian
+        cruzarse; si eso pasara, atribuir la venta al jugador equivocado seria
+        peor que perderla, asi que se pierde.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        duenyo = await uow.session.scalar(
+            select(m.Player).where(m.Player.ht_player_id == ht_transfer_id)
+        )
+        if duenyo is not None and not duenyo.ht_player_id_is_transfer:
+            return None
+        return ht_transfer_id
 
     async def _reconstruir_etapas(self, uow: UnitOfWork, team_id: int) -> int:
         """Rehace las etapas del club a partir del libro de transferencias.
@@ -3906,6 +4004,7 @@ class SyncTeamHandler:
                 select(m.Player).where(m.Player.team_id == team_id)
             )).scalars().all()
         }
+        await self._fichas_de_los_sin_identificador(uow, team_id, movimientos, jugadores)
 
         await uow.session.execute(
             delete(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
@@ -3930,11 +4029,16 @@ class SyncTeamHandler:
 
             etapa = abierta.pop(mov.ht_player_id, None)
             if etapa is None:
-                # Vendido sin haberlo comprado: llego de la cantera (o de antes
-                # de que este libro alcance). No se inventa fecha de llegada.
+                # Vendido sin haberlo comprado. Casi siempre es un canterano,
+                # pero no cuando el identificador es prestado: de esos no se
+                # sabe de donde salieron, y darlos por cantera meteria como
+                # gratis a gente que costo dinero.
+                prestado = jugador.ht_player_id_is_transfer
                 etapa = m.PlayerStint(
                     player_id=jugador.id, ht_player_id=mov.ht_player_id,
-                    team_id=team_id, from_academy=True,
+                    team_id=team_id,
+                    from_academy=not prestado,
+                    unknown_origin=prestado,
                 )
                 nuevas.append(etapa)
             etapa.left_at = mov.deadline
@@ -4143,7 +4247,12 @@ class SyncTeamHandler:
             )
         ) is not None
         completa = bool(
-            team is not None and team.transfers_history_complete and hay_libro
+            team is not None
+            and team.transfers_history_complete
+            and hay_libro
+            # Leido con reglas viejas = no esta completo, por mucho que la
+            # marca lo diga. Se relee entero una vez y se vuelve a sellar.
+            and team.transfers_import_version >= VERSION_DEL_LIBRO
         )
         watermark = team.last_transfer_id_seen if (team is not None and completa) else None
         highest_seen = watermark or 0
@@ -4250,6 +4359,7 @@ class SyncTeamHandler:
             if highest_seen > (team.last_transfer_id_seen or 0):
                 team.last_transfer_id_seen = highest_seen
             team.transfers_history_complete = True
+            team.transfers_import_version = VERSION_DEL_LIBRO
 
 
     async def execute_transfers_history(

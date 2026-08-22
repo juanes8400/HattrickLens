@@ -132,6 +132,11 @@ class PlayerBalanceRow:
     ht_player_id: int
     name: str
     is_academy_graduate: bool
+    #: Ni comprado ni de cantera: el movimiento llego sin identificador de
+    #: jugador, asi que no hay compra que enlazar ni cantera que suponer.
+    origin_unknown: bool
+    #: El identificador que se enseña es el de la transferencia, no el suyo.
+    ht_player_id_is_transfer: bool
     # Lo que costó subirlo de la cantera, en moneda local. 0 para quien no vino
     # de ahí. Es el "precio de compra" de un canterano: sin él, su saldo salía
     # inflado por ese importe.
@@ -618,7 +623,8 @@ class PlayerBalanceQueryService:
             p = jugador_por_id.get(etapa.player_id)
             if p is None or etapa.excluded:
                 continue
-            is_academy = (
+            origen_desconocido = bool(getattr(etapa, "unknown_origin", False))
+            is_academy = (not origen_desconocido) and (
                 p.mother_club_team_id is not None and p.mother_club_team_id == team.ht_team_id
             )
             # p.purchase_price viene crudo de CHPP (moneda base del juego,
@@ -808,6 +814,10 @@ class PlayerBalanceQueryService:
                     stint_id=etapa.id,
                     name=f"{p.first_name} {p.last_name}".strip(),
                     is_academy_graduate=is_academy,
+                    origin_unknown=origen_desconocido,
+                    ht_player_id_is_transfer=bool(
+                        getattr(p, "ht_player_id_is_transfer", False)
+                    ),
                     promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
                     is_purchase_price_manual=is_manual,
                     purchase_price=balance.purchase_price,

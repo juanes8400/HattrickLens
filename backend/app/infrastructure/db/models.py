@@ -159,6 +159,15 @@ class Team(Base):
     # errores. Sin esto, un primer intento que se corta a la mitad deja la
     # marca de agua apuntando a lo mas reciente y la app cree para siempre
     # que ya tiene todo, sin forma de recuperar lo anterior.
+    #: Con que version de las reglas se leyo el libro. Cuando las reglas
+    #: cambian --y han cambiado: antes se descartaban los movimientos sin
+    #: identificador de jugador y solo se anotaba un lado de los que tenian
+    #: los dos-- el libro guardado se queda corto sin que nadie lo note. Esto
+    #: fuerza UNA relectura completa, y solo una: al terminar se sella con la
+    #: version de hoy.
+    transfers_import_version: Mapped[int] = mapped_column(
+        SmallInteger, default=0, server_default="0"
+    )
     transfers_history_complete: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
     )
@@ -168,6 +177,13 @@ class Player(Base):
     __tablename__ = "players"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_player_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    #: El identificador no es suyo: es el de la transferencia. Pasa cuando
+    #: Hattrick entrega el movimiento sin identificador de jugador. Se marca
+    #: para que la interfaz lo distinga y para que nadie intente pedirle su
+    #: ficha a CHPP con un numero que no le corresponde.
+    ht_player_id_is_transfer: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
     team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), index=True)
     first_name: Mapped[str] = mapped_column(String(64))
     last_name: Mapped[str] = mapped_column(String(64))
@@ -444,9 +460,16 @@ class TeamTransfer(Base):
     """
 
     __tablename__ = "team_transfers"
+    # Un mismo movimiento puede ser compra Y venta a la vez: cuando el club
+    # aparece en los dos lados, Hattrick lo cuenta en sus dos totales. Por eso
+    # lo unico no es la transferencia sola, sino la transferencia por lado —
+    # que sigue impidiendo contarla dos veces por el mismo concepto.
+    __table_args__ = (
+        UniqueConstraint("ht_transfer_id", "is_buy", name="uq_transfer_por_lado"),
+    )
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
-    ht_transfer_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    ht_transfer_id: Mapped[int] = mapped_column(BigInteger, index=True)
     ht_player_id: Mapped[int] = mapped_column(BigInteger, index=True)
     player_name: Mapped[str] = mapped_column(String(128), default="")
     deadline: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
@@ -491,6 +514,13 @@ class PlayerStint(Base):
     arrival_transfer_id: Mapped[int | None] = mapped_column(BigInteger)
     #: Llego de la cantera, no de una compra.
     from_academy: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
+    #: Ni comprado ni de cantera: no se sabe de donde salio. Pasa con los
+    #: movimientos que Hattrick entrega sin identificador de jugador — sin ese
+    #: dato no hay compra que enlazar, y darlos por canteranos meteria como
+    #: gratis a gente que costo dinero.
+    unknown_origin: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
     )
 

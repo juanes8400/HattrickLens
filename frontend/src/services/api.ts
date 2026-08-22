@@ -1951,6 +1951,10 @@ export interface PlayerBalanceRow {
   htPlayerId: number;
   name: string;
   isAcademyGraduate: boolean;
+  /** Ni comprado ni de cantera: el movimiento llegó sin identificador. */
+  originUnknown: boolean;
+  /** El identificador que se enseña es el de la transferencia. */
+  htPlayerIdIsTransfer: boolean;
   /** Lo que costó ascenderlo desde la cantera, en moneda local. 0 para quien
    *  llegó fichado: ese tiene precio de compra. */
   promotionCost: number;

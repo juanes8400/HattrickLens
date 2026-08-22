@@ -652,7 +652,7 @@ export function PlayerBalancePage() {
   // Detalle a la vez, en vez de repetidos/independientes por sección).
   const [trainingFilter, setTrainingFilter] = useState<string>("all");
   const [originFilter, setOriginFilter] = useState<
-    "all" | "bought" | "academy"
+    "all" | "bought" | "academy" | "unknown"
   >("all");
   const [ignoreUnknownData, setIgnoreUnknownData] = useState(false);
   const [ignoreFired, setIgnoreFired] = useState(false);
@@ -707,9 +707,13 @@ export function PlayerBalancePage() {
     );
   }
   if (originFilter === "bought")
-    filteredRows = filteredRows.filter((r) => !r.isAcademyGraduate);
+    filteredRows = filteredRows.filter(
+      (r) => !r.isAcademyGraduate && !r.originUnknown,
+    );
   if (originFilter === "academy")
     filteredRows = filteredRows.filter((r) => r.isAcademyGraduate);
+  if (originFilter === "unknown")
+    filteredRows = filteredRows.filter((r) => r.originUnknown);
   if (ignoreFired)
     filteredRows = filteredRows.filter((r) => !r.isDepartureWithoutSale);
 
@@ -1013,13 +1017,16 @@ export function PlayerBalancePage() {
           <select
             value={originFilter}
             onChange={(e) =>
-              setOriginFilter(e.target.value as "all" | "bought" | "academy")
+              setOriginFilter(
+                e.target.value as "all" | "bought" | "academy" | "unknown",
+              )
             }
             className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
           >
             <option value="all">Todos</option>
             <option value="bought">Comprado</option>
             <option value="academy">Canterano</option>
+            <option value="unknown">Sin origen conocido</option>
           </select>
         </label>
         <ToggleSwitch
@@ -1904,13 +1911,26 @@ function BalanceTable({
       header: "ID",
       align: "right",
       value: (r) => r.htPlayerId,
+      render: (r) => (
+        <span className="tabular-nums">
+          {r.htPlayerId}
+          {r.htPlayerIdIsTransfer ? "*" : ""}
+        </span>
+      ),
     },
     {
       key: "name",
       header: "Jugador",
       align: "left",
       value: (r) => r.name,
-      render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
+      // Sin ficha en Hattrick no hay adonde enlazar: el numero es el de la
+      // transferencia, no el del jugador.
+      render: (r) =>
+        r.htPlayerIdIsTransfer ? (
+          <span>{r.name}</span>
+        ) : (
+          <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />
+        ),
     },
     {
       key: "listingCount",
@@ -2019,9 +2039,10 @@ function BalanceTable({
     },
     {
       key: "isAcademyGraduate",
-      header: "Canterano",
+      header: "Origen",
       align: "left",
-      value: (r) => (r.isAcademyGraduate ? "Sí" : "No"),
+      value: (r) =>
+        r.originUnknown ? "Sin origen conocido" : r.isAcademyGraduate ? "Canterano" : "Comprado",
     },
     {
       key: "ageAtPurchase",
