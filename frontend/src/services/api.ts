@@ -223,6 +223,29 @@ export const api = {
       `/teams/${teamId}/backfill/run${since ? `?since=${encodeURIComponent(since)}` : ""}`,
       { method: "POST" },
     ),
+  /** Atribuye a mano lo que falta de una etapa cerrada, o la excluye. */
+  editStint: (
+    teamId: number,
+    stintId: number,
+    cambios: {
+      training_type?: number | null;
+      top_skill?: string | null;
+      age_years?: number | null;
+      age_days?: number | null;
+      excluded?: boolean;
+    },
+  ) =>
+    request<{
+      stintId: number;
+      trainingType: number | null;
+      topSkill: string | null;
+      ageYears: number | null;
+      ageDays: number | null;
+      excluded: boolean;
+    }>(`/teams/${teamId}/stints/${stintId}`, {
+      method: "PATCH",
+      body: JSON.stringify(cambios),
+    }),
   setManualPurchasePrice: (
     teamId: number,
     htPlayerId: number,

@@ -12,7 +12,7 @@ import { Tabs } from "../components/Tabs";
 import { date, money, number } from "../hooks/useFormat";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
-import { api } from "../services/api";
+import { api, errorMessage } from "../services/api";
 import type { PlayerBalanceRow } from "../services/api";
 
 const UNKNOWN_TRAINING = "Entrenamiento desconocido";
@@ -452,6 +452,159 @@ function HorizontalBarPanel({
  * desconocido. Nunca se usa una valoración de mercado hipotética para un
  * jugador que sigue sin venderse: para eso está la pestaña de Transferencias.
  */
+
+/** Los siete entrenamientos que Hattrick deja elegir hoy, con su nombre. Los
+ *  obsoletos (0 y 1) no se ofrecen: nadie los entrena ya. */
+const ENTRENAMIENTOS: [number, string][] = [
+  [2, "Balón parado"], [3, "Defensa"], [4, "Anotación"], [5, "Lateral"],
+  [6, "Anotación y balón parado"], [7, "Pases"], [8, "Jugadas"], [9, "Portería"],
+  [10, "Pases (defensas y centrocampistas)"],
+  [11, "Defensa (porteros, defensas y centrocampistas)"],
+  [12, "Lateral (extremos y delanteros)"],
+];
+
+const HABILIDADES: [string, string][] = [
+  ["keeper", "Portería"], ["defending", "Defensa"], ["playmaking", "Jugadas"],
+  ["winger", "Lateral"], ["passing", "Pases"], ["scoring", "Anotación"],
+  ["set_pieces", "Balón parado"],
+];
+
+/** Atribuir a mano lo que Hattrick ya no da de un ex-jugador, o sacar esa
+ *  etapa de las cuentas. Solo rellena huecos: si el dato real aparece algún
+ *  día, gana el real. */
+function EditarEtapa({
+  fila,
+  onCerrar,
+  onGuardado,
+}: {
+  fila: PlayerBalanceRow;
+  onCerrar: () => void;
+  onGuardado: () => void;
+}) {
+  const [entrenamiento, setEntrenamiento] = useState<string>("");
+  const [habilidad, setHabilidad] = useState<string>("");
+  const [anios, setAnios] = useState<string>("");
+  const [dias, setDias] = useState<string>("");
+  const [excluida, setExcluida] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const guardar = useMutation({
+    mutationFn: () =>
+      api.editStint(TEAM_ID, fila.stintId as number, {
+        ...(entrenamiento ? { training_type: Number(entrenamiento) } : {}),
+        ...(habilidad ? { top_skill: habilidad } : {}),
+        ...(anios ? { age_years: Number(anios) } : {}),
+        ...(dias ? { age_days: Number(dias) } : {}),
+        excluded: excluida,
+      }),
+    onSuccess: () => {
+      onGuardado();
+      onCerrar();
+    },
+    onError: (reason) => setError(errorMessage(reason)),
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+      role="dialog"
+      aria-label={`Editar ${fila.name}`}
+      onClick={onCerrar}
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-base font-semibold">{fila.name}</h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Salió el {date(fila.soldAt)}. Lo que escribas aquí solo rellena lo que
+          está en «?»; si Hattrick devuelve el dato de verdad, manda el suyo.
+        </p>
+
+        <div className="mt-4 space-y-3 text-sm">
+          <label className="block">
+            <span className="text-xs text-[var(--muted)]">Entrenamiento al salir</span>
+            <select
+              value={entrenamiento}
+              onChange={(e) => setEntrenamiento(e.target.value)}
+              className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
+            >
+              <option value="">Sin atribuir</option>
+              {ENTRENAMIENTOS.map(([id, nombre]) => (
+                <option key={id} value={id}>{nombre}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs text-[var(--muted)]">Habilidad más alta</span>
+            <select
+              value={habilidad}
+              onChange={(e) => setHabilidad(e.target.value)}
+              className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
+            >
+              <option value="">Sin atribuir</option>
+              {HABILIDADES.map(([clave, nombre]) => (
+                <option key={clave} value={clave}>{nombre}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="flex gap-3">
+            <label className="flex-1">
+              <span className="text-xs text-[var(--muted)]">Edad (años)</span>
+              <input
+                type="number" min={15} max={50} value={anios}
+                onChange={(e) => setAnios(e.target.value)}
+                className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
+              />
+            </label>
+            <label className="flex-1">
+              <span className="text-xs text-[var(--muted)]">Días</span>
+              <input
+                type="number" min={0} max={111} value={dias}
+                onChange={(e) => setDias(e.target.value)}
+                className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
+              />
+            </label>
+          </div>
+
+          <label className="flex items-start gap-2 rounded-md border border-[var(--border)] p-3">
+            <input
+              type="checkbox" checked={excluida}
+              onChange={(e) => setExcluida(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-xs">
+              <b>Sacar de los cálculos.</b> Esta etapa deja de contar en los totales,
+              los desgloses y el ROI. Sigue estando en Hattrick; solo desaparece de
+              estas cuentas.
+            </span>
+          </label>
+
+          {error && <p className="text-xs text-[var(--warning)]">{error}</p>}
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCerrar}
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)]"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => guardar.mutate()}
+            disabled={guardar.isPending}
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+          >
+            {guardar.isPending ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PlayerBalancePage() {
   const { data, isLoading, isError, error } = usePlayerBalance();
   const navigate = useNavigate();
@@ -1140,6 +1293,9 @@ function BalanceTable({
   currency: string;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
+  // Etapa que se está atribuyendo a mano, si alguna. Solo se abre para etapas
+  // cerradas: de la plantilla de hoy los datos vienen de Hattrick.
+  const [editando, setEditando] = useState<PlayerBalanceRow | null>(null);
   const qc = useQueryClient();
   const setManual = useMutation({
     mutationFn: ({
@@ -1360,6 +1516,27 @@ function BalanceTable({
       ),
     },
     {
+      key: "editar",
+      header: "",
+      align: "left",
+      value: () => 0,
+      // Solo para etapas cerradas: de quien sigue en la plantilla los datos
+      // vienen de Hattrick y no se teclean.
+      render: (r) =>
+        r.stintId != null && r.soldAt ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditando(r);
+            }}
+            className="rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--accent)]"
+            title="Atribuir a mano lo que falta, o sacar esta etapa de los cálculos"
+          >
+            Editar
+          </button>
+        ) : null,
+    },
+    {
       key: "gamesWithUs",
       header: "Partidos con nosotros",
       align: "right",
@@ -1484,6 +1661,7 @@ function BalanceTable({
   ];
 
   return (
+    <>
     <DataTable
       rows={data}
       columns={columns}
@@ -1494,6 +1672,14 @@ function BalanceTable({
       csvName="saldo-por-jugador"
       filterPlaceholder="Filtrar jugadores…"
     />
+      {editando && (
+        <EditarEtapa
+          fila={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={() => qc.invalidateQueries({ queryKey: ["player-balance"] })}
+        />
+      )}
+    </>
   );
 }
 

@@ -27,6 +27,7 @@ from app.domain.engines.player_balance import (
 from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
     SKILL_LABELS,
+    training_name,
     SPECIALTIES,
     training_skill_name,
 )
@@ -687,6 +688,12 @@ class PlayerBalanceQueryService:
             )
 
             training_label = training_at(effective_sold_at) if effective_sold_at else None
+            # Lo que el usuario atribuyo a mano rellena huecos, nunca pisa un
+            # dato real: si algun dia Hattrick devuelve el de verdad, gana el
+            # de verdad. Es la regla de toda la app y aqui importa mas que en
+            # ningun sitio, porque estos tres campos alimentan los desgloses.
+            if training_label is None and etapa.training_type_manual is not None:
+                training_label = training_name(etapa.training_type_manual)
             # Reutilizado tanto en la fila (para el filtro general de
             # temporadas, pedido explícitamente 2026-08-04) como en el
             # desglose "por Temporada" más abajo — mismo criterio, una sola
@@ -703,6 +710,10 @@ class PlayerBalanceQueryService:
                 age_at_sale = round(at_sale.age_years + at_sale.age_days / 112, 2)
             elif p.sold_at is not None and p.age_years_at_sale is not None and p.age_days_at_sale is not None:
                 age_at_sale = round(p.age_years_at_sale + p.age_days_at_sale / 112, 2)
+            elif etapa.age_years_manual is not None:
+                age_at_sale = round(
+                    etapa.age_years_manual + (etapa.age_days_manual or 0) / 112, 2
+                )
 
             at_purchase = (
                 snapshot_at_or_after(p.id, purchased_at) if purchased_at is not None else None
@@ -736,6 +747,10 @@ class PlayerBalanceQueryService:
             # reutilizan tanto en la fila (filtro de temporadas) como en los
             # desgloses "por habilidad más alta"/"por hora de puja" más abajo.
             top_skill_for_row = _top_skill_label(at_sale) if at_sale is not None else None
+            if top_skill_for_row is None and etapa.top_skill_manual:
+                top_skill_for_row = SKILL_LABELS.get(
+                    etapa.top_skill_manual, etapa.top_skill_manual
+                )
             # Hora de puja: solo tiene sentido si de verdad se cerró una
             # puja real — un despido (`effective_sold_at`) no cuenta.
             bid_hour_for_row = (
