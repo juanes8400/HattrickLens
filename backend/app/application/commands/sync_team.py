@@ -3901,44 +3901,64 @@ class SyncTeamHandler:
                 tsi=t.get("tsi"),
             ))
 
+    @staticmethod
+    def _es_huerfano(mov: Any) -> bool:
+        """Su identificador es prestado: ES el numero de su transferencia."""
+        return mov.ht_player_id == mov.ht_transfer_id
+
+    @staticmethod
+    def _nombre_para_agrupar(mov: Any) -> str:
+        return (mov.player_name or "").strip()
+
     async def _fichas_de_los_sin_identificador(
         self, uow: UnitOfWork, team_id: int,
         movimientos: list[Any], jugadores: dict[int, Any],
-    ) -> None:
-        """Una ficha minima para cada movimiento sin identificador de jugador.
+    ) -> dict[int, int]:
+        """Una ficha por PERSONA entre los movimientos sin identificador.
 
-        Sin ficha no hay etapa, y sin etapa la venta no existe para ningun
-        calculo. Se crea con lo unico que el libro da: el nombre y la fecha.
-        Queda marcada, para que nadie le pida a CHPP la ficha de un numero que
-        no es de un jugador.
+        Emparejar por nombre es el ultimo recurso y solo se usa aqui, entre
+        huerfanos: a un jugador con identificador propio no se le toca nunca,
+        aunque se llame igual. Sin esto, la compra y la venta de la misma
+        persona son dos transferencias distintas, cada una con su numero
+        prestado, y salen como dos medias filas --una que parece perdida total
+        y otra que no suma nada-- en vez de una etapa con su saldo.
+
+        Un nombre vacio no agrupa a nadie: se queda solo, que es lo prudente.
+
+        Devuelve, por cada movimiento huerfano, a que ficha pertenece.
         """
         from app.infrastructure.db import models as m
 
+        por_nombre: dict[str, int] = {}
+        de_quien: dict[int, int] = {}
         nuevos = False
-        for mov in movimientos:
-            # El identificador prestado ES el de su transferencia: asi se
-            # guardo, y no hay otro movimiento que pueda coincidir.
-            if mov.ht_player_id != mov.ht_transfer_id:
+        for mov in sorted(movimientos, key=lambda x: (x.deadline, x.ht_transfer_id)):
+            if not self._es_huerfano(mov):
                 continue
-            if mov.ht_player_id in jugadores:
+            nombre = self._nombre_para_agrupar(mov)
+            # El identificador de la persona es el de su PRIMER movimiento.
+            clave = por_nombre.get(nombre) if nombre else None
+            if clave is None:
+                clave = mov.ht_player_id
+                if nombre:
+                    por_nombre[nombre] = clave
+            de_quien[mov.ht_transfer_id] = clave
+            if clave in jugadores:
                 continue
-            nombre = (mov.player_name or "").strip()
             apellido = nombre.rsplit(" ", 1)[-1] if " " in nombre else nombre
             jugador = m.Player(
-                ht_player_id=mov.ht_player_id,
+                ht_player_id=clave,
                 ht_player_id_is_transfer=True,
                 team_id=team_id,
                 first_name=nombre[: -len(apellido) - 1] if apellido != nombre else "",
                 last_name=apellido or "?",
-                left_team_at=mov.deadline if not mov.is_buy else None,
-                sold_at=mov.deadline if not mov.is_buy else None,
-                sale_price=mov.price if not mov.is_buy else None,
             )
             uow.session.add(jugador)
-            jugadores[mov.ht_player_id] = jugador
+            jugadores[clave] = jugador
             nuevos = True
         if nuevos:
             await uow.session.flush()
+        return de_quien
 
     async def _identificador_prestado(
         self, uow: UnitOfWork, ht_transfer_id: int,
@@ -4004,7 +4024,18 @@ class SyncTeamHandler:
                 select(m.Player).where(m.Player.team_id == team_id)
             )).scalars().all()
         }
-        await self._fichas_de_los_sin_identificador(uow, team_id, movimientos, jugadores)
+        de_quien = await self._fichas_de_los_sin_identificador(
+            uow, team_id, movimientos, jugadores
+        )
+
+        def a_quien_pertenece(mov: Any) -> int:
+            """El identificador de la PERSONA, que en un huerfano no es el suyo."""
+            return de_quien.get(mov.ht_transfer_id, mov.ht_player_id)
+
+        # Reordenar por persona: los huerfanos de un mismo nombre tienen cada
+        # uno un numero distinto, asi que el orden que venia de la consulta los
+        # dejaba separados y la compra no encontraba a su venta.
+        movimientos = sorted(movimientos, key=lambda x: (a_quien_pertenece(x), x.deadline))
 
         await uow.session.execute(
             delete(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
@@ -4014,20 +4045,21 @@ class SyncTeamHandler:
         nuevas: list[Any] = []
         abierta: dict[int, Any] = {}
         for mov in movimientos:
-            jugador = jugadores.get(mov.ht_player_id)
+            de_la_persona = a_quien_pertenece(mov)
+            jugador = jugadores.get(de_la_persona)
             if jugador is None:
                 continue
             if mov.is_buy:
                 etapa = m.PlayerStint(
-                    player_id=jugador.id, ht_player_id=mov.ht_player_id,
+                    player_id=jugador.id, ht_player_id=de_la_persona,
                     team_id=team_id, arrived_at=mov.deadline,
                     arrival_price=mov.price, arrival_transfer_id=mov.ht_transfer_id,
                 )
-                abierta[mov.ht_player_id] = etapa
+                abierta[de_la_persona] = etapa
                 nuevas.append(etapa)
                 continue
 
-            etapa = abierta.pop(mov.ht_player_id, None)
+            etapa = abierta.pop(de_la_persona, None)
             if etapa is None:
                 # Vendido sin haberlo comprado. Casi siempre es un canterano,
                 # pero no cuando el identificador es prestado: de esos no se
@@ -4035,7 +4067,7 @@ class SyncTeamHandler:
                 # gratis a gente que costo dinero.
                 prestado = jugador.ht_player_id_is_transfer
                 etapa = m.PlayerStint(
-                    player_id=jugador.id, ht_player_id=mov.ht_player_id,
+                    player_id=jugador.id, ht_player_id=de_la_persona,
                     team_id=team_id,
                     from_academy=not prestado,
                     unknown_origin=prestado,
@@ -4069,7 +4101,56 @@ class SyncTeamHandler:
             etapa.age_days_manual = previa.age_days_manual
 
         uow.session.add_all(nuevas)
+        await uow.session.flush()
+        await self._cuadrar_fichas_prestadas(uow, team_id, nuevas, jugadores)
         return len(nuevas)
+
+    async def _cuadrar_fichas_prestadas(
+        self, uow: UnitOfWork, team_id: int,
+        etapas: list[Any], jugadores: dict[int, Any],
+    ) -> None:
+        """Deja las fichas prestadas coherentes con las etapas que quedaron.
+
+        Dos salvaguardias:
+
+        - Se marcan como IDAS. Ninguna tiene foto ni ficha en CHPP, asi que una
+          que se quedara sin fecha de salida seria un jugador de la plantilla
+          que no existe, y cualquier pantalla que liste "los que siguen" lo
+          enseñaria.
+        - Se borra la que no acabo en ninguna etapa. Al emparejar por nombre,
+          varios movimientos pasan a compartir ficha y las sobrantes quedan
+          huerfanas: sin esto se acumularian una relectura tras otra.
+        """
+        from sqlalchemy import delete, select
+
+        from app.infrastructure.db import models as m
+
+        ultima_salida: dict[int, Any] = {}
+        for etapa in etapas:
+            if etapa.left_at is None:
+                continue
+            previa = ultima_salida.get(etapa.ht_player_id)
+            if previa is None or etapa.left_at > previa.left_at:
+                ultima_salida[etapa.ht_player_id] = etapa
+
+        con_etapa = {e.ht_player_id for e in etapas}
+        sobrantes: list[int] = []
+        for ht_player_id, jugador in jugadores.items():
+            if not jugador.ht_player_id_is_transfer:
+                continue
+            if ht_player_id not in con_etapa:
+                sobrantes.append(jugador.id)
+                continue
+            salida = ultima_salida.get(ht_player_id)
+            if salida is not None:
+                jugador.left_team_at = salida.left_at
+                jugador.sold_at = salida.left_at
+                jugador.sale_price = salida.sale_price
+
+        if sobrantes:
+            await uow.session.execute(
+                delete(m.Player).where(m.Player.id.in_(sobrantes))
+            )
 
     async def _marcar_salidas_de_vendidos(self, uow: UnitOfWork, team_id: int) -> int:
         """Un jugador vendido ya no esta en la plantilla: marcarlo.

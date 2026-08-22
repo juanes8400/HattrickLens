@@ -139,3 +139,124 @@ def test_la_etapa_no_pasa_por_canterana() -> None:
         assert jugador.last_name == "Byström"
 
     asyncio.run(corre())
+
+
+def _mov(tid: int, nombre: str, compra: bool, fecha: str, precio: int) -> dict[str, Any]:
+    return {
+        "ht_transfer_id": tid, "ht_player_id": 0, "player_name": nombre,
+        "deadline": fecha, "price": precio,
+        "buyer_team_id": MI_EQUIPO if compra else OTRO,
+        "seller_team_id": OTRO if compra else MI_EQUIPO,
+        "tsi": 1,
+    }
+
+
+def test_la_compra_y_la_venta_del_mismo_nombre_son_una_etapa() -> None:
+    """El caso Byström: dos transferencias sin identificador, una persona."""
+    async def corre() -> None:
+        uow, team_id = await _uow()
+        async with uow:
+            h = SyncTeamHandler(uow, None)
+            await h._guardar_transferencia(
+                uow, team_id, MI_EQUIPO,
+                _mov(348652609, "Anders Byström", True, "2021-04-24 18:00:00", 84200000))
+            await h._guardar_transferencia(
+                uow, team_id, MI_EQUIPO,
+                _mov(349926669, "Anders Byström", False, "2021-06-26 18:00:00", 99140000))
+            await uow.commit()
+        async with uow:
+            await SyncTeamHandler(uow, None)._reconstruir_etapas(uow, team_id)
+            await uow.commit()
+        async with uow:
+            etapas = (await uow.session.execute(select(m.PlayerStint))).scalars().all()
+            jugadores = (await uow.session.execute(select(m.Player))).scalars().all()
+        assert len(jugadores) == 1, "el mismo nombre partido en dos fichas"
+        assert len(etapas) == 1, "la compra no encontro a su venta"
+        assert etapas[0].arrival_price == 84200000
+        assert etapas[0].sale_price == 99140000
+        assert etapas[0].from_academy is False
+        assert etapas[0].unknown_origin is False, "tiene compra: su origen se sabe"
+
+    asyncio.run(corre())
+
+
+def test_dos_etapas_seguidas_del_mismo_nombre() -> None:
+    """Ontiveros: compra, venta, compra, venta. Dos etapas, en orden."""
+    async def corre() -> None:
+        uow, team_id = await _uow()
+        async with uow:
+            h = SyncTeamHandler(uow, None)
+            for tid, compra, fecha, precio in (
+                (1, True, "2018-12-05 18:00:00", 510000),
+                (2, False, "2019-01-13 18:00:00", 10000000),
+                (3, True, "2020-01-19 18:00:00", 1000000),
+                (4, False, "2020-02-27 18:00:00", 3000000),
+            ):
+                await h._guardar_transferencia(
+                    uow, team_id, MI_EQUIPO,
+                    _mov(tid, "Baldemar Ontiveros", compra, fecha, precio))
+            await uow.commit()
+        async with uow:
+            await SyncTeamHandler(uow, None)._reconstruir_etapas(uow, team_id)
+            await uow.commit()
+        async with uow:
+            etapas = (await uow.session.execute(
+                select(m.PlayerStint).order_by(m.PlayerStint.arrived_at)
+            )).scalars().all()
+        assert len(etapas) == 2
+        assert [e.arrival_price for e in etapas] == [510000, 1000000]
+        assert [e.sale_price for e in etapas] == [10000000, 3000000]
+
+    asyncio.run(corre())
+
+
+def test_a_un_jugador_con_identificador_propio_no_se_le_toca() -> None:
+    """Emparejar por nombre es el ultimo recurso: nunca alcanza a un real."""
+    async def corre() -> None:
+        uow, team_id = await _uow()
+        async with uow:
+            uow.session.add(m.Player(
+                ht_player_id=555, team_id=team_id,
+                first_name="Anders", last_name="Byström",
+            ))
+            await uow.session.flush()
+            h = SyncTeamHandler(uow, None)
+            # Una compra suya, con identificador de verdad.
+            real = _mov(700, "Anders Byström", True, "2021-04-24 18:00:00", 84200000)
+            real["ht_player_id"] = 555
+            await h._guardar_transferencia(uow, team_id, MI_EQUIPO, real)
+            # Y una venta huerfana con el mismo nombre.
+            await h._guardar_transferencia(
+                uow, team_id, MI_EQUIPO,
+                _mov(701, "Anders Byström", False, "2021-06-26 18:00:00", 99140000))
+            await uow.commit()
+        async with uow:
+            await SyncTeamHandler(uow, None)._reconstruir_etapas(uow, team_id)
+            await uow.commit()
+        async with uow:
+            etapas = (await uow.session.execute(select(m.PlayerStint))).scalars().all()
+        assert len(etapas) == 2, "el huerfano se colo en la etapa del jugador real"
+        conNombre = {e.ht_player_id for e in etapas}
+        assert 555 in conNombre and 701 in conNombre
+
+    asyncio.run(corre())
+
+
+def test_sin_nombre_no_se_agrupa_con_nadie() -> None:
+    async def corre() -> None:
+        uow, team_id = await _uow()
+        async with uow:
+            h = SyncTeamHandler(uow, None)
+            await h._guardar_transferencia(
+                uow, team_id, MI_EQUIPO, _mov(10, "", True, "2020-01-01 18:00:00", 100))
+            await h._guardar_transferencia(
+                uow, team_id, MI_EQUIPO, _mov(11, "", False, "2020-02-01 18:00:00", 200))
+            await uow.commit()
+        async with uow:
+            await SyncTeamHandler(uow, None)._reconstruir_etapas(uow, team_id)
+            await uow.commit()
+        async with uow:
+            jugadores = (await uow.session.execute(select(m.Player))).scalars().all()
+        assert len(jugadores) == 2, "dos anonimos no son la misma persona"
+
+    asyncio.run(corre())
