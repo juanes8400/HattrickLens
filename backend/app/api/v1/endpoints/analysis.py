@@ -745,13 +745,31 @@ async def lineup_hindsight(
         ("forward", "Delanteros", MATCH_ROLE_FORWARD, "forward"),
     ]
 
-    # Último partido del que tengamos calificaciones individuales.
+    # El último partido DE ESTE CLUB del que tengamos calificaciones.
+    #
+    # Las dos condiciones importan. Sin la primera se colaba un partido ajeno:
+    # la ficha de un jugador trae su último partido, y el de alguien recién
+    # comprado es el que jugó en su club anterior. Ese partido entraba con
+    # UN solo jugador nuestro dentro, así que la comparación salía "0 de 0" en
+    # todas las líneas --portería incluida, proponiendo un portero como si no
+    # hubieras puesto ninguno-- y el marcador era de un partido que no jugaste.
+    #
+    # Y se ordena por cuándo se JUGÓ, no por cuándo lo vimos: un partido viejo
+    # descubierto hoy no es el último partido.
+    equipo = await session.get(m.Team, team_id)
+    if equipo is None:
+        raise HTTPException(404, f"team {team_id} not found")
     last_match_id = await session.scalar(
         select(m.PlayerMatchRating.ht_match_id)
         .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
-        .where(m.Player.team_id == team_id)
-        .group_by(m.PlayerMatchRating.ht_match_id)
-        .order_by(func.max(m.PlayerMatchRating.captured_at).desc())
+        .join(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
+        .where(
+            m.Player.team_id == team_id,
+            (m.Match.home_team_ht_id == equipo.ht_team_id)
+            | (m.Match.away_team_ht_id == equipo.ht_team_id),
+        )
+        .group_by(m.PlayerMatchRating.ht_match_id, m.Match.played_at)
+        .order_by(m.Match.played_at.desc())
         .limit(1)
     )
     if last_match_id is None:
