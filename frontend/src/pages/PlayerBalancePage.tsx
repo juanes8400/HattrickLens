@@ -660,6 +660,13 @@ export function PlayerBalancePage() {
   if (isError) return <ErrorState error={error} />;
   if (!data) return null;
 
+  // Sin libro de transferencias esta pantalla no tiene de donde sacar nada, y
+  // hasta que alguien pulsa el boton no hay libro. Antes se veia una tabla
+  // vacia sin explicacion, que se lee como "la aplicacion no sirve".
+  const faltaElLibro =
+    data.players.length === 0 &&
+    (data.transferNumberSales > 0 || data.transferNumberBuys > 0);
+
   const soldRows = data.players.filter((r) => r.isSold);
   // Filtro general de temporadas (pedido explícitamente 2026-08-04):
   // "Todas" no toca nada; una temporada real recorta Detalle, el scatter y
@@ -951,6 +958,26 @@ export function PlayerBalancePage() {
           Actualizar transferencias en Sincronización
         </Link>
       </header>
+
+      {faltaElLibro && (
+        <div
+          role="alert"
+          className="rounded-lg border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-4 py-3 text-sm"
+        >
+          <p className="font-medium text-[var(--danger)]">
+            Falta descargar tu historial de transferencias.
+          </p>
+          <p className="mt-1 text-[var(--text)]">
+            Hattrick tiene {number(data.transferNumberSales)} ventas y{" "}
+            {number(data.transferNumberBuys)} compras tuyas, y esta pantalla no
+            las verá hasta que las traigas.{" "}
+            <Link to="/sync" className="font-medium underline">
+              Ve a Sincronización y pulsa «Transferencias»
+            </Link>
+            . Es una sola vez y tarda un rato.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs
