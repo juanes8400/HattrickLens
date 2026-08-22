@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
+from app.domain.value_objects.skill import Age
 from app.domain.engines.sync_diff import (
     Change,
     MatchState,
@@ -2129,6 +2131,16 @@ class SyncTeamHandler:
             await uow.commit()
         return result
 
+    @staticmethod
+    def _edad_en_la_salida(jugador: Any) -> "Age | None":
+        """Su edad el día que se fue, si se conoce."""
+        if jugador.age_years_at_sale is None or jugador.age_days_at_sale is None:
+            return None
+        try:
+            return Age(jugador.age_years_at_sale, jugador.age_days_at_sale)
+        except ValueError:
+            return None
+
     async def _censar_partidos_del_stint(
         self, uow: UnitOfWork, team_id: int, ht_player_id: int,
     ) -> bool:
@@ -2156,7 +2168,18 @@ class SyncTeamHandler:
             return False
 
         salida = jugador.sold_at or jugador.left_team_at
-        if jugador.purchased_at is None or salida is None:
+        inicio = jugador.purchased_at
+        if inicio is None and salida is not None:
+            # Un canterano no se compró, así que no tiene fecha de compra, y
+            # sin principio de etapa este recorrido se saltaba a la mitad de
+            # ellos. Como nadie llega al primer equipo antes de los 17 años,
+            # el día en que los cumplió es el suelo: buscar desde ahí cubre de
+            # más, nunca de menos. No se guarda como su llegada ni se enseña.
+            edad = self._edad_en_la_salida(jugador)
+            if edad is not None:
+                inicio = cuando_cumplio_diecisiete(edad, salida)
+
+        if inicio is None or salida is None:
             # Sin etapa acotada no hay nada que recorrer; se marca censado
             # para no volver a intentarlo en cada lote.
             jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(
@@ -2171,7 +2194,7 @@ class SyncTeamHandler:
         # ensena "?" en vez de un cero que parecería contado.
         try:
             jugador.games_played_for_us = await self._games_played_for_us(
-                equipo.ht_team_id, ht_player_id, jugador.purchased_at, salida,
+                equipo.ht_team_id, ht_player_id, inicio, salida,
             )
             contado = True
         finally:

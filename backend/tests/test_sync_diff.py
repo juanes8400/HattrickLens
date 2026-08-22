@@ -182,9 +182,13 @@ TRAINING_OLD = {"training_type": 10, "training_level": 3, "trainer_name": "Volod
 
 
 def test_detects_training_type_change() -> None:
+    """Con el NOMBRE del entrenamiento, no con su número. "tipo 10 -> 4" no lo
+    entiende nadie, y este aviso existe para leerse de un vistazo."""
     new = {**TRAINING_OLD, "training_type": 4}
     out = diff_training(TRAINING_OLD, new)
-    assert any("tipo 10 -> 4" in c for c in summaries(out))
+    assert any(
+        "Pases (defensas y centrocampistas) -> Anotación" in c for c in summaries(out)
+    )
 
 
 def test_detects_new_trainer() -> None:
@@ -344,3 +348,26 @@ def test_a_signing_that_has_not_played_yet_says_so_instead_of_showing_a_zero() -
     )
     assert "todavía sin jugar" in cambio.summary
     assert "0,0" not in cambio.summary
+
+
+def test_the_training_change_reaches_the_changes_screen() -> None:
+    """2026-08-22, reportado por el usuario: cambió el tipo de entrenamiento y
+    no aparecía en Cambios por ninguna parte.
+
+    El cambio se guardaba desde siempre; lo que faltaba era sitio donde
+    enseñarlo. La pantalla pinta el informe del club, y ese informe solo traía
+    ánimo, confianza y economía.
+    """
+    from app.application.queries.sync_comparison import _club_item
+    from app.domain.value_objects.ht_constants import TRAINING_TYPES
+
+    fila = _club_item(
+        "training_type", "Tipo de entrenamiento", 10, 2, TRAINING_TYPES,
+        solo_nombre=True,
+    )
+    assert fila["beforeDisplay"] == "Pases (defensas y centrocampistas)"
+    assert fila["currentDisplay"] == "Balón parado"
+    assert fila["changed"] is True
+    # Un tipo de entrenamiento es una categoría, no una cantidad: restar 10
+    # menos 2 daría un "-8" sin ningún significado.
+    assert fila["delta"] is None

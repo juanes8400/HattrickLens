@@ -18,7 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines.sync_diff import diff_training
 from app.domain.value_objects.formatting import thousands
-from app.domain.value_objects.ht_constants import CONFIDENCE, TEAM_SPIRIT
+from app.domain.value_objects.ht_constants import (
+    CONFIDENCE,
+    TEAM_SPIRIT,
+    TRAINING_TYPES,
+)
 from app.infrastructure.db import models as m
 
 
@@ -262,15 +266,27 @@ def _club_item(
     names: dict[int, str] | None = None,
     *,
     good: bool | None = None,
+    solo_nombre: bool = False,
+    sufijo: str = "",
 ) -> dict[str, Any]:
+    """`solo_nombre` para lo que es una CATEGORÍA y no una cantidad: el tipo de
+    entrenamiento se llama "Pases" o "Defensa", y restar 10 menos 2 no
+    significa nada. Sin él, la pantalla enseñaría un "-8" sin sentido."""
+
     def display(value: int | None) -> str | None:
         if value is None:
             return None
         if names is None:
-            return thousands(value)
+            return f"{thousands(value)}{sufijo}"
+        if solo_nombre:
+            return names.get(value, f"Tipo {value}")
         return f"{names.get(value, 'Nivel')} ({value})"
 
-    delta = None if before is None or current is None else current - before
+    delta = (
+        None
+        if before is None or current is None or solo_nombre
+        else current - before
+    )
     if good is None or delta is None or delta == 0:
         is_good = None
     else:
@@ -315,6 +331,33 @@ async def _club_report(
                     old_training.self_confidence if old_training else None,
                     training.self_confidence,
                     CONFIDENCE,
+                ),
+                # 2026-08-22, reportado por el usuario: cambió el tipo de
+                # entrenamiento y no aparecía por ninguna parte. El cambio se
+                # guardaba desde siempre, pero esta pantalla solo pintaba
+                # ánimo, confianza y economía: el entrenamiento no tenía
+                # dónde salir.
+                _club_item(
+                    "training_type",
+                    "Tipo de entrenamiento",
+                    old_training.training_type if old_training else None,
+                    training.training_type,
+                    TRAINING_TYPES,
+                    solo_nombre=True,
+                ),
+                _club_item(
+                    "training_level",
+                    "Intensidad",
+                    old_training.training_level if old_training else None,
+                    training.training_level,
+                    sufijo="%",
+                ),
+                _club_item(
+                    "stamina_part",
+                    "Parte de resistencia",
+                    old_training.stamina_part if old_training else None,
+                    training.stamina_part,
+                    sufijo="%",
                 ),
             )
         )

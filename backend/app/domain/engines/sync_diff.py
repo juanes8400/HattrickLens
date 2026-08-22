@@ -16,7 +16,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.domain.value_objects.formatting import thousands
-from app.domain.value_objects.ht_constants import CONFIDENCE, SKILL_LABELS, TEAM_SPIRIT
+from app.domain.value_objects.ht_constants import (
+    CONFIDENCE,
+    SKILL_LABELS,
+    TEAM_SPIRIT,
+    training_name,
+)
 
 ECONOMY_FIELDS: dict[str, str] = {
     "cash": "Caja",
@@ -282,7 +287,14 @@ def diff_training(old: dict[str, Any] | None, new: dict[str, Any]) -> list[Chang
         changes.append(Change(
             category="entrenamiento", metric="training_type", label="Tipo",
             before=before, after=after, kind="count",
-            summary=f"Entrenamiento cambiado: tipo {before} -> {after}",
+            # Con su nombre, no con el número: "tipo 10 -> 2" no lo entiende
+            # nadie, y este aviso existe justo para leerse de un vistazo.
+            before_label=training_name(before) if before is not None else None,
+            after_label=training_name(after) if after is not None else None,
+            summary=(
+                f"Entrenamiento: {training_name(before) if before is not None else '?'}"
+                f" -> {training_name(after) if after is not None else '?'}"
+            ),
         ))
     if old.get("training_level") != new.get("training_level"):
         before, after = old.get("training_level"), new.get("training_level")

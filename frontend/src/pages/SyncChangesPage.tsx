@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ClubMoraleSection, EconomySection } from "../components/SyncComparisonReport";
+import {
+  ClubMoraleSection,
+  EconomySection,
+  TrainingSection,
+} from "../components/SyncComparisonReport";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
 import {
   GroupedPlayerChanges,
@@ -348,6 +352,7 @@ export function SyncChangesPage() {
         )}
       </Panel>
 
+      {data && <TrainingSection changes={data.clubChanges} />}
       {data && <ClubMoraleSection changes={data.clubChanges} />}
 
       {actions.length > 0 && (
