@@ -463,3 +463,72 @@ def test_deleting_an_attempt_of_another_team_is_refused() -> None:
         assert r.status_code == 404
     finally:
         app.dependency_overrides.clear()
+
+
+def test_a_player_who_is_no_longer_ours_cannot_be_on_our_market() -> None:
+    """`currentbids.xml` no es la lista de lo que TU vendes: es la de las pujas
+    en las que andas metido, incluidas las que haces por jugadores de otros.
+    Por eso un ex-jugador tuyo puede aparecer ahi -estas pujando por
+    recomprarlo- sin estar en tu plantilla.
+
+    Caso real: Gabriel Cecilio Acasusso, vendido en julio, seguia figurando "en
+    venta" en agosto. La plantilla de hoy es la que manda: quien no esta en
+    ella no puede estar en venta por nosotros.
+    """
+    from app.application.commands.sync_team import SyncTeamHandler
+    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
+
+    async def run() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        captura = datetime(2026, 8, 22, 12, 0)
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            s.add(equipo)
+            await s.flush()
+            # Se fue hace meses, pero quedo marcado como "en venta".
+            ido = m.Player(
+                ht_player_id=1, team_id=equipo.id, first_name="Ya", last_name="Vendido",
+                sold_at=datetime(2026, 7, 5), left_team_at=datetime(2026, 7, 5),
+                currently_listed=True,
+            )
+            actual = m.Player(
+                ht_player_id=2, team_id=equipo.id, first_name="En", last_name="Plantilla",
+            )
+            s.add_all([ido, actual])
+            await s.flush()
+            sync = m.Sync(
+                user_id=1, team_id=equipo.id, kind="players", status="completed",
+                started_at=captura,
+            )
+            s.add(sync)
+            await s.flush()
+            # Solo el que sigue en el club deja foto hoy.
+            s.add(m.PlayerSnapshot(
+                sync_id=sync.id, player_id=actual.id, captured_at=captura,
+                age_years=25, age_days=0, tsi=1000, form=5, stamina=5,
+                experience=5, salary=1000, content_hash=b"x",
+                is_transfer_listed=True,
+            ))
+            await s.commit()
+            team_id = equipo.id
+
+        uow = SqlAlchemyUnitOfWork(factory)
+        handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
+        async with uow as u:
+            await handler._marcar_quien_esta_en_venta(u, team_id, captura)
+            await u.commit()
+
+        async with factory() as s:
+            ido = await s.scalar(select(m.Player).where(m.Player.ht_player_id == 1))
+            actual = await s.scalar(select(m.Player).where(m.Player.ht_player_id == 2))
+            assert ido.currently_listed is False, "ya no es nuestro"
+            assert actual.currently_listed is True
+
+    asyncio.run(run())

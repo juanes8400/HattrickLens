@@ -3142,10 +3142,20 @@ class SyncTeamHandler:
         `TransferListed` viene con la plantilla, jugador por jugador, y es la
         respuesta directa a la pregunta.
         """
-        from sqlalchemy import select
+        from sqlalchemy import select, update
 
         from app.infrastructure.db import models as m
 
+        # Primero nadie: quien no aparece en la plantilla de HOY no puede
+        # estar en venta por nosotros. Sin este borron, un jugador que ya no
+        # es nuestro se queda marcado para siempre con lo ultimo que se supo
+        # de el. Caso real: Gabriel Cecilio Acasusso, vendido en julio, seguia
+        # figurando "en venta" en agosto.
+        await uow.session.execute(
+            update(m.Player)
+            .where(m.Player.team_id == team_id, m.Player.currently_listed)
+            .values(currently_listed=False)
+        )
         filas = (await uow.session.execute(
             select(m.Player, m.PlayerSnapshot.is_transfer_listed)
             .join(m.PlayerSnapshot, m.PlayerSnapshot.player_id == m.Player.id)
@@ -3210,7 +3220,12 @@ class SyncTeamHandler:
                 .limit(1)
             )
 
-            if is_listed and abierto is None:
+            # Solo intentos en los que el vendedor somos NOSOTROS. Un
+            # ex-jugador puede aparecer en `currentbids.xml` porque estamos
+            # pujando por recomprarlo: ese fichero es la lista de pujas en las
+            # que andamos metidos, no la de lo que vendemos.
+            sigue_siendo_nuestro = player.left_team_at is None
+            if is_listed and abierto is None and sigue_siendo_nuestro:
                 player.listing_count += 1
                 result.snapshots_written += 1
                 etapa = await uow.session.scalar(
