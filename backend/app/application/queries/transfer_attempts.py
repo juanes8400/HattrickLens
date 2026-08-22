@@ -26,6 +26,7 @@ from app.domain.value_objects.ht_constants import (
     SPECIALTIES,
     training_name,
 )
+from app.domain.value_objects.skill import Age
 from app.infrastructure.db import models as m
 
 SKILL_COLS = (
@@ -69,6 +70,8 @@ class TransferAttemptRow:
     specialty: str
     character: str
     native_country: str
+    #: Para pintar la bandera; `None` si no se pudo resolver.
+    native_country_code: str | None
     #: La foto usada es de este dia; si queda lejos del cierre, `stale` avisa.
     snapshot_at: str | None
     stale: bool
@@ -105,6 +108,54 @@ def _edad(years: int | None, days: int | None) -> str:
     return f"{years};{days:03d}"
 
 
+def _especialidad(foto, jugador) -> str:
+    """La especialidad, mirando primero donde de verdad esta."""
+    codigo = foto.specialty if foto is not None else None
+    if codigo is None:
+        codigo = jugador.specialty
+    if codigo is None:
+        return "?"
+    return SPECIALTIES.get(codigo) or "Ninguna"
+
+
+def _caracter(foto, jugador) -> str:
+    # Cero es "antipatica", un caracter como cualquier otro: hay que
+    # preguntar si el dato existe, no si vale cero.
+    valor = foto.agreeability if foto is not None else None
+    if valor is None:
+        valor = jugador.agreeability
+    if valor is None:
+        return "?"
+    return PLAYER_AGREEABILITY.get(valor, "?")
+
+
+def _edad_en_la_compra(al_llegar, foto, jugador, llegada) -> str:
+    """Su edad el dia que llego.
+
+    Lo mejor es una foto del mismo dia de la llegada: esa edad ES la edad de
+    compra, sin cuentas. Pero "la primera foto que hay desde que llego" no
+    sirve por si sola: el historial empieza el dia que se estreno la
+    aplicacion, asi que para quien ya estaba, esa primera foto es de meses
+    despues y da una edad de meses despues. Por eso solo vale si es del dia.
+
+    Si no la hay, vale la que dejo escrita el repaso de fichas, y en ultimo
+    lugar se calcula restando — la edad avanza un dia por dia real.
+    """
+    if al_llegar is not None and llegada is not None:
+        if (al_llegar.captured_at - llegada).days < 1:
+            return _edad(al_llegar.age_years, al_llegar.age_days)
+    if jugador.age_years_at_purchase is not None:
+        return _edad(jugador.age_years_at_purchase, jugador.age_days_at_purchase)
+    if foto is not None and llegada is not None:
+        transcurridos = (foto.captured_at - llegada).days
+        try:
+            entonces = Age(foto.age_years, foto.age_days).add_days(-transcurridos)
+        except ValueError:
+            return "?"
+        return _edad(entonces.years, entonces.days)
+    return "?"
+
+
 class TransferAttemptsQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -117,6 +168,22 @@ class TransferAttemptsQueryService:
 
         def conv(valor: int | None) -> int | None:
             return None if valor is None else int(round(valor / tasa))
+
+        # Códigos de país para la bandera: por id (el que trae la plantilla) y
+        # por nombre (lo único que queda de un ex-jugador enriquecido).
+        paises = (
+            await self._s.execute(
+                select(
+                    m.WorldContext.country_id,
+                    m.WorldContext.country_name,
+                    m.WorldContext.country_code,
+                )
+            )
+        ).all()
+        self._codigo_por_id = {cid: cod for cid, _, cod in paises if cod}
+        self._codigo_por_nombre = {
+            nombre.strip().casefold(): cod for _, nombre, cod in paises if cod and nombre
+        }
 
         intentos = (
             await self._s.execute(
@@ -191,6 +258,21 @@ class TransferAttemptsQueryService:
         antiguedad = (corte - foto.captured_at).days if foto is not None else None
         llegada = etapa.arrived_at if etapa is not None else None
 
+        # La primera foto desde que llego: su edad es, tal cual, la edad de
+        # compra. Es la misma que mira Detalle.
+        al_llegar = (
+            await self._s.scalar(
+                select(m.PlayerSnapshot)
+                .where(
+                    m.PlayerSnapshot.player_id == jugador.id,
+                    m.PlayerSnapshot.captured_at >= llegada,
+                )
+                .order_by(m.PlayerSnapshot.captured_at.asc())
+                .limit(1)
+            )
+            if llegada is not None else None
+        )
+
         return TransferAttemptRow(
             key=f"{jugador.ht_player_id}_{numero}",
             id=intento.id,
@@ -218,15 +300,21 @@ class TransferAttemptsQueryService:
                 col: (getattr(foto, col) if foto is not None else None) or "?"
                 for col in SKILL_COLS
             },
-            specialty=(
-                (SPECIALTIES.get(jugador.specialty) or "Ninguna")
-                if jugador.specialty is not None else "?"
-            ),
-            character=(
-                PLAYER_AGREEABILITY.get(jugador.agreeability, "?")
-                if jugador.agreeability is not None else "?"
-            ),
+            # De la FOTO, no de la ficha del jugador. Esos campos en la ficha
+            # solo los rellena el repaso de ex-jugadores; a quien sigue en el
+            # club nadie se los pide, porque vienen con la plantilla todos los
+            # dias. Leerlos de la ficha dejaba en "?" a jugadores que estaban
+            # sincronizados esa misma manana.
+            specialty=_especialidad(foto, jugador),
+            character=_caracter(foto, jugador),
             native_country=jugador.native_country or "?",
+            native_country_code=(
+                self._codigo_por_id.get(foto.country_id) if foto is not None else None
+            )
+            or (
+                self._codigo_por_nombre.get(jugador.native_country.strip().casefold())
+                if jugador.native_country else None
+            ),
             snapshot_at=_iso(foto.captured_at) if foto is not None else None,
             stale=antiguedad is None or antiguedad > DIAS_PARA_DUDAR,
             from_academy=bool(etapa.from_academy) if etapa is not None else False,
@@ -235,9 +323,7 @@ class TransferAttemptsQueryService:
                 conv(etapa.arrival_price)
                 if etapa is not None and etapa.arrival_price else "?"
             ),
-            age_at_purchase=_edad(
-                jugador.age_years_at_purchase, jugador.age_days_at_purchase
-            ),
+            age_at_purchase=_edad_en_la_compra(al_llegar, foto, jugador, llegada),
             days_since_purchase=(corte - llegada).days if llegada is not None else "?",
             salary_to_date=await self._salario_hasta(jugador, llegada, corte, conv),
             training_that_week=(

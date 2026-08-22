@@ -732,6 +732,8 @@ export interface TransferAttemptRow {
   specialty: string;
   character: string;
   nativeCountry: string;
+  /** Para pintar la bandera. */
+  nativeCountryCode: string | null;
   snapshotAt: string | null;
   /** La foto esta lejos del cierre: no leerla como exacta. */
   stale: boolean;

@@ -1659,8 +1659,17 @@ function TransferAttemptsSection() {
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.timesSeen ?? "?"}
                 </td>
-                <td className="px-3 py-2">{r.nativeCountry}</td>
-                <td className="px-3 py-2">{r.specialty}</td>
+                <td className="px-3 py-2">
+                  <CountryCell
+                    code={r.nativeCountryCode}
+                    country={r.nativeCountry === "?" ? null : r.nativeCountry}
+                    fallback="?"
+                    compact
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <Specialty specialty={r.specialty} />
+                </td>
                 <td className="px-3 py-2">{r.character}</td>
                 <td
                   className={clsx(
