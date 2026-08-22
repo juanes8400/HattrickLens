@@ -1680,6 +1680,8 @@ class SyncTeamHandler:
             ht_match_id=ht_match_id,
             played_at=played_at,
             match_type=payload.get("match_type", 0),
+            cup_level=payload.get("cup_level", -1),
+            cup_level_index=payload.get("cup_level_index", -1),
             status="FINISHED",
             home_team_ht_id=home.get("team_id", 0),
             away_team_ht_id=away.get("team_id", 0),

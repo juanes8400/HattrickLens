@@ -727,6 +727,13 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
     return {
         "ht_match_id": _int(mt, "MatchID"),
         "match_type": _int(mt, "MatchType"),
+        # El mismo MatchType 3 cubre la copa principal y las secundarias
+        # (Challenger, Consolacion): las separa `CupLevel`, y la diferencia
+        # no es menor — una secundaria da un cuarto de la experiencia. Para
+        # los partidos del propio club esto ya venia en `matches.xml`; aqui
+        # hace falta para los ajenos, que solo se conocen por esta ficha.
+        "cup_level": _int(mt, "CupLevel", -1),
+        "cup_level_index": _int(mt, "CupLevelIndex", -1),
         "match_date": _txt(mt, "MatchDate", ""),
         "home": side("HomeTeam"),
         "away": side("AwayTeam"),
