@@ -340,16 +340,14 @@ function WelcomeAction({ to, title, detail }: { to: string; title: string; detai
  */
 function ClubRadar({ teamName }: { teamName: string }) {
   const league = useLeague();
-  // Apagada a proposito: el eje de TSI sale de sumar las plantillas de los
-  // siete rivales, y eso son siete llamadas a Hattrick que nadie ha pedido al
-  // entrar al panel. Con la consulta apagada, esto devuelve lo que ya haya en
-  // cache — misma clave que usa Liga, asi que si el usuario paso por alli, el
-  // cuarto eje aparece gratis. Y si no paso, el radar se dibuja igual con los
-  // tres ejes que la clasificacion ya sabe: antes se quedaba en un aviso
-  // pidiendole al usuario que sincronizara algo que ya estaba sincronizado.
-  const comparison = useLeagueComparison(true, true, false);
+  // El cuarto eje --el TSI de los once mejores de cada equipo dentro de la
+  // serie-- se pide al entrar aqui, igual que al entrar a Liga: misma clave de
+  // cache, asi que la primera de las dos paginas paga las llamadas y la otra
+  // la aprovecha. Antes arrancaba apagada y el radar no llegaba a dibujarse
+  // nunca: se quedaba pidiendo sincronizar algo que ya estaba sincronizado.
+  const comparison = useLeagueComparison(true, true);
 
-  if (league.isLoading) {
+  if (league.isLoading || comparison.isLoading) {
     return (
       <Panel title="Radar de fuerza">
         <div className="p-4"><Loading /></div>
