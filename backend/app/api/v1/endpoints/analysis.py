@@ -31,6 +31,7 @@ from app.domain.engines.lineup_optimizer import (
     TEAM_SPIRIT_ATTITUDE_MULTIPLIER,
     best_formation,
     ORDER_VARIANTS,
+    variantes_de_casilla,
     best_lineup,
 )
 from app.domain.engines.loyalty_engine import loyalty_decimal as calculate_loyalty_decimal
@@ -57,6 +58,7 @@ from app.domain.value_objects.formations import (
     central_defender_options,
     inner_midfielder_options,
     resolve_split,
+    slots_for,
 )
 from app.domain.value_objects.ht_time import ht_day
 from app.domain.value_objects.ht_constants import (
@@ -617,9 +619,7 @@ async def lineup(
                     indice: variante
                     for indice, variante in fijadas.items()
                     if 0 <= indice < len(slots_ganadores)
-                    and variante in ORDER_VARIANTS.get(
-                        slots_ganadores[indice], (slots_ganadores[indice],)
-                    )
+                    and variante in variantes_de_casilla(slots_ganadores, indice)
                 }
                 if aplicables:
                     lu = best_lineup(players, lu.formation, None, orders=aplicables)
@@ -638,6 +638,10 @@ async def lineup(
     centrales, interiores = resolve_split(
         lu.formation, central_defenders, inner_midfielders
     )
+    # Las casillas REALES de este once, con su reparto: hacen falta para saber
+    # cual de los tres del carril es el del medio, que es el unico que no
+    # puede salir «hacia el lateral».
+    casillas = slots_for(lu.formation, centrales, interiores)
     return {
         "formation": lu.formation,
         "centralDefenders": centrales,
@@ -660,7 +664,11 @@ async def lineup(
                 "orderPinned": a.order_pinned,
                 "orderOptions": [
                     {"position": v, "label": _positions()[v]}
-                    for v in ORDER_VARIANTS.get(a.base_position, (a.base_position,))
+                    for v in (
+                        variantes_de_casilla(casillas, a.slot)
+                        if 0 <= a.slot < len(casillas)
+                        else ORDER_VARIANTS.get(a.base_position, (a.base_position,))
+                    )
                 ],
             }
             for a in lu.assignments

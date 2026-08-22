@@ -76,6 +76,38 @@ ORDER_VARIANTS: dict[str, tuple[str, ...]] = {
 
 # Lo que hay que sumar por línea para la penalización por saturación: una
 # variante ofensiva sigue ocupando el centro de la defensa.
+#: La orden que se pierde en el centro de un carril de tres.
+HACIA_EL_LATERAL = "_towards_wing"
+
+
+def variantes_de_casilla(slots: list[str], indice: int) -> tuple[str, ...]:
+    """Las ordenes que caben en ESTA casilla, no en ese puesto en general.
+
+    Los carriles centrales tienen lado. Con tres en linea hay uno izquierdo,
+    uno central y uno derecho; el lado no cambia lo que aporta el jugador,
+    pero decide que ordenes tiene: los de los lados pueden salir «hacia el
+    lateral» --cada uno hacia el suyo-- y el del medio no, porque no tiene
+    lado al que salir.
+
+    Vale igual para los tres carriles: defensas centrales, medios centros y
+    delanteros. Con dos en linea los dos son de lado y no se quita nada.
+
+    Antes esto no se miraba y el optimizador podia proponer un central del
+    medio yendo hacia el lateral: una alineacion que Hattrick no deja montar.
+    """
+    slot = slots[indice]
+    todas = ORDER_VARIANTS.get(slot, (slot,))
+    inicio = indice
+    while inicio > 0 and slots[inicio - 1] == slot:
+        inicio -= 1
+    fin = indice
+    while fin + 1 < len(slots) and slots[fin + 1] == slot:
+        fin += 1
+    if fin - inicio + 1 != 3 or indice != inicio + 1:
+        return todas
+    return tuple(v for v in todas if not v.endswith(HACIA_EL_LATERAL))
+
+
 BASE_OF_VARIANT: dict[str, str] = {
     variante: base
     for base, variantes in ORDER_VARIANTS.items()
@@ -205,6 +237,7 @@ def _best_variant(
     slot: str,
     overcrowd: dict[str, float],
     pinned: str | None,
+    permitidas: tuple[str, ...] | None = None,
 ) -> tuple[str, float]:
     """La mejor orden individual para este jugador en esta casilla.
 
@@ -212,7 +245,10 @@ def _best_variant(
     motor solo decide QUIÉN la juega. Es la forma de decir "aquí quiero un
     lateral ofensivo, dime cuál de mis jugadores rinde más así".
     """
-    variantes = (pinned,) if pinned else ORDER_VARIANTS.get(slot, (slot,))
+    variantes = (
+        (pinned,) if pinned
+        else (permitidas if permitidas is not None else ORDER_VARIANTS.get(slot, (slot,)))
+    )
     mejor, valor = variantes[0], _player_rating(player, variantes[0], overcrowd)
     for variante in variantes[1:]:
         actual = _player_rating(player, variante, overcrowd)
@@ -272,7 +308,7 @@ def best_lineup(
     for indice, variante in fijadas.items():
         if not 0 <= indice < len(slots):
             raise ValueError(f"la casilla {indice} no existe en {formation}")
-        permitidas = ORDER_VARIANTS.get(slots[indice], (slots[indice],))
+        permitidas = variantes_de_casilla(slots, indice)
         if variante not in permitidas:
             raise ValueError(
                 f"«{variante}» no es una orden de {slots[indice]}; "
@@ -284,7 +320,9 @@ def best_lineup(
         pinned = fijadas.get(j)
         if pinned is None and not optimize_orders:
             pinned = slot
-        return _best_variant(player, slot, overcrowd, pinned)
+        return _best_variant(
+            player, slot, overcrowd, pinned, variantes_de_casilla(slots, j)
+        )
 
     n = len(available)
     # Matriz cuadrada n×n: las columnas sobrantes son "banquillo" con coste 0.
