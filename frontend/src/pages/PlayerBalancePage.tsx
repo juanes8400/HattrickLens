@@ -1438,6 +1438,63 @@ function skillCol(
  */
 const VENTAS_PARA_FIARSE = 5;
 
+/** Verde arriba, rojo abajo — y en hexadecimal, no en `var(--…)`.
+ *
+ * Las graficas se pintan sobre canvas, que no sabe leer las variables de CSS:
+ * un `var(--accent)` ahi no falla, se queda en el color por defecto del canvas
+ * y la barra sale de un gris oscuro que no dice nada. Los positivos ademas
+ * iban en azul, que no es "bueno", solo "acento". Mismos tonos que --positive
+ * y --danger de index.css, uno por tema.
+ */
+const COLOR_ROI = {
+  dark: { bueno: "#2fbf71", malo: "#e5484d" },
+  light: { bueno: "#1a9e5c", malo: "#d1383d" },
+} as const;
+
+/** Los cajones de "no lo sé" no son un grupo, y aquí encima mienten.
+ *
+ * En "por hora de cierre" el cajón sin dato son los despedidos: nunca hubo
+ * puja, así que su ROI es -100% por definición. En "por semana de compra" son
+ * los que costaron 2.000 y se vendieron por millones: 20.375%. Puestos como
+ * una barra más, aplastan la escala de todas las demás y comparan lo que no
+ * se puede comparar. En los desgloses absolutos sí valen —ahí es dinero real
+ * y suma—, pero en un porcentaje no.
+ */
+const ETIQUETAS_SIN_DATO = new Set([
+  UNKNOWN_TRAINING,
+  UNKNOWN_AGE,
+  UNKNOWN_TOP_SKILL,
+  UNKNOWN_WEEK,
+  UNKNOWN_BID_HOUR,
+]);
+
+/** Un número redondo por encima de `v`: 100, 250, 500, 1.000... */
+function redondeaBonito(v: number): number {
+  const exponente = Math.pow(10, Math.floor(Math.log10(v)));
+  const normal = v / exponente;
+  const paso =
+    [1, 1.5, 2, 2.5, 3, 4, 5].find((p) => normal <= p) ?? 10;
+  return paso * exponente;
+}
+
+/** Hasta dónde llega el eje, o `null` si no hace falta cortarlo.
+ *
+ * Comprar a 14.000 y vender a 380.000 da un 2.645% que es verdad, pero
+ * dibujado a escala deja el resto de las barras pegadas al suelo: quince
+ * grupos invisibles para que uno luzca. Se corta el eje tres veces por encima
+ * de la mediana y las barras que se pasan llevan su cifra de verdad escrita
+ * encima, que es lo que se quería leer.
+ */
+function techoDeEscala(magnitudes: number[]): number | null {
+  if (magnitudes.length < 3) return null;
+  const orden = [...magnitudes].sort((a, b) => a - b);
+  const mediana = orden[Math.floor(orden.length / 2)] ?? 0;
+  const mayor = orden[orden.length - 1] ?? 0;
+  const techo = Math.max(100, mediana * 3);
+  if (mayor <= techo) return null;
+  return redondeaBonito(techo);
+}
+
 function RoiPanel({
   title,
   meta,
@@ -1452,7 +1509,12 @@ function RoiPanel({
   horizontal?: boolean;
   isDark: boolean;
 }) {
-  if (entries.length === 0) {
+  const conDato = entries.filter(([clave]) => !ETIQUETAS_SIN_DATO.has(clave));
+  const ventasSinDato = entries
+    .filter(([clave]) => ETIQUETAS_SIN_DATO.has(clave))
+    .reduce((suma, [, a]) => suma + a.ventas, 0);
+
+  if (conDato.length === 0) {
     return (
       <Panel title={title} meta="sin ventas que repartir">
         <Empty>Todavía no hay ventas con estos datos.</Empty>
@@ -1460,13 +1522,54 @@ function RoiPanel({
     );
   }
 
-  const puntos = entries.map(([clave, a]) => ({
+  // Un grafico de barras con una sola barra no compara nada, y peor: invita a
+  // comparar. Mientras solo un grupo tenga el dato, se dice y ya.
+  if (conDato.length === 1) {
+    const [clave, unico] = conDato[0]!;
+    const roi = (unico.saldo / unico.coste) * 100;
+    return (
+      <Panel
+        title={title}
+        meta={ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta}
+      >
+        <p className="px-4 py-6 text-sm text-[var(--muted)]">
+          Por ahora solo un grupo tiene el dato:{" "}
+          <span className="font-medium text-[var(--text)]">{clave}</span>, con un
+          ROI de{" "}
+          <span
+            className="font-medium tabular-nums"
+            style={{ color: roi >= 0 ? "var(--positive)" : "var(--danger)" }}
+          >
+            {roi >= 0 ? "" : "−"}
+            {Math.abs(roi).toLocaleString("es", {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}
+            %
+          </span>{" "}
+          en {unico.ventas} venta{unico.ventas === 1 ? "" : "s"}.
+        </p>
+      </Panel>
+    );
+  }
+
+  const puntos = conDato.map(([clave, a]) => ({
     clave,
     roi: (a.saldo / a.coste) * 100,
     ventas: a.ventas,
   }));
+  const techo = techoDeEscala(puntos.map((p) => Math.abs(p.roi)));
+  const seSale = (roi: number) => techo != null && Math.abs(roi) > techo;
+  const dibujado = (roi: number) =>
+    techo == null ? roi : Math.max(-techo, Math.min(techo, roi));
+  const cortadas = puntos.filter((p) => seSale(p.roi)).length;
+  const hayNegativos = puntos.some((p) => p.roi < 0);
+  const tonos = isDark ? COLOR_ROI.dark : COLOR_ROI.light;
   const ejeTexto = isDark ? "#8b8b93" : "#6b7280";
   const rejilla = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+
+  const limitesDelEje =
+    techo == null ? {} : { max: techo, min: hayNegativos ? -techo : 0 };
 
   const option: EChartsOption = {
     grid: { left: horizontal ? 180 : 48, right: 24, top: 16, bottom: 48 },
@@ -1481,25 +1584,41 @@ function RoiPanel({
       },
     },
     xAxis: horizontal
-      ? { type: "value", axisLabel: { color: ejeTexto, formatter: "{value}%" },
+      ? { type: "value", ...limitesDelEje,
+          axisLabel: { color: ejeTexto, formatter: "{value}%" },
           splitLine: { lineStyle: { color: rejilla } } }
       : { type: "category", data: puntos.map((p) => p.clave),
           axisLabel: { color: ejeTexto, rotate: puntos.length > 8 ? 45 : 0 } },
     yAxis: horizontal
       ? { type: "category", data: puntos.map((p) => p.clave),
           axisLabel: { color: ejeTexto } }
-      : { type: "value", axisLabel: { color: ejeTexto, formatter: "{value}%" },
+      : { type: "value", ...limitesDelEje,
+          axisLabel: { color: ejeTexto, formatter: "{value}%" },
           splitLine: { lineStyle: { color: rejilla } } },
     series: [
       {
         type: "bar",
         data: puntos.map((p) => ({
-          value: horizontal ? [p.roi, p.clave] : p.roi,
+          value: horizontal
+            ? [dibujado(p.roi), p.clave]
+            : dibujado(p.roi),
+          // La barra llega al borde, pero el número que se lee es el real.
+          label: seSale(p.roi)
+            ? {
+                show: true,
+                position: horizontal
+                  ? "insideRight"
+                  : p.roi > 0 ? "insideTop" : "insideBottom",
+                color: "#fff",
+                fontSize: 11,
+                formatter: `${p.roi >= 0 ? "" : "−"}${Math.abs(Math.round(p.roi)).toLocaleString("es")}%`,
+              }
+            : undefined,
           itemStyle: {
             // Apagado cuando el grupo tiene pocas ventas: el número está,
             // pero no invita a sacar conclusiones.
             opacity: p.ventas < VENTAS_PARA_FIARSE ? 0.35 : 1,
-            color: p.roi >= 0 ? "var(--accent)" : "#dc2626",
+            color: p.roi >= 0 ? tonos.bueno : tonos.malo,
           },
         })),
         // La línea de cero, visible: un ROI negativo tiene que verse cayendo.
@@ -1515,12 +1634,16 @@ function RoiPanel({
   };
 
   return (
-    <Panel title={title} meta={meta}>
+    <Panel
+      title={title}
+      meta={ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta}
+    >
       <div className="p-4">
         <Chart ariaLabel={title} height={horizontal ? 320 : 260} option={option} />
         <p className="mt-2 text-xs text-[var(--muted)]">
           Los grupos con menos de {VENTAS_PARA_FIARSE} ventas salen apagados: su
           porcentaje se mueve entero con una sola operación.
+          {cortadas > 0 && " Las barras que se salen del eje van cortadas, con su cifra real dentro."}
         </p>
       </div>
     </Panel>
