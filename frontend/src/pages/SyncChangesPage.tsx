@@ -14,7 +14,7 @@ import {
   type NormalizedChange,
   type PlayerChangeGroup,
 } from "../components/GroupedPlayerChanges";
-import { ErrorState, Loading, Note, Panel } from "../components/Panels";
+import { ErrorState, Loading, Panel } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
 import { TEAM_ID, useChangesHistory, useSquad, useSyncChanges } from "../hooks/useTeam";
 import { date, relative } from "../hooks/useFormat";
@@ -436,16 +436,20 @@ export function SyncChangesPage() {
         </div>
       </header>
 
+      {data && !data.reportIsLatest && (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+          <span className="font-medium text-[var(--text)]">
+            La última sincronización no encontró nada nuevo.
+          </span>{" "}
+          Lo de aquí abajo no ha vuelto a pasar: es el último cambio real,{" "}
+          {relative(data.reportSyncedAt)}, que se conserva para que una
+          sincronización repetida no borre lo que aún no has leído.
+        </div>
+      )}
+
       <SyncMetaSummary data={data} changes={changes} />
 
       {data && <EconomySection changes={data.clubChanges} />}
-
-      {data && !data.reportIsLatest && (
-        <Note>
-          La última sincronización confirmó que todo sigue igual. Para que una sincronización repetida no
-          borre información útil, conservamos la última variación real detectada {relative(data.reportSyncedAt)}.
-        </Note>
-      )}
 
       <Panel title="Cambios por jugador" meta="jugador por jugador, habilidad por habilidad">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
