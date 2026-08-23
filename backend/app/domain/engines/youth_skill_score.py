@@ -27,6 +27,57 @@ EXCELLENT_FROM = 8
 GOOD_FROM = 7
 ACCEPTABLE_FROM = 6
 
+#: El orden en que conviene dar los minutos de UNA habilidad, pedido asi el
+#: 2026-08-23. Es una decision distinta de "que habilidad entreno": el puntaje
+#: de arriba elige la habilidad, y esto elige a quien se le dan los puestos que
+#: reciben ese entrenamiento.
+#:
+#: Antes esta lista se ordenaba solo por nota, de mayor a menor, con los
+#: desconocidos al final. Eso ignoraba el plazo, que es justo lo que decide:
+#: entre dos "buenos" iguales, el que se va en cinco semanas necesita los
+#: minutos AHORA; el otro los tendra igual mas adelante.
+PRIORIDAD_EXCELENTE = 1
+PRIORIDAD_BUENO_PRONTO = 2
+PRIORIDAD_BUENO_TARDE = 3
+PRIORIDAD_ACEPTABLE_PRONTO = 4
+PRIORIDAD_ACEPTABLE_TARDE = 5
+PRIORIDAD_SIN_DESCUBRIR_PRONTO = 6
+PRIORIDAD_SIN_DESCUBRIR_TARDE = 7
+PRIORIDAD_INSUFICIENTE = 8
+PRIORIDAD_EL_RESTO = 9
+
+INSUFICIENTE = 5
+
+
+def training_priority(
+    note: int | None, *, leaves_soon: bool, max_reached: bool = False
+) -> int:
+    """A quien darle los minutos de esta habilidad, del primero al ultimo.
+
+    Un techo ya alcanzado NO es "sin descubrir": no es que no se sepa, es que
+    se sabe que no va a subir. Entrenarlo es tiempo tirado, asi que va al
+    final con el resto, no al cubo de la apuesta.
+    """
+    if max_reached:
+        return PRIORIDAD_EL_RESTO
+    if note is None:
+        return (
+            PRIORIDAD_SIN_DESCUBRIR_PRONTO if leaves_soon
+            else PRIORIDAD_SIN_DESCUBRIR_TARDE
+        )
+    if note >= EXCELLENT_FROM:
+        return PRIORIDAD_EXCELENTE
+    if note >= GOOD_FROM:
+        return PRIORIDAD_BUENO_PRONTO if leaves_soon else PRIORIDAD_BUENO_TARDE
+    if note >= ACCEPTABLE_FROM:
+        return (
+            PRIORIDAD_ACEPTABLE_PRONTO if leaves_soon
+            else PRIORIDAD_ACEPTABLE_TARDE
+        )
+    if note >= INSUFICIENTE:
+        return PRIORIDAD_INSUFICIENTE
+    return PRIORIDAD_EL_RESTO
+
 # `Juveniles!F3` y `G3`: la edad que TENDRÁ el chico el día que se le acabe el
 # plazo, en años y días. El corte de 38 días parte a los que se van pronto de
 # los que aún tienen margen — un canterano prometedor al que le quedan tres
@@ -134,6 +185,9 @@ class PlayerNote:
     bucket: str
     leaves_soon: bool
     max_reached: bool
+    #: Su puesto en la cola de esta habilidad, de 1 a 9. Ver
+    #: `training_priority`.
+    priority: int = PRIORIDAD_EL_RESTO
 
 
 @dataclass
@@ -237,6 +291,9 @@ def score_skills(
                     bucket=bucket,
                     leaves_soon=pronto,
                     max_reached=reading.max_reached,
+                    priority=training_priority(
+                        note, leaves_soon=pronto, max_reached=reading.max_reached
+                    ),
                 )
             )
             if bucket:
@@ -256,10 +313,12 @@ def score_skills(
                 # doble precisión.
                 score=score,
                 trainable_count=trainable_count,
-                # Primero los de nota conocida y más alta; los desconocidos al
-                # final, porque son una apuesta y no una certeza.
+                # Por la cola de `training_priority`, y dentro de cada
+                # peldaño por nota. Ordenar solo por nota, como antes,
+                # ignoraba el plazo: dos "buenos" iguales no valen lo mismo si
+                # uno se va en cinco semanas y el otro no.
                 players=sorted(
-                    names, key=lambda p: (p.note is None, -(p.note or 0), p.name)
+                    names, key=lambda p: (p.priority, -(p.note or 0), p.name)
                 ),
             )
         )
