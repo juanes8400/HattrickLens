@@ -1985,10 +1985,14 @@ export interface Academy {
       /** Su puesto en la cola de esa habilidad, de 1 a 9. */
       priority: number;
     }[];
-    /** Los que ya tocaron techo: fuera de la cola, pero contados. */
+    /** Los que ya tocaron techo: fuera de la cola, pero se enseñan al final. */
     atMax: {
       name: string;
       level: number | null;
+      current: number | null;
+      maximum: number | null;
+      maxReached: boolean;
+      leavesSoon: boolean;
     }[];
   }[];
   graduates: {

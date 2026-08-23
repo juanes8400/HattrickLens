@@ -704,16 +704,6 @@ function WhoToTrain({ data }: { data: Academy }) {
         </select>
       </label>
 
-      {chosen.atMax.length > 0 && (
-        <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
-          Fuera de la lista por tener {chosen.label} al tope:{" "}
-          <span className="text-[var(--text)]">
-            {chosen.atMax.map((p) => p.name).join(" · ")}
-          </span>
-          . Entrenarles esto no los sube.
-        </p>
-      )}
-
       <ul className="divide-y divide-[var(--border)]">
         {chosen.players.map((p, i) => (
           <li key={p.name} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
@@ -738,6 +728,35 @@ function WhoToTrain({ data }: { data: Academy }) {
             <span className="shrink-0">
               {/* La misma pieza que en Techos y en la plantilla: una sola
                   forma de pintar un nivel en toda la pantalla. */}
+              <NivelDeHabilidad
+                current={p.current}
+                maximum={p.maximum}
+                maxReached={p.maxReached}
+              />
+            </span>
+          </li>
+        ))}
+        {/* Los que ya tocaron techo van DESPUÉS de la cola y sin número: no
+            compiten por estos minutos, pero verlos con su candado explica el
+            hueco mejor que una frase. */}
+        {chosen.atMax.map((p) => (
+          <li
+            key={p.name}
+            className="flex items-center justify-between gap-3 px-4 py-2 text-sm opacity-60"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="w-5 shrink-0" />
+              <span className="truncate">{p.name}</span>
+              {p.leavesSoon && (
+                <span
+                  className="shrink-0 text-[10px] text-[var(--youth-known)]"
+                  title="sale con menos de 17;038"
+                >
+                  ⏱
+                </span>
+              )}
+            </span>
+            <span className="shrink-0">
               <NivelDeHabilidad
                 current={p.current}
                 maximum={p.maximum}
