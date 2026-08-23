@@ -611,8 +611,12 @@ function NivelDeHabilidad({
       : sabeTecho
         ? skillLevelLabel(maximum)
         : "desconocido";
+  // La barra siempre mide el NIVEL sobre la escala, nunca "lo lleno que está
+  // respecto a su propio techo": un 4 que ya no sube es un 4, y pintarlo a
+  // tope lo hacía parecer un jugador de nivel 9. El color es lo que dice si
+  // puede crecer, no la longitud.
   const relleno = maxReached
-    ? { ancho: 100, color: "var(--danger)" }
+    ? { ancho: barWidth(current ?? maximum ?? 0), color: "var(--danger)" }
     : sabeActual
       ? { ancho: barWidth(current), color: "var(--positive)" }
       : { ancho: 0, color: "transparent" };
