@@ -654,19 +654,33 @@ function WhoToTrain({ data }: { data: Academy }) {
                 </span>
               )}
               {p.maxReached && (
-                <span className="shrink-0 text-[10px] text-[var(--muted)]" title="ya tocó techo: entrenarlo no lo sube">
-                  tope
+                <span
+                  className="shrink-0 text-sm text-[var(--muted)]"
+                  title="ya tocó techo: entrenarlo no lo sube"
+                >
+                  🔒
                 </span>
               )}
             </span>
             <span className="flex shrink-0 items-center gap-2">
+              {/* Al tope, como en Hattrick: la barra llena y el número, que se
+                  sabe aunque no haya nada que entrenar. `note` vale null ahí
+                  a propósito --es "no entrenes"-- y `level` es el número. */}
               <div className="h-1.5 w-20 overflow-hidden rounded bg-[var(--surface-2)]">
                 <div
-                  className="h-full bg-[var(--youth-known)]"
-                  style={{ width: `${barWidth(p.note ?? 0)}%` }}
+                  className={
+                    p.maxReached
+                      ? "h-full bg-[var(--muted)]"
+                      : "h-full bg-[var(--youth-known)]"
+                  }
+                  style={{
+                    width: p.maxReached ? "100%" : `${barWidth(p.note ?? 0)}%`,
+                  }}
                 />
               </div>
-              <b className="w-4 text-right tabular-nums">{p.note ?? "?"}</b>
+              <b className="w-4 text-right tabular-nums">
+                {p.note ?? p.level ?? "?"}
+              </b>
             </span>
           </li>
         ))}
@@ -864,17 +878,33 @@ function SkillDetail({ data }: { data: Academy }) {
                     {/* El mapa de nombres existía y esta línea no lo usaba:
                         se leía "set_pieces" en una pantalla en español. */}
                     <span>{SKILL_NAMES[s.skill] ?? s.skill}</span>
-                    <span className="tabular-nums">
-                      {s.isCurrentKnown ? s.current : "?"}
-                      {s.isMaxKnown ? ` / ${s.maximum}` : " / ?"}
+                    <span className="flex items-center gap-1 tabular-nums">
+                      {s.maxReached ? (
+                        <>
+                          <span className="text-sm text-[var(--text)]">
+                            {s.current ?? s.maximum ?? "?"}
+                          </span>
+                          <span title="ya tocó techo: no sube más">🔒</span>
+                        </>
+                      ) : (
+                        <>
+                          {s.isCurrentKnown ? s.current : "?"}
+                          {s.isMaxKnown ? ` / ${s.maximum}` : " / ?"}
+                        </>
+                      )}
                     </span>
                   </div>
                   <div className="mt-1 flex h-1.5 overflow-hidden rounded bg-[var(--surface-2)]">
+                    {/* Al tope la barra va llena: no queda recorrido, y
+                        pintarla a medias sugeriría que aún puede subir. */}
+                    {s.maxReached && (
+                      <div className="h-full w-full bg-[var(--muted)]" />
+                    )}
                     {/* Amarillo = lo que el ojeador YA midió de este chico.
                         Sólo se pinta si el nivel actual se conoce; un nivel
                         sin revelar deja la barra vacía en vez de fingir un 0,
                         que es lo que hacía antes. */}
-                    {s.isCurrentKnown && (
+                    {!s.maxReached && s.isCurrentKnown && (
                       <div
                         className="h-full bg-[var(--youth-known)]"
                         style={{ width: `${barWidth(s.current ?? 0)}%` }}
@@ -882,7 +912,7 @@ function SkillDetail({ data }: { data: Academy }) {
                     )}
                     {/* El tramo hasta el techo, cuando el techo se conoce: es
                         recorrido pendiente, no habilidad que ya tenga. */}
-                    {s.isMaxKnown && (
+                    {!s.maxReached && s.isMaxKnown && (
                       <div
                         className="h-full bg-[var(--youth-headroom)]"
                         style={{

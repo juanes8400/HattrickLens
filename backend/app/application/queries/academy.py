@@ -99,6 +99,9 @@ class SkillRow:
     is_current_known: bool
     is_max_known: bool
     headroom: int
+    #: `IsMaxReached` de CHPP: ya tocó su techo y no subirá más, aunque el
+    #: techo siga oculto. Es lo que Hattrick pinta con un candado.
+    max_reached: bool = False
 
 
 @dataclass
@@ -372,6 +375,7 @@ class AcademyQueryService:
                                 current=getattr(snap, s) or 0,
                                 maximum=getattr(snap, f"{s}_max"),
                             ).headroom,
+                            max_reached=bool(getattr(snap, f"{s}_max_reached", False)),
                         )
                         for s in YOUTH_SKILLS
                     ],

@@ -202,6 +202,10 @@ class PlayerNote:
     max_reached: bool
     #: Su edad hoy, en días. Desempata dentro del peldaño.
     age_days_total: int = 0
+    #: El nivel que tiene en esa habilidad, se entrene o no. `note` vale None
+    #: cuando la habilidad ya tocó techo --no hay nada que entrenar-- pero el
+    #: número sí se sabe, y es lo que Hattrick enseña junto al candado.
+    level: int | None = None
     #: Su puesto en la cola de esta habilidad, de 1 a 9. Ver
     #: `training_priority`.
     priority: int = PRIORIDAD_EL_RESTO
@@ -320,6 +324,7 @@ def score_skills(
                     leaves_soon=pronto,
                     max_reached=reading.max_reached,
                     age_days_total=candidate.edad_en_dias,
+                    level=max(reading.current or 0, reading.maximum or 0) or None,
                     priority=training_priority(
                         note, leaves_soon=pronto, max_reached=reading.max_reached
                     ),

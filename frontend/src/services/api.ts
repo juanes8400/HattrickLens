@@ -1955,6 +1955,8 @@ export interface Academy {
       isCurrentKnown: boolean;
       isMaxKnown: boolean;
       headroom: number;
+      /** Ya tocó su techo: no sube más. Hattrick lo pinta con un candado. */
+      maxReached: boolean;
     }[];
   }[];
   /** Qué habilidad conviene entrenar, de mayor a menor. Portado de la hoja
@@ -1975,6 +1977,8 @@ export interface Academy {
       bucket: string;
       leavesSoon: boolean;
       maxReached: boolean;
+      /** El nivel que tiene, se entrene o no: `note` es null si está al tope. */
+      level: number | null;
       /** Su puesto en la cola de esa habilidad, de 1 a 9. */
       priority: number;
     }[];
