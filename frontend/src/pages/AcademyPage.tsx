@@ -600,8 +600,8 @@ function WhoToTrain({ data }: { data: Academy }) {
               </span>
               <span className="truncate">{p.name}</span>
               <span
-                className="shrink-0 rounded border border-[var(--border)] px-1 text-[10px] text-[var(--muted)]"
-                title={PELDAÑOS[p.priority] ?? ""}
+                className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]"
+                title={`Peldaño ${p.priority} de 9`}
               >
                 {PELDAÑOS[p.priority] ?? "?"}
               </span>
@@ -783,7 +783,7 @@ function TrainingPlan({
                           {plan.data?.secondaryLabel} {a.racionSecundaria}%
                         </span>
                       )}
-                      <span className="text-xs text-[var(--muted)]">
+                      <span className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]">
                         {PELDAÑOS[a.peldano] ?? ""}
                       </span>
                     </li>
