@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
 from app.domain.engines import youth_skill_score as yss
+from app.domain.engines.youth_training_plan import youth_training_plan
 from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
@@ -30,6 +31,58 @@ async def academy(team_id: int, session: AsyncSession = Depends(get_session)) ->
     if data is None:
         raise HTTPException(404, f"team {team_id} not found")
     return cast(dict[str, Any], _camel(asdict(data)))
+
+
+@router.get(
+    "/teams/{team_id}/academy/training-plan",
+    summary="El once juvenil con los dos entrenamientos repartidos",
+    dependencies=[Depends(require_team_owner)],
+)
+async def academy_training_plan(
+    team_id: int,
+    main: str = Query(..., description="Entrenamiento principal"),
+    secondary: str = Query(..., description="Entrenamiento secundario"),
+    soon_max_days: int = Query(yss.SOON_MAX_DAYS, ge=0, le=112),
+    weight_base: float = Query(
+        yss.DEFAULT_WEIGHT_BASE, ge=yss.MIN_WEIGHT_BASE, le=yss.MAX_WEIGHT_BASE
+    ),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Quién ocupa cada plaza cuando se entrenan dos cosas a la vez.
+
+    Los dos entrenamientos dibujan un diagrama de Venn sobre los PUESTOS del
+    campo. La intersección --los que reciben doble ración-- se llena primero
+    con los mejores del principal; ver `youth_training_plan`.
+    """
+    for nombre, valor in (("main", main), ("secondary", secondary)):
+        if valor not in yss.SKILLS:
+            raise HTTPException(422, f"{nombre}: «{valor}» no es una habilidad")
+
+    service = AcademyQueryService(session)
+    rows = await service.skill_scores(
+        team_id, soon_max_days=soon_max_days, weight_base=weight_base,
+    )
+    if rows is None:
+        raise HTTPException(404, f"team {team_id} sin canteranos")
+    por_habilidad = {r.skill: r for r in rows}
+    if main not in por_habilidad or secondary not in por_habilidad:
+        raise HTTPException(404, "no hay canteranos con esas habilidades")
+
+    plan = youth_training_plan(
+        main, secondary,
+        por_habilidad[main].players,
+        por_habilidad[secondary].players,
+    )
+    etiquetas = {r.skill: r.label for r in rows}
+    return cast(dict[str, Any], _camel({
+        "main": main,
+        "mainLabel": etiquetas.get(main, main),
+        "secondary": secondary,
+        "secondaryLabel": etiquetas.get(secondary, secondary),
+        "doubleCount": plan.con_doble,
+        "assignments": [asdict(a) for a in plan.asignaciones],
+        "outside": plan.fuera,
+    }))
 
 
 @router.get(

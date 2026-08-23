@@ -388,6 +388,18 @@ export const api = {
     });
     return request<AcademySkillScores>(`/teams/${teamId}/academy/skill-scores?${q}`);
   },
+  academyTrainingPlan: (
+    teamId: number,
+    params: { main: string; secondary: string; soonMaxDays: number; weightBase: number },
+  ) => {
+    const q = new URLSearchParams({
+      main: params.main,
+      secondary: params.secondary,
+      soon_max_days: String(params.soonMaxDays),
+      weight_base: String(params.weightBase),
+    }).toString();
+    return request<AcademyTrainingPlan>(`/teams/${teamId}/academy/training-plan?${q}`);
+  },
   changesHistory: (teamId: number, playerId?: number | null, weeks?: number) => {
     const params = new URLSearchParams();
     if (playerId != null) params.set("player_id", String(playerId));
@@ -588,6 +600,29 @@ export interface LineupHindsight {
   comparableCount: number;
   lines: HindsightLine[];
   notes: string[];
+}
+
+/** Una plaza del once juvenil y qué entrenamiento le llega ahí. */
+export interface TrainingSlot {
+  player: string;
+  puesto: string;
+  /** ambos · solo_principal · solo_secundaria · sin_entrenamiento */
+  region: string;
+  /** 100, 50 o 0. */
+  racionPrincipal: number;
+  racionSecundaria: number;
+}
+
+export interface AcademyTrainingPlan {
+  main: string;
+  mainLabel: string;
+  secondary: string;
+  secondaryLabel: string;
+  /** Cuántos reciben los dos entrenamientos a la vez. */
+  doubleCount: number;
+  assignments: TrainingSlot[];
+  /** Los que no entraron en los once. */
+  outside: string[];
 }
 
 export interface SyncChange {
@@ -1934,6 +1969,8 @@ export interface Academy {
       bucket: string;
       leavesSoon: boolean;
       maxReached: boolean;
+      /** Su puesto en la cola de esa habilidad, de 1 a 9. */
+      priority: number;
     }[];
   }[];
   graduates: {

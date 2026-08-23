@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
-import { useAcademy, useAcademySkillScores } from "../hooks/useTeam";
+import {
+  useAcademy,
+  useAcademySkillScores,
+  useAcademyTrainingPlan,
+} from "../hooks/useTeam";
 import { date, decimal, htAge, money } from "../hooks/useFormat";
 import type { Academy } from "../services/api";
 
@@ -154,7 +158,14 @@ export function AcademyPage() {
       ) : view === "train" ? (
         <WhatToTrain data={data} />
       ) : view === "who" ? (
-        <WhoToTrain data={data} />
+        <div className="space-y-4">
+          <TrainingPlan
+            data={data}
+            soonMaxDays={SOON_MAX_DAYS_POR_DEFECTO}
+            weightBase={WEIGHT_BASE_POR_DEFECTO}
+          />
+          <WhoToTrain data={data} />
+        </div>
       ) : (
         <SkillDetail data={data} />
       )}
@@ -522,14 +533,35 @@ function WhatToTrain({ data }: { data: Academy }) {
  * buenos: un canterano sin revelar es la única forma de descubrir si vale, y
  * los minutos son lo que lo revela. Por eso van al final pero van.
  */
+//: Los mismos valores por defecto que trae «Qué entrenar». El reparto no tiene
+//: mandos propios: mover el corte del plazo ahí y aquí por separado daría dos
+//: colas distintas para la misma cantera.
+const SOON_MAX_DAYS_POR_DEFECTO = 38;
+const WEIGHT_BASE_POR_DEFECTO = 3;
+
+/** Los nueve peldaños de la cola, para etiquetar cada fila. */
+const PELDAÑOS: Record<number, string> = {
+  1: "excelente",
+  2: "bueno · se va pronto",
+  3: "bueno",
+  4: "aceptable · se va pronto",
+  5: "aceptable",
+  6: "sin descubrir · se va pronto",
+  7: "sin descubrir",
+  8: "insuficiente",
+  9: "el resto",
+};
+
 function WhoToTrain({ data }: { data: Academy }) {
   const rows = data.skillScores ?? [];
   const [skill, setSkill] = useState<string | null>(null);
   const chosen = rows.find((r) => r.skill === skill) ?? rows[0];
   if (!chosen) return null;
 
-  const conNota = chosen.players.filter((p) => p.note != null);
-  const sinRevelar = chosen.players.filter((p) => p.note == null);
+  // La cola llega ordenada por los nueve peldaños. Partirla en "con nota" y
+  // "sin revelar" deshacía justo eso: mandaba al final a los que no se sabe
+  // qué dan, cuando darles minutos es lo único que los revela — y si además
+  // se van pronto, es ahora o nunca. Se pinta en el orden en que llega.
 
   return (
     <Panel
@@ -552,10 +584,19 @@ function WhoToTrain({ data }: { data: Academy }) {
       </label>
 
       <ul className="divide-y divide-[var(--border)]">
-        {conNota.map((p) => (
+        {chosen.players.map((p, i) => (
           <li key={p.name} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
             <span className="flex min-w-0 items-center gap-2">
+              <span className="w-5 shrink-0 text-right text-xs tabular-nums text-[var(--muted)]">
+                {i + 1}
+              </span>
               <span className="truncate">{p.name}</span>
+              <span
+                className="shrink-0 rounded border border-[var(--border)] px-1 text-[10px] text-[var(--muted)]"
+                title={PELDAÑOS[p.priority] ?? ""}
+              >
+                {PELDAÑOS[p.priority] ?? "?"}
+              </span>
               {p.leavesSoon && (
                 <span className="shrink-0 text-[10px] text-[var(--youth-known)]" title="sale joven: se promociona por debajo del umbral de edad">
                   ⏱
@@ -574,23 +615,152 @@ function WhoToTrain({ data }: { data: Academy }) {
                   style={{ width: `${barWidth(p.note ?? 0)}%` }}
                 />
               </div>
-              <b className="w-4 text-right tabular-nums">{p.note}</b>
+              <b className="w-4 text-right tabular-nums">{p.note ?? "?"}</b>
             </span>
           </li>
         ))}
       </ul>
 
-      {sinRevelar.length > 0 && (
-        <div className="border-t border-[var(--border)] p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Sin revelar ({sinRevelar.length})
-          </div>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            {sinRevelar.map((p) => p.name).join(" · ")}
-          </p>
-        </div>
+    </Panel>
+  );
+}
+
+/** Los dos entrenamientos repartidos sobre el once.
+ *
+ * Hattrick juvenil entrena una cosa principal y otra secundaria, y cada una
+ * llega a un conjunto de PUESTOS. Los puestos que reciben las dos son la plaza
+ * más valiosa que hay, así que ahí van los primeros de la cola.
+ */
+const REGIONES: Record<string, { titulo: string; pista: string }> = {
+  ambos: { titulo: "Reciben los dos", pista: "doble ración" },
+  solo_principal: { titulo: "Solo el principal", pista: "" },
+  solo_secundaria: { titulo: "Solo el secundario", pista: "" },
+  sin_entrenamiento: { titulo: "Sin entrenamiento", pista: "ocupan sitio, no entrenan" },
+};
+
+const PUESTOS: Record<string, string> = {
+  keeper: "Portero",
+  wingback: "Lateral",
+  central_defender: "Defensa central",
+  winger: "Extremo",
+  inner_midfield: "Medio centro",
+  forward: "Delantero",
+};
+
+function TrainingPlan({
+  data,
+  soonMaxDays,
+  weightBase,
+}: {
+  data: Academy;
+  soonMaxDays: number;
+  weightBase: number;
+}) {
+  const habilidades = data.skillScores ?? [];
+  const [main, setMain] = useState<string>("");
+  const [secondary, setSecondary] = useState<string>("");
+  const principal = main || habilidades[0]?.skill || "";
+  const secundaria = secondary || habilidades[1]?.skill || principal;
+
+  const plan = useAcademyTrainingPlan({
+    main: principal,
+    secondary: secundaria,
+    soonMaxDays,
+    weightBase,
+  });
+
+  if (habilidades.length === 0) return null;
+
+  const selector = (
+    valor: string,
+    onChange: (v: string) => void,
+    etiqueta: string,
+  ) => (
+    <label className="flex-1">
+      <span className="text-xs text-[var(--muted)]">{etiqueta}</span>
+      <select
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
+      >
+        {habilidades.map((h) => (
+          <option key={h.skill} value={h.skill}>
+            {h.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const porRegion = (region: string) =>
+    (plan.data?.assignments ?? []).filter((a) => a.region === region);
+
+  return (
+    <Panel
+      title="Cómo repartir los dos entrenamientos"
+      meta={
+        plan.data
+          ? `${plan.data.doubleCount} reciben doble ración`
+          : "principal y secundario"
+      }
+    >
+      <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
+        {selector(principal, setMain, "Entrenamiento principal")}
+        {selector(secundaria, setSecondary, "Entrenamiento secundario")}
+      </div>
+
+      {plan.isError && (
+        <p className="p-4 text-sm text-[var(--danger)]">
+          No se pudo calcular el reparto.
+        </p>
       )}
 
+      {plan.data && (
+        <div className="divide-y divide-[var(--border)]">
+          {Object.entries(REGIONES).map(([clave, { titulo, pista }]) => {
+            const filas = porRegion(clave);
+            if (filas.length === 0) return null;
+            return (
+              <div key={clave} className="p-4">
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-sm font-medium">{titulo}</h3>
+                  <span className="text-xs text-[var(--muted)]">
+                    {filas.length}
+                    {pista && ` · ${pista}`}
+                  </span>
+                </div>
+                <ul className="mt-2 space-y-1">
+                  {filas.map((a) => (
+                    <li
+                      key={a.player}
+                      className="flex flex-wrap items-baseline gap-x-2 text-sm"
+                    >
+                      <span>{a.player}</span>
+                      {a.puesto && (
+                        <span className="text-xs text-[var(--muted)]">
+                          {PUESTOS[a.puesto] ?? a.puesto}
+                        </span>
+                      )}
+                      {/* Una plaza a media ración entrena, pero la mitad. */}
+                      {(a.racionPrincipal === 50 || a.racionSecundaria === 50) && (
+                        <span className="text-xs text-[var(--warning)]">
+                          media ración
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+          {plan.data.outside.length > 0 && (
+            <p className="p-4 text-xs text-[var(--muted)]">
+              Fuera de los once ({plan.data.outside.length}):{" "}
+              {plan.data.outside.join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
     </Panel>
   );
 }

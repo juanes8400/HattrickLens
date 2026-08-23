@@ -242,6 +242,19 @@ export const useSyncChanges = (syncId?: number | null) =>
     placeholderData: (previous) => previous,
   });
 
+export const useAcademyTrainingPlan = (params: {
+  main: string;
+  secondary: string;
+  soonMaxDays: number;
+  weightBase: number;
+}) =>
+  useQuery({
+    queryKey: ["academy-training-plan", TEAM_ID, params],
+    queryFn: () => api.academyTrainingPlan(TEAM_ID, params),
+    enabled: Boolean(params.main && params.secondary),
+    placeholderData: (previous) => previous,
+  });
+
 export const useAcademySkillScores = (params: {
   soonMaxDays: number;
   weightBase: number;
