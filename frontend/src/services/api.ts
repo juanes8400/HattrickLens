@@ -611,6 +611,10 @@ export interface TrainingSlot {
   /** 100, 50 o 0. */
   racionPrincipal: number;
   racionSecundaria: number;
+  /** En qué peldaño de la cola venía, de 1 a 9. */
+  peldano: number;
+  /** Por qué habilidad se le eligió: la principal o la secundaria. */
+  elegidoPor: string;
 }
 
 export interface AcademyTrainingPlan {

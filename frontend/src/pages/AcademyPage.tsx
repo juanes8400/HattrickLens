@@ -661,8 +661,14 @@ function TrainingPlan({
   weightBase: number;
 }) {
   const habilidades = data.skillScores ?? [];
-  const [main, setMain] = useState<string>("");
-  const [secondary, setSecondary] = useState<string>("");
+  // La eleccion sobrevive a recargar: son dos decisiones que el usuario toma
+  // una vez por semana, no en cada visita.
+  const [main, setMain] = useState<string>(
+    () => localStorage.getItem("juveniles.principal") ?? "",
+  );
+  const [secondary, setSecondary] = useState<string>(
+    () => localStorage.getItem("juveniles.secundario") ?? "",
+  );
   const principal = main || habilidades[0]?.skill || "";
   const secundaria = secondary || habilidades[1]?.skill || principal;
 
@@ -679,12 +685,16 @@ function TrainingPlan({
     valor: string,
     onChange: (v: string) => void,
     etiqueta: string,
+    recuerdo: string,
   ) => (
     <label className="flex-1">
       <span className="text-xs text-[var(--muted)]">{etiqueta}</span>
       <select
         value={valor}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          localStorage.setItem(recuerdo, e.target.value);
+        }}
         className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
       >
         {habilidades.map((h) => (
@@ -709,8 +719,8 @@ function TrainingPlan({
       }
     >
       <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
-        {selector(principal, setMain, "Entrenamiento principal")}
-        {selector(secundaria, setSecondary, "Entrenamiento secundario")}
+        {selector(principal, setMain, "Entrenamiento principal", "juveniles.principal")}
+        {selector(secundaria, setSecondary, "Entrenamiento secundario", "juveniles.secundario")}
       </div>
 
       {plan.isError && (
@@ -745,12 +755,33 @@ function TrainingPlan({
                           {PUESTOS[a.puesto] ?? a.puesto}
                         </span>
                       )}
-                      {/* Una plaza a media ración entrena, pero la mitad. */}
-                      {(a.racionPrincipal === 50 || a.racionSecundaria === 50) && (
-                        <span className="text-xs text-[var(--warning)]">
-                          media ración
+                      {/* Qué recibe y de cuál: una plaza puede ser entera en
+                          un entrenamiento y media en el otro. */}
+                      {a.racionPrincipal > 0 && (
+                        <span
+                          className={
+                            a.racionPrincipal === 50
+                              ? "text-xs text-[var(--warning)]"
+                              : "text-xs text-[var(--positive)]"
+                          }
+                        >
+                          {plan.data?.mainLabel} {a.racionPrincipal}%
                         </span>
                       )}
+                      {a.racionSecundaria > 0 && (
+                        <span
+                          className={
+                            a.racionSecundaria === 50
+                              ? "text-xs text-[var(--warning)]"
+                              : "text-xs text-[var(--positive)]"
+                          }
+                        >
+                          {plan.data?.secondaryLabel} {a.racionSecundaria}%
+                        </span>
+                      )}
+                      <span className="text-xs text-[var(--muted)]">
+                        {PELDAÑOS[a.peldano] ?? ""}
+                      </span>
                     </li>
                   ))}
                 </ul>

@@ -87,6 +87,12 @@ class Asignacion:
     region: str
     racion_principal: int
     racion_secundaria: int
+    #: En qué peldaño venía, y de qué cola salió. Sin esto la pantalla enseña
+    #: un nombre en una plaza y no hay forma de saber por qué está ahí.
+    peldano: int = 9
+    #: La habilidad por la que se le eligió: la principal en las dos primeras
+    #: regiones, la secundaria en la tercera.
+    elegido_por: str = ""
 
     @property
     def recibe_doble(self) -> bool:
@@ -209,6 +215,10 @@ def youth_training_plan(
             plan.asignaciones.append(Asignacion(
                 player=elegido.name, puesto=cupo.puesto, region=region,
                 racion_principal=r_principal, racion_secundaria=r_secundaria,
+                peldano=elegido.priority,
+                elegido_por=(
+                    secundaria if region == REGION_SOLO_SECUNDARIA else principal
+                ),
             ))
 
     coloca(ambos, _orden_de_cola(cola_principal), REGION_AMBOS)
@@ -224,6 +234,7 @@ def youth_training_plan(
         plan.asignaciones.append(Asignacion(
             player=jugador.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
             racion_principal=0, racion_secundaria=0,
+            peldano=jugador.priority, elegido_por="",
         ))
 
     plan.fuera = [p.name for p in cola_principal if p.name not in ya_puestos]
