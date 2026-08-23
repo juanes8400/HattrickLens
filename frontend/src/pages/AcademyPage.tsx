@@ -637,6 +637,12 @@ function NivelDeHabilidad({
 
   return (
     <span className="flex items-center gap-2">
+      {/* El candado va PRIMERO y en un hueco de ancho fijo: al final de la
+          fila desplazaba el resto y las filas quedaban desalineadas entre sí,
+          unas con candado y otras sin él. */}
+      <span className="w-4 shrink-0 text-center leading-none">
+        {maxReached ? <span title="ya tocó techo: no sube más">🔒</span> : null}
+      </span>
       <span className="w-24 shrink-0 text-sm">{palabra}</span>
       <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
         <span
@@ -647,7 +653,6 @@ function NivelDeHabilidad({
       <span className="w-10 shrink-0 text-right text-sm tabular-nums text-[var(--muted)]">
         {numeros}
       </span>
-      {maxReached && <span title="ya tocó techo: no sube más">🔒</span>}
     </span>
   );
 }
@@ -747,6 +752,11 @@ function WhoToTrain({ data }: { data: Academy }) {
             <span className="flex min-w-0 items-center gap-2">
               <span className="w-5 shrink-0" />
               <span className="truncate">{p.name}</span>
+              {/* La misma etiqueta que llevan los de la cola, para que la fila
+                  mida lo mismo y la lista no dé un salto al llegar aquí. */}
+              <span className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]">
+                al tope
+              </span>
               {p.leavesSoon && (
                 <span
                   className="shrink-0 text-[10px] text-[var(--youth-known)]"
