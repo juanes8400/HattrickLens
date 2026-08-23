@@ -82,6 +82,10 @@ def training_priority(
 # plazo, en años y días. El corte de 38 días parte a los que se van pronto de
 # los que aún tienen margen — un canterano prometedor al que le quedan tres
 # semanas no da tiempo a entrenarlo.
+#: El año del corte: sale del juvenil con 17 y pico. `SOON_MAX_DAYS` son los
+#: días de ese corte, así que el umbral entero es 17;038 y la comparación es
+#: estricta — «menos de 17;038».
+LEAVE_AGE_YEARS = 17
 SOON_MAX_DAYS = 38
 
 # Para quien no se sabe cuándo se podrá promocionar. Tiene que quedar FUERA
@@ -242,8 +246,19 @@ def bucket_of(note: int | None, *, leaves_soon: bool) -> str:
 def leaves_soon(
     candidate: YouthCandidate, *, soon_max_days: int = SOON_MAX_DAYS
 ) -> bool:
-    """`Juveniles!G <= 38` dentro del año que marca `F`."""
-    return candidate.age_days_at_deadline <= soon_max_days
+    """¿Sale con menos de 17;038?
+
+    2026-08-23, corregido: lo que importa no es «se va pronto» sino la EDAD a
+    la que sale, y la edad son dos números. Antes se miraba solo el de los
+    días --`age_days_at_deadline <= 38`-- así que alguien que saliera con
+    18;010 contaba igual que uno de 17;010: diez es menos que treinta y ocho.
+    En esta academia todos salen con 17;xxx y por eso no se veía.
+
+    El corte es estricto, como se dijo: «menos de 17;038».
+    """
+    return (candidate.age_years_at_deadline, candidate.age_days_at_deadline) < (
+        LEAVE_AGE_YEARS, soon_max_days
+    )
 
 
 def score_skills(

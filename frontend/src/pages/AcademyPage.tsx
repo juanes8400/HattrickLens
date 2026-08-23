@@ -539,14 +539,18 @@ function WhatToTrain({ data }: { data: Academy }) {
 const SOON_MAX_DAYS_POR_DEFECTO = 38;
 const WEIGHT_BASE_POR_DEFECTO = 3;
 
-/** Los nueve peldaños de la cola, para etiquetar cada fila. */
+/** Los nueve peldaños de la cola, para etiquetar cada fila.
+ *
+ * «Sale joven» es sale con MENOS de 17;038. No es «se va pronto»: lo que
+ * decide es la edad a la que sale, no cuánto le queda.
+ */
 const PELDAÑOS: Record<number, string> = {
   1: "excelente",
-  2: "bueno · se va pronto",
+  2: "bueno · sale joven",
   3: "bueno",
-  4: "aceptable · se va pronto",
+  4: "aceptable · sale joven",
   5: "aceptable",
-  6: "sin descubrir · se va pronto",
+  6: "sin descubrir · sale joven",
   7: "sin descubrir",
   8: "insuficiente",
   9: "el resto",
@@ -598,7 +602,7 @@ function WhoToTrain({ data }: { data: Academy }) {
                 {PELDAÑOS[p.priority] ?? "?"}
               </span>
               {p.leavesSoon && (
-                <span className="shrink-0 text-[10px] text-[var(--youth-known)]" title="sale joven: se promociona por debajo del umbral de edad">
+                <span className="shrink-0 text-[10px] text-[var(--youth-known)]" title="sale con menos de 17;038">
                   ⏱
                 </span>
               )}

@@ -10,6 +10,7 @@ desconocidos al final: ignoraba el plazo, que es lo que decide de verdad.
 from app.domain.engines.youth_skill_score import (
     YouthCandidate,
     YouthSkillReading,
+    leaves_soon,
     score_skills,
     training_priority,
 )
@@ -91,3 +92,24 @@ def test_el_puntaje_de_la_habilidad_no_lo_toca_esta_cola() -> None:
     marcador = next(s for s in score_skills(candidatos) if s.skill == "scoring")
     assert marcador.score == 0.0
     assert marcador.players[0].priority == 8
+
+
+# ── El corte no es "pronto": es la EDAD a la que sale ──────────────────────
+
+def _sale_con(años: int, dias: int) -> YouthCandidate:
+    return YouthCandidate(
+        name="x", age_years_at_deadline=años, age_days_at_deadline=dias, skills={},
+    )
+
+
+def test_el_corte_mira_el_año_tambien() -> None:
+    """Antes solo miraba los dias: 18;010 pasaba por delante de 17;048."""
+    assert leaves_soon(_sale_con(18, 10)) is False
+    assert leaves_soon(_sale_con(19, 5)) is False
+    assert leaves_soon(_sale_con(16, 90)) is True
+
+
+def test_el_corte_es_estricto() -> None:
+    """«Menos de 17;038», dicho asi por el usuario."""
+    assert leaves_soon(_sale_con(17, 37)) is True
+    assert leaves_soon(_sale_con(17, 38)) is False

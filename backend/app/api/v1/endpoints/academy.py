@@ -94,7 +94,7 @@ async def academy_skill_scores(
     team_id: int,
     soon_max_days: int = Query(
         yss.SOON_MAX_DAYS, ge=0, le=112,
-        description="Hasta cuántos días para poder promocionar cuenta como «sale pronto»",
+        description="Los días del corte: sale joven quien lo hace con menos de 17;<este número>",
     ),
     weight_base: float = Query(
         yss.DEFAULT_WEIGHT_BASE, ge=yss.MIN_WEIGHT_BASE, le=yss.MAX_WEIGHT_BASE,
