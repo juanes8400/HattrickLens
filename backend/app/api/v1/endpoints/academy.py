@@ -169,6 +169,10 @@ async def academy_skill_scores(
         # El sugerido por la escalera y el que de verdad se usó: la pantalla
         # enseña el primero como propuesta y el segundo como valor del mando.
         "suggestedTrainableWeight": yss.trainable_weight_for(weight_base),
+        # Las plazas que entrena cada cosa, para que «Editar a mano» arranque
+        # de la verdad en vez de ceros: el usuario ajusta, no teclea de cero
+        # unos numeros que la aplicacion ya sabe.
+        "slotCounts": yss.slot_trainable(),
         "trainableWeight": (
             yss.trainable_weight_for(weight_base) if trainable_weight is None
             else trainable_weight

@@ -1381,6 +1381,8 @@ export interface AcademySkillScores {
   weights: Record<string, number>;
   /** El que sugiere la escalera (peldaño -2 de la base). */
   suggestedTrainableWeight: number;
+  /** Las plazas que entrena cada habilidad, para sembrar el modo manual. */
+  slotCounts: Record<string, number>;
   /** El que de verdad se usó: el sugerido, o el que fijó el usuario. */
   trainableWeight: number;
   skillScores: Academy["skillScores"];

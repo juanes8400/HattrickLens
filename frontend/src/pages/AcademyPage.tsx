@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import {
@@ -327,11 +327,47 @@ const TRAINABLE_METHODS: [string, string, string][] = [
   ["edit", "Editar a mano", "lo escribes tú, habilidad por habilidad"],
 ];
 
+/** `set_pieces` → `setPieces`.
+ *
+ * El serializador del backend camelCasea también las CLAVES de los
+ * diccionarios, no sólo los nombres de campo (ver `BUCKETS`). Las habilidades
+ * viajan en snake dentro de cada fila y en camel dentro de `slotCounts`, así
+ * que hay que traducir para cruzarlas.
+ */
+function aCamel(skill: string): string {
+  return skill.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+/** Las plazas de cada habilidad, con las claves que usan las filas. */
+function plazasPorHabilidad(
+  filas: { skill: string }[],
+  plazas: Record<string, number> | undefined,
+): Record<string, number> {
+  if (!plazas) return {};
+  return Object.fromEntries(
+    filas.map((f) => [f.skill, plazas[aCamel(f.skill)] ?? 0]),
+  );
+}
+
+/** ¿La tabla manual sigue en las plazas de origen, sin tocar? */
+function plazasIguales(
+  actual: Record<string, number>,
+  origen: Record<string, number>,
+): boolean {
+  const claves = Object.keys(origen);
+  if (claves.length === 0) return Object.values(actual).every((n) => !n);
+  return claves.every((k) => (actual[k] ?? 0) === origen[k]);
+}
+
 function WhatToTrain({ data }: { data: Academy }) {
   const [soonMaxDays, setSoonMaxDays] = useState(DEFAULT_SOON_MAX_DAYS);
   const [weightBase, setWeightBase] = useState(DEFAULT_WEIGHT_BASE);
   const [trainableMethod, setTrainableMethod] = useState("edit");
+  // Arranca en las plazas que de verdad entrena cada cosa, no en ceros: son
+  // números que la aplicación ya sabe, y hacérselos teclear era pedirle al
+  // usuario que copiara una tabla nuestra a mano.
   const [trainable, setTrainable] = useState<Record<string, number>>({});
+  const [sembrado, setSembrado] = useState(false);
   // `null` = que lo sugiera la escalera (el peldaño -2 de la base). En cuanto
   // el usuario lo toca deja de seguirla: es el único sumando que no describe a
   // la cantera sino cuánto quiere pesar él ese criterio.
@@ -339,6 +375,7 @@ function WhatToTrain({ data }: { data: Academy }) {
   const tuned = useAcademySkillScores({
     soonMaxDays, weightBase, trainableMethod, trainable, trainableWeight: bonusWeight,
   });
+
   // Los pesos que la base reparte por columna. El usuario juega con potencias
   // y quiere verlas encima de cada cubo, no deducirlas de la base.
   const weights = tuned.data?.weights ?? {};
@@ -349,6 +386,12 @@ function WhatToTrain({ data }: { data: Academy }) {
   // Mientras llega la primera respuesta se pinta lo que ya trajo /academy con
   // los valores por defecto: la tabla nunca aparece vacía.
   const rows = tuned.data?.skillScores ?? data.skillScores ?? [];
+  const plazas = plazasPorHabilidad(rows, tuned.data?.slotCounts);
+  useEffect(() => {
+    if (sembrado || Object.keys(plazas).length === 0) return;
+    setTrainable(plazas);
+    setSembrado(true);
+  }, [plazas, sembrado]);
   const top = rows[0];
   if (!top) return null;
   const max = Math.max(...rows.map((r) => r.score), 1e-9);
@@ -357,7 +400,7 @@ function WhatToTrain({ data }: { data: Academy }) {
     weightBase === DEFAULT_WEIGHT_BASE &&
     trainableMethod === "edit" &&
     bonusWeight === null &&
-    Object.values(trainable).every((n) => !n);
+    plazasIguales(trainable, plazas);
 
   return (
     <Panel title="Qué entrenar" meta="una habilidad, la reciben todos">
@@ -448,7 +491,7 @@ function WhatToTrain({ data }: { data: Academy }) {
                 setBonusWeight(null);
                 setSoonMaxDays(DEFAULT_SOON_MAX_DAYS);
                 setWeightBase(DEFAULT_WEIGHT_BASE);
-                setTrainable({});
+                setTrainable(plazas ?? {});
               }}
               className="text-xs text-[var(--accent)] hover:underline"
             >
