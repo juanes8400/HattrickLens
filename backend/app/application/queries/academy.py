@@ -80,6 +80,9 @@ class SkillScoreRow:
     #  Todos los canteranos ordenados por lo que sacan en esta habilidad:
     #  es la respuesta a "¿a quién le doy los minutos?".
     players: list[yss.PlayerNote]
+    #  Los que ya tocaron techo en esta habilidad: fuera de la cola, pero
+    #  contados, para poder explicar el hueco en pantalla.
+    at_max: list[yss.PlayerNote]
 
 
 @dataclass
@@ -208,6 +211,7 @@ class AcademyQueryService:
                 counts=row.counts,
                 trainable_count=row.trainable_count,
                 players=row.players,
+                at_max=row.at_max,
             )
             for row in yss.score_skills(
                 candidates,
@@ -526,6 +530,7 @@ class AcademyQueryService:
                 counts=row.counts,
                 trainable_count=row.trainable_count,
                 players=row.players,
+                at_max=row.at_max,
             )
             for row in yss.score_skills(candidates)
         ]

@@ -72,6 +72,8 @@ async def academy_training_plan(
         main, secondary,
         por_habilidad[main].players,
         por_habilidad[secondary].players,
+        tope_principal={p.name for p in por_habilidad[main].at_max},
+        tope_secundaria={p.name for p in por_habilidad[secondary].at_max},
     )
     etiquetas = {r.skill: r.label for r in rows}
     return cast(dict[str, Any], _camel({

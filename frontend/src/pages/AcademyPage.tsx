@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
+import { skillLevelLabel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import {
   useAcademy,
@@ -582,6 +583,62 @@ function WhatToTrain({ data }: { data: Academy }) {
 const SOON_MAX_DAYS_POR_DEFECTO = 38;
 const WEIGHT_BASE_POR_DEFECTO = 3;
 
+/** El nivel de una habilidad, como en Hattrick.
+ *
+ * Cuatro casos y un color cada uno. La barra va LIMPIA: la palabra del nivel
+ * es texto aparte, nunca dentro de la barra.
+ *
+ *   ya tocó techo        la palabra del nivel · barra roja llena · `2/2`
+ *   sé el actual         la palabra del actual · barra verde     · `5/?`
+ *   sé sólo el techo     la palabra del techo  · barra vacía     · `?/4`
+ *   no sé nada           «desconocido»         · barra vacía     · —
+ */
+function NivelDeHabilidad({
+  current,
+  maximum,
+  maxReached,
+}: {
+  current: number | null;
+  maximum: number | null;
+  maxReached: boolean;
+}) {
+  const sabeActual = current != null;
+  const sabeTecho = maximum != null;
+  const palabra = maxReached
+    ? skillLevelLabel(current ?? maximum ?? 0)
+    : sabeActual
+      ? skillLevelLabel(current)
+      : sabeTecho
+        ? skillLevelLabel(maximum)
+        : "desconocido";
+  const relleno = maxReached
+    ? { ancho: 100, color: "var(--danger)" }
+    : sabeActual
+      ? { ancho: barWidth(current), color: "var(--positive)" }
+      : { ancho: 0, color: "transparent" };
+  const numeros = maxReached
+    ? `${current ?? maximum}/${maximum ?? current}`
+    : sabeActual || sabeTecho
+      ? `${sabeActual ? current : "?"}/${sabeTecho ? maximum : "?"}`
+      : "";
+
+  return (
+    <span className="flex items-center gap-2">
+      <span className="w-24 shrink-0 text-sm">{palabra}</span>
+      <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+        <span
+          className="block h-full"
+          style={{ width: `${relleno.ancho}%`, background: relleno.color }}
+        />
+      </span>
+      <span className="w-10 shrink-0 text-right text-sm tabular-nums text-[var(--muted)]">
+        {numeros}
+      </span>
+      {maxReached && <span title="ya tocó techo: no sube más">🔒</span>}
+    </span>
+  );
+}
+
 /** Los nueve peldaños de la cola, para etiquetar cada fila.
  *
  * «Sale joven» es sale con MENOS de 17;038. No es «se va pronto»: lo que
@@ -634,6 +691,16 @@ function WhoToTrain({ data }: { data: Academy }) {
         </select>
       </label>
 
+      {chosen.atMax.length > 0 && (
+        <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
+          Fuera de la lista por tener {chosen.label} al tope:{" "}
+          <span className="text-[var(--text)]">
+            {chosen.atMax.map((p) => p.name).join(" · ")}
+          </span>
+          . Entrenarles esto no los sube.
+        </p>
+      )}
+
       <ul className="divide-y divide-[var(--border)]">
         {chosen.players.map((p, i) => (
           <li key={p.name} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
@@ -653,14 +720,7 @@ function WhoToTrain({ data }: { data: Academy }) {
                   ⏱
                 </span>
               )}
-              {p.maxReached && (
-                <span
-                  className="shrink-0 text-sm text-[var(--muted)]"
-                  title="ya tocó techo: entrenarlo no lo sube"
-                >
-                  🔒
-                </span>
-              )}
+
             </span>
             <span className="flex shrink-0 items-center gap-2">
               {/* Al tope, como en Hattrick: la barra llena y el número, que se
@@ -668,19 +728,11 @@ function WhoToTrain({ data }: { data: Academy }) {
                   a propósito --es "no entrenes"-- y `level` es el número. */}
               <div className="h-1.5 w-20 overflow-hidden rounded bg-[var(--surface-2)]">
                 <div
-                  className={
-                    p.maxReached
-                      ? "h-full bg-[var(--muted)]"
-                      : "h-full bg-[var(--youth-known)]"
-                  }
-                  style={{
-                    width: p.maxReached ? "100%" : `${barWidth(p.note ?? 0)}%`,
-                  }}
+                  className="h-full bg-[var(--youth-known)]"
+                  style={{ width: `${barWidth(p.note ?? 0)}%` }}
                 />
               </div>
-              <b className="w-4 text-right tabular-nums">
-                {p.note ?? p.level ?? "?"}
-              </b>
+              <b className="w-4 text-right tabular-nums">{p.note ?? "?"}</b>
             </span>
           </li>
         ))}
@@ -873,57 +925,15 @@ function SkillDetail({ data }: { data: Academy }) {
             </div>
             <div className="mt-3 space-y-2">
               {p.skills.map((s) => (
-                <div key={s.skill} className="text-xs">
-                  <div className="flex justify-between text-[var(--muted)]">
-                    {/* El mapa de nombres existía y esta línea no lo usaba:
-                        se leía "set_pieces" en una pantalla en español. */}
-                    <span>{SKILL_NAMES[s.skill] ?? s.skill}</span>
-                    <span className="flex items-center gap-1 tabular-nums">
-                      {s.maxReached ? (
-                        <>
-                          <span className="text-sm text-[var(--text)]">
-                            {s.current ?? s.maximum ?? "?"}
-                          </span>
-                          <span title="ya tocó techo: no sube más">🔒</span>
-                        </>
-                      ) : (
-                        <>
-                          {s.isCurrentKnown ? s.current : "?"}
-                          {s.isMaxKnown ? ` / ${s.maximum}` : " / ?"}
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex h-1.5 overflow-hidden rounded bg-[var(--surface-2)]">
-                    {/* Al tope la barra va llena: no queda recorrido, y
-                        pintarla a medias sugeriría que aún puede subir. */}
-                    {s.maxReached && (
-                      <div className="h-full w-full bg-[var(--muted)]" />
-                    )}
-                    {/* Amarillo = lo que el ojeador YA midió de este chico.
-                        Sólo se pinta si el nivel actual se conoce; un nivel
-                        sin revelar deja la barra vacía en vez de fingir un 0,
-                        que es lo que hacía antes. */}
-                    {!s.maxReached && s.isCurrentKnown && (
-                      <div
-                        className="h-full bg-[var(--youth-known)]"
-                        style={{ width: `${barWidth(s.current ?? 0)}%` }}
-                      />
-                    )}
-                    {/* El tramo hasta el techo, cuando el techo se conoce: es
-                        recorrido pendiente, no habilidad que ya tenga. */}
-                    {!s.maxReached && s.isMaxKnown && (
-                      <div
-                        className="h-full bg-[var(--youth-headroom)]"
-                        style={{
-                          width: `${Math.max(
-                            0,
-                            barWidth(s.maximum ?? 0) - barWidth(s.isCurrentKnown ? s.current ?? 0 : 0),
-                          )}%`,
-                        }}
-                      />
-                    )}
-                  </div>
+                <div key={s.skill} className="flex items-center gap-3 text-xs">
+                  <span className="w-28 shrink-0 text-[var(--muted)]">
+                    {SKILL_NAMES[s.skill] ?? s.skill}
+                  </span>
+                  <NivelDeHabilidad
+                    current={s.current}
+                    maximum={s.maximum}
+                    maxReached={s.maxReached}
+                  />
                 </div>
               ))}
             </div>

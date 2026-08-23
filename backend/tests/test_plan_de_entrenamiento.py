@@ -137,3 +137,36 @@ def test_nadie_ocupa_dos_plazas() -> None:
     )
     nombres = [a.player for a in plan.asignaciones]
     assert len(nombres) == len(set(nombres))
+
+
+def test_el_que_toco_techo_no_ocupa_una_plaza_de_esa_habilidad() -> None:
+    """La trampa era el repuesto: al tirar de la reserva para no dejar una
+    plaza vacia se colaba alguien tapado justo en esa habilidad."""
+    principal = _cola("A", "B")          # cola corta a proposito
+    secundaria = _cola("Tapado", "C", "D", "E", "F", "G", "H")
+    plan = youth_training_plan(
+        "winger", "passing", principal, secundaria,
+        tope_principal={"Tapado"},
+    )
+    en_principal = [
+        a.player for a in plan.asignaciones
+        if a.region in (REGION_AMBOS, REGION_SOLO_PRINCIPAL)
+    ]
+    assert "Tapado" not in en_principal, "un tapado entro a entrenar lo que ya tiene lleno"
+    # Y si puede recibir la secundaria, que la reciba: no esta castigado.
+    en_secundaria = [
+        a.player for a in plan.asignaciones if a.region == REGION_SOLO_SECUNDARIA
+    ]
+    assert "Tapado" in en_secundaria
+
+
+def test_tapado_en_las_dos_no_entra_en_ninguna_plaza_que_entrene() -> None:
+    plan = youth_training_plan(
+        "winger", "passing", _cola("A"), _cola("Tapado", "B", "C", "D"),
+        tope_principal={"Tapado"}, tope_secundaria={"Tapado"},
+    )
+    entrenan = [
+        a.player for a in plan.asignaciones
+        if a.region != REGION_SIN_ENTRENAMIENTO
+    ]
+    assert "Tapado" not in entrenan

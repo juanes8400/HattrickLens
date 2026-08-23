@@ -114,6 +114,11 @@ class Bucket(StrEnum):
     ACCEPTABLE_LATER = "aceptable_tarde"
     UNKNOWN_SOON = "desconocido_pronto"
     UNKNOWN_LATER = "desconocido_tarde"
+    #: Ya llegó a su techo. No es «no se sabe»: se sabe, y se sabe que no
+    #: sube. Tiene grupo propio porque compartirlo con los desconocidos hacía
+    #: que un canterano tapado EMPUJARA la habilidad hacia arriba en el
+    #: ranking, que es exactamente lo contrario de lo que toca.
+    AT_MAX = "al_tope"
 
 
 # Los pesos de `AuxiJuveniles!O11` no son siete números sueltos: son una
@@ -147,8 +152,16 @@ MAX_WEIGHT_BASE = 4.0
 
 
 def weights_for(base: float = DEFAULT_WEIGHT_BASE) -> dict[str, float]:
-    """La escalera de pesos para una base dada."""
-    return {bucket: base ** exp for bucket, exp in EXPONENTS.items()}
+    """La escalera de pesos para una base dada.
+
+    El grupo de los que ya tocaron techo pesa CERO y no está en la escalera:
+    no es un peldaño más bajo, es que no cuenta. Entrenar algo que ya no sube
+    no vale nada, y ninguna base debería poder darle valor.
+    """
+    return {
+        **{bucket: base ** exp for bucket, exp in EXPONENTS.items()},
+        Bucket.AT_MAX: 0.0,
+    }
 
 
 def trainable_weight_for(base: float = DEFAULT_WEIGHT_BASE) -> float:
@@ -220,10 +233,13 @@ class SkillScore:
     #  entrenamiento. En la hoja se teclea a mano; aquí es un dato de entrada,
     #  0 mientras nadie lo aporte — nunca un número inventado.
     trainable_count: float = 0.0
-    #  TODOS los canteranos, ordenados por lo que sacan en esta habilidad. No
-    #  sólo los buenos: a quién dar minutos incluye a quien todavía no se sabe
-    #  qué da.
+    #  Los canteranos que PUEDEN mejorar en esta habilidad, ordenados por lo
+    #  que sacan. No sólo los buenos: incluye a quien todavía no se sabe qué
+    #  da, porque darle minutos es lo único que lo revela.
     players: list[PlayerNote] = field(default_factory=list)
+    #  Los que ya tocaron techo. No están en `players` --no compiten por unos
+    #  minutos que no les servirían de nada-- pero se cuentan para decirlo.
+    at_max: list[PlayerNote] = field(default_factory=list)
 
 
 def skill_note(reading: YouthSkillReading) -> int | None:
@@ -242,8 +258,12 @@ def skill_note(reading: YouthSkillReading) -> int | None:
     return note or None
 
 
-def bucket_of(note: int | None, *, leaves_soon: bool) -> str:
+def bucket_of(
+    note: int | None, *, leaves_soon: bool, max_reached: bool = False
+) -> str:
     """El cubo de `AuxiJuveniles` al que cae una nota."""
+    if max_reached:
+        return Bucket.AT_MAX
     if note is None:
         return Bucket.UNKNOWN_SOON if leaves_soon else Bucket.UNKNOWN_LATER
     if note >= EXCELLENT_FROM:
@@ -309,14 +329,20 @@ def score_skills(
     for skill in SKILLS:
         counts = {b.value: 0 for b in Bucket}
         names: list[PlayerNote] = []
+        tapados: list[PlayerNote] = []
         for candidate in candidates:
             reading = candidate.skills.get(skill)
             if reading is None:
                 continue
             note = skill_note(reading)
             pronto = leaves_soon(candidate, soon_max_days=soon_max_days)
-            bucket = bucket_of(note, leaves_soon=pronto)
-            names.append(
+            bucket = bucket_of(
+                note, leaves_soon=pronto, max_reached=reading.max_reached
+            )
+            # Quien ya toco techo no compite por estos minutos: no le
+            # servirian de nada. Se aparta, no se pone el ultimo.
+            destino = tapados if reading.max_reached else names
+            destino.append(
                 PlayerNote(
                     name=candidate.name,
                     note=note,
@@ -359,6 +385,7 @@ def score_skills(
                     names,
                     key=lambda p: (p.priority, -(p.note or 0), p.age_days_total, p.name),
                 ),
+                at_max=sorted(tapados, key=lambda p: p.name),
             )
         )
     # De mayor a menor. El desempate es el orden de `SKILLS`, no un `RAND()`

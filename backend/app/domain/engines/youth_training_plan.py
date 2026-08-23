@@ -177,6 +177,8 @@ def youth_training_plan(
     cola_principal: list[PlayerNote],
     cola_secundaria: list[PlayerNote],
     *,
+    tope_principal: set[str] | None = None,
+    tope_secundaria: set[str] | None = None,
     plazas: int = PLAZAS_DE_UNA_ALINEACION,
 ) -> PlanDeEntrenamiento:
     """El once propuesto: quién ocupa cada plaza y qué entrenamiento recibe.
@@ -190,6 +192,9 @@ def youth_training_plan(
     plan = PlanDeEntrenamiento(principal=principal, secundaria=secundaria)
     ya_puestos: set[str] = set()
 
+    tope_a = tope_principal or set()
+    tope_b = tope_secundaria or set()
+
     # Todos los canteranos conocidos, por si una cola se queda corta: una
     # plaza que entrena no puede quedarse vacia habiendo gente libre.
     todos = list(cola_principal) + [
@@ -197,12 +202,28 @@ def youth_training_plan(
         if p.name not in {q.name for q in cola_principal}
     ]
 
-    def siguiente(cola: list[PlayerNote]) -> PlayerNote | None:
+    def vetados(region: str) -> set[str]:
+        """Quien NO puede ocupar una plaza de esta region.
+
+        El repuesto de arriba es lo que hacia falta vigilar: las colas ya
+        vienen sin los que tocaron techo, pero al tirar de `todos` para no
+        dejar una plaza vacia se podia colar alguien tapado justo en la
+        habilidad que esa plaza entrena.
+        """
+        if region == REGION_AMBOS:
+            return tope_a | tope_b
+        if region == REGION_SOLO_PRINCIPAL:
+            return tope_a
+        if region == REGION_SOLO_SECUNDARIA:
+            return tope_b
+        return set()
+
+    def siguiente(cola: list[PlayerNote], fuera: set[str]) -> PlayerNote | None:
         for p in cola:
-            if p.name not in ya_puestos:
+            if p.name not in ya_puestos and p.name not in fuera:
                 return p
         for p in todos:
-            if p.name not in ya_puestos:
+            if p.name not in ya_puestos and p.name not in fuera:
                 return p
         return None
 
@@ -210,7 +231,7 @@ def youth_training_plan(
         for cupo in cupos:
             if len(plan.asignaciones) >= plazas:
                 return
-            elegido = siguiente(cola)
+            elegido = siguiente(cola, vetados(region))
             if elegido is None:
                 return
             ya_puestos.add(elegido.name)
