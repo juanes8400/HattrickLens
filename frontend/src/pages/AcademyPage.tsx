@@ -215,18 +215,27 @@ function YouthTable({ data }: { data: Academy }) {
       key: "best",
       header: "Mejor habilidad",
       value: (r) => r.bestSkill,
-      render: (r) =>
+      render: (r) => {
         // Sin ningún techo revelado no hay "mejor habilidad" que mostrar: lo
         // que había antes era el techo ASUMIDO por el motor (8 para todas),
         // presentado como si lo hubiera dicho el ojeador.
-        r.bestSkill && r.bestSkillMax != null ? (
-          <span>
-            {SKILL_NAMES[r.bestSkill] ?? r.bestSkill}
-            <span className="text-[var(--muted)]"> (techo {r.bestSkillMax})</span>
+        if (!r.bestSkill || r.bestSkillMax == null) {
+          return <span className="text-[var(--muted)]">sin revelar</span>;
+        }
+        const s = r.skills.find((x) => x.skill === r.bestSkill);
+        return (
+          <span className="flex items-center gap-2">
+            <span className="w-24 shrink-0">
+              {SKILL_NAMES[r.bestSkill] ?? r.bestSkill}
+            </span>
+            <NivelDeHabilidad
+              current={s?.current ?? null}
+              maximum={s?.maximum ?? r.bestSkillMax}
+              maxReached={s?.maxReached ?? false}
+            />
           </span>
-        ) : (
-          <span className="text-[var(--muted)]">sin revelar</span>
-        ),
+        );
+      },
     },
     {
       key: "revealed",
@@ -726,17 +735,14 @@ function WhoToTrain({ data }: { data: Academy }) {
               )}
 
             </span>
-            <span className="flex shrink-0 items-center gap-2">
-              {/* Al tope, como en Hattrick: la barra llena y el número, que se
-                  sabe aunque no haya nada que entrenar. `note` vale null ahí
-                  a propósito --es "no entrenes"-- y `level` es el número. */}
-              <div className="h-1.5 w-20 overflow-hidden rounded bg-[var(--surface-2)]">
-                <div
-                  className="h-full bg-[var(--youth-known)]"
-                  style={{ width: `${barWidth(p.note ?? 0)}%` }}
-                />
-              </div>
-              <b className="w-4 text-right tabular-nums">{p.note ?? "?"}</b>
+            <span className="shrink-0">
+              {/* La misma pieza que en Techos y en la plantilla: una sola
+                  forma de pintar un nivel en toda la pantalla. */}
+              <NivelDeHabilidad
+                current={p.current}
+                maximum={p.maximum}
+                maxReached={p.maxReached}
+              />
             </span>
           </li>
         ))}

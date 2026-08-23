@@ -219,6 +219,11 @@ class PlayerNote:
     #: cuando la habilidad ya tocó techo --no hay nada que entrenar-- pero el
     #: número sí se sabe, y es lo que Hattrick enseña junto al candado.
     level: int | None = None
+    #: Lo que el ojeador dijo, tal cual: a qué nivel juega hoy y hasta dónde
+    #: puede llegar. Se revelan por separado y cualquiera puede faltar. Es lo
+    #: que necesita la pantalla para pintar la barra igual en todas partes.
+    current: int | None = None
+    maximum: int | None = None
     #: Su puesto en la cola de esta habilidad, de 1 a 9. Ver
     #: `training_priority`.
     priority: int = PRIORIDAD_EL_RESTO
@@ -351,6 +356,8 @@ def score_skills(
                     max_reached=reading.max_reached,
                     age_days_total=candidate.edad_en_dias,
                     level=max(reading.current or 0, reading.maximum or 0) or None,
+                    current=reading.current,
+                    maximum=reading.maximum,
                     priority=training_priority(
                         note, leaves_soon=pronto, max_reached=reading.max_reached
                     ),

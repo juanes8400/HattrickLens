@@ -1979,6 +1979,9 @@ export interface Academy {
       maxReached: boolean;
       /** El nivel que tiene, se entrene o no: `note` es null si está al tope. */
       level: number | null;
+      /** Lo que dijo el ojeador, cada cosa por separado. */
+      current: number | null;
+      maximum: number | null;
       /** Su puesto en la cola de esa habilidad, de 1 a 9. */
       priority: number;
     }[];
