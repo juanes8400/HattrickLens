@@ -113,3 +113,45 @@ def test_el_corte_es_estricto() -> None:
     """«Menos de 17;038», dicho asi por el usuario."""
     assert leaves_soon(_sale_con(17, 37)) is True
     assert leaves_soon(_sale_con(17, 38)) is False
+
+
+# ── El desempate dentro del peldaño ────────────────────────────────────────
+
+def _con_edad(nombre: str, años: int, dias: int, lectura: YouthSkillReading) -> YouthCandidate:
+    return YouthCandidate(
+        name=nombre, age_years_at_deadline=17, age_days_at_deadline=10,
+        age_years=años, age_days=dias, skills={"scoring": lectura},
+    )
+
+
+def test_dentro_del_peldaño_manda_la_edad_y_primero_el_menor() -> None:
+    """Gustavo Obregon, el mas joven, salia quinto por orden alfabetico."""
+    sin_revelar = YouthSkillReading(current=None, maximum=None)
+    candidatos = [
+        _con_edad("Antonio Zaraín", 15, 40, sin_revelar),
+        _con_edad("Carlos Eduardo Núñez", 15, 94, sin_revelar),
+        _con_edad("Fabián Ochoa", 15, 93, sin_revelar),
+        _con_edad("Gustavo Obregón", 15, 28, sin_revelar),
+    ]
+    cola = next(s for s in score_skills(candidatos) if s.skill == "scoring").players
+    assert [p.name for p in cola][0] == "Gustavo Obregón"
+    assert [p.age_days_total for p in cola] == sorted(p.age_days_total for p in cola)
+
+
+def test_la_nota_manda_sobre_la_edad() -> None:
+    """Un canterano mejor va antes, por joven que sea el otro."""
+    candidatos = [
+        _con_edad("Joven flojo", 15, 1, YouthSkillReading(current=6, maximum=6)),
+        _con_edad("Mayor bueno", 16, 100, YouthSkillReading(current=7, maximum=7)),
+    ]
+    cola = next(s for s in score_skills(candidatos) if s.skill == "scoring").players
+    assert [p.name for p in cola] == ["Mayor bueno", "Joven flojo"]
+
+
+def test_el_peldaño_manda_sobre_todo() -> None:
+    candidatos = [
+        _con_edad("Insuficiente joven", 15, 1, YouthSkillReading(current=5, maximum=5)),
+        _con_edad("Sin descubrir mayor", 16, 100, YouthSkillReading(current=None, maximum=None)),
+    ]
+    cola = next(s for s in score_skills(candidatos) if s.skill == "scoring").players
+    assert [p.name for p in cola] == ["Sin descubrir mayor", "Insuficiente joven"]

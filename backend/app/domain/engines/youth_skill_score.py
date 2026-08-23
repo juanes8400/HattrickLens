@@ -85,6 +85,9 @@ def training_priority(
 #: El año del corte: sale del juvenil con 17 y pico. `SOON_MAX_DAYS` son los
 #: días de ese corte, así que el umbral entero es 17;038 y la comparación es
 #: estricta — «menos de 17;038».
+#: Un año de Hattrick.
+DAYS_PER_HT_YEAR = 112
+
 LEAVE_AGE_YEARS = 17
 SOON_MAX_DAYS = 38
 
@@ -173,6 +176,14 @@ class YouthCandidate:
     age_years_at_deadline: int
     age_days_at_deadline: int
     skills: dict[str, YouthSkillReading]
+    #  Su edad HOY. Es el desempate dentro de un peldaño: entre dos iguales,
+    #  primero el más joven, que es al que le queda más por crecer.
+    age_years: int = 0
+    age_days: int = 0
+
+    @property
+    def edad_en_dias(self) -> int:
+        return self.age_years * DAYS_PER_HT_YEAR + self.age_days
 
 
 @dataclass(frozen=True)
@@ -189,6 +200,8 @@ class PlayerNote:
     bucket: str
     leaves_soon: bool
     max_reached: bool
+    #: Su edad hoy, en días. Desempata dentro del peldaño.
+    age_days_total: int = 0
     #: Su puesto en la cola de esta habilidad, de 1 a 9. Ver
     #: `training_priority`.
     priority: int = PRIORIDAD_EL_RESTO
@@ -306,6 +319,7 @@ def score_skills(
                     bucket=bucket,
                     leaves_soon=pronto,
                     max_reached=reading.max_reached,
+                    age_days_total=candidate.edad_en_dias,
                     priority=training_priority(
                         note, leaves_soon=pronto, max_reached=reading.max_reached
                     ),
@@ -328,12 +342,17 @@ def score_skills(
                 # doble precisión.
                 score=score,
                 trainable_count=trainable_count,
-                # Por la cola de `training_priority`, y dentro de cada
-                # peldaño por nota. Ordenar solo por nota, como antes,
-                # ignoraba el plazo: dos "buenos" iguales no valen lo mismo si
-                # uno se va en cinco semanas y el otro no.
+                # Por la cola de `training_priority`, dentro de cada peldaño
+                # por nota, y a igualdad de nota POR EDAD: primero el más
+                # joven, que es al que le queda más por crecer. El nombre solo
+                # decide entre dos que nacieron el mismo día.
+                #
+                # 2026-08-23: el desempate por edad faltaba y el orden acababa
+                # siendo alfabético. Gustavo Obregón, el más joven de la
+                # cantera, salía quinto detrás de Antonio, Carlos y Fabián.
                 players=sorted(
-                    names, key=lambda p: (p.priority, -(p.note or 0), p.name)
+                    names,
+                    key=lambda p: (p.priority, -(p.note or 0), p.age_days_total, p.name),
                 ),
             )
         )

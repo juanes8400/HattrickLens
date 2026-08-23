@@ -241,6 +241,8 @@ class AcademyQueryService:
                         at_promotion % DAYS_PER_HT_YEAR
                         if at_promotion is not None else yss.UNKNOWN_DEADLINE_DAYS
                     ),
+                    age_years=snap.age_years,
+                    age_days=snap.age_days,
                     skills={
                         skill: yss.YouthSkillReading(
                             current=getattr(snap, skill),
@@ -326,6 +328,8 @@ class AcademyQueryService:
                         at_promotion % DAYS_PER_HT_YEAR
                         if at_promotion is not None else yss.UNKNOWN_DEADLINE_DAYS
                     ),
+                    age_years=snap.age_years,
+                    age_days=snap.age_days,
                     skills={
                         skill: yss.YouthSkillReading(
                             current=getattr(snap, skill),
