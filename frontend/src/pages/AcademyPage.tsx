@@ -569,9 +569,13 @@ function WhoToTrain({ data }: { data: Academy }) {
 
   return (
     <Panel
-      title="A quién entrenar"
+      title="La cola de cada habilidad"
       meta={`${chosen.players.length} canteranos · ${chosen.label}`}
     >
+      <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
+        De aquí sale el reparto de arriba: se va tomando por orden hasta llenar
+        cada región.
+      </p>
       <label className="block border-b border-[var(--border)] p-4">
         <span className="text-xs text-[var(--muted)]">Habilidad</span>
         <select

@@ -41,9 +41,17 @@ PLAZAS_DE_UNA_ALINEACION = 11
 #: Qué PUESTOS toca cada entrenamiento, y con cuánta ración. Los números salen
 #: de `SLOT_CUPOS`; esto dice a qué puestos corresponden.
 #:
-#: 2026-08-23: lectura propuesta y aceptada al empezar a programar. Si alguno
-#: está mal, se corrige AQUÍ y todo lo demás se recalcula solo — es la única
-#: tabla del módulo que contiene una opinión sobre las reglas del juego.
+#: 2026-08-23. Los dos casos con media ración están comprobados contra la wiki
+#: de Hattrick: «Playmaking training trains the skill Playmaking for Inner
+#: Midfielders and wingers (half rate)» y «Wing backs receive only half of the
+#: training when trained in crossing». Los demás salen de que las cuentas del
+#: usuario cuadran exactamente con este reparto: defensa 2 laterales + 3
+#: centrales = 5, pases 3 medios + 2 extremos + 3 delanteros = 8, anotación 3
+#: delanteros, balón parado los once.
+#:
+#: Si algún día uno resulta estar mal, se corrige AQUÍ y todo lo demás se
+#: recalcula solo — es la única tabla del módulo con una opinión sobre las
+#: reglas del juego.
 PUESTOS_ENTEROS: dict[str, tuple[str, ...]] = {
     "keeper": ("keeper",),
     "defending": ("wingback", "wingback", "central_defender",
