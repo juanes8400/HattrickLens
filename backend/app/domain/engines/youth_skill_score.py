@@ -354,14 +354,24 @@ class TrainableMethod(StrEnum):
 # No sale de la cantera de nadie: es cómo reparte Hattrick el entrenamiento por
 # puesto —el portero entrena solo él, el balón parado les llega a los once— así
 # que son números fijos y no dependen del equipo.
+#: A cuantas plazas llega cada entrenamiento, en el formato X+Y del usuario:
+#: X son los cupos que entrenan al 100% y Y los que entrenan a media racion.
+#: Los medios CUENTAN como plazas --por eso se suman aqui-- y lo unico que los
+#: distingue es que se llenan al final de su cola (ver `youth_training_plan`).
+#:
+#: 2026-08-23, corregido por el usuario: Lateral pasa de 3 a 2+2, o sea 4.
+SLOT_CUPOS: dict[str, tuple[int, int]] = {
+    "keeper": (1, 0),
+    "defending": (5, 0),
+    "playmaking": (3, 2),
+    "winger": (2, 2),
+    "passing": (8, 0),
+    "scoring": (3, 0),
+    "set_pieces": (11, 0),
+}
+
 SLOT_TRAINABLES: dict[str, float] = {
-    "keeper": 1.0,
-    "defending": 5.0,
-    "playmaking": 5.0,
-    "winger": 3.0,
-    "passing": 8.0,
-    "scoring": 3.0,
-    "set_pieces": 11.0,
+    skill: float(enteros + medios) for skill, (enteros, medios) in SLOT_CUPOS.items()
 }
 
 
