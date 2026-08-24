@@ -1045,8 +1045,11 @@ function TrainingPlan({
         }}
         className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
       >
+        {/* El principal SI puede repetirse de secundario: Hattrick lo permite
+            y lo castiga bajando el hueco secundario de dos tercios a la
+            mitad, que es algo que esta pantalla ya calcula. Quitarlo de la
+            lista escondia una jugada legitima. */}
         {opciones
-          .filter((o) => !conCuenta || o.code !== principal)
           .map((o) => (
             <option key={o.code} value={o.code}>
               {o.label}
