@@ -794,12 +794,18 @@ const REGIONES: Record<string, { titulo: string; pista: string }> = {
   sin_entrenamiento: { titulo: "Sin entrenamiento", pista: "ocupan sitio, no entrenan" },
 };
 
+/** `15;028`, el formato de Hattrick. */
+function edadCorta(dias: number): string {
+  return `${Math.floor(dias / 112)};${String(dias % 112).padStart(3, "0")}`;
+}
+
+/** Los nombres oficiales de Hattrick, los mismos que usa Alineación. */
 const PUESTOS: Record<string, string> = {
   keeper: "Portero",
-  wingback: "Lateral",
-  central_defender: "Defensa central",
+  wingback: "Defensa Lateral",
+  central_defender: "Defensa Central",
   winger: "Extremo",
-  inner_midfield: "Medio centro",
+  inner_midfield: "Mediocentro",
   forward: "Delantero",
 };
 
@@ -899,9 +905,14 @@ function TrainingPlan({
                   {filas.map((a) => (
                     <li
                       key={a.player}
-                      className="flex flex-wrap items-baseline gap-x-2 text-sm"
+                      className="flex flex-wrap items-center gap-x-2 text-sm"
                     >
                       <span>{a.player}</span>
+                      {/* La edad, que es la mitad del motivo por el que está
+                          en esta plaza; la otra mitad es la habilidad. */}
+                      <span className="tabular-nums text-xs text-[var(--muted)]">
+                        {edadCorta(a.ageDaysTotal)}
+                      </span>
                       {a.puesto && (
                         <span className="text-xs text-[var(--muted)]">
                           {PUESTOS[a.puesto] ?? a.puesto}
@@ -931,8 +942,12 @@ function TrainingPlan({
                           {plan.data?.secondaryLabel} {a.racionSecundaria}%
                         </span>
                       )}
-                      <span className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]">
-                        {PELDAÑOS[a.peldano] ?? ""}
+                      <span className="ml-auto shrink-0">
+                        <NivelDeHabilidad
+                          current={a.current}
+                          maximum={a.maximum}
+                          maxReached={a.maxReached}
+                        />
                       </span>
                     </li>
                   ))}

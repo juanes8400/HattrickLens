@@ -99,8 +99,15 @@ class Asignacion:
     #: un nombre en una plaza y no hay forma de saber por qué está ahí.
     peldano: int = 9
     #: La habilidad por la que se le eligió: la principal en las dos primeras
-    #: regiones, la secundaria en la tercera.
+    #: regiones, la secundaria en la tercera. En las plazas que no entrenan se
+    #: enseña igualmente la principal, para poder comparar con los demás.
     elegido_por: str = ""
+    #: Su edad hoy y lo que el ojeador dijo de ESA habilidad. Es el motivo de
+    #: que esté en esa plaza, y sin verlo la lista es una lista de nombres.
+    age_days_total: int = 0
+    current: int | None = None
+    maximum: int | None = None
+    max_reached: bool = False
 
     @property
     def recibe_doble(self) -> bool:
@@ -248,6 +255,10 @@ def youth_training_plan(
                 elegido_por=(
                     secundaria if region == REGION_SOLO_SECUNDARIA else principal
                 ),
+                age_days_total=elegido.age_days_total,
+                current=elegido.current,
+                maximum=elegido.maximum,
+                max_reached=elegido.max_reached,
             ))
 
     coloca(ambos, _orden_de_cola(cola_principal), REGION_AMBOS)
@@ -263,7 +274,14 @@ def youth_training_plan(
         plan.asignaciones.append(Asignacion(
             player=jugador.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
             racion_principal=0, racion_secundaria=0,
-            peldano=jugador.priority, elegido_por="",
+            peldano=jugador.priority,
+            # Sin entrenamiento no hay habilidad "suya", pero se enseña la
+            # principal: es lo que permite compararlo con los que sí entrenan.
+            elegido_por=principal,
+            age_days_total=jugador.age_days_total,
+            current=jugador.current,
+            maximum=jugador.maximum,
+            max_reached=jugador.max_reached,
         ))
 
     plan.fuera = [p.name for p in cola_principal if p.name not in ya_puestos]
