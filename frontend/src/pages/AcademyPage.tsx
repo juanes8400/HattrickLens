@@ -255,19 +255,54 @@ function plazasIguales(
   return claves.every((k) => (actual[k] ?? 0) === origen[k]);
 }
 
+/** Los parámetros del método sobreviven a la recarga.
+ *
+ * Son la opinión del usuario sobre cómo puntuar su cantera --de dónde sale el
+ * bonus, cuánto separan los peldaños, cuánto pesa ese bonus--, no un estado
+ * de pantalla. Tenerlos que volver a poner cada vez convertía un ajuste
+ * deliberado en algo que se perdía al pestañear.
+ */
+function recordado<T>(clave: string, porDefecto: T): T {
+  const guardado = localStorage.getItem(clave);
+  if (guardado === null) return porDefecto;
+  try {
+    return JSON.parse(guardado) as T;
+  } catch {
+    return porDefecto;
+  }
+}
+
+function usePersistido<T>(clave: string, porDefecto: T) {
+  const [valor, setValor] = useState<T>(() => recordado(clave, porDefecto));
+  useEffect(() => {
+    localStorage.setItem(clave, JSON.stringify(valor));
+  }, [clave, valor]);
+  return [valor, setValor] as const;
+}
+
 function WhatToTrain({ data }: { data: Academy }) {
-  const [soonMaxDays, setSoonMaxDays] = useState(DEFAULT_SOON_MAX_DAYS);
-  const [weightBase, setWeightBase] = useState(DEFAULT_WEIGHT_BASE);
-  const [trainableMethod, setTrainableMethod] = useState("edit");
+  const [soonMaxDays, setSoonMaxDays] = usePersistido(
+    "juveniles.soonMaxDays", DEFAULT_SOON_MAX_DAYS,
+  );
+  const [weightBase, setWeightBase] = usePersistido(
+    "juveniles.weightBase", DEFAULT_WEIGHT_BASE,
+  );
+  const [trainableMethod, setTrainableMethod] = usePersistido(
+    "juveniles.trainableMethod", "edit",
+  );
   // Arranca en las plazas que de verdad entrena cada cosa, no en ceros: son
   // números que la aplicación ya sabe, y hacérselos teclear era pedirle al
   // usuario que copiara una tabla nuestra a mano.
-  const [trainable, setTrainable] = useState<Record<string, number>>({});
+  const [trainable, setTrainable] = usePersistido<Record<string, number>>(
+    "juveniles.trainable", {},
+  );
   const [sembrado, setSembrado] = useState(false);
   // `null` = que lo sugiera la escalera (el peldaño -2 de la base). En cuanto
   // el usuario lo toca deja de seguirla: es el único sumando que no describe a
   // la cantera sino cuánto quiere pesar él ese criterio.
-  const [bonusWeight, setBonusWeight] = useState<number | null>(null);
+  const [bonusWeight, setBonusWeight] = usePersistido<number | null>(
+    "juveniles.bonusWeight", null,
+  );
   const tuned = useAcademySkillScores({
     soonMaxDays, weightBase, trainableMethod, trainable, trainableWeight: bonusWeight,
   });
@@ -285,10 +320,12 @@ function WhatToTrain({ data }: { data: Academy }) {
   const sugerencia = tuned.data?.suggestion ?? null;
   const plazas = plazasPorHabilidad(rows, tuned.data?.slotCounts);
   useEffect(() => {
+    // Sembrar es para la PRIMERA vez. Si ya hay algo guardado, es lo que el
+    // usuario tecleó y no se pisa.
     if (sembrado || Object.keys(plazas).length === 0) return;
-    setTrainable(plazas);
+    if (Object.keys(trainable).length === 0) setTrainable(plazas);
     setSembrado(true);
-  }, [plazas, sembrado]);
+  }, [plazas, sembrado, trainable, setTrainable]);
   const top = rows[0];
   if (!top) return null;
   const max = Math.max(...rows.map((r) => r.score), 1e-9);
@@ -324,17 +361,6 @@ function WhatToTrain({ data }: { data: Academy }) {
                 No hay ningún puesto que reciba las dos.
               </span>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem("juveniles.principal", sugerencia.main);
-                localStorage.setItem("juveniles.secundario", sugerencia.secondary);
-                window.dispatchEvent(new Event("juveniles:sugerencia"));
-              }}
-              className="ml-2 rounded-md border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--accent)] hover:border-[var(--accent)]"
-            >
-              Ponerlo en el reparto
-            </button>
           </>
         ) : (
           <>
@@ -1016,17 +1042,34 @@ function TrainingPlan({
   const principal = main || opciones[0]?.code || habilidades[0]?.skill || "";
   const secundaria = secondary || opciones[1]?.code || principal;
 
-  // El boton de «Ponerlo en el reparto» escribe la eleccion y avisa; sin
-  // esto habria que recargar para verla, que es justo lo contrario de lo que
-  // el boton promete.
+  // El reparto sigue a la recomendación SOLO, sin botón que pulsar.
+  //
+  // Pero una elección a mano manda sobre ella: se recuerda cuál fue la última
+  // recomendación adoptada, y sólo se adopta la nueva si lo que hay puesto
+  // sigue siendo esa. Si el usuario cambió un selector, su elección se queda
+  // hasta que la vuelva a cambiar él.
+  const sugerencia = tuned?.suggestion ?? null;
   useEffect(() => {
-    const aplicar = () => {
-      setMain(localStorage.getItem("juveniles.principal") ?? "");
-      setSecondary(localStorage.getItem("juveniles.secundario") ?? "");
-    };
-    window.addEventListener("juveniles:sugerencia", aplicar);
-    return () => window.removeEventListener("juveniles:sugerencia", aplicar);
-  }, []);
+    if (!sugerencia) return;
+    const adoptada = localStorage.getItem("juveniles.sugerenciaAdoptada");
+    const puesto = `${main}|${secondary}`;
+    const nueva = `${sugerencia.main}|${sugerencia.secondary}`;
+    if (nueva === puesto) return;
+    const sinTocar = puesto === "|" || puesto === adoptada;
+    if (!sinTocar) return;
+    localStorage.setItem("juveniles.principal", sugerencia.main);
+    localStorage.setItem("juveniles.secundario", sugerencia.secondary);
+    localStorage.setItem("juveniles.sugerenciaAdoptada", nueva);
+    setMain(sugerencia.main);
+    setSecondary(sugerencia.secondary);
+  }, [sugerencia, main, secondary]);
+
+  //  Cambiar un selector a mano rompe el seguimiento hasta nueva orden.
+  const eligeAMano = (poner: (v: string) => void, clave: string) => (v: string) => {
+    localStorage.setItem(clave, v);
+    localStorage.removeItem("juveniles.sugerenciaAdoptada");
+    poner(v);
+  };
 
   const plan = useAcademyTrainingPlan({
     main: principal,
@@ -1075,8 +1118,19 @@ function TrainingPlan({
       meta="principal y secundario"
     >
       <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
-        {selector(principal, setMain, "Entrenamiento principal", "juveniles.principal")}
-        {selector(secundaria, setSecondary, "Entrenamiento secundario", "juveniles.secundario", true)}
+        {selector(
+          principal,
+          eligeAMano(setMain, "juveniles.principal"),
+          "Entrenamiento principal",
+          "juveniles.principal",
+        )}
+        {selector(
+          secundaria,
+          eligeAMano(setSecondary, "juveniles.secundario"),
+          "Entrenamiento secundario",
+          "juveniles.secundario",
+          true,
+        )}
       </div>
 
       {plan.isError && (
