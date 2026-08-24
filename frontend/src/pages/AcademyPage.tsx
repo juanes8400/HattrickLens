@@ -7,7 +7,7 @@ import {
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
-import { date, decimal, htAge, money } from "../hooks/useFormat";
+import { date, decimal, money } from "../hooks/useFormat";
 import type { Academy, AcademySkillScores, TrainingSlot } from "../services/api";
 
 /** CHPP nombra las habilidades en inglés; la app habla español en todas las
@@ -33,11 +33,14 @@ const formatWeight = (w: number | undefined) =>
 
 /** Las tres vistas de la cantera. "Plantilla" abre por defecto: es la que
  *  responde "¿a quién tengo?", y las otras dos sólo tienen sentido después. */
+/** 2026-08-24: «Techos de habilidad» y «Plantilla juvenil» eran la misma
+ *  pregunta contada dos veces --a quién tengo y hasta dónde puede llegar--,
+ *  así que se funden. La ficha de cada canterano lleva ahora su clasificación
+ *  al lado de sus siete habilidades, que es lo que la sostiene. */
 const VIEWS = [
   { key: "squad", label: "Plantilla juvenil" },
   { key: "train", label: "Qué entrenar" },
   { key: "who", label: "A quién entrenar" },
-  { key: "ceilings", label: "Techos de habilidad" },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
@@ -150,15 +153,11 @@ export function AcademyPage() {
           <Empty>Sin canteranos sincronizados todavía.</Empty>
         </Panel>
       ) : view === "squad" ? (
-        <Panel title="Plantilla juvenil" meta="ordenada por potencial, no por nivel actual">
-          <YouthTable data={data} />
-        </Panel>
+        <SkillDetail data={data} />
       ) : view === "train" ? (
         <WhatToTrain data={data} />
-      ) : view === "who" ? (
-        <QuienEntrena data={data} />
       ) : (
-        <SkillDetail data={data} />
+        <QuienEntrena data={data} />
       )}
 
       {data.graduates.length > 0 && (
@@ -167,130 +166,6 @@ export function AcademyPage() {
         </Panel>
       )}
     </div>
-  );
-}
-
-function YouthTable({ data }: { data: Academy }) {
-  type Row = Academy["players"][number];
-  const columns: Column<Row>[] = [
-    { key: "name", header: "Nombre", value: (r) => r.name },
-    {
-      key: "age",
-      header: "Edad",
-      align: "right",
-      value: (r) => r.ageYears * 112 + r.ageDays,
-      render: (r) => <span className="tabular-nums">{htAge(r.ageYears, r.ageDays)}</span>,
-    },
-    {
-      key: "category",
-      header: "Categoría",
-      value: (r) => r.category,
-      render: (r) => (
-        <span className={CATEGORY_TONE[r.category] ?? ""}>
-          {r.category}
-          {r.verdictIsProvisional && (
-            <span title="pocos techos revelados: provisional"> ?</span>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: "potential",
-      header: "Potencial",
-      align: "right",
-      value: (r) => r.potentialScore,
-      render: (r) => (
-        <span
-          className={`tabular-nums${
-            r.revealedSkills === 0 ? " text-[var(--muted)]" : ""
-          }`}
-          title={
-            r.revealedSkills === 0
-              ? "sin ningún techo revelado: este número sale entero del supuesto, no de datos"
-              : undefined
-          }
-        >
-          {r.potentialScore.toFixed(1)}
-          {r.revealedSkills === 0 && " ·"}
-        </span>
-      ),
-    },
-    {
-      key: "best",
-      header: "Mejor habilidad",
-      value: (r) => r.bestSkill,
-      render: (r) => {
-        // Sin ningún techo revelado no hay "mejor habilidad" que mostrar: lo
-        // que había antes era el techo ASUMIDO por el motor (8 para todas),
-        // presentado como si lo hubiera dicho el ojeador.
-        if (!r.bestSkill || r.bestSkillMax == null) {
-          return <span className="text-[var(--muted)]">sin revelar</span>;
-        }
-        const s = r.skills.find((x) => x.skill === r.bestSkill);
-        return (
-          <span className="flex items-center gap-2">
-            <span className="w-24 shrink-0">
-              {SKILL_NAMES[r.bestSkill] ?? r.bestSkill}
-            </span>
-            <NivelDeHabilidad
-              current={s?.current ?? null}
-              maximum={s?.maximum ?? r.bestSkillMax}
-              maxReached={s?.maxReached ?? false}
-            />
-          </span>
-        );
-      },
-    },
-    {
-      key: "revealed",
-      header: "Techos revelados",
-      align: "right",
-      value: (r) => r.revealedSkills,
-      render: (r) => (
-        <span className="tabular-nums">
-          {r.revealedSkills}/{r.skills.length}
-        </span>
-      ),
-    },
-    {
-      key: "deadline",
-      header: "Plazo",
-      align: "right",
-      value: (r) => r.daysUntilDeadline,
-      render: (r) => (
-        <span
-          className={
-            r.daysUntilDeadline <= 21
-              ? "tabular-nums text-[var(--danger)]"
-              : "tabular-nums"
-          }
-        >
-          {r.weeksUntilDeadline} sem.
-        </span>
-      ),
-    },
-    {
-      key: "exposure",
-      header: "Aprovechamiento",
-      align: "right",
-      value: (r) => r.trainingExposure,
-      render: (r) => (
-        <span className="tabular-nums">{(r.trainingExposure * 100).toFixed(0)}%</span>
-      ),
-      optional: true,
-    },
-    { key: "advice", header: "Consejo", value: (r) => r.promoteAdvice },
-  ];
-  return (
-    <>
-      <DataTable
-        rows={data.players}
-        columns={columns}
-        rowKey={(r) => r.htYouthPlayerId}
-        csvName="juveniles"
-        filterPlaceholder="Filtrar canteranos…"
-      />
-    </>
   );
 }
 
@@ -1262,14 +1137,54 @@ function TrainingPlan({
 }
 
 function SkillDetail({ data }: { data: Academy }) {
+  // Por potencial, no por nivel actual: en una cantera lo que vale es hasta
+  // dónde puede llegar, no dónde está hoy.
+  const ordenados = [...data.players].sort(
+    (a, b) => b.potentialScore - a.potentialScore,
+  );
   return (
-    <Panel title="Techos de habilidad" meta="lo alcanzado frente a lo revelado">
+    <Panel
+      title="Plantilla juvenil"
+      meta={`${data.players.length} · ordenada por potencial, no por nivel actual`}
+    >
       <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
-        {data.players.map((p) => (
+        {ordenados.map((p) => (
           <div key={p.htYouthPlayerId} className="rounded-lg border border-[var(--border)] p-3">
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-2">
               <span className="text-sm font-medium">{p.name}</span>
-              <span className={`text-xs ${CATEGORY_TONE[p.category] ?? ""}`}>{p.category}</span>
+              {/* `15;068`, como en el resto del módulo. `htAge` da «15.68»,
+                  sin ceros, y dos formatos de edad en la misma página se leen
+                  como dos datos distintos. */}
+              <span className="shrink-0 tabular-nums text-xs text-[var(--muted)]">
+                {edadCorta(p.ageYears * 112 + p.ageDays)}
+              </span>
+            </div>
+            {/* La clasificación, que vivía en la tabla que esta vista
+                reemplaza. El potencial se marca cuando sale entero del
+                supuesto: sin un techo revelado no es una medida. */}
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-xs">
+              <span className={CATEGORY_TONE[p.category] ?? ""}>
+                {p.category}
+                {/* El interrogante avisa de que el veredicto es provisional.
+                    Con «sin ojear» sobra: la etiqueta ya dice justo eso. */}
+                {p.verdictIsProvisional && p.revealedSkills > 0 && (
+                  <span title="pocos techos revelados: provisional"> ?</span>
+                )}
+              </span>
+              <span
+                className="tabular-nums text-[var(--muted)]"
+                title={
+                  p.revealedSkills === 0
+                    ? "sin ningún techo revelado: este número sale entero del supuesto, no de datos"
+                    : "potencial"
+                }
+              >
+                potencial {p.potentialScore.toFixed(1)}
+                {p.revealedSkills === 0 && " ·"}
+              </span>
+              <span className="tabular-nums text-[var(--muted)]">
+                {p.revealedSkills}/{p.skills.length} techos
+              </span>
             </div>
             <div className="mt-3 space-y-2">
               {p.skills.map((s) => (
