@@ -1202,17 +1202,268 @@ function TrainingPlan({
   );
 }
 
-function SkillDetail({ data }: { data: Academy }) {
-  // Por potencial, no por nivel actual: en una cantera lo que vale es hasta
-  // dónde puede llegar, no dónde está hoy.
-  const ordenados = [...data.players].sort(
-    (a, b) => b.potentialScore - a.potentialScore,
+type Canterano = Academy["players"][number];
+
+/** Cuánto le queda por ganar: la suma de `techo − nivel` allí donde se saben
+ *  los dos números. No es lo bueno que es, sino lo que el entrenamiento
+ *  todavía puede añadirle. */
+function margenPorGanar(p: Canterano): number {
+  return p.skills.reduce(
+    (total, s) =>
+      s.current != null && s.maximum != null && !s.maxReached
+        ? total + Math.max(0, s.maximum - s.current)
+        : total,
+    0,
   );
+}
+
+const ORDENES: {
+  key: string;
+  label: string;
+  cmp: (a: Canterano, b: Canterano) => number;
+}[] = [
+  {
+    key: "potencial",
+    label: "Potencial",
+    cmp: (a, b) => b.potentialScore - a.potentialScore,
+  },
+  {
+    key: "techo",
+    label: "Mejor techo revelado",
+    // Sin techo revelado no hay número que comparar: al final, no al principio.
+    cmp: (a, b) => (b.bestSkillMax ?? -1) - (a.bestSkillMax ?? -1),
+  },
+  {
+    key: "edad",
+    label: "Edad, del más joven",
+    cmp: (a, b) => a.ageYears * 112 + a.ageDays - (b.ageYears * 112 + b.ageDays),
+  },
+  {
+    key: "revelados",
+    label: "Techos revelados, de menos a más",
+    cmp: (a, b) => a.revealedSkills - b.revealedSkills,
+  },
+  {
+    key: "margen",
+    label: "Margen por ganar",
+    cmp: (a, b) => margenPorGanar(b) - margenPorGanar(a),
+  },
+];
+
+const CLASIFICACIONES = [
+  "crack",
+  "promesa",
+  "aceptable",
+  "vendible",
+  "fontanero",
+  "sin ojear",
+];
+
+/** Un botón de filtro que se enciende y se apaga. */
+function Chip({
+  activo,
+  onClick,
+  children,
+  title,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`rounded-full border px-2.5 py-0.5 text-xs ${
+        activo
+          ? "border-[var(--accent)] text-[var(--accent)]"
+          : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SkillDetail({ data }: { data: Academy }) {
+  //  El orden y la clasificación se recuerdan; los filtros de "sólo los
+  //  que…" no, porque son preguntas de un momento, no una preferencia.
+  const [orden, setOrden] = usePersistido("juveniles.orden", "potencial");
+  const [clases, setClases] = usePersistido<string[]>("juveniles.filtroClases", []);
+  const [soloRevelable, setSoloRevelable] = useState(false);
+  const [soloAlTope, setSoloAlTope] = useState(false);
+  const [soloEnElReparto, setSoloEnElReparto] = useState(false);
+  const [habilidad, setHabilidad] = useState("");
+  const [techoMinimo, setTechoMinimo] = useState(0);
+
+  //  Dos cruces con lo que la herramienta ya sabe: a quién le queda algo por
+  //  revelar --lo dice el juego-- y a quién le llega entrenamiento con el
+  //  reparto que está puesto ahora mismo.
+  const informes = useAcademyScouts();
+  const plan = useAcademyTrainingPlan({
+    main: localStorage.getItem("juveniles.principal") ?? "",
+    secondary: localStorage.getItem("juveniles.secundario") ?? "",
+    soonMaxDays: recordado("juveniles.soonMaxDays", DEFAULT_SOON_MAX_DAYS),
+    weightBase: recordado("juveniles.weightBase", DEFAULT_WEIGHT_BASE),
+  });
+  const conRevelacion = new Set(
+    (informes.data?.players ?? [])
+      .filter((x) => x.mayUnlock.length > 0)
+      .map((x) => x.name),
+  );
+  const enElReparto = new Set(
+    (plan.data?.assignments ?? [])
+      .filter((a) => a.racionPrincipal > 0 || a.racionSecundaria > 0)
+      .map((a) => a.player),
+  );
+
+  const alterna = (lista: string[], valor: string) =>
+    lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor];
+
+  const filtrados = data.players.filter((p) => {
+    if (clases.length > 0 && !clases.includes(p.category)) return false;
+    if (soloRevelable && !conRevelacion.has(p.name)) return false;
+    if (soloAlTope && !p.skills.some((x) => x.maxReached)) return false;
+    if (soloEnElReparto && !enElReparto.has(p.name)) return false;
+    if (habilidad) {
+      const x = p.skills.find((y) => y.skill === habilidad);
+      if (!x || (x.current == null && x.maximum == null)) return false;
+      if (techoMinimo > 0 && (x.maximum ?? 0) < techoMinimo) return false;
+    }
+    return true;
+  });
+
+  const comparador =
+    ORDENES.find((o) => o.key === orden)?.cmp ?? ORDENES[0]!.cmp;
+  const ordenados = [...filtrados].sort(comparador);
+  const hayFiltro =
+    clases.length > 0 ||
+    soloRevelable ||
+    soloAlTope ||
+    soloEnElReparto ||
+    Boolean(habilidad);
+
+  const control =
+    "rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--text)]";
+
   return (
     <Panel
       title="Plantilla juvenil"
-      meta={`${data.players.length} · ordenada por potencial, no por nivel actual`}
+      meta={
+        hayFiltro
+          ? `${ordenados.length} de ${data.players.length}`
+          : `${data.players.length}`
+      }
     >
+      <div className="space-y-2 border-b border-[var(--border)] p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--muted)]">Ordenar por</span>
+          <select
+            value={orden}
+            onChange={(e) => setOrden(e.target.value)}
+            className={control}
+          >
+            {ORDENES.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+
+          <span className="mx-1 h-4 w-px bg-[var(--border)]" />
+
+          <Chip
+            activo={soloRevelable}
+            onClick={() => setSoloRevelable((v) => !v)}
+            title="al ojeador todavía le queda algo por revelarles; lo dice el juego, no lo suponemos"
+          >
+            Puede revelar algo
+            {informes.data ? ` (${conRevelacion.size})` : ""}
+          </Chip>
+          <Chip
+            activo={soloAlTope}
+            onClick={() => setSoloAlTope((v) => !v)}
+            title="tienen alguna habilidad que ya no sube"
+          >
+            Con algo al tope
+          </Chip>
+          <Chip
+            activo={soloEnElReparto}
+            onClick={() => setSoloEnElReparto((v) => !v)}
+            title="reciben entrenamiento con el reparto que está puesto ahora"
+          >
+            En el reparto
+            {plan.data ? ` (${enElReparto.size})` : ""}
+          </Chip>
+
+          <span className="mx-1 h-4 w-px bg-[var(--border)]" />
+
+          <select
+            value={habilidad}
+            onChange={(e) => setHabilidad(e.target.value)}
+            className={control}
+          >
+            <option value="">Cualquier habilidad</option>
+            {Object.entries(SKILL_NAMES).map(([clave, nombre]) => (
+              <option key={clave} value={clave}>
+                Con algo en {nombre}
+              </option>
+            ))}
+          </select>
+          {habilidad ? (
+            <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
+              techo mínimo
+              <input
+                type="number"
+                min={0}
+                max={8}
+                value={techoMinimo}
+                onChange={(e) => setTechoMinimo(Number(e.target.value) || 0)}
+                className="w-12 rounded border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-right tabular-nums"
+              />
+            </label>
+          ) : null}
+          {hayFiltro ? (
+            <button
+              type="button"
+              onClick={() => {
+                setClases([]);
+                setSoloRevelable(false);
+                setSoloAlTope(false);
+                setSoloEnElReparto(false);
+                setHabilidad("");
+                setTechoMinimo(0);
+              }}
+              className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
+            >
+              Quitar filtros
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--muted)]">Clasificación</span>
+          {CLASIFICACIONES.map((c) => {
+            const cuantos = data.players.filter((p) => p.category === c).length;
+            if (cuantos === 0) return null;
+            return (
+              <Chip
+                key={c}
+                activo={clases.includes(c)}
+                onClick={() => setClases(alterna(clases, c))}
+              >
+                {c} ({cuantos})
+              </Chip>
+            );
+          })}
+        </div>
+      </div>
+
+      {ordenados.length === 0 ? (
+        <Empty>Ningún canterano cumple ese filtro.</Empty>
+      ) : (
       <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
         {ordenados.map((p) => (
           <div key={p.htYouthPlayerId} className="rounded-lg border border-[var(--border)] p-3">
@@ -1269,6 +1520,7 @@ function SkillDetail({ data }: { data: Academy }) {
           </div>
         ))}
       </div>
+      )}
     </Panel>
   );
 }
