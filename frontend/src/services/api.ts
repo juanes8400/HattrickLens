@@ -615,6 +615,8 @@ export interface TrainingSlot {
   peldano: number;
   /** Por qué habilidad se le eligió: la principal o la secundaria. */
   elegidoPor: string;
+  /** El nombre de esa habilidad, que es de la que habla la columna «Nivel». */
+  skillLabel: string;
   /** Su edad hoy, en días, y lo que el ojeador dijo de esa habilidad. */
   ageDaysTotal: number;
   current: number | null;

@@ -942,14 +942,14 @@ function TablaDelReparto({
       <div className="mt-2 overflow-x-auto">
         {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
-        <table className="w-full min-w-[54rem] table-fixed text-sm">
+        <table className="w-full min-w-[62rem] table-fixed text-sm">
           <colgroup>
-            <col className="w-[22%]" />
-            <col className="w-[8%]" />
-            <col className="w-[14%]" />
-            <col className="w-[19%]" />
-            <col className="w-[19%]" />
-            <col className="w-[18%]" />
+            <col className="w-[20%]" />
+            <col className="w-[7%]" />
+            <col className="w-[13%]" />
+            <col className="w-[17%]" />
+            <col className="w-[17%]" />
+            <col className="w-[26%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
@@ -996,12 +996,22 @@ function TablaDelReparto({
                       <td className={`${td} text-left`}>
                         <Racion cuanto={a.racionSecundaria} etiqueta={secondaryLabel} />
                       </td>
+                      {/* De QUE habilidad es este nivel cambia por region:
+                          la principal en las dos primeras, la secundaria en
+                          la tercera. Sin decirlo, la columna no significa
+                          nada. Va en un hueco de ancho fijo para que las
+                          barras sigan cuadrando entre grupos. */}
                       <td className={`${td} text-left`}>
-                        <NivelDeHabilidad
-                          current={a.current}
-                          maximum={a.maximum}
-                          maxReached={a.maxReached}
-                        />
+                        <span className="flex items-center gap-2">
+                          <span className="w-24 shrink-0 truncate text-xs text-[var(--muted)]">
+                            {a.skillLabel}
+                          </span>
+                          <NivelDeHabilidad
+                            current={a.current}
+                            maximum={a.maximum}
+                            maxReached={a.maxReached}
+                          />
+                        </span>
                       </td>
                     </tr>
                   ))}

@@ -166,6 +166,10 @@ async def academy_training_plan(
         e = ENTRENAMIENTOS.get(clave)
         return e.label if e else etiquetas.get(skill, skill)
 
+    def _con_habilidad(a: Any) -> dict[str, Any]:
+        skill = habilidad_de(a.elegido_por)
+        return {**asdict(a), "skill_label": etiquetas.get(skill, skill)}
+
     return cast(dict[str, Any], _camel({
         "main": main,
         "mainLabel": etiqueta_de(main, skill_main),
@@ -177,13 +181,17 @@ async def academy_training_plan(
         # cancha llena de "desconocido" parece un fallo nuestro, y es el
         # estado real: aqui casi nada esta revelado todavia.
         "scouting": _cobertura_del_ojeador(rows),
-        "assignments": [asdict(a) for a in plan.asignaciones],
+        # `skillLabel` es DE QUE habilidad es el nivel que lleva cada fila:
+        # cambia por region --la principal arriba, la secundaria en su
+        # tramo-- y sin decirlo la columna "Nivel" no significa nada.
+        "assignments": [_con_habilidad(a) for a in plan.asignaciones],
         # El banquillo: los que no entraron, con lo mismo que llevan los de
         # dentro y la columna en que caen. Un juvenil no tiene puesto asignado
         # en Hattrick, asi que la columna sale de la habilidad en la que mas
         # destaca --es una lectura nuestra, no un dato del juego.
         "outside": [
-            {**asdict(a), "benchColumn": _columna_de_banquillo(mejores.get(a.player))}
+            {**_con_habilidad(a),
+             "benchColumn": _columna_de_banquillo(mejores.get(a.player))}
             for a in plan.fuera
         ],
     }))
