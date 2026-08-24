@@ -767,6 +767,7 @@ class SyncTeamHandler:
         lo que le falte antes de pasar al siguiente, para que nunca quede una
         ficha a medias.
         """
+        from sqlalchemy import func as sa_func
         from sqlalchemy import select
 
         from app.infrastructure.db import models as m
@@ -778,8 +779,28 @@ class SyncTeamHandler:
         censo = set(pendientes["censo"])
         reventa = set(pendientes["reventa"])
 
-        # Orden estable: el mismo lote se repetiría igual si algo fallara.
-        todos = sorted(ficha | precio | destino | censo | reventa)
+        # Lo mas reciente primero, y estable: el mismo lote se repetiria igual
+        # si algo fallara.
+        #
+        # 2026-08-24. Aqui ponia `sorted(...)` sobre la union de conjuntos, y
+        # eso ordena por NUMERO DE JUGADOR, que sube con la antiguedad: el
+        # lote empezaba siempre por los mas viejos. Ordenar las consultas de
+        # `pendientes_de_ficha` no bastaba, porque este consumidor tiraba ese
+        # orden. Se vuelve a pedir el orden aqui, sobre la union.
+        union = ficha | precio | destino | censo | reventa
+        todos = list((
+            await uow.session.execute(
+                select(m.Player.ht_player_id)
+                .where(m.Player.ht_player_id.in_(union))
+                .order_by(
+                    sa_func.coalesce(
+                        m.Player.sold_at, m.Player.left_team_at,
+                        m.Player.purchased_at,
+                    ).desc().nullslast(),
+                    m.Player.ht_player_id.desc(),
+                )
+            )
+        ).scalars().all()) if union else []
         if limite is not None:
             todos = todos[:limite]
 
