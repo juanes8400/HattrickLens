@@ -152,6 +152,13 @@ async def academy_training_plan(
     mejores = {
         j.name: j.best_skill for j in (academia.players if academia else [])
     }
+    # Las siete lecturas de cada canterano, para poder ensenar en la tabla el
+    # nivel de LAS DOS habilidades que se entrenan --no solo la que le dio la
+    # plaza-- y donde le queda techo por descubrir.
+    lecturas = {
+        j.name: {r.skill: r for r in j.skills}
+        for j in (academia.players if academia else [])
+    }
 
     plan = youth_training_plan(
         main, secondary,
@@ -166,9 +173,32 @@ async def academy_training_plan(
         e = ENTRENAMIENTOS.get(clave)
         return e.label if e else etiquetas.get(skill, skill)
 
+    def _lectura(nombre: str, skill: str) -> dict[str, Any]:
+        r = lecturas.get(nombre, {}).get(skill)
+        return {
+            "label": etiquetas.get(skill, skill),
+            "current": r.current if r else None,
+            "maximum": r.maximum if r else None,
+            "max_reached": bool(r.max_reached) if r else False,
+        }
+
     def _con_habilidad(a: Any) -> dict[str, Any]:
         skill = habilidad_de(a.elegido_por)
-        return {**asdict(a), "skill_label": etiquetas.get(skill, skill)}
+        # Donde todavia puede crecer sin que nadie sepa cuanto: el techo sin
+        # revelar es la unica pista de potencial que queda. Si ya no queda
+        # ninguno, es que el ojeador termino con el.
+        sin_techo = [
+            etiquetas.get(sk, sk)
+            for sk, r in lecturas.get(a.player, {}).items()
+            if r.maximum is None and not r.max_reached
+        ]
+        return {
+            **asdict(a),
+            "skill_label": etiquetas.get(skill, skill),
+            "main_level": _lectura(a.player, skill_main),
+            "secondary_level": _lectura(a.player, skill_sec),
+            "open_ceilings": sin_techo,
+        }
 
     return cast(dict[str, Any], _camel({
         "main": main,

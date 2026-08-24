@@ -873,38 +873,20 @@ function nombreCorto(etiqueta: string): string {
   return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
 }
 
-/** Por qué esta persona está en esta plaza, en una frase.
+/** Dónde le queda techo por descubrir.
  *
- * Es el peldaño de la cola, dicho con la habilidad por delante. Sin esto la
- * tabla es un orden sin explicación, y el caso que lo pide a gritos es el de
- * dos canteranos con un día de diferencia donde uno entra y el otro no: no
- * decide la edad, decide que a uno el ojeador ya le vio la habilidad y era
- * mala, y un desconocido vale más que un malo conocido.
- *
- * Dentro de un mismo motivo el orden es por edad, el más joven primero.
+ * Es lo único que queda por saber de un canterano: una habilidad con techo
+ * revelado ya no puede sorprender, una sin revelar sí. Con casi todo a
+ * oscuras la lista entera sería ruido, así que se dice el número y los
+ * nombres van en el título.
  */
-function motivoDe(peldano: number, habilidad: string, alTope: boolean): string {
-  if (alTope) return `${habilidad} al tope`;
-  switch (peldano) {
-    case 1:
-      return `Excelente en ${habilidad}`;
-    case 2:
-      return `Bueno en ${habilidad}, sale joven`;
-    case 3:
-      return `Bueno en ${habilidad}`;
-    case 4:
-      return `Aceptable en ${habilidad}, sale joven`;
-    case 5:
-      return `Aceptable en ${habilidad}`;
-    case 6:
-      return `${habilidad} sin descubrir, sale joven`;
-    case 7:
-      return `${habilidad} sin descubrir`;
-    case 8:
-      return `Insuficiente en ${habilidad}`;
-    default:
-      return `${habilidad} ya visto, y bajo`;
+function MaximoPotencial({ habilidades }: { habilidades: string[] }) {
+  if (habilidades.length === 0) {
+    return <span className="text-[var(--positive)]">ojeado del todo</span>;
   }
+  if (habilidades.length >= 7) return <span>las siete</span>;
+  if (habilidades.length <= 2) return <span>{habilidades.join(" · ")}</span>;
+  return <span>{habilidades.length} habilidades</span>;
 }
 
 /** `66,7%`, con coma y sin decimal cuando es redondo. */
@@ -976,26 +958,20 @@ function TablaDelReparto({
       <div className="mt-2 overflow-x-auto">
         {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
-        <table className="w-full min-w-[72rem] table-fixed text-sm">
+        <table className="w-full min-w-[86rem] table-fixed text-sm">
           <colgroup>
-            <col className="w-[17%]" />
             <col className="w-[16%]" />
             <col className="w-[6%]" />
-            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
             <col className="w-[15%]" />
             <col className="w-[15%]" />
-            <col className="w-[20%]" />
+            <col className="w-[10%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>Jugador</th>
-              <th
-                scope="col"
-                className={`${th} text-left`}
-                title="dentro de un mismo motivo, primero el más joven"
-              >
-                Motivo
-              </th>
               <th scope="col" className={`${th} text-right`}>Edad</th>
               <th scope="col" className={`${th} text-left`}>Puesto</th>
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
@@ -1004,7 +980,19 @@ function TablaDelReparto({
               <th scope="col" className={`${th} text-left`} title={secondaryLabel}>
                 Entrenamiento secundario
               </th>
-              <th scope="col" className={`${th} text-left`}>Nivel</th>
+              <th scope="col" className={`${th} text-left`}>
+                Nivel habilidad principal
+              </th>
+              <th scope="col" className={`${th} text-left`}>
+                Nivel habilidad secundaria
+              </th>
+              <th
+                scope="col"
+                className={`${th} text-left`}
+                title="habilidades a las que el ojeador aún no les ha puesto techo"
+              >
+                Máximo potencial
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -1016,7 +1004,7 @@ function TablaDelReparto({
                   <tr>
                     <th
                       scope="colgroup"
-                      colSpan={7}
+                      colSpan={8}
                       className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
                     >
                       {t}
@@ -1026,9 +1014,6 @@ function TablaDelReparto({
                   {suyas.map((a) => (
                     <tr key={a.player} className="border-t border-[var(--border)]">
                       <td className={`${td} text-left`}>{a.player}</td>
-                      <td className={`${td} text-left text-xs text-[var(--muted)]`}>
-                        {motivoDe(a.peldano, a.skillLabel, a.maxReached)}
-                      </td>
                       <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
                         {edadCorta(a.ageDaysTotal)}
                       </td>
@@ -1041,22 +1026,32 @@ function TablaDelReparto({
                       <td className={`${td} text-left`}>
                         <Racion cuanto={a.racionSecundaria} etiqueta={secondaryLabel} />
                       </td>
-                      {/* De QUE habilidad es este nivel cambia por region:
-                          la principal en las dos primeras, la secundaria en
-                          la tercera. Sin decirlo, la columna no significa
-                          nada. Va en un hueco de ancho fijo para que las
-                          barras sigan cuadrando entre grupos. */}
+                      {/* Las dos habilidades que se entrenan, cada una en su
+                          columna: ya no hace falta decir de cuál se habla
+                          --lo dice la cabecera-- ni cambia por región. */}
                       <td className={`${td} text-left`}>
-                        <span className="flex items-center gap-2">
-                          <span className="w-24 shrink-0 truncate text-xs text-[var(--muted)]">
-                            {a.skillLabel}
-                          </span>
-                          <NivelDeHabilidad
-                            current={a.current}
-                            maximum={a.maximum}
-                            maxReached={a.maxReached}
-                          />
-                        </span>
+                        <NivelDeHabilidad
+                          current={a.mainLevel.current}
+                          maximum={a.mainLevel.maximum}
+                          maxReached={a.mainLevel.maxReached}
+                        />
+                      </td>
+                      <td className={`${td} text-left`}>
+                        <NivelDeHabilidad
+                          current={a.secondaryLevel.current}
+                          maximum={a.secondaryLevel.maximum}
+                          maxReached={a.secondaryLevel.maxReached}
+                        />
+                      </td>
+                      <td
+                        className={`${td} text-left text-xs text-[var(--muted)]`}
+                        title={
+                          a.openCeilings.length > 0
+                            ? a.openCeilings.join(" · ")
+                            : "el ojeador ya le puso techo a todo"
+                        }
+                      >
+                        <MaximoPotencial habilidades={a.openCeilings} />
                       </td>
                     </tr>
                   ))}

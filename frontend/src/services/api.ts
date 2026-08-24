@@ -603,6 +603,13 @@ export interface LineupHindsight {
 }
 
 /** Una plaza del once juvenil y qué entrenamiento le llega ahí. */
+export interface NivelLeido {
+  label: string;
+  current: number | null;
+  maximum: number | null;
+  maxReached: boolean;
+}
+
 export interface TrainingSlot {
   player: string;
   puesto: string;
@@ -617,6 +624,13 @@ export interface TrainingSlot {
   elegidoPor: string;
   /** El nombre de esa habilidad, que es de la que habla la columna «Nivel». */
   skillLabel: string;
+  /** El nivel de las DOS habilidades que se entrenan, no sólo la que le dio
+   *  la plaza. */
+  mainLevel: NivelLeido;
+  secondaryLevel: NivelLeido;
+  /** Las habilidades a las que el ojeador aún no les ha puesto techo: es lo
+   *  único que queda por saber de él. */
+  openCeilings: string[];
   /** Su edad hoy, en días, y lo que el ojeador dijo de esa habilidad. */
   ageDaysTotal: number;
   current: number | null;
