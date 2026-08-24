@@ -90,6 +90,10 @@ class Entrenamiento:
     label: str
     enteros: tuple[str, ...]
     medios: tuple[str, ...] = ()
+    #: Hay un entrenamiento que sube DOS habilidades: «Anotación y balón
+    #: parado». Se declara una vez, bajo la primera, y aparece como variante
+    #: de las dos.
+    tambien_sube: str | None = None
 
 
 ENTRENAMIENTOS: dict[str, Entrenamiento] = {
@@ -113,6 +117,13 @@ ENTRENAMIENTOS: dict[str, Entrenamiento] = {
             DEFENSAS + MEDIOS + EXTREMOS,
         ),
         Entrenamiento("scoring", "scoring", "Anotación", DELANTEROS),
+        # «Para todos, pero poquito», dicho asi por el usuario: llega a los
+        # once y a media racion, que es lo que significa aqui «poquito».
+        Entrenamiento(
+            "scoring_set_pieces", "scoring", "Anotación y balón parado",
+            (), PORTERO + DEFENSAS + MEDIOS + EXTREMOS + DELANTEROS,
+            tambien_sube="set_pieces",
+        ),
         Entrenamiento("set_pieces", "set_pieces", "Balón parado",
                       PORTERO + DEFENSAS + MEDIOS + EXTREMOS),
     )
@@ -123,6 +134,8 @@ ENTRENAMIENTOS: dict[str, Entrenamiento] = {
 VARIANTES_POR_HABILIDAD: dict[str, list[str]] = {}
 for _e in ENTRENAMIENTOS.values():
     VARIANTES_POR_HABILIDAD.setdefault(_e.skill, []).append(_e.codigo)
+    if _e.tambien_sube:
+        VARIANTES_POR_HABILIDAD.setdefault(_e.tambien_sube, []).append(_e.codigo)
 
 
 def _entrenamiento(clave: str) -> Entrenamiento:

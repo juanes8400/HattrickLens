@@ -1386,7 +1386,20 @@ export interface AcademySkillScores {
   weights: Record<string, number>;
   /** El que sugiere la escalera (peldaño -2 de la base). */
   suggestedTrainableWeight: number;
+  /** La pareja sugerida: la que mas puntua y, de la segunda, la FORMA que
+   *  mas solapa con la primera. `null` si no hay dos habilidades. */
+  suggestion: {
+    main: string;
+    mainLabel: string;
+    secondary: string;
+    secondaryLabel: string;
+    secondarySkill: string;
+    /** Cuantos recibirian las dos cosas con esa pareja. */
+    bothCount: number;
+  } | null;
   /** Las plazas que entrena cada habilidad, para sembrar el modo manual. */
+  /** Todos los entrenamientos, variantes incluidas. */
+  trainings: { code: string; label: string; skill: string }[];
   slotCounts: Record<string, number>;
   /** El que de verdad se usó: el sugerido, o el que fijó el usuario. */
   trainableWeight: number;

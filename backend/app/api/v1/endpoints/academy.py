@@ -98,8 +98,10 @@ async def academy_training_plan(
     con los mejores del principal; ver `youth_training_plan`.
     """
     for nombre, valor in (("main", main), ("secondary", secondary)):
-        if valor not in yss.SKILLS:
-            raise HTTPException(422, f"{nombre}: «{valor}» no es una habilidad")
+        # Vale una habilidad a secas --«passing»-- o un entrenamiento concreto
+        # --«passing_defenders»--: la sugerencia manda el segundo.
+        if valor not in yss.SKILLS and valor not in ENTRENAMIENTOS:
+            raise HTTPException(422, f"{nombre}: «{valor}» no es un entrenamiento")
 
     service = AcademyQueryService(session)
     rows = await service.skill_scores(
@@ -108,7 +110,13 @@ async def academy_training_plan(
     if rows is None:
         raise HTTPException(404, f"team {team_id} sin canteranos")
     por_habilidad = {r.skill: r for r in rows}
-    if main not in por_habilidad or secondary not in por_habilidad:
+
+    def habilidad_de(clave: str) -> str:
+        e = ENTRENAMIENTOS.get(clave)
+        return e.skill if e else clave
+
+    skill_main, skill_sec = habilidad_de(main), habilidad_de(secondary)
+    if skill_main not in por_habilidad or skill_sec not in por_habilidad:
         raise HTTPException(404, "no hay canteranos con esas habilidades")
 
     academia = await service.get(team_id)
@@ -118,17 +126,22 @@ async def academy_training_plan(
 
     plan = youth_training_plan(
         main, secondary,
-        por_habilidad[main].players,
-        por_habilidad[secondary].players,
-        tope_principal={p.name for p in por_habilidad[main].at_max},
-        tope_secundaria={p.name for p in por_habilidad[secondary].at_max},
+        por_habilidad[skill_main].players,
+        por_habilidad[skill_sec].players,
+        tope_principal={p.name for p in por_habilidad[skill_main].at_max},
+        tope_secundaria={p.name for p in por_habilidad[skill_sec].at_max},
     )
     etiquetas = {r.skill: r.label for r in rows}
+
+    def etiqueta_de(clave: str, skill: str) -> str:
+        e = ENTRENAMIENTOS.get(clave)
+        return e.label if e else etiquetas.get(skill, skill)
+
     return cast(dict[str, Any], _camel({
         "main": main,
-        "mainLabel": etiquetas.get(main, main),
+        "mainLabel": etiqueta_de(main, skill_main),
         "secondary": secondary,
-        "secondaryLabel": etiquetas.get(secondary, secondary),
+        "secondaryLabel": etiqueta_de(secondary, skill_sec),
         "doubleCount": plan.con_doble,
         "assignments": [asdict(a) for a in plan.asignaciones],
         # El banquillo: los que no entraron, con lo mismo que llevan los de
@@ -239,5 +252,13 @@ async def academy_skill_scores(
         # se lee como una recomendacion util cuando en realidad no dejaria a
         # nadie recibiendo las dos cosas.
         "suggestion": _pareja_sugerida(rows),
+        # Todos los entrenamientos, variantes incluidas: son las opciones
+        # reales de los dos selectores. Antes solo se ofrecian las siete
+        # habilidades, asi que «Pases (defensas y centro del campo completo)»
+        # no se podia elegir aunque la sugerencia la recomendara.
+        "trainings": [
+            {"code": e.codigo, "label": e.label, "skill": e.skill}
+            for e in ENTRENAMIENTOS.values()
+        ],
         "skillScores": [asdict(r) for r in rows],
     }))

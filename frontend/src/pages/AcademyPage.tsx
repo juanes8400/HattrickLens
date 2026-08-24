@@ -9,7 +9,7 @@ import {
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
 import { date, decimal, htAge, money } from "../hooks/useFormat";
-import type { Academy } from "../services/api";
+import type { Academy, AcademySkillScores } from "../services/api";
 
 /** CHPP nombra las habilidades en inglés; la app habla español en todas las
  *  demás pantallas. */
@@ -160,14 +160,7 @@ export function AcademyPage() {
       ) : view === "train" ? (
         <WhatToTrain data={data} />
       ) : view === "who" ? (
-        <div className="space-y-4">
-          <TrainingPlan
-            data={data}
-            soonMaxDays={SOON_MAX_DAYS_POR_DEFECTO}
-            weightBase={WEIGHT_BASE_POR_DEFECTO}
-          />
-          <WhoToTrain data={data} />
-        </div>
+        <QuienEntrena data={data} />
       ) : (
         <SkillDetail data={data} />
       )}
@@ -397,6 +390,7 @@ function WhatToTrain({ data }: { data: Academy }) {
   // Mientras llega la primera respuesta se pinta lo que ya trajo /academy con
   // los valores por defecto: la tabla nunca aparece vacía.
   const rows = tuned.data?.skillScores ?? data.skillScores ?? [];
+  const sugerencia = tuned.data?.suggestion ?? null;
   const plazas = plazasPorHabilidad(rows, tuned.data?.slotCounts);
   useEffect(() => {
     if (sembrado || Object.keys(plazas).length === 0) return;
@@ -415,9 +409,47 @@ function WhatToTrain({ data }: { data: Academy }) {
 
   return (
     <Panel title="Qué entrenar" meta="una habilidad, la reciben todos">
+      {/* Las DOS, no una. Y la segunda con apellido: la misma habilidad se
+          entrena por caminos distintos y cada uno llega a gente distinta.
+          Con «Defensa» arriba, «Pases» a secas no toca a ningún defensa y
+          nadie recibiría las dos cosas; la variante de defensas deja cinco. */}
       <div className="border-b border-[var(--border)] px-4 py-3 text-sm">
-        Ahora mismo conviene entrenar{" "}
-        <b className="text-[var(--youth-known)]">{top.label}</b>.
+        {sugerencia ? (
+          <>
+            Ahora mismo conviene entrenar{" "}
+            <b className="text-[var(--youth-known)]">{sugerencia.mainLabel}</b>, y de
+            secundario{" "}
+            <b className="text-[var(--youth-known)]">{sugerencia.secondaryLabel}</b>.
+            {sugerencia.bothCount > 0 ? (
+              <span className="text-[var(--muted)]">
+                {" "}
+                Así {sugerencia.bothCount}{" "}
+                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos cosas.
+              </span>
+            ) : (
+              <span className="text-[var(--muted)]">
+                {" "}
+                No hay ningún puesto que reciba las dos.
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem("juveniles.principal", sugerencia.main);
+                localStorage.setItem("juveniles.secundario", sugerencia.secondary);
+                window.dispatchEvent(new Event("juveniles:sugerencia"));
+              }}
+              className="ml-2 rounded-md border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--accent)] hover:border-[var(--accent)]"
+            >
+              Ponerlo en el reparto
+            </button>
+          </>
+        ) : (
+          <>
+            Ahora mismo conviene entrenar{" "}
+            <b className="text-[var(--youth-known)]">{top.label}</b>.
+          </>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -782,15 +814,47 @@ function WhoToTrain({ data }: { data: Academy }) {
   );
 }
 
+/** La pestaña de «A quién entrenar»: el reparto y la cola de cada habilidad.
+ *
+ * La lista de entrenamientos se pide UNA vez aquí y baja a los dos paneles:
+ * pedirla dos veces daría dos respuestas distintas si el usuario mueve los
+ * mandos de la otra pestaña entre medias.
+ */
+function QuienEntrena({ data }: { data: Academy }) {
+  const tuned = useAcademySkillScores({
+    soonMaxDays: SOON_MAX_DAYS_POR_DEFECTO,
+    weightBase: WEIGHT_BASE_POR_DEFECTO,
+    trainableMethod: "slots",
+    trainable: {},
+  });
+  return (
+    <div className="space-y-4">
+      <TrainingPlan
+        data={data}
+        tuned={tuned.data}
+        soonMaxDays={SOON_MAX_DAYS_POR_DEFECTO}
+        weightBase={WEIGHT_BASE_POR_DEFECTO}
+      />
+      <WhoToTrain data={data} />
+    </div>
+  );
+}
+
 function TrainingPlan({
   data,
+  tuned,
   soonMaxDays,
   weightBase,
 }: {
   data: Academy;
+  tuned: AcademySkillScores | undefined;
   soonMaxDays: number;
   weightBase: number;
 }) {
+  // Las opciones son los ENTRENAMIENTOS, no las habilidades: «Pases» y
+  // «Pases (defensas y centro del campo completo)» suben lo mismo pero llegan
+  // a gente distinta, y esa diferencia es todo el asunto.
+  const opciones = tuned?.trainings ?? [];
   const habilidades = data.skillScores ?? [];
   // La eleccion sobrevive a recargar: son dos decisiones que el usuario toma
   // una vez por semana, no en cada visita.
@@ -800,8 +864,20 @@ function TrainingPlan({
   const [secondary, setSecondary] = useState<string>(
     () => localStorage.getItem("juveniles.secundario") ?? "",
   );
-  const principal = main || habilidades[0]?.skill || "";
-  const secundaria = secondary || habilidades[1]?.skill || principal;
+  const principal = main || opciones[0]?.code || habilidades[0]?.skill || "";
+  const secundaria = secondary || opciones[1]?.code || principal;
+
+  // El boton de «Ponerlo en el reparto» escribe la eleccion y avisa; sin
+  // esto habria que recargar para verla, que es justo lo contrario de lo que
+  // el boton promete.
+  useEffect(() => {
+    const aplicar = () => {
+      setMain(localStorage.getItem("juveniles.principal") ?? "");
+      setSecondary(localStorage.getItem("juveniles.secundario") ?? "");
+    };
+    window.addEventListener("juveniles:sugerencia", aplicar);
+    return () => window.removeEventListener("juveniles:sugerencia", aplicar);
+  }, []);
 
   const plan = useAcademyTrainingPlan({
     main: principal,
@@ -810,7 +886,7 @@ function TrainingPlan({
     weightBase,
   });
 
-  if (habilidades.length === 0) return null;
+  if (opciones.length === 0 && habilidades.length === 0) return null;
 
   const selector = (
     valor: string,
@@ -828,9 +904,9 @@ function TrainingPlan({
         }}
         className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
       >
-        {habilidades.map((h) => (
-          <option key={h.skill} value={h.skill}>
-            {h.label}
+        {opciones.map((o) => (
+          <option key={o.code} value={o.code}>
+            {o.label}
           </option>
         ))}
       </select>
