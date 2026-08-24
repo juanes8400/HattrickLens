@@ -136,3 +136,37 @@ def test_training_exposure_uses_hattrick_control_weights() -> None:
     # Posición secundaria: la mitad de minutos efectivos
     assert training_exposure(0, 90, True, True) == 0.5
     assert training_exposure(0, 0, True, True) == 0.0
+
+
+def test_los_cortes_estan_en_la_escala_juvenil() -> None:
+    """2026-08-23: estaban en escala de primer equipo --12 para «crack»--, y
+    como un techo juvenil no llega ahi, los dieciocho canteranos de la
+    academia real salian «aceptable». La etiqueta no distinguia a nadie."""
+    def con_techo(techo: int) -> Category:
+        return evaluate("X", 16, 0, _skills(scoring=(0, techo))).category
+
+    assert con_techo(8) is Category.STAR
+    assert con_techo(7) is Category.PROSPECT
+    assert con_techo(6) is Category.ACCEPTABLE
+    assert con_techo(5) is Category.SELLABLE
+    assert con_techo(4) is Category.PLUMBER
+
+
+def test_sin_ningun_techo_revelado_no_hay_veredicto() -> None:
+    """El techo asumido es 8. Si la categoria lo usara, todo canterano recien
+    llegado seria «crack» — afirmar justo lo que nadie ha dicho."""
+    e = evaluate("A oscuras", 16, 0, _skills(
+        scoring=(5, None), passing=(4, None), defending=(3, None),
+    ))
+    assert e.category is Category.UNRATED
+    assert e.best_skill_max is None
+    # El potencial SI sigue usando el supuesto: sirve para ordenar.
+    assert e.potential_score > 0
+
+
+def test_un_techo_revelado_bajo_manda_sobre_el_resto_a_oscuras() -> None:
+    """Lo poco que se sabe pesa mas que lo mucho que se supone."""
+    e = evaluate("Uno visto", 16, 0, _skills(
+        scoring=(2, 4), passing=(6, None), defending=(6, None),
+    ))
+    assert e.category is Category.PLUMBER

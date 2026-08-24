@@ -26,6 +26,7 @@ YOUTH_SKILLS = ("keeper", "defending", "playmaking", "winger", "passing", "scori
 class Category(StrEnum):
     """Clasificación que en HC es manual y aquí se calcula."""
 
+    UNRATED = "sin ojear"      # el ojeador no ha revelado ni un techo
     PLUMBER = "fontanero"      # no vale para nada
     SELLABLE = "vendible"      # se vende sin pena
     ACCEPTABLE = "aceptable"   # puede servir de suplente
@@ -97,15 +98,35 @@ def _potential(skills: dict[str, YouthSkill]) -> tuple[float, str, int | None, i
     )
 
 
-def _categorise(potential: float, best_max: int | None) -> Category:
-    techo = best_max or 0
-    if techo >= 12 and potential >= 30:
+#: Los cortes de categoria, en la escala JUVENIL. 2026-08-23, dictados por el
+#: usuario: son los mismos que ya mandan en el resto del modulo --excelente 8,
+#: bueno 7, aceptable 6-- para que una sola escala valga en toda la academia.
+#:
+#: Antes estaban en 12 / 9 / 7 / 5, que es escala de primer equipo. Un techo
+#: juvenil no llega a 12, asi que "crack" y "promesa" eran inalcanzables y los
+#: dieciocho canteranos salian "aceptable": la etiqueta no distinguia a nadie.
+CORTE_CRACK = 8
+CORTE_PROMESA = 7
+CORTE_ACEPTABLE = 6
+CORTE_VENDIBLE = 5
+
+
+def _categorise(best_max: int | None) -> Category:
+    """La categoria sale del techo REVELADO, nunca del asumido.
+
+    Con el techo supuesto --8 mientras el ojeador calla-- todo canterano sin
+    ojear daria "crack", que es afirmar justo lo que no se sabe. Sin ninguna
+    revelacion no hay veredicto, y eso tiene nombre propio.
+    """
+    if best_max is None:
+        return Category.UNRATED
+    if best_max >= CORTE_CRACK:
         return Category.STAR
-    if techo >= 9 and potential >= 22:
+    if best_max >= CORTE_PROMESA:
         return Category.PROSPECT
-    if techo >= 7:
+    if best_max >= CORTE_ACEPTABLE:
         return Category.ACCEPTABLE
-    if techo >= 5:
+    if best_max >= CORTE_VENDIBLE:
         return Category.SELLABLE
     return Category.PLUMBER
 
@@ -124,11 +145,11 @@ def evaluate(
     skills: dict[str, YouthSkill],
 ) -> YouthEvaluation:
     """Evaluación completa de un juvenil. HL-111."""
-    potential, best_key, best_max, assumed_max = _potential(skills)
-    # La categoría usa el techo ASUMIDO: sin revelaciones, un juvenil recién
-    # llegado no es un fontanero, es un desconocido — y `verdict_is_provisional`
-    # (revealed < 3) ya avisa de que el veredicto puede cambiar solo.
-    category = _categorise(potential, assumed_max)
+    potential, best_key, best_max, _asumido = _potential(skills)
+    # Sin revelaciones un juvenil no es un fontanero, pero tampoco un crack:
+    # es un desconocido. El techo asumido sigue alimentando `potential_score`
+    # --sirve para ordenar-- pero no fabrica una etiqueta.
+    category = _categorise(best_max)
     left = days_until_deadline(age_years, age_days)
     revealed = sum(1 for s in skills.values() if s.maximum is not None)
 

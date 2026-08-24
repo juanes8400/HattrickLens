@@ -44,6 +44,7 @@ const VIEWS = [
 type ViewKey = (typeof VIEWS)[number]["key"];
 
 const CATEGORY_TONE: Record<string, string> = {
+  "sin ojear": "text-[var(--muted)]",
   crack: "text-[var(--positive)]",
   promesa: "text-[var(--positive)]",
   aceptable: "",
@@ -199,7 +200,21 @@ function YouthTable({ data }: { data: Academy }) {
       header: "Potencial",
       align: "right",
       value: (r) => r.potentialScore,
-      render: (r) => <span className="tabular-nums">{r.potentialScore.toFixed(1)}</span>,
+      render: (r) => (
+        <span
+          className={`tabular-nums${
+            r.revealedSkills === 0 ? " text-[var(--muted)]" : ""
+          }`}
+          title={
+            r.revealedSkills === 0
+              ? "sin ningún techo revelado: este número sale entero del supuesto, no de datos"
+              : undefined
+          }
+        >
+          {r.potentialScore.toFixed(1)}
+          {r.revealedSkills === 0 && " ·"}
+        </span>
+      ),
     },
     {
       key: "best",
