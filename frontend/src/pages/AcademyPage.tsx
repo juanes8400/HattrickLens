@@ -866,7 +866,9 @@ function TablaDelReparto({
                     </th>
                   </tr>
                   {suyas.map((a) => (
-                    <tr key={a.player} className="border-t border-[var(--border)]">
+                    // Alto fijo, igual que en Siguiente promoción: sin él las
+                    // filas con barra de nivel miden un píxel más.
+                    <tr key={a.player} className="h-9 border-t border-[var(--border)]">
                       <td className={`${td} text-left`}>{a.player}</td>
                       <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
                         {edadCorta(a.ageDaysTotal)}
@@ -1251,15 +1253,15 @@ function SiguientePromocion({ data }: { data: Academy }) {
       }
     >
       <div className="overflow-x-auto p-4">
-        <table className="w-full min-w-[76rem] table-fixed text-sm">
+        <table className="w-full min-w-[86rem] table-fixed text-sm">
           <colgroup>
-            <col className="w-[19%]" />
+            <col className="w-[17%]" />
+            <col className="w-[6%]" />
+            <col className="w-[8%]" />
+            <col className="w-[27%]" />
             <col className="w-[7%]" />
-            <col className="w-[9%]" />
-            <col className="w-[30%]" />
             <col className="w-[7%]" />
-            <col className="w-[7%]" />
-            <col className="w-[21%]" />
+            <col className="w-[28%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
@@ -1292,7 +1294,9 @@ function SiguientePromocion({ data }: { data: Academy }) {
               return (
                 <tr
                   key={p.htYouthPlayerId}
-                  className="border-t border-[var(--border)]"
+                  // Alto fijo: sin él, las filas con barra de nivel miden un
+                  // píxel más que las de «sin revelar» y la tabla vibra.
+                  className="h-9 border-t border-[var(--border)]"
                 >
                   <td className={`${td} truncate text-left`} title={p.name}>
                     {p.name}
@@ -1333,7 +1337,13 @@ function SiguientePromocion({ data }: { data: Academy }) {
                   >
                     {pierde.texto}
                   </td>
-                  <td className="px-3 py-1.5 text-left text-xs text-[var(--muted)]">
+                  {/* Una fila, una linea: el consejo se corta con puntos
+                      suspensivos y entero al pasar el raton. Partirlo en
+                      varias lineas descuadraba la altura de cada fila. */}
+                  <td
+                    className={`${td} truncate text-left text-xs text-[var(--muted)]`}
+                    title={p.promoteAdvice}
+                  >
                     {p.promoteAdvice}
                   </td>
                 </tr>
