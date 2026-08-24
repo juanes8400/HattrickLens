@@ -603,6 +603,7 @@ class SyncTeamHandler:
         al que se fue. Se consultan juntos porque, para quien mira la
         pantalla, es una sola cosa: "que la ficha esté completa".
         """
+        from sqlalchemy import func as sa_func
         from sqlalchemy import select
 
         from app.infrastructure.db import models as m
@@ -627,9 +628,26 @@ class SyncTeamHandler:
             .exists()
         )
 
+        # Lo mas reciente primero.
+        #
+        # 2026-08-24, pedido asi: estas colas se recorren por lotes, y sin
+        # orden salian por el orden en que estaban en la tabla --o sea, los
+        # mas viejos--. Un jugador que te acaban de revender quedaba en el
+        # puesto 27 de 285, a veintisiete pulsaciones de distancia, cuando es
+        # justo el que puede darte comision esta semana. Caso real: Gabriel
+        # Cecilio Acasusso.
+        #
+        # `nullslast` no es un adorno: en SQLite un NULL ordena por debajo de
+        # todo y en Postgres por encima, asi que sin decirlo el orden seria
+        # distinto en tu maquina y en produccion.
+        ultimo_movimiento = sa_func.coalesce(
+            m.Player.sold_at, m.Player.left_team_at, m.Player.purchased_at
+        )
+
         async def ids(condicion) -> list[int]:
             filas = await uow.session.execute(
-                select(m.Player.ht_player_id).where(
+                select(m.Player.ht_player_id)
+                .where(
                     m.Player.team_id == team_id,
                     # Salvaguardia: quien lleva prestado el numero de su
                     # transferencia no tiene ficha en CHPP. Pedirla gastaria
@@ -638,6 +656,7 @@ class SyncTeamHandler:
                     ~m.Player.ht_player_id_is_transfer,
                     condicion,
                 )
+                .order_by(ultimo_movimiento.desc().nullslast())
             )
             return list(filas.scalars().all())
 
