@@ -436,14 +436,25 @@ export function SyncChangesPage() {
         </div>
       </header>
 
+      {/* Un informe se lee una vez. Si el último sync no movió nada, aquí no
+          hay nada: no se reenseña lo de antes. El archivo sigue accesible
+          eligiendo una fecha, y entonces se avisa de que no es lo último. */}
       {data && !data.reportIsLatest && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--text)]">
-            La última sincronización no encontró nada nuevo.
+            Estás viendo el archivo.
           </span>{" "}
-          Lo de aquí abajo no ha vuelto a pasar: es el último cambio real,{" "}
-          {relative(data.reportSyncedAt)}, que se conserva para que una
-          sincronización repetida no borre lo que aún no has leído.
+          Esto es lo que cambió {relative(data.reportSyncedAt)}, no lo último.
+        </div>
+      )}
+
+      {data && data.reportIsLatest && data.reportChanges.length === 0 && (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+          <span className="font-medium text-[var(--text)]">Nada nuevo.</span>{" "}
+          La sincronización de {relative(data.syncedAt)} no encontró ningún
+          cambio.
+          {data.availableReports.length > 0 &&
+            " Lo anterior está en el archivo, eligiendo una fecha."}
         </div>
       )}
 

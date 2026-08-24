@@ -873,6 +873,40 @@ function nombreCorto(etiqueta: string): string {
   return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
 }
 
+/** Por qué esta persona está en esta plaza, en una frase.
+ *
+ * Es el peldaño de la cola, dicho con la habilidad por delante. Sin esto la
+ * tabla es un orden sin explicación, y el caso que lo pide a gritos es el de
+ * dos canteranos con un día de diferencia donde uno entra y el otro no: no
+ * decide la edad, decide que a uno el ojeador ya le vio la habilidad y era
+ * mala, y un desconocido vale más que un malo conocido.
+ *
+ * Dentro de un mismo motivo el orden es por edad, el más joven primero.
+ */
+function motivoDe(peldano: number, habilidad: string, alTope: boolean): string {
+  if (alTope) return `${habilidad} al tope`;
+  switch (peldano) {
+    case 1:
+      return `Excelente en ${habilidad}`;
+    case 2:
+      return `Bueno en ${habilidad}, sale joven`;
+    case 3:
+      return `Bueno en ${habilidad}`;
+    case 4:
+      return `Aceptable en ${habilidad}, sale joven`;
+    case 5:
+      return `Aceptable en ${habilidad}`;
+    case 6:
+      return `${habilidad} sin descubrir, sale joven`;
+    case 7:
+      return `${habilidad} sin descubrir`;
+    case 8:
+      return `Insuficiente en ${habilidad}`;
+    default:
+      return `${habilidad} ya visto, y bajo`;
+  }
+}
+
 /** `66,7%`, con coma y sin decimal cuando es redondo. */
 function porcentaje(n: number): string {
   return `${n % 1 === 0 ? n : n.toFixed(1).replace(".", ",")}%`;
@@ -942,18 +976,26 @@ function TablaDelReparto({
       <div className="mt-2 overflow-x-auto">
         {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
-        <table className="w-full min-w-[62rem] table-fixed text-sm">
+        <table className="w-full min-w-[72rem] table-fixed text-sm">
           <colgroup>
+            <col className="w-[17%]" />
+            <col className="w-[16%]" />
+            <col className="w-[6%]" />
+            <col className="w-[11%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
             <col className="w-[20%]" />
-            <col className="w-[7%]" />
-            <col className="w-[13%]" />
-            <col className="w-[17%]" />
-            <col className="w-[17%]" />
-            <col className="w-[26%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>Jugador</th>
+              <th
+                scope="col"
+                className={`${th} text-left`}
+                title="dentro de un mismo motivo, primero el más joven"
+              >
+                Motivo
+              </th>
               <th scope="col" className={`${th} text-right`}>Edad</th>
               <th scope="col" className={`${th} text-left`}>Puesto</th>
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
@@ -974,7 +1016,7 @@ function TablaDelReparto({
                   <tr>
                     <th
                       scope="colgroup"
-                      colSpan={6}
+                      colSpan={7}
                       className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
                     >
                       {t}
@@ -984,6 +1026,9 @@ function TablaDelReparto({
                   {suyas.map((a) => (
                     <tr key={a.player} className="border-t border-[var(--border)]">
                       <td className={`${td} text-left`}>{a.player}</td>
+                      <td className={`${td} text-left text-xs text-[var(--muted)]`}>
+                        {motivoDe(a.peldano, a.skillLabel, a.maxReached)}
+                      </td>
                       <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
                         {edadCorta(a.ageDaysTotal)}
                       </td>

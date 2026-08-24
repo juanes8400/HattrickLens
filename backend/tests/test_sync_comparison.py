@@ -84,7 +84,7 @@ def _economy(sync_id: int, team_id: int, captured_at: datetime, fans: int):
     )
 
 
-def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots() -> None:
+def test_un_sync_repetido_no_reensena_el_informe_anterior() -> None:
     async def scenario() -> None:
         engine = create_async_engine(
             "sqlite+aiosqlite://",
@@ -205,7 +205,7 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
             report = await build_sync_comparison(session, team.id)
             # Navegación por fecha (2026-08-15): pedir explícitamente el sync
             # con cambios devuelve esa comparación; pedir uno inexistente o
-            # sin cambios cae a la más reciente con cambios, no revienta.
+            # sin cambios cae al último, no revienta.
             picked = await build_sync_comparison(session, team.id, changed_sync.id)
             fallback_repeated = await build_sync_comparison(
                 session, team.id, repeated_sync.id
@@ -216,32 +216,42 @@ def test_report_keeps_last_meaningful_comparison_and_aggregates_real_snapshots()
         # (que confirmó que todo seguía igual) sería ruido.
         assert [r["syncId"] for r in report["availableReports"]] == [changed_sync.id]
         assert report["availableReports"][0]["changeCount"] == 3
-        assert picked["reportSyncId"] == changed_sync.id
-        assert picked["playerRows"] == report["playerRows"]
-        assert fallback_repeated["reportSyncId"] == changed_sync.id
-        assert fallback_unknown["reportSyncId"] == changed_sync.id
 
+        # 2026-08-24: "la vida de las notificaciones es ÚNICA". El sync
+        # repetido no movió nada, así que NO reenseña el informe anterior:
+        # se queda vacío. Lo que fue, fue.
         assert report["syncId"] == repeated_sync.id
+        assert report["reportSyncId"] == repeated_sync.id
+        assert report["reportIsLatest"] is True
         assert report["changes"] == []
-        assert report["reportSyncId"] == changed_sync.id
-        assert report["reportIsLatest"] is False
+        assert report["reportChanges"] == []
+        assert report["playerRows"] == []
+        # `clubChanges` es el estado del club, no una lista de cambios: sigue
+        # ahi, pero sin movimiento entre el antes y el ahora.
+        assert all(c["before"] == c["current"] for c in report["clubChanges"])
+        assert fallback_repeated["reportSyncId"] == repeated_sync.id
+        assert fallback_unknown["reportSyncId"] == repeated_sync.id
+
+        # Pero el archivo sigue ahí: pedir esa fecha devuelve lo suyo entero.
+        assert picked["reportSyncId"] == changed_sync.id
+        assert picked["reportIsLatest"] is False
         assert {
             item["summary"]
-            for item in report["reportChanges"]
+            for item in picked["reportChanges"]
             if item["category"] == "entrenamiento"
         } == {"Espíritu del equipo: Encantados -> Contentos"}
-        assert report["playerRows"][0]["tsiDelta"] == 1_000
-        assert {c["key"] for c in report["playerRows"][0]["changes"]} == {
+        assert picked["playerRows"][0]["tsiDelta"] == 1_000
+        assert {c["key"] for c in picked["playerRows"][0]["changes"]} == {
             "form",
             "loyalty",
             "playmaking",
         }
-        metrics = {metric["key"]: metric for metric in report["summary"]}
+        metrics = {metric["key"]: metric for metric in picked["summary"]}
         assert metrics["tsi"]["upCount"] == 1
         assert metrics["tsi"]["upTotal"] == 1_000
         assert metrics["playmaking"]["net"] == 1
         assert metrics["loyalty"]["net"] == 1
-        club = {change["key"]: change for change in report["clubChanges"]}
+        club = {change["key"]: change for change in picked["clubChanges"]}
         assert club["team_spirit"]["before"] == 7
         assert club["team_spirit"]["current"] == 6
         assert club["fan_club_size"]["delta"] == 1

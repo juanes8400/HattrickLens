@@ -3422,6 +3422,7 @@ class SyncTeamHandler:
         `TransferListed` viene con la plantilla, jugador por jugador, y es la
         respuesta directa a la pregunta.
         """
+        from sqlalchemy import func as sa_func
         from sqlalchemy import select, update
 
         from app.infrastructure.db import models as m
@@ -3436,12 +3437,41 @@ class SyncTeamHandler:
             .where(m.Player.team_id == team_id, m.Player.currently_listed)
             .values(currently_listed=False)
         )
+        # Y luego, la ULTIMA foto de cada uno, no la de este sync.
+        #
+        # 2026-08-24. `player_snapshots` escribe fila solo cuando algo cambia,
+        # y `is_transfer_listed` entra en la huella --asi que si la marca
+        # cambiara, habria foto--. Exigir `captured_at == <este sync>` dejaba
+        # fuera a todo el que no hubiera cambiado NADA desde el sync anterior:
+        # se le borraba la marca, su intento de venta se cerraba como "ya no
+        # esta en el mercado" y la pantalla pasaba a preguntarle las cosas de
+        # una venta cerrada. Caso real: Enyo Kasaliyski, en el mercado con
+        # plazo hasta las 15:11, cerrado a las 12:08 del mismo dia.
+        #
+        # Quien ya no es nuestro no entra: para ese caso --Gabriel Cecilio
+        # Acasusso, vendido en julio y aun marcado en agosto-- el borron de
+        # arriba es lo correcto, y su ultima foto no debe resucitarlo.
+        ultima = (
+            select(
+                m.PlayerSnapshot.player_id,
+                sa_func.max(m.PlayerSnapshot.captured_at).label("cuando"),
+            )
+            .where(m.PlayerSnapshot.captured_at <= captured_at)
+            .group_by(m.PlayerSnapshot.player_id)
+            .subquery()
+        )
         filas = (await uow.session.execute(
             select(m.Player, m.PlayerSnapshot.is_transfer_listed)
-            .join(m.PlayerSnapshot, m.PlayerSnapshot.player_id == m.Player.id)
+            .join(ultima, ultima.c.player_id == m.Player.id)
+            .join(
+                m.PlayerSnapshot,
+                (m.PlayerSnapshot.player_id == ultima.c.player_id)
+                & (m.PlayerSnapshot.captured_at == ultima.c.cuando),
+            )
             .where(
                 m.Player.team_id == team_id,
-                m.PlayerSnapshot.captured_at == captured_at,
+                m.Player.left_team_at.is_(None),
+                m.Player.sold_at.is_(None),
             )
         )).all()
         for jugador, en_venta in filas:

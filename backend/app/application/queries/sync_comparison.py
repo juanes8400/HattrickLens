@@ -553,13 +553,28 @@ async def build_sync_comparison(
     if sync_id is not None:
         report_sync = next((s for s in available if s.id == sync_id), None)
     if report_sync is None:
-        report_sync = available[0] if available else latest
+        # El informe por defecto es el del ULTIMO sync, tenga cambios o no.
+        #
+        # 2026-08-24, pedido asi: "la vida de las notificaciones es UNICA, lo
+        # que fue, fue". Antes, un sync que no movia nada caia al anterior que
+        # si movio algo, y sincronizar dos veces seguidas te reenseñaba lo que
+        # acababas de leer. El archivo sigue navegable por `sync_id`: lo que
+        # se quita es que vuelva SOLO.
+        report_sync = latest
 
     latest_changes = await _changes_for_sync(session, latest.id)
     report_changes = await _changes_for_sync(session, report_sync.id)
     player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
     club_changes = await _club_report(session, team_id, report_sync, currency_rate)
-    anterior = next((s for s in available if s.started_at < report_sync.started_at), None)
+    # El sync anterior a este, haya movido algo o no: si se tomara el anterior
+    # CON cambios, los partidos de seleccion de la ventana intermedia se
+    # volverian a anunciar en cada sync vacio.
+    anterior = await session.scalar(
+        select(m.Sync)
+        .where(*normal_sync_filter, m.Sync.started_at < report_sync.started_at)
+        .order_by(m.Sync.started_at.desc())
+        .limit(1)
+    )
     national_matches = await _partidos_de_seleccion(
         session, team_id,
         desde=anterior.started_at if anterior else None,
