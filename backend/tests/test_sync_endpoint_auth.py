@@ -150,7 +150,10 @@ def test_sync_runs_for_real_with_a_valid_session(
     # durante la descarga y leia la marca tal como habia quedado del sync
     # ANTERIOR, asi que iba una pulsacion por detras y en la primera pasada
     # no se enteraba de ninguno.
-    assert body["snapshotsWritten"] == 98
+    # Y de 98 a 100 el mismo dia: los dos canteranos del fixture traen ahora
+    # su informe de ojeador (`youthplayerdetails`, migracion 0063). Es una
+    # llamada por canterano y solo la primera vez.
+    assert body["snapshotsWritten"] == 100
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)
