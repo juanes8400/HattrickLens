@@ -1979,6 +1979,10 @@ export interface Academy {
     bestSkillMax: number | null;
     daysUntilDeadline: number;
     weeksUntilDeadline: number;
+    /** Días que faltan para PODER subirlo al primer equipo. Distinto del
+     *  plazo para no perderlo por edad: entre las dos fechas está la ventana
+     *  en la que hay que decidir. */
+    canBePromotedIn: number | null;
     revealedSkills: number;
     verdictIsProvisional: boolean;
     promoteAdvice: string;

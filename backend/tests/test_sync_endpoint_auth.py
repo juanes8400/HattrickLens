@@ -145,7 +145,12 @@ def test_sync_runs_for_real_with_a_valid_session(
     # (2026-08-21), que ahora vive en su propio boton por lotes; y despues
     # el libro de transferencias (2026-08-22), que dejo de leerse a medias
     # en el sync normal y se recorre entero desde Transferencias.
-    assert body["snapshotsWritten"] == 85
+    # De 85 a 98 el 2026-08-24: los trece que `players.xml` marca en venta
+    # abren su intento en ESTE sync. Antes no: `currentbids` se despachaba
+    # durante la descarga y leia la marca tal como habia quedado del sync
+    # ANTERIOR, asi que iba una pulsacion por detras y en la primera pasada
+    # no se enteraba de ninguno.
+    assert body["snapshotsWritten"] == 98
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

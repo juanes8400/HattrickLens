@@ -707,6 +707,19 @@ async def _setup_roster(ht_player_ids: list[int]) -> tuple[SqlAlchemyUnitOfWork,
     return SqlAlchemyUnitOfWork(factory), team_id
 
 
+def _foto_en_venta(
+    player_id: int, sync_id: int, cuando: datetime | None = None
+) -> "m.PlayerSnapshot":
+    """La foto que deja el paso de plantilla: en venta, segun players.xml."""
+    return m.PlayerSnapshot(
+        sync_id=sync_id, player_id=player_id,
+        captured_at=cuando or datetime(2026, 8, 24, 11),
+        age_years=25, age_days=0, tsi=1000, form=5, stamina=7,
+        experience=5, salary=1000, is_transfer_listed=True,
+        content_hash=b"x" * 32,
+    )
+
+
 def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
     """Quién está en venta lo dice players.xml (`TransferListed`), no
     `currentbids.xml` — pedido explícitamente el 2026-08-22: ese fichero es la
@@ -725,11 +738,21 @@ def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
                 select(m.Player).where(m.Player.ht_player_id == 111)
             )
             jugador.currently_listed = True
+            # `_persist_currentbids` refresca la marca desde la ULTIMA foto
+            # antes de decidir nada (2026-08-24), asi que la foto tiene que
+            # existir: es lo que el paso de plantilla habria escrito.
+            sync = m.Sync(user_id=1, team_id=team_id, kind="players",
+                          status="completed", started_at=datetime(2026, 8, 24, 11))
+            u.session.add(sync)
+            await u.session.flush()
+            u.session.add(_foto_en_venta(jugador.id, sync_id=sync.id))
             await u.session.commit()
 
         async with uow as u:
             payload = {"listed_players": [{"ht_player_id": 111}]}
-            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
+            await handler._persist_currentbids(
+                u, team_id, payload, datetime(2026, 8, 24, 12), _fresh_result()
+            )
             await u.commit()
 
         async with uow as u:
@@ -751,7 +774,9 @@ def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
         # Sigue listado: no se abre un segundo intento.
         async with uow as u:
             payload = {"listed_players": [{"ht_player_id": 111}]}
-            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
+            await handler._persist_currentbids(
+                u, team_id, payload, datetime(2026, 8, 24, 12), _fresh_result()
+            )
             await u.commit()
 
         async with uow as u:
@@ -780,6 +805,14 @@ def test_the_bids_file_only_enriches_the_open_attempt() -> None:
                 select(m.Player).where(m.Player.ht_player_id == 111)
             )
             jugador.currently_listed = True
+            # `_persist_currentbids` refresca la marca desde la ULTIMA foto
+            # antes de decidir nada (2026-08-24), asi que la foto tiene que
+            # existir: es lo que el paso de plantilla habria escrito.
+            sync = m.Sync(user_id=1, team_id=team_id, kind="players",
+                          status="completed", started_at=datetime(2026, 8, 24, 11))
+            u.session.add(sync)
+            await u.session.flush()
+            u.session.add(_foto_en_venta(jugador.id, sync_id=sync.id))
             await u.session.commit()
 
         async with uow as u:
@@ -789,7 +822,9 @@ def test_the_bids_file_only_enriches_the_open_attempt() -> None:
                      "deadline": "2026-08-26 09:00:00"},
                 ]
             }
-            await handler._persist_currentbids(u, team_id, payload, _fresh_result())
+            await handler._persist_currentbids(
+                u, team_id, payload, datetime(2026, 8, 24, 12), _fresh_result()
+            )
             await u.commit()
 
         async with uow as u:

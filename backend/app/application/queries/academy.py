@@ -122,6 +122,11 @@ class YouthRow:
     best_skill_max: int | None
     days_until_deadline: int
     weeks_until_deadline: int
+    #: `CanBePromotedIn` de CHPP: dias que faltan para poder subirlo al primer
+    #: equipo. Es OTRA cosa que `days_until_deadline`, que cuenta hasta que se
+    #: pierde por edad. Un canterano puede estar a 90 dias de poder subir y a
+    #: 300 de perderse: entre esas dos fechas esta la ventana para decidir.
+    can_be_promoted_in: int | None
     revealed_skills: int
     verdict_is_provisional: bool
     promote_advice: str
@@ -367,6 +372,7 @@ class AcademyQueryService:
                     best_skill_max=ev.best_skill_max,
                     days_until_deadline=ev.days_until_deadline,
                     weeks_until_deadline=ev.days_until_deadline // 7,
+                    can_be_promoted_in=snap.can_be_promoted_in,
                     revealed_skills=ev.revealed_skills,
                     verdict_is_provisional=ev.revealed_skills < MIN_REVEALED_FOR_A_VERDICT,
                     promote_advice=ev.promote_advice,

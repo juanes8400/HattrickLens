@@ -2907,7 +2907,9 @@ class SyncTeamHandler:
             await self._persist_league_fixtures(uow, payload, result)
             return
         if file == "currentbids":
-            await self._persist_currentbids(uow, team_id, payload, result)
+            await self._persist_currentbids(
+                uow, team_id, payload, captured_at, result
+            )
             return
         if file == "teamdetails":
             await self._persist_teamdetails(uow, team_id, ht_team_id, payload, result)
@@ -3477,8 +3479,49 @@ class SyncTeamHandler:
         for jugador, en_venta in filas:
             jugador.currently_listed = bool(en_venta)
 
+    async def _reabrir_pujas_cerradas_por_error(
+        self, uow: UnitOfWork, team_id: int, ahora: datetime, result: SyncResult,
+    ) -> int:
+        """Una puja con el plazo por vencer no puede estar cerrada.
+
+        2026-08-24. Mientras la marca de "en venta" se borraba sola, algunos
+        intentos se cerraron con la subasta todavia abierta, y la pantalla
+        pasaba a pedir los datos de una venta hecha --cuantas veces lo
+        miraron, a que precio-- por algo que no habia pasado. Reabrirlos aqui
+        arregla lo ya guardado sin migracion: si el jugador sigue siendo
+        nuestro, sigue en el mercado y su plazo aun no ha vencido, el cierre
+        fue un error nuestro.
+
+        Un re-listado legitimo NO entra: al volver a poner a alguien en venta
+        Hattrick le da un plazo nuevo, y el que se guardo con el cierre ya
+        habia vencido.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        candidatos = (await uow.session.execute(
+            select(m.PlayerListingAttempt)
+            .join(m.Player, m.Player.id == m.PlayerListingAttempt.player_id)
+            .where(
+                m.Player.team_id == team_id,
+                m.Player.currently_listed.is_(True),
+                m.Player.left_team_at.is_(None),
+                m.Player.sold_at.is_(None),
+                m.PlayerListingAttempt.ended_at.is_not(None),
+                m.PlayerListingAttempt.sold.is_(False),
+                m.PlayerListingAttempt.deadline.is_not(None),
+                m.PlayerListingAttempt.deadline > ahora,
+            )
+        )).scalars().all()
+        for intento in candidatos:
+            intento.ended_at = None
+            result.snapshots_written += 1
+        return len(candidatos)
+
     async def _persist_currentbids(
-        self, uow: UnitOfWork, team_id: int, payload: dict[str, Any], result: SyncResult
+        self, uow: UnitOfWork, team_id: int, payload: dict[str, Any],
+        captured_at: datetime, result: SyncResult,
     ) -> None:
         """HL-161: cuenta intentos de venta hacia adelante. CHPP solo da
         una foto del momento (quién está en el mercado AHORA), nunca un
@@ -3511,6 +3554,18 @@ class SyncTeamHandler:
             ).scalars()
         )
         ahora = datetime.now(UTC).replace(tzinfo=None)
+
+        # La marca de "en venta" se refresca AQUI, antes de decidir nada.
+        #
+        # 2026-08-24. Este bloque leia `player.currently_listed` tal como
+        # habia quedado del sync ANTERIOR, porque el refresco vive en el
+        # post-proceso y `currentbids` se despacha durante la descarga. Iba un
+        # sync por detras: un jugador que volvia al mercado no abria intento
+        # hasta la siguiente pulsacion, y uno que perdia la marca por error
+        # veia su puja cerrada antes de que nadie la corrigiera.
+        await self._marcar_quien_esta_en_venta(uow, team_id, captured_at)
+        await self._reabrir_pujas_cerradas_por_error(uow, team_id, ahora, result)
+
         for player in roster:
             en_mercado = listed_now.get(player.ht_player_id)
             # Quien esta en venta lo dice players.xml (`TransferListed`), no

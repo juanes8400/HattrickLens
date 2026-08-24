@@ -89,3 +89,71 @@ def test_quien_ya_no_es_nuestro_no_resucita() -> None:
 def test_quien_dejo_el_club_tampoco() -> None:
     uow, _ = asyncio.run(_monta(left_team_at=datetime(2026, 7, 1)))
     assert _marca(uow) is False
+
+
+def test_una_puja_con_el_plazo_por_vencer_no_puede_estar_cerrada() -> None:
+    """2026-08-24, urgente. Mientras la marca de "en venta" se borraba sola,
+    algunos intentos se cerraron con la subasta abierta, y la pantalla pedia
+    los datos de una venta que no habia pasado.
+    """
+    from datetime import timedelta
+
+    async def corre() -> None:
+        uow, _ = await _monta()
+        ahora = datetime(2026, 8, 24, 14, 0)
+        async with uow:
+            jugador = await uow.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 483141997)
+            )
+            uow.session.add(m.PlayerListingAttempt(
+                player_id=jugador.id, ht_player_id=jugador.ht_player_id,
+                detected_at=ahora - timedelta(hours=8),
+                ended_at=ahora - timedelta(hours=2),   # cerrado por error
+                deadline=ahora + timedelta(hours=1),   # y el plazo sigue vivo
+                sold=False,
+            ))
+            await uow.commit()
+
+        async with uow:
+            from app.application.commands.sync_team import SyncResult
+            n = await SyncTeamHandler(uow, None)._reabrir_pujas_cerradas_por_error(
+                uow, 1, ahora, SyncResult(sync_id=1, status="running"),
+            )
+            await uow.commit()
+        assert n == 1
+        async with uow:
+            intento = await uow.session.scalar(select(m.PlayerListingAttempt))
+        assert intento.ended_at is None, "la subasta seguia abierta"
+
+    asyncio.run(corre())
+
+
+def test_un_relistado_legitimo_no_se_toca() -> None:
+    """Al volver a poner a alguien en venta, Hattrick le da un plazo nuevo; el
+    guardado con el cierre anterior ya habia vencido. Ese cierre fue real."""
+    from datetime import timedelta
+
+    async def corre() -> None:
+        uow, _ = await _monta()
+        ahora = datetime(2026, 8, 24, 14, 0)
+        async with uow:
+            jugador = await uow.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 483141997)
+            )
+            uow.session.add(m.PlayerListingAttempt(
+                player_id=jugador.id, ht_player_id=jugador.ht_player_id,
+                detected_at=ahora - timedelta(days=2),
+                ended_at=ahora - timedelta(days=1),
+                deadline=ahora - timedelta(days=1),    # vencido: cierre real
+                sold=False,
+            ))
+            await uow.commit()
+        async with uow:
+            from app.application.commands.sync_team import SyncResult
+            n = await SyncTeamHandler(uow, None)._reabrir_pujas_cerradas_por_error(
+                uow, 1, ahora, SyncResult(sync_id=1, status="running"),
+            )
+            await uow.commit()
+        assert n == 0
+
+    asyncio.run(corre())
