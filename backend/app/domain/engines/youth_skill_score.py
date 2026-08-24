@@ -213,7 +213,7 @@ class PlayerNote:
     bucket: str
     leaves_soon: bool
     max_reached: bool
-    #: Su edad hoy, en días. Desempata dentro del peldaño.
+    #: Su edad hoy, en días. Desempata dentro del peldaño, el menor primero.
     age_days_total: int = 0
     #: El nivel que tiene en esa habilidad, se entrene o no. `note` vale None
     #: cuando la habilidad ya tocó techo --no hay nada que entrenar-- pero el
@@ -248,19 +248,30 @@ class SkillScore:
 
 
 def skill_note(reading: YouthSkillReading) -> int | None:
-    """Nota de una habilidad — `Juveniles!AF3`:
+    """Nota de una habilidad: SU TECHO, y nada más.
 
-        =IF((1-{}) * MAX(max, actual) = 0, "", (1-{}) * MAX(max, actual))
+    2026-08-24, corregido a peticion del usuario. Antes era el mayor entre el
+    nivel actual y el techo --`MAX(max, actual)` de `Juveniles!AF3`-- y eso
+    juntaba dos cosas que no son la misma:
 
-    El mayor entre lo que ya juega y hasta dónde puede llegar, ANULADO si la
-    habilidad ya tocó techo: entrenar algo que no va a subir es tiempo tirado,
-    por alto que esté. `None` es "no se sabe", que no es lo mismo que cero y
-    tiene su propio cubo.
+      * a quien juega a 7 con techo 7 --ya llego, no hay nada que ganar-- le
+        daba la misma nota que a quien juega a 3 con techo 7, al que le
+        quedan cuatro niveles;
+      * y hundia a quien tiene el nivel revelado bajo y el techo SIN revelar.
+        Caso real: Fabian Ochoa, Pases nivel 2 y techo desconocido, caia al
+        ultimo peldaño como si el 2 fuera su limite. Nadie dijo eso: un 2 solo
+        fija un suelo, su techo puede ser 8.
+
+    Lo que decide cuanto vale desarrollar a alguien es hasta donde puede
+    llegar. `None` es "no se sabe", que NO es lo mismo que un techo bajo y
+    tiene su propio cubo, entre "aceptable" e "insuficiente".
+
+    Un techo ya alcanzado tambien anula la nota: entrenar algo que no va a
+    subir es tiempo tirado, por alto que este.
     """
     if reading.max_reached:
         return None
-    note = max(reading.current or 0, reading.maximum or 0)
-    return note or None
+    return reading.maximum or None
 
 
 def bucket_of(
@@ -388,9 +399,19 @@ def score_skills(
                 # 2026-08-23: el desempate por edad faltaba y el orden acababa
                 # siendo alfabético. Gustavo Obregón, el más joven de la
                 # cantera, salía quinto detrás de Antonio, Carlos y Fabián.
+                # Peldaño, techo, edad de HOY, y por ultimo el nivel actual
+                # --el mas cerca del techo primero: entre dos que van a acabar
+                # en el mismo sitio, entra el que esta a punto de rematarlo--.
+                # 2026-08-24, dictado asi por el usuario.
                 players=sorted(
                     names,
-                    key=lambda p: (p.priority, -(p.note or 0), p.age_days_total, p.name),
+                    key=lambda p: (
+                        p.priority,
+                        -(p.note or 0),
+                        p.age_days_total,
+                        -(p.current or 0),
+                        p.name,
+                    ),
                 ),
                 at_max=sorted(tapados, key=lambda p: p.name),
             )

@@ -21,12 +21,25 @@ def _candidate(name: str, days_at_deadline: int, **skills: ys.YouthSkillReading)
 
 # ── La nota de una habilidad (`Juveniles!AF`) ────────────────────────────────
 
-def test_the_note_is_the_best_of_current_and_ceiling() -> None:
-    """`MAX(max, actual)`: un chico que ya juega a 6 con techo 8 vale 8, y uno
-    que juega a 7 sin techo revelado vale 7 — lo que se sepa, lo mejor."""
+def test_la_nota_es_el_techo_y_solo_el_techo() -> None:
+    """2026-08-24: antes era `MAX(max, actual)`, y eso mezclaba dos cosas.
+
+    Lo que decide cuanto vale desarrollar a alguien es hasta donde puede
+    llegar, no donde esta hoy.
+    """
     assert ys.skill_note(ys.YouthSkillReading(current=6, maximum=8)) == 8
-    assert ys.skill_note(ys.YouthSkillReading(current=7, maximum=None)) == 7
     assert ys.skill_note(ys.YouthSkillReading(current=None, maximum=5)) == 5
+
+
+def test_un_nivel_bajo_con_el_techo_sin_revelar_no_es_un_techo_bajo() -> None:
+    """El caso Fabian Ochoa: Pases nivel 2, techo desconocido.
+
+    Con la regla vieja caia al ultimo peldaño como si el 2 fuera su limite.
+    Un 2 solo fija un suelo --su techo es 2 o mas-- y podria ser 8, asi que
+    va donde van los desconocidos, no al fondo.
+    """
+    assert ys.skill_note(ys.YouthSkillReading(current=2, maximum=None)) is None
+    assert ys.skill_note(ys.YouthSkillReading(current=7, maximum=None)) is None
 
 
 def test_a_capped_skill_scores_nothing_however_high_it_is() -> None:
@@ -89,7 +102,9 @@ def test_the_score_reproduces_the_spreadsheet(
     """`AuxiJuveniles!O11` al decimal, con los conteos reales de esa fecha."""
     candidates: list[ys.YouthCandidate] = []
     desconocida = ys.YouthSkillReading(None, None)
-    aceptable = ys.YouthSkillReading(current=6, maximum=None)
+    # "Aceptable" es un TECHO de 6. Con la regla vieja bastaba con jugar a 6
+    # sin techo revelado; desde el 2026-08-24 eso es un desconocido.
+    aceptable = ys.YouthSkillReading(current=6, maximum=6)
 
     for i in range(unknown_soon):
         candidates.append(_candidate(f"pronto{i}", 10, **{skill: desconocida}))
@@ -111,7 +126,7 @@ def test_the_ranking_puts_the_skill_worth_training_first() -> None:
         candidates.append(
             _candidate(
                 f"chico{i}", 10,
-                passing=ys.YouthSkillReading(current=6, maximum=None) if i == 0 else desconocida,
+                passing=ys.YouthSkillReading(current=6, maximum=6) if i == 0 else desconocida,
                 set_pieces=desconocida,
                 winger=desconocida if i < 10 else ys.YouthSkillReading(None, None),
             )
@@ -124,7 +139,7 @@ def test_the_ranking_puts_the_skill_worth_training_first() -> None:
 def test_trainable_defaults_to_zero_and_never_to_a_guess() -> None:
     """`Entrenables` se teclea a mano en la hoja. Sin ese dato el sumando no
     participa — lo que NO se hace es estimarlo."""
-    c = [_candidate("uno", 10, passing=ys.YouthSkillReading(current=7, maximum=None))]
+    c = [_candidate("uno", 10, passing=ys.YouthSkillReading(current=7, maximum=7))]
     sin_dato = {s.skill: s for s in ys.score_skills(c)}["passing"]
     con_dato = {s.skill: s for s in ys.score_skills(c, {"passing": 9})}["passing"]
 
@@ -155,9 +170,9 @@ def test_a_flatter_base_stops_one_crack_from_deciding_everything() -> None:
     """Con base alta manda el mejor cubo; con base cerca de 1 todos los
     peldaños se parecen y gana la cantidad. Ése es el mando: cuánto vale
     tener UNO bueno frente a tener MUCHOS regulares."""
-    uno_bueno = _candidate("crack", 90, passing=ys.YouthSkillReading(current=7, maximum=None))
+    uno_bueno = _candidate("crack", 90, passing=ys.YouthSkillReading(current=7, maximum=7))
     muchos_aceptables = [
-        _candidate(f"n{i}", 90, scoring=ys.YouthSkillReading(current=6, maximum=None))
+        _candidate(f"n{i}", 90, scoring=ys.YouthSkillReading(current=6, maximum=6))
         for i in range(6)
     ]
     equipo = [uno_bueno, *muchos_aceptables]
@@ -173,7 +188,7 @@ def test_moving_the_deadline_cut_moves_players_between_buckets() -> None:
     """El 38 es una opinión sobre cuánto tiempo hace falta para entrenar a
     alguien. Subirlo mete a más gente en el cubo "sale pronto", que pesa
     distinto."""
-    equipo = [_candidate("justo", 40, passing=ys.YouthSkillReading(current=7, maximum=None))]
+    equipo = [_candidate("justo", 40, passing=ys.YouthSkillReading(current=7, maximum=7))]
 
     con_38 = {s.skill: s for s in ys.score_skills(equipo, soon_max_days=38)}["passing"]
     con_50 = {s.skill: s for s in ys.score_skills(equipo, soon_max_days=50)}["passing"]

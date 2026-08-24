@@ -155,3 +155,32 @@ def test_el_peldaño_manda_sobre_todo() -> None:
     ]
     cola = next(s for s in score_skills(candidatos) if s.skill == "scoring").players
     assert [p.name for p in cola] == ["Sin descubrir mayor", "Insuficiente joven"]
+
+
+def test_entre_dos_iguales_entra_el_que_esta_mas_cerca_del_techo() -> None:
+    """2026-08-24, dictado por el usuario: peldaño, techo, edad de HOY y por
+    ultimo el nivel actual --el mas cerca primero--.
+
+    Dos que van a acabar en el mismo sitio y tienen la misma edad: entra el
+    que esta a punto de rematarlo, no el que empieza de cero.
+    """
+    from app.domain.engines import youth_skill_score as ys
+
+    def chico(nombre: str, actual: int) -> ys.YouthCandidate:
+        return ys.YouthCandidate(
+            name=nombre,
+            age_years_at_deadline=17, age_days_at_deadline=100,
+            age_years=16, age_days=0,
+            skills={
+                s: ys.YouthSkillReading(
+                    current=actual if s == "passing" else None,
+                    maximum=8 if s == "passing" else None,
+                )
+                for s in ys.SKILLS
+            },
+        )
+
+    fila = {
+        r.skill: r for r in ys.score_skills([chico("lejos", 2), chico("cerca", 7)])
+    }["passing"]
+    assert [p.name for p in fila.players] == ["cerca", "lejos"]
