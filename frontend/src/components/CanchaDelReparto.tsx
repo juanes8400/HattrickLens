@@ -1,5 +1,5 @@
 import type { TrainingSlot } from "../services/api";
-import { skillLevelLabel } from "../utils/skillLevels";
+import { lecturaDeNivel } from "../utils/skillLevels";
 
 /** La cancha del reparto de entrenamientos, con el aspecto de Alineación.
  *
@@ -66,7 +66,9 @@ function Tarjeta({
     a.racionSecundaria > 0 ? secondaryLabel + " " + a.racionSecundaria + "%" : null,
   ].filter(Boolean);
   const anillo = BORDE_REGION[a.region];
-  const sabeAlgo = a.current != null || a.maximum != null;
+  // La misma lectura que la barra de la ficha: cuando cada sitio llevaba su
+  // copia, los dos no decian lo mismo en los casos raros.
+  const lectura = lecturaDeNivel(a.current, a.maximum, a.maxReached);
 
   return (
     <div
@@ -83,13 +85,8 @@ function Tarjeta({
       <p className="text-[12px] leading-tight text-white">{a.player}</p>
       <p className="text-[10px]" style={{ color: t.texto }}>
         {a.maxReached ? "🔒 " : ""}
-        {sabeAlgo
-          ? skillLevelLabel(a.current ?? a.maximum ?? 0) +
-            " " +
-            (a.current ?? "?") +
-            "/" +
-            (a.maximum ?? "?")
-          : "desconocido"}
+        {lectura.palabra}
+        {lectura.numeros && " " + lectura.numeros}
       </p>
       <p className="text-[10px] tabular-nums text-white/50">
         {edad(a.ageDaysTotal)}

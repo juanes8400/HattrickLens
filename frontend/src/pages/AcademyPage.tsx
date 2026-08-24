@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { CanchaDelReparto } from "../components/CanchaDelReparto";
-import { skillLevelLabel } from "../utils/skillLevels";
+import { lecturaDeNivel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import {
   useAcademy,
@@ -26,15 +26,11 @@ const SKILL_NAMES: Record<string, string> = {
 /** Las habilidades juveniles llegan a 8 como mucho antes de la promoción, así
  *  que ésa es la escala de la barra — no la de 0-20 del primer equipo, que
  *  dejaría a todos los canteranos pegados al suelo. */
-const YOUTH_SKILL_SCALE = 8;
 
 /** Los pesos van de decenas a milésimas según la base, así que no hay un
  *  número fijo de decimales que sirva para todos: se elige por magnitud. */
 const formatWeight = (w: number | undefined) =>
   w == null ? "" : w >= 10 ? w.toFixed(0) : w >= 1 ? w.toFixed(1) : w.toFixed(3);
-
-const barWidth = (level: number) =>
-  Math.min(100, Math.max(0, (level / YOUTH_SKILL_SCALE) * 100));
 
 /** Las tres vistas de la cantera. "Plantilla" abre por defecto: es la que
  *  responde "¿a quién tengo?", y las otras dos sólo tienen sentido después. */
@@ -645,29 +641,14 @@ function NivelDeHabilidad({
   maximum: number | null;
   maxReached: boolean;
 }) {
-  const sabeActual = current != null;
-  const sabeTecho = maximum != null;
-  const palabra = maxReached
-    ? skillLevelLabel(current ?? maximum ?? 0)
-    : sabeActual
-      ? skillLevelLabel(current)
-      : sabeTecho
-        ? skillLevelLabel(maximum)
-        : "desconocido";
-  // La barra siempre mide el NIVEL sobre la escala, nunca "lo lleno que está
-  // respecto a su propio techo": un 4 que ya no sube es un 4, y pintarlo a
-  // tope lo hacía parecer un jugador de nivel 9. El color es lo que dice si
-  // puede crecer, no la longitud.
-  const relleno = maxReached
-    ? { ancho: barWidth(current ?? maximum ?? 0), color: "var(--danger)" }
-    : sabeActual
-      ? { ancho: barWidth(current), color: "var(--positive)" }
-      : { ancho: 0, color: "transparent" };
-  const numeros = maxReached
-    ? `${current ?? maximum}/${maximum ?? current}`
-    : sabeActual || sabeTecho
-      ? `${sabeActual ? current : "?"}/${sabeTecho ? maximum : "?"}`
-      : "";
+  const { palabra, numeros, ancho, crece } = lecturaDeNivel(
+    current, maximum, maxReached,
+  );
+  const color = ancho === 0
+    ? "transparent"
+    : crece
+      ? "var(--positive)"
+      : "var(--danger)";
 
   return (
     <span className="flex items-center gap-2">
@@ -681,7 +662,7 @@ function NivelDeHabilidad({
       <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
         <span
           className="block h-full"
-          style={{ width: `${relleno.ancho}%`, background: relleno.color }}
+          style={{ width: `${ancho}%`, background: color }}
         />
       </span>
       <span className="w-10 shrink-0 text-right text-sm tabular-nums text-[var(--muted)]">
