@@ -51,6 +51,22 @@ PUESTOS_DE_UN_ONCE: tuple[tuple[str, int], ...] = (
 )
 
 
+#: El banquillo juvenil: un suplente por puesto, mas uno suelto. Se llena con
+#: el MISMO criterio que el once --primero los puestos que reciben los dos
+#: entrenamientos, luego los del principal, luego los del secundario, y al
+#: final los que no reciben nada-- porque un suplente que entra recibe lo que
+#: toque su puesto, y elegirlos por otro orden desperdicia esa entrada.
+#:
+#: 2026-08-24, pedido asi por el usuario.
+#: Uno por puesto y nada mas: un suplente "extra" sin puesto no esta en
+#: ninguna region, asi que no recibiria nada, y ocuparlo seria fingir una
+#: plaza. Quien no cabe aqui se queda fuera, que es lo mismo pero dicho.
+PUESTOS_DE_UN_BANQUILLO: tuple[str, ...] = (
+    "keeper", "central_defender", "wingback", "inner_midfield", "winger",
+    "forward",
+)
+
+
 #: Qué PUESTOS toca cada entrenamiento, y con cuánta ración. Los números salen
 #: de `SLOT_CUPOS`; esto dice a qué puestos corresponden.
 #:
@@ -418,7 +434,58 @@ def youth_training_plan(
             weeks_left=jugador.weeks_left,
         ))
 
-    plan.fuera = [
+    # El banquillo, con el MISMO criterio que el once: primero los puestos que
+    # reciben los dos entrenamientos, luego los del principal, luego los del
+    # secundario, y al final los que no reciben nada. Un suplente que entra
+    # recibe lo que toque su puesto, asi que el orden importa igual.
+    racion_de: dict[str, tuple[str, int, int]] = {}
+    for cupo in ambos:
+        racion_de.setdefault(
+            cupo.puesto, (REGION_AMBOS, cupo.racion, cupo.racion_pareja))
+    for cupo in solo_a:
+        racion_de.setdefault(
+            cupo.puesto, (REGION_SOLO_PRINCIPAL, cupo.racion, 0))
+    for cupo in solo_b:
+        racion_de.setdefault(
+            cupo.puesto, (REGION_SOLO_SECUNDARIA, 0, cupo.racion))
+
+    ORDEN = (
+        REGION_AMBOS, REGION_SOLO_PRINCIPAL, REGION_SOLO_SECUNDARIA,
+        REGION_SIN_ENTRENAMIENTO,
+    )
+    banquillo = sorted(
+        PUESTOS_DE_UN_BANQUILLO,
+        key=lambda puesto: ORDEN.index(
+            racion_de.get(puesto, (REGION_SIN_ENTRENAMIENTO, 0, 0))[0]
+        ),
+    )
+
+    for puesto in banquillo:
+        region, r_a, r_b = racion_de.get(
+            puesto, (REGION_SIN_ENTRENAMIENTO, 0, 0))
+        cola = (
+            cola_secundaria if region == REGION_SOLO_SECUNDARIA
+            else cola_principal
+        )
+        elegido = siguiente(_orden_de_cola(cola), vetados(region))
+        if elegido is None:
+            break
+        ya_puestos.add(elegido.name)
+        plan.fuera.append(Asignacion(
+            player=elegido.name, puesto=puesto, region=region,
+            racion_principal=r_a, racion_secundaria=r_b,
+            peldano=elegido.priority,
+            elegido_por=(
+                secundaria if region == REGION_SOLO_SECUNDARIA else principal
+            ),
+            age_days_total=elegido.age_days_total,
+            current=elegido.current, maximum=elegido.maximum,
+            max_reached=elegido.max_reached, weeks_left=elegido.weeks_left,
+        ))
+
+    # Y los que no caben ni en el banquillo: sin puesto ni racion, pero en la
+    # lista, que sigue siendo gente de la academia.
+    plan.fuera.extend(
         Asignacion(
             player=p.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
             racion_principal=0, racion_secundaria=0, peldano=p.priority,
@@ -427,5 +494,5 @@ def youth_training_plan(
             weeks_left=p.weeks_left,
         )
         for p in cola_principal if p.name not in ya_puestos
-    ]
+    )
     return plan

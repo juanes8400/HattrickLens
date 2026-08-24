@@ -434,8 +434,7 @@ function WhatToTrain({ data }: { data: Academy }) {
               <span className="text-[var(--muted)]">
                 {" "}
                 Así {sugerencia.bothCount}{" "}
-                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos cosas,{" "}
-                {sugerencia.bothWeeks} semanas de entrenamiento doble en total.
+                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos cosas.
               </span>
             ) : (
               <span className="text-[var(--muted)]">
@@ -836,6 +835,144 @@ function QuienEntrena({ data }: { data: Academy }) {
   );
 }
 
+/** Las cuatro regiones del diagrama de Venn, en el orden en que se llenan.
+ *
+ * Los puestos que reciben los dos entrenamientos son la plaza más valiosa que
+ * hay, así que ahí van los primeros de la cola. El banquillo se llena después
+ * con el mismo orden.
+ */
+const REGIONES: Record<string, { titulo: string; pista: string }> = {
+  ambos: { titulo: "Reciben los dos entrenamientos", pista: "" },
+  solo_principal: { titulo: "Solo el principal", pista: "" },
+  solo_secundaria: { titulo: "Solo el secundario", pista: "" },
+  sin_entrenamiento: { titulo: "Sin entrenamiento", pista: "no les llega ninguno de los dos" },
+};
+
+/** `15;028`, el formato de Hattrick. */
+function edadCorta(dias: number): string {
+  return `${Math.floor(dias / 112)};${String(dias % 112).padStart(3, "0")}`;
+}
+
+/** Los nombres oficiales de Hattrick, los mismos que usa Alineación. */
+const PUESTOS: Record<string, string> = {
+  keeper: "Portero",
+  wingback: "Defensa Lateral",
+  central_defender: "Defensa Central",
+  winger: "Extremo",
+  inner_midfield: "Mediocentro",
+  forward: "Delantero",
+};
+
+/** Una fila del reparto: quién, por qué está ahí y qué recibe. */
+function FilaDelReparto({
+  a,
+  mainLabel,
+  secondaryLabel,
+}: {
+  a: TrainingSlot;
+  mainLabel: string;
+  secondaryLabel: string;
+}) {
+  const racion = (cuanto: number, etiqueta: string) =>
+    cuanto > 0 && (
+      <span
+        className={
+          cuanto === 50
+            ? "text-xs text-[var(--warning)]"
+            : "text-xs text-[var(--positive)]"
+        }
+      >
+        {etiqueta} {cuanto}%
+      </span>
+    );
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-2 text-sm">
+      <span>{a.player}</span>
+      {/* La edad, que es la mitad del motivo por el que está en esta plaza;
+          la otra mitad es la habilidad, al final de la fila. */}
+      <span className="tabular-nums text-xs text-[var(--muted)]">
+        {edadCorta(a.ageDaysTotal)}
+      </span>
+      {a.weeksLeft != null && (
+        <span
+          className="tabular-nums text-xs"
+          style={{ color: a.weeksLeft <= 5 ? "#fca5a5" : "var(--muted)" }}
+          title="entrenamientos que le quedan antes de irse"
+        >
+          {a.weeksLeft} sem
+        </span>
+      )}
+      {a.puesto && (
+        <span className="text-xs text-[var(--muted)]">
+          {PUESTOS[a.puesto] ?? a.puesto}
+        </span>
+      )}
+      {racion(a.racionPrincipal, mainLabel)}
+      {racion(a.racionSecundaria, secondaryLabel)}
+      <span className="ml-auto shrink-0">
+        <NivelDeHabilidad
+          current={a.current}
+          maximum={a.maximum}
+          maxReached={a.maxReached}
+        />
+      </span>
+    </li>
+  );
+}
+
+/** El reparto agrupado por regiones: el once y, con el mismo criterio, el
+ *  banquillo. Un suplente que entra recibe lo que toque su puesto, así que
+ *  se eligen en el mismo orden en vez de por descarte. */
+function ListaDelReparto({
+  titulo,
+  pie,
+  filas,
+  mainLabel,
+  secondaryLabel,
+}: {
+  titulo: string;
+  pie?: string;
+  filas: TrainingSlot[];
+  mainLabel: string;
+  secondaryLabel: string;
+}) {
+  if (filas.length === 0) return null;
+  return (
+    <div className="p-4">
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-sm font-medium">{titulo}</h3>
+        <span className="text-xs text-[var(--muted)]">
+          {filas.length}
+          {pie && ` · ${pie}`}
+        </span>
+      </div>
+      {Object.entries(REGIONES).map(([clave, { titulo: t, pista }]) => {
+        const suyas = filas.filter((a) => a.region === clave);
+        if (suyas.length === 0) return null;
+        return (
+          <div key={clave} className="mt-3">
+            <p className="text-xs text-[var(--muted)]">
+              {t}
+              {pista && ` · ${pista}`}
+            </p>
+            <ul className="mt-1 space-y-1">
+              {suyas.map((a) => (
+                <FilaDelReparto
+                  key={a.player}
+                  a={a}
+                  mainLabel={mainLabel}
+                  secondaryLabel={secondaryLabel}
+                />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Los canteranos de los que el ojeador no ha dicho absolutamente nada.
  *
  * El numero solo no sirve: lo que decide es DONDE cae cada uno. Un perfil en
@@ -959,17 +1096,6 @@ function TrainingPlan({
 
   if (opciones.length === 0 && habilidades.length === 0) return null;
 
-  // Cuántos recibirían doble ración con cada alternativa. Va pegado a la
-  // opción, no en una tabla aparte: la pregunta «¿y si pongo esta otra?» se
-  // hace CON el desplegable abierto, y allí es donde tiene que estar la
-  // respuesta.
-  const dobleCon = new Map(
-    (plan.data?.alternatives ?? []).map((a) => [
-      a.code,
-      { cuantos: a.bothCount, semanas: a.bothWeeks },
-    ]),
-  );
-
   const selector = (
     valor: string,
     onChange: (v: string) => void,
@@ -989,19 +1115,11 @@ function TrainingPlan({
       >
         {opciones
           .filter((o) => !conCuenta || o.code !== principal)
-          .map((o) => {
-          const n = conCuenta ? dobleCon.get(o.code) : undefined;
-          return (
+          .map((o) => (
             <option key={o.code} value={o.code}>
               {o.label}
-              {n && n.cuantos > 0
-                ? ` · ${n.cuantos} con doble, ${n.semanas} sem`
-                : n
-                  ? " · nadie recibe doble"
-                  : ""}
             </option>
-          );
-        })}
+          ))}
       </select>
     </label>
   );
@@ -1010,11 +1128,7 @@ function TrainingPlan({
   return (
     <Panel
       title="Cómo repartir los dos entrenamientos"
-      meta={
-        plan.data
-          ? `${plan.data.doubleCount} reciben doble ración · ${plan.data.doubleWeeks} semanas`
-          : "principal y secundario"
-      }
+      meta="principal y secundario"
     >
       <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
         {selector(principal, setMain, "Entrenamiento principal", "juveniles.principal")}
@@ -1028,18 +1142,43 @@ function TrainingPlan({
       )}
 
       {plan.data && (
-        <div className="p-4">
+        <div className="divide-y divide-[var(--border)]">
+          <ListaDelReparto
+            titulo="El once"
+            filas={plan.data.assignments}
+            mainLabel={plan.data.mainLabel}
+            secondaryLabel={plan.data.secondaryLabel}
+          />
+          <ListaDelReparto
+            titulo="El banquillo"
+            pie="lo que recibirían si entran"
+            filas={plan.data.outside.filter((a) => a.puesto)}
+            mainLabel={plan.data.mainLabel}
+            secondaryLabel={plan.data.secondaryLabel}
+          />
+          {plan.data.outside.filter((a) => !a.puesto).length > 0 && (
+            <p className="p-4 text-xs text-[var(--muted)]">
+              Sin sitio ni en el banquillo:{" "}
+              {plan.data.outside
+                .filter((a) => !a.puesto)
+                .map((a) => `${a.player} ${edadCorta(a.ageDaysTotal)}`)
+                .join(" · ")}
+              .
+            </p>
+          )}
+          <div className="p-4">
           {plan.data.scouting.total > 0 && (
             <p className="mt-3 text-xs text-[var(--muted)]">
               {plan.data.doubleBlind > 0 && (
                 <>
                   <b className="text-[var(--text)]">
                     {plan.data.doubleBlind === plan.data.doubleCount
-                      ? `Los ${plan.data.doubleCount} que reciben`
-                      : `${plan.data.doubleBlind} de los ${plan.data.doubleCount} que reciben`}
+                      ? `Los ${plan.data.doubleCount}`
+                      : `${plan.data.doubleBlind} de los ${plan.data.doubleCount}`}
                   </b>{" "}
-                  doble ración entrenan una habilidad que el ojeador no ha
-                  revelado — es a propósito: entrenarlos es lo que la revela.{" "}
+                  que reciben los dos entrenamientos van a entrenar una
+                  habilidad que el ojeador no ha revelado — es a propósito:
+                  entrenarlos es lo que la revela.{" "}
                 </>
               )}
               El ojeador lleva {plan.data.scouting.known} lecturas de{" "}
@@ -1058,6 +1197,7 @@ function TrainingPlan({
             dentro={plan.data.assignments}
             fuera={plan.data.outside}
           />
+          </div>
         </div>
       )}
     </Panel>

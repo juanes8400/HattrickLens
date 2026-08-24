@@ -15,6 +15,7 @@ from app.domain.engines.youth_training_plan import (
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
     REGION_SOLO_SECUNDARIA,
+    PUESTOS_DE_UN_BANQUILLO,
     _reparte_por_region,
     cupos_de,
     youth_training_plan,
@@ -95,12 +96,19 @@ def test_un_puesto_entero_en_uno_y_medio_en_otro_guarda_las_dos_raciones() -> No
 
 
 def test_no_se_reparten_mas_de_once_plazas() -> None:
-    plan = youth_training_plan(
-        "set_pieces", "passing", _cola(*[f"J{i}" for i in range(1, 20)]), _cola("Z"),
-    )
+    todos = [f"J{i}" for i in range(1, 20)]
+    plan = youth_training_plan("set_pieces", "passing", _cola(*todos), _cola("Z"))
     assert len(plan.asignaciones) == 11
-    assert len(plan.fuera) == 8
     assert all(a.player for a in plan.fuera), "el banquillo necesita los mismos datos"
+
+    # Nadie en dos sitios a la vez, y nadie perdido por el camino.
+    nombres = [a.player for a in plan.asignaciones + plan.fuera]
+    assert len(nombres) == len(set(nombres))
+    assert set(todos) <= set(nombres)
+
+    # El banquillo tiene tantas plazas como puestos, ni una mas.
+    con_puesto = [a for a in plan.fuera if a.puesto]
+    assert len(con_puesto) <= len(PUESTOS_DE_UN_BANQUILLO)
 
 
 def test_los_que_sobran_ocupan_plazas_sin_entrenamiento() -> None:
@@ -205,33 +213,6 @@ def test_la_habilidad_a_secas_sigue_valiendo_como_clave() -> None:
         "winger", "winger", "wingback", "wingback",
     ]
 
-
-def test_el_numero_de_la_lista_es_el_que_se_vera_al_elegirlo() -> None:
-    """El desglose de alternativas no puede prometer una cosa y dar otra.
-
-    Medir el solape de PUESTOS daba numeros mas altos que el reparto real: un
-    puesto de la interseccion que ningun canterano ocupa no es una racion
-    doble. La lista se calcula rehaciendo el plan, y esto lo amarra.
-    """
-    from types import SimpleNamespace
-
-    from app.api.v1.endpoints.academy import _alternativas
-    from app.domain.engines.youth_training_plan import ENTRENAMIENTOS
-
-    cola = _cola("Ana", "Bea", "Cid", "Dan", "Eva", "Fito", "Gus")
-    por_habilidad = {
-        s: SimpleNamespace(players=cola, at_max=[])
-        for s in {e.skill for e in ENTRENAMIENTOS.values()}
-    }
-
-    for alt in _alternativas("defending", por_habilidad, lambda c: ENTRENAMIENTOS[c].skill):
-        plan = youth_training_plan(
-            "defending", alt["code"], cola, cola,
-            tope_principal=set(), tope_secundaria=set(),
-        )
-        assert alt["bothCount"] == plan.con_doble, alt["label"]
-
-
 def test_las_semanas_de_plazo_son_los_entrenamientos_que_le_quedan() -> None:
     """La academia entrena una vez por semana: el plazo es cuantas veces mas."""
     from app.domain.engines.youth_skill_score import (
@@ -330,3 +311,34 @@ def test_la_cobertura_del_ojeador_cuenta_las_tres_formas_de_saber() -> None:
     assert cobertura["total"] == 2 * len(SKILLS)
     assert cobertura["known"] == 1
     assert cobertura["blankPlayers"] == ["Blanco"], "«Algo» tiene una lectura"
+
+
+def test_el_banquillo_se_llena_con_el_mismo_criterio_que_el_once() -> None:
+    """Pedido el 2026-08-24: primero los puestos que reciben los dos, luego
+    los del principal, luego los del secundario, y al final los que nada.
+
+    Un suplente que entra recibe lo que toque su puesto, asi que elegirlos
+    por otro orden desperdicia esa entrada.
+    """
+    todos = _cola(*[f"J{i}" for i in range(1, 20)])
+    plan = youth_training_plan("defending", "passing_defenders", todos, todos)
+
+    ORDEN = [REGION_AMBOS, REGION_SOLO_PRINCIPAL, REGION_SOLO_SECUNDARIA,
+             REGION_SIN_ENTRENAMIENTO]
+    suplentes = [a for a in plan.fuera if a.puesto]
+    puestos = [ORDEN.index(a.region) for a in suplentes]
+    assert puestos == sorted(puestos), "el banquillo salio desordenado"
+    assert any(a.region == REGION_AMBOS for a in suplentes), (
+        "con estos dos entrenamientos hay puestos que reciben los dos"
+    )
+
+
+def test_un_suplente_lleva_la_racion_de_su_puesto() -> None:
+    """No es adorno: es lo que recibiria si entra al partido."""
+    todos = _cola(*[f"J{i}" for i in range(1, 20)])
+    plan = youth_training_plan("defending", "passing_defenders", todos, todos)
+    for a in plan.fuera:
+        if a.region == REGION_AMBOS:
+            assert a.racion_principal > 0 and a.racion_secundaria > 0
+        elif a.region == REGION_SIN_ENTRENAMIENTO:
+            assert a.racion_principal == 0 and a.racion_secundaria == 0

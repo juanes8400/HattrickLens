@@ -80,7 +80,6 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
         # Cuantos recibirian las dos cosas con esa pareja, y por cuantas
         # semanas: es lo que justifica elegir una forma y no otra.
         "bothCount": plan.con_doble,
-        "bothWeeks": plan.semanas_dobles,
     }
 
 
@@ -106,31 +105,6 @@ def _cobertura_del_ojeador(rows: list[Any]) -> dict[str, Any]:
     return {"known": revelados, "total": total, "blankPlayers": sin_nada}
 
 
-def _alternativas(main, por_habilidad, habilidad_de):
-    """Cuantos recibirian doble racion con cada secundario posible."""
-    salida = []
-    for e in ENTRENAMIENTOS.values():
-        skill_main, skill_sec = habilidad_de(main), e.skill
-        if skill_main not in por_habilidad or skill_sec not in por_habilidad:
-            continue
-        plan = youth_training_plan(
-            main, e.codigo,
-            por_habilidad[skill_main].players,
-            por_habilidad[skill_sec].players,
-            tope_principal={p.name for p in por_habilidad[skill_main].at_max},
-            tope_secundaria={p.name for p in por_habilidad[skill_sec].at_max},
-        )
-        salida.append({
-            "code": e.codigo,
-            "label": e.label,
-            "bothCount": plan.con_doble,
-            # Las semanas desempatan: dos alternativas pueden llegar a los
-            # mismos cinco y repartirles plazos muy distintos.
-            "bothWeeks": plan.semanas_dobles,
-        })
-    return salida
-
-
 @router.get(
     "/teams/{team_id}/academy/training-plan",
     summary="El once juvenil con los dos entrenamientos repartidos",
@@ -149,7 +123,7 @@ async def academy_training_plan(
     """Quién ocupa cada plaza cuando se entrenan dos cosas a la vez.
 
     Los dos entrenamientos dibujan un diagrama de Venn sobre los PUESTOS del
-    campo. La intersección --los que reciben doble ración-- se llena primero
+    campo. La intersección --los que reciben los dos-- se llena primero
     con los mejores del principal; ver `youth_training_plan`.
     """
     for nombre, valor in (("main", main), ("secondary", secondary)):
@@ -198,21 +172,11 @@ async def academy_training_plan(
         "secondary": secondary,
         "secondaryLabel": etiqueta_de(secondary, skill_sec),
         "doubleCount": plan.con_doble,
-        "doubleWeeks": plan.semanas_dobles,
         "doubleBlind": plan.doble_a_ciegas,
         # Cuanto ha revelado el ojeador en toda la academia. Sin esto la
         # cancha llena de "desconocido" parece un fallo nuestro, y es el
         # estado real: aqui casi nada esta revelado todavia.
         "scouting": _cobertura_del_ojeador(rows),
-        # Que pasaria con CADA alternativa de secundario, para poder elegir
-        # sabiendo: el desplegable ensena el numero al lado de cada opcion en
-        # vez de obligar a probarlas una por una.
-        #
-        # Se rehace el plan entero de cada alternativa en vez de medir el
-        # solape de PUESTOS, que es otra cosa: un puesto de la interseccion
-        # que nadie ocupa no es una racion doble, y el numero de la lista
-        # tiene que ser el mismo que se vera al elegirla.
-        "alternatives": _alternativas(main, por_habilidad, habilidad_de),
         "assignments": [asdict(a) for a in plan.asignaciones],
         # El banquillo: los que no entraron, con lo mismo que llevan los de
         # dentro y la columna en que caen. Un juvenil no tiene puesto asignado
