@@ -17,6 +17,7 @@ from sqlalchemy import (
     LargeBinary,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -971,6 +972,30 @@ class YouthSnapshot(Base):
     content_hash: Mapped[bytes] = mapped_column(LargeBinary(32))
 
     __table_args__ = (Index("ix_ys_player_time", "youth_player_id", "captured_at"),)
+
+
+class YouthScoutReport(Base):
+    """Lo que dijo el ojeador que trajo a un canterano. Migración 0063.
+
+    Una fila por canterano. El ojeador que lo encontró no cambia nunca;
+    `MayUnlock` sí --se apaga cuando esa habilidad se revela--, así que
+    `fetched_at` dice de cuándo es la lectura.
+
+    Los comentarios se guardan con su TEXTO literal, no destilados: el dato
+    (habilidad, nivel, potencial) ya vive en las fotos, y lo único que existe
+    aquí es cómo lo contó el ojeador.
+    """
+    __tablename__ = "youth_scout_reports"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    youth_player_id: Mapped[int] = mapped_column(
+        ForeignKey("youth_players.id"), unique=True, index=True
+    )
+    scout_id: Mapped[int | None] = mapped_column(BigInteger)
+    scout_name: Mapped[str] = mapped_column(String(128), default="")
+    scouting_region_id: Mapped[int | None] = mapped_column(Integer)
+    comments_json: Mapped[str] = mapped_column(Text, default="[]")
+    may_unlock_json: Mapped[str] = mapped_column(Text, default="{}")
+    fetched_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
 
 class StaffSnapshot(Base):

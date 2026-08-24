@@ -183,6 +183,14 @@ export const useLeagueTeamOfWeek = (
 export const useAcademy = () =>
   useQuery({ queryKey: ["academy", TEAM_ID], queryFn: () => api.academy(TEAM_ID) });
 
+/** Quién trajo a cada canterano. Va aparte de `useAcademy` porque son datos
+ *  que sólo mira la pestaña de Ojeadores. */
+export const useAcademyScouts = () =>
+  useQuery({
+    queryKey: ["academy-scouts", TEAM_ID],
+    queryFn: () => api.academyScouts(TEAM_ID),
+  });
+
 export const usePlayerBalance = (season?: string) =>
   useQuery({
     queryKey: ["player-balance", TEAM_ID, season ?? "all"],

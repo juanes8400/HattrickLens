@@ -414,6 +414,11 @@ class SyncTeamHandler:
                 # pujas. Va antes que `currentbids`, que solo enriquece.
                 await self._marcar_quien_esta_en_venta(uow, cmd.team_id, captured_at)
 
+            if "youthplayerlist" in files:
+                await self._sync_informes_de_ojeador(
+                    uow, cmd.team_id, captured_at, result, on_progress,
+                )
+
             from app.infrastructure.db import models as m
 
             if result.departed_players:
@@ -3412,6 +3417,95 @@ class SyncTeamHandler:
                 result.snapshots_written += 1
             else:
                 result.unchanged += 1
+
+    async def _sync_informes_de_ojeador(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> int:
+        """Quien trajo a cada canterano, y que queda por revelarle.
+
+        2026-08-24. Cuesta una llamada por canterano, asi que NO se piden
+        todos en cada sync: solo los que no tienen informe, y los que han
+        cambiado algo desde la ultima vez que se les pregunto. El ojeador que
+        lo encontro no cambia nunca; `MayUnlock` si --se apaga en cuanto esa
+        habilidad se revela--, y un canterano que cambia algo es justo el
+        candidato a que se le haya revelado algo.
+        """
+        from sqlalchemy import func as sa_func
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        ultima_foto = (
+            select(
+                m.YouthSnapshot.youth_player_id,
+                sa_func.max(m.YouthSnapshot.captured_at).label("cuando"),
+            )
+            .group_by(m.YouthSnapshot.youth_player_id)
+            .subquery()
+        )
+        filas = (await uow.session.execute(
+            select(m.YouthPlayer, m.YouthScoutReport, ultima_foto.c.cuando)
+            .join(ultima_foto, ultima_foto.c.youth_player_id == m.YouthPlayer.id)
+            .outerjoin(
+                m.YouthScoutReport,
+                m.YouthScoutReport.youth_player_id == m.YouthPlayer.id,
+            )
+            .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
+        )).all()
+
+        pendientes = [
+            (juvenil, informe)
+            for juvenil, informe, cuando in filas
+            if informe is None or (cuando is not None and cuando > informe.fetched_at)
+        ]
+        if not pendientes:
+            return 0
+
+        ahora = datetime.now(UTC).replace(tzinfo=None)
+        traidos = 0
+        for juvenil, informe in pendientes:
+            await _report(
+                on_progress,
+                f"Informe del ojeador sobre {juvenil.first_name} {juvenil.last_name}...",
+            )
+            try:
+                ficha = await self._chpp.fetch(
+                    "youthplayerdetails", "1.0",
+                    youthPlayerId=juvenil.ht_youth_player_id,
+                    showScoutCall="true",
+                )
+            except Exception as exc:   # noqa: BLE001
+                result.errors.append(f"youthplayerdetails {juvenil.ht_youth_player_id}: {exc}")
+                continue
+            if not ficha:
+                continue
+            datos = {
+                "scout_id": ficha.get("scout_id"),
+                "scout_name": ficha.get("scout_name") or "",
+                "scouting_region_id": ficha.get("scouting_region_id"),
+                "comments_json": json.dumps(
+                    ficha.get("scout_comments") or [], ensure_ascii=False
+                ),
+                "may_unlock_json": json.dumps(
+                    ficha.get("may_unlock") or {}, ensure_ascii=False
+                ),
+                "fetched_at": ahora,
+            }
+            if informe is None:
+                uow.session.add(
+                    m.YouthScoutReport(youth_player_id=juvenil.id, **datos)
+                )
+            else:
+                for campo, valor in datos.items():
+                    setattr(informe, campo, valor)
+            traidos += 1
+            result.snapshots_written += 1
+        return traidos
 
     async def _marcar_quien_esta_en_venta(
         self, uow: UnitOfWork, team_id: int, captured_at: datetime

@@ -4,6 +4,7 @@ import { lecturaDeNivel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import {
   useAcademy,
+  useAcademyScouts,
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
@@ -42,6 +43,7 @@ const VIEWS = [
   { key: "train", label: "Qué entrenar" },
   { key: "who", label: "A quién entrenar" },
   { key: "promotion", label: "Siguiente promoción" },
+  { key: "scouts", label: "Ojeadores" },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
@@ -159,8 +161,10 @@ export function AcademyPage() {
         <WhatToTrain data={data} />
       ) : view === "who" ? (
         <QuienEntrena data={data} />
-      ) : (
+      ) : view === "promotion" ? (
         <SiguientePromocion data={data} />
+      ) : (
+        <Ojeadores />
       )}
 
       {data.graduates.length > 0 && (
@@ -1353,6 +1357,130 @@ function SiguientePromocion({ data }: { data: Academy }) {
         </table>
       </div>
     </Panel>
+  );
+}
+
+/** Un ojeador sin nombre no es un ojeador: son los canteranos que vinieron
+ *  con la academia el día que se abrió, sin que nadie saliera a buscarlos. */
+function esOjeadorDeVerdad(nombre: string, id: number | null): boolean {
+  return Boolean(id) && nombre.trim().length > 0;
+}
+
+/** Quién trajo a cada canterano y qué dijo de él.
+ *
+ * CHPP no publica una lista de ojeadores —`youthscouts`, `youthscoutlist` y
+ * `scouts` devuelven 401—, así que «mis ojeadores» se reconstruye por lo
+ * único que sí existe: la llamada con la que cada chico llegó. El texto va
+ * literal, tal como lo escribió el ojeador, porque el dato destilado
+ * (habilidad, nivel, techo) ya vive en las otras pestañas.
+ */
+function Ojeadores() {
+  const informes = useAcademyScouts();
+  if (informes.isLoading) return <Loading />;
+  if (informes.isError) return <ErrorState error={informes.error} />;
+  const data = informes.data;
+  if (!data || data.players.length === 0) {
+    return (
+      <Panel title="Ojeadores">
+        <Empty>
+          Sincroniza para traer el informe del ojeador de cada canterano.
+        </Empty>
+      </Panel>
+    );
+  }
+
+  const ojeadores = data.scouts.filter((o) =>
+    esOjeadorDeVerdad(o.scoutName, o.scoutId),
+  );
+  const traidos = data.players.filter((p) =>
+    esOjeadorDeVerdad(p.scoutName, p.scoutId),
+  );
+  const deCasa = data.players.filter(
+    (p) => !esOjeadorDeVerdad(p.scoutName, p.scoutId),
+  );
+  const porRevelar = data.players.filter((p) => p.mayUnlock.length > 0);
+
+  return (
+    <div className="space-y-4">
+      <Panel
+        title="Ojeadores"
+        meta={`${ojeadores.length} · ${traidos.length} de ${data.players.length} canteranos`}
+      >
+        <div className="flex flex-wrap gap-3 p-4">
+          {ojeadores.map((o) => (
+            <div
+              key={o.scoutId}
+              className="rounded-lg border border-[var(--border)] px-3 py-2"
+            >
+              <p className="text-sm font-medium">{o.scoutName}</p>
+              <p className="text-xs text-[var(--muted)]">
+                {o.players} {o.players === 1 ? "canterano" : "canteranos"}
+                {o.regionIds.length > 0 &&
+                  ` · región ${o.regionIds.join(", ")}`}
+              </p>
+            </div>
+          ))}
+          {deCasa.length > 0 && (
+            <div className="rounded-lg border border-dashed border-[var(--border)] px-3 py-2">
+              <p className="text-sm">Vinieron con la academia</p>
+              <p className="text-xs text-[var(--muted)]">
+                {deCasa.length} canteranos · nadie salió a buscarlos
+              </p>
+            </div>
+          )}
+        </div>
+      </Panel>
+
+      {porRevelar.length > 0 && (
+        <Panel
+          title="Todavía se les puede revelar algo"
+          meta={`${porRevelar.length} · lo dice el juego, no lo suponemos`}
+        >
+          <ul className="space-y-1 p-4 text-sm">
+            {porRevelar.map((p) => (
+              <li key={p.htYouthPlayerId} className="flex flex-wrap gap-x-2">
+                <span>{p.name}</span>
+                <span className="text-[var(--muted)]">
+                  {p.mayUnlock.join(" · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      <Panel title="Lo que dijo el ojeador" meta={`${traidos.length} informes`}>
+        <div className="grid gap-4 p-4 md:grid-cols-2">
+          {traidos.map((p) => (
+            <div
+              key={p.htYouthPlayerId}
+              className="rounded-lg border border-[var(--border)] p-3"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm font-medium">{p.name}</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {p.scoutName}
+                  {p.scoutingRegionId ? ` · región ${p.scoutingRegionId}` : ""}
+                </span>
+              </div>
+              {p.comments.length === 0 ? (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  Sin comentarios guardados.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {p.comments.map((texto, i) => (
+                    <li key={i} className="text-xs leading-relaxed">
+                      «{texto}»
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
   );
 }
 

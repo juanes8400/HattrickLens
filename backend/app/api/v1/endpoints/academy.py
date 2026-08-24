@@ -228,6 +228,76 @@ async def academy_training_plan(
 
 
 @router.get(
+    "/teams/{team_id}/academy/scouts",
+    summary="Quién trajo a cada canterano y qué queda por revelarle",
+    dependencies=[Depends(require_team_owner)],
+)
+async def academy_scouts(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """El informe del ojeador, tal cual lo escribió.
+
+    CHPP no publica una lista de ojeadores --`youthscouts`, `youthscoutlist` y
+    `scouts` devuelven 401--, así que lo único que existe es el `ScoutCall` de
+    cada canterano: quién lo encontró, dónde estaba ojeando y qué dijo. Con
+    eso se puede agrupar por ojeador, que es lo más parecido a "mis
+    ojeadores" que hay.
+    """
+    import json as _json
+
+    from sqlalchemy import select
+
+    from app.application.queries.team_overview import SKILL_LABELS
+    from app.infrastructure.db import models as m
+
+    filas = (await session.execute(
+        select(m.YouthPlayer, m.YouthScoutReport)
+        .join(
+            m.YouthScoutReport,
+            m.YouthScoutReport.youth_player_id == m.YouthPlayer.id,
+        )
+        .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
+    )).all()
+
+    etiquetas = {s_: SKILL_LABELS.get(s_, s_) for s_ in yss.SKILLS}
+    jugadores = []
+    for juvenil, informe in filas:
+        puede = _json.loads(informe.may_unlock_json or "{}")
+        jugadores.append({
+            "name": f"{juvenil.first_name} {juvenil.last_name}".strip(),
+            "htYouthPlayerId": juvenil.ht_youth_player_id,
+            "arrivedAt": juvenil.arrived_at.isoformat() if juvenil.arrived_at else None,
+            "scoutId": informe.scout_id,
+            "scoutName": informe.scout_name or "sin nombre",
+            "scoutingRegionId": informe.scouting_region_id,
+            "comments": [
+                c.get("text", "") for c in _json.loads(informe.comments_json or "[]")
+            ],
+            # A que habilidades les queda algo por revelar, dicho por el juego
+            # y no supuesto por nosotros.
+            "mayUnlock": [etiquetas[k] for k, v in puede.items() if v and k in etiquetas],
+            "fetchedAt": informe.fetched_at.isoformat() if informe.fetched_at else None,
+        })
+    jugadores.sort(key=lambda j: (j["scoutName"], j["name"]))
+
+    ojeadores: dict[int | None, dict[str, Any]] = {}
+    for j in jugadores:
+        o = ojeadores.setdefault(j["scoutId"], {
+            "scoutId": j["scoutId"], "scoutName": j["scoutName"],
+            "regionIds": [], "players": 0,
+        })
+        o["players"] += 1
+        if j["scoutingRegionId"] and j["scoutingRegionId"] not in o["regionIds"]:
+            o["regionIds"].append(j["scoutingRegionId"])
+
+    return cast(dict[str, Any], {
+        "scouts": sorted(ojeadores.values(), key=lambda o: -o["players"]),
+        "players": jugadores,
+    })
+
+
+@router.get(
     "/teams/{team_id}/academy/skill-scores",
     summary="Qué entrenar, con los parámetros que elija el usuario",
     dependencies=[Depends(require_team_owner)],

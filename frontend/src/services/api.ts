@@ -193,6 +193,8 @@ export const api = {
   league: (teamId: number, runs = 10000) =>
     request<League>(`/teams/${teamId}/league?runs=${runs}`),
   academy: (teamId: number) => request<Academy>(`/teams/${teamId}/academy`),
+  academyScouts: (teamId: number) =>
+    request<AcademyScouts>(`/teams/${teamId}/academy/scouts`),
   playerBalance: (teamId: number, season?: string) => {
     const params = new URLSearchParams();
     if (season && season !== "all") params.set("season", season);
@@ -2809,4 +2811,32 @@ export interface PlayerTrainingLevels {
   confirmed: ConfirmedLevelUp[];
   forecast: LevelForecastMilestone[];
   notes: string[];
+}
+
+
+/** Quién trajo a cada canterano y qué queda por revelarle.
+ *
+ * CHPP no publica una lista de ojeadores; lo único que existe es el
+ * `ScoutCall` de cada canterano, así que «mis ojeadores» se reconstruye
+ * agrupando por quién trajo a quién. */
+export interface AcademyScouts {
+  scouts: {
+    scoutId: number | null;
+    scoutName: string;
+    regionIds: number[];
+    players: number;
+  }[];
+  players: {
+    name: string;
+    htYouthPlayerId: number;
+    arrivedAt: string | null;
+    scoutId: number | null;
+    scoutName: string;
+    scoutingRegionId: number | null;
+    /** El texto literal del informe, tal como lo escribió el ojeador. */
+    comments: string[];
+    /** Habilidades a las que aún les queda algo por revelar, según el juego. */
+    mayUnlock: string[];
+    fetchedAt: string | null;
+  }[];
 }
