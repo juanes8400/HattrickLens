@@ -41,6 +41,7 @@ const VIEWS = [
   { key: "squad", label: "Plantilla juvenil" },
   { key: "train", label: "Qué entrenar" },
   { key: "who", label: "A quién entrenar" },
+  { key: "promotion", label: "Siguiente promoción" },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
@@ -156,8 +157,10 @@ export function AcademyPage() {
         <SkillDetail data={data} />
       ) : view === "train" ? (
         <WhatToTrain data={data} />
-      ) : (
+      ) : view === "who" ? (
         <QuienEntrena data={data} />
+      ) : (
+        <SiguientePromocion data={data} />
       )}
 
       {data.graduates.length > 0 && (
@@ -1205,6 +1208,139 @@ function SkillDetail({ data }: { data: Academy }) {
             </div>
           </div>
         ))}
+      </div>
+    </Panel>
+  );
+}
+
+/** «en 88 días» / «hoy mismo», y la fecha entre paréntesis. */
+function enDias(dias: number | null): { texto: string; urgente: boolean } {
+  if (dias == null) return { texto: "—", urgente: false };
+  if (dias <= 0) return { texto: "ya", urgente: false };
+  return { texto: `${dias} d`, urgente: dias <= 21 };
+}
+
+/** La cola de salida de la cantera.
+ *
+ * Son DOS relojes distintos y hay que verlos juntos: uno dice a partir de
+ * cuándo puedes subirlo al primer equipo, el otro cuándo lo pierdes por
+ * edad. Entre los dos está la única ventana en la que la decisión existe, y
+ * es la parte de la academia que mira hacia la salida en vez de hacia el
+ * entrenamiento.
+ */
+function SiguientePromocion({ data }: { data: Academy }) {
+  const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
+  const td = "overflow-hidden whitespace-nowrap px-3 py-1.5";
+  const filas = [...data.players].sort(
+    (a, b) =>
+      (a.canBePromotedIn ?? 9999) - (b.canBePromotedIn ?? 9999) ||
+      a.daysUntilDeadline - b.daysUntilDeadline,
+  );
+  const listos = filas.filter((p) => (p.canBePromotedIn ?? 9999) <= 0);
+  const primero = filas.find((p) => (p.canBePromotedIn ?? 9999) > 0);
+
+  return (
+    <Panel
+      title="Siguiente promoción"
+      meta={
+        listos.length > 0
+          ? `${listos.length} ${listos.length === 1 ? "listo" : "listos"} para subir`
+          : primero
+            ? `nadie todavía · el primero, en ${primero.canBePromotedIn} días`
+            : ""
+      }
+    >
+      <div className="overflow-x-auto p-4">
+        <table className="w-full min-w-[76rem] table-fixed text-sm">
+          <colgroup>
+            <col className="w-[19%]" />
+            <col className="w-[7%]" />
+            <col className="w-[9%]" />
+            <col className="w-[30%]" />
+            <col className="w-[7%]" />
+            <col className="w-[7%]" />
+            <col className="w-[21%]" />
+          </colgroup>
+          <thead className="bg-[var(--surface-2)]">
+            <tr>
+              <th scope="col" className={`${th} text-left`}>Jugador</th>
+              <th scope="col" className={`${th} text-right`}>Edad</th>
+              <th scope="col" className={`${th} text-left`}>Clasificación</th>
+              <th scope="col" className={`${th} text-left`}>Mejor habilidad</th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="a partir de cuándo puedes subirlo al primer equipo"
+              >
+                Puede subir
+              </th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="cuándo lo pierdes por edad"
+              >
+                Se pierde
+              </th>
+              <th scope="col" className={`${th} text-left`}>Qué hacer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((p) => {
+              const sube = enDias(p.canBePromotedIn);
+              const pierde = enDias(p.daysUntilDeadline);
+              const mejor = p.skills.find((x) => x.skill === p.bestSkill);
+              return (
+                <tr
+                  key={p.htYouthPlayerId}
+                  className="border-t border-[var(--border)]"
+                >
+                  <td className={`${td} truncate text-left`} title={p.name}>
+                    {p.name}
+                  </td>
+                  <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                    {edadCorta(p.ageYears * 112 + p.ageDays)}
+                  </td>
+                  <td className={`${td} text-left text-xs`}>
+                    <span className={CATEGORY_TONE[p.category] ?? ""}>
+                      {p.category}
+                    </span>
+                  </td>
+                  <td className={`${td} text-left`}>
+                    {p.bestSkill && p.bestSkillMax != null ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-24 shrink-0 truncate text-xs text-[var(--muted)]">
+                          {SKILL_NAMES[p.bestSkill] ?? p.bestSkill}
+                        </span>
+                        <NivelDeHabilidad
+                          current={mejor?.current ?? null}
+                          maximum={mejor?.maximum ?? p.bestSkillMax}
+                          maxReached={mejor?.maxReached ?? false}
+                        />
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--muted)]">sin revelar</span>
+                    )}
+                  </td>
+                  <td
+                    className={`${td} text-right tabular-nums`}
+                    style={{ color: sube.texto === "ya" ? "var(--positive)" : undefined }}
+                  >
+                    {sube.texto}
+                  </td>
+                  <td
+                    className={`${td} text-right tabular-nums`}
+                    style={{ color: pierde.urgente ? "var(--danger)" : "var(--muted)" }}
+                  >
+                    {pierde.texto}
+                  </td>
+                  <td className="px-3 py-1.5 text-left text-xs text-[var(--muted)]">
+                    {p.promoteAdvice}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </Panel>
   );
