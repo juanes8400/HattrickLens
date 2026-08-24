@@ -76,6 +76,26 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
     }
 
 
+def _alternativas(main, por_habilidad, habilidad_de):
+    """Cuantos recibirian doble racion con cada secundario posible."""
+    salida = []
+    for e in ENTRENAMIENTOS.values():
+        skill_main, skill_sec = habilidad_de(main), e.skill
+        if skill_main not in por_habilidad or skill_sec not in por_habilidad:
+            continue
+        plan = youth_training_plan(
+            main, e.codigo,
+            por_habilidad[skill_main].players,
+            por_habilidad[skill_sec].players,
+            tope_principal={p.name for p in por_habilidad[skill_main].at_max},
+            tope_secundaria={p.name for p in por_habilidad[skill_sec].at_max},
+        )
+        salida.append(
+            {"code": e.codigo, "label": e.label, "bothCount": plan.con_doble}
+        )
+    return salida
+
+
 @router.get(
     "/teams/{team_id}/academy/training-plan",
     summary="El once juvenil con los dos entrenamientos repartidos",
@@ -143,6 +163,15 @@ async def academy_training_plan(
         "secondary": secondary,
         "secondaryLabel": etiqueta_de(secondary, skill_sec),
         "doubleCount": plan.con_doble,
+        # Que pasaria con CADA alternativa de secundario, para poder elegir
+        # sabiendo: el desplegable ensena el numero al lado de cada opcion en
+        # vez de obligar a probarlas una por una.
+        #
+        # Se rehace el plan entero de cada alternativa en vez de medir el
+        # solape de PUESTOS, que es otra cosa: un puesto de la interseccion
+        # que nadie ocupa no es una racion doble, y el numero de la lista
+        # tiene que ser el mismo que se vera al elegirla.
+        "alternatives": _alternativas(main, por_habilidad, habilidad_de),
         "assignments": [asdict(a) for a in plan.asignaciones],
         # El banquillo: los que no entraron, con lo mismo que llevan los de
         # dentro y la columna en que caen. Un juvenil no tiene puesto asignado

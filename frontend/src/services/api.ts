@@ -629,6 +629,8 @@ export interface AcademyTrainingPlan {
   secondaryLabel: string;
   /** Cuántos reciben los dos entrenamientos a la vez. */
   doubleCount: number;
+  /** Cuántos recibirían doble con cada alternativa de secundario. */
+  alternatives: { code: string; label: string; bothCount: number }[];
   assignments: TrainingSlot[];
   /** El banquillo: los que no entraron, con su columna sugerida. */
   outside: (TrainingSlot & { benchColumn: string })[];

@@ -204,3 +204,29 @@ def test_la_habilidad_a_secas_sigue_valiendo_como_clave() -> None:
     assert [c.puesto for c in cupos_de("winger")] == [
         "winger", "winger", "wingback", "wingback",
     ]
+
+
+def test_el_numero_de_la_lista_es_el_que_se_vera_al_elegirlo() -> None:
+    """El desglose de alternativas no puede prometer una cosa y dar otra.
+
+    Medir el solape de PUESTOS daba numeros mas altos que el reparto real: un
+    puesto de la interseccion que ningun canterano ocupa no es una racion
+    doble. La lista se calcula rehaciendo el plan, y esto lo amarra.
+    """
+    from types import SimpleNamespace
+
+    from app.api.v1.endpoints.academy import _alternativas
+    from app.domain.engines.youth_training_plan import ENTRENAMIENTOS
+
+    cola = _cola("Ana", "Bea", "Cid", "Dan", "Eva", "Fito", "Gus")
+    por_habilidad = {
+        s: SimpleNamespace(players=cola, at_max=[])
+        for s in {e.skill for e in ENTRENAMIENTOS.values()}
+    }
+
+    for alt in _alternativas("defending", por_habilidad, lambda c: ENTRENAMIENTOS[c].skill):
+        plan = youth_training_plan(
+            "defending", alt["code"], cola, cola,
+            tope_principal=set(), tope_secundaria=set(),
+        )
+        assert alt["bothCount"] == plan.con_doble, alt["label"]

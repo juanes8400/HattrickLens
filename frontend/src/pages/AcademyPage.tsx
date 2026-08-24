@@ -888,11 +888,20 @@ function TrainingPlan({
 
   if (opciones.length === 0 && habilidades.length === 0) return null;
 
+  // Cuántos recibirían doble ración con cada alternativa. Va pegado a la
+  // opción, no en una tabla aparte: la pregunta «¿y si pongo esta otra?» se
+  // hace CON el desplegable abierto, y allí es donde tiene que estar la
+  // respuesta.
+  const dobleCon = new Map(
+    (plan.data?.alternatives ?? []).map((a) => [a.code, a.bothCount]),
+  );
+
   const selector = (
     valor: string,
     onChange: (v: string) => void,
     etiqueta: string,
     recuerdo: string,
+    conCuenta = false,
   ) => (
     <label className="flex-1">
       <span className="text-xs text-[var(--muted)]">{etiqueta}</span>
@@ -904,11 +913,17 @@ function TrainingPlan({
         }}
         className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
       >
-        {opciones.map((o) => (
-          <option key={o.code} value={o.code}>
-            {o.label}
-          </option>
-        ))}
+        {opciones
+          .filter((o) => !conCuenta || o.code !== principal)
+          .map((o) => {
+          const n = conCuenta ? dobleCon.get(o.code) : undefined;
+          return (
+            <option key={o.code} value={o.code}>
+              {o.label}
+              {n != null ? ` · ${n} con doble` : ""}
+            </option>
+          );
+        })}
       </select>
     </label>
   );
@@ -925,7 +940,7 @@ function TrainingPlan({
     >
       <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
         {selector(principal, setMain, "Entrenamiento principal", "juveniles.principal")}
-        {selector(secundaria, setSecondary, "Entrenamiento secundario", "juveniles.secundario")}
+        {selector(secundaria, setSecondary, "Entrenamiento secundario", "juveniles.secundario", true)}
       </div>
 
       {plan.isError && (
