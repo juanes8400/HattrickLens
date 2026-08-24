@@ -89,61 +89,96 @@ PUESTOS_DE_UN_BANQUILLO: tuple[str, ...] = (
 #: 2026-08-23, dictado por el usuario. Los dos casos de media racion estan
 #: comprobados contra la wiki de Hattrick (ver git). Si alguno cambia, se
 #: corrige AQUI y todo lo demas se recalcula solo.
-PORTERO = ("keeper",)
-DEFENSAS = ("wingback", "wingback", "central_defender", "central_defender",
-            "central_defender")
-MEDIOS = ("inner_midfield", "inner_midfield", "inner_midfield")
-EXTREMOS = ("winger", "winger")
-DELANTEROS = ("forward", "forward", "forward")
+#: Los seis puestos, para escribir la tabla de abajo sin repetirse.
+POR = "keeper"
+DFC = "central_defender"
+LAT = "wingback"
+MED = "inner_midfield"
+EXT = "winger"
+DEL = "forward"
+
+#: Cuanto de un entrenamiento le llega a cada puesto, en porcentaje.
+#:
+#: 2026-08-24, dictada por el usuario. Es la unica tabla del modulo con una
+#: opinion sobre las reglas del juego: si algo cambia se corrige AQUI y todo
+#: lo demas se recalcula solo.
+#:
+#: Los valores no se quedan en 100: Balon Parado da 125 al portero. La barra
+#: de la pantalla se topea, el numero no.
+TODOS = (POR, DFC, LAT, MED, EXT, DEL)
+
+
+def _mismo(puestos: tuple[str, ...], cuanto: int) -> dict[str, int]:
+    return {p: cuanto for p in puestos}
 
 
 @dataclass(frozen=True)
 class Entrenamiento:
-    """Un entrenamiento juvenil: que habilidad sube y a quien alcanza."""
+    """Un entrenamiento juvenil: que sube, a quien llega y cuanto le da."""
 
     codigo: str
     skill: str
     label: str
-    enteros: tuple[str, ...]
-    medios: tuple[str, ...] = ()
-    #: Hay un entrenamiento que sube DOS habilidades: «Anotación y balón
-    #: parado». Se declara una vez, bajo la primera, y aparece como variante
-    #: de las dos.
+    #: Puesto -> porcentaje. Un puesto que no aparece no recibe nada.
+    ritmos: dict[str, int]
+    #: Hay un entrenamiento que sube DOS habilidades a ritmos distintos:
+    #: «Anotación y balón parado» da 60 de Anotación y 40 de Balón parado.
+    #: Se declara una vez, bajo la primera, y aparece como variante de las dos.
     tambien_sube: str | None = None
+    ritmos_de_la_otra: dict[str, int] | None = None
+
+    def ritmo(self, puesto: str, skill: str | None = None) -> int:
+        """Lo que recibe ese puesto. `skill` elige cual de las dos, si sube dos."""
+        if skill is not None and skill == self.tambien_sube:
+            return (self.ritmos_de_la_otra or {}).get(puesto, 0)
+        return self.ritmos.get(puesto, 0)
 
 
 ENTRENAMIENTOS: dict[str, Entrenamiento] = {
     e.codigo: e for e in (
-        Entrenamiento("keeper", "keeper", "Portería", PORTERO),
-        Entrenamiento("defending", "defending", "Defensa", DEFENSAS),
+        Entrenamiento("keeper", "keeper", "Portería", {POR: 100}),
+        Entrenamiento("defending", "defending", "Defensa", {DFC: 100, LAT: 100}),
         Entrenamiento(
             "defending_wide", "defending",
             "Defensa (porteros, defensas y centro del campo completo)",
-            PORTERO + DEFENSAS + MEDIOS + EXTREMOS,
+            _mismo((POR, DFC, LAT, MED, EXT), 80),
         ),
-        Entrenamiento("playmaking", "playmaking", "Jugadas", MEDIOS, EXTREMOS),
-        Entrenamiento("winger", "winger", "Lateral", EXTREMOS,
-                      ("wingback", "wingback")),
+        Entrenamiento("playmaking", "playmaking", "Jugadas", {MED: 100, EXT: 50}),
+        Entrenamiento("winger", "winger", "Lateral", {EXT: 100, LAT: 50}),
         Entrenamiento("winger_forwards", "winger", "Lateral (extremos y delanteros)",
-                      EXTREMOS + DELANTEROS),
-        Entrenamiento("passing", "passing", "Pases", MEDIOS + EXTREMOS + DELANTEROS),
+                      {EXT: 60, DEL: 60}),
+        Entrenamiento("passing", "passing", "Pases",
+                      _mismo((MED, EXT, DEL), 100)),
         Entrenamiento(
             "passing_defenders", "passing",
             "Pases (defensas y centro del campo completo)",
-            DEFENSAS + MEDIOS + EXTREMOS,
+            _mismo((DFC, LAT, MED, EXT), 80),
         ),
-        Entrenamiento("scoring", "scoring", "Anotación", DELANTEROS),
-        # «Para todos, pero poquito», dicho asi por el usuario: llega a los
-        # once y a media racion, que es lo que significa aqui «poquito».
+        Entrenamiento("scoring", "scoring", "Anotación", {DEL: 100}),
         Entrenamiento(
             "scoring_set_pieces", "scoring", "Anotación y balón parado",
-            (), PORTERO + DEFENSAS + MEDIOS + EXTREMOS + DELANTEROS,
-            tambien_sube="set_pieces",
+            _mismo(TODOS, 60),
+            tambien_sube="set_pieces", ritmos_de_la_otra=_mismo(TODOS, 40),
         ),
         Entrenamiento("set_pieces", "set_pieces", "Balón parado",
-                      PORTERO + DEFENSAS + MEDIOS + EXTREMOS),
+                      {POR: 125, DFC: 100, LAT: 100, MED: 100, EXT: 100, DEL: 100}),
     )
 }
+
+#: El hueco secundario rinde dos tercios de lo que rendiria ese mismo
+#: entrenamiento puesto de principal. Baja a la mitad si repites EL MISMO
+#: entrenamiento en los dos huecos --el error que Hattrick castiga--; dos
+#: entrenamientos distintos que suben la misma habilidad no cuentan como
+#: repetir. 2026-08-24, dictado por el usuario.
+SECUNDARIO_NORMAL = 2 / 3
+SECUNDARIO_DUPLICADO = 1 / 2
+
+
+def factor_secundario(principal: str, secundaria: str) -> float:
+    return (
+        SECUNDARIO_DUPLICADO if principal == secundaria else SECUNDARIO_NORMAL
+    )
+
 
 #: Las variantes de cada habilidad, en el orden en que se declararon. La
 #: primera es la forma "normal" y sirve de respaldo.
@@ -186,8 +221,10 @@ class Asignacion:
     player: str
     puesto: str
     region: str
-    racion_principal: int
-    racion_secundaria: int
+    #: Lo que de verdad recibe, ya con el castigo del hueco secundario
+    #: aplicado: la celda ensena el producto, no la casilla de la tabla.
+    racion_principal: float
+    racion_secundaria: float
     #: En qué peldaño venía, y de qué cola salió. Sin esto la pantalla enseña
     #: un nombre en una plaza y no hay forma de saber por qué está ahí.
     peldano: int = 9
@@ -242,10 +279,28 @@ REGION_SOLO_SECUNDARIA = "solo_secundaria"
 REGION_SIN_ENTRENAMIENTO = "sin_entrenamiento"
 
 
+#: Cuantas plazas hay de cada puesto en un once juvenil.
+CUANTOS_DE_CADA: dict[str, int] = dict(PUESTOS_DE_UN_ONCE)
+
+
 def cupos_de(clave: str) -> list[Cupo]:
-    """Las plazas de un entrenamiento, enteras primero y medias despues."""
+    """Las plazas de un entrenamiento, de mas racion a menos.
+
+    El orden importa: dentro de una region se reparten en este orden, asi que
+    quien va primero en la cola cae en la plaza que mas recibe.
+    """
     e = _entrenamiento(clave)
-    return [Cupo(p, 100) for p in e.enteros] + [Cupo(p, 50) for p in e.medios]
+    plazas = [
+        Cupo(puesto, e.ritmos[puesto])
+        for puesto, _ in PUESTOS_DE_UN_ONCE
+        for _ in range(CUANTOS_DE_CADA[puesto])
+        if e.ritmos.get(puesto, 0) > 0
+    ]
+    # No se puede entrenar a mas de once: `PUESTOS_DE_UN_ONCE` enumera los
+    # puestos POSIBLES --catorce entre todos-- y una alineacion elige once.
+    # Sin este tope, «Balón parado», que llega a los seis puestos, repartiria
+    # catorce plazas y dejaria de cuadrar con las cuentas de la hoja.
+    return sorted(plazas, key=lambda c: -c.racion)[:PLAZAS_DE_UNA_ALINEACION]
 
 
 def mejor_variante(principal: str, skill_secundaria: str) -> str:
@@ -319,6 +374,12 @@ def youth_training_plan(
     """
     ambos, solo_a, solo_b = _reparte_por_region(principal, secundaria)
 
+    # El hueco secundario rinde menos, y lo que se ensena es lo que recibe.
+    factor = factor_secundario(principal, secundaria)
+
+    def _rebajado(racion: int) -> float:
+        return round(racion * factor, 1)
+
     plan = PlanDeEntrenamiento(principal=principal, secundaria=secundaria)
     ya_puestos: set[str] = set()
 
@@ -366,11 +427,11 @@ def youth_training_plan(
                 return
             ya_puestos.add(elegido.name)
             if region == REGION_AMBOS:
-                r_principal, r_secundaria = cupo.racion, cupo.racion_pareja
+                r_principal, r_secundaria = cupo.racion, _rebajado(cupo.racion_pareja)
             elif region == REGION_SOLO_PRINCIPAL:
-                r_principal, r_secundaria = cupo.racion, 0
+                r_principal, r_secundaria = cupo.racion, 0.0
             else:
-                r_principal, r_secundaria = 0, cupo.racion
+                r_principal, r_secundaria = 0.0, _rebajado(cupo.racion)
             plan.asignaciones.append(Asignacion(
                 player=elegido.name, puesto=cupo.puesto, region=region,
                 racion_principal=r_principal, racion_secundaria=r_secundaria,
@@ -409,7 +470,7 @@ def youth_training_plan(
             player=jugador.name,
             puesto=libres.pop(0) if libres else "",
             region=REGION_SIN_ENTRENAMIENTO,
-            racion_principal=0, racion_secundaria=0,
+            racion_principal=0.0, racion_secundaria=0.0,
             peldano=jugador.priority,
             # Sin entrenamiento no hay habilidad "suya", pero se enseña la
             # principal: es lo que permite compararlo con los que sí entrenan.
@@ -424,16 +485,17 @@ def youth_training_plan(
     # reciben los dos entrenamientos, luego los del principal, luego los del
     # secundario, y al final los que no reciben nada. Un suplente que entra
     # recibe lo que toque su puesto, asi que el orden importa igual.
-    racion_de: dict[str, tuple[str, int, int]] = {}
+    racion_de: dict[str, tuple[str, float, float]] = {}
     for cupo in ambos:
         racion_de.setdefault(
-            cupo.puesto, (REGION_AMBOS, cupo.racion, cupo.racion_pareja))
+            cupo.puesto,
+            (REGION_AMBOS, cupo.racion, _rebajado(cupo.racion_pareja)))
     for cupo in solo_a:
         racion_de.setdefault(
-            cupo.puesto, (REGION_SOLO_PRINCIPAL, cupo.racion, 0))
+            cupo.puesto, (REGION_SOLO_PRINCIPAL, cupo.racion, 0.0))
     for cupo in solo_b:
         racion_de.setdefault(
-            cupo.puesto, (REGION_SOLO_SECUNDARIA, 0, cupo.racion))
+            cupo.puesto, (REGION_SOLO_SECUNDARIA, 0.0, _rebajado(cupo.racion)))
 
     ORDEN = (
         REGION_AMBOS, REGION_SOLO_PRINCIPAL, REGION_SOLO_SECUNDARIA,
@@ -448,7 +510,7 @@ def youth_training_plan(
 
     for puesto in banquillo:
         region, r_a, r_b = racion_de.get(
-            puesto, (REGION_SIN_ENTRENAMIENTO, 0, 0))
+            puesto, (REGION_SIN_ENTRENAMIENTO, 0.0, 0.0))
         cola = (
             cola_secundaria if region == REGION_SOLO_SECUNDARIA
             else cola_principal
@@ -474,7 +536,7 @@ def youth_training_plan(
     plan.fuera.extend(
         Asignacion(
             player=p.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
-            racion_principal=0, racion_secundaria=0, peldano=p.priority,
+            racion_principal=0.0, racion_secundaria=0.0, peldano=p.priority,
             elegido_por=principal, age_days_total=p.age_days_total,
             current=p.current, maximum=p.maximum, max_reached=p.max_reached,
         )

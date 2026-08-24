@@ -873,21 +873,36 @@ function nombreCorto(etiqueta: string): string {
   return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
 }
 
+/** `66,7%`, con coma y sin decimal cuando es redondo. */
+function porcentaje(n: number): string {
+  return `${n % 1 === 0 ? n : n.toFixed(1).replace(".", ",")}%`;
+}
+
 /** Lo que recibe un canterano de UN entrenamiento: «Lateral: 100% ███».
  *
  * El nombre va dentro de la celda y no en la cabecera: la cabecera dice qué
- * hueco es --principal o secundario-- y la celda dice qué le toca ahí. La
- * barra no calcula nada, es el porcentaje dibujado. */
+ * hueco es --principal o secundario-- y la celda dice qué le toca ahí.
+ *
+ * El número ya viene con el castigo del hueco secundario aplicado, así que
+ * es lo que de verdad recibe, no la casilla de la tabla de ritmos. */
 function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
   if (cuanto === 0) return <span className="text-[var(--muted)]">·</span>;
-  const color = cuanto === 50 ? "var(--warning)" : "var(--positive)";
+  // Cualquier cosa por debajo de lo entero se avisa en ámbar: media ración y
+  // el castigo del secundario se leen igual de rebajadas.
+  const color = cuanto < 100 ? "var(--warning)" : "var(--positive)";
   return (
     <span className="flex items-center gap-2 whitespace-nowrap" title={etiqueta}>
       <span style={{ color }}>
-        {nombreCorto(etiqueta)}: <span className="tabular-nums">{cuanto}%</span>
+        {nombreCorto(etiqueta)}:{" "}
+        <span className="tabular-nums">{porcentaje(cuanto)}</span>
       </span>
       <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
-        <span className="block h-full" style={{ width: `${cuanto}%`, background: color }} />
+        {/* Topeada en 100 aunque el número pase: Balón parado da 125 al
+            portero, y una barra desbordada no dice más que una llena. */}
+        <span
+          className="block h-full"
+          style={{ width: `${Math.min(100, cuanto)}%`, background: color }}
+        />
       </span>
     </span>
   );
@@ -925,7 +940,17 @@ function TablaDelReparto({
       </div>
 
       <div className="mt-2 overflow-x-auto">
-        <table className="w-full text-sm">
+        {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
+            su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
+        <table className="w-full min-w-[54rem] table-fixed text-sm">
+          <colgroup>
+            <col className="w-[22%]" />
+            <col className="w-[8%]" />
+            <col className="w-[14%]" />
+            <col className="w-[19%]" />
+            <col className="w-[19%]" />
+            <col className="w-[18%]" />
+          </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>Jugador</th>
