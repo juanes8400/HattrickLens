@@ -9,7 +9,7 @@ import {
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
 import { date, decimal, htAge, money } from "../hooks/useFormat";
-import type { Academy, AcademySkillScores } from "../services/api";
+import type { Academy, AcademySkillScores, TrainingSlot } from "../services/api";
 
 /** CHPP nombra las habilidades en inglés; la app habla español en todas las
  *  demás pantallas. */
@@ -841,6 +841,81 @@ function QuienEntrena({ data }: { data: Academy }) {
   );
 }
 
+/** Los canteranos de los que el ojeador no ha dicho absolutamente nada.
+ *
+ * El numero solo no sirve: lo que decide es DONDE cae cada uno. Un perfil en
+ * blanco en el once recibe entrenamiento y se va revelando; el mismo perfil
+ * en el banquillo se queda igual de oscuro una semana mas, y son semanas que
+ * no vuelven. Por eso van primero los del banquillo.
+ */
+function SinRevelar({
+  nombres,
+  dentro,
+  fuera,
+}: {
+  nombres: string[];
+  dentro: TrainingSlot[];
+  fuera: TrainingSlot[];
+}) {
+  if (nombres.length === 0) return null;
+  const enBlanco = new Set(nombres);
+  const suyos = (de: TrainingSlot[]) =>
+    de
+      .filter((a) => enBlanco.has(a.player))
+      .sort((x, y) => (y.weeksLeft ?? 0) - (x.weeksLeft ?? 0));
+  const banquillo = suyos(fuera);
+  const once = suyos(dentro);
+
+  const chip = (a: TrainingSlot, entrena: boolean) => (
+    <span
+      key={a.player}
+      className="rounded border px-2 py-1 text-xs"
+      style={{
+        borderColor: entrena ? "var(--border)" : "#f87171",
+        color: entrena ? "var(--text)" : "#fca5a5",
+      }}
+    >
+      {a.player}{" "}
+      <span className="tabular-nums text-[var(--muted)]">
+        {Math.floor(a.ageDaysTotal / 112)};
+        {String(a.ageDaysTotal % 112).padStart(3, "0")}
+        {a.weeksLeft != null && ` · ${a.weeksLeft} sem`}
+      </span>
+    </span>
+  );
+
+  return (
+    <div className="mt-4 rounded-md border border-[var(--border)] p-3">
+      <p className="text-sm text-[var(--text)]">
+        Sin revelar todavía{" "}
+        <span className="text-[var(--muted)]">
+          · el ojeador no ha dicho nada de estos {nombres.length}
+        </span>
+      </p>
+      {banquillo.length > 0 && (
+        <>
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            No entrenan esta semana, así que siguen igual de oscuros
+          </p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {banquillo.map((a) => chip(a, false))}
+          </div>
+        </>
+      )}
+      {once.length > 0 && (
+        <>
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            Entrenan, que es lo que hace que se revelen
+          </p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {once.map((a) => chip(a, true))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TrainingPlan({
   data,
   tuned,
@@ -989,6 +1064,11 @@ function TrainingPlan({
               .
             </p>
           )}
+          <SinRevelar
+            nombres={plan.data.scouting.blankPlayers}
+            dentro={plan.data.assignments}
+            fuera={plan.data.outside}
+          />
         </div>
       )}
     </Panel>
