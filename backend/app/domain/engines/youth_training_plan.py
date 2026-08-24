@@ -185,6 +185,8 @@ class Asignacion:
     current: int | None = None
     maximum: int | None = None
     max_reached: bool = False
+    #: Cuantas veces mas va a recibir este entrenamiento antes de irse.
+    weeks_left: int | None = None
 
     @property
     def recibe_doble(self) -> bool:
@@ -203,6 +205,16 @@ class PlanDeEntrenamiento:
     @property
     def con_doble(self) -> int:
         return sum(1 for a in self.asignaciones if a.recibe_doble)
+
+    @property
+    def semanas_dobles(self) -> int:
+        """Las semanas de doble racion que reparte este plan, sumadas.
+
+        La cuenta de cabezas engana: cuatro canteranos a los que les quedan
+        dos semanas rinden menos que dos a los que les quedan veinte. Esto es
+        lo que de verdad se esta repartiendo.
+        """
+        return sum(a.weeks_left or 0 for a in self.asignaciones if a.recibe_doble)
 
 
 REGION_AMBOS = "ambos"
@@ -351,6 +363,7 @@ def youth_training_plan(
                 current=elegido.current,
                 maximum=elegido.maximum,
                 max_reached=elegido.max_reached,
+                weeks_left=elegido.weeks_left,
             ))
 
     coloca(ambos, _orden_de_cola(cola_principal), REGION_AMBOS)
@@ -387,6 +400,7 @@ def youth_training_plan(
             current=jugador.current,
             maximum=jugador.maximum,
             max_reached=jugador.max_reached,
+            weeks_left=jugador.weeks_left,
         ))
 
     plan.fuera = [
@@ -395,6 +409,7 @@ def youth_training_plan(
             racion_principal=0, racion_secundaria=0, peldano=p.priority,
             elegido_por=principal, age_days_total=p.age_days_total,
             current=p.current, maximum=p.maximum, max_reached=p.max_reached,
+            weeks_left=p.weeks_left,
         )
         for p in cola_principal if p.name not in ya_puestos
     ]

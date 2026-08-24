@@ -91,7 +91,17 @@ function Tarjeta({
             (a.maximum ?? "?")
           : "desconocido"}
       </p>
-      <p className="text-[10px] tabular-nums text-white/50">{edad(a.ageDaysTotal)}</p>
+      <p className="text-[10px] tabular-nums text-white/50">
+        {edad(a.ageDaysTotal)}
+        {a.weeksLeft != null && (
+          <span
+            title="Entrenamientos que le quedan antes de irse"
+            style={{ color: a.weeksLeft <= 5 ? "#fca5a5" : undefined }}
+          >
+            {" · " + a.weeksLeft + " sem"}
+          </span>
+        )}
+      </p>
       {raciones.length > 0 && (
         <p className="text-[10px] text-white/75">{raciones.join(" · ")}</p>
       )}

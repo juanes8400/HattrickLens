@@ -198,6 +198,27 @@ class YouthCandidate:
     def edad_en_dias(self) -> int:
         return self.age_years * DAYS_PER_HT_YEAR + self.age_days
 
+    @property
+    def semanas_de_plazo(self) -> int | None:
+        """Cuantos entrenamientos le quedan antes de que se le acabe el plazo.
+
+        La academia entrena una vez por semana, asi que el plazo NO es un
+        adorno de la ficha: es cuantas veces mas va a recibir lo que se le
+        ponga hoy. Dos canteranos igual de buenos no valen lo mismo si a uno
+        le quedan veinte semanas y al otro dos.
+
+        `None` cuando no se sabe cuando sale --ver `UNKNOWN_DEADLINE_DAYS`--,
+        que no es lo mismo que cero.
+        """
+        if self.age_days_at_deadline == UNKNOWN_DEADLINE_DAYS:
+            return None
+        plazo = (
+            self.age_years_at_deadline * DAYS_PER_HT_YEAR
+            + self.age_days_at_deadline
+            - self.edad_en_dias
+        )
+        return max(0, plazo // 7)
+
 
 @dataclass(frozen=True)
 class PlayerNote:
@@ -227,6 +248,8 @@ class PlayerNote:
     #: Su puesto en la cola de esta habilidad, de 1 a 9. Ver
     #: `training_priority`.
     priority: int = PRIORIDAD_EL_RESTO
+    #: Cuantas semanas de entrenamiento le quedan. Ver `semanas_de_plazo`.
+    weeks_left: int | None = None
 
 
 @dataclass
@@ -361,6 +384,7 @@ def score_skills(
                     priority=training_priority(
                         note, leaves_soon=pronto, max_reached=reading.max_reached
                     ),
+                    weeks_left=candidate.semanas_de_plazo,
                 )
             )
             if bucket:

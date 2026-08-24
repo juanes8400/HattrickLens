@@ -424,7 +424,8 @@ function WhatToTrain({ data }: { data: Academy }) {
               <span className="text-[var(--muted)]">
                 {" "}
                 Así {sugerencia.bothCount}{" "}
-                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos cosas.
+                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos cosas,{" "}
+                {sugerencia.bothWeeks} semanas de entrenamiento doble en total.
               </span>
             ) : (
               <span className="text-[var(--muted)]">
@@ -893,7 +894,10 @@ function TrainingPlan({
   // hace CON el desplegable abierto, y allí es donde tiene que estar la
   // respuesta.
   const dobleCon = new Map(
-    (plan.data?.alternatives ?? []).map((a) => [a.code, a.bothCount]),
+    (plan.data?.alternatives ?? []).map((a) => [
+      a.code,
+      { cuantos: a.bothCount, semanas: a.bothWeeks },
+    ]),
   );
 
   const selector = (
@@ -920,7 +924,11 @@ function TrainingPlan({
           return (
             <option key={o.code} value={o.code}>
               {o.label}
-              {n != null ? ` · ${n} con doble` : ""}
+              {n && n.cuantos > 0
+                ? ` · ${n.cuantos} con doble, ${n.semanas} sem`
+                : n
+                  ? " · nadie recibe doble"
+                  : ""}
             </option>
           );
         })}
@@ -934,7 +942,7 @@ function TrainingPlan({
       title="Cómo repartir los dos entrenamientos"
       meta={
         plan.data
-          ? `${plan.data.doubleCount} reciben doble ración`
+          ? `${plan.data.doubleCount} reciben doble ración · ${plan.data.doubleWeeks} semanas`
           : "principal y secundario"
       }
     >

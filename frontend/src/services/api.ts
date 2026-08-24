@@ -620,6 +620,8 @@ export interface TrainingSlot {
   current: number | null;
   maximum: number | null;
   maxReached: boolean;
+  /** Cuántas semanas de entrenamiento le quedan antes de irse. */
+  weeksLeft: number | null;
 }
 
 export interface AcademyTrainingPlan {
@@ -629,8 +631,15 @@ export interface AcademyTrainingPlan {
   secondaryLabel: string;
   /** Cuántos reciben los dos entrenamientos a la vez. */
   doubleCount: number;
-  /** Cuántos recibirían doble con cada alternativa de secundario. */
-  alternatives: { code: string; label: string; bothCount: number }[];
+  /** Las semanas de doble ración que reparte el plan, sumadas. */
+  doubleWeeks: number;
+  /** Qué pasaría con cada alternativa de secundario. */
+  alternatives: {
+    code: string;
+    label: string;
+    bothCount: number;
+    bothWeeks: number;
+  }[];
   assignments: TrainingSlot[];
   /** El banquillo: los que no entraron, con su columna sugerida. */
   outside: (TrainingSlot & { benchColumn: string })[];
@@ -1396,8 +1405,10 @@ export interface AcademySkillScores {
     secondary: string;
     secondaryLabel: string;
     secondarySkill: string;
-    /** Cuantos recibirian las dos cosas con esa pareja. */
+    /** Cuantos recibirian las dos cosas con esa pareja, y por cuantas
+     *  semanas de entrenamiento sumadas. */
     bothCount: number;
+    bothWeeks: number;
   } | null;
   /** Las plazas que entrena cada habilidad, para sembrar el modo manual. */
   /** Todos los entrenamientos, variantes incluidas. */

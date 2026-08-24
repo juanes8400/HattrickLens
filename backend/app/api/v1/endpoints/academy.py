@@ -10,7 +10,6 @@ from app.application.queries.academy import AcademyQueryService
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
-    _reparte_por_region,
     mejor_variante,
     youth_training_plan,
 )
@@ -63,16 +62,25 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
     principal, segunda = rows[0], rows[1]
     codigo = mejor_variante(principal.skill, segunda.skill)
     variante = ENTRENAMIENTOS.get(codigo)
-    solape = len(_reparte_por_region(principal.skill, codigo)[0])
+    # El reparto de verdad, no el solape de PUESTOS: la frase promete un
+    # numero y al pulsar el boton se ve la cancha, y los dos tienen que decir
+    # lo mismo. Un puesto de la interseccion que nadie ocupa no es una racion
+    # doble.
+    plan = youth_training_plan(
+        principal.skill, codigo, principal.players, segunda.players,
+        tope_principal={p.name for p in principal.at_max},
+        tope_secundaria={p.name for p in segunda.at_max},
+    )
     return {
         "main": principal.skill,
         "mainLabel": principal.label,
         "secondary": codigo,
         "secondaryLabel": variante.label if variante else segunda.label,
         "secondarySkill": segunda.skill,
-        # Cuantos recibirian las dos cosas con esa pareja: es lo que justifica
-        # elegir una forma y no otra.
-        "bothCount": solape,
+        # Cuantos recibirian las dos cosas con esa pareja, y por cuantas
+        # semanas: es lo que justifica elegir una forma y no otra.
+        "bothCount": plan.con_doble,
+        "bothWeeks": plan.semanas_dobles,
     }
 
 
@@ -90,9 +98,14 @@ def _alternativas(main, por_habilidad, habilidad_de):
             tope_principal={p.name for p in por_habilidad[skill_main].at_max},
             tope_secundaria={p.name for p in por_habilidad[skill_sec].at_max},
         )
-        salida.append(
-            {"code": e.codigo, "label": e.label, "bothCount": plan.con_doble}
-        )
+        salida.append({
+            "code": e.codigo,
+            "label": e.label,
+            "bothCount": plan.con_doble,
+            # Las semanas desempatan: dos alternativas pueden llegar a los
+            # mismos cinco y repartirles plazos muy distintos.
+            "bothWeeks": plan.semanas_dobles,
+        })
     return salida
 
 
@@ -163,6 +176,7 @@ async def academy_training_plan(
         "secondary": secondary,
         "secondaryLabel": etiqueta_de(secondary, skill_sec),
         "doubleCount": plan.con_doble,
+        "doubleWeeks": plan.semanas_dobles,
         # Que pasaria con CADA alternativa de secundario, para poder elegir
         # sabiendo: el desplegable ensena el numero al lado de cada opcion en
         # vez de obligar a probarlas una por una.
