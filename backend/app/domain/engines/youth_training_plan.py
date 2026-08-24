@@ -235,6 +235,10 @@ class Asignacion:
     #: Su edad hoy y lo que el ojeador dijo de ESA habilidad. Es el motivo de
     #: que esté en esa plaza, y sin verlo la lista es una lista de nombres.
     age_days_total: int = 0
+    #: En que se puede convertir, en HTMS28. Es lo que la tabla enseña en vez
+    #: de la edad --que va dentro de este numero-- desde el 2026-08-24.
+    htms28_min: int = 0
+    htms28_max: int = 0
     current: int | None = None
     maximum: int | None = None
     max_reached: bool = False
@@ -440,6 +444,8 @@ def youth_training_plan(
                     secundaria if region == REGION_SOLO_SECUNDARIA else principal
                 ),
                 age_days_total=elegido.age_days_total,
+                htms28_min=elegido.htms28_min,
+                htms28_max=elegido.htms28_max,
                 current=elegido.current,
                 maximum=elegido.maximum,
                 max_reached=elegido.max_reached,
@@ -476,6 +482,8 @@ def youth_training_plan(
             # principal: es lo que permite compararlo con los que sí entrenan.
             elegido_por=principal,
             age_days_total=jugador.age_days_total,
+                htms28_min=jugador.htms28_min,
+                htms28_max=jugador.htms28_max,
             current=jugador.current,
             maximum=jugador.maximum,
             max_reached=jugador.max_reached,
@@ -527,6 +535,8 @@ def youth_training_plan(
                 secundaria if region == REGION_SOLO_SECUNDARIA else principal
             ),
             age_days_total=elegido.age_days_total,
+                htms28_min=elegido.htms28_min,
+                htms28_max=elegido.htms28_max,
             current=elegido.current, maximum=elegido.maximum,
             max_reached=elegido.max_reached,
         ))
@@ -538,6 +548,8 @@ def youth_training_plan(
             player=p.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
             racion_principal=0.0, racion_secundaria=0.0, peldano=p.priority,
             elegido_por=principal, age_days_total=p.age_days_total,
+                htms28_min=p.htms28_min,
+                htms28_max=p.htms28_max,
             current=p.current, maximum=p.maximum, max_reached=p.max_reached,
         )
         for p in cola_principal if p.name not in ya_puestos

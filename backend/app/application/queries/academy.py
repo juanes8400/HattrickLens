@@ -117,6 +117,12 @@ class YouthRow:
     age_years: int
     age_days: int
     potential_score: float
+    #: En que se puede convertir, en HTMS28, con lo que el ojeador ha dicho.
+    #: Sustituye a `potential_score` en pantalla desde el 2026-08-24: aquel
+    #: era un indice inventado por esta herramienta y ponia un 8 supuesto en
+    #: cada techo sin revelar, asi que ordenaba por ignorancia.
+    htms28_min: int
+    htms28_max: int
     category: str
     best_skill: str
     best_skill_max: int | None
@@ -355,6 +361,7 @@ class AcademyQueryService:
                     },
                 )
             )
+            horquilla = candidates[-1].horquilla_htms28
             exposure = training_exposure(
                 minutes_main_position=snap.minutes_last_match,
                 minutes_secondary_position=0,
@@ -367,6 +374,8 @@ class AcademyQueryService:
                     age_years=ev.age_years,
                     age_days=ev.age_days,
                     potential_score=ev.potential_score,
+                    htms28_min=horquilla.minimo,
+                    htms28_max=horquilla.maximo,
                     category=ev.category.value,
                     best_skill=ev.best_skill,
                     best_skill_max=ev.best_skill_max,

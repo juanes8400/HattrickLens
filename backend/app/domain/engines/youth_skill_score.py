@@ -16,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from app.domain.engines import youth_htms as yh
+
 # Las siete habilidades juveniles, en el orden de la hoja.
 SKILLS: tuple[str, ...] = (
     "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
@@ -189,10 +191,32 @@ class YouthCandidate:
     age_years_at_deadline: int
     age_days_at_deadline: int
     skills: dict[str, YouthSkillReading]
-    #  Su edad HOY. Es el desempate dentro de un peldaño: entre dos iguales,
-    #  primero el más joven, que es al que le queda más por crecer.
+    #  Su edad HOY. Sigue haciendo falta para pintar la ficha.
     age_years: int = 0
     age_days: int = 0
+
+    @property
+    def horquilla_htms28(self) -> yh.Horquilla:
+        """En que se puede convertir, con lo que se sabe hoy.
+
+        Se deriva de sus habilidades y su edad, que es todo lo que hace falta:
+        asi ningun sitio que construya un candidato puede olvidarse de pasarla.
+
+        Sustituye al desempate por edad desde el 2026-08-24. `maximo` lleva la
+        edad dentro --pesa casi mil setecientos puntos a los 16-- asi que
+        sigue premiando al mas joven, pero ademas descuenta a quien tiene un
+        techo bajo confirmado, cosa que la edad sola no sabia hacer.
+        """
+        return yh.rango_htms28(
+            {
+                skill: yh.Lectura(
+                    current=r.current, maximum=r.maximum,
+                    max_reached=r.max_reached,
+                )
+                for skill, r in self.skills.items()
+            },
+            self.age_years, self.age_days,
+        )
 
     @property
     def edad_en_dias(self) -> int:
@@ -213,8 +237,11 @@ class PlayerNote:
     bucket: str
     leaves_soon: bool
     max_reached: bool
-    #: Su edad hoy, en días. Desempata dentro del peldaño, el menor primero.
+    #: Su edad hoy, en días. Se enseña; ya no desempata.
     age_days_total: int = 0
+    #: En que se puede convertir, en HTMS28. Desempata dentro del peldaño.
+    htms28_min: int = 0
+    htms28_max: int = 0
     #: El nivel que tiene en esa habilidad, se entrene o no. `note` vale None
     #: cuando la habilidad ya tocó techo --no hay nada que entrenar-- pero el
     #: número sí se sabe, y es lo que Hattrick enseña junto al candado.
@@ -347,6 +374,7 @@ def score_skills(
         names: list[PlayerNote] = []
         tapados: list[PlayerNote] = []
         for candidate in candidates:
+            horquilla = candidate.horquilla_htms28
             reading = candidate.skills.get(skill)
             if reading is None:
                 continue
@@ -366,6 +394,8 @@ def score_skills(
                     leaves_soon=pronto,
                     max_reached=reading.max_reached,
                     age_days_total=candidate.edad_en_dias,
+                    htms28_min=horquilla.minimo,
+                    htms28_max=horquilla.maximo,
                     level=max(reading.current or 0, reading.maximum or 0) or None,
                     current=reading.current,
                     maximum=reading.maximum,
@@ -399,16 +429,21 @@ def score_skills(
                 # 2026-08-23: el desempate por edad faltaba y el orden acababa
                 # siendo alfabético. Gustavo Obregón, el más joven de la
                 # cantera, salía quinto detrás de Antonio, Carlos y Fabián.
-                # Peldaño, techo, edad de HOY, y por ultimo el nivel actual
-                # --el mas cerca del techo primero: entre dos que van a acabar
-                # en el mismo sitio, entra el que esta a punto de rematarlo--.
-                # 2026-08-24, dictado asi por el usuario.
+                # Peldaño, techo, HTMS28 maximo, y por ultimo el nivel
+                # actual --el mas cerca del techo primero: entre dos que van a
+                # acabar en el mismo sitio, entra el que esta a punto de
+                # rematarlo--.
+                #
+                # 2026-08-24: el tercer criterio era la edad de hoy. Ahora es
+                # el HTMS28 maximo, que la lleva dentro --y pesa mas que nada
+                # a estas edades-- pero ademas descuenta a quien tiene un
+                # techo bajo confirmado, cosa que la edad sola no sabia hacer.
                 players=sorted(
                     names,
                     key=lambda p: (
                         p.priority,
                         -(p.note or 0),
-                        p.age_days_total,
+                        -p.htms28_max,
                         -(p.current or 0),
                         p.name,
                     ),

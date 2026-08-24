@@ -781,6 +781,44 @@ function nombreCorto(etiqueta: string): string {
   return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
 }
 
+/** En qué se puede convertir, de lo peor a lo mejor.
+ *
+ * Los dos extremos salen de lo que el ojeador ha dicho: el suelo es el nivel
+ * actual donde lo reveló y cero donde no; el techo es el techo donde lo
+ * reveló y 8 donde no. Encima va el término de edad del HTMS28, el mismo
+ * para las dos puntas.
+ *
+ * La anchura de la barra ES lo que falta por saber: se estrecha sola según el
+ * ojeador habla, sin que haya que explicar nada.
+ */
+function Horquilla({
+  min,
+  max,
+  tope,
+}: {
+  min: number;
+  max: number;
+  tope: number;
+}) {
+  const izquierda = tope > 0 ? (min / tope) * 100 : 0;
+  const ancho = tope > 0 ? ((max - min) / tope) * 100 : 0;
+  return (
+    <span
+      className="flex items-center justify-end gap-2"
+      title={`Entre ${min} y ${max} puntos HTMS28. La barra mide lo que aún no se sabe de él.`}
+    >
+      <span className="tabular-nums text-[var(--muted)]">{min}</span>
+      <span className="relative h-1.5 w-16 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+        <span
+          className="absolute inset-y-0 rounded bg-[var(--accent)]"
+          style={{ left: `${izquierda}%`, width: `${Math.max(2, ancho)}%` }}
+        />
+      </span>
+      <span className="tabular-nums">{max}</span>
+    </span>
+  );
+}
+
 /** `66,7%`, con coma y sin decimal cuando es redondo. */
 function porcentaje(n: number): string {
   return `${n % 1 === 0 ? n : n.toFixed(1).replace(".", ",")}%`;
@@ -834,6 +872,9 @@ function TablaDelReparto({
   secondaryLabel: string;
 }) {
   if (filas.length === 0) return null;
+  //  Todas las barras contra la misma escala; si cada fila se midiera a si
+  //  misma, dos horquillas del mismo largo dirian cosas distintas.
+  const topeDeHorquilla = Math.max(...filas.map((a) => a.htms28Max), 1);
   const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
   const td = "overflow-hidden px-3 py-1.5 whitespace-nowrap";
 
@@ -852,18 +893,24 @@ function TablaDelReparto({
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
         <table className="w-full min-w-[96rem] table-fixed text-sm">
           <colgroup>
-            <col className="w-[16%]" />
-            <col className="w-[6%]" />
-            <col className="w-[11%]" />
             <col className="w-[15%]" />
-            <col className="w-[15%]" />
-            <col className="w-[18.5%]" />
-            <col className="w-[18.5%]" />
+            <col className="w-[14%]" />
+            <col className="w-[10%]" />
+            <col className="w-[13%]" />
+            <col className="w-[13%]" />
+            <col className="w-[17.5%]" />
+            <col className="w-[17.5%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>Jugador</th>
-              <th scope="col" className={`${th} text-right`}>Edad</th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
+              >
+                Puede llegar a
+              </th>
               <th scope="col" className={`${th} text-left`}>Puesto</th>
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
                 Entrenamiento principal
@@ -900,8 +947,12 @@ function TablaDelReparto({
                     // filas con barra de nivel miden un píxel más.
                     <tr key={a.player} className="h-9 border-t border-[var(--border)]">
                       <td className={`${td} text-left`}>{a.player}</td>
-                      <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
-                        {edadCorta(a.ageDaysTotal)}
+                      <td className={`${td} text-right`}>
+                        <Horquilla
+                          min={a.htms28Min}
+                          max={a.htms28Max}
+                          tope={topeDeHorquilla}
+                        />
                       </td>
                       <td className={`${td} text-left text-[var(--muted)]`}>
                         {PUESTOS[a.puesto] ?? a.puesto ?? ""}
@@ -1224,8 +1275,18 @@ const ORDENES: {
 }[] = [
   {
     key: "potencial",
-    label: "Potencial",
-    cmp: (a, b) => b.potentialScore - a.potentialScore,
+    label: "Puede llegar a (lo más alto)",
+    cmp: (a, b) => b.htms28Max - a.htms28Max,
+  },
+  {
+    key: "garantizado",
+    label: "Ya tiene (lo más bajo)",
+    cmp: (a, b) => b.htms28Min - a.htms28Min,
+  },
+  {
+    key: "horquilla",
+    label: "Lo que falta por saber",
+    cmp: (a, b) => b.htms28Max - b.htms28Min - (a.htms28Max - a.htms28Min),
   },
   {
     key: "techo",
@@ -1490,14 +1551,9 @@ function SkillDetail({ data }: { data: Academy }) {
               </span>
               <span
                 className="tabular-nums text-[var(--muted)]"
-                title={
-                  p.revealedSkills === 0
-                    ? "sin ningún techo revelado: este número sale entero del supuesto, no de datos"
-                    : "potencial"
-                }
+                title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
               >
-                potencial {p.potentialScore.toFixed(1)}
-                {p.revealedSkills === 0 && " ·"}
+                {p.htms28Min} – {p.htms28Max}
               </span>
               <span className="tabular-nums text-[var(--muted)]">
                 {p.revealedSkills}/{p.skills.length} techos

@@ -635,6 +635,10 @@ export interface TrainingSlot {
   openCeilings: string[];
   /** Su edad hoy, en días, y lo que el ojeador dijo de esa habilidad. */
   ageDaysTotal: number;
+  /** En qué se puede convertir, en HTMS28. La tabla enseña esto en vez de la
+   *  edad, que va dentro del número. */
+  htms28Min: number;
+  htms28Max: number;
   current: number | null;
   maximum: number | null;
   maxReached: boolean;
@@ -1976,6 +1980,10 @@ export interface Academy {
     ageYears: number;
     ageDays: number;
     potentialScore: number;
+    /** En qué se puede convertir, en HTMS28, con lo que el ojeador ha dicho.
+     *  Sustituye a `potentialScore` en pantalla. */
+    htms28Min: number;
+    htms28Max: number;
     category: string;
     bestSkill: string;
     bestSkillMax: number | null;
