@@ -295,6 +295,7 @@ class TeamOverviewQueryService:
                     m.PlayerSnapshot.captured_at,
                     *columns,
                 )
+                .add_columns(m.Player.left_team_at, m.Player.sold_at)
                 .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
                 .where(m.Player.team_id == team_id)
                 .order_by(m.PlayerSnapshot.captured_at)
@@ -316,6 +317,7 @@ class TeamOverviewQueryService:
         # Última lectura de cada jugador dentro de cada semana ISO: un jugador
         # sincronizado tres veces no puede pesar el triple que otro.
         latest: dict[tuple[int, int], dict[int, tuple[datetime, tuple]]] = defaultdict(dict)
+        salidas: dict[int, datetime | None] = {}
         for row in rows:
             captured_at: datetime = row.captured_at
             iso = captured_at.isocalendar()
@@ -324,6 +326,7 @@ class TeamOverviewQueryService:
             values = tuple(getattr(row, name) for name in self._TIMELINE_FIELDS)
             if previous is None or captured_at > previous[0]:
                 bucket[row.player_id] = (captured_at, values)
+            salidas[row.player_id] = row.left_team_at or row.sold_at
 
         # El salario se guarda en la moneda cruda de CHPP; el resto de la app
         # lo divide por `currency_rate` antes de mostrarlo. Sin esto la media
@@ -344,9 +347,26 @@ class TeamOverviewQueryService:
         salary_index = self._TIMELINE_FIELDS.index("salary")
         age_years_index = self._TIMELINE_FIELDS.index("age_years")
         age_days_index = self._TIMELINE_FIELDS.index("age_days")
+        # El estado de CADA jugador al cerrar la semana, no solo el de los que
+        # cambiaron.
+        #
+        # 2026-08-24. `player_snapshots` escribe fila unicamente cuando algo
+        # cambia, asi que una semana solo contiene a quien se movio. Para una
+        # media el sesgo se disimula; para una SUMA es demoledor: la semana en
+        # curso tenia 7 fotos de 24 jugadores y "HTMS sumado de la plantilla"
+        # se desplomaba de 27.000 a 6.500 como si el equipo se hubiera caido a
+        # pedazos. Lo que faltaba eran diecisiete jugadores, no habilidad.
+        #
+        # Se arrastra la ultima lectura conocida de cada uno y se descuenta a
+        # quien ya se habia ido en ese momento.
+        vigentes: dict[int, tuple[datetime, tuple]] = {}
         for key in sorted(latest):
-            readings = list(latest[key].values())
-            newest = max(reading[0] for reading in readings)
+            vigentes.update(latest[key])
+            newest = max(reading[0] for reading in latest[key].values())
+            readings = [
+                lectura for pid, lectura in vigentes.items()
+                if salidas.get(pid) is None or salidas[pid] > newest
+            ]
             label = season_week_for_datetime(world, newest)
             weeks.append(label or newest.date().isoformat())
             # Fidelidad no se persistía al principio y esos snapshots

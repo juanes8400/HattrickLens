@@ -476,3 +476,76 @@ def test_player_classes_is_only_a_tab_with_nothing_behind_it_yet(
     assert classes["pitch"] == []
     assert classes["metrics"] == []
     assert classes["specialRoles"] == []
+
+
+def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:
+    """`player_snapshots` escribe fila solo cuando algo cambia.
+
+    2026-08-24, caso real: la semana en curso tenia 7 fotos de 24 jugadores y
+    "HTMS sumado de la plantilla" se desplomaba de 27.000 a 6.500 como si el
+    equipo se hubiera caido a pedazos. Lo que faltaba eran diecisiete
+    jugadores, no habilidad. Para una media el sesgo se disimula; para una
+    SUMA es demoledor.
+    """
+    import asyncio
+    from datetime import datetime
+
+    from app.application.queries.team_overview import TeamOverviewQueryService
+
+    async def corre() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=1, name="Pulgas", currency_rate=1.0)
+            s.add(equipo)
+            await s.flush()
+            usuario = m.User(ht_user_id=1, login_name="yo")
+            s.add(usuario)
+            await s.flush()
+            sync = m.Sync(user_id=usuario.id, team_id=equipo.id, kind="players",
+                          status="completed", started_at=datetime(2026, 8, 10))
+            s.add(sync)
+            await s.flush()
+
+            def foto(pid: int, cuando: datetime) -> m.PlayerSnapshot:
+                return m.PlayerSnapshot(
+                    sync_id=sync.id, player_id=pid, captured_at=cuando,
+                    age_years=25, age_days=0, tsi=1000, form=5, stamina=7,
+                    experience=5, salary=1000, leadership=4, loyalty=1,
+                    keeper=1, defending=5, playmaking=5, winger=5,
+                    passing=5, scoring=5, set_pieces=5,
+                    content_hash=bytes([pid]) * 32,
+                )
+
+            # Dos jugadores. La primera semana se fotografian los dos; la
+            # segunda solo uno cambia algo.
+            for i in (1, 2):
+                jugador = m.Player(
+                    team_id=equipo.id, ht_player_id=100 + i,
+                    first_name=f"J{i}", last_name="Prueba",
+                )
+                s.add(jugador)
+                await s.flush()
+                s.add(foto(jugador.id, datetime(2026, 8, 10, 12)))
+                if i == 1:
+                    s.add(foto(jugador.id, datetime(2026, 8, 17, 12)))
+            await s.commit()
+            team_id = equipo.id
+
+        async with factory() as s:
+            semanal = await TeamOverviewQueryService(s)._weekly_averages(team_id)
+
+        total = semanal.by_field["htms_total"]
+        assert len(total) == 2, "dos semanas"
+        assert total[0] == total[1], (
+            "el que no cambio sigue en la plantilla: la suma no puede caer a la mitad"
+        )
+        await engine.dispose()
+
+    asyncio.run(corre())
