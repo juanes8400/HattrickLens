@@ -672,7 +672,7 @@ function NivelDeHabilidad({
         {maxReached ? <span title="ya tocó techo: no sube más">🔒</span> : null}
       </span>
       <span className="w-24 shrink-0 text-sm">{palabra}</span>
-      <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+      <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
         <span
           className="block h-full"
           style={{ width: `${ancho}%`, background: color }}
@@ -873,22 +873,6 @@ function nombreCorto(etiqueta: string): string {
   return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
 }
 
-/** Dónde le queda techo por descubrir.
- *
- * Es lo único que queda por saber de un canterano: una habilidad con techo
- * revelado ya no puede sorprender, una sin revelar sí. Con casi todo a
- * oscuras la lista entera sería ruido, así que se dice el número y los
- * nombres van en el título.
- */
-function MaximoPotencial({ habilidades }: { habilidades: string[] }) {
-  if (habilidades.length === 0) {
-    return <span className="text-[var(--positive)]">ojeado del todo</span>;
-  }
-  if (habilidades.length >= 7) return <span>las siete</span>;
-  if (habilidades.length <= 2) return <span>{habilidades.join(" · ")}</span>;
-  return <span>{habilidades.length} habilidades</span>;
-}
-
 /** `66,7%`, con coma y sin decimal cuando es redondo. */
 function porcentaje(n: number): string {
   return `${n % 1 === 0 ? n : n.toFixed(1).replace(".", ",")}%`;
@@ -943,7 +927,7 @@ function TablaDelReparto({
 }) {
   if (filas.length === 0) return null;
   const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
-  const td = "px-3 py-1.5";
+  const td = "overflow-hidden px-3 py-1.5 whitespace-nowrap";
 
   return (
     <div className="p-4">
@@ -958,16 +942,15 @@ function TablaDelReparto({
       <div className="mt-2 overflow-x-auto">
         {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
-        <table className="w-full min-w-[86rem] table-fixed text-sm">
+        <table className="w-full min-w-[96rem] table-fixed text-sm">
           <colgroup>
             <col className="w-[16%]" />
             <col className="w-[6%]" />
-            <col className="w-[10%]" />
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
+            <col className="w-[11%]" />
             <col className="w-[15%]" />
             <col className="w-[15%]" />
-            <col className="w-[10%]" />
+            <col className="w-[18.5%]" />
+            <col className="w-[18.5%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
@@ -986,13 +969,6 @@ function TablaDelReparto({
               <th scope="col" className={`${th} text-left`}>
                 Nivel habilidad secundaria
               </th>
-              <th
-                scope="col"
-                className={`${th} text-left`}
-                title="habilidades a las que el ojeador aún no les ha puesto techo"
-              >
-                Máximo potencial
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -1004,7 +980,7 @@ function TablaDelReparto({
                   <tr>
                     <th
                       scope="colgroup"
-                      colSpan={8}
+                      colSpan={7}
                       className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
                     >
                       {t}
@@ -1042,16 +1018,6 @@ function TablaDelReparto({
                           maximum={a.secondaryLevel.maximum}
                           maxReached={a.secondaryLevel.maxReached}
                         />
-                      </td>
-                      <td
-                        className={`${td} text-left text-xs text-[var(--muted)]`}
-                        title={
-                          a.openCeilings.length > 0
-                            ? a.openCeilings.join(" · ")
-                            : "el ojeador ya le puso techo a todo"
-                        }
-                      >
-                        <MaximoPotencial habilidades={a.openCeilings} />
                       </td>
                     </tr>
                   ))}
