@@ -84,6 +84,28 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
     }
 
 
+def _cobertura_del_ojeador(rows: list[Any]) -> dict[str, Any]:
+    """Cuantas lecturas ha dado el ojeador, de todas las que hay.
+
+    Una lectura es un par jugador-habilidad. Cuenta como revelada si se sabe
+    el nivel, el techo, o que ya toco techo --las tres son informacion--.
+    """
+    revelados = total = 0
+    en_blanco: dict[str, int] = {}
+    for fila in rows:
+        for p in list(fila.players) + list(fila.at_max):
+            total += 1
+            if p.current is not None or p.maximum is not None or p.max_reached:
+                revelados += 1
+            else:
+                en_blanco[p.name] = en_blanco.get(p.name, 0) + 1
+    # Un canterano "en blanco" es el que no tiene NI UNA lectura en las siete.
+    sin_nada = sorted(
+        n for n, cuantas in en_blanco.items() if cuantas == len(yss.SKILLS)
+    )
+    return {"known": revelados, "total": total, "blankPlayers": sin_nada}
+
+
 def _alternativas(main, por_habilidad, habilidad_de):
     """Cuantos recibirian doble racion con cada secundario posible."""
     salida = []
@@ -177,6 +199,11 @@ async def academy_training_plan(
         "secondaryLabel": etiqueta_de(secondary, skill_sec),
         "doubleCount": plan.con_doble,
         "doubleWeeks": plan.semanas_dobles,
+        "doubleBlind": plan.doble_a_ciegas,
+        # Cuanto ha revelado el ojeador en toda la academia. Sin esto la
+        # cancha llena de "desconocido" parece un fallo nuestro, y es el
+        # estado real: aqui casi nada esta revelado todavia.
+        "scouting": _cobertura_del_ojeador(rows),
         # Que pasaria con CADA alternativa de secundario, para poder elegir
         # sabiendo: el desplegable ensena el numero al lado de cada opcion en
         # vez de obligar a probarlas una por una.

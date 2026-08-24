@@ -279,3 +279,54 @@ def test_las_semanas_dobles_suman_solo_a_los_de_la_interseccion() -> None:
     )
     assert plan.semanas_dobles == plan.con_doble * 10
     assert plan.semanas_dobles > 0, "sin esto la prueba no dice nada"
+
+
+def test_cuantos_de_los_que_reciben_doble_van_a_ciegas() -> None:
+    """En esta academia casi todo esta sin revelar; la cancha debe decirlo."""
+    def note(nombre: str, current, maximum, tope=False) -> PlayerNote:
+        return PlayerNote(
+            name=nombre, note=8, bucket="excelente", leaves_soon=False,
+            max_reached=tope, priority=1, current=current, maximum=maximum,
+        )
+
+    cola = [
+        note("Ana", None, None),      # en blanco
+        note("Bea", None, None),      # en blanco
+        note("Cid", 5, None),         # sabe el nivel: no es a ciegas
+        note("Dan", None, 7),         # sabe el techo: tampoco
+        note("Eva", None, None, tope=True),  # se sabe que no sube
+    ]
+    plan = youth_training_plan(
+        "defending", "passing_defenders", cola, cola,
+        tope_principal=set(), tope_secundaria=set(),
+    )
+    dobles = [a.player for a in plan.asignaciones if a.recibe_doble]
+    esperado = sum(1 for n in ("Ana", "Bea") if n in dobles)
+    assert plan.doble_a_ciegas == esperado
+
+
+def test_la_cobertura_del_ojeador_cuenta_las_tres_formas_de_saber() -> None:
+    """Nivel, techo o «ya no sube»: las tres son informacion, el hueco no."""
+    from types import SimpleNamespace
+
+    from app.api.v1.endpoints.academy import _cobertura_del_ojeador
+    from app.domain.engines.youth_skill_score import SKILLS
+
+    def note(nombre, current=None, maximum=None, tope=False):
+        return PlayerNote(
+            name=nombre, note=None, bucket="", leaves_soon=False,
+            max_reached=tope, current=current, maximum=maximum,
+        )
+
+    # Un jugador en blanco en las siete, y otro con una sola lectura.
+    filas = [
+        SimpleNamespace(
+            players=[note("Blanco"), note("Algo", current=5 if s == "keeper" else None)],
+            at_max=[],
+        )
+        for s in SKILLS
+    ]
+    cobertura = _cobertura_del_ojeador(filas)
+    assert cobertura["total"] == 2 * len(SKILLS)
+    assert cobertura["known"] == 1
+    assert cobertura["blankPlayers"] == ["Blanco"], "«Algo» tiene una lectura"

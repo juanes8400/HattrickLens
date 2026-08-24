@@ -216,6 +216,21 @@ class PlanDeEntrenamiento:
         """
         return sum(a.weeks_left or 0 for a in self.asignaciones if a.recibe_doble)
 
+    @property
+    def doble_a_ciegas(self) -> int:
+        """De los que reciben doble racion, a cuantos no se les sabe nada.
+
+        No es un defecto del reparto: la cola los pone ahi a proposito, porque
+        entrenar a un desconocido es lo que hace que se revele. Pero quien
+        mira la cancha tiene derecho a saber cuanta de esa apuesta es a
+        ciegas, que aqui suele ser casi toda.
+        """
+        return sum(
+            1 for a in self.asignaciones
+            if a.recibe_doble
+            and a.current is None and a.maximum is None and not a.max_reached
+        )
+
 
 REGION_AMBOS = "ambos"
 REGION_SOLO_PRINCIPAL = "solo_principal"

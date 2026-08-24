@@ -965,6 +965,30 @@ function TrainingPlan({
             mainLabel={plan.data.mainLabel}
             secondaryLabel={plan.data.secondaryLabel}
           />
+          {plan.data.scouting.total > 0 && (
+            <p className="mt-3 text-xs text-[var(--muted)]">
+              {plan.data.doubleBlind > 0 && (
+                <>
+                  <b className="text-[var(--text)]">
+                    {plan.data.doubleBlind === plan.data.doubleCount
+                      ? `Los ${plan.data.doubleCount} que reciben`
+                      : `${plan.data.doubleBlind} de los ${plan.data.doubleCount} que reciben`}
+                  </b>{" "}
+                  doble ración entrenan una habilidad que el ojeador no ha
+                  revelado — es a propósito: entrenarlos es lo que la revela.{" "}
+                </>
+              )}
+              El ojeador lleva {plan.data.scouting.known} lecturas de{" "}
+              {plan.data.scouting.total}
+              {plan.data.scouting.blankPlayers.length > 0 && (
+                <>
+                  , y {plan.data.scouting.blankPlayers.length} canteranos sin
+                  nada revelado todavía
+                </>
+              )}
+              .
+            </p>
+          )}
         </div>
       )}
     </Panel>

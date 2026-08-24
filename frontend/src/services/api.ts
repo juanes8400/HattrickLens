@@ -633,6 +633,10 @@ export interface AcademyTrainingPlan {
   doubleCount: number;
   /** Las semanas de doble ración que reparte el plan, sumadas. */
   doubleWeeks: number;
+  /** De los que reciben doble, a cuántos no se les sabe nada de esa habilidad. */
+  doubleBlind: number;
+  /** Cuánto ha revelado el ojeador en toda la academia. */
+  scouting: { known: number; total: number; blankPlayers: string[] };
   /** Qué pasaría con cada alternativa de secundario. */
   alternatives: {
     code: string;
