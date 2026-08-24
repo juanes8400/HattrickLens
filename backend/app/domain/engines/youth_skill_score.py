@@ -429,21 +429,21 @@ def score_skills(
                 # 2026-08-23: el desempate por edad faltaba y el orden acababa
                 # siendo alfabético. Gustavo Obregón, el más joven de la
                 # cantera, salía quinto detrás de Antonio, Carlos y Fabián.
-                # Peldaño, techo, HTMS28 maximo, y por ultimo el nivel
-                # actual --el mas cerca del techo primero: entre dos que van a
-                # acabar en el mismo sitio, entra el que esta a punto de
-                # rematarlo--.
+                # Peldaño, techo, edad de HOY, y por ultimo el nivel actual
+                # --el mas cerca del techo primero: entre dos que van a acabar
+                # en el mismo sitio, entra el que esta a punto de rematarlo--.
                 #
-                # 2026-08-24: el tercer criterio era la edad de hoy. Ahora es
-                # el HTMS28 maximo, que la lleva dentro --y pesa mas que nada
-                # a estas edades-- pero ademas descuenta a quien tiene un
-                # techo bajo confirmado, cosa que la edad sola no sabia hacer.
+                # 2026-08-24: se probo a desempatar por el HTMS28 maximo en
+                # vez de por la edad. Se descarto: el termino de edad de ese
+                # numero es el 99% de el a estas edades, asi que era la misma
+                # ordenacion con mas ruido. El HTMS28 se ENSEÑA en la tabla,
+                # que es donde aporta, pero no ordena.
                 players=sorted(
                     names,
                     key=lambda p: (
                         p.priority,
                         -(p.note or 0),
-                        -p.htms28_max,
+                        p.age_days_total,
                         -(p.current or 0),
                         p.name,
                     ),

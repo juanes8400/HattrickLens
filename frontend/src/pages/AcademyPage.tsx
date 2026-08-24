@@ -891,19 +891,21 @@ function TablaDelReparto({
       <div className="mt-2 overflow-x-auto">
         {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
-        <table className="w-full min-w-[96rem] table-fixed text-sm">
+        <table className="w-full min-w-[108rem] table-fixed text-sm">
           <colgroup>
-            <col className="w-[15%]" />
             <col className="w-[14%]" />
+            <col className="w-[6%]" />
+            <col className="w-[13%]" />
             <col className="w-[10%]" />
-            <col className="w-[13%]" />
-            <col className="w-[13%]" />
-            <col className="w-[17.5%]" />
-            <col className="w-[17.5%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[16.5%]" />
+            <col className="w-[16.5%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>Jugador</th>
+              <th scope="col" className={`${th} text-right`}>Edad</th>
               <th
                 scope="col"
                 className={`${th} text-right`}
@@ -935,7 +937,7 @@ function TablaDelReparto({
                   <tr>
                     <th
                       scope="colgroup"
-                      colSpan={7}
+                      colSpan={8}
                       className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
                     >
                       {t}
@@ -947,6 +949,9 @@ function TablaDelReparto({
                     // filas con barra de nivel miden un píxel más.
                     <tr key={a.player} className="h-9 border-t border-[var(--border)]">
                       <td className={`${td} text-left`}>{a.player}</td>
+                      <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                        {edadCorta(a.ageDaysTotal)}
+                      </td>
                       <td className={`${td} text-right`}>
                         <Horquilla
                           min={a.htms28Min}
