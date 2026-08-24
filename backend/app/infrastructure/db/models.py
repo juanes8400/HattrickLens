@@ -169,6 +169,12 @@ class Team(Base):
     transfers_import_version: Mapped[int] = mapped_column(
         SmallInteger, default=0, server_default="0"
     )
+    #  La caza de comisiones de club anterior. Migración 0064: el dinero
+    #  dice CUÁNDO merece la pena buscar, aunque no diga quién.
+    commission_seen: Mapped[int] = mapped_column(BigInteger, default=0)
+    commission_seen_closed: Mapped[int] = mapped_column(BigInteger, default=0)
+    commission_hunting: Mapped[bool] = mapped_column(Boolean, default=False)
+    commission_tried_json: Mapped[str] = mapped_column(Text, default="[]")
     transfers_history_complete: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
     )

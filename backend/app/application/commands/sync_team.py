@@ -22,6 +22,7 @@ from app.domain.engines.sync_diff import (
     diff_standing,
     diff_training,
 )
+from app.domain.engines import caza_de_comisiones as caza
 from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.ports.repositories import UnitOfWork
@@ -33,6 +34,12 @@ from app.domain.ports.repositories import UnitOfWork
 # otro caller (tests, comandos que no necesitan progreso) lo deja mudo, sin
 # tocar el resto del flujo.
 ProgressReporter = Callable[[str], Awaitable[None]]
+
+#: Cuantos ex-jugadores se miran por sincronizacion cuando NO hay dinero que
+#: perseguir. Es la red de seguridad --que nadie quede sin mirar nunca-- por
+#: si la senal del dinero se perdio: `economy.xml` recuerda la semana en curso
+#: y la anterior, nada mas, asi que dos semanas sin sincronizar la borran.
+GOTEO_DE_VIGILANCIA = 5
 
 
 async def _report(on_progress: ProgressReporter | None, message: str) -> None:
@@ -413,6 +420,19 @@ class SyncTeamHandler:
                 # Quien esta en venta sale de la plantilla, no de la lista de
                 # pujas. Va antes que `currentbids`, que solo enriquece.
                 await self._marcar_quien_esta_en_venta(uow, cmd.team_id, captured_at)
+
+            if "economy" in files:
+                # La vigilancia de reventas, enganchada a la economia y no a
+                # `transfersteam`.
+                #
+                # 2026-08-24: este monitoreo estaba definido y documentado
+                # como "corre en cada sync", pero la llamada desaparecio
+                # cuando `transfersteam` salio del sync normal el dia 22.
+                # Llevaba dos dias sin ejecutarse. Ahora cuelga de `economy`,
+                # que es de donde sale la senal que lo dispara.
+                await self._backfill_previous_club_bonus(
+                    uow, cmd.team_id, result, on_progress,
+                )
 
             if "youthplayerlist" in files:
                 await self._sync_informes_de_ojeador(
@@ -2606,6 +2626,43 @@ class SyncTeamHandler:
             jugador.resale_closed_reason = motivo
         return revendido
 
+    async def _mirar_si_entro_comision(
+        self, uow: UnitOfWork, team_id: int, payload: dict[str, Any],
+    ) -> bool:
+        """El dinero dice CUANDO buscar una reventa, aunque no diga quien.
+
+        2026-08-24. `IncomeSoldPlayersCommission` viene en linea propia en
+        `economy.xml` --separada de las ventas del club-- y ya se descargaba
+        en cada sync. Si sube, alguien revendio a un ex-jugador nuestro.
+
+        Sin esto la vigilancia era ciega: 218 en cola y casi todas las
+        llamadas gastadas en semanas donde no habia nada que encontrar.
+        """
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        if equipo is None:
+            return False
+        decision = caza.revisar_el_dinero(
+            caza.Vigilancia(
+                vista_en_curso=equipo.commission_seen or 0,
+                vista_cerrada=equipo.commission_seen_closed or 0,
+                cazando=bool(equipo.commission_hunting),
+            ),
+            caza.Comisiones(
+                en_curso=payload.get("income_sold_players_commission") or 0,
+                semana_cerrada=payload.get("last_income_sold_players_commission") or 0,
+            ),
+        )
+        equipo.commission_seen = decision.vista_en_curso
+        equipo.commission_seen_closed = decision.vista_cerrada
+        equipo.commission_hunting = decision.cazando
+        if decision.empieza:
+            # Cacería nueva, lista limpia: si no, la parte aleatoria se
+            # habría agotado en el primer barrido y no volvería a mirar.
+            equipo.commission_tried_json = "[]"
+        return decision.empieza
+
     async def _backfill_previous_club_bonus(
         self,
         uow: UnitOfWork,
@@ -2629,17 +2686,51 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        candidates = (
-            await uow.session.execute(
-                select(m.Player.ht_player_id)
-                .where(m.Player.team_id == team_id, m.Player.sold_at.is_not(None))
-                .order_by(
-                    m.Player.previous_club_bonus_checked_at.is_not(None),
-                    m.Player.previous_club_bonus_checked_at,
+        equipo = await uow.session.get(m.Team, team_id)
+        cazando = bool(equipo is not None and equipo.commission_hunting)
+
+        if cazando:
+            # Hay dinero por atribuir: se persigue. Uno reciente, uno al azar
+            # --2026-08-24, disenado por el usuario--: lo reciente rinde mas,
+            # y el azar impide que la cola larga muera de hambre.
+            por_recencia = list((
+                await uow.session.execute(
+                    select(m.Player.ht_player_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        m.Player.sold_at.is_not(None),
+                        ~m.Player.resale_closed,
+                    )
+                    .order_by(m.Player.sold_at.desc())
                 )
-                .limit(25)
-            )
-        ).scalars().all()
+            ).scalars().all())
+            try:
+                probados = set(json.loads(equipo.commission_tried_json or "[]"))
+            except ValueError:
+                probados = set()
+            candidates = caza.orden_de_busqueda(por_recencia, probados, 25)
+            if not candidates:
+                # Se probaron todos y no aparecio: se cierra la caceria en vez
+                # de repetirla eternamente. Si el dinero vuelve a subir, se
+                # abre otra con la lista limpia.
+                equipo.commission_hunting = False
+                equipo.commission_tried_json = "[]"
+        else:
+            # Sin dinero nuevo no hay nada que encontrar. El goteo sigue, pero
+            # solo como red: que nadie quede sin mirar nunca.
+            candidates = list((
+                await uow.session.execute(
+                    select(m.Player.ht_player_id)
+                    .where(m.Player.team_id == team_id, m.Player.sold_at.is_not(None))
+                    .order_by(
+                        m.Player.previous_club_bonus_checked_at.is_not(None),
+                        m.Player.previous_club_bonus_checked_at,
+                    )
+                    .limit(GOTEO_DE_VIGILANCIA)
+                )
+            ).scalars().all())
+
+        encontrado = False
         for ht_player_id in candidates:
             await _report(
                 on_progress, f"Revisando comisión de club anterior de {ht_player_id}...",
@@ -2648,10 +2739,20 @@ class SyncTeamHandler:
                 wrote = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
                 if wrote:
                     result.snapshots_written += 1
+                    encontrado = True
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001 — best effort, ver _backfill_sold_player_details
                 result.errors.append(f"previous_club_bonus:{ht_player_id}: {exc}")
+            if cazando:
+                probados.add(ht_player_id)
+
+        if cazando and equipo is not None:
+            equipo.commission_tried_json = json.dumps(sorted(probados))
+            if encontrado:
+                # Apareció: se cierra hasta que vuelva a entrar dinero.
+                equipo.commission_hunting = False
+                equipo.commission_tried_json = "[]"
 
     async def _apply_player_enrichment(
         self, uow: UnitOfWork, ht_player_id: int, fetched_at: datetime
@@ -2906,6 +3007,10 @@ class SyncTeamHandler:
             result.snapshots_written += 1
             if file == "economy":
                 from app.infrastructure.db import models as m
+
+                # El dinero de la comision dice CUANDO buscar una reventa.
+                # Va aqui porque `economy.xml` ya se descargo: cuesta cero.
+                await self._mirar_si_entro_comision(uow, team_id, payload)
 
                 team = await uow.session.get(m.Team, team_id)
                 currency = team.currency_name if team else ""

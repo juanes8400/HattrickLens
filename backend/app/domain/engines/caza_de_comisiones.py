@@ -1,0 +1,120 @@
+"""Cuándo buscar una reventa, y en qué orden mirar.
+
+2026-08-24, diseñado con el usuario. La vigilancia de reventas es cara —una
+llamada a CHPP por ex-jugador— y estaba ciega: 218 en cola y casi todas las
+llamadas gastadas en semanas donde no había nada que encontrar.
+
+Dos ideas, y las dos vienen de él:
+
+1. **El dinero dice cuándo.** `IncomeSoldPlayersCommission` viene en línea
+   propia en `economy.xml`, separada de las ventas del club, y ya se
+   descarga en cada sync. Si sube, alguien revendió a un ex-jugador nuestro.
+   No dice quién, pero convierte una patrulla en una persecución.
+
+2. **La alternancia dice en qué orden.** Uno reciente, uno al azar, otro
+   reciente, otro al azar… Lo reciente rinde más —quien lleva cuatro años en
+   la cola sin que lo revendan lleva cuatro años demostrando que su
+   probabilidad semanal es baja— pero el azar impide que la cola larga muera
+   de hambre.
+"""
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Comisiones:
+    """Las dos cifras de comisión que trae `economy.xml`."""
+
+    en_curso: int
+    semana_cerrada: int
+
+
+@dataclass(frozen=True)
+class Vigilancia:
+    """Lo que sabíamos la última vez que se miró."""
+
+    vista_en_curso: int
+    vista_cerrada: int
+    cazando: bool
+
+
+@dataclass(frozen=True)
+class Decision:
+    cazando: bool
+    vista_en_curso: int
+    vista_cerrada: int
+    #: Sólo cierto cuando la cacería ARRANCA en esta pasada: es la señal para
+    #: vaciar la lista de a quién ya se probó.
+    empieza: bool
+
+
+def revisar_el_dinero(antes: Vigilancia, ahora: Comisiones) -> Decision:
+    """¿Ha entrado comisión nueva desde la última vez?
+
+    El caso que obliga a mirar las dos cifras: si no sincronizas durante una
+    semana entera, la de «en curso» ya se reinició a cero y el dinero sólo
+    queda en la de «semana cerrada». Mirando sólo la primera, esa comisión no
+    se vería nunca.
+    """
+    vista_en_curso = antes.vista_en_curso
+    vista_cerrada = antes.vista_cerrada
+    empieza = False
+
+    if ahora.semana_cerrada != vista_cerrada:
+        # Cambió la semana. Si lo que se cerró es más de lo que llegamos a
+        # ver mientras corría, hubo dinero que se nos escapó.
+        if ahora.semana_cerrada > vista_en_curso:
+            empieza = True
+        vista_cerrada = ahora.semana_cerrada
+        # La cifra en curso vuelve a empezar; si no se reinicia aquí, la
+        # comisión de la semana siguiente tendría que superar a la de ésta
+        # para notarse.
+        vista_en_curso = 0
+
+    if ahora.en_curso > vista_en_curso:
+        empieza = True
+        vista_en_curso = ahora.en_curso
+
+    return Decision(
+        cazando=antes.cazando or empieza,
+        vista_en_curso=vista_en_curso,
+        vista_cerrada=vista_cerrada,
+        empieza=empieza,
+    )
+
+
+def orden_de_busqueda(
+    por_recencia: list[int],
+    ya_probados: set[int],
+    cuantos: int,
+    *,
+    azar: random.Random | None = None,
+) -> list[int]:
+    """Uno reciente, uno al azar, otro reciente, otro al azar…
+
+    `por_recencia` viene ordenada del movimiento más reciente al más
+    antiguo. Los ya probados EN ESTA CACERÍA no se repiten; la lista se vacía
+    al abrir una nueva, porque si no la mitad aleatoria se agotaría tras el
+    primer barrido y no volvería a mirar a nadie.
+    """
+    rnd = azar or random.Random()
+    quedan = [x for x in por_recencia if x not in ya_probados]
+    if not quedan:
+        return []
+
+    elegidos: list[int] = []
+    # La cola de recientes se consume por la cabeza; el azar, de lo que
+    # quede una vez descontado lo ya elegido en esta misma tanda.
+    pendientes = list(quedan)
+    toca_reciente = True
+    while pendientes and len(elegidos) < cuantos:
+        if toca_reciente:
+            elegido = pendientes[0]
+        else:
+            elegido = rnd.choice(pendientes)
+        pendientes.remove(elegido)
+        elegidos.append(elegido)
+        toca_reciente = not toca_reciente
+    return elegidos
