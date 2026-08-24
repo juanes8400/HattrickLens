@@ -783,13 +783,13 @@ function nombreCorto(etiqueta: string): string {
 
 /** En qué se puede convertir, de lo peor a lo mejor.
  *
- * Los dos extremos salen de lo que el ojeador ha dicho: el suelo es el nivel
- * actual donde lo reveló y cero donde no; el techo es el techo donde lo
- * reveló y 8 donde no. Encima va el término de edad del HTMS28, el mismo
- * para las dos puntas.
+ * La barra va de cero al HTMS28 MÁXIMO —así su largo dice hasta dónde puede
+ * llegar— y se rellena hasta el MÍNIMO. Lo relleno es lo que ya tiene
+ * asegurado; el hueco que queda hasta el final es lo que el ojeador todavía
+ * no ha dicho, y se encoge solo según va hablando.
  *
- * La anchura de la barra ES lo que falta por saber: se estrecha sola según el
- * ojeador habla, sin que haya que explicar nada.
+ * Todas las filas se miden contra el mismo tope: si cada una se midiera a sí
+ * misma, dos barras del mismo largo dirían cosas distintas.
  */
 function Horquilla({
   min,
@@ -800,18 +800,21 @@ function Horquilla({
   max: number;
   tope: number;
 }) {
-  const izquierda = tope > 0 ? (min / tope) * 100 : 0;
-  const ancho = tope > 0 ? ((max - min) / tope) * 100 : 0;
+  const pct = (n: number) => (tope > 0 ? Math.min(100, (n / tope) * 100) : 0);
   return (
     <span
-      className="flex items-center justify-end gap-2"
-      title={`Entre ${min} y ${max} puntos HTMS28. La barra mide lo que aún no se sabe de él.`}
+      className="flex h-4 items-center justify-end gap-2"
+      title={`Entre ${min} y ${max} puntos HTMS28. Lo relleno es lo que ya tiene; el resto, lo que aún no se sabe de él.`}
     >
       <span className="tabular-nums text-[var(--muted)]">{min}</span>
-      <span className="relative h-1.5 w-16 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+      <span className="relative h-1.5 w-16 shrink-0">
         <span
-          className="absolute inset-y-0 rounded bg-[var(--accent)]"
-          style={{ left: `${izquierda}%`, width: `${Math.max(2, ancho)}%` }}
+          className="absolute inset-y-0 left-0 rounded bg-[var(--surface-2)]"
+          style={{ width: `${pct(max)}%` }}
+        />
+        <span
+          className="absolute inset-y-0 left-0 rounded bg-[var(--accent)]"
+          style={{ width: `${pct(min)}%` }}
         />
       </span>
       <span className="tabular-nums">{max}</span>
@@ -1767,6 +1770,25 @@ function Ojeadores() {
   );
   const porRevelar = data.players.filter((p) => p.mayUnlock.length > 0);
 
+  //  Agrupado por quien lo trajo, y los de la academia al final: son el grupo
+  //  grande y no tienen nada que contar.
+  const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
+  const td = "overflow-hidden whitespace-nowrap px-3 py-1.5";
+  const grupos = new Map<string, typeof data.players>();
+  for (const p of data.players) {
+    const clave = esOjeadorDeVerdad(p.scoutName, p.scoutId)
+      ? p.scoutName
+      : "Vinieron con la academia";
+    grupos.set(clave, [...(grupos.get(clave) ?? []), p]);
+  }
+  const porOjeador = [...grupos.entries()].sort(
+    (a, b) =>
+      Number(a[0] === "Vinieron con la academia") -
+        Number(b[0] === "Vinieron con la academia") ||
+      b[1].length - a[1].length ||
+      a[0].localeCompare(b[0]),
+  );
+
   return (
     <div className="space-y-4">
       <Panel
@@ -1815,6 +1837,78 @@ function Ojeadores() {
           </ul>
         </Panel>
       )}
+
+      <Panel
+        title="Quién trajo a quién"
+        meta={`${data.players.length} canteranos`}
+      >
+        <div className="overflow-x-auto p-4">
+          <table className="w-full min-w-[42rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-[26%]" />
+              <col className="w-[10%]" />
+              <col className="w-[26%]" />
+              <col className="w-[18%]" />
+              <col className="w-[20%]" />
+            </colgroup>
+            <thead className="bg-[var(--surface-2)]">
+              <tr>
+                <th scope="col" className={`${th} text-left`}>Ojeador</th>
+                <th scope="col" className={`${th} text-right`}>Región</th>
+                <th scope="col" className={`${th} text-left`}>Canterano</th>
+                <th scope="col" className={`${th} text-right`}>Llegó</th>
+                <th scope="col" className={`${th} text-left`}>Queda por revelar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {porOjeador.map(([quien, suyos]) =>
+                suyos.map((p, i) => (
+                  <tr
+                    key={p.htYouthPlayerId}
+                    className="h-9 border-t border-[var(--border)]"
+                  >
+                    {/* El nombre del ojeador una vez por bloque: repetirlo en
+                        cada fila haria leer catorce veces "vinieron con la
+                        academia" para saber que son un grupo. */}
+                    <td
+                      className={`${td} truncate text-left`}
+                      title={quien}
+                      style={{ color: i === 0 ? undefined : "transparent" }}
+                    >
+                      {i === 0 ? quien : "·"}
+                    </td>
+                    {/* La región es donde el ojeador estaba mirando. A los
+                        que vinieron con la academia no los buscó nadie, así
+                        que enseñar una región ahí sería inventar un origen. */}
+                    <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                      {i === 0 &&
+                      p.scoutingRegionId &&
+                      esOjeadorDeVerdad(p.scoutName, p.scoutId)
+                        ? p.scoutingRegionId
+                        : ""}
+                    </td>
+                    <td className={`${td} truncate text-left`} title={p.name}>
+                      {p.name}
+                    </td>
+                    <td className={`${td} text-right text-xs text-[var(--muted)]`}>
+                      {p.arrivedAt ? date(p.arrivedAt) : "—"}
+                    </td>
+                    <td className={`${td} truncate text-left text-xs`}>
+                      {p.mayUnlock.length > 0 ? (
+                        <span className="text-[var(--accent)]">
+                          {p.mayUnlock.join(" · ")}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted)]">nada</span>
+                      )}
+                    </td>
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <Panel title="Lo que dijo el ojeador" meta={`${traidos.length} informes`}>
         <div className="grid gap-4 p-4 md:grid-cols-2">
