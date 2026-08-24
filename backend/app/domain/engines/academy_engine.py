@@ -110,6 +110,11 @@ CORTE_PROMESA = 7
 CORTE_ACEPTABLE = 6
 CORTE_VENDIBLE = 5
 
+#: Cuantos techos hacen falta para que un veredicto deje de ser provisional.
+#: Vivia en la capa de consultas, pero es una regla del dominio: el motor la
+#: necesita para no recomendar un despido sobre una sola lectura.
+MIN_REVEALED_FOR_A_VERDICT = 3
+
 
 def _categorise(best_max: int | None) -> Category:
     """La categoria sale del techo REVELADO, nunca del asumido.
@@ -155,12 +160,15 @@ def evaluate(
 
     if left <= 21:
         advice = f"URGENTE: quedan {left} días para promocionarlo o lo pierdes"
-    elif category in (Category.PLUMBER, Category.SELLABLE):
-        advice = "no merece plaza de entrenamiento: despídelo y libera hueco"
     elif revealed == 0:
         advice = "el ojeador aún no ha revelado nada suyo: no hay con qué juzgarlo"
-    elif revealed < 3:
+    elif revealed < MIN_REVEALED_FOR_A_VERDICT:
+        # Despedir no se deshace. Con una sola lectura no se recomienda: lo
+        # unico que se sabe de el puede ser justo su peor habilidad, y el
+        # consejo saldria de esa casualidad.
         advice = "sigue entrenándolo: aún no conoces su techo real"
+    elif category in (Category.PLUMBER, Category.SELLABLE):
+        advice = "no merece plaza de entrenamiento: despídelo y libera hueco"
     elif age_years >= 17:
         advice = "listo para promocionar: ya aprovechará mejor el entrenamiento senior"
     else:

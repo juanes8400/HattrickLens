@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
-import { CanchaDelReparto } from "../components/CanchaDelReparto";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import {
@@ -1030,12 +1029,6 @@ function TrainingPlan({
 
       {plan.data && (
         <div className="p-4">
-          <CanchaDelReparto
-            assignments={plan.data.assignments}
-            outside={plan.data.outside}
-            mainLabel={plan.data.mainLabel}
-            secondaryLabel={plan.data.secondaryLabel}
-          />
           {plan.data.scouting.total > 0 && (
             <p className="mt-3 text-xs text-[var(--muted)]">
               {plan.data.doubleBlind > 0 && (

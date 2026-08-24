@@ -42,9 +42,12 @@ from app.infrastructure.db import models as m
 # Un año de Hattrick son 112 días. Mismo número que usa `academy_engine`.
 DAYS_PER_HT_YEAR = 112
 
-# Con menos techos revelados que esto, el veredicto sobre un canterano
-# es provisional y conviene decirlo en la ficha.
-MIN_REVEALED_FOR_A_VERDICT = 3
+# Con menos techos revelados que esto, el veredicto sobre un canterano es
+# provisional y conviene decirlo en la ficha. La regla vive en el motor: la
+# misma cifra decide que no se recomiende un despido sobre una sola lectura.
+from app.domain.engines.academy_engine import (  # noqa: E402
+    MIN_REVEALED_FOR_A_VERDICT,
+)
 
 
 @lru_cache(maxsize=1)

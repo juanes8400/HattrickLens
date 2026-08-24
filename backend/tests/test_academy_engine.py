@@ -170,3 +170,22 @@ def test_un_techo_revelado_bajo_manda_sobre_el_resto_a_oscuras() -> None:
         scoring=(2, 4), passing=(6, None), defending=(6, None),
     ))
     assert e.category is Category.PLUMBER
+
+
+def test_no_se_recomienda_despedir_sobre_una_sola_lectura() -> None:
+    """Despedir no se deshace, y lo unico revelado puede ser su peor
+    habilidad por pura casualidad del ojeador."""
+    e = evaluate("Un solo dato", 16, 0, _skills(
+        scoring=(0, 4), passing=(0, None), defending=(0, None),
+    ))
+    assert e.category is Category.PLUMBER, "la categoria si sale de lo poco que hay"
+    assert "despídelo" not in e.promote_advice
+    assert "sigue entrenándolo" in e.promote_advice
+
+
+def test_con_pruebas_suficientes_si_se_recomienda() -> None:
+    e = evaluate("Visto de sobra", 16, 0, _skills(
+        scoring=(0, 4), passing=(0, 3), defending=(0, 2),
+    ))
+    assert e.revealed_skills >= 3
+    assert "despídelo" in e.promote_advice
