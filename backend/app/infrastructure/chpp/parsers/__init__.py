@@ -1119,6 +1119,82 @@ def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
         "created_date": _txt(team, "CreatedDate", ""),
     }
 
+#: `CommentType` de `youthplayerdetails.xml`. Los dos que importan son el 4
+#: --"tiene nivel X en la habilidad Y"-- y el 5 --"alcanzara un potencial Z en
+#: Y"--: son la misma informacion que `PlayerSkills`, pero dicha por el
+#: ojeador y con el texto que el usuario ve en el juego.
+COMENTARIO_NIVEL_ACTUAL = 4
+COMENTARIO_POTENCIAL = 5
+
+#: `CommentSkillType` -> nuestra habilidad. Los codigos salen del fichero real
+#: (Pases = 8, comprobado con Alirio Asprilla el 2026-08-24); los demas se
+#: dejan sin traducir antes que adivinarlos, y el comentario se guarda igual
+#: con su codigo crudo.
+COMMENT_SKILL_TYPES: dict[int, str] = {
+    8: "passing",
+}
+
+
+@register("youthplayerdetails")
+def parse_youthplayerdetails(xml: bytes) -> dict[str, Any]:
+    """La ficha de UN canterano, con lo que dijo el ojeador que lo trajo.
+
+    2026-08-24. `youthplayerlist.xml` da los niveles pero no dice de donde
+    salio el chico. Aqui viene `ScoutCall`: que ojeador lo encontro, en que
+    region estaba ojeando y sus comentarios literales. No existe un fichero de
+    ojeadores en CHPP --`youthscouts`, `youthscoutlist` y `scouts` devuelven
+    401--, asi que esta es la unica via.
+
+    Ademas, cada habilidad trae `MayUnlock`: si el ojeador todavia puede
+    revelarla. Es la respuesta exacta a "que me queda por saber de el", que
+    hasta ahora solo se podia suponer.
+    """
+    root = ElementTree.fromstring(xml)
+    p = root.find(".//YouthPlayer")
+    if p is None:
+        return {}
+
+    skills = p.find("PlayerSkills")
+    puede_revelar: dict[str, bool] = {}
+    for tag, field_name in YOUTH_SKILL_TAGS.items():
+        nodo = skills.find(f"{tag}SkillMax") if skills is not None else None
+        puede_revelar[field_name] = (
+            nodo is not None and nodo.get("MayUnlock", "False").lower() == "true"
+        )
+
+    llamada = p.find("ScoutCall")
+    ojeador = llamada.find("Scout") if llamada is not None else None
+    comentarios = []
+    if llamada is not None:
+        for c in llamada.findall("./ScoutComments/ScoutComment"):
+            tipo = _int(c, "CommentType")
+            codigo = _int(c, "CommentSkillType")
+            comentarios.append({
+                "text": _txt(c, "CommentText", "").replace("&nbsp;", " ").strip(),
+                "type": tipo,
+                "variation": _int(c, "CommentVariation"),
+                "skill_code": codigo,
+                # Solo los tipos 4 y 5 hablan de una habilidad; en el tipo 1
+                # el campo trae el id del jugador, no un codigo de habilidad.
+                "skill": (
+                    COMMENT_SKILL_TYPES.get(codigo)
+                    if tipo in (COMENTARIO_NIVEL_ACTUAL, COMENTARIO_POTENCIAL)
+                    else None
+                ),
+                "level": _int(c, "CommentSkillLevel"),
+            })
+
+    return {
+        "ht_youth_player_id": _int(p, "YouthPlayerID"),
+        "scout_id": _int(ojeador, "ScoutId") if ojeador is not None else None,
+        "scout_name": _txt(ojeador, "ScoutName", "") if ojeador is not None else "",
+        "scouting_region_id": (
+            _int(llamada, "ScoutingRegionID") if llamada is not None else None
+        ),
+        "scout_comments": comentarios,
+        "may_unlock": puede_revelar,
+    }
+
 
 @register("youthplayerlist")
 def parse_youthplayerlist(xml: bytes) -> dict[str, Any]:

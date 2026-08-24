@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>youthplayerdetails.xml</FileName>
+  <Version>1.0</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-08-24 15:26:59</FetchedDate>
+  <YouthPlayer>
+    <YouthPlayerID>424402061</YouthPlayerID>
+    <FirstName>Alirio</FirstName>
+    <NickName />
+    <LastName>Asprilla</LastName>
+    <Age>16</Age>
+    <AgeDays>63</AgeDays>
+    <ArrivalDate>2026-08-09 05:05:00</ArrivalDate>
+    <CanBePromotedIn>96</CanBePromotedIn>
+    <PlayerNumber>100</PlayerNumber>
+    <Statement />
+    <Cards>0</Cards>
+    <InjuryLevel>0</InjuryLevel>
+    <Specialty>0</Specialty>
+    <CareerGoals>1</CareerGoals>
+    <CareerHattricks>0</CareerHattricks>
+    <LeagueGoals>1</LeagueGoals>
+    <FriendlyGoals>0</FriendlyGoals>
+    <OwningYouthTeam>
+      <YouthTeamID>3278056</YouthTeamID>
+      <YouthTeamName>Envigado en la Libertadores</YouthTeamName>
+      <YouthTeamLeagueID>713407</YouthTeamLeagueID>
+      <SeniorTeam>
+        <SeniorTeamID>537758</SeniorTeamID>
+        <SeniorTeamName>Pulgas Arrechas</SeniorTeamName>
+      </SeniorTeam>
+    </OwningYouthTeam>
+    <PlayerSkills>
+      <KeeperSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+      <KeeperSkillMax IsAvailable="False" MayUnlock="False" />
+      <DefenderSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+      <DefenderSkillMax IsAvailable="False" MayUnlock="False" />
+      <PlaymakerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+      <PlaymakerSkillMax IsAvailable="False" MayUnlock="False" />
+      <WingerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+      <WingerSkillMax IsAvailable="True">5</WingerSkillMax>
+      <PassingSkill IsAvailable="True" IsMaxReached="False">5</PassingSkill>
+      <PassingSkillMax IsAvailable="True">6</PassingSkillMax>
+      <ScorerSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+      <ScorerSkillMax IsAvailable="False" MayUnlock="False" />
+      <SetPiecesSkill IsAvailable="False" IsMaxReached="False" MayUnlock="False" />
+      <SetPiecesSkillMax IsAvailable="False" MayUnlock="False" />
+    </PlayerSkills>
+    <ScoutCall>
+      <Scout>
+        <ScoutId>10768192</ScoutId>
+        <ScoutName>Mauricio Guerra</ScoutName>
+      </Scout>
+      <ScoutingRegionID>1717</ScoutingRegionID>
+      <ScoutComments>
+        <ScoutComment>
+          <CommentText>He encontrado lo que podría ser una posible figura para el equipo en el futuro. Tiene 16 años y se llama Alirio Asprilla.</CommentText>
+          <CommentType>1</CommentType>
+          <CommentVariation>3</CommentVariation>
+          <CommentSkillType>424402061</CommentSkillType>
+          <CommentSkillLevel>16</CommentSkillLevel>
+        </ScoutComment>
+        <ScoutComment>
+          <CommentText>Este jugador tiene nivel insuficiente en Pases por el momento.&amp;nbsp;</CommentText>
+          <CommentType>4</CommentType>
+          <CommentVariation>1</CommentVariation>
+          <CommentSkillType>8</CommentSkillType>
+          <CommentSkillLevel>5</CommentSkillLevel>
+        </ScoutComment>
+        <ScoutComment>
+          <CommentText>¡Entrena adecuadamente a este muchacho y alcanzará su potencial aceptable en Pases en un abrir y cerrar de ojos!&amp;nbsp;</CommentText>
+          <CommentType>5</CommentType>
+          <CommentVariation>2</CommentVariation>
+          <CommentSkillType>8</CommentSkillType>
+          <CommentSkillLevel>6</CommentSkillLevel>
+        </ScoutComment>
+      </ScoutComments>
+    </ScoutCall>
+  </YouthPlayer>
+</HattrickData>
