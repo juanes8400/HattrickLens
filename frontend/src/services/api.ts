@@ -620,8 +620,6 @@ export interface TrainingSlot {
   current: number | null;
   maximum: number | null;
   maxReached: boolean;
-  /** Cuántas semanas de entrenamiento le quedan antes de irse. */
-  weeksLeft: number | null;
 }
 
 export interface AcademyTrainingPlan {

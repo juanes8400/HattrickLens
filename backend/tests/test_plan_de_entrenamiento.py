@@ -213,55 +213,6 @@ def test_la_habilidad_a_secas_sigue_valiendo_como_clave() -> None:
         "winger", "winger", "wingback", "wingback",
     ]
 
-def test_las_semanas_de_plazo_son_los_entrenamientos_que_le_quedan() -> None:
-    """La academia entrena una vez por semana: el plazo es cuantas veces mas."""
-    from app.domain.engines.youth_skill_score import (
-        UNKNOWN_DEADLINE_DAYS,
-        YouthCandidate,
-    )
-
-    def chico(**kw):
-        return YouthCandidate(name="X", skills={}, **kw)
-
-    # Sale con 17;000 y hoy tiene 16;000: le queda un ano juvenil, 16 semanas.
-    assert chico(
-        age_years_at_deadline=17, age_days_at_deadline=0,
-        age_years=16, age_days=0,
-    ).semanas_de_plazo == 16
-    # Trece dias son una semana entera y sobra: no se cuenta la que no cabe.
-    assert chico(
-        age_years_at_deadline=17, age_days_at_deadline=13,
-        age_years=17, age_days=0,
-    ).semanas_de_plazo == 1
-    # Ya se le paso: cero, nunca negativo.
-    assert chico(
-        age_years_at_deadline=17, age_days_at_deadline=0,
-        age_years=17, age_days=50,
-    ).semanas_de_plazo == 0
-    # No saber cuando sale no es lo mismo que que no le quede tiempo.
-    assert chico(
-        age_years_at_deadline=0, age_days_at_deadline=UNKNOWN_DEADLINE_DAYS,
-        age_years=16, age_days=0,
-    ).semanas_de_plazo is None
-
-
-def test_las_semanas_dobles_suman_solo_a_los_de_la_interseccion() -> None:
-    """Cuatro con dos semanas rinden menos que dos con veinte."""
-    def con_plazo(nombre: str, semanas: int) -> PlayerNote:
-        return PlayerNote(
-            name=nombre, note=8, bucket="excelente", leaves_soon=False,
-            max_reached=False, priority=1, weeks_left=semanas,
-        )
-
-    cola = [con_plazo(n, 10) for n in ("Ana", "Bea", "Cid", "Dan", "Eva")]
-    plan = youth_training_plan(
-        "defending", "passing_defenders", cola, cola,
-        tope_principal=set(), tope_secundaria=set(),
-    )
-    assert plan.semanas_dobles == plan.con_doble * 10
-    assert plan.semanas_dobles > 0, "sin esto la prueba no dice nada"
-
-
 def test_cuantos_de_los_que_reciben_doble_van_a_ciegas() -> None:
     """En esta academia casi todo esta sin revelar; la cancha debe decirlo."""
     def note(nombre: str, current, maximum, tope=False) -> PlayerNote:

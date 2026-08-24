@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
@@ -863,68 +863,42 @@ const PUESTOS: Record<string, string> = {
   forward: "Delantero",
 };
 
-/** Una fila del reparto: quién, por qué está ahí y qué recibe. */
-function FilaDelReparto({
-  a,
-  mainLabel,
-  secondaryLabel,
-}: {
-  a: TrainingSlot;
-  mainLabel: string;
-  secondaryLabel: string;
-}) {
-  const racion = (cuanto: number, etiqueta: string) =>
-    cuanto > 0 && (
-      <span
-        className={
-          cuanto === 50
-            ? "text-xs text-[var(--warning)]"
-            : "text-xs text-[var(--positive)]"
-        }
-      >
-        {etiqueta} {cuanto}%
-      </span>
-    );
+/** El nombre corto de un entrenamiento, para una cabecera de columna.
+ *
+ * «Pases (defensas y centro del campo completo)» no cabe en una columna, y
+ * repetido en cada fila tapaba la tabla entera. En la cabecera va la parte
+ * corta y el nombre completo en el título. */
+function nombreCorto(etiqueta: string): string {
+  const parentesis = etiqueta.indexOf(" (");
+  return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
+}
 
+/** La ración de una celda: 100, 50 o nada, con su barra.
+ *
+ * La barra no calcula nada — es el porcentaje tal cual, dibujado. Sirve para
+ * ver de un vistazo dónde hay media ración sin leer cada número. */
+function Racion({ cuanto }: { cuanto: number }) {
+  const color = cuanto === 50 ? "var(--warning)" : "var(--positive)";
   return (
-    <li className="flex flex-wrap items-center gap-x-2 text-sm">
-      <span>{a.player}</span>
-      {/* La edad, que es la mitad del motivo por el que está en esta plaza;
-          la otra mitad es la habilidad, al final de la fila. */}
-      <span className="tabular-nums text-xs text-[var(--muted)]">
-        {edadCorta(a.ageDaysTotal)}
+    <span className="flex items-center justify-end gap-2">
+      <span className="tabular-nums" style={{ color: cuanto ? color : "var(--muted)" }}>
+        {cuanto ? `${cuanto}%` : "·"}
       </span>
-      {a.weeksLeft != null && (
+      <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
         <span
-          className="tabular-nums text-xs"
-          style={{ color: a.weeksLeft <= 5 ? "#fca5a5" : "var(--muted)" }}
-          title="entrenamientos que le quedan antes de irse"
-        >
-          {a.weeksLeft} sem
-        </span>
-      )}
-      {a.puesto && (
-        <span className="text-xs text-[var(--muted)]">
-          {PUESTOS[a.puesto] ?? a.puesto}
-        </span>
-      )}
-      {racion(a.racionPrincipal, mainLabel)}
-      {racion(a.racionSecundaria, secondaryLabel)}
-      <span className="ml-auto shrink-0">
-        <NivelDeHabilidad
-          current={a.current}
-          maximum={a.maximum}
-          maxReached={a.maxReached}
+          className="block h-full"
+          style={{ width: `${cuanto}%`, background: cuanto ? color : "transparent" }}
         />
       </span>
-    </li>
+    </span>
   );
 }
 
-/** El reparto agrupado por regiones: el once y, con el mismo criterio, el
- *  banquillo. Un suplente que entra recibe lo que toque su puesto, así que
- *  se eligen en el mismo orden en vez de por descarte. */
-function ListaDelReparto({
+/** El reparto como tabla: una columna por entrenamiento, y el nombre del
+ *  entrenamiento UNA vez, en la cabecera. Antes cada fila repetía las dos
+ *  etiquetas enteras y no había forma de comparar dos jugadores de un
+ *  vistazo, que es justo para lo que sirve una tabla. */
+function TablaDelReparto({
   titulo,
   pie,
   filas,
@@ -938,6 +912,9 @@ function ListaDelReparto({
   secondaryLabel: string;
 }) {
   if (filas.length === 0) return null;
+  const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
+  const td = "px-3 py-1.5";
+
   return (
     <div className="p-4">
       <div className="flex items-baseline gap-2">
@@ -947,28 +924,69 @@ function ListaDelReparto({
           {pie && ` · ${pie}`}
         </span>
       </div>
-      {Object.entries(REGIONES).map(([clave, { titulo: t, pista }]) => {
-        const suyas = filas.filter((a) => a.region === clave);
-        if (suyas.length === 0) return null;
-        return (
-          <div key={clave} className="mt-3">
-            <p className="text-xs text-[var(--muted)]">
-              {t}
-              {pista && ` · ${pista}`}
-            </p>
-            <ul className="mt-1 space-y-1">
-              {suyas.map((a) => (
-                <FilaDelReparto
-                  key={a.player}
-                  a={a}
-                  mainLabel={mainLabel}
-                  secondaryLabel={secondaryLabel}
-                />
-              ))}
-            </ul>
-          </div>
-        );
-      })}
+
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-[var(--surface-2)]">
+            <tr>
+              <th scope="col" className={`${th} text-left`}>Jugador</th>
+              <th scope="col" className={`${th} text-right`}>Edad</th>
+              <th scope="col" className={`${th} text-left`}>Puesto</th>
+              <th scope="col" className={`${th} text-right`} title={mainLabel}>
+                {nombreCorto(mainLabel)}
+              </th>
+              <th scope="col" className={`${th} text-right`} title={secondaryLabel}>
+                {nombreCorto(secondaryLabel)}
+              </th>
+              <th scope="col" className={`${th} text-left`}>Nivel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(REGIONES).map(([clave, { titulo: t, pista }]) => {
+              const suyas = filas.filter((a) => a.region === clave);
+              if (suyas.length === 0) return null;
+              return (
+                <Fragment key={clave}>
+                  <tr>
+                    <th
+                      scope="colgroup"
+                      colSpan={6}
+                      className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
+                    >
+                      {t}
+                      {pista && ` · ${pista}`}
+                    </th>
+                  </tr>
+                  {suyas.map((a) => (
+                    <tr key={a.player} className="border-t border-[var(--border)]">
+                      <td className={`${td} text-left`}>{a.player}</td>
+                      <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                        {edadCorta(a.ageDaysTotal)}
+                      </td>
+                      <td className={`${td} text-left text-[var(--muted)]`}>
+                        {PUESTOS[a.puesto] ?? a.puesto ?? ""}
+                      </td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        <Racion cuanto={a.racionPrincipal} />
+                      </td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        <Racion cuanto={a.racionSecundaria} />
+                      </td>
+                      <td className={`${td} text-left`}>
+                        <NivelDeHabilidad
+                          current={a.current}
+                          maximum={a.maximum}
+                          maxReached={a.maxReached}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -994,7 +1012,7 @@ function SinRevelar({
   const suyos = (de: TrainingSlot[]) =>
     de
       .filter((a) => enBlanco.has(a.player))
-      .sort((x, y) => (y.weeksLeft ?? 0) - (x.weeksLeft ?? 0));
+      .sort((x, y) => x.ageDaysTotal - y.ageDaysTotal);
   const banquillo = suyos(fuera);
   const once = suyos(dentro);
 
@@ -1011,7 +1029,6 @@ function SinRevelar({
       <span className="tabular-nums text-[var(--muted)]">
         {Math.floor(a.ageDaysTotal / 112)};
         {String(a.ageDaysTotal % 112).padStart(3, "0")}
-        {a.weeksLeft != null && ` · ${a.weeksLeft} sem`}
       </span>
     </span>
   );
@@ -1143,13 +1160,13 @@ function TrainingPlan({
 
       {plan.data && (
         <div className="divide-y divide-[var(--border)]">
-          <ListaDelReparto
+          <TablaDelReparto
             titulo="El once"
             filas={plan.data.assignments}
             mainLabel={plan.data.mainLabel}
             secondaryLabel={plan.data.secondaryLabel}
           />
-          <ListaDelReparto
+          <TablaDelReparto
             titulo="El banquillo"
             pie="lo que recibirían si entran"
             filas={plan.data.outside.filter((a) => a.puesto)}
