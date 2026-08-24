@@ -630,8 +630,8 @@ export interface AcademyTrainingPlan {
   /** Cuántos reciben los dos entrenamientos a la vez. */
   doubleCount: number;
   assignments: TrainingSlot[];
-  /** Los que no entraron en los once. */
-  outside: string[];
+  /** El banquillo: los que no entraron, con su columna sugerida. */
+  outside: (TrainingSlot & { benchColumn: string })[];
 }
 
 export interface SyncChange {

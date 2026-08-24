@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
 from app.domain.engines import youth_skill_score as yss
-from app.domain.engines.youth_training_plan import youth_training_plan
+from app.domain.engines.youth_training_plan import (
+    ENTRENAMIENTOS,
+    _reparte_por_region,
+    mejor_variante,
+    youth_training_plan,
+)
 from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
@@ -31,6 +36,44 @@ async def academy(team_id: int, session: AsyncSession = Depends(get_session)) ->
     if data is None:
         raise HTTPException(404, f"team {team_id} not found")
     return cast(dict[str, Any], _camel(asdict(data)))
+
+
+#: A que columna del banquillo va cada uno, por la habilidad en la que mas
+#: destaca. Hattrick no le asigna puesto a un juvenil, asi que esto es una
+#: lectura: quien apunta a defensa se sienta con los defensas.
+COLUMNA_POR_HABILIDAD: dict[str, str] = {
+    "keeper": "Portero",
+    "defending": "Defensa Central",
+    "winger": "Extremo",
+    "playmaking": "Medio Centro",
+    "passing": "Medio Centro",
+    "scoring": "Delantero",
+}
+
+
+def _columna_de_banquillo(mejor_habilidad: str | None) -> str:
+    """Sin habilidad destacada no hay columna que adivinar: va a «Extra»."""
+    return COLUMNA_POR_HABILIDAD.get(mejor_habilidad or "", "Extra")
+
+
+def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
+    """Que entrenar de principal y de secundario, con la forma que encaja."""
+    if len(rows) < 2:
+        return None
+    principal, segunda = rows[0], rows[1]
+    codigo = mejor_variante(principal.skill, segunda.skill)
+    variante = ENTRENAMIENTOS.get(codigo)
+    solape = len(_reparte_por_region(principal.skill, codigo)[0])
+    return {
+        "main": principal.skill,
+        "mainLabel": principal.label,
+        "secondary": codigo,
+        "secondaryLabel": variante.label if variante else segunda.label,
+        "secondarySkill": segunda.skill,
+        # Cuantos recibirian las dos cosas con esa pareja: es lo que justifica
+        # elegir una forma y no otra.
+        "bothCount": solape,
+    }
 
 
 @router.get(
@@ -68,6 +111,11 @@ async def academy_training_plan(
     if main not in por_habilidad or secondary not in por_habilidad:
         raise HTTPException(404, "no hay canteranos con esas habilidades")
 
+    academia = await service.get(team_id)
+    mejores = {
+        j.name: j.best_skill for j in (academia.players if academia else [])
+    }
+
     plan = youth_training_plan(
         main, secondary,
         por_habilidad[main].players,
@@ -83,7 +131,14 @@ async def academy_training_plan(
         "secondaryLabel": etiquetas.get(secondary, secondary),
         "doubleCount": plan.con_doble,
         "assignments": [asdict(a) for a in plan.asignaciones],
-        "outside": plan.fuera,
+        # El banquillo: los que no entraron, con lo mismo que llevan los de
+        # dentro y la columna en que caen. Un juvenil no tiene puesto asignado
+        # en Hattrick, asi que la columna sale de la habilidad en la que mas
+        # destaca --es una lectura nuestra, no un dato del juego.
+        "outside": [
+            {**asdict(a), "benchColumn": _columna_de_banquillo(mejores.get(a.player))}
+            for a in plan.fuera
+        ],
     }))
 
 
@@ -179,5 +234,10 @@ async def academy_skill_scores(
             yss.trainable_weight_for(weight_base) if trainable_weight is None
             else trainable_weight
         ),
+        # La pareja sugerida: la habilidad que mas puntua y, de la segunda,
+        # la FORMA que mas solapa con la primera. Sin eso, «Defensa + Pases»
+        # se lee como una recomendacion util cuando en realidad no dejaria a
+        # nadie recibiendo las dos cosas.
+        "suggestion": _pareja_sugerida(rows),
         "skillScores": [asdict(r) for r in rows],
     }))

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
+import { CanchaDelReparto } from "../components/CanchaDelReparto";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import {
@@ -781,34 +782,6 @@ function WhoToTrain({ data }: { data: Academy }) {
   );
 }
 
-/** Los dos entrenamientos repartidos sobre el once.
- *
- * Hattrick juvenil entrena una cosa principal y otra secundaria, y cada una
- * llega a un conjunto de PUESTOS. Los puestos que reciben las dos son la plaza
- * más valiosa que hay, así que ahí van los primeros de la cola.
- */
-const REGIONES: Record<string, { titulo: string; pista: string }> = {
-  ambos: { titulo: "Reciben los dos", pista: "doble ración" },
-  solo_principal: { titulo: "Solo el principal", pista: "" },
-  solo_secundaria: { titulo: "Solo el secundario", pista: "" },
-  sin_entrenamiento: { titulo: "Sin entrenamiento", pista: "ocupan sitio, no entrenan" },
-};
-
-/** `15;028`, el formato de Hattrick. */
-function edadCorta(dias: number): string {
-  return `${Math.floor(dias / 112)};${String(dias % 112).padStart(3, "0")}`;
-}
-
-/** Los nombres oficiales de Hattrick, los mismos que usa Alineación. */
-const PUESTOS: Record<string, string> = {
-  keeper: "Portero",
-  wingback: "Defensa Lateral",
-  central_defender: "Defensa Central",
-  winger: "Extremo",
-  inner_midfield: "Mediocentro",
-  forward: "Delantero",
-};
-
 function TrainingPlan({
   data,
   soonMaxDays,
@@ -864,8 +837,6 @@ function TrainingPlan({
     </label>
   );
 
-  const porRegion = (region: string) =>
-    (plan.data?.assignments ?? []).filter((a) => a.region === region);
 
   return (
     <Panel
@@ -888,79 +859,13 @@ function TrainingPlan({
       )}
 
       {plan.data && (
-        <div className="divide-y divide-[var(--border)]">
-          {Object.entries(REGIONES).map(([clave, { titulo, pista }]) => {
-            const filas = porRegion(clave);
-            if (filas.length === 0) return null;
-            return (
-              <div key={clave} className="p-4">
-                <div className="flex items-baseline gap-2">
-                  <h3 className="text-sm font-medium">{titulo}</h3>
-                  <span className="text-xs text-[var(--muted)]">
-                    {filas.length}
-                    {pista && ` · ${pista}`}
-                  </span>
-                </div>
-                <ul className="mt-2 space-y-1">
-                  {filas.map((a) => (
-                    <li
-                      key={a.player}
-                      className="flex flex-wrap items-center gap-x-2 text-sm"
-                    >
-                      <span>{a.player}</span>
-                      {/* La edad, que es la mitad del motivo por el que está
-                          en esta plaza; la otra mitad es la habilidad. */}
-                      <span className="tabular-nums text-xs text-[var(--muted)]">
-                        {edadCorta(a.ageDaysTotal)}
-                      </span>
-                      {a.puesto && (
-                        <span className="text-xs text-[var(--muted)]">
-                          {PUESTOS[a.puesto] ?? a.puesto}
-                        </span>
-                      )}
-                      {/* Qué recibe y de cuál: una plaza puede ser entera en
-                          un entrenamiento y media en el otro. */}
-                      {a.racionPrincipal > 0 && (
-                        <span
-                          className={
-                            a.racionPrincipal === 50
-                              ? "text-xs text-[var(--warning)]"
-                              : "text-xs text-[var(--positive)]"
-                          }
-                        >
-                          {plan.data?.mainLabel} {a.racionPrincipal}%
-                        </span>
-                      )}
-                      {a.racionSecundaria > 0 && (
-                        <span
-                          className={
-                            a.racionSecundaria === 50
-                              ? "text-xs text-[var(--warning)]"
-                              : "text-xs text-[var(--positive)]"
-                          }
-                        >
-                          {plan.data?.secondaryLabel} {a.racionSecundaria}%
-                        </span>
-                      )}
-                      <span className="ml-auto shrink-0">
-                        <NivelDeHabilidad
-                          current={a.current}
-                          maximum={a.maximum}
-                          maxReached={a.maxReached}
-                        />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-          {plan.data.outside.length > 0 && (
-            <p className="p-4 text-xs text-[var(--muted)]">
-              Fuera de los once ({plan.data.outside.length}):{" "}
-              {plan.data.outside.join(" · ")}
-            </p>
-          )}
+        <div className="p-4">
+          <CanchaDelReparto
+            assignments={plan.data.assignments}
+            outside={plan.data.outside}
+            mainLabel={plan.data.mainLabel}
+            secondaryLabel={plan.data.secondaryLabel}
+          />
         </div>
       )}
     </Panel>

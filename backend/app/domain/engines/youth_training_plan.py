@@ -37,6 +37,19 @@ from app.domain.engines.youth_skill_score import (
 #: Los once de una alineación juvenil. Ninguna región puede repartir más.
 PLAZAS_DE_UNA_ALINEACION = 11
 
+#: Cuántos caben de cada puesto, en el orden en que se rellenan las plazas que
+#: ningún entrenamiento toca. El portero primero porque un once sin portero no
+#: es un once; después el centro de la defensa, que es lo que suele quedar
+#: fuera de los entrenamientos de banda.
+PUESTOS_DE_UN_ONCE: tuple[tuple[str, int], ...] = (
+    ("keeper", 1),
+    ("central_defender", 3),
+    ("inner_midfield", 3),
+    ("forward", 3),
+    ("wingback", 2),
+    ("winger", 2),
+)
+
 
 #: Qué PUESTOS toca cada entrenamiento, y con cuánta ración. Los números salen
 #: de `SLOT_CUPOS`; esto dice a qué puestos corresponden.
@@ -52,23 +65,74 @@ PLAZAS_DE_UNA_ALINEACION = 11
 #: Si algún día uno resulta estar mal, se corrige AQUÍ y todo lo demás se
 #: recalcula solo — es la única tabla del módulo con una opinión sobre las
 #: reglas del juego.
-PUESTOS_ENTEROS: dict[str, tuple[str, ...]] = {
-    "keeper": ("keeper",),
-    "defending": ("wingback", "wingback", "central_defender",
-                  "central_defender", "central_defender"),
-    "playmaking": ("inner_midfield", "inner_midfield", "inner_midfield"),
-    "winger": ("winger", "winger"),
-    "passing": ("inner_midfield", "inner_midfield", "inner_midfield",
-                "winger", "winger", "forward", "forward", "forward"),
-    "scoring": ("forward", "forward", "forward"),
-    "set_pieces": ("keeper", "wingback", "wingback", "central_defender",
-                   "central_defender", "central_defender", "winger", "winger",
-                   "inner_midfield", "inner_midfield", "inner_midfield"),
+#: Cada ENTRENAMIENTO --no cada habilidad-- con los puestos que toca. La
+#: distincion importa: Hattrick entrena la misma habilidad por caminos
+#: distintos, y cada camino llega a gente distinta. «Pases» no toca a ningun
+#: defensa; «Pases (defensas y centro del campo completo)» si.
+#:
+#: 2026-08-23, dictado por el usuario. Los dos casos de media racion estan
+#: comprobados contra la wiki de Hattrick (ver git). Si alguno cambia, se
+#: corrige AQUI y todo lo demas se recalcula solo.
+PORTERO = ("keeper",)
+DEFENSAS = ("wingback", "wingback", "central_defender", "central_defender",
+            "central_defender")
+MEDIOS = ("inner_midfield", "inner_midfield", "inner_midfield")
+EXTREMOS = ("winger", "winger")
+DELANTEROS = ("forward", "forward", "forward")
+
+
+@dataclass(frozen=True)
+class Entrenamiento:
+    """Un entrenamiento juvenil: que habilidad sube y a quien alcanza."""
+
+    codigo: str
+    skill: str
+    label: str
+    enteros: tuple[str, ...]
+    medios: tuple[str, ...] = ()
+
+
+ENTRENAMIENTOS: dict[str, Entrenamiento] = {
+    e.codigo: e for e in (
+        Entrenamiento("keeper", "keeper", "Portería", PORTERO),
+        Entrenamiento("defending", "defending", "Defensa", DEFENSAS),
+        Entrenamiento(
+            "defending_wide", "defending",
+            "Defensa (porteros, defensas y centro del campo completo)",
+            PORTERO + DEFENSAS + MEDIOS + EXTREMOS,
+        ),
+        Entrenamiento("playmaking", "playmaking", "Jugadas", MEDIOS, EXTREMOS),
+        Entrenamiento("winger", "winger", "Lateral", EXTREMOS,
+                      ("wingback", "wingback")),
+        Entrenamiento("winger_forwards", "winger", "Lateral (extremos y delanteros)",
+                      EXTREMOS + DELANTEROS),
+        Entrenamiento("passing", "passing", "Pases", MEDIOS + EXTREMOS + DELANTEROS),
+        Entrenamiento(
+            "passing_defenders", "passing",
+            "Pases (defensas y centro del campo completo)",
+            DEFENSAS + MEDIOS + EXTREMOS,
+        ),
+        Entrenamiento("scoring", "scoring", "Anotación", DELANTEROS),
+        Entrenamiento("set_pieces", "set_pieces", "Balón parado",
+                      PORTERO + DEFENSAS + MEDIOS + EXTREMOS),
+    )
 }
-PUESTOS_MEDIOS: dict[str, tuple[str, ...]] = {
-    "playmaking": ("winger", "winger"),
-    "winger": ("wingback", "wingback"),
-}
+
+#: Las variantes de cada habilidad, en el orden en que se declararon. La
+#: primera es la forma "normal" y sirve de respaldo.
+VARIANTES_POR_HABILIDAD: dict[str, list[str]] = {}
+for _e in ENTRENAMIENTOS.values():
+    VARIANTES_POR_HABILIDAD.setdefault(_e.skill, []).append(_e.codigo)
+
+
+def _entrenamiento(clave: str) -> Entrenamiento:
+    """Acepta el codigo de un entrenamiento o el de una habilidad a secas."""
+    if clave in ENTRENAMIENTOS:
+        return ENTRENAMIENTOS[clave]
+    variantes = VARIANTES_POR_HABILIDAD.get(clave)
+    if variantes:
+        return ENTRENAMIENTOS[variantes[0]]
+    raise KeyError(clave)
 
 
 @dataclass(frozen=True)
@@ -119,8 +183,9 @@ class PlanDeEntrenamiento:
     principal: str
     secundaria: str
     asignaciones: list[Asignacion] = field(default_factory=list)
-    #: Los que no entraron en los once.
-    fuera: list[str] = field(default_factory=list)
+    #: Los que no entraron en los once, con lo mismo que llevan los de dentro:
+    #: en el banquillo tambien hace falta saber quien es cada uno.
+    fuera: list[Asignacion] = field(default_factory=list)
 
     @property
     def con_doble(self) -> int:
@@ -133,18 +198,32 @@ REGION_SOLO_SECUNDARIA = "solo_secundaria"
 REGION_SIN_ENTRENAMIENTO = "sin_entrenamiento"
 
 
-def cupos_de(skill: str) -> list[Cupo]:
-    """Las plazas de un entrenamiento, enteras primero y medias después."""
-    enteros = [Cupo(p, 100) for p in PUESTOS_ENTEROS.get(skill, ())]
-    medios = [Cupo(p, 50) for p in PUESTOS_MEDIOS.get(skill, ())]
-    esperados = SLOT_CUPOS.get(skill)
-    if esperados is not None:
-        # La tabla de puestos y la de cuentas tienen que decir lo mismo. Si un
-        # dia se toca una y no la otra, que salte aqui y no en la pantalla.
-        assert (len(enteros), len(medios)) == esperados, (
-            f"{skill}: {len(enteros)}+{len(medios)} contra {esperados[0]}+{esperados[1]}"
-        )
-    return enteros + medios
+def cupos_de(clave: str) -> list[Cupo]:
+    """Las plazas de un entrenamiento, enteras primero y medias despues."""
+    e = _entrenamiento(clave)
+    return [Cupo(p, 100) for p in e.enteros] + [Cupo(p, 50) for p in e.medios]
+
+
+def mejor_variante(principal: str, skill_secundaria: str) -> str:
+    """De todas las formas de entrenar esa habilidad, la que mas solapa.
+
+    Es la pregunta que resuelve el ejemplo del usuario: con «Defensa» arriba,
+    «Pases» a secas no toca a ningun defensa y la interseccion sale VACIA;
+    «Pases (defensas y centro del campo completo)» la deja en cinco. Misma
+    habilidad, mismo puesto en el ranking, y la diferencia entre cero y cinco.
+
+    A igualdad de solape gana la forma normal, que es la primera declarada:
+    sin motivo para complicarse, no se complica.
+    """
+    variantes = VARIANTES_POR_HABILIDAD.get(skill_secundaria)
+    if not variantes:
+        return skill_secundaria
+    mejor, cuantos = variantes[0], -1
+    for codigo in variantes:
+        solape = len(_reparte_por_region(principal, codigo)[0])
+        if solape > cuantos:
+            mejor, cuantos = codigo, solape
+    return mejor
 
 
 def _reparte_por_region(
@@ -265,6 +344,17 @@ def youth_training_plan(
     coloca(solo_a, _orden_de_cola(cola_principal), REGION_SOLO_PRINCIPAL)
     coloca(solo_b, _orden_de_cola(cola_secundaria), REGION_SOLO_SECUNDARIA)
 
+    # Las plazas que no entrena ninguno de los dos: se deducen de lo que las
+    # regiones NO ocuparon. Sin esto, quien cae ahi se quedaba sin puesto y en
+    # la cancha no habia donde dibujarlo.
+    usados: dict[str, int] = {}
+    for a in plan.asignaciones:
+        usados[a.puesto] = usados.get(a.puesto, 0) + 1
+    libres: list[str] = []
+    for puesto, cabidas in PUESTOS_DE_UN_ONCE:
+        faltan = cabidas - usados.get(puesto, 0)
+        libres.extend([puesto] * max(0, faltan))
+
     # Lo que sobra: las plazas que no entrenan nada, con quien quede.
     restantes = [p for p in cola_principal if p.name not in ya_puestos]
     for jugador in restantes:
@@ -272,7 +362,9 @@ def youth_training_plan(
             break
         ya_puestos.add(jugador.name)
         plan.asignaciones.append(Asignacion(
-            player=jugador.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
+            player=jugador.name,
+            puesto=libres.pop(0) if libres else "",
+            region=REGION_SIN_ENTRENAMIENTO,
             racion_principal=0, racion_secundaria=0,
             peldano=jugador.priority,
             # Sin entrenamiento no hay habilidad "suya", pero se enseña la
@@ -284,5 +376,13 @@ def youth_training_plan(
             max_reached=jugador.max_reached,
         ))
 
-    plan.fuera = [p.name for p in cola_principal if p.name not in ya_puestos]
+    plan.fuera = [
+        Asignacion(
+            player=p.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
+            racion_principal=0, racion_secundaria=0, peldano=p.priority,
+            elegido_por=principal, age_days_total=p.age_days_total,
+            current=p.current, maximum=p.maximum, max_reached=p.max_reached,
+        )
+        for p in cola_principal if p.name not in ya_puestos
+    ]
     return plan

@@ -10,8 +10,7 @@ import pytest
 
 from app.domain.engines.youth_skill_score import PlayerNote
 from app.domain.engines.youth_training_plan import (
-    PUESTOS_ENTEROS,
-    PUESTOS_MEDIOS,
+    ENTRENAMIENTOS,
     REGION_AMBOS,
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
@@ -32,11 +31,11 @@ def _cola(*nombres: str) -> list[PlayerNote]:
 
 
 @pytest.mark.parametrize("skill", sorted(SLOT_CUPOS))
-def test_las_dos_tablas_dicen_lo_mismo(skill: str) -> None:
-    """Los puestos y las cuentas no pueden divergir sin que salte."""
+def test_la_forma_normal_cuadra_con_la_tabla_de_plazas(skill: str) -> None:
+    """Los puestos de la variante normal y las cuentas no pueden divergir."""
     enteros, medios = SLOT_CUPOS[skill]
-    assert len(PUESTOS_ENTEROS.get(skill, ())) == enteros
-    assert len(PUESTOS_MEDIOS.get(skill, ())) == medios
+    e = ENTRENAMIENTOS[skill]
+    assert (len(e.enteros), len(e.medios)) == (enteros, medios)
     assert len(cupos_de(skill)) == enteros + medios
 
 
@@ -101,6 +100,7 @@ def test_no_se_reparten_mas_de_once_plazas() -> None:
     )
     assert len(plan.asignaciones) == 11
     assert len(plan.fuera) == 8
+    assert all(a.player for a in plan.fuera), "el banquillo necesita los mismos datos"
 
 
 def test_los_que_sobran_ocupan_plazas_sin_entrenamiento() -> None:
@@ -170,3 +170,37 @@ def test_tapado_en_las_dos_no_entra_en_ninguna_plaza_que_entrene() -> None:
         if a.region != REGION_SIN_ENTRENAMIENTO
     ]
     assert "Tapado" not in entrenan
+
+
+# ── La variante de la secundaria se elige por el solape ────────────────────
+
+def test_el_caso_del_usuario_pases_a_secas_no_toca_a_ningun_defensa() -> None:
+    """Defensa arriba: «Pases» deja la interseccion VACIA."""
+    from app.domain.engines.youth_training_plan import _reparte_por_region
+    ambos, _, _ = _reparte_por_region("defending", "passing")
+    assert ambos == [], "Pases no deberia tocar a ningun defensa"
+
+
+def test_con_defensa_arriba_se_sugiere_la_variante_de_defensas() -> None:
+    from app.domain.engines.youth_training_plan import mejor_variante
+    assert mejor_variante("defending", "passing") == "passing_defenders"
+
+
+def test_esa_variante_deja_cinco_recibiendo_las_dos_cosas() -> None:
+    from app.domain.engines.youth_training_plan import _reparte_por_region
+    ambos, _, _ = _reparte_por_region("defending", "passing_defenders")
+    assert len(ambos) == 5, "los cinco defensas tenian que recibir doble"
+
+
+def test_a_igualdad_de_solape_gana_la_forma_normal() -> None:
+    """Sin motivo para complicarse, no se complica."""
+    from app.domain.engines.youth_training_plan import mejor_variante
+    assert mejor_variante("playmaking", "passing") == "passing"
+
+
+def test_la_habilidad_a_secas_sigue_valiendo_como_clave() -> None:
+    """Quien pida «passing» recibe la forma normal, no un error."""
+    assert len(cupos_de("passing")) == len(cupos_de("passing"))
+    assert [c.puesto for c in cupos_de("winger")] == [
+        "winger", "winger", "wingback", "wingback",
+    ]
