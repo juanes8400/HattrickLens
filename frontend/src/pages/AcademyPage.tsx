@@ -85,6 +85,10 @@ export function AcademyPage() {
         </p>
       </header>
 
+      {/* La cuenta de la academia sólo pinta algo junto a la plantilla: en
+          «Qué entrenar» o «A quién entrenar» no se está decidiendo dinero, y
+          cuatro cifras arriba compiten con lo que sí importa allí. */}
+      {view === "squad" && (
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Canteranos" value={String(data.squadSize)} />
         <Kpi
@@ -108,11 +112,42 @@ export function AcademyPage() {
           tone={profitable ? "positive" : "danger"}
         />
       </div>
+      )}
 
-      {!profitable && data.invested > 0 && data.breakEvenSales > 0 && (
+      {view === "squad" &&
+        !profitable &&
+        data.invested > 0 &&
+        data.breakEvenSales > 0 && (
         <Note>
           Harían falta {data.breakEvenSales} venta(s) más al precio medio para equilibrar.
         </Note>
+      )}
+
+      {/* Dos pantallas seguidas que responden preguntas distintas, y sin
+          decirlo se confunden: la primera elige QUÉ se entrena, la segunda a
+          QUIÉN le llega. Una línea aquí ahorra tener que deducirlo. */}
+      {(view === "train" || view === "who") && (
+        <p className="text-sm text-[var(--muted)]">
+          {view === "train" ? (
+            <>
+              <b className="text-[var(--text)]">Qué entrenar</b> puntúa cada
+              habilidad por lo que tu cantera puede ganar en ella, y de ahí sale
+              la pareja recomendada. Los mandos de abajo son tuyos: mueve el
+              corte del plazo o la separación entre peldaños y el ranking se
+              recalcula. El reparto adopta la recomendación solo, hasta que
+              elijas otra cosa a mano en la pestaña siguiente.
+            </>
+          ) : (
+            <>
+              <b className="text-[var(--text)]">A quién entrenar</b> reparte los
+              dos entrenamientos elegidos entre los once y el banquillo. Cada
+              entrenamiento llega a unos puestos y no a otros: quien cae donde
+              se cruzan los dos recibe ambos. Dentro de cada tramo entran
+              primero los mejores de la cola —peldaño, techo y edad—, así que
+              cambiar el secundario cambia quién juega dónde.
+            </>
+          )}
+        </p>
       )}
 
       {data.urgent.length > 0 && (
