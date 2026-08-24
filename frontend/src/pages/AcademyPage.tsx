@@ -873,22 +873,21 @@ function nombreCorto(etiqueta: string): string {
   return parentesis > 0 ? etiqueta.slice(0, parentesis) : etiqueta;
 }
 
-/** La ración de una celda: 100, 50 o nada, con su barra.
+/** Lo que recibe un canterano de UN entrenamiento: «Lateral: 100% ███».
  *
- * La barra no calcula nada — es el porcentaje tal cual, dibujado. Sirve para
- * ver de un vistazo dónde hay media ración sin leer cada número. */
-function Racion({ cuanto }: { cuanto: number }) {
+ * El nombre va dentro de la celda y no en la cabecera: la cabecera dice qué
+ * hueco es --principal o secundario-- y la celda dice qué le toca ahí. La
+ * barra no calcula nada, es el porcentaje dibujado. */
+function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
+  if (cuanto === 0) return <span className="text-[var(--muted)]">·</span>;
   const color = cuanto === 50 ? "var(--warning)" : "var(--positive)";
   return (
-    <span className="flex items-center justify-end gap-2">
-      <span className="tabular-nums" style={{ color: cuanto ? color : "var(--muted)" }}>
-        {cuanto ? `${cuanto}%` : "·"}
+    <span className="flex items-center gap-2 whitespace-nowrap" title={etiqueta}>
+      <span style={{ color }}>
+        {nombreCorto(etiqueta)}: <span className="tabular-nums">{cuanto}%</span>
       </span>
       <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
-        <span
-          className="block h-full"
-          style={{ width: `${cuanto}%`, background: cuanto ? color : "transparent" }}
-        />
+        <span className="block h-full" style={{ width: `${cuanto}%`, background: color }} />
       </span>
     </span>
   );
@@ -932,11 +931,11 @@ function TablaDelReparto({
               <th scope="col" className={`${th} text-left`}>Jugador</th>
               <th scope="col" className={`${th} text-right`}>Edad</th>
               <th scope="col" className={`${th} text-left`}>Puesto</th>
-              <th scope="col" className={`${th} text-right`} title={mainLabel}>
-                {nombreCorto(mainLabel)}
+              <th scope="col" className={`${th} text-left`} title={mainLabel}>
+                Entrenamiento principal
               </th>
-              <th scope="col" className={`${th} text-right`} title={secondaryLabel}>
-                {nombreCorto(secondaryLabel)}
+              <th scope="col" className={`${th} text-left`} title={secondaryLabel}>
+                Entrenamiento secundario
               </th>
               <th scope="col" className={`${th} text-left`}>Nivel</th>
             </tr>
@@ -966,11 +965,11 @@ function TablaDelReparto({
                       <td className={`${td} text-left text-[var(--muted)]`}>
                         {PUESTOS[a.puesto] ?? a.puesto ?? ""}
                       </td>
-                      <td className={`${td} text-right tabular-nums`}>
-                        <Racion cuanto={a.racionPrincipal} />
+                      <td className={`${td} text-left`}>
+                        <Racion cuanto={a.racionPrincipal} etiqueta={mainLabel} />
                       </td>
-                      <td className={`${td} text-right tabular-nums`}>
-                        <Racion cuanto={a.racionSecundaria} />
+                      <td className={`${td} text-left`}>
+                        <Racion cuanto={a.racionSecundaria} etiqueta={secondaryLabel} />
                       </td>
                       <td className={`${td} text-left`}>
                         <NivelDeHabilidad
