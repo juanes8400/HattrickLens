@@ -130,3 +130,88 @@ def test_el_modelo_guarda_el_conteo_en_la_etapa() -> None:
     """Los campos existen desde el 2026-08-22; lo que faltaba era usarlos."""
     columnas = {c.name for c in m.PlayerStint.__table__.columns}
     assert {"games_played_for_us", "games_computed_at"} <= columnas
+
+
+# ── No cerrar en falso a quien acaba de irse ────────────────────────────────
+
+def test_quien_acaba_de_irse_no_se_cierra_como_sin_comprador() -> None:
+    """El caso Enyo Kasaliyski, 2026-08-25: vendido por 4.880.000 y cerrado
+    como "se fue sin que nadie lo comprara" porque el libro todavia no
+    reflejaba la venta. Su comision no se habria vigilado jamas."""
+    assert vigilancia.motivo_de_cierre(
+        canterano=False, revendido=False, desaparecido=False,
+        salio_sin_comprador=True, recien_salido=True,
+    ) is None
+
+
+def test_quien_se_fue_hace_meses_si_se_cierra() -> None:
+    """Ahi ya no hay venta en camino que esperar."""
+    assert vigilancia.motivo_de_cierre(
+        canterano=False, revendido=False, desaparecido=False,
+        salio_sin_comprador=True, recien_salido=False,
+    ) == "sin_comprador"
+
+
+def test_el_plazo_de_gracia_se_mide_en_dias() -> None:
+    ahora = datetime(2026, 8, 25, 12, 0)
+    assert vigilancia.salio_hace_poco(datetime(2026, 8, 24, 23, 0), ahora) is True
+    assert vigilancia.salio_hace_poco(datetime(2026, 8, 1), ahora) is False
+    assert vigilancia.salio_hace_poco(None, ahora) is False
+
+
+def test_desaparecer_manda_aunque_acabe_de_irse() -> None:
+    """Si su ficha ya no existe, no hay venta que esperar."""
+    assert vigilancia.motivo_de_cierre(
+        canterano=False, revendido=False, desaparecido=True,
+        salio_sin_comprador=True, recien_salido=True,
+    ) == "despedido"
+
+
+def test_la_reparacion_reabre_a_quien_si_tenia_venta() -> None:
+    """Se cura sola, sin migracion: si hay venta, el motivo era falso."""
+    async def corre() -> None:
+        from app.application.commands.sync_team import SyncTeamHandler
+
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            s.add(equipo)
+            await s.flush()
+            s.add(m.Player(
+                team_id=equipo.id, ht_player_id=1, first_name="Con", last_name="Venta",
+                sold_at=datetime(2026, 8, 24), sale_price=4_880_000,
+                left_team_at=datetime(2026, 8, 24),
+                resale_closed=True, resale_closed_reason="sin_comprador",
+                previous_club_bonus_checked_at=datetime(2026, 8, 24),
+            ))
+            s.add(m.Player(
+                team_id=equipo.id, ht_player_id=2, first_name="Sin", last_name="Venta",
+                left_team_at=datetime(2026, 1, 1),
+                resale_closed=True, resale_closed_reason="sin_comprador",
+            ))
+            await s.commit()
+            team_id = equipo.id
+
+        uow = SqlAlchemyUnitOfWork(factory)
+        async with uow:
+            n = await SyncTeamHandler(uow, None)._reabrir_cierres_por_error(uow, team_id)
+            await uow.commit()
+        assert n == 1
+
+        async with uow:
+            con = await uow.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 1))
+            sin = await uow.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 2))
+        assert con.resale_closed is False
+        assert con.resale_closed_reason is None
+        assert con.previous_club_bonus_checked_at is None, "hay que volver a mirarlo"
+        assert sin.resale_closed is True, "ese si se fue sin comprador"
+
+    asyncio.run(corre())

@@ -28,6 +28,21 @@ Motivo = Literal["revendido", "despedido", "sin_comprador", "entrenador"]
 # del usuario (2026-08-21, jugador 400903807).
 CODIGO_JUGADOR_INEXISTENTE = 56
 
+#: Cuanto se espera antes de dar a alguien por "se fue sin que lo compraran".
+#:
+#: 2026-08-25, caso real: Enyo Kasaliyski se vendio por 4.880.000 y quedo
+#: cerrado como `sin_comprador`. Hattrick lo saco de la plantilla, la
+#: vigilancia lo miro, y el libro de compraventas todavia no reflejaba la
+#: venta --llevaba cinco dias sin leerse por otro fallo--, asi que la unica
+#: lectura posible era "se fue y nadie lo compro". Su comision no se habria
+#: vigilado jamas.
+#:
+#: Con el libro leyendose en cada sincronizacion la ventana es de minutos,
+#: pero existe. Esperar una semana no cuesta casi nada --sigue en la cola-- y
+#: evita cerrar en falso un expediente que da dinero. Quien se fue hace meses
+#: sin venta si es un cierre seguro.
+DIAS_DE_GRACIA_SIN_COMPRADOR = 7
+
 
 def es_canterano(mother_club_team_id: int | None, nuestro_ht_team_id: int) -> bool:
     """Canterano nuestro = su club de origen es este. Vale para cualquier
@@ -38,6 +53,15 @@ def es_canterano(mother_club_team_id: int | None, nuestro_ht_team_id: int) -> bo
 def desaparecio_de_hattrick(codigo_de_error: int | None) -> bool:
     """Despedido o retirado: su ficha ya no existe."""
     return codigo_de_error == CODIGO_JUGADOR_INEXISTENTE
+
+
+def salio_hace_poco(
+    left_at: object | None, ahora: object, dias: int = DIAS_DE_GRACIA_SIN_COMPRADOR
+) -> bool:
+    """¿Se fue tan hace poco que su venta podria no haberse leido aun?"""
+    if left_at is None:
+        return False
+    return (ahora - left_at).days < dias   # type: ignore[operator]
 
 
 def es_entrenador(ficha: dict | None) -> bool:
@@ -62,6 +86,7 @@ def motivo_de_cierre(
     desaparecido: bool,
     salio_sin_comprador: bool,
     entrenador: bool = False,
+    recien_salido: bool = False,
 ) -> Motivo | None:
     """Por qué dejar de vigilarlo, o `None` si hay que seguir mirándolo.
 
@@ -77,6 +102,12 @@ def motivo_de_cierre(
         # Se fue sin que nadie lo comprara: no hubo club anterior al que
         # pagarle. Un canterano tampoco espera nada, porque ya no está en el
         # juego para que lo vendan.
+        #
+        # Salvo que ACABE de irse: la venta puede estar todavía en camino, y
+        # cerrar aquí seria enterrar una comisión real. Ver
+        # `DIAS_DE_GRACIA_SIN_COMPRADOR`.
+        if recien_salido:
+            return None
         return "sin_comprador"
     if revendido and not canterano:
         return "revendido"

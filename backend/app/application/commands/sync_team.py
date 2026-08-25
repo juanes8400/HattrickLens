@@ -807,6 +807,20 @@ class SyncTeamHandler:
         # lote empezaba siempre por los mas viejos. Ordenar las consultas de
         # `pendientes_de_ficha` no bastaba, porque este consumidor tiraba ese
         # orden. Se vuelve a pedir el orden aqui, sobre la union.
+        # Primero, deshacer los cierres que el tiempo demostro falsos.
+        reabiertos = await self._reabrir_cierres_por_error(uow, team_id)
+        if reabiertos:
+            await _report(
+                on_progress,
+                f"{reabiertos} expediente(s) se habian cerrado sin venta y si la tenian",
+            )
+            pendientes = await self.pendientes_de_ficha(uow, team_id, revisar_desde)
+            ficha = set(pendientes["ficha"])
+            precio = set(pendientes["precio"])
+            destino = set(pendientes["destino"])
+            censo = set(pendientes["censo"])
+            reventa = set(pendientes["reventa"])
+
         #  ¿Hay dinero por atribuir? Lo dice la economia que ya esta
         #  guardada, y decide en que orden se busca.
         cazando = False
@@ -2798,6 +2812,11 @@ class SyncTeamHandler:
             # El dato viene en la MISMA ficha que ya se pidio para saber si
             # desaparecio: no cuesta ni una llamada mas.
             entrenador=vigilancia.es_entrenador(ficha),
+            # Si acaba de irse, su venta puede estar todavia en camino.
+            recien_salido=vigilancia.salio_hace_poco(
+                jugador.left_team_at,
+                datetime.now(UTC).replace(tzinfo=None),
+            ),
         )
         jugador.previous_club_bonus_checked_at = datetime.now(UTC).replace(tzinfo=None)
         if motivo is not None:
@@ -3886,6 +3905,37 @@ class SyncTeamHandler:
         )).all()
         for jugador, en_venta in filas:
             jugador.currently_listed = bool(en_venta)
+
+    async def _reabrir_cierres_por_error(
+        self, uow: UnitOfWork, team_id: int,
+    ) -> int:
+        """Quien tiene venta registrada no se fue "sin comprador".
+
+        2026-08-25. Se cierra un expediente con lo que se sabe en ese momento,
+        y a veces lo que se sabe llega tarde: Enyo Kasaliyski quedo cerrado
+        como `sin_comprador` cuando de hecho se habia vendido por 4.880.000.
+        Su comision no se habria vigilado nunca.
+
+        Se cura sola, sin migracion: si hay venta, el motivo era falso.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        malos = (await uow.session.execute(
+            select(m.Player).where(
+                m.Player.team_id == team_id,
+                m.Player.resale_closed.is_(True),
+                m.Player.resale_closed_reason == "sin_comprador",
+                m.Player.sold_at.is_not(None),
+            )
+        )).scalars().all()
+        for jugador in malos:
+            jugador.resale_closed = False
+            jugador.resale_closed_reason = None
+            # Que lo vuelva a mirar: el motivo anterior no valia.
+            jugador.previous_club_bonus_checked_at = None
+        return len(malos)
 
     async def _reabrir_pujas_cerradas_por_error(
         self, uow: UnitOfWork, team_id: int, ahora: datetime, result: SyncResult,
