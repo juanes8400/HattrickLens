@@ -842,6 +842,50 @@ class SyncTeamHandler:
                 probados: set[int] = set(json.loads(equipo.commission_tried_json or "[]"))
             except ValueError:
                 probados = set()
+
+            # ── Barrido nuevo: se congela el eje y se limpia la memoria ─────
+            #
+            # El eje se guarda tal como esta AHORA. Recalculandolo en cada
+            # pulsacion contra la tabla viva, cada expediente cerrado borraba
+            # una casilla, las posiciones se corrian y las marcas ya pintadas
+            # saltaban de sitio.
+            #
+            # Y la lista de probados se vacia con el, porque tiene que decir
+            # lo MISMO que el eje. Si sobrevive al barrido anterior, la
+            # busqueda salta jugadores que el eje sigue contando: sus casillas
+            # quedan muertas y, si estan al principio, el frente no arranca
+            # nunca --se vio con las casillas 0, 1 y 2 ocupadas por tres
+            # ex-jugadores ya apuntados--. Dentro de un mismo barrido nadie se
+            # repite igualmente, porque `revisar_desde` los saca de la cola en
+            # cuanto se les mira.
+            if revisar_desde is not None and equipo.sweep_started_at != revisar_desde:
+                eje_nuevo = list((
+                    await uow.session.execute(
+                        select(m.Player.ht_player_id)
+                        .where(
+                            m.Player.team_id == team_id,
+                            # La MISMA salvaguardia que usan las colas: quien
+                            # lleva prestado el numero de su transferencia no
+                            # tiene ficha y no se le pregunta jamas. Sin ella
+                            # ocupaba casilla --67 de 266 en la cuenta real, y
+                            # dieciseis de ellas las primeras--.
+                            ~m.Player.ht_player_id_is_transfer,
+                            ~m.Player.resale_closed,
+                            m.Player.sold_at.is_not(None)
+                            | m.Player.left_team_at.is_not(None),
+                        )
+                        .order_by(
+                            sa_func.coalesce(
+                                m.Player.sold_at, m.Player.left_team_at,
+                            ).desc().nullslast(),
+                            m.Player.ht_player_id.desc(),
+                        )
+                    )
+                ).scalars().all())
+                equipo.sweep_axis_json = json.dumps(eje_nuevo)
+                equipo.sweep_started_at = revisar_desde
+                probados = set()
+                equipo.commission_tried_json = "[]"
         else:
             probados = set()
 
@@ -883,51 +927,6 @@ class SyncTeamHandler:
 
         if limite is not None:
             todos = todos[:limite]
-
-        # ── El mapa del barrido ─────────────────────────────────────────────
-        #
-        # El eje se congela al EMPEZAR y se guarda. Recalculandolo en cada
-        # pulsacion contra la tabla viva, cada expediente cerrado borraba una
-        # casilla, las posiciones se corrian y las marcas ya pintadas saltaban
-        # de sitio o desaparecian: era el "alumbra y luego se quita".
-        #
-        # Lo hecho se deduce de la BASE --quien tiene revision posterior al
-        # arranque del barrido-- y no de un contador aparte: asi recargar la
-        # pagina no borra lo andado, y un expediente que se cierra conserva su
-        # casilla en vez de evaporarse.
-        if equipo is not None and revisar_desde is not None:
-            if equipo.sweep_started_at != revisar_desde:
-                eje = list((
-                    await uow.session.execute(
-                        select(m.Player.ht_player_id)
-                        .where(
-                            m.Player.team_id == team_id,
-                            # La MISMA salvaguardia que usan las colas: quien
-                            # lleva prestado el numero de su transferencia no
-                            # tiene ficha y no se le pregunta jamas. Sin ella
-                            # ocupaba casilla --67 de 266 en la cuenta real, y
-                            # dieciseis de ellas las primeras-- y el frente no
-                            # podia arrancar nunca.
-                            ~m.Player.ht_player_id_is_transfer,
-                            ~m.Player.resale_closed,
-                            m.Player.sold_at.is_not(None)
-                            | m.Player.left_team_at.is_not(None),
-                        )
-                        .order_by(
-                            sa_func.coalesce(
-                                m.Player.sold_at, m.Player.left_team_at,
-                            ).desc().nullslast(),
-                            m.Player.ht_player_id.desc(),
-                        )
-                    )
-                ).scalars().all())
-                equipo.sweep_axis_json = json.dumps(eje)
-                equipo.sweep_started_at = revisar_desde
-            else:
-                try:
-                    eje = json.loads(equipo.sweep_axis_json or "[]")
-                except ValueError:
-                    eje = []
 
         # Cuantas comisiones habia antes, y desde cuando: lo primero dice si
         # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`

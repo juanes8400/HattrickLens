@@ -9,6 +9,7 @@ Esta prueba mira lo que hace el BOTON, no lo que devuelve la consulta: es la
 unica forma de que el fallo no vuelva a colarse por el mismo sitio.
 """
 import asyncio
+import json
 from datetime import datetime
 from typing import Any
 
@@ -260,6 +261,78 @@ def test_quien_no_se_mira_nunca_no_ocupa_casilla_en_la_barra() -> None:
         assert result.queue_map.total == 3, "no ocupa casilla"
         assert result.queue_map.hechas == [0], (
             "y por eso el frente puede arrancar en la casilla 0"
+        )
+
+    asyncio.run(corre())
+
+
+def test_un_barrido_nuevo_no_hereda_la_lista_de_probados() -> None:
+    """La causa de "sigue llenando de izquierda a derecha", 2026-08-25.
+
+    `commission_tried_json` sobrevivia de un barrido al siguiente, asi que la
+    busqueda saltaba a jugadores que el EJE seguia contando. Sus casillas
+    quedaban muertas y, estando al principio, el frente no arrancaba nunca:
+    en la cuenta real las casillas 0, 1 y 2 estaban ocupadas por tres
+    ex-jugadores ya apuntados, y lo unico que crecia era el racimo de marcas
+    pegado a la izquierda.
+
+    El eje se congela por barrido; la lista de probados tiene que decir lo
+    mismo, asi que se vacia con el. Repetir a alguien dentro del mismo barrido
+    lo sigue impidiendo `revisar_desde`.
+    """
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        from app.application.commands.sync_team import SyncResult
+
+        # Un barrido anterior dejo apuntada a la cabeza de la cola.
+        async with uow:
+            equipo = await uow.session.get(m.Team, team_id)
+            equipo.commission_tried_json = json.dumps([900_000_003])
+            await uow.commit()
+
+        result = SyncResult(sync_id=1, status="running")
+        async with uow:
+            await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
+                uow, team_id, datetime(2026, 8, 25), result,
+                limite=1, revisar_desde=datetime(2026, 8, 25, 6, 0),
+            )
+            await uow.commit()
+
+        assert result.players_named == ["Reciente"], (
+            "la cabeza vuelve a la cola: el barrido nuevo empieza por ella"
+        )
+        assert result.queue_map is not None
+        assert result.queue_map.hechas == [0]
+        assert result.queue_map.frente == 1, "y por eso el bloque puede arrancar"
+
+    asyncio.run(corre())
+
+
+def test_dentro_del_mismo_barrido_nadie_se_repite() -> None:
+    """Vaciar la lista de probados no puede costar llamadas repetidas.
+
+    No las cuesta: `revisar_desde` saca de la cola a quien ya se miro en esta
+    pasada, que es una razon mas solida --sale de la base, no de un contador
+    que se puede vaciar--.
+    """
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        from app.application.commands.sync_team import SyncResult
+
+        pulsacion = datetime(2026, 8, 25, 6, 0)
+        atendidos = []
+        for _ in range(3):
+            result = SyncResult(sync_id=1, status="running")
+            async with uow:
+                await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
+                    uow, team_id, datetime(2026, 8, 25), result,
+                    limite=1, revisar_desde=pulsacion,
+                )
+                await uow.commit()
+            atendidos += result.players_named
+
+        assert sorted(atendidos) == ["Medio", "Reciente", "Viejo"], (
+            "los tres, cada uno una vez"
         )
 
     asyncio.run(corre())
