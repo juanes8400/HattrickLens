@@ -12,7 +12,9 @@ from typing import Any
 
 from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.value_objects.skill import Age
+from app.domain.engines import sync_diff as diff_sync
 from app.domain.engines.sync_diff import (
+    diff_expedientes_cerrados,
     diff_previous_club_bonus,
     Change,
     MatchState,
@@ -947,6 +949,37 @@ class SyncTeamHandler:
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"reventa:{ht_player_id}: {exc}")
                     result.status = "partial"
+
+        # Los expedientes que se cerraron en ESTA tanda. Un jugador cerrado
+        # sale de la cola y ya no se le vuelve a mirar, asi que "cerrado y
+        # revisado desde que arranco" es exactamente eso.
+        cerrados = list((
+            await uow.session.execute(
+                select(
+                    m.Player.first_name, m.Player.last_name,
+                    m.Player.resale_closed_reason,
+                )
+                .where(
+                    m.Player.team_id == team_id,
+                    m.Player.resale_closed.is_(True),
+                    m.Player.previous_club_bonus_checked_at >= arranque,
+                )
+            )
+        ).all())
+        if cerrados:
+            conteo: dict[str, int] = {}
+            for nombre, apellido, motivo in cerrados:
+                clave = motivo or "sin_comprador"
+                conteo[clave] = conteo.get(clave, 0) + 1
+                # El detalle, en el progreso: ahi si cabe uno por uno.
+                legible = diff_sync.MOTIVOS_DE_CIERRE.get(clave, (clave, clave))[0]
+                await _report(
+                    on_progress,
+                    f"{nombre} {apellido}: expediente cerrado, {legible}",
+                )
+            resumen = diff_expedientes_cerrados(conteo)
+            if resumen is not None:
+                result.changes.append(_as_change_row(resumen))
 
         # Lo encontrado se ANUNCIA. 2026-08-25, pedido explicitamente: la
         # herramienta calculaba la comision al peso y la guardaba sin decir

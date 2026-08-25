@@ -269,6 +269,44 @@ def diff_previous_club_bonus(
     )
 
 
+#: Como se lee cada motivo de cierre en una frase.
+MOTIVOS_DE_CIERRE: dict[str, tuple[str, str]] = {
+    "entrenador": ("entrenador", "entrenadores"),
+    "despedido": ("despedido", "despedidos"),
+    "revendido": ("revendido", "revendidos"),
+    "sin_comprador": ("sin comprador", "sin comprador"),
+}
+
+
+def diff_expedientes_cerrados(conteo: dict[str, int]) -> Change | None:
+    """Cuantos ex-jugadores dejaron de poder darnos dinero, y por que.
+
+    2026-08-25, pedido explicitamente: en "Cambios", TODOS JUNTOS. Un barrido
+    completo cierra decenas --en la cuenta real hay 113 revendidos, 87
+    despedidos y 41 sin comprador-- y anunciarlos uno a uno enterraria bajo
+    doscientas lineas lo que si importa, que es una comision de verdad.
+
+    El detalle de quien fue cual va en el progreso, que es efimero y ahi no
+    estorba.
+    """
+    total = sum(conteo.values())
+    if total == 0:
+        return None
+    partes = []
+    for motivo, cuantos in sorted(conteo.items(), key=lambda x: (-x[1], x[0])):
+        singular, plural = MOTIVOS_DE_CIERRE.get(motivo, (motivo, motivo))
+        partes.append(f"{cuantos} {singular if cuantos == 1 else plural}")
+    return Change(
+        category="transferencias", subject="Vigilancia de comisiones",
+        metric="expedientes_cerrados", label="Expedientes cerrados",
+        kind="count", after=total,
+        summary=(
+            f"{total} expediente{'s' if total != 1 else ''} cerrado"
+            f"{'s' if total != 1 else ''}: {', '.join(partes)}"
+        ),
+    )
+
+
 def diff_economy(
     old: dict[str, Any] | None, new: dict[str, Any], currency: str = "", rate: float = 1.0
 ) -> list[Change]:

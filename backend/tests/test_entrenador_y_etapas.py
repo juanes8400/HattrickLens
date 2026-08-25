@@ -215,3 +215,40 @@ def test_la_reparacion_reabre_a_quien_si_tenia_venta() -> None:
         assert sin.resale_closed is True, "ese si se fue sin comprador"
 
     asyncio.run(corre())
+
+
+# ── El aviso de los cierres ─────────────────────────────────────────────────
+
+def test_los_cierres_se_anuncian_todos_juntos() -> None:
+    """2026-08-25, pedido asi: en "Cambios", TODOS JUNTOS.
+
+    Un barrido completo cierra decenas --113 revendidos, 87 despedidos y 41
+    sin comprador en la cuenta real-- y anunciarlos uno a uno enterraria bajo
+    doscientas lineas lo que si importa: una comision de verdad.
+    """
+    from app.domain.engines.sync_diff import diff_expedientes_cerrados
+
+    c = diff_expedientes_cerrados(
+        {"despedido": 2, "entrenador": 1, "revendido": 1, "sin_comprador": 1}
+    )
+    assert c is not None
+    assert c.after == 5
+    assert c.summary == (
+        "5 expedientes cerrados: 2 despedidos, 1 entrenador, 1 revendido, "
+        "1 sin comprador"
+    )
+
+
+def test_un_solo_cierre_se_dice_en_singular() -> None:
+    from app.domain.engines.sync_diff import diff_expedientes_cerrados
+
+    c = diff_expedientes_cerrados({"entrenador": 1})
+    assert c.summary == "1 expediente cerrado: 1 entrenador"
+
+
+def test_sin_cierres_no_se_anuncia_nada() -> None:
+    """La mayoria de las pulsaciones no cierran ninguno: una linea diciendo
+    "0 expedientes cerrados" seria ruido en cada visita."""
+    from app.domain.engines.sync_diff import diff_expedientes_cerrados
+
+    assert diff_expedientes_cerrados({}) is None
