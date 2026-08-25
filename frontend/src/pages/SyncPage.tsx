@@ -8,9 +8,16 @@ import { relative } from "../hooks/useFormat";
 import {
   anchoDeLaMarca,
   anchuraDelFrente,
+  motivosEnPalabras,
   sitioDeLaMarca,
 } from "../utils/barraDelBarrido";
-import { api, errorMessage, type QueueMap, type SyncResult } from "../services/api";
+import {
+  api,
+  errorMessage,
+  type QueueMap,
+  type SweepBalance,
+  type SyncResult,
+} from "../services/api";
 
 /**
  * Sincronización — pantalla única, pedida explícitamente 2026-08-15:
@@ -87,6 +94,11 @@ export function SyncPage() {
      *  empezar y manda el recorrido entero en cada respuesta, así que aquí
      *  no se acumula ni se calcula nada. */
     mapa: QueueMap | null;
+    /** El resumen del barrido. Se enseña cuando para, lo pare el usuario o
+     *  se acabe la cola. */
+    balance: SweepBalance | null;
+    /** Si paró porque se pulsó «Parar», para decirlo con esas palabras. */
+    parado: boolean;
   } | null>(null);
   const pararRef = useRef(false);
   const [rellenando, setRellenando] = useState(false);
@@ -103,7 +115,7 @@ export function SyncPage() {
     setRellenando(true);
     setRelleno({
       total: inicio, hechos: 0, quedan: inicio, ultimo: null, error: null,
-      mapa: null,
+      mapa: null, balance: null, parado: false,
     });
     let hechos = 0;
     try {
@@ -122,6 +134,8 @@ export function SyncPage() {
           ultimo: lote.players[lote.players.length - 1] ?? null,
           error: lote.errors[0] ?? null,
           mapa: lote.queue ?? previo?.mapa ?? null,
+          balance: lote.balance ?? previo?.balance ?? null,
+          parado: false,
         }));
         if (lote.pending === 0 || lote.done === 0) break;
         // Freno de mano: si una vuelta no reduce lo que queda, es que algo no
@@ -136,6 +150,9 @@ export function SyncPage() {
         previo ? { ...previo, error: errorMessage(reason) } : previo,
       );
     } finally {
+      setRelleno((previo) =>
+        previo ? { ...previo, parado: pararRef.current } : previo,
+      );
       setRellenando(false);
       await pendientes.refetch();
       qc.invalidateQueries();
@@ -283,6 +300,62 @@ export function SyncPage() {
                   sueltas son los saltos al azar, que es como aparecen las ventas
                   viejas.
                 </p>
+              )}
+              {/* El informe del barrido: sale cuando para, lo pare el
+                  usuario o se acabe la cola. Las dos cifras de arriba son las
+                  que se pidieron —cuántos siguen y cuántos faltan—; el
+                  desglose de cierres explica la diferencia entre ambas. */}
+              {!rellenando && relleno.balance && (
+                <div className="mt-3 rounded-md border border-[var(--border)] p-3">
+                  <p className="text-sm font-medium">
+                    {relleno.parado ? "Barrido detenido" : "Barrido terminado"}
+                  </p>
+                  <dl className="mt-2 space-y-1 text-sm">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[var(--muted)]">
+                        Siguen con posible comisión
+                      </dt>
+                      <dd className="tabular-nums font-semibold">
+                        {jugadores(relleno.balance.open)}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[var(--muted)]">
+                        Pendientes de mirar más adelante
+                      </dt>
+                      <dd className="tabular-nums font-semibold">
+                        {jugadores(relleno.balance.toCheck)}
+                      </dd>
+                    </div>
+                    {relleno.balance.commissions > 0 && (
+                      <div className="flex items-baseline justify-between gap-3">
+                        <dt className="text-[var(--muted)]">
+                          Comisiones encontradas
+                        </dt>
+                        <dd className="tabular-nums font-semibold">
+                          {relleno.balance.commissions}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[var(--muted)]">Expedientes cerrados</dt>
+                      <dd className="tabular-nums font-semibold">
+                        {relleno.balance.closedTotal}
+                      </dd>
+                    </div>
+                  </dl>
+                  {relleno.balance.closedTotal > 0 && (
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {motivosEnPalabras(relleno.balance.closed)}
+                    </p>
+                  )}
+                  {relleno.balance.toCheck > 0 && (
+                    <p className="mt-2 text-xs text-[var(--muted)]">
+                      Vuelve a pulsar cuando quieras: sigue donde iba, no
+                      empieza de cero.
+                    </p>
+                  )}
+                </div>
               )}
               {relleno.error && (
                 <p className="mt-2 text-xs text-[var(--warning)]">

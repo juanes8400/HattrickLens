@@ -180,3 +180,47 @@ def test_sin_marca_de_tiempo_no_se_inventa_un_mapa(cliente) -> None:
     r = client.post(f"/api/v1/teams/{team_id}/backfill/run?batch=1")
     assert r.status_code == 200, r.text
     assert r.json()["queue"] is None
+
+
+def test_el_informe_llega_con_cada_lote(cliente) -> None:
+    """Pedido el 2026-08-25: al parar --a mano o al acabarse la cola-- hay que
+    poder decir cuantos siguen, cuantos faltan y que se cerro, por motivo.
+
+    Viaja en CADA respuesta, no solo en la ultima: el usuario puede pulsar
+    "Parar" en cualquier momento y la pantalla tiene que poder pintarlo con lo
+    ultimo que recibio.
+    """
+    client, team_id = cliente
+    pulsacion = "2026-08-25T12:45:02.597000Z"
+
+    r = client.post(
+        f"/api/v1/teams/{team_id}/backfill/run?batch=1&since={pulsacion}"
+    )
+    assert r.status_code == 200, r.text
+    b = r.json()["balance"]
+    assert b is not None
+    assert set(b) == {"open", "toCheck", "closed", "closedTotal", "commissions"}
+    assert b["open"] == 3, "los tres siguen vivos"
+    assert b["toCheck"] == 2, "se miro uno de tres"
+    assert b["closed"] == {}
+    assert b["closedTotal"] == 0
+
+
+def test_lo_que_falta_baja_a_cero_al_terminar(cliente) -> None:
+    client, team_id = cliente
+    pulsacion = "2026-08-25T12:45:02.597000Z"
+
+    for _ in range(3):
+        r = client.post(
+            f"/api/v1/teams/{team_id}/backfill/run?batch=1&since={pulsacion}"
+        )
+        assert r.status_code == 200, r.text
+    assert r.json()["balance"]["toCheck"] == 0
+
+
+def test_sin_marca_de_tiempo_tampoco_hay_informe(cliente) -> None:
+    """Mismo criterio que el mapa: sin barrido no hay nada que resumir."""
+    client, team_id = cliente
+    r = client.post(f"/api/v1/teams/{team_id}/backfill/run?batch=1")
+    assert r.status_code == 200, r.text
+    assert r.json()["balance"] is None

@@ -374,6 +374,9 @@ class SyncResult:
     # El mapa del barrido de comisiones, para pintar la barra como lo que es:
     # un recorrido por la cola, no un porcentaje.
     queue_map: mapa_del_barrido.Mapa | None = None
+    # Como queda la vigilancia cuando el barrido para: cuantos siguen vivos,
+    # cuantos faltan por mirar y que se zanjo, por motivo.
+    queue_balance: mapa_del_barrido.Balance | None = None
 
 
 class SyncTeamHandler:
@@ -1118,6 +1121,47 @@ class SyncTeamHandler:
                     )
                 ).scalars().all())
                 result.queue_map = mapa_del_barrido.mapa_de(eje, atendidos)
+
+                # El resumen para cuando el barrido pare --lo pare el usuario
+                # o se acabe la cola--. Todo se mide DESDE QUE ARRANCO el
+                # barrido, no desde este lote: el usuario ve el resultado del
+                # recorrido entero, que es lo que ha estado esperando.
+                abiertos = await uow.session.scalar(
+                    select(sa_func.count(m.Player.id)).where(
+                        m.Player.team_id == team_id,
+                        ~m.Player.ht_player_id_is_transfer,
+                        ~m.Player.resale_closed,
+                        m.Player.sold_at.is_not(None)
+                        | m.Player.left_team_at.is_not(None),
+                    )
+                ) or 0
+                # `group_by` quiere la expresion, no el numero de columna.
+                motivo = sa_func.coalesce(
+                    m.Player.resale_closed_reason, "sin_comprador",
+                )
+                cerrados_del_barrido = dict((
+                    await uow.session.execute(
+                        select(motivo, sa_func.count(m.Player.id))
+                        .where(
+                            m.Player.team_id == team_id,
+                            m.Player.resale_closed.is_(True),
+                            m.Player.previous_club_bonus_checked_at
+                            >= equipo.sweep_started_at,
+                        )
+                        .group_by(motivo)
+                    )
+                ).all())
+                comisiones_del_barrido = await uow.session.scalar(
+                    select(sa_func.count(m.PreviousClubBonus.id)).where(
+                        m.PreviousClubBonus.computed_at >= equipo.sweep_started_at
+                    )
+                ) or 0
+                result.queue_balance = mapa_del_barrido.balance_de(
+                    result.queue_map,
+                    abiertos=abiertos,
+                    cerrados=cerrados_del_barrido,
+                    comisiones=comisiones_del_barrido,
+                )
 
         return len(todos)
 

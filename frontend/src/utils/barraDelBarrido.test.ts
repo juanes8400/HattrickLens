@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   anchoDeLaMarca,
   anchuraDelFrente,
+  motivosEnPalabras,
   sitioDeLaMarca,
 } from "./barraDelBarrido";
 
@@ -82,5 +83,29 @@ describe("la barra del barrido de comisiones", () => {
   it("un eje vacío no da un ancho absurdo", () => {
     expect(anchoDeLaMarca(0)).toBe(0);
     expect(sitioDeLaMarca(5, 0)).toBe(0);
+  });
+});
+
+describe("los motivos de cierre en palabras", () => {
+  it("los ordena de más a menos y concuerda el plural", () => {
+    expect(motivosEnPalabras({ revendido: 2, despedido: 1 }))
+      .toBe("2 revendidos, 1 despedido");
+  });
+
+  it("dice en castellano qué significa cada motivo", () => {
+    expect(motivosEnPalabras({ sin_comprador: 1, entrenador: 3 }))
+      .toBe("3 ahora son entrenadores, 1 se fue sin comprador");
+  });
+
+  it("ignora los motivos en cero", () => {
+    expect(motivosEnPalabras({ revendido: 1, despedido: 0 })).toBe("1 revendido");
+  });
+
+  it("sin cierres devuelve cadena vacía", () => {
+    expect(motivosEnPalabras({})).toBe("");
+  });
+
+  it("un motivo que no conoce no rompe la frase", () => {
+    expect(motivosEnPalabras({ loquesea: 2 })).toBe("2 loquesea");
   });
 });

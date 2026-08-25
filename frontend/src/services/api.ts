@@ -864,6 +864,19 @@ export interface QueueMap {
   front: number;
 }
 
+/** Cómo queda la vigilancia cuando el barrido para. */
+export interface SweepBalance {
+  /** Expedientes vivos: aún pueden dar comisión. */
+  open: number;
+  /** De este barrido, los que se quedaron sin mirar. */
+  toCheck: number;
+  /** Zanjados en este barrido, por motivo. */
+  closed: Record<string, number>;
+  closedTotal: number;
+  /** Comisiones atribuidas durante este barrido. */
+  commissions: number;
+}
+
 export interface BackfillBatchResult {
   status: string;
   /** Jugadores atendidos en este lote. */
@@ -875,6 +888,8 @@ export interface BackfillBatchResult {
   /** El mapa del barrido de comisiones, para pintar la barra como un
    *  recorrido por la cola. Llega entero en cada respuesta. */
   queue: QueueMap | null;
+  /** El resumen para enseñar al parar. */
+  balance: SweepBalance | null;
   errors: string[];
 }
 

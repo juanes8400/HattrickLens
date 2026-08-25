@@ -18,6 +18,37 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class Balance:
+    """Cómo queda la vigilancia cuando el barrido para.
+
+    Pedido el 2026-08-25, tanto al pulsar «Parar» como al terminar del todo:
+    lo que importa no es cuántos se miraron, sino **cuántos siguen pudiendo
+    darte dinero** y **cuántos quedan por mirar otro día**.
+    """
+
+    abiertos: int
+    """Expedientes que siguen vivos: pueden dar comisión en el futuro."""
+
+    por_mirar: int
+    """De este barrido, los que se quedaron sin revisar."""
+
+    cerrados: dict[str, int]
+    """Los que este barrido dio por zanjados, DESGLOSADOS POR MOTIVO.
+
+    El total no basta: "12 cerrados" puede ser una buena noticia --doce
+    revendidos ya cobrados-- o la senal de que algo esta roto, como los 121
+    "entrenador" de golpe que delataron el fallo de `TrainerData`.
+    """
+
+    comisiones: int
+    """Comisiones atribuidas durante este barrido."""
+
+    @property
+    def total_cerrados(self) -> int:
+        return sum(self.cerrados.values())
+
+
+@dataclass(frozen=True)
 class Mapa:
     """Lo que la barra necesita saber, y nada más."""
 
@@ -57,4 +88,21 @@ def mapa_de(eje: list[int], atendidos: set[int]) -> Mapa:
         total=len(eje),
         hechas=sorted(hechas),
         frente=frente_de(hechas),
+    )
+
+
+def balance_de(
+    mapa: Mapa, abiertos: int, cerrados: dict[str, int], comisiones: int,
+) -> Balance:
+    """El resumen del barrido, sin volver a preguntarle nada a la base.
+
+    `por_mirar` sale del eje congelado y no de la cola viva: la cola encoge
+    también por los cierres, y decir "quedan 12" cuando ocho de esos doce ya
+    están zanjados sería mentir sobre el trabajo que falta.
+    """
+    return Balance(
+        abiertos=abiertos,
+        por_mirar=max(0, mapa.total - len(mapa.hechas)),
+        cerrados=dict(cerrados),
+        comisiones=comisiones,
     )

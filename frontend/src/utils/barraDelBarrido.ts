@@ -35,3 +35,24 @@ export function anchoDeLaMarca(total: number): number {
   if (total <= 0) return 0;
   return (1 / total) * 100;
 }
+
+/** Cómo se llama cada motivo de cierre en la pantalla. Los mismos nombres que
+ *  usa el aviso de «Cambios», para que no haya dos vocabularios. */
+const MOTIVOS: Record<string, [string, string]> = {
+  revendido: ["revendido", "revendidos"],
+  despedido: ["despedido", "despedidos"],
+  sin_comprador: ["se fue sin comprador", "se fueron sin comprador"],
+  entrenador: ["ahora es entrenador", "ahora son entrenadores"],
+};
+
+/** "2 revendidos, 1 despedido". Ordenado de más a menos, que es como se lee. */
+export function motivosEnPalabras(cerrados: Record<string, number>): string {
+  return Object.entries(cerrados)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([clave, n]) => {
+      const [uno, varios] = MOTIVOS[clave] ?? [clave, clave];
+      return `${n} ${n === 1 ? uno : varios}`;
+    })
+    .join(", ");
+}

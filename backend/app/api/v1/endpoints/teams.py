@@ -937,5 +937,17 @@ async def backfill_run(
             if result.queue_map is not None
             else None
         ),
+        # El resumen del barrido, para enseñarlo al parar.
+        "balance": (
+            {
+                "open": result.queue_balance.abiertos,
+                "toCheck": result.queue_balance.por_mirar,
+                "closed": result.queue_balance.cerrados,
+                "closedTotal": result.queue_balance.total_cerrados,
+                "commissions": result.queue_balance.comisiones,
+            }
+            if result.queue_balance is not None
+            else None
+        ),
         "errors": result.errors[:5],
     }

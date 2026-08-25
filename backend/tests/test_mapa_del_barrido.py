@@ -57,3 +57,67 @@ def test_quien_no_esta_en_el_eje_no_inventa_casillas() -> None:
 def test_el_barrido_terminado_llena_la_barra() -> None:
     m = mapa_de([101, 102, 103], {101, 102, 103})
     assert m.frente == m.total == 3
+
+
+# ── El resumen al parar ─────────────────────────────────────────────────────
+
+def test_lo_que_falta_sale_del_eje_congelado() -> None:
+    """Pedido el 2026-08-25: al parar, cuantos siguen y cuantos faltan.
+
+    `por_mirar` NO puede salir de la cola viva: la cola encoge tambien cuando
+    se cierra un expediente, asi que diria "faltan 12" con ocho de esos doce
+    ya zanjados.
+    """
+    from app.domain.engines.mapa_del_barrido import balance_de
+
+    mapa = mapa_de([101, 102, 103, 104, 105], {101, 102})
+    b = balance_de(
+        mapa, abiertos=200, cerrados={"revendido": 1}, comisiones=2,
+    )
+    assert b.por_mirar == 3
+    assert b.abiertos == 200
+    assert b.cerrados == {"revendido": 1}
+    assert b.comisiones == 2
+
+
+def test_el_barrido_terminado_no_deja_nada_por_mirar() -> None:
+    from app.domain.engines.mapa_del_barrido import balance_de
+
+    mapa = mapa_de([101, 102], {101, 102})
+    b = balance_de(
+        mapa, abiertos=0, cerrados={"revendido": 1, "despedido": 1}, comisiones=0,
+    )
+    assert b.por_mirar == 0
+
+
+def test_lo_que_falta_nunca_es_negativo() -> None:
+    """Si a mitad del barrido alguien deja de estar en el eje congelado, la
+    resta podria pasarse de rosca."""
+    from app.domain.engines.mapa_del_barrido import balance_de
+
+    mapa = mapa_de([101], {101})
+    assert balance_de(mapa, abiertos=0, cerrados={}, comisiones=0).por_mirar == 0
+
+
+def test_los_cierres_van_desglosados_por_motivo() -> None:
+    """Pedido el 2026-08-25. Un total no dice nada: doce "revendido" son doce
+    comisiones ya cobradas, y doce "entrenador" de golpe fueron, de hecho, un
+    fallo de lectura que cerro 121 expedientes en falso."""
+    from app.domain.engines.mapa_del_barrido import balance_de
+
+    b = balance_de(
+        mapa_de([1, 2, 3], {1, 2, 3}),
+        abiertos=10,
+        cerrados={"revendido": 2, "despedido": 1},
+        comisiones=2,
+    )
+    assert b.cerrados == {"revendido": 2, "despedido": 1}
+    assert b.total_cerrados == 3
+
+
+def test_sin_cierres_el_total_es_cero() -> None:
+    from app.domain.engines.mapa_del_barrido import balance_de
+
+    assert balance_de(
+        mapa_de([1], set()), abiertos=1, cerrados={}, comisiones=0,
+    ).total_cerrados == 0
