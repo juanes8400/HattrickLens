@@ -183,3 +183,36 @@ def test_sin_comision_pendiente_tambien_alterna() -> None:
         assert len(result.players_named) == 2
 
     asyncio.run(corre())
+
+
+def test_la_barra_recibe_posiciones_estables() -> None:
+    """El eje son TODOS los vigilados, no solo los que quedan.
+
+    2026-08-25: midiendo contra los pendientes --que menguan a cada
+    pulsacion-- el de la cabeza salia siempre en la posicion 0 y las marcas
+    del frente se amontonaban todas en el mismo punto de la barra.
+    """
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        from app.application.commands.sync_team import SyncResult
+
+        pulsacion = datetime(2026, 8, 25, 6, 0)
+        posiciones = []
+        for _ in range(3):
+            result = SyncResult(sync_id=1, status="running")
+            async with uow:
+                await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
+                    uow, team_id, datetime(2026, 8, 25), result,
+                    limite=1, revisar_desde=pulsacion,
+                )
+                await uow.commit()
+            posiciones += [x["position"] for x in result.queue_marks]
+            assert all(x["total"] == 3 for x in result.queue_marks), (
+                "la escala no puede encogerse a mitad del barrido"
+            )
+
+        assert sorted(posiciones) == [0, 1, 2], (
+            "cada uno en su sitio: sin repetidos ni todos en el cero"
+        )
+
+    asyncio.run(corre())

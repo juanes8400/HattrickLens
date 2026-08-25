@@ -924,5 +924,8 @@ async def backfill_run(
         "done": result.players_done,
         "pending": result.players_pending,
         "players": result.players_named,
+        # Donde cayo cada uno en la cola de comisiones: la barra lo pinta como
+        # un mapa del barrido en vez de como un porcentaje.
+        "queueMarks": result.queue_marks,
         "errors": result.errors[:5],
     }

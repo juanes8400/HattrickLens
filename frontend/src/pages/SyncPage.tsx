@@ -28,6 +28,26 @@ import { api, errorMessage, type SyncResult } from "../services/api";
 /** "1 jugador", "454 jugadores". Nunca "jugador(es)". */
 const jugadores = (n: number) => `${n} jugador${n === 1 ? "" : "es"}`;
 
+/** Hasta dónde llega el frente: el tramo seguido desde la izquierda que ya
+ *  se atendió. Una marca suelta a mitad de la barra no lo empuja — eso es
+ *  justo lo que distingue al azar del avance. */
+function frente(relleno: {
+  marcas: number[];
+  escala: number;
+  hechos: number;
+  total: number;
+  quedan: number;
+}): number {
+  if (relleno.quedan === 0) return 100;
+  if (relleno.escala <= 0) {
+    return Math.min(100, (relleno.hechos / Math.max(relleno.total, 1)) * 100);
+  }
+  const vistas = new Set(relleno.marcas);
+  let seguidas = 0;
+  while (vistas.has(seguidas)) seguidas += 1;
+  return Math.min(100, (seguidas / relleno.escala) * 100);
+}
+
 export function SyncPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -78,6 +98,13 @@ export function SyncPage() {
     quedan: number;
     ultimo: string | null;
     error: string | null;
+    /** Dónde cayó en la cola cada uno de los atendidos, y cuántos había en
+     *  esa cola cuando empezó el barrido. La escala se CONGELA en la primera
+     *  pulsación: cada jugador atendido sale de la cola, así que si se
+     *  repintara con la cola de ahora las marcas viejas se irían corriendo y
+     *  la barra bailaría. */
+    marcas: number[];
+    escala: number;
   } | null>(null);
   const pararRef = useRef(false);
   const [rellenando, setRellenando] = useState(false);
@@ -92,7 +119,10 @@ export function SyncPage() {
     // cola hasta que pulses otra vez.
     const pulsacion = new Date().toISOString();
     setRellenando(true);
-    setRelleno({ total: inicio, hechos: 0, quedan: inicio, ultimo: null, error: null });
+    setRelleno({
+      total: inicio, hechos: 0, quedan: inicio, ultimo: null, error: null,
+      marcas: [], escala: 0,
+    });
     let hechos = 0;
     try {
       // Vuelta a vuelta hasta acabar. Cada lote es una petición corta e
@@ -103,13 +133,23 @@ export function SyncPage() {
         if (pararRef.current) break;
         const lote = await api.runBackfillBatch(TEAM_ID, pulsacion);
         hechos += lote.done;
-        setRelleno({
+        setRelleno((previo) => ({
           total: inicio,
           hechos: Math.min(hechos, inicio),
           quedan: lote.pending,
           ultimo: lote.players[lote.players.length - 1] ?? null,
           error: lote.errors[0] ?? null,
-        });
+          marcas: [
+            ...(previo?.marcas ?? []),
+            ...(lote.queueMarks ?? []).map((x) => x.position),
+          ],
+          // La escala es la de la PRIMERA marca y ya no se mueve.
+          escala:
+            previo?.escala ||
+            (lote.queueMarks ?? [])[0]?.total ||
+            previo?.escala ||
+            0,
+        }));
         if (lote.pending === 0 || lote.done === 0) break;
         // Freno de mano: si una vuelta no reduce lo que queda, es que algo no
         // se puede resolver y volvería a salir en la siguiente. Sin esto el
@@ -232,17 +272,26 @@ export function SyncPage() {
                   %
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+              {/* La barra es un MAPA de la cola, no un porcentaje: de
+                  izquierda a derecha van los ex-jugadores del más reciente al
+                  más antiguo. El frente avanza por la izquierda con cada
+                  turno "reciente", y cada turno al azar enciende una marca
+                  allí donde cayó — normalmente lejos, en la cola vieja. */}
+              <div className="relative h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                 <div
-                  className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
-                  style={{
-                    width: `${
-                      relleno.quedan === 0
-                        ? 100
-                        : Math.min(100, (relleno.hechos / Math.max(relleno.total, 1)) * 100)
-                    }%`,
-                  }}
+                  className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)] transition-all duration-300"
+                  style={{ width: `${frente(relleno)}%` }}
                 />
+                {relleno.escala > 0 &&
+                  relleno.marcas.map((posicion, i) => (
+                    <span
+                      key={`${posicion}-${i}`}
+                      className="absolute inset-y-0 w-[3px] rounded-sm bg-[var(--accent)]"
+                      style={{
+                        left: `${Math.min(99, (posicion / relleno.escala) * 100)}%`,
+                      }}
+                    />
+                  ))}
               </div>
               {relleno.error && (
                 <p className="mt-2 text-xs text-[var(--warning)]">

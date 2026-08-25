@@ -366,6 +366,11 @@ class SyncResult:
     # Nombres de los atendidos en este lote, para que la pantalla pueda decir
     # por quien va en vez de dejar la barra quieta.
     players_named: list[str] = field(default_factory=list)
+    #: Donde cayo en la cola de comisiones cada jugador atendido, y de cuantos
+    #: era esa cola. Es lo que deja pintar la barra como un MAPA del barrido
+    #: --el frente avanza por la izquierda, el azar enciende marcas donde
+    #: caiga-- en vez de como un porcentaje ciego. 2026-08-25.
+    queue_marks: list[dict[str, int]] = field(default_factory=list)
 
 
 class SyncTeamHandler:
@@ -875,6 +880,37 @@ class SyncTeamHandler:
 
         if limite is not None:
             todos = todos[:limite]
+
+        # Donde cayo cada uno en la cola de comisiones, para la barra.
+        #
+        # El eje son TODOS los vigilados, incluidos los ya atendidos en esta
+        # misma pasada. Si se midiera contra los que quedan --que menguan a
+        # cada pulsacion-- el de la cabeza saldria siempre en la posicion 0 y
+        # todas las marcas del frente se amontonarian en el mismo punto.
+        if todos:
+            eje = list((
+                await uow.session.execute(
+                    select(m.Player.ht_player_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        ~m.Player.resale_closed,
+                        m.Player.sold_at.is_not(None)
+                        | m.Player.left_team_at.is_not(None),
+                    )
+                    .order_by(
+                        sa_func.coalesce(
+                            m.Player.sold_at, m.Player.left_team_at,
+                        ).desc().nullslast(),
+                        m.Player.ht_player_id.desc(),
+                    )
+                )
+            ).scalars().all())
+            posiciones = {pid: i for i, pid in enumerate(eje)}
+            for pid in todos:
+                if pid in posiciones:
+                    result.queue_marks.append(
+                        {"position": posiciones[pid], "total": len(eje)}
+                    )
 
         # Cuantas comisiones habia antes, y desde cuando: lo primero dice si
         # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`

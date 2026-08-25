@@ -860,6 +860,9 @@ export interface BackfillBatchResult {
   pending: number;
   /** Apellidos de los atendidos, para decir por quien va. */
   players: string[];
+  /** Dónde cayó cada atendido en la cola de comisiones, y de cuántos era esa
+   *  cola. Es lo que deja pintar la barra como un mapa del barrido. */
+  queueMarks: { position: number; total: number }[];
   errors: string[];
 }
 
