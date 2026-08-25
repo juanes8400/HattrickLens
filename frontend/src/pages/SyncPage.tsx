@@ -266,8 +266,13 @@ export function SyncPage() {
                         left: `${sitioDeLaMarca(posicion, relleno.mapa!.total)}%`,
                         // Una marca ocupa UNA casilla, igual que un paso del
                         // frente: los dos representan un jugador atendido.
+                        //
+                        // Sin suelo de pixeles a proposito. Habia un
+                        // `minWidth: 2px` por legibilidad y rompia justo esto:
+                        // medido en pantalla con 900 en cola, un paso median
+                        // 1,05 px y la marca 2 px --casi el doble--. La cola
+                        // real ya va por 458, a un pelo de cruzar ese limite.
                         width: `${anchoDeLaMarca(relleno.mapa!.total)}%`,
-                        minWidth: "2px",
                       }}
                     />
                   ))}

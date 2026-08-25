@@ -64,6 +64,15 @@ describe("la barra del barrido de comisiones", () => {
     expect(anchoDeLaMarca(total)).toBeCloseTo(unPaso);
   });
 
+  it("siguen midiendo igual con la cola muy larga", () => {
+    // Aqui es donde fallaba: un suelo de 2 px hacia que con 900 en cola la
+    // marca (2 px) fuera casi el doble que un paso del frente (1,05 px).
+    for (const total of [20, 176, 458, 900, 5000]) {
+      const unPaso = anchuraDelFrente(relleno({ total, done: [0], front: 1 }));
+      expect(anchoDeLaMarca(total)).toBeCloseTo(unPaso, 10);
+    }
+  });
+
   it("el frente de N casillas mide N marcas", () => {
     const total = 176;
     expect(anchuraDelFrente(relleno({ total, done: [0, 1, 2], front: 3 })))
