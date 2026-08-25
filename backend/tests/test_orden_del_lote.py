@@ -188,18 +188,17 @@ def test_sin_comision_pendiente_tambien_alterna() -> None:
 def test_cada_respuesta_trae_el_barrido_ENTERO() -> None:
     """No solo lo de esta pulsacion: todo lo que va hecho.
 
-    2026-08-25. Acumulaba el navegador, y por eso lo atendido en un barrido
-    ANTERIOR no salia por ningun lado: seguia ocupando su casilla del eje
-    pero ya no volvia a la cola, asi que su hueco no se llenaba jamas.
-    Mandando el mapa completo la barra dice la verdad, y ademas aguanta que
-    se recargue la pagina.
+    2026-08-25. Lo acumulaba el navegador, y por eso se perdia al recargar la
+    pagina. Ahora el eje se congela al empezar el barrido, lo hecho se deduce
+    de la base --quien tiene revision posterior al arranque-- y el mapa llega
+    entero en cada respuesta.
     """
     async def corre() -> None:
         uow, team_id = await _monta()
         from app.application.commands.sync_team import SyncResult
 
         pulsacion = datetime(2026, 8, 25, 6, 0)
-        por_pulsacion = []
+        mapas = []
         for _ in range(3):
             result = SyncResult(sync_id=1, status="running")
             async with uow:
@@ -208,19 +207,19 @@ def test_cada_respuesta_trae_el_barrido_ENTERO() -> None:
                     limite=1, revisar_desde=pulsacion,
                 )
                 await uow.commit()
-            por_pulsacion.append([x["position"] for x in result.queue_marks])
-            assert all(x["total"] == 3 for x in result.queue_marks), (
-                "la escala no puede encogerse a mitad del barrido"
-            )
+            assert result.queue_map is not None
+            mapas.append(result.queue_map)
 
-        # El turno al azar hace que la SEGUNDA marca pueda ser la 1 o la 2,
-        # asi que fijar la lista exacta seria una prueba tramposa: lo que se
-        # exige es que cada respuesta repita todo lo anterior y sume uno.
-        assert [len(x) for x in por_pulsacion] == [1, 2, 3]
-        for antes, despues in zip(por_pulsacion, por_pulsacion[1:]):
-            assert set(antes) < set(despues), "nada de lo ya hecho se pierde"
-        assert por_pulsacion[0] == [0], "el primero es la cabeza de la cola"
-        assert sorted(por_pulsacion[-1]) == [0, 1, 2]
+        assert [m.total for m in mapas] == [3, 3, 3], (
+            "el eje se congela: no puede encogerse a mitad del barrido"
+        )
+        assert [len(m.hechas) for m in mapas] == [1, 2, 3]
+        for antes, despues in zip(mapas, mapas[1:]):
+            assert set(antes.hechas) < set(despues.hechas), (
+                "nada de lo ya hecho se apaga"
+            )
+        assert mapas[0].hechas == [0], "el primero es la cabeza de la cola"
+        assert mapas[-1].frente == 3, "barrido completo, barra llena"
 
     asyncio.run(corre())
 
@@ -251,13 +250,16 @@ def test_quien_no_se_mira_nunca_no_ocupa_casilla_en_la_barra() -> None:
         result = SyncResult(sync_id=1, status="running")
         async with uow:
             await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
-                uow, team_id, datetime(2026, 8, 25), result, limite=1,
+                uow, team_id, datetime(2026, 8, 25), result,
+                limite=1, revisar_desde=datetime(2026, 8, 25, 6, 0),
             )
             await uow.commit()
 
         assert result.players_named == ["Reciente"], "a ese no se le pregunta"
-        assert result.queue_marks == [{"position": 0, "total": 3}], (
-            "y tampoco ocupa la casilla 0, que si no el frente no arranca"
+        assert result.queue_map is not None
+        assert result.queue_map.total == 3, "no ocupa casilla"
+        assert result.queue_map.hechas == [0], (
+            "y por eso el frente puede arrancar en la casilla 0"
         )
 
     asyncio.run(corre())

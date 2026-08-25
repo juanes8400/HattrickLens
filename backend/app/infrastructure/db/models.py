@@ -175,6 +175,11 @@ class Team(Base):
     commission_seen_closed: Mapped[int] = mapped_column(BigInteger, default=0)
     commission_hunting: Mapped[bool] = mapped_column(Boolean, default=False)
     commission_tried_json: Mapped[str] = mapped_column(Text, default="[]")
+    # El barrido en curso, congelado al empezarlo: la cola tal como estaba, y
+    # desde cuando. Es lo que deja pintar la barra como un mapa estable —ver
+    # `app/domain/engines/mapa_del_barrido.py`.
+    sweep_axis_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sweep_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     transfers_history_complete: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
     )

@@ -924,8 +924,18 @@ async def backfill_run(
         "done": result.players_done,
         "pending": result.players_pending,
         "players": result.players_named,
-        # Donde cayo cada uno en la cola de comisiones: la barra lo pinta como
-        # un mapa del barrido en vez de como un porcentaje.
-        "queueMarks": result.queue_marks,
+        # El mapa del barrido: la barra lo pinta como un recorrido por la cola
+        # --frente por la izquierda, marcas donde cayo el azar-- en vez de
+        # como un porcentaje. Va entero en cada respuesta para que el
+        # navegador solo tenga que pintarlo.
+        "queue": (
+            {
+                "total": result.queue_map.total,
+                "done": result.queue_map.hechas,
+                "front": result.queue_map.frente,
+            }
+            if result.queue_map is not None
+            else None
+        ),
         "errors": result.errors[:5],
     }

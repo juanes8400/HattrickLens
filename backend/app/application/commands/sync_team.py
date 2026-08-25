@@ -26,6 +26,7 @@ from app.domain.engines.sync_diff import (
     diff_training,
 )
 from app.domain.engines import caza_de_comisiones as caza
+from app.domain.engines import mapa_del_barrido
 from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.ports.repositories import UnitOfWork
@@ -370,7 +371,9 @@ class SyncResult:
     #: era esa cola. Es lo que deja pintar la barra como un MAPA del barrido
     #: --el frente avanza por la izquierda, el azar enciende marcas donde
     #: caiga-- en vez de como un porcentaje ciego. 2026-08-25.
-    queue_marks: list[dict[str, int]] = field(default_factory=list)
+    # El mapa del barrido de comisiones, para pintar la barra como lo que es:
+    # un recorrido por la cola, no un porcentaje.
+    queue_map: mapa_del_barrido.Mapa | None = None
 
 
 class SyncTeamHandler:
@@ -881,6 +884,51 @@ class SyncTeamHandler:
         if limite is not None:
             todos = todos[:limite]
 
+        # ── El mapa del barrido ─────────────────────────────────────────────
+        #
+        # El eje se congela al EMPEZAR y se guarda. Recalculandolo en cada
+        # pulsacion contra la tabla viva, cada expediente cerrado borraba una
+        # casilla, las posiciones se corrian y las marcas ya pintadas saltaban
+        # de sitio o desaparecian: era el "alumbra y luego se quita".
+        #
+        # Lo hecho se deduce de la BASE --quien tiene revision posterior al
+        # arranque del barrido-- y no de un contador aparte: asi recargar la
+        # pagina no borra lo andado, y un expediente que se cierra conserva su
+        # casilla en vez de evaporarse.
+        if equipo is not None and revisar_desde is not None:
+            if equipo.sweep_started_at != revisar_desde:
+                eje = list((
+                    await uow.session.execute(
+                        select(m.Player.ht_player_id)
+                        .where(
+                            m.Player.team_id == team_id,
+                            # La MISMA salvaguardia que usan las colas: quien
+                            # lleva prestado el numero de su transferencia no
+                            # tiene ficha y no se le pregunta jamas. Sin ella
+                            # ocupaba casilla --67 de 266 en la cuenta real, y
+                            # dieciseis de ellas las primeras-- y el frente no
+                            # podia arrancar nunca.
+                            ~m.Player.ht_player_id_is_transfer,
+                            ~m.Player.resale_closed,
+                            m.Player.sold_at.is_not(None)
+                            | m.Player.left_team_at.is_not(None),
+                        )
+                        .order_by(
+                            sa_func.coalesce(
+                                m.Player.sold_at, m.Player.left_team_at,
+                            ).desc().nullslast(),
+                            m.Player.ht_player_id.desc(),
+                        )
+                    )
+                ).scalars().all())
+                equipo.sweep_axis_json = json.dumps(eje)
+                equipo.sweep_started_at = revisar_desde
+            else:
+                try:
+                    eje = json.loads(equipo.sweep_axis_json or "[]")
+                except ValueError:
+                    eje = []
+
         # Cuantas comisiones habia antes, y desde cuando: lo primero dice si
         # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`
         # devuelve cierto tambien para las ya anotadas-- y lo segundo permite
@@ -1022,45 +1070,6 @@ class SyncTeamHandler:
             # A quien se probo, para no repetirlo en la siguiente pulsacion.
             probados |= {x for x in todos if x in reventa}
 
-            # El mapa del barrido, para la barra.
-            #
-            # Se manda entero en cada pulsacion --no solo lo de esta-- porque
-            # el que acumulaba era el navegador, y ahi se veia el fallo:
-            # quien se atendio en un barrido ANTERIOR sigue en el eje pero ya
-            # no vuelve a la cola, asi que su hueco de la izquierda no se
-            # llenaba jamas y el bloque solido nunca arrancaba. Mandando la
-            # lista completa la barra pinta lo que de verdad esta hecho, y
-            # ademas sobrevive a recargar la pagina.
-            eje = list((
-                await uow.session.execute(
-                    select(m.Player.ht_player_id)
-                    .where(
-                        m.Player.team_id == team_id,
-                        # La MISMA salvaguardia que usan las colas: quien
-                        # lleva prestado el numero de su transferencia no
-                        # tiene ficha, y ninguna cola lo mira jamas. Sin esta
-                        # linea ocupaba casilla en el eje --67 de 266, y
-                        # dieciseis de ellos justo al principio-- y el frente
-                        # no podia arrancar nunca porque las posiciones 0 a 15
-                        # eran inalcanzables.
-                        ~m.Player.ht_player_id_is_transfer,
-                        ~m.Player.resale_closed,
-                        m.Player.sold_at.is_not(None)
-                        | m.Player.left_team_at.is_not(None),
-                    )
-                    .order_by(
-                        sa_func.coalesce(
-                            m.Player.sold_at, m.Player.left_team_at,
-                        ).desc().nullslast(),
-                        m.Player.ht_player_id.desc(),
-                    )
-                )
-            ).scalars().all())
-            for sitio, pid in enumerate(eje):
-                if pid in probados:
-                    result.queue_marks.append(
-                        {"position": sitio, "total": len(eje)}
-                    )
             comisiones_ahora = await uow.session.scalar(
                 select(sa_func.count(m.PreviousClubBonus.id))
             ) or 0
@@ -1076,6 +1085,28 @@ class SyncTeamHandler:
                 # candidatos y dejaria de explorar.
                 probados = set()
             equipo.commission_tried_json = json.dumps(sorted(probados))
+
+        # El mapa, ya con todo escrito. Se manda entero en cada respuesta: el
+        # navegador solo pinta, no acumula --acumular era lo que dejaba fuera
+        # lo atendido en pulsaciones anteriores a un refresco--.
+        if equipo is not None and equipo.sweep_axis_json:
+            try:
+                eje = json.loads(equipo.sweep_axis_json)
+            except ValueError:
+                eje = []
+            if eje:
+                atendidos = set((
+                    await uow.session.execute(
+                        select(m.Player.ht_player_id)
+                        .where(
+                            m.Player.ht_player_id.in_(eje),
+                            m.Player.previous_club_bonus_checked_at.is_not(None),
+                            m.Player.previous_club_bonus_checked_at
+                            >= equipo.sweep_started_at,
+                        )
+                    )
+                ).scalars().all())
+                result.queue_map = mapa_del_barrido.mapa_de(eje, atendidos)
 
         return len(todos)
 

@@ -5,7 +5,7 @@ import { ErrorState, Note, Panel } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
 import { TEAM_ID, useDashboard } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
-import { api, errorMessage, type SyncResult } from "../services/api";
+import { api, errorMessage, type QueueMap, type SyncResult } from "../services/api";
 
 /**
  * Sincronización — pantalla única, pedida explícitamente 2026-08-15:
@@ -28,24 +28,20 @@ import { api, errorMessage, type SyncResult } from "../services/api";
 /** "1 jugador", "454 jugadores". Nunca "jugador(es)". */
 const jugadores = (n: number) => `${n} jugador${n === 1 ? "" : "es"}`;
 
-/** Hasta dónde llega el frente: el tramo seguido desde la izquierda que ya
- *  se atendió. Una marca suelta a mitad de la barra no lo empuja — eso es
- *  justo lo que distingue al azar del avance. */
-function frente(relleno: {
-  marcas: number[];
-  escala: number;
+/** Lo que ocupa el bloque sólido. Sale del frente que manda el backend —el
+ *  tramo seguido desde la izquierda—, y sólo cae al porcentaje de siempre
+ *  mientras no haya llegado ningún mapa. */
+function anchura(relleno: {
+  mapa: QueueMap | null;
   hechos: number;
   total: number;
   quedan: number;
 }): number {
   if (relleno.quedan === 0) return 100;
-  if (relleno.escala <= 0) {
-    return Math.min(100, (relleno.hechos / Math.max(relleno.total, 1)) * 100);
+  if (relleno.mapa && relleno.mapa.total > 0) {
+    return Math.min(100, (relleno.mapa.front / relleno.mapa.total) * 100);
   }
-  const vistas = new Set(relleno.marcas);
-  let seguidas = 0;
-  while (vistas.has(seguidas)) seguidas += 1;
-  return Math.min(100, (seguidas / relleno.escala) * 100);
+  return Math.min(100, (relleno.hechos / Math.max(relleno.total, 1)) * 100);
 }
 
 export function SyncPage() {
@@ -98,13 +94,10 @@ export function SyncPage() {
     quedan: number;
     ultimo: string | null;
     error: string | null;
-    /** Dónde cayó en la cola cada uno de los atendidos, y cuántos había en
-     *  esa cola cuando empezó el barrido. La escala se CONGELA en la primera
-     *  pulsación: cada jugador atendido sale de la cola, así que si se
-     *  repintara con la cola de ahora las marcas viejas se irían corriendo y
-     *  la barra bailaría. */
-    marcas: number[];
-    escala: number;
+    /** El mapa del barrido, tal como llega: el backend congela el eje al
+     *  empezar y manda el recorrido entero en cada respuesta, así que aquí
+     *  no se acumula ni se calcula nada. */
+    mapa: QueueMap | null;
   } | null>(null);
   const pararRef = useRef(false);
   const [rellenando, setRellenando] = useState(false);
@@ -121,7 +114,7 @@ export function SyncPage() {
     setRellenando(true);
     setRelleno({
       total: inicio, hechos: 0, quedan: inicio, ultimo: null, error: null,
-      marcas: [], escala: 0,
+      mapa: null,
     });
     let hechos = 0;
     try {
@@ -139,15 +132,7 @@ export function SyncPage() {
           quedan: lote.pending,
           ultimo: lote.players[lote.players.length - 1] ?? null,
           error: lote.errors[0] ?? null,
-          // El backend manda el barrido ENTERO en cada respuesta, asi que
-          // aqui no se acumula nada: acumular era lo que dejaba el hueco de
-          // la izquierda sin llenar, porque lo atendido en barridos
-          // anteriores no aparecia por ningun lado.
-          marcas: (lote.queueMarks ?? []).map((x) => x.position),
-          // La escala se congela en la primera pulsación: los expedientes
-          // que se cierran salen del eje, y repintar con el eje de ahora
-          // correría las marcas ya puestas.
-          escala: previo?.escala || (lote.queueMarks ?? [])[0]?.total || 0,
+          mapa: lote.queue ?? previo?.mapa ?? null,
         }));
         if (lote.pending === 0 || lote.done === 0) break;
         // Freno de mano: si una vuelta no reduce lo que queda, es que algo no
@@ -275,23 +260,32 @@ export function SyncPage() {
                   izquierda a derecha van los ex-jugadores del más reciente al
                   más antiguo. El frente avanza por la izquierda con cada
                   turno "reciente", y cada turno al azar enciende una marca
-                  allí donde cayó — normalmente lejos, en la cola vieja. */}
+                  allí donde cayó — normalmente lejos, en la cola vieja.
+                  El eje lo congela el backend al empezar el barrido. */}
               <div className="relative h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)] transition-all duration-300"
-                  style={{ width: `${frente(relleno)}%` }}
+                  style={{ width: `${anchura(relleno)}%` }}
                 />
-                {relleno.escala > 0 &&
-                  relleno.marcas.map((posicion, i) => (
+                {relleno.mapa &&
+                  relleno.mapa.total > 0 &&
+                  relleno.mapa.done.map((posicion) => (
                     <span
-                      key={`${posicion}-${i}`}
+                      key={posicion}
                       className="absolute inset-y-0 w-[3px] rounded-sm bg-[var(--accent)]"
                       style={{
-                        left: `${Math.min(99, (posicion / relleno.escala) * 100)}%`,
+                        left: `${Math.min(99.5, (posicion / relleno.mapa!.total) * 100)}%`,
                       }}
                     />
                   ))}
               </div>
+              {relleno.mapa && relleno.mapa.total > 0 && (
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Recorre tus ex-jugadores del más reciente al más antiguo. Las marcas
+                  sueltas son los saltos al azar, que es como aparecen las ventas
+                  viejas.
+                </p>
+              )}
               {relleno.error && (
                 <p className="mt-2 text-xs text-[var(--warning)]">
                   Hattrick falló en una ficha. Lo descargado se guardó; vuelve a pulsar

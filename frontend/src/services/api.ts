@@ -852,6 +852,18 @@ export interface BackfillPending {
   };
 }
 
+/** El recorrido de un barrido de comisiones. El eje se congela al empezar,
+ *  así que una posición significa lo mismo de la primera pulsación a la
+ *  última. */
+export interface QueueMap {
+  /** Casillas del eje: el ancho de la barra. */
+  total: number;
+  /** Posiciones ya atendidas. Se pintan como marcas. */
+  done: number[];
+  /** Casillas seguidas desde la izquierda: el bloque sólido. */
+  front: number;
+}
+
 export interface BackfillBatchResult {
   status: string;
   /** Jugadores atendidos en este lote. */
@@ -860,9 +872,9 @@ export interface BackfillBatchResult {
   pending: number;
   /** Apellidos de los atendidos, para decir por quien va. */
   players: string[];
-  /** Dónde cayó cada atendido en la cola de comisiones, y de cuántos era esa
-   *  cola. Es lo que deja pintar la barra como un mapa del barrido. */
-  queueMarks: { position: number; total: number }[];
+  /** El mapa del barrido de comisiones, para pintar la barra como un
+   *  recorrido por la cola. Llega entero en cada respuesta. */
+  queue: QueueMap | null;
   errors: string[];
 }
 
