@@ -21,9 +21,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # ── Ser entrenador cierra el expediente ─────────────────────────────────────
 
 def test_el_bloque_de_entrenador_basta() -> None:
-    """Comprobado en vivo el 2026-08-25 contra los 24 jugadores del equipo:
-    solo uno trae `TrainerData` --el entrenador, con nivel 5-- y la ficha
-    individual de un jugador normal no lo trae en absoluto."""
+    """Lo que decide es `is_player_trainer`; de donde sale, mas abajo."""
     assert vigilancia.es_entrenador({"is_player_trainer": True}) is True
     assert vigilancia.es_entrenador({"is_player_trainer": False}) is False
     assert vigilancia.es_entrenador({}) is False
@@ -58,10 +56,35 @@ def test_sin_ser_entrenador_el_canterano_sigue_vigilado() -> None:
     ) is None
 
 
+def test_un_jugador_normal_TRAE_la_etiqueta_vacia() -> None:
+    """El fallo que cerro 121 expedientes, 2026-08-25.
+
+    En `playerdetails.xml` v3.2 TODO jugador trae `<TrainerData />` vacio, asi
+    que dar por entrenador a quien tuviera la etiqueta cerraba la vigilancia
+    de comisiones de cualquiera al que se le pidiera la ficha.
+
+    La regla vieja se comprobo contra `players.xml` --donde solo el entrenador
+    trae el bloque-- y se aplico a `playerdetails.xml`, que es otro fichero.
+    Los dos recortes de aqui son reales.
+    """
+    ficha = get_parser("playerdetails")(
+        (FIXTURES / "playerdetails_no_entrenador.xml").read_bytes()
+    )
+    assert ficha["is_player_trainer"] is False, (
+        "la etiqueta esta, pero vacia: no es el entrenador"
+    )
+
+
+def test_el_entrenador_trae_el_bloque_CON_contenido() -> None:
+    """Asi viene el entrenador de verdad: con tipo y nivel dentro."""
+    ficha = get_parser("playerdetails")(
+        (FIXTURES / "playerdetails_entrenador.xml").read_bytes()
+    )
+    assert ficha["is_player_trainer"] is True
+
+
 def test_el_parser_marca_al_entrenador() -> None:
-    """El fixture se refresco el 2026-08-25: traia un `TrainerData` con nivel
-    0 en un jugador que, al pedir su ficha real, NO lo trae. El fichero de
-    pruebas estaba caducado y hacia creer que la etiqueta no bastaba."""
+    """El fixture general del equipo: ese jugador no es entrenador."""
     ficha = get_parser("playerdetails")((FIXTURES / "playerdetails.xml").read_bytes())
     assert ficha["is_player_trainer"] is False
 

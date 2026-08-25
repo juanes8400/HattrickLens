@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Como viene el entrenador de verdad: el bloque CON contenido. Tomado de
+     players.xml v2.8 del equipo del usuario, 2026-08-25. -->
+<HattrickData>
+  <FileName>playerdetails.xml</FileName>
+  <Version>3.2</Version>
+  <Player>
+    <PlayerID>111111111</PlayerID>
+    <FirstName>El</FirstName>
+    <LastName>Entrenador</LastName>
+    <TrainerData>
+      <TrainerType>0</TrainerType>
+      <TrainerSkillLevel>5</TrainerSkillLevel>
+    </TrainerData>
+  </Player>
+</HattrickData>

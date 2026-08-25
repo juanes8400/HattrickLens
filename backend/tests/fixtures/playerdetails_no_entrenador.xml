@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recorte real de playerdetails.xml v3.2, 2026-08-25: un jugador normal
+     TRAE la etiqueta TrainerData, vacia. Por eso no basta con que exista. -->
+<HattrickData>
+  <FileName>playerdetails.xml</FileName>
+  <Version>3.2</Version>
+  <Player>
+    <PlayerID>474488311</PlayerID>
+    <FirstName>Ireneo</FirstName>
+    <LastName>Tezna</LastName>
+    <TrainerData />
+    <OwningTeam><TeamID>480461</TeamID><TeamName>FC Spartak Vokovice</TeamName></OwningTeam>
+  </Player>
+</HattrickData>

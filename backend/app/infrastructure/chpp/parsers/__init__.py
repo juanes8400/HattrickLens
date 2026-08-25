@@ -272,11 +272,24 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         # YA NO PUEDE VENDERSE nunca mas, asi que tampoco habra reventa ni
         # comision. Es un cierre definitivo.
         #
-        # Basta con que exista el bloque: verificado en vivo contra los 24
-        # jugadores del equipo --uno solo lo trae, el entrenador-- y contra
-        # la ficha individual de un jugador normal, que no lo trae en
-        # absoluto. Puede haber uno por equipo, no mas.
-        "is_player_trainer": node.find("TrainerData") is not None,
+        # Lo que distingue al entrenador es que el bloque traiga ALGO DENTRO,
+        # no que exista.
+        #
+        # 2026-08-25, comprobado en vivo contra los dos ficheros:
+        #
+        #   players.xml (la plantilla)  jugador normal: sin bloque
+        #                               el entrenador : <TrainerData>
+        #                                                 <TrainerType>0</TrainerType>
+        #                                                 <TrainerSkillLevel>5</TrainerSkillLevel>
+        #                                               </TrainerData>
+        #   playerdetails.xml           jugador normal: <TrainerData /> VACIO
+        #
+        # Mirar solo si la etiqueta existe daba por entrenador a CUALQUIERA
+        # cuya ficha individual se pidiera: cerro 121 expedientes de vigilancia
+        # de comisiones que debian seguir abiertos. La regla vieja se comprobo
+        # contra players.xml y se aplico a playerdetails.xml, que es otro
+        # fichero con otras reglas.
+        "is_player_trainer": node.find("TrainerData/TrainerSkillLevel") is not None,
         "mother_club_team_name": (
             _txt(mother_club, "TeamName", "") if mother_club is not None else ""
         ),

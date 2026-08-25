@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { anchuraDelFrente, sitioDeLaMarca } from "./barraDelBarrido";
+import {
+  anchoDeLaMarca,
+  anchuraDelFrente,
+  sitioDeLaMarca,
+} from "./barraDelBarrido";
 
 const relleno = (mapa: { total: number; done: number[]; front: number } | null) => ({
   mapa,
@@ -45,7 +49,29 @@ describe("la barra del barrido de comisiones", () => {
 
   it("coloca las marcas dentro de la barra, incluida la última", () => {
     expect(sitioDeLaMarca(0, 191)).toBe(0);
-    expect(sitioDeLaMarca(190, 191)).toBeLessThanOrEqual(99.5);
     expect(sitioDeLaMarca(95, 190)).toBe(50);
+    // La última casilla acaba justo en el borde, sin salirse.
+    const total = 191;
+    expect(sitioDeLaMarca(total - 1, total) + anchoDeLaMarca(total)).toBeCloseTo(100);
+  });
+
+  it("una marca mide exactamente lo mismo que un paso del frente", () => {
+    // Estaba clavada a 3 px mientras un paso del frente medía 7,19 px con 176
+    // en cola: un salto al azar se veía a menos de la mitad de tamaño que un
+    // avance, aunque los dos son un jugador atendido.
+    const total = 176;
+    const unPaso = anchuraDelFrente(relleno({ total, done: [0], front: 1 }));
+    expect(anchoDeLaMarca(total)).toBeCloseTo(unPaso);
+  });
+
+  it("el frente de N casillas mide N marcas", () => {
+    const total = 176;
+    expect(anchuraDelFrente(relleno({ total, done: [0, 1, 2], front: 3 })))
+      .toBeCloseTo(anchoDeLaMarca(total) * 3);
+  });
+
+  it("un eje vacío no da un ancho absurdo", () => {
+    expect(anchoDeLaMarca(0)).toBe(0);
+    expect(sitioDeLaMarca(5, 0)).toBe(0);
   });
 });

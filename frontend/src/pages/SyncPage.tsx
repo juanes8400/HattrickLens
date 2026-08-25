@@ -5,7 +5,11 @@ import { ErrorState, Note, Panel } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
 import { TEAM_ID, useDashboard } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
-import { anchuraDelFrente, sitioDeLaMarca } from "../utils/barraDelBarrido";
+import {
+  anchoDeLaMarca,
+  anchuraDelFrente,
+  sitioDeLaMarca,
+} from "../utils/barraDelBarrido";
 import { api, errorMessage, type QueueMap, type SyncResult } from "../services/api";
 
 /**
@@ -257,9 +261,13 @@ export function SyncPage() {
                   relleno.mapa.done.map((posicion) => (
                     <span
                       key={posicion}
-                      className="absolute inset-y-0 w-[3px] rounded-sm bg-[var(--accent)]"
+                      className="absolute inset-y-0 rounded-sm bg-[var(--accent)]"
                       style={{
                         left: `${sitioDeLaMarca(posicion, relleno.mapa!.total)}%`,
+                        // Una marca ocupa UNA casilla, igual que un paso del
+                        // frente: los dos representan un jugador atendido.
+                        width: `${anchoDeLaMarca(relleno.mapa!.total)}%`,
+                        minWidth: "2px",
                       }}
                     />
                   ))}
