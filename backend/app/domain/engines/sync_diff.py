@@ -239,6 +239,36 @@ def diff_player_departure(
     )
 
 
+def diff_previous_club_bonus(
+    player_name: str,
+    resale_price: int,
+    amount: int,
+    games: int,
+    pct: float,
+    currency: str = "",
+) -> Change:
+    """Alguien revendio a un ex-jugador nuestro y Hattrick nos paga un %.
+
+    2026-08-25, pedido explicitamente: la herramienta encontraba la comision,
+    la calculaba al peso y la guardaba SIN DECIR NADA. Era dinero del usuario
+    apareciendo en silencio.
+
+    Los dos numeros van juntos a proposito: el precio de la reventa explica de
+    donde sale la cifra, y los partidos jugados con nosotros explican por que
+    el porcentaje es ese y no otro.
+    """
+    return Change(
+        category="transferencias", subject=player_name, metric="previous_club_bonus",
+        label="Comision de club anterior", kind="money", after=amount,
+        currency=currency,
+        summary=(
+            f"{player_name} fue revendido por {thousands(resale_price)} {currency}"
+            f": te tocan {thousands(amount)} {currency}"
+            f" ({pct:.0%} por {games} partidos con nosotros)"
+        ).replace("  ", " ").strip(),
+    )
+
+
 def diff_economy(
     old: dict[str, Any] | None, new: dict[str, Any], currency: str = "", rate: float = 1.0
 ) -> list[Change]:

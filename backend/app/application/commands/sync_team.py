@@ -13,6 +13,7 @@ from typing import Any
 from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.value_objects.skill import Age
 from app.domain.engines.sync_diff import (
+    diff_previous_club_bonus,
     Change,
     MatchState,
     diff_economy,
@@ -593,6 +594,17 @@ class SyncTeamHandler:
                 pendientes_unicos |= set(cola)
             result.players_pending = len(pendientes_unicos)
 
+            # Las comisiones encontradas van tambien a "Cambios": el progreso
+            # se pierde en cuanto se cierra la pantalla, y esto es dinero.
+            for c in result.changes:
+                detail = c.get("detail")
+                uow.session.add(m.SyncChange(
+                    sync_id=sync_id, team_id=cmd.team_id, category=c["category"],
+                    summary=c["summary"],
+                    detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+                    created_at=fetched_at,
+                ))
+
             await uow.syncs.finalize(
                 sync_id, status=result.status, error="; ".join(result.errors) or None,
             )
@@ -819,12 +831,14 @@ class SyncTeamHandler:
         if limite is not None:
             todos = todos[:limite]
 
-        # Cuantas comisiones habia antes: la unica forma de saber si esta
-        # tanda atribuyo alguna NUEVA. `_check_previous_club_bonus` devuelve
-        # cierto tambien cuando la comision ya estaba anotada de antes.
+        # Cuantas comisiones habia antes, y desde cuando: lo primero dice si
+        # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`
+        # devuelve cierto tambien para las ya anotadas-- y lo segundo permite
+        # recuperarlas al final para anunciarlas.
         comisiones_antes = await uow.session.scalar(
             select(sa_func.count(m.PreviousClubBonus.id))
         ) or 0
+        arranque = datetime.now(UTC).replace(tzinfo=None)
 
         for ht_player_id in todos:
             nombre = await uow.session.scalar(
@@ -890,6 +904,38 @@ class SyncTeamHandler:
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"reventa:{ht_player_id}: {exc}")
                     result.status = "partial"
+
+        # Lo encontrado se ANUNCIA. 2026-08-25, pedido explicitamente: la
+        # herramienta calculaba la comision al peso y la guardaba sin decir
+        # nada; era dinero del usuario apareciendo en silencio.
+        #
+        # No se corta la tanda al encontrarla --tambien pedido asi--: el resto
+        # de la cola sigue necesitando ficha, precio o censo, que no tienen
+        # que ver con la caceria.
+        nuevas = list((
+            await uow.session.execute(
+                select(m.PreviousClubBonus, m.Player.first_name, m.Player.last_name)
+                .join(m.Player, m.Player.id == m.PreviousClubBonus.player_id)
+                .where(m.PreviousClubBonus.computed_at >= arranque)
+            )
+        ).all())
+        if nuevas:
+            equipo_moneda = await uow.session.get(m.Team, team_id)
+            moneda = equipo_moneda.currency_name if equipo_moneda else ""
+            tasa = (equipo_moneda.currency_rate or 1.0) if equipo_moneda else 1.0
+            for bono, nombre, apellido in nuevas:
+                cambio = diff_previous_club_bonus(
+                    player_name=f"{nombre} {apellido}".strip(),
+                    # `amount` y `resale_price` viajan en la moneda base del
+                    # juego, igual que los precios de compra y venta.
+                    resale_price=round(bono.resale_price / tasa),
+                    amount=round(bono.amount / tasa),
+                    games=bono.games_played_with_us,
+                    pct=bono.pct_applied,
+                    currency=moneda,
+                )
+                result.changes.append(_as_change_row(cambio))
+                await _report(on_progress, cambio.summary)
 
         if cazando and equipo is not None:
             # A quien se probo, para no repetirlo en la siguiente pulsacion.

@@ -126,3 +126,26 @@ def test_la_alternancia_sobrevive_entre_pulsaciones() -> None:
     assert elegidos[0] == 10
     assert elegidos[2] == min(x for x in RECIENTES if x not in elegidos[:2])
     assert len(set(elegidos)) == 4
+
+
+def test_la_frase_de_la_comision_dice_de_donde_sale_el_numero() -> None:
+    """Los numeros son los reales de Gabriel Cecilio Acasusso, 2026-08-25.
+
+    Se anuncian los tres juntos a proposito: el precio de la reventa explica
+    de donde sale la cifra, y los partidos jugados con nosotros explican por
+    que el porcentaje es ese y no otro.
+    """
+    from app.domain.engines.sync_diff import diff_previous_club_bonus
+
+    c = diff_previous_club_bonus(
+        player_name="Gabriel Cecilio Acasusso",
+        resale_price=6_120_000, amount=183_600, games=17, pct=0.03,
+        currency="US$",
+    )
+    assert c.category == "transferencias"
+    assert c.after == 183_600
+    assert "Gabriel Cecilio Acasusso" in c.summary
+    assert "6,120,000" in c.summary or "6.120.000" in c.summary
+    assert "183,600" in c.summary or "183.600" in c.summary
+    assert "3%" in c.summary
+    assert "17 partidos" in c.summary
