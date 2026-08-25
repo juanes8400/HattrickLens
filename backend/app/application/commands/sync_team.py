@@ -421,19 +421,6 @@ class SyncTeamHandler:
                 # pujas. Va antes que `currentbids`, que solo enriquece.
                 await self._marcar_quien_esta_en_venta(uow, cmd.team_id, captured_at)
 
-            if "economy" in files:
-                # La vigilancia de reventas, enganchada a la economia y no a
-                # `transfersteam`.
-                #
-                # 2026-08-24: este monitoreo estaba definido y documentado
-                # como "corre en cada sync", pero la llamada desaparecio
-                # cuando `transfersteam` salio del sync normal el dia 22.
-                # Llevaba dos dias sin ejecutarse. Ahora cuelga de `economy`,
-                # que es de donde sale la senal que lo dispara.
-                await self._backfill_previous_club_bonus(
-                    uow, cmd.team_id, result, on_progress,
-                )
-
             if "youthplayerlist" in files:
                 await self._sync_informes_de_ojeador(
                     uow, cmd.team_id, captured_at, result, on_progress,
@@ -3028,10 +3015,6 @@ class SyncTeamHandler:
             result.snapshots_written += 1
             if file == "economy":
                 from app.infrastructure.db import models as m
-
-                # El dinero de la comision dice CUANDO buscar una reventa.
-                # Va aqui porque `economy.xml` ya se descargo: cuesta cero.
-                await self._mirar_si_entro_comision(uow, team_id, payload)
 
                 team = await uow.session.get(m.Team, team_id)
                 currency = team.currency_name if team else ""
