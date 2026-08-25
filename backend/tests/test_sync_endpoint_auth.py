@@ -153,7 +153,9 @@ def test_sync_runs_for_real_with_a_valid_session(
     # Y de 98 a 100 el mismo dia: los dos canteranos del fixture traen ahora
     # su informe de ojeador (`youthplayerdetails`, migracion 0063). Es una
     # llamada por canterano y solo la primera vez.
-    assert body["snapshotsWritten"] == 100
+    # Y de 100 a 102 el 2026-08-25: el sync normal recorre el libro de
+    # compraventas, que es donde estan TUS compras y TUS ventas.
+    assert body["snapshotsWritten"] == 102
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)

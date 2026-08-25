@@ -34,6 +34,14 @@ class FakeCHPP:
         # test_sync_flow.py, test_player_history.py) usan su propio FakeCHPP.
         if file == "playerdetails":
             return {"chpp_error": True}
+        # 2026-08-25: mismo motivo, un fichero mas. Desde que "Sincronizar
+        # ahora" recorre el libro de compraventas, servir aqui el fixture de
+        # `transfersteam` mete compras y ventas reales --y reconstruye las
+        # etapas-- encima de los escenarios que cada test monta a mano, y les
+        # cambia el estado del jugador bajo los pies. Los tests que SI quieren
+        # probar el libro traen su propio doble.
+        if file == "transfersteam":
+            return {"transfers": [], "pages": 1}
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
 
 

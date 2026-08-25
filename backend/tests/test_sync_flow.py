@@ -82,7 +82,10 @@ def test_first_sync_writes_all_snapshots() -> None:
         # también las subidas confirmadas por Hattrick, una llamada por
         # jugador (`trainingevents.xml` solo existe por playerID). El fixture
         # trae 5 eventos.
-        assert result.snapshots_written == 55
+        # De 55 a 57 el 2026-08-25: el sync normal recorre ahora el libro de
+        # compraventas, y el fixture trae dos. Son TUS movimientos y por eso
+        # vienen con este boton, no con el de abajo.
+        assert result.snapshots_written == 57
         # 115 repetidos ya en la PRIMERA sincronización: el fichero de subidas
         # se pide por jugador y el fixture devuelve los mismos 5 eventos para
         # todos, así que a partir del primero ya están guardados. Con datos
@@ -201,11 +204,16 @@ def test_players_missing_from_a_later_sync_are_marked_departed() -> None:
             rows = (
                 await u.session.execute(select(m.Player).where(m.Player.team_id == team_id))
             ).scalars().all()
-            assert len(rows) == 24  # append-only: nadie se borra
+            # 25 y no 24 desde el 2026-08-25: el sync normal recorre el
+            # libro de compraventas y este crea la ficha de quien esta app
+            # nunca vio en la plantilla. Append-only: nadie se borra.
+            assert len(rows) == 25
             active = [p for p in rows if p.left_team_at is None]
             departed = [p for p in rows if p.left_team_at is not None]
             assert len(active) == 4
-            assert len(departed) == 20
+            # 21: los veinte de la plantilla que ya no vienen, mas el que
+            # entro por el libro y tampoco esta en el roster de hoy.
+            assert len(departed) == 21
             assert {p.ht_player_id for p in active} == kept_ids
 
     asyncio.run(run())

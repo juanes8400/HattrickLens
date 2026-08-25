@@ -429,6 +429,34 @@ class SyncTeamHandler:
 
             from app.infrastructure.db import models as m
 
+            # TUS compras y TUS ventas se traen AQUI. 2026-08-25, corregido a
+            # peticion del usuario: el boton de abajo es solo para la
+            # vigilancia de comisiones de reventa, no para el movimiento del
+            # propio club.
+            #
+            # El fallo que lo destapo: el libro solo se recorria "si el
+            # historial no esta completo", asi que en cuanto termino el primer
+            # barrido dejo de leerse. El libro se quedo congelado el 20 de
+            # agosto y Jose Rui Gomes, comprado el 24, no tenia ni fecha ni
+            # precio de compra.
+            #
+            # Releerlo es barato: `_recorrer_historial` se detiene en cuanto
+            # reconoce un numero de transferencia, asi que cuando no hay nada
+            # nuevo cuesta UNA pagina. La maquinaria ya estaba escrita; lo que
+            # sobraba era la condicion que impedia usarla.
+            # Atado a `players`: el libro cuenta el movimiento de la
+            # plantilla, y una sincronizacion restringida a otro fichero no
+            # tiene por que gastar una llamada en el.
+            equipo_libro = (
+                await uow.session.get(m.Team, cmd.team_id)
+                if "players" in files else None
+            )
+            if equipo_libro is not None:
+                await _report(on_progress, "Revisando tus compras y ventas...")
+                await self._recorrer_historial(
+                    uow, cmd.user_id, cmd.team_id, equipo_libro, result,
+                )
+
             if result.departed_players:
                 # HL-2xx, 2026-08-12: se anuncia aquí, no dentro de
                 # `_persist_squad` — `transfersteam` puede ir DESPUÉS de
@@ -567,16 +595,9 @@ class SyncTeamHandler:
             result = SyncResult(sync_id=sync_id, status="completed")
             fetched_at = datetime.now(UTC).replace(tzinfo=None)
 
-            # El orden lo pone la aplicación, no el usuario: primero el libro
-            # de compraventas —que es lo que CREA las fichas de los que la app
-            # nunca vio— y solo después el trabajo por jugador. Al revés no
-            # habría a quién completar. Se hace en la primera pulsación y
-            # nunca más, porque la bandera lo recuerda.
-            equipo = await uow.session.get(m.Team, cmd.team_id)
-            if equipo is not None and not equipo.transfers_history_complete:
-                await _report(on_progress, "Recorriendo el historial de transferencias...")
-                await self._recorrer_historial(uow, cmd.user_id, cmd.team_id, equipo, result)
-
+            # El libro de compraventas ya NO se lee aqui: son TUS movimientos
+            # y los trae "Sincronizar ahora" (2026-08-25). Este boton es solo
+            # para la vigilancia y la caza de comisiones de reventa.
             result.players_done = await self._backfill_sold_player_details(
                 uow, cmd.team_id, fetched_at, result, on_progress,
                 limite=cmd.limite, revisar_desde=cmd.revisar_desde,
@@ -4852,8 +4873,14 @@ class SyncTeamHandler:
         # primeros usuarios con Transferencias vacía y sin forma de
         # recuperarla, porque cada clic siguiente se paraba en la primera
         # página creyendo estar al día.
-        await self._marcar_salidas_de_vendidos(uow, team_id)
-        await self._reconstruir_etapas(uow, team_id)
+        # Las etapas se reconstruyen a partir del libro, asi que solo hay que
+        # rehacerlas si el libro CAMBIO. 2026-08-25: desde que "Sincronizar
+        # ahora" recorre el libro en cada pulsacion, rehacerlas siempre era
+        # trabajo inutil en la inmensa mayoria de los syncs --y, peor, volvia
+        # a escribir sobre etapas que ya estaban bien--.
+        if result.transfers_new:
+            await self._marcar_salidas_de_vendidos(uow, team_id)
+            await self._reconstruir_etapas(uow, team_id)
 
         if team is not None and recorrido_entero and not result.errors:
             if highest_seen > (team.last_transfer_id_seen or 0):

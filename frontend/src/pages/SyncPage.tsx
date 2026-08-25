@@ -155,6 +155,11 @@ export function SyncPage() {
             que ya está guardado no se vuelve a pedir, así que la primera vez tarda bastante más
             que las siguientes.
           </p>
+          <p className="text-sm text-[var(--muted)]">
+            <b className="text-[var(--text)]">Tus compras y tus ventas se traen aquí.</b>{" "}
+            Cada vez que sincronizas se revisa tu libro de transferencias desde lo
+            último que ya tenías, así que cuesta una página cuando no hay nada nuevo.
+          </p>
           <button
             onClick={() => fullSync.mutate()}
             disabled={running}
@@ -181,9 +186,16 @@ export function SyncPage() {
       <Panel title="Transferencias" meta={pendientes.data ? jugadores(pendientes.data.pending) : ""}>
         <div className="space-y-3 p-4">
           <p className="text-sm text-[var(--muted)]">
-            Trae tu pasado entero: quién pasó por el club, por cuánto, de dónde era y en
-            cuántos partidos jugó contigo. Va de a un jugador, así que puedes pararlo y
-            seguir otro día.
+            <b className="text-[var(--text)]">Sólo comisiones de reventa.</b> Cuando un
+            club revende a alguien que le vendiste —o a un canterano tuyo— te toca un
+            porcentaje, y esto es lo que sale a buscarlo. Va de a un jugador, así que
+            puedes pararlo y seguir otro día.
+          </p>
+          <p className="text-sm text-[var(--muted)]">
+            Aquí <b className="text-[var(--text)]">no</b> se traen tus compras ni tus
+            ventas: ésas vienen con «Sincronizar ahora». De paso completa lo que le
+            falte al pasado de cada ex-jugador —de dónde era, por cuánto se fue, cuántos
+            partidos jugó contigo—, que es lo que hace falta para calcular la comisión.
           </p>
 
           {pendientes.data && (

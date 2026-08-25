@@ -43,9 +43,20 @@ FIXTURES_DIR = __file__.rsplit("\\", 1)[0] + "\\fixtures"
 
 
 class FakeCHPP:
+    """El libro de compraventas se sirve VACIO a proposito.
+
+    2026-08-25: desde que "Sincronizar ahora" tambien recorre el libro, servir
+    aqui el fixture de `transfersteam` metia compras y ventas reales encima de
+    los escenarios que estas pruebas montan a mano, y les cambiaba el estado
+    del jugador bajo los pies. Lo que se prueba aqui es el saldo, no el libro
+    --ese tiene sus propias pruebas mas abajo, con su propio doble--.
+    """
+
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
         from pathlib import Path
 
+        if file == "transfersteam":
+            return {"transfers": [], "pages": 1}
         return get_parser(file)(
             (Path(FIXTURES_DIR) / f"{file}.xml").read_bytes()
         )
@@ -1691,16 +1702,16 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
         # que el corte lo marca el momento en que se pulsó.
         pulsacion = datetime.now(UTC).replace(tzinfo=None)
 
-        # La primera vuelta recorre además el historial, que es lo que crea
-        # las fichas de quienes esta app nunca vio: la cola crece antes de
-        # empezar a bajar.
+        # 2026-08-25: la primera vuelta ya NO recorre el historial. TUS
+        # compras y TUS ventas las trae "Sincronizar ahora"; este boton es
+        # solo para la vigilancia de comisiones de reventa.
         vueltas = 0
         lote = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(
                 user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
             )
         )
-        assert lote.pages_fetched >= 1, "la primera vuelta recorre el historial"
+        assert lote.pages_fetched == 0, "el libro no es cosa de este boton"
         assert lote.players_done == 1
 
         while lote.players_pending > 0 and vueltas < 50:
