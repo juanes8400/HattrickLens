@@ -774,6 +774,20 @@ class SyncTeamHandler:
         # lote empezaba siempre por los mas viejos. Ordenar las consultas de
         # `pendientes_de_ficha` no bastaba, porque este consumidor tiraba ese
         # orden. Se vuelve a pedir el orden aqui, sobre la union.
+        #  ¿Hay dinero por atribuir? Lo dice la economia que ya esta
+        #  guardada, y decide en que orden se busca.
+        cazando = False
+        equipo = await uow.session.get(m.Team, team_id)
+        if equipo is not None:
+            await self._mirar_si_entro_comision(uow, team_id)
+            cazando = bool(equipo.commission_hunting)
+            try:
+                probados: set[int] = set(json.loads(equipo.commission_tried_json or "[]"))
+            except ValueError:
+                probados = set()
+        else:
+            probados = set()
+
         union = ficha | precio | destino | censo | reventa
         todos = list((
             await uow.session.execute(
@@ -788,8 +802,29 @@ class SyncTeamHandler:
                 )
             )
         ).scalars().all()) if union else []
+
+        if cazando and reventa:
+            # Persiguiendo: uno reciente, uno al azar, uno reciente… sobre la
+            # cola de reventas, y el resto detras por recencia. La alternancia
+            # sobrevive entre pulsaciones porque el turno se deduce de cuantos
+            # se llevan probados, no de una variable de esta llamada.
+            cola = [x for x in todos if x in reventa]
+            perseguidos = caza.orden_de_busqueda(
+                cola, probados, len(cola),
+                empezar_por_reciente=(len(probados) % 2 == 0),
+            )
+            resto = [x for x in todos if x not in set(perseguidos)]
+            todos = perseguidos + resto
+
         if limite is not None:
             todos = todos[:limite]
+
+        # Cuantas comisiones habia antes: la unica forma de saber si esta
+        # tanda atribuyo alguna NUEVA. `_check_previous_club_bonus` devuelve
+        # cierto tambien cuando la comision ya estaba anotada de antes.
+        comisiones_antes = await uow.session.scalar(
+            select(sa_func.count(m.PreviousClubBonus.id))
+        ) or 0
 
         for ht_player_id in todos:
             nombre = await uow.session.scalar(
@@ -855,6 +890,22 @@ class SyncTeamHandler:
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"reventa:{ht_player_id}: {exc}")
                     result.status = "partial"
+
+        if cazando and equipo is not None:
+            # A quien se probo, para no repetirlo en la siguiente pulsacion.
+            probados |= {x for x in todos if x in reventa}
+            comisiones_ahora = await uow.session.scalar(
+                select(sa_func.count(m.PreviousClubBonus.id))
+            ) or 0
+            sin_probar = [x for x in reventa if x not in probados]
+            if comisiones_ahora > comisiones_antes or not sin_probar:
+                # Aparecio, o se probaron todos: la caceria se cierra hasta
+                # que vuelva a entrar dinero, y la lista se vacia para que la
+                # proxima empiece de cero.
+                equipo.commission_hunting = False
+                equipo.commission_tried_json = "[]"
+            else:
+                equipo.commission_tried_json = json.dumps(sorted(probados))
 
         return len(todos)
 
@@ -2635,7 +2686,7 @@ class SyncTeamHandler:
         return revendido
 
     async def _mirar_si_entro_comision(
-        self, uow: UnitOfWork, team_id: int, payload: dict[str, Any],
+        self, uow: UnitOfWork, team_id: int,
     ) -> bool:
         """El dinero dice CUANDO buscar una reventa, aunque no diga quien.
 
@@ -2645,11 +2696,26 @@ class SyncTeamHandler:
 
         Sin esto la vigilancia era ciega: 218 en cola y casi todas las
         llamadas gastadas en semanas donde no habia nada que encontrar.
+
+        Se lee de la economia YA GUARDADA, no de una descarga: el boton de
+        arriba la trae en cada sincronizacion y aqui basta con mirarla. Asi
+        este boton no le pide nada a Hattrick que no sea para atribuir una
+        comision.
         """
+        from sqlalchemy import select
+
         from app.infrastructure.db import models as m
 
         equipo = await uow.session.get(m.Team, team_id)
         if equipo is None:
+            return False
+        economia = await uow.session.scalar(
+            select(m.EconomySnapshot)
+            .where(m.EconomySnapshot.team_id == team_id)
+            .order_by(m.EconomySnapshot.captured_at.desc())
+            .limit(1)
+        )
+        if economia is None:
             return False
         decision = caza.revisar_el_dinero(
             caza.Vigilancia(
@@ -2658,8 +2724,8 @@ class SyncTeamHandler:
                 cazando=bool(equipo.commission_hunting),
             ),
             caza.Comisiones(
-                en_curso=payload.get("income_sold_players_commission") or 0,
-                semana_cerrada=payload.get("last_income_sold_players_commission") or 0,
+                en_curso=economia.income_sold_players_commission or 0,
+                semana_cerrada=economia.last_income_sold_players_commission or 0,
             ),
         )
         equipo.commission_seen = decision.vista_en_curso

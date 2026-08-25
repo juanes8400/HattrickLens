@@ -93,3 +93,62 @@ def test_el_limite_se_lleva_a_los_mas_recientes() -> None:
         assert result.players_named == ["Reciente"]
 
     asyncio.run(corre())
+
+
+def test_con_comision_por_atribuir_el_lote_alterna() -> None:
+    """El boton de Transferencias, persiguiendo: uno reciente, uno al azar.
+
+    2026-08-24. La senal sale de la economia YA GUARDADA --el boton de arriba
+    la trajo-- asi que este boton no le pide nada a Hattrick para saberlo.
+    """
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        from app.application.commands.sync_team import SyncResult
+
+        # Una comision que nadie ha atribuido todavia.
+        async with uow:
+            usuario = m.User(ht_user_id=1, login_name="yo")
+            uow.session.add(usuario)
+            await uow.session.flush()
+            sync = m.Sync(user_id=usuario.id, team_id=team_id, kind="economy",
+                          status="completed", started_at=datetime(2026, 8, 24))
+            uow.session.add(sync)
+            await uow.session.flush()
+            obligatorias = {
+                c: 0 for c in (
+                    "sponsors_popularity", "supporters_popularity", "fan_club_size",
+                    "income_spectators", "income_sponsors", "income_financial",
+                    "income_sum", "costs_arena", "costs_players", "costs_financial",
+                    "costs_staff", "costs_youth", "costs_sum", "expected_weeks_total",
+                    "last_income_sum", "last_costs_sum", "last_weeks_total",
+                )
+            }
+            uow.session.add(m.EconomySnapshot(
+                sync_id=sync.id, team_id=team_id,
+                captured_at=datetime(2026, 8, 24), cash=0, expected_cash=0,
+                income_sold_players_commission=183_600,
+                last_income_sold_players_commission=0,
+                content_hash=b"e" * 32, **obligatorias,
+            ))
+            await uow.commit()
+
+        result = SyncResult(sync_id=1, status="running")
+        async with uow:
+            await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
+                uow, team_id, datetime(2026, 8, 24), result,
+            )
+            await uow.commit()
+
+        async with uow:
+            equipo = await uow.session.get(m.Team, team_id)
+            probados = equipo.commission_tried_json
+
+        # La caceria se abrio sola con el dinero guardado, y al probarlos a
+        # todos sin encontrar nada se cerro.
+        assert probados == "[]"
+        assert equipo.commission_hunting is False
+        assert result.players_named[0] == "Reciente", (
+            "aun persiguiendo, el primero es el mas reciente"
+        )
+
+    asyncio.run(corre())

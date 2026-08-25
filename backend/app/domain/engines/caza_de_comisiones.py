@@ -91,6 +91,7 @@ def orden_de_busqueda(
     cuantos: int,
     *,
     azar: random.Random | None = None,
+    empezar_por_reciente: bool = True,
 ) -> list[int]:
     """Uno reciente, uno al azar, otro reciente, otro al azar…
 
@@ -98,6 +99,12 @@ def orden_de_busqueda(
     antiguo. Los ya probados EN ESTA CACERÍA no se repiten; la lista se vacía
     al abrir una nueva, porque si no la mitad aleatoria se agotaría tras el
     primer barrido y no volvería a mirar a nadie.
+
+    `empezar_por_reciente` existe porque el botón trabaja de a un jugador por
+    pulsación: si cada llamada empezara siempre por la cabeza, nunca le
+    tocaría el turno al azar. Quien llama lo deduce de cuántos lleva
+    probados —par, toca reciente; impar, toca azar— y así la alternancia
+    sobrevive entre pulsaciones sin guardar nada más.
     """
     rnd = azar or random.Random()
     quedan = [x for x in por_recencia if x not in ya_probados]
@@ -108,7 +115,7 @@ def orden_de_busqueda(
     # La cola de recientes se consume por la cabeza; el azar, de lo que
     # quede una vez descontado lo ya elegido en esta misma tanda.
     pendientes = list(quedan)
-    toca_reciente = True
+    toca_reciente = empezar_por_reciente
     while pendientes and len(elegidos) < cuantos:
         if toca_reciente:
             elegido = pendientes[0]

@@ -108,3 +108,21 @@ def test_el_azar_de_verdad_reparte() -> None:
         for s in range(30)
     }
     assert len(segundos) > 1
+
+
+def test_la_alternancia_sobrevive_entre_pulsaciones() -> None:
+    """El boton trabaja de a un jugador por pulsacion. Si cada llamada
+    empezara por la cabeza, al azar no le tocaria nunca."""
+    probados: set[int] = set()
+    elegidos = []
+    for _ in range(4):
+        tanda = orden_de_busqueda(
+            RECIENTES, probados, 1, azar=random.Random(7),
+            empezar_por_reciente=(len(probados) % 2 == 0),
+        )
+        elegidos.append(tanda[0])
+        probados.add(tanda[0])
+    # Pulsaciones 1 y 3 son las cabezas de lo que quedaba.
+    assert elegidos[0] == 10
+    assert elegidos[2] == min(x for x in RECIENTES if x not in elegidos[:2])
+    assert len(set(elegidos)) == 4
