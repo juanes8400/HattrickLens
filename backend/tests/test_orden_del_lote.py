@@ -185,19 +185,21 @@ def test_sin_comision_pendiente_tambien_alterna() -> None:
     asyncio.run(corre())
 
 
-def test_la_barra_recibe_posiciones_estables() -> None:
-    """El eje son TODOS los vigilados, no solo los que quedan.
+def test_cada_respuesta_trae_el_barrido_ENTERO() -> None:
+    """No solo lo de esta pulsacion: todo lo que va hecho.
 
-    2026-08-25: midiendo contra los pendientes --que menguan a cada
-    pulsacion-- el de la cabeza salia siempre en la posicion 0 y las marcas
-    del frente se amontonaban todas en el mismo punto de la barra.
+    2026-08-25. Acumulaba el navegador, y por eso lo atendido en un barrido
+    ANTERIOR no salia por ningun lado: seguia ocupando su casilla del eje
+    pero ya no volvia a la cola, asi que su hueco no se llenaba jamas.
+    Mandando el mapa completo la barra dice la verdad, y ademas aguanta que
+    se recargue la pagina.
     """
     async def corre() -> None:
         uow, team_id = await _monta()
         from app.application.commands.sync_team import SyncResult
 
         pulsacion = datetime(2026, 8, 25, 6, 0)
-        posiciones = []
+        por_pulsacion = []
         for _ in range(3):
             result = SyncResult(sync_id=1, status="running")
             async with uow:
@@ -206,13 +208,56 @@ def test_la_barra_recibe_posiciones_estables() -> None:
                     limite=1, revisar_desde=pulsacion,
                 )
                 await uow.commit()
-            posiciones += [x["position"] for x in result.queue_marks]
+            por_pulsacion.append([x["position"] for x in result.queue_marks])
             assert all(x["total"] == 3 for x in result.queue_marks), (
                 "la escala no puede encogerse a mitad del barrido"
             )
 
-        assert sorted(posiciones) == [0, 1, 2], (
-            "cada uno en su sitio: sin repetidos ni todos en el cero"
+        # El turno al azar hace que la SEGUNDA marca pueda ser la 1 o la 2,
+        # asi que fijar la lista exacta seria una prueba tramposa: lo que se
+        # exige es que cada respuesta repita todo lo anterior y sume uno.
+        assert [len(x) for x in por_pulsacion] == [1, 2, 3]
+        for antes, despues in zip(por_pulsacion, por_pulsacion[1:]):
+            assert set(antes) < set(despues), "nada de lo ya hecho se pierde"
+        assert por_pulsacion[0] == [0], "el primero es la cabeza de la cola"
+        assert sorted(por_pulsacion[-1]) == [0, 1, 2]
+
+    asyncio.run(corre())
+
+
+def test_quien_no_se_mira_nunca_no_ocupa_casilla_en_la_barra() -> None:
+    """El hueco de la izquierda que no se llenaba nunca, 2026-08-25.
+
+    Quien lleva prestado el numero de su transferencia no tiene ficha en
+    CHPP, asi que ninguna cola lo mira --las colas ya lo excluian--. El eje
+    de la barra no lo excluia: en la cuenta real eran 67 de 266 casillas
+    inalcanzables, y DIECISEIS de ellas las primeras, de modo que el bloque
+    solido no podia arrancar aunque el barrido fuera perfecto.
+    """
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        from app.application.commands.sync_team import SyncResult
+
+        # Uno mas reciente que todos, pero con el numero prestado.
+        async with uow:
+            uow.session.add(m.Player(
+                team_id=team_id, ht_player_id=900_000_009,
+                first_name="Numero", last_name="Prestado",
+                sold_at=datetime(2026, 8, 23), purchased_at=datetime(2018, 1, 1),
+                purchase_price=1000, ht_player_id_is_transfer=True,
+            ))
+            await uow.commit()
+
+        result = SyncResult(sync_id=1, status="running")
+        async with uow:
+            await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
+                uow, team_id, datetime(2026, 8, 25), result, limite=1,
+            )
+            await uow.commit()
+
+        assert result.players_named == ["Reciente"], "a ese no se le pregunta"
+        assert result.queue_marks == [{"position": 0, "total": 3}], (
+            "y tampoco ocupa la casilla 0, que si no el frente no arranca"
         )
 
     asyncio.run(corre())

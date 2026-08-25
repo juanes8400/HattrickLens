@@ -139,16 +139,15 @@ export function SyncPage() {
           quedan: lote.pending,
           ultimo: lote.players[lote.players.length - 1] ?? null,
           error: lote.errors[0] ?? null,
-          marcas: [
-            ...(previo?.marcas ?? []),
-            ...(lote.queueMarks ?? []).map((x) => x.position),
-          ],
-          // La escala es la de la PRIMERA marca y ya no se mueve.
-          escala:
-            previo?.escala ||
-            (lote.queueMarks ?? [])[0]?.total ||
-            previo?.escala ||
-            0,
+          // El backend manda el barrido ENTERO en cada respuesta, asi que
+          // aqui no se acumula nada: acumular era lo que dejaba el hueco de
+          // la izquierda sin llenar, porque lo atendido en barridos
+          // anteriores no aparecia por ningun lado.
+          marcas: (lote.queueMarks ?? []).map((x) => x.position),
+          // La escala se congela en la primera pulsación: los expedientes
+          // que se cierran salen del eje, y repintar con el eje de ahora
+          // correría las marcas ya puestas.
+          escala: previo?.escala || (lote.queueMarks ?? [])[0]?.total || 0,
         }));
         if (lote.pending === 0 || lote.done === 0) break;
         // Freno de mano: si una vuelta no reduce lo que queda, es que algo no

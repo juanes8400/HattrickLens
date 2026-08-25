@@ -881,37 +881,6 @@ class SyncTeamHandler:
         if limite is not None:
             todos = todos[:limite]
 
-        # Donde cayo cada uno en la cola de comisiones, para la barra.
-        #
-        # El eje son TODOS los vigilados, incluidos los ya atendidos en esta
-        # misma pasada. Si se midiera contra los que quedan --que menguan a
-        # cada pulsacion-- el de la cabeza saldria siempre en la posicion 0 y
-        # todas las marcas del frente se amontonarian en el mismo punto.
-        if todos:
-            eje = list((
-                await uow.session.execute(
-                    select(m.Player.ht_player_id)
-                    .where(
-                        m.Player.team_id == team_id,
-                        ~m.Player.resale_closed,
-                        m.Player.sold_at.is_not(None)
-                        | m.Player.left_team_at.is_not(None),
-                    )
-                    .order_by(
-                        sa_func.coalesce(
-                            m.Player.sold_at, m.Player.left_team_at,
-                        ).desc().nullslast(),
-                        m.Player.ht_player_id.desc(),
-                    )
-                )
-            ).scalars().all())
-            posiciones = {pid: i for i, pid in enumerate(eje)}
-            for pid in todos:
-                if pid in posiciones:
-                    result.queue_marks.append(
-                        {"position": posiciones[pid], "total": len(eje)}
-                    )
-
         # Cuantas comisiones habia antes, y desde cuando: lo primero dice si
         # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`
         # devuelve cierto tambien para las ya anotadas-- y lo segundo permite
@@ -1052,6 +1021,46 @@ class SyncTeamHandler:
         if equipo is not None:
             # A quien se probo, para no repetirlo en la siguiente pulsacion.
             probados |= {x for x in todos if x in reventa}
+
+            # El mapa del barrido, para la barra.
+            #
+            # Se manda entero en cada pulsacion --no solo lo de esta-- porque
+            # el que acumulaba era el navegador, y ahi se veia el fallo:
+            # quien se atendio en un barrido ANTERIOR sigue en el eje pero ya
+            # no vuelve a la cola, asi que su hueco de la izquierda no se
+            # llenaba jamas y el bloque solido nunca arrancaba. Mandando la
+            # lista completa la barra pinta lo que de verdad esta hecho, y
+            # ademas sobrevive a recargar la pagina.
+            eje = list((
+                await uow.session.execute(
+                    select(m.Player.ht_player_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        # La MISMA salvaguardia que usan las colas: quien
+                        # lleva prestado el numero de su transferencia no
+                        # tiene ficha, y ninguna cola lo mira jamas. Sin esta
+                        # linea ocupaba casilla en el eje --67 de 266, y
+                        # dieciseis de ellos justo al principio-- y el frente
+                        # no podia arrancar nunca porque las posiciones 0 a 15
+                        # eran inalcanzables.
+                        ~m.Player.ht_player_id_is_transfer,
+                        ~m.Player.resale_closed,
+                        m.Player.sold_at.is_not(None)
+                        | m.Player.left_team_at.is_not(None),
+                    )
+                    .order_by(
+                        sa_func.coalesce(
+                            m.Player.sold_at, m.Player.left_team_at,
+                        ).desc().nullslast(),
+                        m.Player.ht_player_id.desc(),
+                    )
+                )
+            ).scalars().all())
+            for sitio, pid in enumerate(eje):
+                if pid in probados:
+                    result.queue_marks.append(
+                        {"position": sitio, "total": len(eje)}
+                    )
             comisiones_ahora = await uow.session.scalar(
                 select(sa_func.count(m.PreviousClubBonus.id))
             ) or 0
