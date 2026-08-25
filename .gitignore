@@ -11,6 +11,9 @@ node_modules/
 # Copias de la base con datos reales del club: mismo criterio que *.db, que
 # no las pillaba por el sufijo de fecha (dev.db.bak-20260815).
 *.db.bak*
+# Volcados de comisiones con datos reales del club, hechos antes de reabrir
+# expedientes en masa. Mismo criterio que las copias de la base.
+comisiones-guardadas-*.json
 *.db-*
 *.sqlite
 *.sqlite3
