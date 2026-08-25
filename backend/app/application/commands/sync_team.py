@@ -2768,6 +2768,23 @@ class SyncTeamHandler:
             )
 
         games = etapa.games_played_for_us if etapa is not None else None
+
+        if games is None and (etapa is None or etapa.arrived_at is None):
+            # Sin fecha de llegada no se puede contar ESA etapa, y recontar
+            # con las fechas del jugador daria el numero de otra.
+            #
+            # 2026-08-25. Aqui habia un `return False` y perdia la comision
+            # ENTERA: 17 ex-jugadores y 3,4 millones en la cuenta real --Ramiro
+            # Pineda 1.050.000, Ciro Moyano 900.000--. Lo introdujo el cambio a
+            # contar por etapa, de ese mismo dia, y se descubrio comparando el
+            # volcado de comisiones de antes de reabrirlo todo con lo que el
+            # barrido volvio a encontrar.
+            #
+            # El numero del jugador puede venir de otra etapa y caer en un
+            # tramo de porcentaje equivocado. Es un riesgo real, pero perder el
+            # importe completo --y en silencio-- es peor.
+            games = player.games_played_for_us
+
         if games is None:
             # El respaldo del jugador solo vale para quien tiene UNA etapa: si
             # tiene varias, ese numero es de cualquiera de ellas y usarlo seria
@@ -2780,13 +2797,26 @@ class SyncTeamHandler:
                 games = player.games_played_for_us
 
         if games is None:
-            desde = etapa.arrived_at if etapa is not None else player.purchased_at
-            hasta = etapa.left_at if etapa is not None else player.sold_at
+            desde = etapa.arrived_at if etapa is not None else None
+            salida = player.sold_at or player.left_team_at
+            if desde is None and salida is not None:
+                # El MISMO suelo que usa el censo: nadie llega al primer
+                # equipo antes de los 17 años. Un canterano no se compró, así
+                # que no tiene fecha de llegada; contar desde el día que los
+                # cumplió cubre de más, nunca de menos.
+                edad = self._edad_en_la_salida(player)
+                if edad is not None:
+                    desde = cuando_cumplio_diecisiete(edad, salida)
             if desde is None:
-                return False
-            games = await self._games_played_for_us(
-                team.ht_team_id, ht_player_id, desde, hasta,
-            )
+                desde = player.purchased_at
+            hasta = (etapa.left_at if etapa is not None else None) or salida
+            if desde is not None:
+                games = await self._games_played_for_us(
+                    team.ht_team_id, ht_player_id, desde, hasta,
+                )
+
+        if games is None:
+            return False
 
         if etapa is not None and etapa.games_played_for_us is None:
             etapa.games_played_for_us = games

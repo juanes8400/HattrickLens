@@ -5,6 +5,7 @@ Aportado por el usuario el 2026-08-25.
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -275,3 +276,88 @@ def test_sin_cierres_no_se_anuncia_nada() -> None:
     from app.domain.engines.sync_diff import diff_expedientes_cerrados
 
     assert diff_expedientes_cerrados({}) is None
+
+
+# ── Una etapa sin fecha de llegada no puede costar la comision ───────────────
+
+def test_una_etapa_sin_fecha_de_llegada_no_pierde_la_comision() -> None:
+    """2026-08-25. El cambio a contar POR ETAPA metio un `return False`
+    cuando la etapa no traia `arrived_at`, y eso perdia el importe entero.
+
+    En la cuenta real fueron 17 ex-jugadores y 3,4 millones: Ramiro Pineda
+    (1.050.000) y Ciro Moyano (900.000) entre ellos. Los dos tienen DOS
+    etapas y la que cuenta llego con `arrived_at` en nulo.
+
+    Se descubrio comparando el volcado de comisiones de antes de reabrirlo
+    todo con lo que el barrido volvio a encontrar: faltaban 19.
+    """
+    async def corre() -> None:
+        from app.application.commands.sync_team import SyncTeamHandler
+
+        engine = create_async_engine(
+            "sqlite+aiosqlite://", poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            s.add(equipo)
+            await s.flush()
+            jugador = m.Player(
+                team_id=equipo.id, ht_player_id=463690984,
+                first_name="Ramiro", last_name="Pineda",
+                purchased_at=datetime(2021, 11, 28), sold_at=datetime(2022, 1, 29),
+                games_played_for_us=10,
+            )
+            s.add(jugador)
+            await s.flush()
+            # Dos etapas, y la que cuenta SIN fecha de llegada: tal cual esta
+            # en la base del usuario.
+            s.add(m.PlayerStint(
+                player_id=jugador.id, ht_player_id=463690984, team_id=equipo.id,
+                arrived_at=datetime(2021, 11, 28), left_at=datetime(2021, 11, 28),
+                sale_transfer_id=352945715,
+            ))
+            s.add(m.PlayerStint(
+                player_id=jugador.id, ht_player_id=463690984, team_id=equipo.id,
+                arrived_at=None, left_at=datetime(2022, 1, 29),
+                sale_transfer_id=354241388,
+            ))
+            await s.commit()
+            team_id = equipo.id
+
+        class CHPPConReventa:
+            """El historial real de Pineda: se lo vendimos al 19343 y este lo
+            revendio por 35.000.000."""
+
+            async def fetch(self, file: str, version: str = "latest", **_p: Any) -> dict:
+                return {"transfers": [
+                    {"ht_transfer_id": 3, "deadline": "2023-08-29 12:00:00",
+                     "seller_team_id": 19343, "buyer_team_id": 775871,
+                     "price": 35_000_000},
+                    {"ht_transfer_id": 2, "deadline": "2022-01-29 14:55:00",
+                     "seller_team_id": 537758, "buyer_team_id": 19343,
+                     "price": 7_100_000},
+                ]}
+
+        uow = SqlAlchemyUnitOfWork(factory)
+        async with uow:
+            escribio = await SyncTeamHandler(uow, CHPPConReventa())._check_previous_club_bonus(
+                uow, team_id, 463690984,
+            )
+            await uow.commit()
+
+        assert escribio is True, "la comision no puede perderse por una fecha en nulo"
+        async with uow:
+            bono = await uow.session.scalar(
+                select(m.PreviousClubBonus).where(
+                    m.PreviousClubBonus.ht_player_id == 463690984
+                )
+            )
+        assert bono.resale_price == 35_000_000
+        assert bono.games_played_with_us == 10, "cae al numero del jugador"
+        assert bono.amount == 1_050_000, "el 3% de la reventa, como estaba antes"
+
+    asyncio.run(corre())
