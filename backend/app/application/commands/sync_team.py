@@ -2497,6 +2497,7 @@ class SyncTeamHandler:
         transfersplayer.xml viene ordenado del más reciente al más antiguo,
         así que esa reventa, si existe, es la que aparece INMEDIATAMENTE
         ANTES de nuestra propia venta en la lista."""
+        from sqlalchemy import func as sa_func
         from sqlalchemy import select
 
         from app.domain.engines.previous_club_bonus import previous_club_bonus_pct
@@ -2549,13 +2550,59 @@ class SyncTeamHandler:
         if already is not None:
             return False
 
-        games = player.games_played_for_us
+        # Los partidos se cuentan POR ETAPA, no por jugador.
+        #
+        # 2026-08-25, senalado por el usuario. `PlayerStint` ya tenia sus
+        # campos --"se cuenta una vez por etapa, no una vez por jugador"--
+        # desde el 22 de agosto, pero este calculo seguia leyendo los del
+        # jugador. En la base real hay 38 ex-jugadores con mas de una etapa y
+        # ocho con TRES: a todos se les habria aplicado el mismo numero,
+        # vinieran de la etapa que vinieran.
+        #
+        # La reventa cae dentro de UNA etapa: la que estaba abierta cuando lo
+        # vendimos. Esa es la que hay que contar.
+        etapa = await uow.session.scalar(
+            select(m.PlayerStint)
+            .where(
+                m.PlayerStint.player_id == player.id,
+                m.PlayerStint.sale_transfer_id.is_not(None),
+            )
+            .order_by(m.PlayerStint.left_at.desc())
+            .limit(1)
+        )
+        if etapa is None:
+            etapa = await uow.session.scalar(
+                select(m.PlayerStint)
+                .where(m.PlayerStint.player_id == player.id)
+                .order_by(m.PlayerStint.left_at.desc().nullslast())
+                .limit(1)
+            )
+
+        games = etapa.games_played_for_us if etapa is not None else None
         if games is None:
-            if player.purchased_at is None:
+            # El respaldo del jugador solo vale para quien tiene UNA etapa: si
+            # tiene varias, ese numero es de cualquiera de ellas y usarlo seria
+            # peor que volver a contar.
+            cuantas = await uow.session.scalar(
+                select(sa_func.count(m.PlayerStint.id))
+                .where(m.PlayerStint.player_id == player.id)
+            ) or 0
+            if cuantas <= 1:
+                games = player.games_played_for_us
+
+        if games is None:
+            desde = etapa.arrived_at if etapa is not None else player.purchased_at
+            hasta = etapa.left_at if etapa is not None else player.sold_at
+            if desde is None:
                 return False
             games = await self._games_played_for_us(
-                team.ht_team_id, ht_player_id, player.purchased_at, player.sold_at,
+                team.ht_team_id, ht_player_id, desde, hasta,
             )
+
+        if etapa is not None and etapa.games_played_for_us is None:
+            etapa.games_played_for_us = games
+            etapa.games_computed_at = now
+        if player.games_played_for_us is None:
             player.games_played_for_us = games
             player.games_played_for_us_computed_at = now
 
@@ -2725,6 +2772,9 @@ class SyncTeamHandler:
         ) is not None
 
         desaparecido = False
+        # Sin ficha no se sabe nada de el: ni que desaparecio, ni que se hizo
+        # entrenador. Vacia y no `None` para poder preguntarle igual.
+        ficha: dict[str, Any] = {}
         # Solo se pregunta por su ficha cuando la reventa no ha zanjado nada:
         # es la única forma de dejar de vigilar a quien ya no existe, y una
         # llamada de más solo para los que siguen ahí fuera sin venderse.
@@ -2745,6 +2795,9 @@ class SyncTeamHandler:
             revendido=revendido,
             desaparecido=desaparecido,
             salio_sin_comprador=salio_sin_comprador,
+            # El dato viene en la MISMA ficha que ya se pidio para saber si
+            # desaparecio: no cuesta ni una llamada mas.
+            entrenador=vigilancia.es_entrenador(ficha),
         )
         jugador.previous_club_bonus_checked_at = datetime.now(UTC).replace(tzinfo=None)
         if motivo is not None:

@@ -268,6 +268,15 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
     last_match = node.find("LastMatch")
     out: dict[str, Any] = {
         "ht_player_id": _int(node, "PlayerID"),
+        # 2026-08-25: un jugador que se convierte en entrenador de su equipo
+        # YA NO PUEDE VENDERSE nunca mas, asi que tampoco habra reventa ni
+        # comision. Es un cierre definitivo.
+        #
+        # Basta con que exista el bloque: verificado en vivo contra los 24
+        # jugadores del equipo --uno solo lo trae, el entrenador-- y contra
+        # la ficha individual de un jugador normal, que no lo trae en
+        # absoluto. Puede haber uno por equipo, no mas.
+        "is_player_trainer": node.find("TrainerData") is not None,
         "mother_club_team_name": (
             _txt(mother_club, "TeamName", "") if mother_club is not None else ""
         ),

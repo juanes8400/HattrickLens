@@ -22,10 +22,6 @@
     <Cards>0</Cards>
     <InjuryLevel>-1</InjuryLevel>
     <Statement></Statement>
-    <TrainerData>
-      <TrainerType>2</TrainerType>
-      <TrainerSkillLevel>0</TrainerSkillLevel>
-    </TrainerData>
     <Agreeability>3</Agreeability>
     <Aggressiveness>2</Aggressiveness>
     <Honesty>4</Honesty>

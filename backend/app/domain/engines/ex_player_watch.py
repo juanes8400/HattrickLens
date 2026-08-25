@@ -13,10 +13,15 @@ o no.
 
 De ahí que el despido (o el retiro, que para el bolsillo es lo mismo) cierre a
 cualquiera de los dos, y la reventa cierre solo al primero.
+
+2026-08-25, aportado por el usuario: hay un tercer final definitivo. Un
+jugador que se convierte en ENTRENADOR de su equipo actual ya no puede
+venderse nunca más, así que tampoco habrá reventa ni comisión. Cierra a
+cualquiera de los dos, canterano incluido.
 """
 from typing import Literal
 
-Motivo = Literal["revendido", "despedido", "sin_comprador"]
+Motivo = Literal["revendido", "despedido", "sin_comprador", "entrenador"]
 
 # Hattrick contesta esto al pedir la ficha de alguien que ya no existe:
 # despedido por su club o retirado por edad. Verificado en vivo con la cuenta
@@ -35,20 +40,39 @@ def desaparecio_de_hattrick(codigo_de_error: int | None) -> bool:
     return codigo_de_error == CODIGO_JUGADOR_INEXISTENTE
 
 
+def es_entrenador(ficha: dict | None) -> bool:
+    """¿Se convirtió en entrenador de su equipo?
+
+    Basta con que la ficha traiga el bloque `TrainerData`. Comprobado en vivo
+    el 2026-08-25: de los veinticuatro jugadores del equipo lo trae uno solo
+    —el entrenador— y la ficha individual de un jugador normal no lo trae en
+    absoluto. Puede haber uno por equipo, no más.
+
+    No se mira el nivel: un fixture guardado tenía un bloque con nivel 0 en
+    alguien que no era entrenador, pero al pedir su ficha real Hattrick ya no
+    devuelve el bloque. Era el fichero de pruebas el que estaba caducado.
+    """
+    return bool(ficha) and bool(ficha.get("is_player_trainer"))
+
+
 def motivo_de_cierre(
     *,
     canterano: bool,
     revendido: bool,
     desaparecido: bool,
     salio_sin_comprador: bool,
+    entrenador: bool = False,
 ) -> Motivo | None:
     """Por qué dejar de vigilarlo, o `None` si hay que seguir mirándolo.
 
     El orden importa: desaparecer del juego cierra a cualquiera, incluido el
-    canterano, y por eso se comprueba primero.
+    canterano, y por eso se comprueba primero. Ser entrenador va justo
+    después, por el mismo motivo: es definitivo para los dos.
     """
     if desaparecido:
         return "despedido"
+    if entrenador:
+        return "entrenador"
     if salio_sin_comprador:
         # Se fue sin que nadie lo comprara: no hubo club anterior al que
         # pagarle. Un canterano tampoco espera nada, porque ya no está en el
