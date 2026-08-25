@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import { anchuraDelFrente, sitioDeLaMarca } from "./barraDelBarrido";
+
+const relleno = (mapa: { total: number; done: number[]; front: number } | null) => ({
+  mapa,
+  hechos: 5,
+  total: 100,
+  quedan: 95,
+});
+
+describe("la barra del barrido de comisiones", () => {
+  it("mide el bloque con el frente, no con cuántos se atendieron", () => {
+    // Once atendidos pero sólo tres seguidos desde la izquierda: el bloque
+    // vale tres. Es lo que distingue el avance del picoteo.
+    expect(
+      anchuraDelFrente(relleno({ total: 100, done: [0, 1, 2, 40, 61], front: 3 })),
+    ).toBe(3);
+  });
+
+  it("deja el bloque a cero cuando el azar aún no ha tocado la cabeza", () => {
+    expect(anchuraDelFrente(relleno({ total: 100, done: [40], front: 0 }))).toBe(0);
+  });
+
+  it("cae al porcentaje de siempre mientras no llegue el mapa", () => {
+    expect(anchuraDelFrente(relleno(null))).toBe(5);
+  });
+
+  it("llena la barra cuando no queda nadie", () => {
+    expect(
+      anchuraDelFrente({ ...relleno(null), quedan: 0 }),
+    ).toBe(100);
+  });
+
+  it("no se pasa del 100 aunque el mapa venga raro", () => {
+    expect(
+      anchuraDelFrente(relleno({ total: 10, done: [], front: 99 })),
+    ).toBe(100);
+  });
+
+  it("un eje vacío no divide por cero", () => {
+    expect(
+      Number.isFinite(anchuraDelFrente(relleno({ total: 0, done: [], front: 0 }))),
+    ).toBe(true);
+  });
+
+  it("coloca las marcas dentro de la barra, incluida la última", () => {
+    expect(sitioDeLaMarca(0, 191)).toBe(0);
+    expect(sitioDeLaMarca(190, 191)).toBeLessThanOrEqual(99.5);
+    expect(sitioDeLaMarca(95, 190)).toBe(50);
+  });
+});

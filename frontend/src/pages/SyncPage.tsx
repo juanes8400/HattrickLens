@@ -5,6 +5,7 @@ import { ErrorState, Note, Panel } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
 import { TEAM_ID, useDashboard } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
+import { anchuraDelFrente, sitioDeLaMarca } from "../utils/barraDelBarrido";
 import { api, errorMessage, type QueueMap, type SyncResult } from "../services/api";
 
 /**
@@ -27,22 +28,6 @@ import { api, errorMessage, type QueueMap, type SyncResult } from "../services/a
 
 /** "1 jugador", "454 jugadores". Nunca "jugador(es)". */
 const jugadores = (n: number) => `${n} jugador${n === 1 ? "" : "es"}`;
-
-/** Lo que ocupa el bloque sólido. Sale del frente que manda el backend —el
- *  tramo seguido desde la izquierda—, y sólo cae al porcentaje de siempre
- *  mientras no haya llegado ningún mapa. */
-function anchura(relleno: {
-  mapa: QueueMap | null;
-  hechos: number;
-  total: number;
-  quedan: number;
-}): number {
-  if (relleno.quedan === 0) return 100;
-  if (relleno.mapa && relleno.mapa.total > 0) {
-    return Math.min(100, (relleno.mapa.front / relleno.mapa.total) * 100);
-  }
-  return Math.min(100, (relleno.hechos / Math.max(relleno.total, 1)) * 100);
-}
 
 export function SyncPage() {
   const navigate = useNavigate();
@@ -265,7 +250,7 @@ export function SyncPage() {
               <div className="relative h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)] transition-all duration-300"
-                  style={{ width: `${anchura(relleno)}%` }}
+                  style={{ width: `${anchuraDelFrente(relleno)}%` }}
                 />
                 {relleno.mapa &&
                   relleno.mapa.total > 0 &&
@@ -274,7 +259,7 @@ export function SyncPage() {
                       key={posicion}
                       className="absolute inset-y-0 w-[3px] rounded-sm bg-[var(--accent)]"
                       style={{
-                        left: `${Math.min(99.5, (posicion / relleno.mapa!.total) * 100)}%`,
+                        left: `${sitioDeLaMarca(posicion, relleno.mapa!.total)}%`,
                       }}
                     />
                   ))}

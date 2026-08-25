@@ -1089,17 +1089,29 @@ class SyncTeamHandler:
         # El mapa, ya con todo escrito. Se manda entero en cada respuesta: el
         # navegador solo pinta, no acumula --acumular era lo que dejaba fuera
         # lo atendido en pulsaciones anteriores a un refresco--.
-        if equipo is not None and equipo.sweep_axis_json:
+        #
+        # Solo con `revisar_desde`: sin el no hay barrido que mapear y lo
+        # guardado seria el de otra vez.
+        if (
+            equipo is not None
+            and revisar_desde is not None
+            and equipo.sweep_axis_json
+            and equipo.sweep_started_at is not None
+        ):
             try:
                 eje = json.loads(equipo.sweep_axis_json)
             except ValueError:
                 eje = []
             if eje:
+                # Se pide por equipo y se cruza en Python a proposito. Un
+                # `IN (...)` gasta una variable por jugador y SQLite corta a
+                # las 999: hoy el eje son 191, pero un historial mas largo
+                # reventaria la peticion en mitad del barrido.
                 atendidos = set((
                     await uow.session.execute(
                         select(m.Player.ht_player_id)
                         .where(
-                            m.Player.ht_player_id.in_(eje),
+                            m.Player.team_id == team_id,
                             m.Player.previous_club_bonus_checked_at.is_not(None),
                             m.Player.previous_club_bonus_checked_at
                             >= equipo.sweep_started_at,
