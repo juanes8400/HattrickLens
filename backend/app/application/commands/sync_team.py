@@ -850,11 +850,19 @@ class SyncTeamHandler:
             )
         ).scalars().all()) if union else []
 
-        if cazando and reventa:
-            # Persiguiendo: uno reciente, uno al azar, uno reciente… sobre la
-            # cola de reventas, y el resto detras por recencia. La alternancia
+        if reventa:
+            # Uno reciente, uno al azar, uno reciente… sobre la cola de
+            # reventas, y el resto detras por recencia. La alternancia
             # sobrevive entre pulsaciones porque el turno se deduce de cuantos
             # se llevan probados, no de una variable de esta llamada.
+            #
+            # 2026-08-25: la alternancia corre SIEMPRE, no solo persiguiendo
+            # una comision. Lo reciente es lo que paga --una reventa se cobra
+            # sobre la ultima venta-- pero lo viejo es lo que CIERRA
+            # expedientes: los entrenadores estan entre las ventas de hace
+            # años, y con recencia pura el unico que se localizo estaba en el
+            # puesto 210 de 218. Las dos cosas valen, y alternando se hacen
+            # las dos con las mismas llamadas.
             cola = [x for x in todos if x in reventa]
             perseguidos = caza.orden_de_busqueda(
                 cola, probados, len(cola),
@@ -972,21 +980,24 @@ class SyncTeamHandler:
                 result.changes.append(_as_change_row(cambio))
                 await _report(on_progress, cambio.summary)
 
-        if cazando and equipo is not None:
+        if equipo is not None:
             # A quien se probo, para no repetirlo en la siguiente pulsacion.
             probados |= {x for x in todos if x in reventa}
             comisiones_ahora = await uow.session.scalar(
                 select(sa_func.count(m.PreviousClubBonus.id))
             ) or 0
-            sin_probar = [x for x in reventa if x not in probados]
-            if comisiones_ahora > comisiones_antes or not sin_probar:
-                # Aparecio, o se probaron todos: la caceria se cierra hasta
-                # que vuelva a entrar dinero, y la lista se vacia para que la
-                # proxima empiece de cero.
+            aparecio = comisiones_ahora > comisiones_antes
+            barrido_completo = not [x for x in reventa if x not in probados]
+            if cazando and (aparecio or barrido_completo):
+                # Aparecio, o se miraron todos sin encontrarla: en los dos
+                # casos la caceria termina hasta que vuelva a entrar dinero.
                 equipo.commission_hunting = False
-                equipo.commission_tried_json = "[]"
-            else:
-                equipo.commission_tried_json = json.dumps(sorted(probados))
+            if barrido_completo or (cazando and aparecio):
+                # Barrido completo, o caceria resuelta: se empieza otro con la
+                # lista limpia. Sin esto la mitad aleatoria se quedaria sin
+                # candidatos y dejaria de explorar.
+                probados = set()
+            equipo.commission_tried_json = json.dumps(sorted(probados))
 
         return len(todos)
 

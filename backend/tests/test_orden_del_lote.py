@@ -71,9 +71,12 @@ def test_el_lote_empieza_por_la_venta_mas_reciente() -> None:
 
         # `players_named` guarda los apellidos en el orden en que se
         # atendieron, que es justo lo que hay que comprobar.
-        assert result.players_named == ["Reciente", "Medio", "Viejo"], (
-            "el lote tiene que empezar por la venta mas reciente"
-        )
+        # 2026-08-25: la alternancia corre SIEMPRE --uno reciente, uno al
+        # azar-- porque lo viejo es lo que cierra expedientes: los
+        # entrenadores estan entre las ventas de hace años. Lo que se fija es
+        # que el PRIMERO sea el mas reciente y que no se pierda a nadie.
+        assert result.players_named[0] == "Reciente"
+        assert sorted(result.players_named) == ["Medio", "Reciente", "Viejo"]
 
     asyncio.run(corre())
 
@@ -144,11 +147,39 @@ def test_con_comision_por_atribuir_el_lote_alterna() -> None:
             probados = equipo.commission_tried_json
 
         # La caceria se abrio sola con el dinero guardado, y al probarlos a
-        # todos sin encontrar nada se cerro.
+        # todos sin encontrar nada se cerro. La lista se vacia para que el
+        # siguiente barrido empiece de cero.
         assert probados == "[]"
         assert equipo.commission_hunting is False
         assert result.players_named[0] == "Reciente", (
             "aun persiguiendo, el primero es el mas reciente"
         )
+
+    asyncio.run(corre())
+
+
+def test_sin_comision_pendiente_tambien_alterna() -> None:
+    """2026-08-25, pedido asi. Lo reciente es lo que PAGA; lo viejo es lo que
+    CIERRA expedientes --los entrenadores estan entre las ventas de hace
+    años--. Con recencia pura, el unico entrenador localizado en la cuenta
+    real estaba en el puesto 210 de 218.
+    """
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        from app.application.commands.sync_team import SyncResult
+
+        result = SyncResult(sync_id=1, status="running")
+        async with uow:
+            equipo = await uow.session.get(m.Team, team_id)
+            assert equipo.commission_hunting is False, "sin dinero por atribuir"
+            await SyncTeamHandler(uow, CHPPMudo())._backfill_sold_player_details(
+                uow, team_id, datetime(2026, 8, 24), result, limite=2,
+            )
+            await uow.commit()
+
+        # Dos de tres: el mas reciente y uno al azar de los que quedan.
+        assert result.players_named[0] == "Reciente"
+        assert result.players_named[1] in ("Medio", "Viejo")
+        assert len(result.players_named) == 2
 
     asyncio.run(corre())
