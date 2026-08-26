@@ -130,7 +130,11 @@ class PostMatchTrainingService:
             ctx.setup
             if ctx is not None
             else default_setup(
-                training_target(training.training_type) if training else "playmaking",
+                # `training_target` devuelve None para un tipo que no conoce;
+                # el respaldo es el mismo que cuando no hay entrenamiento.
+                (training_target(training.training_type) or "playmaking")
+                if training
+                else "playmaking",
                 training_type=training.training_type if training else None,
                 intensity=training.training_level if training else 100,
                 stamina_share=training.stamina_part if training else None,
@@ -215,12 +219,13 @@ class PostMatchTrainingService:
         return out
 
     async def _latest_training(self, team_id: int) -> m.TrainingSnapshot | None:
-        return await self._s.scalar(
+        entrenamiento: m.TrainingSnapshot | None = await self._s.scalar(
             select(m.TrainingSnapshot)
             .where(m.TrainingSnapshot.team_id == team_id)
             .order_by(m.TrainingSnapshot.captured_at.desc())
             .limit(1)
         )
+        return entrenamiento
 
     async def _training_deadline(self, team_id: int | None = None) -> datetime:
         if team_id is not None:
@@ -389,6 +394,10 @@ class PostMatchTrainingService:
             cycle_start = cycle_deadline - timedelta(days=7)
             by_player: dict[int, list[PlayedSegment]] = {}
             for segment in exact_segments:
+                # Sin fecha no hay forma de saber a que ciclo pertenece, y
+                # `_aware` reventaria al pedirle `tzinfo` a un None.
+                if segment.played_at is None:
+                    continue
                 played_at = _aware(segment.played_at)
                 baseline = baselines.get(segment.ht_player_id)
                 if baseline is None or cycle_deadline <= _aware(baseline):

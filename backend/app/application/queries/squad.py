@@ -331,7 +331,7 @@ class SquadQueryService:
         conserva en BD, pero no se presenta como una nueva tendencia.
         """
         before_week = start_of_iso_week(current.captured_at)
-        return await self._s.scalar(
+        anterior: m.PlayerSnapshot | None = await self._s.scalar(
             select(m.PlayerSnapshot)
             .where(
                 m.PlayerSnapshot.player_id == current.player_id,
@@ -340,6 +340,7 @@ class SquadQueryService:
             .order_by(m.PlayerSnapshot.captured_at.desc(), m.PlayerSnapshot.id.desc())
             .limit(1)
         )
+        return anterior
 
     async def _snapshots_as_of(
         self, team_id: int, captured_at: datetime

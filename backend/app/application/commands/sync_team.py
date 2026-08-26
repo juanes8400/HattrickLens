@@ -760,7 +760,7 @@ class SyncTeamHandler:
             m.Player.sold_at, m.Player.left_team_at, m.Player.purchased_at
         )
 
-        async def ids(condicion) -> list[int]:
+        async def ids(condicion: Any) -> list[int]:
             filas = await uow.session.execute(
                 select(m.Player.ht_player_id)
                 .where(
@@ -1919,8 +1919,11 @@ class SyncTeamHandler:
         if equipo is None:
             return
 
-        async def _contexto(condicion) -> m.WorldContext | None:
-            return await uow.session.scalar(select(m.WorldContext).where(condicion))
+        async def _contexto(condicion: Any) -> m.WorldContext | None:
+            ctx: m.WorldContext | None = await uow.session.scalar(
+                select(m.WorldContext).where(condicion)
+            )
+            return ctx
 
         candidatos: list[m.WorldContext | None] = []
         if equipo.ht_league_id is not None:
@@ -2615,7 +2618,8 @@ class SyncTeamHandler:
             return None
         for p in payload.get("players", []):
             if p.get("ht_player_id") == ht_player_id:
-                return p.get("behaviour")
+                behaviour: int | None = p.get("behaviour")
+                return behaviour
         return None
 
     async def _sync_training_events(
@@ -3818,9 +3822,11 @@ class SyncTeamHandler:
                 for field in STAFF_TYPE_TO_FIELD.values():
                     setattr(row, field, 0)
                 for member in members:
-                    field = STAFF_TYPE_TO_FIELD.get(member.get("staff_type", -1))
-                    if field is not None:
-                        setattr(row, field, getattr(row, field) + member.get("level", 0))
+                    # Otro nombre que el del bucle de arriba: alli `field` era
+                    # siempre un texto, y aqui puede faltar.
+                    campo = STAFF_TYPE_TO_FIELD.get(member.get("staff_type", -1))
+                    if campo is not None:
+                        setattr(row, campo, getattr(row, campo) + member.get("level", 0))
                 row.staff_members_json = json.dumps(members)
         row.content_hash = dict_hash(
             {
@@ -4955,7 +4961,7 @@ class SyncTeamHandler:
     @staticmethod
     def _es_huerfano(mov: Any) -> bool:
         """Su identificador es prestado: ES el numero de su transferencia."""
-        return mov.ht_player_id == mov.ht_transfer_id
+        return bool(mov.ht_player_id == mov.ht_transfer_id)
 
     @staticmethod
     def _nombre_para_agrupar(mov: Any) -> str:
@@ -5098,7 +5104,8 @@ class SyncTeamHandler:
 
         def a_quien_pertenece(mov: Any) -> int:
             """El identificador de la PERSONA, que en un huerfano no es el suyo."""
-            return de_quien.get(mov.ht_transfer_id, mov.ht_player_id)
+            duenio: int = de_quien.get(mov.ht_transfer_id, mov.ht_player_id)
+            return duenio
 
         # Reordenar por persona: los huerfanos de un mismo nombre tienen cada
         # uno un numero distinto, asi que el orden que venia de la consulta los

@@ -643,9 +643,10 @@ class PlayerBalanceQueryService:
         unknown_count = 0
 
         for etapa in etapas:
-            p = jugador_por_id.get(etapa.player_id)
-            if p is None or etapa.excluded:
+            jugador = jugador_por_id.get(etapa.player_id)
+            if jugador is None or etapa.excluded:
                 continue
+            p = jugador
             origen_desconocido = bool(getattr(etapa, "unknown_origin", False))
             is_academy = (not origen_desconocido) and (
                 p.mother_club_team_id is not None and p.mother_club_team_id == team.ht_team_id
@@ -698,7 +699,7 @@ class PlayerBalanceQueryService:
                 purchase_price=purchase_price,
                 purchased_at=purchased_at,
                 is_academy_graduate=is_academy,
-                promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
+                promotion_cost=_en_moneda(YOUTH_PROMOTION_COST, rate) if is_academy else 0,
                 salary_history=salary_by_player.get(p.id, []),
                 fallback_salary=conv(p.last_known_salary) or 0,
                 listing_count=p.listing_count,
@@ -839,7 +840,7 @@ class PlayerBalanceQueryService:
                     is_academy_graduate=is_academy,
                     origin_unknown=origen_desconocido,
                     ht_player_id_is_transfer=bool(getattr(p, "ht_player_id_is_transfer", False)),
-                    promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
+                    promotion_cost=_en_moneda(YOUTH_PROMOTION_COST, rate) if is_academy else 0,
                     is_purchase_price_manual=is_manual,
                     purchase_price=balance.purchase_price,
                     purchased_at=purchased_at.isoformat() if purchased_at else None,
@@ -936,3 +937,12 @@ class PlayerBalanceQueryService:
             transfer_number_buys=team.transfer_number_buys,
             transfer_number_sales=team.transfer_number_sales,
         )
+
+
+def _en_moneda(valor: int, rate: float) -> int:
+    """Igual que el `conv` de dentro, pero para un valor que SIEMPRE existe.
+
+    `conv` devuelve `None` solo cuando recibe `None`; usarlo con una constante
+    obligaba a tratar como opcional algo que nunca falta.
+    """
+    return int(round(valor / rate))

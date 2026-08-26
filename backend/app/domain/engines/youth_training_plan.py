@@ -442,6 +442,8 @@ def youth_training_plan(
                 return
             ya_puestos.add(elegido.name)
             if region == REGION_AMBOS:
+                r_principal: float
+                r_secundaria: float
                 r_principal, r_secundaria = cupo.racion, _rebajado(cupo.racion_pareja)
             elif region == REGION_SOLO_PRINCIPAL:
                 r_principal, r_secundaria = cupo.racion, 0.0

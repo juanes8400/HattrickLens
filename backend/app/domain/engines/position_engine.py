@@ -62,13 +62,13 @@ def _skill(player: dict[str, Any], key: str) -> float:
 def _form_factor(player: dict[str, Any]) -> float:
     """Manual no Escrito: ``((forma - .5) / 7) ^ .45``."""
     base = (float(player.get("form", 0)) - 0.5) / 7
-    return max(base, 0.0) ** 0.45
+    return float(max(base, 0.0) ** 0.45)
 
 
 def _stamina_factor(player: dict[str, Any]) -> float:
     """Manual no Escrito: ``((condición + 6.5) / 14) ^ .6``."""
     base = (float(player.get("stamina", 0)) + 6.5) / 14
-    return max(base, 0.0) ** 0.6
+    return float(max(base, 0.0) ** 0.6)
 
 
 def _experience_bonus(player: dict[str, Any]) -> float:
@@ -117,7 +117,7 @@ def _pitch_contribution(player: dict[str, Any], spec: dict[str, Any]) -> float:
     ]
     coefficient_total = sum(coefficient for coefficient, _ in terms) or 1.0
     raw = sum(coefficient * skill for coefficient, skill in terms)
-    return raw / coefficient_total * _form_factor(player) * _stamina_factor(player)
+    return float(raw / coefficient_total * _form_factor(player) * _stamina_factor(player))
 
 
 def _special_role_score(player: dict[str, Any], position: str) -> float:
@@ -144,7 +144,9 @@ def _special_role_score(player: dict[str, Any], position: str) -> float:
             + _skill(player, "scoring") * cfg["scoring"]
         )
         is_technical = int(player.get("specialty", 0)) == TECHNICAL_SPECIALTY_CODE
-        return base * (1 + cfg["technical_specialty_bonus"]) if is_technical else base
+        if is_technical:
+            return float(base * (1 + float(cfg["technical_specialty_bonus"])))
+        return float(base)
     raise KeyError(f"unknown special role: {position}")
 
 

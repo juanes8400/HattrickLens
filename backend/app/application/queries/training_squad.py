@@ -241,9 +241,10 @@ class TrainingSquadQueryService:
     async def _world(self, team: m.Team) -> m.WorldContext | None:
         if team.ht_league_id is None:
             return None
-        return await self._s.scalar(
+        ctx: m.WorldContext | None = await self._s.scalar(
             select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
         )
+        return ctx
 
     async def _roster(self, team_id: int) -> list[dict[str, Any]]:
         country_rows = (
@@ -444,13 +445,12 @@ class TrainingSquadQueryService:
         # país guardado, ese atajo devolvía el calendario de otro y las semanas
         # salían de temporadas que no existen (fidelidad en 80-02 el
         # 2026-08-19, con la app sincronizando desde la 83).
+        # La liga en una variable y comprobada ANTES de la consulta: asi no se
+        # compara una columna contra un posible `None`.
+        liga = equipo.ht_league_id if equipo is not None else None
         world = (
-            await self._s.scalar(
-                select(m.WorldContext).where(
-                    m.WorldContext.ht_league_id == (equipo.ht_league_id if equipo else None)
-                )
-            )
-            if equipo is not None and equipo.ht_league_id is not None
+            await self._s.scalar(select(m.WorldContext).where(m.WorldContext.ht_league_id == liga))
+            if liga is not None
             else None
         )
         columna = getattr(m.PlayerSnapshot, campo)

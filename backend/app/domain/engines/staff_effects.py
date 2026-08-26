@@ -128,7 +128,7 @@ def current_injury_risk_pct(assistant_combined_level: int, doctor_level: int) ->
     combinado) + doctor nivel 5 = 0.275 lesiones/partido (27.5%)."""
     assistant = assistant_trainer_effect(assistant_combined_level)["injuryRiskPp"]
     doctor = doctor_effect(doctor_level)["injuryRiskReductionPp"]
-    return round(BASE_INJURY_RISK_PCT + assistant - doctor, 2)
+    return float(round(BASE_INJURY_RISK_PCT + assistant - doctor, 2))
 
 
 # HL-2xx: qué función de efecto corresponde a cada columna de StaffSnapshot

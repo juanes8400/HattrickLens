@@ -201,9 +201,10 @@ class MatchesQueryService:
     async def _world(self, team: m.Team) -> m.WorldContext | None:
         if team.ht_league_id is None:
             return None
-        return await self._s.scalar(
+        ctx: m.WorldContext | None = await self._s.scalar(
             select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
         )
+        return ctx
 
     async def _played(self, ht_team_id: int) -> list[m.Match]:
         """Partidos oficiales de ESTE equipo. Los no-oficiales (Escaleras,

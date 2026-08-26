@@ -6,6 +6,7 @@ como PK lógica; con sqlite (tests) funciona el autoincrement vía variant.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -45,7 +46,7 @@ class UtcDateTime(TypeDecorator[datetime]):
     impl = DateTime(timezone=True)
     cache_ok = True
 
-    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+    def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None:
             return None
         if dialect.name == "sqlite":
@@ -53,7 +54,7 @@ class UtcDateTime(TypeDecorator[datetime]):
             return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo else value
         return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
-    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None or value.tzinfo is None:
             return value
         return value.astimezone(UTC).replace(tzinfo=None)

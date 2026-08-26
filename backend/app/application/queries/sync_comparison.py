@@ -95,7 +95,7 @@ def _record_delta(summary: dict[str, dict[str, Any]], key: str, delta: int) -> N
 async def _previous_player_snapshot(
     session: AsyncSession, current: m.PlayerSnapshot
 ) -> m.PlayerSnapshot | None:
-    return await session.scalar(
+    anterior: m.PlayerSnapshot | None = await session.scalar(
         select(m.PlayerSnapshot)
         .where(
             m.PlayerSnapshot.player_id == current.player_id,
@@ -104,6 +104,7 @@ async def _previous_player_snapshot(
         .order_by(m.PlayerSnapshot.captured_at.desc(), m.PlayerSnapshot.id.desc())
         .limit(1)
     )
+    return anterior
 
 
 async def _player_report(
@@ -551,6 +552,9 @@ async def build_sync_comparison(
         .scalars()
         .all()
     )
+    # `.tuples()` y no `.all()` a secas: una `Row` se comporta como tupla pero
+    # no lo es, y construir un dict con ella funciona por casualidad, no por
+    # contrato.
     change_counts: dict[int, int] = dict(
         (
             await session.execute(
@@ -561,7 +565,9 @@ async def build_sync_comparison(
                 )
                 .group_by(m.SyncChange.sync_id)
             )
-        ).all()
+        )
+        .tuples()
+        .all()
     )
 
     # `sync_id` explícito = el usuario eligió una fecha. Se valida contra la

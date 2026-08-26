@@ -120,7 +120,9 @@ def training_efficiency_pct(
     coach_level: int,
     assistant_level_sum: int | float,
     intensity: int,
-    stamina_share: int,
+    # `float`, no `int`: `TrainingSetup.stamina_share` es un float y siempre
+    # lo fue. La firma decia otra cosa.
+    stamina_share: int | float,
 ) -> float:
     """Qué porcentaje del entrenamiento máximo posible está recibiendo el club.
 
@@ -170,10 +172,11 @@ def skill_cost(skill_value: float) -> float:
     value = max(float(skill_value), 0.0)
     if value < float(cfg["split_level"]):
         power = float(cfg["low_power"])
-        return (value**power - 1.0) / (float(cfg["low_scale"]) * power)
+        return float((value**power - 1.0) / (float(cfg["low_scale"]) * power))
     power = float(cfg["high_power"])
-    return float(cfg["high_offset"]) + (
-        (value - float(cfg["high_shift"])) ** power / (float(cfg["high_scale"]) * power)
+    return float(
+        float(cfg["high_offset"])
+        + (value - float(cfg["high_shift"])) ** power / (float(cfg["high_scale"]) * power)
     )
 
 
@@ -345,7 +348,10 @@ def forecast_level_chain(
     out: list[LevelMilestone] = []
     cumulative_weeks = 0.0
     level = current_level
-    total_days = age_years * DAYS_PER_HT_YEAR + age_days
+    # `float` desde el principio: mas abajo se le suman semanas, que son
+    # decimales. Cada uso lo pasa por `int()`, asi que la edad que sale
+    # sigue siendo entera.
+    total_days: float = age_years * DAYS_PER_HT_YEAR + age_days
     for _ in range(min(max_levels, max(0, 20 - current_level))):
         ay, ad = divmod(total_days, DAYS_PER_HT_YEAR)
         speed = weeks_to_next_level(skill, level, int(ay), int(ad), setup, exposure)

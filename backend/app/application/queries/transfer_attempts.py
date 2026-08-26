@@ -11,8 +11,10 @@ jugador fue visto 8 veces mientras estaba en la lista de transferibles"), así
 que lo teclea el usuario y aquí se sirve tal cual, sin estimarlo jamás.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,7 +116,7 @@ def _edad(years: int | None, days: int | None) -> str:
     return f"{years};{days:03d}"
 
 
-def _especialidad(foto, jugador) -> str:
+def _especialidad(foto: Any, jugador: Any) -> str:
     """La especialidad, mirando primero donde de verdad esta."""
     codigo = foto.specialty if foto is not None else None
     if codigo is None:
@@ -124,7 +126,7 @@ def _especialidad(foto, jugador) -> str:
     return SPECIALTIES.get(codigo) or "Ninguna"
 
 
-def _caracter(foto, jugador) -> str:
+def _caracter(foto: Any, jugador: Any) -> str:
     # Cero es "antipatica", un caracter como cualquier otro: hay que
     # preguntar si el dato existe, no si vale cero.
     valor = foto.agreeability if foto is not None else None
@@ -135,7 +137,7 @@ def _caracter(foto, jugador) -> str:
     return PLAYER_AGREEABILITY.get(valor, "?")
 
 
-def _edad_en_la_compra(al_llegar, foto, jugador, llegada) -> str:
+def _edad_en_la_compra(al_llegar: Any, foto: Any, jugador: Any, llegada: datetime | None) -> str:
     """Su edad el dia que llego.
 
     Lo mejor es una foto del mismo dia de la llegada: esa edad ES la edad de
@@ -220,7 +222,14 @@ class TransferAttemptsQueryService:
             ],
         )
 
-    async def _fila(self, intento, jugador, numero, conv, equipo) -> TransferAttemptRow:
+    async def _fila(
+        self,
+        intento: Any,
+        jugador: Any,
+        numero: int,
+        conv: Callable[[int | None], int | None],
+        equipo: Any,
+    ) -> TransferAttemptRow:
         cierre = intento.ended_at or intento.deadline
         corte = cierre or datetime.now()
 
@@ -322,7 +331,11 @@ class TransferAttemptsQueryService:
             from_academy=bool(etapa.from_academy) if etapa is not None else False,
             purchased_at=_iso(llegada),
             purchase_price=(
-                conv(etapa.arrival_price) if etapa is not None and etapa.arrival_price else "?"
+                #  devuelve None si la moneda no se pudo convertir; ahi
+                # tambien es "no se sabe", no un cero.
+                (conv(etapa.arrival_price) or "?")
+                if etapa is not None and etapa.arrival_price
+                else "?"
             ),
             age_at_purchase=_edad_en_la_compra(al_llegar, foto, jugador, llegada),
             days_since_purchase=(corte - llegada).days if llegada is not None else "?",
@@ -332,14 +345,22 @@ class TransferAttemptsQueryService:
             ),
         )
 
-    async def _salario_hasta(self, jugador, desde, hasta, conv) -> int | str:
+    async def _salario_hasta(
+        self,
+        jugador: Any,
+        desde: datetime | None,
+        hasta: datetime | None,
+        conv: Callable[[int | None], int | None],
+    ) -> int | str:
         """Lo pagado en salarios desde que llego hasta el cierre de la puja.
 
         Congelado a esa fecha a proposito: contarlo hasta hoy haria que un
         intento de hace tres meses ensenara el acumulado de ahora, y dos
         filas de la misma tabla dejarian de ser comparables.
         """
-        if desde is None:
+        # Sin fecha de cierre no hay periodo que sumar: se dice que no se sabe,
+        # igual que cuando falta la de llegada.
+        if desde is None or hasta is None:
             return "?"
         filas = (
             await self._s.execute(

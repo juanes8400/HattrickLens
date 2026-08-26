@@ -380,7 +380,7 @@ class PlayerHistoryQueryService:
 
         # Absoluta MAS sub-21: los dos contadores son partidos de seleccion, y
         # mirar solo el primero dejaba invisibles los de los juveniles.
-        def _caps(fila) -> int | None:
+        def _caps(fila: Any) -> int | None:
             if fila.career_caps is None and fila.career_caps_u20 is None:
                 return None
             return (fila.career_caps or 0) + (fila.career_caps_u20 or 0)

@@ -313,13 +313,12 @@ class TeamOverviewQueryService:
             return _WeeklyAverages(weeks=[], by_field={})
 
         team = await self._s.get(m.Team, team_id)
+        # La liga en una variable y comprobada ANTES de la consulta: asi no se
+        # compara una columna contra un posible `None`.
+        liga = team.ht_league_id if team is not None else None
         world = (
-            await self._s.scalar(
-                select(m.WorldContext).where(
-                    m.WorldContext.ht_league_id == (team.ht_league_id if team else None)
-                )
-            )
-            if team is not None and team.ht_league_id is not None
+            await self._s.scalar(select(m.WorldContext).where(m.WorldContext.ht_league_id == liga))
+            if liga is not None
             else None
         )
 
@@ -706,7 +705,7 @@ class TeamOverviewQueryService:
                     if current is None or rating.rating > current[0]:
                         best_role[rating.position] = (
                             rating.rating,
-                            engine_player["name"],
+                            str(engine_player["name"]),
                             rating.label,
                         )
                     continue
@@ -717,7 +716,7 @@ class TeamOverviewQueryService:
                 if current is None or rating.rating > current[0]:
                     best_of_line[line] = (
                         rating.rating,
-                        engine_player["name"],
+                        str(engine_player["name"]),
                         rating.label,
                     )
 
