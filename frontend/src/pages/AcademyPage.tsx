@@ -1703,6 +1703,25 @@ function enDias(dias: number | null): { texto: string; urgente: boolean } {
  * es la parte de la academia que mira hacia la salida en vez de hacia el
  * entrenamiento.
  */
+/** 17 años y 0 días, en días de Hattrick. Es lo antes que se puede ascender.
+ *
+ *  Las DOS reglas, confirmadas contra los 18 canteranos del usuario y el dato
+ *  que da Hattrick —coinciden los 18—: hay que tener 17;000 cumplidos Y llevar
+ *  112 días dentro de la academia. Manda la que falte más.
+ */
+const EDAD_MINIMA_DE_ASCENSO = 17 * 112;
+
+/** Qué edad tendrá el día que por fin pueda subir.
+ *
+ *  Se suma a su edad de hoy lo que Hattrick dice que le falta, en vez de
+ *  recalcular las dos reglas aquí: ese número ya lo manda el juego y no puede
+ *  desincronizarse con él. Si sale 17;000 es que le frena la edad; más que eso,
+ *  que le frena el plazo en la academia —y esos días de más son academia
+ *  gastada sin necesidad—. */
+function edadAlSubir(p: { ageYears: number; ageDays: number; canBePromotedIn: number | null }) {
+  return p.ageYears * 112 + p.ageDays + Math.max(0, p.canBePromotedIn ?? 0);
+}
+
 function SiguientePromocion({ data }: { data: Academy }) {
   const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
   const td = "overflow-hidden whitespace-nowrap px-3 py-1.5";
@@ -1734,7 +1753,8 @@ function SiguientePromocion({ data }: { data: Academy }) {
             <col className="w-[27%]" />
             <col className="w-[7%]" />
             <col className="w-[7%]" />
-            <col className="w-[28%]" />
+            <col className="w-[9%]" />
+            <col className="w-[19%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
@@ -1748,6 +1768,13 @@ function SiguientePromocion({ data }: { data: Academy }) {
                 title="a partir de cuándo puedes subirlo al primer equipo"
               >
                 Puede subir
+              </th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="qué edad tendrá el día que por fin pueda subir: 17;000 es lo antes posible, y más que eso significa que le frena el plazo en la academia"
+              >
+                Edad al subir
               </th>
               <th
                 scope="col"
@@ -1803,6 +1830,25 @@ function SiguientePromocion({ data }: { data: Academy }) {
                     style={{ color: sube.texto === "ya" ? "var(--positive)" : undefined }}
                   >
                     {sube.texto}
+                  </td>
+                  {/* 17;000 en verde = sube en cuanto cumpla la edad, sin
+                      esperar nada más. Cualquier otra cifra significa que le
+                      frena el plazo de la academia y llegará más viejo. */}
+                  <td
+                    className={`${td} text-right tabular-nums`}
+                    style={{
+                      color:
+                        edadAlSubir(p) === EDAD_MINIMA_DE_ASCENSO
+                          ? "var(--positive)"
+                          : "var(--muted)",
+                    }}
+                    title={
+                      edadAlSubir(p) === EDAD_MINIMA_DE_ASCENSO
+                        ? "lo antes que Hattrick permite"
+                        : "le frena el plazo en la academia, no la edad"
+                    }
+                  >
+                    {edadCorta(edadAlSubir(p))}
                   </td>
                   <td
                     className={`${td} text-right tabular-nums`}

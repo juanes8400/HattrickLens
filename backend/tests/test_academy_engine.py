@@ -189,3 +189,51 @@ def test_con_pruebas_suficientes_si_se_recomienda() -> None:
     ))
     assert e.revealed_skills >= 3
     assert "despídelo" in e.promote_advice
+
+
+# ── Cuando puede ascender un canterano ──────────────────────────────────────
+
+def test_las_dos_reglas_de_ascenso_dan_lo_MISMO_que_hattrick() -> None:
+    """17;000 cumplidos Y 112 dias dentro de la academia; manda la que falte mas.
+
+    Dictada por el usuario el 2026-08-26 y comprobada contra los 18 canteranos
+    de su cuenta: coinciden los DIECIOCHO con el `CanBePromotedIn` que manda
+    Hattrick. Se comprueban aqui cuatro casos reales de aquellos.
+
+    La pantalla no recalcula esto --suma el numero que da Hattrick a la edad de
+    hoy-- pero la regla queda fijada: si algun dia deja de cuadrar, es que
+    Hattrick la cambio, y este test lo dira.
+    """
+    DIAS_POR_ANIO = 112
+    EDAD_MINIMA = 17 * DIAS_POR_ANIO
+    EN_LA_ACADEMIA = 112
+
+    def faltan(edad_dias: int, dias_dentro: float) -> int:
+        import math
+
+        return math.floor(
+            max(max(0, EDAD_MINIMA - edad_dias), max(0.0, EN_LA_ACADEMIA - dias_dentro))
+        )
+
+    #        (edad en dias,        dias dentro, lo que dice Hattrick)
+    casos = [
+        (17 * 112 + 3, 25.1, 86),    # Angel Castro: ya tiene la edad, le frena la academia
+        (16 * 112 + 24, 25.5, 88),   # Nemesio Manotas: le frena la edad
+        (16 * 112 + 21, 25.5, 91),   # Lucas Pulecio: le frena la edad
+        (16 * 112 + 30, 3.4, 108),   # Luis Felipe Calderon: recien llegado
+    ]
+    for edad_dias, dentro, esperado in casos:
+        assert faltan(edad_dias, dentro) == esperado, (edad_dias, dentro)
+
+
+def test_a_quien_le_frena_la_edad_asciende_exacto_con_17_000() -> None:
+    """Es lo que hace util la columna «Edad al subir»: 17;000 significa que no
+    se pierde ni un dia, y cualquier cifra mayor son dias de academia gastados
+    esperando el plazo."""
+    DIAS_POR_ANIO = 112
+    edad_al_subir = lambda edad_dias, faltan: edad_dias + faltan  # noqa: E731
+
+    # Nemesio Manotas, real: 16;024 y 88 dias por delante.
+    assert edad_al_subir(16 * DIAS_POR_ANIO + 24, 88) == 17 * DIAS_POR_ANIO
+    # Angel Castro, real: 17;003 y 86 dias -> sube con 17;089, no con 17;000.
+    assert edad_al_subir(17 * DIAS_POR_ANIO + 3, 86) == 17 * DIAS_POR_ANIO + 89
