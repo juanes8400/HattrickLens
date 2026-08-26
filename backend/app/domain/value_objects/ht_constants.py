@@ -240,7 +240,7 @@ MATCH_TYPE_NAMES: dict[int, str] = {
     MATCH_TYPE_YOUTH_FRIENDLY: "Amistoso juvenil",
     MATCH_TYPE_YOUTH_FRIENDLY_CUP_RULES: "Amistoso juvenil (reglas de copa)",
     MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY: "Amistoso juvenil internacional",
-    MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY_CUP_RULES: "Amistoso juvenil internacional (reglas de copa)",
+    MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY_CUP_RULES: "Amistoso juvenil internacional (reglas de copa)",  # noqa: E501
 }
 
 NON_OFFICIAL_MATCH_TYPES: frozenset[int] = frozenset(

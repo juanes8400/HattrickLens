@@ -35,9 +35,12 @@ no con "-1, desconocido". Este motor ahora agrupa por `role_id` (no
 
 from dataclasses import dataclass
 
-from app.domain.value_objects.formations import (
+from app.domain.value_objects.formations import (  # noqa: F401
     DEFAULT_FORMATION,
     LINE_COUNTS,
+    # Se RE-EXPORTAN: hay quien los importa desde aqui, no de `formations`.
+    # Ruff los ve sin usar en este fichero y los borro; la suite se cayo con
+    # 18 modulos sin poder importar. De ahi el `noqa`.
     MAX_CENTRAL_DEFENDERS,
     MAX_INNER_MIDFIELDERS,
     line_splits,

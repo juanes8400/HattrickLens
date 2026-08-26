@@ -31,7 +31,6 @@ que se llenan al final de su región.
 from dataclasses import dataclass, field
 
 from app.domain.engines.youth_skill_score import (
-    SLOT_CUPOS,
     PlayerNote,
 )
 
@@ -114,7 +113,7 @@ TODOS = (POR, DFC, LAT, MED, EXT, DEL)
 
 
 def _mismo(puestos: tuple[str, ...], cuanto: int) -> dict[str, int]:
-    return {p: cuanto for p in puestos}
+    return dict.fromkeys(puestos, cuanto)
 
 
 @dataclass(frozen=True)
@@ -521,7 +520,9 @@ def youth_training_plan(
     for cupo in solo_b:
         racion_de.setdefault(cupo.puesto, (REGION_SOLO_SECUNDARIA, 0.0, _rebajado(cupo.racion)))
 
-    ORDEN = (
+    # Constante, aunque viva dentro de la funcion: es el orden en que se
+    # leen las regiones, y no cambia.
+    ORDEN = (  # noqa: N806
         REGION_AMBOS,
         REGION_SOLO_PRINCIPAL,
         REGION_SOLO_SECUNDARIA,

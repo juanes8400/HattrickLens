@@ -147,9 +147,8 @@ def _edad_en_la_compra(al_llegar, foto, jugador, llegada) -> str:
     Si no la hay, vale la que dejo escrita el repaso de fichas, y en ultimo
     lugar se calcula restando — la edad avanza un dia por dia real.
     """
-    if al_llegar is not None and llegada is not None:
-        if (al_llegar.captured_at - llegada).days < 1:
-            return _edad(al_llegar.age_years, al_llegar.age_days)
+    if al_llegar is not None and llegada is not None and (al_llegar.captured_at - llegada).days < 1:
+        return _edad(al_llegar.age_years, al_llegar.age_days)
     if jugador.age_years_at_purchase is not None:
         return _edad(jugador.age_years_at_purchase, jugador.age_days_at_purchase)
     if foto is not None and llegada is not None:

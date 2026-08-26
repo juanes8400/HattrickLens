@@ -17,7 +17,6 @@ cumplir el límite, por bueno que sea. Por eso los días restantes aparecen
 siempre y el consejo de promoción los antepone a cualquier otra consideración.
 """
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import lru_cache

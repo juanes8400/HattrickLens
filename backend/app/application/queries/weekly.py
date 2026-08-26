@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from app.domain.engines.economy_engine import SEASON_WEEKS
 
@@ -17,15 +17,12 @@ if TYPE_CHECKING:
     from app.infrastructure.db import models as m
 
 
-T = TypeVar("T")
-
-
 def iso_week_key(value: datetime) -> tuple[int, int]:
     iso = value.isocalendar()
     return iso.year, iso.week
 
 
-def latest_per_iso_week(items: Iterable[T], captured_at: Callable[[T], datetime]) -> list[T]:
+def latest_per_iso_week[T](items: Iterable[T], captured_at: Callable[[T], datetime]) -> list[T]:
     """Last observed item from each ISO week, ordered chronologically."""
     latest: dict[tuple[int, int], T] = {}
     for item in sorted(items, key=captured_at):
@@ -33,7 +30,7 @@ def latest_per_iso_week(items: Iterable[T], captured_at: Callable[[T], datetime]
     return list(latest.values())
 
 
-def changes_only(
+def changes_only[T](
     items: Iterable[T],
     captured_at: Callable[[T], datetime],
     value: Callable[[T], Any],
@@ -82,12 +79,12 @@ def start_of_iso_week(value: datetime) -> datetime:
 # instante `refreshed_at`) es la única ancla real disponible — sin ella no
 # hay forma honesta de etiquetar una fecha con su temporada-semana; se
 # devuelve `None` antes que inventar un ancla.
-def _week_index(world: "m.WorldContext") -> int:
+def _week_index(world: m.WorldContext) -> int:
     """Índice absoluto de semana: temporada × 16 + (semana − 1), 0-index."""
     return world.season * SEASON_WEEKS + (world.match_round - 1)
 
 
-def season_week_offset_for(world: "m.WorldContext | None", when: datetime) -> int:
+def season_week_offset_for(world: m.WorldContext | None, when: datetime) -> int:
     """Semanas ISO transcurridas entre `when` y AHORA (`world.refreshed_at`)
     — negativo si `when` es pasado, listo para `season_week_label`.
 
@@ -117,7 +114,7 @@ def season_week_offset_for(world: "m.WorldContext | None", when: datetime) -> in
     return -(elapsed_days // 7)
 
 
-def season_week_label(world: "m.WorldContext | None", *, weeks_offset: int = 0) -> str | None:
+def season_week_label(world: m.WorldContext | None, *, weeks_offset: int = 0) -> str | None:
     """ "TT-ss" (temporada-semana, p. ej. "83-03") para el `WorldContext`
     dado, desplazado `weeks_offset` semanas respecto a AHORA (negativo =
     pasado, positivo = futuro — para semanas de una proyección). `None` si
@@ -129,7 +126,7 @@ def season_week_label(world: "m.WorldContext | None", *, weeks_offset: int = 0) 
     return f"{season:02d}-{week + 1:02d}"
 
 
-def season_at_offset(world: "m.WorldContext | None", *, weeks_offset: int = 0) -> int | None:
+def season_at_offset(world: m.WorldContext | None, *, weeks_offset: int = 0) -> int | None:
     """Solo el número de temporada (sin la semana) en `weeks_offset` — para
     agrupar filas de una tabla por temporada (ver Detalles, 2026-08-09,
     pedido explícito: totales acumulados "83"/"82" al estilo Hattrick
@@ -142,7 +139,7 @@ def season_at_offset(world: "m.WorldContext | None", *, weeks_offset: int = 0) -
 
 
 def season_week_for_datetime(
-    world: "m.WorldContext | None",
+    world: m.WorldContext | None,
     when: datetime,
 ) -> str | None:
     """Temporada-semana exacta de una fecha pasada, presente o futura.
@@ -159,7 +156,7 @@ def season_week_for_datetime(
 
 
 def season_for_datetime(
-    world: "m.WorldContext | None",
+    world: m.WorldContext | None,
     when: datetime,
 ) -> int | None:
     """Número de temporada exacto para una fecha pasada, presente o futura."""

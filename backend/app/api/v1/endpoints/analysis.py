@@ -605,7 +605,6 @@ async def lineup(
         ),
     ),
     session: AsyncSession = Depends(get_session),
-    dependencies=[Depends(require_team_owner)],
 ) -> dict[str, Any]:
     players, _ = await roster(session, team_id)
     if formation and formation not in FORMATIONS:
@@ -765,7 +764,9 @@ async def lineup_hindsight(
     # 11 casos — comparación inútil. Se agrupa por familia y se contrastan los
     # conjuntos de jugadores, que es la decisión real: a quién pusiste en
     # defensa, no en qué lado exacto.
-    FAMILIES: list[tuple[str, str, frozenset[int], str]] = [
+    # En mayuscula porque es una CONSTANTE, aunque viva dentro de la
+    # funcion: no cambia nunca y se lee como tabla.
+    FAMILIES: list[tuple[str, str, frozenset[int], str]] = [  # noqa: N806
         ("keeper", "Portería", MATCH_ROLE_KEEPER, "keeper"),
         ("wingback", "Laterales", MATCH_ROLE_WINGBACK, "wingback"),
         ("central_defender", "Defensa Central", MATCH_ROLE_CENTRAL_DEFENDER, "central_defender"),

@@ -107,7 +107,9 @@ def orden_de_busqueda(
     probados —par, toca reciente; impar, toca azar— y así la alternancia
     sobrevive entre pulsaciones sin guardar nada más.
     """
-    rnd = azar or random.Random()
+    # `random` a secas y no `secrets`: esto reparte turnos de busqueda, no
+    # protege nada. Que sea predecible no le da ventaja a nadie.
+    rnd = azar or random.Random()  # noqa: S311
     quedan = [x for x in por_recencia if x not in ya_probados]
     if not quedan:
         return []
@@ -118,10 +120,7 @@ def orden_de_busqueda(
     pendientes = list(quedan)
     toca_reciente = empezar_por_reciente
     while pendientes and len(elegidos) < cuantos:
-        if toca_reciente:
-            elegido = pendientes[0]
-        else:
-            elegido = rnd.choice(pendientes)
+        elegido = pendientes[0] if toca_reciente else rnd.choice(pendientes)
         pendientes.remove(elegido)
         elegidos.append(elegido)
         toca_reciente = not toca_reciente

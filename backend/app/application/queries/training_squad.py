@@ -493,8 +493,6 @@ class TrainingSquadQueryService:
         if ctx is None:
             return None
         mejoras = await self._last_improvements(team_id)
-        subidas_fidelidad = await self._snapshot_improvements(team_id, "loyalty")
-        subidas_experiencia = await self._snapshot_improvements(team_id, "experience")
 
         chosen_skill = skill or ctx.trained_skill
         setup = replace(
@@ -572,7 +570,7 @@ class TrainingSquadQueryService:
         notes: list[str] = []
         if skill_id is None:
             notes.append(
-                f"No se puede medir el avance de «{TRAINABLE_SKILLS.get(chosen_skill, chosen_skill)}»: "
+                f"No se puede medir el avance de «{TRAINABLE_SKILLS.get(chosen_skill, chosen_skill)}»: "  # noqa: E501
                 "Hattrick no confirma subidas de esa habilidad."
             )
 

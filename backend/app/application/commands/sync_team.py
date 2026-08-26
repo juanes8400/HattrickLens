@@ -568,9 +568,6 @@ class SyncTeamHandler:
                 # `captured_at` (arriba) es aware (UTC) — sirve para Match y
                 # otras tablas, pero `sold_at` leído de SQLite siempre llega
                 # naive (no conserva tzinfo en el viaje de ida y vuelta), así
-                # que la resta de fechas en `_apply_player_enrichment`
-                # necesita su propio "ahora" naive, no el mismo de arriba.
-                fetched_at = datetime.now(UTC).replace(tzinfo=None)
                 # El relleno del pasado (ficha, precio antiguo y país destino
                 # de cada ex-jugador) ya NO vive aquí: era una llamada a
                 # Hattrick por jugador y sin tope, así que una cuenta con
@@ -1513,7 +1510,16 @@ class SyncTeamHandler:
                         teamID=ht_team_id,
                     )
                 )["players"]
-            except Exception:  # noqa: BLE001
+            # Se traga TODO y sigue, a proposito: un partido que Hattrick no
+            # sirva no puede tumbar la sincronizacion entera.
+            #
+            # Pero conste el precio, que se pago el 2026-08-26: este mismo
+            # `except` se trago durante meses un `NameError` por una constante
+            # sin importar, y la funcion devolvia `None` sin que nada avisara.
+            # Aqui no hay `result` donde anotarlo --esta funcion devuelve un
+            # numero, no un informe-- y el proyecto no tiene registro de
+            # eventos. Ese es el arreglo de fondo pendiente.
+            except Exception:  # noqa: BLE001, S112
                 continue
             for jugador in alineacion:
                 if jugador.get("ht_player_id") != ht_player_id:
@@ -2245,7 +2251,6 @@ class SyncTeamHandler:
         minutos y no suma experiencia, igual que en el club.
         """
         from app.domain.engines.national_team import Cambio, minutos_jugados
-        from app.infrastructure.db import models as m
 
         try:
             alineacion = await self._chpp.fetch(
@@ -2378,7 +2383,9 @@ class SyncTeamHandler:
             )
             try:
                 await self._backfill_foreign_match_type(uow, ht_match_id, jugado_el=jugado_el)
-            except Exception:  # noqa: BLE001 — best effort, como el resto
+            # Traga y sigue: un partido ajeno ilegible no puede cortar la
+            # reparacion de los demas. Mismo riesgo que en `_best_recent_rating`.
+            except Exception:  # noqa: BLE001, S112
                 continue
             rescatados += 1
         return rescatados
@@ -2591,7 +2598,6 @@ class SyncTeamHandler:
         el resto de playerdetails, que sigue siendo útil sin esto."""
         if not ht_match_id:
             return None
-        from sqlalchemy import select
 
         from app.infrastructure.db import models as m
 
@@ -2853,7 +2859,8 @@ class SyncTeamHandler:
                     matchID=mt["ht_match_id"],
                     teamID=ht_team_id,
                 )
-            except Exception:  # noqa: BLE001 — best effort, ver docstring
+            # Traga y sigue: ver docstring. Mismo riesgo que arriba.
+            except Exception:  # noqa: BLE001, S112
                 continue
             hit = next(
                 (p for p in lineup.get("players", []) if p.get("ht_player_id") == ht_player_id),
@@ -3424,15 +3431,12 @@ class SyncTeamHandler:
             player.enrichment_attempted = True
             return True
 
-        wrote_anything = False
-
         # El salario, incluso de alguien que ya juega en otro club: Hattrick lo
         # sigue devolviendo. Para un jugador que entro y salio entre dos
         # sincronizaciones esta es la UNICA fuente, porque no dejo snapshots.
         salario = payload.get("salary") or 0
         if salario and player.last_known_salary != salario:
             player.last_known_salary = salario
-            wrote_anything = True
 
         age_years = payload.get("age_years")
         age_days = payload.get("age_days")
@@ -3452,7 +3456,6 @@ class SyncTeamHandler:
             else:
                 player.age_years_at_sale = at_sale.years
                 player.age_days_at_sale = at_sale.days
-                wrote_anything = True
         # 2026-08-05: misma reconstrucción, ancla en `purchased_at` en vez
         # de `sold_at` — para TODO jugador con compra conocida, esté o no
         # vendido (pedida para "Edad de compra" en Detalle).
@@ -3470,7 +3473,6 @@ class SyncTeamHandler:
             else:
                 player.age_years_at_purchase = at_purchase.years
                 player.age_days_at_purchase = at_purchase.days
-                wrote_anything = True
 
         native_league_name = payload.get("native_league_name")
         if not native_league_name:
@@ -3488,20 +3490,16 @@ class SyncTeamHandler:
             native_league_name = world.country_name if world is not None else None
         if player.native_country is None and native_league_name:
             player.native_country = native_league_name
-            wrote_anything = True
         if player.agreeability is None and payload.get("agreeability") is not None:
             player.agreeability = payload["agreeability"]
-            wrote_anything = True
         if player.specialty is None and payload.get("specialty") is not None:
             player.specialty = payload["specialty"]
-            wrote_anything = True
         # 2026-08-04: MotherClub/TeamID — "canterano" real (ver corrección en
         # parse_playerdetails). 0 = sin MotherClub en el XML, se guarda tal
         # cual (nunca coincide con un ht_team_id real, así que no hace falta
         # tratarlo distinto de "no es canterano de nadie").
         if player.mother_club_team_id is None and payload.get("mother_club_team_id") is not None:
             player.mother_club_team_id = payload["mother_club_team_id"]
-            wrote_anything = True
 
         # 2026-08-05, pedido explícitamente: "backfill de un jugador máximo
         # una vez" — si algún campo sigue sin poder rellenarse tras ESTE
@@ -3879,7 +3877,9 @@ class SyncTeamHandler:
             row.league_system_id = league.get("league_system_id", 1)
             row.currency_name = league.get("currency_name", "")
             row.currency_rate = league.get("currency_rate", 1.0)
-            for field, key in (
+            # `campo` y no `field`: asi se llamaba, y tapaba el `field` que
+            # este modulo importa de `dataclasses`.
+            for campo, key in (
                 ("training_date", "training_date"),
                 ("cup_match_date", "cup_match_date"),
                 ("series_match_date", "series_match_date"),
@@ -3889,7 +3889,7 @@ class SyncTeamHandler:
                     parsed = ht_to_utc(raw)
                 except ValueError:
                     parsed = None
-                setattr(row, field, parsed)
+                setattr(row, campo, parsed)
             row.refreshed_at = captured_at
             result.snapshots_written += 1
 
@@ -5194,7 +5194,7 @@ class SyncTeamHandler:
           varios movimientos pasan a compartir ficha y las sobrantes quedan
           huerfanas: sin esto se acumularian una relectura tras otra.
         """
-        from sqlalchemy import delete, select
+        from sqlalchemy import delete
 
         from app.infrastructure.db import models as m
 
@@ -5532,7 +5532,6 @@ class SyncTeamHandler:
         TransferID nuevo respecto a `Team.last_transfer_id_seen`, se para —
         no hace falta re-pedir las ~40 páginas cada vez que el usuario
         pulsa el botón, solo la primera vez (o si de verdad hay huecos)."""
-        from sqlalchemy import select
 
         from app.infrastructure.db import models as m
 

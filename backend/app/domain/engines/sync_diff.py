@@ -13,7 +13,7 @@ daba 202,21 y la UI mostraba un TSI de "202". Ahora cada cambio viaja como
 fuente de la información.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from app.domain.value_objects.formatting import thousands

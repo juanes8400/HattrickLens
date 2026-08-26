@@ -19,7 +19,6 @@ from app.domain.engines.position_engine import positions as _positions
 from app.domain.engines.position_engine import rate
 from app.domain.value_objects.formations import (
     LINE_COUNTS,
-    resolve_split,
     slots_for,
 )
 

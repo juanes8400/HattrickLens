@@ -33,7 +33,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.weekly import (
     season_for_datetime,
     season_week_for_datetime,
-    season_week_label,
 )
 from app.domain.engines.match_analysis import (
     CHANCE_ZONE_LABELS,

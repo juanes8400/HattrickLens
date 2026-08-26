@@ -573,7 +573,7 @@ def block_trainable(
     }
     top = max(totals.values(), default=0.0)
     if top <= 0:
-        return {skill: 0.0 for skill in SKILLS}
+        return dict.fromkeys(SKILLS, 0.0)
     # Sin redondear: el aporte de una habilidad a un bloque es una proporción,
     # y truncarla a entero perdía la diferencia entre habilidades vecinas —
     # 10,7 y 10,4 no son "11 y 10", son casi lo mismo.

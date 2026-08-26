@@ -318,7 +318,7 @@ async def league_comparison(
                     "top11": top11,
                 },
                 "caveats": [
-                    "El TSI de cada rival es real (dato público de Hattrick); sus habilidades exactas "
+                    "El TSI de cada rival es real (dato público de Hattrick); sus habilidades exactas "  # noqa: E501
                     "y su alineación real están ocultas por CHPP para cualquier equipo que no sea "
                     "el tuyo, «excluir nuestro arquero» solo se aplica con certeza a tu "
                     "plantilla, nunca a los rivales.",
@@ -536,8 +536,8 @@ async def team_of_the_week(
                 "total_stars": total_stars,
                 "caveats": [
                     "Rating real de cada titular, público para cualquier partido ya terminado "
-                    "(matchlineup.xml), un mismo jugador solo cuenta con su mejor actuación del rango.",
-                    '"De la temporada" pesa cada jornada terminada por igual, sin importar cuándo se '
+                    "(matchlineup.xml), un mismo jugador solo cuenta con su mejor actuación del rango.",  # noqa: E501
+                    '"De la temporada" pesa cada jornada terminada por igual, sin importar cuándo se '  # noqa: E501
                     "sincronizó el calendario, puede tardar en reflejar la última jornada si "
                     "leaguefixtures.xml todavía no trae su marcador.",
                 ],

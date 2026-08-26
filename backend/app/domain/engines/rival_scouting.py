@@ -22,7 +22,6 @@ from app.domain.value_objects.ht_constants import (
     MAN_MARKING_ELIGIBLE_MARKERS,
     MAN_MARKING_ELIGIBLE_TARGETS,
     MAN_MARKING_PROXIMITY,
-    MATCH_POSITION_KEEPER,
     match_position_name,
     tactic_type_name,
 )

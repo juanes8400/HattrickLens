@@ -825,9 +825,8 @@ class PlayerBalanceQueryService:
             # millones, que no es lo que se quiere saber.
             total_cost = (balance.purchase_price or 0) + balance.salary_total + balance.listing_cost
             roi_pct: float | str = "?"
-            if balance.saldo is not None:
-                if total_cost > 0:
-                    roi_pct = round(balance.saldo / total_cost * 100, 2)
+            if balance.saldo is not None and total_cost > 0:
+                roi_pct = round(balance.saldo / total_cost * 100, 2)
             saldo_per_delta_tsi: float | str = "?"
             if balance.saldo is not None and isinstance(delta_tsi, int) and delta_tsi != 0:
                 saldo_per_delta_tsi = round(balance.saldo / delta_tsi, 2)

@@ -79,7 +79,10 @@ def agent_commission_pct(days_owned: int) -> float:
         return AGENT_PCT_BREAKPOINTS[0][1]
     if days_owned >= AGENT_PCT_BREAKPOINTS[-1][0]:
         return AGENT_PCT_BREAKPOINTS[-1][1]
-    for (d0, p0), (d1, p1) in zip(AGENT_PCT_BREAKPOINTS, AGENT_PCT_BREAKPOINTS[1:]):
+    # `strict=False` explicito: es el idioma de "pares consecutivos" y las dos
+    # listas tienen distinta longitud a proposito --n y n-1--, asi que con
+    # `strict=True` esto reventaria siempre.
+    for (d0, p0), (d1, p1) in zip(AGENT_PCT_BREAKPOINTS, AGENT_PCT_BREAKPOINTS[1:], strict=False):
         if d0 <= days_owned <= d1:
             if d1 == d0:
                 return p0

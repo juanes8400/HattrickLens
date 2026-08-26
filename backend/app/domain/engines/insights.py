@@ -199,7 +199,7 @@ def structural_deficit(
                 else "Tu club pierde dinero cada semana"
             ),
             detail=(
-                f"El balance sin transferencias es {thousands(structural_balance)} {currency} por semana. "
+                f"El balance sin transferencias es {thousands(structural_balance)} {currency} por semana. "  # noqa: E501
                 f"Con la caja actual aguantas unas {semanas} semanas."
             ),
             action="Recorta salarios o sube ingresos: vender jugadores solo tapa el agujero.",
@@ -230,7 +230,7 @@ def income_concentration(
             key="economy.income_concentration",
             severity=Severity.INFO,
             title=f"{share:.0%} de tus ingresos vienen de {label.lower()}",
-            detail=f"{thousands(value)} {currency} de {thousands(total)} {currency} en la última lectura.",
+            detail=f"{thousands(value)} {currency} de {thousands(total)} {currency} en la última lectura.",  # noqa: E501
             action="Diversificar (patrocinios, afición) amortigua una mala racha de resultados.",
             module="economía",
             evidence={"source": label, "share": round(share, 3)},
@@ -463,7 +463,7 @@ def wage_concentration(
                         f"{thousands(total_salary)} {currency}."
                     ),
                     action=(
-                        "Si se lesiona o baja de forma, el golpe al balance es grande y concentrado."
+                        "Si se lesiona o baja de forma, el golpe al balance es grande y concentrado."  # noqa: E501
                     ),
                     module="economía",
                     evidence={"player": p["name"], "share": round(share, 3)},
@@ -484,7 +484,7 @@ def thin_keeper_depth(players: list[dict[str, Any]]) -> list[Insight]:
                 key="squad.no_natural_keeper",
                 severity=Severity.DANGER,
                 title="Ningún jugador tiene la portería como mejor posición",
-                detail="Todo tu once sale de jugadores de campo jugando fuera de su puesto natural.",
+                detail="Todo tu once sale de jugadores de campo jugando fuera de su puesto natural.",  # noqa: E501
                 action="Ficha o forma un portero: es la posición más difícil de improvisar.",
                 module="equipo",
             )
@@ -494,7 +494,7 @@ def thin_keeper_depth(players: list[dict[str, Any]]) -> list[Insight]:
             key="squad.single_keeper",
             severity=Severity.WARNING,
             title="Un solo portero natural en la plantilla",
-            detail=f"{porteros[0]['name']} es tu único jugador con la portería como mejor posición.",
+            detail=f"{porteros[0]['name']} es tu único jugador con la portería como mejor posición.",  # noqa: E501
             action="Sin suplente natural, una lesión suya te obliga a improvisar.",
             module="equipo",
             evidence={"player": porteros[0]["name"]},
@@ -535,7 +535,7 @@ def academy_roi(invested: int, earned: int, currency: str = "") -> list[Insight]
                 key="academy.profitable",
                 severity=Severity.INFO,
                 title="Tu academia ha sido rentable",
-                detail=f"Invertido {thousands(invested)} {currency}, generado {thousands(earned)} {currency}.",
+                detail=f"Invertido {thousands(invested)} {currency}, generado {thousands(earned)} {currency}.",  # noqa: E501
                 action="",
                 module="academia",
                 evidence={"invested": invested, "earned": earned, "net": neto},
@@ -550,7 +550,7 @@ def academy_roi(invested: int, earned: int, currency: str = "") -> list[Insight]
                 f"Llevas {thousands(invested)} {currency} invertidos y has generado "
                 f"{thousands(earned)}. Diferencia: {thousands(neto)}."
             ),
-            action="Decide si el proyecto de cantera compensa o si ese dinero rinde más en el mercado.",
+            action="Decide si el proyecto de cantera compensa o si ese dinero rinde más en el mercado.",  # noqa: E501
             module="academia",
             evidence={"invested": invested, "earned": earned, "net": neto},
         )
@@ -590,7 +590,7 @@ def youth_star_prospect(youths: list[dict[str, Any]]) -> list[Insight]:
                     title=f"{y['name']} apunta a {y['category']} de la academia",
                     detail=(
                         f"Mejor habilidad: {y['best_skill']} "
-                        f"(techo {y['best_skill_max'] if y['best_skill_max'] is not None else '?'})."
+                        f"(techo {y['best_skill_max'] if y['best_skill_max'] is not None else '?'})."  # noqa: E501
                     ),
                     action=y.get("promote_advice", ""),
                     module="academia",

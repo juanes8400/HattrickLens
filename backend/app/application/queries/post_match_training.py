@@ -30,7 +30,6 @@ from app.domain.engines.training_engine import (
     weeks_to_next_level,
 )
 from app.domain.value_objects.ht_constants import (
-    MATCH_TYPE_NAMES,
     NON_OFFICIAL_MATCH_TYPES,
     TRAINING_TARGET_SKILL,
     match_position_name,
@@ -163,7 +162,7 @@ class PostMatchTrainingService:
         notes: list[str] = list(data_notes)
         if current_type and recommendation and recommendation["trainingType"] != current_type:
             notes.append(
-                "El entrenamiento actual no es el que más aprovecha los minutos ya jugados esta semana."
+                "El entrenamiento actual no es el que más aprovecha los minutos ya jugados esta semana."  # noqa: E501
             )
         elif current_type and recommendation:
             notes.append("El entrenamiento actual coincide con la mejor opción calculada.")
@@ -481,12 +480,12 @@ class PostMatchTrainingService:
         fallback = await self._fallback_last_match_segments(team_id)
         if fallback:
             notes.append(
-                "No hay historial de partidos dentro de la ventana; se usa LastMatch de playerdetails como respaldo."
+                "No hay historial de partidos dentro de la ventana; se usa LastMatch de playerdetails como respaldo."  # noqa: E501
             )
             return fallback, notes
 
         notes.append(
-            "No hay minutos/posiciones sincronizados. Sincroniza playerdetails o matchlineup para activar esta recomendación."
+            "No hay minutos/posiciones sincronizados. Sincroniza playerdetails o matchlineup para activar esta recomendación."  # noqa: E501
         )
         return [], notes
 
