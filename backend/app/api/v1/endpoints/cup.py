@@ -13,13 +13,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.weekly import season_for_datetime
 from app.domain.engines.arena_engine import ArenaCapacity, Attendance, analyse_match
 from app.domain.engines.match_analysis import hatstats
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
 from app.infrastructure.db import models as m
-from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()

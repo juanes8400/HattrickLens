@@ -25,7 +25,6 @@ from app.domain.value_objects.ht_constants import (
 )
 from app.infrastructure.db import models as m
 
-
 # Los seis puestos que Hattrick deja contratar, en el orden y con los nombres
 # de su propia página de Empleados. Nada de inventar: la lista y las etiquetas
 # viven en `ht_constants` junto al mapa de códigos, y `staff_effects.py` tiene

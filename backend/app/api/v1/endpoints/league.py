@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_team_owner
+from app.api.rate_limit import limite
 from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
 from app.application.commands.sync_team import FILE_VERSIONS, MATCHLINEUP_ROLE_VERSION
@@ -29,7 +30,6 @@ from app.domain.engines.team_of_the_week import (
 from app.domain.value_objects.ht_constants import match_role_name
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
 from app.infrastructure.db import models as m
-from app.api.rate_limit import limite
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
 

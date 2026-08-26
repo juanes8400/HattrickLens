@@ -39,10 +39,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
-from app.domain.engines.position_engine import rate_all
 from app.application.queries.weekly import backfill_leading_gaps, season_week_for_datetime
-from app.domain.value_objects.ht_constants import skill_name
 from app.domain.engines import htms as htms_motor
+from app.domain.engines.position_engine import rate_all
+from app.domain.value_objects.ht_constants import skill_name
 from app.infrastructure.db import models as m
 
 SKILL_SCALE_MAX = 20.0

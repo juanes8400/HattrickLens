@@ -11,7 +11,6 @@ from collections import defaultdict
 from statistics import median
 from typing import Any
 
-
 FIELD_POSITION_CODES = frozenset(range(1, 15))
 
 

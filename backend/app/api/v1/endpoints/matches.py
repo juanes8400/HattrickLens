@@ -5,9 +5,9 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.matches import MatchesQueryService
-from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()

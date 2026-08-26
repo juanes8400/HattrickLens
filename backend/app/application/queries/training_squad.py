@@ -23,15 +23,15 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.player_history import PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS
-from app.application.queries.player_history import PlayerHistoryQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.weekly import (
     SEASON_WEEKS,
     latest_per_iso_week,
-    season_week_label,
     season_week_for_datetime,
+    season_week_label,
 )
 from app.domain.engines import training_engine as te
 from app.domain.engines.loyalty_engine import (

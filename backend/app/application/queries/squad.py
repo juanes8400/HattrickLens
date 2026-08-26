@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.engines import htms
 from app.application.dto.squad import (
     PositionRatingDTO,
     SquadComparison,
@@ -14,6 +13,7 @@ from app.application.dto.squad import (
     SquadTotals,
 )
 from app.application.queries.weekly import latest_per_iso_week, start_of_iso_week
+from app.domain.engines import htms
 from app.domain.engines.position_engine import (
     best_position,
     rate,

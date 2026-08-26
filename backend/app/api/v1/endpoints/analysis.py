@@ -9,17 +9,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_team_owner
 from app.application.queries.academy import AcademyQueryService
 from app.application.queries.arena import ArenaQueryService
 from app.application.queries.league import LeagueQueryService
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
-from app.domain.engines import htms as htms_motor
 from app.application.queries.team_overview import TeamOverviewQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
 from app.application.queries.weekly import season_week_for_datetime, season_week_label
+from app.domain.engines import htms as htms_motor
 from app.domain.engines import insights as ins
 from app.domain.engines.career_stage_engine import classify_career_stage
 from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
@@ -29,11 +30,11 @@ from app.domain.engines.experience_engine import (
 from app.domain.engines.experience_engine import model_info as experience_model_info
 from app.domain.engines.lineup_optimizer import (
     FORMATIONS,
+    ORDER_VARIANTS,
     TEAM_SPIRIT_ATTITUDE_MULTIPLIER,
     best_formation,
-    ORDER_VARIANTS,
-    variantes_de_casilla,
     best_lineup,
+    variantes_de_casilla,
 )
 from app.domain.engines.loyalty_engine import loyalty_decimal as calculate_loyalty_decimal
 from app.domain.engines.loyalty_engine import model_info as loyalty_model_info
@@ -50,10 +51,14 @@ from app.domain.engines.team_rating_engine import (
 )
 from app.domain.engines.training_engine import (
     TrainingSetup,
-    default_setup as default_training_setup,
-    model_info as training_model_info,
     training_mode,
     weeks_to_next_level,
+)
+from app.domain.engines.training_engine import (
+    default_setup as default_training_setup,
+)
+from app.domain.engines.training_engine import (
+    model_info as training_model_info,
 )
 from app.domain.value_objects.formations import (
     central_defender_options,
@@ -61,18 +66,17 @@ from app.domain.value_objects.formations import (
     resolve_split,
     slots_for,
 )
-from app.domain.value_objects.ht_time import ht_day
 from app.domain.value_objects.ht_constants import (
     NON_OFFICIAL_MATCH_TYPES,
     match_role_name,
     training_target,
 )
+from app.domain.value_objects.ht_time import ht_day
 from app.domain.value_objects.stamina_reference import (
     age_after_weeks,
     stamina_forecast_level,
 )
 from app.infrastructure.db import models as m
-from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()

@@ -2,7 +2,6 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -11,11 +10,16 @@ from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import (
+    get_current_user,
+    get_dashboard_service,
+    get_squad_service,
+    require_team_owner,
+)
 from app.api.rate_limit import limite
-from app.api.deps import get_current_user, get_dashboard_service, get_squad_service, require_team_owner
 from app.application.commands.sync_team import (
-    SyncBackfillBatchCommand,
     FILE_VERSIONS,
+    SyncBackfillBatchCommand,
     SyncMatchDetailsCommand,
     SyncPlayerDetailsCommand,
     SyncPreviousClubBonusCommand,
@@ -26,15 +30,15 @@ from app.application.commands.sync_team import (
 )
 from app.application.dto.dashboard import DashboardResponse
 from app.application.dto.squad import PositionRatingDTO, SquadResponse
-from app.application.queries.dashboard import DashboardQueryService
-from app.application.queries.club import ClubQueryService
-from app.application.queries.squad import SquadQueryService
-from app.application.queries.sync_comparison import build_sync_comparison
 from app.application.queries.changes_history import (
     ALLOWED_WINDOW_WEEKS,
     DEFAULT_WINDOW_WEEKS,
     build_changes_history,
 )
+from app.application.queries.club import ClubQueryService
+from app.application.queries.dashboard import DashboardQueryService
+from app.application.queries.squad import SquadQueryService
+from app.application.queries.sync_comparison import build_sync_comparison
 from app.domain.engines.position_engine import model_info
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
 from app.infrastructure.db import models as m

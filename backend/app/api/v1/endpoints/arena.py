@@ -5,8 +5,8 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.queries.arena import ArenaQueryService
 from app.api.deps import require_team_owner
+from app.application.queries.arena import ArenaQueryService
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()

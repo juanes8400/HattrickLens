@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.transfer_attempts import TransferAttemptsQueryService
-from app.api.deps import require_team_owner
 from app.domain.value_objects.ht_constants import SKILL_LABELS
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session

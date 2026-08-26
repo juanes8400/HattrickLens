@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select

@@ -121,3 +121,33 @@ def test_los_controles_mas_pulsados_dicen_que_se_usa_de_verdad() -> None:
 def test_las_horas_dicen_cuando_no_molestar() -> None:
     e = [_p("a", "Liga", 0), _p("a", "Liga", 61)]
     assert por_hora(e) == {10: 1, 11: 1}
+
+
+# ── Un hallazgo del linter, no del comportamiento ────────────────────────────
+
+def test_ninguna_constante_de_version_CHPP_queda_sin_definir() -> None:
+    """2026-08-26. `_best_recent_rating` pedia `matchlineup` con
+    `MATCHLINEUP_POSITION_CODE_VERSION`, que vive en `rivals.py` y nunca se
+    importo en `sync_team.py`. El `except Exception: continue` de dos lineas
+    mas abajo se tragaba el NameError, asi que la funcion devolvia `None`
+    SIEMPRE y en silencio --y `None` significa "aun no ha jugado"--.
+
+    Lo encontro `ruff` en CI, que llevaba en rojo desde el 22 de agosto sin que
+    nadie lo mirara. Esta prueba lo fija sin depender de que ruff se ejecute.
+    """
+    import app.application.commands.sync_team as st
+
+    crudo = __import__("inspect").getsource(
+        st.SyncTeamHandler._best_recent_rating
+    )
+    # Se miran solo las lineas de CODIGO: el comentario que explica este mismo
+    # fallo nombra la constante rota, y la prueba se cazaria a si misma.
+    codigo = [l for l in crudo.splitlines() if not l.lstrip().startswith("#")]
+
+    for nombre in ("MATCHLINEUP_ROLE_VERSION", "MATCHLINEUP_POSITION_CODE_VERSION"):
+        if any(nombre in linea for linea in codigo):
+            assert hasattr(st, nombre), (
+                f"{nombre} se usa en _best_recent_rating pero no existe en el "
+                "modulo: el NameError se lo traga el except y la funcion "
+                "devuelve None para siempre"
+            )

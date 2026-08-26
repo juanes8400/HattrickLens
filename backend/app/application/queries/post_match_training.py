@@ -40,7 +40,6 @@ from app.domain.value_objects.ht_constants import (
 )
 from app.infrastructure.db import models as m
 
-
 KEEPERS = frozenset({1, 100})
 WINGBACKS = frozenset({2, 6, 101, 105})
 CENTRAL_DEFENDERS = frozenset({3, 4, 5, 102, 103, 104})

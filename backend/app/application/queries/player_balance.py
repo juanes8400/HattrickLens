@@ -27,8 +27,8 @@ from app.domain.engines.player_balance import (
 from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
     SKILL_LABELS,
-    training_name,
     SPECIALTIES,
+    training_name,
     training_skill_name,
 )
 from app.infrastructure.db import models as m

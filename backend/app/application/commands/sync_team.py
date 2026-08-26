@@ -10,26 +10,26 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
-from app.domain.value_objects.skill import Age
+from app.domain.engines import caza_de_comisiones as caza
+from app.domain.engines import mapa_del_barrido
 from app.domain.engines import sync_diff as diff_sync
 from app.domain.engines.sync_diff import (
-    diff_expedientes_cerrados,
-    diff_previous_club_bonus,
     Change,
     MatchState,
     diff_economy,
+    diff_expedientes_cerrados,
     diff_match,
     diff_player_departure,
     diff_player_skills,
+    diff_previous_club_bonus,
     diff_standing,
     diff_training,
 )
-from app.domain.engines import caza_de_comisiones as caza
-from app.domain.engines import mapa_del_barrido
+from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.ports.chpp_gateway import CHPPGateway
-from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.ports.repositories import UnitOfWork
+from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
+from app.domain.value_objects.skill import Age
 
 # 2026-08-05, pedido explícitamente: "la conexión" de Hattrick Control
 # muestra en vivo qué está descargando — un sync aquí ya no es una caja
@@ -1290,8 +1290,6 @@ class SyncTeamHandler:
             match_type_name,
         )
         from app.domain.value_objects.ht_time import ht_to_utc
-        from sqlalchemy import select
-
         from app.infrastructure.db import models as m
 
         equipo = await uow.session.get(m.Team, team_id)
@@ -1417,7 +1415,20 @@ class SyncTeamHandler:
                 alineacion = (
                     await self._chpp.fetch(
                         "matchlineup",
-                        version=MATCHLINEUP_POSITION_CODE_VERSION,
+                        # 2026-08-26: aqui ponia
+                        # `MATCHLINEUP_POSITION_CODE_VERSION`, que vive en
+                        # `rivals.py` y NUNCA se importo aqui. El
+                        # `except Exception: continue` de unas lineas mas abajo
+                        # se tragaba el NameError, asi que esta funcion
+                        # devolvia `None` SIEMPRE y en silencio -- y `None`
+                        # significa "aun no ha jugado", con lo que el fichaje
+                        # de un rival parecia recien llegado para siempre. Lo
+                        # encontro `ruff` (F821) en CI.
+                        #
+                        # La version correcta es la de este fichero: aqui solo
+                        # se lee `rating_stars`, no `PositionCode`, que es para
+                        # lo unico que rivals.py necesita la suya.
+                        version=MATCHLINEUP_ROLE_VERSION,
                         matchID=mt["ht_match_id"],
                         matchType=mt["match_type"],
                         teamID=ht_team_id,
@@ -2954,8 +2965,6 @@ class SyncTeamHandler:
         un retiro lo cierran para siempre, y comprobado en vivo, Hattrick
         responde a esa ficha con el error 56 cuando el jugador ya no está.
         """
-        from sqlalchemy import select
-
         from sqlalchemy import select
 
         from app.domain.engines import ex_player_watch as vigilancia

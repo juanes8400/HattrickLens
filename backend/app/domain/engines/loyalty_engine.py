@@ -11,7 +11,6 @@ promedios observados ni calibración por jugador.
 from math import ceil, floor, sqrt
 from typing import Any
 
-
 LOYALTY_MAX_LEVEL = 20
 LOYALTY_FULL_DAYS = 336
 LOYALTY_STEPS = LOYALTY_MAX_LEVEL - 1

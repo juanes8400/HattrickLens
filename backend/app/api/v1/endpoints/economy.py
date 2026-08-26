@@ -4,9 +4,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_team_owner
 from app.application.queries.economy import EconomyQueryService
 from app.domain.engines.economy_engine import PlannedEvent
-from app.api.deps import require_team_owner
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()

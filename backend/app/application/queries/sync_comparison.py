@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -24,7 +25,6 @@ from app.domain.value_objects.ht_constants import (
     TRAINING_TYPES,
 )
 from app.infrastructure.db import models as m
-
 
 PLAYER_METRICS: tuple[tuple[str, str, str], ...] = (
     ("tsi", "TSI", "TSI"),

@@ -42,12 +42,17 @@ MAXIMO_POR_TANDA = 50
 
 
 class EventoEntrante(BaseModel):
-    sessionId: str = Field(max_length=36)
+    # Los nombres van en camelCase porque son EXACTAMENTE los que manda el
+    # navegador; renombrarlos a snake_case rompe el contrato con el recolector
+    # sin ganar nada. De ahi los `noqa: N815`.
+    sessionId: str = Field(max_length=36)  # noqa: N815
     kind: str = Field(pattern="^(page|click)$")
     module: str = Field(max_length=64)
     label: str | None = Field(default=None, max_length=120)
     at: datetime
-    visibleMs: int = Field(default=0, ge=0, le=24 * 60 * 60 * 1000)
+    visibleMs: int = Field(  # noqa: N815
+        default=0, ge=0, le=24 * 60 * 60 * 1000
+    )
 
 
 class Tanda(BaseModel):

@@ -25,17 +25,17 @@ tamaño, el backtest decidirá sola.
 """
 from collections import defaultdict
 from collections.abc import Callable
-from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
     season_for_datetime,
-    season_week_label,
     season_week_for_datetime,
+    season_week_label,
 )
 from app.domain.engines import timeseries as ts
 from app.domain.engines.economy_engine import (

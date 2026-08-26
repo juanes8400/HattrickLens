@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.squad import SKILL_COLS
 from app.application.queries.weekly import backfill_leading_gaps, latest_per_iso_week
 from app.domain.engines import experience_engine as exp
+from app.domain.engines import htms as motor_htms
 from app.domain.engines.stats import gaussian_kde, kde_grid, percentile_rank
 from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_CUP,
@@ -32,7 +33,6 @@ from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_YOUTH_LEAGUE,
     NON_OFFICIAL_MATCH_TYPES,
 )
-from app.domain.engines import htms as motor_htms
 from app.infrastructure.db import models as m
 
 # match_type real (Match.match_type) → categoría de experience_engine.

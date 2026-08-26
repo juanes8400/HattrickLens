@@ -18,8 +18,8 @@ siempre y el consejo de promoción los antepone a cualquier otra consideración.
 """
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import lru_cache
 from datetime import datetime
+from functools import lru_cache
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

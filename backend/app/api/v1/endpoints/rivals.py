@@ -33,22 +33,22 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_team_owner
+from app.api.rate_limit import limite
 from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
 from app.application.commands.sync_team import FILE_VERSIONS
 from app.domain.engines.lineup_optimizer import best_formation
 from app.domain.engines.next_match_analysis import probable_starters
 from app.domain.engines.rival_scouting import (
+    PitchZoneMethod,
     analyse_side_rotation,
     estimate_win_probability,
-    PitchZoneMethod,
-    pitch_zone_values,
     pitch_zone_duels,
+    pitch_zone_values,
     suggest_man_marking,
     summarise_tactics,
     tsi_kde_comparison,
 )
-from app.domain.value_objects.ht_time import ht_to_utc
 from app.domain.value_objects.ht_constants import (
     FRIENDLY_MATCH_TYPES,
     MATCH_TYPE_DUEL,
@@ -62,9 +62,9 @@ from app.domain.value_objects.ht_constants import (
     match_position_name,
     match_type_name,
 )
+from app.domain.value_objects.ht_time import ht_to_utc
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
 from app.infrastructure.db import models as m
-from app.api.rate_limit import limite
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
 
