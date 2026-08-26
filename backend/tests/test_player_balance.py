@@ -8,6 +8,7 @@ amplía según avanza la historia.
 """
 import asyncio
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -39,7 +40,10 @@ from app.infrastructure.db import models as m
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
 from tests.conftest import seeded_session
 
-FIXTURES_DIR = __file__.rsplit("\\", 1)[0] + "\\fixtures"
+# `Path`, no barras invertidas a mano: en Linux `__file__` no las lleva, el
+# `rsplit` devolvia la ruta ENTERA y salia una ruta imposible. En Windows
+# pasaba; en CI reventaban seis pruebas con "No such file or directory".
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 class FakeCHPP:
@@ -53,12 +57,11 @@ class FakeCHPP:
     """
 
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
-        from pathlib import Path
 
         if file == "transfersteam":
             return {"transfers": [], "pages": 1}
         return get_parser(file)(
-            (Path(FIXTURES_DIR) / f"{file}.xml").read_bytes()
+            (FIXTURES_DIR / f"{file}.xml").read_bytes()
         )
 
 
@@ -329,10 +332,9 @@ class FakeChppErrorCHPP:
     verificado en vivo 2026-08-05 contra ~105 ventas viejas de esta cuenta."""
 
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
-        from pathlib import Path
 
         name = "chpperror" if file == "playerdetails" else file
-        return get_parser(file)((Path(FIXTURES_DIR) / f"{name}.xml").read_bytes())
+        return get_parser(file)((FIXTURES_DIR / f"{name}.xml").read_bytes())
 
 
 def test_player_enrichment_marks_enrichment_attempted_on_chpp_error() -> None:
