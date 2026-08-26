@@ -40,8 +40,10 @@ const formatWeight = (w: number | undefined) =>
  *  al lado de sus siete habilidades, que es lo que la sostiene. */
 const VIEWS = [
   { key: "squad", label: "Plantilla juvenil" },
-  { key: "train", label: "Qué entrenar" },
-  { key: "who", label: "A quién entrenar" },
+  { key: "train", label: "Selección de entrenamiento" },
+  // "Formación" y no "A quién entrenar": esta pestaña YA no propone un
+  // reparto teorico, decide la alineacion del proximo partido.
+  { key: "who", label: "Formación siguiente partido" },
   { key: "promotion", label: "Siguiente promoción" },
   { key: "scouts", label: "Ojeadores" },
 ] as const;
@@ -69,6 +71,23 @@ const CATEGORY_TONE: Record<string, string> = {
 export function AcademyPage() {
   const { data, isLoading, isError, error } = useAcademy();
   const [view, setView] = useState<ViewKey>("squad");
+
+  /** Lleva una pareja de entrenamientos a la formación y salta allí.
+   *
+   *  Escribe las mismas claves que lee la pestaña de formación —que se monta
+   *  al entrar, así que las recoge— y borra la marca de "esto lo adoptamos
+   *  nosotros": lo que se lleva a mano manda sobre la recomendación, igual
+   *  que si se hubiera elegido en los selectores. */
+  const llevarALaFormacion = (main: string, secondary: string) => {
+    try {
+      localStorage.setItem("juveniles.principal", main);
+      localStorage.setItem("juveniles.secundario", secondary);
+      localStorage.removeItem("juveniles.sugerenciaAdoptada");
+    } catch {
+      // Almacenamiento bloqueado: se salta igual, sin recordar la elección.
+    }
+    setView("who");
+  };
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -130,7 +149,7 @@ export function AcademyPage() {
         <p className="text-sm text-[var(--muted)]">
           {view === "train" ? (
             <>
-              <b className="text-[var(--text)]">Qué entrenar</b> puntúa cada
+              <b className="text-[var(--text)]">Selección de entrenamiento</b> puntúa cada
               habilidad por lo que tu cantera puede ganar en ella, y de ahí sale
               la pareja recomendada. Los mandos de abajo son tuyos: mueve el
               corte del plazo o la separación entre peldaños y el ranking se
@@ -139,7 +158,7 @@ export function AcademyPage() {
             </>
           ) : (
             <>
-              <b className="text-[var(--text)]">A quién entrenar</b> reparte los
+              <b className="text-[var(--text)]">Formación siguiente partido</b> reparte los
               dos entrenamientos elegidos entre los once y el banquillo. Cada
               entrenamiento llega a unos puestos y no a otros: quien cae donde
               se cruzan los dos recibe ambos. Dentro de cada tramo entran
@@ -195,7 +214,7 @@ export function AcademyPage() {
       ) : view === "squad" ? (
         <SkillDetail data={data} />
       ) : view === "train" ? (
-        <WhatToTrain data={data} />
+        <WhatToTrain data={data} irALaFormacion={llevarALaFormacion} />
       ) : view === "who" ? (
         <QuienEntrena data={data} />
       ) : view === "promotion" ? (
@@ -331,7 +350,13 @@ function usePersistidoTexto(clave: string) {
   return [valor, setValor] as const;
 }
 
-function WhatToTrain({ data }: { data: Academy }) {
+function WhatToTrain({
+  data,
+  irALaFormacion,
+}: {
+  data: Academy;
+  irALaFormacion: (main: string, secondary: string) => void;
+}) {
   const [soonMaxDays, setSoonMaxDays] = usePersistido(
     "juveniles.soonMaxDays", DEFAULT_SOON_MAX_DAYS,
   );
@@ -392,7 +417,7 @@ function WhatToTrain({ data }: { data: Academy }) {
     plazasIguales(trainable, plazas);
 
   return (
-    <Panel title="Qué entrenar" meta="una habilidad, la reciben todos">
+    <Panel title="Selección de entrenamiento" meta="una habilidad, la reciben todos">
       {/* Las DOS, no una. Y la segunda con apellido: la misma habilidad se
           entrena por caminos distintos y cada uno llega a gente distinta.
           Con «Defensa» arriba, «Pases» a secas no toca a ningún defensa y
@@ -416,6 +441,17 @@ function WhatToTrain({ data }: { data: Academy }) {
                 No hay ningún puesto que reciba las dos.
               </span>
             )}
+            {/* El botón va PEGADO a la recomendación, no en otra pantalla:
+                el momento de llevársela es justo cuando se acaba de leer. */}
+            <button
+              onClick={() =>
+                irALaFormacion(sugerencia.main, sugerencia.secondary)
+              }
+              data-track="Juveniles: llevar sugerencia a la formación"
+              className="ml-2 rounded-md border border-[var(--accent)] px-2 py-1 text-xs font-medium text-[var(--accent)]"
+            >
+              Llevar a la formación
+            </button>
           </>
         ) : (
           <>
