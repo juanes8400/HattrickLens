@@ -56,6 +56,11 @@ const VIEWS = [
   { key: "who", label: "Formación siguiente partido" },
   { key: "promotion", label: "Siguiente promoción" },
   { key: "scouts", label: "Ojeadores" },
+  // 2026-08-26, pedido por el usuario. Antes esta tabla se pintaba DEBAJO de
+  // todas las pestañas; con la academia recien abierta eran cero filas y no
+  // molestaba, pero al llenarse `former_youth_players` --43 de golpe-- se
+  // convirtio en ruido permanente. Aqui esta cuando se la busca y no cuando no.
+  { key: "oldies", label: "Antiguos canteranos" },
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
@@ -256,13 +261,21 @@ export function AcademyPage() {
         <QuienEntrena data={data} />
       ) : view === "promotion" ? (
         <SiguientePromocion data={data} />
-      ) : (
+      ) : view === "scouts" ? (
         <Ojeadores />
-      )}
-
-      {data.graduates.length > 0 && (
-        <Panel title="Canteranos que pasaron por aquí" meta={`${data.graduates.length}`}>
+      ) : (data.allGraduates ?? []).length > 0 ? (
+        <Panel
+          title="Antiguos canteranos"
+          meta={`${(data.allGraduates ?? []).length} han pasado por aquí`}
+        >
           <GraduatesTable data={data} />
+        </Panel>
+      ) : (
+        <Panel title="Antiguos canteranos">
+          <Empty>
+            Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un
+            canterano al primer equipo.
+          </Empty>
         </Panel>
       )}
     </div>
@@ -2026,6 +2039,19 @@ function esOjeadorDeVerdad(nombre: string, id: number | null): boolean {
  *  Viene de la cuenta y no del listado de informes, que no trae habilidades.
  *  Cruzar por nombre vale aquí: son los canteranos de UNA academia, no hay dos
  *  con el mismo. */
+/** La región donde busca cada ojeador, por su nombre.
+ *
+ *  Un número de región no le dice nada a nadie: «1717» es Huila. El nombre
+ *  viene en `youthteamdetails`, que es de donde sale la cuenta; el listado de
+ *  informes solo trae el identificador. */
+function regionesPorOjeador(ledger: ScoutsLedger | undefined): Map<string, string> {
+  const mapa = new Map<string, string>();
+  for (const o of ledger?.scouts ?? []) {
+    if (o.region) mapa.set(o.name, o.region);
+  }
+  return mapa;
+}
+
 function techosPorNombre(ledger: ScoutsLedger | undefined): Map<string, number> {
   const mapa = new Map<string, number>();
   for (const o of ledger?.scouts ?? []) {
@@ -2189,6 +2215,7 @@ function Ojeadores() {
   // La cuenta va aparte: si falla, los informes se siguen viendo.
   const cuenta = useAcademyScoutsLedger();
   const techos = techosPorNombre(cuenta.data);
+  const regiones = regionesPorOjeador(cuenta.data);
   if (informes.isLoading) return <Loading />;
   if (informes.isError) return <ErrorState error={informes.error} />;
   const data = informes.data;
@@ -2251,8 +2278,11 @@ function Ojeadores() {
               <p className="text-sm font-medium">{o.scoutName}</p>
               <p className="text-xs text-[var(--muted)]">
                 {o.players} {o.players === 1 ? "canterano" : "canteranos"}
-                {o.regionIds.length > 0 &&
-                  ` · región ${o.regionIds.join(", ")}`}
+                {regiones.get(o.scoutName)
+                  ? ` · ${regiones.get(o.scoutName)}`
+                  : o.regionIds.length > 0
+                    ? ` · región ${o.regionIds.join(", ")}`
+                    : ""}
               </p>
             </div>
           ))}
@@ -2337,11 +2367,9 @@ function Ojeadores() {
                     {/* La región es donde el ojeador estaba mirando. A los
                         que vinieron con la academia no los buscó nadie, así
                         que enseñar una región ahí sería inventar un origen. */}
-                    <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
-                      {i === 0 &&
-                      p.scoutingRegionId &&
-                      esOjeadorDeVerdad(p.scoutName, p.scoutId)
-                        ? p.scoutingRegionId
+                    <td className={`${td} text-right text-[var(--muted)]`}>
+                      {i === 0 && esOjeadorDeVerdad(p.scoutName, p.scoutId)
+                        ? (regiones.get(p.scoutName) ?? p.scoutingRegionId ?? "")
                         : ""}
                     </td>
                     <td className={`${td} truncate text-left`} title={p.name}>
@@ -2374,43 +2402,17 @@ function Ojeadores() {
         </div>
       </Panel>
 
-      <Panel title="Lo que dijo el ojeador" meta={`${traidos.length} informes`}>
-        <div className="grid gap-4 p-4 md:grid-cols-2">
-          {traidos.map((p) => (
-            <div
-              key={p.htYouthPlayerId}
-              className="rounded-lg border border-[var(--border)] p-3"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm font-medium">{p.name}</span>
-                <span className="text-xs text-[var(--muted)]">
-                  {p.scoutName}
-                  {p.scoutingRegionId ? ` · región ${p.scoutingRegionId}` : ""}
-                </span>
-              </div>
-              {p.comments.length === 0 ? (
-                <p className="mt-2 text-xs text-[var(--muted)]">
-                  Sin comentarios guardados.
-                </p>
-              ) : (
-                <ul className="mt-2 space-y-1.5">
-                  {p.comments.map((texto, i) => (
-                    <li key={i} className="text-xs leading-relaxed">
-                      «{texto}»
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      </Panel>
     </div>
   );
 }
 
 function GraduatesTable({ data }: { data: Academy }) {
   type Row = Academy["graduates"][number];
+  // TODOS, no solo los de la academia actual: aqui la pregunta es "quien salio
+  // de aqui", y de que academia salio no la acota. El ROI si los filtra.
+  // : si el backend no manda el campo --servidor viejo, despliegue a
+  // medias-- se ve una tabla vacia, no la pagina en blanco. Paso.
+  const filas = data.allGraduates ?? [];
   const columns: Column<Row>[] = [
     { key: "name", header: "Nombre", value: (r) => r.name },
     {
@@ -2441,7 +2443,7 @@ function GraduatesTable({ data }: { data: Academy }) {
   return (
     <>
       <DataTable
-        rows={data.graduates}
+        rows={filas}
         columns={columns}
         rowKey={(r) => r.name}
         csvName="canteranos"

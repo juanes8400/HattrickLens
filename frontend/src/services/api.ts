@@ -2158,6 +2158,7 @@ export interface Academy {
       leavesSoon: boolean;
     }[];
   }[];
+  /** Los de la academia ACTUAL: es la lista con la que se calcula el ROI. */
   graduates: {
     name: string;
     promotedAt: string | null;
@@ -2166,6 +2167,8 @@ export interface Academy {
     currentTeam: string | null;
     currentTsi: number | null;
   }[];
+  /** TODOS los que han pasado por el club, de cualquier academia. */
+  allGraduates: Academy["graduates"];
   invested: number;
   earned: number;
   net: number;

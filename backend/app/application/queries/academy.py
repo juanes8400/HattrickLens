@@ -17,6 +17,7 @@ cumplir el límite, por bueno que sea. Por eso los días restantes aparecen
 siempre y el consejo de promoción los antepone a cualquier otra consideración.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import lru_cache
@@ -156,7 +157,14 @@ class AcademyResponse:
     currency: str
     squad_size: int
     players: list[YouthRow]
+    #: Los de la academia ACTUAL. Es la lista que alimenta el ROI: sumar
+    #: canteranos de academias anteriores contra la inversion de esta seria
+    #: restar dos cosas que no se corresponden.
     graduates: list[GraduateRow]
+    #: TODOS los que han pasado por el club, de cualquier academia. Es la que
+    #: alimenta la pestaña «Antiguos canteranos»: alli la pregunta es "quien
+    #: salio de aqui", y la academia de la que salio no la acota.
+    all_graduates: list[GraduateRow]
     invested: int
     earned: int
     net: int
@@ -170,6 +178,28 @@ class AcademyResponse:
     urgent: list[str]
     skill_scores: list[SkillScoreRow] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+
+
+def _fila_de_graduado(
+    g: m.FormerYouthPlayer,
+    ventas: dict[int, tuple[datetime | None, int | None]],
+    conv: Callable[[int | None], int | None],
+) -> GraduateRow:
+    """Un ex-canterano, con su venta si la hubo.
+
+    La venta se toma de su FICHA y no de `former_youth_players`: `viewOldies`
+    no dice si se vendio ni por cuanto, y ese campo se quedaria vacio para
+    siempre. Son el mismo jugador, enlazados por identificador.
+    """
+    vendido, precio = ventas.get(g.ht_player_id, (g.sold_at, g.sold_for))
+    return GraduateRow(
+        name=g.name,
+        promoted_at=_iso(g.promoted_at),
+        sold_at=_iso(vendido),
+        sold_for=conv(precio) if precio else None,
+        current_team=g.current_team_name,
+        current_tsi=g.current_tsi,
+    )
 
 
 class AcademyQueryService:
@@ -408,6 +438,22 @@ class AcademyQueryService:
                 )
             )
 
+        # La venta de cada ex-canterano NO viene en `viewOldies` --ese fichero
+        # solo dice quien paso por aqui y donde esta ahora-- pero si esta en su
+        # ficha: son los mismos, enlazados por identificador. Sin este cruce la
+        # pantalla enseñaba una coma suelta donde deberia ir el precio.
+        ventas = {
+            pid: (vendido, precio)
+            for pid, vendido, precio in (
+                await self._s.execute(
+                    select(m.Player.ht_player_id, m.Player.sold_at, m.Player.sale_price).where(
+                        m.Player.team_id == team_id,
+                        m.Player.sold_at.is_not(None),
+                    )
+                )
+            ).all()
+        }
+
         all_graduates = list(
             (
                 await self._s.execute(
@@ -562,17 +608,8 @@ class AcademyQueryService:
             currency=team.currency_name or "",
             squad_size=len(players),
             players=players,
-            graduates=[
-                GraduateRow(
-                    name=g.name,
-                    promoted_at=_iso(g.promoted_at),
-                    sold_at=_iso(g.sold_at),
-                    sold_for=conv(g.sold_for) if g.sold_for else None,
-                    current_team=g.current_team_name,
-                    current_tsi=g.current_tsi,
-                )
-                for g in graduates
-            ],
+            graduates=[_fila_de_graduado(g, ventas, conv) for g in graduates],
+            all_graduates=[_fila_de_graduado(g, ventas, conv) for g in all_graduates],
             invested=roi.invested,
             earned=roi.earned,
             net=roi.net,
