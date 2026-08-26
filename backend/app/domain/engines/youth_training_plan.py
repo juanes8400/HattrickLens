@@ -312,11 +312,21 @@ def cupos_de(clave: str) -> list[Cupo]:
         for _ in range(CUANTOS_DE_CADA[puesto])
         if e.ritmos.get(puesto, 0) > 0
     ]
-    # No se puede entrenar a mas de once: `PUESTOS_DE_UN_ONCE` enumera los
-    # puestos POSIBLES --catorce entre todos-- y una alineacion elige once.
-    # Sin este tope, «Balón parado», que llega a los seis puestos, repartiria
-    # catorce plazas y dejaria de cuadrar con las cuentas de la hoja.
-    return sorted(plazas, key=lambda c: -c.racion)[:PLAZAS_DE_UNA_ALINEACION]
+    # AQUI NO SE TOPA A ONCE, y es a proposito (2026-08-26, corregido con el
+    # usuario). Lo que esta funcion describe es el ALCANCE del entrenamiento
+    # --a que puestos llega-- y «Balón parado» llega a los seis: entrena a
+    # todos los que juegan, sean quienes sean.
+    #
+    # Antes se recortaba aqui a once ordenando por racion, y con raciones
+    # iguales el corte caia por orden de la lista: `PUESTOS_DE_UN_ONCE` acaba
+    # en laterales y extremos, asi que «Balón parado» y «Anotación y balón
+    # parado» perdian los DOS extremos y uno de los dos laterales. El cruce
+    # con «Lateral» daba 1 en vez de 4, y la pantalla decia "Así 1 recibe las
+    # dos cosas".
+    #
+    # El once lo impone la ALINEACION, no el entrenamiento, y ese tope ya
+    # existe donde toca: `youth_training_plan` corta al llegar a `plazas`.
+    return sorted(plazas, key=lambda c: -c.racion)
 
 
 def mejor_variante(principal: str, skill_secundaria: str) -> str:

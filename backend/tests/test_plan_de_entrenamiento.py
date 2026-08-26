@@ -34,15 +34,54 @@ def _cola(*nombres: str) -> list[PlayerNote]:
 
 @pytest.mark.parametrize("skill", sorted(SLOT_CUPOS))
 def test_la_forma_normal_cuadra_con_la_tabla_de_plazas(skill: str) -> None:
-    """Los puestos de la variante normal y las cuentas no pueden divergir."""
+    """Los puestos de la variante normal y las cuentas no pueden divergir.
+
+    2026-08-26: las dos cifras dejaron de ser la misma. `cupos_de` dice a que
+    puestos LLEGA el entrenamiento --catorce posibles-- y `SLOT_CUPOS` a
+    cuantos se entrena de verdad, que nunca pasa de once porque once juegan.
+    Para todo lo que no llega a los seis puestos siguen coincidiendo.
+    """
     enteros, medios = SLOT_CUPOS[skill]
-    assert len(cupos_de(skill)) == enteros + medios
+    assert min(len(cupos_de(skill)), 11) == enteros + medios
 
 
-def test_ningun_entrenamiento_reparte_mas_de_once_plazas() -> None:
-    """`PUESTOS_DE_UN_ONCE` enumera catorce puestos posibles; un once son once."""
+def test_balon_parado_llega_a_TODOS_los_puestos() -> None:
+    """Entrena a los once que juegan, sean quienes sean --dicho por el usuario
+    el 2026-08-26--.
+
+    Aqui habia un tope a once dentro de `cupos_de` que recortaba por orden de
+    lista, y con raciones iguales el corte caia sobre los ultimos de
+    `PUESTOS_DE_UN_ONCE`: «Balón parado» perdia los DOS extremos y uno de los
+    dos laterales. La pantalla llegaba a decir "Así 1 recibe las dos cosas"
+    cuando eran cuatro.
+    """
+    for codigo in ("set_pieces", "scoring_set_pieces"):
+        puestos = {c.puesto for c in cupos_de(codigo)}
+        assert puestos == {
+            "keeper", "central_defender", "wingback",
+            "inner_midfield", "winger", "forward",
+        }, codigo
+
+
+def test_el_once_lo_topa_la_ALINEACION_no_el_entrenamiento() -> None:
+    """El tope vive donde debe: por muchos puestos que alcance un
+    entrenamiento, al once no entran mas de once."""
+    jugadores = _cola(*[f"J{i:02}" for i in range(1, 19)])
     for codigo in ENTRENAMIENTOS:
-        assert len(cupos_de(codigo)) <= 11, codigo
+        plan = youth_training_plan(codigo, codigo, jugadores, list(jugadores))
+        assert len(plan.asignaciones) <= 11, codigo
+
+
+def test_lateral_con_balon_parado_da_CUATRO_dobles() -> None:
+    """El caso que lo destapo: «Lateral» son dos extremos y dos laterales, y
+    «Anotación y balón parado» llega a todos, asi que los cuatro reciben las
+    dos cosas. Antes salia 1."""
+    jugadores = _cola(*[f"J{i:02}" for i in range(1, 19)])
+    plan = youth_training_plan(
+        "winger", "scoring_set_pieces", jugadores, list(jugadores)
+    )
+    assert plan.con_doble == 4
+    assert len(plan.asignaciones) == 11
 
 
 def test_los_ritmos_son_los_que_dicto_el_usuario() -> None:
