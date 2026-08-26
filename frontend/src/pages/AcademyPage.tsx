@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
@@ -10,6 +10,10 @@ import {
 } from "../hooks/useTeam";
 import { date, decimal, money } from "../hooks/useFormat";
 import type { Academy, AcademySkillScores, TrainingSlot } from "../services/api";
+
+/** El jugador de la academia, derivado del contrato en vez de repetido:
+ *  si cambia allí, aquí falla el tipo en vez de mentir en silencio. */
+type AcademyPlayer = Academy["players"][number];
 
 /** CHPP nombra las habilidades en inglés; la app habla español en todas las
  *  demás pantallas. */
@@ -49,6 +53,33 @@ const VIEWS = [
 ] as const;
 
 type ViewKey = (typeof VIEWS)[number]["key"];
+
+/** La escalera de clasificaciones, de mejor a peor.
+ *
+ *  Es la misma que calcula `academy_engine` por el techo revelado: crack a
+ *  partir de 8, promesa 7, aceptable 6, vendible 5, y por debajo fontanero.
+ *  «Sin ojear» va al final porque no es una nota, es una ausencia: el ojeador
+ *  todavía no ha revelado nada y no hay con qué juzgarlo.
+ *
+ *  Existe para ORDENAR. Alfabéticamente, «aceptable» iría delante de «crack»,
+ *  que no responde ninguna pregunta que alguien se haga mirando la tabla. */
+const ESCALERA_DE_CATEGORIAS = [
+  "crack",
+  "promesa",
+  "aceptable",
+  "vendible",
+  "fontanero",
+  "sin ojear",
+] as const;
+
+/** Su puesto en la escalera. Lo que no reconoce va al final, no al principio:
+ *  una categoría nueva no puede colarse encabezando la tabla. */
+function rangoDeCategoria(categoria: string): number {
+  const i = ESCALERA_DE_CATEGORIAS.indexOf(
+    categoria as (typeof ESCALERA_DE_CATEGORIAS)[number],
+  );
+  return i === -1 ? ESCALERA_DE_CATEGORIAS.length : i;
+}
 
 const CATEGORY_TONE: Record<string, string> = {
   "sin ojear": "text-[var(--muted)]",
@@ -1722,14 +1753,90 @@ function edadAlSubir(p: { ageYears: number; ageDays: number; canBePromotedIn: nu
   return p.ageYears * 112 + p.ageDays + Math.max(0, p.canBePromotedIn ?? 0);
 }
 
+/** Por qué se puede ordenar la tabla de promoción, y con qué número.
+ *
+ *  Cada columna devuelve algo comparable; el texto se ordena aparte para que
+ *  «Ángel» no acabe detrás de «Zaraín» por la tilde. */
+const ORDEN_DE_PROMOCION = {
+  nombre: (p: AcademyPlayer) => p.name,
+  edad: (p: AcademyPlayer) => p.ageYears * 112 + p.ageDays,
+  categoria: (p: AcademyPlayer) => rangoDeCategoria(p.category),
+  mejor: (p: AcademyPlayer) => p.bestSkillMax ?? -1,
+  sube: (p: AcademyPlayer) => p.canBePromotedIn ?? 9999,
+  edadAlSubir: (p: AcademyPlayer) => edadAlSubir(p),
+  limite: (p: AcademyPlayer) => p.daysUntilDeadline,
+} as const;
+
+type ClaveDeOrden = keyof typeof ORDEN_DE_PROMOCION;
+
+/** Una cabecera que ordena. La flecha dice por cuál y en qué sentido.
+ *
+ *  Vive FUERA del componente: definida dentro, React la recrea en cada
+ *  pintado y remonta la cabecera entera. */
+function Cabecera({
+  clave,
+  children,
+  align = "left",
+  title,
+  orden,
+  ordenarPor,
+}: {
+  clave: ClaveDeOrden;
+  children: ReactNode;
+  align?: "left" | "right";
+  title?: string;
+  orden: { clave: ClaveDeOrden; desc: boolean };
+  ordenarPor: (clave: ClaveDeOrden) => void;
+}) {
+  const activa = orden.clave === clave;
+  return (
+    <th
+      scope="col"
+      className={`px-3 py-2 text-xs font-medium text-[var(--muted)] ${
+        align === "right" ? "text-right" : "text-left"
+      }`}
+      title={title}
+      aria-sort={activa ? (orden.desc ? "descending" : "ascending") : "none"}
+    >
+      <button
+        onClick={() => ordenarPor(clave)}
+        data-track={`Juveniles: ordenar promoción por ${clave}`}
+        className={`inline-flex items-center gap-1 ${activa ? "text-[var(--text)]" : ""}`}
+      >
+        {children}
+        <span className="text-[10px] opacity-60">
+          {activa ? (orden.desc ? "▼" : "▲") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function SiguientePromocion({ data }: { data: Academy }) {
   const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
   const td = "overflow-hidden whitespace-nowrap px-3 py-1.5";
-  const filas = [...data.players].sort(
-    (a, b) =>
-      (a.canBePromotedIn ?? 9999) - (b.canBePromotedIn ?? 9999) ||
-      a.daysUntilDeadline - b.daysUntilDeadline,
-  );
+  // Arranca por quién sube antes, que es la pregunta de la pantalla.
+  const [orden, setOrden] = useState<{ clave: ClaveDeOrden; desc: boolean }>({
+    clave: "sube",
+    desc: false,
+  });
+
+  const ordenarPor = (clave: ClaveDeOrden) =>
+    setOrden((o) => (o.clave === clave ? { clave, desc: !o.desc } : { clave, desc: false }));
+
+  const filas = [...data.players].sort((a, b) => {
+    const saca = ORDEN_DE_PROMOCION[orden.clave];
+    const x = saca(a);
+    const y = saca(b);
+    const cmp =
+      typeof x === "string" && typeof y === "string"
+        ? x.localeCompare(y, "es")
+        : Number(x) - Number(y);
+    // Empate: quien suba antes, que es el orden natural de la pantalla.
+    return (orden.desc ? -cmp : cmp) || (a.canBePromotedIn ?? 9999) - (b.canBePromotedIn ?? 9999);
+  });
+
+
   const listos = filas.filter((p) => (p.canBePromotedIn ?? 9999) <= 0);
   const primero = filas.find((p) => (p.canBePromotedIn ?? 9999) > 0);
 
@@ -1758,31 +1865,39 @@ function SiguientePromocion({ data }: { data: Academy }) {
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
-              <th scope="col" className={`${th} text-left`}>Jugador</th>
-              <th scope="col" className={`${th} text-right`}>Edad</th>
-              <th scope="col" className={`${th} text-left`}>Clasificación</th>
-              <th scope="col" className={`${th} text-left`}>Mejor habilidad</th>
-              <th
-                scope="col"
-                className={`${th} text-right`}
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="nombre">Jugador</Cabecera>
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="edad" align="right">Edad</Cabecera>
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="categoria">Clasificación</Cabecera>
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="mejor">Mejor habilidad</Cabecera>
+              <Cabecera
+                orden={orden}
+                ordenarPor={ordenarPor}
+                clave="sube"
+                align="right"
                 title="a partir de cuándo puedes subirlo al primer equipo"
               >
                 Puede subir
-              </th>
-              <th
-                scope="col"
-                className={`${th} text-right`}
+              </Cabecera>
+              <Cabecera
+                orden={orden}
+                ordenarPor={ordenarPor}
+                clave="edadAlSubir"
+                align="right"
                 title="qué edad tendrá el día que por fin pueda subir: 17;000 es lo antes posible, y más que eso significa que le frena el plazo en la academia"
               >
                 Edad al subir
-              </th>
-              <th
-                scope="col"
-                className={`${th} text-right`}
-                title="cuándo lo pierdes por edad"
+              </Cabecera>
+              <Cabecera
+                orden={orden}
+                ordenarPor={ordenarPor}
+                clave="limite"
+                align="right"
+                title="un juvenil solo puede estar en la academia hasta los 19 años; al cumplirlos desaparece, y si no lo has subido lo has perdido"
               >
-                Se pierde
-              </th>
+                Límite (19 años)
+              </Cabecera>
+              {/* «Qué hacer» no ordena: es una frase, y ordenarla
+                  alfabéticamente no responde ninguna pregunta. */}
               <th scope="col" className={`${th} text-left`}>Qué hacer</th>
             </tr>
           </thead>

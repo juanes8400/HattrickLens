@@ -926,6 +926,35 @@ class MatchRating(Base):
     chances_other: Mapped[int] = mapped_column(SmallInteger, default=0)
 
 
+class YouthScout(Base):
+    """Un ojeador de la academia, con lo que cuesta y desde cuando.
+
+    2026-08-26, pedido por el usuario: cada ojeador cuesta 5.000 por semana y
+    se le abona lo que dieron los canteranos que EL descubrio. Para eso hace
+    falta saber desde cuando esta.
+
+    Sale de `youthteamdetails.xml` con `showScouts=true` --sin ese parametro el
+    fichero no trae ojeadores en NINGUNA version; comprobado de la 1.0 a la
+    1.3--.
+
+    `gone_at` existe porque un ojeador despedido simplemente DESAPARECE de la
+    lista y Hattrick no dice cuando. Se anota la ultima vez que se le vio y su
+    coste se cierra ahi; el error queda acotado a lo que se tarde entre dos
+    sincronizaciones.
+    """
+
+    __tablename__ = "youth_scouts"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
+    ht_scout_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    hired_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: Ultima vez que aparecio en la lista. `None` = sigue contratado.
+    gone_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime())
+    region_name: Mapped[str | None] = mapped_column(String(128))
+
+
 class FormerYouthPlayer(Base):
     """Graduated or sold academy players. DATABASE.md: `former_youth_players`.
 
