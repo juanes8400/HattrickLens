@@ -33,7 +33,9 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://hattricklens:hattricklens@localhost:5432/hattricklens_test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test
-          TOKEN_ENCRYPTION_KEY: dGVzdC1rZXktbm90LXJlYWwtdGVzdC1rZXktbm90LXJlYWw=
+          # Fernet exige EXACTAMENTE 32 bytes; la anterior descodificaba a 35
+          # y las tres pruebas de cifrado reventaban con ValueError.
+          TOKEN_ENCRYPTION_KEY: Y2xhdmUtZGUtcHJ1ZWJhLWRlLUNJLW5vLXJlYWwhISE=
 
   frontend:
     runs-on: ubuntu-latest

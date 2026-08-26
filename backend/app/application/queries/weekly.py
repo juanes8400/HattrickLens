@@ -9,12 +9,18 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any, TypeVar
 
 from app.domain.engines.economy_engine import SEASON_WEEKS
 
-if TYPE_CHECKING:
-    from app.infrastructure.db import models as m
+# `models` se importa de VERDAD, no solo para el analizador: hay anotaciones que
+# lo nombran y con `TYPE_CHECKING` no resuelven al evaluarlas en ejecucion.
+from app.infrastructure.db import models as m
+
+# `TypeVar` y no la sintaxis `def f[T]()` de Python 3.12: esa forma no resuelve
+# con `get_type_hints` en 3.12, que es la version con la que se despliega. Aqui
+# se corre 3.14 y por eso el fallo solo aparecia en CI.
+T = TypeVar("T")
 
 
 def iso_week_key(value: datetime) -> tuple[int, int]:
@@ -30,7 +36,7 @@ def latest_per_iso_week[T](items: Iterable[T], captured_at: Callable[[T], dateti
     return list(latest.values())
 
 
-def changes_only[T](
+def changes_only(  # noqa: UP047
     items: Iterable[T],
     captured_at: Callable[[T], datetime],
     value: Callable[[T], Any],
