@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
+from app.domain.engines import decision_individual as di
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
@@ -58,11 +59,76 @@ def _columna_de_banquillo(mejor_habilidad: str | None) -> str:
     return COLUMNA_POR_HABILIDAD.get(mejor_habilidad or "", "Extra")
 
 
+def _sin_revelar_por_jugador(rows: list[Any]) -> dict[str, int]:
+    """Cuantas de las cinco habilidades de puesto no se saben, por canterano.
+
+    Es lo que ordena la cola de «Individual». Un techo ya alcanzado no cuenta
+    como hueco: entrenarlo no lo va a revelar, asi que ponerlo delante seria
+    gastar la plaza en alguien que no puede iluminar nada.
+    """
+    cuenta: dict[str, int] = {}
+    for fila in rows:
+        if fila.skill not in di.HABILIDADES_DE_PUESTO:
+            continue
+        for p in list(fila.players) + list(fila.at_max):
+            cuenta.setdefault(p.name, 0)
+            if p.current is None and not p.max_reached:
+                cuenta[p.name] += 1
+    return cuenta
+
+
+def _cola_para(clave: str, fila: Any, rows: list[Any]) -> list[Any]:
+    """La cola de un entrenamiento. «Individual» ordena por descubrimiento."""
+    if clave != di.INDIVIDUAL:
+        return list(fila.players)
+    todos: dict[str, Any] = {}
+    for r in rows:
+        for n in r.players:
+            todos.setdefault(n.name, n)
+    return di.cola_de_descubrimiento(list(todos.values()), _sin_revelar_por_jugador(rows))
+
+
 def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
-    """Que entrenar de principal y de secundario, con la forma que encaja."""
+    """Que entrenar de principal y de secundario, con la forma que encaja.
+
+    Desde el 2026-08-26 «Individual» puede ganar cualquiera de los dos huecos.
+    Las dos reglas viven en `decision_individual` y son puramente numericas
+    --ver alli el porque--; aqui solo se traducen a la misma respuesta de
+    siempre. La pantalla no se entera: recibe los mismos campos y pinta lo que
+    le llega, que era la condicion del usuario.
+    """
     if len(rows) < 2:
         return None
+    decision = di.decidir([(r.skill, r.score) for r in rows])
     principal, segunda = rows[0], rows[1]
+
+    if decision is not None and decision.descubre:
+        individual = ENTRENAMIENTOS[di.INDIVIDUAL]
+        # Regla B pone Individual en los dos huecos; la A solo en el segundo y
+        # deja el principal donde estaba.
+        clave_main = di.INDIVIDUAL if decision.principal == di.INDIVIDUAL else principal.skill
+        fila_main = principal
+        plan = youth_training_plan(
+            clave_main,
+            di.INDIVIDUAL,
+            _cola_para(clave_main, fila_main, rows),
+            _cola_para(di.INDIVIDUAL, segunda, rows),
+            tope_principal=(
+                set() if clave_main == di.INDIVIDUAL else {p.name for p in principal.at_max}
+            ),
+            # Individual no veta a nadie: quien toco techo en la habilidad de
+            # un puesto sigue sirviendo en cualquier otro.
+            tope_secundaria=set(),
+        )
+        return {
+            "main": clave_main,
+            "mainLabel": individual.label if clave_main == di.INDIVIDUAL else principal.label,
+            "secondary": di.INDIVIDUAL,
+            "secondaryLabel": individual.label,
+            "secondarySkill": "",
+            "bothCount": plan.con_doble,
+        }
+
     codigo = mejor_variante(principal.skill, segunda.skill)
     variante = ENTRENAMIENTOS.get(codigo)
     # El reparto de verdad, no el solape de PUESTOS: la frase promete un
@@ -146,13 +212,23 @@ async def academy_training_plan(
         raise HTTPException(404, f"team {team_id} sin canteranos")
     por_habilidad = {r.skill: r for r in rows}
 
-    def habilidad_de(clave: str) -> str:
+    def habilidad_de(clave: str, puesto: str = "") -> str:
+        """Que habilidad sube ese entrenamiento, en esa plaza.
+
+        El `puesto` solo lo usa «Individual», que sube una distinta en cada
+        uno; los demas lo ignoran. Preguntar siempre con puesto deja el resto
+        del endpoint sin un solo `if` sobre Individual.
+        """
         e = ENTRENAMIENTOS.get(clave)
-        return e.skill if e else clave
+        return e.skill_en(puesto) if e else clave
 
     skill_main, skill_sec = habilidad_de(main), habilidad_de(secondary)
-    if skill_main not in por_habilidad or skill_sec not in por_habilidad:
-        raise HTTPException(404, "no hay canteranos con esas habilidades")
+    # «Individual» no tiene UNA habilidad --cada puesto sube la suya-- asi que
+    # se le exime de esta comprobacion. Todo lo demas lo trata igual que a
+    # cualquier otro entrenamiento.
+    for clave, skill in ((main, skill_main), (secondary, skill_sec)):
+        if clave != di.INDIVIDUAL and skill not in por_habilidad:
+            raise HTTPException(404, "no hay canteranos con esas habilidades")
 
     academia = await service.get(team_id)
     mejores = {j.name: j.best_skill for j in (academia.players if academia else [])}
@@ -163,13 +239,48 @@ async def academy_training_plan(
         j.name: {r.skill: r for r in j.skills} for j in (academia.players if academia else [])
     }
 
+    # Cuantas de las cinco habilidades de puesto no se saben todavia de cada
+    # canterano. Es lo que ordena la cola de «Individual»: quien mas ilumina,
+    # primero. Un techo ya alcanzado NO cuenta como hueco --entrenarlo no lo
+    # va a revelar-- y por eso se descuenta aqui y no despues.
+    sin_revelar = {
+        j.name: sum(
+            1
+            for r in j.skills
+            if r.skill in di.HABILIDADES_DE_PUESTO and not r.is_current_known and not r.max_reached
+        )
+        for j in (academia.players if academia else [])
+    }
+    # Un `PlayerNote` por canterano, venga de la habilidad que venga: para
+    # ordenar por descubrimiento solo hacen falta los datos comunes --nombre,
+    # plazo, potencial--. Se recorren todas las habilidades porque cada cola
+    # deja fuera a los que tocaron techo EN ELLA, y aqui no puede faltar nadie.
+    todos_los_notas: dict[str, Any] = {}
+    for fila in rows:
+        for n in fila.players:
+            todos_los_notas.setdefault(n.name, n)
+
+    def cola_de(clave: str, skill: str) -> list[Any]:
+        if clave == di.INDIVIDUAL:
+            return di.cola_de_descubrimiento(list(todos_los_notas.values()), sin_revelar)
+        return list(por_habilidad[skill].players)
+
+    def topes_de(clave: str, skill: str) -> set[str]:
+        # Individual no veta a nadie: quien tocó techo en la habilidad de un
+        # puesto sigue sirviendo en otro, y el veto es por entrenamiento
+        # entero, no por plaza. Vetarlo aqui dejaria plazas vacias por una
+        # razon que no aplica a todas.
+        if clave == di.INDIVIDUAL:
+            return set()
+        return {p.name for p in por_habilidad[skill].at_max}
+
     plan = youth_training_plan(
         main,
         secondary,
-        por_habilidad[skill_main].players,
-        por_habilidad[skill_sec].players,
-        tope_principal={p.name for p in por_habilidad[skill_main].at_max},
-        tope_secundaria={p.name for p in por_habilidad[skill_sec].at_max},
+        cola_de(main, skill_main),
+        cola_de(secondary, skill_sec),
+        tope_principal=topes_de(main, skill_main),
+        tope_secundaria=topes_de(secondary, skill_sec),
     )
     etiquetas = {r.skill: r.label for r in rows}
 
@@ -187,7 +298,7 @@ async def academy_training_plan(
         }
 
     def _con_habilidad(a: Any) -> dict[str, Any]:
-        skill = habilidad_de(a.elegido_por)
+        skill = habilidad_de(a.elegido_por, a.puesto)
         # Donde todavia puede crecer sin que nadie sepa cuanto: el techo sin
         # revelar es la unica pista de potencial que queda. Si ya no queda
         # ninguno, es que el ojeador termino con el.
@@ -199,8 +310,11 @@ async def academy_training_plan(
         return {
             **asdict(a),
             "skill_label": etiquetas.get(skill, skill),
-            "main_level": _lectura(a.player, skill_main),
-            "secondary_level": _lectura(a.player, skill_sec),
+            # Con puesto: en «Individual» la columna «Nivel» tiene que ser
+            # la de la habilidad que ESA plaza entrena, no la de una habilidad
+            # fija que ahi no significa nada.
+            "main_level": _lectura(a.player, habilidad_de(main, a.puesto)),
+            "secondary_level": _lectura(a.player, habilidad_de(secondary, a.puesto)),
             "open_ceilings": sin_techo,
         }
 

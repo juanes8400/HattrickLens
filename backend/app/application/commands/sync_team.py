@@ -458,6 +458,8 @@ class SyncTeamHandler:
                         # sin ellos no hay fecha de contratacion, que es lo que
                         # sostiene la cuenta de cada uno.
                         params = {"showScouts": "true"}
+                    if file == "youthplayerlist":
+                        await self._desbloquear_habilidades(result)
                     payload = await self._chpp.fetch(
                         file, version=FILE_VERSIONS.get(file, "latest"), **params
                     )
@@ -3643,6 +3645,33 @@ class SyncTeamHandler:
                 "que 'leaguedetails'"
             )
         return int(team.series_ht_id)
+
+    async def _desbloquear_habilidades(self, result: SyncResult) -> None:
+        """Revela las habilidades de TODOS los juveniles, en una sola llamada.
+
+        `actionType=unlockskills` no lleva `youthPlayerID`: destapa el equipo
+        juvenil entero de una vez. Es gratis y no tiene tope, así que va en
+        cada sincronizacion --dicho asi por el usuario el 2026-08-26-- y
+        siempre ANTES de pedir `details`, que es quien lee los niveles: al
+        reves se desbloquearia despues de haber leido y la revelacion no se
+        veria hasta la siguiente vez.
+
+        Es una accion de ESCRITURA y necesita el permiso
+        `manage_youthplayers` (`settings.chpp_scope`). Un token emitido sin
+        ese permiso contesta 401 --con una pagina de IIS, no un error XML,
+        que despista-- y la unica salida es reconectar. Por eso el fallo aqui
+        NO aborta nada: se anota y el sync sigue con lo que ya sabia. Perder
+        la revelacion es molesto; perder la sincronizacion entera por ella
+        seria peor.
+        """
+        try:
+            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills")
+        except Exception as exc:  # noqa: BLE001 — la revelacion es opcional
+            result.errors.append(
+                "unlockskills: no se pudieron revelar las habilidades juveniles "
+                f"({exc.__class__.__name__}). Si es un 401, reconecta con "
+                "Hattrick: el permiso se concede al autorizar."
+            )
 
     async def _persist(
         self,

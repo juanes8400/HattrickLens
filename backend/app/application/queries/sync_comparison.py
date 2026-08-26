@@ -223,6 +223,182 @@ async def _player_report(
     return rows, list(summary.values())
 
 
+#: Las siete habilidades juveniles, con la misma etiqueta y la misma
+#: abreviatura que las de mayores: en Cambios se leen igual, que era la
+#: condicion del usuario --«como si fueran habilidades de jugadores»--.
+YOUTH_METRICS: tuple[tuple[str, str, str], ...] = tuple(
+    (clave, etiqueta, abrev)
+    for clave, etiqueta, abrev in PLAYER_METRICS
+    if clave in {"keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces"}
+)
+
+
+async def _previous_youth_snapshot(
+    session: AsyncSession, current: m.YouthSnapshot
+) -> m.YouthSnapshot | None:
+    """La foto anterior a la SEMANA de esta, igual que en mayores.
+
+    El corte por semana ISO --y no «la foto de antes»-- es lo que evita que
+    sincronizar dos veces el mismo dia enseñe un informe vacio y se lleve por
+    delante el de verdad.
+    """
+    anterior: m.YouthSnapshot | None = await session.scalar(
+        select(m.YouthSnapshot)
+        .where(
+            m.YouthSnapshot.youth_player_id == current.youth_player_id,
+            m.YouthSnapshot.captured_at < start_of_iso_week(current.captured_at),
+        )
+        .order_by(m.YouthSnapshot.captured_at.desc(), m.YouthSnapshot.id.desc())
+        .limit(1)
+    )
+    return anterior
+
+
+def _cambio_juvenil(
+    clave: str, etiqueta: str, abrev: str, antes: Any, ahora: Any
+) -> dict[str, Any] | None:
+    """Un movimiento en UNA habilidad juvenil.
+
+    La particularidad juvenil es que cada habilidad son DOS numeros --lo que
+    tiene y hasta donde puede llegar-- y los dos se mueven por separado. Hay
+    tres noticias distintas y ninguna puede confundirse con otra:
+
+    - **subio**: el nivel crecio. Es el entrenamiento dando fruto.
+    - **revelado**: no se sabia y ahora si. No ha crecido nada; lo que cambio
+      es lo que sabemos. Se reconoce porque `before` viene en None.
+    - **techo**: se descubrio hasta donde puede llegar.
+
+    Un techo que aparece sin que el nivel se mueva TAMBIEN es noticia, y por
+    eso esta funcion devuelve cambios con `delta` en None.
+    """
+    nivel_antes = getattr(antes, clave)
+    nivel_ahora = getattr(ahora, clave)
+    techo_antes = getattr(antes, clave + "_max")
+    techo_ahora = getattr(ahora, clave + "_max")
+    tope_antes = bool(getattr(antes, clave + "_max_reached"))
+    tope_ahora = bool(getattr(ahora, clave + "_max_reached"))
+
+    subio = nivel_antes is not None and nivel_ahora is not None and nivel_ahora != nivel_antes
+    revelado = nivel_antes is None and nivel_ahora is not None
+    techo_nuevo = techo_antes is None and techo_ahora is not None
+    techo_movido = (
+        techo_antes is not None and techo_ahora is not None and techo_ahora != techo_antes
+    )
+    tope_nuevo = tope_ahora and not tope_antes
+    if not (subio or revelado or techo_nuevo or techo_movido or tope_nuevo):
+        return None
+
+    delta = (nivel_ahora - nivel_antes) if subio else None
+    if delta is not None and delta > 0:
+        direccion = "up"
+    elif delta is not None and delta < 0:
+        direccion = "down"
+    else:
+        # Descubrir no es mejorar: pintarlo de verde diria que el chico
+        # progreso, cuando lo unico que cambio es que ahora lo vemos.
+        direccion = "neutral"
+
+    return {
+        "key": clave,
+        "label": etiqueta,
+        "abbreviation": abrev,
+        "before": nivel_antes,
+        "current": nivel_ahora,
+        "delta": delta,
+        "direction": direccion,
+        # El techo, que en juveniles es la mitad de la noticia.
+        "max": techo_ahora,
+        "maxBefore": techo_antes,
+        # Recien revelado: deja distinguir «ya sabemos hasta donde llega» de
+        # «ha subido».
+        "maxIsNew": techo_nuevo,
+        "maxReached": tope_ahora,
+        "maxJustReached": tope_nuevo,
+        # Sin nivel antes: se revelo, no crecio.
+        "isReveal": revelado,
+    }
+
+
+async def _youth_report(session: AsyncSession, team_id: int, sync_id: int) -> list[dict[str, Any]]:
+    """Que se movio en la academia desde la semana pasada.
+
+    Vive aparte de `_player_report` porque un canterano no tiene TSI ni
+    salario, y en cambio cada habilidad suya son dos numeros. Meter los dos
+    casos en una sola funcion obligaba a llenar de nulos media fila.
+    """
+    filas: list[dict[str, Any]] = []
+    resultado = await session.execute(
+        select(m.YouthSnapshot, m.YouthPlayer)
+        .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
+        .where(
+            m.YouthSnapshot.sync_id == sync_id,
+            m.YouthPlayer.team_id == team_id,
+            m.YouthPlayer.left_at.is_(None),
+        )
+        .order_by(m.YouthPlayer.last_name, m.YouthPlayer.first_name)
+    )
+
+    for actual, juvenil in resultado.all():
+        nombre = (juvenil.first_name + " " + juvenil.last_name).strip()
+        edad = f"{actual.age_years};{actual.age_days:03d}"
+        anterior = await _previous_youth_snapshot(session, actual)
+        if anterior is None:
+            filas.append(
+                {
+                    "htYouthPlayerId": juvenil.ht_youth_player_id,
+                    "name": nombre,
+                    "age": edad,
+                    "isNew": True,
+                    "changes": [
+                        {
+                            "key": "arrival",
+                            "label": "Llegó a la academia",
+                            "abbreviation": "ALTA",
+                            "before": None,
+                            "current": True,
+                            "delta": None,
+                            "direction": "up",
+                        }
+                    ],
+                }
+            )
+            continue
+
+        cambios = []
+        for clave, etiqueta, abrev in YOUTH_METRICS:
+            c = _cambio_juvenil(clave, etiqueta, abrev, anterior, actual)
+            if c is not None:
+                cambios.append(c)
+
+        # Poder ascender es noticia UNA vez: el dia que el contador llega a
+        # cero. Repetirlo cada semana lo convierte en ruido.
+        if actual.can_be_promoted_in == 0 and (anterior.can_be_promoted_in or 0) > 0:
+            cambios.append(
+                {
+                    "key": "promotable",
+                    "label": "Ya puede ascender al primer equipo",
+                    "abbreviation": "ASC",
+                    "before": anterior.can_be_promoted_in,
+                    "current": 0,
+                    "delta": None,
+                    "direction": "up",
+                }
+            )
+
+        if cambios:
+            filas.append(
+                {
+                    "htYouthPlayerId": juvenil.ht_youth_player_id,
+                    "name": nombre,
+                    "age": edad,
+                    "isNew": False,
+                    "changes": cambios,
+                }
+            )
+
+    return filas
+
+
 async def _snapshot_for_sync_or_before(
     session: AsyncSession,
     model: type[m.TrainingSnapshot] | type[m.EconomySnapshot],
@@ -589,6 +765,7 @@ async def build_sync_comparison(
     latest_changes = await _changes_for_sync(session, latest.id)
     report_changes = await _changes_for_sync(session, report_sync.id)
     player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
+    youth_rows = await _youth_report(session, team_id, report_sync.id)
     club_changes = await _club_report(session, team_id, report_sync, currency_rate)
     # El sync anterior a este, haya movido algo o no: si se tomara el anterior
     # CON cambios, los partidos de seleccion de la ventana intermedia se
@@ -615,6 +792,10 @@ async def build_sync_comparison(
         "reportIsLatest": report_sync.id == latest.id,
         "reportChanges": report_changes,
         "playerRows": player_rows,
+        # La academia. Va aparte de `playerRows` porque un canterano no
+        # tiene TSI ni salario, y en cambio cada habilidad suya son dos
+        # numeros: lo que tiene y hasta donde puede llegar.
+        "youthRows": youth_rows,
         "summary": summary,
         "clubChanges": club_changes,
         "nationalMatches": national_matches,

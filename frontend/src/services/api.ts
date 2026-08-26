@@ -694,6 +694,42 @@ export interface PlayerComparisonRow {
   changes: PlayerComparisonChange[];
 }
 
+/** Un movimiento en UNA habilidad de UN canterano.
+ *
+ * Se parece a `PlayerComparisonChange` pero no es lo mismo: en juveniles cada
+ * habilidad son dos numeros --nivel y techo-- y los dos se revelan por
+ * separado, asi que hay cambios sin `current` (solo se descubrio el techo) y
+ * cambios sin `delta` (no subio: ahora lo vemos). */
+export interface YouthComparisonChange {
+  key: string;
+  label: string;
+  abbreviation: string;
+  before: number | boolean | null;
+  current: number | boolean | null;
+  delta: number | null;
+  direction: "up" | "down" | "neutral";
+  /** Hasta donde puede llegar. `null` mientras nadie lo haya revelado — que
+   *  no es lo mismo que un techo bajo. */
+  max?: number | null;
+  maxBefore?: number | null;
+  /** El techo se descubrio en ESTA comparacion. */
+  maxIsNew?: boolean;
+  /** Ya no subira mas, aunque el techo siga oculto. */
+  maxReached?: boolean;
+  maxJustReached?: boolean;
+  /** No crecio: se revelo. */
+  isReveal?: boolean;
+}
+
+export interface YouthComparisonRow {
+  htYouthPlayerId: number;
+  name: string;
+  /** `16;043`, como en todo el modulo de juveniles. */
+  age: string;
+  isNew: boolean;
+  changes: YouthComparisonChange[];
+}
+
 export interface ChangeMetricSummary {
   key: string;
   label: string;
@@ -794,6 +830,8 @@ export interface LastSyncChanges {
   reportIsLatest: boolean;
   reportChanges: SyncChange[];
   playerRows: PlayerComparisonRow[];
+  /** La academia. Puede faltar en respuestas de una version anterior. */
+  youthRows?: YouthComparisonRow[];
   summary: ChangeMetricSummary[];
   clubChanges: ClubComparisonChange[];
   /** Partidos de selección jugados desde el informe anterior. */

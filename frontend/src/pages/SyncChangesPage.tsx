@@ -7,6 +7,7 @@ import {
   NationalTeamSection,
   TrainingSection,
 } from "../components/SyncComparisonReport";
+import { YouthChanges } from "../components/YouthChanges";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
 import {
   GroupedPlayerChanges,
@@ -499,6 +500,8 @@ export function SyncChangesPage() {
           />
         )}
       </Panel>
+
+      {data && <YouthChanges rows={data.youthRows ?? []} />}
 
       <PreguntaDeVisitas />
       {data && <NationalTeamSection appearances={data.nationalMatches ?? []} />}

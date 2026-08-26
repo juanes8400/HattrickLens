@@ -738,6 +738,14 @@ function NivelDeHabilidad({
  *
  * «Sale joven» es sale con MENOS de 17;038. No es «se va pronto»: lo que
  * decide es la edad a la que sale, no cuánto le queda.
+ *
+ * Los nombres NO son inventados: cada corte del motor cae justo en un nivel
+ * de Hattrick y lleva la palabra que el juego le da —excelente es 8, bueno
+ * 7, aceptable 6, insuficiente 5—. Por eso el último dice «débil o menos» y
+ * no «el resto»: recoge de nulo a débil, cinco niveles que ninguna palabra
+ * suelta cubre, y nombrarlo por su techo es lo único que sigue la regla.
+ * Si algún día se mueve un corte en `youth_skill_score`, la palabra de aquí
+ * se mueve con él.
  */
 const PELDAÑOS: Record<number, string> = {
   1: "excelente",
@@ -748,7 +756,7 @@ const PELDAÑOS: Record<number, string> = {
   6: "sin descubrir · sale joven",
   7: "sin descubrir",
   8: "insuficiente",
-  9: "el resto",
+  9: "débil o menos",
 };
 
 function WhoToTrain({ data }: { data: Academy }) {

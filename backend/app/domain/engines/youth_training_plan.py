@@ -111,6 +111,14 @@ DEL = "forward"
 #: de la pantalla se topea, el numero no.
 TODOS = (POR, DFC, LAT, MED, EXT, DEL)
 
+#: Lo que rinde «Individual» comparado con un entrenamiento normal. El usuario
+#: lo describio el 2026-08-26 como «mucho mas despacio»: no compra nivel,
+#: compra INFORMACION. El numero exacto no lo publica Hattrick, asi que esto
+#: es una estimacion declarada --no un dato-- y vive sola aqui para poder
+#: corregirla en un sitio. Lo que NO depende de ella: el orden dentro de la
+#: region de Individual, porque el ritmo es el mismo en los seis puestos.
+RITMO_INDIVIDUAL = 50
+
 
 def _mismo(puestos: tuple[str, ...], cuanto: int) -> dict[str, int]:
     return dict.fromkeys(puestos, cuanto)
@@ -125,11 +133,26 @@ class Entrenamiento:
     label: str
     #: Puesto -> porcentaje. Un puesto que no aparece no recibe nada.
     ritmos: dict[str, int]
+    #: «Individual» es el unico entrenamiento cuya habilidad DEPENDE DEL
+    #: PUESTO: cada uno sube la suya. Los demas suben la misma para todos y
+    #: dejan esto en None. Puesto -> habilidad.
+    skill_por_puesto: dict[str, str] | None = None
     #: Hay un entrenamiento que sube DOS habilidades a ritmos distintos:
     #: «Anotación y balón parado» da 60 de Anotación y 40 de Balón parado.
     #: Se declara una vez, bajo la primera, y aparece como variante de las dos.
     tambien_sube: str | None = None
     ritmos_de_la_otra: dict[str, int] | None = None
+
+    def skill_en(self, puesto: str) -> str:
+        """Que habilidad sube este entrenamiento EN ESA PLAZA.
+
+        Para todos menos «Individual» es la misma siempre; para el, la del
+        puesto. Devolverlo por aqui es lo que permite tratarlo como uno mas:
+        quien pregunta no necesita saber cual es cual.
+        """
+        if self.skill_por_puesto:
+            return self.skill_por_puesto.get(puesto, "")
+        return self.skill
 
     def ritmo(self, puesto: str, skill: str | None = None) -> int:
         """Lo que recibe ese puesto. `skill` elige cual de las dos, si sube dos."""
@@ -176,6 +199,27 @@ ENTRENAMIENTOS: dict[str, Entrenamiento] = {
             "Balón parado",
             {POR: 125, DFC: 100, LAT: 100, MED: 100, EXT: 100, DEL: 100},
         ),
+        #: El que descubre. Llega a los seis puestos porque cada uno sube SU
+        #: habilidad --de ahi el mapa-- y por eso un solo once toca cinco a la
+        #: vez en vez de una. El mapa lo dicto el usuario el 2026-08-26.
+        #:
+        #: Ojo con lo que NO alcanza: Pases y Balon parado no son la habilidad
+        #: de ningun puesto, asi que Individual no las descubre nunca.
+        Entrenamiento(
+            "individual",
+            #: Sin habilidad fija: la pone `skill_en(puesto)`.
+            "",
+            "Individual",
+            _mismo(TODOS, RITMO_INDIVIDUAL),
+            skill_por_puesto={
+                POR: "keeper",
+                DFC: "defending",
+                LAT: "defending",
+                MED: "playmaking",
+                EXT: "winger",
+                DEL: "scoring",
+            },
+        ),
     )
 }
 
@@ -196,6 +240,8 @@ def factor_secundario(principal: str, secundaria: str) -> float:
 #: primera es la forma "normal" y sirve de respaldo.
 VARIANTES_POR_HABILIDAD: dict[str, list[str]] = {}
 for _e in ENTRENAMIENTOS.values():
+    if not _e.skill:
+        continue  # «Individual» no es variante de ninguna: las sube todas.
     VARIANTES_POR_HABILIDAD.setdefault(_e.skill, []).append(_e.codigo)
     if _e.tambien_sube:
         VARIANTES_POR_HABILIDAD.setdefault(_e.tambien_sube, []).append(_e.codigo)

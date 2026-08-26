@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     chpp_callback_url: str = ""
     chpp_user_agent: str = "HattrickLens/0.1.0"
     chpp_base_url: str = "https://chpp.hattrick.org"
+    #: Permisos que se piden al conectar. Sin `scope`, Hattrick emite un token
+    #: de SOLO LECTURA y cualquier acción de escritura contesta 401 con una
+    #: página de IIS --no un error XML de CHPP, lo que despista--.
+    #: `manage_youthplayers` es el que necesita `actionType=unlockskills`.
+    #: Comprobado en vivo el 2026-08-26. Un token ya emitido no puede ganar
+    #: permisos: cambiar esto obliga a reconectar.
+    chpp_scope: str = "manage_youthplayers"
 
     #: Tu ID de usuario de Hattrick, el mismo que sale en `<UserID>` de
     #: cualquier fichero CHPP. Abre la pantalla de uso, y NADA más.
