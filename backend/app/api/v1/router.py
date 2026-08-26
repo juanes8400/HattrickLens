@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     rivals,
     sync,
     teams,
+    uso,
 )
 
 api_router = APIRouter()
@@ -28,3 +29,4 @@ api_router.include_router(academy.router, tags=["juveniles"])
 api_router.include_router(rivals.router, tags=["scouting de rivales"])
 api_router.include_router(cup.router, tags=["copa"])
 api_router.include_router(player_balance.router, tags=["saldo neto por jugador"])
+api_router.include_router(uso.router, tags=["uso de la app"])

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.dashboard import DashboardQueryService
 from app.application.queries.squad import SquadQueryService
+from app.core.config import settings
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security.jwt import COOKIE_NAME, SessionTokenError, read_user_id
@@ -39,6 +40,29 @@ async def get_current_user(
     user = await session.get(m.User, user_id)
     if user is None:
         raise HTTPException(401, "la sesión no corresponde a ningún usuario")
+    return user
+
+
+async def require_admin(
+    user: m.User = Depends(get_current_user),
+) -> m.User:
+    """Sólo el dueño de la instalación. Para la pantalla de uso.
+
+    2026-08-26. La aplicación no tenía administrador --sólo "dueño del
+    equipo"-- y el resumen de uso es de TODOS los usuarios, así que con la
+    comprobación normal cualquier manager habría podido abrirlo y ver el uso
+    de los demás.
+
+    Se compara con `ADMIN_HT_USER_ID`, el ID de Hattrick, y no con el id de la
+    fila: el de la fila depende del orden en que se registró la gente y podría
+    cambiar al restaurar una copia. El de Hattrick no cambia nunca.
+
+    Sin la variable configurada no entra NADIE. Falla cerrado a propósito.
+    """
+    if settings.admin_ht_user_id is None:
+        raise HTTPException(403, "no hay administrador configurado")
+    if user.ht_user_id != settings.admin_ht_user_id:
+        raise HTTPException(403, "esto no es para ti")
     return user
 
 

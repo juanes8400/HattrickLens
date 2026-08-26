@@ -179,7 +179,12 @@ def test_session_profile_lists_owned_clubs_and_import_state(
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["user"] == {"id": user_id, "htUserId": 555, "loginName": "tester"}
+    # `isAdmin` se anadio el 2026-08-26 para la pantalla de uso. Aqui es False
+    # porque este usuario (555) no es el de `ADMIN_HT_USER_ID`; que el candado
+    # de verdad funciona se comprueba en `test_uso_endpoint.py`.
+    assert body["user"] == {
+        "id": user_id, "htUserId": 555, "loginName": "tester", "isAdmin": False,
+    }
     assert body["connectionStatus"] == "active"
     assert len(body["teams"]) == 1
     assert body["teams"][0]["name"] == "Pulgas Arrechas"

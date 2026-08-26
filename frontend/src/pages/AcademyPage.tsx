@@ -144,7 +144,9 @@ export function AcademyPage() {
               entrenamiento llega a unos puestos y no a otros: quien cae donde
               se cruzan los dos recibe ambos. Dentro de cada tramo entran
               primero los mejores de la cola —peldaño, techo y edad—, así que
-              cambiar el secundario cambia quién juega dónde.
+              cambiar el secundario cambia quién juega dónde. La barra de
+              «Puede llegar a» es su HTMS28: relleno lo que ya tiene, y hasta
+              dónde llega la barra, lo máximo que podría alcanzar.
             </>
           )}
         </p>
@@ -949,7 +951,11 @@ function TablaDelReparto({
                 className={`${th} text-right`}
                 title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
               >
-                Puede llegar a
+                {/* La unidad va escrita, no solo en el `title`: la barra sola
+                    no dice qué mide, y descubrirlo exige pasar el ratón por
+                    encima y saber que hay algo que descubrir. */}
+                Puede llegar a{" "}
+                <span className="font-normal opacity-70">HTMS28</span>
               </th>
               <th scope="col" className={`${th} text-left`}>Puesto</th>
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
@@ -1596,7 +1602,7 @@ function SkillDetail({ data }: { data: Academy }) {
                 className="tabular-nums text-[var(--muted)]"
                 title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
               >
-                {p.htms28Min} – {p.htms28Max}
+                HTMS28 {p.htms28Min} – {p.htms28Max}
               </span>
               <span className="tabular-nums text-[var(--muted)]">
                 {p.revealedSkills}/{p.skills.length} techos

@@ -203,6 +203,14 @@ async def session_profile(
             "id": user.id,
             "htUserId": user.ht_user_id,
             "loginName": user.login_name,
+            # Para que la pantalla sepa si enseñar el enlace de «Uso». No es
+            # la comprobación de verdad --esa vive en `require_admin`, en el
+            # servidor--: esconder un enlace no protege nada, sólo evita
+            # enseñar a los demás una puerta que no van a poder abrir.
+            "isAdmin": (
+                settings.admin_ht_user_id is not None
+                and user.ht_user_id == settings.admin_ht_user_id
+            ),
         },
         "connectionStatus": token.status if token is not None else "missing",
         "teams": team_rows,

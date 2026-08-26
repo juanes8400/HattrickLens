@@ -56,6 +56,7 @@ no pueden faltar:
 | `SECRET_KEY` | firma las cookies de sesión |
 | `TOKEN_ENCRYPTION_KEY` | cifra los tokens CHPP guardados (Fernet) |
 | `DATABASE_URL` | Postgres del hosting (`postgresql+asyncpg://…`) |
+| `ADMIN_HT_USER_ID` | tu ID de Hattrick; abre `/uso` y nada más (vacío = nadie) |
 
 Si alguna se filtra, se regenera: las sesiones y los tokens guardados dejan de
 valer, que es exactamente lo que se quiere.
@@ -95,6 +96,31 @@ Dos cosas a tener en cuenta con cualquiera de ellos:
   se puede reconstruir sincronizando otra vez, salvo el histórico de snapshots,
   que es justo lo que da valor a las gráficas de evolución. Merece la pena
   exportar la base de vez en cuando.
+
+## La pantalla de uso
+
+`/uso` enseña qué módulos se usan, cuánto se está dentro de cada uno, los
+controles más pulsados y las sesiones. **La abre sólo `ADMIN_HT_USER_ID`** —tu
+ID de Hattrick, el `<UserID>` de cualquier fichero CHPP—. Sin esa variable no
+entra nadie, ni tú: falla cerrado a propósito, porque el resumen es de TODOS
+los usuarios y un despiste al configurarla dejaría el uso ajeno a la vista de
+cualquiera con cuenta.
+
+La medición es propia: una tabla en tu Postgres y un recolector en el
+navegador. Ningún servicio de fuera, ninguna cookie que consentir, y ningún
+bloqueador puede tumbarla. **Nunca se guarda lo que alguien escribe**: de un
+clic sólo viaja la etiqueta visible del control.
+
+Tres cosas que conviene saber antes de mirarla:
+
+- **Empieza el día que se despliega.** No hay datos retroactivos.
+- **El detalle se poda a los 90 días** (`DIAS_QUE_SE_GUARDA`). Sin poda, con
+  cien usuarios activos son millones de filas al año y la base del plan
+  gratuito ronda 1 GB.
+- **Esto no se reconstruye.** Todo lo demás de HT Lens se recupera
+  sincronizando otra vez; el uso no existe en Hattrick. Si la base se pierde
+  --no tiene copias y en varios proveedores caduca-- se perdió. Por eso la
+  pantalla trae **Exportar CSV**: bájalo de vez en cuando.
 
 ## De qué rama se despliega
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ClubPage } from "./pages/ClubPage";
@@ -15,6 +16,8 @@ import { InsightsPage } from "./pages/InsightsPage";
 import { EnginePage } from "./pages/EnginePage";
 import { SyncChangesPage } from "./pages/SyncChangesPage";
 import { SyncPage } from "./pages/SyncPage";
+import { UsagePage } from "./pages/UsagePage";
+import { arrancarTelemetria, verPagina } from "./services/telemetria";
 import { EconomyPage } from "./pages/EconomyPage";
 import { ArenaPage } from "./pages/ArenaPage";
 import { MatchesPage } from "./pages/MatchesPage";
@@ -44,8 +47,26 @@ function RequireImportedTeam({ children }: { children: ReactNode }) {
   return children;
 }
 
+/** Avisa al recolector de cada cambio de página.
+ *
+ *  Va aquí, en un solo sitio, y no repartido por cada pantalla: así una página
+ *  nueva se mide sola y nadie tiene que acordarse de nada. La ruta con
+ *  parámetros se manda tal cual --`/players/123`-- y es el recolector quien la
+ *  traduce a un módulo, para que un identificador de jugador no acabe siendo
+ *  una fila más en los resúmenes. */
+function MedidorDePaginas() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    arrancarTelemetria();
+    verPagina(pathname);
+  }, [pathname]);
+  return null;
+}
+
 export function App() {
   return (
+    <>
+    <MedidorDePaginas />
     <Routes>
       <Route path="connected" element={<ConnectedPage />} />
       <Route path="welcome" element={<WelcomePage />} />
@@ -73,8 +94,12 @@ export function App() {
         <Route path="sync" element={<SyncPage />} />
         <Route path="news" element={<SyncChangesPage />} />
         <Route path="engine" element={<EnginePage />} />
+        {/* Sólo la abre el administrador; el candado está en el
+            servidor, no aquí. */}
+        <Route path="uso" element={<UsagePage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
+    </>
   );
 }

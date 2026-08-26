@@ -363,6 +363,37 @@ class Sync(Base):
     error: Mapped[str | None] = mapped_column(String(2000))
 
 
+class UiEvent(Base):
+    """Qué usa la gente: una fila por página vista y por clic.
+
+    2026-08-26, pedido por el usuario. Se guarda en CRUDO --instante exacto,
+    sesión, duración-- porque de ahí salen cosas que un contador agregado ya no
+    puede dar: cuánto dura una sesión, qué se pulsa dentro de cada pantalla, a
+    qué horas se usa.
+
+    El precio es espacio y que esto SÍ son datos personales de comportamiento,
+    a diferencia de un contador por módulo y día. Por eso hay poda: ver
+    `podar_eventos_viejos`.
+
+    No se guarda nunca el contenido de un campo de texto ni nada que el usuario
+    escriba: sólo la etiqueta del control que pulsó.
+    """
+    __tablename__ = "ui_events"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    #: Identificador de la visita, generado por el navegador. Se corta por
+    #: silencio, no al cerrar: cerrar no siempre avisa.
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    kind: Mapped[str] = mapped_column(String(16))          # "page" | "click"
+    module: Mapped[str] = mapped_column(String(64), index=True)
+    #: En un clic, la etiqueta del control. En una página, la pestaña si la hay.
+    label: Mapped[str | None] = mapped_column(String(120))
+    at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
+    #: Milisegundos con la pestaña DE VERDAD visible. Sin esto, una pestaña
+    #: olvidada toda la noche diría "ocho horas en Juveniles".
+    visible_ms: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class SyncChange(Base):
     """Qué cambió en un sync respecto al anterior — HL-140. Se calcula una
     sola vez, en el momento del sync (cuando el old/new ya están en memoria),

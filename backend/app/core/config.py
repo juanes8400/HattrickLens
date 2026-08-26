@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     chpp_user_agent: str = "HattrickLens/0.1.0"
     chpp_base_url: str = "https://chpp.hattrick.org"
 
+    #: Tu ID de usuario de Hattrick, el mismo que sale en `<UserID>` de
+    #: cualquier fichero CHPP. Abre la pantalla de uso, y NADA más.
+    #:
+    #: Vacío = nadie entra, ni siquiera tú. Se falla cerrado a propósito: un
+    #: despiste al configurar no puede acabar en que cualquier manager vea el
+    #: uso de todos los demás.
+    admin_ht_user_id: int | None = None
+
     sentry_dsn: str = ""
     log_level: str = "INFO"
 

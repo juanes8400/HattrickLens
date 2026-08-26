@@ -228,6 +228,8 @@ export const api = {
   /** Cada intento de venta, con su final. */
   transferAttempts: (teamId: number) =>
     request<TransferAttempts>(`/teams/${teamId}/transfer-attempts`),
+  /** El resumen de uso. Sólo lo abre el administrador. */
+  usage: (dias = 30) => request<UsageSummary>(`/usage?dias=${dias}`),
   /** Anota cuantas veces vieron al jugador, o ignora la pregunta. */
   setTimesSeen: (
     teamId: number,
@@ -731,11 +733,45 @@ export interface SessionTeam {
   hasImportedData: boolean;
 }
 
+/** El resumen de uso de la aplicación. */
+export interface UsageSummary {
+  days: number;
+  totals: {
+    sessions: number;
+    pages: number;
+    clicks: number;
+    minutes: number;
+    medianSessionSeconds: number;
+    clicksPerSession: number;
+  };
+  modules: {
+    module: string;
+    visits: number;
+    clicks: number;
+    minutes: number;
+    avgSecondsPerVisit: number;
+    lastSeen: string | null;
+  }[];
+  topControls: { label: string; clicks: number }[];
+  byHour: Record<string, number>;
+  recentSessions: {
+    id: string;
+    startedAt: string;
+    seconds: number;
+    pages: number;
+    clicks: number;
+    modules: string[];
+  }[];
+}
+
 export interface SessionProfile {
   user: {
     id: number;
     htUserId: number | null;
     loginName: string | null;
+    /** Si puede abrir la pantalla de uso. La comprobación de verdad está en el
+     *  servidor; esto sólo decide si se enseña el enlace. */
+    isAdmin: boolean;
   };
   connectionStatus: "active" | "revoked" | "missing";
   teams: SessionTeam[];

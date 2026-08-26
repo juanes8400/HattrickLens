@@ -36,9 +36,16 @@ const NAV = [
 ];
 
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
+  // «Uso» sólo se le enseña al dueño de la instalación. Esconder el enlace no
+  // protege nada --el candado vive en el servidor-- pero evita enseñar a los
+  // demás una puerta que no van a poder abrir.
+  const profile = useSessionProfile();
+  const items = profile.data?.user.isAdmin
+    ? [...NAV, { to: "/uso", label: "Uso" }]
+    : NAV;
   return (
     <nav className="flex flex-col gap-0.5">
-      {NAV.map((item, index) =>
+      {items.map((item, index) =>
         "section" in item ? (
           <div key={index} className="px-2 pb-1 pt-3 text-[11px] uppercase tracking-wide text-[var(--muted)]">
             {item.section}
