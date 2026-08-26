@@ -32,6 +32,12 @@ const MODULOS: [RegExp, string][] = [
   [/^\/dashboard/, "Dashboard"],
   [/^\/engine/, "Motor"],
   [/^\/uso/, "Uso"],
+  // El alta, cada pantalla por separado: es el embudo --cuántos entran, cuántos
+  // conectan Hattrick y cuántos llegan a sincronizar-- y agrupadas en "Otros"
+  // no se puede ver dónde se cae la gente.
+  [/^\/welcome/, "Alta: bienvenida"],
+  [/^\/connected/, "Alta: conectado"],
+  [/^\/setup/, "Alta: importación"],
 ];
 
 export function moduloDe(ruta: string): string {
@@ -166,9 +172,24 @@ function reanudar() {
   if (visibleDesde === null) visibleDesde = Date.now();
 }
 
+/** Por debajo de esto no fue una visita, fue un rebote de redirección.
+ *
+ *  2026-08-26, visto en los datos: la raíz `/` redirige al panel y dejaba una
+ *  "visita" de 60 ms. No sólo ensucia el recuento: hunde el tiempo medio por
+ *  visita de un módulo que en realidad nadie llegó a ver.
+ *
+ *  El precio es que una salida instantánea de verdad tampoco se cuenta. Se
+ *  asume: desde fuera son indistinguibles, y contarlas como visitas miente más
+ *  que perderlas. */
+const MINIMO_PARA_SER_VISITA_MS = 300;
+
 function cerrarPagina() {
   if (rutaActual === null) return;
   pausar();
+  if (acumulado < MINIMO_PARA_SER_VISITA_MS) {
+    acumulado = 0;
+    return;
+  }
   encolar({
     sessionId: sesionActual(),
     kind: "page",
