@@ -317,6 +317,20 @@ function usePersistido<T>(clave: string, porDefecto: T) {
   return [valor, setValor] as const;
 }
 
+/** Texto suelto que sobrevive a recargar. Es `usePersistido` sin el JSON:
+ *  estas tres claves se guardaron siempre como texto plano y meterlas en JSON
+ *  ahora dejaria sin entender lo que ya hay guardado en cada navegador. */
+function usePersistidoTexto(clave: string) {
+  const [valor, setValor] = useState<string>(
+    () => localStorage.getItem(clave) ?? "",
+  );
+  useEffect(() => {
+    if (valor) localStorage.setItem(clave, valor);
+    else localStorage.removeItem(clave);
+  }, [clave, valor]);
+  return [valor, setValor] as const;
+}
+
 function WhatToTrain({ data }: { data: Academy }) {
   const [soonMaxDays, setSoonMaxDays] = usePersistido(
     "juveniles.soonMaxDays", DEFAULT_SOON_MAX_DAYS,
@@ -356,13 +370,17 @@ function WhatToTrain({ data }: { data: Academy }) {
   const rows = tuned.data?.skillScores ?? data.skillScores ?? [];
   const sugerencia = tuned.data?.suggestion ?? null;
   const plazas = plazasPorHabilidad(rows, tuned.data?.slotCounts);
-  useEffect(() => {
-    // Sembrar es para la PRIMERA vez. Si ya hay algo guardado, es lo que el
-    // usuario tecleó y no se pisa.
-    if (sembrado || Object.keys(plazas).length === 0) return;
-    if (Object.keys(trainable).length === 0) setTrainable(plazas);
+  // Sembrar es para la PRIMERA vez. Si ya hay algo guardado, es lo que el
+  // usuario tecleó y no se pisa.
+  //
+  // Se ajusta durante el renderizado en vez de en un efecto: es el patrón que
+  // React documenta para "corregir el estado cuando cambian los datos", y un
+  // efecto aquí provocaba un renderizado en cascada --pintar, medir, volver a
+  // pintar-- que además es lo que avisaba el linter.
+  if (!sembrado && Object.keys(plazas).length > 0) {
     setSembrado(true);
-  }, [plazas, sembrado, trainable, setTrainable]);
+    if (Object.keys(trainable).length === 0) setTrainable(plazas);
+  }
   const top = rows[0];
   if (!top) return null;
   const max = Math.max(...rows.map((r) => r.score), 1e-9);
@@ -1133,12 +1151,12 @@ function TrainingPlan({
   const habilidades = data.skillScores ?? [];
   // La eleccion sobrevive a recargar: son dos decisiones que el usuario toma
   // una vez por semana, no en cada visita.
-  const [main, setMain] = useState<string>(
-    () => localStorage.getItem("juveniles.principal") ?? "",
-  );
-  const [secondary, setSecondary] = useState<string>(
-    () => localStorage.getItem("juveniles.secundario") ?? "",
-  );
+  const [main, setMain] = usePersistidoTexto("juveniles.principal");
+  const [secondary, setSecondary] = usePersistidoTexto("juveniles.secundario");
+  //  Cuál fue la última recomendación que adoptamos nosotros. Distinguirlo de
+  //  una elección suya es lo que hace que el reparto siga a la recomendación
+  //  sin pisar lo que él ponga a mano.
+  const [adoptado, setAdoptado] = usePersistidoTexto("juveniles.sugerenciaAdoptada");
   const principal = main || opciones[0]?.code || habilidades[0]?.skill || "";
   const secundaria = secondary || opciones[1]?.code || principal;
 
@@ -1149,26 +1167,30 @@ function TrainingPlan({
   // sigue siendo esa. Si el usuario cambió un selector, su elección se queda
   // hasta que la vuelva a cambiar él.
   const sugerencia = tuned?.suggestion ?? null;
-  useEffect(() => {
-    if (!sugerencia) return;
-    const adoptada = localStorage.getItem("juveniles.sugerenciaAdoptada");
+  // Se ajusta durante el renderizado, no en un efecto: es el patrón que React
+  // documenta para "corregir el estado cuando cambian los datos". Con efecto,
+  // la pantalla se pintaba con la elección vieja y volvía a pintarse con la
+  // nueva —un parpadeo, y el renderizado en cascada que avisaba el linter—.
+  //
+  // Lo que se guarda va aparte, en `usePersistido`: aquí sólo se toca estado,
+  // que es lo que mantiene puro el renderizado.
+  if (sugerencia) {
     const puesto = `${main}|${secondary}`;
     const nueva = `${sugerencia.main}|${sugerencia.secondary}`;
-    if (nueva === puesto) return;
-    const sinTocar = puesto === "|" || puesto === adoptada;
-    if (!sinTocar) return;
-    localStorage.setItem("juveniles.principal", sugerencia.main);
-    localStorage.setItem("juveniles.secundario", sugerencia.secondary);
-    localStorage.setItem("juveniles.sugerenciaAdoptada", nueva);
-    setMain(sugerencia.main);
-    setSecondary(sugerencia.secondary);
-  }, [sugerencia, main, secondary]);
+    // `puesto === adoptado` = lo que hay puesto lo pusimos nosotros, no él.
+    // Si tocó un selector, `eligeAMano` borra la marca y esto deja de entrar.
+    if (nueva !== puesto && (puesto === "|" || puesto === adoptado)) {
+      setMain(sugerencia.main);
+      setSecondary(sugerencia.secondary);
+      setAdoptado(nueva);
+    }
+  }
 
-  //  Cambiar un selector a mano rompe el seguimiento hasta nueva orden.
-  const eligeAMano = (poner: (v: string) => void, clave: string) => (v: string) => {
-    localStorage.setItem(clave, v);
-    localStorage.removeItem("juveniles.sugerenciaAdoptada");
+  //  Cambiar un selector a mano rompe el seguimiento hasta nueva orden: al
+  //  borrar la marca, lo que hay puesto deja de ser "lo que pusimos nosotros".
+  const eligeAMano = (poner: (v: string) => void) => (v: string) => {
     poner(v);
+    setAdoptado("");
   };
 
   const plan = useAcademyTrainingPlan({
@@ -1220,13 +1242,13 @@ function TrainingPlan({
       <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
         {selector(
           principal,
-          eligeAMano(setMain, "juveniles.principal"),
+          eligeAMano(setMain),
           "Entrenamiento principal",
           "juveniles.principal",
         )}
         {selector(
           secundaria,
-          eligeAMano(setSecondary, "juveniles.secundario"),
+          eligeAMano(setSecondary),
           "Entrenamiento secundario",
           "juveniles.secundario",
           true,
