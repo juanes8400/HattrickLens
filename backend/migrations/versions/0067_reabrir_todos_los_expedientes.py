@@ -6,7 +6,7 @@ razonamiento: si una de las cuatro razones de cierre resulto no ser de fiar,
 lo limpio es rehacer el analisis entero con todo corregido, no parchear una.
 
 Se reabre el expediente y se borra la marca de revision. NO se borra ninguna
-comision ya calculada (`previous_club_bonus`): eso es dinero que Hattrick
+comision ya calculada (`previous_club_bonuses`): eso es dinero que Hattrick
 pago de verdad y sigue siendo cierto. A quien ya tenia su comision anotada se
 le volvera a cerrar como "revendido" en cuanto se le mire, que es barato.
 
@@ -24,24 +24,46 @@ down_revision = "0066"
 branch_labels = None
 depends_on = None
 
+# Declaradas, no escritas a mano: asi el booleano lo escribe el dialecto. En
+# SQL crudo (`resale_closed = 0` / `= 1`) SQLite pasa y Postgres rechaza.
+players = sa.table(
+    "players",
+    sa.column("resale_closed", sa.Boolean),
+    sa.column("resale_closed_reason", sa.String),
+    sa.column("previous_club_bonus_checked_at", sa.DateTime),
+)
+teams = sa.table(
+    "teams",
+    sa.column("sweep_axis_json", sa.Text),
+    sa.column("sweep_started_at", sa.DateTime),
+    sa.column("commission_tried_json", sa.Text),
+)
+
 
 def upgrade() -> None:
-    op.execute(sa.text("""
-        UPDATE players
-        SET resale_closed = 0,
-            resale_closed_reason = NULL,
-            previous_club_bonus_checked_at = NULL
-        WHERE resale_closed = 1
-           OR previous_club_bonus_checked_at IS NOT NULL
-    """))
+    op.execute(
+        players.update()
+        .where(
+            sa.or_(
+                players.c.resale_closed.is_(True),
+                players.c.previous_club_bonus_checked_at.is_not(None),
+            )
+        )
+        .values(
+            resale_closed=False,
+            resale_closed_reason=None,
+            previous_club_bonus_checked_at=None,
+        )
+    )
     # El barrido en curso deja de tener sentido: su eje se congelo sobre una
     # cola que ya no existe.
-    op.execute(sa.text("""
-        UPDATE teams
-        SET sweep_axis_json = NULL,
-            sweep_started_at = NULL,
-            commission_tried_json = '[]'
-    """))
+    op.execute(
+        teams.update().values(
+            sweep_axis_json=None,
+            sweep_started_at=None,
+            commission_tried_json="[]",
+        )
+    )
 
 
 def downgrade() -> None:

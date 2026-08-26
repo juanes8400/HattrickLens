@@ -21,15 +21,28 @@ down_revision = "0065"
 branch_labels = None
 depends_on = None
 
+# Se declara la tabla en vez de escribir el SQL a mano para que el booleano lo
+# escriba el DIALECTO. En crudo salia `resale_closed = 0`, que SQLite acepta
+# --no tiene tipo booleano-- y Postgres rechaza de plano, asi que el
+# despliegue reventaba aunque en local pasara sin ruido.
+players = sa.table(
+    "players",
+    sa.column("resale_closed", sa.Boolean),
+    sa.column("resale_closed_reason", sa.String),
+    sa.column("previous_club_bonus_checked_at", sa.DateTime),
+)
+
 
 def upgrade() -> None:
-    op.execute(sa.text("""
-        UPDATE players
-        SET resale_closed = 0,
-            resale_closed_reason = NULL,
-            previous_club_bonus_checked_at = NULL
-        WHERE resale_closed_reason = 'entrenador'
-    """))
+    op.execute(
+        players.update()
+        .where(players.c.resale_closed_reason == "entrenador")
+        .values(
+            resale_closed=False,
+            resale_closed_reason=None,
+            previous_club_bonus_checked_at=None,
+        )
+    )
 
 
 def downgrade() -> None:
