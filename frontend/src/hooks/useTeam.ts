@@ -191,6 +191,13 @@ export const useAcademyScouts = () =>
     queryFn: () => api.academyScouts(TEAM_ID),
   });
 
+/** La cuenta de cada ojeador: coste semanal contra lo que trajo. */
+export const useAcademyScoutsLedger = () =>
+  useQuery({
+    queryKey: ["academy-scouts-ledger", TEAM_ID],
+    queryFn: () => api.academyScoutsLedger(TEAM_ID),
+  });
+
 export const usePlayerBalance = (season?: string) =>
   useQuery({
     queryKey: ["player-balance", TEAM_ID, season ?? "all"],

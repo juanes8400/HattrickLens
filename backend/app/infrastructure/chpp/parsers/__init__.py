@@ -1159,6 +1159,38 @@ def _youth_max_reached(skills: Element | None, tag: str) -> bool:
     return node.get("IsMaxReached", "False").lower() == "true"
 
 
+@register("players_viewoldies")
+def parse_players_viewoldies(xml: bytes) -> dict[str, Any]:
+    """Los ex-canteranos: `players.xml` con `actionType=viewOldies`.
+
+    Lector aparte y no una ampliacion del de `players` a proposito: ese
+    alimenta `content_hash`, y anadirle campos cambiaria la huella de los 24
+    jugadores del equipo y reescribiria una foto de cada uno sin que hubiera
+    cambiado nada.
+
+    Aqui solo se lee lo que hace falta para la pantalla de antiguos canteranos:
+    quien es, donde esta ahora y cuando ascendio.
+    """
+    root = ElementTree.fromstring(xml)
+    salida = []
+    for node in root.findall(".//Player"):
+        equipo = node.find("OwningTeam")
+        salida.append(
+            {
+                "ht_player_id": _int(node, "PlayerID"),
+                "first_name": _txt(node, "FirstName", ""),
+                "last_name": _txt(node, "LastName", ""),
+                "tsi": _int(node, "TSI"),
+                # `ArrivalDate` de un ex-canterano es cuando llego al PRIMER
+                # equipo, o sea el dia que ascendio de la academia.
+                "arrival_date": _txt(node, "ArrivalDate", ""),
+                "team_name": (_txt(equipo, "TeamName", "") if equipo is not None else ""),
+                "team_id": _int(equipo, "TeamID") if equipo is not None else None,
+            }
+        )
+    return {"players": salida}
+
+
 @register("youthteamdetails")
 def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
     """Identidad y FECHA DE CREACIÓN de la academia juvenil actual.
@@ -1173,10 +1205,30 @@ def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
     team = root.find(".//YouthTeam")
     if team is None:
         return {}
+    # Los ojeadores solo vienen con `showScouts=true`; sin ese parametro el
+    # fichero no los trae en NINGUNA version --comprobado de la 1.0 a la 1.3
+    # el 2026-08-26--. Si no estan, la lista sale vacia y no pasa nada: quien
+    # los persiste distingue "no vinieron" de "no hay".
+    ojeadores = [
+        {
+            "ht_scout_id": _int(o, "YouthScoutID"),
+            "name": _txt(o, "ScoutName", ""),
+            "hired_date": _txt(o, "HiredDate", ""),
+            # La region donde BUSCA, que es lo que explica a quien trae.
+            "region_name": (
+                _txt(r, "RegionName", "") if (r := o.find("InRegion")) is not None else ""
+            ),
+        }
+        for o in team.findall(".//Scout")
+    ]
     return {
         "ht_youth_team_id": _int(team, "YouthTeamID"),
         "youth_team_name": _txt(team, "YouthTeamName", ""),
         "created_date": _txt(team, "CreatedDate", ""),
+        "scouts": ojeadores,
+        #: `False` = se pidio sin `showScouts`, asi que no se sabe nada de
+        #: ellos. Distinto de "los pedimos y no hay ninguno".
+        "has_scouts": bool(team.find(".//ScoutList") is not None),
     }
 
 

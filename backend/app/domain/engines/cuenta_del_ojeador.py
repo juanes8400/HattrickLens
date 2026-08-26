@@ -17,6 +17,7 @@ escaparate.
 los catorce de la hornada fundacional, que llegaron solos al abrir la academia.
 Es una situación irrepetible, así que no se les hace una fila aparte.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -49,6 +50,13 @@ class Descubrimiento:
     reventas: int = 0
     #: Sigue en la academia o en el primer equipo: aún no ha dejado nada.
     sigue_en_el_club: bool = True
+    #: Cuándo lo trajo. Sirve para saber cuánto lleva un ojeador sin traer
+    #: nada, que al principio es la única señal que hay: sin ventas todavía,
+    #: un ojeador que lleva semanas cobrando y sin fichar es la información.
+    llegada: datetime | None = None
+    #: En qué se puede convertir, si el ojeador ya reveló algo. `None` = aún
+    #: no se sabe, que NO es lo mismo que malo.
+    techo: int | None = None
 
 
 @dataclass
@@ -80,6 +88,27 @@ class CuentaDeUnOjeador:
     @property
     def sigue_contratado(self) -> bool:
         return self.ojeador.se_fue is None
+
+    @property
+    def coste_por_canterano(self) -> int | None:
+        """Lo que ha costado cada uno de los que trajo.
+
+        `None` si no ha traído ninguno: dividir entre cero no es infinito, es
+        que la pregunta no aplica todavía.
+        """
+        return round(self.coste / self.traidos) if self.traidos else None
+
+    def dias_sin_traer(self, ahora: datetime) -> int | None:
+        """Desde su último fichaje, o desde que se le contrató si no trajo nada.
+
+        Es la señal que sirve DESDE EL PRIMER DIA: sin ventas todavía, lo único
+        que distingue a un ojeador de otro es a cuántos trae y cada cuánto.
+        """
+        fechas = [d.llegada for d in self.descubrimientos if d.llegada is not None]
+        ultima = max(fechas) if fechas else self.ojeador.contratado
+        if ultima is None:
+            return None
+        return max(0, (ahora - ultima).days)
 
 
 def semanas_cobradas(ojeador: Ojeador, ahora: datetime) -> int:

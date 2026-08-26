@@ -452,7 +452,12 @@ class SyncTeamHandler:
                     elif file == "youthteamdetails":
                         # Igual que el anterior: sin teamID, CHPP devuelve la
                         # academia del usuario autenticado (verificado en vivo).
-                        params = {}
+                        #
+                        # `showScouts`: sin el, el fichero NO trae ojeadores en
+                        # ninguna version --comprobado de la 1.0 a la 1.3-- y
+                        # sin ellos no hay fecha de contratacion, que es lo que
+                        # sostiene la cuenta de cada uno.
+                        params = {"showScouts": "true"}
                     payload = await self._chpp.fetch(
                         file, version=FILE_VERSIONS.get(file, "latest"), **params
                     )
@@ -482,6 +487,13 @@ class SyncTeamHandler:
                 # Quien esta en venta sale de la plantilla, no de la lista de
                 # pujas. Va antes que `currentbids`, que solo enriquece.
                 await self._marcar_quien_esta_en_venta(uow, cmd.team_id, captured_at)
+
+            if "youthteamdetails" in files:
+                # Los ex-canteranos: es lo que enlaza la academia con las
+                # ventas, y sin ellos la cuenta de cada ojeador no existe.
+                await self._sync_antiguos_canteranos(
+                    uow, cmd.team_id, cmd.ht_team_id, captured_at, result
+                )
 
             if "youthplayerlist" in files:
                 await self._sync_informes_de_ojeador(
@@ -3703,6 +3715,8 @@ class SyncTeamHandler:
                 team.ht_youth_team_id = payload["ht_youth_team_id"]
                 team.youth_team_name = payload.get("youth_team_name") or None
                 team.youth_academy_created_at = _parse_dt(payload.get("created_date"))
+            if payload.get("has_scouts"):
+                await self._persist_ojeadores(uow, team_id, payload.get("scouts", []), captured_at)
             return
         if file != "players":
             return  # TODO: handler para arena…
@@ -3992,6 +4006,124 @@ class SyncTeamHandler:
         "set_pieces_max",
         "set_pieces_max_reached",
     )
+
+    async def _sync_antiguos_canteranos(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+    ) -> int:
+        """Los canteranos que ya pasaron por el primer equipo.
+
+        `players.xml` con `actionType=viewOldies` --senalado por el usuario el
+        2026-08-26--: devuelve los ex-canteranos con su identificador de
+        MAYORES. Comprobado contra la cuenta real: los 43 que devuelve casan
+        uno a uno, por identificador, con los que ya teniamos marcados como
+        canteranos. Es el puente que faltaba entre la academia y las ventas.
+
+        Se guarda tal cual llega y nada mas: son jugadores que en su mayoria ya
+        no son nuestros, y las reglas de CHPP permiten enseñar su estado ACTUAL
+        pero no llevarles un historial.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        try:
+            payload = await self._chpp.fetch(
+                "players",
+                version=FILE_VERSIONS["players"],
+                parse_as="players_viewoldies",
+                actionType="viewOldies",
+                teamID=ht_team_id,
+            )
+        except Exception as exc:  # noqa: BLE001 — best effort, se reintenta
+            result.errors.append(f"viewOldies: {exc}")
+            return 0
+
+        filas = payload.get("players", [])
+        if not filas:
+            return 0
+
+        guardados = {
+            f.ht_player_id: f
+            for f in (
+                await uow.session.execute(
+                    select(m.FormerYouthPlayer).where(m.FormerYouthPlayer.team_id == team_id)
+                )
+            ).scalars()
+        }
+        for p_ in filas:
+            ht_id = p_.get("ht_player_id")
+            if not ht_id:
+                continue
+            fila = guardados.get(ht_id)
+            if fila is None:
+                fila = m.FormerYouthPlayer(team_id=team_id, ht_player_id=ht_id, name="")
+                uow.session.add(fila)
+            nombre = f"{p_.get('first_name', '')} {p_.get('last_name', '')}".strip()
+            fila.name = nombre or fila.name
+            fila.current_team_name = p_.get("team_name") or fila.current_team_name
+            fila.current_tsi = p_.get("tsi") if p_.get("tsi") is not None else fila.current_tsi
+            # `ArrivalDate` de un ex-canterano es cuando ASCENDIO al primer
+            # equipo: es la fecha que enlaza con su etapa en la academia.
+            fila.promoted_at = _parse_dt(p_.get("arrival_date")) or fila.promoted_at
+        return len(filas)
+
+    async def _persist_ojeadores(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ojeadores: list[dict[str, Any]],
+        captured_at: datetime,
+    ) -> None:
+        """El censo de ojeadores, para poder hacerles la cuenta.
+
+        Lo que importa aqui es lo que Hattrick NO dice: cuando se despide a un
+        ojeador, simplemente desaparece de la lista y no queda ni rastro ni
+        fecha. Por eso se anota `last_seen_at` en cada pasada y, cuando uno
+        falta, se cierra su `gone_at` en la ultima vez que se le vio. Su ultimo
+        tramo de coste queda aproximado, con el error acotado a lo que se tarde
+        entre dos sincronizaciones.
+
+        Y no se borra a nadie: un ojeador despedido se queda en la tabla con su
+        saldo final. Borrarlo haria desaparecer de la pantalla los canteranos
+        que trajo, que es justo lo que se quiere recordar.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        vistos = {int(o["ht_scout_id"]) for o in ojeadores if o.get("ht_scout_id")}
+        guardados = {
+            f.ht_scout_id: f
+            for f in (
+                await uow.session.execute(
+                    select(m.YouthScout).where(m.YouthScout.team_id == team_id)
+                )
+            ).scalars()
+        }
+
+        for o in ojeadores:
+            ht_id = int(o.get("ht_scout_id") or 0)
+            if not ht_id:
+                continue
+            fila = guardados.get(ht_id)
+            if fila is None:
+                fila = m.YouthScout(team_id=team_id, ht_scout_id=ht_id, name="")
+                uow.session.add(fila)
+            fila.name = o.get("name") or fila.name or ""
+            fila.region_name = o.get("region_name") or fila.region_name
+            fila.hired_at = _parse_dt(o.get("hired_date")) or fila.hired_at
+            fila.last_seen_at = captured_at
+            # Si vuelve a aparecer, ya no se fue: pudo ser un fallo de lectura.
+            fila.gone_at = None
+
+        for ht_id, fila in guardados.items():
+            if ht_id not in vistos and fila.gone_at is None:
+                fila.gone_at = fila.last_seen_at
 
     async def _persist_youth(
         self,

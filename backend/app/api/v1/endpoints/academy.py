@@ -436,3 +436,22 @@ async def academy_skill_scores(
             }
         ),
     )
+
+
+@router.get(
+    "/teams/{team_id}/academy/scouts-ledger",
+    summary="La cuenta de cada ojeador: lo que cuesta y lo que ha traído",
+    dependencies=[Depends(require_team_owner)],
+)
+async def academy_scouts_ledger(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Coste semanal contra lo que dejaron sus canteranos.
+
+    Las cifras de dinero salen de la misma fuente que el ROI de la cantera,
+    para que las dos pantallas no puedan discrepar sobre el mismo jugador.
+    """
+    from app.application.queries.ojeadores import OjeadoresQueryService
+
+    return await OjeadoresQueryService(session).get(team_id)

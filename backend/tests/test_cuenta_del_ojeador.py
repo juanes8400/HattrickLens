@@ -120,3 +120,40 @@ def test_el_que_sigue_contratado_se_distingue_del_despedido() -> None:
     ido = CuentaDeUnOjeador(ojeador=_ojeador(id_=2, se_fue=AHORA))
     assert vivo.sigue_contratado is True
     assert ido.sigue_contratado is False
+
+
+# ── Las señales que sirven ANTES de que haya ventas ─────────────────────────
+
+def test_lo_que_ha_costado_cada_canterano_traido() -> None:
+    """Al principio no hay ventas, asi que esta es la unica cifra que compara
+    a un ojeador con otro."""
+    filas = cuenta(
+        [_ojeador(dias_contratado=70)],           # 10 semanas -> 50.000
+        {1: [Descubrimiento("A"), Descubrimiento("B")]},
+        AHORA,
+    )
+    assert filas[0].coste_por_canterano == 25_000
+
+
+def test_sin_canteranos_el_coste_por_canterano_no_es_infinito() -> None:
+    """Dividir entre cero no es infinito: es que la pregunta no aplica."""
+    assert cuenta([_ojeador()], {}, AHORA)[0].coste_por_canterano is None
+
+
+def test_los_dias_sin_traer_cuentan_desde_el_ULTIMO_fichaje() -> None:
+    filas = cuenta(
+        [_ojeador(dias_contratado=70)],
+        {1: [
+            Descubrimiento("Viejo", llegada=AHORA - timedelta(days=60)),
+            Descubrimiento("Reciente", llegada=AHORA - timedelta(days=9)),
+        ]},
+        AHORA,
+    )
+    assert filas[0].dias_sin_traer(AHORA) == 9
+
+
+def test_quien_no_ha_traido_nada_cuenta_desde_que_lo_contrataron() -> None:
+    """Es lo que hace visible al ojeador que lleva semanas cobrando sin fichar
+    a nadie, que al principio es justo lo que se quiere ver."""
+    filas = cuenta([_ojeador(dias_contratado=70)], {}, AHORA)
+    assert filas[0].dias_sin_traer(AHORA) == 70

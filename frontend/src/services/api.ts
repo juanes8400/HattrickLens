@@ -195,6 +195,9 @@ export const api = {
   academy: (teamId: number) => request<Academy>(`/teams/${teamId}/academy`),
   academyScouts: (teamId: number) =>
     request<AcademyScouts>(`/teams/${teamId}/academy/scouts`),
+  /** La cuenta de cada ojeador: lo que cuesta y lo que ha traído. */
+  academyScoutsLedger: (teamId: number) =>
+    request<ScoutsLedger>(`/teams/${teamId}/academy/scouts-ledger`),
   playerBalance: (teamId: number, season?: string) => {
     const params = new URLSearchParams();
     if (season && season !== "all") params.set("season", season);
@@ -2036,6 +2039,47 @@ export interface League {
 }
 
 // ── Juveniles ───────────────────────────────────────────────────────────────
+
+/** La cuenta de cada ojeador. */
+export interface ScoutsLedger {
+  weeklyCost: number;
+  currency: string;
+  scouts: {
+    htScoutId: number;
+    name: string;
+    region: string | null;
+    hiredAt: string | null;
+    goneAt: string | null;
+    stillHired: boolean;
+    weeks: number;
+    cost: number;
+    income: number;
+    balance: number;
+    found: number;
+    sold: number;
+    /** Lo que ha costado cada canterano traído. `null` si no trajo ninguno. */
+    costPerFind: number | null;
+    daysSinceLastFind: number | null;
+    players: {
+      name: string;
+      net: number;
+      resale: number;
+      stillHere: boolean;
+      arrivedAt: string | null;
+      /** El mejor techo revelado. `null` = aún no se sabe, que no es malo. */
+      ceiling: number | null;
+    }[];
+  }[];
+  totals: {
+    cost: number;
+    income: number;
+    balance: number;
+    scouts: number;
+    found: number;
+  } | null;
+  /** Canteranos cuyo dinero NO está en la cuenta porque no se pudo enlazar. */
+  unlinked: string[];
+}
 
 export interface Academy {
   teamName: string;

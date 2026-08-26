@@ -33,7 +33,21 @@ class CHPPClient:
             timeout=15.0,
         )
 
-    async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
+    async def fetch(
+        self,
+        file: str,
+        version: str = "latest",
+        *,
+        parse_as: str | None = None,
+        **params: Any,
+    ) -> dict[str, Any]:
+        """Pide un fichero a CHPP y lo lee.
+
+        `parse_as` existe para `actionType=viewOldies`: se pide `players.xml`
+        pero se lee con un lector propio. Ampliar el de `players` cambiaria
+        `content_hash` y reescribiria una foto de cada jugador del equipo sin
+        que hubiera cambiado nada.
+        """
         url = f"{settings.chpp_base_url}/chppxml.ashx"
         query = {"file": file, **({} if version == "latest" else {"version": version}), **params}
         try:
@@ -43,7 +57,7 @@ class CHPPClient:
         if resp.status_code == 401:
             raise CHPPAuthError("token revocado, requiere re-autorización")
         resp.raise_for_status()
-        return self._parse(file, resp.content)  # bytes: el XML declara su encoding
+        return self._parse(parse_as or file, resp.content)  # bytes: el XML declara su encoding
 
     def _parse(self, file: str, xml: bytes) -> dict[str, Any]:
         from app.infrastructure.chpp.parsers import get_parser

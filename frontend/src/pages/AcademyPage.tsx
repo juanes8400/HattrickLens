@@ -5,11 +5,17 @@ import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Pane
 import {
   useAcademy,
   useAcademyScouts,
+  useAcademyScoutsLedger,
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
 import { date, decimal, money } from "../hooks/useFormat";
-import type { Academy, AcademySkillScores, TrainingSlot } from "../services/api";
+import type {
+  Academy,
+  AcademySkillScores,
+  ScoutsLedger,
+  TrainingSlot,
+} from "../services/api";
 
 /** El jugador de la academia, derivado del contrato en vez de repetido:
  *  si cambia allí, aquí falla el tipo en vez de mentir en silencio. */
@@ -2004,8 +2010,185 @@ function esOjeadorDeVerdad(nombre: string, id: number | null): boolean {
  * literal, tal como lo escribió el ojeador, porque el dato destilado
  * (habilidad, nivel, techo) ya vive en las otras pestañas.
  */
+/** La cuenta de cada ojeador: lo que cuesta contra lo que ha traído.
+ *
+ *  2026-08-26, pedido por el usuario. Lo difícil de esta pantalla es que al
+ *  principio TODOS los ojeadores están en números rojos y no hay ninguna venta
+ *  todavía: sus canteranos siguen en el club. Un panel que sólo enseñara el
+ *  saldo diría «-15.000» tres veces y no serviría para nada.
+ *
+ *  Por eso las dos columnas del medio: **cuánto ha costado cada canterano que
+ *  trajo** y **cuánto lleva sin traer ninguno**. Ésas comparan a un ojeador con
+ *  otro desde el primer día, mucho antes de que alguien se venda.
+ */
+/** Techo de cada canterano, por nombre.
+ *
+ *  Viene de la cuenta y no del listado de informes, que no trae habilidades.
+ *  Cruzar por nombre vale aquí: son los canteranos de UNA academia, no hay dos
+ *  con el mismo. */
+function techosPorNombre(ledger: ScoutsLedger | undefined): Map<string, number> {
+  const mapa = new Map<string, number>();
+  for (const o of ledger?.scouts ?? []) {
+    for (const p of o.players) {
+      if (p.ceiling != null) mapa.set(p.name, p.ceiling);
+    }
+  }
+  return mapa;
+}
+
+function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
+  const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
+  const td = "px-3 py-2 text-sm";
+  const { scouts, totals, currency } = ledger;
+  if (scouts.length === 0) return null;
+
+  const moneda = (n: number) => `${money(n)} ${currency}`;
+  // La escala de las barras: el mayor movimiento manda, para que se comparen
+  // entre sí y no contra un máximo inventado.
+  const tope = Math.max(...scouts.map((o) => Math.max(o.cost, o.income)), 1);
+
+  return (
+    <Panel
+      title="La cuenta de cada ojeador"
+      meta={
+        totals
+          ? `${totals.scouts} ojeadores · ${moneda(ledger.weeklyCost)}/semana cada uno`
+          : ""
+      }
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-[var(--surface-2)]">
+            <tr>
+              <th scope="col" className={`${th} text-left`}>Ojeador</th>
+              <th scope="col" className={`${th} text-left`}>Busca en</th>
+              <th scope="col" className={`${th} text-right`} title="semanas completas desde que lo contrataste">
+                Semanas
+              </th>
+              <th scope="col" className={`${th} text-right`}>Ha costado</th>
+              <th scope="col" className={`${th} text-right`}>Trajo</th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="lo que te ha costado cada canterano que te trajo: es lo que compara a un ojeador con otro antes de que haya ninguna venta"
+              >
+                Cada uno
+              </th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="días desde su último fichaje; si nunca trajo nada, desde que lo contrataste"
+              >
+                Sin traer
+              </th>
+              <th scope="col" className={`${th} text-right`}>Ha dado</th>
+              <th scope="col" className={`${th} text-right`}>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scouts.map((o) => (
+              <tr key={o.htScoutId} className="border-t border-[var(--border)]">
+                <td className={`${td} font-medium`}>
+                  {o.name}
+                  {!o.stillHired && (
+                    <span className="ml-2 text-xs text-[var(--muted)]">despedido</span>
+                  )}
+                </td>
+                <td className={`${td} text-[var(--muted)]`}>{o.region ?? "—"}</td>
+                <td className={`${td} text-right tabular-nums`}>{o.weeks}</td>
+                <td className={`${td} text-right tabular-nums text-[var(--danger)]`}>
+                  {moneda(o.cost)}
+                </td>
+                <td className={`${td} text-right tabular-nums`}>
+                  {o.found}
+                  {o.sold > 0 && (
+                    <span className="text-xs text-[var(--muted)]"> · {o.sold} vendidos</span>
+                  )}
+                </td>
+                <td className={`${td} text-right tabular-nums`}>
+                  {o.costPerFind == null ? "—" : moneda(o.costPerFind)}
+                </td>
+                {/* Un ojeador que lleva semanas sin traer nada está cobrando
+                    por no hacer nada, y eso hay que poder verlo de un vistazo. */}
+                <td
+                  className={`${td} text-right tabular-nums`}
+                  style={{
+                    color:
+                      (o.daysSinceLastFind ?? 0) > 21 ? "var(--warning)" : "var(--muted)",
+                  }}
+                >
+                  {o.daysSinceLastFind == null ? "—" : `${o.daysSinceLastFind} d`}
+                </td>
+                <td className={`${td} text-right tabular-nums`}>
+                  {o.income > 0 ? (
+                    <span className="text-[var(--positive)]">{moneda(o.income)}</span>
+                  ) : (
+                    <span className="text-[var(--muted)]">todavía nada</span>
+                  )}
+                </td>
+                <td className={`${td} text-right`}>
+                  <span
+                    className="tabular-nums font-medium"
+                    style={{
+                      color: o.balance >= 0 ? "var(--positive)" : "var(--danger)",
+                    }}
+                  >
+                    {moneda(o.balance)}
+                  </span>
+                  <span className="mt-1 block h-1 w-full rounded bg-[var(--surface-2)]">
+                    <span
+                      className="block h-full rounded"
+                      style={{
+                        width: `${(Math.max(o.cost, o.income) / tope) * 100}%`,
+                        background:
+                          o.balance >= 0 ? "var(--positive)" : "var(--danger)",
+                      }}
+                    />
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {totals && (
+            <tfoot>
+              <tr className="border-t-2 border-[var(--border)] font-medium">
+                <td className={td} colSpan={3}>Total</td>
+                <td className={`${td} text-right tabular-nums text-[var(--danger)]`}>
+                  {moneda(totals.cost)}
+                </td>
+                <td className={`${td} text-right tabular-nums`}>{totals.found}</td>
+                <td className={td} colSpan={2} />
+                <td className={`${td} text-right tabular-nums`}>
+                  {totals.income > 0 ? moneda(totals.income) : "—"}
+                </td>
+                <td
+                  className={`${td} text-right tabular-nums`}
+                  style={{
+                    color: totals.balance >= 0 ? "var(--positive)" : "var(--danger)",
+                  }}
+                >
+                  {moneda(totals.balance)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {ledger.unlinked.length > 0 && (
+        <p className="px-4 py-2 text-xs text-[var(--warning)]">
+          Sin enlazar con su ficha de mayores, así que su dinero no está en esta
+          cuenta: {ledger.unlinked.join(", ")}.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
 function Ojeadores() {
   const informes = useAcademyScouts();
+  // La cuenta va aparte: si falla, los informes se siguen viendo.
+  const cuenta = useAcademyScoutsLedger();
+  const techos = techosPorNombre(cuenta.data);
   if (informes.isLoading) return <Loading />;
   if (informes.isError) return <ErrorState error={informes.error} />;
   const data = informes.data;
@@ -2051,6 +2234,10 @@ function Ojeadores() {
 
   return (
     <div className="space-y-4">
+      {/* La cuenta primero: es la pregunta que se hace uno al abrir esta
+          pestaña --¿me sale a cuenta cada ojeador?-- y el resto es el detalle
+          de quién trajo a quién. */}
+      {cuenta.data && <CuentaDeOjeadores ledger={cuenta.data} />}
       <Panel
         title="Ojeadores"
         meta={`${ojeadores.length} · ${traidos.length} de ${data.players.length} canteranos`}
@@ -2117,7 +2304,17 @@ function Ojeadores() {
                 <th scope="col" className={`${th} text-right`}>Región</th>
                 <th scope="col" className={`${th} text-left`}>Canterano</th>
                 <th scope="col" className={`${th} text-right`}>Llegó</th>
-                <th scope="col" className={`${th} text-left`}>Queda por revelar</th>
+                {/* «Queda por revelar» se quito el 2026-08-26: el usuario lo
+                    llamo irrelevante y tenia razon --dice cuanto ignoramos,
+                    no cuanto vale--. Lo que juzga a un ojeador es el TECHO de
+                    lo que trae. */}
+                <th
+                  scope="col"
+                  className={`${th} text-right`}
+                  title="el mejor techo que el ojeador ya ha revelado de él; vacío = todavía no ha revelado nada"
+                >
+                  Techo
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -2153,13 +2350,20 @@ function Ojeadores() {
                     <td className={`${td} text-right text-xs text-[var(--muted)]`}>
                       {p.arrivedAt ? date(p.arrivedAt) : "—"}
                     </td>
-                    <td className={`${td} truncate text-left text-xs`}>
-                      {p.mayUnlock.length > 0 ? (
-                        <span className="text-[var(--accent)]">
-                          {p.mayUnlock.join(" · ")}
-                        </span>
+                    {/* El techo revelado. Sin nada revelado se dice «sin
+                        ojear», no «0»: no saberlo no es que sea malo. */}
+                    <td className={`${td} text-right text-xs tabular-nums`}>
+                      {techos.get(p.name) == null ? (
+                        <span className="text-[var(--muted)]">sin ojear</span>
                       ) : (
-                        <span className="text-[var(--muted)]">nada</span>
+                        <span
+                          style={{
+                            color:
+                              (techos.get(p.name) ?? 0) >= 7 ? "var(--positive)" : undefined,
+                          }}
+                        >
+                          {techos.get(p.name)}
+                        </span>
                       )}
                     </td>
                   </tr>
