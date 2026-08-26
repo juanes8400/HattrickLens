@@ -1154,9 +1154,10 @@ export interface Dashboard {
   /** Las dos semanas ya cerradas: cubren siempre un partido en casa. */
   biweeklyBalance: number;
   biweeklyIncome: number;
-  biweeklySalaries: number;
+  /** `null` = Hattrick no dio los salarios de la semana anterior. No es 0. */
+  biweeklySalaries: number | null;
   /** Salarios sobre los ingresos de esas dos semanas, ventas incluidas. */
-  salarySharePct: number;
+  salarySharePct: number | null;
     currency: string;
   } | null;
   training: {

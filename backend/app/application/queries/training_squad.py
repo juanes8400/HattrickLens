@@ -24,17 +24,19 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# `SEASON_WEEKS` desde donde NACE y no re-exportada por `weekly`: el
+# analizador no puede saber que una re-exportacion es deliberada.
 from app.application.queries.player_history import PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.weekly import (
-    SEASON_WEEKS,
     latest_per_iso_week,
     season_week_for_datetime,
     season_week_label,
 )
 from app.domain.engines import training_engine as te
+from app.domain.engines.economy_engine import SEASON_WEEKS
 from app.domain.engines.loyalty_engine import (
     days_for_level,
     loyalty_decimal,

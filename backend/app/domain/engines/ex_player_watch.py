@@ -20,7 +20,8 @@ venderse nunca más, así que tampoco habrá reventa ni comisión. Cierra a
 cualquiera de los dos, canterano incluido.
 """
 
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
 Motivo = Literal["revendido", "despedido", "sin_comprador", "entrenador"]
 
@@ -57,27 +58,27 @@ def desaparecio_de_hattrick(codigo_de_error: int | None) -> bool:
 
 
 def salio_hace_poco(
-    left_at: object | None, ahora: object, dias: int = DIAS_DE_GRACIA_SIN_COMPRADOR
+    left_at: datetime | None, ahora: datetime, dias: int = DIAS_DE_GRACIA_SIN_COMPRADOR
 ) -> bool:
     """¿Se fue tan hace poco que su venta podria no haberse leido aun?"""
     if left_at is None:
         return False
-    return (ahora - left_at).days < dias  # type: ignore[operator]
+    return (ahora - left_at).days < dias
 
 
-def es_entrenador(ficha: dict | None) -> bool:
+def es_entrenador(ficha: dict[str, Any] | None) -> bool:
     """¿Se convirtió en entrenador de su equipo?
 
-    Basta con que la ficha traiga el bloque `TrainerData`. Comprobado en vivo
-    el 2026-08-25: de los veinticuatro jugadores del equipo lo trae uno solo
-    —el entrenador— y la ficha individual de un jugador normal no lo trae en
-    absoluto. Puede haber uno por equipo, no más.
+    Lo decide `is_player_trainer`, que exige que el bloque `TrainerData`
+    traiga `TrainerSkillLevel` DENTRO. Ver el parser, donde está el porqué.
 
-    No se mira el nivel: un fixture guardado tenía un bloque con nivel 0 en
-    alguien que no era entrenador, pero al pedir su ficha real Hattrick ya no
-    devuelve el bloque. Era el fichero de pruebas el que estaba caducado.
+    Este texto decía lo contrario —"basta con que la ficha traiga el
+    bloque"— y esa regla, aplicada a `playerdetails.xml`, cerró 121
+    expedientes de vigilancia en falso el 2026-08-26: ahí TODO jugador trae
+    la etiqueta, vacía. La comprobación original fue real, pero se hizo
+    contra `players.xml`, que es otro fichero con otras reglas.
     """
-    return bool(ficha) and bool(ficha.get("is_player_trainer"))
+    return ficha is not None and bool(ficha.get("is_player_trainer"))
 
 
 def motivo_de_cierre(

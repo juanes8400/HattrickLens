@@ -27,7 +27,7 @@ from sqlalchemy.types import TypeDecorator
 PKBigInt = BigInteger().with_variant(Integer(), "sqlite")
 
 
-class UtcDateTime(TypeDecorator):
+class UtcDateTime(TypeDecorator[datetime]):
     """Fecha con zona en la base, SIN zona (UTC) en Python.
 
     La aplicación entera está escrita sobre fechas ingenuas en UTC, porque es

@@ -145,7 +145,7 @@ async def build_changes_history(
         for player_id, entries in snapshots.items()
     }
 
-    players = [
+    players: list[dict[str, Any]] = [
         {"htPlayerId": ht_player_id, "name": _name(items[-1][1])}
         for ht_player_id, items in snapshots.items()
     ]
@@ -207,8 +207,8 @@ async def build_changes_history(
                 continue
             grouped[group].append(_event(current, player, key, label, int(before), int(value)))
 
-    for group in grouped.values():
-        group.sort(key=lambda event: (-abs(event["delta"]), event["name"]))
+    for eventos in grouped.values():
+        eventos.sort(key=lambda event: (-abs(event["delta"]), event["name"]))
 
     series: list[dict[str, Any]] = []
     if selected_player is not None:

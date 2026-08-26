@@ -120,3 +120,23 @@ def test_dashboard_serializes_camelcase() -> None:
         assert "player_count" not in payload["squad"]
 
     asyncio.run(run())
+
+
+def test_sin_los_salarios_de_la_semana_anterior_no_se_inventa_un_cero() -> None:
+    """`last_costs_players` es NULLABLE y en la base real hay filas sin el.
+
+    2026-08-26, encontrado por mypy: `costs_players + last_costs_players`
+    reventaba con TypeError, y en la pantalla de INICIO. Y ponerle un 0
+    tampoco vale: la migracion 0021, que creo esas columnas, lo dejo escrito
+    --"NULL dice 'no se sabe', nunca cero"-- y la pantalla habria pintado
+    "0 US$ · 0,0% de los ingresos", que es afirmar que no se pagaron salarios.
+    """
+    from app.application.dto.dashboard import FinanceSummary
+
+    # El contrato: los dos campos admiten "no se sabe", y por defecto lo dicen.
+    resumen = FinanceSummary(
+        cash=0, expected_cash=0, weekly_delta=0, income_sum=0, costs_sum=0,
+        costs_players=0, fan_club_size=0, last_weeks_total=0,
+    )
+    assert resumen.biweekly_salaries is None
+    assert resumen.salary_share_pct is None

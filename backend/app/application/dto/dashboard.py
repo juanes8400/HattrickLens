@@ -41,9 +41,11 @@ class FinanceSummary(Base):
     # toque; dos cubren siempre una taquilla y el numero deja de saltar.
     biweekly_balance: int = 0
     biweekly_income: int = 0
-    biweekly_salaries: int = 0
+    #: `None` = Hattrick no dio los salarios de la semana anterior. No es 0:
+    #: la migracion 0021 lo dejo claro cuando creo esas columnas.
+    biweekly_salaries: int | None = None
     #: Salarios como parte de los ingresos, transferencias incluidas.
-    salary_share_pct: float = 0.0
+    salary_share_pct: float | None = None
     currency: str = ""
 
 

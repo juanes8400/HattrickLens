@@ -491,11 +491,15 @@ class EconomyQueryService:
                 "descompone la caja en sus partes conocidas.",
             )
         else:
+            # El error medio puede no venir; entonces la frase lo omite en
+            # vez de reventar o de inventarse un cero.
+            mae = timeseries.backtest_mae
+            detalle_mae = f" (MAE {thousands(mae)})" if mae is not None else ""
             recommended, reason = (
                 timeseries.model,
                 f"El modelo «{timeseries.model}» ganó el backtest de origen "
-                f"rodante sobre {len(cash_series)} lecturas "
-                f"(MAE {thousands(timeseries.backtest_mae)}). Se mantiene la "
+                f"rodante sobre {len(cash_series)} lecturas"
+                f"{detalle_mae}. Se mantiene la "
                 "proyección estructural al lado para contrastar.",
             )
 

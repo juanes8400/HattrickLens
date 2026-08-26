@@ -104,7 +104,15 @@ class DashboardQueryService:
             # eso es parte de la respuesta, no ruido.
             ingresos_dos_semanas = econ.income_sum + econ.last_income_sum
             gastos_dos_semanas = econ.costs_sum + econ.last_costs_sum
-            salarios_dos_semanas = econ.costs_players + econ.last_costs_players
+            # `last_costs_players` es NULLABLE y en la base real hay filas sin
+            # el. Sumarlo tal cual revienta con TypeError en la pantalla de
+            # INICIO; ponerle un 0 contradice lo que dice la migracion 0021
+            # que lo creo: "NULL dice 'no se sabe', nunca cero".
+            salarios_dos_semanas = (
+                None
+                if econ.last_costs_players is None
+                else econ.costs_players + econ.last_costs_players
+            )
 
             resp.finance = FinanceSummary(
                 cash=local(econ.cash),
@@ -126,11 +134,13 @@ class DashboardQueryService:
                 ),
                 biweekly_balance=local(ingresos_dos_semanas - gastos_dos_semanas),
                 biweekly_income=local(ingresos_dos_semanas),
-                biweekly_salaries=local(salarios_dos_semanas),
+                biweekly_salaries=(
+                    None if salarios_dos_semanas is None else local(salarios_dos_semanas)
+                ),
                 salary_share_pct=(
                     round(salarios_dos_semanas / ingresos_dos_semanas * 100, 1)
-                    if ingresos_dos_semanas > 0
-                    else 0.0
+                    if salarios_dos_semanas is not None and ingresos_dos_semanas > 0
+                    else None
                 ),
                 currency=team.currency_name or "",
             )

@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import start_of_iso_week
-from app.domain.engines.sync_diff import diff_training
+from app.domain.engines.sync_diff import Change, diff_training
 from app.domain.value_objects.formatting import thousands
 from app.domain.value_objects.ht_constants import (
     CONFIDENCE,
@@ -228,7 +228,10 @@ async def _snapshot_for_sync_or_before(
     team_id: int,
     sync: m.Sync,
 ) -> tuple[Any | None, Any | None, bool]:
-    current = await session.scalar(
+    #  explicito:  es una de DOS tablas distintas, asi que el
+    # analizador solo puede prometer la clase base comun. La funcion ya declara
+    # que devuelve ; esto lo dice tambien donde se lee.
+    current: Any = await session.scalar(
         select(model)
         .where(model.team_id == team_id, model.sync_id == sync.id)
         .order_by(model.id.desc())
@@ -432,7 +435,9 @@ async def _changes_for_sync(session: AsyncSession, sync_id: int | None) -> list[
         .order_by(m.TrainingSnapshot.id.desc())
         .limit(1)
     )
-    rebuilt_training: list[str] | None = None
+    # `diff_training` devuelve `list[Change]`, no textos: la anotacion
+    # estaba mal y por eso `c.category` parecia un atributo de `str`.
+    rebuilt_training: list[Change] | None = None
     if current_training is not None:
         previous_training = await session.scalar(
             select(m.TrainingSnapshot)
@@ -546,7 +551,7 @@ async def build_sync_comparison(
         .scalars()
         .all()
     )
-    change_counts = dict(
+    change_counts: dict[int, int] = dict(
         (
             await session.execute(
                 select(m.SyncChange.sync_id, func.count(m.SyncChange.id))

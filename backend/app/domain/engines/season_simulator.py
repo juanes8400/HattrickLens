@@ -212,16 +212,13 @@ def best_worst_case(
                 continue
             h, a = index[fx.home_ht_id], index[fx.away_ht_id]
             if target_team_id in (fx.home_ht_id, fx.away_ht_id):
-                target_goals = (
-                    np.full(runs, target_for_fixed, dtype=float)
-                    if target_for_fixed is not None
-                    else rng.poisson(target_for_lambda, runs).astype(float)
-                )
-                rival_goals = (
-                    np.full(runs, target_against_fixed, dtype=float)
-                    if target_against_fixed is not None
-                    else rng.poisson(target_against_lambda, runs).astype(float)
-                )
+                # De cada par, quien llama pone UNO: o el numero fijo o la
+                # media de la Poisson. Escrito asi --y no con un `if` dentro
+                # de la expresion-- porque el contrato queda a la vista y
+                # porque, si algun dia llegan los dos vacios, salta un error
+                # que dice que pasa en vez de uno de numpy.
+                target_goals = _goles(rng, runs, target_for_fixed, target_for_lambda)
+                rival_goals = _goles(rng, runs, target_against_fixed, target_against_lambda)
                 gh, ga = (
                     (target_goals, rival_goals)
                     if fx.home_ht_id == target_team_id
@@ -543,3 +540,14 @@ def model_info() -> dict[str, object]:
         ],
         "doesNotModel": ["lesiones", "alineaciones", "tácticas"],
     }
+
+
+def _goles(
+    rng: np.random.Generator, runs: int, fijo: float | None, media: float | None
+) -> np.ndarray:
+    """Los goles de un escenario: un numero fijo, o una Poisson con esa media."""
+    if fijo is not None:
+        return np.full(runs, fijo, dtype=float)
+    if media is None:
+        raise ValueError("un escenario necesita un numero fijo de goles o una media")
+    return rng.poisson(media, runs).astype(float)

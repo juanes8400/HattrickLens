@@ -4615,7 +4615,7 @@ class SyncTeamHandler:
         for intento, _ in reversed(abiertos):
             anterior = siguientes.get(intento.player_id)
             siguientes[intento.player_id] = intento.detected_at
-            intento._siguiente = anterior  # type: ignore[attr-defined]
+            intento._siguiente = anterior
 
         # De un jugador que HOY esta listado, solo su ultimo intento sigue
         # vivo: si tiene otros mas viejos es que aquellos ya terminaron.

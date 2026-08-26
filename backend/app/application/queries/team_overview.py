@@ -35,6 +35,7 @@ otro sincronizado una.
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -324,7 +325,9 @@ class TeamOverviewQueryService:
 
         # Última lectura de cada jugador dentro de cada semana ISO: un jugador
         # sincronizado tres veces no puede pesar el triple que otro.
-        latest: dict[tuple[int, int], dict[int, tuple[datetime, tuple]]] = defaultdict(dict)
+        latest: dict[tuple[int, int], dict[int, tuple[datetime, tuple[Any, ...]]]] = defaultdict(
+            dict
+        )
         salidas: dict[int, datetime | None] = {}
         for row in rows:
             captured_at: datetime = row.captured_at
@@ -373,14 +376,16 @@ class TeamOverviewQueryService:
         #
         # Se arrastra la ultima lectura conocida de cada uno y se descuenta a
         # quien ya se habia ido en ese momento.
-        vigentes: dict[int, tuple[datetime, tuple]] = {}
+        vigentes: dict[int, tuple[datetime, tuple[Any, ...]]] = {}
         for key in sorted(latest):
             vigentes.update(latest[key])
             newest = max(reading[0] for reading in latest[key].values())
+            # `salida` en una variable y no `salidas[pid]` dos veces: asi se
+            # ve que es el MISMO valor el que se comprueba y el que se compara.
             readings = [
                 lectura
                 for pid, lectura in vigentes.items()
-                if salidas.get(pid) is None or salidas[pid] > newest
+                if (salida := salidas.get(pid)) is None or salida > newest
             ]
             label = season_week_for_datetime(world, newest)
             weeks.append(label or newest.date().isoformat())
@@ -404,7 +409,7 @@ class TeamOverviewQueryService:
             # Coste por punto de TSI: sobre los jugadores CON índice, y sumando
             # antes de dividir. Promediar el cociente jugador a jugador daría
             # infinito con un TSI 0 y estaría dominado por los índices bajos.
-            def _market(subset: list[tuple], suffix: str = "") -> None:
+            def _market(subset: list[tuple[Any, ...]], suffix: str = "") -> None:
                 with_tsi = [r for r in subset if (r[1][tsi_index] or 0) > 0]
                 total_tsi = sum(float(r[1][tsi_index]) for r in with_tsi)
                 total_salary = sum(float(r[1][salary_index] or 0) for r in with_tsi) / rate

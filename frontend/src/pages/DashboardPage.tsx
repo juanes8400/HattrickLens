@@ -75,11 +75,23 @@ export function DashboardPage() {
           hint="las dos semanas cerradas"
           tone={(data.finance?.biweeklyBalance ?? 0) < 0 ? "danger" : "positive"}
         />
+        {/* Sin el dato de la semana anterior no se pinta un 0: seria decir
+            que no se pagaron salarios. Ver la migracion 0021. */}
         <Kpi
           label="Salarios"
-          value={money(data.finance?.biweeklySalaries ?? 0)}
-          hint={`${(data.finance?.salarySharePct ?? 0)
-            .toLocaleString("es", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% de los ingresos`}
+          value={
+            data.finance?.biweeklySalaries == null
+              ? "—"
+              : money(data.finance.biweeklySalaries)
+          }
+          hint={
+            data.finance?.salarySharePct == null
+              ? "falta la semana anterior"
+              : `${data.finance.salarySharePct.toLocaleString("es", {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}% de los ingresos`
+          }
         />
         <Kpi
           label="TSI de los 11 mejores"
