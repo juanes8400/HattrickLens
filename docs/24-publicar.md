@@ -96,6 +96,23 @@ Dos cosas a tener en cuenta con cualquiera de ellos:
   que es justo lo que da valor a las gráficas de evolución. Merece la pena
   exportar la base de vez en cuando.
 
+## De qué rama se despliega
+
+**`main`.** No está escrito en el repositorio —no hay `render.yaml`— sino en el
+panel de Render, en *Settings → Build & Deploy → Branch*, y hay que ponerlo en
+cada servicio por separado si hubiera más de uno.
+
+Queda anotado aquí porque costó un despliegue fallido el 2026-08-25: el panel
+apuntaba a una rama de trabajo (`agent/…`) que se había quedado un commit por
+detrás, así que Render construyó una migración ya corregida en `main` y la
+subida murió con un error de Postgres. Desde fuera parecía que el arreglo no
+funcionaba; lo que fallaba era de dónde se cogía el código.
+
+Si un despliegue falla con algo que juras haber arreglado, **antes de tocar el
+código comprueba qué commit construyó Render** y compáralo con el de la rama.
+El mensaje de error suele traer el fragmento exacto —una consulta, una línea—
+que permite decir de qué versión salió.
+
 ## Comprobaciones después de desplegar
 
 1. `GET /health` responde `{"status": "ok"}`.
@@ -103,6 +120,9 @@ Dos cosas a tener en cuenta con cualquiera de ellos:
 3. Conectar una cuenta de Hattrick y comprobar que redirige y sincroniza.
 4. Con esa sesión, pedir el equipo de otro id responde **403**.
 5. `/api/v1/docs` enseña la API; decidir si se quiere pública o no.
+6. Que las migraciones llegaron hasta el final: el arranque aplica
+   `alembic upgrade head` y si una falla el servicio no levanta. En el registro
+   se ve `Running upgrade XXXX -> YYYY` por cada una.
 
 ## Lo que queda pendiente
 
