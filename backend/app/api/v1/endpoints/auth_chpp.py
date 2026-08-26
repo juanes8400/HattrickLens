@@ -4,6 +4,7 @@ No hay registro con email/contraseña: conectar con Hattrick.org ES la cuenta.
 Ver docs/04-chpp-sync.md para el diagrama de secuencia completo, y
 docs/spec/CORRECTIONS.md #1 para por qué es OAuth 1.0a y no OAuth2.
 """
+
 from datetime import UTC, datetime
 from typing import Any
 
@@ -164,14 +165,16 @@ async def session_profile(
     tenga más de un club y saber si cada club ya completó su importación
     inicial.
     """
-    token = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
+    token = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
+    teams = list(
+        (
+            await session.scalars(
+                select(m.Team)
+                .where(m.Team.owner_user_id == user.id)
+                .order_by(m.Team.name, m.Team.id)
+            )
+        ).all()
     )
-    teams = list((await session.scalars(
-        select(m.Team)
-        .where(m.Team.owner_user_id == user.id)
-        .order_by(m.Team.name, m.Team.id)
-    )).all())
 
     team_rows: list[dict[str, object]] = []
     for team in teams:
@@ -187,15 +190,17 @@ async def session_profile(
         synced_at = None
         if last_sync is not None:
             synced_at = last_sync.finished_at or last_sync.started_at
-        team_rows.append({
-            "id": team.id,
-            "htTeamId": team.ht_team_id,
-            "name": team.name,
-            "leagueName": team.league_name,
-            "seriesName": team.series_name,
-            "syncedAt": synced_at,
-            "hasImportedData": synced_at is not None,
-        })
+        team_rows.append(
+            {
+                "id": team.id,
+                "htTeamId": team.ht_team_id,
+                "name": team.name,
+                "leagueName": team.league_name,
+                "seriesName": team.series_name,
+                "syncedAt": synced_at,
+                "hasImportedData": synced_at is not None,
+            }
+        )
 
     return {
         "user": {
@@ -254,9 +259,7 @@ async def callback(
     else:
         user.login_name = details.get("login_name") or user.login_name
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None:
         token_row = m.CHPPToken(user_id=user.id)
         session.add(token_row)
@@ -313,26 +316,35 @@ async def delete_account(
     from sqlalchemy import delete, select
 
     equipos = list(
-        (
-            await session.execute(select(m.Team.id).where(m.Team.owner_user_id == user.id))
-        ).scalars()
+        (await session.execute(select(m.Team.id).where(m.Team.owner_user_id == user.id))).scalars()
     )
 
     # Todo lo que cuelga de un equipo, en el orden en que se puede borrar.
     por_equipo = (
-        m.SyncChange, m.PlayerSnapshot, m.PlayerMatchRating, m.PlayerListingAttempt,
-        m.PreviousClubBonus, m.EconomySnapshot, m.TrainingSnapshot, m.Standing,
-        m.StadiumHistory, m.YouthSnapshot, m.YouthPlayer, m.FormerYouthPlayer,
-        m.StaffSnapshot, m.SkillUp, m.DismissedInsight, m.Sync, m.Player,
+        m.SyncChange,
+        m.PlayerSnapshot,
+        m.PlayerMatchRating,
+        m.PlayerListingAttempt,
+        m.PreviousClubBonus,
+        m.EconomySnapshot,
+        m.TrainingSnapshot,
+        m.Standing,
+        m.StadiumHistory,
+        m.YouthSnapshot,
+        m.YouthPlayer,
+        m.FormerYouthPlayer,
+        m.StaffSnapshot,
+        m.SkillUp,
+        m.DismissedInsight,
+        m.Sync,
+        m.Player,
     )
     borradas = 0
     for equipo_id in equipos:
         for tabla in por_equipo:
             if not hasattr(tabla, "team_id"):
                 continue
-            resultado = await session.execute(
-                delete(tabla).where(tabla.team_id == equipo_id)
-            )
+            resultado = await session.execute(delete(tabla).where(tabla.team_id == equipo_id))
             borradas += resultado.rowcount or 0
         await session.execute(delete(m.Team).where(m.Team.id == equipo_id))
 

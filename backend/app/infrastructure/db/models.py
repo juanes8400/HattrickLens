@@ -4,6 +4,7 @@ Nota particionado: en PostgreSQL, player_snapshots es RANGE(captured_at) con PK
 física (id, captured_at) — eso vive en la migración (raw SQL). El ORM mapea id
 como PK lógica; con sqlite (tests) funciona el autoincrement vía variant.
 """
+
 from datetime import UTC, datetime
 
 from sqlalchemy import (
@@ -67,6 +68,7 @@ class User(Base):
     Lens: conectar vía OAuth con CHPP es el único inicio de sesión, y
     `ht_user_id` (UserID de CHPP) es la clave con la que se reconoce a un
     usuario que vuelve a conectar."""
+
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True)
@@ -81,8 +83,8 @@ class CHPPToken(Base):
     __tablename__ = "chpp_tokens"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    oauth_token_enc: Mapped[bytes] = mapped_column(LargeBinary)      # Fernet
-    oauth_secret_enc: Mapped[bytes] = mapped_column(LargeBinary)     # Fernet
+    oauth_token_enc: Mapped[bytes] = mapped_column(LargeBinary)  # Fernet
+    oauth_secret_enc: Mapped[bytes] = mapped_column(LargeBinary)  # Fernet
     key_version: Mapped[int] = mapped_column(SmallInteger, default=1)
     status: Mapped[str] = mapped_column(String(16), default="active")  # active|revoked
     ht_user_id: Mapped[int | None] = mapped_column(BigInteger)
@@ -120,9 +122,7 @@ class Team(Base):
     # inversión de la actual. `None` hasta que se sincronice youthteamdetails.
     ht_youth_team_id: Mapped[int | None] = mapped_column(BigInteger)
     youth_team_name: Mapped[str | None] = mapped_column(String(128))
-    youth_academy_created_at: Mapped[datetime | None] = mapped_column(
-        UtcDateTime()
-    )
+    youth_academy_created_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # LeagueLevel de esta serie (1 = división más alta del país) y MaxLevel
     # (divisiones totales) — de leaguedetails.xml. Hacen falta para saber si
     # el 1º puede ascender (no si ya es primera) y si el 7º-8º puede
@@ -226,9 +226,7 @@ class Player(Base):
     # Ya se pregunto por el pais del club comprador, con exito o sin el.
     # Sin esta marca, un comprador cuyo pais Hattrick no resuelve se queda
     # pendiente para siempre y el relleno por lotes nunca termina.
-    destination_attempted: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default="0"
-    )
+    destination_attempted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # ── El pasado de un ex-jugador ──────────────────────────────────────
     #
     # Los partidos que jugo con nosotros viven en `games_played_for_us`, unas
@@ -237,9 +235,7 @@ class Player(Base):
     # preguntar por el nunca. Un jugador normal se cierra en cuanto lo
     # revenden (la comision es solo de la SIGUIENTE venta) o lo despiden; un
     # canterano cobra en cada venta futura, asi que solo lo cierra el despido.
-    resale_closed: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default="0"
-    )
+    resale_closed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     resale_closed_reason: Mapped[str | None] = mapped_column(String(32))
     # Cuando se le pregunto por ultima vez vive en
     # `previous_club_bonus_checked_at`, que ya existia.
@@ -378,13 +374,14 @@ class UiEvent(Base):
     No se guarda nunca el contenido de un campo de texto ni nada que el usuario
     escriba: sólo la etiqueta del control que pulsó.
     """
+
     __tablename__ = "ui_events"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     #: Identificador de la visita, generado por el navegador. Se corta por
     #: silencio, no al cerrar: cerrar no siempre avisa.
     session_id: Mapped[str] = mapped_column(String(36), index=True)
-    kind: Mapped[str] = mapped_column(String(16))          # "page" | "click"
+    kind: Mapped[str] = mapped_column(String(16))  # "page" | "click"
     module: Mapped[str] = mapped_column(String(64), index=True)
     #: En un clic, la etiqueta del control. En una página, la pestaña si la hay.
     label: Mapped[str | None] = mapped_column(String(120))
@@ -399,6 +396,7 @@ class SyncChange(Base):
     sola vez, en el momento del sync (cuando el old/new ya están en memoria),
     no reconstruido después: para `matches`/`teamdetails`, que se sobrescriben
     in-place, es la única forma de conservar el "antes"."""
+
     __tablename__ = "sync_changes"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"), index=True)
@@ -423,6 +421,7 @@ class PlayerMatchRating(Base):
     playerdetails vuelve a traer el mismo último partido en el siguiente
     sync (nada nuevo jugado todavía), no se inserta una fila repetida.
     """
+
     __tablename__ = "player_match_ratings"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
@@ -432,9 +431,7 @@ class PlayerMatchRating(Base):
     rating: Mapped[float] = mapped_column(Float)
     captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
-    __table_args__ = (
-        Index("ix_pmr_player_match", "player_id", "ht_match_id", unique=True),
-    )
+    __table_args__ = (Index("ix_pmr_player_match", "player_id", "ht_match_id", unique=True),)
 
 
 class PlayerListingAttempt(Base):
@@ -448,6 +445,7 @@ class PlayerListingAttempt(Base):
     (no se repite mientras el jugador siga listado desde el sync anterior).
     Subestima intentos anteriores a esta fecha, igual que `listing_count`.
     """
+
     __tablename__ = "player_listing_attempts"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
@@ -481,9 +479,7 @@ class PlayerListingAttempt(Base):
     times_seen: Mapped[int | None] = mapped_column(Integer)
     #: El usuario ya decidio sobre este intento: lo respondio o lo ignoro. Sin
     #: esto el aviso volveria a salir para siempre.
-    times_seen_asked: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default="0"
-    )
+    times_seen_asked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: El precio que se pedia. Tampoco lo da CHPP: sale del mismo mensaje que
     #: las visitas ("El precio solicitado era de 723 000 US$"), en moneda local
     #: porque lo teclea el usuario tal como lo lee.
@@ -507,9 +503,7 @@ class TeamTransfer(Base):
     # aparece en los dos lados, Hattrick lo cuenta en sus dos totales. Por eso
     # lo unico no es la transferencia sola, sino la transferencia por lado —
     # que sigue impidiendo contarla dos veces por el mismo concepto.
-    __table_args__ = (
-        UniqueConstraint("ht_transfer_id", "is_buy", name="uq_transfer_por_lado"),
-    )
+    __table_args__ = (UniqueConstraint("ht_transfer_id", "is_buy", name="uq_transfer_por_lado"),)
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     ht_transfer_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -543,9 +537,7 @@ class PlayerStint(Base):
     """
 
     __tablename__ = "player_stints"
-    __table_args__ = (
-        UniqueConstraint("player_id", "arrived_at", name="uq_stint_player_arrival"),
-    )
+    __table_args__ = (UniqueConstraint("player_id", "arrived_at", name="uq_stint_player_arrival"),)
 
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
@@ -556,16 +548,12 @@ class PlayerStint(Base):
     arrival_price: Mapped[int | None] = mapped_column(Integer)
     arrival_transfer_id: Mapped[int | None] = mapped_column(BigInteger)
     #: Llego de la cantera, no de una compra.
-    from_academy: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default="0"
-    )
+    from_academy: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: Ni comprado ni de cantera: no se sabe de donde salio. Pasa con los
     #: movimientos que Hattrick entrega sin identificador de jugador — sin ese
     #: dato no hay compra que enlazar, y darlos por canteranos meteria como
     #: gratis a gente que costo dinero.
-    unknown_origin: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default="0"
-    )
+    unknown_origin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     left_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     sale_price: Mapped[int | None] = mapped_column(Integer)
@@ -601,6 +589,7 @@ class PreviousClubBonus(Base):
     (único: una reventa nunca se cuenta dos veces aunque el backfill se
     repita). `amount` viene en la moneda base del juego, igual que
     purchase_price/sale_price — se convierte a la moneda local al leer."""
+
     __tablename__ = "previous_club_bonuses"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
@@ -618,6 +607,7 @@ class PreviousClubBonus(Base):
 
 class EconomySnapshot(Base):
     """Append-only. 1 fila por cambio real (diffing por content_hash)."""
+
     __tablename__ = "economy_snapshots"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
@@ -677,6 +667,7 @@ class EconomySnapshot(Base):
 
 class TrainingSnapshot(Base):
     """Configuración de entrenamiento observada. Append-only con diffing."""
+
     __tablename__ = "training_snapshots"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
@@ -777,8 +768,10 @@ class PlayerSnapshot(Base):
 
 # ── Entities from DATABASE.md that were missing ─────────────────────────────
 
+
 class Standing(Base):
     """Historical league tables. DATABASE.md: `standings`."""
+
     __tablename__ = "standings"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
@@ -802,6 +795,7 @@ class Standing(Base):
 
 class StadiumHistory(Base):
     """Attendance and gate income per match. DATABASE.md: `stadium_history`."""
+
     __tablename__ = "stadium_history"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
@@ -830,6 +824,7 @@ class StadiumHistory(Base):
 
 class Match(Base):
     """Immutable match record. DATABASE.md: `matches`."""
+
     __tablename__ = "matches"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
@@ -868,9 +863,7 @@ class Match(Base):
     submitted_tactic_type: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_attitude: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_coach_modifier: Mapped[int | None] = mapped_column(SmallInteger)
-    submitted_orders_captured_at: Mapped[datetime | None] = mapped_column(
-        UtcDateTime()
-    )
+    submitted_orders_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # Predicción oficial de Hattrick para esas órdenes
     # (`matchorders.xml?actionType=predictratings`). Son ratings de inicio de
     # partido, no el promedio observado que después entrega matchdetails.
@@ -882,13 +875,12 @@ class Match(Base):
     submitted_rating_right_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_rating_central_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_rating_left_att: Mapped[int | None] = mapped_column(SmallInteger)
-    submitted_ratings_captured_at: Mapped[datetime | None] = mapped_column(
-        UtcDateTime()
-    )
+    submitted_ratings_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class MatchRating(Base):
     """Sector ratings for one team in one match."""
+
     __tablename__ = "match_ratings"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_match_id: Mapped[int] = mapped_column(BigInteger, index=True)
@@ -939,6 +931,7 @@ class FormerYouthPlayer(Base):
     Only current public data is stored, never a history of another club's
     player: CHPP rules allow displaying current statistics but not tracking.
     """
+
     __tablename__ = "former_youth_players"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
@@ -959,6 +952,7 @@ class YouthPlayer(Base):
     actuales de terceros pero no llevar su histórico, y un juvenil ajeno ni
     siquiera es visible.
     """
+
     __tablename__ = "youth_players"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_youth_player_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
@@ -976,6 +970,7 @@ class YouthSnapshot(Base):
     ojeador no lo haya revelado, y esa diferencia importa: un techo desconocido
     no es un techo bajo, y el motor de academia los trata distinto.
     """
+
     __tablename__ = "youth_snapshots"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
@@ -1027,6 +1022,7 @@ class YouthScoutReport(Base):
     (habilidad, nivel, potencial) ya vive en las fotos, y lo único que existe
     aquí es cómo lo contó el ojeador.
     """
+
     __tablename__ = "youth_scout_reports"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     youth_player_id: Mapped[int] = mapped_column(
@@ -1045,6 +1041,7 @@ class StaffSnapshot(Base):
     pieza que cierra la fórmula de entrenamiento: el nivel de ayudantes leído,
     no supuesto. El nivel del entrenador y su tipo vienen de stafflist.
     """
+
     __tablename__ = "staff_snapshots"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     sync_id: Mapped[int] = mapped_column(ForeignKey("syncs.id"))
@@ -1083,6 +1080,7 @@ class WorldContext(Base):
     fija respecto a Suecia (la liga "reloj maestro"). Se sobrescribe: es
     estado actual, no histórico.
     """
+
     __tablename__ = "world_context"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_league_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
@@ -1126,10 +1124,14 @@ class WorldCup(Base):
     (en Colombia, nivel 2 tiene 3 copas: Esmeralda/Rubí/Zafiro, índices
     1/2/3) — sin el índice, las tres colapsaban al mismo nombre. Se
     sobrescribe cada sync: estado actual, no histórico."""
+
     __tablename__ = "world_cups"
     __table_args__ = (
         UniqueConstraint(
-            "ht_league_id", "cup_league_level", "cup_level", "cup_level_index",
+            "ht_league_id",
+            "cup_league_level",
+            "cup_level",
+            "cup_level_index",
             name="uq_world_cup_key",
         ),
     )
@@ -1155,6 +1157,7 @@ class SkillUp(Base):
     Único por (jugador, habilidad, nivel nuevo): un mismo pop no se cuenta dos
     veces aunque se sincronice el fichero varias veces.
     """
+
     __tablename__ = "skill_ups"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
@@ -1185,6 +1188,7 @@ class DismissedInsight(Base):
     otra cifra, otra severidad — la huella deja de coincidir y vuelve sola a
     la lista activa.
     """
+
     __tablename__ = "dismissed_insights"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
@@ -1197,9 +1201,7 @@ class DismissedInsight(Base):
     module: Mapped[str] = mapped_column(String(64), default="")
     dismissed_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
-    __table_args__ = (
-        UniqueConstraint("team_id", "key", name="uq_dismissed_insight"),
-    )
+    __table_args__ = (UniqueConstraint("team_id", "key", name="uq_dismissed_insight"),)
 
 
 class MatchWeather(Base):
@@ -1215,6 +1217,7 @@ class MatchWeather(Base):
     Una fila por partido: se reescribe en cada sync mientras el partido siga
     por jugarse, porque el pronóstico cambia de un día para otro.
     """
+
     __tablename__ = "match_weather"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)

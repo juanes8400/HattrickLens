@@ -21,6 +21,7 @@ Torneos/Preparación) se excluyen SIEMPRE, sin botón que los reactive — ver
 Amistosos (`FRIENDLY_MATCH_TYPES`), que sí son partidos reales, solo que no
 cuentan para el historial competitivo por defecto.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -215,8 +216,7 @@ class MatchesQueryService:
         query = (
             select(m.Match)
             .where(
-                (m.Match.home_team_ht_id == ht_team_id)
-                | (m.Match.away_team_ht_id == ht_team_id)
+                (m.Match.home_team_ht_id == ht_team_id) | (m.Match.away_team_ht_id == ht_team_id)
             )
             .where(m.Match.home_goals >= 0)
             .where(m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
@@ -263,7 +263,8 @@ class MatchesQueryService:
         available_seasons = sorted(seasons_seen, reverse=True)
 
         played = [
-            p for p in all_played
+            p
+            for p in all_played
             if (include_friendlies or not is_friendly_match_type(p.match_type))
             and (season is None or match_season.get(p.ht_match_id) == season)
         ]
@@ -278,18 +279,32 @@ class MatchesQueryService:
         if not played:
             return MatchesResponse(
                 team_name=team.name,
-                matches_played=0, record="0-0-0", goals_for=0, goals_against=0,
-                matches=[], rating_series=[],
+                matches_played=0,
+                record="0-0-0",
+                goals_for=0,
+                goals_against=0,
+                matches=[],
+                rating_series=[],
                 conversion=ConversionSummary(
-                    own_chances=0, own_goals=0, own_conversion=0.0,
-                    opponent_chances=0, opponent_goals=0, opponent_conversion=0.0,
-                    is_reliable=False, zones=[],
+                    own_chances=0,
+                    own_goals=0,
+                    own_conversion=0.0,
+                    opponent_chances=0,
+                    opponent_goals=0,
+                    opponent_conversion=0.0,
+                    is_reliable=False,
+                    zones=[],
                 ),
-                avg_hatstats=None, best_match=None, worst_match=None,
-                available_seasons=available_seasons, current_season=current_season,
-                selected_season=season, season_label=season_label,
+                avg_hatstats=None,
+                best_match=None,
+                worst_match=None,
+                available_seasons=available_seasons,
+                current_season=current_season,
+                selected_season=season,
+                season_label=season_label,
                 include_friendlies=include_friendlies,
-                home_away=[], results_pie={"won": 0, "drawn": 0, "lost": 0},
+                home_away=[],
+                results_pie={"won": 0, "drawn": 0, "lost": 0},
                 best_ratings=[],
                 notes=["No hay partidos con estos filtros."],
             )
@@ -398,8 +413,12 @@ class MatchesQueryService:
                     current_best = best.get(metric)
                     if current_best is None or value > current_best.value:
                         best[metric] = BestRating(
-                            metric=metric, label=label, value=value, date=date,
-                            opponent=opponent, ht_match_id=match.ht_match_id,
+                            metric=metric,
+                            label=label,
+                            value=value,
+                            date=date,
+                            opponent=opponent,
+                            ht_match_id=match.ht_match_id,
                         )
             if opp_r:
                 opp_tally.left += opp_r.chances_left
@@ -410,16 +429,20 @@ class MatchesQueryService:
                 opp_tally.goals += opp_goals
 
         conversion = ConversionSummary(
-            own_chances=own_tally.total, own_goals=own_tally.goals,
+            own_chances=own_tally.total,
+            own_goals=own_tally.goals,
             own_conversion=round(own_tally.conversion, 4),
-            opponent_chances=opp_tally.total, opponent_goals=opp_tally.goals,
+            opponent_chances=opp_tally.total,
+            opponent_goals=opp_tally.goals,
             opponent_conversion=round(opp_tally.conversion, 4),
             is_reliable=own_tally.total >= MIN_CHANCES_FOR_A_RATE
             and opp_tally.total >= MIN_CHANCES_FOR_A_RATE,
             zones=[
                 ZoneChances(
-                    zone=z, label=CHANCE_ZONE_LABELS[z],
-                    own=getattr(own_tally, z), opponent=getattr(opp_tally, z),
+                    zone=z,
+                    label=CHANCE_ZONE_LABELS[z],
+                    own=getattr(own_tally, z),
+                    opponent=getattr(opp_tally, z),
                 )
                 for z in CHANCE_ZONES
             ],
@@ -433,12 +456,24 @@ class MatchesQueryService:
 
         home_away = [
             HomeAwayRow(
-                scope="home", label="Local", played=home_played, won=home_won,
-                drawn=home_drawn, lost=home_lost, goals_for=home_gf, goals_against=home_ga,
+                scope="home",
+                label="Local",
+                played=home_played,
+                won=home_won,
+                drawn=home_drawn,
+                lost=home_lost,
+                goals_for=home_gf,
+                goals_against=home_ga,
             ),
             HomeAwayRow(
-                scope="away", label="Visitante", played=away_played, won=away_won,
-                drawn=away_drawn, lost=away_lost, goals_for=away_gf, goals_against=away_ga,
+                scope="away",
+                label="Visitante",
+                played=away_played,
+                won=away_won,
+                drawn=away_drawn,
+                lost=away_lost,
+                goals_for=away_gf,
+                goals_against=away_ga,
             ),
         ]
 
@@ -461,7 +496,9 @@ class MatchesQueryService:
             include_friendlies=include_friendlies,
             home_away=home_away,
             results_pie={"won": won, "drawn": drawn, "lost": lost},
-            best_ratings=sorted(best.values(), key=lambda b: [m[0] for m in _BEST_METRICS].index(b.metric)),
+            best_ratings=sorted(
+                best.values(), key=lambda b: [m[0] for m in _BEST_METRICS].index(b.metric)
+            ),
             notes=notes,
         )
 
@@ -469,9 +506,7 @@ class MatchesQueryService:
         team = await self._team(team_id)
         if team is None:
             return None
-        match = await self._s.scalar(
-            select(m.Match).where(m.Match.ht_match_id == ht_match_id)
-        )
+        match = await self._s.scalar(select(m.Match).where(m.Match.ht_match_id == ht_match_id))
         if match is None:
             return None
 
@@ -503,8 +538,12 @@ class MatchesQueryService:
             score=f"{own_goals}-{opp_goals}",
             sectors=[
                 SectorRow(
-                    sector=s.sector, label=s.label, own=s.own,
-                    opponent=s.opponent, delta=s.delta, dominance=round(s.dominance, 3),
+                    sector=s.sector,
+                    label=s.label,
+                    own=s.own,
+                    opponent=s.opponent,
+                    delta=s.delta,
+                    dominance=round(s.dominance, 3),
                 )
                 for s in result.sectors
             ],
@@ -525,8 +564,12 @@ def _side_tally(r: m.MatchRating | None, goals: int) -> ChanceTally:
     if r is None:
         return ChanceTally(goals=goals)
     return ChanceTally(
-        left=r.chances_left, center=r.chances_center, right=r.chances_right,
-        special=r.chances_special, other=r.chances_other, goals=goals,
+        left=r.chances_left,
+        center=r.chances_center,
+        right=r.chances_right,
+        special=r.chances_special,
+        other=r.chances_other,
+        goals=goals,
     )
 
 
@@ -535,16 +578,24 @@ def _rating_dict(r: m.MatchRating | None) -> dict[str, int]:
         return dict.fromkeys(SECTORS, 0)
     return {
         "midfield": r.midfield,
-        "right_def": r.right_def, "central_def": r.central_def, "left_def": r.left_def,
-        "right_att": r.right_att, "central_att": r.central_att, "left_att": r.left_att,
+        "right_def": r.right_def,
+        "central_def": r.central_def,
+        "left_def": r.left_def,
+        "right_att": r.right_att,
+        "central_att": r.central_att,
+        "left_att": r.left_att,
     }
 
 
 def _tally_dict(t: ChanceTally) -> dict[str, int | float]:
     return {
-        "left": t.left, "center": t.center, "right": t.right,
-        "special": t.special, "other": t.other,
-        "total": t.total, "goals": t.goals,
+        "left": t.left,
+        "center": t.center,
+        "right": t.right,
+        "special": t.special,
+        "other": t.other,
+        "total": t.total,
+        "goals": t.goals,
         "conversion": round(t.conversion, 4),
     }
 

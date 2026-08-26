@@ -1,4 +1,5 @@
 """DTOs de plantilla y ratings de posición. HL-021, HL-022."""
+
 from app.application.dto.dashboard import Base
 
 

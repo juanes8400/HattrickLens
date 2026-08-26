@@ -1,4 +1,5 @@
 """Partidos. HL-071, HL-072, HL-073, HL-075, HL-076."""
+
 from dataclasses import asdict
 from typing import Any, cast
 
@@ -13,14 +14,14 @@ from app.infrastructure.db.session import get_session
 router = APIRouter()
 
 
-@router.get("/teams/{team_id}/matches", summary="Partidos, ratings y conversión",
+@router.get(
+    "/teams/{team_id}/matches",
+    summary="Partidos, ratings y conversión",
     dependencies=[Depends(require_team_owner)],
 )
 async def matches(
     team_id: int,
-    include_friendlies: bool = Query(
-        False, description="Incluir Amistosos en el historial"
-    ),
+    include_friendlies: bool = Query(False, description="Incluir Amistosos en el historial"),
     season: int | None = Query(
         None, description="Filtrar por temporada. Ausente = todas las temporadas"
     ),
@@ -45,7 +46,9 @@ async def matches(
     return cast(dict[str, Any], _camel(asdict(data)))
 
 
-@router.get("/teams/{team_id}/matches/{ht_match_id}", summary="Análisis de un partido (HL-071)",
+@router.get(
+    "/teams/{team_id}/matches/{ht_match_id}",
+    summary="Análisis de un partido (HL-071)",
     dependencies=[Depends(require_team_owner)],
 )
 async def match_detail(

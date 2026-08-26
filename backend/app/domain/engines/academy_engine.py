@@ -13,6 +13,7 @@ Lo que HC no hace y aquí sí:
 * **Rentabilidad de la academia**: HC muestra la inversión acumulada y los
   ingresos por categoría en dos tablas que nunca cruza.
 """
+
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -26,25 +27,25 @@ YOUTH_SKILLS = ("keeper", "defending", "playmaking", "winger", "passing", "scori
 class Category(StrEnum):
     """Clasificación que en HC es manual y aquí se calcula."""
 
-    UNRATED = "sin ojear"      # el ojeador no ha revelado ni un techo
-    PLUMBER = "fontanero"      # no vale para nada
-    SELLABLE = "vendible"      # se vende sin pena
-    ACCEPTABLE = "aceptable"   # puede servir de suplente
-    PROSPECT = "promesa"       # merece plaza de entrenamiento
-    STAR = "crack"             # proyecto de titular
+    UNRATED = "sin ojear"  # el ojeador no ha revelado ni un techo
+    PLUMBER = "fontanero"  # no vale para nada
+    SELLABLE = "vendible"  # se vende sin pena
+    ACCEPTABLE = "aceptable"  # puede servir de suplente
+    PROSPECT = "promesa"  # merece plaza de entrenamiento
+    STAR = "crack"  # proyecto de titular
 
 
 @dataclass
 class YouthSkill:
     current: int
-    maximum: int | None      # None = todavía sin revelar
+    maximum: int | None  # None = todavía sin revelar
     is_max_reached: bool = False
 
     @property
     def headroom(self) -> int:
         """Cuánto le queda por crecer. Si no se conoce el techo, se estima."""
         if self.maximum is None:
-            return max(0, 8 - self.current)     # supuesto conservador
+            return max(0, 8 - self.current)  # supuesto conservador
         return max(0, self.maximum - self.current)
 
 

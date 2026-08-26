@@ -21,6 +21,7 @@ QUÉ NO SE INVENTA
 - Si el jugador sigue en la plantilla (no vendido), no se usa ninguna
   valoración de mercado hipotética: la venta cuenta 0 hasta que sea real.
 """
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -45,11 +46,29 @@ ALWAYS_CHARGED_PCT = 0.05
 # hoja de cálculo real del usuario (columna "Porc_2"), que hace exactamente
 # esta interpolación. El valor se congela en 2% desde la semana 16 (día 112).
 AGENT_PCT_BREAKPOINTS: list[tuple[int, float]] = [
-    (0, 0.12), (1, 0.1045), (2, 0.0995), (3, 0.0959), (4, 0.093),
-    (5, 0.0905), (6, 0.0883), (7, 0.0862), (14, 0.0755), (21, 0.0676),
-    (28, 0.0612), (35, 0.0557), (42, 0.0509), (49, 0.0465), (56, 0.0424),
-    (63, 0.0387), (70, 0.0352), (77, 0.0319), (84, 0.0288), (91, 0.0258),
-    (98, 0.023), (105, 0.0203), (112, 0.02),
+    (0, 0.12),
+    (1, 0.1045),
+    (2, 0.0995),
+    (3, 0.0959),
+    (4, 0.093),
+    (5, 0.0905),
+    (6, 0.0883),
+    (7, 0.0862),
+    (14, 0.0755),
+    (21, 0.0676),
+    (28, 0.0612),
+    (35, 0.0557),
+    (42, 0.0509),
+    (49, 0.0465),
+    (56, 0.0424),
+    (63, 0.0387),
+    (70, 0.0352),
+    (77, 0.0319),
+    (84, 0.0288),
+    (91, 0.0258),
+    (98, 0.023),
+    (105, 0.0203),
+    (112, 0.02),
 ]
 
 
@@ -90,12 +109,12 @@ class PlayerTransferRecord:
     `salary_history` es lo que de verdad se sincronizó — con huecos, no
     una serie perfecta semana a semana; el motor extrapola."""
 
-    purchase_price: int | None       # None = desconocido (ni real ni manual)
+    purchase_price: int | None  # None = desconocido (ni real ni manual)
     purchased_at: datetime | None
     is_academy_graduate: bool
     salary_history: list[SalarySnapshot]
     listing_count: int
-    sale_price: int | None           # None = todavía no se ha vendido
+    sale_price: int | None  # None = todavía no se ha vendido
     sold_at: datetime | None
     # Ingreso por reventas futuras de origen desconocido, ya repartido y
     # asignado a este jugador (ver `resale_bonus.py`) — 0 si no aplica.
@@ -118,9 +137,9 @@ class PlayerBalance:
     salary_total: int
     listing_cost: int
     agent_pct: float
-    net_sale_proceeds: int   # 0 si no se ha vendido — nunca una estimación
+    net_sale_proceeds: int  # 0 si no se ha vendido — nunca una estimación
     resale_bonus_share: float
-    saldo: float | None      # None si no se conoce el precio de compra
+    saldo: float | None  # None si no se conoce el precio de compra
     is_sold: bool
     # False cuando de ese jugador no se guardó NUNCA un salario: pasó por el
     # club antes de que la app lo viera y solo se conoce por el historial de
@@ -162,32 +181,31 @@ def _total_salary(
     weeks = weeks_owned(purchased_at, end)
     if not history:
         return fallback * (weeks + 1)
-    return sum(
-        salary_at(history, purchased_at + timedelta(weeks=w))
-        for w in range(weeks + 1)
-    )
+    return sum(salary_at(history, purchased_at + timedelta(weeks=w)) for w in range(weeks + 1))
 
 
 def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
     if record.purchase_price is None and not record.is_academy_graduate:
         return PlayerBalance(
-            purchase_price=None, salary_total=0, listing_cost=0, agent_pct=0.0,
-            net_sale_proceeds=0, resale_bonus_share=record.resale_bonus_share,
-            saldo=None, is_sold=record.sale_price is not None,
+            purchase_price=None,
+            salary_total=0,
+            listing_cost=0,
+            agent_pct=0.0,
+            net_sale_proceeds=0,
+            resale_bonus_share=record.resale_bonus_share,
+            saldo=None,
+            is_sold=record.sale_price is not None,
         )
 
     # Un canterano no se compra, pero ascenderlo tampoco es gratis: hasta
     # 2026-08-19 entraba con coste 0 y su saldo salía inflado por ese importe.
     purchase_price = (
-        record.promotion_cost if record.is_academy_graduate
-        else (record.purchase_price or 0)
+        record.promotion_cost if record.is_academy_graduate else (record.purchase_price or 0)
     )
     end = record.sold_at or record.as_of
     # Sin fecha de compra conocida no hay semanas que contar — 0, no negativo.
     purchased_at = record.purchased_at or end
-    salary_total = _total_salary(
-        purchased_at, end, record.salary_history, record.fallback_salary
-    )
+    salary_total = _total_salary(purchased_at, end, record.salary_history, record.fallback_salary)
     listing_cost = record.listing_count * LISTING_COST
 
     is_sold = record.sale_price is not None
@@ -197,7 +215,8 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         # otra venta: tabla de agente + 5% siempre (ver ALWAYS_CHARGED_PCT
         # arriba — replica la hoja de cálculo real del usuario).
         agent_pct = (
-            ACADEMY_FIRST_SALE_PCT if record.is_academy_graduate
+            ACADEMY_FIRST_SALE_PCT
+            if record.is_academy_graduate
             else agent_commission_pct(days_owned) + ALWAYS_CHARGED_PCT
         )
         net_sale_proceeds = round((record.sale_price or 0) * (1 - agent_pct))
@@ -212,11 +231,14 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
     )
 
     return PlayerBalance(
-        purchase_price=purchase_price, salary_total=salary_total,
-        listing_cost=listing_cost, agent_pct=agent_pct,
+        purchase_price=purchase_price,
+        salary_total=salary_total,
+        listing_cost=listing_cost,
+        agent_pct=agent_pct,
         net_sale_proceeds=net_sale_proceeds,
         resale_bonus_share=record.resale_bonus_share,
-        saldo=round(saldo), is_sold=is_sold,
+        saldo=round(saldo),
+        is_sold=is_sold,
         # Sin snapshots y sin último salario conocido no hay forma de saber
         # cuánto costó tenerlo.
         salary_known=bool(record.salary_history) or record.fallback_salary > 0,

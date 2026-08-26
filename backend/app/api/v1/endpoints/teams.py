@@ -104,9 +104,7 @@ async def trigger_sync(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
@@ -137,13 +135,13 @@ def _result_payload(result: Any) -> dict[str, Any]:
         "snapshotsWritten": result.snapshots_written,
         "unchanged": result.unchanged,
         "errors": result.errors,
-        "changes": [
-            {"category": c["category"], "summary": c["summary"]} for c in result.changes
-        ],
+        "changes": [{"category": c["category"], "summary": c["summary"]} for c in result.changes],
     }
 
 
-@router.post("/{team_id}/sync/stream", status_code=200,
+@router.post(
+    "/{team_id}/sync/stream",
+    status_code=200,
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("sync", 6)),
@@ -169,9 +167,7 @@ async def trigger_sync_stream(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
@@ -234,7 +230,9 @@ async def trigger_sync_stream(
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
-@router.post("/{team_id}/matches/details/sync", status_code=200,
+@router.post(
+    "/{team_id}/matches/details/sync",
+    status_code=200,
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("sync", 6)),
@@ -255,27 +253,28 @@ async def trigger_match_details_sync(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     ratings_missing = ~m.Match.ht_match_id.in_(select(m.MatchRating.ht_match_id))
     stadium_missing_on_home = (
-        (m.Match.home_team_ht_id == team.ht_team_id)
-        & ~m.Match.ht_match_id.in_(select(m.StadiumHistory.ht_match_id))
-    )
+        m.Match.home_team_ht_id == team.ht_team_id
+    ) & ~m.Match.ht_match_id.in_(select(m.StadiumHistory.ht_match_id))
     pending = (
-        await session.execute(
-            select(m.Match.ht_match_id).where(
-                (m.Match.home_team_ht_id == team.ht_team_id)
-                | (m.Match.away_team_ht_id == team.ht_team_id),
-                m.Match.status.ilike("finished"),
-                or_(ratings_missing, stadium_missing_on_home),
+        (
+            await session.execute(
+                select(m.Match.ht_match_id).where(
+                    (m.Match.home_team_ht_id == team.ht_team_id)
+                    | (m.Match.away_team_ht_id == team.ht_team_id),
+                    m.Match.status.ilike("finished"),
+                    or_(ratings_missing, stadium_missing_on_home),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     client = CHPPClient(
         decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
@@ -324,7 +323,9 @@ async def trigger_match_details_sync(
     }
 
 
-@router.post("/{team_id}/players/details/sync", status_code=200,
+@router.post(
+    "/{team_id}/players/details/sync",
+    status_code=200,
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("sync", 6)),
@@ -350,19 +351,21 @@ async def trigger_player_details_sync(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     ht_player_ids = (
-        await session.execute(
-            select(m.Player.ht_player_id).where(
-                m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+        (
+            await session.execute(
+                select(m.Player.ht_player_id).where(
+                    m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     client = CHPPClient(
         decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
@@ -395,7 +398,9 @@ async def trigger_player_details_sync(
     }
 
 
-@router.post("/{team_id}/players/purchase-price/sync", status_code=200,
+@router.post(
+    "/{team_id}/players/purchase-price/sync",
+    status_code=200,
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("sync", 6)),
@@ -418,26 +423,28 @@ async def trigger_purchase_price_sync(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     ht_player_ids = (
-        await session.execute(
-            select(m.Player.ht_player_id).where(
-                m.Player.team_id == team_id,
-                m.Player.purchase_price.is_(None),
-                m.Player.purchase_price_manual.is_(None),
-                # 2026-08-05, pedido explícitamente: "backfill de un
-                # jugador máximo una vez" — transfersplayer.xml ya trae
-                # TODA la historia; si ya se intentó y no aparecimos como
-                # compradores, no va a cambiar en un intento futuro.
-                ~m.Player.tsi_at_purchase_attempted,
+        (
+            await session.execute(
+                select(m.Player.ht_player_id).where(
+                    m.Player.team_id == team_id,
+                    m.Player.purchase_price.is_(None),
+                    m.Player.purchase_price_manual.is_(None),
+                    # 2026-08-05, pedido explícitamente: "backfill de un
+                    # jugador máximo una vez" — transfersplayer.xml ya trae
+                    # TODA la historia; si ya se intentó y no aparecimos como
+                    # compradores, no va a cambiar en un intento futuro.
+                    ~m.Player.tsi_at_purchase_attempted,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     client = CHPPClient(
         decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
@@ -470,7 +477,9 @@ async def trigger_purchase_price_sync(
     }
 
 
-@router.post("/{team_id}/players/previous-club-bonus/sync", status_code=200,
+@router.post(
+    "/{team_id}/players/previous-club-bonus/sync",
+    status_code=200,
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("sync", 6)),
@@ -498,19 +507,22 @@ async def trigger_previous_club_bonus_backfill(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     ht_player_ids = (
-        await session.execute(
-            select(m.Player.ht_player_id).where(
-                m.Player.team_id == team_id, m.Player.sold_at.is_not(None),
+        (
+            await session.execute(
+                select(m.Player.ht_player_id).where(
+                    m.Player.team_id == team_id,
+                    m.Player.sold_at.is_not(None),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     client = CHPPClient(
         decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
@@ -543,7 +555,9 @@ async def trigger_previous_club_bonus_backfill(
     }
 
 
-@router.post("/{team_id}/transfers/sync", status_code=200,
+@router.post(
+    "/{team_id}/transfers/sync",
+    status_code=200,
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("sync", 6)),
@@ -568,9 +582,7 @@ async def trigger_transfers_history_sync(
     if team.owner_user_id != user.id:
         raise HTTPException(403, "este equipo no está conectado a tu sesión")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
@@ -608,7 +620,9 @@ class SetManualPurchasePriceBody(BaseModel):
     purchased_at: str | None = None
 
 
-@router.put("/{team_id}/players/{ht_player_id}/purchase-price", status_code=200,
+@router.put(
+    "/{team_id}/players/{ht_player_id}/purchase-price",
+    status_code=200,
     dependencies=[Depends(require_team_owner)],
 )
 async def set_manual_purchase_price(
@@ -636,15 +650,14 @@ async def set_manual_purchase_price(
         raise HTTPException(404, f"player {ht_player_id} not found on team {team_id}")
     if player.purchase_price is not None:
         raise HTTPException(
-            409, "ya hay un precio de compra real (transfersteam/transfersplayer), "
-            "no se puede sobrescribir con uno manual"
+            409,
+            "ya hay un precio de compra real (transfersteam/transfersplayer), "
+            "no se puede sobrescribir con uno manual",
         )
 
     player.purchase_price_manual = body.price
     if body.purchased_at:
-        player.purchased_at_manual = datetime.fromisoformat(body.purchased_at).replace(
-            tzinfo=UTC
-        )
+        player.purchased_at_manual = datetime.fromisoformat(body.purchased_at).replace(tzinfo=UTC)
     await session.commit()
     return {"htPlayerId": ht_player_id, "purchasePriceManual": body.price}
 
@@ -683,9 +696,7 @@ async def confirm_career_stage(
         )
 
     player = await session.scalar(
-        select(m.Player).where(
-            m.Player.ht_player_id == ht_player_id, m.Player.team_id == team_id
-        )
+        select(m.Player).where(m.Player.ht_player_id == ht_player_id, m.Player.team_id == team_id)
     )
     if player is None:
         raise HTTPException(404, f"player {ht_player_id} not found in team {team_id}")
@@ -699,12 +710,15 @@ async def confirm_career_stage(
         "confirmedStage": player.confirmed_career_stage,
         "confirmedAt": (
             player.confirmed_career_stage_at.isoformat()
-            if player.confirmed_career_stage_at is not None else None
+            if player.confirmed_career_stage_at is not None
+            else None
         ),
     }
 
 
-@router.get("/{team_id}/sync/changes", summary="Qué cambió en el último sync (HL-140)",
+@router.get(
+    "/{team_id}/sync/changes",
+    summary="Qué cambió en el último sync (HL-140)",
     dependencies=[Depends(require_team_owner)],
 )
 async def last_sync_changes(
@@ -724,7 +738,9 @@ async def last_sync_changes(
     return await build_sync_comparison(session, team_id, sync_id)
 
 
-@router.get("/{team_id}/changes/history", summary="Histórico real de cambios de jugadores",
+@router.get(
+    "/{team_id}/changes/history",
+    summary="Histórico real de cambios de jugadores",
     dependencies=[Depends(require_team_owner)],
 )
 async def changes_history(
@@ -748,6 +764,7 @@ async def changes_history(
             detail=f"weeks debe ser uno de {', '.join(map(str, ALLOWED_WINDOW_WEEKS))}",
         )
     return await build_changes_history(session, team_id, player_id, weeks=weeks)
+
 
 @router.get(
     "/{team_id}/dashboard",
@@ -878,7 +895,9 @@ async def backfill_run(
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
     batch: int = Query(
-        BACKFILL_BATCH_SIZE, ge=1, le=MAX_BACKFILL_BATCH,
+        BACKFILL_BATCH_SIZE,
+        ge=1,
+        le=MAX_BACKFILL_BATCH,
         description="Cuántos jugadores atender en este lote",
     ),
     since: datetime | None = Query(
@@ -897,9 +916,7 @@ async def backfill_run(
     if team is None:
         raise HTTPException(404, f"team {team_id} not found")
 
-    token_row = await session.scalar(
-        select(m.CHPPToken).where(m.CHPPToken.user_id == user.id)
-    )
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
@@ -910,7 +927,9 @@ async def backfill_run(
         handler = SyncTeamHandler(SqlAlchemyUnitOfWork(SessionLocal), client)
         result = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(
-                user_id=user.id, team_id=team_id, limite=batch,
+                user_id=user.id,
+                team_id=team_id,
+                limite=batch,
                 revisar_desde=since.replace(tzinfo=None) if since else None,
             )
         )

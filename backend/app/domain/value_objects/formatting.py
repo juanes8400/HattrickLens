@@ -7,7 +7,7 @@ generados a mano se hubieran colado con el formato de EE. UU."""
 
 
 def thousands(value: float, decimals: int = 0) -> str:
-    """"615000" -> "615.000"; con decimales, "1234567.89" -> "1.234.567,89"
+    """ "615000" -> "615.000"; con decimales, "1234567.89" -> "1.234.567,89"
     (coma decimal, no punto) — el mismo intercambio que ya usa el resto de
     la app (`money`/`number` en el frontend)."""
     formatted = f"{value:,.{decimals}f}"

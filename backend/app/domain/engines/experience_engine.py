@@ -25,6 +25,7 @@ ones already verified against Hattrick Control, only expressed in the game's
 own units (points_per_level=100) instead of the old internal profile
 (points_per_level=28). See experience.yaml for the full cross-check note.
 """
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -67,7 +68,8 @@ class MatchCount:
 
     def as_dict(self) -> dict[str, int]:
         return {
-            "league": self.league, "cup": self.cup,
+            "league": self.league,
+            "cup": self.cup,
             "cup_secondary": self.cup_secondary,
             "qualification": self.qualification,
             "friendly": self.friendly,
@@ -99,7 +101,7 @@ class Calibration:
     points_per_level: float
     std_dev: float | None
     observations: int
-    source: str          # "configured" | "observed" | "blended"
+    source: str  # "configured" | "observed" | "blended"
     configured_value: float
     observed_mean: float | None = None
     by_level: dict[int, float] = field(default_factory=dict)
@@ -113,7 +115,7 @@ class Calibration:
         """Roughly 95% interval for the mean, if there is enough evidence."""
         if self.std_dev is None or self.observations < 2:
             return None
-        margin = 1.96 * self.std_dev / (self.observations ** 0.5)
+        margin = 1.96 * self.std_dev / (self.observations**0.5)
         return round(self.points_per_level - margin, 2), round(self.points_per_level + margin, 2)
 
 
@@ -247,9 +249,7 @@ def weeks_to_next_level(
 ) -> float:
     if league_matches_per_week <= 0:
         return float("inf")
-    return round(
-        matches_to_next_level(matches, "league", calibration) / league_matches_per_week, 1
-    )
+    return round(matches_to_next_level(matches, "league", calibration) / league_matches_per_week, 1)
 
 
 def detect_level_ups(
@@ -306,8 +306,14 @@ def model_info(calibration: Calibration | None = None) -> dict[str, Any]:
         "matchPoints": cfg["match_points"],
         "verified": ["league", "friendly_international"],
         "fromSpec": [
-            "cup", "cup_secondary", "qualification", "friendly",
-            "masters", "national_team_friendly", "youth_league", "youth_friendly",
+            "cup",
+            "cup_secondary",
+            "qualification",
+            "friendly",
+            "masters",
+            "national_team_friendly",
+            "youth_league",
+            "youth_friendly",
         ],
         "reference": cfg["reference"],
     }

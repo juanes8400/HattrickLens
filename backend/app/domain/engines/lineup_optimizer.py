@@ -11,6 +11,7 @@ implementa sin dependencias externas.
 
 Coste: O(n³) con n = 24 jugadores. Milisegundos.
 """
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -27,9 +28,7 @@ from app.domain.value_objects.formations import (
 # el del once ideal de la liga, para que "5-3-2" signifique lo mismo en las dos
 # pantallas. Aquí se conserva el nombre `FORMATIONS` con el reparto por defecto
 # de cada una, que es lo que usa el ranking de formaciones.
-FORMATIONS: dict[str, list[str]] = {
-    nombre: slots_for(nombre) for nombre in LINE_COUNTS
-}
+FORMATIONS: dict[str, list[str]] = {nombre: slots_for(nombre) for nombre in LINE_COUNTS}
 
 # Órdenes individuales de cada puesto. La clave es la posición "Normal" y la
 # lista, todas las variantes que Hattrick permite dar ahí — la primera es
@@ -109,9 +108,7 @@ def variantes_de_casilla(slots: list[str], indice: int) -> tuple[str, ...]:
 
 
 BASE_OF_VARIANT: dict[str, str] = {
-    variante: base
-    for base, variantes in ORDER_VARIANTS.items()
-    for variante in variantes
+    variante: base for base, variantes in ORDER_VARIANTS.items() for variante in variantes
 }
 
 
@@ -246,7 +243,8 @@ def _best_variant(
     lateral ofensivo, dime cuál de mis jugadores rinde más así".
     """
     variantes = (
-        (pinned,) if pinned
+        (pinned,)
+        if pinned
         else (permitidas if permitidas is not None else ORDER_VARIANTS.get(slot, (slot,)))
     )
     mejor, valor = variantes[0], _player_rating(player, variantes[0], overcrowd)
@@ -292,8 +290,7 @@ def best_lineup(
     # once a gente perfectamente disponible: el caso que lo destapó fue un
     # delantero de 15,74 que desapareció del mejor once por un magullón.
     available = [
-        p for p in players
-        if p.get("ht_player_id") not in exclude and p.get("injury_level", -1) < 1
+        p for p in players if p.get("ht_player_id") not in exclude and p.get("injury_level", -1) < 1
     ]
     if len(available) < len(slots):
         raise ValueError(
@@ -320,9 +317,7 @@ def best_lineup(
         pinned = fijadas.get(j)
         if pinned is None and not optimize_orders:
             pinned = slot
-        return _best_variant(
-            player, slot, overcrowd, pinned, variantes_de_casilla(slots, j)
-        )
+        return _best_variant(player, slot, overcrowd, pinned, variantes_de_casilla(slots, j))
 
     n = len(available)
     # Matriz cuadrada n×n: las columnas sobrantes son "banquillo" con coste 0.
@@ -347,8 +342,14 @@ def best_lineup(
             pos, value = elegido[(i, j)]
             assignments.append(
                 Assignment(
-                    j, pos, _positions()[pos], available[i], round(value, 2), "config",
-                    base_position=slots[j], order_pinned=j in fijadas,
+                    j,
+                    pos,
+                    _positions()[pos],
+                    available[i],
+                    round(value, 2),
+                    "config",
+                    base_position=slots[j],
+                    order_pinned=j in fijadas,
                 )
             )
             used.add(i)
@@ -382,8 +383,9 @@ def best_formation(
             continue
     if not results:
         raise ValueError("no hay jugadores suficientes para ninguna formación")
-    ranking = {f: lu.total_rating for f, lu in
-               sorted(results.items(), key=lambda kv: -kv[1].total_rating)}
+    ranking = {
+        f: lu.total_rating for f, lu in sorted(results.items(), key=lambda kv: -kv[1].total_rating)
+    }
     best = results[next(iter(ranking))]
     return best, ranking
 

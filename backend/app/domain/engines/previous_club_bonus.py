@@ -23,6 +23,7 @@ aquí: `matchlineup.xml` v2.1 marca a un suplente no utilizado con
 "Suplente (portero)"/"Suplente (lateral)", ambos con 0/0) — así que
 `did_play(rating_stars)` es la única regla que hace falta.
 """
+
 from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
 
 # Tabla oficial de Hattrick ("Dinero por club anterior"): SOLO estos
@@ -30,8 +31,16 @@ from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
 # siguiente escalón), no interpolados como la tabla de días del agente: son
 # conteos de partidos, no una magnitud continua.
 PREVIOUS_CLUB_PCT_BREAKPOINTS: list[tuple[int, float]] = [
-    (0, 0.0), (1, 0.0025), (2, 0.005), (3, 0.01), (4, 0.015),
-    (5, 0.02), (7, 0.025), (10, 0.03), (20, 0.035), (40, 0.04),
+    (0, 0.0),
+    (1, 0.0025),
+    (2, 0.005),
+    (3, 0.01),
+    (4, 0.015),
+    (5, 0.02),
+    (7, 0.025),
+    (10, 0.03),
+    (20, 0.035),
+    (40, 0.04),
 ]
 
 

@@ -1,4 +1,5 @@
 """Ports (interfaces) que la infraestructura implementa. El dominio solo conoce esto."""
+
 from datetime import datetime
 from typing import Any, Protocol
 

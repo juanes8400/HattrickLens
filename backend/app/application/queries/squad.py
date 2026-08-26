@@ -1,4 +1,5 @@
 """SquadQueryService — plantilla con ratings de posición. HL-021 y HL-022."""
+
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -60,7 +61,8 @@ class SquadQueryService:
         # Capitán y lanzador de faltas no son posiciones en cancha, pero sí
         # son decisiones comparables de la plantilla y usan el mismo motor.
         if position is not None and position not in {
-            *engine_positions(), *engine_special_roles(),
+            *engine_positions(),
+            *engine_special_roles(),
         }:
             raise KeyError(f"posición desconocida: {position}")
 
@@ -88,8 +90,9 @@ class SquadQueryService:
             int(country_id): str(country_code).upper()
             for country_id, country_code in (
                 await self._s.execute(
-                    select(m.WorldContext.country_id, m.WorldContext.country_code)
-                    .where(m.WorldContext.country_code != "")
+                    select(m.WorldContext.country_id, m.WorldContext.country_code).where(
+                        m.WorldContext.country_code != ""
+                    )
                 )
             ).all()
         }
@@ -112,12 +115,19 @@ class SquadQueryService:
             # fidelidad como un ajuste del Manual. Bug real, corregido de
             # paso: ahora aporta a cualquier posición de campo, no solo al
             # marcaje individual que la necesita explícitamente.
-            player = {"skills": skills, "form": snap.form, "stamina": snap.stamina,
-                      "experience": snap.experience, "leadership": snap.leadership,
-                      "specialty": snap.specialty, "loyalty": snap.loyalty}
+            player = {
+                "skills": skills,
+                "form": snap.form,
+                "stamina": snap.stamina,
+                "experience": snap.experience,
+                "leadership": snap.leadership,
+                "specialty": snap.specialty,
+                "loyalty": snap.loyalty,
+            }
             best = best_position(player)
             valor_htms = htms.de_habilidades(
-                snap.age_years, snap.age_days,
+                snap.age_years,
+                snap.age_days,
                 **{c: skills.get(c) for c in SKILL_COLS},
             )
             here = rate(player, position) if position else None
@@ -128,7 +138,8 @@ class SquadQueryService:
             last_match_is_recent = False
             if snap.last_match_played_at is not None:
                 ref = (
-                    snap.last_match_played_at if snap.last_match_played_at.tzinfo
+                    snap.last_match_played_at
+                    if snap.last_match_played_at.tzinfo
                     else snap.last_match_played_at.replace(tzinfo=UTC)
                 )
                 last_match_is_recent = datetime.now(UTC) - ref <= LAST_MATCH_RECENCY_WINDOW
@@ -174,26 +185,28 @@ class SquadQueryService:
                     confirmed_career_stage=ident.confirmed_career_stage,
                     confirmed_career_stage_at=(
                         ident.confirmed_career_stage_at.isoformat()
-                        if ident.confirmed_career_stage_at is not None else None
+                        if ident.confirmed_career_stage_at is not None
+                        else None
                     ),
                     purchase_price=(
                         int(round(ident.purchase_price / (team.currency_rate or 1.0)))
-                        if ident.purchase_price is not None else None
+                        if ident.purchase_price is not None
+                        else None
                     ),
                     purchased_at=(
                         ident.purchased_at.date().isoformat()
-                        if ident.purchased_at is not None else None
+                        if ident.purchased_at is not None
+                        else None
                     ),
                     last_match_position=(
                         match_role_short_label(
-                            snap.last_match_position_code, snap.last_match_behaviour_code,
+                            snap.last_match_position_code,
+                            snap.last_match_behaviour_code,
                         )
                         if last_match_is_recent and snap.last_match_position_code is not None
                         else None
                     ),
-                    last_match_rating=(
-                        snap.last_match_rating if last_match_is_recent else None
-                    ),
+                    last_match_rating=(snap.last_match_rating if last_match_is_recent else None),
                     last_match_played_minutes=(
                         snap.last_match_played_minutes if last_match_is_recent else None
                     ),
@@ -204,13 +217,17 @@ class SquadQueryService:
                     htms28=valor_htms.potential,
                     deltas=self._deltas(snap, previous, team.currency_rate or 1.0),
                     best_position=PositionRatingDTO(
-                        position=best.position, label=best.label,
-                        rating=best.rating, confidence="config",
+                        position=best.position,
+                        label=best.label,
+                        rating=best.rating,
+                        confidence="config",
                     ),
                     position_rating=(
                         PositionRatingDTO(
-                            position=here.position, label=here.label,
-                            rating=here.rating, confidence="config",
+                            position=here.position,
+                            label=here.label,
+                            rating=here.rating,
+                            confidence="config",
                         )
                         if here
                         else None
@@ -230,10 +247,13 @@ class SquadQueryService:
         totals = SquadTotals(
             average_age=round(
                 sum(player.age_years + player.age_days / 112 for player in players) / count, 1
-            ) if count else 0,
+            )
+            if count
+            else 0,
             average_form=round(sum(player.form for player in players) / count, 1) if count else 0,
             average_experience=round(sum(player.experience for player in players) / count, 1)
-            if count else 0,
+            if count
+            else 0,
             average_tsi=round(total_tsi / count) if count else 0,
             total_tsi=total_tsi,
             average_salary=round(total_salary / count) if count else 0,
@@ -266,12 +286,18 @@ class SquadQueryService:
             return None
         snap = row[0]
         skills = {c: getattr(snap, c) or 0 for c in SKILL_COLS}
-        player = {"skills": skills, "form": snap.form, "stamina": snap.stamina,
-                  "experience": snap.experience, "leadership": snap.leadership,
-                  "loyalty": snap.loyalty}
+        player = {
+            "skills": skills,
+            "form": snap.form,
+            "stamina": snap.stamina,
+            "experience": snap.experience,
+            "leadership": snap.leadership,
+            "loyalty": snap.loyalty,
+        }
         return [
-            PositionRatingDTO(position=r.position, label=r.label,
-                              rating=r.rating, confidence="config")
+            PositionRatingDTO(
+                position=r.position, label=r.label, rating=r.rating, confidence="config"
+            )
             for r in rate_all(player, include_special=True)
         ]
 
@@ -333,15 +359,18 @@ class SquadQueryService:
             .subquery()
         )
         rows = (
-            await self._s.execute(
-                select(m.PlayerSnapshot)
-                .join(
-                    latest,
-                    (m.PlayerSnapshot.player_id == latest.c.pid)
-                    & (m.PlayerSnapshot.captured_at == latest.c.mx),
+            (
+                await self._s.execute(
+                    select(m.PlayerSnapshot).join(
+                        latest,
+                        (m.PlayerSnapshot.player_id == latest.c.pid)
+                        & (m.PlayerSnapshot.captured_at == latest.c.mx),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return {row.player_id: row for row in rows}
 
     async def _history(self, team_id: int) -> list[SquadHistoryEntry]:
@@ -363,7 +392,9 @@ class SquadQueryService:
             .order_by(func.max(m.PlayerSnapshot.captured_at))
         )
         all_entries = [
-            SquadHistoryEntry(sync_id=int(sync_id), captured_at=captured.isoformat(), snapshots=int(count))
+            SquadHistoryEntry(
+                sync_id=int(sync_id), captured_at=captured.isoformat(), snapshots=int(count)
+            )
             for sync_id, captured, count in rows.all()
             if captured is not None
         ]

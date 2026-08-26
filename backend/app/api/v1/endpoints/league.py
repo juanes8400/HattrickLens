@@ -1,4 +1,5 @@
 """Liga y predicciones. HL-080, HL-083, HL-090, HL-091, HL-094."""
+
 import time
 from dataclasses import asdict
 from typing import Any, Literal, cast
@@ -68,7 +69,9 @@ _LINEUP_CACHE_TTL_SECONDS = 3600
 _lineup_cache: dict[tuple[int, int], tuple[float, list[dict[str, Any]]]] = {}
 
 
-@router.get("/teams/{team_id}/league", summary="Clasificación, calendario y simulación",
+@router.get(
+    "/teams/{team_id}/league",
+    summary="Clasificación, calendario y simulación",
     dependencies=[Depends(require_team_owner)],
 )
 async def league(
@@ -97,7 +100,8 @@ async def league_model() -> dict[str, Any]:
 
 
 @router.get(
-    "/teams/{team_id}/league/comparison", summary="Comparativa de TSI contra toda la serie",
+    "/teams/{team_id}/league/comparison",
+    summary="Comparativa de TSI contra toda la serie",
     dependencies=[
         Depends(require_team_owner),
         Depends(limite("rivales", 30)),
@@ -135,14 +139,18 @@ async def league_comparison(
         raise HTTPException(409, "sincroniza la clasificación de tu liga primero")
 
     series_teams = (
-        await session.execute(
-            select(m.Standing).where(
-                m.Standing.series_ht_id == own_standing.series_ht_id,
-                m.Standing.season == own_standing.season,
-                m.Standing.match_round == own_standing.match_round,
+        (
+            await session.execute(
+                select(m.Standing).where(
+                    m.Standing.series_ht_id == own_standing.series_ht_id,
+                    m.Standing.season == own_standing.season,
+                    m.Standing.match_round == own_standing.match_round,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     rivals = [s for s in series_teams if s.team_ht_id != team.ht_team_id]
 
     token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
@@ -154,7 +162,10 @@ async def league_comparison(
     own_players, _ = await roster(session, team_id)
 
     cache_key = (
-        team_id, own_standing.series_ht_id, own_standing.season, own_standing.match_round,
+        team_id,
+        own_standing.series_ht_id,
+        own_standing.season,
+        own_standing.match_round,
     )
     cached = _roster_cache.get(cache_key)
     now = time.monotonic()
@@ -205,25 +216,29 @@ async def league_comparison(
         readable_form = [p["form"] for p in ps if p.get("form_is_read")]
         readable_stamina = [p["stamina"] for p in ps if p.get("stamina_is_read")]
         return {
-            "teamHtId": ht_id, "teamName": name, "totalTsi": total,
+            "teamHtId": ht_id,
+            "teamName": name,
+            "totalTsi": total,
             "avgTsi": round(total / len(ps), 1) if ps else 0.0,
-            "playerCount": len(ps), "isOwn": is_own,
+            "playerCount": len(ps),
+            "isOwn": is_own,
             "topPlayerId": top_player["ht_player_id"] if top_player else None,
             "topPlayerName": (
                 f"{top_player['first_name']} {top_player['last_name']}".strip()
-                if top_player else None
+                if top_player
+                else None
             ),
             "topPlayerTsi": top_player["tsi"] if top_player else None,
             "avgForm": round(sum(readable_form) / len(readable_form), 1) if readable_form else None,
             "avgStamina": (
-                round(sum(readable_stamina) / len(readable_stamina), 1) if readable_stamina else None
+                round(sum(readable_stamina) / len(readable_stamina), 1)
+                if readable_stamina
+                else None
             ),
         }
 
     summaries = [summarize(team.name, team.ht_team_id, own_for_metrics, True)]
-    summaries += [
-        summarize(name, ht_id, players, False) for name, ht_id, players in league_rosters
-    ]
+    summaries += [summarize(name, ht_id, players, False) for name, ht_id, players in league_rosters]
     summaries.sort(key=lambda s: -s["totalTsi"])
     for i, s in enumerate(summaries):
         s["rank"] = i + 1
@@ -254,7 +269,9 @@ async def league_comparison(
                 # cualquier jugador. Sin esto, "Última posición" salía
                 # siempre vacía para todos los rivales.
                 payload = await position_client.fetch(
-                    "playerdetails", version=FILE_VERSIONS["playerdetails"], playerID=pid,
+                    "playerdetails",
+                    version=FILE_VERSIONS["playerdetails"],
+                    playerID=pid,
                     includeMatchInfo="true",
                 )
                 last_match = payload.get("last_match")
@@ -281,33 +298,36 @@ async def league_comparison(
         for _, _, players in league_rosters
         for p in top_n(players)
     ]
-    histogram = tsi_kde_comparison(
-        own_for_tsi, league_for_tsi, log_transform=log_tsi
-    )
+    histogram = tsi_kde_comparison(own_for_tsi, league_for_tsi, log_transform=log_tsi)
 
-    return cast(dict[str, Any], _camel({
-        "series_name": team.series_name or "",
-        "teams_in_series": len(summaries),
-        "own_rank": own_rank,
-        "ranking": summaries,
-        "tsi_histogram": {
-            "grid": histogram.grid,
-            "own_density": histogram.own_density,
-            "rival_density": histogram.rival_density,
-            "own_values": histogram.own_values,
-            "rival_values": histogram.rival_values,
-            "log_transform": histogram.log_transform,
-            "top11": top11,
-        },
-        "caveats": [
-            "El TSI de cada rival es real (dato público de Hattrick); sus habilidades exactas "
-            "y su alineación real están ocultas por CHPP para cualquier equipo que no sea "
-            "el tuyo, «excluir nuestro arquero» solo se aplica con certeza a tu "
-            "plantilla, nunca a los rivales.",
-            "Nada de esto se sincroniza ni se guarda: se pide en vivo cada vez que se abre "
-            "esta comparativa.",
-        ],
-    }))
+    return cast(
+        dict[str, Any],
+        _camel(
+            {
+                "series_name": team.series_name or "",
+                "teams_in_series": len(summaries),
+                "own_rank": own_rank,
+                "ranking": summaries,
+                "tsi_histogram": {
+                    "grid": histogram.grid,
+                    "own_density": histogram.own_density,
+                    "rival_density": histogram.rival_density,
+                    "own_values": histogram.own_values,
+                    "rival_values": histogram.rival_values,
+                    "log_transform": histogram.log_transform,
+                    "top11": top11,
+                },
+                "caveats": [
+                    "El TSI de cada rival es real (dato público de Hattrick); sus habilidades exactas "
+                    "y su alineación real están ocultas por CHPP para cualquier equipo que no sea "
+                    "el tuyo, «excluir nuestro arquero» solo se aplica con certeza a tu "
+                    "plantilla, nunca a los rivales.",
+                    "Nada de esto se sincroniza ni se guarda: se pide en vivo cada vez que se abre "
+                    "esta comparativa.",
+                ],
+            }
+        ),
+    )
 
 
 @router.get(
@@ -349,8 +369,7 @@ async def team_of_the_week(
     if formation not in FORMATIONS:
         raise HTTPException(
             422,
-            f"formación desconocida: {formation}. "
-            f"Las disponibles son {', '.join(FORMATIONS)}",
+            f"formación desconocida: {formation}. Las disponibles son {', '.join(FORMATIONS)}",
         )
 
     team = await session.get(m.Team, team_id)
@@ -405,8 +424,10 @@ async def team_of_the_week(
     )
 
     if scope == "week":
-        target_round = match_round_param if match_round_param in complete_rounds else (
-            complete_rounds[-1] if complete_rounds else None
+        target_round = (
+            match_round_param
+            if match_round_param in complete_rounds
+            else (complete_rounds[-1] if complete_rounds else None)
         )
         scoped_matches = by_round.get(target_round, []) if target_round is not None else []
         rounds_covered = 1 if target_round is not None else 0
@@ -444,8 +465,10 @@ async def team_of_the_week(
                         # suplente que entrara a mitad de partido tiene
                         # posición fiable — confirmado en vivo 2026-08-09.
                         payload = await client.fetch(
-                            "matchlineup", version=MATCHLINEUP_ROLE_VERSION,
-                            matchID=match.ht_match_id, teamID=team_ht_id,
+                            "matchlineup",
+                            version=MATCHLINEUP_ROLE_VERSION,
+                            matchID=match.ht_match_id,
+                            teamID=team_ht_id,
                         )
                         players_payload = payload.get("players", [])
                     except (CHPPAuthError, CHPPUnavailableError):
@@ -465,18 +488,19 @@ async def team_of_the_week(
                     seen.add(p["ht_player_id"])
                     lineup_players.append(
                         LineupPlayer(
-                            ht_player_id=p["ht_player_id"], name=p["name"],
-                            team_ht_id=team_ht_id, team_name=team_name,
-                            role_id=p["role_id"], rating_stars=p["rating_stars"],
+                            ht_player_id=p["ht_player_id"],
+                            name=p["name"],
+                            team_ht_id=team_ht_id,
+                            team_name=team_name,
+                            role_id=p["role_id"],
+                            rating_stars=p["rating_stars"],
                             ht_match_id=match.ht_match_id,
                         )
                     )
     finally:
         await client.aclose()
 
-    centrales, interiores = resolve_split(
-        formation, central_defenders, inner_midfielders
-    )
+    centrales, interiores = resolve_split(formation, central_defenders, inner_midfielders)
     slots = best_team(
         lineup_players,
         formation=formation,
@@ -485,33 +509,38 @@ async def team_of_the_week(
     )
     total_stars = round(sum(p.rating_stars for group in slots.values() for p in group), 1)
 
-    return cast(dict[str, Any], _camel({
-        "scope": scope,
-        "formation": formation,
-        "formations": list(FORMATIONS.keys()),
-        "central_defenders": centrales,
-        "inner_midfielders": interiores,
-        # Las opciones legales de cada selector para ESTA formación: una línea
-        # de cinco solo admite 3 por dentro, y ahí el radio sale único.
-        "central_defender_options": line_splits(
-            FORMATIONS[formation][0], MAX_CENTRAL_DEFENDERS
+    return cast(
+        dict[str, Any],
+        _camel(
+            {
+                "scope": scope,
+                "formation": formation,
+                "formations": list(FORMATIONS.keys()),
+                "central_defenders": centrales,
+                "inner_midfielders": interiores,
+                # Las opciones legales de cada selector para ESTA formación: una línea
+                # de cinco solo admite 3 por dentro, y ahí el radio sale único.
+                "central_defender_options": line_splits(
+                    FORMATIONS[formation][0], MAX_CENTRAL_DEFENDERS
+                ),
+                "inner_midfielder_options": line_splits(
+                    FORMATIONS[formation][1], MAX_INNER_MIDFIELDERS
+                ),
+                "match_round": target_round,
+                "available_rounds": complete_rounds,
+                "rounds_covered": rounds_covered,
+                "lineups_found": lineups_found,
+                "lineups_expected": lineups_expected,
+                "slot_labels": SLOT_LABELS,
+                "positions": {key: [asdict(p) for p in players] for key, players in slots.items()},
+                "total_stars": total_stars,
+                "caveats": [
+                    "Rating real de cada titular, público para cualquier partido ya terminado "
+                    "(matchlineup.xml), un mismo jugador solo cuenta con su mejor actuación del rango.",
+                    '"De la temporada" pesa cada jornada terminada por igual, sin importar cuándo se '
+                    "sincronizó el calendario, puede tardar en reflejar la última jornada si "
+                    "leaguefixtures.xml todavía no trae su marcador.",
+                ],
+            }
         ),
-        "inner_midfielder_options": line_splits(
-            FORMATIONS[formation][1], MAX_INNER_MIDFIELDERS
-        ),
-        "match_round": target_round,
-        "available_rounds": complete_rounds,
-        "rounds_covered": rounds_covered,
-        "lineups_found": lineups_found,
-        "lineups_expected": lineups_expected,
-        "slot_labels": SLOT_LABELS,
-        "positions": {key: [asdict(p) for p in players] for key, players in slots.items()},
-        "total_stars": total_stars,
-        "caveats": [
-            "Rating real de cada titular, público para cualquier partido ya terminado "
-            "(matchlineup.xml), un mismo jugador solo cuenta con su mejor actuación del rango.",
-            "\"De la temporada\" pesa cada jornada terminada por igual, sin importar cuándo se "
-            "sincronizó el calendario, puede tardar en reflejar la última jornada si "
-            "leaguefixtures.xml todavía no trae su marcador.",
-        ],
-    }))
+    )

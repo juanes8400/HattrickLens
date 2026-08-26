@@ -9,6 +9,7 @@ de un partido ya finalizado revela nombre + posición real jugada — de ambos
 equipos, porque un partido jugado es un hecho público permanente, no un
 estado de cuenta que se esté trackeando.
 """
+
 import math
 import statistics
 from dataclasses import dataclass, field
@@ -56,6 +57,7 @@ def tsi_kde_comparison(
     arquero del rival pese a lo que decía su etiqueta. Un histograma de la
     plantilla es de la plantilla entera.
     """
+
     def values(players: list[dict[str, Any]]) -> list[float]:
         out = [float(p["tsi"]) for p in players]
         if log_transform:
@@ -97,6 +99,7 @@ def tsi_kde_comparison(
 MARKER_LOSS_PCT_CLOSE = 0.50
 MARKER_LOSS_PCT_FAR = 0.65
 
+
 @dataclass
 class ManMarkingSuggestion:
     target_name: str
@@ -114,8 +117,11 @@ class ManMarkingSuggestion:
 
 def _close_marker_group(target_position: int) -> frozenset[int] | None:
     return next(
-        (markers for markers, markable in MAN_MARKING_PROXIMITY.items()
-         if target_position in markable),
+        (
+            markers
+            for markers, markable in MAN_MARKING_PROXIMITY.items()
+            if target_position in markable
+        ),
         None,
     )
 
@@ -146,9 +152,9 @@ def suggest_man_marking(
     posición no hemos observado.
     """
     targets = [
-        p for p in rival_players
-        if p.get("position_code") is not None
-        and p["position_code"] in MAN_MARKING_ELIGIBLE_TARGETS
+        p
+        for p in rival_players
+        if p.get("position_code") is not None and p["position_code"] in MAN_MARKING_ELIGIBLE_TARGETS
     ]
     if not targets:
         return None
@@ -156,22 +162,26 @@ def suggest_man_marking(
 
     close_group = _close_marker_group(target["position_code"])
     eligible_close = [
-        p for p in own_players
-        if close_group is not None and p.get("position_code") in close_group
+        p for p in own_players if close_group is not None and p.get("position_code") in close_group
     ]
     eligible_far = [
-        p for p in own_players
+        p
+        for p in own_players
         if p.get("position_code") in MAN_MARKING_ELIGIBLE_MARKERS
         and p.get("position_code") not in (close_group or frozenset())
     ]
 
     if eligible_close:
         marker, efficiency, loss_pct = (
-            max(eligible_close, key=lambda p: p.get("defending", 0)), "cerca", MARKER_LOSS_PCT_CLOSE,
+            max(eligible_close, key=lambda p: p.get("defending", 0)),
+            "cerca",
+            MARKER_LOSS_PCT_CLOSE,
         )
     elif eligible_far:
         marker, efficiency, loss_pct = (
-            max(eligible_far, key=lambda p: p.get("defending", 0)), "lejos", MARKER_LOSS_PCT_FAR,
+            max(eligible_far, key=lambda p: p.get("defending", 0)),
+            "lejos",
+            MARKER_LOSS_PCT_FAR,
         )
     else:
         return None
@@ -180,8 +190,12 @@ def suggest_man_marking(
         f"{target['name']} es el {match_position_name(target['position_code']).lower()} "
         f"con más TSI del rival ({thousands(target.get('tsi', 0))}). {marker['name']} puede "
         f"marcarlo desde {match_position_name(marker['position_code']).lower()}"
-        + ("." if efficiency == "cerca" else ", combinación \"lejos\", -65% en vez del -50% "
-           "óptimo: no hay ningún lateral/central/interior mejor ubicado disponible.")
+        + (
+            "."
+            if efficiency == "cerca"
+            else ', combinación "lejos", -65% en vez del -50% '
+            "óptimo: no hay ningún lateral/central/interior mejor ubicado disponible."
+        )
     )
     risk_note = (
         "Si el rival cambia su alineación antes del partido y este jugador no termina jugando "
@@ -204,8 +218,11 @@ def suggest_man_marking(
         risk_note=risk_note,
         evidence={
             "targetCandidates": [
-                {"name": t["name"], "tsi": t.get("tsi", 0),
-                 "position": match_position_name(t["position_code"])}
+                {
+                    "name": t["name"],
+                    "tsi": t.get("tsi", 0),
+                    "position": match_position_name(t["position_code"]),
+                }
                 for t in sorted(targets, key=lambda p: -p.get("tsi", 0))[:5]
             ],
         },
@@ -260,12 +277,13 @@ def estimate_win_probability(own_tsi_total: int, rival_tsi_total: int) -> WinPro
 @dataclass
 class AttackByMatch:
     """El ataque de UN partido, carril por carril."""
-    label: str        # rival de aquel día, o la fecha si no se sabe
+
+    label: str  # rival de aquel día, o la fecha si no se sabe
     date: str
     left: int
     central: int
     right: int
-    best: str         # "izquierda" | "centro" | "derecha"
+    best: str  # "izquierda" | "centro" | "derecha"
 
 
 @dataclass
@@ -367,10 +385,11 @@ class PitchZoneMethod(StrEnum):
     en los otros cuatro no atacó por ahí sale flojo por la derecha. Estos
     cuatro resúmenes responden preguntas distintas sobre los mismos datos.
     """
-    AVERAGE = "average"            # cómo juega de costumbre
-    MAX = "max"                    # de lo que es capaz en cada zona
+
+    AVERAGE = "average"  # cómo juega de costumbre
+    MAX = "max"  # de lo que es capaz en cada zona
     MAX_PARALLEL = "max_parallel"  # de lo que es capaz por CUALQUIER carril
-    LAST = "last"                  # con lo que salió el último día
+    LAST = "last"  # con lo que salió el último día
     # Solo para el lado PROPIO: la predicción de minuto 0 que da el mismo
     # Hattrick para las órdenes ya enviadas. De un rival no existe, porque sus
     # órdenes son privadas hasta que se juega.
@@ -390,7 +409,13 @@ class PitchZoneValues:
 
 
 PITCH_ZONE_KEYS = (
-    "left_def", "central_def", "right_def", "midfield", "left_att", "central_att", "right_att",
+    "left_def",
+    "central_def",
+    "right_def",
+    "midfield",
+    "left_att",
+    "central_att",
+    "right_att",
 )
 
 
@@ -427,9 +452,7 @@ def pitch_zone_values(
                 for key in carriles:
                     valores[key] = techo
     else:
-        valores = {
-            key: round(sum(r[key] for r in match_ratings) / n, 1) for key in PITCH_ZONE_KEYS
-        }
+        valores = {key: round(sum(r[key] for r in match_ratings) / n, 1) for key in PITCH_ZONE_KEYS}
     return PitchZoneValues(matches_analysed=n, **valores)
 
 
@@ -446,8 +469,8 @@ def pitch_zone_values(
 
 @dataclass
 class ZoneDuel:
-    zone: str      # "left" | "central" | "right" | "midfield"
-    half: str      # "own" (tu campo) | "rival" (su campo) | "midfield"
+    zone: str  # "left" | "central" | "right" | "midfield"
+    half: str  # "own" (tu campo) | "rival" (su campo) | "midfield"
     own_value: float
     rival_value: float
     own_pct: float
@@ -461,12 +484,17 @@ def pitch_zone_duels(own: PitchZoneValues, rival: PitchZoneValues) -> list[ZoneD
     simple que `estimate_win_probability` (rating / (rating + rating)) — una
     aproximación declarada, no la fórmula real (mucho más rica) del motor de
     partido de Hattrick."""
+
     def duel(zone: str, half: str, own_value: float, rival_value: float) -> ZoneDuel:
         total = own_value + rival_value
         own_pct = own_value / total if total > 0 else 0.5
         return ZoneDuel(
-            zone=zone, half=half, own_value=own_value, rival_value=rival_value,
-            own_pct=round(own_pct, 3), rival_pct=round(1 - own_pct, 3),
+            zone=zone,
+            half=half,
+            own_value=own_value,
+            rival_value=rival_value,
+            own_pct=round(own_pct, 3),
+            rival_pct=round(1 - own_pct, 3),
         )
 
     return [
@@ -561,9 +589,7 @@ def summarise_tactics(
         return None
 
     tactics = _frequencies(tactic_types, tactic_type_name)
-    avg_tactic_skill = (
-        round(sum(tactic_skills) / len(tactic_skills), 1) if tactic_skills else None
-    )
+    avg_tactic_skill = round(sum(tactic_skills) / len(tactic_skills), 1) if tactic_skills else None
     formation_freq = _formation_frequencies(formations)
 
     return TacticHistory(

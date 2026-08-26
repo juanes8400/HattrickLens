@@ -18,6 +18,7 @@ pestaña— así que esperar el aviso de cierre dejaría sesiones abiertas para
 siempre. Con un corte por silencio, la peor consecuencia de un cierre brusco es
 partir una sesión en dos.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -33,7 +34,7 @@ class Evento:
     """Lo que manda el navegador, ya limpio."""
 
     sesion: str
-    tipo: str          # "page" | "click"
+    tipo: str  # "page" | "click"
     modulo: str
     etiqueta: str | None
     cuando: datetime

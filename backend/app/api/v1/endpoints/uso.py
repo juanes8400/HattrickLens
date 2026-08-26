@@ -14,6 +14,7 @@ Lo que se guarda y lo que NO:
 El identificador de sesión lo pone el navegador y no identifica a nadie por sí
 solo; el usuario sale de la sesión de la propia aplicación, que ya existía.
 """
+
 import csv
 import io
 from datetime import UTC, datetime, timedelta
@@ -79,10 +80,17 @@ async def recoger(
         # ordene o agrupe por tiempo.
         if cuando > ahora:
             cuando = ahora
-        session.add(m.UiEvent(
-            user_id=user.id, session_id=e.sessionId, kind=e.kind,
-            module=e.module, label=e.label, at=cuando, visible_ms=e.visibleMs,
-        ))
+        session.add(
+            m.UiEvent(
+                user_id=user.id,
+                session_id=e.sessionId,
+                kind=e.kind,
+                module=e.module,
+                label=e.label,
+                at=cuando,
+                visible_ms=e.visibleMs,
+            )
+        )
     await session.commit()
 
 
@@ -94,13 +102,23 @@ async def resumen(
 ) -> dict[str, Any]:
     """El resumen de uso de los últimos `dias`."""
     desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
-    filas = (await session.execute(
-        select(m.UiEvent).where(m.UiEvent.at >= desde).order_by(m.UiEvent.at)
-    )).scalars().all()
+    filas = (
+        (
+            await session.execute(
+                select(m.UiEvent).where(m.UiEvent.at >= desde).order_by(m.UiEvent.at)
+            )
+        )
+        .scalars()
+        .all()
+    )
     eventos = [
         uso.Evento(
-            sesion=f.session_id, tipo=f.kind, modulo=f.module,
-            etiqueta=f.label, cuando=f.at, visible_ms=f.visible_ms or 0,
+            sesion=f.session_id,
+            tipo=f.kind,
+            modulo=f.module,
+            etiqueta=f.label,
+            cuando=f.at,
+            visible_ms=f.visible_ms or 0,
         )
         for f in filas
     ]
@@ -118,8 +136,11 @@ async def resumen(
         },
         "modules": [
             {
-                "module": u.modulo, "visits": u.visitas, "clicks": u.clics,
-                "minutes": u.minutos, "avgSecondsPerVisit": u.media_por_visita_s,
+                "module": u.modulo,
+                "visits": u.visitas,
+                "clicks": u.clics,
+                "minutes": u.minutos,
+                "avgSecondsPerVisit": u.media_por_visita_s,
                 "lastSeen": u.ultima_vez.isoformat() if u.ultima_vez else None,
             }
             for u in uso.modulos(eventos)
@@ -130,8 +151,11 @@ async def resumen(
         "byHour": uso.por_hora(eventos),
         "recentSessions": [
             {
-                "id": s.sesion, "startedAt": s.empezo.isoformat(),
-                "seconds": s.duracion_s, "pages": s.paginas, "clicks": s.clics,
+                "id": s.sesion,
+                "startedAt": s.empezo.isoformat(),
+                "seconds": s.duracion_s,
+                "pages": s.paginas,
+                "clicks": s.clics,
                 "modules": sorted(s.modulos),
             }
             for s in ss[:25]
@@ -146,9 +170,7 @@ async def podar_eventos_viejos(session: AsyncSession) -> int:
     filas al año, y el plan gratuito de la base ronda 1 GB.
     """
     corte = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=DIAS_QUE_SE_GUARDA)
-    resultado = await session.execute(
-        delete(m.UiEvent).where(m.UiEvent.at < corte)
-    )
+    resultado = await session.execute(delete(m.UiEvent).where(m.UiEvent.at < corte))
     await session.commit()
     return resultado.rowcount or 0
 
@@ -171,30 +193,38 @@ async def exportar(
     complicar el código sin ganar nada.
     """
     desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
-    filas = (await session.execute(
-        select(m.UiEvent).where(m.UiEvent.at >= desde).order_by(m.UiEvent.at)
-    )).scalars().all()
+    filas = (
+        (
+            await session.execute(
+                select(m.UiEvent).where(m.UiEvent.at >= desde).order_by(m.UiEvent.at)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     buffer = io.StringIO()
     escritor = csv.writer(buffer, delimiter=";")
     # Punto y coma y BOM: con coma y sin BOM, Excel en español mete la fila
     # entera en una sola columna y destroza los acentos.
-    escritor.writerow(
-        ["cuando", "sesion", "usuario", "tipo", "modulo", "etiqueta", "visible_ms"]
-    )
+    escritor.writerow(["cuando", "sesion", "usuario", "tipo", "modulo", "etiqueta", "visible_ms"])
     for f in filas:
-        escritor.writerow([
-            f.at.isoformat(sep=" ", timespec="seconds"),
-            f.session_id, f.user_id, f.kind, f.module, f.label or "",
-            f.visible_ms or 0,
-        ])
+        escritor.writerow(
+            [
+                f.at.isoformat(sep=" ", timespec="seconds"),
+                f.session_id,
+                f.user_id,
+                f.kind,
+                f.module,
+                f.label or "",
+                f.visible_ms or 0,
+            ]
+        )
 
     contenido = "﻿" + buffer.getvalue()
     hoy = datetime.now(UTC).strftime("%Y%m%d")
     return StreamingResponse(
         iter([contenido.encode("utf-8")]),
         media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition": f'attachment; filename="uso-htlens-{hoy}.csv"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="uso-htlens-{hoy}.csv"'},
     )

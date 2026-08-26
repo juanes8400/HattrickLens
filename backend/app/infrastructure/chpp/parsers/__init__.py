@@ -3,6 +3,7 @@
 Entrada en BYTES (el XML declara su propio encoding; decodificar antes corrompe
 caracteres no-ASCII — bug real observado con nombres como 'Raúl').
 """
+
 from collections.abc import Callable
 from typing import Any
 from xml.etree.ElementTree import Element  # noqa: S405 — type only, parsing uses defusedxml
@@ -18,6 +19,7 @@ def register(file: str) -> Callable[[Parser], Parser]:
     def deco(fn: Parser) -> Parser:
         _REGISTRY[file] = fn
         return fn
+
     return deco
 
 
@@ -81,38 +83,43 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
         # propios, verificado en vivo. Hace falta para el partido de
         # visitante, donde manda la región del rival.
         region = t.find(".//Region")
-        teams.append({
-            "ht_team_id": _int(t, "TeamID"),
-            "name": _txt(t, "TeamName", ""),
-            "short_name": _txt(t, "ShortTeamName", ""),
-            "league_name": _txt(league, "LeagueName", "") if league is not None else "",
-            # 2026-08-04: LeagueID del PAÍS (distinto de series_ht_id, que es
-            # la SERIE dentro del país) — clave para cruzar contra
-            # worlddetails.xml y saber la temporada/moneda/copas reales de
-            # este equipo en vez de asumir un país fijo — ver
-            # `parse_worlddetails`.
-            "ht_league_id": _int(league, "LeagueID") if league is not None else 0,
-            "series_name": _txt(series, "LeagueLevelUnitName", "") if series is not None else "",
-            "series_ht_id": _int(series, "LeagueLevelUnitID") if series is not None else 0,
-            "country_name": _txt(country, "CountryName", "") if country is not None else "",
-            "ht_region_id": _int(region, "RegionID") if region is not None else 0,
-            "region_name": _txt(region, "RegionName", "") if region is not None else "",
-            # Estado oficial de la Copa actual. Si StillInCup=False, los
-            # demás campos pueden venir vacíos y deben limpiarse al persistir.
-            "still_in_cup": _bool(cup, "StillInCup") if cup is not None else None,
-            "current_cup": (
-                {
-                    "ht_cup_id": _int(cup, "CupID"),
-                    "cup_name": _txt(cup, "CupName", ""),
-                    "cup_league_level": _int(cup, "CupLeagueLevel"),
-                    "cup_level": _int(cup, "CupLevel"),
-                    "cup_level_index": _int(cup, "CupLevelIndex"),
-                    "match_round": _int(cup, "MatchRound", -1),
-                    "match_rounds_left": _int(cup, "MatchRoundsLeft", -1),
-                }
-                if cup is not None and _bool(cup, "StillInCup") else None
-            ),
-        })
+        teams.append(
+            {
+                "ht_team_id": _int(t, "TeamID"),
+                "name": _txt(t, "TeamName", ""),
+                "short_name": _txt(t, "ShortTeamName", ""),
+                "league_name": _txt(league, "LeagueName", "") if league is not None else "",
+                # 2026-08-04: LeagueID del PAÍS (distinto de series_ht_id, que es
+                # la SERIE dentro del país) — clave para cruzar contra
+                # worlddetails.xml y saber la temporada/moneda/copas reales de
+                # este equipo en vez de asumir un país fijo — ver
+                # `parse_worlddetails`.
+                "ht_league_id": _int(league, "LeagueID") if league is not None else 0,
+                "series_name": _txt(series, "LeagueLevelUnitName", "")
+                if series is not None
+                else "",
+                "series_ht_id": _int(series, "LeagueLevelUnitID") if series is not None else 0,
+                "country_name": _txt(country, "CountryName", "") if country is not None else "",
+                "ht_region_id": _int(region, "RegionID") if region is not None else 0,
+                "region_name": _txt(region, "RegionName", "") if region is not None else "",
+                # Estado oficial de la Copa actual. Si StillInCup=False, los
+                # demás campos pueden venir vacíos y deben limpiarse al persistir.
+                "still_in_cup": _bool(cup, "StillInCup") if cup is not None else None,
+                "current_cup": (
+                    {
+                        "ht_cup_id": _int(cup, "CupID"),
+                        "cup_name": _txt(cup, "CupName", ""),
+                        "cup_league_level": _int(cup, "CupLeagueLevel"),
+                        "cup_level": _int(cup, "CupLevel"),
+                        "cup_level_index": _int(cup, "CupLevelIndex"),
+                        "match_round": _int(cup, "MatchRound", -1),
+                        "match_rounds_left": _int(cup, "MatchRoundsLeft", -1),
+                    }
+                    if cup is not None and _bool(cup, "StillInCup")
+                    else None
+                ),
+            }
+        )
     return {
         "ht_user_id": _int(user, "UserID") if user is not None else 0,
         "login_name": _txt(user, "Loginname", "") if user is not None else "",
@@ -149,10 +156,12 @@ def parse_managercompendium(xml: bytes) -> dict[str, Any]:
     ]
     teams = []
     for team in manager.iterfind(".//Teams/Team"):
-        teams.append({
-            "ht_team_id": _int(team, "TeamId") or _int(team, "TeamID"),
-            "name": _txt(team, "TeamName", ""),
-        })
+        teams.append(
+            {
+                "ht_team_id": _int(team, "TeamId") or _int(team, "TeamID"),
+                "name": _txt(team, "TeamName", ""),
+            }
+        )
 
     return {
         "ht_user_id": _int(manager, "UserId") or _int(manager, "UserID"),
@@ -187,58 +196,58 @@ def parse_players(xml: bytes) -> dict[str, Any]:
     players = []
     for node in root.iterfind(".//Player"):
         trainer = node.find("TrainerData")
-        players.append({
-            "ht_player_id": _int(node, "PlayerID"),
-            "first_name": _txt(node, "FirstName", ""),
-            "last_name": _txt(node, "LastName", ""),
-            "age_years": _int(node, "Age"),
-            "age_days": _int(node, "AgeDays"),
-            "tsi": _int(node, "TSI"),
-            "form": _int(node, "PlayerForm"),
-            "form_is_read": node.find("PlayerForm") is not None,
-            "stamina": _int(node, "StaminaSkill"),
-            # Un 0 es un nivel válido. Esta bandera separa ese caso del XML
-            # que simplemente no expone StaminaSkill para una plantilla rival.
-            "stamina_is_read": node.find("StaminaSkill") is not None,
-            "experience": _int(node, "Experience"),
-            "experience_is_read": node.find("Experience") is not None,
-            "salary": _int(node, "Salary"),
-            "specialty": _int(node, "Specialty"),
-            "injury_level": _int(node, "InjuryLevel", -1),
-            "is_transfer_listed": _bool(node, "TransferListed"),
-            "loyalty": _int(node, "Loyalty"),
-            "leadership": _int(node, "Leadership"),
-            "agreeability": _int(node, "Agreeability"),
-            "aggressiveness": _int(node, "Aggressiveness"),
-            "honesty": _int(node, "Honesty"),
-            "mother_club_bonus": _bool(node, "MotherClubBonus"),
-            "country_id": _int(node, "CountryID"),
-            "league_goals": _int(node, "LeagueGoals"),
-            "cup_goals": _int(node, "CupGoals"),
-            "friendlies_goals": _int(node, "FriendliesGoals"),
-            "career_goals": _int(node, "CareerGoals"),
-            "career_hattricks": _int(node, "CareerHattricks"),
-            # CareerAssists NO está en players.xml (comprobado contra el
-            # fixture real: tras CareerHattricks salta directo a
-            # MatchesCurrentTeam) — solo en playerdetails.xml, ver abajo.
-            # Un supuesto sin verificar aquí habría dejado a todo el mundo
-            # en 0 en vez de "sin sincronizar".
-            "player_trainer_skill_level": (
-                _int(trainer, "TrainerSkillLevel") if trainer is not None else 0
-            ),
-            "player_trainer_type": (
-                _int(trainer, "TrainerType") if trainer is not None else 0
-            ),
-            "skills": {
-                "keeper": _int(node, "KeeperSkill"),
-                "defending": _int(node, "DefenderSkill"),
-                "playmaking": _int(node, "PlaymakerSkill"),
-                "winger": _int(node, "WingerSkill"),
-                "passing": _int(node, "PassingSkill"),
-                "scoring": _int(node, "ScorerSkill"),
-                "set_pieces": _int(node, "SetPiecesSkill"),
-            },
-        })
+        players.append(
+            {
+                "ht_player_id": _int(node, "PlayerID"),
+                "first_name": _txt(node, "FirstName", ""),
+                "last_name": _txt(node, "LastName", ""),
+                "age_years": _int(node, "Age"),
+                "age_days": _int(node, "AgeDays"),
+                "tsi": _int(node, "TSI"),
+                "form": _int(node, "PlayerForm"),
+                "form_is_read": node.find("PlayerForm") is not None,
+                "stamina": _int(node, "StaminaSkill"),
+                # Un 0 es un nivel válido. Esta bandera separa ese caso del XML
+                # que simplemente no expone StaminaSkill para una plantilla rival.
+                "stamina_is_read": node.find("StaminaSkill") is not None,
+                "experience": _int(node, "Experience"),
+                "experience_is_read": node.find("Experience") is not None,
+                "salary": _int(node, "Salary"),
+                "specialty": _int(node, "Specialty"),
+                "injury_level": _int(node, "InjuryLevel", -1),
+                "is_transfer_listed": _bool(node, "TransferListed"),
+                "loyalty": _int(node, "Loyalty"),
+                "leadership": _int(node, "Leadership"),
+                "agreeability": _int(node, "Agreeability"),
+                "aggressiveness": _int(node, "Aggressiveness"),
+                "honesty": _int(node, "Honesty"),
+                "mother_club_bonus": _bool(node, "MotherClubBonus"),
+                "country_id": _int(node, "CountryID"),
+                "league_goals": _int(node, "LeagueGoals"),
+                "cup_goals": _int(node, "CupGoals"),
+                "friendlies_goals": _int(node, "FriendliesGoals"),
+                "career_goals": _int(node, "CareerGoals"),
+                "career_hattricks": _int(node, "CareerHattricks"),
+                # CareerAssists NO está en players.xml (comprobado contra el
+                # fixture real: tras CareerHattricks salta directo a
+                # MatchesCurrentTeam) — solo en playerdetails.xml, ver abajo.
+                # Un supuesto sin verificar aquí habría dejado a todo el mundo
+                # en 0 en vez de "sin sincronizar".
+                "player_trainer_skill_level": (
+                    _int(trainer, "TrainerSkillLevel") if trainer is not None else 0
+                ),
+                "player_trainer_type": (_int(trainer, "TrainerType") if trainer is not None else 0),
+                "skills": {
+                    "keeper": _int(node, "KeeperSkill"),
+                    "defending": _int(node, "DefenderSkill"),
+                    "playmaking": _int(node, "PlaymakerSkill"),
+                    "winger": _int(node, "WingerSkill"),
+                    "passing": _int(node, "PassingSkill"),
+                    "scoring": _int(node, "ScorerSkill"),
+                    "set_pieces": _int(node, "SetPiecesSkill"),
+                },
+            }
+        )
     return {"players": players}
 
 
@@ -300,9 +309,7 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         # esta app, así que se perdían los del backfill histórico de
         # transferencias). 0 si no hay `MotherClub` — nunca coincide con un
         # TeamID real de Hattrick.
-        "mother_club_team_id": (
-            _int(mother_club, "TeamID") if mother_club is not None else 0
-        ),
+        "mother_club_team_id": (_int(mother_club, "TeamID") if mother_club is not None else 0),
         # HL-15x: Nacionalidad real — NativeLeagueName ya viene como texto en
         # playerdetails.xml, sin necesitar una tabla ID→país propia.
         "native_league_name": _txt(node, "NativeLeagueName", ""),
@@ -416,20 +423,22 @@ def parse_transfersteam(xml: bytes) -> dict[str, Any]:
             continue
         buyer = node.find("Buyer")
         seller = node.find("Seller")
-        transfers.append({
-            "ht_transfer_id": _int(node, "TransferID"),
-            "ht_player_id": _int(player, "PlayerID"),
-            "player_name": _txt(player, "PlayerName", ""),
-            "transfer_type": _txt(node, "TransferType", ""),
-            "buyer_team_id": _int(buyer, "BuyerTeamID") if buyer is not None else 0,
-            "seller_team_id": _int(seller, "SellerTeamID") if seller is not None else 0,
-            "price": _int(node, "Price"),
-            "deadline": _txt(node, "Deadline", ""),
-            # HL-161: TSI en el momento EXACTO de esta transacción — la
-            # única fuente real de "TSI en la compra"/"TSI en la venta"
-            # (playerdetails.xml solo da el de HOY, que ya cambió).
-            "tsi": _int(player, "TSI"),
-        })
+        transfers.append(
+            {
+                "ht_transfer_id": _int(node, "TransferID"),
+                "ht_player_id": _int(player, "PlayerID"),
+                "player_name": _txt(player, "PlayerName", ""),
+                "transfer_type": _txt(node, "TransferType", ""),
+                "buyer_team_id": _int(buyer, "BuyerTeamID") if buyer is not None else 0,
+                "seller_team_id": _int(seller, "SellerTeamID") if seller is not None else 0,
+                "price": _int(node, "Price"),
+                "deadline": _txt(node, "Deadline", ""),
+                # HL-161: TSI en el momento EXACTO de esta transacción — la
+                # única fuente real de "TSI en la compra"/"TSI en la venta"
+                # (playerdetails.xml solo da el de HOY, que ya cambió).
+                "tsi": _int(player, "TSI"),
+            }
+        )
     return {
         "transfers": transfers,
         "page_index": _int(transfers_node, "PageIndex") if transfers_node is not None else 1,
@@ -461,16 +470,20 @@ def parse_transfersplayer(xml: bytes) -> dict[str, Any]:
     for node in root.iterfind(".//Transfer"):
         buyer = node.find("Buyer")
         seller = node.find("Seller")
-        transfers.append({
-            "ht_transfer_id": _int(node, "TransferID"),
-            "deadline": _txt(node, "Deadline", ""),
-            "buyer_team_id": _int(buyer, "BuyerTeamID") if buyer is not None else 0,
-            "buyer_team_name": _txt(buyer, "BuyerTeamName", "") if buyer is not None else "",
-            "seller_team_id": _int(seller, "SellerTeamID") if seller is not None else 0,
-            "seller_team_name": _txt(seller, "SellerTeamName", "") if seller is not None else "",
-            "price": _int(node, "Price"),
-            "tsi": _int(node, "TSI"),
-        })
+        transfers.append(
+            {
+                "ht_transfer_id": _int(node, "TransferID"),
+                "deadline": _txt(node, "Deadline", ""),
+                "buyer_team_id": _int(buyer, "BuyerTeamID") if buyer is not None else 0,
+                "buyer_team_name": _txt(buyer, "BuyerTeamName", "") if buyer is not None else "",
+                "seller_team_id": _int(seller, "SellerTeamID") if seller is not None else 0,
+                "seller_team_name": _txt(seller, "SellerTeamName", "")
+                if seller is not None
+                else "",
+                "price": _int(node, "Price"),
+                "tsi": _int(node, "TSI"),
+            }
+        )
     return {
         "ht_player_id": _int(player, "PlayerID") if player is not None else 0,
         "player_name": _txt(player, "PlayerName", "") if player is not None else "",
@@ -492,17 +505,19 @@ def parse_currentbids(xml: bytes) -> dict[str, Any]:
     root = ElementTree.fromstring(xml)
     listed = []
     for node in root.iterfind(".//BidItem"):
-        listed.append({
-            "ht_player_id": _int(node, "PlayerId"),
-            "player_name": _txt(node, "PlayerName", ""),
-            "deadline": _txt(node, "Deadline", ""),
-            # 2026-08-08: precio de la puja más alta en el momento de la
-            # detección — `None` si CHPP todavía no reporta ninguna puja
-            # (nodo `HighestBid` ausente, no 0 real).
-            "highest_bid": (
-                _int(node, "HighestBid/Amount") if node.find("HighestBid") is not None else None
-            ),
-        })
+        listed.append(
+            {
+                "ht_player_id": _int(node, "PlayerId"),
+                "player_name": _txt(node, "PlayerName", ""),
+                "deadline": _txt(node, "Deadline", ""),
+                # 2026-08-08: precio de la puja más alta en el momento de la
+                # detección — `None` si CHPP todavía no reporta ninguna puja
+                # (nodo `HighestBid` ausente, no 0 real).
+                "highest_bid": (
+                    _int(node, "HighestBid/Amount") if node.find("HighestBid") is not None else None
+                ),
+            }
+        )
     return {"listed_players": listed}
 
 
@@ -550,22 +565,24 @@ def parse_matches(xml: bytes) -> dict[str, Any]:
     for mt in root.iterfind(".//Match"):
         home = mt.find("HomeTeam")
         away = mt.find("AwayTeam")
-        out.append({
-            "ht_match_id": _int(mt, "MatchID"),
-            "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
-            "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
-            "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
-            "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
-            "match_date": _txt(mt, "MatchDate", ""),
-            "match_type": _int(mt, "MatchType"),
-            "status": _txt(mt, "Status", ""),
-            "home_goals": _int(mt, "HomeGoals", -1),
-            "away_goals": _int(mt, "AwayGoals", -1),
-            "cup_level": _int(mt, "CupLevel", -1),
-            "cup_level_index": _int(mt, "CupLevelIndex", -1),
-            "source_system": _txt(mt, "SourceSystem", "").lower() or None,
-            "orders_given": _optional_bool(mt, "OrdersGiven"),
-        })
+        out.append(
+            {
+                "ht_match_id": _int(mt, "MatchID"),
+                "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
+                "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
+                "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
+                "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
+                "match_date": _txt(mt, "MatchDate", ""),
+                "match_type": _int(mt, "MatchType"),
+                "status": _txt(mt, "Status", ""),
+                "home_goals": _int(mt, "HomeGoals", -1),
+                "away_goals": _int(mt, "AwayGoals", -1),
+                "cup_level": _int(mt, "CupLevel", -1),
+                "cup_level_index": _int(mt, "CupLevelIndex", -1),
+                "source_system": _txt(mt, "SourceSystem", "").lower() or None,
+                "orders_given": _optional_bool(mt, "OrdersGiven"),
+            }
+        )
     return {"matches": out}
 
 
@@ -587,17 +604,19 @@ def parse_matchesarchive(xml: bytes) -> dict[str, Any]:
     for mt in root.iterfind(".//Match"):
         home = mt.find("HomeTeam")
         away = mt.find("AwayTeam")
-        out.append({
-            "ht_match_id": _int(mt, "MatchID"),
-            "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
-            "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
-            "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
-            "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
-            "match_date": _txt(mt, "MatchDate", ""),
-            "match_type": _int(mt, "MatchType"),
-            "home_goals": _int(mt, "HomeGoals", -1),
-            "away_goals": _int(mt, "AwayGoals", -1),
-        })
+        out.append(
+            {
+                "ht_match_id": _int(mt, "MatchID"),
+                "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
+                "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
+                "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
+                "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
+                "match_date": _txt(mt, "MatchDate", ""),
+                "match_type": _int(mt, "MatchType"),
+                "home_goals": _int(mt, "HomeGoals", -1),
+                "away_goals": _int(mt, "AwayGoals", -1),
+            }
+        )
     return {"matches": out}
 
 
@@ -648,11 +667,13 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
             player_id = _int(player, "PlayerID")
             if player_id <= 0:
                 continue
-            positions.append({
-                "ht_player_id": player_id,
-                "role_id": _int(player, "RoleID"),
-                "behaviour": _int(player, "Behaviour"),
-            })
+            positions.append(
+                {
+                    "ht_player_id": player_id,
+                    "role_id": _int(player, "RoleID"),
+                    "behaviour": _int(player, "Behaviour"),
+                }
+            )
 
     coach_modifier: int | None = None
     if match_data is not None:
@@ -678,9 +699,8 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
 
     return {
         "ht_match_id": _int(root, "MatchID"),
-        "source_system": (
-            _txt(root, "SourceSystem", "") or _txt(root, "sourceSystem", "")
-        ).lower() or None,
+        "source_system": (_txt(root, "SourceSystem", "") or _txt(root, "sourceSystem", "")).lower()
+        or None,
         "available": available,
         "match_date": _txt(match_data, "MatchDate", "") if match_data is not None else "",
         "match_type": _int(match_data, "MatchType") if match_data is not None else 0,
@@ -707,7 +727,7 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
         return {
             "team_id": _int(t, "HomeTeamID" if tag == "HomeTeam" else "AwayTeamID"),
             "name": _txt(t, "HomeTeamName" if tag == "HomeTeam" else "AwayTeamName", "")
-                    or _txt(t, "TeamName", ""),
+            or _txt(t, "TeamName", ""),
             "goals": _int(t, "HomeGoals" if tag == "HomeTeam" else "AwayGoals"),
             "ratings": {
                 "midfield": _int(t, "RatingMidfield"),
@@ -877,8 +897,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     # de cada jugador salen exactos. Hattrick no los publica en ningun campo.
     inicial = team.find("StartingLineup")
     titulares = [
-        _int(p, "PlayerID")
-        for p in (inicial.iterfind("Player") if inicial is not None else [])
+        _int(p, "PlayerID") for p in (inicial.iterfind("Player") if inicial is not None else [])
     ]
     cambios = [
         {
@@ -904,18 +923,20 @@ def parse_leaguedetails(xml: bytes) -> dict[str, Any]:
     root = ElementTree.fromstring(xml)
     teams = []
     for t in root.iterfind(".//Team"):
-        teams.append({
-            "ht_team_id": _int(t, "TeamID"),
-            "name": _txt(t, "TeamName", ""),
-            "position": _int(t, "Position"),
-            "matches": _int(t, "Matches"),
-            "won": _int(t, "Won"),
-            "draws": _int(t, "Draws"),
-            "lost": _int(t, "Lost"),
-            "goals_for": _int(t, "GoalsFor"),
-            "goals_against": _int(t, "GoalsAgainst"),
-            "points": _int(t, "Points"),
-        })
+        teams.append(
+            {
+                "ht_team_id": _int(t, "TeamID"),
+                "name": _txt(t, "TeamName", ""),
+                "position": _int(t, "Position"),
+                "matches": _int(t, "Matches"),
+                "won": _int(t, "Won"),
+                "draws": _int(t, "Draws"),
+                "lost": _int(t, "Lost"),
+                "goals_for": _int(t, "GoalsFor"),
+                "goals_against": _int(t, "GoalsAgainst"),
+                "points": _int(t, "Points"),
+            }
+        )
     return {
         "series_ht_id": _int(root, "LeagueLevelUnitID"),
         "series_name": _txt(root, "LeagueLevelUnitName", ""),
@@ -953,23 +974,27 @@ def parse_leaguefixtures(xml: bytes) -> dict[str, Any]:
         away = mt.find("AwayTeam")
         home_goals_el = mt.find("HomeGoals")
         away_goals_el = mt.find("AwayGoals")
-        matches.append({
-            "ht_match_id": _int(mt, "MatchID"),
-            "match_round": _int(mt, "MatchRound"),
-            "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
-            "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
-            "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
-            "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
-            "match_date": _txt(mt, "MatchDate", ""),
-            "home_goals": (
-                int(home_goals_el.text)
-                if home_goals_el is not None and home_goals_el.text else None
-            ),
-            "away_goals": (
-                int(away_goals_el.text)
-                if away_goals_el is not None and away_goals_el.text else None
-            ),
-        })
+        matches.append(
+            {
+                "ht_match_id": _int(mt, "MatchID"),
+                "match_round": _int(mt, "MatchRound"),
+                "home_team_id": _int(home, "HomeTeamID") if home is not None else 0,
+                "home_team_name": _txt(home, "HomeTeamName", "") if home is not None else "",
+                "away_team_id": _int(away, "AwayTeamID") if away is not None else 0,
+                "away_team_name": _txt(away, "AwayTeamName", "") if away is not None else "",
+                "match_date": _txt(mt, "MatchDate", ""),
+                "home_goals": (
+                    int(home_goals_el.text)
+                    if home_goals_el is not None and home_goals_el.text
+                    else None
+                ),
+                "away_goals": (
+                    int(away_goals_el.text)
+                    if away_goals_el is not None and away_goals_el.text
+                    else None
+                ),
+            }
+        )
     return {
         "series_ht_id": _int(root, "LeagueLevelUnitID"),
         "series_name": _txt(root, "LeagueLevelUnitName", ""),
@@ -985,15 +1010,29 @@ def parse_economy(xml: bytes) -> dict[str, Any]:
     if team is None:
         return {}
     fields = (
-        "Cash", "ExpectedCash", "SponsorsPopularity", "SupportersPopularity",
-        "FanClubSize", "IncomeSpectators", "IncomeSponsors", "IncomeFinancial",
-        "IncomeTemporary", "IncomeSum", "CostsArena", "CostsFinancial",
-        "CostsStaff", "CostsTemporary", "CostsYouth", "CostsSum",
-        "ExpectedWeeksTotal", "LastIncomeSum", "LastCostsSum", "LastWeeksTotal",
+        "Cash",
+        "ExpectedCash",
+        "SponsorsPopularity",
+        "SupportersPopularity",
+        "FanClubSize",
+        "IncomeSpectators",
+        "IncomeSponsors",
+        "IncomeFinancial",
+        "IncomeTemporary",
+        "IncomeSum",
+        "CostsArena",
+        "CostsFinancial",
+        "CostsStaff",
+        "CostsTemporary",
+        "CostsYouth",
+        "CostsSum",
+        "ExpectedWeeksTotal",
+        "LastIncomeSum",
+        "LastCostsSum",
+        "LastWeeksTotal",
     )
     snake = {
-        f: "".join("_" + c.lower() if c.isupper() else c for c in f).lstrip("_")
-        for f in fields
+        f: "".join("_" + c.lower() if c.isupper() else c for c in f).lstrip("_") for f in fields
     }
 
     def optional_money(*names: str) -> int | None:
@@ -1021,9 +1060,7 @@ def parse_economy(xml: bytes) -> dict[str, Any]:
         "last_income_sponsors": optional_money("LastIncomeSponsors"),
         "last_income_financial": optional_money("LastIncomeFinancial"),
         "last_income_sold_players": optional_money("LastIncomeSoldPlayers"),
-        "last_income_sold_players_commission": optional_money(
-            "LastIncomeSoldPlayersCommission"
-        ),
+        "last_income_sold_players_commission": optional_money("LastIncomeSoldPlayersCommission"),
         "last_income_temporary": optional_money("LastIncomeTemporary"),
         "last_costs_arena": optional_money("LastCostsArena"),
         "last_costs_financial": optional_money("LastCostsFinancial"),
@@ -1070,7 +1107,8 @@ def parse_club(xml: bytes) -> dict[str, Any]:
         "youth_investment": _int(youth, "Investment") if youth is not None else 0,
         "youth_level": _int(youth, "YouthLevel") if youth is not None else 0,
         "youth_has_promoted": _txt(youth, "HasPromoted", "False").lower() in ("true", "1")
-        if youth is not None else False,
+        if youth is not None
+        else False,
     }
 
 
@@ -1141,6 +1179,7 @@ def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
         "created_date": _txt(team, "CreatedDate", ""),
     }
 
+
 #: `CommentType` de `youthplayerdetails.xml`. Los dos que importan son el 4
 #: --"tiene nivel X en la habilidad Y"-- y el 5 --"alcanzara un potencial Z en
 #: Y"--: son la misma informacion que `PlayerSkills`, pero dicha por el
@@ -1191,28 +1230,28 @@ def parse_youthplayerdetails(xml: bytes) -> dict[str, Any]:
         for c in llamada.findall("./ScoutComments/ScoutComment"):
             tipo = _int(c, "CommentType")
             codigo = _int(c, "CommentSkillType")
-            comentarios.append({
-                "text": _txt(c, "CommentText", "").replace("&nbsp;", " ").strip(),
-                "type": tipo,
-                "variation": _int(c, "CommentVariation"),
-                "skill_code": codigo,
-                # Solo los tipos 4 y 5 hablan de una habilidad; en el tipo 1
-                # el campo trae el id del jugador, no un codigo de habilidad.
-                "skill": (
-                    COMMENT_SKILL_TYPES.get(codigo)
-                    if tipo in (COMENTARIO_NIVEL_ACTUAL, COMENTARIO_POTENCIAL)
-                    else None
-                ),
-                "level": _int(c, "CommentSkillLevel"),
-            })
+            comentarios.append(
+                {
+                    "text": _txt(c, "CommentText", "").replace("&nbsp;", " ").strip(),
+                    "type": tipo,
+                    "variation": _int(c, "CommentVariation"),
+                    "skill_code": codigo,
+                    # Solo los tipos 4 y 5 hablan de una habilidad; en el tipo 1
+                    # el campo trae el id del jugador, no un codigo de habilidad.
+                    "skill": (
+                        COMMENT_SKILL_TYPES.get(codigo)
+                        if tipo in (COMENTARIO_NIVEL_ACTUAL, COMENTARIO_POTENCIAL)
+                        else None
+                    ),
+                    "level": _int(c, "CommentSkillLevel"),
+                }
+            )
 
     return {
         "ht_youth_player_id": _int(p, "YouthPlayerID"),
         "scout_id": _int(ojeador, "ScoutId") if ojeador is not None else None,
         "scout_name": _txt(ojeador, "ScoutName", "") if ojeador is not None else "",
-        "scouting_region_id": (
-            _int(llamada, "ScoutingRegionID") if llamada is not None else None
-        ),
+        "scouting_region_id": (_int(llamada, "ScoutingRegionID") if llamada is not None else None),
         "scout_comments": comentarios,
         "may_unlock": puede_revelar,
     }
@@ -1322,7 +1361,8 @@ def parse_regiondetails(xml: bytes) -> dict[str, Any]:
         "ht_region_id": _int(region, "RegionID"),
         "region_name": _txt(region, "RegionName", ""),
         "ht_league_id": _int(root.find(".//League"), "LeagueID")
-        if root.find(".//League") is not None else 0,
+        if root.find(".//League") is not None
+        else 0,
         "weather_today": _int(region, "WeatherID", -1),
         "weather_tomorrow": _int(region, "TomorrowWeatherID", -1),
         "fetched_at": _txt(root, "FetchedDate", ""),
@@ -1410,31 +1450,35 @@ def parse_worlddetails(xml: bytes) -> dict[str, Any]:
             }
             for cup in league.iterfind(".//Cups/Cup")
         ]
-        leagues.append({
-            "ht_league_id": _int(league, "LeagueID"),
-            "league_name": _txt(league, "LeagueName", ""),
-            # Las dos selecciones del pais. CHPP sigue llamando U20 al campo
-            # por historia; el equipo se llama "U21 <pais>" (verificado en
-            # vivo con nationalteamdetails de Francia, id 3045).
-            "national_team_id": _int(league, "NationalTeamId"),
-            "u21_team_id": _int(league, "U20TeamId"),
-            "country_id": _int(country, "CountryID") if country is not None else 0,
-            "country_code": _txt(country, "CountryCode", "") if country is not None else "",
-            "country_name": _txt(country, "CountryName", "") if country is not None else "",
-            "season": _int(league, "Season"),
-            "season_offset": _int(league, "SeasonOffset"),
-            "match_round": _int(league, "MatchRound"),
-            "match_rounds_left": _int(league, "MatchRoundsLeft"),
-            "number_of_levels": _int(league, "NumberOfLevels"),
-            "league_system_id": _int(league, "LeagueSystemID", 1),
-            "currency_name": _txt(country, "CurrencyName", "") if country is not None else "",
-            "currency_rate": _float(country, "CurrencyRate", 1.0) if country is not None else 1.0,
-            "training_date": _txt(league, "TrainingDate", ""),
-            "cup_match_date": _txt(league, "CupMatchDate", ""),
-            "series_match_date": _txt(league, "SeriesMatchDate", ""),
-            "economy_date": _txt(league, "EconomyDate", ""),
-            "cups": cups,
-        })
+        leagues.append(
+            {
+                "ht_league_id": _int(league, "LeagueID"),
+                "league_name": _txt(league, "LeagueName", ""),
+                # Las dos selecciones del pais. CHPP sigue llamando U20 al campo
+                # por historia; el equipo se llama "U21 <pais>" (verificado en
+                # vivo con nationalteamdetails de Francia, id 3045).
+                "national_team_id": _int(league, "NationalTeamId"),
+                "u21_team_id": _int(league, "U20TeamId"),
+                "country_id": _int(country, "CountryID") if country is not None else 0,
+                "country_code": _txt(country, "CountryCode", "") if country is not None else "",
+                "country_name": _txt(country, "CountryName", "") if country is not None else "",
+                "season": _int(league, "Season"),
+                "season_offset": _int(league, "SeasonOffset"),
+                "match_round": _int(league, "MatchRound"),
+                "match_rounds_left": _int(league, "MatchRoundsLeft"),
+                "number_of_levels": _int(league, "NumberOfLevels"),
+                "league_system_id": _int(league, "LeagueSystemID", 1),
+                "currency_name": _txt(country, "CurrencyName", "") if country is not None else "",
+                "currency_rate": _float(country, "CurrencyRate", 1.0)
+                if country is not None
+                else 1.0,
+                "training_date": _txt(league, "TrainingDate", ""),
+                "cup_match_date": _txt(league, "CupMatchDate", ""),
+                "series_match_date": _txt(league, "SeriesMatchDate", ""),
+                "economy_date": _txt(league, "EconomyDate", ""),
+                "cups": cups,
+            }
+        )
     return {"leagues": leagues}
 
 
@@ -1452,13 +1496,15 @@ def parse_trainingevents(xml: bytes) -> dict[str, Any]:
     for player in root.iterfind(".//Player"):
         pid = _int(player, "PlayerID")
         for ev in player.iterfind(".//TrainingEvent"):
-            events.append({
-                "ht_player_id": pid,
-                "skill_id": _int(ev, "SkillID"),
-                "old_level": _int(ev, "OldLevel"),
-                "new_level": _int(ev, "NewLevel"),
-                "season": _int(ev, "Season"),
-                "match_round": _int(ev, "MatchRound"),
-                "day_number": _int(ev, "DayNumber"),
-            })
+            events.append(
+                {
+                    "ht_player_id": pid,
+                    "skill_id": _int(ev, "SkillID"),
+                    "old_level": _int(ev, "OldLevel"),
+                    "new_level": _int(ev, "NewLevel"),
+                    "season": _int(ev, "Season"),
+                    "match_round": _int(ev, "MatchRound"),
+                    "day_number": _int(ev, "DayNumber"),
+                }
+            )
     return {"skill_ups": events}

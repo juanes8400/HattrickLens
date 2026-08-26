@@ -1,4 +1,5 @@
 """DTOs de salida del dashboard. camelCase hacia el cliente (docs/03)."""
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict

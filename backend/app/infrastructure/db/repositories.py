@@ -1,4 +1,5 @@
 """Implementaciones SQLAlchemy de los ports de repositorio."""
+
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -15,9 +16,7 @@ class SqlAlchemyPlayerRepository:
     async def upsert_identity(
         self, ht_player_id: int, team_id: int, first_name: str, last_name: str
     ) -> int:
-        row = await self._s.scalar(
-            select(m.Player).where(m.Player.ht_player_id == ht_player_id)
-        )
+        row = await self._s.scalar(select(m.Player).where(m.Player.ht_player_id == ht_player_id))
         if row is None:
             row = m.Player(
                 ht_player_id=ht_player_id,
@@ -62,23 +61,38 @@ class SqlAlchemyPlayerRepository:
         if snap is None:
             return None
         return {
-            "age_years": snap.age_years, "age_days": snap.age_days, "tsi": snap.tsi,
-            "form": snap.form, "stamina": snap.stamina, "experience": snap.experience,
-            "salary": snap.salary, "injury_level": snap.injury_level,
+            "age_years": snap.age_years,
+            "age_days": snap.age_days,
+            "tsi": snap.tsi,
+            "form": snap.form,
+            "stamina": snap.stamina,
+            "experience": snap.experience,
+            "salary": snap.salary,
+            "injury_level": snap.injury_level,
             "is_transfer_listed": snap.is_transfer_listed,
-            "specialty": snap.specialty, "loyalty": snap.loyalty,
-            "leadership": snap.leadership, "agreeability": snap.agreeability,
-            "aggressiveness": snap.aggressiveness, "honesty": snap.honesty,
-            "mother_club_bonus": snap.mother_club_bonus, "country_id": snap.country_id,
-            "league_goals": snap.league_goals, "cup_goals": snap.cup_goals,
-            "friendlies_goals": snap.friendlies_goals, "career_goals": snap.career_goals,
-            "career_hattricks": snap.career_hattricks, "career_assists": snap.career_assists,
+            "specialty": snap.specialty,
+            "loyalty": snap.loyalty,
+            "leadership": snap.leadership,
+            "agreeability": snap.agreeability,
+            "aggressiveness": snap.aggressiveness,
+            "honesty": snap.honesty,
+            "mother_club_bonus": snap.mother_club_bonus,
+            "country_id": snap.country_id,
+            "league_goals": snap.league_goals,
+            "cup_goals": snap.cup_goals,
+            "friendlies_goals": snap.friendlies_goals,
+            "career_goals": snap.career_goals,
+            "career_hattricks": snap.career_hattricks,
+            "career_assists": snap.career_assists,
             "player_trainer_skill_level": snap.player_trainer_skill_level,
             "player_trainer_type": snap.player_trainer_type,
             "skills": {
-                "keeper": snap.keeper, "defending": snap.defending,
-                "playmaking": snap.playmaking, "winger": snap.winger,
-                "passing": snap.passing, "scoring": snap.scoring,
+                "keeper": snap.keeper,
+                "defending": snap.defending,
+                "playmaking": snap.playmaking,
+                "winger": snap.winger,
+                "passing": snap.passing,
+                "scoring": snap.scoring,
                 "set_pieces": snap.set_pieces,
             },
         }
@@ -147,9 +161,7 @@ class SqlAlchemyPlayerRepository:
                 player_trainer_skill_level=data.get("player_trainer_skill_level", 0),
                 player_trainer_type=data.get("player_trainer_type", 0),
                 last_match_ht_id=previous.last_match_ht_id if previous else None,
-                last_match_position_code=(
-                    previous.last_match_position_code if previous else None
-                ),
+                last_match_position_code=(previous.last_match_position_code if previous else None),
                 last_match_played_minutes=(
                     previous.last_match_played_minutes if previous else None
                 ),
@@ -173,12 +185,16 @@ class SqlAlchemyPlayerRepository:
         self, team_id: int, current_ht_player_ids: set[int], captured_at: datetime
     ) -> list[m.Player]:
         rows = (
-            await self._s.execute(
-                select(m.Player).where(
-                    m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+            (
+                await self._s.execute(
+                    select(m.Player).where(
+                        m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         departed = [p for p in rows if p.ht_player_id not in current_ht_player_ids]
         for p in departed:
             p.left_team_at = captured_at
@@ -203,11 +219,16 @@ class SqlAlchemyPlayerRepository:
         )
         if exists:
             return False
-        self._s.add(m.PlayerMatchRating(
-            player_id=player_id, ht_match_id=ht_match_id,
-            position_code=position_code, played_minutes=played_minutes,
-            rating=rating, captured_at=captured_at,
-        ))
+        self._s.add(
+            m.PlayerMatchRating(
+                player_id=player_id,
+                ht_match_id=ht_match_id,
+                position_code=position_code,
+                played_minutes=played_minutes,
+                rating=rating,
+                captured_at=captured_at,
+            )
+        )
         return True
 
 
@@ -216,12 +237,15 @@ class SqlAlchemyEconomyRepository:
         self._s = session
 
     async def get_last_hash(self, team_id: int) -> bytes | None:
-        return cast(bytes | None, await self._s.scalar(
-            select(m.EconomySnapshot.content_hash)
-            .where(m.EconomySnapshot.team_id == team_id)
-            .order_by(m.EconomySnapshot.captured_at.desc())
-            .limit(1)
-        ))
+        return cast(
+            bytes | None,
+            await self._s.scalar(
+                select(m.EconomySnapshot.content_hash)
+                .where(m.EconomySnapshot.team_id == team_id)
+                .order_by(m.EconomySnapshot.captured_at.desc())
+                .limit(1)
+            ),
+        )
 
     async def get_last_values(self, team_id: int) -> dict[str, Any] | None:
         snap = await self._s.scalar(
@@ -253,8 +277,11 @@ class SqlAlchemyEconomyRepository:
         payload = {k: v for k, v in data.items() if k in cols}
         self._s.add(
             m.EconomySnapshot(
-                sync_id=sync_id, team_id=team_id, captured_at=captured_at,
-                content_hash=content_hash, **payload,
+                sync_id=sync_id,
+                team_id=team_id,
+                captured_at=captured_at,
+                content_hash=content_hash,
+                **payload,
             )
         )
 
@@ -264,12 +291,15 @@ class SqlAlchemyTrainingRepository:
         self._s = session
 
     async def get_last_hash(self, team_id: int) -> bytes | None:
-        return cast(bytes | None, await self._s.scalar(
-            select(m.TrainingSnapshot.content_hash)
-            .where(m.TrainingSnapshot.team_id == team_id)
-            .order_by(m.TrainingSnapshot.captured_at.desc())
-            .limit(1)
-        ))
+        return cast(
+            bytes | None,
+            await self._s.scalar(
+                select(m.TrainingSnapshot.content_hash)
+                .where(m.TrainingSnapshot.team_id == team_id)
+                .order_by(m.TrainingSnapshot.captured_at.desc())
+                .limit(1)
+            ),
+        )
 
     async def get_last_values(self, team_id: int) -> dict[str, Any] | None:
         snap = await self._s.scalar(
@@ -306,7 +336,9 @@ class SqlAlchemyTrainingRepository:
         formation_xp = data.get("formation_xp")
         self._s.add(
             m.TrainingSnapshot(
-                sync_id=sync_id, team_id=team_id, captured_at=captured_at,
+                sync_id=sync_id,
+                team_id=team_id,
+                captured_at=captured_at,
                 content_hash=content_hash,
                 formation_xp_json=_json.dumps(formation_xp) if formation_xp else None,
                 **payload,

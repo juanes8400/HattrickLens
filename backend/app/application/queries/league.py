@@ -9,6 +9,7 @@ evolución de sus jugadores. Por eso aquí se trabaja con **resultados y
 clasificación** — que son públicos y colectivos — y nunca con la ficha
 individual de los jugadores rivales.
 """
+
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -132,7 +133,9 @@ class LeagueResponse:
 
 
 def _history_from_matches(
-    matches: list[m.Match], rows: list[m.Standing], team_ht_id: int,
+    matches: list[m.Match],
+    rows: list[m.Standing],
+    team_ht_id: int,
 ) -> LeagueHistory:
     """Posición/puntos reales de cada equipo después de cada jornada,
     calculados a partir de los resultados de partidos ya conocidos —
@@ -186,7 +189,9 @@ def _history_from_matches(
         ranked = sorted(
             teams,
             key=lambda tid: (
-                -cum[tid]["points"], -(cum[tid]["gf"] - cum[tid]["ga"]), -cum[tid]["gf"],
+                -cum[tid]["points"],
+                -(cum[tid]["gf"] - cum[tid]["ga"]),
+                -cum[tid]["gf"],
             ),
         )
         positions_by_round[rnd] = {tid: i + 1 for i, tid in enumerate(ranked)}
@@ -202,15 +207,13 @@ def _history_from_matches(
         rounds=history_rounds,
         teams=[
             TeamHistoryRow(
-                ht_team_id=tid, name=name, is_own_team=tid == team_ht_id,
+                ht_team_id=tid,
+                name=name,
+                is_own_team=tid == team_ht_id,
                 positions=[
-                    None if rnd == 0 else positions_by_round[rnd].get(tid)
-                    for rnd in history_rounds
+                    None if rnd == 0 else positions_by_round[rnd].get(tid) for rnd in history_rounds
                 ],
-                points=[
-                    0 if rnd == 0 else points_by_round[rnd].get(tid)
-                    for rnd in history_rounds
-                ],
+                points=[0 if rnd == 0 else points_by_round[rnd].get(tid) for rnd in history_rounds],
             )
             for tid, name in teams.items()
         ],
@@ -218,7 +221,8 @@ def _history_from_matches(
 
 
 def _merge_standing_snapshots(
-    history: LeagueHistory, standing_snapshots: list[m.Standing],
+    history: LeagueHistory,
+    standing_snapshots: list[m.Standing],
 ) -> LeagueHistory:
     """Complementa el historial calculado desde partidos con cualquier foto
     real de `leaguedetails.xml` para una jornada que `leaguefixtures.xml`
@@ -246,17 +250,31 @@ def _merge_standing_snapshots(
         rounds=all_rounds,
         teams=[
             TeamHistoryRow(
-                ht_team_id=t.ht_team_id, name=t.name, is_own_team=t.is_own_team,
+                ht_team_id=t.ht_team_id,
+                name=t.name,
+                is_own_team=t.is_own_team,
                 positions=[
-                    t.positions[index_in_history[rnd]] if rnd in index_in_history
-                    else None if rnd == 0
-                    else (snap.position if (snap := by_round_team.get(rnd, {}).get(t.ht_team_id)) else None)
+                    t.positions[index_in_history[rnd]]
+                    if rnd in index_in_history
+                    else None
+                    if rnd == 0
+                    else (
+                        snap.position
+                        if (snap := by_round_team.get(rnd, {}).get(t.ht_team_id))
+                        else None
+                    )
                     for rnd in all_rounds
                 ],
                 points=[
-                    t.points[index_in_history[rnd]] if rnd in index_in_history
-                    else 0 if rnd == 0
-                    else (snap.points if (snap := by_round_team.get(rnd, {}).get(t.ht_team_id)) else None)
+                    t.points[index_in_history[rnd]]
+                    if rnd in index_in_history
+                    else 0
+                    if rnd == 0
+                    else (
+                        snap.points
+                        if (snap := by_round_team.get(rnd, {}).get(t.ht_team_id))
+                        else None
+                    )
                     for rnd in all_rounds
                 ],
             )
@@ -266,7 +284,10 @@ def _merge_standing_snapshots(
 
 
 def _standings_from_matches(
-    matches: list[m.Match], rows: list[m.Standing], own_team_ht_id: int, side: Literal["home", "away"],
+    matches: list[m.Match],
+    rows: list[m.Standing],
+    own_team_ht_id: int,
+    side: Literal["home", "away"],
 ) -> list[StandingRow]:
     """Clasificación Local o Visitante — pedido explícitamente 2026-08-08.
     `leaguedetails.xml` solo da la tabla combinada; esto se calcula desde
@@ -303,15 +324,24 @@ def _standings_from_matches(
     ordered = sorted(
         teams,
         key=lambda tid: (
-            -stats[tid]["points"], -(stats[tid]["gf"] - stats[tid]["ga"]), -stats[tid]["gf"],
+            -stats[tid]["points"],
+            -(stats[tid]["gf"] - stats[tid]["ga"]),
+            -stats[tid]["gf"],
         ),
     )
     return [
         StandingRow(
-            position=i + 1, ht_team_id=tid, name=teams[tid],
-            played=stats[tid]["played"], won=stats[tid]["won"], drawn=stats[tid]["drawn"],
-            lost=stats[tid]["lost"], goals_for=stats[tid]["gf"], goals_against=stats[tid]["ga"],
-            goal_difference=stats[tid]["gf"] - stats[tid]["ga"], points=stats[tid]["points"],
+            position=i + 1,
+            ht_team_id=tid,
+            name=teams[tid],
+            played=stats[tid]["played"],
+            won=stats[tid]["won"],
+            drawn=stats[tid]["drawn"],
+            lost=stats[tid]["lost"],
+            goals_for=stats[tid]["gf"],
+            goals_against=stats[tid]["ga"],
+            goal_difference=stats[tid]["gf"] - stats[tid]["ga"],
+            points=stats[tid]["points"],
             is_own_team=tid == own_team_ht_id,
         )
         for i, tid in enumerate(ordered)
@@ -355,10 +385,17 @@ class LeagueQueryService:
         rows.sort(key=lambda r: (-r.points, -(r.goals_for - r.goals_against), -r.goals_for))
         standings = [
             StandingRow(
-                position=i + 1, ht_team_id=r.team_ht_id, name=r.team_name,
-                played=r.played, won=r.won, drawn=r.draws, lost=r.lost,
-                goals_for=r.goals_for, goals_against=r.goals_against,
-                goal_difference=r.goals_for - r.goals_against, points=r.points,
+                position=i + 1,
+                ht_team_id=r.team_ht_id,
+                name=r.team_name,
+                played=r.played,
+                won=r.won,
+                drawn=r.draws,
+                lost=r.lost,
+                goals_for=r.goals_for,
+                goals_against=r.goals_against,
+                goal_difference=r.goals_for - r.goals_against,
+                points=r.points,
                 is_own_team=r.team_ht_id == team.ht_team_id,
             )
             for i, r in enumerate(rows)
@@ -413,7 +450,8 @@ class LeagueQueryService:
             ).scalars()
         )
         history = _merge_standing_snapshots(
-            _history_from_matches(matches, rows, team.ht_team_id), standing_snapshots,
+            _history_from_matches(matches, rows, team.ht_team_id),
+            standing_snapshots,
         )
         standings_home = _standings_from_matches(matches, rows, team.ht_team_id, "home")
         standings_away = _standings_from_matches(matches, rows, team.ht_team_id, "away")
@@ -460,31 +498,44 @@ class LeagueQueryService:
 
         records = [
             TeamRecord(
-                ht_team_id=r.team_ht_id, name=r.team_name, played=r.played,
-                won=r.won, drawn=r.draws, lost=r.lost, goals_for=r.goals_for,
-                goals_against=r.goals_against, points=r.points,
+                ht_team_id=r.team_ht_id,
+                name=r.team_name,
+                played=r.played,
+                won=r.won,
+                drawn=r.draws,
+                lost=r.lost,
+                goals_for=r.goals_for,
+                goals_against=r.goals_against,
+                points=r.points,
             )
             for r in rows
         ]
         sim = simulate(
-            records, pending, runs=runs,
-            league_level=team.league_level, max_level=team.max_level,
+            records,
+            pending,
+            runs=runs,
+            league_level=team.league_level,
+            max_level=team.max_level,
         )
 
         by_id = {o.ht_team_id: o for o in sim.teams}
         outlook = [
             OutlookRow(
-                ht_team_id=o.ht_team_id, name=o.name,
+                ht_team_id=o.ht_team_id,
+                name=o.name,
                 is_own_team=o.ht_team_id == team.ht_team_id,
-                current_position=o.current_position, current_points=o.current_points,
-                expected_points=o.expected_points, expected_position=o.expected_position,
+                current_position=o.current_position,
+                current_points=o.current_points,
+                expected_points=o.expected_points,
+                expected_position=o.expected_position,
                 most_likely_position=o.most_likely_position,
                 title_probability=o.title_probability,
                 promotion_probability=o.promotion_probability,
                 second_to_fourth_probability=o.second_to_fourth_probability,
                 relegation_playoff_probability=o.relegation_playoff_probability,
                 relegation_probability=o.relegation_probability,
-                attack_strength=o.attack_strength, defence_strength=o.defence_strength,
+                attack_strength=o.attack_strength,
+                defence_strength=o.defence_strength,
                 position_distribution=o.position_distribution,
             )
             for o in sim.teams
@@ -493,15 +544,18 @@ class LeagueQueryService:
         bw = best_worst_case(records, pending, target_team_id=team.ht_team_id, runs=runs)
         best_worst = (
             BestWorstRow(
-                ht_team_id=bw.ht_team_id, name=bw.name,
+                ht_team_id=bw.ht_team_id,
+                name=bw.name,
                 remaining_matches=bw.remaining_matches,
-                current_points=bw.current_points, current_position=bw.current_position,
+                current_points=bw.current_points,
+                current_position=bw.current_position,
                 best_case_position_distribution=bw.best_case_position_distribution,
                 best_case_expected_points=bw.best_case_expected_points,
                 worst_case_position_distribution=bw.worst_case_position_distribution,
                 worst_case_expected_points=bw.worst_case_expected_points,
             )
-            if bw is not None else None
+            if bw is not None
+            else None
         )
 
         # Pronóstico del próximo partido propio
@@ -514,8 +568,12 @@ class LeagueQueryService:
             away_rec = next(r for r in records if r.ht_team_id == upcoming.away_ht_id)
             fc = forecast_match(home_rec, away_rec, records, match_round=upcoming.match_round)
             next_match = {
-                "home": fc.home, "away": fc.away, "round": fc.match_round,
-                "homeWin": fc.home_win, "draw": fc.draw, "awayWin": fc.away_win,
+                "home": fc.home,
+                "away": fc.away,
+                "round": fc.match_round,
+                "homeWin": fc.home_win,
+                "draw": fc.draw,
+                "awayWin": fc.away_win,
                 "expectedHomeGoals": fc.expected_home_goals,
                 "expectedAwayGoals": fc.expected_away_goals,
                 "mostLikelyScore": fc.most_likely_score,
@@ -548,7 +606,8 @@ class LeagueQueryService:
             outlook=outlook,
             own_outlook=(
                 next((o for o in outlook if o.is_own_team), None)
-                if team.ht_team_id in by_id else None
+                if team.ht_team_id in by_id
+                else None
             ),
             best_worst=best_worst,
             next_match=next_match,

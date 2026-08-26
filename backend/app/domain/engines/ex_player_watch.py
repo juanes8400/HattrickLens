@@ -19,6 +19,7 @@ jugador que se convierte en ENTRENADOR de su equipo actual ya no puede
 venderse nunca más, así que tampoco habrá reventa ni comisión. Cierra a
 cualquiera de los dos, canterano incluido.
 """
+
 from typing import Literal
 
 Motivo = Literal["revendido", "despedido", "sin_comprador", "entrenador"]
@@ -61,7 +62,7 @@ def salio_hace_poco(
     """¿Se fue tan hace poco que su venta podria no haberse leido aun?"""
     if left_at is None:
         return False
-    return (ahora - left_at).days < dias   # type: ignore[operator]
+    return (ahora - left_at).days < dias  # type: ignore[operator]
 
 
 def es_entrenador(ficha: dict | None) -> bool:

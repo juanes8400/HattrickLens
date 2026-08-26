@@ -15,6 +15,7 @@ publicado: un 5% sobre TODAS las habilidades del jugador, arriba o abajo.
   · Potente: +5% con lluvia, -5% con sol.
   · Rápido:  -5% con lluvia y -5% con sol (nunca gana con el clima).
 """
+
 from dataclasses import dataclass
 
 RAIN = 0
@@ -57,6 +58,7 @@ WEATHER_SENSITIVE: tuple[str, ...] = ("Técnico", "Rápido", "Potente")
 @dataclass(frozen=True)
 class WeatherReading:
     """El clima de una región para un día concreto."""
+
     region_name: str
     weather_id: int
 

@@ -4,6 +4,7 @@ No pasa por el dominio ni por repositorios de escritura: lee directamente los
 snapshots más recientes. En PostgreSQL esto se sustituirá por la vista
 materializada `mv_team_dashboard` (docs/02) sin cambiar este contrato.
 """
+
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -112,19 +113,24 @@ class DashboardQueryService:
                 income_sum=local(econ.income_sum),
                 costs_sum=local(econ.costs_sum),
                 costs_players=local(econ.costs_players),
-                fan_club_size=econ.fan_club_size,          # no es dinero
+                fan_club_size=econ.fan_club_size,  # no es dinero
                 last_weeks_total=local(econ.last_weeks_total),
-                structural_balance=local(structural_balance(
-                    total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses),
-                    econ.income_spectators,
-                    econ.costs_players, econ.costs_staff, econ.costs_arena,
-                )),
+                structural_balance=local(
+                    structural_balance(
+                        total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses),
+                        econ.income_spectators,
+                        econ.costs_players,
+                        econ.costs_staff,
+                        econ.costs_arena,
+                    )
+                ),
                 biweekly_balance=local(ingresos_dos_semanas - gastos_dos_semanas),
                 biweekly_income=local(ingresos_dos_semanas),
                 biweekly_salaries=local(salarios_dos_semanas),
                 salary_share_pct=(
                     round(salarios_dos_semanas / ingresos_dos_semanas * 100, 1)
-                    if ingresos_dos_semanas > 0 else 0.0
+                    if ingresos_dos_semanas > 0
+                    else 0.0
                 ),
                 currency=team.currency_name or "",
             )
@@ -148,7 +154,8 @@ class DashboardQueryService:
                     ctx.setup.intensity,
                     ctx.setup.stamina_share,
                 )
-                if ctx is not None else 0.0
+                if ctx is not None
+                else 0.0
             )
             # Edad media de quienes de VERDAD recibieron entrenamiento esta
             # semana (minutos jugados en la posición que entrena), no de toda
@@ -189,9 +196,7 @@ class DashboardQueryService:
             if fila.current_week_exposure > 0
         ]
 
-    async def _latest_players(
-        self, team_id: int
-    ) -> list[tuple[m.PlayerSnapshot, m.Player]]:
+    async def _latest_players(self, team_id: int) -> list[tuple[m.PlayerSnapshot, m.Player]]:
         """Último snapshot por jugador (equivalente al DISTINCT ON de PostgreSQL)."""
         latest = (
             select(
@@ -242,16 +247,24 @@ class DashboardQueryService:
             skills={alias: getattr(p, col) or 0 for col, alias in SKILL_COLS.items()},
         )
 
-    def _alerts(
-        self, resp: DashboardResponse, players: list[m.PlayerSnapshot]
-    ) -> list[Alert]:
+    def _alerts(self, resp: DashboardResponse, players: list[m.PlayerSnapshot]) -> list[Alert]:
         out: list[Alert] = []
         if resp.stale:
-            out.append(Alert(kind="sync", severity="info",
-                             message="Los datos no se sincronizan hace más de 12 horas."))
+            out.append(
+                Alert(
+                    kind="sync",
+                    severity="info",
+                    message="Los datos no se sincronizan hace más de 12 horas.",
+                )
+            )
         if resp.squad and resp.squad.injured_count:
-            out.append(Alert(kind="injury", severity="warning",
-                             message=f"{resp.squad.injured_count} jugador(es) lesionado(s)."))
+            out.append(
+                Alert(
+                    kind="injury",
+                    severity="warning",
+                    message=f"{resp.squad.injured_count} jugador(es) lesionado(s).",
+                )
+            )
         if resp.finance and resp.squad:
             weeks = (
                 resp.finance.cash // abs(resp.finance.weekly_delta)
@@ -259,13 +272,21 @@ class DashboardQueryService:
                 else None
             )
             if weeks is not None and weeks < 8:
-                out.append(Alert(
-                    kind="finance", severity="danger",
-                    message=f"Con el balance actual la caja aguanta ~{weeks} semanas.",
-                ))
+                out.append(
+                    Alert(
+                        kind="finance",
+                        severity="danger",
+                        message=f"Con el balance actual la caja aguanta ~{weeks} semanas.",
+                    )
+                )
         if players:
             veterans = [p for p in players if p.age_years >= 33]
             if veterans:
-                out.append(Alert(kind="squad", severity="info",
-                                 message=f"{len(veterans)} jugador(es) de 33+ años en plantilla."))
+                out.append(
+                    Alert(
+                        kind="squad",
+                        severity="info",
+                        message=f"{len(veterans)} jugador(es) de 33+ años en plantilla.",
+                    )
+                )
         return out

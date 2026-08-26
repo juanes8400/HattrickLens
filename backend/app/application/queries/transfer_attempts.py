@@ -10,6 +10,7 @@ CHPP. Solo lo dice en el texto de las noticias al cerrarse la puja ("este
 jugador fue visto 8 veces mientras estaba en la lista de transferibles"), así
 que lo teclea el usuario y aquí se sirve tal cual, sin estimarlo jamás.
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -30,7 +31,12 @@ from app.domain.value_objects.skill import Age
 from app.infrastructure.db import models as m
 
 SKILL_COLS = (
-    "keeper", "defending", "playmaking", "winger", "passing", "scoring",
+    "keeper",
+    "defending",
+    "playmaking",
+    "winger",
+    "passing",
+    "scoring",
     "set_pieces",
 )
 #: A partir de aqui la foto esta tan lejos del cierre que ya no describe al
@@ -202,21 +208,18 @@ class TransferAttemptsQueryService:
         salida: list[TransferAttemptRow] = []
         for intento, jugador in intentos:
             numero[jugador.id] = numero.get(jugador.id, 0) + 1
-            salida.append(
-                await self._fila(intento, jugador, numero[jugador.id], conv, equipo)
-            )
+            salida.append(await self._fila(intento, jugador, numero[jugador.id], conv, equipo))
 
         salida.sort(key=lambda r: r.detected_at, reverse=True)
         return TransferAttemptsResponse(
             currency=equipo.currency_name,
             rows=salida,
             pending_question=[
-                r for r in salida
-                if not r.open and not r.asked
-                and (r.times_seen is None or r.asking_price is None)
+                r
+                for r in salida
+                if not r.open and not r.asked and (r.times_seen is None or r.asking_price is None)
             ],
         )
-
 
     async def _fila(self, intento, jugador, numero, conv, equipo) -> TransferAttemptRow:
         cierre = intento.ended_at or intento.deadline
@@ -242,7 +245,8 @@ class TransferAttemptsQueryService:
         )
         etapa = (
             await self._s.get(m.PlayerStint, intento.stint_id)
-            if intento.stint_id is not None else None
+            if intento.stint_id is not None
+            else None
         )
         if etapa is None:
             etapa = await self._s.scalar(
@@ -270,7 +274,8 @@ class TransferAttemptsQueryService:
                 .order_by(m.PlayerSnapshot.captured_at.asc())
                 .limit(1)
             )
-            if llegada is not None else None
+            if llegada is not None
+            else None
         )
 
         return TransferAttemptRow(
@@ -285,9 +290,7 @@ class TransferAttemptsQueryService:
             sold=intento.sold,
             asking_price=intento.asking_price,
             highest_bid=conv(intento.last_highest_bid or intento.highest_bid) or None,
-            sale_price=(
-                conv(etapa.sale_price) if intento.sold and etapa is not None else None
-            ),
+            sale_price=(conv(etapa.sale_price) if intento.sold and etapa is not None else None),
             agent_pct=AGENT_PCT if intento.sold else "?",
             times_seen=intento.times_seen,
             asked=intento.times_seen_asked,
@@ -297,8 +300,7 @@ class TransferAttemptsQueryService:
                 foto.age_days if foto is not None else None,
             ),
             skills={
-                col: (getattr(foto, col) if foto is not None else None) or "?"
-                for col in SKILL_COLS
+                col: (getattr(foto, col) if foto is not None else None) or "?" for col in SKILL_COLS
             },
             # De la FOTO, no de la ficha del jugador. Esos campos en la ficha
             # solo los rellena el repaso de ex-jugadores; a quien sigue en el
@@ -313,22 +315,21 @@ class TransferAttemptsQueryService:
             )
             or (
                 self._codigo_por_nombre.get(jugador.native_country.strip().casefold())
-                if jugador.native_country else None
+                if jugador.native_country
+                else None
             ),
             snapshot_at=_iso(foto.captured_at) if foto is not None else None,
             stale=antiguedad is None or antiguedad > DIAS_PARA_DUDAR,
             from_academy=bool(etapa.from_academy) if etapa is not None else False,
             purchased_at=_iso(llegada),
             purchase_price=(
-                conv(etapa.arrival_price)
-                if etapa is not None and etapa.arrival_price else "?"
+                conv(etapa.arrival_price) if etapa is not None and etapa.arrival_price else "?"
             ),
             age_at_purchase=_edad_en_la_compra(al_llegar, foto, jugador, llegada),
             days_since_purchase=(corte - llegada).days if llegada is not None else "?",
             salary_to_date=await self._salario_hasta(jugador, llegada, corte, conv),
             training_that_week=(
-                training_name(entrenamiento.training_type)
-                if entrenamiento is not None else "?"
+                training_name(entrenamiento.training_type) if entrenamiento is not None else "?"
             ),
         )
 
@@ -348,13 +349,8 @@ class TransferAttemptsQueryService:
                 .order_by(m.PlayerSnapshot.captured_at)
             )
         ).all()
-        historia = [
-            SalarySnapshot(captured_at=c, salary=conv(s) or 0) for c, s in filas
-        ]
+        historia = [SalarySnapshot(captured_at=c, salary=conv(s) or 0) for c, s in filas]
         if not historia:
             return "?"
         semanas = weeks_owned(desde, hasta)
-        return sum(
-            salary_at(historia, desde + timedelta(weeks=w))
-            for w in range(semanas + 1)
-        )
+        return sum(salary_at(historia, desde + timedelta(weeks=w)) for w in range(semanas + 1))

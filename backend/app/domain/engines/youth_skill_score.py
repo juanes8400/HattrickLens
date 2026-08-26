@@ -11,6 +11,7 @@ mejor canterano" sino "en qué habilidad tengo más que ganar" — y eso depende
 cuántos chicos prometen en ella y de cuánto tiempo les queda antes de que se
 les acabe el plazo.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -20,7 +21,13 @@ from app.domain.engines import youth_htms as yh
 
 # Las siete habilidades juveniles, en el orden de la hoja.
 SKILLS: tuple[str, ...] = (
-    "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+    "keeper",
+    "defending",
+    "playmaking",
+    "winger",
+    "passing",
+    "scoring",
+    "set_pieces",
 )
 
 # `AuxiJuveniles!B2` y siguientes: los cortes de calidad sobre la nota por
@@ -51,9 +58,7 @@ PRIORIDAD_EL_RESTO = 9
 INSUFICIENTE = 5
 
 
-def training_priority(
-    note: int | None, *, leaves_soon: bool, max_reached: bool = False
-) -> int:
+def training_priority(note: int | None, *, leaves_soon: bool, max_reached: bool = False) -> int:
     """A quien darle los minutos de esta habilidad, del primero al ultimo.
 
     Un techo ya alcanzado NO es "sin descubrir": no es que no se sepa, es que
@@ -63,22 +68,17 @@ def training_priority(
     if max_reached:
         return PRIORIDAD_EL_RESTO
     if note is None:
-        return (
-            PRIORIDAD_SIN_DESCUBRIR_PRONTO if leaves_soon
-            else PRIORIDAD_SIN_DESCUBRIR_TARDE
-        )
+        return PRIORIDAD_SIN_DESCUBRIR_PRONTO if leaves_soon else PRIORIDAD_SIN_DESCUBRIR_TARDE
     if note >= EXCELLENT_FROM:
         return PRIORIDAD_EXCELENTE
     if note >= GOOD_FROM:
         return PRIORIDAD_BUENO_PRONTO if leaves_soon else PRIORIDAD_BUENO_TARDE
     if note >= ACCEPTABLE_FROM:
-        return (
-            PRIORIDAD_ACEPTABLE_PRONTO if leaves_soon
-            else PRIORIDAD_ACEPTABLE_TARDE
-        )
+        return PRIORIDAD_ACEPTABLE_PRONTO if leaves_soon else PRIORIDAD_ACEPTABLE_TARDE
     if note >= INSUFICIENTE:
         return PRIORIDAD_INSUFICIENTE
     return PRIORIDAD_EL_RESTO
+
 
 # `Juveniles!F3` y `G3`: la edad que TENDRÁ el chico el día que se le acabe el
 # plazo, en años y días. El corte de 38 días parte a los que se van pronto de
@@ -161,19 +161,20 @@ def weights_for(base: float = DEFAULT_WEIGHT_BASE) -> dict[str, float]:
     no vale nada, y ninguna base debería poder darle valor.
     """
     return {
-        **{bucket: base ** exp for bucket, exp in EXPONENTS.items()},
+        **{bucket: base**exp for bucket, exp in EXPONENTS.items()},
         Bucket.AT_MAX: 0.0,
     }
 
 
 def trainable_weight_for(base: float = DEFAULT_WEIGHT_BASE) -> float:
-    return base ** TRAINABLE_EXPONENT
+    return base**TRAINABLE_EXPONENT
 
 
 # Se conservan los valores por defecto como constantes porque hay código y
 # pruebas que los leen directamente.
 WEIGHTS: dict[str, float] = weights_for()
 TRAINABLE_WEIGHT = trainable_weight_for()
+
 
 @dataclass(frozen=True)
 class YouthSkillReading:
@@ -210,12 +211,14 @@ class YouthCandidate:
         return yh.rango_htms28(
             {
                 skill: yh.Lectura(
-                    current=r.current, maximum=r.maximum,
+                    current=r.current,
+                    maximum=r.maximum,
                     max_reached=r.max_reached,
                 )
                 for skill, r in self.skills.items()
             },
-            self.age_years, self.age_days,
+            self.age_years,
+            self.age_days,
         )
 
     @property
@@ -301,9 +304,7 @@ def skill_note(reading: YouthSkillReading) -> int | None:
     return reading.maximum or None
 
 
-def bucket_of(
-    note: int | None, *, leaves_soon: bool, max_reached: bool = False
-) -> str:
+def bucket_of(note: int | None, *, leaves_soon: bool, max_reached: bool = False) -> str:
     """El cubo de `AuxiJuveniles` al que cae una nota."""
     if max_reached:
         return Bucket.AT_MAX
@@ -323,9 +324,7 @@ def bucket_of(
     return ""
 
 
-def leaves_soon(
-    candidate: YouthCandidate, *, soon_max_days: int = SOON_MAX_DAYS
-) -> bool:
+def leaves_soon(candidate: YouthCandidate, *, soon_max_days: int = SOON_MAX_DAYS) -> bool:
     """¿Sale con menos de 17;038?
 
     2026-08-23, corregido: lo que importa no es «se va pronto» sino la EDAD a
@@ -337,7 +336,8 @@ def leaves_soon(
     El corte es estricto, como se dijo: «menos de 17;038».
     """
     return (candidate.age_years_at_deadline, candidate.age_days_at_deadline) < (
-        LEAVE_AGE_YEARS, soon_max_days
+        LEAVE_AGE_YEARS,
+        soon_max_days,
     )
 
 
@@ -365,9 +365,7 @@ def score_skills(
     # El peso del bonus lo SUGIERE la escalera (peldaño -2), pero se puede
     # mover aparte: es el único sumando que no describe a la cantera sino a
     # cuánto quiere pesar el usuario ese criterio.
-    peso_bonus = (
-        trainable_weight_for(weight_base) if trainable_weight is None else trainable_weight
-    )
+    peso_bonus = trainable_weight_for(weight_base) if trainable_weight is None else trainable_weight
     out: list[SkillScore] = []
     for skill in SKILLS:
         counts = {b.value: 0 for b in Bucket}
@@ -380,9 +378,7 @@ def score_skills(
                 continue
             note = skill_note(reading)
             pronto = leaves_soon(candidate, soon_max_days=soon_max_days)
-            bucket = bucket_of(
-                note, leaves_soon=pronto, max_reached=reading.max_reached
-            )
+            bucket = bucket_of(note, leaves_soon=pronto, max_reached=reading.max_reached)
             # Quien ya toco techo no compite por estos minutos: no le
             # servirian de nada. Se aparta, no se pone el ultimo.
             destino = tapados if reading.max_reached else names
@@ -408,9 +404,10 @@ def score_skills(
                 counts[bucket] += 1
 
         trainable_count = float(trainable.get(skill, 0.0))
-        score = sum(
-            weights[bucket] * counts[bucket] / SQUAD_NORMALISER for bucket in counts
-        ) + peso_bonus * trainable_count / SQUAD_NORMALISER
+        score = (
+            sum(weights[bucket] * counts[bucket] / SQUAD_NORMALISER for bucket in counts)
+            + peso_bonus * trainable_count / SQUAD_NORMALISER
+        )
         out.append(
             SkillScore(
                 skill=skill,
@@ -465,18 +462,19 @@ def score_skills(
 # criterio y no las unidades — si uno devolviera decenas y otro unidades, el
 # sumando pesaría distinto por accidente y no por decisión.
 
+
 class TrainableMethod(StrEnum):
     # 1 (RECEIVERS) y 2 (RIVALS) están definidos pero aún no se pueden
     # calcular: el primero necesita la alineación juvenil —CHPP no la manda en
     # youthplayerlist— y el segundo unas estadísticas que el usuario aportará.
     # No se listan como opción hasta que devuelvan un número real: una opción
     # que siempre da 0 no es una opción, es una trampa.
-    SLOTS = "slots"          # 1b: plazas que entrena cada entrenamiento
-    ATTACK = "attack"        # 3: aporte de esa habilidad al ataque
-    MIDFIELD = "midfield"    # 4: al mediocampo
-    DEFENCE = "defence"      # 5: a la defensa
-    SENIOR = "senior"        # 6: lo que entrena el primer equipo
-    EDIT = "edit"            # 7: a mano
+    SLOTS = "slots"  # 1b: plazas que entrena cada entrenamiento
+    ATTACK = "attack"  # 3: aporte de esa habilidad al ataque
+    MIDFIELD = "midfield"  # 4: al mediocampo
+    DEFENCE = "defence"  # 5: a la defensa
+    SENIOR = "senior"  # 6: lo que entrena el primer equipo
+    EDIT = "edit"  # 7: a mano
 
 
 # Cuántos jugadores de una alineación reciben de verdad cada entrenamiento.
@@ -579,6 +577,4 @@ def block_trainable(
     # Sin redondear: el aporte de una habilidad a un bloque es una proporción,
     # y truncarla a entero perdía la diferencia entre habilidades vecinas —
     # 10,7 y 10,4 no son "11 y 10", son casi lo mismo.
-    return {
-        skill: value / top * SQUAD_NORMALISER for skill, value in totals.items()
-    }
+    return {skill: value / top * SQUAD_NORMALISER for skill, value in totals.items()}

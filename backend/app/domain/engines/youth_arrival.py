@@ -18,6 +18,7 @@ una estimación: se calcula exacto restando los días que le sobraban sobre
 Esto es fontanería del recorrido, no un dato del jugador: la fecha no se
 guarda como su llegada ni se enseña en su ficha.
 """
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -42,9 +43,7 @@ def dias_desde_los_diecisiete(edad: Age) -> int:
     Negativo si aún no los tiene, que en el primer equipo no debería pasar.
     """
     return (
-        edad.years * Age.DAYS_PER_YEAR
-        + edad.days
-        - EDAD_MINIMA_PRIMER_EQUIPO * Age.DAYS_PER_YEAR
+        edad.years * Age.DAYS_PER_YEAR + edad.days - EDAD_MINIMA_PRIMER_EQUIPO * Age.DAYS_PER_YEAR
     )
 
 

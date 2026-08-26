@@ -27,6 +27,7 @@ Y se llena en ese orden, sin volver atrás:
 Los cupos a media ración cuentan como plazas normales; lo único que cambia es
 que se llenan al final de su región.
 """
+
 from dataclasses import dataclass, field
 
 from app.domain.engines.youth_skill_score import (
@@ -62,7 +63,11 @@ PUESTOS_DE_UN_ONCE: tuple[tuple[str, int], ...] = (
 #: ninguna region, asi que no recibiria nada, y ocuparlo seria fingir una
 #: plaza. Quien no cabe aqui se queda fuera, que es lo mismo pero dicho.
 PUESTOS_DE_UN_BANQUILLO: tuple[str, ...] = (
-    "keeper", "central_defender", "wingback", "inner_midfield", "winger",
+    "keeper",
+    "central_defender",
+    "wingback",
+    "inner_midfield",
+    "winger",
     "forward",
 )
 
@@ -135,33 +140,43 @@ class Entrenamiento:
 
 
 ENTRENAMIENTOS: dict[str, Entrenamiento] = {
-    e.codigo: e for e in (
+    e.codigo: e
+    for e in (
         Entrenamiento("keeper", "keeper", "Portería", {POR: 100}),
         Entrenamiento("defending", "defending", "Defensa", {DFC: 100, LAT: 100}),
         Entrenamiento(
-            "defending_wide", "defending",
+            "defending_wide",
+            "defending",
             "Defensa (porteros, defensas y centro del campo completo)",
             _mismo((POR, DFC, LAT, MED, EXT), 80),
         ),
         Entrenamiento("playmaking", "playmaking", "Jugadas", {MED: 100, EXT: 50}),
         Entrenamiento("winger", "winger", "Lateral", {EXT: 100, LAT: 50}),
-        Entrenamiento("winger_forwards", "winger", "Lateral (extremos y delanteros)",
-                      {EXT: 60, DEL: 60}),
-        Entrenamiento("passing", "passing", "Pases",
-                      _mismo((MED, EXT, DEL), 100)),
         Entrenamiento(
-            "passing_defenders", "passing",
+            "winger_forwards", "winger", "Lateral (extremos y delanteros)", {EXT: 60, DEL: 60}
+        ),
+        Entrenamiento("passing", "passing", "Pases", _mismo((MED, EXT, DEL), 100)),
+        Entrenamiento(
+            "passing_defenders",
+            "passing",
             "Pases (defensas y centro del campo completo)",
             _mismo((DFC, LAT, MED, EXT), 80),
         ),
         Entrenamiento("scoring", "scoring", "Anotación", {DEL: 100}),
         Entrenamiento(
-            "scoring_set_pieces", "scoring", "Anotación y balón parado",
+            "scoring_set_pieces",
+            "scoring",
+            "Anotación y balón parado",
             _mismo(TODOS, 60),
-            tambien_sube="set_pieces", ritmos_de_la_otra=_mismo(TODOS, 40),
+            tambien_sube="set_pieces",
+            ritmos_de_la_otra=_mismo(TODOS, 40),
         ),
-        Entrenamiento("set_pieces", "set_pieces", "Balón parado",
-                      {POR: 125, DFC: 100, LAT: 100, MED: 100, EXT: 100, DEL: 100}),
+        Entrenamiento(
+            "set_pieces",
+            "set_pieces",
+            "Balón parado",
+            {POR: 125, DFC: 100, LAT: 100, MED: 100, EXT: 100, DEL: 100},
+        ),
     )
 }
 
@@ -175,9 +190,7 @@ SECUNDARIO_DUPLICADO = 1 / 2
 
 
 def factor_secundario(principal: str, secundaria: str) -> float:
-    return (
-        SECUNDARIO_DUPLICADO if principal == secundaria else SECUNDARIO_NORMAL
-    )
+    return SECUNDARIO_DUPLICADO if principal == secundaria else SECUNDARIO_NORMAL
 
 
 #: Las variantes de cada habilidad, en el orden en que se declararon. La
@@ -271,9 +284,9 @@ class PlanDeEntrenamiento:
         ciegas, que aqui suele ser casi toda.
         """
         return sum(
-            1 for a in self.asignaciones
-            if a.recibe_doble
-            and a.current is None and a.maximum is None and not a.max_reached
+            1
+            for a in self.asignaciones
+            if a.recibe_doble and a.current is None and a.maximum is None and not a.max_reached
         )
 
 
@@ -393,8 +406,7 @@ def youth_training_plan(
     # Todos los canteranos conocidos, por si una cola se queda corta: una
     # plaza que entrena no puede quedarse vacia habiendo gente libre.
     todos = list(cola_principal) + [
-        p for p in cola_secundaria
-        if p.name not in {q.name for q in cola_principal}
+        p for p in cola_secundaria if p.name not in {q.name for q in cola_principal}
     ]
 
     def vetados(region: str) -> set[str]:
@@ -436,20 +448,23 @@ def youth_training_plan(
                 r_principal, r_secundaria = cupo.racion, 0.0
             else:
                 r_principal, r_secundaria = 0.0, _rebajado(cupo.racion)
-            plan.asignaciones.append(Asignacion(
-                player=elegido.name, puesto=cupo.puesto, region=region,
-                racion_principal=r_principal, racion_secundaria=r_secundaria,
-                peldano=elegido.priority,
-                elegido_por=(
-                    secundaria if region == REGION_SOLO_SECUNDARIA else principal
-                ),
-                age_days_total=elegido.age_days_total,
-                htms28_min=elegido.htms28_min,
-                htms28_max=elegido.htms28_max,
-                current=elegido.current,
-                maximum=elegido.maximum,
-                max_reached=elegido.max_reached,
-            ))
+            plan.asignaciones.append(
+                Asignacion(
+                    player=elegido.name,
+                    puesto=cupo.puesto,
+                    region=region,
+                    racion_principal=r_principal,
+                    racion_secundaria=r_secundaria,
+                    peldano=elegido.priority,
+                    elegido_por=(secundaria if region == REGION_SOLO_SECUNDARIA else principal),
+                    age_days_total=elegido.age_days_total,
+                    htms28_min=elegido.htms28_min,
+                    htms28_max=elegido.htms28_max,
+                    current=elegido.current,
+                    maximum=elegido.maximum,
+                    max_reached=elegido.max_reached,
+                )
+            )
 
     coloca(ambos, _orden_de_cola(cola_principal), REGION_AMBOS)
     coloca(solo_a, _orden_de_cola(cola_principal), REGION_SOLO_PRINCIPAL)
@@ -472,22 +487,25 @@ def youth_training_plan(
         if len(plan.asignaciones) >= plazas:
             break
         ya_puestos.add(jugador.name)
-        plan.asignaciones.append(Asignacion(
-            player=jugador.name,
-            puesto=libres.pop(0) if libres else "",
-            region=REGION_SIN_ENTRENAMIENTO,
-            racion_principal=0.0, racion_secundaria=0.0,
-            peldano=jugador.priority,
-            # Sin entrenamiento no hay habilidad "suya", pero se enseña la
-            # principal: es lo que permite compararlo con los que sí entrenan.
-            elegido_por=principal,
-            age_days_total=jugador.age_days_total,
+        plan.asignaciones.append(
+            Asignacion(
+                player=jugador.name,
+                puesto=libres.pop(0) if libres else "",
+                region=REGION_SIN_ENTRENAMIENTO,
+                racion_principal=0.0,
+                racion_secundaria=0.0,
+                peldano=jugador.priority,
+                # Sin entrenamiento no hay habilidad "suya", pero se enseña la
+                # principal: es lo que permite compararlo con los que sí entrenan.
+                elegido_por=principal,
+                age_days_total=jugador.age_days_total,
                 htms28_min=jugador.htms28_min,
                 htms28_max=jugador.htms28_max,
-            current=jugador.current,
-            maximum=jugador.maximum,
-            max_reached=jugador.max_reached,
-        ))
+                current=jugador.current,
+                maximum=jugador.maximum,
+                max_reached=jugador.max_reached,
+            )
+        )
 
     # El banquillo, con el MISMO criterio que el once: primero los puestos que
     # reciben los dos entrenamientos, luego los del principal, luego los del
@@ -496,62 +514,68 @@ def youth_training_plan(
     racion_de: dict[str, tuple[str, float, float]] = {}
     for cupo in ambos:
         racion_de.setdefault(
-            cupo.puesto,
-            (REGION_AMBOS, cupo.racion, _rebajado(cupo.racion_pareja)))
+            cupo.puesto, (REGION_AMBOS, cupo.racion, _rebajado(cupo.racion_pareja))
+        )
     for cupo in solo_a:
-        racion_de.setdefault(
-            cupo.puesto, (REGION_SOLO_PRINCIPAL, cupo.racion, 0.0))
+        racion_de.setdefault(cupo.puesto, (REGION_SOLO_PRINCIPAL, cupo.racion, 0.0))
     for cupo in solo_b:
-        racion_de.setdefault(
-            cupo.puesto, (REGION_SOLO_SECUNDARIA, 0.0, _rebajado(cupo.racion)))
+        racion_de.setdefault(cupo.puesto, (REGION_SOLO_SECUNDARIA, 0.0, _rebajado(cupo.racion)))
 
     ORDEN = (
-        REGION_AMBOS, REGION_SOLO_PRINCIPAL, REGION_SOLO_SECUNDARIA,
+        REGION_AMBOS,
+        REGION_SOLO_PRINCIPAL,
+        REGION_SOLO_SECUNDARIA,
         REGION_SIN_ENTRENAMIENTO,
     )
     banquillo = sorted(
         PUESTOS_DE_UN_BANQUILLO,
-        key=lambda puesto: ORDEN.index(
-            racion_de.get(puesto, (REGION_SIN_ENTRENAMIENTO, 0, 0))[0]
-        ),
+        key=lambda puesto: ORDEN.index(racion_de.get(puesto, (REGION_SIN_ENTRENAMIENTO, 0, 0))[0]),
     )
 
     for puesto in banquillo:
-        region, r_a, r_b = racion_de.get(
-            puesto, (REGION_SIN_ENTRENAMIENTO, 0.0, 0.0))
-        cola = (
-            cola_secundaria if region == REGION_SOLO_SECUNDARIA
-            else cola_principal
-        )
+        region, r_a, r_b = racion_de.get(puesto, (REGION_SIN_ENTRENAMIENTO, 0.0, 0.0))
+        cola = cola_secundaria if region == REGION_SOLO_SECUNDARIA else cola_principal
         elegido = siguiente(_orden_de_cola(cola), vetados(region))
         if elegido is None:
             break
         ya_puestos.add(elegido.name)
-        plan.fuera.append(Asignacion(
-            player=elegido.name, puesto=puesto, region=region,
-            racion_principal=r_a, racion_secundaria=r_b,
-            peldano=elegido.priority,
-            elegido_por=(
-                secundaria if region == REGION_SOLO_SECUNDARIA else principal
-            ),
-            age_days_total=elegido.age_days_total,
+        plan.fuera.append(
+            Asignacion(
+                player=elegido.name,
+                puesto=puesto,
+                region=region,
+                racion_principal=r_a,
+                racion_secundaria=r_b,
+                peldano=elegido.priority,
+                elegido_por=(secundaria if region == REGION_SOLO_SECUNDARIA else principal),
+                age_days_total=elegido.age_days_total,
                 htms28_min=elegido.htms28_min,
                 htms28_max=elegido.htms28_max,
-            current=elegido.current, maximum=elegido.maximum,
-            max_reached=elegido.max_reached,
-        ))
+                current=elegido.current,
+                maximum=elegido.maximum,
+                max_reached=elegido.max_reached,
+            )
+        )
 
     # Y los que no caben ni en el banquillo: sin puesto ni racion, pero en la
     # lista, que sigue siendo gente de la academia.
     plan.fuera.extend(
         Asignacion(
-            player=p.name, puesto="", region=REGION_SIN_ENTRENAMIENTO,
-            racion_principal=0.0, racion_secundaria=0.0, peldano=p.priority,
-            elegido_por=principal, age_days_total=p.age_days_total,
-                htms28_min=p.htms28_min,
-                htms28_max=p.htms28_max,
-            current=p.current, maximum=p.maximum, max_reached=p.max_reached,
+            player=p.name,
+            puesto="",
+            region=REGION_SIN_ENTRENAMIENTO,
+            racion_principal=0.0,
+            racion_secundaria=0.0,
+            peldano=p.priority,
+            elegido_por=principal,
+            age_days_total=p.age_days_total,
+            htms28_min=p.htms28_min,
+            htms28_max=p.htms28_max,
+            current=p.current,
+            maximum=p.maximum,
+            max_reached=p.max_reached,
         )
-        for p in cola_principal if p.name not in ya_puestos
+        for p in cola_principal
+        if p.name not in ya_puestos
     )
     return plan

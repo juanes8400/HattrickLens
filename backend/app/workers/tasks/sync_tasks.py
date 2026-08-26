@@ -1,4 +1,5 @@
 """Tasks Celery de sincronización. Cadena secuencial por usuario (regla CHPP)."""
+
 from typing import Any
 
 from app.workers.celery_app import celery

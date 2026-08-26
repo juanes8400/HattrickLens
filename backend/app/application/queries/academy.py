@@ -16,6 +16,7 @@ información del ojeador sería confundir ignorancia con evidencia.
 cumplir el límite, por bueno que sea. Por eso los días restantes aparecen
 siempre y el consejo de promoción los antepone a cualquier otra consideración.
 """
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -246,7 +247,8 @@ class AcademyQueryService:
             promotable_in = snap.can_be_promoted_in
             at_promotion = (
                 snap.age_years * DAYS_PER_HT_YEAR + snap.age_days + promotable_in + 1
-                if promotable_in is not None else None
+                if promotable_in is not None
+                else None
             )
             out.append(
                 yss.YouthCandidate(
@@ -260,7 +262,8 @@ class AcademyQueryService:
                     # dato — ver `UNKNOWN_DEADLINE_DAYS`.
                     age_days_at_deadline=(
                         at_promotion % DAYS_PER_HT_YEAR
-                        if at_promotion is not None else yss.UNKNOWN_DEADLINE_DAYS
+                        if at_promotion is not None
+                        else yss.UNKNOWN_DEADLINE_DAYS
                     ),
                     age_years=snap.age_years,
                     age_days=snap.age_days,
@@ -285,7 +288,7 @@ class AcademyQueryService:
         )
         latest: dict[int, tuple[m.YouthSnapshot, m.YouthPlayer]] = {}
         for snap, player in rows.all():
-            latest[player.id] = (snap, player)      # el orden asc deja el último
+            latest[player.id] = (snap, player)  # el orden asc deja el último
         return list(latest.values())
 
     async def get(self, team_id: int) -> AcademyResponse | None:
@@ -331,7 +334,8 @@ class AcademyQueryService:
             promotable_in = snap.can_be_promoted_in
             at_promotion = (
                 snap.age_years * DAYS_PER_HT_YEAR + snap.age_days + promotable_in + 1
-                if promotable_in is not None else None
+                if promotable_in is not None
+                else None
             )
             candidates.append(
                 yss.YouthCandidate(
@@ -347,7 +351,8 @@ class AcademyQueryService:
                     # dato — ver `UNKNOWN_DEADLINE_DAYS`.
                     age_days_at_deadline=(
                         at_promotion % DAYS_PER_HT_YEAR
-                        if at_promotion is not None else yss.UNKNOWN_DEADLINE_DAYS
+                        if at_promotion is not None
+                        else yss.UNKNOWN_DEADLINE_DAYS
                     ),
                     age_years=snap.age_years,
                     age_days=snap.age_days,
@@ -424,7 +429,8 @@ class AcademyQueryService:
         academy_since = team.youth_academy_created_at
         if academy_since is not None:
             graduates = [
-                g for g in all_graduates
+                g
+                for g in all_graduates
                 if g.promoted_at is not None and g.promoted_at >= academy_since
             ]
         else:
@@ -440,13 +446,15 @@ class AcademyQueryService:
         #
         # `latest_per_iso_week` colapsa a una lectura por semana ISO, que es lo
         # que el cálculo quería decir desde el principio.
-        economy_rows = list((
-            await self._s.execute(
-                select(m.EconomySnapshot)
-                .where(m.EconomySnapshot.team_id == team_id)
-                .order_by(m.EconomySnapshot.captured_at)
-            )
-        ).scalars())
+        economy_rows = list(
+            (
+                await self._s.execute(
+                    select(m.EconomySnapshot)
+                    .where(m.EconomySnapshot.team_id == team_id)
+                    .order_by(m.EconomySnapshot.captured_at)
+                )
+            ).scalars()
+        )
         # La inversión tampoco puede empezar antes que la academia: cobrar
         # semanas anteriores a su apertura infla el coste igual que sumar
         # ventas viejas inflaba el ingreso.
@@ -483,13 +491,12 @@ class AcademyQueryService:
             r for r in (balance.players if balance else []) if r.is_academy_graduate
         ]
         academy_rows = [
-            r for r in all_academy_rows
+            r
+            for r in all_academy_rows
             if academy_since is None or r.ht_player_id in current_graduate_ids
         ]
         sold_rows = [r for r in academy_rows if r.is_sold and r.sale_price]
-        net_sales = sum(
-            round((r.sale_price or 0) * (1 - (r.agent_pct or 0.0))) for r in sold_rows
-        )
+        net_sales = sum(round((r.sale_price or 0) * (1 - (r.agent_pct or 0.0))) for r in sold_rows)
         # Los bonos se cobran aunque el canterano ya no sea nuestro: cuentan
         # para TODOS los canteranos vendidos, no sólo los de esta temporada.
         resale_bonuses = round(sum(r.resale_bonus_share for r in academy_rows))
@@ -501,10 +508,7 @@ class AcademyQueryService:
         # se avisa en una nota — mejor un dato incompleto y señalado que
         # perderlo de la suma.
         detailed_ids = {r.ht_player_id for r in academy_rows}
-        gross_only = [
-            g for g in graduates
-            if g.sold_for and g.ht_player_id not in detailed_ids
-        ]
+        gross_only = [g for g in graduates if g.sold_for and g.ht_player_id not in detailed_ids]
         gross_only_total = sum(conv(g.sold_for) for g in gross_only)
 
         sales = net_sales + resale_bonuses + gross_only_total

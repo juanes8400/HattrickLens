@@ -21,6 +21,7 @@ aquí: reutiliza `training_engine._config()["assistant_bonus_per_level"]`,
 la MISMA constante comunitaria (3,2 puntos de coeficiente por nivel) que
 alimenta la fórmula de semanas-hasta-el-siguiente-nivel.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -28,7 +29,7 @@ from typing import Any
 from app.domain.engines import training_engine as te
 
 # ── Asistente de entrenador ────────────────────────────────────────────────
-ASSISTANT_INJURY_RISK_PP_PER_LEVEL = 2.5   # puntos porcentuales por nivel combinado
+ASSISTANT_INJURY_RISK_PP_PER_LEVEL = 2.5  # puntos porcentuales por nivel combinado
 ASSISTANT_BACKGROUND_FORM_PER_LEVEL = 0.05  # niveles de forma de fondo por nivel combinado
 
 BASE_INJURY_RISK_PCT = 40.0  # % lesiones/partido sin asistentes ni doctor
@@ -40,7 +41,12 @@ DOCTOR_INJURY_RISK_REDUCTION_PP_PER_LEVEL = 7.5
 # ── Psicólogo deportivo (tabla — la confianza no es lineal, ver docstring) ──
 SPORT_PSYCHOLOGIST_SPIRIT: dict[int, float] = {0: 0.0, 1: 0.1, 2: 0.2, 3: 0.3, 4: 0.4, 5: 0.5}
 SPORT_PSYCHOLOGIST_CONFIDENCE: dict[int, float] = {
-    0: 0.0, 1: 0.24, 2: 0.48, 3: 0.70, 4: 0.92, 5: 1.12,
+    0: 0.0,
+    1: 0.24,
+    2: 0.48,
+    3: 0.70,
+    4: 0.92,
+    5: 1.12,
 }
 
 # ── Preparador físico ─────────────────────────────────────────────────────
@@ -58,7 +64,12 @@ FINANCIAL_DIRECTOR: dict[int, tuple[int, int]] = {
 
 # ── Asistente táctico (tabla absoluta) ──────────────────────────────────────
 TACTICAL_ASSISTANT: dict[int, tuple[int, int]] = {
-    0: (0, 0), 1: (1, 20), 2: (2, 40), 3: (3, 60), 4: (4, 80), 5: (5, 100),
+    0: (0, 0),
+    1: (1, 20),
+    2: (2, 40),
+    3: (3, 60),
+    4: (4, 80),
+    5: (5, 100),
 }
 
 

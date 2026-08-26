@@ -14,6 +14,7 @@ demostrada por entrenamiento, posición y minutos reales. Cuando observa que
 el nivel entero cambia, empieza un tramo nuevo desde la primera lectura del
 nivel actual.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
@@ -52,7 +53,13 @@ from app.infrastructure.db import models as m
 # fórmula de habilidades técnicas.
 TRAINABLE_SKILLS: dict[str, str] = dict(SKILL_LABELS)
 SKILL_ORDER: list[str] = [
-    "keeper", "defending", "playmaking", "passing", "winger", "scoring", "set_pieces",
+    "keeper",
+    "defending",
+    "playmaking",
+    "passing",
+    "winger",
+    "scoring",
+    "set_pieces",
 ]
 
 
@@ -167,6 +174,7 @@ class StaminaRow:
     nivel esperado puede subir O BAJAR según si el % REAL de esfuerzo en
     resistencia (intensidad × stamina_share, no el share crudo) alcanza
     para la edad del jugador."""
+
     ht_player_id: int
     name: str
     native_country: str | None
@@ -293,43 +301,58 @@ class TrainingSquadQueryService:
             for snap, ident in rows
         ]
 
-    async def _weekly_log(self, team_id: int, world: m.WorldContext | None, limit: int = 12) -> list[WeeklyLogEntry]:
+    async def _weekly_log(
+        self, team_id: int, world: m.WorldContext | None, limit: int = 12
+    ) -> list[WeeklyLogEntry]:
         rows = (
-            await self._s.execute(
-                select(m.TrainingSnapshot)
-                .where(m.TrainingSnapshot.team_id == team_id)
-                .order_by(m.TrainingSnapshot.captured_at)
+            (
+                await self._s.execute(
+                    select(m.TrainingSnapshot)
+                    .where(m.TrainingSnapshot.team_id == team_id)
+                    .order_by(m.TrainingSnapshot.captured_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         deduped = list(reversed(latest_per_iso_week(rows, lambda r: r.captured_at)))[:limit]
         out = []
         for snap in deduped:
             season_week = (
-                season_week_for_datetime(world, snap.captured_at)
-                if world is not None else None
+                season_week_for_datetime(world, snap.captured_at) if world is not None else None
             )
-            out.append(WeeklyLogEntry(
-                season_week=season_week,
-                date=snap.captured_at.date().isoformat(),
-                training_type=training_name(snap.training_type),
-                intensity=snap.training_level,
-                stamina_share=snap.stamina_part,
-                trainer_name=snap.trainer_name,
-            ))
+            out.append(
+                WeeklyLogEntry(
+                    season_week=season_week,
+                    date=snap.captured_at.date().isoformat(),
+                    training_type=training_name(snap.training_type),
+                    intensity=snap.training_level,
+                    stamina_share=snap.stamina_part,
+                    trainer_name=snap.trainer_name,
+                )
+            )
         return out
 
     async def _pops_for_skill(
-        self, team_id: int, skill_id: int, ht_player_id: int | None = None,
+        self,
+        team_id: int,
+        skill_id: int,
+        ht_player_id: int | None = None,
     ) -> list[m.SkillUp]:
         conditions = [m.SkillUp.team_id == team_id, m.SkillUp.skill_id == skill_id]
         if ht_player_id is not None:
             conditions.append(m.SkillUp.ht_player_id == ht_player_id)
         rows = (
-            await self._s.execute(
-                select(m.SkillUp).where(*conditions)
-                .order_by(m.SkillUp.ht_player_id, m.SkillUp.season, m.SkillUp.match_round)
+            (
+                await self._s.execute(
+                    select(m.SkillUp)
+                    .where(*conditions)
+                    .order_by(m.SkillUp.ht_player_id, m.SkillUp.season, m.SkillUp.match_round)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     async def _observed_level_baselines(
@@ -425,7 +448,8 @@ class TrainingSquadQueryService:
                     m.WorldContext.ht_league_id == (equipo.ht_league_id if equipo else None)
                 )
             )
-            if equipo is not None and equipo.ht_league_id is not None else None
+            if equipo is not None and equipo.ht_league_id is not None
+            else None
         )
         columna = getattr(m.PlayerSnapshot, campo)
         filas = (
@@ -457,7 +481,10 @@ class TrainingSquadQueryService:
         return salida
 
     async def squad_view(
-        self, team_id: int, skill: str | None = None, include_this_week: bool = True,
+        self,
+        team_id: int,
+        skill: str | None = None,
+        include_this_week: bool = True,
     ) -> TrainingSquadView | None:
         team = await self._s.get(m.Team, team_id)
         if team is None:
@@ -479,10 +506,7 @@ class TrainingSquadQueryService:
         skill_id = _skill_id_for(chosen_skill)
 
         roster = await self._roster(team_id)
-        current_levels = {
-            p["ht_player_id"]: _level_of(p, chosen_skill)
-            for p in roster
-        }
+        current_levels = {p["ht_player_id"]: _level_of(p, chosen_skill) for p in roster}
         baselines = await self._observed_level_baselines(
             team_id,
             chosen_skill,
@@ -500,7 +524,9 @@ class TrainingSquadQueryService:
         rows: list[SquadTrainingRow] = []
         for p in roster:
             level = _level_of(p, chosen_skill)
-            speed = te.weeks_to_next_level(chosen_skill, level, p["age_years"], p["age_days"], setup=setup)
+            speed = te.weeks_to_next_level(
+                chosen_skill, level, p["age_years"], p["age_days"], setup=setup
+            )
             weeks_total = speed.weeks_to_next_level
             observed = observed_progress.get(p["ht_player_id"])
             weeks_elapsed = observed.total_exposure if observed is not None else None
@@ -509,32 +535,37 @@ class TrainingSquadQueryService:
                 observed.latest_equivalent_minutes if observed is not None else 0.0
             )
             historical_exposure = (
-                weeks_elapsed - current_week_exposure
-                if weeks_elapsed is not None
-                else 0.0
+                weeks_elapsed - current_week_exposure if weeks_elapsed is not None else 0.0
             )
 
             progress_pct = (
                 round(weeks_elapsed / weeks_total * 100, 1)
-                if weeks_elapsed is not None and weeks_total > 0 else None
+                if weeks_elapsed is not None and weeks_total > 0
+                else None
             )
 
-            rows.append(SquadTrainingRow(
-                # La habilidad que se está mirando, no el parámetro crudo:
-                # `skill` llega vacío cuando se pide la vista por defecto.
-                last_improvement=mejoras.get(
-                    (p["ht_player_id"], skill_id or -1), ""
-                ),
-                ht_player_id=p["ht_player_id"], name=p["name"],
-                native_country=p["native_country"], country_code=p["country_code"],
-                age_years=p["age_years"], age_days=p["age_days"],
-                level=level, level_name=skill_name(level),
-                weeks_elapsed=weeks_elapsed, weeks_total=weeks_total,
-                progress_pct=progress_pct, has_reference=weeks_elapsed is not None,
-                has_historical_reference=historical_exposure > 0.00005,
-                current_week_minutes=current_week_minutes,
-                current_week_exposure=current_week_exposure,
-            ))
+            rows.append(
+                SquadTrainingRow(
+                    # La habilidad que se está mirando, no el parámetro crudo:
+                    # `skill` llega vacío cuando se pide la vista por defecto.
+                    last_improvement=mejoras.get((p["ht_player_id"], skill_id or -1), ""),
+                    ht_player_id=p["ht_player_id"],
+                    name=p["name"],
+                    native_country=p["native_country"],
+                    country_code=p["country_code"],
+                    age_years=p["age_years"],
+                    age_days=p["age_days"],
+                    level=level,
+                    level_name=skill_name(level),
+                    weeks_elapsed=weeks_elapsed,
+                    weeks_total=weeks_total,
+                    progress_pct=progress_pct,
+                    has_reference=weeks_elapsed is not None,
+                    has_historical_reference=historical_exposure > 0.00005,
+                    current_week_minutes=current_week_minutes,
+                    current_week_exposure=current_week_exposure,
+                )
+            )
 
         rows.sort(key=lambda r: (r.progress_pct is None, -(r.progress_pct or 0)))
 
@@ -592,35 +623,39 @@ class TrainingSquadQueryService:
                 if progress is not None and progress.points_per_level > 0
                 else None
             )
-            experience_rows.append(ExperienceRow(
-                # Del histórico propio: Hattrick no reporta subidas de
-                # experiencia por `trainingevents` (0 eventos en esta cuenta
-                # frente a decenas de habilidades).
-                last_improvement=subidas_experiencia.get(player["ht_player_id"], ""),
-                ht_player_id=player["ht_player_id"],
-                name=player["name"],
-                native_country=player["native_country"],
-                country_code=player["country_code"],
-                age_years=player["age_years"],
-                age_days=player["age_days"],
-                level=level,
-                level_name=skill_name(level),
-                decimal_level=(round(level + fraction, 2) if fraction is not None else None),
-                points=(progress.points if progress is not None else None),
-                points_per_level=(progress.points_per_level if progress is not None else 100.0),
-                remaining_points=(progress.remaining_points if progress is not None else None),
-                progress_pct=(progress.percent if progress is not None else None),
-                breakdown=(progress.breakdown if progress is not None else {}),
-                match_counts=(progress.match_counts if progress is not None else {}),
-                unscored_national_matches=(
-                    progress.unscored_national_matches if progress is not None else 0
-                ),
-            ))
+            experience_rows.append(
+                ExperienceRow(
+                    # Del histórico propio: Hattrick no reporta subidas de
+                    # experiencia por `trainingevents` (0 eventos en esta cuenta
+                    # frente a decenas de habilidades).
+                    last_improvement=subidas_experiencia.get(player["ht_player_id"], ""),
+                    ht_player_id=player["ht_player_id"],
+                    name=player["name"],
+                    native_country=player["native_country"],
+                    country_code=player["country_code"],
+                    age_years=player["age_years"],
+                    age_days=player["age_days"],
+                    level=level,
+                    level_name=skill_name(level),
+                    decimal_level=(round(level + fraction, 2) if fraction is not None else None),
+                    points=(progress.points if progress is not None else None),
+                    points_per_level=(progress.points_per_level if progress is not None else 100.0),
+                    remaining_points=(progress.remaining_points if progress is not None else None),
+                    progress_pct=(progress.percent if progress is not None else None),
+                    breakdown=(progress.breakdown if progress is not None else {}),
+                    match_counts=(progress.match_counts if progress is not None else {}),
+                    unscored_national_matches=(
+                        progress.unscored_national_matches if progress is not None else 0
+                    ),
+                )
+            )
 
             joined_at = player["purchased_at"] or player["purchased_at_manual"]
             date_source = (
-                "transferencia" if player["purchased_at"] is not None
-                else "manual" if player["purchased_at_manual"] is not None
+                "transferencia"
+                if player["purchased_at"] is not None
+                else "manual"
+                if player["purchased_at_manual"] is not None
                 else None
             )
             days_in_club: int | None = None
@@ -647,24 +682,26 @@ class TrainingSquadQueryService:
                 missing_purchase_dates += 1
 
             display_level = calculated if calculated is not None else int(player["loyalty"])
-            loyalty_rows.append(LoyaltyRow(
-                last_improvement=subidas_fidelidad.get(player["ht_player_id"], ""),
-                ht_player_id=player["ht_player_id"],
-                name=player["name"],
-                native_country=player["native_country"],
-                country_code=player["country_code"],
-                age_years=player["age_years"],
-                age_days=player["age_days"],
-                reported_level=int(player["loyalty"]),
-                calculated_level=calculated,
-                level_name=skill_name(display_level),
-                decimal_level=decimal,
-                progress_pct=progress_pct,
-                days_in_club=days_in_club,
-                next_level=next_level,
-                days_to_next_level=days_to_next,
-                date_source=date_source,
-            ))
+            loyalty_rows.append(
+                LoyaltyRow(
+                    last_improvement=subidas_fidelidad.get(player["ht_player_id"], ""),
+                    ht_player_id=player["ht_player_id"],
+                    name=player["name"],
+                    native_country=player["native_country"],
+                    country_code=player["country_code"],
+                    age_years=player["age_years"],
+                    age_days=player["age_days"],
+                    reported_level=int(player["loyalty"]),
+                    calculated_level=calculated,
+                    level_name=skill_name(display_level),
+                    decimal_level=decimal,
+                    progress_pct=progress_pct,
+                    days_in_club=days_in_club,
+                    next_level=next_level,
+                    days_to_next_level=days_to_next,
+                    date_source=date_source,
+                )
+            )
 
             stamina_level = int(player["stamina"])
             expected = stamina_forecast_level(player["age_years"], effective_stamina_pct)
@@ -676,23 +713,25 @@ class TrainingSquadQueryService:
                 trend = "baja"
             else:
                 trend = "estable"
-            stamina_rows.append(StaminaRow(
-                last_improvement=mejoras.get(
-                    (player["ht_player_id"], _skill_id_for("stamina") or -1), ""
-                ),
-                ht_player_id=player["ht_player_id"],
-                name=player["name"],
-                native_country=player["native_country"],
-                country_code=player["country_code"],
-                age_years=player["age_years"],
-                age_days=player["age_days"],
-                level=stamina_level,
-                level_name=skill_name(stamina_level),
-                effective_training_pct=round(effective_stamina_pct, 1),
-                expected_level=expected,
-                expected_level_name=skill_name(expected),
-                trend=trend,
-            ))
+            stamina_rows.append(
+                StaminaRow(
+                    last_improvement=mejoras.get(
+                        (player["ht_player_id"], _skill_id_for("stamina") or -1), ""
+                    ),
+                    ht_player_id=player["ht_player_id"],
+                    name=player["name"],
+                    native_country=player["native_country"],
+                    country_code=player["country_code"],
+                    age_years=player["age_years"],
+                    age_days=player["age_days"],
+                    level=stamina_level,
+                    level_name=skill_name(stamina_level),
+                    effective_training_pct=round(effective_stamina_pct, 1),
+                    expected_level=expected,
+                    expected_level_name=skill_name(expected),
+                    trend=trend,
+                )
+            )
 
         experience_rows.sort(key=lambda row: (row.progress_pct is None, -(row.progress_pct or 0)))
         loyalty_rows.sort(key=lambda row: (row.days_in_club is None, -(row.days_in_club or 0)))
@@ -713,7 +752,10 @@ class TrainingSquadQueryService:
         )
 
     async def player_levels(
-        self, team_id: int, ht_player_id: int, skill: str | None = None,
+        self,
+        team_id: int,
+        ht_player_id: int,
+        skill: str | None = None,
     ) -> PlayerTrainingHistory | None:
         team = await self._s.get(m.Team, team_id)
         if team is None:
@@ -730,7 +772,8 @@ class TrainingSquadQueryService:
         )
 
         player_row = next(
-            (p for p in await self._roster(team_id) if p["ht_player_id"] == ht_player_id), None,
+            (p for p in await self._roster(team_id) if p["ht_player_id"] == ht_player_id),
+            None,
         )
         if player_row is None:
             return None
@@ -743,19 +786,28 @@ class TrainingSquadQueryService:
             for u in await self._pops_for_skill(team_id, skill_id, ht_player_id):
                 weeks_between = (
                     (u.season - prev.season) * SEASON_WEEKS + (u.match_round - prev.match_round)
-                    if prev is not None else None
+                    if prev is not None
+                    else None
                 )
-                confirmed.append(ConfirmedPop(
-                    season_week=f"{u.season:02d}-{u.match_round:02d}",
-                    from_level=u.old_level, from_level_name=skill_name(u.old_level),
-                    to_level=u.new_level, to_level_name=skill_name(u.new_level),
-                    weeks_between=weeks_between,
-                ))
+                confirmed.append(
+                    ConfirmedPop(
+                        season_week=f"{u.season:02d}-{u.match_round:02d}",
+                        from_level=u.old_level,
+                        from_level_name=skill_name(u.old_level),
+                        to_level=u.new_level,
+                        to_level_name=skill_name(u.new_level),
+                        weeks_between=weeks_between,
+                    )
+                )
                 prev = u
 
         world = await self._world(team)
         chain = te.forecast_level_chain(
-            chosen_skill, level, player_row["age_years"], player_row["age_days"], setup,
+            chosen_skill,
+            level,
+            player_row["age_years"],
+            player_row["age_days"],
+            setup,
         )
         forecast = [
             ForecastMilestone(
@@ -765,7 +817,8 @@ class TrainingSquadQueryService:
                 weeks_from_now=milestone.weeks_from_now,
                 season_week=(
                     season_week_label(world, weeks_offset=round(milestone.weeks_from_now))
-                    if world is not None else None
+                    if world is not None
+                    else None
                 ),
                 age_years=milestone.age_years,
                 age_days=milestone.age_days,
@@ -783,8 +836,13 @@ class TrainingSquadQueryService:
             notes.append("Todavía no hay subidas confirmadas de esta habilidad para este jugador.")
 
         return PlayerTrainingHistory(
-            ht_player_id=ht_player_id, name=player_row["name"],
-            skill=chosen_skill, skill_label=TRAINABLE_SKILLS.get(chosen_skill, chosen_skill),
-            current_level=level, current_level_name=skill_name(level),
-            confirmed=confirmed, forecast=forecast, notes=notes,
+            ht_player_id=ht_player_id,
+            name=player_row["name"],
+            skill=chosen_skill,
+            skill_label=TRAINABLE_SKILLS.get(chosen_skill, chosen_skill),
+            current_level=level,
+            current_level_name=skill_name(level),
+            confirmed=confirmed,
+            forecast=forecast,
+            notes=notes,
         )

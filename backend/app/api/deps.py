@@ -1,4 +1,5 @@
 """Dependency injection para la capa HTTP."""
+
 from collections.abc import AsyncGenerator
 
 from fastapi import Cookie, Depends, HTTPException

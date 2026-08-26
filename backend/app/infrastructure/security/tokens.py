@@ -6,6 +6,7 @@ nombre del usuario, así que una fuga de la base de datos no debe filtrarlas.
 Fernet (AES-128-CBC + HMAC) es simétrico y suficiente aquí — no hace falta
 un KMS para una sola clave que ya vive fuera del repo (`.env`).
 """
+
 from functools import lru_cache
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -31,6 +32,5 @@ def decrypt_token(value: bytes) -> str:
         return _fernet().decrypt(value).decode()
     except InvalidToken as exc:
         raise TokenDecryptionError(
-            "no se pudo descifrar el token, TOKEN_ENCRYPTION_KEY no coincide "
-            "con la que lo cifró"
+            "no se pudo descifrar el token, TOKEN_ENCRYPTION_KEY no coincide con la que lo cifró"
         ) from exc

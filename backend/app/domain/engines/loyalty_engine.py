@@ -8,6 +8,7 @@ La curva se ajusta exactamente a los niveles conocidos de la plantilla:
 temporadas de Hattrick (3 × 16 semanas × 7 días). No se usan pops,
 promedios observados ni calibración por jugador.
 """
+
 from math import ceil, floor, sqrt
 from typing import Any
 
@@ -69,9 +70,7 @@ def loyalty_progress_pct(days_since_purchase: int | float | None) -> float | Non
 def days_for_level(level: int) -> int:
     """Primer día calendario en el que la fórmula alcanza ``level``."""
     normalized = min(LOYALTY_MAX_LEVEL, max(1, int(level)))
-    return ceil(
-        LOYALTY_FULL_DAYS * ((normalized - 1) / LOYALTY_STEPS) ** 2
-    )
+    return ceil(LOYALTY_FULL_DAYS * ((normalized - 1) / LOYALTY_STEPS) ** 2)
 
 
 def model_info() -> dict[str, Any]:
@@ -92,8 +91,6 @@ def model_info() -> dict[str, Any]:
                 "La fórmula reproduce sin errores los niveles conocidos de la "
                 "plantilla usando únicamente días calendario desde la compra."
             ),
-            "pending": (
-                "No requiere calibración por pops ni promedios de transiciones."
-            ),
+            "pending": ("No requiere calibración por pops ni promedios de transiciones."),
         },
     }

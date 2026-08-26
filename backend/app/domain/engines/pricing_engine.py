@@ -13,13 +13,30 @@ base verificable:
 - `estimate_salary`: fórmula EXACTA documentada por la comunidad (Manual
   no Escrito), contrastable contra el sueldo real que ya reporta CHPP.
 """
+
 from dataclasses import dataclass
 
 # Multiplicador por edad. El valor cae a partir de los 27-28.
 AGE_FACTOR = {
-    17: 1.45, 18: 1.42, 19: 1.38, 20: 1.34, 21: 1.30, 22: 1.24, 23: 1.16,
-    24: 1.08, 25: 1.00, 26: 0.92, 27: 0.82, 28: 0.70, 29: 0.58, 30: 0.46,
-    31: 0.35, 32: 0.26, 33: 0.19, 34: 0.13, 35: 0.09,
+    17: 1.45,
+    18: 1.42,
+    19: 1.38,
+    20: 1.34,
+    21: 1.30,
+    22: 1.24,
+    23: 1.16,
+    24: 1.08,
+    25: 1.00,
+    26: 0.92,
+    27: 0.82,
+    28: 0.70,
+    29: 0.58,
+    30: 0.46,
+    31: 0.35,
+    32: 0.26,
+    33: 0.19,
+    34: 0.13,
+    35: 0.09,
 }
 
 _LAST_TABLE_YEAR = max(AGE_FACTOR)
@@ -36,9 +53,7 @@ def _year_factor(years: int) -> float:
         return AGE_FACTOR[years]
     if years < _FIRST_TABLE_YEAR:
         return AGE_FACTOR[_FIRST_TABLE_YEAR]
-    return max(
-        AGE_FACTOR[_LAST_TABLE_YEAR] * _DECAY_RATIO ** (years - _LAST_TABLE_YEAR), _FLOOR
-    )
+    return max(AGE_FACTOR[_LAST_TABLE_YEAR] * _DECAY_RATIO ** (years - _LAST_TABLE_YEAR), _FLOOR)
 
 
 def age_factor(years: int, days: int = 0) -> float:
@@ -92,16 +107,13 @@ def estimate_salary(skills: dict[str, int], set_pieces: int = 0) -> SalaryEstima
     o fichar — para un jugador que ya es tuyo, el sueldo real ya lo reporta
     CHPP directamente y esta estimación no debería reemplazarlo."""
     components = {
-        skill: _salary_component(skill, skills.get(skill, 0))
-        for skill in SALARY_FIELD_SKILLS
+        skill: _salary_component(skill, skills.get(skill, 0)) for skill in SALARY_FIELD_SKILLS
     }
     main_skill = max(components, key=lambda s: components[s])
     secondary_sum = sum(v for k, v in components.items() if k != main_skill) / 2
-    salary = (
-        (components[main_skill] + secondary_sum)
-        * (1 + set_pieces * SET_PIECES_SALARY_BONUS_PER_LEVEL)
-        + SALARY_BASE
-    )
+    salary = (components[main_skill] + secondary_sum) * (
+        1 + set_pieces * SET_PIECES_SALARY_BONUS_PER_LEVEL
+    ) + SALARY_BASE
     return SalaryEstimate(
         weekly_salary=int(round(salary)),
         main_skill=main_skill,

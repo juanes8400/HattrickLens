@@ -16,6 +16,7 @@ límite inferior de la demanda real — está censurada. Ignorar eso lleva a
 subestimar el retorno de una ampliación, que es el error clásico al decidir si
 ampliar el estadio.
 """
+
 from dataclasses import dataclass
 
 SECTORS = ("general", "preferentes", "tribunas", "palcos")
@@ -24,7 +25,7 @@ SECTORS = ("general", "preferentes", "tribunas", "palcos")
 TICKET_PRICES: dict[str, float] = {
     "general": 7.0,
     "preferentes": 10.0,
-    "tribunas": 19.0,      # verificado exactamente contra un partido real
+    "tribunas": 19.0,  # verificado exactamente contra un partido real
     "palcos": 35.0,
 }
 TICKET_PRICES_VERIFIED = {"general", "preferentes", "tribunas", "palcos"}
@@ -62,10 +63,10 @@ class Attendance:
 
 @dataclass
 class OccupancyReport:
-    occupancy: dict[str, float]        # % por sector
+    occupancy: dict[str, float]  # % por sector
     total_occupancy: float
-    sold_out: list[str]                # sectores al 100%
-    demand_is_censored: bool           # hay demanda que no cabe
+    sold_out: list[str]  # sectores al 100%
+    demand_is_censored: bool  # hay demanda que no cabe
     revenue: float
     revenue_if_full: float
     revenue_left_on_table: float
@@ -141,7 +142,8 @@ def analyse_expansion(
         payback = build_cost / (net_per_season / season_weeks)
         verdict = (
             f"se amortizaría en ~{payback / season_weeks:.1f} temporadas (estimado)"
-            if payback > 0 else "amortización estimada inmediata"
+            if payback > 0
+            else "amortización estimada inmediata"
         )
 
     return ExpansionAnalysis(

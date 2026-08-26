@@ -1,4 +1,5 @@
 """Economía. HL-050 … HL-056."""
+
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -77,24 +78,38 @@ def _band(b: Any) -> dict[str, Any] | None:
     if b is None:
         return None
     return {
-        "weeks": b.weeks, "p10": b.p10, "p50": b.p50, "p90": b.p90,
-        "model": b.model, "backtestMae": b.backtest_mae, "candidates": b.candidates,
+        "weeks": b.weeks,
+        "p10": b.p10,
+        "p50": b.p50,
+        "p90": b.p90,
+        "model": b.model,
+        "backtestMae": b.backtest_mae,
+        "candidates": b.candidates,
         "weekLabels": b.week_labels,
     }
 
 
 def _income_breakdown(b: Any) -> dict[str, Any]:
     return {
-        "spectators": b.spectators, "sponsors": b.sponsors, "financial": b.financial,
-        "subtotal": b.subtotal, "other": b.other, "total": b.total,
+        "spectators": b.spectators,
+        "sponsors": b.sponsors,
+        "financial": b.financial,
+        "subtotal": b.subtotal,
+        "other": b.other,
+        "total": b.total,
     }
 
 
 def _costs_breakdown(b: Any) -> dict[str, Any]:
     return {
-        "arena": b.arena, "players": b.players, "financial": b.financial,
-        "staff": b.staff, "youth": b.youth, "subtotal": b.subtotal,
-        "other": b.other, "total": b.total,
+        "arena": b.arena,
+        "players": b.players,
+        "financial": b.financial,
+        "staff": b.staff,
+        "youth": b.youth,
+        "subtotal": b.subtotal,
+        "other": b.other,
+        "total": b.total,
     }
 
 
@@ -108,18 +123,29 @@ def _serialise(d: Any) -> dict[str, Any]:
         "structuralBalance": d.structural_balance,
         "weeksOfHistory": d.weeks_of_history,
         "series": [
-            {"date": p.date, "seasonWeek": p.season_week, "cash": p.cash, "income": p.income,
-             "costs": p.costs, "balance": p.balance, "isAnomaly": p.is_anomaly}
+            {
+                "date": p.date,
+                "seasonWeek": p.season_week,
+                "cash": p.cash,
+                "income": p.income,
+                "costs": p.costs,
+                "balance": p.balance,
+                "isAnomaly": p.is_anomaly,
+            }
             for p in d.series
         ],
         "currentWeek": (
             {
-                "date": d.current_week.date, "seasonWeek": d.current_week.season_week,
-                "cash": d.current_week.cash, "income": d.current_week.income,
-                "costs": d.current_week.costs, "balance": d.current_week.balance,
+                "date": d.current_week.date,
+                "seasonWeek": d.current_week.season_week,
+                "cash": d.current_week.cash,
+                "income": d.current_week.income,
+                "costs": d.current_week.costs,
+                "balance": d.current_week.balance,
                 "isAnomaly": False,
             }
-            if d.current_week is not None else None
+            if d.current_week is not None
+            else None
         ),
         "weeklyFinance": {
             "income": [
@@ -168,15 +194,19 @@ def _serialise(d: Any) -> dict[str, Any]:
         "anomalies": d.anomalies,
         "weeklyBreakdown": [
             {
-                "seasonWeek": row.season_week, "date": row.date, "isCurrent": row.is_current,
-                "income": _income_breakdown(row.income), "costs": _costs_breakdown(row.costs),
+                "seasonWeek": row.season_week,
+                "date": row.date,
+                "isCurrent": row.is_current,
+                "income": _income_breakdown(row.income),
+                "costs": _costs_breakdown(row.costs),
             }
             for row in d.weekly_breakdown
         ],
         "seasonBreakdownTotals": [
             {
                 "season": row.season,
-                "income": _income_breakdown(row.income), "costs": _costs_breakdown(row.costs),
+                "income": _income_breakdown(row.income),
+                "costs": _costs_breakdown(row.costs),
             }
             for row in d.season_breakdown_totals
         ],

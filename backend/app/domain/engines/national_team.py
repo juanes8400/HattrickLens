@@ -15,6 +15,7 @@ Se cuenta sobre 90 minutos. El descuento existe (`AddedMinutes` en la ficha
 del partido) pero no cambia nada aquí: la experiencia pesa los minutos sobre
 90 y ese peso ya está topado en 1.
 """
+
 from dataclasses import dataclass
 
 #: Un partido dura esto. Lo que se juegue de más no suma peso.

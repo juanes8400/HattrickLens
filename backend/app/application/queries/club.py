@@ -4,6 +4,7 @@ Hattrick Control separaba esta información en Club, Gráfico y Empleados.  En
 Lens sale de los snapshots CHPP que ya se guardan en cada sincronización: no
 requiere una llamada adicional ni infiere estados que Hattrick no entregue.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,7 +32,8 @@ from app.infrastructure.db import models as m
 # una función de efecto para cada uno — un puesto sin efecto que contar sería
 # la señal de que no existe.
 STAFF_FIELDS: tuple[tuple[str, str], ...] = tuple(
-    (field, STAFF_FIELD_LABELS[field]) for field in (
+    (field, STAFF_FIELD_LABELS[field])
+    for field in (
         "assistant_trainer_levels",
         "form_coach_levels",
         "medic_levels",
@@ -42,15 +44,20 @@ STAFF_FIELDS: tuple[tuple[str, str], ...] = tuple(
 )
 # El mismo código StaffType de stafflist.xml, invertido, para agrupar el roster
 # real (los nombres) bajo cada puesto.
-STAFF_FIELD_TO_TYPE: dict[str, int] = {
-    field: code for code, field in STAFF_TYPE_TO_FIELD.items()
-}
+STAFF_FIELD_TO_TYPE: dict[str, int] = {field: code for code, field in STAFF_TYPE_TO_FIELD.items()}
 
 TRAINER_TYPES = {0: "Defensivo", 1: "Ofensivo", 2: "Equilibrado"}
 POPULARITY = {
-    0: "muy baja", 1: "furiosos", 2: "irritados", 3: "calmados",
-    4: "contentos", 5: "satisfechos", 6: "eufóricos", 7: "muy alta",
-    8: "bailando en las calles", 9: "enviando poemas de amor",
+    0: "muy baja",
+    1: "furiosos",
+    2: "irritados",
+    3: "calmados",
+    4: "contentos",
+    5: "satisfechos",
+    6: "eufóricos",
+    7: "muy alta",
+    8: "bailando en las calles",
+    9: "enviando poemas de amor",
 }
 
 
@@ -99,21 +106,33 @@ class ClubQueryService:
         if team is None:
             return None
 
-        training = list((await self._s.execute(
-            select(m.TrainingSnapshot)
-            .where(m.TrainingSnapshot.team_id == team_id)
-            .order_by(m.TrainingSnapshot.captured_at)
-        )).scalars())
-        economy = list((await self._s.execute(
-            select(m.EconomySnapshot)
-            .where(m.EconomySnapshot.team_id == team_id)
-            .order_by(m.EconomySnapshot.captured_at)
-        )).scalars())
-        staff = list((await self._s.execute(
-            select(m.StaffSnapshot)
-            .where(m.StaffSnapshot.team_id == team_id)
-            .order_by(m.StaffSnapshot.captured_at)
-        )).scalars())
+        training = list(
+            (
+                await self._s.execute(
+                    select(m.TrainingSnapshot)
+                    .where(m.TrainingSnapshot.team_id == team_id)
+                    .order_by(m.TrainingSnapshot.captured_at)
+                )
+            ).scalars()
+        )
+        economy = list(
+            (
+                await self._s.execute(
+                    select(m.EconomySnapshot)
+                    .where(m.EconomySnapshot.team_id == team_id)
+                    .order_by(m.EconomySnapshot.captured_at)
+                )
+            ).scalars()
+        )
+        staff = list(
+            (
+                await self._s.execute(
+                    select(m.StaffSnapshot)
+                    .where(m.StaffSnapshot.team_id == team_id)
+                    .order_by(m.StaffSnapshot.captured_at)
+                )
+            ).scalars()
+        )
 
         # "TT-ss" para "Evolución del staff" — mismo patrón que economy.py:
         # ancla al WorldContext del país del equipo (por ht_league_id), no
@@ -122,7 +141,8 @@ class ClubQueryService:
             await self._s.scalar(
                 select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
             )
-            if team.ht_league_id is not None else None
+            if team.ht_league_id is not None
+            else None
         )
 
         latest_training = training[-1] if training else None
@@ -167,22 +187,27 @@ class ClubQueryService:
                         "level": latest_training.morale,
                         "label": TEAM_SPIRIT.get(latest_training.morale, "Sin dato"),
                     }
-                    if latest_training is not None else None
+                    if latest_training is not None
+                    else None
                 ),
                 "confidence": (
                     {
                         "level": latest_training.self_confidence,
                         "label": CONFIDENCE.get(latest_training.self_confidence, "Sin dato"),
                     }
-                    if latest_training is not None else None
+                    if latest_training is not None
+                    else None
                 ),
                 "supporters": (
                     {
                         "fanClubSize": latest_economy.fan_club_size,
                         "popularity": latest_economy.supporters_popularity,
-                        "popularityLabel": POPULARITY.get(latest_economy.supporters_popularity, "Sin dato"),
+                        "popularityLabel": POPULARITY.get(
+                            latest_economy.supporters_popularity, "Sin dato"
+                        ),
                     }
-                    if latest_economy is not None else None
+                    if latest_economy is not None
+                    else None
                 ),
             },
             "staff": current_staff,
@@ -196,7 +221,8 @@ class ClubQueryService:
                 # confianza, no uno por semana ISO — si dos syncs seguidos
                 # leen el mismo valor, no es un dato nuevo.
                 for row in changes_only(
-                    training, lambda item: item.captured_at,
+                    training,
+                    lambda item: item.captured_at,
                     lambda item: (item.morale, item.self_confidence),
                 )
             ],
@@ -207,7 +233,8 @@ class ClubQueryService:
                     "supportersPopularity": row.supporters_popularity,
                 }
                 for row in changes_only(
-                    economy, lambda item: item.captured_at,
+                    economy,
+                    lambda item: item.captured_at,
                     lambda item: (item.fan_club_size, item.supporters_popularity),
                 )
             ],
@@ -219,7 +246,8 @@ class ClubQueryService:
                     "trainerSkillLevel": row.trainer_skill_level,
                 }
                 for row in changes_only(
-                    staff, lambda item: item.captured_at,
+                    staff,
+                    lambda item: item.captured_at,
                     lambda item: tuple(getattr(item, key) for key, _ in STAFF_FIELDS),
                 )
             ],

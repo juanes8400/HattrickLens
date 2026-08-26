@@ -5,6 +5,7 @@ and compares weekly closes. It never tries to reconstruct a skill pop from TSI
 or presentation text: each before/after pair comes from CHPP values that were
 actually saved for the player.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -173,7 +174,11 @@ async def build_changes_history(
     compared_from = older_closes[-1] if older_closes else (closes[0] if closes else None)
 
     grouped: dict[str, list[dict[str, Any]]] = {
-        "skill": [], "experience": [], "loyalty": [], "form": [], "market": [],
+        "skill": [],
+        "experience": [],
+        "loyalty": [],
+        "form": [],
+        "market": [],
     }
     for entries in snapshots.values():
         current, player = entries[-1]

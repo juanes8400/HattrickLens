@@ -238,7 +238,9 @@ async def _snapshot_for_sync_or_before(
     if current is None:
         current = await session.scalar(
             select(model)
-            .where(model.team_id == team_id, model.captured_at <= (sync.finished_at or sync.started_at))
+            .where(
+                model.team_id == team_id, model.captured_at <= (sync.finished_at or sync.started_at)
+            )
             .order_by(model.id.desc())
             .limit(1)
         )
@@ -282,11 +284,7 @@ def _club_item(
             return names.get(value, f"Tipo {value}")
         return f"{names.get(value, 'Nivel')} ({value})"
 
-    delta = (
-        None
-        if before is None or current is None or solo_nombre
-        else current - before
-    )
+    delta = None if before is None or current is None or solo_nombre else current - before
     if good is None or delta is None or delta == 0:
         is_good = None
     else:
@@ -362,6 +360,7 @@ async def _club_report(
             )
         )
     if economy is not None:
+
         def conv(value: int | None) -> int | None:
             return None if value is None else int(round(value / currency_rate))
 
@@ -408,18 +407,20 @@ async def _club_report(
     return items
 
 
-async def _changes_for_sync(
-    session: AsyncSession, sync_id: int | None
-) -> list[dict[str, Any]]:
+async def _changes_for_sync(session: AsyncSession, sync_id: int | None) -> list[dict[str, Any]]:
     if sync_id is None:
         return []
-    rows = list((
-        await session.execute(
-            select(m.SyncChange)
-            .where(m.SyncChange.sync_id == sync_id)
-            .order_by(m.SyncChange.id)
+    rows = list(
+        (
+            await session.execute(
+                select(m.SyncChange)
+                .where(m.SyncChange.sync_id == sync_id)
+                .order_by(m.SyncChange.id)
+            )
         )
-    ).scalars().all())
+        .scalars()
+        .all()
+    )
 
     # Las filas antiguas de Entrenamiento se guardaron con `-1` como valor
     # previo porque el repositorio no incluía moral/confianza en
@@ -471,13 +472,15 @@ async def _changes_for_sync(
                 changes.extend(_rebuilt_rows())
                 training_inserted = True
             continue
-        changes.append({
-            "category": row.category,
-            "summary": row.summary,
-            # `None` en filas anteriores a 2026-08-15: el frontend cae a su
-            # parser de compatibilidad para esas, ver SyncChangesFeed.tsx.
-            "detail": json.loads(row.detail_json) if row.detail_json else None,
-        })
+        changes.append(
+            {
+                "category": row.category,
+                "summary": row.summary,
+                # `None` en filas anteriores a 2026-08-15: el frontend cae a su
+                # parser de compatibilidad para esas, ver SyncChangesFeed.tsx.
+                "detail": json.loads(row.detail_json) if row.detail_json else None,
+            }
+        )
     if rebuilt_training and not training_inserted:
         changes.extend(_rebuilt_rows())
     return changes
@@ -532,19 +535,29 @@ async def build_sync_comparison(
     # deba seleccionar una fecha diferente". Sólo entran los syncs que SÍ
     # movieron algo: un sync repetido que confirmó que todo seguía igual no
     # merece una entrada en el selector, sería ruido.
-    available = list((await session.execute(
-        select(m.Sync)
-        .where(*normal_sync_filter, m.Sync.id.in_(meaningful_ids))
-        .order_by(m.Sync.started_at.desc())
-    )).scalars().all())
-    change_counts = dict((await session.execute(
-        select(m.SyncChange.sync_id, func.count(m.SyncChange.id))
-        .where(
-            m.SyncChange.team_id == team_id,
-            m.SyncChange.category.in_(MEANINGFUL_CATEGORIES),
+    available = list(
+        (
+            await session.execute(
+                select(m.Sync)
+                .where(*normal_sync_filter, m.Sync.id.in_(meaningful_ids))
+                .order_by(m.Sync.started_at.desc())
+            )
         )
-        .group_by(m.SyncChange.sync_id)
-    )).all())
+        .scalars()
+        .all()
+    )
+    change_counts = dict(
+        (
+            await session.execute(
+                select(m.SyncChange.sync_id, func.count(m.SyncChange.id))
+                .where(
+                    m.SyncChange.team_id == team_id,
+                    m.SyncChange.category.in_(MEANINGFUL_CATEGORIES),
+                )
+                .group_by(m.SyncChange.sync_id)
+            )
+        ).all()
+    )
 
     # `sync_id` explícito = el usuario eligió una fecha. Se valida contra la
     # lista navegable en vez de confiar en el parámetro: pedir un sync de otro
@@ -576,7 +589,8 @@ async def build_sync_comparison(
         .limit(1)
     )
     national_matches = await _partidos_de_seleccion(
-        session, team_id,
+        session,
+        team_id,
         desde=anterior.started_at if anterior else None,
         hasta=report_sync.started_at,
     )
@@ -610,10 +624,12 @@ TIPOS_DE_SELECCION = (10, 11, 12)
 
 
 async def _partidos_de_seleccion(
-    session: AsyncSession, team_id: int,
-    desde: datetime | None, hasta: datetime,
+    session: AsyncSession,
+    team_id: int,
+    desde: datetime | None,
+    hasta: datetime,
 ) -> list[dict[str, Any]]:
-    """"Fulano jugo 62 minutos con su seleccion" — para el informe de Cambios.
+    """ "Fulano jugo 62 minutos con su seleccion" — para el informe de Cambios.
 
     Se sitian por `Match.played_at`, no por cuando los vimos: un partido del
     martes tiene que salir en el informe del martes aunque lo hayamos
@@ -627,19 +643,26 @@ async def _partidos_de_seleccion(
     if desde is not None:
         filtros.append(m.Match.played_at > desde)
 
-    filas = (await session.execute(
-        select(
-            m.Player.ht_player_id, m.Player.first_name, m.Player.last_name,
-            m.Match.match_type, m.Match.played_at,
-            m.Match.home_team_name, m.Match.away_team_name,
-            m.PlayerMatchRating.played_minutes, m.PlayerMatchRating.rating,
+    filas = (
+        await session.execute(
+            select(
+                m.Player.ht_player_id,
+                m.Player.first_name,
+                m.Player.last_name,
+                m.Match.match_type,
+                m.Match.played_at,
+                m.Match.home_team_name,
+                m.Match.away_team_name,
+                m.PlayerMatchRating.played_minutes,
+                m.PlayerMatchRating.rating,
+            )
+            .select_from(m.PlayerMatchRating)
+            .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
+            .join(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
+            .where(*filtros)
+            .order_by(m.Match.played_at.desc())
         )
-        .select_from(m.PlayerMatchRating)
-        .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
-        .join(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
-        .where(*filtros)
-        .order_by(m.Match.played_at.desc())
-    )).all()
+    ).all()
 
     return [
         {

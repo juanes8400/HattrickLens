@@ -32,6 +32,7 @@ final — que en 2.1 ya incorpora el resultado de cada `<Substitution>`, así
 que hasta un suplente que entró en el minuto 80 queda con su posición real,
 no con "-1, desconocido". Este motor ahora agrupa por `role_id` (no
 `position_code`)."""
+
 from dataclasses import dataclass
 
 from app.domain.value_objects.formations import (
@@ -122,9 +123,7 @@ def best_team(
     # defensas dieran igual laterales o centrales, y un once ideal podía
     # salir con cuatro centrales y ningún lateral: una alineación que el
     # juego no deja poner.
-    centrales, interiores = resolve_split(
-        formation, central_defenders, inner_midfielders
-    )
+    centrales, interiores = resolve_split(formation, central_defenders, inner_midfielders)
     slots: tuple[tuple[str, frozenset[int], int], ...] = (
         ("keeper", KEEPER_ROLES, 1),
         ("central_defender", MATCH_ROLE_CENTRAL_DEFENDER, centrales),
@@ -154,8 +153,12 @@ def best_team(
             seen.add(p.ht_player_id)
             chosen.append(
                 SlotPlayer(
-                    ht_player_id=p.ht_player_id, name=p.name, team_ht_id=p.team_ht_id,
-                    team_name=p.team_name, rating_stars=p.rating_stars, role_id=p.role_id,
+                    ht_player_id=p.ht_player_id,
+                    name=p.name,
+                    team_ht_id=p.team_ht_id,
+                    team_name=p.team_name,
+                    rating_stars=p.rating_stars,
+                    role_id=p.role_id,
                     ht_match_id=p.ht_match_id,
                 )
             )

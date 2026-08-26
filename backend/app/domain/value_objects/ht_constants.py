@@ -240,24 +240,27 @@ MATCH_TYPE_NAMES: dict[int, str] = {
     MATCH_TYPE_YOUTH_FRIENDLY: "Amistoso juvenil",
     MATCH_TYPE_YOUTH_FRIENDLY_CUP_RULES: "Amistoso juvenil (reglas de copa)",
     MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY: "Amistoso juvenil internacional",
-    MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY_CUP_RULES:
-        "Amistoso juvenil internacional (reglas de copa)",
+    MATCH_TYPE_YOUTH_INTERNATIONAL_FRIENDLY_CUP_RULES: "Amistoso juvenil internacional (reglas de copa)",
 }
 
-NON_OFFICIAL_MATCH_TYPES: frozenset[int] = frozenset({
-    MATCH_TYPE_TOURNAMENT_LEAGUE,
-    MATCH_TYPE_TOURNAMENT_PLAYOFF,
-    MATCH_TYPE_DUEL,
-    MATCH_TYPE_LADDER,
-    MATCH_TYPE_PREPARATION,
-})
-FRIENDLY_MATCH_TYPES: frozenset[int] = frozenset({
-    MATCH_TYPE_FRIENDLY,
-    MATCH_TYPE_FRIENDLY_CUP_RULES,
-    MATCH_TYPE_INTERNATIONAL_FRIENDLY,
-    MATCH_TYPE_INTERNATIONAL_FRIENDLY_CUP_RULES,
-    MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
-})
+NON_OFFICIAL_MATCH_TYPES: frozenset[int] = frozenset(
+    {
+        MATCH_TYPE_TOURNAMENT_LEAGUE,
+        MATCH_TYPE_TOURNAMENT_PLAYOFF,
+        MATCH_TYPE_DUEL,
+        MATCH_TYPE_LADDER,
+        MATCH_TYPE_PREPARATION,
+    }
+)
+FRIENDLY_MATCH_TYPES: frozenset[int] = frozenset(
+    {
+        MATCH_TYPE_FRIENDLY,
+        MATCH_TYPE_FRIENDLY_CUP_RULES,
+        MATCH_TYPE_INTERNATIONAL_FRIENDLY,
+        MATCH_TYPE_INTERNATIONAL_FRIENDLY_CUP_RULES,
+        MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
+    }
+)
 
 
 def is_competitive_match_type(match_type: int) -> bool:
@@ -358,8 +361,6 @@ def player_category_name(code: int) -> str:
     return PLAYER_CATEGORY.get(code, f"categoría {code}")
 
 
-
-
 # 2026-08-12, corrección: `club.xml` dejó de traer los niveles agregados por
 # puesto (`AssistantTrainerLevels` y hermanos) — verificado en vivo, la
 # versión actual (1.1) sólo trae `<Specialists>` (booleanos) y `<YouthSquad>`.
@@ -393,9 +394,7 @@ STAFF_ROLES: dict[int, tuple[str, str, str]] = {
     7: ("tactical_assistant_levels", "Asistente táctico", "Asistentes tácticos"),
 }
 
-STAFF_TYPE_TO_FIELD: dict[int, str] = {
-    code: field for code, (field, _, _) in STAFF_ROLES.items()
-}
+STAFF_TYPE_TO_FIELD: dict[int, str] = {code: field for code, (field, _, _) in STAFF_ROLES.items()}
 STAFF_FIELD_LABELS: dict[str, str] = {
     field: plural for _, (field, _, plural) in STAFF_ROLES.items()
 }
@@ -407,7 +406,6 @@ def staff_type_name(code: int) -> str:
     otro puesto."""
     role = STAFF_ROLES.get(code)
     return role[1] if role else f"Puesto desconocido (tipo {code})"
-
 
 
 # MatchRoleID de CHPP DataTypes, usado en LastMatch y ordenes modernas.

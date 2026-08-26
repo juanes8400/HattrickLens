@@ -1,4 +1,5 @@
 """Saldo neto por jugador. HL-161."""
+
 from dataclasses import asdict
 from typing import Any, cast
 
@@ -55,9 +56,7 @@ class EdicionDeEtapa(BaseModel):
     training_type: int | None = Field(
         None, ge=0, le=12, description="Qué se entrenaba cuando se fue"
     )
-    top_skill: str | None = Field(
-        None, description="Su habilidad más alta en ese momento"
-    )
+    top_skill: str | None = Field(None, description="Su habilidad más alta en ese momento")
     age_years: int | None = Field(None, ge=15, le=50)
     age_days: int | None = Field(None, ge=0, le=111)
     excluded: bool | None = Field(
@@ -140,9 +139,7 @@ class VisitasDelIntento(BaseModel):
     times_seen: int | None = Field(
         None, ge=0, description="Cuántas veces lo miraron mientras estaba listado"
     )
-    asking_price: int | None = Field(
-        None, ge=0, description="El precio que se pedía, en tu moneda"
-    )
+    asking_price: int | None = Field(None, ge=0, description="El precio que se pedía, en tu moneda")
     dismissed: bool = Field(
         False, description="Ignorar la pregunta: no volver a preguntar por este intento"
     )

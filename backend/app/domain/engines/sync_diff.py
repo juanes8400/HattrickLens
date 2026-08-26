@@ -12,6 +12,7 @@ daba 202,21 y la UI mostraba un TSI de "202". Ahora cada cambio viaja como
 (`summary`) porque es útil para el feed y el CSV, pero ya no es la única
 fuente de la información.
 """
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,7 @@ ECONOMY_FIELDS: dict[str, str] = {
 }
 ECONOMY_MONEY_FIELDS = {"cash", "income_sum", "costs_sum"}
 
+
 @dataclass(frozen=True)
 class Change:
     """Un cambio detectado, con el dato crudo Y la frase.
@@ -48,6 +50,7 @@ class Change:
                    `before_label`/`after_label` traen el texto
       - "event"  → no hay par numérico (llegó, se vendió, se lesionó)
     """
+
     category: str
     summary: str
     metric: str = ""
@@ -101,12 +104,19 @@ def diff_player_skills(
     `old is None` significa primera vez que vemos al jugador: se anuncia como
     alta de plantilla, no como una lista enorme de "subidas" desde cero.
     """
+
     def _player(summary: str, **kw: Any) -> Change:
         return Change(category="jugadores", summary=summary, subject=player_name, **kw)
 
     if old is None:
-        return [_player(f"{player_name} se unió a la plantilla", metric="arrival",
-                        label="Alta", kind="event")]
+        return [
+            _player(
+                f"{player_name} se unió a la plantilla",
+                metric="arrival",
+                label="Alta",
+                kind="event",
+            )
+        ]
 
     changes: list[Change] = []
     old_skills = old.get("skills", {}) or {}
@@ -115,35 +125,60 @@ def diff_player_skills(
         o, n = old_skills.get(skill), new_skills.get(skill)
         if o is not None and n is not None and o != n:
             verb = "subió" if n > o else "bajó"
-            changes.append(_player(
-                f"{player_name}: {label} {verb} de {o} a {n}",
-                metric=skill, label=label, before=o, after=n, kind="skill", good=n > o,
-            ))
+            changes.append(
+                _player(
+                    f"{player_name}: {label} {verb} de {o} a {n}",
+                    metric=skill,
+                    label=label,
+                    before=o,
+                    after=n,
+                    kind="skill",
+                    good=n > o,
+                )
+            )
 
     if old.get("tsi") != new.get("tsi"):
         before, after = old.get("tsi", 0), new.get("tsi", 0)
-        changes.append(_player(
-            f"{player_name}: TSI {thousands(before)} -> {thousands(after)}",
-            metric="tsi", label="TSI", before=before, after=after, kind="count",
-            good=after > before,
-        ))
+        changes.append(
+            _player(
+                f"{player_name}: TSI {thousands(before)} -> {thousands(after)}",
+                metric="tsi",
+                label="TSI",
+                before=before,
+                after=after,
+                kind="count",
+                good=after > before,
+            )
+        )
 
     if old.get("salary") != new.get("salary"):
         before, after = old.get("salary", 0), new.get("salary", 0)
-        changes.append(_player(
-            f"{player_name}: Salario {thousands(before)} -> {thousands(after)}",
-            # Un salario que sube es un gasto que sube: no se marca como bueno.
-            metric="salary", label="Salario", before=before, after=after, kind="money",
-        ))
+        changes.append(
+            _player(
+                f"{player_name}: Salario {thousands(before)} -> {thousands(after)}",
+                # Un salario que sube es un gasto que sube: no se marca como bueno.
+                metric="salary",
+                label="Salario",
+                before=before,
+                after=after,
+                kind="money",
+            )
+        )
 
     for field_name, label in PLAYER_LEVEL_FIELDS.items():
         if old.get(field_name) != new.get(field_name):
             before, after = old.get(field_name, 0), new.get(field_name, 0)
-            changes.append(_player(
-                f"{player_name}: {label} {before} -> {after}",
-                metric=field_name, label=label, before=before, after=after,
-                kind="skill", good=after > before,
-            ))
+            changes.append(
+                _player(
+                    f"{player_name}: {label} {before} -> {after}",
+                    metric=field_name,
+                    label=label,
+                    before=before,
+                    after=after,
+                    kind="skill",
+                    good=after > before,
+                )
+            )
 
     old_injury, new_injury = old.get("injury_level", -1), new.get("injury_level", -1)
     if old_injury != new_injury:
@@ -154,18 +189,29 @@ def diff_player_skills(
         else:
             summary = f"{player_name}: lesión de nivel {old_injury} a {new_injury}"
             good = new_injury < old_injury
-        changes.append(_player(
-            summary, metric="injury", label="Lesión", before=old_injury, after=new_injury,
-            kind="level", good=good,
-        ))
+        changes.append(
+            _player(
+                summary,
+                metric="injury",
+                label="Lesión",
+                before=old_injury,
+                after=new_injury,
+                kind="level",
+                good=good,
+            )
+        )
 
     if old.get("is_transfer_listed") != new.get("is_transfer_listed"):
         listed = new.get("is_transfer_listed")
-        changes.append(_player(
-            f"{player_name}: {'puesto en' if listed else 'retirado del'} mercado",
-            metric="market", label="Mercado", kind="event",
-            after_label="Puesto en venta" if listed else "Retirado del mercado",
-        ))
+        changes.append(
+            _player(
+                f"{player_name}: {'puesto en' if listed else 'retirado del'} mercado",
+                metric="market",
+                label="Mercado",
+                kind="event",
+                after_label="Puesto en venta" if listed else "Retirado del mercado",
+            )
+        )
 
     return changes
 
@@ -192,7 +238,8 @@ def diff_rival_purchase(
     """
     nota = (
         f", mejor nota reciente {best_rating:.1f}".replace(".", ",")
-        if best_rating is not None else ", todavía sin jugar"
+        if best_rating is not None
+        else ", todavía sin jugar"
     )
     return Change(
         category="rivales",
@@ -228,13 +275,21 @@ def diff_player_departure(
     de la venta es engañoso. El precio de venta solo."""
     if not sale_price:
         return Change(
-            category="jugadores", subject=player_name, metric="departure",
-            label="Baja", kind="event",
+            category="jugadores",
+            subject=player_name,
+            metric="departure",
+            label="Baja",
+            kind="event",
             summary=f"{player_name} salió de la plantilla",
         )
     return Change(
-        category="jugadores", subject=player_name, metric="sale", label="Venta",
-        kind="money", after=sale_price, currency=currency,
+        category="jugadores",
+        subject=player_name,
+        metric="sale",
+        label="Venta",
+        kind="money",
+        after=sale_price,
+        currency=currency,
         summary=f"{player_name} se vendió por {thousands(sale_price)} {currency}".strip(),
     )
 
@@ -258,14 +313,20 @@ def diff_previous_club_bonus(
     el porcentaje es ese y no otro.
     """
     return Change(
-        category="transferencias", subject=player_name, metric="previous_club_bonus",
-        label="Comision de club anterior", kind="money", after=amount,
+        category="transferencias",
+        subject=player_name,
+        metric="previous_club_bonus",
+        label="Comision de club anterior",
+        kind="money",
+        after=amount,
         currency=currency,
         summary=(
             f"{player_name} fue revendido por {thousands(resale_price)} {currency}"
             f": te tocan {thousands(amount)} {currency}"
             f" ({pct:.0%} por {games} partidos con nosotros)"
-        ).replace("  ", " ").strip(),
+        )
+        .replace("  ", " ")
+        .strip(),
     )
 
 
@@ -297,9 +358,12 @@ def diff_expedientes_cerrados(conteo: dict[str, int]) -> Change | None:
         singular, plural = MOTIVOS_DE_CIERRE.get(motivo, (motivo, motivo))
         partes.append(f"{cuantos} {singular if cuantos == 1 else plural}")
     return Change(
-        category="transferencias", subject="Vigilancia de comisiones",
-        metric="expedientes_cerrados", label="Expedientes cerrados",
-        kind="count", after=total,
+        category="transferencias",
+        subject="Vigilancia de comisiones",
+        metric="expedientes_cerrados",
+        label="Expedientes cerrados",
+        kind="count",
+        after=total,
         summary=(
             f"{total} expediente{'s' if total != 1 else ''} cerrado"
             f"{'s' if total != 1 else ''}: {', '.join(partes)}"
@@ -327,22 +391,36 @@ def diff_economy(
             o_conv, n_conv = round(o / rate), round(n / rate)
             if o_conv == n_conv:
                 continue  # el cambio crudo en SEK no llega a mover la moneda local
-            changes.append(Change(
-                category="economía", metric=field_name, label=label,
-                before=o_conv, after=n_conv, kind="money", currency=currency,
-                # "Gastos totales sube" no es bueno; "Caja sube" sí. Los gastos
-                # son el único campo monetario donde más es peor.
-                good=(n_conv < o_conv) if field_name == "costs_sum" else (n_conv > o_conv),
-                summary=(
-                    f"{label}: {thousands(o_conv)} -> {thousands(n_conv)} {currency}".strip()
-                ),
-            ))
+            changes.append(
+                Change(
+                    category="economía",
+                    metric=field_name,
+                    label=label,
+                    before=o_conv,
+                    after=n_conv,
+                    kind="money",
+                    currency=currency,
+                    # "Gastos totales sube" no es bueno; "Caja sube" sí. Los gastos
+                    # son el único campo monetario donde más es peor.
+                    good=(n_conv < o_conv) if field_name == "costs_sum" else (n_conv > o_conv),
+                    summary=(
+                        f"{label}: {thousands(o_conv)} -> {thousands(n_conv)} {currency}".strip()
+                    ),
+                )
+            )
         else:
-            changes.append(Change(
-                category="economía", metric=field_name, label=label,
-                before=o, after=n, kind="count", good=n > o,
-                summary=f"{label}: {o} -> {n}",
-            ))
+            changes.append(
+                Change(
+                    category="economía",
+                    metric=field_name,
+                    label=label,
+                    before=o,
+                    after=n,
+                    kind="count",
+                    good=n > o,
+                    summary=f"{label}: {o} -> {n}",
+                )
+            )
     return changes
 
 
@@ -352,56 +430,87 @@ def diff_training(old: dict[str, Any] | None, new: dict[str, Any]) -> list[Chang
     changes: list[Change] = []
     if old.get("training_type") != new.get("training_type"):
         before, after = old.get("training_type"), new.get("training_type")
-        changes.append(Change(
-            category="entrenamiento", metric="training_type", label="Tipo",
-            before=before, after=after, kind="count",
-            # Con su nombre, no con el número: "tipo 10 -> 2" no lo entiende
-            # nadie, y este aviso existe justo para leerse de un vistazo.
-            before_label=training_name(before) if before is not None else None,
-            after_label=training_name(after) if after is not None else None,
-            summary=(
-                f"Entrenamiento: {training_name(before) if before is not None else '?'}"
-                f" -> {training_name(after) if after is not None else '?'}"
-            ),
-        ))
+        changes.append(
+            Change(
+                category="entrenamiento",
+                metric="training_type",
+                label="Tipo",
+                before=before,
+                after=after,
+                kind="count",
+                # Con su nombre, no con el número: "tipo 10 -> 2" no lo entiende
+                # nadie, y este aviso existe justo para leerse de un vistazo.
+                before_label=training_name(before) if before is not None else None,
+                after_label=training_name(after) if after is not None else None,
+                summary=(
+                    f"Entrenamiento: {training_name(before) if before is not None else '?'}"
+                    f" -> {training_name(after) if after is not None else '?'}"
+                ),
+            )
+        )
     if old.get("training_level") != new.get("training_level"):
         before, after = old.get("training_level"), new.get("training_level")
-        changes.append(Change(
-            category="entrenamiento", metric="training_level",
-            label="Nivel de entrenamiento", before=before, after=after, kind="count",
-            summary=f"Nivel de entrenamiento: {before} -> {after}",
-        ))
+        changes.append(
+            Change(
+                category="entrenamiento",
+                metric="training_level",
+                label="Nivel de entrenamiento",
+                before=before,
+                after=after,
+                kind="count",
+                summary=f"Nivel de entrenamiento: {before} -> {after}",
+            )
+        )
     old_trainer, new_trainer = old.get("trainer_name", ""), new.get("trainer_name", "")
     if old_trainer != new_trainer and new_trainer:
-        changes.append(Change(
-            category="entrenamiento", metric="trainer", label="Entrenador",
-            kind="event", after_label=new_trainer,
-            summary=f"Nuevo entrenador: {new_trainer}",
-        ))
+        changes.append(
+            Change(
+                category="entrenamiento",
+                metric="trainer",
+                label="Entrenador",
+                kind="event",
+                after_label=new_trainer,
+                summary=f"Nuevo entrenador: {new_trainer}",
+            )
+        )
     if old.get("morale") != new.get("morale"):
         before, after = old.get("morale", -1), new.get("morale", -1)
-        changes.append(Change(
-            category="entrenamiento", metric="morale", label="Espíritu del equipo",
-            before=before, after=after, kind="level", good=after > before,
-            before_label=str(TEAM_SPIRIT.get(before, before)),
-            after_label=str(TEAM_SPIRIT.get(after, after)),
-            summary=(
-                f"Espíritu del equipo: {TEAM_SPIRIT.get(before, before)} -> "
-                f"{TEAM_SPIRIT.get(after, after)}"
-            ),
-        ))
+        changes.append(
+            Change(
+                category="entrenamiento",
+                metric="morale",
+                label="Espíritu del equipo",
+                before=before,
+                after=after,
+                kind="level",
+                good=after > before,
+                before_label=str(TEAM_SPIRIT.get(before, before)),
+                after_label=str(TEAM_SPIRIT.get(after, after)),
+                summary=(
+                    f"Espíritu del equipo: {TEAM_SPIRIT.get(before, before)} -> "
+                    f"{TEAM_SPIRIT.get(after, after)}"
+                ),
+            )
+        )
     if old.get("self_confidence") != new.get("self_confidence"):
         before = old.get("self_confidence", -1)
         after = new.get("self_confidence", -1)
-        changes.append(Change(
-            category="entrenamiento", metric="self_confidence", label="Confianza",
-            before=before, after=after, kind="level", good=after > before,
-            before_label=str(CONFIDENCE.get(before, before)),
-            after_label=str(CONFIDENCE.get(after, after)),
-            summary=(
-                f"Confianza: {CONFIDENCE.get(before, before)} -> {CONFIDENCE.get(after, after)}"
-            ),
-        ))
+        changes.append(
+            Change(
+                category="entrenamiento",
+                metric="self_confidence",
+                label="Confianza",
+                before=before,
+                after=after,
+                kind="level",
+                good=after > before,
+                before_label=str(CONFIDENCE.get(before, before)),
+                after_label=str(CONFIDENCE.get(after, after)),
+                summary=(
+                    f"Confianza: {CONFIDENCE.get(before, before)} -> {CONFIDENCE.get(after, after)}"
+                ),
+            )
+        )
     return changes
 
 
@@ -410,8 +519,13 @@ def diff_standing(old_position: int | None, new_position: int, team_name: str) -
         return None
     verb = "subió" if new_position < old_position else "bajó"
     return Change(
-        category="liga", metric="position", label="Posición", subject=team_name,
-        before=old_position, after=new_position, kind="count",
+        category="liga",
+        metric="position",
+        label="Posición",
+        subject=team_name,
+        before=old_position,
+        after=new_position,
+        kind="count",
         # En una tabla, bajar de número es mejorar.
         good=new_position < old_position,
         summary=f"{team_name} {verb} de la posición {old_position} a la {new_position}",
@@ -445,8 +559,14 @@ def diff_match(
     else:
         verdict, good = "Empataste", None
     return Change(
-        category="partidos", metric="result", label="Resultado", subject=opponent,
-        before=own_goals, after=rival_goals, kind="event", good=good,
+        category="partidos",
+        metric="result",
+        label="Resultado",
+        subject=opponent,
+        before=own_goals,
+        after=rival_goals,
+        kind="event",
+        good=good,
         after_label=f"{verdict} {own_goals}-{rival_goals}",
         summary=f"{verdict} {own_goals}-{rival_goals} vs {opponent}",
     )

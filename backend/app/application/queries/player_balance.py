@@ -8,6 +8,7 @@ desconocido — y llama al motor de dominio (`player_balance.py`) para
 calcular el resultado. Nunca inventa un valor de mercado para un jugador
 que sigue sin venderse.
 """
+
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -41,7 +42,11 @@ _TOP_SKILL_FIELDS = ("keeper", "defending", "playmaking", "winger", "passing", "
 # Cubos de edad para el desglose "por Edad" — rangos exactos pedidos por el
 # usuario 2026-08-04 (17 a 18 años = 17:000 a 18:111, etc.).
 _AGE_BUCKETS: list[tuple[int, str]] = [
-    (18, "17–18"), (21, "19–21"), (24, "22–24"), (28, "25–28"), (31, "29–31"),
+    (18, "17–18"),
+    (21, "19–21"),
+    (24, "22–24"),
+    (28, "25–28"),
+    (31, "29–31"),
 ]
 _AGE_BUCKET_OVERFLOW = "32+"
 _UNKNOWN_AGE = "Edad desconocida"
@@ -83,7 +88,7 @@ def _split_12h(hour: int) -> tuple[int, str]:
 
 
 def _format_hour_range(start: int, end: int) -> str:
-    """"14-16" no dice nada de un vistazo — pedido explícitamente 2026-08-03
+    """ "14-16" no dice nada de un vistazo — pedido explícitamente 2026-08-03
     en formato de 12 horas ("2:00 a 4:00 p.m."). Un solo sufijo am/pm cuando
     los dos extremos caen en el mismo periodo (el caso normal); los dos
     cuando cruza el mediodía o la medianoche (ej. "10:00 a.m. a 12:00 p.m.")."""
@@ -112,6 +117,7 @@ class SalaryWeekSegment:
     temporada — pedido explícitamente para la ficha de ex-jugador ("11
     semanas con X sueldo en temporada W, 4 semanas con Y sueldo en
     temporada Z") en vez de un solo total acumulado."""
+
     weeks: int
     salary: int
     season: str
@@ -123,6 +129,7 @@ class ListingAttemptRow:
     explícitamente 2026-08-08. Solo cubre intentos detectados desde que
     existe `player_listing_attempts` (0038); anteriores a esa fecha siguen
     solo en el contador `listing_count`."""
+
     highest_bid: int | None
     detected_at: str
 
@@ -299,11 +306,13 @@ def _build_breakdowns(sold_rows: list[PlayerBalanceRow]) -> dict[str, dict[str, 
         "by_top_skill": {
             **{
                 SKILL_LABELS[f]: round(by_top_skill[SKILL_LABELS[f]], 2)
-                for f in _TOP_SKILL_FIELDS if SKILL_LABELS[f] in by_top_skill
+                for f in _TOP_SKILL_FIELDS
+                if SKILL_LABELS[f] in by_top_skill
             },
             **(
                 {_UNKNOWN_TOP_SKILL: round(by_top_skill[_UNKNOWN_TOP_SKILL], 2)}
-                if _UNKNOWN_TOP_SKILL in by_top_skill else {}
+                if _UNKNOWN_TOP_SKILL in by_top_skill
+                else {}
             ),
         },
         "by_bid_hour": {
@@ -369,15 +378,19 @@ class PlayerBalanceQueryService:
         # Todos los que han pasado por el club, sigan o no — append-only,
         # nunca se borran (ver `Player.left_team_at`).
         players = list(
-            (
-                await self._s.execute(select(m.Player).where(m.Player.team_id == team_id))
-            ).scalars()
+            (await self._s.execute(select(m.Player).where(m.Player.team_id == team_id))).scalars()
         )
         if not players:
             return PlayerBalanceResponse(
-                team_name=team.name, currency=team.currency_name,
-                players=[], total_saldo=0.0, unknown_purchase_count=0,
-                by_training_type={}, by_season={}, by_age_bucket={}, by_top_skill={},
+                team_name=team.name,
+                currency=team.currency_name,
+                players=[],
+                total_saldo=0.0,
+                unknown_purchase_count=0,
+                by_training_type={},
+                by_season={},
+                by_age_bucket={},
+                by_top_skill={},
                 by_bid_hour={},
                 transfer_total_buys=conv(team.transfer_total_buys) or 0,
                 transfer_total_sales=conv(team.transfer_total_sales) or 0,
@@ -427,13 +440,19 @@ class PlayerBalanceQueryService:
         for p in players:
             if p.id in con_etapa:
                 continue
-            etapas.append(m.PlayerStint(
-                player_id=p.id, ht_player_id=p.ht_player_id, team_id=team_id,
-                arrived_at=p.purchased_at, arrival_price=p.purchase_price,
-                left_at=p.sold_at or p.left_team_at, sale_price=p.sale_price,
-                buyer_team_id=p.buyer_team_id,
-                games_played_for_us=p.games_played_for_us,
-            ))
+            etapas.append(
+                m.PlayerStint(
+                    player_id=p.id,
+                    ht_player_id=p.ht_player_id,
+                    team_id=team_id,
+                    arrived_at=p.purchased_at,
+                    arrival_price=p.purchase_price,
+                    left_at=p.sold_at or p.left_team_at,
+                    sale_price=p.sale_price,
+                    buyer_team_id=p.buyer_team_id,
+                    games_played_for_us=p.games_played_for_us,
+                )
+            )
         player_ids = [p.id for p in players]
         snapshots = list(
             (
@@ -507,7 +526,8 @@ class PlayerBalanceQueryService:
             await self._s.scalar(
                 select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
             )
-            if team.ht_league_id is not None else None
+            if team.ht_league_id is not None
+            else None
         )
         country_rows = (
             await self._s.execute(
@@ -566,8 +586,9 @@ class PlayerBalanceQueryService:
         # una aproximación.
         bonus_rows = (
             await self._s.execute(
-                select(m.PreviousClubBonus.ht_player_id, m.PreviousClubBonus.amount)
-                .where(m.PreviousClubBonus.player_id.in_([p.id for p in players]))
+                select(m.PreviousClubBonus.ht_player_id, m.PreviousClubBonus.amount).where(
+                    m.PreviousClubBonus.player_id.in_([p.id for p in players])
+                )
             )
         ).all()
         resale_shares: dict[int, float] = {}
@@ -595,7 +616,9 @@ class PlayerBalanceQueryService:
             return training_skill_name(candidates[-1].training_type)
 
         def salary_breakdown(
-            purchased_at: datetime | None, end: datetime | None, history: list[SalarySnapshot],
+            purchased_at: datetime | None,
+            end: datetime | None,
+            history: list[SalarySnapshot],
         ) -> list[SalaryWeekSegment]:
             """Mismo recorrido semana a semana que `_total_salary` en el
             motor de dominio (misma cuenta de semanas, mismo carry-forward),
@@ -665,14 +688,10 @@ class PlayerBalanceQueryService:
             # venta a $0, no como "sigue en la plantilla" ni "desconocido".
             # Las reglas actuales de Hattrick no tienen retiro forzoso, así
             # que "salió sin venta" es en la práctica siempre un despido.
-            is_departure_without_sale = (
-                etapa.left_at is not None and etapa.sale_price is None
-            )
+            is_departure_without_sale = etapa.left_at is not None and etapa.sale_price is None
             effective_sold_at = etapa.left_at
             effective_sale_price = (
-                None if is_currently_active
-                else sale_price if etapa.sale_price is not None
-                else 0
+                None if is_currently_active else sale_price if etapa.sale_price is not None else 0
             )
 
             record = PlayerTransferRecord(
@@ -693,7 +712,9 @@ class PlayerBalanceQueryService:
             )
             balance: PlayerBalance = compute_balance(record)
             salary_breakdown_rows = salary_breakdown(
-                purchased_at, effective_sold_at or record.as_of, record.salary_history,
+                purchased_at,
+                effective_sold_at or record.as_of,
+                record.salary_history,
             )
 
             training_label = training_at(effective_sold_at) if effective_sold_at else None
@@ -707,22 +728,28 @@ class PlayerBalanceQueryService:
             # temporadas, pedido explícitamente 2026-08-04) como en el
             # desglose "por Temporada" más abajo — mismo criterio, una sola
             # llamada.
-            season_label_for_row = season_at(effective_sold_at) if effective_sold_at is not None else None
+            season_label_for_row = (
+                season_at(effective_sold_at) if effective_sold_at is not None else None
+            )
 
             # Edad en la venta (número decimal, años + días/112) — reutilizada
             # tanto en la fila (para graficar) como en el desglose "por Edad"
             # más abajo, así que se calcula UNA vez aquí. Mismo criterio que
             # siempre: snapshot real si existe, si no el backfill.
-            at_sale = snapshot_at(p.id, effective_sold_at) if effective_sold_at is not None else None
+            at_sale = (
+                snapshot_at(p.id, effective_sold_at) if effective_sold_at is not None else None
+            )
             age_at_sale: float | str = "?"
             if at_sale is not None:
                 age_at_sale = round(at_sale.age_years + at_sale.age_days / 112, 2)
-            elif p.sold_at is not None and p.age_years_at_sale is not None and p.age_days_at_sale is not None:
+            elif (
+                p.sold_at is not None
+                and p.age_years_at_sale is not None
+                and p.age_days_at_sale is not None
+            ):
                 age_at_sale = round(p.age_years_at_sale + p.age_days_at_sale / 112, 2)
             elif etapa.age_years_manual is not None:
-                age_at_sale = round(
-                    etapa.age_years_manual + (etapa.age_days_manual or 0) / 112, 2
-                )
+                age_at_sale = round(etapa.age_years_manual + (etapa.age_days_manual or 0) / 112, 2)
 
             at_purchase = (
                 snapshot_at_or_after(p.id, purchased_at) if purchased_at is not None else None
@@ -732,19 +759,20 @@ class PlayerBalanceQueryService:
                 nationality_snapshot = snapshots_by_player[p.id][-1]
             native_country_code = (
                 country_codes_by_id.get(nationality_snapshot.country_id)
-                if nationality_snapshot is not None else None
+                if nationality_snapshot is not None
+                else None
             )
             if native_country_code is None and p.native_country:
-                native_country_code = country_codes_by_name.get(
-                    p.native_country.strip().casefold()
-                )
+                native_country_code = country_codes_by_name.get(p.native_country.strip().casefold())
             native_country = p.native_country or (
                 country_names_by_id.get(nationality_snapshot.country_id)
-                if nationality_snapshot is not None else None
+                if nationality_snapshot is not None
+                else None
             )
             destination_country_code = (
                 country_codes_by_name.get(p.destination_country.strip().casefold())
-                if p.destination_country else None
+                if p.destination_country
+                else None
             )
             age_at_purchase: float | str = "?"
             if at_purchase is not None:
@@ -757,9 +785,7 @@ class PlayerBalanceQueryService:
             # desgloses "por habilidad más alta"/"por hora de puja" más abajo.
             top_skill_for_row = _top_skill_label(at_sale) if at_sale is not None else None
             if top_skill_for_row is None and etapa.top_skill_manual:
-                top_skill_for_row = SKILL_LABELS.get(
-                    etapa.top_skill_manual, etapa.top_skill_manual
-                )
+                top_skill_for_row = SKILL_LABELS.get(etapa.top_skill_manual, etapa.top_skill_manual)
             # Hora de puja: solo tiene sentido si de verdad se cerró una
             # puja real — un despido (`effective_sold_at`) no cuenta.
             bid_hour_for_row = (
@@ -780,14 +806,14 @@ class PlayerBalanceQueryService:
             if p.specialty is not None:
                 specialty_label = SPECIALTIES.get(p.specialty) or "Ninguna"
             character_label = (
-                PLAYER_AGREEABILITY.get(p.agreeability, "?")
-                if p.agreeability is not None else "?"
+                PLAYER_AGREEABILITY.get(p.agreeability, "?") if p.agreeability is not None else "?"
             )
             tsi_purchase: int | str = p.tsi_at_purchase if p.tsi_at_purchase is not None else "?"
             tsi_sale: int | str = p.tsi_at_sale if p.tsi_at_sale is not None else "?"
             delta_tsi: int | str = (
                 p.tsi_at_sale - p.tsi_at_purchase
-                if p.tsi_at_purchase is not None and p.tsi_at_sale is not None else "?"
+                if p.tsi_at_purchase is not None and p.tsi_at_sale is not None
+                else "?"
             )
             commission_amount: float | str = "?"
             if balance.is_sold and effective_sale_price is not None:
@@ -797,9 +823,7 @@ class PlayerBalanceQueryService:
             # grupo y dividen al final. Promediar los porcentajes de cada
             # etapa daria el mismo peso a uno de 10.000 que a uno de cinco
             # millones, que no es lo que se quiere saber.
-            total_cost = (
-                (balance.purchase_price or 0) + balance.salary_total + balance.listing_cost
-            )
+            total_cost = (balance.purchase_price or 0) + balance.salary_total + balance.listing_cost
             roi_pct: float | str = "?"
             if balance.saldo is not None:
                 if total_cost > 0:
@@ -815,9 +839,7 @@ class PlayerBalanceQueryService:
                     name=f"{p.first_name} {p.last_name}".strip(),
                     is_academy_graduate=is_academy,
                     origin_unknown=origen_desconocido,
-                    ht_player_id_is_transfer=bool(
-                        getattr(p, "ht_player_id_is_transfer", False)
-                    ),
+                    ht_player_id_is_transfer=bool(getattr(p, "ht_player_id_is_transfer", False)),
                     promotion_cost=conv(YOUTH_PROMOTION_COST) if is_academy else 0,
                     is_purchase_price_manual=is_manual,
                     purchase_price=balance.purchase_price,
@@ -827,8 +849,7 @@ class PlayerBalanceQueryService:
                     salary_total=balance.salary_total,
                     salary_known=balance.salary_known,
                     games_with_us=(
-                        etapa.games_played_for_us
-                        if etapa.games_played_for_us is not None else "?"
+                        etapa.games_played_for_us if etapa.games_played_for_us is not None else "?"
                     ),
                     salary_breakdown=salary_breakdown_rows,
                     listing_count=p.listing_count,

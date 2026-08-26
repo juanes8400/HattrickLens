@@ -21,6 +21,7 @@ otro país; decisión de producto confirmada con el usuario). Preparación
 diferencia de Duelos/Escaleras, es contra un rival real con su plantilla
 real.
 """
+
 import json
 import time
 from collections import Counter
@@ -121,8 +122,7 @@ class _CachedCHPP:
         datos = await self._inner.fetch(file, version=version, **params)
         if len(_chpp_cache) >= _MAX_CACHE_ENTRIES:
             for vieja in [
-                k for k, (t, _) in _chpp_cache.items()
-                if ahora - t >= _CHPP_CACHE_TTL_SECONDS
+                k for k, (t, _) in _chpp_cache.items() if ahora - t >= _CHPP_CACHE_TTL_SECONDS
             ]:
                 _chpp_cache.pop(vieja, None)
             if len(_chpp_cache) >= _MAX_CACHE_ENTRIES:
@@ -132,6 +132,7 @@ class _CachedCHPP:
 
     async def aclose(self) -> None:
         await self._inner.aclose()
+
 
 # Decisión de producto confirmada con el usuario (HL-2xx): la ficha de rival
 # usa una clasificación PROPIA de tipo de partido, distinta de la genérica
@@ -146,15 +147,25 @@ class _CachedCHPP:
 # excepción. Reemplaza la regla anterior ("Preparación sí cuenta como
 # amistoso porque es contra una plantilla real") — se deja este comentario
 # como historial, no como regla vigente.
-_NATIONAL_TEAM_MATCH_TYPES = frozenset({
-    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
-    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
-    MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
-})
-_RIVAL_ALWAYS_EXCLUDED_MATCH_TYPES = frozenset({
-    MATCH_TYPE_TOURNAMENT_LEAGUE, MATCH_TYPE_TOURNAMENT_PLAYOFF,
-    MATCH_TYPE_DUEL, MATCH_TYPE_LADDER, MATCH_TYPE_PREPARATION,
-}) | _NATIONAL_TEAM_MATCH_TYPES
+_NATIONAL_TEAM_MATCH_TYPES = frozenset(
+    {
+        MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
+        MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
+        MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
+    }
+)
+_RIVAL_ALWAYS_EXCLUDED_MATCH_TYPES = (
+    frozenset(
+        {
+            MATCH_TYPE_TOURNAMENT_LEAGUE,
+            MATCH_TYPE_TOURNAMENT_PLAYOFF,
+            MATCH_TYPE_DUEL,
+            MATCH_TYPE_LADDER,
+            MATCH_TYPE_PREPARATION,
+        }
+    )
+    | _NATIONAL_TEAM_MATCH_TYPES
+)
 _RIVAL_FRIENDLY_MATCH_TYPES = FRIENDLY_MATCH_TYPES - {MATCH_TYPE_NATIONAL_TEAM_FRIENDLY}
 
 # stafflist.xml versión 1.0/"latest" (FILE_VERSIONS["stafflist"], usada para el
@@ -240,7 +251,8 @@ def _avg(values: Any) -> float | None:
 
 
 def _submitted_players(
-    match: m.Match | None, players: list[dict[str, Any]],
+    match: m.Match | None,
+    players: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Resuelve el once enviado contra el roster actual conservando el orden.
 
@@ -304,7 +316,8 @@ async def _last_purchase(client: Any, ht_team_id: int) -> dict[str, Any] | None:
     except Exception:  # noqa: BLE001 — sin este dato la ficha sigue entera
         return None
     compras = [
-        t for t in payload.get("transfers", [])
+        t
+        for t in payload.get("transfers", [])
         if t.get("buyer_team_id") == ht_team_id and t.get("deadline")
     ]
     if not compras:
@@ -344,9 +357,7 @@ def _with_last_position(
     }
 
 
-async def _live_rating_prediction(
-    client: Any, match: m.Match
-) -> dict[str, int] | None:
+async def _live_rating_prediction(client: Any, match: m.Match) -> dict[str, int] | None:
     """Pide a Hattrick la predicción de minuto 0 de las órdenes ya enviadas.
 
     `actionType=predictratings` es de solo lectura: Hattrick calcula los siete
@@ -372,8 +383,13 @@ async def _live_rating_prediction(
         return None
     ratings = prediccion.get("ratings") or {}
     sectores = (
-        "midfield", "right_def", "central_def", "left_def",
-        "right_att", "central_att", "left_att",
+        "midfield",
+        "right_def",
+        "central_def",
+        "left_def",
+        "right_att",
+        "central_att",
+        "left_att",
     )
     if any(ratings.get(nombre) is None for nombre in sectores):
         return None
@@ -381,7 +397,9 @@ async def _live_rating_prediction(
 
 
 async def _submitted_match_against(
-    session: AsyncSession, own_ht_team_id: int, rival_ht_team_id: int,
+    session: AsyncSession,
+    own_ht_team_id: int,
+    rival_ht_team_id: int,
 ) -> m.Match | None:
     """El próximo partido contra ese rival, haya o no órdenes sincronizadas.
 
@@ -421,7 +439,9 @@ def _most_recent_by_date(
     return sorted(items, key=lambda it: it[date_key])[-limit:] if limit > 0 else []
 
 
-def _pitch_scope_toggles(scope: str, include_competitive: bool, include_friendlies: bool) -> tuple[bool, bool]:
+def _pitch_scope_toggles(
+    scope: str, include_competitive: bool, include_friendlies: bool
+) -> tuple[bool, bool]:
     """El selector local del panel de Duelos por zona (`pitch_zone_scope`)
     puede pedir un recorte de partidos DISTINTO al de los toggles globales
     de la página (Liga/Copa/Promoción, Amistosos) — "mixed" hereda esos
@@ -434,7 +454,10 @@ def _pitch_scope_toggles(scope: str, include_competitive: bool, include_friendli
 
 
 async def _own_pitch_ratings(
-    session: AsyncSession, team: m.Team, include_competitive: bool, include_friendlies: bool,
+    session: AsyncSession,
+    team: m.Team,
+    include_competitive: bool,
+    include_friendlies: bool,
 ) -> list[dict[str, int]]:
     """Ratings de sector del propio equipo, de sus últimos MAX_MATCHES_ANALYSED
     partidos de los tipos pedidos — de MatchRating ya sincronizado con el
@@ -463,17 +486,24 @@ async def _own_pitch_ratings(
     for mt in matches:
         row = ratings_by_side.get((mt.ht_match_id, mt.home_team_ht_id == team.ht_team_id))
         if row is not None:
-            out.append({
-                "left_def": row.left_def, "central_def": row.central_def,
-                "right_def": row.right_def, "midfield": row.midfield,
-                "left_att": row.left_att, "central_att": row.central_att,
-                "right_att": row.right_att,
-            })
+            out.append(
+                {
+                    "left_def": row.left_def,
+                    "central_def": row.central_def,
+                    "right_def": row.right_def,
+                    "midfield": row.midfield,
+                    "left_att": row.left_att,
+                    "central_att": row.central_att,
+                    "right_att": row.right_att,
+                }
+            )
     return out
 
 
 async def _rival_pitch_ratings(
-    client: CHPPClient, rival_ht_team_id: int, matches: list[dict[str, Any]],
+    client: CHPPClient,
+    rival_ht_team_id: int,
+    matches: list[dict[str, Any]],
 ) -> list[dict[str, int]]:
     """Ratings de sector del rival para una lista concreta de sus partidos —
     pedidos en vivo, uno por uno (matchdetails.xml no acepta varios matchID
@@ -481,19 +511,26 @@ async def _rival_pitch_ratings(
     out: list[dict[str, int]] = []
     for rmt in matches:
         details = await client.fetch(
-            "matchdetails", version=FILE_VERSIONS["matchdetails"], matchID=rmt["ht_match_id"],
+            "matchdetails",
+            version=FILE_VERSIONS["matchdetails"],
+            matchID=rmt["ht_match_id"],
         )
         for side in ("home", "away"):
             side_data = details.get(side) or {}
             if side_data.get("team_id") != rival_ht_team_id:
                 continue
             ratings = side_data.get("ratings", {})
-            out.append({
-                "left_def": ratings.get("left_def", 0), "central_def": ratings.get("central_def", 0),
-                "right_def": ratings.get("right_def", 0), "midfield": ratings.get("midfield", 0),
-                "left_att": ratings.get("left_att", 0), "central_att": ratings.get("central_att", 0),
-                "right_att": ratings.get("right_att", 0),
-            })
+            out.append(
+                {
+                    "left_def": ratings.get("left_def", 0),
+                    "central_def": ratings.get("central_def", 0),
+                    "right_def": ratings.get("right_def", 0),
+                    "midfield": ratings.get("midfield", 0),
+                    "left_att": ratings.get("left_att", 0),
+                    "central_att": ratings.get("central_att", 0),
+                    "right_att": ratings.get("right_att", 0),
+                }
+            )
     return out
 
 
@@ -506,13 +543,16 @@ class RivalMatchesAndLineups:
     de partido en dos sitios distintos (antes next_match tenía su propio
     pipeline en vivo, con su propia — y más vieja — regla de qué cuenta como
     "oficial", que todavía dejaba pasar partidos de Selección nacional)."""
+
     players_raw: list[dict[str, Any]]
-    matches_raw: list[dict[str, Any]]      # sin filtrar — para recortes alternativos (ver pitch_zone_scope)
-    matches: list[dict[str, Any]]          # elegibles, tope `limit`, orden ascendente
-    name: str | None                        # del partido elegible más reciente, o None sin ninguno
+    matches_raw: list[
+        dict[str, Any]
+    ]  # sin filtrar — para recortes alternativos (ver pitch_zone_scope)
+    matches: list[dict[str, Any]]  # elegibles, tope `limit`, orden ascendente
+    name: str | None  # del partido elegible más reciente, o None sin ninguno
     position_by_id: dict[int, int]
     name_by_id: dict[int, str]
-    appearances: list[dict[str, Any]]       # una fila por (partido, jugador) de matchlineup
+    appearances: list[dict[str, Any]]  # una fila por (partido, jugador) de matchlineup
 
 
 async def fetch_rival_matches_and_lineups(
@@ -532,7 +572,8 @@ async def fetch_rival_matches_and_lineups(
         await client.fetch("matches", version=FILE_VERSIONS["matches"], teamID=rival_ht_team_id)
     )["matches"]
     eligible = [
-        mt for mt in matches_raw
+        mt
+        for mt in matches_raw
         if mt["status"].upper() == "FINISHED"
         and _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
     ]
@@ -546,7 +587,8 @@ async def fetch_rival_matches_and_lineups(
         # acababa titulada con el nombre equivocado.
         ultimo = matches[-1]
         name = (
-            ultimo["home_team_name"] if ultimo["home_team_id"] == rival_ht_team_id
+            ultimo["home_team_name"]
+            if ultimo["home_team_id"] == rival_ht_team_id
             else ultimo["away_team_name"]
         )
 
@@ -556,8 +598,10 @@ async def fetch_rival_matches_and_lineups(
     for mt in matches:
         lineup = (
             await client.fetch(
-                "matchlineup", version=MATCHLINEUP_POSITION_CODE_VERSION,
-                matchID=mt["ht_match_id"], matchType=mt["match_type"],
+                "matchlineup",
+                version=MATCHLINEUP_POSITION_CODE_VERSION,
+                matchID=mt["ht_match_id"],
+                matchType=mt["match_type"],
                 teamID=rival_ht_team_id,
             )
         )["players"]
@@ -577,8 +621,13 @@ async def fetch_rival_matches_and_lineups(
             appearances.append({"match_id": mt["ht_match_id"], "match_date": mt["match_date"], **p})
 
     return RivalMatchesAndLineups(
-        players_raw=players_raw, matches_raw=matches_raw, matches=matches, name=name,
-        position_by_id=position_by_id, name_by_id=name_by_id, appearances=appearances,
+        players_raw=players_raw,
+        matches_raw=matches_raw,
+        matches=matches,
+        name=name,
+        position_by_id=position_by_id,
+        name_by_id=name_by_id,
+        appearances=appearances,
     )
 
 
@@ -622,9 +671,7 @@ async def rival_scouting(
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     own_players, _ = await roster(session, team_id)
-    submitted_match = await _submitted_match_against(
-        session, team.ht_team_id, rival_ht_team_id
-    )
+    submitted_match = await _submitted_match_against(session, team.ht_team_id, rival_ht_team_id)
     submitted_own_players = _submitted_players(submitted_match, own_players)
     submitted_prediction = _submitted_rating_prediction(submitted_match)
 
@@ -658,7 +705,8 @@ async def rival_scouting(
         pitch_zone_scope, include_competitive, include_friendlies
     )
     historical_pitch_own_sector_ratings = (
-        own_sector_ratings if pitch_zone_scope == "mixed"
+        own_sector_ratings
+        if pitch_zone_scope == "mixed"
         else await _own_pitch_ratings(
             session, team, pitch_own_include_competitive, pitch_own_include_friendlies
         )
@@ -729,7 +777,10 @@ async def rival_scouting(
         ultima_compra_rival = await _last_purchase(client, rival_ht_team_id)
 
         rival_data = await fetch_rival_matches_and_lineups(
-            client, rival_ht_team_id, include_competitive, include_friendlies,
+            client,
+            rival_ht_team_id,
+            include_competitive,
+            include_friendlies,
         )
         rival_players_raw = rival_data.players_raw
         rival_matches_raw = rival_data.matches_raw
@@ -762,8 +813,10 @@ async def rival_scouting(
         for mt in own_matches:
             lineup = (
                 await client.fetch(
-                    "matchlineup", version=MATCHLINEUP_POSITION_CODE_VERSION,
-                    matchID=mt.ht_match_id, matchType=mt.match_type,
+                    "matchlineup",
+                    version=MATCHLINEUP_POSITION_CODE_VERSION,
+                    matchID=mt.ht_match_id,
+                    matchType=mt.match_type,
                     teamID=team.ht_team_id,
                 )
             )["players"]
@@ -773,7 +826,8 @@ async def rival_scouting(
 
         for rmt in rival_matches:
             details = await client.fetch(
-                "matchdetails", version=FILE_VERSIONS["matchdetails"],
+                "matchdetails",
+                version=FILE_VERSIONS["matchdetails"],
                 matchID=rmt["ht_match_id"],
             )
             for side in ("home", "away"):
@@ -784,22 +838,25 @@ async def rival_scouting(
                 rival_tactic_skills.append(side_data.get("tactic_skill", 0))
                 rival_formations.append(side_data.get("formation", ""))
                 ratings = side_data.get("ratings", {})
-                rival_ratings_for_rotation.append({
-                    # Contexto del partido: sin él, la secuencia por carriles
-                    # sería una fila de barras sin decir contra quién ni cuándo.
-                    "match_date": rmt.get("match_date", ""),
-                    "opponent": (
-                        rmt["away_team_name"] if rmt["home_team_id"] == rival_ht_team_id
-                        else rmt["home_team_name"]
-                    ),
-                    "left_def": ratings.get("left_def", 0),
-                    "central_def": ratings.get("central_def", 0),
-                    "right_def": ratings.get("right_def", 0),
-                    "midfield": ratings.get("midfield", 0),
-                    "left_att": ratings.get("left_att", 0),
-                    "central_att": ratings.get("central_att", 0),
-                    "right_att": ratings.get("right_att", 0),
-                })
+                rival_ratings_for_rotation.append(
+                    {
+                        # Contexto del partido: sin él, la secuencia por carriles
+                        # sería una fila de barras sin decir contra quién ni cuándo.
+                        "match_date": rmt.get("match_date", ""),
+                        "opponent": (
+                            rmt["away_team_name"]
+                            if rmt["home_team_id"] == rival_ht_team_id
+                            else rmt["home_team_name"]
+                        ),
+                        "left_def": ratings.get("left_def", 0),
+                        "central_def": ratings.get("central_def", 0),
+                        "right_def": ratings.get("right_def", 0),
+                        "midfield": ratings.get("midfield", 0),
+                        "left_att": ratings.get("left_att", 0),
+                        "central_att": ratings.get("central_att", 0),
+                        "right_att": ratings.get("right_att", 0),
+                    }
+                )
 
         # El selector local del panel de Duelos por zona puede pedir un
         # recorte de partidos del RIVAL distinto al de los toggles globales
@@ -814,10 +871,13 @@ async def rival_scouting(
                 pitch_zone_scope, include_competitive, include_friendlies
             )
             pitch_rival_matches_eligible = [
-                mt for mt in rival_matches_raw
+                mt
+                for mt in rival_matches_raw
                 if mt["status"].upper() == "FINISHED"
                 and _match_type_allowed(
-                    mt["match_type"], pitch_rival_include_competitive, pitch_rival_include_friendlies
+                    mt["match_type"],
+                    pitch_rival_include_competitive,
+                    pitch_rival_include_friendlies,
                 )
             ]
             pitch_rival_matches = _most_recent_by_date(
@@ -835,6 +895,7 @@ async def rival_scouting(
 
     tactic_history = summarise_tactics(rival_tactic_types, rival_tactic_skills, rival_formations)
     rotation = analyse_side_rotation(rival_ratings_for_rotation)
+
     def metodo_valido(valor: str, por_defecto: str) -> str:
         return valor if valor in set(PitchZoneMethod) else por_defecto
 
@@ -844,15 +905,16 @@ async def rival_scouting(
     # devolverla tal cual: da igual el resumen que se pida.
     own_pitch_zones = pitch_zone_values(
         pitch_own_sector_ratings,
-        PitchZoneMethod.LAST if usa_enviada
+        PitchZoneMethod.LAST
+        if usa_enviada
         else (
-            PitchZoneMethod.AVERAGE if metodo_propio == PitchZoneMethod.SUBMITTED
-            else metodo_propio
+            PitchZoneMethod.AVERAGE if metodo_propio == PitchZoneMethod.SUBMITTED else metodo_propio
         ),
     )
     rival_pitch_zones = pitch_zone_values(pitch_rival_ratings, metodo_rival)
     pitch_duels = (
-        None if own_pitch_zones is None or rival_pitch_zones is None
+        None
+        if own_pitch_zones is None or rival_pitch_zones is None
         else pitch_zone_duels(own_pitch_zones, rival_pitch_zones)
     )
     own_pitch_source = (
@@ -872,9 +934,7 @@ async def rival_scouting(
             "kind": "historical_observed",
             "label": "Histórico propio observado",
             "match_id": None,
-            "observations": (
-                None if own_pitch_zones is None else own_pitch_zones.matches_analysed
-            ),
+            "observations": (None if own_pitch_zones is None else own_pitch_zones.matches_analysed),
             "captured_at": None,
             "tactic_type": None,
             "tactic_skill": None,
@@ -902,7 +962,8 @@ async def rival_scouting(
     # órdenes se conserva el comportamiento anterior de plantilla completa.
     comparison_own_players = submitted_own_players or own_players
     comparison_rival_players = (
-        rival_probable_players if submitted_own_players and rival_probable_players
+        rival_probable_players
+        if submitted_own_players and rival_probable_players
         else rival_players_raw
     )
 
@@ -922,9 +983,7 @@ async def rival_scouting(
                 pass  # plantilla insuficiente para armar un once: se compara la plantilla completa
             # Sin skills del rival no hay "mejor once" real: el TSI más alto es la
             # única aproximación honesta a "sus titulares probables".
-            rival_players_for_tsi = sorted(
-                rival_players_raw, key=lambda p: -p["tsi"]
-            )[:11]
+            rival_players_for_tsi = sorted(rival_players_raw, key=lambda p: -p["tsi"])[:11]
 
     own_for_tsi = [
         {"tsi": p["tsi"], "position_code": own_position_by_id.get(p["ht_player_id"])}
@@ -934,9 +993,7 @@ async def rival_scouting(
         {"tsi": p["tsi"], "position_code": rival_position_by_id.get(p["ht_player_id"])}
         for p in rival_players_for_tsi
     ]
-    histogram = tsi_kde_comparison(
-        own_for_tsi, rival_for_tsi, log_transform=log_tsi
-    )
+    histogram = tsi_kde_comparison(own_for_tsi, rival_for_tsi, log_transform=log_tsi)
 
     # HL-144: PROYECCIÓN, no un hecho — siempre sobre los 11 probables de cada
     # lado (independiente del toggle `top11`, que solo afecta al histograma),
@@ -961,7 +1018,8 @@ async def rival_scouting(
 
     own_for_marking = [
         {
-            "name": p["name"], "ht_player_id": p["ht_player_id"],
+            "name": p["name"],
+            "ht_player_id": p["ht_player_id"],
             "position_code": own_position_by_id.get(p["ht_player_id"]),
             "defending": p["skills"]["defending"],
         }
@@ -1020,15 +1078,12 @@ async def rival_scouting(
         },
         "stamina": {
             "own": _avg(p["stamina"] for p in comparison_own_players),
-            "rival": _avg(
-                p["stamina"] for p in comparison_rival_players if p["stamina_is_read"]
-            ),
+            "rival": _avg(p["stamina"] for p in comparison_rival_players if p["stamina_is_read"]),
         },
         "experience": {
             "own": _avg(p["experience"] for p in comparison_own_players),
             "rival": _avg(
-                p["experience"]
-                for p in comparison_rival_players if p["experience_is_read"]
+                p["experience"] for p in comparison_rival_players if p["experience_is_read"]
             ),
         },
         "trainer_leadership": {
@@ -1069,164 +1124,191 @@ async def rival_scouting(
             "en el análisis."
         )
 
-    return cast(dict[str, Any], _camel({
-        "rival_ht_team_id": rival_ht_team_id,
-        "rival_name": rival_name,
-        "matches_analysed": len(rival_matches),
-        # Cuántos de cada competición entran en ese número: "5 partidos" no
-        # dice lo mismo si son cinco de liga que si son tres de liga y dos
-        # amistosos, y de eso depende cuánto te fías del resumen.
-        "matches_by_competition": [
-            {"label": etiqueta, "count": cuantos}
-            for etiqueta, cuantos in sorted(
-                Counter(
-                    match_type_name(mt["match_type"]) for mt in rival_matches
-                ).items(),
-                key=lambda par: (-par[1], par[0]),
-            )
-        ],
-        "comparison": comparison,
-        "last_purchase": {
-            "own": _with_last_position(ultima_compra_propia, own_position_by_id),
-            "rival": _with_last_position(ultima_compra_rival, rival_position_by_id),
-        },
-        "comparison_reference": {
-            "own_source": (
-                "submitted_orders" if submitted_own_players else "full_roster"
-            ),
-            "own_label": (
-                f"Alineación enviada · partido {submitted_match.ht_match_id}"
-                if submitted_own_players and submitted_match else "Plantilla actual"
-            ),
-            "own_players": len(comparison_own_players),
-            "rival_source": (
-                "probable_recent_starters" if submitted_own_players else "full_roster"
-            ),
-            "rival_label": (
-                "Once probable · recurrencia reciente"
-                if submitted_own_players else "Plantilla pública actual"
-            ),
-            "rival_players": len(comparison_rival_players),
-        },
-        "tsi_histogram": {
-            "grid": histogram.grid,
-            "own_density": histogram.own_density,
-            "rival_density": histogram.rival_density,
-            "own_values": histogram.own_values,
-            "rival_values": histogram.rival_values,
-            "log_transform": histogram.log_transform,
-            "top11": top11,
-        },
-        "man_marking": None if marking is None else {
-            "target_name": marking.target_name,
-            "target_position": marking.target_position,
-            "target_tsi": marking.target_tsi,
-            "marker_name": marking.marker_name,
-            "marker_position": marking.marker_position,
-            "confidence": marking.confidence,
-            "rationale": marking.rationale,
-            "efficiency": marking.efficiency,
-            "marker_loss_pct": marking.marker_loss_pct,
-            "risk_note": marking.risk_note,
-            "evidence": marking.evidence,
-        },
-        "win_probability": {
-            "own_probability": win_probability.own_probability,
-            "own_tsi_total": win_probability.own_tsi_total,
-            "rival_tsi_total": win_probability.rival_tsi_total,
-            "confidence": win_probability.confidence,
-        },
-        "side_rotation": None if rotation is None else {
-            "attack_left_avg": rotation.attack_left_avg,
-            "attack_central_avg": rotation.attack_central_avg,
-            "attack_right_avg": rotation.attack_right_avg,
-            "attack_left_std": rotation.attack_left_std,
-            "attack_central_std": rotation.attack_central_std,
-            "attack_right_std": rotation.attack_right_std,
-            "strong_side": rotation.strong_side,
-            "dominant_pct": rotation.dominant_pct,
-            "dominant_side_by_match": rotation.dominant_side_by_match,
-            "attack_by_match": [
-                {
-                    "label": a.label, "date": a.date,
-                    "left": a.left, "central": a.central, "right": a.right, "best": a.best,
-                }
-                for a in rotation.attack_by_match
-            ],
-            "rotates": rotation.rotates,
-            "matches_analysed": rotation.matches_analysed,
-        },
-        "pitch_zone_duels": None if pitch_duels is None else [
+    return cast(
+        dict[str, Any],
+        _camel(
             {
-                "zone": d.zone, "half": d.half,
-                "own_value": d.own_value, "rival_value": d.rival_value,
-                "own_pct": d.own_pct, "rival_pct": d.rival_pct,
+                "rival_ht_team_id": rival_ht_team_id,
+                "rival_name": rival_name,
+                "matches_analysed": len(rival_matches),
+                # Cuántos de cada competición entran en ese número: "5 partidos" no
+                # dice lo mismo si son cinco de liga que si son tres de liga y dos
+                # amistosos, y de eso depende cuánto te fías del resumen.
+                "matches_by_competition": [
+                    {"label": etiqueta, "count": cuantos}
+                    for etiqueta, cuantos in sorted(
+                        Counter(match_type_name(mt["match_type"]) for mt in rival_matches).items(),
+                        key=lambda par: (-par[1], par[0]),
+                    )
+                ],
+                "comparison": comparison,
+                "last_purchase": {
+                    "own": _with_last_position(ultima_compra_propia, own_position_by_id),
+                    "rival": _with_last_position(ultima_compra_rival, rival_position_by_id),
+                },
+                "comparison_reference": {
+                    "own_source": ("submitted_orders" if submitted_own_players else "full_roster"),
+                    "own_label": (
+                        f"Alineación enviada · partido {submitted_match.ht_match_id}"
+                        if submitted_own_players and submitted_match
+                        else "Plantilla actual"
+                    ),
+                    "own_players": len(comparison_own_players),
+                    "rival_source": (
+                        "probable_recent_starters" if submitted_own_players else "full_roster"
+                    ),
+                    "rival_label": (
+                        "Once probable · recurrencia reciente"
+                        if submitted_own_players
+                        else "Plantilla pública actual"
+                    ),
+                    "rival_players": len(comparison_rival_players),
+                },
+                "tsi_histogram": {
+                    "grid": histogram.grid,
+                    "own_density": histogram.own_density,
+                    "rival_density": histogram.rival_density,
+                    "own_values": histogram.own_values,
+                    "rival_values": histogram.rival_values,
+                    "log_transform": histogram.log_transform,
+                    "top11": top11,
+                },
+                "man_marking": None
+                if marking is None
+                else {
+                    "target_name": marking.target_name,
+                    "target_position": marking.target_position,
+                    "target_tsi": marking.target_tsi,
+                    "marker_name": marking.marker_name,
+                    "marker_position": marking.marker_position,
+                    "confidence": marking.confidence,
+                    "rationale": marking.rationale,
+                    "efficiency": marking.efficiency,
+                    "marker_loss_pct": marking.marker_loss_pct,
+                    "risk_note": marking.risk_note,
+                    "evidence": marking.evidence,
+                },
+                "win_probability": {
+                    "own_probability": win_probability.own_probability,
+                    "own_tsi_total": win_probability.own_tsi_total,
+                    "rival_tsi_total": win_probability.rival_tsi_total,
+                    "confidence": win_probability.confidence,
+                },
+                "side_rotation": None
+                if rotation is None
+                else {
+                    "attack_left_avg": rotation.attack_left_avg,
+                    "attack_central_avg": rotation.attack_central_avg,
+                    "attack_right_avg": rotation.attack_right_avg,
+                    "attack_left_std": rotation.attack_left_std,
+                    "attack_central_std": rotation.attack_central_std,
+                    "attack_right_std": rotation.attack_right_std,
+                    "strong_side": rotation.strong_side,
+                    "dominant_pct": rotation.dominant_pct,
+                    "dominant_side_by_match": rotation.dominant_side_by_match,
+                    "attack_by_match": [
+                        {
+                            "label": a.label,
+                            "date": a.date,
+                            "left": a.left,
+                            "central": a.central,
+                            "right": a.right,
+                            "best": a.best,
+                        }
+                        for a in rotation.attack_by_match
+                    ],
+                    "rotates": rotation.rotates,
+                    "matches_analysed": rotation.matches_analysed,
+                },
+                "pitch_zone_duels": None
+                if pitch_duels is None
+                else [
+                    {
+                        "zone": d.zone,
+                        "half": d.half,
+                        "own_value": d.own_value,
+                        "rival_value": d.rival_value,
+                        "own_pct": d.own_pct,
+                        "rival_pct": d.rival_pct,
+                    }
+                    for d in pitch_duels
+                ],
+                "pitch_zones_matches_analysed": {
+                    "own": None if own_pitch_zones is None else own_pitch_zones.matches_analysed,
+                    "rival": None
+                    if rival_pitch_zones is None
+                    else rival_pitch_zones.matches_analysed,
+                },
+                "pitch_zone_sources": {
+                    "own": own_pitch_source,
+                    "rival": rival_pitch_source,
+                },
+                "pitch_zone_scope": pitch_zone_scope,
+                # Se devuelve el método REALMENTE aplicado: pedir la alineación
+                # enviada sin haberla mandado cae al promedio, y la pantalla tiene que
+                # marcar el botón que corresponde a lo que se está viendo.
+                "pitch_zone_method_own": (
+                    PitchZoneMethod.SUBMITTED
+                    if usa_enviada
+                    else (
+                        PitchZoneMethod.AVERAGE
+                        if metodo_propio == PitchZoneMethod.SUBMITTED
+                        else metodo_propio
+                    )
+                ),
+                "pitch_zone_method_rival": metodo_rival,
+                # Sin órdenes enviadas para el próximo partido, ese modo no se puede
+                # ofrecer: la pantalla lo usa para no pintar un botón muerto.
+                "submitted_lineup_available": submitted_prediction is not None,
+                "tactic_history": None
+                if tactic_history is None
+                else {
+                    "matches_analysed": tactic_history.matches_analysed,
+                    "tactics": [
+                        {"code": t.code, "label": t.label, "count": t.count, "pct": t.pct}
+                        for t in tactic_history.tactics
+                    ],
+                    "most_common_tactic": None
+                    if tactic_history.most_common_tactic is None
+                    else {
+                        "code": tactic_history.most_common_tactic.code,
+                        "label": tactic_history.most_common_tactic.label,
+                        "count": tactic_history.most_common_tactic.count,
+                        "pct": tactic_history.most_common_tactic.pct,
+                    },
+                    "avg_tactic_skill": tactic_history.avg_tactic_skill,
+                    "formations": [
+                        {"formation": f.formation, "count": f.count, "pct": f.pct}
+                        for f in tactic_history.formations
+                    ],
+                    "most_common_formation": (
+                        None
+                        if tactic_history.most_common_formation is None
+                        else {
+                            "formation": tactic_history.most_common_formation.formation,
+                            "count": tactic_history.most_common_formation.count,
+                            "pct": tactic_history.most_common_formation.pct,
+                        }
+                    ),
+                },
+                "rival_roster_sample": sorted(
+                    (
+                        {
+                            "name": name,
+                            "position": (
+                                None
+                                if rival_position_by_id.get(pid) is None
+                                else match_position_name(rival_position_by_id[pid])
+                            ),
+                            "tsi": next(
+                                (p["tsi"] for p in rival_players_raw if p["ht_player_id"] == pid), 0
+                            ),
+                        }
+                        for pid, name in rival_name_by_id.items()
+                    ),
+                    key=lambda r: -r["tsi"],
+                )[:5],
+                "caveats": caveats,
             }
-            for d in pitch_duels
-        ],
-        "pitch_zones_matches_analysed": {
-            "own": None if own_pitch_zones is None else own_pitch_zones.matches_analysed,
-            "rival": None if rival_pitch_zones is None else rival_pitch_zones.matches_analysed,
-        },
-        "pitch_zone_sources": {
-            "own": own_pitch_source,
-            "rival": rival_pitch_source,
-        },
-        "pitch_zone_scope": pitch_zone_scope,
-        # Se devuelve el método REALMENTE aplicado: pedir la alineación
-        # enviada sin haberla mandado cae al promedio, y la pantalla tiene que
-        # marcar el botón que corresponde a lo que se está viendo.
-        "pitch_zone_method_own": (
-            PitchZoneMethod.SUBMITTED if usa_enviada
-            else (
-                PitchZoneMethod.AVERAGE if metodo_propio == PitchZoneMethod.SUBMITTED
-                else metodo_propio
-            )
         ),
-        "pitch_zone_method_rival": metodo_rival,
-        # Sin órdenes enviadas para el próximo partido, ese modo no se puede
-        # ofrecer: la pantalla lo usa para no pintar un botón muerto.
-        "submitted_lineup_available": submitted_prediction is not None,
-        "tactic_history": None if tactic_history is None else {
-            "matches_analysed": tactic_history.matches_analysed,
-            "tactics": [
-                {"code": t.code, "label": t.label, "count": t.count, "pct": t.pct}
-                for t in tactic_history.tactics
-            ],
-            "most_common_tactic": None if tactic_history.most_common_tactic is None else {
-                "code": tactic_history.most_common_tactic.code,
-                "label": tactic_history.most_common_tactic.label,
-                "count": tactic_history.most_common_tactic.count,
-                "pct": tactic_history.most_common_tactic.pct,
-            },
-            "avg_tactic_skill": tactic_history.avg_tactic_skill,
-            "formations": [
-                {"formation": f.formation, "count": f.count, "pct": f.pct}
-                for f in tactic_history.formations
-            ],
-            "most_common_formation": (
-                None if tactic_history.most_common_formation is None else {
-                    "formation": tactic_history.most_common_formation.formation,
-                    "count": tactic_history.most_common_formation.count,
-                    "pct": tactic_history.most_common_formation.pct,
-                }
-            ),
-        },
-        "rival_roster_sample": sorted(
-            (
-                {
-                    "name": name,
-                    "position": (
-                        None if rival_position_by_id.get(pid) is None
-                        else match_position_name(rival_position_by_id[pid])
-                    ),
-                    "tsi": next(
-                        (p["tsi"] for p in rival_players_raw if p["ht_player_id"] == pid), 0
-                    ),
-                }
-                for pid, name in rival_name_by_id.items()
-            ),
-            key=lambda r: -r["tsi"],
-        )[:5],
-        "caveats": caveats,
-    }))
+    )

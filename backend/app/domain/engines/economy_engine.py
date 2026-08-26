@@ -17,6 +17,7 @@ autorregresivo produce ruido con aspecto de ciencia. En su lugar el histórico
 se usa para corregir los RESIDUOS del modelo bottom-up (EWMA), que es donde la
 serie aporta información real: captura lo que el modelo no sabe.
 """
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -59,8 +60,7 @@ def structural_balance(
     `total_sponsor_income`) — esta función no lo hace por sí misma porque
     no siempre tiene el snapshot completo a mano, solo los escalares."""
     gate_per_week = (
-        income_spectators * SEASON_WEEKS // HOME_MATCHES_PER_SEASON
-        if income_spectators else 0
+        income_spectators * SEASON_WEEKS // HOME_MATCHES_PER_SEASON if income_spectators else 0
     )
     return income_sponsors + gate_per_week - costs_players - costs_staff - costs_arena
 
@@ -73,15 +73,19 @@ class WeeklyStructure:
     staff: int
     arena_maintenance: int
     sponsors: int
-    base_gate: int              # taquilla media observada/esperada
+    base_gate: int  # taquilla media observada/esperada
     other_fixed: int = 0
 
     @property
     def structural_balance(self) -> int:
         """Balance semanal sin transferencias — el número que importa."""
         return (
-            self.sponsors + self.base_gate
-            - self.salaries - self.staff - self.arena_maintenance - self.other_fixed
+            self.sponsors
+            + self.base_gate
+            - self.salaries
+            - self.staff
+            - self.arena_maintenance
+            - self.other_fixed
         )
 
 
@@ -90,7 +94,7 @@ class PlannedEvent:
     """Movimiento discrecional del usuario en una semana futura."""
 
     week: int
-    amount: int          # positivo = ingreso (venta), negativo = gasto (compra)
+    amount: int  # positivo = ingreso (venta), negativo = gasto (compra)
     label: str = ""
 
 
@@ -100,7 +104,7 @@ class ForecastResult:
     p10: list[float]
     p50: list[float]
     p90: list[float]
-    structural_only: list[float]   # sin eventos discrecionales
+    structural_only: list[float]  # sin eventos discrecionales
     weeks_until_broke: int | None  # None si nunca queda en números rojos
     # Rellenados solo por forecast_from_history (ruta de series de tiempo)
     model: str = "bottom_up"
@@ -167,9 +171,7 @@ def forecast_cash(
             0.0,
         )
         residual = (
-            rng.normal(residual_mean, residual_std, n_runs)
-            if residual_std > 0
-            else residual_mean
+            rng.normal(residual_mean, residual_std, n_runs) if residual_std > 0 else residual_mean
         )
         cash += fixed + gate + residual + events[w]
         structural += structure.structural_balance

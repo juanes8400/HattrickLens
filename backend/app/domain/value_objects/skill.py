@@ -1,4 +1,5 @@
 """Value objects del dominio Hattrick. Sin dependencias externas."""
+
 from dataclasses import dataclass
 from enum import IntEnum
 

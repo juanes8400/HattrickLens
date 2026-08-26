@@ -14,6 +14,7 @@ CHPP does not expose the decimal sublevel of a skill.  Callers may provide one
 when it is known; otherwise Lens starts at the integer level (sublevel 0.0) and
 labels the result as an estimate.
 """
+
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -116,7 +117,10 @@ def coach_factor(level: int, is_excellent: bool = False) -> float:
 
 
 def training_efficiency_pct(
-    coach_level: int, assistant_level_sum: int | float, intensity: int, stamina_share: int,
+    coach_level: int,
+    assistant_level_sum: int | float,
+    intensity: int,
+    stamina_share: int,
 ) -> float:
     """Qué porcentaje del entrenamiento máximo posible está recibiendo el club.
 
@@ -130,9 +134,8 @@ def training_efficiency_pct(
     que va a resistencia no va a la habilidad que se entrena.
     """
     cfg = _config()
-    techo = (
-        coach_factor(max(cfg["coach_coefficients"]))
-        * assistant_factor(cfg["assistant_level_sum_cap"])
+    techo = coach_factor(max(cfg["coach_coefficients"])) * assistant_factor(
+        cfg["assistant_level_sum_cap"]
     )
     actual = (
         coach_factor(coach_level)
@@ -170,8 +173,7 @@ def skill_cost(skill_value: float) -> float:
         return (value**power - 1.0) / (float(cfg["low_scale"]) * power)
     power = float(cfg["high_power"])
     return float(cfg["high_offset"]) + (
-        (value - float(cfg["high_shift"])) ** power
-        / (float(cfg["high_scale"]) * power)
+        (value - float(cfg["high_shift"])) ** power / (float(cfg["high_scale"]) * power)
     )
 
 

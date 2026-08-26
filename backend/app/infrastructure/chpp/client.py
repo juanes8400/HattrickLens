@@ -6,6 +6,7 @@ Endpoints oficiales:
   access_token:  https://chpp.hattrick.org/oauth/access_token.ashx
   recursos:      https://chpp.hattrick.org/chppxml.ashx?file=<name>
 """
+
 from typing import Any
 
 import httpx
@@ -15,6 +16,8 @@ from app.core.config import settings
 
 
 class CHPPAuthError(Exception): ...
+
+
 class CHPPUnavailableError(Exception): ...
 
 

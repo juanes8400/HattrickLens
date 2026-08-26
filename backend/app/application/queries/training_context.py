@@ -28,6 +28,7 @@ subidas consecutivas en la habilidad entrenada, la distancia entre ellas es el
 número real de semanas que costó subir un nivel, y se compara con lo que
 predice la fórmula alimentada con el contexto real.
 """
+
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -45,7 +46,7 @@ class Provenance:
     """De dónde sale un valor: un fichero CHPP, o un supuesto declarado."""
 
     value: object
-    source: str          # "club.xml", "training.xml", "stafflist.xml", "supuesto"
+    source: str  # "club.xml", "training.xml", "stafflist.xml", "supuesto"
     is_read: bool
     note: str = ""
 
@@ -74,20 +75,26 @@ class TrainingContextService:
         self._s = session
 
     async def _latest_staff(self, team_id: int) -> m.StaffSnapshot | None:
-        return cast(m.StaffSnapshot | None, await self._s.scalar(
-            select(m.StaffSnapshot)
-            .where(m.StaffSnapshot.team_id == team_id)
-            .order_by(m.StaffSnapshot.captured_at.desc())
-            .limit(1)
-        ))
+        return cast(
+            m.StaffSnapshot | None,
+            await self._s.scalar(
+                select(m.StaffSnapshot)
+                .where(m.StaffSnapshot.team_id == team_id)
+                .order_by(m.StaffSnapshot.captured_at.desc())
+                .limit(1)
+            ),
+        )
 
     async def _latest_training(self, team_id: int) -> m.TrainingSnapshot | None:
-        return cast(m.TrainingSnapshot | None, await self._s.scalar(
-            select(m.TrainingSnapshot)
-            .where(m.TrainingSnapshot.team_id == team_id)
-            .order_by(m.TrainingSnapshot.captured_at.desc())
-            .limit(1)
-        ))
+        return cast(
+            m.TrainingSnapshot | None,
+            await self._s.scalar(
+                select(m.TrainingSnapshot)
+                .where(m.TrainingSnapshot.team_id == team_id)
+                .order_by(m.TrainingSnapshot.captured_at.desc())
+                .limit(1)
+            ),
+        )
 
     async def get(self, team_id: int) -> TrainingContext | None:
         team = await self._s.get(m.Team, team_id)
@@ -105,7 +112,9 @@ class TrainingContextService:
         if staff is not None:
             assistants = min(staff.assistant_trainer_levels, cfg["assistant_level_sum_cap"])
             prov["assistant_level_sum"] = Provenance(
-                assistants, "stafflist.xml", True,
+                assistants,
+                "stafflist.xml",
+                True,
                 # HL-2xx, 2026-08-12: club.xml dejó de traer el agregado
                 # (verificado en vivo) — ahora es la suma real de los
                 # asistentes de entrenador (StaffType=1) de stafflist.xml.
@@ -114,7 +123,9 @@ class TrainingContextService:
         else:
             assistants = int(cfg.get("default_assistant_level_sum", 10))
             prov["assistant_level_sum"] = Provenance(
-                assistants, "supuesto", False,
+                assistants,
+                "supuesto",
+                False,
                 "sin sincronizar club.xml: se usa el valor por defecto",
             )
 
@@ -125,16 +136,16 @@ class TrainingContextService:
             training_type = training.training_type
             prov["intensity"] = Provenance(intensity, "training.xml", True, "TrainingLevel")
             prov["stamina_share"] = Provenance(stamina, "training.xml", True, "StaminaTrainingPart")
-            prov["training_type"] = Provenance(
-                training_type, "training.xml", True, "TrainingType"
-            )
+            prov["training_type"] = Provenance(training_type, "training.xml", True, "TrainingType")
         else:
             intensity = 100
             stamina = cfg.get("default_stamina_share", 0)
             training_type = 10
             prov["intensity"] = Provenance(100, "supuesto", False, "sin training.xml")
             prov["stamina_share"] = Provenance(
-                stamina, "supuesto", False,
+                stamina,
+                "supuesto",
+                False,
                 # HL-2xx, 2026-08-14: antes caía en 0 en vez del default_stamina_share
                 # del yaml (12.5) — contradecía el propio default documentado y
                 # asumía "0% a resistencia" en vez de un reparto típico.
@@ -151,7 +162,9 @@ class TrainingContextService:
             coach_level = int(skill_map.get(raw, skill_map.get(str(raw), 7)))
             is_excellent = raw >= cfg["excellent_trainer_skill_level"]
             prov["coach_level"] = Provenance(
-                coach_level, "stafflist.xml", True,
+                coach_level,
+                "stafflist.xml",
+                True,
                 f"TrainerSkillLevel {raw}/5 → nivel {coach_level} "
                 "(correspondencia 1–5 → 4–8 de HT-Tools)",
             )
@@ -202,17 +215,13 @@ class TrainingContextService:
         """Compara la fórmula (con el contexto real) contra las subidas
         confirmadas por Hattrick."""
         skill_map = cfg["skill_id_map"]
-        target_id = next(
-            (int(k) for k, v in skill_map.items() if v == setup.skill), None
-        )
+        target_id = next((int(k) for k, v in skill_map.items() if v == setup.skill), None)
         ups = list(
             (
                 await self._s.execute(
                     select(m.SkillUp)
                     .where(m.SkillUp.team_id == team_id)
-                    .order_by(
-                        m.SkillUp.ht_player_id, m.SkillUp.season, m.SkillUp.match_round
-                    )
+                    .order_by(m.SkillUp.ht_player_id, m.SkillUp.season, m.SkillUp.match_round)
                 )
             ).scalars()
         )
@@ -243,14 +252,16 @@ class TrainingContextService:
                 ).weeks_to_next_level
                 err = abs(predicted - observed_weeks)
                 errors.append(err)
-                samples.append({
-                    "player_id": pid,
-                    "from_level": a.new_level,
-                    "to_level": b.new_level,
-                    "observed_weeks": observed_weeks,
-                    "predicted_weeks": round(predicted, 1),
-                    "error_weeks": round(err, 1),
-                })
+                samples.append(
+                    {
+                        "player_id": pid,
+                        "from_level": a.new_level,
+                        "to_level": b.new_level,
+                        "observed_weeks": observed_weeks,
+                        "predicted_weeks": round(predicted, 1),
+                        "error_weeks": round(err, 1),
+                    }
+                )
 
         caveats: list[str] = []
         if samples:
@@ -289,5 +300,5 @@ class TrainingContextService:
         )
         ages: dict[int, tuple[int, int]] = {}
         for pid, yrs, days, _ in rows.all():
-            ages.setdefault(pid, (yrs, days))    # el primero es el más reciente
+            ages.setdefault(pid, (yrs, days))  # el primero es el más reciente
         return ages

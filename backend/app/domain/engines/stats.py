@@ -3,6 +3,7 @@ página en particular. Extraído de rival_scouting.py (HL-099) porque HL-15x
 la reutiliza para distribuciones de la propia plantilla (KDE de TSI, $/TSI,
 salario en la ficha de jugador), donde "rival" no tiene sentido.
 """
+
 import math
 
 # ── KDE ──────────────────────────────────────────────────────────────────────

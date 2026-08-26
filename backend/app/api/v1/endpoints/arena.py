@@ -1,4 +1,5 @@
 """Estadio. HL-060, HL-061, HL-063, HL-064."""
+
 from dataclasses import asdict
 from typing import Any, cast
 
@@ -12,13 +13,17 @@ from app.infrastructure.db.session import get_session
 router = APIRouter()
 
 
-@router.get("/teams/{team_id}/arena", summary="Ocupación, demanda censurada y ampliación",
+@router.get(
+    "/teams/{team_id}/arena",
+    summary="Ocupación, demanda censurada y ampliación",
     dependencies=[Depends(require_team_owner)],
 )
 async def arena(
     team_id: int,
     fill_rate: float | None = Query(
-        None, ge=0.0, le=1.0,
+        None,
+        ge=0.0,
+        le=1.0,
         description=(
             "Fracción de los asientos NUEVOS que se espera vender. Si se omite "
             "se usa la ocupación media observada, que sólo es una estimación "

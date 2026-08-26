@@ -19,7 +19,7 @@ Los máximos son del juego, confirmados por el usuario ese mismo día: 1 portero
 MAX_CENTRAL_DEFENDERS = 3
 MAX_INNER_MIDFIELDERS = 3
 MAX_FORWARDS = 3
-MAX_FLANK_PER_LINE = 2   # una banda a cada lado
+MAX_FLANK_PER_LINE = 2  # una banda a cada lado
 
 DEFAULT_FORMATION = "4-4-2"
 
@@ -40,9 +40,16 @@ LINE_COUNTS: dict[str, tuple[int, int, int]] = {
 
 # El reparto con el que arranca cada formación: (centrales, mediocentros).
 DEFAULT_SPLIT: dict[str, tuple[int, int]] = {
-    "5-5-0": (3, 3), "5-4-1": (3, 2), "5-3-2": (3, 1), "5-2-3": (3, 2),
-    "4-5-1": (2, 3), "4-4-2": (2, 2), "4-3-3": (2, 1),
-    "3-5-2": (3, 3), "3-4-3": (3, 2), "2-5-3": (2, 3),
+    "5-5-0": (3, 3),
+    "5-4-1": (3, 2),
+    "5-3-2": (3, 1),
+    "5-2-3": (3, 2),
+    "4-5-1": (2, 3),
+    "4-4-2": (2, 2),
+    "4-3-3": (2, 1),
+    "3-5-2": (3, 3),
+    "3-4-3": (3, 2),
+    "2-5-3": (2, 3),
 }
 
 
@@ -109,9 +116,7 @@ def slots_for(
     4-3-3 (corregido el 2026-08-19).
     """
     defensas, medios, delanteros = _lines(formation)
-    centrales, interiores = resolve_split(
-        formation, central_defenders, inner_midfielders
-    )
+    centrales, interiores = resolve_split(formation, central_defenders, inner_midfielders)
     return [
         "keeper",
         *["wingback"] * (defensas - centrales),

@@ -17,6 +17,7 @@ Dos ideas, y las dos vienen de él:
    probabilidad semanal es baja— pero el azar impide que la cola larga muera
    de hambre.
 """
+
 from __future__ import annotations
 
 import random

@@ -27,6 +27,7 @@ la que hay:
    paneles explorables (Ranking de formaciones, Espíritu de Equipo × Actitud).
    Mezclarlos aquí impediría aislar qué hace la fórmula de contribución en sí.
 """
+
 from dataclasses import dataclass
 from typing import Any
 

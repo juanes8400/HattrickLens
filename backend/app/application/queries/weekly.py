@@ -4,6 +4,7 @@ Los snapshots crudos se conservan completos para auditoría. Las gráficas y los
 diffs sólo pueden mostrar una lectura por semana ISO: la última que Lens vio
 esa semana. Así varios syncs no fabrican una tendencia diaria.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
@@ -33,7 +34,9 @@ def latest_per_iso_week(items: Iterable[T], captured_at: Callable[[T], datetime]
 
 
 def changes_only(
-    items: Iterable[T], captured_at: Callable[[T], datetime], value: Callable[[T], Any],
+    items: Iterable[T],
+    captured_at: Callable[[T], datetime],
+    value: Callable[[T], Any],
 ) -> list[T]:
     """Un punto por cambio REAL de valor, no uno por semana ISO ni uno por
     sync — 2026-08-12, pedido explícito para Espíritu/Confianza y Socios en
@@ -57,8 +60,11 @@ def changes_only(
 def start_of_iso_week(value: datetime) -> datetime:
     """Monday 00:00 in the timestamp's timezone, for prior-week queries."""
     return value - timedelta(
-        days=value.weekday(), hours=value.hour, minutes=value.minute,
-        seconds=value.second, microseconds=value.microsecond,
+        days=value.weekday(),
+        hours=value.hour,
+        minutes=value.minute,
+        seconds=value.second,
+        microseconds=value.microsecond,
     )
 
 
@@ -103,14 +109,16 @@ def season_week_offset_for(world: "m.WorldContext | None", when: datetime) -> in
     sin este resguardo, restar un naive contra un aware lanza `TypeError`."""
     if world is None or world.refreshed_at is None:
         return 0
-    refreshed_at = world.refreshed_at if world.refreshed_at.tzinfo else world.refreshed_at.replace(tzinfo=UTC)
+    refreshed_at = (
+        world.refreshed_at if world.refreshed_at.tzinfo else world.refreshed_at.replace(tzinfo=UTC)
+    )
     when_aware = when if when.tzinfo else when.replace(tzinfo=UTC)
     elapsed_days = (start_of_iso_week(refreshed_at) - start_of_iso_week(when_aware)).days
     return -(elapsed_days // 7)
 
 
 def season_week_label(world: "m.WorldContext | None", *, weeks_offset: int = 0) -> str | None:
-    """"TT-ss" (temporada-semana, p. ej. "83-03") para el `WorldContext`
+    """ "TT-ss" (temporada-semana, p. ej. "83-03") para el `WorldContext`
     dado, desplazado `weeks_offset` semanas respecto a AHORA (negativo =
     pasado, positivo = futuro — para semanas de una proyección). `None` si
     no hay `WorldContext` propio sincronizado todavía."""
@@ -134,7 +142,8 @@ def season_at_offset(world: "m.WorldContext | None", *, weeks_offset: int = 0) -
 
 
 def season_week_for_datetime(
-    world: "m.WorldContext | None", when: datetime,
+    world: "m.WorldContext | None",
+    when: datetime,
 ) -> str | None:
     """Temporada-semana exacta de una fecha pasada, presente o futura.
 
@@ -150,7 +159,8 @@ def season_week_for_datetime(
 
 
 def season_for_datetime(
-    world: "m.WorldContext | None", when: datetime,
+    world: "m.WorldContext | None",
+    when: datetime,
 ) -> int | None:
     """Número de temporada exacto para una fecha pasada, presente o futura."""
     return season_at_offset(

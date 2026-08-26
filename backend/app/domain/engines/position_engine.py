@@ -16,6 +16,7 @@ Las habilidades efectivas siguen las fórmulas del Manual para forma, condición
 experiencia y fidelidad. Los roles de capitán y lanzador de faltas se calculan
 aparte porque no son posiciones de campo.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

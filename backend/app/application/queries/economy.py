@@ -23,6 +23,7 @@ El servicio devuelve las dos y dice cuál recomienda, en vez de esconder la
 elección. Con pocas semanas la estructural es la buena; cuando la serie tenga
 tamaño, el backtest decidirá sola.
 """
+
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -76,6 +77,7 @@ class SeriesPoint:
 @dataclass
 class FinanceItem:
     """Una sola partida oficial de economy.xml, sin agrupación."""
+
     code: str
     label: str
     amount: int | None
@@ -128,6 +130,7 @@ class SankeyWindow:
     `weeks_available` puede ser menor que `weeks` si todavía no hay tanto
     histórico o si el sync es de antes de que se guardara el desglose de
     semanas cerradas."""
+
     weeks: int
     weeks_available: int
     income: list[FinanceItem]
@@ -150,23 +153,23 @@ class SankeyWindow:
 # resto de este fichero.
 @dataclass
 class IncomeBreakdown:
-    spectators: int | None    # Aficionados
-    sponsors: int | None       # Patrocinados (incl. bono si aplica — solo semana en curso)
-    financial: int | None        # Financieros
+    spectators: int | None  # Aficionados
+    sponsors: int | None  # Patrocinados (incl. bono si aplica — solo semana en curso)
+    financial: int | None  # Financieros
     subtotal: int | None
-    other: int | None              # Venta de jugadores + comisión + temporal
+    other: int | None  # Venta de jugadores + comisión + temporal
     total: int | None
 
 
 @dataclass
 class CostsBreakdown:
-    arena: int | None          # Estadio (mantenimiento)
-    players: int | None          # Jugadores (sueldos)
-    financial: int | None          # Financieros (lo más parecido a "Intereses" de HC)
-    staff: int | None                 # Empleados
-    youth: int | None                   # Canteranos
+    arena: int | None  # Estadio (mantenimiento)
+    players: int | None  # Jugadores (sueldos)
+    financial: int | None  # Financieros (lo más parecido a "Intereses" de HC)
+    staff: int | None  # Empleados
+    youth: int | None  # Canteranos
     subtotal: int | None
-    other: int | None                      # Compra de jugadores + construcción de estadio + temporal
+    other: int | None  # Compra de jugadores + construcción de estadio + temporal
     total: int | None
 
 
@@ -228,7 +231,9 @@ class EconomyResponse:
 # campo de detalle puede aparecer o corregirse entre dos syncs sin que haya
 # pasado ninguna semana, y eso partiría una semana en dos puntos.
 _CLOSED_WEEK_FIELDS: tuple[str, ...] = (
-    "last_income_sum", "last_costs_sum", "last_weeks_total",
+    "last_income_sum",
+    "last_costs_sum",
+    "last_weeks_total",
 )
 
 
@@ -242,6 +247,7 @@ class _WeeklyClose:
     instante DENTRO de la semana que se estaba cerrando: de ahí sale la
     etiqueta TT-ss.
     """
+
     closed_at: datetime
     snapshot: m.EconomySnapshot
 
@@ -263,6 +269,7 @@ def _weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
     Hattrick pasa la semana. La caja NO sirve de señal: cambia también al
     fichar o vender a media semana.
     """
+
     def flujos(row: m.EconomySnapshot) -> tuple[Any, ...]:
         return tuple(getattr(row, campo) for campo in _CLOSED_WEEK_FIELDS)
 
@@ -273,18 +280,21 @@ def _weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
             # La misma foto otra vez: varias lecturas de la misma semana.
             anterior = fila
             continue
-        salida.append(_WeeklyClose(
-            # La semana que se estaba cerrando es la de la lectura anterior.
-            # Para la primera de todas no hay anterior, y lo más que se puede
-            # afirmar es que sus `last_*` describen la semana previa a la
-            # lectura: siete días atrás, que era el criterio de toda la serie
-            # hasta este arreglo.
-            closed_at=(
-                anterior.captured_at if anterior is not None
-                else fila.captured_at - timedelta(days=7)
-            ),
-            snapshot=fila,
-        ))
+        salida.append(
+            _WeeklyClose(
+                # La semana que se estaba cerrando es la de la lectura anterior.
+                # Para la primera de todas no hay anterior, y lo más que se puede
+                # afirmar es que sus `last_*` describen la semana previa a la
+                # lectura: siete días atrás, que era el criterio de toda la serie
+                # hasta este arreglo.
+                closed_at=(
+                    anterior.captured_at
+                    if anterior is not None
+                    else fila.captured_at - timedelta(days=7)
+                ),
+                snapshot=fila,
+            )
+        )
         anterior = fila
     return salida
 
@@ -338,7 +348,8 @@ class EconomyQueryService:
             await self._s.scalar(
                 select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
             )
-            if team.ht_league_id is not None else None
+            if team.ht_league_id is not None
+            else None
         )
 
         # ── Serie observada ────────────────────────────────────────────────
@@ -413,9 +424,7 @@ class EconomyQueryService:
         ) / len(recent)
         avg_spectators = avg("income_spectators")
         gate_per_home_match = (
-            conv(avg_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON
-            if avg_spectators
-            else 0
+            conv(avg_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON if avg_spectators else 0
         )
         structure = WeeklyStructure(
             salaries=conv(avg("costs_players")),
@@ -518,16 +527,18 @@ class EconomyQueryService:
             )
             for i, s in enumerate(snaps)
         ]
-        weekly_rows.append((
-            WeeklyBreakdownRow(
-                season_week=season_week_for_datetime(world, latest.captured_at),
-                date=_iso(latest.captured_at),
-                is_current=True,
-                income=_income_breakdown_live(latest, conv),
-                costs=_costs_breakdown_live(latest, conv),
-            ),
-            season_for_datetime(world, latest.captured_at),
-        ))
+        weekly_rows.append(
+            (
+                WeeklyBreakdownRow(
+                    season_week=season_week_for_datetime(world, latest.captured_at),
+                    date=_iso(latest.captured_at),
+                    is_current=True,
+                    income=_income_breakdown_live(latest, conv),
+                    costs=_costs_breakdown_live(latest, conv),
+                ),
+                season_for_datetime(world, latest.captured_at),
+            )
+        )
         weekly_rows.reverse()
         weekly_breakdown = [row for row, _season in weekly_rows]
 
@@ -590,16 +601,19 @@ def _income_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | Non
     return [
         ("IncomeSpectators", "Taquillas", snapshot.income_spectators),
         (
-            "IncomeSponsors", "Patrocinadores",
+            "IncomeSponsors",
+            "Patrocinadores",
             _sum_optional(snapshot.income_sponsors, snapshot.income_sponsor_bonuses),
         ),
         ("IncomeSoldPlayers", "Venta de jugadores", snapshot.income_sold_players),
         (
-            "IncomeSoldPlayersCommission", "Comisiones",
+            "IncomeSoldPlayersCommission",
+            "Comisiones",
             snapshot.income_sold_players_commission,
         ),
         (
-            "IncomeOther", "Temporal",
+            "IncomeOther",
+            "Temporal",
             _sum_optional(snapshot.income_financial, snapshot.income_temporary),
         ),
     ]
@@ -614,7 +628,8 @@ def _cost_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]
         ("CostsYouth", "Gastos juveniles", snapshot.costs_youth),
         ("CostsBoughtPlayers", "Compra de jugadores", snapshot.costs_bought_players),
         (
-            "CostsOther", "Otros",
+            "CostsOther",
+            "Otros",
             _sum_optional(snapshot.costs_financial, snapshot.costs_temporary),
         ),
     ]
@@ -630,11 +645,13 @@ def _last_income_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int 
         ("IncomeSponsors", "Patrocinadores", _closed_sponsor_income(snapshot)),
         ("IncomeSoldPlayers", "Venta de jugadores", snapshot.last_income_sold_players),
         (
-            "IncomeSoldPlayersCommission", "Comisiones",
+            "IncomeSoldPlayersCommission",
+            "Comisiones",
             snapshot.last_income_sold_players_commission,
         ),
         (
-            "IncomeOther", "Temporal",
+            "IncomeOther",
+            "Temporal",
             _sum_optional(snapshot.last_income_financial, snapshot.last_income_temporary),
         ),
     ]
@@ -645,14 +662,16 @@ def _last_cost_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | 
         ("CostsPlayers", "Sueldos", snapshot.last_costs_players),
         ("CostsArena", "Mantenimiento del estadio", snapshot.last_costs_arena),
         (
-            "CostsArenaBuilding", "Construcción del estadio",
+            "CostsArenaBuilding",
+            "Construcción del estadio",
             snapshot.last_costs_arena_building,
         ),
         ("CostsStaff", "Empleados", snapshot.last_costs_staff),
         ("CostsYouth", "Gastos juveniles", snapshot.last_costs_youth),
         ("CostsBoughtPlayers", "Compra de jugadores", snapshot.last_costs_bought_players),
         (
-            "CostsOther", "Otros",
+            "CostsOther",
+            "Otros",
             _sum_optional(snapshot.last_costs_financial, snapshot.last_costs_temporary),
         ),
     ]
@@ -663,8 +682,12 @@ def _conv_opt(v: int | None, conv: Callable[[float | None], int]) -> int | None:
 
 
 def _income_breakdown(
-    spectators: int | None, sponsors: int | None, financial: int | None,
-    sold_players: int | None, commission: int | None, temporary: int | None,
+    spectators: int | None,
+    sponsors: int | None,
+    financial: int | None,
+    sold_players: int | None,
+    commission: int | None,
+    temporary: int | None,
     conv: Callable[[float | None], int],
 ) -> IncomeBreakdown:
     spectators_c = _conv_opt(spectators, conv)
@@ -672,20 +695,31 @@ def _income_breakdown(
     financial_c = _conv_opt(financial, conv)
     subtotal = _sum_optional(spectators_c, sponsors_c, financial_c)
     other = _sum_optional(
-        _conv_opt(sold_players, conv), _conv_opt(commission, conv), _conv_opt(temporary, conv),
+        _conv_opt(sold_players, conv),
+        _conv_opt(commission, conv),
+        _conv_opt(temporary, conv),
     )
     return IncomeBreakdown(
-        spectators=spectators_c, sponsors=sponsors_c, financial=financial_c,
-        subtotal=subtotal, other=other, total=_sum_optional(subtotal, other),
+        spectators=spectators_c,
+        sponsors=sponsors_c,
+        financial=financial_c,
+        subtotal=subtotal,
+        other=other,
+        total=_sum_optional(subtotal, other),
     )
 
 
-def _income_breakdown_live(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> IncomeBreakdown:
+def _income_breakdown_live(
+    snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]
+) -> IncomeBreakdown:
     return _income_breakdown(
         snapshot.income_spectators,
         total_sponsor_income(snapshot.income_sponsors, snapshot.income_sponsor_bonuses),
-        snapshot.income_financial, snapshot.income_sold_players,
-        snapshot.income_sold_players_commission, snapshot.income_temporary, conv,
+        snapshot.income_financial,
+        snapshot.income_sold_players,
+        snapshot.income_sold_players_commission,
+        snapshot.income_temporary,
+        conv,
     )
 
 
@@ -718,18 +752,29 @@ def _closed_sponsor_income(snapshot: m.EconomySnapshot) -> int | None:
     return (snapshot.last_income_sponsors or 0) + remainder
 
 
-def _income_breakdown_closed(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> IncomeBreakdown:
+def _income_breakdown_closed(
+    snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]
+) -> IncomeBreakdown:
     return _income_breakdown(
-        snapshot.last_income_spectators, _closed_sponsor_income(snapshot),
-        snapshot.last_income_financial, snapshot.last_income_sold_players,
-        snapshot.last_income_sold_players_commission, snapshot.last_income_temporary, conv,
+        snapshot.last_income_spectators,
+        _closed_sponsor_income(snapshot),
+        snapshot.last_income_financial,
+        snapshot.last_income_sold_players,
+        snapshot.last_income_sold_players_commission,
+        snapshot.last_income_temporary,
+        conv,
     )
 
 
 def _costs_breakdown(
-    arena: int | None, players: int | None, financial: int | None,
-    staff: int | None, youth: int | None,
-    bought_players: int | None, arena_building: int | None, temporary: int | None,
+    arena: int | None,
+    players: int | None,
+    financial: int | None,
+    staff: int | None,
+    youth: int | None,
+    bought_players: int | None,
+    arena_building: int | None,
+    temporary: int | None,
     conv: Callable[[float | None], int],
 ) -> CostsBreakdown:
     arena_c = _conv_opt(arena, conv)
@@ -739,27 +784,51 @@ def _costs_breakdown(
     youth_c = _conv_opt(youth, conv)
     subtotal = _sum_optional(arena_c, players_c, financial_c, staff_c, youth_c)
     other = _sum_optional(
-        _conv_opt(bought_players, conv), _conv_opt(arena_building, conv), _conv_opt(temporary, conv),
+        _conv_opt(bought_players, conv),
+        _conv_opt(arena_building, conv),
+        _conv_opt(temporary, conv),
     )
     return CostsBreakdown(
-        arena=arena_c, players=players_c, financial=financial_c, staff=staff_c, youth=youth_c,
-        subtotal=subtotal, other=other, total=_sum_optional(subtotal, other),
+        arena=arena_c,
+        players=players_c,
+        financial=financial_c,
+        staff=staff_c,
+        youth=youth_c,
+        subtotal=subtotal,
+        other=other,
+        total=_sum_optional(subtotal, other),
     )
 
 
-def _costs_breakdown_live(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> CostsBreakdown:
+def _costs_breakdown_live(
+    snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]
+) -> CostsBreakdown:
     return _costs_breakdown(
-        snapshot.costs_arena, snapshot.costs_players, snapshot.costs_financial,
-        snapshot.costs_staff, snapshot.costs_youth, snapshot.costs_bought_players,
-        snapshot.costs_arena_building, snapshot.costs_temporary, conv,
+        snapshot.costs_arena,
+        snapshot.costs_players,
+        snapshot.costs_financial,
+        snapshot.costs_staff,
+        snapshot.costs_youth,
+        snapshot.costs_bought_players,
+        snapshot.costs_arena_building,
+        snapshot.costs_temporary,
+        conv,
     )
 
 
-def _costs_breakdown_closed(snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]) -> CostsBreakdown:
+def _costs_breakdown_closed(
+    snapshot: m.EconomySnapshot, conv: Callable[[float | None], int]
+) -> CostsBreakdown:
     return _costs_breakdown(
-        snapshot.last_costs_arena, snapshot.last_costs_players, snapshot.last_costs_financial,
-        snapshot.last_costs_staff, snapshot.last_costs_youth, snapshot.last_costs_bought_players,
-        snapshot.last_costs_arena_building, snapshot.last_costs_temporary, conv,
+        snapshot.last_costs_arena,
+        snapshot.last_costs_players,
+        snapshot.last_costs_financial,
+        snapshot.last_costs_staff,
+        snapshot.last_costs_youth,
+        snapshot.last_costs_bought_players,
+        snapshot.last_costs_arena_building,
+        snapshot.last_costs_temporary,
+        conv,
     )
 
 
@@ -803,7 +872,8 @@ def _merge_finance_items(*item_lists: list[FinanceItem]) -> list[FinanceItem]:
     base = item_lists[0]
     return [
         FinanceItem(
-            code=item.code, label=item.label,
+            code=item.code,
+            label=item.label,
             amount=_sum_optional(*(lst[i].amount for lst in item_lists)),
         )
         for i, item in enumerate(base)
@@ -811,8 +881,10 @@ def _merge_finance_items(*item_lists: list[FinanceItem]) -> list[FinanceItem]:
 
 
 def _sankey_windows(
-    live_income: list[FinanceItem], live_costs: list[FinanceItem],
-    closed_income: list[list[FinanceItem]], closed_costs: list[list[FinanceItem]],
+    live_income: list[FinanceItem],
+    live_costs: list[FinanceItem],
+    closed_income: list[list[FinanceItem]],
+    closed_costs: list[list[FinanceItem]],
 ) -> list[SankeyWindow]:
     """1 semana es la semana en curso tal cual `weekly_finance`; cada ventana
     mayor le suma las N-1 semanas ya cerradas más recientes (`closed_*`, en
@@ -862,9 +934,7 @@ def _balance_windows(series: list[SeriesPoint]) -> list[BalanceWindow]:
             continue
         points = series[-weeks:]
         label = (
-            "Balance bisemanal (últimas 2 semanas)"
-            if weeks == 2
-            else f"Últimas {weeks} semanas"
+            "Balance bisemanal (últimas 2 semanas)" if weeks == 2 else f"Últimas {weeks} semanas"
         )
         rows.append(
             BalanceWindow(

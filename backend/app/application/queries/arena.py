@@ -15,6 +15,7 @@ Así que el servicio separa tres cosas que suelen ir mezcladas:
 
 Y cuando la demanda está censurada lo dice en vez de rellenar el hueco.
 """
+
 from dataclasses import dataclass, field
 
 from sqlalchemy import select
@@ -42,9 +43,7 @@ SECTOR_LABELS = {
 
 # Coste de construcción por asiento y mantenimiento semanal. De la
 # especificación; no verificados contra la pantalla del club todavía.
-BUILD_COST_PER_SEAT = {
-    "general": 450.0, "preferentes": 750.0, "tribunas": 1500.0, "palcos": 3000.0
-}
+BUILD_COST_PER_SEAT = {"general": 450.0, "preferentes": 750.0, "tribunas": 1500.0, "palcos": 3000.0}
 WEEKLY_MAINTENANCE_PER_SEAT = 3.5
 HOME_MATCHES_PER_SEASON = 7
 
@@ -133,9 +132,7 @@ class ArenaQueryService:
             .where(m.StadiumHistory.team_id == team_id)
             .where(m.StadiumHistory.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
         )
-        rows = list(
-            (await self._s.execute(query.order_by(m.StadiumHistory.played_at))).scalars()
-        )
+        rows = list((await self._s.execute(query.order_by(m.StadiumHistory.played_at))).scalars())
         if not rows:
             return None
 
@@ -205,10 +202,14 @@ class ArenaQueryService:
             _expansion(label, seats, effective_fill)
             for label, seats in [
                 ("Ampliación pequeña (+1.000 general)", {"general": 1000}),
-                ("Ampliación media (+2.000 general, +500 preferentes)",
-                 {"general": 2000, "preferentes": 500}),
-                ("Ampliación grande (+4.000 general, +1.000 pref., +200 tribunas)",
-                 {"general": 4000, "preferentes": 1000, "tribunas": 200}),
+                (
+                    "Ampliación media (+2.000 general, +500 preferentes)",
+                    {"general": 2000, "preferentes": 500},
+                ),
+                (
+                    "Ampliación grande (+4.000 general, +1.000 pref., +200 tribunas)",
+                    {"general": 4000, "preferentes": 1000, "tribunas": 200},
+                ),
             ]
         ]
 
@@ -284,8 +285,10 @@ def _capacity_from(r: m.StadiumHistory) -> tuple[ArenaCapacity, bool]:
 
 def _attendance_from(r: m.StadiumHistory) -> Attendance:
     return Attendance(
-        general=r.sold_terraces, preferentes=r.sold_basic,
-        tribunas=r.sold_roof, palcos=r.sold_vip,
+        general=r.sold_terraces,
+        preferentes=r.sold_basic,
+        tribunas=r.sold_roof,
+        palcos=r.sold_vip,
     )
 
 

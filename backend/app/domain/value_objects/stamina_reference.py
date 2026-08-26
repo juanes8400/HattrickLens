@@ -29,6 +29,7 @@ mantener la última fila conocida es la lectura conservadora y no inventa
 una pendiente que la tabla no respalda. Mismo criterio que ya se usaba
 para el porcentaje de entrenamiento, que también se recorta (5%-30%).
 """
+
 from __future__ import annotations
 
 # Límite inferior de cada bucket de "% de entrenamiento de resistencia

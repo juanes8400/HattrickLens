@@ -17,6 +17,7 @@ escalados con sqrt(h). Es una aproximación —no asume normalidad de la serie,
 solo la usa para el ancho de banda— y es honesta: si el modelo ha fallado
 históricamente, las bandas serán anchas.
 """
+
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
@@ -29,8 +30,8 @@ SEASON_WEEKS = 16  # una temporada de Hattrick
 class Forecast:
     model: str
     point: list[float]
-    lower: list[float]          # p10
-    upper: list[float]          # p90
+    lower: list[float]  # p10
+    upper: list[float]  # p90
     residual_std: float
     backtest_mae: float | None = None
     candidates: dict[str, float] = field(default_factory=dict)  # modelo → MAE
@@ -41,6 +42,7 @@ class Forecast:
 
 
 # ─────────────────────────── modelos ───────────────────────────
+
 
 def _naive(y: np.ndarray, h: int) -> np.ndarray:
     return np.full(h, y[-1], dtype=float)
@@ -130,6 +132,7 @@ MIN_POINTS = {"naive": 2, "drift": 2, "ses": 4, "holt": 6, "holt_winters": 2 * S
 
 # ─────────────────────────── selección ───────────────────────────
 
+
 def backtest(y: np.ndarray, model: str, min_train: int = 3, horizon: int = 1) -> float:
     """Error absoluto medio con origen móvil. np.inf si no hay datos bastantes."""
     fn = MODELS[model]
@@ -153,8 +156,9 @@ def auto_forecast(
     if len(y) == 0:
         raise ValueError("serie vacía")
     if len(y) == 1:
-        return Forecast("naive", [float(y[0])] * horizon,
-                        [float(y[0])] * horizon, [float(y[0])] * horizon, 0.0)
+        return Forecast(
+            "naive", [float(y[0])] * horizon, [float(y[0])] * horizon, [float(y[0])] * horizon, 0.0
+        )
 
     usable = [m for m in MODELS if len(y) >= MIN_POINTS[m]]
     scores = {m: backtest(y, m) for m in usable}

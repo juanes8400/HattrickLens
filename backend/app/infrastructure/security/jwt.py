@@ -14,6 +14,7 @@ usara, la sesión moría de verdad cada `jwt_access_ttl_minutes` sin ningún
 renovado silencioso detrás. La claim `type` evita que un token sirva donde
 no debería (un refresco no autentica un request normal, ni viceversa).
 """
+
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -44,15 +45,11 @@ def _create_token(user_id: int, token_type: TokenType, ttl: timedelta) -> str:
 
 
 def create_session_token(user_id: int) -> str:
-    return _create_token(
-        user_id, "access", timedelta(minutes=settings.jwt_access_ttl_minutes)
-    )
+    return _create_token(user_id, "access", timedelta(minutes=settings.jwt_access_ttl_minutes))
 
 
 def create_refresh_token(user_id: int) -> str:
-    return _create_token(
-        user_id, "refresh", timedelta(days=settings.jwt_refresh_ttl_days)
-    )
+    return _create_token(user_id, "refresh", timedelta(days=settings.jwt_refresh_ttl_days))
 
 
 def read_user_id(token: str, expected_type: TokenType = "access") -> int:

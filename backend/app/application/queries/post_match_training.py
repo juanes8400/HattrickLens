@@ -11,6 +11,7 @@ It deliberately separates facts from judgement:
 - rules: a small position -> training exposure table
 - judgement: a transparent score used to rank candidate training types
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -156,8 +157,7 @@ class PostMatchTrainingService:
         recommendation = next((o for o in options if o["recommendable"]), None)
 
         player_rows = [
-            self._player_row(p, by_player.get(p["ht_player_id"], []), options)
-            for p in players
+            self._player_row(p, by_player.get(p["ht_player_id"], []), options) for p in players
         ]
 
         notes: list[str] = list(data_notes)
@@ -196,21 +196,23 @@ class PostMatchTrainingService:
         rows = await SquadQueryService(self._s)._latest(team_id)
         out: list[dict[str, Any]] = []
         for snap, ident in rows:
-            out.append({
-                "db_id": ident.id,
-                "ht_player_id": ident.ht_player_id,
-                "name": f"{ident.first_name} {ident.last_name}",
-                "age_years": snap.age_years,
-                "age_days": snap.age_days,
-                "skills": {
-                    **{c: getattr(snap, c) or 0 for c in SKILL_COLS},
-                    "stamina": snap.stamina or 0,
-                },
-                "last_match_ht_id": snap.last_match_ht_id,
-                "last_match_position_code": snap.last_match_position_code,
-                "last_match_played_minutes": snap.last_match_played_minutes,
-                "last_match_rating": snap.last_match_rating,
-            })
+            out.append(
+                {
+                    "db_id": ident.id,
+                    "ht_player_id": ident.ht_player_id,
+                    "name": f"{ident.first_name} {ident.last_name}",
+                    "age_years": snap.age_years,
+                    "age_days": snap.age_days,
+                    "skills": {
+                        **{c: getattr(snap, c) or 0 for c in SKILL_COLS},
+                        "stamina": snap.stamina or 0,
+                    },
+                    "last_match_ht_id": snap.last_match_ht_id,
+                    "last_match_position_code": snap.last_match_position_code,
+                    "last_match_played_minutes": snap.last_match_played_minutes,
+                    "last_match_rating": snap.last_match_rating,
+                }
+            )
         return out
 
     async def _latest_training(self, team_id: int) -> m.TrainingSnapshot | None:
@@ -252,7 +254,9 @@ class PostMatchTrainingService:
         return deadline
 
     async def latest_completed_training_exposure(
-        self, team_id: int, training_type: int,
+        self,
+        team_id: int,
+        training_type: int,
     ) -> dict[int, TrainingWeekExposure]:
         """Exposición real del ciclo de entrenamiento más reciente ya cerrado.
 
@@ -280,7 +284,9 @@ class PostMatchTrainingService:
             exposure = min(
                 sum(
                     self._segment_exposure(
-                        training_type, segment.position_code, segment.played_minutes,
+                        training_type,
+                        segment.position_code,
+                        segment.played_minutes,
                     )
                     for segment in player_segments
                 ),
@@ -335,12 +341,16 @@ class PostMatchTrainingService:
             return {}
 
         training_rows = (
-            await self._s.execute(
-                select(m.TrainingSnapshot)
-                .where(m.TrainingSnapshot.team_id == team_id)
-                .order_by(m.TrainingSnapshot.captured_at)
+            (
+                await self._s.execute(
+                    select(m.TrainingSnapshot)
+                    .where(m.TrainingSnapshot.team_id == team_id)
+                    .order_by(m.TrainingSnapshot.captured_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if not training_rows:
             return {}
 
@@ -561,20 +571,24 @@ class PostMatchTrainingService:
             total_exposure += exposure
             if speed is not None and speed.weeks_to_next_level <= 3.0:
                 pops_soon += 1
-            trainees.append({
-                "htPlayerId": p["ht_player_id"],
-                "name": p["name"],
-                "exposure": round(exposure, 3),
-                "equivalentMinutes": round(equivalent_minutes, 1),
-                "currentLevel": level,
-                "weeksToPop": speed.weeks_to_next_level if speed is not None else None,
-            })
+            trainees.append(
+                {
+                    "htPlayerId": p["ht_player_id"],
+                    "name": p["name"],
+                    "exposure": round(exposure, 3),
+                    "equivalentMinutes": round(equivalent_minutes, 1),
+                    "currentLevel": level,
+                    "weeksToPop": speed.weeks_to_next_level if speed is not None else None,
+                }
+            )
 
-        trainees.sort(key=lambda x: (
-            -x["exposure"],
-            x["weeksToPop"] if x["weeksToPop"] is not None else float("inf"),
-            x["name"],
-        ))
+        trainees.sort(
+            key=lambda x: (
+                -x["exposure"],
+                x["weeksToPop"] if x["weeksToPop"] is not None else float("inf"),
+                x["name"],
+            )
+        )
         score = total_equivalent_minutes + development_score * 10.0 + pops_soon * 30.0
         trained_count = len(trainees)
         rationale = [
@@ -622,7 +636,10 @@ class PostMatchTrainingService:
         exposure_by_type: dict[int, float] = {}
         for type_id in TRAINING_TARGET_SKILL:
             exposure_by_type[type_id] = min(
-                sum(self._segment_exposure(type_id, s.position_code, s.played_minutes) for s in segments),
+                sum(
+                    self._segment_exposure(type_id, s.position_code, s.played_minutes)
+                    for s in segments
+                ),
                 1.0,
             )
         best = max(exposure_by_type.items(), key=lambda kv: kv[1], default=(0, 0.0))

@@ -5,23 +5,37 @@ Hattrick Control. La aportación propia es la **tasa de conversión comparada**:
 saber que conviertes el 33% de tus ocasiones y el rival el 51% es lo que
 distingue un problema de generación de uno de definición.
 """
+
 from dataclasses import dataclass, field
 
-SECTORS = ("midfield", "right_def", "central_def", "left_def",
-           "right_att", "central_att", "left_att")
+SECTORS = (
+    "midfield",
+    "right_def",
+    "central_def",
+    "left_def",
+    "right_att",
+    "central_att",
+    "left_att",
+)
 
 SECTOR_LABELS = {
-    "midfield": "Mediocampo", "right_def": "Defensa derecha",
-    "central_def": "Defensa Central", "left_def": "Defensa izquierda",
-    "right_att": "Ataque derecha", "central_att": "Ataque central",
+    "midfield": "Mediocampo",
+    "right_def": "Defensa derecha",
+    "central_def": "Defensa Central",
+    "left_def": "Defensa izquierda",
+    "right_att": "Ataque derecha",
+    "central_att": "Ataque central",
     "left_att": "Ataque izquierda",
 }
 
 CHANCE_ZONES = ("left", "center", "right", "special", "other")
 
 CHANCE_ZONE_LABELS = {
-    "left": "Izquierda", "center": "Centro", "right": "Derecha",
-    "special": "Jugadas especiales", "other": "Otras",
+    "left": "Izquierda",
+    "center": "Centro",
+    "right": "Derecha",
+    "special": "Jugadas especiales",
+    "other": "Otras",
 }
 
 
@@ -48,6 +62,7 @@ class ChanceTally:
     en vivo: sólo trae conteos por zona, nunca un desglose de goles por
     zona) — `goals` es el total del partido/periodo, no atribuible a una
     zona concreta."""
+
     left: int = 0
     center: int = 0
     right: int = 0
@@ -89,6 +104,7 @@ def hatstats(ratings: dict[str, int]) -> int:
 
 def loddar_stats(ratings: dict[str, int]) -> float:
     """Índice LoddarStats: pondera mediocampo y equilibra ataque y defensa."""
+
     def sub(v: int) -> float:
         return max(v - 1, 0) / 4.0 + 1.0
 

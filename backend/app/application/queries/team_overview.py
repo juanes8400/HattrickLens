@@ -31,6 +31,7 @@ La media de cada semana se calcula sobre la ÚLTIMA lectura de cada jugador en
 esa semana. Sin eso, un jugador sincronizado tres veces pesaría el triple que
 otro sincronizado una.
 """
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -279,8 +280,14 @@ def _mean(values: list[float]) -> float:
 class TeamOverviewQueryService:
     # Columnas de PlayerSnapshot que entran en las medias semanales.
     _TIMELINE_FIELDS = (
-        *SKILL_COLS, *LEVEL_LABELS, *SHORT_SCALE_LABELS,
-        "tsi", "salary", LEADERSHIP_FIELD, "age_years", "age_days",
+        *SKILL_COLS,
+        *LEVEL_LABELS,
+        *SHORT_SCALE_LABELS,
+        "tsi",
+        "salary",
+        LEADERSHIP_FIELD,
+        "age_years",
+        "age_days",
     )
 
     def __init__(self, session: AsyncSession) -> None:
@@ -311,7 +318,8 @@ class TeamOverviewQueryService:
                     m.WorldContext.ht_league_id == (team.ht_league_id if team else None)
                 )
             )
-            if team is not None and team.ht_league_id is not None else None
+            if team is not None and team.ht_league_id is not None
+            else None
         )
 
         # Última lectura de cada jugador dentro de cada semana ISO: un jugador
@@ -338,9 +346,15 @@ class TeamOverviewQueryService:
         weeks: list[str] = []
         market_fields = ("tsi", "salary", COST_PER_TSI_FIELD, TSI_TOTAL_FIELD)
         by_field: dict[str, list[float | None]] = {
-            name: [] for name in (
-                *self._TIMELINE_FIELDS, COST_PER_TSI_FIELD, TSI_TOTAL_FIELD, AGE_FIELD,
-                HTMS_FIELD, HTMS28_FIELD, HTMS_TOTAL_FIELD,
+            name: []
+            for name in (
+                *self._TIMELINE_FIELDS,
+                COST_PER_TSI_FIELD,
+                TSI_TOTAL_FIELD,
+                AGE_FIELD,
+                HTMS_FIELD,
+                HTMS28_FIELD,
+                HTMS_TOTAL_FIELD,
                 *(f"{name}{TOP_SUFFIX}" for name in market_fields),
             )
         }
@@ -364,7 +378,8 @@ class TeamOverviewQueryService:
             vigentes.update(latest[key])
             newest = max(reading[0] for reading in latest[key].values())
             readings = [
-                lectura for pid, lectura in vigentes.items()
+                lectura
+                for pid, lectura in vigentes.items()
                 if salidas.get(pid) is None or salidas[pid] > newest
             ]
             label = season_week_for_datetime(world, newest)
@@ -378,8 +393,7 @@ class TeamOverviewQueryService:
             for index, name in enumerate(self._TIMELINE_FIELDS):
                 source = complete if name in INCOMPLETE_WITHOUT_LEADERSHIP else readings
                 present = [
-                    float(reading[1][index]) for reading in source
-                    if reading[1][index] is not None
+                    float(reading[1][index]) for reading in source if reading[1][index] is not None
                 ]
                 if not present:
                     by_field[name].append(None)
@@ -399,9 +413,7 @@ class TeamOverviewQueryService:
                 )
                 # La suma sale del mismo recuento: quien tiene TSI 0 no aporta
                 # nada, así que excluirlo no cambia el total.
-                by_field[f"{TSI_TOTAL_FIELD}{suffix}"].append(
-                    total_tsi if subset else None
-                )
+                by_field[f"{TSI_TOTAL_FIELD}{suffix}"].append(total_tsi if subset else None)
 
             # Edad media: cada jugador se convierte primero a años con
             # decimales y después se promedia.
@@ -420,17 +432,18 @@ class TeamOverviewQueryService:
                     continue
                 valores_htms.append(
                     htms_motor.de_habilidades(
-                        int(fila[age_years_index]), int(fila[age_days_index]),
+                        int(fila[age_years_index]),
+                        int(fila[age_days_index]),
                         **{c: fila[self._TIMELINE_FIELDS.index(c)] for c in SKILL_COLS},
                     )
                 )
             by_field[HTMS_FIELD].append(
-                round(_mean([float(v.ability) for v in valores_htms]), 2)
-                if valores_htms else None
+                round(_mean([float(v.ability) for v in valores_htms]), 2) if valores_htms else None
             )
             by_field[HTMS28_FIELD].append(
                 round(_mean([float(v.potential) for v in valores_htms]), 2)
-                if valores_htms else None
+                if valores_htms
+                else None
             )
             by_field[HTMS_TOTAL_FIELD].append(
                 float(sum(v.ability for v in valores_htms)) if valores_htms else None
@@ -442,7 +455,9 @@ class TeamOverviewQueryService:
             # cortan los primeros: si la plantilla tuviera menos de once, se
             # toman los que haya en vez de inventar huecos.
             top = sorted(
-                readings, key=lambda r: float(r[1][tsi_index] or 0), reverse=True,
+                readings,
+                key=lambda r: float(r[1][tsi_index] or 0),
+                reverse=True,
             )[:TOP_SQUAD_SIZE]
             top_tsi = [float(r[1][tsi_index]) for r in top if r[1][tsi_index] is not None]
             top_salary = [float(r[1][salary_index]) for r in top if r[1][salary_index] is not None]
@@ -471,55 +486,68 @@ class TeamOverviewQueryService:
             return OverviewSeries(key=col, label=label, values=values, display=display)
 
         skills = OverviewGroup(
-            key="skills", label="Habilidades", chart="line", weeks=weekly.weeks,
+            key="skills",
+            label="Habilidades",
+            chart="line",
+            weeks=weekly.weeks,
             charts=[
                 OverviewChart(
-                    key="levels", title="Habilidades, Experiencia y Fidelidad",
-                    scale_min=0.0, scale_max=SKILL_SCALE_MAX,
-                    series=[
-                        _series(col, SKILL_LABELS.get(col, col)) for col in SKILL_COLS
-                    ] + [
-                        _series(col, label) for col, label in LEVEL_LABELS.items()
-                    ],
+                    key="levels",
+                    title="Habilidades, Experiencia y Fidelidad",
+                    scale_min=0.0,
+                    scale_max=SKILL_SCALE_MAX,
+                    series=[_series(col, SKILL_LABELS.get(col, col)) for col in SKILL_COLS]
+                    + [_series(col, label) for col, label in LEVEL_LABELS.items()],
                 ),
                 OverviewChart(
-                    key="avg_age", title="Edad promedio",
+                    key="avg_age",
+                    title="Edad promedio",
                     series=[
                         OverviewSeries(
-                            key=AGE_FIELD, label="Edad promedio",
-                            values=weekly.by_field.get(AGE_FIELD, []), display="decimal",
+                            key=AGE_FIELD,
+                            label="Edad promedio",
+                            values=weekly.by_field.get(AGE_FIELD, []),
+                            display="decimal",
                         )
                     ],
                 ),
                 OverviewChart(
-                    key="short_scale", title="Resistencia y Forma",
-                    scale_min=SHORT_SCALE_MIN, scale_max=SHORT_SCALE_MAX,
-                    series=[
-                        _series(col, label) for col, label in SHORT_SCALE_LABELS.items()
-                    ],
+                    key="short_scale",
+                    title="Resistencia y Forma",
+                    scale_min=SHORT_SCALE_MIN,
+                    scale_max=SHORT_SCALE_MAX,
+                    series=[_series(col, label) for col, label in SHORT_SCALE_LABELS.items()],
                 ),
             ],
             metrics=[
                 OverviewMetric(
-                    key=col, label=SKILL_LABELS.get(col, col),
+                    key=col,
+                    label=SKILL_LABELS.get(col, col),
                     value=(avg := _mean([float(p.skills.get(col) or 0) for p in players])),
-                    scale_max=SKILL_SCALE_MAX, display="level",
+                    scale_max=SKILL_SCALE_MAX,
+                    display="level",
                     value_label=skill_name(int(round(avg))),
                 )
                 for col in SKILL_COLS
-            ] + [
+            ]
+            + [
                 OverviewMetric(
-                    key=col, label=label,
+                    key=col,
+                    label=label,
                     value=(avg := _mean([float(getattr(p, col) or 0) for p in players])),
-                    scale_max=SKILL_SCALE_MAX, display="level",
+                    scale_max=SKILL_SCALE_MAX,
+                    display="level",
                     value_label=skill_name(int(round(avg))),
                 )
                 for col, label in LEVEL_LABELS.items()
-            ] + [
+            ]
+            + [
                 OverviewMetric(
-                    key=col, label=label,
+                    key=col,
+                    label=label,
                     value=_mean([float(getattr(p, col) or 0) for p in players]),
-                    scale_max=SHORT_SCALE_MAX, display="level",
+                    scale_max=SHORT_SCALE_MAX,
+                    display="level",
                 )
                 for col, label in SHORT_SCALE_LABELS.items()
             ],
@@ -536,15 +564,19 @@ class TeamOverviewQueryService:
             más TSI. Comparten eje porque son la MISMA medida sobre dos
             conjuntos distintos — eso es justo lo que se quiere comparar."""
             return OverviewChart(
-                key=key, title=MARKET_LABELS[key],
+                key=key,
+                title=MARKET_LABELS[key],
                 band=key in BANDED_MARKET_CHARTS,
                 series=[
                     OverviewSeries(
-                        key=key, label=SQUAD_SERIES_LABEL,
-                        values=weekly.by_field.get(key, []), display=display,
+                        key=key,
+                        label=SQUAD_SERIES_LABEL,
+                        values=weekly.by_field.get(key, []),
+                        display=display,
                     ),
                     OverviewSeries(
-                        key=f"{key}{TOP_SUFFIX}", label=TOP_SERIES_LABEL,
+                        key=f"{key}{TOP_SUFFIX}",
+                        label=TOP_SERIES_LABEL,
                         values=weekly.by_field.get(f"{key}{TOP_SUFFIX}", []),
                         display=display,
                     ),
@@ -552,7 +584,10 @@ class TeamOverviewQueryService:
             )
 
         market = OverviewGroup(
-            key="market", label="Salario y TSI", chart="line", weeks=weekly.weeks,
+            key="market",
+            label="Salario y TSI",
+            chart="line",
+            weeks=weekly.weeks,
             charts=[
                 _market_chart("salary", "money"),
                 _market_chart("tsi", "number"),
@@ -571,28 +606,37 @@ class TeamOverviewQueryService:
         )
 
         htms_grupo = OverviewGroup(
-            key="htms", label="HTMS", chart="line", weeks=weekly.weeks,
+            key="htms",
+            label="HTMS",
+            chart="line",
+            weeks=weekly.weeks,
             charts=[
                 OverviewChart(
-                    key="htms_avg", title="HTMS actual y potencial a los 28, promedio", band=True,
+                    key="htms_avg",
+                    title="HTMS actual y potencial a los 28, promedio",
+                    band=True,
                     series=[
                         OverviewSeries(
-                            key=HTMS_FIELD, label="HTMS de hoy",
+                            key=HTMS_FIELD,
+                            label="HTMS de hoy",
                             values=weekly.by_field.get(HTMS_FIELD, []),
                             display="number",
                         ),
                         OverviewSeries(
-                            key=HTMS28_FIELD, label="HTMS28 (potencial a los 28 años)",
+                            key=HTMS28_FIELD,
+                            label="HTMS28 (potencial a los 28 años)",
                             values=weekly.by_field.get(HTMS28_FIELD, []),
                             display="number",
                         ),
                     ],
                 ),
                 OverviewChart(
-                    key="htms_total", title="HTMS sumado de la plantilla",
+                    key="htms_total",
+                    title="HTMS sumado de la plantilla",
                     series=[
                         OverviewSeries(
-                            key=HTMS_TOTAL_FIELD, label="Plantilla entera",
+                            key=HTMS_TOTAL_FIELD,
+                            label="Plantilla entera",
                             values=weekly.by_field.get(HTMS_TOTAL_FIELD, []),
                             display="number",
                         ),
@@ -625,10 +669,14 @@ class TeamOverviewQueryService:
         engine_players = [
             {
                 "name": f"{ident.first_name} {ident.last_name}".strip(),
-                "age_years": snap.age_years, "age_days": snap.age_days,
-                "form": snap.form, "stamina": snap.stamina,
-                "experience": snap.experience, "loyalty": snap.loyalty,
-                "specialty": snap.specialty, "leadership": snap.leadership,
+                "age_years": snap.age_years,
+                "age_days": snap.age_days,
+                "form": snap.form,
+                "stamina": snap.stamina,
+                "experience": snap.experience,
+                "loyalty": snap.loyalty,
+                "specialty": snap.specialty,
+                "leadership": snap.leadership,
                 "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
             }
             for snap, ident in await SquadQueryService(self._s)._latest(team_id)
@@ -652,7 +700,9 @@ class TeamOverviewQueryService:
                     current = best_role.get(rating.position)
                     if current is None or rating.rating > current[0]:
                         best_role[rating.position] = (
-                            rating.rating, engine_player["name"], rating.label,
+                            rating.rating,
+                            engine_player["name"],
+                            rating.label,
                         )
                     continue
                 line = pitch_line_of(rating.position)
@@ -661,7 +711,9 @@ class TeamOverviewQueryService:
                 current = best_of_line.get(line)
                 if current is None or rating.rating > current[0]:
                     best_of_line[line] = (
-                        rating.rating, engine_player["name"], rating.label,
+                        rating.rating,
+                        engine_player["name"],
+                        rating.label,
                     )
 
         # Quiénes la tienen como su mejor puesto — otra pregunta, otra
@@ -676,13 +728,17 @@ class TeamOverviewQueryService:
         for key, label in PITCH_LINES:
             best = best_of_line.get(key)
             own = natural[key]
-            pitch.append(PitchSlot(
-                key=key, label=label, count=len(own),
-                best_rating=round(best[0], 2) if best else None,
-                top_player=best[1] if best else None,
-                best_variant_label=best[2] if best else None,
-                average_rating=round(sum(own) / len(own), 2) if own else None,
-            ))
+            pitch.append(
+                PitchSlot(
+                    key=key,
+                    label=label,
+                    count=len(own),
+                    best_rating=round(best[0], 2) if best else None,
+                    top_player=best[1] if best else None,
+                    best_variant_label=best[2] if best else None,
+                    average_rating=round(sum(own) / len(own), 2) if own else None,
+                )
+            )
 
         counts: dict[str, int] = {}
         for p in players:
@@ -690,20 +746,28 @@ class TeamOverviewQueryService:
         ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
         special_roles = [
             SpecialRole(
-                key=role, label=best_role[role][2],
+                key=role,
+                label=best_role[role][2],
                 top_player=best_role[role][1],
                 rating=round(best_role[role][0], 2),
             )
-            for role in SPECIAL_ROLES if role in best_role
+            for role in SPECIAL_ROLES
+            if role in best_role
         ]
 
         best_position = OverviewGroup(
-            key="best_position", label="Mejor posición", chart="pitch",
-            pitch=pitch, special_roles=special_roles,
+            key="best_position",
+            label="Mejor posición",
+            chart="pitch",
+            pitch=pitch,
+            special_roles=special_roles,
             metrics=[
                 OverviewMetric(
-                    key=label, label=label, value=float(n),
-                    scale_max=float(max(counts.values())), display="count",
+                    key=label,
+                    label=label,
+                    value=float(n),
+                    scale_max=float(max(counts.values())),
+                    display="count",
                 )
                 for label, n in ordered
             ],
@@ -718,7 +782,9 @@ class TeamOverviewQueryService:
         )
 
         player_classes = OverviewGroup(
-            key="player_classes", label="Clases de Jugador", chart="pending",
+            key="player_classes",
+            label="Clases de Jugador",
+            chart="pending",
             note="Todavía no hay nada definido aquí.",
         )
 

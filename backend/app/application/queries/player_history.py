@@ -4,6 +4,7 @@ plantilla — HL-15x, ficha de jugador ampliada.
 Todo lo de aquí es append-only (`player_snapshots`, `player_match_ratings`):
 no hay nada calculado/proyectado, es lo que realmente se ha sincronizado.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -69,18 +70,22 @@ MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
 # Partidos de selección detectados pero deliberadamente sin puntaje — ver el
 # comentario de arriba y el campo `unscored_national_matches` en
 # `ExperienceProgress`.
-MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES = frozenset({
-    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
-    MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
-})
+MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES = frozenset(
+    {
+        MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
+        MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
+    }
+)
 
 #: Las tres categorias que son "jugo con su seleccion", para restarlas de los
 #: caps y quedarnos con los partidos que Hattrick cuenta y nosotros no vimos.
-CATEGORIAS_DE_SELECCION = frozenset({
-    "national_team_friendly",
-    "national_team_competitive",
-    "national_team_competitive_cup",
-})
+CATEGORIAS_DE_SELECCION = frozenset(
+    {
+        "national_team_friendly",
+        "national_team_competitive",
+        "national_team_competitive_cup",
+    }
+)
 
 
 def experience_category(match_type: int, cup_level: int = -1) -> str | None:
@@ -94,6 +99,7 @@ def experience_category(match_type: int, cup_level: int = -1) -> str | None:
     if match_type == MATCH_TYPE_CUP and cup_level in {2, 3}:
         return "cup_secondary"
     return MATCH_TYPE_TO_EXPERIENCE_CATEGORY.get(match_type)
+
 
 # Las 11 variables del timeline/radar: los 7 skills + experiencia, fidelidad,
 # forma y condición (stamina) — HL-15x #5, ampliado a pedido del usuario para
@@ -122,15 +128,20 @@ class SnapshotPoint:
     htms28: int = 0
 
 
-
 def _htms(snap: m.PlayerSnapshot) -> motor_htms.Htms:
     """HTMS del snapshot, con las habilidades tal como estaban ese día."""
     return motor_htms.de_habilidades(
-        snap.age_years, snap.age_days,
-        keeper=snap.keeper, defending=snap.defending, playmaking=snap.playmaking,
-        winger=snap.winger, passing=snap.passing, scoring=snap.scoring,
+        snap.age_years,
+        snap.age_days,
+        keeper=snap.keeper,
+        defending=snap.defending,
+        playmaking=snap.playmaking,
+        winger=snap.winger,
+        passing=snap.passing,
+        scoring=snap.scoring,
         set_pieces=snap.set_pieces,
     )
+
 
 @dataclass
 class MatchRatingPoint:
@@ -172,8 +183,10 @@ class PlayerHistoryQueryService:
             points.append(
                 SnapshotPoint(
                     captured_at=snap.captured_at.isoformat(),
-                    age_years=snap.age_years, age_days=snap.age_days,
-                    tsi=snap.tsi, salary=snap.salary,
+                    age_years=snap.age_years,
+                    age_days=snap.age_days,
+                    tsi=snap.tsi,
+                    salary=snap.salary,
                     skills={c: getattr(snap, c) or 0 for c in HISTORY_SKILL_COLS},
                     htms=valor.ability,
                     htms28=valor.potential,
@@ -189,8 +202,7 @@ class PlayerHistoryQueryService:
         # esos mismos snapshots. El tramo inicial se estira con la primera
         # fidelidad conocida; nada de esto entra en ningún cálculo.
         loyalty = [
-            None if (snap.leadership or 0) == 0 else float(snap.loyalty or 0)
-            for snap in rows
+            None if (snap.leadership or 0) == 0 else float(snap.loyalty or 0) for snap in rows
         ]
         for point, value in zip(points, backfill_leading_gaps(loyalty), strict=True):
             if value is not None:
@@ -213,8 +225,10 @@ class PlayerHistoryQueryService:
         rows = (await self._s.execute(stmt)).all()
         return [
             MatchRatingPoint(
-                ht_match_id=r.ht_match_id, captured_at=r.captured_at.isoformat(),
-                position_code=r.position_code, played_minutes=r.played_minutes,
+                ht_match_id=r.ht_match_id,
+                captured_at=r.captured_at.isoformat(),
+                position_code=r.position_code,
+                played_minutes=r.played_minutes,
                 rating=r.rating,
             )
             for r, match in rows
@@ -236,8 +250,7 @@ class PlayerHistoryQueryService:
         tsi_values = [float(s.tsi) for s in snaps]
         salary_values = [float(s.salary) / max(currency_rate, 1.0) for s in snaps]
         ratio_values = [
-            (float(s.salary) / max(currency_rate, 1.0)) / s.tsi if s.tsi > 0 else 0.0
-            for s in snaps
+            (float(s.salary) / max(currency_rate, 1.0)) / s.tsi if s.tsi > 0 else 0.0 for s in snaps
         ]
 
         own_tsi = float(own_snap.tsi)
@@ -247,8 +260,10 @@ class PlayerHistoryQueryService:
         def build(values: list[float], own_value: float) -> Distribution:
             grid = kde_grid(values)
             return Distribution(
-                grid=grid, density=gaussian_kde(values, grid),
-                values=values, own_value=own_value,
+                grid=grid,
+                density=gaussian_kde(values, grid),
+                values=values,
+                own_value=own_value,
             )
 
         return {
@@ -277,8 +292,10 @@ class PlayerHistoryQueryService:
             own_value = float(own_skills[skill])
             grid = kde_grid(values)
             out[skill] = Distribution(
-                grid=grid, density=gaussian_kde(values, grid),
-                values=values, own_value=own_value,
+                grid=grid,
+                density=gaussian_kde(values, grid),
+                values=values,
+                own_value=own_value,
             )
         return out
 
@@ -340,8 +357,10 @@ class PlayerHistoryQueryService:
         """
         snap_stmt = (
             select(
-                m.PlayerSnapshot.captured_at, m.PlayerSnapshot.experience,
-                m.PlayerSnapshot.career_caps, m.PlayerSnapshot.career_caps_u20,
+                m.PlayerSnapshot.captured_at,
+                m.PlayerSnapshot.experience,
+                m.PlayerSnapshot.career_caps,
+                m.PlayerSnapshot.career_caps_u20,
             )
             .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
             .where(m.Player.ht_player_id == ht_player_id)
@@ -358,6 +377,7 @@ class PlayerHistoryQueryService:
             return None
         current_level = snaps[-1].experience
         since_date = snaps[-1].captured_at
+
         # Absoluta MAS sub-21: los dos contadores son partidos de seleccion, y
         # mirar solo el primero dejaba invisibles los de los juveniles.
         def _caps(fila) -> int | None:
@@ -428,9 +448,7 @@ class PlayerHistoryQueryService:
             match_counts=match_counts,
         )
 
-    async def experience_level_up_observations(
-        self, team_id: int
-    ) -> tuple[list[exp.LevelUp], int]:
+    async def experience_level_up_observations(self, team_id: int) -> tuple[list[exp.LevelUp], int]:
         """Build calibration samples from real, fully observed intervals.
 
         An experience snapshot only exposes an integer level.  A first sighting

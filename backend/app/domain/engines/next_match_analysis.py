@@ -5,6 +5,7 @@ simulador de Hattrick.  La resistencia, forma y experiencia vienen tal cual
 de ``players.xml``; solamente el once probable se proyecta a partir de las
 alineaciones públicas de partidos ya terminados.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -71,29 +72,37 @@ def probable_starters(
         end_stars = seen.get("rating_stars_end")
         star_drop = (
             round(float(stars) - float(end_stars), 2)
-            if isinstance(stars, (int, float)) and isinstance(end_stars, (int, float))
-            and stars > 0 and end_stars > 0
+            if isinstance(stars, (int, float))
+            and isinstance(end_stars, (int, float))
+            and stars > 0
+            and end_stars > 0
             else None
         )
-        rows.append({
-            "ht_player_id": player_id,
-            "name": name,
-            "position_code": position_code,
-            "line": line_for_position(position_code),
-            "starts_in_sample": counts.get(player_id, 0),
-            "sample_size": len({a.get("match_id") for a in appearances if a.get("match_id")}),
-            "tsi": int(player.get("tsi", 0)),
-            "stamina": (
-                int(player.get("stamina", 0)) if player.get("stamina_is_read", True) else None
-            ),
-            "form": int(player.get("form", 0)) if player.get("form_is_read", True) else None,
-            "experience": (
-                int(player.get("experience", 0)) if player.get("experience_is_read", True) else None
-            ),
-            "rating_stars": stars if isinstance(stars, (int, float)) and stars > 0 else None,
-            "rating_stars_end": end_stars if isinstance(end_stars, (int, float)) and end_stars > 0 else None,
-            "rating_star_drop": star_drop,
-        })
+        rows.append(
+            {
+                "ht_player_id": player_id,
+                "name": name,
+                "position_code": position_code,
+                "line": line_for_position(position_code),
+                "starts_in_sample": counts.get(player_id, 0),
+                "sample_size": len({a.get("match_id") for a in appearances if a.get("match_id")}),
+                "tsi": int(player.get("tsi", 0)),
+                "stamina": (
+                    int(player.get("stamina", 0)) if player.get("stamina_is_read", True) else None
+                ),
+                "form": int(player.get("form", 0)) if player.get("form_is_read", True) else None,
+                "experience": (
+                    int(player.get("experience", 0))
+                    if player.get("experience_is_read", True)
+                    else None
+                ),
+                "rating_stars": stars if isinstance(stars, (int, float)) and stars > 0 else None,
+                "rating_stars_end": end_stars
+                if isinstance(end_stars, (int, float)) and end_stars > 0
+                else None,
+                "rating_star_drop": star_drop,
+            }
+        )
     return rows
 
 
@@ -127,7 +136,14 @@ def direct_condition_summary(players: list[dict[str, Any]]) -> dict[str, Any]:
     by_line: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for player in players:
         by_line[str(player["line"])].append(player)
-    line_order = ("Portería", "Defensa", "Bandas", "Mediocampo", "Delantera", "Sin posición observada")
+    line_order = (
+        "Portería",
+        "Defensa",
+        "Bandas",
+        "Mediocampo",
+        "Delantera",
+        "Sin posición observada",
+    )
 
     return {
         "players": len(players),
@@ -137,7 +153,8 @@ def direct_condition_summary(players: list[dict[str, Any]]) -> dict[str, Any]:
         "stamina_avg": average(players, "stamina"),
         "stamina_median": (
             float(median(row["stamina"] for row in players if row.get("stamina") is not None))
-            if metric_available("stamina") else None
+            if metric_available("stamina")
+            else None
         ),
         "form_avg": average(players, "form"),
         "experience_avg": average(players, "experience"),

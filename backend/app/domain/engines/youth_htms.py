@@ -25,6 +25,7 @@ queda por delante ES el activo.
 La horquilla mide lo que el ojeador NO ha dicho. Se estrecha sola según
 habla, sin que haya que explicar nada.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,7 +38,12 @@ TOPE_JUVENIL = 8
 
 #: El orden en que `htms.ability` espera las siete habilidades.
 SKILLS: tuple[str, ...] = (
-    "keeper", "defending", "playmaking", "winger", "passing", "scoring",
+    "keeper",
+    "defending",
+    "playmaking",
+    "winger",
+    "passing",
+    "scoring",
     "set_pieces",
 )
 
@@ -79,9 +85,7 @@ def niveles(lectura: Lectura) -> tuple[int, int]:
     return suelo, max(suelo, techo)
 
 
-def rango_htms28(
-    lecturas: dict[str, Lectura], age_years: int, age_days: int
-) -> Horquilla:
+def rango_htms28(lecturas: dict[str, Lectura], age_years: int, age_days: int) -> Horquilla:
     """La horquilla de HTMS28 de un canterano."""
     bajos: dict[str, int] = {}
     altos: dict[str, int] = {}

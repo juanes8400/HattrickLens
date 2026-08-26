@@ -14,6 +14,7 @@ El desfase no es constante: son +1 en invierno y +2 en verano, y el cambio no
 cae el mismo día cada año. Por eso se resuelve con la base de datos de zonas
 horarias y nunca con una constante.
 """
+
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 

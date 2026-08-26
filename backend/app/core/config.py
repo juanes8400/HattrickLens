@@ -63,13 +63,14 @@ def _normaliza_postgres(url: str) -> str:
     mano: es un paso que se olvida, y el error no dice que sobre un parámetro.
     """
     if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://"):]
+        url = "postgresql://" + url[len("postgres://") :]
     if url.startswith("postgresql://"):
-        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
+        url = "postgresql+asyncpg://" + url[len("postgresql://") :]
     if "+asyncpg" in url and "sslmode=" in url:
         partes = url.split("?", 1)
         opciones = [
-            o for o in partes[1].split("&")
+            o
+            for o in partes[1].split("&")
             if not o.startswith("sslmode=") and not o.startswith("channel_binding=")
         ]
         # `sslmode=require` en asyncpg se pide con `ssl=require`.
@@ -81,9 +82,7 @@ def _normaliza_postgres(url: str) -> str:
 @lru_cache
 def get_settings() -> Settings:
     ajustes = Settings()
-    return ajustes.model_copy(
-        update={"database_url": _normaliza_postgres(ajustes.database_url)}
-    )
+    return ajustes.model_copy(update={"database_url": _normaliza_postgres(ajustes.database_url)})
 
 
 settings = get_settings()

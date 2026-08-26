@@ -39,6 +39,7 @@ Lesiones, cambios de plantilla, tácticas y el partido concreto. Es un modelo de
 forma agregada: sirve para «¿tengo opciones de ascender?» y no para «¿gano el
 sábado?». La ventaja de campo es un parámetro global, no por estadio.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -86,7 +87,7 @@ class TeamOutlook:
     current_position: int
     expected_points: float
     expected_position: float
-    position_distribution: dict[int, float]   # posición → probabilidad
+    position_distribution: dict[int, float]  # posición → probabilidad
     title_probability: float
     # OJO al consumir este campo: es la probabilidad de TERMINAR 1º (idéntica
     # a `title_probability`), no la probabilidad real de ascender. En
@@ -96,9 +97,9 @@ class TeamOutlook:
     # que nunca puede calcular la probabilidad real de ascenso, solo la
     # condición necesaria (terminar 1º). 0.0 si ya es la división más alta.
     promotion_probability: float
-    second_to_fourth_probability: float       # 2º-4º
-    relegation_playoff_probability: float     # 5º-6º: promoción para no descender
-    relegation_probability: float             # 7º-8º, solo si no es ya la última división
+    second_to_fourth_probability: float  # 2º-4º
+    relegation_playoff_probability: float  # 5º-6º: promoción para no descender
+    relegation_probability: float  # 7º-8º, solo si no es ya la última división
     attack_strength: float
     defence_strength: float
 
@@ -194,8 +195,10 @@ def best_worst_case(
     )
 
     def run_scenario(
-        target_for_lambda: float | None, target_for_fixed: int | None,
-        target_against_lambda: float | None, target_against_fixed: int | None,
+        target_for_lambda: float | None,
+        target_for_fixed: int | None,
+        target_against_lambda: float | None,
+        target_against_fixed: int | None,
     ) -> tuple[dict[int, float], float]:
         rng = np.random.default_rng(seed)
         points = np.tile(np.array([r.points for r in records], dtype=float), (runs, 1))
@@ -229,8 +232,12 @@ def best_worst_case(
                 gh = rng.poisson(lh, runs).astype(float)
                 ga = rng.poisson(la, runs).astype(float)
 
-            points[:, h] += np.where(gh > ga, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS))
-            points[:, a] += np.where(ga > gh, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS))
+            points[:, h] += np.where(
+                gh > ga, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS)
+            )
+            points[:, a] += np.where(
+                ga > gh, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS)
+            )
             gd[:, h] += gh - ga
             gd[:, a] += ga - gh
             gf[:, h] += gh
@@ -256,20 +263,28 @@ def best_worst_case(
         return dist, expected_pts
 
     worst_dist, worst_pts = run_scenario(
-        target_for_lambda=_NEGLIGIBLE_LAMBDA, target_for_fixed=None,
-        target_against_lambda=None, target_against_fixed=_LANDSLIDE_GOALS,
+        target_for_lambda=_NEGLIGIBLE_LAMBDA,
+        target_for_fixed=None,
+        target_against_lambda=None,
+        target_against_fixed=_LANDSLIDE_GOALS,
     )
     best_dist, best_pts = run_scenario(
-        target_for_lambda=None, target_for_fixed=_LANDSLIDE_GOALS,
-        target_against_lambda=_NEGLIGIBLE_LAMBDA, target_against_fixed=None,
+        target_for_lambda=None,
+        target_for_fixed=_LANDSLIDE_GOALS,
+        target_against_lambda=_NEGLIGIBLE_LAMBDA,
+        target_against_fixed=None,
     )
 
     return BestWorstCase(
-        ht_team_id=target_team_id, name=target.name,
+        ht_team_id=target_team_id,
+        name=target.name,
         remaining_matches=remaining_matches,
-        current_points=target.points, current_position=current_position[target_team_id],
-        best_case_position_distribution=best_dist, best_case_expected_points=best_pts,
-        worst_case_position_distribution=worst_dist, worst_case_expected_points=worst_pts,
+        current_points=target.points,
+        current_position=current_position[target_team_id],
+        best_case_position_distribution=best_dist,
+        best_case_expected_points=best_pts,
+        worst_case_position_distribution=worst_dist,
+        worst_case_expected_points=worst_pts,
     )
 
 
@@ -413,13 +428,11 @@ def simulate(
                 # 5º-6º juegan una promoción para NO descender (no es un ascenso
                 # extra) — no aplica si no hay a dónde descender.
                 relegation_playoff_probability=(
-                    0.0 if is_bottom_division
-                    else round(dist.get(5, 0.0) + dist.get(6, 0.0), 4)
+                    0.0 if is_bottom_division else round(dist.get(5, 0.0) + dist.get(6, 0.0), 4)
                 ),
                 # 7º-8º descienden directo — nada si ya está en la última división.
                 relegation_probability=(
-                    0.0 if is_bottom_division
-                    else round(dist.get(n, 0.0) + dist.get(n - 1, 0.0), 4)
+                    0.0 if is_bottom_division else round(dist.get(n, 0.0) + dist.get(n - 1, 0.0), 4)
                 ),
                 attack_strength=round(attack[team_id], 3),
                 defence_strength=round(defence[team_id], 3),
@@ -461,7 +474,7 @@ def simulate(
     )
     if not is_top_division:
         caveats.append(
-            "\"Terminar 1º\" no es lo mismo que ascender: en las divisiones "
+            '"Terminar 1º" no es lo mismo que ascender: en las divisiones '
             "II-VI de Hattrick, el campeón asciende directo o juega una "
             "promoción según el ranking nacional de campeones de la "
             "temporada, un dato que ningún fichero CHPP expone hoy. El "
@@ -523,7 +536,9 @@ def model_info() -> dict[str, object]:
         "homeAdvantage": HOME_ADVANTAGE,
         "shrinkageFormula": "(goles + k × media_liga) / (partidos + k)",
         "tieBreakers": [
-            "puntos", "diferencia de goles", "goles a favor",
+            "puntos",
+            "diferencia de goles",
+            "goles a favor",
             "aleatorio (solo si los tres anteriores empatan exacto, por corrida)",
         ],
         "doesNotModel": ["lesiones", "alineaciones", "tácticas"],

@@ -3,6 +3,7 @@
 Pipeline por file: fetch → parse → diff (content_hash) → persist (append-only).
 Descargas SECUENCIALES (requisito CHPP). Sync parcial si un file falla.
 """
+
 import hashlib
 import json
 from collections.abc import Awaitable, Callable
@@ -98,12 +99,22 @@ FILE_LABELS: dict[str, str] = {
 # anterior — el libro entero, que es de donde salen las etapas, se recorre en
 # `_recorrer_historial`.
 DEFAULT_FILES = [
-    "players", "training", "economy", "teamdetails", "leaguedetails", "leaguefixtures",
-    "matches", "currentbids", "worlddetails", "club", "stafflist",
+    "players",
+    "training",
+    "economy",
+    "teamdetails",
+    "leaguedetails",
+    "leaguefixtures",
+    "matches",
+    "currentbids",
+    "worlddetails",
+    "club",
+    "stafflist",
     # youthteamdetails va ANTES que youthplayerlist: identifica qué academia es
     # la viva (id + fecha de creación) y con eso el módulo de Juveniles puede
     # acotar el ROI a la cantera actual en vez de sumar academias anteriores.
-    "youthteamdetails", "youthplayerlist",
+    "youthteamdetails",
+    "youthplayerlist",
 ]
 # worlddetails, 2026-08-04: única fuente de la temporada ACTUAL de Hattrick
 # (leaguedetails.xml no la trae). Antes no estaba en el sync por defecto, así
@@ -152,12 +163,16 @@ FILE_VERSIONS = {
     # trae IncomeSoldPlayers/Commission, IncomeSponsorBonuses y
     # Costs{BoughtPlayers,ArenaBuilding} por separado — verificado contra
     # `docs/chpp-reference/economy.txt`, un fichero real de esta cuenta.
-    "players": "2.8", "teamdetails": "3.6", "training": "2.2", "economy": "1.4",
+    "players": "2.8",
+    "teamdetails": "3.6",
+    "training": "2.2",
+    "economy": "1.4",
     # club 1.1, no 1.0: verificado en vivo 2026-08-12 — Hattrick YA NO honra
     # el pin a 1.0 y devuelve 1.1 igual (`<Specialists>` en vez de
     # `<Staff>`/niveles agregados por puesto). Fijar 1.1 explícito documenta
     # lo que de verdad se recibe en vez de mentir sobre qué versión se pidió.
-    "club": "1.1", "stafflist": "1.0",
+    "club": "1.1",
+    "stafflist": "1.0",
     # 2.0, no 1.8 (2026-08-09, confirmado por el usuario): a esta versión
     # `MatchRound` de cada `<League>` es la SEMANA real de temporada (1-16,
     # el mismo ciclo semanal de economía/entrenamiento) — no la jornada de
@@ -167,7 +182,9 @@ FILE_VERSIONS = {
     # ya se hace con matchlineup.xml.
     "worlddetails": "2.0",
     "trainingevents": "1.0",
-    "matches": "2.9", "matchdetails": "3.1", "leaguedetails": "1.6",
+    "matches": "2.9",
+    "matchdetails": "3.1",
+    "leaguedetails": "1.6",
     # 1.2 verificado en vivo: trae el calendario COMPLETO de la serie (los
     # 28 pares posibles, ida y vuelta) con MatchRound real — a diferencia de
     # matches.xml, que solo trae los partidos del equipo pedido.
@@ -180,10 +197,12 @@ FILE_VERSIONS = {
     # mercado — se usa para contar intentos de venta hacia adelante, CHPP
     # no da un historial de esto.
     "currentbids": "1.0",
-    "playerdetails": "3.2", "transfersteam": "1.2",
+    "playerdetails": "3.2",
+    "transfersteam": "1.2",
     # Los dos ficheros de seleccion. `nationalteammatches` no acepta ningun
     # parametro: siempre la misma ventana de un mes, todas las selecciones.
-    "nationalteammatches": "1.2", "nationalteamdetails": "1.9",
+    "nationalteammatches": "1.2",
+    "nationalteamdetails": "1.9",
     "arenadetails": "latest",
     # 1.2 verificado en vivo 2026-08-18: WeatherID (hoy) y TomorrowWeatherID.
     "regiondetails": "1.2",
@@ -223,12 +242,31 @@ VERSION_DEL_LIBRO = 2
 
 # Campos que definen "cambio real" (excluye derivados/ruido)
 HASH_FIELDS = (
-    "age_years", "age_days", "tsi", "form", "stamina", "experience",
-    "salary", "specialty", "injury_level", "is_transfer_listed", "skills",
-    "loyalty", "leadership", "agreeability", "aggressiveness", "honesty",
-    "mother_club_bonus", "country_id", "league_goals", "cup_goals",
-    "friendlies_goals", "career_goals", "career_hattricks",
-    "player_trainer_skill_level", "player_trainer_type",
+    "age_years",
+    "age_days",
+    "tsi",
+    "form",
+    "stamina",
+    "experience",
+    "salary",
+    "specialty",
+    "injury_level",
+    "is_transfer_listed",
+    "skills",
+    "loyalty",
+    "leadership",
+    "agreeability",
+    "aggressiveness",
+    "honesty",
+    "mother_club_bonus",
+    "country_id",
+    "league_goals",
+    "cup_goals",
+    "friendlies_goals",
+    "career_goals",
+    "career_hattricks",
+    "player_trainer_skill_level",
+    "player_trainer_type",
 )
 
 
@@ -245,8 +283,8 @@ def dict_hash(data: dict[str, Any]) -> bytes:
 @dataclass(frozen=True)
 class SyncTeamCommand:
     user_id: int
-    team_id: int          # id interno
-    ht_team_id: int       # id Hattrick
+    team_id: int  # id interno
+    ht_team_id: int  # id Hattrick
     files: list[str] | None = None
 
 
@@ -254,6 +292,7 @@ class SyncTeamCommand:
 class SyncMatchDetailsCommand:
     """matchdetails se pide por partido (matchID), no por equipo — de ahí un
     comando aparte en vez de meterlo en `files` de SyncTeamCommand."""
+
     user_id: int
     team_id: int
     ht_match_id: int
@@ -267,6 +306,7 @@ class SyncPlayerDetailsCommand:
     """playerdetails se pide por jugador (playerID) — igual que
     matchdetails, aparte de `files`: son N llamadas CHPP, una por jugador
     de la plantilla, no una sola por equipo."""
+
     user_id: int
     team_id: int
     ht_player_id: int
@@ -277,6 +317,7 @@ class SyncTransfersPlayerCommand:
     """transfersplayer.xml, HL-161: historial completo de UN jugador —
     igual que playerdetails/matchdetails, una llamada por jugador, acción
     aparte que dispara el usuario (no forma parte del sync por defecto)."""
+
     user_id: int
     team_id: int
     ht_player_id: int
@@ -291,6 +332,7 @@ class SyncTransfersHistoryCommand:
     vez recorre las ~40 páginas (casi 1000 transferencias); las siguientes
     paran en cuanto encuentran un TransferID ya conocido — ver
     `execute_transfers_history`."""
+
     user_id: int
     team_id: int
     ht_team_id: int
@@ -305,6 +347,7 @@ class SyncPlayerEnrichmentCommand:
     porque una vez calculado para un jugador nunca vuelve a hacer falta, así
     que ahora se dispara solo, automático, dentro de `execute()` (ver
     `_backfill_player_enrichment`)."""
+
     user_id: int
     team_id: int
     ht_player_id: int
@@ -319,6 +362,7 @@ class SyncPreviousClubBonusCommand:
     Dispara tanto el backfill masivo bajo demanda como, acotado, el
     monitoreo automático dentro de `execute()` (ver
     `_backfill_previous_club_bonus`)."""
+
     user_id: int
     team_id: int
     ht_player_id: int
@@ -413,8 +457,14 @@ class SyncTeamHandler:
                         file, version=FILE_VERSIONS.get(file, "latest"), **params
                     )
                     await self._persist(
-                        uow, sync_id, cmd.team_id, cmd.ht_team_id, file, payload,
-                        captured_at, result,
+                        uow,
+                        sync_id,
+                        cmd.team_id,
+                        cmd.ht_team_id,
+                        file,
+                        payload,
+                        captured_at,
+                        result,
                     )
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"{file}: {exc}")
@@ -427,9 +477,7 @@ class SyncTeamHandler:
             # snapshots existentes al actualizar desde una versión anterior
             # de HT Lens, sin volver a pedir una ficha por jugador.
             if "players" in files or "worlddetails" in files:
-                await self._backfill_native_countries_from_snapshots(
-                    uow, cmd.team_id, result
-                )
+                await self._backfill_native_countries_from_snapshots(uow, cmd.team_id, result)
             if "players" in files:
                 # Quien esta en venta sale de la plantilla, no de la lista de
                 # pujas. Va antes que `currentbids`, que solo enriquece.
@@ -437,7 +485,11 @@ class SyncTeamHandler:
 
             if "youthplayerlist" in files:
                 await self._sync_informes_de_ojeador(
-                    uow, cmd.team_id, captured_at, result, on_progress,
+                    uow,
+                    cmd.team_id,
+                    captured_at,
+                    result,
+                    on_progress,
                 )
 
             from app.infrastructure.db import models as m
@@ -461,13 +513,16 @@ class SyncTeamHandler:
             # plantilla, y una sincronizacion restringida a otro fichero no
             # tiene por que gastar una llamada en el.
             equipo_libro = (
-                await uow.session.get(m.Team, cmd.team_id)
-                if "players" in files else None
+                await uow.session.get(m.Team, cmd.team_id) if "players" in files else None
             )
             if equipo_libro is not None:
                 await _report(on_progress, "Revisando tus compras y ventas...")
                 await self._recorrer_historial(
-                    uow, cmd.user_id, cmd.team_id, equipo_libro, result,
+                    uow,
+                    cmd.user_id,
+                    cmd.team_id,
+                    equipo_libro,
+                    result,
                 )
 
             if result.departed_players:
@@ -490,12 +545,16 @@ class SyncTeamHandler:
 
             for c in result.changes:
                 detail = c.get("detail")
-                uow.session.add(m.SyncChange(
-                    sync_id=sync_id, team_id=cmd.team_id, category=c["category"],
-                    summary=c["summary"],
-                    detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
-                    created_at=captured_at,
-                ))
+                uow.session.add(
+                    m.SyncChange(
+                        sync_id=sync_id,
+                        team_id=cmd.team_id,
+                        category=c["category"],
+                        summary=c["summary"],
+                        detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+                        created_at=captured_at,
+                    )
+                )
 
             # HL-161: enriquecimiento de jugadores vendidos (edad en la
             # venta, país, carácter, especialidad, país destino) — pedido
@@ -535,12 +594,8 @@ class SyncTeamHandler:
                 await self._sync_active_roster_player_details(
                     uow, cmd.team_id, captured_at, result, on_progress
                 )
-                await self._censar_partidos_de_seleccion(
-                    uow, cmd.team_id, captured_at, result
-                )
-                await self._sync_training_events(
-                    uow, cmd.team_id, captured_at, result, on_progress
-                )
+                await self._censar_partidos_de_seleccion(uow, cmd.team_id, captured_at, result)
+                await self._sync_training_events(uow, cmd.team_id, captured_at, result, on_progress)
             if "matches" in files:
                 await self._sync_upcoming_match_orders(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
@@ -560,7 +615,8 @@ class SyncTeamHandler:
             await self._resolver_moneda(uow, cmd.team_id)
 
             await uow.syncs.finalize(
-                sync_id, status=result.status,
+                sync_id,
+                status=result.status,
                 error="; ".join(result.errors) or None,
             )
             await uow.commit()
@@ -602,9 +658,7 @@ class SyncTeamHandler:
                     .limit(1)
                 )
             if sync_id is None:
-                sync_id = await uow.syncs.create(
-                    cmd.user_id, cmd.team_id, kind="backfill_batch"
-                )
+                sync_id = await uow.syncs.create(cmd.user_id, cmd.team_id, kind="backfill_batch")
             result = SyncResult(sync_id=sync_id, status="completed")
             fetched_at = datetime.now(UTC).replace(tzinfo=None)
 
@@ -612,12 +666,15 @@ class SyncTeamHandler:
             # y los trae "Sincronizar ahora" (2026-08-25). Este boton es solo
             # para la vigilancia y la caza de comisiones de reventa.
             result.players_done = await self._backfill_sold_player_details(
-                uow, cmd.team_id, fetched_at, result, on_progress,
-                limite=cmd.limite, revisar_desde=cmd.revisar_desde,
+                uow,
+                cmd.team_id,
+                fetched_at,
+                result,
+                on_progress,
+                limite=cmd.limite,
+                revisar_desde=cmd.revisar_desde,
             )
-            quedan = await self.pendientes_de_ficha(
-                uow, cmd.team_id, cmd.revisar_desde
-            )
+            quedan = await self.pendientes_de_ficha(uow, cmd.team_id, cmd.revisar_desde)
             # La union de TODAS las colas, sin nombrarlas una a una: nombrarlas
             # ya costo un fallo -al anadir el censo y la vigilancia, esta
             # cuenta se quedo mirando solo las tres viejas y devolvia 0, con lo
@@ -632,21 +689,30 @@ class SyncTeamHandler:
             # se pierde en cuanto se cierra la pantalla, y esto es dinero.
             for c in result.changes:
                 detail = c.get("detail")
-                uow.session.add(m.SyncChange(
-                    sync_id=sync_id, team_id=cmd.team_id, category=c["category"],
-                    summary=c["summary"],
-                    detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
-                    created_at=fetched_at,
-                ))
+                uow.session.add(
+                    m.SyncChange(
+                        sync_id=sync_id,
+                        team_id=cmd.team_id,
+                        category=c["category"],
+                        summary=c["summary"],
+                        detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+                        created_at=fetched_at,
+                    )
+                )
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
 
     async def pendientes_de_ficha(
-        self, uow: UnitOfWork, team_id: int, revisar_desde: datetime | None = None,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        revisar_desde: datetime | None = None,
     ) -> dict[str, list[int]]:
         """Qué le falta por descargar a cada jugador, agrupado por tipo.
 
@@ -723,10 +789,7 @@ class SyncTeamHandler:
                         | m.Player.agreeability.is_(None)
                         | m.Player.specialty.is_(None)
                         | m.Player.mother_club_team_id.is_(None)
-                        | (
-                            m.Player.age_years_at_sale.is_(None)
-                            & ~hay_snapshot_antes_de_la_venta
-                        )
+                        | (m.Player.age_years_at_sale.is_(None) & ~hay_snapshot_antes_de_la_venta)
                     )
                 )
                 | (
@@ -741,10 +804,7 @@ class SyncTeamHandler:
         precio = await ids(
             (~m.Player.tsi_at_purchase_attempted)
             & (
-                (
-                    m.Player.purchase_price.is_(None)
-                    & m.Player.purchase_price_manual.is_(None)
-                )
+                (m.Player.purchase_price.is_(None) & m.Player.purchase_price_manual.is_(None))
                 | (m.Player.sold_at.is_not(None) & m.Player.tsi_at_purchase.is_(None))
             )
         )
@@ -760,9 +820,8 @@ class SyncTeamHandler:
         )
         # La vigilancia de reventas: se repite hasta que el jugador queda
         # cerrado, y entonces desaparece de la cola para siempre.
-        vigilancia = (
-            (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
-            & (~m.Player.resale_closed)
+        vigilancia = (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None)) & (
+            ~m.Player.resale_closed
         )
         if revisar_desde is not None:
             # Ya revisado en esta misma pasada: fuera de la cola hasta la
@@ -773,8 +832,11 @@ class SyncTeamHandler:
             )
         reventa = await ids(vigilancia)
         return {
-            "ficha": ficha, "precio": precio, "destino": destino,
-            "censo": censo, "reventa": reventa,
+            "ficha": ficha,
+            "precio": precio,
+            "destino": destino,
+            "censo": censo,
+            "reventa": reventa,
         }
 
     async def _backfill_sold_player_details(
@@ -862,29 +924,35 @@ class SyncTeamHandler:
             # repite igualmente, porque `revisar_desde` los saca de la cola en
             # cuanto se les mira.
             if revisar_desde is not None and equipo.sweep_started_at != revisar_desde:
-                eje_nuevo = list((
-                    await uow.session.execute(
-                        select(m.Player.ht_player_id)
-                        .where(
-                            m.Player.team_id == team_id,
-                            # La MISMA salvaguardia que usan las colas: quien
-                            # lleva prestado el numero de su transferencia no
-                            # tiene ficha y no se le pregunta jamas. Sin ella
-                            # ocupaba casilla --67 de 266 en la cuenta real, y
-                            # dieciseis de ellas las primeras--.
-                            ~m.Player.ht_player_id_is_transfer,
-                            ~m.Player.resale_closed,
-                            m.Player.sold_at.is_not(None)
-                            | m.Player.left_team_at.is_not(None),
-                        )
-                        .order_by(
-                            sa_func.coalesce(
-                                m.Player.sold_at, m.Player.left_team_at,
-                            ).desc().nullslast(),
-                            m.Player.ht_player_id.desc(),
+                eje_nuevo = list(
+                    (
+                        await uow.session.execute(
+                            select(m.Player.ht_player_id)
+                            .where(
+                                m.Player.team_id == team_id,
+                                # La MISMA salvaguardia que usan las colas: quien
+                                # lleva prestado el numero de su transferencia no
+                                # tiene ficha y no se le pregunta jamas. Sin ella
+                                # ocupaba casilla --67 de 266 en la cuenta real, y
+                                # dieciseis de ellas las primeras--.
+                                ~m.Player.ht_player_id_is_transfer,
+                                ~m.Player.resale_closed,
+                                m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None),
+                            )
+                            .order_by(
+                                sa_func.coalesce(
+                                    m.Player.sold_at,
+                                    m.Player.left_team_at,
+                                )
+                                .desc()
+                                .nullslast(),
+                                m.Player.ht_player_id.desc(),
+                            )
                         )
                     )
-                ).scalars().all())
+                    .scalars()
+                    .all()
+                )
                 equipo.sweep_axis_json = json.dumps(eje_nuevo)
                 equipo.sweep_started_at = revisar_desde
                 probados = set()
@@ -893,19 +961,30 @@ class SyncTeamHandler:
             probados = set()
 
         union = ficha | precio | destino | censo | reventa
-        todos = list((
-            await uow.session.execute(
-                select(m.Player.ht_player_id)
-                .where(m.Player.ht_player_id.in_(union))
-                .order_by(
-                    sa_func.coalesce(
-                        m.Player.sold_at, m.Player.left_team_at,
-                        m.Player.purchased_at,
-                    ).desc().nullslast(),
-                    m.Player.ht_player_id.desc(),
+        todos = (
+            list(
+                (
+                    await uow.session.execute(
+                        select(m.Player.ht_player_id)
+                        .where(m.Player.ht_player_id.in_(union))
+                        .order_by(
+                            sa_func.coalesce(
+                                m.Player.sold_at,
+                                m.Player.left_team_at,
+                                m.Player.purchased_at,
+                            )
+                            .desc()
+                            .nullslast(),
+                            m.Player.ht_player_id.desc(),
+                        )
+                    )
                 )
+                .scalars()
+                .all()
             )
-        ).scalars().all()) if union else []
+            if union
+            else []
+        )
 
         if reventa:
             # Uno reciente, uno al azar, uno reciente… sobre la cola de
@@ -922,7 +1001,9 @@ class SyncTeamHandler:
             # las dos con las mismas llamadas.
             cola = [x for x in todos if x in reventa]
             perseguidos = caza.orden_de_busqueda(
-                cola, probados, len(cola),
+                cola,
+                probados,
+                len(cola),
                 empezar_por_reciente=(len(probados) % 2 == 0),
             )
             resto = [x for x in todos if x not in set(perseguidos)]
@@ -935,9 +1016,9 @@ class SyncTeamHandler:
         # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`
         # devuelve cierto tambien para las ya anotadas-- y lo segundo permite
         # recuperarlas al final para anunciarlas.
-        comisiones_antes = await uow.session.scalar(
-            select(sa_func.count(m.PreviousClubBonus.id))
-        ) or 0
+        comisiones_antes = (
+            await uow.session.scalar(select(sa_func.count(m.PreviousClubBonus.id))) or 0
+        )
         arranque = datetime.now(UTC).replace(tzinfo=None)
 
         for ht_player_id in todos:
@@ -947,13 +1028,9 @@ class SyncTeamHandler:
             if nombre:
                 result.players_named.append(nombre)
             if ht_player_id in ficha:
-                await _report(
-                    on_progress, f"Descargando ficha de ex-jugador {ht_player_id}..."
-                )
+                await _report(on_progress, f"Descargando ficha de ex-jugador {ht_player_id}...")
                 try:
-                    wrote = await self._apply_player_enrichment(
-                        uow, ht_player_id, fetched_at
-                    )
+                    wrote = await self._apply_player_enrichment(uow, ht_player_id, fetched_at)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
@@ -964,17 +1041,13 @@ class SyncTeamHandler:
                     f"Descargando transferencias de jugador {ht_player_id}...",
                 )
                 try:
-                    wrote = await self._apply_transfers_player_purchase(
-                        uow, team_id, ht_player_id
-                    )
+                    wrote = await self._apply_transfers_player_purchase(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in destino:
-                await _report(
-                    on_progress, f"Descargando país destino de jugador {ht_player_id}..."
-                )
+                await _report(on_progress, f"Descargando país destino de jugador {ht_player_id}...")
                 try:
                     wrote = await self._apply_destination_country(uow, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
@@ -987,17 +1060,13 @@ class SyncTeamHandler:
                     f"Contando partidos con nosotros de {ht_player_id}...",
                 )
                 try:
-                    wrote = await self._censar_partidos_del_stint(
-                        uow, team_id, ht_player_id
-                    )
+                    wrote = await self._censar_partidos_del_stint(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
                     result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in reventa:
-                await _report(
-                    on_progress, f"Revisando reventas de {ht_player_id}..."
-                )
+                await _report(on_progress, f"Revisando reventas de {ht_player_id}...")
                 try:
                     wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
@@ -1008,19 +1077,21 @@ class SyncTeamHandler:
         # Los expedientes que se cerraron en ESTA tanda. Un jugador cerrado
         # sale de la cola y ya no se le vuelve a mirar, asi que "cerrado y
         # revisado desde que arranco" es exactamente eso.
-        cerrados = list((
-            await uow.session.execute(
-                select(
-                    m.Player.first_name, m.Player.last_name,
-                    m.Player.resale_closed_reason,
+        cerrados = list(
+            (
+                await uow.session.execute(
+                    select(
+                        m.Player.first_name,
+                        m.Player.last_name,
+                        m.Player.resale_closed_reason,
+                    ).where(
+                        m.Player.team_id == team_id,
+                        m.Player.resale_closed.is_(True),
+                        m.Player.previous_club_bonus_checked_at >= arranque,
+                    )
                 )
-                .where(
-                    m.Player.team_id == team_id,
-                    m.Player.resale_closed.is_(True),
-                    m.Player.previous_club_bonus_checked_at >= arranque,
-                )
-            )
-        ).all())
+            ).all()
+        )
         if cerrados:
             conteo: dict[str, int] = {}
             for nombre, apellido, motivo in cerrados:
@@ -1043,13 +1114,15 @@ class SyncTeamHandler:
         # No se corta la tanda al encontrarla --tambien pedido asi--: el resto
         # de la cola sigue necesitando ficha, precio o censo, que no tienen
         # que ver con la caceria.
-        nuevas = list((
-            await uow.session.execute(
-                select(m.PreviousClubBonus, m.Player.first_name, m.Player.last_name)
-                .join(m.Player, m.Player.id == m.PreviousClubBonus.player_id)
-                .where(m.PreviousClubBonus.computed_at >= arranque)
-            )
-        ).all())
+        nuevas = list(
+            (
+                await uow.session.execute(
+                    select(m.PreviousClubBonus, m.Player.first_name, m.Player.last_name)
+                    .join(m.Player, m.Player.id == m.PreviousClubBonus.player_id)
+                    .where(m.PreviousClubBonus.computed_at >= arranque)
+                )
+            ).all()
+        )
         if nuevas:
             equipo_moneda = await uow.session.get(m.Team, team_id)
             moneda = equipo_moneda.currency_name if equipo_moneda else ""
@@ -1072,9 +1145,9 @@ class SyncTeamHandler:
             # A quien se probo, para no repetirlo en la siguiente pulsacion.
             probados |= {x for x in todos if x in reventa}
 
-            comisiones_ahora = await uow.session.scalar(
-                select(sa_func.count(m.PreviousClubBonus.id))
-            ) or 0
+            comisiones_ahora = (
+                await uow.session.scalar(select(sa_func.count(m.PreviousClubBonus.id))) or 0
+            )
             aparecio = comisiones_ahora > comisiones_antes
             barrido_completo = not [x for x in reventa if x not in probados]
             if cazando and (aparecio or barrido_completo):
@@ -1109,53 +1182,62 @@ class SyncTeamHandler:
                 # `IN (...)` gasta una variable por jugador y SQLite corta a
                 # las 999: hoy el eje son 191, pero un historial mas largo
                 # reventaria la peticion en mitad del barrido.
-                atendidos = set((
-                    await uow.session.execute(
-                        select(m.Player.ht_player_id)
-                        .where(
-                            m.Player.team_id == team_id,
-                            m.Player.previous_club_bonus_checked_at.is_not(None),
-                            m.Player.previous_club_bonus_checked_at
-                            >= equipo.sweep_started_at,
+                atendidos = set(
+                    (
+                        await uow.session.execute(
+                            select(m.Player.ht_player_id).where(
+                                m.Player.team_id == team_id,
+                                m.Player.previous_club_bonus_checked_at.is_not(None),
+                                m.Player.previous_club_bonus_checked_at >= equipo.sweep_started_at,
+                            )
                         )
                     )
-                ).scalars().all())
+                    .scalars()
+                    .all()
+                )
                 result.queue_map = mapa_del_barrido.mapa_de(eje, atendidos)
 
                 # El resumen para cuando el barrido pare --lo pare el usuario
                 # o se acabe la cola--. Todo se mide DESDE QUE ARRANCO el
                 # barrido, no desde este lote: el usuario ve el resultado del
                 # recorrido entero, que es lo que ha estado esperando.
-                abiertos = await uow.session.scalar(
-                    select(sa_func.count(m.Player.id)).where(
-                        m.Player.team_id == team_id,
-                        ~m.Player.ht_player_id_is_transfer,
-                        ~m.Player.resale_closed,
-                        m.Player.sold_at.is_not(None)
-                        | m.Player.left_team_at.is_not(None),
+                abiertos = (
+                    await uow.session.scalar(
+                        select(sa_func.count(m.Player.id)).where(
+                            m.Player.team_id == team_id,
+                            ~m.Player.ht_player_id_is_transfer,
+                            ~m.Player.resale_closed,
+                            m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None),
+                        )
                     )
-                ) or 0
+                    or 0
+                )
                 # `group_by` quiere la expresion, no el numero de columna.
                 motivo = sa_func.coalesce(
-                    m.Player.resale_closed_reason, "sin_comprador",
+                    m.Player.resale_closed_reason,
+                    "sin_comprador",
                 )
-                cerrados_del_barrido = dict((
-                    await uow.session.execute(
-                        select(motivo, sa_func.count(m.Player.id))
-                        .where(
-                            m.Player.team_id == team_id,
-                            m.Player.resale_closed.is_(True),
-                            m.Player.previous_club_bonus_checked_at
-                            >= equipo.sweep_started_at,
+                cerrados_del_barrido = dict(
+                    (
+                        await uow.session.execute(
+                            select(motivo, sa_func.count(m.Player.id))
+                            .where(
+                                m.Player.team_id == team_id,
+                                m.Player.resale_closed.is_(True),
+                                m.Player.previous_club_bonus_checked_at >= equipo.sweep_started_at,
+                            )
+                            .group_by(motivo)
                         )
-                        .group_by(motivo)
+                    ).all()
+                )
+                comisiones_del_barrido = (
+                    await uow.session.scalar(
+                        select(sa_func.count(m.PreviousClubBonus.id)).where(
+                            m.PreviousClubBonus.computed_at >= equipo.sweep_started_at
+                        )
                     )
-                ).all())
-                comisiones_del_barrido = await uow.session.scalar(
-                    select(sa_func.count(m.PreviousClubBonus.id)).where(
-                        m.PreviousClubBonus.computed_at >= equipo.sweep_started_at
-                    )
-                ) or 0
+                    or 0
+                )
                 result.queue_balance = mapa_del_barrido.balance_de(
                     result.queue_map,
                     abiertos=abiertos,
@@ -1211,10 +1293,7 @@ class SyncTeamHandler:
                 .join(m.PlayerSnapshot, m.PlayerSnapshot.id == latest_snapshot_id)
                 .where(
                     m.Player.team_id == team_id,
-                    (
-                        m.Player.native_country.is_(None)
-                        | (m.Player.native_country == "")
-                    ),
+                    (m.Player.native_country.is_(None) | (m.Player.native_country == "")),
                     m.PlayerSnapshot.country_id > 0,
                 )
             )
@@ -1246,14 +1325,18 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         players = (
-            await uow.session.execute(
-                select(m.Player).where(
-                    m.Player.team_id == team_id,
-                    m.Player.sold_at.is_not(None),
-                    m.Player.listing_count == 0,
+            (
+                await uow.session.execute(
+                    select(m.Player).where(
+                        m.Player.team_id == team_id,
+                        m.Player.sold_at.is_not(None),
+                        m.Player.listing_count == 0,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for player in players:
             player.listing_count = 1
             result.snapshots_written += 1
@@ -1306,9 +1389,7 @@ class SyncTeamHandler:
             .offset(1)
             .limit(1)
         )
-        desde = (anterior.started_at if anterior else None) or (
-            captured_at - timedelta(days=7)
-        )
+        desde = (anterior.started_at if anterior else None) or (captured_at - timedelta(days=7))
         if desde.tzinfo is None:
             desde = desde.replace(tzinfo=UTC)
 
@@ -1373,9 +1454,7 @@ class SyncTeamHandler:
                 cuando = ht_to_utc(compra.get("deadline", ""))
                 if cuando is None or cuando <= desde:
                     continue
-                nota = await self._best_recent_rating(
-                    rival_id, compra.get("ht_player_id") or 0
-                )
+                nota = await self._best_recent_rating(rival_id, compra.get("ht_player_id") or 0)
                 cambio = diff_rival_purchase(
                     team_name=nombre_club,
                     player_name=compra.get("player_name", ""),
@@ -1474,14 +1553,17 @@ class SyncTeamHandler:
         # app: si un duelo de mañana tapara al partido de liga, el aviso
         # hablaría del cielo equivocado.
         match = await uow.session.scalar(
-            select(m.Match).where(
+            select(m.Match)
+            .where(
                 or_(
                     m.Match.home_team_ht_id == ht_team_id,
                     m.Match.away_team_ht_id == ht_team_id,
                 ),
                 m.Match.status.ilike("upcoming"),
                 m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES),
-            ).order_by(m.Match.played_at).limit(1)
+            )
+            .order_by(m.Match.played_at)
+            .limit(1)
         )
         if match is None:
             return
@@ -1512,7 +1594,8 @@ class SyncTeamHandler:
                 )
                 local = next(
                     (
-                        t for t in detalles.get("teams", [])
+                        t
+                        for t in detalles.get("teams", [])
                         if t.get("ht_team_id") == match.home_team_ht_id
                     ),
                     None,
@@ -1565,17 +1648,23 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         pending = (
-            await uow.session.execute(
-                select(m.Match).where(
-                    or_(
-                        m.Match.home_team_ht_id == ht_team_id,
-                        m.Match.away_team_ht_id == ht_team_id,
-                    ),
-                    m.Match.orders_given.is_(True),
-                    m.Match.status.ilike("upcoming"),
-                ).order_by(m.Match.played_at)
+            (
+                await uow.session.execute(
+                    select(m.Match)
+                    .where(
+                        or_(
+                            m.Match.home_team_ht_id == ht_team_id,
+                            m.Match.away_team_ht_id == ht_team_id,
+                        ),
+                        m.Match.orders_given.is_(True),
+                        m.Match.status.ilike("upcoming"),
+                    )
+                    .order_by(m.Match.played_at)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for match in pending:
             await _report(
@@ -1638,9 +1727,8 @@ class SyncTeamHandler:
                         actionType="predictratings",
                     )
                     prediction = predicted_payload.get("prediction")
-                    if (
-                        predicted_payload.get("ht_match_id") == match.ht_match_id
-                        and isinstance(prediction, dict)
+                    if predicted_payload.get("ht_match_id") == match.ht_match_id and isinstance(
+                        prediction, dict
                     ):
                         ratings = prediction.get("ratings") or {}
                         predicted_before = (
@@ -1728,26 +1816,31 @@ class SyncTeamHandler:
 
         ratings_missing = ~m.Match.ht_match_id.in_(select(m.MatchRating.ht_match_id))
         stadium_missing_on_home = (
-            (m.Match.home_team_ht_id == ht_team_id)
-            & ~m.Match.ht_match_id.in_(select(m.StadiumHistory.ht_match_id))
-        )
+            m.Match.home_team_ht_id == ht_team_id
+        ) & ~m.Match.ht_match_id.in_(select(m.StadiumHistory.ht_match_id))
         pending = (
-            await uow.session.execute(
-                select(m.Match.ht_match_id).where(
-                    (m.Match.home_team_ht_id == ht_team_id)
-                    | (m.Match.away_team_ht_id == ht_team_id),
-                    m.Match.status.ilike("finished"),
-                    (ratings_missing | stadium_missing_on_home),
+            (
+                await uow.session.execute(
+                    select(m.Match.ht_match_id).where(
+                        (m.Match.home_team_ht_id == ht_team_id)
+                        | (m.Match.away_team_ht_id == ht_team_id),
+                        m.Match.status.ilike("finished"),
+                        (ratings_missing | stadium_missing_on_home),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if not pending:
             return
 
         arena_capacity: dict[str, int] | None = None
         try:
             arena = await self._chpp.fetch(
-                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=ht_team_id,
+                "arenadetails",
+                version=FILE_VERSIONS["arenadetails"],
+                teamID=ht_team_id,
             )
             arena_capacity = arena.get("current_capacity")
         except Exception as exc:  # noqa: BLE001 — no invalida ratings si falla solo el aforo
@@ -1762,14 +1855,14 @@ class SyncTeamHandler:
                 match = await uow.session.scalar(
                     select(m.Match).where(m.Match.ht_match_id == ht_match_id)
                 )
-                is_own_home_match = bool(
-                    match is not None and match.home_team_ht_id == ht_team_id
-                )
+                is_own_home_match = bool(match is not None and match.home_team_ht_id == ht_team_id)
                 already_stadium = await uow.session.scalar(
                     select(m.StadiumHistory.id).where(m.StadiumHistory.ht_match_id == ht_match_id)
                 )
                 payload = await self._chpp.fetch(
-                    "matchdetails", version=FILE_VERSIONS["matchdetails"], matchID=ht_match_id,
+                    "matchdetails",
+                    version=FILE_VERSIONS["matchdetails"],
+                    matchID=ht_match_id,
                 )
                 # Defensivo: `_persist_match_details` confía en
                 # `payload["ht_match_id"]`, no en el ID pedido — nunca debería
@@ -1781,8 +1874,11 @@ class SyncTeamHandler:
                 if payload.get("ht_match_id") != ht_match_id:
                     continue
                 self._persist_match_details(
-                    uow, payload, result,
-                    team_id=team_id, match=match,
+                    uow,
+                    payload,
+                    result,
+                    team_id=team_id,
+                    match=match,
                     write_ratings=not bool(already_ratings),
                     write_stadium=is_own_home_match and not bool(already_stadium),
                     arena_capacity=arena_capacity,
@@ -1822,13 +1918,9 @@ class SyncTeamHandler:
 
         candidatos: list[m.WorldContext | None] = []
         if equipo.ht_league_id is not None:
-            candidatos.append(
-                await _contexto(m.WorldContext.ht_league_id == equipo.ht_league_id)
-            )
+            candidatos.append(await _contexto(m.WorldContext.ht_league_id == equipo.ht_league_id))
         if equipo.league_name:
-            candidatos.append(
-                await _contexto(m.WorldContext.league_name == equipo.league_name)
-            )
+            candidatos.append(await _contexto(m.WorldContext.league_name == equipo.league_name))
         for fila in candidatos:
             if fila is not None and fila.currency_name:
                 equipo.currency_name = fila.currency_name
@@ -1889,7 +1981,8 @@ class SyncTeamHandler:
 
             try:
                 payload = await self._chpp.fetch(
-                    "matchdetails", version=FILE_VERSIONS["matchdetails"],
+                    "matchdetails",
+                    version=FILE_VERSIONS["matchdetails"],
                     matchID=cmd.ht_match_id,
                 )
                 self._persist_match_details(
@@ -1907,7 +2000,9 @@ class SyncTeamHandler:
                 result.status = "partial"
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
@@ -1937,60 +2032,65 @@ class SyncTeamHandler:
                     continue
                 ratings = team.get("ratings", {})
                 chances = team.get("chances", {})
-                uow.session.add(m.MatchRating(
-                    ht_match_id=ht_match_id, team_ht_id=team.get("team_id", 0),
-                    is_home=(side == "home"),
-                    midfield=ratings.get("midfield", 0),
-                    right_def=ratings.get("right_def", 0),
-                    central_def=ratings.get("central_def", 0),
-                    left_def=ratings.get("left_def", 0),
-                    right_att=ratings.get("right_att", 0),
-                    central_att=ratings.get("central_att", 0),
-                    left_att=ratings.get("left_att", 0),
-                    tactic_type=team.get("tactic_type", 0),
-                    tactic_skill=team.get("tactic_skill", 0),
-                    # CHPP nunca trae <TeamAttitude> para el lado que no es
-                    # el del usuario (verificado en vivo) — sin la bandera
-                    # `attitude_is_read`, ese "sin dato" se guardaría como el
-                    # -1 por defecto del parser, indistinguible del código
-                    # real -1 ("Jugar relajados").
-                    attitude=team.get("attitude") if team.get("attitude_is_read") else None,
-                    possession_first_half=payload.get("possession", {}).get(
-                        f"first_half_{side}", 50
-                    ),
-                    possession_second_half=payload.get("possession", {}).get(
-                        f"second_half_{side}", 50
-                    ),
-                    chances_left=chances.get("left", 0),
-                    chances_center=chances.get("center", 0),
-                    chances_right=chances.get("right", 0),
-                    chances_special=chances.get("special", 0),
-                    chances_other=chances.get("other", 0),
-                ))
+                uow.session.add(
+                    m.MatchRating(
+                        ht_match_id=ht_match_id,
+                        team_ht_id=team.get("team_id", 0),
+                        is_home=(side == "home"),
+                        midfield=ratings.get("midfield", 0),
+                        right_def=ratings.get("right_def", 0),
+                        central_def=ratings.get("central_def", 0),
+                        left_def=ratings.get("left_def", 0),
+                        right_att=ratings.get("right_att", 0),
+                        central_att=ratings.get("central_att", 0),
+                        left_att=ratings.get("left_att", 0),
+                        tactic_type=team.get("tactic_type", 0),
+                        tactic_skill=team.get("tactic_skill", 0),
+                        # CHPP nunca trae <TeamAttitude> para el lado que no es
+                        # el del usuario (verificado en vivo) — sin la bandera
+                        # `attitude_is_read`, ese "sin dato" se guardaría como el
+                        # -1 por defecto del parser, indistinguible del código
+                        # real -1 ("Jugar relajados").
+                        attitude=team.get("attitude") if team.get("attitude_is_read") else None,
+                        possession_first_half=payload.get("possession", {}).get(
+                            f"first_half_{side}", 50
+                        ),
+                        possession_second_half=payload.get("possession", {}).get(
+                            f"second_half_{side}", 50
+                        ),
+                        chances_left=chances.get("left", 0),
+                        chances_center=chances.get("center", 0),
+                        chances_right=chances.get("right", 0),
+                        chances_special=chances.get("special", 0),
+                        chances_other=chances.get("other", 0),
+                    )
+                )
                 result.snapshots_written += 1
 
         if write_stadium and match is not None:
             arena = payload.get("arena") or {}
             capacity = arena_capacity or {}
             sold_total = arena.get("spectators", 0)
-            uow.session.add(m.StadiumHistory(
-                team_id=team_id,
-                ht_match_id=ht_match_id,
-                played_at=match.played_at,
-                match_type=match.match_type,
-                weather=arena.get("weather", -1),
-                # Si arenadetails no llegó, se conserva el mínimo observable
-                # y la consulta declara que el desglose es derivado.
-                capacity_total=max(capacity.get("total", 0), sold_total),
-                capacity_terraces=capacity.get("terraces") or None,
-                capacity_basic=capacity.get("basic") or None,
-                capacity_roof=capacity.get("roof") or None,
-                capacity_vip=capacity.get("vip") or None,
-                sold_terraces=arena.get("sold_terraces", 0),
-                sold_basic=arena.get("sold_basic", 0),
-                sold_roof=arena.get("sold_roof", 0),
-                sold_vip=arena.get("sold_vip", 0),
-            ))
+            uow.session.add(
+                m.StadiumHistory(
+                    team_id=team_id,
+                    ht_match_id=ht_match_id,
+                    played_at=match.played_at,
+                    match_type=match.match_type,
+                    weather=arena.get("weather", -1),
+                    # Si arenadetails no llegó, se conserva el mínimo observable
+                    # y la consulta declara que el desglose es derivado.
+                    capacity_total=max(capacity.get("total", 0), sold_total),
+                    capacity_terraces=capacity.get("terraces") or None,
+                    capacity_basic=capacity.get("basic") or None,
+                    capacity_roof=capacity.get("roof") or None,
+                    capacity_vip=capacity.get("vip") or None,
+                    sold_terraces=arena.get("sold_terraces", 0),
+                    sold_basic=arena.get("sold_basic", 0),
+                    sold_roof=arena.get("sold_roof", 0),
+                    sold_vip=arena.get("sold_vip", 0),
+                )
+            )
             result.snapshots_written += 1
 
     #: Cuantas fichas de partido ajeno se rescatan por sincronizacion. Lo
@@ -1999,7 +2099,10 @@ class SyncTeamHandler:
     RESCATES_DE_PARTIDO_POR_SYNC = 20
 
     async def _censar_partidos_de_seleccion(
-        self, uow: UnitOfWork, team_id: int, captured_at: datetime,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        captured_at: datetime,
         result: SyncResult,
     ) -> int:
         """Busca los partidos de seleccion que la ficha del jugador no alcanzo.
@@ -2023,7 +2126,8 @@ class SyncTeamHandler:
             return 0
 
         listado = await self._chpp.fetch(
-            "nationalteammatches", version=FILE_VERSIONS.get("nationalteammatches", "latest"),
+            "nationalteammatches",
+            version=FILE_VERSIONS.get("nationalteammatches", "latest"),
         )
         partidos = listado.get("matches", [])
         if not partidos:
@@ -2068,15 +2172,21 @@ class SyncTeamHandler:
                 if cuando <= desde or cuando > datetime.now(UTC).replace(tzinfo=None):
                     continue
                 if await self._anotar_partido_de_seleccion(
-                    uow, jugador, pais.national_team_id, partido["ht_match_id"],
-                    cuando, captured_at,
+                    uow,
+                    jugador,
+                    pais.national_team_id,
+                    partido["ht_match_id"],
+                    cuando,
+                    captured_at,
                 ):
                     censados += 1
                     result.snapshots_written += 1
         return censados
 
     async def _a_quien_le_subio_el_contador(
-        self, uow: UnitOfWork, team_id: int,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
     ) -> list[tuple[Any, datetime]]:
         """Jugadores cuyo contador de partidos internacionales crecio.
 
@@ -2087,20 +2197,31 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        jugadores = (await uow.session.execute(
-            select(m.Player).where(
-                m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+        jugadores = (
+            (
+                await uow.session.execute(
+                    select(m.Player).where(
+                        m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         candidatos: list[tuple[Any, datetime]] = []
         for jugador in jugadores:
-            fotos = (await uow.session.execute(
-                select(m.PlayerSnapshot.captured_at, m.PlayerSnapshot.career_caps,
-                       m.PlayerSnapshot.career_caps_u20)
-                .where(m.PlayerSnapshot.player_id == jugador.id)
-                .order_by(m.PlayerSnapshot.captured_at.desc())
-                .limit(2)
-            )).all()
+            fotos = (
+                await uow.session.execute(
+                    select(
+                        m.PlayerSnapshot.captured_at,
+                        m.PlayerSnapshot.career_caps,
+                        m.PlayerSnapshot.career_caps_u20,
+                    )
+                    .where(m.PlayerSnapshot.player_id == jugador.id)
+                    .order_by(m.PlayerSnapshot.captured_at.desc())
+                    .limit(2)
+                )
+            ).all()
             if len(fotos) < 2:
                 continue
             ahora = (fotos[0].career_caps or 0) + (fotos[0].career_caps_u20 or 0)
@@ -2110,8 +2231,13 @@ class SyncTeamHandler:
         return candidatos
 
     async def _anotar_partido_de_seleccion(
-        self, uow: UnitOfWork, jugador: Any, ht_team_id: int,
-        ht_match_id: int, cuando: datetime, captured_at: datetime,
+        self,
+        uow: UnitOfWork,
+        jugador: Any,
+        ht_team_id: int,
+        ht_match_id: int,
+        cuando: datetime,
+        captured_at: datetime,
     ) -> bool:
         """Si de verdad jugo, se guarda con sus minutos. Si no, no.
 
@@ -2123,8 +2249,11 @@ class SyncTeamHandler:
 
         try:
             alineacion = await self._chpp.fetch(
-                "matchlineup", version=MATCHLINEUP_ROLE_VERSION,
-                matchID=ht_match_id, teamID=ht_team_id, sourceSystem="htointegrated",
+                "matchlineup",
+                version=MATCHLINEUP_ROLE_VERSION,
+                matchID=ht_match_id,
+                teamID=ht_team_id,
+                sourceSystem="htointegrated",
             )
         except Exception:  # noqa: BLE001 — best effort, como el resto del sync
             return False
@@ -2137,8 +2266,11 @@ class SyncTeamHandler:
 
         await self._backfill_foreign_match_type(uow, ht_match_id, jugado_el=cuando)
         estrellas = next(
-            (p.get("rating_stars") or 0.0 for p in alineacion.get("players", [])
-             if p.get("ht_player_id") == jugador.ht_player_id),
+            (
+                p.get("rating_stars") or 0.0
+                for p in alineacion.get("players", [])
+                if p.get("ht_player_id") == jugador.ht_player_id
+            ),
             0.0,
         )
         return await uow.players.append_match_rating_if_new(
@@ -2151,7 +2283,10 @@ class SyncTeamHandler:
         )
 
     async def _misma_ficha_o_la_de_seleccion(
-        self, payload: dict[str, Any], ht_match_id: int, jugado_el: datetime | None,
+        self,
+        payload: dict[str, Any],
+        ht_match_id: int,
+        jugado_el: datetime | None,
     ) -> dict[str, Any]:
         """Comprueba que la ficha sea de ESTE partido, y si no, la pide bien.
 
@@ -2187,8 +2322,10 @@ class SyncTeamHandler:
             return payload
         try:
             otra = await self._chpp.fetch(
-                "matchdetails", version=FILE_VERSIONS["matchdetails"],
-                matchID=ht_match_id, sourceSystem="htointegrated",
+                "matchdetails",
+                version=FILE_VERSIONS["matchdetails"],
+                matchID=ht_match_id,
+                sourceSystem="htointegrated",
             )
         except Exception:  # noqa: BLE001 — best effort, ver docstring
             return payload
@@ -2215,13 +2352,19 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        huerfanos = (await uow.session.execute(
-            select(m.PlayerMatchRating.ht_match_id)
-            .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
-            .where(m.Match.id.is_(None), m.PlayerMatchRating.ht_match_id != 0)
-            .distinct()
-            .limit(self.RESCATES_DE_PARTIDO_POR_SYNC)
-        )).scalars().all()
+        huerfanos = (
+            (
+                await uow.session.execute(
+                    select(m.PlayerMatchRating.ht_match_id)
+                    .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
+                    .where(m.Match.id.is_(None), m.PlayerMatchRating.ht_match_id != 0)
+                    .distinct()
+                    .limit(self.RESCATES_DE_PARTIDO_POR_SYNC)
+                )
+            )
+            .scalars()
+            .all()
+        )
         rescatados = 0
         for ht_match_id in huerfanos:
             # La fecha real la sabe la foto del jugador que vio ese partido, y
@@ -2241,7 +2384,10 @@ class SyncTeamHandler:
         return rescatados
 
     async def _backfill_foreign_match_type(
-        self, uow: UnitOfWork, ht_match_id: int, jugado_el: datetime | None = None,
+        self,
+        uow: UnitOfWork,
+        ht_match_id: int,
+        jugado_el: datetime | None = None,
     ) -> None:
         """Crea la fila `Match` de un partido AJENO (selección nacional,
         Masters, juvenil...) que `playerdetails.xml` expuso vía `LastMatch`
@@ -2266,31 +2412,33 @@ class SyncTeamHandler:
         if exists is not None:
             return
         payload = await self._chpp.fetch(
-            "matchdetails", version=FILE_VERSIONS["matchdetails"], matchID=ht_match_id,
+            "matchdetails",
+            version=FILE_VERSIONS["matchdetails"],
+            matchID=ht_match_id,
         )
         if not payload.get("ht_match_id"):
             return  # chpp error / partido sin datos: nada que crear todavía
         payload = await self._misma_ficha_o_la_de_seleccion(payload, ht_match_id, jugado_el)
         date_str = payload.get("match_date", "")
-        played_at = (
-            ht_to_utc(date_str) or datetime.now(UTC)
-        )
+        played_at = ht_to_utc(date_str) or datetime.now(UTC)
         home = payload.get("home") or {}
         away = payload.get("away") or {}
-        uow.session.add(m.Match(
-            ht_match_id=ht_match_id,
-            played_at=played_at,
-            match_type=payload.get("match_type", 0),
-            cup_level=payload.get("cup_level", -1),
-            cup_level_index=payload.get("cup_level_index", -1),
-            status="FINISHED",
-            home_team_ht_id=home.get("team_id", 0),
-            away_team_ht_id=away.get("team_id", 0),
-            home_team_name=home.get("name", ""),
-            away_team_name=away.get("name", ""),
-            home_goals=home.get("goals", -1),
-            away_goals=away.get("goals", -1),
-        ))
+        uow.session.add(
+            m.Match(
+                ht_match_id=ht_match_id,
+                played_at=played_at,
+                match_type=payload.get("match_type", 0),
+                cup_level=payload.get("cup_level", -1),
+                cup_level_index=payload.get("cup_level_index", -1),
+                status="FINISHED",
+                home_team_ht_id=home.get("team_id", 0),
+                away_team_ht_id=away.get("team_id", 0),
+                home_team_name=home.get("name", ""),
+                away_team_name=away.get("name", ""),
+                home_goals=home.get("goals", -1),
+                away_goals=away.get("goals", -1),
+            )
+        )
 
     async def _apply_player_details(
         self, uow: UnitOfWork, ht_player_id: int, captured_at: datetime
@@ -2322,8 +2470,10 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         payload = await self._chpp.fetch(
-            "playerdetails", version=FILE_VERSIONS["playerdetails"],
-            playerID=ht_player_id, includeMatchInfo="true",
+            "playerdetails",
+            version=FILE_VERSIONS["playerdetails"],
+            playerID=ht_player_id,
+            includeMatchInfo="true",
         )
         player = await uow.session.scalar(
             select(m.Player).where(m.Player.ht_player_id == ht_player_id)
@@ -2370,11 +2520,12 @@ class SyncTeamHandler:
             # de saber si `LastMatch` es realmente reciente (ver
             # SquadQueryService, que la usa para decidir si mostrar el dato).
             played_at_str = last_match.get("played_at", "")
-            snap.last_match_played_at = (
-                ht_to_utc(played_at_str)
-            )
+            snap.last_match_played_at = ht_to_utc(played_at_str)
             snap.last_match_behaviour_code = await self._fetch_last_match_behaviour(
-                uow, ht_player_id, last_match.get("ht_match_id"), player.team_id,
+                uow,
+                ht_player_id,
+                last_match.get("ht_match_id"),
+                player.team_id,
             )
             # HL-15x #21: player_snapshots.last_match_* se pisa cada vez
             # (arriba). Para tener una serie en el tiempo (sparkline) hace
@@ -2403,7 +2554,9 @@ class SyncTeamHandler:
             ht_match_id = last_match.get("ht_match_id", 0)
             if ht_match_id:
                 await self._backfill_foreign_match_type(
-                    uow, ht_match_id, jugado_el=snap.last_match_played_at,
+                    uow,
+                    ht_match_id,
+                    jugado_el=snap.last_match_played_at,
                 )
         # CareerAssists no está en players.xml (ver parsers) — solo aquí,
         # en playerdetails.
@@ -2422,7 +2575,11 @@ class SyncTeamHandler:
         return changed
 
     async def _fetch_last_match_behaviour(
-        self, uow: UnitOfWork, ht_player_id: int, ht_match_id: int | None, team_id: int,
+        self,
+        uow: UnitOfWork,
+        ht_player_id: int,
+        ht_match_id: int | None,
+        team_id: int,
     ) -> int | None:
         """2026-08-09, pedido explícitamente: `LastMatch` de playerdetails.xml
         da el `MatchId`/`PositionCode` pero nunca la orden individual real
@@ -2443,8 +2600,10 @@ class SyncTeamHandler:
             return None
         try:
             payload = await self._chpp.fetch(
-                "matchlineup", version=MATCHLINEUP_ROLE_VERSION,
-                matchID=ht_match_id, teamID=team.ht_team_id,
+                "matchlineup",
+                version=MATCHLINEUP_ROLE_VERSION,
+                matchID=ht_match_id,
+                teamID=team.ht_team_id,
             )
         except Exception:  # noqa: BLE001 — best effort, ver docstring
             return None
@@ -2480,11 +2639,16 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         jugadores = (
-            await uow.session.execute(
-                select(m.Player.ht_player_id)
-                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+            (
+                await uow.session.execute(
+                    select(m.Player.ht_player_id).where(
+                        m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if not jugadores:
             return
         await _report(on_progress, "Leyendo subidas confirmadas por Hattrick...")
@@ -2520,14 +2684,18 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         ht_player_ids = (
-            await uow.session.execute(
-                select(m.Player.ht_player_id).where(
-                    m.Player.team_id == team_id,
-                    m.Player.left_team_at.is_(None),
-                    ~m.Player.ht_player_id_is_transfer,
+            (
+                await uow.session.execute(
+                    select(m.Player.ht_player_id).where(
+                        m.Player.team_id == team_id,
+                        m.Player.left_team_at.is_(None),
+                        ~m.Player.ht_player_id_is_transfer,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for ht_player_id in ht_player_ids:
             await _report(on_progress, f"Descargando ficha de jugador {ht_player_id}...")
             try:
@@ -2557,7 +2725,9 @@ class SyncTeamHandler:
                 result.status = "partial"
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
@@ -2577,7 +2747,8 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         payload = await self._chpp.fetch(
-            "transfersplayer", version=FILE_VERSIONS["transfersplayer"],
+            "transfersplayer",
+            version=FILE_VERSIONS["transfersplayer"],
             playerID=ht_player_id,
         )
         team = await uow.session.get(m.Team, team_id)
@@ -2638,13 +2809,19 @@ class SyncTeamHandler:
                 result.status = "partial"
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
 
     async def _games_played_for_us(
-        self, ht_team_id: int, ht_player_id: int, purchased_at: datetime, sold_at: datetime,
+        self,
+        ht_team_id: int,
+        ht_player_id: int,
+        purchased_at: datetime,
+        sold_at: datetime,
     ) -> int:
         """Recorre matchesarchive.xml (ventana purchased_at→sold_at) +
         matchlineup.xml v2.1 partido por partido — la única forma de contar
@@ -2656,21 +2833,25 @@ class SyncTeamHandler:
         from app.domain.engines.previous_club_bonus import counts_toward_games_played, did_play
 
         archive = await self._chpp.fetch(
-            "matchesarchive", version=FILE_VERSIONS["matchesarchive"],
+            "matchesarchive",
+            version=FILE_VERSIONS["matchesarchive"],
             teamID=ht_team_id,
             FirstMatchDate=purchased_at.strftime("%Y-%m-%d %H:%M:%S"),
             LastMatchDate=sold_at.strftime("%Y-%m-%d %H:%M:%S"),
         )
         qualifying = [
-            mt for mt in archive.get("matches", [])
+            mt
+            for mt in archive.get("matches", [])
             if counts_toward_games_played(mt.get("match_type", -1))
         ]
         games = 0
         for mt in qualifying:
             try:
                 lineup = await self._chpp.fetch(
-                    "matchlineup", version=MATCHLINEUP_ROLE_VERSION,
-                    matchID=mt["ht_match_id"], teamID=ht_team_id,
+                    "matchlineup",
+                    version=MATCHLINEUP_ROLE_VERSION,
+                    matchID=mt["ht_match_id"],
+                    teamID=ht_team_id,
                 )
             except Exception:  # noqa: BLE001 — best effort, ver docstring
                 continue
@@ -2683,7 +2864,10 @@ class SyncTeamHandler:
         return games
 
     async def _check_previous_club_bonus(
-        self, uow: UnitOfWork, team_id: int, ht_player_id: int,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_player_id: int,
     ) -> bool:
         """Núcleo de `execute_previous_club_bonus` — recibe el `uow` ya
         abierto, igual que `_apply_transfers_player_purchase`/
@@ -2712,7 +2896,9 @@ class SyncTeamHandler:
             return False
 
         payload = await self._chpp.fetch(
-            "transfersplayer", version=FILE_VERSIONS["transfersplayer"], playerID=ht_player_id,
+            "transfersplayer",
+            version=FILE_VERSIONS["transfersplayer"],
+            playerID=ht_player_id,
         )
         transfers = payload.get("transfers", [])
         our_sale_index = next(
@@ -2725,7 +2911,8 @@ class SyncTeamHandler:
         our_sale = transfers[our_sale_index]
 
         our_purchase = next(
-            (t for t in transfers if t.get("buyer_team_id") == team.ht_team_id), None,
+            (t for t in transfers if t.get("buyer_team_id") == team.ht_team_id),
+            None,
         )
         if player.ht_sale_transfer_id is None:
             player.ht_sale_transfer_id = our_sale.get("ht_transfer_id")
@@ -2744,8 +2931,9 @@ class SyncTeamHandler:
 
         resale_transfer_id = resale.get("ht_transfer_id")
         already = await uow.session.scalar(
-            select(m.PreviousClubBonus.id)
-            .where(m.PreviousClubBonus.resale_transfer_id == resale_transfer_id)
+            select(m.PreviousClubBonus.id).where(
+                m.PreviousClubBonus.resale_transfer_id == resale_transfer_id
+            )
         )
         if already is not None:
             return False
@@ -2800,10 +2988,14 @@ class SyncTeamHandler:
             # El respaldo del jugador solo vale para quien tiene UNA etapa: si
             # tiene varias, ese numero es de cualquiera de ellas y usarlo seria
             # peor que volver a contar.
-            cuantas = await uow.session.scalar(
-                select(sa_func.count(m.PlayerStint.id))
-                .where(m.PlayerStint.player_id == player.id)
-            ) or 0
+            cuantas = (
+                await uow.session.scalar(
+                    select(sa_func.count(m.PlayerStint.id)).where(
+                        m.PlayerStint.player_id == player.id
+                    )
+                )
+                or 0
+            )
             if cuantas <= 1:
                 games = player.games_played_for_us
 
@@ -2823,7 +3015,10 @@ class SyncTeamHandler:
             hasta = (etapa.left_at if etapa is not None else None) or salida
             if desde is not None:
                 games = await self._games_played_for_us(
-                    team.ht_team_id, ht_player_id, desde, hasta,
+                    team.ht_team_id,
+                    ht_player_id,
+                    desde,
+                    hasta,
                 )
 
         if games is None:
@@ -2839,24 +3034,26 @@ class SyncTeamHandler:
         pct = previous_club_bonus_pct(games)
         price = resale.get("price", 0)
         deadline_str = resale.get("deadline", "")
-        resale_deadline = (
-            ht_to_utc(deadline_str) or now
-        )
+        resale_deadline = ht_to_utc(deadline_str) or now
 
-        uow.session.add(m.PreviousClubBonus(
-            player_id=player.id, ht_player_id=ht_player_id,
-            resale_transfer_id=resale_transfer_id, resale_price=price,
-            resale_deadline=resale_deadline,
-            buyer_team_id=resale.get("buyer_team_id", 0),
-            seller_team_id=resale.get("seller_team_id", 0),
-            games_played_with_us=games, pct_applied=pct, amount=round(price * pct),
-            computed_at=now,
-        ))
+        uow.session.add(
+            m.PreviousClubBonus(
+                player_id=player.id,
+                ht_player_id=ht_player_id,
+                resale_transfer_id=resale_transfer_id,
+                resale_price=price,
+                resale_deadline=resale_deadline,
+                buyer_team_id=resale.get("buyer_team_id", 0),
+                seller_team_id=resale.get("seller_team_id", 0),
+                games_played_with_us=games,
+                pct_applied=pct,
+                amount=round(price * pct),
+                computed_at=now,
+            )
+        )
         return True
 
-    async def execute_previous_club_bonus(
-        self, cmd: SyncPreviousClubBonusCommand
-    ) -> SyncResult:
+    async def execute_previous_club_bonus(self, cmd: SyncPreviousClubBonusCommand) -> SyncResult:
         """HL-161: bajo demanda, un jugador — reutilizado tanto por el
         backfill masivo (`/players/previous-club-bonus/sync`) como,
         indirectamente, por `_check_previous_club_bonus` desde el
@@ -2877,7 +3074,9 @@ class SyncTeamHandler:
                 result.status = "partial"
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
@@ -2893,7 +3092,10 @@ class SyncTeamHandler:
             return None
 
     async def _censar_partidos_del_stint(
-        self, uow: UnitOfWork, team_id: int, ht_player_id: int,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_player_id: int,
     ) -> bool:
         """Cuántos partidos jugó de verdad con nosotros. UNA vez por jugador.
 
@@ -2933,9 +3135,7 @@ class SyncTeamHandler:
         if inicio is None or salida is None:
             # Sin etapa acotada no hay nada que recorrer; se marca censado
             # para no volver a intentarlo en cada lote.
-            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(
-                tzinfo=None
-            )
+            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(tzinfo=None)
             return False
 
         # La marca se pone pase lo que pase. El recorrido es "una vez por
@@ -2945,17 +3145,21 @@ class SyncTeamHandler:
         # ensena "?" en vez de un cero que parecería contado.
         try:
             jugador.games_played_for_us = await self._games_played_for_us(
-                equipo.ht_team_id, ht_player_id, inicio, salida,
+                equipo.ht_team_id,
+                ht_player_id,
+                inicio,
+                salida,
             )
             contado = True
         finally:
-            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(
-                tzinfo=None
-            )
+            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(tzinfo=None)
         return contado
 
     async def _vigilar_reventa(
-        self, uow: UnitOfWork, team_id: int, ht_player_id: int,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_player_id: int,
     ) -> bool:
         """¿Sigue pudiendo darnos dinero este ex-jugador?
 
@@ -2977,9 +3181,7 @@ class SyncTeamHandler:
         if equipo is None or jugador is None:
             return False
 
-        canterano = vigilancia.es_canterano(
-            jugador.mother_club_team_id, equipo.ht_team_id
-        )
+        canterano = vigilancia.es_canterano(jugador.mother_club_team_id, equipo.ht_team_id)
         salio_sin_comprador = jugador.sold_at is None and jugador.left_team_at is not None
 
         if jugador.sold_at is not None:
@@ -3009,14 +3211,13 @@ class SyncTeamHandler:
         if not salio_sin_comprador and not (revendido and not canterano):
             try:
                 ficha = await self._chpp.fetch(
-                    "playerdetails", version=FILE_VERSIONS["playerdetails"],
+                    "playerdetails",
+                    version=FILE_VERSIONS["playerdetails"],
                     playerID=ht_player_id,
                 )
             except Exception:  # noqa: BLE001 — best effort, se reintenta en otro lote
                 ficha = {}
-            desaparecido = vigilancia.desaparecio_de_hattrick(
-                ficha.get("chpp_error_code")
-            )
+            desaparecido = vigilancia.desaparecio_de_hattrick(ficha.get("chpp_error_code"))
 
         motivo = vigilancia.motivo_de_cierre(
             canterano=canterano,
@@ -3039,7 +3240,9 @@ class SyncTeamHandler:
         return revendido
 
     async def _mirar_si_entro_comision(
-        self, uow: UnitOfWork, team_id: int,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
     ) -> bool:
         """El dinero dice CUANDO buscar una reventa, aunque no diga quien.
 
@@ -3120,17 +3323,21 @@ class SyncTeamHandler:
             # Hay dinero por atribuir: se persigue. Uno reciente, uno al azar
             # --2026-08-24, disenado por el usuario--: lo reciente rinde mas,
             # y el azar impide que la cola larga muera de hambre.
-            por_recencia = list((
-                await uow.session.execute(
-                    select(m.Player.ht_player_id)
-                    .where(
-                        m.Player.team_id == team_id,
-                        m.Player.sold_at.is_not(None),
-                        ~m.Player.resale_closed,
+            por_recencia = list(
+                (
+                    await uow.session.execute(
+                        select(m.Player.ht_player_id)
+                        .where(
+                            m.Player.team_id == team_id,
+                            m.Player.sold_at.is_not(None),
+                            ~m.Player.resale_closed,
+                        )
+                        .order_by(m.Player.sold_at.desc())
                     )
-                    .order_by(m.Player.sold_at.desc())
                 )
-            ).scalars().all())
+                .scalars()
+                .all()
+            )
             try:
                 probados = set(json.loads(equipo.commission_tried_json or "[]"))
             except ValueError:
@@ -3145,22 +3352,27 @@ class SyncTeamHandler:
         else:
             # Sin dinero nuevo no hay nada que encontrar. El goteo sigue, pero
             # solo como red: que nadie quede sin mirar nunca.
-            candidates = list((
-                await uow.session.execute(
-                    select(m.Player.ht_player_id)
-                    .where(m.Player.team_id == team_id, m.Player.sold_at.is_not(None))
-                    .order_by(
-                        m.Player.previous_club_bonus_checked_at.is_not(None),
-                        m.Player.previous_club_bonus_checked_at,
+            candidates = list(
+                (
+                    await uow.session.execute(
+                        select(m.Player.ht_player_id)
+                        .where(m.Player.team_id == team_id, m.Player.sold_at.is_not(None))
+                        .order_by(
+                            m.Player.previous_club_bonus_checked_at.is_not(None),
+                            m.Player.previous_club_bonus_checked_at,
+                        )
+                        .limit(GOTEO_DE_VIGILANCIA)
                     )
-                    .limit(GOTEO_DE_VIGILANCIA)
                 )
-            ).scalars().all())
+                .scalars()
+                .all()
+            )
 
         encontrado = False
         for ht_player_id in candidates:
             await _report(
-                on_progress, f"Revisando comisión de club anterior de {ht_player_id}...",
+                on_progress,
+                f"Revisando comisión de club anterior de {ht_player_id}...",
             )
             try:
                 wrote = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
@@ -3195,7 +3407,8 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         payload = await self._chpp.fetch(
-            "playerdetails", version=FILE_VERSIONS["playerdetails"],
+            "playerdetails",
+            version=FILE_VERSIONS["playerdetails"],
             playerID=ht_player_id,
         )
         player = await uow.session.scalar(
@@ -3224,8 +3437,10 @@ class SyncTeamHandler:
         age_years = payload.get("age_years")
         age_days = payload.get("age_days")
         if (
-            player.sold_at is not None and player.age_years_at_sale is None
-            and age_years is not None and age_days is not None
+            player.sold_at is not None
+            and player.age_years_at_sale is None
+            and age_years is not None
+            and age_days is not None
         ):
             elapsed_days = (fetched_at - player.sold_at).days
             try:
@@ -3242,8 +3457,10 @@ class SyncTeamHandler:
         # de `sold_at` — para TODO jugador con compra conocida, esté o no
         # vendido (pedida para "Edad de compra" en Detalle).
         if (
-            player.purchased_at is not None and player.age_years_at_purchase is None
-            and age_years is not None and age_days is not None
+            player.purchased_at is not None
+            and player.age_years_at_purchase is None
+            and age_years is not None
+            and age_days is not None
         ):
             elapsed_days = (fetched_at - player.purchased_at).days
             try:
@@ -3262,15 +3479,11 @@ class SyncTeamHandler:
             world = None
             if native_league_id:
                 world = await uow.session.scalar(
-                    select(m.WorldContext).where(
-                        m.WorldContext.ht_league_id == native_league_id
-                    )
+                    select(m.WorldContext).where(m.WorldContext.ht_league_id == native_league_id)
                 )
             if world is None and native_country_id:
                 world = await uow.session.scalar(
-                    select(m.WorldContext).where(
-                        m.WorldContext.country_id == native_country_id
-                    )
+                    select(m.WorldContext).where(m.WorldContext.country_id == native_country_id)
                 )
             native_league_name = world.country_name if world is not None else None
         if player.native_country is None and native_league_name:
@@ -3335,7 +3548,9 @@ class SyncTeamHandler:
                 result.status = "partial"
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
@@ -3354,7 +3569,8 @@ class SyncTeamHandler:
             return False
 
         payload = await self._chpp.fetch(
-            "teamdetails", version=FILE_VERSIONS["teamdetails"],
+            "teamdetails",
+            version=FILE_VERSIONS["teamdetails"],
             teamID=player.buyer_team_id,
         )
         # Preguntado queda preguntado, salga o no salga el pais: si no se
@@ -3394,7 +3610,9 @@ class SyncTeamHandler:
                 result.status = "partial"
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result
@@ -3459,9 +3677,7 @@ class SyncTeamHandler:
             await self._persist_league_fixtures(uow, payload, result)
             return
         if file == "currentbids":
-            await self._persist_currentbids(
-                uow, team_id, payload, captured_at, result
-            )
+            await self._persist_currentbids(uow, team_id, payload, captured_at, result)
             return
         if file == "teamdetails":
             await self._persist_teamdetails(uow, team_id, ht_team_id, payload, result)
@@ -3545,7 +3761,9 @@ class SyncTeamHandler:
                 .limit(1)
             )
             row = m.StaffSnapshot(
-                sync_id=sync_id, team_id=team_id, captured_at=captured_at,
+                sync_id=sync_id,
+                team_id=team_id,
+                captured_at=captured_at,
                 content_hash=b"\x00" * 32,
             )
             if last is not None:
@@ -3606,11 +3824,16 @@ class SyncTeamHandler:
                     if field is not None:
                         setattr(row, field, getattr(row, field) + member.get("level", 0))
                 row.staff_members_json = json.dumps(members)
-        row.content_hash = dict_hash({
-            "a": row.assistant_trainer_levels, "t": row.trainer_skill_level,
-            "tt": row.trainer_type, "fc": row.form_coach_levels, "md": row.medic_levels,
-            "members": row.staff_members_json,
-        })
+        row.content_hash = dict_hash(
+            {
+                "a": row.assistant_trainer_levels,
+                "t": row.trainer_skill_level,
+                "tt": row.trainer_type,
+                "fc": row.form_coach_levels,
+                "md": row.medic_levels,
+                "members": row.staff_members_json,
+            }
+        )
         result.snapshots_written += 1
 
     async def _persist_world(
@@ -3721,24 +3944,47 @@ class SyncTeamHandler:
             if exists:
                 result.unchanged += 1
                 continue
-            uow.session.add(m.SkillUp(
-                team_id=team_id, ht_player_id=ev["ht_player_id"],
-                skill_id=ev["skill_id"], old_level=ev["old_level"],
-                new_level=ev["new_level"], season=ev["season"],
-                match_round=ev["match_round"], day_number=ev.get("day_number", 0),
-                recorded_at=captured_at,
-            ))
+            uow.session.add(
+                m.SkillUp(
+                    team_id=team_id,
+                    ht_player_id=ev["ht_player_id"],
+                    skill_id=ev["skill_id"],
+                    old_level=ev["old_level"],
+                    new_level=ev["new_level"],
+                    season=ev["season"],
+                    match_round=ev["match_round"],
+                    day_number=ev.get("day_number", 0),
+                    recorded_at=captured_at,
+                )
+            )
             result.snapshots_written += 1
 
     YOUTH_SNAPSHOT_FIELDS = (
-        "age_years", "age_days", "minutes_last_match", "can_be_promoted_in",
-        "keeper", "keeper_max", "keeper_max_reached",
-        "defending", "defending_max", "defending_max_reached",
-        "playmaking", "playmaking_max", "playmaking_max_reached",
-        "winger", "winger_max", "winger_max_reached",
-        "passing", "passing_max", "passing_max_reached",
-        "scoring", "scoring_max", "scoring_max_reached",
-        "set_pieces", "set_pieces_max", "set_pieces_max_reached",
+        "age_years",
+        "age_days",
+        "minutes_last_match",
+        "can_be_promoted_in",
+        "keeper",
+        "keeper_max",
+        "keeper_max_reached",
+        "defending",
+        "defending_max",
+        "defending_max_reached",
+        "playmaking",
+        "playmaking_max",
+        "playmaking_max_reached",
+        "winger",
+        "winger_max",
+        "winger_max_reached",
+        "passing",
+        "passing_max",
+        "passing_max_reached",
+        "scoring",
+        "scoring_max",
+        "scoring_max_reached",
+        "set_pieces",
+        "set_pieces_max",
+        "set_pieces_max_reached",
     )
 
     async def _persist_youth(
@@ -3804,26 +4050,34 @@ class SyncTeamHandler:
                 result.unchanged += 1
                 continue
 
-            uow.session.add(m.YouthSnapshot(
-                sync_id=sync_id,
-                youth_player_id=youth.id,
-                captured_at=captured_at,
-                content_hash=new_hash,
-                **{k: (v if v is not None else None) for k, v in values.items()},
-            ))
+            uow.session.add(
+                m.YouthSnapshot(
+                    sync_id=sync_id,
+                    youth_player_id=youth.id,
+                    captured_at=captured_at,
+                    content_hash=new_hash,
+                    **{k: (v if v is not None else None) for k, v in values.items()},
+                )
+            )
             result.snapshots_written += 1
 
         # Quien ya no viene en el fichero salió de la academia (promocionado,
         # vendido o descartado). Mismo criterio que la plantilla principal: un
         # roster vacío NO marca a todos como salidos — sería un fetch roto.
         if roster:
-            gone = list((await uow.session.execute(
-                select(m.YouthPlayer).where(
-                    m.YouthPlayer.team_id == team_id,
-                    m.YouthPlayer.left_at.is_(None),
-                    m.YouthPlayer.ht_youth_player_id.notin_(seen_ids),
+            gone = list(
+                (
+                    await uow.session.execute(
+                        select(m.YouthPlayer).where(
+                            m.YouthPlayer.team_id == team_id,
+                            m.YouthPlayer.left_at.is_(None),
+                            m.YouthPlayer.ht_youth_player_id.notin_(seen_ids),
+                        )
+                    )
                 )
-            )).scalars().all())
+                .scalars()
+                .all()
+            )
             for youth in gone:
                 youth.left_at = captured_at
 
@@ -3844,12 +4098,9 @@ class SyncTeamHandler:
                 select(m.Match).where(m.Match.ht_match_id == ht_match_id)
             )
             date_str = mt.get("match_date", "")
-            played_at = (
-                ht_to_utc(date_str) or datetime.now(UTC)
-            )
+            played_at = ht_to_utc(date_str) or datetime.now(UTC)
             before = (
-                MatchState(row.status, row.home_goals, row.away_goals)
-                if row is not None else None
+                MatchState(row.status, row.home_goals, row.away_goals) if row is not None else None
             )
             if row is None:
                 row = m.Match(ht_match_id=ht_match_id, played_at=played_at)
@@ -3929,14 +4180,13 @@ class SyncTeamHandler:
                 select(m.Match).where(m.Match.ht_match_id == ht_match_id)
             )
             date_str = mt.get("match_date", "")
-            played_at = (
-                ht_to_utc(date_str) or datetime.now(UTC)
-            )
+            played_at = ht_to_utc(date_str) or datetime.now(UTC)
             home_goals = mt.get("home_goals")
             away_goals = mt.get("away_goals")
             if row is None:
                 row = m.Match(
-                    ht_match_id=ht_match_id, played_at=played_at,
+                    ht_match_id=ht_match_id,
+                    played_at=played_at,
                     match_type=MATCH_TYPE_LEAGUE,
                     status="FINISHED" if home_goals is not None else "UPCOMING",
                     home_team_ht_id=mt.get("home_team_id", 0),
@@ -3995,15 +4245,17 @@ class SyncTeamHandler:
             .group_by(m.YouthSnapshot.youth_player_id)
             .subquery()
         )
-        filas = (await uow.session.execute(
-            select(m.YouthPlayer, m.YouthScoutReport, ultima_foto.c.cuando)
-            .join(ultima_foto, ultima_foto.c.youth_player_id == m.YouthPlayer.id)
-            .outerjoin(
-                m.YouthScoutReport,
-                m.YouthScoutReport.youth_player_id == m.YouthPlayer.id,
+        filas = (
+            await uow.session.execute(
+                select(m.YouthPlayer, m.YouthScoutReport, ultima_foto.c.cuando)
+                .join(ultima_foto, ultima_foto.c.youth_player_id == m.YouthPlayer.id)
+                .outerjoin(
+                    m.YouthScoutReport,
+                    m.YouthScoutReport.youth_player_id == m.YouthPlayer.id,
+                )
+                .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
             )
-            .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
-        )).all()
+        ).all()
 
         pendientes = [
             (juvenil, informe)
@@ -4022,11 +4274,12 @@ class SyncTeamHandler:
             )
             try:
                 ficha = await self._chpp.fetch(
-                    "youthplayerdetails", "1.0",
+                    "youthplayerdetails",
+                    "1.0",
                     youthPlayerId=juvenil.ht_youth_player_id,
                     showScoutCall="true",
                 )
-            except Exception as exc:   # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
                 result.errors.append(f"youthplayerdetails {juvenil.ht_youth_player_id}: {exc}")
                 continue
             if not ficha:
@@ -4035,18 +4288,12 @@ class SyncTeamHandler:
                 "scout_id": ficha.get("scout_id"),
                 "scout_name": ficha.get("scout_name") or "",
                 "scouting_region_id": ficha.get("scouting_region_id"),
-                "comments_json": json.dumps(
-                    ficha.get("scout_comments") or [], ensure_ascii=False
-                ),
-                "may_unlock_json": json.dumps(
-                    ficha.get("may_unlock") or {}, ensure_ascii=False
-                ),
+                "comments_json": json.dumps(ficha.get("scout_comments") or [], ensure_ascii=False),
+                "may_unlock_json": json.dumps(ficha.get("may_unlock") or {}, ensure_ascii=False),
                 "fetched_at": ahora,
             }
             if informe is None:
-                uow.session.add(
-                    m.YouthScoutReport(youth_player_id=juvenil.id, **datos)
-                )
+                uow.session.add(m.YouthScoutReport(youth_player_id=juvenil.id, **datos))
             else:
                 for campo, valor in datos.items():
                     setattr(informe, campo, valor)
@@ -4103,25 +4350,29 @@ class SyncTeamHandler:
             .group_by(m.PlayerSnapshot.player_id)
             .subquery()
         )
-        filas = (await uow.session.execute(
-            select(m.Player, m.PlayerSnapshot.is_transfer_listed)
-            .join(ultima, ultima.c.player_id == m.Player.id)
-            .join(
-                m.PlayerSnapshot,
-                (m.PlayerSnapshot.player_id == ultima.c.player_id)
-                & (m.PlayerSnapshot.captured_at == ultima.c.cuando),
+        filas = (
+            await uow.session.execute(
+                select(m.Player, m.PlayerSnapshot.is_transfer_listed)
+                .join(ultima, ultima.c.player_id == m.Player.id)
+                .join(
+                    m.PlayerSnapshot,
+                    (m.PlayerSnapshot.player_id == ultima.c.player_id)
+                    & (m.PlayerSnapshot.captured_at == ultima.c.cuando),
+                )
+                .where(
+                    m.Player.team_id == team_id,
+                    m.Player.left_team_at.is_(None),
+                    m.Player.sold_at.is_(None),
+                )
             )
-            .where(
-                m.Player.team_id == team_id,
-                m.Player.left_team_at.is_(None),
-                m.Player.sold_at.is_(None),
-            )
-        )).all()
+        ).all()
         for jugador, en_venta in filas:
             jugador.currently_listed = bool(en_venta)
 
     async def _reabrir_cierres_por_error(
-        self, uow: UnitOfWork, team_id: int,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
     ) -> int:
         """Quien tiene venta registrada no se fue "sin comprador".
 
@@ -4136,14 +4387,20 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        malos = (await uow.session.execute(
-            select(m.Player).where(
-                m.Player.team_id == team_id,
-                m.Player.resale_closed.is_(True),
-                m.Player.resale_closed_reason == "sin_comprador",
-                m.Player.sold_at.is_not(None),
+        malos = (
+            (
+                await uow.session.execute(
+                    select(m.Player).where(
+                        m.Player.team_id == team_id,
+                        m.Player.resale_closed.is_(True),
+                        m.Player.resale_closed_reason == "sin_comprador",
+                        m.Player.sold_at.is_not(None),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         for jugador in malos:
             jugador.resale_closed = False
             jugador.resale_closed_reason = None
@@ -4152,7 +4409,11 @@ class SyncTeamHandler:
         return len(malos)
 
     async def _reabrir_pujas_cerradas_por_error(
-        self, uow: UnitOfWork, team_id: int, ahora: datetime, result: SyncResult,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ahora: datetime,
+        result: SyncResult,
     ) -> int:
         """Una puja con el plazo por vencer no puede estar cerrada.
 
@@ -4172,28 +4433,38 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        candidatos = (await uow.session.execute(
-            select(m.PlayerListingAttempt)
-            .join(m.Player, m.Player.id == m.PlayerListingAttempt.player_id)
-            .where(
-                m.Player.team_id == team_id,
-                m.Player.currently_listed.is_(True),
-                m.Player.left_team_at.is_(None),
-                m.Player.sold_at.is_(None),
-                m.PlayerListingAttempt.ended_at.is_not(None),
-                m.PlayerListingAttempt.sold.is_(False),
-                m.PlayerListingAttempt.deadline.is_not(None),
-                m.PlayerListingAttempt.deadline > ahora,
+        candidatos = (
+            (
+                await uow.session.execute(
+                    select(m.PlayerListingAttempt)
+                    .join(m.Player, m.Player.id == m.PlayerListingAttempt.player_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        m.Player.currently_listed.is_(True),
+                        m.Player.left_team_at.is_(None),
+                        m.Player.sold_at.is_(None),
+                        m.PlayerListingAttempt.ended_at.is_not(None),
+                        m.PlayerListingAttempt.sold.is_(False),
+                        m.PlayerListingAttempt.deadline.is_not(None),
+                        m.PlayerListingAttempt.deadline > ahora,
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         for intento in candidatos:
             intento.ended_at = None
             result.snapshots_written += 1
         return len(candidatos)
 
     async def _persist_currentbids(
-        self, uow: UnitOfWork, team_id: int, payload: dict[str, Any],
-        captured_at: datetime, result: SyncResult,
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        payload: dict[str, Any],
+        captured_at: datetime,
+        result: SyncResult,
     ) -> None:
         """HL-161: cuenta intentos de venta hacia adelante. CHPP solo da
         una foto del momento (quién está en el mercado AHORA), nunca un
@@ -4220,9 +4491,7 @@ class SyncTeamHandler:
         }
         roster = list(
             (
-                await uow.session.execute(
-                    select(m.Player).where(m.Player.team_id == team_id)
-                )
+                await uow.session.execute(select(m.Player).where(m.Player.team_id == team_id))
             ).scalars()
         )
         ahora = datetime.now(UTC).replace(tzinfo=None)
@@ -4299,9 +4568,7 @@ class SyncTeamHandler:
                 result.unchanged += 1
 
         # Y se recogen los que quedaron abiertos de antes de esta regla.
-        en_venta_ahora = {
-            p.ht_player_id for p in roster if p.currently_listed
-        }
+        en_venta_ahora = {p.ht_player_id for p in roster if p.currently_listed}
         result.snapshots_written += await self._reparar_intentos_abiertos(
             uow, team_id, en_venta_ahora
         )
@@ -4331,15 +4598,17 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        abiertos = (await uow.session.execute(
-            select(m.PlayerListingAttempt, m.Player)
-            .join(m.Player, m.Player.id == m.PlayerListingAttempt.player_id)
-            .where(
-                m.Player.team_id == team_id,
-                m.PlayerListingAttempt.ended_at.is_(None),
+        abiertos = (
+            await uow.session.execute(
+                select(m.PlayerListingAttempt, m.Player)
+                .join(m.Player, m.Player.id == m.PlayerListingAttempt.player_id)
+                .where(
+                    m.Player.team_id == team_id,
+                    m.PlayerListingAttempt.ended_at.is_(None),
+                )
+                .order_by(m.PlayerListingAttempt.detected_at)
             )
-            .order_by(m.PlayerListingAttempt.detected_at)
-        )).all()
+        ).all()
 
         ahora = datetime.now(UTC).replace(tzinfo=None)
         siguientes: dict[int, datetime] = {}
@@ -4412,8 +4681,14 @@ class SyncTeamHandler:
         if row is None:
             return
         before = (
-            row.name, row.league_name, row.series_name, row.series_ht_id, row.ht_league_id,
-            row.still_in_cup, row.current_cup_id, row.current_cup_match_round,
+            row.name,
+            row.league_name,
+            row.series_name,
+            row.series_ht_id,
+            row.ht_league_id,
+            row.still_in_cup,
+            row.current_cup_id,
+            row.current_cup_match_round,
             row.current_cup_match_rounds_left,
         )
         row.name = team.get("name") or row.name
@@ -4435,11 +4710,18 @@ class SyncTeamHandler:
             )
             row.current_cup_match_rounds_left = (
                 cup.get("match_rounds_left")
-                if cup and cup.get("match_rounds_left", -1) >= 0 else None
+                if cup and cup.get("match_rounds_left", -1) >= 0
+                else None
             )
         after = (
-            row.name, row.league_name, row.series_name, row.series_ht_id, row.ht_league_id,
-            row.still_in_cup, row.current_cup_id, row.current_cup_match_round,
+            row.name,
+            row.league_name,
+            row.series_name,
+            row.series_ht_id,
+            row.ht_league_id,
+            row.still_in_cup,
+            row.current_cup_id,
+            row.current_cup_match_round,
             row.current_cup_match_rounds_left,
         )
         if before == after:
@@ -4500,7 +4782,8 @@ class SyncTeamHandler:
             await uow.session.scalar(
                 select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
             )
-            if team is not None and team.ht_league_id is not None else None
+            if team is not None and team.ht_league_id is not None
+            else None
         )
         season = world.season if world is not None else 0
         exists = await uow.session.scalar(
@@ -4527,20 +4810,28 @@ class SyncTeamHandler:
         old_position = old_standing.position if old_standing is not None else None
 
         for t in payload.get("teams", []):
-            uow.session.add(m.Standing(
-                sync_id=sync_id, series_ht_id=series_ht_id, season=season,
-                match_round=match_round, captured_at=captured_at,
-                team_ht_id=t.get("ht_team_id", 0), team_name=t.get("name", ""),
-                position=t.get("position", 0), played=t.get("matches", 0),
-                won=t.get("won", 0), draws=t.get("draws", 0), lost=t.get("lost", 0),
-                goals_for=t.get("goals_for", 0), goals_against=t.get("goals_against", 0),
-                points=t.get("points", 0),
-            ))
+            uow.session.add(
+                m.Standing(
+                    sync_id=sync_id,
+                    series_ht_id=series_ht_id,
+                    season=season,
+                    match_round=match_round,
+                    captured_at=captured_at,
+                    team_ht_id=t.get("ht_team_id", 0),
+                    team_name=t.get("name", ""),
+                    position=t.get("position", 0),
+                    played=t.get("matches", 0),
+                    won=t.get("won", 0),
+                    draws=t.get("draws", 0),
+                    lost=t.get("lost", 0),
+                    goals_for=t.get("goals_for", 0),
+                    goals_against=t.get("goals_against", 0),
+                    points=t.get("points", 0),
+                )
+            )
         result.snapshots_written += 1
 
-        own = next(
-            (t for t in payload.get("teams", []) if t.get("ht_team_id") == ht_team_id), None
-        )
+        own = next((t for t in payload.get("teams", []) if t.get("ht_team_id") == ht_team_id), None)
         if own is not None:
             change = diff_standing(old_position, own.get("position", 0), own.get("name", ""))
             if change:
@@ -4569,7 +4860,8 @@ class SyncTeamHandler:
         # registrada ANTES de que este campo existiera, dejándolo en "?"
         # para siempre — visto en vivo contra la cuenta real).
         is_new_transaction = (
-            player.purchased_at is None or purchased_at is None
+            player.purchased_at is None
+            or purchased_at is None
             or purchased_at > player.purchased_at
         )
         if is_new_transaction:
@@ -4644,19 +4936,21 @@ class SyncTeamHandler:
             )
             if ya is not None:
                 continue
-            uow.session.add(m.TeamTransfer(
-                team_id=team_id,
-                ht_transfer_id=ht_transfer_id,
-                ht_player_id=ht_player_id,
-                player_name=t.get("player_name", "") or "",
-                deadline=deadline,
-                price=t.get("price", 0) or 0,
-                is_buy=es_compra,
-                counterpart_team_id=(
-                    t.get("seller_team_id") if es_compra else t.get("buyer_team_id")
-                ),
-                tsi=t.get("tsi"),
-            ))
+            uow.session.add(
+                m.TeamTransfer(
+                    team_id=team_id,
+                    ht_transfer_id=ht_transfer_id,
+                    ht_player_id=ht_player_id,
+                    player_name=t.get("player_name", "") or "",
+                    deadline=deadline,
+                    price=t.get("price", 0) or 0,
+                    is_buy=es_compra,
+                    counterpart_team_id=(
+                        t.get("seller_team_id") if es_compra else t.get("buyer_team_id")
+                    ),
+                    tsi=t.get("tsi"),
+                )
+            )
 
     @staticmethod
     def _es_huerfano(mov: Any) -> bool:
@@ -4668,8 +4962,11 @@ class SyncTeamHandler:
         return (mov.player_name or "").strip()
 
     async def _fichas_de_los_sin_identificador(
-        self, uow: UnitOfWork, team_id: int,
-        movimientos: list[Any], jugadores: dict[int, Any],
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        movimientos: list[Any],
+        jugadores: dict[int, Any],
     ) -> dict[int, int]:
         """Una ficha por PERSONA entre los movimientos sin identificador.
 
@@ -4718,7 +5015,9 @@ class SyncTeamHandler:
         return de_quien
 
     async def _identificador_prestado(
-        self, uow: UnitOfWork, ht_transfer_id: int,
+        self,
+        uow: UnitOfWork,
+        ht_transfer_id: int,
     ) -> int | None:
         """El numero de la transferencia, prestado como identificador.
 
@@ -4755,17 +5054,29 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        movimientos = (await uow.session.execute(
-            select(m.TeamTransfer)
-            .where(m.TeamTransfer.team_id == team_id)
-            .order_by(m.TeamTransfer.ht_player_id, m.TeamTransfer.deadline)
-        )).scalars().all()
+        movimientos = (
+            (
+                await uow.session.execute(
+                    select(m.TeamTransfer)
+                    .where(m.TeamTransfer.team_id == team_id)
+                    .order_by(m.TeamTransfer.ht_player_id, m.TeamTransfer.deadline)
+                )
+            )
+            .scalars()
+            .all()
+        )
         if not movimientos:
             return 0
 
-        anteriores = (await uow.session.execute(
-            select(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
-        )).scalars().all()
+        anteriores = (
+            (
+                await uow.session.execute(
+                    select(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         def clave(etapa: Any) -> tuple[int, int | None, int | None]:
             return (
@@ -4777,13 +5088,13 @@ class SyncTeamHandler:
         guardado = {clave(e): e for e in anteriores}
         jugadores = {
             p.ht_player_id: p
-            for p in (await uow.session.execute(
-                select(m.Player).where(m.Player.team_id == team_id)
-            )).scalars().all()
+            for p in (
+                await uow.session.execute(select(m.Player).where(m.Player.team_id == team_id))
+            )
+            .scalars()
+            .all()
         }
-        de_quien = await self._fichas_de_los_sin_identificador(
-            uow, team_id, movimientos, jugadores
-        )
+        de_quien = await self._fichas_de_los_sin_identificador(uow, team_id, movimientos, jugadores)
 
         def a_quien_pertenece(mov: Any) -> int:
             """El identificador de la PERSONA, que en un huerfano no es el suyo."""
@@ -4794,9 +5105,7 @@ class SyncTeamHandler:
         # dejaba separados y la compra no encontraba a su venta.
         movimientos = sorted(movimientos, key=lambda x: (a_quien_pertenece(x), x.deadline))
 
-        await uow.session.execute(
-            delete(m.PlayerStint).where(m.PlayerStint.team_id == team_id)
-        )
+        await uow.session.execute(delete(m.PlayerStint).where(m.PlayerStint.team_id == team_id))
         await uow.session.flush()
 
         nuevas: list[Any] = []
@@ -4808,9 +5117,12 @@ class SyncTeamHandler:
                 continue
             if mov.is_buy:
                 etapa = m.PlayerStint(
-                    player_id=jugador.id, ht_player_id=de_la_persona,
-                    team_id=team_id, arrived_at=mov.deadline,
-                    arrival_price=mov.price, arrival_transfer_id=mov.ht_transfer_id,
+                    player_id=jugador.id,
+                    ht_player_id=de_la_persona,
+                    team_id=team_id,
+                    arrived_at=mov.deadline,
+                    arrival_price=mov.price,
+                    arrival_transfer_id=mov.ht_transfer_id,
                 )
                 abierta[de_la_persona] = etapa
                 nuevas.append(etapa)
@@ -4824,7 +5136,8 @@ class SyncTeamHandler:
                 # gratis a gente que costo dinero.
                 prestado = jugador.ht_player_id_is_transfer
                 etapa = m.PlayerStint(
-                    player_id=jugador.id, ht_player_id=de_la_persona,
+                    player_id=jugador.id,
+                    ht_player_id=de_la_persona,
                     team_id=team_id,
                     from_academy=not prestado,
                     unknown_origin=prestado,
@@ -4863,8 +5176,11 @@ class SyncTeamHandler:
         return len(nuevas)
 
     async def _cuadrar_fichas_prestadas(
-        self, uow: UnitOfWork, team_id: int,
-        etapas: list[Any], jugadores: dict[int, Any],
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        etapas: list[Any],
+        jugadores: dict[int, Any],
     ) -> None:
         """Deja las fichas prestadas coherentes con las etapas que quedaron.
 
@@ -4905,9 +5221,7 @@ class SyncTeamHandler:
                 jugador.sale_price = salida.sale_price
 
         if sobrantes:
-            await uow.session.execute(
-                delete(m.Player).where(m.Player.id.in_(sobrantes))
-            )
+            await uow.session.execute(delete(m.Player).where(m.Player.id.in_(sobrantes)))
 
     async def _marcar_salidas_de_vendidos(self, uow: UnitOfWork, team_id: int) -> int:
         """Un jugador vendido ya no esta en la plantilla: marcarlo.
@@ -4954,9 +5268,7 @@ class SyncTeamHandler:
         """Núcleo de una venta — ver `_apply_buy_transfer`."""
         deadline = t.get("deadline") or ""
         sold_at = ht_to_utc_naive(deadline)
-        is_new_transaction = (
-            player.sold_at is None or sold_at is None or sold_at > player.sold_at
-        )
+        is_new_transaction = player.sold_at is None or sold_at is None or sold_at > player.sold_at
         if is_new_transaction:
             player.sale_price = t.get("price", 0)
             player.sold_at = sold_at
@@ -5009,11 +5321,13 @@ class SyncTeamHandler:
 
         transfers = payload.get("transfers", [])
         buys = [
-            t for t in transfers
+            t
+            for t in transfers
             if t.get("transfer_type") == "B" and t.get("buyer_team_id") == ht_team_id
         ]
         sells = [
-            t for t in transfers
+            t
+            for t in transfers
             if t.get("transfer_type") == "S" and t.get("seller_team_id") == ht_team_id
         ]
         if not buys and not sells:
@@ -5022,9 +5336,7 @@ class SyncTeamHandler:
         players = {
             p.ht_player_id: p
             for p in (
-                await uow.session.execute(
-                    select(m.Player).where(m.Player.ht_player_id.in_(ids))
-                )
+                await uow.session.execute(select(m.Player).where(m.Player.ht_player_id.in_(ids)))
             ).scalars()
         }
         for t in buys:
@@ -5101,8 +5413,10 @@ class SyncTeamHandler:
             total_pages = 1
             while page <= total_pages:
                 payload = await self._chpp.fetch(
-                    "transfersteam", version=FILE_VERSIONS["transfersteam"],
-                    teamID=team.ht_team_id, pageIndex=page,
+                    "transfersteam",
+                    version=FILE_VERSIONS["transfersteam"],
+                    teamID=team.ht_team_id,
+                    pageIndex=page,
                 )
                 result.pages_fetched += 1
                 total_pages = max(payload.get("pages", 1), 1)
@@ -5122,7 +5436,8 @@ class SyncTeamHandler:
                     break
 
                 own_transfers = [
-                    t for t in page_transfers
+                    t
+                    for t in page_transfers
                     if t.get("buyer_team_id") == team.ht_team_id
                     or t.get("seller_team_id") == team.ht_team_id
                 ]
@@ -5151,16 +5466,12 @@ class SyncTeamHandler:
                         ).scalars()
                     }
                     for t in new_transfers:
-                        await self._guardar_transferencia(
-                            uow, team_id, team.ht_team_id, t
-                        )
+                        await self._guardar_transferencia(uow, team_id, team.ht_team_id, t)
                     for t in new_transfers:
                         ht_player_id = t["ht_player_id"]
                         player = players.get(ht_player_id)
                         if player is None:
-                            first, last = self._split_player_name(
-                                t.get("player_name", "")
-                            )
+                            first, last = self._split_player_name(t.get("player_name", ""))
                             player_id = await uow.players.upsert_identity(
                                 ht_player_id, team_id, first, last
                             )
@@ -5205,10 +5516,7 @@ class SyncTeamHandler:
             team.transfers_history_complete = True
             team.transfers_import_version = VERSION_DEL_LIBRO
 
-
-    async def execute_transfers_history(
-        self, cmd: SyncTransfersHistoryCommand
-    ) -> SyncResult:
+    async def execute_transfers_history(self, cmd: SyncTransfersHistoryCommand) -> SyncResult:
         """HL-161, 2026-08-04 — botón "Actualizar transferencias": pagina
         transfersteam.xml completo (`pageIndex` 1..Pages, verificado en vivo
         que sí funciona — ver `parse_transfersteam`), más allá de la única
@@ -5229,19 +5537,17 @@ class SyncTeamHandler:
         from app.infrastructure.db import models as m
 
         async with self._uow as uow:
-            sync_id = await uow.syncs.create(
-                cmd.user_id, cmd.team_id, kind="transfers_history"
-            )
+            sync_id = await uow.syncs.create(cmd.user_id, cmd.team_id, kind="transfers_history")
             result = SyncResult(sync_id=sync_id, status="completed")
 
             team = await uow.session.get(m.Team, cmd.team_id)
             if team is not None:
-                await self._recorrer_historial(
-                    uow, cmd.user_id, cmd.team_id, team, result
-                )
+                await self._recorrer_historial(uow, cmd.user_id, cmd.team_id, team, result)
 
             await uow.syncs.finalize(
-                sync_id, status=result.status, error="; ".join(result.errors) or None,
+                sync_id,
+                status=result.status,
+                error="; ".join(result.errors) or None,
             )
             await uow.commit()
         return result

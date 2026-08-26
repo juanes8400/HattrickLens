@@ -12,6 +12,7 @@ casilla, todas las posiciones se corren y las marcas ya pintadas saltan de
 sitio o desaparecen. Congelado, la casilla de un jugador es suya hasta que el
 barrido termina, se cierre su expediente o no.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -92,7 +93,10 @@ def mapa_de(eje: list[int], atendidos: set[int]) -> Mapa:
 
 
 def balance_de(
-    mapa: Mapa, abiertos: int, cerrados: dict[str, int], comisiones: int,
+    mapa: Mapa,
+    abiertos: int,
+    cerrados: dict[str, int],
+    comisiones: int,
 ) -> Balance:
     """El resumen del barrido, sin volver a preguntarle nada a la base.
 
