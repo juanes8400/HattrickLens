@@ -149,6 +149,23 @@ def _mismo(puestos: tuple[str, ...], cuanto: int) -> dict[str, int]:
 
 
 @dataclass(frozen=True)
+class LineaDeEntrenamiento:
+    """Una linea de la celda: que sube, cuanto, y --si se sortea-- con que
+    probabilidad.
+
+    `probabilidad` en None significa «esto pasa siempre», no «no se sabe». Es
+    la diferencia entre un sorteo y un entrenamiento que sube dos cosas a la
+    vez, y la pantalla la usa para poner o quitar el «(proba: N%)».
+    """
+
+    skill: str
+    #: Sin el castigo del hueco secundario: lo aplica quien lo enseña, que es
+    #: el unico que sabe en cual de los dos huecos esta esta plaza.
+    ritmo: float
+    probabilidad: int | None
+
+
+@dataclass(frozen=True)
 class Entrenamiento:
     """Un entrenamiento juvenil: que sube, a quien llega y cuanto le da."""
 
@@ -177,6 +194,41 @@ class Entrenamiento:
         if self.distribucion_por_puesto is not None:
             return dict(self.distribucion_por_puesto.get(puesto, {}))
         return {self.skill: 100} if self.ritmos.get(puesto, 0) > 0 else {}
+
+    def lineas_en(self, puesto: str) -> list["LineaDeEntrenamiento"]:
+        """Lo que hay que ENSEÑAR en la celda de esa plaza, linea a linea.
+
+        Es distinto de `reparto_en`, y a proposito. Aquella son PROBABILIDADES
+        y suman 100 --de ella viven `skill_en` y `probabilidad_de_descubrir`--;
+        esta son las lineas de la pantalla, que no siempre son un sorteo:
+
+        - «Individual» sortea, asi que cada linea lleva su probabilidad.
+        - «Anotación y balón parado» sube LAS DOS siempre, a ritmos distintos.
+          Sus lineas van sin probabilidad: no hay nada que sortear, y poner un
+          «(proba: 100%)» al lado de cada una mentiria sobre el mecanismo.
+        - Los demas dan UNA linea, que es exactamente lo que se ve hoy.
+
+        Mezclar los dos conceptos en `reparto_en` corrompia el sorteo: al
+        añadirle la segunda habilidad de «Anotación y balón parado», la ruleta
+        pasaba a sumar mas de 100 y `probabilidad_de_descubrir` devolvia
+        numeros imposibles.
+        """
+        if self.distribucion_por_puesto is not None:
+            reparto = self.reparto_en(puesto)
+            return [
+                LineaDeEntrenamiento(sk, ritmo_individual(puesto, sk), prob)
+                for sk, prob in sorted(reparto.items(), key=lambda kv: (-kv[1], kv[0]))
+            ]
+
+        lineas: list[LineaDeEntrenamiento] = []
+        propio = self.ritmos.get(puesto, 0)
+        if propio > 0:
+            lineas.append(LineaDeEntrenamiento(self.skill, float(propio), None))
+        if self.tambien_sube:
+            otra = (self.ritmos_de_la_otra or {}).get(puesto, 0)
+            if otra > 0:
+                lineas.append(LineaDeEntrenamiento(self.tambien_sube, float(otra), None))
+        return lineas
 
     def skill_en(self, puesto: str, sin_saber: Container[str] | None = None) -> str:
         """Que habilidad sube este entrenamiento EN ESA PLAZA.

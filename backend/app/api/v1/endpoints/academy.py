@@ -13,6 +13,7 @@ from app.domain.engines import decision_individual as di
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
+    factor_secundario,
     mejor_variante,
     youth_training_plan,
 )
@@ -319,6 +320,51 @@ async def academy_training_plan(
             "max_reached": bool(r.max_reached) if r else False,
         }
 
+    factor = factor_secundario(main, secondary)
+
+    def _lineas(clave: str, puesto: str, jugador: str, es_secundario: bool) -> list[dict[str, Any]]:
+        """Lo que va en UNA celda de entrenamiento, linea a linea.
+
+        Antes cada celda era un numero. Con «Individual» ese numero pasaba a
+        ser una MEDIA, y una media aqui engaña: mezcla un 66,7% de Pases con
+        un 28,3% de Lateral como si valieran lo mismo, y esconde lo mas util
+        de saber --que en un extremo la habilidad MAS probable es la que PEOR
+        entrena--. Asi que la celda se despliega.
+
+        Sale generico: el motor describe un entrenamiento corriente como una
+        sola linea, asi que para ellos la pantalla no cambia nada. Y «Anotación
+        y balón parado» da sus DOS lineas sin probabilidad, porque no sortea:
+        sube las dos siempre.
+        """
+        entrenamiento = ENTRENAMIENTOS.get(clave)
+        if entrenamiento is None:
+            return []
+        # El castigo del hueco secundario solo cae en el secundario. La celda
+        # enseña lo que de verdad entra, no la casilla de la tabla del juego.
+        castigo = factor if es_secundario else 1.0
+        return [
+            {
+                "skill": linea.skill,
+                "label": etiquetas.get(linea.skill, linea.skill),
+                "rate": round(linea.ritmo * castigo, 1),
+                # Lo que rendiria en el hueco PRINCIPAL, sin castigo. La
+                # pantalla lo necesita para poder decir de donde sale el
+                # numero: «28,3%» a secas no deja ver que ya son dos tercios
+                # de 42,5, y el mismo sorteo vale 42,5 / 28,3 / 21,2 segun el
+                # hueco. Sin esto la cifra es ambigua.
+                "base": round(linea.ritmo, 1),
+                "penalty": round(castigo, 4),
+                # None significa «esto pasa siempre», no «no se sabe»: la
+                # pantalla usa eso para poner o quitar el «(proba: N%)».
+                "probability": linea.probabilidad,
+                # El nivel de ESTA habilidad. Es lo que convierte la linea en
+                # una decision: una salida en «desconocido» al 21% es una
+                # apuesta, y una ya revelada al 34% es entrenamiento tirado.
+                "level": _lectura(jugador, linea.skill),
+            }
+            for linea in entrenamiento.lineas_en(puesto)
+        ]
+
     def _con_habilidad(a: Any) -> dict[str, Any]:
         skill = habilidad_de(a.elegido_por, a.puesto, a.player)
         # Donde todavia puede crecer sin que nadie sepa cuanto: el techo sin
@@ -338,6 +384,8 @@ async def academy_training_plan(
             "main_level": _lectura(a.player, habilidad_de(main, a.puesto, a.player)),
             "secondary_level": _lectura(a.player, habilidad_de(secondary, a.puesto, a.player)),
             "open_ceilings": sin_techo,
+            "main_lines": _lineas(main, a.puesto, a.player, es_secundario=False),
+            "secondary_lines": _lineas(secondary, a.puesto, a.player, es_secundario=True),
         }
 
     return cast(

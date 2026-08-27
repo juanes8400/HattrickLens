@@ -635,6 +635,10 @@ export interface TrainingSlot {
    *  la plaza. */
   mainLevel: NivelLeido;
   secondaryLevel: NivelLeido;
+  /** Lo que va en cada celda de entrenamiento, linea a linea. Un entrenamiento
+   *  corriente trae una sola; «Individual» trae su ruleta entera. */
+  mainLines?: LineaDeEntrenamiento[];
+  secondaryLines?: LineaDeEntrenamiento[];
   /** Las habilidades a las que el ojeador aún no les ha puesto techo: es lo
    *  único que queda por saber de él. */
   openCeilings: string[];
@@ -681,6 +685,27 @@ export interface PlayerComparisonChange {
   current: number | boolean;
   delta: number | null;
   direction: "up" | "down" | "neutral";
+}
+
+/** Una linea de una celda de entrenamiento juvenil.
+ *
+ * `probability` en null significa «esto pasa siempre», no «no se sabe»: un
+ * entrenamiento corriente y «Anotación y balón parado» no sortean nada.
+ * Solo «Individual» rellena este campo. */
+export interface LineaDeEntrenamiento {
+  skill: string;
+  label: string;
+  /** Lo que rinde esa habilidad en esa plaza, con el castigo del hueco
+   *  secundario ya aplicado. */
+  rate: number;
+  /** Lo que rendiria en el hueco PRINCIPAL, sin el castigo. El mismo sorteo
+   *  vale 42,5 / 28,3 / 21,2 segun donde este, asi que `rate` a secas es
+   *  ambiguo y la pantalla necesita poder decir de donde sale. */
+  base?: number;
+  /** 1 en el principal, ⅔ en el secundario, ½ si se repite entrenamiento. */
+  penalty?: number;
+  probability: number | null;
+  level: { label: string; current: number | null; maximum: number | null; maxReached: boolean };
 }
 
 export interface PlayerComparisonRow {
@@ -2258,6 +2283,21 @@ export interface PlayerBalanceRow {
   resaleBonusShare: number;
   saldo: number | null;
   isSold: boolean;
+  /** Entrenamiento individual inferido por el mayor aumento de las siete
+   * habilidades entre el primer snapshot y el ultimo anterior a la venta.
+   * Los casos ambiguos usan niveles, jugadores y desempates de temporada. */
+  derivedTrainingSkill: string | null;
+  derivedTrainingLevels: number | null;
+  derivedTrainingMethod:
+    | "direct_maximum"
+    | "season_levels"
+    | "season_players"
+    | "season_current_training"
+    | "season_skill_priority"
+    | "insufficient_evidence";
+  derivedTrainingMethodLabel: string;
+  /** Entrenamiento del club que estaba activo cuando se produjo la venta.
+   * Se conserva como dato historico, pero no clasifica el saldo por jugador. */
   trainingAtSale: string | null;
   seasonAtSale: string | null;
   /** La semana de temporada (1-16) de cada movimiento, sin la temporada
@@ -2282,7 +2322,7 @@ export interface PlayerBalanceRow {
   destinationCountry: string;
   destinationCountryCode: string | null;
   ageAtSale: number | "?";
-  // 2026-08-05: tabla "Detalle" de 43 columnas.
+  // 2026-08-05: tabla "Detalle" de transferencias.
   ageAtPurchase: number | "?";
   experienceAtPurchase: number | "?";
   leadershipAtPurchase: number | "?";
@@ -2743,7 +2783,7 @@ export interface Cup {
   };
   readiness: {
     referenceVariants: CupReadinessVariant[];
-    defaultMode: "top_tsi" | "last_cup" | "last_league";
+    defaultMode: "top_tsi" | "submitted" | "last_cup" | "last_league";
     penaltyCandidates: CupPenaltyCandidate[];
     goalkeeper: { htPlayerId: number; name: string; keeper: number } | null;
     penaltyMethod: string;
@@ -2764,7 +2804,7 @@ export interface CupScenario {
 }
 
 export interface CupReadinessVariant {
-  mode: "top_tsi" | "last_cup" | "last_league";
+  mode: "top_tsi" | "submitted" | "last_cup" | "last_league";
   label: string;
   sourceMatchId: number | null;
   sourceOpponent: string | null;

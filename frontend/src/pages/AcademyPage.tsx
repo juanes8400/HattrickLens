@@ -13,6 +13,7 @@ import { date, decimal, money } from "../hooks/useFormat";
 import type {
   Academy,
   AcademySkillScores,
+  LineaDeEntrenamiento,
   ScoutsLedger,
   TrainingSlot,
 } from "../services/api";
@@ -983,6 +984,56 @@ function porcentaje(n: number): string {
  *
  * El número ya viene con el castigo del hueco secundario aplicado, así que
  * es lo que de verdad recibe, no la casilla de la tabla de ritmos. */
+/** Una celda de entrenamiento: una linea por lo que esa plaza puede subir.
+ *
+ * Antes era un numero. Con «Individual» ese numero pasaba a ser una MEDIA, y
+ * una media aqui engaña: mezcla un 66,7% de Pases con un 28,3% de Lateral como
+ * si valieran lo mismo, y esconde lo mas util de saber -que en un extremo la
+ * habilidad MAS probable es la que PEOR entrena-.
+ *
+ * `probability` en null significa «esto pasa siempre», no «no se sabe»: es la
+ * diferencia entre un sorteo y un entrenamiento que sube dos cosas a la vez.
+ * Por eso «Anotación y balón parado» sale con sus dos lineas y sin «(proba:)».
+ *
+ * Un entrenamiento corriente trae UNA linea, asi que se ve igual que siempre.
+ */
+function Celda({ lineas }: { lineas: LineaDeEntrenamiento[] }) {
+  if (lineas.length === 0) return <span className="text-[var(--muted)]">·</span>;
+  return (
+    <span className="flex flex-col gap-0.5">
+      {lineas.map((l) => (
+        <span
+          key={l.skill}
+          className="flex items-center gap-2 whitespace-nowrap"
+          /* El porcentaje ya lleva descontado el castigo del hueco, así que
+             el MISMO sorteo vale 42,5% de principal y 28,3% de secundario.
+             La columna dice en qué hueco estamos, pero el número solo no
+             deja ver de dónde sale: aquí se explica. */
+          /* Con guardas: `base` y `penalty` pueden no venir —un backend más
+             viejo, o una respuesta cacheada— y un campo que falta no puede
+             tumbar la tabla entera. Ya pasó una vez. */
+          title={
+            l.base == null || l.penalty == null || l.penalty >= 1
+              ? `${l.label}: ${porcentaje(l.rate)}`
+              : `${l.label} rinde ${porcentaje(l.base)} de principal; aquí, de ` +
+                `secundario, ${porcentaje(l.rate)}`
+          }
+        >
+          <Racion cuanto={l.rate} etiqueta={l.label} />
+          {l.probability != null && (
+            /* Solo cuando se sortea. En tono apagado: la probabilidad dice
+               cuantas veces toca, no cuanto vale, y no debe competir con el
+               rendimiento por la atencion. */
+            <span className="shrink-0 text-[11px] tabular-nums text-[var(--muted)]">
+              (proba: {l.probability}%)
+            </span>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
   if (cuanto === 0) return <span className="text-[var(--muted)]">·</span>;
   // Cualquier cosa por debajo de lo entero se avisa en ámbar: media ración y
@@ -1073,8 +1124,17 @@ function TablaDelReparto({
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
                 Entrenamiento principal
               </th>
-              <th scope="col" className={`${th} text-left`} title={secondaryLabel}>
-                Entrenamiento secundario
+              {/* El «(⅔)» no es decorativo: el mismo sorteo vale 42,5% de
+                  principal y 28,3% de secundario, y sin decirlo aquí el
+                  número de la celda es ambiguo —parece el rendimiento bruto
+                  de la habilidad cuando ya lleva el castigo descontado—. */}
+              <th
+                scope="col"
+                className={`${th} text-left`}
+                title={`${secondaryLabel} — los porcentajes ya llevan descontado el castigo del hueco secundario`}
+              >
+                Entrenamiento secundario{" "}
+                <span className="font-normal normal-case text-[var(--muted)]">(ya con su ⅔)</span>
               </th>
               <th scope="col" className={`${th} text-left`}>
                 Nivel habilidad principal
@@ -1119,10 +1179,10 @@ function TablaDelReparto({
                         {PUESTOS[a.puesto] ?? a.puesto ?? ""}
                       </td>
                       <td className={`${td} text-left`}>
-                        <Racion cuanto={a.racionPrincipal} etiqueta={mainLabel} />
+                        <Celda lineas={a.mainLines ?? []} />
                       </td>
                       <td className={`${td} text-left`}>
-                        <Racion cuanto={a.racionSecundaria} etiqueta={secondaryLabel} />
+                        <Celda lineas={a.secondaryLines ?? []} />
                       </td>
                       {/* Las dos habilidades que se entrenan, cada una en su
                           columna: ya no hace falta decir de cuál se habla

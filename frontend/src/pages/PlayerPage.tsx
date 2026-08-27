@@ -823,6 +823,29 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
 
       {row ? (
         <>
+          <Panel
+            title="Entrenamiento inferido al vender"
+            meta="primer snapshot contra último snapshot anterior a la venta"
+          >
+            <div className="grid gap-4 p-4 sm:grid-cols-3">
+              <Kpi
+                label="Habilidad asignada"
+                value={row.derivedTrainingSkill ?? "Sin resolver"}
+              />
+              <Kpi
+                label="Niveles subidos"
+                value={
+                  row.derivedTrainingLevels != null
+                    ? number(row.derivedTrainingLevels)
+                    : "-"
+                }
+              />
+              <Kpi
+                label="Método"
+                value={row.derivedTrainingMethodLabel}
+              />
+            </div>
+          </Panel>
           <Panel title="Cálculo del ROI" meta="mismo desglose que Detalle en Transferencias">
             <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
               {/* De la cantera no se paga precio de mercado, se paga el

@@ -17,7 +17,7 @@ import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
 import { api, errorMessage } from "../services/api";
 import type { PlayerBalanceRow } from "../services/api";
 
-const UNKNOWN_TRAINING = "Entrenamiento desconocido";
+const UNKNOWN_TRAINING = "Sin evidencia suficiente";
 const UNKNOWN_SEASON = "Temporada desconocida";
 const UNKNOWN_AGE = "Edad desconocida";
 const UNKNOWN_TOP_SKILL = "?";
@@ -647,7 +647,7 @@ export function PlayerBalancePage() {
     queryFn: () => api.transferAttempts(TEAM_ID),
   });
   // Filtros compartidos (pedido explícitamente 2026-08-05: los mismos 4
-  // controles — Entrenamiento, Origen, Ignorar entrenamiento desconocido,
+  // controles — Habilidad entrenada, Origen, Ignorar datos desconocidos,
   // Ignorar despedidos — en un solo lugar, afectando Resumen, Desgloses y
   // Detalle a la vez, en vez de repetidos/independientes por sección).
   const [trainingFilter, setTrainingFilter] = useState<string>("all");
@@ -694,12 +694,17 @@ export function PlayerBalancePage() {
   // parten TODOS del mismo subconjunto filtrado, para que una fila
   // descartada aquí desaparezca de las tres a la vez.
   const trainingOptions = Array.from(
-    new Set(soldRowsInSeason.map((r) => r.trainingAtSale ?? UNKNOWN_TRAINING)),
+    new Set(
+      soldRowsInSeason.map(
+        (r) => r.derivedTrainingSkill ?? UNKNOWN_TRAINING,
+      ),
+    ),
   ).sort();
   let filteredRows = soldRowsInSeason;
   if (trainingFilter !== "all") {
     filteredRows = filteredRows.filter(
-      (r) => (r.trainingAtSale ?? UNKNOWN_TRAINING) === trainingFilter,
+      (r) =>
+        (r.derivedTrainingSkill ?? UNKNOWN_TRAINING) === trainingFilter,
     );
   }
   if (ignoreUnknownData) {
@@ -707,7 +712,7 @@ export function PlayerBalancePage() {
     // solo entrenamiento — pedido explícitamente al renombrar el toggle.
     filteredRows = filteredRows.filter(
       (r) =>
-        r.trainingAtSale != null &&
+        r.derivedTrainingSkill != null &&
         typeof r.ageAtSale === "number" &&
         r.topSkillAtSale != null &&
         r.bidHourAtSale != null,
@@ -748,7 +753,7 @@ export function PlayerBalancePage() {
     if (r.saldo == null) continue;
     const season = r.seasonAtSale ?? UNKNOWN_SEASON;
     bySeason[season] = (bySeason[season] ?? 0) + r.saldo;
-    const training = r.trainingAtSale ?? UNKNOWN_TRAINING;
+    const training = r.derivedTrainingSkill ?? UNKNOWN_TRAINING;
     byTraining[training] = (byTraining[training] ?? 0) + r.saldo;
     const age =
       typeof r.ageAtSale === "number"
@@ -824,7 +829,11 @@ export function PlayerBalancePage() {
       r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK,
       r,
     );
-    acumular(roiPorEntrenamiento, r.trainingAtSale ?? UNKNOWN_TRAINING, r);
+    acumular(
+      roiPorEntrenamiento,
+      r.derivedTrainingSkill ?? UNKNOWN_TRAINING,
+      r,
+    );
     acumular(
       roiPorEdad,
       typeof r.ageAtSale === "number" ? ageBucket(Math.floor(r.ageAtSale)) : UNKNOWN_AGE,
@@ -912,7 +921,7 @@ export function PlayerBalancePage() {
       r.roiPct,
       r.salePrice,
       r.soldAt,
-      r.trainingAtSale ?? UNKNOWN_TRAINING,
+      r.derivedTrainingSkill ?? UNKNOWN_TRAINING,
       r.htPlayerId,
     ] as [
       number,
@@ -1025,7 +1034,7 @@ export function PlayerBalancePage() {
           mismos 4 controles afectan a las tres secciones a la vez. */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          Entrenamiento
+          Habilidad entrenada
           <select
             value={trainingFilter}
             onChange={(e) => setTrainingFilter(e.target.value)}
@@ -1059,7 +1068,7 @@ export function PlayerBalancePage() {
         <ToggleSwitch
           checked={ignoreUnknownData}
           onChange={() => setIgnoreUnknownData((v) => !v)}
-          label="Ignorar datos desconocidos (entrenamiento, edad, etc.)"
+          label="Ignorar datos desconocidos (habilidad entrenada, edad, etc.)"
         />
         <ToggleSwitch
           checked={ignoreFired}
@@ -1159,7 +1168,7 @@ export function PlayerBalancePage() {
                         const [, , , roi, salePrice, soldAt, training] = v;
                         return (
                           `${p?.name ?? ""}<br/>Venta: ${money(salePrice, data.currency)}<br/>` +
-                          `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Entrenamiento: ${training}<br/><b>Haz clic para abrir la ficha</b>`
+                          `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Habilidad entrenada: ${training}<br/><b>Haz clic para abrir la ficha</b>`
                         );
                       },
                     },
@@ -1278,8 +1287,8 @@ export function PlayerBalancePage() {
             />
             <HorizontalBarPanel
               title="Saldo por entrenamiento en el momento de la venta"
-              meta="ventas cerradas"
-              ariaLabel="Barras horizontales del saldo neto, repartido por el tipo de entrenamiento activo cuando se vendió cada jugador"
+              meta="habilidad individual inferida · ventas cerradas"
+              ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad que más aumentó en cada jugador antes de su venta"
               entries={trainingEntries}
               currency={data.currency}
               isDark={isDark}
@@ -1357,7 +1366,7 @@ export function PlayerBalancePage() {
             />
             <RoiPanel
               title="ROI por entrenamiento al vender"
-              meta="ordenado de mejor a peor"
+              meta="habilidad individual inferida · ordenado de mejor a peor"
               entries={Object.entries(roiPorEntrenamiento).sort(
                 (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
               )}
@@ -2218,8 +2227,33 @@ function BalanceTable({
       ),
     },
     {
+      key: "derivedTrainingSkill",
+      header: "Habilidad entrenada",
+      align: "left",
+      value: (r) => r.derivedTrainingSkill ?? "",
+      render: (r) => r.derivedTrainingSkill ?? "Sin resolver",
+    },
+    {
+      key: "derivedTrainingLevels",
+      header: "Niveles subidos",
+      align: "right",
+      value: (r) => r.derivedTrainingLevels ?? -1,
+      render: (r) =>
+        r.derivedTrainingLevels != null ? (
+          <span className="tabular-nums">{number(r.derivedTrainingLevels)}</span>
+        ) : (
+          "-"
+        ),
+    },
+    {
+      key: "derivedTrainingMethod",
+      header: "Método de asignación",
+      align: "left",
+      value: (r) => r.derivedTrainingMethodLabel,
+    },
+    {
       key: "trainingAtSale",
-      header: "Entrenamiento en venta",
+      header: "Entrenamiento del club en venta",
       align: "left",
       value: (r) => r.trainingAtSale ?? "",
     },
