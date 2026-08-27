@@ -13,6 +13,7 @@ from app.domain.engines import decision_individual as di
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
+    RITMO_INDIVIDUAL_DUDOSO,
     factor_secundario,
     mejor_variante,
     youth_training_plan,
@@ -353,6 +354,13 @@ async def academy_training_plan(
                 # de 42,5, y el mismo sorteo vale 42,5 / 28,3 / 21,2 segun el
                 # hueco. Sin esto la cifra es ambigua.
                 "base": round(linea.ritmo, 1),
+                # El estudio de la comunidad NO midio dos de las siete
+                # --Porteria y Balon parado, que el autor marca «?» y
+                # «guess!»-- y en un PORTERO eso son dos de sus tres lineas.
+                # Se dice, porque leer como medido lo que es conjetura es
+                # peor que no tener el numero.
+                "uncertain": linea.skill in RITMO_INDIVIDUAL_DUDOSO
+                and entrenamiento.distribucion_por_puesto is not None,
                 "penalty": round(castigo, 4),
                 # None significa «esto pasa siempre», no «no se sabe»: la
                 # pantalla usa eso para poner o quitar el «(proba: N%)».

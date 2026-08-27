@@ -122,21 +122,24 @@ TODOS = (POR, DFC, LAT, MED, EXT, DEL)
 #: MEDICIONES de la comunidad con su margen, no cifras publicadas por
 #: Hattrick, y por eso viven citadas y con fecha.
 #:
-#: Hay dos huecos que el propio autor declara y que aqui NO se rellenan a ojo:
-#: Porteria ("?") y Balon parado ("guess!"). Ver `RITMO_INDIVIDUAL_DUDOSO`.
+#: El autor deja dos huecos declarados: Porteria ("?") y Balon parado
+#: ("guess!"). El de Porteria lo cerro el usuario el 2026-08-26 --tambien 100%--
+#: asi que ya no es conjetura nuestra. Ver `RITMO_INDIVIDUAL_DUDOSO`.
 RITMO_INDIVIDUAL_POR_HABILIDAD: dict[str, float] = {
     "passing": 100.0,  # ±1
     "defending": 68.5,  # ±1
     "playmaking": 56.5,  # ±1
     "winger": 42.5,  # ±5
     "scoring": 40.0,  # ±1
-    "set_pieces": 100.0,  # conjetura declarada por el autor
-    "keeper": 100.0,  # el autor pone "?"; se supone entero por no inventar menos
+    "set_pieces": 100.0,  # conjetura declarada por el autor; el usuario la da por buena
+    "keeper": 100.0,  # el autor pone "?"; CONFIRMADO por el usuario el 2026-08-26
 }
 
-#: Las dos que el estudio NO midio. Se listan para que la pantalla pueda
-#: decirlo si algun dia hace falta, y para que nadie las tome por medidas.
-RITMO_INDIVIDUAL_DUDOSO: frozenset[str] = frozenset({"keeper", "set_pieces"})
+#: Lo que el estudio NO midio. Se lista para que nadie lo tome por medido, no
+#: para dudar del numero: el valor de las dos es 100% y el usuario lo da por
+#: bueno. Porteria salio de aqui el 2026-08-26 al confirmarla el; Balon parado
+#: se queda porque su propio autor escribe "guess!" al lado.
+RITMO_INDIVIDUAL_DUDOSO: frozenset[str] = frozenset({"set_pieces"})
 
 #: La defensa de un PORTERO entrena mas que la de un jugador de campo: 82%
 #: contra 68,5%. El autor avisa de que es **una sola observacion** (±10), asi
@@ -254,7 +257,20 @@ class Entrenamiento:
 
         Es la suma de la ruleta sobre las casillas que no conocemos. Un chico
         con todo revelado da 0 --la plaza se desperdicia en el-- y uno del que
-        no se sabe nada da 100. Es el numero que ordena la cola de Individual.
+        no se sabe nada da 100.
+
+        **Hoy NADIE la llama, y conviene saber por que antes de enchufarla.**
+        La cola de Individual la ordena `decision_individual.cola_de_descubrimiento`
+        contando cuantas habilidades no se saben, no con este numero. No es un
+        descuido: esta funcion necesita un PUESTO, y cuando se ordena la cola
+        todavia no se sabe en cual va a caer cada chico --el puesto lo reparte
+        despues `youth_training_plan`--. Ademas satura: con la cantera tan a
+        oscuras casi todos dan 100 en su mejor puesto, asi que no distingue a
+        nadie, mientras que el conteo si.
+
+        Donde SI serviria es en el reparto: no gastar la plaza de portero en
+        alguien cuya Porteria ya se conoce. Eso es cambiar como se asignan los
+        puestos, no como se ordena la cola, y esta sin hacer.
         """
         return sum(v for k, v in self.reparto_en(puesto).items() if k in sin_saber)
 

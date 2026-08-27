@@ -17,6 +17,7 @@ from app.domain.engines.youth_skill_score import PlayerNote
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
     RITMO_INDIVIDUAL_DUDOSO,
+    RITMO_INDIVIDUAL_POR_HABILIDAD,
     SECUNDARIO_NORMAL,
     cupos_de,
     ritmo_individual,
@@ -236,9 +237,21 @@ def test_reproduce_el_ejemplo_publicado_por_glynzales():
 
 
 def test_lo_que_el_estudio_no_midio_queda_marcado():
-    """Portería y Balón parado son conjeturas del autor, no mediciones. Se
-    marcan para que nadie las confunda con las otras cinco."""
-    assert RITMO_INDIVIDUAL_DUDOSO == {"keeper", "set_pieces"}
+    """Balón parado es lo único que sigue sin medir: su autor pone «guess!».
+
+    Portería salió de aquí el 2026-08-26: el estudio la dejaba en «?» y el
+    usuario la confirmó en 100%, así que ya no es conjetura nuestra. El número
+    no cambió —era 100 antes y después—; lo que cambió es de quién es.
+
+    La lista NO dice «este número es dudoso»: dice «este número no se midió».
+    Los dos valen 100% y el usuario los da por buenos.
+    """
+    assert "set_pieces" in RITMO_INDIVIDUAL_DUDOSO
+    assert "keeper" not in RITMO_INDIVIDUAL_DUDOSO
+    assert len(RITMO_INDIVIDUAL_DUDOSO) == 1
+    # El número no cambió al confirmarse: las dos valen 100%.
+    assert RITMO_INDIVIDUAL_POR_HABILIDAD["keeper"] == 100.0
+    assert RITMO_INDIVIDUAL_POR_HABILIDAD["set_pieces"] == 100.0
 
 
 def _nota(nombre: str, *, pronto: bool = False, techo: int = 0) -> PlayerNote:
