@@ -14,7 +14,8 @@ from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
     RITMO_INDIVIDUAL_DUDOSO,
-    factor_secundario,
+    SECUNDARIO_DUPLICADO,
+    SECUNDARIO_NORMAL,
     mejor_variante,
     youth_training_plan,
 )
@@ -321,8 +322,6 @@ async def academy_training_plan(
             "max_reached": bool(r.max_reached) if r else False,
         }
 
-    factor = factor_secundario(main, secondary)
-
     def _lineas(clave: str, puesto: str, jugador: str, es_secundario: bool) -> list[dict[str, Any]]:
         """Lo que va en UNA celda de entrenamiento, linea a linea.
 
@@ -342,12 +341,27 @@ async def academy_training_plan(
             return []
         # El castigo del hueco secundario solo cae en el secundario. La celda
         # enseña lo que de verdad entra, no la casilla de la tabla del juego.
-        castigo = factor if es_secundario else 1.0
+        #
+        # Y se mira POR HABILIDAD, no por entrenamiento. `factor_secundario`
+        # compara los dos codigos, asi que «Lateral» + «Individual» le parecen
+        # distintos --y lo son-- pero cuando la ruleta de Individual saca
+        # Lateral las dos plazas caen en LA MISMA habilidad, que es el caso que
+        # Hattrick castiga a la mitad. De ahi salen los 133,3% que da el
+        # usuario: 100 + 100 x ⅔ x ½. Comparar solo los codigos dejaba ese caso
+        # cobrando ⅔ enteros.
+        skill_del_principal = habilidad_de(main, puesto, jugador)
+
+        def _castigo(skill: str) -> float:
+            if not es_secundario:
+                return 1.0
+            # Misma habilidad en las dos plazas -> la mitad, no dos tercios.
+            return SECUNDARIO_DUPLICADO if skill == skill_del_principal else SECUNDARIO_NORMAL
+
         return [
             {
                 "skill": linea.skill,
                 "label": etiquetas.get(linea.skill, linea.skill),
-                "rate": round(linea.ritmo * castigo, 1),
+                "rate": round(linea.ritmo * _castigo(linea.skill), 1),
                 # Lo que rendiria en el hueco PRINCIPAL, sin castigo. La
                 # pantalla lo necesita para poder decir de donde sale el
                 # numero: «28,3%» a secas no deja ver que ya son dos tercios
@@ -361,7 +375,7 @@ async def academy_training_plan(
                 # peor que no tener el numero.
                 "uncertain": linea.skill in RITMO_INDIVIDUAL_DUDOSO
                 and entrenamiento.distribucion_por_puesto is not None,
-                "penalty": round(castigo, 4),
+                "penalty": round(_castigo(linea.skill), 4),
                 # None significa «esto pasa siempre», no «no se sabe»: la
                 # pantalla usa eso para poner o quitar el «(proba: N%)».
                 "probability": linea.probabilidad,
