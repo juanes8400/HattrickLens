@@ -114,7 +114,7 @@ Pesos que HC expone directamente en su panel "Valoración del entrenamiento":
 | Factor | Peso |
 |---|---|
 | Entrenamiento principal | 1,0 |
-| Entrenamiento secundario | 0,8 |
+| Entrenamiento secundario | **0,667 (⅔)** |
 | Posición principal | 1,0 |
 | Posición secundaria | 0,5 |
 | Partido oficial | 1,0 |
@@ -122,6 +122,20 @@ Pesos que HC expone directamente en su panel "Valoración del entrenamiento":
 
 Adoptados como valores iniciales del factor de exposición del motor de entrenamiento,
 aplicable tanto a juveniles como al primer equipo.
+
+> **Corregido el 2026-08-26.** Esta tabla decía `0,8` para el entrenamiento
+> secundario y llevaba el sello «✅ Verificado», pero el valor bueno es **⅔
+> (0,667)**, confirmado por el usuario. La diferencia no era cosmética: hasta
+> 13 puntos por habilidad. El código (`youth_training_plan.SECUNDARIO_NORMAL`)
+> siempre usó ⅔ y era el que estaba en lo cierto; lo que fallaba era este
+> documento, que es peor —un número equivocado con sello de verificado se cree
+> más que uno sin sello—.
+>
+> **Sin resolver:** la combinación de los dos entrenamientos vale **133,3 %**,
+> no la suma `100 + 67 = 167`. Falta saber cómo se reparte ese 133,3 entre las
+> dos habilidades cuando son distintas, que es el caso normal. Hasta saberlo,
+> la tabla del once enseña los dos porcentajes por separado y quien los sume
+> se pasará por exceso.
 
 ---
 
