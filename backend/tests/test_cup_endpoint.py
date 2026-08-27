@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -50,6 +51,18 @@ async def _seed_roster(team_id: int, specs: list[tuple[int, int, int]]) -> None:
             winger=1, passing=1, scoring=1, set_pieces=1,
             content_hash=f"player-{index}".encode(),
         ))
+    await session.commit()
+    await gen.aclose()
+
+
+async def _set_upcoming_submitted_lineup(lineup_json: str | None) -> None:
+    gen = app.dependency_overrides[get_session]()
+    session = await gen.__anext__()
+    match = (
+        await session.execute(select(m.Match).where(m.Match.ht_match_id == 767370369))
+    ).scalar_one()
+    match.submitted_lineup_json = lineup_json
+    match.submitted_orders_captured_at = datetime.now(UTC) if lineup_json else None
     await session.commit()
     await gen.aclose()
 
@@ -151,6 +164,7 @@ def test_cup_readiness_defaults_to_top_tsi_without_finished_lineup_history(
     specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
     specs.append((999999999, 1_000_000, 9))  # mayor TSI de todos, sí entra al top 11
     asyncio.run(_seed_roster(team_id, specs))
+    asyncio.run(_set_upcoming_submitted_lineup(None))
 
     body = client.get(f"/api/v1/teams/{team_id}/cup").json()
     readiness = body["readiness"]
@@ -159,6 +173,36 @@ def test_cup_readiness_defaults_to_top_tsi_without_finished_lineup_history(
     variant = readiness["referenceVariants"][0]
     assert variant["startersCount"] == 11
     assert variant["staminaBands"][2]["count"] == 1  # el jugador de resistencia 9 ("Preparada")
+
+
+def test_cup_readiness_uses_submitted_formation_for_stamina(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """La formación enviada del próximo partido aparece como opción y es la
+    referencia predeterminada porque representa los jugadores que realmente
+    van a disputar el partido, no los once con mayor TSI."""
+    import asyncio
+
+    client, team_id = seeded
+    specs = [(pid, 10_000 - index, 6) for index, pid in enumerate(SUBMITTED_IDS)]
+    # Este jugador desplaza a uno de la lista en el once por TSI, pero no está
+    # en la formación enviada: no debe alterar su resistencia media.
+    specs.append((999999999, 1_000_000, 9))
+    asyncio.run(_seed_roster(team_id, specs))
+
+    readiness = client.get(f"/api/v1/teams/{team_id}/cup").json()["readiness"]
+    submitted = next(
+        variant
+        for variant in readiness["referenceVariants"]
+        if variant["mode"] == "submitted"
+    )
+    assert submitted["label"] == "Formación enviada"
+    assert submitted["sourceMatchId"] == 767370369
+    assert submitted["sourceOpponent"] == "Leones de la Selva"
+    assert submitted["startersCount"] == 11
+    assert submitted["averageStamina"] == 6.0
+    assert submitted["staminaBands"][1]["count"] == 11
+    assert readiness["defaultMode"] == "submitted"
 
 
 def test_cup_readiness_hides_last_cup_variant_with_only_one_match_played(
@@ -171,6 +215,7 @@ def test_cup_readiness_hides_last_cup_variant_with_only_one_match_played(
     client, team_id = seeded
     specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
     asyncio.run(_seed_roster(team_id, specs))
+    asyncio.run(_set_upcoming_submitted_lineup(None))
 
     async def run() -> None:
         gen = app.dependency_overrides[get_session]()
@@ -202,6 +247,7 @@ def test_cup_readiness_shows_last_cup_variant_when_more_than_one_match_played(
     client, team_id = seeded
     specs = [(pid, 10_000 - index, 5) for index, pid in enumerate(SUBMITTED_IDS)]
     asyncio.run(_seed_roster(team_id, specs))
+    asyncio.run(_set_upcoming_submitted_lineup(None))
 
     async def run() -> None:
         gen = app.dependency_overrides[get_session]()

@@ -98,11 +98,28 @@ def decidir(puntajes: Sequence[tuple[str, float]]) -> Decision | None:
     return Decision(mejor[0], segundo[0], None, razon, desviacion)
 
 
-#: Las cinco habilidades que «Individual» puede descubrir: son las que algún
-#: puesto entrena. Pases y Balón parado no son de ningún puesto, así que
-#: quedan fuera —y por eso no cuentan para ordenar esta cola: incluirlas
-#: pondría delante a quien tiene huecos que este entrenamiento no va a tapar.
-HABILIDADES_DE_PUESTO = frozenset({"keeper", "defending", "playmaking", "winger", "scoring"})
+def _alcanzables() -> frozenset[str]:
+    """Las habilidades que «Individual» puede llegar a descubrir.
+
+    Se DEDUCEN de la tabla de probabilidades en vez de escribirse a mano: son
+    las mismas siete, pero derivarlas evita que las dos listas se separen el
+    día que la distribución cambie.
+    """
+    from app.domain.engines.youth_training_plan import ENTRENAMIENTOS
+
+    reparto = ENTRENAMIENTOS[INDIVIDUAL].distribucion_por_puesto or {}
+    return frozenset(skill for fila in reparto.values() for skill in fila)
+
+
+#: Las habilidades que «Individual» puede descubrir. Son LAS SIETE: todos los
+#: puestos pueden sacar Balón parado y casi todos Pases.
+#:
+#: Estuvo mal hasta el 2026-08-26, cuando decía que Individual entrenaba una
+#: habilidad FIJA por puesto y que Pases y Balón parado quedaban fuera. Eran
+#: alcanzables desde el principio —lo dijo el usuario («existe una posibilidad
+#: de que Hattrick descubra Pases para un defensa») y lo confirma
+#: `docs/reference/ENTRENAMIENTO_INDIVIDUAL_JUVENIL.md`—.
+HABILIDADES_DE_PUESTO = _alcanzables()
 
 
 def cola_de_descubrimiento(

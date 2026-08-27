@@ -212,15 +212,29 @@ async def academy_training_plan(
         raise HTTPException(404, f"team {team_id} sin canteranos")
     por_habilidad = {r.skill: r for r in rows}
 
-    def habilidad_de(clave: str, puesto: str = "") -> str:
-        """Que habilidad sube ese entrenamiento, en esa plaza.
+    #: Que no sabemos todavia de cada canterano. Se declara VACIO aqui y se
+    #: llena mas abajo, en cuanto la academia esta cargada: `habilidad_de` lo
+    #: cierra por referencia, asi que rellenar el mismo diccionario basta y no
+    #: hay que partir la funcion en dos. Las llamadas de antes no lo tocan
+    #: --pasan sin jugador y cortocircuitan--.
+    sin_saber: dict[str, set[str]] = {}
 
-        El `puesto` solo lo usa «Individual», que sube una distinta en cada
-        uno; los demas lo ignoran. Preguntar siempre con puesto deja el resto
-        del endpoint sin un solo `if` sobre Individual.
+    def habilidad_de(clave: str, puesto: str = "", jugador: str = "") -> str:
+        """Que habilidad sube ese entrenamiento, en esa plaza, para ese chico.
+
+        `puesto` y `jugador` solo los usa «Individual», que SORTEA una entre
+        las utiles del puesto en vez de subir siempre la misma; los demas los
+        ignoran. Preguntar siempre con los tres deja el resto del endpoint sin
+        un solo `if` sobre Individual.
+
+        Con `jugador` se elige la mas probable DE LAS QUE NO SE SABEN: la
+        plaza esta ahi para descubrir, y anunciar una habilidad ya revelada no
+        dice nada.
         """
         e = ENTRENAMIENTOS.get(clave)
-        return e.skill_en(puesto) if e else clave
+        if e is None:
+            return clave
+        return e.skill_en(puesto, sin_saber.get(jugador) if jugador else None)
 
     skill_main, skill_sec = habilidad_de(main), habilidad_de(secondary)
     # «Individual» no tiene UNA habilidad --cada puesto sube la suya-- asi que
@@ -231,6 +245,14 @@ async def academy_training_plan(
             raise HTTPException(404, "no hay canteranos con esas habilidades")
 
     academia = await service.get(team_id)
+    # Un techo alcanzado NO es un hueco: ya se sabe que no sube, asi que
+    # entrenarlo no revela nada y no debe atraer una plaza de descubrimiento.
+    sin_saber.update(
+        {
+            j.name: {r.skill for r in j.skills if not r.is_current_known and not r.max_reached}
+            for j in (academia.players if academia else [])
+        }
+    )
     mejores = {j.name: j.best_skill for j in (academia.players if academia else [])}
     # Las siete lecturas de cada canterano, para poder ensenar en la tabla el
     # nivel de LAS DOS habilidades que se entrenan --no solo la que le dio la
@@ -298,7 +320,7 @@ async def academy_training_plan(
         }
 
     def _con_habilidad(a: Any) -> dict[str, Any]:
-        skill = habilidad_de(a.elegido_por, a.puesto)
+        skill = habilidad_de(a.elegido_por, a.puesto, a.player)
         # Donde todavia puede crecer sin que nadie sepa cuanto: el techo sin
         # revelar es la unica pista de potencial que queda. Si ya no queda
         # ninguno, es que el ojeador termino con el.
@@ -313,8 +335,8 @@ async def academy_training_plan(
             # Con puesto: en «Individual» la columna «Nivel» tiene que ser
             # la de la habilidad que ESA plaza entrena, no la de una habilidad
             # fija que ahi no significa nada.
-            "main_level": _lectura(a.player, habilidad_de(main, a.puesto)),
-            "secondary_level": _lectura(a.player, habilidad_de(secondary, a.puesto)),
+            "main_level": _lectura(a.player, habilidad_de(main, a.puesto, a.player)),
+            "secondary_level": _lectura(a.player, habilidad_de(secondary, a.puesto, a.player)),
             "open_ceilings": sin_techo,
         }
 

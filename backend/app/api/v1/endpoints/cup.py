@@ -348,6 +348,29 @@ async def _readiness(
         }
     ]
 
+    # La alineación que el manager ya envió para el próximo partido es la
+    # referencia más fiel para evaluar la resistencia del equipo. El sync la
+    # lee de `matchorders.xml` únicamente cuando `matches.xml` confirma
+    # OrdersGiven=true; por eso no se muestra este modo si todavía no hay una
+    # formación enviada y nunca se sustituye por una alineación inventada.
+    for mt in sorted(
+        (x for x in cup_matches if x.status.upper() != "FINISHED"),
+        key=lambda x: x.played_at,
+    ):
+        xi = lineup_xi(mt.submitted_lineup_json)
+        if xi:
+            variants.append(
+                {
+                    "mode": "submitted",
+                    "label": "Formación enviada",
+                    "source_match_id": mt.ht_match_id,
+                    "source_opponent": opponent_of(mt),
+                    "source_date": mt.played_at.date().isoformat(),
+                    **stamina_summary(xi),
+                }
+            )
+            break
+
     # "Última formación en Copa" solo se ofrece si ya se jugó más de un
     # partido de Copa esta temporada — pedido explícito 2026-08-13: con un
     # solo partido no hay nada distinto que mostrar frente al historial.
@@ -406,7 +429,12 @@ async def _readiness(
             )
             break
 
-    default_mode = "last_cup" if any(v["mode"] == "last_cup" for v in variants) else "top_tsi"
+    if any(v["mode"] == "submitted" for v in variants):
+        default_mode = "submitted"
+    elif any(v["mode"] == "last_cup" for v in variants):
+        default_mode = "last_cup"
+    else:
+        default_mode = "top_tsi"
 
     best_keeper = max(roster, key=lambda row: row[0].keeper or 0, default=None)
     return {

@@ -28,6 +28,7 @@ Los cupos a media ración cuentan como plazas normales; lo único que cambia es
 que se llenan al final de su región.
 """
 
+from collections.abc import Container
 from dataclasses import dataclass, field
 
 from app.domain.engines.youth_skill_score import (
@@ -111,13 +112,36 @@ DEL = "forward"
 #: de la pantalla se topea, el numero no.
 TODOS = (POR, DFC, LAT, MED, EXT, DEL)
 
-#: Lo que rinde «Individual» comparado con un entrenamiento normal. El usuario
-#: lo describio el 2026-08-26 como «mucho mas despacio»: no compra nivel,
-#: compra INFORMACION. El numero exacto no lo publica Hattrick, asi que esto
-#: es una estimacion declarada --no un dato-- y vive sola aqui para poder
-#: corregirla en un sitio. Lo que NO depende de ella: el orden dentro de la
-#: region de Individual, porque el ritmo es el mismo en los seis puestos.
-RITMO_INDIVIDUAL = 50
+#: Lo que rinde «Individual» EN CADA HABILIDAD, en porcentaje.
+#:
+#: No es un solo numero, y ahi estaba el error: Anotacion entrena al 40% y
+#: Pases al 100%. Un unico "ritmo de Individual" no puede describir eso.
+#:
+#: Fuente: estudio de glynzales, post #13 del hilo 17350846 (2020-07-13),
+#: capturado en `docs/reference/ENTRENAMIENTO_INDIVIDUAL_JUVENIL.md`. Son
+#: MEDICIONES de la comunidad con su margen, no cifras publicadas por
+#: Hattrick, y por eso viven citadas y con fecha.
+#:
+#: Hay dos huecos que el propio autor declara y que aqui NO se rellenan a ojo:
+#: Porteria ("?") y Balon parado ("guess!"). Ver `RITMO_INDIVIDUAL_DUDOSO`.
+RITMO_INDIVIDUAL_POR_HABILIDAD: dict[str, float] = {
+    "passing": 100.0,  # ±1
+    "defending": 68.5,  # ±1
+    "playmaking": 56.5,  # ±1
+    "winger": 42.5,  # ±5
+    "scoring": 40.0,  # ±1
+    "set_pieces": 100.0,  # conjetura declarada por el autor
+    "keeper": 100.0,  # el autor pone "?"; se supone entero por no inventar menos
+}
+
+#: Las dos que el estudio NO midio. Se listan para que la pantalla pueda
+#: decirlo si algun dia hace falta, y para que nadie las tome por medidas.
+RITMO_INDIVIDUAL_DUDOSO: frozenset[str] = frozenset({"keeper", "set_pieces"})
+
+#: La defensa de un PORTERO entrena mas que la de un jugador de campo: 82%
+#: contra 68,5%. El autor avisa de que es **una sola observacion** (±10), asi
+#: que es el dato mas fragil de toda la tabla.
+RITMO_INDIVIDUAL_DEFENSA_DEL_PORTERO = 82.0
 
 
 def _mismo(puestos: tuple[str, ...], cuanto: int) -> dict[str, int]:
@@ -133,26 +157,54 @@ class Entrenamiento:
     label: str
     #: Puesto -> porcentaje. Un puesto que no aparece no recibe nada.
     ritmos: dict[str, int]
-    #: «Individual» es el unico entrenamiento cuya habilidad DEPENDE DEL
-    #: PUESTO: cada uno sube la suya. Los demas suben la misma para todos y
-    #: dejan esto en None. Puesto -> habilidad.
-    skill_por_puesto: dict[str, str] | None = None
+    #: «Individual» es el unico entrenamiento que no entrena una habilidad
+    #: fija: SORTEA una por jugador y partido, con una distribucion que
+    #: depende del puesto en el que jugo mas minutos. Los demas suben siempre
+    #: la misma y dejan esto en None. Puesto -> {habilidad: probabilidad}.
+    distribucion_por_puesto: dict[str, dict[str, int]] | None = None
     #: Hay un entrenamiento que sube DOS habilidades a ritmos distintos:
     #: «Anotación y balón parado» da 60 de Anotación y 40 de Balón parado.
     #: Se declara una vez, bajo la primera, y aparece como variante de las dos.
     tambien_sube: str | None = None
     ritmos_de_la_otra: dict[str, int] | None = None
 
-    def skill_en(self, puesto: str) -> str:
+    def reparto_en(self, puesto: str) -> dict[str, int]:
+        """La ruleta de esa plaza: habilidad -> probabilidad, en porcentaje.
+
+        Un entrenamiento normal es una ruleta de una sola casilla al 100%, y
+        decirlo asi deja que todo lo demas trate a los dos igual.
+        """
+        if self.distribucion_por_puesto is not None:
+            return dict(self.distribucion_por_puesto.get(puesto, {}))
+        return {self.skill: 100} if self.ritmos.get(puesto, 0) > 0 else {}
+
+    def skill_en(self, puesto: str, sin_saber: Container[str] | None = None) -> str:
         """Que habilidad sube este entrenamiento EN ESA PLAZA.
 
-        Para todos menos «Individual» es la misma siempre; para el, la del
-        puesto. Devolverlo por aqui es lo que permite tratarlo como uno mas:
-        quien pregunta no necesita saber cual es cual.
+        Para todos menos «Individual» es la misma siempre. Para el hay que
+        elegir una de la ruleta, y la que importa no es la mas probable a
+        secas sino **la mas probable de las que todavia no sabemos**: la
+        plaza esta ahi para descubrir, y anunciar una habilidad ya revelada
+        no dice nada. Sin `sin_saber` cae en la mas probable del puesto.
+
+        Los empates se rompen por nombre para que dos recargas no bailen.
         """
-        if self.skill_por_puesto:
-            return self.skill_por_puesto.get(puesto, "")
-        return self.skill
+        reparto = self.reparto_en(puesto)
+        if not reparto:
+            return self.skill
+        candidatas = {k: v for k, v in reparto.items() if sin_saber is None or k in sin_saber}
+        if not candidatas:
+            candidatas = reparto
+        return max(candidatas.items(), key=lambda kv: (kv[1], kv[0]))[0]
+
+    def probabilidad_de_descubrir(self, puesto: str, sin_saber: Container[str]) -> int:
+        """Que posibilidad hay de que esta plaza destape algo, en porcentaje.
+
+        Es la suma de la ruleta sobre las casillas que no conocemos. Un chico
+        con todo revelado da 0 --la plaza se desperdicia en el-- y uno del que
+        no se sabe nada da 100. Es el numero que ordena la cola de Individual.
+        """
+        return sum(v for k, v in self.reparto_en(puesto).items() if k in sin_saber)
 
     def ritmo(self, puesto: str, skill: str | None = None) -> int:
         """Lo que recibe ese puesto. `skill` elige cual de las dos, si sube dos."""
@@ -199,29 +251,81 @@ ENTRENAMIENTOS: dict[str, Entrenamiento] = {
             "Balón parado",
             {POR: 125, DFC: 100, LAT: 100, MED: 100, EXT: 100, DEL: 100},
         ),
-        #: El que descubre. Llega a los seis puestos porque cada uno sube SU
-        #: habilidad --de ahi el mapa-- y por eso un solo once toca cinco a la
-        #: vez en vez de una. El mapa lo dicto el usuario el 2026-08-26.
+        #: El que descubre. Llega a los seis puestos, y en cada uno SORTEA la
+        #: habilidad entre las que Hattrick considera utiles para ese puesto.
+        #: Por eso un solo once puede tocar las siete, y por eso se siente
+        #: lentisimo: un mediocentro saca Jugadas 39 veces de cada 100.
         #:
-        #: Ojo con lo que NO alcanza: Pases y Balon parado no son la habilidad
-        #: de ningun puesto, asi que Individual no las descubre nunca.
+        #: La tabla sale de `docs/reference/ENTRENAMIENTO_INDIVIDUAL_JUVENIL.md`
+        #: --revision comunitaria de 2023--. Es una ESTIMACION de la comunidad,
+        #: no una regla publicada por Hattrick, y por eso vive citada y con
+        #: fecha: si aparece una investigacion mejor se cambia AQUI y todo lo
+        #: demas se recalcula solo.
+        #:
+        #: Cada fila suma 100. Ninguna habilidad esta excluida de antemano:
+        #: todos los puestos pueden sacar Balon parado, y casi todos Pases.
         Entrenamiento(
             "individual",
-            #: Sin habilidad fija: la pone `skill_en(puesto)`.
+            #: Sin habilidad fija: la elige `skill_en(puesto, sin_saber)`.
             "",
             "Individual",
-            _mismo(TODOS, RITMO_INDIVIDUAL),
-            skill_por_puesto={
-                POR: "keeper",
-                DFC: "defending",
-                LAT: "defending",
-                MED: "playmaking",
-                EXT: "winger",
-                DEL: "scoring",
+            #: Se calcula abajo desde la ruleta: la media esperada de cada
+            #: puesto. Escribirla a mano seria una tercera copia de los
+            #: mismos numeros, y las tres se separarian.
+            {},
+            distribucion_por_puesto={
+                POR: {"keeper": 40, "defending": 42, "set_pieces": 18},
+                DFC: {"defending": 37, "playmaking": 27, "passing": 26, "set_pieces": 10},
+                LAT: {
+                    "defending": 32,
+                    "playmaking": 18,
+                    "passing": 17,
+                    "winger": 23,
+                    "set_pieces": 10,
+                },
+                MED: {"defending": 28, "playmaking": 39, "passing": 23, "set_pieces": 10},
+                EXT: {
+                    "defending": 15,
+                    "playmaking": 20,
+                    "passing": 21,
+                    "winger": 34,
+                    "set_pieces": 10,
+                },
+                DEL: {"passing": 26, "winger": 26, "scoring": 38, "set_pieces": 10},
             },
         ),
     )
 }
+
+
+def ritmo_individual(puesto: str, skill: str) -> float:
+    """Lo que rinde «Individual» si en esa plaza sale esa habilidad.
+
+    La unica excepcion por puesto es la defensa del portero, que rinde mas.
+    """
+    if skill == "defending" and puesto == POR:
+        return RITMO_INDIVIDUAL_DEFENSA_DEL_PORTERO
+    return RITMO_INDIVIDUAL_POR_HABILIDAD.get(skill, 0.0)
+
+
+def media_individual(puesto: str) -> float:
+    """Lo que rinde «Individual» en ese puesto, de media por partido.
+
+    Es la ruleta pesada por lo que rinde cada casilla. Sirve para ordenar
+    plazas y para enseñar UN numero donde antes habia uno inventado; el
+    detalle real --que sale una sola habilidad-- lo cuenta `reparto_en`.
+    """
+    reparto = (ENTRENAMIENTOS[CODIGO_INDIVIDUAL].distribucion_por_puesto or {}).get(puesto, {})
+    return sum(p / 100 * ritmo_individual(puesto, skill) for skill, p in reparto.items())
+
+
+#: El codigo del entrenamiento que descubre. Aqui arriba para no repetir la
+#: cadena en cada sitio que la necesita.
+CODIGO_INDIVIDUAL = "individual"
+
+ENTRENAMIENTOS[CODIGO_INDIVIDUAL].ritmos.update(
+    {puesto: round(media_individual(puesto)) for puesto, _ in PUESTOS_DE_UN_ONCE}
+)
 
 #: El hueco secundario rinde dos tercios de lo que rendiria ese mismo
 #: entrenamiento puesto de principal. Baja a la mitad si repites EL MISMO

@@ -14,7 +14,23 @@ from app.domain.engines.decision_individual import (
     decidir,
 )
 from app.domain.engines.youth_skill_score import PlayerNote
-from app.domain.engines.youth_training_plan import ENTRENAMIENTOS, cupos_de
+from app.domain.engines.youth_training_plan import (
+    ENTRENAMIENTOS,
+    RITMO_INDIVIDUAL_DUDOSO,
+    SECUNDARIO_NORMAL,
+    cupos_de,
+    ritmo_individual,
+)
+
+#: Los puestos, con el nombre corto del motor.
+GK, CD, WB, WI, IM, FW = (
+    "keeper",
+    "central_defender",
+    "wingback",
+    "winger",
+    "inner_midfield",
+    "forward",
+)
 
 #: La academia del usuario el 2026-08-26: un extremo bueno y seis habilidades
 #: empatadas en pura ignorancia. Es el caso que originó las reglas.
@@ -124,15 +140,29 @@ def test_individual_es_un_entrenamiento_mas():
     }
 
 
-def test_cada_puesto_sube_su_habilidad():
-    """El mapa dictado por el usuario. Es lo que dice la barrita del once."""
+def test_la_barrita_anuncia_la_mas_probable_que_no_sabemos():
+    """Lo que se enseña en la plaza no es «la habilidad del puesto» —no la
+    hay— sino la más probable DE LAS QUE FALTAN por descubrir: la plaza está
+    ahí para eso, y nombrar una ya revelada no dice nada."""
     e = ENTRENAMIENTOS[INDIVIDUAL]
-    assert e.skill_en("keeper") == "keeper"
-    assert e.skill_en("central_defender") == "defending"
-    assert e.skill_en("wingback") == "defending"
-    assert e.skill_en("inner_midfield") == "playmaking"
-    assert e.skill_en("winger") == "winger"
-    assert e.skill_en("forward") == "scoring"
+    # Sin contexto, la más probable a secas del puesto.
+    assert e.skill_en(IM) == "playmaking"
+    assert e.skill_en(FW) == "scoring"
+
+    # Sabiendo ya Jugadas, un mediocentro pasa a anunciar la siguiente.
+    assert e.skill_en(IM, {"defending", "passing", "set_pieces"}) == "defending"
+    # Y si no queda nada por descubrir, no se inventa: cae en la más probable.
+    assert e.skill_en(IM, set()) == "playmaking"
+
+
+def test_la_probabilidad_de_descubrir_mide_la_plaza():
+    e = ENTRENAMIENTOS[INDIVIDUAL]
+    # Un chico del que no se sabe nada: la plaza acierta seguro.
+    assert e.probabilidad_de_descubrir(IM, HABILIDADES_DE_PUESTO) == 100
+    # Uno con todo revelado: la plaza se desperdicia en él.
+    assert e.probabilidad_de_descubrir(IM, set()) == 0
+    # Y en medio, la suma de la ruleta sobre lo que falta.
+    assert e.probabilidad_de_descubrir(IM, {"playmaking", "set_pieces"}) == 49
 
 
 def test_un_entrenamiento_normal_ignora_el_puesto():
@@ -142,17 +172,73 @@ def test_un_entrenamiento_normal_ignora_el_puesto():
         assert e.skill_en("winger") == e.skill_en("forward") == e.skill
 
 
-def test_individual_no_alcanza_pases_ni_balon_parado():
-    """Ningún puesto las entrena, así que Individual no las descubre nunca.
+def test_individual_alcanza_las_siete():
+    """Ninguna habilidad queda fuera. Todos los puestos pueden sacar Balón
+    parado y casi todos Pases.
 
-    Se fija a propósito: es el precio de la Regla B y no debe perderse en un
-    refactor silencioso.
+    Esta prueba decía lo contrario hasta el 2026-08-26 —afirmaba que Pases y
+    Balón parado eran inalcanzables— y estaba mal. El usuario ya lo había
+    dicho («existe una posibilidad de que Hattrick descubra Pases para un
+    defensa») y el estudio del hilo 17350846 lo confirma.
     """
     e = ENTRENAMIENTOS[INDIVIDUAL]
-    alcanzadas = set((e.skill_por_puesto or {}).values())
+    alcanzadas = {s for fila in (e.distribucion_por_puesto or {}).values() for s in fila}
     assert alcanzadas == set(HABILIDADES_DE_PUESTO)
-    assert "passing" not in alcanzadas
-    assert "set_pieces" not in alcanzadas
+    assert "passing" in alcanzadas
+    assert "set_pieces" in alcanzadas
+
+
+def test_cada_puesto_es_una_ruleta_que_suma_cien():
+    for puesto, reparto in (ENTRENAMIENTOS[INDIVIDUAL].distribucion_por_puesto or {}).items():
+        assert sum(reparto.values()) == 100, puesto
+
+
+def test_el_ritmo_depende_de_la_habilidad_no_de_individual():
+    """Anotación al 40 % y Pases al 100 %: un único «ritmo de Individual» no
+    puede describir eso, y usarlo fue el segundo error del 2026-08-26."""
+    assert ritmo_individual(FW, "scoring") == 40.0
+    assert ritmo_individual(FW, "passing") == 100.0
+    # La defensa del portero es la única excepción por puesto.
+    assert ritmo_individual(GK, "defending") == 82.0
+    assert ritmo_individual(CD, "defending") == 68.5
+
+
+def test_reproduce_el_ejemplo_publicado_por_glynzales():
+    """La prueba que vale por todas: una fuente AJENA a nosotros.
+
+    Post #13 del hilo 17350846 (2020-07-13). Defensa de principal, Individual
+    de secundario, mirando a un defensa central. glynzales publica tanto los
+    cuatro casos del sorteo como la media, y el modelo
+    `probabilidad × ritmo × 2/3` tiene que reproducir las ocho cifras.
+
+    Si alguien toca la tabla de probabilidades o los ritmos, esto lo caza
+    contra un número que no escribimos nosotros.
+    """
+    reparto = (ENTRENAMIENTOS[INDIVIDUAL].distribucion_por_puesto or {})[CD]
+    assert reparto == {"defending": 37, "playmaking": 27, "passing": 26, "set_pieces": 10}
+
+    # Lo que recibe segun que salga en la ruleta, con el principal al 100 %.
+    def recibe(skill: str) -> float:
+        return ritmo_individual(CD, skill) * SECUNDARIO_NORMAL
+
+    assert round(100 + recibe("defending")) == 146
+    assert round(recibe("playmaking")) == 38
+    assert round(recibe("passing")) == 67
+    assert round(recibe("set_pieces")) == 67
+
+    # Y la media por partido: 117 def + 17 pas + 10 pm + 7 bp = 151.
+    medias = {s: reparto[s] / 100 * recibe(s) for s in reparto}
+    assert round(100 + medias["defending"]) == 117
+    assert round(medias["passing"]) == 17
+    assert round(medias["playmaking"]) == 10
+    assert round(medias["set_pieces"]) == 7
+    assert round(100 + sum(medias.values())) == 151
+
+
+def test_lo_que_el_estudio_no_midio_queda_marcado():
+    """Portería y Balón parado son conjeturas del autor, no mediciones. Se
+    marcan para que nadie las confunda con las otras cinco."""
+    assert RITMO_INDIVIDUAL_DUDOSO == {"keeper", "set_pieces"}
 
 
 def _nota(nombre: str, *, pronto: bool = False, techo: int = 0) -> PlayerNote:

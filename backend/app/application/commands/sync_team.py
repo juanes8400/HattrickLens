@@ -625,6 +625,17 @@ class SyncTeamHandler:
             await self._reparar_partidos_ajenos_sin_ficha(uow)
             await self._resolver_moneda(uow, cmd.team_id)
 
+            # La habilidad entrenada de cada exjugador es un derivado
+            # dinámico: una venta nueva puede cambiar la moda de su temporada
+            # y, con ella, las asignaciones provisionales de ventas antiguas.
+            # Se recalcula al final, cuando snapshots, libro y mundo ya están
+            # actualizados por este mismo sync.
+            from app.application.commands.backfill_sold_training import (
+                backfill_sold_training_assignments,
+            )
+
+            await backfill_sold_training_assignments(uow.session, cmd.team_id)
+
             await uow.syncs.finalize(
                 sync_id,
                 status=result.status,

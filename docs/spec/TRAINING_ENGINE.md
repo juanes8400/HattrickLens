@@ -117,6 +117,62 @@ exposición = min(minutos / 90, 1) × proporción_de_la_posición
 - 90 minutos en una posición parcial: 50%.
 - una posición no entrenable: 0%.
 
+## Habilidad entrenada por jugador vendido
+
+Para cada venta, Lens compara el primer snapshot histórico disponible del
+jugador con el último snapshot cuya fecha sea anterior o igual a la venta. El
+aumento de cada habilidad es:
+
+```text
+aumento = último nivel observado antes de vender − primer nivel observado
+```
+
+Las lecturas posteriores a la venta quedan fuera. Se asigna como **habilidad
+entrenada** aquella que tenga el mayor aumento positivo único entre:
+
+```text
+Portería, Defensa, Jugadas, Lateral, Pases, Anotación y Balón parado
+```
+
+Si no aumentó ninguna o el máximo individual empata, se toman todos los
+jugadores vendidos en la misma temporada Hattrick. Para cada habilidad se
+suman primero los niveles observados de esos jugadores. Si dos o más
+habilidades empatan en niveles acumulados, gana aquella que haya subido en más
+jugadores distintos. Un jugador cuenta una sola vez por temporada; si tuvo
+varias ventas en ella, se conserva por habilidad su mayor aumento para no
+duplicar el mismo tramo histórico.
+
+Si todavía hay empate, se aplican estos desempates únicamente entre las
+habilidades candidatas:
+
+1. La habilidad del entrenamiento actual del equipo, leída del último
+   `training.xml`.
+2. La primera candidata según esta prioridad fija:
+
+```text
+Defensa → Portería → Jugadas → Anotación → Lateral → Pases → Balón parado
+```
+
+Si la temporada completa tiene cero niveles observados y cero jugadores con
+alguna subida, queda `Sin evidencia suficiente`. El entrenamiento actual no se
+usa en ese caso: no permite reconstruir lo que se entrenaba cuatro o cinco
+temporadas atrás. El entrenamiento actual y la prioridad fija solo desempatan
+habilidades respaldadas por al menos una subida observada en la temporada.
+
+Se guardan la habilidad, los niveles que realmente aumentó esa habilidad y el
+método (`Mayor aumento observado`, `Mayor suma de niveles en la temporada`,
+`Empate en niveles · más jugadores`, `Empate · entrenamiento actual`, `Empate
+· prioridad de habilidades` o `Sin evidencia suficiente`). El resultado se
+recalcula después de cada sync: si llega evidencia de mayor prioridad, reemplaza
+automáticamente el desempate anterior; si el desempate dependía del
+entrenamiento actual, también puede cambiar cuando cambie ese entrenamiento.
+El mismo backfill puede ejecutarse de nuevo de forma idempotente.
+
+La ficha del exjugador, el detalle de Transferencias y la gráfica **Saldo por
+entrenamiento en el momento de la venta** consumen esta asignación. No debe
+confundirse con el tipo de entrenamiento general del club activo en la fecha de
+venta, que se conserva como un dato histórico aparte.
+
 ## Pops e historial
 
 Los pops de `trainingevents.xml` y los cambios entre snapshots son hechos

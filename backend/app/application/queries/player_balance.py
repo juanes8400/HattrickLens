@@ -169,6 +169,13 @@ class PlayerBalanceRow:
     saldo: float | None
     is_sold: bool
     training_at_sale: str | None
+    # Inferencia individual pedida el 2026-08-26: habilidad que más aumentó
+    # en todo el historial hasta la venta; en empate/sin subidas, niveles,
+    # jugadores, entrenamiento actual y prioridad fija de la temporada.
+    derived_training_skill: str | None
+    derived_training_levels: int | None
+    derived_training_method: str
+    derived_training_method_label: str
     # 2026-08-04: filtro general de temporadas, pedido explícitamente —
     # mismo criterio que el desglose "por Temporada" (season_at).
     season_at_sale: str | None
@@ -280,7 +287,7 @@ def _build_breakdowns(sold_rows: list[PlayerBalanceRow]) -> dict[str, dict[str, 
     for r in sold_rows:
         if not r.is_sold or r.saldo is None:
             continue
-        training_label = r.training_at_sale or "Entrenamiento desconocido"
+        training_label = r.derived_training_skill or "Sin evidencia suficiente"
         by_training[training_label] = by_training.get(training_label, 0.0) + r.saldo
         season_label = r.season_at_sale or _UNKNOWN_SEASON
         by_season[season_label] = by_season.get(season_label, 0.0) + r.saldo
@@ -732,6 +739,28 @@ class PlayerBalanceQueryService:
             season_label_for_row = (
                 season_at(effective_sold_at) if effective_sold_at is not None else None
             )
+            derived_training_skill = (
+                SKILL_LABELS.get(etapa.derived_training_skill, etapa.derived_training_skill)
+                if etapa.derived_training_skill
+                else None
+            )
+            derived_training_method = etapa.derived_training_method or "insufficient_evidence"
+            if derived_training_method == "direct_maximum":
+                derived_training_method_label = "Mayor aumento observado"
+            elif derived_training_method == "season_levels":
+                derived_training_method_label = (
+                    f"Mayor suma de niveles en {season_label_for_row}"
+                    if season_label_for_row
+                    else "Mayor suma de niveles en la temporada de venta"
+                )
+            elif derived_training_method == "season_players":
+                derived_training_method_label = "Empate en niveles · más jugadores"
+            elif derived_training_method == "season_current_training":
+                derived_training_method_label = "Empate · entrenamiento actual"
+            elif derived_training_method == "season_skill_priority":
+                derived_training_method_label = "Empate · prioridad de habilidades"
+            else:
+                derived_training_method_label = "Sin evidencia suficiente"
 
             # Edad en la venta (número decimal, años + días/112) — reutilizada
             # tanto en la fila (para graficar) como en el desglose "por Edad"
@@ -860,6 +889,10 @@ class PlayerBalanceQueryService:
                     saldo=balance.saldo,
                     is_sold=balance.is_sold,
                     training_at_sale=training_label,
+                    derived_training_skill=derived_training_skill,
+                    derived_training_levels=etapa.derived_training_levels,
+                    derived_training_method=derived_training_method,
+                    derived_training_method_label=derived_training_method_label,
                     season_at_sale=season_label_for_row,
                     week_at_sale=week_number(effective_sold_at),
                     week_at_purchase=week_number(purchased_at),

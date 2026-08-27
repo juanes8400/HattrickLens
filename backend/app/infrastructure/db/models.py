@@ -576,6 +576,15 @@ class PlayerStint(Base):
     age_years_manual: Mapped[int | None] = mapped_column(SmallInteger)
     age_days_manual: Mapped[int | None] = mapped_column(SmallInteger)
 
+    #: Habilidad que más creció en TODO el historial observado hasta esta
+    #: venta. Sin máximo único, se resuelve por niveles acumulados y cantidad
+    #: de jugadores de su temporada, entrenamiento actual y prioridad fija.
+    #: Es un cache derivado y recalculable.
+    derived_training_skill: Mapped[str | None] = mapped_column(String(32))
+    derived_training_levels: Mapped[int | None] = mapped_column(SmallInteger)
+    derived_training_method: Mapped[str | None] = mapped_column(String(32))
+    derived_training_computed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+
 
 class PreviousClubBonus(Base):
     """Comisión de "club anterior" EXACTA — HL-161, 2026-08-14, pedido
