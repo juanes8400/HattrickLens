@@ -84,15 +84,19 @@ class CHPPOAuthDance:
             headers={"User-Agent": settings.chpp_user_agent},
             timeout=30.0,
         ) as client:
-            # `scope` viaja en la URL, no como argumento suelto: authlib
-            # firma la URL COMPLETA, así que un parámetro puesto aquí entra
-            # en la base de la firma y Hattrick lo acepta. Sin él el token
-            # sale de solo lectura --ver `settings.chpp_scope`--.
-            peticion = f"{settings.chpp_base_url}/oauth/request_token.ashx"
-            if settings.chpp_scope:
-                peticion = f"{peticion}?scope={settings.chpp_scope}"
-            tok = await client.fetch_request_token(peticion)
+            tok = await client.fetch_request_token(
+                f"{settings.chpp_base_url}/oauth/request_token.ashx"
+            )
+            # `scope` va en la URL de AUTORIZACION, no en la de request_token.
+            # Comprobado en vivo el 2026-08-26 leyendo la propia pagina de
+            # Hattrick: puesto en `request_token.ashx` se ignora en silencio
+            # --la peticion no falla, pero la pantalla sigue ofreciendo solo
+            # «Acceso de lectura»-- y puesto aqui aparece «Administra tus
+            # juveniles». Sin el, el token no puede con `unlockskills`, que
+            # escribe, y contesta 401 con una pagina de IIS.
             url = f"{settings.chpp_base_url}/oauth/authorize.aspx?oauth_token={tok['oauth_token']}"
+            if settings.chpp_scope:
+                url = f"{url}&scope={settings.chpp_scope}"
             return url, tok["oauth_token"], tok["oauth_token_secret"]
 
     async def exchange(self, token: str, secret: str, verifier: str) -> tuple[str, str]:
