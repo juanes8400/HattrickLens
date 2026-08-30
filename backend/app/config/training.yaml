@@ -112,11 +112,12 @@ position_training_share:
   partial: 0.5
   none: 0.0
 
-# Youth training exposure weights, read from Hattrick Control's own
-# "Valoración del entrenamiento" panel.
+# Youth training exposure weights. The secondary slot normally gives 2/3;
+# repeating the exact same training halves that secondary contribution.
 youth_exposure:
   primary_training: 1.0
-  secondary_training: 0.8
+  secondary_training: 0.6666666667
+  repeated_secondary_training: 0.3333333333
   primary_position: 1.0
   secondary_position: 0.5
   official_match: 1.0

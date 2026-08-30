@@ -17,6 +17,7 @@ Lo que HC no hace y aquí sí:
 from dataclasses import dataclass
 from enum import StrEnum
 
+from app.domain.engines.youth_training_plan import factor_secundario
 from app.domain.value_objects.formatting import thousands
 
 # Un juvenil puede permanecer en la academia hasta los 19 años
@@ -114,7 +115,24 @@ CORTE_VENDIBLE = 5
 #: Cuantos techos hacen falta para que un veredicto deje de ser provisional.
 #: Vivia en la capa de consultas, pero es una regla del dominio: el motor la
 #: necesita para no recomendar un despido sobre una sola lectura.
-MIN_REVEALED_FOR_A_VERDICT = 3
+#: Cuantas habilidades pueden quedar SIN revelar y aun asi permitir condenar a
+#: un canterano. Cero, y es logica, no gusto: un techo sin revelar puede ser un
+#: 8, y un solo 8 convierte a un «fontanero» en un crack. Mientras quede uno,
+#: no hay nada que condenar.
+#:
+#: 2026-08-30, corregido tras un reporte del usuario. Antes bastaba con TRES
+#: habilidades reveladas --de siete-- para recomendar el despido, y eso hacia
+#: dos cosas al reves:
+#:
+#:   * A Felipe Castrillon, con 3 reveladas y CUATRO sin revelar --mas
+#:     desconocidas que conocidas-- la aplicacion le decia «despidelo».
+#:   * Y como revelar es lo que pasa cuando entrenas a alguien, cuanto MAS
+#:     sabias de un chico mas cerca estaba de que te dijeran que lo echaras.
+#:     Premiaba la ignorancia.
+#:
+#: Los dos condenados eran el primero y el tercero mas jovenes de la academia,
+#: que son justo los que mas vida de entrenamiento tienen por delante.
+MAX_SIN_REVELAR_PARA_CONDENAR = 0
 
 
 def _categorise(best_max: int | None) -> Category:
@@ -135,6 +153,71 @@ def _categorise(best_max: int | None) -> Category:
     if best_max >= CORTE_VENDIBLE:
         return Category.SELLABLE
     return Category.PLUMBER
+
+
+#: Las categorias que CONDENAN a un canterano. Solo estas necesitan que no
+#: quede nada por revelar.
+CATEGORIAS_QUE_CONDENAN = (Category.PLUMBER, Category.SELLABLE)
+
+
+def veredicto_provisional(category: Category, revealed: int, total: int) -> bool:
+    """Si el veredicto todavia puede cambiar al revelarse mas habilidades.
+
+    Hay una ASIMETRIA que el codigo no recogia y que lo decide todo: revelar
+    una habilidad solo puede SUBIR el mejor techo de un canterano, nunca
+    bajarlo. De ahi:
+
+      * Un veredicto BUENO --crack, promesa, aceptable-- ya no cambia: si
+        tiene un techo de 8 revelado, es un crack, y ningun descubrimiento
+        posterior se lo va a quitar. No es provisional.
+      * Uno MALO si lo es mientras quede algo por revelar. Un solo 8 escondido
+        convierte a un «fontanero» en un crack, y despedir NO SE DESHACE.
+
+    Sin ninguna revelacion no hay veredicto en absoluto, y eso es provisional
+    siempre.
+    """
+    if revealed == 0:
+        return True
+    if category in CATEGORIAS_QUE_CONDENAN:
+        return (total - revealed) > MAX_SIN_REVELAR_PARA_CONDENAR
+    return False
+
+
+def aporte_de_cada_uno(
+    buckets_por_canterano: dict[str, list[str]],
+    pesos: dict[str, float],
+) -> dict[str, float]:
+    """Cuanto aporta cada canterano a los puntajes de las siete habilidades.
+
+    Es la suma del peso de su peldano en CADA habilidad. Un chico que sale
+    «desconocido» en las siete aporta siete veces ⅓; uno con un excelente
+    aporta 81 solo por esa. Es exactamente lo que el ranking de entrenamiento
+    esta sumando, visto por canterano en vez de por habilidad.
+    """
+    return {
+        nombre: sum(pesos.get(b, 0.0) for b in cubos)
+        for nombre, cubos in buckets_por_canterano.items()
+    }
+
+
+def quien_sobra(
+    aportes: dict[str, float],
+    edad_en_dias: dict[str, int],
+) -> str | None:
+    """El canterano que menos aporta. Empata el MAS VIEJO.
+
+    2026-08-30, regla del usuario, y sustituye a un veredicto por canterano
+    que estaba mal planteado: despedir libera UNA plaza, asi que la pregunta
+    no es «¿este chico es malo?» --que no se puede contestar mientras le
+    queden techos sin revelar-- sino «¿quien es el ultimo de la fila?». Eso si
+    tiene respuesta siempre, y solo se le sugiere a uno.
+
+    El desempate por edad es el mismo argumento: entre dos que aportan igual,
+    al mas viejo le queda menos tiempo para dejar de ser el ultimo.
+    """
+    if not aportes:
+        return None
+    return min(aportes, key=lambda n: (aportes[n], -edad_en_dias.get(n, 0), n))
 
 
 def days_until_deadline(age_years: int, age_days: int) -> int:
@@ -159,17 +242,31 @@ def evaluate(
     left = days_until_deadline(age_years, age_days)
     revealed = sum(1 for s in skills.values() if s.maximum is not None)
 
+    # Contra las SIETE de `YOUTH_SKILLS`, no contra `len(skills)`: un
+    # diccionario al que le falten habilidades no significa que esten
+    # reveladas, significa que no las han pasado. Confiar en su tamaño hacia
+    # que tres habilidades sueltas parecieran una lectura completa y condenaba
+    # al canterano.
+    sin_revelar = len(YOUTH_SKILLS) - revealed
+
     if left <= 21:
         advice = f"URGENTE: quedan {left} días para promocionarlo o lo pierdes"
     elif revealed == 0:
         advice = "el ojeador aún no ha revelado nada suyo: no hay con qué juzgarlo"
-    elif revealed < MIN_REVEALED_FOR_A_VERDICT:
-        # Despedir no se deshace. Con una sola lectura no se recomienda: lo
-        # unico que se sabe de el puede ser justo su peor habilidad, y el
-        # consejo saldria de esa casualidad.
-        advice = "sigue entrenándolo: aún no conoces su techo real"
+    elif sin_revelar > MAX_SIN_REVELAR_PARA_CONDENAR:
+        # Despedir NO SE DESHACE, y un techo sin revelar puede ser un 8: uno
+        # solo convierte a un «fontanero» en un crack. Mientras quede alguno,
+        # lo unico honesto es decir cuantos faltan.
+        advice = (
+            f"sigue entrenándolo: aún le faltan {sin_revelar} "
+            + ("habilidad" if sin_revelar == 1 else "habilidades")
+            + " por revelar"
+        )
     elif category in (Category.PLUMBER, Category.SELLABLE):
-        advice = "no merece plaza de entrenamiento: despídelo y libera hueco"
+        # Con las siete reveladas ya no hay sorpresa posible, asi que aqui si
+        # se puede decir. Pero se dice el HECHO y se deja la decision al
+        # usuario: la aplicacion no manda ejecutar algo irreversible.
+        advice = f"ya sabes todo de él y su mejor techo es {best_max}: no va a dar más"
     elif age_years >= 17:
         advice = "listo para promocionar: ya aprovechará mejor el entrenamiento senior"
     else:
@@ -249,14 +346,21 @@ def training_exposure(
     minutes_secondary_position: int,
     is_official_match: bool,
     is_primary_training: bool = True,
+    training_pair: tuple[str, str] | None = None,
 ) -> float:
     """Aprovechamiento de la plaza de entrenamiento juvenil. HL-115.
 
-    Pesos leídos directamente del panel "Valoración del entrenamiento" de
-    Hattrick Control (ver docs/16): principal 1,0 / secundario 0,8;
-    posición principal 1,0 / secundaria 0,5; oficial 1,0 / amistoso 0,5.
+    Pesos de entrenamiento: principal 1,0; secundario distinto 2/3; y
+    secundario repetido 1/3 (el 2/3 normal castigado a la mitad). Los otros
+    factores son independientes: posición principal 1,0 / secundaria 0,5;
+    partido oficial 1,0 / amistoso 0,5.
     """
-    w_training = 1.0 if is_primary_training else 0.8
+    if is_primary_training:
+        w_training = 1.0
+    elif training_pair is None:
+        raise ValueError("un entrenamiento secundario necesita los códigos principal y secundario")
+    else:
+        w_training = factor_secundario(*training_pair)
     w_match = 1.0 if is_official_match else 0.5
     minutes = min(minutes_main_position, 90) * 1.0 + min(minutes_secondary_position, 90) * 0.5
     return round(min(minutes / 90.0, 1.0) * w_training * w_match, 4)

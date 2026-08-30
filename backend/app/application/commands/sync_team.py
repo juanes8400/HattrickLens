@@ -52,6 +52,19 @@ async def _report(on_progress: ProgressReporter | None, message: str) -> None:
         await on_progress(message)
 
 
+def _full_player_name(first_name: str | None, last_name: str | None) -> str:
+    """Nombre legible para cualquier progreso de sincronización.
+
+    Los identificadores de Hattrick siguen viviendo en errores y parámetros
+    técnicos, pero nunca son la etiqueta visible con la que la pantalla le
+    cuenta al usuario por qué jugador va.
+    """
+    return (
+        " ".join(part.strip() for part in (first_name, last_name) if part and part.strip())
+        or "Jugador sin nombre"
+    )
+
+
 def _parse_dt(value: str | None) -> datetime | None:
     """Fecha de CHPP ("2026-08-09 05:05:00") a datetime aware en UTC, o `None`
     si el fichero la trae vacía. CHPP no marca zona porque siempre es la hora
@@ -835,11 +848,56 @@ class SyncTeamHandler:
             & m.Player.destination_country.is_(None)
             & (~m.Player.destination_attempted)
         )
-        # El censo de partidos: una vez por ex-jugador, para siempre.
-        censo = await ids(
-            (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
-            & m.Player.games_played_for_us_computed_at.is_(None)
+        # El censo de partidos se hace por ETAPA, aunque la cola siga
+        # devolviendo un PlayerID para no romper el contrato del backfill.
+        #
+        # 2026-08-28: desde que existe `PlayerStint`, mirar la marca legada
+        # del jugador dejaba fuera para siempre cualquier etapa nueva. El
+        # caso que destapo el fallo fue Jose Vicente Alvargonzalez: el censo
+        # habia encontrado 1 partido y lo habia guardado en `Player`, pero su
+        # unica etapa seguia en NULL y Transferencias mostraba "?".
+        #
+        # Solo se encolan etapas con una ventana que realmente se puede
+        # reconstruir. Una compra da `arrived_at`; para la unica etapa de un
+        # jugador tambien sirven la fecha legada de compra, el conteo legado
+        # inequívoco o la edad de venta (suelo de los 17 anos). Las etapas
+        # antiguas sin ninguna de esas evidencias permanecen desconocidas:
+        # no se inventa un cero ni se bloquea cada lote reintentandolas.
+        cuantas_etapas = (
+            select(sa_func.count(m.PlayerStint.id))
+            .where(m.PlayerStint.player_id == m.Player.id)
+            .correlate(m.Player)
+            .scalar_subquery()
         )
+        hay_etapa_censable = (
+            select(m.PlayerStint.id)
+            .where(
+                m.PlayerStint.player_id == m.Player.id,
+                m.PlayerStint.team_id == team_id,
+                m.PlayerStint.left_at.is_not(None),
+                m.PlayerStint.games_played_for_us.is_(None),
+                m.PlayerStint.arrived_at.is_not(None)
+                | (
+                    m.PlayerStint.from_academy.is_(True)
+                    & m.Player.age_years_at_sale.is_not(None)
+                    & m.Player.age_days_at_sale.is_not(None)
+                    & (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None))
+                )
+                | (
+                    (cuantas_etapas == 1)
+                    & (
+                        m.Player.games_played_for_us.is_not(None)
+                        | m.Player.purchased_at.is_not(None)
+                        | (
+                            m.Player.age_years_at_sale.is_not(None)
+                            & m.Player.age_days_at_sale.is_not(None)
+                        )
+                    )
+                ),
+            )
+            .exists()
+        )
+        censo = await ids(hay_etapa_censable)
         # La vigilancia de reventas: se repite hasta que el jugador queda
         # cerrado, y entonces desaparece de la cola para siempre.
         vigilancia = (m.Player.sold_at.is_not(None) | m.Player.left_team_at.is_not(None)) & (
@@ -1044,13 +1102,17 @@ class SyncTeamHandler:
         arranque = datetime.now(UTC).replace(tzinfo=None)
 
         for ht_player_id in todos:
-            nombre = await uow.session.scalar(
-                select(m.Player.last_name).where(m.Player.ht_player_id == ht_player_id)
-            )
-            if nombre:
-                result.players_named.append(nombre)
+            identidad = (
+                await uow.session.execute(
+                    select(m.Player.first_name, m.Player.last_name).where(
+                        m.Player.ht_player_id == ht_player_id
+                    )
+                )
+            ).one()
+            nombre = _full_player_name(identidad.first_name, identidad.last_name)
+            result.players_named.append(nombre)
             if ht_player_id in ficha:
-                await _report(on_progress, f"Descargando ficha de ex-jugador {ht_player_id}...")
+                await _report(on_progress, f"Descargando ficha de ex-jugador {nombre}...")
                 try:
                     wrote = await self._apply_player_enrichment(uow, ht_player_id, fetched_at)
                     result.snapshots_written += 1 if wrote else 0
@@ -1060,7 +1122,7 @@ class SyncTeamHandler:
             if ht_player_id in precio:
                 await _report(
                     on_progress,
-                    f"Descargando transferencias de jugador {ht_player_id}...",
+                    f"Descargando transferencias de {nombre}...",
                 )
                 try:
                     wrote = await self._apply_transfers_player_purchase(uow, team_id, ht_player_id)
@@ -1069,7 +1131,7 @@ class SyncTeamHandler:
                     result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in destino:
-                await _report(on_progress, f"Descargando país destino de jugador {ht_player_id}...")
+                await _report(on_progress, f"Descargando país destino de {nombre}...")
                 try:
                     wrote = await self._apply_destination_country(uow, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
@@ -1079,7 +1141,7 @@ class SyncTeamHandler:
             if ht_player_id in censo:
                 await _report(
                     on_progress,
-                    f"Contando partidos con nosotros de {ht_player_id}...",
+                    f"Contando partidos con nosotros de {nombre}...",
                 )
                 try:
                     wrote = await self._censar_partidos_del_stint(uow, team_id, ht_player_id)
@@ -1088,7 +1150,7 @@ class SyncTeamHandler:
                     result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in reventa:
-                await _report(on_progress, f"Revisando reventas de {ht_player_id}...")
+                await _report(on_progress, f"Revisando reventas de {nombre}...")
                 try:
                     wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
@@ -2718,21 +2780,22 @@ class SyncTeamHandler:
 
         from app.infrastructure.db import models as m
 
-        ht_player_ids = (
-            (
-                await uow.session.execute(
-                    select(m.Player.ht_player_id).where(
-                        m.Player.team_id == team_id,
-                        m.Player.left_team_at.is_(None),
-                        ~m.Player.ht_player_id_is_transfer,
-                    )
+        jugadores = (
+            await uow.session.execute(
+                select(
+                    m.Player.ht_player_id,
+                    m.Player.first_name,
+                    m.Player.last_name,
+                ).where(
+                    m.Player.team_id == team_id,
+                    m.Player.left_team_at.is_(None),
+                    ~m.Player.ht_player_id_is_transfer,
                 )
             )
-            .scalars()
-            .all()
-        )
-        for ht_player_id in ht_player_ids:
-            await _report(on_progress, f"Descargando ficha de jugador {ht_player_id}...")
+        ).all()
+        for ht_player_id, first_name, last_name in jugadores:
+            nombre = _full_player_name(first_name, last_name)
+            await _report(on_progress, f"Descargando ficha de jugador {nombre}...")
             try:
                 wrote = await self._apply_player_details(uow, ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
@@ -2861,10 +2924,12 @@ class SyncTeamHandler:
         """Recorre matchesarchive.xml (ventana purchased_at→sold_at) +
         matchlineup.xml v2.1 partido por partido — la única forma de contar
         partidos REALES (RatingStars > 0) de un stint ya cerrado que el
-        histórico propio de esta app no alcanzó a sincronizar. Un partido
-        cuya alineación no se puede leer (best effort, no debería pasar en
-        un partido ya finalizado) simplemente no cuenta — no se aborta todo
-        el conteo por un fallo puntual, igual que `_backfill_stadium_history`."""
+        histórico propio de esta app no alcanzó a sincronizar.
+
+        El conteo es atómico: si una sola alineación no se puede leer, se
+        propaga el error y NO se guarda un subtotal. Antes se tragaba ese
+        fallo y el número incompleto quedaba congelado para siempre como si
+        fuera exacto. El siguiente lote vuelve a recorrer la ventana entera."""
         from app.domain.engines.previous_club_bonus import counts_toward_games_played, did_play
 
         archive = await self._chpp.fetch(
@@ -2881,16 +2946,12 @@ class SyncTeamHandler:
         ]
         games = 0
         for mt in qualifying:
-            try:
-                lineup = await self._chpp.fetch(
-                    "matchlineup",
-                    version=MATCHLINEUP_ROLE_VERSION,
-                    matchID=mt["ht_match_id"],
-                    teamID=ht_team_id,
-                )
-            # Traga y sigue: ver docstring. Mismo riesgo que arriba.
-            except Exception:  # noqa: BLE001, S112
-                continue
+            lineup = await self._chpp.fetch(
+                "matchlineup",
+                version=MATCHLINEUP_ROLE_VERSION,
+                matchID=mt["ht_match_id"],
+                teamID=ht_team_id,
+            )
             hit = next(
                 (p for p in lineup.get("players", []) if p.get("ht_player_id") == ht_player_id),
                 None,
@@ -3133,14 +3194,14 @@ class SyncTeamHandler:
         team_id: int,
         ht_player_id: int,
     ) -> bool:
-        """Cuántos partidos jugó de verdad con nosotros. UNA vez por jugador.
+        """Cuántos partidos jugó de verdad con nosotros, UNA vez por etapa.
 
         Es el trabajo más caro de toda la aplicación: el archivo de partidos
-        de su etapa, y la alineación de cada uno para ver si llegó a jugar.
-        Por eso se guarda en su ficha y no se repite jamás — un partido ya
-        jugado no cambia.
+        de cada etapa cerrada y la alineación de cada uno para ver si llegó a
+        jugar. La cola sigue agrupada por PlayerID, pero una pasada rellena
+        todas las etapas pendientes de esa persona.
 
-        "Jugó al menos un minuto" se decide por las estrellas: `matchlineup`
+        "Jugó al menos un minuto" se decide por las estrellas: matchlineup
         no trae los minutos (comprobado: sus campos son PlayerID, RoleID,
         PositionCode, RatingStars, Behaviour), y un suplente que no entró
         trae 0 exacto, verificado en vivo el 2026-08-14.
@@ -3156,40 +3217,88 @@ class SyncTeamHandler:
         if equipo is None or jugador is None:
             return False
 
-        salida = jugador.sold_at or jugador.left_team_at
-        inicio = jugador.purchased_at
-        if inicio is None and salida is not None:
-            # Un canterano no se compró, así que no tiene fecha de compra, y
-            # sin principio de etapa este recorrido se saltaba a la mitad de
-            # ellos. Como nadie llega al primer equipo antes de los 17 años,
-            # el día en que los cumplió es el suelo: buscar desde ahí cubre de
-            # más, nunca de menos. No se guarda como su llegada ni se enseña.
-            edad = self._edad_en_la_salida(jugador)
-            if edad is not None:
-                inicio = cuando_cumplio_diecisiete(edad, salida)
-
-        if inicio is None or salida is None:
-            # Sin etapa acotada no hay nada que recorrer; se marca censado
-            # para no volver a intentarlo en cada lote.
-            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(tzinfo=None)
+        etapas = list(
+            (
+                await uow.session.execute(
+                    select(m.PlayerStint)
+                    .where(m.PlayerStint.player_id == jugador.id)
+                    .order_by(m.PlayerStint.left_at, m.PlayerStint.arrived_at)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        pendientes = [
+            etapa
+            for etapa in etapas
+            if etapa.left_at is not None and etapa.games_played_for_us is None
+        ]
+        if not pendientes:
             return False
 
-        # La marca se pone pase lo que pase. El recorrido es "una vez por
-        # jugador, para siempre", asi que si Hattrick falla a mitad no se
-        # vuelve a intentar en el siguiente lote: se quedaria en la cola para
-        # siempre y el trabajo no se agotaria nunca. Sin cuenta, la ficha
-        # ensena "?" en vez de un cero que parecería contado.
-        try:
-            jugador.games_played_for_us = await self._games_played_for_us(
+        una_sola_etapa = len(etapas) == 1
+        ahora = datetime.now(UTC).replace(tzinfo=None)
+        resultados: list[tuple[Any, int, datetime]] = []
+
+        for etapa in pendientes:
+            # El conteo legado solo es atribuible sin ambigüedad cuando el
+            # jugador tuvo una única etapa. Esta vía repara de inmediato los
+            # datos históricos (incluido un cero real) y no gasta CHPP.
+            if una_sola_etapa and jugador.games_played_for_us is not None:
+                resultados.append(
+                    (
+                        etapa,
+                        jugador.games_played_for_us,
+                        jugador.games_played_for_us_computed_at or ahora,
+                    )
+                )
+                continue
+
+            inicio = etapa.arrived_at
+            if inicio is None and una_sola_etapa:
+                inicio = jugador.purchased_at
+            if inicio is None and etapa.from_academy:
+                # La edad se midio en la venta legada mas reciente. Desde ese
+                # punto se recupera la fecha estable en que cumplio 17, que
+                # tambien sirve para su primera etapa aunque luego haya
+                # regresado al club. No se guarda como una llegada observada.
+                edad = self._edad_en_la_salida(jugador)
+                fecha_de_esa_edad = jugador.sold_at or jugador.left_team_at
+                if edad is not None and fecha_de_esa_edad is not None:
+                    inicio = cuando_cumplio_diecisiete(edad, fecha_de_esa_edad)
+
+            if inicio is None:
+                # Etapa antigua sin compra, edad ni otro límite verificable:
+                # sigue como desconocida. No se inventa 0 y la cola SQL no la
+                # ofrece hasta que aparezca evidencia nueva.
+                continue
+
+            games = await self._games_played_for_us(
                 equipo.ht_team_id,
                 ht_player_id,
                 inicio,
-                salida,
+                etapa.left_at,
             )
-            contado = True
-        finally:
-            jugador.games_played_for_us_computed_at = datetime.now(UTC).replace(tzinfo=None)
-        return contado
+            resultados.append((etapa, games, ahora))
+
+        # No se modifica ninguna etapa hasta que TODAS las llamadas de esta
+        # pasada terminan bien. Si falla un matchlineup, el jugador queda
+        # intacto y vuelve a la cola en el próximo lote.
+        for etapa, games, computed_at in resultados:
+            etapa.games_played_for_us = games
+            etapa.games_computed_at = computed_at
+
+        # Player queda como espejo de compatibilidad para la ficha antigua.
+        # Con varias etapas solo se reemplaza cuando ya conocemos todas las
+        # cerradas, y entonces representa el total de todos sus pasos.
+        cerradas = [etapa for etapa in etapas if etapa.left_at is not None]
+        if cerradas and all(etapa.games_played_for_us is not None for etapa in cerradas):
+            jugador.games_played_for_us = sum(etapa.games_played_for_us or 0 for etapa in cerradas)
+            jugador.games_played_for_us_computed_at = max(
+                (etapa.games_computed_at or ahora) for etapa in cerradas
+            )
+
+        return bool(resultados)
 
     async def _vigilar_reventa(
         self,
@@ -3406,9 +3515,17 @@ class SyncTeamHandler:
 
         encontrado = False
         for ht_player_id in candidates:
+            identidad = (
+                await uow.session.execute(
+                    select(m.Player.first_name, m.Player.last_name).where(
+                        m.Player.ht_player_id == ht_player_id
+                    )
+                )
+            ).one()
+            nombre = _full_player_name(identidad.first_name, identidad.last_name)
             await _report(
                 on_progress,
-                f"Revisando comisión de club anterior de {ht_player_id}...",
+                f"Revisando comisión de club anterior de {nombre}...",
             )
             try:
                 wrote = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
@@ -4446,9 +4563,10 @@ class SyncTeamHandler:
         ahora = datetime.now(UTC).replace(tzinfo=None)
         traidos = 0
         for juvenil, informe in pendientes:
+            nombre = _full_player_name(juvenil.first_name, juvenil.last_name)
             await _report(
                 on_progress,
-                f"Informe del ojeador sobre {juvenil.first_name} {juvenil.last_name}...",
+                f"Informe del ojeador sobre {nombre}...",
             )
             try:
                 ficha = await self._chpp.fetch(

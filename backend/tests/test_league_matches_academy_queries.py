@@ -7,6 +7,7 @@ servicio de aquí toca `player_snapshots` de otros clubes, y el test
 `test_no_rival_player_history_is_stored` lo deja escrito para que nadie lo
 añada por comodidad más adelante.
 """
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -35,8 +36,11 @@ async def _with_league():
     factory, team_id = await seeded_session()
     async with factory() as s:
         sync = m.Sync(
-            user_id=1, team_id=team_id, kind="manual",
-            status="completed", started_at=BASE,
+            user_id=1,
+            team_id=team_id,
+            kind="manual",
+            status="completed",
+            started_at=BASE,
         )
         s.add(sync)
         await s.flush()
@@ -50,10 +54,21 @@ async def _with_league():
         for ht_id, name, pos, pl, w, d, lost, gf, ga, pts in table:
             s.add(
                 m.Standing(
-                    sync_id=sync.id, series_ht_id=7777, season=83, match_round=4,
-                    captured_at=BASE, team_ht_id=ht_id, team_name=name, position=pos,
-                    played=pl, won=w, draws=d, lost=lost,
-                    goals_for=gf, goals_against=ga, points=pts,
+                    sync_id=sync.id,
+                    series_ht_id=7777,
+                    season=83,
+                    match_round=4,
+                    captured_at=BASE,
+                    team_ht_id=ht_id,
+                    team_name=name,
+                    position=pos,
+                    played=pl,
+                    won=w,
+                    draws=d,
+                    lost=lost,
+                    goals_for=gf,
+                    goals_against=ga,
+                    points=pts,
                 )
             )
 
@@ -65,11 +80,16 @@ async def _with_league():
         for i, (h, hn, a, an, hg, ag) in enumerate(played):
             s.add(
                 m.Match(
-                    ht_match_id=800_000 + i, played_at=BASE + timedelta(days=7 * i),
-                    match_type=1, status="finished",
-                    home_team_ht_id=h, away_team_ht_id=a,
-                    home_team_name=hn, away_team_name=an,
-                    home_goals=hg, away_goals=ag,
+                    ht_match_id=800_000 + i,
+                    played_at=BASE + timedelta(days=7 * i),
+                    match_type=1,
+                    status="finished",
+                    home_team_ht_id=h,
+                    away_team_ht_id=a,
+                    home_team_name=hn,
+                    away_team_name=an,
+                    home_goals=hg,
+                    away_goals=ag,
                 )
             )
         pending = [
@@ -79,29 +99,50 @@ async def _with_league():
         for i, (h, hn, a, an) in enumerate(pending):
             s.add(
                 m.Match(
-                    ht_match_id=810_000 + i, played_at=BASE + timedelta(days=30 + 7 * i),
-                    match_type=1, status="scheduled",
-                    home_team_ht_id=h, away_team_ht_id=a,
-                    home_team_name=hn, away_team_name=an,
-                    home_goals=-1, away_goals=-1,
+                    ht_match_id=810_000 + i,
+                    played_at=BASE + timedelta(days=30 + 7 * i),
+                    match_type=1,
+                    status="scheduled",
+                    home_team_ht_id=h,
+                    away_team_ht_id=a,
+                    home_team_name=hn,
+                    away_team_name=an,
+                    home_goals=-1,
+                    away_goals=-1,
                 )
             )
 
         # Ratings por sector del primer partido, para ambos equipos.
         s.add(
             m.MatchRating(
-                ht_match_id=800_000, team_ht_id=HT_TEAM_ID, is_home=True, midfield=14,
-                right_def=10, central_def=12, left_def=10,
-                right_att=8, central_att=11, left_att=9,
-                possession_first_half=58, possession_second_half=61,
+                ht_match_id=800_000,
+                team_ht_id=HT_TEAM_ID,
+                is_home=True,
+                midfield=14,
+                right_def=10,
+                central_def=12,
+                left_def=10,
+                right_att=8,
+                central_att=11,
+                left_att=9,
+                possession_first_half=58,
+                possession_second_half=61,
             )
         )
         s.add(
             m.MatchRating(
-                ht_match_id=800_000, team_ht_id=600003, is_home=False, midfield=6,
-                right_def=7, central_def=6, left_def=7,
-                right_att=5, central_att=4, left_att=5,
-                possession_first_half=42, possession_second_half=39,
+                ht_match_id=800_000,
+                team_ht_id=600003,
+                is_home=False,
+                midfield=6,
+                right_def=7,
+                central_def=6,
+                left_def=7,
+                right_att=5,
+                central_att=4,
+                left_att=5,
+                possession_first_half=42,
+                possession_second_half=39,
             )
         )
         await s.commit()
@@ -109,6 +150,7 @@ async def _with_league():
 
 
 # ── Liga y predicciones ─────────────────────────────────────────────────────
+
 
 def test_standings_are_ordered_by_hattrick_tie_breakers() -> None:
     async def go():
@@ -131,8 +173,9 @@ def _standing(ht_id: int, name: str) -> m.Standing:
 
 
 def _match(rnd: int, home: int, away: int, hg: int, ag: int) -> m.Match:
-    return m.Match(match_round=rnd, home_team_ht_id=home, away_team_ht_id=away,
-                    home_goals=hg, away_goals=ag)
+    return m.Match(
+        match_round=rnd, home_team_ht_id=home, away_team_ht_id=away, home_goals=hg, away_goals=ag
+    )
 
 
 def test_history_from_matches_reconstructs_every_full_round() -> None:
@@ -232,9 +275,19 @@ def test_merge_standing_snapshots_fills_a_round_matches_has_not_caught_up_to() -
 
     standing_snapshots = [
         m.Standing(
-            series_ht_id=7777, season=83, match_round=2, team_ht_id=ht_id,
-            team_name=name, position=pos, played=2, won=won, draws=draws, lost=lost,
-            goals_for=gf, goals_against=ga, points=pts,
+            series_ht_id=7777,
+            season=83,
+            match_round=2,
+            team_ht_id=ht_id,
+            team_name=name,
+            position=pos,
+            played=2,
+            won=won,
+            draws=draws,
+            lost=lost,
+            goals_for=gf,
+            goals_against=ga,
+            points=pts,
         )
         for ht_id, name, pos, won, draws, lost, gf, ga, pts in [
             (HT_TEAM_ID, "Pulgas Arrechas", 1, 2, 0, 0, 6, 0, 6),
@@ -267,9 +320,9 @@ def test_standings_from_matches_splits_home_and_away_records() -> None:
         _standing(600003, "Club Tres"),
     ]
     matches = [
-        _match(1, HT_TEAM_ID, 600003, 2, 0),   # Pulgas de local: gana
+        _match(1, HT_TEAM_ID, 600003, 2, 0),  # Pulgas de local: gana
         _match(1, 600001, 600002, 1, 1),
-        _match(2, 600001, HT_TEAM_ID, 1, 1),   # Pulgas de visitante: empata
+        _match(2, 600001, HT_TEAM_ID, 1, 1),  # Pulgas de visitante: empata
         _match(2, 600002, 600003, 1, 0),
     ]
     home = _standings_from_matches(matches, rows, HT_TEAM_ID, "home")
@@ -320,7 +373,8 @@ def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
 
     async def run():
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         async with engine.begin() as conn:
@@ -330,13 +384,19 @@ def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
 
         unplayed_payload = {
             "series_ht_id": 7777,
-            "matches": [{
-                "ht_match_id": 900001, "match_round": 2,
-                "home_team_id": 600001, "home_team_name": "Deportivo Uno",
-                "away_team_id": 600002, "away_team_name": "Atlético Dos",
-                "match_date": "2026-08-02 23:40:00",
-                "home_goals": None, "away_goals": None,
-            }],
+            "matches": [
+                {
+                    "ht_match_id": 900001,
+                    "match_round": 2,
+                    "home_team_id": 600001,
+                    "home_team_name": "Deportivo Uno",
+                    "away_team_id": 600002,
+                    "away_team_name": "Atlético Dos",
+                    "match_date": "2026-08-02 23:40:00",
+                    "home_goals": None,
+                    "away_goals": None,
+                }
+            ],
         }
         async with uow:
             await _persist_fixtures_payload(uow, unplayed_payload)
@@ -351,13 +411,19 @@ def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
         # marcador real. Antes del fix, esta segunda llamada era un no-op.
         played_payload = {
             "series_ht_id": 7777,
-            "matches": [{
-                "ht_match_id": 900001, "match_round": 2,
-                "home_team_id": 600001, "home_team_name": "Deportivo Uno",
-                "away_team_id": 600002, "away_team_name": "Atlético Dos",
-                "match_date": "2026-08-02 23:40:00",
-                "home_goals": 0, "away_goals": 3,
-            }],
+            "matches": [
+                {
+                    "ht_match_id": 900001,
+                    "match_round": 2,
+                    "home_team_id": 600001,
+                    "home_team_name": "Deportivo Uno",
+                    "away_team_id": 600002,
+                    "away_team_name": "Atlético Dos",
+                    "match_date": "2026-08-02 23:40:00",
+                    "home_goals": 0,
+                    "away_goals": 3,
+                }
+            ],
         }
         async with uow:
             result = await _persist_fixtures_payload(uow, played_payload)
@@ -385,7 +451,8 @@ def test_persist_league_fixtures_never_overwrites_an_already_confirmed_score() -
 
     async def run():
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         async with engine.begin() as conn:
@@ -394,23 +461,37 @@ def test_persist_league_fixtures_never_overwrites_an_already_confirmed_score() -
         uow = SqlAlchemyUnitOfWork(factory)
 
         async with factory() as s:
-            s.add(m.Match(
-                ht_match_id=900002, played_at=BASE, match_type=1, status="finished",
-                home_team_ht_id=HT_TEAM_ID, away_team_ht_id=600001,
-                home_team_name="Pulgas Arrechas", away_team_name="Deportivo Uno",
-                home_goals=5, away_goals=1,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=900002,
+                    played_at=BASE,
+                    match_type=1,
+                    status="finished",
+                    home_team_ht_id=HT_TEAM_ID,
+                    away_team_ht_id=600001,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="Deportivo Uno",
+                    home_goals=5,
+                    away_goals=1,
+                )
+            )
             await s.commit()
 
         payload = {
             "series_ht_id": 7777,
-            "matches": [{
-                "ht_match_id": 900002, "match_round": 2,
-                "home_team_id": HT_TEAM_ID, "home_team_name": "Pulgas Arrechas",
-                "away_team_id": 600001, "away_team_name": "Deportivo Uno",
-                "match_date": "2026-08-02 23:40:00",
-                "home_goals": 0, "away_goals": 0,  # distinto: no debe pisar
-            }],
+            "matches": [
+                {
+                    "ht_match_id": 900002,
+                    "match_round": 2,
+                    "home_team_id": HT_TEAM_ID,
+                    "home_team_name": "Pulgas Arrechas",
+                    "away_team_id": 600001,
+                    "away_team_name": "Deportivo Uno",
+                    "match_date": "2026-08-02 23:40:00",
+                    "home_goals": 0,
+                    "away_goals": 0,  # distinto: no debe pisar
+                }
+            ],
         }
         async with uow:
             await _persist_fixtures_payload(uow, payload)
@@ -430,6 +511,7 @@ def test_best_worst_case_is_computed_for_the_own_team() -> None:
     puestos por escenario en vez de un número: aunque el resultado propio
     esté forzado a un extremo (goleada), el resto de la liga sigue siendo
     incierto."""
+
     async def go():
         factory, team_id = await _with_league()
         async with factory() as s:
@@ -504,7 +586,7 @@ def test_league_declares_the_limits_of_its_model() -> None:
     d = _run(go())
     assert "lesiones" in d.model["doesNotModel"]
     assert any("forma agregada" in c for c in d.caveats)
-    assert any("encogimiento" in c for c in d.caveats)   # sólo 4 jornadas
+    assert any("encogimiento" in c for c in d.caveats)  # sólo 4 jornadas
 
 
 CAVEAT_NEEDLE = "trae los partidos de tu equipo"
@@ -521,7 +603,9 @@ async def _with_full_series_schedule(*, partial_round_played: bool):
     cruce de esa jornada (dato realmente incompleto)."""
     factory, team_id = await seeded_session()
     async with factory() as s:
-        sync = m.Sync(user_id=1, team_id=team_id, kind="manual", status="completed", started_at=BASE)
+        sync = m.Sync(
+            user_id=1, team_id=team_id, kind="manual", status="completed", started_at=BASE
+        )
         s.add(sync)
         await s.flush()
 
@@ -532,54 +616,99 @@ async def _with_full_series_schedule(*, partial_round_played: bool):
             (600003, "Club Tres", 4, 1, 0, 0, 1, 1, 2, 0),
         ]
         for ht_id, name, pos, pl, w, d, lost, gf, ga, pts in table:
-            s.add(m.Standing(
-                sync_id=sync.id, series_ht_id=7777, season=83, match_round=1,
-                captured_at=BASE, team_ht_id=ht_id, team_name=name, position=pos,
-                played=pl, won=w, draws=d, lost=lost,
-                goals_for=gf, goals_against=ga, points=pts,
-            ))
+            s.add(
+                m.Standing(
+                    sync_id=sync.id,
+                    series_ht_id=7777,
+                    season=83,
+                    match_round=1,
+                    captured_at=BASE,
+                    team_ht_id=ht_id,
+                    team_name=name,
+                    position=pos,
+                    played=pl,
+                    won=w,
+                    draws=d,
+                    lost=lost,
+                    goals_for=gf,
+                    goals_against=ga,
+                    points=pts,
+                )
+            )
 
         # Jornada 1: los 2 partidos posibles, ya jugados. Uno entre rivales.
-        s.add(m.Match(
-            ht_match_id=900001, played_at=BASE, match_type=1, status="FINISHED",
-            home_team_ht_id=HT_TEAM_ID, away_team_ht_id=600003,
-            home_team_name="Pulgas Arrechas", away_team_name="Club Tres",
-            home_goals=3, away_goals=0, series_ht_id=7777, match_round=1,
-        ))
-        s.add(m.Match(
-            ht_match_id=900002, played_at=BASE, match_type=1, status="FINISHED",
-            home_team_ht_id=600001, away_team_ht_id=600002,
-            home_team_name="Deportivo Uno", away_team_name="Atlético Dos",
-            home_goals=2, away_goals=1, series_ht_id=7777, match_round=1,
-        ))
+        s.add(
+            m.Match(
+                ht_match_id=900001,
+                played_at=BASE,
+                match_type=1,
+                status="FINISHED",
+                home_team_ht_id=HT_TEAM_ID,
+                away_team_ht_id=600003,
+                home_team_name="Pulgas Arrechas",
+                away_team_name="Club Tres",
+                home_goals=3,
+                away_goals=0,
+                series_ht_id=7777,
+                match_round=1,
+            )
+        )
+        s.add(
+            m.Match(
+                ht_match_id=900002,
+                played_at=BASE,
+                match_type=1,
+                status="FINISHED",
+                home_team_ht_id=600001,
+                away_team_ht_id=600002,
+                home_team_name="Deportivo Uno",
+                away_team_name="Atlético Dos",
+                home_goals=2,
+                away_goals=1,
+                series_ht_id=7777,
+                match_round=1,
+            )
+        )
 
         # Jornada 2: solo el partido DEL EQUIPO propio está sincronizado —
         # el otro cruce (600001 vs 600003) nunca llegó, sea porque falta
         # sincronizar (caso incompleto) o porque de verdad no hay más
         # equipos que emparejar en este escenario reducido de 4.
-        s.add(m.Match(
-            ht_match_id=900003,
-            played_at=BASE + timedelta(days=7),
-            match_type=1,
-            status="FINISHED" if partial_round_played else "UPCOMING",
-            home_team_ht_id=HT_TEAM_ID, away_team_ht_id=600002,
-            home_team_name="Pulgas Arrechas", away_team_name="Atlético Dos",
-            home_goals=1 if partial_round_played else -1,
-            away_goals=0 if partial_round_played else -1,
-            series_ht_id=7777, match_round=2,
-        ))
+        s.add(
+            m.Match(
+                ht_match_id=900003,
+                played_at=BASE + timedelta(days=7),
+                match_type=1,
+                status="FINISHED" if partial_round_played else "UPCOMING",
+                home_team_ht_id=HT_TEAM_ID,
+                away_team_ht_id=600002,
+                home_team_name="Pulgas Arrechas",
+                away_team_name="Atlético Dos",
+                home_goals=1 if partial_round_played else -1,
+                away_goals=0 if partial_round_played else -1,
+                series_ht_id=7777,
+                match_round=2,
+            )
+        )
         if partial_round_played:
             # La jornada 2 SÍ tiene sus 2 partidos — el segundo (rival vs
             # rival) sigue pendiente, nada que ver con datos incompletos.
-            s.add(m.Match(
-                ht_match_id=900004,
-                played_at=BASE + timedelta(days=7),
-                match_type=1, status="UPCOMING",
-                home_team_ht_id=600001, away_team_ht_id=600003,
-                home_team_name="Deportivo Uno", away_team_name="Club Tres",
-                home_goals=-1, away_goals=-1,
-                series_ht_id=7777, match_round=2,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=900004,
+                    played_at=BASE + timedelta(days=7),
+                    match_type=1,
+                    status="UPCOMING",
+                    home_team_ht_id=600001,
+                    away_team_ht_id=600003,
+                    home_team_name="Deportivo Uno",
+                    away_team_name="Club Tres",
+                    home_goals=-1,
+                    away_goals=-1,
+                    series_ht_id=7777,
+                    match_round=2,
+                )
+            )
         await s.commit()
     return factory, team_id
 
@@ -588,6 +717,7 @@ def test_a_round_missing_a_rival_pairing_is_caveated_as_incomplete() -> None:
     """Jornada 2 solo trae el partido del equipo propio — el cruce entre
     los otros dos rivales nunca se sincronizó. Eso SÍ es un calendario
     incompleto y debe avisarse."""
+
     async def go():
         factory, team_id = await _with_full_series_schedule(partial_round_played=False)
         async with factory() as s:
@@ -603,6 +733,7 @@ def test_a_round_with_one_match_already_played_is_not_a_false_positive() -> None
     pendiente. Contar solo los partidos PENDIENTES por jornada daría 1 (y
     dispararía el aviso por error); el total (jugados + pendientes) da 2,
     que es lo correcto: la jornada está completa, solo en progreso."""
+
     async def go():
         factory, team_id = await _with_full_series_schedule(partial_round_played=True)
         async with factory() as s:
@@ -617,21 +748,24 @@ def test_no_rival_player_history_is_stored() -> None:
     """Regla de CHPP, no preferencia de diseño: se pueden mostrar los datos
     actuales de otros equipos pero no seguir la evolución de sus jugadores. La
     liga se analiza con resultados y clasificación, que son públicos."""
+
     async def go():
         factory, team_id = await _with_league()
         async with factory() as s:
             from sqlalchemy import select
+
             rows = (
-                await s.execute(
-                    select(m.Player).where(m.Player.team_id != team_id)
-                )
-            ).scalars().all()
+                (await s.execute(select(m.Player).where(m.Player.team_id != team_id)))
+                .scalars()
+                .all()
+            )
             return rows
 
     assert _run(go()) == []
 
 
 # ── Partidos ────────────────────────────────────────────────────────────────
+
 
 def test_match_list_computes_the_record_from_both_home_and_away() -> None:
     async def go():
@@ -642,7 +776,7 @@ def test_match_list_computes_the_record_from_both_home_and_away() -> None:
     d = _run(go())
     assert d is not None
     assert d.matches_played == 2
-    assert d.record == "2-0-0"          # 3-0 en casa y 2-1 fuera
+    assert d.record == "2-0-0"  # 3-0 en casa y 2-1 fuera
     assert d.goals_for == 5 and d.goals_against == 1
     away = next(mm for mm in d.matches if not mm.is_home)
     assert away.goals_for == 2 and away.goals_against == 1
@@ -653,16 +787,24 @@ def test_non_official_match_types_are_always_excluded() -> None:
     """Escaleras/Duelos (MatchType 50/62, HL-146) no cuentan para el récord
     ni aparecen en la lista — no hay override para verlos (2026-08-12,
     pedido explícito: "de TODOS los lugares... ni con botón, ni sin botón")."""
+
     async def go():
         factory, team_id = await _with_league()
         async with factory() as s:
-            s.add(m.Match(
-                ht_match_id=820_000, played_at=BASE + timedelta(days=100),
-                match_type=50, status="finished",
-                home_team_ht_id=HT_TEAM_ID, away_team_ht_id=900_001,
-                home_team_name="Pulgas Arrechas", away_team_name="Rival de escalera",
-                home_goals=5, away_goals=0,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=820_000,
+                    played_at=BASE + timedelta(days=100),
+                    match_type=50,
+                    status="finished",
+                    home_team_ht_id=HT_TEAM_ID,
+                    away_team_ht_id=900_001,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="Rival de escalera",
+                    home_goals=5,
+                    away_goals=0,
+                )
+            )
             await s.commit()
         async with factory() as s:
             return await MatchesQueryService(s).overview(team_id)
@@ -675,19 +817,29 @@ def test_non_official_match_types_are_always_excluded() -> None:
 def test_friendlies_are_hidden_unless_requested() -> None:
     """El botón que antes reactivaba Escaleras/Duelos ahora controla
     Amistosos — partidos reales que sí cuentan si se piden explícitamente."""
+
     async def go(include_friendlies: bool):
         factory, team_id = await _with_league()
         async with factory() as s:
-            s.add(m.Match(
-                ht_match_id=821_000, played_at=BASE + timedelta(days=100),
-                match_type=4, status="finished",  # Amistoso
-                home_team_ht_id=HT_TEAM_ID, away_team_ht_id=900_001,
-                home_team_name="Pulgas Arrechas", away_team_name="Rival amistoso",
-                home_goals=2, away_goals=2,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=821_000,
+                    played_at=BASE + timedelta(days=100),
+                    match_type=4,
+                    status="finished",  # Amistoso
+                    home_team_ht_id=HT_TEAM_ID,
+                    away_team_ht_id=900_001,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="Rival amistoso",
+                    home_goals=2,
+                    away_goals=2,
+                )
+            )
             await s.commit()
         async with factory() as s:
-            return await MatchesQueryService(s).overview(team_id, include_friendlies=include_friendlies)
+            return await MatchesQueryService(s).overview(
+                team_id, include_friendlies=include_friendlies
+            )
 
     default = _run(go(False))
     assert default.matches_played == 2
@@ -701,24 +853,37 @@ def test_friendlies_are_hidden_unless_requested() -> None:
 
 
 def test_season_filter_uses_world_context_anchor() -> None:
-    """"TT-ss" ancla en `WorldContext` (ver weekly.py) — sin ese ancla real
+    """ "TT-ss" ancla en `WorldContext` (ver weekly.py) — sin ese ancla real
     no hay forma honesta de decir a qué temporada pertenece un partido."""
+
     async def go(season: int | None):
         factory, team_id = await _with_league()
         refreshed_at = BASE + timedelta(weeks=16)
         async with factory() as s:
             team = await s.get(m.Team, team_id)
             team.ht_league_id = 55555
-            s.add(m.WorldContext(
-                ht_league_id=55555, season=83, match_round=1, refreshed_at=refreshed_at,
-            ))
-            s.add(m.Match(
-                ht_match_id=822_000, played_at=refreshed_at,
-                match_type=1, status="finished",
-                home_team_ht_id=HT_TEAM_ID, away_team_ht_id=600002,
-                home_team_name="Pulgas Arrechas", away_team_name="Atlético Dos",
-                home_goals=1, away_goals=1,
-            ))
+            s.add(
+                m.WorldContext(
+                    ht_league_id=55555,
+                    season=83,
+                    match_round=1,
+                    refreshed_at=refreshed_at,
+                )
+            )
+            s.add(
+                m.Match(
+                    ht_match_id=822_000,
+                    played_at=refreshed_at,
+                    match_type=1,
+                    status="finished",
+                    home_team_ht_id=HT_TEAM_ID,
+                    away_team_ht_id=600002,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="Atlético Dos",
+                    home_goals=1,
+                    away_goals=1,
+                )
+            )
             await s.commit()
         async with factory() as s:
             return await MatchesQueryService(s).overview(team_id, season=season)
@@ -758,19 +923,33 @@ def test_conversion_is_built_from_chances_by_zone() -> None:
     """Conversión real: ocasiones por zona (matchdetails.xml v3.1, no el
     `<Event>` que nunca existió) sumadas a través de los partidos con
     ratings, goles atribuidos al total del partido, no a una zona."""
+
     async def go():
         factory, team_id = await _with_league()
         async with factory() as s:
             from sqlalchemy import update
+
             await s.execute(
-                update(m.MatchRating).where(m.MatchRating.team_ht_id == HT_TEAM_ID)
-                .values(chances_left=3, chances_center=4, chances_right=2,
-                        chances_special=1, chances_other=1)
+                update(m.MatchRating)
+                .where(m.MatchRating.team_ht_id == HT_TEAM_ID)
+                .values(
+                    chances_left=3,
+                    chances_center=4,
+                    chances_right=2,
+                    chances_special=1,
+                    chances_other=1,
+                )
             )
             await s.execute(
-                update(m.MatchRating).where(m.MatchRating.team_ht_id == 600003)
-                .values(chances_left=1, chances_center=1, chances_right=1,
-                        chances_special=0, chances_other=0)
+                update(m.MatchRating)
+                .where(m.MatchRating.team_ht_id == 600003)
+                .values(
+                    chances_left=1,
+                    chances_center=1,
+                    chances_right=1,
+                    chances_special=0,
+                    chances_other=0,
+                )
             )
             await s.commit()
         async with factory() as s:
@@ -778,7 +957,7 @@ def test_conversion_is_built_from_chances_by_zone() -> None:
 
     d = _run(go())
     assert d.conversion.own_chances == 11
-    assert d.conversion.own_goals == 3           # goles del partido 800_000 (3-0)
+    assert d.conversion.own_goals == 3  # goles del partido 800_000 (3-0)
     assert d.conversion.opponent_chances == 3
     assert d.conversion.opponent_goals == 0
     assert d.conversion.is_reliable == (
@@ -820,10 +999,12 @@ def test_match_detail_without_ratings_is_a_404_not_an_empty_shell() -> None:
 
 # ── Juveniles ───────────────────────────────────────────────────────────────
 
+
 async def _with_youth():
     factory, team_id = await _with_league()
     async with factory() as s:
         from sqlalchemy import select
+
         sync = (await s.execute(select(m.Sync).limit(1))).scalar_one()
 
         youths = [
@@ -834,15 +1015,22 @@ async def _with_youth():
         ]
         for i, (name, age, skills) in enumerate(youths):
             yp = m.YouthPlayer(
-                ht_youth_player_id=700_000 + i, team_id=team_id,
-                first_name=name, last_name="Cantera", arrived_at=BASE,
+                ht_youth_player_id=700_000 + i,
+                team_id=team_id,
+                first_name=name,
+                last_name="Cantera",
+                arrived_at=BASE,
             )
             s.add(yp)
             await s.flush()
             snap = m.YouthSnapshot(
-                sync_id=sync.id, youth_player_id=yp.id, captured_at=BASE,
-                age_years=age, age_days=100 if age == 19 else 0,
-                minutes_last_match=90, content_hash=bytes(32),
+                sync_id=sync.id,
+                youth_player_id=yp.id,
+                captured_at=BASE,
+                age_years=age,
+                age_days=100 if age == 19 else 0,
+                minutes_last_match=90,
+                content_hash=bytes(32),
             )
             for skill, (cur, mx) in skills.items():
                 setattr(snap, skill, cur)
@@ -851,9 +1039,13 @@ async def _with_youth():
 
         s.add(
             m.FormerYouthPlayer(
-                team_id=team_id, ht_player_id=710_000, name="Dani Cantera",
-                promoted_at=BASE, sold_at=BASE + timedelta(days=60),
-                sold_for=3_500_000, current_team_name="Otro Club",
+                team_id=team_id,
+                ht_player_id=710_000,
+                name="Dani Cantera",
+                promoted_at=BASE,
+                sold_at=BASE + timedelta(days=60),
+                sold_for=3_500_000,
+                current_team_name="Otro Club",
             )
         )
         await s.commit()
@@ -877,6 +1069,7 @@ def test_academy_ranks_by_potential_not_by_current_skill() -> None:
 def test_an_unrevealed_ceiling_is_unknown_not_zero() -> None:
     """Descartar una promesa porque el ojeador aún no ha mirado sería confundir
     ignorancia con evidencia."""
+
     async def go():
         factory, team_id = await _with_youth()
         async with factory() as s:
@@ -895,17 +1088,22 @@ def test_an_unrevealed_ceiling_is_unknown_not_zero() -> None:
     # el nivel sin revelar se guardaba como 0 — indistinguible de jugar a
     # nivel 0. Ahora viaja como `None` y con su propio indicador, que es lo que
     # decide si la barra amarilla se pinta.
-    assert all(
-        (s.current is None) != s.is_current_known for s in ana.skills
-    ), "is_current_known tiene que ir de la mano de que haya nivel"
+    assert all((s.current is None) != s.is_current_known for s in ana.skills), (
+        "is_current_known tiene que ir de la mano de que haya nivel"
+    )
     # La categoría se marca provisional en la propia fila; la nota que lo
     # explicaba se retiró en la pasada de caveats del 2026-08-16.
-    assert ana.verdict_is_provisional is True
+    # 2026-08-30: un veredicto BUENO ya no es provisional. Revelar una
+    # habilidad solo puede SUBIR el mejor techo, nunca bajarlo, asi que el 14
+    # de Ana no se lo quita ningun descubrimiento posterior. Lo provisional es
+    # lo contrario: condenar a alguien con techos sin mirar.
+    assert ana.verdict_is_provisional is False
 
 
 def test_the_deadline_overrides_everything_else() -> None:
     """Un canterano de 19 años se pierde al cumplir el límite, por bueno que
     sea. El consejo tiene que decirlo antes que cualquier otra cosa."""
+
     async def go():
         factory, team_id = await _with_youth()
         async with factory() as s:
@@ -924,13 +1122,14 @@ def test_the_deadline_overrides_everything_else() -> None:
 def test_academy_roi_crosses_investment_with_income() -> None:
     """Las dos cifras existen en Hattrick Control, en pantallas distintas y sin
     cruzarse nunca. Ese cruce es todo el valor de esta vista."""
+
     async def go():
         factory, team_id = await _with_youth()
         async with factory() as s:
             return await AcademyQueryService(s).get(team_id)
 
     d = _run(go())
-    assert d.earned == 350_000          # 3.500.000 base ÷ tasa 10
+    assert d.earned == 350_000  # 3.500.000 base ÷ tasa 10
     assert d.net == d.earned - d.invested
     assert d.roi_verdict
     assert len(d.graduates) == 1
@@ -943,6 +1142,7 @@ def test_graduate_without_squad_record_falls_back_to_gross_and_says_so() -> None
     canterano vendido puede vivir SOLO en `former_youth_players`, sin ficha en
     plantilla: ahí no hay comisión ni bonos que calcular. Se cuenta el bruto,
     porque perderlo de la suma sería peor."""
+
     async def go():
         factory, team_id = await _with_youth()
         async with factory() as s:
@@ -979,6 +1179,7 @@ def test_investment_counts_calendar_weeks_not_economy_snapshots() -> None:
 def test_academy_answers_even_with_no_youth_squad_synced() -> None:
     """El retorno y los canteranos promocionados ya se pueden calcular sin la
     plantilla juvenil. Devolver 404 escondería información disponible."""
+
     async def go():
         factory, team_id = await _with_league()
         async with factory() as s:

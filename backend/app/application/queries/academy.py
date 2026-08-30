@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.weekly import latest_per_iso_week
+from app.domain.engines import academy_engine as ae
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.academy_engine import (
     YOUTH_SKILLS,
@@ -47,7 +48,7 @@ DAYS_PER_HT_YEAR = 112
 # provisional y conviene decirlo en la ficha. La regla vive en el motor: la
 # misma cifra decide que no se recomiende un despido sobre una sola lectura.
 from app.domain.engines.academy_engine import (  # noqa: E402
-    MIN_REVEALED_FOR_A_VERDICT,
+    veredicto_provisional,
 )
 
 
@@ -417,7 +418,9 @@ class AcademyQueryService:
                     weeks_until_deadline=ev.days_until_deadline // 7,
                     can_be_promoted_in=snap.can_be_promoted_in,
                     revealed_skills=ev.revealed_skills,
-                    verdict_is_provisional=ev.revealed_skills < MIN_REVEALED_FOR_A_VERDICT,
+                    verdict_is_provisional=veredicto_provisional(
+                        ev.category, ev.revealed_skills, len(YOUTH_SKILLS)
+                    ),
                     promote_advice=ev.promote_advice,
                     training_exposure=exposure,
                     skills=[
@@ -589,6 +592,11 @@ class AcademyQueryService:
         # de la alineación juvenil, que CHPP no da en este fichero. Sin ese
         # dato el sumando vale 0 y el resto del puntaje es idéntico — se
         # prefiere un puntaje incompleto y honesto a uno estimado.
+        # Quien sobra: UNO solo, el que menos aporta a los puntajes. Se marca
+        # aqui --y no en `evaluate`-- porque es una decision de PLANTILLA, no
+        # de canterano: despedir libera una plaza, asi que la pregunta es
+        # quien es el ultimo de la fila, no si alguien es malo en abstracto.
+        _marca_al_que_sobra(players, candidates)
         skill_scores = [
             SkillScoreRow(
                 skill=row.skill,
@@ -625,3 +633,45 @@ class AcademyQueryService:
 
 def _iso(dt: datetime | None) -> str | None:
     return dt.date().isoformat() if dt else None
+
+
+def _marca_al_que_sobra(
+    players: list[YouthRow],
+    candidates: list[yss.YouthCandidate],
+) -> None:
+    """Le cambia el consejo al canterano que menos aporta. Solo a uno.
+
+    El aporte se mide con LOS MISMOS pesos que el ranking de entrenamiento:
+    si un chico no mueve ninguno de los siete puntajes, es el que menos
+    cuesta soltar. Empata el mas viejo.
+
+    No se toca a quien tiene un aviso mas urgente --el plazo por vencerse-- ni
+    a quien no tiene ni una habilidad revelada: de ese no se sabe si aporta
+    poco o si simplemente no lo hemos mirado.
+    """
+    if not players:
+        return
+    pesos = yss.weights_for()
+    cubos: dict[str, list[str]] = {}
+    edades: dict[str, int] = {}
+    for c in candidates:
+        pronto = yss.leaves_soon(c)
+        cubos[c.name] = [
+            yss.bucket_of(yss.skill_note(r), leaves_soon=pronto, max_reached=r.max_reached)
+            for r in c.skills.values()
+        ]
+        edades[c.name] = c.edad_en_dias
+
+    # Fuera de la quiniela quien no tiene NADA revelado: aporta poco porque no
+    # lo hemos mirado, no porque no valga.
+    sin_ojear = {p.name for p in players if p.revealed_skills == 0}
+    aportes = {n: v for n, v in ae.aporte_de_cada_uno(cubos, pesos).items() if n not in sin_ojear}
+    sobra = ae.quien_sobra(aportes, edades)
+    if sobra is None:
+        return
+    for p in players:
+        if p.name == sobra and "URGENTE" not in p.promote_advice:
+            p.promote_advice = (
+                "es el que menos aporta de la academia: si necesitas la plaza, "
+                "es a este a quien soltar"
+            )

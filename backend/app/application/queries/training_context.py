@@ -91,7 +91,13 @@ class TrainingContextService:
             await self._s.scalar(
                 select(m.TrainingSnapshot)
                 .where(m.TrainingSnapshot.team_id == team_id)
-                .order_by(m.TrainingSnapshot.captured_at.desc())
+                # Dos lecturas pueden compartir el mismo instante al importar
+                # o restaurar datos. En ese caso la fila de id mayor es la que
+                # se escribió después y, por tanto, la configuración vigente.
+                .order_by(
+                    m.TrainingSnapshot.captured_at.desc(),
+                    m.TrainingSnapshot.id.desc(),
+                )
                 .limit(1)
             ),
         )

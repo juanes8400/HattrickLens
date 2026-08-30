@@ -296,7 +296,10 @@ class SqlAlchemyTrainingRepository:
             await self._s.scalar(
                 select(m.TrainingSnapshot.content_hash)
                 .where(m.TrainingSnapshot.team_id == team_id)
-                .order_by(m.TrainingSnapshot.captured_at.desc())
+                .order_by(
+                    m.TrainingSnapshot.captured_at.desc(),
+                    m.TrainingSnapshot.id.desc(),
+                )
                 .limit(1)
             ),
         )
@@ -305,7 +308,10 @@ class SqlAlchemyTrainingRepository:
         snap = await self._s.scalar(
             select(m.TrainingSnapshot)
             .where(m.TrainingSnapshot.team_id == team_id)
-            .order_by(m.TrainingSnapshot.captured_at.desc())
+            .order_by(
+                m.TrainingSnapshot.captured_at.desc(),
+                m.TrainingSnapshot.id.desc(),
+            )
             .limit(1)
         )
         if snap is None:
