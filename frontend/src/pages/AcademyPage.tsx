@@ -1253,10 +1253,11 @@ function TablaDelReparto({
                 className={`${th} border-l border-[var(--border)] pl-5 text-left`}
                 title={`${secondaryLabel} — los porcentajes ya llevan descontado el castigo del hueco secundario`}
               >
-                Entrenamiento habilidad secundaria{" "}
-                <span className="block font-normal normal-case text-[var(--muted)]">
-                  castigo ya aplicado
-                </span>
+                {/* El aviso de que el castigo ya está descontado vive solo en
+                    el `title`: el mismo sorteo vale 42,5 % de principal y
+                    28,3 % de secundario, así que hace falta decirlo — pero
+                    repetirlo bajo la cabecera cargaba la tabla. */}
+                Entrenamiento habilidad secundaria
               </th>
               <th scope="col" className={`${th} pr-6 text-left`}>
                 Nivel habilidad secundaria
