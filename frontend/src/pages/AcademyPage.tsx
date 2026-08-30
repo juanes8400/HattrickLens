@@ -314,11 +314,6 @@ const BUCKETS: [string, string, string][] = [
  *  escalera de potencias— y lo que se mueve son los números que son una
  *  opinión: dónde cae el corte del plazo, cuánto separa un peldaño del
  *  siguiente, y a cuántos les llega de verdad cada entrenamiento. */
-//: Método 5. «Si más de la mitad del número no es información, no es una
-//: recomendación», y tres es cuando concentrar alcanza a un grupo y no a un
-//: individuo. Elegidos con el usuario el 2026-08-26.
-const DEFAULT_FOG_MAX = 0.5;
-const DEFAULT_MIN_TO_DOUBLE = 3;
 const DEFAULT_SOON_MAX_DAYS = 38;
 const DEFAULT_WEIGHT_BASE = 3;
 
@@ -435,16 +430,8 @@ function WhatToTrain({
   const [bonusWeight, setBonusWeight] = usePersistido<number | null>(
     "juveniles.bonusWeight", null,
   );
-  // Los dos mandos del método 5. No describen a la cantera: dicen cuánto se
-  // fía el usuario de un puntaje hecho de desconocidos, y a partir de cuánta
-  // gente merece la pena concentrar en vez de repartir.
-  const [fogMax, setFogMax] = usePersistido("juveniles.fogMax", DEFAULT_FOG_MAX);
-  const [minToDouble, setMinToDouble] = usePersistido(
-    "juveniles.minToDouble", DEFAULT_MIN_TO_DOUBLE,
-  );
   const tuned = useAcademySkillScores({
     soonMaxDays, weightBase, trainableMethod, trainable, trainableWeight: bonusWeight,
-    fogMax, minToDouble,
   });
 
   // Los pesos que la base reparte por columna. El usuario juega con potencias
@@ -478,8 +465,6 @@ function WhatToTrain({
     weightBase === DEFAULT_WEIGHT_BASE &&
     trainableMethod === "edit" &&
     bonusWeight === null &&
-    fogMax === DEFAULT_FOG_MAX &&
-    minToDouble === DEFAULT_MIN_TO_DOUBLE &&
     plazasIguales(trainable, plazas);
 
   return (
@@ -614,8 +599,6 @@ function WhatToTrain({
                 setBonusWeight(null);
                 setSoonMaxDays(DEFAULT_SOON_MAX_DAYS);
                 setWeightBase(DEFAULT_WEIGHT_BASE);
-                setFogMax(DEFAULT_FOG_MAX);
-                setMinToDouble(DEFAULT_MIN_TO_DOUBLE);
                 setTrainable(plazas ?? {});
               }}
               className="text-xs text-[var(--accent)] hover:underline"
@@ -689,47 +672,6 @@ function WhatToTrain({
           </label>
         </div>
 
-        {/* Los dos mandos del método 5. Van aparte de los tres de arriba
-            porque no describen a la cantera: los de arriba cambian el
-            PUNTAJE, y estos cambian cuánto te fías de él. */}
-        <div className="mt-4 grid gap-4 border-t border-[var(--border)] pt-4 md:grid-cols-2">
-          <label className="block">
-            <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate">Niebla que se tolera en un puntaje</span>
-              <b className="shrink-0 tabular-nums">{Math.round(fogMax * 100)}%</b>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={fogMax}
-              onChange={(e) => setFogMax(Number(e.target.value))}
-              className="mt-1 w-full accent-[var(--youth-known)]"
-            />
-            <div className="text-[10px] text-[var(--muted)]">
-              por encima, el número es más ignorancia que información
-            </div>
-          </label>
-          <label className="block">
-            <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate">Cuántos hacen falta para doblar</span>
-              <b className="shrink-0 tabular-nums">{minToDouble}</b>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={11}
-              step={1}
-              value={minToDouble}
-              onChange={(e) => setMinToDouble(Number(e.target.value))}
-              className="mt-1 w-full accent-[var(--youth-known)]"
-            />
-            <div className="text-[10px] text-[var(--muted)]">
-              con menos, la segunda dosis cae en desconocidos
-            </div>
-          </label>
-        </div>
       </div>
 
     </Panel>

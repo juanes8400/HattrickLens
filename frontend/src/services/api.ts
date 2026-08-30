@@ -379,18 +379,12 @@ export const api = {
       trainable: Record<string, number>;
       /** `null` = que lo sugiera la escalera. */
       trainableWeight?: number | null;
-      /** Cuanta niebla se tolera antes de dejar de fiarse de un puntaje. */
-      fogMax?: number;
-      /** Cuantos canteranos buenos hacen falta para doblar la mejor. */
-      minToDouble?: number;
     },
   ) => {
     const q = new URLSearchParams({
       soon_max_days: String(params.soonMaxDays),
       weight_base: String(params.weightBase),
       trainable_method: params.trainableMethod,
-      ...(params.fogMax == null ? {} : { fog_max: String(params.fogMax) }),
-      ...(params.minToDouble == null ? {} : { min_to_double: String(params.minToDouble) }),
       ...(params.trainableWeight == null
         ? {}
         : { trainable_weight: String(params.trainableWeight) }),
@@ -766,16 +760,15 @@ export interface YouthComparisonRow {
   changes: YouthComparisonChange[];
 }
 
-/** Por que el metodo 5 eligio lo que eligio. `path` es cual de los cuatro
- *  caminos gano: segunda / doblar / descubrir / todo_niebla. */
+/** Por que el metodo 7 eligio lo que eligio. */
 export interface VeredictoDeMetodo {
-  path: string;
   why: string;
-  /** Que parte del puntaje del principal es gente sin revelar, de 0 a 1. */
-  fogMain: number;
-  fogSecond: number | null;
-  /** Cuantos canteranos estan de verdad en un peldano bueno de la principal. */
-  backedMain: number;
+  /** Que parte del puntaje NO es respaldo --gente sin revelar mas el bonus
+   *  puesto a mano--, de 0 a 1. Por encima del umbral la habilidad queda
+   *  descartada y su hueco va a descubrir. */
+  unbackedMain: number;
+  unbackedSecond: number | null;
+  threshold: number;
 }
 
 export interface ChangeMetricSummary {
@@ -1578,7 +1571,7 @@ export interface AcademySkillScores {
     secondarySkill: string;
     /** Cuantos recibirian las dos cosas con esa pareja. */
     bothCount: number;
-    /** Por que el metodo 5 eligio esto. Puede faltar en un backend viejo. */
+    /** Por que el metodo 7 eligio esto. Puede faltar en un backend viejo. */
     method?: VeredictoDeMetodo;
   } | null;
   /** Las plazas que entrena cada habilidad, para sembrar el modo manual. */

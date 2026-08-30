@@ -93,3 +93,51 @@ def reparte(
 
     por_indice = {plaza[0]: c.nombre for c, plaza in pares}
     return [(por_indice[i], puesto) for i, puesto in numeradas if i in por_indice]
+
+
+def _alcanzables() -> frozenset[str]:
+    """Las habilidades que «Individual» puede llegar a descubrir.
+
+    Se DEDUCEN de la tabla de probabilidades en vez de escribirse a mano: son
+    las mismas siete, pero derivarlas evita que las dos listas se separen el
+    día que la tabla cambie. Vivían en `decision_individual`, que el método 7
+    dejó sin uso.
+    """
+    from app.domain.engines.youth_training_plan import CODIGO_INDIVIDUAL, ENTRENAMIENTOS
+
+    reparto = ENTRENAMIENTOS[CODIGO_INDIVIDUAL].distribucion_por_puesto or {}
+    return frozenset(skill for fila in reparto.values() for skill in fila)
+
+
+HABILIDADES_DE_PUESTO = _alcanzables()
+
+
+def cola_de_descubrimiento(
+    notas: Sequence[object],
+    sin_revelar: dict[str, int],
+) -> list[object]:
+    """La cola de «Individual» cuando NO hay que emparejar: primero quien más
+    ilumina.
+
+    La colocación buena es `reparte`, que resuelve el óptimo jugador × puesto.
+    Esto es el respaldo para cuando solo hace falta un orden --por ejemplo
+    para alimentar al motor del reparto, que consume colas--.
+
+    El orden, y por qué:
+
+    1. **Cuántas no se saben**, de más a menos: es la razón de ser del
+       entrenamiento, y quien ya está leído no descubre nada.
+    2. **Quien se va pronto, antes.** A uno que sale en tres semanas o lo
+       miras ahora o no lo miras.
+    3. **Más potencial primero**, entre dos igual de tapados.
+    4. El nombre, para que dos empatados no bailen entre recargas.
+    """
+    return sorted(
+        notas,
+        key=lambda n: (
+            -sin_revelar.get(getattr(n, "name", ""), 0),
+            not getattr(n, "leaves_soon", False),
+            -getattr(n, "htms28_max", 0),
+            getattr(n, "name", ""),
+        ),
+    )

@@ -9,8 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
-from app.domain.engines import decision_individual as di
-from app.domain.engines import metodo_cinco as m5
+from app.domain.engines import metodo_siete as m7
 from app.domain.engines import reparto_por_descubrimiento as rpd
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
@@ -76,7 +75,7 @@ def _sin_revelar_por_jugador(rows: list[Any]) -> dict[str, int]:
     """
     cuenta: dict[str, int] = {}
     for fila in rows:
-        if fila.skill not in di.HABILIDADES_DE_PUESTO:
+        if fila.skill not in rpd.HABILIDADES_DE_PUESTO:
             continue
         for p in list(fila.players) + list(fila.at_max):
             cuenta.setdefault(p.name, 0)
@@ -99,33 +98,33 @@ _CUBOS_CON_RESPALDO = frozenset(
 )
 
 
-def _desmenuza(rows: list[Any], weight_base: float) -> list[m5.Habilidad]:
-    """Parte cada puntaje en sus dos mitades: lo que se sabe y lo que no.
+def _desmenuza(rows: list[Any], weight_base: float, peso_bonus: float) -> list[m7.Habilidad]:
+    """Parte cada puntaje en sus tres sumandos: respaldo, ignorancia y bonus.
 
-    Es la unica cuenta que el metodo 5 necesita y que la fila no trae hecha.
-    Se rehace con la MISMA base de pesos que uso el ranking --si no, la niebla
-    se calcularia contra una escalera distinta de la que produjo el numero--.
+    Es la unica cuenta que el metodo 7 necesita y que la fila no trae hecha.
+    Se rehace con la MISMA base de pesos y el MISMO peso de bonus que uso el
+    ranking: calcularla contra otra escalera daria proporciones que no
+    corresponden al numero que el usuario esta viendo.
     """
     pesos = yss.weights_for(weight_base)
-    salida: list[m5.Habilidad] = []
+    salida: list[m7.Habilidad] = []
     for r in rows:
-        con = des = 0.0
-        valen = 0
+        respaldo = ignorancia = 0.0
         for cubo, n in r.counts.items():
             w = n * pesos.get(cubo, 0.0) / yss.SQUAD_NORMALISER
             if cubo in _CUBOS_CON_RESPALDO:
-                con += w
-                valen += n
+                respaldo += w
             else:
-                des += w
+                ignorancia += w
         salida.append(
-            m5.Habilidad(
+            m7.Habilidad(
                 skill=r.skill,
                 label=r.label,
-                puntaje=r.score,
-                de_saber=con,
-                de_no_saber=des,
-                cuantos_valen=valen,
+                respaldo=respaldo,
+                desconocido=ignorancia,
+                # El Bonus Personalizado cuenta como NO respaldo: es una
+                # preferencia del usuario, no evidencia sobre los chicos.
+                bonus=(r.trainable_count or 0.0) * peso_bonus / yss.SQUAD_NORMALISER,
             )
         )
     return salida
@@ -133,26 +132,27 @@ def _desmenuza(rows: list[Any], weight_base: float) -> list[m5.Habilidad]:
 
 def _cola_para(clave: str, fila: Any, rows: list[Any]) -> list[Any]:
     """La cola de un entrenamiento. «Individual» ordena por descubrimiento."""
-    if clave != di.INDIVIDUAL:
-        return list(fila.players)
+    if clave != m7.INDIVIDUAL:
+        return list(fila.players) if fila is not None else []
     todos: dict[str, Any] = {}
     for r in rows:
         for n in r.players:
             todos.setdefault(n.name, n)
-    return di.cola_de_descubrimiento(list(todos.values()), _sin_revelar_por_jugador(rows))
+    return rpd.cola_de_descubrimiento(list(todos.values()), _sin_revelar_por_jugador(rows))
 
 
-def _veredicto_json(v: m5.Veredicto | None) -> dict[str, Any]:
+def _veredicto_json(v: m7.Veredicto | None) -> dict[str, Any]:
     """El porque, para que la pantalla no tenga que rehacer la cuenta."""
     if v is None:
         return {}
     return {
         "method": {
-            "path": v.camino,
             "why": v.motivo,
-            "fogMain": round(v.niebla_principal, 3),
-            "fogSecond": None if v.niebla_segunda is None else round(v.niebla_segunda, 3),
-            "backedMain": v.valen_principal,
+            "unbackedMain": round(v.no_respaldo_principal, 3),
+            "unbackedSecond": (
+                None if v.no_respaldo_secundaria is None else round(v.no_respaldo_secundaria, 3)
+            ),
+            "threshold": m7.UMBRAL_DE_DESCARTE,
         }
     }
 
@@ -181,22 +181,22 @@ def _recoloca_para_descubrir(
     quien más lo aprovecha puede costar más de lo que gana quien se lo queda.
     Modifica `plan` en el sitio.
     """
-    if di.INDIVIDUAL not in (main, secondary):
+    if m7.INDIVIDUAL not in (main, secondary):
         return
 
-    individual = ENTRENAMIENTOS[di.INDIVIDUAL]
+    individual = ENTRENAMIENTOS[m7.INDIVIDUAL]
     # Lo que el COMPAÑERO ya entrena, que por eso no cuenta como descubrir. Si
     # sube dos --«Anotación y balón parado»-- se descuentan las dos.
-    companero = ENTRENAMIENTOS.get(secondary if main == di.INDIVIDUAL else main)
+    companero = ENTRENAMIENTOS.get(secondary if main == m7.INDIVIDUAL else main)
     excluidas: set[str] = set()
-    if companero is not None and companero.codigo != di.INDIVIDUAL:
+    if companero is not None and companero.codigo != m7.INDIVIDUAL:
         excluidas.add(companero.skill)
         if companero.tambien_sube:
             excluidas.add(companero.tambien_sube)
 
     # Las sillas en juego: las que NO pertenecen a la región del compañero.
     # Cuando Individual está en los dos huecos, todas lo están.
-    if main == secondary == di.INDIVIDUAL:
+    if main == secondary == m7.INDIVIDUAL:
         libres = [a for a in plan.asignaciones if a.puesto]
     else:
         del_companero = {REGION_AMBOS, REGION_SOLO_PRINCIPAL}
@@ -260,81 +260,67 @@ def _pareja_sugerida(
     rows: list[Any],
     *,
     weight_base: float = yss.DEFAULT_WEIGHT_BASE,
-    niebla_maxima: float = m5.NIEBLA_MAXIMA,
-    minimo_para_doblar: int = m5.MINIMO_PARA_DOBLAR,
+    peso_bonus: float | None = None,
 ) -> dict[str, Any] | None:
     """Que entrenar de principal y de secundario, con la forma que encaja.
 
-    Desde el 2026-08-26 «Individual» puede ganar cualquiera de los dos huecos.
-    Las dos reglas viven en `decision_individual` y son puramente numericas
-    --ver alli el porque--; aqui solo se traducen a la misma respuesta de
-    siempre. La pantalla no se entera: recibe los mismos campos y pinta lo que
-    le llega, que era la condicion del usuario.
+    Metodo 7, firmado por el usuario el 2026-08-26: cada hueco mira SU
+    posicion del ranking y entra Individual si esa esta descartada. Las reglas
+    viven en `metodo_siete`; aqui solo se traducen a la respuesta de siempre,
+    asi que la pantalla recibe los mismos campos y no se entera.
     """
-    if len(rows) < 2:
+    if not rows:
         return None
-    veredicto = m5.decidir(
-        _desmenuza(rows, weight_base),
-        niebla_maxima=niebla_maxima,
-        minimo_para_doblar=minimo_para_doblar,
-    )
+    if peso_bonus is None:
+        peso_bonus = yss.trainable_weight_for(weight_base)
+
+    veredicto = m7.decidir(_desmenuza(rows, weight_base, peso_bonus))
+    if veredicto is None:
+        return None
+
     por_skill = {r.skill: r for r in rows}
-    principal = por_skill.get(veredicto.principal, rows[0]) if veredicto else rows[0]
-    segunda = por_skill.get(veredicto.secundario, rows[1]) if veredicto else rows[1]
+    individual = ENTRENAMIENTOS[m7.INDIVIDUAL]
 
-    if veredicto is not None and veredicto.descubre:
-        individual = ENTRENAMIENTOS[di.INDIVIDUAL]
-        # Regla B pone Individual en los dos huecos; la A solo en el segundo y
-        # deja el principal donde estaba.
-        clave_main = di.INDIVIDUAL if veredicto.principal == di.INDIVIDUAL else principal.skill
-        fila_main = principal
-        plan = youth_training_plan(
-            clave_main,
-            di.INDIVIDUAL,
-            _cola_para(clave_main, fila_main, rows),
-            _cola_para(di.INDIVIDUAL, segunda, rows),
-            tope_principal=(
-                set() if clave_main == di.INDIVIDUAL else {p.name for p in principal.at_max}
-            ),
-            # Individual no veta a nadie: quien toco techo en la habilidad de
-            # un puesto sigue sirviendo en cualquier otro.
-            tope_secundaria=set(),
-        )
-        return {
-            "main": clave_main,
-            "mainLabel": individual.label if clave_main == di.INDIVIDUAL else principal.label,
-            "secondary": di.INDIVIDUAL,
-            "secondaryLabel": individual.label,
-            "secondarySkill": "",
-            "bothCount": plan.con_doble,
-            **_veredicto_json(veredicto),
-        }
+    def etiqueta(clave: str) -> str:
+        if clave == m7.INDIVIDUAL:
+            return individual.label
+        fila = por_skill.get(clave)
+        return fila.label if fila else clave
 
-    codigo = mejor_variante(principal.skill, segunda.skill)
-    variante = ENTRENAMIENTOS.get(codigo)
-    # El reparto de verdad, no el solape de PUESTOS: la frase promete un
-    # numero y al pulsar el boton se ve la cancha, y los dos tienen que decir
-    # lo mismo. Un puesto de la interseccion que nadie ocupa no es una racion
-    # doble.
+    principal, secundaria = veredicto.principal, veredicto.secundaria
+
+    # La FORMA del secundario: la variante que mas solapa con el principal.
+    # «Individual» no tiene variantes, asi que se queda como esta.
+    codigo_sec = secundaria
+    if secundaria != m7.INDIVIDUAL and principal != m7.INDIVIDUAL:
+        codigo_sec = mejor_variante(principal, secundaria)
+    variante = ENTRENAMIENTOS.get(codigo_sec)
+
     plan = youth_training_plan(
-        principal.skill,
-        codigo,
-        principal.players,
-        segunda.players,
-        tope_principal={p.name for p in principal.at_max},
-        tope_secundaria={p.name for p in segunda.at_max},
+        principal,
+        codigo_sec,
+        _cola_para(principal, por_skill.get(principal), rows),
+        _cola_para(codigo_sec, por_skill.get(secundaria), rows),
+        tope_principal=_topes(por_skill.get(principal)),
+        tope_secundaria=_topes(por_skill.get(secundaria)),
     )
     return {
-        "main": principal.skill,
-        "mainLabel": principal.label,
-        "secondary": codigo,
-        "secondaryLabel": variante.label if variante else segunda.label,
-        "secondarySkill": segunda.skill,
-        # Cuantos recibirian las dos cosas con esa pareja, y por cuantas
-        # semanas: es lo que justifica elegir una forma y no otra.
+        "main": principal,
+        "mainLabel": etiqueta(principal),
+        "secondary": codigo_sec,
+        "secondaryLabel": variante.label if variante else etiqueta(secundaria),
+        "secondarySkill": "" if secundaria == m7.INDIVIDUAL else secundaria,
+        # Cuantos recibirian las dos cosas con esa pareja: es lo que justifica
+        # elegir una forma y no otra.
         "bothCount": plan.con_doble,
         **_veredicto_json(veredicto),
     }
+
+
+def _topes(fila: Any) -> set[str]:
+    """Quien ya toco techo en esa habilidad. «Individual» no veta a nadie:
+    quien topo en la habilidad de un puesto sigue sirviendo en cualquier otro."""
+    return {p.name for p in fila.at_max} if fila is not None else set()
 
 
 def _cobertura_del_ojeador(rows: list[Any]) -> dict[str, Any]:
@@ -423,7 +409,7 @@ async def academy_training_plan(
     # se le exime de esta comprobacion. Todo lo demas lo trata igual que a
     # cualquier otro entrenamiento.
     for clave, skill in ((main, skill_main), (secondary, skill_sec)):
-        if clave != di.INDIVIDUAL and skill not in por_habilidad:
+        if clave != m7.INDIVIDUAL and skill not in por_habilidad:
             raise HTTPException(404, "no hay canteranos con esas habilidades")
 
     academia = await service.get(team_id)
@@ -451,7 +437,7 @@ async def academy_training_plan(
         j.name: sum(
             1
             for r in j.skills
-            if r.skill in di.HABILIDADES_DE_PUESTO and not r.is_current_known and not r.max_reached
+            if r.skill in rpd.HABILIDADES_DE_PUESTO and not r.is_current_known and not r.max_reached
         )
         for j in (academia.players if academia else [])
     }
@@ -465,8 +451,8 @@ async def academy_training_plan(
             todos_los_notas.setdefault(n.name, n)
 
     def cola_de(clave: str, skill: str) -> list[Any]:
-        if clave == di.INDIVIDUAL:
-            return di.cola_de_descubrimiento(list(todos_los_notas.values()), sin_revelar)
+        if clave == m7.INDIVIDUAL:
+            return rpd.cola_de_descubrimiento(list(todos_los_notas.values()), sin_revelar)
         return list(por_habilidad[skill].players)
 
     def topes_de(clave: str, skill: str) -> set[str]:
@@ -474,7 +460,7 @@ async def academy_training_plan(
         # puesto sigue sirviendo en otro, y el veto es por entrenamiento
         # entero, no por plaza. Vetarlo aqui dejaria plazas vacias por una
         # razon que no aplica a todas.
-        if clave == di.INDIVIDUAL:
+        if clave == m7.INDIVIDUAL:
             return set()
         return {p.name for p in por_habilidad[skill].at_max}
 
@@ -741,25 +727,6 @@ async def academy_skill_scores(
             "Cuántos canteranos reciben cada entrenamiento, como «habilidad:n» separado por comas"
         ),
     ),
-    fog_max: float = Query(
-        m5.NIEBLA_MAXIMA,
-        ge=0,
-        le=1,
-        description=(
-            "Cuánta niebla se tolera en un puntaje antes de dejar de fiarse de él. "
-            "0,5 = si más de la mitad del número es gente sin revelar, no vale como "
-            "recomendación"
-        ),
-    ),
-    min_to_double: int = Query(
-        m5.MINIMO_PARA_DOBLAR,
-        ge=1,
-        le=16,
-        description=(
-            "Cuántos canteranos buenos hacen falta para que doblar la mejor habilidad "
-            "tenga sentido. Con menos, la segunda dosis cae en desconocidos"
-        ),
-    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Recalcula el ranking sin tocar el método.
@@ -801,8 +768,6 @@ async def academy_skill_scores(
         dict[str, Any],
         _camel(
             {
-                "fogMax": fog_max,
-                "minToDouble": min_to_double,
                 "soonMaxDays": soon_max_days,
                 "weightBase": weight_base,
                 "trainableMethod": trainable_method,
@@ -828,8 +793,7 @@ async def academy_skill_scores(
                 "suggestion": _pareja_sugerida(
                     rows,
                     weight_base=weight_base,
-                    niebla_maxima=fog_max,
-                    minimo_para_doblar=min_to_double,
+                    peso_bonus=trainable_weight,
                 ),
                 # Todos los entrenamientos, variantes incluidas: son las opciones
                 # reales de los dos selectores. Antes solo se ofrecian las siete

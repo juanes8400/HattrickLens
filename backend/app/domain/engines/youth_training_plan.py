@@ -260,7 +260,7 @@ class Entrenamiento:
         no se sabe nada da 100.
 
         **Hoy NADIE la llama, y conviene saber por que antes de enchufarla.**
-        La cola de Individual la ordena `decision_individual.cola_de_descubrimiento`
+        La cola de Individual la ordena `reparto_por_descubrimiento.cola_de_descubrimiento`
         contando cuantas habilidades no se saben, no con este numero. No es un
         descuido: esta funcion necesita un PUESTO, y cuando se ordena la cola
         todavia no se sabe en cual va a caer cada chico --el puesto lo reparte

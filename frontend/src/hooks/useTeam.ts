@@ -297,10 +297,6 @@ export const useAcademySkillScores = (params: {
   trainableMethod: string;
   trainable: Record<string, number>;
   trainableWeight?: number | null;
-  /** Los dos mandos del método 5: cuánta niebla se tolera en un puntaje, y a
-   *  partir de cuántos canteranos buenos merece la pena doblar. */
-  fogMax?: number;
-  minToDouble?: number;
 }) =>
   useQuery({
     queryKey: ["academy-skill-scores", TEAM_ID, params],
