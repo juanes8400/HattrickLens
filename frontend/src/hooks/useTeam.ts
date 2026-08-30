@@ -81,6 +81,11 @@ export const usePostMatchTraining = () =>
   useQuery({
     queryKey: ["post-match-training", TEAM_ID],
     queryFn: () => api.postMatchTraining(TEAM_ID),
+    // El porcentaje/tipo de entrenamiento puede haber cambiado mediante un
+    // sync hecho en otra pestaña. Al volver a Entrenamiento no debe sobrevivir
+    // la configuración anterior durante el staleTime global.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
 
 export const useTeamOverview = () =>
@@ -208,12 +213,16 @@ export const useTrainingFormula = () =>
   useQuery({
     queryKey: ["training-formula", TEAM_ID],
     queryFn: () => api.trainingFormula(TEAM_ID),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
 
 export const useTrainingSquad = (skill?: string | null, includeThisWeek = true) =>
   useQuery({
     queryKey: ["training-squad", TEAM_ID, skill ?? "default", includeThisWeek],
     queryFn: () => api.trainingSquad(TEAM_ID, skill, includeThisWeek),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
 
 export const useTrainingDevelopment = (enabled = true) =>
@@ -221,6 +230,12 @@ export const useTrainingDevelopment = (enabled = true) =>
     queryKey: ["training-development", TEAM_ID],
     queryFn: () => api.trainingDevelopment(TEAM_ID),
     enabled,
+    // La tabla Ocerin depende de la configuración de training.xml. Una
+    // pestaña ya abierta debe volver a calcularla después de que otro tab
+    // sincronice un nuevo % de condición.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
 
 export const usePlayerTrainingLevels = (htPlayerId: number | null, skill?: string | null) =>
@@ -267,7 +282,13 @@ export const useAcademyTrainingPlan = (params: {
     queryKey: ["academy-training-plan", TEAM_ID, params],
     queryFn: () => api.academyTrainingPlan(TEAM_ID, params),
     enabled: Boolean(params.main && params.secondary),
-    placeholderData: (previous) => previous,
+    // Los multiplicadores forman parte del cálculo, no son una foto que
+    // convenga conservar. Una pestaña abierta durante una actualización no
+    // debe seguir mostrando el antiguo 50% ni mezclar por un instante el
+    // reparto anterior con los selectores nuevos.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
 
 export const useAcademySkillScores = (params: {
@@ -276,6 +297,10 @@ export const useAcademySkillScores = (params: {
   trainableMethod: string;
   trainable: Record<string, number>;
   trainableWeight?: number | null;
+  /** Los dos mandos del método 5: cuánta niebla se tolera en un puntaje, y a
+   *  partir de cuántos canteranos buenos merece la pena doblar. */
+  fogMax?: number;
+  minToDouble?: number;
 }) =>
   useQuery({
     queryKey: ["academy-skill-scores", TEAM_ID, params],

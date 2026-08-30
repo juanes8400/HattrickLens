@@ -379,12 +379,18 @@ export const api = {
       trainable: Record<string, number>;
       /** `null` = que lo sugiera la escalera. */
       trainableWeight?: number | null;
+      /** Cuanta niebla se tolera antes de dejar de fiarse de un puntaje. */
+      fogMax?: number;
+      /** Cuantos canteranos buenos hacen falta para doblar la mejor. */
+      minToDouble?: number;
     },
   ) => {
     const q = new URLSearchParams({
       soon_max_days: String(params.soonMaxDays),
       weight_base: String(params.weightBase),
       trainable_method: params.trainableMethod,
+      ...(params.fogMax == null ? {} : { fog_max: String(params.fogMax) }),
+      ...(params.minToDouble == null ? {} : { min_to_double: String(params.minToDouble) }),
       ...(params.trainableWeight == null
         ? {}
         : { trainable_weight: String(params.trainableWeight) }),
@@ -622,7 +628,7 @@ export interface TrainingSlot {
   puesto: string;
   /** ambos · solo_principal · solo_secundaria · sin_entrenamiento */
   region: string;
-  /** 100, 50 o 0. */
+  /** Ración efectiva; puede ser 100, 66,7, 50, 33,3 u otra combinación. */
   racionPrincipal: number;
   racionSecundaria: number;
   /** En qué peldaño de la cola venía, de 1 a 9. */
@@ -658,6 +664,11 @@ export interface AcademyTrainingPlan {
   mainLabel: string;
   secondary: string;
   secondaryLabel: string;
+  /** Multiplicador efectivo del hueco secundario: ⅔ normal o ⅓ repetido. */
+  secondaryFactor: number;
+  /** Principal + secundario sobre una misma base: 5/3 normal o 4/3 repetido. */
+  combinedFactor: number;
+  repeatedTraining: boolean;
   /** Cuántos reciben los dos entrenamientos a la vez. */
   doubleCount: number;
   /** De los que reciben doble, a cuántos no se les sabe nada de esa habilidad. */
@@ -699,10 +710,10 @@ export interface LineaDeEntrenamiento {
    *  secundario ya aplicado. */
   rate: number;
   /** Lo que rendiria en el hueco PRINCIPAL, sin el castigo. El mismo sorteo
-   *  vale 42,5 / 28,3 / 21,2 segun donde este, asi que `rate` a secas es
+   *  vale 42,5 / 28,3 / 14,2 según donde esté, así que `rate` a secas es
    *  ambiguo y la pantalla necesita poder decir de donde sale. */
   base?: number;
-  /** 1 en el principal, ⅔ en el secundario, ½ si se repite entrenamiento. */
+  /** 1 en el principal, ⅔ en el secundario, ⅓ si se repite entrenamiento. */
   penalty?: number;
   probability: number | null;
   level: { label: string; current: number | null; maximum: number | null; maxReached: boolean };
@@ -753,6 +764,18 @@ export interface YouthComparisonRow {
   age: string;
   isNew: boolean;
   changes: YouthComparisonChange[];
+}
+
+/** Por que el metodo 5 eligio lo que eligio. `path` es cual de los cuatro
+ *  caminos gano: segunda / doblar / descubrir / todo_niebla. */
+export interface VeredictoDeMetodo {
+  path: string;
+  why: string;
+  /** Que parte del puntaje del principal es gente sin revelar, de 0 a 1. */
+  fogMain: number;
+  fogSecond: number | null;
+  /** Cuantos canteranos estan de verdad en un peldano bueno de la principal. */
+  backedMain: number;
 }
 
 export interface ChangeMetricSummary {
@@ -1555,6 +1578,8 @@ export interface AcademySkillScores {
     secondarySkill: string;
     /** Cuantos recibirian las dos cosas con esa pareja. */
     bothCount: number;
+    /** Por que el metodo 5 eligio esto. Puede faltar en un backend viejo. */
+    method?: VeredictoDeMetodo;
   } | null;
   /** Las plazas que entrena cada habilidad, para sembrar el modo manual. */
   /** Todos los entrenamientos, variantes incluidas. */

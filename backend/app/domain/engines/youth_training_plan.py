@@ -337,9 +337,9 @@ ENTRENAMIENTOS: dict[str, Entrenamiento] = {
             #: Sin habilidad fija: la elige `skill_en(puesto, sin_saber)`.
             "",
             "Individual",
-            #: Se calcula abajo desde la ruleta: la media esperada de cada
-            #: puesto. Escribirla a mano seria una tercera copia de los
-            #: mismos numeros, y las tres se separarian.
+            #: Se rellena abajo con una marca neutra de cobertura. Las
+            #: velocidades reales siguen separadas por habilidad en la ruleta;
+            #: no se colapsan en una media esperada.
             {},
             distribucion_por_puesto={
                 POR: {"keeper": 40, "defending": 42, "set_pieces": 18},
@@ -376,35 +376,35 @@ def ritmo_individual(puesto: str, skill: str) -> float:
     return RITMO_INDIVIDUAL_POR_HABILIDAD.get(skill, 0.0)
 
 
-def media_individual(puesto: str) -> float:
-    """Lo que rinde «Individual» en ese puesto, de media por partido.
-
-    Es la ruleta pesada por lo que rinde cada casilla. Sirve para ordenar
-    plazas y para enseñar UN numero donde antes habia uno inventado; el
-    detalle real --que sale una sola habilidad-- lo cuenta `reparto_en`.
-    """
-    reparto = (ENTRENAMIENTOS[CODIGO_INDIVIDUAL].distribucion_por_puesto or {}).get(puesto, {})
-    return sum(p / 100 * ritmo_individual(puesto, skill) for skill, p in reparto.items())
-
-
 #: El codigo del entrenamiento que descubre. Aqui arriba para no repetir la
 #: cadena en cada sitio que la necesita.
 CODIGO_INDIVIDUAL = "individual"
 
-ENTRENAMIENTOS[CODIGO_INDIVIDUAL].ritmos.update(
-    {puesto: round(media_individual(puesto)) for puesto, _ in PUESTOS_DE_UN_ONCE}
-)
+#: «Individual» alcanza cualquier puesto. Estos 100 NO son una velocidad
+#: promedio: son solamente una marca neutra de cobertura para que el reparto
+#: sepa que todos los puestos entrenan. La velocidad y la probabilidad reales
+#: permanecen separadas, habilidad por habilidad, en `lineas_en`. Colapsarlas
+#: en un valor esperado volveria a mezclar dos magnitudes que el usuario pidio
+#: expresamente no usar para decidir la formacion.
+ENTRENAMIENTOS[CODIGO_INDIVIDUAL].ritmos.update({puesto: 100 for puesto, _ in PUESTOS_DE_UN_ONCE})
 
 #: El hueco secundario rinde dos tercios de lo que rendiria ese mismo
-#: entrenamiento puesto de principal. Baja a la mitad si repites EL MISMO
-#: entrenamiento en los dos huecos --el error que Hattrick castiga--; dos
-#: entrenamientos distintos que suben la misma habilidad no cuentan como
-#: repetir. 2026-08-24, dictado por el usuario.
+#: entrenamiento puesto de principal. Si se repite EL MISMO entrenamiento,
+#: Hattrick castiga esa segunda racion a la mitad: 2/3 x 1/2 = 1/3. Por eso
+#: el total es 100% + 33,3% = 133,3%, no 150%. Dos entrenamientos distintos
+#: que suben la misma habilidad no cuentan como repeticion.
 SECUNDARIO_NORMAL = 2 / 3
-SECUNDARIO_DUPLICADO = 1 / 2
+CASTIGO_POR_REPETIR = 1 / 2
+SECUNDARIO_DUPLICADO = SECUNDARIO_NORMAL * CASTIGO_POR_REPETIR
 
 
 def factor_secundario(principal: str, secundaria: str) -> float:
+    """Factor efectivo del hueco secundario.
+
+    La identidad se compara por entrenamiento, no por habilidad producida:
+    Lateral + Individual sigue siendo una pareja distinta aunque la ruleta de
+    Individual elija Lateral; Pases + Pases sí es una repetición.
+    """
     return SECUNDARIO_DUPLICADO if principal == secundaria else SECUNDARIO_NORMAL
 
 

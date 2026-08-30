@@ -10,12 +10,12 @@ from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
 from app.domain.engines import decision_individual as di
+from app.domain.engines import metodo_cinco as m5
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
     RITMO_INDIVIDUAL_DUDOSO,
-    SECUNDARIO_DUPLICADO,
-    SECUNDARIO_NORMAL,
+    factor_secundario,
     mejor_variante,
     youth_training_plan,
 )
@@ -80,6 +80,52 @@ def _sin_revelar_por_jugador(rows: list[Any]) -> dict[str, int]:
     return cuenta
 
 
+#: Los peldanos que cuentan como «lo sabemos Y es bueno». Los de ignorancia
+#: (⅓ y ¹⁄₂₇ en la escalera) y el de los que ya tocaron techo quedan fuera a
+#: proposito: son justo lo que el metodo 5 quiere distinguir.
+_CUBOS_CON_RESPALDO = frozenset(
+    {
+        yss.Bucket.EXCELLENT,
+        yss.Bucket.GOOD_SOON,
+        yss.Bucket.GOOD_LATER,
+        yss.Bucket.ACCEPTABLE_SOON,
+        yss.Bucket.ACCEPTABLE_LATER,
+    }
+)
+
+
+def _desmenuza(rows: list[Any], weight_base: float) -> list[m5.Habilidad]:
+    """Parte cada puntaje en sus dos mitades: lo que se sabe y lo que no.
+
+    Es la unica cuenta que el metodo 5 necesita y que la fila no trae hecha.
+    Se rehace con la MISMA base de pesos que uso el ranking --si no, la niebla
+    se calcularia contra una escalera distinta de la que produjo el numero--.
+    """
+    pesos = yss.weights_for(weight_base)
+    salida: list[m5.Habilidad] = []
+    for r in rows:
+        con = des = 0.0
+        valen = 0
+        for cubo, n in r.counts.items():
+            w = n * pesos.get(cubo, 0.0) / yss.SQUAD_NORMALISER
+            if cubo in _CUBOS_CON_RESPALDO:
+                con += w
+                valen += n
+            else:
+                des += w
+        salida.append(
+            m5.Habilidad(
+                skill=r.skill,
+                label=r.label,
+                puntaje=r.score,
+                de_saber=con,
+                de_no_saber=des,
+                cuantos_valen=valen,
+            )
+        )
+    return salida
+
+
 def _cola_para(clave: str, fila: Any, rows: list[Any]) -> list[Any]:
     """La cola de un entrenamiento. «Individual» ordena por descubrimiento."""
     if clave != di.INDIVIDUAL:
@@ -91,7 +137,28 @@ def _cola_para(clave: str, fila: Any, rows: list[Any]) -> list[Any]:
     return di.cola_de_descubrimiento(list(todos.values()), _sin_revelar_por_jugador(rows))
 
 
-def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
+def _veredicto_json(v: m5.Veredicto | None) -> dict[str, Any]:
+    """El porque, para que la pantalla no tenga que rehacer la cuenta."""
+    if v is None:
+        return {}
+    return {
+        "method": {
+            "path": v.camino,
+            "why": v.motivo,
+            "fogMain": round(v.niebla_principal, 3),
+            "fogSecond": None if v.niebla_segunda is None else round(v.niebla_segunda, 3),
+            "backedMain": v.valen_principal,
+        }
+    }
+
+
+def _pareja_sugerida(
+    rows: list[Any],
+    *,
+    weight_base: float = yss.DEFAULT_WEIGHT_BASE,
+    niebla_maxima: float = m5.NIEBLA_MAXIMA,
+    minimo_para_doblar: int = m5.MINIMO_PARA_DOBLAR,
+) -> dict[str, Any] | None:
     """Que entrenar de principal y de secundario, con la forma que encaja.
 
     Desde el 2026-08-26 «Individual» puede ganar cualquiera de los dos huecos.
@@ -102,14 +169,20 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
     """
     if len(rows) < 2:
         return None
-    decision = di.decidir([(r.skill, r.score) for r in rows])
-    principal, segunda = rows[0], rows[1]
+    veredicto = m5.decidir(
+        _desmenuza(rows, weight_base),
+        niebla_maxima=niebla_maxima,
+        minimo_para_doblar=minimo_para_doblar,
+    )
+    por_skill = {r.skill: r for r in rows}
+    principal = por_skill.get(veredicto.principal, rows[0]) if veredicto else rows[0]
+    segunda = por_skill.get(veredicto.secundario, rows[1]) if veredicto else rows[1]
 
-    if decision is not None and decision.descubre:
+    if veredicto is not None and veredicto.descubre:
         individual = ENTRENAMIENTOS[di.INDIVIDUAL]
         # Regla B pone Individual en los dos huecos; la A solo en el segundo y
         # deja el principal donde estaba.
-        clave_main = di.INDIVIDUAL if decision.principal == di.INDIVIDUAL else principal.skill
+        clave_main = di.INDIVIDUAL if veredicto.principal == di.INDIVIDUAL else principal.skill
         fila_main = principal
         plan = youth_training_plan(
             clave_main,
@@ -130,6 +203,7 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
             "secondaryLabel": individual.label,
             "secondarySkill": "",
             "bothCount": plan.con_doble,
+            **_veredicto_json(veredicto),
         }
 
     codigo = mejor_variante(principal.skill, segunda.skill)
@@ -155,6 +229,7 @@ def _pareja_sugerida(rows: list[Any]) -> dict[str, Any] | None:
         # Cuantos recibirian las dos cosas con esa pareja, y por cuantas
         # semanas: es lo que justifica elegir una forma y no otra.
         "bothCount": plan.con_doble,
+        **_veredicto_json(veredicto),
     }
 
 
@@ -339,33 +414,22 @@ async def academy_training_plan(
         entrenamiento = ENTRENAMIENTOS.get(clave)
         if entrenamiento is None:
             return []
-        # El castigo del hueco secundario solo cae en el secundario. La celda
-        # enseña lo que de verdad entra, no la casilla de la tabla del juego.
-        #
-        # Y se mira POR HABILIDAD, no por entrenamiento. `factor_secundario`
-        # compara los dos codigos, asi que «Lateral» + «Individual» le parecen
-        # distintos --y lo son-- pero cuando la ruleta de Individual saca
-        # Lateral las dos plazas caen en LA MISMA habilidad, que es el caso que
-        # Hattrick castiga a la mitad. De ahi salen los 133,3% que da el
-        # usuario: 100 + 100 x ⅔ x ½. Comparar solo los codigos dejaba ese caso
-        # cobrando ⅔ enteros.
-        skill_del_principal = habilidad_de(main, puesto, jugador)
-
-        def _castigo(skill: str) -> float:
-            if not es_secundario:
-                return 1.0
-            # Misma habilidad en las dos plazas -> la mitad, no dos tercios.
-            return SECUNDARIO_DUPLICADO if skill == skill_del_principal else SECUNDARIO_NORMAL
+        # El castigo cae en el HUECO secundario y compara los entrenamientos,
+        # no la habilidad que finalmente salga. Por eso Lateral + Individual
+        # conserva ⅔ incluso si la ruleta descubre Lateral; solo Individual +
+        # Individual (o cualquier codigo exactamente repetido) baja a ⅓ y da
+        # el total acordado de 133,3%.
+        castigo = factor_secundario(main, secondary) if es_secundario else 1.0
 
         return [
             {
                 "skill": linea.skill,
                 "label": etiquetas.get(linea.skill, linea.skill),
-                "rate": round(linea.ritmo * _castigo(linea.skill), 1),
+                "rate": round(linea.ritmo * castigo, 1),
                 # Lo que rendiria en el hueco PRINCIPAL, sin castigo. La
                 # pantalla lo necesita para poder decir de donde sale el
                 # numero: «28,3%» a secas no deja ver que ya son dos tercios
-                # de 42,5, y el mismo sorteo vale 42,5 / 28,3 / 21,2 segun el
+                # de 42,5, y el mismo sorteo vale 42,5 / 28,3 / 14,2 segun el
                 # hueco. Sin esto la cifra es ambigua.
                 "base": round(linea.ritmo, 1),
                 # El estudio de la comunidad NO midio dos de las siete
@@ -375,7 +439,7 @@ async def academy_training_plan(
                 # peor que no tener el numero.
                 "uncertain": linea.skill in RITMO_INDIVIDUAL_DUDOSO
                 and entrenamiento.distribucion_por_puesto is not None,
-                "penalty": round(_castigo(linea.skill), 4),
+                "penalty": round(castigo, 4),
                 # None significa «esto pasa siempre», no «no se sabe»: la
                 # pantalla usa eso para poner o quitar el «(proba: N%)».
                 "probability": linea.probabilidad,
@@ -418,6 +482,12 @@ async def academy_training_plan(
                 "mainLabel": etiqueta_de(main, skill_main),
                 "secondary": secondary,
                 "secondaryLabel": etiqueta_de(secondary, skill_sec),
+                # El contrato publica la regla que ya usaron todas las filas.
+                # Así la interfaz no vuelve a escribir su propia versión del
+                # 2/3 o del 1/3 y no puede separarse del motor.
+                "secondaryFactor": factor_secundario(main, secondary),
+                "combinedFactor": 1 + factor_secundario(main, secondary),
+                "repeatedTraining": main == secondary,
                 "doubleCount": plan.con_doble,
                 "doubleBlind": plan.doble_a_ciegas,
                 # Cuanto ha revelado el ojeador en toda la academia. Sin esto la
@@ -566,6 +636,25 @@ async def academy_skill_scores(
             "Cuántos canteranos reciben cada entrenamiento, como «habilidad:n» separado por comas"
         ),
     ),
+    fog_max: float = Query(
+        m5.NIEBLA_MAXIMA,
+        ge=0,
+        le=1,
+        description=(
+            "Cuánta niebla se tolera en un puntaje antes de dejar de fiarse de él. "
+            "0,5 = si más de la mitad del número es gente sin revelar, no vale como "
+            "recomendación"
+        ),
+    ),
+    min_to_double: int = Query(
+        m5.MINIMO_PARA_DOBLAR,
+        ge=1,
+        le=16,
+        description=(
+            "Cuántos canteranos buenos hacen falta para que doblar la mejor habilidad "
+            "tenga sentido. Con menos, la segunda dosis cae en desconocidos"
+        ),
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Recalcula el ranking sin tocar el método.
@@ -607,6 +696,8 @@ async def academy_skill_scores(
         dict[str, Any],
         _camel(
             {
+                "fogMax": fog_max,
+                "minToDouble": min_to_double,
                 "soonMaxDays": soon_max_days,
                 "weightBase": weight_base,
                 "trainableMethod": trainable_method,
@@ -629,7 +720,12 @@ async def academy_skill_scores(
                 # la FORMA que mas solapa con la primera. Sin eso, «Defensa + Pases»
                 # se lee como una recomendacion util cuando en realidad no dejaria a
                 # nadie recibiendo las dos cosas.
-                "suggestion": _pareja_sugerida(rows),
+                "suggestion": _pareja_sugerida(
+                    rows,
+                    weight_base=weight_base,
+                    niebla_maxima=fog_max,
+                    minimo_para_doblar=min_to_double,
+                ),
                 # Todos los entrenamientos, variantes incluidas: son las opciones
                 # reales de los dos selectores. Antes solo se ofrecian las siete
                 # habilidades, asi que «Pases (defensas y centro del campo completo)»

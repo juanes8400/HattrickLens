@@ -314,6 +314,11 @@ const BUCKETS: [string, string, string][] = [
  *  escalera de potencias— y lo que se mueve son los números que son una
  *  opinión: dónde cae el corte del plazo, cuánto separa un peldaño del
  *  siguiente, y a cuántos les llega de verdad cada entrenamiento. */
+//: Método 5. «Si más de la mitad del número no es información, no es una
+//: recomendación», y tres es cuando concentrar alcanza a un grupo y no a un
+//: individuo. Elegidos con el usuario el 2026-08-26.
+const DEFAULT_FOG_MAX = 0.5;
+const DEFAULT_MIN_TO_DOUBLE = 3;
 const DEFAULT_SOON_MAX_DAYS = 38;
 const DEFAULT_WEIGHT_BASE = 3;
 
@@ -430,8 +435,16 @@ function WhatToTrain({
   const [bonusWeight, setBonusWeight] = usePersistido<number | null>(
     "juveniles.bonusWeight", null,
   );
+  // Los dos mandos del método 5. No describen a la cantera: dicen cuánto se
+  // fía el usuario de un puntaje hecho de desconocidos, y a partir de cuánta
+  // gente merece la pena concentrar en vez de repartir.
+  const [fogMax, setFogMax] = usePersistido("juveniles.fogMax", DEFAULT_FOG_MAX);
+  const [minToDouble, setMinToDouble] = usePersistido(
+    "juveniles.minToDouble", DEFAULT_MIN_TO_DOUBLE,
+  );
   const tuned = useAcademySkillScores({
     soonMaxDays, weightBase, trainableMethod, trainable, trainableWeight: bonusWeight,
+    fogMax, minToDouble,
   });
 
   // Los pesos que la base reparte por columna. El usuario juega con potencias
@@ -465,6 +478,8 @@ function WhatToTrain({
     weightBase === DEFAULT_WEIGHT_BASE &&
     trainableMethod === "edit" &&
     bonusWeight === null &&
+    fogMax === DEFAULT_FOG_MAX &&
+    minToDouble === DEFAULT_MIN_TO_DOUBLE &&
     plazasIguales(trainable, plazas);
 
   return (
@@ -509,6 +524,11 @@ function WhatToTrain({
             Ahora mismo conviene entrenar{" "}
             <b className="text-[var(--youth-known)]">{top.label}</b>.
           </>
+        )}
+        {/* El porqué, en sus palabras. Sin esto la recomendación es un oráculo:
+            dice qué, nunca por qué, y no se puede discutir con ella. */}
+        {sugerencia?.method && (
+          <div className="mt-1 text-xs text-[var(--muted)]">{sugerencia.method.why}</div>
         )}
       </div>
       <div className="overflow-x-auto">
@@ -594,6 +614,8 @@ function WhatToTrain({
                 setBonusWeight(null);
                 setSoonMaxDays(DEFAULT_SOON_MAX_DAYS);
                 setWeightBase(DEFAULT_WEIGHT_BASE);
+                setFogMax(DEFAULT_FOG_MAX);
+                setMinToDouble(DEFAULT_MIN_TO_DOUBLE);
                 setTrainable(plazas ?? {});
               }}
               className="text-xs text-[var(--accent)] hover:underline"
@@ -666,6 +688,48 @@ function WhatToTrain({
             </div>
           </label>
         </div>
+
+        {/* Los dos mandos del método 5. Van aparte de los tres de arriba
+            porque no describen a la cantera: los de arriba cambian el
+            PUNTAJE, y estos cambian cuánto te fías de él. */}
+        <div className="mt-4 grid gap-4 border-t border-[var(--border)] pt-4 md:grid-cols-2">
+          <label className="block">
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="truncate">Niebla que se tolera en un puntaje</span>
+              <b className="shrink-0 tabular-nums">{Math.round(fogMax * 100)}%</b>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={fogMax}
+              onChange={(e) => setFogMax(Number(e.target.value))}
+              className="mt-1 w-full accent-[var(--youth-known)]"
+            />
+            <div className="text-[10px] text-[var(--muted)]">
+              por encima, el número es más ignorancia que información
+            </div>
+          </label>
+          <label className="block">
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="truncate">Cuántos hacen falta para doblar</span>
+              <b className="shrink-0 tabular-nums">{minToDouble}</b>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={11}
+              step={1}
+              value={minToDouble}
+              onChange={(e) => setMinToDouble(Number(e.target.value))}
+              className="mt-1 w-full accent-[var(--youth-known)]"
+            />
+            <div className="text-[10px] text-[var(--muted)]">
+              con menos, la segunda dosis cae en desconocidos
+            </div>
+          </label>
+        </div>
       </div>
 
     </Panel>
@@ -699,10 +763,12 @@ function NivelDeHabilidad({
   current,
   maximum,
   maxReached,
+  compact = false,
 }: {
   current: number | null;
   maximum: number | null;
   maxReached: boolean;
+  compact?: boolean;
 }) {
   const { palabra, numeros, ancho, crece } = lecturaDeNivel(
     current, maximum, maxReached,
@@ -712,6 +778,33 @@ function NivelDeHabilidad({
     : crece
       ? "var(--positive)"
       : "var(--danger)";
+
+  // En la tabla dinámica el nivel numérico es la evidencia que más se
+  // compara entre filas. Va primero y como una pequeña pastilla: si quedaba
+  // después de palabra + barra, el extremo derecho de la tabla hacía que
+  // `4/?` pareciera ausente aunque estuviera en el DOM.
+  if (compact) {
+    return (
+      <span
+        className="flex items-center gap-2"
+        title={`${palabra} · ${numeros}`}
+      >
+        <span className="w-3 shrink-0 text-center leading-none">
+          {maxReached ? <span title="ya tocó techo: no sube más">🔒</span> : null}
+        </span>
+        <span className="min-w-10 shrink-0 rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-[var(--text)]">
+          {numeros}
+        </span>
+        <span className="w-20 shrink-0 text-xs">{palabra}</span>
+        <span className="h-1.5 w-12 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+          <span
+            className="block h-full"
+            style={{ width: `${ancho}%`, background: color }}
+          />
+        </span>
+      </span>
+    );
+  }
 
   return (
     <span className="flex items-center gap-2">
@@ -984,7 +1077,7 @@ function porcentaje(n: number): string {
  *
  * El número ya viene con el castigo del hueco secundario aplicado, así que
  * es lo que de verdad recibe, no la casilla de la tabla de ritmos. */
-/** Una celda de entrenamiento: una linea por lo que esa plaza puede subir.
+/** Una línea de entrenamiento dentro de su propia fila de tabla.
  *
  * Antes era un numero. Con «Individual» ese numero pasaba a ser una MEDIA, y
  * una media aqui engaña: mezcla un 66,7% de Pases con un 28,3% de Lateral como
@@ -995,43 +1088,69 @@ function porcentaje(n: number): string {
  * diferencia entre un sorteo y un entrenamiento que sube dos cosas a la vez.
  * Por eso «Anotación y balón parado» sale con sus dos lineas y sin «(proba:)».
  *
- * Un entrenamiento corriente trae UNA linea, asi que se ve igual que siempre.
+ * Un entrenamiento corriente trae UNA línea. Individual trae varias y la
+ * tabla repite filas, no el nombre del jugador: así velocidad, probabilidad y
+ * nivel de cada habilidad siguen estando alineados horizontalmente.
  */
-function Celda({ lineas }: { lineas: LineaDeEntrenamiento[] }) {
-  if (lineas.length === 0) return <span className="text-[var(--muted)]">·</span>;
+function Celda({
+  linea,
+  muestraVacio = false,
+}: {
+  linea?: LineaDeEntrenamiento;
+  muestraVacio?: boolean;
+}) {
+  if (!linea) {
+    return muestraVacio ? <span className="text-[var(--muted)]">·</span> : null;
+  }
   return (
-    <span className="flex flex-col gap-0.5">
-      {lineas.map((l) => (
-        <span
-          key={l.skill}
-          className="flex items-center gap-2 whitespace-nowrap"
-          /* El porcentaje ya lleva descontado el castigo del hueco, así que
-             el MISMO sorteo vale 42,5% de principal y 28,3% de secundario.
-             La columna dice en qué hueco estamos, pero el número solo no
-             deja ver de dónde sale: aquí se explica. */
-          /* Con guardas: `base` y `penalty` pueden no venir —un backend más
-             viejo, o una respuesta cacheada— y un campo que falta no puede
-             tumbar la tabla entera. Ya pasó una vez. */
-          title={
-            l.base == null || l.penalty == null || l.penalty >= 1
-              ? `${l.label}: ${porcentaje(l.rate)}`
-              : `${l.label} rinde ${porcentaje(l.base)} de principal; aquí, de ` +
-                `secundario, ${porcentaje(l.rate)}`
-          }
-        >
-          <Racion cuanto={l.rate} etiqueta={l.label} />
-          {l.probability != null && (
-            /* Solo cuando se sortea. En tono apagado: la probabilidad dice
-               cuantas veces toca, no cuanto vale, y no debe competir con el
-               rendimiento por la atencion. */
-            <span className="shrink-0 text-[11px] tabular-nums text-[var(--muted)]">
-              (proba: {l.probability}%)
-            </span>
-          )}
+    <span
+      className="flex items-center gap-2 whitespace-nowrap"
+      /* El porcentaje ya lleva descontado el castigo del hueco. Con guardas:
+         `base` y `penalty` pueden faltar en una respuesta antigua cacheada. */
+      title={
+        linea.base == null || linea.penalty == null || linea.penalty >= 1
+          ? `${linea.label}: ${porcentaje(linea.rate)}`
+          : `${linea.label} rinde ${porcentaje(linea.base)} de principal; aquí, de ` +
+            `secundario, ${porcentaje(linea.rate)}`
+      }
+    >
+      <Racion cuanto={linea.rate} etiqueta={linea.label} />
+      {linea.probability != null && (
+        <span className="shrink-0 text-[11px] tabular-nums text-[var(--muted)]">
+          (proba: {linea.probability}%)
         </span>
-      ))}
+      )}
     </span>
   );
+}
+
+/** Compatibilidad con una respuesta cacheada anterior a `mainLines`: no
+ * inventa habilidades para Individual, pero mantiene visible el entrenamiento
+ * corriente que el contrato antiguo sí describía con una sola ración. */
+function lineasDe(
+  asignacion: TrainingSlot,
+  hueco: "principal" | "secundario",
+  etiqueta: string,
+): LineaDeEntrenamiento[] {
+  const recibidas = hueco === "principal"
+    ? asignacion.mainLines
+    : asignacion.secondaryLines;
+  if (recibidas?.length) return recibidas;
+
+  const rate = hueco === "principal"
+    ? asignacion.racionPrincipal
+    : asignacion.racionSecundaria;
+  if (rate <= 0) return [];
+  const level = hueco === "principal"
+    ? asignacion.mainLevel
+    : asignacion.secondaryLevel;
+  return [{
+    skill: `${hueco}-legacy`,
+    label: etiqueta,
+    rate,
+    probability: null,
+    level,
+  }];
 }
 
 function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
@@ -1094,16 +1213,17 @@ function TablaDelReparto({
       <div className="mt-2 overflow-x-auto">
         {/* Anchos fijos e iguales en las dos tablas: si cada una se mide a
             su contenido, «El once» y «El banquillo» no cuadran en vertical. */}
-        <table className="w-full min-w-[108rem] table-fixed text-sm">
+        <table className="w-full min-w-[104rem] table-fixed text-sm">
           <colgroup>
-            <col className="w-[14%]" />
-            <col className="w-[6%]" />
-            <col className="w-[13%]" />
+            {/* Identidad y contexto ocupan lo justo; el 75% queda para la
+                decisión real: qué entrena y en qué nivel está cada habilidad. */}
+            <col className="w-[11%]" />
+            <col className="w-[4%]" />
             <col className="w-[10%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[16.5%]" />
-            <col className="w-[16.5%]" />
+            <col className="w-[18%]" />
+            <col className="w-[15%]" />
+            <col className="w-[22%]" />
+            <col className="w-[20%]" />
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
@@ -1117,29 +1237,25 @@ function TablaDelReparto({
                 {/* La unidad va escrita, no solo en el `title`: la barra sola
                     no dice qué mide, y descubrirlo exige pasar el ratón por
                     encima y saber que hay algo que descubrir. */}
-                Puede llegar a{" "}
-                <span className="font-normal opacity-70">HTMS28</span>
+                HTMS28
               </th>
-              <th scope="col" className={`${th} text-left`}>Puesto</th>
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
-                Entrenamiento principal
+                Entrenamiento habilidad primaria
               </th>
-              {/* El «(⅔)» no es decorativo: el mismo sorteo vale 42,5% de
-                  principal y 28,3% de secundario, y sin decirlo aquí el
-                  número de la celda es ambiguo —parece el rendimiento bruto
-                  de la habilidad cuando ya lleva el castigo descontado—. */}
+              <th scope="col" className={`${th} text-left`}>
+                Nivel habilidad primaria
+              </th>
               <th
                 scope="col"
-                className={`${th} text-left`}
+                className={`${th} border-l border-[var(--border)] pl-5 text-left`}
                 title={`${secondaryLabel} — los porcentajes ya llevan descontado el castigo del hueco secundario`}
               >
-                Entrenamiento secundario{" "}
-                <span className="font-normal normal-case text-[var(--muted)]">(ya con su ⅔)</span>
+                Entrenamiento habilidad secundaria{" "}
+                <span className="block font-normal normal-case text-[var(--muted)]">
+                  castigo ya aplicado
+                </span>
               </th>
-              <th scope="col" className={`${th} text-left`}>
-                Nivel habilidad principal
-              </th>
-              <th scope="col" className={`${th} text-left`}>
+              <th scope="col" className={`${th} pr-6 text-left`}>
                 Nivel habilidad secundaria
               </th>
             </tr>
@@ -1153,56 +1269,92 @@ function TablaDelReparto({
                   <tr>
                     <th
                       scope="colgroup"
-                      colSpan={8}
+                      colSpan={7}
                       className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
                     >
                       {t}
                       {pista && ` · ${pista}`}
                     </th>
                   </tr>
-                  {suyas.map((a) => (
-                    // Alto fijo, igual que en Siguiente promoción: sin él las
-                    // filas con barra de nivel miden un píxel más.
-                    <tr key={a.player} className="h-9 border-t border-[var(--border)]">
-                      <td className={`${td} text-left`}>{a.player}</td>
-                      <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
-                        {edadCorta(a.ageDaysTotal)}
-                      </td>
-                      <td className={`${td} text-right`}>
-                        <Horquilla
-                          min={a.htms28Min}
-                          max={a.htms28Max}
-                          tope={topeDeHorquilla}
-                        />
-                      </td>
-                      <td className={`${td} text-left text-[var(--muted)]`}>
-                        {PUESTOS[a.puesto] ?? a.puesto ?? ""}
-                      </td>
-                      <td className={`${td} text-left`}>
-                        <Celda lineas={a.mainLines ?? []} />
-                      </td>
-                      <td className={`${td} text-left`}>
-                        <Celda lineas={a.secondaryLines ?? []} />
-                      </td>
-                      {/* Las dos habilidades que se entrenan, cada una en su
-                          columna: ya no hace falta decir de cuál se habla
-                          --lo dice la cabecera-- ni cambia por región. */}
-                      <td className={`${td} text-left`}>
-                        <NivelDeHabilidad
-                          current={a.mainLevel.current}
-                          maximum={a.mainLevel.maximum}
-                          maxReached={a.mainLevel.maxReached}
-                        />
-                      </td>
-                      <td className={`${td} text-left`}>
-                        <NivelDeHabilidad
-                          current={a.secondaryLevel.current}
-                          maximum={a.secondaryLevel.maximum}
-                          maxReached={a.secondaryLevel.maxReached}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {suyas.map((a) => {
+                    const principales = lineasDe(a, "principal", mainLabel);
+                    const secundarias = lineasDe(a, "secundario", secondaryLabel);
+                    const cuantas = Math.max(1, principales.length, secundarias.length);
+                    return (
+                      <Fragment key={a.player}>
+                        {Array.from({ length: cuantas }, (_, indice) => {
+                          const primera = indice === 0;
+                          const lineaPrincipal = principales[indice];
+                          const lineaSecundaria = secundarias[indice];
+                          return (
+                            <tr
+                              key={`${a.player}-${indice}`}
+                              className={
+                                primera
+                                  ? "h-10 border-t border-[var(--border)]"
+                                  : "h-10 border-t border-dashed border-[var(--border)]/60"
+                              }
+                            >
+                              <td className={`${td} text-left`}>
+                                {primera && (
+                                  <>
+                                    <span className="font-medium">{a.player}</span>
+                                    <span className="block text-xs text-[var(--muted)]">
+                                      {PUESTOS[a.puesto] ?? a.puesto ?? ""}
+                                    </span>
+                                  </>
+                                )}
+                              </td>
+                              <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                                {primera ? edadCorta(a.ageDaysTotal) : null}
+                              </td>
+                              <td className={`${td} text-right`}>
+                                {primera && (
+                                  <Horquilla
+                                    min={a.htms28Min}
+                                    max={a.htms28Max}
+                                    tope={topeDeHorquilla}
+                                  />
+                                )}
+                              </td>
+                              <td className={`${td} text-left`}>
+                                <Celda
+                                  linea={lineaPrincipal}
+                                  muestraVacio={primera && principales.length === 0}
+                                />
+                              </td>
+                              <td className={`${td} text-left`}>
+                                {lineaPrincipal && (
+                                  <NivelDeHabilidad
+                                    current={lineaPrincipal.level.current}
+                                    maximum={lineaPrincipal.level.maximum}
+                                    maxReached={lineaPrincipal.level.maxReached}
+                                    compact
+                                  />
+                                )}
+                              </td>
+                              <td className={`${td} border-l border-[var(--border)] pl-5 text-left`}>
+                                <Celda
+                                  linea={lineaSecundaria}
+                                  muestraVacio={primera && secundarias.length === 0}
+                                />
+                              </td>
+                              <td className={`${td} pr-6 text-left`}>
+                                {lineaSecundaria && (
+                                  <NivelDeHabilidad
+                                    current={lineaSecundaria.level.current}
+                                    maximum={lineaSecundaria.level.maximum}
+                                    maxReached={lineaSecundaria.level.maxReached}
+                                    compact
+                                  />
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
                 </Fragment>
               );
             })}
@@ -1361,7 +1513,6 @@ function TrainingPlan({
     onChange: (v: string) => void,
     etiqueta: string,
     recuerdo: string,
-    conCuenta = false,
   ) => (
     <label className="flex-1">
       <span className="text-xs text-[var(--muted)]">{etiqueta}</span>
@@ -1374,8 +1525,8 @@ function TrainingPlan({
         className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)]"
       >
         {/* El principal SI puede repetirse de secundario: Hattrick lo permite
-            y lo castiga bajando el hueco secundario de dos tercios a la
-            mitad, que es algo que esta pantalla ya calcula. Quitarlo de la
+            y lo castiga bajando el hueco secundario de dos tercios a un
+            tercio, para un total de 133,3%. Quitarlo de la
             lista escondia una jugada legitima. */}
         {opciones
           .map((o) => (
@@ -1405,9 +1556,18 @@ function TrainingPlan({
           eligeAMano(setSecondary),
           "Entrenamiento secundario",
           "juveniles.secundario",
-          true,
         )}
       </div>
+
+      {plan.data?.repeatedTraining && (
+        <div className="border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm text-[var(--text)]">
+          <span className="font-medium">Entrenamiento repetido:</span>{" "}
+          100% principal + {porcentaje(plan.data.secondaryFactor * 100)} secundario
+          {" = "}
+          <strong>{porcentaje(plan.data.combinedFactor * 100)}</strong> del efecto de una
+          sesión. El secundario normal de 66,7% recibe el castigo por repetición.
+        </div>
+      )}
 
       {plan.isError && (
         <p className="p-4 text-sm text-[var(--danger)]">
