@@ -1,6 +1,6 @@
 """Juveniles. HL-110, HL-111, HL-112, HL-114, HL-115."""
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,10 +11,15 @@ from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
 from app.domain.engines import decision_individual as di
 from app.domain.engines import metodo_cinco as m5
+from app.domain.engines import reparto_por_descubrimiento as rpd
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
+    REGION_AMBOS,
+    REGION_SIN_ENTRENAMIENTO,
+    REGION_SOLO_PRINCIPAL,
     RITMO_INDIVIDUAL_DUDOSO,
+    Asignacion,
     factor_secundario,
     mejor_variante,
     youth_training_plan,
@@ -150,6 +155,105 @@ def _veredicto_json(v: m5.Veredicto | None) -> dict[str, Any]:
             "backedMain": v.valen_principal,
         }
     }
+
+
+def _recoloca_para_descubrir(
+    plan: Any,
+    main: str,
+    secondary: str,
+    lecturas: dict[str, dict[str, Any]],
+) -> None:
+    """Reordena las plazas que NO entrena el compañero, para destapar más.
+
+    Solo actúa cuando «Individual» ocupa un hueco, porque es el único
+    entrenamiento cuya habilidad depende del PUESTO: con cualquier otro, mover
+    a un chico de plaza no cambia lo que recibe.
+
+    Dos reglas, dictadas por el usuario el 2026-08-26:
+
+    1. **El compañero manda.** Las plazas de la región del otro entrenamiento
+       no se tocan: ya las llenó su cola y ese reparto no se negocia.
+    2. **La habilidad del compañero NO cuenta como descubrimiento.** Que a un
+       chico le salga Lateral cuando Lateral es el principal no aporta nada:
+       esa habilidad ya se está trabajando. Se descuenta de la ruleta.
+
+    El emparejamiento es el óptimo real, no por turnos: quitarle el portero a
+    quien más lo aprovecha puede costar más de lo que gana quien se lo queda.
+    Modifica `plan` en el sitio.
+    """
+    if di.INDIVIDUAL not in (main, secondary):
+        return
+
+    individual = ENTRENAMIENTOS[di.INDIVIDUAL]
+    # Lo que el COMPAÑERO ya entrena, que por eso no cuenta como descubrir. Si
+    # sube dos --«Anotación y balón parado»-- se descuentan las dos.
+    companero = ENTRENAMIENTOS.get(secondary if main == di.INDIVIDUAL else main)
+    excluidas: set[str] = set()
+    if companero is not None and companero.codigo != di.INDIVIDUAL:
+        excluidas.add(companero.skill)
+        if companero.tambien_sube:
+            excluidas.add(companero.tambien_sube)
+
+    # Las sillas en juego: las que NO pertenecen a la región del compañero.
+    # Cuando Individual está en los dos huecos, todas lo están.
+    if main == secondary == di.INDIVIDUAL:
+        libres = [a for a in plan.asignaciones if a.puesto]
+    else:
+        del_companero = {REGION_AMBOS, REGION_SOLO_PRINCIPAL}
+        libres = [a for a in plan.asignaciones if a.puesto and a.region not in del_companero]
+    if not libres:
+        return
+
+    # Los candidatos: quien ocupa esas sillas MÁS el banquillo. Limitarlo a
+    # los que ya estaban dentro dejaría fuera al chico del banquillo que
+    # ilumina más que cualquiera de los de dentro.
+    en_juego = {a.player for a in libres}
+    candidatos: list[rpd.Candidato] = []
+    for nombre in list(en_juego) + [a.player for a in plan.fuera if a.player not in en_juego]:
+        skills = lecturas.get(nombre, {})
+        candidatos.append(
+            rpd.Candidato(
+                nombre=nombre,
+                sin_revelar=frozenset(
+                    sk for sk, r in skills.items() if r.current is None and not r.max_reached
+                ),
+            )
+        )
+
+    ruletas = {a.puesto: individual.reparto_en(a.puesto) for a in libres}
+    pares = rpd.reparte([a.puesto for a in libres], candidatos, ruletas, excluidas)
+    if len(pares) != len(libres):
+        return  # no se pudo llenar todo: mejor dejarlo como estaba
+
+    # Se reescribe solo el nombre de cada silla; el resto de la fila --puesto,
+    # región, raciones-- describe LA PLAZA y no cambia al cambiar de ocupante.
+    # `Asignacion` es inmutable, así que se sustituye la fila entera en su
+    # sitio en vez de tocarla.
+    banquillo = {a.player: a for a in plan.fuera}
+    dentro_antes = {a.player for a in libres}
+    por_id = {id(a): i for i, a in enumerate(plan.asignaciones)}
+    nuevas: list[Any] = []
+    for silla, (nombre, _) in zip(libres, pares, strict=True):
+        cambiada = replace(silla, player=nombre)
+        plan.asignaciones[por_id[id(silla)]] = cambiada
+        nuevas.append(cambiada)
+    libres = nuevas
+    # Quien salió del once y quien entró: el banquillo se recalcula para no
+    # enseñar a nadie dos veces.
+    dentro_ahora = {a.player for a in libres}
+    for nombre in dentro_ahora - dentro_antes:
+        if nombre in banquillo:
+            plan.fuera.remove(banquillo[nombre])
+    for nombre in dentro_antes - dentro_ahora:
+        plan.fuera.append(
+            Asignacion(
+                player=nombre,
+                puesto="",
+                region=REGION_SIN_ENTRENAMIENTO,
+                racion_principal=0.0,
+                racion_secundaria=0.0,
+            )
+        )
 
 
 def _pareja_sugerida(
@@ -382,6 +486,7 @@ async def academy_training_plan(
         tope_principal=topes_de(main, skill_main),
         tope_secundaria=topes_de(secondary, skill_sec),
     )
+    _recoloca_para_descubrir(plan, main, secondary, lecturas)
     etiquetas = {r.skill: r.label for r in rows}
 
     def etiqueta_de(clave: str, skill: str) -> str:
