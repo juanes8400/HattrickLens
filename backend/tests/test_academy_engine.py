@@ -1,4 +1,6 @@
 """HL-110 a HL-115 · Academia juvenil."""
+import pytest
+
 from app.domain.engines.academy_engine import (
     Category,
     YouthSkill,
@@ -131,8 +133,22 @@ def test_training_exposure_uses_hattrick_control_weights() -> None:
     assert training_exposure(90, 0, True, True) == 1.0
     # Amistoso: la mitad
     assert training_exposure(90, 0, False, True) == 0.5
-    # Entrenamiento secundario: 0,8
-    assert training_exposure(90, 0, True, False) == 0.8
+    # Entrenamiento secundario distinto: dos tercios.
+    assert training_exposure(
+        90, 0, True, False, ("passing", "passing_defenders")
+    ) == pytest.approx(2 / 3, abs=0.0001)
+    # Si es exactamente el mismo entrenamiento, el secundario normal se
+    # castiga a la mitad: 2/3 x 1/2 = 1/3.
+    assert training_exposure(
+        90, 0, True, False, ("passing", "passing")
+    ) == pytest.approx(1 / 3, abs=0.0001)
+    # Dos entrenamientos distintos que suben Pases no son una repetición.
+    assert training_exposure(
+        90, 0, True, False, ("passing", "passing_defenders")
+    ) == pytest.approx(2 / 3, abs=0.0001)
+    # Sin los códigos no se puede decidir honestamente si está repetido.
+    with pytest.raises(ValueError, match="necesita los códigos"):
+        training_exposure(90, 0, True, False)
     # Posición secundaria: la mitad de minutos efectivos
     assert training_exposure(0, 90, True, True) == 0.5
     assert training_exposure(0, 0, True, True) == 0.0

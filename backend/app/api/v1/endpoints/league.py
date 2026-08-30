@@ -318,10 +318,9 @@ async def league_comparison(
                     "top11": top11,
                 },
                 "caveats": [
-                    "El TSI de cada rival es real (dato público de Hattrick); sus habilidades exactas "  # noqa: E501
-                    "y su alineación real están ocultas por CHPP para cualquier equipo que no sea "
-                    "el tuyo, «excluir nuestro arquero» solo se aplica con certeza a tu "
-                    "plantilla, nunca a los rivales.",
+                    "El TSI de cada rival es real, pero sus habilidades y su alineación no se "
+                    "publican: «excluir nuestro arquero» solo se aplica con certeza a tu "
+                    "plantilla, nunca a la de ellos.",
                     "Nada de esto se sincroniza ni se guarda: se pide en vivo cada vez que se abre "
                     "esta comparativa.",
                 ],

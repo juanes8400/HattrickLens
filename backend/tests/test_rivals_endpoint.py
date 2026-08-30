@@ -451,7 +451,7 @@ def test_scouting_without_matches_still_compares_tsi(
     # sin partidos vistos no hay position_code de nadie: no se excluye a nadie
     # aunque el toggle esté activo (nunca se adivina quién es el arquero)
     assert len(body["tsiHistogram"]["rivalValues"]) == len(RIVAL_PLAYERS["players"])
-    assert any("no tiene partidos oficiales recientes" in c for c in body["caveats"])
+    assert any("no tiene partidos recientes" in c for c in body["caveats"])
 
 
 def test_non_official_matches_are_excluded_from_head_to_head_by_default(

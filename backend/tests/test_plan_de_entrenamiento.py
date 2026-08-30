@@ -8,20 +8,19 @@ entrenan nada.
 """
 import pytest
 
-from app.domain.engines.youth_skill_score import PlayerNote
+from app.domain.engines.youth_skill_score import SLOT_CUPOS, PlayerNote
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
+    PUESTOS_DE_UN_BANQUILLO,
     REGION_AMBOS,
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
     REGION_SOLO_SECUNDARIA,
-    PUESTOS_DE_UN_BANQUILLO,
     _reparte_por_region,
     cupos_de,
     factor_secundario,
     youth_training_plan,
 )
-from app.domain.engines.youth_skill_score import SLOT_CUPOS
 
 
 def _cola(*nombres: str) -> list[PlayerNote]:
@@ -104,6 +103,13 @@ def test_los_ritmos_son_los_que_dicto_el_usuario() -> None:
     }
     assert r("set_pieces")["keeper"] == 125, "el portero pasa de 100 aposta"
     assert set(r("set_pieces").values()) == {125, 100}
+    # En Individual esto es solo COBERTURA. La velocidad real permanece en
+    # cada linea de habilidad y nunca se colapsa en un valor esperado.
+    assert set(r("individual")) == {
+        "keeper", "central_defender", "wingback",
+        "inner_midfield", "winger", "forward",
+    }
+    assert set(r("individual").values()) == {100}
     # El unico que sube dos habilidades, a ritmos distintos.
     dos = ENTRENAMIENTOS["scoring_set_pieces"]
     assert dos.tambien_sube == "set_pieces"
@@ -113,11 +119,11 @@ def test_los_ritmos_son_los_que_dicto_el_usuario() -> None:
     assert dos.ritmo("keeper", "set_pieces") == 40
 
 
-def test_el_secundario_rinde_dos_tercios_y_la_mitad_si_lo_repites() -> None:
+def test_el_secundario_rinde_dos_tercios_y_un_tercio_si_lo_repites() -> None:
     assert factor_secundario("winger", "passing") == pytest.approx(2 / 3)
     # Misma habilidad por dos caminos distintos NO es repetir.
     assert factor_secundario("passing", "passing_defenders") == pytest.approx(2 / 3)
-    assert factor_secundario("winger", "winger") == pytest.approx(1 / 2)
+    assert factor_secundario("winger", "winger") == pytest.approx(1 / 3)
 
 
 def test_los_medios_van_al_final_de_su_cola() -> None:
@@ -398,13 +404,30 @@ def test_la_celda_secundaria_ensena_el_producto() -> None:
     assert all(a.racion_principal == 100 for a in porteros)
 
 
-def test_repetir_el_mismo_entrenamiento_castiga_a_la_mitad() -> None:
+def test_repetir_el_mismo_entrenamiento_deja_un_total_de_133_3() -> None:
     todos = _cola(*[f"J{i}" for i in range(1, 20)])
     repetido = youth_training_plan("passing", "passing", todos, todos)
     medios = [a for a in repetido.asignaciones if a.puesto == "inner_midfield"]
-    assert all(a.racion_secundaria == 50 for a in medios), "100 a la mitad"
+    assert all(a.racion_secundaria == pytest.approx(33.3) for a in medios)
+    assert all(
+        a.racion_principal + a.racion_secundaria == pytest.approx(133.3)
+        for a in medios
+    )
 
     # Dos caminos distintos a la misma habilidad NO son repetir.
     distinto = youth_training_plan("passing", "passing_defenders", todos, todos)
     medios = [a for a in distinto.asignaciones if a.puesto == "inner_midfield"]
     assert all(a.racion_secundaria == pytest.approx(53.3) for a in medios), "80 x 2/3"
+
+
+def test_individual_repetido_tambien_deja_un_total_de_133_3() -> None:
+    todos = _cola(*[f"J{i}" for i in range(1, 20)])
+    repetido = youth_training_plan("individual", "individual", todos, todos)
+
+    assert repetido.asignaciones
+    assert all(a.racion_principal == 100 for a in repetido.asignaciones)
+    assert all(a.racion_secundaria == pytest.approx(33.3) for a in repetido.asignaciones)
+    assert all(
+        a.racion_principal + a.racion_secundaria == pytest.approx(133.3)
+        for a in repetido.asignaciones
+    )

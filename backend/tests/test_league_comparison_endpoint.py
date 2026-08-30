@@ -170,7 +170,7 @@ def test_league_comparison_ranks_all_teams_in_the_series(
     assert own_row["playerCount"] == 24
 
     assert len(body["tsiHistogram"]["rivalValues"]) == 6  # 3 + 3 de los dos rivales
-    assert any("ocultas por CHPP" in c for c in body["caveats"])
+    assert any("no se publican" in c for c in body["caveats"])
 
 
 def test_league_comparison_top11_restricts_own_and_rival_samples(

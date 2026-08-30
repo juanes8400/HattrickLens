@@ -1045,7 +1045,7 @@ function Celda({
   }
   return (
     <span
-      className="flex items-center gap-2 whitespace-nowrap"
+      className="grid grid-cols-[auto_auto] items-center justify-start gap-2 whitespace-nowrap"
       /* El porcentaje ya lleva descontado el castigo del hueco. Con guardas:
          `base` y `penalty` pueden faltar en una respuesta antigua cacheada. */
       title={
@@ -1156,23 +1156,42 @@ function PorQue({ m }: { m: VeredictoDeMetodo }) {
   );
 }
 
+/** Los tres tramos del rendimiento, elegidos con el usuario el 2026-08-30.
+ *  Son del ENTRENAMIENTO que llega a esa plaza, no del nivel del canterano. */
+function colorDeRacion(cuanto: number): string {
+  if (cuanto >= 80) return "var(--positive)";
+  if (cuanto >= 30) return "var(--warning)";
+  return "var(--danger)";
+}
+
 function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
   if (cuanto === 0) return <span className="text-[var(--muted)]">·</span>;
-  // Cualquier cosa por debajo de lo entero se avisa en ámbar: media ración y
-  // el castigo del secundario se leen igual de rebajadas.
-  const color = cuanto < 100 ? "var(--warning)" : "var(--positive)";
+  const color = colorDeRacion(cuanto);
   return (
-    <span className="flex items-center gap-2 whitespace-nowrap" title={etiqueta}>
-      <span style={{ color }}>
+    /* Rejilla, no flex: la barra tiene que empezar en la MISMA x en todas las
+       líneas de la celda. Con flex la empujaba la etiqueta de delante --que
+       mide distinto en «Lateral» y en «Balón parado»-- y las barras parecían
+       de anchos distintos cuando siempre midieron lo mismo. */
+    <span className="grid grid-cols-[8.5rem_2.5rem] items-center gap-2" title={etiqueta}>
+      <span className="truncate" style={{ color }}>
         {nombreCorto(etiqueta)}:{" "}
         <span className="tabular-nums">{porcentaje(cuanto)}</span>
       </span>
-      <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+      {/* La PISTA y el RELLENO llevan la misma forma de pastilla. Con la
+          curva solo en la pista, un relleno corto quedaba mordido por ella
+          --en 11 px de ancho la curva se come casi la mitad-- y se leia mas
+          bajo que uno largo aunque los dos midan 6 px clavados. Y un minimo
+          de ancho para que un porcentaje diminuto siga siendo una barra y no
+          un punto. */}
+      <span className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
         {/* Topeada en 100 aunque el número pase: Balón parado da 125 al
             portero, y una barra desbordada no dice más que una llena. */}
         <span
-          className="block h-full"
-          style={{ width: `${Math.min(100, cuanto)}%`, background: color }}
+          className="block h-full rounded-full"
+          style={{
+            width: `${Math.max(15, Math.min(100, cuanto))}%`,
+            background: color,
+          }}
         />
       </span>
     </span>

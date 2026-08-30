@@ -95,6 +95,34 @@ def test_first_sync_writes_all_snapshots() -> None:
     asyncio.run(run())
 
 
+def test_sync_progress_identifies_players_by_full_name() -> None:
+    async def run() -> None:
+        uow, chpp, team_id = await _setup()
+        messages: list[str] = []
+
+        async def capture(message: str) -> None:
+            messages.append(message)
+
+        await SyncTeamHandler(uow, chpp).execute(
+            SyncTeamCommand(
+                user_id=1,
+                team_id=team_id,
+                ht_team_id=537758,
+                files=["players"],
+            ),
+            on_progress=capture,
+        )
+
+        assert "Descargando ficha de jugador Alberto Gutiérrez Caviedes..." in messages
+        assert not any(
+            message.startswith("Descargando ficha de jugador ")
+            and any(character.isdigit() for character in message)
+            for message in messages
+        )
+
+    asyncio.run(run())
+
+
 def test_second_sync_without_changes_writes_nothing() -> None:
     async def run() -> None:
         uow, chpp, team_id = await _setup()

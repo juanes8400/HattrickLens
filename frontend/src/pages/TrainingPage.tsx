@@ -97,42 +97,53 @@ function ProgressCell({
   );
 }
 
-// Mismo formato compacto que ProgressCell (Experiencia/Fidelidad) — barra
-// fina + texto a la derecha — pero con el criterio azul/rojo de la ficha de
-// jugador: rojo hacia adelante si al ritmo actual se espera subir, o
-// comiéndose el propio tramo final del azul si se espera bajar.
+// La barra muestra el DESTINO de la guía Ocerin, no vuelve a dibujar el nivel
+// actual. El nivel real ya está en la columna anterior; aquí una marca azul
+// conserva su posición y la barra se acorta/alarga hasta el esperado. Así un
+// cambio 8 → 5 se ve realmente hacia la izquierda y no como una barra 8/9 con
+// un tramo rojo difícil de interpretar.
 function StaminaProgressCell({ row }: { row: TrainingStaminaRow }) {
   const max = STAMINA_MAX_LEVEL;
-  const diff = row.expectedLevel != null ? row.expectedLevel - row.level : 0;
-  const bluePct = Math.max(0, Math.min(100, (row.level / max) * 100));
-  const redPctRaw = (Math.abs(diff) / max) * 100;
-  let blueWidth = bluePct;
-  let redLeft = bluePct;
-  let redWidth = 0;
-  if (diff < 0) {
-    redWidth = Math.min(redPctRaw, bluePct);
-    blueWidth = bluePct - redWidth;
-    redLeft = blueWidth;
-  } else if (diff > 0) {
-    redWidth = Math.min(redPctRaw, Math.max(0, 100 - bluePct));
-  }
+  const expected = row.expectedLevel ?? row.level;
+  const diff = expected - row.level;
+  const currentPct = Math.max(0, Math.min(100, (row.level / max) * 100));
+  const expectedPct = Math.max(0, Math.min(100, (expected / max) * 100));
+  const direction = diff < 0 ? "↓" : diff > 0 ? "↑" : "=";
+  const barTone =
+    diff < 0
+      ? "bg-[var(--danger)]"
+      : diff > 0
+        ? "bg-[var(--positive)]"
+        : "bg-[var(--accent)]";
+  const textTone =
+    diff < 0
+      ? "text-[var(--danger)]"
+      : diff > 0
+        ? "text-[var(--positive)]"
+        : "text-[var(--muted)]";
   return (
-    <div className="flex min-w-28 items-center justify-end gap-2">
-      <div className="relative h-2 w-20 overflow-hidden rounded-full bg-[var(--surface-2)]">
+    <div
+      className="flex min-w-32 items-center gap-2"
+      title={`Actual: ${row.levelName} (${row.level}). Esperado Ocerin: ${row.expectedLevelName ?? "sin dato"} (${expected}).`}
+    >
+      <span className="min-w-14 whitespace-nowrap text-left text-xs tabular-nums">
+        {row.level}{" "}
+        <span className={textTone}>
+          {direction} {expected}
+        </span>
+      </span>
+      <div className="relative h-2 w-20 rounded-full bg-[var(--surface-2)]">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)]"
-          style={{ width: `${blueWidth}%` }}
+          className={`absolute inset-y-0 left-0 rounded-full ${barTone}`}
+          style={{ width: `${expectedPct}%` }}
         />
-        {redWidth > 0 && (
+        {diff !== 0 && (
           <div
-            className="absolute inset-y-0 bg-[var(--danger)]"
-            style={{ left: `${redLeft}%`, width: `${redWidth}%` }}
+            className="absolute -top-0.5 h-3 w-0.5 rounded bg-[var(--accent)]"
+            style={{ left: `calc(${currentPct}% - 1px)` }}
           />
         )}
       </div>
-      <span className="min-w-12 text-right text-xs tabular-nums">
-        {row.level}/{max}
-      </span>
     </div>
   );
 }
@@ -610,9 +621,35 @@ const staminaColumns: Column<TrainingStaminaRow>[] = [
   },
   {
     key: "progress",
-    header: "Progreso",
-    value: (r) => r.level,
+    header: "Actual → guía",
+    value: (r) => r.expectedLevel ?? r.level,
     render: (r) => <StaminaProgressCell row={r} />,
+  },
+  {
+    key: "effectiveTrainingPct",
+    header: "% aplicado",
+    value: (r) => r.effectiveTrainingPct,
+    render: (r) => (
+      <span className="tabular-nums">
+        {decimal(r.effectiveTrainingPct, 1)}%
+      </span>
+    ),
+  },
+  {
+    key: "expectedLevel",
+    header: "Esperado Ocerin",
+    value: (r) => r.expectedLevel ?? -1,
+    render: (r) =>
+      r.expectedLevel == null ? (
+        <span className="text-[var(--muted)]">Sin dato</span>
+      ) : (
+        <span className="whitespace-nowrap">
+          <span>{r.expectedLevelName}</span>{" "}
+          <span className="text-xs tabular-nums text-[var(--muted)]">
+            ({r.expectedLevel})
+          </span>
+        </span>
+      ),
   },
   {
     // Condición no tiene columna de Evidencia, así que va detrás del
@@ -1108,7 +1145,7 @@ export function TrainingPage() {
             <>
               <Panel
                 title="Condición"
-                meta={`${development.data.stamina.length} jugadores · azul: nivel actual · rojo: distancia al esperado`}
+                meta={`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
               >
                 <DataTable
                   rows={development.data.stamina}

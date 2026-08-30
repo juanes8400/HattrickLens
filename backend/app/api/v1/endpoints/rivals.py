@@ -731,9 +731,17 @@ async def rival_scouting(
     # Cada uno de estos hechos también se explica en el panel donde aparece
     # (Comparación de plantilla, TSI, Táctica habitual, Duelos por zona) —
     # esta lista es solo para lo que NO tiene un panel propio donde decirlo.
+    #
+    # 2026-08-30, podado con el usuario: eran cinco frases y TRES decían el
+    # mismo hecho con otras palabras --que de un rival solo se sabe lo que sus
+    # partidos públicos enseñan, y de sus habilidades nada más que el TSI--.
+    # Ese hecho se dice UNA vez, aquí arriba, y las otras dos se recortaron a
+    # lo que sí añaden. Repetirlo en tres viñetas no lo hacía más cierto: lo
+    # hacía más fácil de saltar.
     caveats = [
-        "Nombre y posición del rival solo se conocen para jugadores que aparecieron en uno de "
-        "sus últimos partidos oficiales, nunca se trackea su plantilla fuera de eso.",
+        "De un rival solo se sabe lo que enseñan sus partidos públicos: nombre y posición "
+        "únicamente de quien apareció en uno reciente, y de sus habilidades nada — el TSI es "
+        "lo único que Hattrick publica. Su plantilla no se sigue fuera de eso.",
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan para esta ficha, sin "
         "importar los toggles de arriba: ni son representativos de cómo juega el club rival "
         "(Duelos/Escaleras) ni reflejan al club en absoluto (Selección: otro cuerpo técnico, a "
@@ -1098,20 +1106,19 @@ async def rival_scouting(
 
     if not rival_matches:
         caveats.append(
-            "Este rival no tiene partidos oficiales recientes de los tipos seleccionados: solo "
-            "se puede comparar TSI, sin nombres, posiciones, marcaje, táctica ni rotación."
+            "Este rival no tiene partidos recientes de los tipos seleccionados, así que aquí no "
+            "hay nombres, posiciones, marcaje, táctica ni rotación: solo la comparación por TSI."
         )
     if top11:
         if submitted_own_players:
             caveats.append(
-                "«Los 11» usa tu alineación realmente enviada contra el once probable del "
-                "rival, inferido por recurrencia y recencia en sus partidos públicos."
+                "«Los 11» enfrenta tu alineación ya enviada al once probable del rival, "
+                "inferido por recurrencia y recencia en sus partidos públicos."
             )
         else:
             caveats.append(
-                "«Los 11 mejores» es tu once real (motor de posiciones) contra los 11 de mayor "
-                "TSI del rival, sin sus skills, el TSI es la única aproximación honesta a sus "
-                "titulares probables."
+                "«Los 11 mejores» enfrenta tu once real al de los once rivales de mayor TSI, "
+                "que es lo más cerca que se puede estar de sus titulares probables."
             )
     if not (include_competitive and include_friendlies):
         excluded = []

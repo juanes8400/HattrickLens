@@ -794,7 +794,6 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
               ) : (
                 <span
                   className="text-[var(--muted)]"
-                  title="Contarlos exige leer la alineación de cada partido de su etapa. Se hace desde Sincronización › Transferencias, una sola vez por jugador."
                 >
                   sin contar
                 </span>

@@ -196,7 +196,7 @@ export function CupPage() {
                   detail={`${data.economy.observedHomeMatches} partido(s) de local medidos`}
                 />
                 <MiniMetric
-                  label="Participación histórica estimada"
+                  label="Participación histórica"
                   value={money(data.economy.estimatedHistoricalShare, data.currency)}
                   detail="67% de la taquilla bruta observada"
                 />

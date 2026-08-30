@@ -20,7 +20,7 @@ export interface TsiHistogramData {
  */
 export function TsiHistogramPanel({
   title,
-  meta = "estimación de densidad (KDE), no barras",
+  meta = "",
   rivalLabel,
   histogram: h,
   logTsi,

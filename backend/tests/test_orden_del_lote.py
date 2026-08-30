@@ -70,14 +70,14 @@ def test_el_lote_empieza_por_la_venta_mas_reciente() -> None:
             )
             await uow.commit()
 
-        # `players_named` guarda los apellidos en el orden en que se
+        # `players_named` guarda los nombres completos en el orden en que se
         # atendieron, que es justo lo que hay que comprobar.
         # 2026-08-25: la alternancia corre SIEMPRE --uno reciente, uno al
         # azar-- porque lo viejo es lo que cierra expedientes: los
         # entrenadores estan entre las ventas de hace años. Lo que se fija es
         # que el PRIMERO sea el mas reciente y que no se pierda a nadie.
-        assert result.players_named[0] == "Reciente"
-        assert sorted(result.players_named) == ["Medio", "Reciente", "Viejo"]
+        assert result.players_named[0] == "Ex Reciente"
+        assert sorted(result.players_named) == ["Ex Medio", "Ex Reciente", "Ex Viejo"]
 
     asyncio.run(corre())
 
@@ -94,7 +94,7 @@ def test_el_limite_se_lleva_a_los_mas_recientes() -> None:
                 uow, team_id, datetime(2026, 8, 24), result, limite=1,
             )
             await uow.commit()
-        assert result.players_named == ["Reciente"]
+        assert result.players_named == ["Ex Reciente"]
 
     asyncio.run(corre())
 
@@ -152,7 +152,7 @@ def test_con_comision_por_atribuir_el_lote_alterna() -> None:
         # siguiente barrido empiece de cero.
         assert probados == "[]"
         assert equipo.commission_hunting is False
-        assert result.players_named[0] == "Reciente", (
+        assert result.players_named[0] == "Ex Reciente", (
             "aun persiguiendo, el primero es el mas reciente"
         )
 
@@ -179,8 +179,8 @@ def test_sin_comision_pendiente_tambien_alterna() -> None:
             await uow.commit()
 
         # Dos de tres: el mas reciente y uno al azar de los que quedan.
-        assert result.players_named[0] == "Reciente"
-        assert result.players_named[1] in ("Medio", "Viejo")
+        assert result.players_named[0] == "Ex Reciente"
+        assert result.players_named[1] in ("Ex Medio", "Ex Viejo")
         assert len(result.players_named) == 2
 
     asyncio.run(corre())
@@ -256,7 +256,7 @@ def test_quien_no_se_mira_nunca_no_ocupa_casilla_en_la_barra() -> None:
             )
             await uow.commit()
 
-        assert result.players_named == ["Reciente"], "a ese no se le pregunta"
+        assert result.players_named == ["Ex Reciente"], "a ese no se le pregunta"
         assert result.queue_map is not None
         assert result.queue_map.total == 3, "no ocupa casilla"
         assert result.queue_map.hechas == [0], (
@@ -298,7 +298,7 @@ def test_un_barrido_nuevo_no_hereda_la_lista_de_probados() -> None:
             )
             await uow.commit()
 
-        assert result.players_named == ["Reciente"], (
+        assert result.players_named == ["Ex Reciente"], (
             "la cabeza vuelve a la cola: el barrido nuevo empieza por ella"
         )
         assert result.queue_map is not None
@@ -331,7 +331,7 @@ def test_dentro_del_mismo_barrido_nadie_se_repite() -> None:
                 await uow.commit()
             atendidos += result.players_named
 
-        assert sorted(atendidos) == ["Medio", "Reciente", "Viejo"], (
+        assert sorted(atendidos) == ["Ex Medio", "Ex Reciente", "Ex Viejo"], (
             "los tres, cada uno una vez"
         )
 

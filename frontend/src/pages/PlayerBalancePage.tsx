@@ -1303,7 +1303,7 @@ export function PlayerBalancePage() {
             />
             <HorizontalBarPanel
               title="Saldo por habilidad más alta"
-              meta="ventas cerradas · sin contar Balón Parado"
+              meta="ventas cerradas"
               ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió, sin contar Balón Parado"
               entries={topSkillEntries}
               currency={data.currency}
@@ -2183,7 +2183,7 @@ function BalanceTable({
         ) : (
           <span
             className="text-[var(--muted)]"
-            title="Sin contar todavía. Se cuenta desde Sincronización › Transferencias, una sola vez por jugador."
+            title="Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el PlayerID real, la fecha inicial o un recuento CHPP pendiente."
           >
             ?
           </span>

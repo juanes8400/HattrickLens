@@ -21,7 +21,7 @@ export interface PlayerDistribution {
  */
 export function PlayerDistributionPanel({
   title,
-  meta = "estimación de densidad (KDE), no barras",
+  meta = "",
   xLabel,
   playerName,
   distribution: d,

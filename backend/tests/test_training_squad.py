@@ -166,6 +166,64 @@ def test_development_view_never_invents_loyalty_progress_without_a_join_date() -
     assert all(row.progress_pct is None for row in undated)
 
 
+def test_development_view_recalculates_ocerin_when_stamina_share_changes() -> None:
+    """La tabla de condición siempre usa el training.xml más reciente.
+
+    Además de proteger el cálculo, este caso reproduce el flujo real: se
+    sincroniza un porcentaje nuevo mientras la plantilla no cambia.
+    """
+    async def go():
+        factory, team_id = await seeded_session()
+        async with factory() as s:
+            latest = await s.scalar(
+                select(m.TrainingSnapshot)
+                .where(m.TrainingSnapshot.team_id == team_id)
+                .order_by(
+                    m.TrainingSnapshot.captured_at.desc(),
+                    m.TrainingSnapshot.id.desc(),
+                )
+            )
+            assert latest is not None
+
+            values = {
+                column.name: getattr(latest, column.name)
+                for column in m.TrainingSnapshot.__table__.columns
+                if column.name != "id"
+            }
+            values["captured_at"] = latest.captured_at + timedelta(seconds=1)
+            values["training_level"] = 100
+            values["stamina_part"] = 10
+            values["content_hash"] = b"stamina-share-10"
+            s.add(m.TrainingSnapshot(**values))
+            await s.commit()
+
+            at_ten = await TrainingSquadQueryService(s).development_view(team_id)
+            assert at_ten is not None
+
+            values["captured_at"] = values["captured_at"] + timedelta(seconds=1)
+            values["stamina_part"] = 25
+            values["content_hash"] = b"stamina-share-25"
+            s.add(m.TrainingSnapshot(**values))
+            await s.commit()
+
+            at_twenty_five = await TrainingSquadQueryService(s).development_view(team_id)
+            assert at_twenty_five is not None
+            return at_ten, at_twenty_five
+
+    at_ten, at_twenty_five = _run(go())
+    assert {row.effective_training_pct for row in at_ten.stamina} == {10.0}
+    assert {row.effective_training_pct for row in at_twenty_five.stamina} == {25.0}
+
+    expected_at_ten = {row.ht_player_id: row.expected_level for row in at_ten.stamina}
+    expected_at_twenty_five = {
+        row.ht_player_id: row.expected_level for row in at_twenty_five.stamina
+    }
+    assert any(
+        expected_at_ten[player_id] != expected_at_twenty_five[player_id]
+        for player_id in expected_at_ten
+    )
+
+
 # ── Previsión por jugador ────────────────────────────────────────────────────
 
 def test_player_levels_forecast_is_always_available_even_without_history() -> None:
@@ -245,7 +303,8 @@ async def _seed_confirmed_pop_for_a_real_player():
             season=pop_season, match_round=pop_round, day_number=0,
         ))
         await s.commit()
-    return factory, team_id, target.ht_player_id, world.season * 16 + world.match_round - (pop_season * 16 + pop_round)
+    elapsed = world.season * 16 + world.match_round - (pop_season * 16 + pop_round)
+    return factory, team_id, target.ht_player_id, elapsed
 
 
 def test_confirmed_pop_alone_does_not_turn_calendar_time_into_training() -> None:
