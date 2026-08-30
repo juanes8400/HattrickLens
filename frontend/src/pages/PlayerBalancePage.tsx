@@ -1304,7 +1304,7 @@ export function PlayerBalancePage() {
             <HorizontalBarPanel
               title="Saldo por habilidad más alta"
               meta="ventas cerradas"
-              ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió, sin contar Balón Parado"
+              ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió"
               entries={topSkillEntries}
               currency={data.currency}
               isDark={isDark}
