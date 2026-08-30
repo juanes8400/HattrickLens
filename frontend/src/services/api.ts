@@ -760,15 +760,32 @@ export interface YouthComparisonRow {
   changes: YouthComparisonChange[];
 }
 
-/** Por que el metodo 7 eligio lo que eligio. */
+/** Por que el metodo 8 eligio lo que eligio, CON SUS NUMEROS: la frase sola
+ *  habria que creersela. */
 export interface VeredictoDeMetodo {
+  /** doblar · segunda · descubrir */
+  path: string;
   why: string;
-  /** Que parte del puntaje NO es respaldo --gente sin revelar mas el bonus
-   *  puesto a mano--, de 0 a 1. Por encima del umbral la habilidad queda
-   *  descartada y su hueco va a descubrir. */
-  unbackedMain: number;
-  unbackedSecond: number | null;
+  /** Por encima de esto un puntaje es ignorancia y preferencia, no evidencia. */
   threshold: number;
+  main: {
+    score: number;
+    /** Que parte del puntaje NO es respaldo --gente sin revelar mas el bonus
+     *  puesto a mano--, de 0 a 1. */
+    unbacked: number;
+    /** Cuantos canteranos tiene en el peldano 4 o mejor. */
+    backed: number;
+  };
+  /** La prueba que separa «un grupo» de «un chico con buen puntaje»: se le
+   *  quita su mejor canterano y se mira si aguanta en cabeza. */
+  robustness: {
+    removedRung: string | null;
+    scoreWithout: number;
+    held: boolean;
+    /** Quien lo adelanta al quitarselo. `null` si aguanta. */
+    overtakenBy: string | null;
+  };
+  second: { label: string; unbacked: number | null; backed: number | null } | null;
 }
 
 export interface ChangeMetricSummary {
@@ -1571,7 +1588,7 @@ export interface AcademySkillScores {
     secondarySkill: string;
     /** Cuantos recibirian las dos cosas con esa pareja. */
     bothCount: number;
-    /** Por que el metodo 7 eligio esto. Puede faltar en un backend viejo. */
+    /** Por que el metodo 8 eligio esto. Puede faltar en un backend viejo. */
     method?: VeredictoDeMetodo;
   } | null;
   /** Las plazas que entrena cada habilidad, para sembrar el modo manual. */

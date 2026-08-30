@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.academy import AcademyQueryService
-from app.domain.engines import metodo_siete as m7
+from app.domain.engines import metodo_ocho as m8
 from app.domain.engines import reparto_por_descubrimiento as rpd
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
@@ -18,6 +18,7 @@ from app.domain.engines.youth_training_plan import (
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
     RITMO_INDIVIDUAL_DUDOSO,
+    VARIANTES_POR_HABILIDAD,
     Asignacion,
     factor_secundario,
     mejor_variante,
@@ -98,41 +99,35 @@ _CUBOS_CON_RESPALDO = frozenset(
 )
 
 
-def _desmenuza(rows: list[Any], weight_base: float, peso_bonus: float) -> list[m7.Habilidad]:
-    """Parte cada puntaje en sus tres sumandos: respaldo, ignorancia y bonus.
+def _desmenuza(rows: list[Any], weight_base: float, peso_bonus: float) -> list[m8.Habilidad]:
+    """Traduce cada fila del ranking a lo que el metodo 8 necesita.
 
-    Es la unica cuenta que el metodo 7 necesita y que la fila no trae hecha.
-    Se rehace con la MISMA base de pesos y el MISMO peso de bonus que uso el
-    ranking: calcularla contra otra escalera daria proporciones que no
-    corresponden al numero que el usuario esta viendo.
+    Le hacen falta los CUBOS enteros --no solo el puntaje-- porque dos de sus
+    tres reglas miran la composicion: la aptitud cuenta cuantos hay en el
+    peldano 4 o mejor, y la robustez le quita UNO del peldano mas alto.
+
+    Los pesos se rehacen con la MISMA base que uso el ranking: calcularlos
+    contra otra escalera daria proporciones que no corresponden al numero que
+    el usuario esta viendo.
     """
-    pesos = yss.weights_for(weight_base)
-    salida: list[m7.Habilidad] = []
-    for r in rows:
-        respaldo = ignorancia = 0.0
-        for cubo, n in r.counts.items():
-            w = n * pesos.get(cubo, 0.0) / yss.SQUAD_NORMALISER
-            if cubo in _CUBOS_CON_RESPALDO:
-                respaldo += w
-            else:
-                ignorancia += w
-        salida.append(
-            m7.Habilidad(
-                skill=r.skill,
-                label=r.label,
-                respaldo=respaldo,
-                desconocido=ignorancia,
-                # El Bonus Personalizado cuenta como NO respaldo: es una
-                # preferencia del usuario, no evidencia sobre los chicos.
-                bonus=(r.trainable_count or 0.0) * peso_bonus / yss.SQUAD_NORMALISER,
-            )
+    pesos = {b: w / yss.SQUAD_NORMALISER for b, w in yss.weights_for(weight_base).items()}
+    return [
+        m8.Habilidad(
+            skill=r.skill,
+            label=r.label,
+            cubos={b: n for b, n in r.counts.items() if n},
+            pesos=pesos,
+            # El Bonus Personalizado cuenta como NO respaldo: es una
+            # preferencia del usuario, no evidencia sobre los chicos.
+            bonus=(r.trainable_count or 0.0) * peso_bonus / yss.SQUAD_NORMALISER,
         )
-    return salida
+        for r in rows
+    ]
 
 
 def _cola_para(clave: str, fila: Any, rows: list[Any]) -> list[Any]:
     """La cola de un entrenamiento. «Individual» ordena por descubrimiento."""
-    if clave != m7.INDIVIDUAL:
+    if clave != m8.INDIVIDUAL:
         return list(fila.players) if fila is not None else []
     todos: dict[str, Any] = {}
     for r in rows:
@@ -141,18 +136,40 @@ def _cola_para(clave: str, fila: Any, rows: list[Any]) -> list[Any]:
     return rpd.cola_de_descubrimiento(list(todos.values()), _sin_revelar_por_jugador(rows))
 
 
-def _veredicto_json(v: m7.Veredicto | None) -> dict[str, Any]:
-    """El porque, para que la pantalla no tenga que rehacer la cuenta."""
+def _veredicto_json(v: m8.Veredicto | None) -> dict[str, Any]:
+    """El porque CON SUS NUMEROS, para que la pantalla no rehaga la cuenta ni
+    haya que creerse la frase."""
     if v is None:
         return {}
     return {
         "method": {
+            "path": v.camino,
             "why": v.motivo,
-            "unbackedMain": round(v.no_respaldo_principal, 3),
-            "unbackedSecond": (
-                None if v.no_respaldo_secundaria is None else round(v.no_respaldo_secundaria, 3)
+            "threshold": m8.UMBRAL_DE_DESCARTE,
+            "main": {
+                "score": round(v.puntaje_principal, 3),
+                "unbacked": round(v.no_respaldo_principal, 3),
+                "backed": v.respaldados_principal,
+            },
+            # La prueba de robustez, con el antes y el despues: es lo unico
+            # que separa «un grupo» de «un chico con buen puntaje».
+            "robustness": {
+                "removedRung": v.peldano_quitado,
+                "scoreWithout": round(v.puntaje_sin_el, 3),
+                "held": v.robusta,
+                "overtakenBy": v.quien_adelanta,
+            },
+            "second": (
+                None
+                if v.label_segunda is None
+                else {
+                    "label": v.label_segunda,
+                    "unbacked": (
+                        None if v.no_respaldo_segunda is None else round(v.no_respaldo_segunda, 3)
+                    ),
+                    "backed": v.respaldados_segunda,
+                }
             ),
-            "threshold": m7.UMBRAL_DE_DESCARTE,
         }
     }
 
@@ -181,22 +198,22 @@ def _recoloca_para_descubrir(
     quien más lo aprovecha puede costar más de lo que gana quien se lo queda.
     Modifica `plan` en el sitio.
     """
-    if m7.INDIVIDUAL not in (main, secondary):
+    if m8.INDIVIDUAL not in (main, secondary):
         return
 
-    individual = ENTRENAMIENTOS[m7.INDIVIDUAL]
+    individual = ENTRENAMIENTOS[m8.INDIVIDUAL]
     # Lo que el COMPAÑERO ya entrena, que por eso no cuenta como descubrir. Si
     # sube dos --«Anotación y balón parado»-- se descuentan las dos.
-    companero = ENTRENAMIENTOS.get(secondary if main == m7.INDIVIDUAL else main)
+    companero = ENTRENAMIENTOS.get(secondary if main == m8.INDIVIDUAL else main)
     excluidas: set[str] = set()
-    if companero is not None and companero.codigo != m7.INDIVIDUAL:
+    if companero is not None and companero.codigo != m8.INDIVIDUAL:
         excluidas.add(companero.skill)
         if companero.tambien_sube:
             excluidas.add(companero.tambien_sube)
 
     # Las sillas en juego: las que NO pertenecen a la región del compañero.
     # Cuando Individual está en los dos huecos, todas lo están.
-    if main == secondary == m7.INDIVIDUAL:
+    if main == secondary == m8.INDIVIDUAL:
         libres = [a for a in plan.asignaciones if a.puesto]
     else:
         del_companero = {REGION_AMBOS, REGION_SOLO_PRINCIPAL}
@@ -264,36 +281,41 @@ def _pareja_sugerida(
 ) -> dict[str, Any] | None:
     """Que entrenar de principal y de secundario, con la forma que encaja.
 
-    Metodo 7, firmado por el usuario el 2026-08-26: cada hueco mira SU
-    posicion del ranking y entra Individual si esa esta descartada. Las reglas
-    viven en `metodo_siete`; aqui solo se traducen a la respuesta de siempre,
-    asi que la pantalla recibe los mismos campos y no se entera.
+    Metodo 8, firmado el 2026-08-30. Las reglas viven en `metodo_ocho`; aqui
+    solo se traducen a la respuesta de siempre, asi que la pantalla recibe los
+    mismos campos.
     """
     if not rows:
         return None
     if peso_bonus is None:
         peso_bonus = yss.trainable_weight_for(weight_base)
 
-    veredicto = m7.decidir(_desmenuza(rows, weight_base, peso_bonus))
+    veredicto = m8.decidir(_desmenuza(rows, weight_base, peso_bonus))
     if veredicto is None:
         return None
 
     por_skill = {r.skill: r for r in rows}
-    individual = ENTRENAMIENTOS[m7.INDIVIDUAL]
+    individual = ENTRENAMIENTOS[m8.INDIVIDUAL]
 
     def etiqueta(clave: str) -> str:
-        if clave == m7.INDIVIDUAL:
+        if clave == m8.INDIVIDUAL:
             return individual.label
         fila = por_skill.get(clave)
         return fila.label if fila else clave
 
     principal, secundaria = veredicto.principal, veredicto.secundaria
 
-    # La FORMA del secundario: la variante que mas solapa con el principal.
-    # «Individual» no tiene variantes, asi que se queda como esta.
-    codigo_sec = secundaria
-    if secundaria != m7.INDIVIDUAL and principal != m7.INDIVIDUAL:
+    # La FORMA del secundario. Tres casos:
+    #  - doblar: la OTRA forma de la misma habilidad, nunca el mismo codigo.
+    #    Es lo que estira el alcance de cuatro sillas a siete.
+    #  - Individual: no tiene variantes.
+    #  - lo demas: la variante que mas solapa con el principal.
+    if veredicto.camino == m8.DOBLAR:
+        codigo_sec = _otra_forma(principal)
+    elif secundaria != m8.INDIVIDUAL and principal != m8.INDIVIDUAL:
         codigo_sec = mejor_variante(principal, secundaria)
+    else:
+        codigo_sec = secundaria
     variante = ENTRENAMIENTOS.get(codigo_sec)
 
     plan = youth_training_plan(
@@ -309,12 +331,25 @@ def _pareja_sugerida(
         "mainLabel": etiqueta(principal),
         "secondary": codigo_sec,
         "secondaryLabel": variante.label if variante else etiqueta(secundaria),
-        "secondarySkill": "" if secundaria == m7.INDIVIDUAL else secundaria,
-        # Cuantos recibirian las dos cosas con esa pareja: es lo que justifica
-        # elegir una forma y no otra.
+        "secondarySkill": "" if secundaria == m8.INDIVIDUAL else secundaria,
         "bothCount": plan.con_doble,
         **_veredicto_json(veredicto),
     }
+
+
+def _otra_forma(skill: str) -> str:
+    """La variante de esa habilidad que NO es la forma pura.
+
+    Doblar solo sirve si los dos entrenamientos llegan a puestos distintos:
+    «Lateral» alcanza extremos y laterales, y «Lateral (extremos y delanteros)»
+    alcanza extremos y delanteros. Juntas, siete sillas en vez de cuatro.
+
+    Si la habilidad no tiene variante --no todas la tienen-- se devuelve la
+    forma pura, y el motor aplica el castigo por repetir el MISMO
+    entrenamiento (la mitad en vez de dos tercios), que es lo correcto.
+    """
+    variantes = VARIANTES_POR_HABILIDAD.get(skill, [])
+    return next((c for c in variantes if c != skill), skill)
 
 
 def _topes(fila: Any) -> set[str]:
@@ -409,7 +444,7 @@ async def academy_training_plan(
     # se le exime de esta comprobacion. Todo lo demas lo trata igual que a
     # cualquier otro entrenamiento.
     for clave, skill in ((main, skill_main), (secondary, skill_sec)):
-        if clave != m7.INDIVIDUAL and skill not in por_habilidad:
+        if clave != m8.INDIVIDUAL and skill not in por_habilidad:
             raise HTTPException(404, "no hay canteranos con esas habilidades")
 
     academia = await service.get(team_id)
@@ -451,7 +486,7 @@ async def academy_training_plan(
             todos_los_notas.setdefault(n.name, n)
 
     def cola_de(clave: str, skill: str) -> list[Any]:
-        if clave == m7.INDIVIDUAL:
+        if clave == m8.INDIVIDUAL:
             return rpd.cola_de_descubrimiento(list(todos_los_notas.values()), sin_revelar)
         return list(por_habilidad[skill].players)
 
@@ -460,7 +495,7 @@ async def academy_training_plan(
         # puesto sigue sirviendo en otro, y el veto es por entrenamiento
         # entero, no por plaza. Vetarlo aqui dejaria plazas vacias por una
         # razon que no aplica a todas.
-        if clave == m7.INDIVIDUAL:
+        if clave == m8.INDIVIDUAL:
             return set()
         return {p.name for p in por_habilidad[skill].at_max}
 

@@ -16,6 +16,7 @@ import type {
   LineaDeEntrenamiento,
   ScoutsLedger,
   TrainingSlot,
+  VeredictoDeMetodo,
 } from "../services/api";
 
 /** El jugador de la academia, derivado del contrato en vez de repetido:
@@ -510,11 +511,9 @@ function WhatToTrain({
             <b className="text-[var(--youth-known)]">{top.label}</b>.
           </>
         )}
-        {/* El porqué, en sus palabras. Sin esto la recomendación es un oráculo:
-            dice qué, nunca por qué, y no se puede discutir con ella. */}
-        {sugerencia?.method && (
-          <div className="mt-1 text-xs text-[var(--muted)]">{sugerencia.method.why}</div>
-        )}
+        {/* El porqué, en sus palabras y con sus números. Sin la frase la
+            recomendación es un oráculo; sin los números, hay que creérsela. */}
+        {sugerencia?.method && <PorQue m={sugerencia.method} />}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -1093,6 +1092,68 @@ function lineasDe(
     probability: null,
     level,
   }];
+}
+
+/** El nombre de cada peldaño, para poder decir QUÉ se quitó en la prueba de
+ *  robustez. Son las claves que manda el motor. */
+const PELDANOS: Record<string, string> = {
+  excelente: "excelente",
+  bueno_pronto: "bueno joven",
+  bueno_tarde: "bueno",
+  aceptable_pronto: "aceptable joven",
+  aceptable_tarde: "aceptable",
+  desconocido_pronto: "sin revelar joven",
+  desconocido_tarde: "sin revelar",
+};
+
+/** Por qué se recomienda lo que se recomienda, con los números detrás.
+ *
+ * La frase sola sería un oráculo con mejor redacción: dice qué pasa pero hay
+ * que creérsela. Estos tres datos son los que de verdad deciden —el respaldo,
+ * el no-respaldo y la prueba de quitar al mejor— y verlos permite discutir
+ * con la recomendación en vez de obedecerla.
+ */
+function PorQue({ m }: { m: VeredictoDeMetodo }) {
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const dato = (k: string, v: string, ayuda: string) => (
+    <span key={k} className="whitespace-nowrap" title={ayuda}>
+      <span className="text-[var(--muted)]">{k} </span>
+      <b className="font-medium tabular-nums text-[var(--text)]">{v}</b>
+    </span>
+  );
+  const quitado = m.robustness.removedRung
+    ? (PELDANOS[m.robustness.removedRung] ?? m.robustness.removedRung)
+    : null;
+  return (
+    <div className="mt-1 space-y-1">
+      <div className="text-xs text-[var(--muted)]">{m.why}</div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+        {dato("puntaje", m.main.score.toFixed(2), "El de la habilidad principal")}
+        {dato(
+          "respaldo",
+          `${m.main.backed} en peldaño alto`,
+          "Canteranos en «aceptable joven» o mejor. Con cero, la habilidad cede el hueco a Individual",
+        )}
+        {dato(
+          "no es respaldo",
+          pct(m.main.unbacked),
+          `Gente sin revelar más el bonus puesto a mano. Desde ${pct(m.threshold)} la habilidad queda descartada`,
+        )}
+        {quitado &&
+          dato(
+            "sin su mejor",
+            `${m.robustness.scoreWithout.toFixed(2)} ${m.robustness.held ? "· aguanta" : `· lo adelanta ${m.robustness.overtakenBy ?? "otra"}`}`,
+            `Se le quita un «${quitado}» y se vuelve a ordenar. Si aguanta en cabeza su fuerza es un grupo y se dobla; si se cae, era un solo chico`,
+          )}
+        {m.second &&
+          dato(
+            `2.ª (${m.second.label})`,
+            `${m.second.backed ?? 0} en peldaño alto${m.second.unbacked == null ? "" : ` · ${pct(m.second.unbacked)} no es respaldo`}`,
+            "La segunda del ranking: entra al hueco secundario solo si tiene respaldo",
+          )}
+      </div>
+    </div>
+  );
 }
 
 function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
