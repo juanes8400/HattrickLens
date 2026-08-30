@@ -758,6 +758,25 @@ export interface YouthComparisonRow {
   age: string;
   isNew: boolean;
   changes: YouthComparisonChange[];
+  /** Que se piensa de el AHORA: crack, promesa, aceptable, vendible,
+   *  fontanero. `null` si el ojeador no ha revelado ni un techo. */
+  verdict?: string | null;
+  /** Solo cuando este sync lo MOVIO. Es la diferencia entre «se revelo un
+   *  numero» y «este chico es otra cosa». */
+  verdictBefore?: string | null;
+}
+
+/** Lo que el descubrimiento de esta semana significa para la academia entera.
+ *  Una lista de techos sueltos no dice nada; esto si. */
+export interface YouthSummary {
+  revelations: number;
+  /** Techos conocidos antes y ahora, sobre el total de lecturas posibles. */
+  ceilingsBefore: number;
+  ceilingsNow: number;
+  readings: number;
+  verdictChanges: { name: string; from: string | null; to: string }[];
+  /** Quien salio de la academia desde el informe anterior. */
+  left: { name: string; leftAt: string | null }[];
 }
 
 /** Por que el metodo 8 eligio lo que eligio, CON SUS NUMEROS: la frase sola
@@ -890,6 +909,7 @@ export interface LastSyncChanges {
   playerRows: PlayerComparisonRow[];
   /** La academia. Puede faltar en respuestas de una version anterior. */
   youthRows?: YouthComparisonRow[];
+  youthSummary?: YouthSummary;
   summary: ChangeMetricSummary[];
   clubChanges: ClubComparisonChange[];
   /** Partidos de selección jugados desde el informe anterior. */

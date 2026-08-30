@@ -459,10 +459,40 @@ export function SyncChangesPage() {
         </div>
       )}
 
-      <SyncMetaSummary data={data} changes={changes} />
+      {/* ORDEN, 2026-08-30. Antes la página abría con «Mecánica de sync»
+          --telemetría del proceso, no del club-- y cerraba con «Qué haría
+          ahora», que es la conclusión. Pirámide invertida al revés: lo
+          accionable en el puesto 11 de 12 y lo instrumental en el 1.
 
-      {data && <EconomySection changes={data.clubChanges} />}
+          Ahora manda la pregunta que trae el usuario: «¿qué pasó y qué hago?».
+          Primero el veredicto, luego el detalle por bloques, y la mecánica del
+          sync al final, que es donde va lo que solo importa si algo huele mal. */}
 
+      {actions.length > 0 && (
+        <Panel title="Qué haría ahora" meta="lo primero, porque es lo único accionable">
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {actions.map((item) => (
+              <div key={item.title} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
+                <div
+                  className={
+                    item.tone === "positive"
+                      ? "text-sm font-semibold text-[var(--positive)]"
+                      : item.tone === "danger"
+                        ? "text-sm font-semibold text-[var(--danger)]"
+                        : "text-sm font-semibold"
+                  }
+                >
+                  {item.title}
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {/* El detalle, de lo que más cambia una decisión a lo que menos. Los
+          jugadores primero: es lo que el usuario vino a ver. */}
       <Panel title="Cambios por jugador" meta="jugador por jugador, habilidad por habilidad">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <Tabs
@@ -501,35 +531,18 @@ export function SyncChangesPage() {
         )}
       </Panel>
 
-      {data && <YouthChanges rows={data.youthRows ?? []} />}
+      {data && <YouthChanges rows={data.youthRows ?? []} summary={data.youthSummary} />}
+
+      {data && <TrainingSection changes={data.clubChanges} />}
+      {data && <EconomySection changes={data.clubChanges} />}
+      {data && <ClubMoraleSection changes={data.clubChanges} />}
+      {data && <NationalTeamSection appearances={data.nationalMatches ?? []} />}
+
+      {/* Al fondo: no describe al club, describe a la herramienta. Solo
+          importa cuando algo no cuadra y hay que saber contra qué se comparó. */}
+      <SyncMetaSummary data={data} changes={changes} />
 
       <PreguntaDeVisitas />
-      {data && <NationalTeamSection appearances={data.nationalMatches ?? []} />}
-      {data && <TrainingSection changes={data.clubChanges} />}
-      {data && <ClubMoraleSection changes={data.clubChanges} />}
-
-      {actions.length > 0 && (
-        <Panel title="Qué haría ahora" meta="resumen accionable">
-          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-            {actions.map((item) => (
-              <div key={item.title} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
-                <div
-                  className={
-                    item.tone === "positive"
-                      ? "text-sm font-semibold text-[var(--positive)]"
-                      : item.tone === "danger"
-                        ? "text-sm font-semibold text-[var(--danger)]"
-                        : "text-sm font-semibold"
-                  }
-                >
-                  {item.title}
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{item.detail}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
 
       {changes.length > 0 ? (
         <SyncChangesFeed changes={changes} playerLinks={playerLinks} onDismiss={() => undefined} />

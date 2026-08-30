@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import start_of_iso_week
+from app.domain.engines import academy_engine as academy
 from app.domain.engines.sync_diff import Change, diff_training
 from app.domain.value_objects.formatting import thousands
 from app.domain.value_objects.ht_constants import (
@@ -319,14 +320,48 @@ def _cambio_juvenil(
     }
 
 
-async def _youth_report(session: AsyncSession, team_id: int, sync_id: int) -> list[dict[str, Any]]:
-    """Que se movio en la academia desde la semana pasada.
+def _veredicto_de(foto: Any) -> str | None:
+    """La categoria del canterano segun esa foto: crack, promesa, aceptable...
+
+    Sale del mejor techo REVELADO, igual que en la pantalla de Juveniles, para
+    que las dos no puedan discrepar sobre el mismo chico.
+    """
+    techos = [getattr(foto, f"{clave}_max") for clave, _, _ in YOUTH_METRICS]
+    conocidos = [t for t in techos if t is not None]
+    if not conocidos:
+        return None
+    return str(academy.categoria_de(max(conocidos)))
+
+
+def _cuantos_techos(foto: Any) -> int:
+    """Cuantas de las siete tienen ya techo revelado en esa foto."""
+    return sum(1 for clave, _, _ in YOUTH_METRICS if getattr(foto, f"{clave}_max") is not None)
+
+
+async def _youth_report(
+    session: AsyncSession, team_id: int, sync_id: int, desde: datetime | None = None
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Que se movio en la academia, y QUE SIGNIFICA.
 
     Vive aparte de `_player_report` porque un canterano no tiene TSI ni
     salario, y en cambio cada habilidad suya son dos numeros. Meter los dos
     casos en una sola funcion obligaba a llenar de nulos media fila.
+
+    2026-08-30, pedido por el usuario: enseñar el descubrimiento «de manera mas
+    profunda». Una lista de «Pases: techo 3» no dice nada por si sola; lo que
+    importa es lo que ese numero CAMBIO:
+
+      * si movio el veredicto del chico --de «fontanero» a «promesa» es una
+        noticia, de «fontanero» a «fontanero» es ruido--;
+      * y cuanta niebla se levanto en la academia entera, que es el numero que
+        dice si merece la pena seguir entrenando «Individual».
+
+    Devuelve `(filas, resumen)`.
     """
     filas: list[dict[str, Any]] = []
+    revelaciones = 0
+    techos_antes = techos_ahora = 0
+    cambios_de_veredicto: list[dict[str, Any]] = []
     resultado = await session.execute(
         select(m.YouthSnapshot, m.YouthPlayer)
         .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
@@ -338,7 +373,8 @@ async def _youth_report(session: AsyncSession, team_id: int, sync_id: int) -> li
         .order_by(m.YouthPlayer.last_name, m.YouthPlayer.first_name)
     )
 
-    for actual, juvenil in resultado.all():
+    filas_academia = resultado.all()
+    for actual, juvenil in filas_academia:
         nombre = (juvenil.first_name + " " + juvenil.last_name).strip()
         edad = f"{actual.age_years};{actual.age_days:03d}"
         anterior = await _previous_youth_snapshot(session, actual)
@@ -369,6 +405,20 @@ async def _youth_report(session: AsyncSession, team_id: int, sync_id: int) -> li
             c = _cambio_juvenil(clave, etiqueta, abrev, anterior, actual)
             if c is not None:
                 cambios.append(c)
+                if c["isReveal"] or c["maxIsNew"]:
+                    revelaciones += 1
+
+        # Lo que el descubrimiento CAMBIO. Un techo nuevo que no mueve el
+        # veredicto es un dato; uno que lo mueve es una noticia.
+        antes_v, ahora_v = _veredicto_de(anterior), _veredicto_de(actual)
+        techos_antes += _cuantos_techos(anterior)
+        techos_ahora += _cuantos_techos(actual)
+        # No es un «ascenso»: es que el veredicto CAMBIO. Pasar de no tener
+        # ninguno a «fontanero» no es una buena noticia, y llamarlo ascenso
+        # seria mentir con la etiqueta. La pantalla decide el enfasis.
+        cambio_veredicto = antes_v != ahora_v and ahora_v is not None
+        if cambio_veredicto:
+            cambios_de_veredicto.append({"name": nombre, "from": antes_v, "to": ahora_v})
 
         # Poder ascender es noticia UNA vez: el dia que el contador llega a
         # cero. Repetirlo cada semana lo convierte en ruido.
@@ -393,10 +443,48 @@ async def _youth_report(session: AsyncSession, team_id: int, sync_id: int) -> li
                     "age": edad,
                     "isNew": False,
                     "changes": cambios,
+                    # El veredicto, y si este sync lo movio. Es lo que separa
+                    # «se revelo un numero» de «este chico es otra cosa».
+                    "verdict": ahora_v,
+                    "verdictBefore": antes_v if cambio_veredicto else None,
                 }
             )
 
-    return filas
+    # Quien SALIO de la academia desde el informe anterior. Hasta el
+    # 2026-08-30 esto no se decia en ningun sitio: un canterano ascendia o se
+    # marchaba y la pantalla de Cambios callaba, que es justo el cambio mas
+    # grande que le puede pasar a la cantera en una semana.
+    salidas: list[dict[str, Any]] = []
+    if desde is not None:
+        idos = (
+            await session.execute(
+                select(m.YouthPlayer).where(
+                    m.YouthPlayer.team_id == team_id,
+                    m.YouthPlayer.left_at.is_not(None),
+                    m.YouthPlayer.left_at >= desde,
+                )
+            )
+        ).scalars()
+        salidas = [
+            {
+                "name": f"{j.first_name} {j.last_name}".strip(),
+                "leftAt": j.left_at.isoformat() if j.left_at else None,
+            }
+            for j in idos
+        ]
+
+    # Cuanta niebla queda en la academia entera. Es el numero que dice si
+    # todavia merece la pena entrenar «Individual» o si ya se puede construir.
+    total_lecturas = len(filas_academia) * len(YOUTH_METRICS)
+    resumen = {
+        "revelations": revelaciones,
+        "ceilingsBefore": techos_antes,
+        "ceilingsNow": techos_ahora,
+        "readings": total_lecturas,
+        "verdictChanges": cambios_de_veredicto,
+        "left": salidas,
+    }
+    return filas, resumen
 
 
 async def _snapshot_for_sync_or_before(
@@ -765,7 +853,6 @@ async def build_sync_comparison(
     latest_changes = await _changes_for_sync(session, latest.id)
     report_changes = await _changes_for_sync(session, report_sync.id)
     player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
-    youth_rows = await _youth_report(session, team_id, report_sync.id)
     club_changes = await _club_report(session, team_id, report_sync, currency_rate)
     # El sync anterior a este, haya movido algo o no: si se tomara el anterior
     # CON cambios, los partidos de seleccion de la ventana intermedia se
@@ -775,6 +862,9 @@ async def build_sync_comparison(
         .where(*normal_sync_filter, m.Sync.started_at < report_sync.started_at)
         .order_by(m.Sync.started_at.desc())
         .limit(1)
+    )
+    youth_rows, youth_summary = await _youth_report(
+        session, team_id, report_sync.id, anterior.started_at if anterior else None
     )
     national_matches = await _partidos_de_seleccion(
         session,
@@ -796,6 +886,8 @@ async def build_sync_comparison(
         # tiene TSI ni salario, y en cambio cada habilidad suya son dos
         # numeros: lo que tiene y hasta donde puede llegar.
         "youthRows": youth_rows,
+        # Lo que el descubrimiento significa para la academia entera.
+        "youthSummary": youth_summary,
         "summary": summary,
         "clubChanges": club_changes,
         "nationalMatches": national_matches,

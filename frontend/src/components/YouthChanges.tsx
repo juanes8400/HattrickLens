@@ -1,6 +1,10 @@
 import clsx from "clsx";
 import { Empty, Panel } from "./Panels";
-import type { YouthComparisonChange, YouthComparisonRow } from "../services/api";
+import type {
+  YouthComparisonChange,
+  YouthComparisonRow,
+  YouthSummary,
+} from "../services/api";
 
 /**
  * Los cambios de la academia, con el mismo formato que los de la plantilla
@@ -112,9 +116,28 @@ function Linea({ change }: { change: YouthComparisonChange }) {
 function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
-      <header className="mb-2 flex items-baseline justify-between gap-2 border-b border-[var(--border)] pb-2">
-        <span className="text-sm font-semibold">{fila.name}</span>
-        <span className="shrink-0 text-xs tabular-nums text-[var(--muted)]">{fila.age}</span>
+      <header className="mb-2 border-b border-[var(--border)] pb-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-sm font-semibold">{fila.name}</span>
+          <span className="shrink-0 text-xs tabular-nums text-[var(--muted)]">{fila.age}</span>
+        </div>
+        {/* Lo que se piensa de él AHORA, y si esto lo movió. Un techo suelto
+            no dice nada; que el chico haya pasado de «fontanero» a «promesa»
+            sí. */}
+        {fila.verdict && (
+          <div className="mt-1 text-[11px]">
+            <span className={fila.verdictBefore ? "text-[var(--youth-known)]" : "text-[var(--muted)]"}>
+              {fila.verdictBefore ? (
+                <>
+                  ahora es <b className="font-medium">{fila.verdict}</b>
+                  {fila.verdictBefore !== fila.verdict && <> · antes {fila.verdictBefore}</>}
+                </>
+              ) : (
+                <>sigue siendo {fila.verdict}</>
+              )}
+            </span>
+          </div>
+        )}
       </header>
       <ul className="space-y-1.5 text-xs">
         {fila.changes.map((change, i) => (
@@ -128,28 +151,87 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
   );
 }
 
-export function YouthChanges({ rows }: { rows: YouthComparisonRow[] }) {
-  // Cuántas revelaciones trajo el informe. Es la cifra que dice si la academia
-  // se está destapando o sigue a oscuras, y no se deduce mirando las tarjetas
-  // una a una.
-  const revelaciones = rows.reduce(
-    (total, fila) =>
-      total + fila.changes.filter((c) => c.isReveal || c.maxIsNew).length,
-    0,
+/** Una cifra del resumen, con su lectura debajo. */
+function Cifra({ n, de, hint }: { n: string; de: string; hint?: string }) {
+  return (
+    <div className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2" title={hint}>
+      <div className="text-lg font-semibold tabular-nums leading-none">{n}</div>
+      <div className="mt-1 text-[11px] leading-tight text-[var(--muted)]">{de}</div>
+    </div>
   );
+}
+
+export function YouthChanges({
+  rows,
+  summary,
+}: {
+  rows: YouthComparisonRow[];
+  summary?: YouthSummary;
+}) {
+  const revelaciones =
+    summary?.revelations ??
+    rows.reduce((t, f) => t + f.changes.filter((c) => c.isReveal || c.maxIsNew).length, 0);
+  const salidas = summary?.left ?? [];
+  const veredictos = summary?.verdictChanges ?? [];
+  const conocidos = summary?.ceilingsNow ?? 0;
+  const lecturas = summary?.readings ?? 0;
+  const aCiegas = lecturas > 0 ? Math.round((100 * (lecturas - conocidos)) / lecturas) : null;
+  const hayAlgo = rows.length > 0 || salidas.length > 0;
 
   return (
     <Panel
-      title="Cambios en la academia"
+      title="La cantera"
       meta={
-        rows.length === 0
-          ? "sin novedades"
-          : `${rows.length} canterano${rows.length === 1 ? "" : "s"}` +
-            (revelaciones > 0
-              ? ` · ${revelaciones} ${revelaciones === 1 ? "revelación" : "revelaciones"}`
-              : "")
+        hayAlgo
+          ? `${revelaciones} ${revelaciones === 1 ? "revelación" : "revelaciones"}` +
+            (salidas.length > 0 ? ` · ${salidas.length} se ${salidas.length === 1 ? "fue" : "fueron"}` : "")
+          : "sin novedades"
       }
     >
+      {/* LO QUE SIGNIFICA, antes que el detalle. Una lista de «Pases: techo 3»
+          no contesta la pregunta que trae el usuario --¿voy saliendo de la
+          niebla?-- y esa se contesta con dos números. */}
+      {lecturas > 0 && (
+        <div className="grid grid-cols-2 gap-2 border-b border-[var(--border)] p-4 md:grid-cols-4">
+          <Cifra
+            n={String(revelaciones)}
+            de={revelaciones === 1 ? "techo nuevo esta vez" : "techos nuevos esta vez"}
+            hint="Habilidades cuyo nivel o techo se descubrió en esta comparación"
+          />
+          <Cifra
+            n={`${conocidos}/${lecturas}`}
+            de="techos conocidos"
+            hint="De todas las lecturas jugador × habilidad de la academia"
+          />
+          {aCiegas != null && (
+            <Cifra
+              n={`${aCiegas}%`}
+              de="sigue a ciegas"
+              hint="Mientras esto sea alto, «Individual» rinde más que cualquier habilidad concreta"
+            />
+          )}
+          {veredictos.length > 0 && (
+            <Cifra
+              n={String(veredictos.length)}
+              de={veredictos.length === 1 ? "cambió de veredicto" : "cambiaron de veredicto"}
+              hint="El descubrimiento movió lo que se piensa del canterano"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Irse de la academia es el cambio MÁS GRANDE que le puede pasar a un
+          canterano, así que va antes que cualquier techo revelado. Hasta el
+          2026-08-30 no se decía en ningún sitio. */}
+      {salidas.length > 0 && (
+        <div className="border-b border-[var(--border)] px-4 py-3 text-sm">
+          <span className="font-medium">
+            {salidas.length === 1 ? "Dejó la academia" : "Dejaron la academia"}:
+          </span>{" "}
+          <span className="text-[var(--muted)]">{salidas.map((x) => x.name).join(" · ")}</span>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <Empty>
           Ningún canterano se movió en esta comparación. En juveniles es lo

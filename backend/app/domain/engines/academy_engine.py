@@ -135,7 +135,7 @@ CORTE_VENDIBLE = 5
 MAX_SIN_REVELAR_PARA_CONDENAR = 0
 
 
-def _categorise(best_max: int | None) -> Category:
+def categoria_de(best_max: int | None) -> Category:
     """La categoria sale del techo REVELADO, nunca del asumido.
 
     Con el techo supuesto --8 mientras el ojeador calla-- todo canterano sin
@@ -154,6 +154,9 @@ def _categorise(best_max: int | None) -> Category:
         return Category.SELLABLE
     return Category.PLUMBER
 
+
+#: El nombre privado se conserva: hay codigo y pruebas que lo importan.
+_categorise = categoria_de
 
 #: Las categorias que CONDENAN a un canterano. Solo estas necesitan que no
 #: quede nada por revelar.
@@ -238,7 +241,7 @@ def evaluate(
     # Sin revelaciones un juvenil no es un fontanero, pero tampoco un crack:
     # es un desconocido. El techo asumido sigue alimentando `potential_score`
     # --sirve para ordenar-- pero no fabrica una etiqueta.
-    category = _categorise(best_max)
+    category = categoria_de(best_max)
     left = days_until_deadline(age_years, age_days)
     revealed = sum(1 for s in skills.values() if s.maximum is not None)
 
