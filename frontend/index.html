@@ -1,9 +1,27 @@
-<!DOCTYPE html>
-<html lang="es" data-theme="light">
+<!doctype html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HT Lens</title>
+    <!--
+      El tema elegido, aplicado ANTES de pintar.
+
+      Va aquí y no en React a propósito: si esperara al primer render, la
+      página aparecería un instante en claro antes de saltar a oscuro. Sin
+      elección guardada no se estampa nada y manda `prefers-color-scheme`,
+      que es el estado «sigue al sistema».
+    -->
+    <script>
+      try {
+        var t = localStorage.getItem("htlens.tema");
+        if (t === "oscuro") document.documentElement.dataset.theme = "dark";
+        else if (t === "claro")
+          document.documentElement.dataset.theme = "light";
+      } catch (e) {
+        /* Sin almacenamiento: se sigue al sistema. */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

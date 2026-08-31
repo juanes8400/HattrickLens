@@ -10,8 +10,66 @@
 :root {
   --pitch-card: min(9rem, calc((100vw - 4rem) / 5));
   --pitch-card-font: clamp(0.6rem, 2.3vw, 0.75rem);
+
+  /* La paleta CLARA vive aquí, en el :root pelado, y no detrás de un
+     `[data-theme]`. Antes los quince tokens sólo existían dentro de
+     `[data-theme="dark"]` y `[data-theme="light"]`, así que sin el atributo
+     estampado a mano en el HTML ninguno tenía valor. Con la base aquí, la
+     página se pinta bien aunque nadie estampe nada — que es justo el estado
+     «sigue al sistema» (2026-08-31). */
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f2f2f4;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent: #3b63e0;
+  --accent-soft: #3b63e01a;
+  --positive: #1a9e5c;
+  /* 3,33 sobre blanco. Con #c98a10 eran 2,95, por debajo del mínimo
+     de 3:1 para elementos gráficos (medido el 2026-08-31). */
+  --warning: #bd8109;
+  --mercado-venta: #6d4fa0;
+  --mercado-compra: #96651f;
+  --danger: #d1383d;
+  --youth-known: #c98a10;
+  --youth-headroom: #c98a1033;
 }
 
+/* Oscuro por preferencia del sistema. El `:not([data-theme="light"])` es lo
+   que hace que una elección explícita de claro gane sobre un sistema oscuro.
+   OJO: este bloque y el de abajo son la MISMA paleta y se tocan juntos; no se
+   pueden fundir en un selector porque uno vive dentro de la media query. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a0a0b;
+    --surface: #111113;
+    --surface-2: #17171a;
+    --border: #26262b;
+    --text: #ededef;
+    --muted: #8b8b93;
+    --accent: #4f7cff;
+    --accent-soft: #4f7cff22;
+    --positive: #2fbf71;
+    --warning: #f5a524;
+    --danger: #e5484d;
+    /* Juveniles: amarillo para lo que el ojeador YA midió, y un tono apagado del
+     mismo color para el recorrido que le queda hasta el techo. Amarillo y no
+     el azul de acento porque en Juveniles nada está confirmado del todo: el
+     color dice "esto es una lectura del ojeador", no "esto es un hecho". */
+    --youth-known: #f5a524;
+    --youth-headroom: #f5a52440;
+    /* El pulso de mercado de Psicología: venta y compra necesitan dos colores
+     que NO sean el verde/rojo de resultado --no son buenas ni malas noticias,
+     sólo movimientos-- y que se distingan del acento. Van por tema porque un
+     morado de modo claro sobre fondo casi negro queda en 3,59 de contraste
+     (medido el 2026-08-31), justo en el filo. */
+    --mercado-venta: #a78bda;
+    --mercado-compra: #d9a15c;
+  }
+}
+
+/* Oscuro por elección explícita, que gana sobre un sistema claro. */
 :root[data-theme="dark"] {
   --bg: #0a0a0b;
   --surface: #111113;
@@ -39,32 +97,25 @@
   --mercado-compra: #d9a15c;
 }
 
-:root[data-theme="light"] {
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --surface-2: #f2f2f4;
-  --border: #e4e4e7;
-  --text: #18181b;
-  --muted: #71717a;
-  --accent: #3b63e0;
-  --accent-soft: #3b63e01a;
-  --positive: #1a9e5c;
-  /* 3,33 sobre blanco. Con #c98a10 eran 2,95, por debajo del mínimo
-     de 3:1 para elementos gráficos (medido el 2026-08-31). */
-  --warning: #bd8109;
-  --mercado-venta: #6d4fa0;
-  --mercado-compra: #96651f;
-  --danger: #d1383d;
-  --youth-known: #c98a10;
-  --youth-headroom: #c98a1033;
+html,
+body,
+#root {
+  height: 100%;
 }
-
-html, body, #root { height: 100%; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.tabular-nums { font-variant-numeric: tabular-nums; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

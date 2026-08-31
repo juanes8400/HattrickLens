@@ -89,7 +89,9 @@ export function SerieConCausas({
   /** Qué cuenta la gráfica, para quien no la ve. */
   ariaLabel: string;
 }) {
-  const [tip, setTip] = useState<{ x: number; y: number; html: string } | null>(null);
+  const [tip, setTip] = useState<{ x: number; y: number; html: string } | null>(
+    null,
+  );
   const uid = useId().replace(/:/g, "");
 
   if (readings.length < 2) return null;
@@ -112,7 +114,9 @@ export function SerieConCausas({
   const max = scale
     ? Math.max(...niveles)
     : Math.max(...readings.map((r) => r.level));
-  const min = scale ? Math.min(...niveles) : Math.min(...readings.map((r) => r.level));
+  const min = scale
+    ? Math.min(...niveles)
+    : Math.min(...readings.map((r) => r.level));
   const Y = (v: number) => T + ((max - v) / (max - min || 1)) * alto;
 
   const vistos = new Set(readings.map((r) => r.level));
@@ -138,11 +142,18 @@ export function SerieConCausas({
           return (
             <g key={p.level}>
               <line
-                x1={L} y1={Y(p.level)} x2={W - R} y2={Y(p.level)}
-                stroke="var(--border)" opacity={hay ? 1 : 0.4}
+                x1={L}
+                y1={Y(p.level)}
+                x2={W - R}
+                y2={Y(p.level)}
+                stroke="var(--border)"
+                opacity={hay ? 1 : 0.4}
               />
               <text
-                x={L - 9} y={Y(p.level) + 3.2} textAnchor="end" fontSize="9.5"
+                x={L - 9}
+                y={Y(p.level) + 3.2}
+                textAnchor="end"
+                fontSize="9.5"
                 fill={hay ? "var(--muted)" : "var(--border)"}
               >
                 {p.label}
@@ -155,8 +166,20 @@ export function SerieConCausas({
             const v = min + (max - min) * f;
             return (
               <g key={f}>
-                <line x1={L} y1={Y(v)} x2={W - R} y2={Y(v)} stroke="var(--border)" />
-                <text x={L - 9} y={Y(v) + 3.2} textAnchor="end" fontSize="9.5" fill="var(--muted)">
+                <line
+                  x1={L}
+                  y1={Y(v)}
+                  x2={W - R}
+                  y2={Y(v)}
+                  stroke="var(--border)"
+                />
+                <text
+                  x={L - 9}
+                  y={Y(v) + 3.2}
+                  textAnchor="end"
+                  fontSize="9.5"
+                  fill="var(--muted)"
+                >
                   {Math.round(v).toLocaleString("es")}
                 </text>
               </g>
@@ -177,11 +200,22 @@ export function SerieConCausas({
               }
             />
             <line
-              x1={L} y1={Y(equilibrium)} x2={W - R} y2={Y(equilibrium)}
-              stroke="var(--warning)" strokeWidth={1.4} strokeDasharray="5 3"
+              x1={L}
+              y1={Y(equilibrium)}
+              x2={W - R}
+              y2={Y(equilibrium)}
+              stroke="var(--warning)"
+              strokeWidth={1.4}
+              strokeDasharray="5 3"
             />
             {equilibriumLabel && (
-              <text x={W - R} y={Y(equilibrium) + 13} textAnchor="end" fontSize="9" fill="var(--warning)">
+              <text
+                x={W - R}
+                y={Y(equilibrium) + 13}
+                textAnchor="end"
+                fontSize="9"
+                fill="var(--warning)"
+              >
                 {equilibriumLabel}
               </text>
             )}
@@ -189,15 +223,40 @@ export function SerieConCausas({
         )}
 
         {/* Banda de sucesos: tallo y punto, sin cajas encima del lienzo. */}
-        <text x={L - 9} y={T - 12} textAnchor="end" fontSize="9" fill="var(--muted)">
+        <text
+          x={L - 9}
+          y={T - 12}
+          textAnchor="end"
+          fontSize="9"
+          fill="var(--muted)"
+        >
           {eventsLabel}
         </text>
         {events.map((s, i) => (
           <g key={`${uid}e${i}`}>
-            <line x1={X(s.at)} y1={T} x2={X(s.at)} y2={T + alto} stroke={s.color} strokeWidth={1} opacity={0.2} />
-            <line x1={X(s.at)} y1={T - 13} x2={X(s.at)} y2={T - 4} stroke={s.color} strokeWidth={1.5} />
+            <line
+              x1={X(s.at)}
+              y1={T}
+              x2={X(s.at)}
+              y2={T + alto}
+              stroke={s.color}
+              strokeWidth={1}
+              opacity={0.2}
+            />
+            <line
+              x1={X(s.at)}
+              y1={T - 13}
+              x2={X(s.at)}
+              y2={T - 4}
+              stroke={s.color}
+              strokeWidth={1.5}
+            />
             <circle
-              cx={X(s.at)} cy={T - 16} r={5} fill={s.color} className="cursor-pointer"
+              cx={X(s.at)}
+              cy={T - 16}
+              r={5}
+              fill={s.color}
+              className="cursor-pointer"
               onMouseEnter={(e) =>
                 setTip({ x: e.clientX, y: e.clientY, html: s.detail })
               }
@@ -210,14 +269,28 @@ export function SerieConCausas({
         {readings.slice(1).map((b, i) => {
           const a = readings[i]!;
           const mv = porFecha.get(b.at);
-          const col = b.level > a.level ? VERDE : b.level < a.level ? ROJO : "var(--muted)";
+          const col =
+            b.level > a.level
+              ? VERDE
+              : b.level < a.level
+                ? ROJO
+                : "var(--muted)";
           const pts = `${X(a.at)},${Y(a.level)} ${X(b.at)},${Y(b.level)}`;
           return (
             <g key={`${uid}t${i}`}>
-              <polyline points={pts} fill="none" stroke={col} strokeWidth={2.6} strokeLinecap="round" />
+              <polyline
+                points={pts}
+                fill="none"
+                stroke={col}
+                strokeWidth={2.6}
+                strokeLinecap="round"
+              />
               {mv && (
                 <polyline
-                  points={pts} fill="none" stroke="transparent" strokeWidth={15}
+                  points={pts}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={15}
                   className="cursor-pointer"
                   onMouseEnter={(e) =>
                     setTip({
@@ -239,32 +312,69 @@ export function SerieConCausas({
         })}
         {readings.map((r, i) => (
           <circle
-            key={`${uid}p${i}`} cx={X(r.at)} cy={Y(r.level)} r={2.6}
-            fill="var(--surface)" stroke="var(--text)" strokeWidth={1.3}
+            key={`${uid}p${i}`}
+            cx={X(r.at)}
+            cy={Y(r.level)}
+            r={2.6}
+            fill="var(--surface)"
+            stroke="var(--text)"
+            strokeWidth={1.3}
           />
         ))}
 
         {/* El pulso del mercado: una cápsula por operación, apiladas por día. */}
         {hayMercado && (
           <>
-            <line x1={L} y1={T + alto + 24} x2={W - R} y2={T + alto + 24} stroke="var(--border)" />
-            <text x={L - 9} y={T + alto + 20} textAnchor="end" fontSize="9" fill="var(--muted)">ventas</text>
-            <text x={L - 9} y={T + alto + 37} textAnchor="end" fontSize="9" fill="var(--muted)">compras</text>
+            <line
+              x1={L}
+              y1={T + alto + 24}
+              x2={W - R}
+              y2={T + alto + 24}
+              stroke="var(--border)"
+            />
+            <text
+              x={L - 9}
+              y={T + alto + 20}
+              textAnchor="end"
+              fontSize="9"
+              fill="var(--muted)"
+            >
+              ventas
+            </text>
+            <text
+              x={L - 9}
+              y={T + alto + 37}
+              textAnchor="end"
+              fontSize="9"
+              fill="var(--muted)"
+            >
+              compras
+            </text>
             {(sellDays ?? []).flatMap((d) =>
               Array.from({ length: d.count }, (_, j) => (
                 <rect
-                  key={`${uid}v${d.day}${j}`} x={X(`${d.day}T12:00`) - 2.5}
-                  y={T + alto + 18 - j * 7} width={5} height={5} rx={2.5}
-                  fill="var(--mercado-venta)" opacity={0.9}
+                  key={`${uid}v${d.day}${j}`}
+                  x={X(`${d.day}T12:00`) - 2.5}
+                  y={T + alto + 18 - j * 7}
+                  width={5}
+                  height={5}
+                  rx={2.5}
+                  fill="var(--mercado-venta)"
+                  opacity={0.9}
                 />
               )),
             )}
             {(buyDays ?? []).flatMap((d) =>
               Array.from({ length: d.count }, (_, j) => (
                 <rect
-                  key={`${uid}c${d.day}${j}`} x={X(`${d.day}T12:00`) - 2.5}
-                  y={T + alto + 26 + j * 7} width={5} height={5} rx={2.5}
-                  fill="var(--mercado-compra)" opacity={0.9}
+                  key={`${uid}c${d.day}${j}`}
+                  x={X(`${d.day}T12:00`) - 2.5}
+                  y={T + alto + 26 + j * 7}
+                  width={5}
+                  height={5}
+                  rx={2.5}
+                  fill="var(--mercado-compra)"
+                  opacity={0.9}
                 />
               )),
             )}
@@ -273,8 +383,12 @@ export function SerieConCausas({
 
         {ejeSemanal(new Date(from), new Date(to)).map((d, i) => (
           <text
-            key={`${uid}x${i}`} x={X(d.toISOString())} y={H - 4}
-            textAnchor="middle" fontSize="8.5" fill="var(--muted)"
+            key={`${uid}x${i}`}
+            x={X(d.toISOString())}
+            y={H - 4}
+            textAnchor="middle"
+            fontSize="8.5"
+            fill="var(--muted)"
           >
             {d.getDate()}/{d.getMonth() + 1}
           </text>
@@ -283,7 +397,7 @@ export function SerieConCausas({
 
       {tip && (
         <div
-          className="pointer-events-none fixed z-50 max-w-[250px] rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-[11.5px] leading-snug shadow-lg"
+          className="pointer-events-none fixed z-50 max-w-[250px] rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-[11px] leading-snug shadow-lg"
           style={{ left: tip.x + 12, top: tip.y - 10 }}
           dangerouslySetInnerHTML={{ __html: tip.html }}
         />

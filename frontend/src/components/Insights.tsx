@@ -88,11 +88,17 @@ export function InsightRow({
       />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{insight.title}</div>
-        <p className="mt-0.5 text-xs leading-relaxed text-[var(--muted)]">{insight.detail}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-[var(--muted)]">
+          {insight.detail}
+        </p>
         {insight.action && (
-          <p className="mt-1.5 text-xs text-[var(--accent)]">→ {insight.action}</p>
+          <p className="mt-1.5 text-xs text-[var(--accent)]">
+            → {insight.action}
+          </p>
         )}
-        {meta && <div className="mt-1.5 text-[11px] text-[var(--muted)]">{meta}</div>}
+        {meta && (
+          <div className="mt-1.5 text-[11px] text-[var(--muted)]">{meta}</div>
+        )}
       </div>
       <div className="flex shrink-0 items-start gap-2">
         {route ? (
@@ -103,7 +109,9 @@ export function InsightRow({
             {insight.module}
           </Link>
         ) : (
-          <span className="text-[11px] text-[var(--muted)]">{insight.module}</span>
+          <span className="text-[11px] text-[var(--muted)]">
+            {insight.module}
+          </span>
         )}
         {onRestore && (
           <button
@@ -165,11 +173,17 @@ export function SeverityTally({
               style={{ background: INSIGHT_TONE[severity] }}
             />
             {SEVERITY_LABEL[severity]}
-            <span className="tabular-nums text-[var(--muted)]">{n}</span>
+            {/* El contador iba pegado a la palabra y el nombre accesible del
+                botón salía «Peligro0». Se lee del `aria-label` de abajo. */}
+            <span aria-hidden className="tabular-nums text-[var(--muted)]">
+              {n}
+            </span>
           </>
         );
         const className = clsx(
-          "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition",
+          // `min-h-6` son los 24px minimos de diana tactil: con `py-1` la
+          // pastilla medía 21 y quedaba por debajo (medido el 2026-08-31).
+          "flex min-h-6 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition",
           on
             ? "border-[var(--border)] bg-[var(--surface-2)]"
             : "border-[var(--border)] text-[var(--muted)] opacity-50",
@@ -180,6 +194,10 @@ export function SeverityTally({
             key={severity}
             onClick={() => onSelect(severity)}
             disabled={n === 0}
+            // Es un conmutador: sin `aria-pressed` el que esté puesto o
+            // quitado se transmite SÓLO por color y opacidad.
+            aria-pressed={on}
+            aria-label={`${SEVERITY_LABEL[severity]}: ${n} ${n === 1 ? "alerta" : "alertas"}`}
             className={className}
           >
             {content}

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppLayout, tituloDeRuta } from "./layouts/AppLayout";
+import { AppLayout } from "./layouts/AppLayout";
+import { tituloDeRuta } from "./layouts/navegacion";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ClubPage } from "./pages/ClubPage";
 import { TeamOverviewPage } from "./pages/TeamOverviewPage";
@@ -38,10 +39,18 @@ function RequireTeam({ children }: { children: ReactNode }) {
 function RequireImportedTeam({ children }: { children: ReactNode }) {
   const dashboard = useDashboard();
   if (dashboard.isLoading) {
-    return <main className="grid min-h-screen place-items-center"><Loading /></main>;
+    return (
+      <main className="grid min-h-screen place-items-center">
+        <Loading />
+      </main>
+    );
   }
   if (dashboard.isError) {
-    return <main className="grid min-h-screen place-items-center p-6"><ErrorState error={dashboard.error} /></main>;
+    return (
+      <main className="grid min-h-screen place-items-center p-6">
+        <ErrorState error={dashboard.error} />
+      </main>
+    );
   }
   if (!dashboard.data?.syncedAt) return <Navigate to="/setup" replace />;
   return children;
@@ -68,43 +77,61 @@ function MedidorDePaginas() {
 export function App() {
   return (
     <>
-    <MedidorDePaginas />
-    <Routes>
-      <Route path="connected" element={<ConnectedPage />} />
-      <Route path="welcome" element={<WelcomePage />} />
-      <Route path="setup" element={<RequireTeam><SetupPage /></RequireTeam>} />
-      <Route element={<RequireTeam><RequireImportedTeam><AppLayout /></RequireImportedTeam></RequireTeam>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="club" element={<ClubPage />} />
-        <Route path="overview" element={<TeamOverviewPage />} />
-        <Route path="team" element={<TeamPage />} />
-        <Route path="players/:htPlayerId" element={<PlayerPage />} />
-        <Route path="positions" element={<PositionsPage />} />
-        <Route path="lineup" element={<LineupPage />} />
-        <Route path="training" element={<TrainingPage />} />
-        <Route path="transfers/balance" element={<PlayerBalancePage />} />
-        <Route path="academy" element={<AcademyPage />} />
-        <Route path="matches" element={<MatchesPage />} />
-        <Route path="league" element={<LeaguePage />} />
-        <Route path="cup" element={<CupPage />} />
-        <Route path="rivals" element={<RivalPickerPage />} />
-        <Route path="rivals/:rivalHtTeamId" element={<RivalPage />} />
-        <Route path="economy" element={<EconomyPage />} />
-        <Route path="arena" element={<ArenaPage />} />
-        <Route path="insights" element={<InsightsPage />} />
-        <Route path="sync" element={<SyncPage />} />
-        <Route path="news" element={<SyncChangesPage />} />
-        <Route path="transparency" element={<TransparencyPage />} />
-        {/* Motor se llamaba así hasta el 2026-08-31. El enlace viejo
+      <MedidorDePaginas />
+      <Routes>
+        <Route path="connected" element={<ConnectedPage />} />
+        <Route path="welcome" element={<WelcomePage />} />
+        <Route
+          path="setup"
+          element={
+            <RequireTeam>
+              <SetupPage />
+            </RequireTeam>
+          }
+        />
+        <Route
+          element={
+            <RequireTeam>
+              <RequireImportedTeam>
+                <AppLayout />
+              </RequireImportedTeam>
+            </RequireTeam>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="club" element={<ClubPage />} />
+          <Route path="overview" element={<TeamOverviewPage />} />
+          <Route path="team" element={<TeamPage />} />
+          <Route path="players/:htPlayerId" element={<PlayerPage />} />
+          <Route path="positions" element={<PositionsPage />} />
+          <Route path="lineup" element={<LineupPage />} />
+          <Route path="training" element={<TrainingPage />} />
+          <Route path="transfers/balance" element={<PlayerBalancePage />} />
+          <Route path="academy" element={<AcademyPage />} />
+          <Route path="matches" element={<MatchesPage />} />
+          <Route path="league" element={<LeaguePage />} />
+          <Route path="cup" element={<CupPage />} />
+          <Route path="rivals" element={<RivalPickerPage />} />
+          <Route path="rivals/:rivalHtTeamId" element={<RivalPage />} />
+          <Route path="economy" element={<EconomyPage />} />
+          <Route path="arena" element={<ArenaPage />} />
+          <Route path="insights" element={<InsightsPage />} />
+          <Route path="sync" element={<SyncPage />} />
+          <Route path="news" element={<SyncChangesPage />} />
+          <Route path="transparency" element={<TransparencyPage />} />
+          {/* Motor se llamaba así hasta el 2026-08-31. El enlace viejo
             sigue funcionando: romper marcadores por un renombre no. */}
-        <Route path="engine" element={<Navigate to="/transparency" replace />} />
-        {/* Sólo la abre el administrador; el candado está en el
+          <Route
+            path="engine"
+            element={<Navigate to="/transparency" replace />}
+          />
+          {/* Sólo la abre el administrador; el candado está en el
             servidor, no aquí. */}
-        <Route path="uso" element={<UsagePage />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Route>
-    </Routes>
+          <Route path="uso" element={<UsagePage />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Routes>
     </>
   );
 }
