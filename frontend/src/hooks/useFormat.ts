@@ -40,9 +40,13 @@ export const parseUtc = (iso: string) =>
   new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(iso) ? iso : `${iso}Z`);
 
 export const date = (iso: string | null | undefined) => {
-  if (!iso) return ", ";
+  // Una fecha que falta es una raya. Aquí había una coma, y como este
+  // formateador lo usa media aplicación, era la FUENTE de las comas sueltas
+  // que se fueron arreglando una a una en las celdas (2026-08-30 y 08-31):
+  // se estaban tapando los síntomas mientras el origen seguía en pie.
+  if (!iso) return "—";
   const d = parseUtc(iso);
-  if (Number.isNaN(d.getTime())) return ", ";
+  if (Number.isNaN(d.getTime())) return "—";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;

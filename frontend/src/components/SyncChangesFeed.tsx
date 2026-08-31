@@ -302,7 +302,7 @@ export function SyncChangesFeed({
             Qué cambió desde la última sincronización · {changes.length}
           </h2>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Como Hattrick Control: sólo se muestran diferencias reales contra el snapshot anterior.
+            Sólo se muestran diferencias reales contra la lectura anterior.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -326,7 +326,7 @@ export function SyncChangesFeed({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--bg)]">
           <div className="border-b border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--muted)]">
             Jugadores

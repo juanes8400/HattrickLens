@@ -1,5 +1,7 @@
 import clsx from "clsx";
 import { ApiError } from "../services/api";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function Kpi({
   label,
@@ -223,8 +225,17 @@ export function Note({ children }: { children: React.ReactNode }) {
 }
 
 export function Loading() {
+  // El esqueleto es puramente visual: cuatro cajas que laten. Para quien usa
+  // un lector de pantalla eso no existe, y la página se quedaba muda hasta
+  // que llegaban los datos. `role="status"` la hace anunciarse, y el texto
+  // oculto le da algo que leer (2026-08-31).
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div
+      role="status"
+      aria-busy="true"
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0"
+    >
+      <span className="sr-only">Cargando…</span>
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="h-24 animate-pulse rounded-lg bg-[var(--surface)]" />
       ))}
@@ -249,14 +260,86 @@ export function ErrorState({ error }: { error: unknown }) {
       </div>
     );
   }
-  const message = error instanceof Error ? error.message : String(error);
+  return <ErrorConReintento error={error} />;
+}
+
+/** El fallo genérico, con la salida a mano.
+ *
+ *  Decía «reintenta en unos segundos» y no daba con qué: la única forma era
+ *  recargar la página entera, y con ella se perdían el filtro de la tabla, la
+ *  pestaña abierta y la posición del scroll. Decirle a alguien lo que tiene
+ *  que hacer y no dejarle hacerlo es peor que no decir nada (2026-08-31).
+ *
+ *  El botón vuelve a pedir lo que esta pantalla tenga pendiente, sin tocar el
+ *  resto del estado.
+ */
+function ErrorConReintento({ error }: { error: unknown }) {
+  const cliente = useQueryClient();
+  const [reintentando, setReintentando] = useState(false);
+  const detalle = error instanceof Error ? error.message : String(error);
+
   return (
     <div className="rounded-lg border border-[var(--danger)] bg-[var(--surface)] p-6">
       <h2 className="font-semibold">No pudimos cargar estos datos</h2>
-      <p className="mt-1 text-sm text-[var(--muted)]">{message}</p>
       <p className="mt-3 text-sm text-[var(--muted)]">
-        Reintenta en unos segundos. Si el problema continúa, revisa la conexión local de HT Lens.
+        Puede ser un tropiezo momentáneo. Si vuelve a fallar, revisa que la
+        conexión local de HT Lens siga en pie.
       </p>
+      <button
+        type="button"
+        disabled={reintentando}
+        onClick={() => {
+          setReintentando(true);
+          void cliente
+            .refetchQueries({ type: "active" })
+            .finally(() => setReintentando(false));
+        }}
+        className="mt-4 inline-flex rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {reintentando ? "Reintentando…" : "Reintentar"}
+      </button>
+      {/* El mensaje técnico va al final y en pequeño: no es lo primero que
+          hay que leer, pero es lo único que sirve si hay que diagnosticar. */}
+      <p className="mt-4 border-t border-[var(--border)] pt-3 font-mono text-[11px] text-[var(--muted)]">
+        {detalle}
+      </p>
+    </div>
+  );
+}
+
+/** Cuando no hay datos y tampoco hay error que enseñar.
+ *
+ *  Trece pantallas terminaban en `return null`, que en el flujo normal no se
+ *  alcanza --antes se atienden «cargando» y «error»-- pero sí se alcanza si
+ *  una consulta se queda sin datos y sin fallo: con el servidor local caído,
+ *  la aplicación pintaba una PÁGINA EN BLANCO, sin explicación y sin salida
+ *  (reproducido el 2026-08-31 apagando el backend).
+ *
+ *  Una pantalla vacía no le dice a nadie qué pasó ni qué hacer.
+ */
+export function SinDatos() {
+  const cliente = useQueryClient();
+  const [reintentando, setReintentando] = useState(false);
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6">
+      <h2 className="font-semibold">Aquí no llegó nada</h2>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        La pantalla pidió sus datos y se quedó sin respuesta. Suele ser que la
+        conexión local de HT Lens no está en pie.
+      </p>
+      <button
+        type="button"
+        disabled={reintentando}
+        onClick={() => {
+          setReintentando(true);
+          void cliente
+            .refetchQueries({ type: "active" })
+            .finally(() => setReintentando(false));
+        }}
+        className="mt-4 inline-flex rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {reintentando ? "Reintentando…" : "Reintentar"}
+      </button>
     </div>
   );
 }

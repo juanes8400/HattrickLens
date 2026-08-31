@@ -30,6 +30,13 @@
      color dice "esto es una lectura del ojeador", no "esto es un hecho". */
   --youth-known: #f5a524;
   --youth-headroom: #f5a52440;
+  /* El pulso de mercado de Psicología: venta y compra necesitan dos colores
+     que NO sean el verde/rojo de resultado --no son buenas ni malas noticias,
+     sólo movimientos-- y que se distingan del acento. Van por tema porque un
+     morado de modo claro sobre fondo casi negro queda en 3,59 de contraste
+     (medido el 2026-08-31), justo en el filo. */
+  --mercado-venta: #a78bda;
+  --mercado-compra: #d9a15c;
 }
 
 :root[data-theme="light"] {
@@ -42,7 +49,11 @@
   --accent: #3b63e0;
   --accent-soft: #3b63e01a;
   --positive: #1a9e5c;
-  --warning: #c98a10;
+  /* 3,33 sobre blanco. Con #c98a10 eran 2,95, por debajo del mínimo
+     de 3:1 para elementos gráficos (medido el 2026-08-31). */
+  --warning: #bd8109;
+  --mercado-venta: #6d4fa0;
+  --mercado-compra: #96651f;
   --danger: #d1383d;
   --youth-known: #c98a10;
   --youth-headroom: #c98a1033;

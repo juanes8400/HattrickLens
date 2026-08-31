@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+import { nombreLargo } from "../utils/abreviaturas";
 
 /**
  * Table component meeting the UI_GUIDELINES.md requirements:
@@ -53,6 +54,28 @@ export function DataTable<T>({
     () => new Set(columns.filter((c) => c.optional).map((c) => c.key)),
   );
   const [showPicker, setShowPicker] = useState(false);
+
+  // El selector de columnas sólo se cerraba volviendo a pulsar «Columnas»:
+  // ni Escape ni pinchar fuera lo cerraban, que es lo que todo el mundo
+  // intenta primero con un desplegable (2026-08-31).
+  useEffect(() => {
+    if (!showPicker) return;
+    const alPulsar = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPicker(false);
+    };
+    const alPinchar = (e: MouseEvent) => {
+      // `data-picker` marca lo que pertenece al desplegable --el botón que lo
+      // abre y el panel--, que están en ramas distintas del árbol.
+      const dentro = (e.target as Element | null)?.closest?.("[data-picker]");
+      if (!dentro) setShowPicker(false);
+    };
+    document.addEventListener("keydown", alPulsar);
+    document.addEventListener("mousedown", alPinchar);
+    return () => {
+      document.removeEventListener("keydown", alPulsar);
+      document.removeEventListener("mousedown", alPinchar);
+    };
+  }, [showPicker]);
   const [focused, setFocused] = useState(0);
 
   const visible = columns.filter((c) => !hidden.has(c.key));
@@ -123,19 +146,24 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
+    // `min-w-0` para que la tabla pueda encoger por debajo del ancho de su
+    // contenido en vez de empujar a su contenedor. NO resuelve por sí solo el
+    // desbordamiento de Partidos en móvil --medido: sigue en 110 px-- pero es
+    // correcto y quita una de las causas posibles (2026-08-31).
+    <div className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder={filterPlaceholder}
           aria-label={filterPlaceholder}
-          className="min-w-48 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm"
+          className="w-full min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm sm:w-auto sm:min-w-48"
         />
         <span className="text-xs text-[var(--muted)]">
           {processed.length} de {rows.length}
         </span>
         <button
+          data-picker=""
           onClick={() => setShowPicker((s) => !s)}
           className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
           aria-expanded={showPicker}
@@ -151,7 +179,10 @@ export function DataTable<T>({
       </div>
 
       {showPicker && (
-        <div className="flex flex-wrap gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] p-3">
+        <div
+          data-picker=""
+          className="flex flex-wrap gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] p-3"
+        >
           {columns.map((c) => (
             <label key={c.key} className="flex items-center gap-1.5 text-sm">
               <input
@@ -170,6 +201,9 @@ export function DataTable<T>({
                 }
               />
               {c.header}
+              {nombreLargo(c.header) && (
+                <span className="text-[var(--muted)]"> · {nombreLargo(c.header)}</span>
+              )}
             </label>
           ))}
         </div>
@@ -184,7 +218,17 @@ export function DataTable<T>({
                   key={c.key}
                   scope="col"
                   onClick={() => toggleSort(c.key)}
-                  onKeyDown={(e) => e.key === "Enter" && toggleSort(c.key)}
+                  // Enter Y Espacio: son las dos teclas con las que se
+                  // activa cualquier control, y aquí sólo funcionaba Enter.
+                  // Peor: sin `preventDefault` el Espacio hacía scroll de
+                  // página, así que quien lo pulsaba para ordenar perdía el
+                  // sitio en la tabla y no ordenaba nada (2026-08-31).
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleSort(c.key);
+                    }
+                  }}
                   tabIndex={0}
                   aria-sort={
                     sortKey === c.key ? (descending ? "descending" : "ascending") : "none"
@@ -194,7 +238,13 @@ export function DataTable<T>({
                     c.align === "left" ? "text-left" : "text-right",
                   )}
                 >
-                  {c.header}
+                  {/* Una abreviatura sin nada que la explique obliga a
+                      recordar doce claves. El título la enseña al ratón y
+                      `aria-label` se la da al lector de pantalla, que si no
+                      leería «FO» y ya. */}
+                  <span title={nombreLargo(c.header)} aria-label={nombreLargo(c.header)}>
+                    {c.header}
+                  </span>
                   {sortKey === c.key && (descending ? " ↓" : " ↑")}
                 </th>
               ))}
@@ -204,7 +254,28 @@ export function DataTable<T>({
             {processed.length === 0 && (
               <tr>
                 <td colSpan={visible.length} className="p-8 text-center text-[var(--muted)]">
-                  {emptyMessage}
+                  {/* Vacío por el filtro y vacío porque no hay datos son dos
+                      cosas distintas, y hasta el 2026-08-31 las dos decían
+                      «Sin datos todavía»: un diagnóstico equivocado --las
+                      filas existían-- y un remedio equivocado, porque
+                      «todavía» invita a esperar cuando lo que hace falta es
+                      borrar el filtro. Además no había salida a mano. */}
+                  {filter.trim() && rows.length > 0 ? (
+                    <>
+                      Ningún resultado para{" "}
+                      <b className="text-[var(--text)]">«{filter.trim()}»</b>, de{" "}
+                      {rows.length} en total.
+                      <button
+                        type="button"
+                        onClick={() => setFilter("")}
+                        className="ml-2 rounded border border-[var(--border)] px-2 py-0.5 text-xs hover:border-[var(--accent)] hover:text-[var(--text)]"
+                      >
+                        Quitar el filtro
+                      </button>
+                    </>
+                  ) : (
+                    emptyMessage
+                  )}
                 </td>
               </tr>
             )}

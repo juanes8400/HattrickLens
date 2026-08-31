@@ -13,7 +13,7 @@ const ECONOMY_KEYS = [
 ];
 
 function signed(value: number | null): string {
-  if (value == null) return ", ";
+  if (value == null) return "—";
   if (value === 0) return "0";
   return `${value > 0 ? "+" : ""}${number(value)}`;
 }

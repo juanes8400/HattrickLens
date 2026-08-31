@@ -24,7 +24,7 @@ const CHART_COLORS = {
   light: {
     accent: "#3b63e0",
     positive: "#1a9e5c",
-    warning: "#c98a10",
+    warning: "#bd8109",
     danger: "#d1383d",
     text: "#18181b",
     muted: "#71717a",

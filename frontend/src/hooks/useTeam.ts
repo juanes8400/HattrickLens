@@ -2,6 +2,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
 import type { Formation, PitchZoneMethod, PitchZoneScope } from "../services/api";
 
+/** Conserva la vista anterior SÓLO si el sujeto no ha cambiado.
+ *
+ *  `placeholderData: (previous) => previous` a secas conserva los datos ante
+ *  CUALQUIER cambio de clave. Para un mando de vista --la formación, el TSI
+ *  logarítmico, el reparto de zonas-- eso es lo que se quiere: no vaciar la
+ *  pantalla mientras se recalcula algo que no pide datos nuevos.
+ *
+ *  Pero cuando la clave lleva una IDENTIDAD --qué rival, qué jugador, qué
+ *  sincronización-- conservar es enseñar los datos de otro. El 2026-08-31 se
+ *  comprobó en vivo: al abrir un rival distinto, la ficha seguía mostrando el
+ *  informe del anterior, con su nombre en el título, durante los ~9 segundos
+ *  que tarda en llegar el nuevo. Nada avisaba de que aquello era otro equipo.
+ *
+ *  `indice` es la posición de esa identidad dentro de `queryKey`.
+ */
+const soloSiEsElMismo =
+  <T,>(indice: number, sujeto: unknown) =>
+  (previous: T | undefined, anterior?: { queryKey: readonly unknown[] }) =>
+    anterior && anterior.queryKey[indice] === sujeto ? previous : undefined;
+
+
 /**
  * El equipo activo. Antes de conectar con Hattrick no hay ninguno real, así
  * que se cae al 1 sembrado en desarrollo; tras el callback OAuth,
@@ -120,6 +141,11 @@ export const useRestoreInsight = () => useInsightArchiveMutation(api.restoreInsi
 
 export const usePositionModel = () =>
   useQuery({ queryKey: ["position-model"], queryFn: api.positionModel });
+
+/** El catálogo de cálculos. Describe los motores, que son iguales para
+ *  todos, así que no lleva equipo ni se invalida al sincronizar. */
+export const useCalculos = () =>
+  useQuery({ queryKey: ["calculos"], queryFn: api.calculos });
 
 export const useExperienceModel = () =>
   useQuery({
@@ -269,7 +295,7 @@ export const useSyncChanges = (syncId?: number | null) =>
     queryFn: () => api.syncChanges(TEAM_ID, syncId),
     // Al cambiar de fecha se mantiene la tabla anterior mientras llega la
     // nueva, en vez de parpadear a vacío en cada selección.
-    placeholderData: (previous) => previous,
+    placeholderData: soloSiEsElMismo(2, syncId ?? null),
   });
 
 export const useAcademyTrainingPlan = (params: {
@@ -317,7 +343,7 @@ export const useChangesHistory = (
     enabled,
     // Al cambiar de ventana se conserva la tabla anterior mientras llega la
     // nueva, en vez de parpadear a vacío en cada clic.
-    placeholderData: (previous) => previous,
+    placeholderData: soloSiEsElMismo(2, playerId ?? null),
   });
 
 export const useCup = () =>
@@ -346,8 +372,8 @@ export const useRivalScouting = (
         pitchZoneMethodOwn, pitchZoneMethodRival,
       ),
     enabled: rivalHtTeamId != null,
-    // Igual que en la comparativa de liga: método de zonas, TSI logarítmico y
-    // once/plantilla no piden datos nuevos a Hattrick, así que la ficha no
-    // debe desaparecer mientras se recalculan.
-    placeholderData: (previous) => previous,
+    // Los mandos de vista --método de zonas, TSI logarítmico, once/plantilla--
+    // no piden datos nuevos, así que la ficha no debe desaparecer mientras se
+    // recalculan. Cambiar de RIVAL sí es otro sujeto: ahí no se conserva nada.
+    placeholderData: soloSiEsElMismo(2, rivalHtTeamId),
   });

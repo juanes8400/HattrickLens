@@ -158,7 +158,7 @@ export function withoutBandInTooltip(): EChartsOption["tooltip"] {
       const rows = real.map(
         (p) =>
           `${p.marker ?? ""}${p.seriesName ?? ""}: <b>${
-            p.value == null ? ", " : number(Number(p.value))
+            p.value == null ? "—" : number(Number(p.value))
           }</b>`,
       );
       return [head, ...rows].join("<br/>");

@@ -20,7 +20,22 @@ import { number } from "../hooks/useFormat";
  * literal hex for a positive/negative line) still wins — themes only fill in
  * what nothing else specified.
  */
-const PALETTE = ["#4f7cff", "#2fbf71", "#f5a524", "#e5484d", "#8b5cf6", "#06b6d4"];
+/**
+ * La paleta de series, UNA POR TEMA.
+ *
+ * Era una sola lista para los dos, y sus valores eran los del tema oscuro:
+ * en modo claro el verde medía 2,38 de contraste, el ámbar 2,04 y el cian
+ * 2,43, todos por debajo del mínimo de 3:1 para elementos gráficos (medido el
+ * 2026-08-31). Es decir, la mitad de las series de cualquier gráfica con
+ * varias líneas se leían mal en el tema por defecto.
+ *
+ * Los cuatro primeros son los mismos tokens de `colors.ts`; el violeta y el
+ * cian son series extra y llevan su propia versión oscurecida para claro.
+ */
+const PALETTE_POR_TEMA: Record<"dark" | "light", string[]> = {
+  dark: ["#4f7cff", "#2fbf71", "#f5a524", "#e5484d", "#8b5cf6", "#06b6d4"],
+  light: ["#3b63e0", "#1a9e5c", "#bd8109", "#d1383d", "#7c4ddb", "#0e7490"],
+};
 
 const AXIS_THEME = {
   dark: { text: "#ededef", muted: "#8b8b93", line: "#26262b" },
@@ -29,7 +44,7 @@ const AXIS_THEME = {
 
 for (const [name, c] of Object.entries(AXIS_THEME)) {
   echarts.registerTheme(`ht-${name}`, {
-    color: PALETTE,
+    color: PALETTE_POR_TEMA[name as "dark" | "light"],
     backgroundColor: "transparent",
     textStyle: { color: c.text },
     title: { textStyle: { color: c.text }, subtextStyle: { color: c.muted } },
@@ -53,7 +68,7 @@ for (const [name, c] of Object.entries(AXIS_THEME)) {
 }
 function baseOption(dark: boolean): EChartsOption {
   return {
-    color: PALETTE,
+    color: PALETTE_POR_TEMA[dark ? "dark" : "light"],
     textStyle: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 12 },
     tooltip: { trigger: "axis", confine: true },
     grid: { left: 48, right: 16, top: 28, bottom: 32, containLabel: true },
