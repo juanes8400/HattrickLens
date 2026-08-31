@@ -72,9 +72,7 @@ def test_el_termino_de_edad_no_estrecha_la_horquilla() -> None:
 def test_sin_nada_revelado_la_horquilla_es_toda_la_escala() -> None:
     h = rango_htms28({}, 16, 0)
     assert h.ability_minima == 0
-    assert h.ability_maxima == htms.ability(**{s: TOPE_JUVENIL for s in (
-        "keeper", "defending", "playmaking", "winger", "passing", "scoring",
-        "set_pieces")})
+    assert h.ability_maxima == htms.ability(**dict.fromkeys(("keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces"), TOPE_JUVENIL))
     assert h.ability_maxima == 1073
 
 

@@ -3,7 +3,7 @@
 Aportado por el usuario el 2026-08-25.
 """
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 

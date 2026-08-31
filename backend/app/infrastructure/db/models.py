@@ -976,7 +976,12 @@ class FormerYouthPlayer(Base):
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id"), index=True)
     ht_player_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     name: Mapped[str] = mapped_column(String(128))
-    promoted_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: Cuando llego a su club ACTUAL, que casi nunca es el nuestro.
+    #: Se llamaba `promoted_at` y se creia la fecha de ascenso al primer
+    #: equipo; la referencia dice que `ArrivalDate` es «the date of
+    #: arrival to current team» y la aritmetica lo confirmaba: los 43
+    #: ex-canteranos salian vendidos ANTES de «ascender» (2026-08-31).
+    arrived_at_current_team: Mapped[datetime | None] = mapped_column(UtcDateTime())
     sold_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     sold_for: Mapped[int | None] = mapped_column(Integer)
     current_team_name: Mapped[str | None] = mapped_column(String(128))

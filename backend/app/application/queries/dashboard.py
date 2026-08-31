@@ -18,10 +18,10 @@ from app.application.dto.dashboard import (
     SquadSummary,
     TrainingSummary,
 )
+from app.application.queries.economy import estructura_semanal, weekly_closes
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
 from app.domain.engines import training_engine as te
-from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
 from app.domain.value_objects.ht_constants import (
     CONFIDENCE,
     TEAM_SPIRIT,
@@ -87,32 +87,76 @@ class DashboardQueryService:
             top = sorted(rows, key=lambda r: -r[0].salary)[:5]
             resp.top_salaries = [self._row(snap, ident, rate) for snap, ident in top]
 
-        econ = await self._s.scalar(
-            select(m.EconomySnapshot)
-            .where(m.EconomySnapshot.team_id == team_id)
-            .order_by(m.EconomySnapshot.captured_at.desc())
-            .limit(1)
+        # Toda la serie, ascendente: `weekly_closes` necesita el histórico para
+        # saber cuándo Hattrick pasó de semana --lo detecta por el salto de los
+        # campos `last_*`, no por la fecha--. La última lectura sigue siendo la
+        # que da los campos VIVOS (caja de ahora, lo que lleva la semana en
+        # curso).
+        snapshots = list(
+            (
+                await self._s.execute(
+                    select(m.EconomySnapshot)
+                    .where(m.EconomySnapshot.team_id == team_id)
+                    .order_by(m.EconomySnapshot.captured_at)
+                )
+            ).scalars()
         )
+        econ = snapshots[-1] if snapshots else None
         if econ:
 
             def local(v: int) -> int:
                 return int(round(v / rate))
 
-            # Las dos semanas ya cerradas que guarda Hattrick: la ultima y la
-            # de antes (`last_*`). Los ingresos llevan las ventas dentro, que
-            # es como se pidio: el porcentaje de salarios se mueve con ellas y
-            # eso es parte de la respuesta, no ruido.
-            ingresos_dos_semanas = econ.income_sum + econ.last_income_sum
-            gastos_dos_semanas = econ.costs_sum + econ.last_costs_sum
-            # `last_costs_players` es NULLABLE y en la base real hay filas sin
-            # el. Sumarlo tal cual revienta con TypeError en la pantalla de
-            # INICIO; ponerle un 0 contradice lo que dice la migracion 0021
-            # que lo creo: "NULL dice 'no se sabe', nunca cero".
-            salarios_dos_semanas = (
-                None
-                if econ.last_costs_players is None
-                else econ.costs_players + econ.last_costs_players
-            )
+            # Las dos semanas ya CERRADAS, que son dos cosas distintas de las
+            # dos ultimas lecturas.
+            #
+            # Hasta el 2026-08-30 esto sumaba `income_sum + last_income_sum`:
+            # la semana EN CURSO mas una cerrada, con la etiqueta «las dos
+            # semanas cerradas» encima. Economia, que si usa los dos cierres
+            # de verdad, decia -826.194 donde el Panel decia -437.404 para el
+            # mismo periodo y el mismo nombre.
+            #
+            # Y no era solo una discrepancia de etiqueta: mezclar una semana a
+            # medias rompe justo la garantia por la que se eligieron DOS
+            # semanas --que siempre entre una taquilla--. Un lunes sin partido
+            # jugado la taquilla va en 0 y el KPI se hunde solo; el miercoles
+            # se recupera. Un numero que se mueve por el dia de la semana no
+            # dice nada del club.
+            #
+            # `weekly_closes` es el mismo detector que usa Economia, para que
+            # no haya dos definiciones de «semana cerrada» en la casa.
+            # Sin dos cierres guardados se quedan en None: un 0 diria que el
+            # club no ingresa ni gasta nada, que es peor que no decir nada.
+            ingresos_dos_semanas: int | None = None
+            balance_dos_semanas: int | None = None
+            salarios_dos_semanas: int | None = None
+            todos_los_cierres = [c.snapshot for c in weekly_closes(snapshots)]
+            estructura = estructura_semanal(todos_los_cierres, rate)
+            cierres = weekly_closes(snapshots)[-2:]
+            if len(cierres) == 2:
+                cerradas = [c.snapshot for c in cierres]
+                # Los ingresos llevan las ventas dentro, que es como se pidio:
+                # el porcentaje de salarios se mueve con ellas y eso es parte
+                # de la respuesta, no ruido.
+                ingresos_dos_semanas = sum(x.last_income_sum for x in cerradas)
+                # El balance sale del `last_weeks_total` que reporta Hattrick,
+                # convertido semana a semana y sumado despues --no de restar
+                # los dos agregados--. Es lo que hace Economia, y con la
+                # moneda local la diferencia entre redondear una vez o dos se
+                # veia: -826.193 aqui contra -826.194 alli, para el mismo
+                # periodo. Una unidad basta para que el usuario dude de las
+                # dos pantallas.
+                balance_dos_semanas = sum(local(x.last_weeks_total) for x in cerradas)
+                # `last_costs_players` es NULLABLE y en la base real hay filas
+                # sin el. Sumarlo tal cual revienta con TypeError en la
+                # pantalla de INICIO; ponerle un 0 contradice lo que dice la
+                # migracion 0021 que lo creo: "NULL dice 'no se sabe', nunca
+                # cero".
+                salarios_dos_semanas = (
+                    None
+                    if any(x.last_costs_players is None for x in cerradas)
+                    else sum(x.last_costs_players or 0 for x in cerradas)
+                )
 
             resp.finance = FinanceSummary(
                 cash=local(econ.cash),
@@ -123,23 +167,22 @@ class DashboardQueryService:
                 costs_players=local(econ.costs_players),
                 fan_club_size=econ.fan_club_size,  # no es dinero
                 last_weeks_total=local(econ.last_weeks_total),
-                structural_balance=local(
-                    structural_balance(
-                        total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses),
-                        econ.income_spectators,
-                        econ.costs_players,
-                        econ.costs_staff,
-                        econ.costs_arena,
-                    )
+                # El mismo numero que Economia, no una segunda suma. Ver
+                # `estructura_semanal`: leerlo de la semana en curso lo dejaba
+                # sin taquilla y sin los juveniles.
+                structural_balance=(None if estructura is None else estructura.structural_balance),
+                biweekly_balance=balance_dos_semanas,
+                biweekly_income=(
+                    None if ingresos_dos_semanas is None else local(ingresos_dos_semanas)
                 ),
-                biweekly_balance=local(ingresos_dos_semanas - gastos_dos_semanas),
-                biweekly_income=local(ingresos_dos_semanas),
                 biweekly_salaries=(
                     None if salarios_dos_semanas is None else local(salarios_dos_semanas)
                 ),
                 salary_share_pct=(
                     round(salarios_dos_semanas / ingresos_dos_semanas * 100, 1)
-                    if salarios_dos_semanas is not None and ingresos_dos_semanas > 0
+                    if salarios_dos_semanas is not None
+                    and ingresos_dos_semanas is not None
+                    and ingresos_dos_semanas > 0
                     else None
                 ),
                 currency=team.currency_name or "",

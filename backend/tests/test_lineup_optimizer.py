@@ -168,9 +168,9 @@ def test_no_formation_breaks_the_position_maximums() -> None:
     from app.domain.engines.lineup_optimizer import FORMATIONS
     from app.domain.value_objects.formations import (
         MAX_CENTRAL_DEFENDERS,
+        MAX_FLANK_PER_LINE,
         MAX_FORWARDS,
         MAX_INNER_MIDFIELDERS,
-        MAX_FLANK_PER_LINE,
     )
 
     MAX_PER_POSITION = {

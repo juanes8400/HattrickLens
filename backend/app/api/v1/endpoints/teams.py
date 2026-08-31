@@ -39,6 +39,7 @@ from app.application.queries.club import ClubQueryService
 from app.application.queries.dashboard import DashboardQueryService
 from app.application.queries.squad import SquadQueryService
 from app.application.queries.sync_comparison import build_sync_comparison
+from app.application.queries.transparencia import como_json as catalogo_de_calculos
 from app.domain.engines.position_engine import model_info
 from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
 from app.infrastructure.db import models as m
@@ -829,6 +830,18 @@ async def player_positions(
     if data is None:
         raise HTTPException(404, f"player {ht_player_id} not found")
     return data
+
+
+@router.get("/calculos", summary="Catálogo de cálculos con su formulación y sus constantes")
+async def calculos() -> list[dict[str, Any]]:
+    """Qué calcula la herramienta, con qué fórmula y con qué constantes.
+
+    No lleva `team_id`: describe los MOTORES, que son los mismos para todos.
+    Los valores del club de cada uno llegan por los endpoints que ya existen
+    --la fórmula de entrenamiento, la matriz de posiciones-- y la pantalla los
+    engancha bajo su cálculo.
+    """
+    return catalogo_de_calculos()
 
 
 @router.get("/positions/model", summary="Modelo de posiciones basado en el Manual no Escrito")

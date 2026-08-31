@@ -1810,7 +1810,7 @@ class SyncTeamHandler:
                 try:
                     await _report(
                         on_progress,
-                        f"Calculando ratings CHPP del partido {match.ht_match_id}...",
+                        f"Calculando ratings del partido {match.ht_match_id}...",
                     )
                     predicted_payload = await self._chpp.fetch(
                         "matchorders",
@@ -4224,9 +4224,13 @@ class SyncTeamHandler:
             fila.name = nombre or fila.name
             fila.current_team_name = p_.get("team_name") or fila.current_team_name
             fila.current_tsi = p_.get("tsi") if p_.get("tsi") is not None else fila.current_tsi
-            # `ArrivalDate` de un ex-canterano es cuando ASCENDIO al primer
-            # equipo: es la fecha que enlaza con su etapa en la academia.
-            fila.promoted_at = _parse_dt(p_.get("arrival_date")) or fila.promoted_at
+            # `ArrivalDate` es «the date of arrival to current team»: cuando
+            # llego al club donde esta HOY, que salvo que siga con nosotros
+            # no es el nuestro. NO es la fecha de ascenso, aunque durante
+            # meses se guardo como si lo fuera (2026-08-31).
+            fila.arrived_at_current_team = (
+                _parse_dt(p_.get("arrival_date")) or fila.arrived_at_current_team
+            )
         return len(filas)
 
     async def _persist_ojeadores(

@@ -607,9 +607,7 @@ class PostMatchTrainingService:
         if pops_soon:
             rationale.append(f"{pops_soon} posible(s) subida(s) en <= 3 semanas")
         if training_type in DEPRECATED_TRAINING_TYPES:
-            rationale.append(
-                "tipo obsoleto según CHPP: no compite y sus semanas usan un motor separado"
-            )
+            rationale.append("tipo obsoleto: no compite y sus semanas usan un motor separado")
         return {
             "trainingType": training_type,
             "name": training_name(training_type),

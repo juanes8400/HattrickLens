@@ -35,12 +35,15 @@ class FinanceSummary(Base):
     last_weeks_total: int
     # Balance recurrente sin transferencias — el número que revela si la
     # operación del club es sostenible (idea tomada del "sin Otros" de HC).
-    structural_balance: int = 0
+    #: `None` cuando no hay ni un cierre semanal guardado.
+    structural_balance: int | None = None
     # Dos semanas cerradas, no una. En Hattrick los partidos en casa se
     # alternan, asi que una sola semana sale eufórica o deprimida segun cual
     # toque; dos cubren siempre una taquilla y el numero deja de saltar.
-    biweekly_balance: int = 0
-    biweekly_income: int = 0
+    #: `None` cuando aun no hay DOS cierres semanales guardados. No es 0:
+    #: un 0 diria que el club no ingresa ni gasta nada.
+    biweekly_balance: int | None = None
+    biweekly_income: int | None = None
     #: `None` = Hattrick no dio los salarios de la semana anterior. No es 0:
     #: la migracion 0021 lo dejo claro cuando creo esas columnas.
     biweekly_salaries: int | None = None

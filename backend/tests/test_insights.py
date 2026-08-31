@@ -18,13 +18,13 @@ from app.domain.engines.insights import (
     low_form,
     missing_medic_or_psych,
     next_match_forecast,
-    promotion_chance,
     relegation_danger,
     sector_standouts,
     sold_out_sectors,
     stale_data,
     structural_deficit,
     thin_keeper_depth,
+    title_race,
     wage_concentration,
     youth_deadline,
     youth_star_prospect,
@@ -243,16 +243,38 @@ def test_relegation_danger_fires_above_threshold() -> None:
     assert out and out[0].severity is Severity.DANGER
 
 
-def test_promotion_chance_fires_for_a_leader() -> None:
-    lider = {**RELEGATION_ROW, "promotion_probability": 0.6, "relegation_probability": 0.0}
-    out = promotion_chance(lider)
-    assert out and out[0].severity is Severity.OPPORTUNITY
-    # `promotion_probability` es en realidad P(terminar 1º) — nunca prometer
-    # "ascenso" sin más: el ascenso real depende del ranking nacional de
-    # campeones, que el motor no modela (ver season_simulator.py).
+def test_el_titulo_es_una_sola_alerta_con_todo_dentro() -> None:
+    """Una alerta, no dos. `promotion_probability` y `title_probability` son
+    el mismo número, así que separarlas producía dos avisos seguidos con la
+    misma cifra (2026-08-30)."""
+    lider = {
+        **RELEGATION_ROW,
+        "title_probability": 0.6,
+        "promotion_probability": 0.6,
+        "expected_points": 35.5,
+        "relegation_probability": 0.0,
+    }
+    out = title_race(lider)
+    assert len(out) == 1
+    assert out[0].severity is Severity.OPPORTUNITY
+    # Nunca prometer "ascenso" sin más: el ascenso real depende del ranking
+    # nacional de campeones, que el motor no modela (ver season_simulator.py).
     assert "ascender" not in out[0].title.lower()
-    assert "1º" in out[0].title
+    # Lo que aportaba cada una de las dos viejas sigue estando.
+    assert "Posición esperada" in out[0].detail
+    assert "Puntos esperados" in out[0].detail
     assert "ranking nacional" in out[0].detail
+
+
+def test_en_la_division_mas_alta_no_se_habla_de_ascenso() -> None:
+    campeon = {
+        **RELEGATION_ROW,
+        "title_probability": 0.6,
+        "promotion_probability": 0.0,
+        "relegation_probability": 0.0,
+    }
+    out = title_race(campeon)
+    assert out and "ranking nacional" not in out[0].detail
 
 
 def test_next_match_forecast_labels_favorite_and_underdog() -> None:

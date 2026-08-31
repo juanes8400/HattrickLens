@@ -17,8 +17,6 @@ import importlib
 import inspect
 import pkgutil
 
-import pytest
-
 try:  # 3.14+
     import annotationlib
 

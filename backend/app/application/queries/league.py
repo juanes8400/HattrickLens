@@ -585,7 +585,7 @@ class LeagueQueryService:
         if schedule_incomplete:
             caveats.append(
                 "El calendario sincronizado sólo trae los partidos DE TU EQUIPO, "
-                "CHPP solo entrega el calendario completo del equipo que pides, "
+                "Hattrick solo entrega el calendario completo del equipo que pides, "
                 "así que los partidos entre dos rivales (ninguno el tuyo) no están "
                 "sincronizados. Esos equipos quedan con sus puntos y diferencia de "
                 "gol congelados salvo cuando juegan contra ti, así que su rango de "

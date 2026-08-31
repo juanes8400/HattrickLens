@@ -366,10 +366,11 @@ def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
     coincidían) y cortaba con `continue` sin mirar los goles — el partido
     se quedaba "sin jugar" para siempre. Debe actualizarse en cuanto el
     marcador deja de ser -1."""
-    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import StaticPool
+
+    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
 
     async def run():
         engine = create_async_engine(
@@ -444,10 +445,11 @@ def test_persist_league_fixtures_never_overwrites_an_already_confirmed_score() -
     """El guard es solo para el placeholder -1 — un marcador YA confirmado
     (por `matches.xml`/`matchdetails.xml`, que lo conocen mejor) nunca se
     pisa con lo que traiga `leaguefixtures.xml` después."""
-    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import StaticPool
+
+    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
 
     async def run():
         engine = create_async_engine(
@@ -1042,7 +1044,10 @@ async def _with_youth():
                 team_id=team_id,
                 ht_player_id=710_000,
                 name="Dani Cantera",
-                promoted_at=BASE,
+                # Llego a su club nuevo el dia que se le vendio, que es el
+                # caso normal de una venta directa. Antes este campo se
+                # llamaba `promoted_at` y se creia la fecha de ascenso.
+                arrived_at_current_team=BASE + timedelta(days=60),
                 sold_at=BASE + timedelta(days=60),
                 sold_for=3_500_000,
                 current_team_name="Otro Club",
@@ -1191,3 +1196,34 @@ def test_academy_answers_even_with_no_youth_squad_synced() -> None:
     # Sin la fecha de apertura el ROI cuenta también canteras anteriores: es el
     # único caveat que sobrevivió a la pasada del 2026-08-16.
     assert any("Sincroniza para acotar la academia" in n for n in d.notes)
+
+
+def test_la_fecha_del_ex_canterano_es_la_de_llegada_no_la_de_ascenso() -> None:
+    """`ArrivalDate` es «the date of arrival to current team», no un ascenso.
+
+    2026-08-31, encontrado por aritmética: los 43 ex-canteranos de la base real
+    aparecían VENDIDOS antes de la fecha que se llamaba de ascenso --hasta
+    1.054 días antes-- y las ventas directas tenían las dos el mismo día. El
+    campo era bueno, el nombre no, y ese nombre hizo que se usara para situar
+    a cada canterano en una academia concreta.
+
+    Aquí se fija la regla, no una cifra: la fecha de llegada nunca puede ser
+    anterior a la de venta, porque primero se le vende y después llega.
+    """
+    from app.infrastructure.db import models as m
+
+    assert not hasattr(m.FormerYouthPlayer, "promoted_at"), (
+        "el nombre viejo prometía una fecha de ascenso que el dato no contiene"
+    )
+    assert hasattr(m.FormerYouthPlayer, "arrived_at_current_team")
+
+    ex = m.FormerYouthPlayer(
+        team_id=1,
+        ht_player_id=1,
+        name="X",
+        sold_at=BASE,
+        arrived_at_current_team=BASE + timedelta(days=1),
+    )
+    assert ex.arrived_at_current_team is not None
+    assert ex.sold_at is not None
+    assert ex.arrived_at_current_team >= ex.sold_at

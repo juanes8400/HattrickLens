@@ -141,7 +141,9 @@ los ritmos, esa prueba lo caza contra una fuente ajena a nosotros.
 
 - **Entrenamiento secundario = 66,7 %** (2/3), no el 50 % que decían las guías
   viejas. Es el valor que HT Lens ya usaba (`SECUNDARIO_NORMAL`).
-- Entrenamiento doble 133,3 % · Amistoso 50 % · Pérdida por edad ~0,275 %/semana.
+- Repetir exactamente el mismo entrenamiento da 133,3 %: `100 % + 33,3 %`.
+  Un secundario distinto conserva 66,7 % · Amistoso 50 % · Pérdida por edad
+  ~0,275 %/semana.
 
 ## 4. Advertencia del propio autor
 

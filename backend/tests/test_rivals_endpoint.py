@@ -15,11 +15,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.api.v1.endpoints.rivals import _days_since_last_login
+from app.api.v1.endpoints import rivals as rivals_module
+from app.api.v1.endpoints.rivals import MAX_MATCHES_ANALYSED, _days_since_last_login
 from app.application.commands.sync_team import SyncTeamCommand, SyncTeamHandler
 from app.infrastructure.chpp.parsers import get_parser
-from app.api.v1.endpoints import rivals as rivals_module
-from app.api.v1.endpoints.rivals import MAX_MATCHES_ANALYSED
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork

@@ -61,7 +61,6 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "economy.structural_deficit",
         "league.next_match_favorite",
         "league.next_match_underdog",
-        "league.promotion_chance",
         "league.relegation_danger",
         "league.relegation_playoff_risk",
         "league.title_race",
@@ -643,43 +642,43 @@ def relegation_playoff_risk(own: dict[str, Any], threshold: float = 0.35) -> lis
     ]
 
 
-def promotion_chance(own: dict[str, Any], threshold: float = 0.4) -> list[Insight]:
-    """`promotion_probability` es en realidad P(terminar 1º) — idéntica a
-    `title_probability`, ver season_simulator.py. El 1º de una división
-    intermedia asciende directo o juega promoción según el ranking nacional
-    de campeones, que ningún fichero CHPP expone — así que el título de
-    este insight no puede prometer "ascenso" sin más."""
-    p = own.get("promotion_probability", 0.0)
-    if p < threshold:
-        return []
-    return [
-        Insight(
-            key="league.promotion_chance",
-            severity=Severity.OPPORTUNITY,
-            title=f"{p:.0%} de probabilidad de terminar 1º",
-            detail=(
-                f"Posición esperada: {own.get('expected_position')}. El ascenso "
-                "directo o la promoción dependen del ranking nacional de "
-                "campeones, no modelado."
-            ),
-            action="Con opciones reales de terminar 1º, cada punto pesa más de lo habitual.",
-            module="liga",
-            evidence={"promotionProbability": p},
-        )
-    ]
-
-
 def title_race(own: dict[str, Any], threshold: float = 0.25) -> list[Insight]:
+    """Las opciones de terminar 1º, en UNA sola alerta.
+
+    Hasta el 2026-08-30 esto eran dos: `league.promotion_chance` («66% de
+    probabilidad de terminar 1º») y `league.title_race` («66% de probabilidad
+    de terminar campeón»). Siempre el mismo porcentaje, porque
+    `promotion_probability` y `title_probability` son literalmente el mismo
+    número --lo dice el propio season_simulator en su comentario--. Al usuario
+    le llegaban dos avisos seguidos con la misma cifra y distinta redacción,
+    que es la peor forma de gastar la atención que da una pantalla de alertas.
+
+    Lo que sí aportaba cada una se conserva: la posición esperada, los puntos
+    esperados, y la advertencia de que terminar 1º no es lo mismo que ascender
+    --esa sólo cuando el equipo no está ya en la división más alta, que es
+    justo cuando `promotion_probability` deja de ser cero--.
+    """
     p = own.get("title_probability", 0.0)
     if p < threshold:
         return []
+
+    detalle = f"Posición esperada: {own.get('expected_position')}."
+    puntos = own.get("expected_points")
+    if puntos is not None:
+        detalle += f" Puntos esperados: {puntos}."
+    if own.get("promotion_probability", 0.0) > 0:
+        detalle += (
+            " El ascenso directo o la promoción dependen del ranking nacional "
+            "de campeones, no modelado."
+        )
+
     return [
         Insight(
             key="league.title_race",
             severity=Severity.OPPORTUNITY,
             title=f"{p:.0%} de probabilidad de terminar campeón",
-            detail=f"Puntos esperados: {own.get('expected_points')}.",
-            action="",
+            detail=detalle,
+            action="Con opciones reales de terminar 1º, cada punto pesa más de lo habitual.",
             module="liga",
             evidence={"titleProbability": p},
         )
@@ -855,9 +854,9 @@ def missing_medic_or_psych(staff: dict[str, Any]) -> list[Insight]:
                 key="staff.no_medic",
                 severity=Severity.INFO,
                 title="Sin médico en el cuerpo técnico",
-                detail="El nivel de médico reportado por CHPP es 0.",
+                detail="El nivel de médico que reporta Hattrick es 0.",
                 action="Afecta a los tiempos de recuperación de lesión.",
-                module="staff",
+                module="cuerpo técnico",
             )
         )
     if staff.get("sport_psychologist_levels", 0) == 0:
@@ -866,9 +865,9 @@ def missing_medic_or_psych(staff: dict[str, Any]) -> list[Insight]:
                 key="staff.no_psychologist",
                 severity=Severity.INFO,
                 title="Sin psicólogo deportivo en el cuerpo técnico",
-                detail="El nivel de psicólogo deportivo reportado por CHPP es 0.",
+                detail="El nivel de psicólogo deportivo que reporta Hattrick es 0.",
                 action="",
-                module="staff",
+                module="cuerpo técnico",
             )
         )
     return out
@@ -892,7 +891,7 @@ def assistant_trainers_below_reference(staff: dict[str, Any], reference: int = 1
                 f"(referencia usada en el resto de la app: {reference})."
             ),
             action="Más nivel de ayudantes acelera el entrenamiento de toda la plantilla.",
-            module="staff",
+            module="cuerpo técnico",
             evidence={"assistantTrainerLevels": level},
         )
     ]

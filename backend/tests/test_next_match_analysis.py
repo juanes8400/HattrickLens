@@ -1,6 +1,5 @@
 from app.domain.engines.next_match_analysis import direct_condition_summary, probable_starters
 
-
 PLAYERS = [
     {"ht_player_id": 1, "name": "Más recurrente", "tsi": 1200, "stamina": 8, "form": 7, "experience": 6},
     {"ht_player_id": 2, "name": "Más reciente", "tsi": 9000, "stamina": 4, "form": 6, "experience": 8},

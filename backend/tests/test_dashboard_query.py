@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.application.commands.sync_team import SyncTeamCommand, SyncTeamHandler
 from app.application.queries.dashboard import DashboardQueryService
+from app.application.queries.economy import EconomyQueryService
 from app.infrastructure.chpp.parsers import get_parser
 from app.infrastructure.db import models as m
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -140,3 +141,109 @@ def test_sin_los_salarios_de_la_semana_anterior_no_se_inventa_un_cero() -> None:
     )
     assert resumen.biweekly_salaries is None
     assert resumen.salary_share_pct is None
+
+
+async def _con_dos_cierres() -> tuple[async_sessionmaker, int]:
+    """El fixture trae UNA sola lectura, así que `weekly_closes` sólo ve un
+    cierre y lo bisemanal sale vacío --rama legítima, pero no la interesante--.
+
+    Esto añade una segunda lectura posterior con flujos `last_*` distintos,
+    que es exactamente la señal por la que Hattrick pasa de semana.
+    """
+    factory, team_id = await _seeded()
+    async with factory() as s:
+        vieja = (
+            await s.execute(
+                m.EconomySnapshot.__table__.select()
+                .where(m.EconomySnapshot.team_id == team_id)
+                .order_by(m.EconomySnapshot.captured_at.desc())
+                .limit(1)
+            )
+        ).mappings().one()
+
+        campos = {k: v for k, v in vieja.items() if k != "id"}
+        campos["captured_at"] = vieja["captured_at"] + timedelta(days=7)
+        # Los flujos de la semana que acaba de cerrar: otros números, o
+        # `weekly_closes` lo lee como la misma foto repetida.
+        campos["last_income_sum"] = 1_000_000
+        campos["last_costs_sum"] = 1_500_000
+        campos["last_weeks_total"] = -500_000
+        campos["last_costs_players"] = 400_000
+        s.add(m.EconomySnapshot(**campos))
+        await s.commit()
+    return factory, team_id
+
+
+def test_lo_bisemanal_son_dos_semanas_CERRADAS() -> None:
+    """El Panel y Economía tienen que decir lo mismo para el mismo periodo.
+
+    2026-08-30. El Panel sumaba `income_sum + last_income_sum`: la semana EN
+    CURSO más una cerrada, bajo la etiqueta «las dos semanas cerradas».
+    Economía, que sí usa los dos cierres, decía -826.194 donde el Panel decía
+    -437.404. Además, mezclar una semana a medias rompe la garantía por la que
+    se eligieron dos --que siempre entre una taquilla--: el KPI se hundía los
+    días sin partido jugado y se recuperaba solo después.
+
+    Este test fija el HECHO, no las cifras: sea cual sea el fixture, las dos
+    pantallas coinciden y ninguna de las dos mira la semana en curso.
+    """
+
+    async def go() -> tuple[Any, Any]:
+        factory, team_id = await _con_dos_cierres()
+        async with factory() as s:
+            panel = await DashboardQueryService(s).get(team_id)
+            eco = await EconomyQueryService(s).get(team_id)
+        return panel, eco
+
+    panel, eco = asyncio.run(go())
+    assert panel is not None and panel.finance is not None
+    assert eco is not None
+
+    bisemanal = next(w for w in eco.balance_windows if w.weeks_requested == 2)
+    assert bisemanal.balance is not None, "el fixture tiene que dar dos cierres"
+
+    assert panel.finance.biweekly_balance == bisemanal.balance
+    assert panel.finance.biweekly_income == bisemanal.income
+    # Y la prueba de que no entra la semana en curso: si entrara, los ingresos
+    # del Panel llevarían encima los de la semana viva.
+    assert panel.finance.biweekly_income != bisemanal.income + panel.finance.income_sum
+
+
+def test_el_balance_sin_transferencias_es_el_mismo_en_las_tres_pantallas() -> None:
+    """Panel, Economía y la alerta de déficit tenían tres sumas distintas.
+
+    2026-08-30. `economy_engine.structural_balance` dice en su propio docstring
+    ser «la única fuente de verdad», pero el Panel y la alerta la llamaban con
+    los campos de la semana EN CURSO --taquilla en 0 hasta que se juega en
+    casa-- y sin los gastos juveniles ni los financieros, mientras Economía
+    promediaba las dos semanas cerradas e incluía ambos. Salían -414.969 y
+    -435.347 para lo mismo, y ese número es el que decide cuántas semanas de
+    caja se le anuncian al usuario.
+    """
+
+    async def go() -> tuple[Any, Any]:
+        factory, team_id = await _con_dos_cierres()
+        async with factory() as s:
+            return (
+                await DashboardQueryService(s).get(team_id),
+                await EconomyQueryService(s).get(team_id),
+            )
+
+    panel, eco = asyncio.run(go())
+    assert panel is not None and panel.finance is not None
+    assert eco is not None
+    assert panel.finance.structural_balance == eco.structural_balance
+
+
+def test_sin_dos_cierres_lo_bisemanal_no_se_inventa() -> None:
+    """Un 0 diría que el club no ingresó ni gastó nada. Se dice que no se sabe."""
+
+    async def go() -> Any:
+        factory, team_id = await _seeded()
+        async with factory() as s:
+            return await DashboardQueryService(s).get(team_id)
+
+    panel = asyncio.run(go())
+    assert panel is not None and panel.finance is not None
+    assert panel.finance.biweekly_balance is None
+    assert panel.finance.biweekly_income is None

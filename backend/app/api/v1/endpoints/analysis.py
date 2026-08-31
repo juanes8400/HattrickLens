@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.application.queries.academy import AcademyQueryService
 from app.application.queries.arena import ArenaQueryService
+from app.application.queries.economy import estructura_semanal, weekly_closes
 from app.application.queries.league import LeagueQueryService
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
@@ -24,7 +25,7 @@ from app.application.queries.weekly import season_week_for_datetime, season_week
 from app.domain.engines import htms as htms_motor
 from app.domain.engines import insights as ins
 from app.domain.engines.career_stage_engine import classify_career_stage
-from app.domain.engines.economy_engine import structural_balance, total_sponsor_income
+from app.domain.engines.economy_engine import total_sponsor_income
 from app.domain.engines.experience_engine import (
     calibrate,
 )
@@ -930,7 +931,7 @@ async def team_spirit_multiplier(
         ],
         "note": (
             "Fuente: Manual no Escrito de la comunidad, los nombres de esta tabla no "
-            "coinciden con los niveles de Espíritu que reporta CHPP, así que no se puede "
+            "coinciden con los niveles de Espíritu que reporta Hattrick, así que no se puede "
             "marcar cuál es tu fila actual: es una tabla explorable, no una lectura de tu "
             "equipo."
         ),
@@ -1078,6 +1079,30 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     econ = econ_rows[0] if econ_rows else None
     econ_prev = econ_rows[1] if len(econ_rows) > 1 else None
 
+    # El balance sin transferencias sale de las semanas CERRADAS, igual que en
+    # Economia y en el Panel. Leerlo de la semana en curso --que es lo que se
+    # hacia hasta el 2026-08-30-- dejaba fuera la taquilla, que va en 0 hasta
+    # que se juega el partido en casa, y los 20.000 semanales de la academia.
+    # Esta alerta le dice al usuario cuantas semanas de caja le quedan: es el
+    # ultimo sitio donde vale la pena ahorrarse una consulta.
+    estructura = estructura_semanal(
+        [
+            c.snapshot
+            for c in weekly_closes(
+                list(
+                    (
+                        await session.execute(
+                            select(m.EconomySnapshot)
+                            .where(m.EconomySnapshot.team_id == team_id)
+                            .order_by(m.EconomySnapshot.captured_at)
+                        )
+                    ).scalars()
+                )
+            )
+        ],
+        rate_,
+    )
+
     tr = await session.scalar(
         select(m.TrainingSnapshot)
         .where(m.TrainingSnapshot.team_id == team_id)
@@ -1190,16 +1215,7 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     # ── Economía ────────────────────────────────────────────────────────
     if econ:
         sponsors_total = total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses)
-        structural = int(
-            structural_balance(
-                sponsors_total,
-                econ.income_spectators,
-                econ.costs_players,
-                econ.costs_staff,
-                econ.costs_arena,
-            )
-            / rate_
-        )
+        structural = estructura.structural_balance if estructura else None
         # La temporada-semana de la lectura económica entra en la alerta para
         # que sea una por semana: mismo filtro por `ht_league_id` que el resto
         # de la app, no "el WorldContext más reciente".
@@ -1210,14 +1226,18 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
             if team.ht_league_id is not None
             else None
         )
-        groups.append(
-            ins.structural_deficit(
-                structural,
-                int(econ.cash / rate_),
-                currency,
-                season_week=season_week_for_datetime(econ_world, econ.captured_at),
+        # Sin ni un cierre guardado no hay balance semanal que juzgar, y una
+        # alerta de «te quedan N semanas» calculada sobre nada es peor que no
+        # avisar.
+        if structural is not None:
+            groups.append(
+                ins.structural_deficit(
+                    structural,
+                    int(econ.cash / rate_),
+                    currency,
+                    season_week=season_week_for_datetime(econ_world, econ.captured_at),
+                )
             )
-        )
 
         income_items = [
             ("Espectadores", int((econ.income_spectators or 0) / rate_)),
@@ -1255,7 +1275,6 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
         groups += [
             ins.relegation_danger(own_dict),
             ins.relegation_playoff_risk(own_dict),
-            ins.promotion_chance(own_dict),
             ins.title_race(own_dict),
             ins.weak_attack(own_dict),
             ins.weak_defence(own_dict),

@@ -131,11 +131,12 @@ aplicable tanto a juveniles como al primer equipo.
 > documento, que es peor —un número equivocado con sello de verificado se cree
 > más que uno sin sello—.
 >
-> **Sin resolver:** la combinación de los dos entrenamientos vale **133,3 %**,
-> no la suma `100 + 67 = 167`. Falta saber cómo se reparte ese 133,3 entre las
-> dos habilidades cuando son distintas, que es el caso normal. Hasta saberlo,
-> la tabla del once enseña los dos porcentajes por separado y quien los sume
-> se pasará por exceso.
+> **Resuelto el 2026-08-28.** El **133,3 %** aplica cuando se repite exactamente
+> el mismo entrenamiento: el hueco secundario normal vale `2/3` y la repetición
+> lo castiga a la mitad, de modo que `100 % + (66,7 % × 50 %) = 133,3 %`.
+> Entrenamientos distintos conservan el `2/3` del hueco secundario aunque
+> ambos puedan producir la misma habilidad. Ejemplos: `Lateral + Individual`
+> no es repetición aunque Individual sortee Lateral; `Pases + Pases` sí lo es.
 
 ---
 

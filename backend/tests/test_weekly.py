@@ -15,8 +15,8 @@ from app.application.queries.weekly import (
     iso_week_key,
     latest_per_iso_week,
     season_for_datetime,
-    season_week_label,
     season_week_for_datetime,
+    season_week_label,
     season_week_offset_for,
     start_of_iso_week,
 )

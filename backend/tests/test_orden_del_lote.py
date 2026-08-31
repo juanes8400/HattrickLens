@@ -118,15 +118,7 @@ def test_con_comision_por_atribuir_el_lote_alterna() -> None:
                           status="completed", started_at=datetime(2026, 8, 24))
             uow.session.add(sync)
             await uow.session.flush()
-            obligatorias = {
-                c: 0 for c in (
-                    "sponsors_popularity", "supporters_popularity", "fan_club_size",
-                    "income_spectators", "income_sponsors", "income_financial",
-                    "income_sum", "costs_arena", "costs_players", "costs_financial",
-                    "costs_staff", "costs_youth", "costs_sum", "expected_weeks_total",
-                    "last_income_sum", "last_costs_sum", "last_weeks_total",
-                )
-            }
+            obligatorias = dict.fromkeys(("sponsors_popularity", "supporters_popularity", "fan_club_size", "income_spectators", "income_sponsors", "income_financial", "income_sum", "costs_arena", "costs_players", "costs_financial", "costs_staff", "costs_youth", "costs_sum", "expected_weeks_total", "last_income_sum", "last_costs_sum", "last_weeks_total"), 0)
             uow.session.add(m.EconomySnapshot(
                 sync_id=sync.id, team_id=team_id,
                 captured_at=datetime(2026, 8, 24), cash=0, expected_cash=0,

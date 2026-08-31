@@ -351,7 +351,7 @@ def test_experience_progress_detects_a_national_cap_never_captured_by_lastmatch(
     quedó sobrescrito antes del siguiente sync), ese partido de selección
     sigue contando como detectado — sin inventar sus puntos exactos."""
     async def run() -> None:
-        from datetime import UTC, datetime, timedelta
+        from datetime import timedelta
 
         from sqlalchemy import select
 

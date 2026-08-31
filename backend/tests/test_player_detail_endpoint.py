@@ -56,9 +56,13 @@ def test_player_detail_includes_a_salary_estimate() -> None:
         assert est["mainSkill"] in {
             "defending", "playmaking", "passing", "winger", "scoring",
         }
-        assert "no oficial de CHPP" in est["confidence"]
-        # El sueldo real (de CHPP) sigue siendo el que se muestra arriba, la
-        # estimación no lo reemplaza.
+        # Se declara que la tabla no es oficial. Se fija el HECHO, no la
+        # redacción: el texto cambió el 2026-08-31 al retirar de la interfaz
+        # toda mención a la API.
+        assert "no oficial" in est["confidence"]
+        assert "CHPP" not in est["confidence"]
+        # El sueldo real sigue siendo el que se muestra arriba, la estimación
+        # no lo reemplaza.
         assert body["salary"] > 0
     finally:
         app.dependency_overrides.clear()

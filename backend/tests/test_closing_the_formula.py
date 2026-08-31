@@ -259,9 +259,13 @@ def test_skill_ups_are_idempotent() -> None:
 
 # ── La fórmula queda cerrada ────────────────────────────────────────────────
 
-def test_every_formula_input_is_read_from_chpp() -> None:
+def test_ningun_termino_de_la_formula_es_un_supuesto() -> None:
     """El corazón de todo: ningún término de la fórmula sigue siendo un
-    supuesto. Cada uno apunta a su fichero CHPP."""
+    supuesto. Cada uno apunta a la pantalla de Hattrick de la que se leyó.
+
+    El nombre del origen es TEXTO DE USUARIO --se pinta tal cual en la
+    pantalla de transparencia--, así que desde el 2026-08-31 no puede nombrar
+    un fichero de la API. Aquí se fija además esa regla."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
@@ -272,18 +276,25 @@ def test_every_formula_input_is_read_from_chpp() -> None:
     assert ctx.all_read is True
 
     expected_source = {
-        # 2026-08-12: club.xml dejó de traer este agregado (verificado en
-        # vivo) — ahora es la suma real de asistentes de stafflist.xml.
-        "assistant_level_sum": "stafflist.xml",
-        "intensity": "training.xml",
-        "stamina_share": "training.xml",
-        "training_type": "training.xml",
-        "coach_level": "stafflist.xml",
+        # 2026-08-12: el agregado dejó de venir con los datos del club
+        # (verificado en vivo) — ahora es la suma real de tus asistentes.
+        "assistant_level_sum": "Cuerpo técnico",
+        "intensity": "Entrenamiento",
+        "stamina_share": "Entrenamiento",
+        "training_type": "Entrenamiento",
+        "coach_level": "Cuerpo técnico",
     }
     for key, source in expected_source.items():
         prov = ctx.provenance[key]
         assert prov.is_read is True, f"{key} sigue siendo un supuesto"
         assert prov.source == source
+
+    # Ningún origen ni ninguna nota puede delatar la API: los dos se pintan.
+    for key, prov in ctx.provenance.items():
+        assert ".xml" not in prov.source, key
+        assert "CHPP" not in prov.source, key
+        assert ".xml" not in prov.note, key
+        assert "CHPP" not in prov.note, key
 
 
 def test_the_read_values_replace_the_hand_set_ones() -> None:

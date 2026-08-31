@@ -474,7 +474,7 @@ def simulate(
             '"Terminar 1º" no es lo mismo que ascender: en las divisiones '
             "II-VI de Hattrick, el campeón asciende directo o juega una "
             "promoción según el ranking nacional de campeones de la "
-            "temporada, un dato que ningún fichero CHPP expone hoy. El "
+            "temporada, un dato que Hattrick no publica hoy. El "
             "modelo calcula la probabilidad de terminar 1º, la condición "
             "necesaria, nunca la del ascenso en sí."
         )

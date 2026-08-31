@@ -145,7 +145,8 @@ class YouthRow:
 @dataclass
 class GraduateRow:
     name: str
-    promoted_at: str | None
+    #: Cuando llego a su club actual. No es la fecha de ascenso.
+    arrived_at_current_team: str | None
     sold_at: str | None
     sold_for: int | None
     current_team: str | None
@@ -195,7 +196,7 @@ def _fila_de_graduado(
     vendido, precio = ventas.get(g.ht_player_id, (g.sold_at, g.sold_for))
     return GraduateRow(
         name=g.name,
-        promoted_at=_iso(g.promoted_at),
+        arrived_at_current_team=_iso(g.arrived_at_current_team),
         sold_at=_iso(vendido),
         sold_for=conv(precio) if precio else None,
         current_team=g.current_team_name,
@@ -462,7 +463,7 @@ class AcademyQueryService:
                 await self._s.execute(
                     select(m.FormerYouthPlayer)
                     .where(m.FormerYouthPlayer.team_id == team_id)
-                    .order_by(m.FormerYouthPlayer.promoted_at.desc())
+                    .order_by(m.FormerYouthPlayer.arrived_at_current_team.desc())
                 )
             ).scalars()
         )
@@ -474,12 +475,27 @@ class AcademyQueryService:
         # ventas viejas (24,6M) contra una academia de dos semanas.
         # `youthteamdetails.CreatedDate` marca el corte. Sin ese dato todavía
         # sincronizado no se inventa un corte: se usa todo y se avisa.
+        # El corte se hace por la fecha en que SALIO de aqui, que es la
+        # unica de las dos que ocurre en nuestro club. Hasta el 2026-08-31
+        # se hacia por `promoted_at`, que resulto ser cuando llego a su
+        # club actual: una fecha posterior a la venta y ajena a nosotros,
+        # asi que dejaba entrar canteranos de academias anteriores solo
+        # porque hubieran cambiado de equipo hace poco.
+        #
+        # Quien no tiene venta registrada no se puede situar en el tiempo:
+        # se queda fuera del corte y la nota de abajo lo declara.
+        def salio_del_club(g: m.FormerYouthPlayer) -> datetime | None:
+            """Cuando dejo NUESTRO club. Es la unica de sus fechas que
+            ocurre aqui, y por eso es la que puede situarlo en una academia."""
+            vendido, _ = ventas.get(g.ht_player_id, (None, None))
+            return vendido or g.sold_at
+
         academy_since = team.youth_academy_created_at
         if academy_since is not None:
             graduates = [
                 g
                 for g in all_graduates
-                if g.promoted_at is not None and g.promoted_at >= academy_since
+                if (fecha := salio_del_club(g)) is not None and fecha >= academy_since
             ]
         else:
             graduates = all_graduates

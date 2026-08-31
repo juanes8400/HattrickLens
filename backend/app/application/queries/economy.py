@@ -252,7 +252,65 @@ class _WeeklyClose:
     snapshot: m.EconomySnapshot
 
 
-def _weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
+def estructura_semanal(cierres: list[m.EconomySnapshot], rate: float) -> WeeklyStructure | None:
+    """Los componentes recurrentes del club, por semana y en moneda local.
+
+    ES LA UNICA FORMA DE CALCULAR EL «BALANCE SIN TRANSFERENCIAS». Hasta el
+    2026-08-30 habia tres:
+
+      * aqui, promediando las dos ultimas semanas CERRADAS e incluyendo los
+        gastos juveniles y financieros;
+      * en el Panel y en la alerta de deficit, leyendo la semana EN CURSO y
+        sin juveniles ni financieros.
+
+    Las dos ultimas daban -414.969 donde esta daba -435.347, y la razon de
+    fondo es peor que la diferencia: la semana en curso reporta taquilla 0
+    hasta que se juega el partido en casa, asi que el numero se hundia y se
+    recuperaba solo segun el dia, y de paso se comia los 20.000 semanales de
+    la academia --que la pantalla de Club anuncia como «Inversion juvenil»--.
+    Ese numero alimenta la alerta que le dice al usuario cuantas semanas de
+    caja le quedan.
+
+    La taquilla se reparte entre todas las semanas: solo entra dinero los dias
+    de partido en casa, y el motor ya modela esa intermitencia.
+
+    2026-08-09, pedido explicito del usuario: la base no sale de UNA sola
+    semana --una con un gasto puntual o sin partido en casa distorsionaba sola
+    toda la proyeccion--. Se promedian las dos ultimas cerradas disponibles
+    (cae a 1 sola si todavia no hay dos) para los 6 componentes por igual,
+    incluida la taquilla: mas estable, sin inventar un dato donde no lo hay.
+
+    Devuelve `None` cuando no hay ni un cierre guardado, que es lo unico
+    honesto: un 0 diria que el club no ingresa ni gasta nada.
+    """
+    recent = cierres[-2:]
+    if not recent:
+        return None
+
+    def conv(v: float | None) -> int:
+        return int(round((v or 0) / rate))
+
+    def avg(field: str) -> float:
+        return sum(getattr(s, field) or 0 for s in recent) / len(recent)
+
+    avg_sponsors_total = sum(
+        total_sponsor_income(s.income_sponsors, s.income_sponsor_bonuses) for s in recent
+    ) / len(recent)
+    avg_spectators = avg("income_spectators")
+    gate_per_home_match = (
+        conv(avg_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON if avg_spectators else 0
+    )
+    return WeeklyStructure(
+        salaries=conv(avg("costs_players")),
+        staff=conv(avg("costs_staff")),
+        arena_maintenance=conv(avg("costs_arena")),
+        sponsors=conv(avg_sponsors_total),
+        base_gate=gate_per_home_match,
+        other_fixed=conv(avg("costs_youth")) + conv(avg("costs_financial")),
+    )
+
+
+def weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
     """Los cierres semanales que de verdad ocurrieron.
 
     Antes esto era `latest_per_iso_week`: la última lectura de cada semana del
@@ -327,7 +385,7 @@ class EconomyQueryService:
         # de ahora, lo que lleva acumulado la semana en curso). No sirve para
         # la serie — la semana en curso todavía no ha cerrado.
         latest = raw[-1]
-        closes = _weekly_closes(raw)
+        closes = weekly_closes(raw)
         if not closes:
             return None
         snaps = [c.snapshot for c in closes]
@@ -355,7 +413,7 @@ class EconomyQueryService:
         # ── Serie observada ────────────────────────────────────────────────
         cash_series = [conv(s.cash) for s in snaps]
         anomaly_idx = set(ts.detect_anomalies(cash_series))
-        # Cada punto es un CIERRE real (ver `_weekly_closes`), fechado en la
+        # Cada punto es un CIERRE real (ver `weekly_closes`), fechado en la
         # semana que estaba corriendo cuando Hattrick movió la caja. Hasta
         # 2026-08-19 esto se resolvía restando siete días a la fecha de
         # captura, y con eso el histórico entero se corría una semana:
@@ -402,38 +460,8 @@ class EconomyQueryService:
         sankey_windows = _sankey_windows(live_income, live_costs, closed_income, closed_costs)
 
         # ── Estructura semanal ─────────────────────────────────────────────
-        # La taquilla se reparte entre todas las semanas: sólo entra dinero los
-        # días de partido en casa, y el motor ya modela esa intermitencia.
-        #
-        # 2026-08-09, pedido explícito del usuario: la base ya no sale de UNA
-        # sola semana (`latest`) — una semana con un gasto puntual o sin
-        # partido en casa distorsionaba sola toda la proyección. Se promedian
-        # las últimas 2 semanas cerradas disponibles (`snaps[-2:]`, cae a 1
-        # sola si todavía no hay dos) para los 6 componentes por igual,
-        # incluida la taquilla — más estable, sin inventar un dato donde no
-        # lo hay: con una sola semana sincronizada el promedio de 1 es
-        # simplemente esa semana, igual que antes.
-        recent = snaps[-2:]
-
-        def avg(field: str) -> float:
-            values = [getattr(s, field) or 0 for s in recent]
-            return sum(values) / len(values)
-
-        avg_sponsors_total = sum(
-            total_sponsor_income(s.income_sponsors, s.income_sponsor_bonuses) for s in recent
-        ) / len(recent)
-        avg_spectators = avg("income_spectators")
-        gate_per_home_match = (
-            conv(avg_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON if avg_spectators else 0
-        )
-        structure = WeeklyStructure(
-            salaries=conv(avg("costs_players")),
-            staff=conv(avg("costs_staff")),
-            arena_maintenance=conv(avg("costs_arena")),
-            sponsors=conv(avg_sponsors_total),
-            base_gate=gate_per_home_match,
-            other_fixed=conv(avg("costs_youth")) + conv(avg("costs_financial")),
-        )
+        structure = estructura_semanal(snaps, rate)
+        assert structure is not None  # hay cierres: `closes` ya lo garantizó
 
         # Sesgo del modelo medido contra el histórico real, no supuesto cero.
         observed = [conv(s.last_weeks_total) for s in snaps[1:]]

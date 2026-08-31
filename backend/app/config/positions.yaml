@@ -17,7 +17,7 @@ source:
   matrix: relative-position-contributions
 
 reference:
-  implementation: Hattrick Control 3.50.02.1619
+  implementation: Herramienta comunitaria de escritorio 3.50.02.1619
   status: structural
   source_files: [UEquipo.pas, UEquipo.dfm]
   recovered: "Entradas de la calculadora y los 19 roles de posición."

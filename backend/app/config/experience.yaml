@@ -5,11 +5,11 @@
 # docs/reference/HATTRICK_CONTROL_3_50_REVERSE_ENGINEERING.md.
 
 reference:
-  implementation: Hattrick Control 3.50.02.1619
+  implementation: Herramienta comunitaria de escritorio 3.50.02.1619
   status: ported
   source_files: [UExperiencia.pas, UExperiencia.dfm]
   recovered: "Suma ponderada por tipo de partido y porcentaje puntos × 100 / umbral."
-  pending: "Perfil por defecto exacto que tenía el usuario de Hattrick Control."
+  pending: "Perfil por defecto exacto que tenía el usuario en su herramienta anterior."
   # 2026-08-05: valores reales cotejados contra
   # docs/reference/tabla_experiencia.html (ver nota de abajo).
   cross_check: docs/reference/tabla_experiencia.html

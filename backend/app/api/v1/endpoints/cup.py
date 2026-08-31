@@ -193,7 +193,7 @@ def _loss_destination(
         return (
             None,
             None,
-            "La ruta tras una derrota se conocerá cuando CHPP entregue la ronda oficial.",
+            "La ruta tras una derrota se conocerá cuando Hattrick entregue la ronda oficial.",
         )
 
     if destination_level is None:

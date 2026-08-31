@@ -928,7 +928,7 @@ async def rival_scouting(
     own_pitch_source = (
         {
             "kind": "submitted_chpp_prediction",
-            "label": "CHPP · alineación enviada · minuto 0",
+            "label": "Predicción de Hattrick · alineación enviada · minuto 0",
             "match_id": submitted_match.ht_match_id if submitted_match else None,
             "observations": 1,
             "captured_at": (

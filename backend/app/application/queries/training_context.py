@@ -46,7 +46,11 @@ class Provenance:
     """De dónde sale un valor: un fichero CHPP, o un supuesto declarado."""
 
     value: object
-    source: str  # "club.xml", "training.xml", "stafflist.xml", "supuesto"
+    #: Cómo se le NOMBRA al usuario el origen del valor: la pantalla de
+    #: Hattrick de la que sale, o «supuesto». Nunca un fichero de la API:
+    #: esto se pinta tal cual en Transparencia (2026-08-31, orden del
+    #: usuario: ninguna referencia a la API puede llegar a la pantalla).
+    source: str  # "Club", "Entrenamiento", "Cuerpo técnico", "supuesto"
     is_read: bool
     note: str = ""
 
@@ -119,12 +123,12 @@ class TrainingContextService:
             assistants = min(staff.assistant_trainer_levels, cfg["assistant_level_sum_cap"])
             prov["assistant_level_sum"] = Provenance(
                 assistants,
-                "stafflist.xml",
+                "Cuerpo técnico",
                 True,
                 # HL-2xx, 2026-08-12: club.xml dejó de traer el agregado
                 # (verificado en vivo) — ahora es la suma real de los
                 # asistentes de entrenador (StaffType=1) de stafflist.xml.
-                "Suma de niveles de los asistentes de entrenador reales (StaffType=1)",
+                "Suma de los niveles de tus asistentes de entrenador",
             )
         else:
             assistants = int(cfg.get("default_assistant_level_sum", 10))
@@ -132,7 +136,7 @@ class TrainingContextService:
                 assistants,
                 "supuesto",
                 False,
-                "sin sincronizar club.xml: se usa el valor por defecto",
+                "sin datos del club todavía: se usa el valor por defecto",
             )
 
         # ── Intensidad y condición ─────────────────────────────────────────
@@ -140,14 +144,18 @@ class TrainingContextService:
             intensity = training.training_level
             stamina = training.stamina_part
             training_type = training.training_type
-            prov["intensity"] = Provenance(intensity, "training.xml", True, "TrainingLevel")
-            prov["stamina_share"] = Provenance(stamina, "training.xml", True, "StaminaTrainingPart")
-            prov["training_type"] = Provenance(training_type, "training.xml", True, "TrainingType")
+            prov["intensity"] = Provenance(intensity, "Entrenamiento", True, "Intensidad declarada")
+            prov["stamina_share"] = Provenance(
+                stamina, "Entrenamiento", True, "Parte dedicada a resistencia"
+            )
+            prov["training_type"] = Provenance(
+                training_type, "Entrenamiento", True, "Entrenamiento elegido"
+            )
         else:
             intensity = 100
             stamina = cfg.get("default_stamina_share", 0)
             training_type = 10
-            prov["intensity"] = Provenance(100, "supuesto", False, "sin training.xml")
+            prov["intensity"] = Provenance(100, "supuesto", False, "sin datos de entrenamiento")
             prov["stamina_share"] = Provenance(
                 stamina,
                 "supuesto",
@@ -155,10 +163,13 @@ class TrainingContextService:
                 # HL-2xx, 2026-08-14: antes caía en 0 en vez del default_stamina_share
                 # del yaml (12.5) — contradecía el propio default documentado y
                 # asumía "0% a resistencia" en vez de un reparto típico.
-                "sin training.xml: se usa default_stamina_share del perfil",
+                "sin datos de entrenamiento: se usa el reparto típico del perfil",
             )
             prov["training_type"] = Provenance(
-                training_type, "supuesto", False, "sin training.xml: se usa Pases largos"
+                training_type,
+                "supuesto",
+                False,
+                "sin datos de entrenamiento: se asume Pases largos",
             )
 
         # ── Entrenador ─────────────────────────────────────────────────────
@@ -169,14 +180,13 @@ class TrainingContextService:
             is_excellent = raw >= cfg["excellent_trainer_skill_level"]
             prov["coach_level"] = Provenance(
                 coach_level,
-                "stafflist.xml",
+                "Cuerpo técnico",
                 True,
-                f"TrainerSkillLevel {raw}/5 → nivel {coach_level} "
-                "(correspondencia 1–5 → 4–8 de HT-Tools)",
+                f"Entrenador {raw}/5 → nivel {coach_level} (correspondencia 1–5 → 4–8 de HT-Tools)",
             )
         else:
             coach_level, is_excellent = 8, True
-            prov["coach_level"] = Provenance(8, "supuesto", False, "sin stafflist.xml")
+            prov["coach_level"] = Provenance(8, "supuesto", False, "sin datos del cuerpo técnico")
 
         setup = te.TrainingSetup(
             skill=cfg["training_type_to_skill"].get(training_type, "passing"),
@@ -194,7 +204,7 @@ class TrainingContextService:
         if all_read:
             notes.insert(
                 0,
-                "Todos los valores del club se leen del CHPP. Los coeficientes "
+                "Todos los valores del club se leen de Hattrick. Los coeficientes "
                 "son la estimación comunitaria pública de HT-Tools; no son "
                 "constantes oficiales de Hattrick ni se ajustan con tus datos.",
             )

@@ -535,10 +535,10 @@ async def team_of_the_week(
                 "total_stars": total_stars,
                 "caveats": [
                     "Rating real de cada titular, público para cualquier partido ya terminado "
-                    "(matchlineup.xml), un mismo jugador solo cuenta con su mejor actuación del rango.",  # noqa: E501
+                    "un mismo jugador solo cuenta con su mejor actuación del rango.",
                     '"De la temporada" pesa cada jornada terminada por igual, sin importar cuándo se '  # noqa: E501
                     "sincronizó el calendario, puede tardar en reflejar la última jornada si "
-                    "leaguefixtures.xml todavía no trae su marcador.",
+                    "el calendario todavía no trae su marcador.",
                 ],
             }
         ),

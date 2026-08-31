@@ -5,8 +5,8 @@ from app.infrastructure.chpp.parsers import (
     parse_arenadetails,
     parse_leaguedetails,
     parse_matchdetails,
-    parse_matchorders,
     parse_matches,
+    parse_matchorders,
     parse_transfersplayer,
 )
 

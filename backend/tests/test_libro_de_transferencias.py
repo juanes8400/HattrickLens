@@ -7,10 +7,8 @@
    se anotan las dos.
 """
 import asyncio
-from datetime import datetime
 from typing import Any
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool

@@ -74,7 +74,7 @@ Catálogo de las pantallas de Hattrick Control analizadas durante el descubrimie
 |---|---|---|---|---|---|
 | 38 | Jugadores · Límite | Juveniles con fecha de promoción y días restantes | `youthplayerlist` | **Superar** | HL-112 |
 | 39 | Ojeadores | Configuración de los tres ojeadores | `youthteamdetails` | Imitar | HL-113 |
-| 40 | Entrenamiento juvenil | Pesos de valoración: principal 1,0 / secundario 0,8; posición 1,0 / 0,5; liga 1,0 / amistoso 0,5 | `youthmatches` | **Superar** | HL-115 |
+| 40 | Entrenamiento juvenil | Pesos corregidos: principal 1,0 / secundario distinto ⅔ / secundario repetido ⅓; posición 1,0 / 0,5; liga 1,0 / amistoso 0,5 | `youthmatches` | **Superar** | HL-115 |
 
 ## Ventana Entrenamiento
 

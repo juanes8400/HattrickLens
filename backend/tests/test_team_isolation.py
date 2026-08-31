@@ -216,7 +216,6 @@ def test_deleting_an_account_removes_that_users_data_and_nobody_elses() -> None:
 
     Lo importante del test no es que borre: es que NO borre lo del vecino.
     """
-    from sqlalchemy import select
 
     client, ana_id, equipo_ana, equipo_beto = _dos_usuarios()
     try:
