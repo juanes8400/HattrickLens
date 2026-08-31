@@ -602,5 +602,5 @@ function HistoryTable({ data }: { data: Cup }) {
       render: (row) => <span className="text-[var(--muted)]">{row.cupName ?? "-"}</span>,
     },
   ];
-  return <DataTable rows={data.history} columns={columns} rowKey={(row) => row.htMatchId} csvName="copa" filterPlaceholder="Filtrar por rival…" />;
+  return <DataTable emptyMessage="Todavía no hay partidos de copa jugados." rows={data.history} columns={columns} rowKey={(row) => row.htMatchId} csvName="copa" filterPlaceholder="Filtrar por rival…" />;
 }

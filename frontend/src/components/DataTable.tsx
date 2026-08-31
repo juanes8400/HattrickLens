@@ -30,7 +30,19 @@ interface Props<T> {
   initialDescending?: boolean;
   filterPlaceholder?: string;
   csvName?: string;
-  emptyMessage?: string;
+  /** Qué poner cuando no hay ni una fila. OBLIGATORIO a propósito.
+   *
+   *  Era opcional con «Sin datos todavía.» de reserva, y 14 de 23 tablas se
+   *  quedaban en él (2026-08-31): un texto que no dice qué debería haber ahí
+   *  ni qué hacer para que aparezca, justo en la pantalla que más ve una
+   *  cuenta recién creada. Las 9 que sí lo pasaban demuestran la diferencia:
+   *  «Sin jugadores para calcular fidelidad», «Sin equipos en esta categoría».
+   *
+   *  El patrón está copiado de `ariaLabel` en las gráficas: allí es
+   *  obligatorio por tipo y las 30 llamadas tienen nombre útil. Donde el
+   *  sistema obliga no hay excepciones; donde tiene valor por defecto, el 60%
+   *  se queda en él. */
+  emptyMessage: string;
   selectedRowKey?: string | number | null;
   onRowClick?: (row: T) => void;
 }
@@ -43,7 +55,7 @@ export function DataTable<T>({
   initialDescending = true,
   filterPlaceholder = "Filtrar…",
   csvName = "export",
-  emptyMessage = "Sin datos todavía.",
+  emptyMessage,
   selectedRowKey,
   onRowClick,
 }: Props<T>) {

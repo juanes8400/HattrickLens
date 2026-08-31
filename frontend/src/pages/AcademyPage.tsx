@@ -2708,6 +2708,7 @@ function GraduatesTable({ data }: { data: Academy }) {
   return (
     <>
       <DataTable
+        emptyMessage="Ningún canterano encaja con lo que has pedido."
         rows={filas}
         columns={columns}
         rowKey={(r) => r.name}

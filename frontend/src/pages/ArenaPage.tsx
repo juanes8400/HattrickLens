@@ -270,6 +270,7 @@ function SectorTable({ data }: { data: Arena }) {
   return (
     <>
       <DataTable
+        emptyMessage="Sin datos del estadio todavía: llegan con la primera sincronización."
         rows={data.sectors}
         columns={columns}
         rowKey={(r) => r.sector}

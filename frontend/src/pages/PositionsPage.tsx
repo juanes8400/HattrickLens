@@ -176,6 +176,7 @@ export function PositionsPage() {
       </Panel>
 
       <DataTable
+        emptyMessage="Sin jugadores en la plantilla."
         rows={squad.data.players}
         columns={columns}
         rowKey={(player) => player.htPlayerId}

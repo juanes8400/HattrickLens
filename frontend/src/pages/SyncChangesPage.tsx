@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BotonDeBorrado } from "../components/BotonDeBorrado";
 import { Link } from "react-router-dom";
 import {
   ClubMoraleSection,
@@ -360,13 +361,14 @@ function PreguntaDeVisitas() {
             >
               No sé
             </button>
-            <button
-              onClick={() => borrar.mutate(p.id)}
+            <BotonDeBorrado
+              onConfirmar={() => borrar.mutate(p.id)}
               title="Borrarlo: como si nunca hubiera llegado a la lista"
-              className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
+              confirmacion="¿Seguro? No hay vuelta atrás"
+              className="min-h-6 rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
             >
               No tener en cuenta
-            </button>
+            </BotonDeBorrado>
           </div>
         ))}
       </div>

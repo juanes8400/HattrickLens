@@ -1003,6 +1003,7 @@ export function TrainingPage() {
               meta={`${data.weeklyLog.length} semana(s) registradas`}
             >
               <DataTable
+                emptyMessage="Sin semanas de entrenamiento registradas todavía."
                 rows={data.weeklyLog}
                 columns={weeklyLogColumns}
                 rowKey={(r) => r.date}
@@ -1084,6 +1085,7 @@ export function TrainingPage() {
                   </Panel>
                   {playerLevels.data.confirmed.length > 0 && (
                     <DataTable
+                      emptyMessage="Ninguna subida confirmada todavía."
                       rows={playerLevels.data.confirmed}
                       columns={confirmedColumns}
                       rowKey={(r) => r.seasonWeek}
@@ -1101,6 +1103,7 @@ export function TrainingPage() {
                   meta={`hasta nivel 20 · ${playerLevels.data.forecast.length} nivel(es)`}
                 >
                   <DataTable
+                    emptyMessage="Sin previsión: hace falta al menos una semana entrenada."
                     rows={playerLevels.data.forecast}
                     columns={forecastColumns}
                     rowKey={(r) => r.level}
@@ -1273,6 +1276,7 @@ export function TrainingPage() {
           </Panel>
 
           <DataTable
+            emptyMessage="Sin opciones que comparar para este partido."
             rows={post.options}
             columns={optionColumns}
             rowKey={(r) => r.trainingType}

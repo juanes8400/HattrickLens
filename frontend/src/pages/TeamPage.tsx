@@ -174,6 +174,7 @@ export function TeamPage() {
       </header>
 
       <DataTable
+        emptyMessage="Sin jugadores en la plantilla. Sincroniza para traerlos."
         rows={data.players}
         columns={columns}
         rowKey={(player) => player.htPlayerId}

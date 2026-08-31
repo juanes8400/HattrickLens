@@ -12,6 +12,8 @@ import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
 import { date, money, number, parseUtc } from "../hooks/useFormat";
+import { useDialogoModal } from "../hooks/useModal";
+import { BotonDeBorrado } from "../components/BotonDeBorrado";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
 import { api, errorMessage } from "../services/api";
@@ -532,16 +534,23 @@ function EditarEtapa({
     onError: (reason) => setError(errorMessage(reason)),
   });
 
+  // Escape, foco que entra, Tab que da la vuelta y foco que se devuelve al
+  // cerrar. Sin esto el diálogo sólo se podía cerrar con el ratón.
+  const caja = useDialogoModal<HTMLDivElement>(onCerrar);
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
-      role="dialog"
-      aria-label={`Editar ${fila.name}`}
       onClick={onCerrar}
     >
       <div
+        ref={caja}
         className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Editar ${fila.name}`}
+        tabIndex={-1}
       >
         <h2 className="text-base font-semibold">{fila.name}</h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
@@ -1896,14 +1905,14 @@ function TransferAttemptsSection() {
                 </td>
                 <td className="px-3 py-2">{r.trainingThatWeek}</td>
                 <td className="px-3 py-2">
-                  <button
-                    onClick={() => borrar.mutate(r.id)}
+                  <BotonDeBorrado
+                    onConfirmar={() => borrar.mutate(r.id)}
                     disabled={borrar.isPending}
                     title="Borrar este intento: como si nunca hubiera llegado a la lista"
-                    className="rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--negative)] hover:text-[var(--negative)] disabled:opacity-50"
+                    className="min-h-6 rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--negative)] hover:text-[var(--negative)] disabled:opacity-50"
                   >
                     Borrar
-                  </button>
+                  </BotonDeBorrado>
                 </td>
               </tr>
             ))}
@@ -2331,6 +2340,7 @@ function BalanceTable({
   return (
     <>
     <DataTable
+      emptyMessage="Ninguna venta registrada todavía."
       rows={data}
       columns={columns}
       // Por ETAPA, no por jugador: quien paso dos veces por el club tiene

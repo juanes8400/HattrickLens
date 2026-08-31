@@ -426,6 +426,7 @@ function StandingsTable({ data }: { data: League }) {
         ))}
       </div>
       <DataTable
+        emptyMessage="Sin clasificación: se llena cuando se sincronice la liga."
         rows={rows}
         columns={columns}
         rowKey={(r) => r.htTeamId}
@@ -879,6 +880,7 @@ function OutlookTable({ data }: { data: League }) {
   return (
     <>
       <DataTable
+        emptyMessage="Sin proyección: hacen falta jornadas jugadas para estimarla."
         rows={data.outlook}
         columns={columns}
         rowKey={(r) => r.htTeamId}
@@ -1062,6 +1064,7 @@ function LeagueTsiComparison() {
       />
       <Panel title="Comparativa de rivales" meta={data.seriesName}>
         <DataTable
+          emptyMessage="Sin comparativa: hacen falta partidos de los rivales."
           rows={data.ranking}
           columns={columns}
           rowKey={(r) => r.teamHtId}

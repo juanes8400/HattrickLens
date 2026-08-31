@@ -157,6 +157,7 @@ function ResumenPanel({ data }: { data: Matches }) {
     <div className="grid gap-4 p-4 lg:grid-cols-2 [&>*]:min-w-0">
       <div className="space-y-4">
         <DataTable
+          emptyMessage="Sin partidos jugados como local ni como visitante."
           rows={data.homeAway}
           columns={homeAwayColumns}
           rowKey={(r) => r.scope}
@@ -177,6 +178,7 @@ function ResumenPanel({ data }: { data: Matches }) {
         </h3>
         {data.bestRatings.length ? (
           <DataTable
+            emptyMessage="Sin valoraciones guardadas todavía."
             rows={data.bestRatings}
             columns={bestColumns}
             rowKey={(r) => r.metric}
@@ -389,6 +391,7 @@ function MatchTable({
   ];
   return (
     <DataTable
+      emptyMessage="Ningún partido jugado. Sincroniza para traer el historial."
       rows={data.matches}
       columns={columns}
       rowKey={(r) => r.htMatchId}
