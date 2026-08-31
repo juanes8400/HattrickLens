@@ -19,19 +19,84 @@ import clsx from "clsx";
  *     alguien prueba en un control segmentado.
  *   - `Inicio` y `Fin` saltan a la primera y a la última.
  */
+/** Los dos identificadores que enlazan una pestaña con su panel.
+ *
+ *  Se derivan del grupo y de la clave para que la pestaña y el panel los
+ *  calculen por separado y coincidan, sin tener que pasarse ids a mano. */
+const limpio = (v: string) => v.replace(/[^a-zA-Z0-9_-]/g, "-");
+export const idDePestana = (grupo: string, clave: string) =>
+  `pestana-${limpio(grupo)}-${limpio(clave)}`;
+export const idDePanel = (grupo: string, clave: string) =>
+  `panel-${limpio(grupo)}-${limpio(clave)}`;
+
+/**
+ * El contenido de la pestaña activa, declarado como su panel.
+ *
+ *  Faltaba en las doce barras de la aplicación: los botones decían
+ *  `role="tab"` y `aria-selected`, pero no había un solo `aria-controls` ni
+ *  un solo `role="tabpanel"` en todo el código (2026-08-31). Es decir, se
+ *  anunciaba una relación --«esta pestaña controla aquel panel»-- que en el
+ *  árbol de accesibilidad no existía: no se podía saltar de la pestaña a su
+ *  contenido ni oír a qué pestaña pertenecía lo que se estaba leyendo.
+ */
+export function PanelDePestanas({
+  grupo,
+  activa,
+  children,
+  className,
+}: {
+  grupo: string;
+  activa: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      id={idDePanel(grupo, activa)}
+      role="tabpanel"
+      aria-labelledby={idDePestana(grupo, activa)}
+      // Enfocable para poder llegar al contenido con el tabulador desde la
+      // pestaña, que es justo lo que el patrón promete.
+      tabIndex={0}
+      className={className}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Tabs<T extends string>({
   tabs,
   active,
   onChange,
   label,
+  grupo,
+  modo = "secciones",
 }: {
   tabs: { key: T; label: string; icon?: ReactNode }[];
   active: T;
   onChange: (key: T) => void;
   /** Qué distingue a ESTE grupo cuando hay varios en la misma pantalla. */
   label?: string;
+  /** Nombre del grupo, para enlazar cada pestaña con su panel. Sólo hace
+   *  falta en modo «secciones». */
+  grupo?: string;
+  /** Qué hace de verdad este control. Los dos se ven igual a propósito --es
+   *  la misma píldora-- pero no son lo mismo por debajo, y anunciarlos igual
+   *  promete algo que no se cumple.
+   *
+   *  «secciones»: cada opción enseña un CONTENIDO distinto. Es el patrón de
+   *  pestañas de verdad.
+   *
+   *  «filtro»: todas enseñan lo mismo con otro parámetro --«esta semana / 2
+   *  semanas / 4 semanas»--. No hay una sección por opción, así que
+   *  anunciarlo como pestañas dice que hay paneles que no existen; se
+   *  anuncia como lo que es, un grupo de conmutadores con su estado
+   *  (2026-08-31). */
+  modo?: "secciones" | "filtro";
 }) {
   const zona = useRef<HTMLDivElement>(null);
+  const esFiltro = modo === "filtro";
 
   const mover = (indice: number) => {
     const destino = tabs[indice];
@@ -43,6 +108,9 @@ export function Tabs<T extends string>({
   };
 
   const alPulsar = (e: React.KeyboardEvent, actual: number) => {
+    // Las flechas son del patrón de pestañas. En un grupo de conmutadores
+    // capturarlas quitaría el desplazamiento normal de la página.
+    if (esFiltro) return;
     const ultimo = tabs.length - 1;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
@@ -67,19 +135,25 @@ export function Tabs<T extends string>({
     <div className="-mx-1 overflow-x-auto px-1">
       <div
         ref={zona}
-        role="tablist"
+        role={esFiltro ? "group" : "tablist"}
         aria-label={label}
         className="inline-flex w-max gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-1"
       >
         {tabs.map((t, i) => (
           <button
             key={t.key}
-            role="tab"
-            aria-selected={active === t.key}
+            role={esFiltro ? undefined : "tab"}
+            id={esFiltro || !grupo ? undefined : idDePestana(grupo, t.key)}
+            aria-controls={esFiltro || !grupo ? undefined : idDePanel(grupo, t.key)}
+            // Un filtro dice si está PUESTO; una pestaña, si está elegida.
+            aria-pressed={esFiltro ? active === t.key : undefined}
+            aria-selected={esFiltro ? undefined : active === t.key}
           // Sólo la activa está en el orden de tabulación; entre ellas se
           // navega con las flechas. Es lo que espera quien usa teclado y lo
           // que evita convertir cada grupo de pestañas en un peaje.
-            tabIndex={active === t.key ? 0 : -1}
+          // En un filtro, en cambio, todas son parada: no es un `tablist` y
+          // nadie espera tener que usar las flechas para descubrirlas.
+            tabIndex={esFiltro || active === t.key ? 0 : -1}
             onClick={() => onChange(t.key)}
             onKeyDown={(e) => alPulsar(e, i)}
             className={clsx(

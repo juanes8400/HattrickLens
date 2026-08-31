@@ -17,7 +17,7 @@ import {
 import { SerieConCausas } from "../components/SerieConCausas";
 import type { Suceso } from "../components/SerieConCausas";
 import { StaffRoleCard } from "../components/StaffRoleCard";
-import { Tabs } from "../components/Tabs";
+import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { useClub } from "../hooks/useTeam";
 import { date, number } from "../hooks/useFormat";
 import {
@@ -70,6 +70,8 @@ export function ClubPage() {
       </header>
 
       <Tabs
+        grupo="club"
+        label="Secciones de Club"
         tabs={[
           { key: "psicologia", label: "Psicología" },
           { key: "tecnico", label: "Cuerpo técnico" },
@@ -79,12 +81,15 @@ export function ClubPage() {
         onChange={(k) => setSeccion(k as Seccion)}
       />
 
-      {seccion === "psicologia" && <Psicologia data={data} />}
-      {seccion === "tecnico" && (
-        <CuerpoTecnico data={data} rango={staffRange} />
-      )}
-      {seccion === "socios" && <Socios data={data} />}
+      <PanelDePestanas grupo="club" activa={seccion} className="space-y-4">
+        {seccion === "psicologia" && <Psicologia data={data} />}
+        {seccion === "tecnico" && (
+          <CuerpoTecnico data={data} rango={staffRange} />
+        )}
+        {seccion === "socios" && <Socios data={data} />}
+      </PanelDePestanas>
 
+      {/* Las notas son de la pantalla, no de una sección: van fuera. */}
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
         {data.notes.map((note) => (
           <Note key={note}>{note}</Note>

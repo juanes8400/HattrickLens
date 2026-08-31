@@ -497,7 +497,10 @@ export function SyncChangesPage() {
           jugadores primero: es lo que el usuario vino a ver. */}
       <Panel title="Cambios por jugador" meta="jugador por jugador, habilidad por habilidad">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+          {/* Mismo feed, distinto tramo del histórico: es un filtro. */}
           <Tabs
+            modo="filtro"
+            label="Tramo del histórico"
             tabs={[
               { key: "latest", label: "Última lectura" },
               ...HISTORY_WINDOWS.map((w) => ({ key: w.key, label: w.label })),

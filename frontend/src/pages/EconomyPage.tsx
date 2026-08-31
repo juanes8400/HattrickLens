@@ -232,20 +232,22 @@ function HattrickFlow({ data }: { data: Economy }) {
           : undefined
       }
     >
-      <div className="flex flex-wrap gap-1 border-b border-[var(--border)] px-4 py-2">
-        {data.sankeyWindows.map((w) => (
-          <button
-            key={w.weeks}
-            onClick={() => setWeeks(w.weeks)}
-            className={
-              w.weeks === weeks
-                ? "rounded-md bg-[var(--accent)] px-2.5 py-1 text-xs font-medium text-white"
-                : "rounded-md px-2.5 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
-            }
-          >
-            {w.weeks === 1 ? "esta semana" : `${w.weeks} semanas`}
-          </button>
-        ))}
+      {/* Era el mismo control segmentado montado a mano por TERCERA vez:
+          botones sueltos, sin `role`, sin estado y con su propio juego de
+          clases. Ahora sale del componente compartido, en modo filtro --las
+          cinco enseñan el mismo flujo con otra ventana-- así que declara
+          `aria-pressed` como los demás (2026-08-31). */}
+      <div className="border-b border-[var(--border)] px-4 py-2">
+        <Tabs
+          modo="filtro"
+          label="Ventana de tiempo del flujo"
+          tabs={data.sankeyWindows.map((w) => ({
+            key: String(w.weeks),
+            label: w.weeks === 1 ? "esta semana" : `${w.weeks} semanas`,
+          }))}
+          active={String(weeks)}
+          onChange={(k) => setWeeks(Number(k))}
+        />
       </div>
       {flow && (
         <Chart
@@ -600,7 +602,11 @@ function ForecastPanel({
         <span className="text-xs text-[var(--muted)]">
           Horizonte del escenario
         </span>
+        {/* No son secciones: las cinco enseñan el MISMO flujo con otra
+            ventana de tiempo. */}
         <Tabs
+          modo="filtro"
+          label="Ventana de tiempo del flujo"
           tabs={HORIZON_OPTIONS}
           active={horizon}
           onChange={onHorizonChange}
