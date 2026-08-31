@@ -1,14 +1,23 @@
+import { useState } from "react";
 import { Chart } from "../charts/Chart";
-import {
-  proportionalTimelineOption,
-  timelineOption,
-} from "../charts/chartOptions";
+import { timelineOption } from "../charts/chartOptions";
 import {
   DateRangeFilter,
   useDateRangeFilter,
 } from "../components/DateRangeFilter";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import {
+  Empty,
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
+import { SerieConCausas } from "../components/SerieConCausas";
+import type { Suceso } from "../components/SerieConCausas";
 import { StaffRoleCard } from "../components/StaffRoleCard";
+import { Tabs } from "../components/Tabs";
 import { useClub } from "../hooks/useTeam";
 import { date, number } from "../hooks/useFormat";
 import {
@@ -16,42 +25,40 @@ import {
   trainingStaffLevelColor,
 } from "../utils/staffEffects";
 import { skillLevelLabel } from "../utils/skillLevels";
+import type { Club, PsychologyMatch } from "../services/api";
 
-/** Club y staff: las tres subpestañas de Hattrick Control reunidas sin perder
- * la distinción entre dato actual y serie observada. */
+/**
+ * Club y cuerpo técnico, en tres pestañas.
+ *
+ * Antes era una página corrida que mezclaba tres asuntos sin relación entre
+ * sí: el ánimo del vestuario, quién trabaja en el club y cuánta gente va al
+ * campo. Cada uno se mira en un momento distinto y por un motivo distinto.
+ *
+ * «Psicología» sustituye a la vieja gráfica «Ánimo competitivo», que ponía
+ * espíritu y confianza sobre un mismo eje —con escalas distintas, 0-10 y
+ * 0-9— y no decía por qué se movía ninguno de los dos.
+ */
+
+// Tokens y no colores fijos: el gris que había aquí medía 2,61 de
+// contraste en modo CLARO, también por debajo del mínimo.
+const VERDE = "var(--positive)";
+const GRIS = "var(--muted)";
+const ROJO = "var(--danger)";
+
+type Seccion = "psicologia" | "tecnico" | "socios";
+
 export function ClubPage() {
   const { data, isLoading, isError, error } = useClub();
+  const [seccion, setSeccion] = useState<Seccion>("psicologia");
 
-  // Timestamps ISO reales (no el "dd/mm/yyyy" de `date()`) para que el
-  // filtro de rango compare fechas correctamente — comparar cadenas
-  // "dd/mm/yyyy" como si fueran ISO da resultados sin sentido, mismo
-  // patrón ya usado en EconomyPage/PlayerPage.
-  const moodTimestamps = (data?.moodHistory ?? []).map(
-    (item) => item.capturedAt,
-  );
-  const fanTimestamps = (data?.supporterHistory ?? []).map(
-    (item) => item.capturedAt,
-  );
-  const staffTimestamps = (data?.staffHistory ?? []).map(
-    (item) => item.capturedAt,
-  );
-  const mood = useDateRangeFilter(moodTimestamps);
-  const fan = useDateRangeFilter(fanTimestamps);
+  // Timestamps ISO reales (no el "dd/mm/yyyy" de `date()`) para que el filtro
+  // de rango compare fechas correctamente.
+  const staffTimestamps = (data?.staffHistory ?? []).map((i) => i.capturedAt);
   const staffRange = useDateRangeFilter(staffTimestamps);
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
-
-  const { current, staff } = data;
-  const hasMoodHistory = data.moodHistory.length > 1;
-  const hasFanHistory = data.supporterHistory.length > 1;
-  const hasStaffHistory = data.staffHistory.length > 1;
-  // Los índices siempre vienen de un arreglo de fechas del mismo largo que
-  // `items` (ambos derivados de la misma historia), así que la posición
-  // siempre existe.
-  const pick = <T,>(items: T[], indices: number[]) =>
-    indices.map((i) => items[i] as T);
+  if (!data) return <SinDatos />;
 
   return (
     <div className="space-y-4">
@@ -62,36 +69,199 @@ export function ClubPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Espíritu del equipo"
-          value={
-            current.spirit
-              ? `${current.spirit.label} (${current.spirit.level})`
-              : "Sin dato"
-          }
-        />
-        <Kpi
-          label="Confianza"
-          value={
-            current.confidence
-              ? `${current.confidence.label} (${current.confidence.level})`
-              : "Sin dato"
-          }
-        />
-        <Kpi
-          label="Socios"
-          value={
-            current.supporters?.fanClubSize != null
-              ? number(current.supporters.fanClubSize)
-              : "Sin dato"
-          }
-          hint={
-            current.supporters
-              ? `afición: ${current.supporters.popularityLabel}`
-              : undefined
-          }
-        />
+      <Tabs
+        tabs={[
+          { key: "psicologia", label: "Psicología" },
+          { key: "tecnico", label: "Cuerpo técnico" },
+          { key: "socios", label: "Socios" },
+        ]}
+        active={seccion}
+        onChange={(k) => setSeccion(k as Seccion)}
+      />
+
+      {seccion === "psicologia" && <Psicologia data={data} />}
+      {seccion === "tecnico" && (
+        <CuerpoTecnico data={data} rango={staffRange} />
+      )}
+      {seccion === "socios" && <Socios data={data} />}
+
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        {data.notes.map((note) => (
+          <Note key={note}>{note}</Note>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** La ventana que cubren las gráficas: el ancho real de los datos. */
+function ventana(data: Club): { from: string; to: string } {
+  const psi = data.psychology;
+  const fechas = [
+    ...psi.spirit.readings.map((r) => r.at),
+    ...psi.confidence.readings.map((r) => r.at),
+    ...psi.matches.map((m) => m.playedAt),
+    ...data.supporterHistory.map((s) => s.capturedAt),
+  ].sort();
+  const primera = new Date(fechas[0] ?? new Date().toISOString());
+  const ultima = new Date(
+    fechas[fechas.length - 1] ?? new Date().toISOString(),
+  );
+  // Un día de aire a cada lado: sin él, el primer y el último punto quedan
+  // pegados al marco y no se distingue el círculo de la lectura.
+  primera.setDate(primera.getDate() - 1);
+  ultima.setDate(ultima.getDate() + 1);
+  return { from: primera.toISOString(), to: ultima.toISOString() };
+}
+
+function marcador(m: PsychologyMatch): string {
+  return `${m.goalsFor}-${m.goalsAgainst}`;
+}
+
+function Psicologia({ data }: { data: Club }) {
+  const psi = data.psychology;
+  const { from, to } = ventana(data);
+  const { current } = data;
+
+  // Cada gráfica lleva SÓLO sus causas. Al espíritu lo mueve la actitud del
+  // partido; a la confianza, el resultado. El manual las separa y mezclarlas
+  // invitaría a leer una causa donde no la hay.
+  const porActitud: Suceso[] = psi.matches.map((m) => ({
+    at: m.playedAt,
+    chip: m.attitudeLabel,
+    color: m.attitude === -1 ? VERDE : m.attitude === 1 ? ROJO : GRIS,
+    detail: `<b>${m.attitudeLabel ?? "actitud no leída"}</b> · ${m.rival} ${marcador(m)}`,
+  }));
+  const porResultado: Suceso[] = psi.matches.map((m) => ({
+    at: m.playedAt,
+    chip: null,
+    color: m.result === "win" ? VERDE : m.result === "loss" ? ROJO : GRIS,
+    detail:
+      `<b>${m.result === "win" ? "Victoria" : m.result === "loss" ? "Derrota" : "Empate"} ` +
+      `${marcador(m)}</b> · ${m.rival}`,
+  }));
+
+  const pic = psi.matches.filter((m) => m.attitude === -1).length;
+  const normal = psi.matches.filter((m) => m.attitude === 0).length;
+  const mots = psi.matches.filter((m) => m.attitude === 1).length;
+  const ventas = psi.sellDays.reduce((t, d) => t + d.count, 0);
+  const compras = psi.buyDays.reduce((t, d) => t + d.count, 0);
+
+  return (
+    <div className="space-y-4">
+      <Panel
+        title="Espíritu"
+        meta="lo mueven la actitud del partido, el mercado y el % de entrenamiento"
+      >
+        <div className="flex flex-wrap items-baseline gap-4 border-b border-[var(--border)] px-4 py-3">
+          <Kpi
+            label="Ahora"
+            value={
+              current.spirit
+                ? `${current.spirit.label} (${current.spirit.level})`
+                : "Sin dato"
+            }
+          />
+        </div>
+        <div className="p-4">
+          <SerieConCausas
+            readings={psi.spirit.readings}
+            movements={psi.spirit.movements}
+            scale={psi.spirit.scale}
+            equilibrium={psi.spirit.equilibrium}
+            equilibriumLabel="tiende aquí"
+            events={porActitud}
+            eventsLabel="partidos"
+            ariaLabel="Evolución del espíritu del equipo"
+            buyDays={psi.buyDays}
+            sellDays={psi.sellDays}
+            height={190}
+            from={from}
+            to={to}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--border)] px-4 py-3 text-[11px] text-[var(--muted)]">
+          <Punto color={VERDE} texto={`PIC · ${pic}`} />
+          <Punto color={GRIS} texto={`Normal · ${normal}`} />
+          <Punto color={ROJO} texto={`MOTS · ${mots}`} />
+          <Punto color="var(--mercado-venta)" texto={`${ventas} ventas`} />
+          <Punto color="var(--mercado-compra)" texto={`${compras} compras`} />
+          <span className="italic">
+            {psi.intensityDrops.length === 0
+              ? "% de entrenamiento: sin bajarlo en el período"
+              : `% de entrenamiento: ${psi.intensityDrops.length} bajada(s)`}
+          </span>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Confianza"
+        meta="la mueven los resultados y los goles marcados"
+      >
+        <div className="flex flex-wrap items-baseline gap-4 border-b border-[var(--border)] px-4 py-3">
+          <Kpi
+            label="Ahora"
+            value={
+              current.confidence
+                ? `${current.confidence.label} (${current.confidence.level})`
+                : "Sin dato"
+            }
+          />
+        </div>
+        <div className="p-4">
+          <SerieConCausas
+            readings={psi.confidence.readings}
+            movements={psi.confidence.movements}
+            scale={psi.confidence.scale}
+            equilibrium={psi.confidence.equilibrium}
+            events={porResultado}
+            eventsLabel="resultados"
+            ariaLabel="Evolución de la confianza del equipo"
+            color="var(--mercado-venta)"
+            height={165}
+            from={from}
+            to={to}
+          />
+        </div>
+        <p className="border-t border-[var(--border)] px-4 py-3 text-[11px] leading-relaxed text-[var(--muted)]">
+          La confianza tiende a un punto medio en cada actualización diaria, no
+          sólo después de un partido, y el psicólogo deportivo lo sube. Ese
+          punto <b className="text-[var(--text)]">no se dibuja</b> porque
+          Hattrick no publica su valor: aquí sólo hay lecturas, no una
+          referencia contra la que compararlas.
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
+function Punto({ color, texto }: { color: string; texto: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <i
+        className="inline-block h-2 w-2 rounded-full"
+        style={{ background: color }}
+      />
+      {texto}
+    </span>
+  );
+}
+
+function CuerpoTecnico({
+  data,
+  rango,
+}: {
+  data: Club;
+  rango: ReturnType<typeof useDateRangeFilter>;
+}) {
+  const { staff } = data;
+  const hayHistorico = data.staffHistory.length > 1;
+  const pick = <T,>(items: T[], indices: number[]) =>
+    indices.map((i) => items[i] as T);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi
           label="Inversión juvenil"
           value={
@@ -107,128 +277,7 @@ export function ClubPage() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel
-          title="Ánimo competitivo"
-          meta={`${data.moodHistory.length} lectura(s)`}
-        >
-          {hasMoodHistory ? (
-            <>
-              <div className="border-b border-[var(--border)] px-4 py-2">
-                <DateRangeFilter
-                  range={mood.range}
-                  onChange={mood.setRange}
-                  min={mood.min}
-                  max={mood.max}
-                />
-              </div>
-              <Chart
-                ariaLabel="Evolución observada de espíritu y confianza, un punto por cada cambio real"
-                option={proportionalTimelineOption(
-                  pick(moodTimestamps, mood.indices),
-                  [
-                    {
-                      name: "Espíritu",
-                      values: pick(
-                        data.moodHistory.map((item) => item.spirit),
-                        mood.indices,
-                      ),
-                    },
-                    {
-                      name: "Confianza",
-                      values: pick(
-                        data.moodHistory.map((item) => item.confidence),
-                        mood.indices,
-                      ),
-                    },
-                  ],
-                )}
-                height={240}
-              />
-            </>
-          ) : (
-            <Note>Habrá gráfica después de una segunda lectura distinta.</Note>
-          )}
-        </Panel>
-
-        <Panel
-          title="Socios y afición"
-          meta={`${data.supporterHistory.length} lectura(s)`}
-        >
-          {hasFanHistory ? (
-            <>
-              <div className="border-b border-[var(--border)] px-4 py-2">
-                <DateRangeFilter
-                  range={fan.range}
-                  onChange={fan.setRange}
-                  min={fan.min}
-                  max={fan.max}
-                />
-              </div>
-              <Chart
-                ariaLabel="Evolución observada de socios y popularidad de aficionados, un punto por cada cambio real"
-                option={{
-                  legend: { bottom: 0, type: "scroll" },
-                  grid: {
-                    left: 48,
-                    right: 48,
-                    top: 24,
-                    bottom: 40,
-                    containLabel: true,
-                  },
-                  xAxis: { type: "time" },
-                  yAxis: [
-                    {
-                      type: "value",
-                      name: "Socios",
-                      splitLine: { lineStyle: { opacity: 0.15 } },
-                    },
-                    { type: "value", name: "Popularidad", min: 0, max: 9 },
-                  ],
-                  dataZoom: [{ type: "inside" }],
-                  tooltip: { trigger: "axis" },
-                  series: [
-                    {
-                      name: "Socios",
-                      type: "line",
-                      symbol: "circle",
-                      symbolSize: 6,
-                      data: pick(fanTimestamps, fan.indices).map((t, i) => [
-                        t,
-                        pick(
-                          data.supporterHistory.map((item) => item.fanClubSize),
-                          fan.indices,
-                        )[i],
-                      ]),
-                    },
-                    {
-                      name: "Afición",
-                      type: "line",
-                      yAxisIndex: 1,
-                      symbol: "circle",
-                      symbolSize: 6,
-                      data: pick(fanTimestamps, fan.indices).map((t, i) => [
-                        t,
-                        pick(
-                          data.supporterHistory.map(
-                            (item) => item.supportersPopularity,
-                          ),
-                          fan.indices,
-                        )[i],
-                      ]),
-                    },
-                  ],
-                }}
-                height={240}
-              />
-            </>
-          ) : (
-            <Empty>Sin histórico todavía.</Empty>
-          )}
-        </Panel>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] [&>*]:min-w-0">
         <Panel
           title="Cuerpo técnico"
           meta={staff ? `lectura ${date(staff.capturedAt)}` : "sin dato"}
@@ -283,17 +332,17 @@ export function ClubPage() {
         </Panel>
       </div>
 
-      {hasStaffHistory && staff && (
+      {hayHistorico && staff && (
         <Panel
           title="Evolución del staff"
           meta={`${data.staffHistory.length} lecturas`}
         >
           <div className="border-b border-[var(--border)] px-4 py-2">
             <DateRangeFilter
-              range={staffRange.range}
-              onChange={staffRange.setRange}
-              min={staffRange.min}
-              max={staffRange.max}
+              range={rango.range}
+              onChange={rango.setRange}
+              min={rango.min}
+              max={rango.max}
             />
           </div>
           <Chart
@@ -301,20 +350,17 @@ export function ClubPage() {
             option={timelineOption(
               pick(
                 data.staffHistory.map(
-                  (item) => item.seasonWeek ?? date(item.capturedAt),
+                  (i) => i.seasonWeek ?? date(i.capturedAt),
                 ),
-                staffRange.indices,
+                rango.indices,
               ),
               staff.roles.map((role) => ({
                 name: role.label,
                 values: pick(
                   data.staffHistory.map(
-                    (item) =>
-                      item.roles.find(
-                        (historyRole) => historyRole.key === role.key,
-                      )?.level ?? 0,
+                    (i) => i.roles.find((r) => r.key === role.key)?.level ?? 0,
                   ),
-                  staffRange.indices,
+                  rango.indices,
                 ),
               })),
             )}
@@ -322,12 +368,137 @@ export function ClubPage() {
           />
         </Panel>
       )}
-
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-        {data.notes.map((note) => (
-          <Note key={note}>{note}</Note>
-        ))}
-      </div>
     </div>
   );
 }
+
+function Socios({ data }: { data: Club }) {
+  const { from, to } = ventana(data);
+  const { current } = data;
+  const historia = data.supporterHistory;
+
+  // Misma gramática que Psicología, y por el mismo motivo: la afición
+  // reacciona a lo que pasa en el campo, así que la banda de arriba son los
+  // resultados. Sin ellos, la línea de socios es una cifra que sube sola.
+  const porResultado: Suceso[] = data.psychology.matches.map((m) => ({
+    at: m.playedAt,
+    chip: null,
+    color: m.result === "win" ? VERDE : m.result === "loss" ? ROJO : GRIS,
+    detail:
+      `<b>${m.result === "win" ? "Victoria" : m.result === "loss" ? "Derrota" : "Empate"} ` +
+      `${marcador(m)}</b> · ${m.rival}`,
+  }));
+
+  const socios = historia.map((h) => ({
+    at: h.capturedAt,
+    level: h.fanClubSize,
+  }));
+  const animo = historia.map((h) => ({
+    at: h.capturedAt,
+    level: h.supportersPopularity,
+  }));
+
+  // El motivo de cada tramo: los partidos que cayeron dentro.
+  const movimientos = (serie: { at: string; level: number }[]) =>
+    serie.slice(1).map((b, i) => {
+      const a = serie[i]!;
+      const dentro = data.psychology.matches.filter(
+        (m) => m.playedAt > a.at && m.playedAt <= b.at,
+      );
+      return {
+        at: b.at,
+        from: a.level,
+        to: b.level,
+        delta: b.level - a.level,
+        cause: dentro.length
+          ? dentro
+              .map(
+                (m) =>
+                  `${m.result === "win" ? "victoria" : m.result === "loss" ? "derrota" : "empate"} ${marcador(m)}`,
+              )
+              .join(", ")
+              .replace(/^./, (c) => c.toUpperCase())
+          : "Sin partido en medio",
+      };
+    });
+
+  return (
+    <div className="space-y-4">
+      <Panel
+        title="Socios"
+        meta="la afición crece o se enfría con los resultados"
+      >
+        <div className="flex flex-wrap items-baseline gap-4 border-b border-[var(--border)] px-4 py-3">
+          <Kpi
+            label="Ahora"
+            value={
+              current.supporters?.fanClubSize != null
+                ? number(current.supporters.fanClubSize)
+                : "Sin dato"
+            }
+            hint={
+              current.supporters
+                ? `afición: ${current.supporters.popularityLabel}`
+                : undefined
+            }
+          />
+        </div>
+        {historia.length > 1 ? (
+          <div className="p-4">
+            <SerieConCausas
+              readings={socios}
+              movements={movimientos(socios)}
+              scale={null}
+              events={porResultado}
+              eventsLabel="resultados"
+              ariaLabel="Evolución del número de socios"
+              height={165}
+              from={from}
+              to={to}
+            />
+          </div>
+        ) : (
+          <Empty>Sin histórico todavía.</Empty>
+        )}
+      </Panel>
+
+      <Panel
+        title="Ánimo de la afición"
+        meta="escala completa · de muy baja a poemas de amor"
+      >
+        {historia.length > 1 ? (
+          <div className="p-4">
+            <SerieConCausas
+              readings={animo}
+              movements={movimientos(animo)}
+              scale={ESCALA_AFICION}
+              events={porResultado}
+              eventsLabel="resultados"
+              ariaLabel="Evolución del ánimo de la afición"
+              color="var(--mercado-compra)"
+              height={175}
+              from={from}
+              to={to}
+            />
+          </div>
+        ) : (
+          <Empty>Sin histórico todavía.</Empty>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+/** Los diez peldaños de popularidad, con los nombres del juego. */
+const ESCALA_AFICION = [
+  { level: 0, label: "muy baja" },
+  { level: 1, label: "furiosos" },
+  { level: 2, label: "irritados" },
+  { level: 3, label: "calmados" },
+  { level: 4, label: "contentos" },
+  { level: 5, label: "satisfechos" },
+  { level: 6, label: "eufóricos" },
+  { level: 7, label: "muy alta" },
+  { level: 8, label: "bailando en las calles" },
+  { level: 9, label: "poemas de amor" },
+];

@@ -8,6 +8,7 @@ requiere una llamada adicional ni infiere estados que Hattrick no entregue.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from app.application.queries.weekly import (
     changes_only,
     season_week_for_datetime,
 )
+from app.domain.engines import psicologia as psi
 from app.domain.engines.staff_effects import STAFF_FIELD_TO_EFFECT_FN
 from app.domain.value_objects.ht_constants import (
     CONFIDENCE,
@@ -95,11 +97,204 @@ def _staff_levels(row: m.StaffSnapshot) -> list[dict[str, Any]]:
     ]
 
 
+def _movimiento_json(x: psi.Movimiento) -> dict[str, Any]:
+    return {
+        "at": x.at.isoformat(),
+        "from": x.desde,
+        "to": x.hasta,
+        "delta": x.delta,
+        "cause": x.cause,
+        "buys": x.buys,
+        "sales": x.sales,
+    }
+
+
+def _bajadas_de_intensidad(lecturas: list[m.TrainingSnapshot]) -> list[datetime]:
+    """Cuándo se BAJÓ el % de entrenamiento.
+
+    Sólo las bajadas: el manual dice que reducir la intensidad da un impulso
+    momentáneo al espíritu y que volver a subirla lo hunde. Subirla no es la
+    misma noticia, así que no se cuenta aquí.
+    """
+    salida: list[datetime] = []
+    anterior: int | None = None
+    for row in lecturas:
+        if anterior is not None and row.training_level < anterior:
+            salida.append(row.captured_at)
+        anterior = row.training_level
+    return salida
+
+
 class ClubQueryService:
     """Read-only club view composed from append-only CHPP snapshots."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
+
+    async def _psicologia(
+        self,
+        team: m.Team,
+        lecturas: list[m.TrainingSnapshot],
+        semanas: int = 8,
+    ) -> dict[str, Any]:
+        """Espíritu y confianza con el motivo de cada movimiento.
+
+        Las dos series comparten origen pero no comparten causas, y por eso
+        salen por separado: al espíritu lo mueven la actitud del partido y el
+        mercado; a la confianza, los resultados. Mezclarlas invita a leer una
+        causa donde el manual no la pone.
+        """
+        desde = datetime.utcnow() - timedelta(weeks=semanas)
+        recientes = [x for x in lecturas if x.captured_at >= desde]
+
+        def serie(campo: str) -> list[psi.Lectura]:
+            """Un punto por CAMBIO real, MÁS la última lectura.
+
+            Dos lecturas iguales seguidas no son un dato nuevo, y por eso la
+            serie se queda con los cambios. Pero terminarla en el último
+            cambio deja fuera todo lo que se sabe desde entonces: la confianza
+            no se movía desde el 21 de agosto y la línea moría ahí, con diez
+            días conocidos sin dibujar y con pinta de que faltaba el dato
+            (2026-08-31, visto por el usuario).
+
+            Que un valor lleve diez días quieto ES información. La línea llega
+            hasta donde llega lo que sabemos, y un tramo plano lo dice.
+            """
+            puntos = [
+                psi.Lectura(at=row.captured_at, level=getattr(row, campo))
+                for row in changes_only(
+                    recientes, lambda i: i.captured_at, lambda i: getattr(i, campo)
+                )
+            ]
+            if recientes:
+                ultima = recientes[-1]
+                if not puntos or puntos[-1].at != ultima.captured_at:
+                    puntos.append(psi.Lectura(at=ultima.captured_at, level=getattr(ultima, campo)))
+            return puntos
+
+        partidos = await self._partidos_que_cuentan(team, desde)
+        compras, ventas = await self._mercado_por_dia(team.id, desde)
+        bajadas = _bajadas_de_intensidad(recientes)
+
+        espiritu = serie("morale")
+        confianza = serie("self_confidence")
+
+        return {
+            "weeks": semanas,
+            "spirit": {
+                "scale": psi.escala("spirit"),
+                "equilibrium": psi.EQUILIBRIO_BASE,
+                "readings": [{"at": x.at.isoformat(), "level": x.level} for x in espiritu],
+                "movements": [
+                    _movimiento_json(x)
+                    for x in psi.movimientos_de_espiritu(
+                        espiritu, partidos, compras, ventas, bajadas
+                    )
+                ],
+            },
+            "confidence": {
+                "scale": psi.escala("confidence"),
+                # SIN punto medio. El manual dice que la confianza tiende a
+                # uno y que el psicólogo lo sube de forma no lineal, pero no
+                # publica su valor. Aquí se dibujaba la MEDIANA de las
+                # lecturas, que es un estadístico de nuestros propios datos y
+                # no el del juego: con tres lecturas coincidía con el valor
+                # actual, así que la línea caía sobre la meseta y sugería
+                # «estás en tu equilibrio», que es justo lo que no se sabe
+                # (2026-08-31, señalado por el usuario).
+                "equilibrium": None,
+                "readings": [{"at": x.at.isoformat(), "level": x.level} for x in confianza],
+                "movements": [
+                    _movimiento_json(x) for x in psi.movimientos_de_confianza(confianza, partidos)
+                ],
+            },
+            "matches": [
+                {
+                    "playedAt": p.played_at.isoformat(),
+                    "rival": p.rival,
+                    "isHome": p.is_home,
+                    "goalsFor": p.goals_for,
+                    "goalsAgainst": p.goals_against,
+                    "result": p.resultado,
+                    "attitude": p.attitude,
+                    "attitudeLabel": psi.ACTITUDES.get(p.attitude)
+                    if p.attitude is not None
+                    else None,
+                }
+                for p in partidos
+            ],
+            "buyDays": [{"day": d, "count": n} for d, n in sorted(compras.items())],
+            "sellDays": [{"day": d, "count": n} for d, n in sorted(ventas.items())],
+            # La cuarta palanca. Que esté en cero también es información: dice
+            # que se vigila y que ahí no pasó nada.
+            "intensityDrops": [t.isoformat() for t in bajadas],
+        }
+
+    async def _partidos_que_cuentan(self, team: m.Team, desde: datetime) -> list[psi.Partido]:
+        """Los partidos que mueven el ánimo, con la actitud realmente jugada.
+
+        La actitud sale del DETALLE del partido y no de las órdenes: las
+        órdenes sólo existen si se capturaron antes de jugar, mientras que el
+        detalle las trae siempre, también para los partidos viejos.
+        """
+        ratings = m.Base.metadata.tables["match_ratings"]
+        filas = (
+            await self._s.execute(
+                select(m.Match)
+                .where(
+                    m.Match.played_at >= desde,
+                    m.Match.home_goals >= 0,
+                    m.Match.match_type.in_(psi.TIPOS_QUE_CUENTAN),
+                )
+                .order_by(m.Match.played_at)
+            )
+        ).scalars()
+
+        salida: list[psi.Partido] = []
+        for x in filas:
+            if team.ht_team_id not in (x.home_team_ht_id, x.away_team_ht_id):
+                continue
+            en_casa = x.home_team_ht_id == team.ht_team_id
+            fila = (
+                await self._s.execute(
+                    select(ratings.c.attitude).where(
+                        ratings.c.ht_match_id == x.ht_match_id,
+                        ratings.c.team_ht_id == team.ht_team_id,
+                    )
+                )
+            ).first()
+            gf, gc = (x.home_goals, x.away_goals) if en_casa else (x.away_goals, x.home_goals)
+            salida.append(
+                psi.Partido(
+                    played_at=x.played_at,
+                    rival=(x.away_team_name if en_casa else x.home_team_name) or "?",
+                    is_home=en_casa,
+                    goals_for=gf,
+                    goals_against=gc,
+                    attitude=fila[0] if fila else None,
+                )
+            )
+        return salida
+
+    async def _mercado_por_dia(
+        self, team_id: int, desde: datetime
+    ) -> tuple[dict[str, int], dict[str, int]]:
+        """Compras y ventas contadas por día.
+
+        Por día y no una por una: en ocho semanas reales hubo más de treinta,
+        y un marcador por operación tapa la línea entera.
+        """
+        transfers = m.Base.metadata.tables["team_transfers"]
+        compras: dict[str, int] = {}
+        ventas: dict[str, int] = {}
+        for fila in await self._s.execute(
+            transfers.select().where(transfers.c.team_id == team_id, transfers.c.deadline >= desde)
+        ):
+            d = fila._mapping
+            dia = d["deadline"].date().isoformat()
+            destino = compras if d["is_buy"] else ventas
+            destino[dia] = destino.get(dia, 0) + 1
+        return compras, ventas
 
     async def get(self, team_id: int) -> dict[str, Any] | None:
         team = await self._s.get(m.Team, team_id)
@@ -211,6 +406,10 @@ class ClubQueryService:
                 ),
             },
             "staff": current_staff,
+            # El módulo de Psicología. Sustituye a «Ánimo competitivo», que
+            # metía espíritu y confianza en un solo eje pese a tener escalas
+            # y causas distintas, y que no decía por qué se movía nada.
+            "psychology": await self._psicologia(team, training),
             "moodHistory": [
                 {
                     "capturedAt": _date(row.captured_at),
