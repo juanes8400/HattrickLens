@@ -133,10 +133,10 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
         <table className="w-full min-w-[560px] text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
-              <th className="px-4 py-3 font-medium">Ingreso</th>
-              <th className="px-4 py-3 text-right font-medium">Valor</th>
-              <th className="px-4 py-3 font-medium">Gasto</th>
-              <th className="px-4 py-3 text-right font-medium">Valor</th>
+              <th scope="col" className="px-4 py-3 font-medium">Ingreso</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">Valor</th>
+              <th scope="col" className="px-4 py-3 font-medium">Gasto</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">Valor</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
@@ -311,7 +311,9 @@ function LayerToggle({
   onChange: () => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 text-[var(--muted)] hover:text-[var(--text)]">
+    // `min-h-6`: la diana real es la etiqueta entera, y medía 16px de alto
+    // --por debajo de los 24 mínimos-- aunque fuera ancha (2026-08-31).
+    <label className="inline-flex min-h-6 cursor-pointer items-center gap-2 text-[var(--muted)] hover:text-[var(--text)]">
       <input
         type="checkbox"
         className="accent-[var(--accent)]"
@@ -419,11 +421,11 @@ function BalanceWindowsTable({ data }: { data: Economy }) {
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
-              <th className="px-4 py-3 font-medium">Periodo</th>
-              <th className="px-4 py-3 text-right font-medium">Ingresos</th>
-              <th className="px-4 py-3 text-right font-medium">Gastos</th>
-              <th className="px-4 py-3 text-right font-medium">Balance</th>
-              <th className="px-4 py-3 text-right font-medium">
+              <th scope="col" className="px-4 py-3 font-medium">Periodo</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">Ingresos</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">Gastos</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">Balance</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
                 Balance sin transferencias
               </th>
             </tr>
@@ -984,13 +986,13 @@ function IncomeBreakdownTable({
       <table className="w-full min-w-[680px] text-sm">
         <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
           <tr>
-            <th className="px-3 py-3 font-medium">Semana</th>
-            <th className="px-3 py-3 text-right font-medium">Aficionados</th>
-            <th className="px-3 py-3 text-right font-medium">Patrocinados</th>
-            <th className="px-3 py-3 text-right font-medium">Financieros</th>
-            <th className="px-3 py-3 text-right font-medium">SubTotal</th>
-            <th className="px-3 py-3 text-right font-medium">Otros</th>
-            <th className="px-3 py-3 text-right font-medium">Total</th>
+            <th scope="col" className="px-3 py-3 font-medium">Semana</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Aficionados</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Patrocinados</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Financieros</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">SubTotal</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Otros</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Total</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
@@ -1032,15 +1034,15 @@ function CostsBreakdownTable({
       <table className="w-full min-w-[820px] text-sm">
         <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
           <tr>
-            <th className="px-3 py-3 font-medium">Semana</th>
-            <th className="px-3 py-3 text-right font-medium">Estadio</th>
-            <th className="px-3 py-3 text-right font-medium">Jugadores</th>
-            <th className="px-3 py-3 text-right font-medium">Financieros</th>
-            <th className="px-3 py-3 text-right font-medium">Empleados</th>
-            <th className="px-3 py-3 text-right font-medium">Canteranos</th>
-            <th className="px-3 py-3 text-right font-medium">SubTotal</th>
-            <th className="px-3 py-3 text-right font-medium">Otros</th>
-            <th className="px-3 py-3 text-right font-medium">Total</th>
+            <th scope="col" className="px-3 py-3 font-medium">Semana</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Estadio</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Jugadores</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Financieros</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Empleados</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Canteranos</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">SubTotal</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Otros</th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">Total</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">

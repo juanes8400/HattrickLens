@@ -236,10 +236,10 @@ export function LineupPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-[var(--muted)]">
-                    <th className="px-4 py-2">Espíritu</th>
-                    <th className="px-4 py-2 text-right">PIC</th>
-                    <th className="px-4 py-2 text-right">Normal</th>
-                    <th className="px-4 py-2 text-right">MOTS</th>
+                    <th scope="col" className="px-4 py-2">Espíritu</th>
+                    <th scope="col" className="px-4 py-2 text-right">PIC</th>
+                    <th scope="col" className="px-4 py-2 text-right">Normal</th>
+                    <th scope="col" className="px-4 py-2 text-right">MOTS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">

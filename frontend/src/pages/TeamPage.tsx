@@ -6,7 +6,7 @@ import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Specialty } from "../components/Specialty";
 import { useSquad } from "../hooks/useTeam";
-import { htAge, money, number, relative } from "../hooks/useFormat";
+import { htAge, money, number, relative, dateTime } from "../hooks/useFormat";
 import type { SquadPlayer } from "../services/api";
 
 const SKILLS: [keyof SquadPlayer["skills"], string][] = [
@@ -48,10 +48,8 @@ function MetricCell({ value, delta }: { value: number; delta?: number }) {
 }
 
 function HistoryLabel({ capturedAt, snapshots }: { capturedAt: string; snapshots: number }) {
-  const date = new Intl.DateTimeFormat("es-CO", {
-    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-  }).format(new Date(capturedAt));
-  return `${date} · ${snapshots} jugadores`;
+  // Antes con `Intl` y locale propio; ahora el formato unico de la casa.
+  return `${dateTime(capturedAt)} · ${snapshots} jugadores`;
 }
 
 /**

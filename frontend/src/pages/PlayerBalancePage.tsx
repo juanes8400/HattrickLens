@@ -11,7 +11,7 @@ import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../compo
 import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
-import { date, money, number, parseUtc } from "../hooks/useFormat";
+import { date, money, number, parseUtc, compact, decimal } from "../hooks/useFormat";
 import { useDialogoModal } from "../hooks/useModal";
 import { BotonDeBorrado } from "../components/BotonDeBorrado";
 import { useIsDarkTheme } from "../hooks/useTheme";
@@ -110,10 +110,9 @@ function bidHourSortKey(label: string): number {
 // Abrevia cifras grandes de moneda en los ejes de las gráficas ("2,4 M" en
 // vez de "2400000") — pedido explícitamente 2026-08-11, se veían feas.
 function compactNumber(value: number): string {
-  return new Intl.NumberFormat("es-CO", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value).replace(",", ".");
+  // Era `Intl` con locale propio y un `replace` de la coma detras para
+  // deshacer lo que el propio `Intl` hacia. Ahora sale del modulo compartido.
+  return compact(value);
 }
 
 // Rojo/gris/verde de las cascadas y el mapa de calor de ROI — deben coincidir
@@ -1605,10 +1604,7 @@ function RoiPanel({
             style={{ color: roi >= 0 ? "var(--positive)" : "var(--danger)" }}
           >
             {roi >= 0 ? "" : "−"}
-            {Math.abs(roi).toLocaleString("es", {
-              minimumFractionDigits: 1,
-              maximumFractionDigits: 1,
-            })}
+            {decimal(Math.abs(roi))}
             %
           </span>{" "}
           en {unico.ventas} venta{unico.ventas === 1 ? "" : "s"}.
@@ -1677,7 +1673,7 @@ function RoiPanel({
                   : p.roi > 0 ? "insideTop" : "insideBottom",
                 color: "#fff",
                 fontSize: 11,
-                formatter: `${p.roi >= 0 ? "" : "−"}${Math.abs(Math.round(p.roi)).toLocaleString("es")}%`,
+                formatter: `${p.roi >= 0 ? "" : "−"}${number(Math.abs(p.roi))}%`,
               }
             : undefined,
           itemStyle: {
@@ -1772,34 +1768,34 @@ function TransferAttemptsSection() {
         <table className="w-full whitespace-nowrap text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
-              <th className="px-3 py-2">Identificador</th>
-              <th className="px-3 py-2">Jugador</th>
-              <th className="px-3 py-2 text-right">Intento</th>
-              <th className="px-3 py-2">Cierre de la puja</th>
-              <th className="px-3 py-2">Resultado</th>
-              <th className="px-3 py-2 text-right">Precio pedido</th>
-              <th className="px-3 py-2 text-right">Última puja</th>
-              <th className="px-3 py-2 text-right">Precio de venta</th>
-              <th className="px-3 py-2 text-right">% agente</th>
-              <th className="px-3 py-2 text-right">Visitas</th>
-              <th className="px-3 py-2">País</th>
-              <th className="px-3 py-2">Especialidad</th>
-              <th className="px-3 py-2">Carácter</th>
-              <th className="px-3 py-2 text-right">TSI</th>
-              <th className="px-3 py-2 text-right">Edad</th>
+              <th scope="col" className="px-3 py-2">Identificador</th>
+              <th scope="col" className="px-3 py-2">Jugador</th>
+              <th scope="col" className="px-3 py-2 text-right">Intento</th>
+              <th scope="col" className="px-3 py-2">Cierre de la puja</th>
+              <th scope="col" className="px-3 py-2">Resultado</th>
+              <th scope="col" className="px-3 py-2 text-right">Precio pedido</th>
+              <th scope="col" className="px-3 py-2 text-right">Última puja</th>
+              <th scope="col" className="px-3 py-2 text-right">Precio de venta</th>
+              <th scope="col" className="px-3 py-2 text-right">% agente</th>
+              <th scope="col" className="px-3 py-2 text-right">Visitas</th>
+              <th scope="col" className="px-3 py-2">País</th>
+              <th scope="col" className="px-3 py-2">Especialidad</th>
+              <th scope="col" className="px-3 py-2">Carácter</th>
+              <th scope="col" className="px-3 py-2 text-right">TSI</th>
+              <th scope="col" className="px-3 py-2 text-right">Edad</th>
               {SKILL_HEADERS.map(([clave, corto]) => (
-                <th key={clave} className="px-2 py-2 text-right" title={corto[1]}>
+                <th scope="col" key={clave} className="px-2 py-2 text-right" title={corto[1]}>
                   {corto[0]}
                 </th>
               ))}
-              <th className="px-3 py-2">Canterano</th>
-              <th className="px-3 py-2">Fecha de compra</th>
-              <th className="px-3 py-2 text-right">Edad de compra</th>
-              <th className="px-3 py-2 text-right">Precio compra</th>
-              <th className="px-3 py-2 text-right">Días desde la compra</th>
-              <th className="px-3 py-2 text-right">Salario acumulado</th>
-              <th className="px-3 py-2">Entrenamiento</th>
-              <th className="px-3 py-2"></th>
+              <th scope="col" className="px-3 py-2">Canterano</th>
+              <th scope="col" className="px-3 py-2">Fecha de compra</th>
+              <th scope="col" className="px-3 py-2 text-right">Edad de compra</th>
+              <th scope="col" className="px-3 py-2 text-right">Precio compra</th>
+              <th scope="col" className="px-3 py-2 text-right">Días desde la compra</th>
+              <th scope="col" className="px-3 py-2 text-right">Salario acumulado</th>
+              <th scope="col" className="px-3 py-2">Entrenamiento</th>
+              <th scope="col" className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>

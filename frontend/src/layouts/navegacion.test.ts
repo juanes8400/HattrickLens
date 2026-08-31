@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NAV, agrupar } from "./navegacion";
+import { NAV, agrupar, tituloDeRuta } from "./navegacion";
 
 /** El menú se veía agrupado en cinco bloques y esa agrupación existía SÓLO en
  *  el aspecto: veinte enlaces hermanos sueltos, sin una sola lista. Quien no
@@ -38,5 +38,23 @@ describe("los grupos del menú", () => {
     const grupos = agrupar(NAV);
     expect(grupos.length).toBeGreaterThan(1);
     expect(grupos.every((g) => g.titulo && g.enlaces.length > 0)).toBe(true);
+  });
+});
+
+describe("el título de la pestaña", () => {
+  it("las pantallas del menú se titulan solas", () => {
+    expect(tituloDeRuta("/economy")).toBe("Economía · HT Lens");
+    expect(tituloDeRuta("/transfers/balance")).toBe("Transferencias · HT Lens");
+  });
+
+  it("las de entrada también, que eran las únicas sin nombre", () => {
+    // Con «HT Lens» a secas, /welcome y /setup no se distinguían en el
+    // historial ni entre pestañas — y son por las que se pasa al empezar.
+    expect(tituloDeRuta("/welcome")).toBe("Conectar tu club · HT Lens");
+    expect(tituloDeRuta("/setup")).toBe("Configuración de tu club · HT Lens");
+  });
+
+  it("una ruta desconocida no inventa nombre", () => {
+    expect(tituloDeRuta("/inexistente")).toBe("HT Lens");
   });
 });

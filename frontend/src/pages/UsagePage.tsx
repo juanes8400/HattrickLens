@@ -1,3 +1,4 @@
+import { dateTime } from "../hooks/useFormat";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
@@ -129,17 +130,18 @@ export function UsagePage() {
               <table className="w-full">
                 <thead className="bg-[var(--surface-2)]">
                   <tr>
-                    <th className={`${th} text-left`}>Módulo</th>
-                    <th className={`${th} text-right`}>Visitas</th>
-                    <th className={`${th} text-right`}>Clics</th>
+                    <th scope="col" className={`${th} text-left`}>Módulo</th>
+                    <th scope="col" className={`${th} text-right`}>Visitas</th>
+                    <th scope="col" className={`${th} text-right`}>Clics</th>
                     <th
+                      scope="col"
                       className={`${th} text-right`}
                       title="con la pestaña de verdad visible"
                     >
                       Tiempo
                     </th>
-                    <th className={`${th} text-right`}>Por visita</th>
-                    <th className={`${th} text-left`}>Reparto</th>
+                    <th scope="col" className={`${th} text-right`}>Por visita</th>
+                    <th scope="col" className={`${th} text-left`}>Reparto</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -225,18 +227,18 @@ export function UsagePage() {
               <table className="w-full">
                 <thead className="bg-[var(--surface-2)]">
                   <tr>
-                    <th className={`${th} text-left`}>Empezó</th>
-                    <th className={`${th} text-right`}>Duró</th>
-                    <th className={`${th} text-right`}>Páginas</th>
-                    <th className={`${th} text-right`}>Clics</th>
-                    <th className={`${th} text-left`}>Por dónde pasó</th>
+                    <th scope="col" className={`${th} text-left`}>Empezó</th>
+                    <th scope="col" className={`${th} text-right`}>Duró</th>
+                    <th scope="col" className={`${th} text-right`}>Páginas</th>
+                    <th scope="col" className={`${th} text-right`}>Clics</th>
+                    <th scope="col" className={`${th} text-left`}>Por dónde pasó</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.recentSessions.map((s) => (
                     <tr key={s.id} className="border-t border-[var(--border)]">
                       <td className={`${td} tabular-nums`}>
-                        {new Date(s.startedAt).toLocaleString()}
+                        {dateTime(s.startedAt)}
                       </td>
                       <td className={`${td} text-right tabular-nums`}>
                         {duracion(s.seconds)}

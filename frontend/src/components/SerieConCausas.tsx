@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { number } from "../hooks/useFormat";
 
 /**
  * Una serie temporal donde cada tramo dice a qué obedece.
@@ -180,7 +181,7 @@ export function SerieConCausas({
                   fontSize="9.5"
                   fill="var(--muted)"
                 >
-                  {Math.round(v).toLocaleString("es")}
+                  {number(v)}
                 </text>
               </g>
             );
@@ -421,6 +422,6 @@ function resumenHablado(readings: Lectura[], scale: Peldano[] | null): string {
 }
 
 function etiqueta(scale: Peldano[] | null, level: number): string {
-  if (!scale) return level.toLocaleString("es");
+  if (!scale) return number(level);
   return scale.find((p) => p.level === level)?.label ?? String(level);
 }

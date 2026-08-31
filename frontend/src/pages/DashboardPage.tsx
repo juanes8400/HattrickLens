@@ -16,7 +16,7 @@ import { SplitSelector } from "../components/SplitSelector";
 import { FORMATIONS } from "../services/api";
 import type { Dashboard } from "../services/api";
 import { radarOption } from "../charts/chartOptions";
-import { decimal, money, number } from "../hooks/useFormat";
+import { decimal, money, number, percent } from "../hooks/useFormat";
 import type { Insight } from "../services/api";
 import { estadoDeAlertas } from "../utils/alertas";
 
@@ -106,10 +106,7 @@ export function DashboardPage() {
           hint={
             data.finance?.salarySharePct == null
               ? "falta la semana anterior"
-              : `${data.finance.salarySharePct.toLocaleString("es", {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                })}% de los ingresos`
+              : `${percent(data.finance.salarySharePct)} de los ingresos`
           }
         />
         <Kpi

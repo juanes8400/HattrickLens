@@ -61,3 +61,32 @@ export const relative = (iso: string | null) => {
   const h = Math.round(mins / 60);
   return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
 };
+
+/** Un porcentaje con la politica de la casa: decimales con PUNTO.
+ *
+ *  Existia disperso como `toLocaleString("es", {...})`, que da coma decimal
+ *  --exactamente lo que la politica de arriba prohibe-- y ademas mezclaba
+ *  tres criterios de idioma distintos por la aplicacion (2026-08-31). */
+export const percent = (v: number, digits = 1) => `${decimal(v, digits)}%`;
+
+/** Cifras grandes abreviadas para los ejes: «2.4 M» en vez de «2400000».
+ *  Sin `Intl`, que en espanol devuelve coma decimal. */
+export const compact = (v: number) => {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${decimal(v / 1_000_000)} M`;
+  if (abs >= 1_000) return `${decimal(v / 1_000)} mil`;
+  return number(v);
+};
+
+/** Fecha y hora en el formato de la casa. La unica del codigo que se
+ *  formateaba con `toLocaleString()` SIN idioma usaba el del navegador de
+ *  quien mira: en un navegador en ingles la pantalla de Uso mostraba
+ *  «8/31/2026, 4:12:00 PM» mientras el resto de la app iba en espanol. */
+export const dateTime = (iso: string | null | undefined) => {
+  if (!iso) return "—";
+  const d = parseUtc(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${date(iso)} ${hh}:${mm}`;
+};

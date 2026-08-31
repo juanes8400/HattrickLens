@@ -50,9 +50,23 @@ const RUTAS_CON_DETALLE: { prefijo: string; label: string }[] = [
   { prefijo: "/rivals/", label: "Rival" },
 ];
 
+/** Las pantallas de entrada, que no están en el menú.
+ *
+ *  Caían al valor de reserva y su pestaña decía «HT Lens» a secas: eran las
+ *  dos únicas indistinguibles en el historial y entre pestañas abiertas, y
+ *  justo son por las que se pasa al empezar (2026-08-31). */
+const FUERA_DEL_MENU: Record<string, string> = {
+  "/welcome": "Conectar tu club",
+  "/setup": "Configuración de tu club",
+  "/connected": "Club conectado",
+};
+
 export function tituloDeRuta(pathname: string): string {
   const detalle = RUTAS_CON_DETALLE.find((r) => pathname.startsWith(r.prefijo));
   if (detalle) return `${detalle.label} · HT Lens`;
+
+  const entrada = FUERA_DEL_MENU[pathname];
+  if (entrada) return `${entrada} · HT Lens`;
 
   // La coincidencia más larga gana: `/transfers/balance` antes que nada que
   // empiece por `/transfers`.
