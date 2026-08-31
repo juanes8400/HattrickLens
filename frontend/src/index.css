@@ -119,3 +119,18 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Quien pide menos movimiento en su sistema lo pide para todo, no sólo para
+   los carruseles. Aquí hay poco que apagar --un esqueleto que late y unas
+   transiciones de color-- pero apagarlo cuesta tres líneas, y no hacerlo deja
+   la preferencia del usuario sin atender (2026-08-31). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

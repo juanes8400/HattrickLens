@@ -249,12 +249,26 @@ function SetupStep({ number, title, state }: { number: string; title: string; st
     : state === "current"
       ? "border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]"
       : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]";
+  // El estado vivía sólo en el color y en la palomita: `aria-current` es lo
+  // que dice en voz alta en qué paso estás, y el texto oculto distingue el
+  // paso hecho del que queda por hacer (2026-08-31).
+  const situacion =
+    state === "done" ? "Hecho: " : state === "current" ? "Paso actual: " : "Pendiente: ";
   return (
-    <li className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${tone}`}>
-      <span className="grid h-6 w-6 place-items-center rounded-full border border-current text-xs font-semibold">
+    <li
+      aria-current={state === "current" ? "step" : undefined}
+      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${tone}`}
+    >
+      <span
+        aria-hidden="true"
+        className="grid h-6 w-6 place-items-center rounded-full border border-current text-xs font-semibold"
+      >
         {state === "done" ? "✓" : number}
       </span>
-      <span className="font-medium">{title}</span>
+      <span className="font-medium">
+        <span className="sr-only">{situacion}</span>
+        {title}
+      </span>
     </li>
   );
 }

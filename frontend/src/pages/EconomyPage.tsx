@@ -122,71 +122,99 @@ export function EconomyPage() {
 
 function WeeklyFinanceTable({ data }: { data: Economy }) {
   const { weeklyFinance } = data;
-  const rows = Math.max(
-    weeklyFinance.income.length,
-    weeklyFinance.costs.length,
-  );
 
   return (
     <Panel title="Finanzas de esta semana">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">Ingreso</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Valor</th>
-              <th scope="col" className="px-4 py-3 font-medium">Gasto</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Valor</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {Array.from({ length: rows }).map((_, i) => {
-              const income = weeklyFinance.income[i];
-              const cost = weeklyFinance.costs[i];
-              return (
-                <tr key={i}>
-                  <td className="px-4 py-2.5">{income?.label ?? ""}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-[var(--positive)]">
-                    {income && income.amount != null
-                      ? money(income.amount, data.currency)
-                      : ""}
-                  </td>
-                  <td className="px-4 py-2.5">{cost?.label ?? ""}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-[var(--danger)]">
-                    {cost && cost.amount != null
-                      ? money(cost.amount, data.currency)
-                      : ""}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot className="border-t-2 border-[var(--border)] text-sm font-semibold">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3 text-right tabular-nums text-[var(--positive)]">
-                {money(weeklyFinance.incomeTotal, data.currency)}
-              </td>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3 text-right tabular-nums text-[var(--danger)]">
-                {money(weeklyFinance.costsTotal, data.currency)}
-              </td>
-            </tr>
-            <tr>
-              <td className="px-4 py-3" colSpan={2}>
-                Resultado semanal presupuestado
-              </td>
-              <td
-                className={`px-4 py-3 text-right tabular-nums ${weeklyFinance.expectedBalance >= 0 ? "text-[var(--positive)]" : "text-[var(--danger)]"}`}
-                colSpan={2}
-              >
-                {money(weeklyFinance.expectedBalance, data.currency)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+      {/* Eran DOS listas dentro de una sola tabla: ingresos y gastos puestos
+          uno al lado del otro, con la cabecera «Valor» repetida y filas
+          rellenadas con celdas vacías cuando una lista era más larga que la
+          otra. A la vista funcionaba; leído en voz alta cada fila salía como
+          «Taquillas, 0 US$, Sueldos, 444.946 US$», emparejando un ingreso con
+          un gasto que no tienen nada que ver (2026-08-31).
+
+          Ahora son dos tablas de verdad, cada una con su nombre y su total.
+          De paso se apilan en un móvil en vez de arrastrar 560px de ancho. */}
+      <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
+        <ListaDeMovimientos
+          titulo="Ingresos"
+          filas={weeklyFinance.income}
+          total={weeklyFinance.incomeTotal}
+          moneda={data.currency}
+          tono="var(--positive)"
+        />
+        <ListaDeMovimientos
+          titulo="Gastos"
+          filas={weeklyFinance.costs}
+          total={weeklyFinance.costsTotal}
+          moneda={data.currency}
+          tono="var(--danger)"
+        />
+      </div>
+
+      <div className="flex items-baseline justify-between gap-3 border-t-2 border-[var(--border)] px-4 py-3 text-sm font-semibold">
+        <span>Resultado semanal presupuestado</span>
+        <span
+          className="tabular-nums"
+          style={{
+            color:
+              weeklyFinance.expectedBalance >= 0
+                ? "var(--positive)"
+                : "var(--danger)",
+          }}
+        >
+          {money(weeklyFinance.expectedBalance, data.currency)}
+        </span>
       </div>
     </Panel>
+  );
+}
+
+/** Una de las dos columnas de la semana: qué entró, o qué salió.
+ *
+ *  Es una tabla propia y no media tabla compartida porque son dos series
+ *  independientes: no hay ninguna relación entre el tercer ingreso y el
+ *  tercer gasto, y ponerlos en la misma fila afirmaba que la había. */
+function ListaDeMovimientos({
+  titulo,
+  filas,
+  total,
+  moneda,
+  tono,
+}: {
+  titulo: string;
+  filas: { label: string; amount: number | null }[];
+  total: number;
+  moneda: string;
+  tono: string;
+}) {
+  return (
+    <table className="w-full text-sm">
+      <caption className="pb-2 text-left text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
+        {titulo}
+      </caption>
+      <tbody className="divide-y divide-[var(--border)]">
+        {filas.map((fila) => (
+          <tr key={fila.label}>
+            <th scope="row" className="py-2 pr-3 text-left font-normal">
+              {fila.label}
+            </th>
+            <td className="py-2 text-right tabular-nums" style={{ color: tono }}>
+              {fila.amount != null ? money(fila.amount, moneda) : "—"}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot className="border-t-2 border-[var(--border)] font-semibold">
+        <tr>
+          <th scope="row" className="py-2 pr-3 text-left">
+            Total
+          </th>
+          <td className="py-2 text-right tabular-nums" style={{ color: tono }}>
+            {money(total, moneda)}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
   );
 }
 

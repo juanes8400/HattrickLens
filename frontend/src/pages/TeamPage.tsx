@@ -76,7 +76,7 @@ export function TeamPage() {
       render: (player) => <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />,
     },
     {
-      key: "origin", header: "Origen", align: "left",
+      key: "origin", optional: true, header: "Origen", align: "left",
       value: (player) => player.nativeLeagueName ?? String(player.countryId),
       render: (player) => (
         <CountryCell
@@ -99,13 +99,13 @@ export function TeamPage() {
       render: (player) => <Specialty specialty={player.specialty} />,
     },
     {
-      key: "lastMatch", header: "Últ. partido", align: "left", value: (player) => player.lastMatchRating ?? -1,
+      key: "lastMatch", optional: true, header: "Últ. partido", align: "left", value: (player) => player.lastMatchRating ?? -1,
       render: (player) => player.lastMatchPosition
         ? <span className="whitespace-nowrap">{player.lastMatchPosition} · <b>{player.lastMatchRating?.toFixed(1) ?? "-"}</b></span>
         : <span className="text-[var(--muted)]">—</span>,
     },
     {
-      key: "market", header: "Mercado", align: "left", value: (player) => Number(player.isTransferListed),
+      key: "market", optional: true, header: "Mercado", align: "left", value: (player) => Number(player.isTransferListed),
       render: (player) => <span className={clsx("text-xs font-semibold", player.isTransferListed ? "text-[var(--accent)]" : "text-[var(--muted)]")}>{player.isTransferListed ? "en venta" : "-"}</span>,
     },
     // Edad abre la banda numérica en vez de partir en dos el bloque de texto
@@ -135,20 +135,20 @@ export function TeamPage() {
     // HTMS junto a TSI: las tres son la misma pregunta ("cuanto vale"),
     // solo que TSI la responde con el mercado y HTMS con las habilidades.
     { key: "htms", header: "HTMS", value: (player) => player.htms },
-    { key: "htms28", header: "HTMS28", value: (player) => player.htms28 },
-    { key: "salary", header: "Salario", value: (player) => player.salary, render: (player) => <MetricCell value={player.salary} delta={player.deltas.salary} /> },
-    { key: "purchase", header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">—</span> : money(player.purchasePrice, data.currency) },
+    { key: "htms28", optional: true, header: "HTMS28", value: (player) => player.htms28 },
+    { key: "salary", optional: true, header: "Salario", value: (player) => player.salary, render: (player) => <MetricCell value={player.salary} delta={player.deltas.salary} /> },
+    { key: "purchase", optional: true, header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">—</span> : money(player.purchasePrice, data.currency) },
     // Números primero y textos después, sin mezclarlos. Con las 27 columnas a
     // la vista, la cola alternaba alineación seis veces (4 textos a la
     // izquierda, Liderazgo a la derecha, Entrenador a la izquierda, G. liga a
     // la derecha) y eso es lo que hacía zigzaguear la tabla. Ahora hay una
     // sola frontera entre la banda numérica y la de texto.
-    { key: "leadership", header: "Liderazgo", value: (player) => player.leadership },
-    { key: "leagueGoals", header: "G. liga", value: (player) => player.leagueGoals },
-    { key: "character", header: "Carácter", align: "left", value: (player) => player.agreeability, render: (player) => player.agreeabilityLabel },
-    { key: "aggressiveness", header: "Agresividad", align: "left", value: (player) => player.aggressiveness, render: (player) => player.aggressivenessLabel },
-    { key: "honesty", header: "Honestidad", align: "left", value: (player) => player.honesty, render: (player) => player.honestyLabel },
-    { key: "trainer", header: "Entrenador", align: "left", value: (player) => player.playerTrainerSkillLevel, render: (player) => player.playerTrainerSkillLevel > 0 ? `${player.playerTrainerSkillLevel}/5 · ${TRAINER_TYPES[player.playerTrainerType] ?? "?"}` : "-" },
+    { key: "leadership", optional: true, header: "Liderazgo", value: (player) => player.leadership },
+    { key: "leagueGoals", optional: true, header: "G. liga", value: (player) => player.leagueGoals },
+    { key: "character", optional: true, header: "Carácter", align: "left", value: (player) => player.agreeability, render: (player) => player.agreeabilityLabel },
+    { key: "aggressiveness", optional: true, header: "Agresividad", align: "left", value: (player) => player.aggressiveness, render: (player) => player.aggressivenessLabel },
+    { key: "honesty", optional: true, header: "Honestidad", align: "left", value: (player) => player.honesty, render: (player) => player.honestyLabel },
+    { key: "trainer", optional: true, header: "Entrenador", align: "left", value: (player) => player.playerTrainerSkillLevel, render: (player) => player.playerTrainerSkillLevel > 0 ? `${player.playerTrainerSkillLevel}/5 · ${TRAINER_TYPES[player.playerTrainerType] ?? "?"}` : "-" },
   ];
 
   return (
