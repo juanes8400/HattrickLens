@@ -239,7 +239,7 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
         <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
       ),
     },
-    { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
+    { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
     {
       key: "level",
       header: "Nivel actual",
@@ -268,7 +268,7 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
           {r.hasReference && r.weeksElapsed != null ? (
             decimal(r.weeksElapsed, 1)
           ) : (
-            <span className="text-[var(--muted)]">, </span>
+            <span className="text-[var(--muted)]">—</span>
           )}
           <span className="text-[var(--muted)]">
             {" "}
@@ -368,7 +368,7 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
       <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
     ),
   },
-  { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
+  { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
   {
     key: "level",
     header: "Nivel actual",
@@ -394,7 +394,7 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
     value: (r) => r.points ?? -1,
     render: (r) =>
       r.points == null ? (
-        <span className="text-[var(--muted)]">, </span>
+        <span className="text-[var(--muted)]">—</span>
       ) : (
         <span className="whitespace-nowrap tabular-nums">
           {decimal(r.points, 1)}{" "}
@@ -489,7 +489,7 @@ const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
       <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
     ),
   },
-  { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
+  { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
   {
     key: "level",
     header: "Nivel actual",
@@ -605,7 +605,7 @@ const staminaColumns: Column<TrainingStaminaRow>[] = [
       <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
     ),
   },
-  { key: "age", header: "Edad", value: (r) => parseFloat(r.age) },
+  { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
   {
     key: "level",
     header: "Nivel actual",
@@ -761,7 +761,12 @@ const forecastColumns: Column<LevelForecastMilestone>[] = [
     align: "left",
     value: (r) => r.seasonWeek ?? "",
   },
-  { key: "age", header: "Edad proyectada", value: (r) => parseFloat(r.age) },
+  {
+    key: "age",
+    header: "Edad proyectada",
+    value: (r) => edadOrdenable(r.age),
+    render: (r) => r.age,
+  },
 ];
 
 const optionColumns: Column<PostMatchTrainingOption>[] = [
@@ -788,8 +793,32 @@ const optionColumns: Column<PostMatchTrainingOption>[] = [
   { key: "pops", header: "Pops <=3s", value: (r) => r.popsSoon },
 ];
 
+/** La edad de Hattrick es «años.días», no un decimal.
+ *
+ *  Un año de Hattrick dura 112 días, así que «28.110» son 28 años y 110 días
+ *  --casi 29-- y «28.9» son 28 años y 9 días. Pasarlo por `parseFloat` rompe
+ *  las dos cosas a la vez: enseña 28.11 en vez de 28.110 (110 días
+ *  convertidos en 11) y ordena al de 110 días por delante del de 9, porque
+ *  numéricamente 28.11 < 28.9. Hasta el 2026-08-30 las cinco tablas de esta
+ *  pantalla lo hacían así, y la edad de un mismo jugador no coincidía con la
+ *  que enseñan Jugadores y Posiciones.
+ *
+ *  Esto devuelve una clave que SÍ ordena; el texto se pinta tal cual llega. */
+const DIAS_POR_TEMPORADA = 112;
+
+function edadOrdenable(edad: string): number {
+  const [anios, dias] = edad.split(".");
+  return Number(anios ?? 0) + Number(dias ?? 0) / DIAS_POR_TEMPORADA;
+}
+
 export function TrainingPage() {
-  const [section, setSection] = useState<TrainingSection>("datos");
+  // Abre en «Entrenamiento actual», no en «Datos Entrenamiento». Hasta el
+  // 2026-08-30 la pestaña de entrada era la de la configuración --entrenador,
+  // asistentes, intensidad--, que describe el AJUSTE y no el resultado: quien
+  // entraba a esta pantalla a ver cómo va su plantilla aterrizaba en la ficha
+  // del cuerpo técnico y tenía que dar un clic más. Es el mismo arreglo que se
+  // le hizo a Cambios: primero la respuesta, la instrumentación al final.
+  const [section, setSection] = useState<TrainingSection>("plantilla");
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [includeThisWeek, setIncludeThisWeek] = useState(true);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
@@ -835,12 +864,12 @@ export function TrainingPage() {
 
       <Tabs
         tabs={[
-          { key: "datos", label: "Datos Entrenamiento" },
           { key: "plantilla", label: "Entrenamiento actual" },
           { key: "experiencia", label: "Experiencia" },
           { key: "fidelidad", label: "Fidelidad" },
           { key: "condicion", label: "Condición" },
           { key: "posteriori", label: "A posteriori" },
+          { key: "datos", label: "Datos Entrenamiento" },
         ]}
         active={section}
         onChange={setSection}
@@ -848,7 +877,7 @@ export function TrainingPage() {
 
       {section === "datos" && (
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
             <Kpi label="Entrenamiento" value={currentName} />
             <Kpi
               label="% de entrenamiento"
@@ -857,7 +886,7 @@ export function TrainingPage() {
             <Kpi label="% condición" value={`${data.setup.staminaShare}%`} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)] [&>*]:min-w-0">
             <Panel title="Entrenador" meta="leído de Hattrick">
               {club.isLoading ? (
                 <Loading />
@@ -990,7 +1019,7 @@ export function TrainingPage() {
                   Contraste con pops reales: diferencia media de{" "}
                   <b className="text-[var(--text)]">
                     {validation.meanErrorWeeks == null
-                      ? ", "
+                      ? "—"
                       : `${validation.meanErrorWeeks} sem`}
                   </b>{" "}
                   sobre {validation.observations} subida(s) confirmada(s) de{" "}
@@ -1166,7 +1195,7 @@ export function TrainingPage() {
 
       {section === "posteriori" && post && (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
             <Kpi
               label="A posteriori elegiría"
               value={recommendation?.name ?? "Sin datos"}
@@ -1196,7 +1225,7 @@ export function TrainingPage() {
             title="Entrenamiento decidido a posteriori"
             meta="elige después de ver quién jugó y dónde"
           >
-            <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr]">
+            <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
               <Chart
                 ariaLabel="Ranking de entrenamientos por exposición post-partido"
                 height={320}
@@ -1232,7 +1261,7 @@ export function TrainingPage() {
                       <span className="text-xs tabular-nums text-[var(--muted)]">
                         {(p.exposure * 100).toFixed(0)}% ·{" "}
                         {p.weeksToPop == null
-                          ? ", "
+                          ? "—"
                           : `${p.weeksToPop.toFixed(1)} sem`}
                       </span>
                     </li>

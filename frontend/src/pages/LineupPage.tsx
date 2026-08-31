@@ -167,7 +167,7 @@ export function LineupPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
         <Kpi label="Formación" value={data.formation} />
         <Kpi label="Rating total" value={data.totalRating.toFixed(2)} />
         <Kpi label="Banquillo" value={String(data.bench.length)} />

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import { sharePieOption } from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
 import { Empty, ErrorState, Kpi, Loading, Note, Panel, ProjectionPanel } from "../components/Panels";
 import { TsiHistogramPanel } from "../components/TsiHistogramPanel";
 import { number } from "../hooks/useFormat";
-import { useDashboard, useRivalScouting } from "../hooks/useTeam";
+import { useDashboard, useLeague, useRivalScouting } from "../hooks/useTeam";
 import type {
   LastPurchase,
   PitchZoneDuel,
@@ -34,6 +34,29 @@ interface RosterRow {
  * nada de esto, sin importar los toggles: no se consideran representativos
  * de cómo juega el rival normalmente.
  */
+/** Cómo le va al rival en la liga, si está en tu misma tabla.
+ *
+ *  La proyección de al lado sale del TSI, que mide lo que vale una plantilla
+ *  y no lo que está haciendo con ella. Las dos cosas pueden discrepar mucho:
+ *  el 2026-08-31 esta pantalla daba 95% de victoria contra el segundo
+ *  clasificado, mientras la página de Liga --que modela goles-- lo daba a él
+ *  como favorito. Ninguna de las dos miente; miden cosas distintas. Lo que no
+ *  se puede es enseñar una y callar la otra.
+ */
+function ComoVaEnLaTabla({ rivalHtTeamId }: { rivalHtTeamId: number }) {
+  const liga = useLeague();
+  const fila = liga.data?.standings?.find((r) => r.htTeamId === rivalHtTeamId);
+  if (!fila) return null;
+  return (
+    <Note>
+      En la tabla van <b className="text-[var(--text)]">{fila.position}º</b> con{" "}
+      {fila.points} puntos ({fila.won}-{fila.drawn}-{fila.lost}, {fila.goalDifference > 0 ? "+" : ""}
+      {fila.goalDifference}). El TSI mide lo que vale una plantilla, no lo que está
+      consiguiendo: cuando las dos cosas no cuadran, el resultado manda.
+    </Note>
+  );
+}
+
 export function RivalPage() {
   const { rivalHtTeamId } = useParams<{ rivalHtTeamId: string }>();
   const id = Number(rivalHtTeamId);
@@ -49,9 +72,58 @@ export function RivalPage() {
   );
   const dashboard = useDashboard();
 
-  if (isLoading) return <Loading />;
+  // Esta pantalla no es como las demás: pide a Hattrick la plantilla y los
+  // últimos partidos de un equipo que no es el tuyo, y eso tarda del orden de
+  // diez segundos --medido el 2026-08-31--. El esqueleto genérico de cuatro
+  // tarjetas no dice nada durante ese rato, y diez segundos sin explicación
+  // se leen como que la aplicación se colgó.
+  if (isLoading) {
+    return (
+      <div className="space-y-4" role="status" aria-busy="true">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
+          <b>Estudiando al rival…</b>{" "}
+          <span className="text-[var(--muted)]">
+            Se le está pidiendo a Hattrick su plantilla y sus últimos partidos.
+            Suele tardar unos segundos: no son datos que estén guardados aquí.
+          </span>
+        </div>
+        <Loading />
+      </div>
+    );
+  }
   if (isError) return <ErrorState error={error} />;
   if (!data) return <Empty>Rival no encontrado.</Empty>;
+
+  // Un identificador que no corresponde a ningún equipo devolvía un informe
+  // ENTERO: nombre «Rival», cero partidos, TSI vacío y una proyección del
+  // 100% de victoria --contra nadie--. Quien se equivoca escribiendo un ID en
+  // «Ir directo por ID de equipo» recibía un análisis con pinta de real
+  // (2026-08-31). Sin nombre y sin plantilla no hay rival que estudiar.
+  if (!data.rivalName || (data.rivalRosterSample?.length ?? 0) === 0) {
+    return (
+      <div className="space-y-4">
+        <header>
+          <h1 className="text-xl font-semibold">Rival no encontrado</h1>
+          <p className="text-sm text-[var(--muted)]">
+            Hattrick no devolvió ningún equipo con el identificador {id}.
+          </p>
+        </header>
+        <Panel title="Qué pudo pasar">
+          <ul className="list-disc space-y-1.5 p-4 pl-8 text-sm text-[var(--muted)]">
+            <li>El identificador está mal escrito.</li>
+            <li>El equipo ya no existe: se disolvió o cambió de manager.</li>
+            <li>
+              Si lo buscabas por el nombre, es más seguro elegirlo en{" "}
+              <Link to="/rivals" className="text-[var(--accent)] hover:underline">
+                la lista de rivales
+              </Link>
+              , que sólo ofrece equipos que existen.
+            </li>
+          </ul>
+        </Panel>
+      </div>
+    );
+  }
 
   const h = data.tsiHistogram;
   const rivalLabel = data.rivalName ?? "Rival";
@@ -66,11 +138,11 @@ export function RivalPage() {
     ownTsiAvg && rivalTsiAvg != null && ownTsiAvg > 0 ? rivalTsiAvg / ownTsiAvg : null;
 
   const rosterColumns: Column<RosterRow>[] = [
-    { key: "name", header: "Jugador", value: (r) => r.name },
+    { key: "name", header: "Jugador", align: "left", value: (r) => r.name },
     {
       key: "position", header: "Posición", value: (r) => r.position ?? "",
       render: (r) =>
-        r.position ? r.position : <span className="text-[var(--muted)]">, </span>,
+        r.position ? r.position : <span className="text-[var(--muted)]">—</span>,
     },
     {
       key: "tsi", header: "TSI", align: "right", value: (r) => r.tsi,
@@ -116,7 +188,7 @@ export function RivalPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
         <Kpi
           label="Partidos analizados"
           value={String(data.matchesAnalysed)}
@@ -149,7 +221,7 @@ export function RivalPage() {
             ? ", tu once real (motor de posiciones) contra los 11 de mayor TSI del rival"
             : "") +
           ". El TSI del rival es un dato público real; sus habilidades exactas están " +
-          "ocultas por CHPP"
+          "ocultas por Hattrick"
         }
       />
 
@@ -174,9 +246,10 @@ export function RivalPage() {
           {data.comparisonReference.rivalSource === "probable_recent_starters" ? "el once probable del rival" : "los 11 de mayor TSI del rival"}
           {" "}({number(data.winProbability.rivalTsiTotal)}).
         </Note>
+        <ComoVaEnLaTabla rivalHtTeamId={data.rivalHtTeamId} />
       </ProjectionPanel>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Panel title="Sugerencia de marcaje al hombre">
           {data.manMarking ? (
             <div className="space-y-2 p-4">
@@ -250,7 +323,7 @@ export function RivalPage() {
           title="Táctica habitual del rival"
           meta={`${data.tacticHistory.matchesAnalysed} partido(s) con datos de sector`}
         >
-          <div className="grid gap-4 p-4 sm:grid-cols-2">
+          <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
             <div>
               <Chart
                 ariaLabel="Reparto de las tácticas que ha usado el rival en los partidos vistos"
@@ -820,7 +893,7 @@ function PitchZoneDuelsPanel({
     <Panel
       title="Duelos por zona de la cancha"
       meta={`${sources.own.kind === "submitted_chpp_prediction"
-        ? "tu predicción CHPP"
+        ? "la predicción de Hattrick"
         : `tú: ${matchesAnalysed.own} partido(s)`} · rival: ${matchesAnalysed.rival} partido(s)`}
     >
       <div className="grid gap-2 p-4 pb-2 sm:grid-cols-2">

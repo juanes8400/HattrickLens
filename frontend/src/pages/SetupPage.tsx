@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ErrorState, Loading } from "../components/Panels";
+import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
 import { TEAM_ID, setActiveTeamId, useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { ApiError, api } from "../services/api";
@@ -71,7 +71,12 @@ export function SetupPage() {
   if (profile.isLoading || dashboard.isLoading) return <FullScreen><Loading /></FullScreen>;
   if (profile.isError) return <FullScreen><ErrorState error={profile.error} /></FullScreen>;
   if (dashboard.isError) return <FullScreen><ErrorState error={dashboard.error} /></FullScreen>;
-  if (!profile.data || !dashboard.data) return null;
+  if (!profile.data || !dashboard.data)
+    return (
+      <FullScreen>
+        <SinDatos />
+      </FullScreen>
+    );
 
   if (profile.data.teams.length === 0) {
     return (
@@ -79,7 +84,7 @@ export function SetupPage() {
         <div className="max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8">
           <h1 className="text-xl font-semibold">No encontramos un club</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Hattrick autenticó la cuenta, pero CHPP no devolvió ningún equipo administrado.
+            Hattrick autenticó la cuenta, pero no devolvió ningún equipo administrado.
           </p>
           <Link className="mt-6 inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" to="/welcome">
             Volver a conectar
@@ -117,7 +122,7 @@ export function SetupPage() {
         <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
           <div className="border-b border-[var(--border)] p-6 sm:p-8">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--positive)]">
-              Conexión CHPP activa
+              Conexión con Hattrick activa
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
               {completed ? "Tu club está listo" : `${selectedTeam.name} está conectado`}

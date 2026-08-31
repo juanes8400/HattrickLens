@@ -6,10 +6,10 @@ import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
 
-const NAV = [
+export const NAV = [
   { section: "Club" },
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/club", label: "Club y staff" },
+  { to: "/club", label: "Club y cuerpo técnico" },
   { to: "/overview", label: "Equipo" },
   { to: "/team", label: "Jugadores" },
   { to: "/positions", label: "Posiciones" },
@@ -32,8 +32,42 @@ const NAV = [
   { to: "/sync", label: "Sincronización" },
   { to: "/news", label: "Cambios" },
   { to: "/insights", label: "Alertas" },
-  { to: "/engine", label: "Motor" },
+  { to: "/transparency", label: "Transparencia" },
 ];
+
+/** Cómo se llama la página que hay en esa ruta.
+ *
+ *  Vive pegado a `NAV` a propósito: es la misma lista que ya nombra cada
+ *  pantalla en la barra lateral, así que una página nueva se titula sola y
+ *  nadie tiene que acordarse de tocar dos sitios --el mismo trato que ya
+ *  tiene la telemetría--.
+ *
+ *  Hasta el 2026-08-30 las veinticinco pantallas compartían el título «HT
+ *  Lens»: dos pestañas abiertas eran indistinguibles, el historial del
+ *  navegador era una columna del mismo texto repetido y un marcador no decía
+ *  a qué apuntaba. */
+const RUTAS_CON_DETALLE: { prefijo: string; label: string }[] = [
+  { prefijo: "/players/", label: "Jugador" },
+  { prefijo: "/rivals/", label: "Rival" },
+];
+
+export function tituloDeRuta(pathname: string): string {
+  const detalle = RUTAS_CON_DETALLE.find((r) => pathname.startsWith(r.prefijo));
+  if (detalle) return `${detalle.label} · HT Lens`;
+
+  // La coincidencia más larga gana: `/transfers/balance` antes que nada que
+  // empiece por `/transfers`.
+  const enlaces = [...NAV, { to: "/uso", label: "Uso" }].filter(
+    (item): item is { to: string; label: string } => "to" in item,
+  );
+  let mejor: { to: string; label: string } | undefined;
+  for (const item of enlaces) {
+    if (pathname === item.to || pathname.startsWith(`${item.to}/`)) {
+      if (!mejor || item.to.length > mejor.to.length) mejor = item;
+    }
+  }
+  return mejor ? `${mejor.label} · HT Lens` : "HT Lens";
+}
 
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   // «Uso» sólo se le enseña al dueño de la instalación. Esconder el enlace no
@@ -123,6 +157,16 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen">
+      {/* Lo primero que alcanza el tabulador. Sin esto había que pasar por
+          las VEINTITRÉS paradas de la barra lateral para llegar al contenido,
+          en cada página y en cada visita (medido el 2026-08-31). Está oculto
+          hasta que recibe el foco: quien usa ratón no lo ve nunca. */}
+      <a
+        href="#contenido"
+        className="fixed left-3 -top-24 z-50 rounded-md border border-[var(--accent)] bg-[var(--surface)] px-4 py-2 text-sm shadow-lg transition-[top] focus:top-3"
+      >
+        Saltar al contenido
+      </a>
       {mobileOpen && (
         <div className="fixed inset-0 z-30 lg:hidden">
           <button
@@ -181,7 +225,7 @@ export function AppLayout() {
             {accountOpen && (
               <div className="absolute right-0 top-11 z-20 w-64 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-xl">
                 <div className="text-sm font-semibold">{profile.data?.user.loginName ?? "Cuenta Hattrick"}</div>
-                <div className="mt-1 text-xs text-[var(--muted)]">{connected ? "Conexión CHPP activa" : "La conexión requiere atención"}</div>
+                <div className="mt-1 text-xs text-[var(--muted)]">{connected ? "Conexión con Hattrick activa" : "La conexión requiere atención"}</div>
                 <div className="mt-3 border-t border-[var(--border)] pt-3">
                   <Link to="/setup" className="block rounded-md px-2 py-1.5 text-sm hover:bg-[var(--surface-2)]">Club e importación</Link>
                   <button
@@ -241,7 +285,12 @@ export function AppLayout() {
           </div>
         )}
 
-        <main className="p-4 sm:p-6"><Outlet /></main>
+        {/* `tabIndex={-1}` para que el salto deje el foco AQUÍ y no sólo
+            mueva el scroll: sin él, el siguiente tabulador volvería al
+            principio de la barra lateral. */}
+        <main id="contenido" tabIndex={-1} className="p-4 outline-none sm:p-6">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

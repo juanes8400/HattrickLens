@@ -10,6 +10,7 @@ import {
   Note,
   Panel,
   ProjectionPanel,
+  SinDatos,
 } from "../components/Panels";
 import { PITCH_CARD_CLASS, PitchField, PitchGrid } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
@@ -68,7 +69,7 @@ export function LeaguePage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   const own = data.ownOutlook;
   // Mismo umbral que `SHRINKAGE_K` en el motor: por debajo de eso, el prior
@@ -102,7 +103,7 @@ export function LeaguePage() {
           {/* Resumen oficial, solo hechos: lo que Hattrick ya reportó,
               nada proyectado. */}
           {own && (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
               <Kpi
                 label="Posición actual"
                 value={`${own.currentPosition}º`}
@@ -141,7 +142,7 @@ export function LeaguePage() {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
             <Kpi
               label="Posición esperada"
               value={own.expectedPosition.toFixed(1)}
@@ -256,35 +257,71 @@ export function LeaguePage() {
 
 function NextMatch({ data }: { data: League }) {
   const nm = data.nextMatch!;
-  const bars = [
-    { label: nm.home, value: nm.homeWin },
-    { label: "Empate", value: nm.draw },
-    { label: nm.away, value: nm.awayWin },
+
+  // Los tres desenlaces vistos DESDE TU LADO, que es la única lectura que le
+  // sirve al usuario. Antes la barra iba coloreada por local/visitante: azul
+  // el de casa, rojo el de fuera. Jugando de visitante, el azul era el rival
+  // y el rojo eras tú, así que el color decía lo contrario de lo que parecía.
+  const barras = [
+    {
+      label: nm.isHome ? nm.home : nm.away,
+      value: nm.isHome ? nm.homeWin : nm.awayWin,
+      color: "var(--positive)",
+      tuyo: true,
+    },
+    { label: "Empate", value: nm.draw, color: "var(--muted)", tuyo: false },
+    {
+      label: nm.isHome ? nm.away : nm.home,
+      value: nm.isHome ? nm.awayWin : nm.homeWin,
+      color: "var(--danger)",
+      tuyo: false,
+    },
   ];
+
   return (
     <Panel title="Próximo partido" meta="tendencia histórica de liga">
       <div className="space-y-3 p-4">
-        <div className="flex items-baseline justify-between text-sm">
-          <span className={nm.isHome ? "font-medium" : ""}>{nm.home}</span>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+          <span>
+            <span className={nm.isHome ? "font-medium" : ""}>{nm.home}</span>
+            <span className="mx-2 text-[var(--muted)]">vs</span>
+            <span className={!nm.isHome ? "font-medium" : ""}>{nm.away}</span>
+          </span>
           <span className="text-xs text-[var(--muted)]">
             goles esperados {nm.expectedHomeGoals} – {nm.expectedAwayGoals} ·
             resultado más probable {nm.mostLikelyScore}
           </span>
-          <span className={!nm.isHome ? "font-medium" : ""}>{nm.away}</span>
         </div>
+
         <div className="flex h-6 overflow-hidden rounded">
-          {bars.map((b, i) => (
+          {barras.map((b) => (
             <div
               key={b.label}
-              className="flex items-center justify-center text-[10px] text-white"
-              style={{
-                width: `${b.value * 100}%`,
-                background: ["#4f7cff", "#6b7280", "#e0574f"][i],
-              }}
+              className="flex items-center justify-center text-[10px] font-medium text-white"
+              style={{ width: `${b.value * 100}%`, background: b.color }}
               title={`${b.label}: ${(b.value * 100).toFixed(1)}%`}
             >
               {b.value > 0.12 ? `${(b.value * 100).toFixed(0)}%` : ""}
             </div>
+          ))}
+        </div>
+
+        {/* La leyenda no es adorno: sin ella los tres porcentajes se asocian a
+            su equipo sólo por posición, y «Empate» no aparecía en ninguna
+            parte salvo dentro del tooltip. */}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+          {barras.map((b) => (
+            <span key={b.label} className="inline-flex items-baseline gap-1.5">
+              <i
+                className="inline-block h-2 w-2 shrink-0 translate-y-[-1px] rounded-full"
+                style={{ background: b.color }}
+              />
+              <span className={b.tuyo ? "font-medium" : "text-[var(--muted)]"}>
+                {b.label}
+                {b.tuyo && <span className="text-[var(--muted)]"> (tú)</span>}
+              </span>
+              <b className="tabular-nums">{(b.value * 100).toFixed(0)}%</b>
+            </span>
           ))}
         </div>
       </div>
@@ -515,7 +552,7 @@ function HistoryPanel({ data }: { data: League }) {
         puntos para todos antes de jugar nada, no un dato sincronizado, por eso
         el puesto ahí no se dibuja. Posición y puntos por jornada se calculan a
         partir de los resultados reales de cada partido de la serie
-        (leaguefixtures.xml), no de una foto puntual de la clasificación, así
+        no de una foto puntual de la clasificación, así
         que no dependen de cuándo hayas sincronizado. Con solo {realRounds}{" "}
         jornada(s) jugada(s) el historial todavía dice poco; se vuelve más útil
         según avanza la temporada.
@@ -962,7 +999,7 @@ function LeagueTsiComparison() {
             </span>
           </span>
         ) : (
-          <span className="text-[var(--muted)]">, </span>
+          <span className="text-[var(--muted)]">—</span>
         ),
     },
     {
@@ -973,7 +1010,7 @@ function LeagueTsiComparison() {
       value: (r) => r.topPlayerLastPosition ?? "",
       render: (r) =>
         r.topPlayerLastPosition ?? (
-          <span className="text-[var(--muted)]">, </span>
+          <span className="text-[var(--muted)]">—</span>
         ),
     },
     {
@@ -986,7 +1023,7 @@ function LeagueTsiComparison() {
         r.avgForm != null ? (
           <span className="tabular-nums">{r.avgForm}</span>
         ) : (
-          <span className="text-[var(--muted)]">, </span>
+          <span className="text-[var(--muted)]">—</span>
         ),
     },
     {
@@ -999,7 +1036,7 @@ function LeagueTsiComparison() {
         r.avgStamina != null ? (
           <span className="tabular-nums">{r.avgStamina}</span>
         ) : (
-          <span className="text-[var(--muted)]">, </span>
+          <span className="text-[var(--muted)]">—</span>
         ),
     },
   ];
@@ -1020,7 +1057,7 @@ function LeagueTsiComparison() {
           (top11
             ? ", tu once real (motor de posiciones) contra los 11 de mayor TSI de cada rival"
             : "") +
-          ". El TSI de cada rival es real; sus habilidades exactas están ocultas por CHPP"
+          ". El TSI de cada rival es real; sus habilidades exactas están ocultas por Hattrick"
         }
       />
       <Panel title="Comparativa de rivales" meta={data.seriesName}>
@@ -1032,9 +1069,9 @@ function LeagueTsiComparison() {
           csvName="comparativa-rivales"
         />
         <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-          "Última posición" viene de una llamada aparte (playerdetails.xml) solo
-          para el jugador de mayor TSI de cada equipo, forma y resistencia
-          promedian solo jugadores donde CHPP de verdad mostró el dato: un rival
+          "Última posición" se consulta aparte, solo para el jugador de mayor TSI
+          de cada equipo; forma y resistencia promedian solo jugadores donde
+          Hattrick de verdad mostró el dato: un rival
           puede tenerlas ocultas.
         </p>
       </Panel>

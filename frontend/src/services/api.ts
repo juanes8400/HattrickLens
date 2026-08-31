@@ -133,8 +133,10 @@ export const api = {
   ) => {
     const q = new URLSearchParams();
     if (formation) q.set("formation", formation);
-    if (centralDefenders != null) q.set("central_defenders", String(centralDefenders));
-    if (innerMidfielders != null) q.set("inner_midfielders", String(innerMidfielders));
+    if (centralDefenders != null)
+      q.set("central_defenders", String(centralDefenders));
+    if (innerMidfielders != null)
+      q.set("inner_midfielders", String(innerMidfielders));
     const fijadas = Object.entries(orders ?? {});
     if (fijadas.length > 0) {
       q.set("orders", fijadas.map(([slot, pos]) => `${slot}:${pos}`).join(","));
@@ -150,7 +152,8 @@ export const api = {
     request<TrainingForecast>(`/teams/${teamId}/training/forecast`),
   postMatchTraining: (teamId: number) =>
     request<PostMatchTraining>(`/teams/${teamId}/training/post-match`),
-  teamOverview: (teamId: number) => request<TeamOverview>(`/teams/${teamId}/overview`),
+  teamOverview: (teamId: number) =>
+    request<TeamOverview>(`/teams/${teamId}/overview`),
   insights: (teamId: number) => request<Insight[]>(`/teams/${teamId}/insights`),
   archivedInsights: (teamId: number) =>
     request<ArchivedInsight[]>(`/teams/${teamId}/insights/archived`),
@@ -165,6 +168,7 @@ export const api = {
       { method: "DELETE" },
     ),
   positionModel: () => request<PositionModel>(`/teams/positions/model`),
+  calculos: () => request<SeccionDeCalculos[]>(`/teams/calculos`),
   experienceModel: (teamId: number) =>
     request<ExperienceModel>(`/teams/${teamId}/experience/calibration`),
   loyaltyModel: (teamId: number) =>
@@ -248,10 +252,10 @@ export const api = {
       timesSeen: number | null;
       askingPrice: number | null;
       asked: boolean;
-    }>(
-      `/teams/${teamId}/transfer-attempts/${attemptId}`,
-      { method: "PATCH", body: JSON.stringify(cambios) },
-    ),
+    }>(`/teams/${teamId}/transfer-attempts/${attemptId}`, {
+      method: "PATCH",
+      body: JSON.stringify(cambios),
+    }),
   /** Borra un intento de venta. Distinto de "no tener en cuenta". */
   deleteTransferAttempt: (teamId: number, attemptId: number) =>
     request<{ deleted: number }>(
@@ -393,11 +397,18 @@ export const api = {
         .map(([skill, n]) => `${skill}:${n}`)
         .join(","),
     });
-    return request<AcademySkillScores>(`/teams/${teamId}/academy/skill-scores?${q}`);
+    return request<AcademySkillScores>(
+      `/teams/${teamId}/academy/skill-scores?${q}`,
+    );
   },
   academyTrainingPlan: (
     teamId: number,
-    params: { main: string; secondary: string; soonMaxDays: number; weightBase: number },
+    params: {
+      main: string;
+      secondary: string;
+      soonMaxDays: number;
+      weightBase: number;
+    },
   ) => {
     const q = new URLSearchParams({
       main: params.main,
@@ -405,9 +416,15 @@ export const api = {
       soon_max_days: String(params.soonMaxDays),
       weight_base: String(params.weightBase),
     }).toString();
-    return request<AcademyTrainingPlan>(`/teams/${teamId}/academy/training-plan?${q}`);
+    return request<AcademyTrainingPlan>(
+      `/teams/${teamId}/academy/training-plan?${q}`,
+    );
   },
-  changesHistory: (teamId: number, playerId?: number | null, weeks?: number) => {
+  changesHistory: (
+    teamId: number,
+    playerId?: number | null,
+    weeks?: number,
+  ) => {
     const params = new URLSearchParams();
     if (playerId != null) params.set("player_id", String(playerId));
     if (weeks != null) params.set("weeks", String(weeks));
@@ -456,11 +473,7 @@ export const api = {
         `&pitch_zone_scope=${pitchZoneScope}&pitch_zone_method_own=${pitchZoneMethodOwn}` +
         `&pitch_zone_method_rival=${pitchZoneMethodRival}`,
     ),
-  leagueComparison: (
-    teamId: number,
-    logTsi: boolean,
-    top11: boolean,
-  ) =>
+  leagueComparison: (teamId: number, logTsi: boolean, top11: boolean) =>
     request<LeagueComparison>(
       `/teams/${teamId}/league/comparison` +
         `?log_tsi=${logTsi}&top11=${top11}`,
@@ -476,8 +489,12 @@ export const api = {
     request<TeamOfTheWeek>(
       `/teams/${teamId}/league/team-of-the-week?scope=${scope}&formation=${formation}` +
         (round != null ? `&round=${round}` : "") +
-        (centralDefenders != null ? `&central_defenders=${centralDefenders}` : "") +
-        (innerMidfielders != null ? `&inner_midfielders=${innerMidfielders}` : ""),
+        (centralDefenders != null
+          ? `&central_defenders=${centralDefenders}`
+          : "") +
+        (innerMidfielders != null
+          ? `&inner_midfielders=${innerMidfielders}`
+          : ""),
     ),
   cup: (teamId: number) => request<Cup>(`/teams/${teamId}/cup`),
 };
@@ -710,7 +727,12 @@ export interface LineaDeEntrenamiento {
   /** 1 en el principal, ⅔ en el secundario, ⅓ si se repite entrenamiento. */
   penalty?: number;
   probability: number | null;
-  level: { label: string; current: number | null; maximum: number | null; maxReached: boolean };
+  level: {
+    label: string;
+    current: number | null;
+    maximum: number | null;
+    maxReached: boolean;
+  };
 }
 
 export interface PlayerComparisonRow {
@@ -804,7 +826,11 @@ export interface VeredictoDeMetodo {
     /** Quien lo adelanta al quitarselo. `null` si aguanta. */
     overtakenBy: string | null;
   };
-  second: { label: string; unbacked: number | null; backed: number | null } | null;
+  second: {
+    label: string;
+    unbacked: number | null;
+    backed: number | null;
+  } | null;
 }
 
 export interface ChangeMetricSummary {
@@ -1229,8 +1255,8 @@ export interface Squad {
     averageExperience: number;
     averageTsi: number;
     totalTsi: number;
-  /** Los once de más TSI. */
-  top11Tsi: number;
+    /** Los once de más TSI. */
+    top11Tsi: number;
     averageSalary: number;
     totalSalary: number;
   };
@@ -1269,14 +1295,16 @@ export interface Dashboard {
     costsPlayers: number;
     fanClubSize: number;
     lastWeeksTotal: number;
-    structuralBalance: number;
-  /** Las dos semanas ya cerradas: cubren siempre un partido en casa. */
-  biweeklyBalance: number;
-  biweeklyIncome: number;
-  /** `null` = Hattrick no dio los salarios de la semana anterior. No es 0. */
-  biweeklySalaries: number | null;
-  /** Salarios sobre los ingresos de esas dos semanas, ventas incluidas. */
-  salarySharePct: number | null;
+    /** `null` = no hay ni un cierre semanal guardado. No es 0. */
+    structuralBalance: number | null;
+    /** Las dos semanas ya cerradas: cubren siempre un partido en casa.
+     *  `null` = todavía no hay dos cierres guardados. No es 0. */
+    biweeklyBalance: number | null;
+    biweeklyIncome: number | null;
+    /** `null` = Hattrick no dio los salarios de la semana anterior. No es 0. */
+    biweeklySalaries: number | null;
+    /** Salarios sobre los ingresos de esas dos semanas, ventas incluidas. */
+    salarySharePct: number | null;
     currency: string;
   } | null;
   training: {
@@ -1356,6 +1384,10 @@ export interface Club {
     youthInvestmentCurrency: string;
     youthLevel: number;
   } | null;
+  /** El módulo de Psicología: espíritu y confianza con el motivo de cada
+   *  movimiento. Sustituye a la gráfica «Ánimo competitivo», que los metía
+   *  en un solo eje pese a tener escalas y causas distintas. */
+  psychology: Psychology;
   moodHistory: { capturedAt: string; spirit: number; confidence: number }[];
   supporterHistory: {
     capturedAt: string;
@@ -1428,7 +1460,6 @@ export interface NextMatchCondition {
     experienceAvg: number | null;
   }[];
 }
-
 
 export interface TrainingForecast {
   trainingType: number | null;
@@ -2279,7 +2310,8 @@ export interface Academy {
   /** Los de la academia ACTUAL: es la lista con la que se calcula el ROI. */
   graduates: {
     name: string;
-    promotedAt: string | null;
+    /** Cuándo llegó a su club ACTUAL. No es la fecha de ascenso. */
+    arrivedAtCurrentTeam: string | null;
     soldAt: string | null;
     soldFor: number | null;
     currentTeam: string | null;
@@ -3068,7 +3100,6 @@ export interface PlayerTrainingLevels {
   notes: string[];
 }
 
-
 /** Quién trajo a cada canterano y qué queda por revelarle.
  *
  * CHPP no publica una lista de ojeadores; lo único que existe es el
@@ -3095,3 +3126,103 @@ export interface AcademyScouts {
     fetchedAt: string | null;
   }[];
 }
+
+/** Una constante de una fórmula, con su valor REAL leído del motor. */
+export type ConstanteDeCalculo = {
+  symbol: string;
+  value: string;
+  what: string;
+};
+
+/** Una tabla de números que la fórmula consulta en vez de calcular.
+ *
+ *  Enseñar sólo los extremos --«la tabla va de 17 a 36»-- contesta a medias:
+ *  quien abre esta pantalla quiere ver la fila que le toca a SU jugador. */
+export type TablaDeCalculo = {
+  title: string;
+  columns: string[];
+  rows: string[][];
+  note: string;
+};
+
+/** De dónde sale un dato que entra en una fórmula. */
+export type FuenteDeCalculo = {
+  what: string;
+  origin: string;
+};
+
+/** Un cálculo de la herramienta, tal como lo publica Transparencia. */
+export type Calculo = {
+  id: string;
+  name: string;
+  /** La pregunta que contesta. Va antes que la fórmula: quien abre esto
+   *  quiere saber qué mira, no qué se multiplica. */
+  answers: string;
+  formula: string;
+  /** Los datos que entran, con su procedencia. Sin esto la fórmula dice
+   *  cómo se hace la cuenta pero no de dónde salen los sumandos. */
+  sources: FuenteDeCalculo[];
+  constants: ConstanteDeCalculo[];
+  /** Los parámetros que no caben en una lista: coeficientes por
+   *  entrenamiento, el reloj de edad, la tabla de resistencia. */
+  tables: TablaDeCalculo[];
+  /** La cuenta hecha con numeros de verdad, linea a linea. Una formula se
+   *  entiende, pero no se comprueba: el paso a paso deja repetirla. */
+  steps: string[];
+  limits: string[];
+  note: string;
+  /** Panel VIVO que la pantalla pinta debajo, con los valores de tu club.
+   *  `null` cuando el cálculo no tiene más que su fórmula. */
+  live: string | null;
+};
+
+export type SeccionDeCalculos = {
+  id: string;
+  name: string;
+  calcs: Calculo[];
+};
+
+/** Un tramo de espíritu o confianza, con lo que lo explica. */
+export type PsychologyMovement = {
+  at: string;
+  from: number;
+  to: number;
+  delta: number;
+  cause: string;
+  /** Contexto, NO causa: cuántas operaciones cayeron dentro del tramo. */
+  buys?: number;
+  sales?: number;
+};
+
+export type PsychologySeries = {
+  /** La escala ENTERA del juego, se haya pisado o no. */
+  scale: { level: number; label: string }[];
+  /** La referencia hacia la que tiende. `null` cuando el juego no publica su
+   *  valor: entonces no se dibuja ninguna, en vez de inventar una. */
+  equilibrium: number | null;
+  readings: { at: string; level: number }[];
+  movements: PsychologyMovement[];
+};
+
+export type PsychologyMatch = {
+  playedAt: string;
+  rival: string;
+  isHome: boolean;
+  goalsFor: number;
+  goalsAgainst: number;
+  result: "win" | "draw" | "loss";
+  /** -1 PIC · 0 Normal · 1 MOTS. `null` si no se llegó a leer. */
+  attitude: number | null;
+  attitudeLabel: string | null;
+};
+
+export type Psychology = {
+  weeks: number;
+  spirit: PsychologySeries;
+  confidence: PsychologySeries;
+  matches: PsychologyMatch[];
+  buyDays: { day: string; count: number }[];
+  sellDays: { day: string; count: number }[];
+  /** Cuándo se BAJÓ el % de entrenamiento. Vacío también es información. */
+  intensityDrops: string[];
+};

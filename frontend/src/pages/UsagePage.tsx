@@ -10,12 +10,26 @@ import { api } from "../services/api";
  *  ningún servicio de fuera, ninguna cookie que consentir.
  */
 
-/** `3 min 20 s`, `45 s`. Pasado el minuto, los segundos sueltos no se leen. */
+/** `2 h 15 min`, `3 min 20 s`, `45 s`.
+ *
+ *  Cada tramo se queda con dos unidades: pasado el minuto los segundos
+ *  sueltos no se leen, y pasada la hora tampoco los segundos.
+ */
 function duracion(segundos: number): string {
   if (segundos < 60) return `${segundos} s`;
   const m = Math.floor(segundos / 60);
-  const s = segundos % 60;
-  return s === 0 ? `${m} min` : `${m} min ${s} s`;
+  if (m < 60) {
+    const s = segundos % 60;
+    return s === 0 ? `${m} min` : `${m} min ${s} s`;
+  }
+  const h = Math.floor(m / 60);
+  const resto = m % 60;
+  return resto === 0 ? `${h} h` : `${h} h ${resto} min`;
+}
+
+/** Los minutos que manda el servidor vienen con decimal (`4427.7`). */
+function desdeMinutos(minutos: number): string {
+  return duracion(Math.round(minutos * 60));
 }
 
 function Cifra({ valor, de }: { valor: string; de: string }) {
@@ -97,7 +111,7 @@ export function UsagePage() {
             <Cifra de="Sesiones" valor={String(data.totals.sessions)} />
             <Cifra de="Páginas vistas" valor={String(data.totals.pages)} />
             <Cifra de="Clics" valor={String(data.totals.clicks)} />
-            <Cifra de="Tiempo total" valor={`${data.totals.minutes} min`} />
+            <Cifra de="Tiempo total" valor={desdeMinutos(data.totals.minutes)} />
             {/* La MEDIANA, no la media: una pestaña olvidada dispara el
                 promedio y deja de describir a nadie. */}
             <Cifra
@@ -146,7 +160,7 @@ export function UsagePage() {
                         {m.clicks}
                       </td>
                       <td className={`${td} text-right tabular-nums`}>
-                        {m.minutes} min
+                        {desdeMinutos(m.minutes)}
                       </td>
                       <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
                         {duracion(Math.round(m.avgSecondsPerVisit))}
@@ -166,7 +180,7 @@ export function UsagePage() {
             </div>
           </Panel>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <Panel title="Lo más pulsado" meta="qué se usa, no qué se mira">
               {data.topControls.length === 0 ? (
                 <p className="p-4 text-sm text-[var(--muted)]">

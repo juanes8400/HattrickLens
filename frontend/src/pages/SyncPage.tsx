@@ -195,7 +195,7 @@ export function SyncPage() {
             disabled={running}
             className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
-            {fullSync.isPending ? "Sincronizando CHPP…" : "Sincronizar ahora"}
+            {fullSync.isPending ? "Sincronizando…" : "Sincronizar ahora"}
           </button>
           {dashboard?.stale && !fullSync.isPending && (
             <p className="text-xs text-[var(--warning)]">

@@ -8,7 +8,7 @@ import {
   useLineup,
 } from "../hooks/useTeam";
 import { Link, useSearchParams } from "react-router-dom";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
 import { InsightRow, SeverityTally } from "../components/Insights";
 import { Chart } from "../charts/Chart";
 import { PITCH_CARD_CLASS, PitchField, PitchGrid } from "../components/PitchField";
@@ -18,6 +18,7 @@ import type { Dashboard } from "../services/api";
 import { radarOption } from "../charts/chartOptions";
 import { decimal, money, number } from "../hooks/useFormat";
 import type { Insight } from "../services/api";
+import { estadoDeAlertas } from "../utils/alertas";
 
 export function DashboardPage() {
   const [params] = useSearchParams();
@@ -32,7 +33,7 @@ export function DashboardPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   const cur = data.finance?.currency ?? "";
 
@@ -63,17 +64,35 @@ export function DashboardPage() {
         </section>
       )}
 
-      <AlertsBand insights={insights.data ?? []} loading={insights.isLoading} />
+      <AlertsBand
+        insights={insights.data ?? []}
+        loading={insights.isLoading}
+        failed={insights.isError}
+      />
 
       <ClubRadar teamName={data.teamName} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi label="Caja" value={money(data.finance?.cash ?? 0)} hint={cur} />
+        {/* Sin dos cierres no se pinta un 0: sería decir que el club no
+            ingresó ni gastó nada. Mismo criterio que los salarios. */}
         <Kpi
           label="Balance bisemanal"
-          value={money(data.finance?.biweeklyBalance ?? 0)}
-          hint="las dos semanas cerradas"
-          tone={(data.finance?.biweeklyBalance ?? 0) < 0 ? "danger" : "positive"}
+          value={
+            data.finance?.biweeklyBalance == null
+              ? "—"
+              : money(data.finance.biweeklyBalance)
+          }
+          hint={
+            data.finance?.biweeklyBalance == null
+              ? "hacen falta dos cierres semanales"
+              : "las dos semanas cerradas"
+          }
+          tone={
+            data.finance?.biweeklyBalance != null && data.finance.biweeklyBalance < 0
+              ? "danger"
+              : "positive"
+          }
         />
         {/* Sin el dato de la semana anterior no se pinta un 0: seria decir
             que no se pagaron salarios. Ver la migracion 0021. */}
@@ -109,7 +128,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="lg:col-span-2">
           <Panel
             title="Mejor once"
@@ -290,7 +309,16 @@ function TrainingPanel({ training }: { training: NonNullable<Dashboard["training
  * oportunidades e info viven en el centro de alertas, un clic más allá, para
  * que este bloque no pierda fuerza por saturación.
  */
-function AlertsBand({ insights, loading }: { insights: Insight[]; loading: boolean }) {
+function AlertsBand({
+  insights,
+  loading,
+  failed,
+}: {
+  insights: Insight[];
+  loading: boolean;
+  /** Se pidieron y no llegaron. NO es lo mismo que no haber ninguna. */
+  failed: boolean;
+}) {
   // 2026-08-16, pedido explícito: cada alerta se quita con una X y queda
   // guardada en el buzón, que vive en el centro de alertas.
   const archive = useArchiveInsight();
@@ -298,6 +326,16 @@ function AlertsBand({ insights, loading }: { insights: Insight[]; loading: boole
     return (
       <Panel title="Qué requiere tu atención">
         <div className="p-4"><Loading /></div>
+      </Panel>
+    );
+  }
+  if (estadoDeAlertas({ loading, failed, cuantas: insights.length }) === "fallo") {
+    return (
+      <Panel title="Qué requiere tu atención">
+        <Empty>
+          No se pudieron consultar las alertas.{" "}
+          <b className="text-[var(--text)]">Puede haber avisos sin ver.</b>
+        </Empty>
       </Panel>
     );
   }

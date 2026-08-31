@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AppLayout } from "./layouts/AppLayout";
+import { AppLayout, tituloDeRuta } from "./layouts/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ClubPage } from "./pages/ClubPage";
 import { TeamOverviewPage } from "./pages/TeamOverviewPage";
@@ -13,7 +13,7 @@ import { LineupPage } from "./pages/LineupPage";
 import { TrainingPage } from "./pages/TrainingPage";
 import { PlayerBalancePage } from "./pages/PlayerBalancePage";
 import { InsightsPage } from "./pages/InsightsPage";
-import { EnginePage } from "./pages/EnginePage";
+import { TransparencyPage } from "./pages/TransparencyPage";
 import { SyncChangesPage } from "./pages/SyncChangesPage";
 import { SyncPage } from "./pages/SyncPage";
 import { UsagePage } from "./pages/UsagePage";
@@ -59,6 +59,8 @@ function MedidorDePaginas() {
   useEffect(() => {
     arrancarTelemetria();
     verPagina(pathname);
+    // Y de paso el título de la pestaña, que sale de la misma lista.
+    document.title = tituloDeRuta(pathname);
   }, [pathname]);
   return null;
 }
@@ -93,7 +95,10 @@ export function App() {
         <Route path="insights" element={<InsightsPage />} />
         <Route path="sync" element={<SyncPage />} />
         <Route path="news" element={<SyncChangesPage />} />
-        <Route path="engine" element={<EnginePage />} />
+        <Route path="transparency" element={<TransparencyPage />} />
+        {/* Motor se llamaba así hasta el 2026-08-31. El enlace viejo
+            sigue funcionando: romper marcadores por un renombre no. */}
+        <Route path="engine" element={<Navigate to="/transparency" replace />} />
         {/* Sólo la abre el administrador; el candado está en el
             servidor, no aquí. */}
         <Route path="uso" element={<UsagePage />} />

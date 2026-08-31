@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Column, DataTable } from "../components/DataTable";
 import { Empty, ErrorState, Loading, Note, Panel } from "../components/Panels";
 import { useCup, useLeague } from "../hooks/useTeam";
@@ -129,14 +129,22 @@ export function RivalPickerPage() {
 
   const columns: Column<RivalRow>[] = [
     {
-      key: "name", header: "Equipo", value: (r) => r.name,
+      key: "name",
+      header: "Equipo",
+      // Sin `align` la tabla asume columna numérica: alineaba los nombres a
+      // la derecha y con cifras tabulares. Un nombre se lee por la izquierda.
+      align: "left",
+      value: (r) => r.name,
+      // Un enlace de verdad, no un botón. Esta pantalla existe para navegar,
+      // y con un botón no se podía abrir un rival en otra pestaña ni copiar
+      // su dirección: el clic era la única forma de llegar.
       render: (r) => (
-        <button
-          onClick={() => navigate(`/rivals/${r.htTeamId}`)}
-          className="text-left hover:text-[var(--accent)] hover:underline"
+        <Link
+          to={`/rivals/${r.htTeamId}`}
+          className="hover:text-[var(--accent)] hover:underline"
         >
           {r.name}
-        </button>
+        </Link>
       ),
     },
     // La columna por la que se ordena cambia con la competición, y por eso es

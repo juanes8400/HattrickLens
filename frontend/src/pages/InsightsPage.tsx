@@ -85,6 +85,7 @@ export function InsightsPage() {
 
         {modules.length > 1 && (
           <select
+            aria-label="Filtrar las alertas por módulo"
             value={activeModule}
             onChange={(e) => setActiveModule(e.target.value)}
             className="ml-auto rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"

@@ -3,7 +3,7 @@ import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import { Column, DataTable } from "../components/DataTable";
-import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
 import { useArena } from "../hooks/useTeam";
 import { money, number } from "../hooks/useFormat";
 import { ApiError, type Arena } from "../services/api";
@@ -51,7 +51,7 @@ export function ArenaPage() {
     }
     return <ErrorState error={error} />;
   }
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   return (
     <div className="space-y-4">
@@ -62,7 +62,7 @@ export function ArenaPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi label="Aforo" value={number(data.capacityTotal)} />
         <Kpi
           label="Ocupación media"
@@ -220,7 +220,10 @@ function SectorTable({ data }: { data: Arena }) {
             />
           </span>
           <span className="tabular-nums">
-            {r.occupancy.toFixed(1)}%{r.demandIsCensored && <span title="demanda censurada"> ↑</span>}
+            {r.occupancy.toFixed(1)}%
+            {r.demandIsCensored && (
+              <span title="Suelo: el sector se agotó, así que la ocupación real no puede ser menor que esto, pero sí mayor la demanda."> ↑</span>
+            )}
           </span>
         </span>
       ),
@@ -246,10 +249,19 @@ function SectorTable({ data }: { data: Arena }) {
     {
       key: "demand",
       header: "Demanda",
-      value: (r) => (r.demandIsCensored ? "censurada" : "medible"),
+      // «Censurada» es el término estadístico exacto y no le dice nada a nadie
+      // que gestione un club. Y agotar un sector no es una mala noticia --era
+      // roja-- sino justo lo contrario: hubo más gente que asientos. Lo único
+      // malo es que entonces la cifra ya no mide demanda, sino aforo.
+      value: (r) => (r.demandIsCensored ? "sin medir" : "medible"),
       render: (r) =>
         r.demandIsCensored ? (
-          <span className="text-[var(--danger)]">censurada</span>
+          <span
+            className="text-[var(--text)]"
+            title="Se agotó alguna vez: a partir de ahí la cifra mide asientos, no cuánta gente quería entrar. La demanda real puede ser mayor."
+          >
+            sin medir
+          </span>
         ) : (
           <span className="text-[var(--muted)]">medible</span>
         ),

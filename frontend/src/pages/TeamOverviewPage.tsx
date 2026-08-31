@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Chart } from "../charts/Chart";
 import { PitchField } from "../components/PitchField";
 import { bandBetween, timelineOption, withoutBandInTooltip } from "../charts/chartOptions";
-import { Empty, ErrorState, Loading, Note, Panel } from "../components/Panels";
+import { Empty, ErrorState, Loading, Note, Panel, SinDatos } from "../components/Panels";
 import { useTeamOverview } from "../hooks/useTeam";
 import { decimal, money, number } from "../hooks/useFormat";
 import type {
@@ -241,7 +241,7 @@ export function TeamOverviewPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   const active = data.groups.find((g) => g.key === activeKey) ?? data.groups[0];
   if (!active) return <Empty>Sincroniza para calcular las medias de la plantilla.</Empty>;

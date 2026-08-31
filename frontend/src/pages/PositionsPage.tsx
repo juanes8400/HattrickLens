@@ -1,7 +1,7 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
-import { ErrorState, Loading, Panel } from "../components/Panels";
+import { ErrorState, Loading, Panel, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { useSquad } from "../hooks/useTeam";
 import { htAge } from "../hooks/useFormat";
@@ -75,7 +75,7 @@ const SKILL_COLUMNS: [keyof SquadPlayer["skills"], string][] = [
 ];
 
 function Rating({ value }: { value: number | null | undefined }) {
-  return value == null ? <span className="text-[var(--muted)]">, </span> : (
+  return value == null ? <span className="text-[var(--muted)]">—</span> : (
     <b className="tabular-nums text-[var(--accent)]">{value.toFixed(2)}</b>
   );
 }
@@ -95,7 +95,7 @@ export function PositionsPage() {
 
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
-  if (!squad.data) return null;
+  if (!squad.data) return <SinDatos />;
 
   const columns: Column<SquadPlayer>[] = [
     {

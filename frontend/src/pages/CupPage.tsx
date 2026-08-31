@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Column, DataTable } from "../components/DataTable";
-import { ErrorState, Kpi, Loading, Note, Panel, ProjectionPanel } from "../components/Panels";
+import { ErrorState, Kpi, Loading, Note, Panel, ProjectionPanel, SinDatos } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
 import { useCup, useRivalScouting } from "../hooks/useTeam";
 import { date, money, number } from "../hooks/useFormat";
@@ -24,7 +24,7 @@ export function CupPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   const next = data.nextMatches[0];
   const statusTone = data.status.stillInCup ? "positive" : "danger";
@@ -46,7 +46,7 @@ export function CupPage() {
           </p>
         </div>
         <div className="text-right text-xs text-[var(--muted)]">
-          <div>Estado: {data.status.source === "teamdetails" ? "CHPP · teamdetails" : "calendario"}</div>
+          <div>Estado: {data.status.source === "teamdetails" ? "confirmado por Hattrick" : "calendario"}</div>
           {data.status.nextCupMatchDate && <div>Jornada de Copa: {date(data.status.nextCupMatchDate)}</div>}
         </div>
       </header>
@@ -63,7 +63,21 @@ export function CupPage() {
 
       {section === "resumen" && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {/* Eliminado significa que NADA de lo que sigue está en juego.
+              Hasta el 2026-08-31 la pestaña se pintaba igual estuvieras
+              dentro o fuera: enseñaba el camino al título, el próximo
+              cruce y una probabilidad de avanzar «que se activará cuando
+              Hattrick publique el rival» --y no se iba a activar nunca--. */}
+          {!data.status.stillInCup && (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
+              <b>Eliminado de {data.status.cupName ?? "la Copa"}.</b>{" "}
+              <span className="text-[var(--muted)]">
+                No quedan cruces esta temporada. Lo de abajo es el registro de
+                lo que fue, no lo que puede pasar.
+              </span>
+            </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
             <Kpi
               label="Estado"
               value={data.status.stillInCup ? "Seguimos" : "Eliminado"}
@@ -80,12 +94,22 @@ export function CupPage() {
               }
             />
             <Kpi
-              label="Camino al título"
-              value={data.goal.winsToTitle != null ? `${data.goal.winsToTitle} victorias` : "-"}
-              hint="desde la instancia actual"
+              label={data.status.stillInCup ? "Camino al título" : "Llegaste hasta"}
+              value={
+                !data.status.stillInCup
+                  ? (data.status.stageLabel ?? "—")
+                  : data.goal.winsToTitle != null
+                    ? `${data.goal.winsToTitle} victorias`
+                    : "-"
+              }
+              hint={
+                data.status.stillInCup
+                  ? "desde la instancia actual"
+                  : "la instancia donde se acabó"
+              }
             />
             <Kpi
-              label="Premio mínimo actual"
+              label={data.status.stillInCup ? "Premio mínimo actual" : "Premio conseguido"}
               value={
                 data.goal.trophyOnly
                   ? "Trofeo"
@@ -93,22 +117,37 @@ export function CupPage() {
                     ? money(data.goal.securedAmount, data.currency)
                     : "Aún ninguno"
               }
-              hint="si la participación terminara en esta instancia"
+              hint={
+                data.status.stillInCup
+                  ? "si la participación terminara en esta instancia"
+                  : "lo que dejó la participación"
+              }
             />
+            {/* Sin copa viva no hay «próximo cruce» que esperar: el hueco
+                se cambia por la fecha en que se acabó. */}
             <Kpi
-              label="Próximo cruce"
-              value={next?.opponent ?? "-"}
-              hint={next ? `${date(next.date)} · ${next.venueLabel}` : "sin partido programado"}
+              label={data.status.stillInCup ? "Próximo cruce" : "Participación"}
+              value={data.status.stillInCup ? (next?.opponent ?? "-") : "Cerrada"}
+              hint={
+                data.status.stillInCup
+                  ? next
+                    ? `${date(next.date)} · ${next.venueLabel}`
+                    : "sin partido programado"
+                  : "hasta la próxima temporada"
+              }
             />
           </div>
 
           {data.prizeTable.length > 0 && (
-            <Panel title="Camino hacia la meta">
+            <Panel
+              title={data.status.stillInCup ? "Camino hacia la meta" : "El cuadro de premios"}
+              meta={data.status.stillInCup ? undefined : "referencia: ya no hay nada que recorrer"}
+            >
               <PrizeRoad stages={data.prizeTable} currency={data.currency} />
             </Panel>
           )}
 
-          {data.scenarios && (
+          {data.scenarios && data.status.stillInCup && (
             <Panel title="Qué ocurre con el próximo resultado">
               <ResultRoutes data={data} />
             </Panel>
@@ -123,7 +162,7 @@ export function CupPage() {
                 <div className="p-4">
                   <div className="text-lg font-semibold">No disponible en esta sesión</div>
                   <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
-                    El scouting del rival necesita una sesión CHPP activa. La fecha y el rival de
+                    El scouting del rival necesita una sesión de Hattrick activa. La fecha y el rival de
                     arriba siguen siendo datos sincronizados; aquí no se sustituye la probabilidad
                     faltante por un valor sintético.
                   </p>
@@ -152,8 +191,15 @@ export function CupPage() {
               )}
             </ProjectionPanel>
           ) : (
-            <Panel title="Probabilidad de avanzar" meta="sin rival confirmado">
-              <Note>Se activará cuando CHPP publique el próximo cruce.</Note>
+            <Panel
+              title="Probabilidad de avanzar"
+              meta={data.status.stillInCup ? "sin rival confirmado" : "participación cerrada"}
+            >
+              <Note>
+                {data.status.stillInCup
+                  ? "Se activará cuando Hattrick publique el próximo cruce."
+                  : "No hay más cruces: la participación terminó esta temporada."}
+              </Note>
             </Panel>
           )}
 
@@ -177,7 +223,7 @@ export function CupPage() {
 
       {section === "preparacion" && (
         <>
-          <Panel title="Próximo partido" meta="fecha y rival confirmados por CHPP">
+          <Panel title="Próximo partido" meta="fecha y rival confirmados por Hattrick">
             <NextMatchesPanel matches={data.nextMatches} />
           </Panel>
 
@@ -545,14 +591,14 @@ function HistoryTable({ data }: { data: Cup }) {
     },
     {
       key: "hatstats", header: "HatStats", align: "right", value: (row) => row.hatstats ?? -1,
-      render: (row) => row.hatstats == null ? <span className="text-[var(--muted)]">, </span> : <span>{row.hatstats}</span>,
+      render: (row) => row.hatstats == null ? <span className="text-[var(--muted)]">—</span> : <span>{row.hatstats}</span>,
     },
     {
       key: "round", header: "Ronda", align: "right", value: (row) => row.round ?? -1,
-      render: (row) => row.round == null ? <span className="text-[var(--muted)]">, </span> : <span>{row.round}</span>,
+      render: (row) => row.round == null ? <span className="text-[var(--muted)]">—</span> : <span>{row.round}</span>,
     },
     {
-      key: "cupName", header: "Copa", value: (row) => row.cupName ?? "",
+      key: "cupName", header: "Copa", align: "left", value: (row) => row.cupName ?? "",
       render: (row) => <span className="text-[var(--muted)]">{row.cupName ?? "-"}</span>,
     },
   ];

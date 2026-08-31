@@ -7,7 +7,7 @@ import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
 import { CountryCell } from "../components/CountryFlag";
 import { Column, DataTable } from "../components/DataTable";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
 import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
 import { Tabs } from "../components/Tabs";
@@ -658,7 +658,7 @@ export function PlayerBalancePage() {
   const [ignoreFired, setIgnoreFired] = useState(false);
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   // Sin libro de transferencias esta pantalla no tiene de donde sacar nada, y
   // hasta que alguien pulsa el boton no hay libro. Antes se veia una tabla
@@ -952,10 +952,20 @@ export function PlayerBalancePage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Transferencias</h1>
+          {/* La línea que presenta una pantalla tiene que decir para qué
+              sirve. Aquí era la fórmula del ROI entera, denominador incluido:
+              quien abría Transferencias aprendía a dividir antes de saber qué
+              podía hacer. La fórmula vive ahora en Transparencia, que es su
+              sitio, y se enlaza (2026-08-31). */}
           <p className="text-sm text-[var(--muted)]">
-            Cálculo del ROI: (Venta neta − (Compra + Salario + Listados) +
-            Reventa) ÷ (Compra + Salario + Listados) × 100, donde Venta neta =
-            Precio de venta × (1 − % agente)
+            Qué te dejó cada jugador que pasó por el club, desde que llegó
+            hasta que se fue.{" "}
+            <Link
+              to="/transparency?s=transferencias&c=roi"
+              className="text-[var(--accent)] hover:underline"
+            >
+              Cómo se calcula el ROI →
+            </Link>
           </p>
         </div>
         {/* 2026-08-15: traer el historial de transferencias se hace desde
@@ -1215,7 +1225,7 @@ export function PlayerBalancePage() {
       )}
 
       {section === "totales" && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
           <Kpi
             label="Total de compras"
             value={money(data.transferTotalBuys, data.currency)}
@@ -1258,7 +1268,7 @@ export function PlayerBalancePage() {
             isDark={isDark}
             forceAllLabels
           />
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <WaterfallPanel
               title="Saldo por temporada"
               meta="temporada en la que se cerró cada venta"
@@ -1329,7 +1339,7 @@ export function PlayerBalancePage() {
             cada jugador: así una venta de cinco millones pesa lo que debe frente a
             una de diez mil.
           </Note>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <RoiPanel
               title="ROI por temporada"
               meta="por temporada de venta"
@@ -2183,7 +2193,7 @@ function BalanceTable({
         ) : (
           <span
             className="text-[var(--muted)]"
-            title="Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el PlayerID real, la fecha inicial o un recuento CHPP pendiente."
+            title="Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el identificador real del jugador, la fecha inicial o un recuento pendiente."
           >
             ?
           </span>

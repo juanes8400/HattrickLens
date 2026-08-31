@@ -126,7 +126,7 @@ function SyncMetaSummary({
   return (
     <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="font-medium uppercase tracking-wide text-[var(--muted)]">Mecánica de sync</span>
+        <span className="font-medium uppercase tracking-wide text-[var(--muted)]">Mecánica de la sincronización</span>
         <span>última: {relative(data?.syncedAt ?? null)}</span>
         <span>cambios nuevos: {changes.length}</span>
         <span>jugadores comparados: {data?.playerRows.length ?? 0}</span>
@@ -309,7 +309,7 @@ function PreguntaDeVisitas() {
         <p className="text-sm text-[var(--muted)]">
           Se acaba de cerrar una puja. En la noticia de Hattrick aparece cuántas
           veces miraron al jugador y a qué precio lo pedías. Ninguno de los dos
-          viaja por CHPP, así que si no los anotas ahora se pierden.
+          llega en la sincronización, así que si no los anotas ahora se pierden.
         </p>
         {pendientes.map((p) => (
           <div
@@ -497,7 +497,7 @@ export function SyncChangesPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <Tabs
             tabs={[
-              { key: "latest", label: "Último snapshot" },
+              { key: "latest", label: "Última lectura" },
               ...HISTORY_WINDOWS.map((w) => ({ key: w.key, label: w.label })),
             ]}
             active={changesTab}

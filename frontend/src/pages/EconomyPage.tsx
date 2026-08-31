@@ -12,6 +12,7 @@ import {
   Loading,
   Panel,
   ProjectionPanel,
+  SinDatos,
 } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
 import { money, number } from "../hooks/useFormat";
@@ -40,7 +41,7 @@ export function EconomyPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   return (
     <div className="space-y-4">
@@ -64,10 +65,20 @@ export function EconomyPage() {
 
       {section === "resumen" && (
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+            {/* «Caja actual» es `cash`, no `expectedCash`. Hasta el
+                2026-08-30 esta tarjeta enseñaba la caja PROYECTADA al cierre
+                de la semana con la etiqueta de la caja de hoy, y salia
+                exactamente un presupuesto semanal por debajo de la que enseña
+                el Panel --8.983.969 aqui contra 9.391.047 alli--. Dos
+                pantallas, dos cajas, y una de ellas jurando ser la actual.
+                La proyeccion no se pierde: va de pie de tarjeta, que es donde
+                dice algo, porque la resta entre las dos ES el resultado
+                presupuestado de la semana. */}
             <Kpi
               label="Caja actual"
-              value={money(data.expectedCash, data.currency)}
+              value={money(data.cash, data.currency)}
+              hint={`cerrará la semana en ${money(data.expectedCash, data.currency)}`}
             />
             <Kpi
               label="Resultado de la última semana"
@@ -485,7 +496,7 @@ function MoneyCell({
         tone === "positive" ? "text-[var(--positive)]" : "text-[var(--danger)]"
       }`}
     >
-      {value == null ? ", " : money(value, currency)}
+      {value == null ? "—" : money(value, currency)}
     </td>
   );
 }
@@ -514,9 +525,13 @@ function ForecastPanel({
 
   // Autonomía: sólo tiene sentido si el ritmo estructural actual es
   // deficitario — con balance positivo la caja crece, no hay cuenta atrás.
+  // Se cuenta desde la caja de HOY, no desde la proyectada al cierre. La
+  // alerta de déficit dice «con la caja actual aguantas N semanas» y salía
+  // con una semana más que esta tarjeta, porque cada una partía de una caja
+  // distinta (2026-08-31). La misma cuenta tiene que dar el mismo número.
   const runwayWeeks =
     data.structuralBalance < 0
-      ? Math.floor(data.expectedCash / Math.abs(data.structuralBalance))
+      ? Math.floor(data.cash / Math.abs(data.structuralBalance))
       : null;
 
   // Variación de caja proyectada: hoy vs. el final del horizonte elegido.
@@ -561,23 +576,34 @@ function ForecastPanel({
           onChange={onHorizonChange}
         />
       </div>
-      <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-3">
+      <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-3 [&>*]:min-w-0">
+        {/* Estas dos tarjetas parten de supuestos OPUESTOS y hasta el
+            2026-08-31 no lo decían: la de la izquierda contaba las semanas
+            que aguantas SIN volver a fichar ni vender, y la de la derecha
+            proyecta arrastrando el sesgo observado de tus últimas semanas,
+            que incluye un mercado muy movido. Una decía «te quedan 20
+            semanas» y la de al lado «+49% de caja», las dos a la vez y sin
+            una palabra que las reconciliara. Cada una dice ahora de qué
+            parte. */}
         <Kpi
-          label="Autonomía al ritmo actual"
+          label="Autonomía sin fichar ni vender"
           value={
             runwayWeeks != null ? `~${runwayWeeks} semanas` : "caja creciendo"
           }
           hint={
             runwayWeeks != null
-              ? `referencia estructural: ${money(data.structuralBalance, data.currency)}/sem`
-              : "el balance estructural semanal es positivo"
+              ? `sólo con lo recurrente: ${money(data.structuralBalance, data.currency)}/sem`
+              : "el balance recurrente semanal es positivo"
           }
           tone={runwayWeeks != null ? "danger" : "positive"}
         />
         <Kpi
           label={`Caja proyectada en +${horizon} semanas`}
           value={money(finalValue, data.currency)}
-          hint={`${deltaAbs >= 0 ? "+" : ""}${money(deltaAbs, data.currency)} (${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) vs. hoy`}
+          hint={
+            `${deltaAbs >= 0 ? "+" : ""}${money(deltaAbs, data.currency)} ` +
+            `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
+          }
           tone={deltaAbs >= 0 ? "positive" : "danger"}
         />
         <Kpi
@@ -941,7 +967,7 @@ function BreakdownTd({
             : ""
       }`}
     >
-      {value == null ? ", " : money(value, currency)}
+      {value == null ? "—" : money(value, currency)}
     </td>
   );
 }

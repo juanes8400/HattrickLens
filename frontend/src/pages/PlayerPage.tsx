@@ -331,7 +331,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         </div>
       </Panel>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)] [&>*]:min-w-0">
         <div className="space-y-4">
           <Panel title="Ficha del jugador">
             <dl className="grid gap-x-6 gap-y-2 p-4 text-sm sm:grid-cols-2">
@@ -391,7 +391,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
         <Kpi
           label="TSI" value={number(data.tsi)}
           hint={tsiRank ? `puesto ${tsiRank.rank} de ${tsiRank.total} en la plantilla` : undefined}
@@ -402,7 +402,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         {RADAR_GROUPS.map((group) => (
           <Panel
             key={group.title}
@@ -434,7 +434,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         />
       </Panel>
 
-      <Panel title="Precio de compra" meta="real, de transfersteam.xml">
+      <Panel title="Precio de compra" meta="real, de tu libro de transferencias">
         {data.purchasePrice != null ? (
           <div className="space-y-1 p-4">
             <div className="text-2xl font-semibold tabular-nums">
@@ -545,7 +545,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
       )}
 
       {data.topSkillDistributions && (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
           {Object.entries(data.topSkillDistributions).map(([skill, dist]) => (
             <PlayerDistributionPanel
               key={skill}
@@ -560,7 +560,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
       )}
 
       {data.squadDistributions && (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
           <PlayerDistributionPanel
             title="TSI en la plantilla"
             xLabel="TSI"
@@ -826,7 +826,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
             title="Entrenamiento inferido al vender"
             meta="primer snapshot contra último snapshot anterior a la venta"
           >
-            <div className="grid gap-4 p-4 sm:grid-cols-3">
+            <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
               <Kpi
                 label="Habilidad asignada"
                 value={row.derivedTrainingSkill ?? "Sin resolver"}
@@ -846,7 +846,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
             </div>
           </Panel>
           <Panel title="Cálculo del ROI" meta="mismo desglose que Detalle en Transferencias">
-            <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
               {/* De la cantera no se paga precio de mercado, se paga el
                   ascenso: el rótulo lo dice para que la cifra no se lea como
                   un fichaje que nunca hubo. */}

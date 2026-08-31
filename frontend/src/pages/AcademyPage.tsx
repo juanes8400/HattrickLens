@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { lecturaDeNivel } from "../utils/skillLevels";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
 import {
   useAcademy,
   useAcademyScouts,
@@ -135,7 +135,7 @@ export function AcademyPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   const profitable = data.net > 0;
 
@@ -152,7 +152,7 @@ export function AcademyPage() {
           «Qué entrenar» o «A quién entrenar» no se está decidiendo dinero, y
           cuatro cifras arriba compiten con lo que sí importa allí. */}
       {view === "squad" && (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi label="Canteranos" value={String(data.squadSize)} />
         <Kpi
           label="Invertido"
@@ -621,7 +621,7 @@ function WhatToTrain({
           </select>
         </label>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
           <label className="block">
             <div className="text-xs">
               Salen de menos de 17 años y{" "}
@@ -1828,8 +1828,12 @@ function SkillDetail({ data }: { data: Academy }) {
     >
       <div className="space-y-2 border-b border-[var(--border)] p-4">
         <div className="flex flex-wrap items-center gap-2">
+          {/* El «Ordenar por» de al lado se ve como etiqueta pero no lo
+              era: un lector de pantalla anunciaba «cuadro combinado» sin
+              decir de qué (2026-08-31). */}
           <span className="text-xs text-[var(--muted)]">Ordenar por</span>
           <select
+            aria-label="Ordenar los canteranos por"
             value={orden}
             onChange={(e) => setOrden(e.target.value)}
             className={control}
@@ -1870,6 +1874,7 @@ function SkillDetail({ data }: { data: Academy }) {
           <span className="mx-1 h-4 w-px bg-[var(--border)]" />
 
           <select
+            aria-label="Filtrar los canteranos por habilidad"
             value={habilidad}
             onChange={(e) => setHabilidad(e.target.value)}
             className={control}
@@ -1933,9 +1938,12 @@ function SkillDetail({ data }: { data: Academy }) {
       {ordenados.length === 0 ? (
         <Empty>Ningún canterano cumple ese filtro.</Empty>
       ) : (
-      <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
         {ordenados.map((p) => (
-          <div key={p.htYouthPlayerId} className="rounded-lg border border-[var(--border)] p-3">
+          <div
+            key={p.htYouthPlayerId}
+            className="min-w-0 rounded-lg border border-[var(--border)] p-3"
+          >
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-sm font-medium">{p.name}</span>
               {/* `15;068`, como en el resto del módulo. `htAge` da «15.68»,
@@ -1969,7 +1977,10 @@ function SkillDetail({ data }: { data: Academy }) {
             </div>
             <div className="mt-3 space-y-2">
               {p.skills.map((s) => (
-                <div key={s.skill} className="flex items-center gap-3 text-xs">
+                <div
+                  key={s.skill}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                >
                   <span className="w-28 shrink-0 text-[var(--muted)]">
                     {SKILL_NAMES[s.skill] ?? s.skill}
                   </span>
@@ -2665,11 +2676,14 @@ function GraduatesTable({ data }: { data: Academy }) {
   // medias-- se ve una tabla vacia, no la pagina en blanco. Paso.
   const filas = data.allGraduates ?? [];
   const columns: Column<Row>[] = [
-    { key: "name", header: "Nombre", value: (r) => r.name },
+    { key: "name", header: "Nombre", align: "left", value: (r) => r.name },
     {
-      key: "promoted", header: "Promocionado",
-      value: (r) => (r.promotedAt ? new Date(r.promotedAt).getTime() : -Infinity),
-      render: (r) => date(r.promotedAt),
+      key: "arrived", header: "En su club desde",
+      // Se llamaba «Promocionado» y no lo era: guarda cuándo llegó al club
+      // donde está HOY. Por eso salía después de la venta en las 43 filas.
+      value: (r) =>
+        r.arrivedAtCurrentTeam ? new Date(r.arrivedAtCurrentTeam).getTime() : -Infinity,
+      render: (r) => date(r.arrivedAtCurrentTeam),
     },
     {
       key: "sold", header: "Vendido",
@@ -2683,7 +2697,7 @@ function GraduatesTable({ data }: { data: Academy }) {
       value: (r) => r.soldFor ?? 0,
       render: (r) =>
         r.soldFor == null ? (
-          <span className="text-[var(--muted)]">, </span>
+          <span className="text-[var(--muted)]">—</span>
         ) : (
           <span className="tabular-nums">{money(r.soldFor, data.currency)}</span>
         ),

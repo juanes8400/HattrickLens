@@ -2,7 +2,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { CountryCell } from "../components/CountryFlag";
 import { DataTable, type Column } from "../components/DataTable";
-import { ErrorState, Loading } from "../components/Panels";
+import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Specialty } from "../components/Specialty";
 import { useSquad } from "../hooks/useTeam";
@@ -65,7 +65,7 @@ export function TeamPage() {
 
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
-  if (!squad.data) return null;
+  if (!squad.data) return <SinDatos />;
 
   const data = squad.data;
   // 2026-08-16, pedido explícito: aquí NINGUNA columna nace oculta. Es la tabla
@@ -104,7 +104,7 @@ export function TeamPage() {
       key: "lastMatch", header: "Últ. partido", align: "left", value: (player) => player.lastMatchRating ?? -1,
       render: (player) => player.lastMatchPosition
         ? <span className="whitespace-nowrap">{player.lastMatchPosition} · <b>{player.lastMatchRating?.toFixed(1) ?? "-"}</b></span>
-        : <span className="text-[var(--muted)]">, </span>,
+        : <span className="text-[var(--muted)]">—</span>,
     },
     {
       key: "market", header: "Mercado", align: "left", value: (player) => Number(player.isTransferListed),
@@ -139,7 +139,7 @@ export function TeamPage() {
     { key: "htms", header: "HTMS", value: (player) => player.htms },
     { key: "htms28", header: "HTMS28", value: (player) => player.htms28 },
     { key: "salary", header: "Salario", value: (player) => player.salary, render: (player) => <MetricCell value={player.salary} delta={player.deltas.salary} /> },
-    { key: "purchase", header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">, </span> : money(player.purchasePrice, data.currency) },
+    { key: "purchase", header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">—</span> : money(player.purchasePrice, data.currency) },
     // Números primero y textos después, sin mezclarlos. Con las 27 columnas a
     // la vista, la cola alternaba alineación seis veces (4 textos a la
     // izquierda, Liderazgo a la derecha, Entrenador a la izquierda, G. liga a
@@ -183,7 +183,7 @@ export function TeamPage() {
       />
 
       <p className="text-xs text-[var(--muted)]">
-        Variaciones basadas en cierres semanales CHPP. Referencia actual: {data.comparison.baselineCapturedAt ? relative(data.comparison.baselineCapturedAt) : "cierre semanal anterior"}. El valor estimado no es un dato oficial de Hattrick.
+        Variaciones basadas en cierres semanales de Hattrick. Referencia actual: {data.comparison.baselineCapturedAt ? relative(data.comparison.baselineCapturedAt) : "cierre semanal anterior"}. El valor estimado no es un dato oficial de Hattrick.
       </p>
     </div>
   );

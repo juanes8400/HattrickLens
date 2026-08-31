@@ -4,12 +4,12 @@ import { Chart } from "../charts/Chart";
 import { facingBarsOption, radarOption, resultsPieOption } from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
 import { MatchSectorMap } from "../components/MatchSectorMap";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
+import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
 import { useMatchDetail, useMatches } from "../hooks/useTeam";
 import type { BestRating, HomeAwayRow, MatchRow, Matches, RatingSeriesPoint } from "../services/api";
 
 function renderStatOrDash(v: number | null) {
-  return v == null ? <span className="text-[var(--muted)]">, </span> : <span>{v}</span>;
+  return v == null ? <span className="text-[var(--muted)]">—</span> : <span>{v}</span>;
 }
 
 /**
@@ -35,17 +35,21 @@ export function MatchesPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return null;
+  if (!data) return <SinDatos />;
 
   return (
     <div className="space-y-4">
-      <header className="flex items-start justify-between gap-3">
+      {/* La cabecera envuelve en pantalla estrecha. Antes los controles
+          llevaban `shrink-0` dentro de una fila que no envolvía: en un móvil
+          sobresalían 110 px y arrastraban la página de lado (2026-08-31). */}
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Partidos</h1>
           <p className="text-sm text-[var(--muted)]">Por qué se ganó o se perdió</p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
+            aria-label="Filtrar los partidos por temporada"
             value={season ?? "all"}
             onChange={(e) => setSeason(e.target.value === "all" ? null : Number(e.target.value))}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
@@ -79,7 +83,7 @@ export function MatchesPage() {
           )}
         </div>
       </header>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi label="Jugados" value={String(data.matchesPlayed)} hint={`${data.record} · ${data.seasonLabel}`} />
         <Kpi
           label="Goles"
@@ -89,7 +93,7 @@ export function MatchesPage() {
         />
         <Kpi
           label="HatStats medio"
-          value={data.avgHatstats == null ? ", " : data.avgHatstats.toFixed(1)}
+          value={data.avgHatstats == null ? "—" : data.avgHatstats.toFixed(1)}
           hint={data.avgHatstats == null ? "faltan ratings" : `mediocampo pesa triple · ${data.seasonLabel}`}
         />
         <Kpi
@@ -150,7 +154,7 @@ function ResumenPanel({ data }: { data: Matches }) {
   ];
 
   return (
-    <div className="grid gap-4 p-4 lg:grid-cols-2">
+    <div className="grid gap-4 p-4 lg:grid-cols-2 [&>*]:min-w-0">
       <div className="space-y-4">
         <DataTable
           rows={data.homeAway}
@@ -194,13 +198,13 @@ function ConversionPanel({ data }: { data: Matches }) {
     return (
       <p className="p-4 text-xs text-[var(--muted)]">
         Todavía no hay ocasiones por zona sincronizadas, así que no se puede calcular la
-        conversión. Llegan con el detalle de partido de CHPP.
+        conversión. Llegan con el detalle del partido.
       </p>
     );
   }
   return (
     <div className="space-y-4 p-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
         <div className="rounded-lg border border-[var(--border)] p-3">
           <div className="text-xs text-[var(--muted)]">Nosotros</div>
           <div
@@ -414,7 +418,7 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
 
   return (
     <Panel title={`${data.isHome ? "vs" : "@"} ${data.opponent} · ${data.score}`} meta={data.date}>
-      <div className="grid gap-4 p-4 lg:grid-cols-2">
+      <div className="grid gap-4 p-4 lg:grid-cols-2 [&>*]:min-w-0">
         <div className="space-y-4">
           <MatchSectorMap data={data} />
           <Chart ariaLabel="Comparativa de ratings por sector frente al rival"
