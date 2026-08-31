@@ -25,12 +25,16 @@ const MODULOS: [RegExp, string][] = [
   [/^\/lineup/, "Alineación"],
   [/^\/positions/, "Posiciones"],
   [/^\/arena/, "Estadio"],
-  [/^\/club/, "Club y staff"],
+  [/^\/club/, "Club y cuerpo técnico"],
   [/^\/overview/, "Equipo"],
-  [/^\/insights/, "Avisos"],
+  [/^\/insights/, "Alertas"],
   [/^\/news/, "Cambios"],
   [/^\/dashboard/, "Dashboard"],
-  [/^\/engine/, "Motor"],
+  // «Motor» se llama Transparencia desde el 2026-08-31 y `/engine` redirige.
+  // Sin la entrada nueva, todas sus visitas caían en «Otros» y el módulo
+  // más consultado del mes no aparecía en la tabla.
+  [/^\/transparency/, "Transparencia"],
+  [/^\/engine/, "Transparencia"],
   [/^\/uso/, "Uso"],
   // El alta, cada pantalla por separado: es el embudo --cuántos entran, cuántos
   // conectan Hattrick y cuántos llegan a sincronizar-- y agrupadas en "Otros"

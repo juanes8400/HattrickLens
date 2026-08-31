@@ -36,6 +36,17 @@ def reload_config() -> None:
     _config.cache_clear()
 
 
+def parametros() -> dict[str, Any]:
+    """Los coeficientes publicados, tal cual los usa la fórmula.
+
+    Existe por una sola razón: la pantalla de Transparencia los ENSEÑA, y la
+    regla de ese catálogo es que un número que se enseña se lee del motor en
+    vez de copiarse. Sin esta puerta, el catálogo tendría que repetir la tabla
+    a mano y quedaría desfasado el día que alguien tocara el fichero.
+    """
+    return _config()
+
+
 @dataclass(frozen=True)
 class TrainingSetup:
     """The club's training configuration.
@@ -464,7 +475,7 @@ def model_info() -> dict[str, Any]:
         "skillCurve": cfg["skill_curve"],
         "reference": cfg["reference"],
         "limitations": [
-            "CHPP no publica el subnivel: si no se conoce, se usa 0,0.",
+            "El subnivel exacto no se publica: si no se conoce, se usa 0,0.",
             "La tabla pública de edad termina en 34; por encima se prolonga su último tramo.",
             "Resistencia usa un motor separado de la fórmula técnica.",
         ],

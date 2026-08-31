@@ -67,6 +67,17 @@ STAMINA_FORECAST_TABLE: dict[int, tuple[int, int, int, int, int]] = {
 STAMINA_MIN_TABLE_AGE = min(STAMINA_FORECAST_TABLE)
 STAMINA_MAX_TABLE_AGE = max(STAMINA_FORECAST_TABLE)
 
+# Extremos del % real de resistencia que cubre la tabla. Estaban escritos a
+# mano dentro de la funcion; se sacan aqui porque la pantalla de Transparencia
+# los ENSEÑA, y un numero que se enseña no puede estar copiado en dos sitios.
+STAMINA_TRAINING_PCT_MIN = float(STAMINA_TRAINING_PCT_BUCKETS[0])
+STAMINA_TRAINING_PCT_MAX = 30.0
+
+# Los dos extremos de la escala de niveles que usa la tabla: Resistencia solo
+# se mueve entre ellos, no en los 0-20 completos de SKILL_LEVELS.
+STAMINA_MIN_LEVEL = min(min(fila) for fila in STAMINA_FORECAST_TABLE.values())
+STAMINA_MAX_LEVEL = max(max(fila) for fila in STAMINA_FORECAST_TABLE.values())
+
 
 def stamina_forecast_level(age_years: int, training_pct: float) -> int:
     """Nivel esperado de Resistencia para esta edad y este % real de
@@ -78,7 +89,7 @@ def stamina_forecast_level(age_years: int, training_pct: float) -> int:
     una pendiente."""
     clamped_age = max(STAMINA_MIN_TABLE_AGE, min(STAMINA_MAX_TABLE_AGE, age_years))
     row = STAMINA_FORECAST_TABLE[clamped_age]
-    clamped_pct = max(5.0, min(30.0, training_pct))
+    clamped_pct = max(STAMINA_TRAINING_PCT_MIN, min(STAMINA_TRAINING_PCT_MAX, training_pct))
     bucket_idx = 0
     for i, lower_bound in enumerate(STAMINA_TRAINING_PCT_BUCKETS):
         if clamped_pct >= lower_bound:
