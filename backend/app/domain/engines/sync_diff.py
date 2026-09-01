@@ -97,13 +97,29 @@ PLAYER_LEVEL_FIELDS: dict[str, str] = {
 
 
 def diff_player_skills(
-    old: dict[str, Any] | None, new: dict[str, Any], player_name: str
+    old: dict[str, Any] | None,
+    new: dict[str, Any],
+    player_name: str,
+    currency_rate: float = 1.0,
+    currency: str = "",
 ) -> list[Change]:
     """Detecta cambios relevantes de jugador.
 
     `old is None` significa primera vez que vemos al jugador: se anuncia como
     alta de plantilla, no como una lista enorme de "subidas" desde cero.
+
+    `currency_rate` y `currency` son para el salario, y sólo para él. El
+    salario llega en la moneda base de Hattrick y hay que dividirlo por la
+    tasa del país para leerlo en la del club --en Colombia la tasa es 10, así
+    que sin dividir el número sale diez veces más grande--. Todas las demás
+    pantallas ya dividían; ésta no, y como la frase se congela en la fila del
+    cambio, el error quedaba escrito para siempre (2026-09-01).
+
+    El TSI NO se convierte: es un índice, no dinero.
     """
+
+    def _dinero(v: int) -> int:
+        return int(round(v / currency_rate)) if currency_rate else v
 
     def _player(summary: str, **kw: Any) -> Change:
         return Change(category="jugadores", summary=summary, subject=player_name, **kw)
@@ -152,16 +168,23 @@ def diff_player_skills(
         )
 
     if old.get("salary") != new.get("salary"):
-        before, after = old.get("salary", 0), new.get("salary", 0)
+        before = _dinero(old.get("salary", 0))
+        after = _dinero(new.get("salary", 0))
         changes.append(
             _player(
-                f"{player_name}: Salario {thousands(before)} -> {thousands(after)}",
+                # La moneda va en la frase, y no es adorno: es lo que
+                # distingue una fila escrita ya convertida de las viejas, que
+                # salían sin ella y con el número crudo.
+                (
+                    f"{player_name}: Salario {thousands(before)} -> {thousands(after)} {currency}"
+                ).rstrip(),
                 # Un salario que sube es un gasto que sube: no se marca como bueno.
                 metric="salary",
                 label="Salario",
                 before=before,
                 after=after,
                 kind="money",
+                currency=currency,
             )
         )
 

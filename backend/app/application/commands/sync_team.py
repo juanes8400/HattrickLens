@@ -185,7 +185,15 @@ FILE_VERSIONS = {
     # `<Staff>`/niveles agregados por puesto). Fijar 1.1 explícito documenta
     # lo que de verdad se recibe en vez de mentir sobre qué versión se pidió.
     "club": "1.1",
-    "stafflist": "1.0",
+    # 1.2, no 1.0 (2026-09-01, verificado en vivo contra esta cuenta): la 1.0
+    # NO trae el nodo `<Trainer>` en absoluto -- sólo `<StaffMembers>` --, y
+    # como el guardado tiene una guarda `if tr:` para no borrar al entrenador
+    # cuando falta, el nivel, el tipo y el liderazgo del entrenador principal
+    # NUNCA llegaron a escribirse: se quedaban en 0 y así salían en Club, en
+    # Entrenamiento y en el panel. La 1.2 sí lo trae, con `TrainerSkillLevel`,
+    # `Leadership`, `TrainerType` y `TrainerStatus`, y ya se usaba para mirar
+    # al entrenador de un rival (ver `RIVAL_STAFFLIST_VERSION`).
+    "stafflist": "1.2",
     # 2.0, no 1.8 (2026-08-09, confirmado por el usuario): a esta versión
     # `MatchRound` de cada `<League>` es la SEMANA real de temporada (1-16,
     # el mismo ciclo semanal de economía/entrenamiento) — no la jornada de
@@ -3878,6 +3886,19 @@ class SyncTeamHandler:
         if file != "players":
             return  # TODO: handler para arena…
         roster = payload.get("players", [])
+        # El import va aquí dentro, como en las demás ramas de este método:
+        # `m` no está en el ámbito del módulo y usarlo sin importarlo lanza un
+        # NameError que el `except Exception` de arriba se traga --el sync sale
+        # "parcial" y la plantilla entera se queda sin escribir, en silencio--.
+        from app.infrastructure.db import models as m
+
+        # La tasa del país, para el salario. Sin ella la frase del cambio se
+        # escribía con el número crudo de Hattrick --diez veces más grande en
+        # Colombia-- y, como el texto se congela en la fila, quedaba mal para
+        # siempre (2026-09-01).
+        equipo = await uow.session.get(m.Team, team_id)
+        tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+        moneda = (equipo.currency_name if equipo else "") or ""
         for p in roster:
             player_id = await uow.players.upsert_identity(
                 p["ht_player_id"], team_id, p["first_name"], p["last_name"]
@@ -3891,7 +3912,7 @@ class SyncTeamHandler:
             await uow.players.append_snapshot(sync_id, player_id, p, new_hash, captured_at)
             result.snapshots_written += 1
             name = f"{p['first_name']} {p['last_name']}".strip()
-            changes = diff_player_skills(old_values, p, name)
+            changes = diff_player_skills(old_values, p, name, tasa, moneda)
             result.changes.extend(_as_change_row(c) for c in changes)
 
         if roster:
