@@ -237,6 +237,17 @@ export const api = {
     request<TransferAttempts>(`/teams/${teamId}/transfer-attempts`),
   /** El resumen de uso. Sólo lo abre el administrador. */
   usage: (dias = 30) => request<UsageSummary>(`/usage?dias=${dias}`),
+  /** El registro crudo, filtrado y paginado en el servidor. */
+  usageLog: (f: UsageLogFiltros = {}) => {
+    const q = new URLSearchParams({ dias: String(f.dias ?? 30) });
+    if (f.usuario != null) q.set("usuario", String(f.usuario));
+    if (f.modulo) q.set("modulo", f.modulo);
+    if (f.tipo) q.set("tipo", f.tipo);
+    if (f.buscar) q.set("buscar", f.buscar);
+    if (f.desdeFila) q.set("desde_fila", String(f.desdeFila));
+    if (f.cuantas) q.set("cuantas", String(f.cuantas));
+    return request<UsageLog>(`/usage/log?${q}`);
+  },
   /** Anota cuantas veces vieron al jugador, o ignora la pregunta. */
   setTimesSeen: (
     teamId: number,
@@ -904,6 +915,88 @@ export interface UsageSummary {
     clicks: number;
     modules: string[];
   }[];
+  /** Cuánta gente distinta apareció en el plazo, y cuánta hay registrada.
+   *  Los dos hacen falta: «tres pantallas usadas por dos personas» sólo se
+   *  entiende sabiendo cuántas podrían haberlas usado. */
+  activeUsers: number;
+  registeredUsers: number;
+  /** Una fila por persona, con su propio desglose por pantalla dentro. */
+  byUser: UsageUser[];
+  /** Volumen y arraigo, separados a propósito. */
+  adoption: {
+    module: string;
+    users: number;
+    /** Porcentaje de los activos que la abrieron. */
+    reach: number;
+    days: number;
+    visits: number;
+    clicks: number;
+    minutes: number;
+    visitsPerUser: number;
+    clicksPerVisit: number;
+  }[];
+  /** Lo más pulsado DENTRO de cada pantalla, no en el ranking global. */
+  insideEach: {
+    module: string;
+    controls: { label: string; clicks: number }[];
+  }[];
+  /** Pantallas que nadie abrió en el plazo. */
+  untouched: string[];
+}
+
+export interface UsageUserModule {
+  module: string;
+  visits: number;
+  clicks: number;
+  minutes: number;
+  avgSecondsPerVisit: number;
+  lastSeen: string | null;
+}
+
+export interface UsageUser {
+  userId: number;
+  name: string;
+  sessions: number;
+  pages: number;
+  clicks: number;
+  minutes: number;
+  /** Días DISTINTOS con actividad. Volver otro día dice más que diez visitas
+   *  en una tarde. */
+  activeDays: number;
+  clicksPerPage: number;
+  favouriteModule: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  modules: UsageUserModule[];
+}
+
+/** Una página del registro crudo. */
+export interface UsageLog {
+  total: number;
+  from: number;
+  rows: {
+    id: number;
+    at: string;
+    userId: number;
+    name: string;
+    session: string;
+    kind: "page" | "click";
+    module: string;
+    label: string | null;
+    visibleMs: number;
+  }[];
+  users: { userId: number; name: string }[];
+  modules: string[];
+}
+
+export interface UsageLogFiltros {
+  dias?: number;
+  usuario?: number | null;
+  modulo?: string | null;
+  tipo?: "page" | "click" | null;
+  buscar?: string | null;
+  desdeFila?: number;
+  cuantas?: number;
 }
 
 export interface SessionProfile {
