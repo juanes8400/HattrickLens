@@ -27,9 +27,9 @@ export function InsightsPage() {
   const archived = useArchivedInsights();
   const archive = useArchiveInsight();
   const restore = useRestoreInsight();
-  const [activeSeverities, setActiveSeverities] = useState<Set<Insight["severity"]>>(
-    new Set(SEVERITIES),
-  );
+  const [activeSeverities, setActiveSeverities] = useState<
+    Set<Insight["severity"]>
+  >(new Set(SEVERITIES));
   const [activeModule, setActiveModule] = useState<string>("__all__");
 
   const byModule = useMemo(() => {
@@ -70,9 +70,9 @@ export function InsightsPage() {
     <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold">Alertas</h1>
-        <p className="text-sm text-[var(--muted)]">
-          Reglas de negocio evaluadas contra tu plantilla, tu liga, tu copa, tu estadio, tu
-          academia y tu cuerpo técnico, ordenadas por urgencia
+        <p className="prosa text-sm text-[var(--muted)]">
+          Reglas de negocio evaluadas contra tu plantilla, tu liga, tu copa, tu
+          estadio, tu academia y tu cuerpo técnico, ordenadas por urgencia
         </p>
       </header>
 
@@ -90,7 +90,9 @@ export function InsightsPage() {
             onChange={(e) => setActiveModule(e.target.value)}
             className="ml-auto rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
           >
-            <option value="__all__">Todos los módulos ({data?.length ?? 0})</option>
+            <option value="__all__">
+              Todos los módulos ({data?.length ?? 0})
+            </option>
             {modules.map((mod) => (
               <option key={mod} value={mod}>
                 {mod} ({byModule[mod]})
@@ -131,7 +133,10 @@ export function InsightsPage() {
       {/* El buzón solo aparece cuando hay algo dentro: un panel vacío
           permanente sería ruido en una pantalla que ya tiene filtros. */}
       {archived.data?.length ? (
-        <Panel title="Buzón" meta={`${archived.data.length} archivada${archived.data.length === 1 ? "" : "s"}`}>
+        <Panel
+          title="Buzón"
+          meta={`${archived.data.length} archivada${archived.data.length === 1 ? "" : "s"}`}
+        >
           <ul>
             {archived.data.map((i) => (
               <InsightRow
@@ -147,9 +152,9 @@ export function InsightsPage() {
               />
             ))}
           </ul>
-          <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-            Archivar no apaga la regla: si la misma alerta se vuelve a generar con otra cifra
-            u otra severidad, vuelve sola a la lista de arriba.
+          <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+            Archivar no apaga la regla: si la misma alerta se vuelve a generar
+            con otra cifra u otra severidad, vuelve sola a la lista de arriba.
           </p>
         </Panel>
       ) : null}

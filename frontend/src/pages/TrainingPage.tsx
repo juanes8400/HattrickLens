@@ -1059,7 +1059,7 @@ export function TrainingPage() {
             )}
 
             {validation && (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">
+              <div className="prosa rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">
                 {validation.observations > 0 ? (
                   <>
                     Contraste con pops reales: diferencia media de{" "}

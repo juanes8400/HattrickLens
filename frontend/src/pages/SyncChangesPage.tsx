@@ -18,7 +18,12 @@ import {
 } from "../components/GroupedPlayerChanges";
 import { ErrorState, Loading, Panel } from "../components/Panels";
 import { Tabs } from "../components/Tabs";
-import { TEAM_ID, useChangesHistory, useSquad, useSyncChanges } from "../hooks/useTeam";
+import {
+  TEAM_ID,
+  useChangesHistory,
+  useSquad,
+  useSyncChanges,
+} from "../hooks/useTeam";
 import { date, relative } from "../hooks/useFormat";
 import {
   api,
@@ -31,7 +36,9 @@ import {
 function countPlayerPops(changes: SyncResult["changes"]): number {
   return changes.filter((c) => {
     const s = c.summary.toLowerCase();
-    return c.category === "jugadores" && (s.includes("subio") || s.includes("subió"));
+    return (
+      c.category === "jugadores" && (s.includes("subio") || s.includes("subió"))
+    );
   }).length;
 }
 
@@ -50,11 +57,27 @@ function countReportSkillPops(data: LastSyncChanges): number {
     .reduce((total, metric) => total + metric.upCount, 0);
 }
 
-function actionItems(changes: SyncResult["changes"]): { title: string; detail: string; tone: "positive" | "danger" | undefined }[] {
-  const items: { title: string; detail: string; tone: "positive" | "danger" | undefined }[] = [];
+function actionItems(
+  changes: SyncResult["changes"],
+): {
+  title: string;
+  detail: string;
+  tone: "positive" | "danger" | undefined;
+}[] {
+  const items: {
+    title: string;
+    detail: string;
+    tone: "positive" | "danger" | undefined;
+  }[] = [];
   const lower = changes.map((c) => ({ ...c, text: c.summary.toLowerCase() }));
-  const pops = lower.filter((c) => c.category === "jugadores" && (c.text.includes("subio") || c.text.includes("subió")));
-  const injuries = lower.filter((c) => c.text.includes("lesion") || c.text.includes("lesión"));
+  const pops = lower.filter(
+    (c) =>
+      c.category === "jugadores" &&
+      (c.text.includes("subio") || c.text.includes("subió")),
+  );
+  const injuries = lower.filter(
+    (c) => c.text.includes("lesion") || c.text.includes("lesión"),
+  );
   const market = lower.filter((c) => c.text.includes("mercado"));
   const salary = lower.filter((c) => c.text.includes("salario"));
   const finishedMatches = lower.filter((c) => c.category === "partidos");
@@ -63,21 +86,24 @@ function actionItems(changes: SyncResult["changes"]): { title: string; detail: s
   if (pops.length > 0) {
     items.push({
       title: `${pops.length} subida(s) de habilidad`,
-      detail: "Revisa valor, ventana de venta y si conviene cambiar el plan de entrenamiento.",
+      detail:
+        "Revisa valor, ventana de venta y si conviene cambiar el plan de entrenamiento.",
       tone: "positive",
     });
   }
   if (injuries.length > 0) {
     items.push({
       title: `${injuries.length} cambio(s) de lesión`,
-      detail: "Vuelve a calcular alineación y banquillo antes del próximo partido.",
+      detail:
+        "Vuelve a calcular alineación y banquillo antes del próximo partido.",
       tone: "danger",
     });
   }
   if (market.length > 0) {
     items.push({
       title: `${market.length} movimiento(s) de mercado`,
-      detail: "Confirma si el jugador listado sigue encajando con tu economía y plan deportivo.",
+      detail:
+        "Confirma si el jugador listado sigue encajando con tu economía y plan deportivo.",
       tone: undefined,
     });
   }
@@ -98,14 +124,16 @@ function actionItems(changes: SyncResult["changes"]): { title: string; detail: s
   if (training.length > 0) {
     items.push({
       title: "Cambio de entrenamiento detectado",
-      detail: "Revisa Novedades y Entrenamiento para validar si el nuevo plan aprovecha los minutos jugados.",
+      detail:
+        "Revisa Novedades y Entrenamiento para validar si el nuevo plan aprovecha los minutos jugados.",
       tone: undefined,
     });
   }
   if (items.length === 0 && changes.length === 0) {
     items.push({
       title: "Todo está al día",
-      detail: "La sincronización no encontró diferencias reales contra el snapshot anterior.",
+      detail:
+        "La sincronización no encontró diferencias reales contra el snapshot anterior.",
       tone: "positive",
     });
   }
@@ -123,11 +151,15 @@ function SyncMetaSummary({
   data: LastSyncChanges | undefined;
   changes: SyncResult["changes"];
 }) {
-  const skillPops = data ? countReportSkillPops(data) : countPlayerPops(changes);
+  const skillPops = data
+    ? countReportSkillPops(data)
+    : countPlayerPops(changes);
   return (
     <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="font-medium uppercase tracking-wide text-[var(--muted)]">Mecánica de la sincronización</span>
+        <span className="font-medium uppercase tracking-wide text-[var(--muted)]">
+          Mecánica de la sincronización
+        </span>
         <span>última: {relative(data?.syncedAt ?? null)}</span>
         <span>cambios nuevos: {changes.length}</span>
         <span>jugadores comparados: {data?.playerRows.length ?? 0}</span>
@@ -201,7 +233,11 @@ function mergedHistoryEvents(data: ChangesHistory): HistoricalPlayerChange[] {
 function historyGroups(data: ChangesHistory): PlayerChangeGroup[] {
   const byPlayer = new Map<number, PlayerChangeGroup>();
   for (const event of mergedHistoryEvents(data)) {
-    const group = byPlayer.get(event.htPlayerId) ?? { htPlayerId: event.htPlayerId, name: event.name, changes: [] };
+    const group = byPlayer.get(event.htPlayerId) ?? {
+      htPlayerId: event.htPlayerId,
+      name: event.name,
+      changes: [],
+    };
     group.changes.push({
       key: event.key,
       label: event.label,
@@ -218,8 +254,12 @@ function historyGroups(data: ChangesHistory): PlayerChangeGroup[] {
 function historyAggregate(data: ChangesHistory): AggregateMetric[] {
   const byKey = new Map<string, AggregateMetric>();
   for (const event of mergedHistoryEvents(data)) {
-    const metric = byKey.get(event.key)
-      ?? { key: event.key, label: event.label, upTotal: 0, downTotal: 0 };
+    const metric = byKey.get(event.key) ?? {
+      key: event.key,
+      label: event.label,
+      upTotal: 0,
+      downTotal: 0,
+    };
     if (event.delta > 0) metric.upTotal += event.delta;
     else if (event.delta < 0) metric.downTotal += Math.abs(event.delta);
     byKey.set(event.key, metric);
@@ -244,7 +284,6 @@ const HISTORY_WINDOWS = [
 ] as const;
 
 type ChangesTab = "latest" | (typeof HISTORY_WINDOWS)[number]["key"];
-
 
 /** Pregunta por las visitas de una puja que acaba de cerrarse.
  *
@@ -271,7 +310,8 @@ function PreguntaDeVisitas() {
   // lista. No hay estado intermedio a proposito.
   const borrar = useMutation({
     mutationFn: (id: number) => api.deleteTransferAttempt(TEAM_ID, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
   });
 
   const responder = useMutation({
@@ -292,10 +332,11 @@ function PreguntaDeVisitas() {
               ...(veces != null ? { times_seen: veces } : {}),
               ...(precio != null ? { asking_price: precio } : {}),
             }
-          // "No se": la fila se queda, con "?" en lo que se preguntaba.
-          : { dismissed: true },
+          : // "No se": la fila se queda, con "?" en lo que se preguntaba.
+            { dismissed: true },
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
   });
 
   const pendientes = data?.pendingQuestion ?? [];
@@ -404,7 +445,8 @@ export function SyncChangesPage() {
         <div>
           <h1 className="text-xl font-semibold">Cambios</h1>
           <p className="text-sm text-[var(--muted)]">
-            Última sincronización y archivo histórico: los cambios se comparan contra el cierre semanal anterior.
+            Última sincronización y archivo histórico: los cambios se comparan
+            contra el cierre semanal anterior.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -414,7 +456,9 @@ export function SyncChangesPage() {
               <select
                 value={data?.reportSyncId ?? ""}
                 onChange={(e) =>
-                  setReportSyncId(e.target.value === "" ? null : Number(e.target.value))
+                  setReportSyncId(
+                    e.target.value === "" ? null : Number(e.target.value),
+                  )
                 }
                 className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
               >
@@ -453,9 +497,8 @@ export function SyncChangesPage() {
 
       {data && data.reportIsLatest && data.reportChanges.length === 0 && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--text)]">Nada nuevo.</span>{" "}
-          La sincronización de {relative(data.syncedAt)} no encontró ningún
-          cambio.
+          <span className="font-medium text-[var(--text)]">Nada nuevo.</span> La
+          sincronización de {relative(data.syncedAt)} no encontró ningún cambio.
           {data.availableReports.length > 0 &&
             " Lo anterior está en el archivo, eligiendo una fecha."}
         </div>
@@ -471,10 +514,16 @@ export function SyncChangesPage() {
           sync al final, que es donde va lo que solo importa si algo huele mal. */}
 
       {actions.length > 0 && (
-        <Panel title="Qué haría ahora" meta="lo primero, porque es lo único accionable">
+        <Panel
+          title="Qué haría ahora"
+          meta="lo primero, porque es lo único accionable"
+        >
           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
             {actions.map((item) => (
-              <div key={item.title} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
+              <div
+                key={item.title}
+                className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3"
+              >
                 <div
                   className={
                     item.tone === "positive"
@@ -486,7 +535,9 @@ export function SyncChangesPage() {
                 >
                   {item.title}
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{item.detail}</p>
+                <p className="prosa mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                  {item.detail}
+                </p>
               </div>
             ))}
           </div>
@@ -495,7 +546,10 @@ export function SyncChangesPage() {
 
       {/* El detalle, de lo que más cambia una decisión a lo que menos. Los
           jugadores primero: es lo que el usuario vino a ver. */}
-      <Panel title="Cambios por jugador" meta="jugador por jugador, habilidad por habilidad">
+      <Panel
+        title="Cambios por jugador"
+        meta="jugador por jugador, habilidad por habilidad"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           {/* Mismo feed, distinto tramo del histórico: es un filtro. */}
           <Tabs
@@ -523,7 +577,9 @@ export function SyncChangesPage() {
             emptyMessage="No hubo variaciones de jugadores en la última comparación guardada."
           />
         )}
-        {window != null && history.isError && <ErrorState error={history.error} />}
+        {window != null && history.isError && (
+          <ErrorState error={history.error} />
+        )}
         {window != null && history.data && (
           <GroupedPlayerChanges
             groups={historyGroups(history.data)}
@@ -536,7 +592,9 @@ export function SyncChangesPage() {
         )}
       </Panel>
 
-      {data && <YouthChanges rows={data.youthRows ?? []} summary={data.youthSummary} />}
+      {data && (
+        <YouthChanges rows={data.youthRows ?? []} summary={data.youthSummary} />
+      )}
 
       {data && <TrainingSection changes={data.clubChanges} />}
       {data && <EconomySection changes={data.clubChanges} />}
@@ -550,9 +608,12 @@ export function SyncChangesPage() {
       <PreguntaDeVisitas />
 
       {changes.length > 0 ? (
-        <SyncChangesFeed changes={changes} playerLinks={playerLinks} onDismiss={() => undefined} />
+        <SyncChangesFeed
+          changes={changes}
+          playerLinks={playerLinks}
+          onDismiss={() => undefined}
+        />
       ) : null}
-
     </div>
   );
 }

@@ -114,8 +114,14 @@ export function SyncPage() {
     const pulsacion = new Date().toISOString();
     setRellenando(true);
     setRelleno({
-      total: inicio, hechos: 0, quedan: inicio, ultimo: null, error: null,
-      mapa: null, balance: null, parado: false,
+      total: inicio,
+      hechos: 0,
+      quedan: inicio,
+      ultimo: null,
+      error: null,
+      mapa: null,
+      balance: null,
+      parado: false,
     });
     let hechos = 0;
     try {
@@ -169,8 +175,9 @@ export function SyncPage() {
     <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold">Sincronización</h1>
-        <p className="text-sm text-[var(--muted)]">
-          El único lugar desde donde se traen datos de Hattrick. Al terminar te lleva a Cambios.
+        <p className="prosa text-sm text-[var(--muted)]">
+          El único lugar desde donde se traen datos de Hattrick. Al terminar te
+          lleva a Cambios.
         </p>
       </header>
 
@@ -179,16 +186,20 @@ export function SyncPage() {
         meta={`última: ${relative(dashboard?.syncedAt ?? null)}`}
       >
         <div className="space-y-3 p-4">
-          <p className="text-sm text-[var(--muted)]">
-            Trae todo: plantilla, fichas de cada jugador, entrenamiento, economía, calendario,
-            detalles y calificaciones de los partidos, clasificación, club y cuerpo técnico. Lo
-            que ya está guardado no se vuelve a pedir, así que la primera vez tarda bastante más
-            que las siguientes.
+          <p className="prosa text-sm text-[var(--muted)]">
+            Trae todo: plantilla, fichas de cada jugador, entrenamiento,
+            economía, calendario, detalles y calificaciones de los partidos,
+            clasificación, club y cuerpo técnico. Lo que ya está guardado no se
+            vuelve a pedir, así que la primera vez tarda bastante más que las
+            siguientes.
           </p>
-          <p className="text-sm text-[var(--muted)]">
-            <b className="text-[var(--text)]">Tus compras y tus ventas se traen aquí.</b>{" "}
-            Cada vez que sincronizas se revisa tu libro de transferencias desde lo
-            último que ya tenías, así que cuesta una página cuando no hay nada nuevo.
+          <p className="prosa text-sm text-[var(--muted)]">
+            <b className="text-[var(--text)]">
+              Tus compras y tus ventas se traen aquí.
+            </b>{" "}
+            Cada vez que sincronizas se revisa tu libro de transferencias desde
+            lo último que ya tenías, así que cuesta una página cuando no hay
+            nada nuevo.
           </p>
           <button
             onClick={() => fullSync.mutate()}
@@ -213,25 +224,31 @@ export function SyncPage() {
         <Note>Sincronización parcial: {result.errors.join(" · ")}</Note>
       )}
 
-      <Panel title="Transferencias" meta={pendientes.data ? jugadores(pendientes.data.pending) : ""}>
+      <Panel
+        title="Transferencias"
+        meta={pendientes.data ? jugadores(pendientes.data.pending) : ""}
+      >
         <div className="space-y-3 p-4">
-          <p className="text-sm text-[var(--muted)]">
-            <b className="text-[var(--text)]">Sólo comisiones de reventa.</b> Cuando un
-            club revende a alguien que le vendiste —o a un canterano tuyo— te toca un
-            porcentaje, y esto es lo que sale a buscarlo. Va de a un jugador, así que
-            puedes pararlo y seguir otro día.
+          <p className="prosa text-sm text-[var(--muted)]">
+            <b className="text-[var(--text)]">Sólo comisiones de reventa.</b>{" "}
+            Cuando un club revende a alguien que le vendiste —o a un canterano
+            tuyo— te toca un porcentaje, y esto es lo que sale a buscarlo. Va de
+            a un jugador, así que puedes pararlo y seguir otro día.
           </p>
-          <p className="text-sm text-[var(--muted)]">
-            Aquí <b className="text-[var(--text)]">no</b> se traen tus compras ni tus
-            ventas: ésas vienen con «Sincronizar ahora». De paso completa lo que le
-            falte al pasado de cada ex-jugador —de dónde era, por cuánto se fue, cuántos
-            partidos jugó contigo—, que es lo que hace falta para calcular la comisión.
+          <p className="prosa text-sm text-[var(--muted)]">
+            Aquí <b className="text-[var(--text)]">no</b> se traen tus compras
+            ni tus ventas: ésas vienen con «Sincronizar ahora». De paso completa
+            lo que le falte al pasado de cada ex-jugador —de dónde era, por
+            cuánto se fue, cuántos partidos jugó contigo—, que es lo que hace
+            falta para calcular la comisión.
           </p>
 
           {pendientes.data && (
             <dl className="divide-y divide-[var(--border)] rounded-md border border-[var(--border)] text-sm">
               <div className="flex items-baseline justify-between gap-3 px-3 py-2">
-                <dt className="text-[var(--muted)]">Con posible comisión futura</dt>
+                <dt className="text-[var(--muted)]">
+                  Con posible comisión futura
+                </dt>
                 <dd className="tabular-nums font-semibold">
                   {jugadores(pendientes.data.detail.resaleWatch)}
                 </dd>
@@ -296,9 +313,9 @@ export function SyncPage() {
               </div>
               {relleno.mapa && relleno.mapa.total > 0 && (
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Recorre tus ex-jugadores del más reciente al más antiguo. Las marcas
-                  sueltas son los saltos al azar, que es como aparecen las ventas
-                  viejas.
+                  Recorre tus ex-jugadores del más reciente al más antiguo. Las
+                  marcas sueltas son los saltos al azar, que es como aparecen
+                  las ventas viejas.
                 </p>
               )}
               {/* El informe del barrido: sale cuando para, lo pare el
@@ -338,7 +355,9 @@ export function SyncPage() {
                       </div>
                     )}
                     <div className="flex items-baseline justify-between gap-3">
-                      <dt className="text-[var(--muted)]">Expedientes cerrados</dt>
+                      <dt className="text-[var(--muted)]">
+                        Expedientes cerrados
+                      </dt>
                       <dd className="tabular-nums font-semibold">
                         {relleno.balance.closedTotal}
                       </dd>
@@ -359,8 +378,8 @@ export function SyncPage() {
               )}
               {relleno.error && (
                 <p className="mt-2 text-xs text-[var(--warning)]">
-                  Hattrick falló en una ficha. Lo descargado se guardó; vuelve a pulsar
-                  para seguir.
+                  Hattrick falló en una ficha. Lo descargado se guardó; vuelve a
+                  pulsar para seguir.
                 </p>
               )}
             </div>
@@ -376,7 +395,9 @@ export function SyncPage() {
             <button
               onClick={completarFichas}
               disabled={
-                running || !yaSincronizo || (pendientes.data?.pending ?? 0) === 0
+                running ||
+                !yaSincronizo ||
+                (pendientes.data?.pending ?? 0) === 0
               }
               className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
             >
@@ -401,7 +422,6 @@ export function SyncPage() {
           </div>
         </div>
       </Panel>
-
     </div>
   );
 }

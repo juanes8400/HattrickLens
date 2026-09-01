@@ -88,11 +88,11 @@ export function InsightRow({
       />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium">{insight.title}</div>
-        <p className="mt-0.5 text-xs leading-relaxed text-[var(--muted)]">
+        <p className="prosa mt-0.5 text-xs leading-relaxed text-[var(--muted)]">
           {insight.detail}
         </p>
         {insight.action && (
-          <p className="mt-1.5 text-xs text-[var(--accent)]">
+          <p className="prosa mt-1.5 text-xs text-[var(--accent)]">
             → {insight.action}
           </p>
         )}

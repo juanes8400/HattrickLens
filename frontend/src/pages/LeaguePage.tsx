@@ -219,7 +219,7 @@ export function LeaguePage() {
                 }}
                 height={240}
               />
-              <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+              <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
                 Cada barra es la fracción de temporadas simuladas en las que
                 acabas en ese puesto. Si la distribución es ancha, la liga aún
                 no está decidida, y eso es lo que un único número escondería.
@@ -560,7 +560,7 @@ function HistoryPanel({ data }: { data: League }) {
         }}
         height={320}
       />
-      <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         Cada punto es una jornada realmente jugada, sin datos de por medio, la
         línea se corta en vez de interpolar. La jornada "0" es simbólica: 0
         puntos para todos antes de jugar nada, no un dato sincronizado, por eso
@@ -739,7 +739,7 @@ function BestWorstPanel({ data }: { data: League }) {
         }}
         height={240}
       />
-      <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         Mejor caso: en cada partido que te queda marcas de goleada y no encajas.
         Peor caso: al revés. El resto de la liga sigue con su nivel real, así
         que aun forzando tu propio resultado al extremo, tu puesto final sigue
@@ -901,7 +901,7 @@ function OutlookTable({ data }: { data: League }) {
         csvName="pronostico"
         filterPlaceholder="Filtrar equipos…"
       />
-      <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         Título, 2º-4º, 5º-6º y 7º-8º cubren TODOS los puestos sin solaparse y
         siempre suman 100%, "ascenso" no aparece aparte porque la columna
         "Título" ya es la probabilidad de terminar 1º, la condición necesaria
@@ -914,7 +914,7 @@ function OutlookTable({ data }: { data: League }) {
         el nombre de la columna sugiere (por eso esas dos columnas no se
         resaltan en rojo en la última división).
       </p>
-      <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         Ataque y defensa son relativos a la media de la liga: 1,00 es
         exactamente la media, 1,30 es marcar un 30% más que un equipo medio. En
         defensa, menos es mejor.
@@ -1080,7 +1080,7 @@ function LeagueTsiComparison() {
           initialSort="totalTsi"
           csvName="comparativa-rivales"
         />
-        <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+        <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
           "Última posición" se consulta aparte, solo para el jugador de mayor
           TSI de cada equipo; forma y resistencia promedian solo jugadores donde
           Hattrick de verdad mostró el dato: un rival puede tenerlas ocultas.

@@ -248,7 +248,7 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
         )}
 
         {calculo.note && (
-          <p className="border-t border-[var(--border)] pt-3 text-[11px] leading-relaxed text-[var(--muted)]">
+          <p className="prosa border-t border-[var(--border)] pt-3 text-[11px] leading-relaxed text-[var(--muted)]">
             {calculo.note}
           </p>
         )}
@@ -308,7 +308,7 @@ function TablaDeParametros({ tabla }: { tabla: TablaDeCalculo }) {
         </table>
       </div>
       {tabla.note && (
-        <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
+        <p className="prosa mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
           {tabla.note}
         </p>
       )}
@@ -394,7 +394,7 @@ function PositionsPanel({
 
 function ReferenceNote({ reference }: { reference: CalculationReference }) {
   return (
-    <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-3 text-[11px] leading-relaxed">
+    <div className="prosa rounded border border-[var(--border)] bg-[var(--surface-2)] p-3 text-[11px] leading-relaxed">
       <b className="text-[var(--text)]">
         Referencia: {reference.implementation}
       </b>{" "}
@@ -788,12 +788,12 @@ function FormulaPanel({
             panel son las notas y los avisos de la validación, que dependen de
             los datos de TU club y no de la fórmula. */}
         {data.notes.map((n, i) => (
-          <p key={i} className={i > 0 ? "mt-2" : ""}>
+          <p key={i} className={i > 0 ? "prosa mt-2" : "prosa"}>
             {n}
           </p>
         ))}
         {v.caveats.map((c, i) => (
-          <p key={`c${i}`} className="mt-2">
+          <p key={`c${i}`} className="prosa mt-2">
             {c}
           </p>
         ))}

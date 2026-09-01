@@ -200,7 +200,7 @@ export function CupPage() {
                     <div className="text-lg font-semibold">
                       No disponible en esta sesión
                     </div>
-                    <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+                    <p className="prosa mt-2 text-xs leading-relaxed text-[var(--muted)]">
                       El scouting del rival necesita una sesión de Hattrick
                       activa. La fecha y el rival de arriba siguen siendo datos
                       sincronizados; aquí no se sustituye la probabilidad
@@ -225,7 +225,7 @@ export function CupPage() {
                         />
                       </div>
                     </div>
-                    <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                    <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
                       Estimación {probability.data.winProbability.confidence}.
                       TSI de los dos onces de referencia:{" "}
                       {number(probability.data.winProbability.ownTsiTotal)}{" "}
@@ -347,7 +347,7 @@ export function CupPage() {
                         />
                       </div>
                     )}
-                  <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                  <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
                     {data.economy.projectionBasis}
                   </p>
                 </div>

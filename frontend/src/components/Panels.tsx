@@ -16,7 +16,9 @@ export function Kpi({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-      <div className="min-h-[2rem] text-xs leading-4 text-[var(--muted)]">{label}</div>
+      <div className="min-h-[2rem] text-xs leading-4 text-[var(--muted)]">
+        {label}
+      </div>
       <div
         className={clsx(
           "mt-2 text-2xl font-semibold tabular-nums",
@@ -104,7 +106,10 @@ export function GaugeBar({
         </span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-        <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+        <div
+          className="h-full bg-[var(--accent)]"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -130,11 +135,18 @@ export function SkillBar({
         <span className="font-semibold">{label}</span>
         <span className="tabular-nums text-right font-semibold text-[var(--accent)]">
           {value}
-          {overflow > 0 && <span className="ml-1 text-xs text-[var(--positive)]">+{overflow}</span>}
+          {overflow > 0 && (
+            <span className="ml-1 text-xs text-[var(--positive)]">
+              +{overflow}
+            </span>
+          )}
         </span>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
-        <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+        <div
+          className="h-full bg-[var(--accent)]"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -191,7 +203,9 @@ export function ProgressBar({
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-sm font-semibold">{label}</span>
         <span className="flex items-center gap-1.5 tabular-nums text-sm font-semibold">
-          {dot && <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />}
+          {dot && (
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" />
+          )}
           {valueLabel}
         </span>
       </div>
@@ -221,7 +235,11 @@ export function ProgressBar({
 }
 
 export function Note({ children }: { children: React.ReactNode }) {
-  return <p className="px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">{children}</p>;
+  return (
+    <p className="prosa px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
+      {children}
+    </p>
+  );
 }
 
 export function Loading() {
@@ -237,7 +255,10 @@ export function Loading() {
     >
       <span className="sr-only">Cargando…</span>
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-lg bg-[var(--surface)]" />
+        <div
+          key={i}
+          className="h-24 animate-pulse rounded-lg bg-[var(--surface)]"
+        />
       ))}
     </div>
   );
@@ -248,7 +269,7 @@ export function ErrorState({ error }: { error: unknown }) {
     return (
       <div className="max-w-lg rounded-lg border border-[var(--warning)] bg-[var(--surface)] p-6">
         <h2 className="font-semibold">Tu sesión de Hattrick venció</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="prosa mt-1 text-sm text-[var(--muted)]">
           Reconecta para continuar. Los datos ya importados se conservan.
         </p>
         <a
@@ -281,7 +302,7 @@ function ErrorConReintento({ error }: { error: unknown }) {
   return (
     <div className="rounded-lg border border-[var(--danger)] bg-[var(--surface)] p-6">
       <h2 className="font-semibold">No pudimos cargar estos datos</h2>
-      <p className="mt-3 text-sm text-[var(--muted)]">
+      <p className="prosa mt-3 text-sm text-[var(--muted)]">
         Puede ser un tropiezo momentáneo. Si vuelve a fallar, revisa que la
         conexión local de HT Lens siga en pie.
       </p>
@@ -323,7 +344,7 @@ export function SinDatos() {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6">
       <h2 className="font-semibold">Aquí no llegó nada</h2>
-      <p className="mt-1 text-sm text-[var(--muted)]">
+      <p className="prosa mt-1 text-sm text-[var(--muted)]">
         La pantalla pidió sus datos y se quedó sin respuesta. Suele ser que la
         conexión local de HT Lens no está en pie.
       </p>
@@ -345,5 +366,9 @@ export function SinDatos() {
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="p-10 text-center text-sm text-[var(--muted)]">{children}</div>;
+  return (
+    <div className="p-10 text-center text-sm text-[var(--muted)]">
+      {children}
+    </div>
+  );
 }

@@ -718,7 +718,7 @@ function ProjectionTeaser({ data }: { data: Economy }) {
       meta={`${data.weeksOfHistory}/${data.minWeeksForTimeseries} semanas`}
     >
       <div className="space-y-3 p-4">
-        <p className="text-xs leading-relaxed text-[var(--muted)]">
+        <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
           Con {data.minWeeksForTimeseries} semanas de histórico se activa un
           segundo modelo, de series de tiempo, que elige entre naive, drift,
           suavizado exponencial y Holt-Winters según cuál habría predicho mejor
