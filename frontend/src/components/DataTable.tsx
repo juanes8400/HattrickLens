@@ -62,9 +62,16 @@ export function DataTable<T>({
   const [sortKey, setSortKey] = useState(initialSort ?? columns[0]?.key);
   const [descending, setDescending] = useState(initialDescending);
   const [filter, setFilter] = useState("");
-  const [hidden, setHidden] = useState<Set<string>>(
-    () => new Set(columns.filter((c) => c.optional).map((c) => c.key)),
-  );
+  // Todas las columnas visibles de entrada (2026-09-01, pedido del usuario:
+  // «que todas las tablas tengan como default en columnas: Todas»). Antes,
+  // las marcadas `optional` nacían ocultas, y en varias tablas eso dejaba
+  // fuera justo lo que se había ido añadiendo: había que abrir «Columnas» y
+  // saber que faltaba algo para llegar a ello.
+  //
+  // `optional` no deja de significar nada: sigue diciendo cuáles se pueden
+  // esconder --y el selector las esconde--, sólo que ya no lo hace por su
+  // cuenta.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [showPicker, setShowPicker] = useState(false);
 
   // El selector de columnas sólo se cerraba volviendo a pulsar «Columnas»:
