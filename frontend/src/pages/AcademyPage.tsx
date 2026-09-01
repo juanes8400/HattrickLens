@@ -316,8 +316,12 @@ const BUCKETS: [string, string, string][] = [
   ["buenoTarde", "Bueno", "nota 7, y sale mayor"],
   ["aceptablePronto", "Acept. ⏱", "nota 6, y sale joven"],
   ["aceptableTarde", "Aceptable", "nota 6, y sale mayor"],
-  ["desconocidoPronto", "? ⏱", "sin revelar, y sale joven"],
-  ["desconocidoTarde", "?", "sin revelar, y sale mayor"],
+  // «Desconocido» y no «?». El interrogante ya significa otras dos cosas en
+  // esta misma pantalla --media habilidad sabida (`4/?`) y veredicto
+  // provisional (`vendible ?`)--, así que como cabecera de columna no decía
+  // cuál de las tres era (2026-09-01, pedido del usuario).
+  ["desconocidoPronto", "Desconocido ⏱", "sin revelar, y sale joven"],
+  ["desconocidoTarde", "Desconocido", "sin revelar, y sale mayor"],
 ];
 
 /**
