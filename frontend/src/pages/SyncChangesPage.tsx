@@ -57,9 +57,7 @@ function countReportSkillPops(data: LastSyncChanges): number {
     .reduce((total, metric) => total + metric.upCount, 0);
 }
 
-function actionItems(
-  changes: SyncResult["changes"],
-): {
+function actionItems(changes: SyncResult["changes"]): {
   title: string;
   detail: string;
   tone: "positive" | "danger" | undefined;
@@ -504,19 +502,31 @@ export function SyncChangesPage() {
         </div>
       )}
 
-      {/* ORDEN, 2026-08-30. Antes la página abría con «Mecánica de sync»
-          --telemetría del proceso, no del club-- y cerraba con «Qué haría
-          ahora», que es la conclusión. Pirámide invertida al revés: lo
-          accionable en el puesto 11 de 12 y lo instrumental en el 1.
+      {/* ORDEN. Dos revisiones, las dos del usuario:
 
-          Ahora manda la pregunta que trae el usuario: «¿qué pasó y qué hago?».
-          Primero el veredicto, luego el detalle por bloques, y la mecánica del
-          sync al final, que es donde va lo que solo importa si algo huele mal. */}
+          2026-08-30: la página abría con «Mecánica de sync» --telemetría del
+          proceso, no del club-- y cerraba con «Qué haría ahora», que es la
+          conclusión. Se le dio la vuelta: veredicto, detalle por bloques, y la
+          mecánica al final, que es donde va lo que sólo importa si algo huele
+          mal.
+
+          2026-09-01: «Qué cambió desde la última sincronización» estaba EL
+          ÚLTIMO, a 2442px de scroll (medido), cuando es la lista literal de lo
+          que pasó y da nombre a la pantalla. Pasa a abrirla. «Qué haría ahora»
+          la sigue: primero lo que ocurrió, después qué hacer con ello. */}
+
+      {changes.length > 0 ? (
+        <SyncChangesFeed
+          changes={changes}
+          playerLinks={playerLinks}
+          onDismiss={() => undefined}
+        />
+      ) : null}
 
       {actions.length > 0 && (
         <Panel
           title="Qué haría ahora"
-          meta="lo primero, porque es lo único accionable"
+          meta="lo accionable, ya con los cambios delante"
         >
           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
             {actions.map((item) => (
@@ -606,14 +616,6 @@ export function SyncChangesPage() {
       <SyncMetaSummary data={data} changes={changes} />
 
       <PreguntaDeVisitas />
-
-      {changes.length > 0 ? (
-        <SyncChangesFeed
-          changes={changes}
-          playerLinks={playerLinks}
-          onDismiss={() => undefined}
-        />
-      ) : null}
     </div>
   );
 }
