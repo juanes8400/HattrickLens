@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Column, DataTable } from "../components/DataTable";
+import { Specialty } from "../components/Specialty";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import {
   Empty,
@@ -1830,49 +1831,201 @@ function margenPorGanar(p: Canterano): number {
   );
 }
 
-const ORDENES: {
-  key: string;
-  label: string;
-  cmp: (a: Canterano, b: Canterano) => number;
-}[] = [
-  {
-    key: "potencial",
-    label: "Puede llegar a (lo más alto)",
-    cmp: (a, b) => b.htms28Max - a.htms28Max,
-  },
-  {
-    key: "garantizado",
-    label: "Ya tiene (lo más bajo)",
-    cmp: (a, b) => b.htms28Min - a.htms28Min,
-  },
-  {
-    key: "horquilla",
-    label: "Lo que falta por saber",
-    cmp: (a, b) => b.htms28Max - b.htms28Min - (a.htms28Max - a.htms28Min),
-  },
-  {
-    key: "techo",
-    label: "Mejor techo revelado",
-    // Sin techo revelado no hay número que comparar: al final, no al principio.
-    cmp: (a, b) => (b.bestSkillMax ?? -1) - (a.bestSkillMax ?? -1),
-  },
-  {
-    key: "edad",
-    label: "Edad, del más joven",
-    cmp: (a, b) =>
-      a.ageYears * 112 + a.ageDays - (b.ageYears * 112 + b.ageDays),
-  },
-  {
-    key: "revelados",
-    label: "Techos revelados, de menos a más",
-    cmp: (a, b) => a.revealedSkills - b.revealedSkills,
-  },
-  {
-    key: "margen",
-    label: "Margen por ganar",
-    cmp: (a, b) => margenPorGanar(b) - margenPorGanar(a),
-  },
-];
+/** Las columnas de la plantilla juvenil.
+ *
+ *  2026-09-01, pedido del usuario: esta vista era una rejilla de tarjetas y
+ *  ahora es la misma tabla que «Jugadores» --con orden por columna, columnas
+ *  que se muestran u ocultan, buscador y exportación--. Con eso desaparece el
+ *  «Ordenar por» que había: la cabecera de cada columna ya ordena, y mantener
+ *  los dos habría dejado un desplegable que no hacía nada, porque la tabla
+ *  ordena por su cuenta.
+ *
+ *  Los filtros de arriba se quedan: no son orden, son preguntas --a quién le
+ *  queda algo por revelar, a quién le llega el entrenamiento de hoy-- que la
+ *  tabla no sabe contestar sola.
+ */
+function columnasDeCanteranos(): Column<Canterano>[] {
+  const columnas: Column<Canterano>[] = [
+    {
+      key: "nombre",
+      header: "Nombre",
+      align: "left",
+      value: (p) => p.name,
+      // Sin esto un nombre de dos palabras parte la fila en dos altos y la
+      // tabla entera se lee peor por una sola columna.
+      render: (p) => <span className="whitespace-nowrap">{p.name}</span>,
+    },
+    {
+      key: "edad",
+      header: "Edad",
+      align: "right",
+      // `15;068`, como en el resto del módulo. `htAge` da «15.68», sin ceros,
+      // y dos formatos de edad en la misma página se leen como dos datos
+      // distintos.
+      value: (p) => p.ageYears * 112 + p.ageDays,
+      render: (p) => edadCorta(p.ageYears * 112 + p.ageDays),
+    },
+    {
+      key: "clase",
+      header: "Clasificación",
+      align: "left",
+      // Ordena por RANGO, no por alfabeto: «vendible» antes que «crack» sería
+      // un orden inútil. Que el buscador no encuentre «crack» escribiéndolo
+      // no es una pérdida: para eso están los botones de clasificación, que
+      // además dicen cuántos hay de cada.
+      value: (p) => rangoDeCategoria(p.category),
+      render: (p) => (
+        <span
+          className={`whitespace-nowrap ${CATEGORY_TONE[p.category] ?? ""}`}
+        >
+          {p.category}
+          {/* El interrogante avisa de que el veredicto es provisional. Con
+              «sin ojear» sobra: la etiqueta ya dice justo eso. */}
+          {p.verdictIsProvisional && p.revealedSkills > 0 && (
+            <span title="pocos techos revelados: provisional"> ?</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "especialidad",
+      header: "Especialidad",
+      align: "left",
+      // Como en «Jugadores»: `value` en texto plano --es lo que ordena, lo que
+      // filtra el buscador y lo que va al CSV-- y el icono sólo en `render`.
+      //
+      // Aquí gana todavía más que en el primer equipo: la especialidad llega
+      // desde el primer día, así que un canterano sin ojear --sin una sola
+      // habilidad revelada-- ya tiene algo por lo que compararse.
+      value: (p) => p.specialty,
+      render: (p) => (
+        <span className="whitespace-nowrap">
+          <Specialty specialty={p.specialty} />
+        </span>
+      ),
+    },
+    {
+      key: "puedeLlegar",
+      header: "Puede llegar a",
+      align: "right",
+      value: (p) => p.htms28Max,
+      render: (p) => (
+        <span title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener">
+          {p.htms28Min} – {p.htms28Max}
+        </span>
+      ),
+    },
+    {
+      key: "yaTiene",
+      header: "Ya tiene",
+      align: "right",
+      optional: true,
+      value: (p) => p.htms28Min,
+    },
+    {
+      key: "porSaber",
+      header: "Por saber",
+      align: "right",
+      optional: true,
+      // La horquilla: cuánto depende todavía del ojeador.
+      value: (p) => p.htms28Max - p.htms28Min,
+    },
+    {
+      key: "techos",
+      header: "Techos",
+      align: "right",
+      value: (p) => p.revealedSkills,
+      render: (p) => `${p.revealedSkills}/${p.skills.length}`,
+    },
+    {
+      key: "mejorTecho",
+      header: "Mejor techo",
+      align: "right",
+      // Sin techo revelado no hay número que comparar: al final de la lista,
+      // no al principio.
+      value: (p) => p.bestSkillMax ?? -1,
+      render: (p) => (p.bestSkillMax == null ? "Desconocido" : p.bestSkillMax),
+    },
+  ];
+
+  // Una columna por habilidad. Son el motivo de esta pantalla, así que salen
+  // todas de entrada; lo accesorio es lo que va escondido.
+  for (const [clave, nombre] of Object.entries(SKILL_NAMES)) {
+    columnas.push({
+      key: `skill-${clave}`,
+      header: nombre,
+      align: "right",
+      // Ordena por TECHO y cae al nivel actual cuando el techo aún no se
+      // sabe: ordenar por lo que juega hoy pondría delante al que ya no sube.
+      value: (p) => {
+        const s = p.skills.find((x) => x.skill === clave);
+        return s?.maximum ?? s?.current ?? -1;
+      },
+      render: (p) => {
+        const s = p.skills.find((x) => x.skill === clave);
+        if (!s) return "—";
+        const { palabra, numeros } = lecturaDeNivel(
+          s.current,
+          s.maximum,
+          s.maxReached,
+        );
+        return (
+          <span
+            className="whitespace-nowrap tabular-nums"
+            title={`${nombre}: ${palabra}`}
+          >
+            {s.maxReached && (
+              <span title="ya tocó techo: no sube más">🔒 </span>
+            )}
+            {numeros || "Desconocido"}
+          </span>
+        );
+      },
+    });
+  }
+
+  columnas.push(
+    {
+      key: "sube",
+      header: "Puede subir",
+      align: "right",
+      // Los que ya pueden subir van primero: 0 días es lo más urgente, así que
+      // se ordena de menos a más y quien no tiene fecha queda al final.
+      value: (p) => p.canBePromotedIn ?? 9999,
+      render: (p) => enDias(p.canBePromotedIn).texto,
+    },
+    {
+      key: "limite",
+      header: "Se va en",
+      align: "right",
+      optional: true,
+      value: (p) => p.daysUntilDeadline,
+      render: (p) => `${p.daysUntilDeadline} d`,
+    },
+    {
+      key: "margen",
+      header: "Margen por ganar",
+      align: "right",
+      optional: true,
+      value: (p) => margenPorGanar(p),
+    },
+    {
+      key: "consejo",
+      header: "Consejo",
+      align: "left",
+      optional: true,
+      value: (p) => p.promoteAdvice,
+      // La única columna que es una frase. Se le pone tope para que no
+      // estire la tabla ella sola; el texto completo queda en el title.
+      render: (p) => (
+        <span className="block max-w-64 truncate" title={p.promoteAdvice}>
+          {p.promoteAdvice}
+        </span>
+      ),
+    },
+  );
+  return columnas;
+}
 
 const CLASIFICACIONES = [
   "crack",
@@ -1914,7 +2067,6 @@ function Chip({
 function SkillDetail({ data }: { data: Academy }) {
   //  El orden y la clasificación se recuerdan; los filtros de "sólo los
   //  que…" no, porque son preguntas de un momento, no una preferencia.
-  const [orden, setOrden] = usePersistido("juveniles.orden", "potencial");
   const [clases, setClases] = usePersistido<string[]>(
     "juveniles.filtroClases",
     [],
@@ -1964,9 +2116,6 @@ function SkillDetail({ data }: { data: Academy }) {
     return true;
   });
 
-  const comparador =
-    ORDENES.find((o) => o.key === orden)?.cmp ?? ORDENES[0]!.cmp;
-  const ordenados = [...filtrados].sort(comparador);
   const hayFiltro =
     clases.length > 0 ||
     soloRevelable ||
@@ -1982,31 +2131,12 @@ function SkillDetail({ data }: { data: Academy }) {
       title="Plantilla juvenil"
       meta={
         hayFiltro
-          ? `${ordenados.length} de ${data.players.length}`
+          ? `${filtrados.length} de ${data.players.length}`
           : `${data.players.length}`
       }
     >
       <div className="space-y-2 border-b border-[var(--border)] p-4">
         <div className="flex flex-wrap items-center gap-2">
-          {/* El «Ordenar por» de al lado se ve como etiqueta pero no lo
-              era: un lector de pantalla anunciaba «cuadro combinado» sin
-              decir de qué (2026-08-31). */}
-          <span className="text-xs text-[var(--muted)]">Ordenar por</span>
-          <select
-            aria-label="Ordenar los canteranos por"
-            value={orden}
-            onChange={(e) => setOrden(e.target.value)}
-            className={control}
-          >
-            {ORDENES.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-
-          <span className="mx-1 h-4 w-px bg-[var(--border)]" />
-
           <Chip
             activo={soloRevelable}
             onClick={() => setSoloRevelable((v) => !v)}
@@ -2095,67 +2225,17 @@ function SkillDetail({ data }: { data: Academy }) {
         </div>
       </div>
 
-      {ordenados.length === 0 ? (
-        <Empty>Ningún canterano cumple ese filtro.</Empty>
-      ) : (
-        <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
-          {ordenados.map((p) => (
-            <div
-              key={p.htYouthPlayerId}
-              className="min-w-0 rounded-lg border border-[var(--border)] p-3"
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-medium">{p.name}</span>
-                {/* `15;068`, como en el resto del módulo. `htAge` da «15.68»,
-                  sin ceros, y dos formatos de edad en la misma página se leen
-                  como dos datos distintos. */}
-                <span className="shrink-0 tabular-nums text-xs text-[var(--muted)]">
-                  {edadCorta(p.ageYears * 112 + p.ageDays)}
-                </span>
-              </div>
-              {/* La clasificación, que vivía en la tabla que esta vista
-                reemplaza. El potencial se marca cuando sale entero del
-                supuesto: sin un techo revelado no es una medida. */}
-              <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-xs">
-                <span className={CATEGORY_TONE[p.category] ?? ""}>
-                  {p.category}
-                  {/* El interrogante avisa de que el veredicto es provisional.
-                    Con «sin ojear» sobra: la etiqueta ya dice justo eso. */}
-                  {p.verdictIsProvisional && p.revealedSkills > 0 && (
-                    <span title="pocos techos revelados: provisional"> ?</span>
-                  )}
-                </span>
-                <span
-                  className="tabular-nums text-[var(--muted)]"
-                  title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
-                >
-                  HTMS28 {p.htms28Min} – {p.htms28Max}
-                </span>
-                <span className="tabular-nums text-[var(--muted)]">
-                  {p.revealedSkills}/{p.skills.length} techos
-                </span>
-              </div>
-              <div className="mt-3 space-y-2">
-                {p.skills.map((s) => (
-                  <div
-                    key={s.skill}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
-                  >
-                    <span className="w-28 shrink-0 text-[var(--muted)]">
-                      {SKILL_NAMES[s.skill] ?? s.skill}
-                    </span>
-                    <NivelDeHabilidad
-                      current={s.current}
-                      maximum={s.maximum}
-                      maxReached={s.maxReached}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <DataTable
+        rows={filtrados}
+        columns={columnasDeCanteranos()}
+        rowKey={(p) => p.htYouthPlayerId}
+        // Lo mismo que ordenaba antes por omisión el desplegable que había
+        // aquí: en qué se puede convertir, de mayor a menor.
+        initialSort="puedeLlegar"
+        filterPlaceholder="Buscar por nombre…"
+        csvName="canteranos"
+        emptyMessage="Ningún canterano cumple ese filtro."
+      />
     </Panel>
   );
 }
