@@ -14,7 +14,7 @@ import {
   ProjectionPanel,
   SinDatos,
 } from "../components/Panels";
-import { Tabs } from "../components/Tabs";
+import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { money, number } from "../hooks/useFormat";
 import { useEconomy } from "../hooks/useTeam";
 import type {
@@ -53,6 +53,7 @@ export function EconomyPage() {
           </p>
         </div>
         <Tabs
+          grupo="economia"
           tabs={[
             { key: "resumen", label: "Resumen" },
             { key: "proyeccion", label: "Proyección" },
@@ -63,59 +64,64 @@ export function EconomyPage() {
         />
       </header>
 
-      {section === "resumen" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
-            {/* «Caja actual» es `cash`, no `expectedCash`. Hasta el
-                2026-08-30 esta tarjeta enseñaba la caja PROYECTADA al cierre
-                de la semana con la etiqueta de la caja de hoy, y salia
-                exactamente un presupuesto semanal por debajo de la que enseña
-                el Panel --8.983.969 aqui contra 9.391.047 alli--. Dos
-                pantallas, dos cajas, y una de ellas jurando ser la actual.
-                La proyeccion no se pierde: va de pie de tarjeta, que es donde
-                dice algo, porque la resta entre las dos ES el resultado
-                presupuestado de la semana. */}
-            <Kpi
-              label="Caja actual"
-              value={money(data.cash, data.currency)}
-              hint={`cerrará la semana en ${money(data.expectedCash, data.currency)}`}
-            />
-            <Kpi
-              label="Resultado de la última semana"
-              value={money(data.weeklyBalance, data.currency)}
-              tone={data.weeklyBalance >= 0 ? "positive" : "danger"}
-            />
+      <PanelDePestanas grupo="economia" activa={section} className="space-y-4">
+        {section === "resumen" && (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+              {/* «Caja actual» es `cash`, no `expectedCash`. Hasta el
+                  2026-08-30 esta tarjeta enseñaba la caja PROYECTADA al cierre
+                  de la semana con la etiqueta de la caja de hoy, y salia
+                  exactamente un presupuesto semanal por debajo de la que enseña
+                  el Panel --8.983.969 aqui contra 9.391.047 alli--. Dos
+                  pantallas, dos cajas, y una de ellas jurando ser la actual.
+                  La proyeccion no se pierde: va de pie de tarjeta, que es donde
+                  dice algo, porque la resta entre las dos ES el resultado
+                  presupuestado de la semana. */}
+              <Kpi
+                label="Caja actual"
+                value={money(data.cash, data.currency)}
+                hint={`cerrará la semana en ${money(data.expectedCash, data.currency)}`}
+              />
+              <Kpi
+                label="Resultado de la última semana"
+                value={money(data.weeklyBalance, data.currency)}
+                tone={data.weeklyBalance >= 0 ? "positive" : "danger"}
+              />
+            </div>
+
+            <WeeklyFinanceTable data={data} />
+            <HattrickFlow data={data} />
+            <ObservedHistory data={data} />
+            <BalanceWindowsTable data={data} />
+
+            {data.anomalies.length > 0 && (
+              <Panel
+                title="Anomalías observadas"
+                meta="desviación robusta (MAD)"
+              >
+                <ul className="space-y-1 p-4 text-xs text-[var(--muted)]">
+                  {data.anomalies.map((anomaly, index) => (
+                    <li key={index}>{anomaly}</li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
           </div>
+        )}
 
-          <WeeklyFinanceTable data={data} />
-          <HattrickFlow data={data} />
-          <ObservedHistory data={data} />
-          <BalanceWindowsTable data={data} />
+        {section === "proyeccion" && (
+          <div className="space-y-4">
+            <ForecastPanel
+              data={data}
+              horizon={horizon}
+              onHorizonChange={setHorizon}
+            />
+            {!data.timeseriesForecast && <ProjectionTeaser data={data} />}
+          </div>
+        )}
 
-          {data.anomalies.length > 0 && (
-            <Panel title="Anomalías observadas" meta="desviación robusta (MAD)">
-              <ul className="space-y-1 p-4 text-xs text-[var(--muted)]">
-                {data.anomalies.map((anomaly, index) => (
-                  <li key={index}>{anomaly}</li>
-                ))}
-              </ul>
-            </Panel>
-          )}
-        </div>
-      )}
-
-      {section === "proyeccion" && (
-        <div className="space-y-4">
-          <ForecastPanel
-            data={data}
-            horizon={horizon}
-            onHorizonChange={setHorizon}
-          />
-          {!data.timeseriesForecast && <ProjectionTeaser data={data} />}
-        </div>
-      )}
-
-      {section === "detalles" && <DetailsSection data={data} />}
+        {section === "detalles" && <DetailsSection data={data} />}
+      </PanelDePestanas>
     </div>
   );
 }
@@ -198,7 +204,10 @@ function ListaDeMovimientos({
             <th scope="row" className="py-2 pr-3 text-left font-normal">
               {fila.label}
             </th>
-            <td className="py-2 text-right tabular-nums" style={{ color: tono }}>
+            <td
+              className="py-2 text-right tabular-nums"
+              style={{ color: tono }}
+            >
               {fila.amount != null ? money(fila.amount, moneda) : "—"}
             </td>
           </tr>
@@ -451,10 +460,18 @@ function BalanceWindowsTable({ data }: { data: Economy }) {
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
-              <th scope="col" className="px-4 py-3 font-medium">Periodo</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Ingresos</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Gastos</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">Balance</th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Periodo
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                Ingresos
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                Gastos
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                Balance
+              </th>
               <th scope="col" className="px-4 py-3 text-right font-medium">
                 Balance sin transferencias
               </th>
@@ -1020,13 +1037,27 @@ function IncomeBreakdownTable({
       <table className="w-full min-w-[680px] text-sm">
         <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
           <tr>
-            <th scope="col" className="px-3 py-3 font-medium">Semana</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Aficionados</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Patrocinados</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Financieros</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">SubTotal</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Otros</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Total</th>
+            <th scope="col" className="px-3 py-3 font-medium">
+              Semana
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Aficionados
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Patrocinados
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Financieros
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              SubTotal
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Otros
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Total
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
@@ -1068,15 +1099,33 @@ function CostsBreakdownTable({
       <table className="w-full min-w-[820px] text-sm">
         <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
           <tr>
-            <th scope="col" className="px-3 py-3 font-medium">Semana</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Estadio</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Jugadores</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Financieros</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Empleados</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Canteranos</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">SubTotal</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Otros</th>
-            <th scope="col" className="px-3 py-3 text-right font-medium">Total</th>
+            <th scope="col" className="px-3 py-3 font-medium">
+              Semana
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Estadio
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Jugadores
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Financieros
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Empleados
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Canteranos
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              SubTotal
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Otros
+            </th>
+            <th scope="col" className="px-3 py-3 text-right font-medium">
+              Total
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">

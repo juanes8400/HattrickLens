@@ -20,7 +20,7 @@ import {
   ProjectionPanel,
 } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
-import { Tabs } from "../components/Tabs";
+import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { Chart } from "../charts/Chart";
 import { barOption } from "../charts/chartOptions";
 import type {
@@ -44,7 +44,12 @@ import { decimal, number } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 
 type TrainingSection =
-  "datos" | "plantilla" | "experiencia" | "fidelidad" | "condicion" | "posteriori";
+  | "datos"
+  | "plantilla"
+  | "experiencia"
+  | "fidelidad"
+  | "condicion"
+  | "posteriori";
 type PlayerTab = "mejoras" | "prevision";
 
 // Resistencia tope real en Hattrick es 9 (formidable) — nunca escala 0-20
@@ -239,7 +244,12 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
         <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
       ),
     },
-    { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
+    {
+      key: "age",
+      header: "Edad",
+      value: (r) => edadOrdenable(r.age),
+      render: (r) => r.age,
+    },
     {
       key: "level",
       header: "Nivel actual",
@@ -317,7 +327,9 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
       align: "left",
       value: (r) => r.lastImprovement,
       render: (r) => (
-        <span className="tabular-nums text-[var(--muted)]">{r.lastImprovement}</span>
+        <span className="tabular-nums text-[var(--muted)]">
+          {r.lastImprovement}
+        </span>
       ),
     },
     {
@@ -368,7 +380,12 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
       <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
     ),
   },
-  { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
+  {
+    key: "age",
+    header: "Edad",
+    value: (r) => edadOrdenable(r.age),
+    render: (r) => r.age,
+  },
   {
     key: "level",
     header: "Nivel actual",
@@ -433,7 +450,9 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
     align: "left",
     value: (r) => r.lastImprovement,
     render: (r) => (
-      <span className="tabular-nums text-[var(--muted)]">{r.lastImprovement}</span>
+      <span className="tabular-nums text-[var(--muted)]">
+        {r.lastImprovement}
+      </span>
     ),
   },
   {
@@ -489,7 +508,12 @@ const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
       <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
     ),
   },
-  { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
+  {
+    key: "age",
+    header: "Edad",
+    value: (r) => edadOrdenable(r.age),
+    render: (r) => r.age,
+  },
   {
     key: "level",
     header: "Nivel actual",
@@ -564,7 +588,9 @@ const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
     align: "left",
     value: (r) => r.lastImprovement,
     render: (r) => (
-      <span className="tabular-nums text-[var(--muted)]">{r.lastImprovement}</span>
+      <span className="tabular-nums text-[var(--muted)]">
+        {r.lastImprovement}
+      </span>
     ),
   },
   {
@@ -605,7 +631,12 @@ const staminaColumns: Column<TrainingStaminaRow>[] = [
       <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
     ),
   },
-  { key: "age", header: "Edad", value: (r) => edadOrdenable(r.age), render: (r) => r.age },
+  {
+    key: "age",
+    header: "Edad",
+    value: (r) => edadOrdenable(r.age),
+    render: (r) => r.age,
+  },
   {
     key: "level",
     header: "Nivel actual",
@@ -659,7 +690,9 @@ const staminaColumns: Column<TrainingStaminaRow>[] = [
     align: "left",
     value: (r) => r.lastImprovement,
     render: (r) => (
-      <span className="tabular-nums text-[var(--muted)]">{r.lastImprovement}</span>
+      <span className="tabular-nums text-[var(--muted)]">
+        {r.lastImprovement}
+      </span>
     ),
   },
   {
@@ -827,7 +860,9 @@ export function TrainingPage() {
   const squad = useTrainingSquad(selectedSkill, includeThisWeek);
   const postMatch = usePostMatchTraining();
   const development = useTrainingDevelopment(
-    section === "experiencia" || section === "fidelidad" || section === "condicion",
+    section === "experiencia" ||
+      section === "fidelidad" ||
+      section === "condicion",
   );
   const formula = useTrainingFormula();
   const club = useClub();
@@ -863,6 +898,7 @@ export function TrainingPage() {
       </header>
 
       <Tabs
+        grupo="entrenamiento"
         tabs={[
           { key: "plantilla", label: "Entrenamiento actual" },
           { key: "experiencia", label: "Experiencia" },
@@ -875,416 +911,442 @@ export function TrainingPage() {
         onChange={setSection}
       />
 
-      {section === "datos" && (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
-            <Kpi label="Entrenamiento" value={currentName} />
-            <Kpi
-              label="% de entrenamiento"
-              value={`${data.setup.intensity}%`}
-            />
-            <Kpi label="% condición" value={`${data.setup.staminaShare}%`} />
-          </div>
+      <PanelDePestanas
+        grupo="entrenamiento"
+        activa={section}
+        className="space-y-4"
+      >
+        {section === "datos" && (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
+              <Kpi label="Entrenamiento" value={currentName} />
+              <Kpi
+                label="% de entrenamiento"
+                value={`${data.setup.intensity}%`}
+              />
+              <Kpi label="% condición" value={`${data.setup.staminaShare}%`} />
+            </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)] [&>*]:min-w-0">
-            <Panel title="Entrenador" meta="leído de Hattrick">
-              {club.isLoading ? (
-                <Loading />
-              ) : (
-                <dl className="space-y-3 p-4 text-sm">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--muted)]">Nombre</dt>
-                    <dd className="text-right font-medium">{trainerName}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--muted)]">Nivel de entrenador</dt>
-                    <dd
-                      className={`font-semibold tabular-nums ${trainingStaffLevelColor(staff?.trainer.skillLevel)}`}
+            <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)] [&>*]:min-w-0">
+              <Panel title="Entrenador" meta="leído de Hattrick">
+                {club.isLoading ? (
+                  <Loading />
+                ) : (
+                  <dl className="space-y-3 p-4 text-sm">
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--muted)]">Nombre</dt>
+                      <dd className="text-right font-medium">{trainerName}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--muted)]">
+                        Nivel de entrenador
+                      </dt>
+                      <dd
+                        className={`font-semibold tabular-nums ${trainingStaffLevelColor(staff?.trainer.skillLevel)}`}
+                      >
+                        {staff ? `${staff.trainer.skillLevel}/5` : "Sin dato"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-[var(--muted)]">
+                        Nivel de liderazgo
+                      </dt>
+                      <dd>
+                        {staff
+                          ? `${skillLevelLabel(staff.trainer.leadership, true)} (${staff.trainer.leadership})`
+                          : "Sin dato"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-3">
+                      <dt className="text-[var(--muted)]">
+                        Velocidad de entrenamiento
+                      </dt>
+                      <dd className="tabular-nums font-medium text-[var(--positive)]">
+                        {trainerSpeed == null ? "Sin dato" : `${trainerSpeed}%`}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              </Panel>
+
+              <Panel
+                title="Asistentes de entrenador"
+                meta={
+                  assistantRole
+                    ? `${assistantRole.members.length} asistente(s) · nivel combinado ${assistantRole.level}`
+                    : "sin sincronizar"
+                }
+              >
+                {club.isLoading ? (
+                  <Loading />
+                ) : club.isError ? (
+                  <Note>No pudimos cargar el cuerpo técnico.</Note>
+                ) : assistantRole ? (
+                  <AssistantCards role={assistantRole} />
+                ) : (
+                  <Note>
+                    Sin datos de asistentes. Sincroniza para traerlos.
+                  </Note>
+                )}
+              </Panel>
+            </div>
+          </div>
+        )}
+
+        {section === "plantilla" && (
+          <>
+            <Panel
+              title="Entrenamiento actual"
+              meta={`${data.players.length} jugadores actuales · ordenados por progreso`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                  Configuración de la vista
+                </span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <span className="text-[var(--muted)]">Habilidad</span>
+                    <select
+                      value={selectedSkill ?? data.skill}
+                      onChange={(e) => setSelectedSkill(e.target.value)}
+                      className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm"
                     >
-                      {staff ? `${staff.trainer.skillLevel}/5` : "Sin dato"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-[var(--muted)]">Nivel de liderazgo</dt>
-                    <dd>
-                      {staff
-                        ? `${skillLevelLabel(staff.trainer.leadership, true)} (${staff.trainer.leadership})`
-                        : "Sin dato"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-3">
-                    <dt className="text-[var(--muted)]">
-                      Velocidad de entrenamiento
-                    </dt>
-                    <dd className="tabular-nums font-medium text-[var(--positive)]">
-                      {trainerSpeed == null ? "Sin dato" : `${trainerSpeed}%`}
-                    </dd>
-                  </div>
-                </dl>
-              )}
-            </Panel>
-
-            <Panel
-              title="Asistentes de entrenador"
-              meta={
-                assistantRole
-                  ? `${assistantRole.members.length} asistente(s) · nivel combinado ${assistantRole.level}`
-                  : "sin sincronizar"
-              }
-            >
-              {club.isLoading ? (
-                <Loading />
-              ) : club.isError ? (
-                <Note>No pudimos cargar el cuerpo técnico.</Note>
-              ) : assistantRole ? (
-                <AssistantCards role={assistantRole} />
-              ) : (
-                <Note>
-                  Sin datos de asistentes. Sincroniza para traerlos.
-                </Note>
-              )}
-            </Panel>
-          </div>
-        </div>
-      )}
-
-      {section === "plantilla" && (
-        <>
-          <Panel
-            title="Entrenamiento actual"
-            meta={`${data.players.length} jugadores actuales · ordenados por progreso`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
-              <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                Configuración de la vista
-              </span>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <span className="text-[var(--muted)]">Habilidad</span>
-                  <select
-                    value={selectedSkill ?? data.skill}
-                    onChange={(e) => setSelectedSkill(e.target.value)}
-                    className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm"
-                  >
-                    {data.availableSkills.map((s) => (
-                      <option key={s.skill} value={s.skill}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={includeThisWeek}
-                    onChange={(e) => setIncludeThisWeek(e.target.checked)}
-                  />
-                  Incluir los partidos de esta semana
-                </label>
-              </div>
-            </div>
-
-            <DataTable
-              rows={data.players}
-              columns={squadColumns()}
-              rowKey={(r) => r.htPlayerId}
-              initialSort="progress"
-              csvName="entrenamiento-plantilla"
-              selectedRowKey={selectedPlayerId}
-              onRowClick={(r) => setSelectedPlayerId(r.htPlayerId)}
-              emptyMessage="Sin jugadores en la plantilla."
-            />
-          </Panel>
-          {data.notes.length > 0 && <Note>{data.notes.join(" ")}</Note>}
-
-          {data.weeklyLog.length > 0 && (
-            <Panel
-              title="Historial de configuración semanal"
-              meta={`${data.weeklyLog.length} semana(s) registradas`}
-            >
-              <DataTable
-                emptyMessage="Sin semanas de entrenamiento registradas todavía."
-                rows={data.weeklyLog}
-                columns={weeklyLogColumns}
-                rowKey={(r) => r.date}
-                initialSort="date"
-                csvName="entrenamiento-historial-semanal"
-              />
-            </Panel>
-          )}
-
-          {validation && (
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">
-              {validation.observations > 0 ? (
-                <>
-                  Contraste con pops reales: diferencia media de{" "}
-                  <b className="text-[var(--text)]">
-                    {validation.meanErrorWeeks == null
-                      ? "—"
-                      : `${validation.meanErrorWeeks} sem`}
-                  </b>{" "}
-                  sobre {validation.observations} subida(s) confirmada(s) de{" "}
-                  {formula.data?.trainedSkill}.
-                </>
-              ) : (
-                <>
-                  Todavía no hay dos subidas seguidas de{" "}
-                  {formula.data?.trainedSkill} para contrastar la fórmula.
-                </>
-              )}{" "}
-              <Link to="/engine" className="underline hover:text-[var(--text)]">
-                ver el detalle en Motor
-              </Link>
-              .
-            </div>
-          )}
-
-          {selectedPlayerId != null && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">
-                  {playerLevels.data?.name ?? "Cargando…"}
-                  {playerLevels.data && (
-                    <span className="text-[var(--muted)]">
-                      {" "}
-                      · {playerLevels.data.skillLabel}
-                    </span>
-                  )}
-                </h2>
-                <button
-                  onClick={() => setSelectedPlayerId(null)}
-                  className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
-                >
-                  Cerrar
-                </button>
-              </div>
-
-              <Tabs
-                tabs={[
-                  { key: "mejoras", label: "Mejoras" },
-                  { key: "prevision", label: "Previsión subidas" },
-                ]}
-                active={playerTab}
-                onChange={setPlayerTab}
-              />
-
-              {playerLevels.isLoading && <Loading />}
-              {playerLevels.isError && (
-                <ErrorState error={playerLevels.error} />
-              )}
-
-              {playerLevels.data && playerTab === "mejoras" && (
-                <>
-                  <Panel title="Subidas confirmadas" meta="confirmadas por Hattrick">
-                    {playerLevels.data.confirmed.length === 0 && (
-                      <Empty>
-                        {playerLevels.data.notes.join(" ") ||
-                          "Sin subidas confirmadas todavía."}
-                      </Empty>
-                    )}
-                  </Panel>
-                  {playerLevels.data.confirmed.length > 0 && (
-                    <DataTable
-                      emptyMessage="Ninguna subida confirmada todavía."
-                      rows={playerLevels.data.confirmed}
-                      columns={confirmedColumns}
-                      rowKey={(r) => r.seasonWeek}
-                      initialSort="seasonWeek"
-                      initialDescending={false}
-                      csvName="entrenamiento-mejoras"
+                      {data.availableSkills.map((s) => (
+                        <option key={s.skill} value={s.skill}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={includeThisWeek}
+                      onChange={(e) => setIncludeThisWeek(e.target.checked)}
                     />
-                  )}
-                </>
-              )}
+                    Incluir los partidos de esta semana
+                  </label>
+                </div>
+              </div>
 
-              {playerLevels.data && playerTab === "prevision" && (
-                <ProjectionPanel
-                  title="Previsión de subidas"
-                  meta={`hasta nivel 20 · ${playerLevels.data.forecast.length} nivel(es)`}
+              <DataTable
+                rows={data.players}
+                columns={squadColumns()}
+                rowKey={(r) => r.htPlayerId}
+                initialSort="progress"
+                csvName="entrenamiento-plantilla"
+                selectedRowKey={selectedPlayerId}
+                onRowClick={(r) => setSelectedPlayerId(r.htPlayerId)}
+                emptyMessage="Sin jugadores en la plantilla."
+              />
+            </Panel>
+            {data.notes.length > 0 && <Note>{data.notes.join(" ")}</Note>}
+
+            {data.weeklyLog.length > 0 && (
+              <Panel
+                title="Historial de configuración semanal"
+                meta={`${data.weeklyLog.length} semana(s) registradas`}
+              >
+                <DataTable
+                  emptyMessage="Sin semanas de entrenamiento registradas todavía."
+                  rows={data.weeklyLog}
+                  columns={weeklyLogColumns}
+                  rowKey={(r) => r.date}
+                  initialSort="date"
+                  csvName="entrenamiento-historial-semanal"
+                />
+              </Panel>
+            )}
+
+            {validation && (
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">
+                {validation.observations > 0 ? (
+                  <>
+                    Contraste con pops reales: diferencia media de{" "}
+                    <b className="text-[var(--text)]">
+                      {validation.meanErrorWeeks == null
+                        ? "—"
+                        : `${validation.meanErrorWeeks} sem`}
+                    </b>{" "}
+                    sobre {validation.observations} subida(s) confirmada(s) de{" "}
+                    {formula.data?.trainedSkill}.
+                  </>
+                ) : (
+                  <>
+                    Todavía no hay dos subidas seguidas de{" "}
+                    {formula.data?.trainedSkill} para contrastar la fórmula.
+                  </>
+                )}{" "}
+                <Link
+                  to="/engine"
+                  className="underline hover:text-[var(--text)]"
+                >
+                  ver el detalle en Motor
+                </Link>
+                .
+              </div>
+            )}
+
+            {selectedPlayerId != null && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">
+                    {playerLevels.data?.name ?? "Cargando…"}
+                    {playerLevels.data && (
+                      <span className="text-[var(--muted)]">
+                        {" "}
+                        · {playerLevels.data.skillLabel}
+                      </span>
+                    )}
+                  </h2>
+                  <button
+                    onClick={() => setSelectedPlayerId(null)}
+                    className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+
+                <Tabs
+                  grupo="jugador-entrenamiento"
+                  label="Vistas del jugador"
+                  tabs={[
+                    { key: "mejoras", label: "Mejoras" },
+                    { key: "prevision", label: "Previsión subidas" },
+                  ]}
+                  active={playerTab}
+                  onChange={setPlayerTab}
+                />
+
+                <PanelDePestanas
+                  grupo="jugador-entrenamiento"
+                  activa={playerTab}
+                  className="space-y-4"
+                >
+                  {playerLevels.isLoading && <Loading />}
+                  {playerLevels.isError && (
+                    <ErrorState error={playerLevels.error} />
+                  )}
+
+                  {playerLevels.data && playerTab === "mejoras" && (
+                    <>
+                      <Panel
+                        title="Subidas confirmadas"
+                        meta="confirmadas por Hattrick"
+                      >
+                        {playerLevels.data.confirmed.length === 0 && (
+                          <Empty>
+                            {playerLevels.data.notes.join(" ") ||
+                              "Sin subidas confirmadas todavía."}
+                          </Empty>
+                        )}
+                      </Panel>
+                      {playerLevels.data.confirmed.length > 0 && (
+                        <DataTable
+                          emptyMessage="Ninguna subida confirmada todavía."
+                          rows={playerLevels.data.confirmed}
+                          columns={confirmedColumns}
+                          rowKey={(r) => r.seasonWeek}
+                          initialSort="seasonWeek"
+                          initialDescending={false}
+                          csvName="entrenamiento-mejoras"
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {playerLevels.data && playerTab === "prevision" && (
+                    <ProjectionPanel
+                      title="Previsión de subidas"
+                      meta={`hasta nivel 20 · ${playerLevels.data.forecast.length} nivel(es)`}
+                    >
+                      <DataTable
+                        emptyMessage="Sin previsión: hace falta al menos una semana entrenada."
+                        rows={playerLevels.data.forecast}
+                        columns={forecastColumns}
+                        rowKey={(r) => r.level}
+                        initialSort="level"
+                        initialDescending={false}
+                        csvName="entrenamiento-prevision"
+                      />
+                    </ProjectionPanel>
+                  )}
+                </PanelDePestanas>
+              </div>
+            )}
+          </>
+        )}
+
+        {section === "experiencia" && (
+          <>
+            {development.isLoading && <Loading />}
+            {development.isError && <ErrorState error={development.error} />}
+            {development.data && (
+              <>
+                <Panel
+                  title="Experiencia"
+                  meta={`${development.data.experience.length} jugadores · partidos y minutos reales`}
                 >
                   <DataTable
-                    emptyMessage="Sin previsión: hace falta al menos una semana entrenada."
-                    rows={playerLevels.data.forecast}
-                    columns={forecastColumns}
-                    rowKey={(r) => r.level}
-                    initialSort="level"
-                    initialDescending={false}
-                    csvName="entrenamiento-prevision"
+                    rows={development.data.experience}
+                    columns={experienceColumns}
+                    rowKey={(r) => r.htPlayerId}
+                    initialSort="progress"
+                    csvName="entrenamiento-experiencia"
+                    emptyMessage="Sin jugadores para calcular experiencia."
                   />
-                </ProjectionPanel>
-              )}
-            </div>
-          )}
-        </>
-      )}
+                </Panel>
+              </>
+            )}
+          </>
+        )}
 
-      {section === "experiencia" && (
-        <>
-          {development.isLoading && <Loading />}
-          {development.isError && <ErrorState error={development.error} />}
-          {development.data && (
-            <>
-              <Panel
-                title="Experiencia"
-                meta={`${development.data.experience.length} jugadores · partidos y minutos reales`}
-              >
-                <DataTable
-                  rows={development.data.experience}
-                  columns={experienceColumns}
-                  rowKey={(r) => r.htPlayerId}
-                  initialSort="progress"
-                  csvName="entrenamiento-experiencia"
-                  emptyMessage="Sin jugadores para calcular experiencia."
-                />
-              </Panel>
-            </>
-          )}
-        </>
-      )}
+        {section === "fidelidad" && (
+          <>
+            {development.isLoading && <Loading />}
+            {development.isError && <ErrorState error={development.error} />}
+            {development.data && (
+              <>
+                <Panel
+                  title="Fidelidad"
+                  meta={`${development.data.loyalty.length} jugadores · antigüedad real en el club`}
+                >
+                  <DataTable
+                    rows={development.data.loyalty}
+                    columns={loyaltyColumns}
+                    rowKey={(r) => r.htPlayerId}
+                    initialSort="progress"
+                    csvName="entrenamiento-fidelidad"
+                    emptyMessage="Sin jugadores para calcular fidelidad."
+                  />
+                </Panel>
+                {development.data.notes.map((note) => (
+                  <Note key={note}>{note}</Note>
+                ))}
+              </>
+            )}
+          </>
+        )}
 
-      {section === "fidelidad" && (
-        <>
-          {development.isLoading && <Loading />}
-          {development.isError && <ErrorState error={development.error} />}
-          {development.data && (
-            <>
-              <Panel
-                title="Fidelidad"
-                meta={`${development.data.loyalty.length} jugadores · antigüedad real en el club`}
-              >
-                <DataTable
-                  rows={development.data.loyalty}
-                  columns={loyaltyColumns}
-                  rowKey={(r) => r.htPlayerId}
-                  initialSort="progress"
-                  csvName="entrenamiento-fidelidad"
-                  emptyMessage="Sin jugadores para calcular fidelidad."
-                />
-              </Panel>
-              {development.data.notes.map((note) => (
-                <Note key={note}>{note}</Note>
-              ))}
-            </>
-          )}
-        </>
-      )}
+        {section === "condicion" && (
+          <>
+            {development.isLoading && <Loading />}
+            {development.isError && <ErrorState error={development.error} />}
+            {development.data && (
+              <>
+                <Panel
+                  title="Condición"
+                  meta={`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
+                >
+                  <DataTable
+                    rows={development.data.stamina}
+                    columns={staminaColumns}
+                    rowKey={(r) => r.htPlayerId}
+                    initialSort="level"
+                    csvName="entrenamiento-condicion"
+                    emptyMessage="Sin jugadores para calcular condición."
+                  />
+                </Panel>
+                {development.data.notes.map((note) => (
+                  <Note key={note}>{note}</Note>
+                ))}
+              </>
+            )}
+          </>
+        )}
 
-      {section === "condicion" && (
-        <>
-          {development.isLoading && <Loading />}
-          {development.isError && <ErrorState error={development.error} />}
-          {development.data && (
-            <>
-              <Panel
-                title="Condición"
-                meta={`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
-              >
-                <DataTable
-                  rows={development.data.stamina}
-                  columns={staminaColumns}
-                  rowKey={(r) => r.htPlayerId}
-                  initialSort="level"
-                  csvName="entrenamiento-condicion"
-                  emptyMessage="Sin jugadores para calcular condición."
-                />
-              </Panel>
-              {development.data.notes.map((note) => (
-                <Note key={note}>{note}</Note>
-              ))}
-            </>
-          )}
-        </>
-      )}
-
-      {section === "posteriori" && post && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
-            <Kpi
-              label="A posteriori elegiría"
-              value={recommendation?.name ?? "Sin datos"}
-              hint={`Actual: ${currentName}`}
-              tone={
-                recommendation &&
-                post.currentTraining &&
-                recommendation.trainingType !==
-                  post.currentTraining.trainingType
-                  ? "positive"
-                  : undefined
-              }
-            />
-            <Kpi
-              label="Minutos aprovechables"
-              value={`${recommendation?.equivalentMinutes.toFixed(0) ?? 0}`}
-              hint="equivalentes a entrenamiento completo"
-            />
-            <Kpi
-              label="Jugadores entrenados"
-              value={`${recommendation?.trainedPlayers ?? 0}`}
-              hint={`${recommendation?.fullTrainingPlayers ?? 0} con entrenamiento full`}
-            />
-          </div>
-
-          <Panel
-            title="Entrenamiento decidido a posteriori"
-            meta="elige después de ver quién jugó y dónde"
-          >
-            <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
-              <Chart
-                ariaLabel="Ranking de entrenamientos por exposición post-partido"
-                height={320}
-                option={barOption(
-                  post.options.slice(0, 8).map((o) => o.name),
-                  post.options.slice(0, 8).map((o) => o.score),
-                  "Score",
-                )}
+        {section === "posteriori" && post && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
+              <Kpi
+                label="A posteriori elegiría"
+                value={recommendation?.name ?? "Sin datos"}
+                hint={`Actual: ${currentName}`}
+                tone={
+                  recommendation &&
+                  post.currentTraining &&
+                  recommendation.trainingType !==
+                    post.currentTraining.trainingType
+                    ? "positive"
+                    : undefined
+                }
               />
-              <div className="rounded-lg border border-[var(--border)] p-4">
-                <h3 className="text-sm font-semibold">
-                  {recommendation
-                    ? `Mejor opción: ${recommendation.name}`
-                    : "Sin recomendación"}
-                </h3>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  La app suma los minutos reales por posición y compara qué tipo
-                  de entrenamiento cosecha mejor esa exposición antes del update
-                  semanal.
-                </p>
-                <ul className="mt-4 space-y-1 text-xs text-[var(--muted)]">
-                  {(recommendation?.rationale ?? []).map((item) => (
-                    <li key={item}>• {item}</li>
-                  ))}
-                </ul>
-                <ul className="mt-4 space-y-2 text-sm">
-                  {(recommendation?.topTrainees ?? []).slice(0, 5).map((p) => (
-                    <li
-                      key={p.htPlayerId}
-                      className="flex items-center justify-between gap-3"
-                    >
-                      <PlayerLink htPlayerId={p.htPlayerId} name={p.name} />
-                      <span className="text-xs tabular-nums text-[var(--muted)]">
-                        {(p.exposure * 100).toFixed(0)}% ·{" "}
-                        {p.weeksToPop == null
-                          ? "—"
-                          : `${p.weeksToPop.toFixed(1)} sem`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <Kpi
+                label="Minutos aprovechables"
+                value={`${recommendation?.equivalentMinutes.toFixed(0) ?? 0}`}
+                hint="equivalentes a entrenamiento completo"
+              />
+              <Kpi
+                label="Jugadores entrenados"
+                value={`${recommendation?.trainedPlayers ?? 0}`}
+                hint={`${recommendation?.fullTrainingPlayers ?? 0} con entrenamiento full`}
+              />
             </div>
-            <Note>{post.notes.join(" ")}</Note>
-          </Panel>
 
-          <DataTable
-            emptyMessage="Sin opciones que comparar para este partido."
-            rows={post.options}
-            columns={optionColumns}
-            rowKey={(r) => r.trainingType}
-            initialSort="score"
-            csvName="entrenamiento-a-posteriori"
-          />
-        </>
-      )}
+            <Panel
+              title="Entrenamiento decidido a posteriori"
+              meta="elige después de ver quién jugó y dónde"
+            >
+              <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
+                <Chart
+                  ariaLabel="Ranking de entrenamientos por exposición post-partido"
+                  height={320}
+                  option={barOption(
+                    post.options.slice(0, 8).map((o) => o.name),
+                    post.options.slice(0, 8).map((o) => o.score),
+                    "Score",
+                  )}
+                />
+                <div className="rounded-lg border border-[var(--border)] p-4">
+                  <h3 className="text-sm font-semibold">
+                    {recommendation
+                      ? `Mejor opción: ${recommendation.name}`
+                      : "Sin recomendación"}
+                  </h3>
+                  <p className="mt-2 text-sm text-[var(--muted)]">
+                    La app suma los minutos reales por posición y compara qué
+                    tipo de entrenamiento cosecha mejor esa exposición antes del
+                    update semanal.
+                  </p>
+                  <ul className="mt-4 space-y-1 text-xs text-[var(--muted)]">
+                    {(recommendation?.rationale ?? []).map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                  <ul className="mt-4 space-y-2 text-sm">
+                    {(recommendation?.topTrainees ?? [])
+                      .slice(0, 5)
+                      .map((p) => (
+                        <li
+                          key={p.htPlayerId}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <PlayerLink htPlayerId={p.htPlayerId} name={p.name} />
+                          <span className="text-xs tabular-nums text-[var(--muted)]">
+                            {(p.exposure * 100).toFixed(0)}% ·{" "}
+                            {p.weeksToPop == null
+                              ? "—"
+                              : `${p.weeksToPop.toFixed(1)} sem`}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </div>
+              <Note>{post.notes.join(" ")}</Note>
+            </Panel>
+
+            <DataTable
+              emptyMessage="Sin opciones que comparar para este partido."
+              rows={post.options}
+              columns={optionColumns}
+              rowKey={(r) => r.trainingType}
+              initialSort="score"
+              csvName="entrenamiento-a-posteriori"
+            />
+          </>
+        )}
+      </PanelDePestanas>
     </div>
   );
 }

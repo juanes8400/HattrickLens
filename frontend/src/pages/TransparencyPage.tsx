@@ -7,7 +7,7 @@ import {
   useTrainingFormula,
 } from "../hooks/useTeam";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
-import { Tabs } from "../components/Tabs";
+import { Tabs, PanelDePestanas } from "../components/Tabs";
 import type {
   CalculationReference,
   Calculo,
@@ -78,6 +78,7 @@ export function TransparencyPage() {
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
         <Tabs
+          grupo="transparencia-seccion"
           tabs={secciones.map((s) => ({
             key: s.id,
             label: `${s.name} · ${s.calcs.length}`,
@@ -88,48 +89,64 @@ export function TransparencyPage() {
         />
       </div>
 
-      {seccion.calcs.length > 1 && (
-        <Tabs
-          tabs={seccion.calcs.map((c) => ({ key: c.id, label: c.name }))}
-          active={calculo.id}
-          label={`Cálculos de ${seccion.name}`}
-          onChange={(id) => irA(seccion.id, id)}
-        />
-      )}
+      {/* El panel de la SECCIÓN contiene la barra de sus cálculos y el
+          cálculo elegido: las dos barras están anidadas, así que sus paneles
+          también. */}
+      <PanelDePestanas
+        grupo="transparencia-seccion"
+        activa={seccion.id}
+        className="space-y-4"
+      >
+        {seccion.calcs.length > 1 && (
+          <Tabs
+            grupo="transparencia-calculo"
+            tabs={seccion.calcs.map((c) => ({ key: c.id, label: c.name }))}
+            active={calculo.id}
+            label={`Cálculos de ${seccion.name}`}
+            onChange={(id) => irA(seccion.id, id)}
+          />
+        )}
 
-      <FichaDelCalculo calculo={calculo} />
+        <PanelDePestanas
+          grupo="transparencia-calculo"
+          activa={calculo.id}
+          className="space-y-4"
+        >
+          <FichaDelCalculo calculo={calculo} />
 
-      {/* El panel vivo del calculo, si lo tiene: los valores leidos de TU club
+          {/* El panel vivo del calculo, si lo tiene: los valores leidos de TU club
           y el contraste contra lo que de verdad paso. La formula de arriba
           dice como se calcula; esto dice con que y cuanto acierta. */}
-      {calculo.live === "trainingFormula" && (
-        <FormulaPanel
-          data={formula.data}
-          isLoading={formula.isLoading}
-          isError={formula.isError}
-        />
-      )}
-      {calculo.live === "experienceModel" && (
-        <ExperiencePanel
-          data={experience.data}
-          isLoading={experience.isLoading}
-          isError={experience.isError}
-        />
-      )}
-      {calculo.live === "loyaltyModel" && (
-        <LoyaltyPanel
-          data={loyalty.data}
-          isLoading={loyalty.isLoading}
-          isError={loyalty.isError}
-        />
-      )}
-      {calculo.live === "positionModel" && (
-        <PositionsPanel
-          data={positions.data}
-          isLoading={positions.isLoading}
-          isError={positions.isError}
-        />
-      )}
+          {calculo.live === "trainingFormula" && (
+            <FormulaPanel
+              data={formula.data}
+              isLoading={formula.isLoading}
+              isError={formula.isError}
+            />
+          )}
+          {calculo.live === "experienceModel" && (
+            <ExperiencePanel
+              data={experience.data}
+              isLoading={experience.isLoading}
+              isError={experience.isError}
+            />
+          )}
+          {calculo.live === "loyaltyModel" && (
+            <LoyaltyPanel
+              data={loyalty.data}
+              isLoading={loyalty.isLoading}
+              isError={loyalty.isError}
+            />
+          )}
+          {calculo.live === "positionModel" && (
+            <PositionsPanel
+              data={positions.data}
+              isLoading={positions.isLoading}
+              isError={positions.isError}
+            />
+          )}
+        </PanelDePestanas>
+      </PanelDePestanas>
     </div>
   );
 }

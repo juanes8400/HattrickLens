@@ -7,11 +7,26 @@ import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
 import { CountryCell } from "../components/CountryFlag";
 import { Column, DataTable } from "../components/DataTable";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
+import {
+  Empty,
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
 import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
-import { Tabs } from "../components/Tabs";
-import { date, money, number, parseUtc, compact, decimal } from "../hooks/useFormat";
+import { Tabs, PanelDePestanas } from "../components/Tabs";
+import {
+  date,
+  money,
+  number,
+  parseUtc,
+  compact,
+  decimal,
+} from "../hooks/useFormat";
 import { useDialogoModal } from "../hooks/useModal";
 import { BotonDeBorrado } from "../components/BotonDeBorrado";
 import { useIsDarkTheme } from "../hooks/useTheme";
@@ -96,7 +111,8 @@ function splitHour12(hour: number): [number, string] {
 function formatHourRange(start: number, end: number): string {
   const [startH12, startPeriod] = splitHour12(start);
   const [endH12, endPeriod] = splitHour12(end % 24);
-  if (startPeriod === endPeriod) return `${startH12}:00 a ${endH12}:00 ${endPeriod}`;
+  if (startPeriod === endPeriod)
+    return `${startH12}:00 a ${endH12}:00 ${endPeriod}`;
   return `${startH12}:00 ${startPeriod} a ${endH12}:00 ${endPeriod}`;
 }
 const BID_HOUR_LABELS_ORDER = Array.from({ length: 12 }, (_, i) =>
@@ -191,12 +207,7 @@ function clampRoiForColor(roiPct: number): number {
 }
 
 type SectionKey =
-  | "resumen"
-  | "totales"
-  | "desgloses"
-  | "roi"
-  | "intentos"
-  | "detalle";
+  "resumen" | "totales" | "desgloses" | "roi" | "intentos" | "detalle";
 
 // Interruptor coqueto reutilizado por los 2 toggles compartidos (pedido
 // explícitamente 2026-08-04/05) — antes duplicado inline en cada sección.
@@ -320,8 +331,13 @@ function buildWaterfallOption(
     // categorías (temporadas, horas) `interval: 0` las amontona ilegibles,
     // así que esas dejan el auto-hide de ECharts tal cual.
     xAxis: {
-      type: "category", data: labels,
-      axisLabel: { rotate: 0, interval: forceAllLabels ? 0 : "auto", fontSize: 11 },
+      type: "category",
+      data: labels,
+      axisLabel: {
+        rotate: 0,
+        interval: forceAllLabels ? 0 : "auto",
+        fontSize: 11,
+      },
     },
     yAxis: {
       type: "value",
@@ -418,7 +434,8 @@ function buildHorizontalBarOption(
   const values = sorted.map(([, value]) => value);
   return {
     xAxis: {
-      type: "value", name: currency,
+      type: "value",
+      name: currency,
       axisLabel: { formatter: (value: number) => compactNumber(value) },
     },
     yAxis: { type: "category", data: labels, axisLabel: { fontSize: 11 } },
@@ -485,16 +502,26 @@ function HorizontalBarPanel({
 /** Los siete entrenamientos que Hattrick deja elegir hoy, con su nombre. Los
  *  obsoletos (0 y 1) no se ofrecen: nadie los entrena ya. */
 const ENTRENAMIENTOS: [number, string][] = [
-  [2, "Balón parado"], [3, "Defensa"], [4, "Anotación"], [5, "Lateral"],
-  [6, "Anotación y balón parado"], [7, "Pases"], [8, "Jugadas"], [9, "Portería"],
+  [2, "Balón parado"],
+  [3, "Defensa"],
+  [4, "Anotación"],
+  [5, "Lateral"],
+  [6, "Anotación y balón parado"],
+  [7, "Pases"],
+  [8, "Jugadas"],
+  [9, "Portería"],
   [10, "Pases (defensas y centrocampistas)"],
   [11, "Defensa (porteros, defensas y centrocampistas)"],
   [12, "Lateral (extremos y delanteros)"],
 ];
 
 const HABILIDADES: [string, string][] = [
-  ["keeper", "Portería"], ["defending", "Defensa"], ["playmaking", "Jugadas"],
-  ["winger", "Lateral"], ["passing", "Pases"], ["scoring", "Anotación"],
+  ["keeper", "Portería"],
+  ["defending", "Defensa"],
+  ["playmaking", "Jugadas"],
+  ["winger", "Lateral"],
+  ["passing", "Pases"],
+  ["scoring", "Anotación"],
   ["set_pieces", "Balón parado"],
 ];
 
@@ -559,7 +586,9 @@ function EditarEtapa({
 
         <div className="mt-4 space-y-3 text-sm">
           <label className="block">
-            <span className="text-xs text-[var(--muted)]">Entrenamiento al salir</span>
+            <span className="text-xs text-[var(--muted)]">
+              Entrenamiento al salir
+            </span>
             <select
               value={entrenamiento}
               onChange={(e) => setEntrenamiento(e.target.value)}
@@ -567,13 +596,17 @@ function EditarEtapa({
             >
               <option value="">Sin atribuir</option>
               {ENTRENAMIENTOS.map(([id, nombre]) => (
-                <option key={id} value={id}>{nombre}</option>
+                <option key={id} value={id}>
+                  {nombre}
+                </option>
               ))}
             </select>
           </label>
 
           <label className="block">
-            <span className="text-xs text-[var(--muted)]">Habilidad más alta</span>
+            <span className="text-xs text-[var(--muted)]">
+              Habilidad más alta
+            </span>
             <select
               value={habilidad}
               onChange={(e) => setHabilidad(e.target.value)}
@@ -581,7 +614,9 @@ function EditarEtapa({
             >
               <option value="">Sin atribuir</option>
               {HABILIDADES.map(([clave, nombre]) => (
-                <option key={clave} value={clave}>{nombre}</option>
+                <option key={clave} value={clave}>
+                  {nombre}
+                </option>
               ))}
             </select>
           </label>
@@ -590,7 +625,10 @@ function EditarEtapa({
             <label className="flex-1">
               <span className="text-xs text-[var(--muted)]">Edad (años)</span>
               <input
-                type="number" min={15} max={50} value={anios}
+                type="number"
+                min={15}
+                max={50}
+                value={anios}
                 onChange={(e) => setAnios(e.target.value)}
                 className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
               />
@@ -598,7 +636,10 @@ function EditarEtapa({
             <label className="flex-1">
               <span className="text-xs text-[var(--muted)]">Días</span>
               <input
-                type="number" min={0} max={111} value={dias}
+                type="number"
+                min={0}
+                max={111}
+                value={dias}
                 onChange={(e) => setDias(e.target.value)}
                 className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
               />
@@ -607,14 +648,15 @@ function EditarEtapa({
 
           <label className="flex items-start gap-2 rounded-md border border-[var(--border)] p-3">
             <input
-              type="checkbox" checked={excluida}
+              type="checkbox"
+              checked={excluida}
               onChange={(e) => setExcluida(e.target.checked)}
               className="mt-0.5"
             />
             <span className="text-xs">
-              <b>Sacar de los cálculos.</b> Esta etapa deja de contar en los totales,
-              los desgloses y el ROI. Sigue estando en Hattrick; solo desaparece de
-              estas cuentas.
+              <b>Sacar de los cálculos.</b> Esta etapa deja de contar en los
+              totales, los desgloses y el ROI. Sigue estando en Hattrick; solo
+              desaparece de estas cuentas.
             </span>
           </label>
 
@@ -703,16 +745,13 @@ export function PlayerBalancePage() {
   // descartada aquí desaparezca de las tres a la vez.
   const trainingOptions = Array.from(
     new Set(
-      soldRowsInSeason.map(
-        (r) => r.derivedTrainingSkill ?? UNKNOWN_TRAINING,
-      ),
+      soldRowsInSeason.map((r) => r.derivedTrainingSkill ?? UNKNOWN_TRAINING),
     ),
   ).sort();
   let filteredRows = soldRowsInSeason;
   if (trainingFilter !== "all") {
     filteredRows = filteredRows.filter(
-      (r) =>
-        (r.derivedTrainingSkill ?? UNKNOWN_TRAINING) === trainingFilter,
+      (r) => (r.derivedTrainingSkill ?? UNKNOWN_TRAINING) === trainingFilter,
     );
   }
   if (ignoreUnknownData) {
@@ -776,16 +815,19 @@ export function PlayerBalancePage() {
     const bidHour =
       r.bidHourAtSale != null ? bidHourBucket(r.soldAt) : UNKNOWN_BID_HOUR;
     byBidHour[bidHour] = (byBidHour[bidHour] ?? 0) + r.saldo;
-    const semanaVenta = r.weekAtSale != null ? weekLabel(r.weekAtSale) : UNKNOWN_WEEK;
+    const semanaVenta =
+      r.weekAtSale != null ? weekLabel(r.weekAtSale) : UNKNOWN_WEEK;
     bySaleWeek[semanaVenta] = (bySaleWeek[semanaVenta] ?? 0) + r.saldo;
     const semanaCompra =
       r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK;
-    byPurchaseWeek[semanaCompra] = (byPurchaseWeek[semanaCompra] ?? 0) + r.saldo;
+    byPurchaseWeek[semanaCompra] =
+      (byPurchaseWeek[semanaCompra] ?? 0) + r.saldo;
   }
   const weekEntries = (bucket: Record<string, number>): [string, number][] =>
     Object.entries(bucket).sort(
       ([a], [b]) =>
-        (a === UNKNOWN_WEEK ? 99 : Number(a)) - (b === UNKNOWN_WEEK ? 99 : Number(b)),
+        (a === UNKNOWN_WEEK ? 99 : Number(a)) -
+        (b === UNKNOWN_WEEK ? 99 : Number(b)),
     );
   const saleWeekEntries = weekEntries(bySaleWeek);
   const purchaseWeekEntries = weekEntries(byPurchaseWeek);
@@ -844,7 +886,9 @@ export function PlayerBalancePage() {
     );
     acumular(
       roiPorEdad,
-      typeof r.ageAtSale === "number" ? ageBucket(Math.floor(r.ageAtSale)) : UNKNOWN_AGE,
+      typeof r.ageAtSale === "number"
+        ? ageBucket(Math.floor(r.ageAtSale))
+        : UNKNOWN_AGE,
       r,
     );
     acumular(roiPorHabilidad, r.topSkillAtSale ?? UNKNOWN_TOP_SKILL, r);
@@ -944,8 +988,7 @@ export function PlayerBalancePage() {
   }));
   const openDotPlayer = (...args: unknown[]) => {
     const params = args[0] as
-      | { value?: unknown; data?: { htPlayerId?: unknown } }
-      | undefined;
+      { value?: unknown; data?: { htPlayerId?: unknown } } | undefined;
     const htPlayerId = Number(
       params?.data?.htPlayerId ??
         (Array.isArray(params?.value) ? params.value[7] : undefined),
@@ -966,8 +1009,8 @@ export function PlayerBalancePage() {
               podía hacer. La fórmula vive ahora en Transparencia, que es su
               sitio, y se enlaza (2026-08-31). */}
           <p className="text-sm text-[var(--muted)]">
-            Qué te dejó cada jugador que pasó por el club, desde que llegó
-            hasta que se fue.{" "}
+            Qué te dejó cada jugador que pasó por el club, desde que llegó hasta
+            que se fue.{" "}
             <Link
               to="/transparency?s=transferencias&c=roi"
               className="text-[var(--accent)] hover:underline"
@@ -1008,6 +1051,7 @@ export function PlayerBalancePage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs
+          grupo="balance"
           tabs={[
             { key: "resumen", label: "Resumen" },
             { key: "totales", label: "Totales" },
@@ -1095,335 +1139,347 @@ export function PlayerBalancePage() {
         />
       </div>
 
-      {section === "resumen" && (
-        <div className="space-y-4">
-          {dotBase.length > 0 && (
-            <Panel
-              title="Cada transferencia"
-              meta="color = ROI (rojo = pérdida, verde = ganancia) · ● comprado · ♥ canterano"
-            >
-              <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-2">
-                <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-                  Ordenar por
-                  <select
-                    value={dotSort}
-                    onChange={(e) => setDotSort(e.target.value as DotSortKey)}
-                    className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
-                  >
-                    {DOT_SORT_OPTIONS.map(([key, label]) => (
-                      <option key={key} value={key}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {dotRows.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-[var(--muted)]">
-                  Ningún jugador vendido coincide con estos filtros.
-                </p>
-              ) : (
-                <div className="relative">
-                  <Chart
-                    ariaLabel="Diagrama de puntos: una bolita enlazada a la ficha de cada exjugador vendido, ordenadas según el criterio elegido, coloreadas por ROI de rojo (pérdida) a verde (ganancia), forma por origen (comprado o canterano)"
-                    onEvents={{ click: openDotPlayer }}
-                    option={{
-                    grid: {
-                      left: 8,
-                      right: 8,
-                      top: 8,
-                      bottom: 48,
-                      containLabel: false,
-                    },
-                    xAxis: {
-                      type: "value",
-                      min: -1,
-                      max: DOT_COLS,
-                      show: false,
-                    },
-                    yAxis: {
-                      type: "value",
-                      min: -dotRowCount,
-                      max: 1,
-                      show: false,
-                    },
-                    visualMap: {
-                      type: "continuous",
-                      dimension: 2,
-                      min: -DOT_ROI_COLOR_BOUND,
-                      max: DOT_ROI_COLOR_BOUND,
-                      inRange: {
-                        color: isDark
-                          ? [CHART_COLORS.dark.danger, CHART_COLORS.dark.muted, CHART_COLORS.dark.positive]
-                          : [CHART_COLORS.light.danger, CHART_COLORS.light.muted, CHART_COLORS.light.positive],
-                      },
-                      text: ["Ganancia", "Pérdida"],
-                      textStyle: { color: isDark ? "#ededef" : "#18181b" },
-                      orient: "horizontal",
-                      left: "center",
-                      bottom: 4,
-                      itemWidth: 12,
-                      itemHeight: 100,
-                      calculable: false,
-                    },
-                    tooltip: {
-                      trigger: "item",
-                      formatter: (params) => {
-                        const p = Array.isArray(params) ? params[0] : params;
-                        const v = p?.value as
-                          | [
-                              number,
-                              number,
-                              number,
-                              number,
-                              number,
-                              string | null,
-                              string,
-                              number,
-                            ]
-                          | undefined;
-                        if (!v) return "";
-                        const [, , , roi, salePrice, soldAt, training] = v;
-                        return (
-                          `${p?.name ?? ""}<br/>Venta: ${money(salePrice, data.currency)}<br/>` +
-                          `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Habilidad entrenada: ${training}<br/><b>Haz clic para abrir la ficha</b>`
-                        );
-                      },
-                    },
-                    series: [
-                      {
-                        type: "scatter",
-                        data: dotPoints,
-                        cursor: "pointer",
-                        itemStyle: { opacity: 0.88 },
-                      },
-                    ],
-                    }}
-                    height={dotChartHeight}
-                  />
-                  <div
-                    className="pointer-events-none absolute inset-x-2 bottom-12 top-2"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: `repeat(${DOT_COLS + 1}, minmax(0, 1fr))`,
-                      gridTemplateRows: `repeat(${dotRowCount + 1}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {dotRows.map((row, index) => (
-                      <Link
-                        key={`${row.htPlayerId}-${row.soldAt ?? index}`}
-                        to={`/players/${row.htPlayerId}`}
-                        aria-label={`Abrir ficha de ${row.name}`}
-                        title={`${row.name} · Venta: ${money(row.salePrice, data.currency)} · ROI: ${row.roiPct.toFixed(1)}%`}
-                        className="pointer-events-auto h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
-                        style={{
-                          gridColumn: (index % DOT_COLS) + 2,
-                          gridRow: Math.floor(index / DOT_COLS) + 2,
-                          justifySelf: "start",
-                          alignSelf: "start",
-                        }}
-                      />
-                    ))}
-                  </div>
+      <PanelDePestanas grupo="balance" activa={section} className="space-y-4">
+        {section === "resumen" && (
+          <div className="space-y-4">
+            {dotBase.length > 0 && (
+              <Panel
+                title="Cada transferencia"
+                meta="color = ROI (rojo = pérdida, verde = ganancia) · ● comprado · ♥ canterano"
+              >
+                <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-2">
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+                    Ordenar por
+                    <select
+                      value={dotSort}
+                      onChange={(e) => setDotSort(e.target.value as DotSortKey)}
+                      className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
+                    >
+                      {DOT_SORT_OPTIONS.map(([key, label]) => (
+                        <option key={key} value={key}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-              )}
-            </Panel>
-          )}
-        </div>
-      )}
-
-      {section === "totales" && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
-          <Kpi
-            label="Total de compras"
-            value={money(data.transferTotalBuys, data.currency)}
-          />
-          <Kpi
-            label="Total de ventas"
-            value={money(data.transferTotalSales, data.currency)}
-          />
-          <Kpi
-            label="Número de compras"
-            value={number(data.transferNumberBuys)}
-          />
-          <Kpi
-            label="Número de ventas"
-            value={number(data.transferNumberSales)}
-          />
-          <Kpi
-            label="Diferencia"
-            value={money(
-              data.transferTotalSales - data.transferTotalBuys,
-              data.currency,
+                {dotRows.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-sm text-[var(--muted)]">
+                    Ningún jugador vendido coincide con estos filtros.
+                  </p>
+                ) : (
+                  <div className="relative">
+                    <Chart
+                      ariaLabel="Diagrama de puntos: una bolita enlazada a la ficha de cada exjugador vendido, ordenadas según el criterio elegido, coloreadas por ROI de rojo (pérdida) a verde (ganancia), forma por origen (comprado o canterano)"
+                      onEvents={{ click: openDotPlayer }}
+                      option={{
+                        grid: {
+                          left: 8,
+                          right: 8,
+                          top: 8,
+                          bottom: 48,
+                          containLabel: false,
+                        },
+                        xAxis: {
+                          type: "value",
+                          min: -1,
+                          max: DOT_COLS,
+                          show: false,
+                        },
+                        yAxis: {
+                          type: "value",
+                          min: -dotRowCount,
+                          max: 1,
+                          show: false,
+                        },
+                        visualMap: {
+                          type: "continuous",
+                          dimension: 2,
+                          min: -DOT_ROI_COLOR_BOUND,
+                          max: DOT_ROI_COLOR_BOUND,
+                          inRange: {
+                            color: isDark
+                              ? [
+                                  CHART_COLORS.dark.danger,
+                                  CHART_COLORS.dark.muted,
+                                  CHART_COLORS.dark.positive,
+                                ]
+                              : [
+                                  CHART_COLORS.light.danger,
+                                  CHART_COLORS.light.muted,
+                                  CHART_COLORS.light.positive,
+                                ],
+                          },
+                          text: ["Ganancia", "Pérdida"],
+                          textStyle: { color: isDark ? "#ededef" : "#18181b" },
+                          orient: "horizontal",
+                          left: "center",
+                          bottom: 4,
+                          itemWidth: 12,
+                          itemHeight: 100,
+                          calculable: false,
+                        },
+                        tooltip: {
+                          trigger: "item",
+                          formatter: (params) => {
+                            const p = Array.isArray(params)
+                              ? params[0]
+                              : params;
+                            const v = p?.value as
+                              | [
+                                  number,
+                                  number,
+                                  number,
+                                  number,
+                                  number,
+                                  string | null,
+                                  string,
+                                  number,
+                                ]
+                              | undefined;
+                            if (!v) return "";
+                            const [, , , roi, salePrice, soldAt, training] = v;
+                            return (
+                              `${p?.name ?? ""}<br/>Venta: ${money(salePrice, data.currency)}<br/>` +
+                              `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Habilidad entrenada: ${training}<br/><b>Haz clic para abrir la ficha</b>`
+                            );
+                          },
+                        },
+                        series: [
+                          {
+                            type: "scatter",
+                            data: dotPoints,
+                            cursor: "pointer",
+                            itemStyle: { opacity: 0.88 },
+                          },
+                        ],
+                      }}
+                      height={dotChartHeight}
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-x-2 bottom-12 top-2"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${DOT_COLS + 1}, minmax(0, 1fr))`,
+                        gridTemplateRows: `repeat(${dotRowCount + 1}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {dotRows.map((row, index) => (
+                        <Link
+                          key={`${row.htPlayerId}-${row.soldAt ?? index}`}
+                          to={`/players/${row.htPlayerId}`}
+                          aria-label={`Abrir ficha de ${row.name}`}
+                          title={`${row.name} · Venta: ${money(row.salePrice, data.currency)} · ROI: ${row.roiPct.toFixed(1)}%`}
+                          className="pointer-events-auto h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
+                          style={{
+                            gridColumn: (index % DOT_COLS) + 2,
+                            gridRow: Math.floor(index / DOT_COLS) + 2,
+                            justifySelf: "start",
+                            alignSelf: "start",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Panel>
             )}
-            tone={
-              data.transferTotalSales - data.transferTotalBuys >= 0
-                ? "positive"
-                : "danger"
+          </div>
+        )}
+
+        {section === "totales" && (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
+            <Kpi
+              label="Total de compras"
+              value={money(data.transferTotalBuys, data.currency)}
+            />
+            <Kpi
+              label="Total de ventas"
+              value={money(data.transferTotalSales, data.currency)}
+            />
+            <Kpi
+              label="Número de compras"
+              value={number(data.transferNumberBuys)}
+            />
+            <Kpi
+              label="Número de ventas"
+              value={number(data.transferNumberSales)}
+            />
+            <Kpi
+              label="Diferencia"
+              value={money(
+                data.transferTotalSales - data.transferTotalBuys,
+                data.currency,
+              )}
+              tone={
+                data.transferTotalSales - data.transferTotalBuys >= 0
+                  ? "positive"
+                  : "danger"
+              }
+            />
+          </div>
+        )}
+
+        {section === "desgloses" && (
+          <div className="space-y-3">
+            <WaterfallPanel
+              title="De la compra a la venta"
+              meta={`${financialFlowRows.length} operaciones cerradas con datos completos · subtotal sin reventa estimada`}
+              ariaLabel="Cascada del ciclo financiero: gasto de compra, sueldos e intentos de venta como valores negativos; venta como valor positivo; y comisiones como valor negativo"
+              entries={financialFlowEntries}
+              currency={data.currency}
+              isDark={isDark}
+              forceAllLabels
+            />
+            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+              <WaterfallPanel
+                title="Saldo por temporada"
+                meta="temporada en la que se cerró cada venta"
+                ariaLabel="Cascada del saldo neto, repartido por la temporada de Hattrick en la que se vendió cada jugador"
+                entries={seasonEntries}
+                currency={data.currency}
+                isDark={isDark}
+              />
+              <WaterfallPanel
+                title="Saldo por semana de venta"
+                meta="la semana de la temporada, sumando todas las temporadas"
+                ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se vendió cada jugador"
+                entries={saleWeekEntries}
+                currency={data.currency}
+                isDark={isDark}
+                forceAllLabels
+              />
+              <WaterfallPanel
+                title="Saldo por semana de compra"
+                meta="la semana de la temporada, sumando todas las temporadas"
+                ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se compró cada jugador"
+                entries={purchaseWeekEntries}
+                currency={data.currency}
+                isDark={isDark}
+                forceAllLabels
+              />
+              <HorizontalBarPanel
+                title="Saldo por entrenamiento en el momento de la venta"
+                meta="habilidad individual inferida · ventas cerradas"
+                ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad que más aumentó en cada jugador antes de su venta"
+                entries={trainingEntries}
+                currency={data.currency}
+                isDark={isDark}
+              />
+              <WaterfallPanel
+                title="Saldo por edad en el momento de la venta"
+                meta="ventas cerradas"
+                ariaLabel="Cascada del saldo neto, repartido por la edad del jugador cuando se vendió"
+                entries={ageEntries}
+                currency={data.currency}
+                isDark={isDark}
+              />
+              <HorizontalBarPanel
+                title="Saldo por habilidad más alta"
+                meta="ventas cerradas"
+                ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió"
+                entries={topSkillEntries}
+                currency={data.currency}
+                isDark={isDark}
+              />
+              <WaterfallPanel
+                title="Saldo por hora de cierre de la puja"
+                meta="bloques de 2 horas, en tu hora"
+                ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en la hora local de quien mira, en el que se cerró cada puja de venta"
+                entries={bidHourEntries}
+                currency={data.currency}
+                isDark={isDark}
+              />
+            </div>
+          </div>
+        )}
+
+        {section === "roi" && (
+          <div className="space-y-4">
+            <Note>
+              Cada grupo suma primero lo invertido y lo ganado de todas sus
+              ventas, y el porcentaje sale de esos totales. No es el promedio de
+              los ROI de cada jugador: así una venta de cinco millones pesa lo
+              que debe frente a una de diez mil.
+            </Note>
+            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+              <RoiPanel
+                title="ROI por temporada"
+                meta="por temporada de venta"
+                entries={Object.entries(roiPorTemporada).sort(
+                  (a, b) =>
+                    seasonSortKey(a[0])[0] - seasonSortKey(b[0])[0] ||
+                    seasonSortKey(a[0])[1] - seasonSortKey(b[0])[1],
+                )}
+                isDark={isDark}
+              />
+              <RoiPanel
+                title="ROI por semana de compra"
+                meta="semana del calendario, no de la temporada"
+                entries={Object.entries(roiPorSemanaCompra).sort((a, b) =>
+                  a[0].localeCompare(b[0], "es", { numeric: true }),
+                )}
+                isDark={isDark}
+              />
+              <RoiPanel
+                title="ROI por hora de cierre de la puja"
+                meta="bloques de 2 horas, en tu hora"
+                entries={Object.entries(roiPorHora).sort((a, b) =>
+                  a[0].localeCompare(b[0], "es", { numeric: true }),
+                )}
+                isDark={isDark}
+              />
+              <RoiPanel
+                title="ROI por edad al vender"
+                meta="por tramos de edad"
+                entries={Object.entries(roiPorEdad).sort((a, b) =>
+                  a[0].localeCompare(b[0], "es", { numeric: true }),
+                )}
+                isDark={isDark}
+              />
+              <RoiPanel
+                title="ROI por entrenamiento al vender"
+                meta="habilidad individual inferida · ordenado de mejor a peor"
+                entries={Object.entries(roiPorEntrenamiento).sort(
+                  (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
+                )}
+                horizontal
+                isDark={isDark}
+              />
+              <RoiPanel
+                title="ROI por habilidad más alta"
+                meta="ordenado de mejor a peor"
+                entries={Object.entries(roiPorHabilidad).sort(
+                  (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
+                )}
+                horizontal
+                isDark={isDark}
+              />
+            </div>
+          </div>
+        )}
+
+        {section === "intentos" && <TransferAttemptsSection />}
+
+        {section === "detalle" && (
+          <Panel
+            title="Detalle por jugador"
+            meta={
+              seasonFilter === "all"
+                ? `${detalleRows.length} vendidos o despedidos`
+                : `${detalleRows.length} vendidos o despedidos en ${seasonFilter}`
             }
-          />
-        </div>
-      )}
-
-      {section === "desgloses" && (
-        <div className="space-y-3">
-          <WaterfallPanel
-            title="De la compra a la venta"
-            meta={`${financialFlowRows.length} operaciones cerradas con datos completos · subtotal sin reventa estimada`}
-            ariaLabel="Cascada del ciclo financiero: gasto de compra, sueldos e intentos de venta como valores negativos; venta como valor positivo; y comisiones como valor negativo"
-            entries={financialFlowEntries}
-            currency={data.currency}
-            isDark={isDark}
-            forceAllLabels
-          />
-          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-            <WaterfallPanel
-              title="Saldo por temporada"
-              meta="temporada en la que se cerró cada venta"
-              ariaLabel="Cascada del saldo neto, repartido por la temporada de Hattrick en la que se vendió cada jugador"
-              entries={seasonEntries}
-              currency={data.currency}
-              isDark={isDark}
-            />
-            <WaterfallPanel
-              title="Saldo por semana de venta"
-              meta="la semana de la temporada, sumando todas las temporadas"
-              ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se vendió cada jugador"
-              entries={saleWeekEntries}
-              currency={data.currency}
-              isDark={isDark}
-              forceAllLabels
-            />
-            <WaterfallPanel
-              title="Saldo por semana de compra"
-              meta="la semana de la temporada, sumando todas las temporadas"
-              ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se compró cada jugador"
-              entries={purchaseWeekEntries}
-              currency={data.currency}
-              isDark={isDark}
-              forceAllLabels
-            />
-            <HorizontalBarPanel
-              title="Saldo por entrenamiento en el momento de la venta"
-              meta="habilidad individual inferida · ventas cerradas"
-              ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad que más aumentó en cada jugador antes de su venta"
-              entries={trainingEntries}
-              currency={data.currency}
-              isDark={isDark}
-            />
-            <WaterfallPanel
-              title="Saldo por edad en el momento de la venta"
-              meta="ventas cerradas"
-              ariaLabel="Cascada del saldo neto, repartido por la edad del jugador cuando se vendió"
-              entries={ageEntries}
-              currency={data.currency}
-              isDark={isDark}
-            />
-            <HorizontalBarPanel
-              title="Saldo por habilidad más alta"
-              meta="ventas cerradas"
-              ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió"
-              entries={topSkillEntries}
-              currency={data.currency}
-              isDark={isDark}
-            />
-            <WaterfallPanel
-              title="Saldo por hora de cierre de la puja"
-              meta="bloques de 2 horas, en tu hora"
-              ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en la hora local de quien mira, en el que se cerró cada puja de venta"
-              entries={bidHourEntries}
-              currency={data.currency}
-              isDark={isDark}
-            />
-          </div>
-        </div>
-      )}
-
-      {section === "roi" && (
-        <div className="space-y-4">
-          <Note>
-            Cada grupo suma primero lo invertido y lo ganado de todas sus ventas, y
-            el porcentaje sale de esos totales. No es el promedio de los ROI de
-            cada jugador: así una venta de cinco millones pesa lo que debe frente a
-            una de diez mil.
-          </Note>
-          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-            <RoiPanel
-              title="ROI por temporada"
-              meta="por temporada de venta"
-              entries={Object.entries(roiPorTemporada).sort(
-                (a, b) =>
-                  seasonSortKey(a[0])[0] - seasonSortKey(b[0])[0] ||
-                  seasonSortKey(a[0])[1] - seasonSortKey(b[0])[1],
-              )}
-              isDark={isDark}
-            />
-            <RoiPanel
-              title="ROI por semana de compra"
-              meta="semana del calendario, no de la temporada"
-              entries={Object.entries(roiPorSemanaCompra).sort((a, b) =>
-                a[0].localeCompare(b[0], "es", { numeric: true }),
-              )}
-              isDark={isDark}
-            />
-            <RoiPanel
-              title="ROI por hora de cierre de la puja"
-              meta="bloques de 2 horas, en tu hora"
-              entries={Object.entries(roiPorHora).sort((a, b) =>
-                a[0].localeCompare(b[0], "es", { numeric: true }),
-              )}
-              isDark={isDark}
-            />
-            <RoiPanel
-              title="ROI por edad al vender"
-              meta="por tramos de edad"
-              entries={Object.entries(roiPorEdad).sort((a, b) =>
-                a[0].localeCompare(b[0], "es", { numeric: true }),
-              )}
-              isDark={isDark}
-            />
-            <RoiPanel
-              title="ROI por entrenamiento al vender"
-              meta="habilidad individual inferida · ordenado de mejor a peor"
-              entries={Object.entries(roiPorEntrenamiento).sort(
-                (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
-              )}
-              horizontal
-              isDark={isDark}
-            />
-            <RoiPanel
-              title="ROI por habilidad más alta"
-              meta="ordenado de mejor a peor"
-              entries={Object.entries(roiPorHabilidad).sort(
-                (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
-              )}
-              horizontal
-              isDark={isDark}
-            />
-          </div>
-        </div>
-      )}
-
-      {section === "intentos" && <TransferAttemptsSection />}
-
-      {section === "detalle" && (
-        <Panel
-          title="Detalle por jugador"
-          meta={
-            seasonFilter === "all"
-              ? `${detalleRows.length} vendidos o despedidos`
-              : `${detalleRows.length} vendidos o despedidos en ${seasonFilter}`
-          }
-        >
-          <BalanceTable data={detalleRows} currency={data.currency} />
-          <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-            "Reventa" es la parte estimada de un ingreso que Hattrick reporta
-            agregado y sin decir de qué jugador viene, repartida proporcional al
-            precio de venta entre todo lo que has vendido, es una aproximación,
-            no un dato exacto.
-          </p>
-        </Panel>
-      )}
+          >
+            <BalanceTable data={detalleRows} currency={data.currency} />
+            <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+              "Reventa" es la parte estimada de un ingreso que Hattrick reporta
+              agregado y sin decir de qué jugador viene, repartida proporcional
+              al precio de venta entre todo lo que has vendido, es una
+              aproximación, no un dato exacto.
+            </p>
+          </Panel>
+        )}
+      </PanelDePestanas>
     </div>
   );
 }
@@ -1503,7 +1559,6 @@ function skillCol(
   };
 }
 
-
 /** Barras de ROI por grupo, con la línea de cero a la vista.
  *
  * Un grupo con dos ventas da un porcentaje que parece dato y es anécdota, así
@@ -1511,7 +1566,6 @@ function skillCol(
  * esconde: el usuario juzga.
  */
 const VENTAS_PARA_FIARSE = 5;
-
 
 /** Los cajones de "no lo sé" no son un grupo, y aquí encima mienten.
  *
@@ -1535,8 +1589,7 @@ const ETIQUETAS_SIN_DATO = new Set([
 function redondeaBonito(v: number): number {
   const exponente = Math.pow(10, Math.floor(Math.log10(v)));
   const normal = v / exponente;
-  const paso =
-    [1, 1.5, 2, 2.5, 3, 4, 5].find((p) => normal <= p) ?? 10;
+  const paso = [1, 1.5, 2, 2.5, 3, 4, 5].find((p) => normal <= p) ?? 10;
   return paso * exponente;
 }
 
@@ -1593,19 +1646,20 @@ function RoiPanel({
     return (
       <Panel
         title={title}
-        meta={ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta}
+        meta={
+          ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta
+        }
       >
         <p className="px-4 py-6 text-sm text-[var(--muted)]">
           Por ahora solo un grupo tiene el dato:{" "}
-          <span className="font-medium text-[var(--text)]">{clave}</span>, con un
-          ROI de{" "}
+          <span className="font-medium text-[var(--text)]">{clave}</span>, con
+          un ROI de{" "}
           <span
             className="font-medium tabular-nums"
             style={{ color: roi >= 0 ? "var(--positive)" : "var(--danger)" }}
           >
             {roi >= 0 ? "" : "−"}
-            {decimal(Math.abs(roi))}
-            %
+            {decimal(Math.abs(roi))}%
           </span>{" "}
           en {unico.ventas} venta{unico.ventas === 1 ? "" : "s"}.
         </p>
@@ -1646,31 +1700,43 @@ function RoiPanel({
       },
     },
     xAxis: horizontal
-      ? { type: "value", ...limitesDelEje,
+      ? {
+          type: "value",
+          ...limitesDelEje,
           axisLabel: { color: ejeTexto, formatter: "{value}%" },
-          splitLine: { lineStyle: { color: rejilla } } }
-      : { type: "category", data: puntos.map((p) => p.clave),
-          axisLabel: { color: ejeTexto, rotate: puntos.length > 8 ? 45 : 0 } },
+          splitLine: { lineStyle: { color: rejilla } },
+        }
+      : {
+          type: "category",
+          data: puntos.map((p) => p.clave),
+          axisLabel: { color: ejeTexto, rotate: puntos.length > 8 ? 45 : 0 },
+        },
     yAxis: horizontal
-      ? { type: "category", data: puntos.map((p) => p.clave),
-          axisLabel: { color: ejeTexto } }
-      : { type: "value", ...limitesDelEje,
+      ? {
+          type: "category",
+          data: puntos.map((p) => p.clave),
+          axisLabel: { color: ejeTexto },
+        }
+      : {
+          type: "value",
+          ...limitesDelEje,
           axisLabel: { color: ejeTexto, formatter: "{value}%" },
-          splitLine: { lineStyle: { color: rejilla } } },
+          splitLine: { lineStyle: { color: rejilla } },
+        },
     series: [
       {
         type: "bar",
         data: puntos.map((p) => ({
-          value: horizontal
-            ? [dibujado(p.roi), p.clave]
-            : dibujado(p.roi),
+          value: horizontal ? [dibujado(p.roi), p.clave] : dibujado(p.roi),
           // La barra llega al borde, pero el número que se lee es el real.
           label: seSale(p.roi)
             ? {
                 show: true,
                 position: horizontal
                   ? "insideRight"
-                  : p.roi > 0 ? "insideTop" : "insideBottom",
+                  : p.roi > 0
+                    ? "insideTop"
+                    : "insideBottom",
                 color: "#fff",
                 fontSize: 11,
                 formatter: `${p.roi >= 0 ? "" : "−"}${number(Math.abs(p.roi))}%`,
@@ -1698,20 +1764,26 @@ function RoiPanel({
   return (
     <Panel
       title={title}
-      meta={ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta}
+      meta={
+        ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta
+      }
     >
       <div className="p-4">
-        <Chart ariaLabel={title} height={horizontal ? 320 : 260} option={option} />
+        <Chart
+          ariaLabel={title}
+          height={horizontal ? 320 : 260}
+          option={option}
+        />
         <p className="mt-2 text-xs text-[var(--muted)]">
           Los grupos con menos de {VENTAS_PARA_FIARSE} ventas salen apagados: su
           porcentaje se mueve entero con una sola operación.
-          {cortadas > 0 && " Las barras que se salen del eje van cortadas, con su cifra real dentro."}
+          {cortadas > 0 &&
+            " Las barras que se salen del eje van cortadas, con su cifra real dentro."}
         </p>
       </div>
     </Panel>
   );
 }
-
 
 /** Cada intento de venta, uno por fila.
  *
@@ -1743,14 +1815,18 @@ function TransferAttemptsSection() {
   });
   const borrar = useMutation({
     mutationFn: (id: number) => api.deleteTransferAttempt(TEAM_ID, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["transfer-attempts", TEAM_ID] }),
   });
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
   if (!data || data.rows.length === 0) {
     return (
-      <Panel title="Intentos de transferencias" meta="empieza a contar desde hoy">
+      <Panel
+        title="Intentos de transferencias"
+        meta="empieza a contar desde hoy"
+      >
         <Empty>
           Todavía no se ha detectado ningún intento de venta. El primero que
           pongas en el mercado aparecerá aquí, con su plazo y su final.
@@ -1768,33 +1844,82 @@ function TransferAttemptsSection() {
         <table className="w-full whitespace-nowrap text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
-              <th scope="col" className="px-3 py-2">Identificador</th>
-              <th scope="col" className="px-3 py-2">Jugador</th>
-              <th scope="col" className="px-3 py-2 text-right">Intento</th>
-              <th scope="col" className="px-3 py-2">Cierre de la puja</th>
-              <th scope="col" className="px-3 py-2">Resultado</th>
-              <th scope="col" className="px-3 py-2 text-right">Precio pedido</th>
-              <th scope="col" className="px-3 py-2 text-right">Última puja</th>
-              <th scope="col" className="px-3 py-2 text-right">Precio de venta</th>
-              <th scope="col" className="px-3 py-2 text-right">% agente</th>
-              <th scope="col" className="px-3 py-2 text-right">Visitas</th>
-              <th scope="col" className="px-3 py-2">País</th>
-              <th scope="col" className="px-3 py-2">Especialidad</th>
-              <th scope="col" className="px-3 py-2">Carácter</th>
-              <th scope="col" className="px-3 py-2 text-right">TSI</th>
-              <th scope="col" className="px-3 py-2 text-right">Edad</th>
+              <th scope="col" className="px-3 py-2">
+                Identificador
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Jugador
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Intento
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Cierre de la puja
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Resultado
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Precio pedido
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Última puja
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Precio de venta
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                % agente
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Visitas
+              </th>
+              <th scope="col" className="px-3 py-2">
+                País
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Especialidad
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Carácter
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                TSI
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Edad
+              </th>
               {SKILL_HEADERS.map(([clave, corto]) => (
-                <th scope="col" key={clave} className="px-2 py-2 text-right" title={corto[1]}>
+                <th
+                  scope="col"
+                  key={clave}
+                  className="px-2 py-2 text-right"
+                  title={corto[1]}
+                >
                   {corto[0]}
                 </th>
               ))}
-              <th scope="col" className="px-3 py-2">Canterano</th>
-              <th scope="col" className="px-3 py-2">Fecha de compra</th>
-              <th scope="col" className="px-3 py-2 text-right">Edad de compra</th>
-              <th scope="col" className="px-3 py-2 text-right">Precio compra</th>
-              <th scope="col" className="px-3 py-2 text-right">Días desde la compra</th>
-              <th scope="col" className="px-3 py-2 text-right">Salario acumulado</th>
-              <th scope="col" className="px-3 py-2">Entrenamiento</th>
+              <th scope="col" className="px-3 py-2">
+                Canterano
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Fecha de compra
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Edad de compra
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Precio compra
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Días desde la compra
+              </th>
+              <th scope="col" className="px-3 py-2 text-right">
+                Salario acumulado
+              </th>
+              <th scope="col" className="px-3 py-2">
+                Entrenamiento
+              </th>
               <th scope="col" className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -1816,7 +1941,9 @@ function TransferAttemptsSection() {
                     r.name
                   )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{r.attemptNumber}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.attemptNumber}
+                </td>
                 <td className="px-3 py-2 tabular-nums">
                   {r.closedAt ? date(r.closedAt) : "-"}
                 </td>
@@ -1824,22 +1951,30 @@ function TransferAttemptsSection() {
                   {r.open ? (
                     <span className="text-[var(--muted)]">en el mercado</span>
                   ) : r.sold ? (
-                    <span className="font-medium text-[var(--positive)]">Vendido</span>
+                    <span className="font-medium text-[var(--positive)]">
+                      Vendido
+                    </span>
                   ) : (
                     <span className="text-[var(--muted)]">Se quedó</span>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
-                  {r.askingPrice != null ? money(r.askingPrice, data.currency) : "?"}
+                  {r.askingPrice != null
+                    ? money(r.askingPrice, data.currency)
+                    : "?"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.highestBid ? money(r.highestBid, data.currency) : "-"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
-                  {r.salePrice != null ? money(r.salePrice, data.currency) : "-"}
+                  {r.salePrice != null
+                    ? money(r.salePrice, data.currency)
+                    : "-"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
-                  {r.agentPct === "?" ? "-" : `${(r.agentPct * 100).toFixed(1)}%`}
+                  {r.agentPct === "?"
+                    ? "-"
+                    : `${(r.agentPct * 100).toFixed(1)}%`}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.timesSeen ?? "?"}
@@ -1885,7 +2020,9 @@ function TransferAttemptsSection() {
                 <td className="px-3 py-2 tabular-nums">
                   {r.purchasedAt ? date(r.purchasedAt) : "?"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{r.ageAtPurchase}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {r.ageAtPurchase}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.purchasePrice === "?"
                     ? "?"
@@ -1995,7 +2132,11 @@ function BalanceTable({
       align: "left",
       value: (r) => r.nativeCountry,
       render: (r) => (
-        <CountryCell code={r.nativeCountryCode} country={r.nativeCountry} compact />
+        <CountryCell
+          code={r.nativeCountryCode}
+          country={r.nativeCountry}
+          compact
+        />
       ),
     },
     {
@@ -2093,7 +2234,11 @@ function BalanceTable({
       header: "Origen",
       align: "left",
       value: (r) =>
-        r.originUnknown ? "Sin origen conocido" : r.isAcademyGraduate ? "Canterano" : "Comprado",
+        r.originUnknown
+          ? "Sin origen conocido"
+          : r.isAcademyGraduate
+            ? "Canterano"
+            : "Comprado",
     },
     {
       key: "ageAtPurchase",
@@ -2255,7 +2400,9 @@ function BalanceTable({
       value: (r) => r.derivedTrainingLevels ?? -1,
       render: (r) =>
         r.derivedTrainingLevels != null ? (
-          <span className="tabular-nums">{number(r.derivedTrainingLevels)}</span>
+          <span className="tabular-nums">
+            {number(r.derivedTrainingLevels)}
+          </span>
         ) : (
           "-"
         ),
@@ -2322,35 +2469,42 @@ function BalanceTable({
       key: "destinationCountry",
       header: "País destino",
       align: "left",
-      value: (r) => r.isSold ? r.destinationCountry : "Sin destino",
-      render: (r) => r.isSold ? (
-        <CountryCell code={r.destinationCountryCode} country={r.destinationCountry} compact />
-      ) : (
-        <span className="whitespace-nowrap text-xs text-[var(--muted)]">
-          Sin destino · despedido
-        </span>
-      ),
+      value: (r) => (r.isSold ? r.destinationCountry : "Sin destino"),
+      render: (r) =>
+        r.isSold ? (
+          <CountryCell
+            code={r.destinationCountryCode}
+            country={r.destinationCountry}
+            compact
+          />
+        ) : (
+          <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+            Sin destino · despedido
+          </span>
+        ),
     },
   ];
 
   return (
     <>
-    <DataTable
-      emptyMessage="Ninguna venta registrada todavía."
-      rows={data}
-      columns={columns}
-      // Por ETAPA, no por jugador: quien paso dos veces por el club tiene
-      // dos filas y compartirian identificador.
-      rowKey={(r) => r.stintId ?? r.htPlayerId}
-      initialSort="soldAt"
-      csvName="saldo-por-jugador"
-      filterPlaceholder="Filtrar jugadores…"
-    />
+      <DataTable
+        emptyMessage="Ninguna venta registrada todavía."
+        rows={data}
+        columns={columns}
+        // Por ETAPA, no por jugador: quien paso dos veces por el club tiene
+        // dos filas y compartirian identificador.
+        rowKey={(r) => r.stintId ?? r.htPlayerId}
+        initialSort="soldAt"
+        csvName="saldo-por-jugador"
+        filterPlaceholder="Filtrar jugadores…"
+      />
       {editando && (
         <EditarEtapa
           fila={editando}
           onCerrar={() => setEditando(null)}
-          onGuardado={() => qc.invalidateQueries({ queryKey: ["player-balance"] })}
+          onGuardado={() =>
+            qc.invalidateQueries({ queryKey: ["player-balance"] })
+          }
         />
       )}
     </>

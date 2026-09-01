@@ -104,7 +104,11 @@ export function Tabs<T extends string>({
     onChange(destino.key);
     // El foco viaja con la selección: si se queda atrás, la siguiente flecha
     // se mueve desde donde estaba el foco y no desde lo que se ve marcado.
-    zona.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[indice]?.focus();
+    // En una variable y no encadenado: prettier parte la línea justo antes
+    // del `[indice]` y queda un acceso ambiguo que el linter rechaza.
+    const botones =
+      zona.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    botones?.[indice]?.focus();
   };
 
   const alPulsar = (e: React.KeyboardEvent, actual: number) => {
@@ -144,15 +148,17 @@ export function Tabs<T extends string>({
             key={t.key}
             role={esFiltro ? undefined : "tab"}
             id={esFiltro || !grupo ? undefined : idDePestana(grupo, t.key)}
-            aria-controls={esFiltro || !grupo ? undefined : idDePanel(grupo, t.key)}
+            aria-controls={
+              esFiltro || !grupo ? undefined : idDePanel(grupo, t.key)
+            }
             // Un filtro dice si está PUESTO; una pestaña, si está elegida.
             aria-pressed={esFiltro ? active === t.key : undefined}
             aria-selected={esFiltro ? undefined : active === t.key}
-          // Sólo la activa está en el orden de tabulación; entre ellas se
-          // navega con las flechas. Es lo que espera quien usa teclado y lo
-          // que evita convertir cada grupo de pestañas en un peaje.
-          // En un filtro, en cambio, todas son parada: no es un `tablist` y
-          // nadie espera tener que usar las flechas para descubrirlas.
+            // Sólo la activa está en el orden de tabulación; entre ellas se
+            // navega con las flechas. Es lo que espera quien usa teclado y lo
+            // que evita convertir cada grupo de pestañas en un peaje.
+            // En un filtro, en cambio, todas son parada: no es un `tablist` y
+            // nadie espera tener que usar las flechas para descubrirlas.
             tabIndex={esFiltro || active === t.key ? 0 : -1}
             onClick={() => onChange(t.key)}
             onKeyDown={(e) => alPulsar(e, i)}
