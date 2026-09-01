@@ -23,7 +23,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_admin
@@ -94,6 +94,49 @@ async def recoger(
     await session.commit()
 
 
+#: Los nombres de pantalla que el frontend puede mandar. Sirve para saber cuáles
+#: NO ha abierto nadie -- lo que ningún ranking enseña. Se escribe aquí y no se
+#: deriva de los eventos por el mismo motivo: si se derivara, una pantalla sin
+#: visitas no existiría y es justo la que hay que ver.
+MODULOS_CONOCIDOS: frozenset[str] = frozenset(
+    {
+        "Dashboard",
+        "Club y cuerpo técnico",
+        "Equipo",
+        "Jugadores",
+        "Posiciones",
+        "Alineación",
+        "Entrenamiento",
+        "Juveniles",
+        "Transferencias",
+        "Partidos",
+        "Liga",
+        "Copa",
+        "Rivales",
+        "Economía",
+        "Estadio",
+        "Sincronización",
+        "Cambios",
+        "Alertas",
+        "Transparencia",
+        "Uso",
+        "Alta: bienvenida",
+        "Alta: conectado",
+        "Alta: importación",
+    }
+)
+
+
+async def _nombres_de_usuario(session: AsyncSession) -> dict[int, str]:
+    """El nombre de Hattrick de cada usuario, por su id de fila.
+
+    Una tabla de números no se lee. El nombre de acceso ya es publico dentro
+    del juego, y esta pantalla solo la ve el dueño de la instalacion.
+    """
+    filas = await session.execute(select(m.User.id, m.User.login_name))
+    return {fila.id: (fila.login_name or f"usuario {fila.id}") for fila in filas}
+
+
 @router.get("/usage")
 async def resumen(
     dias: int = Query(30, ge=1, le=365),
@@ -111,6 +154,7 @@ async def resumen(
         .scalars()
         .all()
     )
+    nombres = await _nombres_de_usuario(session)
     eventos = [
         uso.Evento(
             sesion=f.session_id,
@@ -119,11 +163,15 @@ async def resumen(
             etiqueta=f.label,
             cuando=f.at,
             visible_ms=f.visible_ms or 0,
+            usuario=f.user_id,
+            nombre=nombres.get(f.user_id, f"usuario {f.user_id}"),
         )
         for f in filas
     ]
     t = uso.totales(eventos)
     ss = uso.sesiones(eventos)
+    gente = uso.por_usuario(eventos)
+    activos = len(gente)
     return {
         "days": dias,
         "totals": {
@@ -160,6 +208,66 @@ async def resumen(
             }
             for s in ss[:25]
         ],
+        # ── Quién usa qué ────────────────────────────────────────────────────
+        # Todo lo de arriba agrega a TODA la gente en un número. Con doce
+        # registrados eso esconde lo que hay que saber: si una pantalla la usan
+        # nueve personas o una sola muchas veces (2026-09-01).
+        "byUser": [
+            {
+                "userId": u.usuario,
+                "name": u.nombre,
+                "sessions": u.sesiones,
+                "pages": u.paginas,
+                "clicks": u.clics,
+                "minutes": u.minutos,
+                "activeDays": u.dias_activos,
+                "clicksPerPage": u.clics_por_pagina,
+                "favouriteModule": u.modulo_favorito,
+                "firstSeen": u.primera_vez.isoformat() if u.primera_vez else None,
+                "lastSeen": u.ultima_vez.isoformat() if u.ultima_vez else None,
+                # El desglose va anidado y no en una ruta aparte: son doce
+                # personas por veintitantas pantallas, unos cientos de líneas,
+                # y así la fila se despliega sin ir otra vez al servidor.
+                "modules": [
+                    {
+                        "module": d.modulo,
+                        "visits": d.visitas,
+                        "clicks": d.clics,
+                        "minutes": d.minutos,
+                        "avgSecondsPerVisit": d.media_por_visita_s,
+                        "lastSeen": d.ultima_vez.isoformat() if d.ultima_vez else None,
+                    }
+                    for d in uso.modulos_de(eventos, u.usuario)
+                ],
+            }
+            for u in gente
+        ],
+        # Volumen y cariño no son lo mismo: se publican los dos por separado
+        # para que la pantalla no tenga que elegir por su cuenta.
+        "adoption": [
+            {
+                "module": a.modulo,
+                "users": a.usuarios,
+                "reach": a.alcance(activos),
+                "days": a.dias,
+                "visits": a.visitas,
+                "clicks": a.clics,
+                "minutes": a.minutos,
+                "visitsPerUser": a.visitas_por_usuario,
+                "clicksPerVisit": a.clics_por_visita,
+            }
+            for a in uso.adopcion(eventos)
+        ],
+        "insideEach": [
+            {"module": mod, "controls": [{"label": e, "clicks": n} for e, n in top]}
+            for mod, top in uso.dentro_de(eventos).items()
+        ],
+        "activeUsers": activos,
+        "registeredUsers": len(nombres),
+        # Lo que NADIE abrió. Un ranking por uso deja el cero fuera del final,
+        # donde no se ve, y una pantalla que nadie abre es una decisión
+        # pendiente.
+        "untouched": uso.nunca_tocado(eventos, sorted(MODULOS_CONOCIDOS)),
     }
 
 
@@ -228,3 +336,83 @@ async def exportar(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="uso-htlens-{hoy}.csv"'},
     )
+
+
+@router.get("/usage/log")
+async def registro(
+    dias: int = Query(30, ge=1, le=365),
+    usuario: int | None = Query(None, description="id de fila del usuario"),
+    modulo: str | None = Query(None),
+    tipo: str | None = Query(None, pattern="^(page|click)$"),
+    buscar: str | None = Query(None, max_length=120),
+    desde_fila: int = Query(0, ge=0),
+    cuantas: int = Query(200, ge=1, le=1000),
+    session: AsyncSession = Depends(get_session),
+    _: m.User = Depends(require_admin),
+) -> dict[str, Any]:
+    """El registro crudo, uno por uno y del más reciente al más viejo.
+
+    Los resúmenes contestan «qué se usa». Esto contesta la otra mitad: qué hizo
+    UNA persona, en qué orden. Un promedio no enseña que alguien entró a
+    Alineación, tocó cuatro cosas y se fue a Jugadores; la secuencia sí.
+
+    Se pagina en el servidor porque noventa días de una instalación viva son
+    decenas de miles de filas y el navegador no tiene por qué recibirlas todas
+    para enseñar doscientas.
+    """
+    desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
+    condiciones = [m.UiEvent.at >= desde]
+    if usuario is not None:
+        condiciones.append(m.UiEvent.user_id == usuario)
+    if modulo:
+        condiciones.append(m.UiEvent.module == modulo)
+    if tipo:
+        condiciones.append(m.UiEvent.kind == tipo)
+    if buscar:
+        # Sobre la etiqueta del control, que es lo único con texto. Nunca sobre
+        # lo que el usuario escribe, porque eso no se guarda.
+        condiciones.append(m.UiEvent.label.ilike(f"%{buscar}%"))
+
+    total = (
+        await session.execute(select(func.count()).select_from(m.UiEvent).where(*condiciones))
+    ).scalar_one()
+    filas = (
+        (
+            await session.execute(
+                select(m.UiEvent)
+                .where(*condiciones)
+                # El desempate por `id` no es adorno: varias filas comparten
+                # el mismo instante --una vista y sus clics llegan juntos-- y
+                # sin un segundo criterio el reparto entre páginas queda al
+                # azar, así que una fila puede salir dos veces o ninguna.
+                .order_by(m.UiEvent.at.desc(), m.UiEvent.id.desc())
+                .offset(desde_fila)
+                .limit(cuantas)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    nombres = await _nombres_de_usuario(session)
+
+    return {
+        "total": total,
+        "from": desde_fila,
+        "rows": [
+            {
+                "id": f.id,
+                "at": f.at.isoformat(),
+                "userId": f.user_id,
+                "name": nombres.get(f.user_id, f"usuario {f.user_id}"),
+                "session": f.session_id,
+                "kind": f.kind,
+                "module": f.module,
+                "label": f.label,
+                "visibleMs": f.visible_ms or 0,
+            }
+            for f in filas
+        ],
+        # Para llenar los desplegables del filtro sin una ruta más.
+        "users": [{"userId": i, "name": n} for i, n in sorted(nombres.items(), key=lambda x: x[1])],
+        "modules": sorted(MODULOS_CONOCIDOS),
+    }
