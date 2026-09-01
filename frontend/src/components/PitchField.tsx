@@ -30,7 +30,10 @@ export function PitchField({
   className?: string;
 }) {
   return (
-    <div className={`relative overflow-hidden ${className}`} aria-label={ariaLabel}>
+    <div
+      className={`relative overflow-hidden ${className}`}
+      aria-label={ariaLabel}
+    >
       <div className="absolute inset-0 bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950" />
       <div className="absolute inset-4 rounded-[1.5rem] border-2 border-white/25" />
       <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20" />
@@ -48,9 +51,9 @@ export function PitchField({
 export const PITCH_MAX = {
   keeper: 1,
   centralDefenders: 3,
-  wingbacks: 2,   // uno por banda
+  wingbacks: 2, // uno por banda
   innerMidfielders: 3,
-  wingers: 2,     // uno por banda
+  wingers: 2, // uno por banda
   forwards: 3,
 } as const;
 
@@ -108,21 +111,31 @@ export function PitchGrid<T>({
           // Solo dos bandas por fila, una por lado: si llegara una tercera
           // (dato inesperado), se queda con el grupo del centro en vez de
           // inventar una columna que no existe.
-          const derecha = bandas.length > 1 ? bandas[bandas.length - 1] : undefined;
-          const medio = [...bandas.slice(1, Math.max(1, bandas.length - 1)), ...centro];
+          const derecha =
+            bandas.length > 1 ? bandas[bandas.length - 1] : undefined;
+          const medio = [
+            ...bandas.slice(1, Math.max(1, bandas.length - 1)),
+            ...centro,
+          ];
           return (
             <div
               key={i}
               className="grid gap-2"
-              style={{ gridTemplateColumns: `repeat(${PITCH_COLUMNS}, var(--pitch-card))` }}
+              style={{
+                gridTemplateColumns: `repeat(${PITCH_COLUMNS}, var(--pitch-card))`,
+              }}
             >
               {bandas.length === 0
                 ? franja(medio, 1, PITCH_COLUMNS, "todo")
                 : [
-                    <div key="izq" style={{ gridColumn: 1 }}>{render(izquierda as T)}</div>,
+                    <div key="izq" style={{ gridColumn: 1 }}>
+                      {render(izquierda as T)}
+                    </div>,
                     franja(medio, 2, PITCH_COLUMNS - 1, "medio"),
                     derecha ? (
-                      <div key="der" style={{ gridColumn: PITCH_COLUMNS }}>{render(derecha)}</div>
+                      <div key="der" style={{ gridColumn: PITCH_COLUMNS }}>
+                        {render(derecha)}
+                      </div>
                     ) : null,
                   ]}
             </div>

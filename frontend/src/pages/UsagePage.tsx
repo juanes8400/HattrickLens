@@ -55,7 +55,10 @@ export function UsagePage() {
 
   const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
   const td = "px-3 py-2 text-sm";
-  const maxMinutos = Math.max(...(data?.modules ?? []).map((m) => m.minutes), 1);
+  const maxMinutos = Math.max(
+    ...(data?.modules ?? []).map((m) => m.minutes),
+    1,
+  );
   const maxHora = Math.max(...Object.values(data?.byHour ?? {}), 1);
 
   return (
@@ -112,7 +115,10 @@ export function UsagePage() {
             <Cifra de="Sesiones" valor={String(data.totals.sessions)} />
             <Cifra de="Páginas vistas" valor={String(data.totals.pages)} />
             <Cifra de="Clics" valor={String(data.totals.clicks)} />
-            <Cifra de="Tiempo total" valor={desdeMinutos(data.totals.minutes)} />
+            <Cifra
+              de="Tiempo total"
+              valor={desdeMinutos(data.totals.minutes)}
+            />
             {/* La MEDIANA, no la media: una pestaña olvidada dispara el
                 promedio y deja de describir a nadie. */}
             <Cifra
@@ -130,9 +136,15 @@ export function UsagePage() {
               <table className="w-full">
                 <thead className="bg-[var(--surface-2)]">
                   <tr>
-                    <th scope="col" className={`${th} text-left`}>Módulo</th>
-                    <th scope="col" className={`${th} text-right`}>Visitas</th>
-                    <th scope="col" className={`${th} text-right`}>Clics</th>
+                    <th scope="col" className={`${th} text-left`}>
+                      Módulo
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      Visitas
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      Clics
+                    </th>
                     <th
                       scope="col"
                       className={`${th} text-right`}
@@ -140,15 +152,24 @@ export function UsagePage() {
                     >
                       Tiempo
                     </th>
-                    <th scope="col" className={`${th} text-right`}>Por visita</th>
-                    <th scope="col" className={`${th} text-left`}>Reparto</th>
+                    <th scope="col" className={`${th} text-right`}>
+                      Por visita
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      Reparto
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.modules.map((m) => (
-                    <tr key={m.module} className="border-t border-[var(--border)]">
+                    <tr
+                      key={m.module}
+                      className="border-t border-[var(--border)]"
+                    >
                       <td className={`${td} font-medium`}>{m.module}</td>
-                      <td className={`${td} text-right tabular-nums`}>{m.visits}</td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        {m.visits}
+                      </td>
                       {/* Cero clics con visitas es la señal interesante: se
                           mira y no se toca nada. */}
                       <td
@@ -156,7 +177,9 @@ export function UsagePage() {
                           m.clicks === 0 ? "text-[var(--warning)]" : ""
                         }`}
                         title={
-                          m.clicks === 0 ? "se mira, pero no se toca nada" : undefined
+                          m.clicks === 0
+                            ? "se mira, pero no se toca nada"
+                            : undefined
                         }
                       >
                         {m.clicks}
@@ -164,14 +187,18 @@ export function UsagePage() {
                       <td className={`${td} text-right tabular-nums`}>
                         {desdeMinutos(m.minutes)}
                       </td>
-                      <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                      <td
+                        className={`${td} text-right tabular-nums text-[var(--muted)]`}
+                      >
                         {duracion(Math.round(m.avgSecondsPerVisit))}
                       </td>
                       <td className={td}>
                         <span className="block h-1.5 w-full rounded bg-[var(--surface-2)]">
                           <span
                             className="block h-full rounded bg-[var(--accent)]"
-                            style={{ width: `${(m.minutes / maxMinutos) * 100}%` }}
+                            style={{
+                              width: `${(m.minutes / maxMinutos) * 100}%`,
+                            }}
                           />
                         </span>
                       </td>
@@ -227,11 +254,21 @@ export function UsagePage() {
               <table className="w-full">
                 <thead className="bg-[var(--surface-2)]">
                   <tr>
-                    <th scope="col" className={`${th} text-left`}>Empezó</th>
-                    <th scope="col" className={`${th} text-right`}>Duró</th>
-                    <th scope="col" className={`${th} text-right`}>Páginas</th>
-                    <th scope="col" className={`${th} text-right`}>Clics</th>
-                    <th scope="col" className={`${th} text-left`}>Por dónde pasó</th>
+                    <th scope="col" className={`${th} text-left`}>
+                      Empezó
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      Duró
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      Páginas
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      Clics
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      Por dónde pasó
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -243,8 +280,12 @@ export function UsagePage() {
                       <td className={`${td} text-right tabular-nums`}>
                         {duracion(s.seconds)}
                       </td>
-                      <td className={`${td} text-right tabular-nums`}>{s.pages}</td>
-                      <td className={`${td} text-right tabular-nums`}>{s.clicks}</td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        {s.pages}
+                      </td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        {s.clicks}
+                      </td>
                       <td className={`${td} text-[var(--muted)]`}>
                         {s.modules.join(" · ")}
                       </td>

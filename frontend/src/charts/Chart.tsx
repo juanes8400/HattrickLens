@@ -78,7 +78,9 @@ function baseOption(dark: boolean): EChartsOption {
         saveAsImage: { title: "PNG", pixelRatio: 2 },
         dataZoom: { title: { zoom: "Zoom", back: "Reset" } },
       },
-      iconStyle: { borderColor: dark ? AXIS_THEME.dark.muted : AXIS_THEME.light.muted },
+      iconStyle: {
+        borderColor: dark ? AXIS_THEME.dark.muted : AXIS_THEME.light.muted,
+      },
     },
     backgroundColor: "transparent",
   };

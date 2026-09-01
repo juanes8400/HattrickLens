@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ATRIBUTO, SIGUIENTE_TEMA, normalizarTema, type Tema } from "./useTheme";
+import {
+  ATRIBUTO,
+  SIGUIENTE_TEMA,
+  normalizarTema,
+  type Tema,
+} from "./useTheme";
 
 /** El tema tiene TRES estados, y el tercero es el que faltaba.
  *

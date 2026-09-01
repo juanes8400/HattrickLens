@@ -43,7 +43,8 @@ function signed(value: number): string {
  * sola frase coloreada, sin el formato "antes ▲ ahora (delta)". */
 function specialChangeLine(change: NormalizedChange): string | null {
   if (change.key === "arrival") return "Nuevo jugador";
-  if (change.key === "market") return change.current ? "Puesto en venta" : "Retirado del mercado";
+  if (change.key === "market")
+    return change.current ? "Puesto en venta" : "Retirado del mercado";
   if (change.key === "injury") {
     if (change.current === -1) return "Recuperado";
     if (change.before === -1) return `Lesión (nivel ${change.current})`;
@@ -86,7 +87,10 @@ function PlayerChangeCard({ group }: { group: PlayerChangeGroup }) {
       </header>
       <ul className="space-y-1.5 text-xs">
         {group.changes.map((change, index) => (
-          <li key={`${change.key}-${index}`} className="flex items-center justify-between gap-3">
+          <li
+            key={`${change.key}-${index}`}
+            className="flex items-center justify-between gap-3"
+          >
             <span className="text-[var(--muted)]">{change.label}</span>
             <ChangeValue change={change} />
           </li>
@@ -113,7 +117,9 @@ function AggregateCard({ metric }: { metric: AggregateMetric }) {
   const balance = metric.upTotal - metric.downTotal;
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">{metric.label}</div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+        {metric.label}
+      </div>
       <dl className="space-y-1 text-sm">
         {metric.upTotal > 0 && (
           <div className="flex items-center justify-between">

@@ -13,7 +13,11 @@ import {
 } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Chart } from "../charts/Chart";
-import { PITCH_CARD_CLASS, PitchField, PitchGrid } from "../components/PitchField";
+import {
+  PITCH_CARD_CLASS,
+  PitchField,
+  PitchGrid,
+} from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { barOption } from "../charts/chartOptions";
 import { number } from "../hooks/useFormat";
@@ -43,7 +47,10 @@ export function LineupPage() {
   // asignación. Cambiar de formación las borra: las casillas ya no son esas.
   const [ordenes, setOrdenes] = useState<Record<number, string>>({});
   const { data, isLoading, isError, error } = useLineup(
-    formation || undefined, centrales, interiores, ordenes,
+    formation || undefined,
+    centrales,
+    interiores,
+    ordenes,
   );
 
   const spirit = useQuery({
@@ -69,7 +76,8 @@ export function LineupPage() {
       (a) => a.basePosition === "inner_midfield" || a.basePosition === "winger",
     ),
     defence: data.lineup.filter(
-      (a) => a.basePosition === "central_defender" || a.basePosition === "wingback",
+      (a) =>
+        a.basePosition === "central_defender" || a.basePosition === "wingback",
     ),
     keeper: data.lineup.filter((a) => a.basePosition === "keeper"),
   };
@@ -212,7 +220,10 @@ export function LineupPage() {
 
       {hindsight.data && <HindsightPanel data={hindsight.data} />}
 
-      <Panel title="Ranking de formaciones" meta="índice total del once óptimo en cada una">
+      <Panel
+        title="Ranking de formaciones"
+        meta="índice total del once óptimo en cada una"
+      >
         <Chart
           ariaLabel="Rating total por formación"
           // Alto fijo y corto: son cinco o seis barras y antes ocupaba una
@@ -236,10 +247,18 @@ export function LineupPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-[var(--muted)]">
-                    <th scope="col" className="px-4 py-2">Espíritu</th>
-                    <th scope="col" className="px-4 py-2 text-right">PIC</th>
-                    <th scope="col" className="px-4 py-2 text-right">Normal</th>
-                    <th scope="col" className="px-4 py-2 text-right">MOTS</th>
+                    <th scope="col" className="px-4 py-2">
+                      Espíritu
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-right">
+                      PIC
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-right">
+                      Normal
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-right">
+                      MOTS
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
@@ -343,7 +362,10 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
       )}
       <div className="divide-y divide-[var(--border)]">
         {data.lines.map((line) => (
-          <div key={line.key} className="grid gap-2 p-4 sm:grid-cols-[9rem_1fr]">
+          <div
+            key={line.key}
+            className="grid gap-2 p-4 sm:grid-cols-[9rem_1fr]"
+          >
             <div>
               <div className="text-sm font-medium">{line.label}</div>
               <div className="text-xs text-[var(--muted)]">
@@ -397,7 +419,8 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
 
       {disagreements === 0 && (
         <Note>
-          El optimizador habría usado a los mismos jugadores en todas las líneas.
+          El optimizador habría usado a los mismos jugadores en todas las
+          líneas.
         </Note>
       )}
     </Panel>

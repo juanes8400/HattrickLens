@@ -56,7 +56,10 @@ function luminancia(hex: string): number {
 }
 
 export function contraste(a: string, b: string): number {
-  const [alta, baja] = [luminancia(a), luminancia(b)].sort((x, y) => y - x) as [number, number];
+  const [alta, baja] = [luminancia(a), luminancia(b)].sort((x, y) => y - x) as [
+    number,
+    number,
+  ];
   return (alta + 0.05) / (baja + 0.05);
 }
 
@@ -72,10 +75,15 @@ describe("la paleta se ve en los dos temas", () => {
   for (const tema of ["dark", "light"] as const) {
     it(`los tokens de ${tema} llegan a 3:1 sobre su superficie`, () => {
       const flojos = Object.entries(TOKENS[tema])
-        .map(([nombre, hex]) => [nombre, contraste(hex, SUPERFICIE[tema])] as const)
+        .map(
+          ([nombre, hex]) =>
+            [nombre, contraste(hex, SUPERFICIE[tema])] as const,
+        )
         .filter(([, r]) => r < MINIMO_GRAFICO)
         .map(([nombre, r]) => `${nombre} ${r.toFixed(2)}`);
-      expect(flojos, `por debajo de ${MINIMO_GRAFICO}:1 en ${tema}`).toEqual([]);
+      expect(flojos, `por debajo de ${MINIMO_GRAFICO}:1 en ${tema}`).toEqual(
+        [],
+      );
     });
 
     it(`las series de ${tema} llegan a 3:1 sobre su superficie`, () => {
@@ -83,7 +91,9 @@ describe("la paleta se ve en los dos temas", () => {
         .map((hex) => [hex, contraste(hex, SUPERFICIE[tema])] as const)
         .filter(([, r]) => r < MINIMO_GRAFICO)
         .map(([hex, r]) => `${hex} ${r.toFixed(2)}`);
-      expect(flojas, `por debajo de ${MINIMO_GRAFICO}:1 en ${tema}`).toEqual([]);
+      expect(flojas, `por debajo de ${MINIMO_GRAFICO}:1 en ${tema}`).toEqual(
+        [],
+      );
     });
   }
 

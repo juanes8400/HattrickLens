@@ -72,7 +72,9 @@ describe("parseNumericDelta · formas de frase", () => {
   });
 
   it("convierte el nombre de un nivel de espíritu a su número", () => {
-    const parsed = parseNumericDelta("Espíritu del equipo: Serenos -> Calmados");
+    const parsed = parseNumericDelta(
+      "Espíritu del equipo: Serenos -> Calmados",
+    );
     expect(parsed?.before).toBe(4);
     expect(parsed?.after).toBe(5);
     expect(parsed?.stateLabel).toBe("Calmados");

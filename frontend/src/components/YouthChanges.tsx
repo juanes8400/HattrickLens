@@ -33,7 +33,12 @@ function Techo({ change }: { change: YouthComparisonChange }) {
     return <span className="text-[var(--muted)]">techo sin revelar</span>;
   }
   return (
-    <span className={clsx("tabular-nums", change.maxIsNew && "text-[var(--youth-known)]")}>
+    <span
+      className={clsx(
+        "tabular-nums",
+        change.maxIsNew && "text-[var(--youth-known)]",
+      )}
+    >
       techo {change.max}
       {change.maxIsNew && " ✦"}
     </span>
@@ -42,10 +47,18 @@ function Techo({ change }: { change: YouthComparisonChange }) {
 
 function Linea({ change }: { change: YouthComparisonChange }) {
   if (change.key === "arrival") {
-    return <span className="font-semibold text-[var(--positive)]">Llegó a la academia</span>;
+    return (
+      <span className="font-semibold text-[var(--positive)]">
+        Llegó a la academia
+      </span>
+    );
   }
   if (change.key === "promotable") {
-    return <span className="font-semibold text-[var(--positive)]">Ya puede ascender</span>;
+    return (
+      <span className="font-semibold text-[var(--positive)]">
+        Ya puede ascender
+      </span>
+    );
   }
 
   // «Topó» va de sufijo, nunca sustituyendo a la línea: un canterano puede
@@ -104,7 +117,8 @@ function Linea({ change }: { change: YouthComparisonChange }) {
         {change.direction === "up" && "▲ "}
         {change.direction === "down" && "▼ "}
         {change.current}
-        {change.delta != null && ` (${change.delta > 0 ? "+" : ""}${change.delta})`}
+        {change.delta != null &&
+          ` (${change.delta > 0 ? "+" : ""}${change.delta})`}
       </span>{" "}
       <span className="text-[var(--muted)]">
         · <Techo change={change} />
@@ -119,18 +133,28 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
       <header className="mb-2 border-b border-[var(--border)] pb-2">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-sm font-semibold">{fila.name}</span>
-          <span className="shrink-0 text-xs tabular-nums text-[var(--muted)]">{fila.age}</span>
+          <span className="shrink-0 text-xs tabular-nums text-[var(--muted)]">
+            {fila.age}
+          </span>
         </div>
         {/* Lo que se piensa de él AHORA, y si esto lo movió. Un techo suelto
             no dice nada; que el chico haya pasado de «fontanero» a «promesa»
             sí. */}
         {fila.verdict && (
           <div className="mt-1 text-[11px]">
-            <span className={fila.verdictBefore ? "text-[var(--youth-known)]" : "text-[var(--muted)]"}>
+            <span
+              className={
+                fila.verdictBefore
+                  ? "text-[var(--youth-known)]"
+                  : "text-[var(--muted)]"
+              }
+            >
               {fila.verdictBefore ? (
                 <>
                   ahora es <b className="font-medium">{fila.verdict}</b>
-                  {fila.verdictBefore !== fila.verdict && <> · antes {fila.verdictBefore}</>}
+                  {fila.verdictBefore !== fila.verdict && (
+                    <> · antes {fila.verdictBefore}</>
+                  )}
                 </>
               ) : (
                 <>sigue siendo {fila.verdict}</>
@@ -141,7 +165,10 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
       </header>
       <ul className="space-y-1.5 text-xs">
         {fila.changes.map((change, i) => (
-          <li key={`${change.key}-${i}`} className="flex items-center justify-between gap-3">
+          <li
+            key={`${change.key}-${i}`}
+            className="flex items-center justify-between gap-3"
+          >
             <span className="text-[var(--muted)]">{change.label}</span>
             <Linea change={change} />
           </li>
@@ -154,9 +181,14 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
 /** Una cifra del resumen, con su lectura debajo. */
 function Cifra({ n, de, hint }: { n: string; de: string; hint?: string }) {
   return (
-    <div className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2" title={hint}>
+    <div
+      className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
+      title={hint}
+    >
       <div className="text-lg font-semibold tabular-nums leading-none">{n}</div>
-      <div className="mt-1 text-[11px] leading-tight text-[var(--muted)]">{de}</div>
+      <div className="mt-1 text-[11px] leading-tight text-[var(--muted)]">
+        {de}
+      </div>
     </div>
   );
 }
@@ -170,12 +202,16 @@ export function YouthChanges({
 }) {
   const revelaciones =
     summary?.revelations ??
-    rows.reduce((t, f) => t + f.changes.filter((c) => c.isReveal || c.maxIsNew).length, 0);
+    rows.reduce(
+      (t, f) => t + f.changes.filter((c) => c.isReveal || c.maxIsNew).length,
+      0,
+    );
   const salidas = summary?.left ?? [];
   const veredictos = summary?.verdictChanges ?? [];
   const conocidos = summary?.ceilingsNow ?? 0;
   const lecturas = summary?.readings ?? 0;
-  const aCiegas = lecturas > 0 ? Math.round((100 * (lecturas - conocidos)) / lecturas) : null;
+  const aCiegas =
+    lecturas > 0 ? Math.round((100 * (lecturas - conocidos)) / lecturas) : null;
   const hayAlgo = rows.length > 0 || salidas.length > 0;
 
   return (
@@ -184,7 +220,9 @@ export function YouthChanges({
       meta={
         hayAlgo
           ? `${revelaciones} ${revelaciones === 1 ? "revelación" : "revelaciones"}` +
-            (salidas.length > 0 ? ` · ${salidas.length} se ${salidas.length === 1 ? "fue" : "fueron"}` : "")
+            (salidas.length > 0
+              ? ` · ${salidas.length} se ${salidas.length === 1 ? "fue" : "fueron"}`
+              : "")
           : "sin novedades"
       }
     >
@@ -195,7 +233,11 @@ export function YouthChanges({
         <div className="grid grid-cols-2 gap-2 border-b border-[var(--border)] p-4 md:grid-cols-4">
           <Cifra
             n={String(revelaciones)}
-            de={revelaciones === 1 ? "techo nuevo esta vez" : "techos nuevos esta vez"}
+            de={
+              revelaciones === 1
+                ? "techo nuevo esta vez"
+                : "techos nuevos esta vez"
+            }
             hint="Habilidades cuyo nivel o techo se descubrió en esta comparación"
           />
           <Cifra
@@ -213,7 +255,11 @@ export function YouthChanges({
           {veredictos.length > 0 && (
             <Cifra
               n={String(veredictos.length)}
-              de={veredictos.length === 1 ? "cambió de veredicto" : "cambiaron de veredicto"}
+              de={
+                veredictos.length === 1
+                  ? "cambió de veredicto"
+                  : "cambiaron de veredicto"
+              }
               hint="El descubrimiento movió lo que se piensa del canterano"
             />
           )}
@@ -228,7 +274,9 @@ export function YouthChanges({
           <span className="font-medium">
             {salidas.length === 1 ? "Dejó la academia" : "Dejaron la academia"}:
           </span>{" "}
-          <span className="text-[var(--muted)]">{salidas.map((x) => x.name).join(" · ")}</span>
+          <span className="text-[var(--muted)]">
+            {salidas.map((x) => x.name).join(" · ")}
+          </span>
         </div>
       )}
 

@@ -3,7 +3,14 @@ import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import { Column, DataTable } from "../components/DataTable";
-import { ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
+import {
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
 import { useArena } from "../hooks/useTeam";
 import { money, number } from "../hooks/useFormat";
 import { ApiError, type Arena } from "../services/api";
@@ -34,8 +41,9 @@ export function ArenaPage() {
           <Panel title="Preparar el análisis del estadio">
             <div className="space-y-3 p-4 text-sm text-[var(--muted)]">
               <p>
-                La sincronización normal trae calendario y resultados. Para medir asistencia,
-                ocupación y demanda hay que pedir los reportes detallados de tus partidos como local.
+                La sincronización normal trae calendario y resultados. Para
+                medir asistencia, ocupación y demanda hay que pedir los reportes
+                detallados de tus partidos como local.
               </p>
               {/* 2026-08-15: la carga vive en Sincronización, junto al resto. */}
               <Link
@@ -111,9 +119,16 @@ export function ArenaPage() {
         title="Ocupación por partido"
         meta={`media ${data.avgOccupancy.toFixed(1)}%`}
       >
-        <Chart ariaLabel="Ocupación del estadio por partido, en porcentaje"
+        <Chart
+          ariaLabel="Ocupación del estadio por partido, en porcentaje"
           option={{
-            grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+            grid: {
+              left: 8,
+              right: 16,
+              top: 16,
+              bottom: 8,
+              containLabel: true,
+            },
             xAxis: {
               type: "category",
               // Día y mes, no la fecha ISO entera: con ocho partidos el eje
@@ -122,7 +137,8 @@ export function ArenaPage() {
               axisLabel: { fontSize: 10 },
             },
             yAxis: {
-              type: "value", max: 100,
+              type: "value",
+              max: 100,
               axisLabel: { formatter: "{value}%" },
               splitLine: { lineStyle: { opacity: 0.15 } },
             },
@@ -155,8 +171,10 @@ export function ArenaPage() {
                 data: data.matches.map((m) => ({
                   value: m.occupancy,
                   itemStyle: {
-                    color: m.soldOutSectors.length > 0
-                      ? tonos.warning : tonos.accent,
+                    color:
+                      m.soldOutSectors.length > 0
+                        ? tonos.warning
+                        : tonos.accent,
                     borderRadius: 3,
                   },
                 })),
@@ -178,7 +196,6 @@ export function ArenaPage() {
           height={260}
         />
       </Panel>
-
     </div>
   );
 }
@@ -215,14 +232,19 @@ function SectorTable({ data }: { data: Arena }) {
               className="block h-full rounded"
               style={{
                 width: `${Math.min(100, r.occupancy)}%`,
-                background: r.demandIsCensored ? "var(--warning)" : "var(--accent)",
+                background: r.demandIsCensored
+                  ? "var(--warning)"
+                  : "var(--accent)",
               }}
             />
           </span>
           <span className="tabular-nums">
             {r.occupancy.toFixed(1)}%
             {r.demandIsCensored && (
-              <span title="Suelo: el sector se agotó, así que la ocupación real no puede ser menor que esto, pero sí mayor la demanda."> ↑</span>
+              <span title="Suelo: el sector se agotó, así que la ocupación real no puede ser menor que esto, pero sí mayor la demanda.">
+                {" "}
+                ↑
+              </span>
             )}
           </span>
         </span>
@@ -240,9 +262,17 @@ function SectorTable({ data }: { data: Arena }) {
       align: "right",
       value: (r) => r.price,
       render: (r) => (
-        <span className={r.priceIsVerified ? "tabular-nums" : "tabular-nums text-[var(--muted)]"}>
+        <span
+          className={
+            r.priceIsVerified
+              ? "tabular-nums"
+              : "tabular-nums text-[var(--muted)]"
+          }
+        >
           {r.price}
-          {!r.priceIsVerified && <span title="de la especificación, sin verificar"> *</span>}
+          {!r.priceIsVerified && (
+            <span title="de la especificación, sin verificar"> *</span>
+          )}
         </span>
       ),
     },
@@ -278,8 +308,8 @@ function SectorTable({ data }: { data: Arena }) {
         filterPlaceholder="Filtrar sectores…"
       />
       <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        La flecha ↑ marca los sectores donde la ocupación mostrada es un suelo: se agotaron,
-        así que la cifra mide asientos y no demanda.
+        La flecha ↑ marca los sectores donde la ocupación mostrada es un suelo:
+        se agotaron, así que la cifra mide asientos y no demanda.
       </p>
     </>
   );

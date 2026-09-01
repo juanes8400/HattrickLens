@@ -16,9 +16,10 @@ function normalizeCountryName(value: string): string {
 }
 
 const nameToCode = new Map<string, string>();
-const displayNames = typeof Intl.DisplayNames === "function"
-  ? new Intl.DisplayNames(["es"], { type: "region" })
-  : null;
+const displayNames =
+  typeof Intl.DisplayNames === "function"
+    ? new Intl.DisplayNames(["es"], { type: "region" })
+    : null;
 
 for (const country of countries as CountryEntry[]) {
   if (!country.iso || !/^[a-z]{2}$/.test(country.code)) continue;
@@ -42,7 +43,9 @@ for (const [name, code] of Object.entries(HATTRICK_COUNTRY_ALIASES)) {
   nameToCode.set(normalizeCountryName(name), code);
 }
 
-export function countryCodeFromName(country: string | null | undefined): string | null {
+export function countryCodeFromName(
+  country: string | null | undefined,
+): string | null {
   if (!country || country === "?") return null;
   return nameToCode.get(normalizeCountryName(country)) ?? null;
 }

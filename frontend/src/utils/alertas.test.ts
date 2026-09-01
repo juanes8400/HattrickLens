@@ -14,23 +14,35 @@ import { estadoDeAlertas } from "../utils/alertas";
  */
 describe("qué enseña el panel de alertas", () => {
   it("un fallo NUNCA se cuenta como que no hay nada", () => {
-    expect(estadoDeAlertas({ loading: false, failed: true, cuantas: 0 })).toBe("fallo");
+    expect(estadoDeAlertas({ loading: false, failed: true, cuantas: 0 })).toBe(
+      "fallo",
+    );
   });
 
   it("el fallo manda aunque hubiera alertas viejas en memoria", () => {
-    expect(estadoDeAlertas({ loading: false, failed: true, cuantas: 8 })).toBe("fallo");
+    expect(estadoDeAlertas({ loading: false, failed: true, cuantas: 8 })).toBe(
+      "fallo",
+    );
   });
 
   it("sin fallo y sin alertas sí se puede tranquilizar", () => {
-    expect(estadoDeAlertas({ loading: false, failed: false, cuantas: 0 })).toBe("vacio");
+    expect(estadoDeAlertas({ loading: false, failed: false, cuantas: 0 })).toBe(
+      "vacio",
+    );
   });
 
   it("con alertas, se listan", () => {
-    expect(estadoDeAlertas({ loading: false, failed: false, cuantas: 3 })).toBe("lista");
+    expect(estadoDeAlertas({ loading: false, failed: false, cuantas: 3 })).toBe(
+      "lista",
+    );
   });
 
   it("mientras carga no se afirma nada", () => {
-    expect(estadoDeAlertas({ loading: true, failed: false, cuantas: 0 })).toBe("cargando");
-    expect(estadoDeAlertas({ loading: true, failed: true, cuantas: 0 })).toBe("cargando");
+    expect(estadoDeAlertas({ loading: true, failed: false, cuantas: 0 })).toBe(
+      "cargando",
+    );
+    expect(estadoDeAlertas({ loading: true, failed: true, cuantas: 0 })).toBe(
+      "cargando",
+    );
   });
 });

@@ -1,5 +1,8 @@
 import type { ClubStaffRole } from "../services/api";
-import { staffEffectLines, trainingStaffLevelColor } from "../utils/staffEffects";
+import {
+  staffEffectLines,
+  trainingStaffLevelColor,
+} from "../utils/staffEffects";
 
 export function StaffRoleCard({ role }: { role: ClubStaffRole }) {
   return (

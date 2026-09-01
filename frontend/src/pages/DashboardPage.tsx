@@ -8,10 +8,22 @@ import {
   useLineup,
 } from "../hooks/useTeam";
 import { Link, useSearchParams } from "react-router-dom";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
+import {
+  Empty,
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
 import { InsightRow, SeverityTally } from "../components/Insights";
 import { Chart } from "../charts/Chart";
-import { PITCH_CARD_CLASS, PitchField, PitchGrid } from "../components/PitchField";
+import {
+  PITCH_CARD_CLASS,
+  PitchField,
+  PitchGrid,
+} from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { FORMATIONS } from "../services/api";
 import type { Dashboard } from "../services/api";
@@ -42,7 +54,8 @@ export function DashboardPage() {
       <header>
         <h1 className="text-xl font-semibold">{data.teamName}</h1>
         <p className="text-sm text-[var(--muted)]">
-          {data.squad?.playerCount ?? 0} jugadores · edad media {data.squad?.avgAge ?? "-"}
+          {data.squad?.playerCount ?? 0} jugadores · edad media{" "}
+          {data.squad?.avgAge ?? "-"}
         </p>
       </header>
 
@@ -50,16 +63,40 @@ export function DashboardPage() {
         <section className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--accent)]">Importación completada</p>
-              <h2 className="mt-1 text-lg font-semibold">Empieza por una decisión real</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">Tus datos ya están listos. Estas son las tres rutas más útiles para comenzar.</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--accent)]">
+                Importación completada
+              </p>
+              <h2 className="mt-1 text-lg font-semibold">
+                Empieza por una decisión real
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Tus datos ya están listos. Estas son las tres rutas más útiles
+                para comenzar.
+              </p>
             </div>
-            <Link to="/dashboard" className="text-xs text-[var(--muted)] hover:text-[var(--text)]">Ocultar</Link>
+            <Link
+              to="/dashboard"
+              className="text-xs text-[var(--muted)] hover:text-[var(--text)]"
+            >
+              Ocultar
+            </Link>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <WelcomeAction to="/news" title="Revisar cambios" detail="Comprueba pops y variaciones desde el snapshot anterior." />
-            <WelcomeAction to="/rivals" title="Estudiar al rival" detail="Once probable, duelos por zona y rotación del ataque." />
-            <WelcomeAction to="/training" title="Revisar entrenamiento" detail="Valida la carga y las próximas subidas." />
+            <WelcomeAction
+              to="/news"
+              title="Revisar cambios"
+              detail="Comprueba pops y variaciones desde el snapshot anterior."
+            />
+            <WelcomeAction
+              to="/rivals"
+              title="Estudiar al rival"
+              detail="Once probable, duelos por zona y rotación del ataque."
+            />
+            <WelcomeAction
+              to="/training"
+              title="Revisar entrenamiento"
+              detail="Valida la carga y las próximas subidas."
+            />
           </div>
         </section>
       )}
@@ -89,7 +126,8 @@ export function DashboardPage() {
               : "las dos semanas cerradas"
           }
           tone={
-            data.finance?.biweeklyBalance != null && data.finance.biweeklyBalance < 0
+            data.finance?.biweeklyBalance != null &&
+            data.finance.biweeklyBalance < 0
               ? "danger"
               : "positive"
           }
@@ -118,7 +156,8 @@ export function DashboardPage() {
           hint={
             (data.squad?.totalTsi ?? 0) > 0
               ? `${Math.round(
-                  ((data.squad?.top11Tsi ?? 0) / (data.squad?.totalTsi ?? 1)) * 100,
+                  ((data.squad?.top11Tsi ?? 0) / (data.squad?.totalTsi ?? 1)) *
+                    100,
                 )}% de ${number(data.squad?.totalTsi ?? 0)} en la plantilla`
               : "sin plantilla sincronizada"
           }
@@ -129,7 +168,11 @@ export function DashboardPage() {
         <div className="lg:col-span-2">
           <Panel
             title="Mejor once"
-            meta={lineup.data ? `${lineup.data.formation} · índice ${lineup.data.totalRating}` : ""}
+            meta={
+              lineup.data
+                ? `${lineup.data.formation} · índice ${lineup.data.totalRating}`
+                : ""
+            }
           >
             <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-3">
               <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
@@ -172,7 +215,10 @@ export function DashboardPage() {
               )}
             </div>
             {lineup.data ? (
-              <BestElevenPitch lineup={lineup.data.lineup} formation={lineup.data.formation} />
+              <BestElevenPitch
+                lineup={lineup.data.lineup}
+                formation={lineup.data.formation}
+              />
             ) : (
               <Empty>Sincroniza para calcular la alineación.</Empty>
             )}
@@ -181,7 +227,6 @@ export function DashboardPage() {
 
         {data.training && <TrainingPanel training={data.training} />}
       </div>
-
     </div>
   );
 }
@@ -205,10 +250,14 @@ function BestElevenPitch({
   const lineas = [
     lineup.filter((a) => a.position.startsWith("forward")),
     lineup.filter(
-      (a) => a.position.startsWith("inner_midfield") || a.position.startsWith("winger"),
+      (a) =>
+        a.position.startsWith("inner_midfield") ||
+        a.position.startsWith("winger"),
     ),
     lineup.filter(
-      (a) => a.position.startsWith("central_defender") || a.position.startsWith("wingback"),
+      (a) =>
+        a.position.startsWith("central_defender") ||
+        a.position.startsWith("wingback"),
     ),
     lineup.filter((a) => a.position === "keeper"),
   ];
@@ -226,7 +275,9 @@ function BestElevenPitch({
             <div className="truncate text-[9px] uppercase tracking-wide text-white/70">
               {a.label}
             </div>
-            <div className="truncate text-[11px] font-semibold text-white">{a.player}</div>
+            <div className="truncate text-[11px] font-semibold text-white">
+              {a.player}
+            </div>
             <div className="tabular-nums text-sm font-semibold text-amber-300">
               {a.rating.toFixed(2)}
             </div>
@@ -247,22 +298,38 @@ function BestElevenPitch({
  * habilidad. La barra pinta ese porcentaje y debajo va lo que lo compone, para
  * que se vea DÓNDE se pierde.
  */
-function TrainingPanel({ training }: { training: NonNullable<Dashboard["training"]> }) {
+function TrainingPanel({
+  training,
+}: {
+  training: NonNullable<Dashboard["training"]>;
+}) {
   const pct = Math.max(0, Math.min(100, training.efficiencyPct));
   const tono =
-    pct >= 85 ? "var(--positive)" : pct >= 60 ? "var(--warning)" : "var(--danger)";
+    pct >= 85
+      ? "var(--positive)"
+      : pct >= 60
+        ? "var(--warning)"
+        : "var(--danger)";
   return (
     <Panel title="Entrenamiento" meta={training.typeName}>
       <div className="space-y-3 p-4">
         <div>
           <div className="flex items-baseline justify-between">
-            <span className="text-xs text-[var(--muted)]">Del máximo posible</span>
-            <span className="tabular-nums text-2xl font-semibold" style={{ color: tono }}>
+            <span className="text-xs text-[var(--muted)]">
+              Del máximo posible
+            </span>
+            <span
+              className="tabular-nums text-2xl font-semibold"
+              style={{ color: tono }}
+            >
               {decimal(pct, 1)}%
             </span>
           </div>
           <div className="mt-1 h-2 overflow-hidden rounded bg-[var(--surface-2)]">
-            <div className="h-full rounded" style={{ width: `${pct}%`, background: tono }} />
+            <div
+              className="h-full rounded"
+              style={{ width: `${pct}%`, background: tono }}
+            />
           </div>
         </div>
 
@@ -271,22 +338,44 @@ function TrainingPanel({ training }: { training: NonNullable<Dashboard["training
             <dt className="text-[var(--muted)]">Entrenador</dt>
             {/* El motor trabaja en la escala 4-8 de la fórmula pública; en la
                 pantalla se muestra la de Hattrick, 1-5. */}
-            <dd>{training.trainerName} <span className="text-xs text-[var(--muted)]">({Math.max(1, training.coachLevel - 3)}/5)</span></dd>
+            <dd>
+              {training.trainerName}{" "}
+              <span className="text-xs text-[var(--muted)]">
+                ({Math.max(1, training.coachLevel - 3)}/5)
+              </span>
+            </dd>
           </div>
           <div>
             <dt className="text-[var(--muted)]">Asistentes</dt>
-            <dd>{training.assistantLevelSum} <span className="text-xs text-[var(--muted)]">de 10</span></dd>
+            <dd>
+              {training.assistantLevelSum}{" "}
+              <span className="text-xs text-[var(--muted)]">de 10</span>
+            </dd>
           </div>
           <div>
             <dt className="text-[var(--muted)]">Intensidad</dt>
-            <dd>{training.level}% <span className="text-xs text-[var(--muted)]">· {training.staminaPart}% a resistencia</span></dd>
+            <dd>
+              {training.level}%{" "}
+              <span className="text-xs text-[var(--muted)]">
+                · {training.staminaPart}% a resistencia
+              </span>
+            </dd>
           </div>
           <div>
             <dt className="text-[var(--muted)]">Edad de los entrenados</dt>
             <dd>
-              {training.trainedAvgAge != null
-                ? <>{decimal(training.trainedAvgAge, 1)} años <span className="text-xs text-[var(--muted)]">· {training.trainedPlayers} jugadores</span></>
-                : <span className="text-[var(--muted)]">sin partidos esta semana</span>}
+              {training.trainedAvgAge != null ? (
+                <>
+                  {decimal(training.trainedAvgAge, 1)} años{" "}
+                  <span className="text-xs text-[var(--muted)]">
+                    · {training.trainedPlayers} jugadores
+                  </span>
+                </>
+              ) : (
+                <span className="text-[var(--muted)]">
+                  sin partidos esta semana
+                </span>
+              )}
             </dd>
           </div>
         </dl>
@@ -322,11 +411,15 @@ function AlertsBand({
   if (loading) {
     return (
       <Panel title="Qué requiere tu atención">
-        <div className="p-4"><Loading /></div>
+        <div className="p-4">
+          <Loading />
+        </div>
       </Panel>
     );
   }
-  if (estadoDeAlertas({ loading, failed, cuantas: insights.length }) === "fallo") {
+  if (
+    estadoDeAlertas({ loading, failed, cuantas: insights.length }) === "fallo"
+  ) {
     return (
       <Panel title="Qué requiere tu atención">
         <Empty>
@@ -372,16 +465,29 @@ function AlertsBand({
       </ul>
       <div className="px-4 py-3 text-xs">
         <Link to="/insights" className="text-[var(--accent)] hover:underline">
-          {rest > 0 ? `Ver las ${rest} restantes en el centro de alertas →` : "Abrir el centro de alertas →"}
+          {rest > 0
+            ? `Ver las ${rest} restantes en el centro de alertas →`
+            : "Abrir el centro de alertas →"}
         </Link>
       </div>
     </Panel>
   );
 }
 
-function WelcomeAction({ to, title, detail }: { to: string; title: string; detail: string }) {
+function WelcomeAction({
+  to,
+  title,
+  detail,
+}: {
+  to: string;
+  title: string;
+  detail: string;
+}) {
   return (
-    <Link to={to} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--accent)]/50">
+    <Link
+      to={to}
+      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--accent)]/50"
+    >
       <div className="text-sm font-semibold">{title} →</div>
       <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{detail}</p>
     </Link>
@@ -415,14 +521,17 @@ function ClubRadar({ teamName }: { teamName: string }) {
   if (league.isLoading || comparison.isLoading) {
     return (
       <Panel title="Radar de fuerza">
-        <div className="p-4"><Loading /></div>
+        <div className="p-4">
+          <Loading />
+        </div>
       </Panel>
     );
   }
 
   const own = league.data?.ownOutlook;
   // Cuantos equipos hay en la serie lo dice la propia clasificacion.
-  const n = comparison.data?.teamsInSeries ?? league.data?.standings.length ?? 0;
+  const n =
+    comparison.data?.teamsInSeries ?? league.data?.standings.length ?? 0;
   const rank = comparison.data?.ownRank ?? 0;
   if (!own || !league.data || n < 2) {
     return (
@@ -450,14 +559,18 @@ function ClubRadar({ teamName }: { teamName: string }) {
     : [attackAxis, positionAxis, defenceAxis];
 
   return (
-    <Panel title="Radar de fuerza" meta={`relativo a ${league.data.seriesName ?? "tu liga"}`}>
+    <Panel
+      title="Radar de fuerza"
+      meta={`relativo a ${league.data.seriesName ?? "tu liga"}`}
+    >
       <Chart
         ariaLabel="Radar de fuerza del equipo, relativo a la media de la liga"
         height={300}
         option={radarOption(indicators, [{ name: teamName, value: ejes }])}
       />
       <Note>
-        50 es la media de {league.data.seriesName}, 100 el mejor de la serie en ese eje.
+        50 es la media de {league.data.seriesName}, 100 el mejor de la serie en
+        ese eje.
       </Note>
     </Panel>
   );

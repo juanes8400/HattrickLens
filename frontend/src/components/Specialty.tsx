@@ -9,31 +9,35 @@
  * que caer en el mismo hueco.
  */
 const ICONS: Record<string, string> = {
-  tecnico: "🎯",       // precisión: define fino, no por fuerza
-  rapido: "⚡",        // velocidad
-  potente: "💪",       // fuerza — y se crece con la lluvia
-  imprevisible: "🎲",  // el azar es literalmente lo que hace
-  cabeceador: "🗿",    // una cabeza, reconocible a 16 px
-  estoico: "🛡️",      // aguanta: resiste lesiones
-  influyente: "🤝",    // no brilla solo, levanta a los de al lado
+  tecnico: "🎯", // precisión: define fino, no por fuerza
+  rapido: "⚡", // velocidad
+  potente: "💪", // fuerza — y se crece con la lluvia
+  imprevisible: "🎲", // el azar es literalmente lo que hace
+  cabeceador: "🗿", // una cabeza, reconocible a 16 px
+  estoico: "🛡️", // aguanta: resiste lesiones
+  influyente: "🤝", // no brilla solo, levanta a los de al lado
 };
 
 /** Cómo escribe el backend "este jugador no tiene especialidad". */
 const NONE = new Set(["", "ninguna", "sin especialidad"]);
 
 function normalize(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    // Rango de tildes combinantes, escrito con escapes para que el patrón no
-    // dependa de cómo se guarde este fichero.
-    .replace(/[̀-ͯ]/g, "");
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      // Rango de tildes combinantes, escrito con escapes para que el patrón no
+      // dependa de cómo se guarde este fichero.
+      .replace(/[̀-ͯ]/g, "")
+  );
 }
 
 /** El emoji de una especialidad, o `null` si no la tiene (o es desconocida —
  *  Hattrick podría añadir una y no se inventa un icono para ella). */
-export function specialtyIcon(specialty: string | null | undefined): string | null {
+export function specialtyIcon(
+  specialty: string | null | undefined,
+): string | null {
   if (!specialty) return null;
   return ICONS[normalize(specialty)] ?? null;
 }

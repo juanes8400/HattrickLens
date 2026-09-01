@@ -10,7 +10,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   liga: "Liga",
   rivales: "Rivales",
   economia: "Economía",
-  "economía": "Economía",
+  economía: "Economía",
 };
 
 const CATEGORY_TONE: Record<string, string> = {
@@ -22,7 +22,7 @@ const CATEGORY_TONE: Record<string, string> = {
   partidos: "bg-[var(--warning)]/15 text-[var(--warning)]",
   liga: "bg-[var(--warning)]/15 text-[var(--warning)]",
   economia: "bg-[var(--surface-2)] text-[var(--muted)]",
-  "economía": "bg-[var(--surface-2)] text-[var(--muted)]",
+  economía: "bg-[var(--surface-2)] text-[var(--muted)]",
 };
 
 type NumericDelta = {
@@ -71,7 +71,10 @@ function metricTone(label: string): string {
   return "text-[var(--accent)]";
 }
 
-function classify(summary: string, numeric: NumericDelta | null): { kind: string; tone: string } {
+function classify(
+  summary: string,
+  numeric: NumericDelta | null,
+): { kind: string; tone: string } {
   // La segunda columna nombra QUÉ cambió. La dirección ya vive en el
   // triángulo, el color y el delta de la tercera columna; decir "Subida" o
   // "Bajada" aquí duplicaba esa señal y ocultaba rubros como "Pases".
@@ -117,10 +120,16 @@ function classify(summary: string, numeric: NumericDelta | null): { kind: string
   return { kind: "Cambio", tone: "text-[var(--muted)]" };
 }
 
-function splitPlayerSummary(summary: string): { title: string; detail: string } {
+function splitPlayerSummary(summary: string): {
+  title: string;
+  detail: string;
+} {
   const idx = summary.indexOf(":");
   if (idx === -1) return { title: summary, detail: "" };
-  return { title: summary.slice(0, idx), detail: summary.slice(idx + 1).trim() };
+  return {
+    title: summary.slice(0, idx),
+    detail: summary.slice(idx + 1).trim(),
+  };
 }
 
 // Los textos vienen del backend como frases ("TSI 223,870 -> 208,360",
@@ -140,7 +149,9 @@ function stripLabel(raw: string): string {
  * Devuelve `null` para eventos sin par numérico (llegó, se vendió, mercado),
  * que se muestran como frase.
  */
-function numericFromDetail(detail: SyncChangeDetail | null | undefined): NumericDelta | null {
+function numericFromDetail(
+  detail: SyncChangeDetail | null | undefined,
+): NumericDelta | null {
   if (!detail || detail.before == null || detail.after == null) return null;
   if (detail.kind === "event") return null;
   return {
@@ -168,7 +179,9 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
   const toNum = (raw: string) =>
     Number(raw.replace(/[.,](?=\d{3}(?:\D|$))/g, "").replace(",", "."));
 
-  const state = detail.match(/^(Espíritu del equipo|Confianza):\s*(.+?)\s*->\s*(.+?)\s*$/i);
+  const state = detail.match(
+    /^(Espíritu del equipo|Confianza):\s*(.+?)\s*->\s*(.+?)\s*$/i,
+  );
   if (state) {
     const label = state[1] ?? "";
     const beforeRaw = state[2] ?? "";
@@ -194,13 +207,20 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
     }
   }
 
-  let m = detail.match(/^(.+?)\s+(subió|bajó)\s+de\s+([\d,.]+)\s+a\s+([\d,.]+)\s*$/i);
+  let m = detail.match(
+    /^(.+?)\s+(subió|bajó)\s+de\s+([\d,.]+)\s+a\s+([\d,.]+)\s*$/i,
+  );
   if (m) {
     const label = m[1] ?? "";
     const verb = m[2] ?? "";
     const before = toNum(m[3] ?? "0");
     const after = toNum(m[4] ?? "0");
-    return { label: stripLabel(label), before, after, good: verb.toLowerCase() === "subió" };
+    return {
+      label: stripLabel(label),
+      before,
+      after,
+      good: verb.toLowerCase() === "subió",
+    };
   }
 
   m = detail.match(/^lesión de nivel (\d+) a (\d+)\s*$/i);
@@ -232,7 +252,11 @@ function NumberDelta({
 }) {
   const delta = parsed.after - parsed.before;
   const tone =
-    parsed.good === true ? "text-[var(--positive)]" : parsed.good === false ? "text-[var(--danger)]" : "text-[var(--muted)]";
+    parsed.good === true
+      ? "text-[var(--positive)]"
+      : parsed.good === false
+        ? "text-[var(--danger)]"
+        : "text-[var(--muted)]";
   if (parsed.stateLabel) {
     return (
       <span className="inline-flex flex-wrap items-center gap-1.5 tabular-nums">
@@ -243,16 +267,21 @@ function NumberDelta({
         <span className={clsx("font-semibold", tone)}>
           {parsed.good === true ? "▲" : parsed.good === false ? "▼" : "→"}
         </span>
-        <span className="font-semibold text-[var(--text)]">{number(parsed.after)}</span>
+        <span className="font-semibold text-[var(--text)]">
+          {number(parsed.after)}
+        </span>
         <span className={clsx("font-semibold", tone)}>
-          ({delta > 0 ? "+" : ""}{number(delta)})
+          ({delta > 0 ? "+" : ""}
+          {number(delta)})
         </span>
       </span>
     );
   }
   return (
     <span className="inline-flex items-baseline justify-end gap-1.5 whitespace-nowrap tabular-nums">
-      {showLabel && <span className="font-medium text-[var(--text)]">{parsed.label}</span>}
+      {showLabel && (
+        <span className="font-medium text-[var(--text)]">{parsed.label}</span>
+      )}
       <span className="font-semibold text-[var(--text)]">
         {parsed.afterDisplay ?? number(parsed.after)}
       </span>
@@ -273,7 +302,14 @@ function groupByCategory(changes: SyncChange[]): [string, SyncChange[]][] {
     list.push(change);
     byCategory.set(change.category, list);
   }
-  const order = ["jugadores", "entrenamiento", "partidos", "liga", "economía", "economia"];
+  const order = [
+    "jugadores",
+    "entrenamiento",
+    "partidos",
+    "liga",
+    "economía",
+    "economia",
+  ];
   const known = order.filter((cat) => byCategory.has(cat));
   const rest = [...byCategory.keys()].filter((cat) => !order.includes(cat));
   return [...known, ...rest].map((cat) => [cat, byCategory.get(cat) ?? []]);
@@ -332,7 +368,9 @@ export function SyncChangesFeed({
             Jugadores
           </div>
           {playerChanges.length === 0 ? (
-            <p className="p-3 text-sm text-[var(--muted)]">Sin cambios de jugadores en esta sincronización.</p>
+            <p className="p-3 text-sm text-[var(--muted)]">
+              Sin cambios de jugadores en esta sincronización.
+            </p>
           ) : (
             <ul className="max-h-[32rem] divide-y divide-[var(--border)] overflow-y-auto overscroll-contain">
               {playerChanges.map((change, index) => {
@@ -343,7 +381,8 @@ export function SyncChangesFeed({
                 const title = change.detail?.subject ?? parsed.title;
                 const htPlayerId = playerLinks?.[title];
                 const numeric =
-                  numericFromDetail(change.detail) ?? parseNumericDelta(parsed.detail);
+                  numericFromDetail(change.detail) ??
+                  parseNumericDelta(parsed.detail);
                 const kind = classify(change.summary, numeric);
                 return (
                   // Tres columnas de ancho fijo y el valor a la derecha: con
@@ -361,14 +400,21 @@ export function SyncChangesFeed({
                         title
                       )}
                     </span>
-                    <span className={clsx("truncate text-xs font-semibold", kind.tone)}>
+                    <span
+                      className={clsx(
+                        "truncate text-xs font-semibold",
+                        kind.tone,
+                      )}
+                    >
                       {kind.kind}
                     </span>
                     <span className="col-span-2 justify-self-end text-right sm:col-span-1">
                       {numeric ? (
                         <NumberDelta parsed={numeric} showLabel={false} />
                       ) : (
-                        <span className="text-sm text-[var(--muted)]">{parsed.detail}</span>
+                        <span className="text-sm text-[var(--muted)]">
+                          {parsed.detail}
+                        </span>
                       )}
                     </span>
                   </li>
@@ -380,27 +426,43 @@ export function SyncChangesFeed({
 
         <div className="space-y-3">
           {groupByCategory(
-            changes.filter((c) => c.category !== "jugadores" && c.category !== "economía" && c.category !== "economia"),
+            changes.filter(
+              (c) =>
+                c.category !== "jugadores" &&
+                c.category !== "economía" &&
+                c.category !== "economia",
+            ),
           ).map(([category, items]) => (
-            <section key={category} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
+            <section
+              key={category}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3"
+            >
               <div className="mb-2 flex items-center justify-between">
                 <span
                   className={clsx(
                     "rounded-full px-2 py-1 text-[11px] font-semibold",
-                    CATEGORY_TONE[category] ?? "bg-[var(--surface-2)] text-[var(--muted)]",
+                    CATEGORY_TONE[category] ??
+                      "bg-[var(--surface-2)] text-[var(--muted)]",
                   )}
                 >
                   {CATEGORY_LABELS[category] ?? category}
                 </span>
-                <span className="text-xs text-[var(--muted)]">{items.length}</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {items.length}
+                </span>
               </div>
               <ul className="space-y-1 text-sm">
                 {items.map((item, index) => {
                   const numeric =
-                    numericFromDetail(item.detail) ?? parseNumericDelta(item.summary);
+                    numericFromDetail(item.detail) ??
+                    parseNumericDelta(item.summary);
                   return (
                     <li key={`${item.summary}-${index}`}>
-                      {numeric ? <NumberDelta parsed={numeric} /> : item.summary}
+                      {numeric ? (
+                        <NumberDelta parsed={numeric} />
+                      ) : (
+                        item.summary
+                      )}
                     </li>
                   );
                 })}

@@ -82,7 +82,13 @@ export function TsiHistogramPanel({
           height={300}
           option={{
             legend: { data: ["Tu plantilla", rivalLabel], bottom: 0 },
-            grid: { left: 48, right: 16, top: 28, bottom: 56, containLabel: true },
+            grid: {
+              left: 48,
+              right: 16,
+              top: 28,
+              bottom: 56,
+              containLabel: true,
+            },
             xAxis: {
               type: "value",
               name: logTsi ? "log(TSI + 1)" : "TSI",
@@ -93,7 +99,10 @@ export function TsiHistogramPanel({
             tooltip: {
               trigger: "item",
               formatter: (p: unknown) => {
-                const item = p as { seriesName: string; value: [number, number] };
+                const item = p as {
+                  seriesName: string;
+                  value: [number, number];
+                };
                 return `${item.seriesName}<br/>${item.value[0].toFixed(1)}`;
               },
             },
@@ -141,8 +150,9 @@ export function TsiHistogramPanel({
         />
       )}
       <Note>
-        Las curvas están suavizadas; los puntos en la base son cada jugador real:{" "}
-        {h.ownValues.length} propios y {h.rivalValues.length} {noteSuffix}.
+        Las curvas están suavizadas; los puntos en la base son cada jugador
+        real: {h.ownValues.length} propios y {h.rivalValues.length} {noteSuffix}
+        .
       </Note>
     </Panel>
   );

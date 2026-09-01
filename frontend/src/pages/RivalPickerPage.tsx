@@ -95,12 +95,21 @@ export function RivalPickerPage() {
   };
   for (const h of cup.data?.history ?? []) {
     addCupRow(
-      h.cupName, h.opponentHtTeamId, h.opponent, h.date,
+      h.cupName,
+      h.opponentHtTeamId,
+      h.opponent,
+      h.date,
       `${h.goalsFor}-${h.goalsAgainst} (${h.result})`,
     );
   }
   for (const nm of cup.data?.nextMatches ?? []) {
-    addCupRow(nm.cupName, nm.opponentHtTeamId, nm.opponent, nm.date, "programado");
+    addCupRow(
+      nm.cupName,
+      nm.opponentHtTeamId,
+      nm.opponent,
+      nm.date,
+      "programado",
+    );
   }
 
   const cupNames = [...cupCandidates.keys()].sort((a, b) => {
@@ -112,8 +121,18 @@ export function RivalPickerPage() {
     return ia - ib;
   });
 
-  const categories: { key: string; label: string; ordering: Ordering; rows: RivalRow[] }[] = [
-    { key: "liga", label: "Liga", ordering: "table" as Ordering, rows: leagueRows },
+  const categories: {
+    key: string;
+    label: string;
+    ordering: Ordering;
+    rows: RivalRow[];
+  }[] = [
+    {
+      key: "liga",
+      label: "Liga",
+      ordering: "table" as Ordering,
+      rows: leagueRows,
+    },
     ...cupNames.map((cupName) => ({
       key: cupName,
       label: cupName,
@@ -124,7 +143,8 @@ export function RivalPickerPage() {
     })),
   ].filter((c) => c.rows.length > 0);
 
-  const active = categories.find((c) => c.key === selected) ?? categories[0] ?? null;
+  const active =
+    categories.find((c) => c.key === selected) ?? categories[0] ?? null;
   const byTable = active?.ordering === "table";
 
   const columns: Column<RivalRow>[] = [
@@ -152,17 +172,27 @@ export function RivalPickerPage() {
     // aparecer como una columna vacía.
     byTable
       ? {
-          key: "position", header: "Pos.", align: "right" as const,
+          key: "position",
+          header: "Pos.",
+          align: "right" as const,
           value: (r: RivalRow) => r.position ?? Number.MAX_SAFE_INTEGER,
-          render: (r: RivalRow) => (r.position != null ? `${r.position}º` : "-"),
+          render: (r: RivalRow) =>
+            r.position != null ? `${r.position}º` : "-",
         }
       : {
-          key: "date", header: "Fecha",
+          key: "date",
+          header: "Fecha",
           // ISO: ordenar el texto ya es ordenar cronológicamente.
           value: (r: RivalRow) => r.date ?? "",
         },
     { key: "detail", header: "Detalle", value: (r) => r.detail },
-    { key: "id", header: "ID", align: "right", value: (r) => r.htTeamId, optional: true },
+    {
+      key: "id",
+      header: "ID",
+      align: "right",
+      value: (r) => r.htTeamId,
+      optional: true,
+    },
   ];
 
   return (
@@ -170,7 +200,8 @@ export function RivalPickerPage() {
       <header>
         <h1 className="text-xl font-semibold">Elegir rival</h1>
         <p className="text-sm text-[var(--muted)]">
-          Liga y copas ya cruzadas o programadas esta temporada, o salta directo con el ID.
+          Liga y copas ya cruzadas o programadas esta temporada, o salta directo
+          con el ID.
         </p>
       </header>
 
@@ -202,12 +233,15 @@ export function RivalPickerPage() {
       {categories.length === 0 ? (
         <Panel title="Rivales">
           <Empty>
-            Todavía no hay ningún rival de liga ni de copa sincronizado. Sincroniza tu equipo o
-            usa el ID directo de arriba.
+            Todavía no hay ningún rival de liga ni de copa sincronizado.
+            Sincroniza tu equipo o usa el ID directo de arriba.
           </Empty>
         </Panel>
       ) : (
-        <Panel title="Rivales por competición" meta={`${active?.rows.length ?? 0} equipo(s)`}>
+        <Panel
+          title="Rivales por competición"
+          meta={`${active?.rows.length ?? 0} equipo(s)`}
+        >
           <div className="flex flex-wrap gap-1.5 border-b border-[var(--border)] p-4 pb-3">
             {categories.map((c) => (
               <button
@@ -220,7 +254,9 @@ export function RivalPickerPage() {
                 }`}
               >
                 {c.label}{" "}
-                <span className="tabular-nums opacity-70">({c.rows.length})</span>
+                <span className="tabular-nums opacity-70">
+                  ({c.rows.length})
+                </span>
               </button>
             ))}
           </div>
@@ -241,8 +277,8 @@ export function RivalPickerPage() {
             />
           )}
           <Note>
-            En copa sólo aparece quien ya enfrentaste o tienes programado: el cruce de una ronda
-            no se conoce hasta que se sortea.
+            En copa sólo aparece quien ya enfrentaste o tienes programado: el
+            cruce de una ronda no se conoce hasta que se sortea.
           </Note>
         </Panel>
       )}

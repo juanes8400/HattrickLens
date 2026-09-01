@@ -4,7 +4,15 @@ import { useParams, Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import { sharePieOption } from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel, ProjectionPanel } from "../components/Panels";
+import {
+  Empty,
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  ProjectionPanel,
+} from "../components/Panels";
 import { TsiHistogramPanel } from "../components/TsiHistogramPanel";
 import { number } from "../hooks/useFormat";
 import { useDashboard, useLeague, useRivalScouting } from "../hooks/useTeam";
@@ -50,9 +58,10 @@ function ComoVaEnLaTabla({ rivalHtTeamId }: { rivalHtTeamId: number }) {
   return (
     <Note>
       En la tabla van <b className="text-[var(--text)]">{fila.position}º</b> con{" "}
-      {fila.points} puntos ({fila.won}-{fila.drawn}-{fila.lost}, {fila.goalDifference > 0 ? "+" : ""}
-      {fila.goalDifference}). El TSI mide lo que vale una plantilla, no lo que está
-      consiguiendo: cuando las dos cosas no cuadran, el resultado manda.
+      {fila.points} puntos ({fila.won}-{fila.drawn}-{fila.lost},{" "}
+      {fila.goalDifference > 0 ? "+" : ""}
+      {fila.goalDifference}). El TSI mide lo que vale una plantilla, no lo que
+      está consiguiendo: cuando las dos cosas no cuadran, el resultado manda.
     </Note>
   );
 }
@@ -67,8 +76,14 @@ export function RivalPage() {
   const [methodOwn, setMethodOwn] = useState<PitchZoneMethod>("submitted");
   const [methodRival, setMethodRival] = useState<PitchZoneMethod>("average");
   const { data, isLoading, isError, error } = useRivalScouting(
-    id, logTsi, top11, includeCompetitive, includeFriendlies, "mixed",
-    methodOwn, methodRival,
+    id,
+    logTsi,
+    top11,
+    includeCompetitive,
+    includeFriendlies,
+    "mixed",
+    methodOwn,
+    methodRival,
   );
   const dashboard = useDashboard();
 
@@ -114,7 +129,10 @@ export function RivalPage() {
             <li>El equipo ya no existe: se disolvió o cambió de manager.</li>
             <li>
               Si lo buscabas por el nombre, es más seguro elegirlo en{" "}
-              <Link to="/rivals" className="text-[var(--accent)] hover:underline">
+              <Link
+                to="/rivals"
+                className="text-[var(--accent)] hover:underline"
+              >
                 la lista de rivales
               </Link>
               , que sólo ofrece equipos que existen.
@@ -135,17 +153,28 @@ export function RivalPage() {
   const ownTsiAvg = data.comparison.tsi.own;
   const rivalTsiAvg = data.comparison.tsi.rival;
   const tsiRatio =
-    ownTsiAvg && rivalTsiAvg != null && ownTsiAvg > 0 ? rivalTsiAvg / ownTsiAvg : null;
+    ownTsiAvg && rivalTsiAvg != null && ownTsiAvg > 0
+      ? rivalTsiAvg / ownTsiAvg
+      : null;
 
   const rosterColumns: Column<RosterRow>[] = [
     { key: "name", header: "Jugador", align: "left", value: (r) => r.name },
     {
-      key: "position", header: "Posición", value: (r) => r.position ?? "",
+      key: "position",
+      header: "Posición",
+      value: (r) => r.position ?? "",
       render: (r) =>
-        r.position ? r.position : <span className="text-[var(--muted)]">—</span>,
+        r.position ? (
+          r.position
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        ),
     },
     {
-      key: "tsi", header: "TSI", align: "right", value: (r) => r.tsi,
+      key: "tsi",
+      header: "TSI",
+      align: "right",
+      value: (r) => r.tsi,
       render: (r) => <span className="tabular-nums">{number(r.tsi)}</span>,
     },
   ];
@@ -194,18 +223,28 @@ export function RivalPage() {
           value={String(data.matchesAnalysed)}
           hint={
             data.matchesByCompetition.length > 0
-              ? data.matchesByCompetition.map((c) => `${c.count} de ${c.label}`).join(" · ")
+              ? data.matchesByCompetition
+                  .map((c) => `${c.count} de ${c.label}`)
+                  .join(" · ")
               : undefined
           }
         />
         <Kpi
           label="TSI medio del rival"
           value={rivalTsiAvg != null ? number(rivalTsiAvg) : "-"}
-          hint={tsiRatio != null ? `${tsiRatio.toFixed(2)}x el TSI de ${ownLabel}` : undefined}
+          hint={
+            tsiRatio != null
+              ? `${tsiRatio.toFixed(2)}x el TSI de ${ownLabel}`
+              : undefined
+          }
         />
       </div>
 
-      <ComparisonPanel data={data} rivalLabel={rivalLabel} ownLabel={ownLabel} />
+      <ComparisonPanel
+        data={data}
+        rivalLabel={rivalLabel}
+        ownLabel={ownLabel}
+      />
 
       <TsiHistogramPanel
         title="TSI: tu plantilla vs. el rival"
@@ -241,10 +280,14 @@ export function RivalPage() {
           </div>
         </div>
         <Note>
-          {data.comparisonReference.ownSource === "submitted_orders" ? "Tu alineación enviada" : "Tus 11 probables"}
-          {" "}({number(data.winProbability.ownTsiTotal)} TSI) contra{" "}
-          {data.comparisonReference.rivalSource === "probable_recent_starters" ? "el once probable del rival" : "los 11 de mayor TSI del rival"}
-          {" "}({number(data.winProbability.rivalTsiTotal)}).
+          {data.comparisonReference.ownSource === "submitted_orders"
+            ? "Tu alineación enviada"
+            : "Tus 11 probables"}{" "}
+          ({number(data.winProbability.ownTsiTotal)} TSI) contra{" "}
+          {data.comparisonReference.rivalSource === "probable_recent_starters"
+            ? "el once probable del rival"
+            : "los 11 de mayor TSI del rival"}{" "}
+          ({number(data.winProbability.rivalTsiTotal)}).
         </Note>
         <ComoVaEnLaTabla rivalHtTeamId={data.rivalHtTeamId} />
       </ProjectionPanel>
@@ -256,11 +299,17 @@ export function RivalPage() {
               <p className="text-sm">{data.manMarking.rationale}</p>
               <div className="flex flex-wrap items-center gap-6 text-xs text-[var(--muted)]">
                 <span>
-                  Objetivo: <b className="text-[var(--text)]">{data.manMarking.targetName}</b>{" "}
+                  Objetivo:{" "}
+                  <b className="text-[var(--text)]">
+                    {data.manMarking.targetName}
+                  </b>{" "}
                   ({data.manMarking.targetPosition})
                 </span>
                 <span>
-                  Marcador: <b className="text-[var(--text)]">{data.manMarking.markerName}</b>{" "}
+                  Marcador:{" "}
+                  <b className="text-[var(--text)]">
+                    {data.manMarking.markerName}
+                  </b>{" "}
                   ({data.manMarking.markerPosition})
                 </span>
                 <span
@@ -270,21 +319,25 @@ export function RivalPage() {
                       : "bg-[var(--warning)]/15 text-[var(--warning)]"
                   }`}
                 >
-                  {data.manMarking.efficiency === "cerca" ? "Combinación óptima" : "Combinación lejos"}
-                  {" "}(-{(data.manMarking.markerLossPct * 100).toFixed(0)}%)
+                  {data.manMarking.efficiency === "cerca"
+                    ? "Combinación óptima"
+                    : "Combinación lejos"}{" "}
+                  (-{(data.manMarking.markerLossPct * 100).toFixed(0)}%)
                 </span>
               </div>
               <p className="text-xs text-[var(--muted)]">
-                Confianza: {data.manMarking.confidence}. Solo compensa si el objetivo es una
-                amenaza clara.
+                Confianza: {data.manMarking.confidence}. Solo compensa si el
+                objetivo es una amenaza clara.
               </p>
-              <p className="text-xs text-[var(--muted)]">{data.manMarking.riskNote}</p>
+              <p className="text-xs text-[var(--muted)]">
+                {data.manMarking.riskNote}
+              </p>
             </div>
           ) : (
             <Empty>
-              Sin datos suficientes: ningún jugador rival marcable (delantero, extremo o
-              interior) apareció en los partidos vistos con posición conocida, o no tienes un
-              jugador propio elegible para marcarlo.
+              Sin datos suficientes: ningún jugador rival marcable (delantero,
+              extremo o interior) apareció en los partidos vistos con posición
+              conocida, o no tienes un jugador propio elegible para marcarlo.
             </Empty>
           )}
         </Panel>
@@ -302,7 +355,9 @@ export function RivalPage() {
               </p>
             </div>
           ) : (
-            <Empty>Sin partidos oficiales recientes del rival con datos de sector.</Empty>
+            <Empty>
+              Sin partidos oficiales recientes del rival con datos de sector.
+            </Empty>
           )}
         </Panel>
       </div>
@@ -329,14 +384,19 @@ export function RivalPage() {
                 ariaLabel="Reparto de las tácticas que ha usado el rival en los partidos vistos"
                 height={Math.max(200, data.tacticHistory.tactics.length * 30)}
                 option={sharePieOption(
-                  data.tacticHistory.tactics.map((t) => ({ name: t.label, value: t.count })),
+                  data.tacticHistory.tactics.map((t) => ({
+                    name: t.label,
+                    value: t.count,
+                  })),
                 )}
               />
             </div>
             <div className="space-y-3">
               {data.tacticHistory.mostCommonTactic && (
                 <div>
-                  <div className="text-xs text-[var(--muted)]">Táctica más usada</div>
+                  <div className="text-xs text-[var(--muted)]">
+                    Táctica más usada
+                  </div>
                   <div className="text-lg font-semibold">
                     {data.tacticHistory.mostCommonTactic.label}{" "}
                     <span className="text-sm font-normal text-[var(--muted)]">
@@ -349,7 +409,9 @@ export function RivalPage() {
               )}
               {data.tacticHistory.avgTacticSkill != null && (
                 <div>
-                  <div className="text-xs text-[var(--muted)]">Nivel medio de táctica</div>
+                  <div className="text-xs text-[var(--muted)]">
+                    Nivel medio de táctica
+                  </div>
                   <div className="text-lg font-semibold tabular-nums">
                     {data.tacticHistory.avgTacticSkill.toFixed(1)}
                   </div>
@@ -357,7 +419,9 @@ export function RivalPage() {
               )}
               {data.tacticHistory.mostCommonFormation && (
                 <div>
-                  <div className="text-xs text-[var(--muted)]">Formación más usada</div>
+                  <div className="text-xs text-[var(--muted)]">
+                    Formación más usada
+                  </div>
                   <div className="text-lg font-semibold">
                     {data.tacticHistory.mostCommonFormation.formation}{" "}
                     <span className="text-sm font-normal text-[var(--muted)]">
@@ -378,7 +442,10 @@ export function RivalPage() {
         meta="top 5 por TSI, de sus últimos partidos oficiales, sea contra quien sea"
       >
         {data.rivalRosterSample.length === 0 ? (
-          <Empty>Aún no se ha visto a ningún jugador de este equipo en un partido jugado.</Empty>
+          <Empty>
+            Aún no se ha visto a ningún jugador de este equipo en un partido
+            jugado.
+          </Empty>
         ) : (
           <DataTable
             rows={data.rivalRosterSample}
@@ -390,7 +457,6 @@ export function RivalPage() {
           />
         )}
       </Panel>
-
     </div>
   );
 }
@@ -407,7 +473,11 @@ export function RivalPage() {
  * A la derecha, el promedio con su barra de dispersión: un promedio alto con
  * mucha dispersión avisa de que ese lado depende del día.
  */
-function AttackLanes({ rotation }: { rotation: NonNullable<RivalScouting["sideRotation"]> }) {
+function AttackLanes({
+  rotation,
+}: {
+  rotation: NonNullable<RivalScouting["sideRotation"]>;
+}) {
   const carriles = [
     ["izquierda", "left", rotation.attackLeftAvg, rotation.attackLeftStd],
     ["centro", "central", rotation.attackCentralAvg, rotation.attackCentralStd],
@@ -457,8 +527,12 @@ function AttackLanes({ rotation }: { rotation: NonNullable<RivalScouting["sideRo
             })}
           </div>
           <div className="w-24 shrink-0 self-center text-right">
-            <span className="tabular-nums text-xs font-semibold">{avg.toFixed(0)}</span>
-            <span className="ml-1 text-[10px] text-[var(--muted)]">± {std.toFixed(1)}</span>
+            <span className="tabular-nums text-xs font-semibold">
+              {avg.toFixed(0)}
+            </span>
+            <span className="ml-1 text-[10px] text-[var(--muted)]">
+              ± {std.toFixed(1)}
+            </span>
           </div>
         </div>
       ))}
@@ -499,27 +573,52 @@ function ComparisonPanel({
   ownLabel: string;
 }) {
   const metrics: ComparisonMetric[] = [
-    { label: "TSI", own: data.comparison.tsi.own, rival: data.comparison.tsi.rival, format: number },
-    { label: "Forma", own: data.comparison.form.own, rival: data.comparison.form.rival },
-    { label: "Condición", own: data.comparison.stamina.own, rival: data.comparison.stamina.rival },
-    { label: "Experiencia", own: data.comparison.experience.own, rival: data.comparison.experience.rival },
+    {
+      label: "TSI",
+      own: data.comparison.tsi.own,
+      rival: data.comparison.tsi.rival,
+      format: number,
+    },
+    {
+      label: "Forma",
+      own: data.comparison.form.own,
+      rival: data.comparison.form.rival,
+    },
+    {
+      label: "Condición",
+      own: data.comparison.stamina.own,
+      rival: data.comparison.stamina.rival,
+    },
+    {
+      label: "Experiencia",
+      own: data.comparison.experience.own,
+      rival: data.comparison.experience.rival,
+    },
   ];
 
   return (
     <Panel
-      title={data.comparisonReference.ownSource === "submitted_orders"
-        ? "Comparación para el partido"
-        : "Comparación de plantilla"}
+      title={
+        data.comparisonReference.ownSource === "submitted_orders"
+          ? "Comparación para el partido"
+          : "Comparación de plantilla"
+      }
       meta={`${ownLabel} vs. ${rivalLabel}`}
     >
       <div className="space-y-5 p-4">
         <div className="flex items-center justify-center gap-6 text-xs">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: OWN_COLOR }} />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: OWN_COLOR }}
+            />
             <span className="text-[var(--muted)]">{ownLabel}</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: RIVAL_COLOR }} />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: RIVAL_COLOR }}
+            />
             <span className="text-[var(--muted)]">{rivalLabel}</span>
           </span>
         </div>
@@ -535,7 +634,10 @@ function ComparisonPanel({
           ownDays={data.comparison.lastLoginDays.own}
           rivalDays={data.comparison.lastLoginDays.rival}
         />
-        <LastPurchaseRow own={data.lastPurchase.own} rival={data.lastPurchase.rival} />
+        <LastPurchaseRow
+          own={data.lastPurchase.own}
+          rival={data.lastPurchase.rival}
+        />
       </div>
     </Panel>
   );
@@ -573,7 +675,10 @@ function LastPurchaseRow({
 
   const ancho = (compra: LastPurchase | null) =>
     compra && compra.daysAgo != null
-      ? Math.max(4, ((PURCHASE_FRESH_DAYS - compra.daysAgo) / PURCHASE_FRESH_DAYS) * 100)
+      ? Math.max(
+          4,
+          ((PURCHASE_FRESH_DAYS - compra.daysAgo) / PURCHASE_FRESH_DAYS) * 100,
+        )
       : 0;
   const dentro = (compra: LastPurchase | null) =>
     compra
@@ -633,7 +738,9 @@ const LAST_CONNECTION_EMPTY_DAYS = 14;
 function lastConnectionWidth(days: number | null): number {
   if (days == null) return 0;
   const bounded = Math.min(Math.max(days, 0), LAST_CONNECTION_EMPTY_DAYS);
-  return ((LAST_CONNECTION_EMPTY_DAYS - bounded) / LAST_CONNECTION_EMPTY_DAYS) * 100;
+  return (
+    ((LAST_CONNECTION_EMPTY_DAYS - bounded) / LAST_CONNECTION_EMPTY_DAYS) * 100
+  );
 }
 
 function lastConnectionLabel(days: number | null): string {
@@ -662,7 +769,9 @@ function LastConnectionRow({
         <span className="tabular-nums font-semibold text-[var(--text)]">
           {lastConnectionLabel(ownDays)}
         </span>
-        <span className="text-[var(--muted)]">&Uacute;ltima conexi&oacute;n</span>
+        <span className="text-[var(--muted)]">
+          &Uacute;ltima conexi&oacute;n
+        </span>
         <span className="tabular-nums font-semibold text-[var(--text)]">
           {lastConnectionLabel(rivalDays)}
         </span>
@@ -706,10 +815,16 @@ function UnavailableBar() {
   );
 }
 
-function ComparisonRow({ label, own, rival, format = (v: number) => v.toFixed(1) }: ComparisonMetric) {
+function ComparisonRow({
+  label,
+  own,
+  rival,
+  format = (v: number) => v.toFixed(1),
+}: ComparisonMetric) {
   const max = Math.max(own ?? 0, rival ?? 0, 1);
   const ownPct = own != null ? Math.max((own / max) * 100, own > 0 ? 3 : 0) : 0;
-  const rivalPct = rival != null ? Math.max((rival / max) * 100, rival > 0 ? 3 : 0) : 0;
+  const rivalPct =
+    rival != null ? Math.max((rival / max) * 100, rival > 0 ? 3 : 0) : 0;
 
   return (
     <div>
@@ -754,13 +869,23 @@ function ComparisonRow({ label, own, rival, format = (v: number) => v.toFixed(1)
 // ── Duelos por zona de la cancha (cancha horizontal) ────────────────────────
 
 const DUEL_ROW_LABEL: Record<"left" | "central" | "right", string> = {
-  left: "Izquierda", central: "Centro", right: "Derecha",
+  left: "Izquierda",
+  central: "Centro",
+  right: "Derecha",
 };
 
 /** Una celda del duelo: se reparte horizontalmente entre tu color y el del
  * rival según el % de cada uno — igual que un marcador de posesión, el
  * ancho de cada bloque ES el dato. */
-function DuelCell({ duel, label, style }: { duel: PitchZoneDuel; label: string; style?: CSSProperties }) {
+function DuelCell({
+  duel,
+  label,
+  style,
+}: {
+  duel: PitchZoneDuel;
+  label: string;
+  style?: CSSProperties;
+}) {
   const ownPct = Math.round(duel.ownPct * 100);
   const rivalPct = 100 - ownPct;
   return (
@@ -778,7 +903,9 @@ function DuelCell({ duel, label, style }: { duel: PitchZoneDuel; label: string; 
             style={{ width: `${ownPct}%`, background: OWN_COLOR }}
           >
             <span className="text-xs font-bold tabular-nums">{ownPct}%</span>
-            <span className="text-[9px] tabular-nums opacity-80">({duel.ownValue.toFixed(1)})</span>
+            <span className="text-[9px] tabular-nums opacity-80">
+              ({duel.ownValue.toFixed(1)})
+            </span>
           </div>
         )}
         {rivalPct > 0 && (
@@ -787,7 +914,9 @@ function DuelCell({ duel, label, style }: { duel: PitchZoneDuel; label: string; 
             style={{ width: `${rivalPct}%`, background: RIVAL_COLOR }}
           >
             <span className="text-xs font-bold tabular-nums">{rivalPct}%</span>
-            <span className="text-[9px] tabular-nums opacity-80">({duel.rivalValue.toFixed(1)})</span>
+            <span className="text-[9px] tabular-nums opacity-80">
+              ({duel.rivalValue.toFixed(1)})
+            </span>
           </div>
         )}
       </div>
@@ -801,8 +930,16 @@ function DuelCell({ duel, label, style }: { duel: PitchZoneDuel; label: string; 
  *  y el último partido, con lo que salió el último día. */
 const PITCH_ZONE_METHODS: [PitchZoneMethod, string, string][] = [
   ["average", "Promedio", "el promedio de los partidos vistos, zona por zona"],
-  ["max", "Máximo", "el mejor registro en cada zona, de todos los partidos vistos"],
-  ["max_parallel", "Máximo por carril", "el mejor de los tres carriles paralelos, aplicado a los tres"],
+  [
+    "max",
+    "Máximo",
+    "el mejor registro en cada zona, de todos los partidos vistos",
+  ],
+  [
+    "max_parallel",
+    "Máximo por carril",
+    "el mejor de los tres carriles paralelos, aplicado a los tres",
+  ],
   ["last", "Último partido", "lo del último día, sin promediar nada"],
 ];
 
@@ -873,8 +1010,8 @@ function PitchZoneDuelsPanel({
           />
         </div>
         <Empty>
-          Falta alguno de los dos lados con partidos y datos de sector, sin eso no hay
-          duelo honesto que mostrar.
+          Falta alguno de los dos lados con partidos y datos de sector, sin eso
+          no hay duelo honesto que mostrar.
         </Empty>
       </Panel>
     );
@@ -892,13 +1029,17 @@ function PitchZoneDuelsPanel({
   return (
     <Panel
       title="Duelos por zona de la cancha"
-      meta={`${sources.own.kind === "submitted_chpp_prediction"
-        ? "la predicción de Hattrick"
-        : `tú: ${matchesAnalysed.own} partido(s)`} · rival: ${matchesAnalysed.rival} partido(s)`}
+      meta={`${
+        sources.own.kind === "submitted_chpp_prediction"
+          ? "la predicción de Hattrick"
+          : `tú: ${matchesAnalysed.own} partido(s)`
+      } · rival: ${matchesAnalysed.rival} partido(s)`}
     >
       <div className="grid gap-2 p-4 pb-2 sm:grid-cols-2">
         <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
-          <div className="text-[10px] uppercase text-[var(--muted)]">Tu fuente</div>
+          <div className="text-[10px] uppercase text-[var(--muted)]">
+            Tu fuente
+          </div>
           <div className="text-xs font-semibold">{sources.own.label}</div>
           {sources.own.tacticSkill != null && (
             <div className="mt-0.5 text-[11px] text-[var(--muted)]">
@@ -912,7 +1053,9 @@ function PitchZoneDuelsPanel({
           />
         </div>
         <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
-          <div className="text-[10px] uppercase text-[var(--muted)]">Fuente rival</div>
+          <div className="text-[10px] uppercase text-[var(--muted)]">
+            Fuente rival
+          </div>
           <div className="text-xs font-semibold">{sources.rival.label}</div>
           <div className="mt-0.5 text-[11px] text-[var(--muted)]">
             {sources.rival.observations ?? 0} partido(s) vistos
@@ -926,13 +1069,19 @@ function PitchZoneDuelsPanel({
       <div className="p-4 pt-0">
         <div className="mb-1.5 grid grid-cols-[1fr_0.7fr_1fr] gap-1.5 text-center text-[10px] uppercase text-[var(--muted)]">
           <div className="flex items-center justify-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: OWN_COLOR }} />
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ background: OWN_COLOR }}
+            />
             Tu campo
           </div>
           <div>Medio</div>
           <div className="flex items-center justify-center gap-1.5">
             Campo rival
-            <span className="h-2 w-2 rounded-full" style={{ background: RIVAL_COLOR }} />
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ background: RIVAL_COLOR }}
+            />
           </div>
         </div>
         {/* El fondo va con el tema y no con un verde de cancha fijo: en modo

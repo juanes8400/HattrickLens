@@ -23,7 +23,10 @@ export function useDateRangeFilter(dates: string[]): {
   const indices = useMemo(
     () =>
       days.reduce<number[]>((acc, day, i) => {
-        if ((!range.start || day >= range.start) && (!range.end || day <= range.end)) {
+        if (
+          (!range.start || day >= range.start) &&
+          (!range.end || day <= range.end)
+        ) {
           acc.push(i);
         }
         return acc;
@@ -55,7 +58,9 @@ export function DateRangeFilter({
           min={min}
           max={range.end ?? max}
           value={range.start ?? ""}
-          onChange={(e) => onChange({ ...range, start: e.target.value || null })}
+          onChange={(e) =>
+            onChange({ ...range, start: e.target.value || null })
+          }
         />
       </label>
       <label className="flex items-center gap-1.5">

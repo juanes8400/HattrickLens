@@ -362,7 +362,9 @@ export function facingBarsOption(
       axisPointer: { type: "shadow" },
       formatter: (params: unknown) => {
         const items = (Array.isArray(params) ? params : [params]) as {
-          name: string; seriesName: string; value: number;
+          name: string;
+          seriesName: string;
+          value: number;
         }[];
         if (items.length === 0) return "";
         const cabecera = items[0]?.name ?? "";
@@ -392,7 +394,8 @@ export function facingBarsOption(
           position: "left" as const,
           // El valor viaja negado para dibujarse a la izquierda; la etiqueta
           // enseña el número real.
-          formatter: (p: { value: unknown }) => String(Math.abs(Number(p.value))),
+          formatter: (p: { value: unknown }) =>
+            String(Math.abs(Number(p.value))),
           fontSize: 10,
         },
       },
@@ -407,7 +410,6 @@ export function facingBarsOption(
     ],
   };
 }
-
 
 /** Dona de reparto: una porción por categoría, con el conteo en la etiqueta.
  *  Misma forma que la de resultados en Partidos, pero con categorías libres
@@ -430,7 +432,6 @@ export function sharePieOption(
     ],
   };
 }
-
 
 /** Dispersión x/y con un punto propio resaltado. Cada punto viaja como
  * [x, y, nombre] — `nombre` solo se usa en el tooltip. */

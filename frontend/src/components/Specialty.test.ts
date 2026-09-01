@@ -7,8 +7,13 @@ import { specialtyIcon, specialtyLabel } from "./Specialty";
 describe("specialtyIcon", () => {
   it("da un icono a cada una de las siete especialidades de Hattrick", () => {
     const todas = [
-      "Técnico", "Rápido", "Potente", "Imprevisible",
-      "Cabeceador", "Estoico", "Influyente",
+      "Técnico",
+      "Rápido",
+      "Potente",
+      "Imprevisible",
+      "Cabeceador",
+      "Estoico",
+      "Influyente",
     ];
     const iconos = todas.map(specialtyIcon);
     expect(iconos.every((i) => i !== null)).toBe(true);
@@ -20,7 +25,9 @@ describe("specialtyIcon", () => {
   it("no depende de tildes ni de mayúsculas", () => {
     expect(specialtyIcon("Tecnico")).toBe(specialtyIcon("Técnico"));
     expect(specialtyIcon("RÁPIDO")).toBe(specialtyIcon("Rápido"));
-    expect(specialtyIcon("  imprevisible  ")).toBe(specialtyIcon("Imprevisible"));
+    expect(specialtyIcon("  imprevisible  ")).toBe(
+      specialtyIcon("Imprevisible"),
+    );
   });
 
   it("no inventa un icono para lo que no conoce", () => {

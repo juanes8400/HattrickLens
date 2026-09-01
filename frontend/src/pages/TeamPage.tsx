@@ -10,12 +10,19 @@ import { htAge, money, number, relative, dateTime } from "../hooks/useFormat";
 import type { SquadPlayer } from "../services/api";
 
 const SKILLS: [keyof SquadPlayer["skills"], string][] = [
-  ["keeper", "PO"], ["defending", "DE"], ["playmaking", "JU"],
-  ["winger", "LA"], ["passing", "PA"], ["scoring", "AN"], ["set_pieces", "BP"],
+  ["keeper", "PO"],
+  ["defending", "DE"],
+  ["playmaking", "JU"],
+  ["winger", "LA"],
+  ["passing", "PA"],
+  ["scoring", "AN"],
+  ["set_pieces", "BP"],
 ];
 
 const TRAINER_TYPES: Record<number, string> = {
-  0: "defensivo", 1: "ofensivo", 2: "equilibrado",
+  0: "defensivo",
+  1: "ofensivo",
+  2: "equilibrado",
 };
 
 function signed(value: number | undefined): string {
@@ -36,10 +43,12 @@ function MetricCell({ value, delta }: { value: number; delta?: number }) {
     <span className="inline-flex min-w-12 items-baseline justify-end gap-1 whitespace-nowrap tabular-nums">
       <span>{number(value)}</span>
       {delta ? (
-        <span className={clsx(
-          "text-[10px] font-semibold",
-          delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
-        )}>
+        <span
+          className={clsx(
+            "text-[10px] font-semibold",
+            delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
+          )}
+        >
           {signed(delta)}
         </span>
       ) : null}
@@ -47,7 +56,13 @@ function MetricCell({ value, delta }: { value: number; delta?: number }) {
   );
 }
 
-function HistoryLabel({ capturedAt, snapshots }: { capturedAt: string; snapshots: number }) {
+function HistoryLabel({
+  capturedAt,
+  snapshots,
+}: {
+  capturedAt: string;
+  snapshots: number;
+}) {
   // Antes con `Intl` y locale propio; ahora el formato unico de la casa.
   return `${dateTime(capturedAt)} · ${snapshots} jugadores`;
 }
@@ -72,11 +87,19 @@ export function TeamPage() {
   // `optional` — que en `DataTable` significa "oculta de salida".
   const columns: Column<SquadPlayer>[] = [
     {
-      key: "name", header: "Jugador", align: "left", value: (player) => player.name,
-      render: (player) => <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />,
+      key: "name",
+      header: "Jugador",
+      align: "left",
+      value: (player) => player.name,
+      render: (player) => (
+        <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />
+      ),
     },
     {
-      key: "origin", optional: true, header: "Origen", align: "left",
+      key: "origin",
+      optional: true,
+      header: "Origen",
+      align: "left",
       value: (player) => player.nativeLeagueName ?? String(player.countryId),
       render: (player) => (
         <CountryCell
@@ -87,11 +110,23 @@ export function TeamPage() {
       ),
     },
     {
-      key: "best", header: "Mejor posición", align: "left", value: (player) => player.bestPosition.rating,
-      render: (player) => <span className="whitespace-nowrap">{player.bestPosition.label} <b className="text-[var(--accent)]">{player.bestPosition.rating.toFixed(2)}</b></span>,
+      key: "best",
+      header: "Mejor posición",
+      align: "left",
+      value: (player) => player.bestPosition.rating,
+      render: (player) => (
+        <span className="whitespace-nowrap">
+          {player.bestPosition.label}{" "}
+          <b className="text-[var(--accent)]">
+            {player.bestPosition.rating.toFixed(2)}
+          </b>
+        </span>
+      ),
     },
     {
-      key: "specialty", header: "Especialidad", align: "left",
+      key: "specialty",
+      header: "Especialidad",
+      align: "left",
       // `value` se queda en texto plano: es lo que ordena, lo que filtra el
       // buscador de la tabla y lo que sale al CSV. El icono vive sólo en
       // `render`, donde no puede estorbar ninguna de las tres cosas.
@@ -99,56 +134,190 @@ export function TeamPage() {
       render: (player) => <Specialty specialty={player.specialty} />,
     },
     {
-      key: "lastMatch", optional: true, header: "Últ. partido", align: "left", value: (player) => player.lastMatchRating ?? -1,
-      render: (player) => player.lastMatchPosition
-        ? <span className="whitespace-nowrap">{player.lastMatchPosition} · <b>{player.lastMatchRating?.toFixed(1) ?? "-"}</b></span>
-        : <span className="text-[var(--muted)]">—</span>,
+      key: "lastMatch",
+      optional: true,
+      header: "Últ. partido",
+      align: "left",
+      value: (player) => player.lastMatchRating ?? -1,
+      render: (player) =>
+        player.lastMatchPosition ? (
+          <span className="whitespace-nowrap">
+            {player.lastMatchPosition} ·{" "}
+            <b>{player.lastMatchRating?.toFixed(1) ?? "-"}</b>
+          </span>
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        ),
     },
     {
-      key: "market", optional: true, header: "Mercado", align: "left", value: (player) => Number(player.isTransferListed),
-      render: (player) => <span className={clsx("text-xs font-semibold", player.isTransferListed ? "text-[var(--accent)]" : "text-[var(--muted)]")}>{player.isTransferListed ? "en venta" : "-"}</span>,
+      key: "market",
+      optional: true,
+      header: "Mercado",
+      align: "left",
+      value: (player) => Number(player.isTransferListed),
+      render: (player) => (
+        <span
+          className={clsx(
+            "text-xs font-semibold",
+            player.isTransferListed
+              ? "text-[var(--accent)]"
+              : "text-[var(--muted)]",
+          )}
+        >
+          {player.isTransferListed ? "en venta" : "-"}
+        </span>
+      ),
     },
     // Edad abre la banda numérica en vez de partir en dos el bloque de texto
     // de la izquierda, que era donde se producían dos de los cuatro quiebres
     // de alineación que quedaban.
     {
-      key: "age", header: "Edad", value: (player) => player.ageYears + player.ageDays / 112,
+      key: "age",
+      header: "Edad",
+      value: (player) => player.ageYears + player.ageDays / 112,
       render: (player) => htAge(player.ageYears, player.ageDays),
     },
-    { key: "form", header: "FO", value: (player) => player.form, render: (player) => <MetricCell value={player.form} delta={player.deltas.form} /> },
-    { key: "experience", header: "EX", value: (player) => player.experience, render: (player) => <MetricCell value={player.experience} delta={player.deltas.experience} /> },
-    { key: "stamina", header: "CO", value: (player) => player.stamina, render: (player) => <MetricCell value={player.stamina} delta={player.deltas.stamina} /> },
+    {
+      key: "form",
+      header: "FO",
+      value: (player) => player.form,
+      render: (player) => (
+        <MetricCell value={player.form} delta={player.deltas.form} />
+      ),
+    },
+    {
+      key: "experience",
+      header: "EX",
+      value: (player) => player.experience,
+      render: (player) => (
+        <MetricCell
+          value={player.experience}
+          delta={player.deltas.experience}
+        />
+      ),
+    },
+    {
+      key: "stamina",
+      header: "CO",
+      value: (player) => player.stamina,
+      render: (player) => (
+        <MetricCell value={player.stamina} delta={player.deltas.stamina} />
+      ),
+    },
     // Fidelidad es un nivel de jugador como Forma, Experiencia o Condición, no
     // un dato de ficha: va con ellas y con su mismo código corto (el que ya usa
     // Posiciones), no perdida entre Especialidad y Carácter. Y como ellas se
     // pinta con `MetricCell`: un número pelado aquí medía 39 px contra los 72
     // de sus vecinas y le faltaba la línea del delta, así que rompía la banda.
     {
-      key: "loyalty", header: "FI", value: (player) => player.loyalty,
-      render: (player) => <MetricCell value={player.loyalty} delta={player.deltas.loyalty} />,
+      key: "loyalty",
+      header: "FI",
+      value: (player) => player.loyalty,
+      render: (player) => (
+        <MetricCell value={player.loyalty} delta={player.deltas.loyalty} />
+      ),
     },
     ...SKILLS.map(([key, short]): Column<SquadPlayer> => ({
-      key, header: short, value: (player) => player.skills[key] ?? 0,
-      render: (player) => <MetricCell value={player.skills[key] ?? 0} delta={player.deltas[key]} />,
+      key,
+      header: short,
+      value: (player) => player.skills[key] ?? 0,
+      render: (player) => (
+        <MetricCell
+          value={player.skills[key] ?? 0}
+          delta={player.deltas[key]}
+        />
+      ),
     })),
-    { key: "tsi", header: "TSI", value: (player) => player.tsi, render: (player) => <MetricCell value={player.tsi} delta={player.deltas.tsi} /> },
+    {
+      key: "tsi",
+      header: "TSI",
+      value: (player) => player.tsi,
+      render: (player) => (
+        <MetricCell value={player.tsi} delta={player.deltas.tsi} />
+      ),
+    },
     // HTMS junto a TSI: las tres son la misma pregunta ("cuanto vale"),
     // solo que TSI la responde con el mercado y HTMS con las habilidades.
     { key: "htms", header: "HTMS", value: (player) => player.htms },
-    { key: "htms28", optional: true, header: "HTMS28", value: (player) => player.htms28 },
-    { key: "salary", optional: true, header: "Salario", value: (player) => player.salary, render: (player) => <MetricCell value={player.salary} delta={player.deltas.salary} /> },
-    { key: "purchase", optional: true, header: "Precio compra", value: (player) => player.purchasePrice ?? -1, render: (player) => player.purchasePrice == null ? <span className="text-[var(--muted)]">—</span> : money(player.purchasePrice, data.currency) },
+    {
+      key: "htms28",
+      optional: true,
+      header: "HTMS28",
+      value: (player) => player.htms28,
+    },
+    {
+      key: "salary",
+      optional: true,
+      header: "Salario",
+      value: (player) => player.salary,
+      render: (player) => (
+        <MetricCell value={player.salary} delta={player.deltas.salary} />
+      ),
+    },
+    {
+      key: "purchase",
+      optional: true,
+      header: "Precio compra",
+      value: (player) => player.purchasePrice ?? -1,
+      render: (player) =>
+        player.purchasePrice == null ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          money(player.purchasePrice, data.currency)
+        ),
+    },
     // Números primero y textos después, sin mezclarlos. Con las 27 columnas a
     // la vista, la cola alternaba alineación seis veces (4 textos a la
     // izquierda, Liderazgo a la derecha, Entrenador a la izquierda, G. liga a
     // la derecha) y eso es lo que hacía zigzaguear la tabla. Ahora hay una
     // sola frontera entre la banda numérica y la de texto.
-    { key: "leadership", optional: true, header: "Liderazgo", value: (player) => player.leadership },
-    { key: "leagueGoals", optional: true, header: "G. liga", value: (player) => player.leagueGoals },
-    { key: "character", optional: true, header: "Carácter", align: "left", value: (player) => player.agreeability, render: (player) => player.agreeabilityLabel },
-    { key: "aggressiveness", optional: true, header: "Agresividad", align: "left", value: (player) => player.aggressiveness, render: (player) => player.aggressivenessLabel },
-    { key: "honesty", optional: true, header: "Honestidad", align: "left", value: (player) => player.honesty, render: (player) => player.honestyLabel },
-    { key: "trainer", optional: true, header: "Entrenador", align: "left", value: (player) => player.playerTrainerSkillLevel, render: (player) => player.playerTrainerSkillLevel > 0 ? `${player.playerTrainerSkillLevel}/5 · ${TRAINER_TYPES[player.playerTrainerType] ?? "?"}` : "-" },
+    {
+      key: "leadership",
+      optional: true,
+      header: "Liderazgo",
+      value: (player) => player.leadership,
+    },
+    {
+      key: "leagueGoals",
+      optional: true,
+      header: "G. liga",
+      value: (player) => player.leagueGoals,
+    },
+    {
+      key: "character",
+      optional: true,
+      header: "Carácter",
+      align: "left",
+      value: (player) => player.agreeability,
+      render: (player) => player.agreeabilityLabel,
+    },
+    {
+      key: "aggressiveness",
+      optional: true,
+      header: "Agresividad",
+      align: "left",
+      value: (player) => player.aggressiveness,
+      render: (player) => player.aggressivenessLabel,
+    },
+    {
+      key: "honesty",
+      optional: true,
+      header: "Honestidad",
+      align: "left",
+      value: (player) => player.honesty,
+      render: (player) => player.honestyLabel,
+    },
+    {
+      key: "trainer",
+      optional: true,
+      header: "Entrenador",
+      align: "left",
+      value: (player) => player.playerTrainerSkillLevel,
+      render: (player) =>
+        player.playerTrainerSkillLevel > 0
+          ? `${player.playerTrainerSkillLevel}/5 · ${TRAINER_TYPES[player.playerTrainerType] ?? "?"}`
+          : "-",
+    },
   ];
 
   return (
@@ -156,17 +325,30 @@ export function TeamPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Jugadores</h1>
-          <p className="text-sm text-[var(--muted)]">Tabla maestra de {data.teamName}. Abre un nombre para ver sus detalles.</p>
+          <p className="text-sm text-[var(--muted)]">
+            Tabla maestra de {data.teamName}. Abre un nombre para ver sus
+            detalles.
+          </p>
         </div>
         <label className="text-xs text-[var(--muted)]">
           Diferencias semanales contra
           <select
             value={comparisonSyncId ?? "previous"}
-            onChange={(event) => setComparisonSyncId(event.target.value === "previous" ? null : Number(event.target.value))}
+            onChange={(event) =>
+              setComparisonSyncId(
+                event.target.value === "previous"
+                  ? null
+                  : Number(event.target.value),
+              )
+            }
             className="ml-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm text-[var(--text)]"
           >
             <option value="previous">cierre semanal anterior</option>
-            {data.history.map((entry) => <option key={entry.syncId} value={entry.syncId}>{HistoryLabel(entry)}</option>)}
+            {data.history.map((entry) => (
+              <option key={entry.syncId} value={entry.syncId}>
+                {HistoryLabel(entry)}
+              </option>
+            ))}
           </select>
         </label>
       </header>
@@ -182,7 +364,11 @@ export function TeamPage() {
       />
 
       <p className="text-xs text-[var(--muted)]">
-        Variaciones basadas en cierres semanales de Hattrick. Referencia actual: {data.comparison.baselineCapturedAt ? relative(data.comparison.baselineCapturedAt) : "cierre semanal anterior"}. El valor estimado no es un dato oficial de Hattrick.
+        Variaciones basadas en cierres semanales de Hattrick. Referencia actual:{" "}
+        {data.comparison.baselineCapturedAt
+          ? relative(data.comparison.baselineCapturedAt)
+          : "cierre semanal anterior"}
+        . El valor estimado no es un dato oficial de Hattrick.
       </p>
     </div>
   );

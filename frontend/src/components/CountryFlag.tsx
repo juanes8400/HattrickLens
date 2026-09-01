@@ -46,7 +46,12 @@ interface CountryCellProps extends CountryFlagProps {
   compact?: boolean;
 }
 
-export function CountryCell({ code, country, fallback = "-", compact = false }: CountryCellProps) {
+export function CountryCell({
+  code,
+  country,
+  fallback = "-",
+  compact = false,
+}: CountryCellProps) {
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap">
       <CountryFlag code={code} country={country} />

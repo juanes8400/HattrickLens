@@ -145,10 +145,14 @@ function TarjetasDeCambio({ items }: { items: ClubComparisonChange[] }) {
   );
 }
 
-export function TrainingSection({ changes }: { changes: ClubComparisonChange[] }) {
-  const items = TRAINING_KEYS.map((key) => changes.find((c) => c.key === key)).filter(
-    (c): c is ClubComparisonChange => c !== undefined,
-  );
+export function TrainingSection({
+  changes,
+}: {
+  changes: ClubComparisonChange[];
+}) {
+  const items = TRAINING_KEYS.map((key) =>
+    changes.find((c) => c.key === key),
+  ).filter((c): c is ClubComparisonChange => c !== undefined);
   return (
     <Panel title="Entrenamiento" meta="qué se entrena y con cuánta intensidad">
       {items.length === 0 ? (
@@ -182,7 +186,6 @@ export function ClubMoraleSection({
   );
 }
 
-
 /** Quién jugó con su selección y cuántos minutos.
  *
  * Esos partidos no están en el archivo de ningún club, así que no aparecían
@@ -202,12 +205,18 @@ export function NationalTeamSection({
     >
       <ul className="divide-y divide-[var(--border)]">
         {appearances.map((a) => (
-          <li key={`${a.htPlayerId}-${a.playedAt}`} className="px-4 py-3 text-sm">
+          <li
+            key={`${a.htPlayerId}-${a.playedAt}`}
+            className="px-4 py-3 text-sm"
+          >
             <span className="font-medium">{a.name}</span> jugó{" "}
             <span className="tabular-nums font-medium">{a.minutes} min</span> en{" "}
             {a.match || a.competition}
             {a.rating ? (
-              <span className="text-[var(--muted)]"> · {a.rating} estrellas</span>
+              <span className="text-[var(--muted)]">
+                {" "}
+                · {a.rating} estrellas
+              </span>
             ) : null}
           </li>
         ))}

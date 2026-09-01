@@ -3,19 +3,30 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
-import { TEAM_ID, setActiveTeamId, useDashboard, useSessionProfile } from "../hooks/useTeam";
+import {
+  TEAM_ID,
+  setActiveTeamId,
+  useDashboard,
+  useSessionProfile,
+} from "../hooks/useTeam";
 import { ApiError, api } from "../services/api";
 import type { SyncResult } from "../services/api";
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (typeof error.detail === "string") return error.detail;
-    if (error.detail && typeof error.detail === "object" && "detail" in error.detail) {
+    if (
+      error.detail &&
+      typeof error.detail === "object" &&
+      "detail" in error.detail
+    ) {
       const detail = (error.detail as { detail: unknown }).detail;
       if (typeof detail === "string") return detail;
     }
   }
-  return error instanceof Error ? error.message : "No fue posible completar la importación.";
+  return error instanceof Error
+    ? error.message
+    : "No fue posible completar la importación.";
 }
 
 export function SetupPage() {
@@ -45,15 +56,17 @@ export function SetupPage() {
       new Promise<SyncResult>((resolve, reject) => {
         setCompleted(null);
         setProgress([]);
-        api.syncStream(TEAM_ID, (event) => {
-          if (event.type === "progress") {
-            setProgress((current) => [...(current ?? []), event.message]);
-          } else if (event.type === "done") {
-            resolve(event.result);
-          } else {
-            reject(new Error(event.message));
-          }
-        }).catch(reject);
+        api
+          .syncStream(TEAM_ID, (event) => {
+            if (event.type === "progress") {
+              setProgress((current) => [...(current ?? []), event.message]);
+            } else if (event.type === "done") {
+              resolve(event.result);
+            } else {
+              reject(new Error(event.message));
+            }
+          })
+          .catch(reject);
       }),
     onSuccess: async (result) => {
       setProgress(null);
@@ -68,9 +81,24 @@ export function SetupPage() {
     onError: () => setProgress(null),
   });
 
-  if (profile.isLoading || dashboard.isLoading) return <FullScreen><Loading /></FullScreen>;
-  if (profile.isError) return <FullScreen><ErrorState error={profile.error} /></FullScreen>;
-  if (dashboard.isError) return <FullScreen><ErrorState error={dashboard.error} /></FullScreen>;
+  if (profile.isLoading || dashboard.isLoading)
+    return (
+      <FullScreen>
+        <Loading />
+      </FullScreen>
+    );
+  if (profile.isError)
+    return (
+      <FullScreen>
+        <ErrorState error={profile.error} />
+      </FullScreen>
+    );
+  if (dashboard.isError)
+    return (
+      <FullScreen>
+        <ErrorState error={dashboard.error} />
+      </FullScreen>
+    );
   if (!profile.data || !dashboard.data)
     return (
       <FullScreen>
@@ -84,9 +112,13 @@ export function SetupPage() {
         <div className="max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8">
           <h1 className="text-xl font-semibold">No encontramos un club</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Hattrick autenticó la cuenta, pero no devolvió ningún equipo administrado.
+            Hattrick autenticó la cuenta, pero no devolvió ningún equipo
+            administrado.
           </p>
-          <Link className="mt-6 inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white" to="/welcome">
+          <Link
+            className="mt-6 inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
+            to="/welcome"
+          >
             Volver a conectar
           </Link>
         </div>
@@ -94,7 +126,12 @@ export function SetupPage() {
     );
   }
 
-  if (!selectedTeam) return <FullScreen><Loading /></FullScreen>;
+  if (!selectedTeam)
+    return (
+      <FullScreen>
+        <Loading />
+      </FullScreen>
+    );
 
   const partial = completed?.result.status === "partial";
 
@@ -102,21 +139,36 @@ export function SetupPage() {
     <main className="min-h-screen bg-[var(--bg)] px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-4xl space-y-6">
         <header className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent)] font-bold text-white">HL</span>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent)] font-bold text-white">
+            HL
+          </span>
           <div>
             <div className="font-semibold">HT Lens</div>
-            <div className="text-xs text-[var(--muted)]">Configuración de tu club</div>
+            <div className="text-xs text-[var(--muted)]">
+              Configuración de tu club
+            </div>
           </div>
         </header>
 
-        <ol className="grid gap-2 sm:grid-cols-3" aria-label="Progreso de configuración">
+        <ol
+          className="grid gap-2 sm:grid-cols-3"
+          aria-label="Progreso de configuración"
+        >
           <SetupStep number="1" title="Hattrick conectado" state="done" />
           <SetupStep
             number="2"
-            title={completed || alreadyImported ? "Datos importados" : "Importar datos"}
+            title={
+              completed || alreadyImported
+                ? "Datos importados"
+                : "Importar datos"
+            }
             state={completed || alreadyImported ? "done" : "current"}
           />
-          <SetupStep number="3" title="Explorar HT Lens" state={completed || alreadyImported ? "current" : "pending"} />
+          <SetupStep
+            number="3"
+            title="Explorar HT Lens"
+            state={completed || alreadyImported ? "current" : "pending"}
+          />
         </ol>
 
         <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
@@ -125,7 +177,9 @@ export function SetupPage() {
               Conexión con Hattrick activa
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              {completed ? "Tu club está listo" : `${selectedTeam.name} está conectado`}
+              {completed
+                ? "Tu club está listo"
+                : `${selectedTeam.name} está conectado`}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
               {completed
@@ -138,7 +192,9 @@ export function SetupPage() {
 
           <div className="grid gap-5 p-6 sm:p-8 lg:grid-cols-[1fr_1.4fr]">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-              <div className="text-xs uppercase tracking-wide text-[var(--muted)]">Club seleccionado</div>
+              <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                Club seleccionado
+              </div>
               {profile.data.teams.length > 1 ? (
                 <select
                   aria-label="Club administrado"
@@ -150,14 +206,20 @@ export function SetupPage() {
                   }}
                 >
                   {profile.data.teams.map((team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
                   ))}
                 </select>
               ) : (
-                <div className="mt-2 text-lg font-semibold">{selectedTeam.name}</div>
+                <div className="mt-2 text-lg font-semibold">
+                  {selectedTeam.name}
+                </div>
               )}
               <div className="mt-1 text-sm text-[var(--muted)]">
-                {[selectedTeam.seriesName, selectedTeam.leagueName].filter(Boolean).join(" · ")}
+                {[selectedTeam.seriesName, selectedTeam.leagueName]
+                  .filter(Boolean)
+                  .join(" · ")}
               </div>
               <div className="mt-4 border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
                 Manager: {profile.data.user.loginName ?? "cuenta Hattrick"}
@@ -166,16 +228,31 @@ export function SetupPage() {
 
             {completed ? (
               <div className="space-y-4">
-                <div className={`rounded-xl border p-4 ${partial ? "border-[var(--warning)]/40 bg-[var(--warning)]/10" : "border-[var(--positive)]/40 bg-[var(--positive)]/10"}`}>
+                <div
+                  className={`rounded-xl border p-4 ${partial ? "border-[var(--warning)]/40 bg-[var(--warning)]/10" : "border-[var(--positive)]/40 bg-[var(--positive)]/10"}`}
+                >
                   <div className="font-semibold">
                     {partial
-                      ? completed.initialImport ? "Importación inicial completada parcialmente" : "Sincronización completada parcialmente"
-                      : completed.initialImport ? "Importación inicial completada" : "Sincronización completada"}
+                      ? completed.initialImport
+                        ? "Importación inicial completada parcialmente"
+                        : "Sincronización completada parcialmente"
+                      : completed.initialImport
+                        ? "Importación inicial completada"
+                        : "Sincronización completada"}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-                    <SummaryValue value={completed.playerCount} label="jugadores" />
-                    <SummaryValue value={completed.result.snapshotsWritten} label="registros guardados" />
-                    <SummaryValue value={completed.result.changes.length} label="cambios detectados" />
+                    <SummaryValue
+                      value={completed.playerCount}
+                      label="jugadores"
+                    />
+                    <SummaryValue
+                      value={completed.result.snapshotsWritten}
+                      label="registros guardados"
+                    />
+                    <SummaryValue
+                      value={completed.result.changes.length}
+                      label="cambios detectados"
+                    />
                   </div>
                   {partial && (
                     <p className="mt-3 text-xs text-[var(--warning)]">
@@ -192,7 +269,11 @@ export function SetupPage() {
               </div>
             ) : (
               <div className="flex flex-col justify-center">
-                <h2 className="font-semibold">{alreadyImported ? "Tus datos ya están disponibles" : "Importación inicial"}</h2>
+                <h2 className="font-semibold">
+                  {alreadyImported
+                    ? "Tus datos ya están disponibles"
+                    : "Importación inicial"}
+                </h2>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                   {alreadyImported
                     ? "La próxima sincronización conservará el historial y mostrará únicamente las diferencias nuevas."
@@ -204,7 +285,11 @@ export function SetupPage() {
                     disabled={sync.isPending}
                     className="rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                   >
-                    {sync.isPending ? "Importando…" : alreadyImported ? "Actualizar datos ahora" : "Importar datos del club"}
+                    {sync.isPending
+                      ? "Importando…"
+                      : alreadyImported
+                        ? "Actualizar datos ahora"
+                        : "Importar datos del club"}
                   </button>
                   {alreadyImported && (
                     <button
@@ -216,7 +301,10 @@ export function SetupPage() {
                   )}
                 </div>
                 {sync.isError && (
-                  <p role="alert" className="mt-4 rounded-lg bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
+                  <p
+                    role="alert"
+                    className="mt-4 rounded-lg bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]"
+                  >
                     {errorMessage(sync.error)}
                   </p>
                 )}
@@ -229,9 +317,21 @@ export function SetupPage() {
 
         {(completed || alreadyImported) && (
           <section className="grid gap-3 sm:grid-cols-3">
-            <NextAction to="/news" title="Revisar cambios" detail="Pops, forma, experiencia y variaciones del club." />
-            <NextAction to="/rivals" title="Estudiar al rival" detail="Once probable, duelos por zona y rotación del ataque." />
-            <NextAction to="/training" title="Revisar entrenamiento" detail="Carga, progreso y próximas subidas." />
+            <NextAction
+              to="/news"
+              title="Revisar cambios"
+              detail="Pops, forma, experiencia y variaciones del club."
+            />
+            <NextAction
+              to="/rivals"
+              title="Estudiar al rival"
+              detail="Once probable, duelos por zona y rotación del ataque."
+            />
+            <NextAction
+              to="/training"
+              title="Revisar entrenamiento"
+              detail="Carga, progreso y próximas subidas."
+            />
           </section>
         )}
       </div>
@@ -240,20 +340,37 @@ export function SetupPage() {
 }
 
 function FullScreen({ children }: { children: React.ReactNode }) {
-  return <main className="grid min-h-screen place-items-center bg-[var(--bg)] p-6">{children}</main>;
+  return (
+    <main className="grid min-h-screen place-items-center bg-[var(--bg)] p-6">
+      {children}
+    </main>
+  );
 }
 
-function SetupStep({ number, title, state }: { number: string; title: string; state: "done" | "current" | "pending" }) {
-  const tone = state === "done"
-    ? "border-[var(--positive)]/40 bg-[var(--positive)]/10 text-[var(--positive)]"
-    : state === "current"
-      ? "border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]"
-      : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]";
+function SetupStep({
+  number,
+  title,
+  state,
+}: {
+  number: string;
+  title: string;
+  state: "done" | "current" | "pending";
+}) {
+  const tone =
+    state === "done"
+      ? "border-[var(--positive)]/40 bg-[var(--positive)]/10 text-[var(--positive)]"
+      : state === "current"
+        ? "border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]"
+        : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]";
   // El estado vivía sólo en el color y en la palomita: `aria-current` es lo
   // que dice en voz alta en qué paso estás, y el texto oculto distingue el
   // paso hecho del que queda por hacer (2026-08-31).
   const situacion =
-    state === "done" ? "Hecho: " : state === "current" ? "Paso actual: " : "Pendiente: ";
+    state === "done"
+      ? "Hecho: "
+      : state === "current"
+        ? "Paso actual: "
+        : "Pendiente: ";
   return (
     <li
       aria-current={state === "current" ? "step" : undefined}
@@ -282,9 +399,20 @@ function SummaryValue({ value, label }: { value: number; label: string }) {
   );
 }
 
-function NextAction({ to, title, detail }: { to: string; title: string; detail: string }) {
+function NextAction({
+  to,
+  title,
+  detail,
+}: {
+  to: string;
+  title: string;
+  detail: string;
+}) {
   return (
-    <Link to={to} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent)]/50">
+    <Link
+      to={to}
+      className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent)]/50"
+    >
       <div className="text-sm font-semibold">{title} →</div>
       <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{detail}</p>
     </Link>

@@ -42,15 +42,24 @@ describe("los huecos no se pintan con una coma", () => {
         }
       });
     }
-    expect(culpables, `usa «—» en vez de una coma:\n${culpables.join("\n")}`).toEqual([]);
+    expect(
+      culpables,
+      `usa «—» en vez de una coma:\n${culpables.join("\n")}`,
+    ).toEqual([]);
   });
 
   it("el guardián sabe reconocer las tres formas", () => {
     // Sin esto, el test de arriba pasaría igual con las expresiones rotas.
-    expect(SOSPECHOSAS.some((r) => r.test('<span className="x">, </span>'))).toBe(true);
-    expect(SOSPECHOSAS.some((r) => r.test('{v == null ? ", " : v}'))).toBe(true);
+    expect(
+      SOSPECHOSAS.some((r) => r.test('<span className="x">, </span>')),
+    ).toBe(true);
+    expect(SOSPECHOSAS.some((r) => r.test('{v == null ? ", " : v}'))).toBe(
+      true,
+    );
     expect(SOSPECHOSAS.some((r) => r.test('{ hueco: ", " }'))).toBe(true);
-    expect(SOSPECHOSAS.some((r) => r.test('  if (!iso) return ", ";'))).toBe(true);
-    expect(SOSPECHOSAS.some((r) => r.test('<span>—</span>'))).toBe(false);
+    expect(SOSPECHOSAS.some((r) => r.test('  if (!iso) return ", ";'))).toBe(
+      true,
+    );
+    expect(SOSPECHOSAS.some((r) => r.test("<span>—</span>"))).toBe(false);
   });
 });

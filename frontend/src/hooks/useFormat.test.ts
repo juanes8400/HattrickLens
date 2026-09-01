@@ -39,7 +39,9 @@ describe("la política de formato", () => {
   it("la fecha con hora no depende del navegador", () => {
     // Con `toLocaleString()` sin idioma esto salía «8/31/2026, 4:12:00 PM»
     // en un navegador en inglés y en español en otro.
-    expect(dateTime("2026-08-31T15:45:00Z")).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
+    expect(dateTime("2026-08-31T15:45:00Z")).toMatch(
+      /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/,
+    );
   });
 
   it("un hueco es una raya, nunca una coma suelta", () => {

@@ -96,7 +96,9 @@ export function DataTable<T>({
     const needle = filter.trim().toLowerCase();
     const filtered = needle
       ? rows.filter((r) =>
-          visible.some((c) => String(c.value(r)).toLowerCase().includes(needle)),
+          visible.some((c) =>
+            String(c.value(r)).toLowerCase().includes(needle),
+          ),
         )
       : rows;
 
@@ -129,12 +131,16 @@ export function DataTable<T>({
         visible
           .map((c) => {
             const v = String(c.value(r));
-            return v.includes(",") || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+            return v.includes(",") || v.includes('"')
+              ? `"${v.replace(/"/g, '""')}"`
+              : v;
           })
           .join(","),
       )
       .join("\n");
-    const blob = new Blob([`${header}\n${body}`], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([`${header}\n${body}`], {
+      type: "text/csv;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -214,7 +220,10 @@ export function DataTable<T>({
               />
               {c.header}
               {nombreLargo(c.header) && (
-                <span className="text-[var(--muted)]"> · {nombreLargo(c.header)}</span>
+                <span className="text-[var(--muted)]">
+                  {" "}
+                  · {nombreLargo(c.header)}
+                </span>
               )}
             </label>
           ))}
@@ -243,7 +252,11 @@ export function DataTable<T>({
                   }}
                   tabIndex={0}
                   aria-sort={
-                    sortKey === c.key ? (descending ? "descending" : "ascending") : "none"
+                    sortKey === c.key
+                      ? descending
+                        ? "descending"
+                        : "ascending"
+                      : "none"
                   }
                   className={clsx(
                     "cursor-pointer whitespace-nowrap px-3 py-2 text-xs font-medium text-[var(--muted)]",
@@ -254,7 +267,10 @@ export function DataTable<T>({
                       recordar doce claves. El título la enseña al ratón y
                       `aria-label` se la da al lector de pantalla, que si no
                       leería «FO» y ya. */}
-                  <span title={nombreLargo(c.header)} aria-label={nombreLargo(c.header)}>
+                  <span
+                    title={nombreLargo(c.header)}
+                    aria-label={nombreLargo(c.header)}
+                  >
                     {c.header}
                   </span>
                   {sortKey === c.key && (descending ? " ↓" : " ↑")}
@@ -265,7 +281,10 @@ export function DataTable<T>({
           <tbody tabIndex={0} onKeyDown={onKeyDown}>
             {processed.length === 0 && (
               <tr>
-                <td colSpan={visible.length} className="p-8 text-center text-[var(--muted)]">
+                <td
+                  colSpan={visible.length}
+                  className="p-8 text-center text-[var(--muted)]"
+                >
                   {/* Vacío por el filtro y vacío porque no hay datos son dos
                       cosas distintas, y hasta el 2026-08-31 las dos decían
                       «Sin datos todavía»: un diagnóstico equivocado --las
@@ -275,8 +294,8 @@ export function DataTable<T>({
                   {filter.trim() && rows.length > 0 ? (
                     <>
                       Ningún resultado para{" "}
-                      <b className="text-[var(--text)]">«{filter.trim()}»</b>, de{" "}
-                      {rows.length} en total.
+                      <b className="text-[var(--text)]">«{filter.trim()}»</b>,
+                      de {rows.length} en total.
                       <button
                         type="button"
                         onClick={() => setFilter("")}
@@ -299,7 +318,8 @@ export function DataTable<T>({
                   "border-t border-[var(--border)]",
                   onRowClick && "cursor-pointer hover:bg-[var(--surface-2)]/70",
                   i === focused && "bg-[var(--accent-soft)]",
-                  selectedRowKey === rowKey(row) && "bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]",
+                  selectedRowKey === rowKey(row) &&
+                    "bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]",
                 )}
               >
                 {visible.map((c) => (

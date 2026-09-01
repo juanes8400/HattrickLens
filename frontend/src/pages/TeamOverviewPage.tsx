@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { Chart } from "../charts/Chart";
 import { PitchField } from "../components/PitchField";
-import { bandBetween, timelineOption, withoutBandInTooltip } from "../charts/chartOptions";
-import { Empty, ErrorState, Loading, Note, Panel, SinDatos } from "../components/Panels";
+import {
+  bandBetween,
+  timelineOption,
+  withoutBandInTooltip,
+} from "../charts/chartOptions";
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
 import { useTeamOverview } from "../hooks/useTeam";
 import { decimal, money, number } from "../hooks/useFormat";
 import type {
@@ -38,13 +49,20 @@ function formatValue(metric: TeamOverviewMetric, currency: string): string {
   }
 }
 
-function MetricBars({ group, currency }: { group: TeamOverviewGroup; currency: string }) {
+function MetricBars({
+  group,
+  currency,
+}: {
+  group: TeamOverviewGroup;
+  currency: string;
+}) {
   return (
     <div className="space-y-3 p-4">
       {group.metrics.map((metric) => {
-        const pct = metric.scaleMax > 0
-          ? Math.max(0, Math.min(100, (metric.value / metric.scaleMax) * 100))
-          : 0;
+        const pct =
+          metric.scaleMax > 0
+            ? Math.max(0, Math.min(100, (metric.value / metric.scaleMax) * 100))
+            : 0;
         return (
           <div key={metric.key}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -68,7 +86,11 @@ function MetricBars({ group, currency }: { group: TeamOverviewGroup; currency: s
 
 function GroupLines({ group }: { group: TeamOverviewGroup }) {
   if (group.weeks.length === 0) {
-    return <Empty>Hace falta más de un cierre semanal para dibujar la evolución.</Empty>;
+    return (
+      <Empty>
+        Hace falta más de un cierre semanal para dibujar la evolución.
+      </Empty>
+    );
   }
 
   return (
@@ -101,7 +123,9 @@ function GroupLines({ group }: { group: TeamOverviewGroup }) {
         return (
           <div key={chart.key}>
             {chart.title && (
-              <div className="mb-1 text-xs font-medium text-[var(--muted)]">{chart.title}</div>
+              <div className="mb-1 text-xs font-medium text-[var(--muted)]">
+                {chart.title}
+              </div>
             )}
             <Chart
               ariaLabel={`${chart.title || group.label}, media de la plantilla por semana`}
@@ -152,16 +176,23 @@ function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
         ) : (
           <>
             {slot.topPlayer && (
-              <div className="truncate text-[10px] text-white/80" title={slot.topPlayer}>
+              <div
+                className="truncate text-[10px] text-white/80"
+                title={slot.topPlayer}
+              >
                 {slot.topPlayer}
               </div>
             )}
             <div className="text-[10px] tabular-nums text-white/70">
               máx {decimal(best, 2)}
-              {slot.averageRating != null && ` · media ${decimal(slot.averageRating, 2)}`}
+              {slot.averageRating != null &&
+                ` · media ${decimal(slot.averageRating, 2)}`}
             </div>
             {slot.bestVariantLabel && (
-              <div className="truncate text-[10px] text-white/45" title={slot.bestVariantLabel}>
+              <div
+                className="truncate text-[10px] text-white/45"
+                title={slot.bestVariantLabel}
+              >
                 {slot.bestVariantLabel}
               </div>
             )}
@@ -188,7 +219,10 @@ function SpecialRoles({ roles }: { roles: TeamOverviewSpecialRole[] }) {
           className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2"
         >
           <div className="text-[11px] text-[var(--muted)]">{role.label}</div>
-          <div className="mt-0.5 truncate text-sm font-medium" title={role.topPlayer ?? ""}>
+          <div
+            className="mt-0.5 truncate text-sm font-medium"
+            title={role.topPlayer ?? ""}
+          >
             {role.topPlayer ?? "-"}
           </div>
           {role.rating != null && (
@@ -221,7 +255,10 @@ function PitchLayout({ group }: { group: TeamOverviewGroup }) {
       >
         <div className="relative flex flex-col gap-3 px-4 py-6">
           {rows.map((row) => (
-            <div key={row.join("-")} className="flex flex-wrap justify-center gap-3">
+            <div
+              key={row.join("-")}
+              className="flex flex-wrap justify-center gap-3"
+            >
               {row.map((key) => {
                 const slot = byKey.get(key);
                 return slot ? <PitchSlotCard key={key} slot={slot} /> : null;
@@ -244,14 +281,16 @@ export function TeamOverviewPage() {
   if (!data) return <SinDatos />;
 
   const active = data.groups.find((g) => g.key === activeKey) ?? data.groups[0];
-  if (!active) return <Empty>Sincroniza para calcular las medias de la plantilla.</Empty>;
+  if (!active)
+    return <Empty>Sincroniza para calcular las medias de la plantilla.</Empty>;
 
   return (
     <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold">Equipo</h1>
         <p className="text-sm text-[var(--muted)]">
-          Media de los {data.playerCount} jugadores de {data.teamName}, semana a semana.
+          Media de los {data.playerCount} jugadores de {data.teamName}, semana a
+          semana.
         </p>
       </header>
 

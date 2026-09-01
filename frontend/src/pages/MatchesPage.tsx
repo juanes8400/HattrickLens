@@ -1,15 +1,37 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
-import { facingBarsOption, radarOption, resultsPieOption } from "../charts/chartOptions";
+import {
+  facingBarsOption,
+  radarOption,
+  resultsPieOption,
+} from "../charts/chartOptions";
 import { Column, DataTable } from "../components/DataTable";
 import { MatchSectorMap } from "../components/MatchSectorMap";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
+import {
+  Empty,
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
 import { useMatchDetail, useMatches } from "../hooks/useTeam";
-import type { BestRating, HomeAwayRow, MatchRow, Matches, RatingSeriesPoint } from "../services/api";
+import type {
+  BestRating,
+  HomeAwayRow,
+  MatchRow,
+  Matches,
+  RatingSeriesPoint,
+} from "../services/api";
 
 function renderStatOrDash(v: number | null) {
-  return v == null ? <span className="text-[var(--muted)]">—</span> : <span>{v}</span>;
+  return v == null ? (
+    <span className="text-[var(--muted)]">—</span>
+  ) : (
+    <span>{v}</span>
+  );
 }
 
 /**
@@ -28,10 +50,14 @@ function renderStatOrDash(v: number | null) {
 export function MatchesPage() {
   const [includeFriendlies, setIncludeFriendlies] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
-  const { data, isLoading, isError, error } = useMatches(includeFriendlies, season);
+  const { data, isLoading, isError, error } = useMatches(
+    includeFriendlies,
+    season,
+  );
   const [selected, setSelected] = useState<number | null>(null);
 
-  const missingDetails = data?.matches.filter((r) => r.hatstats == null).length ?? 0;
+  const missingDetails =
+    data?.matches.filter((r) => r.hatstats == null).length ?? 0;
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -45,19 +71,27 @@ export function MatchesPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Partidos</h1>
-          <p className="text-sm text-[var(--muted)]">Por qué se ganó o se perdió</p>
+          <p className="text-sm text-[var(--muted)]">
+            Por qué se ganó o se perdió
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
             aria-label="Filtrar los partidos por temporada"
             value={season ?? "all"}
-            onChange={(e) => setSeason(e.target.value === "all" ? null : Number(e.target.value))}
+            onChange={(e) =>
+              setSeason(
+                e.target.value === "all" ? null : Number(e.target.value),
+              )
+            }
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
           >
             <option value="all">Todas las temporadas</option>
             {data.availableSeasons.map((s) => (
               <option key={s} value={s}>
-                {s === data.currentSeason ? `Temporada actual (${s})` : `Temporada ${s}`}
+                {s === data.currentSeason
+                  ? `Temporada actual (${s})`
+                  : `Temporada ${s}`}
               </option>
             ))}
           </select>
@@ -84,7 +118,11 @@ export function MatchesPage() {
         </div>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-        <Kpi label="Jugados" value={String(data.matchesPlayed)} hint={`${data.record} · ${data.seasonLabel}`} />
+        <Kpi
+          label="Jugados"
+          value={String(data.matchesPlayed)}
+          hint={`${data.record} · ${data.seasonLabel}`}
+        />
         <Kpi
           label="Goles"
           value={`${data.goalsFor} : ${data.goalsAgainst}`}
@@ -94,12 +132,20 @@ export function MatchesPage() {
         <Kpi
           label="HatStats medio"
           value={data.avgHatstats == null ? "—" : data.avgHatstats.toFixed(1)}
-          hint={data.avgHatstats == null ? "faltan ratings" : `mediocampo pesa triple · ${data.seasonLabel}`}
+          hint={
+            data.avgHatstats == null
+              ? "faltan ratings"
+              : `mediocampo pesa triple · ${data.seasonLabel}`
+          }
         />
         <Kpi
           label="Mejor partido"
           value={data.bestMatch ? String(data.bestMatch.hatstats) : "-"}
-          hint={data.bestMatch ? `vs ${data.bestMatch.opponent} · ${data.seasonLabel}` : undefined}
+          hint={
+            data.bestMatch
+              ? `vs ${data.bestMatch.opponent} · ${data.seasonLabel}`
+              : undefined
+          }
           tone={data.bestMatch ? "positive" : undefined}
         />
       </div>
@@ -117,7 +163,10 @@ export function MatchesPage() {
       </Panel>
 
       {data.ratingSeries.length > 0 && (
-        <Panel title="Evolución de los ratings" meta={`${data.ratingSeries.length} partidos · tt-ss`}>
+        <Panel
+          title="Evolución de los ratings"
+          meta={`${data.ratingSeries.length} partidos · tt-ss`}
+        >
           <RatingSeriesChart points={data.ratingSeries} />
         </Panel>
       )}
@@ -134,16 +183,31 @@ export function MatchesPage() {
 function ResumenPanel({ data }: { data: Matches }) {
   const homeAwayColumns: Column<HomeAwayRow>[] = [
     { key: "label", header: "Ámbito", value: (r) => r.label },
-    { key: "played", header: "Partidos", align: "right", value: (r) => r.played },
+    {
+      key: "played",
+      header: "Partidos",
+      align: "right",
+      value: (r) => r.played,
+    },
     { key: "won", header: "Ganados", align: "right", value: (r) => r.won },
-    { key: "drawn", header: "Empatados", align: "right", value: (r) => r.drawn },
+    {
+      key: "drawn",
+      header: "Empatados",
+      align: "right",
+      value: (r) => r.drawn,
+    },
     { key: "lost", header: "Perdidos", align: "right", value: (r) => r.lost },
     { key: "gf", header: "Gf", align: "right", value: (r) => r.goalsFor },
     { key: "ga", header: "Gc", align: "right", value: (r) => r.goalsAgainst },
   ];
   const bestColumns: Column<BestRating>[] = [
     { key: "label", header: "Métrica", value: (r) => r.label },
-    { key: "value", header: "Mejor valor", align: "right", value: (r) => r.value },
+    {
+      key: "value",
+      header: "Mejor valor",
+      align: "right",
+      value: (r) => r.value,
+    },
     { key: "date", header: "Fecha", value: (r) => r.date },
     {
       key: "opponent",
@@ -168,7 +232,11 @@ function ResumenPanel({ data }: { data: Matches }) {
         />
         <Chart
           ariaLabel="Distribución de resultados: ganados, empatados y perdidos"
-          option={resultsPieOption(data.resultsPie.won, data.resultsPie.drawn, data.resultsPie.lost)}
+          option={resultsPieOption(
+            data.resultsPie.won,
+            data.resultsPie.drawn,
+            data.resultsPie.lost,
+          )}
           height={220}
         />
       </div>
@@ -187,7 +255,9 @@ function ResumenPanel({ data }: { data: Matches }) {
             filterPlaceholder="Filtrar…"
           />
         ) : (
-          <p className="text-xs text-[var(--muted)]">Todavía no hay ratings por sector sincronizados.</p>
+          <p className="text-xs text-[var(--muted)]">
+            Todavía no hay ratings por sector sincronizados.
+          </p>
         )}
       </div>
     </div>
@@ -199,8 +269,8 @@ function ConversionPanel({ data }: { data: Matches }) {
   if (!c.ownChances && !c.opponentChances) {
     return (
       <p className="p-4 text-xs text-[var(--muted)]">
-        Todavía no hay ocasiones por zona sincronizadas, así que no se puede calcular la
-        conversión. Llegan con el detalle del partido.
+        Todavía no hay ocasiones por zona sincronizadas, así que no se puede
+        calcular la conversión. Llegan con el detalle del partido.
       </p>
     );
   }
@@ -221,7 +291,9 @@ function ConversionPanel({ data }: { data: Matches }) {
           <div className="mt-1 text-xs text-[var(--muted)]">
             {c.ownGoals} de {c.ownChances} ocasiones
             {!c.isReliable && (
-              <span className="block text-[var(--danger)]">muestra corta: es ruido</span>
+              <span className="block text-[var(--danger)]">
+                muestra corta: es ruido
+              </span>
             )}
           </div>
         </div>
@@ -281,7 +353,12 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
         xAxis: {
           type: "category",
           data: labels,
-          axisLabel: { fontSize: 10, lineHeight: 13, interval: 0, hideOverlap: true },
+          axisLabel: {
+            fontSize: 10,
+            lineHeight: 13,
+            interval: 0,
+            hideOverlap: true,
+          },
         },
         yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
         tooltip: {
@@ -307,16 +384,31 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
         // tramo recto como si hubiera datos intermedios.
         series: [
           {
-            name: "Mediocampo", type: "line", data: points.map((p) => p.midfield),
-            smooth: true, symbol: "circle", symbolSize: 7, showSymbol: true,
+            name: "Mediocampo",
+            type: "line",
+            data: points.map((p) => p.midfield),
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 7,
+            showSymbol: true,
           },
           {
-            name: "Defensa", type: "line", data: points.map((p) => p.defence),
-            smooth: true, symbol: "circle", symbolSize: 7, showSymbol: true,
+            name: "Defensa",
+            type: "line",
+            data: points.map((p) => p.defence),
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 7,
+            showSymbol: true,
           },
           {
-            name: "Ataque", type: "line", data: points.map((p) => p.attack),
-            smooth: true, symbol: "circle", symbolSize: 7, showSymbol: true,
+            name: "Ataque",
+            type: "line",
+            data: points.map((p) => p.attack),
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 7,
+            showSymbol: true,
           },
         ],
       }}
@@ -403,7 +495,12 @@ function MatchTable({
 
 function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
   const { data, isLoading, isError } = useMatchDetail(htMatchId);
-  if (isLoading) return <Panel title="Análisis del partido"><Loading /></Panel>;
+  if (isLoading)
+    return (
+      <Panel title="Análisis del partido">
+        <Loading />
+      </Panel>
+    );
   if (isError || !data) {
     return (
       <Panel title="Análisis del partido">
@@ -417,23 +514,33 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
     max: Math.max(...data.sectors.flatMap((x) => [x.own, x.opponent])) + 4,
   }));
 
-  const hasChances = data.ownChances.total > 0 || data.opponentChances.total > 0;
+  const hasChances =
+    data.ownChances.total > 0 || data.opponentChances.total > 0;
 
   return (
-    <Panel title={`${data.isHome ? "vs" : "@"} ${data.opponent} · ${data.score}`} meta={data.date}>
+    <Panel
+      title={`${data.isHome ? "vs" : "@"} ${data.opponent} · ${data.score}`}
+      meta={data.date}
+    >
       <div className="grid gap-4 p-4 lg:grid-cols-2 [&>*]:min-w-0">
         <div className="space-y-4">
           <MatchSectorMap data={data} />
-          <Chart ariaLabel="Comparativa de ratings por sector frente al rival"
+          <Chart
+            ariaLabel="Comparativa de ratings por sector frente al rival"
             option={radarOption(indicators, [
               { name: "Nosotros", value: data.sectors.map((s) => s.own) },
-              { name: data.opponent, value: data.sectors.map((s) => s.opponent) },
+              {
+                name: data.opponent,
+                value: data.sectors.map((s) => s.opponent),
+              },
             ])}
             height={280}
           />
         </div>
         <div className="space-y-3 text-xs leading-relaxed text-[var(--muted)]">
-          <p className="text-sm font-medium text-[var(--text)]">{data.verdict}</p>
+          <p className="text-sm font-medium text-[var(--text)]">
+            {data.verdict}
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="text-[var(--muted)]">HatStats</div>
@@ -457,15 +564,17 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
                   {(data.opponentChances.conversion * 100).toFixed(0)}%
                 </div>
                 <div className="text-[10px] text-[var(--muted)]">
-                  {data.ownChances.goals}/{data.ownChances.total} ocasiones propias ·{" "}
-                  {data.opponentChances.goals}/{data.opponentChances.total} rivales
+                  {data.ownChances.goals}/{data.ownChances.total} ocasiones
+                  propias · {data.opponentChances.goals}/
+                  {data.opponentChances.total} rivales
                 </div>
               </div>
             )}
           </div>
           {data.strengths.length > 0 && (
             <p>
-              <b className="text-[var(--positive)]">Dominamos:</b> {data.strengths.join(", ")}.
+              <b className="text-[var(--positive)]">Dominamos:</b>{" "}
+              {data.strengths.join(", ")}.
             </p>
           )}
           {data.weaknesses.length > 0 && (
@@ -475,7 +584,10 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
             </p>
           )}
           {!data.strengths.length && !data.weaknesses.length && (
-            <p>Ningún sector se decidió por más de 10 puntos: partido equilibrado.</p>
+            <p>
+              Ningún sector se decidió por más de 10 puntos: partido
+              equilibrado.
+            </p>
           )}
         </div>
       </div>
