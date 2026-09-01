@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
-import type { Formation, PitchZoneMethod, PitchZoneScope } from "../services/api";
+import type {
+  Formation,
+  PitchZoneMethod,
+  PitchZoneScope,
+} from "../services/api";
 
 /** Conserva la vista anterior SÓLO si el sujeto no ha cambiado.
  *
@@ -18,10 +22,9 @@ import type { Formation, PitchZoneMethod, PitchZoneScope } from "../services/api
  *  `indice` es la posición de esa identidad dentro de `queryKey`.
  */
 const soloSiEsElMismo =
-  <T,>(indice: number, sujeto: unknown) =>
+  <T>(indice: number, sujeto: unknown) =>
   (previous: T | undefined, anterior?: { queryKey: readonly unknown[] }) =>
     anterior && anterior.queryKey[indice] === sujeto ? previous : undefined;
-
 
 /**
  * El equipo activo. Antes de conectar con Hattrick no hay ninguno real, así
@@ -61,7 +64,10 @@ export const useSessionProfile = () =>
   });
 
 export const useDashboard = () =>
-  useQuery({ queryKey: ["dashboard", TEAM_ID], queryFn: () => api.dashboard(TEAM_ID) });
+  useQuery({
+    queryKey: ["dashboard", TEAM_ID],
+    queryFn: () => api.dashboard(TEAM_ID),
+  });
 
 export const useClub = () =>
   useQuery({ queryKey: ["club", TEAM_ID], queryFn: () => api.club(TEAM_ID) });
@@ -86,17 +92,31 @@ export const useLineup = (
 ) =>
   useQuery({
     queryKey: [
-      "lineup", TEAM_ID, formation, centralDefenders ?? null, innerMidfielders ?? null,
+      "lineup",
+      TEAM_ID,
+      formation,
+      centralDefenders ?? null,
+      innerMidfielders ?? null,
       orders ?? null,
     ],
-    queryFn: () => api.lineup(TEAM_ID, formation, centralDefenders, innerMidfielders, orders),
+    queryFn: () =>
+      api.lineup(
+        TEAM_ID,
+        formation,
+        centralDefenders,
+        innerMidfielders,
+        orders,
+      ),
     // Mover un reparto no cambia la plantilla: se conserva el once anterior
     // mientras llega el nuevo, en vez de vaciar la pantalla entera.
     placeholderData: (previous) => previous,
   });
 
 export const useTrainingForecast = () =>
-  useQuery({ queryKey: ["training", TEAM_ID], queryFn: () => api.trainingForecast(TEAM_ID) });
+  useQuery({
+    queryKey: ["training", TEAM_ID],
+    queryFn: () => api.trainingForecast(TEAM_ID),
+  });
 
 export const usePostMatchTraining = () =>
   useQuery({
@@ -110,10 +130,16 @@ export const usePostMatchTraining = () =>
   });
 
 export const useTeamOverview = () =>
-  useQuery({ queryKey: ["team-overview", TEAM_ID], queryFn: () => api.teamOverview(TEAM_ID) });
+  useQuery({
+    queryKey: ["team-overview", TEAM_ID],
+    queryFn: () => api.teamOverview(TEAM_ID),
+  });
 
 export const useInsights = () =>
-  useQuery({ queryKey: ["insights", TEAM_ID], queryFn: () => api.insights(TEAM_ID) });
+  useQuery({
+    queryKey: ["insights", TEAM_ID],
+    queryFn: () => api.insights(TEAM_ID),
+  });
 
 export const useArchivedInsights = () =>
   useQuery({
@@ -124,20 +150,60 @@ export const useArchivedInsights = () =>
 /** Archivar y restaurar tocan las dos listas a la vez — una alerta que sale de
  *  la activa entra en el buzón y viceversa — así que ambas se invalidan
  *  juntas. Si solo se refrescara una, la pantalla mostraría la misma alerta en
- *  los dos sitios hasta el siguiente refresco. */
-function useInsightArchiveMutation(fn: (teamId: number, key: string) => Promise<unknown>) {
+ *  los dos sitios hasta el siguiente refresco.
+ *
+ *  La fila se quita AL INSTANTE, sin esperar al servidor. Medido el
+ *  2026-08-31: entre el clic y la desaparición pasaban 2,2 segundos --el POST
+ *  más dos refrescos, y las alertas se derivan de nuevo en cada petición--,
+ *  y en todo ese rato la lista entera se quedaba inerte. Un segundo es el
+ *  límite para que no se rompa el hilo de lo que estabas haciendo; con dos y
+ *  pico uno vuelve a pulsar creyendo que no ha funcionado.
+ *
+ *  Si el servidor falla se deshace y la alerta vuelve a su sitio: es la
+ *  contrapartida honesta de adelantarse a la respuesta. */
+function useInsightArchiveMutation(
+  fn: (teamId: number, key: string) => Promise<unknown>,
+) {
   const queryClient = useQueryClient();
+  const activas = ["insights", TEAM_ID] as const;
+  const buzon = ["insights-archived", TEAM_ID] as const;
+
   return useMutation({
     mutationFn: (key: string) => fn(TEAM_ID, key),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["insights", TEAM_ID] });
-      queryClient.invalidateQueries({ queryKey: ["insights-archived", TEAM_ID] });
+    onMutate: async (key: string) => {
+      // Se paran los refrescos en vuelo: si uno aterriza después de quitar la
+      // fila, la repone y parece que el clic no hizo nada.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: activas }),
+        queryClient.cancelQueries({ queryKey: buzon }),
+      ]);
+      const previoActivas =
+        queryClient.getQueryData<{ key: string }[]>(activas);
+      const previoBuzon = queryClient.getQueryData<{ key: string }[]>(buzon);
+      const quitar = (lista?: { key: string }[]) =>
+        lista ? lista.filter((i) => i.key !== key) : lista;
+      queryClient.setQueryData(activas, quitar(previoActivas));
+      queryClient.setQueryData(buzon, quitar(previoBuzon));
+      return { previoActivas, previoBuzon };
+    },
+    onError: (_e, _key, contexto) => {
+      if (contexto?.previoActivas)
+        queryClient.setQueryData(activas, contexto.previoActivas);
+      if (contexto?.previoBuzon)
+        queryClient.setQueryData(buzon, contexto.previoBuzon);
+    },
+    // Pase lo que pase, la verdad la tiene el servidor.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: activas });
+      queryClient.invalidateQueries({ queryKey: buzon });
     },
   });
 }
 
-export const useArchiveInsight = () => useInsightArchiveMutation(api.archiveInsight);
-export const useRestoreInsight = () => useInsightArchiveMutation(api.restoreInsight);
+export const useArchiveInsight = () =>
+  useInsightArchiveMutation(api.archiveInsight);
+export const useRestoreInsight = () =>
+  useInsightArchiveMutation(api.restoreInsight);
 
 export const usePositionModel = () =>
   useQuery({ queryKey: ["position-model"], queryFn: api.positionModel });
@@ -199,12 +265,22 @@ export const useLeagueTeamOfWeek = (
 ) =>
   useQuery({
     queryKey: [
-      "league-team-of-week", TEAM_ID, scope, formation, round,
-      centralDefenders ?? null, innerMidfielders ?? null,
+      "league-team-of-week",
+      TEAM_ID,
+      scope,
+      formation,
+      round,
+      centralDefenders ?? null,
+      innerMidfielders ?? null,
     ],
     queryFn: () =>
       api.leagueTeamOfWeek(
-        TEAM_ID, scope, formation, round, centralDefenders, innerMidfielders,
+        TEAM_ID,
+        scope,
+        formation,
+        round,
+        centralDefenders,
+        innerMidfielders,
       ),
     // Mover un reparto no cambia qué partidos se leen: se conserva el once
     // anterior mientras llega el nuevo en vez de vaciar el panel.
@@ -212,7 +288,10 @@ export const useLeagueTeamOfWeek = (
   });
 
 export const useAcademy = () =>
-  useQuery({ queryKey: ["academy", TEAM_ID], queryFn: () => api.academy(TEAM_ID) });
+  useQuery({
+    queryKey: ["academy", TEAM_ID],
+    queryFn: () => api.academy(TEAM_ID),
+  });
 
 /** Quién trajo a cada canterano. Va aparte de `useAcademy` porque son datos
  *  que sólo mira la pestaña de Ojeadores. */
@@ -243,7 +322,10 @@ export const useTrainingFormula = () =>
     refetchOnWindowFocus: "always",
   });
 
-export const useTrainingSquad = (skill?: string | null, includeThisWeek = true) =>
+export const useTrainingSquad = (
+  skill?: string | null,
+  includeThisWeek = true,
+) =>
   useQuery({
     queryKey: ["training-squad", TEAM_ID, skill ?? "default", includeThisWeek],
     queryFn: () => api.trainingSquad(TEAM_ID, skill, includeThisWeek),
@@ -264,10 +346,19 @@ export const useTrainingDevelopment = (enabled = true) =>
     refetchOnWindowFocus: "always",
   });
 
-export const usePlayerTrainingLevels = (htPlayerId: number | null, skill?: string | null) =>
+export const usePlayerTrainingLevels = (
+  htPlayerId: number | null,
+  skill?: string | null,
+) =>
   useQuery({
-    queryKey: ["player-training-levels", TEAM_ID, htPlayerId, skill ?? "default"],
-    queryFn: () => api.playerTrainingLevels(TEAM_ID, htPlayerId as number, skill),
+    queryKey: [
+      "player-training-levels",
+      TEAM_ID,
+      htPlayerId,
+      skill ?? "default",
+    ],
+    queryFn: () =>
+      api.playerTrainingLevels(TEAM_ID, htPlayerId as number, skill),
     enabled: htPlayerId != null,
   });
 
@@ -276,7 +367,9 @@ export const usePlayerTrainingLevels = (htPlayerId: number | null, skill?: strin
 // colapsado del 2026-08-05). `enabled` queda disponible por si otro caller
 // necesita retrasar el fetch, pero por defecto en `true`.
 export const useLeagueComparison = (
-  logTsi: boolean, top11: boolean, enabled = true,
+  logTsi: boolean,
+  top11: boolean,
+  enabled = true,
 ) =>
   useQuery({
     queryKey: ["league-comparison", TEAM_ID, logTsi, top11],
@@ -361,15 +454,28 @@ export const useRivalScouting = (
 ) =>
   useQuery({
     queryKey: [
-      "rival-scouting", TEAM_ID, rivalHtTeamId, logTsi, top11,
-      includeCompetitive, includeFriendlies, pitchZoneScope,
-      pitchZoneMethodOwn, pitchZoneMethodRival,
+      "rival-scouting",
+      TEAM_ID,
+      rivalHtTeamId,
+      logTsi,
+      top11,
+      includeCompetitive,
+      includeFriendlies,
+      pitchZoneScope,
+      pitchZoneMethodOwn,
+      pitchZoneMethodRival,
     ],
     queryFn: () =>
       api.rivalScouting(
-        TEAM_ID, rivalHtTeamId as number, logTsi, top11,
-        includeCompetitive, includeFriendlies, pitchZoneScope,
-        pitchZoneMethodOwn, pitchZoneMethodRival,
+        TEAM_ID,
+        rivalHtTeamId as number,
+        logTsi,
+        top11,
+        includeCompetitive,
+        includeFriendlies,
+        pitchZoneScope,
+        pitchZoneMethodOwn,
+        pitchZoneMethodRival,
       ),
     enabled: rivalHtTeamId != null,
     // Los mandos de vista --método de zonas, TSI logarítmico, once/plantilla--

@@ -118,7 +118,9 @@ export function InsightsPage() {
                   key={i.key}
                   insight={i}
                   onArchive={archive.mutate}
-                  busy={archive.isPending}
+                  // Sólo la fila que se está archivando, no las nueve: una
+                  // mutación en vuelo dejaba TODA la lista inerte.
+                  busy={archive.isPending && archive.variables === i.key}
                 />
               ))}
             </ul>
@@ -143,7 +145,7 @@ export function InsightsPage() {
                 key={i.key}
                 insight={i}
                 onRestore={restore.mutate}
-                busy={restore.isPending}
+                busy={restore.isPending && restore.variables === i.key}
                 meta={
                   i.stillActive
                     ? `Archivada ${relative(i.dismissedAt)} · la condición sigue vigente`
