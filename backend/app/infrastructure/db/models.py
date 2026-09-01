@@ -1002,6 +1002,10 @@ class YouthPlayer(Base):
     last_name: Mapped[str] = mapped_column(String(64))
     arrived_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     left_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: La especialidad, con los mismos códigos que la plantilla principal. Va
+    #: aquí y no en el snapshot porque no cambia nunca. `0` es a la vez "sin
+    #: especialidad" y "todavía no sincronizado" -- ver la migración 0077.
+    specialty: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class YouthSnapshot(Base):

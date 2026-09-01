@@ -38,7 +38,7 @@ from app.domain.engines.academy_engine import (
     training_exposure,
 )
 from app.domain.engines.position_engine import _config as position_config
-from app.domain.value_objects.ht_constants import SKILL_LABELS, training_target
+from app.domain.value_objects.ht_constants import SKILL_LABELS, SPECIALTIES, training_target
 from app.infrastructure.db import models as m
 
 # Un año de Hattrick son 112 días. Mismo número que usa `academy_engine`.
@@ -139,6 +139,11 @@ class YouthRow:
     verdict_is_provisional: bool
     promote_advice: str
     training_exposure: float
+    #: La especialidad, ya traducida -- el mismo texto que manda la plantilla
+    #: principal, para que la pantalla la pinte con el mismo componente. Es lo
+    #: unico de un canterano sin ojear que ya dice algo: llega desde el primer
+    #: dia, cuando ninguna habilidad se ha revelado todavia.
+    specialty: str
     skills: list[SkillRow]
 
 
@@ -424,6 +429,7 @@ class AcademyQueryService:
                     ),
                     promote_advice=ev.promote_advice,
                     training_exposure=exposure,
+                    specialty=SPECIALTIES.get(player.specialty or 0, ""),
                     skills=[
                         SkillRow(
                             skill=s,

@@ -1333,6 +1333,10 @@ def parse_youthplayerlist(xml: bytes) -> dict[str, Any]:
             "minutes_last_match": (
                 _int(last_match, "PlayedMinutes") if last_match is not None else 0
             ),
+            # La especialidad. Viene desde el primer día, aunque el ojeador no
+            # haya revelado ni una habilidad, y no cambia nunca: es lo único
+            # de un canterano sin ojear que ya dice algo (2026-09-01).
+            "specialty": _int(p, "Specialty"),
         }
         for tag, field_name in YOUTH_SKILL_TAGS.items():
             row[field_name] = _youth_skill(skills, f"{tag}Skill")

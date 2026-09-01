@@ -2336,6 +2336,11 @@ export interface Academy {
     verdictIsProvisional: boolean;
     promoteAdvice: string;
     trainingExposure: number;
+    /** La especialidad, ya traducida --el mismo texto que manda la plantilla
+     *  principal, para pintarla con el mismo componente--. Es lo único de un
+     *  canterano sin ojear que ya dice algo: llega desde el primer día, cuando
+     *  ninguna habilidad se ha revelado todavía. */
+    specialty: string;
     skills: {
       skill: string;
       /** Nivel al que juega hoy. `null` = el ojeador aún no lo ha dicho, que

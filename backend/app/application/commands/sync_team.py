@@ -4347,12 +4347,16 @@ class SyncTeamHandler:
                     first_name=row.get("first_name", ""),
                     last_name=row.get("last_name", ""),
                     arrived_at=_parse_dt(row.get("arrival_date")),
+                    specialty=row.get("specialty") or 0,
                 )
                 uow.session.add(youth)
                 await uow.session.flush()
             else:
                 youth.first_name = row.get("first_name") or youth.first_name
                 youth.last_name = row.get("last_name") or youth.last_name
+                # Se refresca también en los que ya estaban: es como se llena
+                # la columna en los canteranos anteriores a la migración 0077.
+                youth.specialty = row.get("specialty") or 0
                 # Si había salido y vuelve a aparecer, sigue en la academia.
                 youth.left_at = None
 
