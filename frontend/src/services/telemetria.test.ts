@@ -24,7 +24,52 @@ describe("a qué módulo pertenece cada ruta", () => {
     expect(moduloDe("/setup")).toBe("Alta: importación");
   });
 
-  it("lo que no conoce va a Otros, pero ya no debería caer nada de la app", () => {
-    expect(moduloDe("/algo-que-no-existe")).toBe("Otros");
+  it("lo que no conoce va a «Otros» CON su ruta puesta", () => {
+    // 2026-09-01: antes era un «Otros» a secas, y como se guarda el nombre del
+    // módulo --no la ruta-- después no había forma de saber qué había dentro.
+    // Paso el 31 de agosto: `/transparency` nació sin entrada en el mapa y 51
+    // eventos, 23 de ellos vistas sin etiqueta con casi siete horas dentro,
+    // acabaron en un cajón imposible de desglosar.
+    expect(moduloDe("/algo-que-no-existe")).toBe("Otros (/algo-que-no-existe)");
+  });
+
+  it("los identificadores no multiplican los cajones", () => {
+    // Sin esto, mil fichas sin mapear serían mil módulos distintos en la tabla.
+    expect(moduloDe("/loquesea/123")).toBe("Otros (/loquesea/:id)");
+    expect(moduloDe("/loquesea/456")).toBe("Otros (/loquesea/:id)");
+  });
+
+  it("una fila «Otros» es un aviso, no una categoría", () => {
+    // Toda ruta real de la aplicación tiene que estar mapeada. Si alguna cae
+    // aquí, es que falta una entrada -- que es exactamente lo que pasó con
+    // Transparencia.
+    for (const ruta of [
+      "/dashboard",
+      "/club",
+      "/overview",
+      "/team",
+      "/positions",
+      "/lineup",
+      "/training",
+      "/academy",
+      "/transfers/balance",
+      "/matches",
+      "/league",
+      "/cup",
+      "/rivals",
+      "/economy",
+      "/arena",
+      "/insights",
+      "/sync",
+      "/news",
+      "/transparency",
+      "/engine",
+      "/uso",
+      "/welcome",
+      "/connected",
+      "/setup",
+    ]) {
+      expect(moduloDe(ruta)).not.toMatch(/^Otros/);
+    }
   });
 });

@@ -44,9 +44,26 @@ const MODULOS: [RegExp, string][] = [
   [/^\/setup/, "Alta: importación"],
 ];
 
+/** Un «Otros» que dice DE DÓNDE viene.
+ *
+ *  Antes, una ruta sin entrada en el mapa caía en un «Otros» a secas, y como
+ *  lo que se guarda es el nombre del módulo --no la ruta-- después no había
+ *  forma de saber qué era. Paso justo eso el 2026-08-31: la pantalla Motor
+ *  paso a llamarse Transparencia, cambio de ruta a `/transparency`, el mapa se
+ *  quedo sin la entrada nueva unas horas, y 51 eventos --de ellos 23 vistas de
+ *  pagina SIN etiqueta, con casi siete horas dentro-- acabaron en un cajon
+ *  imposible de desglosar.
+ *
+ *  Ahora el cajon lleva la ruta puesta: «Otros (/transparency)». Sale feo en
+ *  la tabla a proposito -- una fila asi es un aviso de que falta una entrada
+ *  en el mapa, no una categoria legitima --.
+ *
+ *  Los tramos numericos se sustituyen por `:id` para que mil fichas de jugador
+ *  no se conviertan en mil modulos distintos. */
 export function moduloDe(ruta: string): string {
   for (const [patron, nombre] of MODULOS) if (patron.test(ruta)) return nombre;
-  return "Otros";
+  const generica = ruta.replace(/\/\d+/g, "/:id") || "/";
+  return `Otros (${generica})`;
 }
 
 type Evento = {
