@@ -14,6 +14,10 @@ Revision ID: 0066
 Revises: 0065
 """
 import sqlalchemy as sa
+
+# Las fechas van con `timezone=True` porque las columnas reales son
+# `timestamptz`: declararlas sin zona hace que asyncpg rechace el valor en
+# Postgres aunque sqlite lo acepte (ver 0071 y su test).
 from alembic import op
 
 revision = "0066"
@@ -29,7 +33,7 @@ players = sa.table(
     "players",
     sa.column("resale_closed", sa.Boolean),
     sa.column("resale_closed_reason", sa.String),
-    sa.column("previous_club_bonus_checked_at", sa.DateTime),
+    sa.column("previous_club_bonus_checked_at", sa.DateTime(timezone=True)),
 )
 
 

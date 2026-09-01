@@ -26,20 +26,44 @@ down_revision = "0070"
 branch_labels = None
 depends_on = None
 
+# OJO CON `timezone=True`. Las columnas de fecha de estas dos tablas son
+# `TIMESTAMP WITH TIME ZONE` de verdad (creadas asi en 0043 y 0057). Si aqui
+# se declaran como `sa.DateTime` a secas, SQLAlchemy convierte el parametro a
+# `TIMESTAMP WITHOUT TIME ZONE` y asyncpg rechaza el valor CON zona que acaba
+# de leer de esa misma columna:
+#
+#     invalid input for query argument $2: datetime(..., tzinfo=utc)
+#     (can't subtract offset-naive and offset-aware datetimes)
+#
+# En sqlite no pasaba: devuelve fechas sin zona, asi que todo encajaba. Se vio
+# en produccion el 2026-09-01, que es el unico sitio donde hay Postgres.
 players = sa.table(
     "players",
     sa.column("id", sa.BigInteger),
     sa.column("games_played_for_us", sa.SmallInteger),
-    sa.column("games_played_for_us_computed_at", sa.DateTime),
+    sa.column("games_played_for_us_computed_at", sa.DateTime(timezone=True)),
 )
 stints = sa.table(
     "player_stints",
     sa.column("id", sa.BigInteger),
     sa.column("player_id", sa.BigInteger),
-    sa.column("left_at", sa.DateTime),
+    sa.column("left_at", sa.DateTime(timezone=True)),
     sa.column("games_played_for_us", sa.SmallInteger),
-    sa.column("games_computed_at", sa.DateTime),
+    sa.column("games_computed_at", sa.DateTime(timezone=True)),
 )
+
+
+def _con_zona(valor: datetime | None) -> datetime | None:
+    """La misma fecha, siempre CON zona.
+
+    El valor sale de la base y llega distinto segun el motor: Postgres lo da
+    con zona y sqlite sin ella. Escribirlo en una columna `timestamptz` exige
+    que la tenga, asi que se le pone UTC cuando falta -- que es lo que ya era,
+    porque toda fecha guardada aqui es UTC.
+    """
+    if valor is None:
+        return None
+    return valor if valor.tzinfo is not None else valor.replace(tzinfo=UTC)
 
 
 def upgrade() -> None:
@@ -66,14 +90,16 @@ def upgrade() -> None:
             )
         ).mappings()
     )
-    ahora = datetime.now(UTC).replace(tzinfo=None)
+    # Con zona: la columna es `timestamptz`. Antes se le quitaba con
+    # `.replace(tzinfo=None)`, que era justo lo contrario de lo que hace falta.
+    ahora = datetime.now(UTC)
     for row in rows:
         bind.execute(
             stints.update()
             .where(stints.c.id == row["id"])
             .values(
                 games_played_for_us=row["games_played_for_us"],
-                games_computed_at=row["games_played_for_us_computed_at"] or ahora,
+                games_computed_at=_con_zona(row["games_played_for_us_computed_at"]) or ahora,
             )
         )
 
