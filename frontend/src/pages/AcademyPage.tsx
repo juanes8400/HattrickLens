@@ -1,7 +1,15 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { lecturaDeNivel } from "../utils/skillLevels";
-import { Empty, ErrorState, Kpi, Loading, Note, Panel, SinDatos } from "../components/Panels";
+import {
+  Empty,
+  ErrorState,
+  Kpi,
+  Loading,
+  Note,
+  Panel,
+  SinDatos,
+} from "../components/Panels";
 import {
   useAcademy,
   useAcademyScouts,
@@ -42,7 +50,13 @@ const SKILL_NAMES: Record<string, string> = {
 /** Los pesos van de decenas a milésimas según la base, así que no hay un
  *  número fijo de decimales que sirva para todos: se elige por magnitud. */
 const formatWeight = (w: number | undefined) =>
-  w == null ? "" : w >= 10 ? w.toFixed(0) : w >= 1 ? w.toFixed(1) : w.toFixed(3);
+  w == null
+    ? ""
+    : w >= 10
+      ? w.toFixed(0)
+      : w >= 1
+        ? w.toFixed(1)
+        : w.toFixed(3);
 
 /** Las tres vistas de la cantera. "Plantilla" abre por defecto: es la que
  *  responde "¿a quién tengo?", y las otras dos sólo tienen sentido después. */
@@ -144,7 +158,8 @@ export function AcademyPage() {
       <header>
         <h1 className="text-xl font-semibold">Juveniles</h1>
         <p className="text-sm text-[var(--muted)]">
-          Quién merece plaza, quién se pierde pronto y si la academia sale a cuenta
+          Quién merece plaza, quién se pierde pronto y si la academia sale a
+          cuenta
         </p>
       </header>
 
@@ -152,39 +167,40 @@ export function AcademyPage() {
           «Qué entrenar» o «A quién entrenar» no se está decidiendo dinero, y
           cuatro cifras arriba compiten con lo que sí importa allí. */}
       {view === "squad" && (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-        <Kpi label="Canteranos" value={String(data.squadSize)} />
-        <Kpi
-          label="Invertido"
-          value={money(data.invested, data.currency)}
-          hint={`${money(data.weeklyCost, data.currency)} por semana · ${
-            data.seasons >= 1
-              ? `${data.seasons} temporada${data.seasons === 1 ? "" : "s"}`
-              : `${data.weeks} semana${data.weeks === 1 ? "" : "s"}`
-          }`}
-        />
-        <Kpi
-          label="Ingresado"
-          value={money(data.earned, data.currency)}
-          hint="ventas de canteranos"
-        />
-        <Kpi
-          label="Neto"
-          value={money(data.net, data.currency)}
-          hint={data.roiVerdict}
-          tone={profitable ? "positive" : "danger"}
-        />
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
+          <Kpi label="Canteranos" value={String(data.squadSize)} />
+          <Kpi
+            label="Invertido"
+            value={money(data.invested, data.currency)}
+            hint={`${money(data.weeklyCost, data.currency)} por semana · ${
+              data.seasons >= 1
+                ? `${data.seasons} temporada${data.seasons === 1 ? "" : "s"}`
+                : `${data.weeks} semana${data.weeks === 1 ? "" : "s"}`
+            }`}
+          />
+          <Kpi
+            label="Ingresado"
+            value={money(data.earned, data.currency)}
+            hint="ventas de canteranos"
+          />
+          <Kpi
+            label="Neto"
+            value={money(data.net, data.currency)}
+            hint={data.roiVerdict}
+            tone={profitable ? "positive" : "danger"}
+          />
+        </div>
       )}
 
       {view === "squad" &&
         !profitable &&
         data.invested > 0 &&
         data.breakEvenSales > 0 && (
-        <Note>
-          Harían falta {data.breakEvenSales} venta(s) más al precio medio para equilibrar.
-        </Note>
-      )}
+          <Note>
+            Harían falta {data.breakEvenSales} venta(s) más al precio medio para
+            equilibrar.
+          </Note>
+        )}
 
       {/* Dos pantallas seguidas que responden preguntas distintas, y sin
           decirlo se confunden: la primera elige QUÉ se entrena, la segunda a
@@ -193,30 +209,33 @@ export function AcademyPage() {
         <p className="text-sm text-[var(--muted)]">
           {view === "train" ? (
             <>
-              <b className="text-[var(--text)]">Selección de entrenamiento</b> puntúa cada
-              habilidad por lo que tu cantera puede ganar en ella, y de ahí sale
-              la pareja recomendada. Los mandos de abajo son tuyos: mueve el
-              corte del plazo o la separación entre peldaños y el ranking se
-              recalcula. El reparto adopta la recomendación solo, hasta que
-              elijas otra cosa a mano en la pestaña siguiente.
+              <b className="text-[var(--text)]">Selección de entrenamiento</b>{" "}
+              puntúa cada habilidad por lo que tu cantera puede ganar en ella, y
+              de ahí sale la pareja recomendada. Los mandos de abajo son tuyos:
+              mueve el corte del plazo o la separación entre peldaños y el
+              ranking se recalcula. El reparto adopta la recomendación solo,
+              hasta que elijas otra cosa a mano en la pestaña siguiente.
             </>
           ) : (
             <>
-              <b className="text-[var(--text)]">Formación siguiente partido</b> reparte los
-              dos entrenamientos elegidos entre los once y el banquillo. Cada
-              entrenamiento llega a unos puestos y no a otros: quien cae donde
-              se cruzan los dos recibe ambos. Dentro de cada tramo entran
-              primero los mejores de la cola —peldaño, techo y edad—, así que
-              cambiar el secundario cambia quién juega dónde. La barra de
-              «Puede llegar a» es su HTMS28: relleno lo que ya tiene, y hasta
-              dónde llega la barra, lo máximo que podría alcanzar.
+              <b className="text-[var(--text)]">Formación siguiente partido</b>{" "}
+              reparte los dos entrenamientos elegidos entre los once y el
+              banquillo. Cada entrenamiento llega a unos puestos y no a otros:
+              quien cae donde se cruzan los dos recibe ambos. Dentro de cada
+              tramo entran primero los mejores de la cola —peldaño, techo y
+              edad—, así que cambiar el secundario cambia quién juega dónde. La
+              barra de «Puede llegar a» es su HTMS28: relleno lo que ya tiene, y
+              hasta dónde llega la barra, lo máximo que podría alcanzar.
             </>
           )}
         </p>
       )}
 
       {data.urgent.length > 0 && (
-        <Panel title="Plazo a punto de vencer" meta="lo urgente manda sobre lo importante">
+        <Panel
+          title="Plazo a punto de vencer"
+          meta="lo urgente manda sobre lo importante"
+        >
           <ul className="space-y-1 p-4 text-xs">
             {data.urgent.map((u, i) => (
               <li key={i} className="text-[var(--danger)]">
@@ -323,11 +342,27 @@ const DEFAULT_WEIGHT_BASE = 3;
  *  eso es el único que deja escribir. Los de bloque salen de los coeficientes
  *  del Manual que ya usa el motor de posiciones. */
 const TRAINABLE_METHODS: [string, string, string][] = [
-  ["slots", "Plazas que entrena", "a cuántos puestos de la alineación les llega ese entrenamiento"],
-  ["attack", "Aporte al ataque", "cuánto suma esa habilidad al ataque, según los coeficientes del Manual"],
-  ["midfield", "Aporte al mediocampo", "cuánto suma esa habilidad al mediocampo"],
+  [
+    "slots",
+    "Plazas que entrena",
+    "a cuántos puestos de la alineación les llega ese entrenamiento",
+  ],
+  [
+    "attack",
+    "Aporte al ataque",
+    "cuánto suma esa habilidad al ataque, según los coeficientes del Manual",
+  ],
+  [
+    "midfield",
+    "Aporte al mediocampo",
+    "cuánto suma esa habilidad al mediocampo",
+  ],
   ["defence", "Aporte a la defensa", "cuánto suma esa habilidad a la defensa"],
-  ["senior", "Igual que el primer equipo", "16 a lo que entrena hoy el primer equipo, 0 al resto"],
+  [
+    "senior",
+    "Igual que el primer equipo",
+    "16 a lo que entrena hoy el primer equipo, 0 al resto",
+  ],
   ["edit", "Editar a mano", "lo escribes tú, habilidad por habilidad"],
 ];
 
@@ -410,29 +445,48 @@ function WhatToTrain({
   irALaFormacion: (main: string, secondary: string) => void;
 }) {
   const [soonMaxDays, setSoonMaxDays] = usePersistido(
-    "juveniles.soonMaxDays", DEFAULT_SOON_MAX_DAYS,
+    "juveniles.soonMaxDays",
+    DEFAULT_SOON_MAX_DAYS,
   );
   const [weightBase, setWeightBase] = usePersistido(
-    "juveniles.weightBase", DEFAULT_WEIGHT_BASE,
+    "juveniles.weightBase",
+    DEFAULT_WEIGHT_BASE,
   );
   const [trainableMethod, setTrainableMethod] = usePersistido(
-    "juveniles.trainableMethod", "edit",
+    "juveniles.trainableMethod",
+    "edit",
   );
   // Arranca en las plazas que de verdad entrena cada cosa, no en ceros: son
   // números que la aplicación ya sabe, y hacérselos teclear era pedirle al
   // usuario que copiara una tabla nuestra a mano.
   const [trainable, setTrainable] = usePersistido<Record<string, number>>(
-    "juveniles.trainable", {},
+    "juveniles.trainable",
+    {},
   );
   const [sembrado, setSembrado] = useState(false);
-  // `null` = que lo sugiera la escalera (el peldaño -2 de la base). En cuanto
-  // el usuario lo toca deja de seguirla: es el único sumando que no describe a
-  // la cantera sino cuánto quiere pesar él ese criterio.
+  // El peso del bonus es INDEPENDIENTE de la escalera (pedido del usuario,
+  // 2026-09-01: «cuando muevo la barra de Separación entre peldaños se mueve
+  // automáticamente Peso del bonus personalizado, eso es incorrecto»).
+  //
+  // Antes `null` significaba «que lo sugiera la escalera», y como la
+  // sugerencia se recalcula con la base, arrastrar un mando movía el otro
+  // delante de tus ojos. La escalera describe a la cantera; este peso
+  // describe cuánto quieres que cuente TU criterio. No tienen por qué
+  // moverse juntos.
+  //
+  // `null` sigue existiendo pero sólo hasta la primera respuesta: se siembra
+  // con la sugerencia y a partir de ahí es un número tuyo que no se mueve
+  // solo. El enlace «volver al sugerido» sigue ahí para pedirla a propósito.
   const [bonusWeight, setBonusWeight] = usePersistido<number | null>(
-    "juveniles.bonusWeight", null,
+    "juveniles.bonusWeight",
+    null,
   );
   const tuned = useAcademySkillScores({
-    soonMaxDays, weightBase, trainableMethod, trainable, trainableWeight: bonusWeight,
+    soonMaxDays,
+    weightBase,
+    trainableMethod,
+    trainable,
+    trainableWeight: bonusWeight,
   });
 
   // Los pesos que la base reparte por columna. El usuario juega con potencias
@@ -458,18 +512,39 @@ function WhatToTrain({
     setSembrado(true);
     if (Object.keys(trainable).length === 0) setTrainable(plazas);
   }
+  // `null` significa «adopta la sugerencia», y en cuanto se sabe cuál es, se
+  // convierte en un número propio que la escalera ya no empuja.
+  //
+  // Se siembra desde `suggestedWeight` y NO desde `trainableWeight`: al pulsar
+  // «usar el sugerido» el estado pasa a `null` y esto corre en el mismo
+  // renderizado, cuando `trainableWeight` todavía trae el valor ANTERIOR. Con
+  // él, el enlace se quedaba inerte --sembraba de vuelta lo mismo que acababas
+  // de descartar-- (visto al probarlo, 2026-09-01).
+  if (bonusWeight === null && suggestedWeight != null) {
+    setBonusWeight(suggestedWeight);
+  }
   const top = rows[0];
   if (!top) return null;
   const max = Math.max(...rows.map((r) => r.score), 1e-9);
+  // «Está en los valores originales» ya no puede mirar si el peso del bonus
+  // es `null`: desde que se siembra nunca vuelve a serlo. Lo que importa es
+  // si COINCIDE con el que sugiere la escalera.
+  const bonusEsElSugerido =
+    bonusWeight === null ||
+    suggestedWeight == null ||
+    Math.abs(bonusWeight - suggestedWeight) < 1e-6;
   const isDefault =
     soonMaxDays === DEFAULT_SOON_MAX_DAYS &&
     weightBase === DEFAULT_WEIGHT_BASE &&
     trainableMethod === "edit" &&
-    bonusWeight === null &&
+    bonusEsElSugerido &&
     plazasIguales(trainable, plazas);
 
   return (
-    <Panel title="Selección de entrenamiento" meta="una habilidad, la reciben todos">
+    <Panel
+      title="Selección de entrenamiento"
+      meta="una habilidad, la reciben todos"
+    >
       {/* Las DOS, no una. Y la segunda con apellido: la misma habilidad se
           entrena por caminos distintos y cada uno llega a gente distinta.
           Con «Defensa» arriba, «Pases» a secas no toca a ningún defensa y
@@ -478,14 +553,18 @@ function WhatToTrain({
         {sugerencia ? (
           <>
             Ahora mismo conviene entrenar{" "}
-            <b className="text-[var(--youth-known)]">{sugerencia.mainLabel}</b>, y de
-            secundario{" "}
-            <b className="text-[var(--youth-known)]">{sugerencia.secondaryLabel}</b>.
+            <b className="text-[var(--youth-known)]">{sugerencia.mainLabel}</b>,
+            y de secundario{" "}
+            <b className="text-[var(--youth-known)]">
+              {sugerencia.secondaryLabel}
+            </b>
+            .
             {sugerencia.bothCount > 0 ? (
               <span className="text-[var(--muted)]">
                 {" "}
                 Así {sugerencia.bothCount}{" "}
-                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos cosas.
+                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos
+                cosas.
               </span>
             ) : (
               <span className="text-[var(--muted)]">
@@ -521,7 +600,11 @@ function WhatToTrain({
             <tr className="text-[var(--muted)]">
               <th className="px-4 py-2 text-left font-medium">Habilidad</th>
               {BUCKETS.map(([key, short, long]) => (
-                <th key={key} className="px-2 py-2 text-right font-medium" title={long}>
+                <th
+                  key={key}
+                  className="px-2 py-2 text-right font-medium"
+                  title={long}
+                >
                   <div className="tabular-nums text-[var(--youth-known)]">
                     {formatWeight(weights[key])}
                   </div>
@@ -543,7 +626,11 @@ function WhatToTrain({
                 <td className="px-4 py-2 font-medium">{r.label}</td>
                 {BUCKETS.map(([key]) => (
                   <td key={key} className="px-2 py-2 text-right tabular-nums">
-                    {r.counts[key] ? r.counts[key] : <span className="text-[var(--muted)]">·</span>}
+                    {r.counts[key] ? (
+                      r.counts[key]
+                    ) : (
+                      <span className="text-[var(--muted)]">·</span>
+                    )}
                   </td>
                 ))}
                 <td className="px-2 py-2 text-right">
@@ -555,7 +642,10 @@ function WhatToTrain({
                       max={16}
                       value={trainable[r.skill] ?? 0}
                       onChange={(e) =>
-                        setTrainable((t) => ({ ...t, [r.skill]: Number(e.target.value) || 0 }))
+                        setTrainable((t) => ({
+                          ...t,
+                          [r.skill]: Number(e.target.value) || 0,
+                        }))
                       }
                       className="w-12 rounded border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-right tabular-nums"
                     />
@@ -564,9 +654,11 @@ function WhatToTrain({
                       {/* Con decimales: los métodos por bloque reparten
                           fracciones y redondear empataría habilidades que la
                           fórmula sí distingue. */}
-                      {r.trainableCount
-                        ? decimal(r.trainableCount, 2)
-                        : <span className="text-[var(--muted)]">·</span>}
+                      {r.trainableCount ? (
+                        decimal(r.trainableCount, 2)
+                      ) : (
+                        <span className="text-[var(--muted)]">·</span>
+                      )}
                     </span>
                   )}
                 </td>
@@ -625,10 +717,17 @@ function WhatToTrain({
           <label className="block">
             <div className="text-xs">
               Salen de menos de 17 años y{" "}
-              <b className="tabular-nums text-[var(--youth-known)]">{soonMaxDays}</b> días
+              <b className="tabular-nums text-[var(--youth-known)]">
+                {soonMaxDays}
+              </b>{" "}
+              días
             </div>
             <input
-              type="range" min={0} max={112} step={1} value={soonMaxDays}
+              type="range"
+              min={0}
+              max={112}
+              step={1}
+              value={soonMaxDays}
               onChange={(e) => setSoonMaxDays(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--youth-known)]"
             />
@@ -639,7 +738,11 @@ function WhatToTrain({
               <b className="tabular-nums">×{decimal(weightBase, 1)}</b>
             </div>
             <input
-              type="range" min={1} max={4} step={0.5} value={weightBase}
+              type="range"
+              min={1}
+              max={4}
+              step={0.5}
+              value={weightBase}
               onChange={(e) => setWeightBase(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--youth-known)]"
             />
@@ -647,7 +750,9 @@ function WhatToTrain({
           <label className="block">
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="truncate">Peso del bonus personalizado</span>
-              <b className="shrink-0 tabular-nums">{formatWeight(trainableWeight)}</b>
+              <b className="shrink-0 tabular-nums">
+                {formatWeight(trainableWeight)}
+              </b>
             </div>
             <input
               type="range"
@@ -658,21 +763,25 @@ function WhatToTrain({
               onChange={(e) => setBonusWeight(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--youth-known)]"
             />
-            {/* Lo propone la escalera; en cuanto se mueve, deja de seguirla. */}
+            {/* La escalera SUGIERE un peso, pero no lo mueve: este mando es
+                independiente y sólo cambia si lo cambias tú o si pides la
+                sugerencia a propósito. */}
             <div className="text-[10px] text-[var(--muted)]">
-              {bonusWeight === null ? (
-                <>sugerido por la escalera</>
+              {bonusEsElSugerido ? (
+                <>coincide con lo que sugiere la escalera</>
               ) : (
-                <button type="button" onClick={() => setBonusWeight(null)} className="underline">
-                  volver al sugerido ({formatWeight(suggestedWeight)})
+                <button
+                  type="button"
+                  onClick={() => setBonusWeight(null)}
+                  className="underline"
+                >
+                  usar el sugerido ({formatWeight(suggestedWeight)})
                 </button>
               )}
             </div>
           </label>
         </div>
-
       </div>
-
     </Panel>
   );
 }
@@ -712,13 +821,12 @@ function NivelDeHabilidad({
   compact?: boolean;
 }) {
   const { palabra, numeros, ancho, crece } = lecturaDeNivel(
-    current, maximum, maxReached,
+    current,
+    maximum,
+    maxReached,
   );
-  const color = ancho === 0
-    ? "transparent"
-    : crece
-      ? "var(--positive)"
-      : "var(--danger)";
+  const color =
+    ancho === 0 ? "transparent" : crece ? "var(--positive)" : "var(--danger)";
 
   // En la tabla dinámica el nivel numérico es la evidencia que más se
   // compara entre filas. Va primero y como una pequeña pastilla: si quedaba
@@ -731,7 +839,9 @@ function NivelDeHabilidad({
         title={`${palabra} · ${numeros}`}
       >
         <span className="w-3 shrink-0 text-center leading-none">
-          {maxReached ? <span title="ya tocó techo: no sube más">🔒</span> : null}
+          {maxReached ? (
+            <span title="ya tocó techo: no sube más">🔒</span>
+          ) : null}
         </span>
         <span className="min-w-10 shrink-0 rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-[var(--text)]">
           {numeros}
@@ -831,7 +941,10 @@ function WhoToTrain({ data }: { data: Academy }) {
 
       <ul className="divide-y divide-[var(--border)]">
         {chosen.players.map((p, i) => (
-          <li key={p.name} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+          <li
+            key={p.name}
+            className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
+          >
             <span className="flex min-w-0 items-center gap-2">
               <span className="w-5 shrink-0 text-right text-xs tabular-nums text-[var(--muted)]">
                 {i + 1}
@@ -844,11 +957,13 @@ function WhoToTrain({ data }: { data: Academy }) {
                 {PELDAÑOS[p.priority] ?? "?"}
               </span>
               {p.leavesSoon && (
-                <span className="shrink-0 text-[10px] text-[var(--youth-known)]" title="sale con menos de 17;038">
+                <span
+                  className="shrink-0 text-[10px] text-[var(--youth-known)]"
+                  title="sale con menos de 17;038"
+                >
                   ⏱
                 </span>
               )}
-
             </span>
             <span className="shrink-0">
               {/* La misma pieza que en Techos y en la plantilla: una sola
@@ -896,7 +1011,6 @@ function WhoToTrain({ data }: { data: Academy }) {
           </li>
         ))}
       </ul>
-
     </Panel>
   );
 }
@@ -937,7 +1051,10 @@ const REGIONES: Record<string, { titulo: string; pista: string }> = {
   ambos: { titulo: "Reciben los dos entrenamientos", pista: "" },
   solo_principal: { titulo: "Solo el principal", pista: "" },
   solo_secundaria: { titulo: "Solo el secundario", pista: "" },
-  sin_entrenamiento: { titulo: "Sin entrenamiento", pista: "no les llega ninguno de los dos" },
+  sin_entrenamiento: {
+    titulo: "Sin entrenamiento",
+    pista: "no les llega ninguno de los dos",
+  },
 };
 
 /** `15;028`, el formato de Hattrick. */
@@ -1073,25 +1190,26 @@ function lineasDe(
   hueco: "principal" | "secundario",
   etiqueta: string,
 ): LineaDeEntrenamiento[] {
-  const recibidas = hueco === "principal"
-    ? asignacion.mainLines
-    : asignacion.secondaryLines;
+  const recibidas =
+    hueco === "principal" ? asignacion.mainLines : asignacion.secondaryLines;
   if (recibidas?.length) return recibidas;
 
-  const rate = hueco === "principal"
-    ? asignacion.racionPrincipal
-    : asignacion.racionSecundaria;
+  const rate =
+    hueco === "principal"
+      ? asignacion.racionPrincipal
+      : asignacion.racionSecundaria;
   if (rate <= 0) return [];
-  const level = hueco === "principal"
-    ? asignacion.mainLevel
-    : asignacion.secondaryLevel;
-  return [{
-    skill: `${hueco}-legacy`,
-    label: etiqueta,
-    rate,
-    probability: null,
-    level,
-  }];
+  const level =
+    hueco === "principal" ? asignacion.mainLevel : asignacion.secondaryLevel;
+  return [
+    {
+      skill: `${hueco}-legacy`,
+      label: etiqueta,
+      rate,
+      probability: null,
+      level,
+    },
+  ];
 }
 
 /** El nombre de cada peldaño, para poder decir QUÉ se quitó en la prueba de
@@ -1128,7 +1246,11 @@ function PorQue({ m }: { m: VeredictoDeMetodo }) {
     <div className="mt-1 space-y-1">
       <div className="text-xs text-[var(--muted)]">{m.why}</div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
-        {dato("puntaje", m.main.score.toFixed(2), "El de la habilidad principal")}
+        {dato(
+          "puntaje",
+          m.main.score.toFixed(2),
+          "El de la habilidad principal",
+        )}
         {dato(
           "respaldo",
           `${m.main.backed} en peldaño alto`,
@@ -1172,7 +1294,10 @@ function Racion({ cuanto, etiqueta }: { cuanto: number; etiqueta: string }) {
        líneas de la celda. Con flex la empujaba la etiqueta de delante --que
        mide distinto en «Lateral» y en «Balón parado»-- y las barras parecían
        de anchos distintos cuando siempre midieron lo mismo. */
-    <span className="grid grid-cols-[8.5rem_2.5rem] items-center gap-2" title={etiqueta}>
+    <span
+      className="grid grid-cols-[8.5rem_2.5rem] items-center gap-2"
+      title={etiqueta}
+    >
       <span className="truncate" style={{ color }}>
         {nombreCorto(etiqueta)}:{" "}
         <span className="tabular-nums">{porcentaje(cuanto)}</span>
@@ -1249,8 +1374,12 @@ function TablaDelReparto({
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
-              <th scope="col" className={`${th} text-left`}>Jugador</th>
-              <th scope="col" className={`${th} text-right`}>Edad</th>
+              <th scope="col" className={`${th} text-left`}>
+                Jugador
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Edad
+              </th>
               <th
                 scope="col"
                 className={`${th} text-right`}
@@ -1301,8 +1430,16 @@ function TablaDelReparto({
                   </tr>
                   {suyas.map((a) => {
                     const principales = lineasDe(a, "principal", mainLabel);
-                    const secundarias = lineasDe(a, "secundario", secondaryLabel);
-                    const cuantas = Math.max(1, principales.length, secundarias.length);
+                    const secundarias = lineasDe(
+                      a,
+                      "secundario",
+                      secondaryLabel,
+                    );
+                    const cuantas = Math.max(
+                      1,
+                      principales.length,
+                      secundarias.length,
+                    );
                     return (
                       <Fragment key={a.player}>
                         {Array.from({ length: cuantas }, (_, indice) => {
@@ -1321,14 +1458,18 @@ function TablaDelReparto({
                               <td className={`${td} text-left`}>
                                 {primera && (
                                   <>
-                                    <span className="font-medium">{a.player}</span>
+                                    <span className="font-medium">
+                                      {a.player}
+                                    </span>
                                     <span className="block text-xs text-[var(--muted)]">
                                       {PUESTOS[a.puesto] ?? a.puesto ?? ""}
                                     </span>
                                   </>
                                 )}
                               </td>
-                              <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                              <td
+                                className={`${td} text-right tabular-nums text-[var(--muted)]`}
+                              >
                                 {primera ? edadCorta(a.ageDaysTotal) : null}
                               </td>
                               <td className={`${td} text-right`}>
@@ -1343,7 +1484,9 @@ function TablaDelReparto({
                               <td className={`${td} text-left`}>
                                 <Celda
                                   linea={lineaPrincipal}
-                                  muestraVacio={primera && principales.length === 0}
+                                  muestraVacio={
+                                    primera && principales.length === 0
+                                  }
                                 />
                               </td>
                               <td className={`${td} text-left`}>
@@ -1356,10 +1499,14 @@ function TablaDelReparto({
                                   />
                                 )}
                               </td>
-                              <td className={`${td} border-l border-[var(--border)] pl-5 text-left`}>
+                              <td
+                                className={`${td} border-l border-[var(--border)] pl-5 text-left`}
+                              >
                                 <Celda
                                   linea={lineaSecundaria}
-                                  muestraVacio={primera && secundarias.length === 0}
+                                  muestraVacio={
+                                    primera && secundarias.length === 0
+                                  }
                                 />
                               </td>
                               <td className={`${td} pr-6 text-left`}>
@@ -1367,7 +1514,9 @@ function TablaDelReparto({
                                   <NivelDeHabilidad
                                     current={lineaSecundaria.level.current}
                                     maximum={lineaSecundaria.level.maximum}
-                                    maxReached={lineaSecundaria.level.maxReached}
+                                    maxReached={
+                                      lineaSecundaria.level.maxReached
+                                    }
                                     compact
                                   />
                                 )}
@@ -1485,7 +1634,9 @@ function TrainingPlan({
   //  Cuál fue la última recomendación que adoptamos nosotros. Distinguirlo de
   //  una elección suya es lo que hace que el reparto siga a la recomendación
   //  sin pisar lo que él ponga a mano.
-  const [adoptado, setAdoptado] = usePersistidoTexto("juveniles.sugerenciaAdoptada");
+  const [adoptado, setAdoptado] = usePersistidoTexto(
+    "juveniles.sugerenciaAdoptada",
+  );
   const principal = main || opciones[0]?.code || habilidades[0]?.skill || "";
   const secundaria = secondary || opciones[1]?.code || principal;
 
@@ -1551,16 +1702,14 @@ function TrainingPlan({
             y lo castiga bajando el hueco secundario de dos tercios a un
             tercio, para un total de 133,3%. Quitarlo de la
             lista escondia una jugada legitima. */}
-        {opciones
-          .map((o) => (
-            <option key={o.code} value={o.code}>
-              {o.label}
-            </option>
-          ))}
+        {opciones.map((o) => (
+          <option key={o.code} value={o.code}>
+            {o.label}
+          </option>
+        ))}
       </select>
     </label>
   );
-
 
   return (
     <Panel
@@ -1584,11 +1733,12 @@ function TrainingPlan({
 
       {plan.data?.repeatedTraining && (
         <div className="border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm text-[var(--text)]">
-          <span className="font-medium">Entrenamiento repetido:</span>{" "}
-          100% principal + {porcentaje(plan.data.secondaryFactor * 100)} secundario
+          <span className="font-medium">Entrenamiento repetido:</span> 100%
+          principal + {porcentaje(plan.data.secondaryFactor * 100)} secundario
           {" = "}
-          <strong>{porcentaje(plan.data.combinedFactor * 100)}</strong> del efecto de una
-          sesión. El secundario normal de 66,7% recibe el castigo por repetición.
+          <strong>{porcentaje(plan.data.combinedFactor * 100)}</strong> del
+          efecto de una sesión. El secundario normal de 66,7% recibe el castigo
+          por repetición.
         </div>
       )}
 
@@ -1624,36 +1774,36 @@ function TrainingPlan({
             </p>
           )}
           <div className="p-4">
-          {plan.data.scouting.total > 0 && (
-            <p className="mt-3 text-xs text-[var(--muted)]">
-              {plan.data.doubleBlind > 0 && (
-                <>
-                  <b className="text-[var(--text)]">
-                    {plan.data.doubleBlind === plan.data.doubleCount
-                      ? `Los ${plan.data.doubleCount}`
-                      : `${plan.data.doubleBlind} de los ${plan.data.doubleCount}`}
-                  </b>{" "}
-                  que reciben los dos entrenamientos van a entrenar una
-                  habilidad que el ojeador no ha revelado — es a propósito:
-                  entrenarlos es lo que la revela.{" "}
-                </>
-              )}
-              El ojeador lleva {plan.data.scouting.known} lecturas de{" "}
-              {plan.data.scouting.total}
-              {plan.data.scouting.blankPlayers.length > 0 && (
-                <>
-                  , y {plan.data.scouting.blankPlayers.length} canteranos sin
-                  nada revelado todavía
-                </>
-              )}
-              .
-            </p>
-          )}
-          <SinRevelar
-            nombres={plan.data.scouting.blankPlayers}
-            dentro={plan.data.assignments}
-            fuera={plan.data.outside}
-          />
+            {plan.data.scouting.total > 0 && (
+              <p className="mt-3 text-xs text-[var(--muted)]">
+                {plan.data.doubleBlind > 0 && (
+                  <>
+                    <b className="text-[var(--text)]">
+                      {plan.data.doubleBlind === plan.data.doubleCount
+                        ? `Los ${plan.data.doubleCount}`
+                        : `${plan.data.doubleBlind} de los ${plan.data.doubleCount}`}
+                    </b>{" "}
+                    que reciben los dos entrenamientos van a entrenar una
+                    habilidad que el ojeador no ha revelado — es a propósito:
+                    entrenarlos es lo que la revela.{" "}
+                  </>
+                )}
+                El ojeador lleva {plan.data.scouting.known} lecturas de{" "}
+                {plan.data.scouting.total}
+                {plan.data.scouting.blankPlayers.length > 0 && (
+                  <>
+                    , y {plan.data.scouting.blankPlayers.length} canteranos sin
+                    nada revelado todavía
+                  </>
+                )}
+                .
+              </p>
+            )}
+            <SinRevelar
+              nombres={plan.data.scouting.blankPlayers}
+              dentro={plan.data.assignments}
+              fuera={plan.data.outside}
+            />
           </div>
         </div>
       )}
@@ -1705,7 +1855,8 @@ const ORDENES: {
   {
     key: "edad",
     label: "Edad, del más joven",
-    cmp: (a, b) => a.ageYears * 112 + a.ageDays - (b.ageYears * 112 + b.ageDays),
+    cmp: (a, b) =>
+      a.ageYears * 112 + a.ageDays - (b.ageYears * 112 + b.ageDays),
   },
   {
     key: "revelados",
@@ -1760,7 +1911,10 @@ function SkillDetail({ data }: { data: Academy }) {
   //  El orden y la clasificación se recuerdan; los filtros de "sólo los
   //  que…" no, porque son preguntas de un momento, no una preferencia.
   const [orden, setOrden] = usePersistido("juveniles.orden", "potencial");
-  const [clases, setClases] = usePersistido<string[]>("juveniles.filtroClases", []);
+  const [clases, setClases] = usePersistido<string[]>(
+    "juveniles.filtroClases",
+    [],
+  );
   const [soloRevelable, setSoloRevelable] = useState(false);
   const [soloAlTope, setSoloAlTope] = useState(false);
   const [soloEnElReparto, setSoloEnElReparto] = useState(false);
@@ -1789,7 +1943,9 @@ function SkillDetail({ data }: { data: Academy }) {
   );
 
   const alterna = (lista: string[], valor: string) =>
-    lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor];
+    lista.includes(valor)
+      ? lista.filter((x) => x !== valor)
+      : [...lista, valor];
 
   const filtrados = data.players.filter((p) => {
     if (clases.length > 0 && !clases.includes(p.category)) return false;
@@ -1938,63 +2094,63 @@ function SkillDetail({ data }: { data: Academy }) {
       {ordenados.length === 0 ? (
         <Empty>Ningún canterano cumple ese filtro.</Empty>
       ) : (
-      <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
-        {ordenados.map((p) => (
-          <div
-            key={p.htYouthPlayerId}
-            className="min-w-0 rounded-lg border border-[var(--border)] p-3"
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-sm font-medium">{p.name}</span>
-              {/* `15;068`, como en el resto del módulo. `htAge` da «15.68»,
+        <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
+          {ordenados.map((p) => (
+            <div
+              key={p.htYouthPlayerId}
+              className="min-w-0 rounded-lg border border-[var(--border)] p-3"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-medium">{p.name}</span>
+                {/* `15;068`, como en el resto del módulo. `htAge` da «15.68»,
                   sin ceros, y dos formatos de edad en la misma página se leen
                   como dos datos distintos. */}
-              <span className="shrink-0 tabular-nums text-xs text-[var(--muted)]">
-                {edadCorta(p.ageYears * 112 + p.ageDays)}
-              </span>
-            </div>
-            {/* La clasificación, que vivía en la tabla que esta vista
+                <span className="shrink-0 tabular-nums text-xs text-[var(--muted)]">
+                  {edadCorta(p.ageYears * 112 + p.ageDays)}
+                </span>
+              </div>
+              {/* La clasificación, que vivía en la tabla que esta vista
                 reemplaza. El potencial se marca cuando sale entero del
                 supuesto: sin un techo revelado no es una medida. */}
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-xs">
-              <span className={CATEGORY_TONE[p.category] ?? ""}>
-                {p.category}
-                {/* El interrogante avisa de que el veredicto es provisional.
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-xs">
+                <span className={CATEGORY_TONE[p.category] ?? ""}>
+                  {p.category}
+                  {/* El interrogante avisa de que el veredicto es provisional.
                     Con «sin ojear» sobra: la etiqueta ya dice justo eso. */}
-                {p.verdictIsProvisional && p.revealedSkills > 0 && (
-                  <span title="pocos techos revelados: provisional"> ?</span>
-                )}
-              </span>
-              <span
-                className="tabular-nums text-[var(--muted)]"
-                title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
-              >
-                HTMS28 {p.htms28Min} – {p.htms28Max}
-              </span>
-              <span className="tabular-nums text-[var(--muted)]">
-                {p.revealedSkills}/{p.skills.length} techos
-              </span>
-            </div>
-            <div className="mt-3 space-y-2">
-              {p.skills.map((s) => (
-                <div
-                  key={s.skill}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                  {p.verdictIsProvisional && p.revealedSkills > 0 && (
+                    <span title="pocos techos revelados: provisional"> ?</span>
+                  )}
+                </span>
+                <span
+                  className="tabular-nums text-[var(--muted)]"
+                  title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
                 >
-                  <span className="w-28 shrink-0 text-[var(--muted)]">
-                    {SKILL_NAMES[s.skill] ?? s.skill}
-                  </span>
-                  <NivelDeHabilidad
-                    current={s.current}
-                    maximum={s.maximum}
-                    maxReached={s.maxReached}
-                  />
-                </div>
-              ))}
+                  HTMS28 {p.htms28Min} – {p.htms28Max}
+                </span>
+                <span className="tabular-nums text-[var(--muted)]">
+                  {p.revealedSkills}/{p.skills.length} techos
+                </span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {p.skills.map((s) => (
+                  <div
+                    key={s.skill}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                  >
+                    <span className="w-28 shrink-0 text-[var(--muted)]">
+                      {SKILL_NAMES[s.skill] ?? s.skill}
+                    </span>
+                    <NivelDeHabilidad
+                      current={s.current}
+                      maximum={s.maximum}
+                      maxReached={s.maxReached}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       )}
     </Panel>
   );
@@ -2030,7 +2186,11 @@ const EDAD_MINIMA_DE_ASCENSO = 17 * 112;
  *  desincronizarse con él. Si sale 17;000 es que le frena la edad; más que eso,
  *  que le frena el plazo en la academia —y esos días de más son academia
  *  gastada sin necesidad—. */
-function edadAlSubir(p: { ageYears: number; ageDays: number; canBePromotedIn: number | null }) {
+function edadAlSubir(p: {
+  ageYears: number;
+  ageDays: number;
+  canBePromotedIn: number | null;
+}) {
   return p.ageYears * 112 + p.ageDays + Math.max(0, p.canBePromotedIn ?? 0);
 }
 
@@ -2103,7 +2263,9 @@ function SiguientePromocion({ data }: { data: Academy }) {
   });
 
   const ordenarPor = (clave: ClaveDeOrden) =>
-    setOrden((o) => (o.clave === clave ? { clave, desc: !o.desc } : { clave, desc: false }));
+    setOrden((o) =>
+      o.clave === clave ? { clave, desc: !o.desc } : { clave, desc: false },
+    );
 
   const filas = [...data.players].sort((a, b) => {
     const saca = ORDEN_DE_PROMOCION[orden.clave];
@@ -2114,9 +2276,11 @@ function SiguientePromocion({ data }: { data: Academy }) {
         ? x.localeCompare(y, "es")
         : Number(x) - Number(y);
     // Empate: quien suba antes, que es el orden natural de la pantalla.
-    return (orden.desc ? -cmp : cmp) || (a.canBePromotedIn ?? 9999) - (b.canBePromotedIn ?? 9999);
+    return (
+      (orden.desc ? -cmp : cmp) ||
+      (a.canBePromotedIn ?? 9999) - (b.canBePromotedIn ?? 9999)
+    );
   });
-
 
   const listos = filas.filter((p) => (p.canBePromotedIn ?? 9999) <= 0);
   const primero = filas.find((p) => (p.canBePromotedIn ?? 9999) > 0);
@@ -2146,10 +2310,23 @@ function SiguientePromocion({ data }: { data: Academy }) {
           </colgroup>
           <thead className="bg-[var(--surface-2)]">
             <tr>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="nombre">Jugador</Cabecera>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="edad" align="right">Edad</Cabecera>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="categoria">Clasificación</Cabecera>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="mejor">Mejor habilidad</Cabecera>
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="nombre">
+                Jugador
+              </Cabecera>
+              <Cabecera
+                orden={orden}
+                ordenarPor={ordenarPor}
+                clave="edad"
+                align="right"
+              >
+                Edad
+              </Cabecera>
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="categoria">
+                Clasificación
+              </Cabecera>
+              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="mejor">
+                Mejor habilidad
+              </Cabecera>
               <Cabecera
                 orden={orden}
                 ordenarPor={ordenarPor}
@@ -2179,7 +2356,9 @@ function SiguientePromocion({ data }: { data: Academy }) {
               </Cabecera>
               {/* «Qué hacer» no ordena: es una frase, y ordenarla
                   alfabéticamente no responde ninguna pregunta. */}
-              <th scope="col" className={`${th} text-left`}>Qué hacer</th>
+              <th scope="col" className={`${th} text-left`}>
+                Qué hacer
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -2197,7 +2376,9 @@ function SiguientePromocion({ data }: { data: Academy }) {
                   <td className={`${td} truncate text-left`} title={p.name}>
                     {p.name}
                   </td>
-                  <td className={`${td} text-right tabular-nums text-[var(--muted)]`}>
+                  <td
+                    className={`${td} text-right tabular-nums text-[var(--muted)]`}
+                  >
                     {edadCorta(p.ageYears * 112 + p.ageDays)}
                   </td>
                   <td className={`${td} text-left text-xs`}>
@@ -2218,12 +2399,17 @@ function SiguientePromocion({ data }: { data: Academy }) {
                         />
                       </span>
                     ) : (
-                      <span className="text-xs text-[var(--muted)]">sin revelar</span>
+                      <span className="text-xs text-[var(--muted)]">
+                        sin revelar
+                      </span>
                     )}
                   </td>
                   <td
                     className={`${td} text-right tabular-nums`}
-                    style={{ color: sube.texto === "ya" ? "var(--positive)" : undefined }}
+                    style={{
+                      color:
+                        sube.texto === "ya" ? "var(--positive)" : undefined,
+                    }}
                   >
                     {sube.texto}
                   </td>
@@ -2254,7 +2440,9 @@ function SiguientePromocion({ data }: { data: Academy }) {
                   </td>
                   <td
                     className={`${td} text-right tabular-nums`}
-                    style={{ color: pierde.urgente ? "var(--danger)" : "var(--muted)" }}
+                    style={{
+                      color: pierde.urgente ? "var(--danger)" : "var(--muted)",
+                    }}
                   >
                     {pierde.texto}
                   </td>
@@ -2312,7 +2500,9 @@ function esOjeadorDeVerdad(nombre: string, id: number | null): boolean {
  *  Un número de región no le dice nada a nadie: «1717» es Huila. El nombre
  *  viene en `youthteamdetails`, que es de donde sale la cuenta; el listado de
  *  informes solo trae el identificador. */
-function regionesPorOjeador(ledger: ScoutsLedger | undefined): Map<string, string> {
+function regionesPorOjeador(
+  ledger: ScoutsLedger | undefined,
+): Map<string, string> {
   const mapa = new Map<string, string>();
   for (const o of ledger?.scouts ?? []) {
     if (o.region) mapa.set(o.name, o.region);
@@ -2320,7 +2510,9 @@ function regionesPorOjeador(ledger: ScoutsLedger | undefined): Map<string, strin
   return mapa;
 }
 
-function techosPorNombre(ledger: ScoutsLedger | undefined): Map<string, number> {
+function techosPorNombre(
+  ledger: ScoutsLedger | undefined,
+): Map<string, number> {
   const mapa = new Map<string, number>();
   for (const o of ledger?.scouts ?? []) {
     for (const p of o.players) {
@@ -2354,13 +2546,25 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
         <table className="w-full">
           <thead className="bg-[var(--surface-2)]">
             <tr>
-              <th scope="col" className={`${th} text-left`}>Ojeador</th>
-              <th scope="col" className={`${th} text-left`}>Busca en</th>
-              <th scope="col" className={`${th} text-right`} title="semanas completas desde que lo contrataste">
+              <th scope="col" className={`${th} text-left`}>
+                Ojeador
+              </th>
+              <th scope="col" className={`${th} text-left`}>
+                Busca en
+              </th>
+              <th
+                scope="col"
+                className={`${th} text-right`}
+                title="semanas completas desde que lo contrataste"
+              >
                 Semanas
               </th>
-              <th scope="col" className={`${th} text-right`}>Ha costado</th>
-              <th scope="col" className={`${th} text-right`}>Trajo</th>
+              <th scope="col" className={`${th} text-right`}>
+                Ha costado
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Trajo
+              </th>
               <th
                 scope="col"
                 className={`${th} text-right`}
@@ -2375,8 +2579,12 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
               >
                 Sin traer
               </th>
-              <th scope="col" className={`${th} text-right`}>Ha dado</th>
-              <th scope="col" className={`${th} text-right`}>Saldo</th>
+              <th scope="col" className={`${th} text-right`}>
+                Ha dado
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Saldo
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -2385,18 +2593,27 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                 <td className={`${td} font-medium`}>
                   {o.name}
                   {!o.stillHired && (
-                    <span className="ml-2 text-xs text-[var(--muted)]">despedido</span>
+                    <span className="ml-2 text-xs text-[var(--muted)]">
+                      despedido
+                    </span>
                   )}
                 </td>
-                <td className={`${td} text-[var(--muted)]`}>{o.region ?? "—"}</td>
+                <td className={`${td} text-[var(--muted)]`}>
+                  {o.region ?? "—"}
+                </td>
                 <td className={`${td} text-right tabular-nums`}>{o.weeks}</td>
-                <td className={`${td} text-right tabular-nums text-[var(--danger)]`}>
+                <td
+                  className={`${td} text-right tabular-nums text-[var(--danger)]`}
+                >
                   {moneda(o.cost)}
                 </td>
                 <td className={`${td} text-right tabular-nums`}>
                   {o.found}
                   {o.sold > 0 && (
-                    <span className="text-xs text-[var(--muted)]"> · {o.sold} vendidos</span>
+                    <span className="text-xs text-[var(--muted)]">
+                      {" "}
+                      · {o.sold} vendidos
+                    </span>
                   )}
                 </td>
                 <td className={`${td} text-right tabular-nums`}>
@@ -2408,14 +2625,20 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   className={`${td} text-right tabular-nums`}
                   style={{
                     color:
-                      (o.daysSinceLastFind ?? 0) > 21 ? "var(--warning)" : "var(--muted)",
+                      (o.daysSinceLastFind ?? 0) > 21
+                        ? "var(--warning)"
+                        : "var(--muted)",
                   }}
                 >
-                  {o.daysSinceLastFind == null ? "—" : `${o.daysSinceLastFind} d`}
+                  {o.daysSinceLastFind == null
+                    ? "—"
+                    : `${o.daysSinceLastFind} d`}
                 </td>
                 <td className={`${td} text-right tabular-nums`}>
                   {o.income > 0 ? (
-                    <span className="text-[var(--positive)]">{moneda(o.income)}</span>
+                    <span className="text-[var(--positive)]">
+                      {moneda(o.income)}
+                    </span>
                   ) : (
                     <span className="text-[var(--muted)]">todavía nada</span>
                   )}
@@ -2424,7 +2647,8 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   <span
                     className="tabular-nums font-medium"
                     style={{
-                      color: o.balance >= 0 ? "var(--positive)" : "var(--danger)",
+                      color:
+                        o.balance >= 0 ? "var(--positive)" : "var(--danger)",
                     }}
                   >
                     {moneda(o.balance)}
@@ -2446,11 +2670,17 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
           {totals && (
             <tfoot>
               <tr className="border-t-2 border-[var(--border)] font-medium">
-                <td className={td} colSpan={3}>Total</td>
-                <td className={`${td} text-right tabular-nums text-[var(--danger)]`}>
+                <td className={td} colSpan={3}>
+                  Total
+                </td>
+                <td
+                  className={`${td} text-right tabular-nums text-[var(--danger)]`}
+                >
                   {moneda(totals.cost)}
                 </td>
-                <td className={`${td} text-right tabular-nums`}>{totals.found}</td>
+                <td className={`${td} text-right tabular-nums`}>
+                  {totals.found}
+                </td>
                 <td className={td} colSpan={2} />
                 <td className={`${td} text-right tabular-nums`}>
                   {totals.income > 0 ? moneda(totals.income) : "—"}
@@ -2458,7 +2688,8 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                 <td
                   className={`${td} text-right tabular-nums`}
                   style={{
-                    color: totals.balance >= 0 ? "var(--positive)" : "var(--danger)",
+                    color:
+                      totals.balance >= 0 ? "var(--positive)" : "var(--danger)",
                   }}
                 >
                   {moneda(totals.balance)}
@@ -2598,10 +2829,18 @@ function Ojeadores() {
             </colgroup>
             <thead className="bg-[var(--surface-2)]">
               <tr>
-                <th scope="col" className={`${th} text-left`}>Ojeador</th>
-                <th scope="col" className={`${th} text-right`}>Región</th>
-                <th scope="col" className={`${th} text-left`}>Canterano</th>
-                <th scope="col" className={`${th} text-right`}>Llegó</th>
+                <th scope="col" className={`${th} text-left`}>
+                  Ojeador
+                </th>
+                <th scope="col" className={`${th} text-right`}>
+                  Región
+                </th>
+                <th scope="col" className={`${th} text-left`}>
+                  Canterano
+                </th>
+                <th scope="col" className={`${th} text-right`}>
+                  Llegó
+                </th>
                 {/* «Queda por revelar» se quito el 2026-08-26: el usuario lo
                     llamo irrelevante y tenia razon --dice cuanto ignoramos,
                     no cuanto vale--. Lo que juzga a un ojeador es el TECHO de
@@ -2637,13 +2876,17 @@ function Ojeadores() {
                         que enseñar una región ahí sería inventar un origen. */}
                     <td className={`${td} text-right text-[var(--muted)]`}>
                       {i === 0 && esOjeadorDeVerdad(p.scoutName, p.scoutId)
-                        ? (regiones.get(p.scoutName) ?? p.scoutingRegionId ?? "")
+                        ? (regiones.get(p.scoutName) ??
+                          p.scoutingRegionId ??
+                          "")
                         : ""}
                     </td>
                     <td className={`${td} truncate text-left`} title={p.name}>
                       {p.name}
                     </td>
-                    <td className={`${td} text-right text-xs text-[var(--muted)]`}>
+                    <td
+                      className={`${td} text-right text-xs text-[var(--muted)]`}
+                    >
                       {p.arrivedAt ? date(p.arrivedAt) : "—"}
                     </td>
                     {/* El techo revelado. Sin nada revelado se dice «sin
@@ -2655,7 +2898,9 @@ function Ojeadores() {
                         <span
                           style={{
                             color:
-                              (techos.get(p.name) ?? 0) >= 7 ? "var(--positive)" : undefined,
+                              (techos.get(p.name) ?? 0) >= 7
+                                ? "var(--positive)"
+                                : undefined,
                           }}
                         >
                           {techos.get(p.name)}
@@ -2669,7 +2914,6 @@ function Ojeadores() {
           </table>
         </div>
       </Panel>
-
     </div>
   );
 }
@@ -2684,15 +2928,19 @@ function GraduatesTable({ data }: { data: Academy }) {
   const columns: Column<Row>[] = [
     { key: "name", header: "Nombre", align: "left", value: (r) => r.name },
     {
-      key: "arrived", header: "En su club desde",
+      key: "arrived",
+      header: "En su club desde",
       // Se llamaba «Promocionado» y no lo era: guarda cuándo llegó al club
       // donde está HOY. Por eso salía después de la venta en las 43 filas.
       value: (r) =>
-        r.arrivedAtCurrentTeam ? new Date(r.arrivedAtCurrentTeam).getTime() : -Infinity,
+        r.arrivedAtCurrentTeam
+          ? new Date(r.arrivedAtCurrentTeam).getTime()
+          : -Infinity,
       render: (r) => date(r.arrivedAtCurrentTeam),
     },
     {
-      key: "sold", header: "Vendido",
+      key: "sold",
+      header: "Vendido",
       value: (r) => (r.soldAt ? new Date(r.soldAt).getTime() : -Infinity),
       render: (r) => date(r.soldAt),
     },
@@ -2705,11 +2953,23 @@ function GraduatesTable({ data }: { data: Academy }) {
         r.soldFor == null ? (
           <span className="text-[var(--muted)]">—</span>
         ) : (
-          <span className="tabular-nums">{money(r.soldFor, data.currency)}</span>
+          <span className="tabular-nums">
+            {money(r.soldFor, data.currency)}
+          </span>
         ),
     },
-    { key: "team", header: "Equipo actual", value: (r) => r.currentTeam ?? "-" },
-    { key: "tsi", header: "TSI", align: "right", value: (r) => r.currentTsi ?? 0, optional: true },
+    {
+      key: "team",
+      header: "Equipo actual",
+      value: (r) => r.currentTeam ?? "-",
+    },
+    {
+      key: "tsi",
+      header: "TSI",
+      align: "right",
+      value: (r) => r.currentTsi ?? 0,
+      optional: true,
+    },
   ];
   return (
     <>
