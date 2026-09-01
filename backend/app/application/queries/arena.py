@@ -22,14 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.engines.arena_engine import (
-    SECTORS,
-    TICKET_PRICES,
-    TICKET_PRICES_VERIFIED,
-    ArenaCapacity,
-    Attendance,
     analyse_expansion,
-    analyse_match,
-    estimate_true_demand,
 )
 from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
 from app.infrastructure.db import models as m
@@ -49,29 +42,17 @@ HOME_MATCHES_PER_SEASON = 7
 
 
 @dataclass
-class SectorRow:
-    sector: str
-    label: str
-    capacity: int
-    sold_avg: int
-    occupancy: float
-    times_sold_out: int
-    price: float
-    price_is_verified: bool
-    demand_is_censored: bool
-
-
-@dataclass
 class MatchRow:
     date: str
+    #: Contra quién se jugó. El eje de la gráfica lo enseña en vez de la fecha:
+    #: «Cauca CF» dice de qué partido hablamos y «16/08» no (2026-09-01).
+    rival: str
     match_type: int
     capacity: int
     sold: int
     occupancy: float
     revenue: int
-    sold_out_sectors: list[str]
     empty_seats: int
-    revenue_left: int
 
 
 @dataclass
@@ -88,26 +69,29 @@ class ExpansionOption:
 
 @dataclass
 class ArenaResponse:
+    """El estadio con lo que Hattrick hace público, y nada más.
+
+    Hasta el 2026-09-01 esto traía el desglose de asistencia POR SECTOR:
+    cuánto se vendió en cada uno, su ocupación, cuántas veces se agotó y una
+    estimación de demanda censurada. Todo eso salía de `SoldTerraces`,
+    `SoldBasic`, `SoldRoof` y `SoldVIP` de matchdetails, que es una función de
+    HT Supporter — y las reglas de CHPP prohíben replicarlas.
+
+    Lo que queda es lo que cualquiera ve en la página de un partido: cuánta
+    gente entró en total y cuánto se recaudó. La ocupación se calcula contra
+    el aforo TOTAL, y el simulador de ampliación sigue funcionando porque sólo
+    necesita los asientos que añadirías y el llenado medio, no quién se sienta
+    dónde.
+    """
+
     team_name: str
     currency: str
     capacity_total: int
-    capacity_is_real: bool
     matches_analysed: int
     avg_occupancy: float
     total_revenue: int
-    # Ingreso teórico con el estadio 100% lleno menos el real. OJO: no es
-    # "dinero perdido" salvo que los sectores se agoten — con 29% de ocupación
-    # el límite es la demanda, no los asientos. Se conserva porque alimenta el
-    # simulador de ampliación, pero NO se muestra como KPI (2026-08-15).
-    revenue_left_on_table: int
-    # Partidos en los que SÍ se dejó gente fuera: el único caso en que se
-    # puede afirmar que hubo demanda sin atender.
-    sold_out_matches: int
-    sectors: list[SectorRow]
     matches: list[MatchRow]
     expansion_options: list[ExpansionOption]
-    demand_is_censored: bool
-    censored_sectors: list[str]
     notes: list[str] = field(default_factory=list)
 
 
@@ -136,66 +120,60 @@ class ArenaQueryService:
         if not rows:
             return None
 
+        # El nombre del rival de cada partido. `stadium_history` sólo guarda
+        # el identificador, así que hay que ir a `matches`. Se pide en una
+        # sola consulta y no una por fila.
+        rivales: dict[int, str] = {}
+        if rows:
+            partidos = await self._s.execute(
+                select(m.Match).where(m.Match.ht_match_id.in_([r.ht_match_id for r in rows]))
+            )
+            for partido in partidos.scalars():
+                # El historial de estadio es de partidos EN CASA, así que el
+                # rival es siempre el visitante. Aun así se comprueba, para que
+                # una fila rara no acabe enseñando tu propio nombre.
+                rivales[partido.ht_match_id] = (
+                    partido.away_team_name
+                    if partido.home_team_ht_id == team.ht_team_id
+                    else partido.home_team_name
+                )
+
         rate = team.currency_rate or 1.0
 
         def conv(v: float | None) -> int:
             return int(round((v or 0) / rate))
 
-        # La capacidad por sector es la del último partido: es la única lectura
-        # que corresponde al estadio de hoy.
+        # El aforo TOTAL de hoy. No hay aforo histórico por partido, así que
+        # todas las ocupaciones se miden contra el mismo.
         last = rows[-1]
-        capacity, capacity_is_real = _capacity_from(last)
+        capacity_total = last.capacity_total or 0
 
-        attendances = [_attendance_from(r) for r in rows]
-        reports = [analyse_match(capacity, a) for a in attendances]
+        def ocupacion(vendido: int) -> float:
+            return round(vendido / capacity_total * 100, 1) if capacity_total else 0.0
 
         matches = [
             MatchRow(
                 date=r.played_at.date().isoformat(),
+                # Sin nombre guardado se cae a la fecha: es lo que había antes
+                # y sigue identificando la barra.
+                rival=rivales.get(r.ht_match_id) or r.played_at.date().isoformat(),
                 match_type=r.match_type,
-                capacity=capacity.total,
-                sold=a.total,
-                occupancy=round(rep.total_occupancy, 1),
-                revenue=conv(r.revenue) if r.revenue else int(rep.revenue),
-                sold_out_sectors=[SECTOR_LABELS[s] for s in rep.sold_out],
-                empty_seats=max(capacity.total - a.total, 0),
-                revenue_left=int(rep.revenue_left_on_table),
+                capacity=capacity_total,
+                sold=r.sold_total,
+                occupancy=ocupacion(r.sold_total),
+                # La recaudación es la que Hattrick reporta. Antes, si faltaba,
+                # se estimaba multiplicando las entradas de cada sector por su
+                # precio; sin el desglose eso ya no se puede, y tampoco se
+                # inventa: un hueco se queda en hueco.
+                revenue=conv(r.revenue) if r.revenue else 0,
+                empty_seats=max(capacity_total - r.sold_total, 0),
             )
-            for r, a, rep in zip(rows, attendances, reports, strict=True)
+            for r in rows
         ]
 
-        # Partidos donde SÍ se dejó gente fuera: el único caso en que se puede
-        # afirmar que hubo demanda sin atender.
-        sold_out_matches = sum(1 for mm in matches if mm.sold_out_sectors)
-
-        sectors: list[SectorRow] = []
-        censored: list[str] = []
-        for s in SECTORS:
-            avg, is_censored = estimate_true_demand(capacity, attendances, s)
-            cap = capacity.get(s)
-            times_out = sum(1 for a in attendances if cap and a.get(s) >= cap)
-            if is_censored:
-                censored.append(SECTOR_LABELS[s])
-            sectors.append(
-                SectorRow(
-                    sector=s,
-                    label=SECTOR_LABELS[s],
-                    capacity=cap,
-                    sold_avg=int(round(avg)),
-                    occupancy=round(avg / cap * 100, 1) if cap else 0.0,
-                    times_sold_out=times_out,
-                    price=TICKET_PRICES[s],
-                    price_is_verified=s in TICKET_PRICES_VERIFIED,
-                    demand_is_censored=is_censored,
-                )
-            )
-
-        # El fill rate por defecto es la ocupación media observada, pero SÓLO
-        # es honesto usarlo cuando nada se agotó. Si hubo lleno, la ocupación
-        # observada es un suelo, no una estimación, y se dice.
-        observed_fill = (
-            sum(r.total_occupancy for r in reports) / len(reports) / 100 if reports else 0.0
-        )
+        # El llenado medio observado, sobre totales. Sirve de valor por defecto
+        # para el simulador de ampliación.
+        observed_fill = sum(mm.occupancy for mm in matches) / len(matches) / 100 if matches else 0.0
         effective_fill = fill_rate if fill_rate is not None else observed_fill
 
         options = [
@@ -213,28 +191,15 @@ class ArenaQueryService:
             ]
         ]
 
-        notes: list[str] = []
-        if capacity_is_real:
-            notes.append(
-                "Todas las ocupaciones se calculan con el aforo de HOY, porque no hay un "
-                "aforo histórico por partido. Si ampliaste el estadio, la ocupación de los "
-                "partidos anteriores sale más baja de lo que fue."
-            )
-        if not capacity_is_real:
-            notes.append(
-                "No fíes las cifras por sector: falta la capacidad real de cada uno, así "
-                "que el total se repartió en proporción a lo vendido. Con ese reparto la "
-                "ocupación sale idéntica en todos los sectores y un lleno es indetectable."
-            )
-        # 2026-08-16: el aviso de demanda censurada se retiró a petición del
-        # usuario. El dato sigue en `demand_is_censored` y `sold_out_matches`,
-        # que es lo que consumen los KPI y las alertas — sólo se deja de
-        # imprimir el párrafo.
-        if not censored:
-            notes.append(
-                "Ningún sector se agotó, así que la ocupación observada sí mide "
-                "demanda y el retorno estimado de la ampliación es directo."
-            )
+        notes: list[str] = [
+            "Todas las ocupaciones se calculan con el aforo de HOY, porque no hay un "
+            "aforo histórico por partido. Si ampliaste el estadio, la ocupación de los "
+            "partidos anteriores sale más baja de lo que fue.",
+        ]
+        # La nota de «sin recaudación» se quitó con el KPI de ingresos: la
+        # taquilla por partido no llega por ningún sitio --`revenue` existe y
+        # nunca se rellena-- y avisar de que falta algo que nunca hubo sólo
+        # añade ruido. El campo se conserva por si algún día se recoge.
         if fill_rate is not None:
             notes.append(
                 f"Ocupación esperada de los asientos nuevos fijada a mano: {fill_rate:.0%}."
@@ -244,52 +209,14 @@ class ArenaQueryService:
         return ArenaResponse(
             team_name=team.name,
             currency=team.currency_name or "",
-            capacity_total=capacity.total,
-            capacity_is_real=capacity_is_real,
+            capacity_total=capacity_total,
             matches_analysed=len(rows),
             avg_occupancy=round(observed_fill * 100, 1),
             total_revenue=total_revenue,
-            revenue_left_on_table=sum(mm.revenue_left for mm in matches),
-            sold_out_matches=sold_out_matches,
-            sectors=sectors,
             matches=matches,
             expansion_options=options,
-            demand_is_censored=bool(censored) and capacity_is_real,
-            censored_sectors=censored,
             notes=notes,
         )
-
-
-def _capacity_from(r: m.StadiumHistory) -> tuple[ArenaCapacity, bool]:
-    """Capacidad por sector. Devuelve también si es real o derivada.
-
-    Cuando CHPP da el desglose se usa tal cual. Cuando no, se reparte el total
-    en proporción a lo vendido — y hay que saber que ese reparto **hace
-    imposible detectar un lleno**: si la capacidad se deduce de las ventas, la
-    ocupación de cada sector sale idéntica y la demanda censurada se vuelve
-    invisible. Por eso el segundo valor se propaga hasta la respuesta en vez de
-    quedarse aquí.
-    """
-    real = [r.capacity_terraces, r.capacity_basic, r.capacity_roof, r.capacity_vip]
-    sold = [r.sold_terraces, r.sold_basic, r.sold_roof, r.sold_vip]
-    if all(v is not None and v > 0 for v in real):
-        real_ints = [v for v in real if v is not None]
-        caps = [max(c, s) for c, s in zip(real_ints, sold, strict=True)]
-        return ArenaCapacity(*caps), True
-
-    total = r.capacity_total or sum(sold)
-    sold_sum = sum(sold) or 1
-    caps = [max(int(total * v / sold_sum), v) for v in sold]
-    return ArenaCapacity(*caps), False
-
-
-def _attendance_from(r: m.StadiumHistory) -> Attendance:
-    return Attendance(
-        general=r.sold_terraces,
-        preferentes=r.sold_basic,
-        tribunas=r.sold_roof,
-        palcos=r.sold_vip,
-    )
 
 
 def _expansion(label: str, seats: dict[str, int], fill: float) -> ExpansionOption:

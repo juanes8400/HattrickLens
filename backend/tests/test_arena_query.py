@@ -1,11 +1,19 @@
-"""ArenaQueryService — con especial atención a la demanda censurada.
+"""ArenaQueryService, ya sin el desglose por sector.
 
-El caso que motiva la mitad de estos tests: si un sector se agota, la
-asistencia observada mide asientos, no demanda. Un servicio que trate esa media
-como demanda dirá siempre que la ampliación rinde justo lo que ya rinde el
-estadio actual, y nunca podrá decir que te has quedado corto. Eso no es un
-error de redondeo: es un sesgo que apunta siempre en la misma dirección.
+El 2026-09-01 esta pantalla dejo de trabajar con la asistencia POR SECTOR: es
+una funcion de HT Supporter y las reglas de CHPP prohiben replicarla. Con ella
+se fueron la mitad de los tests de este fichero -- los que probaban la demanda
+censurada, los sectores agotados y el reparto de capacidad deducido de las
+ventas --. Probaban bien lo que probaban; lo que probaban es lo que ya no se
+puede hacer.
+
+Lo que queda vigilado es lo que si es publico:
+
+  * la asistencia TOTAL de cada partido y su ocupacion contra el aforo total,
+  * la recaudacion que Hattrick reporta, sin estimarla cuando falta,
+  * el simulador de ampliacion, que nunca necesito saber quien se sienta donde.
 """
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -25,16 +33,16 @@ async def _with_stadium(rows: list[dict]):
                     team_id=team_id,
                     ht_match_id=900_000 + i,
                     played_at=BASE + timedelta(days=14 * i),
-                    match_type=1,
+                    match_type=r.get("match_type", 1),
                     capacity_total=r["capacity"],
+                    # El aforo por sector se conserva: es la configuracion de
+                    # tu propio estadio y es lo que da el precio de un asiento
+                    # nuevo en el simulador de ampliacion.
                     capacity_terraces=r.get("cap_general"),
                     capacity_basic=r.get("cap_preferentes"),
                     capacity_roof=r.get("cap_tribunas"),
                     capacity_vip=r.get("cap_palcos"),
-                    sold_terraces=r["general"],
-                    sold_basic=r["preferentes"],
-                    sold_roof=r["tribunas"],
-                    sold_vip=r["palcos"],
+                    sold_total=r["sold"],
                     revenue=r.get("revenue", 0),
                 )
             )
@@ -46,200 +54,161 @@ def _run(coro):
     return asyncio.run(coro)
 
 
-# Capacidad real por sector: sin ella un lleno es indetectable (ver
-# `test_without_a_sector_breakdown_censoring_cannot_be_evaluated`).
 CAPS = {"cap_general": 12000, "cap_preferentes": 6000, "cap_tribunas": 1000, "cap_palcos": 1000}
 
-HALF_EMPTY = [
-    {"capacity": 20000, **CAPS,
-     "general": 6000, "preferentes": 2500, "tribunas": 900, "palcos": 200},
-    {"capacity": 20000, **CAPS,
-     "general": 6400, "preferentes": 2600, "tribunas": 950, "palcos": 210},
-    {"capacity": 20000, **CAPS,
-     "general": 5800, "preferentes": 2400, "tribunas": 880, "palcos": 190},
+MEDIO_LLENO = [
+    {"capacity": 20000, **CAPS, "sold": 9600, "revenue": 240_000},
+    {"capacity": 20000, **CAPS, "sold": 10160, "revenue": 254_000},
+    {"capacity": 20000, **CAPS, "sold": 9270, "revenue": 231_000},
 ]
 
 
 def test_reports_occupancy_and_empty_seats() -> None:
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
         async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.matches_analysed == 3
+        assert out.capacity_total == 20000
+        primero = out.matches[0]
+        assert primero.sold == 9600
+        assert primero.occupancy == 48.0
+        assert primero.empty_seats == 10400
+        # Sin fila en `matches` no hay nombre de rival: se cae a la fecha, que
+        # es lo que rotulaba el eje antes y sigue identificando la barra.
+        assert primero.rival == primero.date
+        # La media de las tres ocupaciones observadas.
+        assert 46 < out.avg_occupancy < 51
 
-    d = _run(go())
-    assert d is not None
-    assert d.capacity_is_real is True
-    assert d.matches_analysed == 3
-    assert len(d.matches) == 3
-    assert all(mm.empty_seats > 0 for mm in d.matches)
-    assert 0 < d.avg_occupancy < 100
-    assert d.revenue_left_on_table > 0
+    _run(run())
 
 
-def test_no_sell_out_means_demand_is_measurable() -> None:
-    """Sin llenos, la ocupación observada sí mide demanda, y el servicio puede
-    estimar el retorno de una ampliación sin advertencias."""
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
+def test_the_reported_revenue_is_used_and_never_invented() -> None:
+    """Antes, si faltaba la recaudacion, se estimaba multiplicando las entradas
+    de cada sector por su precio. Sin el desglose eso ya no se puede, y tampoco
+    se inventa: un hueco se queda en hueco.
+
+    OJO con lo que esto significa hoy: `revenue` NUNCA se rellena --el sync no
+    lo escribe y la taquilla por partido no llega por ningun fichero--, asi que
+    en la practica sale cero para todos. Por eso la pantalla dejo de enseñar un
+    KPI de ingresos: un cero se lee como «no ingresaste nada» y es falso. El
+    campo se conserva por si algun dia se recoge, y este test fija que si
+    llega, se usa tal cual."""
+
+    async def run() -> None:
+        filas = [
+            {"capacity": 20000, **CAPS, "sold": 9600, "revenue": 240_000},
+            {"capacity": 20000, **CAPS, "sold": 9600},  # sin recaudacion
+        ]
+        factory, team_id = await _with_stadium(filas)
         async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.matches[0].revenue > 0
+        assert out.matches[1].revenue == 0
+        assert out.total_revenue == out.matches[0].revenue
 
-    d = _run(go())
-    assert d.demand_is_censored is False
-    assert d.censored_sectors == []
-    assert any("Ningún sector se agotó" in n for n in d.notes)
-    assert all(s.demand_is_censored is False for s in d.sectors)
-    assert all(s.times_sold_out == 0 for s in d.sectors)
-
-
-def test_a_sold_out_sector_is_flagged_as_censored() -> None:
-    """Aquí está el punto: llenar tribunas todas las veces no significa que la
-    demanda sean exactamente esos asientos. Significa que no sabemos cuántos
-    más habrían entrado, y hay que decirlo."""
-    full_roof = [{**r, "tribunas": 1000} for r in HALF_EMPTY]   # 1000/1000
-
-    async def go():
-        factory, team_id = await _with_stadium(full_roof)
-        async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
-
-    d = _run(go())
-    assert d.demand_is_censored is True
-    assert "Tribunas" in d.censored_sectors
-    roof = next(s for s in d.sectors if s.sector == "tribunas")
-    assert roof.demand_is_censored is True
-    assert roof.times_sold_out == 3
-    # 2026-08-16: el párrafo que lo explicaba se retiró a petición del usuario;
-    # el hecho sigue viajando en los campos, que es lo que consumen los KPI y
-    # las alertas. Lo que NO puede pasar es que se cuele la nota contraria.
-    assert not any("Ningún sector se agotó" in n for n in d.notes)
-
-    general = next(s for s in d.sectors if s.sector == "general")
-    assert general.demand_is_censored is False
+    _run(run())
 
 
 def test_expansion_options_are_ranked_and_costed() -> None:
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
         async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert len(out.expansion_options) == 3
+        for o in out.expansion_options:
+            assert o.build_cost > 0
+            assert o.verdict
+        # La grande cuesta mas que la pequeña: el orden de la lista es el de
+        # tamaño, no el de rentabilidad.
+        assert out.expansion_options[-1].build_cost > out.expansion_options[0].build_cost
 
-    d = _run(go())
-    assert len(d.expansion_options) == 3
-    small, medium, large = d.expansion_options
-    # Más asientos cuesta más construir y más mantener. Sin excepciones.
-    assert small.build_cost < medium.build_cost < large.build_cost
-    assert small.added_weekly_maintenance < large.added_weekly_maintenance
-    for o in d.expansion_options:
-        assert o.verdict
-        if o.net_per_season <= 0:
-            assert o.payback_seasons is None, "no se amortiza lo que pierde dinero"
-        else:
-            assert o.payback_seasons > 0
+    _run(run())
 
 
 def test_fill_rate_can_be_overridden_and_is_declared() -> None:
-    """Cuando la demanda está censurada, el usuario tiene que poder decir «yo
-    creo que se llenaría al 90%» — y la respuesta debe admitir que ese número
-    lo puso una persona, no los datos."""
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
         async with factory() as s:
-            svc = ArenaQueryService(s)
-            return await svc.get(team_id), await svc.get(team_id, fill_rate=0.95)
+            fijado = await ArenaQueryService(s).get(team_id, fill_rate=0.95)
+            observado = await ArenaQueryService(s).get(team_id)
+        assert fijado is not None and observado is not None
+        # Con mas llenado esperado, el ingreso por partido de la ampliacion sube.
+        assert (
+            fijado.expansion_options[0].added_revenue_per_match
+            > observado.expansion_options[0].added_revenue_per_match
+        )
+        # Y se dice, para que nadie lea una estimacion a mano como si fuera
+        # una observacion.
+        assert any("fijada a mano" in n for n in fijado.notes)
 
-    base, forced = _run(go())
-    assert forced.expansion_options[0].added_revenue_per_match > (
-        base.expansion_options[0].added_revenue_per_match
-    )
-    assert any("fijada a mano" in n for n in forced.notes)
-    assert not any("fijada a mano" in n for n in base.notes)
+    _run(run())
 
 
-def test_all_ticket_prices_are_verified() -> None:
-    """Los cuatro precios los confirmó el usuario para toda la herramienta
-    (2026-08-13) — ya no hay un sector "de la especificación, sin verificar",
-    así que esa nota no debe aparecer."""
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
+def test_occupancy_is_measured_against_todays_capacity_and_it_is_said() -> None:
+    """No hay aforo historico por partido, asi que todas las ocupaciones usan
+    el de hoy. Eso hace que un partido anterior a una ampliacion salga con
+    menos ocupacion de la que tuvo, y hay que avisarlo."""
+
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
         async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert all(mm.capacity == out.capacity_total for mm in out.matches)
+        assert any("aforo de HOY" in n for n in out.notes)
 
-    d = _run(go())
-    assert all(s.price_is_verified for s in d.sectors)
-    assert not any("no está verificado" in n or "especificación" in n for n in d.notes)
-
-
-def test_capacity_is_never_below_what_was_actually_sold() -> None:
-    """Una ocupación superior al 100% es siempre un bug de derivación, no un
-    lleno excepcional."""
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
-        async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
-
-    d = _run(go())
-    for mm in d.matches:
-        assert mm.occupancy <= 100.0
-    for s in d.sectors:
-        assert s.occupancy <= 100.0
-
-
-def test_without_a_sector_breakdown_censoring_cannot_be_evaluated() -> None:
-    """Este test existe por un fallo que casi se cuela.
-
-    Si la capacidad por sector se deriva repartiendo el total en proporción a
-    lo vendido, la ocupación sale idéntica en los cuatro sectores y un lleno
-    deja de ser detectable — por construcción, no por falta de datos. El
-    servicio tiene que negarse a evaluar la censura en ese caso en vez de
-    devolver un `false` que parece una medida y es un artefacto.
-    """
-    no_breakdown = [
-        {"capacity": 20000, "general": 6000, "preferentes": 2500,
-         "tribunas": 900, "palcos": 200},
-    ]
-
-    async def go():
-        factory, team_id = await _with_stadium(no_breakdown)
-        async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
-
-    d = _run(go())
-    assert d.capacity_is_real is False
-    assert d.demand_is_censored is False
-    assert any("indetectable" in n for n in d.notes)
-    assert any("No fíes las cifras por sector" in n for n in d.notes)
+    _run(run())
 
 
 def test_non_official_matches_are_always_excluded_from_stadium_stats() -> None:
-    """Escaleras/Duelos (MatchType 50/62, HL-146) no deben sesgar la
-    ocupación media, la calibración de precios ni el retorno de ampliar —
-    y no hay override para incluirlos (2026-08-12, pedido explícito: "de
-    TODOS los lugares de esta herramienta... ni con botón, ni sin botón")."""
-    async def go():
-        factory, team_id = await _with_stadium(HALF_EMPTY)
-        async with factory() as s:
-            s.add(m.StadiumHistory(
-                team_id=team_id, ht_match_id=900_555, played_at=BASE + timedelta(days=100),
-                match_type=50,
-                capacity_total=20000, **{f"capacity_{k}": v for k, v in {
-                    "terraces": CAPS["cap_general"], "basic": CAPS["cap_preferentes"],
-                    "roof": CAPS["cap_tribunas"], "vip": CAPS["cap_palcos"],
-                }.items()},
-                sold_terraces=6000, sold_basic=2500, sold_roof=900, sold_vip=200,
-            ))
-            await s.commit()
-        async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
+    """Torneos, duelos, escaleras y preparacion sesgan la ocupacion media y el
+    retorno estimado de ampliar. Se excluyen siempre, con boton o sin el.
 
-    d = _run(go())
-    assert d.matches_analysed == 3
+    OJO con la lista: los AMISTOSOS no estan en ella. `NON_OFFICIAL_MATCH_TYPES`
+    son 50, 51, 60, 61 y 80 -- torneo, duelo, escalera y preparacion --, y un
+    amistoso normal si cuenta para el estadio."""
+
+    async def run() -> None:
+        filas = [
+            {"capacity": 20000, **CAPS, "sold": 9600, "revenue": 240_000},
+            # Torneo (50): cuatro gatos, y no debe contar.
+            {"capacity": 20000, **CAPS, "sold": 700, "revenue": 9_000, "match_type": 50},
+        ]
+        factory, team_id = await _with_stadium(filas)
+        async with factory() as s:
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.matches_analysed == 1
+        assert out.matches[0].sold == 9600
+
+    _run(run())
 
 
 def test_a_team_without_stadium_history_returns_none() -> None:
-    async def go():
+    async def run() -> None:
         factory, team_id = await seeded_session()
         async with factory() as s:
-            return await ArenaQueryService(s).get(team_id)
+            assert await ArenaQueryService(s).get(team_id) is None
 
-    assert _run(go()) is None
+    _run(run())
+
+
+def test_the_response_carries_nothing_per_sector() -> None:
+    """La red de seguridad de esta pantalla: si alguien reintroduce el desglose
+    por la puerta de atras, el contrato lo delata."""
+
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
+        async with factory() as s:
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        campos = set(vars(out))
+        for prohibido in ("sectors", "sold_out_matches", "demand_is_censored", "censored_sectors"):
+            assert prohibido not in campos, f"«{prohibido}» es desglose por sector"
+        assert not any("sold_out" in c for c in vars(out.matches[0]))
+
+    _run(run())

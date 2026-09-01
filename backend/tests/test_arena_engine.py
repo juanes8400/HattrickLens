@@ -1,20 +1,22 @@
-"""Tests del motor de estadio con los datos reales del Chapecoense (60.002)."""
-import pytest
+"""Tests del motor de estadio.
+
+El 2026-09-01 se retiraron los que probaban la asistencia POR SECTOR
+--`analyse_match`, `estimate_true_demand`, y con ellos el reparto de ocupacion
+y la demanda censurada--. Eran cinco y probaban bien lo que probaban; el
+problema es que lo que probaban es una funcion de HT Supporter, y las reglas de
+CHPP prohiben replicarla.
+
+Sobrevive el simulador de ampliacion, que nunca necesito saber quien se sienta
+donde: solo los asientos que añadirias, su coste y el llenado medio esperado.
+"""
 
 from app.domain.engines.arena_engine import (
     TICKET_PRICES,
     ArenaCapacity,
-    Attendance,
     analyse_expansion,
-    analyse_match,
-    estimate_true_demand,
 )
 
 CAP = ArenaCapacity(general=34_130, preferentes=13_639, tribunas=10_808, palcos=1_425)
-# Liga vs etbenianos1, 2026-07-05
-LEAGUE = Attendance(general=34_130, preferentes=13_639, tribunas=5_785, palcos=1_425)
-# Amistoso vs Fc Aittakorven, 2026-07-19
-FRIENDLY = Attendance(general=1_441, preferentes=505, tribunas=692, palcos=61)
 
 
 def test_capacity_matches_screen() -> None:
@@ -22,39 +24,13 @@ def test_capacity_matches_screen() -> None:
 
 
 def test_roof_ticket_price_is_exactly_nineteen() -> None:
-    """Derivado de la diferencia entre ingresos reales y a estadio lleno."""
+    """Calibrado en su dia contra los ingresos reales de un partido.
+
+    El precio se conserva --lo necesita el simulador para valorar un asiento
+    nuevo-- aunque la comprobacion original ya no se pueda rehacer: comparaba
+    el ingreso real con el de estadio lleno POR SECTOR.
+    """
     assert TICKET_PRICES["tribunas"] == 19.0
-    diff_seats = CAP.tribunas - LEAGUE.tribunas
-    assert diff_seats * TICKET_PRICES["tribunas"] == pytest.approx(630_527 - 535_090)
-
-
-def test_league_match_sells_out_three_sectors() -> None:
-    r = analyse_match(CAP, LEAGUE)
-    assert set(r.sold_out) == {"general", "preferentes", "palcos"}
-    assert r.demand_is_censored is True
-    assert r.total_occupancy == pytest.approx(91.6, abs=0.1)
-    assert r.occupancy["tribunas"] == pytest.approx(53.5, abs=0.1)
-
-
-def test_friendly_barely_fills_the_stadium() -> None:
-    r = analyse_match(CAP, FRIENDLY)
-    assert r.sold_out == []
-    assert r.demand_is_censored is False
-    assert r.total_occupancy < 6
-
-
-def test_revenue_left_on_table_is_reported() -> None:
-    r = analyse_match(CAP, LEAGUE)
-    assert r.revenue_left_on_table > 0
-    assert r.revenue < r.revenue_if_full
-
-
-def test_demand_is_flagged_as_censored_when_sold_out() -> None:
-    mean, censored = estimate_true_demand(CAP, [LEAGUE, LEAGUE], "general")
-    assert censored is True          # la media subestima la demanda real
-    mean_roof, censored_roof = estimate_true_demand(CAP, [LEAGUE], "tribunas")
-    assert censored_roof is False    # ahí sí observamos la demanda completa
-    assert mean_roof == 5_785
 
 
 def test_expansion_pays_off_when_demand_exists() -> None:

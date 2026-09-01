@@ -1886,44 +1886,32 @@ export interface Economy {
 
 // ── Estadio ─────────────────────────────────────────────────────────────────
 
+/** El estadio, con lo que Hattrick hace público y nada más.
+ *
+ *  Hasta el 2026-09-01 esto traía el desglose de asistencia POR SECTOR --lo
+ *  vendido en cada uno, su ocupación, cuántas veces se agotó y la demanda
+ *  censurada--. Es una función de HT Supporter y las reglas de CHPP prohíben
+ *  replicarla, así que ni se pide ni se guarda ni se enseña.
+ *
+ *  Queda lo que ve cualquiera en la página de un partido: cuánta gente entró
+ *  en total y cuánto se recaudó. */
 export interface Arena {
   teamName: string;
   currency: string;
   capacityTotal: number;
-  /** Si es false, la capacidad por sector se dedujo de las ventas y un lleno
-   *  es indetectable: `demandIsCensored` no se puede evaluar. */
-  capacityIsReal: boolean;
   matchesAnalysed: number;
   avgOccupancy: number;
   totalRevenue: number;
-  /** Teórico: ingreso con el estadio 100% lleno menos el real. NO es dinero
-   *  perdido salvo que los sectores se agoten — alimenta el simulador de
-   *  ampliación, no se muestra como KPI. */
-  revenueLeftOnTable: number;
-  /** Partidos donde algún sector se agotó: el único caso en que sí hubo
-   *  demanda que no se pudo atender. */
-  soldOutMatches: number;
-  sectors: {
-    sector: string;
-    label: string;
-    capacity: number;
-    soldAvg: number;
-    occupancy: number;
-    timesSoldOut: number;
-    price: number;
-    priceIsVerified: boolean;
-    demandIsCensored: boolean;
-  }[];
   matches: {
     date: string;
+    /** Contra quién se jugó: es lo que rotula el eje, no la fecha. */
+    rival: string;
     matchType: number;
     capacity: number;
     sold: number;
     occupancy: number;
     revenue: number;
-    soldOutSectors: string[];
     emptySeats: number;
-    revenueLeft: number;
   }[];
   expansionOptions: {
     label: string;
@@ -1935,8 +1923,6 @@ export interface Arena {
     paybackSeasons: number | null;
     verdict: string;
   }[];
-  demandIsCensored: boolean;
-  censoredSectors: string[];
   notes: string[];
 }
 

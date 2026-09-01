@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
 import { useIsDarkTheme } from "../hooks/useTheme";
-import { Column, DataTable } from "../components/DataTable";
 import {
   ErrorState,
   Kpi,
@@ -12,16 +11,25 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { useArena } from "../hooks/useTeam";
-import { money, number } from "../hooks/useFormat";
-import { ApiError, type Arena } from "../services/api";
+import { number } from "../hooks/useFormat";
+import { ApiError } from "../services/api";
 
 /**
- * Estadio. HL-060, HL-061, HL-063, HL-064.
+ * Estadio. HL-060, HL-063, HL-064.
  *
- * Toda la pantalla gira alrededor de una distinción: lo que se vendió es un
- * hecho, lo que se habría vendido es una estimación, y sólo es estimable
- * cuando el sector NO se agotó. Un sector lleno no dice cuánta gente quería
- * entrar; dice cuántos asientos había.
+ * Sólo con lo que Hattrick hace público: cuánta gente entró en total en cada
+ * partido y cuánto se recaudó.
+ *
+ * Hasta el 2026-09-01 la pantalla giraba alrededor del desglose POR SECTOR
+ * --lo vendido en cada uno, su ocupación, cuáles se agotaron y una estimación
+ * de la demanda que no cabía--. Eso es una función de HT Supporter y las
+ * reglas de CHPP prohíben replicarla, así que se retiró entera: la tabla de
+ * sectores, el KPI de sectores agotados, el coloreado de las barras y el aviso
+ * de demanda censurada.
+ *
+ * Lo que sobrevive lo hace porque no necesita saber quién se sienta dónde: la
+ * ocupación se mide contra el aforo total, y el simulador de ampliación sólo
+ * usa los asientos que añadirías, su coste y el llenado medio.
  */
 export function ArenaPage() {
   const { data, isLoading, isError, error } = useArena();
@@ -42,7 +50,7 @@ export function ArenaPage() {
             <div className="space-y-3 p-4 text-sm text-[var(--muted)]">
               <p>
                 La sincronización normal trae calendario y resultados. Para
-                medir asistencia, ocupación y demanda hay que pedir los reportes
+                medir la asistencia y la recaudación hay que pedir los reportes
                 detallados de tus partidos como local.
               </p>
               {/* 2026-08-15: la carga vive en Sincronización, junto al resto. */}
@@ -66,7 +74,7 @@ export function ArenaPage() {
       <header>
         <h1 className="text-xl font-semibold">Estadio</h1>
         <p className="text-sm text-[var(--muted)]">
-          Asistencia, ocupación y demanda por sector
+          Cuánta gente entra en cada partido, y si compensa ampliar
         </p>
       </header>
 
@@ -75,32 +83,33 @@ export function ArenaPage() {
         <Kpi
           label="Ocupación media"
           value={`${data.avgOccupancy.toFixed(1)}%`}
-          hint={
-            data.soldOutMatches > 0
-              ? `suelo en ${data.soldOutMatches} de ${data.matchesAnalysed} partidos`
-              : `sobre ${data.matchesAnalysed} partidos`
-          }
+          hint={`sobre ${data.matchesAnalysed} partidos`}
         />
+        {/* Aquí estaba «Ingresos». Se retiró el 2026-09-01 junto con el
+            desglose por sector, porque salía ENTERO de él: se multiplicaban
+            las entradas de cada sector por su precio. La taquilla por partido
+            no llega por ningún otro sitio --el campo `revenue` existe pero
+            nunca se rellena--, así que el KPI sólo podía decir 0 US$, que se
+            lee como «no ingresaste nada» y es falso. Antes que un cero
+            engañoso, nada. */}
         <Kpi
-          label="Ingresos"
-          value={money(data.totalRevenue, data.currency)}
-          hint={`${data.matchesAnalysed} partidos analizados`}
+          label="Partidos analizados"
+          value={String(data.matchesAnalysed)}
+          hint="oficiales y amistosos; fuera torneos y preparación"
         />
-        {/* 2026-08-15: aquí había "Dejado sobre la mesa" = ingreso con el
-            estadio 100% lleno menos el real. Con 29% de ocupación media eso
-            no es dinero perdido sino una fantasía: el límite es la demanda,
-            no los asientos, y pintarlo en rojo sugería un problema que no
-            existe. Se sustituye por el único hecho comprobable: en cuántos
-            partidos se dejó gente fuera de verdad. */}
+        {/* Aquí estaba «Partidos con sector agotado». Se retiró el 2026-09-01
+            con el resto del desglose: saber qué sector se llenó exige la
+            asistencia por sector, que es función de HT Supporter. El asiento
+            vacío medio sí se puede decir con totales. */}
         <Kpi
-          label="Partidos con sector agotado"
-          value={`${data.soldOutMatches} de ${data.matchesAnalysed}`}
-          hint={
-            data.soldOutMatches > 0
-              ? "ahí sí hubo demanda sin atender"
-              : "nunca se llenó: sobran asientos, falta demanda"
-          }
-          tone={data.soldOutMatches > 0 ? "danger" : undefined}
+          label="Asientos vacíos de media"
+          value={number(
+            Math.round(
+              data.matches.reduce((t, m) => t + m.emptySeats, 0) /
+                (data.matches.length || 1),
+            ),
+          )}
+          hint="sobre el aforo total"
         />
       </div>
 
@@ -109,18 +118,11 @@ export function ArenaPage() {
       ))}
 
       <Panel
-        title="Sectores"
-        meta={data.capacityIsReal ? "aforo real por sector" : "aforo derivado"}
-      >
-        <SectorTable data={data} />
-      </Panel>
-
-      <Panel
         title="Ocupación por partido"
         meta={`media ${data.avgOccupancy.toFixed(1)}%`}
       >
         <Chart
-          ariaLabel="Ocupación del estadio por partido, en porcentaje"
+          ariaLabel="Ocupación del estadio en cada partido como local, en porcentaje, por rival"
           option={{
             grid: {
               left: 8,
@@ -131,10 +133,19 @@ export function ArenaPage() {
             },
             xAxis: {
               type: "category",
-              // Día y mes, no la fecha ISO entera: con ocho partidos el eje
-              // era una fila de "2026-08-16" que nadie lee.
-              data: data.matches.map((m) => m.date.slice(5).replace("-", "/")),
-              axisLabel: { fontSize: 10 },
+              // El RIVAL, no la fecha (pedido del usuario, 2026-09-01):
+              // «Cauca CF» dice de qué partido hablamos y «16/08» no.
+              data: data.matches.map((m) => m.rival),
+              axisLabel: {
+                fontSize: 10,
+                // Los nombres de club son largos y desiguales. Se giran y se
+                // recortan para que quepan sin pisarse; el nombre entero y la
+                // fecha siguen en el tooltip.
+                interval: 0,
+                rotate: 35,
+                width: 72,
+                overflow: "truncate",
+              },
             },
             yAxis: {
               type: "value",
@@ -152,12 +163,10 @@ export function ArenaPage() {
                 const m = i == null ? undefined : data.matches[i];
                 if (!m) return "";
                 return [
-                  `<b>${m.date}</b>`,
+                  `<b>${m.rival}</b>`,
+                  m.date,
                   `Ocupación: <b>${m.occupancy.toFixed(1)}%</b>`,
                   `${number(m.sold)} de ${number(m.capacity)} asientos`,
-                  m.soldOutSectors.length > 0
-                    ? `Agotado: ${m.soldOutSectors.join(", ")}`
-                    : "Ningún sector agotado",
                 ].join("<br/>");
               },
             },
@@ -165,18 +174,12 @@ export function ArenaPage() {
               {
                 name: "Ocupación",
                 type: "bar",
-                // Un partido con algún sector agotado se pinta distinto: ahí
-                // la barra mide asientos, no demanda, y esa diferencia es
-                // justo lo que decide si conviene ampliar.
+                // Todas las barras iguales. Antes se pintaba de otro color el
+                // partido con algún sector agotado, y eso era enseñar el
+                // desglose por sector con un color en vez de con un número.
                 data: data.matches.map((m) => ({
                   value: m.occupancy,
-                  itemStyle: {
-                    color:
-                      m.soldOutSectors.length > 0
-                        ? tonos.warning
-                        : tonos.accent,
-                    borderRadius: 3,
-                  },
+                  itemStyle: { color: tonos.accent, borderRadius: 3 },
                 })),
                 barMaxWidth: 42,
                 markLine: {
@@ -200,117 +203,8 @@ export function ArenaPage() {
   );
 }
 
-function SectorTable({ data }: { data: Arena }) {
-  type Row = Arena["sectors"][number];
-  const columns: Column<Row>[] = [
-    { key: "label", header: "Sector", value: (r) => r.label },
-    {
-      key: "capacity",
-      header: "Aforo",
-      align: "right",
-      value: (r) => r.capacity,
-      render: (r) => <span className="tabular-nums">{number(r.capacity)}</span>,
-    },
-    {
-      key: "sold",
-      header: "Vendido (media)",
-      align: "right",
-      value: (r) => r.soldAvg,
-      render: (r) => <span className="tabular-nums">{number(r.soldAvg)}</span>,
-    },
-    {
-      key: "occupancy",
-      header: "Ocupación",
-      align: "right",
-      value: (r) => r.occupancy,
-      // Barra dentro de la celda: comparar seis porcentajes en columna es
-      // comparar seis longitudes, no leer seis números.
-      render: (r) => (
-        <span className="flex items-center justify-end gap-2">
-          <span className="h-1.5 w-16 overflow-hidden rounded bg-[var(--surface-2)]">
-            <span
-              className="block h-full rounded"
-              style={{
-                width: `${Math.min(100, r.occupancy)}%`,
-                background: r.demandIsCensored
-                  ? "var(--warning)"
-                  : "var(--accent)",
-              }}
-            />
-          </span>
-          <span className="tabular-nums">
-            {r.occupancy.toFixed(1)}%
-            {r.demandIsCensored && (
-              <span title="Suelo: el sector se agotó, así que la ocupación real no puede ser menor que esto, pero sí mayor la demanda.">
-                {" "}
-                ↑
-              </span>
-            )}
-          </span>
-        </span>
-      ),
-    },
-    {
-      key: "soldout",
-      header: "Llenos",
-      align: "right",
-      value: (r) => r.timesSoldOut,
-    },
-    {
-      key: "price",
-      header: "Precio",
-      align: "right",
-      value: (r) => r.price,
-      render: (r) => (
-        <span
-          className={
-            r.priceIsVerified
-              ? "tabular-nums"
-              : "tabular-nums text-[var(--muted)]"
-          }
-        >
-          {r.price}
-          {!r.priceIsVerified && (
-            <span title="de la especificación, sin verificar"> *</span>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: "demand",
-      header: "Demanda",
-      // «Censurada» es el término estadístico exacto y no le dice nada a nadie
-      // que gestione un club. Y agotar un sector no es una mala noticia --era
-      // roja-- sino justo lo contrario: hubo más gente que asientos. Lo único
-      // malo es que entonces la cifra ya no mide demanda, sino aforo.
-      value: (r) => (r.demandIsCensored ? "sin medir" : "medible"),
-      render: (r) =>
-        r.demandIsCensored ? (
-          <span
-            className="text-[var(--text)]"
-            title="Se agotó alguna vez: a partir de ahí la cifra mide asientos, no cuánta gente quería entrar. La demanda real puede ser mayor."
-          >
-            sin medir
-          </span>
-        ) : (
-          <span className="text-[var(--muted)]">medible</span>
-        ),
-    },
-  ];
-  return (
-    <>
-      <DataTable
-        emptyMessage="Sin datos del estadio todavía: llegan con la primera sincronización."
-        rows={data.sectors}
-        columns={columns}
-        rowKey={(r) => r.sector}
-        csvName="sectores"
-        filterPlaceholder="Filtrar sectores…"
-      />
-      <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        La flecha ↑ marca los sectores donde la ocupación mostrada es un suelo:
-        se agotaron, así que la cifra mide asientos y no demanda.
-      </p>
-    </>
-  );
-}
+// Aquí vivía `SectorTable`: la tabla de sectores con lo vendido de media, su
+// ocupación, las veces que se agotó y el precio de la entrada. Se retiró el
+// 2026-09-01 porque el desglose de asistencia por sector es una función de HT
+// Supporter y las reglas de CHPP prohíben replicarla. No se sustituye por una
+// versión con totales: la tabla ERA el desglose.

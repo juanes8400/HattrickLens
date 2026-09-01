@@ -95,8 +95,11 @@ def test_parse_matchdetails_real_fixture() -> None:
 
     assert d["possession"]["first_half_home"] == 48
     assert d["possession"]["second_half_home"] == 44
-    assert d["arena"]["sold_terraces"] == 34130
-    assert d["arena"]["sold_vip"] == 1425
+    # Solo el TOTAL. El desglose por sector se dejo de leer el 2026-09-01: es
+    # funcion de HT Supporter y las reglas de CHPP prohiben replicarla.
+    assert d["arena"]["spectators"] == 54979
+    assert "sold_terraces" not in d["arena"]
+    assert "sold_vip" not in d["arena"]
     # matchdetails.xml v3.1 real no trae `<Event>`/EventTypeID (verificado en
     # vivo) — solo conteos de ocasiones por zona, por lado.
     assert home["chances"] == {"left": 3, "center": 0, "right": 1, "special": 0, "other": 0}

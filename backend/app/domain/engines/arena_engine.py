@@ -46,56 +46,18 @@ class ArenaCapacity:
         return int(getattr(self, sector))
 
 
-@dataclass(frozen=True)
-class Attendance:
-    general: int
-    preferentes: int
-    tribunas: int
-    palcos: int
-
-    @property
-    def total(self) -> int:
-        return self.general + self.preferentes + self.tribunas + self.palcos
-
-    def get(self, sector: str) -> int:
-        return int(getattr(self, sector))
-
-
-@dataclass
-class OccupancyReport:
-    occupancy: dict[str, float]  # % por sector
-    total_occupancy: float
-    sold_out: list[str]  # sectores al 100%
-    demand_is_censored: bool  # hay demanda que no cabe
-    revenue: float
-    revenue_if_full: float
-    revenue_left_on_table: float
-
-
-def analyse_match(
-    capacity: ArenaCapacity,
-    attendance: Attendance,
-    prices: dict[str, float] | None = None,
-) -> OccupancyReport:
-    p = prices or TICKET_PRICES
-    occ, sold_out = {}, []
-    for s in SECTORS:
-        cap, att = capacity.get(s), attendance.get(s)
-        occ[s] = (att / cap * 100) if cap else 0.0
-        if cap and att >= cap:
-            sold_out.append(s)
-
-    revenue = sum(attendance.get(s) * p[s] for s in SECTORS)
-    revenue_full = sum(capacity.get(s) * p[s] for s in SECTORS)
-    return OccupancyReport(
-        occupancy=occ,
-        total_occupancy=attendance.total / capacity.total * 100 if capacity.total else 0.0,
-        sold_out=sold_out,
-        demand_is_censored=bool(sold_out),
-        revenue=revenue,
-        revenue_if_full=revenue_full,
-        revenue_left_on_table=revenue_full - revenue,
-    )
+# Aquí vivían `Attendance`, `OccupancyReport` y `analyse_match`: la asistencia
+# por sector, su ocupación, qué sectores se agotaron y el ingreso reconstruido
+# multiplicando entradas por precio. Todo eso partía de `SoldTerraces`,
+# `SoldBasic`, `SoldRoof` y `SoldVIP` de matchdetails, que son una función de
+# HT Supporter, y las reglas de CHPP prohíben replicarlas (2026-09-01).
+#
+# Se borran en vez de dejarlas sin usar: código cuyo único propósito es
+# calcular eso es exactamente lo que un revisor señalaría, esté llamado o no.
+#
+# `ArenaCapacity` se queda porque el aforo por sector es la configuración de
+# tu propio estadio --llega por arenadetails-- y es lo que necesita el
+# simulador de ampliación para saber cuánto cuesta cada asiento nuevo.
 
 
 @dataclass
@@ -158,19 +120,6 @@ def analyse_expansion(
     )
 
 
-def estimate_true_demand(
-    capacity: ArenaCapacity,
-    attendances: list[Attendance],
-    sector: str,
-) -> tuple[float, bool]:
-    """Demanda media de un sector. Devuelve (estimación, está_censurada).
-
-    Si el sector se llenó en algún partido, la media observada subestima la
-    demanda real y hay que decirlo en vez de fingir precisión.
-    """
-    if not attendances:
-        return 0.0, False
-    values = [a.get(sector) for a in attendances]
-    cap = capacity.get(sector)
-    censored = any(v >= cap for v in values)
-    return sum(values) / len(values), censored
+# `estimate_true_demand` se retiró con lo anterior: estimaba la demanda REAL
+# de un sector cuando se agotaba, que es la lectura más directa de la función
+# de Supporter (2026-09-01).

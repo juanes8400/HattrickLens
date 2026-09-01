@@ -54,7 +54,11 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "academy.prospect",
         "academy.unprofitable",
         "arena.expansion_opportunity",
-        "arena.sold_out",
+        # «arena.sold_out» sale de la lista el 2026-09-01: la regla se retiró
+        # con el desglose por sector. Quitarla de aquí es lo correcto y no un
+        # descuido — las archivadas de esa clave quedan huérfanas y el buzón
+        # las descarta solo, que es exactamente lo que esta lista sirve para
+        # decidir. Esa alerta ya no puede reaparecer nunca.
         "economy.cash_below_expected",
         "economy.fan_club_shrinking",
         "economy.income_concentration",
@@ -295,25 +299,12 @@ def fan_club_trend(previous: int, latest: int, drop_ratio: float = 0.05) -> list
 # ── Estadio ─────────────────────────────────────────────────────────────────
 
 
-def sold_out_sectors(sold_out: list[str], lost_revenue: float, currency: str = "") -> list[Insight]:
-    """HL-061: demanda censurada — estás dejando gente fuera."""
-    if not sold_out:
-        return []
-    return [
-        Insight(
-            key="arena.sold_out",
-            severity=Severity.OPPORTUNITY,
-            title=f"{len(sold_out)} sector(es) agotados en el estadio",
-            detail=(
-                "La asistencia observada ya no mide tu demanda real: está limitada por la "
-                f"capacidad. Además dejas de ingresar {thousands(lost_revenue)} {currency} por "
-                "asientos vacíos en otros sectores."
-            ),
-            action="Valora ampliar los sectores que se llenan, no los que sobran.",
-            module="estadio",
-            evidence={"soldOut": sold_out},
-        )
-    ]
+# La alerta «sector agotado» se retiró el 2026-09-01. Decía cuántos sectores
+# se llenaban y cuánto se dejaba de ingresar en los que sobraban, y eso sólo se
+# puede saber con la asistencia POR SECTOR, que es una función de HT Supporter:
+# las reglas de CHPP prohíben replicarla. No se sustituye por una versión con
+# totales, porque un estadio lleno del todo casi nunca pasa y la alerta perdía
+# su razón de ser --avisaba de sectores concretos, no del aforo global--.
 
 
 def arena_expansion_opportunity(

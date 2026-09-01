@@ -500,8 +500,8 @@ def test_match_details_backfills_home_stadium_history() -> None:
             assert stadium is not None
             assert stadium.team_id == team_id
             assert stadium.capacity_total == 62500
-            assert stadium.sold_terraces == 34130
-            assert stadium.sold_vip == 1425
+            # Se guarda el total, no el desglose (2026-09-01).
+            assert stadium.sold_total == 54979
 
         second = await handler.execute_match_details(cmd)
         assert second.unchanged == 1

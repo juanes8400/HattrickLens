@@ -20,7 +20,6 @@ from app.domain.engines.insights import (
     next_match_forecast,
     relegation_danger,
     sector_standouts,
-    sold_out_sectors,
     stale_data,
     structural_deficit,
     thin_keeper_depth,
@@ -65,11 +64,9 @@ def test_positive_balance_produces_no_alert() -> None:
     assert structural_deficit(50_000, 1_000_000) == []
 
 
-def test_sold_out_sectors_flag_censored_demand() -> None:
-    out = sold_out_sectors(["general", "preferentes", "palcos"], 95_437, "US$")
-    assert out and out[0].severity is Severity.OPPORTUNITY
-    assert "95.437" in out[0].detail
-
+# `test_sold_out_sectors_flag_censored_demand` se retiro el 2026-09-01 con la
+# alerta que probaba: avisaba de sectores agotados y de la demanda que no cabia,
+# y eso exige la asistencia POR SECTOR, que es funcion de HT Supporter.
 
 def test_academy_roi_both_directions() -> None:
     malo = academy_roi(11_240_000, 0, "US$")
@@ -151,7 +148,6 @@ def test_every_insight_has_a_message_and_module() -> None:
     todo = collect(
         inefficient_training(TRAINEES),
         structural_deficit(-217_000, 21_034_174),
-        sold_out_sectors(["general"], 1000),
         academy_roi(11_240_000, 0),
     )
     assert todo

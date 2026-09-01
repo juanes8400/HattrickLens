@@ -821,15 +821,12 @@ class StadiumHistory(Base):
     capacity_basic: Mapped[int | None] = mapped_column(Integer)
     capacity_roof: Mapped[int | None] = mapped_column(Integer)
     capacity_vip: Mapped[int | None] = mapped_column(Integer)
-    sold_terraces: Mapped[int] = mapped_column(Integer, default=0)
-    sold_basic: Mapped[int] = mapped_column(Integer, default=0)
-    sold_roof: Mapped[int] = mapped_column(Integer, default=0)
-    sold_vip: Mapped[int] = mapped_column(Integer, default=0)
+    # La asistencia va SOLO en total. El desglose por sector es una funcion de
+    # HT Supporter y las reglas de CHPP prohiben replicarla, asi que ni se
+    # recoge ni se guarda (migracion 0076). El total en cambio es publico:
+    # Hattrick lo enseña en la pagina del partido.
+    sold_total: Mapped[int] = mapped_column(Integer, default=0)
     revenue: Mapped[int] = mapped_column(Integer, default=0)
-
-    @property
-    def sold_total(self) -> int:
-        return self.sold_terraces + self.sold_basic + self.sold_roof + self.sold_vip
 
 
 class Match(Base):

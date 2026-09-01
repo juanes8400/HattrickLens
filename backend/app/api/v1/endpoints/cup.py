@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.weekly import season_for_datetime
-from app.domain.engines.arena_engine import ArenaCapacity, Attendance, analyse_match
 from app.domain.engines.match_analysis import hatstats
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
 from app.infrastructure.db import models as m
@@ -476,26 +475,17 @@ async def _cup_economy(
             .order_by(m.StadiumHistory.played_at)
         )
     ).all()
-    gross_values: list[int] = []
-    for stadium, _match in rows:
-        real = [
-            stadium.capacity_terraces,
-            stadium.capacity_basic,
-            stadium.capacity_roof,
-            stadium.capacity_vip,
-        ]
-        sold = [
-            stadium.sold_terraces,
-            stadium.sold_basic,
-            stadium.sold_roof,
-            stadium.sold_vip,
-        ]
-        if all(value is not None and value > 0 for value in real):
-            cap_values = [int(value) for value in real if value is not None]
-        else:
-            cap_values = [max(value, 1) for value in sold]
-        report = analyse_match(ArenaCapacity(*cap_values), Attendance(*sold))
-        gross_values.append(int(round(report.revenue)))
+    # La taquilla REAL que reporta Hattrick, no una estimada.
+    #
+    # Hasta el 2026-09-01 esto multiplicaba las entradas de cada sector por su
+    # precio para reconstruir el ingreso. Eso usaba la asistencia por sector,
+    # que es una función de HT Supporter y las reglas de CHPP prohíben
+    # replicar. El cambio además MEJORA la cifra: `revenue` es lo que Hattrick
+    # dice que se recaudó, no lo que nuestros precios estimaban.
+    #
+    # Los partidos sin recaudación reportada se quedan fuera en vez de
+    # rellenarse con un cálculo: es lo mismo que hace la pantalla de Estadio.
+    gross_values: list[int] = [int(stadium.revenue) for stadium, _match in rows if stadium.revenue]
 
     observed_gross = sum(gross_values)
     estimated_share = int(round(observed_gross * 2 / 3))

@@ -2181,10 +2181,10 @@ class SyncTeamHandler:
                     capacity_basic=capacity.get("basic") or None,
                     capacity_roof=capacity.get("roof") or None,
                     capacity_vip=capacity.get("vip") or None,
-                    sold_terraces=arena.get("sold_terraces", 0),
-                    sold_basic=arena.get("sold_basic", 0),
-                    sold_roof=arena.get("sold_roof", 0),
-                    sold_vip=arena.get("sold_vip", 0),
+                    # Solo el TOTAL. El desglose por sector es funcion de HT
+                    # Supporter y las reglas de CHPP prohiben replicarla; ni
+                    # se lee del XML ni existe ya la columna (migracion 0076).
+                    sold_total=sold_total,
                 )
             )
             result.snapshots_written += 1

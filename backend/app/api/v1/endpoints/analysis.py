@@ -1286,11 +1286,9 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     # ── Estadio ─────────────────────────────────────────────────────────
     arena = await ArenaQueryService(session).get(team_id)
     if arena:
-        groups.append(
-            ins.sold_out_sectors(
-                arena.censored_sectors, arena.revenue_left_on_table, arena.currency
-            )
-        )
+        # Aquí iba la alerta de sectores agotados. Se retiró con el desglose
+        # por sector (2026-09-01): era demanda censurada POR SECTOR y eso es
+        # función de HT Supporter.
         options = [
             {
                 "label": o.label,

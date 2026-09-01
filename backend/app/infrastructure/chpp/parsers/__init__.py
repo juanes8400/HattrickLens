@@ -789,13 +789,10 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
             "name": _txt(arena_el if arena_el is not None else mt, "ArenaName", ""),
             "spectators": _int(arena_el if arena_el is not None else mt, "SoldTotal"),
             "weather": _int(arena_el if arena_el is not None else mt, "WeatherID", -1),
-            # `matchdetails` no trae el aforo: sólo cuántas entradas se
-            # vendieron por sector. El aforo actual llega una vez por equipo
-            # en `arenadetails`; se combina al persistir el historial.
-            "sold_terraces": _int(arena_el if arena_el is not None else mt, "SoldTerraces"),
-            "sold_basic": _int(arena_el if arena_el is not None else mt, "SoldBasic"),
-            "sold_roof": _int(arena_el if arena_el is not None else mt, "SoldRoof"),
-            "sold_vip": _int(arena_el if arena_el is not None else mt, "SoldVIP"),
+            # El desglose por sector (`SoldTerraces`, `SoldBasic`, `SoldRoof`,
+            # `SoldVIP`) NO se lee: es una función de HT Supporter y las
+            # reglas de CHPP prohíben replicarla. `SoldTotal`, de arriba, sí
+            # es público — Hattrick lo enseña en la página del partido.
         },
     }
 
