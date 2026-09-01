@@ -242,16 +242,46 @@ def _recoloca_para_descubrir(
     if len(pares) != len(libres):
         return  # no se pudo llenar todo: mejor dejarlo como estaba
 
-    # Se reescribe solo el nombre de cada silla; el resto de la fila --puesto,
-    # región, raciones-- describe LA PLAZA y no cambia al cambiar de ocupante.
-    # `Asignacion` es inmutable, así que se sustituye la fila entera en su
-    # sitio en vez de tocarla.
+    # Al cambiar de ocupante hay que mover CON ÉL lo que es suyo.
+    #
+    # Aquí vivía el fallo que el usuario vio el 2026-09-01: «Nicolás Granados
+    # aparece con 15 años y tiene 16, casi 17». Esta función reescribía sólo
+    # el nombre de la silla, con el argumento de que el resto de la fila
+    # describe LA PLAZA. Es verdad del puesto, la región y las raciones; es
+    # falso de la edad, del HTMS28 y de los niveles, que describen AL CHICO.
+    # Resultado: cada reubicación dejaba el nombre de uno con la edad del
+    # anterior ocupante, y como el reparto es un emparejamiento óptimo, salían
+    # ciclos --siete canteranos con la edad de otro, en cadena--.
+    #
+    # Sólo pasaba con «Individual», porque es el único entrenamiento que
+    # reubica: con cualquier otro nadie cambia de silla y no había nada que
+    # cruzar.
     banquillo = {a.player: a for a in plan.fuera}
     dentro_antes = {a.player for a in libres}
     por_id = {id(a): i for i, a in enumerate(plan.asignaciones)}
+
+    #: La ficha de cada canterano, mire donde mire: dentro o en el banquillo.
+    #: De aquí salen los campos que viajan con la persona.
+    fichas: dict[str, Any] = {a.player: a for a in list(plan.fuera) + list(plan.asignaciones)}
+
+    def _del_jugador(nombre: str) -> dict[str, Any]:
+        """Lo que es del CHICO, no de la plaza."""
+        f = fichas.get(nombre)
+        if f is None:
+            return {}
+        return {
+            "peldano": f.peldano,
+            "age_days_total": f.age_days_total,
+            "htms28_min": f.htms28_min,
+            "htms28_max": f.htms28_max,
+            "current": f.current,
+            "maximum": f.maximum,
+            "max_reached": f.max_reached,
+        }
+
     nuevas: list[Any] = []
     for silla, (nombre, _) in zip(libres, pares, strict=True):
-        cambiada = replace(silla, player=nombre)
+        cambiada = replace(silla, player=nombre, **_del_jugador(nombre))
         plan.asignaciones[por_id[id(silla)]] = cambiada
         nuevas.append(cambiada)
     libres = nuevas
@@ -262,6 +292,9 @@ def _recoloca_para_descubrir(
         if nombre in banquillo:
             plan.fuera.remove(banquillo[nombre])
     for nombre in dentro_antes - dentro_ahora:
+        # Quien sale del once se lleva su ficha. Sin esto salía con edad 0 y
+        # HTMS28 0, que en pantalla es «0;000» — el mismo fallo por el otro
+        # lado.
         plan.fuera.append(
             Asignacion(
                 player=nombre,
@@ -269,6 +302,7 @@ def _recoloca_para_descubrir(
                 region=REGION_SIN_ENTRENAMIENTO,
                 racion_principal=0.0,
                 racion_secundaria=0.0,
+                **_del_jugador(nombre),
             )
         )
 

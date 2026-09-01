@@ -2229,22 +2229,28 @@ function SiguientePromocion({ data }: { data: Academy }) {
                   </td>
                   {/* 17;000 en verde = sube en cuanto cumpla la edad, sin
                       esperar nada más. Cualquier otra cifra significa que le
-                      frena el plazo de la academia y llegará más viejo. */}
+                      frena el plazo de la academia y llegará más viejo.
+                      El PORQUÉ va en la propia celda, no en un `title`: sin
+                      él, ver «16;110» al lado de «17;079» parecía un error de
+                      cálculo --el chico cumple 17 en dos días-- cuando lo que
+                      pasa es que le faltan días de academia. Un número que
+                      parece imposible tiene que traer su motivo puesto
+                      (2026-09-01, avisado por el usuario). */}
                   <td
                     className={`${td} text-right tabular-nums`}
                     style={{
                       color:
                         edadAlSubir(p) === EDAD_MINIMA_DE_ASCENSO
                           ? "var(--positive)"
-                          : "var(--muted)",
+                          : undefined,
                     }}
-                    title={
-                      edadAlSubir(p) === EDAD_MINIMA_DE_ASCENSO
-                        ? "lo antes que Hattrick permite"
-                        : "le frena el plazo en la academia, no la edad"
-                    }
                   >
                     {edadCorta(edadAlSubir(p))}
+                    {edadAlSubir(p) > EDAD_MINIMA_DE_ASCENSO && (
+                      <span className="block text-[10px] leading-tight font-normal text-[var(--muted)]">
+                        +{edadAlSubir(p) - EDAD_MINIMA_DE_ASCENSO} d de academia
+                      </span>
+                    )}
                   </td>
                   <td
                     className={`${td} text-right tabular-nums`}
