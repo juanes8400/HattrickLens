@@ -484,6 +484,10 @@ export function SyncChangesPage() {
       {/* Un informe se lee una vez. Si el último sync no movió nada, aquí no
           hay nada: no se reenseña lo de antes. El archivo sigue accesible
           eligiendo una fecha, y entonces se avisa de que no es lo último. */}
+      {/* Lo primero de la pantalla, por delante incluso de los avisos de
+          contexto (pedido del usuario, 2026-09-01). */}
+      <PreguntaDeVisitas />
+
       {data && !data.reportIsLatest && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--text)]">
@@ -502,7 +506,7 @@ export function SyncChangesPage() {
         </div>
       )}
 
-      {/* ORDEN. Dos revisiones, las dos del usuario:
+      {/* ORDEN. Tres revisiones, las tres del usuario:
 
           2026-08-30: la página abría con «Mecánica de sync» --telemetría del
           proceso, no del club-- y cerraba con «Qué haría ahora», que es la
@@ -512,8 +516,11 @@ export function SyncChangesPage() {
 
           2026-09-01: «Qué cambió desde la última sincronización» estaba EL
           ÚLTIMO, a 2442px de scroll (medido), cuando es la lista literal de lo
-          que pasó y da nombre a la pantalla. Pasa a abrirla. «Qué haría ahora»
-          la sigue: primero lo que ocurrió, después qué hacer con ello. */}
+          que pasó y da nombre a la pantalla. Pasó a abrirla.
+
+          2026-09-01, más tarde: «¿Cuántas veces lo vieron?» pasa por delante
+          de todo, incluidos los avisos de contexto. Estaba penúltima, detrás
+          de ocho bloques. */}
 
       {changes.length > 0 ? (
         <SyncChangesFeed
@@ -614,8 +621,6 @@ export function SyncChangesPage() {
       {/* Al fondo: no describe al club, describe a la herramienta. Solo
           importa cuando algo no cuadra y hay que saber contra qué se comparó. */}
       <SyncMetaSummary data={data} changes={changes} />
-
-      <PreguntaDeVisitas />
     </div>
   );
 }
