@@ -49,6 +49,38 @@ export type Dia = { day: string; count: number };
 const VERDE = "var(--positive)";
 const ROJO = "var(--danger)";
 
+/** El pulso de mercado, acotado a su banda.
+ *
+ *  Cada operación era una cápsula y la pila crecía sin tope. En la base de
+ *  producción hay un día con CUARENTA ventas: 40 × 7px son 280 px subiendo,
+ *  que atraviesan la gráfica entera y se salen del dibujo. Desde la cuarta
+ *  venta del mismo día el marcador ya estaba dentro del área de la línea
+ *  (2026-09-01, avisado por el usuario: «se ven muy desordenadas»).
+ *
+ *  En local no se veía porque ahí los días cargados no llegan a tres.
+ *
+ *  Ahora la pila se corta donde acaba su carril y el resto se dice con un
+ *  número. Se conserva la cápsula por operación mientras caben, que es lo que
+ *  deja leer «tres ventas» de un vistazo sin contar dígitos. */
+const PASO_MERCADO = 7;
+/** Cuántas caben antes de invadir la gráfica (ventas) o el pie (compras). */
+const MAX_VENTAS = 3;
+const MAX_COMPRAS = 4;
+
+/** Las dos etiquetas «+N» van sujetas con `Math.min`/`Math.max` a los bordes
+ *  de la banda. Sin la pinza, la de compras caia en y=275 de un dibujo de 276
+ *  --cabia por un pixel, y cualquier descendente se cortaba--. */
+export function apiladas(
+  total: number,
+  max: number,
+): { visibles: number; resto: number } {
+  if (total <= max) return { visibles: total, resto: 0 };
+  // Se deja un hueco para el «+N»: si se pintaran las `max` cápsulas y encima
+  // el número, el número volvería a salirse por arriba.
+  const visibles = Math.max(0, max - 1);
+  return { visibles, resto: total - visibles };
+}
+
 function ejeSemanal(desde: Date, hasta: Date): Date[] {
   const out: Date[] = [];
   for (let d = new Date(desde); d < hasta; d.setDate(d.getDate() + 1)) {
@@ -351,34 +383,74 @@ export function SerieConCausas({
             >
               compras
             </text>
-            {(sellDays ?? []).flatMap((d) =>
-              Array.from({ length: d.count }, (_, j) => (
-                <rect
-                  key={`${uid}v${d.day}${j}`}
-                  x={X(`${d.day}T12:00`) - 2.5}
-                  y={T + alto + 18 - j * 7}
-                  width={5}
-                  height={5}
-                  rx={2.5}
-                  fill="var(--mercado-venta)"
-                  opacity={0.9}
-                />
-              )),
-            )}
-            {(buyDays ?? []).flatMap((d) =>
-              Array.from({ length: d.count }, (_, j) => (
-                <rect
-                  key={`${uid}c${d.day}${j}`}
-                  x={X(`${d.day}T12:00`) - 2.5}
-                  y={T + alto + 26 + j * 7}
-                  width={5}
-                  height={5}
-                  rx={2.5}
-                  fill="var(--mercado-compra)"
-                  opacity={0.9}
-                />
-              )),
-            )}
+            {(sellDays ?? []).map((d) => {
+              const { visibles, resto } = apiladas(d.count, MAX_VENTAS);
+              return (
+                <g key={`${uid}v${d.day}`}>
+                  {Array.from({ length: visibles }, (_, j) => (
+                    <rect
+                      key={j}
+                      x={X(`${d.day}T12:00`) - 2.5}
+                      y={T + alto + 18 - j * PASO_MERCADO}
+                      width={5}
+                      height={5}
+                      rx={2.5}
+                      fill="var(--mercado-venta)"
+                      opacity={0.9}
+                    />
+                  ))}
+                  {resto > 0 && (
+                    <text
+                      x={X(`${d.day}T12:00`)}
+                      y={Math.max(
+                        T + alto + 8,
+                        T + alto + 15 - visibles * PASO_MERCADO,
+                      )}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="600"
+                      fill="var(--mercado-venta)"
+                    >
+                      +{resto}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+            {(buyDays ?? []).map((d) => {
+              const { visibles, resto } = apiladas(d.count, MAX_COMPRAS);
+              return (
+                <g key={`${uid}c${d.day}`}>
+                  {Array.from({ length: visibles }, (_, j) => (
+                    <rect
+                      key={j}
+                      x={X(`${d.day}T12:00`) - 2.5}
+                      y={T + alto + 26 + j * PASO_MERCADO}
+                      width={5}
+                      height={5}
+                      rx={2.5}
+                      fill="var(--mercado-compra)"
+                      opacity={0.9}
+                    />
+                  ))}
+                  {resto > 0 && (
+                    <text
+                      x={X(`${d.day}T12:00`)}
+                      y={Math.min(
+                        H - 3,
+                        T + alto + 32 + visibles * PASO_MERCADO,
+                      )}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fontWeight="600"
+                      fill="var(--mercado-compra)"
+                    >
+                      +{resto}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
           </>
         )}
 

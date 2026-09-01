@@ -25,6 +25,7 @@ import {
   trainingStaffLevelColor,
 } from "../utils/staffEffects";
 import { skillLevelLabel } from "../utils/skillLevels";
+import { ventanaDeGraficas } from "../utils/ventanaDeGraficas";
 import type { Club, PsychologyMatch } from "../services/api";
 
 /**
@@ -99,24 +100,23 @@ export function ClubPage() {
   );
 }
 
-/** La ventana que cubren las gráficas: el ancho real de los datos. */
+/** La ventana que cubren las gráficas: el ancho real de los datos.
+ *
+ *  El cálculo vive en `ventanaDeGraficas` para poder probarlo sin montar la
+ *  pantalla; aquí sólo se dice QUÉ series entran. Los días de mercado están
+ *  en la lista a propósito: la gráfica los dibuja, así que el eje tiene que
+ *  cubrirlos (ver el módulo). */
 function ventana(data: Club): { from: string; to: string } {
   const psi = data.psychology;
-  const fechas = [
-    ...psi.spirit.readings.map((r) => r.at),
-    ...psi.confidence.readings.map((r) => r.at),
-    ...psi.matches.map((m) => m.playedAt),
-    ...data.supporterHistory.map((s) => s.capturedAt),
-  ].sort();
-  const primera = new Date(fechas[0] ?? new Date().toISOString());
-  const ultima = new Date(
-    fechas[fechas.length - 1] ?? new Date().toISOString(),
-  );
-  // Un día de aire a cada lado: sin él, el primer y el último punto quedan
-  // pegados al marco y no se distingue el círculo de la lectura.
-  primera.setDate(primera.getDate() - 1);
-  ultima.setDate(ultima.getDate() + 1);
-  return { from: primera.toISOString(), to: ultima.toISOString() };
+  return ventanaDeGraficas({
+    instantes: [
+      ...psi.spirit.readings.map((r) => r.at),
+      ...psi.confidence.readings.map((r) => r.at),
+      ...psi.matches.map((m) => m.playedAt),
+      ...data.supporterHistory.map((s) => s.capturedAt),
+    ],
+    dias: [...psi.sellDays, ...psi.buyDays].map((d) => d.day),
+  });
 }
 
 function marcador(m: PsychologyMatch): string {
