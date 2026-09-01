@@ -112,7 +112,7 @@ export function InsightsPage() {
       >
         {data?.length ? (
           filtered.length ? (
-            <ul>
+            <ul data-lista="alertas-activas">
               {filtered.map((i) => (
                 <InsightRow
                   key={i.key}
@@ -137,7 +137,7 @@ export function InsightsPage() {
           title="Buzón"
           meta={`${archived.data.length} archivada${archived.data.length === 1 ? "" : "s"}`}
         >
-          <ul>
+          <ul data-lista="alertas-archivadas">
             {archived.data.map((i) => (
               <InsightRow
                 key={i.key}

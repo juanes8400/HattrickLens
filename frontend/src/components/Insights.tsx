@@ -1,3 +1,4 @@
+import { useFocoDeLista } from "../hooks/useFocoDeLista";
 import clsx from "clsx";
 import { Link } from "react-router-dom";
 import type { Insight } from "../services/api";
@@ -79,6 +80,16 @@ export function InsightRow({
   busy?: boolean;
 }) {
   const route = insightRoute(insight.module);
+  // Al archivar o restaurar desaparece la fila entera, y con ella el botón
+  // pulsado: sin esto el foco se cae al principio del documento.
+  const alQuitar = useFocoDeLista(
+    onRestore
+      ? '[data-lista="alertas-archivadas"]'
+      : '[data-lista="alertas-activas"]',
+    onRestore
+      ? "button[data-restaurar]"
+      : 'button[aria-label="Archivar alerta"]',
+  );
   return (
     <li className="flex gap-3 border-b border-[var(--border)] p-4 last:border-0">
       <span
@@ -115,7 +126,11 @@ export function InsightRow({
         )}
         {onRestore && (
           <button
-            onClick={() => onRestore(insight.key)}
+            data-restaurar
+            onClick={(e) => {
+              alQuitar(e.currentTarget);
+              onRestore(insight.key);
+            }}
             disabled={busy}
             title="Devolver a las alertas activas"
             className="-mt-1 rounded-md px-1.5 py-0.5 text-[11px] text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--accent)] disabled:opacity-40"
@@ -125,7 +140,12 @@ export function InsightRow({
         )}
         {onArchive && (
           <button
-            onClick={() => onArchive(insight.key)}
+            onClick={(e) => {
+              // Antes de disparar: al quitarse la alerta desaparece este
+              // mismo botón y el foco se caería al `body`.
+              alQuitar(e.currentTarget);
+              onArchive(insight.key);
+            }}
             disabled={busy}
             aria-label="Archivar alerta"
             title="Archivar en el buzón"
