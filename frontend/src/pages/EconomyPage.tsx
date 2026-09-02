@@ -559,6 +559,38 @@ const HORIZON_OPTIONS: { key: Horizon; label: string }[] = [
   { key: "16", label: "16 semanas" },
 ];
 
+/** El nombre del modelo, en cristiano.
+ *
+ *  El servidor manda la clave con la que se le conoce en la literatura
+ *  --`theil_sen`, `holt_winters`--, que está bien para un registro y es lo
+ *  peor posible para la cabecera de un panel. Desde el 2026-09-01 hay catorce
+ *  candidatos, así que la diferencia entre una clave y un nombre dejó de ser
+ *  cosmética.
+ *
+ *  Una clave que no esté en el mapa se enseña tal cual: es preferible leer
+ *  `modelo: nuevo_modelo` que un hueco o un «desconocido». */
+const NOMBRES_DE_MODELO: Record<string, string> = {
+  bottom_up: "estructural",
+  naive: "última semana",
+  mean_k: "media de las últimas",
+  median_k: "mediana de las últimas",
+  drift: "tendencia recta",
+  drift_damped: "tendencia amortiguada",
+  theil_sen: "tendencia robusta (Theil-Sen)",
+  ses: "suavizado exponencial",
+  theta: "Theta",
+  ar1: "vuelta a la media (AR1)",
+  holt: "nivel y tendencia (Holt)",
+  combo: "combinación de modelos",
+  seasonal_naive: "misma semana de la temporada pasada",
+  seasonal_holt: "estacional parcial + Holt",
+  holt_winters: "estacional completo (Holt-Winters)",
+};
+
+function nombreDeModelo(clave: string): string {
+  return NOMBRES_DE_MODELO[clave] ?? clave;
+}
+
 function ForecastPanel({
   data,
   horizon,
@@ -615,7 +647,7 @@ function ForecastPanel({
   return (
     <ProjectionPanel
       title="Escenario de caja, no resultado real"
-      meta={`modelo ${data.recommendedModel}`}
+      meta={`modelo: ${nombreDeModelo(data.recommendedModel)}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
         <span className="text-xs text-[var(--muted)]">

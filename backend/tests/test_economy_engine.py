@@ -128,7 +128,16 @@ def test_forecast_from_history_uses_timeseries() -> None:
     history = [-217_000 + (60_000 if w % 2 == 0 else 0) for w in range(24)]
     r = forecast_from_history(21_034_174, history, horizon_weeks=52)
 
-    assert r.model in ("naive", "drift", "ses", "holt", "holt_winters")
+    # Lo que se comprueba es que MANDE la serie, no cual de los modelos gana:
+    # la lista de nombres estaba escrita a mano y con los modelos nuevos gana
+    # `seasonal_naive` con error CERO -- este historico alterna cada 2 semanas
+    # y 16 es par, asi que "la misma semana de la temporada pasada" reproduce
+    # la alternancia exacta. Es el ganador correcto, y la lista vieja lo habria
+    # dado por fallo (2026-09-01).
+    from app.domain.engines.timeseries import MODELS
+
+    assert r.model in MODELS
+    assert r.model != "bottom_up"
     assert r.candidates and len(r.candidates) >= 3
     assert r.p50[-1] < 21_034_174          # la caja baja
     assert r.p10[-1] < r.p50[-1] < r.p90[-1]

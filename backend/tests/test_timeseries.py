@@ -39,13 +39,27 @@ def test_seasonal_series_unlocks_holt_winters() -> None:
     assert max(f.point) - min(f.point) > 200
 
 
+#: Los que no inventan ni tendencia ni estacionalidad: ante puro ruido, el
+#: ganador tiene que salir de aqui.
+SIN_ESTRUCTURA = {"naive", "mean_k", "median_k", "ses", "combo"}
+
+
 def test_model_is_chosen_by_backtesting_not_by_complexity() -> None:
-    """Serie sin estructura: debe ganar un modelo simple."""
+    """Serie sin estructura: debe ganar un modelo simple.
+
+    2026-09-01: la lista de ganadores aceptables era `naive`, `ses` y `drift`,
+    escrita a mano, y con los modelos nuevos empezo a ganar `mean_k` -- que
+    para ruido blanco alrededor de una media es LO CORRECTO, mejor que `naive`,
+    que se cree la ultima lectura entera. El test decia una cosa y comprobaba
+    otra; ahora comprueba lo que dice: que gane algo sin estructura, sea cual
+    sea su nombre."""
     rng = np.random.default_rng(7)
     y = list(rng.normal(500, 20, 40))
     f = auto_forecast(y, horizon=10)
-    assert f.model in ("naive", "ses", "drift")
+    assert f.model in SIN_ESTRUCTURA
     assert f.backtest_mae is not None
+    # Y una proyeccion plana: sin estructura no hay hacia donde ir.
+    assert max(f.point) - min(f.point) < 5
 
 
 def test_bands_widen_with_horizon() -> None:
