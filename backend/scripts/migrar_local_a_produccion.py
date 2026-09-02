@@ -299,6 +299,51 @@ class Migracion:
             insertadas += 1
         self.resumen.append((tabla, insertadas, huerfanas, detalle))
 
+    async def repuntar_etapas_colgando(self, con) -> None:
+        """Intentos de venta que apuntan a una etapa que ya no existe.
+
+        2026-09-02: producción tenía dos así, de antes de cualquier migración.
+        Un intento con la etapa colgando no se atribuye a la estancia del
+        jugador, y esa atribución es la que sostiene el saldo por jugador.
+
+        SÓLO se repunta cuando NO HAY DUDA: que el jugador tenga exactamente
+        UNA etapa cuya ventana contenga la fecha de detección. Con dos
+        candidatas se deja como está y se avisa -- elegir la que parezca es
+        justo la clase de arreglo que luego nadie sabe explicar. De los dos
+        casos reales, uno cumplía y el otro no, porque su historial de etapas
+        difiere entre las dos bases.
+        """
+        colgando = await con.fetch(
+            "select x.id, x.player_id, x.detected_at from player_listing_attempts x "
+            "join players p on p.id = x.player_id "
+            "left join player_stints s on s.id = x.stint_id "
+            "where x.stint_id is not null and s.id is null and p.team_id = $1",
+            self.equipo_remoto,
+        )
+        arreglados, ambiguos = 0, 0
+        for fila in colgando:
+            candidatas = await con.fetch(
+                "select id from player_stints where player_id = $1 "
+                "and arrived_at <= $2 and (left_at is null or left_at >= $2)",
+                fila["player_id"],
+                fila["detected_at"],
+            )
+            if len(candidatas) != 1:
+                ambiguos += 1
+                continue
+            if self.aplicar:
+                await con.execute(
+                    "update player_listing_attempts set stint_id = $1 where id = $2",
+                    candidatas[0]["id"],
+                    fila["id"],
+                )
+            arreglados += 1
+        if arreglados or ambiguos:
+            detalle = "etapa colgando repuntada"
+            if ambiguos:
+                detalle += f" · {ambiguos} sin candidata única, se dejan"
+            self.resumen.append(("  ...etapas repuntadas", arreglados, 0, detalle))
+
     # ── El periodo solapado, por huella de contenido ─────────────────────
     #: Las tablas que llevan `content_hash`, con la columna por la que se sabe
     #: DE QUIÉN es cada fila. La huella es la misma que usa el sincronizador
@@ -599,6 +644,7 @@ async def main() -> None:
         if solapado:
             await m.solapado(con)
         await m.intentos_de_venta(con)
+        await m.repuntar_etapas_colgando(con)
 
         if transaccion:
             await transaccion.commit()
