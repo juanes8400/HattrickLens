@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
@@ -134,6 +135,7 @@ export function LineupPage() {
           <p className="text-sm text-[var(--muted)]">
             Asignación óptima resuelta con el algoritmo húngaro
           </p>
+          <EnlaceATransparencia seccion="posiciones" calculo="once-optimo" />
         </div>
         <div className="flex gap-2">
           <select

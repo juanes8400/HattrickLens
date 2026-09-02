@@ -39,7 +39,10 @@ export function Panel({
   children,
 }: {
   title: string;
-  meta?: string;
+  // `ReactNode` y no `string` desde el 2026-09-01: aquí es donde va el enlace
+  // a Transparencia. Es el sitio natural --a la derecha del título, en gris y
+  // pequeño-- y evita tener que abrir hueco dentro de cada panel.
+  meta?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (

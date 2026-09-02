@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
 import { CountryFlag } from "../components/CountryFlag";
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { Specialty } from "../components/Specialty";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import {
@@ -542,7 +543,12 @@ function WhatToTrain({
   return (
     <Panel
       title="Selección de entrenamiento"
-      meta="una habilidad, la reciben todos"
+      meta={
+        <span className="flex items-center gap-2">
+          una habilidad, la reciben todos
+          <EnlaceATransparencia seccion="juveniles" calculo="puntaje" />
+        </span>
+      }
     >
       {/* Las DOS, no una. Y la segunda con apellido: la misma habilidad se
           entrena por caminos distintos y cada uno llega a gente distinta.
@@ -589,8 +595,8 @@ function WhatToTrain({
             <b className="text-[var(--youth-known)]">{top.label}</b>.
           </>
         )}
-        {/* El porqué, en sus palabras y con sus números. Sin la frase la
-            recomendación es un oráculo; sin los números, hay que creérsela. */}
+        {/* El porqué, en números. El método entero está en el enlace de la
+            cabecera del panel. */}
         {sugerencia?.method && <PorQue m={sugerencia.method} />}
       </div>
       <div className="overflow-x-auto">
@@ -1225,10 +1231,16 @@ const PELDANOS: Record<string, string> = {
 
 /** Por qué se recomienda lo que se recomienda, con los números detrás.
  *
- * La frase sola sería un oráculo con mejor redacción: dice qué pasa pero hay
- * que creérsela. Estos tres datos son los que de verdad deciden —el respaldo,
- * el no-respaldo y la prueba de quitar al mejor— y verlos permite discutir
- * con la recomendación en vez de obedecerla.
+ * Aquí vivía además una frase que narraba el veredicto --«X se cae por detrás
+ * de Y si le quitas su mejor canterano, así que doblarla concentraría en uno
+ * solo…»--. Fuera el 2026-09-01, no le gustaba al usuario, y con razón: contaba
+ * con palabras lo que los cuatro números de debajo ya dicen, y lo contaba en
+ * tres líneas que había que leer enteras para llegar a lo mismo.
+ *
+ * Los números se quedan, que son los que de verdad deciden --el respaldo, el
+ * no-respaldo y la prueba de quitar al mejor--: verlos permite discutir con la
+ * recomendación en vez de obedecerla. Y el método completo está a un clic, en
+ * el enlace del panel.
  */
 function PorQue({ m }: { m: VeredictoDeMetodo }) {
   const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -1243,7 +1255,6 @@ function PorQue({ m }: { m: VeredictoDeMetodo }) {
     : null;
   return (
     <div className="mt-1 space-y-1">
-      <div className="text-xs text-[var(--muted)]">{m.why}</div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
         {dato(
           "puntaje",
@@ -2236,9 +2247,14 @@ function SkillDetail({ data }: { data: Academy }) {
     <Panel
       title="Plantilla juvenil"
       meta={
-        hayFiltro
-          ? `${filtrados.length} de ${data.players.length}`
-          : `${data.players.length}`
+        <span className="flex items-center gap-2">
+          {hayFiltro
+            ? `${filtrados.length} de ${data.players.length}`
+            : `${data.players.length}`}
+          {/* Tres columnas de esta tabla están en HTMS28, que no es un dato
+              de Hattrick sino una cuenta nuestra. */}
+          <EnlaceATransparencia seccion="htms" calculo="htms28" />
+        </span>
       }
     >
       <div className="space-y-2 border-b border-[var(--border)] p-4">

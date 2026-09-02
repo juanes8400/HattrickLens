@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
@@ -217,6 +218,7 @@ export function PositionsPage() {
         <p className="text-sm text-[var(--muted)]">
           Compara toda la plantilla en una posición y orden individual.
         </p>
+        <EnlaceATransparencia seccion="posiciones" calculo="aporte" />
       </header>
 
       <nav

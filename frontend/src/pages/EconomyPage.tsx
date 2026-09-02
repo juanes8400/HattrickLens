@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useMemo, useState } from "react";
 import type { EChartsOption } from "echarts";
 import { economySankeyOption } from "../charts/chartOptions";
@@ -51,6 +52,7 @@ export function EconomyPage() {
           <p className="text-sm text-[var(--muted)]">
             {data.weeksOfHistory} semana(s) de histórico
           </p>
+          <EnlaceATransparencia seccion="economia" calculo="estructural" />
         </div>
         <Tabs
           grupo="economia"

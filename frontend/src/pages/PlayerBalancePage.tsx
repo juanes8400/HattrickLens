@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import clsx from "clsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1011,12 +1012,9 @@ export function PlayerBalancePage() {
           <p className="text-sm text-[var(--muted)]">
             Qué te dejó cada jugador que pasó por el club, desde que llegó hasta
             que se fue.{" "}
-            <Link
-              to="/transparency?s=transferencias&c=roi"
-              className="text-[var(--accent)] hover:underline"
-            >
-              Cómo se calcula el ROI →
-            </Link>
+            <EnlaceATransparencia seccion="transferencias" calculo="roi">
+              cómo se calcula el ROI
+            </EnlaceATransparencia>
           </p>
         </div>
         {/* 2026-08-15: traer el historial de transferencias se hace desde

@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -895,6 +896,10 @@ export function TrainingPage() {
         <p className="text-sm text-[var(--muted)]">
           Entrenamiento actual: {currentName} · viendo {data.skillLabel}
         </p>
+        <EnlaceATransparencia
+          seccion="entrenamiento"
+          calculo="semanas-al-pop"
+        />
       </header>
 
       <Tabs
@@ -1236,7 +1241,15 @@ export function TrainingPage() {
               <>
                 <Panel
                   title="Condición"
-                  meta={`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
+                  meta={
+                    <span className="flex items-center gap-2">
+                      {`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
+                      <EnlaceATransparencia
+                        seccion="entrenamiento"
+                        calculo="condicion"
+                      />
+                    </span>
+                  }
                 >
                   <DataTable
                     rows={development.data.stamina}

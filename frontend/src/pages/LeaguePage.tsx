@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { Link } from "react-router-dom";
@@ -90,6 +91,7 @@ export function LeaguePage() {
             {data.seriesName} · temporada {data.season} · jornada{" "}
             {data.roundsPlayed}
           </p>
+          <EnlaceATransparencia seccion="liga" calculo="simulacion" />
         </div>
         <Tabs
           grupo="liga"

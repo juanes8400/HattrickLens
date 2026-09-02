@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
@@ -74,6 +75,7 @@ export function MatchesPage() {
           <p className="text-sm text-[var(--muted)]">
             Por qué se ganó o se perdió
           </p>
+          <EnlaceATransparencia seccion="partidos" calculo="hatstats" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select

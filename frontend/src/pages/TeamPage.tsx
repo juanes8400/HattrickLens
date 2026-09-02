@@ -1,3 +1,4 @@
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import clsx from "clsx";
 import { CountryCell } from "../components/CountryFlag";
@@ -329,6 +330,9 @@ export function TeamPage() {
             Tabla maestra de {data.teamName}. Abre un nombre para ver sus
             detalles.
           </p>
+          {/* Las columnas HTMS y HTMS28 son las únicas de esta tabla que no
+              se leen de Hattrick sino que se calculan aquí. */}
+          <EnlaceATransparencia seccion="htms" calculo="htms-ability" />
         </div>
         <label className="text-xs text-[var(--muted)]">
           Diferencias semanales contra
