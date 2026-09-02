@@ -39,3 +39,8 @@ artifacts/
 
 # Claves generadas para el despliegue. Nunca al repositorio.
 claves-render.txt
+
+# Marcas de vuelta atrás de una migración de datos: estado de una ejecución
+# concreta contra una base concreta, no código. Ver
+# backend/scripts/migrar_local_a_produccion.py
+migracion-marcas.json
