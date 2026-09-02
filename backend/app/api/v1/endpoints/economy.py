@@ -190,6 +190,7 @@ def _serialise(d: Any) -> dict[str, Any]:
         "structuralForecast": _band(d.structural_forecast),
         "timeseriesForecast": _band(d.timeseries_forecast),
         "recommendedModel": d.recommended_model,
+        "recommendedModelLabel": d.recommended_model_label,
         "recommendationReason": d.recommendation_reason,
         "anomalies": d.anomalies,
         "weeklyBreakdown": [

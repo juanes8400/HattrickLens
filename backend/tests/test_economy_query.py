@@ -136,7 +136,14 @@ def test_timeseries_route_stays_silent_until_it_has_evidence() -> None:
     assert d.weeks_of_history < MIN_WEEKS_FOR_TIMESERIES
     assert d.timeseries_forecast is None
     assert d.recommended_model == "bottom_up"
-    assert str(MIN_WEEKS_FOR_TIMESERIES) in d.recommendation_reason
+    # La frase dice que la ruta temporal todavia no compite y cuanto falta.
+    # Antes se comprobaba que citara el umbral --el "8"-- pero desde el
+    # 2026-09-01 la frase cuenta las semanas QUE FALTAN, que es lo accionable;
+    # el umbral sigue viajando en su propio campo, que es de donde lo lee la
+    # barra de progreso.
+    assert "series de tiempo" in d.recommendation_reason
+    assert "Faltan" in d.recommendation_reason
+    assert d.min_weeks_for_timeseries == MIN_WEEKS_FOR_TIMESERIES
 
 
 def test_series_and_forecast_carry_the_season_week_label() -> None:

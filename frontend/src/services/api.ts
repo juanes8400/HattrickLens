@@ -1966,6 +1966,9 @@ export interface Economy {
   /** Null hasta que haya serie suficiente para validar un modelo temporal. */
   timeseriesForecast: ForecastBand | null;
   recommendedModel: string;
+  /** El mismo modelo, ya en la lengua de la pantalla. Lo resuelve el servidor
+   *  para que no haya una segunda lista de nombres aquí. */
+  recommendedModelLabel: string;
   recommendationReason: string;
   anomalies: string[];
   /** Detalles: más reciente primero (al revés que `series`, que va

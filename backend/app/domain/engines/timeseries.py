@@ -331,6 +331,35 @@ MIN_POINTS = {
 }
 
 
+#: El nombre de cada modelo en la lengua de la pantalla.
+#:
+#: Vive aquí, pegado al registro, y no en el frontend: la frase que explica la
+#: recomendación se arma en el servidor --como el resto de la prosa de la
+#: aplicación-- y tener dos listas de nombres garantizaba que un día dijeran
+#: cosas distintas. Un modelo sin nombre se enseña por su clave, que es feo
+#: pero cierto (2026-09-01).
+NOMBRES: dict[str, str] = {
+    "naive": "última semana",
+    "mean_k": "media de las últimas",
+    "median_k": "mediana de las últimas",
+    "drift": "tendencia recta",
+    "drift_damped": "tendencia amortiguada",
+    "theil_sen": "tendencia robusta (Theil-Sen)",
+    "ses": "suavizado exponencial",
+    "theta": "Theta",
+    "ar1": "vuelta a la media (AR1)",
+    "holt": "nivel y tendencia (Holt)",
+    "combo": "combinación de modelos",
+    "seasonal_naive": "misma semana de la temporada pasada",
+    "seasonal_holt": "estacional parcial + Holt",
+    "holt_winters": "estacional completo (Holt-Winters)",
+}
+
+
+def nombre_de(modelo: str) -> str:
+    return NOMBRES.get(modelo, modelo)
+
+
 # ─────────────────────────── selección ───────────────────────────
 
 

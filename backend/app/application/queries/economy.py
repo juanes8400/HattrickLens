@@ -214,6 +214,9 @@ class EconomyResponse:
     structural_forecast: ForecastBand
     timeseries_forecast: ForecastBand | None
     recommended_model: str
+    #: El mismo modelo, ya en la lengua de la pantalla. Viaja resuelto desde
+    #: aquí para que no haya una segunda lista de nombres en el frontend.
+    recommended_model_label: str
     recommendation_reason: str
     anomalies: list[str]
     weeks_of_history: int
@@ -510,25 +513,31 @@ class EconomyQueryService:
                 week_labels=[season_week_label(world, weeks_offset=w) for w in forecast_weeks],
             )
 
+        # La frase dice TRES cosas y ninguna más: qué ruta ganó, con qué
+        # modelo y con cuánto error. Antes recitaba también cuántas lecturas se
+        # usaron, y en un momento se planteó enseñar la tabla entera de
+        # candidatos con su error y sus pliegues de backtest -- descartado por
+        # el usuario el 2026-09-01: el ranking de los perdedores no cambia
+        # ninguna decisión y compite por la atención con la cifra de caja, que
+        # es a lo que se viene a esta pantalla.
         if timeseries is None:
-            recommended, reason = (
-                "bottom_up",
-                f"Con {len(cash_series)} lecturas no hay serie suficiente para "
-                f"validar un modelo temporal; hacen falta {MIN_WEEKS_FOR_TIMESERIES}. "
-                "La proyección estructural no necesita histórico porque "
-                "descompone la caja en sus partes conocidas.",
+            recommended, etiqueta = "bottom_up", "estructural"
+            reason = (
+                "Ganó la ruta estructural, que descompone la caja en sus partes "
+                f"conocidas y no necesita histórico. Faltan "
+                f"{max(0, MIN_WEEKS_FOR_TIMESERIES - len(cash_series))} semana(s) "
+                "para que compita también la de series de tiempo."
             )
         else:
-            # El error medio puede no venir; entonces la frase lo omite en
-            # vez de reventar o de inventarse un cero.
+            # El error medio puede no venir; entonces la frase lo omite en vez
+            # de reventar o de inventarse un cero.
             mae = timeseries.backtest_mae
-            detalle_mae = f" (MAE {thousands(mae)})" if mae is not None else ""
-            recommended, reason = (
-                timeseries.model,
-                f"El modelo «{timeseries.model}» ganó el backtest de origen "
-                f"rodante sobre {len(cash_series)} lecturas"
-                f"{detalle_mae}. Se mantiene la "
-                "proyección estructural al lado para contrastar.",
+            recommended = timeseries.model
+            etiqueta = ts.nombre_de(timeseries.model)
+            detalle_mae = f" Error medio {thousands(mae)}." if mae is not None else ""
+            reason = (
+                f"Ganó la ruta de series de tiempo con el modelo «{etiqueta}», "
+                f"elegido por backtest de origen rodante sobre tu histórico.{detalle_mae}"
             )
 
         anomalies = [
@@ -608,6 +617,7 @@ class EconomyQueryService:
             structural_forecast=structural,
             timeseries_forecast=timeseries,
             recommended_model=recommended,
+            recommended_model_label=etiqueta,
             recommendation_reason=reason,
             anomalies=anomalies,
             weeks_of_history=len(cash_series),

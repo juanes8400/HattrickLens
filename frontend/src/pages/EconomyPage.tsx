@@ -559,38 +559,6 @@ const HORIZON_OPTIONS: { key: Horizon; label: string }[] = [
   { key: "16", label: "16 semanas" },
 ];
 
-/** El nombre del modelo, en cristiano.
- *
- *  El servidor manda la clave con la que se le conoce en la literatura
- *  --`theil_sen`, `holt_winters`--, que está bien para un registro y es lo
- *  peor posible para la cabecera de un panel. Desde el 2026-09-01 hay catorce
- *  candidatos, así que la diferencia entre una clave y un nombre dejó de ser
- *  cosmética.
- *
- *  Una clave que no esté en el mapa se enseña tal cual: es preferible leer
- *  `modelo: nuevo_modelo` que un hueco o un «desconocido». */
-const NOMBRES_DE_MODELO: Record<string, string> = {
-  bottom_up: "estructural",
-  naive: "última semana",
-  mean_k: "media de las últimas",
-  median_k: "mediana de las últimas",
-  drift: "tendencia recta",
-  drift_damped: "tendencia amortiguada",
-  theil_sen: "tendencia robusta (Theil-Sen)",
-  ses: "suavizado exponencial",
-  theta: "Theta",
-  ar1: "vuelta a la media (AR1)",
-  holt: "nivel y tendencia (Holt)",
-  combo: "combinación de modelos",
-  seasonal_naive: "misma semana de la temporada pasada",
-  seasonal_holt: "estacional parcial + Holt",
-  holt_winters: "estacional completo (Holt-Winters)",
-};
-
-function nombreDeModelo(clave: string): string {
-  return NOMBRES_DE_MODELO[clave] ?? clave;
-}
-
 function ForecastPanel({
   data,
   horizon,
@@ -647,7 +615,7 @@ function ForecastPanel({
   return (
     <ProjectionPanel
       title="Escenario de caja, no resultado real"
-      meta={`modelo: ${nombreDeModelo(data.recommendedModel)}`}
+      meta={`modelo: ${data.recommendedModelLabel}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
         <span className="text-xs text-[var(--muted)]">
@@ -753,11 +721,15 @@ function ProjectionTeaser({ data }: { data: Economy }) {
     >
       <div className="space-y-3 p-4">
         <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
-          Con {data.minWeeksForTimeseries} semanas de histórico se activa un
-          segundo modelo, de series de tiempo, que elige entre naive, drift,
-          suavizado exponencial y Holt-Winters según cuál habría predicho mejor
-          tu propio historial, para contrastarlo con la proyección estructural
-          de arriba.
+          {/* Aquí se enumeraban los cuatro modelos que había --naive, drift,
+              suavizado exponencial y Holt-Winters--. Desde el 2026-09-01 son
+              catorce, así que la lista dejó de caber y, sobre todo, dejó de
+              importar: lo que hay que saber es que se elige por backtest
+              contra tu propio historial, no cuáles compiten. */}
+          Con {data.minWeeksForTimeseries} semanas de histórico se activa una
+          segunda ruta, de series de tiempo: varios modelos compiten y se queda
+          el que mejor habría predicho tu propio historial, para contrastarlo
+          con la proyección estructural de arriba.
           {remaining > 0 ? ` Faltan ${remaining} semana(s).` : ""}
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
