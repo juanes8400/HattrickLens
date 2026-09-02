@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Column, DataTable } from "../components/DataTable";
+import { CountryFlag } from "../components/CountryFlag";
 import { Specialty } from "../components/Specialty";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import {
@@ -27,10 +28,6 @@ import type {
   TrainingSlot,
   VeredictoDeMetodo,
 } from "../services/api";
-
-/** El jugador de la academia, derivado del contrato en vez de repetido:
- *  si cambia allí, aquí falla el tipo en vez de mentir en silencio. */
-type AcademyPlayer = Academy["players"][number];
 
 /** CHPP nombra las habilidades en inglés; la app habla español en todas las
  *  demás pantallas. */
@@ -71,7 +68,6 @@ const VIEWS = [
   // "Formación" y no "A quién entrenar": esta pestaña YA no propone un
   // reparto teorico, decide la alineacion del proximo partido.
   { key: "who", label: "Formación siguiente partido" },
-  { key: "promotion", label: "Siguiente promoción" },
   { key: "scouts", label: "Ojeadores" },
   // 2026-08-26, pedido por el usuario. Antes esta tabla se pintaba DEBAJO de
   // todas las pestañas; con la academia recien abierta eran cero filas y no
@@ -281,8 +277,6 @@ export function AcademyPage() {
         <WhatToTrain data={data} irALaFormacion={llevarALaFormacion} />
       ) : view === "who" ? (
         <QuienEntrena data={data} />
-      ) : view === "promotion" ? (
-        <SiguientePromocion data={data} />
       ) : view === "scouts" ? (
         <Ojeadores />
       ) : (data.allGraduates ?? []).length > 0 ? (
@@ -1844,16 +1838,48 @@ function margenPorGanar(p: Canterano): number {
  *  queda algo por revelar, a quién le llega el entrenamiento de hoy-- que la
  *  tabla no sabe contestar sola.
  */
-function columnasDeCanteranos(): Column<Canterano>[] {
+/** Qué cuenta como «pronto» para poder ascender.
+ *
+ *  Cuatro semanas de Hattrick. Es el horizonte en el que una decisión ya se
+ *  puede tomar --con qué habilidad terminarlo, si vale la pena seguir
+ *  entrenándolo-- sin que sea todavía urgente. */
+const ASCIENDE_PRONTO_DIAS = 28;
+
+/** No le queda nada por ganar en lo que de verdad se sabe de él.
+ *
+ *  Exige al menos UNA habilidad con nivel Y techo conocidos. Sin esa
+ *  condición el filtro mentía: `margenPorGanar` suma sólo los pares
+ *  completos, así que a un canterano del que se conocen techos pero ningún
+ *  nivel de hoy le sale margen cero -- y su margen no es cero, es desconocido.
+ *  De los dieciocho de la academia, diez caían en ese cajón. */
+function agotado(p: Canterano): boolean {
+  const medibles = p.skills.filter(
+    (s) => s.current != null && s.maximum != null,
+  );
+  return medibles.length > 0 && margenPorGanar(p) === 0;
+}
+
+function columnasDeCanteranos(pais: {
+  code: string;
+  name: string;
+}): Column<Canterano>[] {
   const columnas: Column<Canterano>[] = [
     {
       key: "nombre",
       header: "Nombre",
       align: "left",
       value: (p) => p.name,
-      // Sin esto un nombre de dos palabras parte la fila en dos altos y la
-      // tabla entera se lee peor por una sola columna.
-      render: (p) => <span className="whitespace-nowrap">{p.name}</span>,
+      // La bandera es la MISMA para todos y va aquí, pegada al nombre, en vez
+      // de en una columna propia: Hattrick no publica nacionalidad de un
+      // juvenil porque todos salen de la cantera de tu país, así que una
+      // columna entera repetiría dieciocho veces el mismo dato y encima se
+      // podría ordenar por él, que no significaría nada.
+      render: (p) => (
+        <span className="flex items-center gap-1.5 whitespace-nowrap">
+          <CountryFlag code={pais.code} country={pais.name} />
+          {p.name}
+        </span>
+      ),
     },
     {
       key: "edad",
@@ -1906,7 +1932,7 @@ function columnasDeCanteranos(): Column<Canterano>[] {
     },
     {
       key: "puedeLlegar",
-      header: "Puede llegar a",
+      header: "Puede llegar a (HTMS28)",
       align: "right",
       value: (p) => p.htms28Max,
       render: (p) => (
@@ -1917,14 +1943,14 @@ function columnasDeCanteranos(): Column<Canterano>[] {
     },
     {
       key: "yaTiene",
-      header: "Ya tiene",
+      header: "Ya tiene (HTMS28)",
       align: "right",
       optional: true,
       value: (p) => p.htms28Min,
     },
     {
       key: "porSaber",
-      header: "Por saber",
+      header: "Por saber (HTMS28)",
       align: "right",
       optional: true,
       // La horquilla: cuánto depende todavía del ojeador.
@@ -1961,23 +1987,43 @@ function columnasDeCanteranos(): Column<Canterano>[] {
         const s = p.skills.find((x) => x.skill === clave);
         return s?.maximum ?? s?.current ?? -1;
       },
+      // La barra mide el NIVEL sobre la escala juvenil, nunca lo lleno que
+      // está respecto a su propio techo --un 4 que ya no sube es un 4-- y el
+      // color dice si puede crecer. Misma lectura que las otras tres vistas
+      // del módulo; aquí sólo va más apretada.
       render: (p) => {
         const s = p.skills.find((x) => x.skill === clave);
         if (!s) return "—";
-        const { palabra, numeros } = lecturaDeNivel(
+        const { palabra, numeros, ancho, crece } = lecturaDeNivel(
           s.current,
           s.maximum,
           s.maxReached,
         );
         return (
           <span
-            className="whitespace-nowrap tabular-nums"
+            className="flex items-center justify-end gap-1.5 whitespace-nowrap"
             title={`${nombre}: ${palabra}`}
           >
-            {s.maxReached && (
-              <span title="ya tocó techo: no sube más">🔒 </span>
-            )}
-            {numeros || "Desconocido"}
+            <span className="tabular-nums">
+              {s.maxReached && (
+                <span title="ya tocó techo: no sube más">🔒 </span>
+              )}
+              {numeros || "Desconocido"}
+            </span>
+            <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
+              <span
+                className="block h-full"
+                style={{
+                  width: `${ancho}%`,
+                  background:
+                    ancho === 0
+                      ? "transparent"
+                      : crece
+                        ? "var(--positive)"
+                        : "var(--danger)",
+                }}
+              />
+            </span>
           </span>
         );
       },
@@ -1995,12 +2041,32 @@ function columnasDeCanteranos(): Column<Canterano>[] {
       render: (p) => enDias(p.canBePromotedIn).texto,
     },
     {
+      key: "edadAlSubir",
+      header: "Edad al subir",
+      align: "right",
+      // Rescatada de «Siguiente promoción», que esta tabla sustituye. Dice
+      // cuál de los dos relojes le frena: 17;000 es que le frena la EDAD --lo
+      // antes posible--, y más que eso, que le frena el plazo de 112 días en
+      // la academia. Esos días de más son academia pagada de balde.
+      value: (p) => edadAlSubir(p),
+      render: (p) => edadCorta(edadAlSubir(p)),
+    },
+    {
       key: "limite",
       header: "Se va en",
       align: "right",
       optional: true,
       value: (p) => p.daysUntilDeadline,
       render: (p) => `${p.daysUntilDeadline} d`,
+    },
+    {
+      key: "minutos",
+      header: "Últ. partido",
+      align: "right",
+      optional: true,
+      value: (p) => p.minutesLastMatch,
+      render: (p) =>
+        p.minutesLastMatch > 0 ? `${p.minutesLastMatch} min` : "No jugó",
     },
     {
       key: "margen",
@@ -2073,30 +2139,31 @@ function SkillDetail({ data }: { data: Academy }) {
   );
   const [soloRevelable, setSoloRevelable] = useState(false);
   const [soloAlTope, setSoloAlTope] = useState(false);
-  const [soloEnElReparto, setSoloEnElReparto] = useState(false);
   const [habilidad, setHabilidad] = useState("");
   const [techoMinimo, setTechoMinimo] = useState(0);
+  const [sinOjear, setSinOjear] = useState(false);
+  const [yaAsciende, setYaAsciende] = useState(false);
+  const [ascPronto, setAscPronto] = useState(false);
+  const [conEspecialidad, setConEspecialidad] = useState(false);
+  const [especialidad, setEspecialidad] = useState("");
+  const [sinMargen, setSinMargen] = useState(false);
+  const [jugoUltimo, setJugoUltimo] = useState(false);
+  const [htmsMinimo, setHtmsMinimo] = useState(0);
 
-  //  Dos cruces con lo que la herramienta ya sabe: a quién le queda algo por
-  //  revelar --lo dice el juego-- y a quién le llega entrenamiento con el
-  //  reparto que está puesto ahora mismo.
+  //  El único cruce con algo de fuera de esta tabla: a quién le queda algo
+  //  por revelar. Lo dice el juego, no lo suponemos.
   const informes = useAcademyScouts();
-  const plan = useAcademyTrainingPlan({
-    main: localStorage.getItem("juveniles.principal") ?? "",
-    secondary: localStorage.getItem("juveniles.secundario") ?? "",
-    soonMaxDays: recordado("juveniles.soonMaxDays", DEFAULT_SOON_MAX_DAYS),
-    weightBase: recordado("juveniles.weightBase", DEFAULT_WEIGHT_BASE),
-  });
   const conRevelacion = new Set(
     (informes.data?.players ?? [])
       .filter((x) => x.mayUnlock.length > 0)
       .map((x) => x.name),
   );
-  const enElReparto = new Set(
-    (plan.data?.assignments ?? [])
-      .filter((a) => a.racionPrincipal > 0 || a.racionSecundaria > 0)
-      .map((a) => a.player),
-  );
+
+  //  Las especialidades que de verdad hay en la academia. El desplegable no
+  //  ofrece las siete: una opción que no deja a nadie es una promesa falsa.
+  const especialidades = [
+    ...new Set(data.players.map((p) => p.specialty).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, "es"));
 
   const alterna = (lista: string[], valor: string) =>
     lista.includes(valor)
@@ -2107,7 +2174,17 @@ function SkillDetail({ data }: { data: Academy }) {
     if (clases.length > 0 && !clases.includes(p.category)) return false;
     if (soloRevelable && !conRevelacion.has(p.name)) return false;
     if (soloAlTope && !p.skills.some((x) => x.maxReached)) return false;
-    if (soloEnElReparto && !enElReparto.has(p.name)) return false;
+    // Con todo por descubrir: ni una habilidad revelada. Son los que hay que
+    // mandar al ojeador antes de decidir nada sobre ellos.
+    if (sinOjear && p.revealedSkills > 0) return false;
+    if (yaAsciende && (p.canBePromotedIn ?? 9999) > 0) return false;
+    if (ascPronto && (p.canBePromotedIn ?? 9999) > ASCIENDE_PRONTO_DIAS)
+      return false;
+    if (conEspecialidad && !p.specialty) return false;
+    if (especialidad && p.specialty !== especialidad) return false;
+    if (sinMargen && !agotado(p)) return false;
+    if (jugoUltimo && p.minutesLastMatch <= 0) return false;
+    if (htmsMinimo > 0 && p.htms28Max < htmsMinimo) return false;
     if (habilidad) {
       const x = p.skills.find((y) => y.skill === habilidad);
       if (!x || (x.current == null && x.maximum == null)) return false;
@@ -2120,8 +2197,37 @@ function SkillDetail({ data }: { data: Academy }) {
     clases.length > 0 ||
     soloRevelable ||
     soloAlTope ||
-    soloEnElReparto ||
+    sinOjear ||
+    yaAsciende ||
+    ascPronto ||
+    conEspecialidad ||
+    Boolean(especialidad) ||
+    sinMargen ||
+    jugoUltimo ||
+    htmsMinimo > 0 ||
     Boolean(habilidad);
+
+  const limpiarFiltros = () => {
+    setClases([]);
+    setSoloRevelable(false);
+    setSoloAlTope(false);
+    setSinOjear(false);
+    setYaAsciende(false);
+    setAscPronto(false);
+    setConEspecialidad(false);
+    setEspecialidad("");
+    setSinMargen(false);
+    setJugoUltimo(false);
+    setHtmsMinimo(0);
+    setHabilidad("");
+    setTechoMinimo(0);
+  };
+
+  //  Cuántos deja cada filtro, para poder decirlo en el propio botón. Se mide
+  //  sobre la plantilla ENTERA y no sobre lo ya filtrado: un contador que
+  //  cambia al pulsar otro botón no sirve para decidir cuál pulsar.
+  const cuantos = (cumple: (p: Canterano) => boolean) =>
+    data.players.filter(cumple).length;
 
   const control =
     "rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--text)]";
@@ -2150,16 +2256,91 @@ function SkillDetail({ data }: { data: Academy }) {
             onClick={() => setSoloAlTope((v) => !v)}
             title="tienen alguna habilidad que ya no sube"
           >
-            Con algo al tope
+            Con algo al tope (
+            {cuantos((p) => p.skills.some((x) => x.maxReached))})
           </Chip>
           <Chip
-            activo={soloEnElReparto}
-            onClick={() => setSoloEnElReparto((v) => !v)}
-            title="reciben entrenamiento con el reparto que está puesto ahora"
+            activo={sinOjear}
+            onClick={() => setSinOjear((v) => !v)}
+            title="ni una habilidad revelada: no hay nada que decidir sobre ellos hasta ojearlos"
           >
-            En el reparto
-            {plan.data ? ` (${enElReparto.size})` : ""}
+            Sin ojear ({cuantos((p) => p.revealedSkills === 0)})
           </Chip>
+          <Chip
+            activo={sinMargen}
+            onClick={() => setSinMargen((v) => !v)}
+            title="no les queda nada por ganar en lo que ya se sabe de ellos; uno sin ojear no cuenta, su margen es desconocido, no cero"
+          >
+            Sin margen de mejora ({cuantos(agotado)})
+          </Chip>
+
+          <span className="mx-1 h-4 w-px bg-[var(--border)]" />
+
+          <Chip
+            activo={yaAsciende}
+            onClick={() => setYaAsciende((v) => !v)}
+            title="ya cumplen las dos reglas de Hattrick: puedes subirlos hoy"
+          >
+            Ya puede ascender (
+            {cuantos((p) => (p.canBePromotedIn ?? 9999) <= 0)})
+          </Chip>
+          <Chip
+            activo={ascPronto}
+            onClick={() => setAscPronto((v) => !v)}
+            title={`podrán subir dentro de ${ASCIENDE_PRONTO_DIAS} días o menos`}
+          >
+            Puede ascender pronto (
+            {cuantos(
+              (p) => (p.canBePromotedIn ?? 9999) <= ASCIENDE_PRONTO_DIAS,
+            )}
+            )
+          </Chip>
+          <Chip
+            activo={jugoUltimo}
+            onClick={() => setJugoUltimo((v) => !v)}
+            title="tuvieron minutos en el último partido juvenil"
+          >
+            Jugó el último partido ({cuantos((p) => p.minutesLastMatch > 0)})
+          </Chip>
+
+          <span className="mx-1 h-4 w-px bg-[var(--border)]" />
+
+          <Chip
+            activo={conEspecialidad}
+            onClick={() => setConEspecialidad((v) => !v)}
+            title="tienen alguna especialidad; se sabe desde el primer día, aunque no estén ojeados"
+          >
+            Con especialidad ({cuantos((p) => Boolean(p.specialty))})
+          </Chip>
+          {/* Sólo si hay alguna: un desplegable vacío es un control que no
+              hace nada, y en una academia sin especialidades no la hay. */}
+          {especialidades.length > 0 ? (
+            <select
+              aria-label="Filtrar los canteranos por especialidad"
+              value={especialidad}
+              onChange={(e) => setEspecialidad(e.target.value)}
+              className={control}
+            >
+              <option value="">Cualquier especialidad</option>
+              {especialidades.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
+            HTMS28 mínimo
+            <input
+              type="number"
+              min={0}
+              step={100}
+              value={htmsMinimo}
+              onChange={(e) => setHtmsMinimo(Number(e.target.value) || 0)}
+              title="sobre «puede llegar a»: el techo del canterano, no lo que ya tiene"
+              className="w-20 rounded border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-right tabular-nums"
+            />
+          </label>
 
           <span className="mx-1 h-4 w-px bg-[var(--border)]" />
 
@@ -2192,14 +2373,7 @@ function SkillDetail({ data }: { data: Academy }) {
           {hayFiltro ? (
             <button
               type="button"
-              onClick={() => {
-                setClases([]);
-                setSoloRevelable(false);
-                setSoloAlTope(false);
-                setSoloEnElReparto(false);
-                setHabilidad("");
-                setTechoMinimo(0);
-              }}
+              onClick={limpiarFiltros}
               className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
             >
               Quitar filtros
@@ -2227,7 +2401,10 @@ function SkillDetail({ data }: { data: Academy }) {
 
       <DataTable
         rows={filtrados}
-        columns={columnasDeCanteranos()}
+        columns={columnasDeCanteranos({
+          code: data.countryCode,
+          name: data.countryName,
+        })}
         rowKey={(p) => p.htYouthPlayerId}
         // Lo mismo que ordenaba antes por omisión el desplegable que había
         // aquí: en qué se puede convertir, de mayor a menor.
@@ -2247,22 +2424,6 @@ function enDias(dias: number | null): { texto: string; urgente: boolean } {
   return { texto: `${dias} d`, urgente: dias <= 21 };
 }
 
-/** La cola de salida de la cantera.
- *
- * Son DOS relojes distintos y hay que verlos juntos: uno dice a partir de
- * cuándo puedes subirlo al primer equipo, el otro cuándo lo pierdes por
- * edad. Entre los dos está la única ventana en la que la decisión existe, y
- * es la parte de la academia que mira hacia la salida en vez de hacia el
- * entrenamiento.
- */
-/** 17 años y 0 días, en días de Hattrick. Es lo antes que se puede ascender.
- *
- *  Las DOS reglas, confirmadas contra los 18 canteranos del usuario y el dato
- *  que da Hattrick —coinciden los 18—: hay que tener 17;000 cumplidos Y llevar
- *  112 días dentro de la academia. Manda la que falte más.
- */
-const EDAD_MINIMA_DE_ASCENSO = 17 * 112;
-
 /** Qué edad tendrá el día que por fin pueda subir.
  *
  *  Se suma a su edad de hoy lo que Hattrick dice que le falta, en vez de
@@ -2278,279 +2439,6 @@ function edadAlSubir(p: {
   return p.ageYears * 112 + p.ageDays + Math.max(0, p.canBePromotedIn ?? 0);
 }
 
-/** Por qué se puede ordenar la tabla de promoción, y con qué número.
- *
- *  Cada columna devuelve algo comparable; el texto se ordena aparte para que
- *  «Ángel» no acabe detrás de «Zaraín» por la tilde. */
-const ORDEN_DE_PROMOCION = {
-  nombre: (p: AcademyPlayer) => p.name,
-  edad: (p: AcademyPlayer) => p.ageYears * 112 + p.ageDays,
-  categoria: (p: AcademyPlayer) => rangoDeCategoria(p.category),
-  mejor: (p: AcademyPlayer) => p.bestSkillMax ?? -1,
-  sube: (p: AcademyPlayer) => p.canBePromotedIn ?? 9999,
-  edadAlSubir: (p: AcademyPlayer) => edadAlSubir(p),
-  limite: (p: AcademyPlayer) => p.daysUntilDeadline,
-} as const;
-
-type ClaveDeOrden = keyof typeof ORDEN_DE_PROMOCION;
-
-/** Una cabecera que ordena. La flecha dice por cuál y en qué sentido.
- *
- *  Vive FUERA del componente: definida dentro, React la recrea en cada
- *  pintado y remonta la cabecera entera. */
-function Cabecera({
-  clave,
-  children,
-  align = "left",
-  title,
-  orden,
-  ordenarPor,
-}: {
-  clave: ClaveDeOrden;
-  children: ReactNode;
-  align?: "left" | "right";
-  title?: string;
-  orden: { clave: ClaveDeOrden; desc: boolean };
-  ordenarPor: (clave: ClaveDeOrden) => void;
-}) {
-  const activa = orden.clave === clave;
-  return (
-    <th
-      scope="col"
-      className={`px-3 py-2 text-xs font-medium text-[var(--muted)] ${
-        align === "right" ? "text-right" : "text-left"
-      }`}
-      title={title}
-      aria-sort={activa ? (orden.desc ? "descending" : "ascending") : "none"}
-    >
-      <button
-        onClick={() => ordenarPor(clave)}
-        data-track={`Juveniles: ordenar promoción por ${clave}`}
-        className={`inline-flex items-center gap-1 ${activa ? "text-[var(--text)]" : ""}`}
-      >
-        {children}
-        <span className="text-[10px] opacity-60">
-          {activa ? (orden.desc ? "▼" : "▲") : "↕"}
-        </span>
-      </button>
-    </th>
-  );
-}
-
-function SiguientePromocion({ data }: { data: Academy }) {
-  const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
-  const td = "overflow-hidden whitespace-nowrap px-3 py-1.5";
-  // Arranca por quién sube antes, que es la pregunta de la pantalla.
-  const [orden, setOrden] = useState<{ clave: ClaveDeOrden; desc: boolean }>({
-    clave: "sube",
-    desc: false,
-  });
-
-  const ordenarPor = (clave: ClaveDeOrden) =>
-    setOrden((o) =>
-      o.clave === clave ? { clave, desc: !o.desc } : { clave, desc: false },
-    );
-
-  const filas = [...data.players].sort((a, b) => {
-    const saca = ORDEN_DE_PROMOCION[orden.clave];
-    const x = saca(a);
-    const y = saca(b);
-    const cmp =
-      typeof x === "string" && typeof y === "string"
-        ? x.localeCompare(y, "es")
-        : Number(x) - Number(y);
-    // Empate: quien suba antes, que es el orden natural de la pantalla.
-    return (
-      (orden.desc ? -cmp : cmp) ||
-      (a.canBePromotedIn ?? 9999) - (b.canBePromotedIn ?? 9999)
-    );
-  });
-
-  const listos = filas.filter((p) => (p.canBePromotedIn ?? 9999) <= 0);
-  const primero = filas.find((p) => (p.canBePromotedIn ?? 9999) > 0);
-
-  return (
-    <Panel
-      title="Siguiente promoción"
-      meta={
-        listos.length > 0
-          ? `${listos.length} ${listos.length === 1 ? "listo" : "listos"} para subir`
-          : primero
-            ? `nadie todavía · el primero, en ${primero.canBePromotedIn} días`
-            : ""
-      }
-    >
-      <div className="overflow-x-auto p-4">
-        <table className="w-full min-w-[86rem] table-fixed text-sm">
-          <colgroup>
-            <col className="w-[17%]" />
-            <col className="w-[6%]" />
-            <col className="w-[8%]" />
-            <col className="w-[27%]" />
-            <col className="w-[7%]" />
-            <col className="w-[7%]" />
-            <col className="w-[9%]" />
-            <col className="w-[19%]" />
-          </colgroup>
-          <thead className="bg-[var(--surface-2)]">
-            <tr>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="nombre">
-                Jugador
-              </Cabecera>
-              <Cabecera
-                orden={orden}
-                ordenarPor={ordenarPor}
-                clave="edad"
-                align="right"
-              >
-                Edad
-              </Cabecera>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="categoria">
-                Clasificación
-              </Cabecera>
-              <Cabecera orden={orden} ordenarPor={ordenarPor} clave="mejor">
-                Mejor habilidad
-              </Cabecera>
-              <Cabecera
-                orden={orden}
-                ordenarPor={ordenarPor}
-                clave="sube"
-                align="right"
-                title="a partir de cuándo puedes subirlo al primer equipo"
-              >
-                Puede subir
-              </Cabecera>
-              <Cabecera
-                orden={orden}
-                ordenarPor={ordenarPor}
-                clave="edadAlSubir"
-                align="right"
-                title="qué edad tendrá el día que por fin pueda subir: 17;000 es lo antes posible, y más que eso significa que le frena el plazo en la academia"
-              >
-                Edad al subir
-              </Cabecera>
-              <Cabecera
-                orden={orden}
-                ordenarPor={ordenarPor}
-                clave="limite"
-                align="right"
-                title="un juvenil solo puede estar en la academia hasta los 19 años; al cumplirlos desaparece, y si no lo has subido lo has perdido"
-              >
-                Límite (19 años)
-              </Cabecera>
-              {/* «Qué hacer» no ordena: es una frase, y ordenarla
-                  alfabéticamente no responde ninguna pregunta. */}
-              <th scope="col" className={`${th} text-left`}>
-                Qué hacer
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map((p) => {
-              const sube = enDias(p.canBePromotedIn);
-              const pierde = enDias(p.daysUntilDeadline);
-              const mejor = p.skills.find((x) => x.skill === p.bestSkill);
-              return (
-                <tr
-                  key={p.htYouthPlayerId}
-                  // Alto fijo: sin él, las filas con barra de nivel miden un
-                  // píxel más que las de «sin revelar» y la tabla vibra.
-                  className="h-9 border-t border-[var(--border)]"
-                >
-                  <td className={`${td} truncate text-left`} title={p.name}>
-                    {p.name}
-                  </td>
-                  <td
-                    className={`${td} text-right tabular-nums text-[var(--muted)]`}
-                  >
-                    {edadCorta(p.ageYears * 112 + p.ageDays)}
-                  </td>
-                  <td className={`${td} text-left text-xs`}>
-                    <span className={CATEGORY_TONE[p.category] ?? ""}>
-                      {p.category}
-                    </span>
-                  </td>
-                  <td className={`${td} text-left`}>
-                    {p.bestSkill && p.bestSkillMax != null ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-24 shrink-0 truncate text-xs text-[var(--muted)]">
-                          {SKILL_NAMES[p.bestSkill] ?? p.bestSkill}
-                        </span>
-                        <NivelDeHabilidad
-                          current={mejor?.current ?? null}
-                          maximum={mejor?.maximum ?? p.bestSkillMax}
-                          maxReached={mejor?.maxReached ?? false}
-                        />
-                      </span>
-                    ) : (
-                      <span className="text-xs text-[var(--muted)]">
-                        sin revelar
-                      </span>
-                    )}
-                  </td>
-                  <td
-                    className={`${td} text-right tabular-nums`}
-                    style={{
-                      color:
-                        sube.texto === "ya" ? "var(--positive)" : undefined,
-                    }}
-                  >
-                    {sube.texto}
-                  </td>
-                  {/* 17;000 en verde = sube en cuanto cumpla la edad, sin
-                      esperar nada más. Cualquier otra cifra significa que le
-                      frena el plazo de la academia y llegará más viejo.
-                      El PORQUÉ va en la propia celda, no en un `title`: sin
-                      él, ver «16;110» al lado de «17;079» parecía un error de
-                      cálculo --el chico cumple 17 en dos días-- cuando lo que
-                      pasa es que le faltan días de academia. Un número que
-                      parece imposible tiene que traer su motivo puesto
-                      (2026-09-01, avisado por el usuario). */}
-                  <td
-                    className={`${td} text-right tabular-nums`}
-                    style={{
-                      color:
-                        edadAlSubir(p) === EDAD_MINIMA_DE_ASCENSO
-                          ? "var(--positive)"
-                          : undefined,
-                    }}
-                  >
-                    {edadCorta(edadAlSubir(p))}
-                    {edadAlSubir(p) > EDAD_MINIMA_DE_ASCENSO && (
-                      <span className="block text-[10px] leading-tight font-normal text-[var(--muted)]">
-                        +{edadAlSubir(p) - EDAD_MINIMA_DE_ASCENSO} d de academia
-                      </span>
-                    )}
-                  </td>
-                  <td
-                    className={`${td} text-right tabular-nums`}
-                    style={{
-                      color: pierde.urgente ? "var(--danger)" : "var(--muted)",
-                    }}
-                  >
-                    {pierde.texto}
-                  </td>
-                  {/* Una fila, una linea: el consejo se corta con puntos
-                      suspensivos y entero al pasar el raton. Partirlo en
-                      varias lineas descuadraba la altura de cada fila. */}
-                  <td
-                    className={`${td} truncate text-left text-xs text-[var(--muted)]`}
-                    title={p.promoteAdvice}
-                  >
-                    {p.promoteAdvice}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Panel>
-  );
-}
-
-/** Un ojeador sin nombre no es un ojeador: son los canteranos que vinieron
- *  con la academia el día que se abrió, sin que nadie saliera a buscarlos. */
 function esOjeadorDeVerdad(nombre: string, id: number | null): boolean {
   return Boolean(id) && nombre.trim().length > 0;
 }

@@ -139,6 +139,10 @@ class YouthRow:
     verdict_is_provisional: bool
     promote_advice: str
     training_exposure: float
+    #: Minutos del ultimo partido oficial. Ya se usaba para calcular
+    #: `training_exposure`, pero el numero en crudo hace falta en pantalla para
+    #: poder preguntar "quien jugo" sin deducirlo de un porcentaje.
+    minutes_last_match: int
     #: La especialidad, ya traducida -- el mismo texto que manda la plantilla
     #: principal, para que la pantalla la pinte con el mismo componente. Es lo
     #: unico de un canterano sin ojear que ya dice algo: llega desde el primer
@@ -162,6 +166,13 @@ class GraduateRow:
 class AcademyResponse:
     team_name: str
     currency: str
+    #: El pais del club, para la bandera de la tabla. Va en la respuesta y no
+    #: por canterano a proposito: Hattrick no publica nacionalidad de un
+    #: juvenil --su fichero no la trae-- porque salen todos de la cantera de tu
+    #: propio pais. Una columna por fila diria lo mismo dieciocho veces, asi
+    #: que el dato viaja una vez y la pantalla decide como pintarlo.
+    country_code: str
+    country_name: str
     squad_size: int
     players: list[YouthRow]
     #: Los de la academia ACTUAL. Es la lista que alimenta el ROI: sumar
@@ -429,6 +440,7 @@ class AcademyQueryService:
                     ),
                     promote_advice=ev.promote_advice,
                     training_exposure=exposure,
+                    minutes_last_match=snap.minutes_last_match or 0,
                     specialty=SPECIALTIES.get(player.specialty or 0, ""),
                     skills=[
                         SkillRow(
@@ -632,10 +644,23 @@ class AcademyQueryService:
             for row in yss.score_skills(candidates)
         ]
 
+        # El pais del club sale del contexto del mundo por su liga. Si esa fila
+        # no esta sincronizada todavia, se devuelve vacio y la pantalla pinta el
+        # hueco neutro que ya tiene: nunca una bandera adivinada.
+        mundo = (
+            await self._s.execute(
+                select(m.WorldContext.country_code, m.WorldContext.country_name).where(
+                    m.WorldContext.ht_league_id == team.ht_league_id
+                )
+            )
+        ).first()
+
         return AcademyResponse(
             skill_scores=skill_scores,
             team_name=team.name,
             currency=team.currency_name or "",
+            country_code=(mundo.country_code if mundo else "") or "",
+            country_name=(mundo.country_name if mundo else "") or team.league_name or "",
             squad_size=len(players),
             players=players,
             graduates=[_fila_de_graduado(g, ventas, conv) for g in graduates],

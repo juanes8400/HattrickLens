@@ -2312,6 +2312,12 @@ export interface ScoutsLedger {
 export interface Academy {
   teamName: string;
   currency: string;
+  /** El país del club, para la bandera de la tabla. Viaja una vez y no por
+   *  canterano a propósito: Hattrick no publica la nacionalidad de un juvenil
+   *  --su fichero no la trae-- porque salen todos de la cantera de tu propio
+   *  país. Vacío mientras no esté sincronizado el contexto del mundo. */
+  countryCode: string;
+  countryName: string;
   squadSize: number;
   players: {
     htYouthPlayerId: number;
@@ -2336,6 +2342,8 @@ export interface Academy {
     verdictIsProvisional: boolean;
     promoteAdvice: string;
     trainingExposure: number;
+    /** Minutos del último partido oficial. */
+    minutesLastMatch: number;
     /** La especialidad, ya traducida --el mismo texto que manda la plantilla
      *  principal, para pintarla con el mismo componente--. Es lo único de un
      *  canterano sin ojear que ya dice algo: llega desde el primer día, cuando
