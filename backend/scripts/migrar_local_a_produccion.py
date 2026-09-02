@@ -36,8 +36,9 @@ escribir se guarda el `max(id)` de cada tabla en `migracion-marcas.json`, y con
 eso el deshacer es exacto: borrar lo que esté por encima de esa marca.
 
 Uso:
-    python scripts/migrar_local_a_produccion.py            # ensayo, no escribe
-    python scripts/migrar_local_a_produccion.py --aplicar  # escribe
+    python scripts/migrar_local_a_produccion.py             # ensayo, no escribe
+    python scripts/migrar_local_a_produccion.py --aplicar   # escribe
+    python scripts/migrar_local_a_produccion.py --solapado  # + el periodo comun
 """
 
 # ruff: noqa: S608
@@ -298,11 +299,264 @@ class Migracion:
             insertadas += 1
         self.resumen.append((tabla, insertadas, huerfanas, detalle))
 
+    # ── El periodo solapado, por huella de contenido ─────────────────────
+    #: Las tablas que llevan `content_hash`, con la columna por la que se sabe
+    #: DE QUIÉN es cada fila. La huella es la misma que usa el sincronizador
+    #: para decidir si algo cambió de verdad, así que sirve para lo contrario:
+    #: reconocer un cambio que la otra base nunca vio.
+    CON_HUELLA = [
+        ("player_snapshots", "player_id", "players"),
+        ("youth_snapshots", "youth_player_id", "youth_players"),
+        ("economy_snapshots", "team_id", None),
+        ("staff_snapshots", "team_id", None),
+        ("training_snapshots", "team_id", None),
+    ]
+
+    async def _asegurar_sync(self, con, sync_local: int | None):
+        """El sync al que pertenece una foto, creado en destino si hace falta.
+
+        En el periodo solapado las fotos cuelgan de sincronizaciones locales
+        posteriores al corte, que por definición no se trajeron. Sin esto, cada
+        una de esas fotos se descartaría por huérfana.
+        """
+        if sync_local is None:
+            return None
+        if sync_local in self.mapas["syncs"]:
+            return self.mapas["syncs"][sync_local]
+        fila = self.loc.execute("select * from syncs where id = ?", (sync_local,)).fetchone()
+        if fila is None:
+            return None
+        fila = dict(fila)
+        fila["team_id"] = self.mapas["teams"].get(fila["team_id"])
+        fila["user_id"] = self.mapas["users"].get(fila["user_id"])
+        columnas = {
+            r["column_name"]: (r["data_type"], r["character_maximum_length"])
+            for r in await con.fetch(
+                "select column_name, data_type, character_maximum_length "
+                "from information_schema.columns where table_name = 'syncs'"
+            )
+        }
+        comunes = [c for c in fila if c in columnas and c != "id"]
+        valores = [
+            fila[c] if c in FORANEAS else self._valor(fila[c], columnas[c][0], columnas[c][1])
+            for c in comunes
+        ]
+        if not self.aplicar:
+            self.fingido -= 1
+            nuevo = self.fingido
+        else:
+            marcas = ", ".join(f"${i + 1}" for i in range(len(comunes)))
+            nuevo = await con.fetchval(
+                f"insert into syncs ({', '.join(comunes)}) values ({marcas}) returning id",
+                *valores,
+            )
+        self.mapas["syncs"][sync_local] = nuevo
+        return nuevo
+
+    async def solapado(self, con) -> None:
+        """Los cambios que la otra base no vio, dentro del periodo que ambas
+        cubren.
+
+        2026-09-02: hace falta porque el usuario va a sincronizar en los DOS
+        sitios hasta que le aprueben la aplicación. Cada copia detecta cambios
+        cuando le toca sincronizar, así que cada una ve cosas que la otra no
+        -- 151 al escribir esto -- y el corte por fecha, que es lo que gobierna
+        la fase de arriba, aquí no sirve: producción ya cubre todo el periodo.
+
+        Lo que decide si una fila entra es la HUELLA DE CONTENIDO, la misma que
+        usa el sincronizador para saber si algo cambió de verdad. Si esa huella
+        ya está en destino para ese jugador, la fila no aporta nada y se queda;
+        si no está, es un cambio real que allí se perdió.
+
+        Idempotente: en cuanto entra, su huella pasa a estar y no vuelve.
+        """
+        for tabla, fk, padre in self.CON_HUELLA:
+            if padre:
+                sql_rem = (
+                    f"select x.{fk} k, x.content_hash h from {tabla} x "
+                    f"join {padre} p on p.id = x.{fk} where p.team_id = $1"
+                )
+                sql_loc = (
+                    f"select x.* from {tabla} x join {padre} p on p.id = x.{fk} "
+                    f"where p.team_id = {self.equipo_local}"
+                )
+            else:
+                sql_rem = (
+                    f"select x.team_id k, x.content_hash h from {tabla} x where x.team_id = $1"
+                )
+                sql_loc = f"select * from {tabla} where team_id = {self.equipo_local}"
+
+            hay = {f["h"] for f in await con.fetch(sql_rem, self.equipo_remoto)}
+            columnas = {
+                r["column_name"]: (r["data_type"], r["character_maximum_length"])
+                for r in await con.fetch(
+                    "select column_name, data_type, character_maximum_length "
+                    "from information_schema.columns where table_name = $1",
+                    tabla,
+                )
+            }
+
+            traidas, vistas = 0, set()
+            for fila in self.loc.execute(sql_loc):
+                fila = dict(fila)
+                huella = fila.get("content_hash")
+                if huella in hay or huella in vistas:
+                    continue
+                vistas.add(huella)
+                if "sync_id" in fila:
+                    fila["sync_id"] = await self._asegurar_sync(con, fila["sync_id"])
+                salta = False
+                comunes = [c for c in fila if c in columnas and c != "id"]
+                valores = []
+                for col in comunes:
+                    v = fila[col]
+                    if col in FORANEAS and col != "sync_id" and v is not None:
+                        destino = self.mapas.get(FORANEAS[col], {})
+                        if v not in destino:
+                            salta = True
+                            break
+                        v = destino[v]
+                    elif col not in FORANEAS:
+                        v = self._valor(v, columnas[col][0], columnas[col][1])
+                    valores.append(v)
+                if salta:
+                    continue
+                if self.aplicar:
+                    marcas = ", ".join(f"${i + 1}" for i in range(len(comunes)))
+                    await con.execute(
+                        f"insert into {tabla} ({', '.join(comunes)}) values ({marcas})",
+                        *valores,
+                    )
+                traidas += 1
+            self.resumen.append((tabla, traidas, 0, "huellas que allí faltaban"))
+
+    # ── Intentos de venta: la única fase que ACTUALIZA ───────────────────
+    async def intentos_de_venta(self, con) -> None:
+        """Los intentos de venta, que no son historial sino un expediente.
+
+        2026-09-02, pedido del usuario. Esta tabla no se parece a las demás y
+        por eso va aparte:
+
+        1. TIENE CAMPOS QUE TECLEAS TÚ. «Cuántas veces lo vieron» y «el precio
+           que pedías» sólo aparecen en el texto de las noticias de Hattrick,
+           nunca por su interfaz de datos, así que los escribe el usuario a
+           mano. Si se pierden no hay forma de recuperarlos.
+
+        2. LA FILA YA EXISTE EN LOS DOS LADOS. Cada instalación detecta por su
+           cuenta que un jugador salió al mercado, así que insertar sin más
+           duplicaría el mismo intento real y estropearía justo la cuenta que
+           esta pantalla existe para dar: cuántas veces hubo que intentarlo.
+
+        3. `detected_at` NO SIRVE PARA EMPAREJAR. Es cuándo lo vio ESTA copia:
+           para el mismo jugador, local anotó las 20:29 y producción las 13:01.
+           El que sí coincide es `deadline`, que lo pone Hattrick -- comprobado
+           al milímetro en los dos que existían en ambas.
+
+        De un intento que ya está sólo se rellenan los huecos: lo que el
+        usuario escribió y allí falta. Nunca se pisa un valor existente, así
+        que correrlo dos veces no cambia nada la segunda.
+        """
+        # Las etapas, para no dejar el intento colgando de la etapa de otro.
+        etapas: dict[int, int] = {}
+        for fila in self.loc.execute(
+            "select id, ht_player_id, arrived_at from player_stints where team_id = ?",
+            (self.equipo_local,),
+        ):
+            remoto = await con.fetchval(
+                "select s.id from player_stints s join players p on p.id = s.player_id "
+                "where s.ht_player_id = $1 and s.arrived_at = $2 and p.team_id = $3",
+                fila["ht_player_id"],
+                _dt(fila["arrived_at"]),
+                self.equipo_remoto,
+            )
+            if remoto is not None:
+                etapas[fila["id"]] = remoto
+
+        # Lo que ya hay allí, por (jugador, plazo).
+        existentes = {}
+        for f in await con.fetch(
+            "select x.id, x.ht_player_id, x.deadline, x.times_seen, x.times_seen_asked, "
+            "x.asking_price from player_listing_attempts x "
+            "join players p on p.id = x.player_id where p.team_id = $1",
+            self.equipo_remoto,
+        ):
+            existentes[(f["ht_player_id"], f["deadline"])] = f
+
+        columnas = {
+            r["column_name"]: (r["data_type"], r["character_maximum_length"])
+            for r in await con.fetch(
+                "select column_name, data_type, character_maximum_length "
+                "from information_schema.columns where table_name = 'player_listing_attempts'"
+            )
+        }
+
+        nuevos, rellenados, sin_etapa = 0, 0, 0
+        for fila in self.loc.execute("select * from player_listing_attempts"):
+            fila = dict(fila)
+            clave = (fila["ht_player_id"], _dt(fila["deadline"]))
+            gemelo = existentes.get(clave)
+
+            if gemelo is not None:
+                # Sólo los tres campos que escribe el usuario, y sólo si allí
+                # están vacíos.
+                cambios, valores = [], []
+                for campo in ("times_seen", "asking_price"):
+                    if fila[campo] is not None and gemelo[campo] is None:
+                        valores.append(fila[campo])
+                        cambios.append(f"{campo} = ${len(valores)}")
+                if fila["times_seen_asked"] and not gemelo["times_seen_asked"]:
+                    valores.append(True)
+                    cambios.append(f"times_seen_asked = ${len(valores)}")
+                if cambios:
+                    if self.aplicar:
+                        await con.execute(
+                            f"update player_listing_attempts set {', '.join(cambios)} "
+                            f"where id = ${len(valores) + 1}",
+                            *valores,
+                            gemelo["id"],
+                        )
+                    rellenados += 1
+                continue
+
+            destino_jugador = self.mapas["players"].get(fila["player_id"])
+            if destino_jugador is None:
+                continue
+            fila["player_id"] = destino_jugador
+            if fila.get("stint_id") is not None:
+                fila["stint_id"] = etapas.get(fila["stint_id"])
+                if fila["stint_id"] is None:
+                    sin_etapa += 1
+            comunes = [c for c in fila if c in columnas and c != "id"]
+            valores = []
+            for col in comunes:
+                v = fila[col]
+                if col not in ("player_id", "stint_id"):
+                    tipo, tope = columnas[col]
+                    v = self._valor(v, tipo, tope)
+                valores.append(v)
+            if self.aplicar:
+                marcas = ", ".join(f"${i + 1}" for i in range(len(comunes)))
+                await con.execute(
+                    f"insert into player_listing_attempts ({', '.join(comunes)}) values ({marcas})",
+                    *valores,
+                )
+            nuevos += 1
+
+        detalle = "empareja por (jugador, plazo)"
+        if sin_etapa:
+            detalle += f" · {sin_etapa} sin etapa en destino"
+        self.resumen.append(("player_listing_attempts", nuevos, 0, detalle))
+        if rellenados:
+            self.resumen.append(
+                ("  ...huecos rellenados", rellenados, 0, "visitas y precio pedido")
+            )
+
 
 async def main() -> None:
     import asyncpg
 
     aplicar = "--aplicar" in sys.argv
+    solapado = "--solapado" in sys.argv
     m = Migracion(aplicar)
     con = await asyncpg.connect(_dsn(_cargar_url()), ssl="require")
     try:
@@ -342,6 +596,10 @@ async def main() -> None:
             }
             await m.mover(con, paso, cols)
 
+        if solapado:
+            await m.solapado(con)
+        await m.intentos_de_venta(con)
+
         if transaccion:
             await transaccion.commit()
 
@@ -357,6 +615,11 @@ async def main() -> None:
         else:
             print(f"ENSAYO: se insertarían {total} filas. Nada se ha escrito.")
             print("Para hacerlo de verdad: --aplicar")
+        if not solapado:
+            print(
+                "\nCon --solapado se traen además los cambios que producción no vio "
+                "dentro del periodo que ambas cubren."
+            )
     finally:
         await con.close()
 
