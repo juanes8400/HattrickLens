@@ -3,10 +3,13 @@
 @tailwind utilities;
 
 /* Ancho de una tarjeta de la cancha, y con el todas las canchas de la app.
-   Cinco columnas mas los huecos y el margen del panel suman 4rem: si el ancho
-   de pantalla no da para 9rem por columna, la tarjeta se encoge lo justo para
-   que la formacion entera quepa sin arrastrar de lado. Por encima de 784px de
-   ancho se queda en las 9rem de siempre. */
+   Cinco columnas mas los huecos y el margen: si no cabe a 9rem por columna, la
+   tarjeta se encoge lo justo para que la formacion entera quepa sin arrastrar
+   de lado. Por encima de 784px de ancho se queda en las 9rem de siempre.
+
+   El valor de aqui es la RESERVA: mide contra la ventana, que es lo unico que
+   se sabe sin saber donde esta la cancha. La medida buena la pone `.cancha`
+   mas abajo, contra su propia caja. */
 :root {
   --pitch-card: min(9rem, calc((100vw - 4rem) / 5));
   --pitch-card-font: clamp(0.6rem, 2.3vw, 0.75rem);
@@ -144,4 +147,24 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* La cancha se mide contra SU CAJA, no contra la ventana.
+ *
+ * 2026-09-02: la formula de `:root` descuenta 4rem por los huecos y el margen
+ * del panel, pero no los 16px de relleno propio de la cancha, asi que a 375px
+ * el envoltorio medía 359 dentro de un contenedor de 343 y el extremo derecho
+ * quedaba fuera. Y medir contra la ventana falla ademas en cualquier sitio
+ * estrecho que no sea un movil -- una columna de un diseño a dos, por ejemplo.
+ *
+ * Con `container-type` la tarjeta se calcula contra el ancho real disponible:
+ * 5 columnas, 4 huecos de 0.5rem y 1rem de relleno = 3rem de reserva. Donde no
+ * haya soporte de contenedores sigue valiendo el calculo de `:root`.
+ */
+.cancha {
+  container-type: inline-size;
+}
+
+.cancha > * {
+  --pitch-card: min(9rem, calc((100cqw - 3rem) / 5));
 }

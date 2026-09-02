@@ -101,7 +101,7 @@ export function PitchGrid<T>({
   return (
     // Un solo contenedor con scroll para TODAS las filas: si cada una se
     // desplazara por su cuenta, al mover una se perdería la vertical.
-    <div className="overflow-x-auto">
+    <div className="cancha overflow-x-auto">
       <div className="mx-auto flex w-max flex-col gap-2 px-2 py-4 sm:gap-3 sm:px-4 sm:py-6">
         {rows.map((fila, i) => {
           if (fila.length === 0) return null;

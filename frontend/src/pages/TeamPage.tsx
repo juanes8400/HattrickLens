@@ -92,8 +92,13 @@ export function TeamPage() {
       header: "Jugador",
       align: "left",
       value: (player) => player.name,
+      // Sin `nowrap` un nombre de dos palabras parte la fila en dos altos y
+      // la tabla entera se lee peor por una sola columna. Se nota sobre todo
+      // en un móvil, donde la columna es estrecha y casi todos se parten.
       render: (player) => (
-        <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />
+        <span className="whitespace-nowrap">
+          <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />
+        </span>
       ),
     },
     {

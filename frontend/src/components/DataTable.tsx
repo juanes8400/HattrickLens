@@ -68,10 +68,27 @@ export function DataTable<T>({
   // fuera justo lo que se había ido añadiendo: había que abrir «Columnas» y
   // saber que faltaba algo para llegar a ello.
   //
-  // `optional` no deja de significar nada: sigue diciendo cuáles se pueden
-  // esconder --y el selector las esconde--, sólo que ya no lo hace por su
-  // cuenta.
-  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  // MENOS EN UNA PANTALLA ESTRECHA (2026-09-02). Ahí «todas» se paga en
+  // desplazamiento lateral: en Jugadores son 29 columnas y 2.589px, siete
+  // arrastres para llegar al final, y la tabla deja de servir para mirar algo
+  // rápido. En móvil se arranca con las esenciales y el selector sigue
+  // estando para pedir el resto -- que es justo lo contrario de esconder algo
+  // sin decirlo.
+  //
+  // Se decide UNA VEZ, al montar: una tabla que se reordena sola al girar el
+  // teléfono sorprende más de lo que ayuda.
+  const [hidden, setHidden] = useState<Set<string>>(() => {
+    // Se exige un ancho POSITIVO antes de concluir que la pantalla es
+    // estrecha. Un cero no es un móvil: es "todavía no se sabe" -- pasa con la
+    // pestaña oculta, en una captura de miniatura o al pintar en el servidor
+    // -- y tomarlo por móvil escondía doce columnas en un escritorio. Ante la
+    // duda se enseñan todas, que es lo que pidió el usuario.
+    const ancho = typeof window === "undefined" ? 0 : window.innerWidth;
+    const estrecha = ancho > 0 && ancho < 768;
+    return estrecha
+      ? new Set(columns.filter((c) => c.optional).map((c) => c.key))
+      : new Set();
+  });
   const [showPicker, setShowPicker] = useState(false);
 
   // El selector de columnas sólo se cerraba volviendo a pulsar «Columnas»:
