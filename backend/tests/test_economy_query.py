@@ -14,6 +14,7 @@ from app.application.queries.economy import (
     MIN_WEEKS_FOR_TIMESERIES,
     EconomyQueryService,
     _closed_sponsor_income,
+    estructura_semanal,
 )
 from app.domain.engines.economy_engine import PlannedEvent
 from app.infrastructure.db import models as m
@@ -745,3 +746,47 @@ def test_wage_bill_es_none_cuando_no_se_sabe_de_donde_es_nadie() -> None:
     d = run(go())
     assert d is not None
     assert d.wage_bill is None
+
+
+def test_la_ventana_manda_sobre_todos_los_componentes() -> None:
+    """Una sola ventana para todo lo que se promedia.
+
+    2026-09-03, decisión del usuario: el selector de la pantalla dice cuántas
+    semanas entran, y entran esas para TODO. Antes había dos dentro de la
+    misma resta --dos semanas para lo plano y todas las disponibles para la
+    taquilla-- y el balance se movía según cuántos cierres reconociera el
+    motor, sin que nadie pudiera decir de dónde salía.
+    """
+    base = datetime(2026, 6, 1, tzinfo=UTC)
+    # Cuatro semanas cerradas: la taquilla y los sueldos suben cada semana,
+    # así que promediar dos o cuatro TIENE que dar distinto.
+    filas = [
+        _economy_row(i + 1, 1, base + timedelta(days=7 * i), last_spectators=1000 * (i + 1))
+        for i in range(4)
+    ]
+    for i, fila in enumerate(filas):
+        fila.costs_players = 10_000 * (i + 1)
+
+    dos = estructura_semanal(filas, 1.0, ventana=2)
+    cuatro = estructura_semanal(filas, 1.0, ventana=4)
+    assert dos is not None and cuatro is not None
+    # Taquilla: media de (3.000, 4.000) contra media de (1.000…4.000).
+    assert dos.gate_per_week == 3_500
+    assert cuatro.gate_per_week == 2_500
+    # Y lo plano se mueve con la misma ventana, no con otra.
+    assert dos.salaries == 35_000
+    assert cuatro.salaries == 25_000
+
+
+def test_pedir_mas_semanas_de_las_guardadas_usa_las_que_hay() -> None:
+    """Con tres cierres guardados, pedir dieciséis no puede fallar ni mentir:
+    se promedian los tres. La pantalla lo dice aparte, para que un selector en
+    16 con tres semanas no parezca estropeado."""
+    base = datetime(2026, 6, 1, tzinfo=UTC)
+    filas = [
+        _economy_row(i + 1, 1, base + timedelta(days=7 * i), last_spectators=2_000)
+        for i in range(3)
+    ]
+    e = estructura_semanal(filas, 1.0, ventana=16)
+    assert e is not None
+    assert e.gate_per_week == 2_000

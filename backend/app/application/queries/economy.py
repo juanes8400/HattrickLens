@@ -208,10 +208,24 @@ class WageBill:
     foreign_players: int
     foreign_salary: int
     surcharge: int
+    average: int
+    top_salary: int
+    top_player: str
+    #: Sueldo semanal por cada 1.000 de TSI. Compara plantillas de tamaños
+    #: distintos: dice lo cara que sale la unidad de valor de mercado.
+    per_thousand_tsi: float | None
+    #: Lo que se paga a quien no jugó el último partido del equipo.
+    idle_salary: int
+    idle_players: int
     #: Pais del equipo, para poder decir respecto a que son extranjeros.
     country: str
     #: Jugadores sin pais conocido, que no cuentan en ninguno de los dos lados.
     unknown_country: int
+    #: Lo que se paga fuera del once ideal. Van al final porque son los unicos
+    #: con valor por defecto: los rellena quien sepa resolver ese once, que no
+    #: es esta consulta.
+    bench_salary: int | None = None
+    bench_players: int | None = None
 
 
 @dataclass
@@ -233,6 +247,46 @@ class RecurringWeek:
     #: el balance recurrente. `base_gate` es la de un día de partido.
     weekly_gate: int
     other_fixed: int
+
+
+@dataclass
+class MarketKpis:
+    """La compraventa dentro de la ventana elegida.
+
+    Va aparte del balance recurrente a propósito: son las dos mitades de la
+    misma economía y mezclarlas es lo que hace que un club que pierde dinero
+    operando parezca sano porque vendió a alguien.
+    """
+
+    weeks: int
+    sold: int
+    bought: int
+    net: int
+    commission: int
+    arrivals: int
+    departures: int
+    #: Qué parte de la caja de hoy la puso el saldo de compraventa. Por encima
+    #: de cierto punto el club no vive de su operación, vive del mercado.
+    share_of_cash_pct: float | None
+
+
+@dataclass
+class IncomeKpis:
+    """De dónde sale lo que entra, dentro de la ventana."""
+
+    weeks: int
+    home_matches: int
+    gate_total: int
+    gate_per_home_match: int | None
+    #: Cuánto del ingreso recurrente lo pone el patrocinio, que es lo único
+    #: que no depende de jugar.
+    sponsor_share_pct: float | None
+    #: Socios del club. Sustituye al ingreso por espectador, que no se puede
+    #: calcular: no se guarda la asistencia de cada partido (2026-09-03).
+    fan_club_size: int
+    #: Lo que deja cada socio en un partido en casa. Es la forma de saber si
+    #: el problema es que hay pocos socios o que rinden poco.
+    gate_per_member: float | None
 
 
 @dataclass
@@ -277,6 +331,12 @@ class EconomyResponse:
     #: cobra ni de donde es, que es justo lo que hace falta para el recargo.
     wage_bill: WageBill | None
     weekly_structure: RecurringWeek
+    market: MarketKpis
+    income_kpis: IncomeKpis
+    #: Semanas que se pidieron y las que de verdad había. Sin las dos, un
+    #: selector en 16 con siete cierres guardados parece estropeado.
+    window_requested: int
+    window_used: int
 
 
 # Los totales de la semana ya cerrada. Solo los TOTALES, no el desglose: un
@@ -304,7 +364,32 @@ class _WeeklyClose:
     snapshot: m.EconomySnapshot
 
 
-def estructura_semanal(cierres: list[m.EconomySnapshot], rate: float) -> WeeklyStructure | None:
+#: Ventana por defecto cuando quien pregunta no tiene un selector con el que
+#: elegirla (el Panel, la alerta de déficit). Es el valor con el que abre el
+#: selector de Economía, para que las tres pantallas digan lo mismo mientras
+#: nadie lo toque: dos pantallas con dos balances recurrentes distintos ya fue
+#: un fallo real dos veces.
+#: Los partidos que se juegan en TU estadio y por tanto dejan taquilla: liga,
+#: promoción, copa y amistosos. Fuera quedan torneos y partidos sueltos
+#: (tipos 50, 51 y 62), que no pasan por tu economía: contándolos salían 96
+#: partidos en casa en siete semanas, y la taquilla por partido se hundía a
+#: la doceava parte de lo real (2026-09-03).
+TIPOS_CON_TAQUILLA = (1, 2, 3, 4, 5)
+
+#: Liga, promoción y copa: los partidos en los que se alinea al mejor once.
+#: «No jugó el último partido» sólo significa algo contra uno de estos. Atado
+#: a cualquier partido acabado, el último era de torneo con suplentes, y salía
+#: que los catorce que no jugaron costaban 409.008 mientras los quince fuera
+#: del once ideal costaban 57.058: no puede ser que los caros estén a la vez
+#: dentro del once y sin jugar (2026-09-03).
+TIPOS_COMPETITIVOS = (1, 2, 3)
+
+VENTANA_POR_DEFECTO = 8
+
+
+def estructura_semanal(
+    cierres: list[m.EconomySnapshot], rate: float, ventana: int = VENTANA_POR_DEFECTO
+) -> WeeklyStructure | None:
     """Los componentes recurrentes del club, por semana y en moneda local.
 
     ES LA UNICA FORMA DE CALCULAR EL «BALANCE SIN TRANSFERENCIAS». Hasta el
@@ -335,7 +420,12 @@ def estructura_semanal(cierres: list[m.EconomySnapshot], rate: float) -> WeeklyS
     Devuelve `None` cuando no hay ni un cierre guardado, que es lo unico
     honesto: un 0 diria que el club no ingresa ni gasta nada.
     """
-    recent = cierres[-2:]
+    # UNA sola ventana para todo, la que pida quien llama (2026-09-03,
+    # decisión del usuario). Antes había dos dentro de la misma resta: dos
+    # semanas para lo plano y todas las disponibles para la taquilla, así que
+    # el balance se movía según cuántos cierres reconociera el motor y no
+    # había forma de decir «esto es el promedio de N semanas».
+    recent = cierres[-ventana:] if ventana > 0 else cierres
     if not recent:
         return None
 
@@ -357,11 +447,7 @@ def estructura_semanal(cierres: list[m.EconomySnapshot], rate: float) -> WeeklyS
     # Arrechas decía -435.347 cuando la taquilla real promedia 380.240 a la
     # semana (2026-09-02).
     #
-    # Y se promedia sobre TODAS las semanas cerradas, no sobre las dos
-    # últimas como el resto: los sueldos o el mantenimiento son planos y dos
-    # semanas bastan, pero la taquilla es intermitente por definición y con
-    # una ventana de dos alterna entre el doble y cero según el calendario.
-    taquillas = [s.last_income_spectators for s in cierres if s.last_income_spectators is not None]
+    taquillas = [s.last_income_spectators for s in recent if s.last_income_spectators is not None]
     gate_per_week = conv(sum(taquillas) / len(taquillas)) if taquillas else 0
     return WeeklyStructure(
         salaries=conv(avg("costs_players")),
@@ -426,6 +512,10 @@ def weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
 class EconomyQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
+        #: Sueldo de cada jugador de la plantilla, por identificador de
+        #: Hattrick. Lo deja `_wage_bill` para que el coste del banquillo no
+        #: tenga que volver a leer la plantilla entera.
+        self._sueldos_por_ht_id: dict[int, int] = {}
 
     async def _wage_bill(self, team: m.Team, rate: float) -> WageBill | None:
         """Nomina de la plantilla actual, separando el recargo por extranjeros.
@@ -452,30 +542,78 @@ class EconomyQueryService:
             .group_by(m.PlayerSnapshot.player_id)
             .subquery()
         )
-        filas = await self._s.execute(
-            select(m.PlayerSnapshot.salary, m.PlayerSnapshot.country_id).join(
-                ultima,
-                (m.PlayerSnapshot.player_id == ultima.c.pid)
-                & (m.PlayerSnapshot.captured_at == ultima.c.mx),
+        filas = list(
+            await self._s.execute(
+                select(
+                    m.PlayerSnapshot.salary,
+                    m.PlayerSnapshot.country_id,
+                    m.PlayerSnapshot.tsi,
+                    m.PlayerSnapshot.last_match_ht_id,
+                    m.PlayerSnapshot.last_match_played_minutes,
+                    m.Player.first_name,
+                    m.Player.last_name,
+                    m.Player.ht_player_id,
+                )
+                .join(
+                    ultima,
+                    (m.PlayerSnapshot.player_id == ultima.c.pid)
+                    & (m.PlayerSnapshot.captured_at == ultima.c.mx),
+                )
+                .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
             )
         )
+        # La fecha del último partido del EQUIPO, no la del último de cada
+        # jugador: quien lleva tres semanas sin jugar tiene su propia fecha
+        # vieja y se contaría como que jugó.
+        # El IDENTIFICADOR del último partido competitivo, no su fecha. Por
+        # fecha se colaban por los dos lados: contra una fecha futura nadie
+        # había jugado y los 26 salían parados, y contra la del último de liga
+        # contaba como que jugó quien había disputado un torneo después
+        # (2026-09-03). `last_match_ht_id` dice exactamente en qué partido
+        # estuvo cada uno, así que la pregunta se contesta sin fechas.
+        ultimo_partido = await self._s.scalar(
+            select(m.Match.ht_match_id)
+            .where(
+                (m.Match.home_team_ht_id == team.ht_team_id)
+                | (m.Match.away_team_ht_id == team.ht_team_id),
+                m.Match.status == "FINISHED",
+                m.Match.match_type.in_(TIPOS_COMPETITIVOS),
+            )
+            .order_by(m.Match.played_at.desc())
+            .limit(1)
+        )
+
         propio = pais_equipo.country_id if pais_equipo else 0
         total = extranjeros = sueldo_extranjero = desconocidos = 0
-        jugadores = 0
-        for salario, country_id in filas:
+        tsi_total = parados = sueldo_parado = jugadores = 0
+        mejor_sueldo = 0
+        mejor_nombre = ""
+        sueldos_por_ht_id: dict[int, int] = {}
+        for salario, country_id, tsi, jugo_en, minutos, nombre, apellido, ht_id in filas:
             jugadores += 1
-            total += salario or 0
+            salario = salario or 0
+            total += salario
+            tsi_total += tsi or 0
+            sueldos_por_ht_id[ht_id] = salario
+            if salario > mejor_sueldo:
+                mejor_sueldo, mejor_nombre = salario, f"{nombre} {apellido}"
             if not country_id:
                 desconocidos += 1
             elif is_foreign(country_id, propio):
                 extranjeros += 1
-                sueldo_extranjero += salario or 0
+                sueldo_extranjero += salario
+            # Sin partido del equipo con el que comparar no se acusa a nadie
+            # de no jugar: se deja el contador en cero.
+            if ultimo_partido is not None and (jugo_en != ultimo_partido or not minutos):
+                parados += 1
+                sueldo_parado += salario
         if jugadores == 0 or desconocidos == jugadores or not propio:
             return None
 
-        def conv(v: int) -> int:
+        def conv(v: float) -> int:
             return int(round(v / rate))
 
+        self._sueldos_por_ht_id = sueldos_por_ht_id
         return WageBill(
             total=conv(total),
             players=jugadores,
@@ -484,6 +622,105 @@ class EconomyQueryService:
             surcharge=foreign_surcharge(conv(sueldo_extranjero)),
             country=pais_equipo.country_name if pais_equipo else "",
             unknown_country=desconocidos,
+            average=conv(total / jugadores),
+            top_salary=conv(mejor_sueldo),
+            top_player=mejor_nombre,
+            per_thousand_tsi=round(conv(total) / (tsi_total / 1000), 1) if tsi_total else None,
+            idle_salary=conv(sueldo_parado),
+            idle_players=parados,
+        )
+
+    async def _market(
+        self, team: m.Team, cierres: list[_WeeklyClose], rate: float, cash: int
+    ) -> MarketKpis:
+        """Compraventa dentro de la ventana.
+
+        Los importes salen de los campos `Last*` de cada cierre, que son los
+        de la semana que ese cierre cerró: encadenados no solapan ninguna
+        semana. Las altas y bajas se cuentan por fecha contra el principio de
+        la ventana, que es el instante del cierre más antiguo que entra.
+        """
+
+        def conv(v: float | None) -> int:
+            return int(round((v or 0) / rate))
+
+        vendido = sum(conv(c.snapshot.last_income_sold_players) for c in cierres)
+        comprado = sum(conv(c.snapshot.last_costs_bought_players) for c in cierres)
+        comision = sum(conv(c.snapshot.last_income_sold_players_commission) for c in cierres)
+        desde = cierres[0].closed_at if cierres else None
+        altas = bajas = 0
+        if desde is not None:
+            # Por `purchased_at` y `sold_at`, NO por `left_team_at`: esa
+            # columna se marca también en jugadores de rivales que se
+            # ojearon y dejaron de aparecer, y daba 475 bajas en seis
+            # semanas (2026-09-03).
+            altas = (
+                await self._s.scalar(
+                    select(func.count())
+                    .select_from(m.Player)
+                    .where(m.Player.team_id == team.id, m.Player.purchased_at >= desde)
+                )
+            ) or 0
+            bajas = (
+                await self._s.scalar(
+                    select(func.count())
+                    .select_from(m.Player)
+                    .where(m.Player.team_id == team.id, m.Player.sold_at >= desde)
+                )
+            ) or 0
+        neto = vendido - comprado
+        return MarketKpis(
+            weeks=len(cierres),
+            sold=vendido,
+            bought=comprado,
+            net=neto,
+            commission=comision,
+            arrivals=altas,
+            departures=bajas,
+            share_of_cash_pct=round(neto / cash * 100, 1) if cash else None,
+        )
+
+    async def _income_kpis(
+        self, team: m.Team, cierres: list[_WeeklyClose], structure: WeeklyStructure, rate: float
+    ) -> IncomeKpis:
+        """De dónde sale lo que entra, dentro de la ventana.
+
+        La taquilla por partido se cuenta contra los partidos en casa que de
+        verdad se jugaron en la ventana, no contra los siete por temporada que
+        supone el modelo: si el calendario te dio tres, la media es entre tres.
+        """
+        desde = cierres[0].closed_at if cierres else None
+        en_casa = 0
+        if desde is not None:
+            en_casa = (
+                await self._s.scalar(
+                    select(func.count())
+                    .select_from(m.Match)
+                    .where(
+                        m.Match.home_team_ht_id == team.ht_team_id,
+                        m.Match.status == "FINISHED",
+                        m.Match.match_type.in_(TIPOS_CON_TAQUILLA),
+                        m.Match.played_at >= desde,
+                        m.Match.played_at <= cierres[-1].snapshot.captured_at,
+                    )
+                )
+            ) or 0
+        taquilla = sum(int(round((c.snapshot.last_income_spectators or 0) / rate)) for c in cierres)
+        recurrente = structure.sponsors + structure.gate_per_week
+        # Los socios de la lectura más reciente de la ventana: es un stock,
+        # no un flujo, así que promediarlo no diría nada.
+        socios = cierres[-1].snapshot.fan_club_size if cierres else 0
+        por_partido = round(taquilla / en_casa) if en_casa else None
+        return IncomeKpis(
+            weeks=len(cierres),
+            home_matches=en_casa,
+            gate_total=taquilla,
+            gate_per_home_match=por_partido,
+            sponsor_share_pct=(
+                round(structure.sponsors / recurrente * 100, 1) if recurrente > 0 else None
+            ),
+            fan_club_size=socios or 0,
+            gate_per_member=(round(por_partido / socios, 1) if por_partido and socios else None),
         )
 
     async def _raw_snapshots(self, team_id: int) -> list[m.EconomySnapshot]:
@@ -499,7 +736,21 @@ class EconomyQueryService:
         team_id: int,
         horizon_weeks: int = 52,
         planned: list[PlannedEvent] | None = None,
+        best_eleven: set[int] | None = None,
     ) -> EconomyResponse | None:
+        """`horizon_weeks` hace de DOS cosas a la vez, y es a propósito.
+
+        Es hacia adelante el horizonte de la proyección y hacia atrás la
+        ventana que promedian los indicadores. Son el mismo selector en la
+        pantalla (2026-09-03, decisión del usuario): pedir «16 semanas» y que
+        el promedio siguiera saliendo de dos era justo lo que hacía imposible
+        explicar de dónde venía el balance.
+
+        `best_eleven` son los identificadores de Hattrick del once ideal.
+        Vienen de fuera porque resolverlo es trabajo del motor de alineación,
+        no de esta consulta; sin ellos el coste del banquillo va en `None` en
+        vez de inventarse un once.
+        """
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
@@ -585,7 +836,7 @@ class EconomyQueryService:
         sankey_windows = _sankey_windows(live_income, live_costs, closed_income, closed_costs)
 
         # ── Estructura semanal ─────────────────────────────────────────────
-        structure = estructura_semanal(snaps, rate)
+        structure = estructura_semanal(snaps, rate, ventana=horizon_weeks)
         assert structure is not None  # hay cierres: `closes` ya lo garantizó
 
         # Sesgo del modelo medido contra el histórico real, no supuesto cero.
@@ -718,6 +969,19 @@ class EconomyQueryService:
             for season, indices in sorted(season_row_indices.items(), reverse=True)
         ]
 
+        ventana = closes[-horizon_weeks:] if horizon_weeks > 0 else closes
+        nomina = await self._wage_bill(team, rate)
+        if nomina is not None and best_eleven:
+            # El banquillo es todo el que no entra en el once. Se suma con los
+            # sueldos que ya se leyeron para la nómina, sin volver a preguntar.
+            fuera = {
+                ht_id: sueldo
+                for ht_id, sueldo in self._sueldos_por_ht_id.items()
+                if ht_id not in best_eleven
+            }
+            nomina.bench_salary = int(round(sum(fuera.values()) / rate))
+            nomina.bench_players = len(fuera)
+
         return EconomyResponse(
             team_name=team.name,
             currency=team.currency_name or "",
@@ -746,7 +1010,11 @@ class EconomyQueryService:
             weekly_breakdown=weekly_breakdown,
             season_breakdown_totals=season_breakdown_totals,
             min_weeks_for_timeseries=MIN_WEEKS_FOR_TIMESERIES,
-            wage_bill=await self._wage_bill(team, rate),
+            wage_bill=nomina,
+            market=await self._market(team, ventana, rate, cash_now),
+            income_kpis=await self._income_kpis(team, ventana, structure, rate),
+            window_requested=horizon_weeks,
+            window_used=len(ventana),
             weekly_structure=RecurringWeek(
                 salaries=structure.salaries,
                 staff=structure.staff,

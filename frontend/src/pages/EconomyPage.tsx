@@ -28,6 +28,7 @@ import type {
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
 type EconomySection = "resumen" | "kpis" | "proyeccion" | "detalles";
 type Horizon = "4" | "8" | "12" | "16";
+type KpiGroup = "caja" | "nomina" | "mercado" | "ingresos";
 
 /**
  * Economía, en 3 secciones (2026-08-09, pedido explícito: mismo patrón de
@@ -137,13 +138,16 @@ export function EconomyPage() {
   );
 }
 
-/** Los indicadores de una sola cifra, juntos y en su propia pestaña.
+/** Los indicadores de una sola cifra, en su pestaña y por temas.
  *
- *  2026-09-02, pedido del usuario. Estaban repartidos por las otras pestañas
- *  y compitiendo con las tablas y los gráficos que las llenan: la autonomía y
- *  la caja proyectada vivían dentro del panel de la proyección, o sea que
- *  para leer dos números había que cargar un gráfico. Aquí no hay ni una
- *  tabla ni una gráfica: sólo cifras con su supuesto al pie.
+ *  2026-09-02/03, pedido del usuario. Dos decisiones suyas mandan aquí:
+ *
+ *  1. Un sub-selector por tema. Dieciocho cifras seguidas no se leen; por
+ *     bloques de cuatro o cinco, sí.
+ *  2. El selector de arriba manda sobre TODO lo que se promedia. Antes cada
+ *     componente traía su propia ventana --dos semanas para lo plano, todas
+ *     las disponibles para la taquilla-- y no había forma de decir de dónde
+ *     salía un número.
  */
 function KpisSection({
   data,
@@ -154,25 +158,19 @@ function KpisSection({
   horizon: Horizon;
   onHorizonChange: (h: Horizon) => void;
 }) {
+  const [grupo, setGrupo] = useState<KpiGroup>("caja");
   const preferred =
     data.recommendedModel === "bottom_up"
       ? data.structuralForecast
       : data.timeseriesForecast!;
 
-  // Autonomía: sólo tiene sentido si el ritmo estructural actual es
-  // deficitario. Con balance positivo la caja crece y no hay cuenta atrás.
-  // Se cuenta desde la caja de HOY, no desde la proyectada al cierre: la
-  // alerta de déficit dice «con la caja actual aguantas N semanas» y salía
-  // con una semana más que esta tarjeta porque cada una partía de una caja
-  // distinta (2026-08-31). La misma cuenta tiene que dar el mismo número.
   const runwayWeeks =
     data.structuralBalance < 0
       ? Math.floor(data.cash / Math.abs(data.structuralBalance))
       : null;
   // Más de dos temporadas de cuenta atrás no es una cuenta atrás. Cuando el
   // balance recurrente ronda el cero la división se dispara y «~441 semanas»
-  // finge una precisión que no tiene: mueve el balance un 5% y salen 400 o
-  // 500 (2026-09-02).
+  // finge una precisión que no tiene.
   const equilibrado = runwayWeeks != null && runwayWeeks > 32;
 
   const finalValue =
@@ -183,171 +181,332 @@ function KpisSection({
       ? (deltaAbs / Math.abs(data.expectedCash)) * 100
       : 0;
 
-  const { wageBill, weeklyStructure } = data;
-  // Contra el ingreso RECURRENTE, no contra el de la semana en curso: una
-  // semana con una venta dentro haría parecer barata una nómina que no se
-  // movió.
-  // `weeklyGate`, no `baseGate`: el segundo es la taquilla de un DÍA DE
-  // PARTIDO y sumarlo a un ingreso semanal enseñaba 1.070.486 donde entran
-  // 538.088. Es exactamente el mismo error que acabamos de quitar del motor.
+  const { wageBill, weeklyStructure, market, incomeKpis } = data;
   const ingresoFijo = weeklyStructure.sponsors + weeklyStructure.weeklyGate;
   const gastoFijo =
     weeklyStructure.salaries +
     weeklyStructure.staff +
     weeklyStructure.arenaMaintenance +
     weeklyStructure.otherFixed;
-  // Contra el GASTO fijo, no contra el ingreso. Medirlo contra el ingreso
-  // parecía lo natural, pero `baseGate` del modelo no es taquilla semanal
-  // sino taquilla por partido en casa, y vale 0 en cuanto las dos últimas
-  // semanas cerradas no tuvieron ninguno: el indicador saltaría de 359% a la
-  // mitad según cayera el calendario, sin que la nómina se hubiera movido.
-  // Contra el gasto fijo no depende de nada de eso (2026-09-02).
   const pesoNomina =
     gastoFijo > 0 ? (weeklyStructure.salaries / gastoFijo) * 100 : null;
-  // Cuántas semanas de nómina hay en caja. NO es la autonomía: aquí no se
-  // descuenta ningún ingreso, es el colchón desnudo.
   const semanasDeNomina =
     wageBill && wageBill.total > 0
       ? Math.floor(data.cash / wageBill.total)
       : null;
 
+  const dinero = (v: number) => money(v, data.currency);
+  // Un selector en 16 con siete cierres guardados parece estropeado si la
+  // pantalla no dice cuántas semanas hay de verdad.
+  const faltanSemanas = data.windowUsed < data.windowRequested;
+  // Corto a propósito: en un móvil el `meta` de un panel comparte renglón con
+  // el título, y la frase larga se le montaba encima. La explicación va
+  // dentro del panel de Ventana, que es donde se decide (2026-09-03).
+  const pie = `promedio de ${data.windowUsed} semanas`;
+
   return (
     <div className="space-y-4">
-      <Panel title="Caja" meta={`proyección a +${horizon} semanas`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
+      <Panel
+        title="Ventana"
+        meta={`${data.windowUsed} de ${data.windowRequested} semanas`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <span className="text-xs text-[var(--muted)]">
-            Horizonte de la caja proyectada
+            Promedia las últimas N semanas y proyecta N hacia adelante.
+            {faltanSemanas
+              ? ` Sólo hay ${data.windowUsed} semanas cerradas guardadas, así que de momento se promedian esas.`
+              : ""}
           </span>
           <Tabs
             modo="filtro"
-            label="Horizonte de la caja proyectada"
+            label="Semanas que promedian los indicadores"
             tabs={HORIZON_OPTIONS}
             active={horizon}
             onChange={onHorizonChange}
           />
         </div>
-        {/* Las dos primeras parten de supuestos OPUESTOS y hasta el
-            2026-08-31 no lo decían: una cuenta las semanas que aguantas SIN
-            volver a fichar ni vender, y la otra proyecta arrastrando el sesgo
-            observado de tus últimas semanas, que incluye un mercado muy
-            movido. Una decía «te quedan 20 semanas» y la de al lado «+49% de
-            caja», las dos a la vez y sin una palabra que las reconciliara. */}
-        <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-          <Kpi
-            label="Autonomía sin fichar ni vender"
-            value={
-              runwayWeeks == null
-                ? "caja creciendo"
-                : equilibrado
-                  ? "en equilibrio"
-                  : `~${runwayWeeks} semanas`
-            }
-            hint={
-              runwayWeeks == null
-                ? "el balance recurrente semanal es positivo"
-                : equilibrado
-                  ? `pierde ${money(Math.abs(data.structuralBalance), data.currency)}/sem, que la caja cubre durante años`
-                  : `sólo con lo recurrente: ${money(data.structuralBalance, data.currency)}/sem`
-            }
-            tone={runwayWeeks == null || equilibrado ? "positive" : "danger"}
-          />
-          <Kpi
-            label={`Caja proyectada en +${horizon} semanas`}
-            value={money(finalValue, data.currency)}
-            hint={
-              `${deltaAbs >= 0 ? "+" : ""}${money(deltaAbs, data.currency)} ` +
-              `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
-            }
-            tone={deltaAbs >= 0 ? "positive" : "danger"}
-          />
-          <Kpi
-            label="Semanas de nómina en caja"
-            value={semanasDeNomina != null ? `${semanasDeNomina}` : "sin datos"}
-            hint={
-              semanasDeNomina != null
-                ? "sueldos que paga la caja sin ingresar nada"
-                : "hace falta sincronizar la plantilla"
-            }
+        <div className="border-t border-[var(--border)] px-4 py-2">
+          <Tabs
+            grupo="economia-kpis"
+            tabs={[
+              { key: "caja", label: "Caja" },
+              { key: "nomina", label: "Nómina" },
+              { key: "mercado", label: "Mercado" },
+              { key: "ingresos", label: "Ingresos" },
+            ]}
+            active={grupo}
+            onChange={setGrupo}
           />
         </div>
       </Panel>
 
-      <Panel
-        title="Nómina"
-        meta={wageBill ? `${wageBill.players} jugadores` : "sin datos"}
+      <PanelDePestanas
+        grupo="economia-kpis"
+        activa={grupo}
+        className="space-y-4"
       >
-        {wageBill ? (
+        {grupo === "caja" && (
           <>
-            <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-              <Kpi
-                label="Sueldos por semana"
-                value={money(wageBill.total, data.currency)}
-                hint={`${wageBill.players} jugadores en plantilla`}
-              />
-              {/* El indicador que pidió el usuario (2026-09-02). Hattrick
-                  cobra un 20% más de sueldo por cada jugador cuyo país de
-                  origen no es el del equipo, y ese recargo no se ve en
-                  ninguna pantalla: viene ya sumado dentro del sueldo. Por eso
-                  se despeja en vez de sumarse. */}
-              <Kpi
-                label="Recargo por extranjeros"
-                value={`${money(wageBill.surcharge, data.currency)}/sem`}
-                hint={
-                  wageBill.foreignPlayers === wageBill.players
-                    ? `los ${wageBill.players} vienen de fuera de ${wageBill.country}`
-                    : `${wageBill.foreignPlayers} de ${wageBill.players} vienen de fuera de ${wageBill.country}`
-                }
-                tone={wageBill.surcharge > 0 ? "danger" : "positive"}
-              />
-              <Kpi
-                label="Peso en el gasto fijo"
-                value={
-                  pesoNomina != null ? `${pesoNomina.toFixed(0)}%` : "sin datos"
-                }
-                hint="de cada peso fijo que sale, cuánto es sueldo"
-              />
-            </div>
-            <p className="border-t border-[var(--border)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
-              El recargo es un 20% sobre el sueldo base, así que el sueldo que
-              ves ya lo lleva dentro: de cada{" "}
-              {money(wageBill.foreignSalary, data.currency)} que pagas a
-              jugadores de fuera, una sexta parte es recargo. No baja renovando
-              ni esperando: sólo se va cuando se va el jugador.
-              {wageBill.unknownCountry > 0 &&
-                ` ${wageBill.unknownCountry} jugador(es) no tienen país conocido y quedan fuera de la cuenta.`}
-            </p>
-          </>
-        ) : (
-          <SinDatos />
-        )}
-      </Panel>
+            {/* Las dos primeras parten de supuestos OPUESTOS y hasta el
+                2026-08-31 no lo decían: una cuenta las semanas que aguantas
+                SIN volver a fichar ni vender, y la otra proyecta arrastrando
+                el sesgo observado de tus últimas semanas, que incluye un
+                mercado muy movido. */}
+            <Panel title="Caja" meta={`proyección a +${horizon} semanas`}>
+              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+                <Kpi
+                  label="Autonomía sin fichar ni vender"
+                  value={
+                    runwayWeeks == null
+                      ? "caja creciendo"
+                      : equilibrado
+                        ? "en equilibrio"
+                        : `~${runwayWeeks} semanas`
+                  }
+                  hint={
+                    runwayWeeks == null
+                      ? "el balance recurrente semanal es positivo"
+                      : equilibrado
+                        ? `pierde ${dinero(Math.abs(data.structuralBalance))}/sem, que la caja cubre durante años`
+                        : `sólo con lo recurrente: ${dinero(data.structuralBalance)}/sem`
+                  }
+                  tone={
+                    runwayWeeks == null || equilibrado ? "positive" : "danger"
+                  }
+                />
+                <Kpi
+                  label={`Caja proyectada en +${horizon} semanas`}
+                  value={dinero(finalValue)}
+                  hint={
+                    `${deltaAbs >= 0 ? "+" : ""}${dinero(deltaAbs)} ` +
+                    `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
+                  }
+                  tone={deltaAbs >= 0 ? "positive" : "danger"}
+                />
+                <Kpi
+                  label="Semanas de nómina en caja"
+                  value={
+                    semanasDeNomina != null ? `${semanasDeNomina}` : "sin datos"
+                  }
+                  hint={
+                    semanasDeNomina != null
+                      ? "sueldos que paga la caja sin ingresar nada"
+                      : "hace falta sincronizar la plantilla"
+                  }
+                />
+              </div>
+            </Panel>
 
-      <Panel title="Lo fijo de cada semana" meta="ritmo recurrente">
-        <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-          <Kpi
-            label="Entra"
-            value={`${money(ingresoFijo, data.currency)}/sem`}
-            hint={
-              weeklyStructure.weeklyGate > 0
-                ? "patrocinios y taquilla"
-                : "patrocinios; sin partido en casa en las semanas cerradas"
-            }
-            tone="positive"
-          />
-          <Kpi
-            label="Sale"
-            value={`${money(gastoFijo, data.currency)}/sem`}
-            hint="sueldos, cuerpo técnico y estadio"
-            tone="danger"
-          />
-          <Kpi
-            label="Queda"
-            value={`${money(data.structuralBalance, data.currency)}/sem`}
-            hint="sin contar ninguna compraventa"
-            tone={data.structuralBalance >= 0 ? "positive" : "danger"}
-          />
-        </div>
-      </Panel>
+            <Panel title="Lo fijo de cada semana" meta={pie}>
+              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+                <Kpi
+                  label="Entra"
+                  value={`${dinero(ingresoFijo)}/sem`}
+                  hint={`patrocinios ${dinero(weeklyStructure.sponsors)} y taquilla ${dinero(weeklyStructure.weeklyGate)}`}
+                  tone="positive"
+                />
+                <Kpi
+                  label="Sale"
+                  value={`${dinero(gastoFijo)}/sem`}
+                  hint="sueldos, cuerpo técnico y estadio"
+                  tone="danger"
+                />
+                <Kpi
+                  label="Queda"
+                  value={`${dinero(data.structuralBalance)}/sem`}
+                  hint="sin contar ninguna compraventa"
+                  tone={data.structuralBalance >= 0 ? "positive" : "danger"}
+                />
+              </div>
+            </Panel>
+          </>
+        )}
+
+        {grupo === "nomina" &&
+          (wageBill ? (
+            <>
+              <Panel title="Nómina" meta={`${wageBill.players} jugadores`}>
+                <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+                  <Kpi
+                    label="Sueldos por semana"
+                    value={dinero(wageBill.total)}
+                    hint={`${dinero(wageBill.average)} de media por jugador`}
+                  />
+                  <Kpi
+                    label="El más caro"
+                    value={dinero(wageBill.topSalary)}
+                    hint={wageBill.topPlayer}
+                  />
+                  <Kpi
+                    label="Sueldo por 1.000 de TSI"
+                    value={
+                      wageBill.perThousandTsi != null
+                        ? dinero(wageBill.perThousandTsi)
+                        : "sin datos"
+                    }
+                    hint="lo que cuesta la unidad de valor de mercado"
+                  />
+                </div>
+              </Panel>
+
+              <Panel title="Lo que no juega" meta="dos formas de mirarlo">
+                <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
+                  <Kpi
+                    label="No jugó el último partido"
+                    value={`${dinero(wageBill.idleSalary)}/sem`}
+                    hint={`${wageBill.idlePlayers} jugadores, contra el último de liga o copa`}
+                  />
+                  <Kpi
+                    label="Fuera del once ideal"
+                    value={
+                      wageBill.benchSalary != null
+                        ? `${dinero(wageBill.benchSalary)}/sem`
+                        : "sin datos"
+                    }
+                    hint={
+                      wageBill.benchPlayers != null
+                        ? `${wageBill.benchPlayers} jugadores, según el motor de Alineación`
+                        : "no se pudo resolver el once"
+                    }
+                  />
+                </div>
+              </Panel>
+
+              <Panel title="Recargo por extranjeros" meta={wageBill.country}>
+                <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
+                  {/* Hattrick cobra un 20% más de sueldo por cada jugador
+                      cuyo país de origen no es el del equipo, y ese recargo
+                      no se ve en ninguna pantalla: viene ya sumado dentro del
+                      sueldo. Por eso se despeja en vez de sumarse. */}
+                  <Kpi
+                    label="Recargo"
+                    value={`${dinero(wageBill.surcharge)}/sem`}
+                    hint={
+                      wageBill.foreignPlayers === wageBill.players
+                        ? `los ${wageBill.players} vienen de fuera de ${wageBill.country}`
+                        : `${wageBill.foreignPlayers} de ${wageBill.players} vienen de fuera de ${wageBill.country}`
+                    }
+                    tone={wageBill.surcharge > 0 ? "danger" : "positive"}
+                  />
+                  <Kpi
+                    label="Peso de la nómina en el gasto fijo"
+                    value={
+                      pesoNomina != null
+                        ? `${pesoNomina.toFixed(0)}%`
+                        : "sin datos"
+                    }
+                    hint="de cada peso fijo que sale, cuánto es sueldo"
+                  />
+                </div>
+                <p className="border-t border-[var(--border)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
+                  El recargo es un 20% sobre el sueldo base, así que el sueldo
+                  que ves ya lo lleva dentro: de cada{" "}
+                  {dinero(wageBill.foreignSalary)} que pagas a jugadores de
+                  fuera, una sexta parte es recargo. No baja renovando ni
+                  esperando: sólo se va cuando se va el jugador.
+                  {wageBill.unknownCountry > 0 &&
+                    ` ${wageBill.unknownCountry} jugador(es) no tienen país conocido y quedan fuera de la cuenta.`}
+                </p>
+              </Panel>
+            </>
+          ) : (
+            <Panel title="Nómina" meta="sin datos">
+              <SinDatos />
+            </Panel>
+          ))}
+
+        {grupo === "mercado" && (
+          <>
+            <Panel title="Compraventa" meta={pie}>
+              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+                <Kpi
+                  label="Saldo de transferencias"
+                  value={dinero(market.net)}
+                  hint={`vendiste ${dinero(market.sold)} y compraste ${dinero(market.bought)}`}
+                  tone={market.net >= 0 ? "positive" : "danger"}
+                />
+                {/* La cifra incómoda: un club que pierde dinero operando
+                    parece sano mientras venda. Puesta al lado del balance
+                    recurrente, deja de parecerlo. */}
+                <Kpi
+                  label="Qué parte de tu caja la puso el mercado"
+                  value={
+                    market.shareOfCashPct != null
+                      ? `${market.shareOfCashPct.toFixed(0)}%`
+                      : "sin datos"
+                  }
+                  hint="el resto lo puso la operación del club"
+                  tone={
+                    market.shareOfCashPct != null && market.shareOfCashPct > 50
+                      ? "danger"
+                      : undefined
+                  }
+                />
+                <Kpi
+                  label="Comisión pagada"
+                  value={dinero(market.commission)}
+                  hint="lo que se llevó el mercado por tus ventas"
+                />
+              </div>
+            </Panel>
+
+            <Panel title="Rotación" meta={pie}>
+              <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
+                <Kpi
+                  label="Altas"
+                  value={`${market.arrivals}`}
+                  hint="jugadores comprados en la ventana"
+                />
+                <Kpi
+                  label="Bajas"
+                  value={`${market.departures}`}
+                  hint="jugadores vendidos en la ventana"
+                />
+              </div>
+            </Panel>
+          </>
+        )}
+
+        {grupo === "ingresos" && (
+          <>
+            <Panel title="Taquilla" meta={pie}>
+              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+                <Kpi
+                  label="Por partido en casa"
+                  value={
+                    incomeKpis.gatePerHomeMatch != null
+                      ? dinero(incomeKpis.gatePerHomeMatch)
+                      : "sin partidos"
+                  }
+                  hint={`${incomeKpis.homeMatches} partido(s) en casa, ${dinero(incomeKpis.gateTotal)} en total`}
+                />
+                {/* Sustituye al ingreso por espectador, que no se puede
+                    calcular: no se guarda la asistencia de cada partido. Los
+                    socios sí, y contestan la misma pregunta: si el problema es
+                    que hay poca gente o que rinde poco (2026-09-03). */}
+                <Kpi
+                  label="Por socio y partido"
+                  value={
+                    incomeKpis.gatePerMember != null
+                      ? dinero(incomeKpis.gatePerMember)
+                      : "sin datos"
+                  }
+                  hint={`${number(incomeKpis.fanClubSize)} socios en el club`}
+                />
+                <Kpi
+                  label="Peso del patrocinio"
+                  value={
+                    incomeKpis.sponsorSharePct != null
+                      ? `${incomeKpis.sponsorSharePct.toFixed(0)}%`
+                      : "sin datos"
+                  }
+                  hint="del ingreso recurrente; es lo único que no depende de jugar"
+                />
+              </div>
+            </Panel>
+          </>
+        )}
+      </PanelDePestanas>
     </div>
   );
 }

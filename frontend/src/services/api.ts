@@ -1993,7 +1993,42 @@ export interface Economy {
     surcharge: number;
     country: string;
     unknownCountry: number;
+    average: number;
+    topSalary: number;
+    topPlayer: string;
+    /** Sueldo semanal por cada 1.000 de TSI. */
+    perThousandTsi: number | null;
+    /** Lo que se paga a quien no jugó el último partido competitivo. */
+    idleSalary: number;
+    idlePlayers: number;
+    /** Lo que se paga fuera del once ideal. `null` si no se pudo resolver. */
+    benchSalary: number | null;
+    benchPlayers: number | null;
   } | null;
+  /** Semanas que se pidieron y las que de verdad había guardadas. */
+  windowRequested: number;
+  windowUsed: number;
+  /** La compraventa dentro de la ventana. */
+  market: {
+    weeks: number;
+    sold: number;
+    bought: number;
+    net: number;
+    commission: number;
+    arrivals: number;
+    departures: number;
+    shareOfCashPct: number | null;
+  };
+  /** De dónde sale lo que entra, dentro de la ventana. */
+  incomeKpis: {
+    weeks: number;
+    homeMatches: number;
+    gateTotal: number;
+    gatePerHomeMatch: number | null;
+    sponsorSharePct: number | null;
+    fanClubSize: number;
+    gatePerMember: number | null;
+  };
   /** Lo recurrente de una semana, que es contra lo que hay que medir un gasto
    *  fijo: la semana en curso puede llevar una venta dentro. */
   weeklyStructure: {

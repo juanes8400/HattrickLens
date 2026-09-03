@@ -6,8 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_team_owner
+from app.api.v1.endpoints.analysis import roster
 from app.application.queries.economy import EconomyQueryService
 from app.domain.engines.economy_engine import PlannedEvent
+from app.domain.engines.lineup_optimizer import best_lineup
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -33,10 +35,37 @@ async def economy(
     cuál usar hoy y `recommendationReason` por qué, en vez de esconder la
     elección detrás de un único número.
     """
-    data = await EconomyQueryService(session).get(team_id, horizon_weeks=horizon_weeks)
+    data = await EconomyQueryService(session).get(
+        team_id,
+        horizon_weeks=horizon_weeks,
+        best_eleven=await _best_eleven(session, team_id),
+    )
     if data is None:
         raise HTTPException(404, f"no economy data for team {team_id}")
     return _serialise(data)
+
+
+async def _best_eleven(session: AsyncSession, team_id: int) -> set[int] | None:
+    """Los once que jugarían, para poder cobrarle el sueldo al resto.
+
+    Se compone aquí y no dentro de la consulta económica porque resolver el
+    once es del motor de alineación: la consulta no tiene por qué saber de
+    formaciones. Mismo camino que usa `league.py` para lo suyo.
+
+    Si el once no se puede resolver --plantilla corta, sin datos-- se devuelve
+    `None` y el indicador dirá que no hay dato, que es mejor que un banquillo
+    calculado sobre un once inventado.
+    """
+    # El `try` cubre también la lectura del once: si cambia la forma de una
+    # asignación, este indicador se queda sin dato en vez de tumbar la
+    # pantalla de Economía entera, que es lo que pasó al escribirlo.
+    try:
+        players, _ = await roster(session, team_id)
+        lineup = best_lineup(players)
+        ids = {a.player["ht_player_id"] for a in lineup.assignments}
+    except Exception:
+        return None
+    return ids or None
 
 
 @router.post(
@@ -131,10 +160,39 @@ def _serialise(d: Any) -> dict[str, Any]:
                 "surcharge": d.wage_bill.surcharge,
                 "country": d.wage_bill.country,
                 "unknownCountry": d.wage_bill.unknown_country,
+                "average": d.wage_bill.average,
+                "topSalary": d.wage_bill.top_salary,
+                "topPlayer": d.wage_bill.top_player,
+                "perThousandTsi": d.wage_bill.per_thousand_tsi,
+                "idleSalary": d.wage_bill.idle_salary,
+                "idlePlayers": d.wage_bill.idle_players,
+                "benchSalary": d.wage_bill.bench_salary,
+                "benchPlayers": d.wage_bill.bench_players,
             }
             if d.wage_bill is not None
             else None
         ),
+        "windowRequested": d.window_requested,
+        "windowUsed": d.window_used,
+        "market": {
+            "weeks": d.market.weeks,
+            "sold": d.market.sold,
+            "bought": d.market.bought,
+            "net": d.market.net,
+            "commission": d.market.commission,
+            "arrivals": d.market.arrivals,
+            "departures": d.market.departures,
+            "shareOfCashPct": d.market.share_of_cash_pct,
+        },
+        "incomeKpis": {
+            "weeks": d.income_kpis.weeks,
+            "homeMatches": d.income_kpis.home_matches,
+            "gateTotal": d.income_kpis.gate_total,
+            "gatePerHomeMatch": d.income_kpis.gate_per_home_match,
+            "sponsorSharePct": d.income_kpis.sponsor_share_pct,
+            "fanClubSize": d.income_kpis.fan_club_size,
+            "gatePerMember": d.income_kpis.gate_per_member,
+        },
         "weeklyStructure": {
             "salaries": d.weekly_structure.salaries,
             "staff": d.weekly_structure.staff,
