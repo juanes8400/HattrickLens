@@ -156,11 +156,29 @@ export function AutorPage() {
             className="h-28 w-28 shrink-0 self-center sm:self-start"
           />
           <div className="prosa space-y-3 text-sm leading-relaxed">
+            {/* La gracia no es la lista de campos, es lo poco que se
+                parecen entre sí. Se cuentan como cuatro cosas concretas
+                porque «investigación de operaciones y evaluación económica en
+                salud» no le dice nada a nadie, y «el oxígeno de un embalse y
+                un infarto» sí. */}
             <p>
-              Ingeniero matemático, con trabajo publicado en investigación de
-              operaciones, modelos de simulación y evaluación económica en
-              salud. HT Lens nació de una hoja de cálculo que se hizo demasiado
-              grande.
+              Ingeniero matemático. Ha modelado el oxígeno disuelto de un
+              embalse, lo que cuesta y lo que salva tratar a un paciente después
+              de un infarto, el inventario de una fábrica de plásticos y el
+              orden en que una planta debe sacar sus lotes.
+            </p>
+            <p>
+              Son problemas que no se parecen en nada y se atacan casi igual:
+              mirar qué varía de verdad, escribir el modelo y dejarlo
+              equivocarse contra los datos hasta que deja de hacerlo. Sobre
+              estadística escribe sin mucha diplomacia: tiene un artículo
+              titulado «Por qué la estadística bayesiana es inútil» y se declara
+              enemigo número uno del SMOTE.
+            </p>
+            <p>
+              HT Lens es esa misma manía aplicada a un club de Hattrick. Empezó
+              siendo una hoja de cálculo, se hizo demasiado grande, y acabó
+              aquí.
             </p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
               {PERFILES.map((p) => (

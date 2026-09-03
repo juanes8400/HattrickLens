@@ -1,71 +1,73 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-labelledby="autor-titulo">
   <title id="autor-titulo">Retrato del autor de HT Lens</title>
   <!--
-    Estilo de las caras de jugador de Hattrick, que es la referencia que pasó
-    el usuario. Lo que define ese estilo y se copia aquí:
+    Segunda versión, con la ilustración de referencia que mandó el usuario
+    delante (2026-09-02). La primera se pareció a la idea equivocada: cabeza
+    de pera con las sienes anchas y ojos enormes y blancos. La referencia
+    real es lo contrario, rasgo a rasgo:
 
-      cara muy alargada y estrecha, casi rectangular, de mentón corto;
-      orejas grandes y bien separadas de la cabeza;
-      ojos blancos grandes con la pupila pequeña y oscura;
-      cejas gruesas pegadas al ojo, que son las que ponen el gesto;
-      nariz larga resuelta con dos trazos, sin volumen;
-      boca pequeña, una línea;
-      contorno negro grueso y algo irregular, colores planos, cero sombras.
+      la cara es LARGA y ESTRECHA, casi igual de ancha arriba que abajo, y
+      acaba en un mentón corto y redondeado;
+      los ojos son PEQUEÑOS, poco más que una almendra con un punto dentro,
+      y están altos, muy cerca del puente de la nariz;
+      las cejas son finas, cortas y arqueadas;
+      la nariz es el rasgo dominante: nace entre las cejas, baja larguísima
+      por el centro, se ensancha hasta un bulbo y termina en gancho, con la
+      cara sombreada a un lado;
+      la boca es pequeña, con labios dibujados y una caída seria;
+      las orejas son pequeñas y pegadas, a la altura de los ojos;
+      el pelo es un casquete oscuro de mechones picudos con el flequillo
+      dentado sobre la frente;
+      contorno negro grueso, color plano, ninguna sombra salvo la nariz.
 
-    De la foto se conservan los rasgos que lo identifican: pelo negro corto con
-    raya a su izquierda, cejas rectas y juntas de gesto serio, nariz recta y
-    larga, boca cerrada, americana azul marino sobre camisa celeste con el
-    cuello abierto. El fondo azul claro es el de la propia ilustración de
-    Hattrick.
+    De la foto se conservan la ropa (americana azul marino sobre camisa
+    celeste, cuello abierto) y el pelo negro con la raya a su izquierda.
   -->
   <defs>
     <clipPath id="autor-circulo"><circle cx="100" cy="100" r="94" /></clipPath>
   </defs>
 
   <g clip-path="url(#autor-circulo)">
-    <rect width="200" height="200" fill="#a8d8f0" />
-    <path d="M0 40l200-30v26L0 66z" fill="#7cc3e8" opacity="0.7" />
-    <path d="M0 92l200-30v26L0 118z" fill="#7cc3e8" opacity="0.7" />
+    <rect width="200" height="200" fill="#a9d9f2" />
+    <path d="M0 34l200-28v24L0 60z" fill="#79c2e9" opacity="0.65" />
+    <path d="M0 88l200-28v24L0 114z" fill="#79c2e9" opacity="0.65" />
 
-    <!-- Hombros y americana. -->
-    <path d="M14 200c1-34 26-52 86-52s85 18 86 52z" fill="#25325a" stroke="#000" stroke-width="6" stroke-linejoin="round" />
-    <path d="M84 150l16 26 16-26-16-8z" fill="#d6e8f8" stroke="#000" stroke-width="5" stroke-linejoin="round" />
-    <path d="M84 150l-12 50 22-30z" fill="#1a2442" stroke="#000" stroke-width="5" stroke-linejoin="round" />
-    <path d="M116 150l12 50-22-30z" fill="#1a2442" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+    <!-- Hombros. -->
+    <path d="M12 200c3-28 27-44 88-44s85 16 88 44z" fill="#25325a" stroke="#000" stroke-width="6" stroke-linejoin="round" />
+    <path d="M86 158l14 22 14-22-14-6z" fill="#d8e9f8" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+    <path d="M86 158l-11 42 20-25z" fill="#1a2442" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+    <path d="M114 158l11 42-20-25z" fill="#1a2442" stroke="#000" stroke-width="5" stroke-linejoin="round" />
 
-    <!-- Cuello, fino como en la referencia. -->
-    <path d="M90 128h20v24c0 7-20 7-20 0z" fill="#d99a68" stroke="#000" stroke-width="6" stroke-linejoin="round" />
+    <!-- Cuello. -->
+    <path d="M92 132h16v26c0 6-16 6-16 0z" fill="#d69564" stroke="#000" stroke-width="6" stroke-linejoin="round" />
 
-    <!-- Orejas: grandes y separadas, se dibujan ANTES de la cara para que el
-         contorno de ésta las recorte por dentro. -->
-    <path d="M67 84c-11-3-15 6-11 15 4 8 11 10 14 6z" fill="#eeb684" stroke="#000" stroke-width="5" stroke-linejoin="round" />
-    <path d="M133 84c11-3 15 6 11 15-4 8-11 10-14 6z" fill="#eeb684" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+    <!-- Orejas pequeñas y pegadas, a la altura de los ojos. -->
+    <path d="M72 78c-7-2-10 5-8 12 2 6 6 8 8 5z" fill="#e8b48c" stroke="#000" stroke-width="4.5" stroke-linejoin="round" />
+    <path d="M128 78c7-2 10 5 8 12-2 6-6 8-8 5z" fill="#e8b48c" stroke="#000" stroke-width="4.5" stroke-linejoin="round" />
 
-    <!-- Cara: alargada y estrecha, lados casi rectos, mentón corto. -->
-    <path d="M100 24c19 0 32 9 32 26v56c0 24-13 38-32 38S68 130 68 106V50c0-17 13-26 32-26z" fill="#eeb684" stroke="#000" stroke-width="6" stroke-linejoin="round" />
+    <!-- Cara larga y estrecha, mentón corto. -->
+    <path d="M100 24c17 0 29 13 30 34 1 22-2 44-9 60-5 12-12 18-21 18s-16-6-21-18c-7-16-10-38-9-60 1-21 13-34 30-34z" fill="#e8b48c" stroke="#000" stroke-width="6" stroke-linejoin="round" />
 
-    <!-- Pelo: casquete corto con la raya a su izquierda (nuestra derecha). -->
-    <path d="M68 52c0-19 14-28 32-28s32 9 32 28c0-8-3-13-7-16-13 10-38 12-49 4-5 3-8 7-8 12z" fill="#17161a" stroke="#000" stroke-width="6" stroke-linejoin="round" />
-    <!-- Mechones, como los trazos sueltos de la ilustración. -->
-    <path d="M86 32c6 5 16 7 26 5" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" opacity="0.55" />
-    <path d="M112 28c4 4 6 8 7 13" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" opacity="0.55" />
+    <!-- Pelo: casquete de mechones picudos, flequillo dentado, raya a su izquierda. -->
+    <path d="M70 62c-1-24 12-40 30-40s31 16 30 40c-1-6-3-11-6-15l3-11-9 9-2-12-8 11-5-13-7 13-8-9-2 11-8-6 1 10c-4 3-7 7-9 12z" fill="#241c18" stroke="#000" stroke-width="5.5" stroke-linejoin="round" />
 
-    <!-- Cejas gruesas, rectas y juntas: el gesto serio de la foto. -->
-    <path d="M78 76c7-4 15-4 20-1" fill="none" stroke="#17161a" stroke-width="7" stroke-linecap="round" />
-    <path d="M122 76c-7-4-15-4-20-1" fill="none" stroke="#17161a" stroke-width="7" stroke-linecap="round" />
+    <!-- Cejas finas, cortas y arqueadas. -->
+    <path d="M80 70c4-4 10-4 13-1" fill="none" stroke="#241c18" stroke-width="4" stroke-linecap="round" />
+    <path d="M120 70c-4-4-10-4-13-1" fill="none" stroke="#241c18" stroke-width="4" stroke-linecap="round" />
 
-    <!-- Ojos grandes y blancos con pupila pequeña. -->
-    <ellipse cx="87" cy="90" rx="10" ry="11" fill="#fff" stroke="#000" stroke-width="4" />
-    <ellipse cx="113" cy="90" rx="10" ry="11" fill="#fff" stroke="#000" stroke-width="4" />
-    <circle cx="88" cy="91" r="4" fill="#17161a" />
-    <circle cx="112" cy="91" r="4" fill="#17161a" />
+    <!-- Ojos pequeños, altos y juntos. -->
+    <path d="M80 82c3-4 9-4 12 0-3 4-9 4-12 0z" fill="#fff" stroke="#000" stroke-width="3.5" stroke-linejoin="round" />
+    <path d="M108 82c3-4 9-4 12 0-3 4-9 4-12 0z" fill="#fff" stroke="#000" stroke-width="3.5" stroke-linejoin="round" />
+    <circle cx="87" cy="82" r="2.6" fill="#17161a" />
+    <circle cx="113" cy="82" r="2.6" fill="#17161a" />
 
-    <!-- Nariz larga, dos trazos. -->
-    <path d="M100 98v22" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" />
-    <path d="M100 120c-5 0-7-2-8-4" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" />
+    <!-- Nariz: el rasgo que manda. Baja desde las cejas, se ensancha y engancha. -->
+    <path d="M99 68c4 14 8 30 6 40-2 9-11 12-17 6 7-2 11-10 9-22-1-8-1-17 2-24z" fill="#d69564" stroke="none" opacity="0.55" />
+    <path d="M99 68c4 14 8 30 6 40-2 9-11 12-17 6" fill="none" stroke="#000" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M88 114c4-1 9-2 12-6" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" />
 
-    <!-- Boca pequeña y recta. -->
-    <path d="M92 134h16" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" />
+    <!-- Boca pequeña, con labios y gesto serio. -->
+    <path d="M91 130c5-4 13-4 18 0-5 5-13 5-18 0z" fill="#c9765f" stroke="#000" stroke-width="4" stroke-linejoin="round" />
   </g>
 
   <circle cx="100" cy="100" r="94" fill="none" stroke="#000" stroke-width="6" />
