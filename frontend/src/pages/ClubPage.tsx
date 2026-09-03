@@ -228,13 +228,6 @@ function Psicologia({ data }: { data: Club }) {
             to={to}
           />
         </div>
-        <p className="prosa border-t border-[var(--border)] px-4 py-3 text-[11px] leading-relaxed text-[var(--muted)]">
-          La confianza tiende a un punto medio en cada actualización diaria, no
-          sólo después de un partido, y el psicólogo deportivo lo sube. Ese
-          punto <b className="text-[var(--text)]">no se dibuja</b> porque
-          Hattrick no publica su valor: aquí sólo hay lecturas, no una
-          referencia contra la que compararlas.
-        </p>
       </Panel>
     </div>
   );

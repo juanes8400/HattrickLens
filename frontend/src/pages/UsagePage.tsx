@@ -281,7 +281,7 @@ function Resumen({ data }: { data: UsageSummary }) {
               return (
                 <span
                   key={h}
-                  title={`${h}:00 — ${n} eventos`}
+                  title={`${h}:00 · ${n} eventos`}
                   className="flex-1 rounded-t bg-[var(--accent)]"
                   style={{ height: `${Math.max(2, (n / maxHora) * 100)}%` }}
                 />

@@ -740,7 +740,7 @@ async def rival_scouting(
     # hacía más fácil de saltar.
     caveats = [
         "De un rival solo se sabe lo que enseñan sus partidos públicos: nombre y posición "
-        "únicamente de quien apareció en uno reciente, y de sus habilidades nada — el TSI es "
+        "únicamente de quien apareció en uno reciente, y de sus habilidades nada: el TSI es "
         "lo único que Hattrick publica. Su plantilla no se sigue fuera de eso.",
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan para esta ficha, sin "
         "importar los toggles de arriba: ni son representativos de cómo juega el club rival "

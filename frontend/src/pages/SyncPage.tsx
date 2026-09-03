@@ -231,15 +231,15 @@ export function SyncPage() {
         <div className="space-y-3 p-4">
           <p className="prosa text-sm text-[var(--muted)]">
             <b className="text-[var(--text)]">Sólo comisiones de reventa.</b>{" "}
-            Cuando un club revende a alguien que le vendiste —o a un canterano
-            tuyo— te toca un porcentaje, y esto es lo que sale a buscarlo. Va de
+            Cuando un club revende a alguien que le vendiste (o a un canterano
+            tuyo) te toca un porcentaje, y esto es lo que sale a buscarlo. Va de
             a un jugador, así que puedes pararlo y seguir otro día.
           </p>
           <p className="prosa text-sm text-[var(--muted)]">
             Aquí <b className="text-[var(--text)]">no</b> se traen tus compras
             ni tus ventas: ésas vienen con «Sincronizar ahora». De paso completa
-            lo que le falte al pasado de cada ex-jugador —de dónde era, por
-            cuánto se fue, cuántos partidos jugó contigo—, que es lo que hace
+            lo que le falte al pasado de cada ex-jugador (de dónde era, por
+            cuánto se fue, cuántos partidos jugó contigo), que es lo que hace
             falta para calcular la comisión.
           </p>
 
@@ -283,7 +283,7 @@ export function SyncPage() {
                   izquierda a derecha van los ex-jugadores del más reciente al
                   más antiguo. El frente avanza por la izquierda con cada
                   turno "reciente", y cada turno al azar enciende una marca
-                  allí donde cayó — normalmente lejos, en la cola vieja.
+                  allí donde cayó, normalmente lejos, en la cola vieja.
                   El eje lo congela el backend al empezar el barrido. */}
               <div className="relative h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                 <div
@@ -320,7 +320,7 @@ export function SyncPage() {
               )}
               {/* El informe del barrido: sale cuando para, lo pare el
                   usuario o se acabe la cola. Las dos cifras de arriba son las
-                  que se pidieron —cuántos siguen y cuántos faltan—; el
+                  que se pidieron (cuántos siguen y cuántos faltan); el
                   desglose de cierres explica la diferencia entre ambas. */}
               {!rellenando && relleno.balance && (
                 <div className="mt-3 rounded-md border border-[var(--border)] p-3">

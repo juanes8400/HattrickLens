@@ -220,8 +220,8 @@ export function AcademyPage() {
               reparte los dos entrenamientos elegidos entre los once y el
               banquillo. Cada entrenamiento llega a unos puestos y no a otros:
               quien cae donde se cruzan los dos recibe ambos. Dentro de cada
-              tramo entran primero los mejores de la cola —peldaño, techo y
-              edad—, así que cambiar el secundario cambia quién juega dónde. La
+              tramo entran primero los mejores de la cola (peldaño, techo y
+              edad), así que cambiar el secundario cambia quién juega dónde. La
               barra de «Puede llegar a» es su HTMS28: relleno lo que ya tiene, y
               hasta dónde llega la barra, lo máximo que podría alcanzar.
             </>
@@ -1409,11 +1409,11 @@ function TablaDelReparto({
               <th
                 scope="col"
                 className={`${th} border-l border-[var(--border)] pl-5 text-left`}
-                title={`${secondaryLabel} — los porcentajes ya llevan descontado el castigo del hueco secundario`}
+                title={`${secondaryLabel}: los porcentajes ya llevan descontado el castigo del hueco secundario`}
               >
                 {/* El aviso de que el castigo ya está descontado vive solo en
                     el `title`: el mismo sorteo vale 42,5 % de principal y
-                    28,3 % de secundario, así que hace falta decirlo — pero
+                    28,3 % de secundario, así que hace falta decirlo, pero
                     repetirlo bajo la cabecera cargaba la tabla. */}
                 Entrenamiento habilidad secundaria
               </th>
@@ -1794,7 +1794,7 @@ function TrainingPlan({
                         : `${plan.data.doubleBlind} de los ${plan.data.doubleCount}`}
                     </b>{" "}
                     que reciben los dos entrenamientos van a entrenar una
-                    habilidad que el ojeador no ha revelado — es a propósito:
+                    habilidad que el ojeador no ha revelado. Es a propósito:
                     entrenarlos es lo que la revela.{" "}
                   </>
                 )}

@@ -237,30 +237,7 @@ export function LeaguePage() {
               <OutlookTable data={data} />
             </ProjectionPanel>
 
-            <ProjectionPanel
-              title="Qué modela la simulación"
-              meta={data.model.model}
-            >
-              <div className="space-y-2 p-4 text-xs leading-relaxed text-[var(--muted)]">
-                <p>
-                  Los goles salen de dos Poisson independientes con las fuerzas
-                  de ataque y defensa de cada equipo, encogidas hacia la media
-                  de la liga con un peso de {data.model.shrinkageK}. Con pocas
-                  jornadas el prior de «equipo medio» pesa más que la evidencia
-                  propia; según avanza la temporada, la evidencia gana. La
-                  ventaja de campo es ×{data.model.homeAdvantage}. Media de
-                  goles de esta liga: {data.leagueAvgGoals}.
-                </p>
-                <p>
-                  <b className="text-[var(--text)]">No modela:</b>{" "}
-                  {data.model.doesNotModel.join(", ")}. Sirve para las opciones
-                  de la temporada, no para acertar un partido concreto.
-                </p>
-                {data.caveats.map((c, i) => (
-                  <p key={i}>{c}</p>
-                ))}
-              </div>
-            </ProjectionPanel>
+
           </div>
         )}
 
