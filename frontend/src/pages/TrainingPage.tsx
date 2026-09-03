@@ -816,7 +816,18 @@ const optionColumns: Column<PostMatchTrainingOption>[] = [
       </span>
     ),
   },
-  { key: "score", header: "Score", value: (r) => r.score },
+  {
+    // «Score» a secas no dice nada: es una escala interna. El título avisa de
+    // que sólo sirve para ordenar, que es lo único para lo que vale.
+    key: "score",
+    header: "Score",
+    value: (r) => r.score,
+    render: (r) => (
+      <span title="escala interna, sólo para ordenar entre estas opciones">
+        {r.score.toFixed(0)}
+      </span>
+    ),
+  },
   {
     key: "minutes",
     header: "Min. equivalentes",
@@ -879,6 +890,36 @@ export function TrainingPage() {
   if (!data) return <Empty>Sincroniza para ver el entrenamiento.</Empty>;
 
   const recommendation = post?.recommendation ?? null;
+
+  // La opción que de verdad se puso, buscada entre las comparables por su
+  // tipo. Puede no estar: hay entrenamientos que el motor no puntúa.
+  const actual =
+    post?.options.find(
+      (o) => o.trainingType === post?.currentTraining?.trainingType,
+    ) ?? null;
+  // El puesto se calcula ORDENANDO, no con la posición en el array: la lista
+  // no llega ordenada y el número salía distinto del que enseña la tabla.
+  //
+  // Y se cuenta sólo entre las elegibles: las marcadas «referencia» son
+  // entrenamientos obsoletos que Hattrick ya no deja poner, así que ocupar un
+  // puesto del ranking con ellas hace parecer peor una decisión que no lo era.
+  const elegibles = (post?.options ?? [])
+    .filter((o) => o.recommendable)
+    .slice()
+    .sort((a, b) => b.score - a.score);
+  const puestoActual = actual
+    ? elegibles.findIndex((o) => o === actual) + 1
+    : null;
+  const acerto =
+    !!actual &&
+    !!recommendation &&
+    actual.trainingType === recommendation.trainingType;
+  const subidasPerdidas =
+    actual && recommendation ? recommendation.popsSoon - actual.popsSoon : null;
+  const minutosPerdidos =
+    actual && recommendation
+      ? recommendation.equivalentMinutes - actual.equivalentMinutes
+      : null;
   const currentName = post?.currentTraining?.name ?? "sin dato";
   const staff = club.data?.staff ?? null;
   const assistantRole =
@@ -1270,29 +1311,52 @@ export function TrainingPage() {
 
         {section === "posteriori" && post && (
           <>
+            {/* Los tres indicadores COMPARAN. Antes describían los tres la
+                misma opción --la recomendada-- y lo que costó la elección real
+                había que sacarlo restando a mano en la tabla de abajo. La
+                pregunta de esta pestaña no es «cuál era la mejor» sino «cuánto
+                me costó no haberla puesto» (2026-09-02). */}
             <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
               <Kpi
-                label="A posteriori elegiría"
-                value={recommendation?.name ?? "Sin datos"}
-                hint={`Actual: ${currentName}`}
-                tone={
-                  recommendation &&
-                  post.currentTraining &&
-                  recommendation.trainingType !==
-                    post.currentTraining.trainingType
-                    ? "positive"
-                    : undefined
+                label="Pusiste"
+                value={currentName}
+                hint={
+                  actual
+                    ? `${actual.popsSoon} subida(s) en 3 semanas · ${actual.equivalentMinutes.toFixed(0)} min · ${puestoActual}.º de ${elegibles.length}`
+                    : "no está entre las opciones comparables"
                 }
               />
               <Kpi
-                label="Minutos aprovechables"
-                value={`${recommendation?.equivalentMinutes.toFixed(0) ?? 0}`}
-                hint="equivalentes a entrenamiento completo"
+                label="Convenía"
+                value={recommendation?.name ?? "Sin datos"}
+                hint={
+                  recommendation
+                    ? `${recommendation.popsSoon} subida(s) en 3 semanas · ${recommendation.equivalentMinutes.toFixed(0)} min`
+                    : "sin minutos que repartir esta semana"
+                }
               />
+              {/* La cifra que da sentido a la pestaña: la diferencia en
+                  SUBIDAS, no en «score». El score es una escala interna que no
+                  significa nada fuera de aquí; una subida sí. */}
               <Kpi
-                label="Jugadores entrenados"
-                value={`${recommendation?.trainedPlayers ?? 0}`}
-                hint={`${recommendation?.fullTrainingPlayers ?? 0} con entrenamiento full`}
+                label={acerto ? "Acertaste" : "Lo que costó"}
+                value={
+                  acerto
+                    ? "nada"
+                    : subidasPerdidas == null
+                      ? "sin comparar"
+                      : `${subidasPerdidas > 0 ? "-" : ""}${Math.abs(subidasPerdidas)} subida(s)`
+                }
+                hint={
+                  acerto
+                    ? "era la mejor opción con los minutos ya jugados"
+                    : minutosPerdidos == null
+                      ? "el entrenamiento puesto no entra en la comparación"
+                      : `y ${Math.abs(minutosPerdidos).toFixed(0)} min equivalentes`
+                }
+                tone={
+                  acerto ? "positive" : subidasPerdidas ? "danger" : undefined
+                }
               />
             </div>
 
@@ -1356,6 +1420,9 @@ export function TrainingPage() {
               rowKey={(r) => r.trainingType}
               initialSort="score"
               csvName="entrenamiento-a-posteriori"
+              // Marca la fila del entrenamiento que pusiste: sin ella hay que
+              // buscarla por el nombre entre doce.
+              selectedRowKey={post.currentTraining?.trainingType ?? null}
             />
           </>
         )}
