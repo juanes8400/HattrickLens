@@ -26,7 +26,7 @@ import type {
 } from "../services/api";
 
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
-type EconomySection = "resumen" | "proyeccion" | "detalles";
+type EconomySection = "resumen" | "kpis" | "proyeccion" | "detalles";
 type Horizon = "4" | "8" | "12" | "16";
 
 /**
@@ -58,6 +58,7 @@ export function EconomyPage() {
           grupo="economia"
           tabs={[
             { key: "resumen", label: "Resumen" },
+            { key: "kpis", label: "KPIs" },
             { key: "proyeccion", label: "Proyección" },
             { key: "detalles", label: "Detalles" },
           ]}
@@ -111,6 +112,14 @@ export function EconomyPage() {
           </div>
         )}
 
+        {section === "kpis" && (
+          <KpisSection
+            data={data}
+            horizon={horizon}
+            onHorizonChange={setHorizon}
+          />
+        )}
+
         {section === "proyeccion" && (
           <div className="space-y-4">
             <ForecastPanel
@@ -124,6 +133,218 @@ export function EconomyPage() {
 
         {section === "detalles" && <DetailsSection data={data} />}
       </PanelDePestanas>
+    </div>
+  );
+}
+
+/** Los indicadores de una sola cifra, juntos y en su propia pestaña.
+ *
+ *  2026-09-02, pedido del usuario. Estaban repartidos por las otras pestañas
+ *  y compitiendo con las tablas y los gráficos que las llenan: la autonomía y
+ *  la caja proyectada vivían dentro del panel de la proyección, o sea que
+ *  para leer dos números había que cargar un gráfico. Aquí no hay ni una
+ *  tabla ni una gráfica: sólo cifras con su supuesto al pie.
+ */
+function KpisSection({
+  data,
+  horizon,
+  onHorizonChange,
+}: {
+  data: Economy;
+  horizon: Horizon;
+  onHorizonChange: (h: Horizon) => void;
+}) {
+  const preferred =
+    data.recommendedModel === "bottom_up"
+      ? data.structuralForecast
+      : data.timeseriesForecast!;
+
+  // Autonomía: sólo tiene sentido si el ritmo estructural actual es
+  // deficitario. Con balance positivo la caja crece y no hay cuenta atrás.
+  // Se cuenta desde la caja de HOY, no desde la proyectada al cierre: la
+  // alerta de déficit dice «con la caja actual aguantas N semanas» y salía
+  // con una semana más que esta tarjeta porque cada una partía de una caja
+  // distinta (2026-08-31). La misma cuenta tiene que dar el mismo número.
+  const runwayWeeks =
+    data.structuralBalance < 0
+      ? Math.floor(data.cash / Math.abs(data.structuralBalance))
+      : null;
+  // Más de dos temporadas de cuenta atrás no es una cuenta atrás. Cuando el
+  // balance recurrente ronda el cero la división se dispara y «~441 semanas»
+  // finge una precisión que no tiene: mueve el balance un 5% y salen 400 o
+  // 500 (2026-09-02).
+  const equilibrado = runwayWeeks != null && runwayWeeks > 32;
+
+  const finalValue =
+    preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
+  const deltaAbs = finalValue - data.expectedCash;
+  const deltaPct =
+    data.expectedCash !== 0
+      ? (deltaAbs / Math.abs(data.expectedCash)) * 100
+      : 0;
+
+  const { wageBill, weeklyStructure } = data;
+  // Contra el ingreso RECURRENTE, no contra el de la semana en curso: una
+  // semana con una venta dentro haría parecer barata una nómina que no se
+  // movió.
+  const ingresoFijo = weeklyStructure.sponsors + weeklyStructure.baseGate;
+  const gastoFijo =
+    weeklyStructure.salaries +
+    weeklyStructure.staff +
+    weeklyStructure.arenaMaintenance +
+    weeklyStructure.otherFixed;
+  // Contra el GASTO fijo, no contra el ingreso. Medirlo contra el ingreso
+  // parecía lo natural, pero `baseGate` del modelo no es taquilla semanal
+  // sino taquilla por partido en casa, y vale 0 en cuanto las dos últimas
+  // semanas cerradas no tuvieron ninguno: el indicador saltaría de 359% a la
+  // mitad según cayera el calendario, sin que la nómina se hubiera movido.
+  // Contra el gasto fijo no depende de nada de eso (2026-09-02).
+  const pesoNomina =
+    gastoFijo > 0 ? (weeklyStructure.salaries / gastoFijo) * 100 : null;
+  // Cuántas semanas de nómina hay en caja. NO es la autonomía: aquí no se
+  // descuenta ningún ingreso, es el colchón desnudo.
+  const semanasDeNomina =
+    wageBill && wageBill.total > 0
+      ? Math.floor(data.cash / wageBill.total)
+      : null;
+
+  return (
+    <div className="space-y-4">
+      <Panel title="Caja" meta={`proyección a +${horizon} semanas`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
+          <span className="text-xs text-[var(--muted)]">
+            Horizonte de la caja proyectada
+          </span>
+          <Tabs
+            modo="filtro"
+            label="Horizonte de la caja proyectada"
+            tabs={HORIZON_OPTIONS}
+            active={horizon}
+            onChange={onHorizonChange}
+          />
+        </div>
+        {/* Las dos primeras parten de supuestos OPUESTOS y hasta el
+            2026-08-31 no lo decían: una cuenta las semanas que aguantas SIN
+            volver a fichar ni vender, y la otra proyecta arrastrando el sesgo
+            observado de tus últimas semanas, que incluye un mercado muy
+            movido. Una decía «te quedan 20 semanas» y la de al lado «+49% de
+            caja», las dos a la vez y sin una palabra que las reconciliara. */}
+        <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+          <Kpi
+            label="Autonomía sin fichar ni vender"
+            value={
+              runwayWeeks == null
+                ? "caja creciendo"
+                : equilibrado
+                  ? "en equilibrio"
+                  : `~${runwayWeeks} semanas`
+            }
+            hint={
+              runwayWeeks == null
+                ? "el balance recurrente semanal es positivo"
+                : equilibrado
+                  ? `pierde ${money(Math.abs(data.structuralBalance), data.currency)}/sem, que la caja cubre durante años`
+                  : `sólo con lo recurrente: ${money(data.structuralBalance, data.currency)}/sem`
+            }
+            tone={runwayWeeks == null || equilibrado ? "positive" : "danger"}
+          />
+          <Kpi
+            label={`Caja proyectada en +${horizon} semanas`}
+            value={money(finalValue, data.currency)}
+            hint={
+              `${deltaAbs >= 0 ? "+" : ""}${money(deltaAbs, data.currency)} ` +
+              `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
+            }
+            tone={deltaAbs >= 0 ? "positive" : "danger"}
+          />
+          <Kpi
+            label="Semanas de nómina en caja"
+            value={semanasDeNomina != null ? `${semanasDeNomina}` : "sin datos"}
+            hint={
+              semanasDeNomina != null
+                ? "sueldos que paga la caja sin ingresar nada"
+                : "hace falta sincronizar la plantilla"
+            }
+          />
+        </div>
+      </Panel>
+
+      <Panel
+        title="Nómina"
+        meta={wageBill ? `${wageBill.players} jugadores` : "sin datos"}
+      >
+        {wageBill ? (
+          <>
+            <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+              <Kpi
+                label="Sueldos por semana"
+                value={money(wageBill.total, data.currency)}
+                hint={`${wageBill.players} jugadores en plantilla`}
+              />
+              {/* El indicador que pidió el usuario (2026-09-02). Hattrick
+                  cobra un 20% más de sueldo por cada jugador cuyo país de
+                  origen no es el del equipo, y ese recargo no se ve en
+                  ninguna pantalla: viene ya sumado dentro del sueldo. Por eso
+                  se despeja en vez de sumarse. */}
+              <Kpi
+                label="Recargo por extranjeros"
+                value={`${money(wageBill.surcharge, data.currency)}/sem`}
+                hint={
+                  wageBill.foreignPlayers === wageBill.players
+                    ? `los ${wageBill.players} vienen de fuera de ${wageBill.country}`
+                    : `${wageBill.foreignPlayers} de ${wageBill.players} vienen de fuera de ${wageBill.country}`
+                }
+                tone={wageBill.surcharge > 0 ? "danger" : "positive"}
+              />
+              <Kpi
+                label="Peso en el gasto fijo"
+                value={
+                  pesoNomina != null ? `${pesoNomina.toFixed(0)}%` : "sin datos"
+                }
+                hint="de cada peso fijo que sale, cuánto es sueldo"
+              />
+            </div>
+            <p className="border-t border-[var(--border)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
+              El recargo es un 20% sobre el sueldo base, así que el sueldo que
+              ves ya lo lleva dentro: de cada{" "}
+              {money(wageBill.foreignSalary, data.currency)} que pagas a
+              jugadores de fuera, una sexta parte es recargo. No baja renovando
+              ni esperando: sólo se va cuando se va el jugador.
+              {wageBill.unknownCountry > 0 &&
+                ` ${wageBill.unknownCountry} jugador(es) no tienen país conocido y quedan fuera de la cuenta.`}
+            </p>
+          </>
+        ) : (
+          <SinDatos />
+        )}
+      </Panel>
+
+      <Panel title="Lo fijo de cada semana" meta="ritmo recurrente">
+        <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
+          <Kpi
+            label="Entra"
+            value={`${money(ingresoFijo, data.currency)}/sem`}
+            hint={
+              weeklyStructure.baseGate > 0
+                ? "patrocinios y taquilla"
+                : "patrocinios; sin partido en casa en las semanas cerradas"
+            }
+            tone="positive"
+          />
+          <Kpi
+            label="Sale"
+            value={`${money(gastoFijo, data.currency)}/sem`}
+            hint="sueldos, cuerpo técnico y estadio"
+            tone="danger"
+          />
+          <Kpi
+            label="Queda"
+            value={`${money(data.structuralBalance, data.currency)}/sem`}
+            hint="sin contar ninguna compraventa"
+            tone={data.structuralBalance >= 0 ? "positive" : "danger"}
+          />
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -574,26 +795,6 @@ function ForecastPanel({
       ? data.structuralForecast
       : data.timeseriesForecast!;
 
-  // Autonomía: sólo tiene sentido si el ritmo estructural actual es
-  // deficitario — con balance positivo la caja crece, no hay cuenta atrás.
-  // Se cuenta desde la caja de HOY, no desde la proyectada al cierre. La
-  // alerta de déficit dice «con la caja actual aguantas N semanas» y salía
-  // con una semana más que esta tarjeta, porque cada una partía de una caja
-  // distinta (2026-08-31). La misma cuenta tiene que dar el mismo número.
-  const runwayWeeks =
-    data.structuralBalance < 0
-      ? Math.floor(data.cash / Math.abs(data.structuralBalance))
-      : null;
-
-  // Variación de caja proyectada: hoy vs. el final del horizonte elegido.
-  const finalValue =
-    preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
-  const deltaAbs = finalValue - data.expectedCash;
-  const deltaPct =
-    data.expectedCash !== 0
-      ? (deltaAbs / Math.abs(data.expectedCash)) * 100
-      : 0;
-
   // Coincidencia entre modelos: sólo cuando hay serie de tiempo con la que
   // contrastar — antes de las N semanas de histórico no existe.
   const timeseriesFinal = data.timeseriesForecast
@@ -631,36 +832,11 @@ function ForecastPanel({
           onChange={onHorizonChange}
         />
       </div>
-      <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-3 [&>*]:min-w-0">
-        {/* Estas dos tarjetas parten de supuestos OPUESTOS y hasta el
-            2026-08-31 no lo decían: la de la izquierda contaba las semanas
-            que aguantas SIN volver a fichar ni vender, y la de la derecha
-            proyecta arrastrando el sesgo observado de tus últimas semanas,
-            que incluye un mercado muy movido. Una decía «te quedan 20
-            semanas» y la de al lado «+49% de caja», las dos a la vez y sin
-            una palabra que las reconciliara. Cada una dice ahora de qué
-            parte. */}
-        <Kpi
-          label="Autonomía sin fichar ni vender"
-          value={
-            runwayWeeks != null ? `~${runwayWeeks} semanas` : "caja creciendo"
-          }
-          hint={
-            runwayWeeks != null
-              ? `sólo con lo recurrente: ${money(data.structuralBalance, data.currency)}/sem`
-              : "el balance recurrente semanal es positivo"
-          }
-          tone={runwayWeeks != null ? "danger" : "positive"}
-        />
-        <Kpi
-          label={`Caja proyectada en +${horizon} semanas`}
-          value={money(finalValue, data.currency)}
-          hint={
-            `${deltaAbs >= 0 ? "+" : ""}${money(deltaAbs, data.currency)} ` +
-            `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
-          }
-          tone={deltaAbs >= 0 ? "positive" : "danger"}
-        />
+      <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 [&>*]:min-w-0">
+        {/* Aquí queda sólo la tarjeta que habla del propio gráfico. Las
+            otras dos, autonomía y caja proyectada, se fueron a la pestaña
+            KPIs, que es donde el usuario espera encontrarlas: eran dos cifras
+            sueltas escondidas dentro del panel de un gráfico (2026-09-02). */}
         <Kpi
           label="Coincidencia entre modelos"
           value={

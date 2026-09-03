@@ -122,6 +122,28 @@ def _serialise(d: Any) -> dict[str, Any]:
         "weeklyBalance": d.weekly_balance,
         "structuralBalance": d.structural_balance,
         "weeksOfHistory": d.weeks_of_history,
+        "wageBill": (
+            {
+                "total": d.wage_bill.total,
+                "players": d.wage_bill.players,
+                "foreignPlayers": d.wage_bill.foreign_players,
+                "foreignSalary": d.wage_bill.foreign_salary,
+                "surcharge": d.wage_bill.surcharge,
+                "country": d.wage_bill.country,
+                "unknownCountry": d.wage_bill.unknown_country,
+            }
+            if d.wage_bill is not None
+            else None
+        ),
+        "weeklyStructure": {
+            "salaries": d.weekly_structure.salaries,
+            "staff": d.weekly_structure.staff,
+            "arenaMaintenance": d.weekly_structure.arena_maintenance,
+            "sponsors": d.weekly_structure.sponsors,
+            "baseGate": d.weekly_structure.base_gate,
+            "weeklyGate": d.weekly_structure.weekly_gate,
+            "otherFixed": d.weekly_structure.other_fixed,
+        },
         "series": [
             {
                 "date": p.date,

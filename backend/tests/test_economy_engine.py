@@ -12,7 +12,6 @@ from app.domain.engines.economy_engine import (
     WeeklyStructure,
     estimate_residuals,
     forecast_cash,
-    structural_balance,
     total_sponsor_income,
 )
 
@@ -22,7 +21,10 @@ PULGAS = WeeklyStructure(
     staff=53_040,
     arena_maintenance=40_983,
     sponsors=103_500,
-    base_gate=15_210,
+    # 15.210 es lo que entra POR SEMANA. Lo de un día de partido es esa cifra
+    # repartida al revés, que es justo lo que sortea la simulación.
+    base_gate=15_210 * SEASON_WEEKS // HOME_MATCHES_PER_SEASON,
+    weekly_gate=15_210,
     other_fixed=9_000,
 )
 
@@ -33,32 +35,6 @@ def test_structural_balance_matches_hattrick_control() -> None:
     # Nota: HC calcula -98.837 incluyendo la comisión de transferencias como
     # recurrente; nuestro criterio la considera discrecional. Ambos números son
     # negativos: la operación pierde dinero cada semana.
-
-
-def test_structural_balance_amortizes_gate_income_over_the_season() -> None:
-    """Bug real: el dashboard sumaba `income_spectators` crudo (el ingreso de
-    ESA semana — 0 si no hubo partido en casa) mientras la pantalla de
-    economía lo amortizaba a lo largo de la temporada, y daban números
-    casi opuestos para el mismo club el mismo día. Ahora ambos llaman a esta
-    única función."""
-    raw_gate = 70_000  # lo que reportó CHPP para la semana del snapshot
-    result = structural_balance(
-        income_sponsors=100_000, income_spectators=raw_gate,
-        costs_players=200_000, costs_staff=50_000, costs_arena=40_000,
-    )
-    amortized_gate = raw_gate * SEASON_WEEKS // HOME_MATCHES_PER_SEASON
-    assert amortized_gate != raw_gate  # si no amortiza, este test no prueba nada
-    assert result == 100_000 + amortized_gate - 200_000 - 50_000 - 40_000
-
-
-def test_structural_balance_with_no_gate_income_this_week() -> None:
-    """Una semana sin partido en casa reporta `income_spectators = 0` — no
-    hay nada que amortizar, y no debe tratarse como división por cero."""
-    result = structural_balance(
-        income_sponsors=100_000, income_spectators=0,
-        costs_players=200_000, costs_staff=50_000, costs_arena=40_000,
-    )
-    assert result == 100_000 - 200_000 - 50_000 - 40_000
 
 
 def test_total_sponsor_income_adds_the_bonus() -> None:

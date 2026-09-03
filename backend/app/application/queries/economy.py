@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
@@ -46,6 +46,8 @@ from app.domain.engines.economy_engine import (
     WeeklyStructure,
     estimate_residuals,
     forecast_cash,
+    foreign_surcharge,
+    is_foreign,
     total_sponsor_income,
 )
 from app.domain.value_objects.formatting import thousands
@@ -192,6 +194,48 @@ class SeasonBreakdownTotals:
 
 
 @dataclass
+class WageBill:
+    """La nomina semanal de la plantilla, y cuanto de ella es recargo.
+
+    Hattrick cobra un 20% mas de sueldo por cada jugador cuyo pais de origen
+    no es el del equipo. El sueldo que llega ya lo lleva dentro, asi que el
+    recargo no se suma: se despeja. Si el sueldo pagado es 1,2 veces el de
+    base, el recargo es una sexta parte de lo que se paga.
+    """
+
+    total: int
+    players: int
+    foreign_players: int
+    foreign_salary: int
+    surcharge: int
+    #: Pais del equipo, para poder decir respecto a que son extranjeros.
+    country: str
+    #: Jugadores sin pais conocido, que no cuentan en ninguno de los dos lados.
+    unknown_country: int
+
+
+@dataclass
+class RecurringWeek:
+    """Lo recurrente de una semana, ya en moneda local.
+
+    Es la misma descomposicion con la que proyecta el modelo estructural. Se
+    expone porque los indicadores que comparan un gasto con un ingreso
+    necesitan el ritmo recurrente, no la semana en curso: una semana con una
+    venta grande haria parecer barata una nomina que no cambio.
+    """
+
+    salaries: int
+    staff: int
+    arena_maintenance: int
+    sponsors: int
+    base_gate: int
+    #: La taquilla ya repartida entre todas las semanas, que es la que suma
+    #: el balance recurrente. `base_gate` es la de un día de partido.
+    weekly_gate: int
+    other_fixed: int
+
+
+@dataclass
 class EconomyResponse:
     team_name: str
     currency: str
@@ -228,6 +272,11 @@ class EconomyResponse:
     # que el teaser de Proyección muestre progreso real, no un número
     # copiado a mano que puede desincronizarse.
     min_weeks_for_timeseries: int
+    #: Nomina de la plantilla de HOY. Sale de los jugadores, no de los
+    #: cierres economicos: el cierre da el total pagado, pero no quien lo
+    #: cobra ni de donde es, que es justo lo que hace falta para el recargo.
+    wage_bill: WageBill | None
+    weekly_structure: RecurringWeek
 
 
 # Los totales de la semana ya cerrada. Solo los TOTALES, no el desglose: un
@@ -299,17 +348,31 @@ def estructura_semanal(cierres: list[m.EconomySnapshot], rate: float) -> WeeklyS
     avg_sponsors_total = sum(
         total_sponsor_income(s.income_sponsors, s.income_sponsor_bonuses) for s in recent
     ) / len(recent)
-    avg_spectators = avg("income_spectators")
-    gate_per_home_match = (
-        conv(avg_spectators) * SEASON_WEEKS // HOME_MATCHES_PER_SEASON if avg_spectators else 0
-    )
+    # La taquilla se lee de `last_income_spectators`, NO de
+    # `income_spectators`. Un cierre es la primera lectura que ya trae los
+    # números nuevos, así que su `income_spectators` es lo que lleva
+    # recaudado la semana que ACABA DE EMPEZAR: cero, salvo que el partido en
+    # casa caiga el mismo día. Con las dos últimas semanas cerradas la
+    # taquilla salía 0 casi siempre, y el balance recurrente de Pulgas
+    # Arrechas decía -435.347 cuando la taquilla real promedia 380.240 a la
+    # semana (2026-09-02).
+    #
+    # Y se promedia sobre TODAS las semanas cerradas, no sobre las dos
+    # últimas como el resto: los sueldos o el mantenimiento son planos y dos
+    # semanas bastan, pero la taquilla es intermitente por definición y con
+    # una ventana de dos alterna entre el doble y cero según el calendario.
+    taquillas = [s.last_income_spectators for s in cierres if s.last_income_spectators is not None]
+    gate_per_week = conv(sum(taquillas) / len(taquillas)) if taquillas else 0
     return WeeklyStructure(
         salaries=conv(avg("costs_players")),
         staff=conv(avg("costs_staff")),
         arena_maintenance=conv(avg("costs_arena")),
         sponsors=conv(avg_sponsors_total),
-        base_gate=gate_per_home_match,
+        # Lo que se recauda en UN partido en casa, que es lo que sortea la
+        # simulación. Reparte lo mismo: por 16/7 aquí, por 7/16 al sortear.
+        base_gate=gate_per_week * SEASON_WEEKS // HOME_MATCHES_PER_SEASON,
         other_fixed=conv(avg("costs_youth")) + conv(avg("costs_financial")),
+        weekly_gate=gate_per_week,
     )
 
 
@@ -363,6 +426,65 @@ def weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
 class EconomyQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
+
+    async def _wage_bill(self, team: m.Team, rate: float) -> WageBill | None:
+        """Nomina de la plantilla actual, separando el recargo por extranjeros.
+
+        Un jugador es extranjero cuando su pais de origen no es el del pais en
+        el que juega el equipo, que es lo que decide el recargo: no importa de
+        donde lo compraste ni cuanto lleva contigo. El pais del equipo se saca
+        de su liga, no del nombre de la liga, que es texto y cambia de idioma.
+
+        Devuelve `None` cuando no se sabe de donde es NINGUN jugador: sin eso
+        el indicador diria "0 extranjeros" a un equipo entero de extranjeros,
+        que es peor que no decir nada.
+        """
+        pais_equipo = await self._s.scalar(
+            select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+        )
+        ultima = (
+            select(
+                m.PlayerSnapshot.player_id.label("pid"),
+                func.max(m.PlayerSnapshot.captured_at).label("mx"),
+            )
+            .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+            .where(m.Player.team_id == team.id, m.Player.left_team_at.is_(None))
+            .group_by(m.PlayerSnapshot.player_id)
+            .subquery()
+        )
+        filas = await self._s.execute(
+            select(m.PlayerSnapshot.salary, m.PlayerSnapshot.country_id).join(
+                ultima,
+                (m.PlayerSnapshot.player_id == ultima.c.pid)
+                & (m.PlayerSnapshot.captured_at == ultima.c.mx),
+            )
+        )
+        propio = pais_equipo.country_id if pais_equipo else 0
+        total = extranjeros = sueldo_extranjero = desconocidos = 0
+        jugadores = 0
+        for salario, country_id in filas:
+            jugadores += 1
+            total += salario or 0
+            if not country_id:
+                desconocidos += 1
+            elif is_foreign(country_id, propio):
+                extranjeros += 1
+                sueldo_extranjero += salario or 0
+        if jugadores == 0 or desconocidos == jugadores or not propio:
+            return None
+
+        def conv(v: int) -> int:
+            return int(round(v / rate))
+
+        return WageBill(
+            total=conv(total),
+            players=jugadores,
+            foreign_players=extranjeros,
+            foreign_salary=conv(sueldo_extranjero),
+            surcharge=foreign_surcharge(conv(sueldo_extranjero)),
+            country=pais_equipo.country_name if pais_equipo else "",
+            unknown_country=desconocidos,
+        )
 
     async def _raw_snapshots(self, team_id: int) -> list[m.EconomySnapshot]:
         rows = await self._s.execute(
@@ -624,6 +746,16 @@ class EconomyQueryService:
             weekly_breakdown=weekly_breakdown,
             season_breakdown_totals=season_breakdown_totals,
             min_weeks_for_timeseries=MIN_WEEKS_FOR_TIMESERIES,
+            wage_bill=await self._wage_bill(team, rate),
+            weekly_structure=RecurringWeek(
+                salaries=structure.salaries,
+                staff=structure.staff,
+                arena_maintenance=structure.arena_maintenance,
+                sponsors=structure.sponsors,
+                base_gate=structure.base_gate,
+                weekly_gate=structure.gate_per_week,
+                other_fixed=structure.other_fixed,
+            ),
         )
 
 

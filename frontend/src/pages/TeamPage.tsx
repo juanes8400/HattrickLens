@@ -261,6 +261,28 @@ export function TeamPage() {
       ),
     },
     {
+      // El recargo del 20% por jugador de fuera va DENTRO del salario, así
+      // que la columna de al lado no lo enseña: había que saber la regla y
+      // dividir a mano por seis, jugador a jugador. Puesta aquí y ordenable,
+      // la pregunta «a quién le estoy pagando el recargo» se contesta con un
+      // clic en la cabecera (2026-09-02, pedido del usuario).
+      key: "foreignSurcharge",
+      optional: true,
+      header: "Recargo extranjero",
+      value: (player) => player.foreignSurcharge,
+      render: (player) =>
+        player.isForeign ? (
+          money(player.foreignSurcharge, data.currency)
+        ) : (
+          <span
+            className="text-[var(--muted)]"
+            title="Es del país del equipo: no paga recargo"
+          >
+            —
+          </span>
+        ),
+    },
+    {
       key: "purchase",
       optional: true,
       header: "Precio compra",

@@ -1265,6 +1265,11 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
                     int(econ.cash / rate_),
                     currency,
                     season_week=season_week_for_datetime(econ_world, econ.captured_at),
+                    # Lo que entra de forma recurrente, para poder juzgar si
+                    # el déficit es grande o es el redondeo del equilibrio.
+                    weekly_income=(
+                        estructura.sponsors + estructura.gate_per_week if estructura else None
+                    ),
                 )
             )
 

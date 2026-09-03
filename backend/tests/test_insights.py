@@ -355,3 +355,24 @@ def test_an_orphaned_key_is_recognisable() -> None:
     assert ins.is_known_key("player.injured.474559832")
     assert ins.is_known_key("squad.ageing")
     assert ins.is_known_key("economy.structural_deficit.83-04")
+
+
+def test_structural_deficit_calla_cuando_es_el_redondeo_del_equilibrio() -> None:
+    """Un déficit pequeño al lado de lo que entra no es un agujero.
+
+    Pulgas Arrechas, 2026-09-02: -21.259 a la semana contra 538.088 de ingreso
+    recurrente, o sea un 4%, y caja para 441 semanas. Antes de que la taquilla
+    entrara en el balance recurrente ese mismo club salía con -435.347 y la
+    alerta tenía todo el sentido; con el número bueno, avisar de esto es
+    llenar el buzón de ruido.
+    """
+    assert (
+        structural_deficit(-21_259, 9_391_047, "US$", weekly_income=538_088) == []
+    )
+
+
+def test_structural_deficit_avisa_aunque_haya_caja_de_sobra() -> None:
+    """El tamaño manda sobre las semanas de caja: un agujero del 40% del
+    ingreso recurrente no se cierra solo por tener el colchón grande."""
+    out = structural_deficit(-217_000, 21_034_174, "US$", weekly_income=538_088)
+    assert out and out[0].severity is Severity.WARNING

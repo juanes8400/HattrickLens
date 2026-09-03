@@ -553,6 +553,12 @@ export interface SquadPlayer {
   honestyLabel: string;
   countryId: number;
   countryCode: string | null;
+  /** Si su país de origen no es el del equipo: Hattrick cobra por él un 20%
+   *  más de sueldo. */
+  isForeign: boolean;
+  /** Cuánto de su sueldo es ese recargo. El sueldo ya lo lleva dentro, así
+   *  que es una sexta parte de lo que se paga, no un 20% de ello. */
+  foreignSurcharge: number;
   leagueGoals: number;
   cupGoals: number;
   friendliesGoals: number;
@@ -1983,6 +1989,27 @@ export interface Economy {
   /** Umbral real para activar el modelo de series de tiempo — usar este
    * valor para el teaser de progreso en Proyección, no copiarlo a mano. */
   minWeeksForTimeseries: number;
+  /** Nómina de la plantilla de hoy, con el recargo del 20% por extranjero ya
+   *  despejado. Es `null` cuando no se sabe de dónde es ningún jugador. */
+  wageBill: {
+    total: number;
+    players: number;
+    foreignPlayers: number;
+    foreignSalary: number;
+    surcharge: number;
+    country: string;
+    unknownCountry: number;
+  } | null;
+  /** Lo recurrente de una semana, que es contra lo que hay que medir un gasto
+   *  fijo: la semana en curso puede llevar una venta dentro. */
+  weeklyStructure: {
+    salaries: number;
+    staff: number;
+    arenaMaintenance: number;
+    sponsors: number;
+    baseGate: number;
+    otherFixed: number;
+  };
 }
 
 // ── Estadio ─────────────────────────────────────────────────────────────────

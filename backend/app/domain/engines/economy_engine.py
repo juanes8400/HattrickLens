@@ -45,43 +45,78 @@ def total_sponsor_income(income_sponsors: int, income_sponsor_bonuses: int | Non
     return income_sponsors + (income_sponsor_bonuses or 0)
 
 
-def structural_balance(
-    income_sponsors: int,
-    income_spectators: int,
-    costs_players: int,
-    costs_staff: int,
-    costs_arena: int,
-) -> int:
-    """Balance semanal sin transferencias, con la taquilla ya amortizada.
-    Única fuente de verdad: cualquier pantalla que muestre "balance
-    estructural" debe llamar a esta función, no reimplementar la suma.
+#: Lo que Hattrick recarga sobre el sueldo base de un jugador cuyo país de
+#: origen no es el del equipo.
+FOREIGN_WAGE_MARKUP = 0.20
 
-    `income_sponsors` debe venir YA sumado con el bono (ver
-    `total_sponsor_income`) — esta función no lo hace por sí misma porque
-    no siempre tiene el snapshot completo a mano, solo los escalares."""
-    gate_per_week = (
-        income_spectators * SEASON_WEEKS // HOME_MATCHES_PER_SEASON if income_spectators else 0
+
+def is_foreign(player_country_id: int, team_country_id: int) -> bool:
+    """Si el club paga recargo por este jugador.
+
+    Sin país conocido de un lado o del otro no es ni de fuera ni de dentro:
+    devuelve `False`, que es lo único que no inventa un dato. Única fuente de
+    verdad: quien necesite saber si alguien es extranjero pasa por aquí, no
+    compara los dos identificadores por su cuenta.
+    """
+    return (
+        bool(team_country_id) and bool(player_country_id) and player_country_id != team_country_id
     )
-    return income_sponsors + gate_per_week - costs_players - costs_staff - costs_arena
+
+
+def foreign_surcharge(salary: int) -> int:
+    """El recargo que ya viene DENTRO de un sueldo pagado.
+
+    El sueldo que entrega Hattrick es el de base multiplicado por 1,2, así que
+    el recargo no es un 20% de lo que se paga sino un 20/120 de ello, o sea
+    una sexta parte. Calcularlo como el 20% lo infla justo un 20%.
+    """
+    return round(salary * FOREIGN_WAGE_MARKUP / (1 + FOREIGN_WAGE_MARKUP))
 
 
 @dataclass(frozen=True)
 class WeeklyStructure:
-    """Componentes recurrentes conocidos, en moneda local por semana."""
+    """Componentes recurrentes conocidos, en moneda local por semana.
+
+    La taquilla viaja DOS veces porque se usa para dos cosas distintas, y
+    confundirlas costó el número que más se mira de la aplicación
+    (2026-09-02):
+
+    * `base_gate` es lo que se recauda EN UN PARTIDO EN CASA. Es lo que la
+      simulación necesita, porque sortea semana a semana si toca jugar en
+      casa y suma la taquilla entera sólo entonces.
+    * `weekly_gate` es esa misma taquilla repartida entre todas las semanas.
+      Es lo que necesita el balance recurrente, que no sortea nada.
+
+    Antes había un solo campo, `base_gate`, y el balance lo sumaba tal cual:
+    o sea, cobraba cada semana una taquilla de día de partido. Con siete
+    partidos en casa por temporada de dieciséis semanas eso son 2,3 veces la
+    taquilla que de verdad entra.
+    """
 
     salaries: int
     staff: int
     arena_maintenance: int
     sponsors: int
-    base_gate: int  # taquilla media observada/esperada
+    base_gate: int  # taquilla de UN partido en casa
     other_fixed: int = 0
+    #: Taquilla ya repartida entre todas las semanas. Por omisión se deduce
+    #: de `base_gate`, para que construir la estructura a mano siga siendo
+    #: posible sin repetir el dato.
+    weekly_gate: int | None = None
+
+    @property
+    def gate_per_week(self) -> int:
+        """La taquilla que de verdad entra en una semana cualquiera."""
+        if self.weekly_gate is not None:
+            return self.weekly_gate
+        return self.base_gate * HOME_MATCHES_PER_SEASON // SEASON_WEEKS
 
     @property
     def structural_balance(self) -> int:
         """Balance semanal sin transferencias — el número que importa."""
         return (
             self.sponsors
-            + self.base_gate
+            + self.gate_per_week
             - self.salaries
             - self.staff
             - self.arena_maintenance

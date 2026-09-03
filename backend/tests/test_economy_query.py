@@ -595,3 +595,153 @@ def test_missing_team_returns_none_instead_of_raising() -> None:
             return await EconomyQueryService(s).get(999999)
 
     assert run(go()) is None
+
+
+def test_wage_bill_despeja_el_recargo_por_extranjero() -> None:
+    """El 20% por jugador de fuera viene DENTRO del sueldo, no encima.
+
+    Hattrick cobra un 20% más por cada jugador cuyo país de origen no es el
+    del equipo, y el sueldo que entrega ya lo lleva sumado. El recargo es por
+    tanto una sexta parte de lo pagado (sueldo = base × 1,2), no un 20% de
+    ello: confundirlo infla la cifra un 20% justo en el indicador que existe
+    para medirla.
+    """
+
+    async def go():
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as s:
+            team = m.Team(
+                ht_team_id=1,
+                name="Test FC",
+                currency_rate=10.0,
+                currency_name="US$",
+                ht_league_id=19,
+            )
+            s.add(team)
+            s.add(
+                m.WorldContext(
+                    ht_league_id=19, country_id=19, country_code="CO", country_name="Colombia"
+                )
+            )
+            await s.commit()
+
+            base = datetime(2026, 6, 1, tzinfo=UTC)
+            s.add(_economy_row(1, team.id, base))
+            s.add(_economy_row(2, team.id, base + timedelta(days=7)))
+            # Dos locales y dos de fuera. Los sueldos son distintos entre sí
+            # para que un error de agrupación no pase desapercibido.
+            plantilla = [
+                (100, 12_000, 19),
+                (101, 24_000, 19),
+                (102, 60_000, 35),
+                (103, 120_000, 3),
+            ]
+            jugadores = []
+            for ht_id, _salario, _pais in plantilla:
+                jugador = m.Player(
+                    ht_player_id=ht_id, first_name="J", last_name=str(ht_id), team_id=team.id
+                )
+                s.add(jugador)
+                jugadores.append(jugador)
+            await s.commit()
+            for jugador, (_ht, salario, pais) in zip(jugadores, plantilla, strict=True):
+                s.add(
+                    m.PlayerSnapshot(
+                        sync_id=1,
+                        player_id=jugador.id,
+                        captured_at=base,
+                        age_years=25,
+                        age_days=0,
+                        tsi=1000,
+                        form=5,
+                        stamina=5,
+                        experience=5,
+                        salary=salario,
+                        country_id=pais,
+                        content_hash=bytes([jugador.id]) * 32,
+                    )
+                )
+            await s.commit()
+            return await EconomyQueryService(s).get(team.id)
+
+    d = run(go())
+    assert d is not None
+    w = d.wage_bill
+    assert w is not None
+    assert w.country == "Colombia"
+    assert w.players == 4
+    assert w.foreign_players == 2
+    # Todo en moneda local, o sea dividido por la tasa de 10.
+    assert w.total == (12_000 + 24_000 + 60_000 + 120_000) // 10
+    assert w.foreign_salary == (60_000 + 120_000) // 10
+    # Una SEXTA parte de lo pagado por los de fuera, no un quinto de ello:
+    # 18.000 pagados salen de 15.000 de base más 3.000 de recargo.
+    assert w.surcharge == w.foreign_salary // 6 == 3_000
+    assert w.unknown_country == 0
+
+
+def test_wage_bill_es_none_cuando_no_se_sabe_de_donde_es_nadie() -> None:
+    """Sin país no hay indicador: decir «0 extranjeros» a un equipo entero de
+    extranjeros es peor que no decir nada."""
+
+    async def go():
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as s:
+            team = m.Team(
+                ht_team_id=1,
+                name="Test FC",
+                currency_rate=10.0,
+                currency_name="US$",
+                ht_league_id=19,
+            )
+            s.add(team)
+            s.add(
+                m.WorldContext(
+                    ht_league_id=19, country_id=19, country_code="CO", country_name="Colombia"
+                )
+            )
+            await s.commit()
+            base = datetime(2026, 6, 1, tzinfo=UTC)
+            s.add(_economy_row(1, team.id, base))
+            s.add(_economy_row(2, team.id, base + timedelta(days=7)))
+            jugador = m.Player(
+                ht_player_id=200, first_name="J", last_name="200", team_id=team.id
+            )
+            s.add(jugador)
+            await s.commit()
+            s.add(
+                m.PlayerSnapshot(
+                    sync_id=1,
+                    player_id=jugador.id,
+                    captured_at=base,
+                    age_years=25,
+                    age_days=0,
+                    tsi=1000,
+                    form=5,
+                    stamina=5,
+                    experience=5,
+                    salary=50_000,
+                    country_id=0,
+                    content_hash=b"x" * 32,
+                )
+            )
+            await s.commit()
+            return await EconomyQueryService(s).get(team.id)
+
+    d = run(go())
+    assert d is not None
+    assert d.wage_bill is None

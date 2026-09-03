@@ -169,11 +169,19 @@ def inefficient_training(
 # ── Economía ────────────────────────────────────────────────────────────────
 
 
+#: Por debajo de esta fracción del ingreso recurrente, el déficit deja de ser
+#: una alerta. Perder un 4% de lo que entra cada semana no es un agujero: es
+#: el redondeo de un club en equilibrio, y un buzón con ruido dentro enseña a
+#: no abrirlo. Un 40%, con la caja que sea, sí es un agujero.
+DEFICIT_SHARE_OF_INCOME = 0.10
+
+
 def structural_deficit(
     structural_balance: int,
     cash: int,
     currency: str = "",
     season_week: str | None = None,
+    weekly_income: int | None = None,
 ) -> list[Insight]:
     """HL-051: la operación pierde dinero aunque el titular sea positivo.
 
@@ -187,6 +195,14 @@ def structural_deficit(
     if structural_balance >= 0:
         return []
     semanas = cash // abs(structural_balance) if structural_balance else 999
+    # El tamaño manda sobre las semanas de caja. Un déficit pequeño al lado de
+    # lo que entra cada semana no merece avisar aunque dure para siempre; uno
+    # grande sí, aunque haya caja para años, porque la caja se acaba y el
+    # agujero no se cierra solo (2026-09-02). Hasta hoy esto no se notaba: la
+    # taquilla no entraba en el balance recurrente y el déficit salía veinte
+    # veces mayor de lo que era, así que todo parecía grave.
+    if weekly_income and abs(structural_balance) < weekly_income * DEFICIT_SHARE_OF_INCOME:
+        return []
     sev = Severity.DANGER if semanas < 20 else Severity.WARNING
     return [
         Insight(

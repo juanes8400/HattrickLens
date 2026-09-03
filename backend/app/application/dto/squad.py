@@ -38,6 +38,13 @@ class SquadPlayer(Base):
     honesty_label: str
     country_id: int
     country_code: str | None
+    #: Si su país de origen no es el del equipo. Hattrick le cobra al club
+    #: un 20% más de sueldo por él.
+    is_foreign: bool = False
+    #: Cuánto de su sueldo es ese recargo. El sueldo ya lo lleva dentro
+    #: (sueldo = base × 1,2), así que es una sexta parte de lo que se paga,
+    #: no un 20% de ello. Vale 0 para los locales.
+    foreign_surcharge: int = 0
     league_goals: int
     cup_goals: int
     friendlies_goals: int
