@@ -187,7 +187,10 @@ function KpisSection({
   // Contra el ingreso RECURRENTE, no contra el de la semana en curso: una
   // semana con una venta dentro haría parecer barata una nómina que no se
   // movió.
-  const ingresoFijo = weeklyStructure.sponsors + weeklyStructure.baseGate;
+  // `weeklyGate`, no `baseGate`: el segundo es la taquilla de un DÍA DE
+  // PARTIDO y sumarlo a un ingreso semanal enseñaba 1.070.486 donde entran
+  // 538.088. Es exactamente el mismo error que acabamos de quitar del motor.
+  const ingresoFijo = weeklyStructure.sponsors + weeklyStructure.weeklyGate;
   const gastoFijo =
     weeklyStructure.salaries +
     weeklyStructure.staff +
@@ -325,7 +328,7 @@ function KpisSection({
             label="Entra"
             value={`${money(ingresoFijo, data.currency)}/sem`}
             hint={
-              weeklyStructure.baseGate > 0
+              weeklyStructure.weeklyGate > 0
                 ? "patrocinios y taquilla"
                 : "patrocinios; sin partido en casa en las semanas cerradas"
             }

@@ -2007,7 +2007,11 @@ export interface Economy {
     staff: number;
     arenaMaintenance: number;
     sponsors: number;
+    /** La taquilla de UN partido en casa, que es lo que sortea la
+     *  simulación. Para sumarla a un ingreso semanal va `weeklyGate`. */
     baseGate: number;
+    /** La misma taquilla ya repartida entre todas las semanas. */
+    weeklyGate: number;
     otherFixed: number;
   };
 }

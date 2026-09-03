@@ -89,11 +89,12 @@ export function LineupPage() {
 
   /** La X que saca a alguien del reparto sin arrastrarlo.
    *
-   *  En la cancha va flotando en la esquina de la tarjeta y sólo aparece al
-   *  pasar por encima o al enfocarla con el teclado: son once tarjetas
-   *  pequeñas y once aspas siempre visibles taparían el rating, que es lo que
-   *  se viene a leer. En el banquillo va en su sitio de la fila, donde hay
-   *  espacio de sobra. */
+   *  En la cancha va flotando en la esquina de la tarjeta, tenue para no
+   *  competir con el rating, y se enciende al pasar por encima o al enfocarla
+   *  con el teclado. Tenue pero SIEMPRE visible: escondida tras `hover` las
+   *  once aspas quedaban en opacidad 0 en un móvil, donde no hay hover que
+   *  las devuelva, y desde la cancha no había forma de sacar a nadie
+   *  (2026-09-03). En el banquillo va como botón, que ahí sobra el espacio. */
   const BotonSacar = ({
     htPlayerId,
     player,
@@ -111,7 +112,7 @@ export function LineupPage() {
       className={clsx(
         "leading-none",
         enCancha
-          ? "absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full text-sm text-white/40 opacity-0 transition hover:bg-black/40 hover:text-white focus-visible:opacity-100 group-hover:opacity-100"
+          ? "absolute right-0.5 top-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full text-sm text-white/35 transition hover:bg-black/40 hover:text-white focus-visible:text-white"
           : "min-h-6 rounded border border-[var(--border)] px-2 text-xs text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]",
       )}
     >
@@ -171,7 +172,7 @@ export function LineupPage() {
       title={`Arrastra a ${a.player} fuera del reparto, o pulsa la X`}
     >
       <BotonSacar htPlayerId={a.htPlayerId} player={a.player} enCancha />
-      <div className="truncate pr-4 text-[9px] uppercase tracking-wide text-white/70">
+      <div className="truncate pr-5 text-[9px] uppercase tracking-wide text-white/70">
         {a.label}
       </div>
       <div className="truncate text-[11px] font-semibold text-white">
