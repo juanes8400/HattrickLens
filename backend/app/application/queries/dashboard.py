@@ -6,6 +6,7 @@ materializada `mv_team_dashboard` (docs/02) sin cambiar este contrato.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -195,6 +196,28 @@ class DashboardQueryService:
             .limit(1)
         )
         if tr:
+            # Morale y SelfConfidence pueden venir como -1 mientras se juega
+            # un partido. La configuración sí sale de la última foto, pero
+            # cada KPI psicológico conserva su última lectura real de manera
+            # independiente.
+            async def ultimo_nivel_real(campo: Any) -> int | None:
+                value = await self._s.scalar(
+                    select(campo)
+                    .where(
+                        m.TrainingSnapshot.team_id == team_id,
+                        campo.is_not(None),
+                        campo >= 0,
+                    )
+                    .order_by(
+                        m.TrainingSnapshot.captured_at.desc(),
+                        m.TrainingSnapshot.id.desc(),
+                    )
+                    .limit(1)
+                )
+                return int(value) if value is not None else None
+
+            morale = await ultimo_nivel_real(m.TrainingSnapshot.morale)
+            confidence = await ultimo_nivel_real(m.TrainingSnapshot.self_confidence)
             # El porcentaje y la edad media salen del MISMO contexto que usa la
             # proyección de entrenamiento, no de una regla aparte: entrenador,
             # asistentes e intensidad ya están resueltos ahí con su
@@ -220,10 +243,14 @@ class DashboardQueryService:
                 level=tr.training_level,
                 stamina_part=tr.stamina_part,
                 trainer_name=tr.trainer_name,
-                morale=tr.morale,
-                morale_name=TEAM_SPIRIT.get(tr.morale, "?"),
-                confidence=tr.self_confidence,
-                confidence_name=CONFIDENCE.get(tr.self_confidence, "?"),
+                morale=morale,
+                morale_name=(
+                    TEAM_SPIRIT.get(morale, "Sin dato") if morale is not None else "Sin dato"
+                ),
+                confidence=confidence,
+                confidence_name=(
+                    CONFIDENCE.get(confidence, "Sin dato") if confidence is not None else "Sin dato"
+                ),
                 efficiency_pct=eficiencia,
                 coach_level=ctx.setup.coach_level if ctx else 0,
                 assistant_level_sum=int(ctx.setup.assistant_level_sum) if ctx else 0,

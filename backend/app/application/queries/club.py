@@ -8,6 +8,7 @@ requiere una llamada adicional ni infiere estados que Hattrick no entregue.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -125,6 +126,60 @@ def _bajadas_de_intensidad(lecturas: list[m.TrainingSnapshot]) -> list[datetime]
     return salida
 
 
+def _nivel_psicologico_real(value: Any) -> bool:
+    """Un nivel publicado por Hattrick, no el -1 temporal ni NULL."""
+    return isinstance(value, int) and value >= 0
+
+
+def _ultimo_nivel_valido(lecturas: Sequence[Any], campo: str) -> int | None:
+    """La última lectura REAL de un indicador, mirando hacia atrás.
+
+    Sirve para los tres --Espíritu, Confianza y popularidad con la afición--
+    y por eso no se ata al tipo de una tabla: los dos primeros viven en las
+    fotos de entrenamiento y el tercero en las de economía.
+    """
+    for row in reversed(lecturas):
+        value = getattr(row, campo)
+        if _nivel_psicologico_real(value):
+            return int(value)
+    return None
+
+
+def _historial_psicologico(lecturas: list[m.TrainingSnapshot]) -> list[dict[str, Any]]:
+    """Parejas observadas aplicando forward-fill independiente.
+
+    ``moodHistory`` es el contrato antiguo que reúne ambos indicadores en una
+    fila. Si uno viene oculto durante el partido, se conserva únicamente ese
+    último valor y el otro todavía puede cambiar. La fila se omite hasta que
+    existan observaciones reales de los dos.
+    """
+    spirit: int | None = None
+    confidence: int | None = None
+    anterior: tuple[int, int] | None = None
+    salida: list[dict[str, Any]] = []
+    for row in lecturas:
+        morale = row.morale
+        self_confidence = row.self_confidence
+        if morale is not None and morale >= 0:
+            spirit = morale
+        if self_confidence is not None and self_confidence >= 0:
+            confidence = self_confidence
+        if spirit is None or confidence is None:
+            continue
+        actual = (spirit, confidence)
+        if actual == anterior:
+            continue
+        salida.append(
+            {
+                "capturedAt": _date(row.captured_at),
+                "spirit": spirit,
+                "confidence": confidence,
+            }
+        )
+        anterior = actual
+    return salida
+
+
 class ClubQueryService:
     """Read-only club view composed from append-only CHPP snapshots."""
 
@@ -160,16 +215,22 @@ class ClubQueryService:
             Que un valor lleve diez días quieto ES información. La línea llega
             hasta donde llega lo que sabemos, y un tramo plano lo dice.
             """
+            validas = [row for row in recientes if _nivel_psicologico_real(getattr(row, campo))]
             puntos = [
-                psi.Lectura(at=row.captured_at, level=getattr(row, campo))
+                psi.Lectura(at=row.captured_at, level=int(getattr(row, campo)))
                 for row in changes_only(
-                    recientes, lambda i: i.captured_at, lambda i: getattr(i, campo)
+                    validas, lambda i: i.captured_at, lambda i: getattr(i, campo)
                 )
             ]
-            if recientes:
-                ultima = recientes[-1]
-                if not puntos or puntos[-1].at != ultima.captured_at:
-                    puntos.append(psi.Lectura(at=ultima.captured_at, level=getattr(ultima, campo)))
+            if validas:
+                # Aunque la última respuesta fuese el -1 temporal, el estado
+                # efectivo sigue siendo la última lectura real. La meseta debe
+                # llegar hasta la captura más reciente para no fingir que el
+                # historial terminó antes del partido.
+                extremo = recientes[-1].captured_at
+                ultimo_nivel = int(getattr(validas[-1], campo))
+                if not puntos or puntos[-1].at != extremo:
+                    puntos.append(psi.Lectura(at=extremo, level=ultimo_nivel))
             return puntos
 
         partidos = await self._partidos_que_cuentan(team, desde)
@@ -306,7 +367,7 @@ class ClubQueryService:
                 await self._s.execute(
                     select(m.TrainingSnapshot)
                     .where(m.TrainingSnapshot.team_id == team_id)
-                    .order_by(m.TrainingSnapshot.captured_at)
+                    .order_by(m.TrainingSnapshot.captured_at, m.TrainingSnapshot.id)
                 )
             ).scalars()
         )
@@ -340,7 +401,9 @@ class ClubQueryService:
             else None
         )
 
-        latest_training = training[-1] if training else None
+        latest_spirit = _ultimo_nivel_valido(training, "morale")
+        latest_confidence = _ultimo_nivel_valido(training, "self_confidence")
+        popularidad_afición = _ultimo_nivel_valido(economy, "supporters_popularity")
         latest_economy = economy[-1] if economy else None
         latest_staff = staff[-1] if staff else None
 
@@ -379,26 +442,33 @@ class ClubQueryService:
             "current": {
                 "spirit": (
                     {
-                        "level": latest_training.morale,
-                        "label": TEAM_SPIRIT.get(latest_training.morale, "Sin dato"),
+                        "level": latest_spirit,
+                        "label": TEAM_SPIRIT.get(latest_spirit, "Sin dato"),
                     }
-                    if latest_training is not None
+                    if latest_spirit is not None
                     else None
                 ),
                 "confidence": (
                     {
-                        "level": latest_training.self_confidence,
-                        "label": CONFIDENCE.get(latest_training.self_confidence, "Sin dato"),
+                        "level": latest_confidence,
+                        "label": CONFIDENCE.get(latest_confidence, "Sin dato"),
                     }
-                    if latest_training is not None
+                    if latest_confidence is not None
                     else None
                 ),
                 "supporters": (
                     {
                         "fanClubSize": latest_economy.fan_club_size,
-                        "popularity": latest_economy.supporters_popularity,
-                        "popularityLabel": POPULARITY.get(
-                            latest_economy.supporters_popularity, "Sin dato"
+                        # La última popularidad REAL, no la de la última foto:
+                        # si la de hoy vino sin dato, lo que sigue siendo
+                        # cierto es la anterior. Mismo criterio que el
+                        # Espíritu y la Confianza, que ya se resuelven cada
+                        # uno por su cuenta.
+                        "popularity": popularidad_afición,
+                        "popularityLabel": (
+                            POPULARITY.get(popularidad_afición, "Sin dato")
+                            if popularidad_afición is not None
+                            else "Sin dato"
                         ),
                     }
                     if latest_economy is not None
@@ -410,21 +480,9 @@ class ClubQueryService:
             # metía espíritu y confianza en un solo eje pese a tener escalas
             # y causas distintas, y que no decía por qué se movía nada.
             "psychology": await self._psicologia(team, training),
-            "moodHistory": [
-                {
-                    "capturedAt": _date(row.captured_at),
-                    "spirit": row.morale,
-                    "confidence": row.self_confidence,
-                }
-                # HL-2xx, 2026-08-12: un punto por CAMBIO real de espíritu o
-                # confianza, no uno por semana ISO — si dos syncs seguidos
-                # leen el mismo valor, no es un dato nuevo.
-                for row in changes_only(
-                    training,
-                    lambda item: item.captured_at,
-                    lambda item: (item.morale, item.self_confidence),
-                )
-            ],
+            "moodHistory": _historial_psicologico(training),
+            # Las fotos sin popularidad real quedan fuera de la serie: una
+            # ausencia dibujada como un cero sería un desplome inventado.
             "supporterHistory": [
                 {
                     "capturedAt": _date(row.captured_at),
@@ -432,7 +490,7 @@ class ClubQueryService:
                     "supportersPopularity": row.supporters_popularity,
                 }
                 for row in changes_only(
-                    economy,
+                    [x for x in economy if _nivel_psicologico_real(x.supporters_popularity)],
                     lambda item: item.captured_at,
                     lambda item: (item.fan_club_size, item.supporters_popularity),
                 )

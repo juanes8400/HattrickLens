@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import start_of_iso_week
@@ -528,6 +528,50 @@ async def _snapshot_for_sync_or_before(
     return current, previous, exact
 
 
+async def _ultimo_nivel_psicologico(
+    session: AsyncSession,
+    team_id: int,
+    campo: Any,
+    limite: m.TrainingSnapshot,
+    *,
+    incluir_limite: bool = True,
+) -> int | None:
+    """Último nivel real hasta una foto; -1/NULL no participan.
+
+    La consulta se hace por campo porque durante un partido Hattrick puede
+    ocultar uno y publicar el otro. Usar una sola fila para ambos volvería a
+    acoplarlos y perdería un cambio válido.
+    """
+    # La comparación temporal pertenece a captured_at, no a la columna de
+    # nivel. Se deja separada para que el operador inclusivo sea explícito.
+    comparacion = or_(
+        m.TrainingSnapshot.captured_at < limite.captured_at,
+        and_(
+            m.TrainingSnapshot.captured_at == limite.captured_at,
+            (
+                m.TrainingSnapshot.id <= limite.id
+                if incluir_limite
+                else m.TrainingSnapshot.id < limite.id
+            ),
+        ),
+    )
+    value = await session.scalar(
+        select(campo)
+        .where(
+            m.TrainingSnapshot.team_id == team_id,
+            comparacion,
+            campo.is_not(None),
+            campo >= 0,
+        )
+        .order_by(
+            m.TrainingSnapshot.captured_at.desc(),
+            m.TrainingSnapshot.id.desc(),
+        )
+        .limit(1)
+    )
+    return int(value) if value is not None else None
+
+
 def _club_item(
     key: str,
     label: str,
@@ -582,20 +626,52 @@ async def _club_report(
     )
     items: list[dict[str, Any]] = []
     if training is not None:
+        current_morale = await _ultimo_nivel_psicologico(
+            session,
+            team_id,
+            m.TrainingSnapshot.morale,
+            training,
+        )
+        current_confidence = await _ultimo_nivel_psicologico(
+            session,
+            team_id,
+            m.TrainingSnapshot.self_confidence,
+            training,
+        )
+        old_morale = (
+            await _ultimo_nivel_psicologico(
+                session,
+                team_id,
+                m.TrainingSnapshot.morale,
+                old_training,
+            )
+            if old_training is not None
+            else None
+        )
+        old_confidence = (
+            await _ultimo_nivel_psicologico(
+                session,
+                team_id,
+                m.TrainingSnapshot.self_confidence,
+                old_training,
+            )
+            if old_training is not None
+            else None
+        )
         items.extend(
             (
                 _club_item(
                     "team_spirit",
                     "Espíritu del equipo",
-                    old_training.morale if old_training else None,
-                    training.morale,
+                    old_morale,
+                    current_morale,
                     TEAM_SPIRIT,
                 ),
                 _club_item(
                     "self_confidence",
                     "Confianza",
-                    old_training.self_confidence if old_training else None,
-                    training.self_confidence,
+                    old_confidence,
+                    current_confidence,
                     CONFIDENCE,
                 ),
                 # 2026-08-22, reportado por el usuario: cambió el tipo de
@@ -708,7 +784,13 @@ async def _changes_for_sync(session: AsyncSession, sync_id: int | None) -> list[
             select(m.TrainingSnapshot)
             .where(
                 m.TrainingSnapshot.team_id == current_training.team_id,
-                m.TrainingSnapshot.captured_at < current_training.captured_at,
+                or_(
+                    m.TrainingSnapshot.captured_at < current_training.captured_at,
+                    and_(
+                        m.TrainingSnapshot.captured_at == current_training.captured_at,
+                        m.TrainingSnapshot.id < current_training.id,
+                    ),
+                ),
             )
             .order_by(m.TrainingSnapshot.captured_at.desc(), m.TrainingSnapshot.id.desc())
             .limit(1)
@@ -723,10 +805,37 @@ async def _changes_for_sync(session: AsyncSession, sync_id: int | None) -> list[
                 "self_confidence": snapshot.self_confidence,
             }
 
-        rebuilt_training = diff_training(
-            values(previous_training) if previous_training is not None else None,
-            values(current_training),
+        current_values = values(current_training)
+        current_values["morale"] = await _ultimo_nivel_psicologico(
+            session,
+            current_training.team_id,
+            m.TrainingSnapshot.morale,
+            current_training,
         )
+        current_values["self_confidence"] = await _ultimo_nivel_psicologico(
+            session,
+            current_training.team_id,
+            m.TrainingSnapshot.self_confidence,
+            current_training,
+        )
+        previous_values = values(previous_training) if previous_training is not None else None
+        if previous_values is not None:
+            previous_values["morale"] = await _ultimo_nivel_psicologico(
+                session,
+                current_training.team_id,
+                m.TrainingSnapshot.morale,
+                current_training,
+                incluir_limite=False,
+            )
+            previous_values["self_confidence"] = await _ultimo_nivel_psicologico(
+                session,
+                current_training.team_id,
+                m.TrainingSnapshot.self_confidence,
+                current_training,
+                incluir_limite=False,
+            )
+
+        rebuilt_training = diff_training(previous_values, current_values)
 
     def _rebuilt_rows() -> list[dict[str, Any]]:
         return [

@@ -34,7 +34,13 @@ def _player_snapshot(sync_id: int, player_id: int, captured_at: datetime, **upda
     return m.PlayerSnapshot(**values)
 
 
-def _training(sync_id: int, team_id: int, captured_at: datetime, morale: int):
+def _training(
+    sync_id: int,
+    team_id: int,
+    captured_at: datetime,
+    morale: int,
+    confidence: int = 5,
+):
     return m.TrainingSnapshot(
         sync_id=sync_id,
         team_id=team_id,
@@ -49,7 +55,7 @@ def _training(sync_id: int, team_id: int, captured_at: datetime, morale: int):
         trainer_ht_id=1,
         trainer_name="Entrenador",
         morale=morale,
-        self_confidence=5,
+        self_confidence=confidence,
         content_hash=bytes([sync_id]) * 32,
     )
 
@@ -255,6 +261,95 @@ def test_un_sync_repetido_no_reensena_el_informe_anterior() -> None:
         assert club["team_spirit"]["before"] == 7
         assert club["team_spirit"]["current"] == 6
         assert club["fan_club_size"]["delta"] == 1
+        await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_historical_report_ignores_each_placeholder_and_same_time_future_rows() -> None:
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        initial_at = datetime.now(UTC) - timedelta(days=7)
+        changed_at = initial_at + timedelta(days=7)
+        async with factory() as session:
+            team = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            session.add(team)
+            await session.flush()
+
+            initial = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players,training",
+                status="completed",
+                started_at=initial_at,
+                finished_at=initial_at,
+            )
+            session.add(initial)
+            await session.flush()
+            session.add(_training(initial.id, team.id, initial_at, morale=7, confidence=5))
+
+            target = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players,training",
+                status="completed",
+                started_at=changed_at,
+                finished_at=changed_at,
+            )
+            session.add(target)
+            await session.flush()
+            session.add_all(
+                [
+                    _training(target.id, team.id, changed_at, morale=-1, confidence=6),
+                    m.SyncChange(
+                        sync_id=target.id,
+                        team_id=team.id,
+                        category="entrenamiento",
+                        summary="Confianza: -1 -> Alta",
+                        created_at=changed_at,
+                    ),
+                ]
+            )
+
+            # Una captura posterior con la misma hora no puede filtrarse hacia
+            # atrás en el informe seleccionado. El ID desambigua el instante.
+            later = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="training",
+                status="completed",
+                started_at=changed_at,
+                finished_at=changed_at,
+            )
+            session.add(later)
+            await session.flush()
+            session.add(_training(later.id, team.id, changed_at, morale=4, confidence=-1))
+            await session.commit()
+
+            report = await build_sync_comparison(session, team.id, target.id)
+
+        training_changes = [
+            item for item in report["reportChanges"] if item["category"] == "entrenamiento"
+        ]
+        assert [item["summary"] for item in training_changes] == [
+            "Confianza: Sólida -> Alta"
+        ]
+        assert all(
+            item["detail"].get(key) != -1
+            for item in training_changes
+            for key in ("before", "after")
+        )
+        club = {item["key"]: item for item in report["clubChanges"]}
+        assert club["team_spirit"]["current"] == 7
+        assert club["self_confidence"]["current"] == 6
         await engine.dispose()
 
     asyncio.run(scenario())

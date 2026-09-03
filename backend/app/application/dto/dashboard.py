@@ -58,9 +58,9 @@ class TrainingSummary(Base):
     level: int
     stamina_part: int
     trainer_name: str
-    morale: int
+    morale: int | None
     morale_name: str
-    confidence: int
+    confidence: int | None
     confidence_name: str
     # Cuánto del entrenamiento máximo posible está recibiendo el club: 100% es
     # entrenador 5/5, dos asistentes de nivel 5 y toda la intensidad en la

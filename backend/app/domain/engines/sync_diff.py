@@ -410,6 +410,11 @@ def diff_economy(
         o, n = old.get(field_name), new.get(field_name)
         if o is None or n is None or o == n:
             continue
+        # La popularidad con la afición es un NIVEL, como el Espíritu: un -1
+        # es "ahora mismo no se sabe", no un desplome. Anunciarlo llenaría
+        # Cambios de subidas y bajadas que nunca ocurrieron.
+        if field_name == "supporters_popularity" and (o < 0 or n < 0):
+            continue
         if field_name in ECONOMY_MONEY_FIELDS:
             o_conv, n_conv = round(o / rate), round(n / rate)
             if o_conv == n_conv:
@@ -496,8 +501,19 @@ def diff_training(old: dict[str, Any] | None, new: dict[str, Any]) -> list[Chang
                 summary=f"Nuevo entrenador: {new_trainer}",
             )
         )
-    if old.get("morale") != new.get("morale"):
-        before, after = old.get("morale", -1), new.get("morale", -1)
+
+    # -1 es un placeholder temporal de training.xml durante partidos; None es
+    # la ausencia honesta usada al persistir si aún no existe una lectura
+    # previa. Ninguno de los dos puede convertirse en un cambio psicológico.
+    def nivel_real(value: Any) -> bool:
+        return isinstance(value, int) and value >= 0
+
+    if (
+        nivel_real(old.get("morale"))
+        and nivel_real(new.get("morale"))
+        and old.get("morale") != new.get("morale")
+    ):
+        before, after = old["morale"], new["morale"]
         changes.append(
             Change(
                 category="entrenamiento",
@@ -515,9 +531,13 @@ def diff_training(old: dict[str, Any] | None, new: dict[str, Any]) -> list[Chang
                 ),
             )
         )
-    if old.get("self_confidence") != new.get("self_confidence"):
-        before = old.get("self_confidence", -1)
-        after = new.get("self_confidence", -1)
+    if (
+        nivel_real(old.get("self_confidence"))
+        and nivel_real(new.get("self_confidence"))
+        and old.get("self_confidence") != new.get("self_confidence")
+    ):
+        before = old["self_confidence"]
+        after = new["self_confidence"]
         changes.append(
             Change(
                 category="entrenamiento",

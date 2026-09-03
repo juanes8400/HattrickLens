@@ -626,7 +626,10 @@ class EconomySnapshot(Base):
     cash: Mapped[int] = mapped_column(BigInteger)
     expected_cash: Mapped[int] = mapped_column(BigInteger)
     sponsors_popularity: Mapped[int] = mapped_column(SmallInteger)
-    supporters_popularity: Mapped[int] = mapped_column(SmallInteger)
+    # None = economy.xml devolvió el placeholder -1 y todavía no había una
+    # observación válida anterior que conservar. Mismo criterio que el
+    # Espíritu y la Confianza: un nivel ausente no es un nivel bajo.
+    supporters_popularity: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     fan_club_size: Mapped[int] = mapped_column(Integer)
     income_spectators: Mapped[int] = mapped_column(Integer)
     income_sponsors: Mapped[int] = mapped_column(Integer)
@@ -692,8 +695,11 @@ class TrainingSnapshot(Base):
     last_stamina_part: Mapped[int] = mapped_column(SmallInteger)
     trainer_ht_id: Mapped[int] = mapped_column(BigInteger)
     trainer_name: Mapped[str] = mapped_column(String(128))
-    morale: Mapped[int] = mapped_column(SmallInteger, default=-1)
-    self_confidence: Mapped[int] = mapped_column(SmallInteger, default=-1)
+    # None = training.xml devolvió el placeholder -1 y todavía no existía una
+    # observación válida anterior que conservar. No se almacena -1 como si
+    # fuera un nivel real.
+    morale: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    self_confidence: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     formation_xp_json: Mapped[str | None] = mapped_column(String(1000))
     content_hash: Mapped[bytes] = mapped_column(LargeBinary(32))
 

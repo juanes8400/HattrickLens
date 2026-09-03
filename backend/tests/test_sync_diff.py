@@ -312,6 +312,31 @@ def test_spirit_change_keeps_both_the_level_and_its_name() -> None:
     assert change.kind == "level"
 
 
+def test_training_diff_ignores_temporary_psychology_placeholders() -> None:
+    old = {**TRAINING_OLD, "morale": 6, "self_confidence": 5}
+
+    # Ocultarse durante el partido no es bajar y reaparecer no es subir.
+    assert not any(
+        c.metric == "morale" for c in diff_training(old, {**old, "morale": -1})
+    )
+    assert not any(
+        c.metric == "morale" for c in diff_training({**old, "morale": -1}, old)
+    )
+    assert not any(
+        c.metric == "self_confidence"
+        for c in diff_training(old, {**old, "self_confidence": None})
+    )
+
+
+def test_invalid_spirit_does_not_hide_a_real_confidence_change() -> None:
+    old = {**TRAINING_OLD, "morale": 6, "self_confidence": 5}
+    out = diff_training(old, {**old, "morale": -1, "self_confidence": 6})
+
+    assert [change.metric for change in out] == ["self_confidence"]
+    assert out[0].before == 5
+    assert out[0].after == 6
+
+
 def test_a_rival_signing_reads_as_competition_intel_not_as_my_own_change() -> None:
     """2026-08-19, pedido explícito: avisar cuando un club de tu liga o tu
     próximo rival de Copa, Masters o Promoción ficha.

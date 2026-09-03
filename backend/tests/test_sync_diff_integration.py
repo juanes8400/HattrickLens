@@ -121,6 +121,138 @@ def test_training_change_is_recorded() -> None:
     asyncio.run(run())
 
 
+def test_training_sync_preserves_each_valid_psychology_level_during_a_match() -> None:
+    async def run() -> None:
+        uow, team_id = await _setup()
+        base = get_parser("training")((FIXTURES / "training.xml").read_bytes())
+        confidence_up = {
+            **base,
+            "morale": -1,
+            "self_confidence": base["self_confidence"] + 1,
+        }
+        spirit_up = {
+            **base,
+            "morale": base["morale"] + 1,
+            "self_confidence": -1,
+        }
+        both_hidden = {**base, "morale": -1, "self_confidence": -1}
+
+        handler = SyncTeamHandler(
+            uow,
+            ScriptedCHPP(
+                {"training": [base, confidence_up, spirit_up, both_hidden]}
+            ),
+        )
+        cmd = SyncTeamCommand(
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=537758,
+            files=["training"],
+        )
+
+        await handler.execute(cmd)
+        second = await handler.execute(cmd)
+        third = await handler.execute(cmd)
+        fourth = await handler.execute(cmd)
+
+        assert [c["detail"]["metric"] for c in second.changes] == ["self_confidence"]
+        assert [c["detail"]["metric"] for c in third.changes] == ["morale"]
+        assert fourth.changes == []
+
+        async with uow as u:
+            snapshots = list(
+                (
+                    await u.session.execute(
+                        select(m.TrainingSnapshot)
+                        .where(m.TrainingSnapshot.team_id == team_id)
+                        .order_by(m.TrainingSnapshot.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        # La cuarta lectura no crea una foto: después de conservar los dos
+        # valores reales su hash es idéntico al de la tercera.
+        assert len(snapshots) == 3
+        assert [(row.morale, row.self_confidence) for row in snapshots] == [
+            (base["morale"], base["self_confidence"]),
+            (base["morale"], base["self_confidence"] + 1),
+            (base["morale"] + 1, base["self_confidence"] + 1),
+        ]
+
+    asyncio.run(run())
+
+
+def test_first_training_sync_stores_absence_instead_of_minus_one() -> None:
+    async def run() -> None:
+        uow, team_id = await _setup()
+        base = get_parser("training")((FIXTURES / "training.xml").read_bytes())
+        hidden = {**base, "morale": -1, "self_confidence": -1}
+        handler = SyncTeamHandler(uow, ScriptedCHPP({"training": [hidden]}))
+        cmd = SyncTeamCommand(
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=537758,
+            files=["training"],
+        )
+
+        result = await handler.execute(cmd)
+        async with uow as u:
+            row = await u.session.scalar(
+                select(m.TrainingSnapshot).where(m.TrainingSnapshot.team_id == team_id)
+            )
+
+        assert result.changes == []
+        assert row is not None
+        assert row.morale is None
+        assert row.self_confidence is None
+
+    asyncio.run(run())
+
+
+def test_first_partial_psychology_reading_is_completed_without_a_fake_change() -> None:
+    async def run() -> None:
+        uow, team_id = await _setup()
+        base = get_parser("training")((FIXTURES / "training.xml").read_bytes())
+        only_spirit = {**base, "self_confidence": -1}
+        only_confidence = {**base, "morale": -1}
+        handler = SyncTeamHandler(
+            uow,
+            ScriptedCHPP({"training": [only_spirit, only_confidence]}),
+        )
+        cmd = SyncTeamCommand(
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=537758,
+            files=["training"],
+        )
+
+        first = await handler.execute(cmd)
+        second = await handler.execute(cmd)
+        async with uow as u:
+            rows = list(
+                (
+                    await u.session.execute(
+                        select(m.TrainingSnapshot)
+                        .where(m.TrainingSnapshot.team_id == team_id)
+                        .order_by(m.TrainingSnapshot.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        assert first.changes == []
+        assert second.changes == []
+        assert [(row.morale, row.self_confidence) for row in rows] == [
+            (base["morale"], None),
+            (base["morale"], base["self_confidence"]),
+        ]
+
+    asyncio.run(run())
+
+
 def test_match_result_change_is_recorded() -> None:
     async def run() -> None:
         uow, team_id = await _setup()

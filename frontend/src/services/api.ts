@@ -1406,9 +1406,9 @@ export interface Dashboard {
     level: number;
     staminaPart: number;
     trainerName: string;
-    morale: number;
+    morale: number | null;
     moraleName: string;
-    confidence: number;
+    confidence: number | null;
     confidenceName: string;
     /** Cuánto del entrenamiento máximo posible recibe el club: 100% es
      *  entrenador 5/5, dos asistentes de nivel 5 y toda la intensidad en la

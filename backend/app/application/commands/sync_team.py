@@ -301,6 +301,39 @@ def dict_hash(data: dict[str, Any]) -> bytes:
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).digest()
 
 
+#: Los indicadores de estado de ánimo que Hattrick puede devolver como -1.
+#:
+#: Espíritu y Confianza vienen de training.xml y se ocultan mientras se juega
+#: un partido. La popularidad con la afición viene de economy.xml y NO se ha
+#: visto nunca en -1 --ni una sola fila en las dos bases, con quince equipos y
+#: semanas de historial--, pero se cubre igual (2026-09-02, pedido del
+#: usuario): son la misma clase de dato, un nivel en una escala, y el día que
+#: aparezca el -1 se guardaría como si la afición te odiara.
+PLACEHOLDERS_DE_ANIMO: dict[str, tuple[str, ...]] = {
+    "training": ("morale", "self_confidence"),
+    "economy": ("supporters_popularity",),
+}
+
+
+def _sin_placeholders_de_animo(
+    payload: dict[str, Any], previous: dict[str, Any] | None, campos: tuple[str, ...]
+) -> dict[str, Any]:
+    """Reemplaza el -1 temporal antes de persistir.
+
+    Hattrick usa -1 mientras un partido está en curso. No significa que el
+    Espíritu o la Confianza hayan bajado: significa que ese campo no está
+    disponible en ese instante. Cada indicador se resuelve por separado con
+    su última lectura válida. Si todavía no existe una, se guarda ``None`` —
+    ausencia de dato— y nunca un nivel inventado.
+    """
+    limpio = dict(payload)
+    for campo in campos:
+        if limpio.get(campo) == -1:
+            anterior = previous.get(campo) if previous is not None else None
+            limpio[campo] = anterior if isinstance(anterior, int) and anterior >= 0 else None
+    return limpio
+
+
 @dataclass(frozen=True)
 class SyncTeamCommand:
     user_id: int
@@ -3822,11 +3855,21 @@ class SyncTeamHandler:
     ) -> None:
         if file in ("economy", "training"):
             repo = uow.economy if file == "economy" else uow.training
+            # Antes del hash, del append y del diff: si se limpiara más tarde,
+            # el -1 produciría una foto y un cambio falsos, y cada nueva
+            # sincronización durante el partido volvería a hacerlo.
+            #
+            # Economía perdió aquí su camino barato --antes se saltaba esta
+            # consulta cuando el hash coincidía-- y es un precio que vale la
+            # pena: es UNA fila por sincronización, y a cambio la afición no
+            # puede colarse en la historia con un nivel que Hattrick nunca
+            # dijo (2026-09-02).
+            old_values = await repo.get_last_values(team_id)
+            payload = _sin_placeholders_de_animo(payload, old_values, PLACEHOLDERS_DE_ANIMO[file])
             new_hash = dict_hash(payload)
             if await repo.get_last_hash(team_id) == new_hash:
                 result.unchanged += 1
                 return
-            old_values = await repo.get_last_values(team_id)
             await repo.append(sync_id, team_id, payload, new_hash, captured_at)
             result.snapshots_written += 1
             if file == "economy":

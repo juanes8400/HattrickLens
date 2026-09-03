@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -85,6 +86,51 @@ def test_dashboard_reflects_synced_data() -> None:
         assert d.top_salaries[0].salary == 72312
         assert d.top_salaries[0].skills["scoring"] == 18
         assert d.top_salaries[0].skills["setPieces"] == 9  # contrato camelCase
+
+    asyncio.run(run())
+
+
+def test_dashboard_keeps_each_last_valid_psychology_level() -> None:
+    async def run() -> None:
+        factory, team_id = await _seeded()
+        async with factory() as session:
+            base = await session.scalar(
+                select(m.TrainingSnapshot)
+                .where(m.TrainingSnapshot.team_id == team_id)
+                .order_by(m.TrainingSnapshot.captured_at.desc())
+                .limit(1)
+            )
+            assert base is not None
+            expected_morale = int(base.morale)
+            expected_confidence = int(base.self_confidence) + 1
+            session.add(
+                m.TrainingSnapshot(
+                    sync_id=base.sync_id,
+                    team_id=team_id,
+                    captured_at=base.captured_at + timedelta(minutes=1),
+                    training_type=base.training_type,
+                    training_level=base.training_level,
+                    new_training_level=base.new_training_level,
+                    stamina_part=base.stamina_part,
+                    last_training_type=base.last_training_type,
+                    last_training_level=base.last_training_level,
+                    last_stamina_part=base.last_stamina_part,
+                    trainer_ht_id=base.trainer_ht_id,
+                    trainer_name=base.trainer_name,
+                    morale=-1,
+                    self_confidence=expected_confidence,
+                    formation_xp_json=base.formation_xp_json,
+                    content_hash=b"p" * 32,
+                )
+            )
+            await session.commit()
+            dashboard = await DashboardQueryService(session).get(team_id)
+
+        assert dashboard is not None and dashboard.training is not None
+        assert dashboard.training.morale == expected_morale
+        assert dashboard.training.confidence == expected_confidence
+        assert dashboard.training.morale_name != "?"
+        assert dashboard.training.confidence_name != "?"
 
     asyncio.run(run())
 

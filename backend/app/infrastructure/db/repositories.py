@@ -316,6 +316,31 @@ class SqlAlchemyTrainingRepository:
         )
         if snap is None:
             return None
+
+        # Durante un partido training.xml puede devolver temporalmente -1 en
+        # uno de los dos estados psicológicos. Ese centinela no es un nivel:
+        # cada campo tiene que mirar hacia atrás de forma INDEPENDIENTE, pues
+        # Hattrick puede ocultar Espíritu y seguir entregando Confianza (o al
+        # revés). Así el sincronizador conserva la última observación real sin
+        # mezclar la fecha de ambos indicadores.
+        async def ultimo_valido(campo: Any) -> int | None:
+            return cast(
+                int | None,
+                await self._s.scalar(
+                    select(campo)
+                    .where(
+                        m.TrainingSnapshot.team_id == team_id,
+                        campo.is_not(None),
+                        campo >= 0,
+                    )
+                    .order_by(
+                        m.TrainingSnapshot.captured_at.desc(),
+                        m.TrainingSnapshot.id.desc(),
+                    )
+                    .limit(1)
+                ),
+            )
+
         return {
             "training_type": snap.training_type,
             "training_level": snap.training_level,
@@ -323,8 +348,8 @@ class SqlAlchemyTrainingRepository:
             # Estos dos campos también forman parte de `diff_training`.
             # Omitirlos convertía el centinela -1 de «sin dato» en un nivel
             # anterior ficticio y producía cambios como «-1 -> Calmados».
-            "morale": snap.morale,
-            "self_confidence": snap.self_confidence,
+            "morale": await ultimo_valido(m.TrainingSnapshot.morale),
+            "self_confidence": await ultimo_valido(m.TrainingSnapshot.self_confidence),
         }
 
     async def append(
