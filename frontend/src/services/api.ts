@@ -553,12 +553,6 @@ export interface SquadPlayer {
   honestyLabel: string;
   countryId: number;
   countryCode: string | null;
-  /** Si su país de origen no es el del equipo: Hattrick cobra por él un 20%
-   *  más de sueldo. */
-  isForeign: boolean;
-  /** Cuánto de su sueldo es ese recargo. El sueldo ya lo lleva dentro, así
-   *  que es una sexta parte de lo que se paga, no un 20% de ello. */
-  foreignSurcharge: number;
   leagueGoals: number;
   cupGoals: number;
   friendliesGoals: number;

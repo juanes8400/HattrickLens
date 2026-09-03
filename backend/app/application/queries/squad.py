@@ -15,7 +15,6 @@ from app.application.dto.squad import (
 )
 from app.application.queries.weekly import latest_per_iso_week, start_of_iso_week
 from app.domain.engines import htms
-from app.domain.engines.economy_engine import foreign_surcharge, is_foreign
 from app.domain.engines.position_engine import (
     best_position,
     rate,
@@ -87,14 +86,6 @@ class SquadQueryService:
             comparison = SquadComparison(mode="previous_change")
 
         players: list[SquadPlayer] = []
-        # El país del equipo sale de su liga, no del nombre de la liga: el
-        # nombre es texto y cambia de idioma. Con él se decide quién es
-        # extranjero, que es lo que dispara el recargo del 20% en el sueldo.
-        pais_equipo = await self._s.scalar(
-            select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
-        )
-        pais_propio = pais_equipo.country_id if pais_equipo else 0
-
         country_codes = {
             int(country_id): str(country_code).upper()
             for country_id, country_code in (
@@ -180,14 +171,6 @@ class SquadQueryService:
                     honesty_label=PLAYER_HONESTY.get(snap.honesty, f"#{snap.honesty}"),
                     country_id=snap.country_id,
                     country_code=country_codes.get(snap.country_id),
-                    is_foreign=is_foreign(snap.country_id, pais_propio),
-                    # Una sexta parte, no un quinto: el sueldo que entrega
-                    # Hattrick ya viene con el recargo sumado.
-                    foreign_surcharge=(
-                        foreign_surcharge(round((snap.salary or 0) / (team.currency_rate or 1.0)))
-                        if is_foreign(snap.country_id, pais_propio)
-                        else 0
-                    ),
                     league_goals=snap.league_goals,
                     cup_goals=snap.cup_goals,
                     friendlies_goals=snap.friendlies_goals,
