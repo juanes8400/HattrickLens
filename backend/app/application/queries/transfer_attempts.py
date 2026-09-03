@@ -13,7 +13,7 @@ que lo teclea el usuario y aquí se sirve tal cual, sin estimarlo jamás.
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.engines.player_balance import (
     SalarySnapshot,
     salary_at,
-    weeks_owned,
+    salary_payment_dates,
 )
 from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
@@ -191,6 +191,15 @@ class TransferAttemptsQueryService:
         self._codigo_por_nombre = {
             nombre.strip().casefold(): cod for _, nombre, cod in paises if cod and nombre
         }
+        economy_date = (
+            await self._s.scalar(
+                select(m.WorldContext.economy_date).where(
+                    m.WorldContext.ht_league_id == equipo.ht_league_id
+                )
+            )
+            if equipo.ht_league_id is not None
+            else None
+        )
 
         intentos = (
             await self._s.execute(
@@ -209,7 +218,16 @@ class TransferAttemptsQueryService:
         salida: list[TransferAttemptRow] = []
         for intento, jugador in intentos:
             numero[jugador.id] = numero.get(jugador.id, 0) + 1
-            salida.append(await self._fila(intento, jugador, numero[jugador.id], conv, equipo))
+            salida.append(
+                await self._fila(
+                    intento,
+                    jugador,
+                    numero[jugador.id],
+                    conv,
+                    equipo,
+                    economy_date,
+                )
+            )
 
         salida.sort(key=lambda r: r.detected_at, reverse=True)
         return TransferAttemptsResponse(
@@ -229,9 +247,13 @@ class TransferAttemptsQueryService:
         numero: int,
         conv: Callable[[int | None], int | None],
         equipo: Any,
+        economy_date: datetime | None,
     ) -> TransferAttemptRow:
         cierre = intento.ended_at or intento.deadline
-        corte = cierre or datetime.now()
+        # `UtcDateTime` entrega fechas naive cuyo significado es UTC. Usar la
+        # hora local del proceso desplazaba el corte de un intento abierto en
+        # cualquier servidor que no estuviera configurado en UTC.
+        corte = cierre or datetime.now(UTC).replace(tzinfo=None)
 
         foto = await self._s.scalar(
             select(m.PlayerSnapshot)
@@ -339,7 +361,13 @@ class TransferAttemptsQueryService:
             ),
             age_at_purchase=_edad_en_la_compra(al_llegar, foto, jugador, llegada),
             days_since_purchase=(corte - llegada).days if llegada is not None else "?",
-            salary_to_date=await self._salario_hasta(jugador, llegada, corte, conv),
+            salary_to_date=await self._salario_hasta(
+                jugador,
+                llegada,
+                corte,
+                economy_date,
+                conv,
+            ),
             training_that_week=(
                 training_name(entrenamiento.training_type) if entrenamiento is not None else "?"
             ),
@@ -350,6 +378,7 @@ class TransferAttemptsQueryService:
         jugador: Any,
         desde: datetime | None,
         hasta: datetime | None,
+        economy_date: datetime | None,
         conv: Callable[[int | None], int | None],
     ) -> int | str:
         """Lo pagado en salarios desde que llego hasta el cierre de la puja.
@@ -362,15 +391,25 @@ class TransferAttemptsQueryService:
         # igual que cuando falta la de llegada.
         if desde is None or hasta is None:
             return "?"
+        # Sin el calendario oficial no se sabe si entre dos instantes hubo
+        # una actualización. El único caso completo es el pago inmediato.
+        if economy_date is None and hasta > desde:
+            return "?"
         filas = (
             await self._s.execute(
                 select(m.PlayerSnapshot.captured_at, m.PlayerSnapshot.salary)
-                .where(m.PlayerSnapshot.player_id == jugador.id)
+                .where(
+                    m.PlayerSnapshot.player_id == jugador.id,
+                    m.PlayerSnapshot.captured_at >= desde,
+                    m.PlayerSnapshot.captured_at <= hasta,
+                )
                 .order_by(m.PlayerSnapshot.captured_at)
             )
         ).all()
         historia = [SalarySnapshot(captured_at=c, salary=conv(s) or 0) for c, s in filas]
         if not historia:
             return "?"
-        semanas = weeks_owned(desde, hasta)
-        return sum(salary_at(historia, desde + timedelta(weeks=w)) for w in range(semanas + 1))
+        return sum(
+            salary_at(historia, payment)
+            for payment in salary_payment_dates(desde, hasta, economy_date)
+        )

@@ -90,6 +90,7 @@ export const useLineup = (
   innerMidfielders?: number,
   orders?: Record<number, string>,
   exclude?: number[],
+  enabled = true,
 ) =>
   useQuery({
     queryKey: [
@@ -113,6 +114,10 @@ export const useLineup = (
         orders,
         exclude,
       ),
+    // Alineación usa este interruptor después de leer la plantilla: si hay
+    // menos de once disponibles no manda al servidor un problema que no se
+    // puede resolver. El resto de consumidores conserva el valor por defecto.
+    enabled,
     // Mover un reparto no cambia la plantilla: se conserva el once anterior
     // mientras llega el nuevo, en vez de vaciar la pantalla entera.
     placeholderData: (previous) => previous,

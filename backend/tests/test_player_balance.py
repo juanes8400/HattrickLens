@@ -34,6 +34,7 @@ from app.domain.engines.player_balance import (
     SalarySnapshot,
     agent_commission_pct,
     compute_balance,
+    salary_payment_dates,
 )
 from app.infrastructure.chpp.parsers import get_parser
 from app.infrastructure.db import models as m
@@ -179,7 +180,8 @@ def test_upsert_identity_clears_left_team_at_when_player_reappears_in_roster() -
     asyncio.run(run())
 
 
-def test_player_enrichment_backfill_reconstructs_age_and_fills_country_character_specialty() -> None:
+def test_player_enrichment_backfill_reconstructs_age_and_fills_country_character_specialty(
+) -> None:
     """Pedido explícitamente por el usuario 2026-08-04, SIN botón: una sola
     llamada a playerdetails.xml rellena edad-en-la-venta, país, carácter y
     especialidad de un tirón. Fixture real (jugador 468921494): Age=30,
@@ -321,7 +323,9 @@ def test_player_balance_treats_departure_without_sale_as_zero_price() -> None:
         assert row.sale_price == 0
         assert row.sold_at == left_at.isoformat()
         assert row.is_departure_without_sale is True
-        assert row.saldo == -1000000
+        # Este escenario no siembra salario ni calendario: la salida a cero
+        # sigue siendo conocida, pero el saldo completo no lo es.
+        assert row.saldo is None
 
     asyncio.run(run())
 
@@ -891,6 +895,7 @@ def test_compute_balance_matches_real_spreadsheet_row_a_quintana() -> None:
         listing_count=1,
         sale_price=8000000,
         sold_at=sold_at,
+        economy_date=purchased_at + timedelta(days=3),
     )
     balance = compute_balance(record)
     assert balance.agent_pct == pytest.approx(0.07)
@@ -911,12 +916,13 @@ def test_compute_balance_never_uses_a_hypothetical_valuation_for_unsold_players(
         listing_count=0,
         sale_price=None,
         sold_at=None,
+        economy_date=purchased_at + timedelta(days=2),
         as_of=as_of,
     )
     balance = compute_balance(record)
     assert balance.is_sold is False
     assert balance.net_sale_proceeds == 0
-    # 11 semanas de sueldo (10 + la extra de la compra), sin venta que compense.
+    # Compra + diez actualizaciones económicas, sin venta que compense.
     assert balance.saldo == -1000000 - 5000 * 11
 
 
@@ -926,6 +932,7 @@ def test_compute_balance_is_none_when_purchase_price_is_truly_unknown() -> None:
     record = PlayerTransferRecord(
         purchase_price=None, purchased_at=None, is_academy_graduate=False,
         salary_history=[], listing_count=0, sale_price=None, sold_at=None,
+        economy_date=None,
     )
     balance = compute_balance(record)
     assert balance.saldo is None
@@ -940,6 +947,7 @@ def test_compute_balance_treats_academy_graduates_as_zero_cost_purchase() -> Non
         purchase_price=None, purchased_at=purchased_at, is_academy_graduate=True,
         salary_history=[SalarySnapshot(captured_at=purchased_at, salary=1000)],
         listing_count=1, sale_price=500000, sold_at=sold_at,
+        economy_date=purchased_at + timedelta(days=2),
     )
     balance = compute_balance(record)
     assert balance.purchase_price == 0
@@ -961,10 +969,135 @@ def test_salary_extrapolates_across_sync_gaps() -> None:
             SalarySnapshot(captured_at=purchased_at + timedelta(weeks=2), salary=1500),
         ],
         listing_count=0, sale_price=None, sold_at=sold_at,
+        economy_date=purchased_at + timedelta(weeks=1),
     )
     balance = compute_balance(record)
-    # semanas 0,1 = 1000 (último conocido); semanas 2,3,4 = 1500 → 5 semanas
+    # pagos 0,1 = 1000 (último conocido); pagos 2,3,4 = 1500 → 5 cobros
     assert balance.salary_total == 1000 * 2 + 1500 * 3
+
+
+def test_salary_is_charged_on_the_economy_update_not_after_seven_owned_days() -> None:
+    """Caso real que motivó la regla: una compra poco antes del cierre paga
+    al comprar y otra vez al atravesar EconomyDate, aunque no lleve siete
+    días en el club."""
+    purchased_at = datetime(2026, 8, 28, 17, 58, tzinfo=UTC)
+    update = datetime(2026, 8, 30, 2, 6, tzinfo=UTC)
+
+    assert salary_payment_dates(
+        purchased_at,
+        update - timedelta(microseconds=1),
+        update,
+    ) == [purchased_at]
+    assert salary_payment_dates(purchased_at, update, update) == [purchased_at, update]
+
+
+def test_buying_exactly_at_the_update_does_not_double_charge_that_instant() -> None:
+    update = datetime(2026, 8, 30, 2, 6, tzinfo=UTC)
+
+    assert salary_payment_dates(update, update, update) == [update]
+    assert salary_payment_dates(update, update + timedelta(weeks=1), update) == [
+        update,
+        update + timedelta(weeks=1),
+    ]
+
+
+def test_salary_carries_the_latest_known_value_forward_at_each_update() -> None:
+    purchased_at = datetime(2026, 8, 28, 17, 58, tzinfo=UTC)
+    first_update = datetime(2026, 8, 30, 2, 6, tzinfo=UTC)
+    second_update = first_update + timedelta(weeks=1)
+    record = PlayerTransferRecord(
+        purchase_price=100_000,
+        purchased_at=purchased_at,
+        is_academy_graduate=False,
+        salary_history=[
+            SalarySnapshot(captured_at=purchased_at, salary=3_516),
+            SalarySnapshot(captured_at=first_update + timedelta(days=2), salary=4_000),
+        ],
+        listing_count=0,
+        sale_price=None,
+        sold_at=second_update,
+        economy_date=first_update,
+    )
+
+    # Compra + primer update conservan 3.516; el segundo ya usa 4.000.
+    assert compute_balance(record).salary_total == 3_516 * 2 + 4_000
+
+
+def test_missing_economy_calendar_never_recreates_the_old_seven_day_guess() -> None:
+    purchased_at = datetime(2026, 8, 1, tzinfo=UTC)
+    record = PlayerTransferRecord(
+        purchase_price=100_000,
+        purchased_at=purchased_at,
+        is_academy_graduate=False,
+        salary_history=[SalarySnapshot(captured_at=purchased_at, salary=1_000)],
+        listing_count=0,
+        sale_price=None,
+        sold_at=purchased_at + timedelta(days=30),
+        economy_date=None,
+    )
+
+    balance = compute_balance(record)
+    assert balance.salary_total == 1_000  # solo el pago inmediato es demostrable
+    assert balance.salary_known is False
+    assert balance.saldo is None  # el subtotal nunca se publica como ganancia/ROI completo
+
+
+def test_missing_economy_calendar_excludes_partial_balance_from_all_aggregates() -> None:
+    async def run():
+        uow, _, team_id, ht_player_id = await _setup_with_player(700_001)
+        purchased_at = datetime(2026, 8, 1, 12, 0)
+        sold_at = datetime(2026, 8, 20, 12, 0)
+        async with uow as u:
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+            )
+            player.purchase_price = 100_000
+            player.purchased_at = purchased_at
+            player.sale_price = 200_000
+            player.sold_at = sold_at
+            sync = m.Sync(
+                user_id=1,
+                team_id=team_id,
+                kind="players",
+                status="completed",
+                started_at=purchased_at,
+            )
+            u.session.add(sync)
+            await u.session.flush()
+            u.session.add(
+                m.PlayerSnapshot(
+                    sync_id=sync.id,
+                    player_id=player.id,
+                    captured_at=purchased_at + timedelta(days=1),
+                    age_years=20,
+                    age_days=1,
+                    tsi=1_000,
+                    form=5,
+                    stamina=5,
+                    experience=5,
+                    salary=1_000,
+                    content_hash=b"economy-date-missing",
+                )
+            )
+            await u.session.commit()
+
+        async with uow as u:
+            return await PlayerBalanceQueryService(u.session).get(team_id)
+
+    data = asyncio.run(run())
+    assert data is not None
+    row = data.players[0]
+    assert row.salary_total == 1_000  # dato parcial auditable: el cobro de llegada
+    assert row.salary_known is False
+    assert row.saldo is None
+    assert row.roi_pct == "?"
+    assert data.total_saldo == 0
+    assert data.unknown_purchase_count == 1
+    assert data.by_training_type == {}
+    assert data.by_season == {}
+    assert data.by_age_bucket == {}
+    assert data.by_top_skill == {}
+    assert data.by_bid_hour == {}
 
 
 # ── Servicio de consulta: end-to-end contra datos reales sincronizados ──────
@@ -1001,6 +1134,9 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
             player.sale_price = 9000000  # CHPP crudo → US$900.000 reales
             player.sold_at = datetime(2026, 3, 1, tzinfo=UTC)
             player.listing_count = 1
+            team = await s.get(m.Team, team_id)
+            world = await s.scalar(select(m.WorldContext))
+            team.ht_league_id = world.ht_league_id
             ht_player_id = player.ht_player_id
             await s.commit()
 
@@ -1015,6 +1151,10 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
     assert row.purchase_price == 500000
     assert row.sale_price == 900000
     assert row.saldo is not None
+    assert sum(segment.total for segment in row.salary_breakdown) == row.salary_total
+    assert all(
+        segment.total == segment.weeks * segment.salary for segment in row.salary_breakdown
+    )
     # El resto de la plantilla, sin compra conocida, debe quedar en None —
     # nunca 0 ni una cifra inventada — y contar en unknown_purchase_count.
     others = [r for r in data.players if r.ht_player_id != ht_player_id]
@@ -1070,6 +1210,97 @@ def test_a_returning_player_shows_one_row_per_stint() -> None:
     # Y ninguna dice haberse vendido antes de comprarse.
     assert vendida.purchased_at < vendida.sold_at
 
+
+def test_salary_history_and_fallback_are_scoped_to_each_stint() -> None:
+    """Una foto de la segunda vuelta no puede pagar la primera. La primera
+    foto posterior a la compra SI sigue respaldando el cobro de su propia
+    etapa, que es el comportamiento historico de `salary_at`."""
+    async def go():
+        uow, _, team_id, ht_player_id = await _setup_with_player(700_002)
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            team.ht_league_id = 19
+            u.session.add(
+                m.WorldContext(
+                    ht_league_id=19,
+                    season=84,
+                    match_round=1,
+                    refreshed_at=datetime(2026, 2, 5),
+                    economy_date=datetime(2026, 1, 3),
+                )
+            )
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+            )
+            # Este respaldo sin timestamp pertenece a la etapa mas reciente.
+            player.last_known_salary = 9_000
+            u.session.add_all(
+                [
+                    m.PlayerStint(
+                        player_id=player.id,
+                        ht_player_id=ht_player_id,
+                        team_id=team_id,
+                        arrived_at=datetime(2026, 1, 1),
+                        arrival_price=100_000,
+                        left_at=datetime(2026, 1, 10),
+                        sale_price=200_000,
+                    ),
+                    m.PlayerStint(
+                        player_id=player.id,
+                        ht_player_id=ht_player_id,
+                        team_id=team_id,
+                        arrived_at=datetime(2026, 2, 1),
+                        arrival_price=300_000,
+                        left_at=datetime(2026, 2, 5),
+                        sale_price=600_000,
+                    ),
+                ]
+            )
+            sync = m.Sync(
+                user_id=1,
+                team_id=team_id,
+                kind="players",
+                status="completed",
+                started_at=datetime(2026, 2, 2),
+            )
+            u.session.add(sync)
+            await u.session.flush()
+            # Es futura respecto a la llegada de la segunda etapa y por eso
+            # puede respaldar su cobro inicial; queda fuera de la primera.
+            u.session.add(
+                m.PlayerSnapshot(
+                    sync_id=sync.id,
+                    player_id=player.id,
+                    captured_at=datetime(2026, 2, 2),
+                    age_years=20,
+                    age_days=1,
+                    tsi=1_000,
+                    form=5,
+                    stamina=5,
+                    experience=5,
+                    salary=9_000,
+                    content_hash=b"second-stint-salary",
+                )
+            )
+            await u.session.commit()
+
+        async with uow as u:
+            return await PlayerBalanceQueryService(u.session).get(team_id)
+
+    data = asyncio.run(go())
+    assert data is not None
+    old, recent = sorted(data.players, key=lambda row: row.purchased_at or "")
+    assert old.salary_total == 0
+    assert old.salary_known is False
+    assert old.saldo is None
+    assert old.roi_pct == "?"
+    assert recent.salary_total == 9_000
+    assert recent.salary_known is True
+    assert recent.saldo is not None
+    assert data.total_saldo == recent.saldo
+    assert data.unknown_purchase_count == 1
+    assert sum(data.by_season.values()) == recent.saldo
+
 def test_player_balance_query_service_flags_academy_graduate_by_mother_club() -> None:
     """Pedido explícitamente 2026-08-04: "canterano" real =
     `MotherClub/TeamID` igual al `ht_team_id` de este equipo — NO si el
@@ -1119,7 +1350,8 @@ def test_player_balance_query_service_flags_academy_graduate_by_mother_club() ->
     assert graduate_row.purchase_price == graduate_row.promotion_cost
     assert graduate_row.promotion_cost > 0
     assert bought_row.promotion_cost == 0
-    assert graduate_row.saldo is not None
+    # El origen queda resuelto aunque este fixture no aporte salarios.
+    assert graduate_row.saldo is None
 
 
 def test_bid_hour_bucket_formats_as_12_hour_ranges() -> None:
@@ -1196,7 +1428,8 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
     assert data.by_bid_hour == {"2:00 a 4:00 p.m.": pytest.approx(data.total_saldo)}
 
 
-def test_player_balance_query_service_labels_season_as_unknown_before_any_worlddetails_sync() -> None:
+def test_player_balance_query_service_labels_season_as_unknown_before_any_worlddetails_sync(
+) -> None:
     """Sin `worlddetails.xml` sincronizado nunca, una venta no tiene forma
     honesta de saber en qué temporada cayó — se etiqueta "Temporada
     desconocida" en vez de inventar un número. `seeded_session()` sí lo
@@ -1227,7 +1460,12 @@ def test_player_balance_query_service_labels_season_as_unknown_before_any_worldd
 
     data = asyncio.run(go())
     assert data is not None
-    assert data.by_season == {"Temporada desconocida": pytest.approx(data.total_saldo)}
+    sold = next(row for row in data.players if row.is_sold)
+    assert sold.season_at_sale == "Temporada desconocida"
+    # Sin WorldContext tampoco existe EconomyDate: el saldo parcial no entra
+    # en el agregado de esa etiqueta.
+    assert sold.saldo is None
+    assert data.by_season == {}
 
 
 def test_player_balance_query_service_computes_season_by_elapsed_days_like_age() -> None:
@@ -1307,7 +1545,7 @@ def test_player_balance_query_service_filters_by_season() -> None:
                 first_name="Nuevo", last_name="Jugador",
                 purchase_price=1000000, purchased_at=datetime(2026, 5, 1),
                 sale_price=2000000, sold_at=datetime(2026, 6, 1),
-                listing_count=1,
+                listing_count=1, last_known_salary=1000,
             )
             s.add(newer)
             await s.commit()
@@ -1361,6 +1599,10 @@ def test_player_balance_query_service_falls_back_to_backfilled_age_at_sale() -> 
             player.listing_count = 1
             player.age_years_at_sale = 19
             player.age_days_at_sale = 50
+            player.last_known_salary = 1000
+            team = await s.get(m.Team, team_id)
+            world = await s.scalar(select(m.WorldContext))
+            team.ht_league_id = world.ht_league_id
             await s.commit()
 
         async with factory() as s:
@@ -1434,10 +1676,16 @@ def test_promoting_a_youth_costs_money_and_it_lands_in_his_balance() -> None:
                 purchased_at=datetime(2026, 1, 1, tzinfo=UTC),
                 is_academy_graduate=True,
                 promotion_cost=coste,
-                salary_history=[],
+                salary_history=[
+                    SalarySnapshot(
+                        captured_at=datetime(2026, 1, 1, tzinfo=UTC),
+                        salary=1_000,
+                    )
+                ],
                 listing_count=0,
                 sale_price=1_000_000,
                 sold_at=datetime(2026, 6, 1, tzinfo=UTC),
+                economy_date=datetime(2026, 1, 3, tzinfo=UTC),
             )
         ).saldo
 
@@ -1550,21 +1798,23 @@ def test_a_player_who_came_and_went_between_syncs_still_costs_his_salary() -> No
     sin_nada = compute_balance(PlayerTransferRecord(
         purchase_price=512000, salary_history=[], listing_count=0,
         sale_price=712000, purchased_at=comprado, sold_at=vendido,
-        is_academy_graduate=False,
+        is_academy_graduate=False, economy_date=datetime(2026, 8, 10),
     ))
     assert sin_nada.salary_total == 0
     assert sin_nada.salary_known is False
+    assert sin_nada.saldo is None
 
     con_salario = compute_balance(PlayerTransferRecord(
         purchase_price=512000, salary_history=[], listing_count=0,
         sale_price=712000, purchased_at=comprado, sold_at=vendido,
         is_academy_graduate=False, fallback_salary=4740,
+        economy_date=datetime(2026, 8, 10),
     ))
-    # 12 días son 1 semana cumplida, y el primer sueldo se paga entero: 2.
-    assert con_salario.salary_total == 4740 * 2
+    # Compra + actualizaciones económicas del 10 y el 17: tres cobros.
+    assert con_salario.salary_total == 4740 * 3
     assert con_salario.salary_known is True
-    # Y el saldo empeora justo en lo que costaba tenerlo.
-    assert con_salario.saldo == sin_nada.saldo - 4740 * 2
+    # El saldo completo solo aparece en la variante con importe conocido.
+    assert con_salario.saldo == con_salario.net_sale_proceeds - (512000 + 4740 * 3)
 
 
 def test_real_snapshots_always_win_over_the_last_known_salary() -> None:
@@ -1583,8 +1833,9 @@ def test_real_snapshots_always_win_over_the_last_known_salary() -> None:
         listing_count=0, sale_price=712000, purchased_at=comprado,
         sold_at=datetime(2026, 8, 20, 12, 40),
         is_academy_graduate=False, fallback_salary=99999,
+        economy_date=datetime(2026, 8, 10),
     ))
-    assert r.salary_total == 2000
+    assert r.salary_total == 3000
 
 
 def test_players_known_only_from_the_transfer_history_stop_counting_as_squad() -> None:

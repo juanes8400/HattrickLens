@@ -7,7 +7,7 @@ jugador. Eso solo aparece en el texto de la noticia al cerrarse la puja, así
 que lo teclea el usuario.
 """
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.api.deps import require_team_owner
+from app.application.queries import transfer_attempts as transfer_attempts_query
+from app.application.queries.transfer_attempts import TransferAttemptsQueryService
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.main import app
@@ -86,6 +88,134 @@ def test_each_attempt_is_a_row_with_its_own_ending() -> None:
         assert por_id[abierto]["highestBid"] == 723000
     finally:
         app.dependency_overrides.clear()
+
+
+def test_an_open_attempt_uses_a_utc_naive_cutoff(monkeypatch) -> None:
+    """La BD entrega UTC sin tzinfo: el reloj debe pedir UTC explicitamente y
+    quitar la zona, no interpretar la hora local del servidor como UTC."""
+    calls: list[object] = []
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            calls.append(tz)
+            return cls(2026, 8, 25, 12, 0, tzinfo=tz)
+
+    async def run() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        async with factory() as s:
+            team = m.Team(ht_team_id=537_758, name="Pulgas Arrechas")
+            s.add(team)
+            await s.flush()
+            player = m.Player(
+                ht_player_id=99,
+                team_id=team.id,
+                first_name="Puja",
+                last_name="Abierta",
+            )
+            s.add(player)
+            await s.flush()
+            s.add(
+                m.PlayerListingAttempt(
+                    player_id=player.id,
+                    ht_player_id=player.ht_player_id,
+                    detected_at=datetime(2026, 8, 24),
+                    deadline=None,
+                    ended_at=None,
+                )
+            )
+            await s.commit()
+            team_id = team.id
+
+        monkeypatch.setattr(transfer_attempts_query, "datetime", FrozenDateTime)
+        async with factory() as s:
+            response = await TransferAttemptsQueryService(s).get(team_id)
+        assert response is not None
+        assert len(response.rows) == 1
+
+    asyncio.run(run())
+    assert calls == [UTC]
+
+
+def test_attempt_salary_never_uses_a_snapshot_from_a_later_stint() -> None:
+    """El primer snapshot futuro sigue siendo valido, pero solo si cae dentro
+    del intervalo de la etapa cuyo intento se esta describiendo."""
+    async def run() -> tuple[int | str, int | str]:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        async with factory() as s:
+            team = m.Team(ht_team_id=537_758, name="Pulgas Arrechas")
+            s.add(team)
+            await s.flush()
+            player = m.Player(
+                ht_player_id=100,
+                team_id=team.id,
+                first_name="Dos",
+                last_name="Etapas",
+            )
+            s.add(player)
+            sync = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players",
+                status="completed",
+                started_at=datetime(2026, 2, 2),
+            )
+            s.add(sync)
+            await s.flush()
+            s.add(
+                m.PlayerSnapshot(
+                    sync_id=sync.id,
+                    player_id=player.id,
+                    captured_at=datetime(2026, 2, 2),
+                    age_years=20,
+                    age_days=1,
+                    tsi=1_000,
+                    form=5,
+                    stamina=5,
+                    experience=5,
+                    salary=9_000,
+                    content_hash=b"later-stint",
+                )
+            )
+            await s.commit()
+
+            service = TransferAttemptsQueryService(s)
+            convert = lambda value: value  # noqa: E731
+            old = await service._salario_hasta(
+                player,
+                datetime(2026, 1, 1),
+                datetime(2026, 1, 10),
+                datetime(2026, 1, 3),
+                convert,
+            )
+            recent = await service._salario_hasta(
+                player,
+                datetime(2026, 2, 1),
+                datetime(2026, 2, 5),
+                datetime(2026, 1, 3),
+                convert,
+            )
+            return old, recent
+
+    old, recent = asyncio.run(run())
+    assert old == "?"
+    # La foto del 2 de febrero es futura respecto a la compra del 1, pero
+    # pertenece a esa misma etapa y respalda su pago inmediato.
+    assert recent == 9_000
 
 
 def test_only_finished_attempts_without_an_answer_are_asked_about() -> None:

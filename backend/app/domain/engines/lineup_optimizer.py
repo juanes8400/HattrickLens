@@ -110,6 +110,37 @@ BASE_OF_VARIANT: dict[str, str] = {
     variante: base for base, variantes in ORDER_VARIANTS.items() for variante in variantes
 }
 
+# Nombre estable para la orden que ya va codificada en ``Assignment.position``.
+# Se expone tambien por separado en la API: quien consume el once no deberia
+# tener que partir strings como ``wingback_offensive`` para saber que el motor
+# recomienda jugar Ofensivo. Estas etiquetas no introducen una formula nueva;
+# solo traducen las mismas variantes declaradas arriba.
+INDIVIDUAL_BEHAVIOUR_LABELS: dict[str, str] = {
+    "normal": "Normal",
+    "offensive": "Ofensivo",
+    "defensive": "Defensivo",
+    "towards_middle": "Hacia el centro",
+    "towards_wing": "Hacia el lateral",
+}
+
+
+def individual_behaviour(position: str, base_position: str | None = None) -> tuple[str, str]:
+    """Devuelve ``(clave, etiqueta)`` de la orden incluida en ``position``.
+
+    ``position`` sigue siendo la clave completa que puntua ``position_engine``;
+    la clave corta permite mostrar o enviar la orden sin volver a inferirla en
+    cada cliente. ``base_position`` es opcional para que tambien sirva fuera de
+    una :class:`Assignment`.
+    """
+    base = base_position or BASE_OF_VARIANT.get(position, position)
+    behaviour = "normal"
+    if position != base:
+        for candidate in ("towards_middle", "towards_wing", "offensive", "defensive"):
+            if position.endswith(f"_{candidate}"):
+                behaviour = candidate
+                break
+    return behaviour, INDIVIDUAL_BEHAVIOUR_LABELS[behaviour]
+
 
 # Penalización por saturación posicional — Manual no Escrito (wiki.hattrick.org).
 # Jugar 2 o 3 en la misma posición central resta rendimiento a TODOS los que
@@ -148,6 +179,16 @@ class Assignment:
     base_position: str = ""
     # True cuando la orden la fijó el usuario y el motor no pudo elegirla.
     order_pinned: bool = False
+
+    @property
+    def behaviour(self) -> str:
+        """Clave explicita de la orden individual recomendada."""
+        return individual_behaviour(self.position, self.base_position)[0]
+
+    @property
+    def behaviour_label(self) -> str:
+        """Nombre de Hattrick en español para la orden recomendada."""
+        return individual_behaviour(self.position, self.base_position)[1]
 
 
 @dataclass

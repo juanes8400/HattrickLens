@@ -4122,6 +4122,7 @@ class SyncTeamHandler:
             # este modulo importa de `dataclasses`.
             for campo, key in (
                 ("training_date", "training_date"),
+                ("economy_date", "economy_date"),
                 ("cup_match_date", "cup_match_date"),
                 ("series_match_date", "series_match_date"),
             ):

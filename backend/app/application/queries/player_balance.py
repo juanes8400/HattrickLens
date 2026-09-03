@@ -10,7 +10,7 @@ que sigue sin venderse.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ from app.domain.engines.player_balance import (
     SalarySnapshot,
     compute_balance,
     salary_at,
-    weeks_owned,
+    salary_payment_dates,
 )
 from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
@@ -113,14 +113,17 @@ _BID_HOUR_LABELS_ORDER = [_format_hour_range(h, h + 2) for h in range(0, 24, 2)]
 
 @dataclass
 class SalaryWeekSegment:
-    """Tramo de semanas consecutivas con el mismo sueldo, en la misma
-    temporada — pedido explícitamente para la ficha de ex-jugador ("11
-    semanas con X sueldo en temporada W, 4 semanas con Y sueldo en
-    temporada Z") en vez de un solo total acumulado."""
+    """Tramo de pagos consecutivos con el mismo sueldo y temporada.
+
+    `weeks` conserva el nombre de la API por compatibilidad, pero cuenta
+    cobros (el inmediato y las actualizaciones), no bloques de siete días
+    cumplidos desde la compra. `total` hace explícito el subtotal del tramo.
+    """
 
     weeks: int
     salary: int
     season: str
+    total: int
 
 
 @dataclass
@@ -460,6 +463,27 @@ class PlayerBalanceQueryService:
                     games_played_for_us=p.games_played_for_us,
                 )
             )
+        # `last_known_salary` no guarda su propio instante: representa la
+        # ultima etapa que conocemos del jugador. Si volvio al club, usarlo en
+        # una etapa anterior sin snapshots trasladaria hacia atras el salario
+        # de su paso mas reciente.
+        latest_stint_by_player: dict[int, m.PlayerStint] = {}
+
+        def stint_order_key(stint: m.PlayerStint) -> tuple[int, datetime]:
+            arrived_at = stint.arrived_at
+            if arrived_at is None:
+                return (0, datetime.min.replace(tzinfo=UTC))
+            if arrived_at.tzinfo is None:
+                arrived_at = arrived_at.replace(tzinfo=UTC)
+            else:
+                arrived_at = arrived_at.astimezone(UTC)
+            return (1, arrived_at)
+
+        for stint in etapas:
+            latest = latest_stint_by_player.get(stint.player_id)
+            if latest is None or stint_order_key(stint) > stint_order_key(latest):
+                latest_stint_by_player[stint.player_id] = stint
+
         player_ids = [p.id for p in players]
         snapshots = list(
             (
@@ -625,25 +649,58 @@ class PlayerBalanceQueryService:
         def salary_breakdown(
             purchased_at: datetime | None,
             end: datetime | None,
+            economy_date: datetime | None,
             history: list[SalarySnapshot],
+            fallback_salary: int,
         ) -> list[SalaryWeekSegment]:
-            """Mismo recorrido semana a semana que `_total_salary` en el
-            motor de dominio (misma cuenta de semanas, mismo carry-forward),
-            pero agrupando tramos consecutivos de igual sueldo Y temporada
-            en vez de sumarlos — pedido explícitamente para la ficha de
-            ex-jugador en vez de un solo total acumulado."""
+            """Mismos pagos y carry-forward que el motor, agrupados por tramo."""
             if purchased_at is None or end is None:
                 return []
             segments: list[SalaryWeekSegment] = []
-            for w in range(weeks_owned(purchased_at, end) + 1):
-                week_date = purchased_at + timedelta(weeks=w)
-                amount = salary_at(history, week_date)
-                season = season_at(week_date)
+            for payment_date in salary_payment_dates(purchased_at, end, economy_date):
+                amount = salary_at(history, payment_date) if history else fallback_salary
+                season = season_at(payment_date)
                 if segments and segments[-1].salary == amount and segments[-1].season == season:
                     segments[-1].weeks += 1
+                    segments[-1].total += amount
                 else:
-                    segments.append(SalaryWeekSegment(weeks=1, salary=amount, season=season))
+                    segments.append(
+                        SalaryWeekSegment(
+                            weeks=1,
+                            salary=amount,
+                            season=season,
+                            total=amount,
+                        )
+                    )
             return segments
+
+        def salary_history_for_stint(
+            player_id: int,
+            start: datetime | None,
+            end: datetime,
+        ) -> list[SalarySnapshot]:
+            """Solo fotos tomadas mientras esta etapa pertenecia al club.
+
+            El limite inferior no impide conservar el respaldo historico de
+            `salary_at`: si la primera foto de ESTA etapa es posterior a la
+            compra, sigue sirviendo para el cobro inmediato. Lo que no puede
+            servir es una foto de una etapa posterior del mismo jugador.
+            """
+            if start is None:
+                return []
+
+            def utc_value(value: datetime) -> datetime:
+                if value.tzinfo is None:
+                    return value.replace(tzinfo=UTC)
+                return value.astimezone(UTC)
+
+            start_utc = utc_value(start)
+            end_utc = utc_value(end)
+            return [
+                snapshot
+                for snapshot in salary_by_player.get(player_id, [])
+                if start_utc <= utc_value(snapshot.captured_at) <= end_utc
+            ]
 
         rows: list[PlayerBalanceRow] = []
         total_saldo = 0.0
@@ -701,28 +758,42 @@ class PlayerBalanceQueryService:
             effective_sale_price = (
                 None if is_currently_active else sale_price if etapa.sale_price is not None else 0
             )
+            as_of = datetime.now(UTC).replace(tzinfo=None)
+            stint_end = effective_sold_at or as_of
+            stint_salary_history = salary_history_for_stint(p.id, purchased_at, stint_end)
+            # El respaldo sin timestamp solo es atribuible al paso mas reciente
+            # del jugador. En cualquier etapa anterior seria el sueldo de una
+            # vuelta posterior disfrazado de dato historico.
+            fallback_salary = (
+                conv(p.last_known_salary) or 0
+                if latest_stint_by_player.get(p.id) is etapa
+                else 0
+            )
 
             record = PlayerTransferRecord(
                 purchase_price=purchase_price,
                 purchased_at=purchased_at,
                 is_academy_graduate=is_academy,
                 promotion_cost=_en_moneda(YOUTH_PROMOTION_COST, rate) if is_academy else 0,
-                salary_history=salary_by_player.get(p.id, []),
-                fallback_salary=conv(p.last_known_salary) or 0,
+                salary_history=stint_salary_history,
+                fallback_salary=fallback_salary,
                 listing_count=p.listing_count,
                 sale_price=effective_sale_price,
                 sold_at=effective_sold_at,
+                economy_date=world.economy_date if world is not None else None,
                 resale_bonus_share=resale_shares.get(p.ht_player_id, 0.0),
                 # SQLite no conserva tzinfo en el viaje de ida y vuelta, así
                 # que purchased_at/sold_at llegan naive — as_of debe serlo
                 # también o la resta de fechas revienta (naive vs aware).
-                as_of=datetime.now(UTC).replace(tzinfo=None),
+                as_of=as_of,
             )
             balance: PlayerBalance = compute_balance(record)
             salary_breakdown_rows = salary_breakdown(
                 purchased_at,
                 effective_sold_at or record.as_of,
+                record.economy_date,
                 record.salary_history,
+                record.fallback_salary,
             )
 
             training_label = training_at(effective_sold_at) if effective_sold_at else None

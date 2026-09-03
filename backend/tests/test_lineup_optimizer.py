@@ -8,6 +8,7 @@ from app.domain.engines.lineup_optimizer import (
     TEAM_SPIRIT_ATTITUDE_MULTIPLIER,
     best_formation,
     best_lineup,
+    individual_behaviour,
 )
 from app.domain.engines.position_engine import rate
 from app.infrastructure.chpp.parsers import parse_players
@@ -173,7 +174,7 @@ def test_no_formation_breaks_the_position_maximums() -> None:
         MAX_INNER_MIDFIELDERS,
     )
 
-    MAX_PER_POSITION = {
+    max_per_position = {
         "keeper": 1,
         "central_defender": MAX_CENTRAL_DEFENDERS,
         "wingback": MAX_FLANK_PER_LINE,
@@ -185,9 +186,9 @@ def test_no_formation_breaks_the_position_maximums() -> None:
     for nombre, puestos in FORMATIONS.items():
         assert len(puestos) == 11, nombre
         cuenta = Counter(puestos)
-        assert set(cuenta) <= set(MAX_PER_POSITION), nombre
+        assert set(cuenta) <= set(max_per_position), nombre
         for puesto, cuantos in cuenta.items():
-            assert cuantos <= MAX_PER_POSITION[puesto], f"{nombre}: {puesto}={cuantos}"
+            assert cuantos <= max_per_position[puesto], f"{nombre}: {puesto}={cuantos}"
         # Dos bandas y tres por el centro: cinco por línea como mucho.
         assert cuenta["wingback"] + cuenta["central_defender"] <= 5, nombre
         assert cuenta["winger"] + cuenta["inner_midfield"] <= 5, nombre
@@ -247,6 +248,40 @@ def test_the_optimiser_also_picks_the_individual_orders() -> None:
         [a.base_position for a in con_ordenes.assignments]
         == [a.position for a in solo_normales.assignments]
     )
+    # La plantilla de referencia exige decisiones distintas: comprueba que
+    # no solo se recorren las variantes, sino que la asignacion ganadora las
+    # conserva por jugador/casilla.
+    comportamientos = {a.behaviour for a in con_ordenes.assignments}
+    assert {"normal", "offensive", "defensive"} <= comportamientos
+
+
+@pytest.mark.parametrize(
+    ("position", "base", "behaviour", "label"),
+    [
+        ("wingback", "wingback", "normal", "Normal"),
+        ("wingback_offensive", "wingback", "offensive", "Ofensivo"),
+        ("winger_defensive", "winger", "defensive", "Defensivo"),
+        (
+            "wingback_towards_middle",
+            "wingback",
+            "towards_middle",
+            "Hacia el centro",
+        ),
+        (
+            "forward_towards_wing",
+            "forward",
+            "towards_wing",
+            "Hacia el lateral",
+        ),
+    ],
+)
+def test_an_assignment_exposes_its_individual_behaviour_without_parsing_in_clients(
+    position: str,
+    base: str,
+    behaviour: str,
+    label: str,
+) -> None:
+    assert individual_behaviour(position, base) == (behaviour, label)
 
 
 def test_a_pinned_order_is_respected_and_the_engine_only_picks_who_plays_it() -> None:

@@ -1170,7 +1170,16 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
               />
               <Kpi
                 label="Salario acumulado"
-                value={money(row.salaryTotal, balance!.currency)}
+                value={
+                  row.salaryKnown
+                    ? money(row.salaryTotal, balance!.currency)
+                    : "?"
+                }
+                hint={
+                  row.salaryKnown
+                    ? undefined
+                    : "Falta sincronizar el calendario económico de la liga"
+                }
               />
               <Kpi
                 label="Costo de listados"
@@ -1281,11 +1290,14 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                 {row.salaryBreakdown.map((segment, i) => (
                   <li key={i} className="flex justify-between gap-3 py-1.5">
                     <span className="text-[var(--muted)]">
-                      {segment.weeks} semana{segment.weeks === 1 ? "" : "s"} en{" "}
+                      {segment.weeks} cobro{segment.weeks === 1 ? "" : "s"} en{" "}
                       {segment.season}
                     </span>
                     <span className="tabular-nums">
+                      {number(segment.weeks)} ×{" "}
                       {money(segment.salary, balance!.currency)}
+                      {" = "}
+                      {money(segment.total, balance!.currency)}
                     </span>
                   </li>
                 ))}

@@ -576,7 +576,9 @@ Como **Marta**, quiero saber si un jugador concreto me ha dado ganancia o
 pérdida en términos absolutos, no solo su valor de mercado actual:
 
   − precio de compra
-  − salario acumulado (semana a semana, mientras estuvo en la plantilla)
+  − salario acumulado (uno al llegar y uno por cada actualización
+    económica semanal atravesada mientras estuvo en la plantilla, según
+    `EconomyDate` de su liga en `worlddetails.xml`)
   − coste de cada vez que lo puse en el mercado
   + precio de venta
   − comisiones de la transacción
@@ -585,7 +587,8 @@ pérdida en términos absolutos, no solo su valor de mercado actual:
 
 *Pedida 2026-08-03. Ingredientes que YA existen: `Player.purchase_price` y
 `Player.purchased_at` (precio real de compra, de `transfersteam.xml`),
-salario semana a semana en `player_snapshots` (histórico ya sincronizado),
+historial de importes salariales en `player_snapshots` (ya sincronizado) y el
+calendario semanal oficial en `WorldContext.economy_date`,
 precio real de venta vía `transfersteam.xml` (comprador/vendedor/precio por
 transferencia — ver `parse_transfersteam`). Lo que NO existe todavía y hay
 que decidir antes de construir:*

@@ -1502,6 +1502,18 @@ export interface Club {
 }
 
 export interface Lineup {
+  /** Cuántos jugadores podía considerar el motor. Está presente también en
+   *  la respuesta vacía que devuelve una plantilla con menos de once. */
+  availableCount?: number;
+  requiredCount?: number;
+  /** Explicación legible cuando no existe un once completo que devolver. */
+  warning?: string | null;
+  /** Función objetivo usada para escoger conjuntamente once y órdenes. */
+  optimizationObjective?: {
+    key: string;
+    label: string;
+    value: number;
+  };
   /** Cuántos de cada línea juegan por dentro; el resto va a las bandas. El
    *  nombre de la formación no lo dice. */
   centralDefenders: number;
@@ -1521,6 +1533,9 @@ export interface Lineup {
     player: string;
     htPlayerId: number;
     rating: number;
+    /** Orden individual elegida por el optimizador. */
+    behaviour: string;
+    behaviourLabel: string;
     /** La casilla de la formacion, sin la orden. */
     basePosition: string;
     /** True cuando la orden la fijo el usuario, no el motor. */
@@ -2518,7 +2533,15 @@ export interface PlayerBalanceRow {
   /** Identificador de la ETAPA. Dos filas del mismo jugador comparten
    *  htPlayerId, asi que esto es lo que las distingue. */
   stintId: number | null;
-  salaryBreakdown: { weeks: number; salary: number; season: string }[];
+  salaryBreakdown: {
+    /** Se conserva el nombre por compatibilidad; representa cobros. */
+    weeks: number;
+    /** Salario unitario de cada cobro del tramo. */
+    salary: number;
+    season: string;
+    /** Subtotal: cobros por salario unitario. */
+    total: number;
+  }[];
   listingCount: number;
   listingAttempts: { highestBid: number | null; detectedAt: string }[];
   listingCost: number;

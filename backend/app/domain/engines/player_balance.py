@@ -2,7 +2,8 @@
 
 Hattrick Control te dice cuánto vale un jugador *hoy*; nunca te dice si esa
 compra ya fue rentable en términos absolutos: precio de compra, salario
-pagado semana a semana, coste de cada intento de venta, la comisión real del
+pagado al llegar y en cada actualización económica semanal, coste de cada
+intento de venta, la comisión real del
 agente al vender — y lo que llega después, cuando alguien revende a un
 ex-tuyo y te toca una parte por derechos de formación / club anterior.
 
@@ -24,6 +25,8 @@ QUÉ NO SE INVENTA
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+
+from app.domain.value_objects.ht_time import HATTRICK_TZ
 
 LISTING_COST = 1000
 # Un canterano en su PRIMERA venta paga solo agente, 5% fijo — ni derechos
@@ -119,6 +122,10 @@ class PlayerTransferRecord:
     listing_count: int
     sale_price: int | None  # None = todavía no se ha vendido
     sold_at: datetime | None
+    # Una ocurrencia real de la actualización económica semanal de la liga,
+    # tomada de EconomyDate en worlddetails.xml. Cualquier ocurrencia sirve de
+    # ancla para reconstruir las demás; no depende del día en que se compró.
+    economy_date: datetime | None
     # Ingreso por reventas futuras de origen desconocido, ya repartido y
     # asignado a este jugador (ver `resale_bonus.py`) — 0 si no aplica.
     resale_bonus_share: float = 0.0
@@ -142,7 +149,7 @@ class PlayerBalance:
     agent_pct: float
     net_sale_proceeds: int  # 0 si no se ha vendido — nunca una estimación
     resale_bonus_share: float
-    saldo: float | None  # None si no se conoce el precio de compra
+    saldo: float | None  # None si falta compra o calendario salarial verificable
     is_sold: bool
     # False cuando de ese jugador no se guardó NUNCA un salario: pasó por el
     # club antes de que la app lo viera y solo se conoce por el historial de
@@ -153,7 +160,76 @@ class PlayerBalance:
 
 
 def weeks_owned(purchased_at: datetime, end: datetime) -> int:
+    """Semanas completas de posesión.
+
+    Sigue siendo útil como medida de antigüedad, pero ya NO decide cuántos
+    salarios se pagaron. Los salarios siguen `salary_payment_dates`.
+    """
     return max((end - purchased_at).days // 7, 0)
+
+
+_WEEK = timedelta(days=7)
+
+
+def _utc(value: datetime) -> datetime:
+    """Normaliza solo para hacer aritmética; un naive de la BD ya significa UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _like(value: datetime, template: datetime) -> datetime:
+    """Devuelve UTC con el mismo estilo aware/naive que las fechas del registro."""
+    return value if template.tzinfo is not None else value.replace(tzinfo=None)
+
+
+def salary_payment_dates(
+    purchased_at: datetime,
+    end: datetime,
+    economy_date: datetime | None,
+) -> list[datetime]:
+    """Instantes en los que el club paga salarios durante una etapa.
+
+    Hay un pago inmediato en `purchased_at`. Después se incluye cada
+    actualización económica semanal estrictamente posterior a la compra y
+    anterior o igual a `end`. Comprar exactamente durante una actualización
+    no genera dos cobros en el mismo instante.
+
+    EconomyDate viene en la hora del servidor sueco. La recurrencia se mueve
+    en esa hora de pared, no sumando ciegamente 168 horas UTC: así conserva la
+    hora oficial incluso al cruzar un cambio CET/CEST.
+
+    Sin EconomyDate solo es demostrable el pago inmediato; el caller debe
+    marcar el total como desconocido si la etapa continuó después de la
+    compra.
+    """
+    purchased_utc = _utc(purchased_at)
+    end_utc = _utc(end)
+    payments = [purchased_at]
+    if economy_date is None or end_utc <= purchased_utc:
+        return payments
+
+    anchor_local = _utc(economy_date).astimezone(HATTRICK_TZ)
+    purchased_local = purchased_utc.astimezone(HATTRICK_TZ)
+    # EconomyDate es una ocurrencia cualquiera de la misma serie semanal.
+    # Se calcula en hora local para no perder la hora oficial durante DST.
+    wall_delta = purchased_local.replace(tzinfo=None) - anchor_local.replace(tzinfo=None)
+    periods = wall_delta // _WEEK + 1  # el primer cruce debe ser > compra
+    update_local = anchor_local + periods * _WEEK
+    update_utc = update_local.astimezone(UTC)
+
+    # Guarda ante horas ambiguas/no existentes en un cambio de DST. EconomyDate
+    # normalmente cae lejos de ese borde, pero el límite estricto no se deja a
+    # merced de una particularidad de ZoneInfo.
+    while update_utc <= purchased_utc:
+        update_local += _WEEK
+        update_utc = update_local.astimezone(UTC)
+
+    while update_utc <= end_utc:
+        payments.append(_like(update_utc, purchased_at))
+        update_local += _WEEK
+        update_utc = update_local.astimezone(UTC)
+    return payments
 
 
 def salary_at(history: list[SalarySnapshot], target: datetime) -> int:
@@ -171,20 +247,20 @@ def salary_at(history: list[SalarySnapshot], target: datetime) -> int:
 def _total_salary(
     purchased_at: datetime,
     end: datetime,
+    economy_date: datetime | None,
     history: list[SalarySnapshot],
     fallback: int = 0,
 ) -> int:
-    """Semana a semana desde la compra hasta `end`, más UNA semana extra —
-    el primer sueldo se paga completo el día de la compra, no se prorratea.
+    """Compra inmediata + cada actualización económica atravesada hasta `end`.
 
     Sin ningún snapshot se usa `fallback`: el salario que Hattrick reporta de
     ese jugador, que sigue dándolo aunque ya juegue en otro club. No es un
     número inventado por nosotros — o se conoce, o la casilla queda vacía.
     """
-    weeks = weeks_owned(purchased_at, end)
+    payments = salary_payment_dates(purchased_at, end, economy_date)
     if not history:
-        return fallback * (weeks + 1)
-    return sum(salary_at(history, purchased_at + timedelta(weeks=w)) for w in range(weeks + 1))
+        return fallback * len(payments)
+    return sum(salary_at(history, payment) for payment in payments)
 
 
 def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
@@ -206,9 +282,15 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         record.promotion_cost if record.is_academy_graduate else (record.purchase_price or 0)
     )
     end = record.sold_at or record.as_of
-    # Sin fecha de compra conocida no hay semanas que contar — 0, no negativo.
+    # Sin fecha de compra conocida no hay cruces que contar — 0, no negativo.
     purchased_at = record.purchased_at or end
-    salary_total = _total_salary(purchased_at, end, record.salary_history, record.fallback_salary)
+    salary_total = _total_salary(
+        purchased_at,
+        end,
+        record.economy_date,
+        record.salary_history,
+        record.fallback_salary,
+    )
     listing_cost = record.listing_count * LISTING_COST
 
     is_sold = record.sale_price is not None
@@ -232,6 +314,17 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         - (purchase_price + salary_total + listing_cost)
         + record.resale_bonus_share
     )
+    # Sin EconomyDate una etapa que duro mas que el instante de llegada solo
+    # tiene demostrado el primer cobro. Y sin importe conocido ni siquiera ese
+    # cobro esta completo. El subtotal sigue siendo util para explicar lo que
+    # SI se conoce, pero nunca puede convertirse en saldo/ROI ni entrar en
+    # agregados como si fuera el coste completo.
+    salary_calendar_known = record.economy_date is not None or _utc(end) <= _utc(purchased_at)
+    salary_known = (
+        (bool(record.salary_history) or record.fallback_salary > 0)
+        and record.purchased_at is not None
+        and salary_calendar_known
+    )
 
     return PlayerBalance(
         purchase_price=purchase_price,
@@ -240,9 +333,11 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         agent_pct=agent_pct,
         net_sale_proceeds=net_sale_proceeds,
         resale_bonus_share=record.resale_bonus_share,
-        saldo=round(saldo),
+        saldo=round(saldo) if salary_known else None,
         is_sold=is_sold,
-        # Sin snapshots y sin último salario conocido no hay forma de saber
-        # cuánto costó tenerlo.
-        salary_known=bool(record.salary_history) or record.fallback_salary > 0,
+        # Hace falta conocer tanto el importe como el calendario. Si la etapa
+        # duró más que el instante de compra y aún no se sincronizó
+        # EconomyDate, solo el primer pago es demostrable y el total se marca
+        # como desconocido en vez de presentarlo como definitivo.
+        salary_known=salary_known,
     )

@@ -8,6 +8,7 @@ fórmula se valida contra subidas de nivel que Hattrick confirma en vez de
 inferirlas.
 """
 import asyncio
+from datetime import datetime
 from pathlib import Path
 
 from app.application.commands.sync_team import SyncTeamCommand, SyncTeamHandler
@@ -73,6 +74,7 @@ def test_worlddetails_parser_reads_currency_and_calendar() -> None:
     assert colombia["match_round"] == 3
     assert colombia["number_of_levels"] == 7
     assert colombia["league_system_id"] == 1
+    assert colombia["economy_date"] == "2026-07-27 00:00:00"
     assert colombia["cup_match_date"] == "2026-07-23 23:40:00"
     assert len(colombia["cups"]) == 5
     national = next(c for c in colombia["cups"] if c["cup_level"] == 1)
@@ -184,6 +186,8 @@ def test_sync_persists_staff_world_and_skill_ups() -> None:
     assert world[0].season == 84
     assert world[0].country_id == 18
     assert world[0].country_code == "CO"
+    # 00:00 CEST del XML = 22:00 UTC del día anterior en la base.
+    assert world[0].economy_date == datetime(2026, 7, 26, 22, 0)
     assert len(ups) == 5
 
 

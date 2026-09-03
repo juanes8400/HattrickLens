@@ -63,6 +63,7 @@ from app.domain.engines.training_engine import (
     model_info as training_model_info,
 )
 from app.domain.value_objects.formations import (
+    DEFAULT_FORMATION,
     central_defender_options,
     inner_midfielder_options,
     resolve_split,
@@ -82,6 +83,48 @@ from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
+
+LINEUP_REQUIRED_COUNT = 11
+LINEUP_SECTOR_NOTE = (
+    "Fórmula exacta de contribución posicional (Manual no Escrito), sobre "
+    "habilidades crudas: sin forma ni condición. No reemplaza el ranking "
+    "de arriba, que sí está contrastado contra datos reales."
+)
+
+
+def _lineup_sector_payload(
+    assignments: list[tuple[dict[str, Any], str, str]],
+) -> dict[str, Any]:
+    """Serializa los sectores igual para un once resuelto y para uno vacío."""
+    sector = compute_sector_ratings(assignments)
+    return {
+        "ratings": [
+            {
+                "sector": name,
+                "label": SECTOR_LABELS[name],
+                "value": sector.ratings[name],
+                "topContributors": [
+                    {
+                        "player": contribution.player_name,
+                        "position": contribution.position_label,
+                        "amount": contribution.amount,
+                    }
+                    for contribution in sector.top_contributors[name]
+                ],
+            }
+            for name in SECTORS
+        ],
+        "note": LINEUP_SECTOR_NOTE,
+    }
+
+
+def _lineup_optimization_objective(value: float) -> dict[str, Any]:
+    """Objetivo que ya maximiza el húngaro, hecho explícito en el contrato."""
+    return {
+        "key": "max_total_positional_contribution",
+        "label": "Maximizar la suma del índice de aporte posicional",
+        "value": value,
+    }
 
 
 async def roster(session: AsyncSession, team_id: int) -> tuple[list[dict[str, Any]], m.Team]:
@@ -617,6 +660,9 @@ async def lineup(
 ) -> dict[str, Any]:
     players, _ = await roster(session, team_id)
 
+    if formation and formation not in FORMATIONS:
+        raise HTTPException(400, f"formación desconocida: {formation}")
+
     # Fuera del reparto ANTES de optimizar, no después: quitar a alguien del
     # resultado dejaría su casilla vacía, y lo que se quiere es que el motor
     # vuelva a resolver el once entero sin él.
@@ -630,15 +676,6 @@ async def lineup(
         fuera.add(int(trozo))
     if fuera:
         players = [p for p in players if p["ht_player_id"] not in fuera]
-        # Once titulares: por debajo de eso no hay alineación que resolver, y
-        # es mejor decirlo que devolver un once a medias.
-        if len(players) < 11:
-            raise HTTPException(
-                400,
-                f"quedan {len(players)} jugadores y hacen falta 11: devuelve a alguien al reparto",
-            )
-    if formation and formation not in FORMATIONS:
-        raise HTTPException(400, f"formación desconocida: {formation}")
     fijadas: dict[int, str] = {}
     for trozo in (orders or "").split(","):
         if not trozo.strip():
@@ -647,6 +684,41 @@ async def lineup(
         if not variante.strip() or not casilla.strip().isdigit():
             raise HTTPException(400, f"orden mal escrita: «{trozo}» (se espera «casilla:posición»)")
         fijadas[int(casilla)] = variante.strip()
+
+    # ``best_lineup`` descarta las bajas de una semana o más. Contar aquí
+    # con exactamente la misma regla evita el viejo caso de 11 fichas pero
+    # solo 10 jugadores utilizables, que acababa convertido en un 422. Una
+    # plantilla corta (de origen o por una URL con demasiadas exclusiones) es
+    # un estado válido para consultar: no hay once que optimizar, pero la API
+    # conserva su forma para que la pantalla pueda avisar sin caerse.
+    available_count = sum(p.get("injury_level", -1) < 1 for p in players)
+    if available_count < LINEUP_REQUIRED_COUNT:
+        response_formation = formation or DEFAULT_FORMATION
+        centrales, interiores = resolve_split(
+            response_formation,
+            central_defenders,
+            inner_midfielders,
+        )
+        return {
+            "formation": response_formation,
+            "centralDefenders": centrales,
+            "innerMidfielders": interiores,
+            "centralDefenderOptions": central_defender_options(response_formation),
+            "innerMidfielderOptions": inner_midfielder_options(response_formation),
+            "totalRating": 0.0,
+            "manualShare": 0.0,
+            "formationRanking": {},
+            "lineup": [],
+            "bench": [],
+            "sectorRatings": _lineup_sector_payload([]),
+            "availableCount": available_count,
+            "requiredCount": LINEUP_REQUIRED_COUNT,
+            "warning": (
+                f"Solo hay {available_count} jugadores disponibles y hacen falta "
+                f"{LINEUP_REQUIRED_COUNT} para armar una alineación."
+            ),
+            "optimizationObjective": _lineup_optimization_objective(0.0),
+        }
     try:
         if formation:
             lu = best_lineup(
@@ -680,12 +752,6 @@ async def lineup(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    # HL-143: segunda opinión sobre el MISMO once que ya eligió el optimizador
-    # húngaro (arriba), con la fórmula exacta de contribución de la
-    # comunidad — habilidades crudas, sin forma ni condición. No decide
-    # nada por sí sola, solo informa.
-    sector = compute_sector_ratings([(a.player, a.position, a.label) for a in lu.assignments])
-
     centrales, interiores = resolve_split(lu.formation, central_defenders, inner_midfielders)
     # Las casillas REALES de este once, con su reparto: hacen falta para saber
     # cual de los tres del carril es el del medio, que es el unico que no
@@ -702,6 +768,10 @@ async def lineup(
         "totalRating": lu.total_rating,
         "manualShare": round(lu.manual_share, 2),
         "formationRanking": ranking,
+        "availableCount": available_count,
+        "requiredCount": LINEUP_REQUIRED_COUNT,
+        "warning": None,
+        "optimizationObjective": _lineup_optimization_objective(lu.total_rating),
         "lineup": [
             {
                 "slot": a.slot,
@@ -711,6 +781,11 @@ async def lineup(
                 "htPlayerId": a.player["ht_player_id"],
                 "rating": a.rating,
                 "confidence": a.confidence,
+                # La orden también queda separada de la posición completa:
+                # ningún cliente tiene que deducir "Ofensivo" partiendo
+                # ``wingback_offensive``.
+                "behaviour": a.behaviour,
+                "behaviourLabel": a.behaviour_label,
                 # La casilla sin la orden, y qué órdenes caben en ella: es lo
                 # que necesita la pantalla para dejar fijarla a mano.
                 "basePosition": a.base_position,
@@ -730,25 +805,11 @@ async def lineup(
             {"player": b["name"], "htPlayerId": b["ht_player_id"], "tsi": b["tsi"]}
             for b in lu.bench
         ],
-        "sectorRatings": {
-            "ratings": [
-                {
-                    "sector": s,
-                    "label": SECTOR_LABELS[s],
-                    "value": sector.ratings[s],
-                    "topContributors": [
-                        {"player": c.player_name, "position": c.position_label, "amount": c.amount}
-                        for c in sector.top_contributors[s]
-                    ],
-                }
-                for s in SECTORS
-            ],
-            "note": (
-                "Fórmula exacta de contribución posicional (Manual no Escrito), sobre "
-                "habilidades crudas: sin forma ni condición. No reemplaza el ranking "
-                "de arriba, que sí está contrastado contra datos reales."
-            ),
-        },
+        # HL-143: segunda opinión sobre el MISMO once que ya eligió el
+        # optimizador húngaro, con habilidades crudas. No decide por sí sola.
+        "sectorRatings": _lineup_sector_payload(
+            [(a.player, a.position, a.label) for a in lu.assignments]
+        ),
     }
 
 

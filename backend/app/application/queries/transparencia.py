@@ -710,26 +710,80 @@ def catalogo() -> list[Seccion]:
                     id="once-optimo",
                     sources=[
                         Fuente(
-                            "Aporte de cada jugador en cada silla",
-                            "El cálculo «Aporte por posición»",
+                            "Habilidades, forma, condición, experiencia y fidelidad",
+                            "La última lectura guardada de cada jugador",
+                        ),
+                        Fuente(
+                            "Coeficientes por posición y orden individual",
+                            "Manual no Escrito, declarados en positions.yaml",
+                        ),
+                        Fuente(
+                            "Formaciones, casillas y órdenes legales",
+                            "Las reglas de alineación que aplica el motor",
                         ),
                         Fuente("Quién está lesionado", "Tu plantilla"),
                     ],
                     name="Once óptimo",
-                    answers="Qué once y qué órdenes maximizan el rating total.",
-                    formula=(
-                        "max   Σ  aporte(jugador_p , silla_p)\n"
-                        "      p\n"
-                        "\n"
-                        "sujeto a:  cada jugador en ≤ 1 silla\n"
-                        "           cada silla con exactamente 1 jugador\n"
-                        "\n"
-                        "→ algoritmo húngaro, coste O(n³)"
+                    answers=(
+                        "Qué formación, jugador por casilla y orden individual legal "
+                        "maximizan juntos el aporte posicional total."
                     ),
-                    limits=[
-                        "Optimiza el rating, no el resultado: no modela táctica ni "
-                        "rival. Al lesionado sí lo deja fuera.",
+                    formula=(
+                        "A(j, s, b) = aporte del jugador j en la casilla s\n"
+                        "             con la orden individual b\n"
+                        "\n"
+                        "max          Σ  A(jugador_s, casilla_s, orden_s)\n"
+                        "formación,   s\n"
+                        "jugadores,\n"
+                        "órdenes\n"
+                        "\n"
+                        "sujeto a:  una formación legal\n"
+                        "           cada jugador en ≤ 1 casilla\n"
+                        "           cada casilla con exactamente 1 jugador\n"
+                        "           orden_s ∈ órdenes legales de esa casilla\n"
+                        "           si el usuario fija orden_k: orden_k = la elegida\n"
+                        "\n"
+                        "Objetivo = aporte posicional total, no ratings de partido"
+                    ),
+                    steps=[
+                        (
+                            "Para cada formación candidata se construyen sus once casillas "
+                            "legales y se aplica la penalización posicional que corresponda."
+                        ),
+                        (
+                            "Para cada pareja jugador–casilla se prueban las órdenes "
+                            "individuales legales y se conserva la de mayor aporte."
+                        ),
+                        (
+                            "Si fijaste una orden, esa casilla sólo admite la orden elegida; "
+                            "los jugadores, casillas y órdenes restantes se vuelven a optimizar."
+                        ),
+                        (
+                            "El algoritmo húngaro asigna jugadores distintos a las once "
+                            "casillas para maximizar la suma de esos aportes."
+                        ),
+                        (
+                            "Si no fijaste la formación, se repite el proceso para todas y "
+                            "se elige la de mayor aporte posicional total."
+                        ),
                     ],
+                    limits=[
+                        "El objetivo es la suma del índice de aporte posicional basado en "
+                        "los coeficientes del Manual no Escrito de positions.yaml.",
+                        "No maximiza los ratings predichos de un partido ni estima el "
+                        "resultado contra un rival.",
+                        "La calificación por sector se calcula después sobre el once elegido: "
+                        "es un desglose diagnóstico y no interviene en la optimización.",
+                        "Una orden fijada restringe sólo su casilla; no congela al jugador ni "
+                        "el resto de la formación.",
+                        "Los jugadores con una lesión de una semana o más quedan fuera; un "
+                        "jugador magullado sigue disponible.",
+                    ],
+                    note=(
+                        "El campo «calificación total» se conserva por compatibilidad, pero "
+                        "representa esta suma de aportes normalizados. No es una predicción "
+                        "de los ratings oficiales del partido."
+                    ),
                 ),
             ],
         ),

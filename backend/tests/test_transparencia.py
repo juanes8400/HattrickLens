@@ -149,6 +149,34 @@ def test_los_paneles_vivos_de_motor_siguen_enganchados() -> None:
     }
 
 
+def test_el_once_optimo_publica_su_objetivo_y_todas_sus_decisiones() -> None:
+    """Transparencia describe el algoritmo real, no un ambiguo «rating total».
+
+    Formación, reparto de jugadores y órdenes individuales se deciden juntos.
+    Además debe quedar claro qué pasa al fijar una orden y que los sectores se
+    enseñan después: ninguno de esos matices se puede deducir de la fórmula
+    vieja, que sólo mostraba jugador por silla.
+    """
+    calculo = _calculo("once-optimo")
+    texto = " ".join(
+        [
+            calculo.answers,
+            calculo.formula,
+            *calculo.steps,
+            *calculo.limits,
+            calculo.note,
+        ]
+    ).lower()
+
+    assert "formación" in texto
+    assert "jugador" in texto and "casilla" in texto
+    assert "orden" in texto and "legal" in texto
+    assert "positions.yaml" in texto and "manual no escrito" in texto
+    assert "restringe sólo su casilla" in texto
+    assert "calificación por sector" in texto and "no interviene" in texto
+    assert "no es una predicción" in texto
+
+
 def test_los_coeficientes_salen_con_todos_sus_decimales() -> None:
     """2026-08-31, pedido del usuario: «pon todos los parámetros numéricos».
 

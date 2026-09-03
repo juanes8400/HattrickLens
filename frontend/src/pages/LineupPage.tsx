@@ -3,7 +3,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { api, type LineupHindsight } from "../services/api";
-import { TEAM_ID, useLineup } from "../hooks/useTeam";
+import { TEAM_ID, useLineup, useSquad } from "../hooks/useTeam";
 import {
   Empty,
   ErrorState,
@@ -22,6 +22,15 @@ import {
 import { SplitSelector } from "../components/SplitSelector";
 import { barOption } from "../charts/chartOptions";
 import { number } from "../hooks/useFormat";
+import { LineupAvailabilityNotice } from "../components/LineupAvailabilityNotice";
+import {
+  MINIMUM_LINEUP_PLAYERS,
+  availableLineupPlayerIds,
+  availablePlayersAfterExclusions,
+  restoreLineupPlayer,
+  tryExcludeLineupPlayer,
+  type LineupExclusionState,
+} from "../utils/lineupAvailability";
 
 /** Las diez del juego, de la más defensiva a la más ofensiva. Aquí faltaban
  *  5-2-3 y 2-5-3 hasta el 2026-08-19. */
@@ -50,15 +59,31 @@ export function LineupPage() {
   // Quién NO entra en el reparto. Se guarda el nombre junto al identificador
   // porque en cuanto sale, el servidor deja de devolverlo: sin el nombre la
   // lista de fuera serían números.
-  const [fuera, setFuera] = useState<{ htPlayerId: number; player: string }[]>(
-    [],
+  const [estadoFuera, setEstadoFuera] = useState<LineupExclusionState>({
+    players: [],
+    warning: null,
+  });
+  const fuera = estadoFuera.players;
+
+  // `bench` solo trae los siete primeros suplentes. Para saber si todavía se
+  // puede sacar a alguien hace falta la plantilla completa y aplicar la misma
+  // regla de lesiones que el optimizador (un magullado sí puede jugar).
+  const squad = useSquad();
+  const disponiblesIds = availableLineupPlayerIds(squad.data?.players ?? []);
+  const disponiblesTrasExclusiones = availablePlayersAfterExclusions(
+    disponiblesIds,
+    fuera,
   );
+  const plantillaLista = squad.data != null;
+  const puedeOptimizarActual =
+    plantillaLista && disponiblesTrasExclusiones >= MINIMUM_LINEUP_PLAYERS;
   const { data, isLoading, isError, error } = useLineup(
     formation || undefined,
     centrales,
     interiores,
     ordenes,
     fuera.map((f) => f.htPlayerId),
+    puedeOptimizarActual,
   );
 
   // El once de referencia es esta misma consulta SIN exclusiones. No hace
@@ -70,6 +95,8 @@ export function LineupPage() {
     centrales,
     interiores,
     ordenes,
+    undefined,
+    plantillaLista && disponiblesIds.size >= MINIMUM_LINEUP_PLAYERS,
   );
   const base = referencia.data
     ? {
@@ -79,13 +106,12 @@ export function LineupPage() {
     : null;
 
   const sacar = (htPlayerId: number, player: string) =>
-    setFuera((previos) =>
-      previos.some((f) => f.htPlayerId === htPlayerId)
-        ? previos
-        : [...previos, { htPlayerId, player }],
+    setEstadoFuera((actual) =>
+      tryExcludeLineupPlayer(actual, { htPlayerId, player }, disponiblesIds),
     );
   const devolver = (htPlayerId: number) =>
-    setFuera((previos) => previos.filter((f) => f.htPlayerId !== htPlayerId));
+    setEstadoFuera((actual) => restoreLineupPlayer(actual, htPlayerId));
+  const devolverATodos = () => setEstadoFuera({ players: [], warning: null });
 
   /** La X que saca a alguien del reparto sin arrastrarlo.
    *
@@ -107,7 +133,12 @@ export function LineupPage() {
     <button
       onClick={() => sacar(htPlayerId, player)}
       data-track="Alineación: sacar del reparto"
-      title={`Sacar a ${player} del reparto`}
+      aria-disabled={disponiblesTrasExclusiones <= MINIMUM_LINEUP_PLAYERS}
+      title={
+        disponiblesTrasExclusiones <= MINIMUM_LINEUP_PLAYERS
+          ? "Deben quedar al menos 11 jugadores disponibles"
+          : `Sacar a ${player} del reparto`
+      }
       aria-label={`Sacar a ${player} del reparto`}
       className={clsx(
         "leading-none",
@@ -144,7 +175,47 @@ export function LineupPage() {
   const hindsight = useQuery({
     queryKey: ["lineup-hindsight", TEAM_ID],
     queryFn: () => api.lineupHindsight(TEAM_ID),
+    enabled: plantillaLista && disponiblesIds.size >= MINIMUM_LINEUP_PLAYERS,
   });
+
+  // Primero se conoce la plantilla y solo entonces se decide si tiene sentido
+  // consultar al optimizador. Así una plantilla corta llega a un estado útil
+  // de la página, no a un 422 convertido en pantalla de error.
+  if (!plantillaLista) {
+    if (squad.isError) return <ErrorState error={squad.error} />;
+    return <Loading />;
+  }
+
+  const disponiblesInformados = data?.availableCount;
+  const cantidadInsuficiente =
+    disponiblesTrasExclusiones < MINIMUM_LINEUP_PLAYERS
+      ? disponiblesTrasExclusiones
+      : disponiblesInformados != null &&
+          disponiblesInformados < MINIMUM_LINEUP_PLAYERS
+        ? disponiblesInformados
+        : data != null && data.lineup.length < MINIMUM_LINEUP_PLAYERS
+          ? data.lineup.length
+          : null;
+
+  if (cantidadInsuficiente != null) {
+    return (
+      <div className="space-y-4">
+        <header>
+          <h1 className="text-xl font-semibold">Alineación</h1>
+          <p className="text-sm text-[var(--muted)]">
+            Optimización conjunta de formación, jugadores y órdenes individuales
+          </p>
+          <EnlaceATransparencia seccion="posiciones" calculo="once-optimo" />
+        </header>
+        <LineupAvailabilityNotice
+          availableCount={cantidadInsuficiente}
+          warning={data?.warning}
+          canRestore={fuera.length > 0}
+          onRestore={devolverATodos}
+        />
+      </div>
+    );
+  }
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -203,7 +274,7 @@ export function LineupPage() {
             a.orderPinned ? "border-amber-300/70" : "border-white/25",
           )}
         >
-          <option value="">Automática</option>
+          <option value="">Automática · {a.behaviourLabel}</option>
           {a.orderOptions.map((o) => (
             <option key={o.position} value={o.position}>
               {o.label}
@@ -220,7 +291,7 @@ export function LineupPage() {
         <div>
           <h1 className="text-xl font-semibold">Alineación</h1>
           <p className="text-sm text-[var(--muted)]">
-            Asignación óptima resuelta con el algoritmo húngaro
+            Optimización conjunta de formación, jugadores y órdenes individuales
           </p>
           <EnlaceATransparencia seccion="posiciones" calculo="once-optimo" />
         </div>
@@ -264,11 +335,26 @@ export function LineupPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi label="Formación" value={data.formation} />
         <Kpi label="Rating total" value={data.totalRating.toFixed(2)} />
+        <Kpi
+          label="Órdenes especiales"
+          value={String(
+            data.lineup.filter(
+              (assignment) => assignment.behaviour !== "normal",
+            ).length,
+          )}
+          hint="ofensivo, defensivo o hacia otra zona"
+        />
         <Kpi label="Banquillo" value={String(data.bench.length)} />
       </div>
+
+      <Note>
+        «Automática» evalúa todas las órdenes legales de cada casilla junto con
+        el jugador y la formación. Puedes fijar una orden; el motor volverá a
+        optimizar las demás.
+      </Note>
 
       {/* La misma cancha que usan Equipo y la Comparativa de liga: un once se
           lee de un vistazo cuando está puesto sobre el campo, y de tres
@@ -303,6 +389,14 @@ export function LineupPage() {
             : `${fuera.length} jugador(es)`
         }
       >
+        {estadoFuera.warning && (
+          <p
+            role="alert"
+            className="border-b border-[var(--warning)] px-4 py-3 text-sm text-[var(--warning)]"
+          >
+            {estadoFuera.warning}
+          </p>
+        )}
         <div
           onDragOver={(e) => {
             // Sin esto el navegador rechaza la soltada y no llega `onDrop`.
@@ -323,7 +417,8 @@ export function LineupPage() {
           {fuera.length === 0 ? (
             <p className="py-4 text-center text-xs text-[var(--muted)]">
               Arrastra un jugador de la cancha o del banquillo hasta aquí, o usa
-              el botón «Sacar». El once se vuelve a resolver con el resto.
+              el botón «Sacar». El once se vuelve a resolver con el resto y
+              siempre deben quedar al menos 11 disponibles.
             </p>
           ) : (
             <ul className="divide-y divide-[var(--border)]">
@@ -369,7 +464,7 @@ export function LineupPage() {
               </p>
             )}
             <button
-              onClick={() => setFuera([])}
+              onClick={devolverATodos}
               data-track="Alineación: devolver a todos"
               className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
             >

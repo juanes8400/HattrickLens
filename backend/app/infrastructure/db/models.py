@@ -1161,6 +1161,10 @@ class WorldContext(Base):
     currency_name: Mapped[str] = mapped_column(String(16), default="")
     currency_rate: Mapped[float] = mapped_column(Float, default=1.0)
     training_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # Momento oficial de la actualización económica semanal de esta liga.
+    # Es el ancla para contar salarios por cruces reales, no por bloques de
+    # siete días desde la compra.
+    economy_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
     cup_match_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
     series_match_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
     refreshed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
