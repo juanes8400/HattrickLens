@@ -18,6 +18,7 @@ import { TransparencyPage } from "./pages/TransparencyPage";
 import { SyncChangesPage } from "./pages/SyncChangesPage";
 import { SyncPage } from "./pages/SyncPage";
 import { UsagePage } from "./pages/UsagePage";
+import { AutorPage } from "./pages/AutorPage";
 import { arrancarTelemetria, verPagina } from "./services/telemetria";
 import { EconomyPage } from "./pages/EconomyPage";
 import { ArenaPage } from "./pages/ArenaPage";
@@ -129,6 +130,7 @@ export function App() {
           {/* Sólo la abre el administrador; el candado está en el
             servidor, no aquí. */}
           <Route path="uso" element={<UsagePage />} />
+          <Route path="autor" element={<AutorPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

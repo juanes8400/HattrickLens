@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-labelledby="autor-titulo">
+  <title id="autor-titulo">Retrato del autor de HT Lens</title>
+  <!--
+    Estilo del logo de la aplicación: colores planos, contorno negro grueso y
+    ninguna sombra ni degradado. Dibujado a mano, no generado: es una
+    caricatura reconocible, no un retrato.
+
+    La paleta sale de la propia foto — americana azul marino, camisa celeste,
+    pelo negro con raya al lado — para que se lea como la misma persona.
+  -->
+  <defs>
+    <clipPath id="autor-circulo"><circle cx="100" cy="100" r="94" /></clipPath>
+  </defs>
+
+  <g clip-path="url(#autor-circulo)">
+    <!-- Fondo neutro, como el de la foto. -->
+    <rect width="200" height="200" fill="#e8e6e3" />
+
+    <!-- Hombros y americana. -->
+    <path d="M18 200c0-38 26-58 82-58s82 20 82 58z" fill="#1f2a44" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+    <!-- Camisa: el triángulo del cuello abierto. -->
+    <path d="M78 150l22 26 22-26-22-12z" fill="#dbe9f7" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+    <!-- Solapas. -->
+    <path d="M78 150l-14 50 24-30z" fill="#162034" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+    <path d="M122 150l14 50-24-30z" fill="#162034" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+
+    <!-- Cuello. -->
+    <path d="M84 118h32v30c0 8-32 8-32 0z" fill="#e0a878" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+
+    <!-- Cara. -->
+    <path d="M100 30c26 0 40 18 40 44 0 30-18 52-40 52S60 104 60 74c0-26 14-44 40-44z" fill="#f0bd8c" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+
+    <!-- Orejas. -->
+    <path d="M60 74c-7-2-10 4-8 10s7 10 10 8z" fill="#e0a878" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+    <path d="M140 74c7-2 10 4 8 10s-7 10-10 8z" fill="#e0a878" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+
+    <!-- Pelo: corto, con raya a la izquierda y remolino hacia la derecha. -->
+    <path d="M60 72c-2-28 16-44 40-44s42 16 40 44c-4-14-10-20-18-22-12 10-38 12-50 4-6 4-10 10-12 18z" fill="#17161a" stroke="#000" stroke-width="5" stroke-linejoin="round" />
+
+    <!-- Cejas, algo fruncidas como en la foto. -->
+    <path d="M74 76c6-4 14-4 19-1" fill="none" stroke="#17161a" stroke-width="6" stroke-linecap="round" />
+    <path d="M126 76c-6-4-14-4-19-1" fill="none" stroke="#17161a" stroke-width="6" stroke-linecap="round" />
+
+    <!-- Ojos. -->
+    <circle cx="83" cy="88" r="5" fill="#17161a" />
+    <circle cx="117" cy="88" r="5" fill="#17161a" />
+
+    <!-- Nariz. -->
+    <path d="M100 92v14l-6 4" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Boca: recta, seria. -->
+    <path d="M88 118h24" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" />
+  </g>
+
+  <!-- El aro, del mismo grosor que el resto del contorno. -->
+  <circle cx="100" cy="100" r="94" fill="none" stroke="#000" stroke-width="6" />
+</svg>

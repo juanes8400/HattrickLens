@@ -32,6 +32,11 @@ export const NAV = [
   { to: "/news", label: "Cambios" },
   { to: "/insights", label: "Alertas" },
   { to: "/transparency", label: "Transparencia" },
+  // Última, y en su propia sección: es lo único de la aplicación que no
+  // depende de haber sincronizado nada, así que no pertenece a ninguna de
+  // las otras (2026-09-02).
+  { section: "Acerca de" },
+  { to: "/autor", label: "Autor" },
 ];
 
 /** Cómo se llama la página que hay en esa ruta.
