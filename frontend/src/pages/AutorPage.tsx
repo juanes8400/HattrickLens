@@ -1,5 +1,5 @@
 import { Panel } from "../components/Panels";
-import autor from "../assets/autor.svg";
+import autor from "../assets/autor.jpg";
 
 /** Quién hay detrás de esto, y qué ha publicado.
  *
@@ -146,14 +146,19 @@ export function AutorPage() {
 
       <Panel title="Juan Esteban de la Calle" meta="Pulgas Arrechas · Colombia">
         <div className="flex flex-col gap-5 p-4 sm:flex-row sm:items-start">
-          {/* El retrato no se encoge ni estira: es un dibujo con contorno, y
-              deformarlo se nota mucho más que en una fotografía. */}
+          {/* El retrato lo puso el usuario (2026-09-03) y sustituye al que
+              estaba dibujado a mano en SVG. Va recortado en círculo, que es
+              como se veía el anterior, y con `object-cover` para que un
+              recorte no cuadrado nunca lo estire. La imagen se guarda a 384
+              píxeles: el original venía a 1254 y pesaba 2 MB para enseñarse
+              a 112. */}
           <img
             src={autor}
-            alt="Retrato dibujado de Juan Esteban de la Calle"
+            alt="Retrato de Juan Esteban de la Calle"
             width={112}
             height={112}
-            className="h-28 w-28 shrink-0 self-center sm:self-start"
+            loading="lazy"
+            className="h-28 w-28 shrink-0 self-center rounded-full border border-[var(--border)] object-cover sm:self-start"
           />
           <div className="prosa space-y-3 text-sm leading-relaxed">
             {/* La gracia no es la lista de campos, es lo poco que se
