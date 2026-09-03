@@ -322,13 +322,19 @@ export function LineupPage() {
                 label="Defensa central"
                 value={data.centralDefenders}
                 options={data.centralDefenderOptions}
-                onChange={setCentrales}
+                onChange={(value) => {
+                  setCentrales(value);
+                  setOrdenes({});
+                }}
               />
               <SplitSelector
                 label="Medio central"
                 value={data.innerMidfielders}
                 options={data.innerMidfielderOptions}
-                onChange={setInteriores}
+                onChange={(value) => {
+                  setInteriores(value);
+                  setOrdenes({});
+                }}
               />
             </>
           )}
@@ -351,9 +357,19 @@ export function LineupPage() {
       </div>
 
       <Note>
-        «Automática» evalúa todas las órdenes legales de cada casilla junto con
-        el jugador y la formación. Puedes fijar una orden; el motor volverá a
-        optimizar las demás.
+        {formation ? (
+          <>
+            Esta es la mejor {formation} para el reparto elegido. Una orden
+            manual fija la casilla, no al jugador: Lens puede cambiar quién la
+            ejecuta y vuelve a optimizar todas las demás.
+          </>
+        ) : (
+          <>
+            «Mejor formación» compara las diez estructuras con el reparto base
+            de cada una. Para estudiar una formación con tus órdenes, elige
+            primero la formación y después fija las órdenes por casilla.
+          </>
+        )}
       </Note>
 
       {/* La misma cancha que usan Equipo y la Comparativa de liga: un once se

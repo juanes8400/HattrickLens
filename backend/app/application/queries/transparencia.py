@@ -725,20 +725,27 @@ def catalogo() -> list[Seccion]:
                     ],
                     name="Once óptimo",
                     answers=(
-                        "Qué formación, jugador por casilla y orden individual legal "
-                        "maximizan juntos el aporte posicional total."
+                        "Encuentra el mayor aporte posicional posible en dos modos. En "
+                        "«Mejor formación», compara las diez formaciones con su reparto "
+                        "predeterminado. Al elegir una —por ejemplo, 3-5-2— mantiene esa "
+                        "estructura y optimiza dentro de ella los jugadores y las órdenes "
+                        "que no fijaste."
                     ),
                     formula=(
                         "A(j, s, b) = aporte del jugador j en la casilla s\n"
                         "             con la orden individual b\n"
                         "\n"
-                        "max          Σ  A(jugador_s, casilla_s, orden_s)\n"
-                        "formación,   s\n"
-                        "jugadores,\n"
-                        "órdenes\n"
+                        "MODO «MEJOR FORMACIÓN»\n"
+                        "Q(f) = max                  Σ A(jugador_s, casilla_s, orden_s)\n"
+                        "       jugadores, órdenes  s\n"
+                        "f* = argmax Q(f), entre las 10 formaciones con su reparto base\n"
                         "\n"
-                        "sujeto a:  una formación legal\n"
-                        "           cada jugador en ≤ 1 casilla\n"
+                        "MODO «FORMACIÓN ELEGIDA»\n"
+                        "dadas f y su distribución central/bandas:\n"
+                        "max                            Σ A(jugador_s, casilla_s, orden_s)\n"
+                        "jugadores, órdenes no fijadas  s\n"
+                        "\n"
+                        "sujeto a:  cada jugador en ≤ 1 casilla\n"
                         "           cada casilla con exactamente 1 jugador\n"
                         "           orden_s ∈ órdenes legales de esa casilla\n"
                         "           si el usuario fija orden_k: orden_k = la elegida\n"
@@ -747,24 +754,25 @@ def catalogo() -> list[Seccion]:
                     ),
                     steps=[
                         (
-                            "Para cada formación candidata se construyen sus once casillas "
-                            "legales y se aplica la penalización posicional que corresponda."
+                            "Al abrir la pantalla, prueba las diez formaciones con el reparto "
+                            "central/bandas predeterminado de cada una."
                         ),
                         (
                             "Para cada pareja jugador–casilla se prueban las órdenes "
                             "individuales legales y se conserva la de mayor aporte."
                         ),
                         (
-                            "Si fijaste una orden, esa casilla sólo admite la orden elegida; "
-                            "los jugadores, casillas y órdenes restantes se vuelven a optimizar."
+                            "El algoritmo húngaro asigna once jugadores distintos y se muestra "
+                            "la formación cuya suma de aportes es mayor."
                         ),
                         (
-                            "El algoritmo húngaro asigna jugadores distintos a las once "
-                            "casillas para maximizar la suma de esos aportes."
+                            "Si eliges 3-5-2, deja de comparar formaciones: conserva el 3-5-2 y "
+                            "recalcula el mejor once para la distribución central/bandas elegida."
                         ),
                         (
-                            "Si no fijaste la formación, se repite el proceso para todas y "
-                            "se elige la de mayor aporte posicional total."
+                            "Una orden manual queda fijada a la casilla, no al jugador visible. "
+                            "El jugador puede cambiar mientras se reasignan todos los jugadores "
+                            "y se recalculan las órdenes no fijadas."
                         ),
                     ],
                     limits=[
@@ -774,15 +782,23 @@ def catalogo() -> list[Seccion]:
                         "resultado contra un rival.",
                         "La calificación por sector se calcula después sobre el once elegido: "
                         "es un desglose diagnóstico y no interviene en la optimización.",
-                        "Una orden fijada restringe sólo su casilla; no congela al jugador ni "
-                        "el resto de la formación.",
+                        "«Mejor formación» compara el reparto predeterminado de cada formación; "
+                        "los repartos alternativos se evalúan al elegir una formación y su "
+                        "distribución central/bandas.",
+                        "Si fijas una orden mientras sigues en «Mejor formación», se restringe "
+                        "la formación ganadora mostrada, pero no se vuelve a comparar el ranking "
+                        "de las diez formaciones. Para estudiar un 3-5-2 con tus órdenes, elige "
+                        "primero 3-5-2.",
+                        "Una orden fijada restringe sólo su casilla: no congela al jugador. Al "
+                        "cambiar de formación o de distribución se limpian las órdenes, porque "
+                        "las casillas ya no representan lo mismo.",
                         "Los jugadores con una lesión de una semana o más quedan fuera; un "
                         "jugador magullado sigue disponible.",
                     ],
                     note=(
-                        "El campo «calificación total» se conserva por compatibilidad, pero "
-                        "representa esta suma de aportes normalizados. No es una predicción "
-                        "de los ratings oficiales del partido."
+                        "Flujo para una 3-5-2 personalizada: selecciona 3-5-2, define el reparto "
+                        "central/bandas y después fija las órdenes. «Calificación total» es la "
+                        "suma de aportes normalizados; no es una predicción de ratings oficiales."
                     ),
                 ),
             ],

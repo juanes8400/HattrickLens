@@ -172,7 +172,11 @@ def test_el_once_optimo_publica_su_objetivo_y_todas_sus_decisiones() -> None:
     assert "jugador" in texto and "casilla" in texto
     assert "orden" in texto and "legal" in texto
     assert "positions.yaml" in texto and "manual no escrito" in texto
-    assert "restringe sólo su casilla" in texto
+    assert "mejor formación" in texto and "reparto predeterminado" in texto
+    assert "formación elegida" in texto and "3-5-2" in texto
+    assert "casilla, no al jugador" in texto and "el jugador puede cambiar" in texto
+    assert "elige primero 3-5-2" in texto
+    assert "cambiar de formación o de distribución" in texto
     assert "calificación por sector" in texto and "no interviene" in texto
     assert "no es una predicción" in texto
 
