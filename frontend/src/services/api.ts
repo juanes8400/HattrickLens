@@ -130,6 +130,10 @@ export const api = {
     /** Ordenes fijadas a mano: casilla -> posicion con orden. Las que no
      *  esten aqui las elige el motor. */
     orders?: Record<number, string>,
+    /** Identificadores de Hattrick que quedan FUERA del reparto. El motor
+     *  vuelve a resolver el once entero con el resto, no deja su casilla
+     *  vacía. */
+    exclude?: number[],
   ) => {
     const q = new URLSearchParams();
     if (formation) q.set("formation", formation);
@@ -141,6 +145,7 @@ export const api = {
     if (fijadas.length > 0) {
       q.set("orders", fijadas.map(([slot, pos]) => `${slot}:${pos}`).join(","));
     }
+    if (exclude && exclude.length > 0) q.set("exclude", exclude.join(","));
     const qs = q.toString();
     return request<Lineup>(`/teams/${teamId}/lineup${qs ? `?${qs}` : ""}`);
   },

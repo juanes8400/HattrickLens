@@ -47,12 +47,93 @@ export function LineupPage() {
   // orden. Las que no estén aquí las elige el motor dentro de la misma
   // asignación. Cambiar de formación las borra: las casillas ya no son esas.
   const [ordenes, setOrdenes] = useState<Record<number, string>>({});
+  // Quién NO entra en el reparto. Se guarda el nombre junto al identificador
+  // porque en cuanto sale, el servidor deja de devolverlo: sin el nombre la
+  // lista de fuera serían números.
+  const [fuera, setFuera] = useState<{ htPlayerId: number; player: string }[]>(
+    [],
+  );
   const { data, isLoading, isError, error } = useLineup(
     formation || undefined,
     centrales,
     interiores,
     ordenes,
+    fuera.map((f) => f.htPlayerId),
   );
+
+  // El once de referencia es esta misma consulta SIN exclusiones. No hace
+  // falta guardarlo en un estado ni sincronizarlo con un efecto: mientras no
+  // haya nadie fuera las dos consultas comparten clave, así que react-query
+  // devuelve la misma entrada de caché y no se pide nada de más.
+  const referencia = useLineup(
+    formation || undefined,
+    centrales,
+    interiores,
+    ordenes,
+  );
+  const base = referencia.data
+    ? {
+        formation: referencia.data.formation,
+        rating: referencia.data.totalRating,
+      }
+    : null;
+
+  const sacar = (htPlayerId: number, player: string) =>
+    setFuera((previos) =>
+      previos.some((f) => f.htPlayerId === htPlayerId)
+        ? previos
+        : [...previos, { htPlayerId, player }],
+    );
+  const devolver = (htPlayerId: number) =>
+    setFuera((previos) => previos.filter((f) => f.htPlayerId !== htPlayerId));
+
+  /** La X que saca a alguien del reparto sin arrastrarlo.
+   *
+   *  En la cancha va flotando en la esquina de la tarjeta y sólo aparece al
+   *  pasar por encima o al enfocarla con el teclado: son once tarjetas
+   *  pequeñas y once aspas siempre visibles taparían el rating, que es lo que
+   *  se viene a leer. En el banquillo va en su sitio de la fila, donde hay
+   *  espacio de sobra. */
+  const BotonSacar = ({
+    htPlayerId,
+    player,
+    enCancha,
+  }: {
+    htPlayerId: number;
+    player: string;
+    enCancha?: boolean;
+  }) => (
+    <button
+      onClick={() => sacar(htPlayerId, player)}
+      data-track="Alineación: sacar del reparto"
+      title={`Sacar a ${player} del reparto`}
+      aria-label={`Sacar a ${player} del reparto`}
+      className={clsx(
+        "leading-none",
+        enCancha
+          ? "absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full text-sm text-white/40 opacity-0 transition hover:bg-black/40 hover:text-white focus-visible:opacity-100 group-hover:opacity-100"
+          : "min-h-6 rounded border border-[var(--border)] px-2 text-xs text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]",
+      )}
+    >
+      {enCancha ? "\u00d7" : "Sacar"}
+    </button>
+  );
+
+  /** Lo que hace falta para poder arrastrar a alguien fuera.
+   *
+   *  Se marca con `draggable` el envoltorio y no el enlace del nombre: un
+   *  enlace ya es arrastrable por su cuenta y el navegador soltaría la
+   *  dirección en vez del jugador. */
+  const arrastrable = (htPlayerId: number, player: string) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData(
+        "application/x-jugador",
+        JSON.stringify({ htPlayerId, player }),
+      );
+      e.dataTransfer.effectAllowed = "move";
+    },
+  });
 
   const spirit = useQuery({
     queryKey: ["team-spirit-multiplier", TEAM_ID],
@@ -84,8 +165,13 @@ export function LineupPage() {
   };
 
   const Slot = ({ a }: { a: (typeof data.lineup)[number] }) => (
-    <div className={PITCH_CARD_CLASS}>
-      <div className="truncate text-[9px] uppercase tracking-wide text-white/70">
+    <div
+      className={clsx(PITCH_CARD_CLASS, "group relative")}
+      {...arrastrable(a.htPlayerId, a.player)}
+      title={`Arrastra a ${a.player} fuera del reparto, o pulsa la X`}
+    >
+      <BotonSacar htPlayerId={a.htPlayerId} player={a.player} enCancha />
+      <div className="truncate pr-4 text-[9px] uppercase tracking-wide text-white/70">
         {a.label}
       </div>
       <div className="truncate text-[11px] font-semibold text-white">
@@ -202,17 +288,113 @@ export function LineupPage() {
         />
       </PitchField>
 
+      {/* Fuera del reparto.
+          El once NO se edita moviendo a alguien de casilla: el motor resuelve
+          la asignación entera, así que mover a mano una pieza rompería el
+          resultado del resto. Lo que sí tiene sentido es quitar del reparto a
+          quien no va a jugar --lesionado, sancionado, o para ver el once sin
+          él-- y dejar que vuelva a resolverlo con los demás (2026-09-02). */}
+      <Panel
+        title="Fuera del reparto"
+        meta={
+          fuera.length === 0
+            ? "arrastra aquí a quien no vaya a jugar"
+            : `${fuera.length} jugador(es)`
+        }
+      >
+        <div
+          onDragOver={(e) => {
+            // Sin esto el navegador rechaza la soltada y no llega `onDrop`.
+            if (e.dataTransfer.types.includes("application/x-jugador")) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const crudo = e.dataTransfer.getData("application/x-jugador");
+            if (!crudo) return;
+            const { htPlayerId, player } = JSON.parse(crudo);
+            sacar(htPlayerId, player);
+          }}
+          className="m-4 rounded-lg border-2 border-dashed border-[var(--border)] p-3"
+        >
+          {fuera.length === 0 ? (
+            <p className="py-4 text-center text-xs text-[var(--muted)]">
+              Arrastra un jugador de la cancha o del banquillo hasta aquí, o usa
+              el botón «Sacar». El once se vuelve a resolver con el resto.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {fuera.map((f) => (
+                <li
+                  key={f.htPlayerId}
+                  className="flex items-center justify-between gap-3 py-2 text-sm"
+                >
+                  <PlayerLink htPlayerId={f.htPlayerId} name={f.player} />
+                  <button
+                    onClick={() => devolver(f.htPlayerId)}
+                    data-track="Alineación: devolver al reparto"
+                    className="min-h-6 rounded border border-[var(--border)] px-2 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  >
+                    Devolver
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {fuera.length > 0 && (
+          <div className="space-y-2 border-t border-[var(--border)] px-4 py-2">
+            {base && (
+              <p className="text-xs leading-relaxed text-[var(--muted)]">
+                {base.formation === data.formation ? (
+                  <>
+                    Sigues en {data.formation}: el hueco lo tapa otro jugador y
+                    el índice pasa de {base.rating.toFixed(2)} a{" "}
+                    {data.totalRating.toFixed(2)}.
+                  </>
+                ) : (
+                  <>
+                    Sin ellos la mejor formación ya no es {base.formation} sino{" "}
+                    {data.formation}, así que la cancha enseña puestos
+                    distintos: no se descartó una posición, se recolocó el
+                    equipo entero. El índice pasa de {base.rating.toFixed(2)} a{" "}
+                    {data.totalRating.toFixed(2)}. Para mantener{" "}
+                    {base.formation}, elígela arriba en vez de «Mejor
+                    formación».
+                  </>
+                )}
+              </p>
+            )}
+            <button
+              onClick={() => setFuera([])}
+              data-track="Alineación: devolver a todos"
+              className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
+            >
+              Devolver a todos
+            </button>
+          </div>
+        )}
+      </Panel>
+
       {data.bench.length > 0 && (
         <Panel title="Banquillo" meta={`${data.bench.length} jugadores`}>
           <ul className="divide-y divide-[var(--border)]">
             {data.bench.map((b) => (
               <li
                 key={b.htPlayerId}
-                className="flex items-center justify-between px-4 py-2 text-sm"
+                className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
+                {...arrastrable(b.htPlayerId, b.player)}
               >
                 <PlayerLink htPlayerId={b.htPlayerId} name={b.player} />
-                <span className="tabular-nums text-[var(--muted)]">
-                  TSI {number(b.tsi)}
+                <span className="flex items-center gap-3">
+                  <span className="tabular-nums text-[var(--muted)]">
+                    TSI {number(b.tsi)}
+                  </span>
+                  {/* El botón no es un adorno del arrastre: sin él, sacar a
+                      alguien sería imposible con teclado o en un móvil. */}
+                  <BotonSacar htPlayerId={b.htPlayerId} player={b.player} />
                 </span>
               </li>
             ))}

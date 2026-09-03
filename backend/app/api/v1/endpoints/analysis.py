@@ -605,9 +605,38 @@ async def lineup(
             "separadas por coma. Las casillas que no se nombren las elige el motor."
         ),
     ),
+    exclude: str | None = Query(
+        None,
+        description=(
+            "Identificadores de Hattrick separados por coma que NO entran en el "
+            "reparto. Sirve para lesionados, sancionados o para probar el once sin "
+            "alguien: el motor resuelve con el resto."
+        ),
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     players, _ = await roster(session, team_id)
+
+    # Fuera del reparto ANTES de optimizar, no después: quitar a alguien del
+    # resultado dejaría su casilla vacía, y lo que se quiere es que el motor
+    # vuelva a resolver el once entero sin él.
+    fuera: set[int] = set()
+    for trozo in (exclude or "").split(","):
+        trozo = trozo.strip()
+        if not trozo:
+            continue
+        if not trozo.isdigit():
+            raise HTTPException(400, f"jugador excluido mal escrito: «{trozo}»")
+        fuera.add(int(trozo))
+    if fuera:
+        players = [p for p in players if p["ht_player_id"] not in fuera]
+        # Once titulares: por debajo de eso no hay alineación que resolver, y
+        # es mejor decirlo que devolver un once a medias.
+        if len(players) < 11:
+            raise HTTPException(
+                400,
+                f"quedan {len(players)} jugadores y hacen falta 11: devuelve a alguien al reparto",
+            )
     if formation and formation not in FORMATIONS:
         raise HTTPException(400, f"formación desconocida: {formation}")
     fijadas: dict[int, str] = {}

@@ -89,6 +89,7 @@ export const useLineup = (
   centralDefenders?: number,
   innerMidfielders?: number,
   orders?: Record<number, string>,
+  exclude?: number[],
 ) =>
   useQuery({
     queryKey: [
@@ -98,6 +99,10 @@ export const useLineup = (
       centralDefenders ?? null,
       innerMidfielders ?? null,
       orders ?? null,
+      // Ordenados en la CLAVE, no en la petición: sacar a A y luego a B es el
+      // mismo once que sacar a B y luego a A, y sin ordenar serían dos
+      // entradas distintas de caché para el mismo resultado.
+      [...(exclude ?? [])].sort((a, b) => a - b).join(",") || null,
     ],
     queryFn: () =>
       api.lineup(
@@ -106,6 +111,7 @@ export const useLineup = (
         centralDefenders,
         innerMidfielders,
         orders,
+        exclude,
       ),
     // Mover un reparto no cambia la plantilla: se conserva el once anterior
     // mientras llega el nuevo, en vez de vaciar la pantalla entera.
