@@ -1787,7 +1787,15 @@ export interface AcademyComparativa {
   /** `false` cuando la ventana empieza antes del primer dato guardado: no se
    *  compara nada y la pantalla lo dice, en vez de inventar una comparación. */
   hasBaseline: boolean;
-  scores: { skill: string; score: number; delta: number | null }[];
+  scores: {
+    skill: string;
+    score: number;
+    delta: number | null;
+    counts: Record<string, number>;
+    /** Cuántos entraron o salieron de cada cubo. `null` si no hay con qué
+     *  comparar. */
+    countDeltas: Record<string, number> | null;
+  }[];
   players: {
     htYouthPlayerId: number;
     name: string;

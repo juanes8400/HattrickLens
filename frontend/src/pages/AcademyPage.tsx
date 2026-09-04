@@ -321,6 +321,13 @@ const BUCKETS: [string, string, string][] = [
   // cuál de las tres era (2026-09-01, pedido del usuario).
   ["desconocidoPronto", "Desconocido ⏱", "sin revelar, y sale joven"],
   ["desconocidoTarde", "Desconocido", "sin revelar, y sale mayor"],
+  // Los dos que pesan CERO. Existen para que la fila sume la plantilla
+  // entera: hasta el 2026-09-04 ninguno de los dos tenía columna, así que al
+  // revelarse un techo bajo --o al tocar techo alguien-- «Desconocido»
+  // perdía uno y ese uno no aparecía en ninguna parte. El puntaje bajaba y
+  // nada en pantalla lo explicaba (pedido del usuario).
+  ["insuficiente", "≤ Insuficiente", "techo revelado por debajo de aceptable"],
+  ["alTope", "Tocó techo", "ya llegó a su máximo: entrenarlo no sube nada"],
 ];
 
 /**
@@ -449,23 +456,57 @@ const VENTANAS_JUVENILES = [
   { key: "8", label: "8 semanas" },
 ];
 
-/** Cuánto se movió un puntaje, o un punto si no se movió. */
+/** Cuánto se movió un puntaje, o un punto si no se movió.
+ *
+ *  Ancho fijo para que los deltas formen su propia columna debajo de los
+ *  puntajes, en vez de empujarlos. */
 function MovimientoDelPuntaje({ delta }: { delta: number | null }) {
-  if (delta == null || delta === 0) {
+  if (delta == null) {
     return (
-      <span className="w-12 text-left text-xs text-[var(--muted)]">·</span>
+      <span className="w-[4.5rem] text-right text-xs text-[var(--muted)]">
+        ·
+      </span>
+    );
+  }
+  // El cero se escribe (2026-09-04, pedido del usuario): con un punto, la
+  // columna de deltas se rompe y cuesta comparar de una fila a otra.
+  if (delta === 0) {
+    return (
+      <span className="w-[4.5rem] text-right text-xs tabular-nums text-[var(--muted)]">
+        (0.000)
+      </span>
     );
   }
   return (
     <span
       className={clsx(
-        "w-12 text-left text-xs tabular-nums",
+        "w-[4.5rem] text-right text-xs tabular-nums",
         delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
       )}
       title="cuánto se movió el puntaje en la ventana elegida"
     >
+      ({delta > 0 ? "+" : "−"}
+      {decimal(Math.abs(delta), 3)})
+    </span>
+  );
+}
+
+/** Cuántos canteranos entraron o salieron de un cubo.
+ *
+ *  Son enteros pequeños y van pegados al conteo, no en columna aparte: lo que
+ *  se lee es «13 −1», no dos números sueltos. */
+function MovimientoDelConteo({ delta }: { delta: number }) {
+  if (!delta) return null;
+  return (
+    <span
+      className={clsx(
+        "ml-1 text-[0.65rem] tabular-nums",
+        delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
+      )}
+      title="cuántos entraron o salieron de este grupo en la ventana elegida"
+    >
       {delta > 0 ? "+" : "−"}
-      {decimal(Math.abs(delta), 3)}
+      {Math.abs(delta)}
     </span>
   );
 }
@@ -557,6 +598,9 @@ function WhatToTrain({
   });
   const deltas = new Map(
     (movimiento.data?.scores ?? []).map((x) => [x.skill, x.delta]),
+  );
+  const conteos = new Map(
+    (movimiento.data?.scores ?? []).map((x) => [x.skill, x.countDeltas]),
   );
   const resumen = movimiento.data?.summary;
   const sinBase = movimiento.data ? !movimiento.data.hasBaseline : false;
@@ -730,6 +774,12 @@ function WhatToTrain({
                     ) : (
                       <span className="text-[var(--muted)]">·</span>
                     )}
+                    {/* El -1 aquí y el +1 allá, en el mismo renglón: es lo
+                        que deja auditar de dónde salió el movimiento del
+                        puntaje (2026-09-04, pedido del usuario). */}
+                    <MovimientoDelConteo
+                      delta={conteos.get(r.skill)?.[key] ?? 0}
+                    />
                   </td>
                 ))}
                 <td className="px-2 py-2 text-right">
@@ -769,9 +819,13 @@ function WhatToTrain({
                         style={{ width: `${(r.score / max) * 100}%` }}
                       />
                     </div>
-                    <span className="tabular-nums">{decimal(r.score, 3)}</span>
-                    {/* Un punto cuando no se movió, nunca «+0.000»: siete
-                        filas de ceros esconden las dos que sí cambiaron. */}
+                    {/* Dos ranuras de ancho fijo: puntaje bajo puntaje y
+                        delta bajo delta. Alineado a la derecha sin más, el
+                        ancho variable del delta desplazaba el puntaje de una
+                        fila a otra (2026-09-04, pedido del usuario). */}
+                    <span className="w-14 text-right tabular-nums">
+                      {decimal(r.score, 3)}
+                    </span>
                     <MovimientoDelPuntaje delta={deltas.get(r.skill) ?? null} />
                   </div>
                 </td>

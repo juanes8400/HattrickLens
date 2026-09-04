@@ -107,7 +107,10 @@ SQUAD_NORMALISER = 16
 
 
 class Bucket(StrEnum):
-    """Los siete cubos de `AuxiJuveniles`, del que más pesa al que menos."""
+    """Los cubos de `AuxiJuveniles`, del que más pesa al que menos.
+
+    Los dos últimos pesan cero: no aportan puntaje, sirven para que la fila
+    sume la plantilla entera y se pueda auditar de dónde viene un cambio."""
 
     EXCELLENT = "excelente"
     GOOD_SOON = "bueno_pronto"
@@ -121,6 +124,13 @@ class Bucket(StrEnum):
     #: que un canterano tapado EMPUJARA la habilidad hacia arriba en el
     #: ranking, que es exactamente lo contrario de lo que toca.
     AT_MAX = "al_tope"
+    #: Techo revelado y por debajo de «aceptable». Pesa 0, igual que el de
+    #: arriba, y existe por lo mismo: hasta el 2026-09-04 estos canteranos no
+    #: caían en NINGÚN cubo, así que al revelarse un techo bajo la fila dejaba
+    #: de sumar la plantilla y el puntaje bajaba sin que nada lo explicara.
+    #: Contarlos no cambia ni un puntaje --el peso es cero-- pero deja ver el
+    #: -1 en «desconocido» junto al +1 de aquí.
+    TOO_LOW = "insuficiente"
 
 
 # Los pesos de `AuxiJuveniles!O11` no son siete números sueltos: son una
@@ -163,6 +173,7 @@ def weights_for(base: float = DEFAULT_WEIGHT_BASE) -> dict[str, float]:
     return {
         **{bucket: base**exp for bucket, exp in EXPONENTS.items()},
         Bucket.AT_MAX: 0.0,
+        Bucket.TOO_LOW: 0.0,
     }
 
 
@@ -319,9 +330,9 @@ def bucket_of(note: int | None, *, leaves_soon: bool, max_reached: bool = False)
         return Bucket.GOOD_SOON if leaves_soon else Bucket.GOOD_LATER
     if note >= ACCEPTABLE_FROM:
         return Bucket.ACCEPTABLE_SOON if leaves_soon else Bucket.ACCEPTABLE_LATER
-    # Por debajo de "aceptable" la hoja no cuenta nada: ni siquiera entra como
-    # desconocido, porque no lo es — se sabe, y se sabe que no sirve.
-    return ""
+    # Por debajo de «aceptable» no vale nada, pero ahora se CUENTA: sigue
+    # pesando cero, así que ningún puntaje cambia, y a cambio la fila cuadra.
+    return Bucket.TOO_LOW
 
 
 def leaves_soon(candidate: YouthCandidate, *, soon_max_days: int = SOON_MAX_DAYS) -> bool:

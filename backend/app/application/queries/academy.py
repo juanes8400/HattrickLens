@@ -388,6 +388,10 @@ class AcademyQueryService:
             )
         )
         antes_por_habilidad = {r.skill: r.score for r in (antes or [])}
+        # Los conteos de cada cubo, para poder enseñar el -1 en «desconocido»
+        # junto al +1 en «insuficiente»: es lo que hace la fila auditable
+        # (2026-09-04, pedido del usuario).
+        cubos_antes = {r.skill: r.counts for r in (antes or [])}
         # Sin puntaje de antes no hay comparación posible, y entonces NADA se
         # compara: sin esto, una ventana que empieza antes del primer dato
         # marcaba a los 18 canteranos como recién llegados, porque ninguno
@@ -454,6 +458,15 @@ class AcademyQueryService:
                     "delta": (
                         round(r.score - antes_por_habilidad[r.skill], 3)
                         if r.skill in antes_por_habilidad
+                        else None
+                    ),
+                    "counts": r.counts,
+                    "countDeltas": (
+                        {
+                            cubo: r.counts[cubo] - cubos_antes[r.skill].get(cubo, 0)
+                            for cubo in r.counts
+                        }
+                        if r.skill in cubos_antes
                         else None
                     ),
                 }

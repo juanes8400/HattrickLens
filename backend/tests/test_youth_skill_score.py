@@ -67,12 +67,41 @@ def test_excellent_ignores_the_deadline_but_the_rest_does_not() -> None:
     assert ys.bucket_of(7, leaves_soon=False) == ys.Bucket.GOOD_LATER
 
 
-def test_below_acceptable_is_not_counted_at_all() -> None:
-    """La hoja no tiene cubo para el 5 y por debajo: no es que se ignore por
-    desconocido, es que se sabe y se sabe que no sirve."""
-    assert ys.bucket_of(5, leaves_soon=True) == ""
-    assert ys.bucket_of(0, leaves_soon=False) == ""
+def test_below_acceptable_tiene_su_cubo_pero_no_puntua() -> None:
+    """El 5 y por debajo se CUENTA, y sigue sin valer nada.
+
+    2026-09-04, pedido del usuario. Antes no caía en ningún cubo, y entonces
+    revelar un techo bajo restaba uno de «desconocido» sin sumarlo en ninguna
+    parte: la fila dejaba de sumar la plantilla y el puntaje bajaba sin que
+    nada en pantalla lo explicara. Ahora tiene grupo propio, con peso cero.
+    """
+    assert ys.bucket_of(5, leaves_soon=True) == ys.Bucket.TOO_LOW
+    assert ys.bucket_of(0, leaves_soon=False) == ys.Bucket.TOO_LOW
     assert ys.bucket_of(None, leaves_soon=True) == ys.Bucket.UNKNOWN_SOON
+    # Lo que no puede pasar bajo ningún concepto: que aporte puntaje.
+    assert ys.weights_for(3.0)[ys.Bucket.TOO_LOW] == 0.0
+    assert ys.weights_for(1.0)[ys.Bucket.TOO_LOW] == 0.0
+
+
+def test_contar_a_los_insuficientes_no_mueve_ningun_puntaje() -> None:
+    """La red de seguridad del cambio.
+
+    Añadir un cubo con peso cero no puede alterar una sola cifra: si algún
+    puntaje se mueve, es que el cubo se coló en la suma.
+    """
+    candidatos = [
+        _candidate("Bueno", 100, winger=ys.YouthSkillReading(4, 8)),
+        _candidate("Justo", 100, winger=ys.YouthSkillReading(3, 6)),
+        _candidate("Flojo", 100, winger=ys.YouthSkillReading(2, 5)),
+        _candidate("Peor", 100, winger=ys.YouthSkillReading(1, 3)),
+    ]
+    fila = next(r for r in ys.score_skills(candidatos) if r.skill == "winger")
+    # Los dos de techo bajo están contados...
+    assert fila.counts[ys.Bucket.TOO_LOW] == 2
+    # ...y el puntaje es exactamente el de los otros dos, ni más ni menos.
+    solos = [candidatos[0], candidatos[1]]
+    sin_ellos = next(r for r in ys.score_skills(solos) if r.skill == "winger")
+    assert fila.score == sin_ellos.score
 
 
 # ── El puntaje completo, contra la hoja real ────────────────────────────────
