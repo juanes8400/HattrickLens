@@ -8,6 +8,7 @@ import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
 import { CountryCell } from "../components/CountryFlag";
 import { Column, DataTable } from "../components/DataTable";
+import { INTENTOS_DE_TRANSFERENCIA_VISIBLES } from "../config/flags";
 import {
   Empty,
   ErrorState,
@@ -1055,10 +1056,14 @@ export function PlayerBalancePage() {
             { key: "totales", label: "Totales" },
             { key: "desgloses", label: "Desgloses absolutos" },
             { key: "roi", label: "Desgloses ROI" },
-            {
-              key: "intentos",
-              label: `Intentos de transferencias (${intentos.data?.rows.length ?? 0})`,
-            },
+            ...(INTENTOS_DE_TRANSFERENCIA_VISIBLES
+              ? ([
+                  {
+                    key: "intentos",
+                    label: `Intentos de transferencias (${intentos.data?.rows.length ?? 0})`,
+                  },
+                ] as { key: SectionKey; label: string }[])
+              : []),
             { key: "detalle", label: `Detalle (${detalleRows.length})` },
           ]}
           active={section}
@@ -1457,7 +1462,9 @@ export function PlayerBalancePage() {
           </div>
         )}
 
-        {section === "intentos" && <TransferAttemptsSection />}
+        {INTENTOS_DE_TRANSFERENCIA_VISIBLES && section === "intentos" && (
+          <TransferAttemptsSection />
+        )}
 
         {section === "detalle" && (
           <Panel

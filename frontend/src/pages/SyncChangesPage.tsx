@@ -10,6 +10,7 @@ import {
 } from "../components/SyncComparisonReport";
 import { YouthChanges } from "../components/YouthChanges";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
+import { INTENTOS_DE_TRANSFERENCIA_VISIBLES } from "../config/flags";
 import {
   GroupedPlayerChanges,
   type AggregateMetric,
@@ -528,7 +529,12 @@ export function SyncChangesPage() {
           eligiendo una fecha, y entonces se avisa de que no es lo último. */}
       {/* Lo primero de la pantalla, por delante incluso de los avisos de
           contexto (pedido del usuario, 2026-09-01). */}
-      <PreguntaDeVisitas />
+      {/* Apagado a petición del usuario (2026-09-04) junto con la pestaña de
+          «Intentos de transferencias», que es donde vivían estos datos. Se
+          apaga desde la MISMA constante para que no quede la mitad
+          encendida: pedirle a alguien que teclee unas visitas que luego no
+          puede consultar en ninguna parte sería peor que no pedírselas. */}
+      {INTENTOS_DE_TRANSFERENCIA_VISIBLES && <PreguntaDeVisitas />}
 
       {data && !data.reportIsLatest && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../services/api";
+import { setActiveTeamId, useSessionProfile } from "../hooks/useTeam";
 
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
@@ -19,6 +20,31 @@ export function WelcomePage() {
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
   const sessionExpired = params.get("reason") === "session_expired";
+
+  // Antes de pedir nada, PREGUNTAR si ya hay sesión.
+  //
+  // 2026-09-04, reportado por el usuario: «cierro el navegador, vuelvo a
+  // abrir y me pide Permitir otra vez». La cookie de sesión dura 30 días y
+  // seguía viva; lo que fallaba es que el guardián de rutas mira
+  // `localStorage` --de donde sale el equipo activo-- y esta pantalla no
+  // preguntaba nada: enseñaba «Conecta tu club» y su único botón arranca el
+  // baile de OAuth, que es cuando Hattrick pide «Permitir».
+  //
+  // Así que bastaba con que `localStorage` se vaciara --el navegador lo
+  // limpia al cerrar en muchas configuraciones, y `expireLocalSession()` lo
+  // borra ante un 401-- para tener que volver a autorizar con la sesión
+  // intacta.
+  const perfil = useSessionProfile();
+  const equipoRecuperable = perfil.data?.teams?.[0];
+
+  useEffect(() => {
+    if (!equipoRecuperable) return;
+    setActiveTeamId(equipoRecuperable.id);
+    // `replace` y no `assign`: volver atrás no debe traer de vuelta a una
+    // bienvenida que ya no aplica.
+    window.location.replace("/dashboard");
+  }, [equipoRecuperable]);
+
   const connect = useMutation({
     mutationFn: api.connectChpp,
     onSuccess: ({ authorizeUrl }) => {
@@ -26,6 +52,20 @@ export function WelcomePage() {
     },
     onError: (reason) => setError(messageFor(reason)),
   });
+
+  // Mientras se pregunta no se enseña «Conecta tu club»: hacerlo y saltar
+  // medio segundo después es peor que esperar ese medio segundo.
+  if (perfil.isLoading || equipoRecuperable) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[var(--bg)] px-6">
+        <p className="text-sm text-[var(--muted)]">
+          {equipoRecuperable
+            ? "Recuperando tu sesión…"
+            : "Comprobando si ya has conectado…"}
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--bg)] px-6 py-12">
