@@ -1813,7 +1813,15 @@ export interface AcademyComparativa {
       }
     >;
   }[];
-  summary: { skillsUp: number; ceilingsRevealed: number; arrivals: number };
+  summary: {
+    skillsUp: number;
+    ceilingsRevealed: number;
+    arrivals: number;
+    departures: number;
+    /** Lo que tiene que sumar la fila de movimientos de cualquier habilidad:
+     *  altas menos bajas. La pantalla lo dice en una nota. */
+    rowDelta: number;
+  };
 }
 
 export interface AcademySkillScores {

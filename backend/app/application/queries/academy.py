@@ -388,13 +388,19 @@ class AcademyQueryService:
             )
         )
         antes_por_habilidad = {r.skill: r.score for r in (antes or [])}
-        # Los conteos de cada cubo, para poder enseñar el -1 en «desconocido»
-        # junto al +1 en «insuficiente»: es lo que hace la fila auditable
-        # (2026-09-04, pedido del usuario).
+
+        # Los conteos de cada cubo, con su movimiento. El delta es bruto:
+        # cuenta de hoy menos cuenta de entonces sobre la plantilla ENTERA, así
+        # que un fichaje produce su +1 igual que una habilidad que cambia de
+        # cubo (2026-09-04, decisión del usuario tras verlo de las dos formas).
+        #
+        # Consecuencia, y por eso la pantalla lleva una nota: la fila no suma
+        # cero, suma altas menos bajas. Lo que sí se equilibra es el
+        # movimiento interno.
         cubos_antes = {r.skill: r.counts for r in (antes or [])}
         # Sin puntaje de antes no hay comparación posible, y entonces NADA se
         # compara: sin esto, una ventana que empieza antes del primer dato
-        # marcaba a los 18 canteranos como recién llegados, porque ninguno
+        # marcaba a todos los canteranos como recién llegados, porque ninguno
         # tenía foto vieja (2026-09-04).
         if antes is None:
             desde = None
@@ -445,6 +451,10 @@ class AcademyQueryService:
             )
 
         llegados = sum(1 for j in jugadores if j["isNew"])
+        # Los que estaban entonces y hoy no. Sin ellos la nota mentiría en
+        # cuanto se venda o ascienda a alguien.
+        presentes = {p.ht_youth_player_id for _, p in nuevas}
+        bajas = sum(1 for ht_id in viejas if ht_id not in presentes)
         return {
             "window": ventana,
             "since": _iso_o_nada(desde),
@@ -477,6 +487,11 @@ class AcademyQueryService:
                 "skillsUp": subidas,
                 "ceilingsRevealed": techos_nuevos,
                 "arrivals": llegados,
+                "departures": bajas,
+                # Lo que TIENE que sumar la fila de movimientos de cualquier
+                # habilidad. La pantalla lo dice en una nota, y de paso sirve
+                # de comprobación: si una fila no da esto, algo está mal.
+                "rowDelta": llegados - bajas,
             },
         }
 

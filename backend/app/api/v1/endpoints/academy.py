@@ -958,4 +958,9 @@ async def academy_comparativa(
     )
     if data is None:
         raise HTTPException(404, f"team {team_id} sin canteranos")
-    return data
+    # Las claves de los cubos viajan en camelCase como en el resto de la API.
+    # Sin esto, `counts` llegaba camelCaseado desde `skill-scores` y los
+    # deltas de aquí en snake_case, así que la pantalla sólo casaba las claves
+    # de una palabra: se veía el movimiento de «insuficiente» y no el de
+    # «desconocido_pronto» (2026-09-04).
+    return cast(dict[str, Any], _camel(data))

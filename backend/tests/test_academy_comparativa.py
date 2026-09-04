@@ -154,3 +154,64 @@ def test_sin_historico_tan_atras_no_se_inventan_llegadas() -> None:
     assert d["summary"]["arrivals"] == 0
     assert all(j["isNew"] is False for j in d["players"])
     assert all(x["delta"] is None for x in d["scores"])
+
+
+def test_un_fichaje_tambien_produce_su_mas_uno() -> None:
+    """El delta es BRUTO, y la fila suma altas menos bajas.
+
+    2026-09-04. Se probó calcularlo sólo sobre los canteranos que estaban en
+    las dos fotos, para que todo +1 tuviera su -1; el usuario lo revocó: si
+    ficha a alguien quiere ver el +1 igual. La pantalla lo aclara con una
+    nota, porque entonces la fila NO suma cero.
+
+    Aquí conviven los dos orígenes de un +1: a Ireneo le revelan un techo bajo
+    --sale de «desconocido» y entra en «insuficiente»-- y además llega uno de
+    fuera que ya viene con el techo bajo.
+    """
+
+    async def go():
+        svc, team_id = await _montar(
+            {
+                "Ireneo": [(HOY - timedelta(days=10), None, None), (HOY, 2, 4)],
+                "Recien": [(HOY, 2, 4)],
+            }
+        )
+        return await svc.comparativa(team_id, "cambio")
+
+    d = run(go())
+    assert d is not None
+    fila = next(x for x in d["scores"] if x["skill"] == "winger")
+    # El movimiento de Ireneo y el fichaje, los dos dentro.
+    assert fila["countDeltas"]["insuficiente"] == 2
+    assert fila["countDeltas"]["desconocido_pronto"] == -1
+    # Y la fila suma exactamente lo que dice la nota: una alta, ninguna baja.
+    assert sum(fila["countDeltas"].values()) == 1
+    assert d["summary"]["rowDelta"] == 1
+    assert d["summary"]["arrivals"] == 1
+    assert d["summary"]["departures"] == 0
+
+
+def test_la_fila_suma_la_plantilla_entera() -> None:
+    """7 habilidades x N canteranos: la tabla tiene que cuadrar.
+
+    Es la propiedad que compraron los dos cubos de peso cero. Antes, un techo
+    revelado por debajo de aceptable no caía en ninguna casilla y la cuenta no
+    daba.
+    """
+
+    async def go():
+        svc, team_id = await _montar(
+            {
+                "Alto": [(HOY, 4, 8)],
+                "Justo": [(HOY, 3, 6)],
+                "Bajo": [(HOY, 2, 4)],
+                "Tapado": [(HOY, 5, 5)],
+                "Sin ojear": [(HOY, None, None)],
+            }
+        )
+        return await svc.comparativa(team_id, "cambio")
+
+    d = run(go())
+    assert d is not None
+    for fila in d["scores"]:
+        assert sum(fila["counts"].values()) == 5, fila["skill"]
