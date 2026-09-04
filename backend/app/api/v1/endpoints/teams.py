@@ -41,7 +41,12 @@ from app.application.queries.squad import SquadQueryService
 from app.application.queries.sync_comparison import build_sync_comparison
 from app.application.queries.transparencia import como_json as catalogo_de_calculos
 from app.domain.engines.position_engine import model_info
-from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
+from app.infrastructure.chpp.client import (
+    CHPPAuthError,
+    CHPPClient,
+    CHPPDeniedError,
+    CHPPUnavailableError,
+)
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import SessionLocal, get_session
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -121,6 +126,11 @@ async def trigger_sync(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
@@ -311,6 +321,11 @@ async def trigger_match_details_sync(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
@@ -387,6 +402,11 @@ async def trigger_player_details_sync(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
@@ -466,6 +486,11 @@ async def trigger_purchase_price_sync(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
@@ -544,6 +569,11 @@ async def trigger_previous_club_bonus_backfill(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
@@ -601,6 +631,11 @@ async def trigger_transfers_history_sync(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
@@ -950,6 +985,11 @@ async def backfill_run(
         token_row.status = "revoked"
         await session.commit()
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
+        # marca revocado ni se devuelve 401, que el frontend leería
+        # como sesión caducada y echaría al usuario (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:

@@ -80,12 +80,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res = await doFetch();
   const mayRefresh =
     path !== "/auth/chpp/refresh" && path !== "/auth/chpp/connect";
+  // Se echa al usuario SÓLO si el refresco falló, o sea si la sesión con HT
+  // Lens está de verdad muerta. Antes bastaba con que la petición reintentada
+  // volviera a dar 401 para mandarlo a /welcome, y un 401 puede venir de que
+  // Hattrick rechazó NUESTRO token, que es otro problema y no se arregla
+  // volviendo a entrar. Un hipo pasajero de Hattrick expulsaba de la
+  // aplicación (2026-09-04, reportado en producción).
+  let sesionViva = true;
   if (res.status === 401 && mayRefresh) {
-    const refreshed = await refreshSession();
-    if (refreshed) res = await doFetch();
+    sesionViva = await refreshSession();
+    if (sesionViva) res = await doFetch();
   }
 
-  if (res.status === 401 && mayRefresh) expireLocalSession();
+  if (res.status === 401 && mayRefresh && !sesionViva) expireLocalSession();
 
   if (!res.ok) {
     let detail: unknown;
@@ -360,8 +367,13 @@ export const api = {
         credentials: "include",
       });
     let res = await doSync();
-    if (res.status === 401 && (await refreshSession())) res = await doSync();
-    if (res.status === 401) expireLocalSession();
+    // Mismo criterio que arriba: sólo se expulsa si el refresco no pudo
+    // revivir la sesión.
+    if (res.status === 401) {
+      const revivio = await refreshSession();
+      if (revivio) res = await doSync();
+      else expireLocalSession();
+    }
     if (!res.ok || !res.body) {
       let detail: unknown;
       try {

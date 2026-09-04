@@ -765,9 +765,7 @@ class PlayerBalanceQueryService:
             # del jugador. En cualquier etapa anterior seria el sueldo de una
             # vuelta posterior disfrazado de dato historico.
             fallback_salary = (
-                conv(p.last_known_salary) or 0
-                if latest_stint_by_player.get(p.id) is etapa
-                else 0
+                conv(p.last_known_salary) or 0 if latest_stint_by_player.get(p.id) is etapa else 0
             )
 
             record = PlayerTransferRecord(

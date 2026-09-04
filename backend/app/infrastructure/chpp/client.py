@@ -7,6 +7,7 @@ Endpoints oficiales:
   recursos:      https://chpp.hattrick.org/chppxml.ashx?file=<name>
 """
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -14,8 +15,31 @@ from authlib.integrations.httpx_client import AsyncOAuth1Client
 
 from app.core.config import settings
 
+#: Cuántas veces se pide un fichero antes de darlo por perdido, y cuánto se
+#: espera entre intentos (se dobla cada vez: 0,5s y 1s).
+REINTENTOS = 3
+ESPERA_BASE = 0.5
 
-class CHPPAuthError(Exception): ...
+
+class CHPPAuthError(Exception):
+    """El token está muerto: hay que volver a autorizar la aplicación.
+
+    Sólo se levanta cuando se ha COMPROBADO que lo está. Marcar un token como
+    revocado desconecta al usuario y le obliga a rehacer el baile de OAuth, y
+    hasta el 2026-09-04 bastaba un 401 cualquiera de Hattrick para hacerlo:
+    un permiso que faltaba para esa llamada concreta, un límite de peticiones
+    o un mal rato del servidor tiraban la sesión entera.
+    """
+
+
+class CHPPDeniedError(Exception):
+    """Hattrick dijo 401 pero el token sigue vivo.
+
+    Es lo que contesta una llamada que pide algo para lo que el token no tiene
+    permiso. No se arregla reconectando ni esperando: se arregla no haciendo
+    esa llamada, así que quien la haga decide qué contar. Lo que NO puede
+    hacer es dar la sesión por perdida.
+    """
 
 
 class CHPPUnavailableError(Exception): ...
@@ -50,14 +74,61 @@ class CHPPClient:
         """
         url = f"{settings.chpp_base_url}/chppxml.ashx"
         query = {"file": file, **({} if version == "latest" else {"version": version}), **params}
-        try:
-            resp = await self._client.get(url, params=query)
-        except httpx.TransportError as exc:
-            raise CHPPUnavailableError(str(exc)) from exc
+        resp = await self._get_con_reintentos(url, query)
         if resp.status_code == 401:
+            # Un 401 NO significa por sí solo que el token esté revocado, y
+            # tratarlo así desconectaba al usuario cada dos por tres. Se
+            # comprueba preguntando por la ficha del propio equipo, que no
+            # necesita ningún permiso especial: si eso responde, el token vive
+            # y el 401 era de esta llamada concreta (2026-09-04).
+            if await self._token_sigue_vivo():
+                raise CHPPDeniedError(f"Hattrick negó «{file}» con este token")
             raise CHPPAuthError("token revocado, requiere re-autorización")
         resp.raise_for_status()
         return self._parse(parse_as or file, resp.content)  # bytes: el XML declara su encoding
+
+    async def _get_con_reintentos(self, url: str, query: dict[str, Any]) -> httpx.Response:
+        """Lo pasajero se reintenta antes de darlo por un fallo.
+
+        El contrato del puerto (`app/domain/ports/chpp_gateway.py`) ya pedía
+        «retries con backoff» desde el principio; no estaban escritos. Un
+        corte de red de un segundo o un 502 de Hattrick llegaban arriba como
+        un error de verdad y, con la plantilla a medio sincronizar, dejaban al
+        usuario mirando una pantalla rota.
+        """
+        ultimo: Exception | None = None
+        for intento in range(REINTENTOS):
+            try:
+                resp = await self._client.get(url, params=query)
+            except httpx.TransportError as exc:
+                ultimo = exc
+            else:
+                # 401 y 4xx no se reintentan: repetir lo mismo da lo mismo.
+                if resp.status_code < 500:
+                    return resp
+                ultimo = httpx.HTTPStatusError(
+                    f"Hattrick devolvió {resp.status_code}", request=resp.request, response=resp
+                )
+            if intento < REINTENTOS - 1:
+                await asyncio.sleep(ESPERA_BASE * 2**intento)
+        raise CHPPUnavailableError(str(ultimo))
+
+    async def _token_sigue_vivo(self) -> bool:
+        """Una sola llamada barata para separar «no puedes» de «ya no eres».
+
+        `teamdetails` es lo primero que se pide al conectar y no necesita
+        ningún permiso extra: si contesta, el token es válido. Ante la duda
+        --la comprobación falla, Hattrick no responde-- se devuelve `True`,
+        que es el lado prudente: mejor un error pasajero que desconectar a
+        alguien cuya sesión estaba bien.
+        """
+        try:
+            resp = await self._client.get(
+                f"{settings.chpp_base_url}/chppxml.ashx", params={"file": "teamdetails"}
+            )
+        except httpx.TransportError:
+            return True
+        return resp.status_code != 401
 
     def _parse(self, file: str, xml: bytes) -> dict[str, Any]:
         from app.infrastructure.chpp.parsers import get_parser

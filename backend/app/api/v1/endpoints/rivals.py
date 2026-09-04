@@ -64,7 +64,12 @@ from app.domain.value_objects.ht_constants import (
     match_type_name,
 )
 from app.domain.value_objects.ht_time import ht_to_utc
-from app.infrastructure.chpp.client import CHPPAuthError, CHPPClient, CHPPUnavailableError
+from app.infrastructure.chpp.client import (
+    CHPPAuthError,
+    CHPPClient,
+    CHPPDeniedError,
+    CHPPUnavailableError,
+)
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
@@ -896,6 +901,10 @@ async def rival_scouting(
             )
     except CHPPAuthError as exc:
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        # El token vive: sólo esta llamada estaba vedada. Un 401 aquí
+        # lo leería el frontend como sesión caducada (2026-09-04).
+        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
