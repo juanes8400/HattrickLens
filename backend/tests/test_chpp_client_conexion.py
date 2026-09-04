@@ -48,7 +48,14 @@ def _cliente(respuestas, monkeypatch):
     `respuestas` es una lista de respuestas o de excepciones a levantar. Se
     guarda además la lista de ficheros pedidos, que es lo que permite ver si
     hubo comprobación del token o reintentos.
+
+    Las credenciales se ponen a mano porque `authlib` exige un `client_id` no
+    vacío al construir el cliente. En una máquina con `.env` la de verdad
+    estaba ahí y estas pruebas pasaban; en CI no existe y las seis reventaban
+    con `Missing "client_id"`. Green en local no probaba nada (2026-09-04).
     """
+    monkeypatch.setattr(mod.settings, "chpp_consumer_key", "clave-de-prueba")
+    monkeypatch.setattr(mod.settings, "chpp_consumer_secret", "secreto-de-prueba")
     c = CHPPClient("t", "s")
     pedidos: list[str] = []
     cola = list(respuestas)
