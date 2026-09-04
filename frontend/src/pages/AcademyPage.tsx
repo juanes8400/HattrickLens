@@ -2155,48 +2155,61 @@ function columnasDeCanteranos(
         const s = p.skills.find((x) => x.skill === clave);
         return s?.maximum ?? s?.current ?? -1;
       },
-      // La barra mide el NIVEL sobre la escala juvenil, nunca lo lleno que
-      // está respecto a su propio techo --un 4 que ya no sube es un 4-- y el
-      // color dice si puede crecer. Misma lectura que las otras tres vistas
-      // del módulo; aquí sólo va más apretada.
+      // La barra dejó de ser un objeto al lado del número y pasó a ser el
+      // FONDO de la celda (2026-09-04, elegido por el usuario). El problema
+      // que resuelve: la barra se anclaba al borde derecho y el número
+      // quedaba a su izquierda, en un sitio distinto según midiera «4/7» o
+      // «Desconocido», así que la cabecera nunca caía encima del número.
+      //
+      // Lo desconocido no dibuja nada. De las 126 celdas de esta tabla, 98
+      // no se saben: pintarles una píldora gris llenaba la pantalla de cajas
+      // apagadas y, peor, una píldora vacía se lee como «nivel cero», que no
+      // es lo mismo que «no lo sé».
+      //
+      // La barra sigue midiendo el NIVEL sobre la escala juvenil, nunca lo
+      // lleno que está respecto a su propio techo --un 4 que ya no sube es un
+      // 4-- y el color dice si puede crecer.
       render: (p) => {
         const s = p.skills.find((x) => x.skill === clave);
-        if (!s) return "—";
+        const nada = !s || (s.current == null && s.maximum == null);
+        if (nada) {
+          return (
+            <span
+              className="text-[var(--muted)]"
+              title={`${nombre}: sin revelar`}
+            >
+              ·
+            </span>
+          );
+        }
         const { palabra, numeros, ancho, crece } = lecturaDeNivel(
           s.current,
           s.maximum,
           s.maxReached,
         );
+        const tinte = crece ? "var(--positive)" : "var(--danger)";
         return (
           <span
-            className="flex items-center justify-end gap-1.5 whitespace-nowrap"
+            className="inline-block min-w-[4.25rem] rounded px-1.5 py-0.5 text-right tabular-nums"
             title={`${nombre}: ${palabra}`}
+            style={{
+              // Un solo relleno en vez de dos elementos: nada que se pueda
+              // descuadrar respecto a la cabecera.
+              background:
+                ancho === 0
+                  ? "var(--surface-2)"
+                  : `linear-gradient(to right, color-mix(in srgb, ${tinte} 22%, transparent) ${ancho}%, var(--surface-2) ${ancho}%)`,
+            }}
           >
-            <span className="tabular-nums">
-              {s.maxReached && (
-                <span title="ya tocó techo: no sube más">🔒 </span>
-              )}
-              <NivelConMovimiento
-                current={s.current}
-                maximum={s.maximum}
-                numeros={numeros}
-                movida={movimiento.get(p.htYouthPlayerId)?.[clave]}
-              />
-            </span>
-            <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
-              <span
-                className="block h-full"
-                style={{
-                  width: `${ancho}%`,
-                  background:
-                    ancho === 0
-                      ? "transparent"
-                      : crece
-                        ? "var(--positive)"
-                        : "var(--danger)",
-                }}
-              />
-            </span>
+            {s.maxReached && (
+              <span title="ya tocó techo: no sube más">🔒 </span>
+            )}
+            <NivelConMovimiento
+              current={s.current}
+              maximum={s.maximum}
+              numeros={numeros}
+              movida={movimiento.get(p.htYouthPlayerId)?.[clave]}
+            />
           </span>
         );
       },
