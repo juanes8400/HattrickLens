@@ -895,3 +895,67 @@ async def academy_scouts_ledger(
     from app.application.queries.ojeadores import OjeadoresQueryService
 
     return await OjeadoresQueryService(session).get(team_id)
+
+
+#: Las ventanas que ofrece el selector. «cambio» es el estado justo antes del
+#: último cambio de la academia; el resto, semanas.
+VENTANAS = ("cambio", "1", "2", "8")
+
+
+@router.get(
+    "/teams/{team_id}/academy/comparativa",
+    summary="Qué se movió en la academia y cuánto movió cada puntaje",
+    dependencies=[Depends(require_team_owner)],
+)
+async def academy_comparativa(
+    team_id: int,
+    ventana: str = Query(
+        "cambio",
+        description="«cambio» (antes del último cambio) o semanas: 1, 2 u 8",
+    ),
+    soon_max_days: int = Query(yss.SOON_MAX_DAYS, ge=0, le=112),
+    weight_base: float = Query(
+        yss.DEFAULT_WEIGHT_BASE, ge=yss.MIN_WEIGHT_BASE, le=yss.MAX_WEIGHT_BASE
+    ),
+    trainable_method: str = Query(yss.TrainableMethod.EDIT),
+    trainable_weight: float | None = Query(None, ge=0, le=100),
+    trainable: str = Query(""),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """De dónde viene el movimiento de cada puntaje.
+
+    Los mismos parámetros que `skill-scores`, porque el puntaje de antes hay
+    que calcularlo con la MISMA opinión que el de ahora: comparar dos números
+    salidos de dos fórmulas distintas no diría nada.
+    """
+    if ventana not in VENTANAS:
+        raise HTTPException(422, f"ventana desconocida: {ventana}")
+
+    counts: dict[str, float] = {}
+    for chunk in trainable.split(","):
+        skill, _, raw = chunk.partition(":")
+        skill = skill.strip()
+        if skill not in yss.SKILLS:
+            continue
+        try:
+            valor = float(raw)
+        except ValueError:
+            continue
+        counts[skill] = max(0.0, min(valor, float(yss.SQUAD_NORMALISER)))
+
+    if trainable_method not in set(yss.TrainableMethod):
+        raise HTTPException(422, f"método de entrenables desconocido: {trainable_method}")
+    service = AcademyQueryService(session)
+    counts = await service.trainable_by_method(team_id, trainable_method, counts)
+
+    data = await service.comparativa(
+        team_id,
+        ventana,
+        soon_max_days=soon_max_days,
+        weight_base=weight_base,
+        trainable_weight=trainable_weight,
+        trainable=counts,
+    )
+    if data is None:
+        raise HTTPException(404, f"team {team_id} sin canteranos")
+    return data

@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useState } from "react";
+import clsx from "clsx";
 import { Column, DataTable } from "../components/DataTable";
 import { CountryFlag } from "../components/CountryFlag";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { Specialty } from "../components/Specialty";
+import { Tabs } from "../components/Tabs";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import {
   Empty,
@@ -17,6 +19,7 @@ import {
   useAcademy,
   useAcademyScouts,
   useAcademyScoutsLedger,
+  useAcademyComparativa,
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
@@ -437,6 +440,55 @@ function usePersistidoTexto(clave: string) {
   return [valor, setValor] as const;
 }
 
+/** Las cuatro ventanas del selector. «Último cambio» es el estado justo
+ *  antes de que la academia se moviera por última vez; el resto son semanas. */
+const VENTANAS_JUVENILES = [
+  { key: "cambio", label: "Último cambio" },
+  { key: "1", label: "1 semana" },
+  { key: "2", label: "2 semanas" },
+  { key: "8", label: "8 semanas" },
+];
+
+/** Cuánto se movió un puntaje, o un punto si no se movió. */
+function MovimientoDelPuntaje({ delta }: { delta: number | null }) {
+  if (delta == null || delta === 0) {
+    return (
+      <span className="w-12 text-left text-xs text-[var(--muted)]">·</span>
+    );
+  }
+  return (
+    <span
+      className={clsx(
+        "w-12 text-left text-xs tabular-nums",
+        delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
+      )}
+      title="cuánto se movió el puntaje en la ventana elegida"
+    >
+      {delta > 0 ? "+" : "−"}
+      {decimal(Math.abs(delta), 3)}
+    </span>
+  );
+}
+
+/** Por qué se movieron los puntajes, en una frase.
+ *
+ *  El número solo no sirve para decidir nada: lo accionable es saber que
+ *  subió porque el ojeador reveló dos techos, no que subió 0,041. */
+function explicaElMovimiento(r: {
+  skillsUp: number;
+  ceilingsRevealed: number;
+  arrivals: number;
+}): string {
+  const partes: string[] = [];
+  if (r.skillsUp) partes.push(`${r.skillsUp} habilidad(es) subieron de nivel`);
+  if (r.ceilingsRevealed)
+    partes.push(`el ojeador reveló ${r.ceilingsRevealed} techo(s)`);
+  if (r.arrivals) partes.push(`llegaron ${r.arrivals} canterano(s)`);
+  if (partes.length === 0)
+    return "Nada se movió en la academia en esa ventana.";
+  return `${partes.join(", ")}. Eso es lo que movió los puntajes.`;
+}
+
 function WhatToTrain({
   data,
   irALaFormacion,
@@ -481,6 +533,11 @@ function WhatToTrain({
     "juveniles.bonusWeight",
     null,
   );
+  // Contra qué se compara el puntaje. La misma clave la lee la tabla de la
+  // plantilla, que es otra pestaña y por tanto se remonta al abrirla: así las
+  // dos hablan de la misma ventana sin tener que subir el estado a la página
+  // (2026-09-04, pedido del usuario).
+  const [ventana, setVentana] = usePersistido("juveniles.ventana", "cambio");
   const tuned = useAcademySkillScores({
     soonMaxDays,
     weightBase,
@@ -488,6 +545,21 @@ function WhatToTrain({
     trainable,
     trainableWeight: bonusWeight,
   });
+  // Los MISMOS parámetros: un puntaje de antes calculado con otra opinión no
+  // se puede restar del de ahora.
+  const movimiento = useAcademyComparativa({
+    ventana,
+    soonMaxDays,
+    weightBase,
+    trainableMethod,
+    trainable,
+    trainableWeight: bonusWeight,
+  });
+  const deltas = new Map(
+    (movimiento.data?.scores ?? []).map((x) => [x.skill, x.delta]),
+  );
+  const resumen = movimiento.data?.summary;
+  const sinBase = movimiento.data ? !movimiento.data.hasBaseline : false;
 
   // Los pesos que la base reparte por columna. El usuario juega con potencias
   // y quiere verlas encima de cada cubo, no deducirlas de la base.
@@ -550,10 +622,32 @@ function WhatToTrain({
         </span>
       }
     >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
+        <span className="text-xs text-[var(--muted)]">
+          Cuánto se movió cada puntaje desde
+        </span>
+        <Tabs
+          modo="filtro"
+          label="Desde cuándo se compara el puntaje"
+          tabs={VENTANAS_JUVENILES}
+          active={ventana}
+          onChange={setVentana}
+        />
+      </div>
       {/* Las DOS, no una. Y la segunda con apellido: la misma habilidad se
           entrena por caminos distintos y cada uno llega a gente distinta.
           Con «Defensa» arriba, «Pases» a secas no toca a ningún defensa y
           nadie recibiría las dos cosas; la variante de defensas deja cinco. */}
+      {(sinBase || resumen) && (
+        <div className="border-b border-[var(--border)] px-4 py-2 text-xs leading-relaxed text-[var(--muted)]">
+          {sinBase ? (
+            <>No hay histórico tan atrás: los puntajes se enseñan quietos.</>
+          ) : (
+            <>{explicaElMovimiento(resumen!)}</>
+          )}
+        </div>
+      )}
+
       <div className="border-b border-[var(--border)] px-4 py-3 text-sm">
         {sugerencia ? (
           <>
@@ -676,6 +770,9 @@ function WhatToTrain({
                       />
                     </div>
                     <span className="tabular-nums">{decimal(r.score, 3)}</span>
+                    {/* Un punto cuando no se movió, nunca «+0.000»: siete
+                        filas de ceros esconden las dos que sí cambiaron. */}
+                    <MovimientoDelPuntaje delta={deltas.get(r.skill) ?? null} />
                   </div>
                 </td>
               </tr>
@@ -1870,10 +1967,70 @@ function agotado(p: Canterano): boolean {
   return medibles.length > 0 && margenPorGanar(p) === 0;
 }
 
-function columnasDeCanteranos(pais: {
-  code: string;
-  name: string;
-}): Column<Canterano>[] {
+/** Lo que se movió, por canterano y habilidad, dentro de la ventana. */
+type Movimiento = Map<
+  number,
+  Record<string, { before: number | null; maxNewlyKnown: boolean }>
+>;
+
+/** El nivel de una habilidad, diciendo qué se movió desde la ventana elegida.
+ *
+ *  Dos cosas distintas se ven aquí, y hasta el 2026-09-04 no se veía ninguna:
+ *
+ *  * el NIVEL subió, y entonces se enseña de dónde viene: `4 ▲ 5 / 7`;
+ *  * el TECHO se acaba de revelar, y va en negrilla. No mueve el nivel pero
+ *    sí mueve el puntaje de «qué entrenar», así que sin marcarlo la cifra de
+ *    arriba subía sin ninguna flecha que lo explicara.
+ *
+ *  Sin movimiento se pinta exactamente lo de antes: con 26 canteranos por 7
+ *  habilidades, poner el estado anterior en las 182 celdas ensancharía la
+ *  tabla para no decir nada.
+ */
+function NivelConMovimiento({
+  current,
+  maximum,
+  numeros,
+  movida,
+}: {
+  current: number | null;
+  maximum: number | null;
+  numeros: string;
+  movida?: { before: number | null; maxNewlyKnown: boolean };
+}) {
+  const subio = movida?.before != null && current != null;
+  const techoNuevo = movida?.maxNewlyKnown === true && maximum != null;
+  if (!subio && !techoNuevo) return <>{numeros || "Desconocido"}</>;
+
+  return (
+    <span
+      title={
+        subio
+          ? `subió de ${movida!.before} a ${current} en la ventana elegida`
+          : "techo recién revelado por el ojeador"
+      }
+    >
+      {subio && (
+        <>
+          <span className="text-[var(--muted)]">{movida!.before}</span>{" "}
+          <span className="text-[var(--positive)]">▲</span>{" "}
+        </>
+      )}
+      <span className={clsx(subio && "font-semibold")}>{current ?? "?"}</span>
+      <span className="text-[var(--muted)]">{" / "}</span>
+      <span className={clsx(techoNuevo && "font-semibold")}>
+        {maximum ?? "?"}
+      </span>
+    </span>
+  );
+}
+
+function columnasDeCanteranos(
+  pais: {
+    code: string;
+    name: string;
+  },
+  movimiento: Movimiento,
+): Column<Canterano>[] {
   const columnas: Column<Canterano>[] = [
     {
       key: "nombre",
@@ -2019,7 +2176,12 @@ function columnasDeCanteranos(pais: {
               {s.maxReached && (
                 <span title="ya tocó techo: no sube más">🔒 </span>
               )}
-              {numeros || "Desconocido"}
+              <NivelConMovimiento
+                current={s.current}
+                maximum={s.maximum}
+                numeros={numeros}
+                movida={movimiento.get(p.htYouthPlayerId)?.[clave]}
+              />
             </span>
             <span className="h-1.5 w-10 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
               <span
@@ -2142,6 +2304,31 @@ function Chip({
 }
 
 function SkillDetail({ data }: { data: Academy }) {
+  // La MISMA ventana que eligió el usuario en «Selección de entrenamiento».
+  // Las dos secciones son pestañas excluyentes, así que ésta se remonta al
+  // abrirla y lee el valor recién guardado (2026-09-04).
+  const [ventana] = usePersistido("juveniles.ventana", "cambio");
+  // Sin parámetros de puntaje: aquí no se enseñan puntajes, sólo qué se movió
+  // en cada canterano, y eso no depende de las opiniones de la fórmula.
+  const movida = useAcademyComparativa({
+    ventana,
+    soonMaxDays: DEFAULT_SOON_MAX_DAYS,
+    weightBase: DEFAULT_WEIGHT_BASE,
+    trainableMethod: "edit",
+    trainable: {},
+  });
+  const movimiento: Movimiento = new Map(
+    (movida.data?.players ?? []).map((j) => [
+      j.htYouthPlayerId,
+      Object.fromEntries(
+        Object.entries(j.skills).map(([skill, v]) => [
+          skill,
+          { before: v.before, maxNewlyKnown: v.maxNewlyKnown },
+        ]),
+      ),
+    ]),
+  );
+
   //  El orden y la clasificación se recuerdan; los filtros de "sólo los
   //  que…" no, porque son preguntas de un momento, no una preferencia.
   const [clases, setClases] = usePersistido<string[]>(
@@ -2417,10 +2604,13 @@ function SkillDetail({ data }: { data: Academy }) {
 
       <DataTable
         rows={filtrados}
-        columns={columnasDeCanteranos({
-          code: data.countryCode,
-          name: data.countryName,
-        })}
+        columns={columnasDeCanteranos(
+          {
+            code: data.countryCode,
+            name: data.countryName,
+          },
+          movimiento,
+        )}
         rowKey={(p) => p.htYouthPlayerId}
         // Lo mismo que ordenaba antes por omisión el desplegable que había
         // aquí: en qué se puede convertir, de mayor a menor.

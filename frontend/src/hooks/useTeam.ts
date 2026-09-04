@@ -436,6 +436,27 @@ export const useAcademySkillScores = (params: {
     placeholderData: (previous) => previous,
   });
 
+/** Qué se movió en la academia dentro de la ventana elegida.
+ *
+ *  Va aparte de `useAcademySkillScores` porque responde otra pregunta --qué
+ *  cambió, no qué entrenar-- y porque la ventana la elige el usuario con su
+ *  propio selector. */
+export const useAcademyComparativa = (params: {
+  ventana: string;
+  soonMaxDays: number;
+  weightBase: number;
+  trainableMethod: string;
+  trainable: Record<string, number>;
+  trainableWeight?: number | null;
+}) =>
+  useQuery({
+    queryKey: ["academy-comparativa", TEAM_ID, params],
+    queryFn: () => api.academyComparativa(TEAM_ID, params),
+    // Igual que los puntajes: al mover un mando se conserva lo anterior en
+    // vez de parpadear a vacío.
+    placeholderData: (previous) => previous,
+  });
+
 export const useChangesHistory = (
   playerId?: number | null,
   weeks?: number,

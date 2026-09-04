@@ -19,8 +19,9 @@ siempre y el consejo de promoción los antepone a cualquier otra consideración.
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -220,6 +221,10 @@ def _fila_de_graduado(
     )
 
 
+def _iso_o_nada(d: datetime | None) -> str | None:
+    return d.isoformat() if d is not None else None
+
+
 class AcademyQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -254,6 +259,7 @@ class AcademyQueryService:
         weight_base: float = yss.DEFAULT_WEIGHT_BASE,
         trainable_weight: float | None = None,
         trainable: dict[str, float] | None = None,
+        as_of: datetime | None = None,
     ) -> list[SkillScoreRow] | None:
         """El puntaje "qué entrenar" recalculado con otros parámetros.
 
@@ -262,7 +268,7 @@ class AcademyQueryService:
         cuánto separa un peldaño del siguiente) y el conteo de a cuántos les
         llega el entrenamiento.
         """
-        candidates = await self._candidates(team_id)
+        candidates = await self._candidates(team_id, as_of)
         if candidates is None:
             return None
         return [
@@ -284,9 +290,15 @@ class AcademyQueryService:
             )
         ]
 
-    async def _candidates(self, team_id: int) -> list[yss.YouthCandidate] | None:
-        """Los canteranos de hoy, en la forma que espera el motor."""
-        pairs = await self._latest_snapshots(team_id)
+    async def _candidates(
+        self, team_id: int, as_of: datetime | None = None
+    ) -> list[yss.YouthCandidate] | None:
+        """Los canteranos, en la forma que espera el motor.
+
+        Con `as_of`, los de entonces: es como se obtiene el puntaje contra el
+        que comparar.
+        """
+        pairs = await self._latest_snapshots(team_id, as_of)
         if not pairs:
             return None
         out: list[yss.YouthCandidate] = []
@@ -326,17 +338,183 @@ class AcademyQueryService:
             )
         return out
 
-    async def _latest_snapshots(self, team_id: int) -> list[tuple[m.YouthSnapshot, m.YouthPlayer]]:
-        rows = await self._s.execute(
+    async def comparativa(
+        self,
+        team_id: int,
+        ventana: str = "cambio",
+        *,
+        soon_max_days: int = yss.SOON_MAX_DAYS,
+        weight_base: float = yss.DEFAULT_WEIGHT_BASE,
+        trainable_weight: float | None = None,
+        trainable: dict[str, float] | None = None,
+    ) -> dict[str, Any] | None:
+        """Qué se movió en la academia, y por qué se movió el puntaje.
+
+        Un puntaje que cambia sin decir por qué no sirve para decidir nada: lo
+        que importa no es que Lateral subiera 0,041, sino que subió porque a
+        Ireneo le subió el nivel y el ojeador reveló dos techos.
+
+        `ventana` es «cambio» (el estado justo antes del último cambio) o un
+        número de semanas. Manda sobre TODO lo que se compara aquí, igual que
+        en Economía: dos ventanas distintas dentro de la misma pantalla es lo
+        que hace imposible explicar un número (2026-09-04, decisión del
+        usuario).
+        """
+        desde = (
+            await self._momento_anterior(team_id)
+            if ventana == "cambio"
+            else datetime.now(UTC) - timedelta(weeks=int(ventana))
+        )
+        ahora = await self.skill_scores(
+            team_id,
+            soon_max_days=soon_max_days,
+            weight_base=weight_base,
+            trainable_weight=trainable_weight,
+            trainable=trainable,
+        )
+        if ahora is None:
+            return None
+
+        antes = (
+            None
+            if desde is None
+            else await self.skill_scores(
+                team_id,
+                soon_max_days=soon_max_days,
+                weight_base=weight_base,
+                trainable_weight=trainable_weight,
+                trainable=trainable,
+                as_of=desde,
+            )
+        )
+        antes_por_habilidad = {r.skill: r.score for r in (antes or [])}
+        # Sin puntaje de antes no hay comparación posible, y entonces NADA se
+        # compara: sin esto, una ventana que empieza antes del primer dato
+        # marcaba a los 18 canteranos como recién llegados, porque ninguno
+        # tenía foto vieja (2026-09-04).
+        if antes is None:
+            desde = None
+
+        # Las dos fotos de la plantilla, emparejadas por canterano.
+        viejas = {
+            player.ht_youth_player_id: snap
+            for snap, player in (
+                await self._latest_snapshots(team_id, desde) if desde is not None else []
+            )
+        }
+        nuevas = await self._latest_snapshots(team_id)
+
+        jugadores: list[dict[str, Any]] = []
+        subidas = techos_nuevos = 0
+        for snap, player in nuevas:
+            vieja = viejas.get(player.ht_youth_player_id)
+            habilidades: dict[str, dict[str, Any]] = {}
+            for skill in YOUTH_SKILLS:
+                actual = getattr(snap, skill)
+                techo = getattr(snap, f"{skill}_max")
+                anterior = getattr(vieja, skill) if vieja is not None else None
+                techo_antes = getattr(vieja, f"{skill}_max") if vieja is not None else None
+                subio = anterior is not None and actual is not None and actual > anterior
+                # Un techo recién revelado no mueve el nivel pero SÍ mueve el
+                # puntaje: sin marcarlo, la cifra sube y no hay ninguna flecha
+                # que lo explique.
+                techo_revelado = vieja is not None and techo_antes is None and techo is not None
+                if subio:
+                    subidas += 1
+                if techo_revelado:
+                    techos_nuevos += 1
+                habilidades[skill] = {
+                    "current": actual,
+                    "max": techo,
+                    "before": anterior if subio else None,
+                    "maxNewlyKnown": techo_revelado,
+                }
+            jugadores.append(
+                {
+                    "htYouthPlayerId": player.ht_youth_player_id,
+                    "name": f"{player.first_name} {player.last_name}",
+                    # Sin foto vieja es que no estaba: o llegó dentro de la
+                    # ventana, o la ventana empieza antes de que hubiera datos.
+                    "isNew": desde is not None and vieja is None,
+                    "skills": habilidades,
+                }
+            )
+
+        llegados = sum(1 for j in jugadores if j["isNew"])
+        return {
+            "window": ventana,
+            "since": _iso_o_nada(desde),
+            # Sin pasado con el que comparar no se inventa uno: la pantalla
+            # enseña los puntajes quietos y lo dice.
+            "hasBaseline": antes is not None,
+            "scores": [
+                {
+                    "skill": r.skill,
+                    "score": r.score,
+                    "delta": (
+                        round(r.score - antes_por_habilidad[r.skill], 3)
+                        if r.skill in antes_por_habilidad
+                        else None
+                    ),
+                }
+                for r in ahora
+            ],
+            "players": jugadores,
+            "summary": {
+                "skillsUp": subidas,
+                "ceilingsRevealed": techos_nuevos,
+                "arrivals": llegados,
+            },
+        }
+
+    async def _latest_snapshots(
+        self, team_id: int, as_of: datetime | None = None
+    ) -> list[tuple[m.YouthSnapshot, m.YouthPlayer]]:
+        """La academia tal como estaba en un instante.
+
+        Con `as_of` se queda la última foto de cada canterano tomada hasta esa
+        fecha, que es lo que permite recalcular un puntaje del pasado con la
+        MISMA fórmula de hoy: comparar dos números que salieron de dos
+        fórmulas distintas no diría nada (2026-09-04).
+
+        Los que ya se fueron siguen fuera. Un canterano que estaba en la foto
+        vieja y hoy no está no aparece aquí, y su desaparición se nota en el
+        puntaje, que es donde tiene que notarse.
+        """
+        consulta = (
             select(m.YouthSnapshot, m.YouthPlayer)
             .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
             .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
-            .order_by(m.YouthSnapshot.captured_at)
         )
+        if as_of is not None:
+            consulta = consulta.where(m.YouthSnapshot.captured_at <= as_of)
+        rows = await self._s.execute(consulta.order_by(m.YouthSnapshot.captured_at))
         latest: dict[int, tuple[m.YouthSnapshot, m.YouthPlayer]] = {}
         for snap, player in rows.all():
             latest[player.id] = (snap, player)  # el orden asc deja el último
         return list(latest.values())
+
+    async def _momento_anterior(self, team_id: int) -> datetime | None:
+        """El instante justo ANTES del último cambio de la academia.
+
+        Las fotos son de sólo-cuando-cambia-algo, así que la marca de tiempo
+        inmediatamente anterior a la más nueva es el estado previo. Devuelve
+        `None` cuando sólo hay una lectura: sin pasado no hay comparación, y
+        una de cero es peor que ninguna.
+        """
+        marcas = list(
+            (
+                await self._s.execute(
+                    select(m.YouthSnapshot.captured_at)
+                    .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
+                    .where(m.YouthPlayer.team_id == team_id)
+                    .distinct()
+                    .order_by(m.YouthSnapshot.captured_at.desc())
+                    .limit(2)
+                )
+            ).scalars()
+        )
+        return marcas[1] if len(marcas) > 1 else None
 
     async def get(self, team_id: int) -> AcademyResponse | None:
         team = await self._s.get(m.Team, team_id)

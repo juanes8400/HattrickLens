@@ -429,6 +429,39 @@ export const api = {
       `/teams/${teamId}/academy/skill-scores?${q}`,
     );
   },
+  /** Qué se movió en la academia y cuánto movió cada puntaje.
+   *
+   *  Lleva los MISMOS parámetros que `academySkillScores` a propósito: el
+   *  puntaje de antes hay que calcularlo con la misma opinión que el de
+   *  ahora, o la resta no significa nada. */
+  academyComparativa: (
+    teamId: number,
+    params: {
+      ventana: string;
+      soonMaxDays: number;
+      weightBase: number;
+      trainableMethod: string;
+      trainable: Record<string, number>;
+      trainableWeight?: number | null;
+    },
+  ) => {
+    const q = new URLSearchParams({
+      ventana: params.ventana,
+      soon_max_days: String(params.soonMaxDays),
+      weight_base: String(params.weightBase),
+      trainable_method: params.trainableMethod,
+      ...(params.trainableWeight == null
+        ? {}
+        : { trainable_weight: String(params.trainableWeight) }),
+      trainable: Object.entries(params.trainable)
+        .filter(([, n]) => n > 0)
+        .map(([skill, n]) => `${skill}:${n}`)
+        .join(","),
+    });
+    return request<AcademyComparativa>(
+      `/teams/${teamId}/academy/comparativa?${q}`,
+    );
+  },
   academyTrainingPlan: (
     teamId: number,
     params: {
@@ -1746,6 +1779,35 @@ export interface TeamOverview {
 
 /** "Qué entrenar" recalculado con los parámetros que elija el usuario. El
  *  método es fijo; estos tres números son opiniones. */
+/** El movimiento de la academia dentro de la ventana elegida. */
+export interface AcademyComparativa {
+  window: string;
+  /** Desde cuándo se compara. `null` si no hay con qué. */
+  since: string | null;
+  /** `false` cuando la ventana empieza antes del primer dato guardado: no se
+   *  compara nada y la pantalla lo dice, en vez de inventar una comparación. */
+  hasBaseline: boolean;
+  scores: { skill: string; score: number; delta: number | null }[];
+  players: {
+    htYouthPlayerId: number;
+    name: string;
+    isNew: boolean;
+    skills: Record<
+      string,
+      {
+        current: number | null;
+        max: number | null;
+        /** El nivel de antes, sólo si subió. */
+        before: number | null;
+        /** El techo se reveló dentro de la ventana: no mueve el nivel pero sí
+         *  el puntaje. */
+        maxNewlyKnown: boolean;
+      }
+    >;
+  }[];
+  summary: { skillsUp: number; ceilingsRevealed: number; arrivals: number };
+}
+
 export interface AcademySkillScores {
   soonMaxDays: number;
   weightBase: number;
