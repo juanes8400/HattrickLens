@@ -189,6 +189,7 @@ export function RivalPickerPage() {
     {
       key: "id",
       header: "ID",
+      raw: true,
       align: "right",
       value: (r) => r.htTeamId,
       optional: true,

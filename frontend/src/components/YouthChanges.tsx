@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cifra } from "../hooks/useFormat";
 import { Empty, Panel } from "./Panels";
 import type {
   YouthComparisonChange,
@@ -112,13 +113,13 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   );
   return (
     <span className="tabular-nums">
-      <span className="text-[var(--text)]">{change.before}</span>{" "}
+      <span className="text-[var(--text)]">{cifra(change.before)}</span>{" "}
       <span className={tono}>
         {change.direction === "up" && "▲ "}
         {change.direction === "down" && "▼ "}
-        {change.current}
+        {cifra(change.current)}
         {change.delta != null &&
-          ` (${change.delta > 0 ? "+" : ""}${change.delta})`}
+          ` (${change.delta > 0 ? "+" : ""}${cifra(change.delta)})`}
       </span>{" "}
       <span className="text-[var(--muted)]">
         · <Techo change={change} />

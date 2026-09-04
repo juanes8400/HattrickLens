@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { compact, dateTime, decimal, number, percent } from "./useFormat";
+import {
+  cifra,
+  compact,
+  dateTime,
+  decimal,
+  number,
+  percent,
+} from "./useFormat";
 
 /** La política numérica de la casa, vigilada.
  *
@@ -47,5 +54,33 @@ describe("la política de formato", () => {
   it("un hueco es una raya, nunca una coma suelta", () => {
     expect(dateTime(null)).toBe("—");
     expect(dateTime("")).toBe("—");
+  });
+});
+
+describe("cifra", () => {
+  /** 2026-09-04: el usuario encontró cifras de cuatro dígitos sin separador
+   *  repartidas por la aplicación. La peor era el feed de Cambios, que en un
+   *  mismo renglón pintaba «207890 ▼ 177190 (-30.700)»: el delta formateado y
+   *  los dos extremos en crudo, porque el formateo se aplicaba a mano. */
+  it("pone separador a los enteros", () => {
+    expect(cifra(207890)).toBe("207.890");
+    expect(cifra(1743)).toBe("1.743");
+    expect(cifra(999)).toBe("999");
+    expect(cifra(-30700)).toBe("-30.700");
+  });
+
+  it("deja pasar el texto, que no es una cantidad", () => {
+    // Un cambio puede traer un TSI o un nivel: «Excelente» no se formatea.
+    expect(cifra("Excelente")).toBe("Excelente");
+    expect(cifra(true)).toBe("true");
+  });
+
+  it("no toca los decimales, que se redondearían", () => {
+    expect(cifra(12.5)).toBe("12.5");
+  });
+
+  it("una cifra que falta no revienta", () => {
+    expect(cifra(null)).toBe("");
+    expect(cifra(undefined)).toBe("");
   });
 });

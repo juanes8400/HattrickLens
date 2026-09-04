@@ -356,6 +356,7 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
     {
       key: "htPlayerId",
       header: "PlayerID",
+      raw: true,
       value: (r) => r.htPlayerId,
       render: (r) => (
         <span className="tabular-nums text-xs">{r.htPlayerId}</span>
@@ -487,6 +488,7 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
   {
     key: "htPlayerId",
     header: "PlayerID",
+    raw: true,
     value: (r) => r.htPlayerId,
     render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
   },
@@ -610,6 +612,7 @@ const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
   {
     key: "htPlayerId",
     header: "PlayerID",
+    raw: true,
     value: (r) => r.htPlayerId,
     render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
   },
@@ -699,6 +702,7 @@ const staminaColumns: Column<TrainingStaminaRow>[] = [
   {
     key: "htPlayerId",
     header: "PlayerID",
+    raw: true,
     value: (r) => r.htPlayerId,
     render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
   },

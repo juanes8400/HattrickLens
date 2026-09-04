@@ -1,4 +1,4 @@
-import { dateTime } from "../hooks/useFormat";
+import { dateTime, cifra } from "../hooks/useFormat";
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
@@ -167,9 +167,9 @@ function Resumen({ data }: { data: UsageSummary }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Cifra de="Sesiones" valor={String(data.totals.sessions)} />
-        <Cifra de="Páginas vistas" valor={String(data.totals.pages)} />
-        <Cifra de="Clics" valor={String(data.totals.clicks)} />
+        <Cifra de="Sesiones" valor={cifra(data.totals.sessions)} />
+        <Cifra de="Páginas vistas" valor={cifra(data.totals.pages)} />
+        <Cifra de="Clics" valor={cifra(data.totals.clicks)} />
         <Cifra de="Tiempo total" valor={desdeMinutos(data.totals.minutes)} />
         {/* La MEDIANA, no la media: una pestaña olvidada dispara el
             promedio y deja de describir a nadie. */}
@@ -179,7 +179,7 @@ function Resumen({ data }: { data: UsageSummary }) {
         />
         <Cifra
           de="Clics por sesión"
-          valor={String(data.totals.clicksPerSession)}
+          valor={cifra(data.totals.clicksPerSession)}
         />
       </div>
 
@@ -349,17 +349,17 @@ function Personas({ data }: { data: UsageSummary }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Cifra de="Personas activas" valor={String(data.activeUsers)} />
-        <Cifra de="Registradas" valor={String(data.registeredUsers)} />
+        <Cifra de="Personas activas" valor={cifra(data.activeUsers)} />
+        <Cifra de="Registradas" valor={cifra(data.registeredUsers)} />
         {/* La cifra incómoda, y por eso está: quien se registró y no ha
             vuelto no aparece en ninguna tabla ordenada por uso. */}
         <Cifra
           de="Sin aparecer en el plazo"
-          valor={String(Math.max(0, callados))}
+          valor={cifra(Math.max(0, callados))}
         />
         <Cifra
           de="Páginas por persona"
-          valor={String(
+          valor={cifra(
             data.activeUsers > 0
               ? Math.round(data.totals.pages / data.activeUsers)
               : 0,

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+import { number } from "../hooks/useFormat";
 import { nombreLargo } from "../utils/abreviaturas";
 
 /**
@@ -17,6 +18,25 @@ export interface Column<T> {
   render?: (row: T) => React.ReactNode;
   /** Hidden by default but offered in the column selector. */
   optional?: boolean;
+  /** La columna guarda un IDENTIFICADOR, no una cantidad: se pinta tal cual.
+   *
+   *  Sin `render`, una celda numérica entera se formatea con separador de
+   *  miles, que es lo que quiere cualquier cifra que se lea como cantidad.
+   *  Un identificador de Hattrick, no: «474.426.586» no es un número que
+   *  nadie sume, es un nombre escrito con dígitos (2026-09-04). */
+  raw?: boolean;
+}
+
+/** Lo que se pinta en una celda que no trae `render` propio.
+ *
+ *  Sólo se tocan los enteros: un decimal formateado se redondearía, y `value`
+ *  se sigue usando en crudo para ordenar, filtrar y exportar, que es donde
+ *  hace falta el número de verdad.
+ */
+function celda<T>(c: Column<T>, row: T): React.ReactNode {
+  const v = c.value(row);
+  if (c.raw || typeof v !== "number" || !Number.isInteger(v)) return v;
+  return number(v);
 }
 
 interface Props<T> {
@@ -354,7 +374,7 @@ export function DataTable<T>({
                       c.align === "left" ? "text-left" : "text-right",
                     )}
                   >
-                    {c.render ? c.render(row) : c.value(row)}
+                    {c.render ? c.render(row) : celda(c, row)}
                   </td>
                 ))}
               </tr>

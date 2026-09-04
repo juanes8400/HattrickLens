@@ -2095,6 +2095,7 @@ function BalanceTable({
     {
       key: "htPlayerId",
       header: "ID",
+      raw: true,
       align: "right",
       value: (r) => r.htPlayerId,
       render: (r) => (

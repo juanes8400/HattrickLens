@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { PlayerLink } from "./PlayerLink";
 import { Empty } from "./Panels";
-import { number } from "../hooks/useFormat";
+import { number, cifra } from "../hooks/useFormat";
 
 /**
  * Formato "Hattrick Control" pedido 2026-08-10: jugador por jugador,
@@ -69,11 +69,11 @@ function ChangeValue({ change }: { change: NormalizedChange }) {
   }
   return (
     <span className="tabular-nums">
-      <span className="text-[var(--text)]">{String(change.before)}</span>{" "}
+      <span className="text-[var(--text)]">{cifra(change.before)}</span>{" "}
       <span className={toneClass}>
         {change.direction === "up" && "▲ "}
         {change.direction === "down" && "▼ "}
-        {String(change.current)} ({signed(change.delta ?? 0)})
+        {cifra(change.current)} ({signed(change.delta ?? 0)})
       </span>
     </span>
   );

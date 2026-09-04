@@ -20,7 +20,7 @@ import {
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
-import { date, decimal, money } from "../hooks/useFormat";
+import { date, decimal, money, number } from "../hooks/useFormat";
 import type {
   Academy,
   AcademySkillScores,
@@ -1948,7 +1948,7 @@ function columnasDeCanteranos(pais: {
       value: (p) => p.htms28Max,
       render: (p) => (
         <span title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener">
-          {p.htms28Min} – {p.htms28Max}
+          {number(p.htms28Min)} – {number(p.htms28Max)}
         </span>
       ),
     },

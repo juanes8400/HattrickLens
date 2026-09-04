@@ -5,6 +5,14 @@ export const number = (v: number) =>
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
+// Una cifra que puede llegar como número o como texto: un TSI es 207890 y un
+// nivel de confianza es «Excelente». Los enteros se formatean; el texto pasa
+// tal cual. Existe porque los feeds de cambios pintaban `String(valor)` y se
+// veía «207890 ▼ 177190 (-30.700)»: el delta con separador y los extremos sin
+// él, en el mismo renglón (2026-09-04).
+export const cifra = (v: string | number | boolean | null | undefined) =>
+  typeof v === "number" && Number.isInteger(v) ? number(v) : String(v ?? "");
+
 export const money = (v: number, currency = "") =>
   `${number(v)}${currency ? ` ${currency}` : ""}`;
 
