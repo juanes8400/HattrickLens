@@ -363,22 +363,22 @@ function PreguntaDeVisitas() {
             <input
               type="number"
               min={0}
-              placeholder="veces visto"
-              value={valores[p.id] ?? ""}
-              onChange={(e) =>
-                setValores((v) => ({ ...v, [p.id]: e.target.value }))
-              }
-              className="w-28 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
-            />
-            <input
-              type="number"
-              min={0}
               placeholder="precio pedido"
               value={precios[p.id] ?? ""}
               onChange={(e) =>
                 setPrecios((v) => ({ ...v, [p.id]: e.target.value }))
               }
               className="w-36 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+            />
+            <input
+              type="number"
+              min={0}
+              placeholder="veces visto"
+              value={valores[p.id] ?? ""}
+              onChange={(e) =>
+                setValores((v) => ({ ...v, [p.id]: e.target.value }))
+              }
+              className="w-28 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
             />
             <button
               onClick={() =>
@@ -415,11 +415,50 @@ function PreguntaDeVisitas() {
   );
 }
 
+const CLAVE_VISTAS = "cambios.comparacionesVistas";
+//: Suficientes para no volver a ver lo de la semana pasada, y no tantas como
+//: para guardar un historial que nadie consulta.
+const VISTAS_QUE_SE_RECUERDAN = 20;
+
 export function SyncChangesPage() {
   // `null` = la comparación más reciente con cambios. Al elegir una fecha del
   // archivo se pide esa al backend, que recalcula los +1/-1 de ese snapshot
   // contra el inmediatamente anterior (pedido explícito 2026-08-15).
   const [reportSyncId, setReportSyncId] = useState<number | null>(null);
+  // Las comparaciones que ya diste por vistas. El botón «Cerrar» existía
+  // desde siempre con un manejador vacío --`() => undefined`--, así que no
+  // hacía nada; lo reportó el usuario (2026-09-04).
+  //
+  // Se recuerda por navegador y por comparación: cerrarla y que reapareciera
+  // al volver a la pantalla sería el mismo botón inútil con otra forma. Y no
+  // se pierde nada: queda una línea con el recuento para volver a abrirla.
+  const [vistas, setVistas] = useState<number[]>(() => {
+    try {
+      const crudo = localStorage.getItem(CLAVE_VISTAS);
+      return crudo ? (JSON.parse(crudo) as number[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  // Guardar y recordar van SIEMPRE juntos. Separados, «Volver a abrir» sólo
+  // cambiaba el estado en memoria y al recargar la comparación aparecía
+  // cerrada otra vez: el mismo botón que no hace nada, por el otro lado.
+  const recordar = (siguientes: number[]) => {
+    // Sólo las últimas: la lista no tiene por qué crecer para siempre.
+    const recortadas = siguientes.slice(-VISTAS_QUE_SE_RECUERDAN);
+    try {
+      localStorage.setItem(CLAVE_VISTAS, JSON.stringify(recortadas));
+    } catch {
+      // Un navegador sin almacenamiento no puede romper la pantalla: se
+      // cierra igual, sólo que no lo recuerda la próxima vez.
+    }
+    setVistas(recortadas);
+  };
+  const darPorVista = (id: number | null) => {
+    if (id != null && !vistas.includes(id)) recordar([...vistas, id]);
+  };
+  const volverAAbrir = (id: number | null) =>
+    recordar(vistas.filter((x) => x !== id));
   const { data, isLoading, isError, error } = useSyncChanges(reportSyncId);
   const squad = useSquad();
   const [changesTab, setChangesTab] = useState<ChangesTab>("latest");
@@ -432,6 +471,9 @@ export function SyncChangesPage() {
   if (isError) return <ErrorState error={error} />;
 
   const changes = data?.changes ?? [];
+  // La comparación que se está mirando, que es la llave con la que se
+  // recuerda si ya la diste por vista.
+  const comparacion = data?.reportSyncId ?? null;
   const actions = actionItems(changes);
   const playerLinks = Object.fromEntries(
     (squad.data?.players ?? []).map((p) => [p.name, p.htPlayerId]),
@@ -522,13 +564,28 @@ export function SyncChangesPage() {
           de todo, incluidos los avisos de contexto. Estaba penúltima, detrás
           de ocho bloques. */}
 
-      {changes.length > 0 ? (
-        <SyncChangesFeed
-          changes={changes}
-          playerLinks={playerLinks}
-          onDismiss={() => undefined}
-        />
-      ) : null}
+      {changes.length > 0 &&
+        (comparacion != null && vistas.includes(comparacion) ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-6 py-3">
+            <span className="text-xs text-[var(--muted)]">
+              {changes.length} cambio(s) desde la última sincronización, ya
+              vistos.
+            </span>
+            <button
+              onClick={() => volverAAbrir(comparacion)}
+              data-track="Cambios: volver a abrir"
+              className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
+            >
+              Volver a abrir
+            </button>
+          </div>
+        ) : (
+          <SyncChangesFeed
+            changes={changes}
+            playerLinks={playerLinks}
+            onDismiss={() => darPorVista(comparacion)}
+          />
+        ))}
 
       {actions.length > 0 && (
         <Panel
