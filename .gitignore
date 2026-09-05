@@ -44,3 +44,4 @@ claves-render.txt
 # concreta contra una base concreta, no código. Ver
 # backend/scripts/migrar_local_a_produccion.py
 migracion-marcas.json
+backend/players_dump.txt
