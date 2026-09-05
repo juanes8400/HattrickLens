@@ -408,6 +408,26 @@ function AlertsBand({
   // 2026-08-16, pedido explícito: cada alerta se quita con una X y queda
   // guardada en el buzón, que vive en el centro de alertas.
   const archive = useArchiveInsight();
+  // 2026-09-05: y una X que las cierra TODAS de una vez. Con catorce alertas
+  // abiertas, quitarlas de una en una son catorce clics para volver a la
+  // pantalla que uno quería mirar.
+  //
+  // Las archiva EN SERIE y no en paralelo: cada archivado retoca la lista en
+  // caché antes de que responda el servidor, y catorce a la vez se pisan esos
+  // retoques entre sí y dejan filas resucitadas.
+  //
+  // Sin confirmación a propósito: archivar no borra nada --todo queda en el
+  // buzón y se puede devolver-- y un diálogo por una acción reversible es
+  // pedir permiso para nada.
+  const [cerrandoTodo, setCerrandoTodo] = useState(false);
+  const cerrarTodo = async (todas: Insight[]) => {
+    setCerrandoTodo(true);
+    try {
+      for (const i of todas) await archive.mutateAsync(i.key);
+    } finally {
+      setCerrandoTodo(false);
+    }
+  };
   if (loading) {
     return (
       <Panel title="Qué requiere tu atención">
@@ -448,7 +468,20 @@ function AlertsBand({
   return (
     <Panel
       title="Qué requiere tu atención"
-      meta={`${insights.length} activa${insights.length === 1 ? "" : "s"}`}
+      meta={
+        <span className="flex items-center gap-3">
+          {insights.length} activa{insights.length === 1 ? "" : "s"}
+          <button
+            onClick={() => cerrarTodo(insights)}
+            disabled={cerrandoTodo}
+            title="Archivarlas todas. Quedan en el buzón del centro de alertas y puedes devolverlas."
+            aria-label="Archivar todas las alertas"
+            className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-50"
+          >
+            {cerrandoTodo ? "…" : "✕"}
+          </button>
+        </span>
+      }
     >
       <div className="border-b border-[var(--border)] px-4 py-3">
         <SeverityTally insights={insights} />

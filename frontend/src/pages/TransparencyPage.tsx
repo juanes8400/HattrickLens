@@ -162,10 +162,16 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
     <Panel title={calculo.name} meta={calculo.answers}>
       <div className="space-y-4 p-4">
         {/* `pre` y no `code` suelto: las formulas van alineadas a mano
-            --sumatorios, fracciones-- y colapsar los espacios las destroza. */}
-        <pre className="overflow-x-auto rounded border border-[var(--border)] bg-[var(--surface-2)] p-3 font-mono text-[11px] leading-relaxed text-[var(--text)]">
-          {calculo.formula}
-        </pre>
+            --sumatorios, fracciones-- y colapsar los espacios las destroza.
+
+            Condicional porque la seccion «Que hace cada modulo» son
+            descripciones sin formula: sin esto quedaba una caja gris vacia
+            debajo de cada una. */}
+        {calculo.formula.trim() !== "" && (
+          <pre className="overflow-x-auto rounded border border-[var(--border)] bg-[var(--surface-2)] p-3 font-mono text-[11px] leading-relaxed text-[var(--text)]">
+            {calculo.formula}
+          </pre>
+        )}
 
         {(calculo.sources ?? []).length > 0 && (
           <div>
@@ -247,11 +253,19 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
           </div>
         )}
 
-        {calculo.note && (
-          <p className="prosa border-t border-[var(--border)] pt-3 text-[11px] leading-relaxed text-[var(--muted)]">
-            {calculo.note}
-          </p>
-        )}
+        {calculo.note &&
+          (calculo.formula.trim() === "" ? (
+            // Sin fórmula, la nota NO es una coletilla: es el contenido. En la
+            // sección «Qué hace cada módulo» es lo único que hay, y pintarla a
+            // 11px apagada la escondía debajo de su propio título.
+            <p className="prosa whitespace-pre-line text-sm leading-relaxed">
+              {calculo.note}
+            </p>
+          ) : (
+            <p className="prosa border-t border-[var(--border)] pt-3 text-[11px] leading-relaxed text-[var(--muted)]">
+              {calculo.note}
+            </p>
+          ))}
       </div>
     </Panel>
   );

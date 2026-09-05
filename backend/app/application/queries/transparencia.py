@@ -396,6 +396,193 @@ def _tabla_de_condicion() -> Tabla:
 def catalogo() -> list[Seccion]:
     """Todo lo que la herramienta calcula, sección por sección."""
     return [
+        # Antes de las fórmulas, QUÉ hace cada módulo. Quien abre esta pantalla
+        # está decidiendo si se fía, y para eso hacen falta las dos cosas: qué
+        # mira la herramienta y cómo lo calcula. La misma lista, en inglés y para
+        # presentarla fuera, vive en `docs/25-funcionalidades.md`; si cambia una,
+        # cambia la otra.
+        Seccion(
+            id="modulos",
+            name="Qué hace cada módulo",
+            calcs=[
+                Calculo(
+                    id="panel",
+                    name="Panel",
+                    answers="La foto del club para decidir en un minuto",
+                    formula="",
+                    note="Caja actual, balance de las últimas semanas cerradas, cuánto "
+                    "pesa la nómina sobre lo que entra, fuerza de la plantilla, "
+                    "eficiencia del entrenamiento, las alertas abiertas, tu fuerza "
+                    "relativa a la serie y el once recomendado.",
+                ),
+                Calculo(
+                    id="club",
+                    name="Club y cuerpo técnico",
+                    answers="Quién trabaja para ti y cómo está el ambiente",
+                    formula="",
+                    note="Espíritu de equipo, confianza, socios, inversión en la "
+                    "cantera, entrenador y especialistas. Guarda además la serie "
+                    "semanal del humor del club, los socios y los niveles del "
+                    "cuerpo técnico, y explica qué aporta cada empleado.",
+                ),
+                Calculo(
+                    id="jugadores",
+                    name="Jugadores",
+                    answers="Todo lo que se sabe de cada uno, presente y pasado",
+                    formula="",
+                    note="Tabla completa de la plantilla, ordenable y exportable, y "
+                    "ficha por jugador: habilidades, forma, resistencia, "
+                    "experiencia, fidelidad, TSI, sueldo, HTMS y HTMS28, "
+                    "nacionalidad, especialidad, carácter, lesiones, datos de "
+                    "compra, estado en el mercado, calificación por puesto e "
+                    "historial semanal. Los ex-jugadores tienen su propia ficha "
+                    "económica: tiempo en el club, sueldos acumulados, coste de "
+                    "listados, lo que dejó la venta y ROI.",
+                ),
+                Calculo(
+                    id="posiciones",
+                    name="Posiciones y alineación",
+                    answers="Dónde rinde cada jugador y qué once poner",
+                    formula="",
+                    note="Evalúa a cada jugador en 19 variantes de puesto y orden "
+                    "individual, más capitán, lanzador de balón parado y de "
+                    "penaltis. Recomienda el mejor once para cualquier formación "
+                    "legal, admite repartos entre el centro y las bandas, calcula "
+                    "lo que aporta cada sector y compara la propuesta con la "
+                    "alineación que ya mandaste a Hattrick.",
+                ),
+                Calculo(
+                    id="entrenamiento-que-hace",
+                    name="Entrenamiento",
+                    answers="Cuánto falta para la siguiente subida, y si entrenas lo que conviene",
+                    formula="",
+                    note="Enseña el entrenamiento actual, la intensidad, la parte "
+                    "dedicada a resistencia, el entrenador, los ayudantes y la "
+                    "velocidad efectiva. Estima lo que falta para el siguiente "
+                    "nivel con la edad, el cuerpo técnico, la intensidad y los "
+                    "minutos REALES jugados en posiciones que entrenan. Sigue las "
+                    "subidas confirmadas, la experiencia, la fidelidad y la "
+                    "resistencia, prevé niveles futuros, y después de los partidos "
+                    "de la semana compara todos los entrenamientos posibles para "
+                    "enseñar cuál habría aprovechado mejor esos mismos minutos.",
+                ),
+                Calculo(
+                    id="juveniles-que-hace",
+                    name="Juveniles",
+                    answers="Qué tienes en la cantera y a quién no puedes dejar pasar",
+                    formula="",
+                    note="Trabaja con las habilidades actuales reveladas, los techos "
+                    "revelados, la edad, el plazo para ascender y los rangos de "
+                    "HTMS28. Clasifica a los juveniles, avisa de los ascensos que "
+                    "se te acaban, recomienda entrenamiento principal y secundario, "
+                    "propone la siguiente alineación juvenil y sigue a los "
+                    "ojeadores, sus regiones, el coste de la academia, las ventas y "
+                    "los antiguos canteranos.",
+                ),
+                Calculo(
+                    id="transferencias-que-hace",
+                    name="Transferencias",
+                    answers="Qué dejó de verdad cada jugador que pasó por el club",
+                    formula="",
+                    note="Libro histórico de comprados, canteranos, vendidos y "
+                    "despedidos, con coste de compra, sueldos acumulados, coste de "
+                    "los listados, comisión del agente, producto neto de la venta, "
+                    "comisiones de reventa, beneficio y ROI. Con desglose por "
+                    "temporada, semana de compra, semana de venta, edad, "
+                    "entrenamiento, habilidad más alta y hora de cierre de la "
+                    "subasta.\n\nDe quien se fue antes de que la aplicación "
+                    "existiera, Hattrick no publica el sueldo hacia atrás. Esos "
+                    "sueldos se ESTIMAN a partir del TSI y la edad contra las "
+                    "lecturas de tu propio club, y toda cifra estimada va marcada: "
+                    "cada fila dice si es medida, calculada o desconocida, y los "
+                    "totales se pueden ver con todo, sin las desconocidas, o sólo "
+                    "con lo medido.",
+                ),
+                Calculo(
+                    id="partidos-que-hace",
+                    name="Partidos",
+                    answers="Qué pasó en cada partido y por qué",
+                    formula="",
+                    note="Historial por temporada y competición, registro en casa y "
+                    "fuera, goles, Hatstats, generación de ocasiones, mejores "
+                    "calificaciones por sector y tasa de conversión. Cada partido "
+                    "se abre con la comparación sector a sector, el radar de "
+                    "calificaciones, el análisis de ocasiones y la explicación del "
+                    "resultado.",
+                ),
+                Calculo(
+                    id="liga-que-hace",
+                    name="Liga",
+                    answers="Cómo va la temporada y cómo puede acabar",
+                    formula="",
+                    note="Clasificación oficial en total, en casa y fuera, el calendario "
+                    "completo y la evolución real de puestos y puntos. Proyección "
+                    "de temporada —marcada como tal— con puntos esperados, "
+                    "probabilidad de cada puesto final, de título y de acabar entre "
+                    "los cuatro primeros, los límites matemáticos mejor y peor, y "
+                    "un pronóstico para cada equipo. Compara además TSI, forma y "
+                    "resistencia de toda la serie, y arma el mejor once por "
+                    "calificaciones reales de una jornada o de la temporada entera.",
+                ),
+                Calculo(
+                    id="copa-que-hace",
+                    name="Copa",
+                    answers="Qué te juegas en el siguiente cruce",
+                    formula="",
+                    note="Tu copa actual, la ronda oficial, el próximo rival, cuántas "
+                    "victorias faltan para el título y los premios que todavía "
+                    "puedes alcanzar. Explica qué pasa si ganas y qué pasa si "
+                    "pierdes, incluido el movimiento entre niveles de copa donde "
+                    "aplica. Con análisis del rival, una estimación de probabilidad "
+                    "—marcada como estimación—, los ingresos de copa observados, un "
+                    "escenario aparte de taquilla futura, preparación de "
+                    "resistencia para 120 minutos y un orden indicativo de "
+                    "lanzadores de penalti.",
+                ),
+                Calculo(
+                    id="rivales-que-hace",
+                    name="Rivales",
+                    answers="Cómo llega el equipo que tienes enfrente",
+                    formula="",
+                    note="Analiza a los rivales de liga y copa con la información "
+                    "pública que Hattrick publica de sus partidos recientes. Estima "
+                    "su once probable, compara TSI, forma, resistencia y "
+                    "experiencia, y detecta fichajes recientes, actividad del "
+                    "mánager, formaciones y tácticas habituales, rotación del lado "
+                    "de ataque y jugadores visibles. Propone marcajes y una "
+                    "comparación del campo por siete zonas. De tu equipo puede usar "
+                    "las calificaciones oficiales previstas de las órdenes que ya "
+                    "mandaste; del rival, sólo partidos ya jugados.",
+                ),
+                Calculo(
+                    id="economia-que-hace",
+                    name="Economía",
+                    answers="A dónde va tu dinero y cuánto te queda",
+                    formula="",
+                    note="Sigue las categorías oficiales de ingresos y gastos de "
+                    "Hattrick sin renombrarlas ni fundirlas. Enseña las finanzas de "
+                    "la semana en curso, el histórico de ingresos, gastos, "
+                    "resultado y caja, los balances acumulados y un diagrama de "
+                    "flujo para varias ventanas de tiempo. Los valores futuros van "
+                    "APARTE y marcados como escenarios, nunca como resultados. "
+                    "Admite proyección estructural, rangos de incertidumbre y, "
+                    "cuando hay suficiente historia, comparación con un modelo de "
+                    "series de tiempo. Y dice cuántas semanas aguanta la caja "
+                    "actual, con y sin contar la compraventa.",
+                ),
+                Calculo(
+                    id="estadio-que-hace",
+                    name="Estadio",
+                    answers="Si te sobran asientos o te faltan",
+                    formula="",
+                    note="Analiza el aforo real, la asistencia, la ocupación, los "
+                    "ingresos y la demanda por sector. Distingue la demanda que se "
+                    "puede medir de la que queda oculta cuando un sector se agota, "
+                    "e identifica los partidos en los que el aforo pudo estar "
+                    "limitando la entrada.",
+                ),
+            ],
+        ),
         Seccion(
             id="entrenamiento",
             name="Entrenamiento",

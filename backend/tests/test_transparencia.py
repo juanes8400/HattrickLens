@@ -102,12 +102,35 @@ def test_el_total_del_individual_sale_de_la_penalizacion_real() -> None:
     assert f"{1 + SECUNDARIO_DUPLICADO:.1%}" in formula
 
 
+#: La sección «Qué hace cada módulo» son DESCRIPCIONES, no cálculos: no tienen
+#: fórmula, ni fuentes, ni límites, porque no calculan nada. Se quedan fuera de
+#: las dos reglas de abajo a propósito, y `test_la_seccion_de_modulos_es_solo_
+#: descripciones` les pone su propia guarda para que la excepción no sea un
+#: agujero por el que se cuele un cálculo sin documentar.
+SECCION_DESCRIPTIVA = "modulos"
+
+
+def _calculos_de_verdad():
+    return [(s, c) for s in catalogo() if s.id != SECCION_DESCRIPTIVA for c in s.calcs]
+
+
+def test_la_seccion_de_modulos_es_solo_descripciones() -> None:
+    """Su exención de las dos reglas siguientes vale mientras siga siendo lo
+    que dice ser. Si alguien mete ahí un cálculo de verdad, esto lo caza."""
+    seccion = next(s for s in catalogo() if s.id == SECCION_DESCRIPTIVA)
+    assert seccion.calcs, "la sección existe pero está vacía"
+    for c in seccion.calcs:
+        assert c.formula == "", f"{c.name} tiene fórmula: no es una descripción"
+        assert c.note, f"{c.name} no describe nada"
+        assert c.answers, f"{c.name} no dice qué pregunta contesta"
+
+
 def test_cada_calculo_declara_hasta_donde_vale() -> None:
     """Una fórmula sin límites declarados es una promesa sin letra pequeña.
 
     Es la mitad del valor de esta pantalla: saber qué NO cubre el modelo.
     """
-    sin_limites = [f"{s.name} → {c.name}" for s in catalogo() for c in s.calcs if not c.limits]
+    sin_limites = [f"{s.name} → {c.name}" for s, c in _calculos_de_verdad() if not c.limits]
     assert not sin_limites, "cálculos sin límites declarados: " + ", ".join(sin_limites)
 
 
@@ -118,7 +141,7 @@ def test_cada_calculo_dice_de_donde_salen_sus_datos() -> None:
     2026-08-31, pedido explicito: «faltan las fuentes de los numeros como
     condicion, experiencia, semanas de entrenamiento».
     """
-    sin_fuentes = [f"{s.name} → {c.name}" for s in catalogo() for c in s.calcs if not c.sources]
+    sin_fuentes = [f"{s.name} → {c.name}" for s, c in _calculos_de_verdad() if not c.sources]
     assert not sin_fuentes, "calculos sin fuentes: " + ", ".join(sin_fuentes)
 
     # Los tres que el usuario nombro tienen que existir y estar cubiertos.
