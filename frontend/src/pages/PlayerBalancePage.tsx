@@ -698,15 +698,45 @@ export function PlayerBalancePage() {
     queryKey: ["transfer-attempts", TEAM_ID],
     queryFn: () => api.transferAttempts(TEAM_ID),
   });
-  // Filtros compartidos (pedido explícitamente 2026-08-05: los mismos 4
-  // controles — Habilidad entrenada, Origen, Ignorar datos desconocidos,
-  // Ignorar despedidos — en un solo lugar, afectando Resumen, Desgloses y
-  // Detalle a la vez, en vez de repetidos/independientes por sección).
+  // Filtros compartidos (pedido explícitamente 2026-08-05: en un solo lugar,
+  // afectando Resumen, Desgloses y Detalle a la vez, en vez de
+  // repetidos/independientes por sección). Cuatro controles y cada forma
+  // significa UNA cosa: los dos desplegables eligen el valor de una
+  // dimensión, la escalera elige qué datos se tienen en cuenta, y el
+  // conmutador excluye una categoría de salida.
   const [trainingFilter, setTrainingFilter] = useState<string>("all");
   const [originFilter, setOriginFilter] = useState<
     "all" | "bought" | "academy" | "unknown"
   >("all");
-  const [ignoreUnknownData, setIgnoreUnknownData] = useState(false);
+  // De qué material están hechas las cifras. Pedido explícitamente 2026-09-02
+  // ("un toggle segment con: Ignorar datos desconocidos o de estimación").
+  //
+  // 2026-09-04: aquí había ADEMÁS un conmutador «Ignorar datos desconocidos
+  // (habilidad entrenada, edad, etc.)». Medido contra los datos reales,
+  // seleccionaba EXACTAMENTE las mismas 13 filas que «Sólo lo medido» —no
+  // parecidas: idénticas, cero diferencia—, porque las únicas ventas con
+  // todas las dimensiones son las que se sincronizaron con la aplicación ya
+  // en marcha, que son justo las que tienen el sueldo visto. Eran el mismo
+  // filtro escrito dos veces y en dos formas distintas, así que se fusionó
+  // en el peldaño más estricto de la escalera.
+  //
+  // Es una ESCALERA: cada peldaño quita una clase de dato más floja que la
+  // anterior. Primero se fue por «sin estimaciones», que quitaba las
+  // calculadas pero dejaba dentro las ventas cuyo sueldo no se sabe y entra
+  // como 0 — y eso daba +11,5 M donde el saldo real ronda los -8,8 M, la
+  // cifra más engañosa de todas. Quien desconfía de un número calculado
+  // desconfía más de un cero mudo, así que se quitan en ese orden.
+  //
+  // El último peldaño exige TAMBIÉN que la fila no tenga huecos en las
+  // dimensiones de los desgloses. Hoy eso no quita ni una fila de más —las
+  // 13 coinciden—, pero define el peldaño por lo que promete («nada
+  // desconocido») en vez de por una coincidencia de los datos de hoy.
+  //
+  // «Todo» de salida a propósito: esconder 432 de 567 ventas por defecto
+  // contaría una historia más limpia de lo que fue.
+  const [materialDelSaldo, setMaterialDelSaldo] = useState<
+    "todo" | "sinDesconocidos" | "soloMedido"
+  >("todo");
   const [ignoreFired, setIgnoreFired] = useState(false);
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -750,33 +780,48 @@ export function PlayerBalancePage() {
       soldRowsInSeason.map((r) => r.derivedTrainingSkill ?? UNKNOWN_TRAINING),
     ),
   ).sort();
-  let filteredRows = soldRowsInSeason;
+  // Primero TODO lo que no es el control de Datos. Lo que queda aquí es la
+  // base sobre la que se cuenta el aviso: sin esta separación, el «de 567»
+  // del texto sería el total ya recortado por el propio control y diría
+  // siempre «567 de 567».
+  let baseRows = soldRowsInSeason;
   if (trainingFilter !== "all") {
-    filteredRows = filteredRows.filter(
+    baseRows = baseRows.filter(
       (r) => (r.derivedTrainingSkill ?? UNKNOWN_TRAINING) === trainingFilter,
     );
   }
-  if (ignoreUnknownData) {
-    // "etc." = cualquier dimensión usada en los desgloses de Desgloses, no
-    // solo entrenamiento — pedido explícitamente al renombrar el toggle.
-    filteredRows = filteredRows.filter(
-      (r) =>
-        r.derivedTrainingSkill != null &&
-        typeof r.ageAtSale === "number" &&
-        r.topSkillAtSale != null &&
-        r.bidHourAtSale != null,
-    );
-  }
   if (originFilter === "bought")
-    filteredRows = filteredRows.filter(
-      (r) => !r.isAcademyGraduate && !r.originUnknown,
-    );
+    baseRows = baseRows.filter((r) => !r.isAcademyGraduate && !r.originUnknown);
   if (originFilter === "academy")
-    filteredRows = filteredRows.filter((r) => r.isAcademyGraduate);
+    baseRows = baseRows.filter((r) => r.isAcademyGraduate);
   if (originFilter === "unknown")
-    filteredRows = filteredRows.filter((r) => r.originUnknown);
+    baseRows = baseRows.filter((r) => r.originUnknown);
   if (ignoreFired)
-    filteredRows = filteredRows.filter((r) => !r.isDepartureWithoutSale);
+    baseRows = baseRows.filter((r) => !r.isDepartureWithoutSale);
+
+  // Nada desconocido en ninguna parte: sueldo visto cobrar con el calendario
+  // completo, y sin huecos en las dimensiones que usan los desgloses
+  // (entrenamiento, edad, habilidad principal, hora de puja).
+  const esMedido = (r: PlayerBalanceRow) =>
+    r.salarySource === "observado" &&
+    r.salaryKnown &&
+    r.derivedTrainingSkill != null &&
+    typeof r.ageAtSale === "number" &&
+    r.topSkillAtSale != null &&
+    r.bidHourAtSale != null;
+
+  let filteredRows = baseRows;
+  if (materialDelSaldo === "sinDesconocidos")
+    // Fuera las ventas cuyo sueldo no se sabe NI se puede calcular: son las
+    // que entran con un 0 que no es un 0, y suben el saldo sin avisar.
+    filteredRows = baseRows.filter((r) => r.salarySource !== "desconocido");
+  if (materialDelSaldo === "soloMedido") filteredRows = baseRows.filter(esMedido);
+
+  // El recuento del aviso, siempre sobre la base y no sobre lo ya recortado.
+  const estimadas = baseRows.filter((r) => r.salarySource === "estimado").length;
+  const sinSueldo = baseRows.filter(
+    (r) => r.salarySource === "desconocido",
+  ).length;
 
   // Detalle: pedido explícitamente 2026-08-05, solo vendidos o despedidos
   // ("Compras (solo vendidos)") — nunca jugadores que siguen en la
@@ -1095,8 +1140,8 @@ export function PlayerBalancePage() {
       </div>
 
       {/* Filtros compartidos (pedido explícitamente 2026-08-05, confirmado:
-          un solo lugar, no repetidos en Resumen/Desgloses/Detalle), los
-          mismos 4 controles afectan a las tres secciones a la vez. */}
+          un solo lugar, no repetidos en Resumen/Desgloses/Detalle); afectan a
+          las tres secciones a la vez. */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
           Habilidad entrenada
@@ -1130,17 +1175,124 @@ export function PlayerBalancePage() {
             <option value="unknown">Sin origen conocido</option>
           </select>
         </label>
-        <ToggleSwitch
-          checked={ignoreUnknownData}
-          onChange={() => setIgnoreUnknownData((v) => !v)}
-          label="Ignorar datos desconocidos (habilidad entrenada, edad, etc.)"
-        />
+        <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+          Datos
+          <Tabs
+            modo="filtro"
+            label="Qué datos se tienen en cuenta"
+            active={materialDelSaldo}
+            onChange={setMaterialDelSaldo}
+            tabs={[
+              // «Todos» y no «Todo» para concordar con los otros dos
+              // controles de la fila, que ya dicen «Todos». Y «Sin datos
+              // desconocidos» con la palabra «datos» dentro: «Sin
+              // desconocidos» se leía como «sin jugadores desconocidos».
+              //
+              // El peldaño estrecho NO lleva «completo» ni «todo» a
+              // propósito: esas palabras sugieren MÁS y aquí se enseña
+              // MENOS (13 ventas de 567). Y las tres tienen construcción
+              // distinta —todos, sin algo, sólo un subconjunto— porque tres
+              // etiquetas paralelas («Sin X», «Sin Y») se leen como filtros
+              // independientes y no como los peldaños de una escalera.
+              { key: "todo", label: "Todos" },
+              { key: "sinDesconocidos", label: "Sin datos desconocidos" },
+              { key: "soloMedido", label: "Sólo lo medido" },
+            ]}
+          />
+        </span>
         <ToggleSwitch
           checked={ignoreFired}
           onChange={() => setIgnoreFired((v) => !v)}
           label="Ignorar jugadores despedidos"
         />
       </div>
+
+      {/* Primero POR QUÉ existe el control, luego qué hace la posición
+          elegida. Sin la primera frase, las otras tres contestan a una
+          pregunta que nadie se ha hecho todavía.
+
+          Todo esto se enseña sólo si hay algo que advertir: con todos los
+          sueldos vistos —el caso de quien empieza hoy— las tres posiciones
+          dan lo mismo y no hay nada que explicar. */}
+      {(estimadas > 0 || sinSueldo > 0) && (
+        <div className="space-y-1">
+          <p className="prosa text-sm text-[var(--muted)]">
+            Lo que cobraba un jugador sólo se sabe si estaba en tu equipo
+            mientras HT Lens miraba. Del resto de tu historial hay que
+            calcularlo, y de una parte no se puede ni eso, así que{" "}
+            <b className="text-[var(--text)]">Datos</b> elige de qué te fías.
+          </p>
+          <p className="prosa text-sm text-[var(--muted)]">
+          {materialDelSaldo === "todo" && (
+            <>
+              <b className="text-[var(--text)]">Las {baseRows.length} ventas.</b>
+              {estimadas > 0 && (
+                <>
+                  {" "}
+                  En {estimadas} el sueldo está calculado a partir del TSI y la
+                  edad, y va marcado con «≈».
+                </>
+              )}
+              {sinSueldo > 0 && (
+                <>
+                  {" "}
+                  En {sinSueldo} no se sabe qué cobraban y entra como cero, así
+                  que el saldo sale mejor de lo que fue.
+                </>
+              )}
+            </>
+          )}
+          {materialDelSaldo === "sinDesconocidos" && (
+            <>
+              <b className="text-[var(--text)]">
+                Sólo las {filteredRows.length} ventas que tienen cifra de
+                sueldo.
+              </b>
+              {sinSueldo > 0 && (
+                <> Quedan fuera {sinSueldo} en las que no se sabe qué cobraban.</>
+              )}
+              {estimadas > 0 && (
+                <>
+                  {" "}
+                  {/* Repetir la misma cifra dos veces en la misma frase
+                      («las 43 ventas… de las que ves, 43») se lee como un
+                      error de cuentas, aunque sea cierto. */}
+                  {estimadas === filteredRows.length
+                    ? "Todas llevan"
+                    : `De las que ves, ${estimadas} llevan`}{" "}
+                  el sueldo calculado («≈»), no medido.
+                </>
+              )}
+            </>
+          )}
+          {materialDelSaldo === "soloMedido" &&
+            (filteredRows.length === 0 ? (
+              // Pasa de verdad: con Origen = Canterano no queda ni una, porque
+              // ningún canterano vendido llegó a cobrar con la aplicación ya
+              // en marcha. «Sólo las 0 ventas… todo lo que ves aquí» era una
+              // frase hablando de una tabla vacía.
+              <>
+                <b className="text-[var(--text)]">
+                  De estas {baseRows.length} ventas, HT Lens no llegó a ver
+                  cobrar a ninguna.
+                </b>{" "}
+                Todas pasaron por el club sin que la aplicación tuviera tus
+                datos, así que con este filtro no queda nada que enseñar.
+              </>
+            ) : (
+              <>
+                <b className="text-[var(--text)]">
+                  Sólo las {filteredRows.length} ventas cuyo sueldo vio HT
+                  Lens.
+                </b>{" "}
+                De ellas se leyó semana a semana lo que cobraban en tu equipo,
+                así que aquí no hay ningún número calculado. Es lo que se ha
+                podido medir desde que tus datos están en la aplicación.
+              </>
+            ))}
+          </p>
+        </div>
+      )}
 
       <PanelDePestanas grupo="balance" activa={section} className="space-y-4">
         {section === "resumen" && (
@@ -2360,19 +2512,27 @@ function BalanceTable({
       header: "Salario acum.",
       align: "right",
       value: (r) => r.salaryTotal,
-      // O se conoce el salario o no se conoce; nunca se estima. Lo normal es
-      // tenerlo medido semana a semana en los snapshots. Para quien entró y
-      // salió entre dos sincronizaciones no hay snapshots, pero Hattrick sigue
-      // reportando su salario en playerdetails.xml, así que ese dato también
-      // es conocido. Sin ninguna de las dos cosas, la casilla queda en "?":
-      // un 0 se leía como "no costó nada" e inflaba el saldo.
+      // Tres estados, no dos (2026-09-04). Lo normal es tenerlo medido semana
+      // a semana; para quien entró y salió entre dos sincronizaciones el dato
+      // sigue llegando de la ficha del jugador. Y para quien pasó por el club
+      // ANTES de que existiera HT Lens no hay ni lo uno ni lo otro: ahí se
+      // calcula a partir de su TSI y su edad, y se marca con «≈» para que no
+      // se confunda con lo medido. Antes esa casilla era un "?" y su coste
+      // entraba como 0, que inflaba el saldo.
       render: (r) =>
-        r.salaryKnown ? (
+        r.salarySource === "observado" && r.salaryKnown ? (
           <span className="tabular-nums">{money(r.salaryTotal, currency)}</span>
+        ) : r.salarySource === "estimado" ? (
+          <span
+            className="tabular-nums text-[var(--muted)]"
+            title="Su etapa es anterior a HT Lens, así que nadie anotó lo que cobraba y Hattrick no lo publica hacia atrás. Esta cifra sale de su TSI y su edad. Con el selector «Sin estimaciones» puedes dejarlo fuera."
+          >
+            ≈ {money(r.salaryTotal, currency)}
+          </span>
         ) : (
           <span
             className="text-[var(--muted)]"
-            title="De este jugador no se guardó ningún salario y Hattrick tampoco lo reporta, así que su coste no se puede calcular. El saldo sale mejor de lo que fue."
+            title="De este jugador no se guardó ningún salario, Hattrick tampoco lo reporta y no hay TSI con el que calcularlo. Su coste no se puede saber, así que el saldo sale mejor de lo que fue."
           >
             ?
           </span>

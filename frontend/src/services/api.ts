@@ -2031,6 +2031,11 @@ export interface Economy {
   expectedCash: number;
   weeklyBalance: number;
   structuralBalance: number;
+  /** Balance semanal medio de la ventana elegida, sin contar compraventa y
+   *  contándola. `null` mientras no haya ni un cierre con desglose. */
+  balanceSinTransferencias: number | null;
+  balanceConTransferencias: number | null;
+  balanceSemanasUsadas: number;
   weeksOfHistory: number;
   series: {
     date: string;
@@ -2620,6 +2625,10 @@ export interface PlayerBalanceRow {
   /** Partidos que jugo de verdad con nosotros; "?" si aun no se conto. */
   gamesWithUs: number | string;
   salaryKnown: boolean;
+  /** De dónde sale `salaryTotal`: `observado` es lo que se vio cobrar,
+   *  `estimado` lo que la curva calcula para una etapa anterior a HT Lens, y
+   *  `desconocido` es que no hay ni lo uno ni lo otro. */
+  salarySource: "observado" | "estimado" | "desconocido";
   /** Identificador de la ETAPA. Dos filas del mismo jugador comparten
    *  htPlayerId, asi que esto es lo que las distingue. */
   stintId: number | null;
