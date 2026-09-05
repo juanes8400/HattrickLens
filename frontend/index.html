@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HT Lens</title>
     <!--
+      El icono de la pestaña. Sin esto el navegador pintaba un globo genérico
+      y HT Lens no se distinguía de las otras veinte pestañas abiertas.
+
+      SVG y no `.ico`: es la misma marca de la barra lateral, escala a
+      cualquier tamaño sin bordes sucios y responde al tema oscuro. Lo
+      soportan todos los navegadores actuales; los muy viejos se quedan sin
+      icono, que es exactamente lo que ya pasaba.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--
       El tema elegido, aplicado ANTES de pintar.
 
       Va aquí y no en React a propósito: si esperara al primer render, la

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="HT Lens">
+  <title>HT Lens</title>
+  <!--
+    La misma marca que la barra lateral: cuadrado redondeado en el color de
+    acento con «HL» encima. En SVG y no en PNG porque así se escribe como
+    texto, escala sin bordes sucios y se puede versionar leyéndolo.
+
+    El acento cambia con el tema en la aplicación (#3b63e0 claro, #4f7cff
+    oscuro) y aquí se hace lo mismo: sobre una barra de pestañas oscura el
+    azul oscuro se apaga demasiado.
+
+    Sin letras finas ni detalles: a 16 píxeles esto es un cuadrado de color
+    con dos trazos, y lo que tiene que lograr es que se distinga de las otras
+    veinte pestañas, no que se lea.
+  -->
+  <style>
+    .fondo { fill: #3b63e0; }
+    @media (prefers-color-scheme: dark) {
+      .fondo { fill: #4f7cff; }
+    }
+  </style>
+  <rect class="fondo" width="64" height="64" rx="14" />
+  <text
+    x="32"
+    y="33"
+    fill="#ffffff"
+    font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+    font-size="30"
+    font-weight="700"
+    text-anchor="middle"
+    dominant-baseline="central"
+    letter-spacing="-1"
+  >HL</text>
+</svg>
