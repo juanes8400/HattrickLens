@@ -323,9 +323,80 @@ def test_player_balance_treats_departure_without_sale_as_zero_price() -> None:
         assert row.sale_price == 0
         assert row.sold_at == left_at.isoformat()
         assert row.is_departure_without_sale is True
-        # Este escenario no siembra salario ni calendario: la salida a cero
-        # sigue siendo conocida, pero el saldo completo no lo es.
-        assert row.saldo is None
+        # Este escenario no siembra salario: la etapa es de las anteriores a
+        # la aplicación, así que el saldo SÍ se publica --es lo mejor que se
+        # puede saber-- y va marcado con `salary_known` (2026-09-04).
+        assert row.salary_known is False
+        assert row.saldo == -1_000_000
+
+    asyncio.run(run())
+
+
+def test_a_stamped_departure_date_is_not_used_to_estimate_wages() -> None:
+    """La fecha de una salida sin venta es cuando la aplicacion se dio
+    cuenta, no cuando el jugador se fue.
+
+    2026-09-04. Al empezar a estimar sueldos aparecio esto: 40 etapas del club
+    real comparten exactamente la misma fecha de salida --la del barrido que
+    las encontro-- y a trece de ellas se les atribuian DIEZ ANIOS de
+    plantilla. Eran 10,0 M de sueldo estimado, el 27 % de todo lo estimado,
+    colgando de una duracion que nunca existio.
+
+    El sueldo semanal puede ser bueno; el total no, porque lo fija el numero
+    de cobros atravesados y ese numero sale de la fecha. Sin fecha creible no
+    se estima: se declara desconocido.
+
+    La firma es que el jugador no aparece en NINGUNA foto pese a haberse ido
+    despues de la primera que guardamos: si estuvimos mirando la plantilla y
+    nunca lo vimos, ya no estaba.
+    """
+    async def run() -> None:
+        uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
+        primera_foto = datetime(2026, 7, 26, 12, 0)
+        async with uow as u:
+            player = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+            )
+            player.purchase_price = 1_000_000
+            player.purchased_at = datetime(2015, 11, 10, 12, 0)
+            # Sellada por el barrido, once anios despues de la compra.
+            player.left_team_at = datetime(2026, 8, 4, 12, 0)
+            player.tsi_at_sale = 30_000
+            player.age_years_at_sale = 28
+            player.age_days_at_sale = 0
+            # Otro jugador cualquiera da las lecturas con las que se ajusta la
+            # curva, para que el modelo exista y la prueba demuestre que la
+            # estimacion se OMITE, no que no habia con que estimar.
+            otro = m.Player(ht_player_id=999001, team_id=team_id, first_name="Con", last_name="Fotos")
+            u.session.add(otro)
+            await u.session.flush()
+            for i in range(30):
+                u.session.add(m.PlayerSnapshot(
+                    sync_id=1, player_id=otro.id,
+                    captured_at=primera_foto + timedelta(days=i),
+                    age_years=20 + i % 10, age_days=0, tsi=5_000 + i * 4_000,
+                    form=5, stamina=5, experience=5, salary=2_000 + i * 900,
+                    leadership=5, keeper=5, defending=5, playmaking=5,
+                    winger=5, passing=5, scoring=5, set_pieces=5,
+                    injury_level=-1, content_hash=bytes([i]) * 32,
+                ))
+            await u.session.commit()
+
+        from app.application.queries.player_balance import PlayerBalanceQueryService
+        async with uow as u:
+            data = await PlayerBalanceQueryService(u.session).get(team_id)
+
+        row = next(r for r in data.players if r.ht_player_id == ht_player_id)
+        assert row.is_departure_without_sale is True
+        assert row.salary_source == "desconocido", (
+            "con la fecha de salida sellada por el barrido no se puede saber "
+            "cuantos cobros atraveso, asi que no se estima"
+        )
+        assert row.salary_total == 0
+        # El saldo sigue publicandose: es lo mejor que se puede saber, y va
+        # marcado para que nadie lo confunda con una cifra medida.
+        assert row.saldo == -1_000_000
+
 
     asyncio.run(run())
 
@@ -1291,15 +1362,20 @@ def test_salary_history_and_fallback_are_scoped_to_each_stint() -> None:
     assert data is not None
     old, recent = sorted(data.players, key=lambda row: row.purchased_at or "")
     assert old.salary_total == 0
+    # Etapa anterior a la aplicación: el sueldo no se conoce y se marca, pero
+    # el saldo SÍ se publica -- es lo mejor que se puede saber (2026-09-04).
     assert old.salary_known is False
-    assert old.saldo is None
-    assert old.roi_pct == "?"
+    assert old.saldo is not None
     assert recent.salary_total == 9_000
     assert recent.salary_known is True
     assert recent.saldo is not None
-    assert data.total_saldo == recent.saldo
-    assert data.unknown_purchase_count == 1
-    assert sum(data.by_season.values()) == recent.saldo
+    # Las dos etapas suman: la histórica también entra, con su sueldo sin
+    # conocer. Es lo que pidió el usuario --«rescatarlo como estaba antes»--
+    # y tiene un precio que la pantalla dice: el total sale OPTIMISTA, porque
+    # a esas etapas les falta el sueldo (2026-09-04).
+    assert data.total_saldo == old.saldo + recent.saldo
+    assert data.unknown_purchase_count == 0
+    assert sum(data.by_season.values()) == old.saldo + recent.saldo
 
 def test_player_balance_query_service_flags_academy_graduate_by_mother_club() -> None:
     """Pedido explícitamente 2026-08-04: "canterano" real =
@@ -1350,8 +1426,11 @@ def test_player_balance_query_service_flags_academy_graduate_by_mother_club() ->
     assert graduate_row.purchase_price == graduate_row.promotion_cost
     assert graduate_row.promotion_cost > 0
     assert bought_row.promotion_cost == 0
-    # El origen queda resuelto aunque este fixture no aporte salarios.
-    assert graduate_row.saldo is None
+    # El origen queda resuelto aunque este fixture no aporte salarios, y el
+    # saldo se publica igual: sin lecturas de sueldo, la etapa es de las
+    # anteriores a la aplicación y se rescata marcada (2026-09-04).
+    assert graduate_row.salary_known is False
+    assert graduate_row.saldo is not None
 
 
 def test_bid_hour_bucket_formats_as_12_hour_ranges() -> None:
@@ -1801,8 +1880,11 @@ def test_a_player_who_came_and_went_between_syncs_still_costs_his_salary() -> No
         is_academy_graduate=False, economy_date=datetime(2026, 8, 10),
     ))
     assert sin_nada.salary_total == 0
+    # Ni una lectura de sueldo: la etapa es anterior a la aplicación. Se marca
+    # como desconocido y el saldo se publica igual, que es lo que pidió el
+    # usuario: rescatar lo histórico como estaba antes (2026-09-04).
     assert sin_nada.salary_known is False
-    assert sin_nada.saldo is None
+    assert sin_nada.saldo is not None
 
     con_salario = compute_balance(PlayerTransferRecord(
         purchase_price=512000, salary_history=[], listing_count=0,

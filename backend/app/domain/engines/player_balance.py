@@ -139,6 +139,12 @@ class PlayerTransferRecord:
     # estimacion nuestra, es el dato que da `playerdetails.xml` — que lo
     # devuelve incluso cuando el jugador ya juega en otro club.
     fallback_salary: int = 0
+    # El sueldo que la curva le calcula a quien no dejo ni una lectura, porque
+    # su etapa es anterior a HT Lens (ver `salary_model.py`). Ultimo recurso:
+    # solo se usa cuando no hay historial NI dato reportado, y el resultado
+    # viaja marcado como estimado para que nunca se sume con lo observado sin
+    # decirlo.
+    estimated_salary: int = 0
 
 
 @dataclass(frozen=True)
@@ -157,6 +163,8 @@ class PlayerBalance:
     # no cobrara, y el saldo sale mejor de lo que fue. Se marca en vez de
     # inventar una cifra, que es la regla del resto de la app.
     salary_known: bool = True
+    #: `observado` | `estimado` | `desconocido` — de donde sale `salary_total`.
+    salary_source: str = "observado"
 
 
 def weeks_owned(purchased_at: datetime, end: datetime) -> int:
@@ -250,6 +258,7 @@ def _total_salary(
     economy_date: datetime | None,
     history: list[SalarySnapshot],
     fallback: int = 0,
+    estimated: int = 0,
 ) -> int:
     """Compra inmediata + cada actualización económica atravesada hasta `end`.
 
@@ -259,7 +268,7 @@ def _total_salary(
     """
     payments = salary_payment_dates(purchased_at, end, economy_date)
     if not history:
-        return fallback * len(payments)
+        return (fallback or estimated) * len(payments)
     return sum(salary_at(history, payment) for payment in payments)
 
 
@@ -274,6 +283,9 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
             resale_bonus_share=record.resale_bonus_share,
             saldo=None,
             is_sold=record.sale_price is not None,
+            # Sin precio de compra no hay saldo que calcular, asi que tampoco
+            # hay sueldo que atribuir a ninguna fuente.
+            salary_source="desconocido",
         )
 
     # Un canterano no se compra, pero ascenderlo tampoco es gratis: hasta
@@ -290,6 +302,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         record.economy_date,
         record.salary_history,
         record.fallback_salary,
+        record.estimated_salary,
     )
     listing_cost = record.listing_count * LISTING_COST
 
@@ -314,17 +327,23 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         - (purchase_price + salary_total + listing_cost)
         + record.resale_bonus_share
     )
-    # Sin EconomyDate una etapa que duro mas que el instante de llegada solo
-    # tiene demostrado el primer cobro. Y sin importe conocido ni siquiera ese
-    # cobro esta completo. El subtotal sigue siendo util para explicar lo que
-    # SI se conoce, pero nunca puede convertirse en saldo/ROI ni entrar en
-    # agregados como si fuera el coste completo.
+    # Sin EconomyDate una etapa que duró más que el instante de llegada sólo
+    # tiene demostrado el primer cobro, así que el total del sueldo no está
+    # completo y se marca con `salary_known`.
     salary_calendar_known = record.economy_date is not None or _utc(end) <= _utc(purchased_at)
-    salary_known = (
-        (bool(record.salary_history) or record.fallback_salary > 0)
-        and record.purchased_at is not None
-        and salary_calendar_known
-    )
+    # ¿La aplicación llegó a VER a este jugador cobrar? Sin una sola lectura,
+    # la etapa es anterior a HT Lens.
+    observado = bool(record.salary_history) or record.fallback_salary > 0
+    salary_known = observado and record.purchased_at is not None and salary_calendar_known
+    # Tres estados, no dos: lo que se vio, lo que se calculo y lo que sigue sin
+    # saberse. Sin esta distincion un total mezcla lecturas con estimaciones y
+    # nadie puede saber cuanto de la cifra es medida.
+    if observado:
+        salary_source = "observado"
+    elif record.estimated_salary > 0:
+        salary_source = "estimado"
+    else:
+        salary_source = "desconocido"
 
     return PlayerBalance(
         purchase_price=purchase_price,
@@ -333,11 +352,29 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         agent_pct=agent_pct,
         net_sale_proceeds=net_sale_proceeds,
         resale_bonus_share=record.resale_bonus_share,
-        saldo=round(saldo) if salary_known else None,
+        # El veto vale para lo que la aplicación VIGILA, no para lo que pasó
+        # antes de que existiera (2026-09-04, decisión del usuario).
+        #
+        # De una etapa observada a la que le falte el calendario económico no
+        # se publica saldo: es un hueco real y arreglable --se arregla
+        # sincronizando-- y taparlo con un número escondería el fallo.
+        #
+        # De una etapa anterior a HT Lens no hay ni habrá lecturas de sueldo:
+        # Hattrick no publica hacia atrás lo que cobró alguien en 2018. Ahí
+        # negarse a dar un saldo es negarse para siempre, así que se da el
+        # mejor número posible y se marca con `salary_known` que le falta el
+        # sueldo. Desconocido, no falso.
+        #
+        # Aplicar el veto a todo vació la pantalla el 2026-09-03: de 598
+        # etapas guardadas sólo 48 son de jugadores que la aplicación llegó a
+        # ver, y la gráfica «Cada transferencia» bajó a trece puntos. El
+        # usuario lo notó como «se desapareció mi histórico».
+        saldo=round(saldo) if (salary_calendar_known or not observado) else None,
         is_sold=is_sold,
         # Hace falta conocer tanto el importe como el calendario. Si la etapa
         # duró más que el instante de compra y aún no se sincronizó
         # EconomyDate, solo el primer pago es demostrable y el total se marca
         # como desconocido en vez de presentarlo como definitivo.
         salary_known=salary_known,
+        salary_source=salary_source,
     )

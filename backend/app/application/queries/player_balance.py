@@ -25,6 +25,7 @@ from app.domain.engines.player_balance import (
     salary_at,
     salary_payment_dates,
 )
+from app.domain.engines.salary_model import LecturaDeSueldo, ajustar
 from app.domain.value_objects.ht_constants import (
     PLAYER_AGREEABILITY,
     SKILL_LABELS,
@@ -265,6 +266,8 @@ class PlayerBalanceRow:
     # cada sync y daria un numero mucho menor que el real.
     games_with_us: int | str = "?"
     salary_known: bool = True
+    #: `observado` | `estimado` | `desconocido` — de donde sale `salary_total`.
+    salary_source: str = "observado"
     # Identificador de la ETAPA: dos filas del mismo jugador comparten
     # ht_player_id, asi que la pantalla necesita otra cosa para
     # distinguirlas y para saber a cual apunta una edicion.
@@ -501,6 +504,54 @@ class PlayerBalanceQueryService:
                 SalarySnapshot(captured_at=snap.captured_at, salary=conv(snap.salary) or 0)
             )
             snapshots_by_player.setdefault(snap.player_id, []).append(snap)
+
+        # Desde cuándo la aplicación mira de verdad. Antes de esta fecha no
+        # vio nada, y eso permite distinguir una fecha de salida REAL de una
+        # fecha de detección (ver `salida_sellada` más abajo).
+        primera_foto = snapshots[0].captured_at if snapshots else None
+
+        # Sueldos de antes de HT Lens. Hattrick no publica hacia atras lo que
+        # cobraba nadie, asi que las etapas anteriores a la primera
+        # sincronizacion llevan el sueldo a cero por ignorancia — contarlo asi
+        # es equivocarse el 100 %. La curva se ajusta con las semanas del
+        # PROPIO club en las que TSI y sueldo se conocen a la vez.
+        modelo = ajustar(
+            [
+                LecturaDeSueldo(
+                    tsi=snap.tsi,
+                    edad=snap.age_years + (snap.age_days or 0) / 112,
+                    salario=snap.salary,
+                )
+                for snap in snapshots
+                if snap.tsi and snap.salary and snap.age_years is not None
+            ]
+        )
+        # Cada jugador se sienta a una distancia estable de la curva, y esa
+        # distancia se conserva a lo largo de su carrera. Una sola lectura suya
+        # baja el error del 28,7 % al 5,9 %, asi que el relleno de fichas de
+        # ex-jugadores no rescata un dato: rescata la etapa entera.
+        anclas: dict[int, float] = {}
+        if modelo is not None:
+            for pid, snaps in snapshots_by_player.items():
+                sesgos = sorted(
+                    sesgo
+                    for snap in snaps
+                    if snap.tsi and snap.salary and snap.age_years is not None
+                    for sesgo in [
+                        modelo.ancla_de(
+                            LecturaDeSueldo(
+                                tsi=snap.tsi,
+                                edad=snap.age_years + (snap.age_days or 0) / 112,
+                                salario=snap.salary,
+                            )
+                        )
+                    ]
+                    if sesgo is not None
+                )
+                # La mediana y no la media: una lectura tomada justo al subir
+                # de habilidad no debe arrastrar el nivel de toda la etapa.
+                if sesgos:
+                    anclas[pid] = sesgos[len(sesgos) // 2]
 
         # Intentos de venta enumerados — pedido explícitamente 2026-08-08,
         # solo cubre lo detectado desde que existe player_listing_attempts
@@ -768,6 +819,61 @@ class PlayerBalanceQueryService:
                 conv(p.last_known_salary) or 0 if latest_stint_by_player.get(p.id) is etapa else 0
             )
 
+            # Solo se estima lo que NO se observo: donde hay lecturas, mandan
+            # las lecturas.
+            # Una salida SIN venta cuyo jugador no aparece en ninguna foto, y
+            # con fecha posterior a la primera que guardamos, no se fue ese
+            # día: se fue antes y ese día es cuando la aplicación se dio
+            # cuenta. Medido 2026-09-04: las 56 salidas sin venta del club son
+            # todas así --ni una tiene foto-- y 40 comparten exactamente la
+            # misma fecha, la del barrido que las encontró.
+            #
+            # Da igual lo bueno que sea el sueldo semanal: el total lo fija el
+            # número de cobros atravesados, y con una fecha de salida
+            # inventada ese número también lo es. A trece de ellos se les
+            # atribuían DIEZ AÑOS de plantilla. Eran 10,0 M de sueldo
+            # estimado, el 27 % de todo lo estimado, sobre una duración que no
+            # existe. Sin fecha creíble no se estima: se declara desconocido.
+            salida_sellada = (
+                is_departure_without_sale
+                and not snapshots_by_player.get(p.id)
+                and primera_foto is not None
+                and effective_sold_at is not None
+                and effective_sold_at > primera_foto
+            )
+
+            sueldo_estimado = 0
+            if (
+                modelo is not None
+                and not stint_salary_history
+                and not fallback_salary
+                and not salida_sellada
+            ):
+                # Misma precedencia que usa la fila para la edad de venta, y
+                # por el mismo motivo: los campos `*_at_sale` del JUGADOR
+                # describen su salida MAS RECIENTE. En una etapa anterior de
+                # alguien que volvio al club --85 de las 598-- serian el TSI y
+                # la edad de otra vuelta, y el sueldo saldria de otro jugador.
+                # La foto de la etapa, en cambio, siempre es suya.
+                ultima = latest_stint_by_player.get(p.id) is etapa
+                foto = snapshot_at(p.id, stint_end)
+                if foto is not None:
+                    tsi_ref: int | None = foto.tsi
+                    edad_ref: float | None = foto.age_years + (foto.age_days or 0) / 112
+                else:
+                    tsi_ref = (p.tsi_at_sale or p.tsi_at_purchase) if ultima else None
+                    if etapa.age_years_manual is not None:
+                        edad_ref = etapa.age_years_manual + (etapa.age_days_manual or 0) / 112
+                    elif ultima and p.age_years_at_sale is not None:
+                        edad_ref = p.age_years_at_sale + (p.age_days_at_sale or 0) / 112
+                    elif ultima and p.age_years_at_purchase is not None:
+                        edad_ref = p.age_years_at_purchase + (p.age_days_at_purchase or 0) / 112
+                    else:
+                        edad_ref = None
+                sueldo_estimado = (
+                    conv(modelo.estimar(tsi_ref, edad_ref, ancla=anclas.get(p.id, 0.0))) or 0
+                )
+
             record = PlayerTransferRecord(
                 purchase_price=purchase_price,
                 purchased_at=purchased_at,
@@ -775,6 +881,7 @@ class PlayerBalanceQueryService:
                 promotion_cost=_en_moneda(YOUTH_PROMOTION_COST, rate) if is_academy else 0,
                 salary_history=stint_salary_history,
                 fallback_salary=fallback_salary,
+                estimated_salary=sueldo_estimado,
                 listing_count=p.listing_count,
                 sale_price=effective_sale_price,
                 sold_at=effective_sold_at,
@@ -946,6 +1053,7 @@ class PlayerBalanceQueryService:
                     sold_at=effective_sold_at.isoformat() if effective_sold_at else None,
                     salary_total=balance.salary_total,
                     salary_known=balance.salary_known,
+                    salary_source=balance.salary_source,
                     games_with_us=(
                         etapa.games_played_for_us if etapa.games_played_for_us is not None else "?"
                     ),
