@@ -66,11 +66,26 @@ export function SyncPage() {
           })
           .catch(reject);
       }),
-    onSuccess: (syncResult) => {
-      setProgressLog(null);
+    onSuccess: async (syncResult) => {
       setResult(syncResult);
       qc.invalidateQueries();
-      // "de inmediato me debe llevar a Cambios".
+      // Si al pasado le falta historial, seguir de largo y construirlo: nadie
+      // que llega por primera vez puede adivinar que hay un segundo botón que
+      // pulsar, y sin él sus transferencias antiguas salen incompletas.
+      //
+      // Solo se encadena el CENSO, que se agota y no vuelve. La vigilancia de
+      // reventas no se agota nunca —un ex-jugador sin vender puede dar dinero
+      // mañana—, así que encadenarla dejaría la sincronización sin terminar
+      // jamás y rompería el "de inmediato me debe llevar a Cambios".
+      const fresco = await pendientes.refetch();
+      const censo = fresco.data?.detail.census ?? 0;
+      if (censo > 0) {
+        // Sigue escribiendo en la MISMA lista que se venía leyendo. Vaciarla
+        // aquí y abrir una barra en otro sitio de la pantalla parecía que la
+        // sincronización había acabado y que algo nuevo había empezado solo.
+        await completarFichas(fresco.data?.pending ?? 0, true);
+      }
+      setProgressLog(null);
       navigate("/news");
     },
     onError: () => setProgressLog(null),
@@ -99,12 +114,17 @@ export function SyncPage() {
     balance: SweepBalance | null;
     /** Si paró porque se pulsó «Parar», para decirlo con esas palabras. */
     parado: boolean;
+    /** Si arrancó solo al terminar de sincronizar, para poder decirlo en vez
+     *  de dejar una barra moviéndose que nadie mandó mover. */
+    automatico: boolean;
   } | null>(null);
   const pararRef = useRef(false);
   const [rellenando, setRellenando] = useState(false);
 
-  const completarFichas = async () => {
-    const inicio = pendientes.data?.pending ?? 0;
+  const completarFichas = async (
+    inicio = pendientes.data?.pending ?? 0,
+    automatico = false,
+  ) => {
     if (inicio === 0) return;
     pararRef.current = false;
     // Una pulsación es UNA pasada. La vigilancia de reventas no se agota sola
@@ -122,8 +142,15 @@ export function SyncPage() {
       mapa: null,
       balance: null,
       parado: false,
+      automatico,
     });
     let hechos = 0;
+    if (automatico) {
+      setProgressLog((actual) => [
+        ...(actual ?? []),
+        `Construyendo tu historial de transferencias (${jugadores(inicio)})…`,
+      ]);
+    }
     try {
       // Vuelta a vuelta hasta acabar. Cada lote es una petición corta e
       // independiente: si algo se corta, lo ya descargado se queda guardado y
@@ -133,6 +160,13 @@ export function SyncPage() {
         if (pararRef.current) break;
         const lote = await api.runBackfillBatch(TEAM_ID, pulsacion);
         hechos += lote.done;
+        if (automatico && lote.players.length > 0) {
+          const nombres = lote.players;
+          setProgressLog((actual) => [
+            ...(actual ?? []),
+            ...nombres.map((nombre) => `Historial de ${nombre}`),
+          ]);
+        }
         setRelleno((previo) => ({
           total: inicio,
           hechos: Math.min(hechos, inicio),
@@ -142,6 +176,7 @@ export function SyncPage() {
           mapa: lote.queue ?? previo?.mapa ?? null,
           balance: lote.balance ?? previo?.balance ?? null,
           parado: false,
+          automatico,
         }));
         if (lote.pending === 0 || lote.done === 0) break;
         // Freno de mano: si una vuelta no reduce lo que queda, es que algo no
@@ -260,6 +295,14 @@ export function SyncPage() {
                 </dd>
               </div>
             </dl>
+          )}
+
+          {relleno?.automatico && rellenando && (
+            <p className="prosa text-sm text-[var(--text)]">
+              Construyendo tu historial. Empezó al terminar de sincronizar
+              porque a tus transferencias antiguas les faltaban datos; puedes
+              pararlo y seguir cuando quieras.
+            </p>
           )}
 
           {relleno && (
@@ -393,7 +436,7 @@ export function SyncPage() {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={completarFichas}
+              onClick={() => completarFichas()}
               disabled={
                 running ||
                 !yaSincronizo ||
