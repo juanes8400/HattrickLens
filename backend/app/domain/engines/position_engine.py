@@ -201,12 +201,62 @@ def special_roles() -> dict[str, str]:
     return {k: v["label"] for k, v in _config().get("special_roles", {}).items()}
 
 
+#: Los sectores del campo, en el orden en que se leen: de atrás hacia
+#: adelante. El diccionario de YAML no garantiza orden entre puestos, así que
+#: fijarlo aquí es lo que hace que la tabla de la pantalla sea comparable de
+#: una fila a otra.
+SECTORES: tuple[tuple[str, str], ...] = (
+    ("central_defence", "Defensa central"),
+    ("side_defence", "Defensa lateral"),
+    ("midfield", "Medio campo"),
+    ("side_attack", "Ataque lateral"),
+    ("central_attack", "Ataque central"),
+)
+
+
+def matriz() -> list[dict[str, Any]]:
+    """La matriz de coeficientes, puesto por puesto.
+
+    Hasta el 2026-09-05 la pantalla de Transparencia decía «19 posiciones» y no
+    enseñaba ninguna: prometía la fórmula y escondía justo los números que la
+    hacen comprobable. Esto los entrega tal como están en `positions.yaml`, sin
+    redondear ni reordenar dentro de cada sector.
+    """
+    cfg = _config()
+    filas: list[dict[str, Any]] = []
+    for clave, spec in cfg["positions"].items():
+        aportes = spec.get("contributions", {})
+        filas.append(
+            {
+                "id": clave,
+                "label": spec.get("label", clave),
+                # Sólo los sectores donde el puesto aporta algo: una fila con
+                # tres huecos vacíos se lee peor que una con dos columnas.
+                "sectors": [
+                    {
+                        "id": sector,
+                        "label": nombre,
+                        "skills": [
+                            {"skill": hab, "coef": coef} for hab, coef in aportes[sector].items()
+                        ],
+                    }
+                    for sector, nombre in SECTORES
+                    if aportes.get(sector)
+                ],
+            }
+        )
+    return filas
+
+
 def model_info() -> dict[str, Any]:
     """Provenance and formulas displayed in the transparency screen."""
     cfg = _config()
     source = cfg["source"]
     return {
         "positions": len(cfg["positions"]),
+        #: La matriz entera. Va aquí y no en una ruta aparte porque quien abre
+        #: Transparencia quiere ver la fórmula Y sus números en el mismo sitio.
+        "matrixRows": matriz(),
         "specialRoles": len(cfg.get("special_roles", {})),
         "source": source["name"],
         "sourceUrl": source["url"],

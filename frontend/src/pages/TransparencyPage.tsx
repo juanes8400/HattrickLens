@@ -13,6 +13,7 @@ import type {
   Calculo,
   ExperienceModel,
   LoyaltyModel,
+  PositionMatrixRow,
   PositionModel,
   TablaDeCalculo,
   TrainingFormula,
@@ -402,7 +403,102 @@ function PositionsPanel({
           <ReferenceNote reference={data.reference} />
         </div>
       </Panel>
+
+      <MatrizDePosiciones filas={data.matrixRows} />
     </>
+  );
+}
+
+/** Cómo se llama cada habilidad en la pantalla. */
+const HABILIDAD: Record<string, string> = {
+  keeper: "Portería",
+  defending: "Defensa",
+  playmaking: "Jugadas",
+  winger: "Lateral",
+  passing: "Pases",
+  scoring: "Anotación",
+  set_pieces: "Balón parado",
+};
+
+/**
+ * La matriz de coeficientes, puesto por puesto.
+ *
+ * Hasta el 2026-09-05 esta pantalla decía «19 posiciones» y no enseñaba
+ * ninguna: prometía la fórmula y escondía justo los números que la hacen
+ * comprobable, que es lo contrario de lo que la pantalla existe para hacer.
+ *
+ * Una fila por puesto y una columna por sector, en vez de una fila por
+ * combinación: así se ve de un vistazo que un Defensa Lateral aporta a cuatro
+ * sectores y un Portero a dos, que es la comparación que alguien viene a
+ * hacer. Los coeficientes van sin redondear, tal como están en el fichero.
+ */
+function MatrizDePosiciones({ filas }: { filas: PositionMatrixRow[] }) {
+  if (!filas?.length) return null;
+  // Sólo las columnas que alguien usa: si ningún puesto aporta a un sector,
+  // su columna sería una fila de puntos.
+  const sectores: { id: string; label: string }[] = [];
+  for (const f of filas)
+    for (const s of f.sectors)
+      if (!sectores.some((x) => x.id === s.id))
+        sectores.push({ id: s.id, label: s.label });
+
+  return (
+    <Panel
+      title="La matriz, puesto por puesto"
+      meta={`${filas.length} puestos`}
+    >
+      {/* Scroll propio: con cinco sectores la tabla no cabe en un móvil, y sin
+          esto era la PÁGINA la que se movía de lado. */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[46rem] text-xs">
+          <thead>
+            <tr className="border-b border-[var(--border)] text-[10px] uppercase tracking-wide text-[var(--muted)]">
+              <th className="px-4 py-2 text-left font-medium">Puesto</th>
+              {sectores.map((s) => (
+                <th key={s.id} className="px-3 py-2 text-left font-medium">
+                  {s.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--border)]">
+            {filas.map((f) => (
+              <tr key={f.id}>
+                <td className="px-4 py-2 font-medium">{f.label}</td>
+                {sectores.map((col) => {
+                  const aporta = f.sectors.find((x) => x.id === col.id);
+                  return (
+                    <td key={col.id} className="px-3 py-2 align-top">
+                      {aporta ? (
+                        <span className="flex flex-col gap-0.5">
+                          {aporta.skills.map((h) => (
+                            <span key={h.skill}>
+                              <span className="text-[var(--muted)]">
+                                {HABILIDAD[h.skill] ?? h.skill}
+                              </span>{" "}
+                              <span className="tabular-nums">
+                                {h.coef.toFixed(2)}
+                              </span>
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted)]">·</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="prosa border-t border-[var(--border)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
+        Cada número es lo que ese puesto aporta a ese sector por cada nivel de
+        esa habilidad. Un «·» significa que el puesto no aporta nada a ese
+        sector. Salen del fichero tal cual, sin redondear.
+      </p>
+    </Panel>
   );
 }
 

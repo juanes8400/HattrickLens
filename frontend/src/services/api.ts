@@ -1939,8 +1939,23 @@ export interface CalculationReference {
   numeric_profile?: string;
 }
 
+/** Un puesto de la matriz: qué aporta a cada sector y con qué coeficiente. */
+export interface PositionMatrixRow {
+  id: string;
+  label: string;
+  /** Sólo los sectores donde el puesto aporta algo. Una fila con huecos
+   *  vacíos se lee peor que una con dos columnas. */
+  sectors: {
+    id: string;
+    label: string;
+    skills: { skill: string; coef: number }[];
+  }[];
+}
+
 export interface PositionModel {
   positions: number;
+  /** La matriz entera, puesto por puesto. */
+  matrixRows: PositionMatrixRow[];
   specialRoles: number;
   source: string;
   sourceUrl: string;
