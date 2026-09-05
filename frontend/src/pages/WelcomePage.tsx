@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../services/api";
 import { setActiveTeamId, useSessionProfile } from "../hooks/useTeam";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
-import { ENLACE_DE_APOYO, hayApoyo } from "../config/apoyo";
+import { hayApoyo } from "../config/apoyo";
 
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
@@ -174,10 +174,10 @@ export function WelcomePage() {
             <span className="text-xs leading-5 text-[var(--muted)]">
               HT Lens es gratis. El servidor lo pago yo, 7 US$ al mes.
             </span>
+            {/* `a` y no `Link`: la bienvenida vive FUERA del enrutador de la
+                aplicación, así que aquí un `Link` no tendría contexto. */}
             <a
-              href={ENLACE_DE_APOYO}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/apoyar"
               className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
             >
               <span aria-hidden="true">☕</span>

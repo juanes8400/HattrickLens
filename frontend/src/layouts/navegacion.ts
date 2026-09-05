@@ -39,6 +39,9 @@ export const NAV = [
   { to: "/autor", label: "Autor" },
   // Debajo de Autor: quien quiere escribirle a alguien primero mira quién es.
   { to: "/libro", label: "Libro de visitas" },
+  // El botón del café del menú lleva aquí, pero también tiene su entrada:
+  // quien ya la cerró una vez debe poder volver sin buscarla.
+  { to: "/apoyar", label: "Apoyar el proyecto" },
 ];
 
 /** Cómo se llama la página que hay en esa ruta.

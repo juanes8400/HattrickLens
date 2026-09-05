@@ -1,4 +1,5 @@
-import { ENLACE_DE_APOYO, hayApoyo } from "../config/apoyo";
+import { Link } from "react-router-dom";
+import { hayApoyo } from "../config/apoyo";
 
 /**
  * El botón de apoyo voluntario, en los dos sitios donde aparece.
@@ -31,37 +32,36 @@ export function MensajeDeApoyo() {
 }
 
 export function ApoyarProyecto({ forma }: { forma: "menu" | "pagina" }) {
-  // Las dos condiciones se preguntan en `hayApoyo`, no aquí: si cada sitio
-  // las repitiera, un día discreparían.
+  // La condición se pregunta en `hayApoyo`, no aquí: si cada sitio la
+  // repitiera, un día discreparían.
   if (!hayApoyo()) return null;
 
-  // `noopener` es lo que impide que la página de destino pueda tocar la
-  // nuestra por `window.opener`; `noreferrer` va con él por costumbre sana.
-  const comunes = {
-    href: ENLACE_DE_APOYO,
-    target: "_blank",
-    rel: "noopener noreferrer",
-  } as const;
+  // Lleva a UNA PANTALLA nuestra, no a un sitio de cobro. Desde que hay tres
+  // vías --Bre-B, Mercado Pago y Buy Me a Coffee-- mandar a una de ellas sería
+  // elegir por el usuario, y a un colombiano le conviene una distinta que a un
+  // sueco. Además Bre-B es una LLAVE que hay que copiar, no una URL: en un
+  // enlace directo no cabía (2026-09-05).
+  const destino = "/apoyar";
 
   if (forma === "menu") {
     return (
-      <a
-        {...comunes}
+      <Link
+        to={destino}
         className="mb-1 flex items-center justify-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
       >
         <span aria-hidden="true">☕</span>
         Invítame a un café
-      </a>
+      </Link>
     );
   }
 
   return (
-    <a
-      {...comunes}
+    <Link
+      to={destino}
       className="inline-flex items-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
     >
       <span aria-hidden="true">☕</span>
       Invítame a un café
-    </a>
+    </Link>
   );
 }
