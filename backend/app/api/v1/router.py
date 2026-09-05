@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     cup,
     economy,
     league,
+    libro,
     matches,
     player_balance,
     rivals,
@@ -30,3 +31,4 @@ api_router.include_router(rivals.router, tags=["scouting de rivales"])
 api_router.include_router(cup.router, tags=["copa"])
 api_router.include_router(player_balance.router, tags=["saldo neto por jugador"])
 api_router.include_router(uso.router, tags=["uso de la app"])
+api_router.include_router(libro.router, tags=["libro de visitas"])

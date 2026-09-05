@@ -37,6 +37,8 @@ export const NAV = [
   // las otras (2026-09-02).
   { section: "Acerca de" },
   { to: "/autor", label: "Autor" },
+  // Debajo de Autor: quien quiere escribirle a alguien primero mira quién es.
+  { to: "/libro", label: "Libro de visitas" },
 ];
 
 /** Cómo se llama la página que hay en esa ruta.

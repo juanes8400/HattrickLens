@@ -12,6 +12,7 @@ import { ConnectedPage } from "./pages/ConnectedPage";
 import { PositionsPage } from "./pages/PositionsPage";
 import { LineupPage } from "./pages/LineupPage";
 import { TrainingPage } from "./pages/TrainingPage";
+import { LibroDeVisitasPage } from "./pages/LibroDeVisitasPage";
 import { PlayerBalancePage } from "./pages/PlayerBalancePage";
 import { InsightsPage } from "./pages/InsightsPage";
 import { TransparencyPage } from "./pages/TransparencyPage";
@@ -109,6 +110,7 @@ export function App() {
           <Route path="lineup" element={<LineupPage />} />
           <Route path="training" element={<TrainingPage />} />
           <Route path="transfers/balance" element={<PlayerBalancePage />} />
+          <Route path="libro" element={<LibroDeVisitasPage />} />
           <Route path="academy" element={<AcademyPage />} />
           <Route path="matches" element={<MatchesPage />} />
           <Route path="league" element={<LeaguePage />} />

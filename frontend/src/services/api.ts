@@ -247,6 +247,15 @@ export const api = {
   /** Cada intento de venta, con su final. */
   transferAttempts: (teamId: number) =>
     request<TransferAttempts>(`/teams/${teamId}/transfer-attempts`),
+  /** Las firmas del libro de visitas, de la más nueva a la más vieja. */
+  guestbook: () => request<{ entries: GuestbookEntry[] }>(`/guestbook`),
+  /** Dejar una firma. Pide sesión: por eso no se puede firmar en anónimo. */
+  signGuestbook: (message: string) =>
+    request<GuestbookEntry>(`/guestbook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    }),
   /** El resumen de uso. Sólo lo abre el administrador. */
   usage: (dias = 30) => request<UsageSummary>(`/usage?dias=${dias}`),
   /** El registro crudo, filtrado y paginado en el servidor. */
@@ -3507,4 +3516,19 @@ export type Psychology = {
   sellDays: { day: string; count: number }[];
   /** Cuándo se BAJÓ el % de entrenamiento. Vacío también es información. */
   intensityDrops: string[];
+};
+
+/** Una firma del libro de visitas.
+ *
+ *  Sale el nombre del CLUB y su liga, nunca el de la cuenta: en Hattrick uno
+ *  se conoce por su equipo, y publicar el login de alguien sería dar un dato
+ *  que no hace falta. `teamName` puede venir vacío si quien firma todavía no
+ *  ha sincronizado ningún club.
+ */
+export type GuestbookEntry = {
+  id: number;
+  teamName: string;
+  country: string;
+  message: string;
+  createdAt: string;
 };

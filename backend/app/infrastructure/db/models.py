@@ -1289,3 +1289,34 @@ class MatchWeather(Base):
     # es "hoy" para los dos campos de arriba.
     forecast_taken_at: Mapped[datetime] = mapped_column(UtcDateTime())
     captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+
+class GuestbookEntry(Base):
+    """Una firma del libro de visitas.
+
+    2026-09-05, pedido por el usuario: un sitio donde la gente que usa HT Lens
+    deje un mensaje, y de donde salgan las funcionalidades siguientes.
+
+    Se guarda el `user_id` de quien firma --el libro pide sesión, así que nadie
+    escribe de forma anónima-- pero lo que se ENSEÑA es el nombre del club y la
+    liga, no el nombre de la cuenta: en Hattrick uno se conoce por su equipo.
+
+    El nombre del club se copia en la fila en vez de leerse del equipo cada
+    vez. Un club puede cambiar de nombre, y entonces una firma de hace un año
+    aparecería atribuida a un club que no existía cuando se escribió.
+
+    `hidden` es la moderación: una firma no se borra, se esconde. Borrarla
+    dejaría a quien la escribió sin saber que pasó, y a nosotros sin saber qué
+    había cuando alguien pregunte.
+    """
+
+    __tablename__ = "guestbook_entries"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    #: Cómo se llamaba el club al firmar. Vacío si quien firma aún no ha
+    #: sincronizado ninguno.
+    team_name: Mapped[str] = mapped_column(String(120), default="")
+    country: Mapped[str] = mapped_column(String(64), default="")
+    message: Mapped[str] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False)
