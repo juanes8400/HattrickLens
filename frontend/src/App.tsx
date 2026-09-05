@@ -84,6 +84,13 @@ export function App() {
       <Routes>
         <Route path="connected" element={<ConnectedPage />} />
         <Route path="welcome" element={<WelcomePage />} />
+        {/* FUERA del guardián a propósito. La bienvenida invita a apoyar, y
+            con esta ruta protegida ese enlace devolvía a la bienvenida: un
+            enlace muerto en la primera pantalla que ve alguien. Quien todavía
+            no ha conectado su club también puede querer apoyar, y la página
+            no necesita datos suyos --sin país conocido ordena igual que para
+            cualquiera de fuera-- (2026-09-05, visto en producción). */}
+        <Route path="apoyar" element={<ApoyarPage />} />
         <Route
           path="setup"
           element={
@@ -112,7 +119,6 @@ export function App() {
           <Route path="training" element={<TrainingPage />} />
           <Route path="transfers/balance" element={<PlayerBalancePage />} />
           <Route path="libro" element={<LibroDeVisitasPage />} />
-          <Route path="apoyar" element={<ApoyarPage />} />
           <Route path="academy" element={<AcademyPage />} />
           <Route path="matches" element={<MatchesPage />} />
           <Route path="league" element={<LeaguePage />} />
