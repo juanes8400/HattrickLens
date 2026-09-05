@@ -95,11 +95,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (res.status === 401 && mayRefresh && !sesionViva) expireLocalSession();
 
   if (!res.ok) {
-    let detail: unknown;
+    // El cuerpo se lee UNA vez, como texto, y se intenta interpretar después.
+    //
+    // 2026-09-05. Antes esto era `res.json()` y, si fallaba, `res.text()` en
+    // el `catch`. Pero un `json()` fallido ya ha consumido el flujo, así que
+    // el `text()` de rescate lanzaba «body stream already read» --una frase
+    // interna que sustituía al error de verdad y aparecía en pantalla--.
+    // Pasaba siempre que la respuesta no era JSON, que es justo lo que
+    // contesta el proxy cuando el backend local está caído: el usuario veía
+    // un fallo del navegador donde tenía que ver «no hay conexión».
+    const cuerpo = await res.text().catch(() => "");
+    let detail: unknown = cuerpo;
     try {
-      detail = await res.json();
+      detail = JSON.parse(cuerpo);
     } catch {
-      detail = await res.text();
+      // No era JSON: se queda el texto tal cual, que ya es mejor pista.
     }
     throw new ApiError(`${res.status} ${res.statusText}`, res.status, detail);
   }
