@@ -5,6 +5,8 @@ import clsx from "clsx";
 import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
+import { ApoyarProyecto } from "../components/ApoyarProyecto";
+import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
 import { NAV, agrupar } from "./navegacion";
 import { SIGUIENTE_TEMA, useTema, type Tema } from "../hooks/useTheme";
 
@@ -20,49 +22,55 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
     // El menú es uno de los dos landmarks de navegación de la página --el otro
     // son las migas, que sí se llamaban «Breadcrumb»--. Sin nombre, el menú de
     // verdad era el que aparecía como «navigation» a secas (2026-08-31).
-    <nav aria-label="Secciones de HT Lens" className="flex flex-col gap-0.5">
-      {agrupar(items).map((grupo) => (
-        <div key={grupo.titulo} className="flex flex-col gap-0.5">
-          {/* El rótulo se pinta aquí y se REPITE como nombre de la lista de
+    <>
+      {/* Arriba del todo del menú, encima de «Club»: se ve siempre y no
+          interrumpe nunca, que es justo lo contrario de una ventana al
+          entrar. Sólo aparece con la bandera encendida Y con enlace. */}
+      <ApoyarProyecto forma="menu" />
+      <nav aria-label="Secciones de HT Lens" className="flex flex-col gap-0.5">
+        {agrupar(items).map((grupo) => (
+          <div key={grupo.titulo} className="flex flex-col gap-0.5">
+            {/* El rótulo se pinta aquí y se REPITE como nombre de la lista de
               abajo; por eso se oculta a la lectura, para no oírlo dos veces.
               Las mayúsculas van por CSS y no en el texto, así que se sigue
               pronunciando «Club» y no «ce-ele-u-be». */}
-          <div
-            aria-hidden="true"
-            className="px-2 pb-1 pt-3 text-[11px] uppercase tracking-wide text-[var(--muted)]"
-          >
-            {grupo.titulo}
-          </div>
-          {/* Una lista de verdad por grupo: los veinte enlaces eran hermanos
+            <div
+              aria-hidden="true"
+              className="px-2 pb-1 pt-3 text-[11px] uppercase tracking-wide text-[var(--muted)]"
+            >
+              {grupo.titulo}
+            </div>
+            {/* Una lista de verdad por grupo: los veinte enlaces eran hermanos
               sueltos, así que la agrupación que se ve --cinco bloques
               temáticos-- no existía para quien no la ve. Con `ul` se oye
               «lista de 6, elemento 3» y se sabe cuánto queda. */}
-          <ul
-            aria-label={grupo.titulo}
-            className="flex list-none flex-col gap-0.5"
-          >
-            {grupo.enlaces.map((item) => (
-              <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    clsx(
-                      "block rounded-md px-2 py-1.5 text-sm",
-                      isActive
-                        ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
-                        : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]",
-                    )
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </nav>
+            <ul
+              aria-label={grupo.titulo}
+              className="flex list-none flex-col gap-0.5"
+            >
+              {grupo.enlaces.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      clsx(
+                        "block rounded-md px-2 py-1.5 text-sm",
+                        isActive
+                          ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
+                          : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]",
+                      )
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </>
   );
 }
 
@@ -207,7 +215,27 @@ export function AppLayout() {
             </span>
           </nav>
 
-          <div className="relative ml-auto">
+          {/* El sello, arriba a la derecha de la cabecera global: escrito
+              una vez, sale en TODAS las pantallas y ninguna puede quedarse
+              sin él por olvido. `ml-auto` aquí y no en el bloque de la
+              cuenta, que ahora ya no lo necesita.
+
+              Se esconde en pantallas estrechas: en un móvil la cabecera
+              lleva el menú, la miga y el estado de conexión, y un cuarto
+              elemento empuja a la miga hasta dejarla en dos letras. En el
+              móvil el sello vive en la bienvenida, que es donde alguien que
+              no conoce esto se pregunta si es de fiar. */}
+          <div className="ml-auto hidden shrink-0 sm:block">
+            <ImagenOpcional
+              src={SELLO_PROVEEDOR}
+              alt="Proveedor certificado de productos Hattrick"
+              width={88}
+              height={35}
+              className="h-7 w-auto object-contain"
+            />
+          </div>
+
+          <div className="relative">
             <button
               onClick={() => setAccountOpen((open) => !open)}
               aria-expanded={accountOpen}

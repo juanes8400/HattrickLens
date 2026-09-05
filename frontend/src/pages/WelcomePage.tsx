@@ -3,6 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../services/api";
 import { setActiveTeamId, useSessionProfile } from "../hooks/useTeam";
+import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
+import { ENLACE_DE_APOYO, hayApoyo } from "../config/apoyo";
 
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
@@ -163,6 +165,39 @@ export function WelcomePage() {
           propietarios. Tus credenciales de Hattrick nunca pasan por esta
           aplicación.
         </p>
+        {/* El apoyo va DEBAJO del botón de conectar y con la mitad de peso
+            visual: quien llega aquí todavía no ha usado nada, así que esto no
+            puede competir con lo único que tiene que hacer en esta pantalla.
+            Sin fondo de color ni botón grande, por eso mismo. */}
+        {hayApoyo() && (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-lg border border-[var(--border)] px-3 py-3 text-center">
+            <span className="text-xs leading-5 text-[var(--muted)]">
+              HT Lens es gratis. El servidor lo pago yo, 7 US$ al mes.
+            </span>
+            <a
+              href={ENLACE_DE_APOYO}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
+            >
+              <span aria-hidden="true">☕</span>
+              Invítame a un café
+            </a>
+          </div>
+        )}
+
+        {/* El sello va junto a la frase que dice de dónde salen los datos, y
+            no suelto arriba: ahí es donde alguien que duda de si esto es de
+            fiar está mirando. */}
+        <div className="mt-4 flex justify-center">
+          <ImagenOpcional
+            src={SELLO_PROVEEDOR}
+            alt="Proveedor certificado de productos Hattrick"
+            width={160}
+            height={64}
+            className="h-14 w-auto object-contain"
+          />
+        </div>
       </section>
     </main>
   );

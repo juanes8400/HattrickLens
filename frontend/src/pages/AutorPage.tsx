@@ -1,4 +1,7 @@
+import { ApoyarProyecto, MensajeDeApoyo } from "../components/ApoyarProyecto";
+import { ESCUDO, ImagenOpcional } from "../components/ImagenOpcional";
 import { Panel } from "../components/Panels";
+import { hayApoyo } from "../config/apoyo";
 import autor from "../assets/autor.jpg";
 
 /** Quién hay detrás de esto, y qué ha publicado.
@@ -126,6 +129,12 @@ const DIVULGACION: { titulo: string; fecha: string; url: string }[] = [
 ];
 
 const PERFILES: { donde: string; url: string }[] = [
+  // El club va primero: es de lo que trata la aplicación, y quien llega aquí
+  // desde Hattrick suele querer ver el equipo antes que el LinkedIn.
+  {
+    donde: "Pulgas Arrechas",
+    url: "https://www.hattrick.org/goto.ashx?path=/Club/?TeamID=537758",
+  },
   { donde: "LinkedIn", url: "https://www.linkedin.com/in/juandelacalle/" },
   { donde: "Medium", url: "https://juandelacalle.medium.com" },
   { donde: "Kaggle", url: "https://www.kaggle.com/juandelacalle" },
@@ -133,6 +142,21 @@ const PERFILES: { donde: string; url: string }[] = [
 
 const ENLACE =
   "hover:text-[var(--accent)] hover:underline focus-visible:underline";
+
+/** El apoyo, con sitio para explicarse. En el menú sólo cabe el botón; aquí
+ *  cabe decir que la herramienta es gratis y va a seguir siéndolo, que es lo
+ *  que evita que un botón de dinero se lea como un peaje. */
+function ApoyoPanel() {
+  if (!hayApoyo()) return null;
+  return (
+    <Panel title="Apoyar el proyecto">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+        <MensajeDeApoyo />
+        <ApoyarProyecto forma="pagina" />
+      </div>
+    </Panel>
+  );
+}
 
 export function AutorPage() {
   return (
@@ -144,7 +168,33 @@ export function AutorPage() {
         </p>
       </header>
 
-      <Panel title="Juan Esteban de la Calle" meta="Pulgas Arrechas · Colombia">
+      {/* El club, en grande y con su escudo. Antes iba de subtítulo del
+          panel, en once píxeles y al lado del nombre del autor: en Hattrick
+          uno se conoce por su equipo, así que es lo que más se reconoce de
+          esta pantalla y era lo más pequeño de ella. */}
+      <Panel title="Juan Esteban de la Calle">
+        <a
+          href="https://www.hattrick.org/goto.ashx?path=/Club/?TeamID=537758"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-4 border-b border-[var(--border)] px-4 py-4 hover:bg-[var(--surface-2)]"
+        >
+          <ImagenOpcional
+            src={ESCUDO}
+            alt="Escudo de Pulgas Arrechas"
+            width={72}
+            height={72}
+            className="h-16 w-16 shrink-0 object-contain"
+          />
+          <span>
+            <span className="block text-2xl font-semibold leading-tight">
+              Pulgas Arrechas
+            </span>
+            <span className="block text-sm text-[var(--muted)]">
+              V.92 · Colombia
+            </span>
+          </span>
+        </a>
         <div className="flex flex-col gap-5 p-4 sm:flex-row sm:items-start">
           {/* El retrato lo puso el usuario (2026-09-03) y sustituye al que
               estaba dibujado a mano en SVG. Va recortado en círculo, que es
@@ -203,6 +253,12 @@ export function AutorPage() {
           </div>
         </div>
       </Panel>
+
+      {/* Aquí y no en el Panel: quien llega a esta pantalla ya quiso saber
+          quién hay detrás, así que es el único sitio donde el botón no
+          interrumpe a nadie. Sólo sale con la bandera encendida Y con
+          enlace. */}
+      <ApoyoPanel />
 
       <Panel
         title="Publicaciones científicas"
