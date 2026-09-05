@@ -337,6 +337,13 @@ class EconomyResponse:
     #: selector en 16 con siete cierres guardados parece estropeado.
     window_requested: int
     window_used: int
+    #: Balance semanal medio de la ventana, en dos versiones: sin compraventa
+    #: --lo que el club hace por sí mismo-- y con ella. `None` mientras no
+    #: haya ni un cierre con desglose. De aquí salen las dos tarjetas de
+    #: autonomía: `caja / |balance|` si es negativo, y «se sostiene» si no.
+    balance_sin_transferencias: int | None
+    balance_con_transferencias: int | None
+    balance_semanas_usadas: int
 
 
 # Los totales de la semana ya cerrada. Solo los TOTALES, no el desglose: un
@@ -425,7 +432,24 @@ def estructura_semanal(
     # semanas para lo plano y todas las disponibles para la taquilla, así que
     # el balance se movía según cuántos cierres reconociera el motor y no
     # había forma de decir «esto es el promedio de N semanas».
-    recent = cierres[-ventana:] if ventana > 0 else cierres
+    # Sólo los cierres COMPLETOS. Un cierre sin `last_income_spectators` es
+    # de antes de que la aplicación guardara la semana entera: no es que la
+    # taquilla fuera cero, es que no se anotó, y sus demás cifras describen un
+    # club que ya no existe.
+    #
+    # Le costó a Pulgas Arrechas parecer sano: los dos primeros cierres traen
+    # los sueldos a la mitad --la plantilla era la mitad-- y sin juveniles ni
+    # bono de patrocinio, porque nada de eso existía todavía. Promediándolos,
+    # el balance de ocho semanas salía +1.412 y la pantalla decía «en
+    # equilibrio»; sin ellos son -27.195 (2026-09-04, auditoría a petición del
+    # usuario).
+    #
+    # Si NINGUNO está completo se usan todos: un número imperfecto y dicho es
+    # mejor que ninguno, y quien acaba de instalar la aplicación no puede
+    # quedarse sin pantalla.
+    completos = [c for c in cierres if c.last_income_spectators is not None]
+    utiles = completos or cierres
+    recent = utiles[-ventana:] if ventana > 0 else utiles
     if not recent:
         return None
 
@@ -459,6 +483,67 @@ def estructura_semanal(
         base_gate=gate_per_week * SEASON_WEEKS // HOME_MATCHES_PER_SEASON,
         other_fixed=conv(avg("costs_youth")) + conv(avg("costs_financial")),
         weekly_gate=gate_per_week,
+    )
+
+
+@dataclass(frozen=True)
+class BalancesDeAutonomia:
+    """Lo que entró menos lo que salió, por semana, en dos versiones."""
+
+    #: Sin compraventa: lo que hace el club por sí mismo.
+    sin_transferencias: int
+    #: Todo, incluida la compraventa.
+    con_transferencias: int
+    #: Cierres que de verdad se promediaron.
+    semanas: int
+
+
+def balances_de_autonomia(
+    cierres: list[_WeeklyClose], rate: float, ventana: int
+) -> BalancesDeAutonomia | None:
+    """Los dos balances semanales que sostienen las tarjetas de autonomía.
+
+    Se parte de los TOTALES que Hattrick reporta --`LastIncomeSum` y
+    `LastCostsSum`-- y no de la suma de las partidas, por una razón medida: en
+    una semana cerrada las partidas suman MENOS que el total, exactamente el
+    bono del patrocinador (20.500 a la semana en la cuenta real), porque no
+    existe `LastIncomeSponsorBonuses` y CHPP no lo desglosa hacia atrás.
+    Sumando líneas ese dinero desaparecía y el déficit salía 20 mil peor cada
+    semana (ver `project_economy_semana_cerrada`).
+
+    De regalo, `con_transferencias` es exactamente el número que Resumen ya
+    llama «Resultado de la última semana», así que las dos pantallas dicen lo
+    mismo por construcción y no por vigilancia.
+
+    Sólo entran los cierres con desglose: los anteriores al 01/08/2026 traen
+    el total pero no las partidas, y sin ellas no se puede separar la
+    compraventa. Colarlos metía semanas a cero que hundían el promedio.
+    """
+    completos = [c for c in cierres if c.snapshot.last_income_spectators is not None]
+    recientes = completos[-ventana:] if ventana > 0 else completos
+    if not recientes:
+        return None
+
+    def conv(v: float | None) -> float:
+        return (v or 0) / rate
+
+    total = 0.0
+    sin_compraventa = 0.0
+    for c in recientes:
+        s = c.snapshot
+        balance = conv(s.last_income_sum) - conv(s.last_costs_sum)
+        compraventa = (
+            conv(s.last_income_sold_players)
+            + conv(s.last_income_sold_players_commission)
+            - conv(s.last_costs_bought_players)
+        )
+        total += balance
+        sin_compraventa += balance - compraventa
+    n = len(recientes)
+    return BalancesDeAutonomia(
+        sin_transferencias=round(sin_compraventa / n),
+        con_transferencias=round(total / n),
+        semanas=n,
     )
 
 
@@ -685,14 +770,30 @@ class EconomyQueryService:
     ) -> IncomeKpis:
         """De dónde sale lo que entra, dentro de la ventana.
 
-        La taquilla por partido se cuenta contra los partidos en casa que de
-        verdad se jugaron en la ventana, no contra los siete por temporada que
-        supone el modelo: si el calendario te dio tres, la media es entre tres.
+        La taquilla por partido empareja CADA semana con SUS propios partidos.
+        Antes se sumaba la taquilla de la ventana entera y se dividía entre
+        todos los partidos del periodo, y las dos cosas no cubrían lo mismo:
+        las semanas antiguas no traen `last_income_spectators` --el campo se
+        empezó a guardar después-- así que el numerador cubría cinco semanas y
+        el denominador contaba los partidos de siete. Salía 258.805 por
+        partido donde son 295.777, un 12% por debajo (2026-09-04, auditoría a
+        petición del usuario).
+
+        Emparejando, una semana sin dato de taquilla no aporta ni su ingreso
+        ni sus partidos, que es la única forma de que la división signifique
+        algo.
         """
-        desde = cierres[0].closed_at if cierres else None
+        taquilla = 0
         en_casa = 0
-        if desde is not None:
-            en_casa = (
+        semanas_con_taquilla = 0
+        for i, cierre in enumerate(cierres):
+            bruto = cierre.snapshot.last_income_spectators
+            if bruto is None:
+                continue
+            # La semana que cierra este snapshot: desde el cierre anterior
+            # hasta éste.
+            desde = cierres[i - 1].snapshot.captured_at if i > 0 else cierre.closed_at
+            en_casa += (
                 await self._s.scalar(
                     select(func.count())
                     .select_from(m.Match)
@@ -700,19 +801,24 @@ class EconomyQueryService:
                         m.Match.home_team_ht_id == team.ht_team_id,
                         m.Match.status == "FINISHED",
                         m.Match.match_type.in_(TIPOS_CON_TAQUILLA),
-                        m.Match.played_at >= desde,
-                        m.Match.played_at <= cierres[-1].snapshot.captured_at,
+                        m.Match.played_at > desde,
+                        m.Match.played_at <= cierre.snapshot.captured_at,
                     )
                 )
             ) or 0
-        taquilla = sum(int(round((c.snapshot.last_income_spectators or 0) / rate)) for c in cierres)
+            taquilla += int(round(bruto / rate))
+            semanas_con_taquilla += 1
+
         recurrente = structure.sponsors + structure.gate_per_week
         # Los socios de la lectura más reciente de la ventana: es un stock,
         # no un flujo, así que promediarlo no diría nada.
         socios = cierres[-1].snapshot.fan_club_size if cierres else 0
         por_partido = round(taquilla / en_casa) if en_casa else None
         return IncomeKpis(
-            weeks=len(cierres),
+            # Las semanas que de verdad aportaron taquilla, no las de la
+            # ventana: decir «promedio de 7» cuando cinco tienen dato es
+            # prometer una precisión que no existe.
+            weeks=semanas_con_taquilla,
             home_matches=en_casa,
             gate_total=taquilla,
             gate_per_home_match=por_partido,
@@ -969,7 +1075,13 @@ class EconomyQueryService:
             for season, indices in sorted(season_row_indices.items(), reverse=True)
         ]
 
-        ventana = closes[-horizon_weeks:] if horizon_weeks > 0 else closes
+        # Los MISMOS cierres que promedia `estructura_semanal`: los completos.
+        # Contando los otros, la pantalla decía «promedio de 7 semanas» cuando
+        # entraban cinco (2026-09-04).
+        completos = [c for c in closes if c.snapshot.last_income_spectators is not None]
+        utiles = completos or closes
+        ventana = utiles[-horizon_weeks:] if horizon_weeks > 0 else utiles
+        autonomia = balances_de_autonomia(closes, rate, horizon_weeks)
         nomina = await self._wage_bill(team, rate)
         if nomina is not None and best_eleven:
             # El banquillo es todo el que no entra en el once. Se suma con los
@@ -1015,6 +1127,13 @@ class EconomyQueryService:
             income_kpis=await self._income_kpis(team, ventana, structure, rate),
             window_requested=horizon_weeks,
             window_used=len(ventana),
+            balance_sin_transferencias=(
+                None if autonomia is None else autonomia.sin_transferencias
+            ),
+            balance_con_transferencias=(
+                None if autonomia is None else autonomia.con_transferencias
+            ),
+            balance_semanas_usadas=(0 if autonomia is None else autonomia.semanas),
             weekly_structure=RecurringWeek(
                 salaries=structure.salaries,
                 staff=structure.staff,

@@ -14,6 +14,8 @@ from app.application.queries.economy import (
     MIN_WEEKS_FOR_TIMESERIES,
     EconomyQueryService,
     _closed_sponsor_income,
+    _WeeklyClose,
+    balances_de_autonomia,
     estructura_semanal,
 )
 from app.domain.engines.economy_engine import PlannedEvent
@@ -790,3 +792,143 @@ def test_pedir_mas_semanas_de_las_guardadas_usa_las_que_hay() -> None:
     e = estructura_semanal(filas, 1.0, ventana=16)
     assert e is not None
     assert e.gate_per_week == 2_000
+
+
+def test_los_cierres_incompletos_no_entran_en_el_promedio() -> None:
+    """Un cierre sin taquilla anotada describe un club que ya no existe.
+
+    2026-09-04, auditoría a petición del usuario. Los dos primeros cierres de
+    Pulgas Arrechas traían los sueldos a la mitad --la plantilla era la mitad--
+    y sin juveniles ni bono de patrocinio, porque nada de eso existía todavía.
+    `last_income_spectators` venía en `None`: no es que la taquilla fuera cero,
+    es que la aplicación aún no guardaba la semana entera.
+
+    Promediándolos, el balance recurrente salía +1.412 y la pantalla decía «en
+    equilibrio». Sin ellos son -27.195: el club pierde dinero.
+    """
+    base = datetime(2026, 6, 1, tzinfo=UTC)
+    viejo = _economy_row(1, 1, base)
+    viejo.last_income_spectators = None  # la app no lo guardaba todavía
+    viejo.costs_players = 200_000  # media plantilla
+    nuevo = _economy_row(2, 1, base + timedelta(days=7), last_spectators=1_000)
+    nuevo.costs_players = 400_000
+
+    e = estructura_semanal([viejo, nuevo], 1.0, ventana=8)
+    assert e is not None
+    # Sólo el completo: 400.000, no la media de 300.000.
+    assert e.salaries == 400_000
+
+
+def test_sin_ningun_cierre_completo_se_usan_los_que_haya() -> None:
+    """Quien acaba de instalar la aplicación no puede quedarse sin pantalla:
+    un número imperfecto y dicho es mejor que ninguno."""
+    base = datetime(2026, 6, 1, tzinfo=UTC)
+    fila = _economy_row(1, 1, base)
+    fila.last_income_spectators = None
+    fila.costs_players = 200_000
+
+    e = estructura_semanal([fila], 1.0, ventana=8)
+    assert e is not None
+    assert e.salaries == 200_000
+
+
+def _cierre(
+    cuando: datetime,
+    *,
+    ingresos: int,
+    gastos: int,
+    venta: int = 0,
+    comision: int = 0,
+    compra: int = 0,
+    con_desglose: bool = True,
+) -> _WeeklyClose:
+    """Un cierre semanal con lo justo para los dos balances."""
+    return _WeeklyClose(
+        closed_at=cuando,
+        snapshot=m.EconomySnapshot(
+            team_id=1,
+            captured_at=cuando,
+            cash=0,
+            last_income_sum=ingresos,
+            last_costs_sum=gastos,
+            last_income_sold_players=venta,
+            last_income_sold_players_commission=comision,
+            last_costs_bought_players=compra,
+            # La marca de "trae desglose": sin ella no se puede separar la
+            # compraventa del resto.
+            last_income_spectators=1 if con_desglose else None,
+        ),
+    )
+
+
+def test_los_balances_parten_del_total_y_no_de_la_suma_de_partidas() -> None:
+    """El bono del patrocinador no aparece en ninguna partida.
+
+    2026-09-04. En una semana cerrada las partidas suman MENOS que
+    `LastIncomeSum` --exactamente el bono, 205.000 en la cuenta real-- porque
+    CHPP no sirve `LastIncomeSponsorBonuses` hacia atrás. Sumando líneas ese
+    dinero desaparecía y el déficit salía peor de lo que era, así que se parte
+    del total reportado y se le RESTA la compraventa.
+    """
+    hoy = datetime(2026, 9, 1)
+    b = balances_de_autonomia(
+        [_cierre(hoy, ingresos=1_000, gastos=800, venta=300, comision=50, compra=100)],
+        rate=1.0,
+        ventana=8,
+    )
+    assert b is not None
+    # Todo: 1.000 - 800.
+    assert b.con_transferencias == 200
+    # Sin compraventa: 200 - (300 + 50 - 100).
+    assert b.sin_transferencias == -50
+    assert b.semanas == 1
+
+
+def test_los_cierres_sin_desglose_no_entran_en_el_promedio() -> None:
+    """Las lecturas anteriores al 01/08/2026 traen el total pero no las
+    partidas. Colarlas metía semanas que hundían el promedio: en la cuenta
+    real, dos de ellas movían el balance de -94.033 a -43.114."""
+    hoy = datetime(2026, 9, 1)
+    cierres = [
+        _cierre(hoy - timedelta(days=14), ingresos=0, gastos=0, con_desglose=False),
+        _cierre(hoy, ingresos=1_000, gastos=1_400),
+    ]
+    b = balances_de_autonomia(cierres, rate=1.0, ventana=8)
+    assert b is not None
+    assert b.semanas == 1, "la semana sin desglose no cuenta"
+    assert b.con_transferencias == -400
+
+
+def test_sin_ningun_cierre_con_desglose_no_hay_balance() -> None:
+    """Devolver 0 diría «tu club está en equilibrio», que es una afirmación
+    sobre datos que no tenemos. La pantalla enseña «sin datos»."""
+    hoy = datetime(2026, 9, 1)
+    assert balances_de_autonomia([], rate=1.0, ventana=8) is None
+    assert (
+        balances_de_autonomia(
+            [_cierre(hoy, ingresos=1, gastos=1, con_desglose=False)], rate=1.0, ventana=8
+        )
+        is None
+    )
+
+
+def test_la_ventana_recorta_a_los_cierres_mas_recientes() -> None:
+    """El selector de la pantalla manda: pedir 2 promedia las DOS últimas."""
+    hoy = datetime(2026, 9, 1)
+    cierres = [
+        _cierre(hoy - timedelta(days=21), ingresos=1_000, gastos=0),
+        _cierre(hoy - timedelta(days=14), ingresos=0, gastos=1_000),
+        _cierre(hoy - timedelta(days=7), ingresos=0, gastos=1_000),
+    ]
+    assert balances_de_autonomia(cierres, rate=1.0, ventana=2).con_transferencias == -1_000
+    assert balances_de_autonomia(cierres, rate=1.0, ventana=3).con_transferencias == -333
+
+
+def test_la_moneda_local_se_aplica_a_los_dos_balances() -> None:
+    """Colombia divide por 10. Un balance sin convertir salía diez veces peor."""
+    hoy = datetime(2026, 9, 1)
+    b = balances_de_autonomia(
+        [_cierre(hoy, ingresos=10_000, gastos=15_000)], rate=10.0, ventana=8
+    )
+    assert b is not None
+    assert b.con_transferencias == -500

@@ -22,7 +22,7 @@ router = APIRouter()
 )
 async def economy(
     team_id: int,
-    horizon_weeks: int = Query(52, ge=4, le=104),
+    horizon_weeks: int = Query(52, ge=2, le=104),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """La foto económica completa: lo observado, lo proyectado y lo hipotético.
@@ -76,7 +76,7 @@ async def _best_eleven(session: AsyncSession, team_id: int) -> set[int] | None:
 async def economy_with_plan(
     team_id: int,
     events: list[dict[str, Any]],
-    horizon_weeks: int = Query(52, ge=4, le=104),
+    horizon_weeks: int = Query(52, ge=2, le=104),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Recalcula la proyección añadiendo compras y ventas previstas.
@@ -150,6 +150,9 @@ def _serialise(d: Any) -> dict[str, Any]:
         "expectedCash": d.expected_cash,
         "weeklyBalance": d.weekly_balance,
         "structuralBalance": d.structural_balance,
+        "balanceSinTransferencias": d.balance_sin_transferencias,
+        "balanceConTransferencias": d.balance_con_transferencias,
+        "balanceSemanasUsadas": d.balance_semanas_usadas,
         "weeksOfHistory": d.weeks_of_history,
         "wageBill": (
             {

@@ -13,7 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.application.queries.academy import AcademyQueryService
 from app.application.queries.arena import ArenaQueryService
-from app.application.queries.economy import estructura_semanal, weekly_closes
+from app.application.queries.economy import (
+    VENTANA_POR_DEFECTO,
+    balances_de_autonomia,
+    estructura_semanal,
+    weekly_closes,
+)
 from app.application.queries.league import LeagueQueryService
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
@@ -1175,6 +1180,17 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     # que se juega el partido en casa, y los 20.000 semanales de la academia.
     # Esta alerta le dice al usuario cuantas semanas de caja le quedan: es el
     # ultimo sitio donde vale la pena ahorrarse una consulta.
+    cierres_economicos = weekly_closes(
+        list(
+            (
+                await session.execute(
+                    select(m.EconomySnapshot)
+                    .where(m.EconomySnapshot.team_id == team_id)
+                    .order_by(m.EconomySnapshot.captured_at)
+                )
+            ).scalars()
+        )
+    )
     estructura = estructura_semanal(
         [
             c.snapshot
@@ -1305,7 +1321,16 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     # ── Economía ────────────────────────────────────────────────────────
     if econ:
         sponsors_total = total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses)
-        structural = estructura.structural_balance if estructura else None
+        # El MISMO número que enseña Economía en «Autonomía sin
+        # transferencias», y por el mismo camino. Hasta el 2026-09-04 esta
+        # alerta usaba `structural_balance`, que se calcula distinto --mezcla
+        # tarifas de la semana en curso con la taquilla de las cerradas-- así
+        # que las dos pantallas decían la misma frase con dos cifras: -27.195
+        # y 345 semanas aquí, -39.860 y 236 allí. Con la ventana por defecto
+        # el aviso sigue callado igual que antes, así que esto no cambia a
+        # quién avisa hoy: unifica de dónde sale el número.
+        autonomia = balances_de_autonomia(cierres_economicos, rate_, VENTANA_POR_DEFECTO)
+        structural = autonomia.sin_transferencias if autonomia else None
         # La temporada-semana de la lectura económica entra en la alerta para
         # que sea una por semana: mismo filtro por `ht_league_id` que el resto
         # de la app, no "el WorldContext más reciente".

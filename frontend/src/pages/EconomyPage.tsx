@@ -26,9 +26,8 @@ import type {
 } from "../services/api";
 
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
-type EconomySection = "resumen" | "kpis" | "proyeccion" | "detalles";
-type Horizon = "4" | "8" | "12" | "16";
-type KpiGroup = "caja" | "nomina" | "mercado" | "ingresos";
+type EconomySection = "resumen" | "proyeccion" | "detalles";
+type Horizon = "2" | "4" | "8" | "12" | "16";
 
 /**
  * Economía, en 3 secciones (2026-08-09, pedido explícito: mismo patrón de
@@ -59,7 +58,6 @@ export function EconomyPage() {
           grupo="economia"
           tabs={[
             { key: "resumen", label: "Resumen" },
-            { key: "kpis", label: "KPIs" },
             { key: "proyeccion", label: "Proyección" },
             { key: "detalles", label: "Detalles" },
           ]}
@@ -113,14 +111,6 @@ export function EconomyPage() {
           </div>
         )}
 
-        {section === "kpis" && (
-          <KpisSection
-            data={data}
-            horizon={horizon}
-            onHorizonChange={setHorizon}
-          />
-        )}
-
         {section === "proyeccion" && (
           <div className="space-y-4">
             <ForecastPanel
@@ -138,378 +128,6 @@ export function EconomyPage() {
   );
 }
 
-/** Los indicadores de una sola cifra, en su pestaña y por temas.
- *
- *  2026-09-02/03, pedido del usuario. Dos decisiones suyas mandan aquí:
- *
- *  1. Un sub-selector por tema. Dieciocho cifras seguidas no se leen; por
- *     bloques de cuatro o cinco, sí.
- *  2. El selector de arriba manda sobre TODO lo que se promedia. Antes cada
- *     componente traía su propia ventana --dos semanas para lo plano, todas
- *     las disponibles para la taquilla-- y no había forma de decir de dónde
- *     salía un número.
- */
-function KpisSection({
-  data,
-  horizon,
-  onHorizonChange,
-}: {
-  data: Economy;
-  horizon: Horizon;
-  onHorizonChange: (h: Horizon) => void;
-}) {
-  const [grupo, setGrupo] = useState<KpiGroup>("caja");
-  const preferred =
-    data.recommendedModel === "bottom_up"
-      ? data.structuralForecast
-      : data.timeseriesForecast!;
-
-  const runwayWeeks =
-    data.structuralBalance < 0
-      ? Math.floor(data.cash / Math.abs(data.structuralBalance))
-      : null;
-  // Más de dos temporadas de cuenta atrás no es una cuenta atrás. Cuando el
-  // balance recurrente ronda el cero la división se dispara y «~441 semanas»
-  // finge una precisión que no tiene.
-  const equilibrado = runwayWeeks != null && runwayWeeks > 32;
-
-  const finalValue =
-    preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
-  const deltaAbs = finalValue - data.expectedCash;
-  const deltaPct =
-    data.expectedCash !== 0
-      ? (deltaAbs / Math.abs(data.expectedCash)) * 100
-      : 0;
-
-  const { wageBill, weeklyStructure, market, incomeKpis } = data;
-  const ingresoFijo = weeklyStructure.sponsors + weeklyStructure.weeklyGate;
-  const gastoFijo =
-    weeklyStructure.salaries +
-    weeklyStructure.staff +
-    weeklyStructure.arenaMaintenance +
-    weeklyStructure.otherFixed;
-  const pesoNomina =
-    gastoFijo > 0 ? (weeklyStructure.salaries / gastoFijo) * 100 : null;
-  const semanasDeNomina =
-    wageBill && wageBill.total > 0
-      ? Math.floor(data.cash / wageBill.total)
-      : null;
-
-  const dinero = (v: number) => money(v, data.currency);
-  // Un selector en 16 con siete cierres guardados parece estropeado si la
-  // pantalla no dice cuántas semanas hay de verdad.
-  const faltanSemanas = data.windowUsed < data.windowRequested;
-  // Corto a propósito: en un móvil el `meta` de un panel comparte renglón con
-  // el título, y la frase larga se le montaba encima. La explicación va
-  // dentro del panel de Ventana, que es donde se decide (2026-09-03).
-  const pie = `promedio de ${data.windowUsed} semanas`;
-
-  return (
-    <div className="space-y-4">
-      <Panel
-        title="Ventana"
-        meta={`${data.windowUsed} de ${data.windowRequested} semanas`}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-          <span className="text-xs text-[var(--muted)]">
-            Promedia las últimas N semanas y proyecta N hacia adelante.
-            {faltanSemanas
-              ? ` Sólo hay ${data.windowUsed} semanas cerradas guardadas, así que de momento se promedian esas.`
-              : ""}
-          </span>
-          <Tabs
-            modo="filtro"
-            label="Semanas que promedian los indicadores"
-            tabs={HORIZON_OPTIONS}
-            active={horizon}
-            onChange={onHorizonChange}
-          />
-        </div>
-        <div className="border-t border-[var(--border)] px-4 py-2">
-          <Tabs
-            grupo="economia-kpis"
-            tabs={[
-              { key: "caja", label: "Caja" },
-              { key: "nomina", label: "Nómina" },
-              { key: "mercado", label: "Mercado" },
-              { key: "ingresos", label: "Ingresos" },
-            ]}
-            active={grupo}
-            onChange={setGrupo}
-          />
-        </div>
-      </Panel>
-
-      <PanelDePestanas
-        grupo="economia-kpis"
-        activa={grupo}
-        className="space-y-4"
-      >
-        {grupo === "caja" && (
-          <>
-            {/* Las dos primeras parten de supuestos OPUESTOS y hasta el
-                2026-08-31 no lo decían: una cuenta las semanas que aguantas
-                SIN volver a fichar ni vender, y la otra proyecta arrastrando
-                el sesgo observado de tus últimas semanas, que incluye un
-                mercado muy movido. */}
-            <Panel title="Caja" meta={`proyección a +${horizon} semanas`}>
-              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-                <Kpi
-                  label="Autonomía sin fichar ni vender"
-                  value={
-                    runwayWeeks == null
-                      ? "caja creciendo"
-                      : equilibrado
-                        ? "en equilibrio"
-                        : `~${runwayWeeks} semanas`
-                  }
-                  hint={
-                    runwayWeeks == null
-                      ? "el balance recurrente semanal es positivo"
-                      : equilibrado
-                        ? `pierde ${dinero(Math.abs(data.structuralBalance))}/sem, que la caja cubre durante años`
-                        : `sólo con lo recurrente: ${dinero(data.structuralBalance)}/sem`
-                  }
-                  tone={
-                    runwayWeeks == null || equilibrado ? "positive" : "danger"
-                  }
-                />
-                <Kpi
-                  label={`Caja proyectada en +${horizon} semanas`}
-                  value={dinero(finalValue)}
-                  hint={
-                    `${deltaAbs >= 0 ? "+" : ""}${dinero(deltaAbs)} ` +
-                    `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
-                  }
-                  tone={deltaAbs >= 0 ? "positive" : "danger"}
-                />
-                <Kpi
-                  label="Semanas de nómina en caja"
-                  value={
-                    semanasDeNomina != null ? `${semanasDeNomina}` : "sin datos"
-                  }
-                  hint={
-                    semanasDeNomina != null
-                      ? "sueldos que paga la caja sin ingresar nada"
-                      : "hace falta sincronizar la plantilla"
-                  }
-                />
-              </div>
-            </Panel>
-
-            <Panel title="Lo fijo de cada semana" meta={pie}>
-              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-                <Kpi
-                  label="Entra"
-                  value={`${dinero(ingresoFijo)}/sem`}
-                  hint={`patrocinios ${dinero(weeklyStructure.sponsors)} y taquilla ${dinero(weeklyStructure.weeklyGate)}`}
-                  tone="positive"
-                />
-                <Kpi
-                  label="Sale"
-                  value={`${dinero(gastoFijo)}/sem`}
-                  hint="sueldos, cuerpo técnico y estadio"
-                  tone="danger"
-                />
-                <Kpi
-                  label="Queda"
-                  value={`${dinero(data.structuralBalance)}/sem`}
-                  hint="sin contar ninguna compraventa"
-                  tone={data.structuralBalance >= 0 ? "positive" : "danger"}
-                />
-              </div>
-            </Panel>
-          </>
-        )}
-
-        {grupo === "nomina" &&
-          (wageBill ? (
-            <>
-              <Panel title="Nómina" meta={`${wageBill.players} jugadores`}>
-                <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-                  <Kpi
-                    label="Sueldos por semana"
-                    value={dinero(wageBill.total)}
-                    hint={`${dinero(wageBill.average)} de media por jugador`}
-                  />
-                  <Kpi
-                    label="El más caro"
-                    value={dinero(wageBill.topSalary)}
-                    hint={wageBill.topPlayer}
-                  />
-                  <Kpi
-                    label="Sueldo por 1.000 de TSI"
-                    value={
-                      wageBill.perThousandTsi != null
-                        ? dinero(wageBill.perThousandTsi)
-                        : "sin datos"
-                    }
-                    hint="lo que cuesta la unidad de valor de mercado"
-                  />
-                </div>
-              </Panel>
-
-              <Panel title="Lo que no juega" meta="dos formas de mirarlo">
-                <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
-                  <Kpi
-                    label="No jugó el último partido"
-                    value={`${dinero(wageBill.idleSalary)}/sem`}
-                    hint={`${wageBill.idlePlayers} jugadores, contra el último de liga o copa`}
-                  />
-                  <Kpi
-                    label="Fuera del once ideal"
-                    value={
-                      wageBill.benchSalary != null
-                        ? `${dinero(wageBill.benchSalary)}/sem`
-                        : "sin datos"
-                    }
-                    hint={
-                      wageBill.benchPlayers != null
-                        ? `${wageBill.benchPlayers} jugadores, según el motor de Alineación`
-                        : "no se pudo resolver el once"
-                    }
-                  />
-                </div>
-              </Panel>
-
-              <Panel title="Recargo por extranjeros" meta={wageBill.country}>
-                <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
-                  {/* Hattrick cobra un 20% más de sueldo por cada jugador
-                      cuyo país de origen no es el del equipo, y ese recargo
-                      no se ve en ninguna pantalla: viene ya sumado dentro del
-                      sueldo. Por eso se despeja en vez de sumarse. */}
-                  <Kpi
-                    label="Recargo"
-                    value={`${dinero(wageBill.surcharge)}/sem`}
-                    hint={
-                      wageBill.foreignPlayers === wageBill.players
-                        ? `los ${wageBill.players} vienen de fuera de ${wageBill.country}`
-                        : `${wageBill.foreignPlayers} de ${wageBill.players} vienen de fuera de ${wageBill.country}`
-                    }
-                    tone={wageBill.surcharge > 0 ? "danger" : "positive"}
-                  />
-                  <Kpi
-                    label="Peso de la nómina en el gasto fijo"
-                    value={
-                      pesoNomina != null
-                        ? `${pesoNomina.toFixed(0)}%`
-                        : "sin datos"
-                    }
-                    hint="de cada peso fijo que sale, cuánto es sueldo"
-                  />
-                </div>
-                <p className="border-t border-[var(--border)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
-                  El recargo es un 20% sobre el sueldo base, así que el sueldo
-                  que ves ya lo lleva dentro: de cada{" "}
-                  {dinero(wageBill.foreignSalary)} que pagas a jugadores de
-                  fuera, una sexta parte es recargo. No baja renovando ni
-                  esperando: sólo se va cuando se va el jugador.
-                  {wageBill.unknownCountry > 0 &&
-                    ` ${wageBill.unknownCountry} jugador(es) no tienen país conocido y quedan fuera de la cuenta.`}
-                </p>
-              </Panel>
-            </>
-          ) : (
-            <Panel title="Nómina" meta="sin datos">
-              <SinDatos />
-            </Panel>
-          ))}
-
-        {grupo === "mercado" && (
-          <>
-            <Panel title="Compraventa" meta={pie}>
-              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-                <Kpi
-                  label="Saldo de transferencias"
-                  value={dinero(market.net)}
-                  hint={`vendiste ${dinero(market.sold)} y compraste ${dinero(market.bought)}`}
-                  tone={market.net >= 0 ? "positive" : "danger"}
-                />
-                {/* La cifra incómoda: un club que pierde dinero operando
-                    parece sano mientras venda. Puesta al lado del balance
-                    recurrente, deja de parecerlo. */}
-                <Kpi
-                  label="Qué parte de tu caja la puso el mercado"
-                  value={
-                    market.shareOfCashPct != null
-                      ? `${market.shareOfCashPct.toFixed(0)}%`
-                      : "sin datos"
-                  }
-                  hint="el resto lo puso la operación del club"
-                  tone={
-                    market.shareOfCashPct != null && market.shareOfCashPct > 50
-                      ? "danger"
-                      : undefined
-                  }
-                />
-                <Kpi
-                  label="Comisión pagada"
-                  value={dinero(market.commission)}
-                  hint="lo que se llevó el mercado por tus ventas"
-                />
-              </div>
-            </Panel>
-
-            <Panel title="Rotación" meta={pie}>
-              <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
-                <Kpi
-                  label="Altas"
-                  value={`${market.arrivals}`}
-                  hint="jugadores comprados en la ventana"
-                />
-                <Kpi
-                  label="Bajas"
-                  value={`${market.departures}`}
-                  hint="jugadores vendidos en la ventana"
-                />
-              </div>
-            </Panel>
-          </>
-        )}
-
-        {grupo === "ingresos" && (
-          <>
-            <Panel title="Taquilla" meta={pie}>
-              <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
-                <Kpi
-                  label="Por partido en casa"
-                  value={
-                    incomeKpis.gatePerHomeMatch != null
-                      ? dinero(incomeKpis.gatePerHomeMatch)
-                      : "sin partidos"
-                  }
-                  hint={`${incomeKpis.homeMatches} partido(s) en casa, ${dinero(incomeKpis.gateTotal)} en total`}
-                />
-                {/* Sustituye al ingreso por espectador, que no se puede
-                    calcular: no se guarda la asistencia de cada partido. Los
-                    socios sí, y contestan la misma pregunta: si el problema es
-                    que hay poca gente o que rinde poco (2026-09-03). */}
-                <Kpi
-                  label="Por socio y partido"
-                  value={
-                    incomeKpis.gatePerMember != null
-                      ? dinero(incomeKpis.gatePerMember)
-                      : "sin datos"
-                  }
-                  hint={`${number(incomeKpis.fanClubSize)} socios en el club`}
-                />
-                <Kpi
-                  label="Peso del patrocinio"
-                  value={
-                    incomeKpis.sponsorSharePct != null
-                      ? `${incomeKpis.sponsorSharePct.toFixed(0)}%`
-                      : "sin datos"
-                  }
-                  hint="del ingreso recurrente; es lo único que no depende de jugar"
-                />
-              </div>
-            </Panel>
-          </>
-        )}
-      </PanelDePestanas>
-    </div>
-  );
-}
 
 function WeeklyFinanceTable({ data }: { data: Economy }) {
   const { weeklyFinance } = data;
@@ -936,6 +554,7 @@ function MoneyCell({
 }
 
 const HORIZON_OPTIONS: { key: Horizon; label: string }[] = [
+  { key: "2", label: "2 semanas" },
   { key: "4", label: "4 semanas" },
   { key: "8", label: "8 semanas" },
   { key: "12", label: "12 semanas" },
@@ -975,14 +594,52 @@ function ForecastPanel({
         100
       : null;
 
+  // Cuánto aguanta la caja al ritmo de las últimas semanas cerradas, en dos
+  // versiones: sin compraventa --lo que el club hace por sí mismo-- y con
+  // ella. Pedido así el 2026-09-04: «Caja / (Ingresos - Gastos), si es
+  // negativo avisar de X semanas de autonomía, si es positivo decir que es
+  // sostenible».
+  //
+  // Los dos balances llegan calculados del servidor a partir de los TOTALES
+  // que Hattrick reporta de cada semana cerrada, no de la suma de partidas:
+  // las partidas suman menos que el total, justo el bono del patrocinador.
+  const autonomia = (balance: number | null) => {
+    if (balance == null) return null;
+    if (balance >= 0) return { sostenible: true, semanas: 0, balance };
+    return {
+      sostenible: false,
+      semanas: Math.floor(data.cash / Math.abs(balance)),
+      balance,
+    };
+  };
+  const sinTransferencias = autonomia(data.balanceSinTransferencias);
+  const conTransferencias = autonomia(data.balanceConTransferencias);
+  // Más de un año no se cuenta en semanas: «236 semanas» finge una precisión
+  // que un promedio de cinco cierres no tiene.
+  const plazo = (semanas: number) =>
+    semanas > 52
+      ? `${(semanas / 52).toFixed(1).replace(".", ",")} años`
+      : `${semanas} semana${semanas === 1 ? "" : "s"}`;
+  const finalValue =
+    preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
+  const deltaAbs = finalValue - data.expectedCash;
+  const deltaPct =
+    data.expectedCash !== 0
+      ? (deltaAbs / Math.abs(data.expectedCash)) * 100
+      : 0;
+  const dinero = (v: number) => money(v, data.currency);
+
   return (
     <ProjectionPanel
       title="Escenario de caja, no resultado real"
       meta={`modelo: ${data.recommendedModelLabel}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
+        {/* El mismo número hace de DOS cosas y la etiqueta lo dice: mira N
+            semanas cerradas hacia atrás para promediar, y proyecta N hacia
+            adelante. Decir sólo «horizonte» contaba la mitad. */}
         <span className="text-xs text-[var(--muted)]">
-          Horizonte del escenario
+          {horizon} semanas: atrás para promediar, adelante para proyectar
         </span>
         {/* No son secciones: las cinco enseñan el MISMO flujo con otra
             ventana de tiempo. */}
@@ -994,11 +651,71 @@ function ForecastPanel({
           onChange={onHorizonChange}
         />
       </div>
-      <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 [&>*]:min-w-0">
-        {/* Aquí queda sólo la tarjeta que habla del propio gráfico. Las
-            otras dos, autonomía y caja proyectada, se fueron a la pestaña
-            KPIs, que es donde el usuario espera encontrarlas: eran dos cifras
-            sueltas escondidas dentro del panel de un gráfico (2026-09-02). */}
+      {/* Las dos primeras miden lo mismo con y sin compraventa, y ahí está
+          la gracia: un club puede perder dinero cada semana y aun así
+          sostenerse comprando y vendiendo, o al revés. */}
+      <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
+        <Kpi
+          label="Autonomía sin transferencias"
+          value={
+            sinTransferencias == null
+              ? "sin datos"
+              : sinTransferencias.sostenible
+                ? "se sostiene"
+                : plazo(sinTransferencias.semanas)
+          }
+          hint={
+            sinTransferencias == null
+              ? "hace falta una semana cerrada con desglose"
+              : sinTransferencias.sostenible
+                ? `gana ${dinero(sinTransferencias.balance)}/sem sin contar compraventa`
+                : `pierde ${dinero(Math.abs(sinTransferencias.balance))}/sem sin contar compraventa`
+          }
+          tone={
+            sinTransferencias == null
+              ? undefined
+              : sinTransferencias.sostenible
+                ? "positive"
+                : sinTransferencias.semanas > 52
+                  ? undefined
+                  : "danger"
+          }
+        />
+        <Kpi
+          label="Autonomía con transferencias"
+          value={
+            conTransferencias == null
+              ? "sin datos"
+              : conTransferencias.sostenible
+                ? "se sostiene"
+                : plazo(conTransferencias.semanas)
+          }
+          hint={
+            conTransferencias == null
+              ? "hace falta una semana cerrada con desglose"
+              : conTransferencias.sostenible
+                ? `gana ${dinero(conTransferencias.balance)}/sem contando compraventa`
+                : `pierde ${dinero(Math.abs(conTransferencias.balance))}/sem contando compraventa`
+          }
+          tone={
+            conTransferencias == null
+              ? undefined
+              : conTransferencias.sostenible
+                ? "positive"
+                : conTransferencias.semanas > 52
+                  ? undefined
+                  : "danger"
+          }
+        />
+        <Kpi
+          label={`Caja proyectada en +${horizon} semanas`}
+          value={dinero(finalValue)}
+          hint={
+            `${deltaAbs >= 0 ? "+" : ""}${dinero(deltaAbs)} ` +
+            `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
+          }
+          tone={deltaAbs >= 0 ? "positive" : "danger"}
+        />
         <Kpi
           label="Coincidencia entre modelos"
           value={
