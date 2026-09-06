@@ -500,6 +500,12 @@ async def _own_pitch_ratings(
                     "left_att": row.left_att,
                     "central_att": row.central_att,
                     "right_att": row.right_att,
+                    # Balon Parado: no lo pintan los Duelos por zona --que son
+                    # siete carriles del campo-- pero si lo usa el modelo de
+                    # prediccion, que compara nueve. Se lee aqui para no tener
+                    # dos caminos distintos hacia los mismos ratings.
+                    "sp_def": row.set_pieces_def,
+                    "sp_att": row.set_pieces_att,
                 }
             )
     return out
@@ -534,6 +540,11 @@ async def _rival_pitch_ratings(
                     "left_att": ratings.get("left_att", 0),
                     "central_att": ratings.get("central_att", 0),
                     "right_att": ratings.get("right_att", 0),
+                    # Sin esto el modelo de prediccion trabajaria con siete de
+                    # sus nueve variables y las dos que faltan entrarian
+                    # neutras a 0,5, que no es un valor sino no saber.
+                    "sp_def": ratings.get("set_pieces_def", 0),
+                    "sp_att": ratings.get("set_pieces_att", 0),
                 }
             )
     return out

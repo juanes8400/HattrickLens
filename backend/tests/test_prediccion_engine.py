@@ -26,10 +26,12 @@ from app.domain.engines.prediccion import (
     medianas_de_lecturas,
     mezclar,
     modelo_ajustado,
+    probabilidades_de_partido,
     proporcion,
     ratings_de,
     resultado,
     tabla_de_entrenamiento,
+    tabla_de_puntos_esperados,
     variables,
 )
 
@@ -258,3 +260,77 @@ def test_puntos_esperados_reparten_en_vez_de_decidir():
 def test_las_probabilidades_tienen_que_sumar_uno():
     with pytest.raises(ValueError, match="suman"):
         Probabilidades(0.5, 0.5, 0.5)
+
+
+# ── De punta a punta ─────────────────────────────────────────────────────
+
+
+def _lecturas(base: float, cuantas: int = 4) -> list[dict[str, float]]:
+    """Lecturas de un equipo, todas iguales, como las devuelven las pantallas."""
+    return [dict.fromkeys(CAMPOS, base) for _ in range(cuantas)]
+
+
+def test_de_punta_a_punta_el_mejor_gana():
+    fuerte, flojo = _lecturas(60), _lecturas(20)
+    p = probabilidades_de_partido(fuerte, flojo)
+    assert p is not None
+    assert p.victoria > 0.9
+
+
+def test_queda_una_ventaja_de_local_pequena_y_constante():
+    """Con ratings IGUALES el local sale un poco favorecido: 42,1 % contra 36,4 %.
+
+    Parece poco para el fútbol, y está bien que lo sea: la ventaja de campo de
+    Hattrick ya viene DENTRO de los ratings --el medio campo del local es un
+    19 % más alto, medido en los 1.031 partidos--. Estos cinco puntos y pico
+    son lo que queda por encima de eso, y salen de que la suma de los
+    coeficientes no coincide con la de los umbrales.
+
+    Si esta prueba empieza a fallar hacia arriba, es que la ventaja de campo
+    se está contando dos veces.
+    """
+    p = probabilidades_de_partido(_lecturas(40), _lecturas(40))
+    assert p is not None
+    assert p.victoria - p.derrota == pytest.approx(0.057, abs=0.02)
+
+
+def test_dar_la_vuelta_al_partido_da_casi_la_vuelta_a_la_terna():
+    """Casi, no exacto: lo que sobra es la ventaja de local de arriba."""
+    ida = probabilidades_de_partido(_lecturas(60), _lecturas(20))
+    vuelta = probabilidades_de_partido(_lecturas(20), _lecturas(60))
+    assert ida is not None and vuelta is not None
+    assert ida.victoria == pytest.approx(vuelta.derrota, abs=0.01)
+    assert ida.empate == pytest.approx(vuelta.empate, abs=0.01)
+    assert ida.victoria > vuelta.derrota  # el local, por poco, siempre mejor
+
+
+def test_sin_historia_de_un_lado_no_se_predice():
+    """Decir 50-50 sería inventar; devolver nada deja que la pantalla lo diga."""
+    assert probabilidades_de_partido(_lecturas(60), []) is None
+    assert probabilidades_de_partido([], _lecturas(60)) is None
+
+
+def test_la_terna_se_mezcla_con_la_poisson_si_la_hay():
+    sin = probabilidades_de_partido(_lecturas(40), _lecturas(38))
+    con = probabilidades_de_partido(
+        _lecturas(40), _lecturas(38), poisson=Probabilidades(0.0, 0.0, 1.0)
+    )
+    assert sin is not None and con is not None
+    assert con.derrota > sin.derrota  # la Poisson tira hacia la derrota
+
+
+def test_los_puntos_de_un_partido_nunca_pasan_de_tres():
+    """El visitante recibe la terna del revés, así que la suma se cuida sola."""
+    p = Probabilidades(0.55, 0.25, 0.20)
+    puntos = tabla_de_puntos_esperados([(7, 9, p)])
+    assert puntos[7] + puntos[9] <= 3.0
+    assert puntos[7] == pytest.approx(3 * 0.55 + 0.25)
+    assert puntos[9] == pytest.approx(3 * 0.20 + 0.25)
+
+
+def test_los_puntos_se_acumulan_por_equipo():
+    p = Probabilidades(0.5, 0.3, 0.2)
+    puntos = tabla_de_puntos_esperados([(1, 2, p), (3, 1, p)])
+    assert set(puntos) == {1, 2, 3}
+    # El 1 juega dos: gana puntos como local y como visitante.
+    assert puntos[1] == pytest.approx(p.puntos_esperados + (3 * 0.2 + 0.3))

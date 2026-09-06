@@ -62,6 +62,18 @@ mejores que la medida: los ratings exactos describen la alineación que hay
 guardada AHORA, que puede ser un borrador y puede cambiar antes del pitido,
 mientras que la mediana describe al equipo; y es un solo camino de código.
 
+LA VENTAJA DE CAMPO NO SE SUMA APARTE
+-------------------------------------
+Ya viene dentro de los ratings: medido en los 1.031 partidos, el medio campo
+del local es un 19 % más alto que el del visitante --14,2 contra 12,0-- y en
+defensa y ataque la diferencia es del 2 % o menos. Sumarle encima un bono de
+local sería contarla dos veces.
+
+Con ratings idénticos en los dos lados el modelo da 42,1 % de victoria contra
+36,4 % de derrota. Esos cinco puntos y pico son lo que queda por encima de lo
+que los ratings ya explican, y salen solos de que la suma de los coeficientes
+(38,26) no coincida con la de los umbrales (37,95).
+
 QUÉ NO ENTRA
 ------------
 La actitud: Hattrick sólo la manda para tu propio equipo, nunca para el rival.
@@ -407,3 +419,46 @@ def tabla_de_entrenamiento(
     if not filas:
         return np.empty((0, len(COMPARACIONES))), np.empty(0, dtype=int), []
     return np.array(filas), np.array(etiquetas, dtype=int), ids
+
+
+def probabilidades_de_partido(
+    lecturas_local: Sequence[dict[str, Any]],
+    lecturas_visitante: Sequence[dict[str, Any]],
+    poisson: Probabilidades | None = None,
+) -> Probabilidades | None:
+    """La terna de un partido, de punta a punta, ya mezclada.
+
+    Entra lo que devuelven las pantallas de ratings --una lectura por partido
+    visto de cada equipo, del más viejo al más reciente-- y sale victoria,
+    empate y derrota vistas DESDE EL LOCAL.
+
+    Es el único camino que la aplicación debería usar: si algún día hay que
+    cambiar cómo se resume la historia o cómo se mezcla, se cambia aquí y no
+    en cada pantalla.
+
+    Devuelve `None` si a alguno de los dos lados no le queda ni un partido que
+    mirar. Ahí no se predice: se dice que no se puede.
+    """
+    mio = medianas_de_lecturas(lecturas_local)
+    suyo = medianas_de_lecturas(lecturas_visitante)
+    if mio is None or suyo is None:
+        return None
+    return mezclar(modelo_ajustado().probabilidades(variables(mio, suyo)), poisson)
+
+
+def tabla_de_puntos_esperados(
+    partidos: Sequence[tuple[int, int, Probabilidades]],
+) -> dict[int, float]:
+    """Cuántos puntos suma cada equipo en los partidos que le quedan.
+
+    Cada entrada es (local, visitante, terna vista desde el local). El
+    visitante recibe la misma terna del revés, que es lo que hace que la suma
+    de los dos lados de un partido nunca pase de 4 --tres si alguien gana, dos
+    si empatan-- sin tener que comprobarlo.
+    """
+    puntos: dict[int, float] = {}
+    for local, visitante, p in partidos:
+        puntos[local] = puntos.get(local, 0.0) + p.puntos_esperados
+        vuelta = Probabilidades(p.derrota, p.empate, p.victoria)
+        puntos[visitante] = puntos.get(visitante, 0.0) + vuelta.puntos_esperados
+    return puntos
