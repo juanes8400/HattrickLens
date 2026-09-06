@@ -16,6 +16,10 @@ from typing import Any, Literal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.engines.prediccion import (
+    Probabilidades,
+    probabilidades_de_partido,
+)
 from app.domain.engines.season_simulator import (
     Fixture,
     TeamRecord,
@@ -86,6 +90,33 @@ class FixtureRow:
 
 
 @dataclass
+class MatchPrediction:
+    """Un partido pendiente, con lo que el modelo cree y lo que suma.
+
+    Se enseña partido a partido y no sólo agregado porque una proyección que
+    no se puede seguir con lápiz no se puede discutir: si un número extraña,
+    hay que poder ver de qué partido salió.
+    """
+
+    match_round: int
+    home_ht_id: int
+    away_ht_id: int
+    home: str
+    away: str
+    home_win: float
+    draw: float
+    away_win: float
+    #: 3 x P(victoria) + 1 x P(empate). Reparte en vez de decidir un ganador:
+    #: un partido igualadísimo aporta ~1,3 a cada uno, que es la verdad.
+    home_expected_points: float
+    away_expected_points: float
+    #: Cuántos partidos suyos se han mirado para resumir a cada equipo. Con uno
+    #: solo la mediana ya sirve, pero el usuario merece saber sobre qué se dice.
+    matches_seen_home: int
+    matches_seen_away: int
+
+
+@dataclass
 class OutlookRow:
     ht_team_id: int
     name: str
@@ -127,6 +158,9 @@ class LeagueResponse:
     simulation_runs: int
     league_avg_goals: float
     model: dict[str, Any]
+    #: Vacía cuando no hubo ratings que mirar: la pantalla enseña entonces lo
+    #: de siempre, sólo con la Poisson.
+    predictions: list[MatchPrediction]
     is_top_division: bool = False
     is_bottom_division: bool = False
     caveats: list[str] = field(default_factory=list)
@@ -352,7 +386,19 @@ class LeagueQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def get(self, team_id: int, runs: int = 10000) -> LeagueResponse | None:
+    async def get(
+        self,
+        team_id: int,
+        runs: int = 10000,
+        lecturas: dict[int, list[dict[str, float]]] | None = None,
+    ) -> LeagueResponse | None:
+        """`lecturas` son los ratings por zona de cada equipo de la serie.
+
+        Las trae el endpoint, que es quien tiene el cliente de Hattrick. Sin
+        ellas la pantalla sigue funcionando exactamente como antes, sólo con
+        la Poisson: es lo que pasa la primera vez que alguien abre Liga sin
+        haber sincronizado nunca, y no es motivo para no enseñar nada.
+        """
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
@@ -510,12 +556,64 @@ class LeagueQueryService:
             )
             for r in rows
         ]
+        # ── El modelo de zonas, si hay ratings con los que alimentarlo ────
+        #
+        # La terna de cada partido se calcula UNA vez y de ella salen las dos
+        # cosas que enseña la pantalla: los puntos esperados y la distribución
+        # de puestos. Calcularlas por separado sería dejar que discrepen.
+        zonas: dict[tuple[int, int], tuple[float, float, float]] = {}
+        pronosticos: list[MatchPrediction] = []
+        if lecturas:
+            por_equipo = {r.ht_team_id: r for r in records}
+            for cruce in pending:
+                if cruce.home_ht_id not in por_equipo or cruce.away_ht_id not in por_equipo:
+                    continue
+                local, visita = lecturas.get(cruce.home_ht_id), lecturas.get(cruce.away_ht_id)
+                if not local or not visita:
+                    continue
+                fc = forecast_match(
+                    por_equipo[cruce.home_ht_id],
+                    por_equipo[cruce.away_ht_id],
+                    records,
+                    match_round=cruce.match_round,
+                )
+                mezcla = probabilidades_de_partido(
+                    local,
+                    visita,
+                    poisson=Probabilidades.normalizada(fc.home_win, fc.draw, fc.away_win),
+                )
+                if mezcla is None:
+                    continue
+                zonas[(cruce.home_ht_id, cruce.away_ht_id)] = (
+                    mezcla.victoria,
+                    mezcla.empate,
+                    mezcla.derrota,
+                )
+                vuelta = Probabilidades(mezcla.derrota, mezcla.empate, mezcla.victoria)
+                pronosticos.append(
+                    MatchPrediction(
+                        match_round=cruce.match_round,
+                        home_ht_id=cruce.home_ht_id,
+                        away_ht_id=cruce.away_ht_id,
+                        home=por_equipo[cruce.home_ht_id].name,
+                        away=por_equipo[cruce.away_ht_id].name,
+                        home_win=round(mezcla.victoria, 4),
+                        draw=round(mezcla.empate, 4),
+                        away_win=round(mezcla.derrota, 4),
+                        home_expected_points=round(mezcla.puntos_esperados, 3),
+                        away_expected_points=round(vuelta.puntos_esperados, 3),
+                        matches_seen_home=len(local),
+                        matches_seen_away=len(visita),
+                    )
+                )
+
         sim = simulate(
             records,
             pending,
             runs=runs,
             league_level=team.league_level,
             max_level=team.max_level,
+            probabilidades=zonas or None,
         )
 
         by_id = {o.ht_team_id: o for o in sim.teams}
@@ -614,6 +712,7 @@ class LeagueQueryService:
             simulation_runs=sim.runs,
             league_avg_goals=sim.league_avg_goals,
             model=model_info(),
+            predictions=sorted(pronosticos, key=lambda p: (p.match_round, p.home)),
             is_top_division=sim.is_top_division,
             is_bottom_division=sim.is_bottom_division,
             caveats=caveats,

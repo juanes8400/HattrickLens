@@ -1,5 +1,5 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
@@ -230,14 +230,14 @@ export function LeaguePage() {
 
             <BestWorstPanel data={data} />
 
+            <PartidosPendientes data={data} />
+
             <ProjectionPanel
               title="Pronóstico por equipo"
               meta="ordenado por posición actual"
             >
               <OutlookTable data={data} />
             </ProjectionPanel>
-
-
           </div>
         )}
 
@@ -653,6 +653,104 @@ function FixturesCalendar({ data }: { data: League }) {
  * número — forzar tu propio resultado a un extremo no fija el de los
  * demás, que siguen jugando con su nivel real.
  */
+/**
+ * Partido a partido, con la cuenta a la vista.
+ *
+ * Existe porque una proyección que no se puede seguir con lápiz no se puede
+ * discutir: si «55 % de título» extraña, hay que poder bajar hasta el partido
+ * concreto que lo sostiene y ver de dónde salen sus puntos.
+ *
+ * Las probabilidades y los puntos vienen del mismo cálculo: la terna se
+ * calcula UNA vez por partido y de ella salen los puntos esperados y la
+ * distribución de puestos de arriba. Calcularlas por separado sería dejar que
+ * un día discrepen y que el usuario vea dos verdades.
+ */
+function PartidosPendientes({ data }: { data: League }) {
+  const propio = data.outlook.find((o) => o.isOwnTeam)?.htTeamId;
+  if (data.predictions.length === 0) return null;
+
+  const jornadas = [...new Set(data.predictions.map((p) => p.matchRound))].sort(
+    (a, b) => a - b,
+  );
+
+  return (
+    <ProjectionPanel
+      title="Cada partido que queda"
+      meta={`${data.predictions.length} partidos`}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
+              <th className="px-4 py-2 font-medium">Partido</th>
+              <th className="px-3 py-2 text-right font-medium">Local</th>
+              <th className="px-3 py-2 text-right font-medium">Empate</th>
+              <th className="px-3 py-2 text-right font-medium">Visitante</th>
+              <th className="px-3 py-2 text-right font-medium">Puntos L</th>
+              <th className="px-4 py-2 text-right font-medium">Puntos V</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jornadas.map((jornada) => (
+              <Fragment key={jornada}>
+                <tr className="bg-[var(--surface-2)]">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-1.5 text-xs font-medium text-[var(--muted)]"
+                  >
+                    Jornada {jornada}
+                  </td>
+                </tr>
+                {data.predictions
+                  .filter((p) => p.matchRound === jornada)
+                  .map((p) => {
+                    const mio = p.homeHtId === propio || p.awayHtId === propio;
+                    return (
+                      <tr
+                        key={`${p.homeHtId}-${p.awayHtId}`}
+                        className={`border-b border-[var(--border)] ${
+                          mio ? "bg-[var(--accent)]/5 font-medium" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-2">
+                          {p.home}{" "}
+                          <span className="text-[var(--muted)]">·</span>{" "}
+                          {p.away}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {(p.homeWin * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-[var(--muted)]">
+                          {(p.draw * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {(p.awayWin * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {p.homeExpectedPoints.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums">
+                          {p.awayExpectedPoints.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
+        Los puntos de cada equipo son <strong>3 × victoria + 1 × empate</strong>
+        : se reparten según lo que el modelo cree en vez de darle los tres al
+        favorito. Un partido igualado aporta algo a los dos, que es la verdad, y
+        así el empate cuenta aunque casi nunca sea el resultado más probable.
+        Los dos lados de un partido nunca suman más de 3.
+      </p>
+    </ProjectionPanel>
+  );
+}
+
 function BestWorstPanel({ data }: { data: League }) {
   const isDark = useIsDarkTheme();
   const bw = data.bestWorst;

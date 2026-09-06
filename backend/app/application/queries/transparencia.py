@@ -1042,6 +1042,89 @@ def catalogo() -> list[Seccion]:
             name="Liga",
             calcs=[
                 Calculo(
+                    id="prediccion_zonas",
+                    name="Probabilidad de cada partido que queda",
+                    answers=(
+                        "¿Qué posibilidades tengo en el próximo partido, y en cada uno de "
+                        "los que faltan?"
+                    ),
+                    formula=(
+                        "Nueve duelos, cada uno como A/(A+B). Se suman con su peso y el "
+                        "total se parte en tres tramos: derrota, empate y victoria."
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los ratings por zona de cada equipo de tu serie",
+                            "Los partidos de liga ya jugados, resumidos por su mediana",
+                        ),
+                        Fuente(
+                            "Cuánto pesa cada zona",
+                            "Una regresión sobre 1.031 partidos de liga de 186 equipos",
+                        ),
+                    ],
+                    constants=[
+                        Constante("A/(A+B)", "de 0 a 1", "qué parte de un duelo es tuya"),
+                        Constante(
+                            "escala",
+                            "1,30",
+                            "aplana el resultado para que no se pase de confiado",
+                        ),
+                        Constante(
+                            "mezcla",
+                            "90 % / 10 %",
+                            "cuánto pesa este modelo y cuánto el de goles",
+                        ),
+                    ],
+                    tables=[
+                        Tabla(
+                            title="Cuánto pesa cada duelo",
+                            columns=["Duelo", "Peso", "Por cada 10 puntos", "¿Fiable?"],
+                            rows=[
+                                ["Medio campo", "13,94", "x4,03", "sí, muy claro"],
+                                ["Tu ataque central", "5,65", "x1,76", "sí, muy claro"],
+                                ["Tu ataque derecho", "4,36", "x1,55", "sí"],
+                                ["Balón Parado ofensivo", "3,88", "x1,47", "no, con estos datos"],
+                                ["Tu defensa izquierda", "3,77", "x1,46", "sí"],
+                                ["Tu defensa central", "3,46", "x1,41", "sí"],
+                                ["Tu defensa derecha", "3,45", "x1,41", "sí"],
+                                ["Balón Parado defensivo", "2,25", "x1,25", "no, con estos datos"],
+                                ["Tu ataque izquierdo", "1,88", "x1,21", "no, con estos datos"],
+                            ],
+                            note=(
+                                "«Por cada 10 puntos» es cuánto se multiplican tus opciones de "
+                                "acabar mejor si te llevas diez puntos porcentuales más de ese "
+                                "duelo. El medio campo manda con diferencia. «¿Fiable?» dice si "
+                                "el número se sostiene por sí solo o si podría ser casualidad "
+                                "de la muestra."
+                            ),
+                        )
+                    ],
+                    steps=[
+                        "Tu medio campo en tus últimos partidos: 9,5 (la mediana).",
+                        "El del rival: 14,5.",
+                        "Ese duelo es tuyo en 9,5 / (9,5 + 14,5) = 0,396.",
+                        "Lo mismo con los otros ocho duelos.",
+                        "Todo junto da: victoria 43,4 %, empate 22,0 %, derrota 34,7 %.",
+                        "Puntos que esperas sumar: 3 x 0,434 + 1 x 0,220 = 1,52 de 3.",
+                    ],
+                    limits=[
+                        "Los ratings del domingo no se saben: se estiman con la mediana de "
+                        "los partidos recientes. Un equipo que acaba de fichar o de vender "
+                        "medio equipo tarda unas jornadas en reflejarse.",
+                        "El empate casi nunca sale como resultado más probable. No es un "
+                        "fallo que se pueda afinar: es que el empate rara vez lo es. Por eso "
+                        "se enseñan las tres cifras y no un pronóstico.",
+                        "No mira lesiones, tarjetas, actitud ni la alineación concreta del "
+                        "día. Resume cómo suele salir un equipo, no cómo saldrá ese domingo.",
+                        "De 1.031 partidos acierta el 74 % contra el 48 % de acertar siempre "
+                        "lo más común, y cuando dice 70 % ocurre cerca del 70 % de las veces.",
+                    ],
+                    note=(
+                        "Los duelos se cruzan como en el campo: tu banda izquierda ataca por "
+                        "el mismo carril que defiende el lateral derecho del rival."
+                    ),
+                ),
+                Calculo(
                     id="simulacion",
                     sources=[
                         Fuente(

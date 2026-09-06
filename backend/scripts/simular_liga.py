@@ -251,6 +251,8 @@ async def main(vueltas: int) -> None:
     from app.domain.engines.prediccion import Probabilidades
 
     ternas: dict[tuple[int, int], tuple[float, float, float]] = {}
+    por_jornada: dict[tuple[int, int], int] = {}
+    fechas: dict[tuple[int, int], str] = {}
     triples = []
     for p in pendientes:
         casa, fuera = p.home_team_ht_id, p.away_team_ht_id
@@ -265,7 +267,81 @@ async def main(vueltas: int) -> None:
         if mezcla is None:
             continue
         ternas[(casa, fuera)] = (mezcla.victoria, mezcla.empate, mezcla.derrota)
+        por_jornada[(casa, fuera)] = p.match_round or 0
+        fechas[(casa, fuera)] = str(p.played_at)[:10] if p.played_at else "sin fecha"
         triples.append((casa, fuera, mezcla))
+
+    # ── Fecha a fecha, con la cuenta y el acumulado ──────────────────────
+    #
+    # Escrito así --y no sólo como tabla final-- porque una proyección que no
+    # se puede seguir con lápiz no se puede discutir: si un número extraña, hay
+    # que poder ver de qué jornada salió y de qué partido dentro de ella.
+    print()
+    print("=" * 78)
+    print("FECHA A FECHA")
+    print("=" * 78)
+    corriendo = {t: float(por_id[t].points) for t in por_id}
+    for jornada in sorted({por_jornada[(a, b)] for a, b, _ in triples}):
+        del_dia = [t for t in triples if por_jornada[(t[0], t[1])] == jornada]
+        fecha = fechas[(del_dia[0][0], del_dia[0][1])]
+        print()
+        print(f"JORNADA {jornada} — {fecha}")
+        for casa, fuera, pr in del_dia:
+            vuelta = Probabilidades(pr.derrota, pr.empate, pr.victoria)
+            print(f"  {nombres[casa][:24]} contra {nombres[fuera][:24]}")
+            for quien, terna in ((nombres[casa][:24], pr), (nombres[fuera][:24], vuelta)):
+                print(
+                    f"    {quien:26} 3 x {terna.victoria:.4f} + 1 x {terna.empate:.4f}"
+                    f" + 0 x {terna.derrota:.4f} = {terna.puntos_esperados:.4f}"
+                )
+            corriendo[casa] += pr.puntos_esperados
+            corriendo[fuera] += vuelta.puntos_esperados
+        print(f"  acumulado tras la jornada {jornada}:")
+        for t, v in sorted(corriendo.items(), key=lambda kv: -kv[1]):
+            marca = "  <-- yo" if t == equipo.ht_team_id else ""
+            print(f"    {nombres[t][:26]:28}{v:>7.2f}{marca}")
+
+    print()
+    print("=" * 78)
+    print(f"LOS {len(triples)} PARTIDOS PENDIENTES, UNO A UNO")
+    print("  puntos esperados = 3 x P(victoria) + 1 x P(empate) + 0 x P(derrota)")
+    print()
+    print(
+        f"  {'J':>2}  {'local':24}{'visitante':24}"
+        f"{'P(vic)':>8}{'P(emp)':>8}{'P(der)':>8}{'pts L':>8}{'pts V':>8}"
+    )
+    jornada_previa = None
+    for casa, fuera, pr in sorted(triples, key=lambda t: por_jornada[(t[0], t[1])]):
+        jornada = por_jornada[(casa, fuera)]
+        if jornada_previa is not None and jornada != jornada_previa:
+            print()
+        jornada_previa = jornada
+        # El visitante recibe la terna del revés: la victoria del local es su
+        # derrota. Por eso los dos lados nunca suman más de 3 sin comprobarlo.
+        vuelta = Probabilidades(pr.derrota, pr.empate, pr.victoria)
+        marca = "  <-- yo" if equipo.ht_team_id in (casa, fuera) else ""
+        print(
+            f"  {jornada:>2}  {nombres[casa][:23]:24}{nombres[fuera][:23]:24}"
+            f"{pr.victoria:>8.1%}{pr.empate:>8.1%}{pr.derrota:>8.1%}"
+            f"{pr.puntos_esperados:>8.2f}{vuelta.puntos_esperados:>8.2f}{marca}"
+        )
+
+    # La cuenta escrita entera para el primero: si no cuadra con lápiz, el
+    # resto de la tabla tampoco vale.
+    casa, fuera, pr = min(triples, key=lambda t: por_jornada[(t[0], t[1])])
+    vuelta = Probabilidades(pr.derrota, pr.empate, pr.victoria)
+    print()
+    print(f"  el primero, con la cuenta escrita — jornada {por_jornada[(casa, fuera)]}:")
+    print(f"    {nombres[casa]} contra {nombres[fuera]}")
+    print(
+        f"    local:     3 x {pr.victoria:.4f} + 1 x {pr.empate:.4f}"
+        f" + 0 x {pr.derrota:.4f} = {pr.puntos_esperados:.4f}"
+    )
+    print(
+        f"    visitante: 3 x {vuelta.victoria:.4f} + 1 x {vuelta.empate:.4f}"
+        f" + 0 x {vuelta.derrota:.4f} = {vuelta.puntos_esperados:.4f}"
+    )
+    print(f"    suman {pr.puntos_esperados + vuelta.puntos_esperados:.4f}, nunca más de 3")
 
     esperados = tabla_de_puntos_esperados(triples)
     print(f"\nPUNTOS ESPERADOS de los {len(triples)} partidos que faltan")
