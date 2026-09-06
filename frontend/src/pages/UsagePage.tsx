@@ -5,6 +5,7 @@ import { ErrorState, Panel } from "../components/Panels";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
 import { api } from "../services/api";
 import type { UsageSummary, UsageUser } from "../services/api";
+import { usePersistido } from "../hooks/usePersistido";
 
 /** Qué usa la gente. Sólo la abre el administrador —la comprobación de verdad
  *  está en el servidor, en `require_admin`; esconder el enlace no protege nada.
@@ -81,9 +82,19 @@ type Seccion = (typeof SECCIONES)[number]["key"];
 export function UsagePage() {
   const [dias, setDias] = useState<number>(30);
   const [seccion, setSeccion] = useState<Seccion>("resumen");
+  // Quitarse a uno mismo del recuento. Mientras la aplicación tenga pocos
+  // usuarios, el que la hizo es también el que más la usa: sus visitas ahogan
+  // las de todos los demás y esta pantalla deja de contestar «qué usa la
+  // gente» para contestar «qué uso yo».
+  //
+  // Persistido porque es una forma de mirar, no un estado de pantalla: quien
+  // viene a ver a los demás quiere verlos también mañana.
+  const [excluirme, setExcluirme] = usePersistido("uso.excluirme", false);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["usage", dias],
-    queryFn: () => api.usage(dias),
+    // `excluirme` va en la clave: sin él, cambiar el interruptor no pedía
+    // nada y la pantalla seguía enseñando lo que ya tenía en caché.
+    queryKey: ["usage", dias, excluirme],
+    queryFn: () => api.usage(dias, excluirme),
   });
 
   if (error) return <ErrorState error={error} />;
@@ -113,6 +124,16 @@ export function UsagePage() {
               {p} días
             </button>
           ))}
+          <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={excluirme}
+              onChange={(e) => setExcluirme(e.target.checked)}
+              data-track="Uso: excluirme"
+              className="accent-[var(--accent)]"
+            />
+            Sin mis visitas
+          </label>
           {/* Descarga directa, sin pasar por React: el navegador la resuelve
               solo. Es la salida de emergencia si la base se pierde —no tiene
               copias y en varios proveedores caduca—. */}

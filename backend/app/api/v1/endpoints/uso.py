@@ -137,20 +137,33 @@ async def _nombres_de_usuario(session: AsyncSession) -> dict[int, str]:
     return {fila.id: (fila.login_name or f"usuario {fila.id}") for fila in filas}
 
 
+#: Quitar al dueño de la instalación de sus propias estadísticas.
+#:
+#: Pedido el 2026-09-05. Mientras la aplicación tenga pocos usuarios, el que la
+#: hizo es también el que más la usa: sus visitas ahogan las de todos los
+#: demás y el resumen deja de contestar «qué usa la gente» para contestar «qué
+#: uso yo». Con esto se puede mirar cualquiera de las dos cosas.
+#:
+#: Filtra por `user_id`, no por si es administrador: quita a QUIEN PREGUNTA. Si
+#: mañana hay dos administradores, cada uno se quita a sí mismo y sigue viendo
+#: al otro, que es lo que se quiere.
+EXCLUIRME = Query(False, description="Dejar fuera los eventos de quien pregunta")
+
+
 @router.get("/usage")
 async def resumen(
     dias: int = Query(30, ge=1, le=365),
+    excluirme: bool = EXCLUIRME,
     session: AsyncSession = Depends(get_session),
-    _: m.User = Depends(require_admin),
+    admin: m.User = Depends(require_admin),
 ) -> dict[str, Any]:
     """El resumen de uso de los últimos `dias`."""
     desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
+    condiciones = [m.UiEvent.at >= desde]
+    if excluirme:
+        condiciones.append(m.UiEvent.user_id != admin.id)
     filas = (
-        (
-            await session.execute(
-                select(m.UiEvent).where(m.UiEvent.at >= desde).order_by(m.UiEvent.at)
-            )
-        )
+        (await session.execute(select(m.UiEvent).where(*condiciones).order_by(m.UiEvent.at)))
         .scalars()
         .all()
     )
@@ -347,8 +360,9 @@ async def registro(
     buscar: str | None = Query(None, max_length=120),
     desde_fila: int = Query(0, ge=0),
     cuantas: int = Query(200, ge=1, le=1000),
+    excluirme: bool = EXCLUIRME,
     session: AsyncSession = Depends(get_session),
-    _: m.User = Depends(require_admin),
+    admin: m.User = Depends(require_admin),
 ) -> dict[str, Any]:
     """El registro crudo, uno por uno y del más reciente al más viejo.
 
@@ -362,6 +376,8 @@ async def registro(
     """
     desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
     condiciones = [m.UiEvent.at >= desde]
+    if excluirme:
+        condiciones.append(m.UiEvent.user_id != admin.id)
     if usuario is not None:
         condiciones.append(m.UiEvent.user_id == usuario)
     if modulo:

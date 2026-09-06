@@ -1,8 +1,34 @@
+import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import paquete from "./package.json" with { type: "json" };
+
+/** El commit del que salió este build.
+ *
+ *  La versión de `package.json` dice qué release es; esto dice qué CÓDIGO
+ *  hay delante, que es la pregunta que de verdad se hace uno mirando la
+ *  pantalla: «¿esto ya tiene el arreglo de ayer?».
+ *
+ *  Si git no está --el contenedor de despliegue construye desde una copia sin
+ *  historial-- se queda vacío y la pantalla enseña sólo la versión. Fallar la
+ *  compilación por no poder adornar una etiqueta sería absurdo.
+ */
+function commit(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "";
+  }
+}
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __VERSION__: JSON.stringify(paquete.version),
+    __COMMIT__: JSON.stringify(commit()),
+  },
   server: {
     port: 3000,
     // El backend expone el callback de OAuth de Hattrick en el puerto 8110

@@ -267,7 +267,10 @@ export const api = {
       body: JSON.stringify({ message }),
     }),
   /** El resumen de uso. Sólo lo abre el administrador. */
-  usage: (dias = 30) => request<UsageSummary>(`/usage?dias=${dias}`),
+  usage: (dias = 30, excluirme = false) =>
+    request<UsageSummary>(
+      `/usage?dias=${dias}${excluirme ? "&excluirme=true" : ""}`,
+    ),
   /** El registro crudo, filtrado y paginado en el servidor. */
   usageLog: (f: UsageLogFiltros = {}) => {
     const q = new URLSearchParams({ dias: String(f.dias ?? 30) });
@@ -277,6 +280,7 @@ export const api = {
     if (f.buscar) q.set("buscar", f.buscar);
     if (f.desdeFila) q.set("desde_fila", String(f.desdeFila));
     if (f.cuantas) q.set("cuantas", String(f.cuantas));
+    if (f.excluirme) q.set("excluirme", "true");
     return request<UsageLog>(`/usage/log?${q}`);
   },
   /** Anota cuantas veces vieron al jugador, o ignora la pregunta. */
@@ -1066,6 +1070,8 @@ export interface UsageLogFiltros {
   buscar?: string | null;
   desdeFila?: number;
   cuantas?: number;
+  /** Dejar fuera los eventos de quien pregunta. */
+  excluirme?: boolean;
 }
 
 export interface SessionProfile {

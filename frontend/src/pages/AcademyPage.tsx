@@ -24,6 +24,7 @@ import {
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
 import { date, decimal, money, number } from "../hooks/useFormat";
+import { usePersistido } from "../hooks/usePersistido";
 import type {
   Academy,
   AcademySkillScores,
@@ -406,31 +407,6 @@ function plazasIguales(
   const claves = Object.keys(origen);
   if (claves.length === 0) return Object.values(actual).every((n) => !n);
   return claves.every((k) => (actual[k] ?? 0) === origen[k]);
-}
-
-/** Los parámetros del método sobreviven a la recarga.
- *
- * Son la opinión del usuario sobre cómo puntuar su cantera --de dónde sale el
- * bonus, cuánto separan los peldaños, cuánto pesa ese bonus--, no un estado
- * de pantalla. Tenerlos que volver a poner cada vez convertía un ajuste
- * deliberado en algo que se perdía al pestañear.
- */
-function recordado<T>(clave: string, porDefecto: T): T {
-  const guardado = localStorage.getItem(clave);
-  if (guardado === null) return porDefecto;
-  try {
-    return JSON.parse(guardado) as T;
-  } catch {
-    return porDefecto;
-  }
-}
-
-function usePersistido<T>(clave: string, porDefecto: T) {
-  const [valor, setValor] = useState<T>(() => recordado(clave, porDefecto));
-  useEffect(() => {
-    localStorage.setItem(clave, JSON.stringify(valor));
-  }, [clave, valor]);
-  return [valor, setValor] as const;
 }
 
 /** Texto suelto que sobrevive a recargar. Es `usePersistido` sin el JSON:

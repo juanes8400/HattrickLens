@@ -87,11 +87,30 @@ function ClubNavigation({
 }) {
   return (
     <>
-      <div className="mb-3 flex items-center gap-2 px-2 py-1.5 font-semibold">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--accent)] text-xs font-bold text-white">
+      {/* La versión al lado del nombre, en pequeño. Sirve para una pregunta
+          concreta que se hace a diario: «¿esto que estoy mirando ya tiene el
+          arreglo?». Por eso lleva también el commit --la versión dice qué
+          release es, el commit dice qué código hay delante-- y por eso va
+          donde siempre se mira, no escondida en una pantalla de ajustes.
+
+          `title` con las dos cosas separadas: a 10 píxeles el commit se lee
+          mal, y copiarlo de un tooltip es más fiable que transcribirlo. */}
+      <div className="mb-3 flex items-baseline gap-2 px-2 py-1.5 font-semibold">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center self-center rounded-md bg-[var(--accent)] text-xs font-bold text-white">
           HL
         </span>
-        HT Lens
+        <span>HT Lens</span>
+        <span
+          className="text-[10px] font-normal tabular-nums text-[var(--muted)]"
+          title={
+            __COMMIT__
+              ? `Versión ${__VERSION__} · commit ${__COMMIT__}`
+              : `Versión ${__VERSION__}`
+          }
+        >
+          v{__VERSION__}
+          {__COMMIT__ ? ` · ${__COMMIT__}` : ""}
+        </span>
       </div>
       <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
         <div className="text-sm">{teamName ?? "-"}</div>
