@@ -248,6 +248,20 @@ class Probabilidades:
         if abs(suma - 1.0) > 1e-6:
             raise ValueError(f"las tres probabilidades suman {suma}, no 1")
 
+    @staticmethod
+    def normalizada(victoria: float, empate: float, derrota: float) -> Probabilidades:
+        """Para ternas que vienen de fuera y no suman exactamente uno.
+
+        El pronóstico de la Poisson llega redondeado a tres decimales y suma
+        1,0001 tantas veces como 0,9999. Rechazarlo sería correcto y también
+        inútil: lo que hay que impedir es que alguien invente una terna, no que
+        un redondeo tumbe la pantalla.
+        """
+        total = victoria + empate + derrota
+        if total <= 0:
+            raise ValueError("una terna que suma cero no dice nada")
+        return Probabilidades(victoria / total, empate / total, derrota / total)
+
     @property
     def puntos_esperados(self) -> float:
         """Lo que ese partido aporta a la tabla, en promedio.
