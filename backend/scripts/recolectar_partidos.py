@@ -56,9 +56,33 @@ RATINGS = (
 )
 
 
+def _fecha(d: dict[str, Any]) -> datetime | None:
+    """Cuándo se jugó. La clave es `match_date`, NO `played_at`.
+
+    Aquí estuvo el fallo: el recolector pedía `played_at`, que no existe en lo
+    que devuelve el lector de partidos, y guardó 1.031 filas con la fecha
+    vacía. No reventó nada porque el orden por identificador funciona igual
+    --los identificadores de Hattrick crecen con el tiempo-- pero sin fecha no
+    se puede separar por temporada ni cortar por el presente.
+    """
+    crudo = d.get("match_date") or ""
+    for formato in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(crudo, formato)
+        except ValueError:
+            continue
+    return None
+
+
 def _fila(mid: int, d: dict[str, Any], ahora: datetime) -> dict[str, Any] | None:
     """La fila plana de un partido, o `None` si no sirve para entrenar."""
     if d.get("chpp_error") or d.get("match_type") not in TIPOS_OFICIALES:
+        return None
+    fecha = _fecha(d)
+    # Un partido por jugar viene 0-0 con todos los ratings a cero, así que el
+    # filtro de ratings ya lo caza. La fecha es el segundo cerrojo: si algún
+    # día Hattrick devolviera ratings de un partido futuro, aquí se para.
+    if fecha is not None and fecha > ahora:
         return None
     marcador = ((d.get("home") or {}).get("goals"), (d.get("away") or {}).get("goals"))
     if marcador in INCOMPARECENCIA:
@@ -76,7 +100,7 @@ def _fila(mid: int, d: dict[str, Any], ahora: datetime) -> dict[str, Any] | None
     fila: dict[str, Any] = {
         "ht_match_id": mid,
         "match_type": d.get("match_type"),
-        "played_at": d.get("played_at"),
+        "played_at": fecha,
         "collected_at": ahora,
     }
     for lado, (e, r) in lados.items():

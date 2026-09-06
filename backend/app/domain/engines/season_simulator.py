@@ -42,6 +42,7 @@ sábado?». La ventaja de campo es un parámetro global, no por estadio.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -330,6 +331,56 @@ def _lambdas(
     return max(lh, 0.05), max(la, 0.05)
 
 
+def _rejilla(lh: float, la: float, tope: int = 8) -> np.ndarray:
+    """Probabilidad de cada marcador posible, hasta `tope` goles por lado."""
+    i = np.arange(tope + 1)
+    factoriales = np.array([float(math.factorial(x)) for x in i])
+    pl = np.exp(-lh) * lh**i / factoriales
+    pv = np.exp(-la) * la**i / factoriales
+    return np.outer(pl, pv)
+
+
+def _marcadores_dado_el_resultado(
+    lh: float, la: float, resultados: np.ndarray, rng: np.random.Generator, tope: int = 8
+) -> tuple[np.ndarray, np.ndarray]:
+    """Goles de la Poisson, pero condicionados al resultado ya sorteado.
+
+    Quién gana lo decide el modelo de zonas, que es el que sabe de ratings.
+    Los goles siguen saliendo de la Poisson porque la clasificación de
+    Hattrick desempata por diferencia de goles y luego por goles a favor: con
+    saber quién ganó no se puede ordenar una tabla.
+
+    Se construye la rejilla de todos los marcadores, se apaga la parte que
+    contradice el resultado sorteado y se reparte lo que queda. Así el
+    marcador es siempre coherente con el resultado, que es lo que fallaría si
+    se sortearan por separado.
+    """
+    lado = tope + 1
+    plano = _rejilla(lh, la, tope).ravel()
+    goles_local, goles_visita = np.divmod(np.arange(lado * lado), lado)
+    signo = np.sign(goles_local - goles_visita)
+
+    gh = np.empty(len(resultados), dtype=int)
+    ga = np.empty(len(resultados), dtype=int)
+    for valor, indice, respaldo in ((1, 0, (1, 0)), (0, 1, (0, 0)), (-1, 2, (0, 1))):
+        cuales = resultados == indice
+        cuantos = int(cuales.sum())
+        if not cuantos:
+            continue
+        peso = np.where(signo == valor, plano, 0.0)
+        total = float(peso.sum())
+        if total <= 0:
+            # La Poisson da probabilidad nula a ese resultado, que pasa con
+            # medias extremas. Se usa el marcador mínimo que lo cumple en vez
+            # de romper: el resultado manda, el marcador es el accesorio.
+            gh[cuales], ga[cuales] = respaldo
+            continue
+        elegidos = rng.choice(len(plano), size=cuantos, p=peso / total)
+        gh[cuales] = goles_local[elegidos]
+        ga[cuales] = goles_visita[elegidos]
+    return gh, ga
+
+
 def simulate(
     records: list[TeamRecord],
     fixtures: list[Fixture],
@@ -337,6 +388,7 @@ def simulate(
     seed: int = 42,
     league_level: int = -1,
     max_level: int = -1,
+    probabilidades: dict[tuple[int, int], tuple[float, float, float]] | None = None,
 ) -> SeasonSimulation:
     """Simula lo que queda de temporada y devuelve la distribución de puestos.
 
@@ -373,8 +425,16 @@ def simulate(
             continue
         h, a = index[fx.home_ht_id], index[fx.away_ht_id]
         lh, la = _lambdas(fx.home_ht_id, fx.away_ht_id, attack, defence, avg)
-        gh = rng.poisson(lh, runs)
-        ga = rng.poisson(la, runs)
+        terna = (probabilidades or {}).get((fx.home_ht_id, fx.away_ht_id))
+        if terna is None:
+            gh = rng.poisson(lh, runs)
+            ga = rng.poisson(la, runs)
+        else:
+            # Con terna, quién gana lo decide el modelo de zonas ya mezclado
+            # con esta Poisson; el marcador se saca después, coherente con él.
+            gh, ga = _marcadores_dado_el_resultado(
+                lh, la, rng.choice(3, size=runs, p=np.asarray(terna) / sum(terna)), rng
+            )
 
         points[:, h] += np.where(gh > ga, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS))
         points[:, a] += np.where(ga > gh, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS))
