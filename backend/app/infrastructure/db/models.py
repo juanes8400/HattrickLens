@@ -914,6 +914,12 @@ class MatchRating(Base):
     right_att: Mapped[int] = mapped_column(SmallInteger)
     central_att: Mapped[int] = mapped_column(SmallInteger)
     left_att: Mapped[int] = mapped_column(SmallInteger)
+    #: Balón parado indirecto, defensa y ataque. `None` en las filas
+    #: anteriores al 2026-09-05: estaban en el XML desde siempre pero el
+    #: parser leía las siete zonas y se saltaba estas dos, así que lo ya
+    #: guardado no las tiene y sólo se rellenan al volver a pedir el partido.
+    set_pieces_def: Mapped[int | None] = mapped_column(SmallInteger)
+    set_pieces_att: Mapped[int | None] = mapped_column(SmallInteger)
     tactic_type: Mapped[int] = mapped_column(SmallInteger, default=0)
     tactic_skill: Mapped[int] = mapped_column(SmallInteger, default=0)
     possession_first_half: Mapped[int] = mapped_column(SmallInteger, default=50)
@@ -1320,3 +1326,62 @@ class GuestbookEntry(Base):
     message: Mapped[str] = mapped_column(String(1000))
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class TrainingMatch(Base):
+    """Un partido ajeno, recogido UNA vez para entrenar el modelo de predicción.
+
+    2026-09-05. Vive en su propia tabla y no en `matches` por dos motivos que
+    no son de gusto:
+
+    - `matches` son TUS partidos, y se reescriben en cada sincronización. Estos
+      no se vuelven a pedir: son material de entrenamiento, no estado del club.
+    - Se recogen una vez y se refrescan como mucho una vez al año, avisando al
+      autor. Mezclarlos obligaría a distinguirlos en cada consulta que ya
+      existe.
+
+    Se guarda PLANO --los dos lados en la misma fila-- porque es una tabla de
+    modelado: cada fila es una observación y las columnas son sus variables.
+    Normalizarla en dos filas obligaría a unirla consigo misma para todo.
+
+    Sólo entran partidos oficiales (liga, promoción y copa). Un torneo o un
+    amistoso se juegan con suplentes y no dicen nada de la fuerza del equipo.
+    """
+
+    __tablename__ = "training_matches"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    match_type: Mapped[int] = mapped_column(SmallInteger, index=True)
+    played_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), index=True)
+
+    home_team_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    away_team_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    home_goals: Mapped[int] = mapped_column(SmallInteger)
+    away_goals: Mapped[int] = mapped_column(SmallInteger)
+
+    home_midfield: Mapped[int] = mapped_column(SmallInteger)
+    home_left_def: Mapped[int] = mapped_column(SmallInteger)
+    home_central_def: Mapped[int] = mapped_column(SmallInteger)
+    home_right_def: Mapped[int] = mapped_column(SmallInteger)
+    home_left_att: Mapped[int] = mapped_column(SmallInteger)
+    home_central_att: Mapped[int] = mapped_column(SmallInteger)
+    home_right_att: Mapped[int] = mapped_column(SmallInteger)
+    home_sp_def: Mapped[int] = mapped_column(SmallInteger)
+    home_sp_att: Mapped[int] = mapped_column(SmallInteger)
+    home_tactic_type: Mapped[int] = mapped_column(SmallInteger, default=0)
+    home_tactic_skill: Mapped[int] = mapped_column(SmallInteger, default=0)
+
+    away_midfield: Mapped[int] = mapped_column(SmallInteger)
+    away_left_def: Mapped[int] = mapped_column(SmallInteger)
+    away_central_def: Mapped[int] = mapped_column(SmallInteger)
+    away_right_def: Mapped[int] = mapped_column(SmallInteger)
+    away_left_att: Mapped[int] = mapped_column(SmallInteger)
+    away_central_att: Mapped[int] = mapped_column(SmallInteger)
+    away_right_att: Mapped[int] = mapped_column(SmallInteger)
+    away_sp_def: Mapped[int] = mapped_column(SmallInteger)
+    away_sp_att: Mapped[int] = mapped_column(SmallInteger)
+    away_tactic_type: Mapped[int] = mapped_column(SmallInteger, default=0)
+    away_tactic_skill: Mapped[int] = mapped_column(SmallInteger, default=0)
+
+    #: Cuándo se recogió. De aquí sale el aviso anual de refresco.
+    collected_at: Mapped[datetime] = mapped_column(UtcDateTime())

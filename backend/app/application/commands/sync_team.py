@@ -2181,6 +2181,12 @@ class SyncTeamHandler:
                         right_att=ratings.get("right_att", 0),
                         central_att=ratings.get("central_att", 0),
                         left_att=ratings.get("left_att", 0),
+                        # `None` y no 0 cuando falten: un 0 es un rating real
+                        # bajísimo, y el modelo de predicción no puede
+                        # distinguir «defendió fatal el balón parado» de «este
+                        # partido se guardó antes de que leyéramos el campo».
+                        set_pieces_def=ratings.get("set_pieces_def"),
+                        set_pieces_att=ratings.get("set_pieces_att"),
                         tactic_type=team.get("tactic_type", 0),
                         tactic_skill=team.get("tactic_skill", 0),
                         # CHPP nunca trae <TeamAttitude> para el lado que no es

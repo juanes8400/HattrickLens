@@ -44,6 +44,13 @@ dev = [
     # Los tipos de PyYAML: sin ellos mypy no puede leer los tres motores
     # que cargan su configuracion de un .yaml.
     "types-PyYAML>=6.0",
+    # Analisis del modelo de prediccion: p-valores y pseudo-R2 los da
+    # statsmodels, el AUC scikit-learn. Van en dev y NO en las dependencias de
+    # produccion a proposito: entre las dos y sus dependencias pesan cientos de
+    # megas, y la imagen que se despliega no ajusta modelos --solo aplica los
+    # coeficientes ya calculados, que es aritmetica--.
+    "statsmodels>=0.14",
+    "scikit-learn>=1.5",
 ]
 
 [tool.ruff]

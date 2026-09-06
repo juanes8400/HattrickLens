@@ -164,3 +164,28 @@ def test_parse_transfersplayer_real_fixture() -> None:
     oldest = d["transfers"][-1]
     assert oldest["price"] == 500000
     assert oldest["buyer_team_id"] == 1300449
+
+
+def test_el_balon_parado_sale_del_xml_en_los_dos_sentidos() -> None:
+    """`RatingIndirectSetPiecesDef` y `...Att`, que se leian y se tiraban.
+
+    2026-09-05. Los dos campos estaban en matchdetails.xml desde siempre y el
+    parser extraia las SIETE zonas de campo saltandose estas dos. Nadie lo
+    noto porque nada las pedia; el modelo de prediccion por zonas si, y
+    entonces no habia de donde sacarlas.
+
+    Se comprueban contra el fixture real: 24/13 el local, 22/19 el visitante.
+    """
+    d = parse_matchdetails((FIXTURES / "matchdetails.xml").read_bytes())
+    local = d["home"]["ratings"]
+    visitante = d["away"]["ratings"]
+
+    assert local["set_pieces_def"] == 24
+    assert local["set_pieces_att"] == 13
+    assert visitante["set_pieces_def"] == 22
+    assert visitante["set_pieces_att"] == 19
+
+    # Y las siete de campo siguen donde estaban: esto se anadio al lado, no en
+    # lugar de nada.
+    assert local["midfield"] == 14
+    assert visitante["midfield"] == 15

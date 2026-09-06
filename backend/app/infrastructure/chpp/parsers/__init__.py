@@ -694,6 +694,16 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
                 "right_att": _int(match_data, "RatingRightAtt"),
                 "central_att": _int(match_data, "RatingMidAtt"),
                 "left_att": _int(match_data, "RatingLeftAtt"),
+                # AQUÍ NO VA el balón parado, y no es un olvido: este bloque
+                # son los ratings PREVISTOS de `matchorders`, y Hattrick no
+                # prevé el balón parado — sólo las siete zonas de campo
+                # (verificado contra el fixture real, 2026-09-05). Añadirlo
+                # habría guardado un 0, que es un rating bajísimo legítimo e
+                # indistinguible de «no hay dato».
+                #
+                # Tiene consecuencia para el modelo: el balón parado existe
+                # para partidos JUGADOS pero no para uno por jugar, así que
+                # una predicción previa no puede usarlo como variable.
             },
         }
 
@@ -737,6 +747,12 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
                 "right_att": _int(t, "RatingRightAtt"),
                 "central_att": _int(t, "RatingMidAtt"),
                 "left_att": _int(t, "RatingLeftAtt"),
+                # Balón parado, en los dos sentidos. Estaban en el XML desde
+                # siempre y el parser leía las siete zonas y se saltaba estas
+                # dos (2026-09-05): el modelo de predicción las pide y no
+                # había de dónde sacarlas.
+                "set_pieces_def": _int(t, "RatingIndirectSetPiecesDef"),
+                "set_pieces_att": _int(t, "RatingIndirectSetPiecesAtt"),
             },
             # Formation y TacticSkill son públicos para AMBOS lados (verificado
             # en vivo) — a diferencia de TeamAttitude, que solo viene para el
