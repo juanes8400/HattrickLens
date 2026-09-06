@@ -33,14 +33,19 @@ def _todo_lo_anotable():
     for info in pkgutil.walk_packages(paquete.__path__, "app."):
         modulo = importlib.import_module(info.name)
         yield info.name, modulo
-        for nombre, objeto in vars(modulo).items():
+        # `list(...)` y no `.items()` a pelo: evaluar una anotación puede
+        # disparar una importación perezosa que añade un nombre al módulo, y
+        # entonces el diccionario cambia de tamaño mientras se recorre. En
+        # 3.14 no pasaba --las anotaciones no se miran-- y en 3.12 tiraba la
+        # suite entera en CI. Una foto de las claves lo cierra.
+        for nombre, objeto in list(vars(modulo).items()):
             if not (inspect.isfunction(objeto) or inspect.isclass(objeto)):
                 continue
             if getattr(objeto, "__module__", "") != info.name:
                 continue
             yield f"{info.name}.{nombre}", objeto
             if inspect.isclass(objeto):
-                for interno, metodo in vars(objeto).items():
+                for interno, metodo in list(vars(objeto).items()):
                     if inspect.isfunction(metodo):
                         yield f"{info.name}.{nombre}.{interno}", metodo
 
