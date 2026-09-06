@@ -1,0 +1,3 @@
+
+# Ficheros temporales que vite deja al recargar su configuracion.
+vite.config.ts.timestamp-*
