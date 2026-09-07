@@ -2409,6 +2409,24 @@ export interface LeagueStandingRow {
   isOwnTeam: boolean;
 }
 
+export interface MatchPrediction {
+  matchRound: number;
+  htTeamIdHome?: number;
+  homeHtId: number;
+  awayHtId: number;
+  home: string;
+  away: string;
+  homeWin: number;
+  draw: number;
+  awayWin: number;
+  /** 3 x P(victoria) + 1 x P(empate). Reparte en vez de decidir un ganador. */
+  homeExpectedPoints: number;
+  awayExpectedPoints: number;
+  /** Cuántos partidos de cada equipo se miraron para resumirlo. */
+  matchesSeenHome: number;
+  matchesSeenAway: number;
+}
+
 export interface League {
   teamName: string;
   seriesName: string | null;
@@ -2444,6 +2462,11 @@ export interface League {
   }[];
   outlook: OutlookRow[];
   ownOutlook: OutlookRow | null;
+  /** Un pronóstico por partido pendiente, del modelo de zonas mezclado con la
+   * Poisson. Llega vacío cuando no hubo ratings que mirar --sin sesión con
+   * Hattrick, o una serie recién empezada-- y entonces la pantalla enseña lo
+   * de siempre, sólo con la Poisson. */
+  predictions: MatchPrediction[];
   /** Mejor y peor caso del equipo propio con lo que queda de temporada,
    * re-simulado goleando o siendo goleado en lo propio — el resto de la
    * liga sigue siendo incierto, por eso es una distribución de puestos. */

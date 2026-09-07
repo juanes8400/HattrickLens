@@ -236,8 +236,6 @@ export function LeaguePage() {
             >
               <OutlookTable data={data} />
             </ProjectionPanel>
-
-
           </div>
         )}
 
@@ -569,6 +567,13 @@ function FixturesCalendar({ data }: { data: League }) {
   }
   const rounds = [...byRound.keys()].sort((a, b) => a - b);
 
+  // El pronóstico se busca por jornada y por los dos nombres: es lo único
+  // que comparten el calendario y las predicciones. Llega vacío cuando no
+  // hubo ratings que mirar, y entonces el calendario sale como siempre.
+  const pronosticos = new Map(
+    data.predictions.map((p) => [`${p.matchRound}|${p.home}|${p.away}`, p]),
+  );
+
   function sideClass(
     f: League["fixtures"][number],
     side: "home" | "away",
@@ -593,7 +598,14 @@ function FixturesCalendar({ data }: { data: League }) {
   }
 
   return (
-    <Panel title="Calendario completo" meta={`${rounds.length} jornada(s)`}>
+    <Panel
+      title="Calendario completo"
+      meta={
+        data.predictions.length > 0
+          ? `${rounds.length} jornada(s) · con pronóstico`
+          : `${rounds.length} jornada(s)`
+      }
+    >
       <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {rounds.map((rnd) => {
           const matches = byRound.get(rnd)!;
@@ -616,24 +628,50 @@ function FixturesCalendar({ data }: { data: League }) {
                   10-0 no la desplace respecto a un 1-2. `minmax(0,1fr)` es lo
                   que deja que `truncate` recorte dentro de una rejilla. */}
               <div className="space-y-1.5">
-                {matches.map((f, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-center gap-2"
-                  >
-                    <span className={`truncate ${sideClass(f, "home")}`}>
-                      {f.home}
-                    </span>
-                    <span className="text-center tabular-nums text-[var(--muted)]">
-                      {f.played ? f.score : "–"}
-                    </span>
-                    <span
-                      className={`truncate text-right ${sideClass(f, "away")}`}
-                    >
-                      {f.away}
-                    </span>
-                  </div>
-                ))}
+                {matches.map((f, i) => {
+                  const pron = pronosticos.get(
+                    `${f.matchRound}|${f.home}|${f.away}`,
+                  );
+                  return (
+                    <div key={i} className="space-y-0.5">
+                      <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-center gap-2">
+                        <span className={`truncate ${sideClass(f, "home")}`}>
+                          {f.home}
+                        </span>
+                        <span className="text-center tabular-nums text-[var(--muted)]">
+                          {f.played ? f.score : "–"}
+                        </span>
+                        <span
+                          className={`truncate text-right ${sideClass(f, "away")}`}
+                        >
+                          {f.away}
+                        </span>
+                      </div>
+                      {/* Un partido jugado ya tiene su marcador arriba; uno
+                          pendiente enseña aquí lo que el modelo cree, en la
+                          misma vertical que el resultado que ocupará su
+                          sitio cuando se juegue. */}
+                      {pron && (
+                        <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-center gap-2 text-[0.65rem] tabular-nums text-[var(--muted)]">
+                          <span title="puntos que espera sumar el local">
+                            {(pron.homeWin * 100).toFixed(0)}% ·{" "}
+                            {pron.homeExpectedPoints.toFixed(2)} pts
+                          </span>
+                          <span className="text-center">
+                            {(pron.draw * 100).toFixed(0)}%
+                          </span>
+                          <span
+                            className="text-right"
+                            title="puntos que espera sumar el visitante"
+                          >
+                            {pron.awayExpectedPoints.toFixed(2)} pts ·{" "}
+                            {(pron.awayWin * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );

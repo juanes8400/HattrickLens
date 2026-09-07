@@ -14,6 +14,7 @@ from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
 from app.application.commands.sync_team import FILE_VERSIONS, MATCHLINEUP_ROLE_VERSION
 from app.application.queries.league import LEAGUE_MATCH_TYPE, LeagueQueryService
+from app.application.queries.prediccion_liga import lecturas_de_la_serie
 from app.domain.engines.lineup_optimizer import best_formation
 from app.domain.engines.position_engine import best_position
 from app.domain.engines.rival_scouting import tsi_kde_comparison
@@ -93,10 +94,64 @@ async def league(
     específico según llegan los datos, en vez de fabricar certezas en la
     jornada 3.
     """
-    data = await LeagueQueryService(session).get(team_id, runs=runs)
+    lecturas = await _lecturas_de_la_serie(session, team_id)
+    data = await LeagueQueryService(session).get(team_id, runs=runs, lecturas=lecturas)
     if data is None:
         raise HTTPException(404, f"no standings for team {team_id}")
     return cast(dict[str, Any], _camel(asdict(data)))
+
+
+async def _lecturas_de_la_serie(
+    session: AsyncSession, team_id: int
+) -> dict[int, list[dict[str, float]]]:
+    """Los ratings por zona de los ocho equipos de la serie, o nada.
+
+    Vive aquí y no en la consulta porque es aquí donde está el cliente de
+    Hattrick, igual que en la ficha de rival.
+
+    NUNCA TUMBA LA PANTALLA. Si no hay sesión con Hattrick, si el permiso se
+    cayó o si Hattrick no contesta, se devuelve vacío y Liga enseña lo de
+    siempre con la Poisson sola. Quedarse sin la mitad nueva es un
+    inconveniente; quedarse sin clasificación por eso sería un fallo.
+    """
+    team = await session.get(m.Team, team_id)
+    if team is None or not team.series_ht_id:
+        return {}
+    jugados = list(
+        (
+            await session.execute(
+                select(m.Match).where(
+                    m.Match.series_ht_id == team.series_ht_id,
+                    m.Match.match_type == LEAGUE_MATCH_TYPE,
+                    m.Match.status.ilike("finished"),
+                )
+            )
+        ).scalars()
+    )
+    if not jugados:
+        return {}
+    if team.owner_user_id is None:
+        return {}
+    token = await session.scalar(
+        select(m.CHPPToken).where(
+            m.CHPPToken.user_id == team.owner_user_id, m.CHPPToken.status == "active"
+        )
+    )
+    if token is None:
+        return {}
+    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    try:
+        return await lecturas_de_la_serie(
+            session,
+            client,
+            FILE_VERSIONS["matchdetails"],
+            team.series_ht_id,
+            jugados,
+        )
+    except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):
+        return {}
+    finally:
+        await client.aclose()
 
 
 @router.get("/league/model", summary="Qué modela la simulación y qué no")
