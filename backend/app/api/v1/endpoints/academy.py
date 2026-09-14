@@ -1,5 +1,6 @@
 """Juveniles. HL-110, HL-111, HL-112, HL-114, HL-115."""
 
+from collections import Counter
 from dataclasses import asdict, replace
 from typing import Any, cast
 
@@ -15,6 +16,7 @@ from app.domain.engines import reparto_por_descubrimiento as rpd
 from app.domain.engines import youth_skill_score as yss
 from app.domain.engines.youth_training_plan import (
     ENTRENAMIENTOS,
+    PUESTOS_DE_UN_ONCE,
     REGION_AMBOS,
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
@@ -26,6 +28,7 @@ from app.domain.engines.youth_training_plan import (
     mejor_variante,
     youth_training_plan,
 )
+from app.domain.value_objects.formations import LINE_COUNTS
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -100,7 +103,8 @@ def _sin_revelar_por_jugador(rows: list[Any]) -> dict[str, int]:
             continue
         for p in list(fila.players) + list(fila.at_max):
             cuenta.setdefault(p.name, 0)
-            if p.current is None and not p.max_reached:
+            # Descubrir es saber el TECHO (2026-09-14, pedido por el usuario).
+            if p.maximum is None and not p.max_reached:
                 cuenta[p.name] += 1
     return cuenta
 
@@ -194,6 +198,64 @@ def _veredicto_json(v: m8.Veredicto | None) -> dict[str, Any]:
     }
 
 
+def _alineaciones_posibles(
+    fijos: list[str],
+    originales: list[str],
+    sin_crecer: set[str] | None = None,
+) -> list[list[str]]:
+    """Los puestos que pueden tomar las sillas en juego sin romper la alineación.
+
+    2026-09-14, pedido por el usuario: con Lateral + Individual el once salía
+    siempre con Portero, 3 Defensas Centrales y 3 Mediocentros, y quien ya
+    tenía sabidos los techos de medio no podía ir de Delantero a destapar
+    Anotación. Aquí salen TODAS las formas legales de repartir esas sillas: un
+    solo Portero, los cupos de cada puesto y una formación de Hattrick
+    (defensas, medios y delanteros de `LINE_COUNTS`). Un puesto que entrena el
+    compañero no crece: meterle más gente le cambiaría la región.
+
+    Cada forma sale ordenada como `originales`: el puesto que se repite se
+    queda en su silla, así solo cambia de sitio lo que de verdad cambia.
+    """
+    usados = Counter(fijos)
+    antes = Counter(originales)
+    orden = [puesto for puesto, _ in PUESTOS_DE_UN_ONCE]
+    cabida = dict(PUESTOS_DE_UN_ONCE)
+    legales = set(LINE_COUNTS.values())
+    no_crecen = sin_crecer or set()
+    salida: list[list[str]] = []
+
+    def ordena(cuenta: dict[str, int]) -> list[str]:
+        quedan = dict(cuenta)
+        sillas: list[str | None] = []
+        for puesto in originales:
+            if quedan.get(puesto, 0) > 0:
+                quedan[puesto] -= 1
+                sillas.append(puesto)
+            else:
+                sillas.append(None)
+        extra = [p for p in orden for _ in range(quedan.get(p, 0))]
+        return [p if p is not None else extra.pop(0) for p in sillas]
+
+    def arma(i: int, quedan: int, cuenta: dict[str, int]) -> None:
+        if i == len(orden):
+            total = usados + Counter(cuenta)
+            lineas = (
+                total["central_defender"] + total["wingback"],
+                total["inner_midfield"] + total["winger"],
+                total["forward"],
+            )
+            if quedan == 0 and total["keeper"] == 1 and lineas in legales:
+                salida.append(ordena(cuenta))
+            return
+        puesto = orden[i]
+        tope = antes[puesto] if puesto in no_crecen else cabida[puesto] - usados[puesto]
+        for k in range(min(tope, quedan), -1, -1):
+            arma(i + 1, quedan - k, {**cuenta, puesto: k})
+
+    arma(0, len(originales), {})
+    return salida
+
+
 def _recoloca_para_descubrir(
     plan: Any,
     main: str,
@@ -237,7 +299,17 @@ def _recoloca_para_descubrir(
     if main == secondary == m8.INDIVIDUAL:
         libres = [a for a in plan.asignaciones if a.puesto]
     else:
-        del_companero = {REGION_AMBOS, REGION_SOLO_PRINCIPAL}
+        # Del compañero son las sillas que llenó SU cola. Con Individual de
+        # secundario, el compañero llenó «ambos» y «solo principal». Con
+        # Individual de principal es al revés: esas dos las llenó la cola de
+        # Individual y al compañero solo le queda «solo secundario». Antes se
+        # usaba siempre la primera lista, y con Individual/Pases no quedaba
+        # ninguna silla en juego (2026-09-14).
+        del_companero = (
+            {REGION_SOLO_SECUNDARIA}
+            if main == m8.INDIVIDUAL
+            else {REGION_AMBOS, REGION_SOLO_PRINCIPAL}
+        )
         libres = [a for a in plan.asignaciones if a.puesto and a.region not in del_companero]
     if not libres:
         return []
@@ -258,14 +330,49 @@ def _recoloca_para_descubrir(
         candidatos.append(
             rpd.Candidato(
                 nombre=nombre,
+                # Sin revelar = techo sin saber. Antes miraba el nivel actual, y
+                # un Mediocentro con el techo de Jugadas ya sabido seguía
+                # contando como si le quedara algo por destapar ahí.
                 sin_revelar=frozenset(
-                    sk for sk, r in skills.items() if r.current is None and not r.max_reached
+                    sk for sk, r in skills.items() if r.maximum is None and not r.max_reached
                 ),
             )
         )
 
-    ruletas = {a.puesto: individual.reparto_en(a.puesto) for a in libres}
-    pares = rpd.reparte([a.puesto for a in libres], candidatos, ruletas, excluidas)
+    # También se eligen los PUESTOS de esas sillas, no solo quién va en cada
+    # una (2026-09-14, pedido por el usuario). Se prueban todas las formas
+    # legales y gana la que más techo destapa en total; si empata, se queda la
+    # que ya había, para no mover a nadie sin ganar nada.
+    # Con Individual de principal, las sillas de «ambos» reciben también al
+    # compañero: se puede cambiar quién va, pero no el puesto, o dejarían de
+    # recibirlo. Con Individual en los dos huecos no hay compañero que perder.
+    movibles = [a for a in libres if main == secondary or a.region != REGION_AMBOS]
+    en_movibles = {id(a) for a in movibles}
+    fijos = [a.puesto for a in plan.asignaciones if a.puesto and id(a) not in en_movibles]
+    sin_crecer = (
+        set(companero.ritmos)
+        if companero is not None and companero.codigo != m8.INDIVIDUAL
+        else set()
+    )
+    por_nombre = {c.nombre: c for c in candidatos}
+
+    def descubre(puestos: list[str]) -> tuple[int, list[tuple[str, str]]]:
+        ruletas = {p: individual.reparto_en(p) for p in puestos}
+        emparejados = rpd.reparte(puestos, candidatos, ruletas, excluidas)
+        total = sum(
+            rpd.probabilidad_de_descubrir(ruletas[p], por_nombre[n].sin_revelar, excluidas)
+            for n, p in emparejados
+        )
+        return total, emparejados
+
+    originales = [a.puesto for a in libres]
+    mejor, pares = descubre(originales)
+    for forma in _alineaciones_posibles(fijos, [a.puesto for a in movibles], sin_crecer):
+        nuevos = iter(forma)
+        puestos = [next(nuevos) if id(a) in en_movibles else a.puesto for a in libres]
+        total, emparejados = descubre(puestos)
+        if total > mejor and len(emparejados) == len(libres):
+            mejor, pares = total, emparejados
     if len(pares) != len(libres):
         return []  # no se pudo llenar todo: mejor dejarlo como estaba
 
@@ -307,8 +414,8 @@ def _recoloca_para_descubrir(
         }
 
     nuevas: list[Any] = []
-    for silla, (nombre, _) in zip(libres, pares, strict=True):
-        cambiada = replace(silla, player=nombre, **_del_jugador(nombre))
+    for silla, (nombre, puesto) in zip(libres, pares, strict=True):
+        cambiada = replace(silla, player=nombre, puesto=puesto, **_del_jugador(nombre))
         plan.asignaciones[por_id[id(silla)]] = cambiada
         nuevas.append(cambiada)
     libres = nuevas
@@ -584,7 +691,7 @@ async def academy_training_plan(
     # entrenarlo no revela nada y no debe atraer una plaza de descubrimiento.
     sin_saber.update(
         {
-            j.name: {r.skill for r in j.skills if not r.is_current_known and not r.max_reached}
+            j.name: {r.skill for r in j.skills if r.maximum is None and not r.max_reached}
             for j in (academia.players if academia else [])
         }
     )
@@ -604,7 +711,7 @@ async def academy_training_plan(
         j.name: sum(
             1
             for r in j.skills
-            if r.skill in rpd.HABILIDADES_DE_PUESTO and not r.is_current_known and not r.max_reached
+            if r.skill in rpd.HABILIDADES_DE_PUESTO and r.maximum is None and not r.max_reached
         )
         for j in (academia.players if academia else [])
     }
