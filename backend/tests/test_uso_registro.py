@@ -221,6 +221,36 @@ def test_un_tipo_inventado_no_pasa(cliente) -> None:
     assert client.get("/api/v1/usage/log?tipo=loquesea").status_code == 422
 
 
+# ── Sin mis visitas ─────────────────────────────────────────────────────────
+
+
+def test_sin_mis_visitas_desaparezco_de_las_cuatro_pestanas(cliente) -> None:
+    """2026-09-14, pedido por el usuario: con «Sin mis visitas» quien pregunta
+    tiene que desaparecer de Resumen, Personas, Adopción y Registro. El
+    registro no recibía el filtro, el desplegable de personas lo seguía
+    listando y «registradas» lo contaba."""
+    client, quien, ana, beto = cliente
+    _sembrar(client, quien, ana, beto)
+    quien["id"] = ana  # Ana es quien pregunta
+
+    d = client.get("/api/v1/usage?dias=365&excluirme=true").json()
+    # Resumen: solo lo de Beto.
+    assert d["totals"]["pages"] == 1 and d["totals"]["clicks"] == 2
+    assert {x["module"] for x in d["modules"]} == {"Economía"}
+    # Personas.
+    assert [u["name"] for u in d["byUser"]] == ["Beto"]
+    assert d["activeUsers"] == 1 and d["registeredUsers"] == 1
+    # Adopción.
+    assert {a["module"] for a in d["adoption"]} == {"Economía"}
+    assert "Juveniles" in d["untouched"]
+
+    # Registro: ni sus filas ni su nombre en el filtro.
+    log = client.get("/api/v1/usage/log?dias=365&excluirme=true").json()
+    assert log["total"] == 3
+    assert {f["name"] for f in log["rows"]} == {"Beto"}
+    assert [u["name"] for u in log["users"]] == ["Beto"]
+
+
 # ── La lista de pantallas ───────────────────────────────────────────────────
 
 MAPA = Path(__file__).resolve().parents[2] / "frontend" / "src" / "services" / "telemetria.ts"

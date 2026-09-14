@@ -296,7 +296,9 @@ async def resumen(
             for mod, top in uso.dentro_de(eventos).items()
         ],
         "activeUsers": activos,
-        "registeredUsers": len(nombres),
+        # Tampoco cuenta como registrado quien se excluyó: «3 de 12» con uno
+        # mismo dentro del 12 y fuera del 3 no cuadra.
+        "registeredUsers": len(nombres) - (1 if excluirme and admin.id in nombres else 0),
         # Lo que NADIE abrió. Un ranking por uso deja el cero fuera del final,
         # donde no se ve, y una pantalla que nadie abre es una decisión
         # pendiente.
@@ -449,6 +451,12 @@ async def registro(
             for f in filas
         ],
         # Para llenar los desplegables del filtro sin una ruta más.
-        "users": [{"userId": i, "name": n} for i, n in sorted(nombres.items(), key=lambda x: x[1])],
+        # Sin quien pregunta si se excluyó: si no, podía elegirse a sí mismo en
+        # el filtro y volver a ver lo que acababa de quitar.
+        "users": [
+            {"userId": i, "name": n}
+            for i, n in sorted(nombres.items(), key=lambda x: x[1])
+            if not (excluirme and i == admin.id)
+        ],
         "modules": sorted(MODULOS_CONOCIDOS),
     }

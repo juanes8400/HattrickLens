@@ -171,7 +171,9 @@ export function UsagePage() {
             {seccion === "resumen" && <Resumen data={data} />}
             {seccion === "personas" && <Personas data={data} />}
             {seccion === "adopcion" && <Adopcion data={data} />}
-            {seccion === "registro" && <Registro dias={dias} />}
+            {seccion === "registro" && (
+              <Registro dias={dias} excluirme={excluirme} />
+            )}
           </PanelDePestanas>
         </>
       )}
@@ -719,7 +721,7 @@ function Adopcion({ data }: { data: UsageSummary }) {
 
 const POR_PAGINA = 100;
 
-function Registro({ dias }: { dias: number }) {
+function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
   const [usuario, setUsuario] = useState<number | null>(null);
   const [modulo, setModulo] = useState<string>("");
   const [tipo, setTipo] = useState<"" | "page" | "click">("");
@@ -728,10 +730,22 @@ function Registro({ dias }: { dias: number }) {
   const [desdeFila, setDesdeFila] = useState(0);
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ["usage-log", dias, usuario, modulo, tipo, buscar, desdeFila],
+    // «Sin mis visitas» también aquí (2026-09-14): antes solo filtraba el
+    // resumen y el registro seguía enseñando cada clic propio.
+    queryKey: [
+      "usage-log",
+      dias,
+      excluirme,
+      usuario,
+      modulo,
+      tipo,
+      buscar,
+      desdeFila,
+    ],
     queryFn: () =>
       api.usageLog({
         dias,
+        excluirme,
         usuario,
         modulo: modulo || null,
         tipo: tipo || null,
