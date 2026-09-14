@@ -18,6 +18,7 @@ from app.domain.engines.youth_training_plan import (
     REGION_AMBOS,
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
+    REGION_SOLO_SECUNDARIA,
     RITMO_INDIVIDUAL_DUDOSO,
     VARIANTES_POR_HABILIDAD,
     Asignacion,
@@ -198,7 +199,7 @@ def _recoloca_para_descubrir(
     main: str,
     secondary: str,
     lecturas: dict[str, dict[str, Any]],
-) -> None:
+) -> list[tuple[int, Any]]:
     """Reordena las plazas que NO entrena el compañero, para destapar más.
 
     Solo actúa cuando «Individual» ocupa un hueco, porque es el único
@@ -215,10 +216,11 @@ def _recoloca_para_descubrir(
 
     El emparejamiento es el óptimo real, no por turnos: quitarle el portero a
     quien más lo aprovecha puede costar más de lo que gana quien se lo queda.
-    Modifica `plan` en el sitio.
+    Modifica `plan` en el sitio y devuelve las sillas del banquillo que quedaron
+    vacías, con su posición, para `_rellena_banquillo`.
     """
     if m8.INDIVIDUAL not in (main, secondary):
-        return
+        return []
 
     individual = ENTRENAMIENTOS[m8.INDIVIDUAL]
     # Lo que el COMPAÑERO ya entrena, que por eso no cuenta como descubrir. Si
@@ -238,14 +240,20 @@ def _recoloca_para_descubrir(
         del_companero = {REGION_AMBOS, REGION_SOLO_PRINCIPAL}
         libres = [a for a in plan.asignaciones if a.puesto and a.region not in del_companero]
     if not libres:
-        return
+        return []
 
     # Los candidatos: quien ocupa esas sillas MÁS el banquillo. Limitarlo a
     # los que ya estaban dentro dejaría fuera al chico del banquillo que
     # ilumina más que cualquiera de los de dentro.
     en_juego = {a.player for a in libres}
     candidatos: list[rpd.Candidato] = []
-    for nombre in list(en_juego) + [a.player for a in plan.fuera if a.player not in en_juego]:
+    # En el orden del once y luego del banquillo, nunca en el de un `set`: ese
+    # cambia en cada arranque del servidor y deshacía los empates distinto,
+    # así que el Portero podía ser uno u otro sin haber cambiado nada
+    # (2026-09-14).
+    for nombre in [a.player for a in libres] + [
+        a.player for a in plan.fuera if a.player not in en_juego
+    ]:
         skills = lecturas.get(nombre, {})
         candidatos.append(
             rpd.Candidato(
@@ -259,7 +267,7 @@ def _recoloca_para_descubrir(
     ruletas = {a.puesto: individual.reparto_en(a.puesto) for a in libres}
     pares = rpd.reparte([a.puesto for a in libres], candidatos, ruletas, excluidas)
     if len(pares) != len(libres):
-        return  # no se pudo llenar todo: mejor dejarlo como estaba
+        return []  # no se pudo llenar todo: mejor dejarlo como estaba
 
     # Al cambiar de ocupante hay que mover CON ÉL lo que es suyo.
     #
@@ -307,27 +315,21 @@ def _recoloca_para_descubrir(
     # Quien salió del once y quien entró: el banquillo se recalcula para no
     # enseñar a nadie dos veces.
     dentro_ahora = {a.player for a in libres}
-    # Las sillas del banquillo que dejan quienes suben al once. Antes se
-    # borraban sin más: con Lateral + Individual el Extremo suplente subía de
-    # Mediocentro y el banquillo se quedaba sin Extremo (2026-09-14, visto por
-    # el usuario). Ahora quien baja del once se sienta en la silla que quedó.
-    vacias: list[tuple[int, Any]] = []
-    for nombre in [a.player for a in libres if a.player not in dentro_antes]:
-        if nombre in banquillo:
-            silla = banquillo[nombre]
-            vacias.append((plan.fuera.index(silla), silla))
-    vacias.sort(key=lambda par: par[0])
+    # Las sillas del banquillo que dejan quienes suben al once no se ocupan
+    # aquí: se devuelven vacías y las llena `_rellena_banquillo` con el
+    # criterio del motor. Antes se borraban sin más y, con Lateral +
+    # Individual, el banquillo se quedaba sin Extremo (2026-09-14).
+    vacias: list[tuple[int, Any]] = sorted(
+        (
+            (plan.fuera.index(banquillo[nombre]), banquillo[nombre])
+            for nombre in dentro_ahora - dentro_antes
+            if nombre in banquillo
+        ),
+        key=lambda par: par[0],
+    )
     for _, silla in vacias:
         plan.fuera.remove(silla)
-    bajan = [n for n in fichas if n in dentro_antes - dentro_ahora]
-    for posicion, (indice, silla) in enumerate(vacias):
-        if posicion >= len(bajan):
-            break
-        nombre = bajan[posicion]
-        plan.fuera.insert(
-            min(indice, len(plan.fuera)), replace(silla, player=nombre, **_del_jugador(nombre))
-        )
-    for nombre in bajan[len(vacias) :]:
+    for nombre in [n for n in fichas if n in dentro_antes - dentro_ahora]:
         # Quien sale del once se lleva su ficha. Sin esto salía con edad 0 y
         # HTMS28 0, que en pantalla es «0;000», el mismo fallo por el otro
         # lado.
@@ -340,6 +342,66 @@ def _recoloca_para_descubrir(
                 racion_secundaria=0.0,
                 **_del_jugador(nombre),
             )
+        )
+    return vacias
+
+
+def _rellena_banquillo(
+    plan: Any,
+    vacias: list[tuple[int, Any]],
+    cola_principal: list[Any],
+    cola_secundaria: list[Any],
+    tope_principal: set[str],
+    tope_secundaria: set[str],
+) -> None:
+    """Ocupa las sillas del banquillo que dejó la reubicación, como el motor.
+
+    El mismo criterio con que `youth_training_plan` arma el banquillo: la
+    silla del secundario tira de su cola y las demás de la principal, nadie se
+    sienta donde se entrena algo en lo que ya tocó techo, y si la cola se
+    agota se mira la otra. Son candidatos todos los que no estén en el once ni
+    en otra silla, también quienes acaban de bajar del once. Una silla sin
+    candidato se queda vacía, igual que en el motor. Modifica `plan`.
+    """
+    ocupados = {a.player for a in plan.asignaciones} | {a.player for a in plan.fuera if a.puesto}
+    sin_silla = {a.player: a for a in plan.fuera if not a.puesto}
+    for indice, silla in vacias:
+        if silla.region == REGION_AMBOS:
+            vetados = tope_principal | tope_secundaria
+        elif silla.region == REGION_SOLO_PRINCIPAL:
+            vetados = tope_principal
+        elif silla.region == REGION_SOLO_SECUNDARIA:
+            vetados = tope_secundaria
+        else:
+            vetados = set()
+        cola = cola_secundaria if silla.region == REGION_SOLO_SECUNDARIA else cola_principal
+        elegido = next(
+            (
+                p
+                for p in [*cola, *cola_principal, *cola_secundaria]
+                if p.name not in ocupados and p.name not in vetados
+            ),
+            None,
+        )
+        if elegido is None:
+            continue
+        ocupados.add(elegido.name)
+        suelto = sin_silla.pop(elegido.name, None)
+        if suelto is not None:
+            plan.fuera.remove(suelto)
+        plan.fuera.insert(
+            min(indice, len(plan.fuera)),
+            replace(
+                silla,
+                player=elegido.name,
+                peldano=elegido.priority,
+                age_days_total=elegido.age_days_total,
+                htms28_min=elegido.htms28_min,
+                htms28_max=elegido.htms28_max,
+                current=elegido.current,
+                maximum=elegido.maximum,
+                max_reached=elegido.max_reached,
+            ),
         )
 
 
@@ -577,7 +639,15 @@ async def academy_training_plan(
         tope_principal=topes_de(main, skill_main),
         tope_secundaria=topes_de(secondary, skill_sec),
     )
-    _recoloca_para_descubrir(plan, main, secondary, lecturas)
+    vacias = _recoloca_para_descubrir(plan, main, secondary, lecturas)
+    _rellena_banquillo(
+        plan,
+        vacias,
+        cola_de(main, skill_main),
+        cola_de(secondary, skill_sec),
+        topes_de(main, skill_main),
+        topes_de(secondary, skill_sec),
+    )
     etiquetas = {r.skill: r.label for r in rows}
 
     def etiqueta_de(clave: str, skill: str) -> str:
