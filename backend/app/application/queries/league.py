@@ -12,11 +12,16 @@ individual de los jugadores rivales.
 
 import dataclasses
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Import de verdad y no bajo TYPE_CHECKING: en Python 3.12, que es el de la
+# imagen desplegada, las anotaciones se evalúan y el nombre tiene que existir
+# (2026-09-14, lo tiró el CI de la 2.0). No hay ciclo: ese módulo no importa
+# nada de `queries`.
+from app.application.queries.alineacion_enviada import AlineacionEnviada
 from app.application.queries.prediccion_liga import reparto_de_tacticas
 from app.domain.engines.prediccion import (  # type: ignore[attr-defined]
     PitchZoneMethod,
@@ -38,9 +43,6 @@ from app.domain.engines.season_simulator import (
 )
 from app.domain.value_objects.ht_constants import tactic_type_name
 from app.infrastructure.db import models as m
-
-if TYPE_CHECKING:
-    from app.application.queries.alineacion_enviada import AlineacionEnviada
 
 LEAGUE_MATCH_TYPE = 1
 
