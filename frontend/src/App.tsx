@@ -1,42 +1,100 @@
-import type { ReactNode } from "react";
-import { useEffect } from "react";
+import type { ComponentType, ReactNode } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { tituloDeRuta } from "./layouts/navegacion";
-import { DashboardPage } from "./pages/DashboardPage";
+// Van en el paquete principal: el Dashboard es lo primero que se abre, y las
+// pantallas de entrada tienen que funcionar antes de que haya nada más.
 import { DashboardNuevo } from "./pages/DashboardNuevo";
-import { ClubPage } from "./pages/ClubPage";
-import { TeamOverviewPage } from "./pages/TeamOverviewPage";
-import { TeamPage } from "./pages/TeamPage";
-import { PlayerPage } from "./pages/PlayerPage";
+// El Dashboard anterior no se difiere: el nuevo ya importa sus paneles, así
+// que viaja en el paquete principal de todas formas.
+import { DashboardPage } from "./pages/DashboardPage";
 import { ConnectedPage } from "./pages/ConnectedPage";
-import { PositionsPage } from "./pages/PositionsPage";
-import { SkillsPage } from "./pages/SkillsPage";
-import { WikiPage } from "./pages/WikiPage";
-import { LineupPage } from "./pages/LineupPage";
-import { TrainingPage } from "./pages/TrainingPage";
-import { ApoyarPage } from "./pages/ApoyarPage";
-import { LibroDeVisitasPage } from "./pages/LibroDeVisitasPage";
-import { PlayerBalancePage } from "./pages/PlayerBalancePage";
-import { InsightsPage } from "./pages/InsightsPage";
-import { TransparencyPage } from "./pages/TransparencyPage";
-import { SyncChangesPage } from "./pages/SyncChangesPage";
-import { SyncPage } from "./pages/SyncPage";
-import { UsagePage } from "./pages/UsagePage";
-import { AutorPage } from "./pages/AutorPage";
-import { arrancarTelemetria, verPagina } from "./services/telemetria";
-import { EconomyPage } from "./pages/EconomyPage";
-import { ArenaPage } from "./pages/ArenaPage";
-import { MatchesPage } from "./pages/MatchesPage";
-import { LeaguePage } from "./pages/LeaguePage";
-import { CupPage } from "./pages/CupPage";
-import { AcademyPage } from "./pages/AcademyPage";
-import { RivalPage } from "./pages/RivalPage";
-import { RivalPickerPage } from "./pages/RivalPickerPage";
 import { WelcomePage } from "./pages/WelcomePage";
 import { SetupPage } from "./pages/SetupPage";
+import { arrancarTelemetria, verPagina } from "./services/telemetria";
 import { hasActiveTeam, useDashboard } from "./hooks/useTeam";
 import { ErrorState, Loading } from "./components/Panels";
+
+/** Una pantalla que se descarga al abrirla, no al entrar en la app.
+ *
+ *  2026-09-14, medido en producción: todo iba en un único archivo de 1,87 MB,
+ *  así que abrir el Dashboard descargaba también la Wiki, Transferencias y
+ *  el resto. Ahora cada una viaja aparte y sólo cuando se visita. */
+function diferida<K extends string>(
+  cargar: () => Promise<Record<K, ComponentType>>,
+  nombre: K,
+) {
+  return lazy(() => cargar().then((m) => ({ default: m[nombre] })));
+}
+
+const ClubPage = diferida(() => import("./pages/ClubPage"), "ClubPage");
+const TeamOverviewPage = diferida(
+  () => import("./pages/TeamOverviewPage"),
+  "TeamOverviewPage",
+);
+const TeamPage = diferida(() => import("./pages/TeamPage"), "TeamPage");
+const PlayerPage = diferida(() => import("./pages/PlayerPage"), "PlayerPage");
+const PositionsPage = diferida(
+  () => import("./pages/PositionsPage"),
+  "PositionsPage",
+);
+const SkillsPage = diferida(() => import("./pages/SkillsPage"), "SkillsPage");
+const WikiPage = diferida(() => import("./pages/WikiPage"), "WikiPage");
+const LineupPage = diferida(() => import("./pages/LineupPage"), "LineupPage");
+const TrainingPage = diferida(
+  () => import("./pages/TrainingPage"),
+  "TrainingPage",
+);
+const ApoyarPage = diferida(() => import("./pages/ApoyarPage"), "ApoyarPage");
+const LibroDeVisitasPage = diferida(
+  () => import("./pages/LibroDeVisitasPage"),
+  "LibroDeVisitasPage",
+);
+const PlayerBalancePage = diferida(
+  () => import("./pages/PlayerBalancePage"),
+  "PlayerBalancePage",
+);
+const InsightsPage = diferida(
+  () => import("./pages/InsightsPage"),
+  "InsightsPage",
+);
+const TransparencyPage = diferida(
+  () => import("./pages/TransparencyPage"),
+  "TransparencyPage",
+);
+const SyncChangesPage = diferida(
+  () => import("./pages/SyncChangesPage"),
+  "SyncChangesPage",
+);
+const SyncPage = diferida(() => import("./pages/SyncPage"), "SyncPage");
+const UsagePage = diferida(() => import("./pages/UsagePage"), "UsagePage");
+const AutorPage = diferida(() => import("./pages/AutorPage"), "AutorPage");
+const EconomyPage = diferida(
+  () => import("./pages/EconomyPage"),
+  "EconomyPage",
+);
+const ArenaPage = diferida(() => import("./pages/ArenaPage"), "ArenaPage");
+const MatchesPage = diferida(
+  () => import("./pages/MatchesPage"),
+  "MatchesPage",
+);
+const LeaguePage = diferida(() => import("./pages/LeaguePage"), "LeaguePage");
+const CupPage = diferida(() => import("./pages/CupPage"), "CupPage");
+const AcademyPage = diferida(
+  () => import("./pages/AcademyPage"),
+  "AcademyPage",
+);
+const RivalPage = diferida(() => import("./pages/RivalPage"), "RivalPage");
+const RivalPickerPage = diferida(
+  () => import("./pages/RivalPickerPage"),
+  "RivalPickerPage",
+);
+
+/** El hueco mientras llega la pantalla: dentro del marco, que no parpadea. */
+function Espera({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<Loading />}>{children}</Suspense>;
+}
 
 function RequireTeam({ children }: { children: ReactNode }) {
   return hasActiveTeam() ? children : <Navigate to="/welcome" replace />;
@@ -93,7 +151,14 @@ export function App() {
             no ha conectado su club también puede querer apoyar, y la página
             no necesita datos suyos --sin país conocido ordena igual que para
             cualquiera de fuera-- (2026-09-05, visto en producción). */}
-        <Route path="apoyar" element={<ApoyarPage />} />
+        <Route
+          path="apoyar"
+          element={
+            <Espera>
+              <ApoyarPage />
+            </Espera>
+          }
+        />
         <Route
           path="setup"
           element={
@@ -116,30 +181,198 @@ export function App() {
               cambiar DashboardNuevo por DashboardPage en esta línea. Mientras
               tanto el de antes sigue en /dashboard-anterior para comparar. */}
           <Route path="dashboard" element={<DashboardNuevo />} />
-          <Route path="dashboard-anterior" element={<DashboardPage />} />
-          <Route path="club" element={<ClubPage />} />
-          <Route path="overview" element={<TeamOverviewPage />} />
-          <Route path="team" element={<TeamPage />} />
-          <Route path="skills" element={<SkillsPage />} />
-          <Route path="players/:htPlayerId" element={<PlayerPage />} />
-          <Route path="positions" element={<PositionsPage />} />
-          <Route path="lineup" element={<LineupPage />} />
-          <Route path="training" element={<TrainingPage />} />
-          <Route path="transfers/balance" element={<PlayerBalancePage />} />
-          <Route path="libro" element={<LibroDeVisitasPage />} />
-          <Route path="academy" element={<AcademyPage />} />
-          <Route path="matches" element={<MatchesPage />} />
-          <Route path="league" element={<LeaguePage />} />
-          <Route path="cup" element={<CupPage />} />
-          <Route path="rivals" element={<RivalPickerPage />} />
-          <Route path="rivals/:rivalHtTeamId" element={<RivalPage />} />
-          <Route path="economy" element={<EconomyPage />} />
-          <Route path="arena" element={<ArenaPage />} />
-          <Route path="insights" element={<InsightsPage />} />
-          <Route path="sync" element={<SyncPage />} />
-          <Route path="news" element={<SyncChangesPage />} />
-          <Route path="transparency" element={<TransparencyPage />} />
-          <Route path="wiki" element={<WikiPage />} />
+          <Route
+            path="dashboard-anterior"
+            element={
+              <Espera>
+                <DashboardPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="club"
+            element={
+              <Espera>
+                <ClubPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="overview"
+            element={
+              <Espera>
+                <TeamOverviewPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="team"
+            element={
+              <Espera>
+                <TeamPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="skills"
+            element={
+              <Espera>
+                <SkillsPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="players/:htPlayerId"
+            element={
+              <Espera>
+                <PlayerPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="positions"
+            element={
+              <Espera>
+                <PositionsPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="lineup"
+            element={
+              <Espera>
+                <LineupPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="training"
+            element={
+              <Espera>
+                <TrainingPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="transfers/balance"
+            element={
+              <Espera>
+                <PlayerBalancePage />
+              </Espera>
+            }
+          />
+          <Route
+            path="libro"
+            element={
+              <Espera>
+                <LibroDeVisitasPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="academy"
+            element={
+              <Espera>
+                <AcademyPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="matches"
+            element={
+              <Espera>
+                <MatchesPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="league"
+            element={
+              <Espera>
+                <LeaguePage />
+              </Espera>
+            }
+          />
+          <Route
+            path="cup"
+            element={
+              <Espera>
+                <CupPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="rivals"
+            element={
+              <Espera>
+                <RivalPickerPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="rivals/:rivalHtTeamId"
+            element={
+              <Espera>
+                <RivalPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="economy"
+            element={
+              <Espera>
+                <EconomyPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="arena"
+            element={
+              <Espera>
+                <ArenaPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="insights"
+            element={
+              <Espera>
+                <InsightsPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="sync"
+            element={
+              <Espera>
+                <SyncPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="news"
+            element={
+              <Espera>
+                <SyncChangesPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="transparency"
+            element={
+              <Espera>
+                <TransparencyPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="wiki"
+            element={
+              <Espera>
+                <WikiPage />
+              </Espera>
+            }
+          />
           {/* Motor se llamaba así hasta el 2026-08-31. El enlace viejo
             sigue funcionando: romper marcadores por un renombre no. */}
           <Route
@@ -148,8 +381,22 @@ export function App() {
           />
           {/* Sólo la abre el administrador; el candado está en el
             servidor, no aquí. */}
-          <Route path="uso" element={<UsagePage />} />
-          <Route path="autor" element={<AutorPage />} />
+          <Route
+            path="uso"
+            element={
+              <Espera>
+                <UsagePage />
+              </Espera>
+            }
+          />
+          <Route
+            path="autor"
+            element={
+              <Espera>
+                <AutorPage />
+              </Espera>
+            }
+          />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

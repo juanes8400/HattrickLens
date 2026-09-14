@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     get_current_user,
-    get_dashboard_service,
     get_squad_service,
     require_team_owner,
 )
@@ -871,6 +870,26 @@ async def changes_history(
     )
 
 
+async def dashboard_guardado(session: AsyncSession, team_id: int) -> DashboardResponse | None:
+    """El Dashboard, calculado una vez por sync (2026-09-14).
+
+    Medido en producción: 5 segundos en cada visita aunque nada hubiera
+    cambiado. Tope de 15 minutos porque «datos desactualizados» mira el reloj.
+    Lo usan el endpoint y el precalentado del final del sync.
+    """
+    from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
+
+    data: DashboardResponse | None = await por_sync(
+        session,
+        team_id,
+        "dashboard",
+        (),
+        lambda: DashboardQueryService(session).get(team_id),
+        ttl=TTL_CON_RELOJ,
+    )
+    return data
+
+
 @router.get(
     "/{team_id}/dashboard",
     response_model=DashboardResponse,
@@ -880,9 +899,9 @@ async def changes_history(
 async def dashboard(
     team_id: int,
     response: Response,
-    svc: DashboardQueryService = Depends(get_dashboard_service),
+    session: AsyncSession = Depends(get_session),
 ) -> DashboardResponse:
-    data = await svc.get(team_id)
+    data = await dashboard_guardado(session, team_id)
     if data is None:
         raise HTTPException(404, f"team {team_id} not found")
     # Cache barato: el payload solo cambia cuando cambia el sync (docs/04)

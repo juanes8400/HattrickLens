@@ -33,7 +33,7 @@ def lanzar_precalentado(team_id: int) -> None:
 
 async def precalentar(team_id: int) -> None:
     # Imports aquí dentro: estos módulos importan `teams`, que importa este.
-    from app.api.v1.endpoints.analysis import lineup
+    from app.api.v1.endpoints.analysis import _insights_guardadas, lineup
     from app.api.v1.endpoints.cup import cup
     from app.api.v1.endpoints.economy import economy
     from app.api.v1.endpoints.league import (
@@ -43,7 +43,7 @@ async def precalentar(team_id: int) -> None:
         team_of_the_week,
     )
     from app.api.v1.endpoints.matches import matches
-    from app.api.v1.endpoints.teams import changes_history
+    from app.api.v1.endpoints.teams import changes_history, dashboard_guardado
     from app.domain.engines.rival_scouting import PitchZoneMethod
     from app.infrastructure.db import models as m
     from app.infrastructure.db.session import SessionLocal
@@ -57,6 +57,10 @@ async def precalentar(team_id: int) -> None:
         # Lo del Dashboard primero, que es lo que se abre al volver; después
         # lo de las pantallas que se suelen mirar tras sincronizar.
         pasos: list[tuple[str, Any]] = [
+            # Las dos más lentas medidas en producción (2026-09-14): el
+            # Dashboard (5 s) y las alertas (8 s), que además usan la liga.
+            ("dashboard", lambda: dashboard_guardado(session, team_id)),
+            ("alertas", lambda: _insights_guardadas(session, team_id)),
             ("liga (2.000)", lambda: liga_calculada(session, team_id, 2000)),
             ("sectores", lambda: league_sectores_recientes(team_id, session)),
             ("economía del Dashboard", lambda: economy(team_id, 52, False, session)),

@@ -22,6 +22,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from app.domain.engines.semilla import SEMILLA
+
 # La taquilla que reporta CHPP en un snapshot es el ingreso de ESA semana, no
 # un promedio: 0 en semanas sin partido en casa, un bulto grande en las que sí
 # hay. HL-052: "balance estructural" tiene que amortizarla a lo largo de la
@@ -166,7 +168,7 @@ def forecast_cash(
     residual_std: float = 0.0,
     planned: list[PlannedEvent] | None = None,
     n_runs: int = 5000,
-    seed: int = 42,
+    seed: int = SEMILLA,
 ) -> ForecastResult:
     """Proyecta la caja semana a semana con bandas de confianza.
 

@@ -31,6 +31,11 @@ from app.infrastructure.db import models as m
 #: hoy (una proyección, un plazo) no debe quedarse congelado para siempre.
 TTL_MAXIMO = 6 * 3600
 
+#: Tope para lo que además mira el reloj: «tus datos tienen más de un día» o el
+#: clima de hoy y mañana. Quince minutos de retraso no cambian la decisión, y
+#: guardarlo ahorra ocho segundos en cada visita (2026-09-14, medido en producción).
+TTL_CON_RELOJ = 15 * 60
+
 _memoria: dict[tuple[Any, ...], tuple[float, Any]] = {}
 _en_curso: dict[tuple[Any, ...], asyncio.Future[Any]] = {}
 

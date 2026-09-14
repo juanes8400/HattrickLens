@@ -47,6 +47,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from app.domain.engines.semilla import SEMILLA
+
 # Fuerza del encogimiento: partidos equivalentes de "prior" que pesa la media
 # de la liga frente a la evidencia propia de cada equipo.
 SHRINKAGE_K = 5.0
@@ -159,7 +161,7 @@ def best_worst_case(
     fixtures: list[Fixture],
     target_team_id: int,
     runs: int = 10_000,
-    seed: int = 42,
+    seed: int = SEMILLA,
     probabilidades: dict[tuple[int, int], tuple[float, float, float]] | None = None,
 ) -> BestWorstCase | None:
     """Mejor y peor caso del equipo analizado, como DISTRIBUCIÓN de puestos.
@@ -408,7 +410,7 @@ def simulate(
     records: list[TeamRecord],
     fixtures: list[Fixture],
     runs: int = 10_000,
-    seed: int = 42,
+    seed: int = SEMILLA,
     league_level: int = -1,
     max_level: int = -1,
     probabilidades: dict[tuple[int, int], tuple[float, float, float]] | None = None,
@@ -582,7 +584,7 @@ def forecast_match(
     records: list[TeamRecord],
     match_round: int = 0,
     runs: int = 20000,
-    seed: int = 7,
+    seed: int = SEMILLA,
 ) -> MatchForecast:
     """Probabilidades de un partido concreto con el mismo modelo de goles."""
     attack, defence, avg = _strengths(records)

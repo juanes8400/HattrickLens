@@ -1573,6 +1573,29 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     return ins.collect(*groups)
 
 
+async def _insights_guardadas(session: AsyncSession, team_id: int) -> list[ins.Insight]:
+    """Las alertas, calculadas una vez por sync (2026-09-14).
+
+    Medido en producción: derivarlas tardaba 8 segundos en CADA visita al
+    Dashboard, con los datos sin cambiar. Se guardan con el sync en la clave y
+    un tope de 15 minutos, porque dos reglas miran el reloj (datos de más de un
+    día y el clima de hoy o mañana). Lo archivado en el buzón NO entra en la
+    caché: se filtra después, en cada petición, así que archivar se ve al
+    instante. La lista es compartida: quien la reciba no la modifica.
+    """
+    from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
+
+    alertas: list[ins.Insight] = await por_sync(
+        session,
+        team_id,
+        "alertas",
+        (),
+        lambda: _derive_insights(session, team_id),
+        ttl=TTL_CON_RELOJ,
+    )
+    return alertas
+
+
 def _fingerprint(insight: ins.Insight) -> str:
     """Identidad del CONTENIDO de una alerta, no de su regla.
 
@@ -1664,7 +1687,7 @@ async def team_insights(
     Las archivadas en el buzón se descuelgan de aquí mientras su contenido no
     cambie; si cambia, vuelven.
     """
-    live = await _derive_insights(session, team_id)
+    live = await _insights_guardadas(session, team_id)
     archived = await _dismissals(session, team_id, [i.key for i in live])
     return [
         _serialize(i)
@@ -1688,7 +1711,7 @@ async def team_insights_archived(
     legible aunque la condición ya no se cumpla, y `stillActive` dice
     justamente eso: si la alerta se sigue generando hoy, idéntica.
     """
-    live = {i.key: _fingerprint(i) for i in await _derive_insights(session, team_id)}
+    live = {i.key: _fingerprint(i) for i in await _insights_guardadas(session, team_id)}
     archived = await _dismissals(session, team_id, live)
     if not archived:
         return []
@@ -1720,7 +1743,7 @@ async def archive_insight(
 ) -> dict[str, Any]:
     """Manda una alerta al buzón. El texto archivado se toma de la alerta
     recién derivada en el servidor, no del cliente."""
-    match = next((i for i in await _derive_insights(session, team_id) if i.key == key), None)
+    match = next((i for i in await _insights_guardadas(session, team_id) if i.key == key), None)
     if match is None:
         raise HTTPException(status_code=404, detail=f"La alerta '{key}' ya no está activa")
 
