@@ -33,7 +33,7 @@ class FinanceSummary(Base):
     costs_players: int
     fan_club_size: int
     last_weeks_total: int
-    # Balance recurrente sin transferencias — el número que revela si la
+    # Balance recurrente sin transferencias, el número que revela si la
     # operación del club es sostenible (idea tomada del "sin Otros" de HC).
     #: `None` cuando no hay ni un cierre semanal guardado.
     structural_balance: int | None = None

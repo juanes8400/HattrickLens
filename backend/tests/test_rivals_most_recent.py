@@ -1,4 +1,4 @@
-"""`_most_recent_by_date` — HL-2xx: prueba directa de "más recientes, no
+"""`_most_recent_by_date`, HL-2xx: prueba directa de "más recientes, no
 más antiguos", sin CHPP, sesión ni DB de por medio."""
 from app.api.v1.endpoints.rivals import _most_recent_by_date
 

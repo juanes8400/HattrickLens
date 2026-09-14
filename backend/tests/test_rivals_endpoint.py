@@ -1,10 +1,11 @@
-"""GET /teams/{id}/rivals/{rivalId}/scouting — HL-099 a nivel HTTP.
+"""GET /teams/{id}/rivals/{rivalId}/scouting, HL-099 a nivel HTTP.
 
 Usa los mismos fixtures reales que motivaron la funcionalidad: el partido
 765274387 entre Pulgas Arrechas (537758) y etbenianos1 (2688899), con
 `matchlineup` real de ambos lados (nombre real, posición real) y `players`
-del rival con TSI real pero nombres ocultos — exactamente como responde CHPP
+del rival con TSI real pero nombres ocultos, exactamente como responde CHPP
 de verdad para un equipo que no es el tuyo."""
+
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -34,26 +35,59 @@ HT_MATCH_ID = 765274387
 RIVAL_PLAYERS = {
     "players": [
         {
-            "ht_player_id": pid, "first_name": "", "last_name": "", "age_years": 25,
-            "age_days": 0, "tsi": tsi, "form": 5, "form_is_read": True,
-            "stamina": 0, "stamina_is_read": True, "experience": 5, "experience_is_read": True,
-            "salary": 3000, "specialty": 0, "injury_level": -1, "is_transfer_listed": False,
-            "leadership": 0, "player_trainer_skill_level": 0, "player_trainer_type": 0,
-            "skills": {"keeper": 0, "defending": 0, "playmaking": 0, "winger": 0,
-                       "passing": 0, "scoring": 0, "set_pieces": 0},
+            "ht_player_id": pid,
+            "first_name": "",
+            "last_name": "",
+            "age_years": 25,
+            "age_days": 0,
+            "tsi": tsi,
+            "form": 5,
+            "form_is_read": True,
+            "stamina": 0,
+            "stamina_is_read": True,
+            "experience": 5,
+            "experience_is_read": True,
+            "salary": 3000,
+            "specialty": 0,
+            "injury_level": -1,
+            "is_transfer_listed": False,
+            "leadership": 0,
+            "player_trainer_skill_level": 0,
+            "player_trainer_type": 0,
+            "skills": {
+                "keeper": 0,
+                "defending": 0,
+                "playmaking": 0,
+                "winger": 0,
+                "passing": 0,
+                "scoring": 0,
+                "set_pieces": 0,
+            },
         }
         for pid, tsi in [
-            (498576155, 3020), (499280214, 2840), (498629801, 1850), (498059665, 310),
-            (498059668, 1070), (498059677, 2180), (481249171, 16550), (480991404, 9420),
-            (498059669, 260), (485337184, 4710), (498059678, 3870),
+            (498576155, 3020),
+            (499280214, 2840),
+            (498629801, 1850),
+            (498059665, 310),
+            (498059668, 1070),
+            (498059677, 2180),
+            (481249171, 16550),
+            (480991404, 9420),
+            (498059669, 260),
+            (485337184, 4710),
+            (498059678, 3870),
         ]
-    ]
+    ],
+    # La plantilla trae el nombre del equipo en la misma respuesta. Es lo que
+    # sostiene la identidad del rival cuando el filtro de tipo de partido deja
+    # la lista de partidos en cero.
+    "team_name": "Fc Aittakorven Salamat",
 }
 
 
 class FakeCHPP:
     """`teamID == OWN_HT_TEAM_ID` es el propio equipo (sync inicial, roster
-    real); cualquier otro teamID es "un equipo ajeno" — como CHPP de verdad,
+    real); cualquier otro teamID es "un equipo ajeno", como CHPP de verdad,
     da igual cuál sea, siempre se ve igual de poco (TSI real, skills ocultas,
     nombre oculto salvo en matchlineup)."""
 
@@ -66,9 +100,7 @@ class FakeCHPP:
             return {"ht_user_id": 445566, "login_name": "manager-rival", "teams": []}
         if file == "managercompendium":
             login_time = (
-                "2026-08-06 08:00:00"
-                if params.get("userID") == 999
-                else "2026-07-30 08:00:00"
+                "2026-08-06 08:00:00" if params.get("userID") == 999 else "2026-07-30 08:00:00"
             )
             return {
                 "ht_user_id": params.get("userID", 0),
@@ -79,7 +111,8 @@ class FakeCHPP:
             return {"matches": []}
         if file == "matchlineup":
             fname = (
-                "matchlineup.xml" if params.get("teamID") == RIVAL_HT_TEAM_ID
+                "matchlineup.xml"
+                if params.get("teamID") == RIVAL_HT_TEAM_ID
                 else "matchlineup_home.xml"
             )
             return get_parser(file)((FIXTURES / fname).read_bytes())
@@ -99,10 +132,15 @@ class FakeCHPP:
     ],
 )
 def test_days_since_last_login_uses_calendar_days(last_login: str, expected: int) -> None:
-    assert _days_since_last_login({
-        "last_logins": [last_login],
-        "fetched_at": "2026-08-06 12:00:00",
-    }) == expected
+    assert (
+        _days_since_last_login(
+            {
+                "last_logins": [last_login],
+                "fetched_at": "2026-08-06 12:00:00",
+            }
+        )
+        == expected
+    )
 
 
 @pytest.fixture
@@ -110,7 +148,8 @@ def seeded() -> tuple[TestClient, int, int, async_sessionmaker]:
     import asyncio
 
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -123,36 +162,69 @@ def seeded() -> tuple[TestClient, int, int, async_sessionmaker]:
             s.add(user)
             await s.flush()
             team = m.Team(
-                ht_team_id=OWN_HT_TEAM_ID, name="Pulgas Arrechas", owner_user_id=user.id,
-                currency_rate=10.0, currency_name="US$",
+                ht_team_id=OWN_HT_TEAM_ID,
+                name="Pulgas Arrechas",
+                owner_user_id=user.id,
+                currency_rate=10.0,
+                currency_name="US$",
             )
             s.add(team)
             await s.flush()
-            s.add(m.CHPPToken(
-                user_id=user.id, oauth_token_enc=encrypt_token("tok"),
-                oauth_secret_enc=encrypt_token("sec"), status="active", ht_user_id=999,
-            ))
-            s.add(m.Match(
-                ht_match_id=HT_MATCH_ID, played_at=datetime(2026, 7, 5, tzinfo=UTC),
-                match_type=1, status="FINISHED",
-                home_team_ht_id=OWN_HT_TEAM_ID, away_team_ht_id=RIVAL_HT_TEAM_ID,
-                home_team_name="Pulgas Arrechas", away_team_name="etbenianos1",
-                home_goals=1, away_goals=2,
-            ))
-            s.add(m.MatchRating(
-                ht_match_id=HT_MATCH_ID, team_ht_id=RIVAL_HT_TEAM_ID, is_home=False,
-                midfield=15, right_def=30, central_def=27, left_def=25,
-                right_att=28, central_att=27, left_att=24,
-            ))
-            # Lado propio del mismo partido — mismos valores del HomeTeam real
+            s.add(
+                m.CHPPToken(
+                    user_id=user.id,
+                    oauth_token_enc=encrypt_token("tok"),
+                    oauth_secret_enc=encrypt_token("sec"),
+                    status="active",
+                    ht_user_id=999,
+                )
+            )
+            s.add(
+                m.Match(
+                    ht_match_id=HT_MATCH_ID,
+                    played_at=datetime(2026, 7, 5, tzinfo=UTC),
+                    match_type=1,
+                    status="FINISHED",
+                    home_team_ht_id=OWN_HT_TEAM_ID,
+                    away_team_ht_id=RIVAL_HT_TEAM_ID,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="etbenianos1",
+                    home_goals=1,
+                    away_goals=2,
+                )
+            )
+            s.add(
+                m.MatchRating(
+                    ht_match_id=HT_MATCH_ID,
+                    team_ht_id=RIVAL_HT_TEAM_ID,
+                    is_home=False,
+                    midfield=15,
+                    right_def=30,
+                    central_def=27,
+                    left_def=25,
+                    right_att=28,
+                    central_att=27,
+                    left_att=24,
+                )
+            )
+            # Lado propio del mismo partido, mismos valores del HomeTeam real
             # de fixtures/matchdetails.xml, para poder probar el mapa de calor
             # de zonas del propio equipo sin pedir nada nuevo a CHPP (ya
             # sincronizado normalmente, a diferencia del rival).
-            s.add(m.MatchRating(
-                ht_match_id=HT_MATCH_ID, team_ht_id=OWN_HT_TEAM_ID, is_home=True,
-                midfield=14, right_def=45, central_def=61, left_def=43,
-                right_att=10, central_att=9, left_att=13,
-            ))
+            s.add(
+                m.MatchRating(
+                    ht_match_id=HT_MATCH_ID,
+                    team_ht_id=OWN_HT_TEAM_ID,
+                    is_home=True,
+                    midfield=14,
+                    right_def=45,
+                    central_def=61,
+                    left_def=43,
+                    right_att=10,
+                    central_att=9,
+                    left_att=13,
+                )
+            )
             await s.commit()
             team_id = team.id
 
@@ -209,7 +281,10 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
     # Contra CHPP de verdad, matches.xml?teamID=<rival> solo trae partidos
     # suyos y las dos ramas dan su nombre.
     assert body["rivalName"] == "Fc Aittakorven Salamat"
-    assert body["matchesAnalysed"] == 8
+    # Sin parámetros abren los OFICIALES. Y este rival no tiene cruce oficial
+    # pendiente, así que la ventana son sus CINCO últimos partidos sean de lo
+    # que sean (2026-09-09): de esos cinco, uno es de liga.
+    assert body["matchesAnalysed"] == 1
 
     # top 5 por TSI, aunque se identificaron más jugadores en los partidos vistos
     roster = body["rivalRosterSample"]
@@ -251,48 +326,58 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
 
     async def add_submitted_match() -> None:
         async with factory() as s:
-            players = list((await s.execute(
-                select(m.Player)
-                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
-                .order_by(m.Player.id)
-                .limit(11)
-            )).scalars())
+            players = list(
+                (
+                    await s.execute(
+                        select(m.Player)
+                        .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+                        .order_by(m.Player.id)
+                        .limit(11)
+                    )
+                ).scalars()
+            )
             assert len(players) == 11
-            s.add(m.Match(
-                ht_match_id=900000001,
-                played_at=datetime.now(UTC) + timedelta(days=2),
-                match_type=1,
-                status="UPCOMING",
-                home_team_ht_id=OWN_HT_TEAM_ID,
-                away_team_ht_id=RIVAL_HT_TEAM_ID,
-                home_team_name="Pulgas Arrechas",
-                away_team_name="etbenianos1",
-                home_goals=-1,
-                away_goals=-1,
-                source_system="hattrick",
-                orders_given=True,
-                submitted_lineup_json=json.dumps([
-                    {"ht_player_id": player.ht_player_id, "role_id": 100 + index, "behaviour": 0}
-                    for index, player in enumerate(players)
-                ]),
-                submitted_tactic_type=2,
-                submitted_tactic_skill=19,
-                submitted_rating_midfield=18,
-                submitted_rating_right_def=70,
-                submitted_rating_central_def=90,
-                submitted_rating_left_def=65,
-                submitted_rating_right_att=28,
-                submitted_rating_central_att=32,
-                submitted_rating_left_att=56,
-                submitted_ratings_captured_at=datetime.now(UTC),
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=900000001,
+                    played_at=datetime.now(UTC) + timedelta(days=2),
+                    match_type=1,
+                    status="UPCOMING",
+                    home_team_ht_id=OWN_HT_TEAM_ID,
+                    away_team_ht_id=RIVAL_HT_TEAM_ID,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="etbenianos1",
+                    home_goals=-1,
+                    away_goals=-1,
+                    source_system="hattrick",
+                    orders_given=True,
+                    submitted_lineup_json=json.dumps(
+                        [
+                            {
+                                "ht_player_id": player.ht_player_id,
+                                "role_id": 100 + index,
+                                "behaviour": 0,
+                            }
+                            for index, player in enumerate(players)
+                        ]
+                    ),
+                    submitted_tactic_type=2,
+                    submitted_tactic_skill=19,
+                    submitted_rating_midfield=18,
+                    submitted_rating_right_def=70,
+                    submitted_rating_central_def=90,
+                    submitted_rating_left_def=65,
+                    submitted_rating_right_att=28,
+                    submitted_rating_central_att=32,
+                    submitted_rating_left_att=56,
+                    submitted_ratings_captured_at=datetime.now(UTC),
+                )
+            )
             await s.commit()
 
     asyncio.run(add_submitted_match())
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
-        resp = client.get(
-            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?top11=true"
-        )
+        resp = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?top11=true")
 
     assert resp.status_code == 200
     body = resp.json()
@@ -307,10 +392,13 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
     assert body["pitchZoneSources"]["own"]["kind"] == "submitted_chpp_prediction"
     assert body["pitchZoneSources"]["own"]["tacticSkill"] == 19
     assert body["pitchZoneSources"]["rival"]["kind"] == "historical_observed"
-    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 8}
-    midfield = next(
-        duel for duel in body["pitchZoneDuels"] if duel["half"] == "midfield"
-    )
+    # DOS, y no uno: este escenario siembra un partido pendiente contra el
+    # rival, así que es un rival OFICIAL y de ésos se miran sus últimos cinco
+    # OFICIALES --el fixture tiene dos-- en vez de sus últimos cinco a secas
+    # (2026-09-09). Es la misma ficha que en los demás tests, y sale distinta
+    # precisamente porque hay algo que jugar contra él.
+    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 2}
+    midfield = next(duel for duel in body["pitchZoneDuels"] if duel["half"] == "midfield")
     assert midfield["ownValue"] == 18
     assert len(body["tsiHistogram"]["ownValues"]) == 11
     # Los 11, arquero incluido: el histograma ya no esconde a nadie.
@@ -322,7 +410,7 @@ def test_comparison_reads_trainer_leadership_from_rival_stafflist(
 ) -> None:
     """TSI, forma, condición y experiencia son públicas de un rival
     (verificado en vivo contra CHPP real). El liderazgo del entrenador rival
-    sale de su stafflist.xml versión 1.2 — verificado en vivo que esa
+    sale de su stafflist.xml versión 1.2, verificado en vivo que esa
     versión expone al entrenador principal de cualquier equipo, propio o
     no (a diferencia de la 1.0/"latest" del mismo fichero, que sí deniega)."""
     import asyncio
@@ -335,16 +423,23 @@ def test_comparison_reads_trainer_leadership_from_rival_stafflist(
         async with factory() as s:
             # 2026-08-12: club/stafflist ahora entran en el sync por defecto
             # (ver DEFAULT_FILES), así que el fixture `seeded` YA escribió un
-            # StaffSnapshot real al conectar — este se sella con un
+            # StaffSnapshot real al conectar, este se sella con un
             # `captured_at` futuro para seguir siendo, sin ambigüedad, "el
             # más reciente" y así controlar el valor que ve el test.
-            s.add(m.StaffSnapshot(
-                sync_id=1, team_id=team_id,
-                captured_at=datetime.now(UTC) + timedelta(days=365),
-                assistant_trainer_levels=6, trainer_skill_level=4, trainer_type=2,
-                trainer_leadership=7, youth_investment=0, youth_level=0,
-                content_hash=b"\x01" * 32,
-            ))
+            s.add(
+                m.StaffSnapshot(
+                    sync_id=1,
+                    team_id=team_id,
+                    captured_at=datetime.now(UTC) + timedelta(days=365),
+                    assistant_trainer_levels=6,
+                    trainer_skill_level=4,
+                    trainer_type=2,
+                    trainer_leadership=7,
+                    youth_investment=0,
+                    youth_level=0,
+                    content_hash=b"\x01" * 32,
+                )
+            )
             await s.commit()
 
     asyncio.run(seed_staff())
@@ -370,7 +465,7 @@ def test_comparison_reads_trainer_leadership_from_a_rival_playing_coach(
 ) -> None:
     """Si stafflist.xml no trae al entrenador principal (p.ej. denegado esta
     vez) pero el rival entrena con uno de sus propios jugadores, ese jugador
-    trae <TrainerData> en el MISMO players.xml público — su Leadership real
+    trae <TrainerData> en el MISMO players.xml público, su Leadership real
     es el liderazgo del entrenador, sin necesitar stafflist."""
     from unittest.mock import patch
 
@@ -379,9 +474,16 @@ def test_comparison_reads_trainer_leadership_from_a_rival_playing_coach(
 
     players_with_coach = {
         "players": [
-            {**p, "player_trainer_skill_level": 4, "player_trainer_type": 2, "leadership": 8,
-             "first_name": "Fulano", "last_name": "Entrenador"}
-            if i == 0 else p
+            {
+                **p,
+                "player_trainer_skill_level": 4,
+                "player_trainer_type": 2,
+                "leadership": 8,
+                "first_name": "Fulano",
+                "last_name": "Entrenador",
+            }
+            if i == 0
+            else p
             for i, p in enumerate(RIVAL_PLAYERS["players"])
         ]
     }
@@ -409,7 +511,7 @@ def test_comparison_trainer_leadership_is_none_when_both_sources_are_empty(
 ) -> None:
     """Cuando ni stafflist.xml (denegado esta vez) ni players.xml (sin
     jugador-entrenador) traen nada, el liderazgo del rival se queda en
-    `None` — nunca se inventa un valor."""
+    `None`, nunca se inventa un valor."""
     from unittest.mock import patch
 
     client, user_id, team_id, _factory = seeded
@@ -466,13 +568,20 @@ def test_non_official_matches_are_excluded_from_head_to_head_by_default(
 
     async def add_ladder_match():
         async with factory() as s:
-            s.add(m.Match(
-                ht_match_id=900_555, played_at=datetime(2026, 7, 10, tzinfo=UTC),
-                match_type=50, status="finished",
-                home_team_ht_id=OWN_HT_TEAM_ID, away_team_ht_id=RIVAL_HT_TEAM_ID,
-                home_team_name="Pulgas Arrechas", away_team_name="etbenianos1",
-                home_goals=1, away_goals=0,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=900_555,
+                    played_at=datetime(2026, 7, 10, tzinfo=UTC),
+                    match_type=50,
+                    status="finished",
+                    home_team_ht_id=OWN_HT_TEAM_ID,
+                    away_team_ht_id=RIVAL_HT_TEAM_ID,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="etbenianos1",
+                    home_goals=1,
+                    away_goals=0,
+                )
+            )
             await s.commit()
 
     asyncio.run(add_ladder_match())
@@ -480,15 +589,15 @@ def test_non_official_matches_are_excluded_from_head_to_head_by_default(
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
         default_resp = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
         included_resp = client.get(
-            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
-            "?include_non_official=true"
+            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?include_non_official=true"
         )
 
-    assert default_resp.json()["matchesAnalysed"] == 8
+    assert default_resp.json()["matchesAnalysed"] == 1
     assert any(
-        "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c for c in default_resp.json()["caveats"]
+        "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c
+        for c in default_resp.json()["caveats"]
     )
-    assert included_resp.json()["matchesAnalysed"] == 8
+    assert included_resp.json()["matchesAnalysed"] == 1
 
 
 def test_top11_restricts_own_side_and_takes_highest_tsi_rivals(
@@ -500,10 +609,7 @@ def test_top11_restricts_own_side_and_takes_highest_tsi_rivals(
     client.cookies.set("htlens_session", create_session_token(user_id))
 
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
-        resp = client.get(
-            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
-            "?top11=true"
-        )
+        resp = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?top11=true")
 
     assert resp.status_code == 200
     body = resp.json()
@@ -513,9 +619,10 @@ def test_top11_restricts_own_side_and_takes_highest_tsi_rivals(
     # el rival: los 11 de mayor TSI, sin adivinar su once real
     rival_values = body["tsiHistogram"]["rivalValues"]
     assert len(rival_values) == 11
-    assert sorted(rival_values, reverse=True) == sorted(
-        [p["tsi"] for p in RIVAL_PLAYERS["players"]], reverse=True
-    )[:11]
+    assert (
+        sorted(rival_values, reverse=True)
+        == sorted([p["tsi"] for p in RIVAL_PLAYERS["players"]], reverse=True)[:11]
+    )
     assert any("Los 11 mejores" in c for c in body["caveats"])
 
 
@@ -523,7 +630,7 @@ def test_tactic_history_summarises_all_synced_matches_not_capped(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
 ) -> None:
     """El historial de táctica usa TODOS los partidos con MatchRating del
-    rival ya en la base — no el mismo cap de 5 que limita las llamadas en
+    rival ya en la base, no el mismo cap de 5 que limita las llamadas en
     vivo a matchlineup (esas sí cuestan una petición a CHPP por partido)."""
     import asyncio
     from unittest.mock import patch
@@ -533,19 +640,36 @@ def test_tactic_history_summarises_all_synced_matches_not_capped(
 
     async def add_second_match_with_tactic() -> None:
         async with factory() as s:
-            s.add(m.Match(
-                ht_match_id=900_777, played_at=datetime(2026, 7, 12, tzinfo=UTC),
-                match_type=1, status="FINISHED",
-                home_team_ht_id=RIVAL_HT_TEAM_ID, away_team_ht_id=OWN_HT_TEAM_ID,
-                home_team_name="etbenianos1", away_team_name="Pulgas Arrechas",
-                home_goals=0, away_goals=1,
-            ))
-            s.add(m.MatchRating(
-                ht_match_id=900_777, team_ht_id=RIVAL_HT_TEAM_ID, is_home=True,
-                midfield=15, right_def=30, central_def=27, left_def=25,
-                right_att=28, central_att=27, left_att=24,
-                tactic_type=4, attitude=1,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=900_777,
+                    played_at=datetime(2026, 7, 12, tzinfo=UTC),
+                    match_type=1,
+                    status="FINISHED",
+                    home_team_ht_id=RIVAL_HT_TEAM_ID,
+                    away_team_ht_id=OWN_HT_TEAM_ID,
+                    home_team_name="etbenianos1",
+                    away_team_name="Pulgas Arrechas",
+                    home_goals=0,
+                    away_goals=1,
+                )
+            )
+            s.add(
+                m.MatchRating(
+                    ht_match_id=900_777,
+                    team_ht_id=RIVAL_HT_TEAM_ID,
+                    is_home=True,
+                    midfield=15,
+                    right_def=30,
+                    central_def=27,
+                    left_def=25,
+                    right_att=28,
+                    central_att=27,
+                    left_att=24,
+                    tactic_type=4,
+                    attitude=1,
+                )
+            )
             # también la del fixture original: le damos un tactic_type real
             row = await s.get(m.MatchRating, 1)
             if row is not None:
@@ -555,25 +679,30 @@ def test_tactic_history_summarises_all_synced_matches_not_capped(
 
     asyncio.run(add_second_match_with_tactic())
 
+    # Se piden los AMISTOSOS a propósito: son los que llenan la ventana de
+    # cinco. Con los oficiales, que en esa ventana es uno solo, la prueba no
+    # probaría nada.
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
-        resp = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
+        resp = client.get(
+            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
+            "?include_competitive=false&include_friendlies=true"
+        )
 
     assert resp.status_code == 200
     body = resp.json()
     th = body["tacticHistory"]
     assert th is not None
-    # 2 partidos con MatchRating del rival, aunque matchesAnalysed (matchlineup
-    # en vivo) siga limitado por MAX_MATCHES_ANALYSED / lo que haya jugado.
-    assert th["matchesAnalysed"] == 8
+    # Los cuatro amistosos que caen dentro de la ventana de cinco.
+    assert th["matchesAnalysed"] == 4
     assert th["mostCommonTactic"]["code"] == 4
     assert th["mostCommonTactic"]["label"] == "Atacar por las bandas"
-    assert th["mostCommonTactic"]["count"] == 8
+    assert th["mostCommonTactic"]["count"] == 4
     assert th["mostCommonTactic"]["pct"] == 100.0
     # TacticSkill y Formation SÍ son públicos para el rival (a diferencia de
-    # TeamAttitude) — fixtures/matchdetails.xml trae TacticSkill=11 y
+    # TeamAttitude), fixtures/matchdetails.xml trae TacticSkill=11 y
     # Formation="4-4-2" también para el AwayTeam.
     assert th["avgTacticSkill"] == 11.0
-    assert th["mostCommonFormation"] == {"formation": "4-4-2", "count": 8, "pct": 100.0}
+    assert th["mostCommonFormation"] == {"formation": "4-4-2", "count": 4, "pct": 100.0}
 
 
 def test_the_window_keeps_the_most_recent_matches_not_the_oldest() -> None:
@@ -590,7 +719,7 @@ def test_the_window_keeps_the_most_recent_matches_not_the_oldest() -> None:
     ventana = _most_recent_by_date(partidos, "match_date", MAX_MATCHES_ANALYSED)
     assert len(ventana) == MAX_MATCHES_ANALYSED
     # De más viejo a más nuevo, y sin ninguno de los primeros días.
-    assert [p["id"] for p in ventana] == list(range(5, 15))
+    assert [p["id"] for p in ventana] == list(range(15 - MAX_MATCHES_ANALYSED, 15))
 
 
 def test_non_official_matches_never_feed_tactic_history_or_rotation(
@@ -598,12 +727,12 @@ def test_non_official_matches_never_feed_tactic_history_or_rotation(
 ) -> None:
     """Corrección HL-2xx: en Duelos/Escaleras `match_ratings.team_ht_id` es un
     ID efímero que nunca coincide con el ht_team_id real del rival (ni con el
-    del equipo propio — comprobado con datos reales de la cuenta), así que
+    del equipo propio, comprobado con datos reales de la cuenta), así que
     hace falta resolver la fila del rival por posición (`MatchRating.is_home`
     frente a `Match.home_team_ht_id`/`away_team_ht_id`, que sí son reales
-    incluso en Duelos — ver migración 0018). Aun con eso técnicamente
+    incluso en Duelos, ver migración 0018). Aun con eso técnicamente
     resuelto, el historial de táctica y la rotación de lado siguen ignorando
-    Duelos/Escaleras SIEMPRE — decisión de producto, no limitación técnica:
+    Duelos/Escaleras SIEMPRE, decisión de producto, no limitación técnica:
     esos partidos no representan cómo juega el rival normalmente (alineación
     rotada/reserva)."""
     import asyncio
@@ -614,46 +743,71 @@ def test_non_official_matches_never_feed_tactic_history_or_rotation(
 
     async def add_duel() -> None:
         async with factory() as s:
-            s.add(m.Match(
-                ht_match_id=920_000, played_at=datetime(2026, 7, 15, tzinfo=UTC),
-                match_type=62, status="FINISHED",
-                home_team_ht_id=OWN_HT_TEAM_ID, away_team_ht_id=RIVAL_HT_TEAM_ID,
-                home_team_name="Pulgas Arrechas", away_team_name="etbenianos1",
-                home_goals=3, away_goals=0,
-            ))
+            s.add(
+                m.Match(
+                    ht_match_id=920_000,
+                    played_at=datetime(2026, 7, 15, tzinfo=UTC),
+                    match_type=62,
+                    status="FINISHED",
+                    home_team_ht_id=OWN_HT_TEAM_ID,
+                    away_team_ht_id=RIVAL_HT_TEAM_ID,
+                    home_team_name="Pulgas Arrechas",
+                    away_team_name="etbenianos1",
+                    home_goals=3,
+                    away_goals=0,
+                )
+            )
             # team_ht_id efímero a propósito (así es en un duelo real): lo que
             # localizaría esta fila como la del rival, si algo la localizara,
-            # es is_home=False — coherente con que el rival jugó como away.
-            s.add(m.MatchRating(
-                ht_match_id=920_000, team_ht_id=999_111_222, is_home=False,
-                midfield=99, right_def=1, central_def=1, left_def=1,
-                right_att=1, central_att=1, left_att=99,  # lado fuerte distinto, si contara
-                tactic_type=8, attitude=1,  # táctica distinta, si contara
-            ))
-            s.add(m.MatchRating(
-                ht_match_id=920_000, team_ht_id=999_333_444, is_home=True,
-                midfield=50, right_def=50, central_def=50, left_def=50,
-                right_att=50, central_att=50, left_att=50,
-            ))
+            # es is_home=False, coherente con que el rival jugó como away.
+            s.add(
+                m.MatchRating(
+                    ht_match_id=920_000,
+                    team_ht_id=999_111_222,
+                    is_home=False,
+                    midfield=99,
+                    right_def=1,
+                    central_def=1,
+                    left_def=1,
+                    right_att=1,
+                    central_att=1,
+                    left_att=99,  # lado fuerte distinto, si contara
+                    tactic_type=8,
+                    attitude=1,  # táctica distinta, si contara
+                )
+            )
+            s.add(
+                m.MatchRating(
+                    ht_match_id=920_000,
+                    team_ht_id=999_333_444,
+                    is_home=True,
+                    midfield=50,
+                    right_def=50,
+                    central_def=50,
+                    left_def=50,
+                    right_att=50,
+                    central_att=50,
+                    left_att=50,
+                )
+            )
             await s.commit()
 
     asyncio.run(add_duel())
 
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
         resp = client.get(
-            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
-            "?include_non_official=true"
+            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?include_non_official=true"
         )
 
     assert resp.status_code == 200
     body = resp.json()
     # El duelo SÍ cuenta para nombres/posiciones (matchesAnalysed sube a 2)...
-    assert body["matchesAnalysed"] == 8
+    assert body["matchesAnalysed"] == 1
     # ...pero el historial de táctica y la rotación de lado siguen viendo solo
     # el partido oficial original del fixture, aunque el duelo ahora SÍ se
     # podría resolver por posición (is_home) si se quisiera.
-    assert body["tacticHistory"]["matchesAnalysed"] == 8
-    assert body["sideRotation"]["matchesAnalysed"] == 8
+    assert body["tacticHistory"]["matchesAnalysed"] == 1
+    assert body["sideRotation"]["matchesAnalysed"] == 1
     assert any(
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c
         for c in body["caveats"]
@@ -665,10 +819,10 @@ def test_national_team_matches_never_count_and_preseason_never_counts_either(
 ) -> None:
     """Decisión de producto confirmada con el usuario: los partidos de
     Selección nacional (tipo 10/11/12) nunca cuentan para la ficha de un
-    rival, ni siquiera bajo el toggle competitivo — se juegan con otro
+    rival, ni siquiera bajo el toggle competitivo, se juegan con otro
     cuerpo técnico, a veces otro país, y no dicen nada de cómo juega el
     CLUB rival. 2026-08-11, pedido explícito y más reciente: los de
-    pretemporada (Preparación, tipo 80) tampoco cuentan nunca — junto con
+    pretemporada (Preparación, tipo 80) tampoco cuentan nunca, junto con
     Torneo liga/playoff, Duelo y Escalera, son partidos de mentiras."""
     from unittest.mock import patch
 
@@ -678,26 +832,38 @@ def test_national_team_matches_never_count_and_preseason_never_counts_either(
     custom_matches = {
         "matches": [
             {
-                "ht_match_id": 700_001, "home_team_id": RIVAL_HT_TEAM_ID,
-                "home_team_name": "etbenianos1", "away_team_id": 900_001,
-                "away_team_name": "Selección rival", "match_date": "2026-07-01 00:00:00",
-                "match_type": 10, "status": "FINISHED", "home_goals": 1, "away_goals": 0,
-                "cup_level": -1, "cup_level_index": -1,
+                "ht_match_id": 700_001,
+                "home_team_id": RIVAL_HT_TEAM_ID,
+                "home_team_name": "etbenianos1",
+                "away_team_id": 900_001,
+                "away_team_name": "Selección rival",
+                "match_date": "2026-07-01 00:00:00",
+                "match_type": 10,
+                "status": "FINISHED",
+                "home_goals": 1,
+                "away_goals": 0,
+                "cup_level": -1,
+                "cup_level_index": -1,
             },
             {
-                "ht_match_id": 700_002, "home_team_id": RIVAL_HT_TEAM_ID,
-                "home_team_name": "etbenianos1", "away_team_id": 900_002,
-                "away_team_name": "Rival de pretemporada", "match_date": "2026-07-02 00:00:00",
-                "match_type": 80, "status": "FINISHED", "home_goals": 2, "away_goals": 1,
-                "cup_level": -1, "cup_level_index": -1,
+                "ht_match_id": 700_002,
+                "home_team_id": RIVAL_HT_TEAM_ID,
+                "home_team_name": "etbenianos1",
+                "away_team_id": 900_002,
+                "away_team_name": "Rival de pretemporada",
+                "match_date": "2026-07-02 00:00:00",
+                "match_type": 80,
+                "status": "FINISHED",
+                "home_goals": 2,
+                "away_goals": 1,
+                "cup_level": -1,
+                "cup_level_index": -1,
             },
         ]
     }
 
     class FakeCHPPWithCustomMatches(FakeCHPP):
-        async def fetch(
-            self, file: str, version: str = "latest", **params: Any
-        ) -> dict[str, Any]:
+        async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
             if file == "matches" and params.get("teamID") == RIVAL_HT_TEAM_ID:
                 return custom_matches
             return await super().fetch(file, version, **params)
@@ -748,7 +914,9 @@ def test_pitch_zone_duels_pair_mirrored_flanks_on_both_halves(
     # central_def=27, right_def=30, midfield=15, left_att=24, central_att=27,
     # right_att=28.
     left_own = duels[("left", "own")]
-    assert left_own["ownValue"] == 43 and left_own["rivalValue"] == 28  # own.left_def vs rival.right_att
+    assert (
+        left_own["ownValue"] == 43 and left_own["rivalValue"] == 28
+    )  # own.left_def vs rival.right_att
     assert left_own["ownPct"] == round(43 / 71, 3)
 
     central_own = duels[("central", "own")]
@@ -758,7 +926,9 @@ def test_pitch_zone_duels_pair_mirrored_flanks_on_both_halves(
     assert right_own["ownValue"] == 45 and right_own["rivalValue"] == 24
 
     left_rival = duels[("left", "rival")]
-    assert left_rival["ownValue"] == 13 and left_rival["rivalValue"] == 30  # own.left_att vs rival.right_def
+    assert (
+        left_rival["ownValue"] == 13 and left_rival["rivalValue"] == 30
+    )  # own.left_att vs rival.right_def
 
     central_rival = duels[("central", "rival")]
     assert central_rival["ownValue"] == 9 and central_rival["rivalValue"] == 27
@@ -771,14 +941,14 @@ def test_pitch_zone_duels_pair_mirrored_flanks_on_both_halves(
     assert midfield["ownPct"] == round(14 / 29, 3)
     assert round(midfield["ownPct"] + midfield["rivalPct"], 3) == 1.0
 
-    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 8}
+    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 1}
 
 
 def test_pitch_zone_duels_are_none_without_matches_on_either_side(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
 ) -> None:
     """Sin partidos con datos de sector de alguno de los dos lados, no se
-    inventa ningún duelo — se queda en `None`."""
+    inventa ningún duelo, se queda en `None`."""
     from unittest.mock import patch
 
     client, user_id, team_id, _factory = seeded
@@ -794,50 +964,59 @@ def test_pitch_zone_duels_are_none_without_matches_on_either_side(
     assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": None}
 
 
-def test_pitch_zone_scope_selector_is_independent_from_page_toggles(
+def test_oficiales_y_amistosos_son_excluyentes_uno_u_otro(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
 ) -> None:
-    """El selector local del panel de Duelos por zona (`pitch_zone_scope`)
-    puede pedir "solo oficiales" o "solo amistosos" del RIVAL sin tocar los
-    toggles globales de la página (que siguen determinando roster, marcaje,
-    táctica...) — fixtures/matches.xml (reusado para el rival) tiene 2
-    partidos de liga (tipo 1) y 6 amistosos internacionales (tipo 9)."""
+    """2026-09-09, pedido del usuario: los dos toggles de la esquina dejan de
+    ser casillas sueltas y pasan a ser UN SELECTOR: oficiales o amistosos,
+    nunca los dos ni ninguno.
+
+    La normalizacion vive en el endpoint y no solo en la pantalla, porque la
+    URL se puede escribir a mano: `include_competitive=false&
+    include_friendlies=false` devolvia antes una ficha vacia. Cualquier
+    combinacion que no sea exactamente una cae en oficiales, que es lo que
+    abre por defecto.
+
+    El fixture (matches.xml, reusado para el rival) trae 2 partidos de liga
+    (tipo 1) y 6 amistosos internacionales (tipo 9). Este rival no tiene cruce
+    oficial pendiente, así que desde el 2026-09-09 la ventana son sus CINCO
+    últimos partidos sean de la clase que sean --uno de liga y cuatro
+    amistosos--, y el selector elige dentro de ella.
+    """
     from unittest.mock import patch
 
     client, user_id, team_id, _factory = seeded
     client.cookies.set("htlens_session", create_session_token(user_id))
 
+    ficha = f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
-        mixed = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
-        official = client.get(
-            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
-            "?pitch_zone_scope=official"
-        )
-        friendly = client.get(
-            f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting"
-            "?pitch_zone_scope=friendly"
-        )
+        por_defecto = client.get(ficha)
+        oficiales = client.get(f"{ficha}?include_competitive=true&include_friendlies=false")
+        amistosos = client.get(f"{ficha}?include_competitive=false&include_friendlies=true")
+        ninguno = client.get(f"{ficha}?include_competitive=false&include_friendlies=false")
+        ambos = client.get(f"{ficha}?include_competitive=true&include_friendlies=true")
 
-    assert mixed.status_code == official.status_code == friendly.status_code == 200
-    # "mixed" (por defecto) mezcla liga y amistosos según los toggles
-    # globales (ambos on).
-    assert mixed.json()["pitchZonesMatchesAnalysed"]["rival"] == 8
-    assert mixed.json()["pitchZoneScope"] == "mixed"
-    # "official": solo los 2 partidos de liga (tipo 1) del rival.
-    assert official.json()["pitchZonesMatchesAnalysed"]["rival"] == 2
-    assert official.json()["pitchZoneScope"] == "official"
-    # "friendly": los 6 amistosos internacionales, todos dentro del tope.
-    assert friendly.json()["pitchZonesMatchesAnalysed"]["rival"] == 6
-    assert friendly.json()["pitchZoneScope"] == "friendly"
-
-    # Nada del resto de la ficha (roster, marcaje, matchesAnalysed global)
-    # cambia por el selector local — sigue atado a los toggles de arriba.
-    assert (
-        mixed.json()["matchesAnalysed"]
-        == official.json()["matchesAnalysed"]
-        == friendly.json()["matchesAnalysed"]
-        == 8
+    assert all(
+        r.status_code == 200
+        for r in (por_defecto, oficiales, amistosos, ninguno, ambos)
     )
+
+    # Una sola muestra manda en toda la ficha: el conteo global y el del mapa
+    # de duelos son el mismo numero, ya no hay un recorte propio del panel.
+    def muestra(resp) -> tuple[int, int]:
+        cuerpo = resp.json()
+        return cuerpo["matchesAnalysed"], cuerpo["pitchZonesMatchesAnalysed"]["rival"]
+
+    # De los CINCO últimos del rival, uno es de liga y cuatro amistosos.
+    assert muestra(oficiales) == (1, 1)
+    assert muestra(amistosos) == (4, 4)
+    # Por defecto, oficiales. Y las dos combinaciones imposibles caen ahí.
+    assert muestra(por_defecto) == (1, 1)
+    assert muestra(ninguno) == (1, 1)
+    assert muestra(ambos) == (1, 1)
+
+    # El selector propio del panel de Duelos por zona murio con esto.
+    assert "pitchZoneScope" not in por_defecto.json()
 
 
 def test_the_last_purchase_reads_the_rivals_own_transfer_history(
@@ -863,3 +1042,188 @@ def test_the_last_purchase_reads_the_rivals_own_transfer_history(
     # El fixture no trae transfersteam para el rival: sin dato se dice que no
     # hay, en vez de enseñar el del equipo propio.
     assert set(compra) == {"own", "rival"}
+
+
+def test_la_ficha_no_repide_los_partidos_que_el_sync_ya_guardo(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """La razón de ser de `rival_matches` (2026-09-09, pedido del usuario:
+    «me dice que ya llamé muchísimas veces la info de rivales y sus partidos,
+    y es verdad»).
+
+    Un partido terminado no cambia nunca, así que su alineación y su detalle
+    se piden UNA vez y la ficha los lee de la base. Lo que aquí se cuenta no
+    son los datos, que ya se comprueban en otros tests, sino las LLAMADAS: es
+    lo único que el usuario notó y lo único que se quería cambiar.
+
+    Desde el 2026-09-10 la primera visita también guarda, así que la
+    comparación es entre la primera visita --sin nada guardado-- y la segunda.
+    """
+    import asyncio
+    from collections import Counter
+    from unittest.mock import patch
+
+    from sqlalchemy import delete, select
+
+    client, user_id, team_id, factory = seeded
+    client.cookies.set("htlens_session", create_session_token(user_id))
+
+    class CHPPQueCuenta(FakeCHPP):
+        def __init__(self) -> None:
+            self.llamadas: list[str] = []
+
+        async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
+            self.llamadas.append(file)
+            return await super().fetch(file, version, **params)
+
+    async def guardadas() -> list[m.RivalMatch]:
+        async with factory() as s:
+            return list((await s.execute(select(m.RivalMatch))).scalars())
+
+    # El sync del fixture ya guardó partidos del rival: la precarga funcionando
+    # de punta a punta.
+    assert asyncio.run(guardadas()), "el sync debería haber guardado partidos del rival"
+
+    async def vaciar() -> None:
+        async with factory() as s:
+            await s.execute(delete(m.RivalMatch))
+            await s.commit()
+
+    def visitar(espia: CHPPQueCuenta):
+        # La memoria corta del módulo se vacía en cada visita: si no, la
+        # segunda se serviría de ahí y no probaría nada sobre la base.
+        rivals_module._chpp_cache.clear()
+        with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: espia):
+            return client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
+
+    # ── Primera visita, sin nada guardado ────────────────────────────────
+    asyncio.run(vaciar())
+    frio = CHPPQueCuenta()
+    primera = visitar(frio)
+    assert primera.status_code == 200
+    analizados = primera.json()["matchesAnalysed"]
+    assert analizados > 0
+    en_frio = Counter(frio.llamadas)
+    # Un detalle y una alineación por partido analizado.
+    assert en_frio["matchdetails"] == analizados
+    assert en_frio["matchlineup"] >= analizados
+    # Y lo pedido quedó guardado: ésa es la mitad nueva.
+    assert len(asyncio.run(guardadas())) == analizados
+
+    # ── Segunda visita ───────────────────────────────────────────────────
+    caliente = CHPPQueCuenta()
+    segunda = visitar(caliente)
+    assert segunda.status_code == 200
+    en_caliente = Counter(caliente.llamadas)
+
+    # La ficha sale igual de completa...
+    assert segunda.json()["matchesAnalysed"] == analizados
+    assert segunda.json()["pitchZoneDuels"] == primera.json()["pitchZoneDuels"]
+    # ...y no se pidió ni un detalle ni una alineación de los partidos ya vistos.
+    assert en_caliente["matchdetails"] == 0
+    assert en_caliente["matchlineup"] < en_frio["matchlineup"]
+
+
+def test_un_rival_sin_cruce_se_guarda_desde_la_primera_visita(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """2026-09-10, pedido del usuario: los rivales de amistoso y los traídos
+    con su identificador se guardan «a partir del primer llamado y que no se
+    descarguen siempre de nuevo».
+
+    El rival del fixture no tiene cruce pendiente, así que es exactamente ese
+    caso: el sync no lo precarga. Se prueban las DOS clases, porque cada una
+    se guarda cuando se mira y ninguna echa a la otra de la ventana.
+    """
+    import asyncio
+    from collections import Counter
+    from unittest.mock import patch
+
+    from sqlalchemy import delete, select
+
+    client, user_id, team_id, factory = seeded
+    client.cookies.set("htlens_session", create_session_token(user_id))
+
+    class CHPPQueCuenta(FakeCHPP):
+        def __init__(self) -> None:
+            self.llamadas: list[str] = []
+
+        async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
+            self.llamadas.append(file)
+            return await super().fetch(file, version, **params)
+
+    async def vaciar() -> None:
+        async with factory() as s:
+            await s.execute(delete(m.RivalMatch))
+            await s.commit()
+
+    async def tipos_guardados() -> list[int]:
+        async with factory() as s:
+            return sorted((await s.execute(select(m.RivalMatch.match_type))).scalars())
+
+    def visitar(clase: str) -> Counter:
+        espia = CHPPQueCuenta()
+        rivals_module._chpp_cache.clear()
+        consulta = (
+            "include_competitive=true&include_friendlies=false"
+            if clase == "oficiales"
+            else "include_competitive=false&include_friendlies=true"
+        )
+        with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: espia):
+            r = client.get(
+                f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?{consulta}"
+            )
+        assert r.status_code == 200, r.text
+        return Counter(espia.llamadas)
+
+    asyncio.run(vaciar())
+
+    # Amistosos: la primera visita los pide y los guarda...
+    assert visitar("amistosos")["matchdetails"] > 0
+    amistosos_guardados = asyncio.run(tipos_guardados())
+    assert amistosos_guardados and all(t != 1 for t in amistosos_guardados)
+    # ...y la segunda ya no pide ninguno.
+    assert visitar("amistosos")["matchdetails"] == 0
+
+    # Oficiales del mismo rival: se guardan también, SIN echar a los amistosos.
+    assert visitar("oficiales")["matchdetails"] > 0
+    ambos = asyncio.run(tipos_guardados())
+    assert 1 in ambos
+    assert len([t for t in ambos if t != 1]) == len(amistosos_guardados)
+    assert visitar("oficiales")["matchdetails"] == 0
+    assert visitar("amistosos")["matchdetails"] == 0
+
+
+def test_el_sync_deja_guardados_los_partidos_del_rival(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """Lo que el usuario pidió que pasara en Sync, comprobado donde pasa.
+
+    El fixture corre una sincronización completa, así que basta con mirar qué
+    quedó: filas del rival, con su alineación y sus nueve ratings dentro.
+    """
+    import asyncio
+
+    from sqlalchemy import select
+
+    _client, _user_id, _team_id, factory = seeded
+
+    async def leer() -> list[m.RivalMatch]:
+        async with factory() as s:
+            return list(
+                (
+                    await s.execute(
+                        select(m.RivalMatch).where(m.RivalMatch.team_ht_id == RIVAL_HT_TEAM_ID)
+                    )
+                ).scalars()
+            )
+
+    filas = asyncio.run(leer())
+    assert filas, "el sync debería haber guardado partidos del rival"
+    # Nunca más de la ventana, se juegue lo que se juegue.
+    assert len(filas) <= 5
+    for f in filas:
+        # La alineación guardada es lo que ahorra la llamada de `matchlineup`.
+        assert json.loads(f.lineup_json)
+        # Y el marcador entero, para poder escribir «A 1 - 0 B».
+        assert f.home_team_name and f.away_team_name

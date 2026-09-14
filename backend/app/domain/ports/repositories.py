@@ -16,7 +16,7 @@ class PlayerRepository(Protocol):
         ...
 
     async def get_last_snapshot(self, ht_player_id: int) -> dict[str, Any] | None:
-        """Valores reales del último snapshot (no solo el hash) — HL-140:
+        """Valores reales del último snapshot (no solo el hash), HL-140:
         hace falta el valor anterior para poder describir qué cambió, no
         solo saber que cambió."""
         ...
@@ -39,7 +39,7 @@ class PlayerRepository(Protocol):
     ) -> list[Any]:
         """Un jugador del equipo que no vino en el último `players.xml` ya no
         está: se marca `left_team_at`, nunca se borra (histórico). Devuelve
-        las filas `Player` marcadas (no solo el conteo) — HL-2xx: el llamador
+        las filas `Player` marcadas (no solo el conteo), HL-2xx: el llamador
         necesita `sale_price`/`purchase_price` de cada una para anunciar la
         salida en "Qué cambió", y esos campos sólo están completos DESPUÉS de
         que `transfersteam` (si es parte del mismo sync) corra, así que el
@@ -56,7 +56,7 @@ class PlayerRepository(Protocol):
         rating: float,
         captured_at: datetime,
     ) -> bool:
-        """Histórico de rating por partido (HL-15x #21) — append-only,
+        """Histórico de rating por partido (HL-15x #21), append-only,
         deduplicado por (player_id, ht_match_id). Devuelve True si insertó
         una fila nueva, False si ese partido ya estaba registrado."""
         ...
@@ -68,7 +68,7 @@ class TeamSnapshotRepository(Protocol):
     async def get_last_hash(self, team_id: int) -> bytes | None: ...
 
     async def get_last_values(self, team_id: int) -> dict[str, Any] | None:
-        """Valores reales del último snapshot — HL-140, mismo motivo que en
+        """Valores reales del último snapshot, HL-140, mismo motivo que en
         `PlayerRepository.get_last_snapshot`."""
         ...
 

@@ -1,11 +1,11 @@
 """2026-08-12, pedido explícitamente ("Conversión" no funcionaba): la
 suposición original de que matchdetails.xml trae una lista de `<Event>`
-con `EventTypeID` para clasificar ocasiones era incorrecta — verificado en
+con `EventTypeID` para clasificar ocasiones era incorrecta, verificado en
 vivo contra un partido real, la versión 3.1 nunca trae ese elemento. Lo que
 sí trae, por cada lado, son conteos reales de ocasiones por zona
 (`NrOfChancesLeft/Center/Right/SpecialEvents/Other`). `match_events` queda
 vacía desde siempre (0 filas reales) porque el parser nunca encontraba ese
-elemento — se elimina en vez de mantener una tabla que nunca tuvo datos
+elemento, se elimina en vez de mantener una tabla que nunca tuvo datos
 reales que pudiera tener.
 
 Revision ID: 0041

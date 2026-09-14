@@ -1,5 +1,5 @@
-"""Nacionalidad real del jugador — HL-15x. `NativeLeagueName` ya viene como
-texto en playerdetails.xml (fase B, ya se sincroniza) — no hace falta tabla
+"""Nacionalidad real del jugador, HL-15x. `NativeLeagueName` ya viene como
+texto en playerdetails.xml (fase B, ya se sincroniza), no hace falta tabla
 país→nombre propia. Hecho de una vez, como mother_club_team_name.
 
 Revision ID: 0015

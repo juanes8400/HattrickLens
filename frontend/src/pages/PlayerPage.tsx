@@ -25,7 +25,7 @@ import {
 } from "../components/Panels";
 import { PlayerDistributionPanel } from "../components/PlayerDistributionPanel";
 import { TEAM_ID, usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
-import { date, htAge, money, number } from "../hooks/useFormat";
+import { date, htAge, htAgeTexto, money, number } from "../hooks/useFormat";
 import { api } from "../services/api";
 import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
@@ -61,7 +61,7 @@ function skillLevel(level: number): string {
   return skillLevelLabel(level);
 }
 
-// HL-15x #94: 3 radares agrupados en vez de uno de 9 ejes — agrupación
+// HL-15x #94: 3 radares agrupados en vez de uno de 9 ejes, agrupación
 // editorial (no oficial de CHPP), pensada por rol futbolístico, no una
 // tabla del manual. Cubren las 11 variables del historial exactamente una
 // vez cada una.
@@ -92,7 +92,7 @@ interface PositionRow {
   isSpecialRole: boolean;
 }
 
-/** Semana ISO (lunes-domingo) de una fecha — para que ningún timeline tenga
+/** Semana ISO (lunes-domingo) de una fecha, para que ningún timeline tenga
  * más de un punto por semana aunque se sincronice varias veces al día. */
 function isoWeekKey(dateStr: string): string {
   const d = new Date(dateStr);
@@ -107,7 +107,7 @@ function isoWeekKey(dateStr: string): string {
 }
 
 /** Un punto por semana ISO por cada serie: el último valor visto esa
- * semana, no todos — HL-15x #101, aplicado a cualquier timeline (TSI,
+ * semana, no todos, HL-15x #101, aplicado a cualquier timeline (TSI,
  * habilidades, rating por partido), no solo TSI. */
 function bucketWeekly(
   dates: string[],
@@ -151,7 +151,7 @@ function rankInSquad(
 }
 
 /**
- * Ficha de jugador — el hub al que apunta todo nombre clickeable del
+ * Ficha de jugador, el hub al que apunta todo nombre clickeable del
  * producto. Reúne lo que ya calculan los motores para este jugador en
  * particular: habilidades, posiciones, preclasificación de carrera,
  * entrenamiento/experiencia real, y su lugar dentro de la plantilla.
@@ -166,10 +166,10 @@ export function PlayerPage() {
   if (!data) return <Empty>Jugador no encontrado.</Empty>;
 
   // 2026-08-05, pedido explícitamente: un ex-jugador (venta real o
-  // despido — `left_team_at` sin `sold_at`) no tiene el resto del
+  // despido, `left_team_at` sin `sold_at`) no tiene el resto del
   // dashboard (habilidades, posiciones, entrenamiento…), así que se
   // separa en un componente aparte ANTES de cualquier hook que dependa de
-  // campos que solo trae `ActivePlayerDetail` — TypeScript ya lo obliga
+  // campos que solo trae `ActivePlayerDetail`, TypeScript ya lo obliga
   // (unión discriminada por `isExPlayer`), y evita repetir el guard
   // "por si acaso" dentro de cada `useMemo`.
   if (data.isExPlayer) return <ExPlayerDashboard data={data} />;
@@ -244,7 +244,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const top10Positions = data.positions.slice(0, 10);
 
   // HL-15x #1+#24+#94: 3 radares agrupados, pasado-vs-hoy (fusión aprobada
-  // por el usuario) — del historial real de snapshots. Con un solo punto
+  // por el usuario), del historial real de snapshots. Con un solo punto
   // real todavía (cuenta nueva) se muestra una sola capa: no hay "antes"
   // que comparar, y fingir uno sería inventar datos.
   const histDates = data.history.dates;
@@ -254,7 +254,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const latestIdx = histDates.length - 1;
   // HL-15x, pedido explícito 2026-08-10: el punto "más antiguo" del radar
   // debería anclarse a cuándo el jugador entró al equipo (más honesto que
-  // "la primera vez que sincronizamos", que puede ser meses después) —
+  // "la primera vez que sincronizamos", que puede ser meses después)
   // `joinedSeasonWeek` ya trae ese respaldo (compra real → manual). Sin
   // ninguna de las dos, se cae al primer snapshot real de siempre.
   const oldestLabel =
@@ -320,7 +320,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const effectiveStageKey =
     data.careerStage.confirmedStage ?? data.careerStage.stage;
 
-  // HL-15x #100: agresividad va al revés que carácter/honestidad — nivel
+  // HL-15x #100: agresividad va al revés que carácter/honestidad, nivel
   // bajo (p.ej. "calmada") es el rasgo deseable, así que se invierte para
   // que "lejos del centro" signifique lo mismo en los 3 ejes.
   const aggressivenessPlotted = data.character
@@ -329,7 +329,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
 
   // HL-15x, pedido explícito 2026-08-10: 5 barras parejas (habilidad
   // entrenada, Experiencia, Fidelidad, Forma, Resistencia) en vez de
-  // paneles de distinto tamaño — cada una con su propia forma de calcular
+  // paneles de distinto tamaño, cada una con su propia forma de calcular
   // el tramo rojo, nunca el mismo número reciclado. Ver mockup aprobado en
   // conversación y ProgressBar en components/Panels.tsx.
   const trainedSkill = data.training.trainedSkill;
@@ -467,7 +467,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-[var(--muted)]">Edad</dt>
-                <dd>{data.age} años</dd>
+                <dd>{htAgeTexto(data.age)}</dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-[var(--muted)]">Nacionalidad</dt>
@@ -1026,10 +1026,10 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
 }
 
 /**
- * Ficha de EX-jugador — pedido explícitamente 2026-08-05: nada de
+ * Ficha de EX-jugador, pedido explícitamente 2026-08-05: nada de
  * habilidades/posiciones/entrenamiento (no tiene sentido para alguien que
  * ya no vemos), solo las fechas en que estuvo en el equipo y las partes
- * del cálculo del ROI, en cuadritos — mismo dato ya calculado por
+ * del cálculo del ROI, en cuadritos, mismo dato ya calculado por
  * `usePlayerBalance` (el que alimenta "Detalle" en Transferencias),
  * nunca un cálculo aparte.
  */

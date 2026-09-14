@@ -64,7 +64,7 @@ def test_injured_players_are_never_selected() -> None:
 
 def test_a_bruised_player_is_still_available() -> None:
     """2026-08-16, error real: `InjuryLevel` 0 es MAGULLADO y en Hattrick sí
-    puede jugar. Descartarlo sacaba del mejor once a gente disponible — el
+    puede jugar. Descartarlo sacaba del mejor once a gente disponible, el
     caso que lo destapó fue un delantero titular que desapareció por un
     magullón."""
     sano = [dict(p) for p in ROSTER]
@@ -108,17 +108,38 @@ def test_unknown_formation_raises() -> None:
 def test_bench_excludes_starters() -> None:
     lu = best_lineup(ROSTER, "4-4-2")
     titulares = {a.player["ht_player_id"] for a in lu.assignments}
-    assert not any(b["ht_player_id"] in titulares for b in lu.bench)
+    assert not any(b.player["ht_player_id"] in titulares for b in lu.bench)
+
+
+def test_the_bench_is_six_named_places_and_not_a_leftovers_list() -> None:
+    """Pedido explícitamente el 2026-09-07. El banquillo eran los siete de más
+    TSI que se habían quedado fuera: una lista de sobras donde podía no haber
+    portero suplente. Ahora son las seis plazas de Hattrick, cada una para
+    quien mejor la juega, y sin orden individual, esa la da el manager
+    cuando hace el cambio."""
+    from app.domain.engines.lineup_optimizer import BENCH_SLOTS
+
+    lu = best_lineup(ROSTER, "4-4-2")
+    assert [b.slot for b in lu.bench] == list(BENCH_SLOTS)
+    assert lu.bench[0].label == "Portero suplente"
+    # Nadie ocupa dos plazas, y ninguno es titular.
+    ids = [b.player["ht_player_id"] for b in lu.bench]
+    assert len(set(ids)) == len(ids)
+    titulares = {a.player["ht_player_id"] for a in lu.assignments}
+    assert titulares.isdisjoint(ids)
+    # Cada plaza va con la nota de ESE puesto, no con la del once.
+    for b in lu.bench:
+        assert b.rating > 0
 
 
 def test_overcrowding_penalises_three_central_defenders_and_forwards() -> None:
-    """3-4-3 alinea 3 DC y 3 DN a la vez — el Manual no Escrito documenta una
+    """3-4-3 alinea 3 DC y 3 DN a la vez, el Manual no Escrito documenta una
     penalización exacta (-10% DC, -13.5% DN) sobre TODOS los que comparten esa
     posición, no solo sobre el tercero."""
     lu = best_lineup(ROSTER, "3-4-3")
     # Se mira `base_position` y no `position`: desde 2026-08-21 la posición
     # lleva la orden individual dentro ("central_defender_offensive"), pero la
-    # penalización es de la LÍNEA — un central ofensivo sigue estorbando a los
+    # penalización es de la LÍNEA, un central ofensivo sigue estorbando a los
     # otros dos centrales igual que uno normal.
     penalised = [
         a for a in lu.assignments
@@ -133,7 +154,7 @@ def test_overcrowding_penalises_three_central_defenders_and_forwards() -> None:
 
 
 def test_no_overcrowding_penalty_with_a_single_forward() -> None:
-    """4-5-1 alinea un solo Delantero — sin saturación, sin penalización."""
+    """4-5-1 alinea un solo Delantero, sin saturación, sin penalización."""
     lu = best_lineup(ROSTER, "4-5-1")
     forward = next(a for a in lu.assignments if a.position == "forward")
     raw = rate(forward.player, "forward").rating

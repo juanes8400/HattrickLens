@@ -1,8 +1,8 @@
-"""Sueldo semanal estimado y factor de edad — HL-141.
+"""Sueldo semanal estimado y factor de edad, HL-141.
 
 2026-08-11, pedido explícito del usuario: se retiró por completo el modelo
 de valor de mercado (`value_player`, banda de precio, ventana óptima de
-venta, ROI de entrenamiento en dinero, índice de arrepentimiento) — sus
+venta, ROI de entrenamiento en dinero, índice de arrepentimiento), sus
 coeficientes eran un supuesto propio sin ninguna venta real observada que
 lo respalde, y no debe quedar ningún cálculo derivado de él en la
 plataforma. Lo único que sobrevive de este archivo es lo que SÍ tiene una
@@ -57,15 +57,15 @@ def _year_factor(years: int) -> float:
 
 
 def age_factor(years: int, days: int = 0) -> float:
-    """Multiplicador por edad — usado por `career_stage_engine` para
+    """Multiplicador por edad, usado por `career_stage_engine` para
     clasificar edad óptima vs. declive."""
     lo = _year_factor(years)
     hi = _year_factor(years + 1)
     return lo + (hi - lo) * (days / 112.0)
 
 
-#  SUELDO SEMANAL — HL-141. Fórmula EXACTA documentada por la comunidad
-# (Manual no Escrito, wiki.hattrick.org, coeficientes de bigpapy) — no
+#  SUELDO SEMANAL, HL-141. Fórmula EXACTA documentada por la comunidad
+# (Manual no Escrito, wiki.hattrick.org, coeficientes de bigpapy), no
 # publicada oficialmente por CHPP, pero derivada matemáticamente de sueldos
 # reales observados, no una opinión. Solo cubre jugadores de campo: la
 # fórmula de Arquero no está documentada en la fuente consultada.
@@ -104,7 +104,7 @@ class SalaryEstimate:
 def estimate_salary(skills: dict[str, int], set_pieces: int = 0) -> SalaryEstimate:
     """Sueldo semanal proyectado de un jugador de campo, a partir de sus 5
     habilidades principales. Útil para proyectar el sueldo ANTES de entrenar
-    o fichar — para un jugador que ya es tuyo, el sueldo real ya lo reporta
+    o fichar, para un jugador que ya es tuyo, el sueldo real ya lo reporta
     CHPP directamente y esta estimación no debería reemplazarlo."""
     components = {
         skill: _salary_component(skill, skills.get(skill, 0)) for skill in SALARY_FIELD_SKILLS

@@ -293,7 +293,7 @@ def _recoloca_para_descubrir(
             plan.fuera.remove(banquillo[nombre])
     for nombre in dentro_antes - dentro_ahora:
         # Quien sale del once se lleva su ficha. Sin esto salía con edad 0 y
-        # HTMS28 0, que en pantalla es «0;000» — el mismo fallo por el otro
+        # HTMS28 0, que en pantalla es «0;000», el mismo fallo por el otro
         # lado.
         plan.fuera.append(
             Asignacion(
@@ -802,8 +802,8 @@ async def academy_skill_scores(
 
     Los tres parámetros son opiniones, no hechos: dónde cae el corte del
     plazo, cuánto pesa un peldaño sobre el de abajo, y a cuántos les llega de
-    verdad cada entrenamiento. El resto —la nota por habilidad, los cubos, la
-    escalera— es la metodología y no se negocia desde la URL.
+    verdad cada entrenamiento. El resto, la nota por habilidad, los cubos, la
+    escalera, es la metodología y no se negocia desde la URL.
     """
     counts: dict[str, float] = {}
     for chunk in trainable.split(","):

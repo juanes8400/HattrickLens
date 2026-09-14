@@ -1,7 +1,7 @@
 import type { EChartsOption } from "echarts";
 import { metric, number } from "../hooks/useFormat";
 
-/** Horizontal bars — the most common shape in this product. */
+/** Horizontal bars, the most common shape in this product. */
 export function barOption(
   labels: string[],
   values: number[],
@@ -53,7 +53,7 @@ export function radarOption(
 
 /** Serie(s) de tiempo, categoría en el eje X (fechas ya formateadas).
  * `dashed: true` en una serie la pinta como proyección (línea punteada,
- * sin símbolos) en vez de dato real — p.ej. la previsión de Resistencia
+ * sin símbolos) en vez de dato real, p.ej. la previsión de Resistencia
  * sobre el mismo eje que las habilidades observadas. `null` en `values`
  * deja un hueco real en la línea (semana sin dato), no la interpola. */
 export function timelineOption(
@@ -88,7 +88,7 @@ const BAND_PREFIX = "__banda";
  * ECharts no tiene una serie "banda", así que se apilan dos: una base
  * invisible a la altura de la línea de abajo y encima la diferencia, que es
  * la única con relleno. Por eso la base se calcula punto a punto con
- * `Math.min` en vez de fijar cuál de las dos va debajo — si se cruzaran, la
+ * `Math.min` en vez de fijar cuál de las dos va debajo, si se cruzaran, la
  * banda seguiría cubriendo el hueco real en lugar de invertirse.
  *
  * Una semana sin lectura en cualquiera de las dos deja hueco en la banda
@@ -116,7 +116,7 @@ export function bandBetween(
     // Sin esto la banda se rompe en cuanto la base es negativa: ECharts apila
     // los valores positivos y los negativos por separado, así que el relleno
     // dejaba de arrancar en la base y arrancaba en el cero del eje. Se ve con
-    // una proyección de caja que se va a números rojos — reportado el
+    // una proyección de caja que se va a números rojos, reportado el
     // 2026-08-19 sobre la gráfica de Economía.
     stackStrategy: "all" as const,
     symbol: "none" as const,
@@ -158,7 +158,7 @@ export function withoutBandInTooltip(): EChartsOption["tooltip"] {
       const rows = real.map(
         (p) =>
           `${p.marker ?? ""}${p.seriesName ?? ""}: <b>${
-            p.value == null ? "—" : number(Number(p.value))
+            p.value == null ? "-" : number(Number(p.value))
           }</b>`,
       );
       return [head, ...rows].join("<br/>");
@@ -166,7 +166,7 @@ export function withoutBandInTooltip(): EChartsOption["tooltip"] {
   };
 }
 
-/** Serie(s) de tiempo con el eje X REALMENTE proporcional al tiempo — a
+/** Serie(s) de tiempo con el eje X REALMENTE proporcional al tiempo, a
  * diferencia de `timelineOption` (categoría, espaciado siempre igual entre
  * puntos aunque uno esté a 3 días del anterior y otro a 3 semanas), este
  * usa `type: "time"` con timestamps ISO reales, así que la distancia visual
@@ -174,7 +174,7 @@ export function withoutBandInTooltip(): EChartsOption["tooltip"] {
  * 2026-08-12, pedido explícito para Espíritu/Confianza y Socios: esas
  * lecturas llegan un punto por CAMBIO real de valor (ver `changes_only` en
  * el backend), no una por semana, así que el espaciado desigual es el
- * dato — apiñar todo en un eje de categoría lo escondería. */
+ * dato, apiñar todo en un eje de categoría lo escondería. */
 export function proportionalTimelineOption(
   timestamps: string[],
   series: { name: string; values: (number | null)[] }[],
@@ -211,6 +211,7 @@ const NODE_DEDUP_MARK = "​";
 export function economySankeyOption(
   income: { label: string; amount: number | null }[],
   costs: { label: string; amount: number | null }[],
+  currency = "",
 ): EChartsOption {
   const hasPositiveAmount = (item: {
     label: string;
@@ -227,7 +228,7 @@ export function economySankeyOption(
   const balance = incomeTotal - costsTotal;
   // El nodo central ES el saldo: todo ingreso entra por la izquierda, todo
   // gasto sale por la derecha, y lo que sobra o falta en el medio es
-  // exactamente el resultado de la semana — con nombre propio, no un "hub"
+  // exactamente el resultado de la semana, con nombre propio, no un "hub"
   // técnico sin significado.
   const hub = "Saldo de la semana";
   const incomeLabels = new Set(positiveIncome.map((item) => item.label));
@@ -239,6 +240,9 @@ export function economySankeyOption(
   // el degradado por defecto que comparte con los nodos de gasto.
   const CAJA_COLOR = "#f5a524";
   const cajaLinkStyle = { color: CAJA_COLOR, opacity: 0.55 };
+  // Rojo si la semana pierde, verde si gana, gris si queda en cero.
+  const colorDelSaldo =
+    balance < 0 ? "#e5484d" : balance > 0 ? "#2fbf71" : "#8b8b93";
 
   const links = [
     ...positiveIncome.map((item) => ({
@@ -282,7 +286,22 @@ export function economySankeyOption(
         type: "sankey",
         data: [
           ...positiveIncome.map((item) => ({ name: item.label })),
-          { name: hub },
+          // EL SALDO CON SIGNO (2026-09-13, pedido del usuario). Con el nodo
+          // sin color y sin cifra no se sabía si la semana ganaba o perdía:
+          // ahora es rojo o verde y lleva el resultado encima, que es donde
+          // ya mira el ojo.
+          {
+            name: hub,
+            itemStyle: { color: colorDelSaldo },
+            label: {
+              position: "top",
+              color: colorDelSaldo,
+              fontSize: 12,
+              fontWeight: 600,
+              formatter: () =>
+                `Saldo: ${balance > 0 ? "+" : balance < 0 ? "−" : ""}${number(Math.abs(balance))}${currency ? ` ${currency}` : ""}`,
+            },
+          },
           ...positiveCosts.map((item) => ({ name: costNode(item.label) })),
           ...(balance !== 0
             ? [{ name: "Caja", itemStyle: { color: CAJA_COLOR } }]
@@ -291,7 +310,8 @@ export function economySankeyOption(
         links,
         left: 12,
         right: 130,
-        top: 18,
+        // Sitio para la etiqueta del saldo, que va encima de su nodo.
+        top: 32,
         bottom: 18,
         nodeWidth: 14,
         nodeGap: 10,
@@ -310,7 +330,7 @@ export function economySankeyOption(
 }
 
 /** Dona de resultados (Ganados/Empatados/Perdidos). Colores fijos por
- * estado, no por orden de categoría — igual que en el resto de la app
+ * estado, no por orden de categoría, igual que en el resto de la app
  * (verde=positivo, ámbar=neutro, rojo=negativo). */
 export function resultsPieOption(
   won: number,
@@ -434,7 +454,7 @@ export function sharePieOption(
 }
 
 /** Dispersión x/y con un punto propio resaltado. Cada punto viaja como
- * [x, y, nombre] — `nombre` solo se usa en el tooltip. */
+ * [x, y, nombre], `nombre` solo se usa en el tooltip. */
 export function highlightedScatterOption(
   points: { x: number; y: number; label: string }[],
   own: { x: number; y: number; label: string },

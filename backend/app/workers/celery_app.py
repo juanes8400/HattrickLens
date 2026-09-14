@@ -18,7 +18,7 @@ celery.conf.update(
     worker_prefetch_multiplier=1,
     task_time_limit=300,
     beat_schedule={
-        # Solo mantenimiento interno — NUNCA fetch CHPP por timer (regla CHPP)
+        # Solo mantenimiento interno, NUNCA fetch CHPP por timer (regla CHPP)
         "create-partitions": {
             "task": "compute.maintain_partitions",
             "schedule": 86400.0,

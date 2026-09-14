@@ -3,7 +3,7 @@
 Lo que se fija aquí no son los números concretos de un fixture, sino las
 reglas de diseño: tres grupos son series semanales con etiqueta TT-ss, y
 varias métricas solo pueden compartir eje cuando comparten escala. TSI contra
-salario no la comparte — un índice contra dinero —, así que van separados.
+salario no la comparte, un índice contra dinero, , así que van separados.
 """
 from pathlib import Path
 from typing import Any
@@ -162,7 +162,7 @@ def test_total_tsi_of_the_top_eleven_never_exceeds_the_squad(
     seeded: tuple[TestClient, int],
 ) -> None:
     """La suma del once de más TSI es un subconjunto de la suma del plantel,
-    así que la banda gris entre ambas es lo que aportan los demás — nunca
+    así que la banda gris entre ambas es lo que aportan los demás, nunca
     puede salir negativa."""
     client, team_id = seeded
     groups = {g["key"]: g for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]}
@@ -180,7 +180,7 @@ def test_a_week_without_loyalty_readings_is_never_a_zero(
     seeded: tuple[TestClient, int],
 ) -> None:
     """La Fidelidad no se persistía al principio y esos snapshots quedaron en
-    0 — comprobado en la base: `loyalty` y `leadership` valen 0 en exactamente
+    0, comprobado en la base: `loyalty` y `leadership` valen 0 en exactamente
     las mismas filas. Liderazgo empieza en 1 en Hattrick, así que un 0 suyo
     delata la lectura incompleta y esa semana nunca se cuenta como media de
     cero (el tramo inicial se estira aparte, sólo para dibujar)."""
@@ -202,7 +202,7 @@ def test_skills_splits_the_long_scale_from_the_short_one(
 ) -> None:
     """2026-08-16, pedido explícito: dos gráficas dentro de Habilidades.
 
-    Arriba lo que se mide de 0 a 20 — las siete habilidades más Experiencia y
+    Arriba lo que se mide de 0 a 20, las siete habilidades más Experiencia y
     Fidelidad. Abajo Resistencia y Forma, en un eje 1-9. Juntas, una Forma
     media de 5,6 se leería como baja en un eje que llega a 20."""
     client, team_id = seeded
@@ -244,7 +244,7 @@ def test_cost_per_tsi_ignores_players_without_tsi_but_the_means_do_not(
 ) -> None:
     """2026-08-16, pedido explícito: los TSI 0 se ignoran SOLO en el cociente.
 
-    Se calcula sumando antes de dividir sobre los jugadores CON índice —
+    Se calcula sumando antes de dividir sobre los jugadores CON índice
     promediar el cociente jugador a jugador daría infinito con un TSI 0 y
     estaría dominado por los índices bajos. Las medias de salario y de TSI
     siguen contando a toda la plantilla, así que el ratio NO tiene por qué
@@ -293,7 +293,7 @@ def test_the_best_of_a_line_is_measured_over_the_whole_squad(
 
     Son dos poblaciones distintas y no deben confundirse: `count` cuenta a
     quienes tienen esa línea como su mejor puesto, y puede ser 0 mientras el
-    mejor rating existe igual — alguien de otro puesto puede cubrirla. Por eso
+    mejor rating existe igual, alguien de otro puesto puede cubrirla. Por eso
     el mejor rating de una línea nunca es menor que el mejor rating de los que
     la tienen como puesto natural.
     """
@@ -337,7 +337,7 @@ def test_every_market_chart_carries_the_top_eleven_line(
 ) -> None:
     """2026-08-16, pedido explícito: las tres gráficas llevan además la línea
     del once de más TSI. Comparten eje con la plantilla entera porque son la
-    misma medida sobre dos conjuntos — eso es lo que se quiere comparar.
+    misma medida sobre dos conjuntos, eso es lo que se quiere comparar.
 
     El once de más TSI tiene por fuerza un TSI medio mayor o igual que la
     plantilla entera: es un subconjunto elegido justo por eso.
@@ -414,7 +414,7 @@ def test_captain_and_free_kick_taker_are_roles_not_pitch_positions(
 
     Se sirven aparte de `pitch` para que la interfaz no pueda dibujarlos como
     un puesto más. Su índice usa otra fórmula del motor y NO está en la escala
-    0-20 de las posiciones — de hecho suele pasarse de 20 —, así que tampoco
+    0-20 de las posiciones, de hecho suele pasarse de 20, , así que tampoco
     puede compartir la barra de las tarjetas del campo.
     """
     client, team_id = seeded
@@ -438,7 +438,7 @@ def test_a_goalkeeper_is_never_recommended_to_take_free_kicks(
 ) -> None:
     """2026-08-16, regla de juego dada por el usuario. El motor puntúa el
     balón parado sin mirar el puesto, así que un portero con buen tiro libre
-    puede quedar primero — y recomendarlo es un disparate, no un hallazgo.
+    puede quedar primero, y recomendarlo es un disparate, no un hallazgo.
 
     El capitán sí puede ser portero: el veto es sólo para las faltas.
     """
@@ -461,7 +461,7 @@ def test_player_classes_is_only_a_tab_with_nothing_behind_it_yet(
     """2026-08-16, pedido explícito: "por ahora solo el Toggle Segment".
 
     Viaja sin series, sin cancha y sin métricas para que la interfaz no pueda
-    dibujar nada — el `chart="pending"` es lo que la hace decir "por definir"
+    dibujar nada, el `chart="pending"` es lo que la hace decir "por definir"
     en vez de rellenar el hueco con una métrica inventada.
     """
     client, team_id = seeded

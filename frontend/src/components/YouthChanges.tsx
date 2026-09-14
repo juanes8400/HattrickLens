@@ -1,6 +1,10 @@
 import clsx from "clsx";
 import { cifra } from "../hooks/useFormat";
 import { Empty, Panel } from "./Panels";
+import {
+  GroupedPlayerChanges,
+  type PlayerChangeGroup,
+} from "./GroupedPlayerChanges";
 import type {
   YouthComparisonChange,
   YouthComparisonRow,
@@ -9,7 +13,7 @@ import type {
 
 /**
  * Los cambios de la academia, con el mismo formato que los de la plantilla
- * —una tarjeta por chico, una línea por habilidad— porque el usuario los
+ * una tarjeta por chico, una línea por habilidad, porque el usuario los
  * quiere leer igual.
  *
  * Lo que NO se puede copiar de mayores es el fondo: en un juvenil cada
@@ -63,8 +67,8 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   }
 
   // «Topó» va de sufijo, nunca sustituyendo a la línea: un canterano puede
-  // revelarse Y topar en la misma comparación —pasa cuando el nivel aparece ya
-  // igualado a su techo— y contar sólo lo segundo se come la noticia de que
+  // revelarse Y topar en la misma comparación, pasa cuando el nivel aparece ya
+  // igualado a su techo, y contar sólo lo segundo se come la noticia de que
   // por fin lo vemos.
   const topo = change.maxJustReached ? (
     <span className="font-semibold text-[var(--muted)]"> · topó</span>
@@ -180,7 +184,19 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
 }
 
 /** Una cifra del resumen, con su lectura debajo. */
-function Cifra({ n, de, hint }: { n: string; de: string; hint?: string }) {
+function Cifra({
+  n,
+  de,
+  hint,
+  nota,
+}: {
+  n: string;
+  de: string;
+  hint?: string;
+  /** Cómo se movió dentro de la ventana. Va aparte del número porque el
+   *  número es un stock --lo que se sabe hoy-- y esto es su recorrido. */
+  nota?: string;
+}) {
   return (
     <div
       className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2"
@@ -190,6 +206,11 @@ function Cifra({ n, de, hint }: { n: string; de: string; hint?: string }) {
       <div className="mt-1 text-[11px] leading-tight text-[var(--muted)]">
         {de}
       </div>
+      {nota && (
+        <div className="mt-0.5 text-[11px] leading-tight font-medium text-[var(--positive)]">
+          {nota}
+        </div>
+      )}
     </div>
   );
 }
@@ -197,9 +218,24 @@ function Cifra({ n, de, hint }: { n: string; de: string; hint?: string }) {
 export function YouthChanges({
   rows,
   summary,
+  teamName,
+  ventana,
+  grupos,
 }: {
   rows: YouthComparisonRow[];
   summary?: YouthSummary;
+  /** La ventana que se está mirando arriba, cuando hay una. 2026-09-09,
+   *  pedido del usuario: las tres cifras se mueven con ella. Sin ventana
+   *  --pestaña «Última lectura»-- se leen del último sync, como siempre. */
+  ventana?: { etiqueta: string; ceilingsBefore: number };
+  /** Los canteranos que se movieron DENTRO de la ventana, ya agrupados. Sólo
+   *  llega cuando hay una ventana elegida; sin ella el panel enseña las
+   *  tarjetas del último sync, como siempre. */
+  grupos?: PlayerChangeGroup[];
+  /** Cómo se llama tu academia. Llega con los datos del equipo juvenil y se
+   *  enseña desde el 2026-09-09: «La cantera» a secas no dice de quién, y el
+   *  nombre lo pusiste tú. */
+  teamName?: string | null;
 }) {
   const revelaciones =
     summary?.revelations ??
@@ -217,14 +253,16 @@ export function YouthChanges({
 
   return (
     <Panel
-      title="La cantera"
+      title={teamName ? `${teamName} · Academia` : "La cantera"}
       meta={
         hayAlgo
           ? `${revelaciones} ${revelaciones === 1 ? "revelación" : "revelaciones"}` +
             (salidas.length > 0
               ? ` · ${salidas.length} se ${salidas.length === 1 ? "fue" : "fueron"}`
               : "")
-          : "sin novedades"
+          : ventana
+            ? "sin novedades en el último sync"
+            : "sin novedades"
       }
     >
       {/* LO QUE SIGNIFICA, antes que el detalle. Una lista de «Pases: techo 3»
@@ -235,22 +273,33 @@ export function YouthChanges({
           <Cifra
             n={String(revelaciones)}
             de={
-              revelaciones === 1
-                ? "techo nuevo esta vez"
-                : "techos nuevos esta vez"
+              (revelaciones === 1 ? "techo nuevo " : "techos nuevos ") +
+              (ventana ? ventana.etiqueta : "esta vez")
             }
-            hint="Habilidades cuyo nivel o techo se descubrió en esta comparación"
+            hint="Habilidades cuyo nivel o techo se descubrió en este periodo"
           />
           <Cifra
             n={`${conocidos}/${lecturas}`}
             de="techos conocidos"
             hint="De todas las lecturas jugador × habilidad de la academia"
+            // El número es lo que se sabe HOY y no depende de la ventana: lo
+            // que depende es cuánto ha crecido dentro de ella.
+            nota={
+              ventana && conocidos > ventana.ceilingsBefore
+                ? `+${conocidos - ventana.ceilingsBefore} ${ventana.etiqueta}`
+                : undefined
+            }
           />
           {aCiegas != null && (
             <Cifra
               n={`${aCiegas}%`}
               de="sigue a ciegas"
               hint="Mientras esto sea alto, «Individual» rinde más que cualquier habilidad concreta"
+              nota={
+                ventana && lecturas > 0 && conocidos > ventana.ceilingsBefore
+                  ? `eran ${Math.round((100 * (lecturas - ventana.ceilingsBefore)) / lecturas)}%`
+                  : undefined
+              }
             />
           )}
           {veredictos.length > 0 && (
@@ -281,10 +330,25 @@ export function YouthChanges({
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {ventana ? (
+        // Con una ventana elegida, el panel enseña lo de ESE periodo. Los
+        // juveniles se quedan aquí y no suben a la lista de la plantilla:
+        // pedido en firme el 2026-09-09.
+        <GroupedPlayerChanges
+          groups={grupos ?? []}
+          aggregate={[]}
+          emptyMessage={`Ningún canterano se movió ${ventana.etiqueta}. En juveniles es lo normal: las habilidades tardan semanas en asomar.`}
+        />
+      ) : rows.length === 0 ? (
         <Empty>
-          Ningún canterano se movió en esta comparación. En juveniles es lo
-          normal: las habilidades tardan semanas en asomar.
+          {/* Las tarjetas de abajo son SIEMPRE del último sync, aunque las
+              cifras de arriba sigan la ventana. Sin decirlo, la pantalla se
+              contradecía sola: «5 techos nuevos en la última semana» encima
+              de «ningún canterano se movió». */}
+          Ningún canterano se movió en la última sincronización. En juveniles es
+          lo normal: las habilidades tardan semanas en asomar.
+          {ventana &&
+            " Lo que se movió en el periodo que estás mirando está arriba, en «Cambios por jugador»."}
         </Empty>
       ) : (
         <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">

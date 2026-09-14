@@ -29,8 +29,8 @@ export type ViaDeApoyo = {
 };
 
 /** Ninguna de estas cadenas es un secreto: son datos de cobro hechos para
- *  repartirse. Aquí no hay ninguna clave de API ni hace falta —se enlaza, no
- *  se procesa— y por eso no viven en el entorno.
+ *  repartirse. Aquí no hay ninguna clave de API ni hace falta, se enlaza, no
+ *  se procesa, y por eso no viven en el entorno.
  *
  *  Tampoco se incrusta el widget de Buy Me a Coffee: es un script de terceros
  *  que se cargaría en cada pantalla, y no merece la pena traer código ajeno

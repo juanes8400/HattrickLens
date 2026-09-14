@@ -13,7 +13,7 @@ const ECONOMY_KEYS = [
 ];
 
 function signed(value: number | null): string {
-  if (value == null) return "—";
+  if (value == null) return "-";
   if (value === 0) return "0";
   return `${value > 0 ? "+" : ""}${number(value)}`;
 }
@@ -58,7 +58,7 @@ function EconomyCard({ change }: { change: ClubComparisonChange }) {
 }
 
 /** Punto 3 pedido 2026-08-10: la economía debe verse mucho más arriba de la
- * página y en colores — verde cuando sube algo bueno (caja, ingresos,
+ * página y en colores, verde cuando sube algo bueno (caja, ingresos,
  * socios, afición), rojo cuando sube algo malo (gastos). */
 export function EconomySection({
   changes,

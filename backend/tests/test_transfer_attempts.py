@@ -284,7 +284,7 @@ def test_an_attempt_of_another_team_is_not_reachable() -> None:
 def test_attempts_that_missed_their_closing_moment_get_repaired() -> None:
     """La regla normal de cierre se dispara en la TRANSICIÓN: estaba listado, ya
     no lo está. Los intentos anteriores a esa regla se perdieron ese instante y
-    quedaban abiertos para siempre — en la cuenta del usuario, 15 figuraban "en
+    quedaban abiertos para siempre, en la cuenta del usuario, 15 figuraban "en
     el mercado" cuando solo 4 jugadores lo estaban.
 
     La reparación cierra cada uno con lo mejor que se sepa, sin inventar fechas.

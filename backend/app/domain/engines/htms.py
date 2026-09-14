@@ -1,4 +1,4 @@
-"""HTMS y HTMS28 — el valor de un jugador y su potencial a los 28.
+"""HTMS y HTMS28, el valor de un jugador y su potencial a los 28.
 
 HTMS no es la suma de los niveles: cada habilidad aporta puntos según una
 tabla, y la tabla crece mucho más deprisa que el nivel (de 16 a 17 en Defensa
@@ -8,7 +8,7 @@ son 150 puntos; de 3 a 4, veintiséis). Por eso dos jugadores con la misma
 HTMS28 no mide nada del jugador: proyecta cuántos puntos acumularía si lo
 entrenaras sin parar hasta los 28 años, con entrenador bueno, ayudantes
 alrededor de 8.23 y 10% de forma física. Es una comparación entre edades, no
-una promesa — un chico de 17 sale altísimo porque le quedan once temporadas de
+una promesa, un chico de 17 sale altísimo porque le quedan once temporadas de
 entrenamiento por delante, no porque sea mejor.
 
 Fórmulas y tablas: docs/reference/htms_formulas_hattrick.html

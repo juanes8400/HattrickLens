@@ -2,22 +2,31 @@ import clsx from "clsx";
 import { ApiError } from "../services/api";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Ayuda } from "./Ayuda";
 
 export function Kpi({
   label,
   value,
   hint,
   tone,
+  ayuda,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "positive" | "danger";
+  /** Un «?» junto a la etiqueta que explica qué es la cifra. */
+  ayuda?: string;
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="min-h-[2rem] text-xs leading-4 text-[var(--muted)]">
         {label}
+        {ayuda && (
+          <span className="ml-1.5">
+            <Ayuda texto={ayuda} />
+          </span>
+        )}
       </div>
       <div
         className={clsx(
@@ -36,6 +45,7 @@ export function Kpi({
 export function Panel({
   title,
   meta,
+  ayuda,
   children,
 }: {
   title: string;
@@ -43,12 +53,17 @@ export function Panel({
   // a Transparencia. Es el sitio natural --a la derecha del título, en gris y
   // pequeño-- y evita tener que abrir hueco dentro de cada panel.
   meta?: React.ReactNode;
+  /** Un «?» junto al título que explica qué enseña el panel. */
+  ayuda?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          {title}
+          {ayuda && <Ayuda texto={ayuda} />}
+        </h2>
         {meta && <span className="text-xs text-[var(--muted)]">{meta}</span>}
       </header>
       {children}
@@ -57,7 +72,7 @@ export function Panel({
 }
 
 /**
- * Para proyecciones/estimaciones — nunca hechos. Borde punteado + rótulo
+ * Para proyecciones/estimaciones, nunca hechos. Borde punteado + rótulo
  * "PROYECCIÓN" para que sea imposible confundirlo con un `Panel` de datos
  * reales, incluso pasando rápido por la pantalla (HL-140: no mezclar hechos
  * con predicciones sin avisar).
@@ -74,12 +89,9 @@ export function ProjectionPanel({
   return (
     <section className="rounded-lg border border-dashed border-[var(--accent)] bg-[var(--surface)]">
       <header className="flex items-center justify-between border-b border-dashed border-[var(--accent)] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--surface)]">
-            Proyección
-          </span>
-          <h2 className="text-sm font-semibold">{title}</h2>
-        </div>
+        {/* Aquí iba una etiqueta azul «Proyección». Se quitó el 2026-09-13,
+            a pedido del usuario: el borde punteado ya distingue el panel. */}
+        <h2 className="text-sm font-semibold">{title}</h2>
         {meta && <span className="text-xs text-[var(--muted)]">{meta}</span>}
       </header>
       {children}
@@ -88,7 +100,7 @@ export function ProjectionPanel({
 }
 
 /** Barra simple 0-max, para valores reales de un solo número (fidelidad,
- * forma, resistencia) — no un chart, para que se lea de un vistazo. */
+ * forma, resistencia), no un chart, para que se lea de un vistazo. */
 export function GaugeBar({
   label,
   value,
@@ -118,7 +130,7 @@ export function GaugeBar({
   );
 }
 
-/** Barra compacta para una fila de habilidad — se llena hasta `max` y, si el
+/** Barra compacta para una fila de habilidad, se llena hasta `max` y, si el
  * valor real lo supera, se queda al 100% y muestra el excedente aparte
  * ("+1"/"+2") en vez de desbordar la barra. */
 export function SkillBar({
@@ -155,16 +167,16 @@ export function SkillBar({
   );
 }
 
-/** Barra de progreso azul+rojo — pedida explícitamente 2026-08-10 para
+/** Barra de progreso azul+rojo, pedida explícitamente 2026-08-10 para
  * unificar habilidad entrenada/Experiencia/Fidelidad/Forma/Resistencia en
  * una sola grilla pareja (antes: paneles separados de distinto tamaño).
  * El azul es siempre el nivel entero conocido; el rojo es la evidencia
  * real de progreso hacia el siguiente nivel, calculada distinto para cada
- * habilidad (ver PlayerPage.tsx) — nunca el mismo número reciclado.
+ * habilidad (ver PlayerPage.tsx), nunca el mismo número reciclado.
  * `redPlacement="append"` lo pega justo después del azul (progreso hacia
  * arriba); `"eat"` le come al azul su propio tramo final (riesgo de bajar,
  * como en la proyección de Resistencia). `dot` reemplaza la franja roja
- * por un punto junto al valor — para Forma, que no tiene una fracción
+ * por un punto junto al valor, para Forma, que no tiene una fracción
  * calculable, solo la señal de "jugó esta semana". */
 export function ProgressBar({
   label,

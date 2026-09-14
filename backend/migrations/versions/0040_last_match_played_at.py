@@ -1,5 +1,5 @@
 """2026-08-09, pedido explícitamente: caso real (Volodymyr Manakin) probó
-que `LastMatch` de playerdetails.xml puede ser de hace más de un año — "el
+que `LastMatch` de playerdetails.xml puede ser de hace más de un año, "el
 último partido con datos de este jugador", no "la semana pasada". Se
 guarda la fecha real para que "Último partido" solo muestre dato cuando el
 partido cayó dentro de los últimos 7 días respecto a hoy (calculado

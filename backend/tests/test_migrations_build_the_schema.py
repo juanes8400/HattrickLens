@@ -54,7 +54,7 @@ def test_no_migration_sends_several_statements_in_one_execute() -> None:
     """Postgres no admite varias sentencias dentro de una preparada, y asyncpg
     manda cada SQL así: "cannot insert multiple commands into a prepared
     statement". En sqlite el mismo bloque pasa, de modo que solo aparece al
-    migrar de verdad contra Postgres — al desplegar, tarde.
+    migrar de verdad contra Postgres, al desplegar, tarde.
     """
     malos = []
     for fichero in sorted(VERSIONES.glob("*.py")):

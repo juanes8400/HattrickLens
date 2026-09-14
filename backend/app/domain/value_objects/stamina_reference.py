@@ -1,4 +1,4 @@
-"""Tabla de referencia de Resistencia (condición) — Federación Ocerin.
+"""Tabla de referencia de Resistencia (condición), Federación Ocerin.
 
 Hattrick no publica la fórmula real de subida/bajada de condición; esta es
 una tabla comunitaria (aportada por el usuario, screenshot 2026-08-10) que
@@ -9,12 +9,12 @@ para la edad del jugador, el nivel esperado desciende.
 
 `% de entrenamiento de resistencia real` = intensidad total del club × %
 de esa intensidad dedicado a resistencia (`stamina_share`), NO el
-`stamina_share` crudo — un club entrenando al 40% con 50% dedicado a
+`stamina_share` crudo, un club entrenando al 40% con 50% dedicado a
 resistencia solo está poniendo un 20% real de esfuerzo en resistencia
 (ver `TrainingSetup.effective_stamina_intensity`).
 
 Los niveles de la tabla original venían en palabras (Pobre, Débil,
-Insuficiente, Aceptable, Bueno, Excelente, Formidable) — se guardan aquí
+Insuficiente, Aceptable, Bueno, Excelente, Formidable), se guardan aquí
 como el índice numérico equivalente de `SKILL_LEVELS` (ht_constants.py),
 que ya nombra esos mismos niveles 0-20 (Resistencia solo usa el tramo 3-9
 de ese rango completo, el mismo límite real de Hattrick para esta
@@ -23,7 +23,7 @@ habilidad).
 La tabla cubre edades 17-36. Fuera de ese rango se recorta la edad al
 extremo más cercano (pedido explícito 2026-08-15: "de 40 años debe ser
 igual que 36") en vez de quedarse sin previsión: la curva de la tabla ya
-viene plana en los bordes — 34 y 35 son idénticas, y de 36 en adelante un
+viene plana en los bordes, 34 y 35 son idénticas, y de 36 en adelante un
 jugador solo puede seguir perdiendo condición, nunca recuperarla, así que
 mantener la última fila conocida es la lectura conservadora y no inventa
 una pendiente que la tabla no respalda. Mismo criterio que ya se usaba
@@ -33,7 +33,7 @@ para el porcentaje de entrenamiento, que también se recorta (5%-30%).
 from __future__ import annotations
 
 # Límite inferior de cada bucket de "% de entrenamiento de resistencia
-# real" — el límite superior es el inferior del siguiente bucket (o 30
+# real", el límite superior es el inferior del siguiente bucket (o 30
 # para el último). Mismo orden que las columnas de la tabla original.
 STAMINA_TRAINING_PCT_BUCKETS: tuple[int, ...] = (5, 11, 16, 21, 26)
 

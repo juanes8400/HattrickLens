@@ -7,7 +7,7 @@ comentarios dicen de cuál.
 
 La idea del método: en la academia no se entrena a un jugador, se entrena una
 HABILIDAD, y la reciben todos a la vez. Así que la pregunta no es "quién es mi
-mejor canterano" sino "en qué habilidad tengo más que ganar" — y eso depende de
+mejor canterano" sino "en qué habilidad tengo más que ganar", y eso depende de
 cuántos chicos prometen en ella y de cuánto tiempo les queda antes de que se
 les acabe el plazo.
 """
@@ -82,11 +82,11 @@ def training_priority(note: int | None, *, leaves_soon: bool, max_reached: bool 
 
 # `Juveniles!F3` y `G3`: la edad que TENDRÁ el chico el día que se le acabe el
 # plazo, en años y días. El corte de 38 días parte a los que se van pronto de
-# los que aún tienen margen — un canterano prometedor al que le quedan tres
+# los que aún tienen margen, un canterano prometedor al que le quedan tres
 # semanas no da tiempo a entrenarlo.
 #: El año del corte: sale del juvenil con 17 y pico. `SOON_MAX_DAYS` son los
 #: días de ese corte, así que el umbral entero es 17;038 y la comparación es
-#: estricta — «menos de 17;038».
+#: estricta, «menos de 17;038».
 #: Un año de Hattrick.
 DAYS_PER_HT_YEAR = 112
 
@@ -95,7 +95,7 @@ SOON_MAX_DAYS = 38
 
 # Para quien no se sabe cuándo se podrá promocionar. Tiene que quedar FUERA
 # del alcance del mando (0–112 días) a propósito: con el respaldo anterior
-# —"un día más que el umbral por defecto"— todos los canteranos sin dato
+# "un día más que el umbral por defecto", todos los canteranos sin dato
 # volteaban de cubo a la vez justo al pasar de 38 a 39, y la pantalla entera
 # daba un salto que parecía un cálculo y era un artefacto del respaldo.
 UNKNOWN_DEADLINE_DAYS = 999
@@ -135,12 +135,12 @@ class Bucket(StrEnum):
 
 # Los pesos de `AuxiJuveniles!O11` no son siete números sueltos: son una
 # ESCALERA de potencias de una misma base. Escritos como exponentes se ve la
-# intención — cada peldaño vale la base entera más que el de abajo, así que un
+# intención, cada peldaño vale la base entera más que el de abajo, así que un
 # solo canterano excelente pesa más que todos los "buenos" juntos. No es una
 # media ponderada: es un desempate por niveles escrito como suma.
 #
 # Con base 3 salen exactamente los 81 / 27 / 9 / 3 / 1 / ⅓ / 1/27 de la hoja,
-# y "entrenables" en 1/9 — el peldaño -2, entre los dos desconocidos.
+# y "entrenables" en 1/9, el peldaño -2, entre los dos desconocidos.
 EXPONENTS: dict[str, int] = {
     Bucket.EXCELLENT: 4,
     Bucket.GOOD_SOON: 3,
@@ -156,7 +156,7 @@ DEFAULT_WEIGHT_BASE = 3.0
 # Rango en el que la escalera sigue significando algo. En 1 todos los peldaños
 # valen lo mismo: es dejar de priorizar y contar cabezas, que es una postura
 # legítima y por eso el mando llega hasta ahí. Por DEBAJO de 1 el orden se
-# invertiría —lo malo pesaría más que lo bueno— y eso no significa nada, así
+# invertiría, lo malo pesaría más que lo bueno, y eso no significa nada, así
 # que ahí se corta. Por arriba, donde la diferencia ya es tan bestia que sólo
 # cuenta el primer cubo con algo.
 MIN_WEIGHT_BASE = 1.0
@@ -242,7 +242,7 @@ class PlayerNote:
     """Qué saca UN canterano en UNA habilidad, para decidir a quién dar minutos.
 
     `note` es `None` cuando el ojeador aún no ha revelado nada de esa
-    habilidad — y ese caso importa tanto como los buenos: darle minutos a un
+    habilidad, y ese caso importa tanto como los buenos: darle minutos a un
     desconocido es lo que hace que se revele.
     """
 
@@ -277,7 +277,7 @@ class SkillScore:
     score: float
     #  `AuxiJuveniles!M`: cuántos canteranos reciben de verdad este
     #  entrenamiento. En la hoja se teclea a mano; aquí es un dato de entrada,
-    #  0 mientras nadie lo aporte — nunca un número inventado.
+    #  0 mientras nadie lo aporte, nunca un número inventado.
     trainable_count: float = 0.0
     #  Los canteranos que PUEDEN mejorar en esta habilidad, ordenados por lo
     #  que sacan. No sólo los buenos: incluye a quien todavía no se sabe qué
@@ -362,13 +362,13 @@ def score_skills(
 ) -> list[SkillScore]:
     """Una nota por habilidad, de la que más conviene entrenar a la que menos.
 
-    `trainable` es el conteo de `AuxiJuveniles!M` — cuántos canteranos reciben
+    `trainable` es el conteo de `AuxiJuveniles!M`, cuántos canteranos reciben
     realmente ese entrenamiento. Si no se aporta vale 0 y ese sumando no
     participa; el resto del puntaje es idéntico.
 
     `soon_max_days` y `weight_base` son los dos números que el usuario puede
-    mover. El MÉTODO no cambia —la escalera de potencias, los cubos, la nota
-    por habilidad— pero dónde se pone el corte del plazo y cuánto separa un
+    mover. El MÉTODO no cambia, la escalera de potencias, los cubos, la nota
+    por habilidad, pero dónde se pone el corte del plazo y cuánto separa un
     peldaño del siguiente es una opinión, y cada uno tiene la suya.
     """
     trainable = trainable or {}
@@ -470,14 +470,14 @@ def score_skills(
 # 2026-08-17, pedido explícito: ese conteo deja de ser un número tecleado y
 # pasa a elegirse con un método. Todos devuelven un valor por habilidad en la
 # MISMA escala 0–`SQUAD_NORMALISER`, para que cambiar de método cambie el
-# criterio y no las unidades — si uno devolviera decenas y otro unidades, el
+# criterio y no las unidades, si uno devolviera decenas y otro unidades, el
 # sumando pesaría distinto por accidente y no por decisión.
 
 
 class TrainableMethod(StrEnum):
     # 1 (RECEIVERS) y 2 (RIVALS) están definidos pero aún no se pueden
-    # calcular: el primero necesita la alineación juvenil —CHPP no la manda en
-    # youthplayerlist— y el segundo unas estadísticas que el usuario aportará.
+    # calcular: el primero necesita la alineación juvenil, CHPP no la manda en
+    # youthplayerlist, y el segundo unas estadísticas que el usuario aportará.
     # No se listan como opción hasta que devuelvan un número real: una opción
     # que siempre da 0 no es una opción, es una trampa.
     SLOTS = "slots"  # 1b: plazas que entrena cada entrenamiento
@@ -490,7 +490,7 @@ class TrainableMethod(StrEnum):
 
 # Cuántos jugadores de una alineación reciben de verdad cada entrenamiento.
 # No sale de la cantera de nadie: es cómo reparte Hattrick el entrenamiento por
-# puesto —el portero entrena solo él, el balón parado les llega a los once— así
+# puesto, el portero entrena solo él, el balón parado les llega a los once, así
 # que son números fijos y no dependen del equipo.
 #: A cuantas plazas llega cada entrenamiento, en el formato X+Y del usuario:
 #: X son los cupos que entrenan al 100% y Y los que entrenan a media racion.
@@ -516,8 +516,8 @@ SLOT_TRAINABLES: dict[str, float] = {
 def slot_trainable() -> dict[str, float]:
     """Método 1b: a cuántas plazas de la alineación le llega cada entrenamiento.
 
-    La versión fija del método 1. El de verdad —cuántos de MIS canteranos lo
-    reciben— necesita la alineación juvenil, que CHPP no manda; éste responde a
+    La versión fija del método 1. El de verdad, cuántos de MIS canteranos lo
+    reciben, necesita la alineación juvenil, que CHPP no manda; éste responde a
     la misma pregunta con el reparto del juego, que no cambia de equipo a
     equipo.
     """
@@ -527,7 +527,7 @@ def slot_trainable() -> dict[str, float]:
 def senior_trainable(skill: str | None) -> dict[str, float]:
     """Método 6: todo el peso a lo que entrena el primer equipo.
 
-    16 contra 0, sin medias tintas — es la opción de quien quiere que la
+    16 contra 0, sin medias tintas, es la opción de quien quiere que la
     cantera vaya en la misma dirección que el equipo grande y no se plantea
     matices. Si no se sabe qué entrena el primer equipo, no se empuja nada.
     """
@@ -556,8 +556,8 @@ def block_trainable(
 
     2026-08-17, elegido tras comparar los dos criterios con datos reales: la
     suma premiaba a las habilidades repartidas entre muchas posiciones y
-    castigaba a las concentradas en una. La portería salía 2 sobre 16 —sólo un
-    puesto la usa— y con eso entrenar portería no se recomendaría JAMÁS, que
+    castigaba a las concentradas en una. La portería salía 2 sobre 16, sólo un
+    puesto la usa, y con eso entrenar portería no se recomendaría JAMÁS, que
     es un artefacto del criterio y no una verdad del juego. Con el máximo sale
     16, que es lo que de verdad vale en un portero. En ataque también cambia el
     orden: anotación pasa por delante de lateral, porque en un delantero es lo
@@ -569,7 +569,7 @@ def block_trainable(
 
     Una habilidad que no aparece en ninguna posición da 0, y eso es un dato: el
     balón parado no contribuye a ningún sector del campo, así que bajo estos
-    métodos no puntúa por ahí — puntúa por lo que ya tienen los canteranos.
+    métodos no puntúa por ahí, puntúa por lo que ya tienen los canteranos.
     """
     sectors = SECTORS_BY_BLOCK.get(block, ())
     totals = {
@@ -586,6 +586,6 @@ def block_trainable(
     if top <= 0:
         return dict.fromkeys(SKILLS, 0.0)
     # Sin redondear: el aporte de una habilidad a un bloque es una proporción,
-    # y truncarla a entero perdía la diferencia entre habilidades vecinas —
+    # y truncarla a entero perdía la diferencia entre habilidades vecinas
     # 10,7 y 10,4 no son "11 y 10", son casi lo mismo.
     return {skill: value / top * SQUAD_NORMALISER for skill, value in totals.items()}

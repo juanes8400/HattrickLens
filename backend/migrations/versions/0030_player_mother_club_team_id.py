@@ -1,4 +1,4 @@
-"""2026-08-04: MotherClub/TeamID de playerdetails.xml — "canterano" real
+"""2026-08-04: MotherClub/TeamID de playerdetails.xml, "canterano" real
 (MotherClub == este club), pedido explícitamente para reemplazar el
 `is_academy_graduate` anterior (YouthPlayer/FormerYouthPlayer, que solo
 cubre jugadores vistos por el escaneo de cantera de esta app) en el

@@ -42,10 +42,10 @@ def changes_only(  # noqa: UP047
     value: Callable[[T], Any],
 ) -> list[T]:
     """Un punto por cambio REAL de valor, no uno por semana ISO ni uno por
-    sync — 2026-08-12, pedido explícito para Espíritu/Confianza y Socios en
+    sync, 2026-08-12, pedido explícito para Espíritu/Confianza y Socios en
     Club: si dos syncs seguidos leen el mismo número, el segundo no es un
     "snapshot nuevo", es la misma foto otra vez. Se queda siempre el primer
-    dato visto y, después, sólo los que de verdad cambiaron — a diferencia de
+    dato visto y, después, sólo los que de verdad cambiaron, a diferencia de
     `latest_per_iso_week`, que colapsa por semana sin mirar si el valor
     cambió y puede meter puntos idénticos seguidos si el valor real tardó
     varias semanas en moverse."""
@@ -75,14 +75,14 @@ def start_of_iso_week(value: datetime) -> datetime:
 #
 # 2026-08-09, confirmado por el usuario: `MatchRound` de worlddetails.xml
 # v2.0 ES la semana real de temporada (1-16, el mismo ciclo semanal de
-# economía/entrenamiento) — no la jornada de liga (eso es un concepto
+# economía/entrenamiento), no la jornada de liga (eso es un concepto
 # distinto, de leaguedetails.xml/Standing, con su propio -1 de ajuste). Se
 # fija esa versión explícita en sync_team.py para no depender de que un
 # cambio de versión por defecto de CHPP altere el significado en silencio.
 #
 # CHPP no expone un campo aparte de "semana de temporada" fuera de
 # MatchRound, así que WorldContext (con su season/match_round YA fijos al
-# instante `refreshed_at`) es la única ancla real disponible — sin ella no
+# instante `refreshed_at`) es la única ancla real disponible, sin ella no
 # hay forma honesta de etiquetar una fecha con su temporada-semana; se
 # devuelve `None` antes que inventar un ancla.
 def _week_index(world: m.WorldContext) -> int:
@@ -92,10 +92,10 @@ def _week_index(world: m.WorldContext) -> int:
 
 def season_week_offset_for(world: m.WorldContext | None, when: datetime) -> int:
     """Semanas ISO transcurridas entre `when` y AHORA (`world.refreshed_at`)
-    — negativo si `when` es pasado, listo para `season_week_label`.
+    negativo si `when` es pasado, listo para `season_week_label`.
 
     2026-08-09, bug real encontrado en vivo: la primera versión contaba
-    `(refreshed_at - when).days // 7` a partir de AHORA sin más — dos
+    `(refreshed_at - when).days // 7` a partir de AHORA sin más, dos
     lecturas de dos semanas ISO DISTINTAS pero separadas por menos de 7 días
     de esa cuenta (p. ej. una capturada un domingo, la otra el domingo
     siguiente) caían en el mismo cociente entero y salían con la MISMA
@@ -104,11 +104,11 @@ def season_week_offset_for(world: m.WorldContext | None, when: datetime) -> int:
     semana ISO (`start_of_iso_week`, la MISMA frontera que usa el resto de
     este módulo) antes de restar: la diferencia entre dos lunes es siempre
     un múltiplo exacto de 7 días, así que dos semanas ISO distintas NUNCA
-    pueden dar el mismo cociente — coincide uno a uno con los cubos que ya
+    pueden dar el mismo cociente, coincide uno a uno con los cubos que ya
     arma `latest_per_iso_week`, sin ambigüedad de redondeo.
 
     SQLite/aiosqlite puede devolver un datetime sin tzinfo aunque se haya
-    guardado en UTC (mismo gotcha ya documentado en squad.py/analysis.py) —
+    guardado en UTC (mismo gotcha ya documentado en squad.py/analysis.py)
     sin este resguardo, restar un naive contra un aware lanza `TypeError`."""
     if world is None or world.refreshed_at is None:
         return 0
@@ -123,7 +123,7 @@ def season_week_offset_for(world: m.WorldContext | None, when: datetime) -> int:
 def season_week_label(world: m.WorldContext | None, *, weeks_offset: int = 0) -> str | None:
     """ "TT-ss" (temporada-semana, p. ej. "83-03") para el `WorldContext`
     dado, desplazado `weeks_offset` semanas respecto a AHORA (negativo =
-    pasado, positivo = futuro — para semanas de una proyección). `None` si
+    pasado, positivo = futuro, para semanas de una proyección). `None` si
     no hay `WorldContext` propio sincronizado todavía."""
     if world is None or world.season is None or world.match_round is None:
         return None
@@ -133,7 +133,7 @@ def season_week_label(world: m.WorldContext | None, *, weeks_offset: int = 0) ->
 
 
 def season_at_offset(world: m.WorldContext | None, *, weeks_offset: int = 0) -> int | None:
-    """Solo el número de temporada (sin la semana) en `weeks_offset` — para
+    """Solo el número de temporada (sin la semana) en `weeks_offset`, para
     agrupar filas de una tabla por temporada (ver Detalles, 2026-08-09,
     pedido explícito: totales acumulados "83"/"82" al estilo Hattrick
     Control). Misma ancla y mismas reglas que `season_week_label`."""
@@ -183,7 +183,7 @@ def backfill_leading_gaps(values: list[float | None]) -> list[float | None]:
 
     Por eso esta función vive en la capa de presentación y NO debe usarse para
     calcular nada: el valor que estira hacia atrás no es una medición, es la
-    primera lectura repetida. Los huecos INTERIORES se respetan tal cual —
+    primera lectura repetida. Los huecos INTERIORES se respetan tal cual
     esos sí significan "esa semana no se leyó" y taparlos escondería una
     laguna real en medio de la serie.
     """

@@ -150,12 +150,12 @@ def training_name(type_id: int) -> str:
 
 def training_skill_name(type_id: int) -> str:
     """Nombre de la HABILIDAD que entrena un tipo, no el nombre completo de
-    Hattrick con su complemento de posiciones — pedido explícitamente
+    Hattrick con su complemento de posiciones, pedido explícitamente
     2026-08-04 para el desglose "por Entrenamiento" del saldo por jugador
     ("Pases (defensas y centrocampistas)" debe leerse "Pases", no el nombre
     completo). Cae de vuelta al nombre crudo de `training_name` para los
     tipos obsoletos (0/1) que no entrenan ninguna de las 7 habilidades de
-    `SKILL_LABELS` — no hay una "habilidad" limpia a la que mapearlos."""
+    `SKILL_LABELS`, no hay una "habilidad" limpia a la que mapearlos."""
     skill = TRAINING_TARGET_SKILL.get(type_id)
     if skill is None:
         return training_name(type_id)
@@ -283,9 +283,9 @@ MATCH_POSITION_FORWARD: frozenset[int] = frozenset({12, 13, 14})
 
 # Reglas reales del marcaje individual (docs/reference/MAN_MARKING_RULES.md):
 # cualquiera de {lateral, defensa central, interior} puede marcar a
-# cualquiera de {extremo, defensa central, interior} rival — es SIEMPRE
+# cualquiera de {extremo, defensa central, interior} rival, es SIEMPRE
 # legal. MAN_MARKING_PROXIMITY es solo la combinación "cerca" (-50%, la más
-# eficiente); cualquier otra combinación legal es "lejos" (-65%) — sigue
+# eficiente); cualquier otra combinación legal es "lejos" (-65%), sigue
 # siendo una orden válida, solo menos eficiente.
 MAN_MARKING_PROXIMITY: dict[frozenset[int], frozenset[int]] = {
     MATCH_POSITION_WINGBACK: MATCH_POSITION_WINGER,
@@ -362,22 +362,22 @@ def player_category_name(code: int) -> str:
 
 
 # 2026-08-12, corrección: `club.xml` dejó de traer los niveles agregados por
-# puesto (`AssistantTrainerLevels` y hermanos) — verificado en vivo, la
+# puesto (`AssistantTrainerLevels` y hermanos), verificado en vivo, la
 # versión actual (1.1) sólo trae `<Specialists>` (booleanos) y `<YouthSquad>`.
 # El desglose real, persona por persona, siempre vivió en `stafflist.xml`
-# (`StaffType`/`StaffLevel` de cada `<Staff>`) — este mapa agrupa esos
+# (`StaffType`/`StaffLevel` de cada `<Staff>`), este mapa agrupa esos
 # miembros reales en la misma columna de `StaffSnapshot` que antes llenaba
 # (mal, con datos obsoletos) el fichero `club`.
 # Los puestos de empleado que Hattrick deja contratar, por su StaffType de
 # stafflist.xml: código -> (campo interno, singular, plural).
 #
 # 2026-08-17: se cae "Portavoz". Estaba en la lista por herencia del club.xml
-# viejo —que aún declara un `SpokespersonLevels`— y no porque exista en el
+# viejo, que aún declara un `SpokespersonLevels`, y no porque exista en el
 # juego: la página de Empleados de Hattrick, la misma de la que salieron las
 # tablas de `staff_effects.py`, lista SEIS puestos y ninguno es un portavoz.
 # Se notaba en que era el único sin modelo de efecto: no había nada que contar
 # de él porque no hace nada. Los nombres son los de Hattrick, no los del XML
-# antiguo — "Doctor" y no "Médico", "Preparador físico" y no "Entrenador de
+# antiguo, "Doctor" y no "Médico", "Preparador físico" y no "Entrenador de
 # forma".
 #
 # El código 3 queda sin asignar a propósito. No se sabe qué es, y ponerle un
@@ -473,16 +473,16 @@ def match_role_name(code: int) -> str:
 
 # 2026-08-09, corregido tras un caso real: `matchlineup.xml` sirve un
 # esquema DISTINTO de `RoleID` según la versión pedida. Sin `version`
-# explícito, CHPP responde v1.2 — ahí `RoleID` es solo un índice secuencial
+# explícito, CHPP responde v1.2, ahí `RoleID` es solo un índice secuencial
 # (1, 2, 3... orden de aparición en el XML, sin significado táctico) y la
 # única columna con la posición real es `PositionCode` (1-16,
 # MATCH_POSITION_*). Pidiendo `version=1.4` (verificado en vivo, matchID
 # 770453114, playerID 468921494: Alberto Gutiérrez Caviedes salió con
-# RoleID=112 = "Delantero medio" — jugó de delantero, no de interior como
+# RoleID=112 = "Delantero medio", jugó de delantero, no de interior como
 # decía su PositionCode v1.2), `RoleID` pasa a usar el MISMO esquema 100+
 # que `MATCH_ROLE_NAMES` (LastMatch de playerdetails.xml). Estos frozensets
 # agrupan ese esquema 100+ igual que los MATCH_POSITION_* de arriba agrupan
-# el 1-16 — para cuando el llamador pide v1.4+ y por tanto lee `role_id`
+# el 1-16, para cuando el llamador pide v1.4+ y por tanto lee `role_id`
 # como posición real, no `position_code` (que a v1.4+ es redundante y a
 # v1.5+ directamente desaparece del XML).
 MATCH_ROLE_KEEPER: frozenset[int] = frozenset({100})
@@ -493,19 +493,21 @@ MATCH_ROLE_INNER_MIDFIELDER: frozenset[int] = frozenset({107, 108, 109})
 MATCH_ROLE_FORWARD: frozenset[int] = frozenset({111, 112, 113})
 
 # 2026-08-09, pedido explícitamente: siglas cortas para "Última semana" en
-# Posiciones — el lado (derecho/izquierdo/medio) no importa, pero SÍ la
+# Posiciones, el lado (derecho/izquierdo/medio) no importa, pero SÍ la
 # orden individual real (Ofensivo/Defensivo/hacia Medio/Hacia la
 # banda), que antes no se mostraba porque vive en un campo aparte
 # (`Behaviour` de matchlineup.xml, no `LastMatch` de playerdetails.xml).
-# Los cupos "extra" (Behaviour 5/6/7: delantero/interior/defensa extra) y
-# "Normal"/"Sin cambio" (0/-1) no llevan sufijo — solo se muestra la
+# Los cupos "extra" (Behaviour 5/6/7: delantero/mediocentro/defensa extra) y
+# "Normal"/"Sin cambio" (0/-1) no llevan sufijo, solo se muestra la
 # posición base.
 MATCH_ROLE_SHORT_LABELS: dict[frozenset[int], str] = {
     MATCH_ROLE_KEEPER: "Portero",
     MATCH_ROLE_WINGBACK: "DL",
     MATCH_ROLE_CENTRAL_DEFENDER: "DC",
     MATCH_ROLE_WINGER: "Ex",
-    MATCH_ROLE_INNER_MIDFIELDER: "Medio",
+    # «MC» de Mediocentro, como DL y DC: «Medio» no es un puesto de Hattrick
+    # (2026-09-14, pedido del usuario).
+    MATCH_ROLE_INNER_MIDFIELDER: "MC",
     MATCH_ROLE_FORWARD: "Del",
 }
 MATCH_BEHAVIOUR_SHORT_SUFFIXES: dict[int, str] = {
@@ -525,3 +527,32 @@ def match_role_short_label(role_id: int, behaviour: int | None) -> str:
         return match_role_name(role_id)
     suffix = MATCH_BEHAVIOUR_SHORT_SUFFIXES.get(behaviour) if behaviour is not None else None
     return f"{base} {suffix}" if suffix else base
+
+
+# ── Veteranos sin habilidades de campo ──────────────────────────────────────
+# 2026-09-13. Posiciones y Entrenamiento ordenaban a toda la plantilla, y tres
+# de sus 25 filas eran veteranos de 41 a 44 años sin nada que hacer en el
+# campo --el entrenador entre ellos--. El resto de la plantilla llega a 10 o
+# más en alguna habilidad; ellos no pasan de 5. Balón parado no cuenta: un
+# veterano puede tirar faltas sin poder jugar en ningún puesto.
+HABILIDADES_DE_CAMPO: tuple[str, ...] = (
+    "keeper",
+    "defending",
+    "playmaking",
+    "winger",
+    "passing",
+    "scoring",
+)
+EDAD_DE_VETERANO = 30
+TOPE_SIN_HABILIDADES = 5
+
+
+def sin_habilidades_de_campo(age_years: int, skills: dict[str, int | None]) -> bool:
+    """¿Veterano sin ninguna habilidad de campo por encima de `TOPE_SIN_HABILIDADES`?
+
+    La edad evita esconder a un chico que recién empieza: con 19 años y todo
+    bajo, es alguien a quien entrenar, no ruido.
+    """
+    return age_years >= EDAD_DE_VETERANO and all(
+        (skills.get(c) or 0) <= TOPE_SIN_HABILIDADES for c in HABILIDADES_DE_CAMPO
+    )

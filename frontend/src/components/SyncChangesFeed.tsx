@@ -1,7 +1,11 @@
 import clsx from "clsx";
 import { PlayerLink } from "./PlayerLink";
 import { number } from "../hooks/useFormat";
-import type { SyncChange, SyncChangeDetail } from "../services/api";
+import type {
+  SyncChange,
+  SyncChangeDetail,
+  SyncSaleEconomics,
+} from "../services/api";
 
 const CATEGORY_LABELS: Record<string, string> = {
   jugadores: "Jugadores",
@@ -64,6 +68,14 @@ const CONFIDENCE_LEVELS: Record<string, number> = {
 function metricTone(label: string): string {
   const key = label.toLocaleLowerCase("es");
   if (key === "salario") return "text-[var(--warning)]";
+  // Los movimientos de plantilla, ahora que llegan con su etiqueta de verdad
+  // en vez de como «Cambio»: entra dinero, sale un jugador, o se refuerza el
+  // de enfrente. Tres cosas distintas y tres colores distintos.
+  if (["venta", "alta", "comision de club anterior"].includes(key)) {
+    return "text-[var(--positive)]";
+  }
+  if (key === "baja") return "text-[var(--muted)]";
+  if (key === "fichaje rival") return "text-[var(--warning)]";
   if (["experiencia", "fidelidad", "liderazgo"].includes(key)) {
     return "text-[var(--positive)]";
   }
@@ -74,11 +86,24 @@ function metricTone(label: string): string {
 function classify(
   summary: string,
   numeric: NumericDelta | null,
+  detail?: SyncChangeDetail | null,
 ): { kind: string; tone: string } {
   // La segunda columna nombra QUÉ cambió. La dirección ya vive en el
   // triángulo, el color y el delta de la tercera columna; decir "Subida" o
   // "Bajada" aquí duplicaba esa señal y ocultaba rubros como "Pases".
   if (numeric) return { kind: numeric.label, tone: metricTone(numeric.label) };
+
+  // LA ETIQUETA LA MANDA EL SERVIDOR, y hasta el 2026-09-09 se ignoraba.
+  //
+  // Sólo se usaba `numeric.label`, que es null en los cambios sin par
+  // before/after: una venta, una baja, un fichaje del rival. Ésos caían a
+  // adivinar por palabras sueltas de la frase, y como no había ninguna para
+  // "se vendió", una VENTA aparecía rotulada «Cambio» --lo encontró el
+  // usuario--. La lista de abajo se queda como reserva para las filas
+  // anteriores al 2026-08-15, que se guardaron sin `detail`.
+  if (detail?.label) {
+    return { kind: detail.label, tone: metricTone(detail.label) };
+  }
 
   const lower = summary.toLowerCase();
   if (lower.includes("subio") || lower.includes("subió")) {
@@ -120,6 +145,71 @@ function classify(
   return { kind: "Cambio", tone: "text-[var(--muted)]" };
 }
 
+/** Lo que dejó una venta, debajo de su fila.
+ *
+ *  2026-09-09, pedido del usuario: una venta decía «Cambio» y enseñaba el
+ *  precio a secas. El precio no es el resultado --falta la comisión del
+ *  agente, el sueldo que se le pagó, los listados-- y sin eso una venta
+ *  redonda y una ruinosa se leen igual.
+ *
+ *  Tres cifras y no las diez que tiene Transferencias: aquí se viene a saber
+ *  si salió bien, no a auditar la operación. El desglose entero está a un
+ *  clic, en su pantalla.
+ */
+function SaldoDeLaVenta({ economia }: { economia: SyncSaleEconomics }) {
+  const gano = (economia.saldo ?? 0) >= 0;
+  return (
+    <span className="col-span-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-[var(--muted)] sm:col-span-3">
+      <span>
+        Ingresos{" "}
+        <b className="tabular-nums text-[var(--text)]">
+          {number(Math.round(economia.ingresos))}
+        </b>
+      </span>
+      <span>
+        Gastos{" "}
+        <b className="tabular-nums text-[var(--text)]">
+          {number(Math.round(economia.gastos))}
+        </b>
+      </span>
+      <span>
+        ROI{" "}
+        <b
+          className={clsx(
+            "tabular-nums",
+            gano ? "text-[var(--positive)]" : "text-[var(--danger)]",
+          )}
+        >
+          {typeof economia.roiPct === "number"
+            ? `${gano ? "+" : ""}${economia.roiPct.toFixed(1)} %`
+            : "?"}
+        </b>
+      </span>
+      {/* El único aviso, y sólo cuando toca: un ROI construido sobre un
+          sueldo estimado no vale lo mismo que uno medido. */}
+      {economia.salarySource !== "observado" && (
+        <span className="text-[var(--warning)]">
+          {economia.salarySource === "estimado"
+            ? "sueldo estimado"
+            : "sin sueldo conocido"}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** El importe de un cambio que sólo tiene «después»: una venta, una comisión.
+ *  `null` para todo lo demás, incluidos los pares before/after, que ya los
+ *  pinta `NumberDelta`. */
+function importeSuelto(detail: SyncChangeDetail | null | undefined): boolean {
+  return Boolean(
+    detail &&
+    detail.kind === "money" &&
+    detail.before == null &&
+    typeof detail.after === "number",
+  );
+}
+
 function splitPlayerSummary(summary: string): {
   title: string;
   detail: string;
@@ -133,7 +223,7 @@ function splitPlayerSummary(summary: string): {
 }
 
 // Los textos vienen del backend como frases ("TSI 223,870 -> 208,360",
-// "Pases subió de 12 a 13", "lesión de nivel 0 a 1") — pedido explícito
+// "Pases subió de 12 a 13", "lesión de nivel 0 a 1"), pedido explícito
 // 2026-08-13: los números deben verse con el mismo formato bonito que ya usa
 // Economía (valor, triángulo verde/rojo según si el cambio es bueno o malo,
 // delta con signo), no como texto plano con una flecha "->".
@@ -145,7 +235,7 @@ function stripLabel(raw: string): string {
 
 /**
  * Camino principal desde 2026-08-15: el backend manda el cambio como dato
- * (`detail`), así que aquí no se parsea nada — sólo se decide cómo pintarlo.
+ * (`detail`), así que aquí no se parsea nada, sólo se decide cómo pintarlo.
  * Devuelve `null` para eventos sin par numérico (llegó, se vendió, mercado),
  * que se muestran como frase.
  */
@@ -154,6 +244,14 @@ function numericFromDetail(
 ): NumericDelta | null {
   if (!detail || detail.before == null || detail.after == null) return null;
   if (detail.kind === "event") return null;
+  // Lesionarse o recuperarse no es un número que suba o baje: -1 es «sano».
+  // Pintado como par salía «Lesión −1 ▲ −1» (2026-09-13); así cae a la
+  // frase del servidor, «se recuperó de la lesión».
+  if (
+    detail.label === "Lesión" &&
+    (detail.before === -1 || detail.after === -1)
+  )
+    return null;
   return {
     label: detail.label ?? "",
     before: detail.before,
@@ -167,14 +265,14 @@ function numericFromDetail(
 
 /**
  * Compatibilidad para las filas guardadas ANTES de que existiera `detail`.
- * No se usa para cambios nuevos — ver `numericFromDetail`.
+ * No se usa para cambios nuevos, ver `numericFromDetail`.
  */
 export function parseNumericDelta(detail: string): NumericDelta | null {
   // Los números llegan dentro de la frase ya formateados. Hasta 2026-08-15 el
   // backend usaba coma de miles ("202,210"); desde ese día usa punto, como el
   // resto de la app ("202.210"). Hay frases de las dos épocas guardadas en
   // `sync_changes`, así que aquí se aceptan ambas: un separador solo cuenta
-  // como de miles si lo siguen EXACTAMENTE tres dígitos — si no, es decimal.
+  // como de miles si lo siguen EXACTAMENTE tres dígitos, si no, es decimal.
   // Sin ese matiz, `Number("202.210")` daba 202,21 y la UI mostraba "202".
   const toNum = (raw: string) =>
     Number(raw.replace(/[.,](?=\d{3}(?:\D|$))/g, "").replace(",", "."));
@@ -383,7 +481,7 @@ export function SyncChangesFeed({
                 const numeric =
                   numericFromDetail(change.detail) ??
                   parseNumericDelta(parsed.detail);
-                const kind = classify(change.summary, numeric);
+                const kind = classify(change.summary, numeric, change.detail);
                 return (
                   // Tres columnas de ancho fijo y el valor a la derecha: con
                   // `1fr` al final cada fila empezaba su número donde
@@ -411,12 +509,28 @@ export function SyncChangesFeed({
                     <span className="col-span-2 justify-self-end text-right sm:col-span-1">
                       {numeric ? (
                         <NumberDelta parsed={numeric} showLabel={false} />
+                      ) : importeSuelto(change.detail) ? (
+                        // Un importe sin «antes» --lo que se cobró por una
+                        // venta, lo que dejó una comisión-- no llega a
+                        // `numeric`, que exige el par. Se quedaba fuera de la
+                        // columna de cifras y sólo vivía dentro de la frase,
+                        // que aquí no se enseña: la fila de una venta salía
+                        // sin su importe.
+                        <span className="text-sm tabular-nums">
+                          {number(change.detail!.after!)}{" "}
+                          <span className="text-xs text-[var(--muted)]">
+                            {change.detail!.currency}
+                          </span>
+                        </span>
                       ) : (
                         <span className="text-sm text-[var(--muted)]">
                           {parsed.detail}
                         </span>
                       )}
                     </span>
+                    {change.economia && (
+                      <SaldoDeLaVenta economia={change.economia} />
+                    )}
                   </li>
                 );
               })}

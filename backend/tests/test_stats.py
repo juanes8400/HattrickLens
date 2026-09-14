@@ -1,4 +1,4 @@
-"""Tests del motor de estadística genérica (HL-15x) — extraído de
+"""Tests del motor de estadística genérica (HL-15x), extraído de
 rival_scouting.py para reutilizarlo en distribuciones de plantilla."""
 from app.domain.engines.stats import kde_grid, percentile_rank
 

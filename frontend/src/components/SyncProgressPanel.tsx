@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * 2026-08-05, pedido explícitamente: "mira cómo lo hace Hattrick Control" —
+ * 2026-08-05, pedido explícitamente: "mira cómo lo hace Hattrick Control"
  * su ventana "Conexión" muestra en vivo qué fichero/jugador/partido está
  * bajando. Esta es la versión HT Lens: una caja con scroll automático,
  * alimentada por `api.syncStream` línea a línea.

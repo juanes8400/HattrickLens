@@ -41,7 +41,7 @@ import {
   trainerTrainingSpeedPct,
   trainingStaffLevelColor,
 } from "../utils/staffEffects";
-import { decimal, number } from "../hooks/useFormat";
+import { decimal, htAgeTexto, number } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 
 type TrainingSection =
@@ -53,11 +53,11 @@ type TrainingSection =
   | "posteriori";
 type PlayerTab = "mejoras" | "prevision";
 
-// Resistencia tope real en Hattrick es 9 (formidable) — nunca escala 0-20
+// Resistencia tope real en Hattrick es 9 (formidable), nunca escala 0-20
 // como las demás habilidades. Mismo criterio de barra que ya usa el
 // Resistencia de la ficha de jugador: azul = nivel actual, rojo = la
-// distancia al nivel esperado ("append" si se espera subir, "eat" —come su
-// propio tramo final— si se espera bajar).
+// distancia al nivel esperado ("append" si se espera subir, "eat", come su
+// propio tramo final, si se espera bajar).
 const STAMINA_MAX_LEVEL = 9;
 
 const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
@@ -249,7 +249,7 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
       key: "age",
       header: "Edad",
       value: (r) => edadOrdenable(r.age),
-      render: (r) => r.age,
+      render: (r) => htAgeTexto(r.age),
     },
     {
       key: "level",
@@ -279,7 +279,7 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
           {r.hasReference && r.weeksElapsed != null ? (
             decimal(r.weeksElapsed, 1)
           ) : (
-            <span className="text-[var(--muted)]">—</span>
+            <span className="text-[var(--muted)]">-</span>
           )}
           <span className="text-[var(--muted)]">
             {" "}
@@ -386,7 +386,7 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
     key: "age",
     header: "Edad",
     value: (r) => edadOrdenable(r.age),
-    render: (r) => r.age,
+    render: (r) => htAgeTexto(r.age),
   },
   {
     key: "level",
@@ -413,7 +413,7 @@ const experienceColumns: Column<TrainingExperienceRow>[] = [
     value: (r) => r.points ?? -1,
     render: (r) =>
       r.points == null ? (
-        <span className="text-[var(--muted)]">—</span>
+        <span className="text-[var(--muted)]">-</span>
       ) : (
         <span className="whitespace-nowrap tabular-nums">
           {decimal(r.points, 1)}{" "}
@@ -515,7 +515,7 @@ const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
     key: "age",
     header: "Edad",
     value: (r) => edadOrdenable(r.age),
-    render: (r) => r.age,
+    render: (r) => htAgeTexto(r.age),
   },
   {
     key: "level",
@@ -639,7 +639,7 @@ const staminaColumns: Column<TrainingStaminaRow>[] = [
     key: "age",
     header: "Edad",
     value: (r) => edadOrdenable(r.age),
-    render: (r) => r.age,
+    render: (r) => htAgeTexto(r.age),
   },
   {
     key: "level",
@@ -803,7 +803,7 @@ const forecastColumns: Column<LevelForecastMilestone>[] = [
     key: "age",
     header: "Edad proyectada",
     value: (r) => edadOrdenable(r.age),
-    render: (r) => r.age,
+    render: (r) => htAgeTexto(r.age),
   },
 ];
 
@@ -821,14 +821,15 @@ const optionColumns: Column<PostMatchTrainingOption>[] = [
     ),
   },
   {
-    // «Score» a secas no dice nada: es una escala interna. El título avisa de
-    // que sólo sirve para ordenar, que es lo único para lo que vale.
-    key: "score",
-    header: "Score",
-    value: (r) => r.score,
+    // Lo que ordena desde el 2026-09-13: cuánto sube, por semana, el mejor
+    // aporte posicional de la plantilla. Sustituye a «Score», que contaba
+    // subidas y minutos y ponía primero a Balón parado.
+    key: "value",
+    header: "Aporte/sem",
+    value: (r) => r.value,
     render: (r) => (
-      <span title="escala interna, sólo para ordenar entre estas opciones">
-        {r.score.toFixed(0)}
+      <span title="cuánto sube por semana el mejor aporte posicional de la plantilla">
+        +{r.value.toFixed(2)}
       </span>
     ),
   },
@@ -870,6 +871,8 @@ export function TrainingPage() {
   const [section, setSection] = useState<TrainingSection>("plantilla");
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [includeThisWeek, setIncludeThisWeek] = useState(true);
+  // Veteranos sin habilidades de campo: fuera por defecto (2026-09-13).
+  const [mostrarVeteranos, setMostrarVeteranos] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [playerTab, setPlayerTab] = useState<PlayerTab>("mejoras");
 
@@ -910,7 +913,9 @@ export function TrainingPage() {
   const elegibles = (post?.options ?? [])
     .filter((o) => o.recommendable)
     .slice()
-    .sort((a, b) => b.score - a.score);
+    // Mismo orden que el servidor desde el 2026-09-13: aporte, y la
+    // puntuación vieja sólo para desempatar.
+    .sort((a, b) => b.value - a.value || b.score - a.score);
   const puestoActual = actual
     ? elegibles.findIndex((o) => o === actual) + 1
     : null;
@@ -918,8 +923,8 @@ export function TrainingPage() {
     !!actual &&
     !!recommendation &&
     actual.trainingType === recommendation.trainingType;
-  const subidasPerdidas =
-    actual && recommendation ? recommendation.popsSoon - actual.popsSoon : null;
+  const aportePerdido =
+    actual && recommendation ? recommendation.value - actual.value : null;
   const minutosPerdidos =
     actual && recommendation
       ? recommendation.equivalentMinutes - actual.equivalentMinutes
@@ -1076,11 +1081,27 @@ export function TrainingPage() {
                     />
                     Incluir los partidos de esta semana
                   </label>
+                  {data.players.some((r) => r.withoutFieldSkills) && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={mostrarVeteranos}
+                        onChange={(e) => setMostrarVeteranos(e.target.checked)}
+                      />
+                      Mostrar a todos (
+                      {data.players.filter((r) => r.withoutFieldSkills).length}{" "}
+                      veteranos sin habilidades de campo)
+                    </label>
+                  )}
                 </div>
               </div>
 
               <DataTable
-                rows={data.players}
+                rows={
+                  mostrarVeteranos
+                    ? data.players
+                    : data.players.filter((r) => !r.withoutFieldSkills)
+                }
                 columns={squadColumns()}
                 rowKey={(r) => r.htPlayerId}
                 initialSort="progress"
@@ -1095,7 +1116,7 @@ export function TrainingPage() {
             {data.weeklyLog.length > 0 && (
               <Panel
                 title="Historial de configuración semanal"
-                meta={`${data.weeklyLog.length} semana(s) registradas`}
+                meta={`${data.weeklyLog.length} cambio(s) aplicados en la actualización`}
               >
                 <DataTable
                   emptyMessage="Sin semanas de entrenamiento registradas todavía."
@@ -1115,7 +1136,7 @@ export function TrainingPage() {
                     Contraste con pops reales: diferencia media de{" "}
                     <b className="text-[var(--text)]">
                       {validation.meanErrorWeeks == null
-                        ? "—"
+                        ? "-"
                         : `${validation.meanErrorWeeks} sem`}
                     </b>{" "}
                     sobre {validation.observations} subida(s) confirmada(s) de{" "}
@@ -1326,7 +1347,7 @@ export function TrainingPage() {
                 value={currentName}
                 hint={
                   actual
-                    ? `${actual.popsSoon} subida(s) en 3 semanas · ${actual.equivalentMinutes.toFixed(0)} min · ${puestoActual}.º de ${elegibles.length}`
+                    ? `+${actual.value.toFixed(2)} de aporte/sem · ${actual.equivalentMinutes.toFixed(0)} min · ${puestoActual}.º de ${elegibles.length}`
                     : "no está entre las opciones comparables"
                 }
               />
@@ -1335,21 +1356,21 @@ export function TrainingPage() {
                 value={recommendation?.name ?? "Sin datos"}
                 hint={
                   recommendation
-                    ? `${recommendation.popsSoon} subida(s) en 3 semanas · ${recommendation.equivalentMinutes.toFixed(0)} min`
+                    ? `+${recommendation.value.toFixed(2)} de aporte/sem · ${recommendation.equivalentMinutes.toFixed(0)} min`
                     : "sin minutos que repartir esta semana"
                 }
               />
               {/* La cifra que da sentido a la pestaña: la diferencia en
-                  SUBIDAS, no en «score». El score es una escala interna que no
-                  significa nada fuera de aquí; una subida sí. */}
+                  APORTE (2026-09-13). Antes eran subidas, y una subida de
+                  balón parado de 2 a 3 contaba igual que una de defensa. */}
               <Kpi
                 label={acerto ? "Acertaste" : "Lo que costó"}
                 value={
                   acerto
                     ? "nada"
-                    : subidasPerdidas == null
+                    : aportePerdido == null
                       ? "sin comparar"
-                      : `${subidasPerdidas > 0 ? "-" : ""}${Math.abs(subidasPerdidas)} subida(s)`
+                      : `-${Math.abs(aportePerdido).toFixed(2)} de aporte/sem`
                 }
                 hint={
                   acerto
@@ -1359,7 +1380,7 @@ export function TrainingPage() {
                       : `y ${Math.abs(minutosPerdidos).toFixed(0)} min equivalentes`
                 }
                 tone={
-                  acerto ? "positive" : subidasPerdidas ? "danger" : undefined
+                  acerto ? "positive" : aportePerdido ? "danger" : undefined
                 }
               />
             </div>
@@ -1370,12 +1391,12 @@ export function TrainingPage() {
             >
               <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
                 <Chart
-                  ariaLabel="Ranking de entrenamientos por exposición post-partido"
+                  ariaLabel="Ranking de entrenamientos por aporte posicional ganado por semana"
                   height={320}
                   option={barOption(
                     post.options.slice(0, 8).map((o) => o.name),
-                    post.options.slice(0, 8).map((o) => o.score),
-                    "Score",
+                    post.options.slice(0, 8).map((o) => o.value),
+                    "Aporte/sem",
                   )}
                 />
                 <div className="rounded-lg border border-[var(--border)] p-4">
@@ -1385,9 +1406,11 @@ export function TrainingPage() {
                       : "Sin recomendación"}
                   </h3>
                   <p className="mt-2 text-sm text-[var(--muted)]">
-                    La app suma los minutos reales por posición y compara qué
-                    tipo de entrenamiento cosecha mejor esa exposición antes del
-                    update semanal.
+                    La app suma los minutos reales por posición y, para cada
+                    entrenamiento, cuánto subiría por semana el mejor aporte
+                    posicional de cada jugador. Gana el que más suma: una subida
+                    que no mejora a nadie en ningún puesto vale poco, aunque
+                    llegue rápido.
                   </p>
                   <ul className="mt-4 space-y-1 text-xs text-[var(--muted)]">
                     {(recommendation?.rationale ?? []).map((item) => (
@@ -1406,7 +1429,7 @@ export function TrainingPage() {
                           <span className="text-xs tabular-nums text-[var(--muted)]">
                             {(p.exposure * 100).toFixed(0)}% ·{" "}
                             {p.weeksToPop == null
-                              ? "—"
+                              ? "-"
                               : `${p.weeksToPop.toFixed(1)} sem`}
                           </span>
                         </li>
@@ -1422,7 +1445,7 @@ export function TrainingPage() {
               rows={post.options}
               columns={optionColumns}
               rowKey={(r) => r.trainingType}
-              initialSort="score"
+              initialSort="value"
               csvName="entrenamiento-a-posteriori"
               // Marca la fila del entrenamiento que pusiste: sin ella hay que
               // buscarla por el nombre entre doce.

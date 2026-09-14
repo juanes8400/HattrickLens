@@ -99,7 +99,7 @@ def test_unrevealed_skills_are_flagged() -> None:
 
 def test_best_skill_only_comes_from_revealed_ceilings() -> None:
     """Con un techo revelado y el resto a oscuras, la mejor habilidad es la
-    revelada — aunque otra tenga un nivel actual más alto."""
+    revelada, aunque otra tenga un nivel actual más alto."""
     e = evaluate(
         "Mixto",
         16,
@@ -153,7 +153,7 @@ def test_academy_roi_with_the_real_numbers() -> None:
 def test_academy_roi_takes_the_investment_already_summed_week_by_week() -> None:
     """2026-08-16, pedido explícitamente: el total NO se reconstruye
     multiplicando el coste semanal de hoy. Si la inversión juvenil cambió a
-    mitad de camino, multiplicar reescribe el pasado con el precio actual —
+    mitad de camino, multiplicar reescribe el pasado con el precio actual
     aquí 3 semanas a 10.000 y 2 a 20.000 son 70.000, no 5 × 20.000."""
     r = academy_roi(invested=70_000, weeks_invested=5, sales_income=0, weekly_investment=20_000)
     assert r.invested == 70_000
@@ -222,7 +222,7 @@ def test_los_cortes_estan_en_la_escala_juvenil() -> None:
 
 def test_sin_ningun_techo_revelado_no_hay_veredicto() -> None:
     """El techo asumido es 8. Si la categoria lo usara, todo canterano recien
-    llegado seria «crack» — afirmar justo lo que nadie ha dicho."""
+    llegado seria «crack», afirmar justo lo que nadie ha dicho."""
     e = evaluate(
         "A oscuras",
         16,

@@ -29,7 +29,7 @@ import type {
 
 function renderStatOrDash(v: number | null) {
   return v == null ? (
-    <span className="text-[var(--muted)]">—</span>
+    <span className="text-[var(--muted)]">-</span>
   ) : (
     <span>{v}</span>
   );
@@ -44,7 +44,7 @@ function renderStatOrDash(v: number | null) {
  * mediocampo. Un marcador solo no distingue las dos situaciones.
  *
  * Escaleras/Duelos/Torneos/Preparación no aparecen aquí ni en ningún otro
- * lugar de la herramienta — no son partidos oficiales y no hay botón que los
+ * lugar de la herramienta, no son partidos oficiales y no hay botón que los
  * reactive (2026-08-12, pedido explícito). El botón que antes los mostraba
  * ahora controla los Amistosos, que sí son partidos reales.
  */
@@ -108,13 +108,14 @@ export function MatchesPage() {
             {includeFriendlies ? "Ocultar amistosos" : "Mostrar amistosos"}
           </button>
           {missingDetails > 0 && (
-            // 2026-08-15: la carga se dispara desde Sincronización, no desde
-            // aquí. Esta pantalla sólo avisa de que faltan datos.
+            // 2026-09-14: ya no hay nada que cargar a mano. Cada
+            // sincronización completa una tanda de partidos antiguos hasta
+            // terminar; esto sólo dice cuántos faltan.
             <Link
               to="/sync"
               className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
             >
-              {missingDetails} sin ratings · cargar en Sincronización
+              {missingDetails} sin ratings · se completan al sincronizar
             </Link>
           )}
         </div>
@@ -133,7 +134,7 @@ export function MatchesPage() {
         />
         <Kpi
           label="HatStats medio"
-          value={data.avgHatstats == null ? "—" : data.avgHatstats.toFixed(1)}
+          value={data.avgHatstats == null ? "-" : data.avgHatstats.toFixed(1)}
           hint={
             data.avgHatstats == null
               ? "faltan ratings"
@@ -448,6 +449,8 @@ function MatchTable({
         </button>
       ),
     },
+    // En copa, cuál: «Copa Cocuy Rubí», no «Copa» (2026-09-14).
+    { key: "tournament", header: "Torneo", value: (r) => r.tournament },
     {
       key: "result",
       header: "Resultado",

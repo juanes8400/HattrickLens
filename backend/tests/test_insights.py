@@ -19,7 +19,6 @@ from app.domain.engines.insights import (
     missing_medic_or_psych,
     next_match_forecast,
     relegation_danger,
-    sector_standouts,
     stale_data,
     structural_deficit,
     thin_keeper_depth,
@@ -94,7 +93,7 @@ def test_injuries_and_ageing() -> None:
 def test_ageing_only_looks_at_the_top_tsi_core() -> None:
     """2026-08-16, redefinida por el usuario: 3+ de 32 años entre los 11 de
     más TSI. Que envejezcan los suplentes no obliga a nada; que envejezca el
-    once que juega, sí — antes bastaban tres treintañeros en cualquier parte
+    once que juega, sí, antes bastaban tres treintañeros en cualquier parte
     del plantel y eso se cumplía casi siempre."""
     core = [
         {"ht_player_id": i, "name": f"Joven {i}", "age_years": 24, "tsi": 10_000 - i}
@@ -193,14 +192,6 @@ def test_thin_keeper_depth_escalates_with_zero_keepers() -> None:
     assert dos == []
 
 
-def test_sector_standouts_names_the_top_contributor() -> None:
-    out = sector_standouts([
-        {"sector": "midfield", "label": "Mediocampo", "player": "Ancker",
-         "positionLabel": "MC", "amount": 12.5},
-    ])
-    assert out and "Ancker" in out[0].title
-
-
 # ── Economía ─────────────────────────────────────────────────────────────────
 
 def test_income_concentration_flags_a_dominant_source() -> None:
@@ -208,6 +199,14 @@ def test_income_concentration_flags_a_dominant_source() -> None:
         ("Espectadores", 90_000), ("Patrocinadores", 5_000), ("Financieros", 5_000),
     ], currency="US$")
     assert out and "espectadores" in out[0].title.lower()
+    assert "última semana cerrada" in out[0].detail
+
+
+def test_income_concentration_says_how_many_closed_weeks() -> None:
+    out = income_concentration(
+        [("Espectadores", 90_000), ("Patrocinadores", 5_000)], "US$", semanas=4
+    )
+    assert "últimas 4 semanas cerradas" in out[0].detail
 
 
 def test_cash_vs_expected_mismatch_only_looks_down() -> None:
@@ -296,6 +295,8 @@ def test_youth_star_prospect_needs_a_non_provisional_verdict() -> None:
         "promote_advice": "promociónalo",
     }])
     assert listo and "Promesa" in listo[0].title
+    # 2026-09-13: salía «Mejor habilidad: winger», la clave interna en inglés.
+    assert "Anotación" in listo[0].detail and "scoring" not in listo[0].detail
 
     provisional = youth_star_prospect([{
         "ht_youth_player_id": 2, "name": "Duda", "category": "crack",
@@ -349,6 +350,7 @@ def test_an_orphaned_key_is_recognisable() -> None:
         "player.overpaid.474426586",         # se fue con salario contra mercado
         "training.pop_soon",                 # subidas de nivel próximas
         "squad.injuries",                    # ahora se avisa una por jugador
+        "squad.sector_standout.midfield",    # no pedía decisión (2026-09-13)
     ):
         assert not ins.is_known_key(huerfana)
 

@@ -1,7 +1,7 @@
 """2026-08-09, pedido explícitamente: "Última semana" solo mostraba la
 posición base (portero/defensa/lateral/medio/extremo/delantero) sin decir
 si la orden individual fue Ofensivo/Defensivo/Hacia el medio/Hacia la
-banda. Ese dato no está en `LastMatch` de playerdetails.xml — solo en el
+banda. Ese dato no está en `LastMatch` de playerdetails.xml, solo en el
 `Behaviour` de matchlineup.xml para el partido concreto. Se guarda aparte
 de `last_match_position_code`, con su propio NULL para "no se pudo
 resolver" (nunca confundido con Behaviour=0 "Normal").

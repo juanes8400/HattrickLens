@@ -6,7 +6,7 @@ import { number, cifra } from "../hooks/useFormat";
 /**
  * Formato "Hattrick Control" pedido 2026-08-10: jugador por jugador,
  * habilidad por habilidad, y luego un agregado del equipo desglosado POR
- * habilidad (no un total único) — usado tanto por el snapshot más reciente
+ * habilidad (no un total único), usado tanto por el snapshot más reciente
  * como por el histórico de la semana, para que ambas vistas se lean igual.
  */
 export interface NormalizedChange {
@@ -22,6 +22,10 @@ export interface PlayerChangeGroup {
   htPlayerId: number;
   name: string;
   changes: NormalizedChange[];
+  /** Un canterano. Cambia dos cosas: no se enlaza a su ficha --no la tiene en
+   *  /players-- y se rotula, porque un «Pases +1» de un chico de la academia
+   *  no es la misma noticia que el de un titular. */
+  isYouth?: boolean;
 }
 
 export interface AggregateMetric {
@@ -29,7 +33,7 @@ export interface AggregateMetric {
   label: string;
   /** Cuánto sumaron las subidas. Positivo. */
   upTotal: number;
-  /** Cuánto sumaron las bajadas, como número POSITIVO — el signo lo pone el
+  /** Cuánto sumaron las bajadas, como número POSITIVO, el signo lo pone el
    *  color, no la cifra. */
   downTotal: number;
 }
@@ -39,10 +43,18 @@ function signed(value: number): string {
   return `${value > 0 ? "+" : ""}${number(value)}`;
 }
 
-/** Casos sin un par before/current numérico limpio — se muestran como una
+/** Casos sin un par before/current numérico limpio, se muestran como una
  * sola frase coloreada, sin el formato "antes ▲ ahora (delta)". */
 function specialChangeLine(change: NormalizedChange): string | null {
   if (change.key === "arrival") return "Nuevo jugador";
+  // UN DESCUBRIMIENTO NO TIENE ANTES. Es de la cantera: el ojeador miró una
+  // habilidad que estaba en blanco y ahora se sabe. Pintarlo con el formato
+  // «antes ▲ ahora (+n)» obligaría a inventar un cero de partida y una
+  // subida que nunca ocurrió, así que se dice lo único cierto: el número que
+  // ahora se conoce.
+  if (change.before == null && change.delta == null) {
+    return `descubierto: ${cifra(change.current)}`;
+  }
   if (change.key === "market")
     return change.current ? "Puesto en venta" : "Retirado del mercado";
   if (change.key === "injury") {
@@ -53,7 +65,7 @@ function specialChangeLine(change: NormalizedChange): string | null {
   return null;
 }
 
-/** Formato pedido 2026-08-11: "antes ▲ ahora (delta)" — sólo el valor
+/** Formato pedido 2026-08-11: "antes ▲ ahora (delta)", sólo el valor
  * nuevo, la flecha y el delta llevan color; "antes" queda en tono neutro
  * para que el ojo vaya directo a lo que cambió. */
 function ChangeValue({ change }: { change: NormalizedChange }) {
@@ -82,8 +94,12 @@ function ChangeValue({ change }: { change: NormalizedChange }) {
 function PlayerChangeCard({ group }: { group: PlayerChangeGroup }) {
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
-      <header className="mb-2 border-b border-[var(--border)] pb-2 text-sm font-semibold">
-        <PlayerLink htPlayerId={group.htPlayerId} name={group.name} />
+      <header className="mb-2 flex items-baseline justify-between gap-2 border-b border-[var(--border)] pb-2 text-sm font-semibold">
+        {group.isYouth ? (
+          <span>{group.name}</span>
+        ) : (
+          <PlayerLink htPlayerId={group.htPlayerId} name={group.name} />
+        )}
       </header>
       <ul className="space-y-1.5 text-xs">
         {group.changes.map((change, index) => (
@@ -103,7 +119,7 @@ function PlayerChangeCard({ group }: { group: PlayerChangeGroup }) {
 function AggregateCard({ metric }: { metric: AggregateMetric }) {
   // Las tres líneas miden LO MISMO: cuánto se movió, no cuánta gente se movió.
   // Subidas suma lo que ganaron los que subieron, Bajadas lo que perdieron los
-  // que bajaron, y el balance es la resta — así los tres números cuadran a
+  // que bajaron, y el balance es la resta, así los tres números cuadran a
   // simple vista, que es lo que se espera de una lista de tres cifras.
   //
   // Contar cabezas en vez de puntos escondía el tamaño de cada movimiento: un
@@ -112,7 +128,7 @@ function AggregateCard({ metric }: { metric: AggregateMetric }) {
   // nada de lo que de verdad ganó o perdió el club.
   //
   // Las bajadas se escriben en positivo; el signo lo pone el color. El balance
-  // sí lo lleva, y en cero se queda con el color de texto normal — un empate no
+  // sí lo lleva, y en cero se queda con el color de texto normal, un empate no
   // es buena noticia ni mala.
   const balance = metric.upTotal - metric.downTotal;
   return (

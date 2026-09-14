@@ -1,8 +1,8 @@
-"""GET /teams/{id}/cup — HL-111 a HL-115.
+"""GET /teams/{id}/cup, HL-111 a HL-115.
 
 Solo hechos: partidos de copa ya jugados (resultado real) y ya programados
 (fecha confirmada, no una predicción). Nunca un pronóstico del próximo
-cruce — HL-140's mismo principio: no presentar el futuro como si fuera cierto."""
+cruce, HL-140's mismo principio: no presentar el futuro como si fuera cierto."""
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -87,7 +87,7 @@ def seeded() -> tuple[TestClient, int]:
             await conn.run_sync(m.Base.metadata.create_all)
         async with factory() as s:
             # 2026-08-04: los nombres de copa ya no son un CUP_LEVEL_NAMES
-            # hardcodeado — salen de `WorldCup`, keyeado por
+            # hardcodeado, salen de `WorldCup`, keyeado por
             # (ht_league_id, cup_level, cup_level_index), el mismo par real
             # que usa Hattrick (el nivel 2 de Colombia tiene tres copas
             # paralelas: Esmeralda/Rubí/Zafiro, índices 1/2/3).
@@ -156,7 +156,7 @@ def test_cup_readiness_defaults_to_top_tsi_without_finished_lineup_history(
     seeded: tuple[TestClient, int],
 ) -> None:
     """Sin ningún partido FINISHED con alineación conocida (de Copa o Liga),
-    el único once de referencia posible es el de mayor TSI — rediseño
+    el único once de referencia posible es el de mayor TSI, rediseño
     2026-08-13 en toggle top TSI / última Copa / última Liga."""
     import asyncio
 
@@ -209,7 +209,7 @@ def test_cup_readiness_hides_last_cup_variant_with_only_one_match_played(
     seeded: tuple[TestClient, int],
 ) -> None:
     """"Última formación en Copa" solo se ofrece con más de un partido de
-    Copa jugado esta temporada — pedido explícito 2026-08-13."""
+    Copa jugado esta temporada, pedido explícito 2026-08-13."""
     import asyncio
 
     client, team_id = seeded
@@ -319,7 +319,7 @@ def test_cup_computes_record_from_finished_matches(
     seeded: tuple[TestClient, int],
 ) -> None:
     """Un partido de copa ya jugado se cuenta en el récord, con HatStats si
-    hay ratings sincronizados — nada de esto es una predicción."""
+    hay ratings sincronizados, nada de esto es una predicción."""
     import asyncio
 
     client, team_id = seeded
@@ -361,10 +361,10 @@ def test_cup_computes_record_from_finished_matches(
 def test_cup_estimates_round_by_counting_matches_in_the_same_cup_level(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """CHPP no numera la ronda, pero sí manda CupLevel/CupLevelIndex — HL-116.
+    """CHPP no numera la ronda, pero sí manda CupLevel/CupLevelIndex, HL-116.
     La fixture ya trae un partido de copa (767370369) con CupLevel=1,
     CupLevelIndex=1: eso es la ronda 1. Un segundo partido jugado antes con el
-    mismo par es la ronda 1 y este pasa a ser la 2 — nunca un número inventado
+    mismo par es la ronda 1 y este pasa a ser la 2, nunca un número inventado
     para partidos donde CHPP no mandó esos campos."""
     import asyncio
 
@@ -399,7 +399,7 @@ def test_cup_estimates_round_by_counting_matches_in_the_same_cup_level(
 
 
 def test_cup_resolves_the_cup_name_from_cup_level(seeded: tuple[TestClient, int]) -> None:
-    """CupLevel=1 en la fixture es la copa principal de Colombia — el nombre
+    """CupLevel=1 en la fixture es la copa principal de Colombia, el nombre
     no viene en `matches`, se resuelve contra la tabla real de CupID de CHPP
     (HL-116). currentCupName usa el próximo partido si hay uno programado."""
     client, team_id = seeded
@@ -415,7 +415,7 @@ def test_cup_resolves_the_cup_name_from_cup_level(seeded: tuple[TestClient, int]
 def test_cup_shows_the_national_prize_table_for_cup_level_1(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """CupLevel=1 (Copa Colombia) usa la tabla Nacional del manual — desde
+    """CupLevel=1 (Copa Colombia) usa la tabla Nacional del manual, desde
     Ronda de 512 hasta Ganador, en orden cronológico."""
     client, team_id = seeded
     resp = client.get(f"/api/v1/teams/{team_id}/cup")
@@ -428,7 +428,7 @@ def test_cup_shows_the_national_prize_table_for_cup_level_1(
     assert table[-1]["stage"] == "Campeón"
     assert table[-1]["amount"] == 1_500_000
     # 2026-08-13, pedido explícito: la nota "Premios oficiales convertidos
-    # desde SEK..." se quitó por redundante — la tabla de premios ya deja
+    # desde SEK..." se quitó por redundante, la tabla de premios ya deja
     # claro que son cifras convertidas.
     assert not any("Premios oficiales" in n for n in body["notes"])
 
@@ -543,7 +543,7 @@ def test_cup_current_streak_counts_from_the_most_recent_match_backward(
             match_type=3, status="FINISHED",
             home_team_ht_id=team.ht_team_id, away_team_ht_id=62,
             home_team_name="Pulgas Arrechas", away_team_name="Rival C",
-            home_goals=3, away_goals=0,  # V — rompe la racha de derrota anterior
+            home_goals=3, away_goals=0,  # V, rompe la racha de derrota anterior
         ))
         await session.commit()
 
@@ -555,11 +555,16 @@ def test_cup_current_streak_counts_from_the_most_recent_match_backward(
     assert streak == {"count": 1, "result": "V"}
 
 
-def test_cup_ladder_groups_consecutive_matches_by_cup_level(
+def test_cup_ladder_groups_every_match_of_a_cup_into_one_step(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """Escalera: agrupa partidos consecutivos por CupLevel real — un hecho,
-    no una estimación, distinto de `roundEstimate`."""
+    """Escalera: UN escalón por copa, con TODOS sus partidos dentro.
+
+    Agrupaba por tramos seguidos, y así una fila que llegara desordenada
+    partía una copa en dos escalones de un partido cada uno. Aquí el
+    2026-06-01 va antes del 2026-07-22 de la muestra y los dos son la misma
+    copa (nivel 1, índice 1): tienen que salir como un escalón de dos, no
+    como dos de uno."""
     import asyncio
 
     client, team_id = seeded
@@ -590,8 +595,10 @@ def test_cup_ladder_groups_consecutive_matches_by_cup_level(
     assert resp.status_code == 200
     ladder = resp.json()["ladder"]
 
-    lvl1 = next(e for e in ladder if e["cupLevel"] == 1 and e["fromDate"] == "2026-06-01")
-    assert lvl1["matches"] == 1
+    lvl1 = next(e for e in ladder if e["cupLevel"] == 1)
+    assert lvl1["matches"] == 2
+    assert lvl1["fromDate"] == "2026-06-01"
+    assert lvl1["toDate"] == "2026-07-22"
     assert lvl1["cupName"] == "Copa Colombia"
 
     lvl2 = next(e for e in ladder if e["cupLevel"] == 2)
@@ -603,7 +610,7 @@ def test_cup_round_estimate_is_none_without_cup_level_data(
     seeded: tuple[TestClient, int],
 ) -> None:
     """Un partido viejo, sincronizado antes de que se guardara CupLevel, no
-    tiene ronda estimada — mostrar un número ahí sería inventarlo."""
+    tiene ronda estimada, mostrar un número ahí sería inventarlo."""
     import asyncio
 
     client, team_id = seeded
@@ -663,3 +670,53 @@ def test_cup_does_not_treat_legacy_zero_rounds_left_as_champion(
     assert body["goal"]["stage"] is None
     assert body["goal"]["securedAmount"] == 0
     assert body["scenarios"]["win"]["nextStage"] is None
+
+
+async def _seed_masters(team_id: int) -> None:
+    """Un cruce de Masters jugado y otro programado, más uno que no es tuyo."""
+    gen = app.dependency_overrides[get_session]()
+    session = await gen.__anext__()
+    base = dict(match_type=7)
+    session.add(m.Match(
+        ht_match_id=880_001, played_at=datetime(2026, 9, 1, tzinfo=UTC), status="FINISHED",
+        home_team_ht_id=OWN_HT_TEAM_ID, home_team_name="Pulgas Arrechas",
+        away_team_ht_id=900_001, away_team_name="Campeón de Suecia",
+        home_goals=2, away_goals=1, **base,
+    ))
+    session.add(m.Match(
+        ht_match_id=880_002, played_at=datetime(2026, 9, 15, tzinfo=UTC), status="UPCOMING",
+        home_team_ht_id=900_002, home_team_name="Campeón de Italia",
+        away_team_ht_id=OWN_HT_TEAM_ID, away_team_name="Pulgas Arrechas",
+        home_goals=-1, away_goals=-1, **base,
+    ))
+    session.add(m.Match(
+        ht_match_id=880_003, played_at=datetime(2026, 9, 15, tzinfo=UTC), status="UPCOMING",
+        home_team_ht_id=900_003, home_team_name="Otro",
+        away_team_ht_id=900_004, away_team_name="Ajeno",
+        home_goals=-1, away_goals=-1, **base,
+    ))
+    await session.commit()
+    await gen.aclose()
+
+
+def test_cup_carries_the_masters_rivals_for_the_rival_picker(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """2026-09-13: Elegir rival tiene una pestaña «Hattrick Masters». El Masters
+    no es copa, así que no toca nada de la copa: sólo viaja en esta respuesta."""
+    import asyncio
+
+    client, team_id = seeded
+    asyncio.run(_seed_masters(team_id))
+    body = client.get(f"/api/v1/teams/{team_id}/cup").json()
+
+    rivales = {r["opponentHtTeamId"]: r for r in body["mastersRivals"]}
+    assert set(rivales) == {900_001, 900_002}
+    jugado, programado = rivales[900_001], rivales[900_002]
+    assert jugado["played"] is True
+    assert (jugado["goalsFor"], jugado["goalsAgainst"]) == (2, 1)
+    assert programado["played"] is False and programado["goalsFor"] is None
+    assert programado["opponent"] == "Campeón de Italia"
+    # La copa sigue igual: el Masters no se cuela en su historial ni en lo próximo.
+    assert all(nm["htMatchId"] not in (880_001, 880_002) for nm in body["nextMatches"])
+    assert body["matchesPlayed"] == 0

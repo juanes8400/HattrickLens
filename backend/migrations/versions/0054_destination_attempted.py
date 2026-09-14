@@ -3,7 +3,7 @@
 2026-08-21. El relleno del pasado va por lotes, y cada lote vuelve a pedir lo
 que sigue pendiente. El país de destino no tenía marca de "ya preguntado": si
 Hattrick no resolvía el país de un comprador, ese jugador reaparecía en el
-siguiente lote y en el siguiente, sin fin — visto en vivo, la barra de progreso
+siguiente lote y en el siguiente, sin fin, visto en vivo, la barra de progreso
 marcaba "55 de 11" porque el trabajo nunca se agotaba.
 
 Las otras dos descargas de este relleno (`enrichment_attempted`,

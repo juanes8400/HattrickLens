@@ -13,7 +13,7 @@ from app.domain.engines.team_rating_engine import (
 
 
 def test_every_real_pitch_position_has_a_contribution_entry() -> None:
-    """Ninguna de las 19 posiciones jugables debe quedar sin tabla — si un
+    """Ninguna de las 19 posiciones jugables debe quedar sin tabla, si un
     jugador cae en una posición sin entrada, su aporte se pierde en silencio."""
     assert set(positions()) == set(POSITION_SECTOR_CONTRIBUTION)
 

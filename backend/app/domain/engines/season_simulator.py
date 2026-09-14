@@ -1,4 +1,4 @@
-"""Season Simulator — HL-090, HL-091, HL-092, HL-094.
+"""Season Simulator, HL-090, HL-091, HL-092, HL-094.
 
 Responde la única pregunta que un manager se hace cada semana: ¿en qué puesto
 voy a acabar? Y la responde con una distribución, no con un número, porque una
@@ -93,7 +93,7 @@ class TeamOutlook:
     # OJO al consumir este campo: es la probabilidad de TERMINAR 1º (idéntica
     # a `title_probability`), no la probabilidad real de ascender. En
     # Hattrick, el 1º de divisiones II-VI asciende directo o juega una
-    # promoción según el ranking nacional de campeones de esa temporada — el
+    # promoción según el ranking nacional de campeones de esa temporada, el
     # motor no conoce ese ranking (no hay fichero CHPP que lo exponga), así
     # que nunca puede calcular la probabilidad real de ascenso, solo la
     # condición necesaria (terminar 1º). 0.0 si ya es la división más alta.
@@ -158,25 +158,33 @@ def best_worst_case(
     records: list[TeamRecord],
     fixtures: list[Fixture],
     target_team_id: int,
-    runs: int = 10000,
+    runs: int = 10_000,
     seed: int = 42,
+    probabilidades: dict[tuple[int, int], tuple[float, float, float]] | None = None,
 ) -> BestWorstCase | None:
     """Mejor y peor caso del equipo analizado, como DISTRIBUCIÓN de puestos.
 
     Reusa el mismo motor de Poisson que `simulate`, pero para los partidos
     pendientes DEL EQUIPO ANALIZADO fuerza el resultado a un extremo:
 
-    - Peor caso: sus goles a favor salen de Poisson(λ=0.001) — casi siempre
-      0 — y sus goles en contra se fijan directamente en 14 (goleada, no
+    - Peor caso: sus goles a favor salen de Poisson(λ=0.001), casi siempre
+      0, y sus goles en contra se fijan directamente en 14 (goleada, no
       simulada).
-    - Mejor caso: al revés — 14 goles a favor fijos, goles en contra con
+    - Mejor caso: al revés, 14 goles a favor fijos, goles en contra con
       Poisson(λ=0.001).
 
     El resto de partidos (los que no involucran al equipo analizado) se
-    simulan exactamente igual que en `simulate`, con las fuerzas de ataque y
-    defensa reales de cada equipo — por eso el resultado es una distribución
-    y no un único número: aunque el equipo analizado tenga un resultado
-    fijado, el resto de la liga sigue siendo incierto.
+    simulan exactamente igual que en `simulate`, por eso el resultado es una
+    distribución y no un único número: aunque el equipo analizado tenga un
+    resultado fijado, el resto de la liga sigue siendo incierto.
+
+    `probabilidades` es la misma terna por cruce que toma `simulate`, y se
+    añadió el 2026-09-12 porque sin ella los dos paneles de la pantalla de
+    Proyección describían al MISMO resto de liga con dos motores distintos:
+    arriba el modelo de ratings, aquí sólo los goles de la tabla. El selector
+    de resumen movía uno y dejaba el otro clavado. Los cruces DEL EQUIPO
+    ANALIZADO la ignoran a propósito: ahí el resultado va forzado, que es
+    justo lo que hace de esto una cota y no un pronóstico.
     """
     if not records or not any(r.ht_team_id == target_team_id for r in records):
         return None
@@ -226,9 +234,18 @@ def best_worst_case(
                     else (rival_goals, target_goals)
                 )
             else:
+                # Idéntico a `simulate`: con terna manda el modelo de zonas y
+                # el marcador se saca después, coherente con ella.
                 lh, la = _lambdas(fx.home_ht_id, fx.away_ht_id, attack, defence, avg)
-                gh = rng.poisson(lh, runs).astype(float)
-                ga = rng.poisson(la, runs).astype(float)
+                terna = (probabilidades or {}).get((fx.home_ht_id, fx.away_ht_id))
+                if terna is None:
+                    gh = rng.poisson(lh, runs).astype(float)
+                    ga = rng.poisson(la, runs).astype(float)
+                else:
+                    goles_l, goles_v = _marcadores_dado_el_resultado(
+                        lh, la, rng.choice(3, size=runs, p=np.asarray(terna) / sum(terna)), rng
+                    )
+                    gh, ga = goles_l.astype(float), goles_v.astype(float)
 
             points[:, h] += np.where(
                 gh > ga, POINTS_WIN, np.where(gh == ga, POINTS_DRAW, POINTS_LOSS)
@@ -244,7 +261,7 @@ def best_worst_case(
         # Desempate aleatorio estable por corrida: un empate EXACTO en puntos,
         # diferencia de goles y goles a favor lo decide una moneda al aire por
         # corrida, no el orden en que el equipo llegó a `records` (lo que
-        # hacía `argsort` estable por defecto — silenciosamente sesgado a
+        # hacía `argsort` estable por defecto, silenciosamente sesgado a
         # favor de quien apareciera primero en la lista, siempre el mismo
         # equipo en las 10.000 corridas). El ruido es < 1, así que nunca
         # puede invertir una diferencia real (el salto mínimo entre dos
@@ -375,7 +392,13 @@ def _marcadores_dado_el_resultado(
             # de romper: el resultado manda, el marcador es el accesorio.
             gh[cuales], ga[cuales] = respaldo
             continue
-        elegidos = rng.choice(len(plano), size=cuantos, p=peso / total)
+        # Acumulada + búsqueda binaria en vez de `rng.choice(..., p=...)`.
+        # Sortea exactamente lo mismo, pero `choice` con probabilidades
+        # reconstruye su tabla interna en cada llamada y aquí se llama tres
+        # veces por partido: con 100.000 simulaciones eso costaba segundos.
+        acumulada = np.cumsum(peso / total)
+        elegidos = np.searchsorted(acumulada, rng.random(cuantos))
+        np.clip(elegidos, 0, len(plano) - 1, out=elegidos)
         gh[cuales] = goles_local[elegidos]
         ga[cuales] = goles_visita[elegidos]
     return gh, ga
@@ -384,7 +407,7 @@ def _marcadores_dado_el_resultado(
 def simulate(
     records: list[TeamRecord],
     fixtures: list[Fixture],
-    runs: int = 10000,
+    runs: int = 10_000,
     seed: int = 42,
     league_level: int = -1,
     max_level: int = -1,
@@ -394,7 +417,7 @@ def simulate(
 
     `league_level`/`max_level` (de leaguedetails.xml, HL-145) determinan si
     hay a dónde ascender o descender: el 1º de la división más alta del país
-    no asciende más, y el 7º-8º de la más baja no desciende más — ninguna de
+    no asciende más, y el 7º-8º de la más baja no desciende más, ninguna de
     las dos cosas es una elección de diseño, son hechos de la pirámide.
     -1 = desconocido: no se filtra nada y se avisa en `caveats`.
     """
@@ -446,7 +469,7 @@ def simulate(
     # Orden de Hattrick: puntos, luego diferencia de goles, luego goles a favor.
     # Se combinan en una clave única para poder ordenar de una vez. El +
     # ruido aleatorio (< 1, nunca invierte una diferencia real de al menos 1)
-    # es el desempate final cuando los tres criterios empatan EXACTO — sin
+    # es el desempate final cuando los tres criterios empatan EXACTO, sin
     # esto, `argsort` es estable y siempre favorece a quien aparezca primero
     # en `records`, el mismo equipo en las 10.000 corridas.
     key = points * 1_000_000 + gd * 1_000 + gf + rng.random((runs, n))
@@ -476,18 +499,18 @@ def simulate(
                 expected_position=round(float(col.mean()), 2),
                 position_distribution={p: round(v, 4) for p, v in dist.items()},
                 title_probability=round(dist[1], 4),
-                # 1º asciende directo — nada si ya está en la división más alta.
+                # 1º asciende directo, nada si ya está en la división más alta.
                 promotion_probability=0.0 if is_top_division else round(dist[1], 4),
                 # 2º-4º: ni título ni promoción/descenso, la zona "intermedia alta".
                 second_to_fourth_probability=round(
                     dist.get(2, 0.0) + dist.get(3, 0.0) + dist.get(4, 0.0), 4
                 ),
                 # 5º-6º juegan una promoción para NO descender (no es un ascenso
-                # extra) — no aplica si no hay a dónde descender.
+                # extra), no aplica si no hay a dónde descender.
                 relegation_playoff_probability=(
                     0.0 if is_bottom_division else round(dist.get(5, 0.0) + dist.get(6, 0.0), 4)
                 ),
-                # 7º-8º descienden directo — nada si ya está en la última división.
+                # 7º-8º descienden directo, nada si ya está en la última división.
                 relegation_probability=(
                     0.0 if is_bottom_division else round(dist.get(n, 0.0) + dist.get(n - 1, 0.0), 4)
                 ),

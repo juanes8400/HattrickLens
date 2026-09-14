@@ -32,10 +32,25 @@ export const metric = (v: number, digits = 3) => {
     .replace(/\.$/, "");
 };
 
-export const htAge = (years: number, days: number) => `${years}.${days}`;
+// La edad, UN formato para toda la aplicación (2026-09-13, pedido del
+// usuario): «17;003». Salía «28.101» en Jugadores y Posiciones --que se lee
+// como un decimal-- y «15;088» en Juveniles.
+export const htAge = (years: number, days: number) =>
+  `${years};${String(days).padStart(3, "0")}`;
+
+/** Lo mismo para una edad que ya llega del servidor como texto: «28.101» o
+ *  «28;101». Lo que no se entienda pasa tal cual. */
+export const htAgeTexto = (edad: string) => {
+  const m = /^(\d+)[.;](\d+)$/.exec(edad.trim());
+  return m ? htAge(Number(m[1]), Number(m[2])) : edad;
+};
+
+/** «1 jugador», «3 jugadores». Nunca «jugador(es)». */
+export const plural = (n: number, singular: string, plural: string) =>
+  `${number(n)} ${n === 1 ? singular : plural}`;
 
 // Formato de fecha único para TODA la herramienta, pedido explícitamente
-// 2026-08-05: dd/mm/yyyy con ceros a la izquierda — Intl.toLocaleDateString
+// 2026-08-05: dd/mm/yyyy con ceros a la izquierda, Intl.toLocaleDateString
 // con locale "es-CO" da d/m/yyyy (sin ceros), que no es lo pedido.
 /**
  * Toda fecha que sale del backend está en UTC. Las que llegan sin marca de
@@ -52,9 +67,14 @@ export const date = (iso: string | null | undefined) => {
   // formateador lo usa media aplicación, era la FUENTE de las comas sueltas
   // que se fueron arreglando una a una en las celdas (2026-08-30 y 08-31):
   // se estaban tapando los síntomas mientras el origen seguía en pie.
-  if (!iso) return "—";
+  if (!iso) return "-";
+  // Una fecha SIN hora es un día, no un instante (2026-09-13). Pasada por
+  // `parseUtc` era la medianoche UTC, que en Colombia cae el día anterior: el
+  // partido de Copa del 26/08 salía el 25/08, en la tarjeta y en el Historial.
+  const soloDia = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (soloDia) return `${soloDia[3]}/${soloDia[2]}/${soloDia[1]}`;
   const d = parseUtc(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;
@@ -91,9 +111,9 @@ export const compact = (v: number) => {
  *  quien mira: en un navegador en ingles la pantalla de Uso mostraba
  *  «8/31/2026, 4:12:00 PM» mientras el resto de la app iba en espanol. */
 export const dateTime = (iso: string | null | undefined) => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = parseUtc(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${date(iso)} ${hh}:${mm}`;

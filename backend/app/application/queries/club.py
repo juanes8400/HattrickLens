@@ -32,7 +32,7 @@ from app.infrastructure.db import models as m
 # Los seis puestos que Hattrick deja contratar, en el orden y con los nombres
 # de su propia página de Empleados. Nada de inventar: la lista y las etiquetas
 # viven en `ht_constants` junto al mapa de códigos, y `staff_effects.py` tiene
-# una función de efecto para cada uno — un puesto sin efecto que contar sería
+# una función de efecto para cada uno, un puesto sin efecto que contar sería
 # la señal de que no existe.
 STAFF_FIELDS: tuple[tuple[str, str], ...] = tuple(
     (field, STAFF_FIELD_LABELS[field])
@@ -390,7 +390,7 @@ class ClubQueryService:
             ).scalars()
         )
 
-        # "TT-ss" para "Evolución del staff" — mismo patrón que economy.py:
+        # "TT-ss" para "Evolución del staff", mismo patrón que economy.py:
         # ancla al WorldContext del país del equipo (por ht_league_id), no
         # inventa temporada/semana si worlddetails no se ha sincronizado.
         world = (
@@ -420,7 +420,7 @@ class ClubQueryService:
                 "totalLevels": sum(item["level"] for item in _staff_levels(latest_staff)),
                 # 2026-08-15, verificado con un fetch en vivo: `club.xml`
                 # devuelve `<YouthSquad><Investment>0</Investment>` aunque el
-                # club SÍ esté invirtiendo — ese campo no refleja el gasto
+                # club SÍ esté invirtiendo, ese campo no refleja el gasto
                 # real. El gasto semanal de verdad es `CostsYouth` de
                 # economy.xml (200.000 SEK ÷ tasa = 20.000 US$/semana en esta
                 # cuenta), así que la cifra sale de ahí, ya convertida a

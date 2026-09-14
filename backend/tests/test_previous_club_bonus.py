@@ -1,10 +1,10 @@
-"""Comisión de club anterior EXACTA — HL-161, 2026-08-14.
+"""Comisión de club anterior EXACTA, HL-161, 2026-08-14.
 
 Cubre, en orden: la tabla oficial de partidos → % (tramos, no
 interpolación), qué tipos de partido cuentan, el criterio "jugó de
 verdad" (RatingStars > 0), y el flujo completo por jugador
 (`_check_previous_club_bonus`/`execute_previous_club_bonus`) contra una
-cadena de transferencias sintética — sin depender de fixtures XML reales,
+cadena de transferencias sintética, sin depender de fixtures XML reales,
 para poder ejercitar a propósito los casos límite (sin reventa todavía,
 cadena rota, idempotencia). Termina con la integración en
 `PlayerBalanceQueryService`, que reemplaza por completo el reparto
@@ -52,7 +52,7 @@ def test_previous_club_bonus_pct_matches_the_official_table() -> None:
 
 
 def test_previous_club_bonus_pct_holds_flat_between_thresholds() -> None:
-    """8 partidos cae en el tramo "7 a 9" — 2,5%, no a medio camino entre
+    """8 partidos cae en el tramo "7 a 9", 2,5%, no a medio camino entre
     2,5% y 3% (no se interpola, a diferencia de la tabla del agente)."""
     assert previous_club_bonus_pct(6) == pytest.approx(0.02)   # sigue en el tramo de 5
     assert previous_club_bonus_pct(8) == pytest.approx(0.025)  # tramo de 7
@@ -87,7 +87,7 @@ def test_counts_toward_games_played_excludes_tournaments_duels_ladders_preparati
 
 def test_did_play_requires_a_nonzero_rating() -> None:
     """Un suplente no utilizado siempre trae RatingStars=0 exacto en
-    matchlineup.xml v2.1 — verificado en vivo 2026-08-14."""
+    matchlineup.xml v2.1, verificado en vivo 2026-08-14."""
     assert not did_play(0)
     assert not did_play(0.0)
     assert did_play(0.1)
@@ -98,7 +98,7 @@ def test_did_play_requires_a_nonzero_rating() -> None:
 
 class FakePreviousClubBonusCHPP:
     """Devuelve payloads ya parseados (mismo shape que los parsers reales)
-    a mano, en vez de leer fixtures XML — permite ejercitar a propósito
+    a mano, en vez de leer fixtures XML, permite ejercitar a propósito
     los casos límite (sin reventa, cadena rota) sin fabricar ficheros
     enteros para cada variante."""
 
@@ -248,7 +248,7 @@ def test_running_twice_never_double_counts_the_same_resale() -> None:
 
 
 def test_our_sale_being_the_most_recent_transfer_means_no_resale_yet() -> None:
-    """Nadie nos ha revendido todavía — nuestra venta es la más reciente
+    """Nadie nos ha revendido todavía, nuestra venta es la más reciente
     en la lista (índice 0). No se calcula nada, no se llama a
     matchesarchive (sería una llamada CHPP desperdiciada)."""
     transfers = [
@@ -280,7 +280,7 @@ def test_our_sale_being_the_most_recent_transfer_means_no_resale_yet() -> None:
 def test_a_broken_chain_never_invents_a_commission() -> None:
     """Defensivo: la transacción inmediatamente anterior a nuestra venta
     en la lista no encaja con quien nos compró (no debería pasar en la
-    práctica) — no se inventa una comisión sobre una cadena que no se
+    práctica), no se inventa una comisión sobre una cadena que no se
     puede confirmar."""
     transfers = [
         _transfer(103, buyer=3, seller=999, price=500000, deadline="2026-08-10 10:00:00"),  # seller no encaja
@@ -305,7 +305,7 @@ def test_a_broken_chain_never_invents_a_commission() -> None:
 
 def test_player_balance_uses_the_exact_bonus_sum_currency_converted() -> None:
     """El saldo/ROI de un jugador con una comisión exacta ya calculada
-    debe reflejarla, convertida a moneda local — sin ningún reparto
+    debe reflejarla, convertida a moneda local, sin ningún reparto
     heurístico de por medio."""
     async def run() -> None:
         uow, _chpp, team_id = await _setup(transfers=[])
@@ -336,7 +336,7 @@ def test_player_balance_uses_the_exact_bonus_sum_currency_converted() -> None:
 
 
 def test_player_balance_resale_share_is_zero_without_a_bonus_record() -> None:
-    """Ningún jugador vendido tiene todavía una reventa detectada — 0.0,
+    """Ningún jugador vendido tiene todavía una reventa detectada, 0.0,
     nunca una aproximación repartida entre candidatos."""
     async def run() -> None:
         uow, _chpp, team_id = await _setup(transfers=[])

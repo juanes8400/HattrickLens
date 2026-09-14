@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
  * Los colores se eligen mirando UNA pantalla, y así es como se cuelan: el
  * 2026-08-31 la paleta de series de las gráficas era una sola lista con los
  * valores del tema oscuro, y en modo claro el verde medía 2,38, el ámbar 2,04
- * y el cian 2,43 — la mitad de las series de cualquier gráfica se leían mal en
+ * y el cian 2,43, la mitad de las series de cualquier gráfica se leían mal en
  * el tema por defecto. Nadie lo había visto porque a ojo «se distinguen».
  *
  * Este test fija el umbral de 3:1 para elementos gráficos (WCAG 1.4.11), que

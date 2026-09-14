@@ -1,4 +1,4 @@
-"""DashboardQueryService — lado de lectura (CQRS).
+"""DashboardQueryService, lado de lectura (CQRS).
 
 No pasa por el dominio ni por repositorios de escritura: lee directamente los
 snapshots más recientes. En PostgreSQL esto se sustituirá por la vista

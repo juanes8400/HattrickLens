@@ -4,6 +4,7 @@ Con tres en linea hay uno izquierdo, uno central y uno derecho. El lado no
 cambia lo que aporta el jugador: decide si puede salir «hacia el lateral».
 El del medio no tiene lado al que salir, asi que no puede.
 """
+
 import pytest
 
 from app.domain.engines.lineup_optimizer import (
@@ -17,8 +18,12 @@ from app.domain.value_objects.formations import slots_for
 def _jugadores(n: int = 14) -> list[dict]:
     return [
         {
-            "ht_player_id": i, "name": f"J{i}", "tsi": 10000,
-            "ratings": {}, "form": 7, "stamina": 8,
+            "ht_player_id": i,
+            "name": f"J{i}",
+            "tsi": 10000,
+            "ratings": {},
+            "form": 7,
+            "stamina": 8,
         }
         for i in range(1, n + 1)
     ]
@@ -44,6 +49,15 @@ def test_con_dos_en_linea_los_dos_son_de_lado(carril: str) -> None:
     slots = [carril, carril]
     for i in (0, 1):
         assert variantes_de_casilla(slots, i) == ORDER_VARIANTS[carril]
+
+
+@pytest.mark.parametrize("carril", ["central_defender", "inner_midfield", "forward"])
+def test_el_que_va_solo_en_su_carril_tampoco_tiene_lado(carril: str) -> None:
+    """2026-09-13: en un 5-3-2 el único mediocentro salía con «hacia Lateral».
+    Solo en su línea va en el medio exacto: no tiene lado al que salir."""
+    solo = variantes_de_casilla(["winger", carril, "winger"], 1)
+    assert not [v for v in solo if v.endswith("_towards_wing")]
+    assert carril in solo
 
 
 def test_las_demas_ordenes_siguen_en_el_medio() -> None:

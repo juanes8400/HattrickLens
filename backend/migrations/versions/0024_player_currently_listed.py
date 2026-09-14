@@ -1,7 +1,7 @@
 """Saldo neto por jugador (HL-161): estado transitorio de listado.
 
 `currently_listed` detecta una aparición NUEVA en el mercado (False→True
-entre dos syncs) para poder incrementar `listing_count` — CHPP solo da una
+entre dos syncs) para poder incrementar `listing_count`, CHPP solo da una
 foto del momento (currentbids.xml), nunca un historial.
 
 Revision ID: 0024

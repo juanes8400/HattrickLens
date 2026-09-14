@@ -55,7 +55,7 @@ REAL_TRAINER_LIKE_RIVAL = [
 
 
 def test_no_suggestion_when_rival_has_no_markable_player() -> None:
-    """Un defensa central y un lateral no son marcables — nunca se puede
+    """Un defensa central y un lateral no son marcables, nunca se puede
     recomendar marcar a ninguno de los dos."""
     own = [{"name": "Mi lateral", "ht_player_id": 10, "position_code": 6, "defending": 8}]
     assert suggest_man_marking(own, REAL_TRAINER_LIKE_RIVAL) is None
@@ -76,7 +76,7 @@ def test_suggests_wingback_for_rival_winger() -> None:
 
 def test_marker_loss_is_fifty_percent_for_the_close_pairing() -> None:
     """Lateral↔extremo es la combinación "cerca" de la tabla del Manual no
-    Escrito (-50%, la más eficiente) — se prefiere siempre que haya un
+    Escrito (-50%, la más eficiente), se prefiere siempre que haya un
     marcador cercano disponible."""
     rival = [{"name": "Extremo peligroso", "ht_player_id": 3, "position_code": 7, "tsi": 3000}]
     own = [{"name": "Mi lateral", "ht_player_id": 11, "position_code": 6, "defending": 9}]
@@ -88,7 +88,7 @@ def test_marker_loss_is_fifty_percent_for_the_close_pairing() -> None:
 
 def test_falls_back_to_far_marker_when_no_close_option_available() -> None:
     """Sin ningún lateral disponible para marcar a un extremo (la combinación
-    "cerca"), un interior sigue siendo una orden LEGAL — "lejos", -65% en
+    "cerca"), un interior sigue siendo una orden LEGAL, "lejos", -65% en
     vez de no sugerir nada."""
     rival = [{"name": "Extremo peligroso", "ht_player_id": 3, "position_code": 7, "tsi": 3000}]
     own = [{"name": "Mi interior", "ht_player_id": 11, "position_code": 9, "defending": 9}]

@@ -225,7 +225,7 @@ async def main(vueltas: int) -> None:
     if mio is not None:
         local, visita = mio.home_team_ht_id, mio.away_team_ht_id
         ml, mv = medianas_por_equipo.get(local), medianas_por_equipo.get(visita)
-        print(f"\nPRÓXIMO PARTIDO — jornada {mio.match_round}")
+        print(f"\nPRÓXIMO PARTIDO, jornada {mio.match_round}")
         print(f"  {nombres[local]} contra {nombres[visita]}")
         if ml and mv:
             print(f"\n  {'duelo':26}{'local':>8}{'visita':>8}{'A/(A+B)':>10}")
@@ -285,7 +285,7 @@ async def main(vueltas: int) -> None:
         del_dia = [t for t in triples if por_jornada[(t[0], t[1])] == jornada]
         fecha = fechas[(del_dia[0][0], del_dia[0][1])]
         print()
-        print(f"JORNADA {jornada} — {fecha}")
+        print(f"JORNADA {jornada}, {fecha}")
         for casa, fuera, pr in del_dia:
             vuelta = Probabilidades(pr.derrota, pr.empate, pr.victoria)
             print(f"  {nombres[casa][:24]} contra {nombres[fuera][:24]}")
@@ -331,7 +331,7 @@ async def main(vueltas: int) -> None:
     casa, fuera, pr = min(triples, key=lambda t: por_jornada[(t[0], t[1])])
     vuelta = Probabilidades(pr.derrota, pr.empate, pr.victoria)
     print()
-    print(f"  el primero, con la cuenta escrita — jornada {por_jornada[(casa, fuera)]}:")
+    print(f"  el primero, con la cuenta escrita, jornada {por_jornada[(casa, fuera)]}:")
     print(f"    {nombres[casa]} contra {nombres[fuera]}")
     print(
         f"    local:     3 x {pr.victoria:.4f} + 1 x {pr.empate:.4f}"

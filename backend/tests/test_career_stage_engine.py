@@ -1,4 +1,4 @@
-"""Tests del motor puro de preclasificación de jugadores — HL-15x #87."""
+"""Tests del motor puro de preclasificación de jugadores, HL-15x #87."""
 from app.domain.engines.career_stage_engine import classify_career_stage
 
 

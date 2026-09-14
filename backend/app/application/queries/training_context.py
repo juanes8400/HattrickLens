@@ -1,4 +1,4 @@
-"""TrainingContextService — contextualiza el perfil de entrenamiento.
+"""TrainingContextService, contextualiza el perfil de entrenamiento.
 
 Antes, el `TrainingSetup` se construía con tres valores puestos a mano: la suma
 de niveles de ayudantes (10), el nivel del entrenador (excelente) y el
@@ -9,7 +9,7 @@ Este servicio construye el mismo `TrainingSetup` **leyendo cada valor del
 CHPP**:
 
 - ayudantes  ← suma de `stafflist.StaffLevel` de los asistentes de entrenador
-  (StaffType=1) — `club.AssistantTrainerLevels` dejó de existir (verificado
+  (StaffType=1), `club.AssistantTrainerLevels` dejó de existir (verificado
   en vivo 2026-08-12, ver `parse_club`)
 - intensidad ← `training.TrainingLevel`
 - %condición ← `training.StaminaTrainingPart`
@@ -126,7 +126,7 @@ class TrainingContextService:
                 "Cuerpo técnico",
                 True,
                 # HL-2xx, 2026-08-12: club.xml dejó de traer el agregado
-                # (verificado en vivo) — ahora es la suma real de los
+                # (verificado en vivo), ahora es la suma real de los
                 # asistentes de entrenador (StaffType=1) de stafflist.xml.
                 "Suma de los niveles de tus asistentes de entrenador",
             )
@@ -161,7 +161,7 @@ class TrainingContextService:
                 "supuesto",
                 False,
                 # HL-2xx, 2026-08-14: antes caía en 0 en vez del default_stamina_share
-                # del yaml (12.5) — contradecía el propio default documentado y
+                # del yaml (12.5), contradecía el propio default documentado y
                 # asumía "0% a resistencia" en vez de un reparto típico.
                 "sin datos de entrenamiento: se usa el reparto típico del perfil",
             )

@@ -1,8 +1,8 @@
-"""Persistir TeamAttitude en match_ratings — HL-2xx, módulo de rivales.
+"""Persistir TeamAttitude en match_ratings, HL-2xx, módulo de rivales.
 
 `parse_matchdetails` ya extraía este campo (`payload["attitude"]`) pero se
 descartaba al persistir. Se necesita, junto a `tactic_type`, para el
-historial real de táctica/actitud del rival — dato de partidos ya
+historial real de táctica/actitud del rival, dato de partidos ya
 finalizados (hecho público permanente), no un estado que se esté trackeando.
 
 Revision ID: 0017

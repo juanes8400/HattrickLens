@@ -79,6 +79,15 @@ async def test_post_match_training_counts_real_forward_minutes() -> None:
     assert scoring["equivalentMinutes"] == 90
     assert keeper["equivalentMinutes"] == 0
 
+    # 2026-09-13: se ordena por el aporte posicional ganado, no por subidas.
+    # Un delantero que juega 90 minutos gana aporte entrenando Anotación, y
+    # nada entrenando Balón parado, que sube rápido pero no mejora ningún puesto.
+    set_pieces = next(o for o in result["options"] if o["trainingType"] == 2)
+    assert scoring["value"] > set_pieces["value"]
+    values = [o["value"] for o in result["options"] if o["recommendable"]]
+    assert values == sorted(values, reverse=True)
+    assert result["recommendation"]["trainingType"] != 2
+
     row = next(p for p in result["players"] if p["htPlayerId"] == player.ht_player_id)
     assert row["exposureByTrainingType"]["4"] == 1.0
     assert "9" not in row["exposureByTrainingType"]

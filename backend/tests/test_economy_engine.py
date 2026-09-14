@@ -40,14 +40,14 @@ def test_structural_balance_matches_hattrick_control() -> None:
 def test_total_sponsor_income_adds_the_bonus() -> None:
     """2026-08-09, bug real corregido a pedido del usuario: el patrocinio
     real de la semana incluye IncomeSponsorBonuses, no solo IncomeSponsors
-    — la tabla "Finanzas de esta semana" ya los sumaba, pero el balance
+    la tabla "Finanzas de esta semana" ya los sumaba, pero el balance
     estructural (dashboard, insights, la proyección de Economía) leía solo
     el campo base."""
     assert total_sponsor_income(103_500, 20_500) == 124_000
 
 
 def test_total_sponsor_income_handles_a_missing_bonus() -> None:
-    """CHPP no siempre expone el bono (campo opcional) — ausente, no cero
+    """CHPP no siempre expone el bono (campo opcional), ausente, no cero
     fabricado, pero el total no debe romperse por eso."""
     assert total_sponsor_income(103_500, None) == 103_500
 

@@ -2,8 +2,8 @@
 
 Sin estas columnas la capacidad de cada sector había que deducirla del reparto
 de lo vendido, y ese reparto vuelve indetectable un lleno: la ocupación sale
-idéntica en los cuatro sectores por construcción. La demanda censurada —lo que
-más importa para decidir una ampliación— quedaba invisible.
+idéntica en los cuatro sectores por construcción. La demanda censurada, lo que
+más importa para decidir una ampliación, quedaba invisible.
 
 Revision ID: 0005
 """

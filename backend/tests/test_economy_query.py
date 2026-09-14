@@ -100,7 +100,7 @@ def test_weekly_finance_groups_into_hattrick_categories() -> None:
         "CostsPlayers", "CostsArena", "CostsArenaBuilding", "CostsStaff",
         "CostsYouth", "CostsBoughtPlayers", "CostsOther",
     ]
-    # El fixture trae IncomeFinancial=0 e IncomeTemporary=15.476.336 (base) —
+    # El fixture trae IncomeFinancial=0 e IncomeTemporary=15.476.336 (base)
     # "Otros" tiene que ser la suma de ambos, convertida a moneda local (÷10).
     other = next(i for i in d.weekly_finance.income if i.code == "IncomeOther")
     assert other.amount == 1547634
@@ -153,7 +153,7 @@ def test_series_and_forecast_carry_the_season_week_label() -> None:
     """2026-08-09, pedido explícitamente: "TT-ss" (temporada-semana) en el
     eje X de Economía. El fixture de worlddetails.xml trae Colombia
     (LeagueID 19) en temporada 84, MatchRound 3 (= semana 3 a partir de
-    v2.0, ver sync_team.py FILE_VERSIONS) — pero `seeded_session()` no
+    v2.0, ver sync_team.py FILE_VERSIONS), pero `seeded_session()` no
     sincroniza teamdetails, así que `Team.ht_league_id` queda en None hasta
     que se fija a mano aquí, igual que tendría que pasar en producción tras
     un sync real."""
@@ -182,8 +182,8 @@ def test_the_current_week_bridges_the_history_and_the_forecast() -> None:
     histórico pasó a terminar en 83-03 y la proyección seguía arrancando en
     83-05. La semana de hoy, 83-04, dejó de existir en las dos mitades.
 
-    `current_week` es el puente: no entra en `series` — esa lista son semanas
-    cerradas y alimenta balances y modelo temporal — pero el gráfico la pinta
+    `current_week` es el puente: no entra en `series`, esa lista son semanas
+    cerradas y alimenta balances y modelo temporal, pero el gráfico la pinta
     al final, así que histórico y proyección vuelven a encadenar sin hueco."""
     async def go():
         factory, team_id = await seeded_session()
@@ -204,7 +204,7 @@ def test_the_current_week_bridges_the_history_and_the_forecast() -> None:
     assert d.current_week not in d.series
     assert all(p.season_week != "84-03" for p in d.series)
     # Cada punto es la caja AL CIERRE de su semana, así que la actual lleva
-    # `expected_cash` — no la caja cruda de mitad de semana. 2026-08-16: sin
+    # `expected_cash`, no la caja cruda de mitad de semana. 2026-08-16: sin
     # esto el gráfico pintaba 9.017.240 en una semana que va -1.136.597 y
     # cerraba en 7.880.644, y la resta no cuadraba a la vista.
     assert d.current_week.cash == d.expected_cash
@@ -212,7 +212,7 @@ def test_the_current_week_bridges_the_history_and_the_forecast() -> None:
 
 def test_season_week_is_none_without_a_league_id() -> None:
     """Sin `ht_league_id` (equipo nunca sincronizó teamdetails.xml) no hay
-    ancla real — `None`, no un supuesto."""
+    ancla real, `None`, no un supuesto."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
@@ -229,7 +229,7 @@ async def _seed_two_weeks(
     week2_costs_players: int, week2_sponsors: int, week2_bonus: int | None,
 ) -> tuple[async_sessionmaker, int]:
     """Dos semanas ISO distintas, con solo `costs_players`/patrocinio
-    variando entre ellas — para aislar el efecto de promediar la base
+    variando entre ellas, para aislar el efecto de promediar la base
     estructural sobre 2 semanas en vez de leer solo la última."""
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool,
@@ -278,7 +278,7 @@ async def _seed_two_weeks(
         # se detecta un cierre desde 2026-08-19 (ver `_weekly_closes`).
         segunda = {**common, "last_income_sum": 1, "last_costs_sum": 1}
         s.add(m.EconomySnapshot(
-            captured_at=datetime(2026, 8, 2, tzinfo=UTC),  # semana ISO 31 — la más reciente
+            captured_at=datetime(2026, 8, 2, tzinfo=UTC),  # semana ISO 31, la más reciente
             income_sponsors=week2_sponsors, income_sponsor_bonuses=week2_bonus,
             costs_players=week2_costs_players,
             income_sum=week2_sponsors, costs_sum=week2_costs_players + 100_000,
@@ -293,7 +293,7 @@ async def _seed_two_weeks(
 
 def test_structural_balance_averages_the_last_two_weeks_and_includes_the_bonus() -> None:
     """2026-08-09, pedido explícito del usuario: la base estructural ya no
-    sale de una sola semana — se promedian las últimas 2 cerradas — y el
+    sale de una sola semana, se promedian las últimas 2 cerradas, y el
     patrocinio incluye el bono (`IncomeSponsorBonuses`), no solo el campo
     base."""
     async def go():
@@ -315,7 +315,7 @@ def test_structural_balance_averages_the_last_two_weeks_and_includes_the_bonus()
 
 def test_weekly_breakdown_is_ordered_most_recent_first() -> None:
     """2026-08-09, pedido explícito: al revés que `series` (que va ascendente
-    porque alimenta gráficos), Detalles va del más reciente al más antiguo —
+    porque alimenta gráficos), Detalles va del más reciente al más antiguo
     igual que la pantalla equivalente de Hattrick Control."""
     async def go():
         factory, team_id = await _seed_two_weeks(
@@ -342,7 +342,7 @@ def test_weekly_breakdown_is_ordered_most_recent_first() -> None:
 
 def test_weekly_breakdown_never_fabricates_a_zero_for_a_week_without_closed_data() -> None:
     """Caso real 2026-08-09: el primer sync que hace un club no trae desglose
-    de la semana YA CERRADA (CHPP no tiene "semana anterior" que reportar) —
+    de la semana YA CERRADA (CHPP no tiene "semana anterior" que reportar)
     debe salir `None` ("sin dato"), nunca 0 fabricado. La semana EN CURSO sí
     usa datos reales (los campos "en vivo" del snapshot)."""
     async def go():
@@ -400,7 +400,7 @@ def test_season_breakdown_totals_group_by_season_newest_first() -> None:
 
 def test_structural_balance_falls_back_to_one_week_when_theres_only_one() -> None:
     """Con una sola semana sincronizada, "promedio de las últimas 2" debe
-    degradar limpiamente a esa única semana — nunca inventar una segunda."""
+    degradar limpiamente a esa única semana, nunca inventar una segunda."""
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
@@ -421,7 +421,7 @@ def _economy_row(
     last_income_sold_players: int | None = None,
     last_costs_bought_players: int | None = None,
 ) -> m.EconomySnapshot:
-    """Fila mínima de economy_snapshots — sólo Taquillas rellena, el resto en
+    """Fila mínima de economy_snapshots, sólo Taquillas rellena, el resto en
     cero, para aislar la suma de ventanas del Sankey sin ruido de otras
     partidas."""
     return m.EconomySnapshot(
@@ -450,7 +450,7 @@ def test_sankey_windows_chain_each_snapshots_own_closed_week() -> None:
     """1 semana es sólo la semana en curso. Cada snapshot describe además la
     semana YA CERRADA justo antes de la suya (Last*); encadenando esa semana
     cerrada de los últimos N snapshots se arma una ventana de N semanas sin
-    solapar ninguna — nunca se repite una misma semana dos veces."""
+    solapar ninguna, nunca se repite una misma semana dos veces."""
     async def go():
         engine = create_async_engine(
             "sqlite+aiosqlite://", poolclass=StaticPool,
@@ -492,7 +492,7 @@ def test_sankey_windows_chain_each_snapshots_own_closed_week() -> None:
     assert taquillas(2) == 100 + 50                # + la última semana cerrada de C (500 ÷ 10)
     assert by_weeks[2].weeks_available == 2
     # Sólo hay 3 filas en total: 1 viva + hasta 3 semanas cerradas
-    # encadenables (la propia de C, luego B, luego A) — no más, ni menos.
+    # encadenables (la propia de C, luego B, luego A), no más, ni menos.
     assert taquillas(4) == 100 + 50 + 30 + 20      # + las cerradas de B y de A
     assert by_weeks[4].weeks_available == 4
     assert taquillas(8) == taquillas(4)            # no hay una cuarta fila que sumar
@@ -545,7 +545,7 @@ def test_balance_excl_transfers_takes_out_player_trading() -> None:
 
 def test_balance_excl_transfers_stays_silent_without_the_full_breakdown() -> None:
     """Un snapshot sincronizado antes de guardar Last*SoldPlayers/BoughtPlayers
-    no tiene cómo separar la compraventa — decirlo es mejor que asumir cero."""
+    no tiene cómo separar la compraventa, decirlo es mejor que asumir cero."""
     base = datetime(2026, 6, 1, tzinfo=UTC)
 
     def rows(team_id: int):

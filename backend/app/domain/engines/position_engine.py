@@ -1,4 +1,4 @@
-"""Motor de posiciones — matriz del Manual no Escrito.
+"""Motor de posiciones, matriz del Manual no Escrito.
 
 El Manual no Escrito publica, para cada puesto y orden individual, qué
 porcentaje de cada habilidad alimenta la defensa central/lateral, mediocampo y
@@ -30,7 +30,7 @@ import yaml
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "positions.yaml"
 SOURCE_URL = "https://wiki.hattrick.org/wiki/Manual_no_Escrito"
 
-# SPECIALTIES[1] en ht_constants.py ("Tecnico") — usado solo por
+# SPECIALTIES[1] en ht_constants.py ("Tecnico"), usado solo por
 # penalty_taker (ver positions.yaml). No se importa ht_constants aquí para
 # no acoplar este motor a esa tabla completa por un solo código.
 TECHNICAL_SPECIALTY_CODE = 1
@@ -132,7 +132,7 @@ def _special_role_score(player: dict[str, Any], position: str) -> float:
         # their unweighted sum rather than a fitted ratio.
         return _skill(player, "set_pieces") + experience
     if position == "penalty_taker":
-        # A DISTINCT role from set_piece_taker (2026-08-09) — covers penalty
+        # A DISTINCT role from set_piece_taker (2026-08-09), covers penalty
         # kicks, including shootouts ("penales de tanda"). Weighted formula
         # and the Technical-specialty bonus given directly by the user
         # 2026-08-09 (see positions.yaml note: not independently verified by

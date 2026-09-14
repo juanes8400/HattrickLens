@@ -1,4 +1,4 @@
-"""Economy Engine — proyección de caja a 52 semanas.
+"""Economy Engine, proyección de caja a 52 semanas.
 
 Diseño (ver docs/07). Tres capas, de más a menos determinista:
 
@@ -26,7 +26,7 @@ import numpy as np
 # un promedio: 0 en semanas sin partido en casa, un bulto grande en las que sí
 # hay. HL-052: "balance estructural" tiene que amortizarla a lo largo de la
 # temporada o el resultado depende de qué semana te tocó sincronizar, no de
-# la operación real del club — es el bug que motivó esta constante compartida
+# la operación real del club, es el bug que motivó esta constante compartida
 # (el dashboard y la pantalla de economía daban números casi opuestos).
 SEASON_WEEKS = 16
 HOME_MATCHES_PER_SEASON = 7
@@ -37,7 +37,7 @@ def total_sponsor_income(income_sponsors: int, income_sponsor_bonuses: int | Non
 
     2026-08-09, bug real corregido a pedido del usuario: cada lugar que
     calculaba "balance estructural" o mostraba "Patrocinadores" leía solo
-    `income_sponsors`, dejando afuera el bono — pese a que la tabla
+    `income_sponsors`, dejando afuera el bono, pese a que la tabla
     "Finanzas de esta semana" (economy.py, `_income_items`) ya sumaba los
     dos. Única fuente de verdad para el total de patrocinio: todo lugar que
     lea patrocinio para un cálculo debe pasar por aquí, no releer el campo
@@ -113,7 +113,7 @@ class WeeklyStructure:
 
     @property
     def structural_balance(self) -> int:
-        """Balance semanal sin transferencias — el número que importa."""
+        """Balance semanal sin transferencias, el número que importa."""
         return (
             self.sponsors
             + self.gate_per_week
@@ -287,7 +287,7 @@ def estimate_residuals(observed: list[int], predicted: list[int]) -> tuple[float
     Con menos de 3 observaciones devuelve (0, 0): no hay señal suficiente y es
     preferible no corregir a corregir con ruido.
 
-    Se usan mediana y MAD, no media y desviación típica — 2026-08-19, caso real
+    Se usan mediana y MAD, no media y desviación típica, 2026-08-19, caso real
     del usuario: sus cuatro residuos eran -17.939.155, +1.582.227, +1.825.153 y
     +1.870.509. El primero es la semana en que compró jugadores por 22,5
     millones. Con media y desviación, esa única semana movía el centro a

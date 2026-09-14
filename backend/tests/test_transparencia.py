@@ -290,3 +290,116 @@ def test_el_htms_lleva_su_credito() -> None:
         nota = _calculo(calc_id).note
         assert "Foxtrick" in nota and "Fantamondi" in nota
         assert "no es nuestra" in nota
+
+
+#: ── El capítulo del pronóstico de partido ─────────────────────────────────
+#:
+#: Nueve fichas que son un artículo, no ocho cálculos: el usuario pidió el
+#: 2026-09-08 «que explique paso a paso todo el proceso, como si alguien que
+#: no conoce se quisiera empapar del tema». Lo que se protege aquí abajo es
+#: que siga siendo eso --pasos completos, con prosa-- y sobre todo que sus
+#: veintitantos coeficientes se sigan LEYENDO del motor.
+PASOS_DEL_PRONOSTICO = (
+    "pronostico-resumen",
+    "pronostico-muestra",
+    "pronostico-duelo",
+    "pronostico-goles",
+    "pronostico-tactica",
+    "pronostico-rejilla",
+    "pronostico-mezcla",
+    "pronostico-validacion",
+    "pronostico-limites",
+)
+
+
+def test_el_pronostico_esta_entero_y_en_orden() -> None:
+    seccion = next(s for s in catalogo() if s.id == "pronostico")
+    assert tuple(c.id for c in seccion.calcs) == PASOS_DEL_PRONOSTICO
+
+
+def test_cada_paso_del_pronostico_se_explica_en_prosa() -> None:
+    """Un capítulo que sólo enseñe fórmulas no es lo que se pidió.
+
+    `body` es lo que separa «aquí está la ecuación» de «así se llegó a esta
+    ecuación y esto es lo que se descartó por el camino».
+    """
+    for calc_id in PASOS_DEL_PRONOSTICO:
+        calc = _calculo(calc_id)
+        assert len(calc.body) >= 4, f"{calc_id} tiene {len(calc.body)} párrafos"
+        # 120 y no 200: alguna ficha abre con una frase corta a propósito.
+        # Lo que se caza aquí es el párrafo de relleno, no el remate breve.
+        assert all(len(p) > 120 for p in calc.body), f"{calc_id} tiene párrafos de relleno"
+
+
+def test_los_coeficientes_del_pronostico_salen_del_motor() -> None:
+    """Los siete de goles, los nueve de duelos y los dos umbrales."""
+    from app.domain.engines import prediccion
+
+    formula = _calculo("pronostico-goles").formula
+    for valor in (
+        prediccion.POISSON_JUEGO_INTERCEPTO,
+        prediccion.POISSON_JUEGO_MEDIO,
+        prediccion.POISSON_JUEGO_CARRIL,
+        prediccion.POISSON_BP_INTERCEPTO,
+        prediccion.POISSON_BP_MEDIO,
+        prediccion.POISSON_BP_BALON_PARADO,
+        prediccion.POISSON_ETA_MEDIA,
+    ):
+        assert repr(valor) in formula, valor
+    # El cuadrático viaja con su signo derivado, no con el menos pegado.
+    assert repr(abs(prediccion.POISSON_JUEGO_CUADRATICO)) in formula
+
+    duelos = _calculo("pronostico-duelo").tables[0]
+    publicados = {fila[1] for fila in duelos.rows}
+    assert publicados == {repr(float(b)) for b in prediccion.BETA}
+    assert len(duelos.rows) == len(prediccion.COMPARACIONES)
+
+    mezcla = _calculo("pronostico-mezcla").formula
+    assert repr(prediccion.UMBRALES[0]) in mezcla
+    assert repr(prediccion.UMBRALES[1]) in mezcla
+
+
+def test_el_pronostico_sigue_al_motor_si_alguien_lo_reajusta() -> None:
+    """La prueba de verdad: se mueve el coeficiente y la página se mueve.
+
+    Misma idea que `test_cambiar_la_constante_cambia_la_pantalla`, pero sobre
+    el motor de predicción, que es el que más números publica y por tanto el
+    que más caro sale que se desincronice.
+    """
+    import importlib
+
+    from app.domain.engines import prediccion
+
+    original = prediccion.POISSON_BP_BALON_PARADO
+    try:
+        prediccion.POISSON_BP_BALON_PARADO = 9.87654
+        modulo = importlib.reload(importlib.import_module("app.application.queries.transparencia"))
+        formula = next(
+            c.formula for s in modulo.catalogo() for c in s.calcs if c.id == "pronostico-goles"
+        )
+        assert "9.87654" in formula, "el capítulo no siguió al motor: está tecleado a mano"
+    finally:
+        prediccion.POISSON_BP_BALON_PARADO = original
+        importlib.reload(importlib.import_module("app.application.queries.transparencia"))
+
+
+def test_el_pronostico_publica_sus_dos_avisos_obligatorios() -> None:
+    """Los dos que el motor conoce y no puede callar.
+
+    El coeficiente del balón parado comparte el 62 % de su varianza con los
+    duelos de ataque, así que leerlo literalmente lleva a fichar mal; y el
+    empate sale por encima de lo que ocurre. Publicar el modelo sin estas dos
+    cosas sería publicar sólo la mitad que favorece.
+    """
+    limites = " ".join(_calculo("pronostico-limites").limits)
+    assert "62 %" in limites and "balón parado" in limites
+    assert "14,5 %" in limites and "13,0 %" in limites
+
+
+def test_el_pronostico_ya_no_convive_con_el_calculo_viejo() -> None:
+    """`prediccion_zonas` describía el modelo de julio --75/25, sin Poisson de
+    dos componentes-- y se borró al llegar el capítulo. Dos descripciones del
+    mismo motor en la misma pantalla garantizan que una quede desfasada, y
+    ésta es justo la pantalla donde eso no puede pasar."""
+    ids = {c.id for s in catalogo() for c in s.calcs}
+    assert "prediccion_zonas" not in ids

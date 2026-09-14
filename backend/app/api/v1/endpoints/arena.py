@@ -20,6 +20,11 @@ router = APIRouter()
 )
 async def arena(
     team_id: int,
+    tipo: str = Query(
+        "todos",
+        pattern="^(todos|oficiales|amistosos)$",
+        description="Qué partidos se miran: todos, sólo oficiales o sólo amistosos",
+    ),
     fill_rate: float | None = Query(
         None,
         ge=0.0,
@@ -29,6 +34,9 @@ async def arena(
             "se usa la ocupación media observada, que sólo es una estimación "
             "válida cuando ningún sector se agotó."
         ),
+    ),
+    season: int | None = Query(
+        None, description="Filtrar por temporada, igual que Partidos. Ausente = todas"
     ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -40,11 +48,13 @@ async def arena(
     así que la respuesta marca qué sectores están censurados y trata su
     ocupación como un suelo.
 
-    Escaleras, Duelos, Torneos y Preparación se excluyen siempre — no son
+    Escaleras, Duelos, Torneos y Preparación se excluyen siempre, no son
     partidos oficiales y no hay override para ellos en ningún punto de la
     herramienta.
     """
-    data = await ArenaQueryService(session).get(team_id, fill_rate=fill_rate)
+    data = await ArenaQueryService(session).get(
+        team_id, fill_rate=fill_rate, tipo=tipo, season=season
+    )
     if data is None:
         raise HTTPException(404, f"no stadium history for team {team_id}")
     return cast(dict[str, Any], _camel(asdict(data)))

@@ -16,7 +16,7 @@ guarda, con la versión que nunca manda el nodo, significaba que el nivel no se
 escribía JAMÁS: se quedaba en el 0 con el que nace la fila.
 
 Es el mismo patrón que ya mordió con el libro de traspasos: una versión mal
-fijada no falla, no avisa y no rompe ningún test — simplemente calla un campo.
+fijada no falla, no avisa y no rompe ningún test, simplemente calla un campo.
 Por eso lo que se vigila aquí es la VERSIÓN pedida, no el valor.
 """
 

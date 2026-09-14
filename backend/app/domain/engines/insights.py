@@ -1,4 +1,4 @@
-"""Insights y alertas — HL-130, HL-131, HL-038, HL-112, HL-114.
+"""Insights y alertas, HL-130, HL-131, HL-038, HL-112, HL-114.
 
 La diferencia entre un visor de datos y un asistente: Hattrick Control te da
 cuarenta columnas y tú deduces; esto te dice qué hacer y por qué.
@@ -13,7 +13,7 @@ from typing import Any
 
 from app.domain.engines import weather as wx
 from app.domain.value_objects.formatting import thousands
-from app.domain.value_objects.ht_constants import skill_name
+from app.domain.value_objects.ht_constants import SKILL_LABELS, skill_name
 
 
 class Severity(StrEnum):
@@ -35,17 +35,17 @@ class Insight:
 
 
 # Todas las claves que este módulo puede emitir, como raíces: varias reglas le
-# pegan detrás un sufijo con punto —el id del jugador, del canterano, el sector,
-# la semana— así que `player.injured` cubre también `player.injured.474559832`.
+# pegan detrás un sufijo con punto, el id del jugador, del canterano, el sector,
+# la semana, así que `player.injured` cubre también `player.injured.474559832`.
 #
 # Existe porque el buzón guarda una fila por alerta archivada y esa fila
-# sobrevive a la regla. Al borrar una regla —o al cambiarle la clave— sus
+# sobrevive a la regla. Al borrar una regla, o al cambiarle la clave, sus
 # archivadas quedan huérfanas: no pueden reaparecer jamás, así que listarlas es
 # prometer un aviso que no va a llegar. Con esta lista el buzón puede
 # reconocerlas y descartarlas solo, sin que haya que acordarse de purgar la
 # base a mano cada vez.
 #
-# Si añades o renombras una regla, añade aquí su clave — hay un test que
+# Si añades o renombras una regla, añade aquí su clave, hay un test que
 # compara esta lista contra las claves reales del módulo y falla si se olvida.
 KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
     {
@@ -56,7 +56,7 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "arena.expansion_opportunity",
         # «arena.sold_out» sale de la lista el 2026-09-01: la regla se retiró
         # con el desglose por sector. Quitarla de aquí es lo correcto y no un
-        # descuido — las archivadas de esa clave quedan huérfanas y el buzón
+        # descuido, las archivadas de esa clave quedan huérfanas y el buzón
         # las descarta solo, que es exactamente lo que esta lista sirve para
         # decidir. Esa alerta ya no puede reaparecer nunca.
         "economy.cash_below_expected",
@@ -76,7 +76,8 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "player.wage_concentration",
         "squad.ageing",
         "squad.no_natural_keeper",
-        "squad.sector_standout",
+        # «squad.sector_standout» sale el 2026-09-13: nombrar al que más
+        # aporta no pedía ninguna decisión.
         "squad.single_keeper",
         "staff.assistants_low",
         "staff.no_medic",
@@ -99,7 +100,7 @@ def is_known_key(key: str) -> bool:
 
 # Reglas cuya clave lleva pegada la semana de temporada. Es deliberado: el
 # déficit estructural se juzga semana a semana, así que archivar el de 83-04 no
-# puede tapar el de 83-05 — clave distinta, alerta nueva.
+# puede tapar el de 83-05, clave distinta, alerta nueva.
 #
 # El precio de eso es que la archivada de una semana pasada ya no le sirve a
 # nadie: esa semana no vuelve, y su clave tampoco. Se caducan.
@@ -212,13 +213,13 @@ def structural_deficit(
                 else "economy.structural_deficit"
             ),
             severity=sev,
-            title=(
-                f"Tu club pierde dinero esta semana ({season_week})"
-                if season_week
-                else "Tu club pierde dinero cada semana"
-            ),
+            # «DÉFICIT DE FONDO», y lo dice (2026-09-13). Economía enseña tres
+            # cifras semanales --la semana pasada, el presupuesto de esta y el
+            # fondo-- y la alerta decía «esta semana» con la del fondo.
+            title="Déficit de fondo: tu club pierde dinero cada semana",
             detail=(
-                f"El balance sin transferencias es {thousands(structural_balance)} {currency} por semana. "  # noqa: E501
+                "Media de las últimas semanas cerradas, sin compraventa: "
+                f"{thousands(structural_balance)} {currency} por semana. "
                 f"Con la caja actual aguantas unas {semanas} semanas."
             ),
             action="Recorta salarios o sube ingresos: vender jugadores solo tapa el agujero.",
@@ -233,10 +234,15 @@ def structural_deficit(
 
 
 def income_concentration(
-    income_items: list[tuple[str, int]], currency: str = "", share_threshold: float = 0.7
+    income_items: list[tuple[str, int]],
+    currency: str = "",
+    share_threshold: float = 0.7,
+    semanas: int | None = None,
 ) -> list[Insight]:
     """HL-052: cuando casi todo el ingreso depende de una sola fuente
-    (típicamente taquilla), un mal fin de semana pesa más de lo normal."""
+    (típicamente taquilla), un mal fin de semana pesa más de lo normal.
+
+    `semanas`: cuántas semanas cerradas suman los importes, para decirlo."""
     total = sum(v for _, v in income_items if v > 0)
     if total <= 0:
         return []
@@ -249,7 +255,14 @@ def income_concentration(
             key="economy.income_concentration",
             severity=Severity.INFO,
             title=f"{share:.0%} de tus ingresos vienen de {label.lower()}",
-            detail=f"{thousands(value)} {currency} de {thousands(total)} {currency} en la última lectura.",  # noqa: E501
+            detail=(
+                f"{thousands(value)} {currency} de {thousands(total)} {currency} "
+                + (
+                    f"en las últimas {semanas} semanas cerradas."
+                    if semanas and semanas > 1
+                    else "en la última semana cerrada."
+                )
+            ),
             action="Diversificar (patrocinios, afición) amortigua una mala racha de resultados.",
             module="economía",
             evidence={"source": label, "share": round(share, 3)},
@@ -396,7 +409,7 @@ def injuries(players: list[dict[str, Any]]) -> list[Insight]:
     magullado para salir aquí como "lesionado".
 
     Una alerta por cabeza (2026-08-16, pedido explícito): agrupadas en una
-    sola, un segundo lesionado no se distinguía del primero — la alerta ya
+    sola, un segundo lesionado no se distinguía del primero, la alerta ya
     archivada seguía tapando la novedad.
     """
     out: list[Insight] = []
@@ -418,7 +431,7 @@ def injuries(players: list[dict[str, Any]]) -> list[Insight]:
 
 
 def low_form(players: list[dict[str, Any]]) -> list[Insight]:
-    """Forma baja, jugador a jugador — no un resumen, una alerta con nombre.
+    """Forma baja, jugador a jugador, no un resumen, una alerta con nombre.
 
     Umbral relativo a la misma escala de habilidad que usa el resto de la
     herramienta (`skill_name`, 0-20): 4 o menos es un nivel en el que el
@@ -508,25 +521,6 @@ def thin_keeper_depth(players: list[dict[str, Any]]) -> list[Insight]:
     ]
 
 
-def sector_standouts(standouts: list[dict[str, Any]]) -> list[Insight]:
-    """HL-143: quién es tu principal aportador por sector, según la fórmula
-    exacta de contribución posicional — un dato que solo existía enterrado
-    en la tabla de la alineación. `standouts`: uno por sector, ya resuelto
-    (sector, label, player, positionLabel, amount)."""
-    return [
-        Insight(
-            key=f"squad.sector_standout.{s['sector']}",
-            severity=Severity.INFO,
-            title=f"{s['player']} es tu principal aportador en {s['label']}",
-            detail=f"Jugando de {s['positionLabel']}, aporta {s['amount']:.1f} al sector.",
-            action="",
-            module="equipo",
-            evidence={"sector": s["sector"], "player": s["player"], "amount": s["amount"]},
-        )
-        for s in standouts
-    ]
-
-
 # ── Academia ────────────────────────────────────────────────────────────────
 
 
@@ -584,7 +578,7 @@ def youth_deadline(youths: list[dict[str, Any]], days_warning: int = 21) -> list
 
 def youth_star_prospect(youths: list[dict[str, Any]]) -> list[Insight]:
     """HL-111, jugador a jugador: distingue una promesa concreta del ruido
-    de la lista completa de juveniles — solo categorías altas y con
+    de la lista completa de juveniles, solo categorías altas y con
     veredicto ya no provisional (suficientes skills reveladas)."""
     out: list[Insight] = []
     for y in youths:
@@ -595,7 +589,7 @@ def youth_star_prospect(youths: list[dict[str, Any]]) -> list[Insight]:
                     severity=Severity.OPPORTUNITY,
                     title=f"{y['name']} apunta a {y['category']} de la academia",
                     detail=(
-                        f"Mejor habilidad: {y['best_skill']} "
+                        f"Mejor habilidad: {SKILL_LABELS.get(y['best_skill'], y['best_skill'])} "
                         f"(techo {y['best_skill_max'] if y['best_skill_max'] is not None else '?'})."  # noqa: E501
                     ),
                     action=y.get("promote_advice", ""),
@@ -613,7 +607,7 @@ def youth_star_prospect(youths: list[dict[str, Any]]) -> list[Insight]:
 
 def relegation_danger(own: dict[str, Any], threshold: float = 0.4) -> list[Insight]:
     """HL-090: descenso directo (7º-8º), ya filtrado por si hay a dónde
-    descender — `season_simulator` devuelve 0 en la última división."""
+    descender, `season_simulator` devuelve 0 en la última división."""
     p = own.get("relegation_probability", 0.0)
     if p < threshold:
         return []
@@ -631,7 +625,7 @@ def relegation_danger(own: dict[str, Any], threshold: float = 0.4) -> list[Insig
 
 
 def relegation_playoff_risk(own: dict[str, Any], threshold: float = 0.35) -> list[Insight]:
-    """HL-090: puesto 5º-6º, promoción para NO descender — no es lo mismo
+    """HL-090: puesto 5º-6º, promoción para NO descender, no es lo mismo
     que ascender, y season_simulator ya lo etiqueta así."""
     p = own.get("relegation_playoff_probability", 0.0)
     if p < threshold:
@@ -694,7 +688,7 @@ def title_race(own: dict[str, Any], threshold: float = 0.25) -> list[Insight]:
 
 def weak_attack(own: dict[str, Any], threshold: float = 0.8) -> list[Insight]:
     """`attack_strength` de `season_simulator`: 1,0 es exactamente la media
-    de la liga, encogido bayesianamente — por debajo de este umbral el
+    de la liga, encogido bayesianamente, por debajo de este umbral el
     equipo marca claramente menos que un rival medio."""
     a = own.get("attack_strength", 1.0)
     if a >= threshold:
@@ -739,7 +733,7 @@ def weak_defence(own: dict[str, Any], threshold: float = 1.25) -> list[Insight]:
 
 def next_match_forecast(next_match: dict[str, Any], edge_threshold: float = 0.55) -> list[Insight]:
     """HL-094: pronóstico del propio simulador Poisson para el próximo
-    partido de liga — favorito claro (rotar sin miedo) o claro perdedor
+    partido de liga, favorito claro (rotar sin miedo) o claro perdedor
     (reforzar), nunca ambos a la vez.
 
     `next_match` llega tal cual lo arma `LeagueQueryService` (claves
@@ -791,7 +785,7 @@ def next_match_weather(
     *,
     tomorrow: bool,
 ) -> list[Insight]:
-    """El clima de la región donde se juega el próximo partido — 2026-08-18.
+    """El clima de la región donde se juega el próximo partido, 2026-08-18.
 
     Hattrick pronostica a un día vista, así que este aviso solo aparece la
     víspera o el mismo día. Sirve para lo único que el clima decide de verdad:
@@ -883,7 +877,7 @@ def missing_medic_or_psych(staff: dict[str, Any]) -> list[Insight]:
 def assistant_trainers_below_reference(staff: dict[str, Any], reference: int = 10) -> list[Insight]:
     """`reference=10` no es un umbral inventado para esta regla: es la misma
     suposición que usa `TrainingSetup` en el resto de la herramienta cuando
-    no hay dato mejor — comparar contra ella es coherente con lo que ya
+    no hay dato mejor, comparar contra ella es coherente con lo que ya
     asume el motor de entrenamiento."""
     level = staff.get("assistant_trainer_levels", 0)
     if level >= reference:

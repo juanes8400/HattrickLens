@@ -1,9 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "../services/api";
 import type {
+  ArenaTipo,
   Formation,
   PitchZoneMethod,
-  PitchZoneScope,
+  Cup,
+  League,
+  LeaguePitchZoneMethod,
 } from "../services/api";
 
 /** Conserva la vista anterior SÓLO si el sujeto no ha cambiado.
@@ -158,8 +166,8 @@ export const useArchivedInsights = () =>
     queryFn: () => api.archivedInsights(TEAM_ID),
   });
 
-/** Archivar y restaurar tocan las dos listas a la vez — una alerta que sale de
- *  la activa entra en el buzón y viceversa — así que ambas se invalidan
+/** Archivar y restaurar tocan las dos listas a la vez, una alerta que sale de
+ *  la activa entra en el buzón y viceversa, así que ambas se invalidan
  *  juntas. Si solo se refrescara una, la pantalla mostraría la misma alerta en
  *  los dos sitios hasta el siguiente refresco.
  *
@@ -236,16 +244,42 @@ export const useLoyaltyModel = () =>
     queryFn: () => api.loyaltyModel(TEAM_ID),
   });
 
-export const useEconomy = (horizonWeeks = 52) =>
+/** `conSeries = false` se salta la proyección por series de tiempo, que es lo
+ *  más caro de la consulta: para quien sólo enseña la estructural. */
+export const useEconomy = (horizonWeeks = 52, conSeries = true) =>
   useQuery({
-    queryKey: ["economy", TEAM_ID, horizonWeeks],
-    queryFn: () => api.economy(TEAM_ID, horizonWeeks),
+    queryKey: ["economy", TEAM_ID, horizonWeeks, conSeries],
+    queryFn: () => api.economy(TEAM_ID, horizonWeeks, conSeries),
   });
 
-export const useArena = (fillRate?: number) =>
+export const useArena = (
+  fillRate?: number,
+  tipo: ArenaTipo = "todos",
+  season?: number | null,
+) =>
   useQuery({
-    queryKey: ["arena", TEAM_ID, fillRate ?? null],
-    queryFn: () => api.arena(TEAM_ID, fillRate),
+    queryKey: ["arena", TEAM_ID, fillRate ?? null, tipo, season ?? null],
+    queryFn: () => api.arena(TEAM_ID, fillRate, tipo, season),
+  });
+
+export const useSkills = (
+  formation?: string,
+  centralDefenders?: number,
+  innerMidfielders?: number,
+) =>
+  useQuery({
+    queryKey: [
+      "skills",
+      TEAM_ID,
+      formation ?? null,
+      centralDefenders ?? null,
+      innerMidfielders ?? null,
+    ],
+    queryFn: () =>
+      api.skills(TEAM_ID, formation, centralDefenders, innerMidfielders),
+    // Al cambiar la formación se sigue viendo la anterior mientras llega la
+    // nueva, en vez de vaciar la pantalla entera.
+    placeholderData: keepPreviousData,
   });
 
 export const useMatches = (includeFriendlies = false, season?: number | null) =>
@@ -261,10 +295,22 @@ export const useMatchDetail = (htMatchId: number | null) =>
     enabled: htMatchId != null,
   });
 
-export const useLeague = (runs = 10000) =>
+/** Diez mil. Se probó a subirlo: con cincuenta mil los números se quedan más
+ *  quietos --en el peor caso, el 4º y el 5º puesto salen al 49,1 % y al 48,9 %
+ *  y con diez mil se cruzan entre dos cargas-- pero la pantalla pasaba de dos
+ *  segundos y no compensa. Por eso la frase de cambio no habla de «el suelo
+ *  pasó de 5º a 4º», que es justo lo que ese cruce vuelve poco fiable. */
+export const useLeague = (
+  runs = 10_000,
+  pitchZoneMethod: LeaguePitchZoneMethod = "average",
+) =>
   useQuery({
-    queryKey: ["league", TEAM_ID, runs],
-    queryFn: () => api.league(TEAM_ID, runs),
+    queryKey: ["league", TEAM_ID, runs, pitchZoneMethod],
+    queryFn: () => api.league(TEAM_ID, runs, pitchZoneMethod),
+    // Cambiar de resumen no cambia de sujeto --sigue siendo la misma serie--,
+    // así que la pantalla no debe vaciarse mientras se rehacen las cuentas.
+    // El equipo sí es identidad: si cambia, no se conserva nada.
+    placeholderData: soloSiEsElMismo<League>(1, TEAM_ID),
   });
 
 export const useLeagueTeamOfWeek = (
@@ -373,7 +419,7 @@ export const usePlayerTrainingLevels = (
     enabled: htPlayerId != null,
   });
 
-// La comparativa de TSI de liga pide las plantillas de 7-8 rivales a CHPP —
+// La comparativa de TSI de liga pide las plantillas de 7-8 rivales a CHPP
 // carga sola al entrar a /league (2026-08-08: revertido el arranque
 // colapsado del 2026-08-05). `enabled` queda disponible por si otro caller
 // necesita retrasar el fetch, pero por defecto en `true`.
@@ -391,6 +437,14 @@ export const useLeagueComparison = (
     // Sin esto la página entera se vaciaba y volvía, que es lo que se siente
     // como "tarda un montón" aunque la respuesta tarde medio segundo.
     placeholderData: (previous) => previous,
+  });
+
+/** Los sectores de cada equipo de la serie, para la flor del Dashboard. Sólo
+ *  lee la base, así que es barato. */
+export const useSectoresRecientes = () =>
+  useQuery({
+    queryKey: ["sectores-recientes", TEAM_ID],
+    queryFn: () => api.sectoresRecientes(TEAM_ID),
   });
 
 export const useSyncChanges = (syncId?: number | null) =>
@@ -471,16 +525,24 @@ export const useChangesHistory = (
     placeholderData: soloSiEsElMismo(2, playerId ?? null),
   });
 
-export const useCup = () =>
-  useQuery({ queryKey: ["cup", TEAM_ID], queryFn: () => api.cup(TEAM_ID) });
+export const useCup = (
+  pitchZoneMethodOwn: PitchZoneMethod = "submitted",
+  pitchZoneMethodRival: PitchZoneMethod = "average",
+) =>
+  useQuery({
+    queryKey: ["cup", TEAM_ID, pitchZoneMethodOwn, pitchZoneMethodRival],
+    queryFn: () => api.cup(TEAM_ID, pitchZoneMethodOwn, pitchZoneMethodRival),
+    // Mover un selector no cambia de sujeto: la pantalla no se vacía mientras
+    // se rehace la cuenta. El equipo sí lo es.
+    placeholderData: soloSiEsElMismo<Cup>(1, TEAM_ID),
+  });
 
 export const useRivalScouting = (
   rivalHtTeamId: number | null,
   logTsi: boolean,
   top11: boolean,
   includeCompetitive = true,
-  includeFriendlies = true,
-  pitchZoneScope: PitchZoneScope = "mixed",
+  includeFriendlies = false,
   pitchZoneMethodOwn: PitchZoneMethod = "submitted",
   pitchZoneMethodRival: PitchZoneMethod = "average",
 ) =>
@@ -493,7 +555,6 @@ export const useRivalScouting = (
       top11,
       includeCompetitive,
       includeFriendlies,
-      pitchZoneScope,
       pitchZoneMethodOwn,
       pitchZoneMethodRival,
     ],
@@ -505,7 +566,6 @@ export const useRivalScouting = (
         top11,
         includeCompetitive,
         includeFriendlies,
-        pitchZoneScope,
         pitchZoneMethodOwn,
         pitchZoneMethodRival,
       ),

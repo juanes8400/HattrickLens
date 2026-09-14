@@ -1,4 +1,4 @@
-"""Confirmación manual del momento de carrera — HL-15x #93. La app sugiere
+"""Confirmación manual del momento de carrera, HL-15x #93. La app sugiere
 (career_stage_engine), el usuario confirma vía la ficha de jugador; nunca se
 sobreescribe la confirmación automáticamente.
 

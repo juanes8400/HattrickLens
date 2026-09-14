@@ -117,7 +117,7 @@ export function DashboardPage() {
           label="Balance bisemanal"
           value={
             data.finance?.biweeklyBalance == null
-              ? "—"
+              ? "-"
               : money(data.finance.biweeklyBalance)
           }
           hint={
@@ -135,10 +135,10 @@ export function DashboardPage() {
         {/* Sin el dato de la semana anterior no se pinta un 0: seria decir
             que no se pagaron salarios. Ver la migracion 0021. */}
         <Kpi
-          label="Salarios"
+          label="Salarios (2 semanas)"
           value={
             data.finance?.biweeklySalaries == null
-              ? "—"
+              ? "-"
               : money(data.finance.biweeklySalaries)
           }
           hint={
@@ -240,7 +240,7 @@ export function DashboardPage() {
  * tarjeta. La misma cancha que usan Equipo, Alineación y la Comparativa de
  * liga, para que la figura signifique siempre lo mismo.
  */
-function BestElevenPitch({
+export function BestElevenPitch({
   lineup,
   formation,
 }: {
@@ -298,7 +298,7 @@ function BestElevenPitch({
  * habilidad. La barra pinta ese porcentaje y debajo va lo que lo compone, para
  * que se vea DÓNDE se pierde.
  */
-function TrainingPanel({
+export function TrainingPanel({
   training,
 }: {
   training: NonNullable<Dashboard["training"]>;
@@ -385,7 +385,7 @@ function TrainingPanel({
 }
 
 /**
- * Alertas, arriba del todo — 2026-08-15, pedido explícito: "las alertas están
+ * Alertas, arriba del todo, 2026-08-15, pedido explícito: "las alertas están
  * como muy sueltas, no se les ve importantes, posiblemente tengan sentido en
  * el Dashboard".
  *
@@ -395,7 +395,7 @@ function TrainingPanel({
  * oportunidades e info viven en el centro de alertas, un clic más allá, para
  * que este bloque no pierda fuerza por saturación.
  */
-function AlertsBand({
+export function AlertsBand({
   insights,
   loading,
   failed,
@@ -507,7 +507,7 @@ function AlertsBand({
   );
 }
 
-function WelcomeAction({
+export function WelcomeAction({
   to,
   title,
   detail,
@@ -528,12 +528,12 @@ function WelcomeAction({
 }
 
 /**
- * Radar de fuerza — lo primero que se ve al entrar. Cuatro ejes, todos
+ * Radar de fuerza, lo primero que se ve al entrar. Cuatro ejes, todos
  * relativos a la propia serie (no números absolutos inventados):
  *
  * - Ataque/Defensa: `attackStrength`/`defenceStrength` del simulador de
  *   temporada (Poisson + encogimiento bayesiano), donde 1,0 ya es "exactamente
- *   la media de la liga" — se reescala a 50 en el eje.
+ *   la media de la liga", se reescala a 50 en el eje.
  * - TSI en la liga / Posición esperada: percentil real dentro de la serie
  *   (comparativa de TSI y simulación), 100 = mejor de la serie.
  *
@@ -542,8 +542,11 @@ function WelcomeAction({
  * posición, que sí son relativos a los demás equipos), así que forzarlas al
  * mismo radar sería fingir una escala que no existe.
  */
-function ClubRadar({ teamName }: { teamName: string }) {
-  const league = useLeague();
+export function ClubRadar({ teamName }: { teamName: string }) {
+  // 2.000 simulaciones y no 10.000 (2026-09-13): el radar sólo usa la
+  // posición esperada y las fuerzas, y con 2.000 la posición no se mueve
+  // más de una centésima. Eran la mitad de los ocho segundos del panel.
+  const league = useLeague(2_000);
   // El cuarto eje --el TSI de los once mejores de cada equipo dentro de la
   // serie-- se pide al entrar aqui, igual que al entrar a Liga: misma clave de
   // cache, asi que la primera de las dos paginas paga las llamadas y la otra

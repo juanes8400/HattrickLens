@@ -1,5 +1,5 @@
 """2026-08-15, pedido explícitamente: una academia juvenil se puede cerrar y
-volver a abrir, y cada apertura es una academia DISTINTA — `youthteamdetails`
+volver a abrir, y cada apertura es una academia DISTINTA, `youthteamdetails`
 la identifica con su propio `YouthTeamID` y su `CreatedDate`.
 
 Sin ese dato el ROI de Juveniles sumaba los canteranos vendidos de academias

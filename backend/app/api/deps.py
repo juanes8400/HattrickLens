@@ -30,7 +30,7 @@ async def get_current_user(
     htlens_session: str | None = Cookie(default=None, alias=COOKIE_NAME),
 ) -> m.User:
     """El usuario de la cookie de sesión. 401 si falta, caducó o fue alterada
-    — nunca un usuario por defecto: `trigger_sync` actuaba antes como `user_id=0`
+    nunca un usuario por defecto: `trigger_sync` actuaba antes como `user_id=0`
     para cualquiera, que es exactamente el agujero que esta dependencia cierra."""
     if htlens_session is None:
         raise HTTPException(401, "no hay sesión, conecta con Hattrick primero")

@@ -1,4 +1,4 @@
-"""Arena Engine — ocupación, demanda insatisfecha y dimensionamiento del estadio.
+"""Arena Engine, ocupación, demanda insatisfecha y dimensionamiento del estadio.
 
 PRECIOS. El precio de la entrada en Tribunas se derivó de forma exacta con los
 datos de un solo partido: en el encuentro contra etbenianos1 tres sectores se
@@ -8,11 +8,11 @@ del partido" e "ingresos a estadio lleno" aísla ese sector:
     (630.527 - 535.090) / (10.808 - 5.785) = 19,0000 exacto
 
 Los otros tres precios (General, Preferentes, Palcos) los confirmó el usuario
-directamente — 2026-08-13, "para toda la herramienta" — así que los cuatro
+directamente, 2026-08-13, "para toda la herramienta", así que los cuatro
 sectores están verificados: `TICKET_PRICES_VERIFIED`.
 
 DEMANDA INSATISFECHA. Cuando un sector se llena, la asistencia observada es un
-límite inferior de la demanda real — está censurada. Ignorar eso lleva a
+límite inferior de la demanda real, está censurada. Ignorar eso lleva a
 subestimar el retorno de una ampliación, que es el error clásico al decidir si
 ampliar el estadio.
 """

@@ -199,7 +199,17 @@ def test_el_informe_llega_con_cada_lote(cliente) -> None:
     assert r.status_code == 200, r.text
     b = r.json()["balance"]
     assert b is not None
-    assert set(b) == {"open", "toCheck", "closed", "closedTotal", "commissions"}
+    # `histories` entró el 2026-09-10: el censo de partidos hacía trabajo que
+    # no se contaba en ningún sitio, y el usuario leía «13 jugadores» y luego
+    # nada.
+    assert set(b) == {
+        "open",
+        "toCheck",
+        "closed",
+        "closedTotal",
+        "commissions",
+        "histories",
+    }
     assert b["open"] == 3, "los tres siguen vivos"
     assert b["toCheck"] == 2, "se miro uno de tres"
     assert b["closed"] == {}

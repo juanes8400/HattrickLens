@@ -1,7 +1,7 @@
 """Cuándo buscar una reventa, y en qué orden mirar.
 
-2026-08-24, diseñado con el usuario. La vigilancia de reventas es cara —una
-llamada a CHPP por ex-jugador— y estaba ciega: 218 en cola y casi todas las
+2026-08-24, diseñado con el usuario. La vigilancia de reventas es cara, una
+llamada a CHPP por ex-jugador, y estaba ciega: 218 en cola y casi todas las
 llamadas gastadas en semanas donde no había nada que encontrar.
 
 Dos ideas, y las dos vienen de él:
@@ -12,9 +12,9 @@ Dos ideas, y las dos vienen de él:
    No dice quién, pero convierte una patrulla en una persecución.
 
 2. **La alternancia dice en qué orden.** Uno reciente, uno al azar, otro
-   reciente, otro al azar… Lo reciente rinde más —quien lleva cuatro años en
+   reciente, otro al azar… Lo reciente rinde más, quien lleva cuatro años en
    la cola sin que lo revendan lleva cuatro años demostrando que su
-   probabilidad semanal es baja— pero el azar impide que la cola larga muera
+   probabilidad semanal es baja, pero el azar impide que la cola larga muera
    de hambre.
 """
 
@@ -104,7 +104,7 @@ def orden_de_busqueda(
     `empezar_por_reciente` existe porque el botón trabaja de a un jugador por
     pulsación: si cada llamada empezara siempre por la cabeza, nunca le
     tocaría el turno al azar. Quien llama lo deduce de cuántos lleva
-    probados —par, toca reciente; impar, toca azar— y así la alternancia
+    probados, par, toca reciente; impar, toca azar, y así la alternancia
     sobrevive entre pulsaciones sin guardar nada más.
     """
     # `random` a secas y no `secrets`: esto reparte turnos de busqueda, no

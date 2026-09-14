@@ -14,12 +14,12 @@ import {
   ErrorState,
   Kpi,
   Loading,
-  Note,
   Panel,
   SinDatos,
 } from "../components/Panels";
 import { Specialty } from "../components/Specialty";
 import { PlayerLink } from "../components/PlayerLink";
+import { Ayuda } from "../components/Ayuda";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
 import {
   date,
@@ -28,6 +28,7 @@ import {
   parseUtc,
   compact,
   decimal,
+  htAgeTexto,
 } from "../hooks/useFormat";
 import { useDialogoModal } from "../hooks/useModal";
 import { BotonDeBorrado } from "../components/BotonDeBorrado";
@@ -50,9 +51,9 @@ const UNKNOWN_BID_HOUR = "Hora desconocida";
  *
  * 2026-08-22, pedido por el usuario. El servidor agrupaba por la hora UTC, que
  * no es la de nadie: una puja cerrada a las 19:00 en Colombia caía en el bloque
- * de medianoche. `worlddetails.xml` no sirve para arreglarlo —de cada país da
+ * de medianoche. `worlddetails.xml` no sirve para arreglarlo, de cada país da
  * `ZoneName`, y para Colombia vale "South America", una región, no una zona
- * horaria—, así que se resuelve como se resolvió la hora de los partidos de
+ * horaria, , así que se resuelve como se resolvió la hora de los partidos de
  * Copa: la fecha viaja en UTC y el navegador la pone en la hora de quien mira.
  * Así cada usuario ve la suya sin configurar nada.
  */
@@ -66,7 +67,7 @@ function bidHourBucket(soldAt: string | null): string {
   return `${dosDigitos(inicio)}:00 - ${dosDigitos(fin)}:00`;
 }
 
-// Mismos cubos que `_age_bucket` en el backend (player_balance.py) — pedido
+// Mismos cubos que `_age_bucket` en el backend (player_balance.py), pedido
 // explícitamente 2026-08-04 en el filtro general de temporadas: al filtrar
 // por temporada, los desgloses "por Entrenamiento/Edad/Habilidad/Hora" se
 // recalculan aquí, en el cliente, sobre el subconjunto filtrado (mismos
@@ -95,14 +96,14 @@ function ageSortKey(label: string): number {
   return i === -1 ? AGE_LABELS_ORDER.length : i;
 }
 
-// Orden numérico de "Temporada N" — "Temporada desconocida" siempre al final.
+// Orden numérico de "Temporada N", "Temporada desconocida" siempre al final.
 function seasonSortKey(label: string): [number, number] {
   if (label === UNKNOWN_SEASON) return [1, 0];
   return [0, Number(label.replace("Temporada ", "")) || 0];
 }
 
 // Mismo formato de 12 horas que `_format_hour_range` en el backend
-// (player_balance.py) — necesario para poder ordenar cronológicamente los
+// (player_balance.py), necesario para poder ordenar cronológicamente los
 // bloques de 2 horas que llegan como texto ("2:00 a 4:00 p.m."), ya que el
 // desglose por hora se recalcula aquí, en el cliente, sobre las filas
 // filtradas.
@@ -126,31 +127,31 @@ function bidHourSortKey(label: string): number {
 }
 
 // Abrevia cifras grandes de moneda en los ejes de las gráficas ("2,4 M" en
-// vez de "2400000") — pedido explícitamente 2026-08-11, se veían feas.
+// vez de "2400000"), pedido explícitamente 2026-08-11, se veían feas.
 function compactNumber(value: number): string {
   // Era `Intl` con locale propio y un `replace` de la coma detras para
   // deshacer lo que el propio `Intl` hacia. Ahora sale del modulo compartido.
   return compact(value);
 }
 
-// Rojo/gris/verde de las cascadas y el mapa de calor de ROI — deben coincidir
+// Rojo/gris/verde de las cascadas y el mapa de calor de ROI, deben coincidir
 // EXACTAMENTE con --danger/--muted/--positive de index.css en el tema activo
 // (pedido explícitamente: los colores de las gráficas se veían distintos a
-// los de las etiquetas de texto — antes los gráficos usaban siempre el hex
+// los de las etiquetas de texto, antes los gráficos usaban siempre el hex
 // del tema oscuro sin importar el tema real).
 const CHART_COLORS = {
   dark: { positive: "#2fbf71", danger: "#e5484d", muted: "#8b8b93" },
   light: { positive: "#1a9e5c", danger: "#d1383d", muted: "#71717a" },
 };
 
-// Icono de corazón (Material Design), viewBox 0 0 24 24 — ECharts acepta
+// Icono de corazón (Material Design), viewBox 0 0 24 24, ECharts acepta
 // una ruta SVG como símbolo de un scatter vía `path://`.
 const HEART_SYMBOL =
   "path://M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
 
-// Diagrama de puntos — cada transferencia es una bolita, pedido
+// Diagrama de puntos, cada transferencia es una bolita, pedido
 // explícitamente 2026-08-04. A diferencia del scatter (Δ TSI vs. ROI), la
-// posición es un RANGO (1º, 2º, 3º...), no un valor numérico en un eje —
+// posición es un RANGO (1º, 2º, 3º...), no un valor numérico en un eje
 // así un outlier de ROI extremo no aplasta la escala de todos los demás,
 // solo queda en un extremo de la fila.
 type DotSortKey =
@@ -188,15 +189,15 @@ function dotSortValue(r: DotRow, key: DotSortKey): number {
 }
 
 // Color divergente por ROI (pedido explícitamente 2026-08-04, en vez de
-// edad — "es la señal de negocio que más importa, no cubierta por nada más
+// edad, "es la señal de negocio que más importa, no cubierta por nada más
 // en esta gráfica"). Recortado a ±300%: sin esto, dos o tres ventas con
 // ROI de decenas de miles por ciento (compras muy baratas con una
 // revalorización real modesta) dejarían a todas las demás en el mismo tono
-// apagado — el tooltip siempre muestra el ROI real, sin recortar.
+// apagado, el tooltip siempre muestra el ROI real, sin recortar.
 const DOT_ROI_CAP = 300;
 // Suavizado con raíz cuadrada (pedido explícitamente 2026-08-05, "-sqrt()"
 // para los negativos): antes de mapear a color, se aplica sqrt con signo
-// al ROI ya recortado — una escala lineal deja casi todo en el gris del
+// al ROI ya recortado, una escala lineal deja casi todo en el gris del
 // medio salvo los pocos extremos; sqrt es cóncava (crece rápido cerca de
 // 0 y se aplana después), así que ventas con ROI modesto ya se ven bien
 // diferenciadas en color, no solo las de ROI enorme.
@@ -212,7 +213,7 @@ type SectionKey =
   "resumen" | "totales" | "desgloses" | "roi" | "intentos" | "detalle";
 
 // Interruptor coqueto reutilizado por los 2 toggles compartidos (pedido
-// explícitamente 2026-08-04/05) — antes duplicado inline en cada sección.
+// explícitamente 2026-08-04/05), antes duplicado inline en cada sección.
 function ToggleSwitch({
   checked,
   onChange,
@@ -253,7 +254,7 @@ function ToggleSwitch({
 /**
  * Cascada (waterfall): cada categoría flota desde el total acumulado hasta
  * ahora, verde si suma y rojo si resta, terminando en un "Subtotal" gris que
- * cierra en el total real — mismo total en las cuatro cascadas de esta
+ * cierra en el total real, mismo total en las cuatro cascadas de esta
  * pantalla, solo repartido de una forma distinta cada vez. Un gauge/tanque
  * no sirve aquí: representa un solo ratio contra un límite, no una
  * comparación de varias categorías con signo.
@@ -328,7 +329,7 @@ function buildWaterfallOption(
     // Pedido explícitamente 2026-08-04: ningún eje de las cascadas va en
     // diagonal, aunque las etiquetas sean largas ("Temporada 83", "2:00 a
     // 4:00 p.m."). `forceAllLabels` fuerza `interval: 0` SOLO donde hace
-    // falta (pocas categorías fijas, como "De la compra a la venta" — ahí
+    // falta (pocas categorías fijas, como "De la compra a la venta", ahí
     // ECharts se comía "Sueldos" al decidir que no cabía); con muchas
     // categorías (temporadas, horas) `interval: 0` las amontona ilegibles,
     // así que esas dejan el auto-hide de ECharts tal cual.
@@ -363,7 +364,7 @@ function buildWaterfallOption(
         type: "custom",
         // Un series `custom` dibuja sus barras a mano en `renderItem`, así
         // que ECharts no tiene de dónde sacar el color del ícono de la
-        // leyenda — sin `itemStyle.color` aquí, cae al azul/verde/naranja
+        // leyenda, sin `itemStyle.color` aquí, cae al azul/verde/naranja
         // de su paleta por defecto, distinto del rojo/verde/gris real de
         // las barras (justo el bug reportado: "los colores están
         // diferentes a los de los labels").
@@ -392,6 +393,7 @@ function buildWaterfallOption(
 function WaterfallPanel({
   title,
   meta,
+  ayuda,
   ariaLabel,
   entries,
   currency,
@@ -400,6 +402,7 @@ function WaterfallPanel({
 }: {
   title: string;
   meta: string;
+  ayuda?: string;
   ariaLabel: string;
   entries: [string, number][];
   currency: string;
@@ -408,7 +411,7 @@ function WaterfallPanel({
 }) {
   if (entries.length === 0) return null;
   return (
-    <Panel title={title} meta={meta}>
+    <Panel title={title} ayuda={ayuda} meta={meta}>
       <Chart
         ariaLabel={ariaLabel}
         option={buildWaterfallOption(entries, currency, isDark, forceAllLabels)}
@@ -419,7 +422,7 @@ function WaterfallPanel({
 }
 
 /**
- * Barras horizontales — mismo lenguaje visual que la cascada (verde/rojo por
+ * Barras horizontales, mismo lenguaje visual que la cascada (verde/rojo por
  * signo, mismo tooltip, mismo eje de moneda) pero sin el efecto de flotar
  * desde un acumulado: para "Entrenamiento" y "Habilidad más alta" el orden
  * de las categorías no tiene un antes/después real, así que apilarlas en
@@ -467,6 +470,7 @@ function buildHorizontalBarOption(
 function HorizontalBarPanel({
   title,
   meta,
+  ayuda,
   ariaLabel,
   entries,
   currency,
@@ -474,6 +478,7 @@ function HorizontalBarPanel({
 }: {
   title: string;
   meta: string;
+  ayuda?: string;
   ariaLabel: string;
   entries: [string, number][];
   currency: string;
@@ -481,7 +486,7 @@ function HorizontalBarPanel({
 }) {
   if (entries.length === 0) return null;
   return (
-    <Panel title={title} meta={meta}>
+    <Panel title={title} ayuda={ayuda} meta={meta}>
       <Chart
         ariaLabel={ariaLabel}
         option={buildHorizontalBarOption(entries, currency, isDark)}
@@ -496,7 +501,7 @@ function HorizontalBarPanel({
  *
  * Precio de compra + salario acumulado semana a semana + coste de cada
  * intento de venta, contra el precio real de venta menos la comisión del
- * agente — más la parte que le toca de cualquier reventa futura de origen
+ * agente, más la parte que le toca de cualquier reventa futura de origen
  * desconocido. Nunca se usa una valoración de mercado hipotética para un
  * jugador que sigue sin venderse: para eso está la pestaña de Transferencias.
  */
@@ -713,8 +718,8 @@ export function PlayerBalancePage() {
   //
   // 2026-09-04: aquí había ADEMÁS un conmutador «Ignorar datos desconocidos
   // (habilidad entrenada, edad, etc.)». Medido contra los datos reales,
-  // seleccionaba EXACTAMENTE las mismas 13 filas que «Sólo lo medido» —no
-  // parecidas: idénticas, cero diferencia—, porque las únicas ventas con
+  // seleccionaba EXACTAMENTE las mismas 13 filas que «Sólo lo medido», no
+  // parecidas: idénticas, cero diferencia, , porque las únicas ventas con
   // todas las dimensiones son las que se sincronizaron con la aplicación ya
   // en marcha, que son justo las que tienen el sueldo visto. Eran el mismo
   // filtro escrito dos veces y en dos formas distintas, así que se fusionó
@@ -723,13 +728,13 @@ export function PlayerBalancePage() {
   // Es una ESCALERA: cada peldaño quita una clase de dato más floja que la
   // anterior. Primero se fue por «sin estimaciones», que quitaba las
   // calculadas pero dejaba dentro las ventas cuyo sueldo no se sabe y entra
-  // como 0 — y eso daba +11,5 M donde el saldo real ronda los -8,8 M, la
+  // como 0, y eso daba +11,5 M donde el saldo real ronda los -8,8 M, la
   // cifra más engañosa de todas. Quien desconfía de un número calculado
   // desconfía más de un cero mudo, así que se quitan en ese orden.
   //
   // El último peldaño exige TAMBIÉN que la fila no tenga huecos en las
-  // dimensiones de los desgloses. Hoy eso no quita ni una fila de más —las
-  // 13 coinciden—, pero define el peldaño por lo que promete («nada
+  // dimensiones de los desgloses. Hoy eso no quita ni una fila de más, las
+  // 13 coinciden, , pero define el peldaño por lo que promete («nada
   // desconocido») en vez de por una coincidencia de los datos de hoy.
   //
   // «Todo» de salida a propósito: esconder 432 de 567 ventas por defecto
@@ -752,10 +757,10 @@ export function PlayerBalancePage() {
   const soldRows = data.players.filter((r) => r.isSold);
   // Filtro general de temporadas (pedido explícitamente 2026-08-04):
   // "Todas" no toca nada; una temporada real recorta Detalle, el scatter y
-  // los desgloses no-temporada a las ventas cerradas esa temporada — mismo
+  // los desgloses no-temporada a las ventas cerradas esa temporada, mismo
   // criterio que ya usa cada fila (`seasonAtSale`), nunca un cálculo nuevo.
   // "Todas" siempre primero (opción fija, fuera de esta lista) y luego de
-  // la temporada más reciente a la más antigua — pedido explícitamente
+  // la temporada más reciente a la más antigua, pedido explícitamente
   // 2026-08-08; "Temporada desconocida" se queda al final igual que antes.
   const seasonOptions = Array.from(
     new Set(soldRows.map((r) => r.seasonAtSale ?? UNKNOWN_SEASON)),
@@ -772,7 +777,7 @@ export function PlayerBalancePage() {
         );
 
   // Filtros compartidos (pedido explícitamente 2026-08-05, confirmado: un
-  // solo lugar, no repetidos por sección) — Resumen, Desgloses y Detalle
+  // solo lugar, no repetidos por sección), Resumen, Desgloses y Detalle
   // parten TODOS del mismo subconjunto filtrado, para que una fila
   // descartada aquí desaparezca de las tres a la vez.
   const trainingOptions = Array.from(
@@ -796,8 +801,7 @@ export function PlayerBalancePage() {
     baseRows = baseRows.filter((r) => r.isAcademyGraduate);
   if (originFilter === "unknown")
     baseRows = baseRows.filter((r) => r.originUnknown);
-  if (ignoreFired)
-    baseRows = baseRows.filter((r) => !r.isDepartureWithoutSale);
+  if (ignoreFired) baseRows = baseRows.filter((r) => !r.isDepartureWithoutSale);
 
   // Nada desconocido en ninguna parte: sueldo visto cobrar con el calendario
   // completo, y sin huecos en las dimensiones que usan los desgloses
@@ -815,21 +819,24 @@ export function PlayerBalancePage() {
     // Fuera las ventas cuyo sueldo no se sabe NI se puede calcular: son las
     // que entran con un 0 que no es un 0, y suben el saldo sin avisar.
     filteredRows = baseRows.filter((r) => r.salarySource !== "desconocido");
-  if (materialDelSaldo === "soloMedido") filteredRows = baseRows.filter(esMedido);
+  if (materialDelSaldo === "soloMedido")
+    filteredRows = baseRows.filter(esMedido);
 
   // El recuento del aviso, siempre sobre la base y no sobre lo ya recortado.
-  const estimadas = baseRows.filter((r) => r.salarySource === "estimado").length;
+  const estimadas = baseRows.filter(
+    (r) => r.salarySource === "estimado",
+  ).length;
   const sinSueldo = baseRows.filter(
     (r) => r.salarySource === "desconocido",
   ).length;
 
   // Detalle: pedido explícitamente 2026-08-05, solo vendidos o despedidos
-  // ("Compras (solo vendidos)") — nunca jugadores que siguen en la
+  // ("Compras (solo vendidos)"), nunca jugadores que siguen en la
   // plantilla, con o sin filtro de temporada.
   const detalleRows = filteredRows;
 
   // Los 5 desgloses se calculan siempre aquí, en el cliente, sobre las
-  // filas ya filtradas — nunca desde data.bySeason/data.byTrainingType/etc
+  // filas ya filtradas, nunca desde data.bySeason/data.byTrainingType/etc
   // (agregados del backend, cada uno calculado por separado sobre TODAS
   // las ventas).
   const desglosesRows = filteredRows;
@@ -896,7 +903,7 @@ export function PlayerBalancePage() {
   // ── Desgloses por ROI ──────────────────────────────────────────────────
   //
   // La metodología, pedida así: se suman PRIMERO todos los componentes de
-  // cada grupo —lo invertido por un lado, el saldo por otro— y el porcentaje
+  // cada grupo, lo invertido por un lado, el saldo por otro, y el porcentaje
   // se calcula al final, sobre esos totales. Promediar los ROI individuales
   // daría el mismo peso a un jugador de 10.000 que a uno de cinco millones.
   type Acumulado = { saldo: number; coste: number; ventas: number };
@@ -996,7 +1003,7 @@ export function PlayerBalancePage() {
         ]
       : [];
   // Diagrama de puntos: una bolita por transferencia (pedido explícitamente
-  // 2026-08-04) — parte de las mismas filas ya filtradas arriba, solo
+  // 2026-08-04), parte de las mismas filas ya filtradas arriba, solo
   // añade el requisito propio del gráfico (ROI/precio numéricos).
   const dotBase = filteredRows.filter(
     (r): r is DotRow =>
@@ -1114,6 +1121,7 @@ export function PlayerBalancePage() {
           active={section}
           onChange={setSection}
         />
+        <Ayuda texto="Resumen: cada venta como un punto. Totales: lo comprado y lo vendido. Desgloses absolutos: el saldo repartido por temporada, semana, edad y más. Desgloses ROI: lo mismo en porcentaje de lo invertido. Detalle: una fila por jugador." />
         {seasonOptions.length > 0 && (
           <div className="flex items-center gap-2">
             <label
@@ -1122,6 +1130,7 @@ export function PlayerBalancePage() {
             >
               Temporada
             </label>
+            <Ayuda texto="Deja sólo las ventas cerradas en esa temporada. Afecta a todas las pestañas." />
             <select
               id="season-filter"
               value={seasonFilter}
@@ -1145,6 +1154,7 @@ export function PlayerBalancePage() {
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
           Habilidad entrenada
+          <Ayuda texto="Deja sólo a los jugadores cuya habilidad más subida mientras estuvieron contigo fue ésta." />
           <select
             value={trainingFilter}
             onChange={(e) => setTrainingFilter(e.target.value)}
@@ -1160,6 +1170,7 @@ export function PlayerBalancePage() {
         </label>
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
           Origen
+          <Ayuda texto="Comprado: llegó por traspaso. Canterano: salió de tu academia. Sin origen conocido: Hattrick no dice cómo llegó." />
           <select
             value={originFilter}
             onChange={(e) =>
@@ -1177,6 +1188,7 @@ export function PlayerBalancePage() {
         </label>
         <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
           Datos
+          <Ayuda texto="Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana." />
           <Tabs
             modo="filtro"
             label="Qué datos se tienen en cuenta"
@@ -1191,7 +1203,7 @@ export function PlayerBalancePage() {
               // El peldaño estrecho NO lleva «completo» ni «todo» a
               // propósito: esas palabras sugieren MÁS y aquí se enseña
               // MENOS (13 ventas de 567). Y las tres tienen construcción
-              // distinta —todos, sin algo, sólo un subconjunto— porque tres
+              // distinta, todos, sin algo, sólo un subconjunto, porque tres
               // etiquetas paralelas («Sin X», «Sin Y») se leen como filtros
               // independientes y no como los peldaños de una escalera.
               { key: "todo", label: "Todos" },
@@ -1205,6 +1217,7 @@ export function PlayerBalancePage() {
           onChange={() => setIgnoreFired((v) => !v)}
           label="Ignorar jugadores despedidos"
         />
+        <Ayuda texto="Quita a los jugadores que salieron sin venta: no dejaron ingreso y bajan el ROI de su grupo." />
       </div>
 
       {/* Primero POR QUÉ existe el control, luego qué hace la posición
@@ -1212,7 +1225,7 @@ export function PlayerBalancePage() {
           pregunta que nadie se ha hecho todavía.
 
           Todo esto se enseña sólo si hay algo que advertir: con todos los
-          sueldos vistos —el caso de quien empieza hoy— las tres posiciones
+          sueldos vistos, el caso de quien empieza hoy, las tres posiciones
           dan lo mismo y no hay nada que explicar. */}
       {(estimadas > 0 || sinSueldo > 0) && (
         <div className="space-y-1">
@@ -1223,73 +1236,78 @@ export function PlayerBalancePage() {
             <b className="text-[var(--text)]">Datos</b> elige de qué te fías.
           </p>
           <p className="prosa text-sm text-[var(--muted)]">
-          {materialDelSaldo === "todo" && (
-            <>
-              <b className="text-[var(--text)]">Las {baseRows.length} ventas.</b>
-              {estimadas > 0 && (
-                <>
-                  {" "}
-                  En {estimadas} el sueldo está calculado a partir del TSI y la
-                  edad, y va marcado con «≈».
-                </>
-              )}
-              {sinSueldo > 0 && (
-                <>
-                  {" "}
-                  En {sinSueldo} no se sabe qué cobraban y entra como cero, así
-                  que el saldo sale mejor de lo que fue.
-                </>
-              )}
-            </>
-          )}
-          {materialDelSaldo === "sinDesconocidos" && (
-            <>
-              <b className="text-[var(--text)]">
-                Sólo las {filteredRows.length} ventas que tienen cifra de
-                sueldo.
-              </b>
-              {sinSueldo > 0 && (
-                <> Quedan fuera {sinSueldo} en las que no se sabe qué cobraban.</>
-              )}
-              {estimadas > 0 && (
-                <>
-                  {" "}
-                  {/* Repetir la misma cifra dos veces en la misma frase
+            {materialDelSaldo === "todo" && (
+              <>
+                <b className="text-[var(--text)]">
+                  Las {baseRows.length} ventas.
+                </b>
+                {estimadas > 0 && (
+                  <>
+                    {" "}
+                    En {estimadas} el sueldo está calculado a partir del TSI y
+                    la edad, y va marcado con «≈».
+                  </>
+                )}
+                {sinSueldo > 0 && (
+                  <>
+                    {" "}
+                    En {sinSueldo} no se sabe qué cobraban y entra como cero,
+                    así que el saldo sale mejor de lo que fue.
+                  </>
+                )}
+              </>
+            )}
+            {materialDelSaldo === "sinDesconocidos" && (
+              <>
+                <b className="text-[var(--text)]">
+                  Sólo las {filteredRows.length} ventas que tienen cifra de
+                  sueldo.
+                </b>
+                {sinSueldo > 0 && (
+                  <>
+                    {" "}
+                    Quedan fuera {sinSueldo} en las que no se sabe qué cobraban.
+                  </>
+                )}
+                {estimadas > 0 && (
+                  <>
+                    {" "}
+                    {/* Repetir la misma cifra dos veces en la misma frase
                       («las 43 ventas… de las que ves, 43») se lee como un
                       error de cuentas, aunque sea cierto. */}
-                  {estimadas === filteredRows.length
-                    ? "Todas llevan"
-                    : `De las que ves, ${estimadas} llevan`}{" "}
-                  el sueldo calculado («≈»), no medido.
+                    {estimadas === filteredRows.length
+                      ? "Todas llevan"
+                      : `De las que ves, ${estimadas} llevan`}{" "}
+                    el sueldo calculado («≈»), no medido.
+                  </>
+                )}
+              </>
+            )}
+            {materialDelSaldo === "soloMedido" &&
+              (filteredRows.length === 0 ? (
+                // Pasa de verdad: con Origen = Canterano no queda ni una, porque
+                // ningún canterano vendido llegó a cobrar con la aplicación ya
+                // en marcha. «Sólo las 0 ventas… todo lo que ves aquí» era una
+                // frase hablando de una tabla vacía.
+                <>
+                  <b className="text-[var(--text)]">
+                    De estas {baseRows.length} ventas, HT Lens no llegó a ver
+                    cobrar a ninguna.
+                  </b>{" "}
+                  Todas pasaron por el club sin que la aplicación tuviera tus
+                  datos, así que con este filtro no queda nada que enseñar.
                 </>
-              )}
-            </>
-          )}
-          {materialDelSaldo === "soloMedido" &&
-            (filteredRows.length === 0 ? (
-              // Pasa de verdad: con Origen = Canterano no queda ni una, porque
-              // ningún canterano vendido llegó a cobrar con la aplicación ya
-              // en marcha. «Sólo las 0 ventas… todo lo que ves aquí» era una
-              // frase hablando de una tabla vacía.
-              <>
-                <b className="text-[var(--text)]">
-                  De estas {baseRows.length} ventas, HT Lens no llegó a ver
-                  cobrar a ninguna.
-                </b>{" "}
-                Todas pasaron por el club sin que la aplicación tuviera tus
-                datos, así que con este filtro no queda nada que enseñar.
-              </>
-            ) : (
-              <>
-                <b className="text-[var(--text)]">
-                  Sólo las {filteredRows.length} ventas cuyo sueldo vio HT
-                  Lens.
-                </b>{" "}
-                De ellas se leyó semana a semana lo que cobraban en tu equipo,
-                así que aquí no hay ningún número calculado. Es lo que se ha
-                podido medir desde que tus datos están en la aplicación.
-              </>
-            ))}
+              ) : (
+                <>
+                  <b className="text-[var(--text)]">
+                    Sólo las {filteredRows.length} ventas cuyo sueldo vio HT
+                    Lens.
+                  </b>{" "}
+                  De ellas se leyó semana a semana lo que cobraban en tu equipo,
+                  así que aquí no hay ningún número calculado. Es lo que se ha
+                  podido medir desde que tus datos están en la aplicación.
+                </>
+              ))}
           </p>
         </div>
       )}
@@ -1300,11 +1318,13 @@ export function PlayerBalancePage() {
             {dotBase.length > 0 && (
               <Panel
                 title="Cada transferencia"
+                ayuda="Un punto por cada jugador vendido. El color es el ROI: rojo pérdida, verde ganancia. El círculo es un jugador comprado y el corazón un canterano. Pulsa un punto para abrir su ficha."
                 meta="color = ROI (rojo = pérdida, verde = ganancia) · ● comprado · ♥ canterano"
               >
                 <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-2">
                   <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
                     Ordenar por
+                    <Ayuda texto="Cambia el orden de los puntos. El color sigue siendo el ROI." />
                     <select
                       value={dotSort}
                       onChange={(e) => setDotSort(e.target.value as DotSortKey)}
@@ -1446,22 +1466,27 @@ export function PlayerBalancePage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
             <Kpi
               label="Total de compras"
+              ayuda="Lo que pagaste por todos los jugadores que compraste."
               value={money(data.transferTotalBuys, data.currency)}
             />
             <Kpi
               label="Total de ventas"
+              ayuda="Lo que ingresaste por todos los jugadores que vendiste, antes de la comisión del agente."
               value={money(data.transferTotalSales, data.currency)}
             />
             <Kpi
               label="Número de compras"
+              ayuda="Cuántos jugadores compraste."
               value={number(data.transferNumberBuys)}
             />
             <Kpi
               label="Número de ventas"
+              ayuda="Cuántos jugadores vendiste."
               value={number(data.transferNumberSales)}
             />
             <Kpi
               label="Diferencia"
+              ayuda="Total de ventas menos total de compras. No descuenta sueldos ni comisiones: para eso están los desgloses."
               value={money(
                 data.transferTotalSales - data.transferTotalBuys,
                 data.currency,
@@ -1479,6 +1504,7 @@ export function PlayerBalancePage() {
           <div className="space-y-3">
             <WaterfallPanel
               title="De la compra a la venta"
+              ayuda="Cómo se pasa del precio de compra al saldo final de todas las ventas cerradas: los sueldos y los intentos de venta restan, la venta suma y la comisión del agente resta."
               meta={`${financialFlowRows.length} operaciones cerradas con datos completos · subtotal sin reventa estimada`}
               ariaLabel="Cascada del ciclo financiero: gasto de compra, sueldos e intentos de venta como valores negativos; venta como valor positivo; y comisiones como valor negativo"
               entries={financialFlowEntries}
@@ -1489,6 +1515,7 @@ export function PlayerBalancePage() {
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <WaterfallPanel
                 title="Saldo por temporada"
+                ayuda="Suma el saldo de las ventas cerradas en cada temporada."
                 meta="temporada en la que se cerró cada venta"
                 ariaLabel="Cascada del saldo neto, repartido por la temporada de Hattrick en la que se vendió cada jugador"
                 entries={seasonEntries}
@@ -1497,6 +1524,7 @@ export function PlayerBalancePage() {
               />
               <WaterfallPanel
                 title="Saldo por semana de venta"
+                ayuda="Suma el saldo según la semana de la temporada en que se vendió cada jugador, juntando todas las temporadas: dice en qué semanas vendes mejor."
                 meta="la semana de la temporada, sumando todas las temporadas"
                 ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se vendió cada jugador"
                 entries={saleWeekEntries}
@@ -1506,6 +1534,7 @@ export function PlayerBalancePage() {
               />
               <WaterfallPanel
                 title="Saldo por semana de compra"
+                ayuda="Suma el saldo según la semana de la temporada en que se compró cada jugador, juntando todas las temporadas: dice en qué semanas compras mejor."
                 meta="la semana de la temporada, sumando todas las temporadas"
                 ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se compró cada jugador"
                 entries={purchaseWeekEntries}
@@ -1515,6 +1544,7 @@ export function PlayerBalancePage() {
               />
               <HorizontalBarPanel
                 title="Saldo por entrenamiento en el momento de la venta"
+                ayuda="Suma el saldo según la habilidad que más le subió al jugador mientras estuvo en tu equipo."
                 meta="habilidad individual inferida · ventas cerradas"
                 ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad que más aumentó en cada jugador antes de su venta"
                 entries={trainingEntries}
@@ -1523,6 +1553,7 @@ export function PlayerBalancePage() {
               />
               <WaterfallPanel
                 title="Saldo por edad en el momento de la venta"
+                ayuda="Suma el saldo según la edad que tenía el jugador cuando lo vendiste."
                 meta="ventas cerradas"
                 ariaLabel="Cascada del saldo neto, repartido por la edad del jugador cuando se vendió"
                 entries={ageEntries}
@@ -1531,6 +1562,7 @@ export function PlayerBalancePage() {
               />
               <HorizontalBarPanel
                 title="Saldo por habilidad más alta"
+                ayuda="Suma el saldo según la mejor habilidad del jugador cuando lo vendiste."
                 meta="ventas cerradas"
                 ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió"
                 entries={topSkillEntries}
@@ -1539,6 +1571,7 @@ export function PlayerBalancePage() {
               />
               <WaterfallPanel
                 title="Saldo por hora de cierre de la puja"
+                ayuda="Suma el saldo según la hora, en tu reloj, a la que cerró la puja de venta, en bloques de dos horas."
                 meta="bloques de 2 horas, en tu hora"
                 ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en la hora local de quien mira, en el que se cerró cada puja de venta"
                 entries={bidHourEntries}
@@ -1551,15 +1584,10 @@ export function PlayerBalancePage() {
 
         {section === "roi" && (
           <div className="space-y-4">
-            <Note>
-              Cada grupo suma primero lo invertido y lo ganado de todas sus
-              ventas, y el porcentaje sale de esos totales. No es el promedio de
-              los ROI de cada jugador: así una venta de cinco millones pesa lo
-              que debe frente a una de diez mil.
-            </Note>
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <RoiPanel
                 title="ROI por temporada"
+                ayuda="El saldo de cada temporada dividido entre lo que invertiste en esos jugadores: compra, sueldos e intentos de venta."
                 meta="por temporada de venta"
                 entries={Object.entries(roiPorTemporada).sort(
                   (a, b) =>
@@ -1570,6 +1598,7 @@ export function PlayerBalancePage() {
               />
               <RoiPanel
                 title="ROI por semana de compra"
+                ayuda="El saldo dividido entre lo invertido, según la semana en que compraste a cada jugador."
                 meta="semana del calendario, no de la temporada"
                 entries={Object.entries(roiPorSemanaCompra).sort((a, b) =>
                   a[0].localeCompare(b[0], "es", { numeric: true }),
@@ -1578,6 +1607,7 @@ export function PlayerBalancePage() {
               />
               <RoiPanel
                 title="ROI por hora de cierre de la puja"
+                ayuda="El saldo dividido entre lo invertido, según la hora a la que cerró la puja de venta."
                 meta="bloques de 2 horas, en tu hora"
                 entries={Object.entries(roiPorHora).sort((a, b) =>
                   a[0].localeCompare(b[0], "es", { numeric: true }),
@@ -1586,6 +1616,7 @@ export function PlayerBalancePage() {
               />
               <RoiPanel
                 title="ROI por edad al vender"
+                ayuda="El saldo dividido entre lo invertido, por tramos de edad al vender."
                 meta="por tramos de edad"
                 entries={Object.entries(roiPorEdad).sort((a, b) =>
                   a[0].localeCompare(b[0], "es", { numeric: true }),
@@ -1594,6 +1625,7 @@ export function PlayerBalancePage() {
               />
               <RoiPanel
                 title="ROI por entrenamiento al vender"
+                ayuda="El saldo dividido entre lo invertido, según la habilidad que más le subió mientras estuvo contigo."
                 meta="habilidad individual inferida · ordenado de mejor a peor"
                 entries={Object.entries(roiPorEntrenamiento).sort(
                   (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
@@ -1603,6 +1635,7 @@ export function PlayerBalancePage() {
               />
               <RoiPanel
                 title="ROI por habilidad más alta"
+                ayuda="El saldo dividido entre lo invertido, según su mejor habilidad al venderlo."
                 meta="ordenado de mejor a peor"
                 entries={Object.entries(roiPorHabilidad).sort(
                   (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
@@ -1621,6 +1654,7 @@ export function PlayerBalancePage() {
         {section === "detalle" && (
           <Panel
             title="Detalle por jugador"
+            ayuda="Una fila por cada jugador vendido o despedido: lo que costó, lo que cobró, por cuánto se vendió, las comisiones y el ROI. «?» es un dato que no se conoce, nunca un cero."
             meta={
               seasonFilter === "all"
                 ? `${detalleRows.length} vendidos o despedidos`
@@ -1641,7 +1675,7 @@ export function PlayerBalancePage() {
   );
 }
 
-// "Edad de compra (aa;ddd)" — pedido explícitamente en ese formato exacto
+// "Edad de compra (aa;ddd)", pedido explícitamente en ese formato exacto
 // 2026-08-05: años enteros ";" días (0-111) rellenados a 3 dígitos.
 function formatAgeYD(age: number | "?"): string {
   if (age === "?") return "?";
@@ -1676,8 +1710,8 @@ function intCol(
 
 // Habilidad "al entrar" + "al salir" fusionadas en una sola columna
 // (pedido explícitamente 2026-08-05: "en vez de Pases al entrar y Pases al
-// salir, lo ponemos todo en 'Pases'" — Lander Fripont: "Pases 7 (+1)", el
-// (+1) en verde) — y lo mismo para TSI. Se ordena por el valor de entrada;
+// salir, lo ponemos todo en 'Pases'", Lander Fripont: "Pases 7 (+1)", el
+// (+1) en verde), y lo mismo para TSI. Se ordena por el valor de entrada;
 // el delta solo se muestra cuando AMBOS lados son conocidos (nunca se
 // inventa un cambio que no se puede calcular).
 function skillCol(
@@ -1730,8 +1764,8 @@ const VENTAS_PARA_FIARSE = 5;
  * puja, así que su ROI es -100% por definición. En "por semana de compra" son
  * los que costaron 2.000 y se vendieron por millones: 20.375%. Puestos como
  * una barra más, aplastan la escala de todas las demás y comparan lo que no
- * se puede comparar. En los desgloses absolutos sí valen —ahí es dinero real
- * y suma—, pero en un porcentaje no.
+ * se puede comparar. En los desgloses absolutos sí valen, ahí es dinero real
+ * y suma, , pero en un porcentaje no.
  */
 const ETIQUETAS_SIN_DATO = new Set([
   UNKNOWN_SEASON,
@@ -1771,12 +1805,14 @@ function techoDeEscala(magnitudes: number[]): number | null {
 function RoiPanel({
   title,
   meta,
+  ayuda,
   entries,
   horizontal = false,
   isDark,
 }: {
   title: string;
   meta: string;
+  ayuda?: string;
   entries: [string, { saldo: number; coste: number; ventas: number }][];
   /** Para etiquetas largas: nombres de entrenamiento y de habilidad. */
   horizontal?: boolean;
@@ -1789,7 +1825,7 @@ function RoiPanel({
 
   if (conDato.length === 0) {
     return (
-      <Panel title={title} meta="sin ventas que repartir">
+      <Panel title={title} ayuda={ayuda} meta="sin ventas que repartir">
         <Empty>Todavía no hay ventas con estos datos.</Empty>
       </Panel>
     );
@@ -1803,6 +1839,7 @@ function RoiPanel({
     return (
       <Panel
         title={title}
+        ayuda={ayuda}
         meta={
           ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta
         }
@@ -1946,8 +1983,8 @@ function RoiPanel({
  *
  * 2026-08-22, pedido por el usuario. La aplicación ya contaba cuántas veces se
  * había listado a alguien, pero no podía enseñar CADA intento con su final. Y
- * las visitas —"este jugador fue visto 8 veces mientras estaba en la lista de
- * transferibles"— son el único dato de toda la app que Hattrick no entrega por
+ * las visitas, "este jugador fue visto 8 veces mientras estaba en la lista de
+ * transferibles", son el único dato de toda la app que Hattrick no entrega por
  * CHPP: solo lo dice en el texto de la noticia, así que lo teclea el usuario.
  *
  * No hay relleno hacia atrás, por decisión suya: empieza desde el primer
@@ -2161,7 +2198,9 @@ function TransferAttemptsSection() {
                 >
                   {r.tsi === "?" ? "?" : number(r.tsi)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{r.age}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {htAgeTexto(r.age)}
+                </td>
                 {SKILL_HEADERS.map(([clave]) => (
                   <td
                     key={clave}

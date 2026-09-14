@@ -1,5 +1,5 @@
 """2026-08-05: edad reconstruida en el momento de la COMPRA (misma técnica
-que age_*_at_sale, ancla distinta) — pedida para la columna "Edad de
+que age_*_at_sale, ancla distinta), pedida para la columna "Edad de
 compra" de la tabla Detalle (43 columnas, HL-161).
 
 Revision ID: 0032

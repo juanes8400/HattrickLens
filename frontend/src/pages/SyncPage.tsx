@@ -1,29 +1,25 @@
-import { useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { ErrorState, Note, Panel } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
 import { TEAM_ID, useDashboard } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
-import {
-  anchoDeLaMarca,
-  anchuraDelFrente,
-  motivosEnPalabras,
-  sitioDeLaMarca,
-} from "../utils/barraDelBarrido";
-import {
-  api,
-  errorMessage,
-  type QueueMap,
-  type SweepBalance,
-  type SyncResult,
-} from "../services/api";
+import { api, type SyncResult } from "../services/api";
 
 /**
- * Sincronización — pantalla única, pedida explícitamente 2026-08-15:
+ * Sincronización, pantalla única, pedida explícitamente 2026-08-15:
  * "en una única pantalla, no se debe sincronizar en cualquier lado de la
- * herramienta sino solo en la pantalla sincronización y de inmediato me debe
- * llevar a Cambios".
+ * herramienta sino solo en la pantalla sincronización".
+ *
+ * LO DE «Y DE INMEDIATO ME DEBE LLEVAR A CAMBIOS» SE RETIRÓ el 2026-09-09, a
+ * petición del mismo usuario y por lo que el salto provocaba: «de una me
+ * lleva a la pantalla Cambios y es imposible ver qué es lo que me está
+ * reportando que encontró». La sincronización termina, se lleva la pantalla
+ * por delante, y el informe que acababa de producir no lo ve nadie.
+ *
+ * Ahora se queda donde está, cuenta lo que encontró, y ofrece el enlace. Ir a
+ * Cambios sigue siendo un clic; no ir también.
  *
  * 2026-08-21, por reportes de usuarios: antes había tres cargas sueltas
  * (fichas de jugador, detalles de partido, historial de transferencias) que
@@ -32,16 +28,11 @@ import {
  * ahora en el botón normal: se trae todo, y lo que ya está guardado no se
  * vuelve a pedir.
  *
- * El historial de transferencias sigue aparte a propósito: es la única carga
- * que recorre el pasado entero página a página, y solo hace falta una vez.
- * También es incremental — se para en cuanto llega a lo que ya tenía.
+ * 2026-09-13: el barrido de comisiones de reventa también dejó de tener botón.
+ * El servidor revisa un lote pequeño al final de cada sincronización.
  */
 
-/** "1 jugador", "454 jugadores". Nunca "jugador(es)". */
-const jugadores = (n: number) => `${n} jugador${n === 1 ? "" : "es"}`;
-
 export function SyncPage() {
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: dashboard } = useDashboard();
   const [progressLog, setProgressLog] = useState<string[] | null>(null);
@@ -69,150 +60,23 @@ export function SyncPage() {
     onSuccess: async (syncResult) => {
       setResult(syncResult);
       qc.invalidateQueries();
-      // Si al pasado le falta historial, seguir de largo y construirlo: nadie
-      // que llega por primera vez puede adivinar que hay un segundo botón que
-      // pulsar, y sin él sus transferencias antiguas salen incompletas.
-      //
-      // Solo se encadena el CENSO, que se agota y no vuelve. La vigilancia de
-      // reventas no se agota nunca —un ex-jugador sin vender puede dar dinero
-      // mañana—, así que encadenarla dejaría la sincronización sin terminar
-      // jamás y rompería el "de inmediato me debe llevar a Cambios".
-      const fresco = await pendientes.refetch();
-      const censo = fresco.data?.detail.census ?? 0;
-      if (censo > 0) {
-        // Sigue escribiendo en la MISMA lista que se venía leyendo. Vaciarla
-        // aquí y abrir una barra en otro sitio de la pantalla parecía que la
-        // sincronización había acabado y que algo nuevo había empezado solo.
-        await completarFichas(fresco.data?.pending ?? 0, true);
-      }
+      // Las comisiones ya no tienen botón (2026-09-13, pedido del usuario):
+      // el servidor revisa un lote pequeño al final de cada sincronización y
+      // lo que encuentra llega en este mismo informe.
       setProgressLog(null);
-      navigate("/news");
     },
     onError: () => setProgressLog(null),
   });
 
-  // Relleno del pasado: la ficha completa de cada ex-jugador (nacionalidad,
-  // carácter, precio de compra antiguo, país al que se fue). Es una llamada a
-  // Hattrick por jugador, así que va por lotes: cada vuelta termina lo que
-  // empieza y la barra dice cuánto falta.
-  const pendientes = useQuery({
-    queryKey: ["backfill-pending", TEAM_ID],
-    queryFn: () => api.backfillPending(TEAM_ID),
-  });
-  const [relleno, setRelleno] = useState<{
-    total: number;
-    hechos: number;
-    quedan: number;
-    ultimo: string | null;
-    error: string | null;
-    /** El mapa del barrido, tal como llega: el backend congela el eje al
-     *  empezar y manda el recorrido entero en cada respuesta, así que aquí
-     *  no se acumula ni se calcula nada. */
-    mapa: QueueMap | null;
-    /** El resumen del barrido. Se enseña cuando para, lo pare el usuario o
-     *  se acabe la cola. */
-    balance: SweepBalance | null;
-    /** Si paró porque se pulsó «Parar», para decirlo con esas palabras. */
-    parado: boolean;
-    /** Si arrancó solo al terminar de sincronizar, para poder decirlo en vez
-     *  de dejar una barra moviéndose que nadie mandó mover. */
-    automatico: boolean;
-  } | null>(null);
-  const pararRef = useRef(false);
-  const [rellenando, setRellenando] = useState(false);
-
-  const completarFichas = async (
-    inicio = pendientes.data?.pending ?? 0,
-    automatico = false,
-  ) => {
-    if (inicio === 0) return;
-    pararRef.current = false;
-    // Una pulsación es UNA pasada. La vigilancia de reventas no se agota sola
-    // —un ex-jugador sin vender puede dar dinero mañana—, así que el corte lo
-    // marca este instante: quien ya se revisó después de él no vuelve a la
-    // cola hasta que pulses otra vez.
-    const pulsacion = new Date().toISOString();
-    setRellenando(true);
-    setRelleno({
-      total: inicio,
-      hechos: 0,
-      quedan: inicio,
-      ultimo: null,
-      error: null,
-      mapa: null,
-      balance: null,
-      parado: false,
-      automatico,
-    });
-    let hechos = 0;
-    if (automatico) {
-      setProgressLog((actual) => [
-        ...(actual ?? []),
-        `Construyendo tu historial de transferencias (${jugadores(inicio)})…`,
-      ]);
-    }
-    try {
-      // Vuelta a vuelta hasta acabar. Cada lote es una petición corta e
-      // independiente: si algo se corta, lo ya descargado se queda guardado y
-      // al volver a pulsar se sigue donde iba, nunca desde el principio.
-      let quedabanAntes = inicio;
-      for (;;) {
-        if (pararRef.current) break;
-        const lote = await api.runBackfillBatch(TEAM_ID, pulsacion);
-        hechos += lote.done;
-        if (automatico && lote.players.length > 0) {
-          const nombres = lote.players;
-          setProgressLog((actual) => [
-            ...(actual ?? []),
-            ...nombres.map((nombre) => `Historial de ${nombre}`),
-          ]);
-        }
-        setRelleno((previo) => ({
-          total: inicio,
-          hechos: Math.min(hechos, inicio),
-          quedan: lote.pending,
-          ultimo: lote.players[lote.players.length - 1] ?? null,
-          error: lote.errors[0] ?? null,
-          mapa: lote.queue ?? previo?.mapa ?? null,
-          balance: lote.balance ?? previo?.balance ?? null,
-          parado: false,
-          automatico,
-        }));
-        if (lote.pending === 0 || lote.done === 0) break;
-        // Freno de mano: si una vuelta no reduce lo que queda, es que algo no
-        // se puede resolver y volvería a salir en la siguiente. Sin esto el
-        // bucle no terminaría nunca — pasó de verdad, con la barra marcando
-        // "55 de 11".
-        if (lote.pending >= quedabanAntes) break;
-        quedabanAntes = lote.pending;
-      }
-    } catch (reason) {
-      setRelleno((previo) =>
-        previo ? { ...previo, error: errorMessage(reason) } : previo,
-      );
-    } finally {
-      setRelleno((previo) =>
-        previo ? { ...previo, parado: pararRef.current } : previo,
-      );
-      setRellenando(false);
-      await pendientes.refetch();
-      qc.invalidateQueries();
-    }
-  };
-
-  // Transferencias solo se habilita despues de la primera sincronizacion:
-  // el recorrido del pasado necesita saber cual es tu equipo, y eso lo
-  // establece la sincronizacion normal.
-  const yaSincronizo = Boolean(dashboard?.syncedAt);
-  const running = fullSync.isPending || rellenando;
+  const running = fullSync.isPending;
 
   return (
     <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold">Sincronización</h1>
         <p className="prosa text-sm text-[var(--muted)]">
-          El único lugar desde donde se traen datos de Hattrick. Al terminar te
-          lleva a Cambios.
+          El único lugar desde donde se traen datos de Hattrick. Al terminar se
+          queda aquí y te dice qué encontró.
         </p>
       </header>
 
@@ -234,7 +98,8 @@ export function SyncPage() {
             </b>{" "}
             Cada vez que sincronizas se revisa tu libro de transferencias desde
             lo último que ya tenías, así que cuesta una página cuando no hay
-            nada nuevo.
+            nada nuevo. También busca, poco a poco, las comisiones que te dejan
+            tus ex-jugadores cuando los revenden.
           </p>
           <button
             onClick={() => fullSync.mutate()}
@@ -259,212 +124,69 @@ export function SyncPage() {
         <Note>Sincronización parcial: {result.errors.join(" · ")}</Note>
       )}
 
-      <Panel
-        title="Transferencias"
-        meta={pendientes.data ? jugadores(pendientes.data.pending) : ""}
-      >
-        <div className="space-y-3 p-4">
-          <p className="prosa text-sm text-[var(--muted)]">
-            <b className="text-[var(--text)]">Sólo comisiones de reventa.</b>{" "}
-            Cuando un club revende a alguien que le vendiste (o a un canterano
-            tuyo) te toca un porcentaje, y esto es lo que sale a buscarlo. Va de
-            a un jugador, así que puedes pararlo y seguir otro día.
-          </p>
-          <p className="prosa text-sm text-[var(--muted)]">
-            Aquí <b className="text-[var(--text)]">no</b> se traen tus compras
-            ni tus ventas: ésas vienen con «Sincronizar ahora». De paso completa
-            lo que le falte al pasado de cada ex-jugador (de dónde era, por
-            cuánto se fue, cuántos partidos jugó contigo), que es lo que hace
-            falta para calcular la comisión.
-          </p>
-
-          {pendientes.data && (
-            <dl className="divide-y divide-[var(--border)] rounded-md border border-[var(--border)] text-sm">
-              <div className="flex items-baseline justify-between gap-3 px-3 py-2">
-                <dt className="text-[var(--muted)]">
-                  Con posible comisión futura
-                </dt>
-                <dd className="tabular-nums font-semibold">
-                  {jugadores(pendientes.data.detail.resaleWatch)}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3 px-3 py-2">
-                <dt className="text-[var(--muted)]">Historial por construir</dt>
-                <dd className="tabular-nums font-semibold">
-                  {jugadores(pendientes.data.detail.census)}
-                </dd>
-              </div>
-            </dl>
-          )}
-
-          {relleno?.automatico && rellenando && (
-            <p className="prosa text-sm text-[var(--text)]">
-              Construyendo tu historial. Empezó al terminar de sincronizar
-              porque a tus transferencias antiguas les faltaban datos; puedes
-              pararlo y seguir cuando quieras.
-            </p>
-          )}
-
-          {relleno && (
-            <div>
-              <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
-                <span className="truncate text-[var(--muted)]">
-                  {relleno.quedan === 0
-                    ? "Listo"
-                    : `${relleno.hechos} de ${relleno.total}${relleno.ultimo ? ` · ${relleno.ultimo}` : ""}`}
-                </span>
-                <span className="shrink-0 tabular-nums text-[var(--muted)]">
-                  {Math.round(
-                    relleno.quedan === 0
-                      ? 100
-                      : (relleno.hechos / Math.max(relleno.total, 1)) * 100,
-                  )}
-                  %
-                </span>
-              </div>
-              {/* La barra es un MAPA de la cola, no un porcentaje: de
-                  izquierda a derecha van los ex-jugadores del más reciente al
-                  más antiguo. El frente avanza por la izquierda con cada
-                  turno "reciente", y cada turno al azar enciende una marca
-                  allí donde cayó, normalmente lejos, en la cola vieja.
-                  El eje lo congela el backend al empezar el barrido. */}
-              <div className="relative h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)] transition-all duration-300"
-                  style={{ width: `${anchuraDelFrente(relleno)}%` }}
-                />
-                {relleno.mapa &&
-                  relleno.mapa.total > 0 &&
-                  relleno.mapa.done.map((posicion) => (
-                    <span
-                      key={posicion}
-                      className="absolute inset-y-0 rounded-sm bg-[var(--accent)]"
-                      style={{
-                        left: `${sitioDeLaMarca(posicion, relleno.mapa!.total)}%`,
-                        // Una marca ocupa UNA casilla, igual que un paso del
-                        // frente: los dos representan un jugador atendido.
-                        //
-                        // Sin suelo de pixeles a proposito. Habia un
-                        // `minWidth: 2px` por legibilidad y rompia justo esto:
-                        // medido en pantalla con 900 en cola, un paso median
-                        // 1,05 px y la marca 2 px --casi el doble--. La cola
-                        // real ya va por 458, a un pelo de cruzar ese limite.
-                        width: `${anchoDeLaMarca(relleno.mapa!.total)}%`,
-                      }}
-                    />
-                  ))}
-              </div>
-              {relleno.mapa && relleno.mapa.total > 0 && (
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Recorre tus ex-jugadores del más reciente al más antiguo. Las
-                  marcas sueltas son los saltos al azar, que es como aparecen
-                  las ventas viejas.
-                </p>
-              )}
-              {/* El informe del barrido: sale cuando para, lo pare el
-                  usuario o se acabe la cola. Las dos cifras de arriba son las
-                  que se pidieron (cuántos siguen y cuántos faltan); el
-                  desglose de cierres explica la diferencia entre ambas. */}
-              {!rellenando && relleno.balance && (
-                <div className="mt-3 rounded-md border border-[var(--border)] p-3">
-                  <p className="text-sm font-medium">
-                    {relleno.parado ? "Barrido detenido" : "Barrido terminado"}
-                  </p>
-                  <dl className="mt-2 space-y-1 text-sm">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <dt className="text-[var(--muted)]">
-                        Siguen con posible comisión
-                      </dt>
-                      <dd className="tabular-nums font-semibold">
-                        {jugadores(relleno.balance.open)}
-                      </dd>
-                    </div>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <dt className="text-[var(--muted)]">
-                        Pendientes de mirar más adelante
-                      </dt>
-                      <dd className="tabular-nums font-semibold">
-                        {jugadores(relleno.balance.toCheck)}
-                      </dd>
-                    </div>
-                    {relleno.balance.commissions > 0 && (
-                      <div className="flex items-baseline justify-between gap-3">
-                        <dt className="text-[var(--muted)]">
-                          Comisiones encontradas
-                        </dt>
-                        <dd className="tabular-nums font-semibold">
-                          {relleno.balance.commissions}
-                        </dd>
-                      </div>
-                    )}
-                    <div className="flex items-baseline justify-between gap-3">
-                      <dt className="text-[var(--muted)]">
-                        Expedientes cerrados
-                      </dt>
-                      <dd className="tabular-nums font-semibold">
-                        {relleno.balance.closedTotal}
-                      </dd>
-                    </div>
-                  </dl>
-                  {relleno.balance.closedTotal > 0 && (
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {motivosEnPalabras(relleno.balance.closed)}
-                    </p>
-                  )}
-                  {relleno.balance.toCheck > 0 && (
-                    <p className="mt-2 text-xs text-[var(--muted)]">
-                      Vuelve a pulsar cuando quieras: sigue donde iba, no
-                      empieza de cero.
-                    </p>
-                  )}
-                </div>
-              )}
-              {relleno.error && (
-                <p className="mt-2 text-xs text-[var(--warning)]">
-                  Hattrick falló en una ficha. Lo descargado se guardó; vuelve a
-                  pulsar para seguir.
-                </p>
-              )}
-            </div>
-          )}
-
-          {!yaSincronizo && (
-            <p className="text-xs text-[var(--warning)]">
-              Primero pulsa «Sincronizar ahora».
-            </p>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => completarFichas()}
-              disabled={
-                running ||
-                !yaSincronizo ||
-                (pendientes.data?.pending ?? 0) === 0
-              }
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)] disabled:opacity-60"
-            >
-              {rellenando
-                ? "Descargando…"
-                : !yaSincronizo
-                  ? "Sincroniza primero"
-                  : (pendientes.data?.pending ?? 0) === 0
-                    ? "Todo al día"
-                    : `Traer ${jugadores(pendientes.data?.pending ?? 0)}`}
-            </button>
-            {rellenando && (
-              <button
-                onClick={() => {
-                  pararRef.current = true;
-                }}
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--accent)]"
-              >
-                Parar
-              </button>
-            )}
-          </div>
-        </div>
-      </Panel>
+      {result && !fullSync.isPending && (
+        <ResumenDeLaSincronizacion result={result} />
+      )}
     </div>
+  );
+}
+
+/** Qué encontró la sincronización que acaba de terminar.
+ *
+ *  Existe porque el salto automático a Cambios se llevaba por delante el
+ *  informe (2026-09-09, el usuario: «es imposible ver qué es lo que me está
+ *  reportando que encontró»). No repite Cambios --allí está el detalle, con
+ *  sus ventanas de tiempo y su comparación por jugador--: aquí sólo se dice
+ *  cuántos y de qué, que es lo que se quiere saber en el segundo siguiente a
+ *  pulsar el botón.
+ */
+function ResumenDeLaSincronizacion({ result }: { result: SyncResult }) {
+  const porCategoria = new Map<string, number>();
+  for (const cambio of result.changes) {
+    porCategoria.set(
+      cambio.category,
+      (porCategoria.get(cambio.category) ?? 0) + 1,
+    );
+  }
+  const lineas = [...porCategoria.entries()].sort((a, b) => b[1] - a[1]);
+
+  return (
+    <Panel
+      title="Lo que encontró"
+      meta={`${result.snapshotsWritten} ficha(s) guardada(s) · ${result.unchanged} sin cambios`}
+    >
+      <div className="space-y-3 p-4">
+        {lineas.length === 0 ? (
+          <p className="prosa text-sm text-[var(--muted)]">
+            Nada nuevo desde la última vez. No es un fallo: quiere decir que lo
+            que hay guardado ya estaba al día.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {lineas.map(([categoria, cuantos]) => (
+                <span
+                  key={categoria}
+                  className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs"
+                >
+                  <b className="tabular-nums">{cuantos}</b>{" "}
+                  <span className="text-[var(--muted)]">{categoria}</span>
+                </span>
+              ))}
+            </div>
+            <p className="prosa text-sm text-[var(--muted)]">
+              El detalle --qué jugador, cuánto subió, qué dejó cada venta-- está
+              en Cambios, con sus ventanas de tiempo.
+            </p>
+          </>
+        )}
+        <Link
+          to="/news"
+          className="inline-flex rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        >
+          Ver los cambios
+        </Link>
+      </div>
+    </Panel>
   );
 }

@@ -162,6 +162,26 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
   return (
     <Panel title={calculo.name} meta={calculo.answers}>
       <div className="space-y-4 p-4">
+        {/* EL CUERPO, cuando lo hay. Va ANTES de la formula a proposito: en
+            los calculos que lo llevan, la formula no se entiende sin haber
+            leido por que tiene esa forma, y quien llega aqui viene a
+            empaparse, no a copiar coeficientes.
+
+            Tamano de lectura (`text-sm`) y no el 11px apagado de `note`:
+            esto son parrafos que se leen enteros, no una coletilla. */}
+        {(calculo.body ?? []).length > 0 && (
+          <div className="space-y-3">
+            {(calculo.body ?? []).map((parrafo) => (
+              <p
+                key={parrafo}
+                className="prosa max-w-[68ch] text-sm leading-relaxed"
+              >
+                {parrafo}
+              </p>
+            ))}
+          </div>
+        )}
+
         {/* `pre` y no `code` suelto: las formulas van alineadas a mano
             --sumatorios, fracciones-- y colapsar los espacios las destroza.
 
@@ -563,7 +583,7 @@ function ExperiencePanel({
           label="Desviación estándar"
           value={
             data.standardDeviation === null
-              ? "—"
+              ? "-"
               : data.standardDeviation.toFixed(2)
           }
           hint={
@@ -852,13 +872,13 @@ function FormulaPanel({
               <Kpi
                 label="Error medio"
                 value={
-                  v.meanErrorWeeks == null ? "—" : `${v.meanErrorWeeks} sem`
+                  v.meanErrorWeeks == null ? "-" : `${v.meanErrorWeeks} sem`
                 }
                 tone="positive"
               />
               <Kpi
                 label="Error máximo"
-                value={v.maxErrorWeeks == null ? "—" : `${v.maxErrorWeeks} sem`}
+                value={v.maxErrorWeeks == null ? "-" : `${v.maxErrorWeeks} sem`}
               />
             </div>
             <table className="mt-3 w-full text-xs">

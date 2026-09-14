@@ -1,4 +1,4 @@
-"""ArenaQueryService — HL-060, HL-061, HL-063, HL-064.
+"""ArenaQueryService, HL-060, HL-061, HL-063, HL-064.
 
 El estadio es el único activo del club que produce dinero sin salario, y el
 único cuya ampliación es irreversible. Por eso lo que más importa aquí no es la
@@ -21,10 +21,15 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.nombre_del_torneo import nombre_del_torneo, nombres_de_copa
+from app.application.queries.weekly import season_for_datetime
 from app.domain.engines.arena_engine import (
     analyse_expansion,
 )
-from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
+from app.domain.value_objects.ht_constants import (
+    FRIENDLY_MATCH_TYPES,
+    NON_OFFICIAL_MATCH_TYPES,
+)
 from app.infrastructure.db import models as m
 
 SECTOR_LABELS = {
@@ -40,6 +45,25 @@ BUILD_COST_PER_SEAT = {"general": 450.0, "preferentes": 750.0, "tribunas": 1500.
 WEEKLY_MAINTENANCE_PER_SEAT = 3.5
 HOME_MATCHES_PER_SEASON = 7
 
+#: El reparto de asientos que la comunidad de Hattrick da por óptimo: 62,5 %
+#: grada general, 25 % preferentes, 10 % tribunas y 2,5 % palcos. Es la
+#: proporción en la que la demanda de cada sector suele llenarse a la vez, así
+#: que un estadio lejos de ella deja asientos vacíos en un sector mientras
+#: otro se queda corto (2026-09-13).
+#: Los tres tamaños de ampliación que se evalúan, en asientos nuevos.
+TAMANOS_DE_AMPLIACION: tuple[tuple[str, int], ...] = (
+    ("Ampliación pequeña", 1000),
+    ("Ampliación mediana", 2500),
+    ("Ampliación grande", 5200),
+)
+
+REPARTO_RECOMENDADO: dict[str, float] = {
+    "general": 0.625,
+    "preferentes": 0.25,
+    "tribunas": 0.10,
+    "palcos": 0.025,
+}
+
 
 @dataclass
 class MatchRow:
@@ -48,6 +72,9 @@ class MatchRow:
     #: «Cauca CF» dice de qué partido hablamos y «16/08» no (2026-09-01).
     rival: str
     match_type: int
+    #: El torneo en palabras («Liga», «Copa», «Amistoso»...), para el tooltip
+    #: debajo del rival (2026-09-14).
+    tournament: str
     capacity: int
     sold: int
     occupancy: float
@@ -75,7 +102,7 @@ class ArenaResponse:
     cuánto se vendió en cada uno, su ocupación, cuántas veces se agotó y una
     estimación de demanda censurada. Todo eso salía de `SoldTerraces`,
     `SoldBasic`, `SoldRoof` y `SoldVIP` de matchdetails, que es una función de
-    HT Supporter — y las reglas de CHPP prohíben replicarlas.
+    HT Supporter, y las reglas de CHPP prohíben replicarlas.
 
     Lo que queda es lo que cualquiera ve en la página de un partido: cuánta
     gente entró en total y cuánto se recaudó. La ocupación se calcula contra
@@ -93,6 +120,19 @@ class ArenaResponse:
     matches: list[MatchRow]
     expansion_options: list[ExpansionOption]
     notes: list[str] = field(default_factory=list)
+    #: Qué partidos se miran: «todos», «oficiales» o «amistosos».
+    tipo: str = "todos"
+    #: El aforo de HOY por sector, y el reparto que se da por óptimo.
+    composition: dict[str, int] = field(default_factory=dict)
+    recommended_shares: dict[str, float] = field(default_factory=dict)
+    #: El selector de temporada, igual que en Partidos (2026-09-14): las que
+    #: tienen algún partido en casa, la actual y la elegida (`None` = todas).
+    available_seasons: list[int] = field(default_factory=list)
+    current_season: int | None = None
+    selected_season: int | None = None
+    #: Si el aforo cambió, el día del primer partido con el aforo actual: desde
+    #: ahí se cuenta todo lo de esta pantalla. `None` = nunca cambió.
+    capacity_changed_on: str | None = None
 
 
 class ArenaQueryService:
@@ -103,13 +143,15 @@ class ArenaQueryService:
         self,
         team_id: int,
         fill_rate: float | None = None,
+        tipo: str = "todos",
+        season: int | None = None,
     ) -> ArenaResponse | None:
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
         # Escaleras/Duelos/Torneos/Preparación se excluyen siempre (2026-08-12,
         # pedido explícito: "de TODOS los lugares de esta herramienta... ni
-        # con botón, ni sin botón") — mezclarlos aquí sesga la calibración de
+        # con botón, ni sin botón"), mezclarlos aquí sesga la calibración de
         # precios, la ocupación media y el retorno estimado de ampliar el estadio.
         query = (
             select(m.StadiumHistory)
@@ -119,11 +161,55 @@ class ArenaQueryService:
         rows = list((await self._s.execute(query.order_by(m.StadiumHistory.played_at))).scalars())
         if not rows:
             return None
+        # SI CAMBIÓ EL AFORO, EL CONTEO EMPIEZA DE NUEVO (2026-09-14, pedido del
+        # usuario). Una ocupación medida contra el estadio de antes no dice nada
+        # del de ahora: con más asientos, el mismo público llena menos. Cuenta
+        # sólo desde el primer partido jugado con el aforo actual.
+        aforo_cambio_en = None
+        aforo_anterior = None
+        for r in rows:
+            aforo = r.capacity_total or 0
+            if not aforo:
+                continue
+            if aforo_anterior is not None and aforo != aforo_anterior:
+                aforo_cambio_en = r.played_at
+            aforo_anterior = aforo
+        if aforo_cambio_en is not None:
+            rows = [r for r in rows if r.played_at >= aforo_cambio_en]
+        # Oficiales o amistosos (2026-09-13, pedido del usuario): un amistoso
+        # llena el estadio de otra manera y mezclarlos esconde la ocupación de
+        # los partidos que cuentan. El aforo sale siempre de la última lectura.
+        todas = rows
+        if tipo == "oficiales":
+            rows = [r for r in todas if r.match_type not in FRIENDLY_MATCH_TYPES]
+        elif tipo == "amistosos":
+            rows = [r for r in todas if r.match_type in FRIENDLY_MATCH_TYPES]
+
+        # POR TEMPORADA, IGUAL QUE EN PARTIDOS (2026-09-14, pedido del usuario):
+        # la misma regla para saber de qué temporada es cada partido, y la
+        # lista de temporadas sale de todos los partidos en casa --no de los
+        # del filtro de tipo--, para que el selector no cambie al tocarlo.
+        world = (
+            await self._s.scalar(
+                select(m.WorldContext).where(m.WorldContext.ht_league_id == team.ht_league_id)
+            )
+            if team.ht_league_id is not None
+            else None
+        )
+        temporada_de = {r.id: season_for_datetime(world, r.played_at) for r in todas}
+        available_seasons = sorted(
+            {s for s in temporada_de.values() if s is not None}, reverse=True
+        )
+        if season is not None:
+            rows = [r for r in rows if temporada_de.get(r.id) == season]
 
         # El nombre del rival de cada partido. `stadium_history` sólo guarda
         # el identificador, así que hay que ir a `matches`. Se pide en una
         # sola consulta y no una por fila.
         rivales: dict[int, str] = {}
+        #: La copa de cada partido de copa por su nivel e índice: «Copa
+        #: Colombia», «Copa Cocuy Rubí»... y no sólo «Copa» (2026-09-14).
+        copa_de: dict[int, tuple[int | None, int | None]] = {}
         if rows:
             partidos = await self._s.execute(
                 select(m.Match).where(m.Match.ht_match_id.in_([r.ht_match_id for r in rows]))
@@ -137,6 +223,13 @@ class ArenaQueryService:
                     if partido.home_team_ht_id == team.ht_team_id
                     else partido.home_team_name
                 )
+                copa_de[partido.ht_match_id] = (partido.cup_level, partido.cup_level_index)
+
+        nombres = await nombres_de_copa(self._s, team) if copa_de else {}
+
+        def torneo(r: m.StadiumHistory) -> str:
+            nivel, indice = copa_de.get(r.ht_match_id, (None, None))
+            return nombre_del_torneo(r.match_type, nivel, indice, nombres)
 
         rate = team.currency_rate or 1.0
 
@@ -145,7 +238,7 @@ class ArenaQueryService:
 
         # El aforo TOTAL de hoy. No hay aforo histórico por partido, así que
         # todas las ocupaciones se miden contra el mismo.
-        last = rows[-1]
+        last = todas[-1]
         capacity_total = last.capacity_total or 0
 
         def ocupacion(vendido: int) -> float:
@@ -158,6 +251,7 @@ class ArenaQueryService:
                 # y sigue identificando la barra.
                 rival=rivales.get(r.ht_match_id) or r.played_at.date().isoformat(),
                 match_type=r.match_type,
+                tournament=torneo(r),
                 capacity=capacity_total,
                 sold=r.sold_total,
                 occupancy=ocupacion(r.sold_total),
@@ -176,20 +270,22 @@ class ArenaQueryService:
         observed_fill = sum(mm.occupancy for mm in matches) / len(matches) / 100 if matches else 0.0
         effective_fill = fill_rate if fill_rate is not None else observed_fill
 
-        options = [
-            _expansion(label, seats, effective_fill)
-            for label, seats in [
-                ("Ampliación pequeña (+1.000 general)", {"general": 1000}),
-                (
-                    "Ampliación media (+2.000 general, +500 preferentes)",
-                    {"general": 2000, "preferentes": 500},
-                ),
-                (
-                    "Ampliación grande (+4.000 general, +1.000 pref., +200 tribunas)",
-                    {"general": 4000, "preferentes": 1000, "tribunas": 200},
-                ),
-            ]
-        ]
+        composicion = {
+            "general": last.capacity_terraces or 0,
+            "preferentes": last.capacity_basic or 0,
+            "tribunas": last.capacity_roof or 0,
+            "palcos": last.capacity_vip or 0,
+        }
+        # TODAS HACIA EL REPARTO RECOMENDADO (2026-09-13, pedido del usuario).
+        # Antes eran tres repartos fijos escritos a ojo --casi todo general-- y
+        # una cuarta aparte que sí seguía el reparto. Ahora cada tamaño reparte
+        # sus asientos entre los cuatro sectores en la proporción recomendada.
+        options = []
+        for nombre, asientos in TAMANOS_DE_AMPLIACION:
+            reparto = _hacia_el_reparto(composicion, asientos)
+            options.append(
+                _expansion(f"{nombre} ({_describir_reparto(reparto)})", reparto, effective_fill)
+            )
 
         notes: list[str] = [
             "Todas las ocupaciones se calculan con el aforo de HOY, porque no hay un "
@@ -216,6 +312,15 @@ class ArenaQueryService:
             matches=matches,
             expansion_options=options,
             notes=notes,
+            tipo=tipo,
+            composition=composicion,
+            recommended_shares=dict(REPARTO_RECOMENDADO),
+            available_seasons=available_seasons,
+            current_season=world.season if world is not None else None,
+            selected_season=season,
+            capacity_changed_on=(
+                aforo_cambio_en.date().isoformat() if aforo_cambio_en is not None else None
+            ),
         )
 
 
@@ -237,3 +342,41 @@ def _expansion(label: str, seats: dict[str, int], fill: float) -> ExpansionOptio
         payback_seasons=round(a.payback_weeks / 16, 2) if a.payback_weeks else None,
         verdict=a.verdict,
     )
+
+
+def _describir_reparto(reparto: dict[str, int]) -> str:
+    """«+1.000: 800 general, 200 tribunas», en el orden de los sectores."""
+
+    def miles(n: int) -> str:
+        return f"{n:,}".replace(",", ".")
+
+    total = sum(reparto.values())
+    partes = [
+        f"{miles(reparto[s])} {SECTOR_LABELS[s].lower()}" for s in SECTOR_LABELS if reparto.get(s)
+    ]
+    return f"+{miles(total)}: {', '.join(partes)}"
+
+
+def _hacia_el_reparto(actual: dict[str, int], nuevos: int) -> dict[str, int]:
+    """Cómo repartir `nuevos` asientos según `REPARTO_RECOMENDADO`.
+
+    Los cuatro sectores reciben su parte recomendada de los asientos nuevos,
+    y la suma cuadra exacta con el tamaño de la ampliación.
+    """
+    # LOS CUATRO SECTORES, SIEMPRE EN LA PROPORCIÓN RECOMENDADA (2026-09-13,
+    # decisión del usuario). Antes se repartía sólo entre los sectores por
+    # debajo de su parte, y un estadio con tribunas de sobra no recibía
+    # ninguna: la ampliación salía con tres sectores y parecía un fallo.
+    # `actual` se conserva en la firma: lo usa quien compara el reparto.
+    del actual
+    pesos = dict(REPARTO_RECOMENDADO)
+    suma = sum(pesos.values())
+    # Mayor resto: redondear cada sector por separado podía sumar 2.501
+    # asientos para una ampliación de 2.500. Se reparte la parte entera y los
+    # asientos que falten van a los sectores con mayor resto.
+    exactos = {s: nuevos * peso / suma for s, peso in pesos.items()}
+    reparto = {s: int(v) for s, v in exactos.items()}
+    sobrantes = nuevos - sum(reparto.values())
+    for s in sorted(exactos, key=lambda k: exactos[k] - reparto[k], reverse=True)[:sobrantes]:
+        reparto[s] += 1
+    return {s: n for s, n in reparto.items() if n > 0}

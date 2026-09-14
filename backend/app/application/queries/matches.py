@@ -1,4 +1,4 @@
-"""MatchesQueryService — HL-071, HL-072, HL-073, HL-075, HL-076.
+"""MatchesQueryService, HL-071, HL-072, HL-073, HL-075, HL-076.
 
 Un resultado dice quién ganó; no dice por qué. La diferencia entre «hemos
 perdido 1-2» y «hemos generado nueve ocasiones y convertido una mientras el
@@ -16,7 +16,7 @@ devuelve el tamaño de muestra junto a la tasa para que la cifra no se lea
 sola.
 
 2026-08-12, pedido explícito: los partidos NO oficiales (Escaleras/Duelos/
-Torneos/Preparación) se excluyen SIEMPRE, sin botón que los reactive — ver
+Torneos/Preparación) se excluyen SIEMPRE, sin botón que los reactive, ver
 `NON_OFFICIAL_MATCH_TYPES`. El botón que existía para eso ahora controla los
 Amistosos (`FRIENDLY_MATCH_TYPES`), que sí son partidos reales, solo que no
 cuentan para el historial competitivo por defecto.
@@ -30,6 +30,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.nombre_del_torneo import nombre_del_torneo, nombres_de_copa
 from app.application.queries.weekly import (
     season_for_datetime,
     season_week_for_datetime,
@@ -79,6 +80,8 @@ class MatchRow:
     ht_match_id: int
     date: str
     match_type: int
+    #: El torneo en palabras, y en copa cuál: «Copa Cocuy Rubí» (2026-09-14).
+    tournament: str
     opponent: str
     is_home: bool
     goals_for: int
@@ -208,7 +211,7 @@ class MatchesQueryService:
 
     async def _played(self, ht_team_id: int) -> list[m.Match]:
         """Partidos oficiales de ESTE equipo. Los no-oficiales (Escaleras,
-        Duelos, Torneos, Preparación) se excluyen aquí siempre — no hay
+        Duelos, Torneos, Preparación) se excluyen aquí siempre, no hay
         override en ningún punto de la herramienta (pedido explícito
         2026-08-12). Los Amistosos SÍ se incluyen: el filtro de amistosos se
         aplica después, sobre esta misma lista, para que el selector de
@@ -228,7 +231,7 @@ class MatchesQueryService:
         """Se indexa por (ht_match_id, is_home), no por team_ht_id: en
         Escaleras/Duelos (MatchType 50/62) `team_ht_id` es un ID efímero que
         no coincide con ningún ht_team_id real, ni siquiera el del equipo
-        propio (verificado con datos reales de la cuenta) — la posición
+        propio (verificado con datos reales de la cuenta), la posición
         home/away es la única señal fiable para saber de quién es cada fila."""
         if not ht_match_ids:
             return {}
@@ -310,6 +313,7 @@ class MatchesQueryService:
             )
 
         ratings = await self._ratings([p.ht_match_id for p in played])
+        nombres = await nombres_de_copa(self._s, team)
         rows: list[MatchRow] = []
         series: list[RatingSeriesPoint] = []
         won = drawn = lost = 0
@@ -363,6 +367,9 @@ class MatchesQueryService:
                     ht_match_id=match.ht_match_id,
                     date=date,
                     match_type=match.match_type,
+                    tournament=nombre_del_torneo(
+                        match.match_type, match.cup_level, match.cup_level_index, nombres
+                    ),
                     opponent=opponent,
                     is_home=is_home,
                     goals_for=own_goals,

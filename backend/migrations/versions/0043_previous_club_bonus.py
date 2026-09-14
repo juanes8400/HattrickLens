@@ -1,4 +1,4 @@
-"""Comisión de club anterior EXACTA — HL-161, 2026-08-14, pedido
+"""Comisión de club anterior EXACTA, HL-161, 2026-08-14, pedido
 explícitamente ("encontré la forma de asignar exactamente el dinero").
 
 `players` gana los TransferID de compra/venta de ESTE stint (para
@@ -6,7 +6,7 @@ delimitar sin ambigüedad la ventana de partidos a contar cuando se recorre
 el historial completo del jugador vía transfersplayer.xml), el conteo de
 partidos reales cacheado, y una marca de cuándo se revisó por última vez si
 hubo una reventa nueva. `previous_club_bonuses` guarda cada reventa
-detectada, una fila por `resale_transfer_id` (único — nunca se cuenta dos
+detectada, una fila por `resale_transfer_id` (único, nunca se cuenta dos
 veces). Reemplaza el reparto heurístico de `resale_bonus.py`.
 
 Revision ID: 0043

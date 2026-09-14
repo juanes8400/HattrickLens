@@ -2,7 +2,7 @@
 
 2026-08-15: `diff_*` devuelve `Change`, no strings. `summaries()` deja los
 tests de redacción igual de legibles que antes; los tests nuevos al final
-verifican que los NÚMEROS viajan aparte de la frase — que es justo lo que
+verifican que los NÚMEROS viajan aparte de la frase, que es justo lo que
 faltaba cuando la UI mostró "TSI 202" por re-parsear el texto.
 """
 from app.domain.engines.sync_diff import (
@@ -102,9 +102,9 @@ def test_detects_transfer_listing() -> None:
 
 def test_departure_with_sale_reports_the_price() -> None:
     """HL-2xx: un jugador vendido debe verse en "Qué cambió", no solo en
-    `Player.sale_price` — bug real encontrado en vivo (Leopoldo Campus).
+    `Player.sale_price`, bug real encontrado en vivo (Leopoldo Campus).
 
-    2026-08-12, corrección pedida explícitamente: SIN ganancia/pérdida — un
+    2026-08-12, corrección pedida explícitamente: SIN ganancia/pérdida, un
     delta precio_venta − precio_compra no tiene en cuenta comisión de agente
     ni bono de TSI, así que mostrarlo aquí como si fuera el resultado real
     de la venta es engañoso frente a lo que sí calcula bien "Saldo por
@@ -117,7 +117,7 @@ def test_departure_with_sale_reports_the_price() -> None:
 
 
 def test_departure_without_sale_info_is_a_plain_exit() -> None:
-    """Salida sin venta conocida (retiro, fin de préstamo, etc.) — no se
+    """Salida sin venta conocida (retiro, fin de préstamo, etc.), no se
     inventa un precio."""
     out = diff_player_departure("Leopoldo Campus", None, "US$")
     assert out.summary == "Leopoldo Campus salió de la plantilla"
@@ -139,7 +139,7 @@ def test_first_economy_sync_has_no_diff() -> None:
 
 
 def test_detects_cash_change_with_currency() -> None:
-    """Sin `rate` (por defecto 1.0, SEK == local) — caso de un país cuya
+    """Sin `rate` (por defecto 1.0, SEK == local), caso de un país cuya
     tasa de cambio con SEK sea exactamente 1."""
     new = {**ECON_OLD, "cash": 1_200_000}
     out = diff_economy(ECON_OLD, new, currency="US$")
@@ -148,7 +148,7 @@ def test_detects_cash_change_with_currency() -> None:
 
 def test_cash_change_converts_from_sek_using_currency_rate() -> None:
     """Corrección 2026-08-05, bug real encontrado en vivo: economy.xml
-    llega en SEK, no en la moneda local — sin `rate`, el mensaje mostraba
+    llega en SEK, no en la moneda local, sin `rate`, el mensaje mostraba
     el número crudo en SEK con la etiqueta de la moneda local (p. ej.
     "10,000 US$" para un cambio que, dividido por la tasa real de Colombia
     = 10, eran 1,000 US$ de verdad)."""
@@ -271,7 +271,7 @@ def test_match_still_upcoming_is_not_announced() -> None:
 # ── El dato viaja aparte de la frase ────────────────────────────────────────
 # La regresión que motivó todo esto: la UI sacaba el TSI de la frase con una
 # regex, y al cambiar el separador de miles a punto `Number("202.210")` pasó a
-# valer 202,21 — se mostró "TSI 202" para un jugador de 202 mil.
+# valer 202,21, se mostró "TSI 202" para un jugador de 202 mil.
 
 def test_big_numbers_survive_intact_next_to_the_formatted_phrase() -> None:
     new = {**PLAYER_OLD, "tsi": 202_210}

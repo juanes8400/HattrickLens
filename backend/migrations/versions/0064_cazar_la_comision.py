@@ -11,12 +11,12 @@ dice quién, pero dice CUÁNDO merece la pena mirar.
 
 Tres columnas en `teams`:
 
-  * `commission_seen` y `commission_seen_closed` — las dos cifras de la
+  * `commission_seen` y `commission_seen_closed`, las dos cifras de la
     última vez que se miró, la semana en curso y la ya cerrada. Hacen falta
     las dos: la primera detecta el dinero según entra, y la segunda lo
     rescata si no se sincronizó durante esa semana.
-  * `commission_hunting` — hay dinero por atribuir.
-  * `commission_tried_json` — a quién ya se probó en ESTA cacería. Se vacía
+  * `commission_hunting`, hay dinero por atribuir.
+  * `commission_tried_json`, a quién ya se probó en ESTA cacería. Se vacía
     al abrir una nueva: si no, la parte aleatoria de la búsqueda se agotaría
     tras el primer barrido y no volvería a mirar a nadie.
 

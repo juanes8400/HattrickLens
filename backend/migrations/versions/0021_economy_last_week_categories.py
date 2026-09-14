@@ -3,7 +3,7 @@
 Hasta ahora sólo se guardaba el agregado (last_income_sum/last_costs_sum).
 Sin el desglose por categoría de semanas cerradas no se puede sumar varias
 semanas para un flujo (Sankey) agregado: sólo la semana en curso tenía
-categorías. Todas nullable — CHPP no las trae en todas las versiones, y los
+categorías. Todas nullable, CHPP no las trae en todas las versiones, y los
 snapshots ya sincronizados no las tienen; NULL dice "no se sabe", nunca cero.
 
 Revision ID: 0021

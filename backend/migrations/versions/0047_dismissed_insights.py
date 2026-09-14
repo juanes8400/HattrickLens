@@ -3,7 +3,7 @@ quede guardada en un buzón.
 
 Las alertas no son filas: `domain.engines.insights` las vuelve a derivar de
 los datos en cada petición, así que no hay nada que "marcar como leído". Lo
-que se guarda aquí es la decisión del usuario — junto con una copia del texto
+que se guarda aquí es la decisión del usuario, junto con una copia del texto
 que descartó, para que el buzón siga mostrando qué archivó aunque la condición
 que la disparó ya no exista.
 

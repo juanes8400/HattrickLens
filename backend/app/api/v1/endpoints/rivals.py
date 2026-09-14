@@ -1,20 +1,20 @@
-"""Scouting de rivales — HL-099 a HL-110, ampliado en HL-2xx.
+"""Scouting de rivales, HL-099 a HL-110, ampliado en HL-2xx.
 
 Combina lo poco que CHPP deja ver de un equipo ajeno (TSI real vía
 `players.xml`, nombre y posición reales vía `matchlineup.xml` de partidos ya
 jugados, táctica/nivel/formación/rotación vía `matchdetails.xml`) con los
 motores puros de `rival_scouting`. Todo lo del rival se pide en vivo en cada
-request — nada se persiste — para no acabar trackeando el estado de una
+request, nada se persiste, para no acabar trackeando el estado de una
 cuenta que no es la del usuario.
 
 HL-2xx: el análisis del rival (roster, marcaje, táctica, rotación) se basa
-en sus ÚLTIMOS PARTIDOS OFICIALES REALES contra CUALQUIER equipo — ya no
+en sus ÚLTIMOS PARTIDOS OFICIALES REALES contra CUALQUIER equipo, ya no
 exige que hayan sido contra el equipo propio. Antes, un rival con el que
 nunca se hubiera jugado (o solo Duelos/Escaleras) no daba ninguna señal
 salvo TSI; ahora se usa lo que el rival jugó de verdad, sea contra quien
 sea, igual que haría un ojeador real. Duelos, Escaleras y partidos de
-Selección nacional NUNCA cuentan para esto — no hay combinación de toggles
-que los traiga de vuelta — porque no se consideran representativos de cómo
+Selección nacional NUNCA cuentan para esto, no hay combinación de toggles
+que los traiga de vuelta, porque no se consideran representativos de cómo
 juega el CLUB rival normalmente (Selección: otro cuerpo técnico, a veces
 otro país; decisión de producto confirmada con el usuario). Preparación
 (pretemporada) sí puede contar, pero solo bajo el toggle de Amistosos: a
@@ -22,30 +22,61 @@ diferencia de Duelos/Escaleras, es contra un rival real con su plantilla
 real.
 """
 
-import json
+import logging
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_team_owner
 from app.api.rate_limit import limite
 from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
+from app.application.commands.partidos_de_rivales import (
+    VERSION_ALINEACION,
+    alineacion_de,
+    guardar_lo_visto,
+    partidos_guardados,
+    ratings_de,
+)
 from app.application.commands.sync_team import FILE_VERSIONS
+from app.application.queries.alineacion_enviada import (
+    once_enviado,
+    partido_pendiente_contra,
+    prediccion_en_vivo,
+    prediccion_guardada,
+)
+from app.application.queries.prediccion_liga import partidos_de_un_equipo, reparto_de_tacticas
+from app.application.queries.weekly import start_of_iso_week
+from app.domain.engines.economy_engine import SEASON_WEEKS
 from app.domain.engines.lineup_optimizer import best_formation
 from app.domain.engines.next_match_analysis import probable_starters
+from app.domain.engines.prediccion import (
+    CAMPOS,
+    TIPOS_CON_SEDE,
+    TIPOS_DE_AMISTOSOS,
+    TIPOS_DE_COPA,
+    TIPOS_OFICIALES,
+    corregir_sede,
+    factor_de_tactica,
+    goles_esperados,
+    marcador_mas_probable,
+    probabilidades_de_copa,
+    probabilidades_del_motor,
+)
 from app.domain.engines.rival_scouting import (
     PitchZoneMethod,
     analyse_side_rotation,
     estimate_win_probability,
+    lecturas_completas,
     pitch_zone_duels,
     pitch_zone_values,
+    resumir_ratings,
     suggest_man_marking,
     summarise_tactics,
     tsi_kde_comparison,
@@ -75,11 +106,18 @@ from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
-# 10 y no 5, 2026-08-19 a petición del usuario: con cinco partidos un rival
-# que alterna dos planteamientos deja tres y dos, y cualquier resumen sale a
-# medio camino de los dos. Cuesta una llamada de alineación por partido.
-MAX_MATCHES_ANALYSED = 10
+# CINCO, 2026-09-09 a petición del usuario, que vio la cuenta de llamadas a
+# Hattrick y dijo basta: «limita los llamados a 5 partidos».
+#
+# Estuvo en 10 desde el 2026-08-19, con un motivo real --un rival que alterna
+# dos planteamientos deja tres y dos, y cualquier resumen sale a medio camino
+# de los dos--, pero cada partido cuesta UNA alineación y UN detalle, así que
+# los diez eran veinte llamadas por ficha. La respuesta a la alternancia no es
+# mirar más partidos sino los selectores de resumen: el máximo y el máximo por
+# carril enseñan el techo sin necesidad de ampliar la ventana.
+MAX_MATCHES_ANALYSED = 5
 
 # Memoria corta sobre CHPP para esta ficha. Una ficha de rival son ~20
 # peticiones a Hattrick (plantilla, calendario, y una alineación y un
@@ -109,8 +147,8 @@ class _CachedCHPP:
         self._user_id = user_id
 
     async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
-        # El usuario forma parte de la clave. Sin él, `matchorders` —que
-        # devuelve TU alineación enviada y solo la ve su dueño— se serviría
+        # El usuario forma parte de la clave. Sin él, `matchorders`, que
+        # devuelve TU alineación enviada y solo la ve su dueño, se serviría
         # desde la caché a cualquiera que pidiera el mismo matchID dentro de
         # los cinco minutos. Con dos managers que se enfrentan, eso es
         # enseñarle al rival tu once antes del partido.
@@ -142,15 +180,15 @@ class _CachedCHPP:
 # Decisión de producto confirmada con el usuario (HL-2xx): la ficha de rival
 # usa una clasificación PROPIA de tipo de partido, distinta de la genérica
 # de ht_constants (esa la siguen usando arena/matches tal cual,
-# sin tocar). Selección nacional nunca cuenta aquí — se juega con otro
+# sin tocar). Selección nacional nunca cuenta aquí, se juega con otro
 # cuerpo técnico, a veces otro país, y no dice nada de cómo juega el CLUB
 # rival.
 #
 # 2026-08-11, pedido explícito y más reciente: Preparación (pretemporada)
-# se excluye siempre, junto con Torneo liga/playoff, Duelo y Escalera — los
+# se excluye siempre, junto con Torneo liga/playoff, Duelo y Escalera, los
 # 5 son partidos de mentiras y deben ignorarse en TODA la herramienta, sin
 # excepción. Reemplaza la regla anterior ("Preparación sí cuenta como
-# amistoso porque es contra una plantilla real") — se deja este comentario
+# amistoso porque es contra una plantilla real"), se deja este comentario
 # como historial, no como regla vigente.
 _NATIONAL_TEAM_MATCH_TYPES = frozenset(
     {
@@ -174,24 +212,20 @@ _RIVAL_ALWAYS_EXCLUDED_MATCH_TYPES = (
 _RIVAL_FRIENDLY_MATCH_TYPES = FRIENDLY_MATCH_TYPES - {MATCH_TYPE_NATIONAL_TEAM_FRIENDLY}
 
 # stafflist.xml versión 1.0/"latest" (FILE_VERSIONS["stafflist"], usada para el
-# propio equipo) deniega para un equipo ajeno — verificado en vivo:
+# propio equipo) deniega para un equipo ajeno, verificado en vivo:
 # chpperror.xml, ErrorCode 1 "Access to specified parameters or file was
 # denied". La versión 1.2, en cambio, SÍ expone al entrenador principal
 # (Name, Leadership, TrainerSkillLevel) como dato público para cualquier
-# equipo — también verificado en vivo contra un rival real. No confundir
+# equipo, también verificado en vivo contra un rival real. No confundir
 # ambas versiones: son el mismo fichero con reglas de acceso distintas.
 RIVAL_STAFFLIST_VERSION = "1.2"
 MANAGER_COMPENDIUM_VERSION = "1.5"
-# matchlineup.xml SIN versión explícita ya resolvía a esto (verificado en
-# vivo 2026-08-09) — se fija aquí para que quede auditable, no implícito.
-# Esta es la versión VIEJA: `PositionCode` (1-16, MATCH_POSITION_* en
-# ht_constants.py) es la casilla de formación del arranque, la que usa el
-# marcaje al hombre de esta página. NO confundir con la versión que pide
-# `team_of_the_week.py` (2.1) para "Mejor alineación" — ese usa `RoleID`
-# (100+, MATCH_ROLE_*), un campo con esquema distinto que en esta versión
-# vieja es solo un índice secuencial sin significado. Ver docstring de
-# `parse_matchlineup` en app/infrastructure/chpp/parsers/__init__.py.
-MATCHLINEUP_POSITION_CODE_VERSION = "1.2"
+# La versión del lector de alineaciones vive ahora en el módulo que guarda los
+# partidos de los rivales, para que la que se GUARDA y la que se LEE no puedan
+# discrepar: un desajuste ahí sería silencioso --posiciones leídas como otra
+# cosa, no un error--. El porqué de esa versión concreta, en
+# `VERSION_ALINEACION`.
+MATCHLINEUP_POSITION_CODE_VERSION = VERSION_ALINEACION
 
 
 def _days_since_last_login(payload: dict[str, Any]) -> int | None:
@@ -249,54 +283,10 @@ def _match_type_allowed(
 
 
 def _avg(values: Any) -> float | None:
-    """Promedio redondeado a 1 decimal, o `None` si no hay ni un valor —
+    """Promedio redondeado a 1 decimal, o `None` si no hay ni un valor
     nunca 0 disfrazado de medida."""
     vals = list(values)
     return round(sum(vals) / len(vals), 1) if vals else None
-
-
-def _submitted_players(
-    match: m.Match | None,
-    players: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Resuelve el once enviado contra el roster actual conservando el orden.
-
-    Nueve es el mínimo legal para iniciar. Si faltan más jugadores en el
-    roster actual (por venta, migración incompleta o JSON corrupto), se descarta
-    la referencia completa en vez de presentar un promedio parcial engañoso.
-    """
-    if match is None or not match.submitted_lineup_json:
-        return []
-    try:
-        rows = json.loads(match.submitted_lineup_json)
-        player_ids = [
-            int(row["ht_player_id"])
-            for row in rows
-            if isinstance(row, dict) and row.get("ht_player_id")
-        ]
-    except (TypeError, ValueError, KeyError):
-        return []
-    by_id = {int(player["ht_player_id"]): player for player in players}
-    resolved = [by_id[player_id] for player_id in player_ids if player_id in by_id]
-    return resolved if 9 <= len(resolved) <= 11 else []
-
-
-def _submitted_rating_prediction(match: m.Match | None) -> dict[str, int] | None:
-    """Los siete ratings CHPP de minuto 0, o nada si falta un solo sector."""
-    if match is None:
-        return None
-    values = {
-        "midfield": match.submitted_rating_midfield,
-        "right_def": match.submitted_rating_right_def,
-        "central_def": match.submitted_rating_central_def,
-        "left_def": match.submitted_rating_left_def,
-        "right_att": match.submitted_rating_right_att,
-        "central_att": match.submitted_rating_central_att,
-        "left_att": match.submitted_rating_left_att,
-    }
-    if any(value is None for value in values.values()):
-        return None
-    return {key: int(value) for key, value in values.items() if value is not None}
 
 
 async def _last_purchase(client: Any, ht_team_id: int) -> dict[str, Any] | None:
@@ -318,7 +308,7 @@ async def _last_purchase(client: Any, ht_team_id: int) -> dict[str, Any] | None:
             teamID=ht_team_id,
             pageIndex=1,
         )
-    except Exception:  # noqa: BLE001 — sin este dato la ficha sigue entera
+    except Exception:  # noqa: BLE001, sin este dato la ficha sigue entera
         return None
     compras = [
         t
@@ -362,100 +352,14 @@ def _with_last_position(
     }
 
 
-async def _live_rating_prediction(client: Any, match: m.Match) -> dict[str, int] | None:
-    """Pide a Hattrick la predicción de minuto 0 de las órdenes ya enviadas.
-
-    `actionType=predictratings` es de solo lectura: Hattrick calcula los siete
-    ratings para la alineación que YA está guardada, no envía ni modifica
-    nada. Devuelve `None` si todavía no hay órdenes, y también si falla: no
-    tener predicción no puede tumbar la ficha del rival.
-    """
-    sistema = (match.source_system or "hattrick").strip().lower()
-    if sistema not in {"hattrick", "youth", "htointegrated"}:
-        sistema = "hattrick"
-    try:
-        payload = await client.fetch(
-            "matchorders",
-            version=FILE_VERSIONS["matchorders"],
-            matchID=match.ht_match_id,
-            sourceSystem=sistema,
-            actionType="predictratings",
-        )
-    except Exception:  # noqa: BLE001 — sin predicción, la ficha sigue entera
-        return None
-    prediccion = payload.get("prediction")
-    if not isinstance(prediccion, dict):
-        return None
-    ratings = prediccion.get("ratings") or {}
-    sectores = (
-        "midfield",
-        "right_def",
-        "central_def",
-        "left_def",
-        "right_att",
-        "central_att",
-        "left_att",
-    )
-    if any(ratings.get(nombre) is None for nombre in sectores):
-        return None
-    return {nombre: int(ratings[nombre]) for nombre in sectores}
-
-
-async def _submitted_match_against(
-    session: AsyncSession,
-    own_ht_team_id: int,
-    rival_ht_team_id: int,
-) -> m.Match | None:
-    """El próximo partido contra ese rival, haya o no órdenes sincronizadas.
-
-    Hasta 2026-08-19 exigía `orders_given=True`, que es un dato del ÚLTIMO
-    sync: si mandabas la alineación después de sincronizar, la ficha no se
-    enteraba hasta el siguiente sync. La predicción se pide ahora en vivo con
-    `actionType=predictratings`, y esa llamada ya responde por sí sola si hay
-    órdenes o no.
-    """
-    return await session.scalar(
-        select(m.Match)
-        .where(
-            or_(
-                and_(
-                    m.Match.home_team_ht_id == own_ht_team_id,
-                    m.Match.away_team_ht_id == rival_ht_team_id,
-                ),
-                and_(
-                    m.Match.away_team_ht_id == own_ht_team_id,
-                    m.Match.home_team_ht_id == rival_ht_team_id,
-                ),
-            ),
-            ~m.Match.status.ilike("finished"),
-        )
-        .order_by(m.Match.played_at.asc())
-        .limit(1)
-    )
-
-
 def _most_recent_by_date(
     items: list[dict[str, Any]], date_key: str, limit: int
 ) -> list[dict[str, Any]]:
-    """Los `limit` más recientes según `date_key` (string ISO — el orden
+    """Los `limit` más recientes según `date_key` (string ISO, el orden
     lexicográfico ya es cronológico), en orden ascendente. Extraído a
     función pura para poder probar la lógica de "más recientes, no más
     antiguos" directamente, sin CHPP ni sesión de por medio."""
     return sorted(items, key=lambda it: it[date_key])[-limit:] if limit > 0 else []
-
-
-def _pitch_scope_toggles(
-    scope: str, include_competitive: bool, include_friendlies: bool
-) -> tuple[bool, bool]:
-    """El selector local del panel de Duelos por zona (`pitch_zone_scope`)
-    puede pedir un recorte de partidos DISTINTO al de los toggles globales
-    de la página (Liga/Copa/Promoción, Amistosos) — "mixed" hereda esos
-    toggles tal cual, "official"/"friendly" los ignoran."""
-    if scope == "official":
-        return True, False
-    if scope == "friendly":
-        return False, True
-    return include_competitive, include_friendlies
 
 
 async def _own_pitch_ratings(
@@ -465,7 +369,7 @@ async def _own_pitch_ratings(
     include_friendlies: bool,
 ) -> list[dict[str, int]]:
     """Ratings de sector del propio equipo, de sus últimos MAX_MATCHES_ANALYSED
-    partidos de los tipos pedidos — de MatchRating ya sincronizado con el
+    partidos de los tipos pedidos, de MatchRating ya sincronizado con el
     sync habitual, sin llamada nueva a CHPP."""
     match_query = (
         select(m.Match)
@@ -500,12 +404,17 @@ async def _own_pitch_ratings(
                     "left_att": row.left_att,
                     "central_att": row.central_att,
                     "right_att": row.right_att,
+                    # Con qué táctica se jugó: la corrección por táctica la
+                    # necesita y leerla después costaría otra consulta.
+                    "tactic_type": row.tactic_type or 0,
                     # Balon Parado: no lo pintan los Duelos por zona --que son
                     # siete carriles del campo-- pero si lo usa el modelo de
                     # prediccion, que compara nueve. Se lee aqui para no tener
                     # dos caminos distintos hacia los mismos ratings.
                     "sp_def": row.set_pieces_def,
                     "sp_att": row.set_pieces_att,
+                    # Dónde se jugó: la corrección de sede del pronóstico.
+                    "en_casa": 1.0 if mt.home_team_ht_id == team.ht_team_id else 0.0,
                 }
             )
     return out
@@ -516,7 +425,7 @@ async def _rival_pitch_ratings(
     rival_ht_team_id: int,
     matches: list[dict[str, Any]],
 ) -> list[dict[str, int]]:
-    """Ratings de sector del rival para una lista concreta de sus partidos —
+    """Ratings de sector del rival para una lista concreta de sus partidos
     pedidos en vivo, uno por uno (matchdetails.xml no acepta varios matchID
     a la vez)."""
     out: list[dict[str, int]] = []
@@ -553,22 +462,29 @@ async def _rival_pitch_ratings(
 @dataclass
 class RivalMatchesAndLineups:
     """Lo que `players.xml` + `matches.xml` + `matchlineup.xml` de un equipo
-    ajeno dejan ver — compartido entre la ficha de rival completa
+    ajeno dejan ver, compartido entre la ficha de rival completa
     (`rival_scouting`) y el análisis de próximo partido (`next_match.py`),
     para no duplicar las mismas llamadas a CHPP ni el mismo filtro de tipo
     de partido en dos sitios distintos (antes next_match tenía su propio
-    pipeline en vivo, con su propia — y más vieja — regla de qué cuenta como
+    pipeline en vivo, con su propia, y más vieja, regla de qué cuenta como
     "oficial", que todavía dejaba pasar partidos de Selección nacional)."""
 
     players_raw: list[dict[str, Any]]
-    matches_raw: list[
-        dict[str, Any]
-    ]  # sin filtrar — para recortes alternativos (ver pitch_zone_scope)
+    matches_raw: list[dict[str, Any]]  # sin filtrar
     matches: list[dict[str, Any]]  # elegibles, tope `limit`, orden ascendente
     name: str | None  # del partido elegible más reciente, o None sin ninguno
     position_by_id: dict[int, int]
     name_by_id: dict[int, str]
     appearances: list[dict[str, Any]]  # una fila por (partido, jugador) de matchlineup
+    #: Qué clases traen algo en la ventana que se miró. La pantalla apaga el
+    #: botón de la que viene en `False`: ofrecer un botón que no puede enseñar
+    #: nada es prometer una muestra que no existe.
+    hay_oficiales: bool = False
+    hay_amistosos: bool = False
+    #: Las alineaciones pedidas a Hattrick EN ESTA petición, por partido. Las
+    #: que salieron de la base no están: ya estaban guardadas. Es la mitad de
+    #: lo que la ficha guarda al terminar; la otra mitad es el detalle.
+    alineaciones_nuevas: dict[int, list[dict[str, Any]]] | None = None
 
 
 async def fetch_rival_matches_and_lineups(
@@ -577,30 +493,112 @@ async def fetch_rival_matches_and_lineups(
     include_competitive: bool,
     include_friendlies: bool,
     limit: int = MAX_MATCHES_ANALYSED,
+    desde: datetime | None = None,
+    solo_oficiales: bool = False,
+    ya_guardados: dict[int, dict[str, Any]] | None = None,
 ) -> RivalMatchesAndLineups:
-    players_raw = (
-        await client.fetch("players", version=FILE_VERSIONS["players"], teamID=rival_ht_team_id)
-    )["players"]
+    """Los últimos partidos de un equipo ajeno, con sus alineaciones.
+
+    `solo_oficiales` es para los rivales con los que ya hay un cruce oficial
+    pendiente --los de liga y el de copa--: de ésos sólo se miran oficiales,
+    porque es lo que se va a jugar contra ellos. De cualquier otro se miran
+    los ÚLTIMOS, sean de la competición que sean (2026-09-09, pedido del
+    usuario), y son las clases que aparezcan las que deciden qué botones puede
+    ofrecer la pantalla.
+
+    `ya_guardados` son las alineaciones que el sync dejó en la base, indexadas
+    por `ht_match_id`. Lo que esté ahí no se vuelve a pedir.
+    """
+    plantilla = await client.fetch(
+        "players", version=FILE_VERSIONS["players"], teamID=rival_ht_team_id
+    )
+    players_raw = plantilla["players"]
     # matches.xml acepta el teamID de cualquier equipo (igual que players.xml),
     # y un partido ya finalizado es un hecho público permanente sin importar
     # quién lo pida.
     matches_raw = (
         await client.fetch("matches", version=FILE_VERSIONS["matches"], teamID=rival_ht_team_id)
     )["matches"]
-    eligible = [
+    # ESTA TEMPORADA Y NO MÁS ATRÁS. 2026-09-09, pedido del usuario: «aclara
+    # que es esta temporada, no quiero que busques más allá». Lo de la
+    # temporada pasada describe a otro equipo --otra plantilla, otro nivel--
+    # y meterlo en el mismo resumen mezcla dos cosas distintas.
+    # EL ARCHIVO, además del calendario. El calendario de Hattrick sólo
+    # retrocede un mes, y en temporada casi nadie juega amistosos ese mes, así
+    # que «sólo Amistosos» salía vacío contra casi cualquiera. El archivo sí
+    # retrocede: con él se alcanzan las dieciséis semanas que el usuario pidió
+    # el 2026-09-09 («busca al menos 16 semanas atrás un amistoso»).
+    #
+    # Cuesta UNA llamada más por rival, con caché de media hora compartida. El
+    # calendario manda cuando el mismo partido está en los dos: trae el estado
+    # y es lo más fresco.
+    # EL ARCHIVO SÓLO CUANDO HACE FALTA. Contra un rival oficial el
+    # calendario del último mes ya trae de sobra los cinco que se miran, así
+    # que la llamada al archivo se ahorra entera.
+    archivados: list[dict[str, Any]] = []
+    if desde is not None and not solo_oficiales:
+        archivados = await partidos_de_un_equipo(
+            client,
+            FILE_VERSIONS["matchesarchive"],
+            rival_ht_team_id,
+            desde,
+            datetime.now(UTC),
+            TIPOS_OFICIALES + TIPOS_DE_AMISTOSOS,
+        )
+    del_calendario = {mt["ht_match_id"] for mt in matches_raw}
+    corte = desde.strftime("%Y-%m-%d %H:%M:%S") if desde is not None else None
+    jugados = [
         mt
-        for mt in matches_raw
+        for mt in [
+            *matches_raw,
+            # Del archivo sólo salen partidos ya jugados, así que el estado se
+            # da por hecho: la lista de abajo filtra por él.
+            *(
+                {**mt, "status": "FINISHED"}
+                for mt in archivados
+                if mt["ht_match_id"] not in del_calendario
+            ),
+        ]
         if mt["status"].upper() == "FINISHED"
-        and _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
+        and (corte is None or mt.get("match_date", "") >= corte)
     ]
-    matches = _most_recent_by_date(eligible, "match_date", limit)
+    # QUÉ VENTANA SE MIRA. Contra un rival oficial, sus últimos oficiales.
+    # Contra cualquier otro, sus últimos a secas: cinco llamadas, no diez, y
+    # sin ir a rebuscar en el archivo una clase que a lo mejor no existe.
+    if solo_oficiales:
+        ventana = [mt for mt in jugados if _match_type_allowed(mt["match_type"], True, False)]
+    else:
+        ventana = [mt for mt in jugados if _match_type_allowed(mt["match_type"], True, True)]
+    ventana = _most_recent_by_date(ventana, "match_date", limit)
 
-    name: str | None = None
-    if matches:
-        # `matches` va de más viejo a más nuevo: el nombre se toma del ÚLTIMO.
-        # Con el tope en 5 daba igual, pero al ampliarlo a 10 el más viejo de
-        # la ventana podía ser un partido contra otro equipo y la ficha
-        # acababa titulada con el nombre equivocado.
+    # Y de esa ventana, qué clases traen algo. Se mide sobre la ventana y no
+    # sobre todo el historial a propósito: el botón promete lo que se puede
+    # enseñar AHORA, no lo que existiría si se pagaran más llamadas.
+    hay_oficiales = any(_match_type_allowed(mt["match_type"], True, False) for mt in ventana)
+    hay_amistosos = any(_match_type_allowed(mt["match_type"], False, True) for mt in ventana)
+
+    # Lo que se ANALIZA es lo que el selector deje pasar dentro de la ventana.
+    matches = [
+        mt
+        for mt in ventana
+        if _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
+    ]
+
+    # EL NOMBRE SALE DE LA PLANTILLA, que se pide siempre y sin filtrar.
+    #
+    # Antes salía del último partido elegible, y eso ataba la IDENTIDAD del
+    # equipo al filtro de tipo de partido: con «sólo amistosos» marcado, un
+    # rival que no ha jugado ninguno se quedaba sin nombre, y la pantalla
+    # --que usa el nombre para saber si el equipo existe-- respondía «Rival no
+    # encontrado. Hattrick no devolvió ningún equipo con ese identificador»
+    # sobre un equipo que estaba perfectamente ahí (2026-09-09).
+    name: str | None = plantilla.get("team_name") or None
+    if name is None and matches:
+        # La reserva de siempre, por si la plantilla llegara sin nombre.
+        # `matches` va de más viejo a más nuevo: se toma el del ÚLTIMO. Con el
+        # tope en 5 daba igual, pero al ampliarlo a 10 el más viejo de la
+        # ventana podía ser un partido contra otro equipo y la ficha acababa
+        # titulada con el nombre equivocado.
         ultimo = matches[-1]
         name = (
             ultimo["home_team_name"]
@@ -611,18 +609,31 @@ async def fetch_rival_matches_and_lineups(
     position_by_id: dict[int, int] = {}
     name_by_id: dict[int, str] = {}
     appearances: list[dict[str, Any]] = []
+    # UNA ALINEACIÓN POR PARTIDO ANALIZADO, y sólo si no está ya guardada.
+    #
+    # Hasta el 2026-09-09 se pedían las diez de la ventana MÁS cinco de la
+    # otra clase, se analizaran o no, para que cambiar el toggle saliera
+    # gratis. Salía gratis el segundo clic y carísimo el primero: quince
+    # alineaciones por ficha, y el usuario lo vio en su cuenta de llamadas.
+    guardadas = ya_guardados or {}
+    alineaciones_nuevas: dict[int, list[dict[str, Any]]] = {}
     for mt in matches:
-        lineup = (
-            await client.fetch(
-                "matchlineup",
-                version=MATCHLINEUP_POSITION_CODE_VERSION,
-                matchID=mt["ht_match_id"],
-                matchType=mt["match_type"],
-                teamID=rival_ht_team_id,
-            )
-        )["players"]
+        cacheada = guardadas.get(mt["ht_match_id"])
+        if cacheada is not None:
+            lineup = cacheada["players"]
+        else:
+            lineup = (
+                await client.fetch(
+                    "matchlineup",
+                    version=MATCHLINEUP_POSITION_CODE_VERSION,
+                    matchID=mt["ht_match_id"],
+                    matchType=mt["match_type"],
+                    teamID=rival_ht_team_id,
+                )
+            )["players"]
+            alineaciones_nuevas[mt["ht_match_id"]] = lineup
         # Algunos XML incluyen referencias especiales del mismo jugador
-        # (capitán, balón parado) además de su entrada real de titular — cada
+        # (capitán, balón parado) además de su entrada real de titular, cada
         # partido cuenta como máximo una vez por jugador en `appearances`.
         seen_in_match: set[int] = set()
         for p in lineup:
@@ -644,7 +655,188 @@ async def fetch_rival_matches_and_lineups(
         position_by_id=position_by_id,
         name_by_id=name_by_id,
         appearances=appearances,
+        hay_oficiales=hay_oficiales,
+        hay_amistosos=hay_amistosos,
+        alineaciones_nuevas=alineaciones_nuevas,
     )
+
+
+#: Los tipos de partido que pueden emparejarte con un rival, oficiales o no.
+#: Los amistosos entran desde el 2026-09-08: hasta entonces el cruce sólo se
+#: buscaba entre los oficiales, así que un rival de amistoso salía como «no
+#: tenéis nada pendiente» y su muestra natural quedaba invisible.
+TIPOS_DE_CRUCE = TIPOS_OFICIALES + TIPOS_DE_AMISTOSOS
+
+
+def _como_se_llama_el_partido(partido: dict[str, Any] | None) -> dict[str, Any] | None:
+    """«Equipo A 1 - 0 Equipo B», con la fecha, de un partido del rival.
+
+    Formato pedido por el usuario el 2026-09-09. Se arma aquí y no en la
+    pantalla porque los nombres y el marcador ya están en el mismo sitio del
+    que sale el partido: mandarlos sueltos obligaría a la pantalla a volver a
+    juntarlos, y a equivocarse de lado la primera vez.
+    """
+    if partido is None:
+        return None
+    return {
+        "home_name": partido.get("home_team_name") or "",
+        "away_name": partido.get("away_team_name") or "",
+        "home_goals": partido.get("home_goals", -1),
+        "away_goals": partido.get("away_goals", -1),
+        "played_at": partido.get("match_date") or None,
+        "competition": match_type_name(partido["match_type"]),
+    }
+
+
+def _como_se_llama_el_partido_propio(partido: m.Match | None) -> dict[str, Any] | None:
+    """Lo mismo, desde una fila de `matches` --los partidos del club--."""
+    if partido is None:
+        return None
+    return {
+        "home_name": partido.home_team_name,
+        "away_name": partido.away_team_name,
+        "home_goals": partido.home_goals,
+        "away_goals": partido.away_goals,
+        "played_at": partido.played_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "competition": match_type_name(partido.match_type),
+    }
+
+
+async def _cruce_pendiente(
+    session: AsyncSession, team: m.Team, rival_ht_team_id: int
+) -> m.Match | None:
+    """El próximo partido sin jugar entre los dos equipos, si lo hay."""
+    return await session.scalar(
+        select(m.Match)
+        .where(
+            (
+                (m.Match.home_team_ht_id == team.ht_team_id)
+                & (m.Match.away_team_ht_id == rival_ht_team_id)
+            )
+            | (
+                (m.Match.home_team_ht_id == rival_ht_team_id)
+                & (m.Match.away_team_ht_id == team.ht_team_id)
+            ),
+            m.Match.match_type.in_(TIPOS_DE_CRUCE),
+            ~m.Match.status.ilike("finished"),
+        )
+        .order_by(m.Match.played_at)
+    )
+
+
+#: Los nueve campos que come el motor, en el orden en que los nombra.
+CAMPOS_DEL_MOTOR = CAMPOS
+
+
+#: Los siete que Hattrick sí prevé para unas órdenes ya enviadas.
+ZONAS_DE_CAMPO = tuple(c for c in CAMPOS_DEL_MOTOR if c not in ("sp_def", "sp_att"))
+
+#: Las dos que no prevé: las acciones INDIRECTAS a balón parado. No es «balón
+#: parado» a secas --un penalti o un tiro directo no son esto-- sino
+#: `RatingIndirectSetPieces`, el peligro que sale de un córner o una falta
+#: puesta al área.
+INDIRECTAS = ("sp_def", "sp_att")
+
+#: Con qué se rellenan cuando la alineación enviada no las trae. El promedio
+#: de lo ya jugado, el mismo resumen que abre en todas las pantallas.
+#:
+#: Fue la mediana hasta el 2026-09-13. Medido sobre las nueve lecturas de liga
+#: del autor, pasar de una al otro cambia la victoria de 20,1 % a 18,2 %, dos
+#: puntos. Lo que NO da igual es el rango: moviendo sólo esas dos por sus
+#: valores reales observados, la victoria va de 9 % a 27 %. Por eso la
+#: pantalla dice que van prestadas: dos novenos del pronóstico son costumbre,
+#: no la alineación que se mandó.
+METODO_DE_LAS_INDIRECTAS = PitchZoneMethod.AVERAGE
+
+
+def _ratings_para_el_motor(
+    elegidos: list[dict[str, int]],
+    historial: list[dict[str, int]],
+    metodo: str,
+    en_casa: bool | None = None,
+) -> tuple[dict[str, float], bool]:
+    """Los nueve ratings resumidos, y si las indirectas van prestadas.
+
+    `elegidos` es lo que el usuario mira en el mapa de cancha --el mismo
+    resumen, el mismo método-- para que pronóstico y mapa no puedan describir
+    partidos distintos.
+
+    UNA LECTURA VIENE ENTERA O NO CUENTA: a la que le falte un rating se
+    descarta, no se completa con un cero ni se promedia sobre las que sí lo
+    traen. La única excepción es la alineación enviada, que no es una lectura
+    de un partido jugado sino la previsión de Hattrick para unas órdenes, y
+    Hattrick no prevé las indirectas. Ahí, y sólo ahí, esas dos se toman del
+    historial y se avisa.
+    """
+    completas = lecturas_completas(elegidos, CAMPOS_DEL_MOTOR)
+    if completas:
+        # Con la sede del partido que viene, si se sabe: ver `corregir_sede`.
+        # Sólo el resumen: la alineación enviada de abajo no se corrige.
+        valores = resumir_ratings(completas, CAMPOS_DEL_MOTOR, metodo)
+        return corregir_sede(valores, completas, en_casa, metodo), False
+    solo_zonas = lecturas_completas(elegidos, ZONAS_DE_CAMPO)
+    prestables = lecturas_completas(historial, INDIRECTAS)
+    if not solo_zonas or not prestables:
+        return {}, False
+    valores = resumir_ratings(solo_zonas, ZONAS_DE_CAMPO, metodo)
+    valores |= resumir_ratings(prestables, INDIRECTAS, METODO_DE_LAS_INDIRECTAS)
+    return valores, True
+
+
+def _prediccion_del_rival(
+    mias: dict[str, float],
+    suyas: dict[str, float],
+    *,
+    es_copa: bool,
+    hay_cruce: bool,
+    indirectas_prestadas: bool,
+    metodo_propio: str,
+    metodo_rival: str,
+    vistos_mios: int,
+    vistos_suyos: int,
+    factor_mio: float = 1.0,
+    factor_suyo: float = 1.0,
+) -> dict[str, Any] | None:
+    """La predicción del cruce, con los MISMOS ratings que pinta el mapa.
+
+    Ya no busca su propia muestra ni tiene selector propio: desde el
+    2026-09-09 come de «Tu fuente» y «Fuente rival», que es lo que el usuario
+    está viendo justo encima. Un pronóstico que resumiera los partidos de otra
+    manera que el mapa de al lado sería dos respuestas a la misma pregunta.
+
+    Qué partidos entran lo decide el toggle de la esquina (oficiales o
+    amistosos); CÓMO se resumen, estos dos selectores.
+    """
+    if not mias or not suyas:
+        return None
+    terna = (
+        probabilidades_de_copa(mias, suyas, factor_mio, factor_suyo)
+        if es_copa
+        else probabilidades_del_motor(mias, suyas, factor_mio, factor_suyo)
+    )
+    goles = (
+        goles_esperados(mias, suyas, factor_mio),
+        goles_esperados(suyas, mias, factor_suyo),
+    )
+    marcador = marcador_mas_probable(mias, suyas, factor_mio, factor_suyo)
+    return {
+        "es_copa": es_copa,
+        "hay_cruce": hay_cruce,
+        "metodo_propio": metodo_propio,
+        "metodo_rival": metodo_rival,
+        # Hattrick no prevé las indirectas a balón parado para unas órdenes
+        # enviadas, así que van con el promedio de lo ya jugado. Se dice: dos
+        # de los nueve duelos son costumbre y no la alineación que mandaste.
+        "indirectas_prestadas": indirectas_prestadas,
+        "own_probability": round(terna.victoria, 4),
+        "draw_probability": None if es_copa else round(terna.empate, 4),
+        "rival_probability": round(terna.derrota, 4),
+        "expected_own_goals": round(goles[0], 2),
+        "expected_rival_goals": round(goles[1], 2),
+        "most_likely_score": f"{marcador[0]}-{marcador[1]}",
+        "own_matches": vistos_mios,
+        "rival_matches": vistos_suyos,
+    }
 
 
 @router.get(
@@ -660,9 +852,10 @@ async def rival_scouting(
     rival_ht_team_id: int,
     log_tsi: bool = False,
     top11: bool = False,
+    # Excluyentes: uno u otro, nunca los dos ni ninguno. Por defecto abren los
+    # oficiales, que es lo que la pantalla enseña al entrar.
     include_competitive: bool = True,
-    include_friendlies: bool = True,
-    pitch_zone_scope: str = "mixed",
+    include_friendlies: bool = False,
     # Un método por lado: lo que quieres saber de ti no tiene por qué ser lo
     # mismo que quieres saber del rival. De tu lado, además, existe la
     # alineación ya enviada, que del rival nunca se puede ver.
@@ -687,12 +880,12 @@ async def rival_scouting(
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
 
     own_players, _ = await roster(session, team_id)
-    submitted_match = await _submitted_match_against(session, team.ht_team_id, rival_ht_team_id)
-    submitted_own_players = _submitted_players(submitted_match, own_players)
-    submitted_prediction = _submitted_rating_prediction(submitted_match)
+    submitted_match = await partido_pendiente_contra(session, team.ht_team_id, rival_ht_team_id)
+    submitted_own_players = once_enviado(submitted_match, own_players)
+    submitted_prediction = prediccion_guardada(submitted_match)
 
     # Mis últimos partidos reales ya sincronizados, de los tipos permitidos
-    # — para saber en qué posición jugó cada uno de MIS jugadores
+    # para saber en qué posición jugó cada uno de MIS jugadores
     # recientemente (necesario para elegibilidad de marcaje). HL-2xx: ya no
     # exige que hayan sido contra este rival en particular.
     own_match_query = (
@@ -708,25 +901,76 @@ async def rival_scouting(
     )
     own_matches = list(reversed((await session.execute(own_match_query)).scalars().all()))
 
-    # Zonas de la cancha del propio equipo — de MatchRating ya sincronizado
+    # Zonas de la cancha del propio equipo, de MatchRating ya sincronizado
     # con el sync habitual, sin llamada nueva a CHPP (a diferencia del
     # rival, que hay que pedirlo en vivo más abajo). El panel de Duelos por
     # zona tiene su PROPIO selector (`pitch_zone_scope`), independiente de
-    # los toggles globales de la página — "mixed" (por defecto) los hereda
+    # los toggles globales de la página, "mixed" (por defecto) los hereda
     # tal cual, sin volver a consultar nada.
+    # DIECISÉIS SEMANAS HACIA ATRÁS, siempre. 2026-09-09: primero se pidió
+    # «esta temporada y no más allá» y a los pocos minutos «busca al menos 16
+    # semanas atrás un amistoso». Dieciséis es además lo que dura una
+    # temporada, así que la ventana cubre la temporada entera y algo más de la
+    # anterior cuando estamos empezando una.
+    #
+    # OJO: esto es el FILTRO, no la fuente. El calendario que da Hattrick sólo
+    # retrocede un mes, así que ampliar el filtro no hace aparecer por sí solo
+    # un amistoso de hace tres meses; para eso hace falta el archivo de
+    # partidos, que es otra llamada.
+    desde_rival = start_of_iso_week(datetime.now(UTC)) - timedelta(weeks=SEASON_WEEKS)
+
+    # QUÉ CLASE DE RIVAL ES ESTE, y se resuelve ANTES de pedir nada porque es
+    # lo que decide cuánto se pide (2026-09-09, pedido del usuario).
+    #
+    #   · Con un cruce OFICIAL pendiente --el de liga del domingo, el de
+    #     copa-- sólo se miran sus cinco últimos oficiales. Es lo que se va a
+    #     jugar contra él, y sus amistosos describen a un equipo de suplentes
+    #     que no va a salir ese día.
+    #   · Sin cruce oficial --un rival de amistoso, o un identificador escrito
+    #     a mano-- se miran sus cinco últimos, sean de lo que sean. Ir a
+    #     rebuscar cinco de cada clase costaba el doble de llamadas para
+    #     describir a un equipo del que a lo mejor sólo hay una.
+    cruce_pendiente = await _cruce_pendiente(session, team, rival_ht_team_id)
+    rival_oficial = cruce_pendiente is not None and cruce_pendiente.match_type in TIPOS_OFICIALES
+
+    # LO QUE EL SYNC YA DEJÓ GUARDADO. Un partido terminado no cambia nunca,
+    # así que lo que esté aquí no se vuelve a pedir: ni su alineación ni su
+    # detalle. De un contrincante de liga o del de copa, con el sync al día,
+    # esta ficha no gasta NINGUNA llamada de partido.
+    #
+    # De un rival de amistoso no habrá nada, y está bien: se elige a mano
+    # entre millones de equipos, así que precargarlo sería adivinar.
+    guardados = {
+        fila.ht_match_id: fila
+        for fila in await partidos_guardados(session, rival_ht_team_id, limite=None)
+    }
+    alineaciones_guardadas = {
+        ht_match_id: {"players": alineacion_de(fila)} for ht_match_id, fila in guardados.items()
+    }
+
+    # UNO U OTRO, NUNCA LOS DOS NI NINGUNO. 2026-09-09, pedido del usuario:
+    # los dos toggles de la esquina pasan a ser un selector excluyente.
+    #
+    # Se normaliza aquí y no sólo en la pantalla: el endpoint aceptaba
+    # `include_competitive=false&include_friendlies=false` y devolvía una ficha
+    # vacía a quien escribiera esa URL a mano. Cualquier combinación que no
+    # sea exactamente una cae en oficiales, que es lo que abre por defecto.
+    if include_competitive == include_friendlies:
+        include_competitive, include_friendlies = True, False
+
+    # Y contra un rival oficial no hay amistosos que enseñar, porque no se
+    # piden: pedirlos marcados devolvería una ficha vacía sin explicación.
+    if rival_oficial:
+        include_competitive, include_friendlies = True, False
+
     own_sector_ratings = await _own_pitch_ratings(
         session, team, include_competitive, include_friendlies
     )
-    pitch_own_include_competitive, pitch_own_include_friendlies = _pitch_scope_toggles(
-        pitch_zone_scope, include_competitive, include_friendlies
-    )
-    historical_pitch_own_sector_ratings = (
-        own_sector_ratings
-        if pitch_zone_scope == "mixed"
-        else await _own_pitch_ratings(
-            session, team, pitch_own_include_competitive, pitch_own_include_friendlies
-        )
-    )
+    # El panel de Duelos por zona ya no tiene recorte propio: mira los mismos
+    # partidos que el resto de la ficha. Tenía un `pitch_zone_scope` con su
+    # «mixed/official/friendly», y con el selector excluyente de arriba eran
+    # dos maneras de elegir lo mismo en la misma pantalla.
+    historical_pitch_own_sector_ratings = own_sector_ratings
     # Lo elige el usuario, con la predicción de las órdenes enviadas por
     # defecto cuando existe. Si no existe (todavía no has mandado alineación),
     # ese modo cae al historial en vez de dejar el panel vacío.
@@ -745,7 +989,7 @@ async def rival_scouting(
         user_id=user.id,
     )
     # Cada uno de estos hechos también se explica en el panel donde aparece
-    # (Comparación de plantilla, TSI, Táctica habitual, Duelos por zona) —
+    # (Comparación de plantilla, TSI, Táctica habitual, Duelos por zona)
     # esta lista es solo para lo que NO tiene un panel propio donde decirlo.
     #
     # 2026-08-30, podado con el usuario: eran cinco frases y TRES decían el
@@ -787,7 +1031,7 @@ async def rival_scouting(
         # enviadas AHORA. Se pide antes que nada porque de ella depende que el
         # lado propio pueda ofrecer el modo "alineación enviada".
         if submitted_match is not None and submitted_prediction is None:
-            submitted_prediction = await _live_rating_prediction(client, submitted_match)
+            submitted_prediction = await prediccion_en_vivo(client, submitted_match)
             usa_enviada = (
                 pitch_zone_method_own == PitchZoneMethod.SUBMITTED
                 and submitted_prediction is not None
@@ -805,9 +1049,11 @@ async def rival_scouting(
             rival_ht_team_id,
             include_competitive,
             include_friendlies,
+            desde=desde_rival,
+            solo_oficiales=rival_oficial,
+            ya_guardados=alineaciones_guardadas,
         )
         rival_players_raw = rival_data.players_raw
-        rival_matches_raw = rival_data.matches_raw
         rival_matches = rival_data.matches
         rival_name = rival_data.name
         rival_position_by_id = rival_data.position_by_id
@@ -848,14 +1094,40 @@ async def rival_scouting(
                 if p["position_code"] > 0:
                     own_position_by_id[p["ht_player_id"]] = p["position_code"]
 
+        # Los detalles pedidos EN VIVO, por partido: la otra mitad de lo que
+        # se guarda al terminar.
+        lados_nuevos: dict[int, dict[str, Any]] = {}
         for rmt in rival_matches:
-            details = await client.fetch(
-                "matchdetails",
-                version=FILE_VERSIONS["matchdetails"],
-                matchID=rmt["ht_match_id"],
-            )
-            for side in ("home", "away"):
-                side_data = details.get(side) or {}
+            # DE LA BASE SI ESTÁ, DE HATTRICK SI NO. La fila guardada trae los
+            # nueve ratings, la táctica y la formación del rival en ese
+            # partido: exactamente lo que se pedía con `matchdetails`.
+            fila = guardados.get(rmt["ht_match_id"])
+            de_la_base = ratings_de(fila) if fila is not None else None
+            if fila is not None and de_la_base is not None:
+                lados: list[dict[str, Any]] = [
+                    {
+                        "team_id": rival_ht_team_id,
+                        "tactic_type": fila.tactic_type,
+                        "tactic_skill": fila.tactic_skill,
+                        "formation": fila.formation or "",
+                        "ratings": {
+                            **de_la_base,
+                            "set_pieces_def": de_la_base["sp_def"],
+                            "set_pieces_att": de_la_base["sp_att"],
+                        },
+                    }
+                ]
+            else:
+                details = await client.fetch(
+                    "matchdetails",
+                    version=FILE_VERSIONS["matchdetails"],
+                    matchID=rmt["ht_match_id"],
+                )
+                lados = [details.get("home") or {}, details.get("away") or {}]
+                for bloque_del_rival in lados:
+                    if bloque_del_rival.get("team_id") == rival_ht_team_id:
+                        lados_nuevos[rmt["ht_match_id"]] = bloque_del_rival
+            for side_data in lados:
                 if side_data.get("team_id") != rival_ht_team_id:
                     continue
                 rival_tactic_types.append(side_data.get("tactic_type", 0))
@@ -879,37 +1151,25 @@ async def rival_scouting(
                         "left_att": ratings.get("left_att", 0),
                         "central_att": ratings.get("central_att", 0),
                         "right_att": ratings.get("right_att", 0),
+                        # Las dos que faltaban. Esta lista nació para la
+                        # rotación de carriles, que sólo mira los siete de
+                        # campo, pero desde el 2026-09-09 es también la que
+                        # alimenta los duelos y el pronóstico. Sin ellas la
+                        # lectura no llegaba
+                        # entera, se descartaba, y NO HABÍA PRONÓSTICO contra
+                        # ningún rival. Hattrick las manda en el mismo bloque.
+                        "sp_def": ratings.get("set_pieces_def"),
+                        "sp_att": ratings.get("set_pieces_att"),
+                        # Dónde se jugó: la corrección de sede del pronóstico.
+                        "en_casa": 1.0 if rmt["home_team_id"] == rival_ht_team_id else 0.0,
                     }
                 )
 
-        # El selector local del panel de Duelos por zona puede pedir un
-        # recorte de partidos del RIVAL distinto al de los toggles globales
-        # — en ese caso, y solo en ese caso, se piden en vivo los matchdetails
-        # de OTRO conjunto de hasta 5 partidos (matches.xml ya lo trajo todo
-        # arriba, no hace falta pedirlo de nuevo). "mixed" reusa lo ya
-        # calculado, sin ninguna llamada adicional.
-        if pitch_zone_scope == "mixed":
-            pitch_rival_ratings = rival_ratings_for_rotation
-        else:
-            pitch_rival_include_competitive, pitch_rival_include_friendlies = _pitch_scope_toggles(
-                pitch_zone_scope, include_competitive, include_friendlies
-            )
-            pitch_rival_matches_eligible = [
-                mt
-                for mt in rival_matches_raw
-                if mt["status"].upper() == "FINISHED"
-                and _match_type_allowed(
-                    mt["match_type"],
-                    pitch_rival_include_competitive,
-                    pitch_rival_include_friendlies,
-                )
-            ]
-            pitch_rival_matches = _most_recent_by_date(
-                pitch_rival_matches_eligible, "match_date", MAX_MATCHES_ANALYSED
-            )
-            pitch_rival_ratings = await _rival_pitch_ratings(
-                client, rival_ht_team_id, pitch_rival_matches
-            )
+        # El panel de Duelos por zona mira los MISMOS partidos que el resto
+        # de la ficha: su recorte propio se retiró el 2026-09-09. Esta lista
+        # ya está calculada arriba, así que no cuesta ninguna llamada.
+        pitch_rival_ratings = rival_ratings_for_rotation
+
     except CHPPAuthError as exc:
         raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
     except CHPPDeniedError as exc:
@@ -920,6 +1180,32 @@ async def rival_scouting(
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:
         await client.aclose()
+
+    # LO QUE SE ACABA DE PEDIR, SE GUARDA (2026-09-10, pedido del usuario: los
+    # partidos de un rival se guardan «a partir del primer llamado y que no se
+    # descarguen siempre de nuevo»).
+    #
+    # El sync sólo precarga a los contrincantes de liga y al de copa. Sin
+    # esto, un rival de amistoso, uno traído con su identificador, o una
+    # jornada jugada después del último sync se volvían a pedir enteros en
+    # cada visita.
+    #
+    # NUNCA TUMBA LA FICHA. Si no se puede guardar, la visita siguiente lo
+    # vuelve a pedir, que es como funcionaba antes: un inconveniente, no un
+    # error que enseñar. El commit es seguro aquí porque la sesión no expira
+    # sus objetos al confirmar (`expire_on_commit=False`).
+    try:
+        if await guardar_lo_visto(
+            session,
+            rival_ht_team_id,
+            rival_matches,
+            rival_data.alineaciones_nuevas or {},
+            lados_nuevos,
+        ):
+            await session.commit()
+    except Exception:  # noqa: BLE001, no guardar es volver a pedir, no un error
+        await session.rollback()
+        _log.warning("no se pudieron guardar los partidos del rival %s", rival_ht_team_id)
 
     tactic_history = summarise_tactics(rival_tactic_types, rival_tactic_skills, rival_formations)
     rotation = analyse_side_rotation(rival_ratings_for_rotation)
@@ -1023,7 +1309,7 @@ async def rival_scouting(
     ]
     histogram = tsi_kde_comparison(own_for_tsi, rival_for_tsi, log_transform=log_tsi)
 
-    # HL-144: PROYECCIÓN, no un hecho — siempre sobre los 11 probables de cada
+    # HL-144: PROYECCIÓN, no un hecho, siempre sobre los 11 probables de cada
     # lado (independiente del toggle `top11`, que solo afecta al histograma),
     # para no comparar bancas completas de tamaño distinto.
     if submitted_own_players:
@@ -1043,6 +1329,54 @@ async def rival_scouting(
             p["tsi"] for p in sorted(rival_players_raw, key=lambda p: -p["tsi"])[:11]
         )
     win_probability = estimate_win_probability(own_best11_tsi, rival_best11_tsi)
+
+    # El cruce pendiente, resuelto arriba, solo decide DOS cosas: si es de
+    # copa --allí no hay empate-- y si de verdad hay algo pendiente o el
+    # pronóstico es hipotético. La muestra ya no sale de aquí: sale de los dos
+    # selectores del mapa de cancha, y de qué clase de rival es (2026-09-09).
+
+    # LA SEDE (2026-09-13). La ventaja de campo va dentro de los ratings y un
+    # resumen la diluye: ver `corregir_sede`. Sólo con un cruce de liga o de
+    # promoción, donde la sede es segura y donde se midió. Sin cruce el
+    # partido es hipotético y no tiene sede; en copa las últimas rondas son
+    # neutrales, y desde esta ficha no se sabe cuál toca.
+    propio_en_casa: bool | None = None
+    if cruce_pendiente is not None and cruce_pendiente.match_type in TIPOS_CON_SEDE:
+        propio_en_casa = cruce_pendiente.home_team_ht_id == team.ht_team_id
+    mias, indirectas_prestadas = _ratings_para_el_motor(
+        pitch_own_sector_ratings,
+        historical_pitch_own_sector_ratings,
+        pitch_zone_method_own,
+        en_casa=propio_en_casa,
+    )
+    suyas, _ = _ratings_para_el_motor(
+        pitch_rival_ratings,
+        pitch_rival_ratings,
+        pitch_zone_method_rival,
+        en_casa=None if propio_en_casa is None else not propio_en_casa,
+    )
+    prediccion = _prediccion_del_rival(
+        mias,
+        suyas,
+        es_copa=cruce_pendiente is not None and cruce_pendiente.match_type in TIPOS_DE_COPA,
+        hay_cruce=cruce_pendiente is not None,
+        indirectas_prestadas=indirectas_prestadas,
+        metodo_propio=pitch_zone_method_own,
+        metodo_rival=pitch_zone_method_rival,
+        vistos_mios=len(pitch_own_sector_ratings),
+        vistos_suyos=len(pitch_rival_ratings),
+        # LA TÁCTICA DE CADA LADO (2026-09-12). La tuya no hay que adivinarla
+        # si mandaste órdenes: viene con ellas. La del rival se pondera con lo
+        # que viene jugando, en vez de apostar por su táctica más frecuente.
+        factor_mio=(
+            factor_de_tactica(exacta=submitted_match.submitted_tactic_type)
+            if usa_enviada
+            and submitted_match is not None
+            and submitted_match.submitted_tactic_type is not None
+            else factor_de_tactica(reparto_de_tacticas(historical_pitch_own_sector_ratings))
+        ),
+        factor_suyo=factor_de_tactica(dict(Counter(rival_tactic_types))),
+    )
 
     own_for_marking = [
         {
@@ -1065,12 +1399,12 @@ async def rival_scouting(
     ]
     marking = suggest_man_marking(own_for_marking, rival_for_marking)
 
-    # Comparación de plantilla — TSI, forma, condición y experiencia son
+    # Comparación de plantilla, TSI, forma, condición y experiencia son
     # públicas de un rival (verificado en vivo contra players.xml real: solo
     # las 7 skills técnicas vienen en 0). El liderazgo del entrenador rival
     # sale, en orden de preferencia: (1) stafflist.xml versión 1.2, que
     # expone al entrenador principal de CUALQUIER equipo como dato público
-    # (Name, Leadership, TrainerSkillLevel) — verificado en vivo, aunque la
+    # (Name, Leadership, TrainerSkillLevel), verificado en vivo, aunque la
     # versión 1.0/"latest" del mismo fichero sí deniega; (2) si por lo que
     # sea eso no trae nada, el jugador-entrenador del rival, si lo tiene:
     # ese jugador trae <TrainerData> dentro del mismo players.xml público, y
@@ -1157,7 +1491,32 @@ async def rival_scouting(
             {
                 "rival_ht_team_id": rival_ht_team_id,
                 "rival_name": rival_name,
+                "own_team_name": team.name,
                 "matches_analysed": len(rival_matches),
+                # QUÉ CLASES PUEDE OFRECER ESTA FICHA (2026-09-09, pedido del
+                # usuario). La pantalla apaga el botón que viene en `False`:
+                # ofrecer un botón que no puede enseñar nada es prometer una
+                # muestra que no existe, y quien lo pulsa se queda mirando una
+                # ficha vacía sin saber si falla la aplicación.
+                #
+                # Contra un rival OFICIAL los amistosos vienen siempre en
+                # `False`, y no porque no los tenga: es que no se piden. Lo
+                # que se va a jugar contra él es oficial, y sus amistosos
+                # describen a un equipo de suplentes que no va a salir.
+                "clases_disponibles": {
+                    "competitive": rival_data.hay_oficiales,
+                    "friendly": rival_data.hay_amistosos,
+                },
+                # EL ÚLTIMO PARTIDO, con nombre y marcador. Lo pide la
+                # etiqueta del resumen «Último partido»: enseñar «último
+                # partido» sin decir cuál obliga a irse a Hattrick a
+                # comprobarlo (2026-09-09, pedido del usuario).
+                "ultimo_partido_rival": _como_se_llama_el_partido(
+                    rival_matches[-1] if rival_matches else None
+                ),
+                "ultimo_partido_propio": _como_se_llama_el_partido_propio(
+                    own_matches[-1] if own_matches else None
+                ),
                 # Cuántos de cada competición entran en ese número: "5 partidos" no
                 # dice lo mismo si son cinco de liga que si son tres de liga y dos
                 # amistosos, y de eso depende cuánto te fías del resumen.
@@ -1215,6 +1574,7 @@ async def rival_scouting(
                     "risk_note": marking.risk_note,
                     "evidence": marking.evidence,
                 },
+                "prediction": prediccion,
                 "win_probability": {
                     "own_probability": win_probability.own_probability,
                     "own_tsi_total": win_probability.own_tsi_total,
@@ -1270,7 +1630,6 @@ async def rival_scouting(
                     "own": own_pitch_source,
                     "rival": rival_pitch_source,
                 },
-                "pitch_zone_scope": pitch_zone_scope,
                 # Se devuelve el método REALMENTE aplicado: pedir la alineación
                 # enviada sin haberla mandado cae al promedio, y la pantalla tiene que
                 # marcar el botón que corresponde a lo que se está viendo.

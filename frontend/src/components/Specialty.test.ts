@@ -31,7 +31,7 @@ describe("specialtyIcon", () => {
   });
 
   it("no inventa un icono para lo que no conoce", () => {
-    // Si Hattrick añade una especialidad, sale sin icono pero con su nombre —
+    // Si Hattrick añade una especialidad, sale sin icono pero con su nombre
     // nunca con el símbolo de otra.
     expect(specialtyIcon("Regateador")).toBeNull();
     expect(specialtyIcon("")).toBeNull();

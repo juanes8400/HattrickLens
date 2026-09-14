@@ -55,7 +55,7 @@ class Age:
         return self.add_days(weeks * 7)
 
     def add_days(self, days: int) -> "Age":
-        """`days` negativo retrocede en el tiempo — HL-161: reconstruir la
+        """`days` negativo retrocede en el tiempo, HL-161: reconstruir la
         edad en una fecha pasada a partir de la edad de hoy, ya que la edad
         es una función pura del tiempo transcurrido (sin entrenamiento ni
         azar de por medio, a diferencia de las habilidades)."""

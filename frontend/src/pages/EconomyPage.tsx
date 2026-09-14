@@ -31,7 +31,7 @@ type Horizon = "2" | "4" | "8" | "12" | "16";
 
 /**
  * Economía, en 3 secciones (2026-08-09, pedido explícito: mismo patrón de
- * `Tabs` píldora ya usado en Liga/Transferencias) — Resumen es lo que
+ * `Tabs` píldora ya usado en Liga/Transferencias), Resumen es lo que
  * Hattrick ya reportó, Proyección es nuestro modelo, Detalles es la
  * pantalla equivalente de Hattrick Control (desglose semana a semana).
  */
@@ -69,7 +69,7 @@ export function EconomyPage() {
       <PanelDePestanas grupo="economia" activa={section} className="space-y-4">
         {section === "resumen" && (
           <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
               {/* «Caja actual» es `cash`, no `expectedCash`. Hasta el
                   2026-08-30 esta tarjeta enseñaba la caja PROYECTADA al cierre
                   de la semana con la etiqueta de la caja de hoy, y salia
@@ -84,10 +84,46 @@ export function EconomyPage() {
                 value={money(data.cash, data.currency)}
                 hint={`cerrará la semana en ${money(data.expectedCash, data.currency)}`}
               />
+              {/* LAS TRES CIFRAS SEMANALES, JUNTAS Y CON SU NOMBRE (2026-09-13).
+                  Salían en tres sitios con tres valores y ninguna pantalla decía
+                  por qué no coincidían: lo que pasó, lo que va a pasar y el
+                  fondo del club son preguntas distintas. */}
               <Kpi
-                label="Resultado de la última semana"
+                label="Resultado de la semana pasada"
                 value={money(data.weeklyBalance, data.currency)}
+                hint="semana cerrada, compraventa incluida"
                 tone={data.weeklyBalance >= 0 ? "positive" : "danger"}
+              />
+              <Kpi
+                label="Presupuesto de esta semana"
+                value={money(data.weeklyFinance.expectedBalance, data.currency)}
+                hint="lo que Hattrick prevé; la taquilla entra al jugar en casa"
+                tone={
+                  data.weeklyFinance.expectedBalance >= 0
+                    ? "positive"
+                    : "danger"
+                }
+              />
+              <Kpi
+                label={
+                  data.balanceSinTransferencias != null &&
+                  data.balanceSinTransferencias < 0
+                    ? "Déficit de fondo"
+                    : "Balance de fondo"
+                }
+                value={
+                  data.balanceSinTransferencias == null
+                    ? "sin datos"
+                    : money(data.balanceSinTransferencias, data.currency)
+                }
+                hint="media de las semanas cerradas, sin compraventa"
+                tone={
+                  data.balanceSinTransferencias == null
+                    ? undefined
+                    : data.balanceSinTransferencias >= 0
+                      ? "positive"
+                      : "danger"
+                }
               />
             </div>
 
@@ -128,7 +164,6 @@ export function EconomyPage() {
   );
 }
 
-
 function WeeklyFinanceTable({ data }: { data: Economy }) {
   const { weeklyFinance } = data;
 
@@ -143,11 +178,15 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
 
           Ahora son dos tablas de verdad, cada una con su nombre y su total.
           De paso se apilan en un móvil en vez de arrastrar 560px de ancho. */}
-      <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
+      {/* Lado a lado sólo en pantalla ancha: con «Pasada» y «Cambio» cada
+          tabla lleva cuatro columnas y a media anchura las cifras se partían
+          en dos líneas (2026-09-13). */}
+      <div className="grid gap-4 p-4 xl:grid-cols-2 [&>*]:min-w-0">
         <ListaDeMovimientos
           titulo="Ingresos"
           filas={weeklyFinance.income}
           total={weeklyFinance.incomeTotal}
+          totalAnterior={weeklyFinance.previousIncomeTotal}
           moneda={data.currency}
           tono="var(--positive)"
         />
@@ -155,13 +194,15 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
           titulo="Gastos"
           filas={weeklyFinance.costs}
           total={weeklyFinance.costsTotal}
+          totalAnterior={weeklyFinance.previousCostsTotal}
           moneda={data.currency}
           tono="var(--danger)"
+          gastos
         />
       </div>
 
       <div className="flex items-baseline justify-between gap-3 border-t-2 border-[var(--border)] px-4 py-3 text-sm font-semibold">
-        <span>Resultado semanal presupuestado</span>
+        <span>Presupuesto de esta semana</span>
         <span
           className="tabular-nums"
           style={{
@@ -187,20 +228,65 @@ function ListaDeMovimientos({
   titulo,
   filas,
   total,
+  totalAnterior,
   moneda,
   tono,
+  gastos = false,
 }: {
   titulo: string;
-  filas: { label: string; amount: number | null }[];
+  filas: { label: string; amount: number | null; previous?: number | null }[];
   total: number;
+  totalAnterior?: number | null;
   moneda: string;
   tono: string;
+  /** En un gasto, subir es malo: la flecha sube pero va en rojo. */
+  gastos?: boolean;
 }) {
+  // «Esta», «Pasada» y «Cambio» (2026-09-13, pedido del usuario): se ve de
+  // dónde viene el cambio de cada rubro frente a la semana cerrada anterior,
+  // en la misma tabla de siempre.
+  const cambio = (
+    actual: number | null,
+    anterior: number | null | undefined,
+  ) => {
+    if (actual == null || anterior == null) {
+      return <span className="text-[var(--muted)]">-</span>;
+    }
+    const d = actual - anterior;
+    if (d === 0) return <span className="text-[var(--muted)]">=</span>;
+    const bueno = gastos ? d < 0 : d > 0;
+    return (
+      <span
+        style={{ color: bueno ? "var(--positive)" : "var(--danger)" }}
+        className="whitespace-nowrap"
+      >
+        {d > 0 ? "▲" : "▼"} {money(Math.abs(d), moneda)}
+      </span>
+    );
+  };
   return (
     <table className="w-full text-sm">
       <caption className="pb-2 text-left text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
         {titulo}
       </caption>
+      <thead className="text-xs text-[var(--muted)]">
+        <tr>
+          <th scope="col" className="pb-1 pr-3 text-left font-normal">
+            <span className="sr-only">Partida</span>
+          </th>
+          {/* La moneda en todos lados, cabeceras y celdas (2026-09-13, pedido
+              del usuario). Las celdas no parten línea. */}
+          <th scope="col" className="pb-1 pl-2 text-right font-normal">
+            Actual{moneda ? ` (${moneda})` : ""}
+          </th>
+          <th scope="col" className="pb-1 pl-2 text-right font-normal">
+            Pasada{moneda ? ` (${moneda})` : ""}
+          </th>
+          <th scope="col" className="pb-1 pl-2 text-right font-normal">
+            Cambio{moneda ? ` (${moneda})` : ""}
+          </th>
+        </tr>
+      </thead>
       <tbody className="divide-y divide-[var(--border)]">
         {filas.map((fila) => (
           <tr key={fila.label}>
@@ -208,10 +294,16 @@ function ListaDeMovimientos({
               {fila.label}
             </th>
             <td
-              className="py-2 text-right tabular-nums"
+              className="whitespace-nowrap py-2 pl-2 text-right tabular-nums"
               style={{ color: tono }}
             >
-              {fila.amount != null ? money(fila.amount, moneda) : "—"}
+              {fila.amount != null ? money(fila.amount, moneda) : "-"}
+            </td>
+            <td className="whitespace-nowrap py-2 pl-2 text-right tabular-nums text-[var(--muted)]">
+              {fila.previous != null ? money(fila.previous, moneda) : "-"}
+            </td>
+            <td className="py-2 pl-2 text-right tabular-nums">
+              {cambio(fila.amount, fila.previous)}
             </td>
           </tr>
         ))}
@@ -221,8 +313,17 @@ function ListaDeMovimientos({
           <th scope="row" className="py-2 pr-3 text-left">
             Total
           </th>
-          <td className="py-2 text-right tabular-nums" style={{ color: tono }}>
-            {money(total, moneda)}
+          <td
+            className="py-2 pl-2 text-right tabular-nums"
+            style={{ color: tono }}
+          >
+            <span className="whitespace-nowrap">{money(total, moneda)}</span>
+          </td>
+          <td className="whitespace-nowrap py-2 pl-2 text-right tabular-nums text-[var(--muted)]">
+            {totalAnterior != null ? money(totalAnterior, moneda) : "-"}
+          </td>
+          <td className="py-2 pl-2 text-right tabular-nums">
+            {cambio(total, totalAnterior)}
           </td>
         </tr>
       </tfoot>
@@ -264,7 +365,7 @@ function HattrickFlow({ data }: { data: Economy }) {
       {flow && (
         <Chart
           ariaLabel={`Sankey de ingresos y gastos de las últimas ${flow.weeksAvailable} semana(s)`}
-          option={economySankeyOption(flow.income, flow.costs)}
+          option={economySankeyOption(flow.income, flow.costs, data.currency)}
           height={300}
         />
       )}
@@ -368,7 +469,7 @@ function LayerToggle({
 }
 
 // Colores fijos, no `var(--…)`: el renderer de canvas de ECharts pinta con
-// el valor tal cual, sin resolver custom properties de CSS — un `var()` aquí
+// el valor tal cual, sin resolver custom properties de CSS, un `var()` aquí
 // se pintaba con el color por defecto de la paleta, no el que se pedía.
 const OBSERVED_COLORS = {
   income: "#2fbf71", // verde
@@ -432,7 +533,7 @@ function observedEconomyOption(
     grid: { left: 50, right: 16, top: 24, bottom: 40, containLabel: true },
     xAxis: {
       type: "category",
-      // "TT-ss" (temporada-semana, p. ej. "83-05") — cae a la fecha ISO si
+      // "TT-ss" (temporada-semana, p. ej. "83-05"), cae a la fecha ISO si
       // el equipo todavía no sincronizó worlddetails.xml.
       data: points.map((point) => point.seasonWeek ?? point.date),
       boundaryGap: false,
@@ -548,7 +649,7 @@ function MoneyCell({
         tone === "positive" ? "text-[var(--positive)]" : "text-[var(--danger)]"
       }`}
     >
-      {value == null ? "—" : money(value, currency)}
+      {value == null ? "-" : money(value, currency)}
     </td>
   );
 }
@@ -571,13 +672,14 @@ function ForecastPanel({
   onHorizonChange: (h: Horizon) => void;
 }) {
   const [showBoth, setShowBoth] = useState(false);
-  const preferred =
-    data.recommendedModel === "bottom_up"
-      ? data.structuralForecast
-      : data.timeseriesForecast!;
+  // SIN COMPRAVENTA POR DEFECTO (2026-09-13). La serie de tiempo proyecta la
+  // caja real, y la caja real lleva dentro cada venta y cada compra: repetir
+  // «el ritmo de estas semanas» era suponer que se volverá a vender igual. La
+  // estructural sólo cuenta lo recurrente. La otra queda como escenario.
+  const preferred = data.structuralForecast;
 
   // Coincidencia entre modelos: sólo cuando hay serie de tiempo con la que
-  // contrastar — antes de las N semanas de histórico no existe.
+  // contrastar, antes de las N semanas de histórico no existe.
   const timeseriesFinal = data.timeseriesForecast
     ? (data.timeseriesForecast.p50[data.timeseriesForecast.p50.length - 1] ??
       null)
@@ -632,7 +734,7 @@ function ForecastPanel({
   return (
     <ProjectionPanel
       title="Escenario de caja, no resultado real"
-      meta={`modelo: ${data.recommendedModelLabel}`}
+      meta="sin compraventa"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
         {/* El mismo número hace de DOS cosas y la etiqueta lo dice: mira N
@@ -712,12 +814,12 @@ function ForecastPanel({
           value={dinero(finalValue)}
           hint={
             `${deltaAbs >= 0 ? "+" : ""}${dinero(deltaAbs)} ` +
-            `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · si el mercado sigue como estas semanas`
+            `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · sin compraventa`
           }
           tone={deltaAbs >= 0 ? "positive" : "danger"}
         />
         <Kpi
-          label="Coincidencia entre modelos"
+          label="Coincidencia entre escenarios"
           value={
             modelsAgreePct != null
               ? `${modelsAgreePct.toFixed(0)}%`
@@ -725,8 +827,8 @@ function ForecastPanel({
           }
           hint={
             modelsAgreePct != null
-              ? "qué tan cerca terminan estructural y serie de tiempo"
-              : "la serie de tiempo aún no existe, ver el aviso abajo"
+              ? "qué tan cerca terminan sin y con compraventa"
+              : "el escenario con compraventa aún no existe, ver el aviso abajo"
           }
           tone={
             modelsAgreePct != null && modelsAgreePct < 70 ? "danger" : undefined
@@ -734,15 +836,25 @@ function ForecastPanel({
         />
       </div>
       <div className="border-b border-dashed border-[var(--accent)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
-        {data.recommendationReason}
+        {/* Reescrito el 2026-09-13: el usuario no entendía «caja sin
+            compraventa» ni «el otro escenario». Dicho con lo que es. */}
+        La línea discontinua es tu caja si desde hoy no compras ni vendes a
+        nadie: sueldos, estadio, patrocinio y taquilla, semana a semana.
+        {data.timeseriesForecast && showBoth && (
+          <>
+            {" "}
+            La línea continua supone que sigues comprando y vendiendo al mismo
+            ritmo que en las últimas semanas.
+          </>
+        )}
         {data.timeseriesForecast && (
           <button
             className="ml-2 underline hover:text-[var(--text)]"
             onClick={() => setShowBoth((current) => !current)}
           >
             {showBoth
-              ? "ver sólo el escenario recomendado"
-              : "comparar ambos escenarios"}
+              ? "quitar la línea con compraventa"
+              : "comparar con tu ritmo de compraventa"}
           </button>
         )}
       </div>
@@ -755,7 +867,7 @@ function ForecastPanel({
   );
 }
 
-/** Aviso de que viene un modelo mejor, sin fabricar un solo número — barra
+/** Aviso de que viene un modelo mejor, sin fabricar un solo número, barra
  * de progreso real (semanas de histórico / umbral) más un boceto abstracto
  * (sin ejes ni cifras) que solo ilustra "banda de incertidumbre", nunca un
  * resultado simulado. 2026-08-09, pedido explícito. */
@@ -799,7 +911,7 @@ function ProjectionTeaser({ data }: { data: Economy }) {
   );
 }
 
-/** Boceto puramente decorativo — sin ejes, sin cifras, sin datos reales ni
+/** Boceto puramente decorativo, sin ejes, sin cifras, sin datos reales ni
  * simulados. Solo comunica "banda de proyección", nunca un resultado. */
 function TeaserSketch() {
   return (
@@ -825,14 +937,14 @@ function TeaserSketch() {
 }
 
 /** Una sola línea de tiempo: caja real observada hasta hoy, y desde ahí la
- * banda proyectada — en vez de dos gráficas separadas con ejes distintos que
+ * banda proyectada, en vez de dos gráficas separadas con ejes distintos que
  * obligan a comparar mentalmente dónde termina una y empieza la otra. */
 function unifiedCashOption(
   data: Economy,
   preferred: ForecastBand,
   showBoth: boolean,
 ): EChartsOption {
-  // "TT-ss" (temporada-semana, p. ej. "83-05") — cae a la fecha ISO/"+N"
+  // "TT-ss" (temporada-semana, p. ej. "83-05"), cae a la fecha ISO/"+N"
   // relativo si el equipo todavía no sincronizó worlddetails.xml.
   //
   // `series` son semanas CERRADAS, así que termina en la anterior a hoy. La
@@ -886,14 +998,14 @@ function unifiedCashOption(
       stack: "band",
       // Imprescindible con caja proyectada en negativo: ECharts apila lo
       // positivo y lo negativo en pilas distintas, y sin esto la banda dejaba
-      // de empezar en el p10 y empezaba en el cero del eje — por eso la línea
+      // de empezar en el p10 y empezaba en el cero del eje, por eso la línea
       // central parecía estar fuera de la sombra.
       stackStrategy: "all",
       symbol: "none",
     },
     {
       // Nombrada "p90" (no "p10–p90") para que el label de la leyenda diga
-      // lo mismo que el tooltip — pedido explícito 2026-08-13. La serie
+      // lo mismo que el tooltip, pedido explícito 2026-08-13. La serie
       // sigue dibujando el delta apilado (p90 - p10) para la banda; el
       // tooltip ya calcula y muestra el p90 real a partir de ese delta.
       name: "p90",
@@ -941,7 +1053,7 @@ function unifiedCashOption(
 
   if (showBoth && data.timeseriesForecast) {
     series.push({
-      name: `Proyección ${data.timeseriesForecast.model}`,
+      name: "Proyección con compraventa",
       type: "line",
       smooth: true,
       symbol: "none",
@@ -963,7 +1075,7 @@ function unifiedCashOption(
     tooltip: {
       trigger: "axis",
       // La serie "p90" dibuja el delta apilado (p90 - p10) para pintar la
-      // banda — su valor crudo no dice nada por sí solo. Pedido explícito
+      // banda, su valor crudo no dice nada por sí solo. Pedido explícito
       // 2026-08-11: mostrar el p90 real (p10 + ese delta) en vez de
       // ocultarlo o mostrar el delta sin explicar qué es.
       formatter: (params) => {
@@ -986,7 +1098,7 @@ function unifiedCashOption(
             ? Number(p10Item.value) + Number(deltaItem.value)
             : null;
         // El marcador debe ser el de la propia serie "p90" (verde), no el
-        // de "p10" (azul) — antes tomaba prestado el de p10Item y el color
+        // de "p10" (azul), antes tomaba prestado el de p10Item y el color
         // no coincidía con el de la leyenda. Pedido explícito 2026-08-13.
         if (deltaItem) push(deltaItem.marker, "p90", p90Value);
 
@@ -1081,7 +1193,7 @@ function BreakdownTd({
             : ""
       }`}
     >
-      {value == null ? "—" : money(value, currency)}
+      {value == null ? "-" : money(value, currency)}
     </td>
   );
 }

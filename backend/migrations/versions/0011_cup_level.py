@@ -1,4 +1,4 @@
-"""CupLevel/CupLevelIndex del partido — HL-116.
+"""CupLevel/CupLevelIndex del partido, HL-116.
 
 Identifican qué copa concreta es cada partido de copa (hay varias en
 paralelo: la principal y, tras caer eliminado, las de consolación). CHPP no

@@ -1,5 +1,5 @@
 """Historia real de un jugador + su posición dentro de la distribución de la
-plantilla — HL-15x, ficha de jugador ampliada.
+plantilla, HL-15x, ficha de jugador ampliada.
 
 Todo lo de aquí es append-only (`player_snapshots`, `player_match_ratings`):
 no hay nada calculado/proyectado, es lo que realmente se ha sincronizado.
@@ -48,7 +48,7 @@ from app.infrastructure.db import models as m
 # es mejor que no sumar nada.
 #
 # 2026-08-11, pedido explícito: Torneo liga/playoff (además de Escalera,
-# Duelo y Preparación, que ya estaban fuera) tampoco cuenta — son partidos
+# Duelo y Preparación, que ya estaban fuera) tampoco cuenta, son partidos
 # de mentiras, así que quedan fuera de `NON_OFFICIAL_MATCH_TYPES` y de aquí.
 MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
     MATCH_TYPE_LEAGUE: "league",
@@ -67,7 +67,7 @@ MATCH_TYPE_TO_EXPERIENCE_CATEGORY = {
     MATCH_TYPE_YOUTH_FRIENDLY_CUP_RULES: "youth_friendly",
 }
 
-# Partidos de selección detectados pero deliberadamente sin puntaje — ver el
+# Partidos de selección detectados pero deliberadamente sin puntaje, ver el
 # comentario de arriba y el campo `unscored_national_matches` en
 # `ExperienceProgress`.
 MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_TYPES = frozenset(
@@ -102,14 +102,14 @@ def experience_category(match_type: int, cup_level: int = -1) -> str | None:
 
 
 # Las 11 variables del timeline/radar: los 7 skills + experiencia, fidelidad,
-# forma y condición (stamina) — HL-15x #5, ampliado a pedido del usuario para
+# forma y condición (stamina), HL-15x #5, ampliado a pedido del usuario para
 # que el radar "Base del jugador" tenga más de 2 ejes. `form`/`stamina` son
 # columnas propias de PlayerSnapshot (no parte de SKILL_COLS), pero
 # `getattr` las lee igual.
 HISTORY_SKILL_COLS = (*SKILL_COLS, "experience", "loyalty", "form", "stamina")
 
 # HL-15x #99: el usuario pidió excluir Balón Parado del top-3 de habilidades
-# (histograma de percentil) — se entrena aparte y no define el "perfil"
+# (histograma de percentil), se entrena aparte y no define el "perfil"
 # principal del jugador de la misma forma que las otras 6.
 SKILL_COLS_FOR_TOP3 = tuple(c for c in SKILL_COLS if c != "set_pieces")
 
@@ -166,7 +166,7 @@ class PlayerHistoryQueryService:
 
     async def snapshot_history(self, ht_player_id: int) -> list[SnapshotPoint]:
         """Todo el historial real de snapshots del jugador, ordenado. Hoy
-        puede ser muy corto (cuenta nueva) — se devuelve tal cual, sin
+        puede ser muy corto (cuenta nueva), se devuelve tal cual, sin
         rellenar puntos que no existen."""
         stmt = (
             select(m.PlayerSnapshot)
@@ -198,7 +198,7 @@ class PlayerHistoryQueryService:
         # fidelidad y quedaron en 0, lo que dibujaba una caída a cero al
         # principio de la línea. Un 0 de fidelidad es legítimo en un fichaje
         # recién llegado, así que la lectura incompleta se detecta por el
-        # liderazgo — que en Hattrick empieza en 1 y vale 0 exactamente en
+        # liderazgo, que en Hattrick empieza en 1 y vale 0 exactamente en
         # esos mismos snapshots. El tramo inicial se estira con la primera
         # fidelidad conocida; nada de esto entra en ningún cálculo.
         loyalty = [
@@ -210,10 +210,10 @@ class PlayerHistoryQueryService:
         return points
 
     async def match_rating_history(self, ht_player_id: int) -> list[MatchRatingPoint]:
-        # Escaleras, Duelos, Torneos y Preparación no son partidos reales —
+        # Escaleras, Duelos, Torneos y Preparación no son partidos reales
         # pedido explícito 2026-08-11: fuera del historial de ratings. Un
         # `outerjoin` (no inner) porque un rating sin fila `Match` todavía
-        # (orden de sync) no es un partido de mentiras confirmado — se
+        # (orden de sync) no es un partido de mentiras confirmado, se
         # mantiene en vez de descartarlo por una duda.
         stmt = (
             select(m.PlayerMatchRating, m.Match)
@@ -239,7 +239,7 @@ class PlayerHistoryQueryService:
         self, team_id: int, ht_player_id: int, currency_rate: float
     ) -> dict[str, Distribution] | None:
         """KDE de TSI, Salario y $/TSI sobre la plantilla activa, con el
-        valor de este jugador para resaltar — HL-15x #8. `None` si el
+        valor de este jugador para resaltar, HL-15x #8. `None` si el
         jugador no está en la plantilla (ya no está en el club)."""
         latest = await self._latest_snapshots_by_ht_id(team_id)
         own_snap = latest.get(ht_player_id)
@@ -276,7 +276,7 @@ class PlayerHistoryQueryService:
         self, team_id: int, ht_player_id: int, top_n: int = 3
     ) -> dict[str, Distribution] | None:
         """KDE de las top-N habilidades del jugador (excluye Balón Parado)
-        sobre la plantilla activa, cada una con su valor propio resaltado —
+        sobre la plantilla activa, cada una con su valor propio resaltado
         HL-15x #99, reemplaza el gauge de percentil de una sola habilidad."""
         latest = await self._latest_snapshots_by_ht_id(team_id)
         own_snap = latest.get(ht_player_id)
@@ -303,7 +303,7 @@ class PlayerHistoryQueryService:
         self, team_id: int, ht_player_id: int
     ) -> dict[str, Any] | None:
         """Percentil del jugador dentro de la plantilla activa en SU skill
-        dominante (la más alta entre las 7) — HL-15x #23."""
+        dominante (la más alta entre las 7), HL-15x #23."""
         latest = await self._latest_snapshots_by_ht_id(team_id)
         own_snap = latest.get(ht_player_id)
         if own_snap is None:
@@ -320,14 +320,14 @@ class PlayerHistoryQueryService:
         }
 
     async def experience_progress(self, ht_player_id: int) -> exp.ExperienceProgress | None:
-        """% real hacia la próxima subida de experiencia — HL-15x #11, fórmula
+        """% real hacia la próxima subida de experiencia, HL-15x #11, fórmula
         del Manual No Escrito (`experience_engine`, ya verificada contra
         Hattrick Control para liga y amistoso internacional).
 
         Cuenta partidos REALES jugados por este jugador (de
         `player_match_ratings`, cruzado con `matches` por `match_type`)
         desde el snapshot más antiguo con el mismo nivel de experiencia que
-        tiene hoy — es decir, desde que EMPEZAMOS a verlo en ese nivel, no
+        tiene hoy, es decir, desde que EMPEZAMOS a verlo en ese nivel, no
         desde que realmente subió (eso puede haber sido antes de que esta
         cuenta empezara a sincronizar). El resultado puede subestimar el
         progreso real para un nivel que llevaba tiempo, pero nunca inventa
@@ -336,20 +336,20 @@ class PlayerHistoryQueryService:
         2026-08-16, pedido explícito: al subir de nivel el contador arranca de
         cero. El partido que provocó la subida ya se cobró en el nivel
         anterior, así que se compara `Match.played_at` (cuándo se jugó) contra
-        el corte, y no la marca de sincronización — que es la misma para el
+        el corte, y no la marca de sincronización, que es la misma para el
         snapshot y para la ficha del partido cuando ambos llegan en el mismo
         sync, que es siempre.
 
         2026-08-05, pedido explícitamente: cada partido puntúa proporcional
         a los minutos jugados sobre 90 (jugar 70 = 70/90 de los puntos de esa
-        competencia; 90 o más = el 100%, nunca más) — `player_match_ratings`
+        competencia; 90 o más = el 100%, nunca más), `player_match_ratings`
         ya trae `played_minutes` por partido, así que es un peso, no un
         fichero nuevo.
 
         También cierra el punto ciego de selección nacional: `Caps` (carry-
         forward en cada snapshot, ver `repositories.append_snapshot`) es un
         contador de carrera independiente de si `LastMatch` alcanzó a
-        capturar ESE partido concreto — si Caps subió más de lo que
+        capturar ESE partido concreto, si Caps subió más de lo que
         `player_match_ratings` puede explicar, hay partido(s) de selección
         que Hattrick confirma pero de los que nunca vimos el detalle (el
         club jugó después y LastMatch quedó sobrescrito antes del siguiente
@@ -519,7 +519,7 @@ class PlayerHistoryQueryService:
             # Crudos por el mismo motivo que en `experience_progress`: el
             # intervalo se mide entre dos observaciones de subida, y quedarse
             # con la última lectura de cada semana desplaza ese límite hacia
-            # adelante — los partidos jugados entre la subida real y el último
+            # adelante, los partidos jugados entre la subida real y el último
             # sync de esa semana se sumaban al intervalo anterior, inflando
             # justo la muestra con la que se calibra el modelo.
             if not snapshots:
@@ -572,7 +572,7 @@ class PlayerHistoryQueryService:
 
     async def _latest_snapshots_by_ht_id(self, team_id: int) -> dict[int, m.PlayerSnapshot]:
         """Último snapshot real de cada jugador activo de la plantilla,
-        indexado por `ht_player_id` — base compartida de distribuciones y
+        indexado por `ht_player_id`, base compartida de distribuciones y
         percentil, ambos sobre "la plantilla tal como está ahora"."""
         stmt = (
             select(m.PlayerSnapshot, m.Player)

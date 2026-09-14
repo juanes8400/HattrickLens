@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.training_context import TrainingContextService
+from app.domain.engines.position_engine import rate_all
 from app.domain.engines.training_engine import (
     TrainingSetup,
     default_setup,
@@ -156,7 +157,12 @@ class PostMatchTrainingService:
             if type_id != 0
         ]
         options = [o for o in options if o["trainedSkill"] is not None]
-        options.sort(key=lambda o: (o["recommendable"], o["score"]), reverse=True)
+        # POR VALOR, NO POR SUBIDAS (2026-09-13, pedido del usuario). Antes
+        # mandaba `score`, que cuenta minutos y subidas cercanas y pesa igual
+        # cualquier subida: Balón parado salía primero porque sube rápido, y
+        # medido con la plantilla real no mejoraba el aporte de nadie en ningún
+        # puesto. `score` queda sólo para desempatar.
+        options.sort(key=lambda o: (o["recommendable"], o["value"], o["score"]), reverse=True)
         recommendation = next((o for o in options if o["recommendable"]), None)
 
         player_rows = [
@@ -210,6 +216,14 @@ class PostMatchTrainingService:
                         **{c: getattr(snap, c) or 0 for c in SKILL_COLS},
                         "stamina": snap.stamina or 0,
                     },
+                    # Lo que el aporte posicional necesita además de las
+                    # habilidades: sin forma ni experiencia el aporte sale 0.
+                    "form": snap.form,
+                    "stamina": snap.stamina,
+                    "experience": snap.experience,
+                    "leadership": snap.leadership,
+                    "specialty": snap.specialty,
+                    "loyalty": snap.loyalty,
                     "last_match_ht_id": snap.last_match_ht_id,
                     "last_match_position_code": snap.last_match_position_code,
                     "last_match_played_minutes": snap.last_match_played_minutes,
@@ -326,7 +340,7 @@ class PostMatchTrainingService:
         latest_deadline = await self._latest_completed_training_deadline(team_id)
         # 2026-08-16, error real: el ciclo EN CURSO no se contaba nunca. Sus
         # partidos ya se jugaron y sus minutos son un hecho, pero su corte
-        # todavía no ha llegado, así que no existía como ciclo — y un jugador
+        # todavía no ha llegado, así que no existía como ciclo, y un jugador
         # que anoche jugó 82' aparecía con cero. `include_latest` es justo el
         # toggle "Incluir los partidos de esta semana": lo que añade es esta
         # semana abierta, no el último ciclo ya cerrado (ese es un hecho
@@ -455,7 +469,7 @@ class PostMatchTrainingService:
         for rating, player, match in rows:
             if match is not None:
                 # Escaleras, Duelos, Torneos y Preparación no son partidos
-                # reales — pedido explícito 2026-08-11: no deben influir en
+                # reales, pedido explícito 2026-08-11: no deben influir en
                 # qué entrenamiento conviene según los minutos jugados.
                 if match.match_type in NON_OFFICIAL_MATCH_TYPES:
                     continue
@@ -489,12 +503,14 @@ class PostMatchTrainingService:
         fallback = await self._fallback_last_match_segments(team_id)
         if fallback:
             notes.append(
-                "No hay historial de partidos dentro de la ventana; se usa LastMatch de playerdetails como respaldo."  # noqa: E501
+                "No hay historial de partidos dentro de la ventana; se usa el último "
+                "partido que figura en la ficha de cada jugador."
             )
             return fallback, notes
 
         notes.append(
-            "No hay minutos/posiciones sincronizados. Sincroniza playerdetails o matchlineup para activar esta recomendación."  # noqa: E501
+            "No hay minutos ni posiciones sincronizados. Sincroniza los partidos "
+            "para activar esta recomendación."
         )
         return [], notes
 
@@ -543,6 +559,9 @@ class PostMatchTrainingService:
         development_score = 0.0
         pops_soon = 0
         total_exposure = 0.0
+        # Aporte posicional ganado por semana: por jugador, lo que sube su
+        # mejor aporte con un nivel más, dividido entre las semanas que tarda.
+        value = 0.0
 
         for p in players:
             if trainer_ht_id and p["ht_player_id"] == trainer_ht_id:
@@ -579,6 +598,10 @@ class PostMatchTrainingService:
             total_exposure += exposure
             if speed is not None and speed.weeks_to_next_level <= 3.0:
                 pops_soon += 1
+            if speed is not None and speed.weeks_to_next_level > 0:
+                subido = dict(p, skills=dict(p["skills"], **{skill: level + 1}))
+                ganancia = rate_all(subido)[0].rating - rate_all(p)[0].rating
+                value += max(ganancia, 0.0) / speed.weeks_to_next_level
             trainees.append(
                 {
                     "htPlayerId": p["ht_player_id"],
@@ -600,6 +623,7 @@ class PostMatchTrainingService:
         score = total_equivalent_minutes + development_score * 10.0 + pops_soon * 30.0
         trained_count = len(trainees)
         rationale = [
+            f"+{value:.2f} de aporte posicional por semana, sumando la plantilla",
             f"{trained_count} jugadores reciben entrenamiento",
             f"{sum(1 for t in trainees if t['exposure'] >= 0.99)} con exposición full",
             f"{round(total_equivalent_minutes, 1)} minutos equivalentes",
@@ -615,6 +639,7 @@ class PostMatchTrainingService:
             "recommendable": training_type not in DEPRECATED_TRAINING_TYPES,
             "rationale": rationale,
             "score": round(score, 2),
+            "value": round(value, 4),
             "trainedPlayers": trained_count,
             "fullTrainingPlayers": sum(1 for t in trainees if t["exposure"] >= 0.99),
             "partialTrainingPlayers": sum(1 for t in trainees if 0 < t["exposure"] < 0.99),

@@ -70,7 +70,7 @@ def _calibracion(prob: np.ndarray, y: np.ndarray, y_ent: np.ndarray | None = Non
     rng = np.random.default_rng(20260905)
     print()
     print("=" * 72)
-    print(f"CALIBRACIÓN — contra 2.000 mundos simulados con estos {len(y)} partidos")
+    print(f"CALIBRACIÓN, contra 2.000 mundos simulados con estos {len(y)} partidos")
     print("=" * 72)
     print(f"  {'clase':10}{'ECE real':>10}{'mediana':>10}{'p95':>8}{'p':>7}  veredicto")
     for k, nom in enumerate(CLASES):
@@ -169,9 +169,10 @@ async def main(fraccion_prueba: float) -> None:
 
     print()
     print("=" * 72)
-    print("REGRESIÓN ORDINAL — derrota < empate < victoria")
+    print("REGRESIÓN ORDINAL, derrota < empate < victoria")
     print("=" * 72)
-    print(f"  {'duelo':26}{'coef':>9}{'error':>8}{'z':>7}{'p-valor':>10}{'x10pp':>8}")
+    ancho = max(len(v) for v in ETIQUETAS.values()) + 2
+    print(f"  {'duelo':{ancho}}{'coef':>9}{'error':>8}{'z':>7}{'p-valor':>10}{'x10pp':>8}")
     for i, (nombre, _, _) in enumerate(COMPARACIONES):
         # Los coeficientes se enseñan CRUDOS, tal como los devolvió la
         # regresión: son los que hay que poder discutir. La escala es un paso
@@ -183,7 +184,7 @@ async def main(fraccion_prueba: float) -> None:
         # cuánto se multiplican las probabilidades relativas de acabar más
         # arriba por cada 10 puntos porcentuales que uno se lleva del duelo.
         print(
-            f"  {ETIQUETAS[nombre]:26}{coef:>9.3f}{err:>8.3f}{coef / err if err else 0:>7.2f}"
+            f"  {ETIQUETAS[nombre]:{ancho}}{coef:>9.3f}{err:>8.3f}{coef / err if err else 0:>7.2f}"
             f"{pv:>10.4f}{np.exp(coef * 0.1):>8.2f} {estrella}"
         )
     # Crudos, como los coeficientes de arriba: en la misma tabla no pueden

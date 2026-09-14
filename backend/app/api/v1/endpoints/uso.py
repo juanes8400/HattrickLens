@@ -104,6 +104,7 @@ MODULOS_CONOCIDOS: frozenset[str] = frozenset(
         "Club y cuerpo técnico",
         "Equipo",
         "Jugadores",
+        "Habilidades (Profundidad)",
         "Posiciones",
         "Alineación",
         "Entrenamiento",
@@ -119,12 +120,31 @@ MODULOS_CONOCIDOS: frozenset[str] = frozenset(
         "Cambios",
         "Alertas",
         "Transparencia",
+        "Wiki",
         "Uso",
+        "Autor",
+        "Libro de visitas",
+        "Apoyar el proyecto",
         "Alta: bienvenida",
         "Alta: conectado",
         "Alta: importación",
     }
 )
+
+
+#: Nombres viejos de módulos que ya hay guardados en la base.
+#:
+#: 2026-09-13. Las páginas Autor, Libro de visitas y Apoyar no estaban en el mapa
+#: del frontend y sus visitas se guardaron como «Otros (/ruta)». Y «Club y
+#: staff» siguió llegando después de la migración 0075, de pestañas con el
+#: frontend viejo en caché. Se traducen al leer: los eventos no se reescriben.
+RENOMBRADOS: dict[str, str] = {
+    "Otros (/autor)": "Autor",
+    "Otros (/libro)": "Libro de visitas",
+    "Otros (/apoyar)": "Apoyar el proyecto",
+    "Otros (/liga)": "Liga",
+    "Club y staff": "Club y cuerpo técnico",
+}
 
 
 async def _nombres_de_usuario(session: AsyncSession) -> dict[int, str]:
@@ -172,7 +192,7 @@ async def resumen(
         uso.Evento(
             sesion=f.session_id,
             tipo=f.kind,
-            modulo=f.module,
+            modulo=RENOMBRADOS.get(f.module, f.module),
             etiqueta=f.label,
             cuando=f.at,
             visible_ms=f.visible_ms or 0,

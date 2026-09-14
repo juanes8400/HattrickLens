@@ -1,4 +1,4 @@
-"""Diff de sync — HL-140. Qué cambió respecto al sync anterior, al estilo
+"""Diff de sync, HL-140. Qué cambió respecto al sync anterior, al estilo
 Hattrick Control: skills de jugadores, resultados, liga, aficionados/
 patrocinadores y economía. Se calcula en el momento del sync, cuando el
 old/new todavía están en memoria.

@@ -4,14 +4,14 @@
  * El backend manda la etiqueta ya traducida (`SPECIALTIES` en
  * `ht_constants.py`), no el número, así que el mapa se indexa por texto. Para
  * que un acento o una mayúscula no dejen un jugador sin icono, la clave se
- * normaliza antes de buscar — dos sitios del backend escriben la ausencia
+ * normaliza antes de buscar, dos sitios del backend escriben la ausencia
  * distinto ("" en plantilla, "Ninguna" en Saldo por jugador) y ambos tienen
  * que caer en el mismo hueco.
  */
 const ICONS: Record<string, string> = {
   tecnico: "🎯", // precisión: define fino, no por fuerza
   rapido: "⚡", // velocidad
-  potente: "💪", // fuerza — y se crece con la lluvia
+  potente: "💪", // fuerza, y se crece con la lluvia
   imprevisible: "🎲", // el azar es literalmente lo que hace
   cabeceador: "🗿", // una cabeza, reconocible a 16 px
   estoico: "🛡️", // aguanta: resiste lesiones
@@ -33,7 +33,7 @@ function normalize(value: string): string {
   );
 }
 
-/** El emoji de una especialidad, o `null` si no la tiene (o es desconocida —
+/** El emoji de una especialidad, o `null` si no la tiene (o es desconocida
  *  Hattrick podría añadir una y no se inventa un icono para ella). */
 export function specialtyIcon(
   specialty: string | null | undefined,
@@ -52,7 +52,7 @@ export function specialtyLabel(specialty: string | null | undefined): string {
  * Icono + texto. El icono NO sustituye al nombre: obligar a memorizar siete
  * símbolos no ayuda a nadie, y en las tablas el filtro busca sobre el texto.
  *
- * `iconOnly` existe para los sitios apretados —una tarjeta sobre la cancha—
+ * `iconOnly` existe para los sitios apretados, una tarjeta sobre la cancha
  * donde no cabe la palabra; ahí el nombre viaja en el `title`, nunca se pierde.
  */
 export function Specialty({

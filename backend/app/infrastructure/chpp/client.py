@@ -144,7 +144,7 @@ class CHPPOAuthDance:
 
     async def get_authorize_url(self) -> tuple[str, str, str]:
         # timeout=30.0: httpx por defecto usa 5s, y `request_token.ashx` de
-        # Hattrick puede tardar 12s+ en responder sin estar caído —
+        # Hattrick puede tardar 12s+ en responder sin estar caído
         # verificado en vivo 2026-08-04 con una llamada directa (12.5s,
         # respuesta válida). Antes bloqueaba "Conectar con Hattrick" con
         # `httpx.ReadTimeout` incluso con 15s.

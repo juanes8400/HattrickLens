@@ -1,7 +1,7 @@
 """Saldo neto por jugador (HL-161): precio real de venta.
 
 `sale_price`/`sold_at`, de transfersteam.xml (TransferType="S", vendedor ==
-nosotros) — mismo mecanismo y fuente que `purchase_price`, que solo
+nosotros), mismo mecanismo y fuente que `purchase_price`, que solo
 capturaba compras hasta ahora.
 
 Revision ID: 0025

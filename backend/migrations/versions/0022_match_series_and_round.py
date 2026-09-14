@@ -1,7 +1,7 @@
 """series_ht_id/match_round en matches, para leaguefixtures.xml.
 
 Hasta ahora el calendario de liga solo conocía los partidos DEL EQUIPO
-sincronizado (matches.xml se pide con teamID=<propio>) — los cruces entre
+sincronizado (matches.xml se pide con teamID=<propio>), los cruces entre
 dos rivales (ninguno el propio) nunca se guardaban, así que el simulador de
 temporada los daba por congelados. leaguefixtures.xml trae el calendario
 completo de la serie (todos los pares, ida y vuelta) pero identifica cada

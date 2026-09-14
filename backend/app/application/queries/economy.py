@@ -1,4 +1,4 @@
-"""EconomyQueryService — HL-052, HL-053, HL-054, HL-055.
+"""EconomyQueryService, HL-052, HL-053, HL-054, HL-055.
 
 Lee los snapshots económicos acumulados y los convierte en las tres cosas que
 un manager necesita decidir: qué ha pasado, qué va a pasar, y qué pasaría si.
@@ -26,7 +26,7 @@ tamaño, el backtest decidirá sola.
 
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -61,7 +61,7 @@ MIN_WEEKS_FOR_TIMESERIES = 8
 @dataclass
 class SeriesPoint:
     date: str
-    # "TT-ss" (temporada-semana, p. ej. "83-03") — `None` si el equipo
+    # "TT-ss" (temporada-semana, p. ej. "83-03"), `None` si el equipo
     # todavía no sincronizó worlddetails.xml (ver weekly.season_week_label).
     season_week: str | None
     cash: int
@@ -69,7 +69,7 @@ class SeriesPoint:
     costs: int
     balance: int
     is_anomaly: bool = False
-    # Para el balance sin transferencias — `None` si esta semana cerrada es de
+    # Para el balance sin transferencias, `None` si esta semana cerrada es de
     # antes de que se guardara el desglose (sync viejo), no si de verdad no
     # hubo compraventa.
     sold_players_income: int | None = None
@@ -83,6 +83,9 @@ class FinanceItem:
     code: str
     label: str
     amount: int | None
+    #: La misma partida en la semana cerrada anterior, para comparar
+    #: (2026-09-13, pedido del usuario). `None` fuera de «esta semana».
+    previous: int | None = None
 
 
 @dataclass
@@ -92,6 +95,9 @@ class WeeklyFinance:
     income_total: int
     costs_total: int
     expected_balance: int
+    #: Los totales de la semana cerrada anterior.
+    previous_income_total: int | None = None
+    previous_costs_total: int | None = None
 
 
 @dataclass
@@ -122,13 +128,13 @@ class ForecastBand:
     backtest_mae: float | None = None
     candidates: dict[str, float] = field(default_factory=dict)
     # "TT-ss" por cada entrada de `weeks` (futuro, ver weekly.season_week_label)
-    # — misma longitud que `weeks`, `None` en cada una si no hay WorldContext.
+    # misma longitud que `weeks`, `None` en cada una si no hay WorldContext.
     week_labels: list[str | None] = field(default_factory=list)
 
 
 @dataclass
 class SankeyWindow:
-    """Flujo agregado de N semanas — la última en curso más N-1 ya cerradas.
+    """Flujo agregado de N semanas, la última en curso más N-1 ya cerradas.
     `weeks_available` puede ser menor que `weeks` si todavía no hay tanto
     histórico o si el sync es de antes de que se guardara el desglose de
     semanas cerradas."""
@@ -139,24 +145,24 @@ class SankeyWindow:
     costs: list[FinanceItem]
 
 
-# ── Detalles (2026-08-09, pedido explícito: "la quiero como la imagen" —
+# ── Detalles (2026-08-09, pedido explícito: "la quiero como la imagen"
 # referencia visual de la pantalla Detalles de Hattrick Control). SubTotal /
 # Otros calca el criterio de HC: SubTotal es lo recurrente/estructural de
 # cada semana, Otros es lo ligado a compraventa de jugadores o a algo
-# puntual. CHPP no expone un campo de "Intereses" separado como HC — el más
+# puntual. CHPP no expone un campo de "Intereses" separado como HC, el más
 # parecido es CostsFinancial, que aquí se muestra aparte (no se inventa un
 # número, es un campo real ya sincronizado, solo desagrupado de "Otros"
 # donde vivía en el resto de la app).
 #
-# Todos los campos son `int | None`, no `int` — un sync viejo (el primero
+# Todos los campos son `int | None`, no `int`, un sync viejo (el primero
 # que hizo este club, verificado en vivo 2026-08-09) puede no traer el
 # desglose de la semana cerrada en absoluto. `None` es "no lo sabemos",
-# nunca se pisa con 0 — mismo criterio que `_sum_optional` ya usa en el
+# nunca se pisa con 0, mismo criterio que `_sum_optional` ya usa en el
 # resto de este fichero.
 @dataclass
 class IncomeBreakdown:
     spectators: int | None  # Aficionados
-    sponsors: int | None  # Patrocinados (incl. bono si aplica — solo semana en curso)
+    sponsors: int | None  # Patrocinados (incl. bono si aplica, solo semana en curso)
     financial: int | None  # Financieros
     subtotal: int | None
     other: int | None  # Venta de jugadores + comisión + temporal
@@ -179,7 +185,7 @@ class CostsBreakdown:
 class WeeklyBreakdownRow:
     season_week: str | None
     date: str
-    # La semana en curso todavía no cerró — Hattrick puede seguir sumando
+    # La semana en curso todavía no cerró, Hattrick puede seguir sumando
     # ingresos/gastos ahí hasta el cierre real.
     is_current: bool
     income: IncomeBreakdown
@@ -322,7 +328,7 @@ class EconomyResponse:
     # ascendente porque alimenta gráficos).
     weekly_breakdown: list[WeeklyBreakdownRow]
     season_breakdown_totals: list[SeasonBreakdownTotals]
-    # Umbral real usado para decidir si hay serie de tiempo — expuesto para
+    # Umbral real usado para decidir si hay serie de tiempo, expuesto para
     # que el teaser de Proyección muestre progreso real, no un número
     # copiado a mano que puede desincronizarse.
     min_weeks_for_timeseries: int
@@ -380,16 +386,18 @@ class _WeeklyClose:
 #: promoción, copa y amistosos. Fuera quedan torneos y partidos sueltos
 #: (tipos 50, 51 y 62), que no pasan por tu economía: contándolos salían 96
 #: partidos en casa en siete semanas, y la taquilla por partido se hundía a
-#: la doceava parte de lo real (2026-09-03).
-TIPOS_CON_TAQUILLA = (1, 2, 3, 4, 5)
+#: la doceava parte de lo real (2026-09-03). Hattrick Masters (7) también deja
+#: taquilla (confirmado por el usuario, 2026-09-14).
+TIPOS_CON_TAQUILLA = (1, 2, 3, 4, 5, 7)
 
 #: Liga, promoción y copa: los partidos en los que se alinea al mejor once.
 #: «No jugó el último partido» sólo significa algo contra uno de estos. Atado
 #: a cualquier partido acabado, el último era de torneo con suplentes, y salía
 #: que los catorce que no jugaron costaban 409.008 mientras los quince fuera
 #: del once ideal costaban 57.058: no puede ser que los caros estén a la vez
-#: dentro del once y sin jugar (2026-09-03).
-TIPOS_COMPETITIVOS = (1, 2, 3)
+#: dentro del once y sin jugar (2026-09-03). Hattrick Masters (7) también es
+#: oficial y se juega con el mejor once (2026-09-14).
+TIPOS_COMPETITIVOS = (1, 2, 3, 7)
 
 VENTANA_POR_DEFECTO = 8
 
@@ -554,8 +562,8 @@ def weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
     calendario. Dos fallos, los dos reportados por el usuario el 2026-08-19:
 
     1. La semana EN CURSO entraba como si hubiera cerrado. Su última lectura
-       trae todavía la caja con la que empezó — la misma con la que cerró la
-       anterior — así que el gráfico pintaba dos semanas seguidas con la misma
+       trae todavía la caja con la que empezó, la misma con la que cerró la
+       anterior, así que el gráfico pintaba dos semanas seguidas con la misma
        cifra (83-03 y 83-04 en 9.017.240) y una proyección que arrancaba plana.
     2. Una semana sin sincronizar no dejaba punto, y una con dos lecturas a
        ambos lados del cierre dejaba la equivocada.
@@ -843,6 +851,7 @@ class EconomyQueryService:
         horizon_weeks: int = 52,
         planned: list[PlannedEvent] | None = None,
         best_eleven: set[int] | None = None,
+        con_series_de_tiempo: bool = True,
     ) -> EconomyResponse | None:
         """`horizon_weeks` hace de DOS cosas a la vez, y es a propósito.
 
@@ -865,7 +874,7 @@ class EconomyQueryService:
             return None
         # La lectura más nueva de todas: de ella salen los campos VIVOS (caja
         # de ahora, lo que lleva acumulado la semana en curso). No sirve para
-        # la serie — la semana en curso todavía no ha cerrado.
+        # la serie, la semana en curso todavía no ha cerrado.
         latest = raw[-1]
         closes = weekly_closes(raw)
         if not closes:
@@ -880,7 +889,7 @@ class EconomyQueryService:
         def conv_opt(v: float | None) -> int | None:
             return None if v is None else conv(v)
 
-        # "TT-ss" en cada punto/proyección — mismo filtro por `ht_league_id`
+        # "TT-ss" en cada punto/proyección, mismo filtro por `ht_league_id`
         # que `season_at()` en player_balance.py (bug real corregido
         # 2026-08-09: "la fila de WorldContext más reciente" daba cualquier
         # país al azar en cuanto había más de uno).
@@ -925,7 +934,7 @@ class EconomyQueryService:
             # tomó ya cerrada), así que la semana en curso tiene que decir con
             # cuánto va a cerrar. 2026-08-16, razonado por el usuario: si hoy
             # tienes 9.017.240 y la semana va -1.136.597, el punto siguiente es
-            # 7.880.644 — dibujar la caja cruda rompía esa aritmética a la
+            # 7.880.644, dibujar la caja cruda rompía esa aritmética a la
             # vista.
             cash=conv(latest.expected_cash),
             income=live_income_total,
@@ -978,7 +987,9 @@ class EconomyQueryService:
 
         # ── Ruta de series de tiempo ───────────────────────────────────────
         timeseries: ForecastBand | None = None
-        if len(cash_series) >= MIN_WEEKS_FOR_TIMESERIES:
+        # Quien no la enseña (el Dashboard) la pide sin ella: son catorce
+        # modelos con su backtest, lo más caro de esta consulta.
+        if con_series_de_tiempo and len(cash_series) >= MIN_WEEKS_FOR_TIMESERIES:
             f = ts.auto_forecast(cash_series, horizon=horizon_weeks)
             forecast_weeks = list(range(1, horizon_weeks + 1))
             timeseries = ForecastBand(
@@ -1026,13 +1037,13 @@ class EconomyQueryService:
         ]
 
         # ── Detalles ────────────────────────────────────────────────────────
-        # Más reciente primero (al revés que `series`) — igual que la
+        # Más reciente primero (al revés que `series`), igual que la
         # pantalla Detalles de Hattrick Control, y que la tabla que pidió el
         # usuario replicar.
         # Cada snapshot aporta UNA semana cerrada: la anterior a su captura
         # (ver el comentario del descuadre en `series`). La semana en curso no
-        # sale de ningún `last_*` — vive en los campos vivos del último
-        # snapshot — así que se añade como una fila propia al final, que es
+        # sale de ningún `last_*`, vive en los campos vivos del último
+        # snapshot, así que se añade como una fila propia al final, que es
         # justo la que faltaba en el histórico.
         weekly_rows = [
             (
@@ -1104,11 +1115,19 @@ class EconomyQueryService:
             series=series,
             current_week=current_week,
             weekly_finance=WeeklyFinance(
-                income=live_income,
-                costs=live_costs,
+                # Cada partida con su valor de la semana cerrada anterior: los
+                # campos `Last*` de la misma lectura son esa semana.
+                income=_con_la_semana_anterior(
+                    live_income, _finance_items(_last_income_items(latest), conv)
+                ),
+                costs=_con_la_semana_anterior(
+                    live_costs, _finance_items(_last_cost_items(latest), conv)
+                ),
                 income_total=conv(latest.income_sum),
                 costs_total=conv(latest.costs_sum),
                 expected_balance=conv(latest.expected_weeks_total),
+                previous_income_total=conv_opt(latest.last_income_sum),
+                previous_costs_total=conv_opt(latest.last_costs_sum),
             ),
             sankey_windows=sankey_windows,
             balance_windows=_balance_windows(series),
@@ -1156,7 +1175,7 @@ def _sum_optional(*values: int | None) -> int | None:
 
 # Mismo orden y mismos nombres que el informe de finanzas semanal de Hattrick.
 # "Patrocinadores" agrupa IncomeSponsors + IncomeSponsorBonuses y "Temporal"
-# agrupa los campos Financial + Temporary — no son agrupaciones inventadas por
+# agrupa los campos Financial + Temporary, no son agrupaciones inventadas por
 # HT Lens, son cómo Hattrick presenta estas partidas.
 def _income_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]]:
     return [
@@ -1197,8 +1216,8 @@ def _cost_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]
 
 
 # Mismas categorías que arriba, pero de la semana YA CERRADA (campos Last*).
-# Sin LastIncomeSponsorBonuses — ninguna versión de economy.xml lo expone
-# para la semana cerrada — así que "Patrocinadores" en semanas pasadas es
+# Sin LastIncomeSponsorBonuses, ninguna versión de economy.xml lo expone
+# para la semana cerrada, así que "Patrocinadores" en semanas pasadas es
 # sólo LastIncomeSponsors cuando no hay bono que sumarle.
 def _last_income_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]]:
     return [
@@ -1294,7 +1313,7 @@ def _closed_sponsor_income(snapshot: m.EconomySnapshot) -> int | None:
 
     No hace falta suponerlo. `LastIncomeSum` es el total oficial y las demás
     partidas vienen desglosadas: lo que sobra al restarlas ES el bono, por
-    definición. Es aritmética sobre datos que CHPP ya dio, no una estimación —
+    definición. Es aritmética sobre datos que CHPP ya dio, no una estimación
     si falta cualquier pieza se devuelve la cifra sin bono en vez de inventar.
     """
     parts = (
@@ -1426,10 +1445,22 @@ def _finance_items(
     ]
 
 
+def _con_la_semana_anterior(
+    actuales: list[FinanceItem], anteriores: list[FinanceItem]
+) -> list[FinanceItem]:
+    """Las partidas de esta semana, cada una con su importe de la anterior.
+
+    Se casan por código y no por posición: si algún día una lista gana o
+    pierde una partida, comparar por orden emparejaría rubros distintos.
+    """
+    por_codigo = {item.code: item.amount for item in anteriores}
+    return [replace(item, previous=por_codigo.get(item.code)) for item in actuales]
+
+
 def _merge_finance_items(*item_lists: list[FinanceItem]) -> list[FinanceItem]:
     """Suma listas de FinanceItem del mismo orden/códigos, una lista por
     semana. `None` en una categoría sólo si NINGUNA de las semanas del grupo
-    tuvo dato ahí — nunca se rellena con cero lo que no se sabe."""
+    tuvo dato ahí, nunca se rellena con cero lo que no se sabe."""
     base = item_lists[0]
     return [
         FinanceItem(

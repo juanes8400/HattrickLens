@@ -14,6 +14,10 @@ export interface Column<T> {
   align?: "left" | "right";
   /** Value used for sorting, filtering and CSV export. */
   value: (row: T) => string | number;
+  /** Con qué se ordena, cuando no es lo mismo que se enseña y se exporta.
+   *  2026-09-14, pedido del usuario: «Mejor TSI (jugador)» enseña el nombre
+   *  pero se ordena por el TSI, no por orden alfabético. */
+  sortValue?: (row: T) => string | number;
   /** Optional rich rendering. Falls back to `value`. */
   render?: (row: T) => React.ReactNode;
   /** Hidden by default but offered in the column selector. */
@@ -44,7 +48,7 @@ interface Props<T> {
   columns: Column<T>[];
   rowKey: (row: T) => string | number;
   initialSort?: string;
-  /** Dirección inicial del ordenamiento — por defecto descendente (el uso
+  /** Dirección inicial del ordenamiento, por defecto descendente (el uso
    * más común: "mayor primero"). Una tabla de posiciones quiere lo
    * contrario: 1º arriba, no 8º. */
   initialDescending?: boolean;
@@ -149,9 +153,10 @@ export function DataTable<T>({
     const col = columns.find((c) => c.key === sortKey);
     if (!col) return filtered;
 
+    const orden = col.sortValue ?? col.value;
     return [...filtered].sort((a, b) => {
-      const x = col.value(a);
-      const y = col.value(b);
+      const x = orden(a);
+      const y = orden(b);
       const cmp =
         typeof x === "string" || typeof y === "string"
           ? String(x).localeCompare(String(y))

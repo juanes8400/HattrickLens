@@ -1,7 +1,7 @@
-"""weekly.py — cierre semanal por ISO week y etiqueta "TT-ss".
+"""weekly.py, cierre semanal por ISO week y etiqueta "TT-ss".
 
 `season_week_label`/`season_week_offset_for`: 2026-08-09, pedido
-explícitamente — MatchRound de worlddetails.xml v2.0 ES la semana real de
+explícitamente, MatchRound de worlddetails.xml v2.0 ES la semana real de
 temporada (1-16, confirmado por el usuario), no la jornada de liga. Se fija
 esa versión explícita en sync_team.py (ver FILE_VERSIONS) para no depender
 de que un cambio de versión por defecto de CHPP altere el significado en
@@ -24,7 +24,7 @@ from app.application.queries.weekly import (
 
 @dataclass
 class FakeWorld:
-    """Duck-types WorldContext para estos tests — solo los 3 campos que
+    """Duck-types WorldContext para estos tests, solo los 3 campos que
     `season_week_*` realmente lee."""
     season: int
     match_round: int
@@ -63,7 +63,7 @@ def test_season_week_offset_clamps_a_date_at_or_after_refreshed_at_to_zero() -> 
 def test_season_week_offset_never_collapses_two_different_iso_weeks() -> None:
     """Caso real reportado por el usuario 2026-08-09: dos lecturas de dos
     semanas ISO DISTINTAS (2026-08-02 = semana ISO 31, 2026-08-09 = semana
-    ISO 32 — domingo a domingo, exactamente 7 días de calendario, pero
+    ISO 32, domingo a domingo, exactamente 7 días de calendario, pero
     `latest_per_iso_week` ya las trata como cubos distintos) salían con la
     MISMA etiqueta "83-03" porque la cuenta original partía de AHORA en vez
     de anclar al lunes de cada semana ISO. Con el ancla correcta, dos
@@ -117,7 +117,7 @@ def test_datetime_helpers_cross_exact_boundaries_in_past_and_future() -> None:
 def test_changes_only_keeps_the_first_point_and_only_real_changes() -> None:
     """2026-08-12, pedido explícito para Espíritu/Confianza y Socios en
     Club: un punto por cambio real de valor, no uno por semana ni uno por
-    sync — dos lecturas seguidas con el mismo valor no son un "snapshot
+    sync, dos lecturas seguidas con el mismo valor no son un "snapshot
     nuevo", son la misma foto otra vez."""
     @dataclass
     class Reading:

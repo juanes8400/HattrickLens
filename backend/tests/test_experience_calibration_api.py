@@ -1,4 +1,4 @@
-"""GET /teams/{id}/experience/calibration — sobre datos sincronizados reales.
+"""GET /teams/{id}/experience/calibration, sobre datos sincronizados reales.
 
 El test que importa aquí no es que el endpoint responda 200. Es que, con una
 sola sincronización y por tanto sin ninguna subida de nivel observada, el
@@ -148,7 +148,7 @@ def test_real_matches_between_two_observed_pops_feed_calibration() -> None:
     The first pop establishes a trustworthy start boundary. The next one is
     then a usable interval: one league, one friendly and one international
     friendly are 4.55 experience points in the configured model (Hattrick's
-    real scale, 2026-08-05 — see experience.yaml).
+    real scale, 2026-08-05, see experience.yaml).
     """
     async def run() -> None:
         from datetime import timedelta

@@ -24,11 +24,11 @@ import type {
 } from "../services/api";
 
 /**
- * Equipo — la plantilla promediada, semana a semana.
+ * Equipo, la plantilla promediada, semana a semana.
  *
  * Cuántas gráficas lleva cada grupo lo decide el backend (`charts`), porque
  * depende de si sus series comparten escala. Habilidades lleva dos: lo que se
- * mide de 0 a 20 arriba, y Resistencia y Forma —escalas mucho más cortas—
+ * mide de 0 a 20 arriba, y Resistencia y Forma, escalas mucho más cortas
  * aparte. TSI y Salario también, por ser un índice y dinero. Juntarlas en un
  * eje daría a entender que se comparan.
  */
@@ -205,7 +205,7 @@ function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
 
 /** Capitán y lanzador de faltas viven FUERA del campo, en una columna al
  *  lado y con otro aspecto: son recomendaciones de rol, no puestos, y su
- *  puntuación usa otra fórmula — nada de la barra 0-20 de las posiciones. */
+ *  puntuación usa otra fórmula, nada de la barra 0-20 de las posiciones. */
 function SpecialRoles({ roles }: { roles: TeamOverviewSpecialRole[] }) {
   if (roles.length === 0) return null;
   return (

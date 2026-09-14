@@ -44,7 +44,7 @@ def test_una_bajada_sin_golpe_es_la_vuelta_al_equilibrio() -> None:
 def test_un_partido_en_Normal_no_explica_una_bajada() -> None:
     """Normal no empuja: lo que se ve después es la deriva, no el partido.
 
-    El texto tampoco lo menciona — nombrarlo en la causa sugeriría que el
+    El texto tampoco lo menciona, nombrarlo en la causa sugeriría que el
     partido hundió el espíritu, y no lo hizo.
     """
     mv = psi.movimientos_de_espiritu([_l(0, 6), _l(2, 5)], [_p(1, psi.NORMAL)], {}, {}, [])

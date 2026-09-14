@@ -1,4 +1,4 @@
-"""OAuth 1.0a dance con CHPP — la única forma de iniciar sesión en HT Lens.
+"""OAuth 1.0a dance con CHPP, la única forma de iniciar sesión en HT Lens.
 
 No hay registro con email/contraseña: conectar con Hattrick.org ES la cuenta.
 Ver docs/04-chpp-sync.md para el diagrama de secuencia completo, y
@@ -136,7 +136,7 @@ async def refresh(
 ) -> Response:
     """Renueva la cookie de acceso (y rota la de refresco) sin repetir el
     baile OAuth. El frontend la llama sola cuando un request devuelve 401;
-    el usuario nunca la ve — solo nota (o ya no nota) que dejó de tener que
+    el usuario nunca la ve, solo nota (o ya no nota) que dejó de tener que
     reconectar cada `jwt_access_ttl_minutes`."""
     if htlens_refresh is None:
         raise HTTPException(401, "no hay sesión para renovar, conecta con Hattrick")

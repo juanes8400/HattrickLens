@@ -6,7 +6,7 @@ mostró un TSI de "202".
 
 Esta columna guarda el cambio como dato: metric/label/before/after/kind, para
 que el formato sea una decisión de presentación y no algo que haya que
-deshacer con una expresión regular. `summary` se mantiene — sigue siendo útil
+deshacer con una expresión regular. `summary` se mantiene, sigue siendo útil
 para el feed, el CSV y las filas antiguas, que no tienen detalle numérico y
 se siguen leyendo con el parser de compatibilidad.
 

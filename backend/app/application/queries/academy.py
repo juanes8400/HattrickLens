@@ -1,4 +1,4 @@
-"""AcademyQueryService — HL-110, HL-111, HL-112, HL-114, HL-115.
+"""AcademyQueryService, HL-110, HL-111, HL-112, HL-114, HL-115.
 
 La academia es la parte del club donde es más fácil perder dinero sin darse
 cuenta: el gasto es semanal y silencioso, el retorno llega temporadas después,
@@ -72,7 +72,7 @@ def position_contributions() -> dict[str, dict[str, dict[str, float]]]:
 
 @dataclass
 class SkillScoreRow:
-    """Una habilidad de la academia, puntuada — ver `youth_skill_score`.
+    """Una habilidad de la academia, puntuada, ver `youth_skill_score`.
 
     Responde "¿qué entreno?", que en juveniles es la única pregunta que
     importa: se entrena una habilidad y la reciben todos a la vez.
@@ -97,7 +97,7 @@ class SkillRow:
 
     El ojeador puede haber dicho "juega a nivel 5" sin decir hasta dónde
     llegará, y al revés. Antes esto se aplastaba: el nivel desconocido se
-    guardaba como 0 —indistinguible de un 0 real— y `is_revealed` miraba sólo
+    guardaba como 0, indistinguible de un 0 real, y `is_revealed` miraba sólo
     el techo, así que una habilidad con nivel conocido se pintaba como si no
     se supiera nada de ella.
     """
@@ -318,7 +318,7 @@ class AcademyQueryService:
                     # Sin `CanBePromotedIn` no se sabe cuándo sale. El
                     # respaldo queda FUERA del alcance del mando para que
                     # moverlo no voltee de golpe a todos los que no tienen el
-                    # dato — ver `UNKNOWN_DEADLINE_DAYS`.
+                    # dato, ver `UNKNOWN_DEADLINE_DAYS`.
                     age_days_at_deadline=(
                         at_promotion % DAYS_PER_HT_YEAR
                         if at_promotion is not None
@@ -347,6 +347,7 @@ class AcademyQueryService:
         weight_base: float = yss.DEFAULT_WEIGHT_BASE,
         trainable_weight: float | None = None,
         trainable: dict[str, float] | None = None,
+        now: datetime | None = None,
     ) -> dict[str, Any] | None:
         """Qué se movió en la academia, y por qué se movió el puntaje.
 
@@ -359,11 +360,16 @@ class AcademyQueryService:
         en Economía: dos ventanas distintas dentro de la misma pantalla es lo
         que hace imposible explicar un número (2026-09-04, decisión del
         usuario).
+
+        `now` es el instante desde el que se cuentan esas semanas. En
+        producción nadie lo pasa y vale el reloj; existe para que una prueba
+        pueda sembrar fotos en fechas fijas y que la ventana caiga siempre
+        donde ella dice, no donde la deje el día en que se corra.
         """
         desde = (
             await self._momento_anterior(team_id)
             if ventana == "cambio"
-            else datetime.now(UTC) - timedelta(weeks=int(ventana))
+            else (now or datetime.now(UTC)) - timedelta(weeks=int(ventana))
         )
         ahora = await self.skill_scores(
             team_id,
@@ -582,7 +588,7 @@ class AcademyQueryService:
             snap, player = rows_by_name[ev.name]
             # "Edad al salir": la que tendrá el día que se le pueda promocionar
             # (`Juveniles!F`/`G` de la hoja). NO es el plazo para no perderlo
-            # por edad — son dos relojes distintos y el que decide a quién da
+            # por edad, son dos relojes distintos y el que decide a quién da
             # tiempo de entrenar es éste.
             promotable_in = snap.can_be_promoted_in
             at_promotion = (
@@ -601,7 +607,7 @@ class AcademyQueryService:
                     # Sin `CanBePromotedIn` no se sabe cuándo sale. El
                     # respaldo queda FUERA del alcance del mando para que
                     # moverlo no voltee de golpe a todos los que no tienen el
-                    # dato — ver `UNKNOWN_DEADLINE_DAYS`.
+                    # dato, ver `UNKNOWN_DEADLINE_DAYS`.
                     age_days_at_deadline=(
                         at_promotion % DAYS_PER_HT_YEAR
                         if at_promotion is not None
@@ -695,7 +701,7 @@ class AcademyQueryService:
         # 2026-08-15, pedido explícitamente: una academia se cierra y se
         # reabre, y cada apertura es una academia DISTINTA. Sumar los
         # canteranos de academias anteriores contra la inversión de la actual
-        # es restar dos cosas que no se corresponden — en esta cuenta eran 43
+        # es restar dos cosas que no se corresponden, en esta cuenta eran 43
         # ventas viejas (24,6M) contra una academia de dos semanas.
         # `youthteamdetails.CreatedDate` marca el corte. Sin ese dato todavía
         # sincronizado no se inventa un corte: se usa todo y se avisa.
@@ -729,7 +735,7 @@ class AcademyQueryService:
         # 2026-08-15, bug real encontrado al preguntar de dónde salía la cifra:
         # esto contaba `len(economy)`, es decir un "semana" por cada snapshot
         # económico. Pero los snapshots son por sync, no por semana: 34 lecturas
-        # cubrían del 26/07 al 15/08 — tres semanas, no treinta y cuatro. La
+        # cubrían del 26/07 al 15/08, tres semanas, no treinta y cuatro. La
         # inversión salía inflada ~11x (680.000 en vez de ~60.000).
         #
         # `latest_per_iso_week` colapsa a una lectura por semana ISO, que es lo
@@ -758,7 +764,7 @@ class AcademyQueryService:
         weekly_cost = conv(economy[-1].costs_youth) if economy else 0
         weeks = len(economy)
 
-        # Lo ingresado por la cantera NO es el precio de venta bruto — 2026-08-15,
+        # Lo ingresado por la cantera NO es el precio de venta bruto, 2026-08-15,
         # pedido explícitamente: "todos los pagos por club de origen y club
         # anterior". `Transferencias` ya calcula lo que de verdad entró por
         # cada canterano y este módulo se estaba quedando con `sold_for` crudo,
@@ -793,7 +799,7 @@ class AcademyQueryService:
         # `former_youth_players` (sin fila en `players`, p. ej. si salió antes
         # de que empezáramos a guardar plantilla). Para esos no hay comisión ni
         # bonos que calcular: se cuenta el bruto, que es lo único que existe, y
-        # se avisa en una nota — mejor un dato incompleto y señalado que
+        # se avisa en una nota, mejor un dato incompleto y señalado que
         # perderlo de la suma.
         detailed_ids = {r.ht_player_id for r in academy_rows}
         gross_only = [g for g in graduates if g.sold_for and g.ht_player_id not in detailed_ids]
@@ -830,7 +836,7 @@ class AcademyQueryService:
         # `trainable` (`AuxiJuveniles!M`) se teclea a mano en la hoja: es
         # cuántos canteranos reciben de verdad cada entrenamiento, y depende
         # de la alineación juvenil, que CHPP no da en este fichero. Sin ese
-        # dato el sumando vale 0 y el resto del puntaje es idéntico — se
+        # dato el sumando vale 0 y el resto del puntaje es idéntico, se
         # prefiere un puntaje incompleto y honesto a uno estimado.
         # Quien sobra: UNO solo, el que menos aporta a los puntajes. Se marca
         # aqui --y no en `evaluate`-- porque es una decision de PLANTILLA, no

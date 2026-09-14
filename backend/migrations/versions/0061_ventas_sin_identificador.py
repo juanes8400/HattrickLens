@@ -8,9 +8,9 @@ movimiento queda en su propia ficha.
 
 Tres cambios:
 
-1. `players.ht_player_id_is_transfer` — el numero no es suyo, es el de la
+1. `players.ht_player_id_is_transfer`, el numero no es suyo, es el de la
    transferencia.
-2. `player_stints.unknown_origin` — ni comprado ni de cantera. La regla de
+2. `player_stints.unknown_origin`, ni comprado ni de cantera. La regla de
    "venta sin compra delante = canterano" es cierta casi siempre, pero no aqui:
    estos no salieron de la cantera, salieron de un dato que falta.
 3. `team_transfers` deja de ser unica por transferencia y pasa a serlo por

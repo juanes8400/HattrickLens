@@ -1,10 +1,10 @@
-"""Experience Engine — Spec: docs/spec/EXPERIENCE_ENGINE.md
+"""Experience Engine, Spec: docs/spec/EXPERIENCE_ENGINE.md
 
 Tracks how close each player is to the next experience level, and which matches
 got them there. Experience cannot be trained, only accumulated, which is why a
 veteran is hard to replace even when his skills are worse.
 
-POINTS PER LEVEL — PROFILED, THEN MEASURED
+POINTS PER LEVEL, PROFILED, THEN MEASURED
 -------------------------------------------
 Hattrick Control exposes the threshold and match weights as an editable
 profile. Lens starts from the compatible profile, then records observed
@@ -12,7 +12,7 @@ level-ups and reports the mean and standard deviation of complete intervals.
 
 The configured value is the prior: it is used while there is no evidence, and
 it is replaced by the observed mean once enough level-ups have been recorded.
-The standard deviation is the honest part — it says how much the estimate can
+The standard deviation is the honest part, it says how much the estimate can
 be trusted, and it will reveal whether the true figure is 28, 27, or whether it
 varies with the player's current level.
 
@@ -20,7 +20,7 @@ The point values per match type are verified: league and international friendly
 reconstruct Hattrick Control's "Suma" column for 19 players with zero error.
 
 2026-08-05: rescaled to Hattrick's real point values (docs/reference/
-tabla_experiencia.html) — the proportions between match types are the same
+tabla_experiencia.html), the proportions between match types are the same
 ones already verified against Hattrick Control, only expressed in the game's
 own units (points_per_level=100) instead of the old internal profile
 (points_per_level=28). See experience.yaml for the full cross-check note.
@@ -134,7 +134,7 @@ class ExperienceProgress:
     # Partidos de selección nacional COMPETITIVOS vistos (MatchType 10/11):
     # CHPP no distingue Mundial/Copa continental/Copa de Naciones ni sus
     # rondas con ese código, así que no se les asigna puntaje (inventar un
-    # valor sería peor que omitirlo) — se cuentan aquí para que quede
+    # valor sería peor que omitirlo), se cuentan aquí para que quede
     # constancia de que el jugador SÍ jugó con la selección, aunque esos
     # puntos no entren en `points`/`percent`.
     unscored_national_matches: int = 0
@@ -150,7 +150,7 @@ def points(matches: MatchCount | Mapping[str, float]) -> float:
     `matches` values are match-equivalents, not necessarily whole matches:
     2026-08-05, pedido explícitamente, un partido pesa proporcional a los
     minutos jugados sobre 90 (jugar 70 de 90 = 0.777 partidos de esa
-    categoría) — quien arma el conteo (`player_history.py`) ya entrega el
+    categoría), quien arma el conteo (`player_history.py`) ya entrega el
     valor ponderado; este motor solo multiplica por el punto de la categoría,
     sin distinguir si el origen fue un conteo entero o una fracción."""
     cfg = _config()["match_points"]

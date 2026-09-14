@@ -69,7 +69,7 @@ async def main(desde: int, cuantos: int) -> None:
                     matchID=mid,
                     sourceSystem="hattrick",
                 )
-            except Exception as e:  # noqa: BLE001 — la sonda informa, no falla
+            except Exception as e:  # noqa: BLE001, la sonda informa, no falla
                 print(f"  {mid}  ✗ {type(e).__name__}: {str(e)[:70]}")
                 continue
 
@@ -91,8 +91,8 @@ async def main(desde: int, cuantos: int) -> None:
                 f"{(d.get('home') or {}).get('goals', '?')}-"
                 f"{(d.get('away') or {}).get('goals', '?')} "
                 f"{(d.get('away') or {}).get('name', '?')[:18]:18} "
-                f"| medio {local.get('midfield', '—')}/{visitante.get('midfield', '—')}"
-                f" | bp {local.get('set_pieces_def', '—')}/{visitante.get('set_pieces_def', '—')}"
+                f"| medio {local.get('midfield', '-')}/{visitante.get('midfield', '-')}"
+                f" | bp {local.get('set_pieces_def', '-')}/{visitante.get('set_pieces_def', '-')}"
             )
     finally:
         await client.aclose()

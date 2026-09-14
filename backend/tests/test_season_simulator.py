@@ -68,7 +68,7 @@ def test_exactly_one_champion_per_simulation() -> None:
 
 
 def test_promotion_probability_equals_title_probability() -> None:
-    """Solo asciende el 1º de la serie — no hay ascenso por 2º puesto ni
+    """Solo asciende el 1º de la serie, no hay ascenso por 2º puesto ni
     playoff, así que "probabilidad de ascenso" y "probabilidad de campeón"
     son el mismo evento."""
     sim = simulate(LEAGUE, REMAINING, runs=3000)
@@ -90,7 +90,7 @@ def test_second_to_fourth_probability_covers_exactly_those_places() -> None:
 
 
 def test_relegation_playoff_covers_fifth_and_sixth_place() -> None:
-    """5º-6º juegan una promoción para NO descender — HL-145. Con división
+    """5º-6º juegan una promoción para NO descender, HL-145. Con división
     desconocida (default) no se filtra nada, así que la suma es 2 (dos
     equipos, cada simulación)."""
     sim = simulate(LEAGUE, REMAINING, runs=3000)
@@ -98,7 +98,7 @@ def test_relegation_playoff_covers_fifth_and_sixth_place() -> None:
 
 
 def test_top_division_has_no_promotion_but_keeps_relegation() -> None:
-    """1º de la división más alta del país no asciende más — pero sigue
+    """1º de la división más alta del país no asciende más, pero sigue
     pudiendo descender como cualquier otra división intermedia."""
     sim = simulate(LEAGUE, REMAINING, runs=3000, league_level=1, max_level=5)
     assert sim.is_top_division is True
@@ -110,7 +110,7 @@ def test_top_division_has_no_promotion_but_keeps_relegation() -> None:
 
 def test_bottom_division_has_no_relegation_but_keeps_promotion() -> None:
     """7º-8º de la última división del país no descienden más (nada debajo),
-    ni el 5º-6º juega promoción para evitarlo — pero el 1º sigue ascendiendo."""
+    ni el 5º-6º juega promoción para evitarlo, pero el 1º sigue ascendiendo."""
     sim = simulate(LEAGUE, REMAINING, runs=3000, league_level=5, max_level=5)
     assert sim.is_top_division is False
     assert sim.is_bottom_division is True
@@ -130,7 +130,7 @@ def test_unknown_division_level_is_caveated() -> None:
 def test_a_loss_awards_zero_points_not_one() -> None:
     """Regresión: el marcador de puntos debía dar 3/1/0 (victoria/empate/
     derrota). Un bug reciente hacía que una derrota también diera 1 punto,
-    igual que un empate — con un equipo muy superior, el punto que gana el
+    igual que un empate, con un equipo muy superior, el punto que gana el
     perdedor casi siempre debería venir del empate, no de perder."""
     strong = team(1, 20, 100, 5, 58)
     weak = team(2, 20, 5, 100, 0)
@@ -251,7 +251,7 @@ def test_an_empty_league_is_an_error_not_an_empty_answer() -> None:
 def test_best_worst_case_is_a_position_distribution() -> None:
     """El nuevo mejor/peor caso re-simula con el motor real: goleando o
     siendo goleado en lo propio, pero el resto de la liga sigue siendo
-    incierta — por eso el resultado es una distribución, no un número."""
+    incierta, por eso el resultado es una distribución, no un número."""
     case = best_worst_case(LEAGUE, REMAINING, target_team_id=4, runs=4000)
     assert case is not None
     assert case.remaining_matches == 1
@@ -262,7 +262,7 @@ def test_best_worst_case_is_a_position_distribution() -> None:
 
 def test_best_worst_case_pushes_expected_points_to_the_extremes() -> None:
     """Equipo 4 (15 pts, mitad de tabla): en su mejor caso gana su único
-    partido pendiente (goleada) y en el peor lo pierde igual de claro — los
+    partido pendiente (goleada) y en el peor lo pierde igual de claro, los
     puntos esperados deben separarse en +3/+0 sobre los actuales, con el
     resto de la liga aportando algo de ruido alrededor."""
     case = best_worst_case(LEAGUE, REMAINING, target_team_id=4, runs=8000)
@@ -291,6 +291,74 @@ def test_best_worst_case_matches_current_position_with_no_fixtures_left() -> Non
     assert case.remaining_matches == 0
     assert case.best_case_position_distribution[case.current_position] == pytest.approx(1.0, abs=0.001)
     assert case.worst_case_position_distribution[case.current_position] == pytest.approx(1.0, abs=0.001)
+
+
+# ── Las ternas del modelo de zonas, dentro del mejor/peor caso ─────────────
+#
+# 2026-09-12. Los dos paneles de Proyección van uno encima del otro y hablan
+# del mismo resto de liga; hasta hoy la distribución de arriba usaba el modelo
+# de ratings y ésta sólo los goles de la tabla, así que el selector de resumen
+# movía una y dejaba la otra clavada. Lo que se fija aquí es el reparto: las
+# ternas mandan en los partidos AJENOS y no tocan los del equipo analizado.
+
+
+def test_las_ternas_deciden_los_partidos_ajenos() -> None:
+    """El Equipo 4, en su MEJOR caso, gana y llega a 18.
+
+    El 3 va con 17 y juega contra el 6: si gana llega a 20 y se le pone por
+    delante; si pierde se queda en 17 y queda por detrás. Forzar ese partido
+    ajeno con una terna tiene que cambiar el puesto del 4, que es justo lo
+    que antes no pasaba.
+    """
+    gana_el_3 = best_worst_case(
+        LEAGUE,
+        REMAINING,
+        target_team_id=4,
+        runs=8000,
+        probabilidades={(3, 6): (1.0, 0.0, 0.0)},
+    )
+    pierde_el_3 = best_worst_case(
+        LEAGUE,
+        REMAINING,
+        target_team_id=4,
+        runs=8000,
+        probabilidades={(3, 6): (0.0, 0.0, 1.0)},
+    )
+    assert gana_el_3 is not None and pierde_el_3 is not None
+    assert gana_el_3.best_case_position_distribution[4] > 0.9
+    assert pierde_el_3.best_case_position_distribution[3] > 0.9
+
+
+def test_los_partidos_del_equipo_analizado_ignoran_su_terna() -> None:
+    """Una cota deja de serlo si el modelo puede aflojarla.
+
+    Aunque la terna diga que el 4 pierde siempre su partido, su mejor caso
+    tiene que seguir siendo ganarlo: ahí el resultado va forzado y el modelo
+    no pinta nada.
+    """
+    forzado = best_worst_case(
+        LEAGUE,
+        REMAINING,
+        target_team_id=4,
+        runs=8000,
+        probabilidades={(4, 5): (0.0, 0.0, 1.0)},
+    )
+    assert forzado is not None
+    assert forzado.best_case_expected_points == pytest.approx(18.0, abs=0.5)
+    assert forzado.worst_case_expected_points == pytest.approx(15.0, abs=0.5)
+
+
+def test_sin_ternas_se_comporta_como_antes() -> None:
+    """Sin modelo de zonas --una liga recién empezada, sin ratings leídos--
+    esto tiene que seguir siendo exactamente la simulación de siempre."""
+    de_siempre = best_worst_case(LEAGUE, REMAINING, target_team_id=4, runs=4000)
+    con_nada = best_worst_case(LEAGUE, REMAINING, target_team_id=4, runs=4000, probabilidades=None)
+    vacias = best_worst_case(LEAGUE, REMAINING, target_team_id=4, runs=4000, probabilidades={})
+    assert de_siempre is not None
+    for otro in (con_nada, vacias):
+        assert otro is not None
+        assert otro.best_case_position_distribution == de_siempre.best_case_position_distribution
+        assert otro.worst_case_position_distribution == de_siempre.worst_case_position_distribution
 
 
 def test_best_worst_case_empty_league_returns_none() -> None:

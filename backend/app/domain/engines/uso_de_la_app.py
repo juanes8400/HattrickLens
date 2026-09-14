@@ -13,8 +13,8 @@ pestaña olvidada toda la noche diría "ocho horas en Juveniles" y el número
 dejaría de servir para nada.
 
 **Una sesión se corta por inactividad, no al cerrar el navegador.** Cerrar no
-siempre avisa —se pierde la conexión, se apaga el portátil, el móvil mata la
-pestaña— así que esperar el aviso de cierre dejaría sesiones abiertas para
+siempre avisa, se pierde la conexión, se apaga el portátil, el móvil mata la
+pestaña, así que esperar el aviso de cierre dejaría sesiones abiertas para
 siempre. Con un corte por silencio, la peor consecuencia de un cierre brusco es
 partir una sesión en dos.
 """

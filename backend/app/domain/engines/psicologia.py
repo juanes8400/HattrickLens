@@ -1,7 +1,7 @@
 """Por qué se movió el espíritu y por qué se movió la confianza.
 
-El manual de Hattrick nombra cuatro palancas para el espíritu —la actitud del
-partido, las compras, las ventas y bajar el % de entrenamiento— y dice que
+El manual de Hattrick nombra cuatro palancas para el espíritu, la actitud del
+partido, las compras, las ventas y bajar el % de entrenamiento, y dice que
 entre golpe y golpe el valor **tiende a un punto de equilibrio**. La confianza
 va por otro camino: la mueven los resultados y los goles, y deriva hacia su
 punto medio en cada actualización diaria.

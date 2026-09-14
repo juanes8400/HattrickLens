@@ -64,7 +64,7 @@ def test_technical_and_powerful_are_mirror_images() -> None:
 
 def test_quick_never_wins_with_the_weather() -> None:
     """Rápido es la única que pierde con los dos extremos y no gana con
-    ninguno — por eso no puede escribirse como el simétrico de otra."""
+    ninguno, por eso no puede escribirse como el simétrico de otra."""
     assert "Rápido" in wx.hindered(wx.RAIN)
     assert "Rápido" in wx.hindered(wx.SUNNY)
     assert not any("Rápido" in wx.favoured(w) for w in wx.WEATHER_NAMES)
@@ -95,8 +95,8 @@ def test_regiondetails_keeps_today_and_tomorrow_apart() -> None:
 
 def test_teamdetails_brings_the_region_of_any_team() -> None:
     """La región del rival sale de aquí y no de `arenadetails.xml`: ese
-    fichero responde error 59 para un equipo que no gestionas —verificado en
-    vivo el 2026-08-18—, y en un partido de visitante la región que manda es
+    fichero responde error 59 para un equipo que no gestionas, verificado en
+    vivo el 2026-08-18, , y en un partido de visitante la región que manda es
     justo la del rival."""
     equipo = get_parser("teamdetails")(TEAMDETAILS)["teams"][0]
     assert equipo["ht_region_id"] == 2379
@@ -128,7 +128,7 @@ def test_the_alert_names_both_sides_of_the_effect() -> None:
 
 def test_a_neutral_sky_still_gets_an_alert_that_says_so() -> None:
     """Callar dejaría al manager sin saber si faltaba el dato o si no había
-    efecto — que son cosas distintas."""
+    efecto, que son cosas distintas."""
     aviso = ins.next_match_weather(
         7, "FC Rival", True, "Bogotá", wx.OVERCAST, tomorrow=False
     )[0]
@@ -212,7 +212,7 @@ async def test_a_match_today_reads_the_today_forecast() -> None:
 
 async def test_a_stale_forecast_says_nothing() -> None:
     """El fichero solo trae hoy y mañana. Si el último sync es de anteayer,
-    sus dos números ya no describen ningún día del futuro — enseñarlos sería
+    sus dos números ya no describen ningún día del futuro, enseñarlos sería
     dar por buena una predicción caducada."""
     assert await _avisos("2026-08-19 20:00:00", "2026-08-15 22:00:00") == []
 

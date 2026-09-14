@@ -2,8 +2,8 @@
 
 2026-08-21. Un jugador comprado y vendido entre dos sincronizaciones no deja
 ningún snapshot, así que su coste de salarios salía 0 y su saldo aparecía
-mejor de lo que fue. `playerdetails.xml` sí devuelve `<Salary>` para él —
-verificado en vivo con uno ya vendido, jugando en otro club—, de modo que el
+mejor de lo que fue. `playerdetails.xml` sí devuelve `<Salary>` para él
+verificado en vivo con uno ya vendido, jugando en otro club, , de modo que el
 dato existe: lo que faltaba era guardarlo.
 
 Revision ID: 0053

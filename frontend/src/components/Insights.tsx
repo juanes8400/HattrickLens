@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import type { Insight } from "../services/api";
 
 /**
- * Piezas compartidas de alertas — 2026-08-15, pedido explícito: "las alertas
+ * Piezas compartidas de alertas, 2026-08-15, pedido explícito: "las alertas
  * están como muy sueltas, no se les ve importantes".
  *
  * Antes el Dashboard pintaba su propia versión reducida (título + detalle en
@@ -37,7 +37,7 @@ export const SEVERITIES: Insight["severity"][] = [
 
 /** Cada alerta trae el módulo que la generó; llevar al usuario ahí es la
  *  diferencia entre "te aviso" y "te ayudo". `general` no tiene una pantalla
- *  propia — nace del estado del sync. */
+ *  propia, nace del estado del sync. */
 const MODULE_ROUTES: Record<string, string> = {
   entrenamiento: "/training",
   economía: "/economy",
@@ -58,7 +58,7 @@ export function insightRoute(module: string): string | null {
 }
 
 /**
- * Una alerta. La X de la esquina superior derecha la manda al buzón — pedido
+ * Una alerta. La X de la esquina superior derecha la manda al buzón, pedido
  * explícito 2026-08-16.
  *
  * Archivar NO silencia la regla: el servidor guarda una huella del contenido,
@@ -162,7 +162,7 @@ export function InsightRow({
 /**
  * Recuento por severidad. En el Dashboard es lo primero que se ve: "2 peligros
  * y 5 avisos" responde antes que cualquier gráfica a la pregunta de por dónde
- * empezar hoy. Las severidades sin ninguna alerta no se pintan — un cero no es
+ * empezar hoy. Las severidades sin ninguna alerta no se pintan, un cero no es
  * información, es ruido.
  */
 export function SeverityTally({

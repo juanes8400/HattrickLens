@@ -7,7 +7,14 @@ import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Specialty } from "../components/Specialty";
 import { useSquad } from "../hooks/useTeam";
-import { htAge, money, number, relative, dateTime } from "../hooks/useFormat";
+import {
+  htAge,
+  money,
+  number,
+  plural,
+  relative,
+  dateTime,
+} from "../hooks/useFormat";
 import type { SquadPlayer } from "../services/api";
 
 const SKILLS: [keyof SquadPlayer["skills"], string][] = [
@@ -36,7 +43,7 @@ function signed(value: number | undefined): string {
  *  otro dato que merezca su propia línea.
  *
  *  Sin cambio no se pinta nada. Antes iba un punto de relleno, que gastaba una
- *  línea en cada celda de la tabla para decir que no había noticia — y como
+ *  línea en cada celda de la tabla para decir que no había noticia, y como
  *  casi ninguna habilidad se mueve entre dos sincronizaciones, la tabla entera
  *  quedaba al doble de alto para mostrar puntos. */
 function MetricCell({ value, delta }: { value: number; delta?: number }) {
@@ -65,7 +72,7 @@ function HistoryLabel({
   snapshots: number;
 }) {
   // Antes con `Intl` y locale propio; ahora el formato unico de la casa.
-  return `${dateTime(capturedAt)} · ${snapshots} jugadores`;
+  return `${dateTime(capturedAt)} · ${plural(snapshots, "jugador", "jugadores")}`;
 }
 
 /**
@@ -85,7 +92,7 @@ export function TeamPage() {
   // 2026-08-16, pedido explícito: aquí NINGUNA columna nace oculta. Es la tabla
   // maestra de la plantilla y quien la abre quiere verlo todo; el selector
   // "Columnas" sigue estando para quitar lo que estorbe. Por eso ninguna lleva
-  // `optional` — que en `DataTable` significa "oculta de salida".
+  // `optional`, que en `DataTable` significa "oculta de salida".
   const columns: Column<SquadPlayer>[] = [
     {
       key: "name",
@@ -152,7 +159,7 @@ export function TeamPage() {
             <b>{player.lastMatchRating?.toFixed(1) ?? "-"}</b>
           </span>
         ) : (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ),
     },
     {
@@ -267,7 +274,7 @@ export function TeamPage() {
       value: (player) => player.purchasePrice ?? -1,
       render: (player) =>
         player.purchasePrice == null ? (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ) : (
           money(player.purchasePrice, data.currency)
         ),

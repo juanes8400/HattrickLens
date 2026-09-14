@@ -16,7 +16,7 @@ describe("bandBetween", () => {
 
   it("sigue cubriendo el hueco real cuando las líneas se cruzan", () => {
     // Punto 1: la primera va por debajo. Punto 2: por encima. La banda no se
-    // invierte — la base baja al mínimo de cada semana.
+    // invierte, la base baja al mínimo de cada semana.
     const [base, hueco] = bandBetween([10, 40], [15, 25]);
     expect(valores(base!)).toEqual([10, 25]);
     expect(valores(hueco!)).toEqual([5, 15]);

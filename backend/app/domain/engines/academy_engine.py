@@ -1,4 +1,4 @@
-"""Academia juvenil — HL-110 a HL-115.
+"""Academia juvenil, HL-110 a HL-115.
 
 Hattrick Control obliga a teclear a mano las skills de cada juvenil y a
 clasificarlos al ojo (fontanero, vendible, aceptable, promesa, crack). Hoy
@@ -78,7 +78,7 @@ def _potential(skills: dict[str, YouthSkill]) -> tuple[float, str, int | None, i
     suposición como evidencia.
 
     Ahora `mejor_habilidad`/`techo_revelado` sólo salen de habilidades con
-    techo REVELADO — vacío y `None` mientras no haya ninguna. El techo asumido
+    techo REVELADO, vacío y `None` mientras no haya ninguna. El techo asumido
     se devuelve aparte para que la categoría siga siendo provisional en vez de
     desplomarse a "fontanero" por ignorancia.
     """
@@ -320,7 +320,7 @@ def academy_roi(
     2026-08-16, corregido a petición del usuario: `invested` llega ya sumado,
     semana a semana. Antes esta función multiplicaba el coste semanal ACTUAL
     por el número de semanas, lo que sólo es correcto si nunca cambiaste la
-    inversión juvenil — y en cuanto la subes o la bajas, reescribe el pasado
+    inversión juvenil, y en cuanto la subes o la bajas, reescribe el pasado
     con el precio de hoy. `weekly_investment` se conserva sólo para mostrar
     "X por semana" en la ficha; ya no interviene en ningún cálculo.
     """

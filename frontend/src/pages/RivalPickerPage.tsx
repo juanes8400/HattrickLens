@@ -8,17 +8,17 @@ interface RivalRow {
   htTeamId: number;
   name: string;
   detail: string;
-  /** Puesto en la tabla — solo en las competiciones que tienen tabla. */
+  /** Puesto en la tabla, solo en las competiciones que tienen tabla. */
   position?: number;
-  /** Fecha del cruce más reciente contra este rival — solo en las de cruces. */
+  /** Fecha del cruce más reciente contra este rival, solo en las de cruces. */
   date?: string;
 }
 
 /** Cómo se ordena una competición, que depende de qué la organiza.
  *
  * 2026-08-17, pedido explícito. Una liga es una tabla: el orden natural es el
- * puesto, y el 1º arriba. Una copa no tiene tabla — es una secuencia de
- * cruces— así que lo que sitúa a un rival es cuándo lo enfrentaste, con lo más
+ * puesto, y el 1º arriba. Una copa no tiene tabla, es una secuencia de
+ * cruces, así que lo que sitúa a un rival es cuándo lo enfrentaste, con lo más
  * reciente primero.
  *
  * Sin esto la tabla caía en el orden por defecto de `DataTable`, que es la
@@ -26,11 +26,11 @@ interface RivalRow {
  */
 type Ordering = "table" | "date";
 
-/** Competiciones con tabla, por nombre de categoría. El resto —copas y la
- *  Hattrick Masters— se ordenan por fecha. */
+/** Competiciones con tabla, por nombre de categoría. El resto, copas y la
+ *  Hattrick Masters, se ordenan por fecha. */
 const TABLE_ORDERED_CATEGORIES = new Set(["liga", "promoción"]);
 
-/** Orden de exhibición de las categorías — Liga primero, luego las copas en
+/** Orden de exhibición de las categorías, Liga primero, luego las copas en
  * el mismo orden de nivel que ya usa la página de Copa (Escalera de copas):
  * la principal primero, las de consolación después, de mayor a menor. Un
  * nombre de copa que no esté en esta lista (otro país, otro mundo) simplemente
@@ -44,14 +44,14 @@ const KNOWN_CUP_ORDER = [
 ];
 
 /**
- * Elegir rival — punto de entrada a la ficha de scouting (`/rivals/:id`) sin
+ * Elegir rival, punto de entrada a la ficha de scouting (`/rivals/:id`) sin
  * tener que saber de antemano el ID del equipo rival.
  *
  * CHPP no expone un listado completo de "todos los posibles rivales" por
- * competición — solo se conoce un rival de copa una vez que el cruce ya está
+ * competición, solo se conoce un rival de copa una vez que el cruce ya está
  * sorteado (jugado o programado). Por eso las categorías de Copa aquí abajo
  * son exactamente los rivales que tu equipo YA enfrentó o tiene programado
- * esta temporada en cada nivel — no una proyección de con quién podrías
+ * esta temporada en cada nivel, no una proyección de con quién podrías
  * cruzarte más adelante. La Liga sí es completa: los otros equipos de tu
  * serie, siempre los mismos durante toda la temporada.
  */
@@ -86,7 +86,7 @@ export function RivalPickerPage() {
     const key = cupName ?? "Copa (nivel sin identificar)";
     if (!cupCandidates.has(key)) cupCandidates.set(key, new Map());
     // Si el mismo rival aparece dos veces en el mismo nivel (partido de ida
-    // y vuelta), se queda el cruce MÁS RECIENTE — no se duplica la fila. Se
+    // y vuelta), se queda el cruce MÁS RECIENTE, no se duplica la fila. Se
     // compara la fecha en vez de fiarse del orden de llegada, que es lo que
     // decide dónde queda la fila al ordenar por fecha.
     const previous = cupCandidates.get(key)!.get(htTeamId);
@@ -110,6 +110,29 @@ export function RivalPickerPage() {
       nm.date,
       "programado",
     );
+  }
+
+  // El Hattrick Masters, en su propia pestaña: no es copa. Mismo criterio que
+  // en copa --quien ya enfrentaste o tienes programado--, y si repite rival se
+  // queda el cruce más reciente.
+  const mastersCandidates = new Map<number, RivalRow>();
+  for (const mr of cup.data?.mastersRivals ?? []) {
+    const previous = mastersCandidates.get(mr.opponentHtTeamId);
+    if (previous && (previous.date ?? "") >= mr.date) continue;
+    mastersCandidates.set(mr.opponentHtTeamId, {
+      htTeamId: mr.opponentHtTeamId,
+      name: mr.opponent,
+      date: mr.date,
+      detail: mr.played
+        ? `${mr.goalsFor}-${mr.goalsAgainst} (${
+            (mr.goalsFor ?? 0) > (mr.goalsAgainst ?? 0)
+              ? "V"
+              : mr.goalsFor === mr.goalsAgainst
+                ? "E"
+                : "D"
+          })`
+        : "programado",
+    });
   }
 
   const cupNames = [...cupCandidates.keys()].sort((a, b) => {
@@ -141,6 +164,12 @@ export function RivalPickerPage() {
         : "date") as Ordering,
       rows: [...cupCandidates.get(cupName)!.values()],
     })),
+    {
+      key: "hattrick-masters",
+      label: "Hattrick Masters",
+      ordering: "date" as Ordering,
+      rows: [...mastersCandidates.values()],
+    },
   ].filter((c) => c.rows.length > 0);
 
   const active =
@@ -265,7 +294,7 @@ export function RivalPickerPage() {
             <DataTable
               // Remonta al cambiar de competición: `DataTable` fija su columna
               // de orden al montarse, así que sin esto la tabla de copa
-              // heredaría el orden por posición de la liga — una columna que
+              // heredaría el orden por posición de la liga, una columna que
               // allí ni existe, con lo que se quedaría sin ordenar.
               key={active.key}
               rows={active.rows}
@@ -278,8 +307,9 @@ export function RivalPickerPage() {
             />
           )}
           <Note>
-            En copa sólo aparece quien ya enfrentaste o tienes programado: el
-            cruce de una ronda no se conoce hasta que se sortea.
+            En copa y en el Hattrick Masters sólo aparece quien ya enfrentaste o
+            tienes programado: el cruce de una ronda no se conoce hasta que se
+            sortea.
           </Note>
         </Panel>
       )}

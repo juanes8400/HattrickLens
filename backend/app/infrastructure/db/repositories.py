@@ -32,7 +32,7 @@ class SqlAlchemyPlayerRepository:
             if row.left_team_at is not None:
                 # 2026-08-05, edge case real encontrado en vivo: un jugador
                 # que se fue (venta real o despido) y vuelve a aparecer en
-                # players.xml está de vuelta en la plantilla HOY — nunca
+                # players.xml está de vuelta en la plantilla HOY, nunca
                 # debe seguir contando como "fuera" solo porque algún día
                 # se fue. No se toca sold_at/sale_price (esa venta sí fue
                 # real e histórica), solo se limpia la marca de salida.
@@ -107,7 +107,7 @@ class SqlAlchemyPlayerRepository:
     ) -> None:
         skills = data.get("skills", {})
         # `career_assists` y `last_match_*` NO vienen en el payload de
-        # `players.xml` (solo en `playerdetails.xml`, fase B — HL-15x): si
+        # `players.xml` (solo en `playerdetails.xml`, fase B, HL-15x): si
         # este append crea una fila nueva por un cambio de otro campo, sin
         # esto se perdería lo que una sincronización de fase B ya había
         # escrito en la fila anterior. Se arrastran desde la última fila en
@@ -139,7 +139,7 @@ class SqlAlchemyPlayerRepository:
                 set_pieces=skills.get("set_pieces"),
                 injury_level=data.get("injury_level", -1),
                 # HL-15x: is_transfer_listed se parseaba pero nunca se escribía
-                # aquí — toda fila salía con el default False del modelo
+                # aquí, toda fila salía con el default False del modelo
                 # aunque el jugador estuviera realmente en la lista.
                 is_transfer_listed=data.get("is_transfer_listed", False),
                 specialty=data.get("specialty", 0),

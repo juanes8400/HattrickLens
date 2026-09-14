@@ -1,4 +1,4 @@
-# Matrices de aporte posicional — Manual no Escrito de Hattrick
+# Matrices de aporte posicional, Manual no Escrito de Hattrick
 #
 # Fuente operativa: https://wiki.hattrick.org/wiki/Manual_no_Escrito
 # Las cifras son las contribuciones relativas publicadas por puesto y orden
@@ -197,13 +197,13 @@ special_roles:
     note: "Para TLD el Manual identifica BP y XP como las únicas habilidades relevantes."
   # 2026-08-09, pedido explícitamente: el lanzador de PENALTIS (incluye
   # penales de tanda) es una orden distinta de "Lanzador de faltas" (TLD)
-  # — en Hattrick real tienen su propio código (MATCH_ROLE_NAMES 22-32,
+  # en Hattrick real tienen su propio código (MATCH_ROLE_NAMES 22-32,
   # "Lanzador de penalti 1..11", una lista de prioridad de hasta 11
   # lanzadores) y su propia fórmula.
   #
   # Fórmula y coeficientes: aportados directamente por el usuario
   # 2026-08-09 (no verificados de forma independiente por este asistente
-  # contra la fuente primaria — a diferencia del resto de esta matriz, que
+  # contra la fuente primaria, a diferencia del resto de esta matriz, que
   # sí viene del wiki del Manual no Escrito citado arriba). Se incorporan
   # tal cual se pidió.
   penalty_taker:

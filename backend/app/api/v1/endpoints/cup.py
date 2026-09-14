@@ -7,6 +7,7 @@ Nacional/Divisional y CupLevel distingue Principal/Desafío/Consuelo.
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 from statistics import median
 from typing import Any, cast
 
@@ -16,11 +17,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
-from app.application.queries.weekly import season_for_datetime
+from app.application.commands.sync_team import FILE_VERSIONS
+from app.application.queries.alineacion_enviada import (
+    partido_pendiente_contra,
+    prediccion_en_vivo,
+    prediccion_guardada,
+)
+from app.application.queries.prediccion_liga import (
+    lecturas_de_un_equipo,
+    reparto_de_tacticas,
+)
+from app.application.queries.weekly import season_for_datetime, start_of_iso_week
+from app.domain.engines.economy_engine import SEASON_WEEKS
 from app.domain.engines.match_analysis import hatstats
+from app.domain.engines.prediccion import (
+    TIPOS_DE_COPA,
+    factor_de_tactica,
+    goles_esperados,
+    marcador_mas_probable,
+    probabilidades_de_copa,
+    resumen_de_lecturas,
+)
+from app.domain.engines.rival_scouting import PitchZoneMethod
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
+from app.infrastructure.chpp.client import (
+    CHPPAuthError,
+    CHPPClient,
+    CHPPDeniedError,
+    CHPPUnavailableError,
+)
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
+from app.infrastructure.security.tokens import decrypt_token
 
 router = APIRouter()
 
@@ -303,7 +331,7 @@ async def _readiness(
 
     def stamina_summary(xi: list[tuple[m.PlayerSnapshot, m.Player]]) -> dict[str, Any]:
         average_stamina = round(sum(snap.stamina for snap, _ in xi) / len(xi), 1) if xi else None
-        # Resistencia (Stamina skill) va de 0 a 9, no de 0 a 20 — esa era la
+        # Resistencia (Stamina skill) va de 0 a 9, no de 0 a 20, esa era la
         # escala equivocada que también arrastraba el "/20" mostrado en el
         # frontend (bug real reportado 2026-08-13).
         stamina_bands = [
@@ -371,7 +399,7 @@ async def _readiness(
             break
 
     # "Última formación en Copa" solo se ofrece si ya se jugó más de un
-    # partido de Copa esta temporada — pedido explícito 2026-08-13: con un
+    # partido de Copa esta temporada, pedido explícito 2026-08-13: con un
     # solo partido no hay nada distinto que mostrar frente al historial.
     if cup_matches_played_this_season > 1:
         for mt in sorted(
@@ -524,12 +552,202 @@ async def _cup_economy(
     }
 
 
+#: Los cuatro resúmenes que se calculan sobre partidos ya jugados. La
+#: alineación enviada no está aquí porque no es un resumen de nada: es un
+#: vector que da Hattrick, y se pega encima después.
+METODOS_SOBRE_LO_JUGADO: frozenset[str] = frozenset(
+    {
+        PitchZoneMethod.AVERAGE,
+        PitchZoneMethod.MAX,
+        PitchZoneMethod.MAX_PARALLEL,
+        PitchZoneMethod.LAST,
+    }
+)
+
+
+def _metodo_de_copa(pedido: str) -> str:
+    """Lo pedido si resume partidos jugados; el promedio si no.
+
+    «Alineación enviada» cae aquí en el promedio a propósito: es el resumen que
+    sostiene los dos ratings que Hattrick no prevé, y también el que se usa
+    entero si al final no hay órdenes mandadas. Y absorbe la mediana retirada
+    el 2026-09-13: una URL vieja con "median" sale en promedio.
+    """
+    return pedido if pedido in METODOS_SOBRE_LO_JUGADO else PitchZoneMethod.AVERAGE
+
+
+async def _prediccion_del_cruce(
+    session: AsyncSession,
+    team: m.Team,
+    rival_ht_id: int,
+    world: m.WorldContext | None,
+    metodo_propio: str = PitchZoneMethod.AVERAGE,
+    metodo_rival: str = PitchZoneMethod.AVERAGE,
+    en_casa: bool | None = None,
+) -> dict[str, Any] | None:
+    """La predicción del próximo cruce de Copa, con el motor de zonas.
+
+    POR QUÉ ES DISTINTO DE LIGA. En Liga los ocho equipos son de mi serie y sus
+    partidos están en `matches`. En Copa el rival es de OTRA serie: sus
+    partidos no están en la base, así que hay que descubrirlos primero con el
+    archivo de Hattrick antes de poder pedir sus ratings.
+
+    SÓLO PARTIDOS DE COPA. El resumen de un equipo sale de UNA competición
+    (`TIPOS_POR_COMPETICION`), y en copa se juega con otro equipo que en liga
+    --medido en el equipo del usuario, su mediocampo de copa dobla al de
+    liga--. Mezclarlas describiría mal a los dos.
+
+    LA SEDE DEL CRUCE (2026-09-13). `en_casa` es None en campo neutral:
+    ahí no hay ventaja que devolverle a nadie. Si no, el medio campo de
+    cada resumen se lleva a su sede con `corregir_sede`. La razón se midió
+    en liga; aplicarla en copa es suponer que la ventaja de campo es la
+    misma, que es lo que dice el juego fuera de las rondas neutrales.
+
+    DEVUELVE `None` Y NO REVIENTA cuando no hay con qué: sin sesión de
+    Hattrick, sin historia de copa del rival (su primera ronda), o si CHPP no
+    contesta. La pantalla entonces se queda con lo que ya enseñaba.
+    """
+    if team.owner_user_id is None or not rival_ht_id:
+        return None
+    token = await session.scalar(
+        select(m.CHPPToken).where(
+            m.CHPPToken.user_id == team.owner_user_id, m.CHPPToken.status == "active"
+        )
+    )
+    if token is None:
+        return None
+    # La temporada entera hacia atrás. `match_round` de worlddetails es la
+    # semana de temporada (1-16), así que arrancó `match_round - 1` semanas
+    # atrás; sin mundo sincronizado se piden las 16, que es el techo.
+    ahora = datetime.now(UTC)
+    semanas = (world.match_round - 1) if world and world.match_round else SEASON_WEEKS
+    # Anclado al LUNES de la semana en curso y no a «ahora menos N semanas»:
+    # a mitad de semana lo segundo cae a mitad de la semana 1 y se come media
+    # jornada. Es la misma frontera que usa el resto del código.
+    desde = start_of_iso_week(ahora) - timedelta(weeks=max(semanas, 1))
+    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    quiere_enviada = metodo_propio == PitchZoneMethod.SUBMITTED
+    enviada: dict[str, int] | None = None
+    tactica_propia: int | None = None
+    try:
+        mias = await lecturas_de_un_equipo(
+            session,
+            client,
+            FILE_VERSIONS["matchdetails"],
+            FILE_VERSIONS["matchesarchive"],
+            team.ht_team_id,
+            desde,
+            ahora,
+            TIPOS_DE_COPA,
+        )
+        suyas = await lecturas_de_un_equipo(
+            session,
+            client,
+            FILE_VERSIONS["matchdetails"],
+            FILE_VERSIONS["matchesarchive"],
+            rival_ht_id,
+            desde,
+            ahora,
+            TIPOS_DE_COPA,
+        )
+        if quiere_enviada:
+            cruce = await partido_pendiente_contra(session, team.ht_team_id, rival_ht_id)
+            if cruce is not None:
+                enviada = prediccion_guardada(cruce) or await prediccion_en_vivo(client, cruce)
+                # Tu táctica NO hay que adivinarla si ya mandaste órdenes.
+                tactica_propia = cruce.submitted_tactic_type
+    except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):
+        return None
+    finally:
+        await client.aclose()
+    if not mias or not suyas:
+        return None
+
+    # EL RESUMEN DE CADA LADO, POR SEPARADO. No se puede usar
+    # `probabilidades_de_partido`, que aplica UN método a los dos: aquí son dos
+    # preguntas distintas, y del lado propio hay una respuesta --la alineación
+    # enviada-- que del rival no existe.
+    mio = resumen_de_lecturas(mias, _metodo_de_copa(metodo_propio), en_casa=en_casa)
+    suyo = resumen_de_lecturas(
+        suyas,
+        _metodo_de_copa(metodo_rival),
+        en_casa=None if en_casa is None else not en_casa,
+    )
+    if mio is None or suyo is None:
+        return None
+
+    # Con la alineación enviada, los siete sectores que Hattrick sí prevé
+    # sustituyen a los históricos. Los otros dos --las acciones indirectas a
+    # balón parado-- Hattrick no los prevé, así que se quedan con el resumen de
+    # lo ya jugado y la pantalla lo dice.
+    indirectas_prestadas = False
+    if quiere_enviada and enviada is not None:
+        mio = {**mio, **{k: float(v) for k, v in enviada.items()}}
+        indirectas_prestadas = True
+
+    # LA TÁCTICA. La tuya se sabe si mandaste órdenes; la suya se pondera con
+    # lo que viene jugando en copa. Ver `factor_de_tactica`.
+    factor_mio = (
+        factor_de_tactica(exacta=tactica_propia)
+        if tactica_propia is not None
+        else factor_de_tactica(reparto_de_tacticas(mias))
+    )
+    factor_suyo = factor_de_tactica(reparto_de_tacticas(suyas))
+
+    terna = probabilidades_de_copa(mio, suyo, factor_mio, factor_suyo)
+    return {
+        "own_probability": round(terna.victoria, 4),
+        "rival_probability": round(terna.derrota, 4),
+        "expected_own_goals": round(goles_esperados(mio, suyo, factor_mio), 2),
+        "expected_rival_goals": round(goles_esperados(suyo, mio, factor_suyo), 2),
+        "most_likely_score": "{}-{}".format(
+            *marcador_mas_probable(mio, suyo, factor_mio, factor_suyo)
+        ),
+        "own_matches": 1 if indirectas_prestadas else len(mias),
+        "rival_matches": len(suyas),
+        "metodo_propio": (
+            PitchZoneMethod.SUBMITTED if indirectas_prestadas else _metodo_de_copa(metodo_propio)
+        ),
+        "metodo_rival": _metodo_de_copa(metodo_rival),
+        "indirectas_prestadas": indirectas_prestadas,
+    }
+
+
 @router.get(
     "/teams/{team_id}/cup",
     summary="Copa: estado, meta y decisiones",
     dependencies=[Depends(require_team_owner)],
 )
-async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def cup(
+    team_id: int,
+    pitch_zone_method_own: str = PitchZoneMethod.SUBMITTED,
+    pitch_zone_method_rival: str = PitchZoneMethod.AVERAGE,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """La Copa, calculada una vez por sync (2026-09-14), pero con vida corta:
+    el pronóstico usa tus órdenes enviadas, y esas se cambian hasta el pitido."""
+    from app.api.cache_por_sync import por_sync
+
+    return await por_sync(
+        session,
+        team_id,
+        "copa",
+        (pitch_zone_method_own, pitch_zone_method_rival),
+        lambda: _cup_sin_cache(team_id, pitch_zone_method_own, pitch_zone_method_rival, session),
+        ttl=300,
+    )
+
+
+async def _cup_sin_cache(
+    team_id: int,
+    # LOS MISMOS SELECTORES QUE LA FICHA DE RIVAL (2026-09-09, pedido del
+    # usuario: «hereda también esos selectores»). Uno por lado, porque lo que
+    # se quiere saber de uno mismo no es lo mismo que del rival, y del lado
+    # propio existe además la alineación ya enviada, que de él nunca se ve.
+    pitch_zone_method_own: str = PitchZoneMethod.SUBMITTED,
+    pitch_zone_method_rival: str = PitchZoneMethod.AVERAGE,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
     team = await session.get(m.Team, team_id)
     if team is None:
         raise HTTPException(404, f"team {team_id} not found")
@@ -660,7 +878,7 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
     )
 
     # Historial: solo la temporada actual (pedido explícito 2026-08-13), sin
-    # aviso — el usuario ya sabe que es así.
+    # aviso, el usuario ya sabe que es así.
     matches_this_season = (
         [mt for mt in matches if match_season(mt) == current_season]
         if current_season is not None
@@ -692,7 +910,7 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
 
     # La ronda de cada partido NO es una estimación: cada vez que el equipo
     # entra a una llave concreta (cup_level, cup_level_index) esa llave
-    # arranca en ronda 1 y avanza de uno en uno mientras se gana — verificado
+    # arranca en ronda 1 y avanza de uno en uno mientras se gana, verificado
     # en vivo 2026-08-13 contando los partidos de "Copa Cocuy Rubí" (2
     # jugados + el próximo) contra `current_cup_match_round`=3, que CHPP
     # confirma como oficial. Contar posición dentro de la llave DA el número
@@ -769,39 +987,31 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
             break
     current_streak = {"count": streak_count, "result": streak_result} if streak_result else None
 
+    # La trayectoria se arma sobre `by_cup_key`, el MISMO agrupamiento que ya
+    # numera las rondas: si el panel contara los partidos por su cuenta,
+    # podría decir «1 partido» y numerar dos rondas en la tabla de al lado.
+    #
+    # Dos cosas que antes hacía y no debía. Recorría `matches` ENTERO, de
+    # todas las temporadas, con el panel titulado «Trayectoria de la
+    # temporada», un índice de llave se reutiliza cada temporada, así que la
+    # copa del año pasado se colaba. Y agrupaba por TRAMOS SEGUIDOS: bastaba
+    # una fila fuera de orden para partir una copa en dos escalones de un
+    # partido cada uno. Agrupar por la llave misma no depende del orden en
+    # que lleguen las filas.
     ladder: list[dict[str, Any]] = []
-    current_key: tuple[int, int] | None = None
-    current_group: list[m.Match] = []
-    for mt in matches:
-        key = (mt.cup_level, mt.cup_level_index)
-        if mt.cup_level < 0:
-            continue
-        if key != current_key:
-            if current_group:
-                row = cup_row_of(current_group[0])
-                ladder.append(
-                    {
-                        "cup_level": current_key[0] if current_key else -1,
-                        "cup_level_index": current_key[1] if current_key else -1,
-                        "cup_name": row.cup_name if row else None,
-                        "from_date": current_group[0].played_at.date().isoformat(),
-                        "to_date": current_group[-1].played_at.date().isoformat(),
-                        "matches": len(current_group),
-                    }
-                )
-            current_key, current_group = key, [mt]
-        else:
-            current_group.append(mt)
-    if current_group:
-        row = cup_row_of(current_group[0])
+    for key, group in sorted(
+        by_cup_key.items(), key=lambda item: min(mt.played_at for mt in item[1])
+    ):
+        ordenados = sorted(group, key=lambda item: item.played_at)
+        row = cup_row_of(ordenados[0])
         ladder.append(
             {
-                "cup_level": current_key[0] if current_key else -1,
-                "cup_level_index": current_key[1] if current_key else -1,
+                "cup_level": key[0],
+                "cup_level_index": key[1],
                 "cup_name": row.cup_name if row else None,
-                "from_date": current_group[0].played_at.date().isoformat(),
-                "to_date": current_group[-1].played_at.date().isoformat(),
-                "matches": len(current_group),
+                "from_date": ordenados[0].played_at.date().isoformat(),
+                "to_date": ordenados[-1].played_at.date().isoformat(),
+                "matches": len(ordenados),
             }
         )
 
@@ -877,6 +1087,21 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
         matches,
         len(played_this_season),
     )
+    # La predicción del cruce: sólo si queda uno por jugar. Cuesta llamadas a
+    # Hattrick (el archivo del rival y sus partidos), así que no se paga
+    # cuando ya no hay nada que predecir.
+    prediccion = None
+    if next_match is not None and still_in_cup:
+        prediccion = await _prediccion_del_cruce(
+            session,
+            team,
+            side(next_match)[2],
+            world,
+            metodo_propio=pitch_zone_method_own,
+            metodo_rival=pitch_zone_method_rival,
+            en_casa=None if is_neutral else side(next_match)[0],
+        )
+
     economy = await _cup_economy(session, team, next_match, rounds_left)
     experience_multiplier = 2.0 if classification["tier"] == "main" else 0.5
     impact = {
@@ -886,13 +1111,80 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
         "injury_effect": "Riesgo completo de partido competitivo",
     }
 
+    # ── La salvaguardia: contar y preguntar dan el mismo número, o se dice ──
+    #
+    # La ronda de cada partido se CUENTA (posición dentro de su llave) y CHPP
+    # la DICE (`current_cup_match_round`, de teamdetails). Mientras las dos
+    # cuentas coincidan, la de aquí está completa. Cuando no coinciden, faltan
+    # partidos, y ese es justo el hueco que se vio el 2026-09-07: la Copa
+    # Colombia de esta temporada salía con un partido en vez de dos, porque
+    # el calendario de Hattrick sólo alcanza un mes hacia atrás y esta base
+    # empezó después. Callarlo era lo peor: el panel se dibujaba entero y
+    # nada avisaba de que le faltaba media trayectoria.
+    #
+    # Sólo se puede comprobar la copa en la que se sigue vivo: de una ya
+    # eliminada CHPP no dice ninguna ronda contra la que contrastar.
+    rondas_contadas: int | None = None
+    if still_in_cup and cup_level is not None and cup_level_index is not None:
+        grupo_activo = by_cup_key.get((cup_level, cup_level_index))
+        if grupo_activo:
+            rondas_contadas = len(grupo_activo)
+
     notes = []
     if not matches:
         notes.append("Todavía no hay partidos de Copa sincronizados.")
+    if (
+        official_round is not None
+        and rondas_contadas is not None
+        and rondas_contadas != official_round
+    ):
+        notes.append(
+            f"Faltan partidos por sincronizar: vas por la ronda {official_round} "
+            f"y aquí sólo hay {rondas_contadas}. La trayectoria y las rondas del "
+            "historial se quedan cortas hasta que la próxima sincronización los "
+            "rescate."
+        )
     if team.still_in_cup is None:
         notes.append("Sincroniza para leer si sigues en Copa: por ahora se deduce del calendario.")
     if official_round is None and still_in_cup:
         notes.append("Sincroniza para leer la ronda oficial.")
+
+    # Los rivales del Hattrick Masters, para la pestaña de Elegir rival
+    # (2026-09-13). No es copa --otro torneo, otras reglas de clasificación--
+    # así que no entra en nada de lo de arriba; sólo viaja en esta respuesta
+    # porque es la que ya pide esa pantalla. Misma temporada que la copa.
+    from app.domain.value_objects.ht_constants import MATCH_TYPE_MASTERS
+
+    partidos_masters = [
+        mt
+        for mt in (
+            await session.execute(
+                select(m.Match)
+                .where(
+                    (m.Match.home_team_ht_id == team.ht_team_id)
+                    | (m.Match.away_team_ht_id == team.ht_team_id),
+                    m.Match.match_type == MATCH_TYPE_MASTERS,
+                )
+                .order_by(m.Match.played_at)
+            )
+        ).scalars()
+        if current_season is None or match_season(mt) == current_season
+    ]
+    masters_rivals = []
+    for mt in partidos_masters:
+        en_casa, rival, rival_id = side(mt)
+        jugado = mt.status.upper() == "FINISHED" and mt.home_goals >= 0
+        masters_rivals.append(
+            {
+                "ht_match_id": mt.ht_match_id,
+                "date": mt.played_at.date().isoformat(),
+                "opponent": rival,
+                "opponent_ht_team_id": rival_id,
+                "played": jugado,
+                "goals_for": (mt.home_goals if en_casa else mt.away_goals) if jugado else None,
+                "goals_against": (mt.away_goals if en_casa else mt.home_goals) if jugado else None,
+            }
+        )
 
     return cast(
         dict[str, Any],
@@ -920,6 +1212,7 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
                     "tier": classification["tier"],
                     "tier_label": classification["tier_label"],
                     "official_round": official_round,
+                    "counted_rounds": rondas_contadas,
                     "rounds_left": rounds_left,
                     "stage_label": _stage_label(rounds_left),
                     "next_cup_match_date": world.cup_match_date.isoformat()
@@ -928,12 +1221,14 @@ async def cup(team_id: int, session: AsyncSession = Depends(get_session)) -> dic
                 },
                 "goal": goal,
                 "scenarios": scenarios,
+                "prediction": prediccion,
                 "impact": impact,
                 "economy": economy,
                 "readiness": readiness,
                 "ladder": ladder,
                 "history": history,
                 "next_matches": next_matches,
+                "masters_rivals": masters_rivals,
                 "prize_table": prize_table,
                 "notes": notes,
             }

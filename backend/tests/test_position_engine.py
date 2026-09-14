@@ -1,4 +1,4 @@
-"""Position Engine — Manual no Escrito contribution matrices."""
+"""Position Engine, Manual no Escrito contribution matrices."""
 
 from math import log
 from pathlib import Path
@@ -136,7 +136,7 @@ def test_set_piece_taker_uses_set_pieces_and_experience_only() -> None:
 def test_penalty_taker_uses_the_weighted_formula_given_by_the_user() -> None:
     """2026-08-09, pedido explícitamente: el lanzador de PENALTIS (incluye
     penales de tanda) no es el mismo puesto que "Lanzador de faltas" (TLD)
-    — en Hattrick real tienen su propio código. Fórmula aportada
+    en Hattrick real tienen su propio código. Fórmula aportada
     directamente por el usuario:
     (EXP×1.5 + Balón Parado×0.7 + Anotación×0.3) × (1.10 si Técnico)."""
     player = {

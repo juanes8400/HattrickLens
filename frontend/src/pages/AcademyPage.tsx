@@ -24,6 +24,7 @@ import {
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
 import { date, decimal, money, number } from "../hooks/useFormat";
+import { chiCuadrado } from "../utils/chiCuadrado";
 import { usePersistido } from "../hooks/usePersistido";
 import type {
   Academy,
@@ -47,7 +48,7 @@ const SKILL_NAMES: Record<string, string> = {
 };
 
 /** Las habilidades juveniles llegan a 8 como mucho antes de la promoción, así
- *  que ésa es la escala de la barra — no la de 0-20 del primer equipo, que
+ *  que ésa es la escala de la barra, no la de 0-20 del primer equipo, que
  *  dejaría a todos los canteranos pegados al suelo. */
 
 /** Los pesos van de decenas a milésimas según la base, así que no hay un
@@ -134,8 +135,8 @@ export function AcademyPage() {
 
   /** Lleva una pareja de entrenamientos a la formación y salta allí.
    *
-   *  Escribe las mismas claves que lee la pestaña de formación —que se monta
-   *  al entrar, así que las recoge— y borra la marca de "esto lo adoptamos
+   *  Escribe las mismas claves que lee la pestaña de formación, que se monta
+   *  al entrar, así que las recoge, y borra la marca de "esto lo adoptamos
    *  nosotros": lo que se lleva a mano manda sobre la recomendación, igual
    *  que si se hubiera elegido en los selectores. */
   const llevarALaFormacion = (main: string, secondary: string) => {
@@ -309,8 +310,8 @@ const BUCKETS: [string, string, string][] = [
   ["excelente", "Excelente", "nota 8 o más, cuenta aunque salga ya"],
   // Claves en camelCase: el serializador del backend camelCasea también las
   // claves de `counts`, no sólo los nombres de campo.
-  // El reloj marca a los que se promocionan JÓVENES —por debajo del umbral de
-  // edad de abajo—, no a los que se van dentro de poco. Sale joven quiere
+  // El reloj marca a los que se promocionan JÓVENES, por debajo del umbral de
+  // edad de abajo, , no a los que se van dentro de poco. Sale joven quiere
   // decir que llega al primer equipo con margen para seguir entrenándolo.
   ["buenoPronto", "Bueno ⏱", "nota 7, y sale joven"],
   ["buenoTarde", "Bueno", "nota 7, y sale mayor"],
@@ -338,18 +339,18 @@ const BUCKETS: [string, string, string][] = [
  *
  * El puntaje viene del backend con la fórmula de la hoja del usuario: pesos en
  * potencias de 3, de modo que un solo canterano excelente pesa más que todos
- * los "buenos" juntos. No es una media — es un desempate por niveles escrito
+ * los "buenos" juntos. No es una media, es un desempate por niveles escrito
  * como suma.
  */
-/** Los tres mandos. El MÉTODO es fijo —la nota por habilidad, los cubos, la
- *  escalera de potencias— y lo que se mueve son los números que son una
+/** Los tres mandos. El MÉTODO es fijo, la nota por habilidad, los cubos, la
+ *  escalera de potencias, y lo que se mueve son los números que son una
  *  opinión: dónde cae el corte del plazo, cuánto separa un peldaño del
  *  siguiente, y a cuántos les llega de verdad cada entrenamiento. */
 const DEFAULT_SOON_MAX_DAYS = 38;
 const DEFAULT_WEIGHT_BASE = 3;
 
 /** De dónde sale el número de «entrenables». El método 1 es el único que no se
- *  deriva —depende de la alineación juvenil, que CHPP no entrega aquí— y por
+ *  deriva, depende de la alineación juvenil, que CHPP no entrega aquí, y por
  *  eso es el único que deja escribir. Los de bloque salen de los coeficientes
  *  del Manual que ya usa el motor de posiciones. */
 const TRAINABLE_METHODS: [string, string, string][] = [
@@ -970,7 +971,7 @@ const WEIGHT_BASE_POR_DEFECTO = 3;
  *   ya tocó techo        la palabra del nivel · barra roja llena · `2/2`
  *   sé el actual         la palabra del actual · barra verde     · `5/?`
  *   sé sólo el techo     la palabra del techo  · barra vacía     · `?/4`
- *   no sé nada           «desconocido»         · barra vacía     · —
+ *   no sé nada           «desconocido»         · barra vacía     ·
  */
 function NivelDeHabilidad({
   current,
@@ -1048,8 +1049,8 @@ function NivelDeHabilidad({
  * decide es la edad a la que sale, no cuánto le queda.
  *
  * Los nombres NO son inventados: cada corte del motor cae justo en un nivel
- * de Hattrick y lleva la palabra que el juego le da —excelente es 8, bueno
- * 7, aceptable 6, insuficiente 5—. Por eso el último dice «débil o menos» y
+ * de Hattrick y lleva la palabra que el juego le da, excelente es 8, bueno
+ * 7, aceptable 6, insuficiente 5, . Por eso el último dice «débil o menos» y
  * no «el resto»: recoge de nulo a débil, cinco niveles que ninguna palabra
  * suelta cubre, y nombrarlo por su techo es lo único que sigue la regla.
  * Si algún día se mueve un corte en `youth_skill_score`, la palabra de aquí
@@ -1075,7 +1076,7 @@ function WhoToTrain({ data }: { data: Academy }) {
 
   // La cola llega ordenada por los nueve peldaños. Partirla en "con nota" y
   // "sin revelar" deshacía justo eso: mandaba al final a los que no se sabe
-  // qué dan, cuando darles minutos es lo único que los revela — y si además
+  // qué dan, cuando darles minutos es lo único que los revela, y si además
   // se van pronto, es ahora o nunca. Se pinta en el orden en que llega.
 
   return (
@@ -1247,8 +1248,8 @@ function nombreCorto(etiqueta: string): string {
 
 /** En qué se puede convertir, de lo peor a lo mejor.
  *
- * La barra va de cero al HTMS28 MÁXIMO —así su largo dice hasta dónde puede
- * llegar— y se rellena hasta el MÍNIMO. Lo relleno es lo que ya tiene
+ * La barra va de cero al HTMS28 MÁXIMO, así su largo dice hasta dónde puede
+ * llegar, y se rellena hasta el MÍNIMO. Lo relleno es lo que ya tiene
  * asegurado; el hueco que queda hasta el final es lo que el ojeador todavía
  * no ha dicho, y se encoge solo según va hablando.
  *
@@ -1818,7 +1819,7 @@ function TrainingPlan({
   // Se ajusta durante el renderizado, no en un efecto: es el patrón que React
   // documenta para "corregir el estado cuando cambian los datos". Con efecto,
   // la pantalla se pintaba con la elección vieja y volvía a pintarse con la
-  // nueva —un parpadeo, y el renderizado en cascada que avisaba el linter—.
+  // nueva, un parpadeo, y el renderizado en cascada que avisaba el linter, .
   //
   // Lo que se guarda va aparte, en `usePersistido`: aquí sólo se toca estado,
   // que es lo que mantiene puro el renderizado.
@@ -2699,7 +2700,7 @@ function SkillDetail({ data }: { data: Academy }) {
 
 /** «en 88 días» / «hoy mismo», y la fecha entre paréntesis. */
 function enDias(dias: number | null): { texto: string; urgente: boolean } {
-  if (dias == null) return { texto: "—", urgente: false };
+  if (dias == null) return { texto: "-", urgente: false };
   if (dias <= 0) return { texto: "ya", urgente: false };
   return { texto: `${dias} d`, urgente: dias <= 21 };
 }
@@ -2709,8 +2710,8 @@ function enDias(dias: number | null): { texto: string; urgente: boolean } {
  *  Se suma a su edad de hoy lo que Hattrick dice que le falta, en vez de
  *  recalcular las dos reglas aquí: ese número ya lo manda el juego y no puede
  *  desincronizarse con él. Si sale 17;000 es que le frena la edad; más que eso,
- *  que le frena el plazo en la academia —y esos días de más son academia
- *  gastada sin necesidad—. */
+ *  que le frena el plazo en la academia, y esos días de más son academia
+ *  gastada sin necesidad, . */
 function edadAlSubir(p: {
   ageYears: number;
   ageDays: number;
@@ -2725,8 +2726,8 @@ function esOjeadorDeVerdad(nombre: string, id: number | null): boolean {
 
 /** Quién trajo a cada canterano y qué dijo de él.
  *
- * CHPP no publica una lista de ojeadores —`youthscouts`, `youthscoutlist` y
- * `scouts` devuelven 401—, así que «mis ojeadores» se reconstruye por lo
+ * CHPP no publica una lista de ojeadores, `youthscouts`, `youthscoutlist` y
+ * `scouts` devuelven 401, , así que «mis ojeadores» se reconstruye por lo
  * único que sí existe: la llamada con la que cada chico llegó. El texto va
  * literal, tal como lo escribió el ojeador, porque el dato destilado
  * (habilidad, nivel, techo) ya vive en las otras pestañas.
@@ -2758,18 +2759,6 @@ function regionesPorOjeador(
   const mapa = new Map<string, string>();
   for (const o of ledger?.scouts ?? []) {
     if (o.region) mapa.set(o.name, o.region);
-  }
-  return mapa;
-}
-
-function techosPorNombre(
-  ledger: ScoutsLedger | undefined,
-): Map<string, number> {
-  const mapa = new Map<string, number>();
-  for (const o of ledger?.scouts ?? []) {
-    for (const p of o.players) {
-      if (p.ceiling != null) mapa.set(p.name, p.ceiling);
-    }
   }
   return mapa;
 }
@@ -2851,7 +2840,7 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   )}
                 </td>
                 <td className={`${td} text-[var(--muted)]`}>
-                  {o.region ?? "—"}
+                  {o.region ?? "-"}
                 </td>
                 <td className={`${td} text-right tabular-nums`}>{o.weeks}</td>
                 <td
@@ -2869,7 +2858,7 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   )}
                 </td>
                 <td className={`${td} text-right tabular-nums`}>
-                  {o.costPerFind == null ? "—" : moneda(o.costPerFind)}
+                  {o.costPerFind == null ? "-" : moneda(o.costPerFind)}
                 </td>
                 {/* Un ojeador que lleva semanas sin traer nada está cobrando
                     por no hacer nada, y eso hay que poder verlo de un vistazo. */}
@@ -2883,7 +2872,7 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   }}
                 >
                   {o.daysSinceLastFind == null
-                    ? "—"
+                    ? "-"
                     : `${o.daysSinceLastFind} d`}
                 </td>
                 <td className={`${td} text-right tabular-nums`}>
@@ -2935,7 +2924,7 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                 </td>
                 <td className={td} colSpan={2} />
                 <td className={`${td} text-right tabular-nums`}>
-                  {totals.income > 0 ? moneda(totals.income) : "—"}
+                  {totals.income > 0 ? moneda(totals.income) : "-"}
                 </td>
                 <td
                   className={`${td} text-right tabular-nums`}
@@ -2965,8 +2954,12 @@ function Ojeadores() {
   const informes = useAcademyScouts();
   // La cuenta va aparte: si falla, los informes se siguen viendo.
   const cuenta = useAcademyScoutsLedger();
-  const techos = techosPorNombre(cuenta.data);
+  // La categoría de cada canterano, para la tabla de contingencia.
+  const academia = useAcademy();
   const regiones = regionesPorOjeador(cuenta.data);
+  const categorias = new Map(
+    (academia.data?.players ?? []).map((j) => [j.htYouthPlayerId, j.category]),
+  );
   if (informes.isLoading) return <Loading />;
   if (informes.isError) return <ErrorState error={informes.error} />;
   const data = informes.data;
@@ -2990,25 +2983,6 @@ function Ojeadores() {
     (p) => !esOjeadorDeVerdad(p.scoutName, p.scoutId),
   );
   const porRevelar = data.players.filter((p) => p.mayUnlock.length > 0);
-
-  //  Agrupado por quien lo trajo, y los de la academia al final: son el grupo
-  //  grande y no tienen nada que contar.
-  const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
-  const td = "overflow-hidden whitespace-nowrap px-3 py-1.5";
-  const grupos = new Map<string, typeof data.players>();
-  for (const p of data.players) {
-    const clave = esOjeadorDeVerdad(p.scoutName, p.scoutId)
-      ? p.scoutName
-      : "Vinieron con la academia";
-    grupos.set(clave, [...(grupos.get(clave) ?? []), p]);
-  }
-  const porOjeador = [...grupos.entries()].sort(
-    (a, b) =>
-      Number(a[0] === "Vinieron con la academia") -
-        Number(b[0] === "Vinieron con la academia") ||
-      b[1].length - a[1].length ||
-      a[0].localeCompare(b[0]),
-  );
 
   return (
     <div className="space-y-4">
@@ -3066,107 +3040,162 @@ function Ojeadores() {
         </Panel>
       )}
 
-      <Panel
-        title="Quién trajo a quién"
-        meta={`${data.players.length} canteranos`}
-      >
-        <div className="overflow-x-auto p-4">
-          <table className="w-full min-w-[42rem] table-fixed text-sm">
-            <colgroup>
-              <col className="w-[26%]" />
-              <col className="w-[10%]" />
-              <col className="w-[26%]" />
-              <col className="w-[18%]" />
-              <col className="w-[20%]" />
-            </colgroup>
-            <thead className="bg-[var(--surface-2)]">
-              <tr>
-                <th scope="col" className={`${th} text-left`}>
-                  Ojeador
-                </th>
-                <th scope="col" className={`${th} text-right`}>
-                  Región
-                </th>
-                <th scope="col" className={`${th} text-left`}>
-                  Canterano
-                </th>
-                <th scope="col" className={`${th} text-right`}>
-                  Llegó
-                </th>
-                {/* «Queda por revelar» se quito el 2026-08-26: el usuario lo
-                    llamo irrelevante y tenia razon --dice cuanto ignoramos,
-                    no cuanto vale--. Lo que juzga a un ojeador es el TECHO de
-                    lo que trae. */}
-                <th
-                  scope="col"
-                  className={`${th} text-right`}
-                  title="el mejor techo que el ojeador ya ha revelado de él; vacío = todavía no ha revelado nada"
-                >
-                  Techo
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {porOjeador.map(([quien, suyos]) =>
-                suyos.map((p, i) => (
-                  <tr
-                    key={p.htYouthPlayerId}
-                    className="h-9 border-t border-[var(--border)]"
-                  >
-                    {/* El nombre del ojeador una vez por bloque: repetirlo en
-                        cada fila haria leer catorce veces "vinieron con la
-                        academia" para saber que son un grupo. */}
-                    <td
-                      className={`${td} truncate text-left`}
-                      title={quien}
-                      style={{ color: i === 0 ? undefined : "transparent" }}
-                    >
-                      {i === 0 ? quien : "·"}
-                    </td>
-                    {/* La región es donde el ojeador estaba mirando. A los
-                        que vinieron con la academia no los buscó nadie, así
-                        que enseñar una región ahí sería inventar un origen. */}
-                    <td className={`${td} text-right text-[var(--muted)]`}>
-                      {i === 0 && esOjeadorDeVerdad(p.scoutName, p.scoutId)
-                        ? (regiones.get(p.scoutName) ??
-                          p.scoutingRegionId ??
-                          "")
-                        : ""}
-                    </td>
-                    <td className={`${td} truncate text-left`} title={p.name}>
-                      {p.name}
-                    </td>
-                    <td
-                      className={`${td} text-right text-xs text-[var(--muted)]`}
-                    >
-                      {p.arrivedAt ? date(p.arrivedAt) : "—"}
-                    </td>
-                    {/* El techo revelado. Sin nada revelado se dice «sin
-                        ojear», no «0»: no saberlo no es que sea malo. */}
-                    <td className={`${td} text-right text-xs tabular-nums`}>
-                      {techos.get(p.name) == null ? (
-                        <span className="text-[var(--muted)]">sin ojear</span>
-                      ) : (
-                        <span
-                          style={{
-                            color:
-                              (techos.get(p.name) ?? 0) >= 7
-                                ? "var(--positive)"
-                                : undefined,
-                          }}
-                        >
-                          {techos.get(p.name)}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                )),
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+      {/* «Quién trajo a quién» se quitó el 2026-09-13, a pedido del usuario:
+          la lista no respondía a nada. En su lugar, la pregunta de fondo: ¿la
+          categoría depende de quién trajo al canterano? */}
+      <TablaDeContingencia
+        filas={data.players.map((p) => ({
+          grupo: esOjeadorDeVerdad(p.scoutName, p.scoutId)
+            ? p.scoutName
+            : DE_LA_ACADEMIA,
+          categoria: categorias.get(p.htYouthPlayerId) ?? CATEGORIAS_CANTERA[5],
+        }))}
+      />
     </div>
+  );
+}
+
+const CATEGORIAS_CANTERA = [
+  "crack",
+  "promesa",
+  "aceptable",
+  "vendible",
+  "fontanero",
+  "sin ojear",
+] as const;
+
+const DE_LA_ACADEMIA = "Originales de la academia";
+
+/** Ojeador × categoría, con la prueba chi-cuadrado de independencia. */
+function TablaDeContingencia({
+  filas,
+}: {
+  filas: { grupo: string; categoria: string }[];
+}) {
+  const cuantos = (g: string) => filas.filter((f) => f.grupo === g).length;
+  const grupos = [...new Set(filas.map((f) => f.grupo))].sort(
+    (a, b) =>
+      Number(a === DE_LA_ACADEMIA) - Number(b === DE_LA_ACADEMIA) ||
+      cuantos(b) - cuantos(a) ||
+      a.localeCompare(b),
+  );
+  const tabla = grupos.map((g) =>
+    CATEGORIAS_CANTERA.map(
+      (c) => filas.filter((f) => f.grupo === g && f.categoria === c).length,
+    ),
+  );
+  const totalFila = tabla.map((f) => f.reduce((a, b) => a + b, 0));
+  const totalColumna = CATEGORIAS_CANTERA.map((_, j) =>
+    tabla.reduce((a, f) => a + f[j]!, 0),
+  );
+  const n = filas.length;
+  const prueba = chiCuadrado(tabla);
+  const th = "px-2 py-2 text-xs font-medium text-[var(--muted)]";
+  const td = "px-2 py-1.5 tabular-nums";
+  return (
+    <Panel
+      title="Ojeador y categoría"
+      meta={`${n} canteranos`}
+      ayuda="Cada celda cuenta cuántos canteranos de ese origen hay en esa categoría. Verde: más de los que tocarían si la categoría no dependiera de quién lo trajo; rojo: menos. La prueba chi-cuadrado dice si esas diferencias son de verdad o caben en el azar."
+    >
+      <div className="overflow-x-auto p-4">
+        <table className="w-full min-w-[40rem] text-sm">
+          <thead className="bg-[var(--surface-2)]">
+            <tr>
+              <th scope="col" className={`${th} text-left`}>
+                Origen
+              </th>
+              {CATEGORIAS_CANTERA.map((c) => (
+                <th key={c} scope="col" className={`${th} text-right`}>
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                </th>
+              ))}
+              <th scope="col" className={`${th} text-right`}>
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {grupos.map((g, i) => (
+              <tr key={g} className="border-t border-[var(--border)]">
+                <td className={`${td} text-left`}>{g}</td>
+                {tabla[i]!.map((o, j) => {
+                  const esperada = n
+                    ? (totalFila[i]! * totalColumna[j]!) / n
+                    : 0;
+                  const residuo =
+                    esperada > 0 ? (o - esperada) / Math.sqrt(esperada) : 0;
+                  return (
+                    <td
+                      key={j}
+                      className={`${td} text-right`}
+                      title={`esperados si no dependiera del origen: ${esperada.toFixed(1)}`}
+                      style={{
+                        background:
+                          residuo >= 1.5
+                            ? "color-mix(in srgb, var(--positive) 18%, transparent)"
+                            : residuo <= -1.5
+                              ? "color-mix(in srgb, var(--danger) 18%, transparent)"
+                              : undefined,
+                        color: o === 0 ? "var(--muted)" : undefined,
+                      }}
+                    >
+                      {o}
+                    </td>
+                  );
+                })}
+                <td className={`${td} text-right font-medium`}>
+                  {totalFila[i]}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-[var(--border)] font-medium">
+              <td className={`${td} text-left`}>Total</td>
+              {totalColumna.map((v, j) => (
+                <td key={j} className={`${td} text-right`}>
+                  {v}
+                </td>
+              ))}
+              <td className={`${td} text-right`}>{n}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div className="prosa border-t border-[var(--border)] px-4 py-3 text-sm">
+        {prueba ? (
+          <>
+            <p>
+              {prueba.p < 0.05 ? (
+                <b>La categoría sí depende de quién trajo al canterano.</b>
+              ) : (
+                <b>
+                  No hay pruebas de que la categoría dependa de quién lo trajo:
+                  las diferencias caben en el azar.
+                </b>
+              )}
+            </p>
+            <p className="mt-1 text-xs tabular-nums text-[var(--muted)]">
+              χ² = {prueba.chi2.toFixed(2).replace(".", ",")} ·{" "}
+              {prueba.gradosDeLibertad} grados de libertad · p ={" "}
+              {prueba.p < 0.001
+                ? "< 0,001"
+                : prueba.p.toFixed(3).replace(".", ",")}{" "}
+              · V de Cramér = {prueba.cramerV.toFixed(2).replace(".", ",")}
+              {prueba.celdasConPocoEsperado >
+                prueba.esperadas.length * prueba.esperadas[0]!.length * 0.2 &&
+                " · con tan pocos canteranos por celda la prueba tiene poca fuerza"}
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-[var(--muted)]">
+            Hace falta más de un origen y más de una categoría con canteranos
+            para hacer la prueba.
+          </p>
+        )}
+      </div>
+    </Panel>
   );
 }
 
@@ -3203,7 +3232,7 @@ function GraduatesTable({ data }: { data: Academy }) {
       value: (r) => r.soldFor ?? 0,
       render: (r) =>
         r.soldFor == null ? (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ) : (
           <span className="tabular-nums">
             {money(r.soldFor, data.currency)}

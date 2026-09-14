@@ -1,4 +1,4 @@
-"""Análisis de partido — HL-071, HL-072, HL-073, HL-074.
+"""Análisis de partido, HL-071, HL-072, HL-073, HL-074.
 
 Replica y supera las pestañas Calificaciones, Eventos y Resumen Eventos de
 Hattrick Control. La aportación propia es la **tasa de conversión comparada**:
@@ -60,7 +60,7 @@ class SectorComparison:
 class ChanceTally:
     """Ocasiones por zona, tal como las reporta matchdetails.xml (verificado
     en vivo: sólo trae conteos por zona, nunca un desglose de goles por
-    zona) — `goals` es el total del partido/periodo, no atribuible a una
+    zona), `goals` es el total del partido/periodo, no atribuible a una
     zona concreta."""
 
     left: int = 0

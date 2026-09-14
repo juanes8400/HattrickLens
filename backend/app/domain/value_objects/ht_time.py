@@ -7,7 +7,7 @@ hora sueca (CET en invierno, CEST en verano), y las escribe sin marca de zona:
 Hasta 2026-08-16 el sync hacía ``.replace(tzinfo=UTC)`` sobre esa cadena, que
 NO convierte: se limita a etiquetar como UTC una hora que no lo es. El partido
 de Copa del miércoles 19 a las 17:10 en Colombia se guardaba como las 00:10 del
-jueves 20 y así se mostraba — siete horas de más, que es exactamente CEST menos
+jueves 20 y así se mostraba, siete horas de más, que es exactamente CEST menos
 la hora colombiana.
 
 El desfase no es constante: son +1 en invierno y +2 en verano, y el cambio no
@@ -53,7 +53,7 @@ def ht_to_utc_naive(value: str | None) -> datetime | None:
 def ht_day(value: datetime | None) -> date | None:
     """El día del CALENDARIO de Hattrick al que pertenece un instante.
 
-    "Hoy" y "mañana" —los dos únicos días que Hattrick pronostica— son días
+    "Hoy" y "mañana", los dos únicos días que Hattrick pronostica, son días
     suecos, no días del usuario ni días UTC. Un partido de las 19:00 en
     Colombia cae en el día siguiente sueco, y sin esta conversión el
     pronóstico de "mañana" se leería como el de hoy.

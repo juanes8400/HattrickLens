@@ -16,7 +16,7 @@ import type { Insight } from "../services/api";
  * El catálogo de reglas es mucho más grande que lo que cabe en una lista
  * plana cómoda de leer: son decenas de plantillas evaluadas contra cada
  * jugador, cada juvenil, la liga, la copa, el estadio y el cuerpo técnico.
- * Solo se muestran las que realmente disparan con el estado de hoy — pero
+ * Solo se muestran las que realmente disparan con el estado de hoy, pero
  * incluso así, con una plantilla completa puede haber muchas a la vez, así
  * que hacen falta filtros por severidad y por módulo para que siga siendo
  * legible. El orden de urgencia (peligro → aviso → oportunidad → info) lo

@@ -4,7 +4,7 @@ Two things are tested here and they differ in kind.
 
 The per-match point values are *verified*: they reconstruct Hattrick Control's
 "Suma" column for 19 real players with zero error, so they are asserted exactly
-(now in Hattrick's own scale, points_per_level=100 — see experience.yaml's
+(now in Hattrick's own scale, points_per_level=100, see experience.yaml's
 2026-08-05 cross-check note: same proportions as the old 28-point profile,
 each match type just ×3.5).
 
@@ -31,7 +31,7 @@ from app.domain.engines.experience_engine import (
 
 # Verified exactly against Hattrick Control's "Suma" column for 19 players:
 # (international friendlies, league matches, expected points). Original
-# Suma values (old 28-point scale) ×3.5 — see module docstring.
+# Suma values (old 28-point scale) ×3.5, see module docstring.
 HC_SUMS = [
     (2, 2, 8.4), (3, 2, 9.1), (3, 1, 5.6), (4, 1, 6.3), (4, 0, 2.8), (1, 1, 4.2),
     (2, 2, 8.4), (3, 2, 9.1), (2, 2, 8.4), (3, 1, 5.6), (2, 1, 4.9), (2, 0, 1.4),
@@ -109,7 +109,7 @@ def test_observations_replace_the_configured_value() -> None:
 
 def test_standard_deviation_is_what_makes_the_estimate_honest() -> None:
     """A tight sample and a scattered one can share a mean. Only the deviation
-    and the interval tell them apart — the reason for measuring at all."""
+    and the interval tell them apart, the reason for measuring at all."""
     tight = calibrate([LevelUp(f"p{i}", 3, 4, 28.0) for i in range(6)])
     assert tight.std_dev == pytest.approx(0.0)
     assert tight.confidence_interval == (28.0, 28.0)
@@ -152,7 +152,7 @@ def test_calibration_breaks_down_by_starting_level() -> None:
 
 def test_the_specification_can_be_refuted_by_the_data() -> None:
     """100 is a prior, not a constant. Enough crossings at 26 and 26 is what
-    the engine reports — which is the point of not hardcoding it."""
+    the engine reports, which is the point of not hardcoding it."""
     cal = calibrate([LevelUp(f"p{i}", 4, 5, 26.0) for i in range(12)])
     assert cal.points_per_level == pytest.approx(26.0)
     assert cal.configured_value == 100
@@ -230,7 +230,7 @@ def test_breakdown_shows_where_the_points_came_from() -> None:
 
 def test_unscored_national_matches_are_reported_separately() -> None:
     """Selección nacional competitiva (10/11) no tiene un match_points propio
-    a propósito (ver experience.yaml) — progress() solo la refleja si se le
+    a propósito (ver experience.yaml), progress() solo la refleja si se le
     pasa el conteo explícitamente; por defecto es 0."""
     default = progress({"league": 1})
     assert default.unscored_national_matches == 0

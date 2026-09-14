@@ -11,8 +11,8 @@ import { api, errorMessage } from "../services/api";
  * mensaje, y de donde salgan las funcionalidades siguientes.
  *
  * Firma con el nombre del CLUB, no con el de la cuenta: en Hattrick uno se
- * conoce por su equipo. No hay campo de nombre porque no hace falta —quien
- * escribe ya está identificado por su sesión— y un campo menos es un campo
+ * conoce por su equipo. No hay campo de nombre porque no hace falta, quien
+ * escribe ya está identificado por su sesión, y un campo menos es un campo
  * que nadie rellena mal.
  */
 

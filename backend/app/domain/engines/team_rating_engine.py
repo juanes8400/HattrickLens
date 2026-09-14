@@ -1,14 +1,14 @@
-"""Calificación de equipo por sector — fórmula EXACTA de contribución
+"""Calificación de equipo por sector, fórmula EXACTA de contribución
 posicional del Manual no Escrito (wiki.hattrick.org), la misma familia de
 datos que usan herramientas como Hattrick Organizer.
 
 Es un motor DISTINTO de `position_engine.py`. Ese responde "¿en qué posición
 rinde mejor este jugador?" con un modelo ajustado por calibración (R² 0.951,
-error medio 0.331 contra 41 observaciones reales) — sigue siendo el que
+error medio 0.331 contra 41 observaciones reales), sigue siendo el que
 decide el once en `lineup_optimizer.py`, porque está benchmarkeado contra
 datos reales y este motor nuevo todavía no. Este responde una pregunta
 distinta: "dado un once ya armado, ¿cuánto aporta cada sector según la
-fórmula exacta de la comunidad?" — un panel informativo adicional, no un
+fórmula exacta de la comunidad?", un panel informativo adicional, no un
 reemplazo del optimizador.
 
 DOS SIMPLIFICACIONES DELIBERADAS, declaradas para no fingir más precisión de
@@ -16,14 +16,14 @@ la que hay:
 
 1. **Sin lado (L/R).** La tabla original de la comunidad separa Defensa/
    Ataque Lateral por izquierda y derecha, con contribuciones distintas según
-   el lado — pero la taxonomía de posiciones de este motor (`positions.yaml`,
+   el lado, pero la taxonomía de posiciones de este motor (`positions.yaml`,
    compartida con `lineup_optimizer`) no distingue lado. Se agrupan ambos en
    un único "lateral_def"/"lateral_att" pooled. Para el Delantero hacia
    Lateral, que sí reporta cifras separadas para su lado y el opuesto, se
    suman ambas.
 
 2. **Habilidades crudas, sin modificadores de partido.** No se aplica forma,
-   condición, experiencia ni Espíritu de Equipo — esos ya tienen sus propios
+   condición, experiencia ni Espíritu de Equipo, esos ya tienen sus propios
    paneles explorables (Ranking de formaciones, Espíritu de Equipo × Actitud).
    Mezclarlos aquí impediría aislar qué hace la fórmula de contribución en sí.
 """
@@ -41,7 +41,7 @@ SECTOR_LABELS = {
     "lateral_att": "Ataque lateral",
 }
 
-# Contribución relativa exacta por posición — Manual no Escrito. Claves de
+# Contribución relativa exacta por posición, Manual no Escrito. Claves de
 # habilidad iguales a `position_engine.SKILL_KEYS`.
 POSITION_SECTOR_CONTRIBUTION: dict[str, dict[str, dict[str, float]]] = {
     "keeper": {
@@ -162,7 +162,7 @@ POSITION_SECTOR_CONTRIBUTION: dict[str, dict[str, dict[str, float]]] = {
     },
 }
 
-# Misma tabla que `lineup_optimizer.OVERCROWDING_PENALTY` — una sola fuente
+# Misma tabla que `lineup_optimizer.OVERCROWDING_PENALTY`, una sola fuente
 # (el manual), dos motores que la necesitan.
 OVERCROWDING_PENALTY: dict[str, dict[int, float]] = {
     "central_defender": {2: 0.964, 3: 0.90},

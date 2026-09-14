@@ -1,5 +1,5 @@
-"""HL-140 · el sync detecta y guarda qué cambió — jugadores, economía,
-entrenamiento, liga y partidos — usando el mismo diffing append-only que ya
+"""HL-140 · el sync detecta y guarda qué cambió, jugadores, economía,
+entrenamiento, liga y partidos, usando el mismo diffing append-only que ya
 existía, sin reconstruir nada a posteriori."""
 import asyncio
 from pathlib import Path

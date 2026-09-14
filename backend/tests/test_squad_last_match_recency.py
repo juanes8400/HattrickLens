@@ -1,6 +1,6 @@
 """2026-08-09, pedido explícitamente: caso real (Volodymyr Manakin) probó
 que `LastMatch` de playerdetails.xml puede ser de hace más de un año, no
-"la última semana" — `SquadQueryService` debe ocultar posición/rating de
+"la última semana", `SquadQueryService` debe ocultar posición/rating de
 último partido cuando no cayó dentro de los últimos 7 días respecto a HOY.
 """
 import asyncio
@@ -86,7 +86,7 @@ def test_a_last_match_within_the_last_week_is_shown() -> None:
 
 def test_a_missing_last_match_date_is_treated_as_not_recent() -> None:
     """Snapshots viejos (de antes de esta corrección) no tienen esta fecha
-    guardada — deben tratarse como "no reciente", nunca mostrar el dato a
+    guardada, deben tratarse como "no reciente", nunca mostrar el dato a
     ciegas."""
     async def run() -> None:
         factory, team_id = await _seed(last_match_played_at=None)

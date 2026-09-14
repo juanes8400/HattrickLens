@@ -1,15 +1,15 @@
 """En qué se puede convertir un canterano, en HTMS28, con lo que se sabe hoy.
 
 2026-08-24, dictado por el usuario. Sustituye al «potencial» que se inventaba
-esta herramienta —un índice con pesos 1 y 0,3 que, con el techo desconocido
-puesto en 8, ordenaba por ignorancia— por dos números de la tabla real de
+esta herramienta, un índice con pesos 1 y 0,3 que, con el techo desconocido
+puesto en 8, ordenaba por ignorancia, por dos números de la tabla real de
 Hattrick (`docs/reference/htms_formulas_hattrick.html`).
 
 Cada habilidad va DESDE DONDE ESTÁ HOY HASTA DONDE PUEDE LLEGAR, y cada
 extremo se toma con la información que haya:
 
   * el suelo es el nivel actual si el ojeador lo dijo, y 0 si no lo dijo;
-  * el techo es el techo si lo dijo, y 8 —el tope juvenil— si no.
+  * el techo es el techo si lo dijo, y 8, el tope juvenil, si no.
 
 Así, un «Defensa 5/?» va de `f_Def(5)` a `f_Def(8)`, y un «Lateral ?/7» va de
 `f_Lat(0)` a `f_Lat(7)`: se sabe hasta dónde llega, pero no de dónde parte.
@@ -17,8 +17,8 @@ Una habilidad AL TOPE no tiene horquilla: el juego ha confirmado las dos
 puntas.
 
 Encima de esos dos extremos se aplica HTMS28 (§6 del documento), que suma un
-término que sólo depende de la edad. Pesa mucho —a los 16 son casi mil
-setecientos puntos— y eso es a propósito: esto no mide «qué sale de mi
+término que sólo depende de la edad. Pesa mucho, a los 16 son casi mil
+setecientos puntos, y eso es a propósito: esto no mide «qué sale de mi
 academia» sino «en qué puede convertirse este chico», y ahí el tiempo que le
 queda por delante ES el activo.
 

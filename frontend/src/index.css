@@ -18,7 +18,7 @@
      `[data-theme]`. Antes los quince tokens sólo existían dentro de
      `[data-theme="dark"]` y `[data-theme="light"]`, así que sin el atributo
      estampado a mano en el HTML ninguno tenía valor. Con la base aquí, la
-     página se pinta bien aunque nadie estampe nada — que es justo el estado
+     página se pinta bien aunque nadie estampe nada, que es justo el estado
      «sigue al sistema» (2026-08-31). */
   --bg: #fafafa;
   --surface: #ffffff;

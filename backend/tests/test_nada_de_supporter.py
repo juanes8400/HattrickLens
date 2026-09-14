@@ -10,8 +10,8 @@ alguien vuelva a leer esos campos, a guardarlos o a derivar de ellos. Un test
 que sólo mirase el JSON de hoy no vería reaparecer el parser.
 
 Lo que SÍ es público y no se toca:
-  * `SoldTotal` — Hattrick lo enseña en la página del partido.
-  * El aforo por sector — es la configuración de tu propio estadio y llega por
+  * `SoldTotal`, Hattrick lo enseña en la página del partido.
+  * El aforo por sector, es la configuración de tu propio estadio y llega por
     arenadetails.
 """
 

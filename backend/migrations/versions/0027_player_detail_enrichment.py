@@ -1,5 +1,5 @@
 """Saldo neto por jugador (HL-161): columnas de la tabla "Detalle" que
-faltaban frente al Excel del usuario — país de origen, carácter,
+faltaban frente al Excel del usuario, país de origen, carácter,
 especialidad, TSI en compra/venta, equipo comprador y país destino.
 
 Revision ID: 0027

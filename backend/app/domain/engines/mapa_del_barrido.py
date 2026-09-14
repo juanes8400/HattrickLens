@@ -44,6 +44,20 @@ class Balance:
     comisiones: int
     """Comisiones atribuidas durante este barrido."""
 
+    historiales: int = 0
+    """A cuántos ex-jugadores se les construyó el historial de partidos.
+
+    2026-09-10, reportado por el usuario: «a veces me dice "Historial por
+    construir: 13 jugadores" y luego no hay nada». No es que no pasara nada
+    --el censo contaba los partidos de cada etapa y los guardaba-- sino que
+    ese trabajo no dejaba ni una línea en ningún sitio: ni un cambio en el
+    feed, ni un número en el resumen. Trabajo invisible se lee como trabajo no
+    hecho, y con razón.
+
+    Se cuenta aparte de las comisiones porque son dos cosas distintas: esto es
+    reconstruir el pasado, aquello es encontrar dinero.
+    """
+
     @property
     def total_cerrados(self) -> int:
         return sum(self.cerrados.values())
@@ -81,7 +95,7 @@ def mapa_de(eje: list[int], atendidos: set[int]) -> Mapa:
 
     `eje` es la cola tal como estaba al empezar, del movimiento más reciente
     al más antiguo. `atendidos` son los ht_player_id ya revisados en ESTE
-    barrido —se deduce de la base, no de un contador, para que recargar la
+    barrido, se deduce de la base, no de un contador, para que recargar la
     página no borre lo andado.
     """
     hechas = {i for i, pid in enumerate(eje) if pid in atendidos}
@@ -97,6 +111,7 @@ def balance_de(
     abiertos: int,
     cerrados: dict[str, int],
     comisiones: int,
+    historiales: int = 0,
 ) -> Balance:
     """El resumen del barrido, sin volver a preguntarle nada a la base.
 
@@ -109,4 +124,5 @@ def balance_de(
         por_mirar=max(0, mapa.total - len(mapa.hechas)),
         cerrados=dict(cerrados),
         comisiones=comisiones,
+        historiales=historiales,
     )

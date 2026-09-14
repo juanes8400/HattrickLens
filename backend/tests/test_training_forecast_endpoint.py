@@ -1,8 +1,8 @@
-"""GET /teams/{id}/training/forecast — HL-034 a nivel HTTP.
+"""GET /teams/{id}/training/forecast, HL-034 a nivel HTTP.
 
 Mismo caso real que motivó `test_insights_endpoint.py`: el propio entrenador
 del club (Volodymyr Manakin) tiene TSI y skills casi en cero, así que sale
-siempre como "el más lento en subir de nivel" — un dato técnicamente cierto
+siempre como "el más lento en subir de nivel", un dato técnicamente cierto
 pero sin ninguna utilidad, porque nadie va a tomar una decisión de
 entrenamiento sobre su propio entrenador. Debe excluirse de esta previsión
 igual que ya se excluye de la alerta "caros de entrenar"."""

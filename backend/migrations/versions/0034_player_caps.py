@@ -1,6 +1,6 @@
 """2026-08-05, pedido explícitamente: saber si un jugador tiene partidos con
 la selección nacional. playerdetails.xml expone Caps/CapsU20 (totales de
-carrera) y no se guardaban en ningún lado — se añaden a player_snapshots,
+carrera) y no se guardaban en ningún lado, se añaden a player_snapshots,
 carry-forward como career_assists/last_match_* (ver repositories.py).
 
 Revision ID: 0034

@@ -67,6 +67,10 @@ async def _montar(fotos):
     return AcademyQueryService(sesion), equipo.id
 
 
+#: El «ahora» de este fichero. Las fotos se siembran a partir de él Y se le
+#: pasa a `comparativa`, porque la ventana de semanas se cuenta desde ahí: si
+#: el servicio mirara el reloj de verdad, un mismo caso caería dentro o fuera
+#: de la ventana según el día en que se corriera la suite.
 HOY = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
 
 
@@ -81,7 +85,7 @@ def test_el_techo_recien_revelado_se_marca() -> None:
         svc, team_id = await _montar(
             {"Ireneo": [(HOY - timedelta(days=10), 4, None), (HOY, 4, 7)]}
         )
-        return await svc.comparativa(team_id, "cambio")
+        return await svc.comparativa(team_id, "cambio", now=HOY)
 
     d = run(go())
     assert d is not None
@@ -97,7 +101,7 @@ def test_una_subida_de_nivel_recuerda_de_donde_venia() -> None:
 
     async def go():
         svc, team_id = await _montar({"Ireneo": [(HOY - timedelta(days=10), 4, 7), (HOY, 5, 7)]})
-        return await svc.comparativa(team_id, "cambio")
+        return await svc.comparativa(team_id, "cambio", now=HOY)
 
     d = run(go())
     assert d is not None
@@ -126,8 +130,8 @@ def test_la_ventana_decide_cuanto_se_ve() -> None:
             }
         )
         return (
-            await svc.comparativa(team_id, "1"),
-            await svc.comparativa(team_id, "2"),
+            await svc.comparativa(team_id, "1", now=HOY),
+            await svc.comparativa(team_id, "2", now=HOY),
         )
 
     una, dos = run(go())
@@ -146,7 +150,7 @@ def test_sin_historico_tan_atras_no_se_inventan_llegadas() -> None:
 
     async def go():
         svc, team_id = await _montar({"Ireneo": [(HOY, 4, 7)], "Aitor": [(HOY, 3, None)]})
-        return await svc.comparativa(team_id, "8")
+        return await svc.comparativa(team_id, "8", now=HOY)
 
     d = run(go())
     assert d is not None
@@ -176,7 +180,7 @@ def test_un_fichaje_tambien_produce_su_mas_uno() -> None:
                 "Recien": [(HOY, 2, 4)],
             }
         )
-        return await svc.comparativa(team_id, "cambio")
+        return await svc.comparativa(team_id, "cambio", now=HOY)
 
     d = run(go())
     assert d is not None
@@ -209,7 +213,7 @@ def test_la_fila_suma_la_plantilla_entera() -> None:
                 "Sin ojear": [(HOY, None, None)],
             }
         )
-        return await svc.comparativa(team_id, "cambio")
+        return await svc.comparativa(team_id, "cambio", now=HOY)
 
     d = run(go())
     assert d is not None

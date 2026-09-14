@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BotonDeBorrado } from "../components/BotonDeBorrado";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   ClubMoraleSection,
   EconomySection,
@@ -9,6 +9,7 @@ import {
   TrainingSection,
 } from "../components/SyncComparisonReport";
 import { YouthChanges } from "../components/YouthChanges";
+import { AvisoDelBarrido } from "../components/AvisoDelBarrido";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
 import { INTENTOS_DE_TRANSFERENCIA_VISIBLES } from "../config/flags";
 import {
@@ -32,6 +33,7 @@ import {
   type HistoricalPlayerChange,
   type LastSyncChanges,
   type SyncResult,
+  type AvisoDelBarrido as AvisoDatos,
 } from "../services/api";
 
 function countPlayerPops(changes: SyncResult["changes"]): number {
@@ -140,7 +142,7 @@ function actionItems(changes: SyncResult["changes"]): {
 }
 
 /** Punto 4 pedido 2026-08-10: esta mecánica de sync es una adenda, no debe
- * competir en importancia con los cambios reales — mismo tratamiento
+ * competir en importancia con los cambios reales, mismo tratamiento
  * "dashed border, una línea, texto chico" que ya tiene el panel de
  * habilidades susceptibles a mejorar en la ficha del jugador. */
 function SyncMetaSummary({
@@ -243,7 +245,47 @@ function historyGroups(data: ChangesHistory): PlayerChangeGroup[] {
       before: event.before,
       current: event.current,
       delta: event.delta,
-      direction: event.delta > 0 ? "up" : event.delta < 0 ? "down" : "neutral",
+      // Un descubrimiento no sube ni baja: se sabe. Va en «up» porque salir de
+      // la niebla siempre es ganar información, pero sin delta que pintar.
+      direction:
+        event.delta == null || event.delta > 0
+          ? "up"
+          : event.delta < 0
+            ? "down"
+            : "neutral",
+    });
+    byPlayer.set(event.htPlayerId, group);
+  }
+  return [...byPlayer.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Los canteranos de la ventana, agrupados por chico.
+ *
+ *  Van a SU panel y no a la lista de arriba. 2026-09-09: primero se mezclaron
+ *  con la plantilla y el usuario lo paró en seco --«no quiero ver juveniles
+ *  mezclados con los demás, para eso tienes la sección Academia»--. Lo que
+ *  sigue a la ventana es el panel entero, no la lista común. */
+function historyYouthGroups(data: ChangesHistory): PlayerChangeGroup[] {
+  const byPlayer = new Map<number, PlayerChangeGroup>();
+  for (const event of data.youthChanges ?? []) {
+    const group = byPlayer.get(event.htPlayerId) ?? {
+      htPlayerId: event.htPlayerId,
+      name: event.name,
+      isYouth: true,
+      changes: [],
+    };
+    group.changes.push({
+      key: event.key,
+      label: event.label,
+      before: event.before,
+      current: event.current,
+      delta: event.delta,
+      direction:
+        event.delta == null || event.delta > 0
+          ? "up"
+          : event.delta < 0
+            ? "down"
+            : "neutral",
     });
     byPlayer.set(event.htPlayerId, group);
   }
@@ -259,16 +301,21 @@ function historyAggregate(data: ChangesHistory): AggregateMetric[] {
       upTotal: 0,
       downTotal: 0,
     };
-    if (event.delta > 0) metric.upTotal += event.delta;
-    else if (event.delta < 0) metric.downTotal += Math.abs(event.delta);
-    byKey.set(event.key, metric);
+    // Los descubrimientos NO entran en el total del equipo. No tienen tamaño
+    // --nadie subió ni bajó-- y sumarlos como si fueran +4 diría que la
+    // plantilla mejoró cuando lo único que pasó es que ahora se sabe algo.
+    if (event.delta != null) {
+      if (event.delta > 0) metric.upTotal += event.delta;
+      else if (event.delta < 0) metric.downTotal += Math.abs(event.delta);
+      byKey.set(event.key, metric);
+    }
   }
   return [...byKey.values()];
 }
 
 /** Las ventanas de comparación del histórico. `weeks` es lo que se le pide al
  *  backend, que devuelve el cambio NETO contra el cierre semanal de entonces
- *  — no la lista de cada paso intermedio. A 16 semanas eso es la diferencia
+ *  no la lista de cada paso intermedio. A 16 semanas eso es la diferencia
  *  entre leer "Pases 8 → 11" y tener que sumar tres subidas sueltas.
  *
  *  2026-08-17, pedido explícito. La de una semana sigue siendo la que se abre
@@ -280,6 +327,11 @@ const HISTORY_WINDOWS = [
   { key: "4", weeks: 4, label: "Hace 4 semanas" },
   { key: "8", weeks: 8, label: "Hace 8 semanas" },
   { key: "16", weeks: 16, label: "Hace 16 semanas" },
+  // «Siempre» va al final y no es una ventana más larga: `weeks: 0` es el
+  // centinela que le dice al motor que no ponga corte, y entonces cada
+  // jugador se compara contra SU primer cierre guardado en vez de contra una
+  // fecha común (2026-09-09, pedido del usuario).
+  { key: "siempre", weeks: 0, label: "Siempre" },
 ] as const;
 
 type ChangesTab = "latest" | (typeof HISTORY_WINDOWS)[number]["key"];
@@ -422,10 +474,30 @@ const CLAVE_VISTAS = "cambios.comparacionesVistas";
 const VISTAS_QUE_SE_RECUERDAN = 20;
 
 export function SyncChangesPage() {
-  // `null` = la comparación más reciente con cambios. Al elegir una fecha del
-  // archivo se pide esa al backend, que recalcula los +1/-1 de ese snapshot
-  // contra el inmediatamente anterior (pedido explícito 2026-08-15).
-  const [reportSyncId, setReportSyncId] = useState<number | null>(null);
+  // EL AVISO DEL BARRIDO, si es que se llegó aquí desde uno (2026-09-10).
+  // Vive en el estado de la navegación y no en la URL: es de este viaje
+  // concreto, así que recargar la página no lo resucita y compartir el enlace
+  // no se lo enseña a nadie más.
+  //
+  // Los dos hooks van ARRIBA DEL TODO, antes de cualquier return temprano: un
+  // hook detrás de un return se salta en las cargas en las que ese return
+  // dispara, y React tumba la pantalla con «Rendered more hooks than during
+  // the previous render».
+  const location = useLocation();
+  const [avisoCerrado, setAvisoCerrado] = useState(false);
+
+  // EL ARCHIVO SE FUE, 2026-09-09, pedido del usuario. Había un desplegable
+  // para releer el informe de una sincronización anterior, y llevaba roto
+  // desde que existía: al elegir una fecha se movía todo --el aviso, los
+  // cambios por jugador, los del club-- menos la lista principal, que seguía
+  // enseñando lo último. La pantalla decía «estás viendo el archivo» encima
+  // de la lista del presente.
+  //
+  // Lo que se pierde con esto, y se pierde de verdad: sincronizar dos veces
+  // seguidas. La segunda no encuentra nada, dice «Nada nuevo», y lo que
+  // encontró la primera ya no se puede volver a leer. Es la consecuencia
+  // aceptada de «la vida de las notificaciones es ÚNICA» (2026-08-24) sin un
+  // archivo que la matice.
   // Las comparaciones que ya diste por vistas. El botón «Cerrar» existía
   // desde siempre con un manejador vacío --`() => undefined`--, así que no
   // hacía nada; lo reportó el usuario (2026-09-04).
@@ -460,7 +532,7 @@ export function SyncChangesPage() {
   };
   const volverAAbrir = (id: number | null) =>
     recordar(vistas.filter((x) => x !== id));
-  const { data, isLoading, isError, error } = useSyncChanges(reportSyncId);
+  const { data, isLoading, isError, error } = useSyncChanges();
   const squad = useSquad();
   const [changesTab, setChangesTab] = useState<ChangesTab>("latest");
   const window = HISTORY_WINDOWS.find((w) => w.key === changesTab);
@@ -471,7 +543,19 @@ export function SyncChangesPage() {
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
 
-  const changes = data?.changes ?? [];
+  const aviso = (location.state as { avisoDelBarrido?: AvisoDatos } | null)
+    ?.avisoDelBarrido;
+
+  const todos = data?.changes ?? [];
+  // LOS FICHAJES DE TUS RIVALES, APARTE (2026-09-09). El usuario los vio
+  // aparecer en el feed tras sincronizar y no supo qué eran: «me muestra unos
+  // nuevos eventos que no sé qué son».
+  //
+  // Y con razón: esta pantalla responde «qué cambió EN MI CLUB», y un fichaje
+  // de otro equipo no es eso. Es información útil --por eso no se borra-- pero
+  // de otra pregunta, así que baja a su propio cajón, cerrado, al final.
+  const changes = todos.filter((c) => c.category !== "rivales");
+  const deRivales = todos.filter((c) => c.category === "rivales");
   // La comparación que se está mirando, que es la llave con la que se
   // recuerda si ya la diste por vista.
   const comparacion = data?.reportSyncId ?? null;
@@ -482,37 +566,18 @@ export function SyncChangesPage() {
 
   return (
     <div className="space-y-4">
+      {aviso && !avisoCerrado && (
+        <AvisoDelBarrido datos={aviso} onClose={() => setAvisoCerrado(true)} />
+      )}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Cambios</h1>
           <p className="text-sm text-[var(--muted)]">
-            Última sincronización y archivo histórico: los cambios se comparan
-            contra el cierre semanal anterior.
+            Lo que movió la última sincronización, comparado contra el cierre
+            semanal anterior.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {(data?.availableReports.length ?? 0) > 0 && (
-            <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-              Comparación
-              <select
-                value={data?.reportSyncId ?? ""}
-                onChange={(e) =>
-                  setReportSyncId(
-                    e.target.value === "" ? null : Number(e.target.value),
-                  )
-                }
-                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
-              >
-                {data?.availableReports.map((report, index) => (
-                  <option key={report.syncId} value={report.syncId}>
-                    {index === 0 ? "Más reciente · " : ""}
-                    {date(report.syncedAt)} ({report.changeCount} cambio
-                    {report.changeCount === 1 ? "" : "s"})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           {/* 2026-08-15: sincronizar dejó de vivir aquí, se hace en una sola
               pantalla y esa pantalla trae de vuelta a ésta. */}
           <Link
@@ -536,21 +601,10 @@ export function SyncChangesPage() {
           puede consultar en ninguna parte sería peor que no pedírselas. */}
       {INTENTOS_DE_TRANSFERENCIA_VISIBLES && <PreguntaDeVisitas />}
 
-      {data && !data.reportIsLatest && (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--text)]">
-            Estás viendo el archivo.
-          </span>{" "}
-          Esto es lo que cambió {relative(data.reportSyncedAt)}, no lo último.
-        </div>
-      )}
-
       {data && data.reportIsLatest && data.reportChanges.length === 0 && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
           <span className="font-medium text-[var(--text)]">Nada nuevo.</span> La
           sincronización de {relative(data.syncedAt)} no encontró ningún cambio.
-          {data.availableReports.length > 0 &&
-            " Lo anterior está en el archivo, eligiendo una fecha."}
         </div>
       )}
 
@@ -645,9 +699,16 @@ export function SyncChangesPage() {
           <span className="text-xs text-[var(--muted)]">
             {window == null
               ? "última comparación semanal guardada"
-              : history.data?.comparedFrom
-                ? `neto contra el cierre del ${date(history.data.comparedFrom)}`
-                : `cambio neto en ${window.weeks} semana(s)`}
+              : window.weeks === 0
+                ? // «Siempre» no tiene UNA fecha: cada jugador se compara
+                  // contra su propio primer cierre, así que decir «contra el
+                  // cierre del 26/07» sería falso para todo el que llegara
+                  // después. Y «siempre» es desde que esta aplicación mira,
+                  // no desde que el jugador existe: eso también se dice.
+                  "contra el primer dato guardado de cada jugador, que es desde cuando esta aplicación lo mira"
+                : history.data?.comparedFrom
+                  ? `neto contra el cierre del ${date(history.data.comparedFrom)}`
+                  : `cambio neto en ${window.weeks} semana(s)`}
           </span>
         </div>
         {changesTab === "latest" && data && (
@@ -673,7 +734,40 @@ export function SyncChangesPage() {
       </Panel>
 
       {data && (
-        <YouthChanges rows={data.youthRows ?? []} summary={data.youthSummary} />
+        <YouthChanges
+          rows={data.youthRows ?? []}
+          // Las tres cifras siguen a la ventana de arriba (2026-09-09). Sólo
+          // se sustituye el recuento de revelaciones, que es lo que depende
+          // del periodo: los techos conocidos son lo que se sabe HOY, mire
+          // uno la semana pasada o toda la historia.
+          summary={
+            window && history.data?.youthSummary && data.youthSummary
+              ? {
+                  ...data.youthSummary,
+                  revelations: history.data.youthSummary.revelations,
+                }
+              : data.youthSummary
+          }
+          grupos={
+            window && history.data
+              ? historyYouthGroups(history.data)
+              : undefined
+          }
+          ventana={
+            window && history.data?.youthSummary
+              ? {
+                  etiqueta:
+                    window.weeks === 0
+                      ? "en total"
+                      : window.weeks === 1
+                        ? "en la última semana"
+                        : `en ${window.weeks} semanas`,
+                  ceilingsBefore: history.data.youthSummary.ceilingsBefore,
+                }
+              : undefined
+          }
+          teamName={data.youthTeamName}
+        />
       )}
 
       {data && <TrainingSection changes={data.clubChanges} />}
@@ -683,6 +777,27 @@ export function SyncChangesPage() {
 
       {/* Al fondo: no describe al club, describe a la herramienta. Solo
           importa cuando algo no cuadra y hay que saber contra qué se comparó. */}
+      {deRivales.length > 0 && (
+        <details className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+          <summary className="cursor-pointer px-4 py-3 text-sm">
+            Movimientos de tus rivales{" "}
+            <span className="text-[var(--muted)]">
+              ({deRivales.length}), no son cambios de tu club
+            </span>
+          </summary>
+          <ul className="space-y-1 border-t border-[var(--border)] px-4 py-3">
+            {deRivales.map((c, i) => (
+              <li
+                key={`${c.summary}-${i}`}
+                className="prosa text-sm text-[var(--muted)]"
+              >
+                {c.summary}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <SyncMetaSummary data={data} changes={changes} />
     </div>
   );

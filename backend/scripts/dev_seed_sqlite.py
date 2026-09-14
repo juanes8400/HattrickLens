@@ -63,7 +63,7 @@ async def main() -> None:
         SyncTeamCommand(
             user_id=1, team_id=team_id, ht_team_id=HT_TEAM_ID,
             # orden importa: teamdetails antes que leaguedetails (esta última
-            # se pide por serie — series_ht_id — que sale de teamdetails).
+            # se pide por serie, series_ht_id, que sale de teamdetails).
             files=[
                 "club", "stafflist", "worlddetails", "trainingevents", "matches",
                 "teamdetails", "leaguedetails",

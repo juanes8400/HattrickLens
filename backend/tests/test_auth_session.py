@@ -1,7 +1,7 @@
 """Sesión de acceso + refresco (HL-2xx).
 
 Antes solo existía el token de acceso, corto a propósito
-(`jwt_access_ttl_minutes`) — `jwt_refresh_ttl_days` estaba declarado en
+(`jwt_access_ttl_minutes`), `jwt_refresh_ttl_days` estaba declarado en
 `settings` pero ningún código lo usaba, así que la sesión moría de verdad
 cada pocos minutos sin renovado silencioso. Estos tests cubren el par
 acceso/refresco: la claim `type` que evita que uno sirva donde va el otro,
@@ -51,7 +51,7 @@ def test_an_access_token_does_not_work_at_the_refresh_endpoint() -> None:
 
 def test_a_token_without_a_type_claim_is_treated_as_legacy_access() -> None:
     """Tokens emitidos antes de esta claim (si alguno sigue vivo) no deben
-    quedar huérfanos — sin `type`, se asume "access", el único tipo que
+    quedar huérfanos, sin `type`, se asume "access", el único tipo que
     existía entonces."""
     now = datetime.now(UTC)
     legacy = pyjwt.encode(

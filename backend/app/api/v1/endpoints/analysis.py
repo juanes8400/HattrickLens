@@ -3,7 +3,7 @@
 import hashlib
 import json
 from collections.abc import Collection
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,11 +15,11 @@ from app.application.queries.academy import AcademyQueryService
 from app.application.queries.arena import ArenaQueryService
 from app.application.queries.economy import (
     VENTANA_POR_DEFECTO,
+    _closed_sponsor_income,
     balances_de_autonomia,
     estructura_semanal,
     weekly_closes,
 )
-from app.application.queries.league import LeagueQueryService
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
@@ -30,7 +30,6 @@ from app.application.queries.weekly import season_week_for_datetime, season_week
 from app.domain.engines import htms as htms_motor
 from app.domain.engines import insights as ins
 from app.domain.engines.career_stage_engine import classify_career_stage
-from app.domain.engines.economy_engine import total_sponsor_income
 from app.domain.engines.experience_engine import (
     calibrate,
 )
@@ -150,11 +149,11 @@ async def roster(session: AsyncSession, team_id: int) -> tuple[list[dict[str, An
             "stamina": snap.stamina,
             "experience": snap.experience,
             "salary": snap.salary,
-            # HL-15x: specialty/leadership ya vienen reales de players.xml —
+            # HL-15x: specialty/leadership ya vienen reales de players.xml
             # antes se ponían a 0 a mano porque no se persistían todavía.
             "specialty": snap.specialty,
             "leadership": snap.leadership,
-            # 2026-08-09: bug real corregido de paso — sin esto,
+            # 2026-08-09: bug real corregido de paso, sin esto,
             # _loyalty_bonus() en position_engine.py siempre daba 0 (ningún
             # llamador pasaba "loyalty"), pese a que positions.yaml ya
             # declara la fidelidad como ajuste del Manual.
@@ -162,6 +161,9 @@ async def roster(session: AsyncSession, team_id: int) -> tuple[list[dict[str, An
             "injury_level": snap.injury_level,
             "is_transfer_listed": snap.is_transfer_listed,
             "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
+            # Cuándo jugó por última vez. Lo usa la alerta de forma para no
+            # avisar de quien no juega (ver `_quienes_juegan`).
+            "last_match_played_at": snap.last_match_played_at,
         }
         for snap, ident in rows
     ]
@@ -179,16 +181,16 @@ async def player_detail(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Identidad, habilidades, las 19 posiciones + roles especiales, valoración,
-    ventana de venta y previsión de entrenamiento de un jugador — todo lo que
+    ventana de venta y previsión de entrenamiento de un jugador, todo lo que
     ya calculan los motores de plantilla, filtrado a uno solo."""
     players, team = await roster(session, team_id)
     p = next((x for x in players if x["ht_player_id"] == ht_player_id), None)
     if p is None:
         # 2026-08-05: no está en la plantilla ACTUAL (`roster()` solo trae
-        # `left_team_at IS NULL`) — puede ser un ex-jugador (venta real o
+        # `left_team_at IS NULL`), puede ser un ex-jugador (venta real o
         # despido) que sigue en nuestra base (append-only, nunca se borra),
         # no un ID que nunca pasó por este equipo. Se devuelve una ficha
-        # reducida en vez de 404 — pedido explícitamente 2026-08-05: solo
+        # reducida en vez de 404, pedido explícitamente 2026-08-05: solo
         # identidad + fechas, el saldo/ROI completo lo trae ya calculado
         # `/teams/{team_id}/player-balance` (mismo criterio de despido a
         # $0), no se duplica ese cálculo aquí.
@@ -257,7 +259,7 @@ async def player_detail(
         else None
     )
     weeks_to_next_pop = training_speed.weeks_to_next_level if training_speed else None
-    # HL-15x #97: ritmo semanal REAL de la fórmula (1/semanas) — no es el
+    # HL-15x #97: ritmo semanal REAL de la fórmula (1/semanas), no es el
     # acumulado real por partidos jugados (esa tabla posición→entrenamiento
     # todavía no está verificada, ver Nota en el panel), pero sí es un
     # porcentaje derivado de la fórmula comunitaria, no un valor observado.
@@ -267,7 +269,7 @@ async def player_detail(
     # HL-141: fórmula de comunidad, distinta de un modelo de precio de
     # mercado. Sirve para contrastar contra el sueldo real que ya
     # reporta CHPP (arriba) y para proyectar el sueldo tras la próxima subida
-    # de la habilidad entrenada. Solo cubre jugadores de campo — para un
+    # de la habilidad entrenada. Solo cubre jugadores de campo, para un
     # arquero (Portero es su mejor posición) el manual no publica la fórmula
     # y devolver algo aquí sería inventar un número, así que se omite.
     salary_now = None
@@ -281,7 +283,7 @@ async def player_detail(
                 projected, p["skills"].get("set_pieces", 0)
             ).weekly_salary
 
-    # HL-15x: gráficas ampliadas de la ficha — todo real, sin proyecciones.
+    # HL-15x: gráficas ampliadas de la ficha, todo real, sin proyecciones.
     history_svc = PlayerHistoryQueryService(session)
     snapshot_history = await history_svc.snapshot_history(ht_player_id)
     match_rating_history = await history_svc.match_rating_history(ht_player_id)
@@ -290,7 +292,7 @@ async def player_detail(
     top_skill_distributions = await history_svc.top_skill_distributions(team_id, ht_player_id)
     experience_progress = await history_svc.experience_progress(ht_player_id)
 
-    # "TT-ss" por punto — mismo filtro por `ht_league_id` que economy.py
+    # "TT-ss" por punto, mismo filtro por `ht_league_id` que economy.py
     # (bug real corregido 2026-08-09: "la fila de WorldContext más reciente"
     # daba cualquier país al azar en cuanto había más de uno).
     world = (
@@ -313,7 +315,7 @@ async def player_detail(
     )
 
     # HL-15x, pedido explícito 2026-08-10: "cuándo entró al equipo" para el
-    # punto más antiguo del radar — la compra real es más honesta que "la
+    # punto más antiguo del radar, la compra real es más honesta que "la
     # primera vez que sincronizamos", que puede ser meses después de que el
     # jugador ya estaba en el club. `purchased_at_manual` (HL-161) es el
     # respaldo para jugadores que llegaron antes de que existiera el
@@ -328,7 +330,7 @@ async def player_detail(
         else None
     )
     joined_season_week = _season_week(joined_at.isoformat()) if joined_at is not None else None
-    # "Precio de compra" se declara "real, de transfersteam.xml" — a
+    # "Precio de compra" se declara "real, de transfersteam.xml", a
     # diferencia de arriba, aquí NUNCA se usa el respaldo manual, para no
     # ponerle un "TT-ss" real a una fecha que en realidad es una estimación.
     purchased_at_season_week = (
@@ -337,7 +339,7 @@ async def player_detail(
         else None
     )
 
-    # HL-15x, pedido explícito 2026-08-10: ¿jugó esta semana? — señal simple
+    # HL-15x, pedido explícito 2026-08-10: ¿jugó esta semana?, señal simple
     # para la barrita de la habilidad entrenada (el rojo del ritmo semanal
     # solo se muestra si jugó) y para Forma (no hay fórmula propia, solo se
     # marca que algo pudo haber cambiado).
@@ -359,7 +361,7 @@ async def player_detail(
 
     # HL-15x, pedido explícito 2026-08-10: proyección de Resistencia (líneas
     # punteadas en "Evolución de habilidades") según la tabla de Federación
-    # Ocerin — asume que el % de entrenamiento de resistencia actual se
+    # Ocerin, asume que el % de entrenamiento de resistencia actual se
     # mantiene constante hacia adelante; `None` solo si no hay WorldContext
     # propio (sin él no hay forma de etiquetar las "TT-ss" futuras). Las
     # edades fuera de la tabla ya no cortan la proyección: desde 2026-08-15
@@ -374,7 +376,7 @@ async def player_detail(
             level = stamina_forecast_level(proj_years, current_stamina_pct)
             forecast_season_weeks.append(season_week_label(world, weeks_offset=weeks_ahead))
             forecast_levels.append(level)
-        # Nivel esperado HOY con el % real actual — la barrita de Resistencia
+        # Nivel esperado HOY con el % real actual, la barrita de Resistencia
         # lo compara contra el nivel real (`p["stamina"]`) para decidir si el
         # rojo se agrega (sube) o se come parte del azul (baja).
         current_expected_level = stamina_forecast_level(p["age_years"], current_stamina_pct)
@@ -386,7 +388,7 @@ async def player_detail(
                 "currentExpectedLevel": current_expected_level,
             }
 
-    # HL-15x #87: preclasificación de "en qué momento de su vida está" — motor
+    # HL-15x #87: preclasificación de "en qué momento de su vida está", motor
     # puro, aquí solo se ensamblan las señales reales que necesita.
     has_sufficient_history = len(snapshot_history) >= 2
     skills_rising = skills_falling = skills_stable = 0
@@ -481,7 +483,7 @@ async def player_detail(
         "purchasedAtSeasonWeek": purchased_at_season_week,
         "playedThisWeek": played_this_week,
         # HL-15x, pedido explícitamente 2026-08-05: "¿este jugador ha jugado
-        # con la selección nacional?" — Caps/CapsU20 de playerdetails.xml,
+        # con la selección nacional?", Caps/CapsU20 de playerdetails.xml,
         # totales de carrera. None = todavía no se ha pedido playerdetails
         # para este jugador (distinto de "0 caps reales").
         "nationalTeam": (
@@ -505,7 +507,7 @@ async def player_detail(
             "rationale": career_stage.rationale,
             "confidence": career_stage.confidence,
             "signals": career_stage.signals,
-            # HL-15x #93: confirmación manual del usuario, si la hay — la app
+            # HL-15x #93: confirmación manual del usuario, si la hay, la app
             # solo sugiere `stage`/`label` de arriba, nunca los sobreescribe.
             "confirmedStage": (
                 squad_player.confirmed_career_stage if squad_player is not None else None
@@ -539,7 +541,7 @@ async def player_detail(
             else None
         ),
         # HL-15x #5: timeline real de las 9 variables (7 skills + experiencia
-        # + fidelidad) + TSI + salario, tal cual está en player_snapshots —
+        # + fidelidad) + TSI + salario, tal cual está en player_snapshots
         # hoy puede tener pocos puntos (cuenta nueva), se devuelve así.
         "history": {
             "dates": [pt.captured_at for pt in snapshot_history],
@@ -553,7 +555,7 @@ async def player_detail(
             "htms28": [pt.htms28 for pt in snapshot_history],
         },
         # HL-15x #21: histórico real de rating por partido (tabla aparte,
-        # append-only) — puede estar vacío si playerdetails no se ha
+        # append-only), puede estar vacío si playerdetails no se ha
         # sincronizado nunca para este jugador.
         "matchRatingHistory": [
             {
@@ -582,12 +584,12 @@ async def player_detail(
             if distributions is not None
             else None
         ),
-        # HL-15x #23: percentil en su skill dominante dentro de la plantilla —
+        # HL-15x #23: percentil en su skill dominante dentro de la plantilla
         # sigue calculándose (lo usa el motor de preclasificación), pero ya
         # no se muestra como panel propio: HL-15x #99 lo reemplaza por los
         # histogramas de abajo.
         "percentile": percentile,
-        # HL-15x #11: % real hacia la próxima subida de experiencia — Manual
+        # HL-15x #11: % real hacia la próxima subida de experiencia, Manual
         # No Escrito, contado desde partidos reales jugados desde que se
         # observó este nivel (ver docstring de experience_progress).
         "experienceProgress": (
@@ -619,7 +621,7 @@ async def player_detail(
             else None
         ),
         # HL-15x #22: TSI vs. edad de toda la plantilla activa, para
-        # dispersión — ya calculado arriba (`players`, de `roster()`), sin
+        # dispersión, ya calculado arriba (`players`, de `roster()`), sin
         # query nueva.
         "squadAgeTsi": [
             {
@@ -639,6 +641,43 @@ async def player_detail(
     dependencies=[Depends(require_team_owner)],
 )
 async def lineup(
+    team_id: int,
+    formation: str | None = Query(None, description="Si se omite, prueba todas las del catálogo"),
+    central_defenders: int | None = None,
+    inner_midfielders: int | None = None,
+    orders: str | None = Query(
+        None,
+        description=(
+            "Órdenes individuales fijadas a mano, como «3:central_defender_offensive» "
+            "separadas por coma. Las casillas que no se nombren las elige el motor."
+        ),
+    ),
+    exclude: str | None = Query(
+        None,
+        description=(
+            "Identificadores de Hattrick separados por coma que NO entran en el "
+            "reparto. Sirve para lesionados, sancionados o para probar el once sin "
+            "alguien: el motor resuelve con el resto."
+        ),
+    ),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """El mejor once, calculado una vez por sync y por combinación de mandos
+    (2026-09-14): la plantilla sólo cambia al sincronizar."""
+    from app.api.cache_por_sync import por_sync
+
+    return await por_sync(
+        session,
+        team_id,
+        "mejor-once",
+        (formation, central_defenders, inner_midfielders, orders, exclude),
+        lambda: _lineup_sin_cache(
+            team_id, formation, central_defenders, inner_midfielders, orders, exclude, session
+        ),
+    )
+
+
+async def _lineup_sin_cache(
     team_id: int,
     formation: str | None = Query(None, description="Si se omite, prueba todas las del catálogo"),
     # El reparto de cada línea: cuántos juegan por dentro. El resto va a las
@@ -806,8 +845,17 @@ async def lineup(
             }
             for a in lu.assignments
         ],
+        # El banquillo ya no son «los siete de más TSI que sobraron»: son las
+        # seis plazas de Hattrick, cada una con quien mejor la juega.
         "bench": [
-            {"player": b["name"], "htPlayerId": b["ht_player_id"], "tsi": b["tsi"]}
+            {
+                "player": b.player["name"],
+                "htPlayerId": b.player["ht_player_id"],
+                "tsi": b.player["tsi"],
+                "slot": b.slot,
+                "slotLabel": b.label,
+                "rating": b.rating,
+            }
             for b in lu.bench
         ],
         # HL-143: segunda opinión sobre el MISMO once que ya eligió el
@@ -857,17 +905,22 @@ async def lineup_hindsight(
     # El partido usa puestos concretos (Defensa Central derecho/medio/izquierdo)
     # y el optimizador razona por FAMILIA (tres plazas de defensa central, sin
     # lado). Comparar puesto contra puesto daba "no usa este puesto" en 10 de
-    # 11 casos — comparación inútil. Se agrupa por familia y se contrastan los
+    # 11 casos, comparación inútil. Se agrupa por familia y se contrastan los
     # conjuntos de jugadores, que es la decisión real: a quién pusiste en
     # defensa, no en qué lado exacto.
     # En mayuscula porque es una CONSTANTE, aunque viva dentro de la
     # funcion: no cambia nunca y se lee como tabla.
     FAMILIES: list[tuple[str, str, frozenset[int], str]] = [  # noqa: N806
         ("keeper", "Portería", MATCH_ROLE_KEEPER, "keeper"),
-        ("wingback", "Laterales", MATCH_ROLE_WINGBACK, "wingback"),
-        ("central_defender", "Defensa Central", MATCH_ROLE_CENTRAL_DEFENDER, "central_defender"),
+        ("wingback", "Defensas Laterales", MATCH_ROLE_WINGBACK, "wingback"),
+        (
+            "central_defender",
+            "Defensas Centrales",
+            MATCH_ROLE_CENTRAL_DEFENDER,
+            "central_defender",
+        ),
         ("winger", "Extremos", MATCH_ROLE_WINGER, "winger"),
-        ("inner_midfield", "Mediocampo", MATCH_ROLE_INNER_MIDFIELDER, "inner_midfield"),
+        ("inner_midfield", "Mediocentros", MATCH_ROLE_INNER_MIDFIELDER, "inner_midfield"),
         ("forward", "Delanteros", MATCH_ROLE_FORWARD, "forward"),
     ]
 
@@ -1015,7 +1068,7 @@ async def team_spirit_multiplier(
 ) -> dict[str, Any]:
     """Tabla de referencia, no ligada al Espíritu real de este equipo: los
     nombres del Manual no Escrito no coinciden con los niveles que usa CHPP,
-    así que no hay forma honesta de marcar "esta es tu fila" — se explora."""
+    así que no hay forma honesta de marcar "esta es tu fila", se explora."""
     team = await session.get(m.Team, team_id)
     if team is None:
         raise HTTPException(404, f"team {team_id} not found")
@@ -1100,7 +1153,7 @@ async def _next_match_weather_insights(session: AsyncSession, team: m.Team) -> l
     Hattrick solo publica hoy y mañana, así que el aviso vive de que el último
     sync sea reciente: el pronóstico guardado dice de qué día era su "hoy"
     (`forecast_taken_at`, reloj del servidor sueco) y desde ahí se sitúa el
-    partido. Si el sync es de anteayer, no se avisa nada — enseñar el clima de
+    partido. Si el sync es de anteayer, no se avisa nada, enseñar el clima de
     anteayer como si fuera el de esta tarde sería peor que no decir nada.
     """
     # El mismo filtro que usa el sync al pedir el pronóstico: escaleras,
@@ -1148,6 +1201,46 @@ async def _next_match_weather_insights(session: AsyncSession, team: m.Team) -> l
         weather_id,
         tomorrow=faltan == 1,
     )
+
+
+#: Cuántas semanas cerradas mira la alerta de concentración de ingresos. Cuatro
+#: dejan pasar al menos un partido en casa aunque la liga vaya en pausa.
+SEMANAS_DE_INGRESOS = 4
+
+#: Hasta cuándo cuenta un partido para «juega». La liga es semanal: quien no
+#: jugó ni la última jornada no es alguien de cuya forma haya que avisar. Con
+#: 21 días seguía saliendo un veterano que jugó un amistoso once días antes.
+DIAS_JUGANDO = 10
+
+
+def _quienes_juegan(
+    players: list[dict[str, Any]], lu: Any, entrenador_ht_id: int | None
+) -> list[dict[str, Any]]:
+    """Los jugadores de los que tiene sentido avisar por su forma.
+
+    2026-09-13: la alerta salía para el entrenador y para veteranos con todas
+    las habilidades a cero, que no van a jugar nunca. Queda quien está en el
+    mejor once o jugó en los últimos `DIAS_JUGANDO` días --lo segundo
+    recoge al titular que el optimizador saca justo POR su mala forma--, y
+    nunca el entrenador.
+    """
+    en_el_once = {a.player["ht_player_id"] for a in lu.assignments} if lu is not None else set()
+    limite = datetime.now(UTC) - timedelta(days=DIAS_JUGANDO)
+
+    def jugo_hace_poco(p: dict[str, Any]) -> bool:
+        cuando = p.get("last_match_played_at")
+        if cuando is None:
+            return False
+        if cuando.tzinfo is None:
+            cuando = cuando.replace(tzinfo=UTC)
+        return bool(cuando >= limite)
+
+    return [
+        p
+        for p in players
+        if p["ht_player_id"] != entrenador_ht_id
+        and (p["ht_player_id"] in en_el_once or jugo_hace_poco(p))
+    ]
 
 
 async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insight]:
@@ -1231,7 +1324,6 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     groups: list[list[ins.Insight]] = [
         ins.injuries(players),
         ins.ageing_squad(players),
-        ins.low_form(players),
     ]
 
     # ── Entrenamiento ───────────────────────────────────────────────────
@@ -1244,7 +1336,7 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
             # El propio entrenador (identificado por TrainerID en training.xml,
             # no por heurísticas como TSI) no es una decisión de entrenamiento
             # de nadie: se excluye de las alertas de entrenamiento.
-            # `tr` ya está confirmado no-None por el `if tr:` de arriba — el
+            # `tr` ya está confirmado no-None por el `if tr:` de arriba, el
             # supuesto debe leer su intensidad/condición reales, no caer en
             # 100/0 en silencio (bug real corregido 2026-08-14: antes las
             # ignoraba aunque ya las tenía).
@@ -1300,27 +1392,12 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
         lu, _ = best_formation(players)
     except ValueError:
         lu = None
-    if lu is not None:
-        sector = compute_sector_ratings([(a.player, a.position, a.label) for a in lu.assignments])
-        standouts = []
-        for s in SECTORS:
-            top = sector.top_contributors.get(s) or []
-            if top:
-                c = top[0]
-                standouts.append(
-                    {
-                        "sector": s,
-                        "label": SECTOR_LABELS[s],
-                        "player": c.player_name,
-                        "positionLabel": c.position_label,
-                        "amount": c.amount,
-                    }
-                )
-        groups.append(ins.sector_standouts(standouts))
+    # Aquí iba «X es tu principal aportador en …». Se retiró el 2026-09-13: no
+    # pedía ninguna decisión, y ocupaba siete huecos del buzón cada semana.
+    groups.append(ins.low_form(_quienes_juegan(players, lu, tr.trainer_ht_id if tr else None)))
 
     # ── Economía ────────────────────────────────────────────────────────
     if econ:
-        sponsors_total = total_sponsor_income(econ.income_sponsors, econ.income_sponsor_bonuses)
         # El MISMO número que enseña Economía en «Autonomía sin
         # transferencias», y por el mismo camino. Hasta el 2026-09-04 esta
         # alerta usaba `structural_balance`, que se calcula distinto --mezcla
@@ -1359,13 +1436,25 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
                 )
             )
 
-        income_items = [
-            ("Espectadores", int((econ.income_spectators or 0) / rate_)),
-            ("Patrocinadores", int(sponsors_total / rate_)),
-            ("Financieros", int((econ.income_financial or 0) / rate_)),
-            ("Temporales", int((econ.income_temporary or 0) / rate_)),
-        ]
-        groups.append(ins.income_concentration(income_items, currency))
+        # SOBRE SEMANAS CERRADAS, no la semana en curso (2026-09-13). La
+        # taquilla va en 0 hasta que se juega en casa, así que en una semana
+        # sin partido de local salía «100 % de tus ingresos vienen de
+        # patrocinadores», que es verdad ese martes y mentira como estructura.
+        cerradas = [c.snapshot for c in cierres_economicos[-SEMANAS_DE_INGRESOS:]]
+        if cerradas:
+            income_items = [
+                (
+                    "Espectadores",
+                    int(sum(s.last_income_spectators or 0 for s in cerradas) / rate_),
+                ),
+                (
+                    "Patrocinadores",
+                    int(sum(_closed_sponsor_income(s) or 0 for s in cerradas) / rate_),
+                ),
+                ("Financieros", int(sum(s.last_income_financial or 0 for s in cerradas) / rate_)),
+                ("Temporales", int(sum(s.last_income_temporary or 0 for s in cerradas) / rate_)),
+            ]
+            groups.append(ins.income_concentration(income_items, currency, semanas=len(cerradas)))
         groups.append(
             ins.cash_vs_expected_mismatch(
                 int(econ.cash / rate_), int(econ.expected_cash / rate_), currency
@@ -1378,7 +1467,18 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     # ── Liga ────────────────────────────────────────────────────────────
     # runs reducido frente al endpoint dedicado (10000): aquí solo hacen
     # falta umbrales gruesos (25-40%), no la precisión completa.
-    league = await LeagueQueryService(session).get(team_id, runs=2000)
+    #
+    # EL MISMO MODELO QUE LA PANTALLA DE LIGA (2026-09-13). Sin las lecturas
+    # esto corría la Poisson de la temporada a secas, y la alerta decía «59 %
+    # de terminar campeón» mientras Liga enseñaba 88,4 % para el mismo equipo.
+    # Import local: `league` ya importa `roster` de este módulo.
+    #
+    # Y EL MISMO CÁLCULO (2026-09-14): antes lo rehacía entero en cada visita
+    # --simulaciones, lecturas y órdenes--, y era la petición más lenta del
+    # Dashboard. Ahora comparte el de la pantalla de Liga.
+    from app.api.v1.endpoints.league import liga_calculada
+
+    league = await liga_calculada(session, team_id, 2000)
     if league and league.own_outlook:
         own = league.own_outlook
         own_dict = {
@@ -1422,7 +1522,16 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     # ── Academia ────────────────────────────────────────────────────────
     academy = await AcademyQueryService(session).get(team_id)
     if academy:
-        groups.append(ins.academy_roi(academy.invested, academy.earned, academy.currency))
+        # NO SE JUZGA ANTES DE TIEMPO (2026-09-13). Mientras ningún canterano
+        # pueda subir todavía, «no ha recuperado la inversión» es la única
+        # respuesta posible y no pide ninguna decisión: el dinero va dentro y
+        # nada puede haber vuelto. Salta cuando alguno ya puede subir, o si
+        # la academia ya ingresó algo.
+        alguno_puede_subir = academy.earned > 0 or any(
+            y.can_be_promoted_in is not None and y.can_be_promoted_in <= 0 for y in academy.players
+        )
+        if alguno_puede_subir:
+            groups.append(ins.academy_roi(academy.invested, academy.earned, academy.currency))
         youth_dicts = [
             {
                 "ht_youth_player_id": y.ht_youth_player_id,
@@ -1470,7 +1579,7 @@ def _fingerprint(insight: ins.Insight) -> str:
     Dos alertas con la misma `key` pero distinto texto son, para el usuario,
     dos avisos distintos: "pierdes 300.000 por semana" y "pierdes 900.000 por
     semana" no se archivan con el mismo clic. Por eso la huella entra en el
-    filtro del buzón — archivar es acusar recibo de un hecho concreto, no
+    filtro del buzón, archivar es acusar recibo de un hecho concreto, no
     apagar la regla que lo detecta.
     """
     raw = "|".join(
@@ -1503,11 +1612,11 @@ async def _dismissals(
 ) -> dict[str, m.DismissedInsight]:
     """Las archivadas de este equipo, sin las que ya no pueden volver.
 
-    Se caen dos clases de fila, y las dos por lo mismo — nada las va a
+    Se caen dos clases de fila, y las dos por lo mismo, nada las va a
     regenerar, así que enseñarlas sería prometer un aviso que no llega:
 
     - Las huérfanas. Una fila archivada sobrevive a su regla, de modo que al
-      borrar una regla —o al cambiarle la clave— su archivada se queda suelta
+      borrar una regla, o al cambiarle la clave, su archivada se queda suelta
       en la base.
     - Las de una semana pasada. Las claves de `WEEK_SCOPED_KEY_ROOTS` llevan la
       semana pegada; si esa clave exacta no está entre las que se derivan hoy,
@@ -1542,13 +1651,13 @@ async def team_insights(
     session: AsyncSession = Depends(get_session),
 ) -> list[dict[str, Any]]:
     """Catálogo de reglas de negocio, evaluadas contra los datos reales ya
-    sincronizados de este equipo — entrenamiento, plantilla, mercado,
+    sincronizados de este equipo, entrenamiento, plantilla, mercado,
     economía, liga, copa, estadio, academia y cuerpo técnico.
 
     Es un motor de reglas, no un modelo de IA: cada función de
     `domain.engines.insights` es una condición explícita y auditable sobre
     datos reales (algunas, jugador a jugador). Solo se muestran las que
-    disparan de verdad con el estado actual — el catálogo completo es mucho
+    disparan de verdad con el estado actual, el catálogo completo es mucho
     más grande que la lista de abajo, que es la intersección con tu equipo
     hoy.
 
@@ -1576,7 +1685,7 @@ async def team_insights_archived(
     """Lo que el usuario archivó, más reciente primero.
 
     Guarda el texto tal como estaba al archivarlo, así que sigue siendo
-    legible aunque la condición ya no se cumpla — y `stillActive` dice
+    legible aunque la condición ya no se cumpla, y `stillActive` dice
     justamente eso: si la alerta se sigue generando hoy, idéntica.
     """
     live = {i.key: _fingerprint(i) for i in await _derive_insights(session, team_id)}
@@ -1668,7 +1777,7 @@ async def restore_insight(
     key: str,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
-    """Devuelve la alerta a la lista activa — si la condición sigue viva.
+    """Devuelve la alerta a la lista activa, si la condición sigue viva.
     Si ya no se cumple, simplemente desaparece del buzón."""
     row = await session.scalar(
         select(m.DismissedInsight).where(
@@ -1696,7 +1805,7 @@ async def experience_calibration(
     The specification says 28. Rather than assert that, the engine watches every
     fully observed interval between two experience level-ups, totals the real
     matches played in that interval, and reports their mean together with the
-    standard deviation — the part that says whether the mean can be trusted.
+    standard deviation, the part that says whether the mean can be trusted.
 
     Until enough crossings have accumulated the configured 28 stands and the
     response says so plainly, along with how many more are needed. Nothing here
@@ -1876,6 +1985,7 @@ async def training_squad(
                 "lastImprovement": r.last_improvement,
                 "currentWeekMinutes": r.current_week_minutes,
                 "currentWeekExposure": r.current_week_exposure,
+                "withoutFieldSkills": r.without_field_skills,
             }
             for r in view.rows
         ],
@@ -1987,7 +2097,7 @@ async def player_training_levels(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """«Mejoras» (subidas confirmadas por trainingevents) y «Previsión
-    subidas» (cascada de niveles futuros con la fórmula) para un jugador —
+    subidas» (cascada de niveles futuros con la fórmula) para un jugador
     la vista individual de Hattrick Control."""
     history = await TrainingSquadQueryService(session).player_levels(
         team_id, ht_player_id, skill=skill

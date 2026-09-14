@@ -1,4 +1,4 @@
-"""TrainingSquadQueryService y sus endpoints — vista de plantilla al estilo
+"""TrainingSquadQueryService y sus endpoints, vista de plantilla al estilo
 Hattrick Control: HL-2xx, pedido explícito con capturas de referencia
 2026-08-14 ("un módulo así es el que quiero para Entrenamiento")."""
 import asyncio
@@ -57,7 +57,7 @@ def test_squad_view_can_switch_to_any_supported_technical_skill() -> None:
 
 def test_squad_view_is_honest_about_missing_reference_points() -> None:
     """El fixture de trainingevents trae subidas confirmadas para IDs de
-    prueba que no están en la plantilla activa real — ningún jugador real
+    prueba que no están en la plantilla activa real, ningún jugador real
     debe mostrar semanas transcurridas inventadas."""
     async def go():
         factory, team_id = await seeded_session()
@@ -268,7 +268,7 @@ def test_player_levels_404s_for_a_player_outside_the_active_roster() -> None:
 # ── Con una subida confirmada real, insertada a mano ────────────────────────
 # El fixture de trainingevents solo trae IDs de prueba que no están en la
 # plantilla activa, así que para probar el camino "semanas transcurridas SÍ
-# se conocen" se inserta una subida real para un jugador real del roster —
+# se conocen" se inserta una subida real para un jugador real del roster
 # el mismo criterio (season × 16 + match_round) que ya usa
 # TrainingContextService para validar la fórmula.
 
@@ -280,7 +280,7 @@ async def _seed_confirmed_pop_for_a_real_player():
 
         # `seeded_session()` never links Team.ht_league_id to the synced
         # WorldContext (that wiring is club.py's job, not this shared
-        # fixture's) — without it `squad_view()` cannot resolve "now", so
+        # fixture's), without it `squad_view()` cannot resolve "now", so
         # weeks-elapsed is honestly always null. Link them here, exactly as
         # a real teamdetails.xml sync would, so the confirmed-pop path is
         # actually reachable in this test.
@@ -418,7 +418,7 @@ def test_minutes_of_the_week_in_progress_need_the_toggle() -> None:
     """2026-08-16, error real: los minutos del partido de anoche no aparecían.
 
     El corte semanal de esa semana todavía no ha llegado, así que esos minutos
-    no pertenecían a ningún ciclo y se perdían — un jugador que acababa de
+    no pertenecían a ningún ciclo y se perdían, un jugador que acababa de
     jugar 82′ salía con cero. "Incluir los partidos de esta semana" es
     exactamente ese tramo abierto.
     """

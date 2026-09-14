@@ -2,7 +2,7 @@
 
 `players.xml` (2.6, ya sincronizado en cada sync) trae Loyalty, Leadership,
 Agreeability, Aggressiveness, Honesty, MotherClubBonus, CountryID, goles por
-competición/carrera y datos del entrenador-jugador — todo se parseaba en
+competición/carrera y datos del entrenador-jugador, todo se parseaba en
 algunos casos (Specialty) o ni eso, y se descartaba antes de tocar la base de
 datos. Cero llamadas CHPP nuevas para estos campos.
 
@@ -10,7 +10,7 @@ datos. Cero llamadas CHPP nuevas para estos campos.
 `player_snapshots`: son hechos de una vez, no algo que cambie sync a sync) se
 llenan con fases posteriores (transfersteam.xml, playerdetails.xml).
 
-`last_match_*` en `player_snapshots` también vienen de playerdetails.xml —
+`last_match_*` en `player_snapshots` también vienen de playerdetails.xml
 se actualizan sobre el snapshot más reciente en vez de crear uno nuevo, ya
 que no son un cambio de habilidades.
 

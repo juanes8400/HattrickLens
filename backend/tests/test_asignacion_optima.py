@@ -7,7 +7,7 @@ azar, en vez de fijar unos cuantos casos a mano.
 """
 
 import itertools
-import random  # noqa: S311 — es una prueba, no criptografia
+import random  # noqa: S311, es una prueba, no criptografia
 
 from app.domain.engines.asignacion_optima import asignacion_maxima
 

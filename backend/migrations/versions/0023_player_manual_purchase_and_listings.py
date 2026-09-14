@@ -1,12 +1,12 @@
 """Saldo neto por jugador (HL-161): compra manual + contador de listados.
 
 `purchase_price_manual`/`purchased_at_manual`: fallback para cuando ni
-transfersteam.xml ni transfersplayer.xml traen una compra real — el usuario
+transfersteam.xml ni transfersplayer.xml traen una compra real, el usuario
 lo escribe a mano. Se prioriza siempre el dato real sobre el manual.
 
 `listing_count`: cuántas veces se ha puesto en venta. CHPP no da historial
 de esto (solo pujas actuales), así que se cuenta hacia adelante desde que
-existe esta columna — 0 por defecto, no es una migración de datos.
+existe esta columna, 0 por defecto, no es una migración de datos.
 
 Revision ID: 0023
 """

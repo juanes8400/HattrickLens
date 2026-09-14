@@ -22,8 +22,9 @@ def test_parse_teamdetails_real_fixture() -> None:
     team = data["teams"][0]
     assert team["ht_team_id"] == 537758
     assert team["name"] == "Pulgas Arrechas"
+    assert team["founded_at"] == "2015-10-06 04:30:00"
     assert team["series_name"] == "V.92"
-    # 2026-08-04: LeagueID del país (19 = Colombia) — clave para cruzar
+    # 2026-08-04: LeagueID del país (19 = Colombia), clave para cruzar
     # contra worlddetails.xml y saber la temporada/moneda/copas reales.
     assert team["ht_league_id"] == 19
     assert team["still_in_cup"] is True
@@ -52,7 +53,7 @@ def test_parse_managercompendium_keeps_all_login_times() -> None:
 
 def test_float_helper_parses_comma_decimal_separator() -> None:
     """worlddetails.xml sirve algunas tasas de cambio con coma decimal en
-    vez de punto (verificado en vivo 2026-08-04: India "0,25") — sin este
+    vez de punto (verificado en vivo 2026-08-04: India "0,25"), sin este
     fix, float() lanzaba ValueError y el campo caía en silencio al default
     0.0, una tasa de cambio inválida en vez de un dato real."""
     from xml.etree.ElementTree import fromstring
@@ -67,6 +68,13 @@ def test_parse_players_real_fixture() -> None:
     data = parse_players((FIXTURES / "players.xml").read_bytes())
     players = data["players"]
     assert len(players) == 24
+
+    # El nombre del equipo viaja en la MISMA respuesta que la plantilla, y se
+    # estaba tirando al parsear. La ficha de rival lo sacaba del último
+    # partido analizado, así que filtrando a «sólo amistosos» un equipo sin
+    # amistosos se quedaba sin nombre y la pantalla concluía que no existía
+    # (2026-09-09). Aquí no depende de ningún filtro.
+    assert data["team_name"] == "Pulgas Arrechas"
 
     raul = next(p for p in players if p["last_name"] == "Cobos")
     assert raul["first_name"] == "Raúl"  # encoding UTF-8 correcto (bug histórico)
@@ -94,7 +102,7 @@ def test_parse_players_real_fixture() -> None:
     assert raul["player_trainer_skill_level"] == 0    # sin <TrainerData>: no es entrenador-jugador
     assert raul["player_trainer_type"] == 0
     # CareerAssists NO existe en players.xml (comprobado contra un XML real
-    # de la cuenta de desarrollo) — solo en playerdetails.xml. Que el parser
+    # de la cuenta de desarrollo), solo en playerdetails.xml. Que el parser
     # no la incluya aquí es correcto, no un olvido: inventar un 0 sería
     # peor que declarar el dato como no disponible desde este fichero.
     assert "career_assists" not in raul
@@ -122,7 +130,7 @@ def test_parse_playerdetails_real_fixture() -> None:
 def test_parse_playerdetails_ignores_the_all_zero_last_match_sentinel() -> None:
     """Bug real 2026-08-09: cuando CHPP no tiene un último partido real
     para un jugador, `<LastMatch>` sigue presente pero con todo en cero
-    (`MatchId=0`, `Date=0001-01-01...`) — nunca un partido real de
+    (`MatchId=0`, `Date=0001-01-01...`), nunca un partido real de
     Hattrick, cuyo ID nunca es 0. Antes esto se colaba como si
     PositionCode=0 fuera una posición real: `match_role_name(0)` no
     traduce nada y muestra el feo fallback "posicion 0 (sin traducir)" en
@@ -138,7 +146,7 @@ def test_parse_playerdetails_ignores_the_all_zero_last_match_sentinel() -> None:
 def test_parse_playerdetails_detects_chpp_error() -> None:
     """playerdetails.xml devuelve HTTP 200 con un <Error>/<ErrorCode>
     (nunca un error HTTP real) para un playerID que ya no resuelve en
-    Hattrick — ver `_is_chpp_error`, verificado en vivo 2026-08-05 contra
+    Hattrick, ver `_is_chpp_error`, verificado en vivo 2026-08-05 contra
     ~105 ventas viejas de esta cuenta."""
     data = parse_playerdetails((FIXTURES / "chpperror.xml").read_bytes())
     assert data == {
@@ -150,7 +158,7 @@ def test_parse_playerdetails_detects_chpp_error() -> None:
 
 def test_parse_transfersteam_real_fixture() -> None:
     """`TransferType`, `Price`, `Buyer` y `Seller` son hermanos de `Player`
-    dentro de `Transfer`, no están anidados dentro de `Player` — un parser
+    dentro de `Transfer`, no están anidados dentro de `Player`, un parser
     anterior los buscaba en el sitio equivocado y siempre devolvía
     transfer_type="" / price=0 en producción (ver CORRECCIÓN 2026-08-03 bis
     en `parse_transfersteam`). Este fixture cubre una compra Y una venta
@@ -171,7 +179,7 @@ def test_parse_transfersteam_real_fixture() -> None:
     assert sell["price"] == 2860000
 
     # HL-161 2026-08-04: paginado real (pageIndex) + Stats agregado de toda
-    # la historia — ver corrección en `parse_transfersteam`.
+    # la historia, ver corrección en `parse_transfersteam`.
     assert buy["ht_transfer_id"] == 900001
     assert sell["ht_transfer_id"] == 388548167
     assert data["page_index"] == 0
@@ -186,7 +194,7 @@ def test_parse_transfersteam_real_fixture() -> None:
 
 def test_parse_currentbids_reads_highest_bid_and_handles_no_bids_yet() -> None:
     """`HighestBid/Amount` es un nodo anidado, no un hermano de `PlayerId`
-    — pedido explícitamente 2026-08-08 para enumerar intentos de venta con
+    pedido explícitamente 2026-08-08 para enumerar intentos de venta con
     su precio. Un jugador recién listado sin pujas todavía no trae el nodo
     `HighestBid`: debe leerse `None`, nunca 0 (0 sería una puja real)."""
     xml = b"""<?xml version="1.0" encoding="utf-8"?>

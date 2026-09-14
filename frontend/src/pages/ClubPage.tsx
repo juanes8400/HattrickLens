@@ -36,8 +36,8 @@ import type { Club, PsychologyMatch } from "../services/api";
  * campo. Cada uno se mira en un momento distinto y por un motivo distinto.
  *
  * «Psicología» sustituye a la vieja gráfica «Ánimo competitivo», que ponía
- * espíritu y confianza sobre un mismo eje —con escalas distintas, 0-10 y
- * 0-9— y no decía por qué se movía ninguno de los dos.
+ * espíritu y confianza sobre un mismo eje, con escalas distintas, 0-10 y
+ * 0-9, y no decía por qué se movía ninguno de los dos.
  */
 
 // Tokens y no colores fijos: el gris que había aquí medía 2,61 de

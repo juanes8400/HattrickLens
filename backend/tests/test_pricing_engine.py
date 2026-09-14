@@ -1,7 +1,7 @@
 """HL-141 · Sueldo semanal estimado y factor de edad.
 
 2026-08-11: se retiró el modelo de valor de mercado (`value_player` y todo
-lo derivado de él) — sus coeficientes eran un supuesto propio sin ventas
+lo derivado de él), sus coeficientes eran un supuesto propio sin ventas
 reales que lo respalden. Lo que queda aquí es lo verificable: la curva de
 edad (reutilizada por `career_stage_engine`) y la fórmula de sueldo del
 Manual no Escrito.
@@ -39,7 +39,7 @@ def test_estimate_salary_matches_the_published_table_for_a_single_skill() -> Non
 
 
 def test_estimate_salary_picks_the_skill_with_the_highest_component_as_main() -> None:
-    """La habilidad principal es la que paga más, no la de nivel más alto —
+    """La habilidad principal es la que paga más, no la de nivel más alto
     Lateral 12 paga menos que Jugadas 12 según la tabla del manual."""
     est = estimate_salary({"winger": 12, "playmaking": 12})
     assert est.main_skill == "playmaking"

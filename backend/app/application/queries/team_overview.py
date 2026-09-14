@@ -1,4 +1,4 @@
-"""Sección Equipo — la plantilla promediada, semana a semana.
+"""Sección Equipo, la plantilla promediada, semana a semana.
 
 La idea es leer al equipo entero de un vistazo. Tres grupos son series en el
 tiempo (cómo evoluciona la media de la plantilla) y uno es una foto de hoy:
@@ -16,8 +16,8 @@ tiempo (cómo evoluciona la media de la plantilla) y uno es una foto de hoy:
   dicho sin mezclarlas:
 
   - *¿Quién es mi mejor ahí?* Se evalúa a TODA la plantilla en las variantes
-    de esa línea — un central se mide como central normal, ofensivo y hacia
-    lateral — y se resume con la mejor de todas. Un extremo que además sea
+    de esa línea, un central se mide como central normal, ofensivo y hacia
+    lateral, y se resume con la mejor de todas. Un extremo que además sea
     buen central aparece aquí aunque su mejor puesto sea la banda.
   - *¿Cuántos la tienen como su mejor puesto?* Ese es el reparto de la
     plantilla, y puede ser cero mientras el mejor rating existe igual.
@@ -25,7 +25,7 @@ tiempo (cómo evoluciona la media de la plantilla) y uno es una foto de hoy:
 Personalidad se graficó un tiempo y se quitó a petición del usuario
 (2026-08-16): carácter, agresividad y honestidad casi no se mueven, así que la
 línea no decía nada. `leadership` se sigue leyendo, pero solo como marca de
-snapshot incompleto — ver `INCOMPLETE_WITHOUT_LEADERSHIP`.
+snapshot incompleto, ver `INCOMPLETE_WITHOUT_LEADERSHIP`.
 
 La media de cada semana se calcula sobre la ÚLTIMA lectura de cada jugador en
 esa semana. Sin eso, un jugador sincronizado tres veces pesaría el triple que
@@ -96,7 +96,7 @@ TOP_SERIES_LABEL = f"{TOP_SQUAD_SIZE} mejores TSI"
 TOP_SUFFIX = "_top"
 
 # Fidelidad no se persistía al principio: los snapshots del 26-27 de julio de
-# 2026 la tienen en 0. Comprobado en la base — `loyalty` y `leadership` valen
+# 2026 la tienen en 0. Comprobado en la base, `loyalty` y `leadership` valen
 # 0 exactamente en las mismas 73 filas y en ninguna posterior, así que se
 # guardaron a la vez. Liderazgo empieza en 1 en Hattrick, de modo que un 0
 # suyo delata la lectura incompleta y sirve de marca para descartarla.
@@ -105,7 +105,7 @@ INCOMPLETE_WITHOUT_LEADERSHIP = ("loyalty",)
 # 2026-08-16, pedido explícito: los jugadores con TSI 0 se ignoran SOLO en el
 # coste por punto de TSI. Un TSI 0 es un canterano al que Hattrick todavía no
 # le ha puesto índice y deja el cociente sin definir. Las medias de salario y
-# de TSI siguen contando a toda la plantilla — ahí sí son jugadores del club.
+# de TSI siguen contando a toda la plantilla, ahí sí son jugadores del club.
 # Por eso el ratio se calcula aparte, sobre su propio subconjunto, y no
 # dividiendo las dos medias publicadas.
 COST_PER_TSI_FIELD = "cost_per_tsi"
@@ -129,18 +129,20 @@ HTMS_TOTAL_FIELD = "htms_total"
 # TSI), el hueco entre ellas se sombrea. Ese hueco es la brecha entre el once
 # que juega y el resto del plantel, y sombreado se lee de un vistazo. En el
 # coste por punto de TSI NO: ahí las líneas se cruzan y el área entre ellas no
-# es ninguna cantidad — sería tinta que no significa nada.
+# es ninguna cantidad, sería tinta que no significa nada.
 BANDED_MARKET_CHARTS: frozenset[str] = frozenset({"salary", "tsi", TSI_TOTAL_FIELD})
 
 # Línea de la cancha a la que pertenece cada familia de posiciones. La clave
 # es el prefijo del `position` que devuelve el motor (`wingback_offensive`,
-# `wingback_defensive`… caen todas en "Lateral"). El orden es de portería a
-# delantera y lo usa el frontend para apilar las filas.
+# `wingback_defensive`… caen todas en "Defensa Lateral"). El orden es de
+# portería a delantera y lo usa el frontend para apilar las filas. Los puestos
+# se llaman como en Hattrick: «Defensa Lateral» y «Mediocentro», no «Lateral»
+# ni «Medio» (2026-09-14, pedido del usuario).
 PITCH_LINES: tuple[tuple[str, str], ...] = (
     ("keeper", "Portería"),
     ("central_defender", "Defensa Central"),
-    ("wingback", "Lateral"),
-    ("inner_midfield", "Medio"),
+    ("wingback", "Defensa Lateral"),
+    ("inner_midfield", "Mediocentro"),
     ("winger", "Extremo"),
     ("forward", "Delantero"),
 )
@@ -148,12 +150,12 @@ PITCH_LINES: tuple[tuple[str, str], ...] = (
 
 # Roles que NO son un puesto en la cancha: no se dibujan sobre el campo para
 # no confundirlos con posiciones. El motor devuelve también `penalty_taker`,
-# que aquí se deja fuera a propósito — sólo se pidieron estos dos.
+# que aquí se deja fuera a propósito, sólo se pidieron estos dos.
 SPECIAL_ROLES: tuple[str, ...] = ("captain", "set_piece_taker")
 
 # 2026-08-16, regla de juego dada por el usuario: el lanzador de faltas no
-# puede ser un portero. El motor lo puntúa igual que a cualquiera —a veces
-# incluso lo pone primero, porque el balón parado no distingue puesto— pero
+# puede ser un portero. El motor lo puntúa igual que a cualquiera, a veces
+# incluso lo pone primero, porque el balón parado no distingue puesto, pero
 # poner al arquero a rematar una falta no es una recomendación, es un error.
 # El capitán SÍ puede serlo, y por eso el veto es sólo para este rol.
 ROLES_FORBIDDEN_FOR_KEEPERS: frozenset[str] = frozenset({"set_piece_taker"})
@@ -172,7 +174,7 @@ def pitch_line_of(position: str) -> str | None:
 
 @dataclass
 class OverviewMetric:
-    """Foto de hoy — solo la usan los grupos que no son serie."""
+    """Foto de hoy, solo la usan los grupos que no son serie."""
 
     key: str
     label: str
@@ -206,7 +208,7 @@ class OverviewChart:
     scale_min: float | None = None
     scale_max: float | None = None
     # Sombrea el hueco entre las dos series. Solo tiene sentido cuando miden lo
-    # mismo sobre poblaciones distintas — ver `BANDED_MARKET_CHARTS`.
+    # mismo sobre poblaciones distintas, ver `BANDED_MARKET_CHARTS`.
     band: bool = False
 
 
@@ -216,7 +218,7 @@ class PitchSlot:
 
     `best_rating`/`top_player`/`best_variant_label` salen de evaluar a toda la
     plantilla en las variantes de esa línea. `count` y `average_rating` miran
-    SOLO a quienes la tienen como su mejor puesto — `count` puede ser 0 y aun
+    SOLO a quienes la tienen como su mejor puesto, `count` puede ser 0 y aun
     así haber un mejor rating, que es justo el caso de una línea que nadie
     ocupa de forma natural pero alguien podría cubrir. Nunca se mezclan: el
     frontend las pinta en bloques separados.
@@ -236,7 +238,7 @@ class PitchSlot:
 class SpecialRole:
     """Capitán y lanzador de faltas: recomendaciones, no puestos.
 
-    Su `rating` NO está en la escala 0-20 de las posiciones — el motor los
+    Su `rating` NO está en la escala 0-20 de las posiciones, el motor los
     puntúa con su propia fórmula y salen valores por encima de 20. Por eso
     viaja sin techo y el frontend lo pinta como número pelado, sin barra.
     """
@@ -484,7 +486,7 @@ class TeamOverviewQueryService:
             # Fidelidad arranca vacía en esta cuenta (la columna se añadió
             # después del primer sync). El tramo inicial se estira con la
             # primera lectura conocida SOLO para que la línea no salga
-            # cortada — ver `backfill_leading_gaps`.
+            # cortada, ver `backfill_leading_gaps`.
             if col == "loyalty":
                 values = backfill_leading_gaps(values)
             return OverviewSeries(key=col, label=label, values=values, display=display)
@@ -566,7 +568,7 @@ class TeamOverviewQueryService:
         def _market_chart(key: str, display: str) -> OverviewChart:
             """Cada rubro con sus dos líneas: plantilla entera y el once de
             más TSI. Comparten eje porque son la MISMA medida sobre dos
-            conjuntos distintos — eso es justo lo que se quiere comparar."""
+            conjuntos distintos, eso es justo lo que se quiere comparar."""
             return OverviewChart(
                 key=key,
                 title=MARKET_LABELS[key],
@@ -720,7 +722,7 @@ class TeamOverviewQueryService:
                         rating.label,
                     )
 
-        # Quiénes la tienen como su mejor puesto — otra pregunta, otra
+        # Quiénes la tienen como su mejor puesto, otra pregunta, otra
         # población. Puede estar vacía y aun así existir un mejor rating.
         natural: dict[str, list[float]] = {key: [] for key, _ in PITCH_LINES}
         for p in players:

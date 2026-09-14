@@ -4,7 +4,7 @@ import clsx from "clsx";
 
 /**
  * Control segmentado tipo píldora (referencia visual del usuario 2026-08-03:
- * "🏠 Inicio" / "</> Code") — patrón general para partir pantallas largas en
+ * "🏠 Inicio" / "</> Code"), patrón general para partir pantallas largas en
  * secciones, en vez de obligar a hacer scroll por todo para llegar a la
  * última parte.
  *

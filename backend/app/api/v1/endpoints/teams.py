@@ -17,6 +17,7 @@ from app.api.deps import (
     require_team_owner,
 )
 from app.api.rate_limit import limite
+from app.api.v1.endpoints.precalentar import lanzar_precalentado
 from app.application.commands.sync_team import (
     FILE_VERSIONS,
     SyncBackfillBatchCommand,
@@ -122,6 +123,8 @@ async def trigger_sync(
         result = await handler.execute(
             SyncTeamCommand(user_id=user.id, team_id=team_id, ht_team_id=team.ht_team_id)
         )
+        await _revisar_comisiones(handler, user.id, team_id, result)
+        lanzar_precalentado(team_id)
     except CHPPAuthError as exc:
         token_row.status = "revoked"
         await session.commit()
@@ -137,6 +140,58 @@ async def trigger_sync(
         await client.aclose()
 
     return _result_payload(result)
+
+
+#: Cuántos ex-jugadores se revisan en busca de comisiones al final de cada
+#: sincronización, y cada cuánto vuelve a tocarle a uno ya revisado.
+LOTE_DE_COMISIONES_POR_SYNC = 10
+DIAS_ENTRE_REVISIONES = 7
+
+
+async def _revisar_comisiones(
+    handler: Any,
+    user_id: int,
+    team_id: int,
+    result: Any,
+    on_progress: Any = None,
+) -> None:
+    """Un lote pequeño del barrido de comisiones, sin que nadie lo pulse.
+
+    2026-09-13, pedido del usuario: quitar el botón «Sincronizar
+    transferencias» sin perder las comisiones de reventa. Cada sincronización
+    revisa unos pocos ex-jugadores --los vendidos más recientes primero, que
+    son los que más probablemente se revenden-- y deja fuera a quien ya se
+    revisó en la última semana, así que la cola rota sola de una vez a otra.
+
+    NUNCA TUMBA LA SINCRONIZACIÓN. Lo que ya se descargó está guardado; si
+    Hattrick falla aquí, se anota y la sincronización se da por buena.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.application.commands.sync_team import SyncBackfillBatchCommand
+
+    if on_progress is not None:
+        await on_progress(
+            f"Revisando comisiones de reventa de hasta {LOTE_DE_COMISIONES_POR_SYNC} ex-jugadores"
+        )
+    try:
+        lote = await handler.execute_backfill_batch(
+            SyncBackfillBatchCommand(
+                user_id=user_id,
+                team_id=team_id,
+                limite=LOTE_DE_COMISIONES_POR_SYNC,
+                revisar_desde=datetime.now(UTC).replace(tzinfo=None)
+                - timedelta(days=DIAS_ENTRE_REVISIONES),
+                reutilizar_fila=False,
+            ),
+            on_progress=on_progress,
+        )
+    except Exception as exc:  # noqa: BLE001, un lote caído no tumba la sincronización
+        result.errors.append(f"comisiones: {exc}")
+        return
+    # Lo que encontró va al informe de ESTA sincronización: es dinero, y
+    # quien acaba de sincronizar tiene que verlo sin ir a buscarlo.
+    result.changes.extend(lote.changes)
 
 
 def _result_payload(result: Any) -> dict[str, Any]:
@@ -163,13 +218,13 @@ async def trigger_sync_stream(
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
 ) -> StreamingResponse:
-    """Como `trigger_sync`, pero transmite en vivo qué se está descargando —
+    """Como `trigger_sync`, pero transmite en vivo qué se está descargando
     pedido explícitamente 2026-08-05, mismo espíritu que la ventana
     "Conexión" de Hattrick Control: un sync ya no es una caja negra de
     15-20s, sino una línea por fichero/jugador/partido a medida que ocurre.
 
     NDJSON, no SSE: una línea JSON por evento (`{"type":"progress",...}` o
-    el `{"type":"done"|"error",...}` final) — el frontend lee el body como
+    el `{"type":"done"|"error",...}` final), el frontend lee el body como
     stream con `fetch`, sin depender de que el navegador entienda
     `text/event-stream` para un POST (EventSource solo hace GET)."""
     team = await session.get(m.Team, team_id)
@@ -207,6 +262,8 @@ async def trigger_sync_stream(
                     SyncTeamCommand(user_id=user_id, team_id=team_id, ht_team_id=ht_team_id),
                     on_progress=on_progress,
                 )
+                await _revisar_comisiones(handler, user_id, team_id, result, on_progress)
+                lanzar_precalentado(team_id)
                 await queue.put(("done", result))
             except CHPPAuthError:
                 async with SessionLocal() as s2:
@@ -217,7 +274,7 @@ async def trigger_sync_stream(
                 await queue.put(("error", "Hattrick revocó el acceso: reconecta tu cuenta"))
             except CHPPUnavailableError as exc:
                 await queue.put(("error", f"Hattrick no responde: {exc}"))
-            except Exception as exc:  # noqa: BLE001 — el stream reporta, no revienta el proceso
+            except Exception as exc:  # noqa: BLE001, el stream reporta, no revienta el proceso
                 await queue.put(("error", str(exc)))
 
         task = asyncio.create_task(run())
@@ -353,12 +410,12 @@ async def trigger_player_details_sync(
     user: m.User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Club de origen y última posición/rating jugado de cada jugador
-    (HL-15x fase B). `playerdetails` se pide por jugador, no por equipo — a
+    (HL-15x fase B). `playerdetails` se pide por jugador, no por equipo, a
     diferencia del resto del sync, son tantas llamadas a CHPP como
     jugadores tenga la plantilla, así que es una acción aparte que el
     usuario dispara a mano, nunca parte del sync normal. El precio de
     compra (fase C) no está aquí: sale de `transfersteam.xml`, en el sync
-    normal, y de `transfersplayer.xml` (por jugador — corrección 2026-08-03:
+    normal, y de `transfersplayer.xml` (por jugador, corrección 2026-08-03:
     funciona con este token, un comentario anterior tenía mal el nombre
     del fichero) para jugadores anteriores a esta app."""
     team = await session.get(m.Team, team_id)
@@ -433,7 +490,7 @@ async def trigger_purchase_price_sync(
     user: m.User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """HL-161: rellena `purchase_price` para jugadores que `transfersteam.xml`
-    (sync normal) no pudo resolver — llegaron antes de sincronizar con esta
+    (sync normal) no pudo resolver, llegaron antes de sincronizar con esta
     app, o su compra quedó fuera de la única página que CHPP entrega por
     defecto. Una llamada a `transfersplayer.xml` por jugador SIN precio
     conocido (ni real ni manual); incluye jugadores que ya se fueron del
@@ -456,7 +513,7 @@ async def trigger_purchase_price_sync(
                     m.Player.purchase_price.is_(None),
                     m.Player.purchase_price_manual.is_(None),
                     # 2026-08-05, pedido explícitamente: "backfill de un
-                    # jugador máximo una vez" — transfersplayer.xml ya trae
+                    # jugador máximo una vez", transfersplayer.xml ya trae
                     # TODA la historia; si ya se intentó y no aparecimos como
                     # compradores, no va a cambiar en un intento futuro.
                     ~m.Player.tsi_at_purchase_attempted,
@@ -518,14 +575,14 @@ async def trigger_previous_club_bonus_backfill(
 ) -> dict[str, Any]:
     """HL-161, 2026-08-14, pedido explícitamente ("backfill masivo de
     todos los ex-jugadores"): recorre TODOS los jugadores alguna vez
-    vendidos por este club (no solo los recién revisados — a diferencia
+    vendidos por este club (no solo los recién revisados, a diferencia
     del monitoreo automático acotado dentro del sync normal) buscando, uno
-    por uno, si el club al que se los vendimos ya los revendió — y si es
+    por uno, si el club al que se los vendimos ya los revendió, y si es
     así, calcula y guarda la comisión exacta de club anterior. Reemplaza
     por completo el reparto heurístico que antes vivía en
     `resale_bonus.py`. Costoso (una llamada a transfersplayer.xml por
     jugador, más matchesarchive+matchlineup la primera vez que encuentra
-    una reventa real) — por eso es un botón explícito, no parte del sync
+    una reventa real), por eso es un botón explícito, no parte del sync
     normal."""
     team = await session.get(m.Team, team_id)
     if team is None:
@@ -599,13 +656,13 @@ async def trigger_transfers_history_sync(
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """HL-161, 2026-08-04: botón "Actualizar transferencias" — pagina
+    """HL-161, 2026-08-04: botón "Actualizar transferencias", pagina
     transfersteam.xml completo (no solo la página más reciente del sync
     normal), trayendo TODA la historia de compraventas del equipo (casi
     1000 transferencias reales para una cuenta activa desde 2015), creando
     identidades mínimas para jugadores que esta app nunca vio en
     players.xml. La primera vez recorre todas las páginas; las siguientes
-    paran en cuanto reconocen una transferencia ya vista — ver
+    paran en cuanto reconocen una transferencia ya vista, ver
     `execute_transfers_history`."""
     team = await session.get(m.Team, team_id)
     if team is None:
@@ -668,10 +725,10 @@ async def set_manual_purchase_price(
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """HL-161: precio de compra escrito a mano — solo para cuando ni
+    """HL-161: precio de compra escrito a mano, solo para cuando ni
     `transfersteam.xml` ni `transfersplayer.xml` traen una compra real
     (jugador anterior a cualquier historial que CHPP guarde). Nunca
-    sobrescribe un precio real ya conocido — bórralo primero si de verdad
+    sobrescribe un precio real ya conocido, bórralo primero si de verdad
     quieres reemplazarlo."""
     team = await session.get(m.Team, team_id)
     if team is None:
@@ -719,7 +776,7 @@ async def confirm_career_stage(
     user: m.User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """La app SUGIERE el momento de carrera (career_stage_engine, con sus
-    señales reales); el usuario CONFIRMA aquí — nunca se sobreescribe solo
+    señales reales); el usuario CONFIRMA aquí, nunca se sobreescribe solo
     en un sync posterior."""
     team = await session.get(m.Team, team_id)
     if team is None:
@@ -769,7 +826,7 @@ async def last_sync_changes(
     `sync_id` (2026-08-15, pedido explícito) permite navegar el archivo: la
     respuesta trae en `availableReports` las fechas que SÍ tuvieron cambios,
     y pedir una de ellas devuelve esa comparación en vez de la más reciente.
-    Un id inválido o sin cambios cae a la última — no es un error del usuario
+    Un id inválido o sin cambios cae a la última, no es un error del usuario
     pedir una fecha que ya no existe."""
     return await build_sync_comparison(session, team_id, sync_id)
 
@@ -784,7 +841,10 @@ async def changes_history(
     player_id: int | None = Query(None, description="Jugador a mostrar en la gráfica"),
     weeks: int = Query(
         DEFAULT_WINDOW_WEEKS,
-        description="Semanas hacia atrás con las que comparar (1, 2, 4, 8 o 16)",
+        description=(
+            "Semanas hacia atrás con las que comparar (1, 2, 4, 8 o 16). "
+            "0 = «siempre»: contra el primer cierre guardado de cada jugador."
+        ),
     ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
@@ -799,7 +859,16 @@ async def changes_history(
             status_code=422,
             detail=f"weeks debe ser uno de {', '.join(map(str, ALLOWED_WINDOW_WEEKS))}",
         )
-    return await build_changes_history(session, team_id, player_id, weeks=weeks)
+    from app.api.cache_por_sync import por_sync
+
+    # Una vez por sync (2026-09-14): las fotos sólo cambian al sincronizar.
+    return await por_sync(
+        session,
+        team_id,
+        "historial-de-cambios",
+        (player_id, weeks),
+        lambda: build_changes_history(session, team_id, player_id, weeks=weeks),
+    )
 
 
 @router.get(
@@ -1021,6 +1090,7 @@ async def backfill_run(
                 "closed": result.queue_balance.cerrados,
                 "closedTotal": result.queue_balance.total_cerrados,
                 "commissions": result.queue_balance.comisiones,
+                "histories": result.queue_balance.historiales,
             }
             if result.queue_balance is not None
             else None

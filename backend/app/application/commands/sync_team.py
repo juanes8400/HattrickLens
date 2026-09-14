@@ -33,7 +33,7 @@ from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.value_objects.skill import Age
 
 # 2026-08-05, pedido explícitamente: "la conexión" de Hattrick Control
-# muestra en vivo qué está descargando — un sync aquí ya no es una caja
+# muestra en vivo qué está descargando, un sync aquí ya no es una caja
 # negra de 15-20s. `on_progress`, si se pasa, recibe un mensaje legible por
 # cada paso real (un fichero, un jugador, un partido); `None` en cualquier
 # otro caller (tests, comandos que no necesitan progreso) lo deja mudo, sin
@@ -45,6 +45,40 @@ ProgressReporter = Callable[[str], Awaitable[None]]
 #: si la senal del dinero se perdio: `economy.xml` recuerda la semana en curso
 #: y la anterior, nada mas, asi que dos semanas sin sincronizar la borran.
 GOTEO_DE_VIGILANCIA = 5
+
+# `matchesarchive.xml` no pagina: cuando un intervalo contiene más partidos,
+# CHPP entrega únicamente los primeros 50. Se parte el rango hasta que cada
+# respuesta sea completa y luego se deduplica por MatchID.
+MATCH_ARCHIVE_RESPONSE_LIMIT = 50
+MATCH_ARCHIVE_MIN_WINDOW = timedelta(minutes=1)
+MATCH_ARCHIVE_INCREMENTAL_OVERLAP = timedelta(days=2)
+# 2026-09-14, medido contra el equipo real: matchesarchive respeta un rango de
+# tres meses (enero→marzo de 2025 devolvió esas fechas), pero con uno de un año
+# lo IGNORA sin avisar y devuelve los últimos tres meses. La importación pedía
+# fundación→hoy de una vez, recibía menos de 50 partidos y sellaba el historial
+# como completo con sólo tres meses dentro. Por eso se pide en ventanas.
+MATCH_ARCHIVE_WINDOW = timedelta(weeks=12)
+# Margen al comprobar que una respuesta cae dentro de la ventana pedida: la
+# fecha de Hattrick es hora sueca y la ventana va en UTC.
+MATCH_ARCHIVE_RANGE_TOLERANCE = timedelta(days=2)
+# Con qué reglas se leyó el archivo. La 1 es la de una sola consulta, que en la
+# práctica sólo trajo tres meses; subirla obliga a releerlo entero UNA vez, como
+# `transfers_import_version` con el libro de transferencias.
+VERSION_DEL_ARCHIVO = 2
+# Respaldo para equipos cuyo teamdetails antiguo todavía no tenga FoundedDate.
+# Hattrick nació después de esta fecha, por lo que no puede dejar partidos por
+# fuera; en cuanto llegue teamdetails 3.6 se usa la fundación exacta.
+MATCH_ARCHIVE_FALLBACK_START = datetime(1997, 1, 1, tzinfo=UTC)
+# Los encabezados/resultados viejos son baratos. Sus reportes completos no:
+# matchdetails cuesta una llamada adicional por partido. El sync automático
+# hidrata el ciclo reciente y deja el resto disponible bajo petición explícita.
+AUTOMATIC_MATCH_DETAILS_WINDOW = timedelta(weeks=16)
+# El resto --los partidos que el alta histórica guardó sólo con marcador-- se
+# completa DE UNA VEZ en la primera sincronización (2026-09-14, pedido del
+# usuario: «trae todos los partidos de una la primera vez»). Se piden varios a
+# la vez para que cientos de partidos no hagan eterno ese primer sync; cinco a
+# la vez es prudente con Hattrick.
+DETALLES_HISTORICOS_EN_PARALELO = 5
 
 
 async def _report(on_progress: ProgressReporter | None, message: str) -> None:
@@ -68,7 +102,7 @@ def _full_player_name(first_name: str | None, last_name: str | None) -> str:
 def _parse_dt(value: str | None) -> datetime | None:
     """Fecha de CHPP ("2026-08-09 05:05:00") a datetime aware en UTC, o `None`
     si el fichero la trae vacía. CHPP no marca zona porque siempre es la hora
-    del servidor sueco — ver `ht_time.ht_to_utc`."""
+    del servidor sueco, ver `ht_time.ht_to_utc`."""
     return ht_to_utc(value)
 
 
@@ -103,13 +137,13 @@ FILE_LABELS: dict[str, str] = {
     "youthteamdetails": "academia juvenil",
 }
 
-#  HL-140: un sync normal debe poder mostrar el diff completo — posición en
+#  HL-140: un sync normal debe poder mostrar el diff completo, posición en
 # liga y resultados incluidos, no solo plantilla/economía. `teamdetails` va
 # antes que `leaguedetails` porque este último necesita `series_ht_id`.
 # `transfersteam` YA NO entra aquí (2026-08-22, pedido explícitamente): las
 # transferencias son su propio botón. Leer solo la primera página desde el sync
 # normal era la razón por la que un jugador que volvía al club pisaba su etapa
-# anterior — el libro entero, que es de donde salen las etapas, se recorre en
+# anterior, el libro entero, que es de donde salen las etapas, se recorre en
 # `_recorrer_historial`.
 DEFAULT_FILES = [
     "players",
@@ -132,7 +166,7 @@ DEFAULT_FILES = [
 # worlddetails, 2026-08-04: única fuente de la temporada ACTUAL de Hattrick
 # (leaguedetails.xml no la trae). Antes no estaba en el sync por defecto, así
 # que `WorldContext.season` se quedaba congelada en lo que fuera que un
-# script de desarrollo hubiera sincronizado a mano una vez — el desglose
+# script de desarrollo hubiera sincronizado a mano una vez, el desglose
 # "por Temporada" del saldo por jugador (`season_at`, player_balance.py)
 # depende de que esté fresca para calcular la temporada de CUALQUIER fecha
 # por aritmética pura (112 días/temporada, igual que la edad), no solo de
@@ -143,30 +177,30 @@ DEFAULT_FILES = [
 # pero faltaba materialmente en DEFAULT_FILES; el sync normal nunca traía las
 # referencias de los pops y "Entrenamiento actual" quedaba entero sin dato.
 # CORRECCIÓN 2026-08-12, pedido explícito: club y stafflist NO estaban en
-# esta lista pese al comentario de arriba — solo se sincronizaban una vez, a
+# esta lista pese al comentario de arriba, solo se sincronizaban una vez, a
 # mano, al conectar la cuenta. El "Sincronizar" normal nunca los refrescaba,
 # así que el staff del club (asistentes, entrenador, inversión juvenil) se
 # quedaba congelado semanas, y encima con datos ya obsoletos (club.xml
-# cambió de esquema entretanto — ver `parse_club`).
+# cambió de esquema entretanto, ver `parse_club`).
 # playerdetails: 2.6 se probó en vivo y NO trae `MotherClub`/`LastMatch`
 # poblados (solo el booleano `MotherClubBonus`); 3.2, confirmado con un XML
-# real de la cuenta de desarrollo, sí los trae — la versión importa más de
+# real de la cuenta de desarrollo, sí los trae, la versión importa más de
 # lo que sugiere la documentación de campos por sí sola.
 # CORRECCIÓN 2026-08-03: `transfersteam` (equipo) se usa para precio de
 # compra Y venta por defecto. Un comentario anterior decía que
-# `transferplayer.xml` (por jugador) devolvía 401 por scope OAuth — era un
+# `transferplayer.xml` (por jugador) devolvía 401 por scope OAuth, era un
 # nombre de fichero mal escrito (falta la "s": es `transfersplayer.xml`),
 # no una restricción real. Verificado en vivo con este mismo token: funciona
-# y trae el historial completo de transferencias de un jugador — ver
+# y trae el historial completo de transferencias de un jugador, ver
 # `parse_transfersplayer` en `app/infrastructure/chpp/parsers/__init__.py`.
 #
 # CORRECCIÓN 2026-08-03 (bis): `"latest"` NO es la versión más reciente de
-# `transfersteam.xml` — es un esquema/ventana viejo y distinto. Comparado en
+# `transfersteam.xml`, es un esquema/ventana viejo y distinto. Comparado en
 # vivo contra la cuenta real: pedir `version=latest` devolvía una página de
 # 25 transferencias que terminaba justo donde `version=1.2` EMPIEZA (es
 # decir, "latest" se queda ~25 transferencias atrás de lo real). Una venta
 # hecha el mismo día de la prueba (Lander Fripont, 495018863) solo aparecía
-# pidiendo "1.2" explícito — con "latest" nunca se habría visto. Fijado a
+# pidiendo "1.2" explícito, con "latest" nunca se habría visto. Fijado a
 # "1.2" para que las ventas/compras recientes sí lleguen.
 FILE_VERSIONS = {
     # 2.8 mantiene los campos de 2.6 y, validado contra players.xml de un
@@ -174,13 +208,13 @@ FILE_VERSIONS = {
     # economy 1.4, no 1.5: 1.5 no está confirmada y degradaba el fichero al
     # esquema viejo (todo agregado en Income/CostsTemporary). 1.4 es la que
     # trae IncomeSoldPlayers/Commission, IncomeSponsorBonuses y
-    # Costs{BoughtPlayers,ArenaBuilding} por separado — verificado contra
+    # Costs{BoughtPlayers,ArenaBuilding} por separado, verificado contra
     # `docs/chpp-reference/economy.txt`, un fichero real de esta cuenta.
     "players": "2.8",
     "teamdetails": "3.6",
     "training": "2.2",
     "economy": "1.4",
-    # club 1.1, no 1.0: verificado en vivo 2026-08-12 — Hattrick YA NO honra
+    # club 1.1, no 1.0: verificado en vivo 2026-08-12, Hattrick YA NO honra
     # el pin a 1.0 y devuelve 1.1 igual (`<Specialists>` en vez de
     # `<Staff>`/niveles agregados por puesto). Fijar 1.1 explícito documenta
     # lo que de verdad se recibe en vez de mentir sobre qué versión se pidió.
@@ -196,7 +230,7 @@ FILE_VERSIONS = {
     "stafflist": "1.2",
     # 2.0, no 1.8 (2026-08-09, confirmado por el usuario): a esta versión
     # `MatchRound` de cada `<League>` es la SEMANA real de temporada (1-16,
-    # el mismo ciclo semanal de economía/entrenamiento) — no la jornada de
+    # el mismo ciclo semanal de economía/entrenamiento), no la jornada de
     # liga (ese es un concepto distinto, de leaguedetails.xml/Standing). Se
     # fija explícito para no depender de que un cambio de versión por
     # defecto de CHPP altere el significado del campo en silencio, igual que
@@ -207,15 +241,15 @@ FILE_VERSIONS = {
     "matchdetails": "3.1",
     "leaguedetails": "1.6",
     # 1.2 verificado en vivo: trae el calendario COMPLETO de la serie (los
-    # 28 pares posibles, ida y vuelta) con MatchRound real — a diferencia de
+    # 28 pares posibles, ida y vuelta) con MatchRound real, a diferencia de
     # matches.xml, que solo trae los partidos del equipo pedido.
     "leaguefixtures": "1.2",
     # 1.1 verificado en vivo (HL-161): historial completo de transferencias
     # de UN jugador, con "s" en el nombre del fichero (transfersplayer, no
-    # transferplayer) — ver corrección 2026-08-03 más arriba.
+    # transferplayer), ver corrección 2026-08-03 más arriba.
     "transfersplayer": "1.1",
     # 1.0 verificado en vivo (HL-161): jugadores propios actualmente en el
-    # mercado — se usa para contar intentos de venta hacia adelante, CHPP
+    # mercado, se usa para contar intentos de venta hacia adelante, CHPP
     # no da un historial de esto.
     "currentbids": "1.0",
     "playerdetails": "3.2",
@@ -228,25 +262,30 @@ FILE_VERSIONS = {
     # 1.2 verificado en vivo 2026-08-18: WeatherID (hoy) y TomorrowWeatherID.
     "regiondetails": "1.2",
     # El default del servidor todavía responde 1.3. `sourceSystem` y los roles
-    # modernos (100-113) de partidos de torneo requieren 3.0 — verificado en
+    # modernos (100-113) de partidos de torneo requieren 3.0, verificado en
     # vivo con tournamentmatchid=41877309.
     "matchorders": "3.0",
-    # 1.0 verificado en vivo 2026-08-14 (HL-161): a diferencia de
-    # matches.xml (solo reciente/próximo), SÍ retrocede a temporadas ya
-    # cerradas con FirstMatchDate/LastMatchDate — la pieza que faltaba para
-    # contar partidos jugados con nosotros por un ex-jugador.
-    "matchesarchive": "1.0",
+    # A diferencia de matches.xml (que sólo alcanza un mes hacia atrás:
+    # medido 2026-09-07, el más viejo que devolvió era del 11 de agosto), este
+    # SÍ retrocede a temporadas ya cerradas con FirstMatchDate/LastMatchDate.
+    #
+    # 1.5 y no 1.0, que es lo que pedía antes: las versiones 1.0 a 1.2 no
+    # traen `CupLevel`/`CupLevelIndex`, así que todo partido de copa rescatado
+    # del archivo entraba sin saber de qué copa era y la pantalla de Copa no
+    # lo veía. Desde la 1.3 llegan los dos; la 1.5 añade `CupId` y
+    # `SourceSystem`. Comprobado fichero a fichero contra el equipo real.
+    "matchesarchive": "1.5",
 }
 
 # matchlineup.xml SIN versión explícita resuelve a un esquema viejo (1.2)
-# donde `RoleID` es solo un índice secuencial sin significado — verificado
+# donde `RoleID` es solo un índice secuencial sin significado, verificado
 # en vivo 2026-08-09 (matchID 770453114, playerID 468921494: con 2.1
 # RoleID=112="Delantero medio", el puesto real; sin versión, ese mismo
 # jugador leía PositionCode=10="Interior izquierdo"). 2.1 además ya
 # incorpora cada `<Substitution>` en el `<Lineup>` final, así que hasta un
 # suplente que entró a mitad de partido queda con su posición real, y trae
 # `Behaviour` (orden individual: Ofensivo/Defensivo/Hacia el medio/Hacia
-# la banda — usado para "Última semana" en Posiciones). NO usar esta
+# la banda, usado para "Última semana" en Posiciones). NO usar esta
 # versión donde haga falta `PositionCode` (desaparece desde 1.5): el
 # marcaje al hombre de rivals.py usa su propia
 # `MATCHLINEUP_POSITION_CODE_VERSION = "1.2"`, a propósito distinta. Ver
@@ -323,8 +362,8 @@ def _sin_placeholders_de_animo(
     Hattrick usa -1 mientras un partido está en curso. No significa que el
     Espíritu o la Confianza hayan bajado: significa que ese campo no está
     disponible en ese instante. Cada indicador se resuelve por separado con
-    su última lectura válida. Si todavía no existe una, se guarda ``None`` —
-    ausencia de dato— y nunca un nivel inventado.
+    su última lectura válida. Si todavía no existe una, se guarda ``None``
+    ausencia de dato, y nunca un nivel inventado.
     """
     limpio = dict(payload)
     for campo in campos:
@@ -332,6 +371,54 @@ def _sin_placeholders_de_animo(
             anterior = previous.get(campo) if previous is not None else None
             limpio[campo] = anterior if isinstance(anterior, int) and anterior >= 0 else None
     return limpio
+
+
+async def trasladar_equipo_reemplazado(
+    session: Any, series_ht_id: int, equipos: list[dict[str, Any]]
+) -> int:
+    """Pasa los partidos pendientes de un equipo reemplazado al que ocupa hoy su sitio.
+
+    2026-09-13, visto en vivo: etbenianos1 fue reemplazado por Kivaré, con otro
+    id, justo después de la jornada 8. La clasificación ya traía a Kivaré; el
+    calendario guardado seguía con etbenianos1 en las jornadas 9-14, y ninguna
+    pantalla encontraba al rival. Si en los pendientes de la serie sobra
+    exactamente un id y en la clasificación falta exactamente uno, es el mismo
+    sitio. Los partidos ya jugados no se tocan: esos sí los jugó el equipo viejo.
+    Devuelve cuántos partidos cambió.
+    """
+    from sqlalchemy import select
+
+    from app.infrastructure.db import models as m
+
+    actuales = {t.get("ht_team_id"): t.get("name", "") for t in equipos if t.get("ht_team_id")}
+    if not series_ht_id or len(actuales) < 2:
+        return 0
+    pendientes = list(
+        (
+            await session.execute(
+                select(m.Match).where(
+                    m.Match.series_ht_id == series_ht_id,
+                    m.Match.home_goals < 0,
+                )
+            )
+        ).scalars()
+    )
+    en_calendario = {p.home_team_ht_id for p in pendientes} | {
+        p.away_team_ht_id for p in pendientes
+    }
+    viejos, nuevos = en_calendario - set(actuales), set(actuales) - en_calendario
+    if len(viejos) != 1 or len(nuevos) != 1:
+        return 0
+    viejo, nuevo = viejos.pop(), nuevos.pop()
+    cambiados = 0
+    for p in pendientes:
+        if p.home_team_ht_id == viejo:
+            p.home_team_ht_id, p.home_team_name = nuevo, actuales[nuevo]
+            cambiados += 1
+        elif p.away_team_ht_id == viejo:
+            p.away_team_ht_id, p.away_team_name = nuevo, actuales[nuevo]
+            cambiados += 1
+    return cambiados
 
 
 @dataclass(frozen=True)
@@ -344,7 +431,7 @@ class SyncTeamCommand:
 
 @dataclass(frozen=True)
 class SyncMatchDetailsCommand:
-    """matchdetails se pide por partido (matchID), no por equipo — de ahí un
+    """matchdetails se pide por partido (matchID), no por equipo, de ahí un
     comando aparte en vez de meterlo en `files` de SyncTeamCommand."""
 
     user_id: int
@@ -357,7 +444,7 @@ class SyncMatchDetailsCommand:
 
 @dataclass(frozen=True)
 class SyncPlayerDetailsCommand:
-    """playerdetails se pide por jugador (playerID) — igual que
+    """playerdetails se pide por jugador (playerID), igual que
     matchdetails, aparte de `files`: son N llamadas CHPP, una por jugador
     de la plantilla, no una sola por equipo."""
 
@@ -368,7 +455,7 @@ class SyncPlayerDetailsCommand:
 
 @dataclass(frozen=True)
 class SyncTransfersPlayerCommand:
-    """transfersplayer.xml, HL-161: historial completo de UN jugador —
+    """transfersplayer.xml, HL-161: historial completo de UN jugador
     igual que playerdetails/matchdetails, una llamada por jugador, acción
     aparte que dispara el usuario (no forma parte del sync por defecto)."""
 
@@ -379,12 +466,12 @@ class SyncTransfersPlayerCommand:
 
 @dataclass(frozen=True)
 class SyncTransfersHistoryCommand:
-    """HL-161, 2026-08-04: botón "Actualizar transferencias" — pagina
+    """HL-161, 2026-08-04: botón "Actualizar transferencias", pagina
     transfersteam.xml completo (no solo la página más reciente) para traer
     TODA la historia de compraventas del equipo, así el jugador ya no esté
     en la plantilla ni haya sido visto nunca por `players.xml`. La primera
     vez recorre las ~40 páginas (casi 1000 transferencias); las siguientes
-    paran en cuanto encuentran un TransferID ya conocido — ver
+    paran en cuanto encuentran un TransferID ya conocido, ver
     `execute_transfers_history`."""
 
     user_id: int
@@ -397,7 +484,7 @@ class SyncPlayerEnrichmentCommand:
     """HL-161: una llamada a playerdetails.xml por jugador VENDIDO que
     rellena de un tirón edad-en-la-venta, país de origen, carácter y
     especialidad. CORRECCIÓN 2026-08-04: antes era un botón aparte
-    ("Calcular edad al vender") — el usuario pidió explícitamente quitarlo,
+    ("Calcular edad al vender"), el usuario pidió explícitamente quitarlo,
     porque una vez calculado para un jugador nunca vuelve a hacer falta, así
     que ahora se dispara solo, automático, dentro de `execute()` (ver
     `_backfill_player_enrichment`)."""
@@ -411,7 +498,7 @@ class SyncPlayerEnrichmentCommand:
 class SyncPreviousClubBonusCommand:
     """HL-161, 2026-08-14: para UN jugador ya vendido, revisa
     transfersplayer.xml buscando una reventa nueva del club al que le
-    vendimos — si la hay, calcula la comisión exacta de "club anterior"
+    vendimos, si la hay, calcula la comisión exacta de "club anterior"
     (partidos reales jugados con nosotros × tabla oficial) y la guarda.
     Dispara tanto el backfill masivo bajo demanda como, acotado, el
     monitoreo automático dentro de `execute()` (ver
@@ -435,6 +522,11 @@ class SyncBackfillBatchCommand:
     # que "una pulsacion" se define como UNA pasada: quien ya se reviso despues
     # de esta marca no vuelve a la cola hasta la siguiente.
     revisar_desde: datetime | None = None
+    # Juntar los lotes de una misma pulsacion en una sola fila de `syncs`. El
+    # lote automatico del final de cada sincronizacion (2026-09-13) usa una
+    # marca de hace una semana, y reutilizar la fila le colgaria sus hallazgos
+    # a una sincronizacion vieja.
+    reutilizar_fila: bool = True
 
 
 @dataclass
@@ -444,15 +536,15 @@ class SyncResult:
     snapshots_written: int = 0
     unchanged: int = 0
     errors: list[str] = field(default_factory=list)
-    # HL-140: qué cambió respecto al sync anterior — {"category", "summary"}
+    # HL-140: qué cambió respecto al sync anterior, {"category", "summary"}
     changes: list[dict[str, str]] = field(default_factory=list)
     # HL-2xx, 2026-08-12: filas `Player` recién marcadas `left_team_at` en
-    # este sync (ver `mark_departed`) — se anuncian en `changes` DESPUÉS de
+    # este sync (ver `mark_departed`), se anuncian en `changes` DESPUÉS de
     # que todos los ficheros terminen, no aquí mismo, porque `transfersteam`
     # (si es parte de este sync) puede rellenar `sale_price` de un jugador
     # que ya salió del roster ANTES de que ese fichero se procese.
     departed_players: list[Any] = field(default_factory=list)
-    # HL-161, 2026-08-04: solo los usa `execute_transfers_history` — cuántas
+    # HL-161, 2026-08-04: solo los usa `execute_transfers_history`, cuántas
     # páginas de transfersteam.xml se pidieron y cuántas transferencias se
     # vieron en total vs. cuántas eran nuevas de verdad.
     pages_fetched: int = 0
@@ -469,6 +561,10 @@ class SyncResult:
     #: era esa cola. Es lo que deja pintar la barra como un MAPA del barrido
     #: --el frente avanza por la izquierda, el azar enciende marcas donde
     #: caiga-- en vez de como un porcentaje ciego. 2026-08-25.
+    # Partidos históricos que `matches.xml` ya no alcanzaba y hubo que sacar
+    # de `matchesarchive.xml`. En la primera conexión cuenta todo el pasado
+    # recuperado; después sólo los nuevos añadidos a la cola incremental.
+    rescued_matches: int = 0
     # El mapa del barrido de comisiones, para pintar la barra como lo que es:
     # un recorrido por la cola, no un porcentaje.
     queue_map: mapa_del_barrido.Mapa | None = None
@@ -501,7 +597,7 @@ class SyncTeamHandler:
                         # Sin `actionType=details` el fichero trae sólo las
                         # identidades: ni niveles ni techos, y el motor de
                         # academia se queda sin nada que evaluar. No lleva
-                        # teamID — CHPP resuelve el equipo juvenil del usuario.
+                        # teamID, CHPP resuelve el equipo juvenil del usuario.
                         params = {"actionType": "details", "showLastMatch": "true"}
                     elif file == "youthteamdetails":
                         # Igual que el anterior: sin teamID, CHPP devuelve la
@@ -527,7 +623,7 @@ class SyncTeamHandler:
                         captured_at,
                         result,
                     )
-                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"{file}: {exc}")
                     result.status = "partial"
 
@@ -595,7 +691,7 @@ class SyncTeamHandler:
 
             if result.departed_players:
                 # HL-2xx, 2026-08-12: se anuncia aquí, no dentro de
-                # `_persist_squad` — `transfersteam` puede ir DESPUÉS de
+                # `_persist_squad`, `transfersteam` puede ir DESPUÉS de
                 # `players` en `files`, y sólo tras procesarlo
                 # `sale_price`/`sold_at` reflejan la venta real de este
                 # mismo sync (ver docstring de `SyncResult.departed_players`).
@@ -608,7 +704,9 @@ class SyncTeamHandler:
 
                 for p in result.departed_players:
                     name = f"{p.first_name} {p.last_name}".strip()
-                    change = diff_player_departure(name, _conv(p.sale_price), currency)
+                    change = diff_player_departure(
+                        name, _conv(p.sale_price), currency, p.ht_player_id
+                    )
                     result.changes.append(_as_change_row(change))
 
             for c in result.changes:
@@ -625,15 +723,15 @@ class SyncTeamHandler:
                 )
 
             # HL-161: enriquecimiento de jugadores vendidos (edad en la
-            # venta, país, carácter, especialidad, país destino) — pedido
+            # venta, país, carácter, especialidad, país destino), pedido
             # explícitamente 2026-08-04 SIN botón: se dispara solo aquí,
             # dentro del sync normal, porque una vez resuelto para un
             # jugador nunca hace falta repetirlo. Solo cuando `transfersteam`
-            # es parte de este sync (donde se detectan ventas) — evita
+            # es parte de este sync (donde se detectan ventas), evita
             # llamadas CHPP de más en syncs restringidos a otros ficheros
             # (p. ej. los de test que sólo piden players/training/economy).
             if "transfersteam" in files:
-                # `captured_at` (arriba) es aware (UTC) — sirve para Match y
+                # `captured_at` (arriba) es aware (UTC), sirve para Match y
                 # otras tablas, pero `sold_at` leído de SQLite siempre llega
                 # naive (no conserva tzinfo en el viaje de ida y vuelta), así
                 # El relleno del pasado (ficha, precio antiguo y país destino
@@ -647,12 +745,12 @@ class SyncTeamHandler:
                 await self._backfill_mandatory_listing_count(uow, cmd.team_id, result)
 
             # 2026-08-05, pedido explícitamente: "tienes que sincronizar
-            # todos los xml que importen cada vez que sincronizamos" — hasta
+            # todos los xml que importen cada vez que sincronizamos", hasta
             # ahora LastMatch/Caps/CareerAssists (playerdetails.xml) y
             # HatStats/sectores (matchdetails.xml) se quedaban obsoletos
             # esperando un botón aparte ("Actualizar detalles de jugadores",
             # "Sincronizar detalles"). Ambos entran aquí, siempre que su
-            # fichero base haya sido parte de este sync — cada uno sigue
+            # fichero base haya sido parte de este sync, cada uno sigue
             # siendo tantas llamadas CHPP como jugadores/partidos pendientes
             # haya, pero ya no depende de que el usuario recuerde pedirlo.
             if "players" in files:
@@ -662,10 +760,21 @@ class SyncTeamHandler:
                 await self._censar_partidos_de_seleccion(uow, cmd.team_id, captured_at, result)
                 await self._sync_training_events(uow, cmd.team_id, captured_at, result, on_progress)
             if "matches" in files:
+                await self._sync_match_history(
+                    uow,
+                    cmd.team_id,
+                    cmd.ht_team_id,
+                    captured_at,
+                    result,
+                    on_progress,
+                )
                 await self._sync_upcoming_match_orders(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
                 )
                 await self._backfill_missing_match_details(
+                    uow, cmd.team_id, cmd.ht_team_id, result, on_progress
+                )
+                await self._completar_detalles_historicos(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
                 await self._sync_next_match_weather(
@@ -673,6 +782,9 @@ class SyncTeamHandler:
                 )
                 await self._sync_rival_purchases(
                     uow, cmd.team_id, cmd.ht_team_id, captured_at, result, on_progress
+                )
+                await self._guardar_partidos_de_rivales(
+                    uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
 
             await self._marcar_salidas_de_vendidos(uow, cmd.team_id)
@@ -722,7 +834,7 @@ class SyncTeamHandler:
             # para acotar la vigilancia, sirve también para reconocer la fila
             # de esta misma pulsación y reutilizarla.
             sync_id = None
-            if cmd.revisar_desde is not None:
+            if cmd.revisar_desde is not None and cmd.reutilizar_fila:
                 sync_id = await uow.session.scalar(
                     select(m.Sync.id)
                     .where(
@@ -811,7 +923,7 @@ class SyncTeamHandler:
             )
             .exists()
         )
-        # 2026-08-05: mismo principio, ancla en `purchased_at` — "Edad de
+        # 2026-08-05: mismo principio, ancla en `purchased_at`, "Edad de
         # compra" en Detalle lo necesita para TODO jugador con compra
         # conocida, esté vendido o siga en la plantilla.
         hay_snapshot_tras_la_compra = (
@@ -875,7 +987,7 @@ class SyncTeamHandler:
                 )
             )
         )
-        # 2026-08-05: "una vez por jugador, para siempre" —
+        # 2026-08-05: "una vez por jugador, para siempre"
         # `tsi_at_purchase_attempted` es el mismo flag en los dos casos.
         precio = await ids(
             (~m.Player.tsi_at_purchase_attempted)
@@ -1107,6 +1219,11 @@ class SyncTeamHandler:
             else []
         )
 
+        # Cuántos historiales se llegan a construir en ESTA pasada. Ver
+        # `Balance.historiales`: hasta el 2026-09-10 este trabajo no dejaba
+        # rastro en ningún sitio y se leía como que no había pasado nada.
+        historiales_construidos = 0
+
         if reventa:
             # Uno reciente, uno al azar, uno reciente… sobre la cola de
             # reventas, y el resto detras por recencia. La alternancia
@@ -1157,7 +1274,7 @@ class SyncTeamHandler:
                 try:
                     wrote = await self._apply_player_enrichment(uow, ht_player_id, fetched_at)
                     result.snapshots_written += 1 if wrote else 0
-                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in precio:
@@ -1168,7 +1285,7 @@ class SyncTeamHandler:
                 try:
                     wrote = await self._apply_transfers_player_purchase(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
-                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in destino:
@@ -1176,7 +1293,7 @@ class SyncTeamHandler:
                 try:
                     wrote = await self._apply_destination_country(uow, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
-                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"destination_country:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in censo:
@@ -1187,7 +1304,9 @@ class SyncTeamHandler:
                 try:
                     wrote = await self._censar_partidos_del_stint(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
-                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                    # Se cuenta para poder DECIRLO. Ver `Balance.historiales`.
+                    historiales_construidos += 1 if wrote else 0
+                except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
                     result.status = "partial"
             if ht_player_id in reventa:
@@ -1195,7 +1314,7 @@ class SyncTeamHandler:
                 try:
                     wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
-                except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+                except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"reventa:{ht_player_id}: {exc}")
                     result.status = "partial"
 
@@ -1368,6 +1487,7 @@ class SyncTeamHandler:
                     abiertos=abiertos,
                     cerrados=cerrados_del_barrido,
                     comisiones=comisiones_del_barrido,
+                    historiales=historiales_construidos,
                 )
 
         return len(todos)
@@ -1432,17 +1552,17 @@ class SyncTeamHandler:
     async def _backfill_mandatory_listing_count(
         self, uow: UnitOfWork, team_id: int, result: SyncResult
     ) -> None:
-        """HL-161, 2026-08-04 — corrección pedida explícitamente por el
+        """HL-161, 2026-08-04, corrección pedida explícitamente por el
         usuario: vender un jugador en Hattrick EXIGE listarlo primero (el
         solo hecho de ponerlo transferible cuesta 1.000, aparte de si
         alguien puja o no), así que CUALQUIER jugador VENDIDO tuvo, como
-        mínimo, un intento de venta — aunque `currentbids.xml` (una foto del
+        mínimo, un intento de venta, aunque `currentbids.xml` (una foto del
         mercado en el instante del sync) nunca lo haya pillado listado a
         tiempo, que es el caso normal para casi cualquier venta ya cerrada
         antes de sincronizar, y SIEMPRE el caso para los ~410 jugadores del
         backfill histórico de `execute_transfers_history` (transfersteam.xml
         no dice nada de si un jugador pasó por el mercado, solo que se
-        vendió). No pisa un `listing_count` ya mayor que 0 — ese sí viene de
+        vendió). No pisa un `listing_count` ya mayor que 0, ese sí viene de
         una detección real vía `_persist_currentbids`, y puede ser más de 1
         si se relistó."""
         from sqlalchemy import select
@@ -1465,6 +1585,112 @@ class SyncTeamHandler:
         for player in players:
             player.listing_count = 1
             result.snapshots_written += 1
+
+    async def _guardar_partidos_de_rivales(
+        self,
+        uow: Any,
+        team_id: int,
+        ht_team_id: int,
+        result: Any,
+        on_progress: ProgressReporter | None,
+    ) -> None:
+        """Deja en la base los últimos oficiales de cada contrincante.
+
+        2026-09-09, pedido del usuario: «En Sync, vas a cargar los 5 partidos
+        oficiales de cada contrincante de Liga de una, guárdalos para que no
+        toque volverlos a llamar».
+
+        POR QUÉ AQUÍ Y NO AL ABRIR LA FICHA. Es el mismo trabajo, pero hecho
+        una vez en un momento en que el usuario ya está esperando, en vez de
+        cada vez que mira a un rival. Y es incremental: la semana siguiente
+        sólo baja la jornada nueva.
+
+        NUNCA TUMBA EL SYNC. Los partidos de un equipo ajeno son una comodidad,
+        no estado del club: si Hattrick no contesta se anota y se sigue. La
+        ficha de rival volvería a pedirlos en vivo, que es como funcionaba
+        antes de esto.
+        """
+        from sqlalchemy import or_, select
+
+        from app.application.commands.partidos_de_rivales import (
+            guardar_partidos_de_rivales,
+        )
+        from app.domain.value_objects.ht_constants import (
+            MATCH_TYPE_CUP,
+            MATCH_TYPE_LEAGUE,
+            MATCH_TYPE_MASTERS,
+            MATCH_TYPE_QUALIFICATION,
+        )
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        if equipo is None:
+            return
+
+        # LOS MISMOS CONTRINCANTES QUE YA SE VIGILAN para los fichajes: los
+        # siete de tu serie y el rival del próximo cruce oficial, copa
+        # incluida. Un amistoso no entra, y es lo que pidió el usuario: se
+        # elige a mano entre millones de equipos, así que precargarlo sería
+        # adivinar contra quién vas a querer mirar.
+        rivales: set[int] = set()
+        if equipo.series_ht_id is not None:
+            filas = (
+                await uow.session.execute(
+                    select(m.Standing.team_ht_id)
+                    .where(m.Standing.series_ht_id == equipo.series_ht_id)
+                    .distinct()
+                )
+            ).all()
+            rivales.update(f.team_ht_id for f in filas if f.team_ht_id != ht_team_id)
+
+        proximos = (
+            await uow.session.execute(
+                select(m.Match).where(
+                    or_(
+                        m.Match.home_team_ht_id == ht_team_id,
+                        m.Match.away_team_ht_id == ht_team_id,
+                    ),
+                    ~m.Match.status.ilike("finished"),
+                    m.Match.match_type.in_(
+                        {
+                            MATCH_TYPE_CUP,
+                            MATCH_TYPE_MASTERS,
+                            MATCH_TYPE_QUALIFICATION,
+                            MATCH_TYPE_LEAGUE,
+                        }
+                    ),
+                )
+            )
+        ).scalars()
+        for partido in proximos:
+            es_local = partido.home_team_ht_id == ht_team_id
+            rival_id = partido.away_team_ht_id if es_local else partido.home_team_ht_id
+            if rival_id and rival_id != ht_team_id:
+                rivales.add(rival_id)
+
+        rivales.discard(0)
+        if not rivales:
+            return
+
+        await _report(on_progress, "Guardando los últimos partidos de tus rivales...")
+        try:
+            resumen = await guardar_partidos_de_rivales(
+                uow.session,
+                self._chpp,
+                rivales,
+                FILE_VERSIONS["matches"],
+                FILE_VERSIONS["matchdetails"],
+            )
+        except Exception as exc:  # noqa: BLE001, una comodidad no tumba el sync
+            result.errors.append(f"partidos de rivales: {exc}")
+            return
+        result.errors.extend(resumen.errores)
+        if resumen.partidos_nuevos:
+            await _report(
+                on_progress,
+                f"Guardados {resumen.partidos_nuevos} partidos nuevos "
+                f"de {resumen.rivales} rivales.",
+            )
 
     async def _sync_rival_purchases(
         self,
@@ -1668,9 +1894,9 @@ class SyncTeamHandler:
         """El clima de la región donde se juega el próximo partido.
 
         Hattrick pronostica a un día vista y por región, así que esto solo
-        tiene sentido para el partido inmediato: se piden dos ficheros —el
+        tiene sentido para el partido inmediato: se piden dos ficheros, el
         estadio donde se juega, para saber su región, y la región, para saber
-        su tiempo— y nada más. En un partido de visitante la región es la del
+        su tiempo, y nada más. En un partido de visitante la región es la del
         rival, no la propia.
 
         La región de un estadio no cambia, así que solo se pregunta la primera
@@ -1758,7 +1984,7 @@ class SyncTeamHandler:
             else:
                 for campo, valor in valores.items():
                     setattr(row, campo, valor)
-        except Exception as exc:  # noqa: BLE001 — el clima nunca tumba un sync
+        except Exception as exc:  # noqa: BLE001, el clima nunca tumba un sync
             result.errors.append(f"regiondetails: {exc}")
 
     async def _sync_upcoming_match_orders(
@@ -1913,7 +2139,7 @@ class SyncTeamHandler:
                             f"{predicted_payload['chpp_error']}"
                         )
                         result.status = "partial"
-                except Exception as exc:  # noqa: BLE001 — las órdenes siguen siendo útiles
+                except Exception as exc:  # noqa: BLE001, las órdenes siguen siendo útiles
                     result.errors.append(f"matchorders:predictratings:{match.ht_match_id}: {exc}")
                     result.status = "partial"
 
@@ -1921,7 +2147,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1
                 else:
                     result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+            except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                 result.errors.append(f"matchorders:{match.ht_match_id}: {exc}")
                 result.status = "partial"
 
@@ -1934,13 +2160,16 @@ class SyncTeamHandler:
         on_progress: ProgressReporter | None = None,
     ) -> None:
         """2026-08-05, pedido explícitamente: "sincroniza todos los xml que
-        importen cada vez que sincronizamos" — HatStats y el desglose por
-        sector ya no se quedan en "—" esperando el botón "Sincronizar
+        importen cada vez que sincronizamos", HatStats y el desglose por
+        sector ya no se quedan en "-" esperando el botón "Sincronizar
         detalles" de Partidos. `matches.xml` solo trae calendario y
         resultado; `matchdetails.xml` se pide por partido, así que se
-        recorre aquí cualquier partido TERMINADO del propio club al que le
-        falten ratings, o (si fue de local) el aforo del partido — mismo
-        criterio que ya usaba ese botón (`trigger_match_details_sync`).
+        recorre aquí cualquier partido TERMINADO reciente del propio club al
+        que le falten ratings, o (si fue de local) el aforo del partido
+        mismo criterio que ya usaba ese botón (`trigger_match_details_sync`).
+        Los resúmenes antiguos importados en bloque se omiten aquí: pedir su
+        detalle sigue siendo posible de forma explícita, pero no hace parte
+        del alta inicial.
         Un resultado ya jugado no cambia, así que esto es "una vez por
         partido, para siempre": la propia ausencia de la fila es el gate,
         sin necesitar un flag "attempted" aparte."""
@@ -1959,6 +2188,12 @@ class SyncTeamHandler:
                         (m.Match.home_team_ht_id == ht_team_id)
                         | (m.Match.away_team_ht_id == ht_team_id),
                         m.Match.status.ilike("finished"),
+                        # El alta histórica guarda todos los marcadores, pero
+                        # no debe convertirse en cientos de llamadas
+                        # matchdetails dentro del mismo clic. Esos detalles
+                        # antiguos los completa `_completar_detalles_historicos`
+                        # por tandas, una en cada sync.
+                        m.Match.history_summary_only.is_(False),
                         (ratings_missing | stadium_missing_on_home),
                     )
                 )
@@ -1977,7 +2212,7 @@ class SyncTeamHandler:
                 teamID=ht_team_id,
             )
             arena_capacity = arena.get("current_capacity")
-        except Exception as exc:  # noqa: BLE001 — no invalida ratings si falla solo el aforo
+        except Exception as exc:  # noqa: BLE001, no invalida ratings si falla solo el aforo
             result.errors.append(f"arenadetails: {exc}")
 
         for ht_match_id in pending:
@@ -1999,7 +2234,7 @@ class SyncTeamHandler:
                     matchID=ht_match_id,
                 )
                 # Defensivo: `_persist_match_details` confía en
-                # `payload["ht_match_id"]`, no en el ID pedido — nunca debería
+                # `payload["ht_match_id"]`, no en el ID pedido, nunca debería
                 # discrepar contra CHPP real (cada matchID pedido trae SU
                 # propio partido), pero este método es el primero que pide
                 # varios matchID distintos en el mismo lote, así que una
@@ -2017,8 +2252,140 @@ class SyncTeamHandler:
                     write_stadium=is_own_home_match and not bool(already_stadium),
                     arena_capacity=arena_capacity,
                 )
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+            except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                 result.errors.append(f"matchdetails:{ht_match_id}: {exc}")
+                result.status = "partial"
+
+    async def _completar_detalles_historicos(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_team_id: int,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """La historia completa de Partidos, de una vez (2026-09-14).
+
+        La primera sincronización trae del archivo TODOS los partidos del club
+        desde su fundación, pero sólo con marcador; el detalle --ratings por
+        sector, ocasiones, asistencia-- cuesta una llamada `matchdetails` por
+        partido. Esos partidos quedan marcados `history_summary_only`.
+
+        Aquí se completan TODOS en ese mismo sync, pidiendo
+        `DETALLES_HISTORICOS_EN_PARALELO` a la vez y guardándolos en orden, del
+        más reciente al más antiguo. Después no queda ninguno y esto no hace
+        nada: desde entonces sólo entra lo nuevo, que ya llega con su detalle en
+        el sync normal. Nada se pide dos veces: la marca se quita al guardar.
+
+        Sólo oficiales y amistosos. Torneos, escaleras, duelos y preparación no
+        se muestran en Partidos, y sólo las escaleras de un club activo son
+        decenas por temporada.
+
+        Si Hattrick responde sin el partido, también se quita la marca: pedirlo
+        otra vez daría lo mismo. Un fallo de red, en cambio, la deja puesta y
+        ese partido se reintenta en el siguiente sync.
+        """
+        import asyncio
+
+        from sqlalchemy import select
+
+        from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES
+        from app.infrastructure.db import models as m
+
+        pendientes = (
+            (
+                await uow.session.execute(
+                    select(m.Match)
+                    .where(
+                        (m.Match.home_team_ht_id == ht_team_id)
+                        | (m.Match.away_team_ht_id == ht_team_id),
+                        m.Match.history_summary_only.is_(True),
+                        m.Match.status.ilike("finished"),
+                        m.Match.home_goals >= 0,
+                        m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES),
+                    )
+                    .order_by(m.Match.played_at.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not pendientes:
+            return
+        total = len(pendientes)
+
+        arena_capacity: dict[str, int] | None = None
+        try:
+            arena = await self._chpp.fetch(
+                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=ht_team_id
+            )
+            arena_capacity = arena.get("current_capacity")
+        except Exception as exc:  # noqa: BLE001, no invalida ratings si falla sólo el aforo
+            result.errors.append(f"arenadetails: {exc}")
+
+        # Las llamadas van en paralelo; la base, en cambio, se toca en orden y
+        # desde un solo sitio, porque la sesión no admite escrituras cruzadas.
+        semaforo = asyncio.Semaphore(DETALLES_HISTORICOS_EN_PARALELO)
+        traidos = 0
+
+        async def pedir(ht_match_id: int) -> dict[str, Any] | Exception:
+            nonlocal traidos
+            async with semaforo:
+                try:
+                    payload = await self._chpp.fetch(
+                        "matchdetails",
+                        version=FILE_VERSIONS["matchdetails"],
+                        matchID=ht_match_id,
+                    )
+                except Exception as exc:  # noqa: BLE001, se reintenta en el siguiente sync
+                    return exc
+                traidos += 1
+                if traidos % 10 == 0 or traidos == total:
+                    await _report(
+                        on_progress,
+                        f"Trayendo tus partidos antiguos: {traidos} de {total}...",
+                    )
+                return payload
+
+        respuestas = await asyncio.gather(*(pedir(p.ht_match_id) for p in pendientes))
+
+        for match, respuesta in zip(pendientes, respuestas, strict=True):
+            try:
+                if isinstance(respuesta, Exception):
+                    raise respuesta
+                payload = respuesta
+                # Sin <Match> en la respuesta --un chpperror, o un partido que
+                # Hattrick ya no enseña-- el lector devuelve vacío. Es una
+                # respuesta, no un fallo de red: reintentarla daría lo mismo.
+                if not payload.get("ht_match_id") or payload.get("chpp_error"):
+                    match.history_summary_only = False
+                    result.errors.append(
+                        f"matchdetails:{match.ht_match_id}: Hattrick no dio el detalle"
+                    )
+                    continue
+                if payload.get("ht_match_id") != match.ht_match_id:
+                    continue
+                ya_ratings = await uow.session.scalar(
+                    select(m.MatchRating.id).where(m.MatchRating.ht_match_id == match.ht_match_id)
+                )
+                ya_estadio = await uow.session.scalar(
+                    select(m.StadiumHistory.id).where(
+                        m.StadiumHistory.ht_match_id == match.ht_match_id
+                    )
+                )
+                self._persist_match_details(
+                    uow,
+                    payload,
+                    result,
+                    team_id=team_id,
+                    match=match,
+                    write_ratings=not bool(ya_ratings),
+                    write_stadium=match.home_team_ht_id == ht_team_id and not bool(ya_estadio),
+                    arena_capacity=arena_capacity,
+                )
+                match.history_summary_only = False
+            except Exception as exc:  # noqa: BLE001, sync parcial, se reintenta en el siguiente
+                result.errors.append(f"matchdetails:{match.ht_match_id}: {exc}")
                 result.status = "partial"
 
     async def _resolver_moneda(self, uow: UnitOfWork, team_id: int) -> None:
@@ -2085,7 +2452,7 @@ class SyncTeamHandler:
         """Ratings por sector y eventos de un partido terminado. HL-071/072.
 
         Idempotente por ht_match_id: si ya hay ratings para este partido, no
-        se vuelve a pedir ni a escribir — el resultado de un partido jugado no
+        se vuelve a pedir ni a escribir, el resultado de un partido jugado no
         cambia."""
         from sqlalchemy import select
 
@@ -2132,7 +2499,7 @@ class SyncTeamHandler:
                     write_stadium=is_own_home_match and not bool(already_stadium),
                     arena_capacity=cmd.arena_capacity,
                 )
-            except Exception as exc:  # noqa: BLE001 — mismo patrón que execute()
+            except Exception as exc:  # noqa: BLE001, mismo patrón que execute()
                 result.errors.append(f"matchdetails: {exc}")
                 result.status = "partial"
 
@@ -2190,7 +2557,7 @@ class SyncTeamHandler:
                         tactic_type=team.get("tactic_type", 0),
                         tactic_skill=team.get("tactic_skill", 0),
                         # CHPP nunca trae <TeamAttitude> para el lado que no es
-                        # el del usuario (verificado en vivo) — sin la bandera
+                        # el del usuario (verificado en vivo), sin la bandera
                         # `attitude_is_read`, ese "sin dato" se guardaría como el
                         # -1 por defecto del parser, indistinguible del código
                         # real -1 ("Jugar relajados").
@@ -2397,7 +2764,7 @@ class SyncTeamHandler:
                 teamID=ht_team_id,
                 sourceSystem="htointegrated",
             )
-        except Exception:  # noqa: BLE001 — best effort, como el resto del sync
+        except Exception:  # noqa: BLE001, best effort, como el resto del sync
             return False
 
         titulares = set(alineacion.get("starting_lineup", []))
@@ -2469,7 +2836,7 @@ class SyncTeamHandler:
                 matchID=ht_match_id,
                 sourceSystem="htointegrated",
             )
-        except Exception:  # noqa: BLE001 — best effort, ver docstring
+        except Exception:  # noqa: BLE001, best effort, ver docstring
             return payload
         if not otra.get("ht_match_id"):
             return payload
@@ -2535,7 +2902,7 @@ class SyncTeamHandler:
     ) -> None:
         """Crea la fila `Match` de un partido AJENO (selección nacional,
         Masters, juvenil...) que `playerdetails.xml` expuso vía `LastMatch`
-        pero que `matches.xml`/`leaguefixtures.xml` nunca traen — esos solo
+        pero que `matches.xml`/`leaguefixtures.xml` nunca traen, esos solo
         ven los partidos del propio club. Sin esta fila, `experience_progress`
         (INNER JOIN contra `matches`) descarta el partido en silencio y ese
         tipo de experiencia (Masters, amistoso de selección, juvenil) nunca
@@ -2544,7 +2911,7 @@ class SyncTeamHandler:
         `matchdetails.xml` funciona para cualquier `matchID`, no solo los del
         equipo propio (mismo patrón que `playerdetails.xml` por `playerID`).
         Se pide una única vez por partido: si la fila ya existe, no se
-        vuelve a pedir — un partido jugado no cambia de tipo ni de resultado.
+        vuelve a pedir, un partido jugado no cambia de tipo ni de resultado.
         """
         from sqlalchemy import select
 
@@ -2590,21 +2957,21 @@ class SyncTeamHandler:
         """Núcleo reutilizable de `execute_player_details` (comando aparte,
         un jugador) y del paso automático dentro de `execute()` (2026-08-05,
         pedido explícitamente: "sincroniza todos los xml que importen cada
-        vez que sincronizamos" — un sync ya no deja `LastMatch`/Caps/HatStats
+        vez que sincronizamos", un sync ya no deja `LastMatch`/Caps/HatStats
         obsoletos esperando un botón separado).
 
         Club de origen y última posición/rating jugado de UN jugador (HL-15x
         fase B). No es append-only: se escribe sobre el snapshot más reciente
         del jugador en vez de crear uno nuevo, porque `LastMatch` no es un
-        cambio de habilidades — crear una fila nueva por cada semana solo por
+        cambio de habilidades, crear una fila nueva por cada semana solo por
         esto duplicaría snapshots sin motivo.
 
         `LastMatch` no viene por defecto: hace falta pedirlo explícitamente
-        con `includeMatchInfo=true` (confirmado en vivo — sin ese parámetro
+        con `includeMatchInfo=true` (confirmado en vivo, sin ese parámetro
         CHPP sirve el resto de campos pero omite el bloque entero, no es
         que expire ni que dependa del momento en que se sincroniza).
 
-        Devuelve si algo REALMENTE cambió, no si se hizo la llamada CHPP —
+        Devuelve si algo REALMENTE cambió, no si se hizo la llamada CHPP
         2026-08-05: al pasar a pedirse en cada sync (antes, solo a demanda),
         un sync repetido sin novedades debía seguir pudiendo reportar
         "sin cambios" en vez de sumar 24 escrituras fantasma cada vez.
@@ -2674,7 +3041,7 @@ class SyncTeamHandler:
             # HL-15x #21: player_snapshots.last_match_* se pisa cada vez
             # (arriba). Para tener una serie en el tiempo (sparkline) hace
             # falta ir acumulando cada partido distinto visto en una tabla
-            # append-only aparte — dedup por ht_match_id para no repetir
+            # append-only aparte, dedup por ht_match_id para no repetir
             # fila si el sync se vuelve a correr antes de que se juegue un
             # partido nuevo. Esa misma dedup ES la señal de "cambió de
             # verdad": un LastMatch repetido no aporta una fila nueva.
@@ -2690,7 +3057,7 @@ class SyncTeamHandler:
             # 2026-08-05, pedido explícitamente: saber si LastMatch fue un
             # partido de selección nacional (o Masters/juvenil). matches.xml
             # solo trae los partidos del propio club, así que un ht_match_id
-            # ajeno nunca tiene fila en `matches` — sin esto, el JOIN de
+            # ajeno nunca tiene fila en `matches`, sin esto, el JOIN de
             # `experience_progress` lo descartaba en silencio. matchdetails.xml
             # funciona para CUALQUIER matchID (verificado, mismo patrón que
             # playerdetails), así que se rellena una vez y queda para
@@ -2702,12 +3069,12 @@ class SyncTeamHandler:
                     ht_match_id,
                     jugado_el=snap.last_match_played_at,
                 )
-        # CareerAssists no está en players.xml (ver parsers) — solo aquí,
+        # CareerAssists no está en players.xml (ver parsers), solo aquí,
         # en playerdetails.
         if "career_assists" in payload and snap.career_assists != payload["career_assists"]:
             snap.career_assists = payload["career_assists"]
             changed = True
-        # Caps/CapsU20: totales de carrera con la selección nacional —
+        # Caps/CapsU20: totales de carrera con la selección nacional
         # única forma barata de saber "sí, este jugador ha jugado con la
         # selección" (HL-15x, pedido 2026-08-05).
         if "caps" in payload and snap.career_caps != payload["caps"]:
@@ -2727,11 +3094,11 @@ class SyncTeamHandler:
     ) -> int | None:
         """2026-08-09, pedido explícitamente: `LastMatch` de playerdetails.xml
         da el `MatchId`/`PositionCode` pero nunca la orden individual real
-        (Ofensivo/Defensivo/Hacia el medio/Hacia la banda) — eso solo lo
+        (Ofensivo/Defensivo/Hacia el medio/Hacia la banda), eso solo lo
         trae `Behaviour` de matchlineup.xml PARA ESE PARTIDO CONCRETO, una
         llamada CHPP aparte. Best effort: si falla (partido de
         selección/torneo fuera de alcance, CHPP caído, jugador no aparece
-        en la alineación por lo que sea) se queda en None — nunca bloquea
+        en la alineación por lo que sea) se queda en None, nunca bloquea
         el resto de playerdetails, que sigue siendo útil sin esto."""
         if not ht_match_id:
             return None
@@ -2748,7 +3115,7 @@ class SyncTeamHandler:
                 matchID=ht_match_id,
                 teamID=team.ht_team_id,
             )
-        except Exception:  # noqa: BLE001 — best effort, ver docstring
+        except Exception:  # noqa: BLE001, best effort, ver docstring
             return None
         for p in payload.get("players", []):
             if p.get("ht_player_id") == ht_player_id:
@@ -2818,7 +3185,7 @@ class SyncTeamHandler:
     ) -> None:
         """2026-08-05, pedido explícitamente: `playerdetails.xml` (LastMatch,
         Caps/CapsU20, CareerAssists) ya no se queda esperando el botón
-        "Actualizar detalles de jugadores" — se pide para TODA la plantilla
+        "Actualizar detalles de jugadores", se pide para TODA la plantilla
         activa en cada sync normal, una llamada CHPP por jugador. A
         diferencia del backfill de vendidos (una vez y listo), esto SÍ se
         repite cada sync porque LastMatch/Caps cambian semana a semana
@@ -2846,13 +3213,13 @@ class SyncTeamHandler:
             try:
                 wrote = await self._apply_player_details(uow, ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
-            except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+            except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                 result.errors.append(f"playerdetails:{ht_player_id}: {exc}")
                 result.status = "partial"
 
     async def execute_player_details(self, cmd: SyncPlayerDetailsCommand) -> SyncResult:
         """Comando aparte para refrescar UN jugador a demanda (p. ej. desde
-        la ficha del jugador) — reusa `_apply_player_details`, el mismo
+        la ficha del jugador), reusa `_apply_player_details`, el mismo
         núcleo que corre automáticamente para toda la plantilla dentro de
         `execute()`."""
         async with self._uow as uow:
@@ -2865,7 +3232,7 @@ class SyncTeamHandler:
             try:
                 wrote = await self._apply_player_details(uow, cmd.ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
-            except Exception as exc:  # noqa: BLE001 — mismo patrón que execute_match_details
+            except Exception as exc:  # noqa: BLE001, mismo patrón que execute_match_details
                 result.errors.append(f"playerdetails: {exc}")
                 result.status = "partial"
 
@@ -2880,11 +3247,11 @@ class SyncTeamHandler:
     async def _apply_transfers_player_purchase(
         self, uow: UnitOfWork, team_id: int, ht_player_id: int
     ) -> bool:
-        """Núcleo de `execute_transfers_player` — recibe el `uow` ya abierto
+        """Núcleo de `execute_transfers_player`, recibe el `uow` ya abierto
         (mismo motivo que `_apply_player_enrichment`: reutilizable también
         desde `_backfill_sold_player_details`, solo para el TSI, en
         jugadores cuyo `purchase_price` YA se resolvió antes de que
-        existiera esta captura de TSI — sin esto, `tsi_at_purchase` se
+        existiera esta captura de TSI, sin esto, `tsi_at_purchase` se
         quedaría en "?" para siempre, porque el endpoint de precio de
         compra ya no vuelve a llamarlos)."""
         from sqlalchemy import select
@@ -2908,7 +3275,7 @@ class SyncTeamHandler:
         )
         if own_purchase is None:
             # 2026-08-05, pedido explícitamente: "backfill de un jugador
-            # máximo una vez" — transfersplayer.xml ya trae TODA la
+            # máximo una vez", transfersplayer.xml ya trae TODA la
             # historia del jugador; si no aparecemos como comprador ahora,
             # nunca vamos a aparecer (el historial no cambia hacia atrás),
             # así que no tiene sentido volver a pedirlo en cada sync.
@@ -2926,13 +3293,13 @@ class SyncTeamHandler:
 
     async def execute_transfers_player(self, cmd: SyncTransfersPlayerCommand) -> SyncResult:
         """HL-161: precio de compra real para un jugador que `_persist_transfers`
-        (transfersteam.xml, historial del EQUIPO) no pudo resolver — porque
+        (transfersteam.xml, historial del EQUIPO) no pudo resolver, porque
         llegó antes de sincronizar con esta app, o porque su compra quedó
         fuera de la única página que CHPP entrega por defecto.
 
         Solo escribe si CHPP trae una transferencia donde el comprador
         somos nosotros; si el jugador nunca aparece comprándose (p. ej.
-        vino de la propia cantera), no se toca `purchase_price` — el
+        vino de la propia cantera), no se toca `purchase_price`, el
         motivo NO es un error, es que no hay compra que registrar, y el
         dominio ya sabe tratar un canterano como precio 0 por separado."""
         async with self._uow as uow:
@@ -2949,7 +3316,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1
                 else:
                     result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001 — mismo patrón que execute_match_details
+            except Exception as exc:  # noqa: BLE001, mismo patrón que execute_match_details
                 result.errors.append(f"transfersplayer: {exc}")
                 result.status = "partial"
 
@@ -2969,7 +3336,7 @@ class SyncTeamHandler:
         sold_at: datetime,
     ) -> int:
         """Recorre matchesarchive.xml (ventana purchased_at→sold_at) +
-        matchlineup.xml v2.1 partido por partido — la única forma de contar
+        matchlineup.xml v2.1 partido por partido, la única forma de contar
         partidos REALES (RatingStars > 0) de un stint ya cerrado que el
         histórico propio de esta app no alcanzó a sincronizar.
 
@@ -3013,14 +3380,14 @@ class SyncTeamHandler:
         team_id: int,
         ht_player_id: int,
     ) -> bool:
-        """Núcleo de `execute_previous_club_bonus` — recibe el `uow` ya
+        """Núcleo de `execute_previous_club_bonus`, recibe el `uow` ya
         abierto, igual que `_apply_transfers_player_purchase`/
         `_apply_player_enrichment`, para poder llamarse también desde
         `_backfill_previous_club_bonus` (monitoreo automático dentro de
         `execute()`).
 
         "Club anterior" de una reventa = quien nos compró el jugador A
-        NOSOTROS justo antes de esa reventa — nunca una venta más abajo en
+        NOSOTROS justo antes de esa reventa, nunca una venta más abajo en
         la cadena (esa le toca al club que sí fue "anterior" en ESA venta).
         transfersplayer.xml viene ordenado del más reciente al más antiguo,
         así que esa reventa, si existe, es la que aparece INMEDIATAMENTE
@@ -3069,7 +3436,7 @@ class SyncTeamHandler:
         resale = transfers[our_sale_index - 1]
         if resale.get("seller_team_id") != our_sale.get("buyer_team_id"):
             # Cadena rota (defensivo, no debería pasar): la venta previa en
-            # la lista no encaja con quien nos compró — no se inventa una
+            # la lista no encaja con quien nos compró, no se inventa una
             # comisión sobre una cadena que no se puede confirmar.
             return False
 
@@ -3198,7 +3565,7 @@ class SyncTeamHandler:
         return True
 
     async def execute_previous_club_bonus(self, cmd: SyncPreviousClubBonusCommand) -> SyncResult:
-        """HL-161: bajo demanda, un jugador — reutilizado tanto por el
+        """HL-161: bajo demanda, un jugador, reutilizado tanto por el
         backfill masivo (`/players/previous-club-bonus/sync`) como,
         indirectamente, por `_check_previous_club_bonus` desde el
         monitoreo automático dentro de `execute()`."""
@@ -3213,7 +3580,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1
                 else:
                     result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001 — mismo patrón que execute_transfers_player
+            except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
                 result.errors.append(f"previous_club_bonus: {exc}")
                 result.status = "partial"
 
@@ -3407,7 +3774,7 @@ class SyncTeamHandler:
                     version=FILE_VERSIONS["playerdetails"],
                     playerID=ht_player_id,
                 )
-            except Exception:  # noqa: BLE001 — best effort, se reintenta en otro lote
+            except Exception:  # noqa: BLE001, best effort, se reintenta en otro lote
                 ficha = {}
             desaparecido = vigilancia.desaparecio_de_hattrick(ficha.get("chpp_error_code"))
 
@@ -3494,15 +3861,15 @@ class SyncTeamHandler:
     ) -> None:
         """Monitoreo automático, sin botón (HL-161, 2026-08-14, pedido
         explícitamente): en cada sync que incluya transfersteam, revisa
-        hasta 25 ex-jugadores — los nunca revisados primero, luego los más
+        hasta 25 ex-jugadores, los nunca revisados primero, luego los más
         desactualizados (orden por `previous_club_bonus_checked_at`
-        ascendente, NULL primero) — por si alguno fue revendido por el
+        ascendente, NULL primero), por si alguno fue revendido por el
         club al que le vendimos. Acotado a propósito: a diferencia del
         backfill masivo (sin límite, bajo demanda), esto corre solo en
         cada sync, así que no puede convertir un sync normal en cientos de
         llamadas a CHPP. El conteo de partidos (caro: matchesarchive +
         matchlineup por partido) solo se dispara cuando de verdad hay una
-        reventa nueva que pagar — la inmensa mayoría de estos 25 no la
+        reventa nueva que pagar, la inmensa mayoría de estos 25 no la
         tendrán."""
         from sqlalchemy import select
 
@@ -3581,7 +3948,7 @@ class SyncTeamHandler:
                     encontrado = True
                 else:
                     result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001 — best effort, ver _backfill_sold_player_details
+            except Exception as exc:  # noqa: BLE001, best effort, ver _backfill_sold_player_details
                 result.errors.append(f"previous_club_bonus:{ht_player_id}: {exc}")
             if cazando:
                 probados.add(ht_player_id)
@@ -3596,7 +3963,7 @@ class SyncTeamHandler:
     async def _apply_player_enrichment(
         self, uow: UnitOfWork, ht_player_id: int, fetched_at: datetime
     ) -> bool:
-        """Núcleo de `execute_player_enrichment_backfill` — recibe un `uow`
+        """Núcleo de `execute_player_enrichment_backfill`, recibe un `uow`
         YA ABIERTO en vez de abrir el suyo, para poder llamarse tanto desde
         ahí como desde `execute()` (el `async with self._uow` de
         `SqlAlchemyUnitOfWork` no es reentrante: abrir uno anidado
@@ -3618,7 +3985,7 @@ class SyncTeamHandler:
             return False
 
         if payload.get("chpp_error"):
-            # ID que ya no resuelve en Hattrick (ver `_is_chpp_error`) — no
+            # ID que ya no resuelve en Hattrick (ver `_is_chpp_error`), no
             # es un fallo transitorio, así que se marca para no volver a
             # pedirlo nunca (ver `enrichment_attempted` en models.py).
             player.enrichment_attempted = True
@@ -3643,14 +4010,14 @@ class SyncTeamHandler:
             try:
                 at_sale = Age(age_years, age_days).add_days(-elapsed_days)
             except ValueError:
-                # Nunca se inventa una edad — si la resta da negativo se
+                # Nunca se inventa una edad, si la resta da negativo se
                 # deja tal cual, no se fuerza un número.
                 pass
             else:
                 player.age_years_at_sale = at_sale.years
                 player.age_days_at_sale = at_sale.days
         # 2026-08-05: misma reconstrucción, ancla en `purchased_at` en vez
-        # de `sold_at` — para TODO jugador con compra conocida, esté o no
+        # de `sold_at`, para TODO jugador con compra conocida, esté o no
         # vendido (pedida para "Edad de compra" en Detalle).
         if (
             player.purchased_at is not None
@@ -3687,7 +4054,7 @@ class SyncTeamHandler:
             player.agreeability = payload["agreeability"]
         if player.specialty is None and payload.get("specialty") is not None:
             player.specialty = payload["specialty"]
-        # 2026-08-04: MotherClub/TeamID — "canterano" real (ver corrección en
+        # 2026-08-04: MotherClub/TeamID, "canterano" real (ver corrección en
         # parse_playerdetails). 0 = sin MotherClub en el XML, se guarda tal
         # cual (nunca coincide con un ht_team_id real, así que no hace falta
         # tratarlo distinto de "no es canterano de nadie").
@@ -3695,9 +4062,9 @@ class SyncTeamHandler:
             player.mother_club_team_id = payload["mother_club_team_id"]
 
         # 2026-08-05, pedido explícitamente: "backfill de un jugador máximo
-        # una vez" — si algún campo sigue sin poder rellenarse tras ESTE
+        # una vez", si algún campo sigue sin poder rellenarse tras ESTE
         # intento (típicamente la edad reconstruida hacia atrás: si dio
-        # negativo una vez, va a dar negativo siempre — es una resta contra
+        # negativo una vez, va a dar negativo siempre, es una resta contra
         # "hoy" cuyo margen no cambia con el tiempo, porque tanto la edad
         # actual como los días transcurridos avanzan al mismo ritmo), no
         # tiene sentido volver a pedir playerdetails.xml para este jugador
@@ -3713,11 +4080,11 @@ class SyncTeamHandler:
         y especialidad.
 
         Edad: función pura del tiempo transcurrido (112 días por "año", sin
-        entrenamiento ni azar) — se resta a la edad de HOY los días reales
+        entrenamiento ni azar), se resta a la edad de HOY los días reales
         desde `sold_at`. Solo se toca si no hay ya un `player_snapshots` de
         antes de la venta (ese dato real siempre gana). País/carácter/
         especialidad casi no cambian con el tiempo, así que el valor de HOY
-        sirve de base razonable aunque el jugador ya no esté en el equipo —
+        sirve de base razonable aunque el jugador ya no esté en el equipo
         se rellenan siempre que falten, sin importar si hay snapshot previo.
         `playerdetails.xml` funciona para cualquier `playerID` aunque ya no
         esté en nuestro equipo (verificado en vivo 2026-08-04)."""
@@ -3734,7 +4101,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1
                 else:
                     result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001 — mismo patrón que execute_transfers_player
+            except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
                 result.errors.append(f"player_enrichment: {exc}")
                 result.status = "partial"
 
@@ -3747,7 +4114,7 @@ class SyncTeamHandler:
         return result
 
     async def _apply_destination_country(self, uow: UnitOfWork, ht_player_id: int) -> bool:
-        """Núcleo de `execute_destination_country_backfill` — mismo motivo
+        """Núcleo de `execute_destination_country_backfill`, mismo motivo
         que `_apply_player_enrichment`: recibe el `uow` ya abierto."""
         from sqlalchemy import select
 
@@ -3778,12 +4145,12 @@ class SyncTeamHandler:
     async def execute_destination_country_backfill(
         self, cmd: SyncPlayerEnrichmentCommand
     ) -> SyncResult:
-        """HL-161: país del equipo COMPRADOR — columna "País Destino" del
+        """HL-161: país del equipo COMPRADOR, columna "País Destino" del
         Excel del usuario. `playerdetails.xml` no lo trae (solo un
-        `LeagueID` numérico, sin nombre) — hace falta `teamdetails.xml` del
+        `LeagueID` numérico, sin nombre), hace falta `teamdetails.xml` del
         equipo comprador (`buyer_team_id`, guardado por `_persist_transfers`
         al detectar la venta), que sí funciona para equipos ajenos y trae
-        `Country/CountryName` directo — verificado en vivo 2026-08-04."""
+        `Country/CountryName` directo, verificado en vivo 2026-08-04."""
         async with self._uow as uow:
             sync_id = await uow.syncs.create(
                 cmd.user_id, cmd.team_id, kind=f"destination_country:{cmd.ht_player_id}"
@@ -3796,7 +4163,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1
                 else:
                     result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001 — mismo patrón que execute_transfers_player
+            except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
                 result.errors.append(f"destination_country: {exc}")
                 result.status = "partial"
 
@@ -3841,7 +4208,7 @@ class SyncTeamHandler:
         """
         try:
             await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills")
-        except Exception as exc:  # noqa: BLE001 — la revelacion es opcional
+        except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
                 "unlockskills: no se pudieron revelar las habilidades juveniles "
                 f"({exc.__class__.__name__}). Si es un 401, reconecta con "
@@ -3965,7 +4332,7 @@ class SyncTeamHandler:
             result.changes.extend(_as_change_row(c) for c in changes)
 
         if roster:
-            # Quien no vino en este players.xml ya no está en el club — se
+            # Quien no vino en este players.xml ya no está en el club, se
             # marca left_team_at (nunca se borra). Un roster vacío no dispara
             # esto: sería marcar a toda la plantilla como salida por un fetch
             # vacío/roto, exactamente el tipo de bug que esta guarda evita.
@@ -3980,7 +4347,7 @@ class SyncTeamHandler:
         distintos que rellenan campos distintos de un único snapshot.
 
         HL-2xx, 2026-08-12: una fila NUEVA arranca copiando la ÚLTIMA fila
-        conocida del equipo, no en blanco — mismo patrón que ya usa
+        conocida del equipo, no en blanco, mismo patrón que ya usa
         `append_snapshot` para career_assists/last_match en jugadores. Sin
         esto, un sync que sólo trajera `club` (o un `stafflist` con
         `<Trainer>` ausente, riesgo real verificado en vivo) resetearía a 0
@@ -4036,13 +4403,13 @@ class SyncTeamHandler:
         row = await self._staff_row(uow, sync_id, team_id, captured_at)
         if file == "club":
             # HL-2xx, 2026-08-12: club.xml v1.1 ya no trae niveles agregados
-            # por puesto (verificado en vivo) — solo la inversión juvenil.
+            # por puesto (verificado en vivo), solo la inversión juvenil.
             row.youth_investment = payload.get("youth_investment", 0)
             row.youth_level = payload.get("youth_level", 0)
         else:  # stafflist
             tr = payload.get("trainer", {})
             # Defensivo: CHPP omite <Trainer> por completo en algunas
-            # respuestas (verificado en vivo) — sin esta guarda, esa
+            # respuestas (verificado en vivo), sin esta guarda, esa
             # ausencia resetearía silenciosamente nivel/tipo/liderazgo del
             # entrenador a 0 en cada sync, igual que el bug ya conocido y
             # evitado para los campos de playerdetails.
@@ -4052,11 +4419,11 @@ class SyncTeamHandler:
                 row.trainer_leadership = tr.get("leadership", 0)
 
             # El desglose real de staff (persona por persona) vive aquí, no
-            # en club.xml — se agrupa por StaffType para llenar las mismas 7
+            # en club.xml, se agrupa por StaffType para llenar las mismas 7
             # columnas de antes, ahora con datos reales, y se guarda el
             # roster completo para mostrar "2 asistentes de nivel 5 cada
             # uno" en vez de solo la suma. Igual que con `roster` en
-            # players.xml: una lista vacía no dispara un recálculo — sería
+            # players.xml: una lista vacía no dispara un recálculo, sería
             # borrar el staff real conocido por un fetch vacío/roto.
             members = payload.get("staff_members", [])
             if members:
@@ -4089,11 +4456,11 @@ class SyncTeamHandler:
         captured_at: datetime,
         result: SyncResult,
     ) -> None:
-        """worlddetails.xml, 2026-08-04 — trae TODOS los países en
+        """worlddetails.xml, 2026-08-04, trae TODOS los países en
         `<LeagueList>`, no uno: se guarda una fila de `WorldContext` (+ sus
         `WorldCup`) por cada país, y se refresca `Team.currency_rate`/
         `currency_name` para el país del EQUIPO propio (cruzando por
-        `Team.ht_league_id`, de teamdetails.xml) — antes esos dos campos no
+        `Team.ht_league_id`, de teamdetails.xml), antes esos dos campos no
         los ponía nada en el flujo real, solo un script de desarrollo los
         había escrito a mano una vez."""
         from sqlalchemy import select
@@ -4267,7 +4634,7 @@ class SyncTeamHandler:
                 actionType="viewOldies",
                 teamID=ht_team_id,
             )
-        except Exception as exc:  # noqa: BLE001 — best effort, se reintenta
+        except Exception as exc:  # noqa: BLE001, best effort, se reintenta
             result.errors.append(f"viewOldies: {exc}")
             return 0
 
@@ -4366,7 +4733,7 @@ class SyncTeamHandler:
         captured_at: datetime,
         result: SyncResult,
     ) -> None:
-        """Plantilla juvenil — mismo patrón append-only que la plantilla
+        """Plantilla juvenil, mismo patrón append-only que la plantilla
         principal: identidad estable en `youth_players`, un snapshot nuevo
         sólo cuando algo cambió de verdad (hash del contenido).
 
@@ -4437,7 +4804,7 @@ class SyncTeamHandler:
 
         # Quien ya no viene en el fichero salió de la academia (promocionado,
         # vendido o descartado). Mismo criterio que la plantilla principal: un
-        # roster vacío NO marca a todos como salidos — sería un fetch roto.
+        # roster vacío NO marca a todos como salidos, sería un fetch roto.
         if roster:
             gone = list(
                 (
@@ -4455,10 +4822,218 @@ class SyncTeamHandler:
             for youth in gone:
                 youth.left_at = captured_at
 
+    async def _fetch_match_archive_interval(
+        self,
+        ht_team_id: int,
+        since: datetime,
+        until: datetime,
+        on_progress: ProgressReporter | None,
+    ) -> list[dict[str, Any]]:
+        """Descarga un intervalo completo pese al límite de 50 de CHPP.
+
+        `matchesarchive` no tiene pageIndex ni cursor. Cuando devuelve 50, el
+        intervalo se considera potencialmente truncado y se biseca. Los dos
+        lados comparten el instante central a propósito; el solape se elimina
+        por MatchID y evita perder un partido exactamente en el borde.
+        """
+        await _report(
+            on_progress,
+            f"Descargando historial de partidos ({since:%Y-%m-%d} → {until:%Y-%m-%d})...",
+        )
+        payload = await self._chpp.fetch(
+            "matchesarchive",
+            version=FILE_VERSIONS["matchesarchive"],
+            teamID=ht_team_id,
+            FirstMatchDate=since.strftime("%Y-%m-%d %H:%M:%S"),
+            LastMatchDate=until.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        if payload.get("chpp_error"):
+            code = payload.get("chpp_error_code", 0)
+            message = payload.get("chpp_error_message") or "respuesta CHPP inválida"
+            raise RuntimeError(f"CHPP {code}: {message}")
+
+        matches = [mt for mt in payload.get("matches", []) if mt.get("ht_match_id")]
+        # Si Hattrick ignoró el rango, contesta con otros partidos y sin error.
+        # Tomarlos por buenos sellaría un historial con agujeros: se falla.
+        for mt in matches:
+            jugado = ht_to_utc(mt.get("match_date", ""))
+            if jugado is not None and not (
+                since - MATCH_ARCHIVE_RANGE_TOLERANCE
+                <= jugado
+                <= until + MATCH_ARCHIVE_RANGE_TOLERANCE
+            ):
+                raise RuntimeError(
+                    f"Hattrick ignoró el rango {since:%Y-%m-%d} → {until:%Y-%m-%d} "
+                    f"(devolvió un partido del {jugado:%Y-%m-%d})"
+                )
+        if len(matches) < MATCH_ARCHIVE_RESPONSE_LIMIT or until - since <= MATCH_ARCHIVE_MIN_WINDOW:
+            return matches
+
+        midpoint = since + (until - since) / 2
+        if midpoint <= since or midpoint >= until:
+            return matches
+        left = await self._fetch_match_archive_interval(ht_team_id, since, midpoint, on_progress)
+        right = await self._fetch_match_archive_interval(ht_team_id, midpoint, until, on_progress)
+        return list({mt["ht_match_id"]: mt for mt in (*left, *right)}.values())
+
+    async def _fetch_match_archive_range(
+        self,
+        ht_team_id: int,
+        since: datetime,
+        until: datetime,
+        on_progress: ProgressReporter | None,
+    ) -> list[dict[str, Any]]:
+        """Un rango de cualquier largo, en ventanas de `MATCH_ARCHIVE_WINDOW`.
+
+        Cada ventana pasa por `_fetch_match_archive_interval`, que además la
+        biseca si llega al tope de 50. Las ventanas comparten el borde y el
+        solape se elimina por MatchID."""
+        vistos: dict[int, dict[str, Any]] = {}
+        inicio = since
+        while inicio < until:
+            fin = min(inicio + MATCH_ARCHIVE_WINDOW, until)
+            for mt in await self._fetch_match_archive_interval(
+                ht_team_id, inicio, fin, on_progress
+            ):
+                vistos[mt["ht_match_id"]] = mt
+            inicio = fin
+        return list(vistos.values())
+
+    async def _sync_match_history(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None,
+    ) -> None:
+        """Carga una vez todo el archivo y luego sólo su cola nueva.
+
+        La primera sincronización va desde FoundedDate hasta el instante del
+        clic. Sólo cuando recorrió el rango entero se sella
+        `matches_history_complete`; un fallo no deja un hueco silencioso. En
+        sincronizaciones posteriores se consulta desde la última marca con
+        dos días de solape. Las filas existentes nunca se pisan: matches.xml
+        conoce mejor el estado reciente y la deduplicación es por MatchID.
+
+        Se guardan todos los tipos que CHPP expone. La pantalla Partidos ya
+        decide qué mostrar (competitivos por defecto, amistosos con toggle y
+        no oficiales fuera), así que el almacenamiento no destruye datos que
+        otra funcionalidad pueda necesitar después.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        team = await uow.session.get(m.Team, team_id)
+        if team is None:
+            return
+
+        until = (
+            captured_at.astimezone(UTC) if captured_at.tzinfo else captured_at.replace(tzinfo=UTC)
+        )
+        cursor = team.matches_history_synced_until
+        if cursor is not None:
+            cursor = cursor.astimezone(UTC) if cursor.tzinfo else cursor.replace(tzinfo=UTC)
+        founded = team.founded_at
+        if founded is not None:
+            founded = founded.astimezone(UTC) if founded.tzinfo else founded.replace(tzinfo=UTC)
+        if founded is None or founded > until:
+            founded = MATCH_ARCHIVE_FALLBACK_START
+
+        # Un historial sellado con reglas viejas no está completo, lo diga o no
+        # la marca: se relee entero una vez y se vuelve a sellar.
+        initial = (
+            not team.matches_history_complete
+            or cursor is None
+            or (team.matches_history_version or 0) < VERSION_DEL_ARCHIVO
+        )
+        since = founded if initial else max(founded, cursor - MATCH_ARCHIVE_INCREMENTAL_OVERLAP)
+        await _report(
+            on_progress,
+            (
+                "Importando por primera vez todos tus partidos anteriores..."
+                if initial
+                else "Buscando partidos nuevos desde la última sincronización..."
+            ),
+        )
+
+        try:
+            archived = await self._fetch_match_archive_range(ht_team_id, since, until, on_progress)
+        except Exception as exc:  # noqa: BLE001, el resto del sync sigue siendo útil
+            result.errors.append(f"matchesarchive: {exc}")
+            result.status = "partial"
+            return
+
+        # Una respuesta partida repite bordes; además un proveedor de prueba
+        # puede repetir filas. Ninguno debe llegar dos veces al índice UNIQUE.
+        # El archivo puede alcanzar el partido que se está jugando: en ese
+        # caso no trae goles y no permite distinguir UPCOMING de ONGOING. Lo
+        # deja manejar a matches.xml y el solape incremental lo recogerá ya
+        # terminado; jamás se fabrica FINISHED -1:-1.
+        by_id = {
+            mt["ht_match_id"]: mt
+            for mt in archived
+            if mt.get("ht_match_id")
+            and mt.get("home_goals", -1) >= 0
+            and mt.get("away_goals", -1) >= 0
+        }
+        ids = list(by_id)
+        existing: set[int] = set()
+        if ids:
+            existing = set(
+                (
+                    await uow.session.execute(
+                        select(m.Match.ht_match_id).where(m.Match.ht_match_id.in_(ids))
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+        detail_cutoff = until - AUTOMATIC_MATCH_DETAILS_WINDOW
+        for ht_match_id, mt in by_id.items():
+            if ht_match_id in existing:
+                continue
+            played_at = ht_to_utc(mt.get("match_date", "")) or until
+            uow.session.add(
+                m.Match(
+                    ht_match_id=ht_match_id,
+                    played_at=played_at,
+                    match_type=mt.get("match_type", 0),
+                    status="FINISHED",
+                    home_team_ht_id=mt.get("home_team_id", 0),
+                    away_team_ht_id=mt.get("away_team_id", 0),
+                    home_team_name=mt.get("home_team_name", ""),
+                    away_team_name=mt.get("away_team_name", ""),
+                    home_goals=mt.get("home_goals", -1),
+                    away_goals=mt.get("away_goals", -1),
+                    cup_level=mt.get("cup_level", -1),
+                    cup_level_index=mt.get("cup_level_index", -1),
+                    source_system=mt.get("source_system"),
+                    history_summary_only=played_at < detail_cutoff,
+                )
+            )
+            result.snapshots_written += 1
+            result.rescued_matches += 1
+
+        team.matches_history_complete = True
+        team.matches_history_synced_until = until
+        team.matches_history_version = VERSION_DEL_ARCHIVO
+        await _report(
+            on_progress,
+            (
+                f"Historial de partidos completo: {result.rescued_matches} nuevos guardados."
+                if initial
+                else f"Partidos actualizados: {result.rescued_matches} nuevos guardados."
+            ),
+        )
+
     async def _persist_matches(
         self, uow: UnitOfWork, ht_team_id: int, payload: dict[str, Any], result: SyncResult
     ) -> None:
-        """Calendario y resultados: HL-070. Un partido no es un snapshot — es un
+        """Calendario y resultados: HL-070. Un partido no es un snapshot, es un
         hecho que se actualiza in-place (upcoming → finished) y se identifica
         por `ht_match_id`, único en CHPP."""
         from sqlalchemy import select
@@ -4508,7 +5083,7 @@ class SyncTeamHandler:
             row.orders_given = mt.get("orders_given")
 
             # Escaleras, Duelos, Torneos y Preparación no son partidos reales
-            # — pedido explícito 2026-08-11: no deben aparecer como "Ganaste/
+            # pedido explícito 2026-08-11: no deben aparecer como "Ganaste/
             # Perdiste" en el feed de cambios, igual que se ignoran en todos
             # los demás lugares de la herramienta.
             is_home = row.home_team_ht_id == ht_team_id
@@ -4525,20 +5100,20 @@ class SyncTeamHandler:
     async def _persist_league_fixtures(
         self, uow: UnitOfWork, payload: dict[str, Any], result: SyncResult
     ) -> None:
-        """Calendario completo de la serie — HL-090 fix.
+        """Calendario completo de la serie, HL-090 fix.
 
         A diferencia de `_persist_matches` (que solo ve los partidos del
         equipo sincronizado), aquí llegan también los cruces entre dos
         rivales. Si el partido ya existe (porque `matches` ya lo trajo, o
         de un sync anterior), solo se rellenan `series_ht_id`/`match_round`
-        y — 2026-08-08 fix (bug real, no un retraso de CHPP) — el marcador
+        y, 2026-08-08 fix (bug real, no un retraso de CHPP), el marcador
         SI la fila todavía tenía el placeholder "no jugado" (-1): antes,
         una vez creada la fila con -1 la primera vez que se vio el cruce
         sin jugar, un sync posterior nunca volvía a mirar el marcador
         porque `series_ht_id`/`match_round` ya coincidían y el código
-        cortaba con `continue` — así un partido entre dos rivales podía
+        cortaba con `continue`, así un partido entre dos rivales podía
         quedarse "sin jugar" para siempre aunque CHPP ya tuviera el
-        resultado real. Un marcador YA confirmado (>= 0) nunca se pisa —
+        resultado real. Un marcador YA confirmado (>= 0) nunca se pisa
         esa fuente la conoce mejor `matches.xml`/`matchdetails.xml`. Si no
         existe, se crea con lo que trae este fichero, marcado como de
         liga."""
@@ -4578,6 +5153,22 @@ class SyncTeamHandler:
                 row.series_ht_id = series_ht_id
                 row.match_round = mt.get("match_round")
                 changed = True
+            # Los equipos, los que dice Hattrick HOY, jugado o no. 2026-09-13:
+            # Kivaré reemplazó a etbenianos1 y Hattrick le atribuye también la
+            # jornada 8 ya jugada; el calendario guardado arrastraba el nombre
+            # y el id viejos desde el primer sync y nunca los revisaba.
+            for campo_id, campo_nombre, clave in (
+                ("home_team_ht_id", "home_team_name", "home"),
+                ("away_team_ht_id", "away_team_name", "away"),
+            ):
+                nuevo_id = mt.get(f"{clave}_team_id")
+                nuevo_nombre = mt.get(f"{clave}_team_name")
+                if nuevo_id and getattr(row, campo_id) != nuevo_id:
+                    setattr(row, campo_id, nuevo_id)
+                    changed = True
+                if nuevo_nombre and getattr(row, campo_nombre) != nuevo_nombre:
+                    setattr(row, campo_nombre, nuevo_nombre)
+                    changed = True
             if row.home_goals < 0 and home_goals is not None and away_goals is not None:
                 row.home_goals = home_goals
                 row.away_goals = away_goals
@@ -4599,12 +5190,17 @@ class SyncTeamHandler:
     ) -> int:
         """Quien trajo a cada canterano, y que queda por revelarle.
 
-        2026-08-24. Cuesta una llamada por canterano, asi que NO se piden
-        todos en cada sync: solo los que no tienen informe, y los que han
-        cambiado algo desde la ultima vez que se les pregunto. El ojeador que
-        lo encontro no cambia nunca; `MayUnlock` si --se apaga en cuanto esa
-        habilidad se revela--, y un canterano que cambia algo es justo el
-        candidato a que se le haya revelado algo.
+        2026-08-24. Cuesta una llamada por canterano.
+
+        Se refresca a quien no tiene informe y a quien ha cambiado algo desde
+        la última vez, porque `MayUnlock` se apaga en cuanto esa habilidad se
+        revela.
+
+        2026-09-14, pedido del usuario: el MENSAJE DEL OJEADOR --quién lo
+        trajo, desde dónde y qué dijo al llegar-- se pide y se guarda UNA sola
+        vez, con el primer informe, y no se vuelve a preguntar jamás: no cambia
+        nunca. Los refrescos siguientes se piden sin `showScoutCall` y sólo
+        actualizan `MayUnlock`.
         """
         from sqlalchemy import func as sa_func
         from sqlalchemy import select
@@ -4647,26 +5243,34 @@ class SyncTeamHandler:
                 on_progress,
                 f"Informe del ojeador sobre {nombre}...",
             )
+            primera_vez = informe is None
             try:
+                # El mensaje del ojeador sólo se pide la primera vez.
+                parametros = {"showScoutCall": "true"} if primera_vez else {}
                 ficha = await self._chpp.fetch(
                     "youthplayerdetails",
                     "1.0",
                     youthPlayerId=juvenil.ht_youth_player_id,
-                    showScoutCall="true",
+                    **parametros,
                 )
             except Exception as exc:  # noqa: BLE001
                 result.errors.append(f"youthplayerdetails {juvenil.ht_youth_player_id}: {exc}")
                 continue
             if not ficha:
                 continue
-            datos = {
-                "scout_id": ficha.get("scout_id"),
-                "scout_name": ficha.get("scout_name") or "",
-                "scouting_region_id": ficha.get("scouting_region_id"),
-                "comments_json": json.dumps(ficha.get("scout_comments") or [], ensure_ascii=False),
+            datos: dict[str, Any] = {
                 "may_unlock_json": json.dumps(ficha.get("may_unlock") or {}, ensure_ascii=False),
                 "fetched_at": ahora,
             }
+            if primera_vez:
+                datos |= {
+                    "scout_id": ficha.get("scout_id"),
+                    "scout_name": ficha.get("scout_name") or "",
+                    "scouting_region_id": ficha.get("scouting_region_id"),
+                    "comments_json": json.dumps(
+                        ficha.get("scout_comments") or [], ensure_ascii=False
+                    ),
+                }
             if informe is None:
                 uow.session.add(m.YouthScoutReport(youth_player_id=juvenil.id, **datos))
             else:
@@ -4843,7 +5447,7 @@ class SyncTeamHandler:
     ) -> None:
         """HL-161: cuenta intentos de venta hacia adelante. CHPP solo da
         una foto del momento (quién está en el mercado AHORA), nunca un
-        historial — así que una aparición nueva (no estaba listado en el
+        historial, así que una aparición nueva (no estaba listado en el
         sync anterior, ahora sí) se cuenta como un intento más. Si el
         jugador sigue listado desde el sync pasado, no se repite.
 
@@ -4851,7 +5455,7 @@ class SyncTeamHandler:
         contador, cada aparición nueva se guarda como fila propia en
         `player_listing_attempts` (con la puja más alta del momento) para
         poder ENUMERAR los intentos en la ficha de ex-jugador, no solo
-        contarlos. Empieza a llenarse desde hoy — subestima lo anterior,
+        contarlos. Empieza a llenarse desde hoy, subestima lo anterior,
         igual que `listing_count`."""
         from sqlalchemy import select
 
@@ -5041,7 +5645,7 @@ class SyncTeamHandler:
         payload: dict[str, Any],
         result: SyncResult,
     ) -> None:
-        """Nombre, liga y serie del equipo — y sobre todo `series_ht_id`
+        """Nombre, liga y serie del equipo, y sobre todo `series_ht_id`
         (LeagueLevelUnitID), sin el cual no se puede pedir leaguedetails: ese
         fichero se sincroniza por serie, no por equipo."""
         team = next(
@@ -5066,11 +5670,24 @@ class SyncTeamHandler:
             row.current_cup_match_round,
             row.current_cup_match_rounds_left,
         )
+        founded_changed = False
         row.name = team.get("name") or row.name
         row.league_name = team.get("league_name") or row.league_name
         row.series_name = team.get("series_name") or row.series_name
         row.series_ht_id = team.get("series_ht_id") or row.series_ht_id
         row.ht_league_id = team.get("ht_league_id") or row.ht_league_id
+        founded_at = _parse_dt(team.get("founded_at"))
+        if founded_at is not None:
+            current_founded = row.founded_at
+            current_naive = (
+                current_founded.astimezone(UTC).replace(tzinfo=None)
+                if current_founded is not None and current_founded.tzinfo
+                else current_founded
+            )
+            founded_naive = founded_at.astimezone(UTC).replace(tzinfo=None)
+            if current_naive != founded_naive:
+                row.founded_at = founded_at
+                founded_changed = True
         still_in_cup = team.get("still_in_cup")
         if still_in_cup is not None:
             row.still_in_cup = bool(still_in_cup)
@@ -5099,7 +5716,7 @@ class SyncTeamHandler:
             row.current_cup_match_round,
             row.current_cup_match_rounds_left,
         )
-        if before == after:
+        if before == after and not founded_changed:
             result.unchanged += 1
         else:
             result.snapshots_written += 1
@@ -5115,13 +5732,13 @@ class SyncTeamHandler:
         result: SyncResult,
     ) -> None:
         """Clasificación de la serie: HL-080. Una jornada ya registrada no se
-        repite — la tabla completa de una jornada es la unidad append-only,
+        repite, la tabla completa de una jornada es la unidad append-only,
         no la fila de un equipo."""
         from sqlalchemy import select
 
         from app.infrastructure.db import models as m
 
-        # LeagueLevel/MaxLevel (HL-145) son del EQUIPO, no de una jornada —
+        # LeagueLevel/MaxLevel (HL-145) son del EQUIPO, no de una jornada
         # se refrescan siempre, aunque esta jornada ya estuviera guardada.
         team = await uow.session.get(m.Team, team_id)
         if team is not None:
@@ -5130,7 +5747,7 @@ class SyncTeamHandler:
 
         series_ht_id = payload.get("series_ht_id", 0)
         # CurrentMatchRound de leaguedetails.xml es la jornada que está EN
-        # CURSO (o a punto de arrancar), no la última jugada — verificado en
+        # CURSO (o a punto de arrancar), no la última jugada, verificado en
         # vivo: un sync hecho antes de que se juegue ningún partido reporta
         # CurrentMatchRound=1 con `Matches=0` para todos los equipos, y solo
         # tras jugarse esa jornada el valor sube a 2. Guardar el crudo
@@ -5139,15 +5756,22 @@ class SyncTeamHandler:
         # 0) da "jornadas realmente completadas", que es lo que el resto del
         # sistema espera de `match_round`.
         match_round = max(payload.get("match_round", 0) - 1, 0)
+        # 2026-09-13, bug en vivo: justo después de jugarse la jornada 8 un sync
+        # recibió los resultados pero CurrentMatchRound aún no había avanzado;
+        # la resta daba 7, la 7 ya estaba guardada y la foto nueva se tiraba.
+        # Los partidos jugados de cada equipo no dependen de ese contador.
+        jugados = [t.get("matches", 0) for t in payload.get("teams", [])]
+        if jugados:
+            match_round = max(jugados)
         # leaguedetails.xml no trae la temporada; worlddetails sí. Sin
-        # sincronizarlo aún, season=0 — honesto, no un dato inventado.
+        # sincronizarlo aún, season=0, honesto, no un dato inventado.
         #
         # 2026-08-09, bug real verificado en vivo: cada país tiene su propio
-        # número de temporada (Suecia 95, Colombia 83, Grecia 80 — todos
+        # número de temporada (Suecia 95, Colombia 83, Grecia 80, todos
         # sincronizados el mismo día) y worlddetails.xml trae TODOS los
         # países en una sola respuesta con el mismo `refreshed_at`. Sin
         # filtrar por país, "la fila más reciente" era básicamente al azar
-        # entre esos empates — un fetch en vivo confirmó Colombia en
+        # entre esos empates, un fetch en vivo confirmó Colombia en
         # temporada 83, pero `Standing.season` había quedado guardado en 80,
         # 84 e incluso 95 (¡la de Suecia!) en syncs anteriores. Mismo bug y
         # misma corrección que `season_at()` en player_balance.py: filtrar
@@ -5161,6 +5785,13 @@ class SyncTeamHandler:
             else None
         )
         season = world.season if world is not None else 0
+        # Antes de mirar si la jornada ya estaba: un reemplazo de equipo se
+        # tiene que trasladar al calendario aunque la foto no cambie.
+        trasladados = await trasladar_equipo_reemplazado(
+            uow.session, series_ht_id, payload.get("teams", [])
+        )
+        if trasladados:
+            result.snapshots_written += trasladados
         exists = await uow.session.scalar(
             select(m.Standing.id).where(
                 m.Standing.series_ht_id == series_ht_id,
@@ -5213,14 +5844,14 @@ class SyncTeamHandler:
                 result.changes.append(_as_change_row(change))
 
     def _apply_buy_transfer(self, player: Any, t: dict[str, Any], result: SyncResult) -> None:
-        """Núcleo de una compra — compartido por `_persist_transfers` (página
+        """Núcleo de una compra, compartido por `_persist_transfers` (página
         más reciente, parte del sync normal) y `execute_transfers_history`
         (backfill paginado completo, HL-161 2026-08-04), para no mantener la
         misma lógica de "qué campo se pisa y cuál no" duplicada dos veces."""
         deadline = t.get("deadline") or ""
         # SQLite no conserva tzinfo en el viaje de ida y vuelta:
         # player.purchased_at leído de la BD siempre llega naive, así
-        # que lo que se compara aquí debe serlo también — un valor
+        # que lo que se compara aquí debe serlo también, un valor
         # aware chocaría con un TypeError al comparar (visto en vivo
         # 2026-08-03, justo al arreglar el bug de parseo de más
         # arriba, que hasta entonces dejaba `buys`/`sells` siempre
@@ -5229,11 +5860,11 @@ class SyncTeamHandler:
         # Un jugador puede aparecer varias veces si se compró más de una
         # vez (vendido y recomprado): se queda la fecha más reciente. Si
         # es la MISMA transacción que ya conocíamos (fecha igual o más
-        # vieja), no se pisa precio/fecha — pero SÍ se rellena el TSI si
+        # vieja), no se pisa precio/fecha, pero SÍ se rellena el TSI si
         # todavía faltaba (HL-161, 2026-08-04: antes este `continue`
         # también se saltaba el TSI para cualquier venta/compra ya
         # registrada ANTES de que este campo existiera, dejándolo en "?"
-        # para siempre — visto en vivo contra la cuenta real).
+        # para siempre, visto en vivo contra la cuenta real).
         is_new_transaction = (
             player.purchased_at is None
             or purchased_at is None
@@ -5243,7 +5874,7 @@ class SyncTeamHandler:
             player.purchase_price = t.get("price", 0)
             player.purchased_at = purchased_at
         # HL-161: TSI de esta transacción exacta, para "Delta TSI" y
-        # "Ganancia/TSI" en la tabla Detalle — nunca el de playerdetails
+        # "Ganancia/TSI" en la tabla Detalle, nunca el de playerdetails
         # (ese es el de HOY, no el de la compra).
         if player.tsi_at_purchase is None and t.get("tsi"):
             player.tsi_at_purchase = t["tsi"]
@@ -5605,7 +6236,7 @@ class SyncTeamHandler:
         `left_team_at` lo pone `mark_departed` cuando alguien DESAPARECE de
         players.xml. Los cientos de jugadores que crea el historial de
         transferencias nunca aparecieron ahi, asi que nunca desaparecen y se
-        quedaban con `left_team_at` en NULL — es decir, contados como plantilla
+        quedaban con `left_team_at` en NULL, es decir, contados como plantilla
         activa. En una cuenta con historia larga eso convertia cada
         sincronizacion normal en ~950 llamadas a Hattrick (una ficha y un
         entrenamiento por cada uno de los 479 "activos"), que en un plan
@@ -5641,7 +6272,7 @@ class SyncTeamHandler:
         return resultado.rowcount or 0
 
     def _apply_sell_transfer(self, player: Any, t: dict[str, Any], result: SyncResult) -> None:
-        """Núcleo de una venta — ver `_apply_buy_transfer`."""
+        """Núcleo de una venta, ver `_apply_buy_transfer`."""
         deadline = t.get("deadline") or ""
         sold_at = ht_to_utc_naive(deadline)
         is_new_transaction = player.sold_at is None or sold_at is None or sold_at > player.sold_at
@@ -5650,7 +6281,7 @@ class SyncTeamHandler:
             player.sold_at = sold_at
         if player.tsi_at_sale is None and t.get("tsi"):
             player.tsi_at_sale = t["tsi"]
-        # HL-161: equipo comprador — hace falta para resolver el país
+        # HL-161: equipo comprador, hace falta para resolver el país
         # destino después (ver `_backfill_sold_player_details`).
         if player.buyer_team_id is None and t.get("buyer_team_id"):
             player.buyer_team_id = t["buyer_team_id"]
@@ -5668,17 +6299,17 @@ class SyncTeamHandler:
         """Precio real de compra Y venta (HL-15x fase C, HL-161), de
         `transfersteam.xml` (historial del EQUIPO). Parte del sync normal:
         solo procesa la página más reciente (pageIndex=1, la que devuelve
-        CHPP sin pedir página explícita) — jugadores que ya se fueron ANTES
+        CHPP sin pedir página explícita), jugadores que ya se fueron ANTES
         de que esta app empezara a sincronizar, o cuya transacción quedó
         más atrás en el historial, se resuelven con el backfill paginado
-        completo del botón "Actualizar transferencias" — ver
+        completo del botón "Actualizar transferencias", ver
         `execute_transfers_history`. Compras propias (`TransferType ==
         "B"`, comprador == este equipo) de jugadores que siguen en la
         plantilla; ventas propias (`TransferType == "S"`, vendedor == este
         equipo) de jugadores que ya se fueron pero cuya fila sigue
         existiendo (append-only, nunca se borra).
 
-        También refresca `Team.transfer_total_*`/`transfer_number_*` — el
+        También refresca `Team.transfer_total_*`/`transfer_number_*`, el
         `<Stats>` de este fichero es un agregado de TODA la historia del
         equipo (verificado en vivo, idéntico en cualquier página), así que
         una sola llamada del sync normal ya mantiene esos KPI al día."""
@@ -5728,12 +6359,12 @@ class SyncTeamHandler:
 
     def _split_player_name(self, full_name: str) -> tuple[str, str]:
         """`transfersteam.xml` solo trae un `PlayerName` combinado (a
-        diferencia de `players.xml`, que separa Nombre/Apellido) — heurística
+        diferencia de `players.xml`, que separa Nombre/Apellido), heurística
         de "última palabra = apellido" para crear una identidad mínima de un
         jugador que esta app nunca vio en la plantilla (ver
         `execute_transfers_history`). Cosmético: solo afecta cómo se separa
         el nombre para volver a unirlo igual (`f"{first} {last}"`) en la
-        tabla Detalle — no a ningún cálculo de saldo."""
+        tabla Detalle, no a ningún cálculo de saldo."""
         parts = full_name.strip().rsplit(" ", 1)
         if len(parts) == 2:
             return parts[0], parts[1]
@@ -5765,7 +6396,7 @@ class SyncTeamHandler:
         # El libro de movimientos es nuevo (2026-08-22): quien ya tenía el
         # historial "completo" de antes lo tiene vacío, y sin él no hay etapas
         # que reconstruir. Mientras esté vacío se ignora la marca y se recorre
-        # todo otra vez — así la corrección alcanza también al pasado, sin que
+        # todo otra vez, así la corrección alcanza también al pasado, sin que
         # nadie tenga que pedirlo.
         hay_libro = (
             await uow.session.scalar(
@@ -5867,7 +6498,7 @@ class SyncTeamHandler:
                 # Se acabaron las páginas sin encontrar nada conocido:
                 # también es haber llegado al final de la historia.
                 recorrido_entero = True
-        except Exception as exc:  # noqa: BLE001 — sync parcial, no abortamos el resto
+        except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
             result.errors.append(f"transfers_history: {exc}")
             result.status = "partial"
 
@@ -5893,19 +6524,19 @@ class SyncTeamHandler:
             team.transfers_import_version = VERSION_DEL_LIBRO
 
     async def execute_transfers_history(self, cmd: SyncTransfersHistoryCommand) -> SyncResult:
-        """HL-161, 2026-08-04 — botón "Actualizar transferencias": pagina
+        """HL-161, 2026-08-04, botón "Actualizar transferencias": pagina
         transfersteam.xml completo (`pageIndex` 1..Pages, verificado en vivo
-        que sí funciona — ver `parse_transfersteam`), más allá de la única
+        que sí funciona, ver `parse_transfersteam`), más allá de la única
         página que trae el sync normal. Para cada compra/venta de este
         equipo, crea una identidad de jugador mínima si nunca se vio en
-        `players.xml` (`_split_player_name` + `upsert_identity`) — así
+        `players.xml` (`_split_player_name` + `upsert_identity`), así
         "Detalle" puede mostrar ~1000 transferencias reales, con huecos
         ("?") donde de verdad no hay forma de conocer skills/edad, en vez
         de descartar en silencio todo lo anterior a la última página.
 
         Idempotente y barato en re-ejecuciones: las páginas llegan de más
         reciente a más vieja, así que en cuanto una página no aporta ningún
-        TransferID nuevo respecto a `Team.last_transfer_id_seen`, se para —
+        TransferID nuevo respecto a `Team.last_transfer_id_seen`, se para
         no hace falta re-pedir las ~40 páginas cada vez que el usuario
         pulsa el botón, solo la primera vez (o si de verdad hay huecos)."""
 

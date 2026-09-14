@@ -34,12 +34,21 @@ async def matches(
     tamaño de muestra y marcadas como fiables o no, porque con pocas ocasiones
     la diferencia entre un 20% y un 40% es azar.
 
-    Escaleras, Duelos, Torneos y Preparación se excluyen siempre — no son
+    Escaleras, Duelos, Torneos y Preparación se excluyen siempre, no son
     partidos oficiales y no hay override para ellos en ningún punto de la
     herramienta.
     """
-    data = await MatchesQueryService(session).overview(
-        team_id, include_friendlies=include_friendlies, season=season
+    from app.api.cache_por_sync import por_sync
+
+    # Una vez por sync (2026-09-14): los partidos sólo cambian al sincronizar.
+    data = await por_sync(
+        session,
+        team_id,
+        "partidos",
+        (include_friendlies, season),
+        lambda: MatchesQueryService(session).overview(
+            team_id, include_friendlies=include_friendlies, season=season
+        ),
     )
     if data is None:
         raise HTTPException(404, f"no played matches for team {team_id}")

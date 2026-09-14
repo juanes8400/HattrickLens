@@ -1,4 +1,4 @@
-"""POST /teams/{id}/players/{ht_player_id}/career-stage — HL-15x #93: la app
+"""POST /teams/{id}/players/{ht_player_id}/career-stage, HL-15x #93: la app
 sugiere, el usuario confirma. Mismo patrón de fixtures y sesión que
 test_sync_endpoint_auth.py.
 """

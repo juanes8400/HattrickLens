@@ -93,7 +93,7 @@ async def _setup_with_player(ht_player_id: int) -> tuple[SqlAlchemyUnitOfWork, F
 def test_transfers_player_sync_finds_our_own_purchase() -> None:
     """El fixture real (transfersplayer.xml) tiene 3 transferencias: la más
     reciente nos tiene como VENDEDOR, la de en medio nos tiene como
-    COMPRADOR (1.800.000, 2026-05-16) — esa es la que debe quedar guardada
+    COMPRADOR (1.800.000, 2026-05-16), esa es la que debe quedar guardada
     como precio de compra, ignorando las otras dos (no somos parte)."""
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(495018863)
@@ -120,10 +120,10 @@ def test_transfers_player_sync_finds_our_own_purchase() -> None:
 def test_transfers_player_sync_leaves_purchase_price_unset_when_never_the_buyer() -> None:
     """Un jugador que aparece en transfersplayer.xml pero donde nuestro
     equipo NUNCA es comprador (p. ej. porque de verdad vino de la cantera)
-    no debe quedar con un precio inventado — se deja en None para que el
+    no debe quedar con un precio inventado, se deja en None para que el
     dominio aplique la regla de canterano por separado. 2026-08-05, pedido
     explícitamente ("backfill de un jugador máximo una vez"): se marca
-    `tsi_at_purchase_attempted` de todas formas — transfersplayer.xml ya
+    `tsi_at_purchase_attempted` de todas formas, transfersplayer.xml ya
     trae TODA la historia, así que si no aparecimos como compradores ahora,
     nunca vamos a aparecer, y no debe volver a pedirse este fichero."""
     async def run() -> None:
@@ -155,7 +155,7 @@ def test_transfers_player_sync_leaves_purchase_price_unset_when_never_the_buyer(
 def test_upsert_identity_clears_left_team_at_when_player_reappears_in_roster() -> None:
     """Edge case real 2026-08-05: un jugador despedido/vendido en tiempo
     real (`mark_departed` le puso `left_team_at`) que vuelve a aparecer en
-    `players.xml` está de vuelta en la plantilla HOY — sin esto,
+    `players.xml` está de vuelta en la plantilla HOY, sin esto,
     `roster()`/`_latest()` lo seguiría excluyendo de "plantilla actual"
     para siempre, aunque un sync real ya lo vea otra vez."""
     async def run() -> None:
@@ -187,7 +187,7 @@ def test_player_enrichment_backfill_reconstructs_age_and_fills_country_character
     especialidad de un tirón. Fixture real (jugador 468921494): Age=30,
     AgeDays=45 HOY, Agreeability=3, Specialty=0, NativeLeagueName=Colombia.
     Con una venta hace exactamente 20 días, la edad en la venta debe ser
-    30a 25d (45-20=25, sin cruzar el año) — playerdetails.xml funciona
+    30a 25d (45-20=25, sin cruzar el año), playerdetails.xml funciona
     aunque el jugador ya no esté en nuestro equipo."""
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
@@ -223,7 +223,7 @@ def test_player_balance_reads_skills_at_purchase_and_sale_from_real_snapshots() 
     """2026-08-05, tabla Detalle de 43 columnas: a diferencia de la edad,
     una habilidad no es función pura del tiempo (entrenar la cambia), así
     que "al entrar"/"al salir" solo puede venir de un `player_snapshot`
-    real cerca de esa fecha — nunca reconstruida. `snapshot_at_or_after`
+    real cerca de esa fecha, nunca reconstruida. `snapshot_at_or_after`
     (compra) y `snapshot_at` (venta) deben devolver exactamente el
     snapshot correcto entre varios. Sin snapshot DESPUÉS de la venta a
     propósito: uno ahí significaría que volvió a la plantilla (ver
@@ -403,7 +403,7 @@ def test_a_stamped_departure_date_is_not_used_to_estimate_wages() -> None:
 
 class FakeChppErrorCHPP:
     """playerdetails.xml devuelve HTTP 200 con <Error>/<ErrorCode> (nunca un
-    error HTTP real) para un playerID que ya no resuelve en Hattrick —
+    error HTTP real) para un playerID que ya no resuelve en Hattrick
     verificado en vivo 2026-08-05 contra ~105 ventas viejas de esta cuenta."""
 
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
@@ -415,7 +415,7 @@ class FakeChppErrorCHPP:
 def test_player_enrichment_marks_enrichment_attempted_on_chpp_error() -> None:
     """Sin este flag, `_backfill_sold_player_details` volvía a pedir
     playerdetails.xml para estos ~105 jugadores en CADA sync, para
-    siempre — CHPP nunca lanza un error HTTP para un playerID que ya no
+    siempre, CHPP nunca lanza un error HTTP para un playerID que ya no
     resuelve, solo un payload <Error>/<ErrorCode> con status 200."""
     async def run() -> None:
         uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
@@ -446,7 +446,7 @@ def test_player_enrichment_marks_enrichment_attempted_on_chpp_error() -> None:
 
 def test_destination_country_backfill_uses_teamdetails_of_the_buyer() -> None:
     """Pedido explícitamente 2026-08-04 ("País Destino" del Excel del
-    usuario) — `teamdetails.xml` funciona para equipos ajenos, no solo el
+    usuario), `teamdetails.xml` funciona para equipos ajenos, no solo el
     propio, y trae `Country/CountryName` directo."""
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
@@ -493,7 +493,7 @@ def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
             player = await u.session.scalar(
                 select(m.Player).where(m.Player.ht_player_id == ht_player_id)
             )
-            # Vendido, sin nada de lo nuevo — justo lo que dispara el
+            # Vendido, sin nada de lo nuevo, justo lo que dispara el
             # backfill automático.
             player.sold_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=5)
             team = await u.session.get(m.Team, team_id)
@@ -570,7 +570,7 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
     """Pedido explícitamente por el usuario 2026-08-04: vender EXIGE listar
     primero en Hattrick (el solo hecho de ponerlo transferible cuesta
     1.000), así que cualquier jugador VENDIDO tuvo al menos un intento de
-    venta — aunque `currentbids.xml` nunca lo haya pillado listado a tiempo
+    venta, aunque `currentbids.xml` nunca lo haya pillado listado a tiempo
     (el caso normal, sobre todo para el backfill histórico de
     transfersteam.xml). Un jugador vendido con `listing_count=0` sube a 1;
     uno que YA tiene un conteo real (detectado vía currentbids.xml, puede
@@ -584,7 +584,7 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
             player.sold_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=5)
             player.listing_count = 0
             # Segundo jugador vendido, ya con un conteo real (relistado dos
-            # veces) — no debe pisarse con el mínimo de 1.
+            # veces), no debe pisarse con el mínimo de 1.
             already_counted = m.Player(
                 ht_player_id=900000099, team_id=team_id,
                 first_name="Ya", last_name="Contado",
@@ -619,11 +619,11 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
     asyncio.run(run())
 
 
-# ── Backfill paginado completo — "Actualizar transferencias" (HL-161, 2026-08-04) ──
+# ── Backfill paginado completo, "Actualizar transferencias" (HL-161, 2026-08-04) ──
 
 class FakeTransfersHistoryCHPP:
     """2 páginas simuladas: page 1 trae 2 transferencias "nuevas", page 2
-    trae 1 más vieja — ninguno de los 3 jugadores existe de antemano en la
+    trae 1 más vieja, ninguno de los 3 jugadores existe de antemano en la
     BD (el punto del backfill: crear la identidad mínima sobre la marcha)."""
 
     STATS = {
@@ -669,7 +669,7 @@ class FakeTransfersHistoryCHPP:
 
 def test_transfers_history_backfill_creates_players_never_seen_in_roster() -> None:
     """Pedido explícitamente 2026-08-04: "traer toda la información posible
-    (así hayan desconocidos)" — un jugador que nunca apareció en
+    (así hayan desconocidos)", un jugador que nunca apareció en
     players.xml (comprado o vendido antes de esta app, o fuera de la única
     página que el sync normal ve) debe quedar creado igual, con lo que sí
     se puede saber (nombre partido de `PlayerName`, precio, TSI) y "?" en
@@ -724,7 +724,7 @@ def test_transfers_history_backfill_creates_players_never_seen_in_roster() -> No
 
 def test_transfers_history_backfill_stops_early_once_re_run() -> None:
     """Segunda vez: la marca de agua (`last_transfer_id_seen`) ya está en
-    300 — la página 1 completa ya es "conocida", así que ni siquiera debe
+    300, la página 1 completa ya es "conocida", así que ni siquiera debe
     pedirse la página 2 (pedido explícitamente: "no debe hacer fetch en
     todo de nuevo sino en lo que pueda o no faltarle").
 
@@ -810,7 +810,7 @@ def _foto_en_venta(
 
 def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
     """Quién está en venta lo dice players.xml (`TransferListed`), no
-    `currentbids.xml` — pedido explícitamente el 2026-08-22: ese fichero es la
+    `currentbids.xml`, pedido explícitamente el 2026-08-22: ese fichero es la
     lista de PUJAS, y tomarlo por un censo de transferibles es la forma de
     equivocarse. Aquí solo enriquece: plazo y puja más alta.
 
@@ -930,7 +930,7 @@ def _fresh_result():
 
 # ── Motor de dominio: compute_balance ───────────────────────────────────────
 # Validado fila a fila contra la hoja de cálculo REAL del usuario ("Compra vs
-# Venta"), no solo contra números inventados — si esto pasa, el motor
+# Venta"), no solo contra números inventados, si esto pasa, el motor
 # reproduce exactamente lo que el usuario ya viene calculando a mano.
 
 def test_agent_commission_matches_the_official_hattrick_table() -> None:
@@ -941,7 +941,7 @@ def test_agent_commission_matches_the_official_hattrick_table() -> None:
 
 
 def test_agent_commission_interpolates_daily_between_weekly_breakpoints() -> None:
-    """Hattrick publica un valor por SEMANA a partir del día 7 — los días
+    """Hattrick publica un valor por SEMANA a partir del día 7, los días
     intermedios se interpolan linealmente. Verificado contra la columna
     "Porc_2" de la hoja real del usuario: día 8 = 0,08467142857."""
     assert agent_commission_pct(8) == pytest.approx(0.08467142857, abs=1e-6)
@@ -952,9 +952,9 @@ def test_compute_balance_matches_real_spreadsheet_row_a_quintana() -> None:
     4.162.000, salario plano 3.090/semana, 78 semanas de posesión, 1
     intento de venta, vendido en 8.000.000. Su hoja calcula
     Ganancia = 3.032.890, con % de agente = 0.07 (tabla, en el suelo de
-    2% a 78 semanas, + 5% siempre — ALWAYS_CHARGED_PCT). Se consideró
+    2% a 78 semanas, + 5% siempre, ALWAYS_CHARGED_PCT). Se consideró
     sumar también un 2% de derechos de formación (real en Hattrick), pero
-    el usuario pidió explícitamente replicar su hoja tal cual — se deja
+    el usuario pidió explícitamente replicar su hoja tal cual, se deja
     fuera a propósito."""
     purchased_at = datetime(2020, 9, 30, tzinfo=UTC)
     sold_at = purchased_at + timedelta(weeks=78)
@@ -1028,7 +1028,7 @@ def test_compute_balance_treats_academy_graduates_as_zero_cost_purchase() -> Non
 
 def test_salary_extrapolates_across_sync_gaps() -> None:
     """El salario solo tiene un snapshot al principio y otro a mitad de
-    camino (como pasa cuando no cambia entre syncs, per Q5) — el motor
+    camino (como pasa cuando no cambia entre syncs, per Q5), el motor
     debe usar el último valor conocido para las semanas sin dato propio,
     nunca interpolar ni inventar un promedio."""
     purchased_at = datetime(2026, 1, 1, tzinfo=UTC)
@@ -1178,8 +1178,8 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
     (players.xml, con historial de salario real) con `currency_rate=10.0`
     (Colombia). Se marca a mano UNA compra/venta (transfersteam.xml no
     forma parte de este seed) sobre un jugador real, con los importes tal
-    como los devuelve CHPP de verdad — en la moneda BASE del juego, no en
-    la local — y se comprueba que el servicio de consulta los convierte
+    como los devuelve CHPP de verdad, en la moneda BASE del juego, no en
+    la local, y se comprueba que el servicio de consulta los convierte
     dividiendo por la tasa antes de calcular el saldo (confirmado por el
     usuario 2026-08-03: p.ej. compró a Humberto Granada en US$1000 real,
     pero CHPP devuelve 10000). No repite la validación numérica exacta del
@@ -1190,7 +1190,7 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
             player = await s.scalar(
                 select(m.Player).where(m.Player.team_id == team_id).limit(1)
             )
-            # `seeded_session()` deja el snapshot fechado "ahora" — hay que
+            # `seeded_session()` deja el snapshot fechado "ahora", hay que
             # moverlo antes de la venta simulada, o el nuevo chequeo de
             # "volvió a la plantilla" (2026-08-05) lo confundiría con un
             # jugador vendido que ya regresó.
@@ -1226,8 +1226,8 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
     assert all(
         segment.total == segment.weeks * segment.salary for segment in row.salary_breakdown
     )
-    # El resto de la plantilla, sin compra conocida, debe quedar en None —
-    # nunca 0 ni una cifra inventada — y contar en unknown_purchase_count.
+    # El resto de la plantilla, sin compra conocida, debe quedar en None
+    # nunca 0 ni una cifra inventada, y contar en unknown_purchase_count.
     others = [r for r in data.players if r.ht_player_id != ht_player_id]
     assert all(r.saldo is None for r in others)
     assert data.unknown_purchase_count == len(others)
@@ -1379,12 +1379,12 @@ def test_salary_history_and_fallback_are_scoped_to_each_stint() -> None:
 
 def test_player_balance_query_service_flags_academy_graduate_by_mother_club() -> None:
     """Pedido explícitamente 2026-08-04: "canterano" real =
-    `MotherClub/TeamID` igual al `ht_team_id` de este equipo — NO si el
+    `MotherClub/TeamID` igual al `ht_team_id` de este equipo, NO si el
     jugador pasó por el escaneo de cantera (`YouthPlayer`/
     `FormerYouthPlayer`) de esta app. Un jugador nunca visto por ese
     escaneo (el caso normal del backfill histórico de transferencias) debe
     quedar igual marcado como canterano si su `mother_club_team_id`
-    coincide — y uno con precio de compra real, aunque comparta esa
+    coincide, y uno con precio de compra real, aunque comparta esa
     coincidencia por azar, NO debe confundirse con uno sin ningún dato de
     cantera."""
     async def go():
@@ -1404,7 +1404,7 @@ def test_player_balance_query_service_flags_academy_graduate_by_mother_club() ->
             bought = await u.session.scalar(
                 select(m.Player).where(m.Player.ht_player_id == 222)
             )
-            bought.mother_club_team_id = 999999  # otro club — no es canterano
+            bought.mother_club_team_id = 999999  # otro club, no es canterano
             bought.purchase_price = 500000
             bought.purchased_at = datetime(2025, 1, 1)
             bought.sale_price = 1000000
@@ -1435,7 +1435,7 @@ def test_player_balance_query_service_flags_academy_graduate_by_mother_club() ->
 
 def test_bid_hour_bucket_formats_as_12_hour_ranges() -> None:
     """Pedido explícitamente 2026-08-03: "14-16" no dice nada de un
-    vistazo — formato de 12 horas, un solo sufijo am/pm cuando ambos
+    vistazo, formato de 12 horas, un solo sufijo am/pm cuando ambos
     extremos caen en el mismo periodo, los dos cuando cruza mediodía o
     medianoche."""
     cases = [
@@ -1450,7 +1450,7 @@ def test_bid_hour_bucket_formats_as_12_hour_ranges() -> None:
 
 def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_skill() -> None:
     """Pedido explícitamente por el usuario 2026-08-03: desglosar el saldo
-    también por Temporada, Edad y Habilidad más alta (sin Balón Parado) —
+    también por Temporada, Edad y Habilidad más alta (sin Balón Parado)
     igual que ya existía por Entrenamiento. Los tres usan el mismo criterio:
     el snapshot MÁS RECIENTE anterior o igual a `sold_at` (nunca uno
     posterior, que sería mirar al futuro). El jugador real de
@@ -1472,14 +1472,14 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
                 .order_by(m.PlayerSnapshot.captured_at)
             )
             # Forzamos el snapshot a una fecha ANTERIOR a la venta simulada
-            # abajo — si quedara posterior (como al sincronizarlo "ahora"),
+            # abajo, si quedara posterior (como al sincronizarlo "ahora"),
             # season_at/snapshot_at lo descartarían por ser del futuro
             # respecto a la venta, que es exactamente el comportamiento
             # correcto que ya prueban los otros tests de este archivo.
             snap.captured_at = datetime(2026, 1, 1)
 
             # `seeded_session()` sincroniza worlddetails (temporada 84,
-            # semana 3, Colombia — LeagueID 19). La venta se fija una hora
+            # semana 3, Colombia, LeagueID 19). La venta se fija una hora
             # DESPUÉS del sync, reproduciendo el bug real de Comolli: la
             # fórmula antigua veía un timedelta negativo, floor-dividía a
             # -1 e inventaba la temporada 85. La regla semanal canónica debe
@@ -1510,7 +1510,7 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
 def test_player_balance_query_service_labels_season_as_unknown_before_any_worlddetails_sync(
 ) -> None:
     """Sin `worlddetails.xml` sincronizado nunca, una venta no tiene forma
-    honesta de saber en qué temporada cayó — se etiqueta "Temporada
+    honesta de saber en qué temporada cayó, se etiqueta "Temporada
     desconocida" en vez de inventar un número. `seeded_session()` sí lo
     sincroniza por defecto (hace falta para la fórmula de entrenamiento), así
     que este test borra esa fila para simular una cuenta que nunca lo trajo."""
@@ -1550,10 +1550,10 @@ def test_player_balance_query_service_labels_season_as_unknown_before_any_worldd
 def test_player_balance_query_service_computes_season_by_elapsed_days_like_age() -> None:
     """Pedido explícitamente por el usuario 2026-08-04: "el cálculo se parece
     a la edad, es Temporada = Temporada Actual - (Hoy-Fecha_transferencia)/112"
-    — aritmética pura, no depende de tener un `Standing` sincronizado cerca
+    aritmética pura, no depende de tener un `Standing` sincronizado cerca
     de esa fecha. Una venta exactamente 112 días antes de la última
     sincronización de worlddetails.xml (temporada 84) cae en la temporada
-    83, por vieja que sea — a diferencia del `Standing`-based `season_at`
+    83, por vieja que sea, a diferencia del `Standing`-based `season_at`
     anterior, que la habría dejado en un único cubo "temporada anterior"
     sin distinguir cuántas temporadas atrás."""
     async def go():
@@ -1590,7 +1590,7 @@ def test_player_balance_query_service_computes_season_by_elapsed_days_like_age()
 
 def test_player_balance_query_service_filters_by_season() -> None:
     """Pedido explícitamente 2026-08-04: "Solo falta un filtro general de
-    temporadas" — con dos jugadores vendidos en temporadas distintas,
+    temporadas", con dos jugadores vendidos en temporadas distintas,
     pedir `season="Temporada 83"` deja SOLO ese jugador en "Detalle" y en
     los desgloses no-temporada (entrenamiento aquí), sin tocar el otro.
     Sin filtro (`season=None`), ambos aparecen."""
@@ -1645,7 +1645,7 @@ def test_player_balance_query_service_filters_by_season() -> None:
 
     assert {r.name for r in filtered.players if r.is_sold} == {"Alberto Gutiérrez Caviedes"}
     assert set(filtered.by_season) == {"Temporada 83"}
-    # KPI de "Resumen" (transfer_total_*) NUNCA se recortan por temporada —
+    # KPI de "Resumen" (transfer_total_*) NUNCA se recortan por temporada
     # son el agregado de TODA la historia que entrega transfersteam.xml.
     assert filtered.transfer_number_buys == unfiltered.transfer_number_buys
     assert filtered.transfer_total_buys == unfiltered.transfer_total_buys
@@ -1663,11 +1663,11 @@ def test_player_balance_query_service_falls_back_to_backfilled_age_at_sale() -> 
                 select(m.Player).where(m.Player.team_id == team_id).limit(1)
             )
             # Venta ANTES de cualquier snapshot real sincronizado (que
-            # `seeded_session()` deja fechado "ahora") — sin backfill,
+            # `seeded_session()` deja fechado "ahora"), sin backfill,
             # `snapshot_at` no encontraría nada. Se borra ese snapshot en
             # vez de solo adelantarlo: este test quiere CERO snapshots
             # relevantes (para forzar el fallback al backfill), no uno
-            # movido antes de la venta — que sí sería "relevante" y además
+            # movido antes de la venta, que sí sería "relevante" y además
             # dispararía el nuevo chequeo de "volvió a la plantilla"
             # (2026-08-05) al quedar antes de esta venta tan vieja.
             await s.execute(delete(m.PlayerSnapshot).where(m.PlayerSnapshot.player_id == player.id))
@@ -1863,7 +1863,7 @@ def test_a_player_who_came_and_went_between_syncs_still_costs_his_salary() -> No
     saldo aparecía mejor de lo que fue.
 
     `playerdetails.xml` sí devuelve `<Salary>` de un jugador que ya juega en
-    otro club — verificado en vivo —, así que el dato existe: no hay nada que
+    otro club, verificado en vivo, , así que el dato existe: no hay nada que
     estimar, solo que guardarlo (`last_known_salary`).
     """
     from app.domain.engines.player_balance import (
@@ -2021,7 +2021,7 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
     Troceado, cada pulsación termina lo que empieza. Lo que se protege aquí es
     que el trabajo SE AGOTA: que pulsar repetidamente llega a cero y que una
     pulsación de más no vuelve a pedirle nada a Hattrick. Sin eso el bucle de
-    la pantalla no pararía nunca — pasó de verdad, con la barra marcando
+    la pantalla no pararía nunca, pasó de verdad, con la barra marcando
     "55 de 11".
     """
     async def run() -> None:
@@ -2210,7 +2210,7 @@ def test_a_sale_without_a_purchase_is_an_academy_stint() -> None:
 
 def test_rebuilding_stints_keeps_what_cannot_be_recalculated() -> None:
     """Las etapas se derivan, así que se rehacen enteras. Lo que NO se puede
-    derivar —los partidos ya censados, lo atribuido a mano, lo excluido— tiene
+    derivar, los partidos ya censados, lo atribuido a mano, lo excluido, tiene
     que sobrevivir a la reconstrucción, o cada recorrido del historial borraría
     el trabajo del usuario."""
     async def run() -> None:

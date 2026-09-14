@@ -1,10 +1,10 @@
-"""GET /teams/{id}/insights — HL-130 a nivel HTTP.
+"""GET /teams/{id}/insights, HL-130 a nivel HTTP.
 
 Caso real que motivó este test: el propio entrenador del club (Volodymyr
 Manakin, 44 años) aparecía en la alerta "caros de entrenar" junto a los
 veteranos genuinos. La identidad del entrenador viene de `TrainerID` en
 training.xml (ya parseado como `TrainingSnapshot.trainer_ht_id`), no de una
-heurística sobre sus stats — por eso este test usa el fixture real, donde el
+heurística sobre sus stats, por eso este test usa el fixture real, donde el
 entrenador (PlayerID 434712334) convive en el roster con un veterano genuino
 (Robert Horhoi) que sí debe seguir apareciendo en la alerta.
 """
@@ -200,7 +200,7 @@ def test_only_the_current_weeks_deficit_survives_in_the_inbox(
     filas de lo mismo en el buzón.
 
     2026-08-17, pedido explícito: solo sobrevive la de la semana en curso. Al
-    archivar la nueva, la vieja se borra de la base — y mientras tanto no se
+    archivar la nueva, la vieja se borra de la base, y mientras tanto no se
     enseña, porque su semana ya no vuelve.
     """
     import asyncio

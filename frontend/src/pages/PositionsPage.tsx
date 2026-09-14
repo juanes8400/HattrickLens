@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
 import { ErrorState, Loading, Panel, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
+import { CountryFlag } from "../components/CountryFlag";
 import { useSquad } from "../hooks/useTeam";
 import { htAge } from "../hooks/useFormat";
 import type { SquadPlayer } from "../services/api";
@@ -76,7 +77,7 @@ const ROLE_TABS: RoleTab[] = [
   },
   {
     // 2026-08-09, pedido explícitamente: "Capitán" y "Situaciones fijas"
-    // fusionados en una sola pestaña "Otros" — todas son decisiones de
+    // fusionados en una sola pestaña "Otros", todas son decisiones de
     // plantilla que no son una posición de campo.
     id: "other",
     label: "Otros",
@@ -84,7 +85,7 @@ const ROLE_TABS: RoleTab[] = [
       { key: "captain", label: "Capitán" },
       { key: "set_piece_taker", label: "Lanzador de faltas" },
       // 2026-08-09, pedido explícitamente tras verificar la fuente: orden
-      // DISTINTA de "Lanzador de faltas" (TLD) — en Hattrick real tienen
+      // DISTINTA de "Lanzador de faltas" (TLD), en Hattrick real tienen
       // su propio código y fórmula (Experiencia + Anotación + Balón
       // Parado, ver positions.yaml), no son el mismo puesto.
       { key: "penalty_taker", label: "Lanzador de penaltis" },
@@ -104,7 +105,7 @@ const SKILL_COLUMNS: [keyof SquadPlayer["skills"], string][] = [
 
 function Rating({ value }: { value: number | null | undefined }) {
   return value == null ? (
-    <span className="text-[var(--muted)]">—</span>
+    <span className="text-[var(--muted)]">-</span>
   ) : (
     <b className="tabular-nums text-[var(--accent)]">{value.toFixed(2)}</b>
   );
@@ -119,6 +120,9 @@ function Rating({ value }: { value: number | null | undefined }) {
 export function PositionsPage() {
   const [roleId, setRoleId] = useState("central");
   const [orderKey, setOrderKey] = useState("central_defender");
+  // Veteranos sin habilidades de campo: fuera por defecto (2026-09-13). En
+  // un ranking por puesto sólo eran filas al fondo que no se alinean nunca.
+  const [mostrarVeteranos, setMostrarVeteranos] = useState(false);
   const activeTab = ROLE_TABS.find((tab) => tab.id === roleId) ?? ROLE_TABS[0]!;
   const activeOrder =
     activeTab.orders.find((order) => order.key === orderKey) ??
@@ -128,6 +132,10 @@ export function PositionsPage() {
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
   if (!squad.data) return <SinDatos />;
+  const veteranos = squad.data.players.filter((p) => p.withoutFieldSkills);
+  const visibles = mostrarVeteranos
+    ? squad.data.players
+    : squad.data.players.filter((p) => !p.withoutFieldSkills);
 
   const columns: Column<SquadPlayer>[] = [
     {
@@ -136,7 +144,13 @@ export function PositionsPage() {
       align: "left",
       value: (player) => player.name,
       render: (player) => (
-        <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+          <CountryFlag
+            code={player.countryCode}
+            country={player.nativeLeagueName}
+          />
+          <PlayerLink htPlayerId={player.htPlayerId} name={player.name} />
+        </span>
       ),
     },
     {
@@ -146,7 +160,7 @@ export function PositionsPage() {
       render: (player) => htAge(player.ageYears, player.ageDays),
     },
     {
-      // 2026-08-09, pedido explícitamente: renombrado de "Última semana" —
+      // 2026-08-09, pedido explícitamente: renombrado de "Última semana"
       // el backend ya filtra a partidos de los últimos 7 días (caso real,
       // Volodymyr Manakin: su LastMatch de CHPP era de hace más de un
       // año), así que "sin dato" aquí es honesto: o no hay partido
@@ -261,9 +275,21 @@ export function PositionsPage() {
         </div>
       </Panel>
 
+      {veteranos.length > 0 && (
+        <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={mostrarVeteranos}
+            onChange={(e) => setMostrarVeteranos(e.target.checked)}
+            className="accent-[var(--accent)]"
+          />
+          Mostrar a todos ({veteranos.length} veteranos sin habilidades de
+          campo)
+        </label>
+      )}
       <DataTable
         emptyMessage="Sin jugadores en la plantilla."
-        rows={squad.data.players}
+        rows={visibles}
         columns={columns}
         rowKey={(player) => player.htPlayerId}
         initialSort="roleRating"

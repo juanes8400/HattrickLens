@@ -8,7 +8,7 @@ fía. Eso impone una regla que gobierna todo el módulo:
 Un catálogo que repite «β = 3» de memoria queda desfasado el día que alguien
 toque el motor, y entonces la única pantalla que promete transparencia es la
 que miente. Por eso cada valor de abajo entra por `import`, y si un motor
-renombra una constante esto revienta al arrancar — que es exactamente lo que
+renombra una constante esto revienta al arrancar, que es exactamente lo que
 tiene que pasar.
 
 La fórmula sí es texto: es la parte que un humano escribe para que otro humano
@@ -17,12 +17,36 @@ la entienda. Lo que no puede ser texto es el número que la acompaña.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.domain.engines import htms
 from app.domain.engines.economy_engine import HOME_MATCHES_PER_SEASON, SEASON_WEEKS
 from app.domain.engines.metodo_ocho import ESCALERA, UMBRAL_DE_DESCARTE
+from app.domain.engines.prediccion import (
+    BETA,
+    COMPARACIONES,
+    ETIQUETAS,
+    FACTOR_POR_TACTICA,
+    MAXIMO_GOLES_ESPERADOS,
+    MINIMO_HISTORIA,
+    OBSERVACIONES,
+    PESO_GOLES,
+    PESO_ORDINAL,
+    POISSON_BP_BALON_PARADO,
+    POISSON_BP_INTERCEPTO,
+    POISSON_BP_MEDIO,
+    POISSON_ETA_MEDIA,
+    POISSON_JUEGO_CARRIL,
+    POISSON_JUEGO_CUADRATICO,
+    POISSON_JUEGO_ETA_MAXIMA,
+    POISSON_JUEGO_INTERCEPTO,
+    POISSON_JUEGO_MEDIO,
+    RAZON_MEDIO_CASA_FUERA,
+    TOPE_DE_GOLES,
+    UMBRALES,
+)
 from app.domain.engines.season_simulator import HOME_ADVANTAGE, SHRINKAGE_K
 from app.domain.engines.training_engine import DAYS_PER_HT_YEAR, parametros
 from app.domain.engines.youth_skill_score import (
@@ -36,7 +60,7 @@ from app.domain.engines.youth_training_plan import (
     SECUNDARIO_DUPLICADO,
     SECUNDARIO_NORMAL,
 )
-from app.domain.value_objects.ht_constants import skill_name
+from app.domain.value_objects.ht_constants import TACTIC_TYPES, skill_name
 from app.domain.value_objects.stamina_reference import (
     STAMINA_FORECAST_TABLE,
     STAMINA_MAX_LEVEL,
@@ -98,6 +122,19 @@ class Calculo:
     #: abre esto quiere saber qué mira, no qué se multiplica.
     answers: str
     formula: str
+    #: El CUERPO, en párrafos. La ficha nació para explicar un número: fórmula,
+    #: constantes, límites. Eso basta para «¿de dónde sale el ROI?» y se queda
+    #: corto para un motor entero, que hay que CONTAR --por qué esta forma y no
+    #: otra, qué se probó y se descartó, cómo se comprobó que funciona--.
+    #:
+    #: 2026-09-08, pedido explícito: que el pronóstico de partido se explique
+    #: «paso a paso, como si alguien que no conoce se quisiera empapar», con la
+    #: calidad de un artículo. Sin prosa larga eso no cabía en ninguna parte:
+    #: `note` es una coletilla de once píxeles y `steps` es una cuenta, no una
+    #: explicación.
+    #:
+    #: Vacío en los cálculos que no lo necesitan, que son casi todos.
+    body: list[str] = field(default_factory=list)
     sources: list[Fuente] = field(default_factory=list)
     constants: list[Constante] = field(default_factory=list)
     tables: list[Tabla] = field(default_factory=list)
@@ -393,6 +430,238 @@ def _tabla_de_condicion() -> Tabla:
     )
 
 
+#: ── El pronóstico de partido, dibujado del motor ──────────────────────────
+#:
+#: Las tres tablas del capítulo «Pronóstico de partido» se GENERAN de las
+#: constantes de `prediccion`, no se transcriben. Es la misma regla del módulo
+#: llevada al caso peor: son veintitantos números con cuatro decimales, y ese
+#: es exactamente el tipo de tabla que nadie vuelve a revisar cuando el motor
+#: se reajusta.
+
+
+def _miles(n: int) -> str:
+    """5232 → «5.232». El separador de millar que se lee aquí es el punto."""
+    return f"{n:,}".replace(",", ".")
+
+
+def _coma(v: float) -> str:
+    """El número redondeado y con coma decimal, para meterlo dentro de prosa."""
+    return _fmt(v).replace(".", ",")
+
+
+def _con_signo(v: float) -> str:
+    """«− 0.14452», para encadenar un término dentro de una fórmula.
+
+    El coeficiente cuadrático es negativo y pegarlo tal cual dejaba «exp( η
+    -0.14452 × ...)», que se lee como un guion y no como una resta. El signo
+    se DERIVA del valor: si algún día el reajuste lo devuelve positivo, la
+    fórmula publicada cambia sola de operador en vez de mentir.
+    """
+    return f"{'−' if v < 0 else '+'} {_exacto(abs(v))}"
+
+
+def _por_diez_puntos(coeficiente: float) -> str:
+    """Cuánto multiplica llevarse diez puntos porcentuales más de un duelo.
+
+    Un coeficiente ordinal vive en la escala de la recta latente, que no
+    significa nada para quien lee. Lo que sí significa algo es la razón de
+    momios: `e^(β × 0,10)`. Se calcula, no se teclea, para que siga al motor.
+    """
+    return f"×{math.exp(coeficiente * 0.10):.2f}"
+
+
+def _tabla_de_duelos() -> Tabla:
+    """Los nueve duelos con su peso, de mayor a menor."""
+    filas = sorted(
+        (
+            (ETIQUETAS[clave], float(beta))
+            for (clave, _, _), beta in zip(COMPARACIONES, BETA, strict=True)
+        ),
+        key=lambda fila: -fila[1],
+    )
+    return Tabla(
+        title="Los nueve duelos, ordenados por lo que pesan",
+        columns=["Duelo", "Coeficiente", "Si te llevas 10 puntos más del duelo"],
+        rows=[[nombre, _exacto(beta), _por_diez_puntos(beta)] for nombre, beta in filas],
+        note=(
+            "Cada fila es un ENFRENTAMIENTO, no un rating tuyo. El coeficiente no "
+            "dice «subir mi ataque central multiplica por 1,45 mis opciones»: dice "
+            "que llevarte diez puntos porcentuales más de ESE DUELO las multiplica "
+            "por eso, y eso se consigue subiendo tú o bajando él. El medio campo "
+            "manda con diferencia sobre los otros ocho, que quedan agrupados entre "
+            "2,2 y 3,9. Las bandas van cruzadas porque el campo es así."
+        ),
+    )
+
+
+def _tabla_de_poisson() -> Tabla:
+    """Los siete coeficientes de goles, con su lectura en castellano."""
+    return Tabla(
+        title="Los siete coeficientes de los goles",
+        columns=["Componente", "Término", "Coeficiente", "Cómo se lee"],
+        rows=[
+            [
+                "Juego abierto",
+                "constante",
+                _exacto(POISSON_JUEGO_INTERCEPTO),
+                "el nivel del que se parte antes de mirar ningún duelo",
+            ],
+            [
+                "Juego abierto",
+                "log p(medio campo)",
+                _exacto(POISSON_JUEGO_MEDIO),
+                "elasticidad: un 1 % más de medio campo son 2,5 % más de goles",
+            ],
+            [
+                "Juego abierto",
+                "exponente de cada carril",
+                _exacto(POISSON_JUEGO_CARRIL),
+                "cuánto compensa un carril fuerte a uno tapado; los tres lo comparten",
+            ],
+            [
+                "Juego abierto",
+                "(η − centro)²",
+                _exacto(POISSON_JUEGO_CUADRATICO),
+                "la descompresión: estira los extremos que el modelo aplastaba",
+            ],
+            [
+                "Juego abierto",
+                "centro de la curvatura",
+                _exacto(POISSON_ETA_MEDIA),
+                "el η medio de la muestra; sin él el cuadrático dice otra cosa",
+            ],
+            [
+                "Balón parado",
+                "constante",
+                _exacto(POISSON_BP_INTERCEPTO),
+                "el nivel de partida de la amenaza a balón parado",
+            ],
+            [
+                "Balón parado",
+                "log p(medio campo)",
+                _exacto(POISSON_BP_MEDIO),
+                "tres veces menos que en el juego abierto, y a propósito",
+            ],
+            [
+                "Balón parado",
+                "log p(balón parado ofensivo)",
+                _exacto(POISSON_BP_BALON_PARADO),
+                "OJO: comparte el 62 % de su varianza con los ataques",
+            ],
+        ],
+        note=(
+            "Los duelos entran en LOGARITMO y el enlace de la regresión también es "
+            "logarítmico. Eso convierte la suma en producto y cada coeficiente en "
+            "una ELASTICIDAD: el porcentaje que crecen los goles cuando ese duelo "
+            "crece un uno por ciento. No se impuso esa forma, salió sola al probar "
+            "seis maneras de medir un duelo. El término cuadrático y el sumando de "
+            "balón parado la desvían un poco de un producto puro, pero la lectura "
+            "sigue valiendo cerca del centro."
+        ),
+    )
+
+
+def _tabla_de_tacticas() -> Tabla:
+    """Cuánto corrige cada táctica, y con cuántos partidos se midió."""
+    medido = {
+        0: ("8.200", "dentro del ruido"),
+        1: ("287", "recorta ocasiones a los dos equipos"),
+        2: ("547", "menos posesión, pero ocasiones más limpias"),
+        3: ("423", "dentro del ruido"),
+        4: ("593", "algo más de gol del que predicen los ratings"),
+        7: ("344", "el que más goles añade sobre lo previsto"),
+        8: ("70", "muy pocos partidos: se corrige casi nada"),
+    }
+    return Tabla(
+        title="El factor de cada táctica",
+        columns=["Táctica", "Factor", "Lados medidos", "Qué significa"],
+        rows=[
+            [
+                TACTIC_TYPES.get(codigo, str(codigo)),
+                _exacto(factor),
+                medido.get(codigo, ("-", ""))[0],
+                medido.get(codigo, ("-", ""))[1],
+            ]
+            for codigo, factor in sorted(FACTOR_POR_TACTICA.items(), key=lambda kv: kv[1])
+        ],
+        note=(
+            "Un factor menor que 1 dice que con esa táctica se marca MENOS de lo "
+            "que los ratings hacían esperar, y mayor que 1, más. Cuatro se "
+            "separan de 1 de forma clara --Presionar, Contraataques, Jugar "
+            "creativamente y Atacar por las bandas--; los otros tres están tan "
+            "cerca de 1 que da igual aplicarlos que no."
+        ),
+    )
+
+
+def _tabla_de_resumenes() -> Tabla:
+    """Cómo se saca cada uno de los cuatro resúmenes, y dónde falla."""
+    return Tabla(
+        title="Los cuatro resúmenes, con la cuenta delante",
+        columns=["Resumen", "Cómo se saca, exactamente", "Su punto débil"],
+        rows=[
+            [
+                "Promedio",
+                "se suman los valores de esa zona en todos los partidos y se "
+                "divide entre cuántos son",
+                "un solo partido raro lo arrastra, y con cuatro o cinco partidos eso se nota mucho",
+            ],
+            [
+                "Máximo",
+                "el valor más alto de esa zona entre todos los partidos, cada zona por su cuenta",
+                "las nueve zonas pueden venir de partidos distintos: describe "
+                "un equipo que nunca salió a la cancha",
+            ],
+            [
+                "Máximo por carril",
+                "el máximo de cada zona y, dentro de cada trío paralelo --los "
+                "tres carriles de defensa y los tres de ataque--, el más alto "
+                "se le pone a los tres; el balón parado se queda con el suyo",
+                "por construcción los tres carriles salen iguales y altos, así "
+                "que borra el lado fuerte, que es información",
+            ],
+            [
+                "Último partido",
+                "los valores del día más reciente, tal cual, sin mezclar nada",
+                "es un solo partido: recoge antes que nadie un fichaje, y "
+                "también toda la suerte de esa tarde",
+            ],
+        ],
+        note=(
+            "El resumen se aplica a cada rating POR SEPARADO, no al partido "
+            "entero: el medio campo se resume con los medios campos, y así las "
+            "nueve zonas. Y un partido al que le falte alguna se descarta entero "
+            "antes de resumir, para que las nueve salgan siempre de los mismos "
+            "partidos: media lectura no es una lectura con un cero."
+        ),
+    )
+
+
+def _tabla_del_barrido() -> Tabla:
+    """El barrido de la mezcla, con la fila elegida marcada."""
+    pesos = ("0,00", "0,40", "0,60", "0,70", "0,80", "0,90", "1,00")
+    perdida = ("0,6445", "0,6350", "0,6333", "0,6329", "0,6328", "0,6329", "0,6334")
+    empate = ("calibrado",) * 5 + ("SE SALE", "SE SALE")
+    elegido = f"{PESO_GOLES:.2f}".replace(".", ",")
+    return Tabla(
+        title="Por qué 80 % y no otro número",
+        columns=["Peso de los goles", "Error (log-loss)", "Calibración del empate", ""],
+        rows=[
+            [p, e, c, "← el que se usa" if p == elegido else ""]
+            for p, e, c in zip(pesos, perdida, empate, strict=True)
+        ],
+        note=(
+            "Menos es mejor. La curva es planísima entre 0,60 y 0,90 --cuatro "
+            "diezmilésimas separan los cuatro-- así que el mínimo por sí solo no "
+            "decide nada. Lo que decide es la última columna: a partir de 0,90 la "
+            "probabilidad de EMPATE se sale de su banda de calibración, porque la "
+            "rejilla de marcadores conserva un resto de exceso de resultados bajos "
+            "y el modelo ordinal es lo que lo sujeta. 0,80 es a la vez el mínimo y "
+            "el último punto que todavía calibra: por eso se eligió ése."
+        ),
+    )
+
+
 def catalogo() -> list[Seccion]:
     """Todo lo que la herramienta calcula, sección por sección."""
     return [
@@ -517,7 +786,7 @@ def catalogo() -> list[Seccion]:
                     formula="",
                     note="Clasificación oficial en total, en casa y fuera, el calendario "
                     "completo y la evolución real de puestos y puntos. Proyección "
-                    "de temporada —marcada como tal— con puntos esperados, "
+                    "de temporada, marcada como tal, con puntos esperados, "
                     "probabilidad de cada puesto final, de título y de acabar entre "
                     "los cuatro primeros, los límites matemáticos mejor y peor, y "
                     "un pronóstico para cada equipo. Compara además TSI, forma y "
@@ -534,7 +803,7 @@ def catalogo() -> list[Seccion]:
                     "puedes alcanzar. Explica qué pasa si ganas y qué pasa si "
                     "pierdes, incluido el movimiento entre niveles de copa donde "
                     "aplica. Con análisis del rival, una estimación de probabilidad "
-                    "—marcada como estimación—, los ingresos de copa observados, un "
+                    ", marcada como estimación, , los ingresos de copa observados, un "
                     "escenario aparte de taquilla futura, preparación de "
                     "resistencia para 120 minutos y un orden indicativo de "
                     "lanzadores de penalti.",
@@ -914,7 +1183,7 @@ def catalogo() -> list[Seccion]:
                     answers=(
                         "Encuentra el mayor aporte posicional posible en dos modos. En "
                         "«Mejor formación», compara las diez formaciones con su reparto "
-                        "predeterminado. Al elegir una —por ejemplo, 3-5-2— mantiene esa "
+                        "predeterminado. Al elegir una, por ejemplo, 3-5-2, mantiene esa "
                         "estructura y optimiza dentro de ella los jugadores y las órdenes "
                         "que no fijaste."
                     ),
@@ -1037,93 +1306,1296 @@ def catalogo() -> list[Seccion]:
                 ),
             ],
         ),
+        # ── EL PRONÓSTICO DE PARTIDO ──────────────────────────────────────
+        #
+        # Ocho fichas que son un artículo, no ocho cálculos sueltos. Encargo
+        # explícito del 2026-09-08: «que explique paso a paso todo el proceso,
+        # como si alguien que no conoce se quisiera empapar del tema».
+        #
+        # Va en su PROPIA sección y no dentro de Liga, aunque naciera allí:
+        # desde el 2026-09-08 el mismo motor firma también el pronóstico de
+        # Copa y el de la ficha de rival. Colgarlo de Liga diría que es un
+        # cálculo de Liga, y entonces quien llegue desde Copa no lo encuentra.
+        Seccion(
+            id="pronostico",
+            name="Pronóstico de partido",
+            calcs=[
+                Calculo(
+                    id="pronostico-resumen",
+                    name="1 · En una página",
+                    answers=(
+                        "Qué es el pronóstico, qué necesita para funcionar y qué "
+                        "devuelve. El resto del capítulo lo desarrolla paso a paso."
+                    ),
+                    body=[
+                        "Cuando la aplicación dice «34 % de victoria, 28 % de empate, "
+                        "38 % de derrota» no está opinando ni comparando presupuestos: "
+                        "está aplicando dos regresiones ajustadas sobre "
+                        f"{_miles(OBSERVACIONES)} partidos de liga reales de 979 equipos "
+                        "repartidos por cinco países. Este capítulo cuenta, sin "
+                        "saltarse nada, cómo se llega de los ratings de un partido a "
+                        "esos tres números.",
+                        "La idea de fondo cabe en una frase: un partido de Hattrick es "
+                        "un conjunto de duelos localizados. Tu ataque por la izquierda "
+                        "no se enfrenta a «el rival», se enfrenta a su defensa por la "
+                        "derecha, que es quien cubre ese carril del campo. Si se mide "
+                        "qué parte de cada duelo te llevas y se sabe cuánto pesa cada "
+                        "uno, se puede estimar cuántos goles marcará cada equipo; y de "
+                        "una estimación de goles sale, por aritmética, la probabilidad "
+                        "de cada marcador y por tanto de cada resultado.",
+                        "El motor da dos respuestas a la misma pregunta y luego las "
+                        "promedia. La primera mira los GOLES: una regresión de Poisson "
+                        "estima cuántos marca cada lado y despliega esa estimación en "
+                        "una rejilla de marcadores. La segunda mira el RESULTADO: una "
+                        "regresión ordinal aprende directamente de quién ganó, sin "
+                        "pasar por los goles. Se equivocan en sitios distintos, así "
+                        f"que juntas --{PESO_GOLES:.0%} goles, {PESO_ORDINAL:.0%} "
+                        "resultado-- aciertan más que cualquiera de las dos por "
+                        "separado.",
+                        "Lo que sigue son siete pasos. De dónde sale la muestra (paso "
+                        "2), cómo se mide un duelo (paso 3), cómo se convierten los "
+                        "duelos en goles (paso 4), qué corrige la táctica que los "
+                        "ratings no ven (paso 5), cómo se pasa de goles a marcadores y "
+                        "de marcadores a probabilidades (paso 6), por qué hay una "
+                        "segunda opinión y cuánto pesa (paso 7), y cómo se comprobó que "
+                        "todo esto funciona de verdad (paso 8). El paso 9 dice qué NO "
+                        "puede hacer, que es la parte que conviene leer dos veces.",
+                    ],
+                    formula=(
+                        "duelo         p = A / (A + B)      A tuyo, B suyo, mismo carril\n"
+                        "\n"
+                        "goles         λ = [ juego_abierto(p) + balón_parado(p) ]\n"
+                        "                  × factor de la táctica\n"
+                        "marcadores    P(i, j) = Poisson(i; λ_tuya) × Poisson(j; λ_suya)\n"
+                        "\n"
+                        "resultado     P(victoria) = suma de las casillas con i > j\n"
+                        "              P(empate)   = suma de la diagonal\n"
+                        "              P(derrota)  = suma de las casillas con i < j\n"
+                        "\n"
+                        f"mezcla        final = {PESO_GOLES:.2f} × goles "
+                        f"+ {PESO_ORDINAL:.2f} × ordinal"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los nueve ratings por zona de los dos equipos",
+                            "Sus partidos ya jugados, con el resumen que elijas "
+                            "(promedio por defecto)",
+                        ),
+                        Fuente(
+                            "Cuánto pesa cada zona",
+                            f"Dos regresiones sobre {_miles(OBSERVACIONES)} partidos de "
+                            "liga de 979 equipos de cinco países",
+                        ),
+                    ],
+                    constants=[
+                        Constante(
+                            "partidos del ajuste",
+                            _miles(OBSERVACIONES),
+                            "Sobre cuántos partidos reales se estimaron los coeficientes.",
+                        ),
+                        Constante(
+                            "peso de los goles",
+                            f"{PESO_GOLES:.2f}",
+                            "Cuánto manda la regresión de Poisson en la mezcla final.",
+                        ),
+                        Constante(
+                            "peso del resultado",
+                            f"{PESO_ORDINAL:.2f}",
+                            "Cuánto corrige la regresión ordinal.",
+                        ),
+                        Constante(
+                            "partidos previos mínimos",
+                            str(MINIMO_HISTORIA),
+                            "Con menos que esto por lado no se pronostica nada.",
+                        ),
+                    ],
+                    steps=[
+                        "Se recogen los partidos ya jugados de los dos equipos, de UNA "
+                        "sola competición, y se resume cada rating con el resumen "
+                        "elegido --el promedio, si no se toca nada--.",
+                        "Los nueve ratings de cada lado se cruzan contra los del rival "
+                        "en el carril que les toca: nueve duelos, cada uno un número "
+                        "entre 0 y 1.",
+                        "Cinco de esos duelos --medio campo, los tres ataques y el "
+                        "balón parado ofensivo-- entran en la regresión de Poisson y "
+                        "salen los goles esperados de ese lado. Se repite al revés "
+                        "para el rival.",
+                        "Con los dos números de goles se construye la rejilla de "
+                        "marcadores y se suman sus casillas en tres montones: gano, "
+                        "empato, pierdo.",
+                        "Los nueve duelos, todos, entran además en la regresión "
+                        "ordinal, que da su propia terna sin mirar los goles.",
+                        f"Las dos ternas se promedian {PESO_GOLES:.0%} / "
+                        f"{PESO_ORDINAL:.0%} y eso es lo que se pinta en la barra.",
+                    ],
+                    limits=[
+                        "Todo el capítulo describe un motor ESTADÍSTICO ajustado sobre "
+                        "partidos pasados. No simula el partido, no conoce tu "
+                        "alineación del domingo ni la del rival, y no sabe nada de "
+                        "tácticas, lesiones, tarjetas ni actitud.",
+                        "Los dos avisos que conviene no saltarse están en el paso 8: "
+                        "el coeficiente del balón parado no se puede leer literalmente, "
+                        "y el empate sale algo más alto de lo que ocurre.",
+                    ],
+                    note=(
+                        "Los coeficientes de todo el capítulo se leen del motor cada vez "
+                        "que se abre esta pantalla. Si alguien reajusta el modelo y no "
+                        "toca esta página, la página cambia igual: es la única promesa "
+                        "que hace Transparencia."
+                    ),
+                ),
+                Calculo(
+                    id="pronostico-muestra",
+                    name="2 · De dónde salen los números",
+                    answers=(
+                        "Qué partidos se miran para describir a un equipo, cuál de los "
+                        "cuatro resúmenes se les aplica, y por qué no se mezclan liga y "
+                        "copa."
+                    ),
+                    body=[
+                        "Hattrick no publica los ratings de un partido que todavía no "
+                        "se ha jugado. Nadie los conoce: dependen de la alineación que "
+                        "se envíe, de la forma del día y de las órdenes. Así que el "
+                        "primer problema no es predecir, es DESCRIBIR: hay que resumir "
+                        "en nueve números cómo suele salir cada equipo.",
+                        "EL RESUMEN LO ELIGES TÚ, y son cuatro. Cada uno responde una "
+                        "pregunta distinta sobre los mismos partidos: el PROMEDIO dice "
+                        "cómo suele salir; el MÁXIMO, de lo que es capaz "
+                        "en cada zona; el MÁXIMO POR CARRIL, de lo que es capaz por "
+                        "cualquiera de los tres carriles de una mitad --si rompió por "
+                        "la izquierda puede volver a romper por la derecha cuando el "
+                        "rival mueva a sus hombres--; y el ÚLTIMO PARTIDO, con lo que "
+                        "salió el último día, sin resumir nada.",
+                        "Abre en el PROMEDIO: usa todos los partidos que entran y es el "
+                        "más fácil de repetir con una calculadora. Tiene un precio "
+                        "conocido --un partido raro, el día que se rotó medio equipo o "
+                        "el 7-0 al colista, tira del número--, y por eso los otros tres "
+                        "están al lado: si sospechas de un partido, el máximo o el "
+                        "último contestan otra pregunta sobre los mismos datos. Y "
+                        "medido, es el que menos se equivoca de los cuatro.",
+                        "LA SEDE SE CORRIGE, porque un resumen la diluye. La ventaja de "
+                        "campo no se suma aparte: ya viene dentro de los ratings, y el "
+                        "medio campo de un equipo en casa sale un 17,8 % más alto que "
+                        "fuera. El promedio mezcla partidos de casa y de fuera, así que "
+                        "sin corregir el local entraba rebajado y el visitante inflado. "
+                        "Por eso el medio campo del resumen se lleva a la sede del "
+                        "partido que viene, con la mezcla real de cada equipo: quien ya "
+                        "jugó casi todo en casa apenas se toca. Sólo el medio campo, "
+                        "porque en las otras ocho zonas la diferencia entre casa y fuera "
+                        "es de un 2 % o menos. En campo neutral, o en un partido "
+                        "hipotético sin sede, no se corrige nada; en la ficha de rival, "
+                        "sólo con un cruce de liga o de promoción.",
+                        "El mando vive donde se ve su efecto. En la ficha de rival, "
+                        "junto al mapa de la cancha, con un selector para tu lado y "
+                        "otro para el suyo: lo que quieres saber de ti no tiene por "
+                        "qué ser lo mismo que quieres saber de él. En Liga es UNO solo, "
+                        "en la pestaña de Proyección, y vale para los ocho equipos "
+                        "--ahí no hay dos lados, hay ocho--: mueve los puntos "
+                        "esperados, la distribución de puestos y los límites. En Copa "
+                        "vuelven a ser dos, como en la ficha.",
+                        "EL PRÓXIMO PARTIDO DEL RESUMEN DE LIGA NO USA RESUMEN. Es el "
+                        "único sitio de esa pantalla que pronostica UN partido, y un "
+                        "partido se juega con un once, no con el promedio de cinco. Así "
+                        "que cada lado va con una alineación concreta: la tuya ENVIADA "
+                        "si ya mandaste órdenes, y si no la de tu ÚLTIMO partido; la "
+                        "del rival, siempre la de su último partido, porque sus "
+                        "órdenes son privadas hasta que se juega y su último once es "
+                        "lo más reciente que se sabe de él. La táctica va con cada "
+                        "alineación: la de esas mismas órdenes o la de ese mismo "
+                        "partido. El precio es la fragilidad --un solo partido trae "
+                        "toda la suerte de esa tarde-- y la pantalla lo dice.",
+                        "TU LADO TIENE UNA OPCIÓN MÁS: la ALINEACIÓN ENVIADA. Cuando "
+                        "ya mandaste órdenes, Hattrick calcula él mismo los ratings de "
+                        "minuto 0 de esa alineación, y eso no resume nada pasado: es "
+                        "el partido que viene. De un rival nunca existe, porque sus "
+                        "órdenes son privadas hasta que se juega. Y no viene completa: "
+                        "Hattrick prevé siete sectores y no prevé los dos de acciones "
+                        "indirectas a balón parado, así que esos dos se toman de tu "
+                        "resumen de lo ya jugado y la pantalla lo avisa. En el "
+                        "selector de Liga no se ofrece: de siete de los ocho equipos no "
+                        "se pueden ver las órdenes, y un método que sólo funcionara "
+                        "para uno no describiría esa pantalla. Por eso tus órdenes "
+                        "entran sólo donde hay un único partido tuyo: el próximo del "
+                        "Resumen.",
+                        "EL RESUMEN SALE DE UNA SOLA COMPETICIÓN, y esto importa más de "
+                        "lo que parece. Un equipo no juega igual en liga que en copa: "
+                        "medido sobre el equipo del autor en la temporada 83, su medio "
+                        "campo en los seis partidos de liga fue 6, 10, 9, 11, 9 y 19, y "
+                        "en los seis de copa fue 8, 13, 27, 13, 21 y 21. Son dos "
+                        "equipos distintos. Un promedio que los mezcle no describe a "
+                        "ninguno de los dos: infla al de liga y subestima al de copa. "
+                        "Mezclados, el error de goles de la copa casi doblaba al de la "
+                        "liga --1,97 contra 1,17-- y no era azar, era esto.",
+                        "El reparto lo decide CON QUÉ EQUIPO se juega, no el formato "
+                        "del torneo. La promoción va con la liga: es el desenlace del "
+                        "mismo torneo, contra rivales del mismo nivel. El Hattrick "
+                        "Masters también va con la liga, aunque sea eliminatoria, "
+                        "porque se sale a ganarlo con el once titular, que es justo lo "
+                        "que el resumen intenta describir. La copa va sola, por lo "
+                        "mismo al revés.",
+                        "Los AMISTOSOS son una tercera muestra, y en la ficha de un "
+                        "rival se piden con un selector aparte, en la esquina: "
+                        "oficiales O amistosos, uno u otro, nunca los dos ni ninguno. "
+                        "Nunca los dos porque una muestra que los mezcle no describe a "
+                        "nadie --son dos equipos distintos, por lo mismo que liga y "
+                        "copa-- y nunca ninguno porque entonces no quedaría nada que "
+                        "resumir. Abre en oficiales. Ese selector manda sobre toda la "
+                        "ficha --el mapa de la cancha, el pronóstico, el once probable, "
+                        "la táctica y la rotación de lado-- para que ninguna parte de "
+                        "la pantalla pueda contar algo distinto del mismo equipo.",
+                        "Con amistosos marcados la advertencia sigue en pie: un "
+                        "amistoso se juega con suplentes y sin nada en juego, y los "
+                        "coeficientes salieron de partidos de liga, así que aplicarlos "
+                        "ahí es extrapolar.",
+                        f"Basta con {MINIMO_HISTORIA} partido previo por lado. Estuvo en "
+                        "tres y se bajó tras medirlo: con un solo partido previo el "
+                        "error es 0,661 contra 0,674 con tres, o sea que exigir tres no "
+                        "era mejor, y encima se negaba a pronosticar en las jornadas 2 "
+                        "y 3, que es cuando más se quiere saber.",
+                    ],
+                    formula=(
+                        "para cada uno de los nueve ratings:\n"
+                        "    valor = RESUMEN(ese rating en los partidos que entran)\n"
+                        "\n"
+                        "RESUMEN, a elegir:\n"
+                        "    Promedio           → la media                (por defecto)\n"
+                        "    Máximo             → el mejor registro de esa zona\n"
+                        "    Máximo por carril  → el mejor de los tres carriles de esa\n"
+                        "                         mitad, aplicado a los tres\n"
+                        "    Último partido     → el del último día, sin resumir\n"
+                        "\n"
+                        "y después, la sede del partido que viene (sólo el medio campo):\n"
+                        "    en casa   medio × h / (f·h + (1−f)·a)\n"
+                        "    fuera     medio × a / (f·h + (1−f)·a)\n"
+                        f"    h = √{_coma(RAZON_MEDIO_CASA_FUERA)}   a = 1 / h   "
+                        "f = parte de sus partidos jugada en casa\n"
+                        "\n"
+                        "sólo para TU lado, y sólo con órdenes ya enviadas:\n"
+                        "    Alineación enviada → los siete sectores que Hattrick prevé;\n"
+                        "                         los dos de balón parado, de tu resumen\n"
+                        "\n"
+                        "qué partidos entran, según la pantalla:\n"
+                        "    Liga            → liga, promoción y Hattrick Masters\n"
+                        "    Copa            → sólo copa\n"
+                        "    Ficha de rival  → oficiales O amistosos, según el\n"
+                        "                      selector de la esquina"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los nueve ratings de cada partido jugado",
+                            "El detalle de ese partido, tal como lo publica Hattrick",
+                        ),
+                        Fuente(
+                            "Qué partidos cuentan como liga, copa o amistoso",
+                            "El tipo de partido que Hattrick asigna a cada uno",
+                        ),
+                        Fuente(
+                            "Los partidos del rival",
+                            "Su historial público, pedido al abrir la ficha",
+                        ),
+                    ],
+                    tables=[_tabla_de_resumenes()],
+                    constants=[
+                        Constante(
+                            "resúmenes disponibles",
+                            "4",
+                            "Promedio, máximo, máximo por carril y último partido. Tu "
+                            "lado suma la alineación enviada.",
+                        ),
+                        Constante(
+                            "resumen por defecto",
+                            "promedio",
+                            "El que abre en Liga, Copa y la ficha de rival.",
+                        ),
+                        Constante(
+                            "partidos previos mínimos",
+                            str(MINIMO_HISTORIA),
+                            "Con menos que esto por lado, la pantalla no pronostica.",
+                        ),
+                    ],
+                    steps=[
+                        "Se decide QUÉ partidos entran. En Liga, los de liga de esta "
+                        "temporada; en Copa, los de copa; en la ficha de un rival, los "
+                        "oficiales o los amistosos, según el selector de la esquina.",
+                        "Se leen sus nueve ratings: medio campo, tres defensas, tres "
+                        "ataques y los dos de balón parado. Una lectura a la que le "
+                        "falte alguno se descarta entera: media lectura no es una "
+                        "lectura con un cero.",
+                        "Se aplica el RESUMEN elegido a cada rating por separado. Con "
+                        "el promedio, que es el que abre: medio campo 6, 9, 9, 10, 11, "
+                        "19 → 64 / 6 = 10,7. Ese mismo medio campo, con el máximo, "
+                        "sale 19.",
+                        "Se repite con el rival y con SU selector: su medio campo sale, "
+                        "digamos, 14,5. Los dos lados no tienen por qué llevar el "
+                        "mismo resumen, salvo en Liga, donde el selector es uno solo "
+                        "para los ocho equipos.",
+                        "Si tu lado va con «Alineación enviada», los siete sectores "
+                        "que Hattrick prevé sustituyen a los resumidos; los dos de "
+                        "balón parado se quedan con tu resumen, porque Hattrick no los "
+                        "prevé.",
+                        "Esos dos vectores de nueve números son toda la entrada del "
+                        "modelo. Nada más entra.",
+                    ],
+                    limits=[
+                        "Un equipo que acaba de fichar o de vender medio plantel tarda "
+                        "unas jornadas en reflejarse en su resumen. El modelo describe "
+                        "lo que fue, no lo que acaba de pasar en el mercado.",
+                        "Al principio de temporada el resumen se calcula con muy pocos "
+                        "partidos y es frágil: con uno o dos es casi ese partido, y "
+                        "los cuatro se parecen entre sí porque no hay variedad que "
+                        "resumir.",
+                        "Las cifras de error del paso 8 predicen cada partido con sus "
+                        "propios ratings. Con el promedio de los partidos anteriores, "
+                        "que es lo que usa la pantalla, el error medido es mayor "
+                        "--log-loss 0,6924 contra 0,6177 en los mismos partidos, ya "
+                        "con la sede corregida--. La corrección usa una razón media: "
+                        "un equipo cuyo medio campo cambie mucho entre casa y fuera "
+                        "queda peor descrito que uno regular.",
+                        "Los ratings del rival se piden en el momento. Si Hattrick no "
+                        "responde, la pantalla cae al modelo simple por TSI y lo dice.",
+                        "La muestra de amistosos no es equivalente a las otras dos: "
+                        "durante su ajuste el modelo no vio ni un solo amistoso.",
+                    ],
+                ),
+                Calculo(
+                    id="pronostico-duelo",
+                    name="3 · El duelo, la unidad de medida",
+                    answers=(
+                        "Por qué los ratings se comparan cruzados y en proporción, y "
+                        "cuánto pesa cada uno de los nueve duelos."
+                    ),
+                    body=[
+                        "Un rating suelto no dice nada. Un ataque de 12 es excelente "
+                        "contra una defensa de 6 y es poca cosa contra una de 20. Lo "
+                        "que predice goles no es tu número, es la RELACIÓN entre tu "
+                        "número y el suyo. Por eso la unidad de medida del motor no es "
+                        "un rating: es un duelo.",
+                        "Los duelos van CRUZADOS, como en el campo. Tu ataque por la "
+                        "izquierda corre por el mismo carril físico que defiende el "
+                        "lateral derecho del rival, así que ése es su oponente natural "
+                        "y no su defensa izquierda. Mirando una tabla de coeficientes "
+                        "esto no se adivina, y sin decirlo la mitad de las filas "
+                        "parecen mal emparejadas.",
+                        "Cada duelo se mide como p = A / (A + B), donde A es tu rating "
+                        "y B el suyo. Es la fracción del duelo que te llevas: 0,5 es "
+                        "igualdad exacta, 0,7 es dominio claro, 0,3 es estar dominado. "
+                        "Se eligió una proporción y no una diferencia porque la "
+                        "diferencia no escala: cinco puntos de ventaja no valen lo "
+                        "mismo partiendo de 10 que partiendo de 60. La proporción sí "
+                        "conserva su significado a cualquier nivel.",
+                        "También se probó a MULTIPLICAR en vez de sumar. La objeción es "
+                        "buena: en Hattrick el medio campo no es un sector más, decide "
+                        "la posesión, y la posesión debería multiplicar tus ataques en "
+                        "vez de sumarse a ellos. Se probaron 42 estructuras --seis "
+                        "maneras de medir un duelo por siete multiplicadores de "
+                        "posesión, todas con los mismos parámetros y los mismos cortes-- "
+                        "y ninguna le gana a sumar.",
+                        "Lo que dicen esas 42 juntas es más informativo que el ganador: "
+                        "cuanto más agresivo el multiplicador, peor predice, y eso pasa "
+                        "en las seis familias a la vez. El efecto multiplicativo, si "
+                        "existe, es tan flojo que la mejor aproximación es no tenerlo. "
+                        "Tiene sentido: el medio campo ya entra por su propio "
+                        "coeficiente, que es con diferencia el mayor de los nueve, y "
+                        "eso ya recoge casi todo lo que la posesión explica.",
+                    ],
+                    formula=(
+                        "p = A / (A + B)        A = tu rating,  B = el suyo\n"
+                        "\n"
+                        "los nueve cruces:\n"
+                        "    tu medio campo        ↔  su medio campo\n"
+                        "    tu ataque izquierdo   ↔  su defensa DERECHA\n"
+                        "    tu ataque central     ↔  su defensa central\n"
+                        "    tu ataque derecho     ↔  su defensa IZQUIERDA\n"
+                        "    tu defensa izquierda  ↔  su ataque DERECHO\n"
+                        "    tu defensa central    ↔  su ataque central\n"
+                        "    tu defensa derecha    ↔  su ataque IZQUIERDO\n"
+                        "    tu balón parado ata.  ↔  su balón parado def.\n"
+                        "    tu balón parado def.  ↔  su balón parado ata."
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los nueve ratings de cada lado",
+                            "El resumen del paso anterior",
+                        ),
+                        Fuente(
+                            "Qué carril enfrenta a cuál",
+                            "La geometría del campo: las bandas se cruzan",
+                        ),
+                        Fuente(
+                            "El peso de cada duelo",
+                            f"Una regresión ordinal sobre {_miles(OBSERVACIONES)} partidos",
+                        ),
+                    ],
+                    constants=[
+                        Constante("p", "de 0 a 1", "Qué parte del duelo te llevas."),
+                        Constante("p = 0,5", "igualdad", "Los dos ratings son iguales."),
+                    ],
+                    tables=[_tabla_de_duelos()],
+                    steps=[
+                        "Tu medio campo (promedio) es 9,5; el suyo, 14,5.",
+                        "p(medio) = 9,5 / (9,5 + 14,5) = 0,3958. Te llevas el 40 % de ese duelo.",
+                        "Tu ataque izquierdo es 12,0 y su defensa DERECHA es 13,0: "
+                        "p = 12 / 25 = 0,4800.",
+                        "Tu ataque central 10,0 contra su defensa central 11,0: p = 0,4762.",
+                        "Tu ataque derecho 11,0 contra su defensa IZQUIERDA 12,0: p = 0,4783.",
+                        "Tu balón parado ofensivo 8,0 contra su defensivo 7,0: "
+                        "p = 0,5333. Es el único duelo que ganas.",
+                        "Y así los nueve. Ese vector de nueve proporciones es lo que "
+                        "entra en los dos modelos.",
+                    ],
+                    limits=[
+                        "La proporción trata un 12 contra 6 igual que un 40 contra 20. "
+                        "Es deliberado --así escala-- pero significa que el modelo no "
+                        "distingue el nivel absoluto de un partido.",
+                        "Un rating de 0 se trata como «no se sabe», no como «malísimo»: "
+                        "se le pone un suelo antes de operar, porque elevado a una "
+                        "potencia hundiría los goles del equipo entero. En los partidos "
+                        "medidos el mínimo real de cualquier rating va de 1 a 5, así "
+                        "que ese suelo no toca ningún dato de verdad.",
+                        "Los nueve duelos se suman, no se multiplican. Está medido "
+                        "contra 42 alternativas, pero sigue siendo una simplificación "
+                        "de cómo funciona la posesión.",
+                    ],
+                ),
+                Calculo(
+                    id="pronostico-goles",
+                    name="4 · De los duelos a los goles",
+                    answers=(
+                        "La ecuación central: cómo cinco duelos se convierten en el "
+                        "número de goles que se espera de un equipo."
+                    ),
+                    body=[
+                        "Aquí está el corazón del motor. Se llama regresión de Poisson "
+                        "y es el instrumento estándar para modelar CONTEOS: cosas que "
+                        "sólo pueden ser 0, 1, 2, 3... como los goles de un partido. En "
+                        "vez de predecir el número exacto, estima λ (lambda), el "
+                        "promedio de goles que cabe esperar de ese equipo en ese "
+                        "partido. Con λ ya se puede calcular la probabilidad de marcar "
+                        "exactamente 0, exactamente 1, exactamente 2.",
+                        "Se ajusta una fila por LADO, no por partido: cada partido "
+                        "aporta dos observaciones, la del local y la del visitante, "
+                        "cada una con sus propios duelos y sus propios goles. Entran "
+                        "cinco duelos: el medio campo --que da el balón-- los tres "
+                        "carriles de ataque y el balón parado ofensivo. Los duelos "
+                        "DEFENSIVOS no entran, y no por olvido: ya están dentro, porque "
+                        "cada duelo de ataque se mide contra la defensa del rival en "
+                        "ese carril. Meterlos otra vez sería contarlos dos veces.",
+                        "EL MEDIO CAMPO MULTIPLICA. Una regresión de Poisson usa "
+                        "enlace logarítmico, o sea que modela log(λ) como una suma; si "
+                        "el duelo entra en logaritmo, por fuera queda multiplicando, y "
+                        "su coeficiente es una elasticidad: el porcentaje que crecen los "
+                        "goles cuando ese duelo crece un uno por ciento. Así entra el "
+                        "medio campo, que es quien da el balón.",
+                        "LOS TRES CARRILES DE ATAQUE, EN CAMBIO, SE PROMEDIAN "
+                        "(2026-09-12). Hasta esa fecha se multiplicaban entre sí, y eso "
+                        "decía que un carril tapado hunde el ataque entero por fuertes "
+                        "que sean los otros dos. Hattrick no juega así: reparte las "
+                        "ocasiones POR carril, y si uno está cerrado se ataca por otro. "
+                        "Ahora los tres entran como una media ponderada --30 % por cada "
+                        "banda, 40 % por el centro, que es como se reparten los "
+                        "ataques-- con cada carril elevado a un exponente común. Ese "
+                        "exponente es la pregunta de fondo: cerca de cero harían falta "
+                        "los tres a la vez, que es exactamente la forma vieja como caso "
+                        "límite; cuanto más alto, más manda el carril mejor. Sale 3,39.",
+                        "NO SE ELIGIÓ, SE MIDIÓ. Sobre los mismos 5.232 partidos de "
+                        "liga, con validación cruzada de diez pliegues y comparando "
+                        "partido a partido, la forma nueva gana a la vieja en las dos "
+                        "cosas que se pueden medir: el resultado (p = 0,014) y los goles "
+                        "(p < 0,001). Se probó además dejar al centro su propio "
+                        "exponente, distinto del de las bandas, y no mejora "
+                        "(p = 0,097): los tres comparten uno, que es lo que manda un "
+                        "campo simétrico.",
+                        "EL BALÓN PARADO VA APARTE, en su propio sumando, y ésta fue la "
+                        "última corrección del modelo. Cuando todo era un solo producto, "
+                        "el medio campo multiplicaba también la amenaza a balón parado: "
+                        "un equipo que perdía el mediocampo veía hundida hasta su "
+                        "peligro en los córners. Eso no se sostiene --una falta o un "
+                        "córner no dependen de la posesión como una jugada elaborada-- "
+                        "y los datos lo confirmaron. Ahora son dos sumandos, y como la "
+                        "suma de dos Poisson sigue siendo Poisson, el modelo de conteo "
+                        "no cambia. Lo que cambia es que el balón parado tiene su "
+                        f"propia dependencia del medio campo: {_coma(POISSON_BP_MEDIO)} "
+                        f"contra {_coma(POISSON_JUEGO_MEDIO)}, tres veces menos. No es "
+                        "cero --se probó, y sale peor: los córners salen de atacar, y "
+                        "para atacar hace falta el balón--, lo que no se sostenía era "
+                        "que dependieran TANTO. De media el reparto queda en 72 % juego "
+                        "abierto y 28 % balón parado.",
+                        "LA DESCOMPRESIÓN es el término elevado al cuadrado, y merece "
+                        "su párrafo. Un producto de potencias limpio apretaba las "
+                        "lambdas hacia el centro: donde prometía 0,76 goles se marcaban "
+                        "0,68, y donde prometía 3,30 se marcaban 3,55. Eso llenaba la "
+                        "rejilla de marcadores bajos --sobraban 233 partidos en el "
+                        "bloque de cero y un gol-- y de ahí salían 115 empates de más. "
+                        "No era un problema de escala, porque la regresión ya tenía la "
+                        "mejor recta posible y una pendiente libre habría salido 1 por "
+                        "construcción: era de CURVATURA, y se corrige con el cuadrado "
+                        "del propio predictor. Tampoco era el efecto que uno probaría "
+                        "primero para un exceso de empates --la dependencia entre los "
+                        "goles de los dos equipos-- porque ésa se midió y sale "
+                        "prácticamente nula, y además conserva los totales: sólo "
+                        "reparte masa DENTRO del bloque de marcadores bajos, nunca la "
+                        "saca de él, que era justo lo que hacía falta.",
+                        "EL TOPE es un seguro, no un ajuste. El coeficiente cuadrático "
+                        "es negativo, así que la parábola tiene vértice: pasado ese "
+                        "punto la fórmula daría la vuelta y un equipo más fuerte "
+                        f"marcaría MENOS. El vértice cae en {_coma(POISSON_JUEGO_ETA_MAXIMA)} "
+                        "y el máximo observado en la muestra es 3,465, así que hay poco "
+                        "margen: en cuanto aparezca un equipo algo más fuerte que los "
+                        "del ajuste, el tope entra. Recortando ahí, el juego abierto se "
+                        "queda plano en su máximo en vez de bajar. No es un valor "
+                        "escrito a mano: se deriva del propio coeficiente cuadrático, "
+                        "para que se mueva con él si algún día se reajusta.",
+                        "NO HAY TÉRMINO DE VENTAJA LOCAL, y se volvió a comprobar con "
+                        "esta forma: sale +0,0149 con p = 0,33, o sea indistinguible de "
+                        "cero, y el criterio de información empeora al añadirlo. Tiene "
+                        "explicación: la ventaja de campo ya vive DENTRO de los "
+                        "ratings, porque el medio campo del local es de media un 19 % "
+                        "más alto. Sumarla otra vez sería contarla dos veces.",
+                    ],
+                    formula=(
+                        "p(x)  = duelo x, medido como A/(A+B)\n"
+                        "\n"
+                        f"η     = {_exacto(POISSON_JUEGO_INTERCEPTO)}\n"
+                        f"        + {_exacto(POISSON_JUEGO_MEDIO)} × log p(medio)\n"
+                        f"        + log [ 0,3 × p(ata.izq)^{_exacto(POISSON_JUEGO_CARRIL)}\n"
+                        f"                + 0,4 × p(ata.cen)^{_exacto(POISSON_JUEGO_CARRIL)}\n"
+                        f"                + 0,3 × p(ata.der)^{_exacto(POISSON_JUEGO_CARRIL)} ]\n"
+                        "\n"
+                        f"η     ← min(η, {_fmt(POISSON_JUEGO_ETA_MAXIMA)})"
+                        "        ← el tope del vértice\n"
+                        "\n"
+                        "juego abierto = exp( η "
+                        f"{_con_signo(POISSON_JUEGO_CUADRATICO)} × (η − "
+                        f"{_exacto(POISSON_ETA_MEDIA)})² )\n"
+                        "\n"
+                        f"balón parado  = exp( {_exacto(POISSON_BP_INTERCEPTO)}\n"
+                        f"                     + {_exacto(POISSON_BP_MEDIO)} × log p(medio)\n"
+                        f"                     + {_exacto(POISSON_BP_BALON_PARADO)}"
+                        " × log p(bal.parado ata.) )\n"
+                        "\n"
+                        "λ     = ( juego abierto + balón parado ) × f(táctica)\n"
+                        "\n"
+                        "        f(táctica) corrige lo que el rating no ve;\n"
+                        "        vale 1 si no se sabe qué se va a jugar.\n"
+                        "        Se explica en el paso siguiente.\n"
+                        "\n"
+                        f"        (tope de seguridad: {_coma(MAXIMO_GOLES_ESPERADOS)})"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los cinco duelos ofensivos",
+                            "El paso anterior: medio campo, tres ataques y balón parado",
+                        ),
+                        Fuente(
+                            "Los siete coeficientes",
+                            f"Una regresión de Poisson sobre {_miles(2 * OBSERVACIONES)} "
+                            f"lados de {_miles(OBSERVACIONES)} partidos de liga",
+                        ),
+                    ],
+                    constants=[
+                        Constante(
+                            "tope de goles",
+                            _coma(MAXIMO_GOLES_ESPERADOS),
+                            "Seguro contra un rating absurdo: la exponencial no tiene freno.",
+                        ),
+                        Constante(
+                            "vértice del juego abierto",
+                            _fmt(POISSON_JUEGO_ETA_MAXIMA),
+                            "Donde la parábola daría la vuelta. Se deriva, no se teclea.",
+                        ),
+                    ],
+                    tables=[_tabla_de_poisson()],
+                    steps=[
+                        "Tus cinco duelos: medio 0,3958 · ataques 0,4800, 0,4762 y "
+                        "0,4783 · balón parado 0,5333.",
+                        "log p(medio) = log 0,3958 = −0,9268.",
+                        "La media de los carriles: 0,3 × 0,4800^3,38551 + 0,4 × "
+                        "0,4762^3,38551 + 0,3 × 0,4783^3,38551 = 0,0822, y su logaritmo "
+                        "−2,4992.",
+                        "η = 4,75262 + 2,51368 × (−0,9268) + (−2,4992) = −0,0763. Está "
+                        "muy por debajo del vértice, así que el tope no actúa.",
+                        "Juego abierto = exp(−0,0763 − 0,14746 × (−0,0763 − 0,35161)²) = "
+                        "0,902 goles.",
+                        "Balón parado = exp(2,38119 + 0,84696 × (−0,9268) + 3,18660 × "
+                        "log 0,5333) = 0,666 goles.",
+                        "λ tuya = 0,902 + 0,666 = 1,567 goles esperados.",
+                    ],
+                    limits=[
+                        "El coeficiente del balón parado NO se puede leer literalmente. "
+                        "Ese duelo comparte el 62 % de su varianza con los de ataque, "
+                        "así que buena parte de lo que mide es «este equipo es bueno», "
+                        "no «los córners valen esto». Al quitarlo, el medio campo y los "
+                        "ataques suben a absorberlo, que es la firma de una variable "
+                        "colineal. Sigue en el modelo porque quitarlo empeora mucho la "
+                        "predicción, pero su número no es una lección de táctica.",
+                        "El vértice queda a 0,28 del máximo observado en el ajuste. Con "
+                        "un equipo bastante más fuerte que cualquiera de la muestra, el "
+                        "tope entra y el juego abierto se queda plano: el modelo deja "
+                        "de distinguir entre «muy fuerte» y «aún más fuerte».",
+                        "El término cuadrático es una corrección empírica de curvatura. "
+                        "Arregla un sesgo medido, pero no sale de ninguna teoría de "
+                        "cómo se marcan goles.",
+                        "No hay ventaja local. Está comprobado que aquí no hace falta "
+                        "--ya vive dentro de los ratings-- pero si Hattrick cambiara "
+                        "cómo la reparte, esto habría que volver a medirlo.",
+                    ],
+                    note=(
+                        "Medido fuera de muestra sobre los 5.232 partidos de liga, con "
+                        "validación cruzada de diez pliegues: esta forma predice mejor "
+                        "que la anterior tanto el resultado como los goles, y la mejora "
+                        "sobrevive a compararla partido a partido en vez de por "
+                        "promedios."
+                    ),
+                ),
+                Calculo(
+                    id="pronostico-tactica",
+                    name="5 · La táctica, que el rating no ve",
+                    answers=(
+                        "Por qué un equipo que presiona marca menos de lo que promete "
+                        "su mediocampo, y cómo se corrige sin saber qué va a jugar."
+                    ),
+                    body=[
+                        "Hasta aquí el modelo mira nueve números por equipo y nada más. "
+                        "Esos nueve resumen CON QUÉ se juega, no CÓMO. Y el cómo deja "
+                        "huella: midiendo los goles que el modelo prometía contra los "
+                        "que se marcaron, separados por la táctica que cada lado usó, "
+                        "aparecen desvíos que no son ruido.",
+                        "EL MÁS GRANDE ES PRESIONAR. En los 287 lados que presionaron, "
+                        "el modelo prometía 2,00 goles y se marcaron 1,45: medio gol de "
+                        "más, sistemáticamente. Tiene sentido futbolístico --presionar "
+                        "recorta ocasiones a los dos equipos-- y es justo lo que un "
+                        "rating no puede contar, porque el rating describe la fuerza, "
+                        "no el ritmo al que se juega. En la otra dirección van "
+                        "Contraataques, Jugar creativamente y Atacar por las bandas: "
+                        "los tres marcan algo más de lo previsto.",
+                        "LA CORRECCIÓN ES UN FACTOR, no un término más de la regresión. "
+                        "Cada táctica multiplica la lambda de quien la juega. Se eligió "
+                        "así por tres razones: no toca la forma de la Poisson --un "
+                        "múltiplo de una Poisson sigue siendo una Poisson--, su máxima "
+                        "verosimilitud tiene forma cerrada, y se puede apagar poniendo "
+                        "el factor en 1 sin que nada más cambie.",
+                        "EL ESTIMADOR es la suma de goles observados dividida por la "
+                        "suma de lambdas de esa táctica. No es una heurística: es "
+                        "exactamente el máximo de la verosimilitud de un factor "
+                        "multiplicativo en un modelo de Poisson. Con ese valor, cada "
+                        "grupo queda insesgado por construcción, y como los grupos "
+                        "cubren todos los partidos, el modelo entero sigue insesgado.",
+                        "EL PROBLEMA DE VERDAD NO ES ESTIMARLO, ES SABER QUÉ TÁCTICA SE "
+                        "VA A JUGAR. Los factores se miden con partidos ya jugados, "
+                        "donde la táctica es historia conocida; pero para PREDECIR hay "
+                        "que adivinarla. Y aquí hay dos situaciones muy distintas.",
+                        "TU LADO NO SE ADIVINA. Si ya mandaste la alineación, tu táctica "
+                        "viene con ella y se aplica el factor exacto. La mitad del "
+                        "problema desaparece sin coste.",
+                        "LA DEL RIVAL SE PONDERA, NO SE APUESTA. Lo natural sería "
+                        "tomar su táctica más frecuente, pero eso castiga dos veces "
+                        "cuando se falla: no corriges la que jugó y corriges de más una "
+                        "que no jugó. En su lugar se toma el REPARTO de sus tácticas "
+                        "recientes y se promedian los factores pesados por su "
+                        "frecuencia, que es la esperanza del factor cuando la táctica "
+                        "es incierta. Medido, eso recupera la mitad del sesgo en vez de "
+                        "un tercio.",
+                        "CUÁNTO SE RECUPERA, medido fuera de muestra con validación "
+                        "cruzada de diez pliegues sobre los partidos de liga: apostando "
+                        "por la táctica más frecuente se corrige el 35 % del sesgo; "
+                        "ponderando por el reparto, el 50 %; y sabiendo la propia y "
+                        "ponderando la del rival, el 80 %. El 100 % sería saber las dos "
+                        "de antemano, que no se puede.",
+                        "POR QUÉ NO SE LLEGA AL 100 %. La táctica habitual acierta la "
+                        "real el 92 % de las veces, pero ese número engaña: acierta "
+                        "casi siempre en Normal --que es el 78 % de los casos y donde no "
+                        "había nada que corregir-- y falla justo en las especiales, que "
+                        "son las que tienen sesgo. Presionar sólo se adivina el 62 % de "
+                        "las veces, y Contraataques el 67 %.",
+                        "QUÉ PASA CUANDO NO HAY INFORMACIÓN. Sin partidos previos del "
+                        "rival, el factor es 1 y el modelo se comporta exactamente como "
+                        "antes de que esto existiera. Una táctica que Hattrick añadiera "
+                        "mañana tampoco rompería nada: sin factor medido, factor 1.",
+                    ],
+                    formula=(
+                        "factor de una táctica t, del ajuste:\n"
+                        "    d(t) = Σ goles observados con t  /  Σ λ predichas con t\n"
+                        "\n"
+                        "al predecir, el factor de un lado:\n"
+                        "    si se sabe su táctica     f = d(táctica)\n"
+                        "    si no                     f = Σ  π(t) × d(t)\n"
+                        "                                  t\n"
+                        "    donde π(t) es cuántas veces usó t en lo visto\n"
+                        "    y sin ningún dato         f = 1\n"
+                        "\n"
+                        "y entra multiplicando:\n"
+                        "    λ = ( juego abierto + balón parado ) × f"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Qué táctica usó cada equipo en cada partido",
+                            "El detalle del partido, que la publica para los dos lados",
+                        ),
+                        Fuente(
+                            "El reparto de tácticas del rival",
+                            "Sus partidos vistos, los mismos que alimentan el resumen",
+                        ),
+                        Fuente(
+                            "Tu táctica del próximo partido",
+                            "Las órdenes que ya mandaste, si las mandaste",
+                        ),
+                    ],
+                    constants=[
+                        Constante(
+                            "sesgo de Presionar, antes",
+                            "+0,56 goles",
+                            "Lo que el modelo prometía de más en cada lado que presionaba.",
+                        ),
+                        Constante(
+                            "sesgo de Presionar, después",
+                            "+0,11 goles",
+                            "Lo que queda con la táctica propia sabida y la del rival ponderada.",
+                        ),
+                        Constante(
+                            "sesgo recuperado",
+                            "80 %",
+                            "Fuera de muestra. Sería 100 % sabiendo las dos tácticas.",
+                        ),
+                        Constante(
+                            "lados que corrige",
+                            "22 %",
+                            "Los que jugaron una táctica distinta de Normal.",
+                        ),
+                    ],
+                    tables=[_tabla_de_tacticas()],
+                    steps=[
+                        "Se mira qué táctica jugó cada lado en cada partido del ajuste.",
+                        "Por cada táctica se suman los goles marcados y las lambdas que "
+                        "el modelo había predicho, y se dividen: ése es su factor.",
+                        "Al predecir, tu factor sale de tu táctica si mandaste órdenes, "
+                        "y si no, del reparto de las tuyas recientes.",
+                        "El del rival sale siempre del reparto de las suyas: se "
+                        "promedian los factores pesados por cuántas veces usó cada una.",
+                        "Cada lambda se multiplica por el factor de SU lado antes de "
+                        "construir la rejilla de marcadores.",
+                    ],
+                    limits=[
+                        "La táctica del rival se estima, no se sabe. Se acierta el 92 % "
+                        "de las veces en conjunto, pero sólo el 62 % cuando presiona, "
+                        "que es justo el caso que más corrección necesitaba.",
+                        "Los factores salen de partidos de LIGA. En copa se aplican "
+                        "igual, y eso es una extrapolación: no hay muestra suficiente "
+                        "para medirlos allí por separado.",
+                        "Tiros lejanos se midió con 70 lados, así que su factor es poco "
+                        "más que ruido. Está tan cerca de 1 que aplicarlo apenas mueve "
+                        "nada, y por eso se deja.",
+                        "La corrección endereza los GOLES esperados. En las tres "
+                        "probabilidades del resultado la mejora existe pero es pequeña, "
+                        "y no llega a ser concluyente en la prueba pareada.",
+                        "El factor es el mismo para un equipo que presiona bien y uno "
+                        "que presiona mal. Mide el efecto MEDIO de la táctica, no cómo "
+                        "la ejecuta cada club.",
+                    ],
+                    note=(
+                        "Esta corrección se añadió el 2026-09-12. Antes el motor "
+                        "ignoraba la táctica por completo, y eso está medido: el sesgo "
+                        "que arrastraba en Presionar era de medio gol por partido."
+                    ),
+                ),
+                Calculo(
+                    id="pronostico-rejilla",
+                    name="6 · Del gol al marcador, y del marcador al resultado",
+                    answers=(
+                        "Cómo dos números de goles esperados se convierten en las tres "
+                        "probabilidades de la barra."
+                    ),
+                    body=[
+                        "Con las dos lambdas ya no hace falta más estadística: lo que "
+                        "queda es aritmética. La distribución de Poisson dice qué "
+                        "probabilidad tiene un equipo con promedio λ de marcar "
+                        "exactamente k goles. Aplicándola a las dos lambdas se tienen "
+                        "dos listas de probabilidades: la tuya de marcar 0, 1, 2... y "
+                        "la suya.",
+                        "Se supone que los dos marcadores son INDEPENDIENTES, así que "
+                        "la probabilidad de un resultado concreto es el producto de sus "
+                        "dos casillas: la de un 2-1 es «tú marcas 2» por «él marca 1». "
+                        "Multiplicando las dos listas se obtiene una rejilla completa "
+                        f"de marcadores, hasta {TOPE_DE_GOLES} goles por lado, más allá "
+                        "de lo cual la probabilidad es despreciable.",
+                        "La independencia es un supuesto, y en fútbol real se sabe que "
+                        "no es del todo cierto: los partidos donde marca uno tienden a "
+                        "ser partidos donde marca el otro. Se midió esa dependencia en "
+                        "la muestra y sale prácticamente nula, así que aquí el supuesto "
+                        "no cuesta nada. La corrección clásica para eso quedó descartada "
+                        "por la misma razón: además de innecesaria, conserva los "
+                        "totales, y el problema que había --exceso de marcadores bajos-- "
+                        "exigía sacar masa del bloque, no repartirla dentro.",
+                        "Sumando las casillas de la rejilla en tres montones salen las "
+                        "tres probabilidades: por debajo de la diagonal ganas, en la "
+                        "diagonal empatas, por encima pierdes. El «resultado más "
+                        "probable» que enseña la pantalla es simplemente la casilla "
+                        "individual más alta, y conviene no confundirlo con el "
+                        "resultado esperado: casi nunca pasa del 12 % de probabilidad.",
+                        "EN COPA NO HAY EMPATE. Hay prórroga y penaltis, y alguien "
+                        "pasa. Así que en las pantallas de copa la probabilidad de "
+                        "empate se reparte entre los dos equipos en proporción a lo que "
+                        "ya tienen, y la barra se pinta con dos tramos en vez de tres. "
+                        "No es una suposición: de 861 partidos de copa recogidos, cero "
+                        "empates.",
+                    ],
+                    formula=(
+                        "P(k goles | λ) = λ^k × e^(−λ) / k!         ← Poisson\n"
+                        "\n"
+                        "rejilla:  P(i, j) = P(i | λ_tuya) × P(j | λ_suya)\n"
+                        f"          para i y j de 0 a {TOPE_DE_GOLES}\n"
+                        "\n"
+                        "P(victoria) = Σ P(i, j) con i > j\n"
+                        "P(empate)   = Σ P(i, i)\n"
+                        "P(derrota)  = Σ P(i, j) con i < j\n"
+                        "\n"
+                        "en copa:    P(victoria) ← P(victoria) + P(empate) × parte proporcional\n"
+                        "            P(empate)   ← no se pinta"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los goles esperados de cada lado",
+                            "El paso anterior, aplicado dos veces",
+                        ),
+                        Fuente(
+                            "Que en copa no hay empate",
+                            "Las reglas del torneo, confirmadas en 861 partidos de copa",
+                        ),
+                    ],
+                    constants=[
+                        Constante(
+                            "goles por lado en la rejilla",
+                            str(TOPE_DE_GOLES),
+                            "Hasta dónde se reparte la probabilidad. Más allá es despreciable.",
+                        ),
+                    ],
+                    steps=[
+                        "λ tuya = 1,633 y λ suya = 2,641, del paso anterior.",
+                        "Tu probabilidad de marcar 0 goles es e^(−1,633) = 0,195; de "
+                        "marcar 1, 0,318; de marcar 2, 0,260.",
+                        "La suya de marcar 0 es 0,071; de marcar 1, 0,188; de marcar 2, 0,248.",
+                        "La casilla del 1-2 vale 0,318 × 0,248 = 0,079, y resulta ser "
+                        "la más alta de toda la rejilla: ése es el «resultado más "
+                        "probable», con menos del 8 % de probabilidad.",
+                        "Sumando los tres montones: victoria 22,7 %, empate 18,0 %, "
+                        "derrota 59,3 %.",
+                        "Si el partido fuera de copa, ese 18,0 % de empate se repartiría "
+                        "entre los dos y quedaría 27,7 % contra 72,3 %.",
+                    ],
+                    limits=[
+                        "Se supone que los goles de los dos equipos son independientes. "
+                        "Está medido y aquí se sostiene, pero es un supuesto.",
+                        "El «resultado más probable» es la casilla más alta, no una "
+                        "predicción: rara vez pasa del 12 % de probabilidad. Se enseña "
+                        "porque orienta, no porque vaya a ocurrir.",
+                        "El reparto del empate en copa es proporcional, que es lo "
+                        "razonable sin más información. No modela la prórroga ni los "
+                        "penaltis, donde influyen cosas --resistencia, cambios-- que el "
+                        "motor no mira.",
+                    ],
+                ),
+                Calculo(
+                    id="pronostico-mezcla",
+                    name="7 · La segunda opinión, y cuánto pesa",
+                    answers=(
+                        "Por qué hay un segundo modelo mirando los mismos duelos, y por "
+                        "qué la mezcla es 80/20 y no otra cosa."
+                    ),
+                    body=[
+                        "El modelo de goles no es el único que mira estos duelos. Hay "
+                        "un segundo, una regresión logística ORDINAL, que aprende de "
+                        "otra cosa: no de cuántos goles se marcaron, sino de quién "
+                        "ganó. Recibe los NUEVE duelos --incluidos los tres defensivos, "
+                        "que el de goles no usa-- los combina en un solo número, y "
+                        "parte la recta en tres tramos con dos umbrales: por debajo del "
+                        "primero, derrota; entre los dos, empate; por encima del "
+                        "segundo, victoria.",
+                        "«Ordinal» significa que respeta el orden natural del "
+                        "resultado: derrota < empate < victoria. No son tres categorías "
+                        "sueltas, son tres tramos de una misma escala, y el modelo lo "
+                        "sabe. Por eso hay dos umbrales y no dos modelos separados, y "
+                        "por eso los coeficientes de la tabla del paso 3 son los de esa "
+                        "escala.",
+                        "Los dos modelos miran los mismos partidos y se equivocan en "
+                        "sitios distintos. El de goles discrimina un poco mejor y es el "
+                        "único que sabe de marcadores; el ordinal calibra mejor el "
+                        "empate y es el único que mira los duelos DEFENSIVOS de forma "
+                        "directa. Promediarlos es la forma más barata que existe de "
+                        "quedarse con lo mejor de cada uno, y funciona: juntos aciertan "
+                        "más que cualquiera de los dos por separado.",
+                        "El peso se eligió barriendo todos los valores y mirando dos "
+                        "cosas a la vez, no una. La primera es el error de predicción. "
+                        "La segunda, y es la que manda, es la CALIBRACIÓN del empate: "
+                        "que cuando el motor dice 25 % de empate, empaten cerca del "
+                        "25 % de las veces. La curva de error es planísima entre 0,60 y "
+                        "0,90 --cuatro diezmilésimas separan cuatro puntos-- así que el "
+                        "mínimo por sí solo no decidía nada; lo que decide es que a "
+                        "partir de 0,90 el empate se sale de su banda. 0,80 es a la vez "
+                        "el mínimo y el último punto que todavía calibra.",
+                        "Conviene decir de dónde viene ese 80. Estuvo en 75/25 y luego "
+                        "en 60/40, con el modelo de goles anterior. Subió hasta aquí "
+                        "porque el modelo de goles mejoró mucho al partirlo en dos "
+                        "componentes y descomprimirlo: pasó de 0,6559 a 0,6334 de "
+                        "error, mientras el ordinal se queda en 0,6445. El peso siguió "
+                        "a la mejora, no al revés.",
+                    ],
+                    formula=(
+                        "z = Σ βᵢ × pᵢ                    los NUEVE duelos\n"
+                        "\n"
+                        f"P(derrota)  = σ({_exacto(UMBRALES[0])} − z)\n"
+                        f"P(empate)   = σ({_exacto(UMBRALES[1])} − z) − P(derrota)\n"
+                        f"P(victoria) = 1 − σ({_exacto(UMBRALES[1])} − z)\n"
+                        "\n"
+                        "σ(t) = 1 / (1 + e^(−t))          la función logística\n"
+                        "\n"
+                        f"final = {PESO_GOLES:.2f} × (lo del paso 5) "
+                        f"+ {PESO_ORDINAL:.2f} × (lo de aquí)"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los nueve duelos",
+                            "El paso 3, esta vez los nueve y no sólo los ofensivos",
+                        ),
+                        Fuente(
+                            "Los nueve coeficientes y los dos umbrales",
+                            f"Una regresión ordinal sobre {_miles(OBSERVACIONES)} partidos de liga",
+                        ),
+                        Fuente(
+                            "El peso de la mezcla",
+                            "Un barrido completo, con la calibración del empate como corte",
+                        ),
+                    ],
+                    constants=[
+                        Constante(
+                            "umbral derrota / empate",
+                            _exacto(UMBRALES[0]),
+                            "Por debajo de este punto de la escala, derrota.",
+                        ),
+                        Constante(
+                            "umbral empate / victoria",
+                            _exacto(UMBRALES[1]),
+                            "Por encima de este punto, victoria.",
+                        ),
+                        Constante(
+                            "peso de los goles",
+                            f"{PESO_GOLES:.2f}",
+                            "Cuánto manda la Poisson del paso 5.",
+                        ),
+                        Constante(
+                            "peso del ordinal",
+                            f"{PESO_ORDINAL:.2f}",
+                            "Cuánto corrige la regresión de resultado.",
+                        ),
+                    ],
+                    tables=[_tabla_del_barrido()],
+                    steps=[
+                        "Con los nueve duelos del ejemplo, z = 17,9526.",
+                        "Ese número cae entre los dos umbrales (17,86 y 18,88): el "
+                        "ordinal ve un partido de la zona del empate.",
+                        "Sus tres probabilidades: victoria 28,4 %, empate 23,8 %, derrota 47,8 %.",
+                        "Las del modelo de goles eran 22,7 %, 18,0 % y 59,3 %.",
+                        "Victoria final = 0,80 × 22,7 % + 0,20 × 28,4 % = 23,9 %.",
+                        "Empate final = 0,80 × 18,0 % + 0,20 × 23,8 % = 19,1 %. "
+                        "Derrota, 57,0 %. Eso es lo que se pinta.",
+                    ],
+                    limits=[
+                        "El peso es una decisión, no un parámetro ajustado. Está "
+                        "medido, pero elegir 0,80 en vez de 0,70 fue una elección "
+                        "declarada.",
+                        "Los dos modelos comparten muestra y comparten variables, así "
+                        "que sus errores no son independientes: mezclarlos ayuda menos "
+                        "de lo que ayudaría combinar dos modelos de verdad distintos.",
+                        "El ordinal no sabe nada de goles. En la mezcla sólo corrige "
+                        "las tres probabilidades; los goles esperados y el marcador más "
+                        "probable que enseña la pantalla salen enteros del paso 5.",
+                    ],
+                ),
+                Calculo(
+                    id="pronostico-validacion",
+                    name="8 · Cómo se comprobó que funciona",
+                    answers=(
+                        "Qué se midió, contra qué se comparó y qué salió. Sin esto, "
+                        "todo lo anterior son sólo fórmulas."
+                    ),
+                    body=[
+                        "Un modelo que se prueba con los mismos partidos con los que se "
+                        "ajustó siempre parece bueno. Así que aquí no se hizo eso: se "
+                        "usó ORIGEN MÓVIL, que es la forma honesta de evaluar algo que "
+                        "predice el futuro. Se ordenan los partidos por fecha, se corta "
+                        "en un punto, se ajusta el modelo SÓLO con lo anterior al corte "
+                        "y se predice el tramo siguiente, que el modelo no ha visto "
+                        "nunca. Luego se mueve el corte y se repite. Cinco cortes, "
+                        "reajustando en cada uno.",
+                        "La medida principal es el log-loss, que castiga la confianza "
+                        "equivocada: acertar diciendo «60 %» puntúa menos que acertar "
+                        "diciendo «90 %», y fallar diciendo «90 %» se paga carísimo. Es "
+                        "la métrica correcta cuando lo que se publica son "
+                        "probabilidades y no un pronóstico. Menos es mejor.",
+                        "El resultado: 0,6328 contra un suelo de 1,0986, que es lo que "
+                        "sacaría alguien que dijera siempre «un tercio, un tercio, un "
+                        "tercio». Traducido: acierta el 73 % de los partidos contra el "
+                        "50 % de acertar siempre lo más común. Y esa ganancia se repitió "
+                        "con cuatro esquemas de corte distintos, así que no es un "
+                        "artefacto de dónde se puso la raya.",
+                        "Pero acertar no basta: hay que estar CALIBRADO. Cuando la "
+                        "pantalla dice 70 %, tiene que ocurrir cerca del 70 % de las "
+                        "veces, o el número engaña aunque el ranking sea bueno. Se "
+                        "comprobó simulando: se generaron dos mil mundos donde el "
+                        "modelo es cierto por construcción, se midió cuánto se desvía "
+                        "la calibración en esos mundos por puro azar, y se exigió que "
+                        "la desviación real cayera dentro de esa banda. Las tres "
+                        "clases --victoria, empate y derrota-- pasan.",
+                        "LA COPA SE VALIDÓ APARTE ANTES DE CABLEARLA, porque nada "
+                        "garantizaba que un modelo ajustado con partidos de liga "
+                        "sirviera allí. Sobre los cruces de copa recogidos: log-loss "
+                        "0,2106 contra un suelo de 0,5499, área bajo la curva 0,9596 y "
+                        "88,4 % de acierto en quién pasa, calibrado y sin necesidad de "
+                        "corregir por ventaja de campo. Contra los tres rivales reales "
+                        "de copa de esta temporada acertó la dirección en los tres. Es "
+                        "mejor que en liga por una razón que no es mérito del modelo: "
+                        "en copa el sorteo cruza divisiones distintas, así que muchos "
+                        "cruces son desiguales y son fáciles.",
+                        "Los goles también se midieron por su cuenta: 0,921 de error "
+                        "medio absoluto contra un suelo de 1,573. Y la pendiente de "
+                        "calibración de las lambdas, que es lo que la descompresión "
+                        "venía a arreglar, quedó en 0,994 sobre un ideal de 1,000.",
+                        "LO QUE VE LA PANTALLA ES OTRA COSA, y se midió aparte. Las "
+                        "cifras de arriba predicen cada partido con SUS PROPIOS "
+                        "ratings: miden cuánto sabe el motor convertir ratings en "
+                        "resultados. Pero el partido que viene todavía no tiene "
+                        "ratings, así que la pantalla usa el PROMEDIO de los partidos "
+                        "anteriores de cada equipo. Con el mismo origen móvil, sobre "
+                        "2.773 partidos donde los dos equipos tenían historia: log-loss "
+                        "0,6924 y 71,3 % de acierto, contra 0,6177 y 73,6 % con los "
+                        "ratings del propio partido y 0,9787 de no saber nada. Esa "
+                        "distancia es el precio de no conocer la alineación.",
+                        "Entre los resúmenes, el promedio es el que menos se equivoca: "
+                        "con la sede corregida, 0,7007 el máximo, 0,7092 el máximo por "
+                        "carril y 0,7010 el último partido. El valor central que se "
+                        "retiró tampoco lo mejoraba: sin corregir la sede daba 0,7309 "
+                        "contra 0,7233 del promedio, que le gana partido a partido con "
+                        "p = 0,0003.",
+                        "HABÍA UN SESGO CONTRA EL LOCAL, y se corrigió el 2026-09-13. "
+                        "Con el promedio sin más, el motor prometía un 41,5 % de "
+                        "victorias locales donde ocurrían un 50,1 %, y un 43,5 % de "
+                        "derrotas locales donde ocurrían un 37,2 %: el promedio mezcla "
+                        "partidos de casa y de fuera, y la ventaja de campo va dentro de "
+                        "los ratings. Corrigiendo la sede --paso 2-- promete un 49,7 % "
+                        "y un 35,4 %, y el log-loss baja de 0,7233 a 0,6924, con "
+                        "p < 0,000001 en la comparación partido a partido. La "
+                        "calibración mejora pero no queda perfecta: el empate se sigue "
+                        "prometiendo algo de más, 14,8 % contra 12,7 %.",
+                    ],
+                    formula=(
+                        "origen móvil, 5 cortes, reajustando en cada uno:\n"
+                        "    ajusta con  [inicio ............ corte]\n"
+                        "    evalúa en             (corte ..... corte + tramo]\n"
+                        "\n"
+                        "log-loss = − promedio de log P(lo que de verdad pasó)\n"
+                        "\n"
+                        "calibración: |lo prometido − lo ocurrido|, comparado contra\n"
+                        "             el percentil 95 de 2.000 mundos simulados"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los partidos de la evaluación",
+                            "Los mismos de liga del ajuste, pero SIEMPRE posteriores al corte",
+                        ),
+                        Fuente(
+                            "Los cruces de copa de la validación",
+                            "Partidos de copa reales, con su ganador conocido",
+                        ),
+                        Fuente(
+                            "La banda de calibración",
+                            "2.000 mundos simulados donde el modelo es cierto por construcción",
+                        ),
+                    ],
+                    constants=[
+                        Constante("cortes de origen móvil", "5", "Cuántas veces se reajustó."),
+                        Constante(
+                            "log-loss del motor",
+                            "0,6328",
+                            "Menos es mejor. El suelo de no saber nada es 1,0986.",
+                        ),
+                        Constante(
+                            "acierto",
+                            "73 %",
+                            "Contra el 50 % de acertar siempre el resultado más común.",
+                        ),
+                        Constante(
+                            "error de goles",
+                            "0,921",
+                            "Goles de diferencia de media. El suelo es 1,573.",
+                        ),
+                        Constante(
+                            "log-loss en copa",
+                            "0,2106",
+                            "Sobre pasar o no pasar. El suelo allí es 0,5499.",
+                        ),
+                        Constante(
+                            "con promedio",
+                            "0,6924",
+                            "Log-loss de lo que ve la pantalla: el partido predicho con "
+                            "el promedio de los anteriores y la sede corregida.",
+                        ),
+                        Constante(
+                            "acierto real",
+                            "71,3 %",
+                            "Con el promedio y la sede. Con los ratings del partido, 73,6 %.",
+                        ),
+                    ],
+                    steps=[
+                        "Se ordenan los partidos por fecha y se corta al 40 % de la serie.",
+                        "Se ajusta el modelo con el 40 % anterior y se predice el tramo "
+                        "siguiente, que no ha visto.",
+                        "Se apunta el error de cada predicción contra lo que de verdad pasó.",
+                        "Se mueve el corte al 52 %, al 64 %, al 76 % y al 88 %, "
+                        "reajustando cada vez.",
+                        "Se promedian los cinco tramos: log-loss 0,6328.",
+                        "Se repite el ejercicio con otros tres esquemas de corte. Gana "
+                        "en los cuatro.",
+                        "Aparte, se comprueba la calibración de las tres clases contra "
+                        "la banda simulada. Las tres pasan.",
+                    ],
+                    limits=[
+                        "Todo se midió sobre partidos de LIGA de cinco países. Nada "
+                        "garantiza que los coeficientes valgan igual en una división "
+                        "muy distinta de las de la muestra.",
+                        "La validación de copa se hizo sobre cruces de copa reales, "
+                        "pero con un modelo ajustado en liga. Que funcione bien no "
+                        "significa que la copa se comporte como la liga: significa que "
+                        "los duelos siguen ordenando bien a los equipos.",
+                        "Un log-loss de 0,6328 es bueno para este problema, no es "
+                        "adivinación. Un tercio largo de los partidos sale distinto de "
+                        "lo que el modelo consideraba más probable, y eso es normal en "
+                        "un deporte con estos marcadores.",
+                        "Lo que ve la pantalla se equivoca más que la cifra principal "
+                        "--0,6924 contra 0,6177 en los mismos partidos-- porque predice "
+                        "sin los ratings del partido. La sede se corrige con una razón "
+                        "media, así que un equipo cuyo medio campo cambie mucho entre "
+                        "casa y fuera sigue quedando peor descrito.",
+                    ],
+                ),
+                Calculo(
+                    id="pronostico-limites",
+                    name="9 · Hasta dónde vale",
+                    answers=(
+                        "Lo que el modelo NO puede hacer, y las dos cosas que conviene "
+                        "no leer de más."
+                    ),
+                    body=[
+                        "Esta ficha es la letra pequeña, y es la mitad del valor del "
+                        "capítulo. Un motor que sólo publica sus aciertos no es "
+                        "transparente, es publicidad.",
+                        "EL PRIMER AVISO es sobre el coeficiente del balón parado. Es "
+                        "el más grande de los tres de la ecuación de goles, y la "
+                        "tentación de leerlo como «los córners deciden los partidos» es "
+                        "inmediata. No se sostiene: ese duelo comparte el 62 % de su "
+                        "varianza con los de ataque, o sea que los equipos buenos a "
+                        "balón parado son en general los equipos buenos. Al quitarlo "
+                        "del modelo, el medio campo y los ataques suben a absorber lo "
+                        "que medía, que es la firma inconfundible de una variable "
+                        "colineal. Se queda porque quitarlo empeora mucho la "
+                        "predicción, no porque su número sea una lección de táctica.",
+                        "EL SEGUNDO AVISO es sobre el empate. El motor promete de media "
+                        "un 14,5 % de empates y en la muestra ocurren un 13,0 %. Está "
+                        "dentro de la banda de calibración, pero es un sesgo real y "
+                        "conocido: queda un resto del exceso de marcadores bajos que la "
+                        "descompresión no llegó a eliminar del todo. Si la barra dice "
+                        "que el empate es la opción más gorda, conviene descontarle "
+                        "algo mentalmente. Es además la razón por la que la mezcla no "
+                        "sube del 80 %: el modelo ordinal es lo que sujeta esa clase.",
+                        "Y luego está lo que el motor sencillamente no mira. No conoce "
+                        "la alineación del domingo, ni la del rival. No sabe de "
+                        "lesiones, sanciones, actitud ni órdenes individuales. No sabe "
+                        "si llueve. No sabe si el rival está guardando piernas para la "
+                        "copa. Resume cómo SUELE salir un equipo, y eso es lo que "
+                        "puede prometer.",
+                        "DE LA TÁCTICA SÍ SABE ALGO, desde el 2026-09-12, y conviene "
+                        "saber cuánto: corrige los goles por la táctica de cada lado, "
+                        "pero la del rival la ESTIMA de lo que viene jugando. Acierta "
+                        "el 92 % de las veces en conjunto y sólo el 62 % cuando el "
+                        "rival presiona. Si sabes por otra vía que va a cambiar de "
+                        "táctica, el modelo no se ha enterado.",
+                        "Tampoco enseña el partido más probable: enseña tres "
+                        "probabilidades. Que aparezca «0-0» como marcador más probable "
+                        "no significa que se espere un 0-0, significa que ninguna otra "
+                        "casilla concreta le gana, y casi siempre con menos del 12 %. "
+                        "Es una orientación, no un pronóstico.",
+                    ],
+                    formula=(
+                        "lo que el modelo ve:      9 promedios tuyos + 9 del rival\n"
+                        "lo que estima:            la táctica de cada lado\n"
+                        "                          (la tuya exacta si mandaste órdenes)\n"
+                        "lo que el modelo NO ve:   alineación, órdenes individuales,\n"
+                        "                          lesiones, sanciones, actitud,\n"
+                        "                          forma del día, clima, motivación"
+                    ),
+                    sources=[
+                        Fuente(
+                            "El sesgo del empate",
+                            "Medido en la propia evaluación: 14,5 % prometido, 13,0 % ocurrido",
+                        ),
+                        Fuente(
+                            "La colinealidad del balón parado",
+                            "Medida contra los duelos de ataque en la muestra del ajuste",
+                        ),
+                    ],
+                    constants=[
+                        Constante(
+                            "empate prometido",
+                            "14,5 %",
+                            "Lo que el motor dice de media.",
+                        ),
+                        Constante(
+                            "empate ocurrido",
+                            "13,0 %",
+                            "Lo que pasa de verdad. Calibrado, pero con sesgo conocido.",
+                        ),
+                        Constante(
+                            # Corto a propósito: la primera columna de las
+                            # constantes va en `nowrap`, y un símbolo largo
+                            # ensancha la tabla hasta sacar la página de la
+                            # pantalla en un teléfono. Lo que es se dice al lado.
+                            "varianza compartida",
+                            "62 %",
+                            "La del balón parado con los duelos de ataque: por eso "
+                            "su coeficiente no se lee literal.",
+                        ),
+                    ],
+                    steps=[
+                        "Si la barra da empate como opción más gorda, réstale algo: el "
+                        "motor lo sobreestima en punto y medio.",
+                        "Si el coeficiente del balón parado te tienta a fichar un "
+                        "especialista, no lo hagas por este número: mide en buena parte "
+                        "otra cosa.",
+                        "Si el rival acaba de reforzarse, el modelo todavía no lo sabe: "
+                        "su promedio es de los partidos anteriores.",
+                        "Si vas a rotar, el modelo tampoco lo sabe: describe tu equipo "
+                        "típico, no el que vas a alinear. Tu TÁCTICA sí la sabe, si ya "
+                        "mandaste las órdenes.",
+                        "Y si el marcador más probable te parece raro, mira su "
+                        "probabilidad: rara vez llega al 12 %.",
+                    ],
+                    limits=[
+                        "El coeficiente del balón parado no se puede leer literalmente: "
+                        "comparte el 62 % de su varianza con los duelos de ataque.",
+                        "El motor promete alrededor de un 14,5 % de empates donde "
+                        "ocurren un 13,0 %. Calibrado, pero sesgado hacia arriba.",
+                        "No conoce alineaciones, órdenes individuales, lesiones, "
+                        "sanciones ni actitud. La táctica la estima, y falla cuatro "
+                        "de cada diez veces cuando el rival presiona.",
+                        "Se ajustó con partidos de liga. En copa está validado aparte; "
+                        "con muestra de amistosos es una extrapolación declarada.",
+                        "Describe el equipo típico de las últimas jornadas, no el del "
+                        "próximo domingo.",
+                    ],
+                ),
+            ],
+        ),
         Seccion(
             id="liga",
             name="Liga",
             calcs=[
-                Calculo(
-                    id="prediccion_zonas",
-                    name="Probabilidad de cada partido que queda",
-                    answers=(
-                        "¿Qué posibilidades tengo en el próximo partido, y en cada uno de "
-                        "los que faltan?"
-                    ),
-                    formula=(
-                        "Nueve duelos, cada uno como A/(A+B). Se suman con su peso y el "
-                        "total se parte en tres tramos: derrota, empate y victoria."
-                    ),
-                    sources=[
-                        Fuente(
-                            "Los ratings por zona de cada equipo de tu serie",
-                            "Los partidos de liga ya jugados, resumidos por su mediana",
-                        ),
-                        Fuente(
-                            "Cuánto pesa cada zona",
-                            "Una regresión sobre 1.031 partidos de liga de 186 equipos",
-                        ),
-                    ],
-                    constants=[
-                        Constante("A/(A+B)", "de 0 a 1", "qué parte de un duelo es tuya"),
-                        Constante(
-                            "escala",
-                            "1,30",
-                            "aplana el resultado para que no se pase de confiado",
-                        ),
-                        Constante(
-                            "mezcla",
-                            "90 % / 10 %",
-                            "cuánto pesa este modelo y cuánto el de goles",
-                        ),
-                    ],
-                    tables=[
-                        Tabla(
-                            title="Cuánto pesa cada duelo",
-                            columns=["Duelo", "Peso", "Por cada 10 puntos", "¿Fiable?"],
-                            rows=[
-                                ["Medio campo", "13,94", "x4,03", "sí, muy claro"],
-                                ["Tu ataque central", "5,65", "x1,76", "sí, muy claro"],
-                                ["Tu ataque derecho", "4,36", "x1,55", "sí"],
-                                ["Balón Parado ofensivo", "3,88", "x1,47", "no, con estos datos"],
-                                ["Tu defensa izquierda", "3,77", "x1,46", "sí"],
-                                ["Tu defensa central", "3,46", "x1,41", "sí"],
-                                ["Tu defensa derecha", "3,45", "x1,41", "sí"],
-                                ["Balón Parado defensivo", "2,25", "x1,25", "no, con estos datos"],
-                                ["Tu ataque izquierdo", "1,88", "x1,21", "no, con estos datos"],
-                            ],
-                            note=(
-                                "«Por cada 10 puntos» es cuánto se multiplican tus opciones de "
-                                "acabar mejor si te llevas diez puntos porcentuales más de ese "
-                                "duelo. El medio campo manda con diferencia. «¿Fiable?» dice si "
-                                "el número se sostiene por sí solo o si podría ser casualidad "
-                                "de la muestra."
-                            ),
-                        )
-                    ],
-                    steps=[
-                        "Tu medio campo en tus últimos partidos: 9,5 (la mediana).",
-                        "El del rival: 14,5.",
-                        "Ese duelo es tuyo en 9,5 / (9,5 + 14,5) = 0,396.",
-                        "Lo mismo con los otros ocho duelos.",
-                        "Todo junto da: victoria 43,4 %, empate 22,0 %, derrota 34,7 %.",
-                        "Puntos que esperas sumar: 3 x 0,434 + 1 x 0,220 = 1,52 de 3.",
-                    ],
-                    limits=[
-                        "Los ratings del domingo no se saben: se estiman con la mediana de "
-                        "los partidos recientes. Un equipo que acaba de fichar o de vender "
-                        "medio equipo tarda unas jornadas en reflejarse.",
-                        "El empate casi nunca sale como resultado más probable. No es un "
-                        "fallo que se pueda afinar: es que el empate rara vez lo es. Por eso "
-                        "se enseñan las tres cifras y no un pronóstico.",
-                        "No mira lesiones, tarjetas, actitud ni la alineación concreta del "
-                        "día. Resume cómo suele salir un equipo, no cómo saldrá ese domingo.",
-                        "De 1.031 partidos acierta el 74 % contra el 48 % de acertar siempre "
-                        "lo más común, y cuando dice 70 % ocurre cerca del 70 % de las veces.",
-                    ],
-                    note=(
-                        "Los duelos se cruzan como en el campo: tu banda izquierda ataca por "
-                        "el mismo carril que defiende el lateral derecho del rival."
-                    ),
-                ),
                 Calculo(
                     id="simulacion",
                     sources=[
@@ -1395,6 +2867,7 @@ def como_json() -> list[dict[str, Any]]:
                     "name": c.name,
                     "answers": c.answers,
                     "formula": c.formula,
+                    "body": c.body,
                     "sources": [{"what": f.what, "origin": f.origin} for f in c.sources],
                     "constants": [
                         {"symbol": k.symbol, "value": k.value, "what": k.what} for k in c.constants

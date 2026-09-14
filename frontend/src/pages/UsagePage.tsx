@@ -7,7 +7,7 @@ import { api } from "../services/api";
 import type { UsageSummary, UsageUser } from "../services/api";
 import { usePersistido } from "../hooks/usePersistido";
 
-/** Qué usa la gente. Sólo la abre el administrador —la comprobación de verdad
+/** Qué usa la gente. Sólo la abre el administrador, la comprobación de verdad
  *  está en el servidor, en `require_admin`; esconder el enlace no protege nada.
  *
  *  2026-08-26. Todo lo que se enseña aquí sale de la misma tabla de eventos:
@@ -15,7 +15,7 @@ import { usePersistido } from "../hooks/usePersistido";
  *
  *  2026-09-01, pedido del usuario: hasta hoy todo se agregaba a un número por
  *  pantalla, y con doce personas registradas eso esconde justo lo que hay que
- *  saber —si una pantalla la usan nueve o la usa una sola muchas veces—. La
+ *  saber, si una pantalla la usan nueve o la usa una sola muchas veces, . La
  *  página se parte en cuatro secciones porque son cuatro preguntas distintas:
  *
  *    Resumen   · cuánto se usa esto en total
@@ -135,8 +135,8 @@ export function UsagePage() {
             Sin mis visitas
           </label>
           {/* Descarga directa, sin pasar por React: el navegador la resuelve
-              solo. Es la salida de emergencia si la base se pierde —no tiene
-              copias y en varios proveedores caduca—. */}
+              solo. Es la salida de emergencia si la base se pierde, no tiene
+              copias y en varios proveedores caduca, . */}
           <a
             href={`/api/v1/usage/export.csv?dias=${Math.max(dias, 365)}`}
             data-track="Uso: exportar CSV"
@@ -505,11 +505,11 @@ function FilaDePersona({
           {desdeMinutos(u.minutes)}
         </td>
         <td className={td}>
-          <span className="block">{u.favouriteModule || "—"}</span>
+          <span className="block">{u.favouriteModule || "-"}</span>
           <Barra parte={u.minutes} de={maxMinutos} />
         </td>
         <td className={`${td} tabular-nums text-[var(--muted)]`}>
-          {u.lastSeen ? dateTime(u.lastSeen) : "—"}
+          {u.lastSeen ? dateTime(u.lastSeen) : "-"}
         </td>
       </tr>
       {abierta && (
@@ -882,11 +882,11 @@ function Registro({ dias }: { dias: number }) {
                   {f.kind === "page" ? "Visita" : "Clic"}
                 </td>
                 <td className={td}>{f.module}</td>
-                <td className={td}>{f.label ?? "—"}</td>
+                <td className={td}>{f.label ?? "-"}</td>
                 <td className={`${td} text-right tabular-nums`}>
                   {f.visibleMs > 0
                     ? duracion(Math.round(f.visibleMs / 1000))
-                    : "—"}
+                    : "-"}
                 </td>
                 {/* Los ocho primeros caracteres bastan para ver si dos
                     eventos son de la misma visita, que es para lo único que

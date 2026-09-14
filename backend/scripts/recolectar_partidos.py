@@ -40,10 +40,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 #: buenos que colar los malos (decisión del usuario, 2026-09-05).
 INCOMPARECENCIA = ((5, 0), (0, 5))
 
-#: Liga, promoción y copa. Un torneo o un amistoso se juegan con suplentes y no
-#: dicen nada de la fuerza del equipo — el mismo criterio que ya usa el motor
-#: de economía para decidir qué partido deja taquilla.
-TIPOS_OFICIALES = (1, 2, 3)
+#: Liga, promoción, copa y Hattrick Masters, que también es oficial. Un torneo
+#: o un amistoso se juegan con suplentes y no dicen nada de la fuerza del
+#: equipo.
+TIPOS_OFICIALES = (1, 2, 3, 7)
 
 RATINGS = (
     "midfield",
@@ -160,7 +160,7 @@ async def main(desdes: list[int], cuantos: int, aplicar: bool) -> None:
                         matchID=mid,
                         sourceSystem="hattrick",
                     )
-                except Exception as e:  # noqa: BLE001 — una caída no tira la recogida
+                except Exception as e:  # noqa: BLE001, una caída no tira la recogida
                     fallos += 1
                     print(f"  {mid}  ✗ {type(e).__name__}")
                     continue

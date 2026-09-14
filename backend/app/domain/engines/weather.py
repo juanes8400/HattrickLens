@@ -1,4 +1,4 @@
-"""Clima del partido y qué especialidades favorece — 2026-08-18.
+"""Clima del partido y qué especialidades favorece, 2026-08-18.
 
 Hattrick decide el clima por REGIÓN, no por partido: el estadio donde se juega
 está en una región y esa región tiene un clima hoy y otro mañana

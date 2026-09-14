@@ -1,5 +1,5 @@
 """2026-08-04: worlddetails.xml trae el <LeagueList> COMPLETO (todos los
-países), no un solo registro — corrige la temporada estática errónea (se
+países), no un solo registro, corrige la temporada estática errónea (se
 usaba LeagueID=50 = Grecia en vez del real de cada equipo) y trae la tasa
 de cambio y los nombres de copa reales por país.
 
@@ -7,7 +7,7 @@ de cambio y los nombres de copa reales por país.
   world_context), de teamdetails.xml.
 - world_context: +country_name, +season_offset.
 - world_cups (nueva): copas reales por (ht_league_id, cup_level,
-  cup_level_index) — reemplaza el CUP_LEVEL_NAMES hardcodeado de cup.py.
+  cup_level_index), reemplaza el CUP_LEVEL_NAMES hardcodeado de cup.py.
 
 Revision ID: 0029
 """
@@ -33,10 +33,10 @@ def upgrade() -> None:
         )
 
     # BigInteger().with_variant(Integer, "sqlite"): igual que `PKBigInt` en
-    # models.py — un `id BIGINT PRIMARY KEY` normal en SQLite NO se
+    # models.py, un `id BIGINT PRIMARY KEY` normal en SQLite NO se
     # convierte en alias del rowid (autoincrement real), solo `INTEGER
     # PRIMARY KEY` lo hace. Con el tipo sin corregir, cada INSERT sin `id`
-    # explícito fallaba con "NOT NULL constraint failed: world_cups.id" —
+    # explícito fallaba con "NOT NULL constraint failed: world_cups.id"
     # visto en vivo 2026-08-04 al sincronizar worlddetails contra la cuenta
     # real (invisible en los tests: la suite crea las tablas desde el ORM
     # con `Base.metadata.create_all`, no desde esta migración).

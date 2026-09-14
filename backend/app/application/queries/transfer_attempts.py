@@ -147,7 +147,7 @@ def _edad_en_la_compra(al_llegar: Any, foto: Any, jugador: Any, llegada: datetim
     despues y da una edad de meses despues. Por eso solo vale si es del dia.
 
     Si no la hay, vale la que dejo escrita el repaso de fichas, y en ultimo
-    lugar se calcula restando — la edad avanza un dia por dia real.
+    lugar se calcula restando, la edad avanza un dia por dia real.
     """
     if al_llegar is not None and llegada is not None and (al_llegar.captured_at - llegada).days < 1:
         return _edad(al_llegar.age_years, al_llegar.age_days)

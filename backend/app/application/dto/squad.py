@@ -27,7 +27,7 @@ class SquadPlayer(Base):
     is_transfer_listed: bool
     loyalty: int
     leadership: int
-    # HL-15x: nivel crudo (0-5, para ordenar/CSV — son escalas, no
+    # HL-15x: nivel crudo (0-5, para ordenar/CSV, son escalas, no
     # categorías) + palabra traducida con el translations.xml oficial de
     # CHPP (docs/chpp-reference/Traslation_ESP.txt) para mostrar.
     agreeability: int
@@ -72,6 +72,8 @@ class SquadPlayer(Base):
     deltas: dict[str, int] = {}
     best_position: PositionRatingDTO
     position_rating: PositionRatingDTO | None = None
+    #: Veterano sin habilidades de campo: Posiciones lo esconde por defecto.
+    without_field_skills: bool = False
 
 
 class SquadHistoryEntry(Base):

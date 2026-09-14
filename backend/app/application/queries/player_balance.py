@@ -1,10 +1,10 @@
-"""PlayerBalanceQueryService — HL-161.
+"""PlayerBalanceQueryService, HL-161.
 
 Junta todo lo que hace falta para el saldo neto de cada jugador que ha
 pasado por el club (siga o no en la plantilla): precio de compra (real o
 manual), historial de salario, intentos de venta, precio de venta real, la
 comisión del agente, y su parte del ingreso por reventa futura de origen
-desconocido — y llama al motor de dominio (`player_balance.py`) para
+desconocido, y llama al motor de dominio (`player_balance.py`) para
 calcular el resultado. Nunca inventa un valor de mercado para un jugador
 que sigue sin venderse.
 """
@@ -35,12 +35,12 @@ from app.domain.value_objects.ht_constants import (
 )
 from app.infrastructure.db import models as m
 
-# Habilidad más alta de un jugador en el momento de la venta — pedido
+# Habilidad más alta de un jugador en el momento de la venta, pedido
 # explícitamente SIN Balón Parado (no es una habilidad "de campo" como las
 # demás, y el usuario la excluyó a propósito).
 _TOP_SKILL_FIELDS = ("keeper", "defending", "playmaking", "winger", "passing", "scoring")
 
-# Cubos de edad para el desglose "por Edad" — rangos exactos pedidos por el
+# Cubos de edad para el desglose "por Edad", rangos exactos pedidos por el
 # usuario 2026-08-04 (17 a 18 años = 17:000 a 18:111, etc.).
 _AGE_BUCKETS: list[tuple[int, str]] = [
     (18, "17–18"),
@@ -65,7 +65,7 @@ def _age_bucket(age_years: int) -> str:
 
 def _skill_val(snap: "m.PlayerSnapshot | None", field: str) -> int | str:
     """Habilidad AL ENTRAR/AL SALIR (2026-08-05, tabla Detalle de 43
-    columnas) — nunca reconstruida hacia atrás/adelante como la edad: a
+    columnas), nunca reconstruida hacia atrás/adelante como la edad: a
     diferencia del tiempo, entrenar sí cambia una habilidad, así que sin un
     `player_snapshot` real cerca de la fecha no hay forma honesta de
     saberla ("?")."""
@@ -89,7 +89,7 @@ def _split_12h(hour: int) -> tuple[int, str]:
 
 
 def _format_hour_range(start: int, end: int) -> str:
-    """ "14-16" no dice nada de un vistazo — pedido explícitamente 2026-08-03
+    """ "14-16" no dice nada de un vistazo, pedido explícitamente 2026-08-03
     en formato de 12 horas ("2:00 a 4:00 p.m."). Un solo sufijo am/pm cuando
     los dos extremos caen en el mismo periodo (el caso normal); los dos
     cuando cruza el mediodía o la medianoche (ej. "10:00 a.m. a 12:00 p.m.")."""
@@ -101,7 +101,7 @@ def _format_hour_range(start: int, end: int) -> str:
 
 
 def _bid_hour_bucket(sold_at: datetime) -> str:
-    """Bloques de 2 horas del día en que se cerró la puja — pedido
+    """Bloques de 2 horas del día en que se cerró la puja, pedido
     explícitamente 2026-08-03. La hora es la que trae CHPP en `Deadline` tal
     cual (sin convertir zona horaria, igual que el resto de la app trata
     `sold_at`/`purchased_at`)."""
@@ -129,7 +129,7 @@ class SalaryWeekSegment:
 
 @dataclass
 class ListingAttemptRow:
-    """Un intento de venta enumerado (no solo contado) — pedido
+    """Un intento de venta enumerado (no solo contado), pedido
     explícitamente 2026-08-08. Solo cubre intentos detectados desde que
     existe `player_listing_attempts` (0038); anteriores a esa fecha siguen
     solo en el contador `listing_count`."""
@@ -163,7 +163,7 @@ class PlayerBalanceRow:
     listing_attempts: list[ListingAttemptRow]
     listing_cost: int
     agent_pct: float | None
-    # HL-161, 2026-08-14: comisión de club anterior EXACTA — suma de
+    # HL-161, 2026-08-14: comisión de club anterior EXACTA, suma de
     # `PreviousClubBonus.amount` (convertida) para este jugador, si el club
     # al que se lo vendimos ya lo revendió. 0.0 si todavía no hay ninguna
     # reventa detectada (nunca una aproximación repartida entre candidatos:
@@ -171,6 +171,15 @@ class PlayerBalanceRow:
     # heurístico que vivía en `resale_bonus.py`).
     resale_bonus_share: float
     saldo: float | None
+    # Las dos mitades del saldo, expuestas por separado. Son EXACTAMENTE las
+    # que usa el ROI de aquí al lado --gastos es su denominador-- y viven en
+    # esta fila para que quien las quiera enseñar en otra pantalla no las
+    # vuelva a derivar por su cuenta: dos definiciones de «lo que costó»
+    # acaban dando dos cifras distintas para el mismo jugador. Añadidas el
+    # 2026-09-09 para que Cambios pueda rotular una venta con su resultado
+    # real en vez de sólo el precio.
+    ingresos: float | None
+    gastos: float
     is_sold: bool
     training_at_sale: str | None
     # Inferencia individual pedida el 2026-08-26: habilidad que más aumentó
@@ -180,7 +189,7 @@ class PlayerBalanceRow:
     derived_training_levels: int | None
     derived_training_method: str
     derived_training_method_label: str
-    # 2026-08-04: filtro general de temporadas, pedido explícitamente —
+    # 2026-08-04: filtro general de temporadas, pedido explícitamente
     # mismo criterio que el desglose "por Temporada" (season_at).
     season_at_sale: str | None
     # La SEMANA de temporada (1-16) de cada movimiento, sin la temporada
@@ -191,12 +200,12 @@ class PlayerBalanceRow:
     week_at_purchase: int | None
     # Reutilizados por el filtro de temporadas para recalcular los desgloses
     # "por habilidad más alta"/"por hora de puja" sobre el subconjunto
-    # filtrado sin tener que rehacer la consulta — mismo criterio que
+    # filtrado sin tener que rehacer la consulta, mismo criterio que
     # `by_top_skill` (sin Balón Parado) y `by_bid_hour`.
     top_skill_at_sale: str | None
     bid_hour_at_sale: str | None
     # HL-161: columnas de la tabla "Detalle" que faltaban frente al Excel
-    # del usuario (pedido 2026-08-04) — "?" en vez de None/vacío cuando de
+    # del usuario (pedido 2026-08-04), "?" en vez de None/vacío cuando de
     # verdad no hay forma de saberlo, para que se note en la tabla que es
     # un hueco y no un cero.
     native_country: str
@@ -210,7 +219,7 @@ class PlayerBalanceRow:
     roi_pct: float | str
     destination_country: str
     destination_country_code: str | None
-    # HL-161: edad en la venta como número decimal (años + días/112) — para
+    # HL-161: edad en la venta como número decimal (años + días/112), para
     # graficar (color por edad, pedido 2026-08-04), no para tabla. Mismo
     # criterio que el desglose "por Edad": snapshot real si existe, si no
     # el backfill reconstruido; "?" solo si de verdad no hay ninguno.
@@ -221,7 +230,7 @@ class PlayerBalanceRow:
     # ancla en `purchased_at`.
     age_at_purchase: float | str
     # Habilidades AL ENTRAR (snapshot real más cercano a purchased_at, en o
-    # después — nunca reconstruidas: a diferencia de la edad, no son función
+    # después, nunca reconstruidas: a diferencia de la edad, no son función
     # pura del tiempo, entrenar sí las cambia. "?" si nunca hubo un
     # player_snapshot cerca de la compra, p. ej. jugadores del backfill
     # histórico comprados antes de que esta app existiera).
@@ -237,7 +246,7 @@ class PlayerBalanceRow:
     scoring_at_purchase: int | str
     set_pieces_at_purchase: int | str
     # Habilidades AL SALIR (snapshot real más cercano a la venta/salida, en o
-    # antes) — mismo criterio, sin Liderazgo (no se pidió "al salir").
+    # antes), mismo criterio, sin Liderazgo (no se pidió "al salir").
     experience_at_sale: int | str
     form_at_sale: int | str
     stamina_at_sale: int | str
@@ -251,7 +260,7 @@ class PlayerBalanceRow:
     days_since_purchase: int | str
     saldo_per_delta_tsi: float | str
     # 2026-08-05, pedido explícitamente: un jugador que sale de la
-    # plantilla SIN transferencia real en transfersteam.xml fue despedido —
+    # plantilla SIN transferencia real en transfersteam.xml fue despedido
     # cuenta como venta a $0 (no "sigue en la plantilla" ni "desconocido").
     # Este flag distingue esa venta sintética de una venta real en la UI.
     is_departure_without_sale: bool
@@ -266,7 +275,7 @@ class PlayerBalanceRow:
     # cada sync y daria un numero mucho menor que el real.
     games_with_us: int | str = "?"
     salary_known: bool = True
-    #: `observado` | `estimado` | `desconocido` — de donde sale `salary_total`.
+    #: `observado` | `estimado` | `desconocido`, de donde sale `salary_total`.
     salary_source: str = "observado"
     # Identificador de la ETAPA: dos filas del mismo jugador comparten
     # ht_player_id, asi que la pantalla necesita otra cosa para
@@ -279,12 +288,12 @@ class PlayerBalanceRow:
 
 def _build_breakdowns(sold_rows: list[PlayerBalanceRow]) -> dict[str, dict[str, float]]:
     """Repartos "por Entrenamiento / Temporada / Edad / Habilidad más alta /
-    Hora de puja" a partir de filas YA construidas — reutilizado tanto para
+    Hora de puja" a partir de filas YA construidas, reutilizado tanto para
     el total (todas las temporadas) como, con el filtro general de
     temporadas activo (pedido explícitamente 2026-08-04), para el
     subconjunto de una sola temporada. Cada fila ya trae sus etiquetas
     calculadas con el mismo criterio de siempre, así que aquí solo se
-    agrupa y se suma — nada de lógica de negocio duplicada."""
+    agrupa y se suma, nada de lógica de negocio duplicada."""
     by_training: dict[str, float] = {}
     by_season: dict[str, float] = {}
     by_age: dict[str, float] = {}
@@ -346,7 +355,7 @@ class PlayerBalanceResponse:
     by_age_bucket: dict[str, float]
     by_top_skill: dict[str, float]
     by_bid_hour: dict[str, float]
-    # HL-161, 2026-08-04: <Stats> de transfersteam.xml — TODA la historia
+    # HL-161, 2026-08-04: <Stats> de transfersteam.xml, TODA la historia
     # de compraventas del equipo (no solo lo que esta app pudo reconstruir
     # jugador por jugador), pedido explícitamente para los KPI de
     # "Resumen". Ver `Team.transfer_total_*` en sync_team.py.
@@ -366,7 +375,7 @@ class PlayerBalanceQueryService:
         season: str | None = None,
     ) -> PlayerBalanceResponse | None:
         """`season`: filtro general de temporadas, pedido explícitamente
-        2026-08-04 — `None`/"all" trae todo (comportamiento de siempre); un
+        2026-08-04, `None`/"all" trae todo (comportamiento de siempre); un
         valor real de `by_season` (p. ej. "Temporada 83") limita "Detalle" y
         los desgloses NO-temporada a las ventas cerradas esa temporada. Los
         KPI de "Resumen" (transfer_total_*) quedan fuera a propósito: son un
@@ -379,7 +388,7 @@ class PlayerBalanceQueryService:
 
         # CHPP devuelve todos los importes reales (compra, venta, salario,
         # ingreso por venta de jugadores) en la moneda base del juego, no en
-        # la moneda local del equipo — hace falta dividir por la tasa del
+        # la moneda local del equipo, hace falta dividir por la tasa del
         # país (Colombia = 10) igual que ya hace squad.py con purchase_price
         # y salary. Los precios ESCRITOS A MANO no se tocan: el usuario ya
         # los teclea en su propia moneda.
@@ -388,7 +397,7 @@ class PlayerBalanceQueryService:
         def conv(v: int | None) -> int | None:
             return None if v is None else int(round(v / rate))
 
-        # Todos los que han pasado por el club, sigan o no — append-only,
+        # Todos los que han pasado por el club, sigan o no, append-only,
         # nunca se borran (ver `Player.left_team_at`).
         players = list(
             (await self._s.execute(select(m.Player).where(m.Player.team_id == team_id))).scalars()
@@ -413,16 +422,16 @@ class PlayerBalanceQueryService:
 
         # "Canterano" (CORRECCIÓN 2026-08-04, pedido explícitamente): antes
         # se miraba si el jugador pasó por `YouthPlayer`/`FormerYouthPlayer`
-        # — el escaneo de cantera de esta app, que solo cubre jugadores
+        # el escaneo de cantera de esta app, que solo cubre jugadores
         # vistos DESDE que existe esa sincronización. El backfill histórico
         # de transferencias trae ~470 jugadores que nunca pasaron por ahí,
         # así que ese criterio los daba todos por "comprados" aunque de
         # verdad fueran de tu cantera. El dato real de Hattrick es
         # `MotherClub/TeamID == este equipo` (de playerdetails.xml, ver
-        # `_apply_player_enrichment`) — funciona para cualquier jugador, sin
+        # `_apply_player_enrichment`), funciona para cualquier jugador, sin
         # importar cuándo pasó por el club.
 
-        # Historial de salario por jugador — lo que de verdad se sincronizó,
+        # Historial de salario por jugador, lo que de verdad se sincronizó,
         # con huecos; el motor de dominio extrapola.
         # Una fila por ETAPA, no por jugador (2026-08-22, pedido
         # explícitamente). Quien pasó dos veces por el club tuvo dos
@@ -512,7 +521,7 @@ class PlayerBalanceQueryService:
 
         # Sueldos de antes de HT Lens. Hattrick no publica hacia atras lo que
         # cobraba nadie, asi que las etapas anteriores a la primera
-        # sincronizacion llevan el sueldo a cero por ignorancia — contarlo asi
+        # sincronizacion llevan el sueldo a cero por ignorancia, contarlo asi
         # es equivocarse el 100 %. La curva se ajusta con las semanas del
         # PROPIO club en las que TSI y sueldo se conocen a la vez.
         modelo = ajustar(
@@ -553,7 +562,7 @@ class PlayerBalanceQueryService:
                 if sesgos:
                     anclas[pid] = sesgos[len(sesgos) // 2]
 
-        # Intentos de venta enumerados — pedido explícitamente 2026-08-08,
+        # Intentos de venta enumerados, pedido explícitamente 2026-08-08,
         # solo cubre lo detectado desde que existe player_listing_attempts
         # (0038); `listing_count` sigue siendo el total real (puede ser
         # mayor si hubo intentos antes de esa fecha).
@@ -582,7 +591,7 @@ class PlayerBalanceQueryService:
             return candidates[-1] if candidates else None
 
         def snapshot_at_or_after(player_id: int, when: datetime) -> m.PlayerSnapshot | None:
-            """Igual que `snapshot_at` pero hacia adelante — para "al
+            """Igual que `snapshot_at` pero hacia adelante, para "al
             entrar" (compra): no puede haber `player_snapshots` de ANTES de
             la compra (el jugador no era nuestro todavía), así que el
             candidato correcto es el primero capturado en o después de
@@ -594,10 +603,10 @@ class PlayerBalanceQueryService:
 
         # Temporada de Hattrick en la semana de cada venta (para el desglose
         # "por Temporada"). `worlddetails.xml` trae la temporada
-        # de TODOS los países, no una sola — cada uno tiene la SUYA (Suecia
+        # de TODOS los países, no una sola, cada uno tiene la SUYA (Suecia
         # 95, Colombia 83, Grecia 80, verificado en vivo). Antes se cogía
         # "la fila de WorldContext más reciente" sin más, lo cual da
-        # cualquier país al azar en cuanto hay más de una fila — ahora se
+        # cualquier país al azar en cuanto hay más de una fila, ahora se
         # filtra por `Team.ht_league_id` (de teamdetails.xml), el país real
         # de ESTE equipo. La fecha ya no se resta contra el instante arbitrario
         # del último sync: se convierte con la regla semanal canónica, anclada
@@ -658,13 +667,13 @@ class PlayerBalanceQueryService:
             season = season_for_datetime(world, when)
             return _UNKNOWN_SEASON if season is None else f"Temporada {season}"
 
-        # Comisión de club anterior EXACTA — HL-161, 2026-08-14. Reemplaza
+        # Comisión de club anterior EXACTA, HL-161, 2026-08-14. Reemplaza
         # por completo el reparto heurístico de "reventa futura de origen
         # desconocido" que vivía aquí (repartida proporcionalmente entre
         # candidatos, `resale_bonus.py`, ya eliminado): cada reventa real
         # de un ex-jugador nuestro es una fila propia en
         # `previous_club_bonuses`, calculada partido a partido cuando se
-        # detecta (ver `_check_previous_club_bonus` en sync_team.py) — no
+        # detecta (ver `_check_previous_club_bonus` en sync_team.py), no
         # una aproximación.
         bonus_rows = (
             await self._s.execute(
@@ -678,7 +687,7 @@ class PlayerBalanceQueryService:
             resale_shares[ht_player_id] = resale_shares.get(ht_player_id, 0.0) + (conv(amount) or 0)
 
         # Entrenamiento activo en la semana de cada venta (para agrupar
-        # el saldo por tipo de entrenamiento — pedido explícitamente).
+        # el saldo por tipo de entrenamiento, pedido explícitamente).
         training_rows = list(
             (
                 await self._s.execute(
@@ -767,7 +776,7 @@ class PlayerBalanceQueryService:
                 p.mother_club_team_id is not None and p.mother_club_team_id == team.ht_team_id
             )
             # p.purchase_price viene crudo de CHPP (moneda base del juego,
-            # no la local) — hay que convertirlo. p.purchase_price_manual
+            # no la local), hay que convertirlo. p.purchase_price_manual
             # es lo que el usuario tecleó a mano, ya en su propia moneda.
             purchase_price = conv(etapa.arrival_price)
             purchased_at = etapa.arrived_at
@@ -780,7 +789,7 @@ class PlayerBalanceQueryService:
 
             # 2026-08-05, edge case real encontrado en vivo (jugador
             # 461351045): se vendió en 2022, y volvió a la plantilla en
-            # 2026 (recomprado) — `sold_at`/`sale_price` de esa venta VIEJA
+            # 2026 (recomprado), `sold_at`/`sale_price` de esa venta VIEJA
             # se quedan escritos para siempre (nunca se borran, ver
             # docstring de arriba), así que sin este chequeo el jugador
             # aparecía como "vendido" con datos de 2022 aunque estuviera
@@ -789,10 +798,10 @@ class PlayerBalanceQueryService:
             # transfersteam.xml escribe `sold_at` directamente sin pasar
             # nunca por `mark_departed` (esa venta es de antes de que esta
             # app existiera), así que casi ningún vendido real tiene
-            # `left_team_at` puesto — usarlo habría marcado como "activo"
+            # `left_team_at` puesto, usarlo habría marcado como "activo"
             # a la mayoría de los 410 vendidos de verdad. La señal correcta
             # es un `player_snapshot` (de `players.xml`, solo trae quien
-            # está HOY en la plantilla) capturado DESPUÉS de esa salida —
+            # está HOY en la plantilla) capturado DESPUÉS de esa salida
             # si existe, es que volvió a verse en el roster desde entonces.
             # Con etapas ya no hace falta adivinar si "sigue en la
             # plantilla" mirando snapshots posteriores a una venta vieja: una
@@ -800,7 +809,7 @@ class PlayerBalanceQueryService:
             # está cerrada aunque el jugador haya vuelto después en otra.
             is_currently_active = etapa.left_at is None
             # Un jugador que sale de la plantilla SIN que transfersteam.xml
-            # reporte nunca una venta real fue despedido — cuenta como
+            # reporte nunca una venta real fue despedido, cuenta como
             # venta a $0, no como "sigue en la plantilla" ni "desconocido".
             # Las reglas actuales de Hattrick no tienen retiro forzoso, así
             # que "salió sin venta" es en la práctica siempre un despido.
@@ -888,7 +897,7 @@ class PlayerBalanceQueryService:
                 economy_date=world.economy_date if world is not None else None,
                 resale_bonus_share=resale_shares.get(p.ht_player_id, 0.0),
                 # SQLite no conserva tzinfo en el viaje de ida y vuelta, así
-                # que purchased_at/sold_at llegan naive — as_of debe serlo
+                # que purchased_at/sold_at llegan naive, as_of debe serlo
                 # también o la resta de fechas revienta (naive vs aware).
                 as_of=as_of,
             )
@@ -910,7 +919,7 @@ class PlayerBalanceQueryService:
                 training_label = training_name(etapa.training_type_manual)
             # Reutilizado tanto en la fila (para el filtro general de
             # temporadas, pedido explícitamente 2026-08-04) como en el
-            # desglose "por Temporada" más abajo — mismo criterio, una sola
+            # desglose "por Temporada" más abajo, mismo criterio, una sola
             # llamada.
             season_label_for_row = (
                 season_at(effective_sold_at) if effective_sold_at is not None else None
@@ -938,7 +947,7 @@ class PlayerBalanceQueryService:
             else:
                 derived_training_method_label = "Sin evidencia suficiente"
 
-            # Edad en la venta (número decimal, años + días/112) — reutilizada
+            # Edad en la venta (número decimal, años + días/112), reutilizada
             # tanto en la fila (para graficar) como en el desglose "por Edad"
             # más abajo, así que se calcula UNA vez aquí. Mismo criterio que
             # siempre: snapshot real si existe, si no el backfill.
@@ -993,7 +1002,7 @@ class PlayerBalanceQueryService:
             if top_skill_for_row is None and etapa.top_skill_manual:
                 top_skill_for_row = SKILL_LABELS.get(etapa.top_skill_manual, etapa.top_skill_manual)
             # Hora de puja: solo tiene sentido si de verdad se cerró una
-            # puja real — un despido (`effective_sold_at`) no cuenta.
+            # puja real, un despido (`effective_sold_at`) no cuenta.
             bid_hour_for_row = (
                 _bid_hour_bucket(etapa.left_at)
                 if etapa.left_at is not None and etapa.sale_price is not None
@@ -1006,7 +1015,7 @@ class PlayerBalanceQueryService:
                 days_since_purchase = max((end_for_days - purchased_at).days, 0)
 
             # HL-161: columnas del Excel del usuario que faltaban (pedido
-            # 2026-08-04) — "?" cuando de verdad no hay forma de saberlo,
+            # 2026-08-04), "?" cuando de verdad no hay forma de saberlo,
             # nunca 0 ni un guion que se confunda con un valor real.
             specialty_label = "?"
             if p.specialty is not None:
@@ -1033,6 +1042,10 @@ class PlayerBalanceQueryService:
             roi_pct: float | str = "?"
             if balance.saldo is not None and total_cost > 0:
                 roi_pct = round(balance.saldo / total_cost * 100, 2)
+            # Ingresos por diferencia y no recalculando el neto de venta: así
+            # `ingresos - gastos` da el saldo EXACTO, sin un redondeo suelto
+            # que haga que las tres cifras no cuadren en pantalla.
+            ingresos = None if balance.saldo is None else round(balance.saldo + total_cost, 2)
             saldo_per_delta_tsi: float | str = "?"
             if balance.saldo is not None and isinstance(delta_tsi, int) and delta_tsi != 0:
                 saldo_per_delta_tsi = round(balance.saldo / delta_tsi, 2)
@@ -1064,6 +1077,8 @@ class PlayerBalanceQueryService:
                     agent_pct=balance.agent_pct if balance.is_sold else None,
                     resale_bonus_share=balance.resale_bonus_share,
                     saldo=balance.saldo,
+                    ingresos=ingresos,
+                    gastos=round(total_cost, 2),
                     is_sold=balance.is_sold,
                     training_at_sale=training_label,
                     derived_training_skill=derived_training_skill,
@@ -1123,7 +1138,7 @@ class PlayerBalanceQueryService:
         # Filtro general de temporadas (pedido explícitamente 2026-08-04):
         # "all"/None trae todo, como siempre; un valor real de `by_season`
         # recorta "Detalle" y los desgloses NO-temporada a esa única
-        # temporada — reutilizando las mismas etiquetas por fila que ya se
+        # temporada, reutilizando las mismas etiquetas por fila que ya se
         # calcularon arriba, nunca recalculando nada distinto.
         season_filter_active = season is not None and season != "all"
         rows_for_response = (

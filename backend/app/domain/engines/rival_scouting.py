@@ -1,11 +1,11 @@
-"""Scouting de rivales — el gancho: comparar tu plantilla contra la del
+"""Scouting de rivales, el gancho: comparar tu plantilla contra la del
 próximo rival con las mismas herramientas que usas para la tuya, dentro de
 lo que CHPP realmente deja ver de un equipo ajeno.
 
 Restricción real verificada contra la API: `players.xml` de un equipo que no
 es el tuyo da TSI, edad, forma y salario reales, pero las skills exactas
 vienen todas en 0 (ocultas) y el nombre viene vacío. Solo `matchlineup.xml`
-de un partido ya finalizado revela nombre + posición real jugada — de ambos
+de un partido ya finalizado revela nombre + posición real jugada, de ambos
 equipos, porque un partido jugado es un hecho público permanente, no un
 estado de cuenta que se esté trackeando.
 """
@@ -89,11 +89,11 @@ def tsi_kde_comparison(
 #  Manual no Escrito (wiki.hattrick.org) + reglas oficiales del marcaje
 # individual (docs/reference/MAN_MARKING_RULES.md). Cualquiera de {lateral,
 # defensa central, interior} puede marcar LEGALMENTE a cualquiera de
-# {extremo, delantero, interior} rival — MAN_MARKING_PROXIMITY es solo la
+# {extremo, delantero, interior} rival, MAN_MARKING_PROXIMITY es solo la
 # combinación "cerca" (-50%, la más eficiente); cualquier otra combinación
 # de esas dos listas es "lejos" (-65%), sigue siendo una orden válida, solo
 # menos eficiente. Este motor prefiere siempre "cerca" y solo cae a "lejos"
-# cuando no hay ningún marcador cercano disponible — nunca deja de sugerir
+# cuando no hay ningún marcador cercano disponible, nunca deja de sugerir
 # solo porque la combinación óptima no está disponible.
 MARKER_LOSS_PCT_CLOSE = 0.50
 MARKER_LOSS_PCT_FAR = 0.65
@@ -132,16 +132,16 @@ def suggest_man_marking(
     """Sugiere a quién marcar al hombre y con quién, según las reglas reales
     del marcaje individual: cualquiera de tus centrales, laterales o
     interiores puede marcar a cualquier delantero, extremo o interior
-    rival — eso SIEMPRE es legal. La tabla del Manual no Escrito
+    rival, eso SIEMPRE es legal. La tabla del Manual no Escrito
     (lateral↔extremo, central↔delantero, interior↔interior) es solo la
     combinación más EFICIENTE (-50% para el marcado); cualquier otra
     combinación legal es menos eficiente (-65%) pero se sigue pudiendo
-    ordenar — este motor prefiere "cerca" y solo ofrece "lejos" cuando no
+    ordenar, este motor prefiere "cerca" y solo ofrece "lejos" cuando no
     hay ningún marcador cercano disponible.
 
     El TSI del rival es la única señal de peligrosidad disponible (CHPP
     oculta sus skills exactas y su especialidad), así que la confianza de
-    la sugerencia se marca explícitamente como aproximada — no se puede
+    la sugerencia se marca explícitamente como aproximada, no se puede
     replicar aquí la fórmula real (Defensa del marcador vs. la habilidad
     más alta del marcado, con modificadores de especialidad/forma/salud).
 
@@ -231,17 +231,17 @@ def suggest_man_marking(
 # ── Probabilidad de ganar ───────────────────────────────────────────────────
 #
 # HL-140 aclarado por el usuario: "no presentar el futuro como cierto" no
-# significa nunca proyectar — significa no MEZCLAR hechos con proyecciones
+# significa nunca proyectar, significa no MEZCLAR hechos con proyecciones
 # sin avisar. Esto SÍ es una proyección, y se presenta siempre separada
 # visualmente de los paneles de hechos, con su propio rótulo.
 #
 # Modelo deliberadamente simple: una función de contienda (contest success
 # function) de exponente 1 sobre el TSI total de los probables 11 de cada
-# lado — own = tu mejor once real (motor de posiciones), rival = sus 11 de
+# lado, own = tu mejor once real (motor de posiciones), rival = sus 11 de
 # mayor TSI (única aproximación honesta, CHPP oculta sus skills). No es la
 # fórmula del motor de partido de Hattrick (esa necesita habilidades reales
 # de ambos equipos, clima, táctica...) y NO está calibrada contra resultados
-# reales — a diferencia de `position_engine`, que sí lo está. Se declara con
+# reales, a diferencia de `position_engine`, que sí lo está. Se declara con
 # confianza "baja" a propósito.
 
 
@@ -258,7 +258,7 @@ class WinProbability:
 
 
 def estimate_win_probability(own_tsi_total: int, rival_tsi_total: int) -> WinProbability:
-    """Proyección, no un hecho — HL-144. `own_tsi_total`/`rival_tsi_total`
+    """Proyección, no un hecho, HL-144. `own_tsi_total`/`rival_tsi_total`
     deben venir del TSI real de los 11 probables de cada lado (no la
     plantilla completa), calculados por quien llama."""
     total = own_tsi_total + rival_tsi_total
@@ -295,7 +295,7 @@ class SideRotation:
     attack_right_std: float
     strong_side: str
     # % de los partidos vistos en los que `strong_side` fue el lado con
-    # mejor rating ESE partido concreto — 100% es "el mismo lado, partido
+    # mejor rating ESE partido concreto, 100% es "el mismo lado, partido
     # tras partido, sin excepción"; un valor bajo con std alto es "rota de
     # verdad", no solo "por poco no domina siempre".
     dominant_pct: float
@@ -320,7 +320,7 @@ def analyse_side_rotation(match_ratings: list[dict[str, Any]]) -> SideRotation |
     La desviación estándar por carril y la secuencia partido a partido
     (`dominant_side_by_match`) distinguen "siempre exactamente el mismo
     lado, por mucho margen" de "el mismo lado en promedio, pero muy reñido"
-    — un solo booleano (`rotates`) no alcanza para esa diferencia.
+    un solo booleano (`rotates`) no alcanza para esa diferencia.
     """
     if not match_ratings:
         return None
@@ -385,7 +385,14 @@ class PitchZoneMethod(StrEnum):
     cuatro resúmenes responden preguntas distintas sobre los mismos datos.
     """
 
-    AVERAGE = "average"  # cómo juega de costumbre
+    #: Cómo juega de costumbre. Es el resumen que abre en todas las pantallas.
+    #:
+    #: Tuvo una MEDIANA al lado entre el 2026-09-09 y el 2026-09-13, y se retiró
+    #: a pedido del usuario: enredaba, dos opciones casi iguales con nombres que
+    #: no se distinguen. Ya no es un valor de esta enumeración, así que quien
+    #: pida "median" en una URL vieja cae al defecto de cada pantalla, que es
+    #: este, y `resumir_ratings` lo calcula como promedio.
+    AVERAGE = "average"
     MAX = "max"  # de lo que es capaz en cada zona
     MAX_PARALLEL = "max_parallel"  # de lo que es capaz por CUALQUIER carril
     LAST = "last"  # con lo que salió el último día
@@ -427,6 +434,65 @@ PARALLEL_ZONES: tuple[tuple[str, ...], ...] = (
 )
 
 
+def lecturas_completas(
+    match_ratings: list[dict[str, int]],
+    claves: tuple[str, ...],
+) -> list[dict[str, int]]:
+    """Sólo las lecturas que traen TODAS las claves con un valor.
+
+    Las acciones indirectas a balón parado llegan vacías en muchas lecturas
+    guardadas, porque hubo un tiempo en que no se leían. Una lectura a la que
+    le falta un rating no es una lectura con un cero: es media lectura, y
+    entra o no entra.
+    """
+    return [r for r in match_ratings if all(r.get(c) is not None for c in claves)]
+
+
+def resumir_ratings(
+    match_ratings: list[dict[str, int]],
+    claves: tuple[str, ...],
+    method: str = PitchZoneMethod.AVERAGE,
+) -> dict[str, float]:
+    """Resume una lista de lecturas en un valor por clave, según el método.
+
+    Vive aparte y toma las claves como argumento porque hay DOS consumidores
+    con listas distintas: el mapa de cancha resume siete zonas y el motor de
+    predicción necesita nueve --las siete más los dos de balón parado--. Con
+    dos funciones separadas, el día que se añada un método nuevo una de las
+    dos se queda atrás y el mapa y el pronóstico empiezan a describir
+    partidos distintos.
+
+    `match_ratings` va del más viejo al más reciente: LAST se queda el último.
+    """
+    # LA LECTURA VIENE ENTERA O NO CUENTA. Nada de resumir una zona sobre los
+    # tres partidos que sí la traen y otra sobre los cinco: eso mezcla
+    # muestras distintas dentro del mismo vector y nadie puede saber cuál es
+    # cuál. Las incompletas se descartan ANTES, en `lecturas_completas`.
+    presentes = {clave: [r[clave] for r in match_ratings] for clave in claves}
+    if method == PitchZoneMethod.LAST:
+        return {clave: float(vals[-1]) for clave, vals in presentes.items()}
+    if method in (PitchZoneMethod.MAX, PitchZoneMethod.MAX_PARALLEL):
+        valores = {clave: float(max(vals)) for clave, vals in presentes.items()}
+        if method == PitchZoneMethod.MAX_PARALLEL:
+            # El techo de un carril se contagia a los tres de su mitad: si
+            # rompió por la izquierda, puede volver a romper por la derecha
+            # cuando el rival mueva a sus hombres. El balón parado no entra
+            # en ningún carril, así que se queda con su propio máximo.
+            for carriles in PARALLEL_ZONES:
+                # Nombre propio y no `presentes`: ese ya es el diccionario de
+                # arriba, y reusarlo aquí lo convertía en una lista a mitad de
+                # función. Hoy no rompe nada porque ya no se lee después, pero
+                # es una trampa esperando a quien añada una línea.
+                del_carril = [c for c in carriles if c in valores]
+                if not del_carril:
+                    continue
+                techo = max(valores[c] for c in del_carril)
+                for c in del_carril:
+                    valores[c] = techo
+        return valores
+    return {clave: round(sum(vals) / len(vals), 1) for clave, vals in presentes.items()}
+
+
 def pitch_zone_values(
     match_ratings: list[dict[str, int]],
     method: str = PitchZoneMethod.AVERAGE,
@@ -440,25 +506,17 @@ def pitch_zone_values(
     """
     if not match_ratings:
         return None
-    n = len(match_ratings)
-    if method == PitchZoneMethod.LAST:
-        valores = {key: float(match_ratings[-1][key]) for key in PITCH_ZONE_KEYS}
-    elif method in (PitchZoneMethod.MAX, PitchZoneMethod.MAX_PARALLEL):
-        valores = {key: float(max(r[key] for r in match_ratings)) for key in PITCH_ZONE_KEYS}
-        if method == PitchZoneMethod.MAX_PARALLEL:
-            for carriles in PARALLEL_ZONES:
-                techo = max(valores[key] for key in carriles)
-                for key in carriles:
-                    valores[key] = techo
-    else:
-        valores = {key: round(sum(r[key] for r in match_ratings) / n, 1) for key in PITCH_ZONE_KEYS}
-    return PitchZoneValues(matches_analysed=n, **valores)
+    completas = lecturas_completas(match_ratings, PITCH_ZONE_KEYS)
+    if not completas:
+        return None
+    valores = resumir_ratings(completas, PITCH_ZONE_KEYS, method)
+    return PitchZoneValues(matches_analysed=len(completas), **valores)
 
 
 # ── Duelos cabeza a cabeza por carril (cancha horizontal) ───────────────────
 #
 # Un extremo IZQUIERDO ataca por el mismo lateral físico que defiende el
-# LATERAL DERECHO rival — como en cualquier alineación de fútbol reflejada:
+# LATERAL DERECHO rival, como en cualquier alineación de fútbol reflejada:
 # de pie detrás de tu portería mirando hacia la del rival, el carril físico
 # de la izquierda es siempre el mismo carril, y por él corren TU ataque
 # izquierdo cuando atacas y el ataque DERECHO del rival cuando ataca él (va
@@ -480,7 +538,7 @@ def pitch_zone_duels(own: PitchZoneValues, rival: PitchZoneValues) -> list[ZoneD
     """7 duelos cabeza a cabeza: 3 en tu campo (tu defensa contra su ataque
     reflejado), 3 en el campo rival (tu ataque contra su defensa reflejada) y
     el de medio campo (posesión). El % es la misma función de contienda
-    simple que `estimate_win_probability` (rating / (rating + rating)) — una
+    simple que `estimate_win_probability` (rating / (rating + rating)), una
     aproximación declarada, no la fórmula real (mucho más rica) del motor de
     partido de Hattrick."""
 
@@ -512,8 +570,8 @@ def pitch_zone_duels(own: PitchZoneValues, rival: PitchZoneValues) -> list[ZoneD
 # La actitud (TeamAttitude) se dejó fuera a propósito: CHPP nunca la incluye
 # para el lado que no es el tuyo (verificado en vivo), así que no hay nada
 # honesto que resumir ahí. Táctica (TacticType), su nivel (TacticSkill) y la
-# formación sí son públicos para CUALQUIER equipo — también verificado en
-# vivo — así que esos tres son los que arma este resumen.
+# formación sí son públicos para CUALQUIER equipo, también verificado en
+# vivo, así que esos tres son los que arma este resumen.
 
 
 @dataclass
@@ -574,13 +632,13 @@ def summarise_tactics(
     """Con qué táctica juega este rival normalmente, a qué nivel y en qué
     formación, según TODOS los partidos con datos de sector ya sincronizados
     contra él (no el cap de `MAX_MATCHES_ANALYSED` que limita las llamadas en
-    vivo a matchlineup — esto es una consulta a la propia base, sin llamadas
+    vivo a matchlineup, esto es una consulta a la propia base, sin llamadas
     nuevas a CHPP). Son datos de partidos ya finalizados: un hecho público
     permanente, no un estado de cuenta ajena que se esté trackeando en el
     tiempo.
 
     `tactic_skills` en 0 no se filtra: coincide con TacticType=0 ("Normal")
-    y es un valor real, no ausente — un partido sin táctica especial de
+    y es un valor real, no ausente, un partido sin táctica especial de
     verdad gasta 0 de nivel. `formations` puede traer cadenas vacías (filas
     de antes de que se empezara a guardar esa columna); esas sí se excluyen
     del reparto, para no inventar una formación."""

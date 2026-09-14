@@ -182,7 +182,7 @@ def test_history_from_matches_reconstructs_every_full_round() -> None:
     """2026-08-08, pedido explícitamente tras comparar con Hattrick Control:
     el historial se calcula a partir de los RESULTADOS de partidos
     (`leaguefixtures.xml` trae el calendario completo de la serie), no de
-    una foto puntual de `leaguedetails.xml` — así que una jornada ya jugada
+    una foto puntual de `leaguedetails.xml`, así que una jornada ya jugada
     aparece en el historial aunque nunca se haya sincronizado justo en ese
     momento. La jornada "0" simbólica (0 puntos para todos) se antepone sin
     necesitar ningún partido."""
@@ -210,7 +210,7 @@ def test_history_from_matches_reconstructs_every_full_round() -> None:
     assert pulgas.points == [0, 3, 4]
     assert pulgas.positions == [None, 1, 1]
     atletico = next(t for t in history.teams if t.name == "Atlético Dos")
-    # Jornada 1: 1 pt (empate). Jornada 2 acumulado: 1+3=4 pts (gana 1-0) —
+    # Jornada 1: 1 pt (empate). Jornada 2 acumulado: 1+3=4 pts (gana 1-0)
     # mismos puntos que Pulgas, pero peor diferencia de gol (+1 vs +2).
     assert atletico.points == [0, 1, 4]
     assert atletico.positions == [None, 3, 2]
@@ -218,7 +218,7 @@ def test_history_from_matches_reconstructs_every_full_round() -> None:
 
 def test_history_from_matches_skips_an_incomplete_round_but_counts_it_forward() -> None:
     """Una jornada con menos de la mitad de sus partidos resueltos no es una
-    tabla comparable entre los n equipos — no aparece como fila propia — pero
+    tabla comparable entre los n equipos, no aparece como fila propia, pero
     su resultado SÍ debe seguir sumando para la primera jornada completa que
     venga después (no se pierde)."""
     rows = [
@@ -253,11 +253,11 @@ def test_merge_standing_snapshots_fills_a_round_matches_has_not_caught_up_to() -
     solo tiene el marcador de 1 de los 4 partidos de esa jornada todavía
     (bien porque de verdad no se ha sincronizado ese cruce, bien por el bug
     de `_persist_league_fixtures` corregido en
-    `test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it` — este
+    `test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it`, este
     test cubre el fallback pase lo que pase). El historial calculado desde
     partidos NO debe mostrar la jornada 2 como fila propia (regla ya
     probada arriba), pero si hay una foto REAL de Standing para esa
-    jornada, debe rellenarla — nunca dejarla en blanco pudiendo mostrarla."""
+    jornada, debe rellenarla, nunca dejarla en blanco pudiendo mostrarla."""
     rows = [
         _standing(HT_TEAM_ID, "Pulgas Arrechas"),
         _standing(600001, "Deportivo Uno"),
@@ -310,7 +310,7 @@ def test_merge_standing_snapshots_fills_a_round_matches_has_not_caught_up_to() -
 
 def test_standings_from_matches_splits_home_and_away_records() -> None:
     """Pedido explícitamente 2026-08-08: `leaguedetails.xml` solo da la
-    tabla combinada — Local/Visitante se calculan desde los resultados
+    tabla combinada, Local/Visitante se calculan desde los resultados
     reales. Pulgas gana de local (2-0) y empata de visitante (1-1): debe
     liderar la tabla de local pero no la de visitante."""
     rows = [
@@ -340,7 +340,7 @@ def test_standings_from_matches_splits_home_and_away_records() -> None:
     assert pulgas_away.points == 1
 
     # Un equipo que nunca jugó de visitante (aquí: Deportivo Uno, local en
-    # las dos jornadas) sigue apareciendo, con 0 partidos — nunca
+    # las dos jornadas) sigue apareciendo, con 0 partidos, nunca
     # desaparece de la tabla.
     deportivo_away = next(r for r in away if r.name == "Deportivo Uno")
     assert deportivo_away.played == 0
@@ -357,13 +357,13 @@ async def _persist_fixtures_payload(uow, payload):
 
 def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
     """Bug real encontrado en vivo 2026-08-08 (no un retraso de CHPP, como
-    se creyó en un primer momento — una llamada directa a CHPP, sin pasar
+    se creyó en un primer momento, una llamada directa a CHPP, sin pasar
     por nuestro parser ni nuestra tabla, probó que el marcador ya estaba
     disponible): la primera vez que `leaguefixtures.xml` trae un cruce
     entre dos rivales sin jugar, se crea la fila con -1/-1 de placeholder.
     En el sync SIGUIENTE, aunque el marcador real ya llegue en el payload,
     el código viejo comparaba solo `series_ht_id`/`match_round` (que ya
-    coincidían) y cortaba con `continue` sin mirar los goles — el partido
+    coincidían) y cortaba con `continue` sin mirar los goles, el partido
     se quedaba "sin jugar" para siempre. Debe actualizarse en cuanto el
     marcador deja de ser -1."""
     from sqlalchemy import select
@@ -408,7 +408,7 @@ def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
             assert row.home_goals == -1
             assert row.status == "UPCOMING"
 
-        # Mismo cruce, mismo series_ht_id/match_round — CHPP ya tiene el
+        # Mismo cruce, mismo series_ht_id/match_round, CHPP ya tiene el
         # marcador real. Antes del fix, esta segunda llamada era un no-op.
         played_payload = {
             "series_ht_id": 7777,
@@ -442,7 +442,7 @@ def test_persist_league_fixtures_fills_in_a_score_once_chpp_has_it() -> None:
 
 
 def test_persist_league_fixtures_never_overwrites_an_already_confirmed_score() -> None:
-    """El guard es solo para el placeholder -1 — un marcador YA confirmado
+    """El guard es solo para el placeholder -1, un marcador YA confirmado
     (por `matches.xml`/`matchdetails.xml`, que lo conocen mejor) nunca se
     pisa con lo que traiga `leaguefixtures.xml` después."""
     from sqlalchemy import select
@@ -508,8 +508,8 @@ def test_persist_league_fixtures_never_overwrites_an_already_confirmed_score() -
 
 
 def test_best_worst_case_is_computed_for_the_own_team() -> None:
-    """`best_worst` ahora es un solo objeto — "el equipo que estamos
-    analizando" es el propio, no toda la tabla — con una DISTRIBUCIÓN de
+    """`best_worst` ahora es un solo objeto, "el equipo que estamos
+    analizando" es el propio, no toda la tabla, con una DISTRIBUCIÓN de
     puestos por escenario en vez de un número: aunque el resultado propio
     esté forzado a un extremo (goleada), el resto de la liga sigue siendo
     incierto."""
@@ -596,10 +596,10 @@ CAVEAT_NEEDLE = "trae los partidos de tu equipo"
 
 async def _with_full_series_schedule(*, partial_round_played: bool):
     """4 equipos, calendario con `series_ht_id`/`match_round` reales (como
-    los deja `leaguefixtures.xml` tras el fix) — a diferencia de
+    los deja `leaguefixtures.xml` tras el fix), a diferencia de
     `_with_league`, que simula el escenario ANTERIOR al fix (matches.xml
     propio, sin esos campos). Jornada 1: los 2 partidos posibles, uno de
-    ellos entre dos rivales. Jornada 2: 1 solo partido, DEL EQUIPO propio —
+    ellos entre dos rivales. Jornada 2: 1 solo partido, DEL EQUIPO propio
     si `partial_round_played` es True ese partido ya se jugó (jornada en
     progreso, no incompleta); si es False, falta sincronizar el otro
     cruce de esa jornada (dato realmente incompleto)."""
@@ -672,7 +672,7 @@ async def _with_full_series_schedule(*, partial_round_played: bool):
             )
         )
 
-        # Jornada 2: solo el partido DEL EQUIPO propio está sincronizado —
+        # Jornada 2: solo el partido DEL EQUIPO propio está sincronizado
         # el otro cruce (600001 vs 600003) nunca llegó, sea porque falta
         # sincronizar (caso incompleto) o porque de verdad no hay más
         # equipos que emparejar en este escenario reducido de 4.
@@ -693,7 +693,7 @@ async def _with_full_series_schedule(*, partial_round_played: bool):
             )
         )
         if partial_round_played:
-            # La jornada 2 SÍ tiene sus 2 partidos — el segundo (rival vs
+            # La jornada 2 SÍ tiene sus 2 partidos, el segundo (rival vs
             # rival) sigue pendiente, nada que ver con datos incompletos.
             s.add(
                 m.Match(
@@ -716,7 +716,7 @@ async def _with_full_series_schedule(*, partial_round_played: bool):
 
 
 def test_a_round_missing_a_rival_pairing_is_caveated_as_incomplete() -> None:
-    """Jornada 2 solo trae el partido del equipo propio — el cruce entre
+    """Jornada 2 solo trae el partido del equipo propio, el cruce entre
     los otros dos rivales nunca se sincronizó. Eso SÍ es un calendario
     incompleto y debe avisarse."""
 
@@ -731,7 +731,7 @@ def test_a_round_missing_a_rival_pairing_is_caveated_as_incomplete() -> None:
 
 
 def test_a_round_with_one_match_already_played_is_not_a_false_positive() -> None:
-    """Jornada 2 SÍ tiene sus 2 partidos — uno ya se jugó, el otro sigue
+    """Jornada 2 SÍ tiene sus 2 partidos, uno ya se jugó, el otro sigue
     pendiente. Contar solo los partidos PENDIENTES por jornada daría 1 (y
     dispararía el aviso por error); el total (jugados + pendientes) da 2,
     que es lo correcto: la jornada está completa, solo en progreso."""
@@ -787,7 +787,7 @@ def test_match_list_computes_the_record_from_both_home_and_away() -> None:
 
 def test_non_official_match_types_are_always_excluded() -> None:
     """Escaleras/Duelos (MatchType 50/62, HL-146) no cuentan para el récord
-    ni aparecen en la lista — no hay override para verlos (2026-08-12,
+    ni aparecen en la lista, no hay override para verlos (2026-08-12,
     pedido explícito: "de TODOS los lugares... ni con botón, ni sin botón")."""
 
     async def go():
@@ -818,7 +818,7 @@ def test_non_official_match_types_are_always_excluded() -> None:
 
 def test_friendlies_are_hidden_unless_requested() -> None:
     """El botón que antes reactivaba Escaleras/Duelos ahora controla
-    Amistosos — partidos reales que sí cuentan si se piden explícitamente."""
+    Amistosos, partidos reales que sí cuentan si se piden explícitamente."""
 
     async def go(include_friendlies: bool):
         factory, team_id = await _with_league()
@@ -855,7 +855,7 @@ def test_friendlies_are_hidden_unless_requested() -> None:
 
 
 def test_season_filter_uses_world_context_anchor() -> None:
-    """ "TT-ss" ancla en `WorldContext` (ver weekly.py) — sin ese ancla real
+    """ "TT-ss" ancla en `WorldContext` (ver weekly.py), sin ese ancla real
     no hay forma honesta de decir a qué temporada pertenece un partido."""
 
     async def go(season: int | None):
@@ -1090,7 +1090,7 @@ def test_an_unrevealed_ceiling_is_unknown_not_zero() -> None:
     assert all(s.headroom > 0 for s in unrevealed if (s.current or 0) < 8)
 
     # 2026-08-17: nivel actual y techo se revelan por SEPARADO, y hasta ahora
-    # el nivel sin revelar se guardaba como 0 — indistinguible de jugar a
+    # el nivel sin revelar se guardaba como 0, indistinguible de jugar a
     # nivel 0. Ahora viaja como `None` y con su propio indicador, que es lo que
     # decide si la barra amarilla se pinta.
     assert all((s.current is None) != s.is_current_known for s in ana.skills), (

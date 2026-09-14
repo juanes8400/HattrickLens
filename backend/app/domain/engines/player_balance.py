@@ -1,23 +1,23 @@
-"""Saldo neto por jugador — HL-161.
+"""Saldo neto por jugador, HL-161.
 
 Hattrick Control te dice cuánto vale un jugador *hoy*; nunca te dice si esa
 compra ya fue rentable en términos absolutos: precio de compra, salario
 pagado al llegar y en cada actualización económica semanal, coste de cada
 intento de venta, la comisión real del
-agente al vender — y lo que llega después, cuando alguien revende a un
+agente al vender, y lo que llega después, cuando alguien revende a un
 ex-tuyo y te toca una parte por derechos de formación / club anterior.
 
     saldo = venta × (1 − %agente) − (compra + salario_acumulado + costo_listados)
             + ingreso_por_reventa_futura
 
 Pedida y validada contra la hoja de cálculo real del usuario (columna
-"Ganancia" de su tabla "Compra vs Venta") — la tabla de comisión del agente
+"Ganancia" de su tabla "Compra vs Venta"), la tabla de comisión del agente
 de abajo es la oficial de Hattrick, no una estimación.
 
 QUÉ NO SE INVENTA
 -----------------
 - Si no se conoce el precio de compra (ni real ni escrito a mano) y el
-  jugador no es canterano, el saldo es `None` — nunca 0 ni una valoración
+  jugador no es canterano, el saldo es `None`, nunca 0 ni una valoración
   estimada.
 - Si el jugador sigue en la plantilla (no vendido), no se usa ninguna
   valoración de mercado hipotética: la venta cuenta 0 hasta que sea real.
@@ -29,7 +29,7 @@ from datetime import UTC, datetime, timedelta
 from app.domain.value_objects.ht_time import HATTRICK_TZ
 
 LISTING_COST = 1000
-# Un canterano en su PRIMERA venta paga solo agente, 5% fijo — ni derechos
+# Un canterano en su PRIMERA venta paga solo agente, 5% fijo, ni derechos
 # de formación ni club anterior aplican (eres tú mismo el club de origen,
 # y tu club no cuenta como "club anterior" de tu propio canterano).
 ACADEMY_FIRST_SALE_PCT = 0.05
@@ -37,15 +37,15 @@ ACADEMY_FIRST_SALE_PCT = 0.05
 # cualquier venta de un jugador COMPRADO se cobra siempre un 5% adicional.
 # Se consideró añadir también un 2% de derechos de formación (real en las
 # reglas de Hattrick cuando tu club no es el club de origen), pero el
-# usuario pidió explícitamente replicar su hoja de cálculo tal cual —
-# validada exactamente contra sus propias filas reales — así que se deja
+# usuario pidió explícitamente replicar su hoja de cálculo tal cual
+# validada exactamente contra sus propias filas reales, así que se deja
 # fuera a propósito, no por descuido.
 ALWAYS_CHARGED_PCT = 0.05
 
 # Tabla oficial de Hattrick: % que se lleva el agente al vender, según los
 # días que llevas siendo dueño del jugador. Días 0-6 vienen día a día;
 # de ahí en adelante Hattrick publica un valor por SEMANA (7 días), así que
-# los días intermedios se interpolan linealmente — verificado contra la
+# los días intermedios se interpolan linealmente, verificado contra la
 # hoja de cálculo real del usuario (columna "Porc_2"), que hace exactamente
 # esta interpolación. El valor se congela en 2% desde la semana 16 (día 112).
 AGENT_PCT_BREAKPOINTS: list[tuple[int, float]] = [
@@ -103,8 +103,8 @@ class SalarySnapshot:
 # Lo que cuesta subir a un canterano al primer equipo, en la MONEDA BASE del
 # juego (Hattrick da todo el dinero así y cada país tiene su tasa: con la de
 # Colombia, 10, son 2.000 US$). 2026-08-19, aportado por el usuario: CHPP no
-# publica este cargo por ninguna parte —las nueve partidas de gasto de
-# `economy.xml` no lo incluyen— así que el número viene del juego y se declara
+# publica este cargo por ninguna parte, las nueve partidas de gasto de
+# `economy.xml` no lo incluyen, así que el número viene del juego y se declara
 # aquí en vez de esconderlo en un cálculo.
 YOUTH_PROMOTION_COST = 20_000
 
@@ -112,7 +112,7 @@ YOUTH_PROMOTION_COST = 20_000
 @dataclass(frozen=True)
 class PlayerTransferRecord:
     """Todo lo que hace falta saber de UN jugador para calcular su saldo.
-    `salary_history` es lo que de verdad se sincronizó — con huecos, no
+    `salary_history` es lo que de verdad se sincronizó, con huecos, no
     una serie perfecta semana a semana; el motor extrapola."""
 
     purchase_price: int | None  # None = desconocido (ni real ni manual)
@@ -127,7 +127,7 @@ class PlayerTransferRecord:
     # ancla para reconstruir las demás; no depende del día en que se compró.
     economy_date: datetime | None
     # Ingreso por reventas futuras de origen desconocido, ya repartido y
-    # asignado a este jugador (ver `resale_bonus.py`) — 0 si no aplica.
+    # asignado a este jugador (ver `resale_bonus.py`), 0 si no aplica.
     resale_bonus_share: float = 0.0
     as_of: datetime = field(default_factory=lambda: datetime.now(UTC))
     # Lo que costó ascenderlo, si vino de la cantera. Se pasa en vez de leerse
@@ -136,7 +136,7 @@ class PlayerTransferRecord:
     promotion_cost: int = 0
     # El salario que Hattrick reporta de este jugador, para quien no dejo ni
     # un snapshot: comprado y vendido entre dos sincronizaciones. No es una
-    # estimacion nuestra, es el dato que da `playerdetails.xml` — que lo
+    # estimacion nuestra, es el dato que da `playerdetails.xml`, que lo
     # devuelve incluso cuando el jugador ya juega en otro club.
     fallback_salary: int = 0
     # El sueldo que la curva le calcula a quien no dejo ni una lectura, porque
@@ -153,7 +153,7 @@ class PlayerBalance:
     salary_total: int
     listing_cost: int
     agent_pct: float
-    net_sale_proceeds: int  # 0 si no se ha vendido — nunca una estimación
+    net_sale_proceeds: int  # 0 si no se ha vendido, nunca una estimación
     resale_bonus_share: float
     saldo: float | None  # None si falta compra o calendario salarial verificable
     is_sold: bool
@@ -163,7 +163,7 @@ class PlayerBalance:
     # no cobrara, y el saldo sale mejor de lo que fue. Se marca en vez de
     # inventar una cifra, que es la regla del resto de la app.
     salary_known: bool = True
-    #: `observado` | `estimado` | `desconocido` — de donde sale `salary_total`.
+    #: `observado` | `estimado` | `desconocido`, de donde sale `salary_total`.
     salary_source: str = "observado"
 
 
@@ -241,7 +241,7 @@ def salary_payment_dates(
 
 
 def salary_at(history: list[SalarySnapshot], target: datetime) -> int:
-    """Último salario conocido en o antes de `target` — el mismo
+    """Último salario conocido en o antes de `target`, el mismo
     carry-forward que ya usa el resto de la app para huecos entre syncs
     (si el salario no cambió, sencillamente no hay snapshot nuevo). Si no
     hay ningún dato anterior a `target`, se usa el primero disponible como
@@ -264,7 +264,7 @@ def _total_salary(
 
     Sin ningún snapshot se usa `fallback`: el salario que Hattrick reporta de
     ese jugador, que sigue dándolo aunque ya juegue en otro club. No es un
-    número inventado por nosotros — o se conoce, o la casilla queda vacía.
+    número inventado por nosotros, o se conoce, o la casilla queda vacía.
     """
     payments = salary_payment_dates(purchased_at, end, economy_date)
     if not history:
@@ -294,7 +294,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         record.promotion_cost if record.is_academy_graduate else (record.purchase_price or 0)
     )
     end = record.sold_at or record.as_of
-    # Sin fecha de compra conocida no hay cruces que contar — 0, no negativo.
+    # Sin fecha de compra conocida no hay cruces que contar, 0, no negativo.
     purchased_at = record.purchased_at or end
     salary_total = _total_salary(
         purchased_at,
@@ -311,7 +311,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         days_owned = max(((record.sold_at or end) - purchased_at).days, 0)
         # Canterano en su primera venta: solo el agente, plano. Cualquier
         # otra venta: tabla de agente + 5% siempre (ver ALWAYS_CHARGED_PCT
-        # arriba — replica la hoja de cálculo real del usuario).
+        # arriba, replica la hoja de cálculo real del usuario).
         agent_pct = (
             ACADEMY_FIRST_SALE_PCT
             if record.is_academy_graduate

@@ -3,7 +3,7 @@
 CHPP publica `IsMaxReached` en cada habilidad juvenil y la app lo estaba
 tirando. Es un dato distinto del par nivel/techo: dice "esto ya no sube" y se
 sabe aunque el techo en sí siga oculto. Sin él no se puede decidir a quién
-entrenar — una habilidad topada no mejora por mucho que se la entrene.
+entrenar, una habilidad topada no mejora por mucho que se la entrene.
 
 Revision ID: 0049
 Revises: 0048

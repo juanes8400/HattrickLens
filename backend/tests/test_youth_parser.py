@@ -1,4 +1,4 @@
-"""youthplayerlist.xml — 2026-08-15.
+"""youthplayerlist.xml, 2026-08-15.
 
 El módulo de Juveniles llevaba tiempo completo (categorías, potencial, plazos,
 ROI) leyendo de una tabla que nadie llenaba: nunca se descargaba el fichero.
@@ -33,7 +33,7 @@ def test_reads_age_and_promotion_deadline() -> None:
 def test_unrevealed_skill_is_none_not_zero() -> None:
     """El punto entero del módulo: un techo que el ojeador no ha revelado no
     es un techo bajo. CHPP lo marca con IsAvailable="False" y el elemento
-    vacío — si esto devolviera 0, el motor descartaría canteranos por
+    vacío, si esto devolviera 0, el motor descartaría canteranos por
     ignorancia en vez de por evidencia."""
     alirio = _parse()[0]
     assert alirio["keeper"] is None
@@ -61,5 +61,5 @@ def test_maps_chpp_skill_names_to_app_names() -> None:
 def test_minutes_of_last_match_default_to_zero_without_one() -> None:
     players = _parse()
     assert players[0]["minutes_last_match"] == 90
-    # El segundo juvenil no tiene <LastMatch> — nunca jugó.
+    # El segundo juvenil no tiene <LastMatch>, nunca jugó.
     assert players[1]["minutes_last_match"] == 0

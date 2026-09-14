@@ -1,7 +1,7 @@
 """Cerrar la fórmula de entrenamiento: de supuestos a lecturas del CHPP.
 
-El motor de entrenamiento tenía tres valores puestos a mano —la suma de niveles
-de ayudantes, el nivel del entrenador y el %condición— que ajustaban los datos
+El motor de entrenamiento tenía tres valores puestos a mano, la suma de niveles
+de ayudantes, el nivel del entrenador y el %condición, que ajustaban los datos
 pero que no venían del juego. Estos tests comprueban que ahora cada uno se lee
 del fichero CHPP correcto, que no queda ningún supuesto escondido, y que la
 fórmula se valida contra subidas de nivel que Hattrick confirma en vez de
@@ -29,7 +29,7 @@ def _run(coro):
 
 def test_club_parser_no_longer_reads_dead_staff_fields() -> None:
     """2026-08-12, corrección: club.xml v1.1 (verificado en vivo contra la
-    cuenta real) ya no trae `<Staff>` ni `AssistantTrainerLevels` — solo
+    cuenta real) ya no trae `<Staff>` ni `AssistantTrainerLevels`, solo
     `<Specialists>` (booleanos) y `<YouthSquad>`. El parser no debe fingir
     que sigue leyendo un campo que Hattrick dejó de enviar."""
     data = get_parser("club")((FIXTURES / "club.xml").read_bytes())
@@ -41,7 +41,7 @@ def test_club_parser_no_longer_reads_dead_staff_fields() -> None:
 
 
 def test_stafflist_parser_reads_the_real_trainer_and_staff() -> None:
-    """El desglose real de asistentes vive aquí, no en club.xml — 2 personas
+    """El desglose real de asistentes vive aquí, no en club.xml, 2 personas
     de nivel 5 cada una (StaffType=1), no un agregado misterioso."""
     data = get_parser("stafflist")((FIXTURES / "stafflist.xml").read_bytes())
     tr = data["trainer"]
@@ -58,7 +58,7 @@ def test_stafflist_parser_reads_the_real_trainer_and_staff() -> None:
 def test_worlddetails_parser_reads_currency_and_calendar() -> None:
     """La tasa de moneda y la temporada/jornada reales: el fin del ×10 a mano y
     del lío de temporada (HL-007). 2026-08-04: worlddetails.xml trae el
-    `<LeagueList>` de TODOS los países, no uno solo — el fixture tiene el
+    `<LeagueList>` de TODOS los países, no uno solo, el fixture tiene el
     real de Colombia (LeagueID 19, no el 50 que resultó ser Grecia)."""
     data = get_parser("worlddetails")((FIXTURES / "worlddetails.xml").read_bytes())
     assert len(data["leagues"]) == 1
@@ -104,7 +104,7 @@ def test_sync_sets_team_currency_and_league_id_from_teamdetails_and_worlddetails
     """2026-08-04, corrección importante pedida por el usuario:
     `Team.currency_rate`/`currency_name` NUNCA los ponía nada en el flujo
     real de sync (solo un script de desarrollo los había escrito a mano una
-    vez) — se cruzan `teamdetails.xml` (Team.ht_league_id) contra
+    vez), se cruzan `teamdetails.xml` (Team.ht_league_id) contra
     `worlddetails.xml` (WorldContext por país) y se copian a Team los del
     país que de verdad coincide, no un valor fijo asumido."""
     async def go():
@@ -179,7 +179,7 @@ def test_sync_persists_staff_world_and_skill_ups() -> None:
     assert len(staff) == 1
     # club y stafflist rellenan la MISMA fila, no dos.
     # 10 = 5+5, los dos asistentes de entrenador reales del fixture
-    # (StaffType=1) — ya no un agregado de club.xml (ver parse_club).
+    # (StaffType=1), ya no un agregado de club.xml (ver parse_club).
     assert staff[0].assistant_trainer_levels == 10
     assert staff[0].trainer_skill_level == 5
     assert len(world) == 1
@@ -194,7 +194,7 @@ def test_sync_persists_staff_world_and_skill_ups() -> None:
 def test_a_missing_trainer_element_does_not_wipe_the_last_known_trainer() -> None:
     """2026-08-12, riesgo real encontrado al verificar en vivo: CHPP a veces
     omite `<Trainer>` por completo de stafflist.xml. Antes de esta guarda,
-    ese "sin dato" se escribía como 0/tipo-por-defecto en cada sync — ahora
+    ese "sin dato" se escribía como 0/tipo-por-defecto en cada sync, ahora
     que club+stafflist entran en cada sync normal (ver DEFAULT_FILES), eso
     habría borrado el entrenador real en la próxima sincronización."""
     from typing import Any
@@ -232,7 +232,7 @@ def test_a_missing_trainer_element_does_not_wipe_the_last_known_trainer() -> Non
     assert latest.trainer_skill_level == 5   # el real, no reseteado a 0
     assert latest.trainer_type == 2
     assert latest.trainer_leadership == 5
-    # El roster de asistentes SÍ se actualiza — <StaffMembers> siguió llegando.
+    # El roster de asistentes SÍ se actualiza, <StaffMembers> siguió llegando.
     assert latest.assistant_trainer_levels == 10
 
 
@@ -281,7 +281,7 @@ def test_ningun_termino_de_la_formula_es_un_supuesto() -> None:
 
     expected_source = {
         # 2026-08-12: el agregado dejó de venir con los datos del club
-        # (verificado en vivo) — ahora es la suma real de tus asistentes.
+        # (verificado en vivo), ahora es la suma real de tus asistentes.
         "assistant_level_sum": "Cuerpo técnico",
         "intensity": "Entrenamiento",
         "stamina_share": "Entrenamiento",
@@ -303,7 +303,7 @@ def test_ningun_termino_de_la_formula_es_un_supuesto() -> None:
 
 def test_the_read_values_replace_the_hand_set_ones() -> None:
     """El %condición fijado a mano (12,5%) se sustituye por el leído (25%).
-    El agregado de ayudantes fijado a mano también era 10 — coincide con el
+    El agregado de ayudantes fijado a mano también era 10, coincide con el
     real (2 asistentes de nivel 5), pero por una razón distinta: éste es la
     suma de personas reales de stafflist.xml, no un número inventado."""
     async def go():
@@ -377,7 +377,7 @@ def test_without_the_new_files_it_degrades_honestly() -> None:
 def test_without_training_xml_stamina_falls_back_to_the_configured_default() -> None:
     """Bug real corregido 2026-08-14: sin training.xml, el supuesto de
     %condición caía en 0 en vez del `default_stamina_share` (12.5) que el
-    propio training.yaml documenta para este caso — 0% habría predicho un
+    propio training.yaml documenta para este caso, 0% habría predicho un
     entrenamiento más rápido de lo que ese supuesto pretende representar."""
     async def go():
         from sqlalchemy import delete

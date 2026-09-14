@@ -5,6 +5,7 @@ reales de Pulgas Arrechas contra SQLite en memoria y leen de ahí, así que si u
 parser cambia de forma o un query service asume una columna que no existe, el
 test se entera. Un mock habría seguido pasando.
 """
+
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,7 @@ class FakeCHPP:
         # `files` (ver sync_team.py). El fixture de playerdetails no
         # distingue por jugador (siempre el mismo LastMatch/ht_match_id), así
         # que servirlo aquí crearía un partido "fantasma" para CADA test que
-        # use `seeded_session()` — justo lo que este helper ya declaraba
+        # use `seeded_session()`, justo lo que este helper ya declaraba
         # evitar ("no deben chocar con los reales del fixture"). Se le niega
         # a propósito; los tests que sí quieren probar ese camino (p. ej.
         # test_sync_flow.py, test_player_history.py) usan su propio FakeCHPP.
@@ -48,7 +49,8 @@ class FakeCHPP:
 async def seeded_session() -> tuple[async_sessionmaker, int]:
     """Base en memoria con el equipo real ya sincronizado."""
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     async with engine.begin() as conn:
@@ -56,9 +58,12 @@ async def seeded_session() -> tuple[async_sessionmaker, int]:
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as s:
         team = m.Team(
-            ht_team_id=HT_TEAM_ID, name="Pulgas Arrechas",
-            league_name="Colombia", series_name="V.92",
-            currency_rate=10.0, currency_name="US$",
+            ht_team_id=HT_TEAM_ID,
+            name="Pulgas Arrechas",
+            league_name="Colombia",
+            series_name="V.92",
+            currency_rate=10.0,
+            currency_name="US$",
         )
         s.add(team)
         await s.commit()
@@ -67,10 +72,12 @@ async def seeded_session() -> tuple[async_sessionmaker, int]:
     # Explícito, no el default: los tests de liga/partidos (`_with_league` en
     # test_league_matches_academy_queries.py) siembran su propio escenario de
     # standings/matches encima de esta base y no deben chocar con los reales
-    # del fixture — aunque el sync por defecto del producto sí los incluya.
+    # del fixture, aunque el sync por defecto del producto sí los incluya.
     await handler.execute(
         SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=HT_TEAM_ID,
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=HT_TEAM_ID,
             files=["players", "training", "economy"],
         )
     )
@@ -79,7 +86,9 @@ async def seeded_session() -> tuple[async_sessionmaker, int]:
     # antes/después de "cerrar la fórmula".
     await handler.execute(
         SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=HT_TEAM_ID,
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=HT_TEAM_ID,
             files=["club", "stafflist", "worlddetails", "trainingevents"],
         )
     )
@@ -89,6 +98,17 @@ async def seeded_session() -> tuple[async_sessionmaker, int]:
 @pytest.fixture
 def fixtures_dir() -> Path:
     return FIXTURES
+
+
+@pytest.fixture(autouse=True)
+def _cache_por_sync_vacia():
+    """Cada prueba crea su base con los mismos ids: sin vaciar la caché, una
+    podría leer lo que calculó otra (2026-09-14)."""
+    from app.api.cache_por_sync import limpiar
+
+    limpiar()
+    yield
+    limpiar()
 
 
 @pytest.fixture(autouse=True)

@@ -8,7 +8,7 @@ export interface DateRange {
 const EMPTY_RANGE: DateRange = { start: null, end: null };
 
 /** Recorta un eje de fechas con un calendario nativo en vez de la barra de
- * dataZoom — misma interacción en cualquier gráfica de serie temporal. */
+ * dataZoom, misma interacción en cualquier gráfica de serie temporal. */
 export function useDateRangeFilter(dates: string[]): {
   range: DateRange;
   setRange: (r: DateRange) => void;

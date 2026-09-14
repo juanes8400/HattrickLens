@@ -13,7 +13,7 @@ tipo declarado y asyncpg rechaza el valor con zona que acaba de leer de esa
 misma columna.
 
 En sqlite no se ve: devuelve fechas sin zona y todo encaja. Es decir, la
-suite local puede estar entera en verde y el despliegue caerse igual — el
+suite local puede estar entera en verde y el despliegue caerse igual, el
 mismo motivo por el que las claves primarias de otra migración pasaron y
 reventaron al primer INSERT real.
 
@@ -28,7 +28,7 @@ from pathlib import Path
 
 VERSIONES = Path(__file__).resolve().parents[1] / "migrations" / "versions"
 
-#: `sa.column("lo_que_sea", sa.DateTime)` — sin `timezone=True` detrás.
+#: `sa.column("lo_que_sea", sa.DateTime)`, sin `timezone=True` detrás.
 SIN_ZONA = re.compile(r'sa\.column\(\s*"([^"]+)"\s*,\s*sa\.DateTime\s*\)')
 
 

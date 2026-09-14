@@ -2,8 +2,8 @@
 
 2026-08-31, orden explícita del usuario: «Cualquier referencia a CHPP no debe
 ser vista por los usuarios en ningún momento. BORRAR». Cubre las dos formas en
-que se colaba: el nombre de la API y el nombre de sus ficheros —`training.xml`,
-`stafflist.xml`, `leaguefixtures.xml`—, que en un texto de pantalla no le dicen
+que se colaba: el nombre de la API y el nombre de sus ficheros, `training.xml`,
+`stafflist.xml`, `leaguefixtures.xml`, , que en un texto de pantalla no le dicen
 nada a nadie y delatan la tubería.
 
 Esto no vigila comentarios ni docstrings, que nadie ve. Vigila las cadenas que
@@ -20,7 +20,9 @@ from pathlib import Path
 APP = Path(__file__).resolve().parent.parent / "app"
 
 #: Todo lo que no puede aparecer en una cadena que acabe en pantalla.
-PROHIBIDO = ("CHPP", ".xml")
+#: Los nombres de fichero sin extensión y sus campos también delatan la tubería
+#: (2026-09-13: A posteriori decía «se usa LastMatch de playerdetails»).
+PROHIBIDO = ("CHPP", ".xml", "playerdetails", "matchlineup", "LastMatch")
 
 #: Módulos cuyas cadenas SÍ llegan al usuario: motores que redactan avisos,
 #: consultas que arman etiquetas y los endpoints que las sirven.
@@ -69,7 +71,5 @@ def test_ninguna_cadena_de_pantalla_nombra_la_api() -> None:
                     continue
                 for prohibido in PROHIBIDO:
                     if prohibido in texto:
-                        culpables.append(
-                            f"{fichero.relative_to(APP)}:{linea} → {texto[:90]!r}"
-                        )
+                        culpables.append(f"{fichero.relative_to(APP)}:{linea} → {texto[:90]!r}")
     assert not culpables, "referencias a la API en texto de pantalla:\n" + "\n".join(culpables)

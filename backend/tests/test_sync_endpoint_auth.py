@@ -1,4 +1,4 @@
-"""POST /teams/{id}/sync — el primer test HTTP real del proyecto.
+"""POST /teams/{id}/sync, el primer test HTTP real del proyecto.
 
 Hasta ahora toda la suite ejercitaba `SyncTeamHandler` directamente; este
 endpoint es distinto porque le añade sesión y ownership por encima, y ese es
@@ -125,19 +125,19 @@ def test_sync_runs_for_real_with_a_valid_session(
     # + 17 partidos + 1 compra propia en transfersteam + 2 partidos de liga
     # que leaguefixtures.xml backfillea con series_ht_id/match_round (HL-090)
     # + worlddetails (2026-08-04: entró a DEFAULT_FILES para mantener la
-    # temporada actual fresca — ver sync_team.py) = 49, MÁS lo que ahora se
+    # temporada actual fresca, ver sync_team.py) = 49, MÁS lo que ahora se
     # sincroniza automáticamente en cada sync (2026-08-05: "sincroniza todos
     # los xml que importen cada vez que sincronizamos"): 24 playerdetails
     # (LastMatch/Caps, primera vez que se ve = todos cuentan como cambio) +
     # hasta 24 transfersplayer (precio de compra/TSI para quien no lo tenía
-    # resuelto, "una vez por jugador para siempre" — cae a ~0 en syncs
+    # resuelto, "una vez por jugador para siempre", cae a ~0 en syncs
     # siguientes) + 3 matchdetails (2 MatchRating + 1 StadiumHistory del
     # único partido cuyo matchID coincide con el fixture estático).
-    # +2 (2026-08-12: club + stafflist entraron a DEFAULT_FILES — antes sólo
+    # +2 (2026-08-12: club + stafflist entraron a DEFAULT_FILES, antes sólo
     # se sincronizaban una vez a mano al conectar la cuenta, nunca de nuevo
     # con el "Sincronizar" normal) + 5 pops confirmados de trainingevents
     # (2026-08-14: por fin entró materialmente en DEFAULT_FILES) = 107
-    # +2 juveniles (2026-08-15: `youthplayerlist` entró a DEFAULT_FILES — el
+    # +2 juveniles (2026-08-15: `youthplayerlist` entró a DEFAULT_FILES, el
     # módulo de Juveniles estaba completo pero nadie descargaba el fichero,
     # así que la pantalla leía de una tabla vacía) = 109.
     assert body["syncId"] > 0
@@ -188,7 +188,7 @@ def test_sync_response_includes_changes_and_get_endpoint_reflects_them(
 
 class FakeMatchDetailsCHPP(FakeCHPPClient):
     """Como el CHPP real: el `matchdetails` devuelto es del partido pedido,
-    no siempre el mismo — si no, cada partido pendiente escribiría el rating
+    no siempre el mismo, si no, cada partido pendiente escribiría el rating
     de uno solo por encima del anterior."""
 
     async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
@@ -202,7 +202,7 @@ def test_match_details_sync_fills_in_the_pending_matches(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
 ) -> None:
     """2026-08-05, pedido explícitamente: "sincroniza todos los xml que
-    importen cada vez que sincronizamos" — `matchdetails.xml` (HatStats,
+    importen cada vez que sincronizamos", `matchdetails.xml` (HatStats,
     ratings por sector) ya no espera al botón "Sincronizar detalles" de
     Partidos: el sync normal (`matches` en DEFAULT_FILES) lo rellena solo
     para cualquier partido terminado sin ratings. El botón manual sigue
@@ -220,7 +220,7 @@ def test_match_details_sync_fills_in_the_pending_matches(
 
     with (
         # FakeMatchDetailsCHPP, no el genérico: como el CHPP real, cada
-        # matchID pedido trae SU propio partido — necesario para que el
+        # matchID pedido trae SU propio partido, necesario para que el
         # backfill automático, que pide varios matchID distintos en un
         # mismo sync, procese los 16 realmente (ver su docstring arriba).
         patch("app.api.v1.endpoints.teams.CHPPClient", FakeMatchDetailsCHPP),
@@ -228,11 +228,11 @@ def test_match_details_sync_fills_in_the_pending_matches(
     ):
         client.post(f"/api/v1/teams/{team_id}/sync")  # DEFAULT_FILES incluye "matches"
 
-    # 2 MatchRating (casa+fuera) por cada partido finalizado — 16 de
+    # 2 MatchRating (casa+fuera) por cada partido finalizado, 16 de
     # matches.xml (17 en el fixture, 1 sigue "UPCOMING") + 1 más que
     # leaguefixtures.xml (HL-090, corre antes que "matches" en DEFAULT_FILES)
     # backfillea con series_ht_id/match_round y que también resulta
-    # finalizado — ya completo tras el sync normal.
+    # finalizado, ya completo tras el sync normal.
     assert asyncio.run(count_ratings()) == 34
 
     with (

@@ -1,4 +1,4 @@
-"""Las cinco tablas que nunca tuvieron migración — descubierto al desplegar.
+"""Las cinco tablas que nunca tuvieron migración, descubierto al desplegar.
 
 `matches`, `match_ratings`, `standings`, `stadium_history` y
 `former_youth_players` existían en el modelo y en la base de desarrollo, pero

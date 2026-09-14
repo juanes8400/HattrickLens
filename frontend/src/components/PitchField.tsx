@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * Fondo de cancha reutilizable — dimensiones tomadas literalmente de "Mejor
+ * Fondo de cancha reutilizable, dimensiones tomadas literalmente de "Mejor
  * alineación" (LeaguePage.tsx, Comparativa), pedido explícito 2026-08-14
  * para replicar la misma figura donde haga falta una cancha en la app en
  * vez de copiar el markup a mano en cada sitio.
@@ -151,7 +151,7 @@ export function PitchGrid<T>({
  *
  * 2026-08-21, por reportes de usuarios: el ancho era 9rem fijo, así que las
  * cinco columnas medían 45rem y en un teléfono la cancha se salía de la
- * pantalla — había que arrastrarla de lado para ver al extremo derecho, y el
+ * pantalla, había que arrastrarla de lado para ver al extremo derecho, y el
  * verde terminaba antes que la formación. Ahora el ancho es una variable
  * (`--pitch-card`, en index.css) que vale 9rem cuando cabe y se encoge para
  * llenar exactamente el ancho disponible cuando no. La geometría no cambia:

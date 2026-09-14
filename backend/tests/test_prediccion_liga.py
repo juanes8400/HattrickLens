@@ -2,7 +2,7 @@
 
 Lo que se vigila aquí es el fallo que ya apareció dos veces: pedir un rating
 con un nombre que el lector de partidos no usa. No revienta, no avisa, guarda
-un cero — y un cero convertido en `A/(A+B)` deja de ser «no sé» para pasar a
+un cero, y un cero convertido en `A/(A+B)` deja de ser «no sé» para pasar a
 ser «el rival gana ese duelo entero».
 """
 
@@ -82,9 +82,14 @@ async def test_las_lecturas_traen_balon_parado_de_verdad():
     assert set(lecturas) == {10, 20}
     for equipo in (10, 20):
         for lectura in lecturas[equipo]:
-            assert set(lectura) == set(CAMPOS)
+            # Los nueve ratings y, desde el 2026-09-12, con qué táctica se
+            # jugó: la corrección por táctica la necesita, y sacarla después
+            # obligaría a volver a pedir el partido. Y de qué partido es: el
+            # Resumen de Liga nombra el partido con el que pronostica cada lado.
+            # Y dónde se jugó, para la corrección de sede (2026-09-13).
+            assert set(lectura) == set(CAMPOS) | {"tactic_type", "ht_match_id", "en_casa"}
             # Ningún cero: el lector devolvió valores para los nueve.
-            assert all(v > 0 for v in lectura.values())
+            assert all(lectura[c] > 0 for c in CAMPOS)
 
 
 @pytest.mark.asyncio

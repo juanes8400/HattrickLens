@@ -2,7 +2,7 @@
 reconstruida hacia atrás para jugadores sin snapshot previo a su venta.
 
 La edad en Hattrick es una función pura del tiempo transcurrido (112 días
-por "año"/temporada, sin entrenamiento ni azar de por medio) — a diferencia
+por "año"/temporada, sin entrenamiento ni azar de por medio), a diferencia
 de las habilidades, si sabemos la edad de HOY (vía playerdetails.xml, que
 funciona para cualquier jugador aunque ya no esté en el equipo) podemos
 calcular con exactitud la edad en cualquier fecha pasada. Confirmado por el

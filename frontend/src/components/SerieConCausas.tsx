@@ -5,8 +5,8 @@ import { number } from "../hooks/useFormat";
  * Una serie temporal donde cada tramo dice a qué obedece.
  *
  * La usan las tres pestañas de Club: Espíritu y Confianza en Psicología, y
- * el histórico de socios. Comparten gramática a propósito —la línea, la banda
- * de sucesos encima, la referencia punteada— porque son la misma pregunta
+ * el histórico de socios. Comparten gramática a propósito, la línea, la banda
+ * de sucesos encima, la referencia punteada, porque son la misma pregunta
  * hecha sobre tres cosas distintas: qué se movió y por qué.
  *
  * Dos decisiones que se notan al leerla:

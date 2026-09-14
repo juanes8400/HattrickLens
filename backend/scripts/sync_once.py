@@ -1,4 +1,4 @@
-"""Sync manual (user-initiated) contra CHPP real — herramienta de desarrollo.
+"""Sync manual (user-initiated) contra CHPP real, herramienta de desarrollo.
 
 Uso:
     DATABASE_URL=sqlite+aiosqlite:///dev.db python scripts/sync_once.py

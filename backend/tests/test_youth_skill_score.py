@@ -1,4 +1,4 @@
-"""Puntaje por habilidad de la academia — portado de `JUvens.xlsx`.
+"""Puntaje por habilidad de la academia, portado de `JUvens.xlsx`.
 
 La hoja del usuario ES la especificación, así que estas pruebas reproducen sus
 números, no números inventados: los conteos son los de `AuxiJuveniles` del
@@ -44,7 +44,7 @@ def test_un_nivel_bajo_con_el_techo_sin_revelar_no_es_un_techo_bajo() -> None:
 
 def test_a_capped_skill_scores_nothing_however_high_it_is() -> None:
     """`(1 - {})`: entrenar algo que ya tocó techo es tiempo tirado. Un 8
-    topado no vale más que un desconocido — vale menos, porque del
+    topado no vale más que un desconocido, vale menos, porque del
     desconocido aún se puede esperar algo."""
     topada = ys.YouthSkillReading(current=8, maximum=8, max_reached=True)
     assert ys.skill_note(topada) is None
@@ -167,7 +167,7 @@ def test_the_ranking_puts_the_skill_worth_training_first() -> None:
 
 def test_trainable_defaults_to_zero_and_never_to_a_guess() -> None:
     """`Entrenables` se teclea a mano en la hoja. Sin ese dato el sumando no
-    participa — lo que NO se hace es estimarlo."""
+    participa, lo que NO se hace es estimarlo."""
     c = [_candidate("uno", 10, passing=ys.YouthSkillReading(current=7, maximum=7))]
     sin_dato = {s.skill: s for s in ys.score_skills(c)}["passing"]
     con_dato = {s.skill: s for s in ys.score_skills(c, {"passing": 9})}["passing"]
@@ -232,7 +232,7 @@ def test_the_block_methods_take_the_max_per_position_not_the_sum() -> None:
     """Métodos 3/4/5: mide cuán determinante es la habilidad ALLÍ DONDE SE USA.
 
     Con la suma, una habilidad concentrada en un solo puesto quedaba enterrada
-    bajo otra repartida entre muchos — la portería salía 2 sobre 16 y entrenar
+    bajo otra repartida entre muchos, la portería salía 2 sobre 16 y entrenar
     portería no se recomendaría jamás. Ése era el artefacto que motivó el
     cambio de criterio el 2026-08-17.
     """
@@ -281,7 +281,7 @@ def test_the_senior_method_is_all_or_nothing() -> None:
 
 def test_without_knowing_the_senior_training_nothing_is_pushed() -> None:
     """Si no se sabe qué entrena el primer equipo no se empuja ninguna
-    habilidad — inventar cuál sería peor que no opinar."""
+    habilidad, inventar cuál sería peor que no opinar."""
     assert set(ys.senior_trainable(None).values()) == {0}
 
 

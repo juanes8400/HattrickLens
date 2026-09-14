@@ -1,4 +1,4 @@
-# Experience constants — Hattrick Control compatible profile
+# Experience constants, Hattrick Control compatible profile
 # The accumulation and percentage flow is ported from UExperiencia.pas
 # (Suma / Porcentaje). The controls make match weights and the threshold an
 # editable profile, not hidden game constants. See
@@ -18,11 +18,11 @@ reference:
 # real de Hattrick, puntos de experiencia por tipo de encuentro): esos
 # valores son EXACTAMENTE los de abajo multiplicados por 3.5 en cada
 # categoría que ambas fuentes comparten (liga 1.0→3.5, amistoso 0.1→0.35,
-# amistoso internacional 0.2→0.7, copa/promoción 2.0→7.0) — la misma
+# amistoso internacional 0.2→0.7, copa/promoción 2.0→7.0), la misma
 # proporción entre tipos de partido que ya estaba verificada contra Hattrick
 # Control, solo en otra escala. El usuario confirmó en vivo que el umbral
 # real en esa escala es 100 puntos por nivel (no 98 = 28×3.5): se adopta esa
-# tabla como la escala canónica de aquí en adelante — points_per_level pasa
+# tabla como la escala canónica de aquí en adelante, points_per_level pasa
 # de 28 a 100 y match_points pasa a los valores reales de la tabla.
 points_per_level: 100
 
@@ -31,12 +31,12 @@ points_per_level: 100
 # the observed mean and its standard deviation instead.
 min_observations_to_calibrate: 5
 # Cifra que Hattrick Control reportaba en la escala ANTERIOR (26.3 sobre un
-# umbral de 28) — llevada a la escala nueva (×3.5) solo como referencia
+# umbral de 28), llevada a la escala nueva (×3.5) solo como referencia
 # histórica; calibrate() nunca lee esta clave, recalcula la media observada
 # desde cero con match_points ya en la escala nueva.
 points_per_level_observed_in_hc: 92.05
 
-# Experience points by match type — valores reales de Hattrick (tabla
+# Experience points by match type, valores reales de Hattrick (tabla
 # `docs/reference/tabla_experiencia.html`). `league` y `friendly_international`
 # son los dos verificados contra Hattrick Control (ver model_info().verified);
 # el resto sale de la tabla oficial pero no tiene todavía observaciones
@@ -65,7 +65,7 @@ match_points:
 # Categorías reales de la tabla que CHPP no permite atribuir hoy a un
 # match_type concreto (Selección nacional competitiva = MatchType 10/11 es
 # UN solo código para Mundial/Copa continental/Copa de Naciones y sus rondas
-# de eliminatoria, cada una con puntaje distinto) — documentadas aquí para
+# de eliminatoria, cada una con puntaje distinto), documentadas aquí para
 # que quede constancia de la tabla completa, pero fuera de `match_points`
 # porque asignarles un valor sería inventar un número, no medirlo. Ver
 # `player_history.py` (MATCH_TYPE_TO_EXPERIENCE_CATEGORY) y su detección de

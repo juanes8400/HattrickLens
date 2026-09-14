@@ -6,6 +6,7 @@ from app.infrastructure.chpp.parsers import (
     parse_leaguedetails,
     parse_matchdetails,
     parse_matches,
+    parse_matchesarchive,
     parse_matchorders,
     parse_transfersplayer,
 )
@@ -25,6 +26,22 @@ def test_parse_matches_real_fixture() -> None:
     upcoming = next(m for m in ms if m["ht_match_id"] == 767370369)
     assert upcoming["source_system"] == "hattrick"
     assert upcoming["orders_given"] is True
+
+
+def test_parse_matchesarchive_exposes_a_chpp_error_instead_of_an_empty_history() -> None:
+    xml = b"""<?xml version='1.0'?>
+    <HattrickData>
+      <FileName>chpperror.xml</FileName>
+      <Error>Invalid date range</Error>
+      <ErrorCode>42</ErrorCode>
+    </HattrickData>"""
+
+    data = parse_matchesarchive(xml)
+
+    assert data["matches"] == []
+    assert data["chpp_error"] is True
+    assert data["chpp_error_code"] == 42
+    assert data["chpp_error_message"] == "Invalid date range"
 
 
 def test_parse_matchorders_reads_only_the_submitted_starting_lineup() -> None:
@@ -49,7 +66,7 @@ def test_parse_matchorders_reports_a_chpp_error_instead_of_looking_empty() -> No
     200 con `chpperror.xml`. Sin esta rama el parser entregaba un dict con
     `ht_match_id=0`, el sync lo descartaba en silencio por no coincidir el ID y
     los ratings VIEJOS se quedaban en la base pareados con una alineación
-    nueva — que es exactamente lo que la pantalla acabó enseñando como
+    nueva, que es exactamente lo que la pantalla acabó enseñando como
     "predicción oficial CHPP"."""
     data = parse_matchorders((FIXTURES / "matchorders_chpperror.xml").read_bytes())
 
@@ -84,7 +101,7 @@ def test_parse_matchorders_predict_ratings_has_a_distinct_contract() -> None:
 def test_parse_matchdetails_real_fixture() -> None:
     d = parse_matchdetails((FIXTURES / "matchdetails.xml").read_bytes())
     assert d["ht_match_id"] == 765274387
-    assert d["match_type"] == 1  # liga — usado para rellenar `matches` de partidos ajenos
+    assert d["match_type"] == 1  # liga, usado para rellenar `matches` de partidos ajenos
 
     home, away = d["home"], d["away"]
     # Ratings observados: defensa central 61 contra ataque central 27
@@ -101,7 +118,7 @@ def test_parse_matchdetails_real_fixture() -> None:
     assert "sold_terraces" not in d["arena"]
     assert "sold_vip" not in d["arena"]
     # matchdetails.xml v3.1 real no trae `<Event>`/EventTypeID (verificado en
-    # vivo) — solo conteos de ocasiones por zona, por lado.
+    # vivo), solo conteos de ocasiones por zona, por lado.
     assert home["chances"] == {"left": 3, "center": 0, "right": 1, "special": 0, "other": 0}
     assert away["chances"] == {"left": 1, "center": 1, "right": 1, "special": 1, "other": 1}
 
@@ -148,7 +165,7 @@ def test_parsers_tolerate_missing_fields() -> None:
 
 
 def test_parse_transfersplayer_real_fixture() -> None:
-    """HL-161: fichero real de esta cuenta — CORRECCIÓN 2026-08-03, el
+    """HL-161: fichero real de esta cuenta, CORRECCIÓN 2026-08-03, el
     nombre correcto lleva "s" (`transfersplayer`, no `transferplayer`), y
     SÍ funciona con el token de esta app. Trae el historial completo de
     transferencias de un jugador, no solo mientras estuvo con nosotros."""

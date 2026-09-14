@@ -1,6 +1,6 @@
 """2026-08-12, pedido explícitamente ("Lee bien cómo se leen los
 asistentes"): club.xml v1.1 (verificado en vivo) ya no trae los niveles
-agregados por puesto — el desglose real, persona por persona, vive en
+agregados por puesto, el desglose real, persona por persona, vive en
 stafflist.xml. Esta columna guarda ese roster real (nombre + tipo + nivel de
 cada persona) del snapshot, para poder mostrar "2 asistentes de nivel 5 cada
 uno" en vez de un número agregado sin procedencia clara.

@@ -76,7 +76,7 @@ const DIVULGACION: { titulo: string; fecha: string; url: string }[] = [
     url: "https://juandelacalle.medium.com/why-bayesian-statistics-are-useless-86c0260520c3",
   },
   {
-    titulo: "Why Agile Doesn't Work for Data Science — And That's Okay",
+    titulo: "Why Agile Doesn't Work for Data Science, And That's Okay",
     fecha: "octubre 2023",
     url: "https://juandelacalle.medium.com/why-agile-doesnt-work-for-data-science-and-that-s-okay-2367ad289205",
   },

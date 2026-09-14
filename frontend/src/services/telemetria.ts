@@ -2,7 +2,7 @@
  *
  * 2026-08-26, pedido por el usuario. Vive aquí y no en un servicio de fuera:
  * los datos no salen de su servidor, ningún bloqueador lo tumba y no hay
- * cookie que consentir —la sesión de la aplicación ya existía—.
+ * cookie que consentir, la sesión de la aplicación ya existía, .
  *
  * Lo que NUNCA se manda: nada que el usuario escriba. Ni el contenido de un
  * campo, ni una búsqueda. De un clic sólo viaja la etiqueta visible del
@@ -14,11 +14,12 @@
 const MODULOS: [RegExp, string][] = [
   [/^\/academy/, "Juveniles"],
   [/^\/team$|^\/players\//, "Jugadores"],
+  [/^\/skills/, "Habilidades (Profundidad)"],
   [/^\/transfers/, "Transferencias"],
   [/^\/sync/, "Sincronización"],
   [/^\/economy/, "Economía"],
   [/^\/matches/, "Partidos"],
-  [/^\/league/, "Liga"],
+  [/^\/league|^\/liga/, "Liga"],
   [/^\/cup/, "Copa"],
   [/^\/rivals/, "Rivales"],
   [/^\/training/, "Entrenamiento"],
@@ -34,8 +35,14 @@ const MODULOS: [RegExp, string][] = [
   // Sin la entrada nueva, todas sus visitas caían en «Otros» y el módulo
   // más consultado del mes no aparecía en la tabla.
   [/^\/transparency/, "Transparencia"],
+  [/^\/wiki/, "Wiki"],
   [/^\/engine/, "Transparencia"],
   [/^\/uso/, "Uso"],
+  // Las páginas del autor, fuera del mapa hasta el 2026-09-13: salían como
+  // «Otros (/autor)». Los nombres, los mismos del menú.
+  [/^\/autor/, "Autor"],
+  [/^\/libro/, "Libro de visitas"],
+  [/^\/apoyar/, "Apoyar el proyecto"],
   // El alta, cada pantalla por separado: es el embudo --cuántos entran, cuántos
   // conectan Hattrick y cuántos llegan a sincronizar-- y agrupadas en "Otros"
   // no se puede ver dónde se cae la gente.
@@ -77,7 +84,7 @@ type Evento = {
 
 const CLAVE_SESION = "htlens.sesion";
 /** Media hora de silencio y se considera otra visita. Cerrar el navegador no
- *  siempre avisa —se pierde la conexión, el móvil mata la pestaña—, así que
+ *  siempre avisa, se pierde la conexión, el móvil mata la pestaña, , así que
  *  esperar ese aviso dejaría sesiones abiertas para siempre. */
 const CORTE_POR_SILENCIO_MS = 30 * 60 * 1000;
 const CLAVE_ULTIMO = "htlens.ultimo";

@@ -1,6 +1,6 @@
 """2026-08-05: playerdetails.xml devuelve <Error>/ErrorCode (HTTP 200) para
 jugadores cuyo ID ya no resuelve en Hattrick (ventas viejas, ~105 casos
-verificados en vivo contra esta cuenta) — sin este flag,
+verificados en vivo contra esta cuenta), sin este flag,
 `_backfill_sold_player_details` los volvía a pedir en CADA sync para
 siempre, ~105 llamadas CHPP secuenciales desperdiciadas cada vez.
 

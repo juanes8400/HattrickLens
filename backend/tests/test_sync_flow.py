@@ -1,8 +1,9 @@
 """E2E del use case de sync contra DB real (sqlite in-memory) y CHPP fake.
 
-Verifica el invariante central del producto: append-only + diffing —
+Verifica el invariante central del producto: append-only + diffing
 un segundo sync sin cambios NO escribe filas nuevas.
 """
+
 import asyncio
 import json
 from datetime import datetime
@@ -15,6 +16,7 @@ from sqlalchemy.pool import StaticPool
 from app.application.commands.sync_team import (
     SyncMatchDetailsCommand,
     SyncPlayerDetailsCommand,
+    SyncResult,
     SyncTeamCommand,
     SyncTeamHandler,
 )
@@ -34,9 +36,7 @@ class FakeCHPP:
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
         self.calls += 1
         if file == "matchorders" and params.get("actionType") == "predictratings":
-            predicted = get_parser(file)(
-                (FIXTURES / "matchorders_predictratings.xml").read_bytes()
-            )
+            predicted = get_parser(file)((FIXTURES / "matchorders_predictratings.xml").read_bytes())
             predicted["ht_match_id"] = params["matchID"]
             return predicted
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
@@ -69,7 +69,9 @@ def test_first_sync_writes_all_snapshots() -> None:
         # economía en particular, no el conjunto completo de DEFAULT_FILES
         # (que incluye liga/partidos y evoluciona con el producto).
         cmd = SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758,
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=537758,
             files=["players", "training", "economy"],
         )
 
@@ -77,7 +79,7 @@ def test_first_sync_writes_all_snapshots() -> None:
         assert result.status == "completed"
         # 24 players + training + economy + 24 playerdetails automáticos
         # (2026-08-05: "sincroniza todos los xml que importen cada vez que
-        # sincronizamos" — LastMatch/Caps ya no esperan un botón aparte).
+        # sincronizamos", LastMatch/Caps ya no esperan un botón aparte).
         # 55 y no 50 desde el 2026-08-19: al sincronizar la plantilla se piden
         # también las subidas confirmadas por Hattrick, una llamada por
         # jugador (`trainingevents.xml` solo existe por playerID). El fixture
@@ -128,7 +130,9 @@ def test_second_sync_without_changes_writes_nothing() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
         cmd = SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758,
+            user_id=1,
+            team_id=team_id,
+            ht_team_id=537758,
             files=["players", "training", "economy"],
         )
 
@@ -151,19 +155,18 @@ def test_second_sync_without_changes_writes_nothing() -> None:
 def test_matches_are_upserted_by_ht_match_id() -> None:
     """`matches` no es un snapshot append-only: un partido se identifica por
     ht_match_id y se actualiza in-place (upcoming -> finished)."""
+
     async def run() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
-        cmd = SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758, files=["matches"]
-        )
+        cmd = SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["matches"])
 
         first = await handler.execute(cmd)
         # 17 <Match> entries en el fixture + 3 del backfill automático de
         # matchdetails.xml (2026-08-05: "sincroniza todos los xml que
         # importen"): 2 MatchRating (home/away) + 1 StadiumHistory, todos
         # del único partido cuyo matchID coincide con el fixture estático de
-        # matchdetails (765274387) — los demás partidos "pendientes" del
+        # matchdetails (765274387), los demás partidos "pendientes" del
         # backfill no tienen fixture propio y se descartan sin escribir
         # nada (ver el guard en `_backfill_missing_match_details`).
         assert first.snapshots_written == 21
@@ -195,14 +198,327 @@ def test_matches_are_upserted_by_ht_match_id() -> None:
     asyncio.run(run())
 
 
+ARCHIVO_CON_HUECO = b"""<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>matchesarchive.xml</FileName>
+  <Version>1.5</Version>
+  <Team>
+    <TeamID>537758</TeamID>
+    <TeamName>Pulgas Arrechas</TeamName>
+    <MatchList>
+      <Match>
+        <MatchID>767370369</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID><HomeTeamName>Pulgas Arrechas</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam>
+          <AwayTeamID>70</AwayTeamID><AwayTeamName>Leones de la Selva</AwayTeamName>
+        </AwayTeam>
+        <MatchDate>2026-07-22 23:40:00</MatchDate>
+        <MatchType>3</MatchType>
+        <MatchContextId>18</MatchContextId>
+        <SourceSystem>Hattrick</SourceSystem>
+        <CupId>18</CupId>
+        <CupLevel>1</CupLevel>
+        <CupLevelIndex>1</CupLevelIndex>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>0</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>770729379</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID><HomeTeamName>Pulgas Arrechas</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam><AwayTeamID>71</AwayTeamID><AwayTeamName>Liga Magica</AwayTeamName></AwayTeam>
+        <MatchDate>2026-07-29 23:40:00</MatchDate>
+        <MatchType>3</MatchType>
+        <MatchContextId>18</MatchContextId>
+        <SourceSystem>Hattrick</SourceSystem>
+        <CupId>18</CupId>
+        <CupLevel>1</CupLevel>
+        <CupLevelIndex>1</CupLevelIndex>
+        <HomeGoals>1</HomeGoals>
+        <AwayGoals>2</AwayGoals>
+      </Match>
+      <Match>
+        <MatchID>999888777</MatchID>
+        <HomeTeam>
+          <HomeTeamID>537758</HomeTeamID><HomeTeamName>Pulgas Arrechas</HomeTeamName>
+        </HomeTeam>
+        <AwayTeam><AwayTeamID>72</AwayTeamID><AwayTeamName>Un amistoso</AwayTeamName></AwayTeam>
+        <MatchDate>2026-07-26 23:40:00</MatchDate>
+        <MatchType>9</MatchType>
+        <MatchContextId>0</MatchContextId>
+        <SourceSystem>Hattrick</SourceSystem>
+        <CupId>0</CupId>
+        <CupLevel>0</CupLevel>
+        <CupLevelIndex>0</CupLevelIndex>
+        <HomeGoals>0</HomeGoals>
+        <AwayGoals>4</AwayGoals>
+      </Match>
+    </MatchList>
+  </Team>
+</HattrickData>
+"""
+
+
+def test_the_archive_rescues_every_match_that_the_recent_calendar_no_longer_reaches() -> None:
+    """La primera carga guarda todo lo que expone el archivo, no sólo la
+    temporada actual. Partidos decide después si enseña competitivos,
+    amistosos o ignora los no oficiales; el almacenamiento no los destruye."""
+
+    async def run() -> None:
+        from sqlalchemy import select
+
+        uow, chpp, team_id = await _setup()
+
+        class ConArchivo(FakeCHPP):
+            async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+                if file == "matchesarchive":
+                    assert version == "1.5", "las versiones <1.3 no traen CupLevel"
+                    # Como el archivo real: sólo los partidos de la ventana
+                    # pedida. Devolver los mismos para cualquier rango es justo
+                    # lo que hace Hattrick cuando IGNORA el rango, y eso ya no
+                    # se toma por bueno (2026-09-14).
+                    payload = get_parser(file)(ARCHIVO_CON_HUECO)
+                    formato = "%Y-%m-%d %H:%M:%S"
+                    desde = datetime.strptime(params["FirstMatchDate"], formato)
+                    hasta = datetime.strptime(params["LastMatchDate"], formato)
+                    payload["matches"] = [
+                        mt
+                        for mt in payload["matches"]
+                        if desde <= datetime.strptime(mt["match_date"], formato) <= hasta
+                    ]
+                    return payload
+                return await super().fetch(file, version, **params)
+
+        handler = SyncTeamHandler(uow, ConArchivo())
+        cmd = SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["matches"])
+        primero = await handler.execute(cmd)
+        # 767370369 ya venía en matches.xml; faltaban la copa y el amistoso.
+        assert primero.rescued_matches == 2
+
+        async with uow as u:
+            rescatado = await u.session.scalar(
+                select(m.Match).where(m.Match.ht_match_id == 770729379)
+            )
+            assert rescatado is not None
+            assert rescatado.status == "FINISHED"
+            assert (rescatado.home_goals, rescatado.away_goals) == (1, 2)
+            # Sin esto el partido existe pero la pantalla de Copa no lo ve:
+            # agrupa por esta pareja y un -1 no es ninguna copa.
+            assert (rescatado.cup_level, rescatado.cup_level_index) == (1, 1)
+            # El amistoso también queda guardado; el toggle de la pantalla es
+            # quien decide si se muestra.
+            amistoso = await u.session.scalar(
+                select(m.Match).where(m.Match.ht_match_id == 999888777)
+            )
+            assert amistoso is not None
+            # Y el que ya estaba no se duplica ni se pisa: matches.xml lo tenía
+            # como próximo, con sus órdenes, y eso lo sabe mejor que el archivo.
+            ya_estaba = await u.session.scalar(
+                select(m.Match).where(m.Match.ht_match_id == 767370369)
+            )
+            assert ya_estaba is not None
+            assert ya_estaba.orders_given is True
+
+        segundo = await handler.execute(cmd)
+        assert segundo.rescued_matches == 0  # incremental: no se repesca nada
+
+    asyncio.run(run())
+
+
+def test_match_archive_splits_the_50_result_limit_then_only_reads_the_new_tail() -> None:
+    """No hay pageIndex en matchesarchive: 50 filas obligan a bisecar el
+    rango. Tras completar esa primera lectura, el siguiente sync arranca en
+    la marca de agua (con solape) y sólo inserta el partido nuevo."""
+
+    async def run() -> None:
+        from datetime import UTC, timedelta
+
+        from sqlalchemy import func, select
+
+        uow, _unused, team_id = await _setup()
+        founded = datetime(2020, 1, 1, tzinfo=UTC)
+        first_until = datetime(2022, 1, 1, tzinfo=UTC)
+
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            assert team is not None
+            team.founded_at = founded
+            await u.commit()
+
+        def archived_match(match_id: int, when: datetime) -> dict[str, Any]:
+            return {
+                "ht_match_id": match_id,
+                "match_date": when.strftime("%Y-%m-%d %H:%M:%S"),
+                "match_type": 1,
+                "home_team_id": 537758,
+                "away_team_id": match_id,
+                "home_team_name": "Pulgas Arrechas",
+                "away_team_name": f"Rival {match_id}",
+                "home_goals": 1,
+                "away_goals": 0,
+                "cup_level": 0,
+                "cup_level_index": 0,
+                "source_system": "hattrick",
+            }
+
+        class LimitedArchive:
+            def __init__(self) -> None:
+                self.phase = "initial"
+                self.archive_calls: list[dict[str, Any]] = []
+                self.matchdetails_calls = 0
+
+            async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+                if file == "arenadetails":
+                    return {"current_capacity": {"total": 0}}
+                if file == "matchdetails":
+                    self.matchdetails_calls += 1
+                    return {}
+                assert file == "matchesarchive"
+                self.archive_calls.append(params)
+                since = datetime.strptime(params["FirstMatchDate"], "%Y-%m-%d %H:%M:%S").replace(
+                    tzinfo=UTC
+                )
+                until = datetime.strptime(params["LastMatchDate"], "%Y-%m-%d %H:%M:%S").replace(
+                    tzinfo=UTC
+                )
+                if self.phase == "initial":
+                    if until - since > timedelta(days=500):
+                        # La respuesta está potencialmente truncada. El
+                        # contenido concreto no importa: debe descartarse y
+                        # reconstruirse desde sus dos mitades completas.
+                        return {
+                            "matches": [
+                                archived_match(800_000 + i, since + timedelta(minutes=i))
+                                for i in range(50)
+                            ]
+                        }
+                    if since == founded:
+                        return {"matches": [archived_match(700_001, since + timedelta(days=1))]}
+                    # 2026-09-14: con ventanas de 12 semanas, «un día después
+                    # del inicio de la ventana» caía en la última, dentro de
+                    # las 16 semanas recientes, y el backfill normal pedía su
+                    # detalle. El segundo partido va en una fecha vieja fija y
+                    # sólo lo devuelve la ventana que la contiene.
+                    viejo = datetime(2021, 1, 1, tzinfo=UTC)
+                    if since <= viejo < until:
+                        return {"matches": [archived_match(700_002, viejo)]}
+                    return {"matches": []}
+                return {
+                    "matches": [
+                        archived_match(700_002, first_until - timedelta(days=1)),
+                        archived_match(700_003, first_until + timedelta(days=1)),
+                    ]
+                }
+
+        chpp = LimitedArchive()
+        handler = SyncTeamHandler(uow, chpp)
+        first = SyncResult(sync_id=1, status="completed")
+        async with uow as u:
+            await handler._sync_match_history(
+                u, team_id, 537758, first_until, first, on_progress=None
+            )
+            # El backfill normal de detalles no toca las filas históricas.
+            await handler._backfill_missing_match_details(
+                u, team_id, 537758, first, on_progress=None
+            )
+            await u.commit()
+
+        # 2026-09-14: dos años se piden en ventanas de 12 semanas --un rango
+        # largo Hattrick lo ignora--, así que son nueve consultas y ninguna
+        # llega al tope de 50 que obligaría a bisecar.
+        from app.application.commands.sync_team import MATCH_ARCHIVE_WINDOW
+
+        assert len(chpp.archive_calls) == 9
+        for c in chpp.archive_calls:
+            desde = datetime.strptime(c["FirstMatchDate"], "%Y-%m-%d %H:%M:%S")
+            hasta = datetime.strptime(c["LastMatchDate"], "%Y-%m-%d %H:%M:%S")
+            assert hasta - desde <= MATCH_ARCHIVE_WINDOW
+        assert chpp.archive_calls[0]["FirstMatchDate"] == "2020-01-01 00:00:00"
+        assert first.rescued_matches == 2
+        assert chpp.matchdetails_calls == 0
+
+        chpp.phase = "incremental"
+        chpp.archive_calls.clear()
+        second = SyncResult(sync_id=2, status="completed")
+        second_until = first_until + timedelta(days=7)
+        async with uow as u:
+            await handler._sync_match_history(
+                u, team_id, 537758, second_until, second, on_progress=None
+            )
+            await u.commit()
+
+        assert len(chpp.archive_calls) == 1
+        assert chpp.archive_calls[0]["FirstMatchDate"] == "2021-12-30 00:00:00"
+        assert second.rescued_matches == 1
+        async with uow as u:
+            total = await u.session.scalar(select(func.count()).select_from(m.Match))
+            team = await u.session.get(m.Team, team_id)
+            new_match = await u.session.scalar(
+                select(m.Match).where(m.Match.ht_match_id == 700_003)
+            )
+            assert total == 3
+            assert team is not None and team.matches_history_complete is True
+            assert team.matches_history_synced_until == second_until.replace(tzinfo=None)
+            assert new_match is not None and new_match.history_summary_only is False
+
+    asyncio.run(run())
+
+
+def test_match_archive_error_does_not_seal_an_incomplete_history() -> None:
+    """Un chpperror HTTP 200 no puede convertirse en «historial vacío» ni
+    adelantar la marca de agua: el próximo sync debe volver a intentar todo."""
+
+    async def run() -> None:
+        from datetime import UTC
+
+        uow, _unused, team_id = await _setup()
+
+        class ArchiveError:
+            async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+                assert file == "matchesarchive"
+                return {
+                    "matches": [],
+                    "chpp_error": True,
+                    "chpp_error_code": 42,
+                    "chpp_error_message": "Invalid date range",
+                }
+
+        handler = SyncTeamHandler(uow, ArchiveError())
+        result = SyncResult(sync_id=1, status="completed")
+        async with uow as u:
+            await handler._sync_match_history(
+                u,
+                team_id,
+                537758,
+                datetime(2026, 9, 11, tzinfo=UTC),
+                result,
+                on_progress=None,
+            )
+            await u.commit()
+
+        async with uow as u:
+            team = await u.session.get(m.Team, team_id)
+            assert team is not None
+            assert team.matches_history_complete is False
+            assert team.matches_history_synced_until is None
+        assert result.status == "partial"
+        assert result.errors == ["matchesarchive: CHPP 42: Invalid date range"]
+
+    asyncio.run(run())
+
+
 def test_players_missing_from_a_later_sync_are_marked_departed() -> None:
-    """Un jugador que ya no viene en players.xml se fue del club — se marca
+    """Un jugador que ya no viene en players.xml se fue del club, se marca
     left_team_at, nunca se borra, y deja de contar como plantilla activa.
 
     Bug real observado: tras conectar una cuenta real, el conteo de jugadores
     del dashboard mostraba 32 en vez de los 24 reales, porque un sync anterior
     (con una plantilla distinta) nunca marcó como salidos a quienes ya no
-    estaban — se acumulaban para siempre."""
+    estaban, se acumulaban para siempre."""
+
     async def run() -> None:
         from sqlalchemy import select
 
@@ -230,8 +546,10 @@ def test_players_missing_from_a_later_sync_are_marked_departed() -> None:
         kept_ids = {p["ht_player_id"] for p in reduced["players"]}
         async with uow as u:
             rows = (
-                await u.session.execute(select(m.Player).where(m.Player.team_id == team_id))
-            ).scalars().all()
+                (await u.session.execute(select(m.Player).where(m.Player.team_id == team_id)))
+                .scalars()
+                .all()
+            )
             # 25 y no 24 desde el 2026-08-25: el sync normal recorre el
             # libro de compraventas y este crea la ficha de quien esta app
             # nunca vio en la plantilla. Append-only: nadie se borra.
@@ -248,10 +566,11 @@ def test_players_missing_from_a_later_sync_are_marked_departed() -> None:
 
 
 def test_a_player_released_without_a_sale_is_also_announced() -> None:
-    """HL-2xx, pedido explícito: no sólo las ventas — un jugador despedido
+    """HL-2xx, pedido explícito: no sólo las ventas, un jugador despedido
     (o cuyo préstamo terminó, etc.) SIN ninguna transacción en
     `transfersteam.xml` también debe verse en "Qué cambió", aunque no haya
     precio que anunciar."""
+
     async def run() -> None:
         from sqlalchemy import select
 
@@ -294,10 +613,11 @@ def test_a_player_released_without_a_sale_is_also_announced() -> None:
 def test_a_player_sold_in_the_same_sync_is_announced_as_a_change() -> None:
     """HL-2xx, bug real: un jugador que sale del roster Y aparece vendido en
     `transfersteam.xml` del MISMO sync no generaba ninguna entrada en "Qué
-    cambió" — `mark_departed` (fichero `players`) no sabe todavía el precio,
+    cambió", `mark_departed` (fichero `players`) no sabe todavía el precio,
     y `_persist_transfers` (fichero `transfersteam`, que corre después en la
     misma pasada) nunca anunciaba nada. La venta debe verse igual, sin
     importar el orden de los ficheros."""
+
     async def run() -> None:
         from sqlalchemy import select
 
@@ -314,15 +634,17 @@ def test_a_player_sold_in_the_same_sync_is_announced_as_a_change() -> None:
         reduced = {"players": full_roster["players"][:4]}
         transfers_payload = {
             "stats": {},
-            "transfers": [{
-                "ht_player_id": sold_player["ht_player_id"],
-                "transfer_type": "S",
-                "seller_team_id": 537758,
-                "buyer_team_id": 999999,
-                "price": 8_690_000,
-                "deadline": "2026-08-12 15:08:00",
-                "tsi": 5000,
-            }],
+            "transfers": [
+                {
+                    "ht_player_id": sold_player["ht_player_id"],
+                    "transfer_type": "S",
+                    "seller_team_id": 537758,
+                    "buyer_team_id": 999999,
+                    "price": 8_690_000,
+                    "deadline": "2026-08-12 15:08:00",
+                    "tsi": 5000,
+                }
+            ],
         }
 
         class SoldPlayerCHPP:
@@ -336,7 +658,9 @@ def test_a_player_sold_in_the_same_sync_is_announced_as_a_change() -> None:
         handler2 = SyncTeamHandler(uow, SoldPlayerCHPP())
         result2 = await handler2.execute(
             SyncTeamCommand(
-                user_id=1, team_id=team_id, ht_team_id=537758,
+                user_id=1,
+                team_id=team_id,
+                ht_team_id=537758,
                 files=["players", "transfersteam"],
             )
         )
@@ -358,12 +682,11 @@ def test_a_player_sold_in_the_same_sync_is_announced_as_a_change() -> None:
 def test_teamdetails_persists_series_ht_id() -> None:
     """Sin series_ht_id (LeagueLevelUnitID) no hay forma de pedir leaguedetails:
     ese fichero se sincroniza por serie, no por equipo."""
+
     async def run() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
-        cmd = SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758, files=["teamdetails"]
-        )
+        cmd = SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["teamdetails"])
 
         first = await handler.execute(cmd)
         assert first.status == "completed"
@@ -385,13 +708,12 @@ def test_teamdetails_persists_series_ht_id() -> None:
 def test_leaguedetails_requires_teamdetails_first() -> None:
     """Sin la serie conocida, pedir leaguedetails falla con un error claro en
     vez de adivinar o pedir el fichero equivocado."""
+
     async def run() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
         result = await handler.execute(
-            SyncTeamCommand(
-                user_id=1, team_id=team_id, ht_team_id=537758, files=["leaguedetails"]
-            )
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["leaguedetails"])
         )
         assert result.status == "partial"
         assert result.errors and "serie" in result.errors[0]
@@ -404,12 +726,12 @@ def test_leaguedetails_persists_standings_for_the_whole_series() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
 
-        await handler.execute(SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758, files=["teamdetails"]
-        ))
-        first = await handler.execute(SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758, files=["leaguedetails"]
-        ))
+        await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["teamdetails"])
+        )
+        first = await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["leaguedetails"])
+        )
         assert first.snapshots_written == 1  # una jornada = una escritura
 
         from sqlalchemy import func, select
@@ -417,19 +739,17 @@ def test_leaguedetails_persists_standings_for_the_whole_series() -> None:
         async with uow as u:
             total = await u.session.scalar(select(func.count()).select_from(m.Standing))
             assert total == 8  # las 8 filas del fixture, en una sola jornada
-            own = await u.session.scalar(
-                select(m.Standing).where(m.Standing.team_ht_id == 537758)
-            )
+            own = await u.session.scalar(select(m.Standing).where(m.Standing.team_ht_id == 537758))
             # El fixture trae CurrentMatchRound=1 con Matches=0 para todos
-            # los equipos — la foto de antes de jugar nada, jornada 0
+            # los equipos, la foto de antes de jugar nada, jornada 0
             # realmente completada, no la 1.
             assert own.match_round == 0
             assert own.series_ht_id == 34162
 
         # Re-sincronizar la misma jornada no debe duplicar filas.
-        second = await handler.execute(SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758, files=["leaguedetails"]
-        ))
+        second = await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["leaguedetails"])
+        )
         assert second.snapshots_written == 0
         assert second.unchanged == 1
         async with uow as u:
@@ -474,29 +794,34 @@ def test_match_details_backfills_home_stadium_history() -> None:
     """El detalle de partido trae ventas y arenadetails el aforo actual.
     Si los ratings ya estaban, el backfill aún debe poder completar el
     estadio una vez; un segundo intento no puede duplicarlo."""
+
     async def run() -> None:
         from sqlalchemy import select
 
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
-        await handler.execute(SyncTeamCommand(
-            user_id=1, team_id=team_id, ht_team_id=537758, files=["matches"]
-        ))
+        await handler.execute(
+            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["matches"])
+        )
         cmd = SyncMatchDetailsCommand(
             user_id=1,
             team_id=team_id,
             ht_match_id=765274387,
             arena_capacity={
-                "terraces": 40000, "basic": 15000, "roof": 6000, "vip": 1500, "total": 62500,
+                "terraces": 40000,
+                "basic": 15000,
+                "roof": 6000,
+                "vip": 1500,
+                "total": 62500,
             },
         )
 
         first = await handler.execute_match_details(cmd)
         assert first.status == "completed"
         async with uow as u:
-            stadium = await u.session.scalar(select(m.StadiumHistory).where(
-                m.StadiumHistory.ht_match_id == 765274387
-            ))
+            stadium = await u.session.scalar(
+                select(m.StadiumHistory).where(m.StadiumHistory.ht_match_id == 765274387)
+            )
             assert stadium is not None
             assert stadium.team_id == team_id
             assert stadium.capacity_total == 62500
@@ -511,11 +836,12 @@ def test_match_details_backfills_home_stadium_history() -> None:
 
 
 def test_player_details_persists_last_match_and_mother_club() -> None:
-    """HL-15x fase B: `playerdetails.xml` no es append-only — se escribe
+    """HL-15x fase B: `playerdetails.xml` no es append-only, se escribe
     sobre el snapshot más reciente del jugador. `LastMatch` solo llega si
     se pide con `includeMatchInfo=true` (confirmado en vivo: sin ese
-    parámetro CHPP omite el bloque entero) — este fixture simula esa
+    parámetro CHPP omite el bloque entero), este fixture simula esa
     respuesta para fijar que el parseo y la escritura funcionan."""
+
     async def run() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
@@ -557,12 +883,12 @@ def test_player_details_persists_last_match_and_mother_club() -> None:
             # partido" no puede distinguir un dato reciente de uno viejo
             # (ver test_squad_last_match_recency.py para el filtro). SQLite
             # devuelve el valor sin tzinfo aunque se guardara con
-            # `.replace(tzinfo=UTC)` — mismo patrón ya visto en
+            # `.replace(tzinfo=UTC)`, mismo patrón ya visto en
             # analysis.py/changes_history.py, se compara naive.
             # Hora sueca del fichero (CEST, UTC+2) guardada ya en UTC.
             assert snap.last_match_played_at == datetime(2026, 7, 19, 14, 0)
             # El fixture matchlineup.xml genérico es de OTRO equipo
-            # (etbenianos1) y no incluye a este jugador — el best-effort de
+            # (etbenianos1) y no incluye a este jugador, el best-effort de
             # `_fetch_last_match_behaviour` debe quedarse en None sin
             # romper el resto de playerdetails (ver
             # test_player_details_fills_in_the_real_individual_order abajo
@@ -577,10 +903,11 @@ def test_player_details_persists_last_match_and_mother_club() -> None:
 def test_player_details_fills_in_the_real_individual_order() -> None:
     """2026-08-09, pedido explícitamente: "Última semana" solo mostraba la
     posición base, nunca si la orden individual real fue
-    Ofensivo/Defensivo/Hacia el medio/Hacia la banda — ese dato vive en
+    Ofensivo/Defensivo/Hacia el medio/Hacia la banda, ese dato vive en
     `Behaviour` de matchlineup.xml PARA EL PARTIDO CONCRETO de
     `LastMatch`, no en `LastMatch` mismo. `_fetch_last_match_behaviour`
     encadena esa segunda llamada automáticamente."""
+
     class BehaviourCHPP(FakeCHPP):
         async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
             if file == "matchlineup":
@@ -589,11 +916,17 @@ def test_player_details_fills_in_the_real_individual_order() -> None:
                     "ht_match_id": params["matchID"],
                     "ht_team_id": params["teamID"],
                     "team_name": "Pulgas Arrechas",
-                    "players": [{
-                        "ht_player_id": 468921494, "name": "Alberto Gutiérrez Caviedes",
-                        "role_id": 112, "position_code": 112,
-                        "rating_stars": 11.5, "rating_stars_end": 11.0, "behaviour": 1,
-                    }],
+                    "players": [
+                        {
+                            "ht_player_id": 468921494,
+                            "name": "Alberto Gutiérrez Caviedes",
+                            "role_id": 112,
+                            "position_code": 112,
+                            "rating_stars": 11.5,
+                            "rating_stars_end": 11.0,
+                            "behaviour": 1,
+                        }
+                    ],
                 }
             return await super().fetch(file, version, **params)
 
@@ -634,7 +967,8 @@ def test_a_later_players_sync_does_not_wipe_playerdetails_fields() -> None:
     `append_snapshot` crea una fila NUEVA en cuanto cambia cualquier campo
     de fase A (aquí, la forma), sin arrastrar lo anterior esos dos campos se
     resetearían a 0/None en cada sync normal posterior a una sincronización
-    de fase B — silenciosamente, sin ningún error visible."""
+    de fase B, silenciosamente, sin ningún error visible."""
+
     async def run() -> None:
         from sqlalchemy import select
 
@@ -662,14 +996,16 @@ def test_a_later_players_sync_does_not_wipe_playerdetails_fields() -> None:
             assert snap.career_assists == 21
             assert snap.last_match_ht_id == 123456789
 
-        # Un sync normal posterior, con la forma de ese jugador cambiada —
+        # Un sync normal posterior, con la forma de ese jugador cambiada
         # dispara una fila NUEVA en player_snapshots (fase A, sin
         # career_assists/last_match en su payload).
         full_roster = get_parser("players")((FIXTURES / "players.xml").read_bytes())
-        changed = {"players": [
-            {**p, "form": (p["form"] % 7) + 1} if p["ht_player_id"] == 468921494 else p
-            for p in full_roster["players"]
-        ]}
+        changed = {
+            "players": [
+                {**p, "form": (p["form"] % 7) + 1} if p["ht_player_id"] == 468921494 else p
+                for p in full_roster["players"]
+            ]
+        }
 
         class ChangedFormCHPP:
             async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
@@ -686,17 +1022,21 @@ def test_a_later_players_sync_does_not_wipe_playerdetails_fields() -> None:
                 select(m.Player).where(m.Player.ht_player_id == 468921494)
             )
             rows = (
-                await u.session.execute(
-                    select(m.PlayerSnapshot)
-                    .where(m.PlayerSnapshot.player_id == player.id)
-                    .order_by(m.PlayerSnapshot.captured_at.desc())
+                (
+                    await u.session.execute(
+                        select(m.PlayerSnapshot)
+                        .where(m.PlayerSnapshot.player_id == player.id)
+                        .order_by(m.PlayerSnapshot.captured_at.desc())
+                    )
                 )
-            ).scalars().all()
-            assert len(rows) == 2      # sí se creó una fila nueva
+                .scalars()
+                .all()
+            )
+            assert len(rows) == 2  # sí se creó una fila nueva
             newest = rows[0]
-            assert newest.career_assists == 21          # arrastrado, no reseteado
+            assert newest.career_assists == 21  # arrastrado, no reseteado
             assert newest.last_match_ht_id == 123456789  # arrastrado, no reseteado
-            assert newest.career_caps == 0                # arrastrado, no reseteado a None
+            assert newest.career_caps == 0  # arrastrado, no reseteado a None
 
     asyncio.run(run())
 

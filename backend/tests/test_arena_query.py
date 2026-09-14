@@ -84,6 +84,97 @@ def test_reports_occupancy_and_empty_seats() -> None:
     _run(run())
 
 
+def test_se_puede_mirar_solo_oficiales_o_solo_amistosos() -> None:
+    """2026-09-13, pedido del usuario: un amistoso llena el estadio de otra
+    manera. El aforo sale siempre de la última lectura, filtre lo que filtre."""
+    from app.domain.value_objects.ht_constants import FRIENDLY_MATCH_TYPES
+
+    amistoso = min(FRIENDLY_MATCH_TYPES)
+
+    async def run() -> None:
+        filas = [
+            {"capacity": 20000, **CAPS, "sold": 18000, "match_type": 1},
+            {"capacity": 20000, **CAPS, "sold": 4000, "match_type": amistoso},
+        ]
+        factory, team_id = await _with_stadium(filas)
+        async with factory() as s:
+            oficiales = await ArenaQueryService(s).get(team_id, tipo="oficiales")
+            amistosos = await ArenaQueryService(s).get(team_id, tipo="amistosos")
+            todos = await ArenaQueryService(s).get(team_id)
+        assert oficiales is not None and amistosos is not None and todos is not None
+        assert oficiales.matches_analysed == 1 and oficiales.avg_occupancy == 90.0
+        assert amistosos.matches_analysed == 1 and amistosos.avg_occupancy == 20.0
+        assert todos.matches_analysed == 2
+        assert oficiales.capacity_total == amistosos.capacity_total == 20000
+
+    _run(run())
+
+
+def test_el_reparto_de_asientos_se_compara_con_el_recomendado() -> None:
+    from app.application.queries.arena import REPARTO_RECOMENDADO, _hacia_el_reparto
+
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
+        async with factory() as s:
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.composition == {
+            "general": 12000,
+            "preferentes": 6000,
+            "tribunas": 1000,
+            "palcos": 1000,
+        }
+        assert abs(sum(out.recommended_shares.values()) - 1) < 1e-9
+
+    _run(run())
+    assert abs(sum(REPARTO_RECOMENDADO.values()) - 1) < 1e-9
+    # Los cuatro sectores en la proporción recomendada, aunque a este estadio
+    # le sobren palcos: 62,5 / 25 / 10 / 2,5 %.
+    reparto = _hacia_el_reparto(
+        {"general": 12000, "preferentes": 6000, "tribunas": 1000, "palcos": 1000}, 2500
+    )
+    # 1.562,5 y 62,5 empatan en resto: el asiento sobrante va a general.
+    assert reparto == {"general": 1563, "preferentes": 625, "tribunas": 250, "palcos": 62}
+    # Suma exacta: redondear sector a sector daba 2.501.
+    assert sum(reparto.values()) == 2500
+
+
+def test_si_cambia_el_aforo_el_conteo_empieza_de_nuevo() -> None:
+    """2026-09-14, pedido del usuario: una ocupación medida contra el estadio
+    de antes no dice nada del de ahora. Sólo cuentan los partidos jugados con
+    el aforo actual, y la respuesta dice desde cuándo."""
+
+    async def run() -> None:
+        filas = [
+            {"capacity": 18000, **CAPS, "sold": 17000},
+            {"capacity": 18000, **CAPS, "sold": 17500},
+            {"capacity": 20000, **CAPS, "sold": 10000},
+            {"capacity": 20000, **CAPS, "sold": 12000},
+        ]
+        factory, team_id = await _with_stadium(filas)
+        async with factory() as s:
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.matches_analysed == 2
+        assert [mm.sold for mm in out.matches] == [10000, 12000]
+        assert out.avg_occupancy == 55.0
+        assert out.capacity_changed_on == (BASE + timedelta(days=28)).date().isoformat()
+
+    _run(run())
+
+
+def test_sin_cambio_de_aforo_cuenta_todo() -> None:
+    async def run() -> None:
+        factory, team_id = await _with_stadium(MEDIO_LLENO)
+        async with factory() as s:
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.matches_analysed == 3
+        assert out.capacity_changed_on is None
+
+    _run(run())
+
+
 def test_the_reported_revenue_is_used_and_never_invented() -> None:
     """Antes, si faltaba la recaudacion, se estimaba multiplicando las entradas
     de cada sector por su precio. Sin el desglose eso ya no se puede, y tampoco
@@ -118,13 +209,18 @@ def test_expansion_options_are_ranked_and_costed() -> None:
         async with factory() as s:
             out = await ArenaQueryService(s).get(team_id)
         assert out is not None
+        # Tres tamaños, y desde el 2026-09-13 todos con los cuatro sectores en
+        # la proporción recomendada, tenga el estadio lo que tenga.
         assert len(out.expansion_options) == 3
         for o in out.expansion_options:
             assert o.build_cost > 0
             assert o.verdict
+            assert set(o.added_seats) == {"general", "preferentes", "tribunas", "palcos"}
         # La grande cuesta mas que la pequeña: el orden de la lista es el de
         # tamaño, no el de rentabilidad.
         assert out.expansion_options[-1].build_cost > out.expansion_options[0].build_cost
+        tamanos = [sum(o.added_seats.values()) for o in out.expansion_options]
+        assert tamanos == sorted(tamanos)
 
     _run(run())
 
@@ -184,6 +280,68 @@ def test_non_official_matches_are_always_excluded_from_stadium_stats() -> None:
         assert out is not None
         assert out.matches_analysed == 1
         assert out.matches[0].sold == 9600
+
+    _run(run())
+
+
+def test_cada_partido_dice_su_torneo_y_la_copa_por_su_nombre() -> None:
+    """2026-09-14, pedido del usuario: el tooltip dice el torneo debajo del
+    rival, y en copa no «Copa» sino cuál: «Copa Colombia», «Copa Cocuy Rubí»."""
+
+    async def run() -> None:
+        filas = [
+            {"capacity": 20000, **CAPS, "sold": 9000, "match_type": 1},
+            {"capacity": 20000, **CAPS, "sold": 9000, "match_type": 3},
+            {"capacity": 20000, **CAPS, "sold": 9000, "match_type": 3},
+            {"capacity": 20000, **CAPS, "sold": 9000, "match_type": 7},
+        ]
+        factory, team_id = await _with_stadium(filas)
+        async with factory() as s:
+            team = await s.get(m.Team, team_id)
+            # Una liga sin copas sembradas, para que sólo estén estas dos.
+            team.ht_league_id = 777
+            for i, (nivel, indice) in ((1, (1, 1)), (2, (2, 2))):
+                s.add(
+                    m.Match(
+                        ht_match_id=900_000 + i,
+                        played_at=BASE + timedelta(days=14 * i),
+                        match_type=3,
+                        status="FINISHED",
+                        home_team_ht_id=team.ht_team_id,
+                        away_team_ht_id=50 + i,
+                        home_team_name="Local",
+                        away_team_name=f"Rival {i}",
+                        cup_level=nivel,
+                        cup_level_index=indice,
+                    )
+                )
+            s.add(
+                m.WorldCup(
+                    ht_league_id=777,
+                    cup_league_level=0,
+                    cup_level=1,
+                    cup_level_index=1,
+                    cup_name="Copa Colombia",
+                )
+            )
+            s.add(
+                m.WorldCup(
+                    ht_league_id=777,
+                    cup_league_level=0,
+                    cup_level=2,
+                    cup_level_index=2,
+                    cup_name="Copa Cocuy Rubí",
+                )
+            )
+            await s.commit()
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert [mm.tournament for mm in out.matches] == [
+            "Liga",
+            "Copa Colombia",
+            "Copa Cocuy Rubí",
+            "Hattrick Masters",
+        ]
 
     _run(run())
 

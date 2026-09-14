@@ -1,4 +1,4 @@
-"""GET /teams/{id}/players/{ht_player_id} — ficha de jugador.
+"""GET /teams/{id}/players/{ht_player_id}, ficha de jugador.
 
 No hay test HTTP previo para este endpoint (solo se probaban los motores por
 separado); este cubre el campo nuevo `salaryEstimate` end-to-end, sobre la
@@ -69,7 +69,7 @@ def test_player_detail_includes_a_salary_estimate() -> None:
 
 
 def test_player_detail_omits_salary_estimate_for_goalkeepers() -> None:
-    """El manual no publica la fórmula de sueldo de Arquero — devolver algo
+    """El manual no publica la fórmula de sueldo de Arquero, devolver algo
     aquí sería inventar un número, así que el campo va en null."""
     client, team_id = _client()
     try:

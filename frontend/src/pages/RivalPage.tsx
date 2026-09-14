@@ -3,7 +3,13 @@ import type { CSSProperties } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import { sharePieOption } from "../charts/chartOptions";
+import { BarraDePrediccion } from "../components/BarraDePrediccion";
 import { Column, DataTable } from "../components/DataTable";
+import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
+import {
+  PITCH_ZONE_METHODS,
+  SUBMITTED_METHOD,
+} from "../components/pitchZoneMethods";
 import {
   Empty,
   ErrorState,
@@ -15,9 +21,10 @@ import {
 } from "../components/Panels";
 import { TsiHistogramPanel } from "../components/TsiHistogramPanel";
 import { number } from "../hooks/useFormat";
-import { useDashboard, useLeague, useRivalScouting } from "../hooks/useTeam";
+import { useDashboard, useRivalScouting } from "../hooks/useTeam";
 import type {
   LastPurchase,
+  PartidoConMarcador,
   PitchZoneDuel,
   PitchZoneMethod,
   RivalScouting,
@@ -30,49 +37,41 @@ interface RosterRow {
 }
 
 /**
- * Ficha de rival — HL-099 a HL-110, ampliado en HL-2xx. El gancho: comparar
+ * Ficha de rival, HL-099 a HL-110, ampliado en HL-2xx. El gancho: comparar
  * tu plantilla contra la del próximo rival con las mismas herramientas que
  * usas para la tuya.
  *
  * Todo lo del rival se pide en vivo cada vez que se abre la ficha, sin
  * guardarse. El roster, marcaje, táctica y rotación se basan en los
- * ÚLTIMOS PARTIDOS OFICIALES REALES del rival contra CUALQUIER equipo — no
- * solo los que jugó contra ti — porque muchos rivales nunca se han
+ * ÚLTIMOS PARTIDOS OFICIALES REALES del rival contra CUALQUIER equipo, no
+ * solo los que jugó contra ti, porque muchos rivales nunca se han
  * enfrentado a tu equipo todavía. Duelos y Escaleras nunca cuentan para
  * nada de esto, sin importar los toggles: no se consideran representativos
  * de cómo juega el rival normalmente.
  */
-/** Cómo le va al rival en la liga, si está en tu misma tabla.
- *
- *  La proyección de al lado sale del TSI, que mide lo que vale una plantilla
- *  y no lo que está haciendo con ella. Las dos cosas pueden discrepar mucho:
- *  el 2026-08-31 esta pantalla daba 95% de victoria contra el segundo
- *  clasificado, mientras la página de Liga --que modela goles-- lo daba a él
- *  como favorito. Ninguna de las dos miente; miden cosas distintas. Lo que no
- *  se puede es enseñar una y callar la otra.
- */
-function ComoVaEnLaTabla({ rivalHtTeamId }: { rivalHtTeamId: number }) {
-  const liga = useLeague();
-  const fila = liga.data?.standings?.find((r) => r.htTeamId === rivalHtTeamId);
-  if (!fila) return null;
-  return (
-    <Note>
-      En la tabla van <b className="text-[var(--text)]">{fila.position}º</b> con{" "}
-      {fila.points} puntos ({fila.won}-{fila.drawn}-{fila.lost},{" "}
-      {fila.goalDifference > 0 ? "+" : ""}
-      {fila.goalDifference}). El TSI mide lo que vale una plantilla, no lo que
-      está consiguiendo: cuando las dos cosas no cuadran, el resultado manda.
-    </Note>
-  );
-}
+/** Cómo se llama cada resumen cuando hay que nombrarlo en una frase. Vive
+ *  junto a la página y no dentro del selector porque el pronóstico también lo
+ *  usa, para decir de dónde salieron sus números. */
+const ETIQUETA_DE_METODO: Record<string, string> = {
+  average: "promedio",
+  max: "máximo",
+  max_parallel: "máximo por carril",
+  last: "último partido",
+  submitted: "alineación enviada",
+};
 
 export function RivalPage() {
   const { rivalHtTeamId } = useParams<{ rivalHtTeamId: string }>();
   const id = Number(rivalHtTeamId);
   const [logTsi, setLogTsi] = useState(false);
   const [top11, setTop11] = useState(false);
-  const [includeCompetitive, setIncludeCompetitive] = useState(true);
-  const [includeFriendlies, setIncludeFriendlies] = useState(true);
+  // UNO U OTRO, NUNCA LOS DOS NI NINGUNO (2026-09-09, pedido del usuario).
+  // Un solo estado con dos valores en vez de dos booleanos sueltos: así el
+  // estado imposible --ambos apagados, o ambos encendidos-- no se puede ni
+  // representar, no es que se corrija después. Abre en oficiales.
+  const [clase, setClase] = useState<"oficiales" | "amistosos">("oficiales");
+  const includeCompetitive = clase === "oficiales";
+  const includeFriendlies = clase === "amistosos";
   const [methodOwn, setMethodOwn] = useState<PitchZoneMethod>("submitted");
   const [methodRival, setMethodRival] = useState<PitchZoneMethod>("average");
   const { data, isLoading, isError, error } = useRivalScouting(
@@ -81,7 +80,6 @@ export function RivalPage() {
     top11,
     includeCompetitive,
     includeFriendlies,
-    "mixed",
     methodOwn,
     methodRival,
   );
@@ -114,7 +112,15 @@ export function RivalPage() {
   // 100% de victoria --contra nadie--. Quien se equivoca escribiendo un ID en
   // «Ir directo por ID de equipo» recibía un análisis con pinta de real
   // (2026-08-31). Sin nombre y sin plantilla no hay rival que estudiar.
-  if (!data.rivalName || (data.rivalRosterSample?.length ?? 0) === 0) {
+  //
+  // LO QUE MIDE «no existe» ES LA PLANTILLA, no los partidos. Antes esto
+  // mismo miraba `rivalRosterSample`, que se construye de las alineaciones de
+  // los partidos ANALIZADOS: dejando sólo «Amistosos» marcado, un rival que
+  // no ha jugado ninguno se quedaba con la lista vacía y esta pantalla
+  // anunciaba que el equipo no existía --sobre un equipo con 22 jugadores
+  // delante (2026-09-09)--. La plantilla se pide siempre y sin filtrar, así
+  // que es lo único que de verdad contesta «¿existe este equipo?».
+  if (!data.rivalName || (data.tsiHistogram?.rivalValues?.length ?? 0) === 0) {
     return (
       <div className="space-y-4">
         <header>
@@ -147,7 +153,7 @@ export function RivalPage() {
   const rivalLabel = data.rivalName ?? "Rival";
   const ownLabel = dashboard.data?.teamName ?? "tu equipo";
 
-  // TSI medio SIEMPRE lineal — a diferencia de tsiHistogram.ownValues/rivalValues,
+  // TSI medio SIEMPRE lineal, a diferencia de tsiHistogram.ownValues/rivalValues,
   // que se transforman a log(TSI+1) cuando el toggle Log(TSI+1) está activo.
   // Este KPI no debe moverse al tocar ese toggle.
   const ownTsiAvg = data.comparison.tsi.own;
@@ -156,6 +162,41 @@ export function RivalPage() {
     ownTsiAvg && rivalTsiAvg != null && ownTsiAvg > 0
       ? rivalTsiAvg / ownTsiAvg
       : null;
+
+  // CÓMO SE LLAMAN LOS PARTIDOS QUE SE ESTÁN MIRANDO. La pantalla decía
+  // «oficiales» siempre, incluso con el toggle de oficiales apagado y sólo
+  // amistosos marcados (lo vio el usuario el 2026-09-09). El adjetivo sale de
+  // lo que hay marcado arriba, que es lo único que decide qué entra.
+  //
+  // Dos formas, porque acompaña a dos plantillas distintas: «6 partido(s)…»
+  // admite el «(es)», y «sus últimos partidos…» ya es plural y con el «(es)»
+  // quedaba «partidos oficial(es)».
+  //
+  // Desde que el selector es excluyente siempre hay adjetivo: ya no existe la
+  // mezcla, que era el único caso sin nombre honesto.
+  // QUÉ CLASES PUEDE OFRECER ESTA FICHA (2026-09-09, pedido del usuario: «si
+  // sólo tiene Oficiales, desactivar el botón de Amistosos de entrada»). Lo
+  // dice el servidor, que es quien sabe qué se pidió y qué vino.
+  //
+  // Y si la clase elegida resulta no estar, se salta a la que sí: dejar el
+  // botón marcado sobre una ficha vacía parece un fallo de la aplicación.
+  //
+  // Con guarda: una respuesta vieja --de una versión anterior del servidor, o
+  // servida desde la caché del navegador-- no trae este campo, y leerlo a pelo
+  // tumbaba la ficha entera con «Cannot read properties of undefined». Sin
+  // dato, se ofrecen los dos botones: es lo que hacía antes de existir esto.
+  const hayOficiales = data.clasesDisponibles?.competitive ?? true;
+  const hayAmistosos = data.clasesDisponibles?.friendly ?? true;
+  if (clase === "amistosos" && !hayAmistosos && hayOficiales) {
+    setClase("oficiales");
+  } else if (clase === "oficiales" && !hayOficiales && hayAmistosos) {
+    setClase("amistosos");
+  }
+
+  const claseDePartidos = includeCompetitive ? " oficial(es)" : " amistoso(s)";
+  const claseDePartidosPlural = includeCompetitive
+    ? " oficiales"
+    : " amistosos";
 
   const rosterColumns: Column<RosterRow>[] = [
     { key: "name", header: "Jugador", align: "left", value: (r) => r.name },
@@ -167,7 +208,7 @@ export function RivalPage() {
         r.position ? (
           r.position
         ) : (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ),
     },
     {
@@ -189,31 +230,57 @@ export function RivalPage() {
           </h1>
           <p className="text-sm text-[var(--muted)]">
             {data.matchesAnalysed > 0
-              ? `${data.matchesAnalysed} partido(s) oficial(es) reciente(s) del rival analizado(s)`
-              : "el rival no tiene partidos oficiales recientes de los tipos seleccionados"}
+              ? `${data.matchesAnalysed} partido(s)${claseDePartidos} reciente(s) del rival analizado(s)`
+              : // Y se dice qué se cae con eso. Sin esta segunda mitad, media
+                // pantalla aparece vacía y parece que falla algo: su plantilla
+                // y su TSI siguen ahí, lo que no hay es de dónde sacar cómo
+                // juega.
+                // Y se nombra la clase que falta: quien marca sólo Amistosos
+                // y no ve nada quiere saber si falla la aplicación o si ese
+                // equipo no juega amistosos (2026-09-09, lo preguntó el
+                // usuario sobre un rival que de verdad no tiene ninguno).
+                `este rival no ha jugado partidos${claseDePartidosPlural} recientemente: su plantilla y su TSI siguen siendo suyos, pero once probable, marcaje, táctica, rotación, duelos y pronóstico se quedan vacíos`}
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            onClick={() => setIncludeCompetitive((v) => !v)}
-            className={
-              includeCompetitive
-                ? "rounded-md border border-[var(--accent)] px-3 py-1.5 text-xs text-[var(--accent)]"
-                : "rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
-            }
-          >
-            Liga/Copa/Promoción
-          </button>
-          <button
-            onClick={() => setIncludeFriendlies((v) => !v)}
-            className={
-              includeFriendlies
-                ? "rounded-md border border-[var(--accent)] px-3 py-1.5 text-xs text-[var(--accent)]"
-                : "rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
-            }
-          >
-            Amistosos
-          </button>
+        {/* Un selector, no dos casillas: van pegados y en un marco común
+            para que se lean como dos posiciones de la misma palanca. Volver a
+            pulsar el que ya está activo no hace nada --no se puede apagar--,
+            y `aria-pressed` cuenta lo mismo a quien no ve el color. */}
+        <div
+          role="group"
+          aria-label="Qué partidos del rival se miran"
+          className="flex shrink-0 overflow-hidden rounded-md border border-[var(--border)]"
+        >
+          {(
+            [
+              ["oficiales", "Liga/Copa/Promoción", hayOficiales],
+              ["amistosos", "Amistosos", hayAmistosos],
+            ] as const
+          ).map(([valor, etiqueta, disponible]) => (
+            <button
+              key={valor}
+              type="button"
+              onClick={() => setClase(valor)}
+              disabled={!disponible}
+              aria-pressed={clase === valor}
+              title={
+                disponible
+                  ? undefined
+                  : valor === "amistosos"
+                    ? "Este rival no tiene amistosos en la muestra que se mira"
+                    : "Este rival no tiene partidos oficiales en la muestra que se mira"
+              }
+              className={`px-3 py-1.5 text-xs ${
+                clase === valor
+                  ? "bg-[var(--accent)] font-medium text-white"
+                  : disponible
+                    ? "bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--text)]"
+                    : "cursor-not-allowed bg-[var(--surface)] text-[var(--muted)] opacity-40"
+              }`}
+            >
+              {etiqueta}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -264,34 +331,6 @@ export function RivalPage() {
         }
       />
 
-      <ProjectionPanel
-        title="Proyección de victoria por TSI"
-        meta="modelo simple por TSI, no calibrado"
-      >
-        <div className="flex items-center gap-4 p-4">
-          <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-            {(data.winProbability.ownProbability * 100).toFixed(0)}%
-          </div>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-            <div
-              className="h-full bg-[var(--accent)]"
-              style={{ width: `${data.winProbability.ownProbability * 100}%` }}
-            />
-          </div>
-        </div>
-        <Note>
-          {data.comparisonReference.ownSource === "submitted_orders"
-            ? "Tu alineación enviada"
-            : "Tus 11 probables"}{" "}
-          ({number(data.winProbability.ownTsiTotal)} TSI) contra{" "}
-          {data.comparisonReference.rivalSource === "probable_recent_starters"
-            ? "el once probable del rival"
-            : "los 11 de mayor TSI del rival"}{" "}
-          ({number(data.winProbability.rivalTsiTotal)}).
-        </Note>
-        <ComoVaEnLaTabla rivalHtTeamId={data.rivalHtTeamId} />
-      </ProjectionPanel>
-
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Panel title="Sugerencia de marcaje al hombre">
           {data.manMarking ? (
@@ -336,8 +375,9 @@ export function RivalPage() {
           ) : (
             <Empty>
               Sin datos suficientes: ningún jugador rival marcable (delantero,
-              extremo o interior) apareció en los partidos vistos con posición
-              conocida, o no tienes un jugador propio elegible para marcarlo.
+              extremo o mediocentro) apareció en los partidos vistos con
+              posición conocida, o no tienes un jugador propio elegible para
+              marcarlo.
             </Empty>
           )}
         </Panel>
@@ -350,13 +390,14 @@ export function RivalPage() {
                 {data.sideRotation.dominantPct === 100
                   ? `Lado fuerte fijo, sin excepción: la ${data.sideRotation.strongSide} fue el carril más fuerte en los ${data.sideRotation.matchesAnalysed} de ${data.sideRotation.matchesAnalysed} partidos vistos.`
                   : data.sideRotation.rotates
-                    ? `Rota: ningún lado domina de forma consistente, el más fuerte cambió partido a partido en sus últimos ${data.sideRotation.matchesAnalysed} partido(s) oficiales.`
+                    ? `Rota: ningún lado domina de forma consistente, el más fuerte cambió partido a partido en sus últimos ${data.sideRotation.matchesAnalysed} partido(s)${claseDePartidos}.`
                     : `Lado fuerte habitual: la ${data.sideRotation.strongSide} fue el carril más fuerte en el ${data.sideRotation.dominantPct.toFixed(0)}% de sus últimos ${data.sideRotation.matchesAnalysed} partido(s), con variación partido a partido, no siempre por el mismo margen.`}
               </p>
             </div>
           ) : (
             <Empty>
-              Sin partidos oficiales recientes del rival con datos de sector.
+              Sin partidos{claseDePartidosPlural} recientes del rival con datos
+              de sector.
             </Empty>
           )}
         </Panel>
@@ -371,7 +412,93 @@ export function RivalPage() {
         onMethodOwnChange={setMethodOwn}
         onMethodRivalChange={setMethodRival}
         submittedAvailable={data.submittedLineupAvailable}
+        ownTeamName={data.ownTeamName}
+        rivalTeamName={data.rivalName}
+        ultimoPropio={data.ultimoPartidoPropio}
+        ultimoRival={data.ultimoPartidoRival}
       />
+
+      {/* EL PRONÓSTICO VA DEBAJO DEL MAPA, y no arriba del todo como estuvo
+          hasta el 2026-09-09. Los dos comen de los mismos dos selectores
+          --«Tu fuente» y «Fuente rival»-- así que ponerlos separados dejaba a
+          quien tocaba un botón sin ver que el otro panel también se movía. */}
+      <ProjectionPanel
+        title={
+          data.prediction
+            ? `Pronóstico contra ${data.rivalName}`
+            : "Proyección de victoria por TSI"
+        }
+        meta={
+          data.prediction
+            ? `${ETIQUETA_DE_METODO[data.prediction.metodoPropio] ?? data.prediction.metodoPropio} contra ${ETIQUETA_DE_METODO[data.prediction.metodoRival] ?? data.prediction.metodoRival}`
+            : "modelo simple por TSI, no calibrado"
+        }
+      >
+        {data.prediction ? (
+          <div className="space-y-3 p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+              <span>
+                <span className="font-medium">Tu equipo</span>
+                <span className="mx-2 text-[var(--muted)]">vs</span>
+                <span>{data.rivalName}</span>
+              </span>
+              <span className="text-xs text-[var(--muted)]">
+                goles esperados {data.prediction.expectedOwnGoals} –{" "}
+                {data.prediction.expectedRivalGoals} · resultado más probable{" "}
+                {data.prediction.mostLikelyScore}
+              </span>
+            </div>
+            <BarraDePrediccion
+              tuLabel="Tu equipo"
+              tuValor={data.prediction.ownProbability}
+              rivalLabel={data.rivalName}
+              rivalValor={data.prediction.rivalProbability}
+              empate={data.prediction.drawProbability ?? undefined}
+            />
+            {/* 2026-09-13, pedido del usuario: fuera la frase de «sale de los
+                mismos partidos… no sabe de bajas» y el aviso de las acciones
+                indirectas con alineación enviada. Queda sólo lo que cambia
+                cómo se lee la barra: un partido sin cruce es hipotético, y en
+                Copa no hay empate. */}
+            {(data.prediction.esCopa || !data.prediction.hayCruce) && (
+              <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
+                {!data.prediction.hayCruce
+                  ? "No tenéis ningún cruce pendiente: es un partido hipotético."
+                  : "En Copa alguien tiene que pasar: el empate se reparte entre los dos."}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
+                {(data.winProbability.ownProbability * 100).toFixed(0)}%
+              </div>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                <div
+                  className="h-full bg-[var(--accent)]"
+                  style={{
+                    width: `${data.winProbability.ownProbability * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <Note>
+              Con lo que hay marcado arriba no salen los nueve duelos que el
+              modelo necesita, así que esto es el modelo por TSI.{" "}
+              {data.comparisonReference.ownSource === "submitted_orders"
+                ? "Tu alineación enviada"
+                : "Tus 11 probables"}{" "}
+              ({number(data.winProbability.ownTsiTotal)} TSI) contra{" "}
+              {data.comparisonReference.rivalSource ===
+              "probable_recent_starters"
+                ? "el once probable del rival"
+                : "los 11 de mayor TSI del rival"}{" "}
+              ({number(data.winProbability.rivalTsiTotal)}).
+            </Note>
+          </div>
+        )}
+      </ProjectionPanel>
 
       {data.tacticHistory && (
         <Panel
@@ -439,7 +566,7 @@ export function RivalPage() {
 
       <Panel
         title="Jugadores del rival identificados"
-        meta="top 5 por TSI, de sus últimos partidos oficiales, sea contra quien sea"
+        meta={`top 5 por TSI, de sus últimos partidos${claseDePartidosPlural}, sea contra quien sea`}
       >
         {data.rivalRosterSample.length === 0 ? (
           <Empty>
@@ -561,7 +688,7 @@ interface ComparisonMetric {
 /** Barras espejadas "propio vs. rival": cada valor crece desde el centro
  * hacia su lado, así el ojo compara longitudes en vez de tener que leer dos
  * columnas de números sueltos. Cuando el rival no tiene dato (liderazgo del
- * entrenador — CHPP lo deniega para un equipo ajeno), el lado del rival se
+ * entrenador, CHPP lo deniega para un equipo ajeno), el lado del rival se
  * pinta rayado en vez de fingir una barra con un cero. */
 function ComparisonPanel({
   data,
@@ -875,7 +1002,7 @@ const DUEL_ROW_LABEL: Record<"left" | "central" | "right", string> = {
 };
 
 /** Una celda del duelo: se reparte horizontalmente entre tu color y el del
- * rival según el % de cada uno — igual que un marcador de posesión, el
+ * rival según el % de cada uno, igual que un marcador de posesión, el
  * ancho de cada bloque ES el dato. */
 function DuelCell({
   duel,
@@ -924,55 +1051,55 @@ function DuelCell({
   );
 }
 
-/** Qué número representa cada zona. El promedio dice cómo juega de costumbre;
- *  el máximo, de lo que es capaz; el máximo de los tres carriles, de lo que es
- *  capaz por cualquiera de ellos (los tres salen iguales y altos a propósito);
- *  y el último partido, con lo que salió el último día. */
-const PITCH_ZONE_METHODS: [PitchZoneMethod, string, string][] = [
-  ["average", "Promedio", "el promedio de los partidos vistos, zona por zona"],
-  [
-    "max",
-    "Máximo",
-    "el mejor registro en cada zona, de todos los partidos vistos",
-  ],
-  [
-    "max_parallel",
-    "Máximo por carril",
-    "el mejor de los tres carriles paralelos, aplicado a los tres",
-  ],
-  ["last", "Último partido", "lo del último día, sin promediar nada"],
-];
-
-/** Solo del lado propio: de un rival las órdenes son privadas hasta que se
- *  juega el partido, así que esta opción no existe para él. */
-const SUBMITTED_METHOD: [PitchZoneMethod, string, string] = [
-  "submitted",
-  "Alineación enviada",
-  "la predicción de minuto 0 que da Hattrick para las órdenes que ya mandaste",
-];
-
-function PitchZoneMethodSelector({
-  method,
-  onMethodChange,
-  options = PITCH_ZONE_METHODS,
+/** Qué es exactamente lo que se está mirando, cuando el resumen elegido se
+ *  refiere a UN partido concreto o a una alineación concreta.
+ *
+ *  2026-09-09, pedido del usuario: «cuando dé clic en Alineación Enviada, que
+ *  me diga algo (si ya fue enviada o algo); cuando dé clic en Último partido
+ *  que muestre cuál fue ese partido».
+ *
+ *  Los otros tres resúmenes no dicen nada aquí a propósito: «promedio de
+ *  cinco partidos» no tiene un partido que nombrar, y rellenar el hueco con
+ *  una frase por cumplir sólo añadiría ruido bajo cada botón.
+ */
+function DeQuePartidoHablamos({
+  metodo,
+  partido,
+  alineacionEnviada,
 }: {
-  method: PitchZoneMethod;
-  onMethodChange: (v: PitchZoneMethod) => void;
-  options?: [PitchZoneMethod, string, string][];
+  metodo: PitchZoneMethod;
+  partido: PartidoConMarcador | null;
+  alineacionEnviada?: boolean;
 }) {
+  if (metodo === "submitted") {
+    // Con órdenes mandadas no se dice nada más: la línea del selector ya lo
+    // cuenta, y repetirlo debajo con otras palabras eran dos frases para una
+    // idea (2026-09-13).
+    if (alineacionEnviada) return null;
+    return (
+      <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
+        Todavía no has mandado alineación, así que esto cae a tu resumen de lo
+        ya jugado.
+      </p>
+    );
+  }
+  if (metodo !== "last") return null;
+  if (!partido) {
+    return (
+      <p className="mt-1.5 text-[11px] text-[var(--muted)]">
+        No hay ningún partido en la muestra.
+      </p>
+    );
+  }
   return (
-    <div className="mt-2 flex flex-wrap overflow-hidden rounded border border-[var(--border)] text-xs">
-      {options.map(([clave, etiqueta, ayuda]) => (
-        <button
-          key={clave}
-          title={ayuda}
-          onClick={() => onMethodChange(clave)}
-          className={`px-3 py-1 ${method === clave ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
-        >
-          {etiqueta}
-        </button>
-      ))}
-    </div>
+    <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
+      {partido.homeName}{" "}
+      <b className="tabular-nums text-[var(--text)]">
+        {partido.homeGoals} - {partido.awayGoals}
+      </b>{" "}
+      {partido.awayName}
+      {partido.competition ? ` · ${partido.competition}` : ""}
+    </p>
   );
 }
 
@@ -985,6 +1112,10 @@ function PitchZoneDuelsPanel({
   onMethodOwnChange,
   onMethodRivalChange,
   submittedAvailable,
+  ownTeamName,
+  rivalTeamName,
+  ultimoPropio,
+  ultimoRival,
 }: {
   duels: PitchZoneDuel[] | null;
   matchesAnalysed: { own: number | null; rival: number | null };
@@ -994,6 +1125,10 @@ function PitchZoneDuelsPanel({
   onMethodOwnChange: (v: PitchZoneMethod) => void;
   onMethodRivalChange: (v: PitchZoneMethod) => void;
   submittedAvailable: boolean;
+  ownTeamName: string;
+  rivalTeamName: string;
+  ultimoPropio: PartidoConMarcador | null;
+  ultimoRival: PartidoConMarcador | null;
 }) {
   // Tu lado tiene una opción más: la predicción de las órdenes ya enviadas.
   // Se ofrece solo si de verdad hay órdenes mandadas.
@@ -1037,13 +1172,28 @@ function PitchZoneDuelsPanel({
     >
       <div className="grid gap-2 p-4 pb-2 sm:grid-cols-2">
         <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+          {/* EL NOMBRE DEL EQUIPO, no «Tu fuente» (2026-09-09, pedido del
+              usuario). Los dos paneles se leen de un vistazo como «X contra
+              Y», que es lo que de verdad se está comparando. */}
           <div className="text-[10px] uppercase text-[var(--muted)]">
-            Tu fuente
+            {ownTeamName}
           </div>
           <div className="text-xs font-semibold">{sources.own.label}</div>
-          {sources.own.tacticSkill != null && (
+          {/* Con la alineación enviada NO hay táctica leída: Hattrick prevé
+              los ratings de unas órdenes, no la táctica con la que se van a
+              jugar. Salía «Táctica 0 · nivel 0», que es un doble cero que
+              parece un dato y no lo es (lo vio el usuario, 2026-09-09). */}
+          {methodOwn !== "submitted" && sources.own.tacticSkill != null && (
             <div className="mt-0.5 text-[11px] text-[var(--muted)]">
               Táctica {sources.own.tacticType} · nivel {sources.own.tacticSkill}
+            </div>
+          )}
+          {/* Lo mismo que dice el lado del rival (2026-09-13). Con la
+              alineación enviada no hay partidos que contar: es una sola
+              previsión de Hattrick. */}
+          {methodOwn !== "submitted" && (
+            <div className="mt-0.5 text-[11px] text-[var(--muted)]">
+              {sources.own.observations ?? 0} partido(s) vistos
             </div>
           )}
           <PitchZoneMethodSelector
@@ -1051,10 +1201,15 @@ function PitchZoneDuelsPanel({
             onMethodChange={onMethodOwnChange}
             options={opcionesPropias}
           />
+          <DeQuePartidoHablamos
+            metodo={methodOwn}
+            partido={ultimoPropio}
+            alineacionEnviada={submittedAvailable}
+          />
         </div>
         <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
           <div className="text-[10px] uppercase text-[var(--muted)]">
-            Fuente rival
+            {rivalTeamName}
           </div>
           <div className="text-xs font-semibold">{sources.rival.label}</div>
           <div className="mt-0.5 text-[11px] text-[var(--muted)]">
@@ -1064,6 +1219,7 @@ function PitchZoneDuelsPanel({
             method={methodRival}
             onMethodChange={onMethodRivalChange}
           />
+          <DeQuePartidoHablamos metodo={methodRival} partido={ultimoRival} />
         </div>
       </div>
       <div className="p-4 pt-0">

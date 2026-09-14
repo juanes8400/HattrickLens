@@ -3,13 +3,13 @@ etiquetada como UTC.
 
 El sync hacía `.replace(tzinfo=UTC)` sobre la cadena de CHPP, que no convierte
 nada: sólo le pega una etiqueta falsa. El partido de Copa del miércoles 19 a
-las 17:10 hora de Colombia estaba guardado como 2026-08-20 00:10 — siete horas
+las 17:10 hora de Colombia estaba guardado como 2026-08-20 00:10, siete horas
 de más, que es CEST menos la hora colombiana.
 
 Esta migración reinterpreta cada fecha YA GUARDADA como hora sueca y la
 convierte a UTC de verdad. Sólo toca columnas cuyo valor venga de CHPP; las
 marcas de tiempo propias (`captured_at`, `started_at`, `dismissed_at`…) ya se
-escriben con `datetime.now(UTC)` y son correctas — desplazarlas sería
+escriben con `datetime.now(UTC)` y son correctas, desplazarlas sería
 estropearlas.
 
 El desplazamiento NO es constante: +1 en invierno y +2 en verano, así que se

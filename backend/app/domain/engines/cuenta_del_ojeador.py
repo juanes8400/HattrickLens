@@ -83,7 +83,14 @@ class CuentaDeUnOjeador:
 
     @property
     def vendidos(self) -> int:
-        return sum(1 for d in self.descubrimientos if not d.sigue_en_el_club)
+        """Los que salieron CON VENTA. Quien salió sin precio --despedido o
+        regalado-- no es un vendido.
+
+        2026-09-13: contaba a todo el que ya no estaba, y Ojeadores decía «1
+        vendido» mientras el resumen de Juveniles decía «aún no has vendido
+        ningún canterano». La regla es la de Juveniles: vendido es venta con
+        dinero dentro."""
+        return sum(1 for d in self.descubrimientos if not d.sigue_en_el_club and d.venta_neta > 0)
 
     @property
     def sigue_contratado(self) -> bool:
@@ -135,7 +142,7 @@ def cuenta(
 
     `descubrimientos` va por `ht_scout_id`. Un ojeador sin canteranos sale
     igual, con su coste y sin ingresos: es la información más útil que puede
-    dar la tabla —que lleva semanas cobrando y no ha traído nada—.
+    dar la tabla, que lleva semanas cobrando y no ha traído nada, .
     """
     filas = [
         CuentaDeUnOjeador(

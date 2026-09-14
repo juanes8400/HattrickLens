@@ -1,9 +1,9 @@
-"""Enumerar intentos de venta — HL-161, 2026-08-08, pedido explícitamente.
+"""Enumerar intentos de venta, HL-161, 2026-08-08, pedido explícitamente.
 
 `Player.listing_count` (0027) solo CUENTA apariciones nuevas en el mercado;
 esta tabla nueva guarda cada una como fila propia (con la puja más alta del
 momento) para poder enumerarlas en la ficha de ex-jugador, no solo contarlas.
-Empieza a llenarse desde hoy — CHPP no da historial, así que subestima lo
+Empieza a llenarse desde hoy, CHPP no da historial, así que subestima lo
 anterior, igual que `listing_count` ya lo hacía.
 
 Revision ID: 0038

@@ -1,6 +1,6 @@
 """Tests de la ficha de jugador ampliada (HL-15x): historial real de
 snapshots, histórico de rating por partido (con dedup) y distribuciones/
-percentil de plantilla — contra DB real (sqlite in-memory) y fixtures CHPP
+percentil de plantilla, contra DB real (sqlite in-memory) y fixtures CHPP
 reales, mismo patrón que test_sync_flow.py.
 """
 import asyncio
@@ -43,7 +43,7 @@ class NoPlayerDetailsCHPP(FakeCHPP):
     """2026-08-05: desde que `execute()` pide playerdetails.xml para toda la
     plantilla activa automáticamente (ya no depende del botón "Actualizar
     detalles de jugadores"), un `SyncTeamCommand(files=["players"])` de
-    prueba ya NO simula "nunca se pidió playerdetails" por sí solo — hace
+    prueba ya NO simula "nunca se pidió playerdetails" por sí solo, hace
     falta este doble que se lo niegue a propósito, para las pruebas cuya
     premisa es justo esa ausencia."""
     async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
@@ -95,7 +95,7 @@ def test_snapshot_history_returns_real_points_in_order() -> None:
 
 def test_match_rating_history_dedups_same_match() -> None:
     """Sincronizar playerdetails dos veces con el mismo LastMatch (nada nuevo
-    jugado) no debe duplicar la fila — HL-15x #21."""
+    jugado) no debe duplicar la fila, HL-15x #21."""
     async def run() -> None:
         uow, chpp, team_id = await _setup()
         handler = SyncTeamHandler(uow, chpp)
@@ -176,7 +176,7 @@ def test_top_skill_distributions_excludes_set_pieces() -> None:
             dist = await svc.top_skill_distributions(team_id, PLAYER_ID, top_n=3)
 
         # skills reales del jugador: keeper 1, defending 4, playmaking 7,
-        # winger 4, passing 13, scoring 18, set_pieces 9 — top 3 sin
+        # winger 4, passing 13, scoring 18, set_pieces 9, top 3 sin
         # set_pieces son scoring(18), passing(13), playmaking(7).
         assert dist is not None
         assert set(dist) == {"scoring", "passing", "playmaking"}
@@ -193,7 +193,7 @@ async def _open_the_level_window_before(uow: SqlAlchemyUnitOfWork, ht_match_id: 
     `experience_progress` solo cuenta partidos JUGADOS después de la primera
     vez que vimos al jugador en su nivel actual. En un sync de prueba el
     snapshot nace con la hora de ahora y el partido del fixture se jugó antes,
-    así que sin esto la ventana está cerrada y no hay nada que contar — que es
+    así que sin esto la ventana está cerrada y no hay nada que contar, que es
     justo lo correcto, pero deja sin ejercitar el peso por minutos, que es lo
     que estas pruebas miden.
     """
@@ -222,7 +222,7 @@ def test_experience_progress_counts_real_matches_by_type() -> None:
     antiguo con el nivel de experiencia actual (13, único snapshot, así que
     "desde siempre" en esta prueba). La fila de `matches` para ese
     ht_match_id ya no se crea a mano: `execute_player_details` la rellena
-    sola (matchdetails.xml del fixture trae MatchType 1 = liga) — ver
+    sola (matchdetails.xml del fixture trae MatchType 1 = liga), ver
     `test_execute_player_details_backfills_foreign_match_type`."""
     async def run() -> None:
         uow, chpp, team_id = await _setup()
@@ -249,7 +249,7 @@ def test_experience_progress_counts_real_matches_by_type() -> None:
 def test_execute_player_details_backfills_foreign_match_type() -> None:
     """2026-08-05, pedido explícitamente: LastMatch puede apuntar a un
     partido que el club nunca sincronizó (selección nacional, Masters,
-    juvenil) — matches.xml solo trae los partidos del propio equipo.
+    juvenil), matches.xml solo trae los partidos del propio equipo.
     `execute_player_details` debe rellenar esa fila de `matches` pidiendo
     matchdetails.xml, una sola vez, para que ese partido deje de ser
     invisible para experience_progress."""
@@ -313,7 +313,7 @@ def test_experience_progress_weights_by_minutes_played() -> None:
 
 
 def test_experience_progress_never_awards_more_than_full_match() -> None:
-    """Más de 90 minutos (prórroga) no da un bono — el tope sigue siendo el
+    """Más de 90 minutos (prórroga) no da un bono, el tope sigue siendo el
     100% de los puntos de esa competencia."""
     async def run() -> None:
         from sqlalchemy import select
@@ -349,7 +349,7 @@ def test_experience_progress_detects_a_national_cap_never_captured_by_lastmatch(
     """2026-08-05, pedido explícitamente: si Caps sube más de lo que
     player_match_ratings puede explicar (el club jugó después y LastMatch
     quedó sobrescrito antes del siguiente sync), ese partido de selección
-    sigue contando como detectado — sin inventar sus puntos exactos."""
+    sigue contando como detectado, sin inventar sus puntos exactos."""
     async def run() -> None:
         from datetime import timedelta
 
@@ -357,7 +357,7 @@ def test_experience_progress_detects_a_national_cap_never_captured_by_lastmatch(
 
         uow, _default_chpp, team_id = await _setup()
         # `execute()` ya pide playerdetails.xml para toda la plantilla activa
-        # sola (ver `NoPlayerDetailsCHPP`) — esta prueba simula justo el caso
+        # sola (ver `NoPlayerDetailsCHPP`), esta prueba simula justo el caso
         # contrario, así que se le niega esa respuesta a propósito.
         handler = SyncTeamHandler(uow, NoPlayerDetailsCHPP())
         await handler.execute(
@@ -374,7 +374,7 @@ def test_experience_progress_detects_a_national_cap_never_captured_by_lastmatch(
                 .order_by(m.PlayerSnapshot.captured_at.desc())
                 .limit(1)
             )
-            # Snapshot "de antes": mismo nivel de experiencia, caps=2 —
+            # Snapshot "de antes": mismo nivel de experiencia, caps=2
             # ancla el `since_date` del que parte experience_progress.
             u.session.add(m.PlayerSnapshot(
                 sync_id=base.sync_id, player_id=player.id,
@@ -385,7 +385,7 @@ def test_experience_progress_detects_a_national_cap_never_captured_by_lastmatch(
                 injury_level=base.injury_level, career_caps=2,
                 content_hash=b"\x01" * 32,
             ))
-            # Snapshot actual: caps subió a 3 — un partido de selección se
+            # Snapshot actual: caps subió a 3, un partido de selección se
             # jugó, pero nunca vimos su LastMatch (ningún PlayerMatchRating
             # nuevo desde entonces).
             base.career_caps = 3

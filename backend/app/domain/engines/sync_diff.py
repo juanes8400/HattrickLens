@@ -63,6 +63,11 @@ class Change:
     kind: str = "event"
     good: bool | None = None
     currency: str = ""
+    #: A qué jugador se refiere, cuando se refiere a uno. Se guarda para poder
+    #: ENGANCHAR el cambio con lo que se sabe de él en otra parte --el saldo de
+    #: una venta, por ejemplo-- sin tener que casar por nombre, que se repite y
+    #: cambia. `None` en todo lo que no sea de un jugador concreto.
+    ht_player_id: int | None = None
 
     def detail(self) -> dict[str, Any]:
         """Payload que se guarda como JSON junto a la frase. Se omiten las
@@ -78,6 +83,7 @@ class Change:
             "kind": self.kind,
             "good": self.good,
             "currency": self.currency,
+            "htPlayerId": self.ht_player_id,
         }
         return {k: v for k, v in raw.items() if v not in (None, "")}
 
@@ -88,7 +94,7 @@ PLAYER_LEVEL_FIELDS: dict[str, str] = {
     "experience": "Experiencia",
     # Pedido explícito 2026-08-14: de los campos de carácter, estos dos son
     # los que de verdad cambian con el tiempo (fidelidad sube con la
-    # antigüedad, liderazgo con el entrenamiento correspondiente) — a
+    # antigüedad, liderazgo con el entrenamiento correspondiente), a
     # diferencia de sociabilidad/agresividad/honestidad, que Hattrick trata
     # como rasgos fijos del jugador.
     "loyalty": "Fidelidad",
@@ -248,7 +254,7 @@ def diff_rival_purchase(
     best_rating: float | None = None,
     currency: str = "",
 ) -> Change:
-    """Un club al que te vas a enfrentar ha fichado — 2026-08-19.
+    """Un club al que te vas a enfrentar ha fichado, 2026-08-19.
 
     No es un cambio TUYO, y por eso no vive con los de plantilla: es
     información de la competencia. Lo que importa es a qué nivel compran los
@@ -282,19 +288,20 @@ def diff_player_departure(
     player_name: str,
     sale_price: int | None,
     currency: str = "",
+    ht_player_id: int | None = None,
 ) -> Change:
     """2026-08-12, pedido explícito: un jugador que sale de la plantilla
-    (`mark_departed`) no pasaba por `diff_player_skills` — esa función sólo
+    (`mark_departed`) no pasaba por `diff_player_skills`, esa función sólo
     compara jugadores que SÍ vienen en el roster nuevo, así que una venta
     real quedaba invisible en "Qué cambió" pese a estar bien guardada en
     `Player.sale_price`/`sold_at`. `sale_price` ya debe venir convertido a
-    moneda local (ver `conv()` en player_balance.py) — este módulo no conoce
+    moneda local (ver `conv()` en player_balance.py), este módulo no conoce
     la tasa de cambio.
 
     2026-08-12, corrección pedida explícitamente: NO se anuncia ganancia/
     pérdida aquí. Un delta precio_venta − precio_compra es una cifra sin la
     comisión del agente ni el bono de TSI que sí aplica "Transferencias"
-    (`player_balance.py`) — mostrarlo aquí como si fuera el resultado real
+    (`player_balance.py`), mostrarlo aquí como si fuera el resultado real
     de la venta es engañoso. El precio de venta solo."""
     if not sale_price:
         return Change(
@@ -303,6 +310,7 @@ def diff_player_departure(
             metric="departure",
             label="Baja",
             kind="event",
+            ht_player_id=ht_player_id,
             summary=f"{player_name} salió de la plantilla",
         )
     return Change(
@@ -313,6 +321,7 @@ def diff_player_departure(
         kind="money",
         after=sale_price,
         currency=currency,
+        ht_player_id=ht_player_id,
         summary=f"{player_name} se vendió por {thousands(sale_price)} {currency}".strip(),
     )
 
@@ -398,7 +407,7 @@ def diff_economy(
     old: dict[str, Any] | None, new: dict[str, Any], currency: str = "", rate: float = 1.0
 ) -> list[Change]:
     """`rate`: CHPP devuelve los montos de economy.xml en la moneda base del
-    juego (SEK), no en la local del equipo — corrección 2026-08-05, bug real
+    juego (SEK), no en la local del equipo, corrección 2026-08-05, bug real
     encontrado en vivo: este mensaje mostraba el número crudo en SEK con la
     etiqueta de la moneda LOCAL (p. ej. "10,000 US$" cuando el cambio real,
     dividido por la tasa de Colombia = 10, era 1,000 US$). Mismo criterio

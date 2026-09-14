@@ -32,7 +32,7 @@ def _rutas_reales(aplicacion) -> list[tuple[list[str], str, list]]:
     Desde FastAPI 0.14x, `include_router` ya NO copia las rutas: deja un
     `_IncludedRouter` perezoso, así que `app.routes` solo enseña un puñado de
     entradas y NINGUNA con `{team_id}`. Este test recorría esa lista y pasaba
-    sin comprobar nada — descubierto el 2026-08-20, y por eso ahora también se
+    sin comprobar nada, descubierto el 2026-08-20, y por eso ahora también se
     exige que encuentre rutas.
     """
     from fastapi.routing import APIRoute

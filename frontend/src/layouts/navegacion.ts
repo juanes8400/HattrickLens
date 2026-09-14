@@ -11,6 +11,7 @@ export const NAV = [
   { to: "/club", label: "Club y cuerpo técnico" },
   { to: "/overview", label: "Equipo" },
   { to: "/team", label: "Jugadores" },
+  { to: "/skills", label: "Habilidades (Profundidad)" },
   { to: "/positions", label: "Posiciones" },
   { to: "/lineup", label: "Alineación" },
   { section: "Desarrollo" },
@@ -32,6 +33,8 @@ export const NAV = [
   { to: "/news", label: "Cambios" },
   { to: "/insights", label: "Alertas" },
   { to: "/transparency", label: "Transparencia" },
+  // Junto a Transparencia: una explica cada número, la otra cada pantalla.
+  { to: "/wiki", label: "Wiki" },
   // Última, y en su propia sección: es lo único de la aplicación que no
   // depende de haber sincronizado nada, así que no pertenece a ninguna de
   // las otras (2026-09-02).

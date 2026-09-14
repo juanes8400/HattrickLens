@@ -1,4 +1,4 @@
-"""Optimizador de alineación — HL-120, HL-121, HL-122, HL-123.
+"""Optimizador de alineación, HL-120, HL-121, HL-122, HL-123.
 
 Hattrick Control tiene una pantalla "Mejor equipo" que busca alineaciones por
 formación. Nosotros resolvemos el problema bien: **asignación óptima**.
@@ -15,6 +15,7 @@ Coste: O(n³) con n = 24 jugadores. Milisegundos.
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.domain.engines.asignacion_optima import asignacion_maxima
 from app.domain.engines.position_engine import positions as _positions
 from app.domain.engines.position_engine import rate
 from app.domain.value_objects.formations import (
@@ -30,7 +31,7 @@ from app.domain.value_objects.formations import (
 FORMATIONS: dict[str, list[str]] = {nombre: slots_for(nombre) for nombre in LINE_COUNTS}
 
 # Órdenes individuales de cada puesto. La clave es la posición "Normal" y la
-# lista, todas las variantes que Hattrick permite dar ahí — la primera es
+# lista, todas las variantes que Hattrick permite dar ahí, la primera es
 # siempre la Normal. El motor de posiciones ya sabe puntuar las diecinueve;
 # aquí solo se declara cuáles caben en cada casilla de la formación.
 #
@@ -101,7 +102,12 @@ def variantes_de_casilla(slots: list[str], indice: int) -> tuple[str, ...]:
     fin = indice
     while fin + 1 < len(slots) and slots[fin + 1] == slot:
         fin += 1
-    if fin - inicio + 1 != 3 or indice != inicio + 1:
+    # Sin lado: el del medio de tres, y el que va SOLO en su carril
+    # (2026-09-13, visto por el usuario: en un 5-3-2 el único mediocentro
+    # salía con «hacia Lateral», y va en el medio exacto).
+    en_linea = fin - inicio + 1
+    sin_lado = en_linea == 1 or (en_linea == 3 and indice == inicio + 1)
+    if not sin_lado:
         return todas
     return tuple(v for v in todas if not v.endswith(HACIA_EL_LATERAL))
 
@@ -142,7 +148,7 @@ def individual_behaviour(position: str, base_position: str | None = None) -> tup
     return behaviour, INDIVIDUAL_BEHAVIOUR_LABELS[behaviour]
 
 
-# Penalización por saturación posicional — Manual no Escrito (wiki.hattrick.org).
+# Penalización por saturación posicional, Manual no Escrito (wiki.hattrick.org).
 # Jugar 2 o 3 en la misma posición central resta rendimiento a TODOS los que
 # la ocupan. Solo aplica a las posiciones "Normal" (DC, MC, DN): las variantes
 # ofensiva/defensiva/hacia-lateral no están en las FORMATIONS de este motor,
@@ -191,12 +197,51 @@ class Assignment:
         return individual_behaviour(self.position, self.base_position)[1]
 
 
+#: Las seis plazas del banquillo de Hattrick, en el orden en que las pone el
+#: juego. Pedido explícitamente el 2026-09-07: hasta ahora el banquillo eran
+#: «los siete de más TSI que se quedaron fuera», que no es un banquillo, es
+#: una lista de sobras. Un partido se pierde por no tener al portero suplente
+#: sentado, no por no tener al séptimo mejor TSI.
+BENCH_SLOTS: tuple[str, ...] = (
+    "keeper",
+    "central_defender",
+    "wingback",
+    "inner_midfield",
+    "winger",
+    "forward",
+)
+
+BENCH_LABELS: dict[str, str] = {
+    "keeper": "Portero suplente",
+    "central_defender": "Defensa central suplente",
+    "wingback": "Lateral suplente",
+    "inner_midfield": "Mediocentro suplente",
+    "winger": "Extremo suplente",
+    "forward": "Delantero suplente",
+}
+
+
+@dataclass
+class BenchPick:
+    """Un suplente y la plaza de banquillo que ocupa.
+
+    SIN ORDEN INDIVIDUAL, a propósito: en el banquillo no se elige variante.
+    La orden se la da el manager al hacer el cambio, cuando ya sabe cómo va
+    el partido, recomendar aquí un «lateral ofensivo suplente» sería
+    inventarse una casilla que Hattrick no tiene."""
+
+    slot: str
+    label: str
+    player: dict[str, Any]
+    rating: float
+
+
 @dataclass
 class Lineup:
     formation: str
     assignments: list[Assignment]
     total_rating: float
-    bench: list[dict[str, Any]] = field(default_factory=list)
+    bench: list[BenchPick] = field(default_factory=list)
 
     @property
     def manual_share(self) -> float:
@@ -325,7 +370,7 @@ def best_lineup(
     exclude = exclude or set()
 
     # 2026-08-16, corregido a petición del usuario: `InjuryLevel` 0 es
-    # MAGULLADO, y un magullado puede jugar — solo a partir de 1 (semanas de
+    # MAGULLADO, y un magullado puede jugar, solo a partir de 1 (semanas de
     # baja) el jugador está realmente descartado. Excluirlo dejaba fuera del
     # once a gente perfectamente disponible: el caso que lo destapó fue un
     # delantero de 15,74 que desapareció del mejor once por un magullón.
@@ -395,15 +440,51 @@ def best_lineup(
             used.add(i)
 
     assignments.sort(key=lambda a: a.slot)
-    bench = [p for i, p in enumerate(available) if i not in used]
-    bench.sort(key=lambda p: -p.get("tsi", 0))
+    restantes = [p for i, p in enumerate(available) if i not in used]
 
     return Lineup(
         formation=formation,
         assignments=assignments,
         total_rating=round(sum(a.rating for a in assignments), 2),
-        bench=bench[:7],
+        bench=_banquillo(restantes),
     )
+
+
+def _banquillo(restantes: list[dict[str, Any]]) -> list[BenchPick]:
+    """Las seis plazas del banquillo, cada una para quien mejor la juega.
+
+    DOS ASIGNACIONES Y NO UNA, y no es un atajo. Metiendo las seis plazas de
+    banquillo en la misma matriz que el once, el húngaro maximizaría la suma
+    de las diecisiete: podría sacar del once a un titular para que el
+    banquillo sumara más. Un banquillo mejor no vale un once peor, el
+    partido lo juegan los once. Así que el once se resuelve primero, con los
+    mismos números de siempre, y el banquillo se reparte entre los que
+    sobraron. Dentro de esa segunda vuelta sí es un húngaro completo: si el
+    mejor central suplente es también el mejor lateral suplente, ocupará la
+    plaza donde su ausencia se note menos en la otra.
+
+    Sin multiplicadores de saturación: esos castigan a tres centrales que se
+    estorban EN LA CANCHA, y en el banquillo no se estorba nadie.
+    """
+    if not restantes:
+        return []
+    columnas = list(BENCH_SLOTS)
+    elegidos = asignacion_maxima(
+        restantes,
+        columnas,
+        lambda jugador, plaza: _player_rating(jugador, plaza),
+    )
+    por_plaza = {plaza: jugador for jugador, plaza in elegidos}
+    return [
+        BenchPick(
+            slot=plaza,
+            label=BENCH_LABELS[plaza],
+            player=por_plaza[plaza],
+            rating=round(_player_rating(por_plaza[plaza], plaza), 2),
+        )
+        for plaza in BENCH_SLOTS
+        if plaza in por_plaza
+    ]
 
 
 def best_formation(
@@ -431,7 +512,7 @@ def best_formation(
 
 
 #  Manual no Escrito (wiki.hattrick.org): multiplicador de mediocampo según
-# Espíritu de Equipo × Actitud. IMPORTANTE — los 10 nombres de esta tabla NO
+# Espíritu de Equipo × Actitud. IMPORTANTE, los 10 nombres de esta tabla NO
 # coinciden con los 11 niveles (0-10) de `TEAM_SPIRIT` en ht_constants.py:
 # son dos escalas de nombres distintas, y no hay evidencia para mapear una
 # fila de esta tabla a un nivel concreto de CHPP con certeza. Por eso se

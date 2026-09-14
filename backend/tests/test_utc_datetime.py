@@ -12,7 +12,7 @@ un `datetime.now(UTC).replace(tzinfo=None)`:
 
 Cuatro rutas caían por ahí (saldo por jugador, juveniles y las dos de alertas,
 que lo llaman por dentro), y solo para los equipos con algún jugador comprado
-— de ahí que unos usuarios lo vieran y otros no.
+de ahí que unos usuarios lo vieran y otros no.
 
 `UtcDateTime` lo normaliza en la frontera. Estos tests fijan las dos mitades.
 """

@@ -1,12 +1,12 @@
 """Parsers XML por file CHPP. Tolerantes: campo faltante = default, nunca crash.
 
 Entrada en BYTES (el XML declara su propio encoding; decodificar antes corrompe
-caracteres no-ASCII — bug real observado con nombres como 'Raúl').
+caracteres no-ASCII, bug real observado con nombres como 'Raúl').
 """
 
 from collections.abc import Callable
 from typing import Any
-from xml.etree.ElementTree import Element  # noqa: S405 — type only, parsing uses defusedxml
+from xml.etree.ElementTree import Element  # noqa: S405, type only, parsing uses defusedxml
 
 from defusedxml import ElementTree
 
@@ -45,7 +45,7 @@ def _is_chpp_error(root: Element) -> bool:
     """CHPP responde HTTP 200 con un `chpperror.xml` (root `<HattrickData>`
     con `<Error>`/`<ErrorCode>`) para un `playerID` que ya no resuelve
     (verificado en vivo 2026-08-05: ErrorCode 56 y 64 contra jugadores
-    vendidos hace muchas temporadas) — nunca lanza un error HTTP real, así
+    vendidos hace muchas temporadas), nunca lanza un error HTTP real, así
     que sin esta detección el parser simplemente no encontraba `<Player>`
     y devolvía `{}` en silencio, indistinguible de "aún no hay dato"."""
     return root.find("ErrorCode") is not None
@@ -54,7 +54,7 @@ def _is_chpp_error(root: Element) -> bool:
 def _float(node: Element, tag: str, default: float = 0.0) -> float:
     # CHPP sirve algunos campos (p. ej. CurrencyRate de worlddetails.xml,
     # confirmado en vivo 2026-08-04 con India: "0,25") en formato europeo
-    # con coma decimal en vez de punto — sin este reemplazo, float() lanzaba
+    # con coma decimal en vez de punto, sin este reemplazo, float() lanzaba
     # ValueError y el campo se perdía en silencio con el default (0.0, una
     # tasa de cambio inválida, no "sin dato").
     try:
@@ -73,11 +73,11 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
         series = t.find(".//LeagueLevelUnit")
         cup = t.find("Cup")
         # HL-161: país real (columna "País Destino" del Excel del usuario)
-        # — `Country/CountryName`, no `League/LeagueName` (casi siempre
+        # `Country/CountryName`, no `League/LeagueName` (casi siempre
         # coinciden, pero no es lo mismo semánticamente). Funciona para
-        # equipos ajenos, no solo el propio — verificado en vivo 2026-08-04.
+        # equipos ajenos, no solo el propio, verificado en vivo 2026-08-04.
         country = t.find(".//Country")
-        # La región del club — 2026-08-18. Hattrick decide el clima por
+        # La región del club, 2026-08-18. Hattrick decide el clima por
         # región, y esta es la única fuente que la da de un equipo AJENO:
         # `arenadetails.xml?teamID=` responde error 59 salvo para equipos
         # propios, verificado en vivo. Hace falta para el partido de
@@ -88,11 +88,16 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
                 "ht_team_id": _int(t, "TeamID"),
                 "name": _txt(t, "TeamName", ""),
                 "short_name": _txt(t, "ShortTeamName", ""),
+                # Límite inferior exacto del archivo de partidos. Pedir desde
+                # una fecha inventada funciona, pero obliga a explorar años en
+                # los que el club todavía no existía durante la primera
+                # conexión. Teamdetails 3.6 ya entrega este dato gratis.
+                "founded_at": _txt(t, "FoundedDate", ""),
                 "league_name": _txt(league, "LeagueName", "") if league is not None else "",
                 # 2026-08-04: LeagueID del PAÍS (distinto de series_ht_id, que es
-                # la SERIE dentro del país) — clave para cruzar contra
+                # la SERIE dentro del país), clave para cruzar contra
                 # worlddetails.xml y saber la temporada/moneda/copas reales de
-                # este equipo en vez de asumir un país fijo — ver
+                # este equipo en vez de asumir un país fijo, ver
                 # `parse_worlddetails`.
                 "ht_league_id": _int(league, "LeagueID") if league is not None else 0,
                 "series_name": _txt(series, "LeagueLevelUnitName", "")
@@ -190,7 +195,7 @@ def parse_players(xml: bytes) -> dict[str, Any]:
     Loyalty, Leadership, Agreeability, Aggressiveness, Honesty,
     MotherClubBonus, CountryID, goles por competición/carrera y el
     entrenador-jugador (TrainerData) vienen en la MISMA respuesta que ya se
-    pedía — no es un fichero ni una llamada nueva, solo campos que se
+    pedía, no es un fichero ni una llamada nueva, solo campos que se
     descartaban al parsear. HL-15x."""
     root = ElementTree.fromstring(xml)
     players = []
@@ -230,7 +235,7 @@ def parse_players(xml: bytes) -> dict[str, Any]:
                 "career_hattricks": _int(node, "CareerHattricks"),
                 # CareerAssists NO está en players.xml (comprobado contra el
                 # fixture real: tras CareerHattricks salta directo a
-                # MatchesCurrentTeam) — solo en playerdetails.xml, ver abajo.
+                # MatchesCurrentTeam), solo en playerdetails.xml, ver abajo.
                 # Un supuesto sin verificar aquí habría dejado a todo el mundo
                 # en 0 en vez de "sin sincronizar".
                 "player_trainer_skill_level": (
@@ -248,16 +253,28 @@ def parse_players(xml: bytes) -> dict[str, Any]:
                 },
             }
         )
-    return {"players": players}
+    # EL NOMBRE DEL EQUIPO viene en la MISMA respuesta y se estaba tirando.
+    #
+    # Costó una pantalla rota (2026-09-09): la ficha de rival sacaba el nombre
+    # del último partido analizado, así que filtrando a «sólo amistosos» un
+    # equipo sin amistosos jugados se quedaba sin nombre y la pantalla
+    # concluía que el equipo no existía. La plantilla se pide igual, sin
+    # filtro y siempre, así que aquí hay un nombre que no depende de qué
+    # partidos entren.
+    equipo = root.find(".//Team")
+    return {
+        "players": players,
+        "team_name": _txt(equipo, "TeamName", "") if equipo is not None else "",
+    }
 
 
 @register("playerdetails")
 def parse_playerdetails(xml: bytes) -> dict[str, Any]:
-    """playerdetails.xml — se pide UNA vez por jugador (`playerID`), nunca en
+    """playerdetails.xml, se pide UNA vez por jugador (`playerID`), nunca en
     el sync normal por equipo: es la única fuente de `LastMatch` (posición y
     rating de la última semana), del nombre del club madre y de
     `CareerAssists` (ese campo NO existe en players.xml, comprobado contra
-    un XML real — HL-15x fase B). Se pide aparte porque son N llamadas
+    un XML real, HL-15x fase B). Se pide aparte porque son N llamadas
     CHPP, no una."""
     root = ElementTree.fromstring(xml)
     if _is_chpp_error(root):
@@ -303,14 +320,14 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
             _txt(mother_club, "TeamName", "") if mother_club is not None else ""
         ),
         # 2026-08-04, pedido explícitamente: "canterano" = MotherClub/TeamID
-        # igual al ID de este club — funciona para CUALQUIER jugador (igual
+        # igual al ID de este club, funciona para CUALQUIER jugador (igual
         # que el resto de este fichero), a diferencia del `is_academy_graduate`
         # anterior (solo cubría jugadores vistos por el escaneo de cantera de
         # esta app, así que se perdían los del backfill histórico de
-        # transferencias). 0 si no hay `MotherClub` — nunca coincide con un
+        # transferencias). 0 si no hay `MotherClub`, nunca coincide con un
         # TeamID real de Hattrick.
         "mother_club_team_id": (_int(mother_club, "TeamID") if mother_club is not None else 0),
-        # HL-15x: Nacionalidad real — NativeLeagueName ya viene como texto en
+        # HL-15x: Nacionalidad real, NativeLeagueName ya viene como texto en
         # playerdetails.xml, sin necesitar una tabla ID→país propia.
         "native_league_name": _txt(node, "NativeLeagueName", ""),
         # Conservar también los IDs oficiales. Algunas respuestas válidas
@@ -318,10 +335,10 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         # sync puede entonces resolver el nombre exacto contra worlddetails.
         "native_country_id": _int(node, "NativeCountryID"),
         "native_league_id": _int(node, "NativeLeagueID"),
-        # HL-161: edad ACTUAL — playerdetails.xml funciona para cualquier
+        # HL-161: edad ACTUAL, playerdetails.xml funciona para cualquier
         # jugador por ID, aunque ya no esté en el equipo (verificado en vivo
         # 2026-08-04 con un jugador ya vendido). Sirve para reconstruir hacia
-        # atrás la edad en el momento de una venta pasada — ver
+        # atrás la edad en el momento de una venta pasada, ver
         # `_backfill_age_at_sale` en `application/commands/sync_team.py`.
         "age_years": _int(node, "Age"),
         "age_days": _int(node, "AgeDays"),
@@ -331,7 +348,7 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         # alguien que entró y salió entre dos sincronizaciones, que si no
         # figuraba con coste de salarios 0 e inflaba su saldo.
         "salary": _int(node, "Salary"),
-        # HL-161: Carácter y Especialidad — casi no cambian con el tiempo,
+        # HL-161: Carácter y Especialidad, casi no cambian con el tiempo,
         # así que el valor de HOY sirve como base razonable para un
         # jugador ya vendido, a diferencia de la edad o las habilidades.
         "agreeability": _int(node, "Agreeability"),
@@ -339,7 +356,7 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
     }
     if node.find("CareerAssists") is not None:
         out["career_assists"] = _int(node, "CareerAssists")
-    # 2026-08-05: Caps/CapsU20 — totales de carrera con la selección
+    # 2026-08-05: Caps/CapsU20, totales de carrera con la selección
     # nacional (mayor y sub-20). Única forma barata de saber "sí, este
     # jugador ha jugado con la selección": no hay llamada CHPP nueva, viene
     # en la misma respuesta que ya se pedía para MotherClub/LastMatch.
@@ -349,14 +366,14 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
         out["caps_u20"] = _int(node, "CapsU20")
     # 2026-08-09, bug real: cuando CHPP no tiene un último partido real que
     # contar, `<LastMatch>` SIGUE presente pero con todo en cero/vacío
-    # (`MatchId=0`, `Date=0001-01-01`, `PositionCode=0`...) — un sentinel
+    # (`MatchId=0`, `Date=0001-01-01`, `PositionCode=0`...), un sentinel
     # "sin dato", no una posición real. `if last_match is not None` solo
     # comprueba que el ELEMENTO existe, así que ese cero se colaba como si
     # `PositionCode=0` fuera real: `match_role_name(0)` cae al fallback
     # "posicion 0 (sin traducir)" y ESO es lo que se mostraba (Comparativa
     # de liga y, para cualquier jugador propio en la misma situación,
     # "Última semana" en Posiciones). `MatchId == 0` es la señal fiable de
-    # sentinel — un matchID real de Hattrick nunca es 0.
+    # sentinel, un matchID real de Hattrick nunca es 0.
     if last_match is not None and _int(last_match, "MatchId") != 0:
         out["last_match"] = {
             "ht_match_id": _int(last_match, "MatchId"),
@@ -365,7 +382,7 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
             "rating": _float(last_match, "Rating"),
             # 2026-08-09, pedido explícitamente: "Última semana"/"Último
             # partido" solo debe mostrar dato si el partido fue de verdad
-            # reciente — `LastMatch` es literalmente "el último partido con
+            # reciente, `LastMatch` es literalmente "el último partido con
             # datos de este jugador", que para uno que casi no juega puede
             # ser de hace más de un año (caso real: Volodymyr Manakin,
             # 2025-04-02). Sin esta fecha no hay forma de distinguir "jugó
@@ -377,10 +394,10 @@ def parse_playerdetails(xml: bytes) -> dict[str, Any]:
 
 @register("transfersteam")
 def parse_transfersteam(xml: bytes) -> dict[str, Any]:
-    """transfersteam.xml — historial de compraventas del propio equipo.
+    """transfersteam.xml, historial de compraventas del propio equipo.
 
     CORRECCIÓN 2026-08-04: "solo se ve la página más reciente" YA NO es
-    cierto — verificado en vivo contra la cuenta real que `pageIndex`
+    cierto, verificado en vivo contra la cuenta real que `pageIndex`
     (1-indexado, 1 = más reciente) SÍ pagina de verdad: `pageIndex=2`
     devuelve una ventana de fechas más vieja que `pageIndex=1`, y
     `<Transfers><Pages>` da el total real (40 páginas ≈ 995 transferencias
@@ -388,30 +405,30 @@ def parse_transfersteam(xml: bytes) -> dict[str, Any]:
     y con que la página más allá de `Pages` viene vacía). Otros nombres de
     parámetro probados en vivo y descartados por no hacer nada:
     `page`/`Page`/`endDate`/`toDate`/`beforeDate`/`firstTransferIndex`/
-    `startIndex`/`offset` — todos devolvían siempre la página 1. Ver
+    `startIndex`/`offset`, todos devolvían siempre la página 1. Ver
     `_apply_transfers_history` (sync_team.py) para el paginado real.
 
     `<Stats>` (TotalSumOfBuys/TotalSumOfSales/NumberOfBuys/NumberOfSales) es
-    un agregado de TODA la historia del equipo, no de la página pedida —
+    un agregado de TODA la historia del equipo, no de la página pedida
     verificado en vivo (el mismo bloque aparece idéntico en cualquier
-    página) — así que basta UNA llamada para los KPI de "Resumen".
+    página), así que basta UNA llamada para los KPI de "Resumen".
 
     CORRECCIÓN 2026-08-03: un comentario anterior decía que
     `transferplayer.xml` (historial de UN jugador) devolvía 401 por scope
-    OAuth — era un error de nombre de fichero (`transferplayer`, sin la
+    OAuth, era un error de nombre de fichero (`transferplayer`, sin la
     "s"), no una restricción real. El fichero correcto es
     `transfersplayer.xml` (ver `docs/chpp-reference/transfersplayer.txt`)
-    y sí funciona con el token de esta app — verificado en vivo, trae el
+    y sí funciona con el token de esta app, verificado en vivo, trae el
     historial completo de transferencias de un jugador concreto, comprador
     y vendedor incluidos.
 
     CORRECCIÓN 2026-08-03 (bis): `TransferType`, `Price`, `Buyer` y `Seller`
-    son hermanos de `Player` dentro de `Transfer` — NO están anidados
+    son hermanos de `Player` dentro de `Transfer`, NO están anidados
     dentro de `Player`. Confirmado en vivo contra la cuenta real (venta de
     Lander Fripont, 495018863): la versión anterior de este parser los
     buscaba dentro de `Player`, así que siempre venían vacíos/0 y
     `_persist_transfers` nunca detectó ni una compra ni una venta en
-    producción — el fixture de pruebas tenía la misma anidación
+    producción, el fixture de pruebas tenía la misma anidación
     equivocada, por eso el test unitario nunca lo pilló."""
     root = ElementTree.fromstring(xml)
     stats = root.find(".//Stats")
@@ -433,7 +450,7 @@ def parse_transfersteam(xml: bytes) -> dict[str, Any]:
                 "seller_team_id": _int(seller, "SellerTeamID") if seller is not None else 0,
                 "price": _int(node, "Price"),
                 "deadline": _txt(node, "Deadline", ""),
-                # HL-161: TSI en el momento EXACTO de esta transacción — la
+                # HL-161: TSI en el momento EXACTO de esta transacción, la
                 # única fuente real de "TSI en la compra"/"TSI en la venta"
                 # (playerdetails.xml solo da el de HOY, que ya cambió).
                 "tsi": _int(player, "TSI"),
@@ -454,15 +471,15 @@ def parse_transfersteam(xml: bytes) -> dict[str, Any]:
 
 @register("transfersplayer")
 def parse_transfersplayer(xml: bytes) -> dict[str, Any]:
-    """transfersplayer.xml — historial COMPLETO de transferencias de UN
+    """transfersplayer.xml, historial COMPLETO de transferencias de UN
     jugador concreto (todas las veces que ha cambiado de club, no solo
     mientras estuvo con nosotros). HL-161: la única forma de recuperar el
     precio de compra real de un jugador que ya estaba en el equipo antes de
-    empezar a sincronizar con esta app — `transfersteam.xml` solo ve la
+    empezar a sincronizar con esta app, `transfersteam.xml` solo ve la
     página más reciente del historial DEL EQUIPO, que no llega tan atrás.
 
     Verificado en vivo con el token de esta app (antes se creía, por un
-    error de nombre de fichero, que devolvía 401 — ver
+    error de nombre de fichero, que devolvía 401, ver
     `parse_transfersteam`)."""
     root = ElementTree.fromstring(xml)
     player = root.find(".//Player")
@@ -494,12 +511,12 @@ def parse_transfersplayer(xml: bytes) -> dict[str, Any]:
 
 @register("currentbids")
 def parse_currentbids(xml: bytes) -> dict[str, Any]:
-    """currentbids.xml — jugadores propios ACTUALMENTE en el mercado.
+    """currentbids.xml, jugadores propios ACTUALMENTE en el mercado.
 
     HL-161: CHPP no da un historial de cuántas veces se ha listado un
     jugador (solo esta foto del momento), así que `listing_count` se
     cuenta hacia adelante: cada sync compara contra la foto anterior y
-    cuenta una aparición nueva como un intento de venta más — ver
+    cuenta una aparición nueva como un intento de venta más, ver
     `_persist_currentbids`. Subestima jugadores listados antes de que
     existiera esta columna."""
     root = ElementTree.fromstring(xml)
@@ -511,7 +528,7 @@ def parse_currentbids(xml: bytes) -> dict[str, Any]:
                 "player_name": _txt(node, "PlayerName", ""),
                 "deadline": _txt(node, "Deadline", ""),
                 # 2026-08-08: precio de la puja más alta en el momento de la
-                # detección — `None` si CHPP todavía no reporta ninguna puja
+                # detección, `None` si CHPP todavía no reporta ninguna puja
                 # (nodo `HighestBid` ausente, no 0 real).
                 "highest_bid": (
                     _int(node, "HighestBid/Amount") if node.find("HighestBid") is not None else None
@@ -555,7 +572,7 @@ def parse_matches(xml: bytes) -> dict[str, Any]:
     """Calendario y resultados del equipo. HL-070.
 
     `CupLevel`/`CupLevelIndex` (pedidos con `version=2.9`) identifican qué
-    copa concreta es cada partido — hay varias en paralelo (la principal y,
+    copa concreta es cada partido, hay varias en paralelo (la principal y,
     tras caer eliminado, las de consolación) y CHPP no numera la ronda
     directamente. Contando los partidos que comparten el mismo par se puede
     ESTIMAR la ronda (HL-116); no vienen en todas las versiones del fichero,
@@ -588,18 +605,41 @@ def parse_matches(xml: bytes) -> dict[str, Any]:
 
 @register("matchesarchive")
 def parse_matchesarchive(xml: bytes) -> dict[str, Any]:
-    """matchesarchive.xml — HL-161, 2026-08-14: lista de partidos de UN
+    """matchesarchive.xml, HL-161, 2026-08-14: lista de partidos de UN
     equipo entre dos fechas (`FirstMatchDate`/`LastMatchDate`), sin importar
     cuándo se sincronizó por primera vez esta app. Verificado en vivo contra
     el equipo real (teamID, ventana 2025-07-28→2025-09-28): a diferencia de
     `matches.xml` (que solo da lo reciente/próximo), esta acción sí retrocede
-    a temporadas ya cerradas — es la pieza que faltaba para reconstruir
+    a temporadas ya cerradas, es la pieza que faltaba para reconstruir
     cuántos partidos jugó con nosotros un jugador que ya se fue.
 
-    Trae menos campos que `matches.xml`: sin `Status`, `CupLevel(Index)`,
-    `SourceSystem` ni `OrdersGiven` — ninguno existe en este fichero, así
-    que no se inventan aquí con un default."""
+    LA VERSIÓN IMPORTA, y esta lectura nació coja por pedir la 1.0. Medido
+    contra el equipo real el 2026-09-07, fichero a fichero: hasta la 1.2 este
+    archivo NO trae `CupLevel`/`CupLevelIndex`; desde la 1.3 sí, y la 1.5
+    añade además `CupId` y `SourceSystem`. Con la 1.0 cada partido de copa
+    rescatado del archivo entraba con copa «-1», que es «no se sabe cuál»
+    y la pantalla de Copa, que agrupa por esa pareja, lo dejaba fuera. De ahí
+    el pin explícito a 1.5 en `FILE_VERSIONS`.
+
+    `Status` y `OrdersGiven` siguen sin existir aquí, y no se inventan: un
+    archivo es por definición de partidos ya jugados, así que quien escriba
+    en la base pone el estado, no este lector.
+
+    `CupId` es la identidad de VERDAD de una copa (18 = Copa Colombia,
+    657 = Copa Cocuy Rubí); la pareja nivel/índice sólo dice de qué CLASE es.
+    `MatchContextId` lleva el mismo número en los partidos de copa y el de la
+    serie en los de liga."""
     root = ElementTree.fromstring(xml)
+    if _is_chpp_error(root):
+        # CHPP puede devolver chpperror.xml con HTTP 200. Una lista vacía no
+        # puede significar a la vez «el club no jugó» y «la consulta falló»:
+        # el segundo caso no debe sellar el backfill como completo.
+        return {
+            "matches": [],
+            "chpp_error": True,
+            "chpp_error_code": _int(root, "ErrorCode"),
+            "chpp_error_message": _txt(root, "Error", "").strip(),
+        }
     out = []
     for mt in root.iterfind(".//Match"):
         home = mt.find("HomeTeam")
@@ -615,6 +655,11 @@ def parse_matchesarchive(xml: bytes) -> dict[str, Any]:
                 "match_type": _int(mt, "MatchType"),
                 "home_goals": _int(mt, "HomeGoals", -1),
                 "away_goals": _int(mt, "AwayGoals", -1),
+                "cup_level": _int(mt, "CupLevel", -1),
+                "cup_level_index": _int(mt, "CupLevelIndex", -1),
+                "ht_cup_id": _int(mt, "CupId", 0) or None,
+                "match_context_id": _int(mt, "MatchContextId", 0) or None,
+                "source_system": _txt(mt, "SourceSystem", "").lower() or None,
             }
         )
     return {"matches": out}
@@ -696,7 +741,7 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
                 "left_att": _int(match_data, "RatingLeftAtt"),
                 # AQUÍ NO VA el balón parado, y no es un olvido: este bloque
                 # son los ratings PREVISTOS de `matchorders`, y Hattrick no
-                # prevé el balón parado — sólo las siete zonas de campo
+                # prevé el balón parado, sólo las siete zonas de campo
                 # (verificado contra el fixture real, 2026-09-05). Añadirlo
                 # habría guardado un 0, que es un rating bajísimo legítimo e
                 # indistinguible de «no hay dato».
@@ -755,14 +800,14 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
                 "set_pieces_att": _int(t, "RatingIndirectSetPiecesAtt"),
             },
             # Formation y TacticSkill son públicos para AMBOS lados (verificado
-            # en vivo) — a diferencia de TeamAttitude, que solo viene para el
+            # en vivo), a diferencia de TeamAttitude, que solo viene para el
             # tuyo. TacticSkill=0 coincide con TacticType=0 ("Normal"): no es
             # un valor oculto, es que ese partido no usó una táctica especial.
             "formation": _txt(t, "Formation", ""),
             "tactic_type": _int(t, "TacticType"),
             "tactic_skill": _int(t, "TacticSkill"),
             # -1 es un TeamAttitude real ("Jugar relajados"), no un valor
-            # ausente — CHPP simplemente no incluye la etiqueta <TeamAttitude>
+            # ausente, CHPP simplemente no incluye la etiqueta <TeamAttitude>
             # para el lado que no es el del usuario (verificado en vivo: el
             # propio equipo la trae siempre, un rival nunca). Sin esta
             # bandera, ese "tag ausente" se confundía con el código real -1.
@@ -787,7 +832,7 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
         "match_type": _int(mt, "MatchType"),
         # El mismo MatchType 3 cubre la copa principal y las secundarias
         # (Challenger, Consolacion): las separa `CupLevel`, y la diferencia
-        # no es menor — una secundaria da un cuarto de la experiencia. Para
+        # no es menor, una secundaria da un cuarto de la experiencia. Para
         # los partidos del propio club esto ya venia en `matches.xml`; aqui
         # hace falta para los ajenos, que solo se conocen por esta ficha.
         "cup_level": _int(mt, "CupLevel", -1),
@@ -808,7 +853,7 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
             # El desglose por sector (`SoldTerraces`, `SoldBasic`, `SoldRoof`,
             # `SoldVIP`) NO se lee: es una función de HT Supporter y las
             # reglas de CHPP prohíben replicarla. `SoldTotal`, de arriba, sí
-            # es público — Hattrick lo enseña en la página del partido.
+            # es público, Hattrick lo enseña en la página del partido.
         },
     }
 
@@ -860,7 +905,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     finalizado. Requiere `teamID` explícito en la request: sin él, CHPP solo
     da la alineación del equipo dueño del token, nunca la del rival.
 
-    Un partido ya finalizado es un hecho público permanente — no choca con la
+    Un partido ya finalizado es un hecho público permanente, no choca con la
     regla CHPP de "nunca histórico de un rival" (esa regla es sobre trackear
     el estado de una cuenta ajena a lo largo del tiempo, no sobre leer el
     reporte público de un partido que ya se jugó).
@@ -870,7 +915,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     `version` explícito (lo que hace este parser desde siempre) CHPP sirve
     ~1.2: ahí `RoleID` es solo un índice secuencial (1, 2, 3... orden de
     aparición, sin significado táctico) y la posición real está en
-    `PositionCode` (1-16, MATCH_POSITION_* en ht_constants.py) — así sigue
+    `PositionCode` (1-16, MATCH_POSITION_* en ht_constants.py), así sigue
     llamándolo `rivals.py` para el marcaje al hombre, y así debe seguir. A
     partir de v1.4, `RoleID` pasa a usar el esquema 100+ real
     (MATCH_ROLE_*, MATCH_ROLE_NAMES) y `PositionCode` deja de aportar nada
@@ -879,10 +924,10 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     (se reconstruye aquí para no romper a los llamadores existentes), y
     aparece `<StartingLineup>` (el once ORIGINAL, antes de cualquier
     cambio) junto al `<Lineup>` de siempre (que en 2.1 ya refleja el
-    estado FINAL tras cada `<Substitution>` — con el RoleID real que
+    estado FINAL tras cada `<Substitution>`, con el RoleID real que
     ocupó cada suplente al entrar, algo que ninguna versión anterior
     daba). Por eso este parser solo lee `<Lineup>`, nunca
-    `<StartingLineup>` — leer ambos duplicaría a todo titular que no fue
+    `<StartingLineup>`, leer ambos duplicaría a todo titular que no fue
     sustituido."""
     root = ElementTree.fromstring(xml)
     team = root.find(".//Team")
@@ -954,13 +999,13 @@ def parse_leaguedetails(xml: bytes) -> dict[str, Any]:
         "series_ht_id": _int(root, "LeagueLevelUnitID"),
         "series_name": _txt(root, "LeagueLevelUnitName", ""),
         # leaguedetails.xml no trae temporada: solo la trae worlddetails. La
-        # jornada real es CurrentMatchRound — MatchRound no existe en este
+        # jornada real es CurrentMatchRound, MatchRound no existe en este
         # fichero y siempre habría dado 0, dejando la jornada sin actualizar.
         "match_round": _int(root, "CurrentMatchRound"),
         # LeagueLevel: división de esta serie (1 = la más alta del país).
         # MaxLevel: cuántas divisiones tiene el país en total. Ambas hacen
         # falta para saber si esta serie es la cúspide (nadie asciende más)
-        # o el fondo (nadie desciende más) — HL-145. -1 = no vino en el XML.
+        # o el fondo (nadie desciende más), HL-145. -1 = no vino en el XML.
         "league_level": _int(root, "LeagueLevel", -1),
         "max_level": _int(root, "MaxLevel", -1),
         "teams": sorted(teams, key=lambda x: x["position"]),
@@ -969,17 +1014,17 @@ def parse_leaguedetails(xml: bytes) -> dict[str, Any]:
 
 @register("leaguefixtures")
 def parse_leaguefixtures(xml: bytes) -> dict[str, Any]:
-    """Calendario COMPLETO de la serie — HL-090 fix.
+    """Calendario COMPLETO de la serie, HL-090 fix.
 
     A diferencia de matches.xml (que solo trae los partidos del equipo
     pedido con teamID), este fichero devuelve los 56 cruces de una liga de
     8 equipos (los 28 pares posibles, ida y vuelta), identificados por
-    jornada real (MatchRound) — verificado en vivo. Sin esto, el simulador
+    jornada real (MatchRound), verificado en vivo. Sin esto, el simulador
     de temporada no tenía forma de saber qué pasa en un cruce entre dos
     rivales (ninguno el equipo propio) y los daba por congelados.
 
     HomeGoals/AwayGoals simplemente no vienen en el XML para partidos aún
-    no jugados — None, no 0 ni -1, para no fabricar un resultado."""
+    no jugados, None, no 0 ni -1, para no fabricar un resultado."""
     root = ElementTree.fromstring(xml)
     matches = []
     for mt in root.iterfind(".//Match"):
@@ -1058,7 +1103,7 @@ def parse_economy(xml: bytes) -> dict[str, Any]:
     # Las versiones recientes separan estas partidas. No se suman a
     # IncomeTemporary/CostsTemporary: cada campo se guarda como CHPP lo dio.
     # Todos opcionales (`None` si el XML no los trae) para no fingir un cero
-    # donde en realidad no se sabe — sobre todo importante para los Last*, que
+    # donde en realidad no se sabe, sobre todo importante para los Last*, que
     # alimentan el desglose por categoría de semanas ya cerradas y que fichas
     # sincronizadas antes de este cambio simplemente no tienen. Sólo la
     # semana en curso trae el desglose de patrocinio (Bonuses); la semana ya
@@ -1099,17 +1144,17 @@ def parse_economy(xml: bytes) -> dict[str, Any]:
 def parse_club(xml: bytes) -> dict[str, Any]:
     """Inversión juvenil real. HL-2xx, 2026-08-12: `club.xml` v1.1 (verificado
     en vivo) YA NO trae `<Staff>` ni los niveles agregados por puesto
-    (`AssistantTrainerLevels` y hermanos) — solo `<Specialists>` (booleanos
+    (`AssistantTrainerLevels` y hermanos), solo `<Specialists>` (booleanos
     de si hay o no un especialista de cada tipo) y `<YouthSquad>`. El
     desglose real de staff (persona por persona, con su nivel de verdad)
-    siempre vivió en `stafflist.xml` — ver `parse_stafflist` y
+    siempre vivió en `stafflist.xml`, ver `parse_stafflist` y
     `STAFF_TYPE_TO_FIELD` en ht_constants.py.
 
     OJO con `youth_investment`: se sigue guardando porque es lo que trae el
     fichero, pero **no sirve para mostrar el gasto de la academia**. Fetch en
     vivo 2026-08-15: Hattrick devuelve `<Investment>0</Investment>` con el
     club invirtiendo de verdad 200.000 SEK/semana. El gasto real es
-    `CostsYouth` de economy.xml — así lo leen ya `academy.py` y `club.py`."""
+    `CostsYouth` de economy.xml, así lo leen ya `academy.py` y `club.py`."""
     root = ElementTree.fromstring(xml)
     team = root.find(".//Team")
     if team is None:
@@ -1145,7 +1190,7 @@ def _youth_skill(skills: Element | None, tag: str) -> int | None:
 
     Distinguir "no revelado" de "cero" es el punto entero del módulo: un techo
     desconocido no es un techo bajo (ver `academy_engine`). CHPP lo marca con
-    `IsAvailable="False"` y el elemento vacío — nunca con un 0.
+    `IsAvailable="False"` y el elemento vacío, nunca con un 0.
     """
     if skills is None:
         return None
@@ -1211,7 +1256,7 @@ def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
     2026-08-15, pedido explícitamente: una academia se puede cerrar y volver a
     abrir, y cada apertura es una academia distinta con su propio `YouthTeamID`
     y su `CreatedDate`. Sin ese dato, el ROI de la cantera sumaba canteranos de
-    academias anteriores contra la inversión de la actual — cifras de dos cosas
+    academias anteriores contra la inversión de la actual, cifras de dos cosas
     distintas mezcladas. Verificado contra el fichero real de la cuenta.
     """
     root = ElementTree.fromstring(xml)
@@ -1414,7 +1459,7 @@ def parse_stafflist(xml: bytes) -> dict[str, Any]:
 
 @register("regiondetails")
 def parse_regiondetails(xml: bytes) -> dict[str, Any]:
-    """regiondetails.xml — el clima de una región, hoy y mañana.
+    """regiondetails.xml, el clima de una región, hoy y mañana.
 
     Hattrick solo publica el pronóstico a un día vista: `WeatherID` es el de
     HOY y `TomorrowWeatherID` el de mañana, ambos referidos al reloj del
@@ -1490,17 +1535,17 @@ def parse_nationalteamdetails(xml: bytes) -> dict[str, Any]:
 @register("worlddetails")
 def parse_worlddetails(xml: bytes) -> dict[str, Any]:
     """Contexto del mundo: tasa de moneda, temporada, jornada, copas y fechas
-    reales — de TODOS los países en `<LeagueList>`, no solo uno.
+    reales, de TODOS los países en `<LeagueList>`, no solo uno.
 
     CORRECCIÓN 2026-08-04: la versión anterior hacía `root.find(".//League")`
     (el PRIMER `<League>` del documento) y lo trataba como "el" contexto del
-    mundo — en la práctica, cualquier país menos el del equipo real (se
+    mundo, en la práctica, cualquier país menos el del equipo real (se
     verificó en vivo que el registro guardado, LeagueID=50, es Grecia, no
-    Colombia — el LeagueID real de Colombia es 19). Cada país tiene su
-    PROPIA temporada (Suecia 95, Colombia 83, Grecia 80 — verificado en
+    Colombia, el LeagueID real de Colombia es 19). Cada país tiene su
+    PROPIA temporada (Suecia 95, Colombia 83, Grecia 80, verificado en
     vivo), así que hace falta guardarlos TODOS y cruzar por
     `Team.ht_league_id` (de teamdetails.xml) para saber cuál es el del
-    equipo — ver `_persist_world`. También trae `<Cups><Cup>` con el nombre
+    equipo, ver `_persist_world`. También trae `<Cups><Cup>` con el nombre
     real de cada copa del país, para reemplazar el `CUP_LEVEL_NAMES`
     hardcodeado de `cup.py`."""
     root = ElementTree.fromstring(xml)

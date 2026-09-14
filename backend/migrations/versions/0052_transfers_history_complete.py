@@ -8,7 +8,7 @@ El primer intento se había cortado a la mitad (un error de fechas al comparar
 con Postgres), pero la marca de agua `last_transfer_id_seen` se guardaba de
 todas formas, apuntando a la transferencia más reciente. A partir de ahí, cada
 intento nuevo leía la primera página, reconocía esa marca y concluía que ya
-estaba todo al día — el hueco de temporadas anteriores no se rellenaba jamás.
+estaba todo al día, el hueco de temporadas anteriores no se rellenaba jamás.
 
 La marca sola no distingue "he visto todo hasta aquí" de "me quedé aquí". Esta
 bandera es esa diferencia, y solo se pone cuando el recorrido llega al final

@@ -76,6 +76,18 @@ def test_un_canterano_que_sigue_en_el_club_no_abona_nada() -> None:
     assert filas[0].vendidos == 0
 
 
+def test_quien_salio_sin_venta_no_cuenta_como_vendido() -> None:
+    """2026-09-13: Ojeadores decia «1 vendido» y Juveniles «aun no has vendido
+    ningun canterano». Un despedido o regalado salio, pero no se vendio."""
+    filas = cuenta(
+        [_ojeador()],
+        {1: [Descubrimiento("Despedido", sigue_en_el_club=False)]},
+        AHORA,
+    )
+    assert filas[0].traidos == 1
+    assert filas[0].vendidos == 0
+
+
 def test_un_ojeador_SIN_canteranos_sale_igual_en_la_tabla() -> None:
     """Es la informacion mas util que puede dar: lleva semanas cobrando y no
     ha traido nada. Esconderlo seria esconder justo eso."""

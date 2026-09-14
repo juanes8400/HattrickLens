@@ -41,7 +41,7 @@ def test_club_query_reunites_mood_supporters_and_staff_without_fabricating_histo
     assert "sponsors" not in data["current"]
     assert all("sponsorsPopularity" not in row for row in data["supporterHistory"])
     # El roster real (2 asistentes de nivel 5, no un agregado sin
-    # procedencia) — bug real encontrado en vivo 2026-08-12.
+    # procedencia), bug real encontrado en vivo 2026-08-12.
     assistants = next(r for r in data["staff"]["roles"] if r["key"] == "assistant_trainer_levels")
     assert assistants["level"] == 10
     assert sorted(m["level"] for m in assistants["members"]) == [5, 5]

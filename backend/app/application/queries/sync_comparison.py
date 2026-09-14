@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines import academy_engine as academy
 from app.domain.engines.sync_diff import Change, diff_training
@@ -116,7 +117,7 @@ async def _player_report(
         .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
         # Sólo la plantilla ACTUAL: las filas de quien se fue se conservan como
         # histórico de traspasos y se marcan con `left_team_at`. Mismo criterio
-        # que en `changes_history` — ver el comentario largo de allí.
+        # que en `changes_history`, ver el comentario largo de allí.
         .where(
             m.PlayerSnapshot.sync_id == sync_id,
             m.Player.team_id == team_id,
@@ -751,6 +752,79 @@ async def _club_report(
     return items
 
 
+async def _con_economia_de_venta(
+    session: AsyncSession, team_id: int, changes: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Le pone a cada VENTA lo que de verdad dejó: ingresos, gastos y ROI.
+
+    2026-09-09, pedido del usuario: una venta salía en Cambios rotulada
+    «Cambio» y con el precio a secas. El precio no es el resultado --falta la
+    comisión del agente, el sueldo que se le pagó mientras estuvo, lo que
+    costaron los listados y la comisión de club anterior si la hubo-- y sin
+    eso una venta «buena» y una ruinosa se leen igual.
+
+    LAS CIFRAS NO SE CALCULAN AQUÍ. Salen de `PlayerBalanceQueryService`, que
+    es lo que ya alimenta Transferencias, la Academia y Ojeadores. Es
+    deliberado y viene de lejos: el 2026-08-12 se rechazó expresamente
+    anunciar la ganancia en esta pantalla porque lo que se iba a enseñar era
+    un `venta - compra` pelado, que no es el resultado real. La objeción era a
+    la cifra falsa, no a la idea; con la buena, esa pantalla es justo donde
+    hace falta. Dos definiciones de «lo que costó» acabarían dando dos números
+    distintos para el mismo jugador, así que sólo hay una.
+
+    Se cobra una consulta de saldos por petición, y sólo si el informe trae
+    alguna venta. Sin ventas no se toca nada.
+    """
+    ventas = [c for c in changes if (c.get("detail") or {}).get("metric") == "sale"]
+    if not ventas:
+        return changes
+
+    balance = await PlayerBalanceQueryService(session).get(team_id)
+    if balance is None:
+        return changes
+
+    # Por id de jugador, y por nombre como reserva: las filas guardadas antes
+    # del 2026-09-09 no llevan el id, y aun así merecen su cuenta.
+    por_id: dict[int, Any] = {}
+    por_nombre: dict[str, Any] = {}
+    for fila in balance.players:
+        if not fila.is_sold:
+            continue
+        # La etapa MÁS RECIENTE de cada jugador: alguien puede haber pasado
+        # dos veces por el club, y la venta que se acaba de anunciar es la
+        # última, no la de hace tres temporadas.
+        anterior = por_id.get(fila.ht_player_id)
+        if anterior is None or (fila.sold_at or "") >= (anterior.sold_at or ""):
+            por_id[fila.ht_player_id] = fila
+            por_nombre[fila.name] = fila
+
+    for cambio in ventas:
+        detalle = cambio.get("detail") or {}
+        fila = por_id.get(detalle.get("htPlayerId")) or por_nombre.get(  # type: ignore[assignment,arg-type]
+            detalle.get("subject", "")
+        )
+        if fila is None or fila.ingresos is None:
+            continue
+        cambio["economia"] = {
+            "ingresos": fila.ingresos,
+            "gastos": fila.gastos,
+            "saldo": fila.saldo,
+            # "?" cuando no hubo con qué dividir --un canterano regalado sin
+            # sueldo observado-- y se dice así en vez de fingir un 0 %.
+            "roiPct": fila.roi_pct,
+            "salaryTotal": fila.salary_total,
+            "purchasePrice": fila.purchase_price,
+            "listingCost": fila.listing_cost,
+            "commissionAmount": fila.commission_amount,
+            "resaleBonus": fila.resale_bonus_share,
+            # De dónde sale el sueldo acumulado: observado, estimado o ni una
+            # cosa ni la otra. Un ROI construido sobre un sueldo estimado no
+            # vale lo mismo que uno medido, y la pantalla lo dice.
+            "salarySource": fila.salary_source,
+        }
+    return changes
+
+
 async def _changes_for_sync(session: AsyncSession, sync_id: int | None) -> list[dict[str, Any]]:
     if sync_id is None:
         return []
@@ -910,7 +984,7 @@ async def build_sync_comparison(
         .distinct()
     )
 
-    # Lista de fechas navegables — pedido explícito 2026-08-15: "que yo solo
+    # Lista de fechas navegables, pedido explícito 2026-08-15: "que yo solo
     # deba seleccionar una fecha diferente". Sólo entran los syncs que SÍ
     # movieron algo: un sync repetido que confirmó que todo seguía igual no
     # merece una entrada en el selector, sería ruido.
@@ -959,8 +1033,20 @@ async def build_sync_comparison(
         # se quita es que vuelva SOLO.
         report_sync = latest
 
-    latest_changes = await _changes_for_sync(session, latest.id)
-    report_changes = await _changes_for_sync(session, report_sync.id)
+    latest_changes = await _con_economia_de_venta(
+        session, team_id, await _changes_for_sync(session, latest.id)
+    )
+    # Sin `sync_id` el informe ES el último, que es el caso normal --y desde
+    # el 2026-09-09 el único que llega desde la pantalla, que ya no tiene
+    # selector de archivo--. Repetir la consulta daría la misma lista y
+    # además pagaría otra vez el saldo de cada venta, que es lo caro de aquí.
+    report_changes = (
+        latest_changes
+        if report_sync.id == latest.id
+        else await _con_economia_de_venta(
+            session, team_id, await _changes_for_sync(session, report_sync.id)
+        )
+    )
     player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
     club_changes = await _club_report(session, team_id, report_sync, currency_rate)
     # El sync anterior a este, haya movido algo o no: si se tomara el anterior
@@ -995,6 +1081,11 @@ async def build_sync_comparison(
         # tiene TSI ni salario, y en cambio cada habilidad suya son dos
         # numeros: lo que tiene y hasta donde puede llegar.
         "youthRows": youth_rows,
+        # Cómo se llama TU academia. Pedido el 2026-09-09, y el dato ya estaba
+        # guardado: llega con los detalles del equipo juvenil y se usaba sólo
+        # para saber qué academia es la actual. `None` mientras no se haya
+        # sincronizado, y entonces el panel se titula como siempre.
+        "youthTeamName": team.youth_team_name if team else None,
         # Lo que el descubrimiento significa para la academia entera.
         "youthSummary": youth_summary,
         "summary": summary,
@@ -1022,7 +1113,7 @@ async def _partidos_de_seleccion(
     desde: datetime | None,
     hasta: datetime,
 ) -> list[dict[str, Any]]:
-    """ "Fulano jugo 62 minutos con su seleccion" — para el informe de Cambios.
+    """ "Fulano jugo 62 minutos con su seleccion", para el informe de Cambios.
 
     Se sitian por `Match.played_at`, no por cuando los vimos: un partido del
     martes tiene que salir en el informe del martes aunque lo hayamos

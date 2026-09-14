@@ -1,11 +1,11 @@
-"""Histórico de rating por partido del jugador — HL-15x #21 (sparkline).
+"""Histórico de rating por partido del jugador, HL-15x #21 (sparkline).
 
 `player_snapshots.last_match_*` solo conserva el partido más reciente (se
 sobreescribe en cada sync de playerdetails), así que no sirve como serie en
 el tiempo. Esta tabla nueva es append-only: cada partido distinto visto se
 inserta una vez (unique player_id+ht_match_id evita duplicar el mismo
 "último partido" si todavía no se ha jugado uno nuevo desde el sync
-anterior). Hoy habrá pocas filas por jugador — se llena partido a partido a
+anterior). Hoy habrá pocas filas por jugador, se llena partido a partido a
 medida que se sincroniza playerdetails, no de golpe.
 
 Revision ID: 0014

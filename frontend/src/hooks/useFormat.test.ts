@@ -52,8 +52,8 @@ describe("la política de formato", () => {
   });
 
   it("un hueco es una raya, nunca una coma suelta", () => {
-    expect(dateTime(null)).toBe("—");
-    expect(dateTime("")).toBe("—");
+    expect(dateTime(null)).toBe("-");
+    expect(dateTime("")).toBe("-");
   });
 });
 

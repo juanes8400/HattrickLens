@@ -84,7 +84,7 @@ PUESTOS_DE_UN_BANQUILLO: tuple[str, ...] = (
 #: delanteros, balón parado los once.
 #:
 #: Si algún día uno resulta estar mal, se corrige AQUÍ y todo lo demás se
-#: recalcula solo — es la única tabla del módulo con una opinión sobre las
+#: recalcula solo, es la única tabla del módulo con una opinión sobre las
 #: reglas del juego.
 #: Cada ENTRENAMIENTO --no cada habilidad-- con los puestos que toca. La
 #: distincion importa: Hattrick entrena la misma habilidad por caminos

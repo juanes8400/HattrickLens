@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
  * lee como «no hay dato»: se lee como que la interfaz está rota.
  *
  * Buscar la tercera forma a mano no funcionaría, así que se vigila el
- * síntoma —una coma sola como contenido visible— y no cada sintaxis.
+ * síntoma, una coma sola como contenido visible, y no cada sintaxis.
  *
  * El código fuente se lee con `import.meta.glob` de Vite y no con `node:fs`:
  * el tsconfig de esta app no trae los tipos de Node, y añadir una dependencia
@@ -44,7 +44,7 @@ describe("los huecos no se pintan con una coma", () => {
     }
     expect(
       culpables,
-      `usa «—» en vez de una coma:\n${culpables.join("\n")}`,
+      `usa «, » en vez de una coma:\n${culpables.join("\n")}`,
     ).toEqual([]);
   });
 
@@ -60,6 +60,6 @@ describe("los huecos no se pintan con una coma", () => {
     expect(SOSPECHOSAS.some((r) => r.test('  if (!iso) return ", ";'))).toBe(
       true,
     );
-    expect(SOSPECHOSAS.some((r) => r.test("<span>—</span>"))).toBe(false);
+    expect(SOSPECHOSAS.some((r) => r.test("<span>-</span>"))).toBe(false);
   });
 });

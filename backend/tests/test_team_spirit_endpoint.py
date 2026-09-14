@@ -1,7 +1,7 @@
-"""GET /teams/{id}/lineup/team-spirit — HL-142.
+"""GET /teams/{id}/lineup/team-spirit, HL-142.
 
 Tabla estática de referencia (Manual no Escrito), no ligada al Espíritu real
-de este equipo — solo un test end-to-end de que el endpoint la sirve bien.
+de este equipo, solo un test end-to-end de que el endpoint la sirve bien.
 """
 import asyncio
 

@@ -44,7 +44,7 @@ export function errorMessage(error: unknown): string {
 // como mucho UN intento de /auth/refresh, compartido entre requests
 // simultáneos (varias queries pueden expirar a la vez), antes de reintentar
 // la petición original. Si el refresco también falla (sesión realmente
-// muerta), se deja pasar el 401 tal cual — la UI ya sabe pedir reconectar.
+// muerta), se deja pasar el 401 tal cual, la UI ya sabe pedir reconectar.
 let refreshing: Promise<boolean> | null = null;
 
 function expireLocalSession(): void {
@@ -195,13 +195,37 @@ export const api = {
     request<ExperienceModel>(`/teams/${teamId}/experience/calibration`),
   loyaltyModel: (teamId: number) =>
     request<LoyaltyModel>(`/teams/${teamId}/loyalty/model`),
-  economy: (teamId: number, horizonWeeks = 52) =>
-    request<Economy>(`/teams/${teamId}/economy?horizon_weeks=${horizonWeeks}`),
-  arena: (teamId: number, fillRate?: number) => {
+  economy: (teamId: number, horizonWeeks = 52, conSeries = true) =>
+    request<Economy>(
+      `/teams/${teamId}/economy?horizon_weeks=${horizonWeeks}&con_series=${conSeries}`,
+    ),
+  arena: (
+    teamId: number,
+    fillRate?: number,
+    tipo: ArenaTipo = "todos",
+    season?: number | null,
+  ) => {
     const q = new URLSearchParams();
     if (fillRate != null) q.set("fill_rate", String(fillRate));
+    if (tipo !== "todos") q.set("tipo", tipo);
+    if (season != null) q.set("season", String(season));
     const qs = q.toString();
     return request<Arena>(`/teams/${teamId}/arena${qs ? `?${qs}` : ""}`);
+  },
+  skills: (
+    teamId: number,
+    formation?: string,
+    centralDefenders?: number,
+    innerMidfielders?: number,
+  ) => {
+    const q = new URLSearchParams();
+    if (formation) q.set("formation", formation);
+    if (formation && centralDefenders != null)
+      q.set("central_defenders", String(centralDefenders));
+    if (formation && innerMidfielders != null)
+      q.set("inner_midfielders", String(innerMidfielders));
+    const qs = q.toString();
+    return request<Skills>(`/teams/${teamId}/skills${qs ? `?${qs}` : ""}`);
   },
   matches: (
     teamId: number,
@@ -216,8 +240,17 @@ export const api = {
   },
   matchDetail: (teamId: number, htMatchId: number) =>
     request<MatchDetail>(`/teams/${teamId}/matches/${htMatchId}`),
-  league: (teamId: number, runs = 10000) =>
-    request<League>(`/teams/${teamId}/league?runs=${runs}`),
+  league: (
+    teamId: number,
+    runs = 10_000,
+    // Un solo resumen para toda la pantalla de Liga. Sin "submitted": de
+    // siete de los ocho equipos no se pueden ver las órdenes.
+    pitchZoneMethod: LeaguePitchZoneMethod = "average",
+  ) =>
+    request<League>(
+      `/teams/${teamId}/league?runs=${runs}` +
+        `&pitch_zone_method=${pitchZoneMethod}`,
+    ),
   academy: (teamId: number) => request<Academy>(`/teams/${teamId}/academy`),
   academyScouts: (teamId: number) =>
     request<AcademyScouts>(`/teams/${teamId}/academy/scouts`),
@@ -376,7 +409,7 @@ export const api = {
   sync: (teamId: number) =>
     request<SyncResult>(`/teams/${teamId}/sync`, { method: "POST" }),
   // 2026-08-05, pedido explícitamente: como la ventana "Conexión" de
-  // Hattrick Control — una línea por fichero/jugador/partido a medida que
+  // Hattrick Control, una línea por fichero/jugador/partido a medida que
   // se descarga, no una espera muda de 15-20s. NDJSON sobre `fetch`, no
   // `EventSource` (solo hace GET, y este endpoint es un POST): se lee el
   // body como stream y se parte por saltos de línea a mano.
@@ -544,9 +577,10 @@ export const api = {
     rivalHtTeamId: number,
     logTsi: boolean,
     top11: boolean,
+    // Excluyentes: uno u otro. Los defectos son los del servidor, para que
+    // la primera petición no pida una cosa distinta de la que abre.
     includeCompetitive = true,
-    includeFriendlies = true,
-    pitchZoneScope: PitchZoneScope = "mixed",
+    includeFriendlies = false,
     pitchZoneMethodOwn: PitchZoneMethod = "submitted",
     pitchZoneMethodRival: PitchZoneMethod = "average",
   ) =>
@@ -554,7 +588,7 @@ export const api = {
       `/teams/${teamId}/rivals/${rivalHtTeamId}/scouting` +
         `?log_tsi=${logTsi}&top11=${top11}` +
         `&include_competitive=${includeCompetitive}&include_friendlies=${includeFriendlies}` +
-        `&pitch_zone_scope=${pitchZoneScope}&pitch_zone_method_own=${pitchZoneMethodOwn}` +
+        `&pitch_zone_method_own=${pitchZoneMethodOwn}` +
         `&pitch_zone_method_rival=${pitchZoneMethodRival}`,
     ),
   leagueComparison: (teamId: number, logTsi: boolean, top11: boolean) =>
@@ -562,6 +596,8 @@ export const api = {
       `/teams/${teamId}/league/comparison` +
         `?log_tsi=${logTsi}&top11=${top11}`,
     ),
+  sectoresRecientes: (teamId: number) =>
+    request<SectoresRecientes>(`/teams/${teamId}/league/sectores-recientes`),
   leagueTeamOfWeek: (
     teamId: number,
     scope: "week" | "season",
@@ -580,7 +616,18 @@ export const api = {
           ? `&inner_midfielders=${innerMidfielders}`
           : ""),
     ),
-  cup: (teamId: number) => request<Cup>(`/teams/${teamId}/cup`),
+  cup: (
+    teamId: number,
+    // Los mismos dos selectores que la ficha de rival: uno por lado, y del
+    // propio existe además la alineación ya enviada.
+    pitchZoneMethodOwn: PitchZoneMethod = "submitted",
+    pitchZoneMethodRival: PitchZoneMethod = "average",
+  ) =>
+    request<Cup>(
+      `/teams/${teamId}/cup` +
+        `?pitch_zone_method_own=${pitchZoneMethodOwn}` +
+        `&pitch_zone_method_rival=${pitchZoneMethodRival}`,
+    ),
 };
 
 /* ── Types mirroring the backend DTOs ─────────────────────────────────────
@@ -599,6 +646,8 @@ export interface SquadPlayer {
   name: string;
   ageYears: number;
   ageDays: number;
+  /** Veterano sin habilidades de campo: Posiciones lo esconde por defecto. */
+  withoutFieldSkills: boolean;
   tsi: number;
   /** Valor acumulado de las siete habilidades segun la tabla HTMS. */
   htms: number;
@@ -643,14 +692,14 @@ export interface SquadPlayer {
   positionRating: PositionRating | null;
 }
 
-/** Cómo pintar el par antes/después de un cambio — ver `Change.kind` en
+/** Cómo pintar el par antes/después de un cambio, ver `Change.kind` en
  *  `sync_diff.py`. */
 export type SyncChangeKind = "count" | "money" | "skill" | "level" | "event";
 
 /**
  * El mismo cambio como DATO, no como frase. Desde 2026-08-15 el backend lo
  * guarda junto al `summary` para que la UI no tenga que sacar los números del
- * texto con una regex — eso fue lo que rompió al unificar el separador de
+ * texto con una regex, eso fue lo que rompió al unificar el separador de
  * miles (`Number("202.210")` = 202,21, y se mostró "TSI 202").
  */
 export interface SyncChangeDetail {
@@ -664,6 +713,28 @@ export interface SyncChangeDetail {
   kind?: SyncChangeKind;
   good?: boolean;
   currency?: string;
+  /** A qué jugador se refiere. Ausente en las filas guardadas antes de
+   *  2026-09-09 y en todo lo que no sea de un jugador concreto. */
+  htPlayerId?: number;
+}
+
+/** Lo que de verdad dejó una venta, de la MISMA fuente que Transferencias.
+ *
+ *  El precio de venta no es el resultado: falta la comisión del agente, el
+ *  sueldo que se le pagó mientras estuvo, lo que costaron los listados y la
+ *  comisión de club anterior. Sin eso, una venta buena y una ruinosa se leen
+ *  igual. `roiPct` es "?" cuando no hubo gasto contra el que dividir. */
+export interface SyncSaleEconomics {
+  ingresos: number;
+  gastos: number;
+  saldo: number | null;
+  roiPct: number | string;
+  salaryTotal: number;
+  purchasePrice: number | null;
+  listingCost: number;
+  commissionAmount: number | string;
+  resaleBonus: number;
+  salarySource: string;
 }
 
 /**
@@ -781,6 +852,8 @@ export interface SyncChange {
   /** `null` en filas guardadas antes de 2026-08-15: para esas la UI cae al
    *  parser de compatibilidad de SyncChangesFeed.tsx. */
   detail?: SyncChangeDetail | null;
+  /** Sólo en las ventas, y sólo cuando se le encuentra el saldo. */
+  economia?: SyncSaleEconomics;
 }
 
 export interface PlayerComparisonChange {
@@ -844,7 +917,7 @@ export interface YouthComparisonChange {
   current: number | boolean | null;
   delta: number | null;
   direction: "up" | "down" | "neutral";
-  /** Hasta donde puede llegar. `null` mientras nadie lo haya revelado — que
+  /** Hasta donde puede llegar. `null` mientras nadie lo haya revelado, que
    *  no es lo mismo que un techo bajo. */
   max?: number | null;
   maxBefore?: number | null;
@@ -1103,12 +1176,14 @@ export interface LastSyncChanges {
   playerRows: PlayerComparisonRow[];
   /** La academia. Puede faltar en respuestas de una version anterior. */
   youthRows?: YouthComparisonRow[];
+  /** El nombre de tu equipo juvenil. `null` sin sincronizar. */
+  youthTeamName?: string | null;
   youthSummary?: YouthSummary;
   summary: ChangeMetricSummary[];
   clubChanges: ClubComparisonChange[];
   /** Partidos de selección jugados desde el informe anterior. */
   nationalMatches: NationalMatchAppearance[];
-  /** Snapshots navegables — sólo los que tuvieron cambios reales, del más
+  /** Snapshots navegables, sólo los que tuvieron cambios reales, del más
    *  reciente al más antiguo. Elegir uno recalcula toda la comparación. */
   availableReports: { syncId: number; syncedAt: string; changeCount: number }[];
 }
@@ -1224,6 +1299,20 @@ export interface SweepBalance {
   closedTotal: number;
   /** Comisiones atribuidas durante este barrido. */
   commissions: number;
+  /** A cuántos ex-jugadores se les reconstruyó el historial de partidos.
+   *  Puede faltar en respuestas de una versión anterior del servidor. */
+  histories?: number;
+}
+
+/** Lo que el barrido de comisiones deja dicho al terminar, para poder
+ *  enseñarlo en Cambios sin volver a preguntar nada. Viaja en el estado del
+ *  enrutador, no en la URL: es de esta navegación y de ninguna más. */
+export interface AvisoDelBarrido {
+  commissions: number;
+  histories: number;
+  closedTotal: number;
+  open: number;
+  stopped: boolean;
 }
 
 export interface BackfillBatchResult {
@@ -1253,7 +1342,7 @@ export interface TransfersHistorySyncResult {
 
 // 2026-08-05, pedido explícitamente: un jugador que ya no está en la
 // plantilla actual (`roster()` en el backend, `left_team_at IS NULL`) trae
-// una ficha reducida — nada de habilidades/posiciones/entrenamiento (no
+// una ficha reducida, nada de habilidades/posiciones/entrenamiento (no
 // tiene sentido para alguien que ya no vemos), solo identidad y fechas. El
 // saldo/ROI se pide aparte, del mismo endpoint que ya alimenta "Detalle" en
 // Transferencias (nunca se duplica ese cálculo).
@@ -1318,7 +1407,7 @@ export interface ActivePlayerDetail {
   // Curva continua de Fidelidad calculada solo con días desde la compra.
   // Es `null` únicamente cuando no existe una fecha de compra disponible.
   loyaltyDecimal: number | null;
-  // Proyección de Resistencia, tabla Federación Ocerin — `null` solo sin
+  // Proyección de Resistencia, tabla Federación Ocerin, `null` solo sin
   // WorldContext propio. Las edades fuera de la tabla (17-36) usan la fila
   // del extremo más cercano, así que ya no cortan la proyección.
   staminaForecast: {
@@ -1327,16 +1416,16 @@ export interface ActivePlayerDetail {
     trainingPct: number;
     currentExpectedLevel: number | null;
   } | null;
-  // "TT-ss" de cuándo entró al equipo (compra real o respaldo manual) —
+  // "TT-ss" de cuándo entró al equipo (compra real o respaldo manual)
   // ancla el punto más antiguo del radar. `null` si no hay ninguna fecha.
   joinedSeasonWeek: string | null;
-  // "TT-ss" de la compra real (transfersteam.xml) — nunca el respaldo
+  // "TT-ss" de la compra real (transfersteam.xml), nunca el respaldo
   // manual, para no ponerle TT-ss a una fecha estimada.
   purchasedAtSeasonWeek: string | null;
   // Si el último partido con rating capturado cae en la semana actual.
   playedThisWeek: boolean;
   // null = playerdetails.xml nunca se ha pedido para este jugador (distinto
-  // de "0 caps reales") — botón "Actualizar detalles de jugadores".
+  // de "0 caps reales"), botón "Actualizar detalles de jugadores".
   nationalTeam: { caps: number; capsU20: number } | null;
   nativeLeagueName: string | null;
   purchasePrice: number | null;
@@ -1544,7 +1633,7 @@ export interface Club {
     roles: ClubStaffRole[];
     totalLevels: number;
     // Gasto semanal REAL de la academia, ya en moneda local. Sale de
-    // `CostsYouth` (economy.xml), no del `<Investment>` de club.xml — ese
+    // `CostsYouth` (economy.xml), no del `<Investment>` de club.xml, ese
     // campo Hattrick lo devuelve en 0 aunque el club sí esté invirtiendo
     // (verificado con un fetch en vivo 2026-08-15). `null` si todavía no
     // hay una lectura económica sincronizada.
@@ -1613,7 +1702,16 @@ export interface Lineup {
     /** Las ordenes que Hattrick permite en esa casilla. */
     orderOptions: { position: string; label: string }[];
   }[];
-  bench: { player: string; htPlayerId: number; tsi: number }[];
+  /** Las seis plazas del banquillo de Hattrick, cada una con quien mejor la
+   *  juega. Sin orden individual: esa la da el manager al hacer el cambio. */
+  bench: {
+    player: string;
+    htPlayerId: number;
+    tsi: number;
+    slot: string;
+    slotLabel: string;
+    rating: number;
+  }[];
   sectorRatings: {
     ratings: {
       sector: string;
@@ -1664,6 +1762,9 @@ export interface PostMatchTrainingOption {
   recommendable: boolean;
   rationale: string[];
   score: number;
+  /** Aporte posicional ganado por semana, sumando la plantilla. Es lo que
+   *  ordena las opciones desde el 2026-09-13; `score` sólo desempata. */
+  value: number;
   trainedPlayers: number;
   fullTrainingPlayers: number;
   partialTrainingPlayers: number;
@@ -1716,7 +1817,7 @@ export interface PostMatchTraining {
 
 /**
  * Sección Equipo: la plantilla promediada por grupos. Cada grupo dice con
- * qué forma se PUEDE dibujar — `radar` sólo cuando todas sus métricas
+ * qué forma se PUEDE dibujar, `radar` sólo cuando todas sus métricas
  * comparten escala; si no, barras con el techo propio de cada una.
  */
 export interface TeamOverviewMetric {
@@ -1740,7 +1841,7 @@ export interface TeamOverviewSeries {
 }
 
 /** Una gráfica dentro de un grupo. Un grupo lleva varias cuando sus series no
- *  comparten escala — juntarlas en un eje daría a entender que se comparan. */
+ *  comparten escala, juntarlas en un eje daría a entender que se comparan. */
 export interface TeamOverviewChart {
   key: string;
   title: string;
@@ -1758,7 +1859,7 @@ export interface TeamOverviewChart {
  * `bestRating`/`topPlayer`/`bestVariantLabel` salen de evaluar a TODA la
  * plantilla en las variantes de esa línea, mientras que `count` y
  * `averageRating` miran solo a quienes la tienen como su mejor puesto.
- * `count` puede ser 0 y aun así haber un mejor rating — una línea que nadie
+ * `count` puede ser 0 y aun así haber un mejor rating, una línea que nadie
  * ocupa de forma natural pero alguien podría cubrir. Se pintan en bloques
  * separados justamente para no confundirlas.
  */
@@ -1773,8 +1874,8 @@ export interface TeamOverviewPitchSlot {
 }
 
 /** Capitán y lanzador de faltas: recomendaciones de rol, no puestos. Su
- *  `rating` NO está en la escala 0-20 de las posiciones — el motor los puntúa
- *  con otra fórmula —, así que se muestra como número pelado, sin barra. */
+ *  `rating` NO está en la escala 0-20 de las posiciones, el motor los puntúa
+ *  con otra fórmula, , así que se muestra como número pelado, sin barra. */
 export interface TeamOverviewSpecialRole {
   key: string;
   label: string;
@@ -1853,7 +1954,7 @@ export interface AcademySkillScores {
   soonMaxDays: number;
   weightBase: number;
   trainableMethod: string;
-  /** El peso que la base da a cada cubo — se pinta sobre su columna. */
+  /** El peso que la base da a cada cubo, se pinta sobre su columna. */
   weights: Record<string, number>;
   /** El que sugiere la escalera (peldaño -2 de la base). */
   suggestedTrainableWeight: number;
@@ -1977,11 +2078,18 @@ export interface HistoricalPlayerChange {
   capturedAt: string;
   htPlayerId: number;
   name: string;
+  /** Un canterano, no un jugador del primer equipo. Su id vive en otro
+   *  espacio y su ficha no está en /players, así que no se enlaza. */
+  isYouth?: boolean;
   key: string;
   label: string;
-  before: number;
+  /** `null` en un DESCUBRIMIENTO: no se sabía y ahora sí. No hubo un antes,
+   *  así que tampoco hay delta. Sólo pasa en la cantera. */
+  before: number | null;
   current: number;
-  delta: number;
+  delta: number | null;
+  /** El cambio es una revelación del ojeador, no un movimiento. */
+  isReveal?: boolean;
 }
 
 export interface ChangesHistory {
@@ -1989,8 +2097,22 @@ export interface ChangesHistory {
   weeks: number;
   /** Fecha del cierre más antiguo con el que se comparó de verdad. Con menos
    *  historia que la ventana pedida, esto es más viejo de lo que sugiere
-   *  `weeks` — o `null` si no hay con qué comparar. */
+   *  `weeks`, o `null` si no hay con qué comparar. */
   comparedFrom: string | null;
+  /** Los canteranos, con la misma regla de comparación que la plantilla pero
+   *  sólo en niveles de habilidad: un juvenil no tiene TSI, salario, forma ni
+   *  experiencia, y sus techos son revelaciones, no movimientos. */
+  youthChanges?: HistoricalPlayerChange[];
+  /** Las cifras de la academia recontadas EN ESTA VENTANA. `revelations` es
+   *  un flujo y cambia entera; `ceilingsNow` es un stock --lo que se sabe
+   *  hoy-- y lo que se mueve con la ventana es `ceilingsBefore`, con lo que
+   *  se sabía al empezarla. */
+  youthSummary?: {
+    revelations: number;
+    ceilingsNow: number;
+    ceilingsBefore: number;
+    readings: number;
+  };
   players: { htPlayerId: number; name: string }[];
   selectedPlayerId: number | null;
   skillChanges: HistoricalPlayerChange[];
@@ -2024,7 +2146,7 @@ export interface ForecastBand {
   weekLabels: (string | null)[];
 }
 
-/** Desglose de Detalles al estilo Hattrick Control — SubTotal es lo
+/** Desglose de Detalles al estilo Hattrick Control, SubTotal es lo
  * recurrente/estructural de la semana, Otros lo ligado a compraventa de
  * jugadores o algo puntual. Cualquier campo puede ser null: "sin dato",
  * nunca un 0 fabricado (p. ej. el primer sync de un club no trae desglose
@@ -2052,7 +2174,7 @@ export interface CostsBreakdown {
 export interface WeeklyBreakdownRow {
   seasonWeek: string | null;
   date: string;
-  /** La semana en curso todavía no cerró — Hattrick puede seguir sumando ahí. */
+  /** La semana en curso todavía no cerró, Hattrick puede seguir sumando ahí. */
   isCurrent: boolean;
   income: IncomeBreakdown;
   costs: CostsBreakdown;
@@ -2079,7 +2201,7 @@ export interface Economy {
   weeksOfHistory: number;
   series: {
     date: string;
-    /** "TT-ss" (temporada-semana, p. ej. "83-05") — null si el equipo
+    /** "TT-ss" (temporada-semana, p. ej. "83-05"), null si el equipo
      * todavía no sincronizó worlddetails.xml. */
     seasonWeek: string | null;
     cash: number;
@@ -2092,14 +2214,27 @@ export interface Economy {
    * porque esa lista son semanas cerradas y alimenta balances y pronóstico. */
   currentWeek: Economy["series"][number] | null;
   weeklyFinance: {
-    income: { code: string; label: string; amount: number | null }[];
-    costs: { code: string; label: string; amount: number | null }[];
+    /** `previous`: la misma partida en la semana cerrada anterior. */
+    income: {
+      code: string;
+      label: string;
+      amount: number | null;
+      previous: number | null;
+    }[];
+    costs: {
+      code: string;
+      label: string;
+      amount: number | null;
+      previous: number | null;
+    }[];
     incomeTotal: number;
     costsTotal: number;
     expectedBalance: number;
+    previousIncomeTotal: number | null;
+    previousCostsTotal: number | null;
   };
   /** Mismas categorías que `weeklyFinance`, sumando la semana en curso con
-   * cada vez más semanas ya cerradas — para el Sankey de varias semanas. */
+   * cada vez más semanas ya cerradas, para el Sankey de varias semanas. */
   sankeyWindows: {
     weeks: number;
     weeksAvailable: number;
@@ -2130,7 +2265,7 @@ export interface Economy {
    * ascendente porque alimenta gráficos). */
   weeklyBreakdown: WeeklyBreakdownRow[];
   seasonBreakdownTotals: SeasonBreakdownTotals[];
-  /** Umbral real para activar el modelo de series de tiempo — usar este
+  /** Umbral real para activar el modelo de series de tiempo, usar este
    * valor para el teaser de progreso en Proyección, no copiarlo a mano. */
   minWeeksForTimeseries: number;
   /** Nómina de la plantilla de hoy, con el recargo del 20% por extranjero ya
@@ -2209,6 +2344,12 @@ export interface Economy {
 export interface Arena {
   teamName: string;
   currency: string;
+  /** Selector de temporada, igual que Partidos. `selectedSeason` null = todas. */
+  availableSeasons: number[];
+  currentSeason: number | null;
+  selectedSeason: number | null;
+  /** Si cambió el aforo, el día desde el que se cuenta todo. */
+  capacityChangedOn: string | null;
   capacityTotal: number;
   matchesAnalysed: number;
   avgOccupancy: number;
@@ -2218,6 +2359,8 @@ export interface Arena {
     /** Contra quién se jugó: es lo que rotula el eje, no la fecha. */
     rival: string;
     matchType: number;
+    /** El torneo en palabras: «Liga», «Copa», «Amistoso»... */
+    tournament: string;
     capacity: number;
     sold: number;
     occupancy: number;
@@ -2235,14 +2378,109 @@ export interface Arena {
     verdict: string;
   }[];
   notes: string[];
+  tipo: ArenaTipo;
+  /** Aforo de hoy por sector: general, preferentes, tribunas, palcos. */
+  composition: Record<string, number>;
+  /** El reparto que se da por óptimo, en fracciones que suman 1. */
+  recommendedShares: Record<string, number>;
 }
 
+/** Qué partidos mira Estadio. */
+export type ArenaTipo = "todos" | "oficiales" | "amistosos";
+
 // ── Partidos ────────────────────────────────────────────────────────────────
+
+/** Habilidades: mapa de la plantilla, profundidad y cuello de botella. */
+export type SkillsTone = "danger" | "warning" | "ok";
+
+export interface SkillsCandidate {
+  htPlayerId: number;
+  name: string;
+  /** Rendimiento en el puesto: el mismo índice de la pantalla Posiciones. */
+  rating: number;
+  /** La habilidad principal del puesto, en niveles. */
+  skillLevel: number;
+}
+
+/** Un puesto de la última formación oficial y su recambio real. */
+export interface SkillsDepth {
+  key: string;
+  label: string;
+  /** Cuántos jugaron de titulares en ese puesto. */
+  starters: number;
+  skillLabel: string;
+  best: SkillsCandidate | null;
+  /** El mejor del banquillo en ese puesto. */
+  substitute: SkillsCandidate | null;
+  /** Quién entraría después, si el suplente ya está ocupado en otro puesto. */
+  nextSubstitute: SkillsCandidate | null;
+  dropPct: number | null;
+  /** Otros puestos con el mismo recambio. */
+  alsoCovers: string[];
+  tone: SkillsTone;
+}
+
+export interface Skills {
+  skills: { key: string; label: string; short: string }[];
+  players: {
+    htPlayerId: number;
+    name: string;
+    age: number;
+    tsi: number;
+    position: string | null;
+    positionLabel: string | null;
+    positionSkill: string | null;
+    /** Claves en camelCase: `setPieces`, no `set_pieces`. */
+    skills: Record<string, number>;
+    specialty: string;
+    injured: boolean;
+    inLineup: boolean;
+  }[];
+  depth: SkillsDepth[];
+  sectors: {
+    key: string;
+    label: string;
+    rating: number;
+    /** Dónde queda en la serie: 0 = el peor, 100 = el mejor. */
+    seriesPosition: number;
+    /** Ventaja sobre el mejor rival del sector, en %. Negativa = por detrás. */
+    marginPct: number;
+    bestRival: string;
+    bestRivalValue: number;
+    /** «Bordalás (Def 18) · Teano (Def 16)». */
+    who: string;
+    tone: SkillsTone;
+    verdict: string;
+  }[];
+  bottleneck: string | null;
+  upgrades: {
+    htPlayerId: number;
+    player: string;
+    skill: string;
+    skillLabel: string;
+    fromLevel: number;
+    gainPct: number;
+    impact: "Alto" | "Medio";
+  }[];
+  lastMatchDate: string | null;
+  formation: string | null;
+  /** El reparto de la última formación oficial. */
+  lastCentralDefenders: number | null;
+  lastInnerMidfielders: number | null;
+  /** La formación con la que se calcula Profundidad: la última o la elegida. */
+  depthFormation: string | null;
+  depthCentralDefenders: number | null;
+  depthInnerMidfielders: number | null;
+  centralDefenderOptions: number[];
+  innerMidfielderOptions: number[];
+}
 
 export interface MatchRow {
   htMatchId: number;
   date: string;
   matchType: number;
+  /** El torneo en palabras, y en copa cuál: «Copa Cocuy Rubí». */
+  tournament: string;
   opponent: string;
   isHome: boolean;
   goalsFor: number;
@@ -2409,24 +2647,6 @@ export interface LeagueStandingRow {
   isOwnTeam: boolean;
 }
 
-export interface MatchPrediction {
-  matchRound: number;
-  htTeamIdHome?: number;
-  homeHtId: number;
-  awayHtId: number;
-  home: string;
-  away: string;
-  homeWin: number;
-  draw: number;
-  awayWin: number;
-  /** 3 x P(victoria) + 1 x P(empate). Reparte en vez de decidir un ganador. */
-  homeExpectedPoints: number;
-  awayExpectedPoints: number;
-  /** Cuántos partidos de cada equipo se miraron para resumirlo. */
-  matchesSeenHome: number;
-  matchesSeenAway: number;
-}
-
 export interface League {
   teamName: string;
   seriesName: string | null;
@@ -2435,11 +2655,11 @@ export interface League {
   roundsRemaining: number;
   standings: LeagueStandingRow[];
   // 2026-08-08, pedido explícitamente: leaguedetails.xml solo da la tabla
-  // combinada — estas se calculan desde los resultados reales de cada
+  // combinada, estas se calculan desde los resultados reales de cada
   // partido (ver `_standings_from_matches` en el backend).
   standingsHome: LeagueStandingRow[];
   standingsAway: LeagueStandingRow[];
-  /** Historial real de posición/puntos por jornada sincronizada — cada sync
+  /** Historial real de posición/puntos por jornada sincronizada, cada sync
    * guarda una foto de TODA la serie, no solo del equipo propio. `null`
    * donde falta una jornada por sincronizar, nunca un valor inventado. */
   history: {
@@ -2462,13 +2682,8 @@ export interface League {
   }[];
   outlook: OutlookRow[];
   ownOutlook: OutlookRow | null;
-  /** Un pronóstico por partido pendiente, del modelo de zonas mezclado con la
-   * Poisson. Llega vacío cuando no hubo ratings que mirar --sin sesión con
-   * Hattrick, o una serie recién empezada-- y entonces la pantalla enseña lo
-   * de siempre, sólo con la Poisson. */
-  predictions: MatchPrediction[];
   /** Mejor y peor caso del equipo propio con lo que queda de temporada,
-   * re-simulado goleando o siendo goleado en lo propio — el resto de la
+   * re-simulado goleando o siendo goleado en lo propio, el resto de la
    * liga sigue siendo incierto, por eso es una distribución de puestos. */
   bestWorst: {
     htTeamId: number;
@@ -2493,6 +2708,33 @@ export interface League {
     mostLikelyScore: string;
     verdict: string;
     isHome: boolean;
+    /** De dónde sale cada lado (2026-09-12). `null` sin ratings de los dos:
+     *  entonces el pronóstico sale de los goles de la temporada. */
+    sources: {
+      own: {
+        /** Tus órdenes para este partido, o tu último partido. */
+        kind: "submitted" | "last";
+        match: LeagueMatchRef | null;
+        /** Con la enviada: de qué partido salen las dos indirectas a balón
+         *  parado, que Hattrick no prevé para unas órdenes. */
+        setPiecesFrom: LeagueMatchRef | null;
+        tactic: string;
+      };
+      rival: { kind: "last"; match: LeagueMatchRef | null; tactic: string };
+    } | null;
+  } | null;
+  /** Cuánto movió la última jornada. `null` en la jornada 1, cuando no hay
+   *  con qué comparar. Los deltas van en PUNTOS PORCENTUALES. */
+  change: {
+    matchRound: number;
+    positionDelta: Record<string, number>;
+    bestCaseDelta: Record<string, number>;
+    worstCaseDelta: Record<string, number>;
+    ownTitleBefore: number;
+    ownTitleAfter: number;
+    biggestGainer: string | null;
+    biggestGainerBefore: number;
+    biggestGainerAfter: number;
   } | null;
   simulationRuns: number;
   leagueAvgGoals: number;
@@ -2505,6 +2747,10 @@ export interface League {
   isTopDivision: boolean;
   isBottomDivision: boolean;
   caveats: string[];
+  /** Con cuál de los cuatro resúmenes se calcularon las predicciones de esta
+   *  respuesta. Viene de vuelta para que el selector marque el que de verdad
+   *  se usó, no el que la pantalla cree haber pedido. */
+  pitchZoneMethod: LeaguePitchZoneMethod;
 }
 
 // ── Juveniles ───────────────────────────────────────────────────────────────
@@ -2614,7 +2860,7 @@ export interface Academy {
     counts: Record<string, number>;
     trainableCount: number;
     /** Todos los canteranos ordenados por lo que sacan en esta habilidad.
-     *  `note` es `null` cuando el ojeador no ha revelado nada — y ése es
+     *  `note` es `null` cuando el ojeador no ha revelado nada, y ése es
      *  justo el caso en que darle minutos sirve para revelarlo. */
     players: {
       name: string;
@@ -2709,7 +2955,7 @@ export interface PlayerBalanceRow {
   listingCost: number;
   agentPct: number | null;
   // HL-161, 2026-08-14: comisión de club anterior EXACTA (partidos reales
-  // jugados con nosotros × tabla oficial de Hattrick) — 0 si el club al
+  // jugados con nosotros × tabla oficial de Hattrick), 0 si el club al
   // que se lo vendimos todavía no lo ha revendido. Reemplaza el reparto
   // heurístico "de origen desconocido" que existía antes.
   resaleBonusShare: number;
@@ -2793,7 +3039,7 @@ export interface PlayerBalance {
   byAgeBucket: Record<string, number>;
   byTopSkill: Record<string, number>;
   byBidHour: Record<string, number>;
-  // HL-161, 2026-08-04: <Stats> de transfersteam.xml — TODA la historia de
+  // HL-161, 2026-08-04: <Stats> de transfersteam.xml, TODA la historia de
   // compraventas del equipo, para los KPI de "Resumen".
   transferTotalBuys: number;
   transferTotalSales: number;
@@ -2812,17 +3058,13 @@ export interface FormulaInput {
 
 // ── Scouting de rivales ──────────────────────────────────────────────────────
 
-/** Alcance del panel de Duelos por zona — independiente de los toggles
- * globales de la página. "mixed" hereda esos toggles tal cual (comportamiento
- * por defecto); "official"/"friendly" los ignoran y piden en vivo un
- * recorte propio de hasta 5 partidos del rival de ese tipo exacto. */
-export type PitchZoneScope = "mixed" | "official" | "friendly";
-
 /** Cómo se resume cada zona sobre los partidos vistos. Ver `PitchZoneMethod`
  *  en el motor: el promedio dice cómo juega de costumbre, el máximo de lo que
  *  es capaz, y el máximo de los tres carriles de lo que es capaz por
  *  cualquiera de ellos. */
 export type PitchZoneMethod =
+  /** El que abre. Hubo un "median" delante hasta el 2026-09-13; se retiró
+   *  a pedido del usuario y el servidor lo lee como promedio. */
   | "average"
   | "max"
   | "max_parallel"
@@ -2830,6 +3072,34 @@ export type PitchZoneMethod =
   /** Solo para el lado propio: la predicción de minuto 0 de Hattrick para las
    *  órdenes ya enviadas. De un rival no existe. */
   | "submitted";
+
+/** Los cuatro de Liga: los mismos menos "submitted". Ahí se describen ocho
+ *  equipos y de siete no se pueden ver las órdenes, así que la alineación
+ *  enviada no es un resumen de esa pantalla. */
+export type LeaguePitchZoneMethod = Exclude<PitchZoneMethod, "submitted">;
+
+/** Un partido con su marcador, para poder nombrarlo en una frase:
+ *  «Equipo A 1 - 0 Equipo B». Lo arma el servidor porque allí ya están juntos
+ *  los nombres y los goles; mandarlos sueltos obligaría a la pantalla a
+ *  volver a emparejarlos, y a equivocarse de lado la primera vez. */
+/** Un partido de liga ya jugado, lo justo para nombrarlo en pantalla:
+ *  «Deportivo Uno 1 - 2 Pulgas Arrechas · jornada 6». */
+export interface LeagueMatchRef {
+  round: number | null;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+}
+
+export interface PartidoConMarcador {
+  homeName: string;
+  awayName: string;
+  homeGoals: number;
+  awayGoals: number;
+  playedAt: string | null;
+  competition: string;
+}
 
 /** Un duelo cabeza a cabeza por carril de la cancha. `zone` es el carril
  * físico (izquierda/centro/derecha, o "midfield" para el de medio campo);
@@ -2874,7 +3144,19 @@ export interface LastPurchase {
 export interface RivalScouting {
   rivalHtTeamId: number;
   rivalName: string | null;
+  /** El tuyo. Lo manda el servidor para que los dos paneles del mapa de
+   *  cancha se lean como «X contra Y» en vez de «Tu fuente» / «Fuente
+   *  rival». */
+  ownTeamName: string;
   matchesAnalysed: number;
+  /** Qué clases de partido puede enseñar ESTA ficha. El botón de la clase que
+   *  venga en `false` se apaga: contra un rival oficial no se piden amistosos,
+   *  y contra cualquier otro puede que sencillamente no tenga. */
+  clasesDisponibles?: { competitive: boolean; friendly: boolean };
+  /** El último partido de cada lado dentro de la muestra, para poder decir
+   *  cuál es cuando el resumen elegido es «Último partido». */
+  ultimoPartidoRival: PartidoConMarcador | null;
+  ultimoPartidoPropio: PartidoConMarcador | null;
   /** Cuántos de cada competición entran en `matchesAnalysed`: cinco partidos
    *  no dicen lo mismo si son cinco de liga que si son tres y dos amistosos. */
   matchesByCompetition: { label: string; count: number }[];
@@ -2889,7 +3171,7 @@ export interface RivalScouting {
    * expone esos campos aunque oculte las skills exactas). El liderazgo del
    * entrenador rival sale de su stafflist.xml v1.2 (público para cualquier
    * equipo) o, si eso no trajera nada, de su jugador-entrenador en
-   * players.xml — `null` solo si ninguna de las dos fuentes tiene dato. */
+   * players.xml, `null` solo si ninguna de las dos fuentes tiene dato. */
   comparison: {
     tsi: { own: number | null; rival: number | null };
     form: { own: number | null; rival: number | null };
@@ -2943,7 +3225,7 @@ export interface RivalScouting {
     attackRightStd: number;
     strongSide: string;
     /** % de los partidos vistos en que strongSide fue el lado más fuerte
-     * EN ESE partido — 100% es "siempre el mismo lado, sin excepción". */
+     * EN ESE partido, 100% es "siempre el mismo lado, sin excepción". */
     dominantPct: number;
     dominantSideByMatch: string[];
     /** Un renglón por partido con los tres carriles, del más viejo al más
@@ -2961,26 +3243,46 @@ export interface RivalScouting {
     matchesAnalysed: number;
   } | null;
   /** 7 duelos cabeza a cabeza por carril de la cancha, de los mismos
-   * partidos ya analizados arriba — el rival en vivo, el propio equipo de
+   * partidos ya analizados arriba, el rival en vivo, el propio equipo de
    * MatchRating ya sincronizado. `null` si falta alguno de los dos lados
    * (nunca se inventa un duelo con un solo lado real). */
   pitchZoneDuels: PitchZoneDuel[] | null;
   pitchZonesMatchesAnalysed: { own: number | null; rival: number | null };
   pitchZoneSources: { own: PitchZoneSource; rival: PitchZoneSource };
-  pitchZoneScope: PitchZoneScope;
   pitchZoneMethodOwn: PitchZoneMethod;
   pitchZoneMethodRival: PitchZoneMethod;
   /** `false` cuando todavía no has mandado alineación: sin eso, el modo
    *  "alineación enviada" no tiene nada que enseñar. */
   submittedLineupAvailable: boolean;
   rivalRosterSample: { name: string; position: string | null; tsi: number }[];
+  /** La predicción del motor de zonas. `null` sin historia con la que
+   *  alimentarlo. `drawProbability` es null en Copa: hay prórroga. */
+  prediction: {
+    esCopa: boolean;
+    /** Qué resumen se usó de cada lado. Los mismos que mueven el mapa de
+     *  cancha: desde 2026-09-09 el pronóstico no tiene selector propio. */
+    metodoPropio: string;
+    metodoRival: string;
+    /** Hattrick no prevé las acciones indirectas a balón parado de una
+     *  alineación enviada: esas dos van con el promedio de lo ya jugado. */
+    indirectasPrestadas: boolean;
+    hayCruce: boolean;
+    ownProbability: number;
+    drawProbability: number | null;
+    rivalProbability: number;
+    expectedOwnGoals: number;
+    expectedRivalGoals: number;
+    mostLikelyScore: string;
+    ownMatches: number;
+    rivalMatches: number;
+  } | null;
   winProbability: {
     ownProbability: number;
     ownTsiTotal: number;
     rivalTsiTotal: number;
     confidence: string;
   };
-  /** Táctica, nivel de táctica y formación — los tres son públicos para
+  /** Táctica, nivel de táctica y formación, los tres son públicos para
    * cualquier equipo (verificado en vivo). La actitud (TeamAttitude) queda
    * fuera a propósito: CHPP nunca la incluye para un equipo que no es el
    * tuyo, así que no había nada honesto que resumir ahí. */
@@ -3017,12 +3319,29 @@ export interface LeagueTeamSummary {
   // 2026-08-08, pedido explícitamente: jugador de mayor TSI del equipo,
   // su TSI, su última posición jugada en partido oficial (playerdetails.xml,
   // una llamada aparte solo para él) y la forma/resistencia media de la
-  // plantilla comparada — null cuando CHPP no mostró el dato para un rival.
+  // plantilla comparada, null cuando CHPP no mostró el dato para un rival.
   topPlayerName: string | null;
   topPlayerTsi: number | null;
   topPlayerLastPosition: string | null;
   avgForm: number | null;
   avgStamina: number | null;
+  /** Experiencia media, con la misma regla que forma y condición. */
+  avgExperience?: number | null;
+}
+
+/** Medio campo, defensa y ataque de cada equipo de la serie: media de sus
+ *  últimos cinco partidos oficiales. Para la flor del Dashboard. */
+export interface SectoresRecientes {
+  partidosPorEquipo: number;
+  equipos: {
+    htTeamId: number;
+    nombre: string;
+    esPropio: boolean;
+    partidos: number;
+    medio: number | null;
+    defensa: number | null;
+    ataque: number | null;
+  }[];
 }
 
 export interface LeagueComparison {
@@ -3053,7 +3372,7 @@ export interface TeamOfWeekPlayer {
 }
 
 // 2026-08-08, pedido explícitamente: extremos e interiores comparten un
-// solo bloque "medios", y laterales/centrales comparten "defensa" — el
+// solo bloque "medios", y laterales/centrales comparten "defensa", el
 // selector de formación decide cuántos cupos tiene cada bloque, igual que
 // Hattrick Control (nunca un reparto fijo).
 export type TeamOfWeekSlotKey = "keeper" | "defense" | "midfield" | "forward";
@@ -3138,6 +3457,17 @@ export interface CupNextMatch {
   cupName: string | null;
 }
 
+/** Un cruce del Hattrick Masters de esta temporada, jugado o programado. */
+export interface MastersRival {
+  htMatchId: number;
+  date: string;
+  opponent: string;
+  opponentHtTeamId: number;
+  played: boolean;
+  goalsFor: number | null;
+  goalsAgainst: number | null;
+}
+
 export interface CupPrizeStage {
   stage: string;
   amount: number;
@@ -3180,10 +3510,34 @@ export interface Cup {
     tier: "main" | "challenge" | "consolation" | "other" | null;
     tierLabel: string;
     officialRound: number | null;
+    /** Rondas que salen de CONTAR los partidos guardados. Si no coincide con
+     *  `officialRound`, faltan partidos por sincronizar y `notes` lo dice. */
+    countedRounds: number | null;
     roundsLeft: number | null;
     stageLabel: string | null;
     nextCupMatchDate: string | null;
   };
+  /** La predicción del próximo cruce con el motor de zonas. `null` cuando no
+   *  hay con qué: sin cruce pendiente, sin sesión de Hattrick, o sin historia
+   *  de Copa del rival (su primera ronda). */
+  prediction: {
+    ownProbability: number;
+    rivalProbability: number;
+    expectedOwnGoals: number;
+    expectedRivalGoals: number;
+    mostLikelyScore: string;
+    ownMatches: number;
+    rivalMatches: number;
+    /** Con qué resumen salió cada lado. Vuelve del servidor y no se supone:
+     *  si pediste «Alineación enviada» y todavía no has mandado ninguna, aquí
+     *  llega el resumen que de verdad se usó. */
+    metodoPropio: PitchZoneMethod;
+    metodoRival: PitchZoneMethod;
+    /** `true` cuando los siete sectores salen de la alineación enviada y los
+     *  dos de acciones indirectas a balón parado se toman de lo ya jugado,
+     *  porque Hattrick no los prevé. */
+    indirectasPrestadas: boolean;
+  } | null;
   goal: {
     stage: string | null;
     roundsLeft: number | null;
@@ -3223,6 +3577,7 @@ export interface Cup {
   ladder: CupLadderStep[];
   history: CupHistoryRow[];
   nextMatches: CupNextMatch[];
+  mastersRivals: MastersRival[];
   prizeTable: CupPrizeStage[];
   notes: string[];
 }
@@ -3313,6 +3668,8 @@ export interface TrainingSquadPlayerRow {
   hasHistoricalReference: boolean;
   currentWeekMinutes: number;
   currentWeekExposure: number;
+  /** Veterano sin habilidades de campo: la tabla lo esconde por defecto. */
+  withoutFieldSkills: boolean;
 }
 
 export interface TrainingSquadWeeklyLogEntry {
@@ -3504,6 +3861,10 @@ export type Calculo = {
    *  quiere saber qué mira, no qué se multiplica. */
   answers: string;
   formula: string;
+  /** El CUERPO, en parrafos. Sólo lo llevan los cálculos que hay que CONTAR
+   *  --por qué esta forma y no otra, qué se probó y se descartó, cómo se
+   *  comprobó-- y no basta con enseñar su fórmula. Vacío en casi todos. */
+  body: string[];
   /** Los datos que entran, con su procedencia. Sin esto la fórmula dice
    *  cómo se hace la cuenta pero no de dónde salen los sumandos. */
   sources: FuenteDeCalculo[];

@@ -1,11 +1,11 @@
-"""Preclasificación de jugadores — HL-15x #87: "en qué momento de su vida
+"""Preclasificación de jugadores, HL-15x #87: "en qué momento de su vida
 está" un jugador, a partir de señales reales (edad, tendencia de habilidades
 entre el snapshot más antiguo y el más reciente, percentil dentro de la
 plantilla, liderazgo, fidelidad).
 
 ⚠️ Las categorías y umbrales son un juicio de producto, no una fórmula
 verificada contra datos externos (a diferencia de `pricing_engine.SALARY_*`,
-que sí lo es) — se declara así en `confidence`. Siempre se devuelven las
+que sí lo es), se declara así en `confidence`. Siempre se devuelven las
 señales crudas (`signals`) para que la UI pueda mostrar el porqué, no solo
 la etiqueta.
 """
@@ -43,7 +43,7 @@ def classify_career_stage(
 ) -> CareerStage:
     """Clasifica en una de 6 etapas. `skills_rising/falling/stable` cuentan
     las 7 habilidades principales comparando el snapshot más antiguo real
-    contra el más reciente — no una proyección, un hecho ya observado.
+    contra el más reciente, no una proyección, un hecho ya observado.
     `squad_percentile` es el percentil real en la habilidad dominante dentro
     de la plantilla activa (puede ser `None` si el jugador ya no está en
     ella). `has_sufficient_history` exige al menos 2 snapshots reales en

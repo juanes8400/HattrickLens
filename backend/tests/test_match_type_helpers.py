@@ -1,4 +1,4 @@
-"""is_competitive_match_type / is_friendly_match_type — HL-2xx, módulo de
+"""is_competitive_match_type / is_friendly_match_type, HL-2xx, módulo de
 rivales. Liga/Copa/Promoción se define por EXCLUSIÓN a propósito: no se
 conoce el MatchType real de Promoción (nunca visto en la cuenta de
 desarrollo), así que debe caer en "competitivo" por defecto en vez de
@@ -26,7 +26,7 @@ def test_friendly_is_friendly_not_competitive() -> None:
 
 
 def test_unknown_match_type_defaults_to_competitive() -> None:
-    """P.ej. Promoción — nunca visto en la cuenta de desarrollo, no se
+    """P.ej. Promoción, nunca visto en la cuenta de desarrollo, no se
     conoce su valor real. Un MatchType desconocido cualquiera (aquí, 4,
     elegido solo por no estar en ninguna lista conocida) debe caer en
     competitivo por defecto, no perderse."""

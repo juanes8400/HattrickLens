@@ -1,4 +1,4 @@
-"""Motor de series de tiempo — puro NumPy, sin dependencias pesadas.
+"""Motor de series de tiempo, puro NumPy, sin dependencias pesadas.
 
 Escalera de modelos, de menos a más exigente en datos (m = 16 semanas = una
 temporada de Hattrick):
@@ -17,8 +17,8 @@ comete. Con pocos datos ganan los modelos simples; a medida que la serie crece,
 los complejos se ganan su sitio solos.
 
 Los intervalos de predicción salen de los residuos observados un paso adelante,
-escalados con sqrt(h). Es una aproximación —no asume normalidad de la serie,
-solo la usa para el ancho de banda— y es honesta: si el modelo ha fallado
+escalados con sqrt(h). Es una aproximación, no asume normalidad de la serie,
+solo la usa para el ancho de banda, y es honesta: si el modelo ha fallado
 históricamente, las bandas serán anchas.
 """
 
@@ -436,7 +436,7 @@ def auto_forecast(
 
 
 def detect_anomalies(history: Sequence[float] | np.ndarray, z: float = 3.0) -> list[int]:
-    """Índices con desviación robusta (MAD) superior a z — gastos raros, etc."""
+    """Índices con desviación robusta (MAD) superior a z, gastos raros, etc."""
     y = np.asarray(history, dtype=float)
     if len(y) < 5:
         return []

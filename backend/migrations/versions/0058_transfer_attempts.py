@@ -3,7 +3,7 @@
 2026-08-22, pedido explícitamente. Hasta ahora una fila de
 `player_listing_attempts` decía solo "apareció en el mercado tal día". Un
 intento de venta es más que eso: tiene un plazo, un final y un resultado, y es
-lo que de verdad se quiere estudiar — a qué precio se vende, en qué semana,
+lo que de verdad se quiere estudiar, a qué precio se vende, en qué semana,
 cuántas veces hubo que intentarlo.
 
 `times_seen` es el único dato de toda la aplicación que Hattrick no entrega por

@@ -1,5 +1,5 @@
 import { Chart } from "../charts/Chart";
-import { metric } from "../hooks/useFormat";
+import { metric, plural } from "../hooks/useFormat";
 import { Empty, Note, Panel } from "./Panels";
 
 const CURVE_COLOR = "#4f7cff";
@@ -14,7 +14,7 @@ export interface PlayerDistribution {
 
 /**
  * Histograma KDE de una variable sobre la plantilla, con el punto de ESTE
- * jugador resaltado — HL-15x #8. Mismo motor (`gaussian_kde`, ancho de banda
+ * jugador resaltado, HL-15x #8. Mismo motor (`gaussian_kde`, ancho de banda
  * de Silverman) que ya usa `TsiHistogramPanel` para propio-vs-rival, pero
  * aquí es una sola distribución con un punto propio destacado en vez de dos
  * curvas superpuestas.
@@ -87,7 +87,7 @@ export function PlayerDistributionPanel({
               areaStyle: { color: CURVE_COLOR, opacity: 0.28 },
               z: 1,
               // HL-15x #100: franja vertical que atraviesa todo el
-              // histograma en vez de un solo punto en la base — más fácil
+              // histograma en vez de un solo punto en la base, más fácil
               // de leer contra la curva completa.
               markLine: {
                 symbol: "none",
@@ -116,8 +116,9 @@ export function PlayerDistributionPanel({
         }}
       />
       <Note>
-        {d.values.length} jugador(es) de la plantilla actual. {playerName} está
-        en <b>{formatValue(d.ownValue)}</b> (franja vertical roja).
+        {plural(d.values.length, "jugador", "jugadores")} de la plantilla
+        actual. {playerName} está en <b>{formatValue(d.ownValue)}</b> (franja
+        vertical roja).
       </Note>
     </Panel>
   );

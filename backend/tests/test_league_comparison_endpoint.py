@@ -1,4 +1,4 @@
-"""GET /teams/{id}/league/comparison — HL-090+ a nivel HTTP.
+"""GET /teams/{id}/league/comparison, HL-090+ a nivel HTTP.
 
 No solo el próximo rival: dónde queda la plantilla frente a TODA la serie.
 Usa el mismo límite ya verificado en el scouting de un solo rival (TSI real,

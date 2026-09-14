@@ -21,7 +21,7 @@ import {
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { barOption } from "../charts/chartOptions";
-import { number } from "../hooks/useFormat";
+import { number, plural } from "../hooks/useFormat";
 import { LineupAvailabilityNotice } from "../components/LineupAvailabilityNotice";
 import {
   MINIMUM_LINEUP_PLAYERS,
@@ -319,7 +319,7 @@ export function LineupPage() {
           {formation && (
             <>
               <SplitSelector
-                label="Defensa central"
+                label="Defensas Centrales"
                 value={data.centralDefenders}
                 options={data.centralDefenderOptions}
                 onChange={(value) => {
@@ -328,7 +328,7 @@ export function LineupPage() {
                 }}
               />
               <SplitSelector
-                label="Medio central"
+                label="Mediocentros"
                 value={data.innerMidfielders}
                 options={data.innerMidfielderOptions}
                 onChange={(value) => {
@@ -402,7 +402,7 @@ export function LineupPage() {
         meta={
           fuera.length === 0
             ? "arrastra aquí a quien no vaya a jugar"
-            : `${fuera.length} jugador(es)`
+            : plural(fuera.length, "jugador", "jugadores")
         }
       >
         {estadoFuera.warning && (
@@ -491,7 +491,10 @@ export function LineupPage() {
       </Panel>
 
       {data.bench.length > 0 && (
-        <Panel title="Banquillo" meta={`${data.bench.length} jugadores`}>
+        <Panel
+          title="Banquillo"
+          meta={`${data.bench.length} de 6 plazas cubiertas`}
+        >
           <ul className="divide-y divide-[var(--border)]">
             {data.bench.map((b) => (
               <li
@@ -499,7 +502,12 @@ export function LineupPage() {
                 className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
                 {...arrastrable(b.htPlayerId, b.player)}
               >
-                <PlayerLink htPlayerId={b.htPlayerId} name={b.player} />
+                <span className="flex min-w-0 flex-col">
+                  <PlayerLink htPlayerId={b.htPlayerId} name={b.player} />
+                  <span className="text-xs text-[var(--muted)]">
+                    {b.slotLabel} · {b.rating.toFixed(2)}
+                  </span>
+                </span>
                 <span className="flex items-center gap-3">
                   <span className="tabular-nums text-[var(--muted)]">
                     TSI {number(b.tsi)}
@@ -615,7 +623,7 @@ export function LineupPage() {
 }
 
 /**
- * Evaluar decisiones reales — 2026-08-15, pedido explícito.
+ * Evaluar decisiones reales, 2026-08-15, pedido explícito.
  *
  * Hasta ahora la pantalla solo decía qué once es el mejor HOY, en abstracto.
  * Esto lo contrasta con lo que de verdad pasó: quién jugó cada puesto en el

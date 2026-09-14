@@ -1,7 +1,7 @@
-"""LeagueLevel/MaxLevel del equipo — HL-145.
+"""LeagueLevel/MaxLevel del equipo, HL-145.
 
 Hacen falta para saber si el 1º puede ascender (no si ya está en primera
-división) y si el 7º-8º puede descender (no si ya está en la última) — sin
+división) y si el 7º-8º puede descender (no si ya está en la última), sin
 esto, la simulación de temporada asumía siempre que había una división
 arriba y otra abajo, lo cual es falso en los dos extremos de la pirámide.
 

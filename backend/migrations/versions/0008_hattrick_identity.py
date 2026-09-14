@@ -2,7 +2,7 @@
 
 Conectar vía OAuth con CHPP es el único inicio de sesión de HT Lens. Se
 reconoce a un usuario que vuelve a conectar por `ht_user_id` (UserID de CHPP),
-no por credenciales propias — de ahí que email/password_hash pasen a ser
+no por credenciales propias, de ahí que email/password_hash pasen a ser
 opcionales en vez de obligatorios.
 
 Revision ID: 0008

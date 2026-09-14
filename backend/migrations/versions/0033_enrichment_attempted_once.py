@@ -1,5 +1,5 @@
 """2026-08-05, pedido explícitamente: "backfill de un jugador máximo una
-vez" — si la información no se encontró la primera vez, no va a estar
+vez", si la información no se encontró la primera vez, no va a estar
 después (ver docstrings en models.py/sync_team.py). Renombra
 enrichment_unavailable -> enrichment_attempted (semántica más amplia: se
 marca tras CUALQUIER intento, no solo un ErrorCode de CHPP) y añade

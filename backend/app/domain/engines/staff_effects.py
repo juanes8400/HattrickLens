@@ -1,16 +1,16 @@
-"""Aporte real de cada categoría de empleado — HL-2xx, 2026-08-12.
+"""Aporte real de cada categoría de empleado, HL-2xx, 2026-08-12.
 
 Tablas oficiales de Hattrick (página "Empleados"), pasadas explícitamente
 por el usuario. Las bonificaciones de Asistente de entrenador, Doctor y
 Preparador físico son LINEALES por nivel: "cada nivel de habilidad
-adicional siempre contribuye lo mismo que el nivel de habilidad anterior" —
+adicional siempre contribuye lo mismo que el nivel de habilidad anterior"
 un asistente de entrenador nivel 4 aporta exactamente lo mismo que dos de
 nivel 2 (niveles combinados, ver STAFF_TYPE_TO_FIELD en sync_team.py), así
 que su fórmula se extrapola sin problema más allá de nivel 5 individual
 (hasta 10, con dos empleados de nivel 5 cada uno).
 
 Psicólogo deportivo (confianza), Director financiero y Asistente táctico
-son tablas de valores por nivel — el propio texto de Hattrick dice que la
+son tablas de valores por nivel, el propio texto de Hattrick dice que la
 confianza "no es lineal", así que esa columna se toma de la tabla, no de
 una fórmula. Director financiero y Asistente táctico solo permiten un
 empleado (el táctico, dos) hasta nivel 5, así que no hace falta
@@ -38,7 +38,7 @@ BASE_INJURY_RISK_PCT = 40.0  # % lesiones/partido sin asistentes ni doctor
 DOCTOR_RECOVERY_SPEED_PCT_PER_LEVEL = 20.0
 DOCTOR_INJURY_RISK_REDUCTION_PP_PER_LEVEL = 7.5
 
-# ── Psicólogo deportivo (tabla — la confianza no es lineal, ver docstring) ──
+# ── Psicólogo deportivo (tabla, la confianza no es lineal, ver docstring) ──
 SPORT_PSYCHOLOGIST_SPIRIT: dict[int, float] = {0: 0.0, 1: 0.1, 2: 0.2, 3: 0.3, 4: 0.4, 5: 0.5}
 SPORT_PSYCHOLOGIST_CONFIDENCE: dict[int, float] = {
     0: 0.0,
@@ -123,7 +123,7 @@ def tactical_assistant_effect(level: int) -> dict[str, Any]:
 
 
 def current_injury_risk_pct(assistant_combined_level: int, doctor_level: int) -> float:
-    """Riesgo de lesión real del equipo, combinando ambos efectos —
+    """Riesgo de lesión real del equipo, combinando ambos efectos
     verificado contra el ejemplo oficial: 2 asistentes nivel 5 (10
     combinado) + doctor nivel 5 = 0.275 lesiones/partido (27.5%)."""
     assistant = assistant_trainer_effect(assistant_combined_level)["injuryRiskPp"]

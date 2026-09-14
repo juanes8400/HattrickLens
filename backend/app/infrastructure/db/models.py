@@ -1,7 +1,7 @@
-"""SQLAlchemy models — núcleo del sync. Ver docs/02-modelo-datos.md para el modelo completo.
+"""SQLAlchemy models, núcleo del sync. Ver docs/02-modelo-datos.md para el modelo completo.
 
 Nota particionado: en PostgreSQL, player_snapshots es RANGE(captured_at) con PK
-física (id, captured_at) — eso vive en la migración (raw SQL). El ORM mapea id
+física (id, captured_at), eso vive en la migración (raw SQL). El ORM mapea id
 como PK lógica; con sqlite (tests) funciona el autoincrement vía variant.
 """
 
@@ -102,12 +102,15 @@ class Team(Base):
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     name: Mapped[str] = mapped_column(String(128))
+    # Fecha real de fundación, de teamdetails.xml. Es el límite inferior del
+    # backfill de partidos: no se recorren años en los que el club no existía.
+    founded_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     league_name: Mapped[str | None] = mapped_column(String(128))
     series_name: Mapped[str | None] = mapped_column(String(128))
-    # LeagueID del PAÍS (de teamdetails.xml, distinto de series_ht_id) —
+    # LeagueID del PAÍS (de teamdetails.xml, distinto de series_ht_id)
     # 2026-08-04: clave para cruzar contra worlddetails.xml, que trae la
     # temporada/moneda/copas REALES de cada país en su propio
-    # LeagueList/League — verificado en vivo que Colombia es LeagueID=19,
+    # LeagueList/League, verificado en vivo que Colombia es LeagueID=19,
     # no el 50 que se usaba antes por error (esa era Grecia).
     ht_league_id: Mapped[int | None] = mapped_column(BigInteger)
     # LeagueLevelUnitID: leaguedetails.xml se pide por serie, no por equipo.
@@ -117,7 +120,7 @@ class Team(Base):
     # tiene su tasa. Colombia = 10 (verificado contra Hattrick Control).
     currency_rate: Mapped[float] = mapped_column(Float, default=1.0)
     currency_name: Mapped[str] = mapped_column(String(16), default="")
-    # Academia juvenil ACTUAL — 2026-08-15. Se puede cerrar y reabrir, y cada
+    # Academia juvenil ACTUAL, 2026-08-15. Se puede cerrar y reabrir, y cada
     # apertura es una academia distinta con su propio id y fecha. Sin esto, el
     # ROI de la cantera mezclaba canteranos de academias anteriores con la
     # inversión de la actual. `None` hasta que se sincronice youthteamdetails.
@@ -125,9 +128,9 @@ class Team(Base):
     youth_team_name: Mapped[str | None] = mapped_column(String(128))
     youth_academy_created_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # LeagueLevel de esta serie (1 = división más alta del país) y MaxLevel
-    # (divisiones totales) — de leaguedetails.xml. Hacen falta para saber si
+    # (divisiones totales), de leaguedetails.xml. Hacen falta para saber si
     # el 1º puede ascender (no si ya es primera) y si el 7º-8º puede
-    # descender (no si ya es la última) — HL-145. -1 = sin sincronizar.
+    # descender (no si ya es la última), HL-145. -1 = sin sincronizar.
     league_level: Mapped[int] = mapped_column(SmallInteger, default=-1)
     max_level: Mapped[int] = mapped_column(SmallInteger, default=-1)
     # Estado ACTUAL de Copa, de teamdetails.xml. `still_in_cup=None` significa
@@ -142,17 +145,17 @@ class Team(Base):
     current_cup_level_index: Mapped[int | None] = mapped_column(SmallInteger)
     current_cup_match_round: Mapped[int | None] = mapped_column(SmallInteger)
     current_cup_match_rounds_left: Mapped[int | None] = mapped_column(SmallInteger)
-    # HL-161 2026-08-04: <Stats> de transfersteam.xml — agregado de TODA la
+    # HL-161 2026-08-04: <Stats> de transfersteam.xml, agregado de TODA la
     # historia del equipo (no de una página), se refresca en cada sync
     # normal (transfersteam siempre pide pageIndex=1). Fuente de los KPI de
-    # "Resumen" — nunca se recalculan sumando player rows, que solo cubren
+    # "Resumen", nunca se recalculan sumando player rows, que solo cubren
     # lo que esta app ha podido reconstruir jugador por jugador.
     transfer_total_buys: Mapped[int] = mapped_column(BigInteger, default=0)
     transfer_total_sales: Mapped[int] = mapped_column(BigInteger, default=0)
     transfer_number_buys: Mapped[int] = mapped_column(Integer, default=0)
     transfer_number_sales: Mapped[int] = mapped_column(Integer, default=0)
     # HL-161 2026-08-04: marca de agua del backfill histórico de
-    # transfersteam.xml paginado ("Actualizar transferencias") — el
+    # transfersteam.xml paginado ("Actualizar transferencias"), el
     # ht_transfer_id más alto ya procesado. Como las páginas llegan de más
     # reciente a más vieja, un re-sync puede parar en cuanto encuentra un
     # TransferID <= esta marca en vez de volver a pedir las ~40 páginas.
@@ -177,12 +180,25 @@ class Team(Base):
     commission_hunting: Mapped[bool] = mapped_column(Boolean, default=False)
     commission_tried_json: Mapped[str] = mapped_column(Text, default="[]")
     # El barrido en curso, congelado al empezarlo: la cola tal como estaba, y
-    # desde cuando. Es lo que deja pintar la barra como un mapa estable —ver
+    # desde cuando. Es lo que deja pintar la barra como un mapa estable, ver
     # `app/domain/engines/mapa_del_barrido.py`.
     sweep_axis_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     sweep_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     transfers_history_complete: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0"
+    )
+    # El archivo de partidos se recorre entero una sola vez. Después esta
+    # marca de agua permite pedir únicamente el tramo nuevo con un pequeño
+    # solape y deduplicar por MatchID.
+    matches_history_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
+    matches_history_synced_until: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: Con qué reglas se leyó el archivo (migración 0087). Por debajo de
+    #: `VERSION_DEL_ARCHIVO` se relee entero una vez: la 1 pedía el rango de una
+    #: sola vez y Hattrick sólo devolvía tres meses.
+    matches_history_version: Mapped[int] = mapped_column(
+        SmallInteger, default=0, server_default="0"
     )
 
 
@@ -202,7 +218,7 @@ class Player(Base):
     last_name: Mapped[str] = mapped_column(String(64))
     left_team_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # Hechos de una vez, no snapshots: de transfersteam.xml (precio real de
-    # compra, HL-15x) y playerdetails.xml (club madre) — no hay "sync sync_id"
+    # compra, HL-15x) y playerdetails.xml (club madre), no hay "sync sync_id"
     # que les corresponda, así que viven en la identidad, no en player_snapshots.
     purchase_price: Mapped[int | None] = mapped_column(Integer)
     purchased_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
@@ -210,11 +226,11 @@ class Player(Base):
     # compra real (p. ej. el jugador llegó con el equipo antes de que
     # existiera Hattrick Manager, o CHPP no guarda tan atrás), el usuario
     # puede escribirlo a mano. Se prioriza SIEMPRE el dato real
-    # (`purchase_price`) sobre el manual — nunca al revés.
+    # (`purchase_price`) sobre el manual, nunca al revés.
     purchase_price_manual: Mapped[int | None] = mapped_column(Integer)
     purchased_at_manual: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: precio real de venta, de transfersteam.xml (TransferType="S",
-    # vendedor == nosotros) — mismo fichero y mecanismo que purchase_price,
+    # vendedor == nosotros), mismo fichero y mecanismo que purchase_price,
     # nunca se sobrescribe una vez vendido (un jugador solo se vende una
     # vez desde este club).
     sale_price: Mapped[int | None] = mapped_column(Integer)
@@ -244,70 +260,70 @@ class Player(Base):
     # HL-161: edad EN EL MOMENTO DE LA VENTA, reconstruida hacia atrás desde
     # la edad actual (playerdetails.xml, válido para cualquier jugador
     # aunque ya no esté en el equipo) menos los días transcurridos desde
-    # `sold_at` — solo para jugadores sin un `player_snapshots` de antes de
+    # `sold_at`, solo para jugadores sin un `player_snapshots` de antes de
     # su venta. La edad es una función pura del tiempo (112 días/año en
     # Hattrick), a diferencia de las habilidades, que sí dependen de
-    # entrenamiento — confirmado por el usuario 2026-08-04.
+    # entrenamiento, confirmado por el usuario 2026-08-04.
     age_years_at_sale: Mapped[int | None] = mapped_column(SmallInteger)
     age_days_at_sale: Mapped[int | None] = mapped_column(SmallInteger)
     # 2026-08-05: misma reconstrucción hacia atrás que age_*_at_sale, pero
-    # anclada en `purchased_at` — pedida para la tabla "Detalle" (edad de
+    # anclada en `purchased_at`, pedida para la tabla "Detalle" (edad de
     # compra). Solo se rellena si no hay ya un `player_snapshots` de
     # alrededor de la compra (ver `snapshot_at_or_after` en player_balance.py).
     age_years_at_purchase: Mapped[int | None] = mapped_column(SmallInteger)
     age_days_at_purchase: Mapped[int | None] = mapped_column(SmallInteger)
     # HL-161: columnas de la tabla "Detalle" que faltaban frente al Excel
-    # del usuario — reconstruidas UNA vez vía playerdetails.xml, automático
+    # del usuario, reconstruidas UNA vez vía playerdetails.xml, automático
     # (no hay botón: pedido explícitamente 2026-08-04, "ya voy a tener los
     # datos después de una única vez que se haga backfill"). Carácter y
     # Especialidad casi no cambian con el tiempo, así que el valor de HOY
-    # es una base razonable aunque el jugador ya no esté en el equipo — a
+    # es una base razonable aunque el jugador ya no esté en el equipo, a
     # diferencia de la edad, no se reconstruyen "hacia atrás" porque no son
     # función del tiempo transcurrido.
     native_country: Mapped[str | None] = mapped_column(String(64))
     agreeability: Mapped[int | None] = mapped_column(SmallInteger)  # "Carácter"
     specialty: Mapped[int | None] = mapped_column(SmallInteger)
     # 2026-08-05: "backfill de un jugador máximo una vez", pedido
-    # explícitamente — se marca tras UN intento de playerdetails.xml, haya
+    # explícitamente, se marca tras UN intento de playerdetails.xml, haya
     # o no logrado rellenar todo. Un campo que no se pudo resolver esta vez
     # (p. ej. edad reconstruida hacia atrás con resultado negativo, o
-    # ErrorCode 56/64 — jugador cuyo ID ya no resuelve en Hattrick) nunca va
+    # ErrorCode 56/64, jugador cuyo ID ya no resuelve en Hattrick) nunca va
     # a poder resolverse en un intento futuro: es una resta contra "hoy"
     # cuyo margen no cambia con el tiempo transcurrido (ver
     # `_apply_player_enrichment`). Sin este flag, `_backfill_sold_player_details`
     # volvía a pedir playerdetails.xml para el mismo jugador en CADA sync,
     # para siempre.
     enrichment_attempted: Mapped[bool] = mapped_column(Boolean, default=False)
-    # 2026-08-05: mismo principio, para transfersplayer.xml — si un jugador
+    # 2026-08-05: mismo principio, para transfersplayer.xml, si un jugador
     # no aparece con nosotros como comprador en TODA su historia de
     # transferencias, nunca va a aparecer (el historial no cambia hacia
     # atrás). Ver `_apply_transfers_player_purchase`.
     tsi_at_purchase_attempted: Mapped[bool] = mapped_column(Boolean, default=False)
-    # HL-161: TSI en el momento exacto de cada transacción — viene del
+    # HL-161: TSI en el momento exacto de cada transacción, viene del
     # propio registro de transfersteam.xml/transfersplayer.xml (`<TSI>`
     # dentro de `<Transfer>`), NO de playerdetails.xml (que solo da el TSI
     # de HOY, que ya cambió). Ninguna llamada CHPP nueva: ya se pedía este
     # fichero, solo faltaba leer este campo.
     tsi_at_purchase: Mapped[int | None] = mapped_column(Integer)
     tsi_at_sale: Mapped[int | None] = mapped_column(Integer)
-    # HL-161: equipo comprador (de transfersteam.xml, TransferType="S") —
+    # HL-161: equipo comprador (de transfersteam.xml, TransferType="S")
     # hace falta guardarlo para poder resolver el país destino después.
     buyer_team_id: Mapped[int | None] = mapped_column(BigInteger)
     destination_country: Mapped[str | None] = mapped_column(String(64))
     # HL-161: cuántas veces se ha puesto en el mercado. CHPP no da un
-    # historial de esto — solo pujas ACTUALES (currentbids.xml) — así que
+    # historial de esto, solo pujas ACTUALES (currentbids.xml), así que
     # se cuenta hacia adelante desde que existe esta columna, detectando
     # apariciones nuevas en cada sync. Subestima jugadores listados antes
     # de este fix.
     listing_count: Mapped[int] = mapped_column(SmallInteger, default=0)
     # Estado transitorio para detectar una NUEVA aparición en el mercado
-    # (False→True) frente a seguir listado desde el sync anterior — no es
+    # (False→True) frente a seguir listado desde el sync anterior, no es
     # el dato que le interesa al usuario, solo lo que hace falta guardar
     # para poder contar `listing_count` correctamente.
     currently_listed: Mapped[bool] = mapped_column(Boolean, default=False)
     mother_club_team_name: Mapped[str | None] = mapped_column(String(128))
     # 2026-08-04, pedido explícitamente: "canterano" real = MotherClub/TeamID
-    # igual al ht_team_id de este club — reemplaza el `is_academy_graduate`
+    # igual al ht_team_id de este club, reemplaza el `is_academy_graduate`
     # anterior (basado en `YouthPlayer`/`FormerYouthPlayer`, que solo cubre
     # jugadores vistos por el escaneo de cantera de esta app) en
     # PlayerBalanceQueryService. Funciona para cualquier jugador, incluidos
@@ -318,27 +334,27 @@ class Player(Base):
     # desde el nombre del jugador o el club.
     native_league_name: Mapped[str | None] = mapped_column(String(128))
     # HL-15x #93: la app SUGIERE el momento de carrera (career_stage_engine),
-    # el usuario CONFIRMA — nunca se sobreescribe solo. NULL = sin confirmar
+    # el usuario CONFIRMA, nunca se sobreescribe solo. NULL = sin confirmar
     # todavía, se muestra la sugerencia.
     confirmed_career_stage: Mapped[str | None] = mapped_column(String(32))
     confirmed_career_stage_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161, 2026-08-14, pedido explícitamente ("guardar los transferID de
     # todos los jugadores para que, si hacemos backfilling, no se confunda"):
     # los TransferID exactos de transfersplayer.xml que delimitan ESTE stint
-    # (compra→venta) con nosotros — sin ambigüedad de fechas cuando se
+    # (compra→venta) con nosotros, sin ambigüedad de fechas cuando se
     # recorre el historial completo del jugador para calcular la comisión de
     # club anterior. `None` en un jugador nunca vendido, o en uno cuyo precio
     # se escribió a mano sin la transacción real detrás.
     ht_purchase_transfer_id: Mapped[int | None] = mapped_column(BigInteger)
     ht_sale_transfer_id: Mapped[int | None] = mapped_column(BigInteger)
     # Partidos REALES (RatingStars > 0, es decir que sí pisó la cancha, no
-    # solo banca) que este jugador disputó con nosotros durante este stint —
+    # solo banca) que este jugador disputó con nosotros durante este stint
     # calculado UNA vez vía matchesarchive.xml + matchlineup.xml (ventana
     # purchased_at→sold_at) y cacheado aquí, porque recalcularlo implica
     # tantas llamadas a CHPP como partidos oficiales tuvo la ventana.
     games_played_for_us: Mapped[int | None] = mapped_column(SmallInteger)
     games_played_for_us_computed_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
-    # "Backfill de un jugador máximo una vez [por vuelta al sync]" — igual
+    # "Backfill de un jugador máximo una vez [por vuelta al sync]", igual
     # que `enrichment_attempted`/`tsi_at_purchase_attempted`: cuándo se
     # revisó por última vez transfersplayer.xml buscando una reventa nueva
     # tras nuestra venta. A diferencia de esos dos flags, SÍ puede volver a
@@ -393,7 +409,7 @@ class UiEvent(Base):
 
 
 class SyncChange(Base):
-    """Qué cambió en un sync respecto al anterior — HL-140. Se calcula una
+    """Qué cambió en un sync respecto al anterior, HL-140. Se calcula una
     sola vez, en el momento del sync (cuando el old/new ya están en memoria),
     no reconstruido después: para `matches`/`teamdetails`, que se sobrescriben
     in-place, es la única forma de conservar el "antes"."""
@@ -405,7 +421,7 @@ class SyncChange(Base):
     category: Mapped[str] = mapped_column(String(32))
     summary: Mapped[str] = mapped_column(String(500))
     # El mismo cambio como dato (metric/label/before/after/kind), para que el
-    # frontend no tenga que sacar los números de `summary` con una regex —
+    # frontend no tenga que sacar los números de `summary` con una regex
     # ver 0045_sync_change_detail_json.py. `None` en las filas anteriores a
     # 2026-08-15, que se siguen leyendo con el parser de compatibilidad.
     detail_json: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -413,7 +429,7 @@ class SyncChange(Base):
 
 
 class PlayerMatchRating(Base):
-    """Histórico real de rating por partido de UN jugador — HL-15x #21.
+    """Histórico real de rating por partido de UN jugador, HL-15x #21.
 
     `player_snapshots.last_match_*` solo guarda el partido MÁS RECIENTE (se
     pisa en cada sync de playerdetails). Esta tabla es append-only: una fila
@@ -436,7 +452,7 @@ class PlayerMatchRating(Base):
 
 
 class PlayerListingAttempt(Base):
-    """Un intento de venta detectado — HL-161, 2026-08-08, pedido
+    """Un intento de venta detectado, HL-161, 2026-08-08, pedido
     explícitamente ("enumerar los intentos de venta").
 
     CHPP no da un historial de listados (`currentbids.xml` es solo una foto
@@ -452,7 +468,7 @@ class PlayerListingAttempt(Base):
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
     # Puja más alta en el momento de la detección, en moneda base del juego
     # (se convierte a moneda local al leer, igual que salary/purchase_price)
-    # — `None` si CHPP no reportó ninguna puja todavía en ese instante.
+    # `None` si CHPP no reportó ninguna puja todavía en ese instante.
     highest_bid: Mapped[int | None] = mapped_column(BigInteger)
     detected_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
@@ -502,7 +518,7 @@ class TeamTransfer(Base):
     __tablename__ = "team_transfers"
     # Un mismo movimiento puede ser compra Y venta a la vez: cuando el club
     # aparece en los dos lados, Hattrick lo cuenta en sus dos totales. Por eso
-    # lo unico no es la transferencia sola, sino la transferencia por lado —
+    # lo unico no es la transferencia sola, sino la transferencia por lado
     # que sigue impidiendo contarla dos veces por el mismo concepto.
     __table_args__ = (UniqueConstraint("ht_transfer_id", "is_buy", name="uq_transfer_por_lado"),)
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
@@ -551,7 +567,7 @@ class PlayerStint(Base):
     #: Llego de la cantera, no de una compra.
     from_academy: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: Ni comprado ni de cantera: no se sabe de donde salio. Pasa con los
-    #: movimientos que Hattrick entrega sin identificador de jugador — sin ese
+    #: movimientos que Hattrick entrega sin identificador de jugador, sin ese
     #: dato no hay compra que enlazar, y darlos por canteranos meteria como
     #: gratis a gente que costo dinero.
     unknown_origin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
@@ -587,18 +603,18 @@ class PlayerStint(Base):
 
 
 class PreviousClubBonus(Base):
-    """Comisión de "club anterior" EXACTA — HL-161, 2026-08-14, pedido
+    """Comisión de "club anterior" EXACTA, HL-161, 2026-08-14, pedido
     explícitamente ("encontré la forma de asignar exactamente el dinero").
 
     Reemplaza por completo el reparto heurístico que vivía en
     `resale_bonus.py`: cuando alguien revende a un ex-jugador nuestro,
     Hattrick nos paga un % de esa reventa según cuántos partidos REALES
-    (`RatingStars > 0`, no banca) jugó con nosotros durante su stint — la
+    (`RatingStars > 0`, no banca) jugó con nosotros durante su stint, la
     tabla oficial vive en `previous_club_bonus.py`. Cada fila es una
     reventa real, identificada sin ambigüedad por `resale_transfer_id`
     (único: una reventa nunca se cuenta dos veces aunque el backfill se
     repita). `amount` viene en la moneda base del juego, igual que
-    purchase_price/sale_price — se convierte a la moneda local al leer."""
+    purchase_price/sale_price, se convierte a la moneda local al leer."""
 
     __tablename__ = "previous_club_bonuses"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
@@ -654,7 +670,7 @@ class EconomySnapshot(Base):
     last_income_sum: Mapped[int] = mapped_column(BigInteger)
     last_costs_sum: Mapped[int] = mapped_column(BigInteger)
     last_weeks_total: Mapped[int] = mapped_column(BigInteger)
-    # Desglose por categoría de la semana YA CERRADA — CHPP solo entrega el
+    # Desglose por categoría de la semana YA CERRADA, CHPP solo entrega el
     # agregado (Last*Sum) en versiones antiguas; estos vienen NULL en
     # snapshots sincronizados antes de que el fichero los incluyera. Sin
     # LastIncomeSponsorBonuses: ninguna versión vista lo expone para la
@@ -730,7 +746,7 @@ class PlayerSnapshot(Base):
     is_transfer_listed: Mapped[bool] = mapped_column(Boolean, default=False)
     # De players.xml (2.6, ya sincronizado): parseados desde siempre en algún
     # caso (specialty) o nunca, y descartados antes de llegar aquí. Cero
-    # llamadas CHPP nuevas — HL-15x.
+    # llamadas CHPP nuevas, HL-15x.
     specialty: Mapped[int] = mapped_column(Integer, default=0)
     loyalty: Mapped[int] = mapped_column(Integer, default=0)
     leadership: Mapped[int] = mapped_column(Integer, default=0)
@@ -747,7 +763,7 @@ class PlayerSnapshot(Base):
     career_assists: Mapped[int] = mapped_column(Integer, default=0)
     player_trainer_skill_level: Mapped[int] = mapped_column(Integer, default=0)
     player_trainer_type: Mapped[int] = mapped_column(Integer, default=0)
-    # De playerdetails.xml (nunca llamado en el sync normal — HL-15x fase B,
+    # De playerdetails.xml (nunca llamado en el sync normal, HL-15x fase B,
     # sync aparte por jugador): última posición/rating jugado. Se actualizan
     # sobre el snapshot más reciente, no crean uno nuevo: no son un cambio de
     # habilidades.
@@ -757,7 +773,7 @@ class PlayerSnapshot(Base):
     last_match_rating: Mapped[float | None] = mapped_column(Float)
     # 2026-08-09, pedido explícitamente: caso real (Volodymyr Manakin) probó
     # que `LastMatch` de playerdetails.xml puede ser de hace más de un año
-    # — "el último partido con datos de este jugador", no "la semana
+    # "el último partido con datos de este jugador", no "la semana
     # pasada". Sin esta fecha, "Último partido" no puede distinguir un dato
     # genuinamente reciente de uno viejo (ver `SquadQueryService`, que solo
     # muestra posición/rating si esta fecha cae dentro de los últimos 7
@@ -766,13 +782,13 @@ class PlayerSnapshot(Base):
     # 2026-08-09, pedido explícitamente: "Última semana" solo mostraba la
     # posición base (portero/defensa/lateral/medio/extremo/delantero) sin
     # decir si la orden individual fue Ofensivo/Defensivo/Hacia el
-    # medio/Hacia la banda — ese dato NO está en `LastMatch` de
+    # medio/Hacia la banda, ese dato NO está en `LastMatch` de
     # playerdetails.xml, solo en el `Behaviour` de matchlineup.xml para el
     # partido concreto (`last_match_ht_id`). NULL = no se pudo resolver
     # (partido de selección/torneo fuera de alcance, o matchlineup.xml
-    # todavía no lo tiene) — nunca se confunde con Behaviour=0 ("Normal").
+    # todavía no lo tiene), nunca se confunde con Behaviour=0 ("Normal").
     last_match_behaviour_code: Mapped[int | None] = mapped_column(SmallInteger)
-    # 2026-08-05: Caps/CapsU20 de playerdetails.xml — totales de carrera con
+    # 2026-08-05: Caps/CapsU20 de playerdetails.xml, totales de carrera con
     # la selección nacional (mayor y sub-20). NULL = todavía no se ha pedido
     # playerdetails.xml para este jugador, distinto de 0 caps reales.
     career_caps: Mapped[int | None] = mapped_column(SmallInteger)
@@ -852,7 +868,7 @@ class Match(Base):
     away_goals: Mapped[int] = mapped_column(SmallInteger, default=-1)
     # De leaguefixtures.xml (HL-090 fix): la ÚNICA fuente que trae el
     # calendario completo de la serie, no solo los partidos del equipo
-    # propio — sin esto, el simulador de temporada no puede saber qué pasa
+    # propio, sin esto, el simulador de temporada no puede saber qué pasa
     # en un cruce entre dos rivales. NULL en partidos sincronizados antes de
     # este fix o que no son de liga (copa, amistoso).
     series_ht_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
@@ -869,6 +885,11 @@ class Match(Base):
     # Solo se suministra para próximos partidos propios. None = CHPP no lo
     # dijo; False = todavía no se enviaron órdenes; True = órdenes enviadas.
     orders_given: Mapped[bool | None] = mapped_column(Boolean)
+    # True para filas antiguas creadas por el backfill masivo. El resumen del
+    # partido sí se muestra, pero el sync normal no dispara una petición
+    # matchdetails por cada una. El usuario aún puede pedir esos detalles de
+    # forma explícita desde la sincronización.
+    history_summary_only: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # Estado actual de las órdenes enviadas. Se sobrescribe mientras el
     # partido siga próximo porque el manager puede cambiarlas hasta el cierre;
     # después del partido queda como evidencia de la alineación elegida.
@@ -898,8 +919,8 @@ class MatchRating(Base):
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     ht_match_id: Mapped[int] = mapped_column(BigInteger, index=True)
     # HL-2xx: en partidos NO oficiales (Escaleras/Duelos, MatchType 50/62)
-    # matchdetails.xml reporta un TeamID efímero para AMBOS lados —incluso el
-    # propio, no solo el del rival— que no coincide con ningún ht_team_id real
+    # matchdetails.xml reporta un TeamID efímero para AMBOS lados, incluso el
+    # propio, no solo el del rival, que no coincide con ningún ht_team_id real
     # (verificado con datos reales de la cuenta: ni el equipo propio ni el
     # rival aparecen en `team_ht_id` para esos partidos). `team_ht_id` sigue
     # siendo el ht_team_id real para partidos oficiales, pero para localizar
@@ -925,15 +946,15 @@ class MatchRating(Base):
     possession_first_half: Mapped[int] = mapped_column(SmallInteger, default=50)
     possession_second_half: Mapped[int] = mapped_column(SmallInteger, default=50)
     # HL-2xx: TeamAttitude ya se parseaba (parse_matchdetails) pero se
-    # descartaba al persistir — se necesita para el historial de táctica del
+    # descartaba al persistir, se necesita para el historial de táctica del
     # módulo de rivales. NULL = fila de antes de esta columna, O lado para
-    # el que CHPP no incluyó <TeamAttitude> — que es SIEMPRE el caso de un
+    # el que CHPP no incluyó <TeamAttitude>, que es SIEMPRE el caso de un
     # rival (verificado en vivo: el propio equipo la trae siempre, un
     # rival nunca). -1 sí es un valor real cuando SÍ se leyó: "Jugar
     # relajados".
     attitude: Mapped[int | None] = mapped_column(SmallInteger)
     # HL-2xx, 2026-08-12: la suposición original de un `<Event>`/EventTypeID
-    # por evento era incorrecta — matchdetails.xml real (v3.1) nunca lo
+    # por evento era incorrecta, matchdetails.xml real (v3.1) nunca lo
     # trae. Lo que sí trae por lado es el conteo de ocasiones por zona
     # (NrOfChances{Left,Center,Right,SpecialEvents,Other}), verificado en
     # vivo. `match_events` (la tabla vieja, siempre vacía) se eliminó.
@@ -1050,7 +1071,7 @@ class YouthSnapshot(Base):
     set_pieces: Mapped[int | None] = mapped_column(SmallInteger)
     set_pieces_max: Mapped[int | None] = mapped_column(SmallInteger)
     # `IsMaxReached` de CHPP: la habilidad ya tocó su techo y no subirá más,
-    # aunque el techo siga oculto. Es un dato aparte del par nivel/techo — se
+    # aunque el techo siga oculto. Es un dato aparte del par nivel/techo, se
     # puede saber "ya no crece" sin saber en qué número se paró.
     keeper_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
     defending_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -1061,7 +1082,7 @@ class YouthSnapshot(Base):
     set_pieces_max_reached: Mapped[bool] = mapped_column(Boolean, default=False)
     minutes_last_match: Mapped[int] = mapped_column(SmallInteger, default=0)
     # `CanBePromotedIn`: días hasta poder subirlo al primer equipo. Distinto
-    # del plazo para no perderlo por edad — ver la migración 0050.
+    # del plazo para no perderlo por edad, ver la migración 0050.
     can_be_promoted_in: Mapped[int | None] = mapped_column(SmallInteger)
     content_hash: Mapped[bytes] = mapped_column(LargeBinary(32))
 
@@ -1118,7 +1139,7 @@ class StaffSnapshot(Base):
     youth_investment: Mapped[int] = mapped_column(Integer, default=0)
     youth_level: Mapped[int] = mapped_column(SmallInteger, default=0)
     # HL-2xx, 2026-08-12: roster real de stafflist.xml (nombre/tipo/nivel de
-    # cada persona), serializado — club.xml ya no trae niveles agregados por
+    # cada persona), serializado, club.xml ya no trae niveles agregados por
     # puesto (verificado en vivo), así que las 7 columnas de arriba se
     # calculan sumando ESTE roster, no leyendo un campo que ya no existe.
     staff_members_json: Mapped[str | None] = mapped_column(String(4000))
@@ -1128,12 +1149,12 @@ class StaffSnapshot(Base):
 
 
 class WorldContext(Base):
-    """Contexto del mundo POR PAÍS/LIGA — una fila por cada `LeagueID` que
+    """Contexto del mundo POR PAÍS/LIGA, una fila por cada `LeagueID` que
     trae `worlddetails.xml` (2026-08-04: corregido para guardar el
     `<LeagueList>` completo, no solo un país). Es la fuente de verdad de la
     moneda (fin del ×10 a mano) y de la temporada/jornada (arregla HL-007).
-    Cada país tiene su PROPIA temporada — verificado en vivo: Suecia
-    temporada 95, Colombia 83, Grecia 80 — `season_offset` es la diferencia
+    Cada país tiene su PROPIA temporada, verificado en vivo: Suecia
+    temporada 95, Colombia 83, Grecia 80, `season_offset` es la diferencia
     fija respecto a Suecia (la liga "reloj maestro"). Se sobrescribe: es
     estado actual, no histórico.
     """
@@ -1154,7 +1175,7 @@ class WorldContext(Base):
     national_team_id: Mapped[int] = mapped_column(Integer, default=0)
     u21_team_id: Mapped[int] = mapped_column(Integer, default=0)
     season: Mapped[int] = mapped_column(SmallInteger, default=0)
-    # Diferencia fija de temporada respecto a Suecia — informativo (la
+    # Diferencia fija de temporada respecto a Suecia, informativo (la
     # aritmética de `season_at` en player_balance.py solo necesita `season`
     # actual, no este offset), pero documenta POR QUÉ un país no comparte
     # numeración de temporada con otro.
@@ -1177,13 +1198,13 @@ class WorldContext(Base):
 
 
 class WorldCup(Base):
-    """Copas de UN país, de `worlddetails.xml` (`<League><Cups><Cup>`) —
+    """Copas de UN país, de `worlddetails.xml` (`<League><Cups><Cup>`)
     2026-08-04, pedido explícitamente para reemplazar el `CUP_LEVEL_NAMES`
     hardcodeado de `cup.py`, que además tenía un bug real: keyeaba solo por
     `CupLevel` (1-5 supuestos) cuando Hattrick en realidad usa `CupLevel` +
     `CupLevelIndex` para distinguir las copas paralelas de un mismo nivel
     (en Colombia, nivel 2 tiene 3 copas: Esmeralda/Rubí/Zafiro, índices
-    1/2/3) — sin el índice, las tres colapsaban al mismo nombre. Se
+    1/2/3), sin el índice, las tres colapsaban al mismo nombre. Se
     sobrescribe cada sync: estado actual, no histórico."""
 
     __tablename__ = "world_cups"
@@ -1237,7 +1258,7 @@ class SkillUp(Base):
 
 
 class DismissedInsight(Base):
-    """Alerta que el usuario archivó con la X — 2026-08-16.
+    """Alerta que el usuario archivó con la X, 2026-08-16.
 
     Las alertas no existen como filas: `domain.engines.insights` las deriva de
     los datos en cada petición. Lo que se guarda aquí es la decisión de
@@ -1245,8 +1266,8 @@ class DismissedInsight(Base):
     mostrarlo aunque la condición que la disparó ya no se cumpla.
 
     `fingerprint` (hash de severidad+título+detalle+acción) es lo que impide
-    que archivar sea silenciar: si la alerta se regenera con otro contenido —
-    otra cifra, otra severidad — la huella deja de coincidir y vuelve sola a
+    que archivar sea silenciar: si la alerta se regenera con otro contenido
+    otra cifra, otra severidad, la huella deja de coincidir y vuelve sola a
     la lista activa.
     """
 
@@ -1266,7 +1287,7 @@ class DismissedInsight(Base):
 
 
 class MatchWeather(Base):
-    """Pronóstico del clima de la región donde se juega un partido — 2026-08-18.
+    """Pronóstico del clima de la región donde se juega un partido, 2026-08-18.
 
     Hattrick decide el clima por REGIÓN y solo lo publica a un día vista:
     `regiondetails.xml` trae el de hoy y el de mañana, y nada más. Por eso
@@ -1288,7 +1309,7 @@ class MatchWeather(Base):
     ht_region_id: Mapped[int] = mapped_column(BigInteger)
     region_name: Mapped[str] = mapped_column(String(128), default="")
     # -1 = CHPP no lo trajo. 0 lluvia, 1 nublado, 2 parcialmente nublado,
-    # 3 soleado — ver `domain.engines.weather`.
+    # 3 soleado, ver `domain.engines.weather`.
     weather_today: Mapped[int] = mapped_column(SmallInteger, default=-1)
     weather_tomorrow: Mapped[int] = mapped_column(SmallInteger, default=-1)
     # Reloj del SERVIDOR de Hattrick, no el nuestro: es el que define qué día
@@ -1385,3 +1406,79 @@ class TrainingMatch(Base):
 
     #: Cuándo se recogió. De aquí sale el aviso anual de refresco.
     collected_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+
+class RivalMatch(Base):
+    """Un partido ya jugado de un equipo AJENO, guardado para no repedirlo.
+
+    2026-09-09, pedido del usuario: «me dice que ya llamé muchísimas veces la
+    info de rivales y sus partidos, y es verdad».
+
+    QUÉ PROBLEMA RESUELVE. Abrir la ficha de un rival costaba una llamada de
+    alineación y otra de detalle POR PARTIDO mirado, cada vez, para siempre.
+    Un partido terminado no cambia nunca, así que pagarlo más de una vez es
+    tirar cuota de Hattrick. El sync guarda aquí los últimos cinco oficiales
+    de cada contrincante de liga y del de copa, y la ficha lee de aquí.
+
+    POR QUÉ NO EN `matches` + `match_ratings`. Aquellas son las tablas del
+    CLUB: `matches` se reescribe entera en cada sincronización y toda consulta
+    que ya existe da por hecho que sus filas son partidos propios o del
+    calendario de la serie. Meter aquí partidos de un equipo ajeno contra un
+    tercero obligaría a filtrarlos en cada una de esas consultas, y la que se
+    olvidara empezaría a contar partidos que no son del usuario.
+
+    UNA FILA POR (RIVAL, PARTIDO), y guarda el lado DEL RIVAL. El mismo
+    partido puede acabar aquí dos veces si los dos equipos son contrincantes
+    de liga, cada fila con los ratings de uno: es lo que hace que leerla sea
+    un `WHERE team_ht_id = ...` sin tener que decidir de qué lado mirar.
+
+    VENTANA DESLIZANTE DE CINCO. Al entrar el sexto se borra el más viejo
+    (`PARTIDOS_GUARDADOS_POR_RIVAL`). No es un archivo histórico: es la
+    muestra que la ficha necesita, y una muestra vieja describe a un equipo
+    que ya no existe.
+    """
+
+    __tablename__ = "rival_matches"
+    __table_args__ = (
+        UniqueConstraint("team_ht_id", "ht_match_id", name="uq_rival_match_por_equipo"),
+    )
+
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    #: De qué equipo es esta lectura. NO es necesariamente el local.
+    team_ht_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    ht_match_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    match_type: Mapped[int] = mapped_column(SmallInteger)
+    played_at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
+
+    #: El marcador entero, para poder escribir «Equipo A 1 - 0 Equipo B» sin
+    #: volver a pedir nada (2026-09-09, pedido del usuario para la etiqueta de
+    #: «Último partido»).
+    home_team_ht_id: Mapped[int] = mapped_column(BigInteger)
+    away_team_ht_id: Mapped[int] = mapped_column(BigInteger)
+    home_team_name: Mapped[str] = mapped_column(String(128))
+    away_team_name: Mapped[str] = mapped_column(String(128))
+    home_goals: Mapped[int] = mapped_column(SmallInteger, default=-1)
+    away_goals: Mapped[int] = mapped_column(SmallInteger, default=-1)
+
+    #: Los nueve ratings DEL RIVAL en ese partido. `None` cuando el detalle no
+    #: se pudo leer: la alineación sirve igual para nombres y posiciones.
+    midfield: Mapped[int | None] = mapped_column(SmallInteger)
+    left_def: Mapped[int | None] = mapped_column(SmallInteger)
+    central_def: Mapped[int | None] = mapped_column(SmallInteger)
+    right_def: Mapped[int | None] = mapped_column(SmallInteger)
+    left_att: Mapped[int | None] = mapped_column(SmallInteger)
+    central_att: Mapped[int | None] = mapped_column(SmallInteger)
+    right_att: Mapped[int | None] = mapped_column(SmallInteger)
+    set_pieces_def: Mapped[int | None] = mapped_column(SmallInteger)
+    set_pieces_att: Mapped[int | None] = mapped_column(SmallInteger)
+    tactic_type: Mapped[int] = mapped_column(SmallInteger, default=0)
+    tactic_skill: Mapped[int] = mapped_column(SmallInteger, default=0)
+    formation: Mapped[str | None] = mapped_column(String(16))
+
+    #: La alineación tal cual la devuelve el lector, en JSON. Se guarda entera
+    #: y no normalizada en filas porque se lee siempre entera y nunca se
+    #: consulta por jugador: partirla serían once filas por partido para
+    #: volver a juntarlas en cada lectura.
+    lineup_json: Mapped[str] = mapped_column(Text, default="[]")
+
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())

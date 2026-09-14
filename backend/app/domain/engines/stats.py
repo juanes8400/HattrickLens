@@ -1,4 +1,4 @@
-"""Estadística genérica compartida — no específica de rivales ni de ninguna
+"""Estadística genérica compartida, no específica de rivales ni de ninguna
 página en particular. Extraído de rival_scouting.py (HL-099) porque HL-15x
 la reutiliza para distribuciones de la propia plantilla (KDE de TSI, $/TSI,
 salario en la ficha de jugador), donde "rival" no tiene sentido.
@@ -60,7 +60,7 @@ def _percentile(sorted_values: list[float], pct: float) -> float:
 
 
 def kde_grid(values: list[float], grid_points: int = 200) -> list[float]:
-    """Rejilla de evaluación con padding del 10% a cada lado — misma
+    """Rejilla de evaluación con padding del 10% a cada lado, misma
     convención que ya usaba `tsi_kde_comparison`."""
     if not values:
         return [i / (grid_points - 1) for i in range(grid_points)]

@@ -1,11 +1,11 @@
-"""`_camel`/`_key` — el conversor snake_case -> camelCase compartido por
+"""`_camel`/`_key`, el conversor snake_case -> camelCase compartido por
 arena/matches/academy/league.
 
 No son solo cosméticos: `_key` asumía que toda clave de dict es un string, y
 `position_distribution` (posición -> probabilidad, en LeagueResponse) tiene
 claves enteras. `/league` siempre había devuelto 404 antes de conectar el
 sync de leaguedetails, así que este camino nunca se había ejecutado con datos
-reales — el primer 200 real con distribución de posiciones lo tumbó.
+reales, el primer 200 real con distribución de posiciones lo tumbó.
 """
 from app.api.v1.endpoints.arena import _camel
 

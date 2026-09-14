@@ -12,8 +12,8 @@ descarte enseña algo que no hay que repetir:
 - **Método 6** (medir cada pareja sobre el once): acababa comparando puntos de
   entrenamiento con probabilidades de descubrir, que son dos monedas
   distintas puestas en columnas contiguas.
-- **Método 7**: se quedó sin forma de proponer «doblar» —repetir la habilidad
-  por otro camino— y con cinco buenos en una habilidad daba un 40 % menos de
+- **Método 7**: se quedó sin forma de proponer «doblar», repetir la habilidad
+  por otro camino, y con cinco buenos en una habilidad daba un 40 % menos de
   entrenamiento a los mejores, porque la forma pura solo alcanza cuatro sillas
   y el quinto se quedaba fuera.
 

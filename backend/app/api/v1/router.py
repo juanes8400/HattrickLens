@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     matches,
     player_balance,
     rivals,
+    skills,
     sync,
     teams,
     uso,
@@ -24,6 +25,7 @@ api_router.include_router(sync.router, prefix="/syncs", tags=["sync"])
 api_router.include_router(analysis.router, tags=["análisis"])
 api_router.include_router(economy.router, tags=["economía"])
 api_router.include_router(arena.router, tags=["estadio"])
+api_router.include_router(skills.router, tags=["habilidades"])
 api_router.include_router(matches.router, tags=["partidos"])
 api_router.include_router(league.router, tags=["liga y predicciones"])
 api_router.include_router(academy.router, tags=["juveniles"])

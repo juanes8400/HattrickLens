@@ -23,6 +23,13 @@ router = APIRouter()
 async def economy(
     team_id: int,
     horizon_weeks: int = Query(52, ge=2, le=104),
+    con_series: bool = Query(
+        True,
+        description=(
+            "Calcular también la proyección por series de tiempo. El Dashboard no "
+            "la enseña y pide `false`: son catorce modelos con su backtest."
+        ),
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """La foto económica completa: lo observado, lo proyectado y lo hipotético.
@@ -35,14 +42,22 @@ async def economy(
     cuál usar hoy y `recommendationReason` por qué, en vez de esconder la
     elección detrás de un único número.
     """
-    data = await EconomyQueryService(session).get(
-        team_id,
-        horizon_weeks=horizon_weeks,
-        best_eleven=await _best_eleven(session, team_id),
-    )
-    if data is None:
+    from app.api.cache_por_sync import por_sync
+
+    async def calcular() -> dict[str, Any] | None:
+        data = await EconomyQueryService(session).get(
+            team_id,
+            horizon_weeks=horizon_weeks,
+            best_eleven=await _best_eleven(session, team_id),
+            con_series_de_tiempo=con_series,
+        )
+        return None if data is None else _serialise(data)
+
+    # Una vez por sync (2026-09-14): la caja sólo cambia al sincronizar.
+    respuesta = await por_sync(session, team_id, "economia", (horizon_weeks, con_series), calcular)
+    if respuesta is None:
         raise HTTPException(404, f"no economy data for team {team_id}")
-    return _serialise(data)
+    return respuesta
 
 
 async def _best_eleven(session: AsyncSession, team_id: int) -> set[int] | None:
@@ -231,17 +246,31 @@ def _serialise(d: Any) -> dict[str, Any]:
             else None
         ),
         "weeklyFinance": {
+            # `previous`: la misma partida en la semana cerrada anterior, para
+            # la columna «Pasada» (2026-09-13, pedido del usuario).
             "income": [
-                {"code": item.code, "label": item.label, "amount": item.amount}
+                {
+                    "code": item.code,
+                    "label": item.label,
+                    "amount": item.amount,
+                    "previous": item.previous,
+                }
                 for item in d.weekly_finance.income
             ],
             "costs": [
-                {"code": item.code, "label": item.label, "amount": item.amount}
+                {
+                    "code": item.code,
+                    "label": item.label,
+                    "amount": item.amount,
+                    "previous": item.previous,
+                }
                 for item in d.weekly_finance.costs
             ],
             "incomeTotal": d.weekly_finance.income_total,
             "costsTotal": d.weekly_finance.costs_total,
             "expectedBalance": d.weekly_finance.expected_balance,
+            "previousIncomeTotal": d.weekly_finance.previous_income_total,
+            "previousCostsTotal": d.weekly_finance.previous_costs_total,
         },
         "sankeyWindows": [
             {

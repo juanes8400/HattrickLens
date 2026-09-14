@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { BarraDePrediccion } from "../components/BarraDePrediccion";
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { Column, DataTable } from "../components/DataTable";
 import {
   ErrorState,
@@ -11,6 +13,11 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
+import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
+import {
+  PITCH_ZONE_METHODS,
+  SUBMITTED_METHOD,
+} from "../components/pitchZoneMethods";
 import { useCup, useRivalScouting } from "../hooks/useTeam";
 import { date, money, number } from "../hooks/useFormat";
 import type {
@@ -20,14 +27,26 @@ import type {
   CupNextMatch,
   CupPenaltyCandidate,
   CupPrizeStage,
+  PitchZoneMethod,
 } from "../services/api";
 
 type CupSection = "resumen" | "preparacion" | "historial";
 
 export function CupPage() {
-  const { data, isLoading, isError, error } = useCup();
+  // LOS MISMOS DOS SELECTORES QUE LA FICHA DE RIVAL (2026-09-09, pedido del
+  // usuario: «hereda también esos selectores»). Uno por lado: lo que quieres
+  // saber de ti no tiene por qué ser lo mismo que quieres saber del rival, y
+  // de tu lado existe además la alineación ya enviada.
+  const [metodoPropio, setMetodoPropio] =
+    useState<PitchZoneMethod>("submitted");
+  const [metodoRival, setMetodoRival] = useState<PitchZoneMethod>("average");
+  const { data, isLoading, isError, error } = useCup(metodoPropio, metodoRival);
   const nextOpponentId = data?.nextMatches[0]?.opponentHtTeamId ?? null;
-  const probability = useRivalScouting(nextOpponentId, false, true, false);
+  // Oficiales, dicho a las claras. Antes iba `false` y se apoyaba en que el
+  // otro toggle abría en amistosos: un rival de Copa descrito por sus
+  // amistosos. Desde que los dos son un selector excluyente eso ya no se
+  // sostiene solo, y tampoco debería haberse sostenido nunca.
+  const probability = useRivalScouting(nextOpponentId, false, true, true);
   const [section, setSection] = useState<CupSection>("resumen");
 
   if (isLoading) return <Loading />;
@@ -87,171 +106,270 @@ export function CupPage() {
                 dentro o fuera: enseñaba el camino al título, el próximo
                 cruce y una probabilidad de avanzar «que se activará cuando
                 Hattrick publique el rival» --y no se iba a activar nunca--. */}
-            {!data.status.stillInCup && (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
-                <b>Eliminado de {data.status.cupName ?? "la Copa"}.</b>{" "}
-                <span className="text-[var(--muted)]">
-                  No quedan cruces esta temporada. Lo de abajo es el registro de
-                  lo que fue, no lo que puede pasar.
-                </span>
-              </div>
-            )}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
-              <Kpi
-                label="Estado"
-                value={data.status.stillInCup ? "Seguimos" : "Eliminado"}
-                hint={data.status.cupName ?? "sin Copa activa"}
-                tone={statusTone}
-              />
-              <Kpi
-                label="Instancia actual"
-                value={data.status.stageLabel ?? "-"}
-                hint={
-                  data.status.officialRound != null
-                    ? `ronda oficial ${data.status.officialRound}`
-                    : "ronda oficial pendiente de sincronizar"
-                }
-              />
-              <Kpi
-                label={
-                  data.status.stillInCup ? "Camino al título" : "Llegaste hasta"
-                }
-                value={
-                  !data.status.stillInCup
-                    ? (data.status.stageLabel ?? "—")
-                    : data.goal.winsToTitle != null
-                      ? `${data.goal.winsToTitle} victorias`
-                      : "-"
-                }
-                hint={
-                  data.status.stillInCup
-                    ? "desde la instancia actual"
-                    : "la instancia donde se acabó"
-                }
-              />
-              <Kpi
-                label={
-                  data.status.stillInCup
-                    ? "Premio mínimo actual"
-                    : "Premio conseguido"
-                }
-                value={
-                  data.goal.trophyOnly
-                    ? "Trofeo"
-                    : data.goal.securedAmount > 0
-                      ? money(data.goal.securedAmount, data.currency)
-                      : "Aún ninguno"
-                }
-                hint={
-                  data.status.stillInCup
-                    ? "si la participación terminara en esta instancia"
-                    : "lo que dejó la participación"
-                }
-              />
-              {/* Sin copa viva no hay «próximo cruce» que esperar: el hueco
+            {/* ELIMINADO: UNA TARJETA Y NADA MÁS (2026-09-13). Quedaban cinco
+                tarjetas con «, », el cuadro de premios entero y una
+                probabilidad de avanzar «participación cerrada»: todo lo que
+                ya no está en juego, enseñado como si lo estuviera. */}
+            {data.status.stillInCup ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
+                  <Kpi
+                    label="Estado"
+                    value={data.status.stillInCup ? "Seguimos" : "Eliminado"}
+                    hint={data.status.cupName ?? "sin Copa activa"}
+                    tone={statusTone}
+                  />
+                  <Kpi
+                    label="Instancia actual"
+                    value={data.status.stageLabel ?? "-"}
+                    hint={
+                      data.status.officialRound != null
+                        ? `ronda oficial ${data.status.officialRound}`
+                        : "ronda oficial pendiente de sincronizar"
+                    }
+                  />
+                  <Kpi
+                    label={
+                      data.status.stillInCup
+                        ? "Camino al título"
+                        : "Llegaste hasta"
+                    }
+                    value={
+                      !data.status.stillInCup
+                        ? (data.status.stageLabel ?? "-")
+                        : data.goal.winsToTitle != null
+                          ? `${data.goal.winsToTitle} victorias`
+                          : "-"
+                    }
+                    hint={
+                      data.status.stillInCup
+                        ? "desde la instancia actual"
+                        : "la instancia donde se acabó"
+                    }
+                  />
+                  <Kpi
+                    label={
+                      data.status.stillInCup
+                        ? "Premio mínimo actual"
+                        : "Premio conseguido"
+                    }
+                    value={
+                      data.goal.trophyOnly
+                        ? "Trofeo"
+                        : data.goal.securedAmount > 0
+                          ? money(data.goal.securedAmount, data.currency)
+                          : "Aún ninguno"
+                    }
+                    hint={
+                      data.status.stillInCup
+                        ? "si la participación terminara en esta instancia"
+                        : "lo que dejó la participación"
+                    }
+                  />
+                  {/* Sin copa viva no hay «próximo cruce» que esperar: el hueco
                   se cambia por la fecha en que se acabó. */}
-              <Kpi
-                label={
-                  data.status.stillInCup ? "Próximo cruce" : "Participación"
-                }
-                value={
-                  data.status.stillInCup ? (next?.opponent ?? "-") : "Cerrada"
-                }
-                hint={
-                  data.status.stillInCup
-                    ? next
-                      ? `${date(next.date)} · ${next.venueLabel}`
-                      : "sin partido programado"
-                    : "hasta la próxima temporada"
-                }
-              />
-            </div>
+                  <Kpi
+                    label={
+                      data.status.stillInCup ? "Próximo cruce" : "Participación"
+                    }
+                    value={
+                      data.status.stillInCup
+                        ? (next?.opponent ?? "-")
+                        : "Cerrada"
+                    }
+                    hint={
+                      data.status.stillInCup
+                        ? next
+                          ? `${date(next.date)} · ${next.venueLabel}`
+                          : "sin partido programado"
+                        : "hasta la próxima temporada"
+                    }
+                  />
+                </div>
 
-            {data.prizeTable.length > 0 && (
-              <Panel
-                title={
-                  data.status.stillInCup
-                    ? "Camino hacia la meta"
-                    : "El cuadro de premios"
-                }
-                meta={
-                  data.status.stillInCup
-                    ? undefined
-                    : "referencia: ya no hay nada que recorrer"
-                }
-              >
-                <PrizeRoad stages={data.prizeTable} currency={data.currency} />
-              </Panel>
-            )}
-
-            {data.scenarios && data.status.stillInCup && (
-              <Panel title="Qué ocurre con el próximo resultado">
-                <ResultRoutes data={data} />
-              </Panel>
-            )}
-
-            {nextOpponentId != null ? (
-              <ProjectionPanel
-                title={`Probabilidad de avanzar vs. ${next?.opponent ?? "el rival"}`}
-                meta="modelo simple por TSI, no calibrado"
-              >
-                {probability.isError ? (
-                  <div className="p-4">
-                    <div className="text-lg font-semibold">
-                      No disponible en esta sesión
-                    </div>
-                    <p className="prosa mt-2 text-xs leading-relaxed text-[var(--muted)]">
-                      El scouting del rival necesita una sesión de Hattrick
-                      activa. La fecha y el rival de arriba siguen siendo datos
-                      sincronizados; aquí no se sustituye la probabilidad
-                      faltante por un valor sintético.
-                    </p>
-                  </div>
-                ) : probability.data ? (
-                  <div className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-                        {(
-                          probability.data.winProbability.ownProbability * 100
-                        ).toFixed(0)}
-                        %
-                      </div>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                        <div
-                          className="h-full rounded-full bg-[var(--accent)]"
-                          style={{
-                            width: `${probability.data.winProbability.ownProbability * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
-                      Estimación {probability.data.winProbability.confidence}.
-                      TSI de los dos onces de referencia:{" "}
-                      {number(probability.data.winProbability.ownTsiTotal)}{" "}
-                      contra{" "}
-                      {number(probability.data.winProbability.rivalTsiTotal)}.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="p-4 text-xs text-[var(--muted)]">Calculando…</p>
+                {data.prizeTable.length > 0 && (
+                  <Panel
+                    title={
+                      data.status.stillInCup
+                        ? "Camino hacia la meta"
+                        : "El cuadro de premios"
+                    }
+                    meta={
+                      data.status.stillInCup
+                        ? undefined
+                        : "referencia: ya no hay nada que recorrer"
+                    }
+                  >
+                    <PrizeRoad
+                      stages={data.prizeTable}
+                      currency={data.currency}
+                    />
+                  </Panel>
                 )}
-              </ProjectionPanel>
+
+                {data.scenarios && data.status.stillInCup && (
+                  <Panel title="Qué ocurre con el próximo resultado">
+                    <ResultRoutes data={data} />
+                  </Panel>
+                )}
+
+                {nextOpponentId != null ? (
+                  <ProjectionPanel
+                    title={`Probabilidad de avanzar vs. ${next?.opponent ?? "el rival"}`}
+                    meta={
+                      data.prediction
+                        ? "modelo de zonas · sin empate: hay prórroga"
+                        : "modelo simple por TSI, no calibrado"
+                    }
+                  >
+                    {data.prediction ? (
+                      <div className="space-y-3 p-4">
+                        {/* Los dos mandos, arriba del todo: son lo que mueve la
+                        barra que viene debajo. */}
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                            <div className="text-[10px] uppercase text-[var(--muted)]">
+                              Tu fuente
+                            </div>
+                            <PitchZoneMethodSelector
+                              method={data.prediction.metodoPropio}
+                              onMethodChange={setMetodoPropio}
+                              options={[
+                                SUBMITTED_METHOD,
+                                ...PITCH_ZONE_METHODS,
+                              ]}
+                            />
+                          </div>
+                          <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                            <div className="text-[10px] uppercase text-[var(--muted)]">
+                              Fuente rival
+                            </div>
+                            <PitchZoneMethodSelector
+                              method={data.prediction.metodoRival}
+                              onMethodChange={setMetodoRival}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                          <span>
+                            <span className="font-medium">{data.teamName}</span>
+                            <span className="mx-2 text-[var(--muted)]">vs</span>
+                            <span>{next?.opponent}</span>
+                          </span>
+                          <span className="text-xs text-[var(--muted)]">
+                            goles esperados {data.prediction.expectedOwnGoals} –{" "}
+                            {data.prediction.expectedRivalGoals} · resultado más
+                            probable {data.prediction.mostLikelyScore}
+                          </span>
+                        </div>
+                        {/* Sin tramo de empate: en Copa hay prórroga y penaltis,
+                        alguien pasa. Enseñar un empate sería enseñar algo
+                        imposible, medido: 0 empates en 862 partidos. */}
+                        <BarraDePrediccion
+                          tuLabel={data.teamName}
+                          tuValor={data.prediction.ownProbability}
+                          rivalLabel={next?.opponent ?? "el rival"}
+                          rivalValor={data.prediction.rivalProbability}
+                        />
+                        <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
+                          Comparando zona por zona{" "}
+                          {data.prediction.indirectasPrestadas
+                            ? "tu alineación enviada"
+                            : `tus ${data.prediction.ownMatches} partido(s) de Copa de esta temporada`}{" "}
+                          contra sus {data.prediction.rivalMatches} partido(s).
+                          El empate se reparte entre los dos porque en Copa
+                          alguien tiene que pasar. Tiene en cuenta la táctica,
+                          estimada; no sabe de bajas.{" "}
+                          <EnlaceATransparencia
+                            seccion="pronostico"
+                            calculo="pronostico-resumen"
+                          />
+                        </p>
+                        {/* El único aviso, y sólo cuando toca: Hattrick prevé
+                        siete ratings para unas órdenes enviadas y no prevé las
+                        acciones indirectas a balón parado. */}
+                        {data.prediction.indirectasPrestadas && (
+                          <p className="prosa text-xs leading-relaxed text-[var(--warning)]">
+                            Hattrick no prevé las acciones indirectas a balón
+                            parado de una alineación enviada, así que esas dos
+                            van con tu promedio de Copa. Siete de los nueve
+                            duelos son la alineación que mandaste; dos son tu
+                            costumbre.
+                          </p>
+                        )}
+                      </div>
+                    ) : probability.isError ? (
+                      <div className="p-4">
+                        <div className="text-lg font-semibold">
+                          No disponible en esta sesión
+                        </div>
+                        <p className="prosa mt-2 text-xs leading-relaxed text-[var(--muted)]">
+                          El scouting del rival necesita una sesión de Hattrick
+                          activa. La fecha y el rival de arriba siguen siendo
+                          datos sincronizados; aquí no se sustituye la
+                          probabilidad faltante por un valor sintético.
+                        </p>
+                      </div>
+                    ) : probability.data ? (
+                      <div className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
+                            {(
+                              probability.data.winProbability.ownProbability *
+                              100
+                            ).toFixed(0)}
+                            %
+                          </div>
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                            <div
+                              className="h-full rounded-full bg-[var(--accent)]"
+                              style={{
+                                width: `${probability.data.winProbability.ownProbability * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        {/* La reserva: cuando el rival no tiene historia de Copa
+                        --su primera ronda-- el motor de zonas no puede decir
+                        nada y se enseña el modelo viejo, diciendo cuál es. */}
+                        <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                          Sin partidos de Copa suficientes de alguno de los dos,
+                          así que esto es el modelo por TSI. Estimación{" "}
+                          {probability.data.winProbability.confidence}. TSI de
+                          los dos onces de referencia:{" "}
+                          {number(probability.data.winProbability.ownTsiTotal)}{" "}
+                          contra{" "}
+                          {number(
+                            probability.data.winProbability.rivalTsiTotal,
+                          )}
+                          .
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="p-4 text-xs text-[var(--muted)]">
+                        Calculando…
+                      </p>
+                    )}
+                  </ProjectionPanel>
+                ) : (
+                  <Panel
+                    title="Probabilidad de avanzar"
+                    meta={
+                      data.status.stillInCup
+                        ? "sin rival confirmado"
+                        : "participación cerrada"
+                    }
+                  >
+                    <Note>
+                      {data.status.stillInCup
+                        ? "Se activará cuando Hattrick publique el próximo cruce."
+                        : "No hay más cruces: la participación terminó esta temporada."}
+                    </Note>
+                  </Panel>
+                )}
+              </>
             ) : (
-              <Panel
-                title="Probabilidad de avanzar"
-                meta={
-                  data.status.stillInCup
-                    ? "sin rival confirmado"
-                    : "participación cerrada"
-                }
-              >
-                <Note>
-                  {data.status.stillInCup
-                    ? "Se activará cuando Hattrick publique el próximo cruce."
-                    : "No hay más cruces: la participación terminó esta temporada."}
-                </Note>
-              </Panel>
+              <TarjetaDeEliminacion data={data} />
             )}
 
             <Panel
@@ -359,6 +477,21 @@ export function CupPage() {
                 title="Trayectoria de la temporada"
                 meta="copas y partidos realmente sincronizados"
               >
+                {/* El único aviso que sobrevive aquí: aparece sólo cuando la
+                    ronda que dice Hattrick y la que sale de contar estos
+                    partidos no coinciden, y explica un hueco que se VE en el
+                    panel de al lado (una copa con menos partidos de los que
+                    de verdad se jugaron). */}
+                {data.status.countedRounds != null &&
+                  data.status.officialRound != null &&
+                  data.status.countedRounds !== data.status.officialRound && (
+                    <p className="prosa border-b border-[var(--border)] px-4 py-3 text-xs leading-relaxed text-[var(--warning)]">
+                      Vas por la ronda {data.status.officialRound} y aquí sólo
+                      hay {data.status.countedRounds}: faltan partidos por
+                      sincronizar y la trayectoria se queda corta hasta que la
+                      próxima sincronización los rescate.
+                    </p>
+                  )}
                 <Ladder steps={data.ladder} />
               </Panel>
             )}
@@ -823,7 +956,7 @@ function HistoryTable({ data }: { data: Cup }) {
       value: (row) => row.hatstats ?? -1,
       render: (row) =>
         row.hatstats == null ? (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ) : (
           <span>{row.hatstats}</span>
         ),
@@ -835,7 +968,7 @@ function HistoryTable({ data }: { data: Cup }) {
       value: (row) => row.round ?? -1,
       render: (row) =>
         row.round == null ? (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ) : (
           <span>{row.round}</span>
         ),
@@ -859,5 +992,49 @@ function HistoryTable({ data }: { data: Cup }) {
       csvName="copa"
       filterPlaceholder="Filtrar por rival…"
     />
+  );
+}
+
+/** Dónde se acabó la Copa: la ronda, el rival, el marcador y la fecha, del
+ *  último partido de ESA copa en el historial. */
+function TarjetaDeEliminacion({ data }: { data: Cup }) {
+  const deEstaCopa = data.history
+    .filter(
+      (h) => data.status.cupName == null || h.cupName === data.status.cupName,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const ultimo = deEstaCopa[deEstaCopa.length - 1] ?? null;
+  return (
+    <Panel title={`Eliminado de ${data.status.cupName ?? "la Copa"}`}>
+      <div className="space-y-2 p-4 text-sm">
+        {ultimo ? (
+          <p>
+            Eliminado
+            {ultimo.round != null
+              ? ` en la ronda ${ultimo.round}`
+              : ""} contra <b>{ultimo.opponent}</b>,{" "}
+            <b className="tabular-nums">
+              {ultimo.goalsFor} - {ultimo.goalsAgainst}
+            </b>{" "}
+            ({ultimo.isHome ? "en casa" : "fuera"}), el {date(ultimo.date)}.
+          </p>
+        ) : (
+          <p>No quedan cruces esta temporada.</p>
+        )}
+        {data.goal.securedAmount > 0 && (
+          <p>
+            Premio conseguido:{" "}
+            <b className="tabular-nums">
+              {money(data.goal.securedAmount, data.currency)}
+            </b>
+            .
+          </p>
+        )}
+        <p className="text-xs text-[var(--muted)]">
+          No quedan cruces esta temporada. Todos los partidos están en la
+          pestaña Historial.
+        </p>
+      </div>
+    </Panel>
   );
 }

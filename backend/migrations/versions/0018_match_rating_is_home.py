@@ -1,8 +1,8 @@
-"""is_home en match_ratings — HL-2xx, módulo de rivales.
+"""is_home en match_ratings, HL-2xx, módulo de rivales.
 
 Con datos reales de la cuenta se confirmó que en partidos NO oficiales
 (Escaleras/Duelos, MatchType 50/62) `matchdetails.xml` reporta un TeamID
-efímero para AMBOS lados del partido — ni siquiera el equipo propio conserva
+efímero para AMBOS lados del partido, ni siquiera el equipo propio conserva
 su ht_team_id real ahí (ejemplo: partido 41857134 contra "Dinamo Boyacá",
 ht_team_id real 1098294, pero las dos filas de match_ratings tienen
 team_ht_id 823767 y 823774; el propio equipo, 537758, tampoco aparece).
@@ -15,11 +15,11 @@ siempre inserta primero la fila `HomeTeam` y después `AwayTeam`
 (`sync_team.py`, bucle `for side in ("home", "away")`), y esa posición SÍ
 coincide siempre con `matches.Match.home_team_ht_id`/`away_team_ht_id`
 (que vienen de `matches.xml`, un fichero distinto, y ahí sí son reales incluso
-en Duelos — así es como la ficha de rival encuentra el partido en primer
+en Duelos, así es como la ficha de rival encuentra el partido en primer
 lugar). El backfill se apoya en esa misma propiedad de inserción: para cada
 `ht_match_id` existente, la fila con menor `id` es siempre la que se
 insertó como "home" (verificado contra los 30 partidos ya sincronizados de la
-cuenta de desarrollo, oficiales y no oficiales por igual — ninguna excepción).
+cuenta de desarrollo, oficiales y no oficiales por igual, ninguna excepción).
 
 Revision ID: 0018
 """

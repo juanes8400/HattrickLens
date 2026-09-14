@@ -1,17 +1,17 @@
-"""Mejor alineación (semana/temporada) — pedido explícitamente 2026-08-08,
+"""Mejor alineación (semana/temporada), pedido explícitamente 2026-08-08,
 tras comparar con Hattrick Control.
 
 Mismo criterio que el "Equipo de la semana" oficial de Hattrick: por cada
 partido ya jugado se conoce el rating real de cada titular
-(`matchlineup.xml` — público incluso para un rival, ver comentario en su
+(`matchlineup.xml`, público incluso para un rival, ver comentario en su
 parser: un partido ya finalizado es un hecho público permanente, no un
 histórico de cuenta ajena). Los roles titulares se agrupan en 4 bloques
 (portero, defensas, medios, delanteros) y en cada bloque se eligen los N
 de mayor rating de todo el rango pedido (una jornada o toda la temporada),
-sin importar el equipo — así un rival puede colarse en tu propio "equipo
+sin importar el equipo, así un rival puede colarse en tu propio "equipo
 ideal" si tuvo la mejor actuación real.
 
-2026-08-08 (3ª corrección): no hay un reparto fijo de cupos — la
+2026-08-08 (3ª corrección): no hay un reparto fijo de cupos, la
 herramienta oficial de Hattrick Control deja elegir la formación
 (4-4-2, 3-5-2, 3-4-3, 4-5-1, 4-3-3, 5-3-2, 5-4-1) y reparte los 10 cupos
 de campo según esa formación. `FORMATIONS` replica esa tabla.
@@ -19,22 +19,23 @@ de campo según esa formación. `FORMATIONS` replica esa tabla.
 2026-08-09 (4ª corrección, bug real): los bloques se armaban con
 `PositionCode` de matchlineup.xml pedido sin `version` (CHPP sirve ~1.2 en
 ese caso), donde ese campo es solo la "casilla de formación" del arranque
-— cuando dos jugadores comparten formación (frecuente en mediocampos con
+cuando dos jugadores comparten formación (frecuente en mediocampos con
 más de un interior) ambos quedan con el mismo código aunque uno funcione
 de delantero real, y ningún suplente que entró a mitad de partido tiene
 código fiable. Resultado en vivo: "Delanteros" salía vacío en 8/8
-alineaciones de una jornada completa — estadísticamente imposible si el
+alineaciones de una jornada completa, estadísticamente imposible si el
 dato fuera bueno. Pidiendo `version=2.1` explícito (matchID 770453114,
-playerID 468921494 confirmado: RoleID=112="Delantero medio" — jugó de
+playerID 468921494 confirmado: RoleID=112="Delantero medio", jugó de
 delantero real, entrando como suplente a los 32'), `RoleID` pasa a ser el
 puesto REAL (MATCH_ROLE_*, esquema 100+, MATCH_ROLE_NAMES) del `<Lineup>`
-final — que en 2.1 ya incorpora el resultado de cada `<Substitution>`, así
+final, que en 2.1 ya incorpora el resultado de cada `<Substitution>`, así
 que hasta un suplente que entró en el minuto 80 queda con su posición real,
 no con "-1, desconocido". Este motor ahora agrupa por `role_id` (no
 `position_code`)."""
 
 from dataclasses import dataclass
 
+from app.domain.engines.asignacion_optima import asignacion_maxima
 from app.domain.value_objects.formations import (  # noqa: F401
     DEFAULT_FORMATION,
     LINE_COUNTS,
@@ -56,9 +57,9 @@ from app.domain.value_objects.ht_constants import (
 )
 
 # `role_id` aquí es el `RoleID` de matchlineup.xml pedido con
-# `version=2.1` (100+, verificado contra fixtures reales — MATCH_ROLE_* en
+# `version=2.1` (100+, verificado contra fixtures reales, MATCH_ROLE_* en
 # ht_constants.py), NO el `PositionCode` (1-16) que servía sin versión
-# explícita — ver docstring del módulo. "Defensa" agrupa laterales Y
+# explícita, ver docstring del módulo. "Defensa" agrupa laterales Y
 # centrales, y "medios" agrupa extremos E interiores: la composición real
 # del Equipo de la Semana no fija cuántos de cada sub-rol, solo reparte
 # cupos entre los códigos posibles de cada bloque.
@@ -108,16 +109,30 @@ def best_team(
     central_defenders: int | None = None,
     inner_midfielders: int | None = None,
 ) -> dict[str, list[SlotPlayer]]:
-    """Un mismo jugador puede aparecer en varios partidos del rango
-    (temporada) — se cuenta solo su MEJOR actuación, nunca ocupa dos cupos
-    del mismo bloque él solo.
+    """El mejor once de la liga, con once jugadores DISTINTOS.
+
+    Un mismo jugador puede aparecer en varios partidos del rango (temporada)
+    y hasta en varios puestos: entra de extremo un domingo y de interior al
+    siguiente. Se le cuenta sólo su MEJOR actuación en cada puesto, y ocupa
+    como mucho UNA casilla del once entero.
+
+    POR QUÉ EL HÚNGARO Y NO ORDENAR CADA LÍNEA. Antes se llenaba casilla por
+    casilla, cogiendo los mejores de cada bloque por separado, y la memoria de
+    «este ya salió» era de cada bloque, no del once. Un jugador con dos buenas
+    actuaciones en dos puestos distintos salía DOS VECES en la misma
+    alineación, visto en vivo en Liga/Comparación. Y aunque se hubiera
+    llevado esa memoria al once entero, elegir por turnos tampoco da el mejor
+    equipo: si el mejor interior de la liga es también el mejor extremo,
+    ponerlo de interior puede costar en la banda más de lo que gana en el
+    centro. Es el problema clásico de asignación, y `asignacion_maxima` lo
+    resuelve exacto, el mismo motor que ya reparte el once de «Alineación».
 
     Un 0.0 en `rating_stars` no es una actuación mala, es "no jugó de
-    verdad" (lesión antes del pitazo, salió sin pisar la cancha, etc.) —
-    nunca puede ser "el mejor" de nada. Si un bloque se queda sin
-    candidatos reales, se devuelve incompleto en vez de rellenarlo con un
-    0.0 (mismo criterio que "sin suficientes candidatos": mejor una fila
-    de menos que un dato inventado)."""
+    verdad" (lesión antes del pitazo, salió sin pisar la cancha, etc.)
+    nunca puede ser "el mejor" de nada. Una casilla que sólo podría llenarse
+    con un cero se devuelve VACÍA, igual que antes: mejor una plaza de menos
+    que un dato inventado.
+    """
     defense_count, midfield_count, forward_count = FORMATIONS.get(
         formation, FORMATIONS[DEFAULT_FORMATION]
     )
@@ -127,7 +142,7 @@ def best_team(
     # salir con cuatro centrales y ningún lateral: una alineación que el
     # juego no deja poner.
     centrales, interiores = resolve_split(formation, central_defenders, inner_midfielders)
-    slots: tuple[tuple[str, frozenset[int], int], ...] = (
+    cupos: tuple[tuple[str, frozenset[int], int], ...] = (
         ("keeper", KEEPER_ROLES, 1),
         ("central_defender", MATCH_ROLE_CENTRAL_DEFENDER, centrales),
         ("wingback", MATCH_ROLE_WINGBACK, defense_count - centrales),
@@ -135,39 +150,64 @@ def best_team(
         ("winger", MATCH_ROLE_WINGER, midfield_count - interiores),
         ("forward", FORWARD_ROLES, forward_count),
     )
-    result: dict[str, list[SlotPlayer]] = {}
-    for key, roles, count in slots:
-        # Cero cupos es cero jugadores. El corte de abajo compara DESPUÉS de
-        # añadir, así que con count=0 no se cumplía nunca y la línea se
-        # llenaba con toda la liga: el 5-5-0 devolvía 16 delanteros
-        # (2026-08-19).
-        if count <= 0:
-            result[key] = []
+
+    # La mejor actuación de cada jugador EN CADA CASILLA. Sin esto la matriz
+    # tendría una fila por partido jugado y el húngaro podría sentar al mismo
+    # jugador dos veces con dos actuaciones distintas, que es exactamente el
+    # fallo que se viene a arreglar.
+    mejor: dict[tuple[int, str], LineupPlayer] = {}
+    for p in players:
+        if p.rating_stars <= 0:
             continue
-        candidates = sorted(
-            (p for p in players if p.role_id in roles and p.rating_stars > 0),
-            key=lambda p: -p.rating_stars,
-        )
-        chosen: list[SlotPlayer] = []
-        seen: set[int] = set()
-        for p in candidates:
-            if p.ht_player_id in seen:
+        for clave, roles, count in cupos:
+            if count <= 0 or p.role_id not in roles:
                 continue
-            seen.add(p.ht_player_id)
-            chosen.append(
-                SlotPlayer(
-                    ht_player_id=p.ht_player_id,
-                    name=p.name,
-                    team_ht_id=p.team_ht_id,
-                    team_name=p.team_name,
-                    rating_stars=p.rating_stars,
-                    role_id=p.role_id,
-                    ht_match_id=p.ht_match_id,
-                )
+            previa = mejor.get((p.ht_player_id, clave))
+            if previa is None or p.rating_stars > previa.rating_stars:
+                mejor[(p.ht_player_id, clave)] = p
+
+    # El orden de las filas es el desempate del húngaro, así que se fija:
+    # primera aparición en `players`. Dos llamadas con los mismos datos tienen
+    # que dar el mismo once o la pantalla baila entre recargas.
+    jugadores: list[int] = []
+    vistos: set[int] = set()
+    for p in players:
+        if p.ht_player_id not in vistos and any(
+            (p.ht_player_id, clave) in mejor for clave, _, _ in cupos
+        ):
+            vistos.add(p.ht_player_id)
+            jugadores.append(p.ht_player_id)
+
+    # Una columna por PLAZA, no por casilla: un 4-4-2 tiene cuatro plazas de
+    # defensa y cada una se empareja con un jugador distinto.
+    plazas: list[tuple[str, int]] = [
+        (clave, i) for clave, _, count in cupos for i in range(max(count, 0))
+    ]
+
+    def valor(ht_player_id: int, plaza: tuple[str, int]) -> float:
+        actuacion = mejor.get((ht_player_id, plaza[0]))
+        return actuacion.rating_stars if actuacion else 0.0
+
+    result: dict[str, list[SlotPlayer]] = {clave: [] for clave, _, _ in cupos}
+    for ht_player_id, (clave, _) in asignacion_maxima(jugadores, plazas, valor):
+        actuacion = mejor.get((ht_player_id, clave))
+        # Sin actuación real la plaza se queda vacía: el húngaro llena todas
+        # las columnas que puede, incluidas las que valen cero.
+        if actuacion is None:
+            continue
+        result[clave].append(
+            SlotPlayer(
+                ht_player_id=actuacion.ht_player_id,
+                name=actuacion.name,
+                team_ht_id=actuacion.team_ht_id,
+                team_name=actuacion.team_name,
+                rating_stars=actuacion.rating_stars,
+                role_id=actuacion.role_id,
+                ht_match_id=actuacion.ht_match_id,
             )
-            if len(chosen) == count:
-                break
-        result[key] = chosen
+        )
+    for clave in result:
+        result[clave].sort(key=lambda sp: -sp.rating_stars)
     # Las cuatro líneas de siempre, para quien solo quiera pintarlas: el
     # detalle por sub-rol se conserva al lado, que es lo que permite poner a
     # los de banda en las orillas de la cancha.

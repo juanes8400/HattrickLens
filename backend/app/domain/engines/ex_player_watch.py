@@ -2,7 +2,7 @@
 
 Diseñado con el usuario el 2026-08-21. Vigilar a un ex-jugador cuesta una
 llamada a Hattrick cada vez, así que lo que de verdad importa es saber cuándo
-dejar de mirarlo — y eso depende de una sola cosa: si salió de nuestra cantera
+dejar de mirarlo, y eso depende de una sola cosa: si salió de nuestra cantera
 o no.
 
 - **Uno cualquiera** nos paga comisión de "club anterior" solo en la
@@ -72,8 +72,8 @@ def es_entrenador(ficha: dict[str, Any] | None) -> bool:
     Lo decide `is_player_trainer`, que exige que el bloque `TrainerData`
     traiga `TrainerSkillLevel` DENTRO. Ver el parser, donde está el porqué.
 
-    Este texto decía lo contrario —"basta con que la ficha traiga el
-    bloque"— y esa regla, aplicada a `playerdetails.xml`, cerró 121
+    Este texto decía lo contrario, "basta con que la ficha traiga el
+    bloque", y esa regla, aplicada a `playerdetails.xml`, cerró 121
     expedientes de vigilancia en falso el 2026-08-26: ahí TODO jugador trae
     la etiqueta, vacía. La comprobación original fue real, pero se hizo
     contra `players.xml`, que es otro fichero con otras reglas.

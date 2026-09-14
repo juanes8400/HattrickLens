@@ -1,8 +1,10 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
+import { BarraDePrediccion } from "../components/BarraDePrediccion";
 import { Column, DataTable } from "../components/DataTable";
 import {
   ErrorState,
@@ -20,6 +22,8 @@ import {
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
+import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
+import { PITCH_ZONE_METHODS } from "../components/pitchZoneMethods";
 import { TsiHistogramPanel } from "../components/TsiHistogramPanel";
 import { number } from "../hooks/useFormat";
 import { useIsDarkTheme } from "../hooks/useTheme";
@@ -32,6 +36,8 @@ import { FORMATIONS } from "../services/api";
 import type {
   Formation,
   League,
+  LeagueMatchRef,
+  LeaguePitchZoneMethod,
   LeagueStandingRow,
   LeagueTeamSummary,
   OutlookRow,
@@ -45,7 +51,7 @@ import type {
  * Dieciséis jornadas son pocas para que el mejor equipo gane siempre, y una
  * herramienta que devuelva «4º» está escondiendo justo la parte informativa.
  */
-/** Puntos sobre el líder (si vas primero) o bajo el líder (si no) — de
+/** Puntos sobre el líder (si vas primero) o bajo el líder (si no), de
  * `standings`, nunca de la simulación: es un hecho de hoy, no una
  * proyección. */
 function leaderGap(data: League): { label: string; value: string } {
@@ -69,8 +75,27 @@ function leaderGap(data: League): { label: string; value: string } {
 type LeagueSection = "resumen" | "proyeccion" | "comparativa";
 
 export function LeaguePage() {
-  const { data, isLoading, isError, error } = useLeague();
+  // UN SOLO RESUMEN PARA LA PROYECCIÓN (2026-09-09, pedido del usuario). El
+  // mando vive en esa pestaña y el estado aquí, en la página. Hasta el
+  // 2026-09-12 mandaba también sobre el próximo partido del Resumen; desde
+  // entonces ese panel usa una alineación concreta por lado --tu enviada o tu
+  // última, su última-- y no depende de esto.
+  const [metodo, setMetodo] = useState<LeaguePitchZoneMethod>("average");
+  const { data, isLoading, isError, error } = useLeague(10_000, metodo);
   const [section, setSection] = useState<LeagueSection>("resumen");
+  // ARRIBA DEL TODO, antes de cualquier return: un hook detrás de un return
+  // temprano se salta en las cargas en las que ese return dispara, y React
+  // tumba la pantalla entera con «Rendered more hooks than during the
+  // previous render». Aquí pasó, con la página en blanco.
+  const modoOscuro = useIsDarkTheme();
+  // En hexadecimal porque el gráfico va sobre canvas: ver `marcasDeCambio`.
+  const subida = modoOscuro ? "#2fbf71" : "#1a9e5c";
+  const bajada = modoOscuro ? "#e5484d" : "#d1383d";
+  // El mismo azul que el tema le daría por defecto a la primera serie; se
+  // escribe aquí porque la barra ya no puede heredarlo: al fijarle opacidad
+  // hay que fijarle también el color, o echarts pinta la transparencia sobre
+  // el negro del canvas en vez de sobre el azul.
+  const azul = modoOscuro ? "#4f7cff" : "#3b63e0";
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -185,10 +210,52 @@ export function LeaguePage() {
               tabla "Pronóstico por equipo" más abajo, columnas 5º-6º y 7º-8º.
             </p>
 
+            {/* Antes de las gráficas: es el mando que las mueve, y ponerlo
+                debajo obligaba a bajar, tocar y volver a subir para ver el
+                efecto. Sin «Alineación enviada» --de siete de los ocho
+                equipos no se pueden ver las órdenes--. */}
+            <Panel title="Cómo se resume cada equipo">
+              <div className="px-4 pb-4 pt-1">
+                {/* Qué MUEVE el mando va antes de los botones; qué SIGNIFICA
+                    cada botón lo cuenta el propio selector, debajo. */}
+                <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
+                  Cada equipo juega varios partidos y hay que quedarse con un
+                  número por zona. Esto elige con cuál, y vale para los ocho
+                  equipos: mueve los puntos esperados, la distribución de
+                  puestos y los límites. El próximo partido del Resumen no lo
+                  sigue: ahí va una alineación concreta por lado.
+                </p>
+                <PitchZoneMethodSelector
+                  method={data.pitchZoneMethod}
+                  onMethodChange={(v) => setMetodo(v as LeaguePitchZoneMethod)}
+                  options={PITCH_ZONE_METHODS}
+                />
+              </div>
+            </Panel>
+
             <ProjectionPanel
               title="Distribución de la posición final"
               meta={`${number(data.simulationRuns)} simulaciones`}
             >
+              {data.change && (
+                <FranjaDeCambio>
+                  Tras la jornada {data.change.matchRound}{" "}
+                  {data.change.ownTitleAfter >= data.change.ownTitleBefore
+                    ? "subes"
+                    : "caes"}{" "}
+                  de {(data.change.ownTitleBefore * 100).toFixed(1)}% a{" "}
+                  {(data.change.ownTitleAfter * 100).toFixed(1)}% de ser
+                  campeón.
+                  {data.change.biggestGainer && (
+                    <>
+                      {" "}
+                      Quien más ganó fue {data.change.biggestGainer}, de{" "}
+                      {(data.change.biggestGainerBefore * 100).toFixed(1)}% a{" "}
+                      {(data.change.biggestGainerAfter * 100).toFixed(1)}%.
+                    </>
+                  )}
+                </FranjaDeCambio>
+              )}
               <Chart
                 ariaLabel="Distribución de probabilidad de la posición final"
                 option={{
@@ -212,10 +279,19 @@ export function LeaguePage() {
                   series: [
                     {
                       type: "bar",
-                      data: Object.values(own.positionDistribution).map(
-                        (v) => v * 100,
+                      data: barrasConCambio(
+                        Object.values(own.positionDistribution).map(
+                          (v) => v * 100,
+                        ),
+                        Object.keys(own.positionDistribution),
+                        data.change?.positionDelta,
+                        { sube: subida, baja: bajada },
                       ),
-                      itemStyle: { borderRadius: 3 },
+                      itemStyle: {
+                        borderRadius: 3,
+                        color: azul,
+                        opacity: OPACIDAD_BARRA,
+                      },
                     },
                   ],
                 }}
@@ -239,37 +315,92 @@ export function LeaguePage() {
           </div>
         )}
 
-        {section === "comparativa" && <LeagueTsiComparison />}
+        {/* Las dos a la vez (2026-09-14, pedido del usuario): la mejor
+            alineación vivía DENTRO de la comparativa, después de su «cargando»,
+            así que no empezaba a pedirse hasta que la comparativa terminaba. */}
+        {section === "comparativa" && (
+          <>
+            <LeagueTsiComparison />
+            <TeamOfTheWeekPanel />
+          </>
+        )}
       </PanelDePestanas>
+    </div>
+  );
+}
+
+/** «Deportivo Uno 1 - 2 Pulgas Arrechas · jornada 6»: el mismo formato que
+ *  la ficha de rival, para que un partido se lea igual en toda la app. */
+function PartidoNombrado({ partido }: { partido: LeagueMatchRef }) {
+  return (
+    <>
+      {partido.home}{" "}
+      <b className="tabular-nums text-[var(--text)]">
+        {partido.homeGoals} - {partido.awayGoals}
+      </b>{" "}
+      {partido.away}
+      {partido.round != null ? ` · jornada ${partido.round}` : ""}
+    </>
+  );
+}
+
+/** Un lado del próximo partido: qué alineación se toma, cuál fue y por qué.
+ *  Mismo dibujo que las dos tarjetas de fuente de la ficha de rival. */
+function LadoDelProximo({
+  equipo,
+  fuente,
+  partido,
+  tactica,
+  porque,
+  nota,
+}: {
+  equipo: string;
+  fuente: string;
+  partido: LeagueMatchRef | null;
+  tactica: string;
+  porque: string;
+  nota?: ReactNode;
+}) {
+  return (
+    <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+      <div className="text-[10px] uppercase text-[var(--muted)]">{equipo}</div>
+      <div className="text-xs font-semibold">{fuente}</div>
+      {partido && (
+        <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+          <PartidoNombrado partido={partido} />
+        </p>
+      )}
+      <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+        Táctica: {tactica}
+      </p>
+      <p className="prosa mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
+        {porque}
+      </p>
+      {nota && (
+        <p className="prosa mt-1 text-[11px] leading-relaxed text-[var(--muted)]">
+          {nota}
+        </p>
+      )}
     </div>
   );
 }
 
 function NextMatch({ data }: { data: League }) {
   const nm = data.nextMatch!;
-
-  // Los tres desenlaces vistos DESDE TU LADO, que es la única lectura que le
-  // sirve al usuario. Antes la barra iba coloreada por local/visitante: azul
-  // el de casa, rojo el de fuera. Jugando de visitante, el azul era el rival
-  // y el rojo eras tú, así que el color decía lo contrario de lo que parecía.
-  const barras = [
-    {
-      label: nm.isHome ? nm.home : nm.away,
-      value: nm.isHome ? nm.homeWin : nm.awayWin,
-      color: "var(--positive)",
-      tuyo: true,
-    },
-    { label: "Empate", value: nm.draw, color: "var(--muted)", tuyo: false },
-    {
-      label: nm.isHome ? nm.away : nm.home,
-      value: nm.isHome ? nm.awayWin : nm.homeWin,
-      color: "var(--danger)",
-      tuyo: false,
-    },
-  ];
+  const fuentes = nm.sources;
+  const tuNombre = nm.isHome ? nm.home : nm.away;
+  const suNombre = nm.isHome ? nm.away : nm.home;
+  // LA CABECERA DICE CON QUÉ ESTÁ HECHO (2026-09-12). Decía «tendencia
+  // histórica de liga», que describía el método de antes --los goles de la
+  // temporada-- y no el que corría.
+  const meta = !fuentes
+    ? "goles de la temporada"
+    : fuentes.own.kind === "submitted"
+      ? "tu alineación enviada contra su último partido"
+      : "tu último partido contra el suyo";
 
   return (
-    <Panel title="Próximo partido" meta="tendencia histórica de liga">
+    <Panel title="Próximo partido" meta={meta}>
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
           <span>
@@ -283,42 +414,76 @@ function NextMatch({ data }: { data: League }) {
           </span>
         </div>
 
-        <div className="flex h-6 overflow-hidden rounded">
-          {barras.map((b) => (
-            <div
-              key={b.label}
-              className="flex items-center justify-center text-[10px] font-medium text-white"
-              style={{ width: `${b.value * 100}%`, background: b.color }}
-              title={`${b.label}: ${(b.value * 100).toFixed(1)}%`}
-            >
-              {b.value > 0.12 ? `${(b.value * 100).toFixed(0)}%` : ""}
-            </div>
-          ))}
-        </div>
-
-        {/* La leyenda no es adorno: sin ella los tres porcentajes se asocian a
-            su equipo sólo por posición, y «Empate» no aparecía en ninguna
-            parte salvo dentro del tooltip. */}
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-          {barras.map((b) => (
-            <span key={b.label} className="inline-flex items-baseline gap-1.5">
-              <i
-                className="inline-block h-2 w-2 shrink-0 translate-y-[-1px] rounded-full"
-                style={{ background: b.color }}
-              />
-              <span className={b.tuyo ? "font-medium" : "text-[var(--muted)]"}>
-                {b.label}
-                {b.tuyo && <span className="text-[var(--muted)]"> (tú)</span>}
-              </span>
-              <b className="tabular-nums">{(b.value * 100).toFixed(0)}%</b>
-            </span>
-          ))}
-        </div>
+        {/* La misma barra que Copa y Rivales: un solo componente para que
+            el mismo motor no se lea distinto en cada pantalla. */}
+        <BarraDePrediccion
+          tuLabel={tuNombre}
+          tuValor={nm.isHome ? nm.homeWin : nm.awayWin}
+          rivalLabel={suNombre}
+          rivalValor={nm.isHome ? nm.awayWin : nm.homeWin}
+          empate={nm.draw}
+        />
       </div>
+      {/* UNA ALINEACIÓN CONCRETA POR LADO (2026-09-12, pedido del usuario:
+          «deja claro cuál se toma y el por qué»). No sigue al selector de
+          Proyección: aquí se pronostica un partido, y un partido se juega
+          con un once. */}
+      {fuentes && (
+        <div className="grid gap-2 border-t border-[var(--border)] px-4 py-3 sm:grid-cols-2">
+          <LadoDelProximo
+            equipo={tuNombre}
+            fuente={
+              fuentes.own.kind === "submitted"
+                ? "Alineación enviada"
+                : "Último partido"
+            }
+            partido={fuentes.own.match}
+            tactica={fuentes.own.tactic}
+            porque={
+              fuentes.own.kind === "submitted"
+                ? "Ya mandaste las órdenes para este partido, así que no hay nada que adivinar: son los ratings que Hattrick prevé para esa alineación, con su táctica."
+                : "Todavía no mandaste alineación, y tu último once es lo más parecido a lo que vas a poner. En cuanto mandes las órdenes, este lado pasa a usarlas."
+            }
+            nota={
+              fuentes.own.kind === "submitted" && fuentes.own.setPiecesFrom ? (
+                <>
+                  Las acciones indirectas a balón parado Hattrick no las prevé
+                  para unas órdenes: salen de tu último partido,{" "}
+                  <PartidoNombrado partido={fuentes.own.setPiecesFrom} />.
+                </>
+              ) : null
+            }
+          />
+          <LadoDelProximo
+            equipo={suNombre}
+            fuente="Último partido"
+            partido={fuentes.rival.match}
+            tactica={fuentes.rival.tactic}
+            porque="Sus órdenes son privadas hasta que se juega. Su último partido es lo más reciente que se sabe de él: recoge fichajes, lesiones y cambios de sistema antes que ningún resumen."
+          />
+        </div>
+      )}
       <p className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         <span>
-          {nm.verdict}, estimado solo con goles agregados de liga; no conoce
-          alineación, tácticas ni bajas.
+          {fuentes ? (
+            <>
+              {nm.verdict}, con una alineación concreta por lado y la táctica de
+              cada una. Un solo partido es lo más al día y también lo más
+              frágil: si alguien rotó o jugó raro ese día, el pronóstico lo
+              hereda. Los resúmenes de varios partidos están en Proyección.
+            </>
+          ) : (
+            <>
+              {nm.verdict}, con los goles a favor y en contra de la temporada:
+              todavía no hay ratings de los dos equipos.
+            </>
+          )}{" "}
+          {/* El capítulo entero del motor, no un resumen: quien pregunta «de
+              dónde sale este 32 %» quiere el paso a paso. */}
+          <EnlaceATransparencia
+            seccion="pronostico"
+            calculo="pronostico-resumen"
+          />
         </span>
         <Link
           to="/rivals"
@@ -342,7 +507,7 @@ const STANDINGS_MODE_LABELS: Record<(typeof STANDINGS_MODES)[number], string> =
 function StandingsTable({ data }: { data: League }) {
   type Row = LeagueStandingRow;
   // 2026-08-08, pedido explícitamente: leaguedetails.xml solo da la tabla
-  // combinada — Local/Visitante se calculan aparte en el backend desde los
+  // combinada, Local/Visitante se calculan aparte en el backend desde los
   // resultados reales (ver `standingsHome`/`standingsAway`).
   const [mode, setMode] = useState<(typeof STANDINGS_MODES)[number]>("all");
   const rows =
@@ -441,10 +606,10 @@ const HISTORY_COLORS = [
 ];
 
 /**
- * Historial real de posición/puntos por jornada sincronizada — una línea
+ * Historial real de posición/puntos por jornada sincronizada, una línea
  * por equipo, como el historial de serie de Hattrick. Cada sync guarda una
  * foto de TODA la serie, así que con varias jornadas sincronizadas esto es
- * una serie temporal real, no una jornada — los huecos (jornadas sin
+ * una serie temporal real, no una jornada, los huecos (jornadas sin
  * sincronizar) se ven como cortes en la línea, nunca se interpolan.
  */
 function HistoryPanel({ data }: { data: League }) {
@@ -457,7 +622,7 @@ function HistoryPanel({ data }: { data: League }) {
 
   const nTeams = h.teams.length;
   // "0" es la jornada simbólica antes de jugar nada (0 puntos para todos,
-  // un hecho, no un dato sincronizado) — no cuenta como jornada real.
+  // un hecho, no un dato sincronizado), no cuenta como jornada real.
   const realRounds = h.rounds.filter((r) => r !== 0).length;
   return (
     <Panel
@@ -552,10 +717,10 @@ function HistoryPanel({ data }: { data: League }) {
 }
 
 /**
- * Calendario completo de la serie — pedido explícitamente 2026-08-08. El
+ * Calendario completo de la serie, pedido explícitamente 2026-08-08. El
  * backend ya trae `fixtures` (leaguefixtures.xml, calendario COMPLETO de
  * la serie) desde HL-090; solo faltaba pintarlo. Verde = ganó, ámbar =
- * empate, texto normal = perdió — el propio equipo siempre en negrita y
+ * empate, texto normal = perdió, el propio equipo siempre en negrita y
  * subrayado, sea cual sea el resultado.
  */
 function FixturesCalendar({ data }: { data: League }) {
@@ -566,13 +731,6 @@ function FixturesCalendar({ data }: { data: League }) {
     byRound.set(f.matchRound, list);
   }
   const rounds = [...byRound.keys()].sort((a, b) => a - b);
-
-  // El pronóstico se busca por jornada y por los dos nombres: es lo único
-  // que comparten el calendario y las predicciones. Llega vacío cuando no
-  // hubo ratings que mirar, y entonces el calendario sale como siempre.
-  const pronosticos = new Map(
-    data.predictions.map((p) => [`${p.matchRound}|${p.home}|${p.away}`, p]),
-  );
 
   function sideClass(
     f: League["fixtures"][number],
@@ -598,14 +756,7 @@ function FixturesCalendar({ data }: { data: League }) {
   }
 
   return (
-    <Panel
-      title="Calendario completo"
-      meta={
-        data.predictions.length > 0
-          ? `${rounds.length} jornada(s) · con pronóstico`
-          : `${rounds.length} jornada(s)`
-      }
-    >
+    <Panel title="Calendario completo" meta={`${rounds.length} jornada(s)`}>
       <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {rounds.map((rnd) => {
           const matches = byRound.get(rnd)!;
@@ -628,50 +779,24 @@ function FixturesCalendar({ data }: { data: League }) {
                   10-0 no la desplace respecto a un 1-2. `minmax(0,1fr)` es lo
                   que deja que `truncate` recorte dentro de una rejilla. */}
               <div className="space-y-1.5">
-                {matches.map((f, i) => {
-                  const pron = pronosticos.get(
-                    `${f.matchRound}|${f.home}|${f.away}`,
-                  );
-                  return (
-                    <div key={i} className="space-y-0.5">
-                      <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-center gap-2">
-                        <span className={`truncate ${sideClass(f, "home")}`}>
-                          {f.home}
-                        </span>
-                        <span className="text-center tabular-nums text-[var(--muted)]">
-                          {f.played ? f.score : "–"}
-                        </span>
-                        <span
-                          className={`truncate text-right ${sideClass(f, "away")}`}
-                        >
-                          {f.away}
-                        </span>
-                      </div>
-                      {/* Un partido jugado ya tiene su marcador arriba; uno
-                          pendiente enseña aquí lo que el modelo cree, en la
-                          misma vertical que el resultado que ocupará su
-                          sitio cuando se juegue. */}
-                      {pron && (
-                        <div className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-center gap-2 text-[0.65rem] tabular-nums text-[var(--muted)]">
-                          <span title="puntos que espera sumar el local">
-                            {(pron.homeWin * 100).toFixed(0)}% ·{" "}
-                            {pron.homeExpectedPoints.toFixed(2)} pts
-                          </span>
-                          <span className="text-center">
-                            {(pron.draw * 100).toFixed(0)}%
-                          </span>
-                          <span
-                            className="text-right"
-                            title="puntos que espera sumar el visitante"
-                          >
-                            {pron.awayExpectedPoints.toFixed(2)} pts ·{" "}
-                            {(pron.awayWin * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {matches.map((f, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[minmax(0,1fr)_2.75rem_minmax(0,1fr)] items-center gap-2"
+                  >
+                    <span className={`truncate ${sideClass(f, "home")}`}>
+                      {f.home}
+                    </span>
+                    <span className="text-center tabular-nums text-[var(--muted)]">
+                      {f.played ? f.score : "–"}
+                    </span>
+                    <span
+                      className={`truncate text-right ${sideClass(f, "away")}`}
+                    >
+                      {f.away}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -685,12 +810,73 @@ function FixturesCalendar({ data }: { data: League }) {
  * 2026-08-05, pedido explícitamente: "Mejor caso y peor caso" sonaba a un
  * resultado plausible ("el título suena plausible"), cuando en realidad son
  * extremos DELIBERADAMENTE imposibles (goleada de ~14-0 en cada partido que
- * queda, o al revés) — solo sirven para acotar matemáticamente el rango de
+ * queda, o al revés), solo sirven para acotar matemáticamente el rango de
  * puestos posible, nunca como pronóstico. Mismo estilo que "Distribución de
  * la posición final": el resultado sigue siendo una distribución, no un
- * número — forzar tu propio resultado a un extremo no fija el de los
+ * número, forzar tu propio resultado a un extremo no fija el de los
  * demás, que siguen jugando con su nivel real.
  */
+/** Puntos porcentuales a partir de los cuales un cambio merece enseñarse.
+ *
+ *  Por debajo de esto el gráfico se queda limpio, que es lo que hace que el
+ *  aviso signifique algo cuando aparece. Una jornada tranquila deja el panel
+ *  exactamente como estaba antes de existir esta función. */
+const CAMBIO_MINIMO = 1;
+
+/** La transparencia de las barras de distribución, en los dos paneles.
+ *
+ *  Las etiquetas ▲/▼ que van encima son verdes y rojas saturadas: si la barra
+ *  también va a plena saturación, el aviso deja de destacar sobre ella. Bajar
+ *  la barra deja el color fuerte para lo que señala un cambio. Es el mismo
+ *  valor en "Distribución de la posición final" y en "Límites matemáticos de
+ *  posición" para que los dos gráficos se lean como una sola pantalla. */
+const OPACIDAD_BARRA = 0.72;
+
+/** Las barras de un gráfico, cada una con su etiqueta de cambio si la merece.
+ *
+ *  Devuelve los DATOS, no una configuración de `label` para la serie, y eso
+ *  no es un capricho: `label.color` sólo acepta una cadena. Pasarle una
+ *  función --para pintar de verde lo que sube y de rojo lo que baja-- no
+ *  falla con un error, hace algo peor: echarts deja de dibujar la serie
+ *  ENTERA y el gráfico sale con ejes y sin barras. Pasó, y costó encontrarlo
+ *  porque las etiquetas sí seguían pintándose.
+ *
+ *  Poniendo el color en cada punto, cada barra lleva el suyo y la serie se
+ *  dibuja. `neutro` es para los límites, donde subir no es ni bueno ni malo
+ *  por sí solo: mover probabilidad del 5º al 4º es una mejora aunque una
+ *  barra suba y la otra baje. */
+function barrasConCambio(
+  valores: number[],
+  puestos: string[],
+  delta: Record<string, number> | undefined,
+  colores: { sube: string; baja: string; neutro?: string },
+): Array<number | Record<string, unknown>> {
+  return valores.map((v, i) => {
+    const d = delta?.[puestos[i] ?? ""] ?? 0;
+    if (!delta || Math.abs(d) < CAMBIO_MINIMO) return v;
+    return {
+      value: v,
+      label: {
+        show: true,
+        position: "top",
+        formatter: `${d > 0 ? "▲" : "▼"} ${Math.abs(d).toFixed(1)}%`,
+        color: colores.neutro ?? (d > 0 ? colores.sube : colores.baja),
+        fontSize: 14,
+        fontWeight: 500,
+      },
+    };
+  });
+}
+
+/** La frase que cuenta qué pasó, encima del gráfico. */
+function FranjaDeCambio({ children }: { children: ReactNode }) {
+  return (
+    <p className="border-b border-[var(--border)] px-4 py-2 text-xs leading-relaxed text-[var(--muted)]">
+      {children}
+    </p>
+  );
+}
+
 function BestWorstPanel({ data }: { data: League }) {
   const isDark = useIsDarkTheme();
   const bw = data.bestWorst;
@@ -705,14 +891,59 @@ function BestWorstPanel({ data }: { data: League }) {
     );
   }
   const positions = Object.keys(bw.bestCasePositionDistribution);
+  // El puesto que más subió y el que más bajó en el peor caso. Se cuenta así
+  // y no como «el suelo pasó de 5º a 4º» porque eso último no aguanta: con 4º
+  // al 49,1 % y 5º al 48,9 %, cuál gana depende de la tirada de Monte Carlo.
+  const cambioEnLimites = (() => {
+    const d = data.change?.worstCaseDelta;
+    if (!d) return null;
+    const entradas = Object.entries(d).filter(
+      ([, v]) => Math.abs(v) >= CAMBIO_MINIMO,
+    );
+    if (entradas.length === 0) return null;
+    const arriba = entradas
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])[0];
+    const abajo = entradas
+      .filter(([, v]) => v < 0)
+      .sort((a, b) => a[1] - b[1])[0];
+    return {
+      sube: arriba ? arriba[0] : null,
+      subeCuanto: arriba ? arriba[1] : 0,
+      baja: abajo ? abajo[0] : null,
+      bajaCuanto: abajo ? Math.abs(abajo[1]) : 0,
+    };
+  })();
   const positive = isDark ? "#2fbf71" : "#1a9e5c";
   const danger = isDark ? "#e5484d" : "#d1383d";
+  const gris = isDark ? "#8b8b93" : "#71717a";
 
   return (
     <ProjectionPanel
       title="Límites matemáticos de posición"
       meta={`${bw.remainingMatches} partidos pendientes · ${number(data.simulationRuns)} simulaciones`}
     >
+      {cambioEnLimites && (
+        <FranjaDeCambio>
+          La jornada {data.change?.matchRound} movió el peor caso:{" "}
+          {cambioEnLimites.sube !== null && (
+            <>
+              acabar {cambioEnLimites.sube}º sube{" "}
+              {cambioEnLimites.subeCuanto.toFixed(1)} puntos
+            </>
+          )}
+          {cambioEnLimites.sube !== null &&
+            cambioEnLimites.baja !== null &&
+            " y "}
+          {cambioEnLimites.baja !== null && (
+            <>
+              acabar {cambioEnLimites.baja}º baja{" "}
+              {cambioEnLimites.bajaCuanto.toFixed(1)}
+            </>
+          )}
+          . El mejor caso no se mueve.
+        </FranjaDeCambio>
+      )}
       <p className="border-b border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         Escenarios extremos deliberadamente imposibles (goleada en cada partido
         restante, en un sentido o en el otro); no son pronósticos.
@@ -739,18 +970,36 @@ function BestWorstPanel({ data }: { data: League }) {
             {
               name: "Mejor caso",
               type: "bar",
-              data: Object.values(bw.bestCasePositionDistribution).map(
-                (v) => v * 100,
+              data: barrasConCambio(
+                Object.values(bw.bestCasePositionDistribution).map(
+                  (v) => v * 100,
+                ),
+                positions,
+                data.change?.bestCaseDelta,
+                { sube: positive, baja: danger, neutro: gris },
               ),
-              itemStyle: { borderRadius: 3, color: positive },
+              itemStyle: {
+                borderRadius: 3,
+                color: positive,
+                opacity: OPACIDAD_BARRA,
+              },
             },
             {
               name: "Peor caso",
               type: "bar",
-              data: Object.values(bw.worstCasePositionDistribution).map(
-                (v) => v * 100,
+              data: barrasConCambio(
+                Object.values(bw.worstCasePositionDistribution).map(
+                  (v) => v * 100,
+                ),
+                positions,
+                data.change?.worstCaseDelta,
+                { sube: positive, baja: danger, neutro: gris },
               ),
-              itemStyle: { borderRadius: 3, color: danger },
+              itemStyle: {
+                borderRadius: 3,
+                color: danger,
+                opacity: OPACIDAD_BARRA,
+              },
             },
           ],
         }}
@@ -758,9 +1007,12 @@ function BestWorstPanel({ data }: { data: League }) {
       />
       <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         Mejor caso: en cada partido que te queda marcas de goleada y no encajas.
-        Peor caso: al revés. El resto de la liga sigue con su nivel real, así
-        que aun forzando tu propio resultado al extremo, tu puesto final sigue
-        siendo una distribución.
+        Peor caso: al revés. El resto de la liga se simula con el mismo modelo
+        que la gráfica de arriba, zona por zona, con el resumen que elegiste, ,
+        así que aun forzando tu propio resultado al extremo, tu puesto final
+        sigue siendo una distribución. Tus partidos van forzados y NO los toca
+        ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies
+        el resumen, y lo que se mueve es dónde acaban los demás.
       </p>
     </ProjectionPanel>
   );
@@ -771,7 +1023,7 @@ function BestWorstPanel({ data }: { data: League }) {
  * `relegationProbability`: esos campos se ponen a 0 cuando no hay playoff de
  * permanencia o descenso posible (división más baja/más alta del país), lo
  * cual tiene sentido para el KPI de "riesgo" de arriba, pero rompe la
- * partición exhaustiva de esta tabla — el equipo igual termina en algún
+ * partición exhaustiva de esta tabla, el equipo igual termina en algún
  * puesto, solo que sin consecuencia deportiva. Se calculan directo de
  * `positionDistribution`, que nunca se pone a 0 artificialmente, así que
  * Título + 2º-4º + 5º-6º + 7º-8º siempre suma 100%.
@@ -854,7 +1106,7 @@ function OutlookTable({ data }: { data: League }) {
         const v = groupProbability(r.positionDistribution, [5, 6]);
         // 2026-08-05, pedido explícitamente: en la última división del país
         // no hay a dónde descender, así que 5º-6º no juega ninguna
-        // promoción de permanencia real — el rojo aquí sería una alarma
+        // promoción de permanencia real, el rojo aquí sería una alarma
         // falsa.
         const danger = !data.isBottomDivision && v > 0.25;
         return (
@@ -891,20 +1143,6 @@ function OutlookTable({ data }: { data: League }) {
         );
       },
     },
-    {
-      key: "attack",
-      header: "Ataque",
-      align: "right",
-      value: (r) => r.attackStrength,
-      optional: true,
-    },
-    {
-      key: "defence",
-      header: "Defensa",
-      align: "right",
-      value: (r) => r.defenceStrength,
-      optional: true,
-    },
   ];
   return (
     <>
@@ -918,24 +1156,6 @@ function OutlookTable({ data }: { data: League }) {
         csvName="pronostico"
         filterPlaceholder="Filtrar equipos…"
       />
-      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        Título, 2º-4º, 5º-6º y 7º-8º cubren TODOS los puestos sin solaparse y
-        siempre suman 100%, "ascenso" no aparece aparte porque la columna
-        "Título" ya es la probabilidad de terminar 1º, la condición necesaria
-        (no la suficiente: el ascenso directo o la promoción dependen del
-        ranking nacional de campeones, no modelado). "5º-6º" es el playoff de
-        promoción para NO descender, no un ascenso extra. En el extremo de la
-        pirámide donde no hay a dónde ir (primera división para el título,
-        última división del país para el 5º-6º y el 7º-8º), terminar en esos
-        puestos sigue siendo posible, solo que sin la consecuencia deportiva que
-        el nombre de la columna sugiere (por eso esas dos columnas no se
-        resaltan en rojo en la última división).
-      </p>
-      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        Ataque y defensa son relativos a la media de la liga: 1,00 es
-        exactamente la media, 1,30 es marcar un 30% más que un equipo medio. En
-        defensa, menos es mejor.
-      </p>
     </>
   );
 }
@@ -946,12 +1166,12 @@ function OutlookTable({ data }: { data: League }) {
  * agregado a los 7-8 equipos de la liga a la vez.
  *
  * 2026-08-08, pedido explícitamente: vuelve a cargar sola al entrar a
- * /league (revierte el arranque colapsado del 2026-08-05) — pide las
+ * /league (revierte el arranque colapsado del 2026-08-05), pide las
  * plantillas de los 7-8 rivales a CHPP apenas se abre la página, sin
  * esperar a que el usuario la abra a propósito.
  */
 function LeagueTsiComparison() {
-  // 2026-08-08, pedido explícitamente: default Log(TSI+1) — la escala
+  // 2026-08-08, pedido explícitamente: default Log(TSI+1), la escala
   // lineal aplasta casi todos los planteles contra el eje cuando hay 1-2
   // fichajes estrella en la liga, así que la vista log es la que de verdad
   // sirve para comparar de un vistazo. "Los 11 mejores" también por
@@ -1018,6 +1238,9 @@ function LeagueTsiComparison() {
       header: "Mejor TSI (jugador)",
       align: "left",
       value: (r) => r.topPlayerName ?? "",
+      // Se enseña el nombre, pero se ordena por su TSI (2026-09-14, pedido
+      // del usuario). Sin dato va al fondo.
+      sortValue: (r) => r.topPlayerTsi ?? -1,
       render: (r) =>
         r.topPlayerName ? (
           <span>
@@ -1027,7 +1250,7 @@ function LeagueTsiComparison() {
             </span>
           </span>
         ) : (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ),
     },
     {
@@ -1038,7 +1261,7 @@ function LeagueTsiComparison() {
       value: (r) => r.topPlayerLastPosition ?? "",
       render: (r) =>
         r.topPlayerLastPosition ?? (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ),
     },
     {
@@ -1051,7 +1274,7 @@ function LeagueTsiComparison() {
         r.avgForm != null ? (
           <span className="tabular-nums">{r.avgForm}</span>
         ) : (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ),
     },
     {
@@ -1064,7 +1287,7 @@ function LeagueTsiComparison() {
         r.avgStamina != null ? (
           <span className="tabular-nums">{r.avgStamina}</span>
         ) : (
-          <span className="text-[var(--muted)]">—</span>
+          <span className="text-[var(--muted)]">-</span>
         ),
     },
   ];
@@ -1103,13 +1326,12 @@ function LeagueTsiComparison() {
           Hattrick de verdad mostró el dato: un rival puede tenerlas ocultas.
         </p>
       </Panel>
-      <TeamOfTheWeekPanel />
     </>
   );
 }
 
 // Orden de filas (arriba = ataque, abajo = portería), y tamaño de tarjeta
-// FIJO — pedido explícitamente 2026-08-08: nunca se achica según cuántos
+// FIJO, pedido explícitamente 2026-08-08: nunca se achica según cuántos
 // jugadores caben en la fila, así que el nombre completo siempre entra en
 // una sola línea (`whitespace-nowrap`, sin truncar). Si una fila no cabe
 // entera en pantallas angostas, esa fila concreta se desplaza en
@@ -1125,16 +1347,16 @@ const ROLE_ROW_ORDER: TeamOfWeekRoleKey[][] = [
 ];
 
 /**
- * Mejor alineación real (semana/temporada) — pedido explícitamente
+ * Mejor alineación real (semana/temporada), pedido explícitamente
  * 2026-08-08, tras comparar con Hattrick Control. Rating REAL de cada
  * titular (matchlineup.xml, público incluso para un rival: un partido ya
- * jugado es un hecho permanente, no histórico de cuenta ajena) — nunca una
+ * jugado es un hecho permanente, no histórico de cuenta ajena), nunca una
  * proyección, por eso usa `Panel` normal y no `ProjectionPanel`.
  */
 function TeamOfTheWeekPanel() {
   const [scope, setScope] = useState<"week" | "season">("week");
   const [formation, setFormation] = useState<Formation>("4-4-2");
-  // undefined = "automático" (la última jornada completa) — el backend
+  // undefined = "automático" (la última jornada completa), el backend
   // decide; en cuanto el usuario elige una jornada concreta del selector,
   // se fija ese número y ya no sigue a la última automáticamente.
   const [round, setRound] = useState<number | undefined>(undefined);

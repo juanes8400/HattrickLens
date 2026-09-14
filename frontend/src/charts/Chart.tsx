@@ -9,7 +9,7 @@ import { number } from "../hooks/useFormat";
  * and theme compatibility from every chart, so those defaults live here rather
  * than being repeated at each call site.
  *
- * ECharts renders to <canvas>, which cannot resolve CSS custom properties —
+ * ECharts renders to <canvas>, which cannot resolve CSS custom properties
  * `color: "var(--text)"` silently falls back to canvas's own default (~#333),
  * which reads as near-invisible dark-on-dark text once merged with our dark
  * theme's backgrounds. Individual chart options across the app mostly avoid
@@ -17,7 +17,7 @@ import { number } from "../hooks/useFormat";
  * belongs in ONE place: two registered ECharts themes with the same literal
  * hex values as index.css's --text/--muted/--border, applied globally via
  * the `theme` prop below. A chart that explicitly sets its own color (e.g. a
- * literal hex for a positive/negative line) still wins — themes only fill in
+ * literal hex for a positive/negative line) still wins, themes only fill in
  * what nothing else specified.
  */
 /**

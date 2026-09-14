@@ -26,7 +26,7 @@ def test_percentage_outside_table_range_clamps_to_nearest_bucket() -> None:
 
 
 def test_age_above_table_clamps_to_the_oldest_row() -> None:
-    """Pedido explícito 2026-08-15: "de 40 años debe ser igual que 36" —
+    """Pedido explícito 2026-08-15: "de 40 años debe ser igual que 36"
     fuera del rango se mantiene la fila del borde, no se extrapola una
     pendiente que la tabla no respalda."""
     for pct in (5.0, 12.0, 20.0, 28.0):
@@ -47,7 +47,7 @@ def test_ages_inside_the_table_are_untouched_by_the_clamp() -> None:
 
 
 def test_higher_training_never_yields_a_worse_level_at_the_same_age() -> None:
-    """La tabla original es monótona por columnas — más esfuerzo real de
+    """La tabla original es monótona por columnas, más esfuerzo real de
     resistencia nunca empeora el nivel esperado a la misma edad."""
     for age in range(17, 37):
         levels = [stamina_forecast_level(age, pct) for pct in (5, 11, 16, 21, 26)]

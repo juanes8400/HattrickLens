@@ -67,7 +67,7 @@ async def main(aplicar: bool) -> None:
                 d = await client.fetch(
                     "matchdetails", FILE_VERSIONS["matchdetails"], matchID=mid
                 )
-            except Exception as e:  # noqa: BLE001 — una caída no tira el relleno
+            except Exception as e:  # noqa: BLE001, una caída no tira el relleno
                 fallos += 1
                 print(f"  {mid}  x {type(e).__name__}")
                 continue

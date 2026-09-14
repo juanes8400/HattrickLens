@@ -14,7 +14,7 @@ def test_round_trips() -> None:
 
 
 def test_ciphertext_does_not_contain_the_plaintext() -> None:
-    plaintext = "super-secret-oauth-token-42"  # noqa: S105 — test fixture, not a real credential
+    plaintext = "super-secret-oauth-token-42"  # noqa: S105, test fixture, not a real credential
     enc = encrypt_token(plaintext)
     assert plaintext.encode() not in enc
 

@@ -68,6 +68,11 @@ describe("a qué módulo pertenece cada ruta", () => {
       "/welcome",
       "/connected",
       "/setup",
+      // 2026-09-13: salían como «Otros (/autor)», «Otros (/libro)»...
+      "/autor",
+      "/libro",
+      "/apoyar",
+      "/liga",
     ]) {
       expect(moduloDe(ruta)).not.toMatch(/^Otros/);
     }

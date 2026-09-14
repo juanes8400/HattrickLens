@@ -35,7 +35,7 @@ async def player_balance(
     ),
 ) -> dict[str, Any]:
     """Precio de compra + salario acumulado + coste de cada intento de
-    venta, contra el precio real de venta menos la comisión del agente —
+    venta, contra el precio real de venta menos la comisión del agente
     más la comisión EXACTA de club anterior (HL-161, 2026-08-14) de
     cualquier reventa detectada de un ex-jugador nuestro. Nunca usa una
     valoración de mercado hipotética para un jugador que sigue sin
@@ -50,7 +50,7 @@ class EdicionDeEtapa(BaseModel):
     """Lo que el usuario puede atribuir de una etapa ya cerrada.
 
     Solo huecos: si Hattrick da el dato de verdad, gana el de verdad. Y solo de
-    ex-jugadores — la plantilla de hoy se sincroniza sola, no se teclea.
+    ex-jugadores, la plantilla de hoy se sincroniza sola, no se teclea.
     """
 
     training_type: int | None = Field(
@@ -123,8 +123,8 @@ async def transfer_attempts(
     """Una fila por intento: cuándo salió al mercado, cuándo cerró la puja, si
     terminó en venta y cuántas veces lo miraron.
 
-    Lo de las visitas no lo da CHPP por ningún lado — Hattrick solo lo cuenta
-    en el texto de la noticia al cerrarse la puja —, así que lo teclea el
+    Lo de las visitas no lo da CHPP por ningún lado, Hattrick solo lo cuenta
+    en el texto de la noticia al cerrarse la puja, , así que lo teclea el
     usuario y aquí se sirve tal cual."""
     data = await TransferAttemptsQueryService(session).get(team_id)
     if data is None:

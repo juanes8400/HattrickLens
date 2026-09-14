@@ -49,7 +49,7 @@ describe("el título de la pestaña", () => {
 
   it("las de entrada también, que eran las únicas sin nombre", () => {
     // Con «HT Lens» a secas, /welcome y /setup no se distinguían en el
-    // historial ni entre pestañas — y son por las que se pasa al empezar.
+    // historial ni entre pestañas, y son por las que se pasa al empezar.
     expect(tituloDeRuta("/welcome")).toBe("Conectar tu club · HT Lens");
     expect(tituloDeRuta("/setup")).toBe("Configuración de tu club · HT Lens");
   });

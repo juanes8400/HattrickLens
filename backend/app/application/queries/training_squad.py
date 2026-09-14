@@ -1,11 +1,11 @@
-"""TrainingSquadQueryService — vista de plantilla al estilo Hattrick Control.
+"""TrainingSquadQueryService, vista de plantilla al estilo Hattrick Control.
 
 La pestaña que HC deja vacía: cuánto le falta a CADA jugador para su próximo
-nivel — no solo el próximo pop de la habilidad que el club entrena hoy.
+nivel, no solo el próximo pop de la habilidad que el club entrena hoy.
 Reutiliza `TrainingContextService` para el `TrainingSetup` real (ayudantes,
 entrenador, intensidad, condición) leído del CHPP, pero permite elegir
 cualquier habilidad entrenable para mirarla, igual que
-`compare_training_types` en el motor — solo que aquí es por jugador, con su
+`compare_training_types` en el motor, solo que aquí es por jugador, con su
 nivel y nombre reales, no un promedio de escuadra.
 
 SEMANAS TRANSCURRIDAS. Lens no reconstruye el subnivel anterior a la primera
@@ -18,14 +18,12 @@ nivel actual.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# `SEASON_WEEKS` desde donde NACE y no re-exportada por `weekly`: el
-# analizador no puede saber que una re-exportacion es deliberada.
 from app.application.queries.player_history import PlayerHistoryQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.squad import SKILL_COLS
@@ -43,7 +41,15 @@ from app.domain.engines.loyalty_engine import (
     loyalty_level,
     loyalty_progress_pct,
 )
-from app.domain.value_objects.ht_constants import SKILL_LABELS, skill_name, training_name
+
+# `SEASON_WEEKS` desde donde NACE y no re-exportada por `weekly`: el
+# analizador no puede saber que una re-exportacion es deliberada.
+from app.domain.value_objects.ht_constants import (
+    SKILL_LABELS,
+    sin_habilidades_de_campo,
+    skill_name,
+    training_name,
+)
 from app.domain.value_objects.stamina_reference import (
     STAMINA_MAX_TABLE_AGE,
     STAMINA_MIN_TABLE_AGE,
@@ -98,6 +104,8 @@ class SquadTrainingRow:
     # cuando no hay ninguna, que no es lo mismo que no haber mejorado nunca:
     # es que Hattrick no reporta ninguna.
     last_improvement: str = ""
+    #: Veterano sin habilidades de campo: la tabla lo esconde por defecto.
+    without_field_skills: bool = False
 
 
 @dataclass
@@ -171,7 +179,7 @@ class LoyaltyRow:
 
 @dataclass
 class StaminaRow:
-    """Resistencia — HL-2xx, tabla comunitaria de Federación Ocerin
+    """Resistencia, HL-2xx, tabla comunitaria de Federación Ocerin
     (`stamina_reference.py`): a diferencia de Fidelidad/Experiencia, el
     nivel esperado puede subir O BAJAR según si el % REAL de esfuerzo en
     resistencia (intensidad × stamina_share, no el share crudo) alcanza
@@ -318,16 +326,60 @@ class TrainingSquadQueryService:
             .scalars()
             .all()
         )
-        deduped = list(reversed(latest_per_iso_week(rows, lambda r: r.captured_at)))[:limit]
+        if not rows:
+            return []
+
+        # SÓLO LO QUE LLEGÓ A APLICARSE (2026-09-13, pedido del usuario). Antes
+        # era la última lectura de cada semana, así que un entrenamiento puesto
+        # el lunes y cambiado el martes, antes de la actualización, salía como
+        # si se hubiera entrenado. Ahora cuenta lo vigente en el instante de
+        # cada actualización semanal, y sólo cuando cambia respecto a la
+        # anterior: una semana igual que la previa no es un cambio.
+        def utc(d: datetime) -> datetime:
+            return d if d.tzinfo else d.replace(tzinfo=UTC)
+
+        def configuracion(s: m.TrainingSnapshot) -> tuple[Any, ...]:
+            return (s.training_type, s.training_level, s.stamina_part, s.trainer_name)
+
+        aplicadas: list[tuple[datetime, m.TrainingSnapshot]] = []
+        ancla = world.training_date if world is not None else None
+        if ancla is not None:
+            ahora = datetime.now(UTC)
+            instante = utc(ancla)
+            while instante > ahora:
+                instante -= timedelta(days=7)
+            primero = utc(rows[0].captured_at)
+            instantes: list[datetime] = []
+            while instante >= primero:
+                instantes.append(instante)
+                instante -= timedelta(days=7)
+            indice = 0
+            vigente: m.TrainingSnapshot | None = None
+            for t in reversed(instantes):
+                while indice < len(rows) and utc(rows[indice].captured_at) <= t:
+                    vigente = rows[indice]
+                    indice += 1
+                if vigente is None:
+                    continue
+                if aplicadas and configuracion(aplicadas[-1][1]) == configuracion(vigente):
+                    continue
+                aplicadas.append((t, vigente))
+        else:
+            # Sin la hora de la actualización no se puede saber qué llegó a
+            # aplicarse: se cae a una lectura por semana, sin repetir iguales.
+            for snap in latest_per_iso_week(rows, lambda r: r.captured_at):
+                if aplicadas and configuracion(aplicadas[-1][1]) == configuracion(snap):
+                    continue
+                aplicadas.append((utc(snap.captured_at), snap))
+
         out = []
-        for snap in deduped:
-            season_week = (
-                season_week_for_datetime(world, snap.captured_at) if world is not None else None
-            )
+        for instante, snap in list(reversed(aplicadas))[:limit]:
             out.append(
                 WeeklyLogEntry(
-                    season_week=season_week,
-                    date=snap.captured_at.date().isoformat(),
+                    season_week=(
+                        season_week_for_datetime(world, instante) if world is not None else None
+                    ),
+                    date=instante.date().isoformat(),
                     training_type=training_name(snap.training_type),
                     intensity=snap.training_level,
                     stamina_share=snap.stamina_part,
@@ -564,6 +616,9 @@ class TrainingSquadQueryService:
                     has_historical_reference=historical_exposure > 0.00005,
                     current_week_minutes=current_week_minutes,
                     current_week_exposure=current_week_exposure,
+                    without_field_skills=sin_habilidades_de_campo(
+                        p["age_years"], p.get("skills", {})
+                    ),
                 )
             )
 

@@ -4,12 +4,15 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { tituloDeRuta } from "./layouts/navegacion";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DashboardNuevo } from "./pages/DashboardNuevo";
 import { ClubPage } from "./pages/ClubPage";
 import { TeamOverviewPage } from "./pages/TeamOverviewPage";
 import { TeamPage } from "./pages/TeamPage";
 import { PlayerPage } from "./pages/PlayerPage";
 import { ConnectedPage } from "./pages/ConnectedPage";
 import { PositionsPage } from "./pages/PositionsPage";
+import { SkillsPage } from "./pages/SkillsPage";
+import { WikiPage } from "./pages/WikiPage";
 import { LineupPage } from "./pages/LineupPage";
 import { TrainingPage } from "./pages/TrainingPage";
 import { ApoyarPage } from "./pages/ApoyarPage";
@@ -109,10 +112,15 @@ export function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          {/* 2026-09-13, Dashboard nuevo a prueba. Para volver al de antes,
+              cambiar DashboardNuevo por DashboardPage en esta línea. Mientras
+              tanto el de antes sigue en /dashboard-anterior para comparar. */}
+          <Route path="dashboard" element={<DashboardNuevo />} />
+          <Route path="dashboard-anterior" element={<DashboardPage />} />
           <Route path="club" element={<ClubPage />} />
           <Route path="overview" element={<TeamOverviewPage />} />
           <Route path="team" element={<TeamPage />} />
+          <Route path="skills" element={<SkillsPage />} />
           <Route path="players/:htPlayerId" element={<PlayerPage />} />
           <Route path="positions" element={<PositionsPage />} />
           <Route path="lineup" element={<LineupPage />} />
@@ -131,6 +139,7 @@ export function App() {
           <Route path="sync" element={<SyncPage />} />
           <Route path="news" element={<SyncChangesPage />} />
           <Route path="transparency" element={<TransparencyPage />} />
+          <Route path="wiki" element={<WikiPage />} />
           {/* Motor se llamaba así hasta el 2026-08-31. El enlace viejo
             sigue funcionando: romper marcadores por un renombre no. */}
           <Route

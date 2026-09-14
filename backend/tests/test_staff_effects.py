@@ -1,4 +1,4 @@
-"""Aporte real de cada categoría de empleado — tablas oficiales de Hattrick
+"""Aporte real de cada categoría de empleado, tablas oficiales de Hattrick
 pasadas explícitamente por el usuario 2026-08-12. Cada test aquí reproduce
 un ejemplo LITERAL del texto oficial, no un número inventado.
 """
@@ -15,7 +15,7 @@ from app.domain.engines.staff_effects import (
 
 
 def test_assistant_trainer_matches_the_official_worked_example() -> None:
-    """"Combinación de entrenadores asistentes de nivel 10: 6 semanas" — el
+    """"Combinación de entrenadores asistentes de nivel 10: 6 semanas", el
     propio texto dice que sin asistente son 8 semanas y con el combo de
     nivel 5 (un solo empleado) son 7. Aquí se confirma que el módulo reutiliza
     el aporte de 0,032/nivel de la fórmula comunitaria en
@@ -102,7 +102,7 @@ def test_tactical_assistant_matches_the_table() -> None:
 
 def test_no_bonus_at_level_zero_for_every_role_except_financial_director() -> None:
     """Director financiero es distinto: nivel 0 no es "sin empleado" en el
-    sentido de "sin efecto" — la junta YA da un mínimo (15M/100k) sin
+    sentido de "sin efecto", la junta YA da un mínimo (15M/100k) sin
     contratar a nadie, tal como dice la propia tabla oficial."""
     for key, fn in STAFF_FIELD_TO_EFFECT_FN.items():
         if key == "financial_director_levels":
@@ -117,7 +117,7 @@ def test_no_bonus_at_level_zero_for_every_role_except_financial_director() -> No
 
 def test_spokesperson_has_no_effect_function() -> None:
     """Portavoz no está entre las categorías vigentes que documentó el
-    usuario — sin tabla real, no se inventa un aporte."""
+    usuario, sin tabla real, no se inventa un aporte."""
     assert "spokesperson_levels" not in STAFF_FIELD_TO_EFFECT_FN
 
 
@@ -127,7 +127,7 @@ def test_only_the_staff_roles_that_exist_in_hattrick_are_listed() -> None:
     """2026-08-17: la app enseñaba siete puestos y uno no existe.
 
     "Portavoz" venía del club.xml antiguo, que todavía declara un
-    `SpokespersonLevels`, no de la página de Empleados de Hattrick — la misma
+    `SpokespersonLevels`, no de la página de Empleados de Hattrick, la misma
     de la que salieron las tablas de este módulo, que lista seis. Se delataba
     solo: era el único puesto sin efecto que calcular.
     """
@@ -144,7 +144,7 @@ def test_only_the_staff_roles_that_exist_in_hattrick_are_listed() -> None:
 
 def test_an_unknown_staff_type_is_named_as_unknown_not_as_another_role() -> None:
     """El código 3 quedó libre al quitar Portavoz. Si CHPP mandara un empleado
-    con ese tipo —o con uno nuevo que esta versión no conozca— hay que decir
+    con ese tipo, o con uno nuevo que esta versión no conozca, hay que decir
     que no se sabe, nunca disfrazarlo con el nombre del puesto de al lado."""
     from app.domain.value_objects.ht_constants import staff_type_name
 
