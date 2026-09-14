@@ -80,7 +80,8 @@ def _plan(monkeypatch: pytest.MonkeyPatch, main: str, secondary: str) -> dict[st
             secondary=secondary,
             soon_max_days=yss.SOON_MAX_DAYS,
             weight_base=yss.DEFAULT_WEIGHT_BASE,
-            session=cast(Any, object()),
+            # Sin sesión: la caché de la academia calcula directo, sin base.
+            session=cast(Any, None),
         )
     )
 

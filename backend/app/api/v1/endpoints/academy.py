@@ -6,9 +6,10 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
-from app.application.queries.academy import AcademyQueryService
+from app.application.queries.academy import AcademyQueryService, AcademyResponse
 from app.domain.engines import metodo_ocho as m8
 from app.domain.engines import reparto_por_descubrimiento as rpd
 from app.domain.engines import youth_skill_score as yss
@@ -29,6 +30,24 @@ from app.infrastructure.db.session import get_session
 router = APIRouter()
 
 
+async def academia_guardada(session: AsyncSession, team_id: int) -> AcademyResponse | None:
+    """La academia calculada, guardada hasta el próximo sync (2026-09-14).
+
+    Tarda medio segundo en local, casi todo en el balance de los antiguos
+    canteranos, y la pestaña «Formación siguiente partido» la pagaba dos
+    veces: al abrir Juveniles y otra vez dentro del reparto. Con reloj porque
+    los plazos se cuentan en días desde hoy."""
+    academia: AcademyResponse | None = await por_sync(
+        session,
+        team_id,
+        "academia",
+        (),
+        lambda: AcademyQueryService(session).get(team_id),
+        ttl=TTL_CON_RELOJ,
+    )
+    return academia
+
+
 @router.get(
     "/teams/{team_id}/academy",
     summary="Canteranos, plazos y retorno de la academia",
@@ -43,7 +62,7 @@ async def academy(team_id: int, session: AsyncSession = Depends(get_session)) ->
     una promesa por falta de información sería confundir ignorancia con
     evidencia.
     """
-    data = await AcademyQueryService(session).get(team_id)
+    data = await academia_guardada(session, team_id)
     if data is None:
         raise HTTPException(404, f"team {team_id} not found")
     return cast(dict[str, Any], _camel(asdict(data)))
@@ -288,10 +307,27 @@ def _recoloca_para_descubrir(
     # Quien salió del once y quien entró: el banquillo se recalcula para no
     # enseñar a nadie dos veces.
     dentro_ahora = {a.player for a in libres}
-    for nombre in dentro_ahora - dentro_antes:
+    # Las sillas del banquillo que dejan quienes suben al once. Antes se
+    # borraban sin más: con Lateral + Individual el Extremo suplente subía de
+    # Mediocentro y el banquillo se quedaba sin Extremo (2026-09-14, visto por
+    # el usuario). Ahora quien baja del once se sienta en la silla que quedó.
+    vacias: list[tuple[int, Any]] = []
+    for nombre in [a.player for a in libres if a.player not in dentro_antes]:
         if nombre in banquillo:
-            plan.fuera.remove(banquillo[nombre])
-    for nombre in dentro_antes - dentro_ahora:
+            silla = banquillo[nombre]
+            vacias.append((plan.fuera.index(silla), silla))
+    vacias.sort(key=lambda par: par[0])
+    for _, silla in vacias:
+        plan.fuera.remove(silla)
+    bajan = [n for n in fichas if n in dentro_antes - dentro_ahora]
+    for posicion, (indice, silla) in enumerate(vacias):
+        if posicion >= len(bajan):
+            break
+        nombre = bajan[posicion]
+        plan.fuera.insert(
+            min(indice, len(plan.fuera)), replace(silla, player=nombre, **_del_jugador(nombre))
+        )
+    for nombre in bajan[len(vacias) :]:
         # Quien sale del once se lleva su ficha. Sin esto salía con edad 0 y
         # HTMS28 0, que en pantalla es «0;000», el mismo fallo por el otro
         # lado.
@@ -481,7 +517,7 @@ async def academy_training_plan(
         if clave != m8.INDIVIDUAL and skill not in por_habilidad:
             raise HTTPException(404, "no hay canteranos con esas habilidades")
 
-    academia = await service.get(team_id)
+    academia = await academia_guardada(session, team_id)
     # Un techo alcanzado NO es un hueco: ya se sabe que no sube, asi que
     # entrenarlo no revela nada y no debe atraer una plaza de descubrimiento.
     sin_saber.update(

@@ -33,6 +33,7 @@ def lanzar_precalentado(team_id: int) -> None:
 
 async def precalentar(team_id: int) -> None:
     # Imports aquí dentro: estos módulos importan `teams`, que importa este.
+    from app.api.v1.endpoints.academy import academia_guardada
     from app.api.v1.endpoints.analysis import _insights_guardadas, lineup
     from app.api.v1.endpoints.cup import cup
     from app.api.v1.endpoints.economy import economy
@@ -76,6 +77,8 @@ async def precalentar(team_id: int) -> None:
             ),
             ("liga (10.000)", lambda: liga_calculada(session, team_id, 10_000)),
             ("economía", lambda: economy(team_id, 52, True, session)),
+            # Juveniles y su «Formación siguiente partido» leen la misma.
+            ("academia", lambda: academia_guardada(session, team_id)),
         ]
         if usuario is not None:
             pasos.insert(
