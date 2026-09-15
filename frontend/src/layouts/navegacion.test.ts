@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { NAV, agrupar, tituloDeRuta } from "./navegacion";
+import { afterEach, describe, expect, it } from "vitest";
+import i18n from "../i18n";
+import { NAV, agrupar, nombreNav, tituloDeRuta } from "./navegacion";
 
 /** El menú se veía agrupado en cinco bloques y esa agrupación existía SÓLO en
  *  el aspecto: veinte enlaces hermanos sueltos, sin una sola lista. Quien no
@@ -56,5 +57,34 @@ describe("el título de la pestaña", () => {
 
   it("una ruta desconocida no inventa nombre", () => {
     expect(tituloDeRuta("/inexistente")).toBe("HT Lens");
+  });
+});
+
+/** Traducción (2026-09-15): el menú y las pestañas en otro idioma, y el
+ *  español como red cuando falta una traducción. */
+describe("el menú en otro idioma", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("es");
+  });
+
+  it("en inglés, pestañas y menú se nombran en inglés", async () => {
+    await i18n.changeLanguage("en");
+    expect(tituloDeRuta("/economy")).toBe("Finances · HT Lens");
+    expect(tituloDeRuta("/players/123")).toBe("Player · HT Lens");
+    expect(tituloDeRuta("/welcome")).toBe("Connect your club · HT Lens");
+    expect(nombreNav("Club", "seccion.club")).toBe("Club");
+  });
+
+  it("cada entrada del menú tiene su traducción al inglés", async () => {
+    await i18n.changeLanguage("en");
+    for (const item of NAV) {
+      const texto = "section" in item ? item.section : item.label;
+      expect(i18n.exists(`nav.${item.clave}`), texto).toBe(true);
+    }
+  });
+
+  it("sin traducción, se ve el español y no la clave", async () => {
+    await i18n.changeLanguage("en");
+    expect(nombreNav("Pantalla nueva", "no.existe")).toBe("Pantalla nueva");
   });
 });

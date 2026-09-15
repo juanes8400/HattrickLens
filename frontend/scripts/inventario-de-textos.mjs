@@ -52,7 +52,10 @@ function archivos(dir) {
     if (entrada.isDirectory()) {
       if (ruta === path.join(SRC, "i18n")) continue;
       salida.push(...archivos(ruta));
-    } else if (/\.(ts|tsx)$/.test(entrada.name) && !/\.test\.(ts|tsx)$/.test(entrada.name)) {
+    } else if (
+      /\.(ts|tsx)$/.test(entrada.name) &&
+      !/\.test\.(ts|tsx)$/.test(entrada.name)
+    ) {
       salida.push(ruta);
     }
   }
@@ -63,14 +66,19 @@ function archivos(dir) {
 function pareceTextoDePantalla(texto) {
   if (!LETRA.test(texto)) return false;
   if (/^(var\(|--|#|\/|\.\/|\.\.\/|https?:)/.test(texto)) return false;
-  return texto.includes(" ") || NO_ASCII.test(texto) || /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+$/.test(texto);
+  return (
+    texto.includes(" ") ||
+    NO_ASCII.test(texto) ||
+    /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+$/.test(texto)
+  );
 }
 
 function atributoPadre(nodo) {
   let actual = nodo.parent;
   while (actual && !ts.isSourceFile(actual)) {
     if (ts.isJsxAttribute(actual)) return actual.name.getText();
-    if (ts.isJsxElement(actual) || ts.isJsxSelfClosingElement(actual)) return null;
+    if (ts.isJsxElement(actual) || ts.isJsxSelfClosingElement(actual))
+      return null;
     actual = actual.parent;
   }
   return null;
@@ -81,17 +89,28 @@ function esImportacion(nodo) {
   return (
     ts.isImportDeclaration(padre) ||
     ts.isExportDeclaration(padre) ||
-    (ts.isCallExpression(padre) && padre.expression.kind === ts.SyntaxKind.ImportKeyword)
+    (ts.isCallExpression(padre) &&
+      padre.expression.kind === ts.SyntaxKind.ImportKeyword)
   );
 }
 
 function textosDe(ruta) {
   const codigo = fs.readFileSync(ruta, "utf8");
   const tipo = ruta.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const fuente = ts.createSourceFile(ruta, codigo, ts.ScriptTarget.Latest, true, tipo);
+  const fuente = ts.createSourceFile(
+    ruta,
+    codigo,
+    ts.ScriptTarget.Latest,
+    true,
+    tipo,
+  );
   const salida = [];
   const anotar = (nodo, texto) => {
-    const limpio = texto.replace(/\s+/g, " ").trim();
+    // `{{variable}}` de i18next cuenta igual que el `${...}` de antes.
+    const limpio = texto
+      .replace(/\{\{[^}]+\}\}/g, "{}")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!limpio || !pareceTextoDePantalla(limpio)) return;
     const atributo = atributoPadre(nodo);
     if (atributo && ATRIBUTOS_TECNICOS.has(atributo)) return;
@@ -100,10 +119,16 @@ function textosDe(ruta) {
   const visitar = (nodo) => {
     if (ts.isJsxText(nodo)) {
       anotar(nodo, nodo.getText());
-    } else if (ts.isStringLiteral(nodo) || ts.isNoSubstitutionTemplateLiteral(nodo)) {
+    } else if (
+      ts.isStringLiteral(nodo) ||
+      ts.isNoSubstitutionTemplateLiteral(nodo)
+    ) {
       if (!esImportacion(nodo)) anotar(nodo, nodo.text);
     } else if (ts.isTemplateExpression(nodo)) {
-      const partes = [nodo.head.text, ...nodo.templateSpans.map((s) => `{}${s.literal.text}`)];
+      const partes = [
+        nodo.head.text,
+        ...nodo.templateSpans.map((s) => `{}${s.literal.text}`),
+      ];
       anotar(nodo, partes.join(""));
     }
     ts.forEachChild(nodo, visitar);
@@ -114,14 +139,20 @@ function textosDe(ruta) {
 
 function inventario() {
   const todos = new Set();
-  for (const ruta of archivos(SRC)) for (const texto of textosDe(ruta)) todos.add(texto);
+  for (const ruta of archivos(SRC))
+    for (const texto of textosDe(ruta)) todos.add(texto);
   return [...todos].sort((a, b) => a.localeCompare(b, "es"));
 }
 
 function valoresDe(objeto, salida = []) {
   for (const valor of Object.values(objeto)) {
     if (typeof valor === "string") {
-      salida.push(valor.replace(/\{\{[^}]+\}\}/g, "{}").replace(/\s+/g, " ").trim());
+      salida.push(
+        valor
+          .replace(/\{\{[^}]+\}\}/g, "{}")
+          .replace(/\s+/g, " ")
+          .trim(),
+      );
     } else if (valor && typeof valor === "object") {
       valoresDe(valor, salida);
     }
@@ -133,7 +164,9 @@ const actual = inventario();
 
 if (process.argv.includes("--base")) {
   fs.writeFileSync(BASE, JSON.stringify(actual, null, 2) + "\n", "utf8");
-  console.log(`Referencia guardada: ${actual.length} textos en ${path.relative(RAIZ, BASE)}`);
+  console.log(
+    `Referencia guardada: ${actual.length} textos en ${path.relative(RAIZ, BASE)}`,
+  );
   process.exit(0);
 }
 
@@ -143,8 +176,13 @@ const enEs = valoresDe(JSON.parse(fs.readFileSync(ES, "utf8")));
 const enEsSet = new Set(enEs);
 // Un texto partido por una variable en JSX («Hola {x} adiós») queda en es.json
 // como una sola frase: basta con que aparezca dentro de ella.
+// Lo mismo en el código: con `Trans`, una frase partida por una negrita queda
+// como un solo texto por defecto («... me cuesta <b>7 US$ al mes</b> y ...»).
 const cubierto = (texto) =>
-  enCodigo.has(texto) || enEsSet.has(texto) || enEs.some((v) => v.includes(texto));
+  enCodigo.has(texto) ||
+  enEsSet.has(texto) ||
+  enEs.some((v) => v.includes(texto)) ||
+  actual.some((v) => v.includes(texto));
 
 const perdidos = base.filter((texto) => !cubierto(texto));
 const nuevos = actual.filter((texto) => !base.includes(texto));
@@ -152,9 +190,12 @@ const nuevos = actual.filter((texto) => !base.includes(texto));
 console.log(
   `Referencia: ${base.length} · en el código: ${actual.length} · en es.json: ${enEs.length}`,
 );
-if (nuevos.length) console.log(`Textos nuevos desde la referencia: ${nuevos.length}`);
+if (nuevos.length)
+  console.log(`Textos nuevos desde la referencia: ${nuevos.length}`);
 if (perdidos.length) {
-  console.log(`\nTextos en español que cambiaron o se perdieron (${perdidos.length}):`);
+  console.log(
+    `\nTextos en español que cambiaron o se perdieron (${perdidos.length}):`,
+  );
   for (const texto of perdidos) console.log(`  · ${texto}`);
   process.exit(1);
 }

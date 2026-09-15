@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 // Separador de miles único para toda la aplicación. No dependemos del locale
 // disponible en el navegador: el formato visible siempre es 1.234.567.
 export const number = (v: number) =>
@@ -80,14 +82,19 @@ export const date = (iso: string | null | undefined) => {
   return `${dd}/${mm}/${d.getFullYear()}`;
 };
 
+/** Cuánto hace, en el idioma de la app (traducción 2026-09-15; en español
+ *  dice lo mismo de siempre: «nunca», «ahora», «hace 3 h»). */
 export const relative = (iso: string | null) => {
-  if (!iso) return "nunca";
+  if (!iso) return i18n.t("formato.nunca", "nunca");
   const then = parseUtc(iso).getTime();
   const mins = Math.round((Date.now() - then) / 60000);
-  if (mins < 1) return "ahora";
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 1) return i18n.t("formato.ahora", "ahora");
+  if (mins < 60)
+    return i18n.t("formato.haceMin", "hace {{n}} min", { n: mins });
   const h = Math.round(mins / 60);
-  return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
+  return h < 24
+    ? i18n.t("formato.haceH", "hace {{n}} h", { n: h })
+    : i18n.t("formato.haceD", "hace {{n}} d", { n: Math.round(h / 24) });
 };
 
 /** Un porcentaje con la politica de la casa: decimales con PUNTO.

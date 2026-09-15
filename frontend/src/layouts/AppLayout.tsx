@@ -1,23 +1,24 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
 import { ApoyarProyecto } from "../components/ApoyarProyecto";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
-import { NAV, agrupar } from "./navegacion";
+import { NAV, USO, agrupar, nombreNav } from "./navegacion";
 import { SIGUIENTE_TEMA, useTema, type Tema } from "../hooks/useTheme";
 
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
+  // Suscribe el menú al idioma: al cambiarlo se vuelve a pintar.
+  const { t } = useTranslation();
   // «Uso» sólo se le enseña al dueño de la instalación. Esconder el enlace no
   // protege nada --el candado vive en el servidor-- pero evita enseñar a los
   // demás una puerta que no van a poder abrir.
   const profile = useSessionProfile();
-  const items = profile.data?.user.isAdmin
-    ? [...NAV, { to: "/uso", label: "Uso" }]
-    : NAV;
+  const items = profile.data?.user.isAdmin ? [...NAV, USO] : NAV;
   return (
     // El menú es uno de los dos landmarks de navegación de la página --el otro
     // son las migas, que sí se llamaban «Breadcrumb»--. Sin nombre, el menú de
@@ -27,7 +28,10 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
           interrumpe nunca, que es justo lo contrario de una ventana al
           entrar. Sólo aparece con la bandera encendida Y con enlace. */}
       <ApoyarProyecto forma="menu" />
-      <nav aria-label="Secciones de HT Lens" className="flex flex-col gap-0.5">
+      <nav
+        aria-label={t("layout.secciones", "Secciones de HT Lens")}
+        className="flex flex-col gap-0.5"
+      >
         {agrupar(items).map((grupo) => (
           <div key={grupo.titulo} className="flex flex-col gap-0.5">
             {/* El rótulo se pinta aquí y se REPITE como nombre de la lista de
@@ -38,14 +42,14 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
               aria-hidden="true"
               className="px-2 pb-1 pt-3 text-[11px] uppercase tracking-wide text-[var(--muted)]"
             >
-              {grupo.titulo}
+              {nombreNav(grupo.titulo, grupo.clave)}
             </div>
             {/* Una lista de verdad por grupo: los veinte enlaces eran hermanos
               sueltos, así que la agrupación que se ve --cinco bloques
               temáticos-- no existía para quien no la ve. Con `ul` se oye
               «lista de 6, elemento 3» y se sabe cuánto queda. */}
             <ul
-              aria-label={grupo.titulo}
+              aria-label={nombreNav(grupo.titulo, grupo.clave)}
               className="flex list-none flex-col gap-0.5"
             >
               {grupo.enlaces.map((item) => (
@@ -62,7 +66,7 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
                       )
                     }
                   >
-                    {item.label}
+                    {nombreNav(item.label, item.clave)}
                   </NavLink>
                 </li>
               ))}
@@ -85,6 +89,7 @@ function ClubNavigation({
   leagueName?: string | null;
   onNavigate?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {/* La versión al lado del nombre, en pequeño. Sirve para una pregunta
@@ -104,8 +109,14 @@ function ClubNavigation({
           className="text-[10px] font-normal tabular-nums text-[var(--muted)]"
           title={
             __COMMIT__
-              ? `Versión ${__VERSION__} · commit ${__COMMIT__}`
-              : `Versión ${__VERSION__}`
+              ? t(
+                  "layout.versionConCommit",
+                  "Versión {{version}} · commit {{commit}}",
+                  { version: __VERSION__, commit: __COMMIT__ },
+                )
+              : t("layout.version", "Versión {{version}}", {
+                  version: __VERSION__,
+                })
           }
         >
           v{__VERSION__}
@@ -123,12 +134,12 @@ function ClubNavigation({
   );
 }
 
-/** Cómo se llama cada estado del tema en voz alta. El ciclo vive junto al
- *  tipo, en `useTheme`, porque es lógica y se prueba aparte. */
-const ETIQUETA_TEMA: Record<Tema, string> = {
-  sistema: "el del sistema",
-  claro: "claro",
-  oscuro: "oscuro",
+/** Cómo se llama cada estado del tema en voz alta: clave y español. El ciclo
+ *  vive junto al tipo, en `useTheme`, porque es lógica y se prueba aparte. */
+const ETIQUETA_TEMA: Record<Tema, [string, string]> = {
+  sistema: ["layout.temaSistema", "el del sistema"],
+  claro: ["layout.temaClaro", "claro"],
+  oscuro: ["layout.temaOscuro", "oscuro"],
 };
 const ICONO_TEMA: Record<Tema, string> = {
   sistema: "◐",
@@ -137,6 +148,7 @@ const ICONO_TEMA: Record<Tema, string> = {
 };
 
 export function AppLayout() {
+  const { t } = useTranslation();
   const [tema, cambiarTema] = useTema();
   const { data } = useDashboard();
   const profile = useSessionProfile();
@@ -156,7 +168,11 @@ export function AppLayout() {
     onError: (error) =>
       setBanner({
         tone: "danger",
-        text: `No se pudo reconectar con Hattrick: ${errorMessage(error)}`,
+        text: t(
+          "layout.errorReconectar",
+          "No se pudo reconectar con Hattrick: {{error}}",
+          { error: errorMessage(error) },
+        ),
       }),
   });
 
@@ -164,6 +180,7 @@ export function AppLayout() {
     (item) => "to" in item && item.to === location.pathname,
   );
   const connected = profile.data?.connectionStatus === "active";
+  const nombreTema = (cual: Tema) => t(...ETIQUETA_TEMA[cual]);
 
   return (
     <div className="flex min-h-screen">
@@ -175,14 +192,14 @@ export function AppLayout() {
         href="#contenido"
         className="fixed left-3 -top-24 z-50 rounded-md border border-[var(--accent)] bg-[var(--surface)] px-4 py-2 text-sm shadow-lg transition-[top] focus:top-3"
       >
-        Saltar al contenido
+        {t("layout.saltar", "Saltar al contenido")}
       </a>
       {mobileOpen && (
         <div className="fixed inset-0 z-30 lg:hidden">
           <button
             className="absolute inset-0 bg-black/55"
             onClick={() => setMobileOpen(false)}
-            aria-label="Cerrar menú"
+            aria-label={t("layout.cerrarMenu", "Cerrar menú")}
           />
           <aside className="relative h-full w-72 max-w-[86vw] overflow-y-auto border-r border-[var(--border)] bg-[var(--bg)] p-3 shadow-2xl">
             <div className="mb-1 flex justify-end">
@@ -190,7 +207,7 @@ export function AppLayout() {
                 className="rounded-md px-2 py-1 text-sm text-[var(--muted)]"
                 onClick={() => setMobileOpen(false)}
               >
-                Cerrar ×
+                {t("layout.cerrar", "Cerrar ×")}
               </button>
             </div>
             <ClubNavigation
@@ -216,7 +233,7 @@ export function AppLayout() {
           <button
             className="rounded-md border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--muted)] lg:hidden"
             onClick={() => setMobileOpen(true)}
-            aria-label="Abrir menú"
+            aria-label={t("layout.abrirMenu", "Abrir menú")}
             aria-expanded={mobileOpen}
           >
             ☰
@@ -227,7 +244,9 @@ export function AppLayout() {
             className="min-w-0 truncate text-sm text-[var(--muted)]"
           >
             <span className="font-medium text-[var(--text)]">
-              {current && "label" in current ? current.label : "HT Lens"}
+              {current && "label" in current && current.label
+                ? nombreNav(current.label, current.clave)
+                : "HT Lens"}
             </span>
             <span className="hidden sm:inline">
               {data?.teamName && ` · ${data.teamName}`}
@@ -247,7 +266,10 @@ export function AppLayout() {
           <div className="ml-auto hidden shrink-0 sm:block">
             <ImagenOpcional
               src={SELLO_PROVEEDOR}
-              alt="Proveedor certificado de productos Hattrick"
+              alt={t(
+                "layout.sello",
+                "Proveedor certificado de productos Hattrick",
+              )}
               width={88}
               height={35}
               className="h-7 w-auto object-contain"
@@ -267,25 +289,31 @@ export function AppLayout() {
             >
               <span aria-hidden="true">{connected ? "✓" : "!"}</span>
               <span className="ml-1 hidden md:inline">
-                {connected ? "Hattrick conectado" : "Reconectar Hattrick"}
+                {connected
+                  ? t("layout.conectado", "Hattrick conectado")
+                  : t("layout.reconectar", "Reconectar Hattrick")}
               </span>
             </button>
             {accountOpen && (
               <div className="absolute right-0 top-11 z-20 w-64 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-xl">
                 <div className="text-sm font-semibold">
-                  {profile.data?.user.loginName ?? "Cuenta Hattrick"}
+                  {profile.data?.user.loginName ??
+                    t("layout.cuenta", "Cuenta Hattrick")}
                 </div>
                 <div className="mt-1 text-xs text-[var(--muted)]">
                   {connected
-                    ? "Conexión con Hattrick activa"
-                    : "La conexión requiere atención"}
+                    ? t("layout.conexionActiva", "Conexión con Hattrick activa")
+                    : t(
+                        "layout.conexionAtencion",
+                        "La conexión requiere atención",
+                      )}
                 </div>
                 <div className="mt-3 border-t border-[var(--border)] pt-3">
                   <Link
                     to="/setup"
                     className="block rounded-md px-2 py-1.5 text-sm hover:bg-[var(--surface-2)]"
                   >
-                    Club e importación
+                    {t("layout.clubImportacion", "Club e importación")}
                   </Link>
                   <button
                     onClick={() => connect.mutate()}
@@ -293,8 +321,8 @@ export function AppLayout() {
                     className="mt-1 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--surface-2)] disabled:opacity-60"
                   >
                     {connect.isPending
-                      ? "Abriendo Hattrick…"
-                      : "Reconectar con Hattrick"}
+                      ? t("layout.abriendoHattrick", "Abriendo Hattrick…")
+                      : t("layout.reconectarCon", "Reconectar con Hattrick")}
                   </button>
                 </div>
               </div>
@@ -313,7 +341,9 @@ export function AppLayout() {
                 : "bg-[var(--positive)]/15 text-[var(--positive)]",
             )}
           >
-            <span className="hidden sm:inline">Datos de </span>
+            <span className="hidden sm:inline">
+              {t("layout.datosDe", "Datos de")}{" "}
+            </span>
             {relative(data?.syncedAt ?? null)}
           </Link>
 
@@ -323,8 +353,17 @@ export function AppLayout() {
               cuál está, porque el estado no puede vivir sólo en el icono. */}
           <button
             onClick={() => cambiarTema(SIGUIENTE_TEMA[tema])}
-            aria-label={`Tema: ${ETIQUETA_TEMA[tema]}. Cambiar a ${ETIQUETA_TEMA[SIGUIENTE_TEMA[tema]]}`}
-            title={`Tema: ${ETIQUETA_TEMA[tema]}`}
+            aria-label={t(
+              "layout.temaCambiar",
+              "Tema: {{actual}}. Cambiar a {{siguiente}}",
+              {
+                actual: nombreTema(tema),
+                siguiente: nombreTema(SIGUIENTE_TEMA[tema]),
+              },
+            )}
+            title={t("layout.tema", "Tema: {{actual}}", {
+              actual: nombreTema(tema),
+            })}
             className="rounded-md border border-[var(--border)] px-2 py-1.5 text-sm text-[var(--muted)]"
           >
             <span aria-hidden="true">{ICONO_TEMA[tema]}</span>
@@ -346,7 +385,7 @@ export function AppLayout() {
             <span>{banner.text}</span>
             <button
               onClick={() => setBanner(null)}
-              aria-label="Descartar aviso"
+              aria-label={t("layout.descartarAviso", "Descartar aviso")}
               className="shrink-0 opacity-70 hover:opacity-100"
             >
               ×

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import { hayApoyo } from "../config/apoyo";
 
 /**
@@ -23,15 +24,17 @@ import { hayApoyo } from "../config/apoyo";
 export function MensajeDeApoyo() {
   return (
     <p className="prosa max-w-prose text-sm leading-relaxed text-[var(--muted)]">
-      Mantener esta página me cuesta{" "}
-      <b className="text-[var(--text)]">7 US$ al mes</b> y los pago yo. Si te
-      está sirviendo, apóyame, escríbeme en el libro de visitas: podemos
-      trabajar juntos en funcionalidades nuevas.
+      <Trans
+        i18nKey="apoyo.mensaje"
+        defaults="Mantener esta página me cuesta <b>7 US$ al mes</b> y los pago yo. Si te está sirviendo, apóyame, escríbeme en el libro de visitas: podemos trabajar juntos en funcionalidades nuevas."
+        components={{ b: <b className="text-[var(--text)]" /> }}
+      />
     </p>
   );
 }
 
 export function ApoyarProyecto({ forma }: { forma: "menu" | "pagina" }) {
+  const { t } = useTranslation();
   // La condición se pregunta en `hayApoyo`, no aquí: si cada sitio la
   // repitiera, un día discreparían.
   if (!hayApoyo()) return null;
@@ -42,6 +45,7 @@ export function ApoyarProyecto({ forma }: { forma: "menu" | "pagina" }) {
   // sueco. Además Bre-B es una LLAVE que hay que copiar, no una URL: en un
   // enlace directo no cabía (2026-09-05).
   const destino = "/apoyar";
+  const texto = t("apoyo.boton", "Invítame a un café");
 
   if (forma === "menu") {
     return (
@@ -50,7 +54,7 @@ export function ApoyarProyecto({ forma }: { forma: "menu" | "pagina" }) {
         className="mb-1 flex items-center justify-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
       >
         <span aria-hidden="true">☕</span>
-        Invítame a un café
+        {texto}
       </Link>
     );
   }
@@ -61,7 +65,7 @@ export function ApoyarProyecto({ forma }: { forma: "menu" | "pagina" }) {
       className="inline-flex items-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
     >
       <span aria-hidden="true">☕</span>
-      Invítame a un café
+      {texto}
     </Link>
   );
 }
