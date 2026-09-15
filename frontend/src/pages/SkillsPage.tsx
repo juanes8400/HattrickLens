@@ -1,5 +1,7 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { Tabs } from "../components/Tabs";
 import {
   ErrorState,
@@ -11,7 +13,11 @@ import {
 } from "../components/Panels";
 import { useSkills } from "../hooks/useTeam";
 import { skillLevelLabel } from "../utils/skillLevels";
-import { Specialty, specialtyIcon } from "../components/Specialty";
+import {
+  Specialty,
+  specialtyIcon,
+  specialtyLabel,
+} from "../components/Specialty";
 import { SplitSelector } from "../components/SplitSelector";
 import { FORMATIONS } from "../services/api";
 import type { SkillsCandidate, SkillsTone } from "../services/api";
@@ -37,6 +43,14 @@ const GRUPO: Record<string, string> = {
   EXT: "Extremos",
   DEL: "Delanteros",
 };
+
+/** El rótulo del grupo en el idioma de la app. */
+function nombreDeGrupo(sigla: string | null | undefined): string {
+  const es = GRUPO[sigla ?? ""];
+  return es
+    ? i18n.t(`habilidades.grupo.${sigla}`, es)
+    : i18n.t("habilidades.sinPuesto", "Sin puesto reciente");
+}
 
 const COLOR: Record<SkillsTone, string> = {
   danger: "var(--danger)",
@@ -74,11 +88,12 @@ function ventaja(pct: number) {
   return n > 0 ? `+${n}%` : n < 0 ? `−${Math.abs(n)}%` : "0%";
 }
 
-/** 16,8 · 211: con coma decimal y sin ceros sobrantes. */
+/** 16,8 · 211: con coma decimal y sin ceros sobrantes (en español; cada
+ *  idioma con su separador). */
 function decimal(n: number | undefined) {
   // Tolera un dato guardado en el navegador con la forma de antes: la página
   // no puede romperse porque llegue un campo que todavía no existía.
-  return (n ?? 0).toLocaleString("es", { maximumFractionDigits: 1 });
+  return (n ?? 0).toLocaleString(i18n.language, { maximumFractionDigits: 1 });
 }
 
 /** «Bordalás» y debajo «rendimiento 17,9 · Defensa 18 (mágico)». */
@@ -89,15 +104,29 @@ function Nombrado({
   candidato: SkillsCandidate | null;
   habilidad: string;
 }) {
-  if (!candidato) return <span className="text-[var(--muted)]">nadie</span>;
+  const { t } = useTranslation();
+  if (!candidato)
+    return (
+      <span className="text-[var(--muted)]">
+        {t("habilidades.nadie", "nadie")}
+      </span>
+    );
   return (
     <span>
       <Link to={`/players/${candidato.htPlayerId}`} className="hover:underline">
         {candidato.name}
       </Link>
       <span className="block text-xs text-[var(--muted)]">
-        rendimiento {decimal(candidato.rating)} · {habilidad}{" "}
-        {candidato.skillLevel} ({skillLevelLabel(candidato.skillLevel)})
+        {t(
+          "habilidades.rendimientoDe",
+          "rendimiento {{r}} · {{habilidad}} {{nivel}} ({{etiqueta}})",
+          {
+            r: decimal(candidato.rating),
+            habilidad,
+            nivel: candidato.skillLevel,
+            etiqueta: skillLevelLabel(candidato.skillLevel),
+          },
+        )}
       </span>
     </span>
   );
@@ -109,6 +138,7 @@ function intensidad(nivel: number) {
 }
 
 export function SkillsPage() {
+  const { t } = useTranslation();
   const [vista, setVista] = useState<Vista>("once");
   // La formación de Profundidad: vacía = la del último partido oficial.
   const [formacion, setFormacion] = useState("");
@@ -172,72 +202,134 @@ export function SkillsPage() {
     }, {}),
   )
     .sort((a, b) => b[1] - a[1])
-    .map(([e, n]) => `${specialtyIcon(e) ?? ""} ${e} ${n}`.trim())
+    .map(([e, n]) =>
+      `${specialtyIcon(e) ?? ""} ${specialtyLabel(e)} ${n}`.trim(),
+    )
     .join(" · ");
+  const defensasCentrales = t("comun.defensasCentrales", "Defensas Centrales");
+  const mediocentros = t("comun.mediocentros", "Mediocentros");
+  const cuelloDeBotella = t("habilidades.cuello", "Cuello de botella");
 
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Habilidades (Profundidad)</h1>
+        <h1 className="text-xl font-semibold">
+          {t("habilidades.titulo", "Habilidades (Profundidad)")}
+        </h1>
         <p className="text-sm text-[var(--muted)]">
-          Qué tiene la plantilla, dónde le falta y qué subida rinde más
+          {t(
+            "habilidades.intro",
+            "Qué tiene la plantilla, dónde le falta y qué subida rinde más",
+          )}
         </p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi
-          label="Mejor cubierto"
+          label={t("habilidades.mejorCubierto", "Mejor cubierto")}
           value={mejorCubierto?.label ?? "-"}
           hint={
             mejorCubierto?.substitute && mejorCubierto.dropPct != null
-              ? `entra ${mejorCubierto.substitute.name} y pierdes un ${Math.round(mejorCubierto.dropPct)} %`
+              ? t(
+                  "habilidades.entraYPierdes",
+                  "entra {{suplente}} y pierdes un {{pct}} %",
+                  {
+                    suplente: mejorCubierto.substitute.name,
+                    pct: Math.round(mejorCubierto.dropPct),
+                  },
+                )
               : undefined
           }
-          ayuda="El puesto de la formación elegida en Profundidad donde menos se nota que falte el mejor titular: el suplente del banquillo rinde casi igual."
+          ayuda={t(
+            "habilidades.mejorCubiertoAyuda",
+            "El puesto de la formación elegida en Profundidad donde menos se nota que falte el mejor titular: el suplente del banquillo rinde casi igual.",
+          )}
         />
         <Kpi
-          label="Hueco más serio"
+          label={t("habilidades.hueco", "Hueco más serio")}
           value={hueco?.label ?? "-"}
           hint={
             hueco
               ? hueco.best && hueco.substitute && hueco.dropPct != null
-                ? `si falta ${hueco.best.name}, entra ${hueco.substitute.name} y pierdes un ${Math.round(hueco.dropPct)} %`
-                : "no hay nadie en el banquillo"
+                ? t(
+                    "habilidades.siFaltaEntra",
+                    "si falta {{titular}}, entra {{suplente}} y pierdes un {{pct}} %",
+                    {
+                      titular: hueco.best.name,
+                      suplente: hueco.substitute.name,
+                      pct: Math.round(hueco.dropPct),
+                    },
+                  )
+                : t(
+                    "habilidades.nadieBanquillo",
+                    "no hay nadie en el banquillo",
+                  )
               : undefined
           }
           tone={hueco?.tone === "danger" ? "danger" : undefined}
-          ayuda="El puesto de la formación elegida en Profundidad donde más rendimiento pierdes si falta el mejor titular y entra el mejor del banquillo."
+          ayuda={t(
+            "habilidades.huecoAyuda",
+            "El puesto de la formación elegida en Profundidad donde más rendimiento pierdes si falta el mejor titular y entra el mejor del banquillo.",
+          )}
         />
         <Kpi
-          label="Cuello de botella"
+          label={cuelloDeBotella}
           value={data.bottleneck ?? "-"}
           hint={
             cuello
-              ? `${ventaja(cuello.marginPct)} frente a ${cuello.bestRival}`
-              : "hace falta un partido oficial con ratings"
+              ? t("habilidades.frenteA", "{{ventaja}} frente a {{rival}}", {
+                  ventaja: ventaja(cuello.marginPct),
+                  rival: cuello.bestRival,
+                })
+              : t(
+                  "habilidades.faltaPartido",
+                  "hace falta un partido oficial con ratings",
+                )
           }
           tone={cuello?.tone === "danger" ? "danger" : undefined}
-          ayuda="El sector con menos ventaja sobre el mejor rival de tu serie en ese sector, con la media de los últimos 5 partidos oficiales de cada equipo. Si vas por detrás, es donde más pierdes."
+          ayuda={t(
+            "habilidades.cuelloAyuda",
+            "El sector con menos ventaja sobre el mejor rival de tu serie en ese sector, con la media de los últimos 5 partidos oficiales de cada equipo. Si vas por detrás, es donde más pierdes.",
+          )}
         />
         <Kpi
-          label="Especialistas"
-          value={`${especialistas.length} de ${data.players.length}`}
-          hint={porEspecialidad || "ninguno"}
+          label={t("habilidades.especialistas", "Especialistas")}
+          value={t("comun.nDeTotal", "{{n}} de {{total}}", {
+            n: especialistas.length,
+            total: data.players.length,
+          })}
+          hint={porEspecialidad || t("habilidades.ninguno", "ninguno")}
         />
       </div>
 
       <Panel
-        title="Mapa de la plantilla"
-        meta="pasa el cursor por un número para ver su nivel"
+        title={t("habilidades.mapa", "Mapa de la plantilla")}
+        meta={t(
+          "habilidades.mapaMeta",
+          "pasa el cursor por un número para ver su nivel",
+        )}
       >
         <div className="px-4 pt-3">
           <Tabs
             modo="filtro"
-            label="Qué jugadores se miran"
+            label={t("habilidades.queJugadores", "Qué jugadores se miran")}
             tabs={[
-              ...(hayOnce ? [{ key: "once", label: "Último once" }] : []),
-              { key: "todos", label: "Toda la plantilla" },
-              { key: "sanos", label: "Sin lesionados" },
+              ...(hayOnce
+                ? [
+                    {
+                      key: "once",
+                      label: t("habilidades.ultimoOnce", "Último once"),
+                    },
+                  ]
+                : []),
+              {
+                key: "todos",
+                label: t("habilidades.todaPlantilla", "Toda la plantilla"),
+              },
+              {
+                key: "sanos",
+                label: t("habilidades.sinLesionados", "Sin lesionados"),
+              },
             ]}
             active={vistaReal}
             onChange={(v) => setVista(v as Vista)}
@@ -252,7 +344,7 @@ export function SkillsPage() {
             <thead>
               <tr className="text-[var(--muted)]">
                 <th className="sticky left-0 z-10 w-[12rem] bg-[var(--surface)] pr-3 text-right font-normal">
-                  Jugador
+                  {t("jugadores.jugador", "Jugador")}
                 </th>
                 {data.skills.map((s) => (
                   <th
@@ -263,17 +355,16 @@ export function SkillsPage() {
                   </th>
                 ))}
                 <th className="w-[7rem] pl-3 text-left font-normal">
-                  Especialidad
+                  {t("jugadores.especialidad", "Especialidad")}
                 </th>
               </tr>
             </thead>
             <tbody>
               {jugadores.map((p, i) => {
-                const grupo = GRUPO[p.position ?? ""] ?? "Sin puesto reciente";
+                const grupo = nombreDeGrupo(p.position);
                 const empiezaGrupo =
                   i === 0 ||
-                  (GRUPO[jugadores[i - 1]?.position ?? ""] ??
-                    "Sin puesto reciente") !== grupo;
+                  nombreDeGrupo(jugadores[i - 1]?.position) !== grupo;
                 return (
                   <Fragment key={p.htPlayerId}>
                     {empiezaGrupo && (
@@ -296,7 +387,7 @@ export function SkillsPage() {
                         </Link>
                         {p.injured && (
                           <span className="ml-1.5 text-[var(--danger)]">
-                            lesionado
+                            {t("habilidades.lesionado", "lesionado")}
                           </span>
                         )}
                       </td>
@@ -352,7 +443,7 @@ export function SkillsPage() {
               className="inline-block h-3 w-5 rounded-sm"
               style={{ boxShadow: "inset 0 0 0 1.5px var(--text)" }}
             />
-            habilidad de su puesto
+            {t("habilidades.deSuPuesto", "habilidad de su puesto")}
           </span>
         </div>
       </Panel>
@@ -361,11 +452,16 @@ export function SkillsPage() {
           compara al mejor con el segundo mejor --que suele ser titular
           también--, sino con el mejor del BANQUILLO en ese puesto, que es
           quien entraría de verdad. Ordenados por rendimiento en el puesto. */}
-      <Panel title="Profundidad" meta="sin contar lesionados">
+      <Panel
+        title={t("habilidades.profundidad", "Profundidad")}
+        meta={t("habilidades.sinContarLesionados", "sin contar lesionados")}
+      >
         {profundidadVigente.length === 0 ? (
           <Note>
-            Aparece cuando haya un partido oficial con su alineación: de ahí
-            salen los puestos y cuántos jugaron de cada uno.
+            {t(
+              "habilidades.profundidadVacia",
+              "Aparece cuando haya un partido oficial con su alineación: de ahí salen los puestos y cuántos jugaron de cada uno.",
+            )}
           </Note>
         ) : (
           <>
@@ -376,9 +472,12 @@ export function SkillsPage() {
               {/* Los mismos mandos que el mejor once del Dashboard: rótulo
                   «Formación» con su lista y, al lado, cuántos por dentro. */}
               <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                Formación
+                {t("dashboard.formacion", "Formación")}
                 <select
-                  aria-label="Formación para calcular la profundidad"
+                  aria-label={t(
+                    "habilidades.formacionAria",
+                    "Formación para calcular la profundidad",
+                  )}
                   value={data.depthFormation ?? ""}
                   onChange={(e) => {
                     const elegida = e.target.value;
@@ -390,13 +489,21 @@ export function SkillsPage() {
                 >
                   {FORMATIONS.map((f) => (
                     <option key={f} value={f}>
-                      {f === data.formation ? `${f} · la última oficial` : f}
+                      {f === data.formation
+                        ? t(
+                            "habilidades.laUltimaOficial",
+                            "{{f}} · la última oficial",
+                            {
+                              f,
+                            },
+                          )
+                        : f}
                     </option>
                   ))}
                 </select>
               </label>
               <SplitSelector
-                label="Defensas Centrales"
+                label={defensasCentrales}
                 value={data.depthCentralDefenders ?? undefined}
                 options={data.centralDefenderOptions ?? []}
                 onChange={(v) => {
@@ -406,7 +513,7 @@ export function SkillsPage() {
                 }}
               />
               <SplitSelector
-                label="Mediocentros"
+                label={mediocentros}
                 value={data.depthInnerMidfielders ?? undefined}
                 options={data.innerMidfielderOptions ?? []}
                 onChange={(v) => {
@@ -425,7 +532,7 @@ export function SkillsPage() {
                   }}
                   className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:border-[var(--accent)]"
                 >
-                  Volver a la última oficial
+                  {t("habilidades.volverUltima", "Volver a la última oficial")}
                 </button>
               )}
             </div>
@@ -437,40 +544,56 @@ export function SkillsPage() {
                   }
                 >
                   {esLaUltima
-                    ? "Estás viendo tu última formación oficial"
-                    : "Tu última formación oficial"}
+                    ? t(
+                        "habilidades.estasViendoUltima",
+                        "Estás viendo tu última formación oficial",
+                      )
+                    : t("habilidades.tuUltima", "Tu última formación oficial")}
                   {data.lastMatchDate ? ` (${data.lastMatchDate})` : ""}:{" "}
                 </span>
-                <b>{data.formation}</b> con {data.lastCentralDefenders}{" "}
-                {data.lastCentralDefenders === 1
-                  ? "Defensa Central"
-                  : "Defensas Centrales"}{" "}
-                y {data.lastInnerMidfielders}{" "}
-                {data.lastInnerMidfielders === 1
-                  ? "Mediocentro"
-                  : "Mediocentros"}
+                <b>{data.formation}</b>{" "}
+                {t("habilidades.conReparto", "con {{dc}} y {{mc}}", {
+                  dc: `${data.lastCentralDefenders} ${
+                    data.lastCentralDefenders === 1
+                      ? t("comun.defensaCentralMayus", "Defensa Central")
+                      : defensasCentrales
+                  }`,
+                  mc: `${data.lastInnerMidfielders} ${
+                    data.lastInnerMidfielders === 1
+                      ? t("comun.mediocentro", "Mediocentro")
+                      : mediocentros
+                  }`,
+                })}
               </p>
             )}
             <p className="prosa px-4 pt-2 text-sm text-[var(--muted)]">
-              Si falta el mejor titular de un puesto (por lesión, venta o
-              sanción), quién del banquillo entraría y cuánto rendimiento
-              perderías. El rendimiento es el mismo de la pantalla Posiciones:
-              tiene en cuenta todas las habilidades del puesto, la forma y la
-              experiencia.
+              {t(
+                "habilidades.explicacion",
+                "Si falta el mejor titular de un puesto (por lesión, venta o sanción), quién del banquillo entraría y cuánto rendimiento perderías. El rendimiento es el mismo de la pantalla Posiciones: tiene en cuenta todas las habilidades del puesto, la forma y la experiencia.",
+              )}
             </p>
             <div className="overflow-x-auto px-4 pb-4 pt-2">
               <table className="w-full min-w-[40rem] text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
-                    <th className="py-2 pr-3 font-normal">Puesto</th>
-                    <th className="py-2 pr-3 font-normal">Mejor titular</th>
                     <th className="py-2 pr-3 font-normal">
-                      Si falta, entra del banquillo
+                      {t("habilidades.puesto", "Puesto")}
+                    </th>
+                    <th className="py-2 pr-3 font-normal">
+                      {t("habilidades.mejorTitular", "Mejor titular")}
+                    </th>
+                    <th className="py-2 pr-3 font-normal">
+                      {t(
+                        "habilidades.siFalta",
+                        "Si falta, entra del banquillo",
+                      )}
                     </th>
                     <th className="py-2 pr-3 text-right font-normal">
-                      Pierdes
+                      {t("habilidades.pierdes", "Pierdes")}
                     </th>
-                    <th className="py-2 font-normal">Estado</th>
+                    <th className="py-2 font-normal">
+                      {t("habilidades.estado", "Estado")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
@@ -481,15 +604,24 @@ export function SkillsPage() {
                         {puestosDelCuello.has(d.key) && cuello && (
                           <span
                             className="ml-1.5"
-                            title={`Cuello de botella: el ${cuello.label.toLowerCase()} es el sector donde menos ventaja le sacas a tu serie`}
-                            aria-label="Cuello de botella"
+                            title={t(
+                              "habilidades.cuelloTitle",
+                              "Cuello de botella: el {{sector}} es el sector donde menos ventaja le sacas a tu serie",
+                              { sector: cuello.label.toLowerCase() },
+                            )}
+                            aria-label={cuelloDeBotella}
                           >
                             🍾
                           </span>
                         )}
                         <span className="block text-xs text-[var(--muted)]">
-                          {d.starters}{" "}
-                          {d.starters === 1 ? "titular" : "titulares"}
+                          {d.starters === 1
+                            ? t("habilidades.unTitular", "{{n}} titular", {
+                                n: d.starters,
+                              })
+                            : t("habilidades.nTitulares", "{{n}} titulares", {
+                                n: d.starters,
+                              })}
                         </span>
                       </td>
                       <td className="py-2 pr-3">
@@ -503,17 +635,35 @@ export function SkillsPage() {
                         {d.alsoCovers.length > 0 && (
                           <span
                             className="block text-xs text-[var(--warning)]"
-                            title={`También es el primer recambio de: ${d.alsoCovers.join(", ")}`}
+                            title={t(
+                              "habilidades.tambienTitle",
+                              "También es el primer recambio de: {{puestos}}",
+                              { puestos: d.alsoCovers.join(", ") },
+                            )}
                           >
                             {d.alsoCovers.length === 1
-                              ? `también es el recambio de ${d.alsoCovers[0]}`
-                              : `y de ${d.alsoCovers.length} puestos más`}
+                              ? t(
+                                  "habilidades.tambienUno",
+                                  "también es el recambio de {{puesto}}",
+                                  { puesto: d.alsoCovers[0] },
+                                )
+                              : t(
+                                  "habilidades.tambienVarios",
+                                  "y de {{n}} puestos más",
+                                  { n: d.alsoCovers.length },
+                                )}
                           </span>
                         )}
                         {d.alsoCovers.length > 0 && d.nextSubstitute && (
                           <span className="block text-xs text-[var(--muted)]">
-                            si ya está ocupado, entra {d.nextSubstitute.name}{" "}
-                            (rendimiento {decimal(d.nextSubstitute.rating)})
+                            {t(
+                              "habilidades.siOcupado",
+                              "si ya está ocupado, entra {{jugador}} (rendimiento {{r}})",
+                              {
+                                jugador: d.nextSubstitute.name,
+                                r: decimal(d.nextSubstitute.rating),
+                              },
+                            )}
                           </span>
                         )}
                       </td>
@@ -521,25 +671,37 @@ export function SkillsPage() {
                         {d.dropPct == null
                           ? "-"
                           : d.dropPct < 0.5
-                            ? "nada"
+                            ? t("habilidades.nada", "nada")
                             : `${Math.round(d.dropPct)} %`}
                       </td>
                       <td className="py-2">
                         <span
                           title={
                             d.tone === "danger"
-                              ? "Pierdes un 30 % o más, o no hay nadie en el banquillo."
+                              ? t(
+                                  "habilidades.tonoDanger",
+                                  "Pierdes un 30 % o más, o no hay nadie en el banquillo.",
+                                )
                               : d.tone === "warning"
-                                ? "Pierdes entre un 15 y un 30 %."
-                                : "Pierdes menos de un 15 %."
+                                ? t(
+                                    "habilidades.tonoWarning",
+                                    "Pierdes entre un 15 y un 30 %.",
+                                  )
+                                : t(
+                                    "habilidades.tonoOk",
+                                    "Pierdes menos de un 15 %.",
+                                  )
                           }
                         >
                           <Pastilla tone={d.tone}>
                             {d.tone === "danger"
-                              ? "🚨 Hueco"
+                              ? t("habilidades.pastillaHueco", "🚨 Hueco")
                               : d.tone === "warning"
-                                ? "⚠️ Cuidado"
-                                : "✅ Cubierto"}
+                                ? t("habilidades.pastillaCuidado", "⚠️ Cuidado")
+                                : t(
+                                    "habilidades.pastillaCubierto",
+                                    "✅ Cubierto",
+                                  )}
                           </Pastilla>
                         </span>
                       </td>
@@ -549,8 +711,11 @@ export function SkillsPage() {
               </table>
               {cuello && puestosDelCuello.size > 0 && (
                 <p className="pt-2 text-xs text-[var(--muted)]">
-                  🍾 cuello de botella: el {cuello.label.toLowerCase()}, donde
-                  menos ventaja le sacas a tu serie
+                  {t(
+                    "habilidades.cuelloPie",
+                    "🍾 cuello de botella: el {{sector}}, donde menos ventaja le sacas a tu serie",
+                    { sector: cuello.label.toLowerCase() },
+                  )}
                 </p>
               )}
             </div>
@@ -558,18 +723,21 @@ export function SkillsPage() {
         )}
       </Panel>
 
-      <Panel title="Cuello de botella">
+      <Panel title={cuelloDeBotella}>
         {data.sectors.length === 0 ? (
           <Note>
-            Aparece cuando haya partidos oficiales con sus ratings y la
-            alineación del último.
+            {t(
+              "habilidades.cuelloVacio",
+              "Aparece cuando haya partidos oficiales con sus ratings y la alineación del último.",
+            )}
           </Note>
         ) : (
           <div className="space-y-5 px-4 py-4">
             <p className="prosa text-sm text-[var(--muted)]">
-              Cada sector de tu equipo frente al mejor rival de tu serie en ese
-              mismo sector, con la media de los últimos 5 partidos oficiales. El
-              cuello de botella es donde menos ventaja le sacas.
+              {t(
+                "habilidades.cuelloExplicacion",
+                "Cada sector de tu equipo frente al mejor rival de tu serie en ese mismo sector, con la media de los últimos 5 partidos oficiales. El cuello de botella es donde menos ventaja le sacas.",
+              )}
             </p>
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -591,15 +759,21 @@ export function SkillsPage() {
                     </div>
                     <div className="mt-3 space-y-1.5 text-xs">
                       {[
-                        { quien: "Tú", valor: s.rating, color: COLOR[s.tone] },
                         {
+                          id: "tu",
+                          quien: t("habilidades.tuMayus", "Tú"),
+                          valor: s.rating,
+                          color: COLOR[s.tone],
+                        },
+                        {
+                          id: "rival",
                           quien: s.bestRival,
                           valor: s.bestRivalValue ?? 0,
                           color: "var(--muted)",
                         },
                       ].map((b) => (
                         <div
-                          key={b.quien}
+                          key={b.id}
                           className="grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)_2.5rem] items-center gap-2"
                         >
                           <span className="truncate" title={b.quien}>
@@ -622,14 +796,31 @@ export function SkillsPage() {
                     </div>
                     <div className="mt-2 text-sm">
                       {s.marginPct < 0
-                        ? `Vas un ${Math.round(-s.marginPct)} % por detrás`
+                        ? t(
+                            "habilidades.vasDetras",
+                            "Vas un {{pct}} % por detrás",
+                            { pct: Math.round(-s.marginPct) },
+                          )
                         : s.marginPct < 0.5
-                          ? "Empatas con el mejor rival"
-                          : `Le sacas un ${Math.round(s.marginPct)} % de ventaja`}
+                          ? t(
+                              "habilidades.empatas",
+                              "Empatas con el mejor rival",
+                            )
+                          : t(
+                              "habilidades.leSacas",
+                              "Le sacas un {{pct}} % de ventaja",
+                              { pct: Math.round(s.marginPct) },
+                            )}
                     </div>
                     {s.who && (
                       <div className="mt-1 text-xs text-[var(--muted)]">
-                        Lo sostienen: {s.who}
+                        {t(
+                          "habilidades.loSostienen",
+                          "Lo sostienen: {{quien}}",
+                          {
+                            quien: s.who,
+                          },
+                        )}
                       </div>
                     )}
                   </div>
@@ -640,12 +831,21 @@ export function SkillsPage() {
             {data.upgrades.length > 0 && data.bottleneck && (
               <div>
                 <div className="text-sm font-medium">
-                  Qué subir primero para el {data.bottleneck.toLowerCase()}
+                  {t(
+                    "habilidades.queSubir",
+                    "Qué subir primero para el {{sector}}",
+                    { sector: data.bottleneck.toLowerCase() },
+                  )}
                 </div>
                 <p className="prosa mt-0.5 text-xs text-[var(--muted)]">
-                  Con tu once titular del {data.lastMatchDate}
-                  {data.formation ? ` (${data.formation})` : ""}: un nivel más
-                  de estas habilidades es lo que más empuja ese sector.
+                  {t(
+                    "habilidades.conTuOnce",
+                    "Con tu once titular del {{fecha}}{{formacion}}: un nivel más de estas habilidades es lo que más empuja ese sector.",
+                    {
+                      fecha: data.lastMatchDate,
+                      formacion: data.formation ? ` (${data.formation})` : "",
+                    },
+                  )}
                 </p>
                 <div className="mt-2 divide-y divide-[var(--border)]">
                   {data.upgrades.map((u, i) => (
@@ -655,15 +855,31 @@ export function SkillsPage() {
                     >
                       <span className="text-[var(--muted)]">{i + 1}</span>
                       <span className="min-w-0">
-                        {u.skillLabel} de {u.player}: {u.fromLevel} →{" "}
-                        {u.fromLevel + 1}
+                        {t(
+                          "habilidades.subida",
+                          "{{habilidad}} de {{jugador}}: {{de}} → {{a}}",
+                          {
+                            habilidad: u.skillLabel,
+                            jugador: u.player,
+                            de: u.fromLevel,
+                            a: u.fromLevel + 1,
+                          },
+                        )}
                         <span className="block text-xs text-[var(--muted)]">
-                          el {data.bottleneck?.toLowerCase()} del once sube un{" "}
-                          {decimal(u.gainPct)} %
+                          {t(
+                            "habilidades.subeUn",
+                            "el {{sector}} del once sube un {{pct}} %",
+                            {
+                              sector: data.bottleneck?.toLowerCase(),
+                              pct: decimal(u.gainPct),
+                            },
+                          )}
                         </span>
                       </span>
                       <Pastilla tone={u.impact === "Alto" ? "ok" : "warning"}>
-                        {u.impact === "Alto" ? "Mayor efecto" : "Efecto medio"}
+                        {u.impact === "Alto"
+                          ? t("habilidades.mayorEfecto", "Mayor efecto")
+                          : t("habilidades.efectoMedio", "Efecto medio")}
                       </Pastilla>
                     </div>
                   ))}

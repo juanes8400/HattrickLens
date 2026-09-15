@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { MINIMUM_LINEUP_PLAYERS } from "../utils/lineupAvailability";
 
 export function LineupAvailabilityNotice({
@@ -11,26 +12,36 @@ export function LineupAvailabilityNotice({
   canRestore?: boolean;
   onRestore?: () => void;
 }) {
-  const noun =
-    availableCount === 1 ? "jugador disponible" : "jugadores disponibles";
+  const { t } = useTranslation();
 
   return (
     <section
       role="alert"
       className="rounded-lg border border-[var(--warning)] bg-[var(--surface)] p-5"
     >
-      <h2 className="font-semibold">No se puede calcular el once</h2>
+      <h2 className="font-semibold">
+        {t("alineacion.noSePuede", "No se puede calcular el once")}
+      </h2>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        {warning ?? (
-          <>
-            Hay {availableCount} {noun} y hacen falta {MINIMUM_LINEUP_PLAYERS}{" "}
-            para calcular una alineación completa.
-          </>
-        )}
+        {warning ??
+          (availableCount === 1
+            ? t(
+                "alineacion.hayUno",
+                "Hay {{n}} jugador disponible y hacen falta {{minimo}} para calcular una alineación completa.",
+                { n: availableCount, minimo: MINIMUM_LINEUP_PLAYERS },
+              )
+            : t(
+                "alineacion.hayVarios",
+                "Hay {{n}} jugadores disponibles y hacen falta {{minimo}} para calcular una alineación completa.",
+                { n: availableCount, minimo: MINIMUM_LINEUP_PLAYERS },
+              ))}
       </p>
       <p className="mt-2 text-xs text-[var(--muted)]">
-        La página sigue disponible. La optimización se reanudará cuando haya al
-        menos {MINIMUM_LINEUP_PLAYERS} jugadores disponibles.
+        {t(
+          "alineacion.seReanudara",
+          "La página sigue disponible. La optimización se reanudará cuando haya al menos {{minimo}} jugadores disponibles.",
+          { minimo: MINIMUM_LINEUP_PLAYERS },
+        )}
       </p>
       {canRestore && onRestore && (
         <button
@@ -38,7 +49,7 @@ export function LineupAvailabilityNotice({
           onClick={onRestore}
           className="mt-3 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
-          Devolver a todos al reparto
+          {t("alineacion.devolverTodosReparto", "Devolver a todos al reparto")}
         </button>
       )}
     </section>

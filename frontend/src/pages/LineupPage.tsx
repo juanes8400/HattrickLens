@@ -1,5 +1,6 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { api, type LineupHindsight } from "../services/api";
@@ -21,7 +22,7 @@ import {
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { barOption } from "../charts/chartOptions";
-import { number, plural } from "../hooks/useFormat";
+import { number } from "../hooks/useFormat";
 import { LineupAvailabilityNotice } from "../components/LineupAvailabilityNotice";
 import {
   MINIMUM_LINEUP_PLAYERS,
@@ -47,6 +48,7 @@ const FORMATIONS = [
   "2-5-3",
 ];
 export function LineupPage() {
+  const { t } = useTranslation();
   const [formation, setFormation] = useState("");
   // `undefined` = el reparto propio de la formación. Al cambiarla se vuelve a
   // él, porque un reparto de la anterior puede no ser legal aquí.
@@ -136,10 +138,17 @@ export function LineupPage() {
       aria-disabled={disponiblesTrasExclusiones <= MINIMUM_LINEUP_PLAYERS}
       title={
         disponiblesTrasExclusiones <= MINIMUM_LINEUP_PLAYERS
-          ? "Deben quedar al menos 11 jugadores disponibles"
-          : `Sacar a ${player} del reparto`
+          ? t(
+              "alineacion.debenQuedar",
+              "Deben quedar al menos 11 jugadores disponibles",
+            )
+          : t("alineacion.sacarA", "Sacar a {{jugador}} del reparto", {
+              jugador: player,
+            })
       }
-      aria-label={`Sacar a ${player} del reparto`}
+      aria-label={t("alineacion.sacarA", "Sacar a {{jugador}} del reparto", {
+        jugador: player,
+      })}
       className={clsx(
         "leading-none",
         enCancha
@@ -147,7 +156,7 @@ export function LineupPage() {
           : "min-h-6 rounded border border-[var(--border)] px-2 text-xs text-[var(--muted)] hover:border-[var(--danger)] hover:text-[var(--danger)]",
       )}
     >
-      {enCancha ? "\u00d7" : "Sacar"}
+      {enCancha ? "×" : t("alineacion.sacar", "Sacar")}
     </button>
   );
 
@@ -186,6 +195,12 @@ export function LineupPage() {
     return <Loading />;
   }
 
+  const titulo = t("nav.alineacion", "Alineación");
+  const intro = t(
+    "alineacion.intro",
+    "Optimización conjunta de formación, jugadores y órdenes individuales",
+  );
+
   const disponiblesInformados = data?.availableCount;
   const cantidadInsuficiente =
     disponiblesTrasExclusiones < MINIMUM_LINEUP_PLAYERS
@@ -201,10 +216,8 @@ export function LineupPage() {
     return (
       <div className="space-y-4">
         <header>
-          <h1 className="text-xl font-semibold">Alineación</h1>
-          <p className="text-sm text-[var(--muted)]">
-            Optimización conjunta de formación, jugadores y órdenes individuales
-          </p>
+          <h1 className="text-xl font-semibold">{titulo}</h1>
+          <p className="text-sm text-[var(--muted)]">{intro}</p>
           <EnlaceATransparencia seccion="posiciones" calculo="once-optimo" />
         </header>
         <LineupAvailabilityNotice
@@ -219,7 +232,12 @@ export function LineupPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return <Empty>Sin plantilla sincronizada.</Empty>;
+  if (!data)
+    return (
+      <Empty>
+        {t("alineacion.sinPlantilla", "Sin plantilla sincronizada.")}
+      </Empty>
+    );
 
   // Se agrupa por `basePosition` (la casilla de la formación) y no por
   // `position`, que desde 2026-08-21 lleva dentro la orden individual: un
@@ -240,7 +258,11 @@ export function LineupPage() {
     <div
       className={clsx(PITCH_CARD_CLASS, "group relative")}
       {...arrastrable(a.htPlayerId, a.player)}
-      title={`Arrastra a ${a.player} fuera del reparto, o pulsa la X`}
+      title={t(
+        "alineacion.arrastraA",
+        "Arrastra a {{jugador}} fuera del reparto, o pulsa la X",
+        { jugador: a.player },
+      )}
     >
       <BotonSacar htPlayerId={a.htPlayerId} player={a.player} enCancha />
       <div className="truncate pr-5 text-[9px] uppercase tracking-wide text-white/70">
@@ -263,18 +285,29 @@ export function LineupPage() {
               return siguientes;
             })
           }
-          aria-label={`Orden individual de ${a.label}`}
+          aria-label={t(
+            "alineacion.ordenDe",
+            "Orden individual de {{puesto}}",
+            { puesto: a.label },
+          )}
           title={
             a.orderPinned
-              ? "Orden fijada por ti: el motor solo elige quién la juega"
-              : "Orden elegida por el motor"
+              ? t(
+                  "alineacion.ordenFijada",
+                  "Orden fijada por ti: el motor solo elige quién la juega",
+                )
+              : t("alineacion.ordenMotor", "Orden elegida por el motor")
           }
           className={clsx(
             "mt-1 w-full rounded border bg-black/50 px-1 py-0.5 text-[9px] text-white/90",
             a.orderPinned ? "border-amber-300/70" : "border-white/25",
           )}
         >
-          <option value="">Automática · {a.behaviourLabel}</option>
+          <option value="">
+            {t("alineacion.automatica", "Automática · {{orden}}", {
+              orden: a.behaviourLabel,
+            })}
+          </option>
           {a.orderOptions.map((o) => (
             <option key={o.position} value={o.position}>
               {o.label}
@@ -285,14 +318,16 @@ export function LineupPage() {
     </div>
   );
 
+  const defensasCentrales = t("comun.defensasCentrales", "Defensas Centrales");
+  const mediocentros = t("comun.mediocentros", "Mediocentros");
+  const mejorFormacion = t("dashboard.mejorFormacion", "Mejor formación");
+
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Alineación</h1>
-          <p className="text-sm text-[var(--muted)]">
-            Optimización conjunta de formación, jugadores y órdenes individuales
-          </p>
+          <h1 className="text-xl font-semibold">{titulo}</h1>
+          <p className="text-sm text-[var(--muted)]">{intro}</p>
           <EnlaceATransparencia seccion="posiciones" calculo="once-optimo" />
         </div>
         <div className="flex gap-2">
@@ -304,10 +339,10 @@ export function LineupPage() {
               setInteriores(undefined);
               setOrdenes({});
             }}
-            aria-label="Formación"
+            aria-label={t("dashboard.formacion", "Formación")}
             className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm"
           >
-            <option value="">Mejor formación</option>
+            <option value="">{mejorFormacion}</option>
             {FORMATIONS.map((f) => (
               <option key={f}>{f}</option>
             ))}
@@ -319,7 +354,7 @@ export function LineupPage() {
           {formation && (
             <>
               <SplitSelector
-                label="Defensas Centrales"
+                label={defensasCentrales}
                 value={data.centralDefenders}
                 options={data.centralDefenderOptions}
                 onChange={(value) => {
@@ -328,7 +363,7 @@ export function LineupPage() {
                 }}
               />
               <SplitSelector
-                label="Mediocentros"
+                label={mediocentros}
                 value={data.innerMidfielders}
                 options={data.innerMidfielderOptions}
                 onChange={(value) => {
@@ -342,41 +377,54 @@ export function LineupPage() {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-        <Kpi label="Formación" value={data.formation} />
-        <Kpi label="Rating total" value={data.totalRating.toFixed(2)} />
         <Kpi
-          label="Órdenes especiales"
+          label={t("dashboard.formacion", "Formación")}
+          value={data.formation}
+        />
+        <Kpi
+          label={t("alineacion.ratingTotal", "Rating total")}
+          value={data.totalRating.toFixed(2)}
+        />
+        <Kpi
+          label={t("alineacion.ordenesEspeciales", "Órdenes especiales")}
           value={String(
             data.lineup.filter(
               (assignment) => assignment.behaviour !== "normal",
             ).length,
           )}
-          hint="ofensivo, defensivo o hacia otra zona"
+          hint={t(
+            "alineacion.ordenesEspecialesHint",
+            "ofensivo, defensivo o hacia otra zona",
+          )}
         />
-        <Kpi label="Banquillo" value={String(data.bench.length)} />
+        <Kpi
+          label={t("alineacion.banquillo", "Banquillo")}
+          value={String(data.bench.length)}
+        />
       </div>
 
       <Note>
-        {formation ? (
-          <>
-            Esta es la mejor {formation} para el reparto elegido. Una orden
-            manual fija la casilla, no al jugador: Lens puede cambiar quién la
-            ejecuta y vuelve a optimizar todas las demás.
-          </>
-        ) : (
-          <>
-            «Mejor formación» compara las diez estructuras con el reparto base
-            de cada una. Para estudiar una formación con tus órdenes, elige
-            primero la formación y después fija las órdenes por casilla.
-          </>
-        )}
+        {formation
+          ? t(
+              "alineacion.notaFormacion",
+              "Esta es la mejor {{formacion}} para el reparto elegido. Una orden manual fija la casilla, no al jugador: Lens puede cambiar quién la ejecuta y vuelve a optimizar todas las demás.",
+              { formacion: formation },
+            )
+          : t(
+              "alineacion.notaMejor",
+              "«Mejor formación» compara las diez estructuras con el reparto base de cada una. Para estudiar una formación con tus órdenes, elige primero la formación y después fija las órdenes por casilla.",
+            )}
       </Note>
 
       {/* La misma cancha que usan Equipo y la Comparativa de liga: un once se
           lee de un vistazo cuando está puesto sobre el campo, y de tres
           renglones grises hay que reconstruirlo mentalmente. */}
       <PitchField
-        ariaLabel={`Once óptimo en formación ${data.formation}, con el índice de cada puesto`}
+        ariaLabel={t(
+          "alineacion.canchaAria",
+          "Once óptimo en formación {{formacion}}, con el índice de cada puesto",
+          { formacion: data.formation },
+        )}
         className="rounded-lg"
       >
         <PitchGrid
@@ -398,11 +446,18 @@ export function LineupPage() {
           quien no va a jugar --lesionado, sancionado, o para ver el once sin
           él-- y dejar que vuelva a resolverlo con los demás (2026-09-02). */}
       <Panel
-        title="Fuera del reparto"
+        title={t("alineacion.fuera", "Fuera del reparto")}
         meta={
           fuera.length === 0
-            ? "arrastra aquí a quien no vaya a jugar"
-            : plural(fuera.length, "jugador", "jugadores")
+            ? t(
+                "alineacion.arrastraAqui",
+                "arrastra aquí a quien no vaya a jugar",
+              )
+            : fuera.length === 1
+              ? t("comun.unJugador", "{{n}} jugador", { n: 1 })
+              : t("comun.nJugadores", "{{n}} jugadores", {
+                  n: number(fuera.length),
+                })
         }
       >
         {estadoFuera.warning && (
@@ -432,9 +487,10 @@ export function LineupPage() {
         >
           {fuera.length === 0 ? (
             <p className="py-4 text-center text-xs text-[var(--muted)]">
-              Arrastra un jugador de la cancha o del banquillo hasta aquí, o usa
-              el botón «Sacar». El once se vuelve a resolver con el resto y
-              siempre deben quedar al menos 11 disponibles.
+              {t(
+                "alineacion.fueraVacio",
+                "Arrastra un jugador de la cancha o del banquillo hasta aquí, o usa el botón «Sacar». El once se vuelve a resolver con el resto y siempre deben quedar al menos 11 disponibles.",
+              )}
             </p>
           ) : (
             <ul className="divide-y divide-[var(--border)]">
@@ -449,7 +505,7 @@ export function LineupPage() {
                     data-track="Alineación: devolver al reparto"
                     className="min-h-6 rounded border border-[var(--border)] px-2 text-xs text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
                   >
-                    Devolver
+                    {t("alineacion.devolver", "Devolver")}
                   </button>
                 </li>
               ))}
@@ -460,23 +516,27 @@ export function LineupPage() {
           <div className="space-y-2 border-t border-[var(--border)] px-4 py-2">
             {base && (
               <p className="text-xs leading-relaxed text-[var(--muted)]">
-                {base.formation === data.formation ? (
-                  <>
-                    Sigues en {data.formation}: el hueco lo tapa otro jugador y
-                    el índice pasa de {base.rating.toFixed(2)} a{" "}
-                    {data.totalRating.toFixed(2)}.
-                  </>
-                ) : (
-                  <>
-                    Sin ellos la mejor formación ya no es {base.formation} sino{" "}
-                    {data.formation}, así que la cancha enseña puestos
-                    distintos: no se descartó una posición, se recolocó el
-                    equipo entero. El índice pasa de {base.rating.toFixed(2)} a{" "}
-                    {data.totalRating.toFixed(2)}. Para mantener{" "}
-                    {base.formation}, elígela arriba en vez de «Mejor
-                    formación».
-                  </>
-                )}
+                {base.formation === data.formation
+                  ? t(
+                      "alineacion.sigues",
+                      "Sigues en {{formacion}}: el hueco lo tapa otro jugador y el índice pasa de {{antes}} a {{ahora}}.",
+                      {
+                        formacion: data.formation,
+                        antes: base.rating.toFixed(2),
+                        ahora: data.totalRating.toFixed(2),
+                      },
+                    )
+                  : t(
+                      "alineacion.recolocado",
+                      "Sin ellos la mejor formación ya no es {{antes}} sino {{ahora}}, así que la cancha enseña puestos distintos: no se descartó una posición, se recolocó el equipo entero. El índice pasa de {{ratingAntes}} a {{ratingAhora}}. Para mantener {{antes}}, elígela arriba en vez de «{{mejor}}».",
+                      {
+                        antes: base.formation,
+                        ahora: data.formation,
+                        ratingAntes: base.rating.toFixed(2),
+                        ratingAhora: data.totalRating.toFixed(2),
+                        mejor: mejorFormacion,
+                      },
+                    )}
               </p>
             )}
             <button
@@ -484,7 +544,7 @@ export function LineupPage() {
               data-track="Alineación: devolver a todos"
               className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
             >
-              Devolver a todos
+              {t("alineacion.devolverTodos", "Devolver a todos")}
             </button>
           </div>
         )}
@@ -492,8 +552,10 @@ export function LineupPage() {
 
       {data.bench.length > 0 && (
         <Panel
-          title="Banquillo"
-          meta={`${data.bench.length} de 6 plazas cubiertas`}
+          title={t("alineacion.banquillo", "Banquillo")}
+          meta={t("alineacion.plazas", "{{n}} de 6 plazas cubiertas", {
+            n: data.bench.length,
+          })}
         >
           <ul className="divide-y divide-[var(--border)]">
             {data.bench.map((b) => (
@@ -525,11 +587,14 @@ export function LineupPage() {
       {hindsight.data && <HindsightPanel data={hindsight.data} />}
 
       <Panel
-        title="Ranking de formaciones"
-        meta="índice total del once óptimo en cada una"
+        title={t("alineacion.ranking", "Ranking de formaciones")}
+        meta={t(
+          "alineacion.rankingMeta",
+          "índice total del once óptimo en cada una",
+        )}
       >
         <Chart
-          ariaLabel="Rating total por formación"
+          ariaLabel={t("alineacion.rankingAria", "Rating total por formación")}
           // Alto fijo y corto: son cinco o seis barras y antes ocupaba una
           // pantalla entera para decir lo mismo.
           height={Math.max(120, Object.keys(data.formationRanking).length * 26)}
@@ -542,8 +607,11 @@ export function LineupPage() {
       </Panel>
 
       <Panel
-        title="Espíritu de Equipo × Actitud"
-        meta="tabla explorable, no tu Espíritu actual"
+        title={t("alineacion.espirituActitud", "Espíritu de Equipo × Actitud")}
+        meta={t(
+          "alineacion.espirituActitudMeta",
+          "tabla explorable, no tu Espíritu actual",
+        )}
       >
         {spirit.data ? (
           <>
@@ -552,13 +620,13 @@ export function LineupPage() {
                 <thead>
                   <tr className="text-left text-xs text-[var(--muted)]">
                     <th scope="col" className="px-4 py-2">
-                      Espíritu
+                      {t("club.espirituCorto", "Espíritu")}
                     </th>
                     <th scope="col" className="px-4 py-2 text-right">
                       PIC
                     </th>
                     <th scope="col" className="px-4 py-2 text-right">
-                      Normal
+                      {t("club.normal", "Normal")}
                     </th>
                     <th scope="col" className="px-4 py-2 text-right">
                       MOTS
@@ -585,13 +653,16 @@ export function LineupPage() {
             </div>
           </>
         ) : (
-          <Empty>Calculando…</Empty>
+          <Empty>{t("alineacion.calculando", "Calculando…")}</Empty>
         )}
       </Panel>
 
       <Panel
-        title="Calificación por sector"
-        meta="fórmula exacta de contribución, segunda opinión sobre este mismo once"
+        title={t("alineacion.porSector", "Calificación por sector")}
+        meta={t(
+          "alineacion.porSectorMeta",
+          "fórmula exacta de contribución, segunda opinión sobre este mismo once",
+        )}
       >
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
           {data.sectorRatings.ratings.map((s) => (
@@ -632,12 +703,20 @@ export function LineupPage() {
  * y el jugador que pusiste sacó un 7,5, la discrepancia no significa error.
  */
 function HindsightPanel({ data }: { data: LineupHindsight }) {
+  const { t } = useTranslation();
+  const titulo = t(
+    "alineacion.contraPropuesta",
+    "Tu alineación contra la propuesta",
+  );
   if (data.matchId == null) {
     return (
-      <Panel title="Tu alineación contra la propuesta">
+      <Panel title={titulo}>
         <Empty>
           {data.notes[0] ??
-            "No has enviado alineación para ningún partido próximo."}
+            t(
+              "alineacion.sinEnviada",
+              "No has enviado alineación para ningún partido próximo.",
+            )}
         </Empty>
       </Panel>
     );
@@ -647,15 +726,15 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
     (n, l) => n + l.proposedInstead.length,
     0,
   );
+  const coinciden = t("alineacion.coinciden", "coinciden {{a}}/{{b}}", {
+    a: data.agreementCount,
+    b: data.comparableCount,
+  });
 
   return (
     <Panel
-      title="Tu alineación contra la propuesta"
-      meta={
-        data.matchLabel
-          ? `${data.matchLabel} · coinciden ${data.agreementCount}/${data.comparableCount}`
-          : `coinciden ${data.agreementCount}/${data.comparableCount}`
-      }
+      title={titulo}
+      meta={data.matchLabel ? `${data.matchLabel} · ${coinciden}` : coinciden}
     >
       {/* Contra qué se compara, dicho donde se ve: la alineación que el
           usuario ya envió, no un partido pasado. */}
@@ -673,7 +752,10 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
             <div>
               <div className="text-sm font-medium">{line.label}</div>
               <div className="text-xs text-[var(--muted)]">
-                {line.agreedCount}/{line.usedCount} coinciden
+                {t("alineacion.lineaCoinciden", "{{a}}/{{b}} coinciden", {
+                  a: line.agreedCount,
+                  b: line.usedCount,
+                })}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -703,17 +785,26 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
                   )}
                   {p.alsoProposed && (
                     <span className="text-xs text-[var(--muted)]">
-                      · el optimizador coincide
+                      ·{" "}
+                      {t(
+                        "alineacion.optimizadorCoincide",
+                        "el optimizador coincide",
+                      )}
                     </span>
                   )}
                 </div>
               ))}
               {line.proposedInstead.length > 0 && (
                 <div className="text-xs text-[var(--warning)]">
-                  El optimizador pondría aquí a{" "}
-                  {line.proposedInstead
-                    .map((p) => `${p.player} (${p.rating.toFixed(2)})`)
-                    .join(", ")}
+                  {t(
+                    "alineacion.pondriaA",
+                    "El optimizador pondría aquí a {{jugadores}}",
+                    {
+                      jugadores: line.proposedInstead
+                        .map((p) => `${p.player} (${p.rating.toFixed(2)})`)
+                        .join(", "),
+                    },
+                  )}
                 </div>
               )}
             </div>
@@ -723,8 +814,10 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
 
       {disagreements === 0 && (
         <Note>
-          El optimizador habría usado a los mismos jugadores en todas las
-          líneas.
+          {t(
+            "alineacion.mismosJugadores",
+            "El optimizador habría usado a los mismos jugadores en todas las líneas.",
+          )}
         </Note>
       )}
     </Panel>

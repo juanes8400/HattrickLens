@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 export const MINIMUM_LINEUP_PLAYERS = 11;
 
 export interface LineupExcludedPlayer {
@@ -71,7 +73,11 @@ export function tryExcludeLineupPlayer(
   ) {
     return {
       ...current,
-      warning: `No puedes sacar a ${candidate.player}: solo quedan 11 jugadores disponibles y la alineación necesita 11.`,
+      warning: i18n.t(
+        "alineacion.noPuedesSacar",
+        "No puedes sacar a {{jugador}}: solo quedan 11 jugadores disponibles y la alineación necesita 11.",
+        { jugador: candidate.player },
+      ),
     };
   }
 
