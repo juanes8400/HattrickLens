@@ -9,6 +9,8 @@
 // petición en el mismo origen evita que `localhost` y `127.0.0.1` creen
 // sesiones distintas o que el navegador bloquee la llamada entre puertos.
 // Los despliegues pueden seguir definiendo VITE_API_URL explícitamente.
+import i18n from "../i18n";
+
 const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
 export class ApiError extends Error {
@@ -69,12 +71,20 @@ function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
+/** El idioma de la app viaja en cada petición: el servidor escribe sus
+ *  textos (alertas, rótulos, notas) en ese idioma, y en español si no sabe. */
+const idioma = () => ({ "Accept-Language": i18n.language || "es" });
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const doFetch = () =>
     fetch(`${BASE}${path}`, {
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...init?.headers },
       ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...idioma(),
+        ...init?.headers,
+      },
     });
 
   let res = await doFetch();
@@ -421,6 +431,7 @@ export const api = {
       fetch(`${BASE}/teams/${teamId}/sync/stream`, {
         method: "POST",
         credentials: "include",
+        headers: idioma(),
       });
     let res = await doSync();
     // Mismo criterio que arriba: sólo se expulsa si el refresco no pudo

@@ -63,7 +63,8 @@
     "temaClaro": "light",
     "temaOscuro": "dark",
     "errorReconectar": "Couldn't reconnect with Hattrick: {{error}}",
-    "descartarAviso": "Dismiss notice"
+    "descartarAviso": "Dismiss notice",
+    "idiomaCambiar": "Language: English. Switch to Spanish"
   },
   "formato": {
     "nunca": "never",

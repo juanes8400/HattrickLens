@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import i18nActual, { cambiarIdioma } from "../i18n";
 import clsx from "clsx";
 import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
@@ -351,6 +352,25 @@ export function AppLayout() {
               al sistema, o el primer clic encierra al usuario fuera de su
               propia preferencia para siempre. El nombre accesible dice en
               cuál está, porque el estado no puede vivir sólo en el icono. */}
+          {/* Idioma (2026-09-15): dos idiomas, un botón que dice a cuál se
+              cambia. Recarga la página para que todo salga en el elegido. */}
+          <button
+            onClick={() =>
+              cambiarIdioma(i18nActual.language === "en" ? "es" : "en")
+            }
+            aria-label={t(
+              "layout.idiomaCambiar",
+              "Idioma: español. Cambiar a inglés",
+            )}
+            title={t(
+              "layout.idiomaCambiar",
+              "Idioma: español. Cambiar a inglés",
+            )}
+            className="rounded-md border border-[var(--border)] px-2 py-1.5 text-xs font-medium text-[var(--muted)]"
+          >
+            {i18nActual.language === "en" ? "ES" : "EN"}
+          </button>
+
           <button
             onClick={() => cambiarTema(SIGUIENTE_TEMA[tema])}
             aria-label={t(

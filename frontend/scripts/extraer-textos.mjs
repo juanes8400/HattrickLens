@@ -106,6 +106,10 @@ const PROPIEDADES_DE_TEXTO = new Set([
   "descripcion",
   "subtitulo",
   "resumen",
+  // Los artículos de la Wiki.
+  "puntos",
+  "formula",
+  "grupo",
 ]);
 
 /** ¿Parece texto para leer y no un identificador? */
@@ -161,6 +165,12 @@ function contexto(nodo) {
         continue;
       }
       return null;
+    }
+    // Listas de textos: `texto: ["…", "…"]` en la Wiki.
+    if (ts.isArrayLiteralExpression(padre)) {
+      hijo = padre;
+      padre = padre.parent;
+      continue;
     }
     if (ts.isArrowFunction(padre) && hijo === padre.body) {
       hijo = padre;
