@@ -7,7 +7,7 @@ import {
   useLeagueComparison,
   useLineup,
 } from "../hooks/useTeam";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Empty,
   ErrorState,
@@ -33,7 +33,6 @@ import type { Insight } from "../services/api";
 import { estadoDeAlertas } from "../utils/alertas";
 
 export function DashboardPage() {
-  const [params] = useSearchParams();
   const { data, isLoading, isError, error } = useDashboard();
   const insights = useInsights();
   // Mismos mandos que en Alineación: formación y, dentro de ella, cuántos
@@ -58,48 +57,6 @@ export function DashboardPage() {
           {data.squad?.avgAge ?? "-"}
         </p>
       </header>
-
-      {params.get("welcome") === "1" && (
-        <section className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--accent)]">
-                Importación completada
-              </p>
-              <h2 className="mt-1 text-lg font-semibold">
-                Empieza por una decisión real
-              </h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                Tus datos ya están listos. Estas son las tres rutas más útiles
-                para comenzar.
-              </p>
-            </div>
-            <Link
-              to="/dashboard"
-              className="text-xs text-[var(--muted)] hover:text-[var(--text)]"
-            >
-              Ocultar
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <WelcomeAction
-              to="/news"
-              title="Revisar cambios"
-              detail="Comprueba pops y variaciones desde el snapshot anterior."
-            />
-            <WelcomeAction
-              to="/rivals"
-              title="Estudiar al rival"
-              detail="Once probable, duelos por zona y rotación del ataque."
-            />
-            <WelcomeAction
-              to="/training"
-              title="Revisar entrenamiento"
-              detail="Valida la carga y las próximas subidas."
-            />
-          </div>
-        </section>
-      )}
 
       <AlertsBand
         insights={insights.data ?? []}
@@ -504,26 +461,6 @@ export function AlertsBand({
         </Link>
       </div>
     </Panel>
-  );
-}
-
-export function WelcomeAction({
-  to,
-  title,
-  detail,
-}: {
-  to: string;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--accent)]/50"
-    >
-      <div className="text-sm font-semibold">{title} →</div>
-      <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{detail}</p>
-    </Link>
   );
 }
 

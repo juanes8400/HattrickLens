@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   useChangesHistory,
   useCup,
@@ -24,12 +24,7 @@ import type { Dashboard } from "../services/api";
 import { money, percent } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { FlorDeFuerza } from "../components/FlorDeFuerza";
-import {
-  AlertsBand,
-  BestElevenPitch,
-  TrainingPanel,
-  WelcomeAction,
-} from "./DashboardPage";
+import { AlertsBand, BestElevenPitch, TrainingPanel } from "./DashboardPage";
 
 /**
  * El Dashboard de la propuesta del 2026-09-13, reordenado el 2026-09-15:
@@ -41,7 +36,6 @@ import {
  * mejor once, entrenamiento) se importan de allí y no se copian.
  */
 export function DashboardNuevo() {
-  const [params] = useSearchParams();
   const { data, isLoading, isError, error } = useDashboard();
   const insights = useInsights();
   const [formacion, setFormacion] = useState("");
@@ -63,34 +57,8 @@ export function DashboardNuevo() {
         </p>
       </header>
 
-      {params.get("welcome") === "1" && (
-        <section className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--accent)]">
-            Importación completada
-          </p>
-          <h2 className="mt-1 text-lg font-semibold">
-            Empieza por una decisión real
-          </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <WelcomeAction
-              to="/news"
-              title="Revisar cambios"
-              detail="Comprueba pops y variaciones desde el snapshot anterior."
-            />
-            <WelcomeAction
-              to="/rivals"
-              title="Estudiar al rival"
-              detail="Once probable, duelos por zona y rotación del ataque."
-            />
-            <WelcomeAction
-              to="/training"
-              title="Revisar entrenamiento"
-              detail="Valida la carga y las próximas subidas."
-            />
-          </div>
-        </section>
-      )}
-
+      {/* 2026-09-15, pedido del usuario: el bloque «Importación completada ·
+          Empieza por una decisión real» ya no sale nunca, ni con ?welcome=1. */}
       <ProximoPartido />
 
       {/* 2026-09-15, opción A elegida por el usuario: la flor y las alertas en

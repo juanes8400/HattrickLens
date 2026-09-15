@@ -262,7 +262,7 @@ export function SetupPage() {
                 </div>
                 <button
                   className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white"
-                  onClick={() => navigate("/dashboard?welcome=1")}
+                  onClick={() => navigate("/dashboard")}
                 >
                   Entrar al Dashboard
                 </button>
@@ -314,26 +314,6 @@ export function SetupPage() {
 
           {progress && <SyncProgressPanel lines={progress} />}
         </section>
-
-        {(completed || alreadyImported) && (
-          <section className="grid gap-3 sm:grid-cols-3">
-            <NextAction
-              to="/news"
-              title="Revisar cambios"
-              detail="Pops, forma, experiencia y variaciones del club."
-            />
-            <NextAction
-              to="/rivals"
-              title="Estudiar al rival"
-              detail="Once probable, duelos por zona y rotación del ataque."
-            />
-            <NextAction
-              to="/training"
-              title="Revisar entrenamiento"
-              detail="Carga, progreso y próximas subidas."
-            />
-          </section>
-        )}
       </div>
     </main>
   );
@@ -396,25 +376,5 @@ function SummaryValue({ value, label }: { value: number; label: string }) {
       <div className="text-xl font-semibold">{value}</div>
       <div className="text-xs text-[var(--muted)]">{label}</div>
     </div>
-  );
-}
-
-function NextAction({
-  to,
-  title,
-  detail,
-}: {
-  to: string;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent)]/50"
-    >
-      <div className="text-sm font-semibold">{title} →</div>
-      <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{detail}</p>
-    </Link>
   );
 }
