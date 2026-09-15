@@ -1,7 +1,7 @@
 {
   "name": "ht-lens-frontend",
   "private": true,
-  "version": "2.0.14",
+  "version": "2.0.15",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "format": "prettier --write src",
+    "i18n:inventario": "node scripts/inventario-de-textos.mjs",
     "gen:api": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/types/api.d.ts"
   },
   "dependencies": {
