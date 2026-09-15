@@ -198,10 +198,12 @@ export function RivalPage() {
     setClase("amistosos");
   }
 
-  const claseDePartidos = includeCompetitive ? " oficial(es)" : " amistoso(s)";
+  const claseDePartidos = includeCompetitive
+    ? tx(" oficial(es)")
+    : tx(" amistoso(s)");
   const claseDePartidosPlural = includeCompetitive
-    ? " oficiales"
-    : " amistosos";
+    ? tx(" oficiales")
+    : tx(" amistosos");
 
   const rosterColumns: Column<RosterRow>[] = [
     { key: "name", header: tx("Jugador"), align: "left", value: (r) => r.name },
@@ -307,7 +309,7 @@ export function RivalPage() {
           hint={
             data.matchesByCompetition.length > 0
               ? data.matchesByCompetition
-                  .map((c) => `${c.count} de ${c.label}`)
+                  .map((c) => tx("{{v0}} de {{v1}}", { v0: c.count, v1: c.label }))
                   .join(" · ")
               : undefined
           }
@@ -341,12 +343,11 @@ export function RivalPage() {
         top11={top11}
         onTop11Change={setTop11}
         noteSuffix={
-          "del rival" +
+          tx("del rival") +
           (top11
-            ? ", tu once real (motor de posiciones) contra los 11 de mayor TSI del rival"
+            ? tx(", tu once real (motor de posiciones) contra los 11 de mayor TSI del rival")
             : "") +
-          ". El TSI del rival es un dato público real; sus habilidades exactas están " +
-          "ocultas por Hattrick"
+          tx(". El TSI del rival es un dato público real; sus habilidades exactas están ocultas por Hattrick")
         }
       />
 
@@ -878,8 +879,8 @@ function LastPurchaseRow({
       : "";
   const pie = (compra: LastPurchase | null) =>
     compra
-      ? `${compra.playerName} · hace ${compra.daysAgo} día(s)`
-      : "sin fichajes esta temporada";
+      ? tx("{{v0}} · hace {{v1}} día(s)", { v0: compra.playerName, v1: compra.daysAgo })
+      : tx("sin fichajes esta temporada");
 
   return (
     <div>
@@ -1236,8 +1237,8 @@ function PitchZoneDuelsPanel({
       meta={tx("{{v0}} · rival: {{v1}} partido(s)", {
         v0:
           sources.own.kind === "submitted_chpp_prediction"
-            ? "la predicción de Hattrick"
-            : `tú: ${matchesAnalysed.own} partido(s)`,
+            ? tx("la predicción de Hattrick")
+            : tx("tú: {{v0}} partido(s)", { v0: matchesAnalysed.own }),
         v1: matchesAnalysed.rival,
       })}
     >

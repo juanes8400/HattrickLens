@@ -1406,6 +1406,7 @@
  "exposición por puesto": "exposure by position",
  "extraterrestre": "extra-terrestrial",
  "factor de una táctica t, del ajuste:\n    d(t) = Σ goles observados con t  /  Σ λ predichas con t\n\nal predecir, el factor de un lado:\n    si se sabe su táctica     f = d(táctica)\n    si no                     f = Σ  π(t) × d(t)\n                                  t\n    donde π(t) es cuántas veces usó t en lo visto\n    y sin ningún dato         f = 1\n\ny entra multiplicando:\n    λ = ( juego abierto + balón parado ) × f": "factor of a tactic t, from the fit:\n    d(t) = Σ goals observed with t  /  Σ λ predicted with t\n\nwhen predicting, a side's factor:\n    if its tactic is known    f = d(tactic)\n    otherwise                 f = Σ  π(t) × d(t)\n                                  t\n    where π(t) is how often it used t in what was seen\n    and with no data at all   f = 1\n\nand it enters multiplying:\n    λ = ( open play + set pieces ) × f",
+ "favorito {}": "{} favourite",
  "fidelidad = f(semanas en el club)": "loyalty = f(weeks at the club)",
  "formación desconocida: {}": "unknown formation: {}",
  "formación desconocida: {}. Las disponibles son {}": "unknown formation: {}. Available ones are {}",

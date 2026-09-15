@@ -116,7 +116,9 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
     .filter((x) => x.prob >= 0.01)
     .sort((a, b) => b.prob - a.prob)
     .slice(0, 2)
-    .map((x) => `${x.p}º en el ${Math.round(x.prob * 100)} %`);
+    .map((x) =>
+      tx("{{v0}}º en el {{v1}} %", { v0: x.p, v1: Math.round(x.prob * 100) }),
+    );
 
   // ── TSI en la liga ────────────────────────────────────────────────────
   // El eje es el PUESTO en TSI, no el TSI: se deja así a propósito para ver
@@ -140,7 +142,18 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
       valor: ataque.find((f) => f.propio)?.valor ?? 0,
       puesto: puestoDe(ataque),
       frase: mia
-        ? `Marcas ${decimal(porPartido(mia.goalsFor, mia.played), 1)} goles por partido (${mia.goalsFor} en ${mia.played}) y la media de ${data.seriesName ?? "la serie"} es ${decimal(media, 1)}. Con ${jornadas} jornadas todavía se tira hacia la media: queda en ${decimal(own.attackStrength, 2)} veces un equipo medio.`
+        ? tx(
+            "Marcas {{v0}} goles por partido ({{v1}} en {{v2}}) y la media de {{v3}} es {{v4}}. Con {{v5}} jornadas todavía se tira hacia la media: queda en {{v6}} veces un equipo medio.",
+            {
+              v0: decimal(porPartido(mia.goalsFor, mia.played), 1),
+              v1: mia.goalsFor,
+              v2: mia.played,
+              v3: data.seriesName ?? tx("la serie"),
+              v4: decimal(media, 1),
+              v5: jornadas,
+              v6: decimal(own.attackStrength, 2),
+            },
+          )
         : "",
       filas: ataque,
     },
@@ -148,31 +161,43 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
       valor: defensa.find((f) => f.propio)?.valor ?? 0,
       puesto: puestoDe(defensa),
       frase: mia
-        ? `Encajas ${decimal(porPartido(mia.goalsAgainst, mia.played), 1)} por partido (${mia.goalsAgainst} en ${mia.played}) frente a ${decimal(media, 1)} de media. Tirado hacia la media, ${decimal(own.defenceStrength, 2)} veces lo que encaja un equipo medio.`
+        ? tx(
+            "Encajas {{v0}} por partido ({{v1}} en {{v2}}) frente a {{v3}} de media. Tirado hacia la media, {{v4}} veces lo que encaja un equipo medio.",
+            {
+              v0: decimal(porPartido(mia.goalsAgainst, mia.played), 1),
+              v1: mia.goalsAgainst,
+              v2: mia.played,
+              v3: decimal(media, 1),
+              v4: decimal(own.defenceStrength, 2),
+            },
+          )
         : "",
       filas: defensa,
     },
     "Posición esperada": {
       valor: posicion.find((f) => f.propio)?.valor ?? 0,
       puesto: puestoDe(posicion),
-      frase: `En las simulaciones terminas de media ${decimal(own.expectedPosition, 2)}º${
-        masProbables.length ? `: ${masProbables.join(", ")}.` : "."
-      }`,
+      frase:
+        tx("En las simulaciones terminas de media {{v0}}º", {
+          v0: decimal(own.expectedPosition, 2),
+        }) + (masProbables.length ? `: ${masProbables.join(", ")}.` : "."),
       filas: posicion,
     },
     "TSI en la liga": {
       valor: tsi.find((f) => f.propio)?.valor ?? 0,
       puesto: miTsi?.rank ?? 0,
       frase: miTsi
-        ? `Tus 11 mejores suman ${number(miTsi.totalTsi)}, ${
-            miTsi.rank === 1
-              ? `el más alto de ${n}.`
-              : `puesto ${miTsi.rank} de ${n}.`
-          }${
-            referencia
-              ? ` El ${referencia.rank}º, ${referencia.teamName}, suma ${number(referencia.totalTsi)}.`
-              : ""
-          }`
+        ? tx("Tus 11 mejores suman {{v0}}, ", { v0: number(miTsi.totalTsi) }) +
+          (miTsi.rank === 1
+            ? tx("el más alto de {{v0}}.", { v0: n })
+            : tx("puesto {{v0}} de {{v1}}.", { v0: miTsi.rank, v1: n })) +
+          (referencia
+            ? tx(" El {{v0}}º, {{v1}}, suma {{v2}}.", {
+                v0: referencia.rank,
+                v1: referencia.teamName,
+                v2: number(referencia.totalTsi),
+              })
+            : "")
         : "",
       filas: ordenar(tsi),
     },
@@ -182,8 +207,14 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
     ? ["Ataque", "Posición esperada", "Defensa", "TSI en la liga"]
     : ["Ataque", "Posición esperada", "Defensa"];
 
+  // Los ejes se pintan traducidos, pero por dentro siguen siendo la clave en
+  // español: el evento del radar devuelve el nombre pintado y hay que volver
+  // de él a su eje.
+  const ejeDeNombre = (nombre: string): Eje | undefined =>
+    ejes.find((e) => tx(e) === nombre);
+
   const option = radarOption(
-    ejes.map((name) => ({ name, max: 100 })),
+    ejes.map((e) => ({ name: tx(e), max: 100 })),
     [{ name: teamName, value: ejes.map((e) => porques[e].valor) }],
   );
   // El globo lo pinta React: el tooltip de ECharts habla de la serie entera y
@@ -208,7 +239,7 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
     const y = Number.isFinite(p.event?.offsetY) ? p.event!.offsetY : 0;
     let nombre: Eje | undefined;
     if (p.componentType === "radar" && p.name) {
-      nombre = p.name as Eje;
+      nombre = ejeDeNombre(p.name);
     } else if (p.componentType === "series") {
       // LA BOLITA (2026-09-13, visto por el usuario): el punto de cada eje es
       // de la serie, y ECharts no dice de qué eje es. Se saca por el ángulo
@@ -229,7 +260,7 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
   return (
     <Panel
       title={tx("Radar de fuerza")}
-      meta={tx("relativo a {{v0}}", { v0: data.seriesName ?? "tu liga" })}
+      meta={tx("relativo a {{v0}}", { v0: data.seriesName ?? tx("tu liga") })}
     >
       <div ref={caja} className="relative" onMouseLeave={() => setGlobo(null)}>
         <Chart
@@ -251,7 +282,7 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
           >
             <div className="mb-1 flex items-baseline justify-between font-semibold">
               <span>
-                {globo.eje} · {actual.puesto}
+                {tx(globo.eje)} · {actual.puesto}
                 {tx("º de")} {n}
               </span>
               <span className="tabular-nums">{Math.round(actual.valor)}</span>

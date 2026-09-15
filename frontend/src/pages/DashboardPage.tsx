@@ -584,10 +584,10 @@ export function ClubRadar({ teamName }: { teamName: string }) {
   const positionAxis = clamp((1 - (own.expectedPosition - 1) / (n - 1)) * 100);
 
   const indicators = [
-    { name: "Ataque", max: 100 },
-    { name: "Posición esperada", max: 100 },
-    { name: "Defensa", max: 100 },
-    ...(hayTsi ? [{ name: "TSI en la liga", max: 100 }] : []),
+    { name: tx("Ataque"), max: 100 },
+    { name: tx("Posición esperada"), max: 100 },
+    { name: tx("Defensa"), max: 100 },
+    ...(hayTsi ? [{ name: tx("TSI en la liga"), max: 100 }] : []),
   ];
   const ejes = hayTsi
     ? [attackAxis, positionAxis, defenceAxis, tsiAxis]
@@ -597,7 +597,7 @@ export function ClubRadar({ teamName }: { teamName: string }) {
     <Panel
       title={tx("Radar de fuerza")}
       meta={tx("relativo a {{v0}}", {
-        v0: league.data.seriesName ?? "tu liga",
+        v0: league.data.seriesName ?? tx("tu liga"),
       })}
     >
       <Chart
