@@ -68,19 +68,19 @@ const CONFIDENCE_LEVELS: Record<string, number> = {
 
 function metricTone(label: string): string {
   const key = label.toLocaleLowerCase("es");
-  if (key === "salario") return "text-[var(--warning)]";
+  if (key === "salario" || key === "wage") return "text-[var(--warning)]";
   // Los movimientos de plantilla, ahora que llegan con su etiqueta de verdad
   // en vez de como «Cambio»: entra dinero, sale un jugador, o se refuerza el
   // de enfrente. Tres cosas distintas y tres colores distintos.
-  if (["venta", "alta", "comision de club anterior"].includes(key)) {
+  if (["venta", "alta", "comision de club anterior", "sale", "joined", "previous club commission"].includes(key)) {
     return "text-[var(--positive)]";
   }
-  if (key === "baja") return "text-[var(--muted)]";
-  if (key === "fichaje rival") return "text-[var(--warning)]";
-  if (["experiencia", "fidelidad", "liderazgo"].includes(key)) {
+  if (key === "baja" || key === "departure") return "text-[var(--muted)]";
+  if (key === "fichaje rival" || key === "opponent signing") return "text-[var(--warning)]";
+  if (["experiencia", "fidelidad", "liderazgo", "experience", "loyalty", "leadership"].includes(key)) {
     return "text-[var(--positive)]";
   }
-  if (key === "lesión") return "text-[var(--danger)]";
+  if (key === "lesión" || key === "injury") return "text-[var(--danger)]";
   return "text-[var(--accent)]";
 }
 
@@ -107,16 +107,16 @@ function classify(
   }
 
   const lower = summary.toLowerCase();
-  if (lower.includes("subio") || lower.includes("subió")) {
+  if (lower.includes("subio") || lower.includes("subió") || lower.includes("went up")) {
     return { kind: "Subida", tone: "text-[var(--positive)]" };
   }
-  if (lower.includes("bajo") || lower.includes("bajó")) {
+  if (lower.includes("bajo") || lower.includes("bajó") || lower.includes("went down")) {
     return { kind: "Bajada", tone: "text-[var(--danger)]" };
   }
   if (lower.includes("tsi")) {
     return { kind: "TSI", tone: "text-[var(--accent)]" };
   }
-  if (lower.includes("salario")) {
+  if (lower.includes("salario") || lower.includes("wage")) {
     return { kind: "Salario", tone: "text-[var(--warning)]" };
   }
   if (lower.includes("forma")) {
@@ -134,13 +134,13 @@ function classify(
   if (lower.includes("liderazgo")) {
     return { kind: "Liderazgo", tone: "text-[var(--positive)]" };
   }
-  if (lower.includes("lesion") || lower.includes("lesión")) {
+  if (lower.includes("lesion") || lower.includes("lesión") || lower.includes("injur")) {
     return { kind: "Lesión", tone: "text-[var(--danger)]" };
   }
-  if (lower.includes("mercado")) {
+  if (lower.includes("mercado") || lower.includes("market")) {
     return { kind: "Mercado", tone: "text-[var(--warning)]" };
   }
-  if (lower.includes("se unio") || lower.includes("se unió")) {
+  if (lower.includes("se unio") || lower.includes("se unió") || lower.includes("joined")) {
     return { kind: "Alta", tone: "text-[var(--positive)]" };
   }
   return { kind: "Cambio", tone: "text-[var(--muted)]" };
@@ -249,7 +249,7 @@ function numericFromDetail(
   // Pintado como par salía «Lesión −1 ▲ −1» (2026-09-13); así cae a la
   // frase del servidor, «se recuperó de la lesión».
   if (
-    detail.label === "Lesión" &&
+    (detail.label === "Lesión" || detail.label === tx("Lesión")) &&
     (detail.before === -1 || detail.after === -1)
   )
     return null;
@@ -307,7 +307,7 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
   }
 
   let m = detail.match(
-    /^(.+?)\s+(subió|bajó)\s+de\s+([\d,.]+)\s+a\s+([\d,.]+)\s*$/i,
+    /^(.+?)\s+(subió|bajó|went up|went down)\s+(?:de|from)\s+([\d,.]+)\s+(?:a|to)\s+([\d,.]+)\s*$/i,
   );
   if (m) {
     const label = m[1] ?? "";
@@ -318,11 +318,11 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
       label: stripLabel(label),
       before,
       after,
-      good: verb.toLowerCase() === "subió",
+      good: ["subió", "went up"].includes(verb.toLowerCase()),
     };
   }
 
-  m = detail.match(/^lesión de nivel (\d+) a (\d+)\s*$/i);
+  m = detail.match(/^(?:lesión de nivel|injury from level) (\d+) (?:a|to) (\d+)\s*$/i);
   if (m) {
     const before = toNum(m[1] ?? "0");
     const after = toNum(m[2] ?? "0");
@@ -426,7 +426,11 @@ export function SyncChangesFeed({
   const playerChanges = changes.filter((c) => c.category === "jugadores");
   const skillPops = playerChanges.filter((c) => {
     const lower = c.summary.toLowerCase();
-    return lower.includes("subio") || lower.includes("subió");
+    return (
+      lower.includes("subio") ||
+      lower.includes("subió") ||
+      lower.includes("went up")
+    );
   }).length;
 
   return (

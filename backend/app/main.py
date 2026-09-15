@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.i18n.middleware import TraducirRespuestas
 
 
 @asynccontextmanager
@@ -36,6 +37,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Los textos de la API salen en el idioma que pide el navegador; en español
+# no hace nada. Ver app/i18n/traductor.py.
+app.add_middleware(TraducirRespuestas)
 
 app.include_router(api_router, prefix="/api/v1")
 

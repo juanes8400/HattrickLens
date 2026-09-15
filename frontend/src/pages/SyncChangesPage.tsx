@@ -41,7 +41,7 @@ function countPlayerPops(changes: SyncResult["changes"]): number {
   return changes.filter((c) => {
     const s = c.summary.toLowerCase();
     return (
-      c.category === "jugadores" && (s.includes("subio") || s.includes("subió"))
+      c.category === "jugadores" && (s.includes("subio") || s.includes("subió") || s.includes("went up"))
     );
   }).length;
 }
@@ -75,13 +75,21 @@ function actionItems(changes: SyncResult["changes"]): {
   const pops = lower.filter(
     (c) =>
       c.category === "jugadores" &&
-      (c.text.includes("subio") || c.text.includes("subió")),
+      (c.text.includes("subio") ||
+        c.text.includes("subió") ||
+        c.text.includes("went up")),
   );
   const injuries = lower.filter(
-    (c) => c.text.includes("lesion") || c.text.includes("lesión"),
+    (c) => c.text.includes("lesion") ||
+      c.text.includes("lesión") ||
+      c.text.includes("injur"),
   );
-  const market = lower.filter((c) => c.text.includes("mercado"));
-  const salary = lower.filter((c) => c.text.includes("salario"));
+  const market = lower.filter(
+    (c) => c.text.includes("mercado") || c.text.includes("market"),
+  );
+  const salary = lower.filter(
+    (c) => c.text.includes("salario") || c.text.includes("wage"),
+  );
   const finishedMatches = lower.filter((c) => c.category === "partidos");
   const training = lower.filter((c) => c.category === "entrenamiento");
 
