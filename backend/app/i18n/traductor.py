@@ -65,7 +65,6 @@ CAMPOS_INTOCABLES = frozenset(
         "seasonAtSale",
         "derivedTrainingSkill",
         "topSkillAtSale",
-        "name",
         "teamName",
         "player",
         "opponent",
@@ -150,10 +149,10 @@ class Traductor:
         return salida
 
     def json(self, dato: Any, campo: str | None = None) -> Any:
-        if campo in CAMPOS_INTOCABLES:
-            return dato
+        # Un campo intocable protege su TEXTO, no lo que cuelga de él: bajo
+        # «type» o «status» puede venir un objeto con frases para leer.
         if isinstance(dato, str):
-            return self.texto(dato)
+            return dato if campo in CAMPOS_INTOCABLES else self.texto(dato)
         if isinstance(dato, list):
             return [self.json(x, campo) for x in dato]
         if isinstance(dato, dict):

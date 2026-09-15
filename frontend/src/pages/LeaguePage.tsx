@@ -414,10 +414,10 @@ function NextMatch({ data }: { data: League }) {
   // histórica de liga», que describía el método de antes --los goles de la
   // temporada-- y no el que corría.
   const meta = !fuentes
-    ? "goles de la temporada"
+    ? tx("goles de la temporada")
     : fuentes.own.kind === "submitted"
-      ? "tu alineación enviada contra su último partido"
-      : "tu último partido contra el suyo";
+      ? tx("tu alineación enviada contra su último partido")
+      : tx("tu último partido contra el suyo");
 
   return (
     <Panel title={tx("Próximo partido")} meta={meta}>

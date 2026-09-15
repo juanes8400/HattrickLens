@@ -46,3 +46,9 @@ def test_campos_intocables() -> None:
         "title": "Luis Bango is injured",
         "items": [{"label": "satisfied", "category": "Encantados"}],
     }
+
+
+def test_objeto_bajo_campo_intocable_se_traduce_por_dentro() -> None:
+    tr = Traductor(DICCIONARIO)
+    dato = {"type": {"code": "Pases", "texto": "Pases"}, "status": ["Pases"]}
+    assert tr.json(dato) == {"type": {"code": "Pases", "texto": "Passing"}, "status": ["Pases"]}

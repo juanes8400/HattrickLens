@@ -67,7 +67,7 @@ const CIENTIFICAS: Publicacion[] = [
     titulo: tx(
       "Algoritmos constructivos, de búsqueda aleatoria, de búsqueda local, genéticos y genéticos híbridos para la solución de problemas de lot streaming en ambiente flow shop con makespan como función objetivo",
     ),
-    donde: "Investigación de operaciones · programación de la producción",
+    donde: tx("Investigación de operaciones · programación de la producción"),
     url: "https://www.researchgate.net/publication/234776781_Algoritmos_constructivos_de_busqueda_aleatoria_de_busqueda_local_geneticos_y_geneticos_hibridos_para_la_solucion_de_problemas_de_lot_streaming_en_ambiente_flow_shop_con_makespan_como_funcion_objetivo",
   },
 ];

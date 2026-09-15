@@ -54,7 +54,7 @@ function Via({ via, primera }: { via: ViaDeApoyo; primera: boolean }) {
       <div className="min-w-0">
         <p className="text-sm font-medium">{via.nombre}</p>
         <p className="prosa text-sm leading-relaxed text-[var(--muted)]">
-          {via.porQue}
+          {tx(via.porQue)}
         </p>
       </div>
       {via.llave ? (

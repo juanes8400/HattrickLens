@@ -38,15 +38,15 @@ import { api, errorMessage } from "../services/api";
 import type { PlayerBalanceRow } from "../services/api";
 
 import { tx } from "../i18n/tx";
-const UNKNOWN_TRAINING = "Sin evidencia suficiente";
-const UNKNOWN_SEASON = "Temporada desconocida";
-const UNKNOWN_AGE = "Edad desconocida";
+const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
+const UNKNOWN_SEASON = tx("Temporada desconocida");
+const UNKNOWN_AGE = tx("Edad desconocida");
 const UNKNOWN_TOP_SKILL = "?";
 /** La semana sin temporada: "05", no "83-05". Con dos dígitos para que el eje
  *  ordene y se lea igual de la 01 a la 16. */
 const weekLabel = (n: number) => String(n).padStart(2, "0");
-const UNKNOWN_WEEK = "sin fecha";
-const UNKNOWN_BID_HOUR = "Hora desconocida";
+const UNKNOWN_WEEK = tx("sin fecha");
+const UNKNOWN_BID_HOUR = tx("Hora desconocida");
 
 /** El bloque de dos horas en que se cerró la puja, EN TU RELOJ.
  *
@@ -100,7 +100,19 @@ function ageSortKey(label: string): number {
 // Orden numérico de "Temporada N", "Temporada desconocida" siempre al final.
 function seasonSortKey(label: string): [number, number] {
   if (label === UNKNOWN_SEASON) return [1, 0];
-  return [0, Number(label.replace("Temporada ", "")) || 0];
+  return [0, Number(label.match(/\d+/)?.[0]) || 0];
+}
+
+/** La temporada y el entrenamiento llegan del servidor en español, porque el
+ *  servidor los usa como claves. Se traducen aquí, una sola vez, antes de
+ *  agrupar: así el filtro, el orden y las gráficas hablan el mismo idioma. */
+function temporadaDe(r: PlayerBalanceRow): string {
+  const n = r.seasonAtSale?.match(/^Temporada (\d+)$/)?.[1];
+  if (n) return tx("Temporada {{v0}}", { v0: n });
+  return r.seasonAtSale ? tx(r.seasonAtSale) : UNKNOWN_SEASON;
+}
+function entrenamientoDe(r: PlayerBalanceRow): string {
+  return r.derivedTrainingSkill ? tx(r.derivedTrainingSkill) : UNKNOWN_TRAINING;
 }
 
 // Mismo formato de 12 horas que `_format_hour_range` en el backend
@@ -769,7 +781,7 @@ export function PlayerBalancePage() {
   // la temporada más reciente a la más antigua, pedido explícitamente
   // 2026-08-08; "Temporada desconocida" se queda al final igual que antes.
   const seasonOptions = Array.from(
-    new Set(soldRows.map((r) => r.seasonAtSale ?? UNKNOWN_SEASON)),
+    new Set(soldRows.map((r) => temporadaDe(r))),
   ).sort((a, b) => {
     const [ka, na] = seasonSortKey(a);
     const [kb, nb] = seasonSortKey(b);
@@ -779,7 +791,7 @@ export function PlayerBalancePage() {
     seasonFilter === "all"
       ? soldRows
       : soldRows.filter(
-          (r) => (r.seasonAtSale ?? UNKNOWN_SEASON) === seasonFilter,
+          (r) => (temporadaDe(r)) === seasonFilter,
         );
 
   // Filtros compartidos (pedido explícitamente 2026-08-05, confirmado: un
@@ -788,7 +800,7 @@ export function PlayerBalancePage() {
   // descartada aquí desaparezca de las tres a la vez.
   const trainingOptions = Array.from(
     new Set(
-      soldRowsInSeason.map((r) => r.derivedTrainingSkill ?? UNKNOWN_TRAINING),
+      soldRowsInSeason.map((r) => entrenamientoDe(r)),
     ),
   ).sort();
   // Primero TODO lo que no es el control de Datos. Lo que queda aquí es la
@@ -798,7 +810,7 @@ export function PlayerBalancePage() {
   let baseRows = soldRowsInSeason;
   if (trainingFilter !== "all") {
     baseRows = baseRows.filter(
-      (r) => (r.derivedTrainingSkill ?? UNKNOWN_TRAINING) === trainingFilter,
+      (r) => (entrenamientoDe(r)) === trainingFilter,
     );
   }
   if (originFilter === "bought")
@@ -858,9 +870,9 @@ export function PlayerBalancePage() {
   const byPurchaseWeek: Record<string, number> = {};
   for (const r of desglosesRows) {
     if (r.saldo == null) continue;
-    const season = r.seasonAtSale ?? UNKNOWN_SEASON;
+    const season = temporadaDe(r);
     bySeason[season] = (bySeason[season] ?? 0) + r.saldo;
-    const training = r.derivedTrainingSkill ?? UNKNOWN_TRAINING;
+    const training = entrenamientoDe(r);
     byTraining[training] = (byTraining[training] ?? 0) + r.saldo;
     const age =
       typeof r.ageAtSale === "number"
@@ -933,7 +945,7 @@ export function PlayerBalancePage() {
   const roiPorHora: Record<string, Acumulado> = {};
   for (const r of desglosesRows) {
     if (r.saldo == null || r.totalCost <= 0) continue;
-    acumular(roiPorTemporada, r.seasonAtSale ?? UNKNOWN_SEASON, r);
+    acumular(roiPorTemporada, temporadaDe(r), r);
     acumular(
       roiPorSemanaCompra,
       r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK,
@@ -941,7 +953,7 @@ export function PlayerBalancePage() {
     );
     acumular(
       roiPorEntrenamiento,
-      r.derivedTrainingSkill ?? UNKNOWN_TRAINING,
+      entrenamientoDe(r),
       r,
     );
     acumular(
@@ -1033,7 +1045,7 @@ export function PlayerBalancePage() {
       r.roiPct,
       r.salePrice,
       r.soldAt,
-      r.derivedTrainingSkill ?? UNKNOWN_TRAINING,
+      entrenamientoDe(r),
       r.htPlayerId,
     ] as [
       number,
@@ -1387,7 +1399,7 @@ export function PlayerBalancePage() {
                     >
                       {DOT_SORT_OPTIONS.map(([key, label]) => (
                         <option key={key} value={key}>
-                          {label}
+                          {tx(label)}
                         </option>
                       ))}
                     </select>
@@ -2758,7 +2770,8 @@ function BalanceTable({
       header: tx("Habilidad entrenada"),
       align: "left",
       value: (r) => r.derivedTrainingSkill ?? "",
-      render: (r) => r.derivedTrainingSkill ?? tx("Sin resolver"),
+      render: (r) =>
+        r.derivedTrainingSkill ? tx(r.derivedTrainingSkill) : tx("Sin resolver"),
     },
     {
       key: "derivedTrainingLevels",
