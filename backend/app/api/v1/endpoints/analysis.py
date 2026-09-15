@@ -91,7 +91,7 @@ router = APIRouter()
 LINEUP_REQUIRED_COUNT = 11
 LINEUP_SECTOR_NOTE = (
     "Fórmula exacta de contribución posicional (Manual no Escrito), sobre "
-    "habilidades crudas: sin forma ni condición. No reemplaza el ranking "
+    "habilidades crudas: sin forma ni resistencia. No reemplaza el ranking "
     "de arriba, que sí está contrastado contra datos reales."
 )
 

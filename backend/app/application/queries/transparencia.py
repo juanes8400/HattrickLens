@@ -1067,7 +1067,7 @@ def catalogo() -> list[Seccion]:
                             "Tabla de la comunidad, de 17 a 36 años",
                         ),
                     ],
-                    name="Condición",
+                    name="Resistencia",
                     answers=("En qué nivel de resistencia se va a estabilizar un jugador."),
                     formula=(
                         "nivel_esperado = tabla[ edad ][ tramo(%resistencia) ]\n"
@@ -1166,7 +1166,7 @@ def catalogo() -> list[Seccion]:
                     id="once-optimo",
                     sources=[
                         Fuente(
-                            "Habilidades, forma, condición, experiencia y fidelidad",
+                            "Habilidades, forma, resistencia, experiencia y fidelidad",
                             "La última lectura guardada de cada jugador",
                         ),
                         Fuente(

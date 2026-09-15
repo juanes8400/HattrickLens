@@ -27,7 +27,7 @@ reference:
 # campo antes de multiplicarlas por cada contribución posicional.
 adjustments:
   form: "((forma - 0.5) / 7) ^ 0.45"
-  stamina: "((condicion + 6.5) / 14) ^ 0.6"
+  stamina: "((resistencia + 6.5) / 14) ^ 0.6"
   experience: "ln(experiencia) * 4 / 3, sumado a cada habilidad"
   loyalty: "nivel_de_fidelidad / 19, sumado a cada habilidad"
 

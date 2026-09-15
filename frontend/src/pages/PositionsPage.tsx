@@ -204,7 +204,7 @@ export function PositionsPage() {
     },
     { key: "form", header: "FO", value: (player) => player.form },
     { key: "experience", header: "EX", value: (player) => player.experience },
-    { key: "stamina", header: "CO", value: (player) => player.stamina },
+    { key: "stamina", header: "RE", value: (player) => player.stamina },
     ...SKILL_COLUMNS.map(([key, label]): Column<SquadPlayer> => ({
       key,
       header: label,

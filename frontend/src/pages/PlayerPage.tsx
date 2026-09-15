@@ -41,7 +41,7 @@ const SKILL_LABELS: Record<string, string> = {
   experience: "Experiencia",
   loyalty: "Fidelidad",
   form: "Forma",
-  stamina: "Condición",
+  stamina: "Resistencia",
 };
 
 const DETAIL_SKILLS = [

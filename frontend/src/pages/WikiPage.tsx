@@ -98,7 +98,7 @@ const ARTICULOS: Articulo[] = [
           "Es la más larga porque trae todo lo que se puede recuperar hacia atrás:",
         ],
         puntos: [
-          "Plantilla completa con habilidades, forma, condición, experiencia, fidelidad, TSI, salario, especialidad y carácter.",
+          "Plantilla completa con habilidades, forma, resistencia, experiencia, fidelidad, TSI, salario, especialidad y carácter.",
           "Cuerpo técnico, espíritu, confianza, socios y afición.",
           "Economía de la semana en curso y de la última semana cerrada.",
           "Estadio: aforo por sector y asistencia de los partidos en casa.",
@@ -211,7 +211,7 @@ const ARTICULOS: Articulo[] = [
         puntos: [
           "Ataque, Defensa y Mediocampo: la media de HatStats de cada sector en los últimos 5 partidos oficiales de cada equipo.",
           "TSI: el valor de las plantillas.",
-          "Forma, Experiencia y Condición: las medias de cada plantilla.",
+          "Forma, Experiencia y Resistencia: las medias de cada plantilla.",
           "Posición: el puesto esperado en la proyección de liga.",
         ],
         formula:
@@ -297,7 +297,7 @@ const ARTICULOS: Articulo[] = [
       {
         titulo: "La tabla",
         texto: [
-          "Todos los jugadores con sus habilidades, edad, TSI, salario, forma, condición, experiencia, especialidad, lesiones y estado en el mercado. Se ordena por cualquier columna y cada nombre abre su ficha. Sirve como punto de partida para cualquier pregunta sobre un jugador concreto.",
+          "Todos los jugadores con sus habilidades, edad, TSI, salario, forma, resistencia, experiencia, especialidad, lesiones y estado en el mercado. Se ordena por cualquier columna y cada nombre abre su ficha. Sirve como punto de partida para cualquier pregunta sobre un jugador concreto.",
         ],
       },
       {
@@ -305,7 +305,7 @@ const ARTICULOS: Articulo[] = [
         puntos: [
           "Momento de la carrera: en qué etapa está según su edad y su evolución.",
           "Habilidades con su nivel en número y en palabra.",
-          "Estado y contrato: forma, condición, lesión, sueldo y si está en el mercado.",
+          "Estado y contrato: forma, resistencia, lesión, sueldo y si está en el mercado.",
           "Mejores posiciones: dónde rinde más según el rendimiento en el puesto.",
           "Precio de compra y carácter (simpatía, agresividad y honradez).",
           "Su TSI y su salario frente al resto de la plantilla, y cuánto paga por punto de TSI.",
@@ -418,10 +418,10 @@ const ARTICULOS: Articulo[] = [
       {
         titulo: "Cómo se calcula el rendimiento en el puesto",
         texto: [
-          "Cada puesto con su orden tiene una tabla de coeficientes del Manual no Escrito que dice cuánto aporta cada habilidad a cada sector del campo. Por ejemplo, un Mediocentro normal aporta al mediocampo con Jugadas × 1,00, a la defensa central con Defensa × 0,40 y al ataque central con Anotación × 0,22 y Pases × 0,33. Se suman todos los aportes y se dividen entre la suma de coeficientes, para que un puesto con más columnas no gane sólo por tenerlas. Después se ajusta por forma y condición.",
+          "Cada puesto con su orden tiene una tabla de coeficientes del Manual no Escrito que dice cuánto aporta cada habilidad a cada sector del campo. Por ejemplo, un Mediocentro normal aporta al mediocampo con Jugadas × 1,00, a la defensa central con Defensa × 0,40 y al ataque central con Anotación × 0,22 y Pases × 0,33. Se suman todos los aportes y se dividen entre la suma de coeficientes, para que un puesto con más columnas no gane sólo por tenerlas. Después se ajusta por forma y resistencia.",
         ],
         formula:
-          "habilidad efectiva = nivel + ln(experiencia) × 4 ÷ 3 + fidelidad ÷ 19\n\naporte = Σ coeficiente × habilidad efectiva ÷ Σ coeficientes\n         × factor de forma × factor de condición\n\nfactor de forma     = ((forma − 0,5) ÷ 7) ^ 0,45\nfactor de condición = ((condición + 6,5) ÷ 14) ^ 0,6",
+          "habilidad efectiva = nivel + ln(experiencia) × 4 ÷ 3 + fidelidad ÷ 19\n\naporte = Σ coeficiente × habilidad efectiva ÷ Σ coeficientes\n         × factor de forma × factor de resistencia\n\nfactor de forma       = ((forma − 0,5) ÷ 7) ^ 0,45\nfactor de resistencia = ((resistencia + 6,5) ÷ 14) ^ 0,6",
       },
       {
         titulo: "Los roles especiales",
@@ -508,7 +508,7 @@ const ARTICULOS: Articulo[] = [
           "Historial de la configuración semanal: qué se entrenó cada semana.",
           "Subidas confirmadas: las que ya ocurrieron, detectadas comparando lecturas.",
           "Previsión de subidas: cuánto le falta a cada jugador para el siguiente nivel.",
-          "Experiencia, fidelidad y condición, cada una con su propio modelo.",
+          "Experiencia, fidelidad y resistencia, cada una con su propio modelo.",
           "Entrenamiento decidido a posteriori: con los minutos reales de la semana, qué entrenamiento habría aprovechado mejor esos mismos partidos.",
         ],
       },
@@ -530,7 +530,7 @@ const ARTICULOS: Articulo[] = [
         ],
       },
       {
-        titulo: "Condición (resistencia)",
+        titulo: "Resistencia",
         texto: [
           "La resistencia va por un modelo propio: una tabla de la comunidad da el nivel al que tiende un jugador según su edad (de 17 a 36 años) y el porcentaje REAL de entrenamiento de resistencia. Ese porcentaje real es la intensidad multiplicada por la parte dedicada: un club al 40 % de intensidad con la mitad en resistencia pone un 20 %, no un 50 %. Es un nivel de equilibrio, no una predicción semana a semana.",
         ],
@@ -1115,7 +1115,7 @@ const ARTICULOS: Articulo[] = [
         titulo: "Capítulos",
         puntos: [
           "Qué hace cada módulo.",
-          "Entrenamiento: semanas hasta el próximo nivel, reparto del Individual, experiencia, condición y fidelidad.",
+          "Entrenamiento: semanas hasta el próximo nivel, reparto del Individual, experiencia, resistencia y fidelidad.",
           "Posiciones y alineación: aporte por posición y once óptimo.",
           "Economía: balance sin transferencias.",
           "Pronóstico de partido, en nueve pasos.",
@@ -1224,7 +1224,7 @@ const ARTICULOS: Articulo[] = [
       {
         titulo: "Rendimiento en el puesto",
         texto: [
-          "Cuánto aporta un jugador en un puesto y orden concretos, según la tabla de contribución del Manual no Escrito, con su experiencia y fidelidad, y ajustado por forma y condición. Lo usan Posiciones, Alineación y Habilidades (Profundidad).",
+          "Cuánto aporta un jugador en un puesto y orden concretos, según la tabla de contribución del Manual no Escrito, con su experiencia y fidelidad, y ajustado por forma y resistencia. Lo usan Posiciones, Alineación y Habilidades (Profundidad).",
         ],
       },
     ],
@@ -1260,9 +1260,9 @@ const ARTICULOS: Articulo[] = [
         ],
       },
       {
-        titulo: "Condición",
+        titulo: "Resistencia",
         texto: [
-          "La resistencia: cuánto aguanta el jugador el partido. Se entrena con la parte de resistencia del entrenamiento y tiende a un nivel de equilibrio según la edad.",
+          "Cuánto aguanta el jugador el partido. Se entrena con la parte de resistencia del entrenamiento y tiende a un nivel de equilibrio según la edad.",
         ],
       },
       {

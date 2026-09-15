@@ -730,7 +730,7 @@ const weeklyLogColumns: Column<TrainingSquadWeeklyLogEntry>[] = [
   },
   {
     key: "staminaShare",
-    header: "Condición",
+    header: "Resistencia",
     value: (r) => r.staminaShare,
     render: (r) => `${r.staminaShare}%`,
   },
@@ -958,7 +958,7 @@ export function TrainingPage() {
           { key: "plantilla", label: "Entrenamiento actual" },
           { key: "experiencia", label: "Experiencia" },
           { key: "fidelidad", label: "Fidelidad" },
-          { key: "condicion", label: "Condición" },
+          { key: "condicion", label: "Resistencia" },
           { key: "posteriori", label: "A posteriori" },
           { key: "datos", label: "Datos Entrenamiento" },
         ]}
@@ -979,7 +979,10 @@ export function TrainingPage() {
                 label="% de entrenamiento"
                 value={`${data.setup.intensity}%`}
               />
-              <Kpi label="% condición" value={`${data.setup.staminaShare}%`} />
+              <Kpi
+                label="% resistencia"
+                value={`${data.setup.staminaShare}%`}
+              />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)] [&>*]:min-w-0">
@@ -1306,7 +1309,7 @@ export function TrainingPage() {
             {development.data && (
               <>
                 <Panel
-                  title="Condición"
+                  title="Resistencia"
                   meta={
                     <span className="flex items-center gap-2">
                       {`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
@@ -1322,8 +1325,8 @@ export function TrainingPage() {
                     columns={staminaColumns}
                     rowKey={(r) => r.htPlayerId}
                     initialSort="level"
-                    csvName="entrenamiento-condicion"
-                    emptyMessage="Sin jugadores para calcular condición."
+                    csvName="entrenamiento-resistencia"
+                    emptyMessage="Sin jugadores para calcular resistencia."
                   />
                 </Panel>
                 {development.data.notes.map((note) => (

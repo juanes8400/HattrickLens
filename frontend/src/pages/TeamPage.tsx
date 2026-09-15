@@ -211,7 +211,7 @@ export function TeamPage() {
     },
     {
       key: "stamina",
-      header: "CO",
+      header: "RE",
       value: (player) => player.stamina,
       render: (player) => (
         <MetricCell value={player.stamina} delta={player.deltas.stamina} />

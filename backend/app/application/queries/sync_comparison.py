@@ -32,7 +32,7 @@ PLAYER_METRICS: tuple[tuple[str, str, str], ...] = (
     ("tsi", "TSI", "TSI"),
     ("salary", "Salario", "SAL"),
     ("form", "Forma", "FO"),
-    ("stamina", "Resistencia", "CO"),
+    ("stamina", "Resistencia", "RE"),
     ("experience", "Experiencia", "EX"),
     ("loyalty", "Fidelidad", "FI"),
     ("leadership", "Liderazgo", "LI"),

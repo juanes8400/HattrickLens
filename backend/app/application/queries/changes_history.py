@@ -68,7 +68,7 @@ METRICS: tuple[tuple[str, str, str], ...] = (
     ("passing", "Pases", "skill"),
     ("scoring", "Anotación", "skill"),
     ("set_pieces", "Balón parado", "skill"),
-    ("stamina", "Condición", "skill"),
+    ("stamina", "Resistencia", "skill"),
     ("experience", "Experiencia", "experience"),
     ("loyalty", "Fidelidad", "loyalty"),
     ("leadership", "Liderazgo", "loyalty"),

@@ -766,7 +766,7 @@ const INPUT_LABELS: Record<string, string> = {
   training_type: "Tipo de entrenamiento",
   assistant_level_sum: "Ayudantes (suma de niveles)",
   intensity: "Intensidad",
-  stamina_share: "% condición",
+  stamina_share: "% resistencia",
   coach_level: "Nivel del entrenador",
 };
 

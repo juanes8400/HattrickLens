@@ -184,10 +184,10 @@ export function FlorDeFuerza() {
     },
     {
       clave: "condicion",
-      nombre: "Condición",
+      nombre: "Resistencia",
       valores: deComparativa((t) => t.avgStamina),
       formato: uno,
-      frase: (mio) => `La condición media de tus 11 mejores es ${mio}.`,
+      frase: (mio) => `La resistencia media de tus 11 mejores es ${mio}.`,
     },
     {
       clave: "posicion",

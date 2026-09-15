@@ -712,7 +712,7 @@ function ComparisonPanel({
       rival: data.comparison.form.rival,
     },
     {
-      label: "Condición",
+      label: "Resistencia",
       own: data.comparison.stamina.own,
       rival: data.comparison.stamina.rival,
     },

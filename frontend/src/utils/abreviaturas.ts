@@ -23,7 +23,7 @@ export const NOMBRE_DE_ABREVIATURA: Record<string, string> = {
   // Lo que no es habilidad pero se mide igual.
   FO: "Forma",
   EX: "Experiencia",
-  CO: "Condición",
+  RE: "Resistencia",
   FI: "Fidelidad",
   LI: "Liderazgo",
 };
