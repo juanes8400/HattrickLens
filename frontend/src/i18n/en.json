@@ -134,6 +134,17 @@
     "sincronizando": "Syncing with Hattrick…",
     "conectando": "Connecting…"
   },
+  "comun": {
+    "cargando": "Loading…",
+    "sesionVencidaTitulo": "Your Hattrick session has expired",
+    "sesionVencida": "Reconnect to continue. Data you've already imported is kept.",
+    "errorTitulo": "We couldn't load this data",
+    "errorTexto": "It may be a temporary hiccup. If it fails again, check that the HT Lens local connection is still up.",
+    "reintentando": "Retrying…",
+    "reintentar": "Retry",
+    "sinDatosTitulo": "Nothing arrived here",
+    "sinDatos": "This screen asked for its data and got no answer. Usually the HT Lens local connection is down."
+  },
   "apoyo": {
     "boton": "Buy me a coffee",
     "mensaje": "Keeping this page online costs me <b>US$7 a month</b>, and I pay for it myself. If it's useful to you, support me or write to me in the guestbook: we can work together on new features."
