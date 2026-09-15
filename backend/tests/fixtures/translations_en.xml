@@ -1,0 +1,1019 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HattrickData>
+  <FileName>translations.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-09-15 16:34:35</FetchedDate>
+  <Language Id="2">English (UK)</Language>
+  <Texts>
+    <SkillNames>
+      <Skill Type="Keeper">Keeper</Skill>
+      <Skill Type="Stamina">Stamina</Skill>
+      <Skill Type="Defender">Defending</Skill>
+      <Skill Type="Playmaker">Playmaking</Skill>
+      <Skill Type="Winger">Winger</Skill>
+      <Skill Type="Scorer">Scoring</Skill>
+      <Skill Type="Kicker">Set Pieces</Skill>
+      <Skill Type="Passer">Passing</Skill>
+      <Skill Type="Experience">Experience</Skill>
+      <Skill Type="LeaderShip">Leadership</Skill>
+      <Skill Type="Form">Form</Skill>
+    </SkillNames>
+    <SkillLevels>
+      <Level Value="0">non-existent</Level>
+      <Level Value="1">disastrous</Level>
+      <Level Value="2">wretched</Level>
+      <Level Value="3">poor</Level>
+      <Level Value="4">weak</Level>
+      <Level Value="5">inadequate</Level>
+      <Level Value="6">passable</Level>
+      <Level Value="7">solid</Level>
+      <Level Value="8">excellent</Level>
+      <Level Value="9">formidable</Level>
+      <Level Value="10">outstanding</Level>
+      <Level Value="11">brilliant</Level>
+      <Level Value="12">magnificent</Level>
+      <Level Value="13">world class</Level>
+      <Level Value="14">supernatural</Level>
+      <Level Value="15">titanic</Level>
+      <Level Value="16">extra-terrestrial</Level>
+      <Level Value="17">mythical</Level>
+      <Level Value="18">magical</Level>
+      <Level Value="19">utopian</Level>
+      <Level Value="20">divine</Level>
+    </SkillLevels>
+    <SkillSubLevels>
+      <SubLevel Value="0">very low</SubLevel>
+      <SubLevel Value="0,25">low</SubLevel>
+      <SubLevel Value="0,5">high</SubLevel>
+      <SubLevel Value="0,75">very high</SubLevel>
+    </SkillSubLevels>
+    <PlayerSpecialties Label="Speciality">
+      <Item Value="0">No speciality</Item>
+      <Item Value="1">Technical</Item>
+      <Item Value="2">Quick</Item>
+      <Item Value="3">Powerful</Item>
+      <Item Value="4">Unpredictable</Item>
+      <Item Value="5">Head</Item>
+      <Item Value="6">Resilient</Item>
+      <Item Value="8">Support</Item>
+    </PlayerSpecialties>
+    <PlayerAgreeability Label="Agreeability">
+      <Level Value="0">nasty fellow</Level>
+      <Level Value="1">controversial person</Level>
+      <Level Value="2">pleasant guy</Level>
+      <Level Value="3">sympathetic guy</Level>
+      <Level Value="4">popular guy</Level>
+      <Level Value="5">beloved team member</Level>
+    </PlayerAgreeability>
+    <PlayerAgressiveness Label="Aggressiveness">
+      <Level Value="0">tranquil</Level>
+      <Level Value="1">calm</Level>
+      <Level Value="2">balanced</Level>
+      <Level Value="3">temperamental</Level>
+      <Level Value="4">fiery</Level>
+      <Level Value="5">unstable</Level>
+    </PlayerAgressiveness>
+    <PlayerHonesty Label="Honesty">
+      <Level Value="0">infamous</Level>
+      <Level Value="1">dishonest</Level>
+      <Level Value="2">honest</Level>
+      <Level Value="3">upright</Level>
+      <Level Value="4">righteous</Level>
+      <Level Value="5">saint-like</Level>
+    </PlayerHonesty>
+    <TacticTypes Label="Tactic">
+      <Item Value="0">Normal</Item>
+      <Item Value="1">Pressing</Item>
+      <Item Value="2">Counter-Attacks</Item>
+      <Item Value="3">Attack in the Middle</Item>
+      <Item Value="4">Attack on Wings</Item>
+      <Item Value="5">Unknown</Item>
+      <Item Value="6">Unknown</Item>
+      <Item Value="7">Play Creatively</Item>
+      <Item Value="8">Long Shots</Item>
+    </TacticTypes>
+    <MatchPositions Label="Position">
+      <Item Type="Keeper">Keeper</Item>
+      <Item Type="WingBack">Wing Back</Item>
+      <Item Type="CentralDefender">Central Defender</Item>
+      <Item Type="InnerMidfield">Inner Midfielder</Item>
+      <Item Type="Winger">Winger</Item>
+      <Item Type="Forward">Forward</Item>
+    </MatchPositions>
+    <RatingSectors Label="Rating Details">
+      <Item Type="Midfield">Midfield</Item>
+      <Item Type="RightDefense">Right Defence</Item>
+      <Item Type="CentralDefense">Central Defence</Item>
+      <Item Type="LeftDefense">Left Defence</Item>
+      <Item Type="RightAttack">Right Attack</Item>
+      <Item Type="CentralAttack">Central Attack</Item>
+      <Item Type="LeftAttack">Left Attack</Item>
+      <Item Type="Indirect set pieces">Indirect Set Pieces</Item>
+      <Item Type="Defense">Defence</Item>
+      <Item Type="Attack">Attack</Item>
+    </RatingSectors>
+    <TeamAttitude Label="Team Attitude">
+      <Level Value="-1">Play it Cool</Level>
+      <Level Value="0">Normal</Level>
+      <Level Value="1">Match of the Season</Level>
+    </TeamAttitude>
+    <TeamSpirit Label="Team spirit">
+      <Level Value="0">like the cold war</Level>
+      <Level Value="1">murderous</Level>
+      <Level Value="2">furious</Level>
+      <Level Value="3">irritated</Level>
+      <Level Value="4">composed</Level>
+      <Level Value="5">calm</Level>
+      <Level Value="6">content</Level>
+      <Level Value="7">satisfied</Level>
+      <Level Value="8">delirious</Level>
+      <Level Value="9">walking on clouds</Level>
+      <Level Value="10">paradise on earth!</Level>
+    </TeamSpirit>
+    <Confidence Label="Confidence">
+      <Level Value="0">non-existent</Level>
+      <Level Value="1">disastrous</Level>
+      <Level Value="2">wretched</Level>
+      <Level Value="3">poor</Level>
+      <Level Value="4">decent</Level>
+      <Level Value="5">strong</Level>
+      <Level Value="6">wonderful</Level>
+      <Level Value="7">slightly exaggerated</Level>
+      <Level Value="8">exaggerated</Level>
+      <Level Value="9">completely exaggerated</Level>
+    </Confidence>
+    <TrainingTypes Label="Training type">
+      <Item Value="0">General (form)</Item>
+      <Item Value="1">Stamina</Item>
+      <Item Value="2">Set pieces</Item>
+      <Item Value="3">Defending</Item>
+      <Item Value="4">Scoring</Item>
+      <Item Value="5">Winger</Item>
+      <Item Value="6">Scoring and Set Pieces</Item>
+      <Item Value="7">Passing</Item>
+      <Item Value="8">Playmaking</Item>
+      <Item Value="9">Keeper</Item>
+      <Item Value="10">Passing (Defenders + All Midfielders)</Item>
+      <Item Value="11">Defending (Keepers, Defenders + All Midfielders)</Item>
+      <Item Value="12">Winger (Winger + Attackers)</Item>
+      <Item Value="13">Individual</Item>
+    </TrainingTypes>
+    <Sponsors Label="Sponsors">
+      <Level Value="0">murderous</Level>
+      <Level Value="1">furious</Level>
+      <Level Value="2">irritated</Level>
+      <Level Value="3">calm</Level>
+      <Level Value="4">content</Level>
+      <Level Value="5">satisfied</Level>
+      <Level Value="6">delirious</Level>
+      <Level Value="7">high on life</Level>
+      <Level Value="8">dancing in the streets</Level>
+      <Level Value="9">Sending love poems to you</Level>
+    </Sponsors>
+    <FanMood Label="Fan mood">
+      <Level Value="0">murderous</Level>
+      <Level Value="1">furious</Level>
+      <Level Value="2">angry</Level>
+      <Level Value="3">irritated</Level>
+      <Level Value="4">disappointed</Level>
+      <Level Value="5">calm</Level>
+      <Level Value="6">content</Level>
+      <Level Value="7">satisfied</Level>
+      <Level Value="8">delirious</Level>
+      <Level Value="9">high on life</Level>
+      <Level Value="10">dancing in the streets</Level>
+      <Level Value="11">Sending love poems to you</Level>
+    </FanMood>
+    <FanMatchExpectations Label="Fan match expectations">
+      <Level Value="0">Better not show up</Level>
+      <Level Value="1">We are outclassed</Level>
+      <Level Value="2">We will lose</Level>
+      <Level Value="3">They are favourites</Level>
+      <Level Value="4">They have the edge</Level>
+      <Level Value="5">It will be a close affair</Level>
+      <Level Value="6">We have the edge</Level>
+      <Level Value="7">We are favourites</Level>
+      <Level Value="8">We will win</Level>
+      <Level Value="9">Piece of cake!</Level>
+      <Level Value="10">Let's humiliate them</Level>
+    </FanMatchExpectations>
+    <FanSeasonExpectations Label="Fan season expectations">
+      <Level Value="0">We are not worthy of this division</Level>
+      <Level Value="1">Every day in this division is a bonus</Level>
+      <Level Value="2">We will have to fight to stay up</Level>
+      <Level Value="3">A mid table finish is nice</Level>
+      <Level Value="4">We belong in the top 4</Level>
+      <Level Value="5">Aim for the title!</Level>
+      <Level Value="6">We have to win this season</Level>
+      <Level Value="7">We are so much better than this division!</Level>
+    </FanSeasonExpectations>
+    <LeagueNames>
+      <League>
+        <LeagueId>1</LeagueId>
+        <LocalLeagueName>Sverige</LocalLeagueName>
+        <LanguageLeagueName>Sweden</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>2</LeagueId>
+        <LocalLeagueName>England</LocalLeagueName>
+        <LanguageLeagueName>England</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>3</LeagueId>
+        <LocalLeagueName>Deutschland</LocalLeagueName>
+        <LanguageLeagueName>Germany</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>4</LeagueId>
+        <LocalLeagueName>Italia</LocalLeagueName>
+        <LanguageLeagueName>Italy</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>5</LeagueId>
+        <LocalLeagueName>France</LocalLeagueName>
+        <LanguageLeagueName>France</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>6</LeagueId>
+        <LocalLeagueName>México</LocalLeagueName>
+        <LanguageLeagueName>Mexico</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>7</LeagueId>
+        <LocalLeagueName>Argentina</LocalLeagueName>
+        <LanguageLeagueName>Argentina</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>8</LeagueId>
+        <LocalLeagueName>USA</LocalLeagueName>
+        <LanguageLeagueName>USA</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>9</LeagueId>
+        <LocalLeagueName>Norge</LocalLeagueName>
+        <LanguageLeagueName>Norway</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>11</LeagueId>
+        <LocalLeagueName>Danmark</LocalLeagueName>
+        <LanguageLeagueName>Denmark</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>12</LeagueId>
+        <LocalLeagueName>Suomi</LocalLeagueName>
+        <LanguageLeagueName>Finland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>14</LeagueId>
+        <LocalLeagueName>Nederland</LocalLeagueName>
+        <LanguageLeagueName>Netherlands</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>15</LeagueId>
+        <LocalLeagueName>Oceania</LocalLeagueName>
+        <LanguageLeagueName>Oceania</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>16</LeagueId>
+        <LocalLeagueName>Brasil</LocalLeagueName>
+        <LanguageLeagueName>Brazil</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>17</LeagueId>
+        <LocalLeagueName>Canada</LocalLeagueName>
+        <LanguageLeagueName>Canada</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>18</LeagueId>
+        <LocalLeagueName>Chile</LocalLeagueName>
+        <LanguageLeagueName>Chile</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>19</LeagueId>
+        <LocalLeagueName>Colombia</LocalLeagueName>
+        <LanguageLeagueName>Colombia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>20</LeagueId>
+        <LocalLeagueName>India</LocalLeagueName>
+        <LanguageLeagueName>India</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>21</LeagueId>
+        <LocalLeagueName>Ireland</LocalLeagueName>
+        <LanguageLeagueName>Ireland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>22</LeagueId>
+        <LocalLeagueName>Nippon</LocalLeagueName>
+        <LanguageLeagueName>Japan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>23</LeagueId>
+        <LocalLeagueName>Perú</LocalLeagueName>
+        <LanguageLeagueName>Peru</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>24</LeagueId>
+        <LocalLeagueName>Polska</LocalLeagueName>
+        <LanguageLeagueName>Poland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>25</LeagueId>
+        <LocalLeagueName>Portugal</LocalLeagueName>
+        <LanguageLeagueName>Portugal</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>26</LeagueId>
+        <LocalLeagueName>Scotland</LocalLeagueName>
+        <LanguageLeagueName>Scotland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>27</LeagueId>
+        <LocalLeagueName>South Africa</LocalLeagueName>
+        <LanguageLeagueName>South Africa</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>28</LeagueId>
+        <LocalLeagueName>Uruguay</LocalLeagueName>
+        <LanguageLeagueName>Uruguay</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>29</LeagueId>
+        <LocalLeagueName>Venezuela</LocalLeagueName>
+        <LanguageLeagueName>Venezuela</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>30</LeagueId>
+        <LocalLeagueName>Hanguk</LocalLeagueName>
+        <LanguageLeagueName>South Korea</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>31</LeagueId>
+        <LocalLeagueName>Prathet Thai</LocalLeagueName>
+        <LanguageLeagueName>Thailand</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>32</LeagueId>
+        <LocalLeagueName>Türkiye</LocalLeagueName>
+        <LanguageLeagueName>Turkey</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>33</LeagueId>
+        <LocalLeagueName>Misr</LocalLeagueName>
+        <LanguageLeagueName>Egypt</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>34</LeagueId>
+        <LocalLeagueName>China</LocalLeagueName>
+        <LanguageLeagueName>People's Republic of China</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>35</LeagueId>
+        <LocalLeagueName>Rossiya</LocalLeagueName>
+        <LanguageLeagueName>Russia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>36</LeagueId>
+        <LocalLeagueName>España</LocalLeagueName>
+        <LanguageLeagueName>Spain</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>37</LeagueId>
+        <LocalLeagueName>România</LocalLeagueName>
+        <LanguageLeagueName>Romania</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>38</LeagueId>
+        <LocalLeagueName>Ísland</LocalLeagueName>
+        <LanguageLeagueName>Iceland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>39</LeagueId>
+        <LocalLeagueName>Österreich</LocalLeagueName>
+        <LanguageLeagueName>Austria</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>44</LeagueId>
+        <LocalLeagueName>Belgium</LocalLeagueName>
+        <LanguageLeagueName>Belgium</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>45</LeagueId>
+        <LocalLeagueName>Malaysia</LocalLeagueName>
+        <LanguageLeagueName>Malaysia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>46</LeagueId>
+        <LocalLeagueName>Schweiz</LocalLeagueName>
+        <LanguageLeagueName>Switzerland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>47</LeagueId>
+        <LocalLeagueName>Singapore</LocalLeagueName>
+        <LanguageLeagueName>Singapore</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>50</LeagueId>
+        <LocalLeagueName>Hellas</LocalLeagueName>
+        <LanguageLeagueName>Greece</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>51</LeagueId>
+        <LocalLeagueName>Magyarország</LocalLeagueName>
+        <LanguageLeagueName>Hungary</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>52</LeagueId>
+        <LocalLeagueName>Česko</LocalLeagueName>
+        <LanguageLeagueName>Czechia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>53</LeagueId>
+        <LocalLeagueName>Latvija</LocalLeagueName>
+        <LanguageLeagueName>Latvia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>54</LeagueId>
+        <LocalLeagueName>Indonesia</LocalLeagueName>
+        <LanguageLeagueName>Indonesia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>55</LeagueId>
+        <LocalLeagueName>Pilipinas</LocalLeagueName>
+        <LanguageLeagueName>Philippines</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>56</LeagueId>
+        <LocalLeagueName>Eesti</LocalLeagueName>
+        <LanguageLeagueName>Estonia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>57</LeagueId>
+        <LocalLeagueName>Srbija</LocalLeagueName>
+        <LanguageLeagueName>Serbia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>58</LeagueId>
+        <LocalLeagueName>Hrvatska</LocalLeagueName>
+        <LanguageLeagueName>Croatia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>59</LeagueId>
+        <LocalLeagueName>Hong Kong, China</LocalLeagueName>
+        <LanguageLeagueName>Hong Kong, China</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>60</LeagueId>
+        <LocalLeagueName>Chinese Taipei</LocalLeagueName>
+        <LanguageLeagueName>Chinese Taipei</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>61</LeagueId>
+        <LocalLeagueName>Cymru</LocalLeagueName>
+        <LanguageLeagueName>Wales</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>62</LeagueId>
+        <LocalLeagueName>Bulgaria</LocalLeagueName>
+        <LanguageLeagueName>Bulgaria</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>63</LeagueId>
+        <LocalLeagueName>Israel</LocalLeagueName>
+        <LanguageLeagueName>Israel</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>64</LeagueId>
+        <LocalLeagueName>Slovenija</LocalLeagueName>
+        <LanguageLeagueName>Slovenia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>66</LeagueId>
+        <LocalLeagueName>Lietuva</LocalLeagueName>
+        <LanguageLeagueName>Lithuania</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>67</LeagueId>
+        <LocalLeagueName>Slovensko</LocalLeagueName>
+        <LanguageLeagueName>Slovakia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>68</LeagueId>
+        <LocalLeagueName>Ukraina</LocalLeagueName>
+        <LanguageLeagueName>Ukraine</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>69</LeagueId>
+        <LocalLeagueName>Bosna i Hercegovina</LocalLeagueName>
+        <LanguageLeagueName>Bosnia and Herzegovina</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>70</LeagueId>
+        <LocalLeagueName>Việt Nam</LocalLeagueName>
+        <LanguageLeagueName>Vietnam</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>71</LeagueId>
+        <LocalLeagueName>Pakistan</LocalLeagueName>
+        <LanguageLeagueName>Pakistan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>72</LeagueId>
+        <LocalLeagueName>Paraguay</LocalLeagueName>
+        <LanguageLeagueName>Paraguay</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>73</LeagueId>
+        <LocalLeagueName>Ecuador</LocalLeagueName>
+        <LanguageLeagueName>Ecuador</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>74</LeagueId>
+        <LocalLeagueName>Bolivia</LocalLeagueName>
+        <LanguageLeagueName>Bolivia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>75</LeagueId>
+        <LocalLeagueName>Nigeria</LocalLeagueName>
+        <LanguageLeagueName>Nigeria</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>76</LeagueId>
+        <LocalLeagueName>Føroyar</LocalLeagueName>
+        <LanguageLeagueName>Faroe Islands</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>77</LeagueId>
+        <LocalLeagueName>Al Maghrib</LocalLeagueName>
+        <LanguageLeagueName>Morocco</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>79</LeagueId>
+        <LocalLeagueName>Saudi Arabia</LocalLeagueName>
+        <LanguageLeagueName>Saudi Arabia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>80</LeagueId>
+        <LocalLeagueName>Tounes</LocalLeagueName>
+        <LanguageLeagueName>Tunisia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>81</LeagueId>
+        <LocalLeagueName>Costa Rica</LocalLeagueName>
+        <LanguageLeagueName>Costa Rica</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>83</LeagueId>
+        <LocalLeagueName>United Arab Emirates</LocalLeagueName>
+        <LanguageLeagueName>United Arab Emirates</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>84</LeagueId>
+        <LocalLeagueName>Lëtzebuerg</LocalLeagueName>
+        <LanguageLeagueName>Luxembourg</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>85</LeagueId>
+        <LocalLeagueName>Iran</LocalLeagueName>
+        <LanguageLeagueName>Iran</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>88</LeagueId>
+        <LocalLeagueName>República Dominicana</LocalLeagueName>
+        <LanguageLeagueName>Dominican Republic</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>89</LeagueId>
+        <LocalLeagueName>Cyprus</LocalLeagueName>
+        <LanguageLeagueName>Cyprus</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>91</LeagueId>
+        <LocalLeagueName>Belarus</LocalLeagueName>
+        <LanguageLeagueName>Belarus</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>93</LeagueId>
+        <LocalLeagueName>Northern Ireland</LocalLeagueName>
+        <LanguageLeagueName>Northern Ireland</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>94</LeagueId>
+        <LocalLeagueName>Jamaica</LocalLeagueName>
+        <LanguageLeagueName>Jamaica</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>95</LeagueId>
+        <LocalLeagueName>Kenya</LocalLeagueName>
+        <LanguageLeagueName>Kenya</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>96</LeagueId>
+        <LocalLeagueName>Panamá</LocalLeagueName>
+        <LanguageLeagueName>Panama</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>97</LeagueId>
+        <LocalLeagueName>Severna Makedonija</LocalLeagueName>
+        <LanguageLeagueName>North Macedonia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>98</LeagueId>
+        <LocalLeagueName>Shqipëria</LocalLeagueName>
+        <LanguageLeagueName>Albania</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>99</LeagueId>
+        <LocalLeagueName>Honduras</LocalLeagueName>
+        <LanguageLeagueName>Honduras</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>100</LeagueId>
+        <LocalLeagueName>El Salvador</LocalLeagueName>
+        <LanguageLeagueName>El Salvador</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>101</LeagueId>
+        <LocalLeagueName>Malta</LocalLeagueName>
+        <LanguageLeagueName>Malta</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>102</LeagueId>
+        <LocalLeagueName>Kyrgyz Republic</LocalLeagueName>
+        <LanguageLeagueName>Kyrgyzstan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>103</LeagueId>
+        <LocalLeagueName>Moldova</LocalLeagueName>
+        <LanguageLeagueName>Moldova</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>104</LeagueId>
+        <LocalLeagueName>Sakartvelo</LocalLeagueName>
+        <LanguageLeagueName>Georgia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>105</LeagueId>
+        <LocalLeagueName>Andorra</LocalLeagueName>
+        <LanguageLeagueName>Andorra</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>106</LeagueId>
+        <LocalLeagueName>Al Urdun</LocalLeagueName>
+        <LanguageLeagueName>Jordan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>107</LeagueId>
+        <LocalLeagueName>Guatemala</LocalLeagueName>
+        <LanguageLeagueName>Guatemala</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>110</LeagueId>
+        <LocalLeagueName>Trinidad &amp; Tobago</LocalLeagueName>
+        <LanguageLeagueName>Trinidad &amp; Tobago</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>111</LeagueId>
+        <LocalLeagueName>Nicaragua</LocalLeagueName>
+        <LanguageLeagueName>Nicaragua</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>112</LeagueId>
+        <LocalLeagueName>Kazakhstan</LocalLeagueName>
+        <LanguageLeagueName>Kazakhstan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>113</LeagueId>
+        <LocalLeagueName>Suriname</LocalLeagueName>
+        <LanguageLeagueName>Suriname</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>117</LeagueId>
+        <LocalLeagueName>Liechtenstein</LocalLeagueName>
+        <LanguageLeagueName>Liechtenstein</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>118</LeagueId>
+        <LocalLeagueName>Algérie</LocalLeagueName>
+        <LanguageLeagueName>Algeria</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>119</LeagueId>
+        <LocalLeagueName>Mongol Uls</LocalLeagueName>
+        <LanguageLeagueName>Mongolia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>120</LeagueId>
+        <LocalLeagueName>Lubnan</LocalLeagueName>
+        <LanguageLeagueName>Lebanon</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>121</LeagueId>
+        <LocalLeagueName>Sénégal</LocalLeagueName>
+        <LanguageLeagueName>Senegal</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>122</LeagueId>
+        <LocalLeagueName>Hayastan</LocalLeagueName>
+        <LanguageLeagueName>Armenia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>123</LeagueId>
+        <LocalLeagueName>Bahrain</LocalLeagueName>
+        <LanguageLeagueName>Bahrain</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>124</LeagueId>
+        <LocalLeagueName>Barbados</LocalLeagueName>
+        <LanguageLeagueName>Barbados</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>125</LeagueId>
+        <LocalLeagueName>Cabo Verde</LocalLeagueName>
+        <LanguageLeagueName>Cape Verde</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>126</LeagueId>
+        <LocalLeagueName>Côte d’Ivoire</LocalLeagueName>
+        <LanguageLeagueName>Côte d’Ivoire</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>127</LeagueId>
+        <LocalLeagueName>Al Kuwayt</LocalLeagueName>
+        <LanguageLeagueName>Kuwait</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>128</LeagueId>
+        <LocalLeagueName>Al Iraq</LocalLeagueName>
+        <LanguageLeagueName>Iraq</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>129</LeagueId>
+        <LocalLeagueName>Azərbaycan</LocalLeagueName>
+        <LanguageLeagueName>Azerbaijan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>130</LeagueId>
+        <LocalLeagueName>Angola</LocalLeagueName>
+        <LanguageLeagueName>Angola</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>131</LeagueId>
+        <LocalLeagueName>Crna Gora</LocalLeagueName>
+        <LanguageLeagueName>Montenegro</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>132</LeagueId>
+        <LocalLeagueName>Bangladesh</LocalLeagueName>
+        <LanguageLeagueName>Bangladesh</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>133</LeagueId>
+        <LocalLeagueName>Al Yaman</LocalLeagueName>
+        <LanguageLeagueName>Yemen</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>134</LeagueId>
+        <LocalLeagueName>Oman</LocalLeagueName>
+        <LanguageLeagueName>Oman</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>135</LeagueId>
+        <LocalLeagueName>Moçambique</LocalLeagueName>
+        <LanguageLeagueName>Mozambique</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>136</LeagueId>
+        <LocalLeagueName>Brunei</LocalLeagueName>
+        <LanguageLeagueName>Brunei</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>137</LeagueId>
+        <LocalLeagueName>Ghana</LocalLeagueName>
+        <LanguageLeagueName>Ghana</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>138</LeagueId>
+        <LocalLeagueName>Kampuchea</LocalLeagueName>
+        <LanguageLeagueName>Cambodia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>139</LeagueId>
+        <LocalLeagueName>Bénin</LocalLeagueName>
+        <LanguageLeagueName>Benin</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>140</LeagueId>
+        <LocalLeagueName>Suriyah</LocalLeagueName>
+        <LanguageLeagueName>Syria</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>141</LeagueId>
+        <LocalLeagueName>Dawlat Qatar</LocalLeagueName>
+        <LanguageLeagueName>Qatar</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>142</LeagueId>
+        <LocalLeagueName>Tanzania</LocalLeagueName>
+        <LanguageLeagueName>Tanzania</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>143</LeagueId>
+        <LocalLeagueName>Uganda</LocalLeagueName>
+        <LanguageLeagueName>Uganda</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>144</LeagueId>
+        <LocalLeagueName>Dhivehi Raajje</LocalLeagueName>
+        <LanguageLeagueName>Maldives</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>145</LeagueId>
+        <LocalLeagueName>O’zbekiston</LocalLeagueName>
+        <LanguageLeagueName>Uzbekistan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>146</LeagueId>
+        <LocalLeagueName>Cameroon</LocalLeagueName>
+        <LanguageLeagueName>Cameroon</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>147</LeagueId>
+        <LocalLeagueName>Cuba</LocalLeagueName>
+        <LanguageLeagueName>Cuba</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>148</LeagueId>
+        <LocalLeagueName>Palestine</LocalLeagueName>
+        <LanguageLeagueName>Palestine</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>149</LeagueId>
+        <LocalLeagueName>São Tomé e Príncipe</LocalLeagueName>
+        <LanguageLeagueName>São Tomé e Príncipe</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>151</LeagueId>
+        <LocalLeagueName>Comoros</LocalLeagueName>
+        <LanguageLeagueName>Comoros</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>152</LeagueId>
+        <LocalLeagueName>Sri Lanka</LocalLeagueName>
+        <LanguageLeagueName>Sri Lanka</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>153</LeagueId>
+        <LocalLeagueName>Curaçao</LocalLeagueName>
+        <LanguageLeagueName>Curaçao</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>154</LeagueId>
+        <LocalLeagueName>Guam</LocalLeagueName>
+        <LanguageLeagueName>Guam</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>155</LeagueId>
+        <LocalLeagueName>RD Congo</LocalLeagueName>
+        <LanguageLeagueName>DR Congo</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>156</LeagueId>
+        <LocalLeagueName>Ītyōṗṗyā</LocalLeagueName>
+        <LanguageLeagueName>Ethiopia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>157</LeagueId>
+        <LocalLeagueName>Saint Vincent and the Grenadines</LocalLeagueName>
+        <LanguageLeagueName>Saint Vincent and the Grenadines</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>158</LeagueId>
+        <LocalLeagueName>Belize</LocalLeagueName>
+        <LanguageLeagueName>Belize</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>159</LeagueId>
+        <LocalLeagueName>Madagasikara</LocalLeagueName>
+        <LanguageLeagueName>Madagascar</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>160</LeagueId>
+        <LocalLeagueName>Botswana</LocalLeagueName>
+        <LanguageLeagueName>Botswana</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>161</LeagueId>
+        <LocalLeagueName>Myanmar</LocalLeagueName>
+        <LanguageLeagueName>Myanmar</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>162</LeagueId>
+        <LocalLeagueName>Zambia</LocalLeagueName>
+        <LanguageLeagueName>Zambia</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>163</LeagueId>
+        <LocalLeagueName>San Marino</LocalLeagueName>
+        <LanguageLeagueName>San Marino</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>164</LeagueId>
+        <LocalLeagueName>Haiti</LocalLeagueName>
+        <LanguageLeagueName>Haiti</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>165</LeagueId>
+        <LocalLeagueName>Puerto Rico</LocalLeagueName>
+        <LanguageLeagueName>Puerto Rico</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>166</LeagueId>
+        <LocalLeagueName>Grenada</LocalLeagueName>
+        <LanguageLeagueName>Grenada</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>167</LeagueId>
+        <LocalLeagueName>Burkina Faso</LocalLeagueName>
+        <LanguageLeagueName>Burkina Faso</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>168</LeagueId>
+        <LocalLeagueName>Nepal</LocalLeagueName>
+        <LanguageLeagueName>Nepal</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>169</LeagueId>
+        <LocalLeagueName>Guyana</LocalLeagueName>
+        <LanguageLeagueName>Guyana</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>170</LeagueId>
+        <LocalLeagueName>Tahiti</LocalLeagueName>
+        <LanguageLeagueName>Tahiti</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>171</LeagueId>
+        <LocalLeagueName>Guinée</LocalLeagueName>
+        <LanguageLeagueName>Guinea</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>172</LeagueId>
+        <LocalLeagueName>Bahamas</LocalLeagueName>
+        <LanguageLeagueName>Bahamas</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>173</LeagueId>
+        <LocalLeagueName>Rwanda</LocalLeagueName>
+        <LanguageLeagueName>Rwanda</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>174</LeagueId>
+        <LocalLeagueName>Saint Kitts and Nevis</LocalLeagueName>
+        <LanguageLeagueName>Saint Kitts and Nevis</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>175</LeagueId>
+        <LocalLeagueName>Guinea Ecuatorial</LocalLeagueName>
+        <LanguageLeagueName>Equatorial Guinea</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>176</LeagueId>
+        <LocalLeagueName>Gibraltar</LocalLeagueName>
+        <LanguageLeagueName>Gibraltar</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>177</LeagueId>
+        <LocalLeagueName>Bhutan</LocalLeagueName>
+        <LanguageLeagueName>Bhutan</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>1000</LeagueId>
+        <LocalLeagueName>Hattrick International</LocalLeagueName>
+        <LanguageLeagueName>Hattrick International</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>1001</LeagueId>
+        <LocalLeagueName>Apache League</LocalLeagueName>
+        <LanguageLeagueName>Apache League (Limited Edition)</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>1002</LeagueId>
+        <LocalLeagueName>Hattrick Anniversary League</LocalLeagueName>
+        <LanguageLeagueName>Hattrick Anniversary league</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>1003</LeagueId>
+        <LocalLeagueName>Homegrown League</LocalLeagueName>
+        <LanguageLeagueName>Homegrown League</LanguageLeagueName>
+      </League>
+      <League>
+        <LeagueId>3000</LeagueId>
+        <LocalLeagueName>Hattrick Femme International</LocalLeagueName>
+        <LanguageLeagueName>Hattrick Femme International</LanguageLeagueName>
+      </League>
+    </LeagueNames>
+  </Texts>
+</HattrickData>

@@ -1,29 +1,18 @@
-const SKILL_LEVELS = [
-  "nulo",
-  "desastroso",
-  "horrible",
-  "pobre",
-  "débil",
-  "insuficiente",
-  "aceptable",
-  "bueno",
-  "excelente",
-  "formidable",
-  "destacado",
-  "brillante",
-  "magnífico",
-  "clase mundial",
-  "sobrenatural",
-  "titánico",
-  "extraterrestre",
-  "mítico",
-  "mágico",
-  "utópico",
-  "divino",
-];
+import i18n from "../i18n";
 
+/** Nivel más alto con palabra propia en Hattrick («divino»). */
+const NIVEL_MAXIMO = 20;
+
+/** La palabra oficial de Hattrick para un nivel, en el idioma de la app.
+ *
+ *  2026-09-15: antes eran 21 palabras escritas a mano en español; ahora
+ *  salen del glosario oficial (`translations.xml`), que en español dice
+ *  exactamente lo mismo. Por encima de 20 se sigue escribiendo «divino+N». */
 export function skillLevelLabel(level: number, capitalize = false): string {
-  const label = SKILL_LEVELS[level] ?? `divino+${level - 20}`;
+  const label =
+    Number.isInteger(level) && level >= 0 && level <= NIVEL_MAXIMO
+      ? i18n.t(`niveles.${level}`, { ns: "glosario" })
+      : `${i18n.t(`niveles.${NIVEL_MAXIMO}`, { ns: "glosario" })}+${level - NIVEL_MAXIMO}`;
   return capitalize ? label.charAt(0).toUpperCase() + label.slice(1) : label;
 }
 

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { lecturaDeNivel } from "./skillLevels";
+import i18n from "../i18n";
+import { lecturaDeNivel, skillLevelLabel } from "./skillLevels";
 
 describe("cómo se lee una habilidad juvenil", () => {
   it("sabiendo nivel y techo, la barra mide el nivel", () => {
@@ -44,5 +45,51 @@ describe("cómo se lee una habilidad juvenil", () => {
       palabra: "desconocido",
       numeros: "",
     });
+  });
+});
+
+/** Las 21 palabras tal cual estaban escritas a mano antes del glosario. */
+const NIVELES_QUE_YA_SE_VEIAN = [
+  "nulo",
+  "desastroso",
+  "horrible",
+  "pobre",
+  "débil",
+  "insuficiente",
+  "aceptable",
+  "bueno",
+  "excelente",
+  "formidable",
+  "destacado",
+  "brillante",
+  "magnífico",
+  "clase mundial",
+  "sobrenatural",
+  "titánico",
+  "extraterrestre",
+  "mítico",
+  "mágico",
+  "utópico",
+  "divino",
+];
+
+describe("skillLevelLabel con el glosario oficial (2026-09-15)", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("es");
+  });
+
+  it("en español dice exactamente lo que ya se veía", () => {
+    expect(NIVELES_QUE_YA_SE_VEIAN.map((_, i) => skillLevelLabel(i))).toEqual(
+      NIVELES_QUE_YA_SE_VEIAN,
+    );
+    expect(skillLevelLabel(8, true)).toBe("Excelente");
+    expect(skillLevelLabel(22)).toBe("divino+2");
+  });
+
+  it("en inglés usa las palabras de Hattrick", async () => {
+    await i18n.changeLanguage("en");
+    expect(skillLevelLabel(7)).toBe("solid");
+    expect(skillLevelLabel(20)).toBe("divine");
+    expect(skillLevelLabel(21)).toBe("divine+1");
   });
 });
