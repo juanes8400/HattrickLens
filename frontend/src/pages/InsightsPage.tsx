@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useArchiveInsight,
   useArchivedInsights,
@@ -23,6 +24,7 @@ import type { Insight } from "../services/api";
  * decide el backend y aquí nunca se reordena, solo se filtra.
  */
 export function InsightsPage() {
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = useInsights();
   const archived = useArchivedInsights();
   const archive = useArchiveInsight();
@@ -69,10 +71,12 @@ export function InsightsPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Alertas</h1>
+        <h1 className="text-xl font-semibold">{t("nav.alertas", "Alertas")}</h1>
         <p className="prosa text-sm text-[var(--muted)]">
-          Reglas de negocio evaluadas contra tu plantilla, tu liga, tu copa, tu
-          estadio, tu academia y tu cuerpo técnico, ordenadas por urgencia
+          {t(
+            "alertas.intro",
+            "Reglas de negocio evaluadas contra tu plantilla, tu liga, tu copa, tu estadio, tu academia y tu cuerpo técnico, ordenadas por urgencia",
+          )}
         </p>
       </header>
 
@@ -85,17 +89,22 @@ export function InsightsPage() {
 
         {modules.length > 1 && (
           <select
-            aria-label="Filtrar las alertas por módulo"
+            aria-label={t(
+              "alertas.filtrarModulo",
+              "Filtrar las alertas por módulo",
+            )}
             value={activeModule}
             onChange={(e) => setActiveModule(e.target.value)}
             className="ml-auto rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
           >
             <option value="__all__">
-              Todos los módulos ({data?.length ?? 0})
+              {t("alertas.todosModulos", "Todos los módulos ({{n}})", {
+                n: data?.length ?? 0,
+              })}
             </option>
             {modules.map((mod) => (
               <option key={mod} value={mod}>
-                {mod} ({byModule[mod]})
+                {t(`alertas.modulo.${mod}`, mod)} ({byModule[mod]})
               </option>
             ))}
           </select>
@@ -103,11 +112,14 @@ export function InsightsPage() {
       </div>
 
       <Panel
-        title="Centro de alertas"
+        title={t("alertas.centro", "Centro de alertas")}
         meta={
           filtered.length === (data?.length ?? 0)
-            ? `${data?.length ?? 0} activas`
-            : `${filtered.length} de ${data?.length ?? 0}`
+            ? t("alertas.activas", "{{n}} activas", { n: data?.length ?? 0 })
+            : t("comun.nDeTotal", "{{n}} de {{total}}", {
+                n: filtered.length,
+                total: data?.length ?? 0,
+              })
         }
       >
         {data?.length ? (
@@ -125,10 +137,17 @@ export function InsightsPage() {
               ))}
             </ul>
           ) : (
-            <Empty>Ninguna alerta activa coincide con el filtro.</Empty>
+            <Empty>
+              {t(
+                "alertas.ningunaFiltro",
+                "Ninguna alerta activa coincide con el filtro.",
+              )}
+            </Empty>
           )
         ) : (
-          <Empty>Nada requiere tu atención ahora mismo.</Empty>
+          <Empty>
+            {t("alertas.nada", "Nada requiere tu atención ahora mismo.")}
+          </Empty>
         )}
       </Panel>
 
@@ -136,8 +155,14 @@ export function InsightsPage() {
           permanente sería ruido en una pantalla que ya tiene filtros. */}
       {archived.data?.length ? (
         <Panel
-          title="Buzón"
-          meta={`${archived.data.length} archivada${archived.data.length === 1 ? "" : "s"}`}
+          title={t("alertas.buzon", "Buzón")}
+          meta={
+            archived.data.length === 1
+              ? t("alertas.archivada", "{{n}} archivada", { n: 1 })
+              : t("alertas.archivadas", "{{n}} archivadas", {
+                  n: archived.data.length,
+                })
+          }
         >
           <ul data-lista="alertas-archivadas">
             {archived.data.map((i) => (
@@ -148,15 +173,25 @@ export function InsightsPage() {
                 busy={restore.isPending && restore.variables === i.key}
                 meta={
                   i.stillActive
-                    ? `Archivada ${relative(i.dismissedAt)} · la condición sigue vigente`
-                    : `Archivada ${relative(i.dismissedAt)} · ya no se cumple`
+                    ? t(
+                        "alertas.archivadaVigente",
+                        "Archivada {{cuando}} · la condición sigue vigente",
+                        { cuando: relative(i.dismissedAt) },
+                      )
+                    : t(
+                        "alertas.archivadaResuelta",
+                        "Archivada {{cuando}} · ya no se cumple",
+                        { cuando: relative(i.dismissedAt) },
+                      )
                 }
               />
             ))}
           </ul>
           <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-            Archivar no apaga la regla: si la misma alerta se vuelve a generar
-            con otra cifra u otra severidad, vuelve sola a la lista de arriba.
+            {t(
+              "alertas.archivarNoApaga",
+              "Archivar no apaga la regla: si la misma alerta se vuelve a generar con otra cifra u otra severidad, vuelve sola a la lista de arriba.",
+            )}
           </p>
         </Panel>
       ) : null}

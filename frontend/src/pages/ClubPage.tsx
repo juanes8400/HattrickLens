@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { Chart } from "../charts/Chart";
 import { timelineOption } from "../charts/chartOptions";
 import {
@@ -15,7 +17,7 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { SerieConCausas } from "../components/SerieConCausas";
-import type { Suceso } from "../components/SerieConCausas";
+import type { Peldano, Suceso } from "../components/SerieConCausas";
 import { StaffRoleCard } from "../components/StaffRoleCard";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { useClub } from "../hooks/useTeam";
@@ -49,6 +51,7 @@ const ROJO = "var(--danger)";
 type Seccion = "psicologia" | "tecnico" | "socios";
 
 export function ClubPage() {
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = useClub();
   const [seccion, setSeccion] = useState<Seccion>("psicologia");
 
@@ -64,19 +67,23 @@ export function ClubPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Club y cuerpo técnico</h1>
+        <h1 className="text-xl font-semibold">
+          {t("nav.club", "Club y cuerpo técnico")}
+        </h1>
         <p className="text-sm text-[var(--muted)]">
-          Estado actual e histórico real de {data.teamName}.
+          {t("club.intro", "Estado actual e histórico real de {{club}}.", {
+            club: data.teamName,
+          })}
         </p>
       </header>
 
       <Tabs
         grupo="club"
-        label="Secciones de Club"
+        label={t("club.secciones", "Secciones de Club")}
         tabs={[
-          { key: "psicologia", label: "Psicología" },
-          { key: "tecnico", label: "Cuerpo técnico" },
-          { key: "socios", label: "Socios" },
+          { key: "psicologia", label: t("club.psicologia", "Psicología") },
+          { key: "tecnico", label: t("club.cuerpoTecnico", "Cuerpo técnico") },
+          { key: "socios", label: t("club.socios", "Socios") },
         ]}
         active={seccion}
         onChange={(k) => setSeccion(k as Seccion)}
@@ -123,7 +130,27 @@ function marcador(m: PsychologyMatch): string {
   return `${m.goalsFor}-${m.goalsAgainst}`;
 }
 
+/** «Victoria», «Derrota» o «Empate», en el idioma de la app. */
+function nombreDelResultado(m: PsychologyMatch): string {
+  return m.result === "win"
+    ? i18n.t("comun.victoria", "Victoria")
+    : m.result === "loss"
+      ? i18n.t("comun.derrota", "Derrota")
+      : i18n.t("comun.empate", "Empate");
+}
+
+/** Los partidos como sucesos de la banda de arriba, coloreados por resultado. */
+function sucesosPorResultado(matches: PsychologyMatch[]): Suceso[] {
+  return matches.map((m) => ({
+    at: m.playedAt,
+    chip: null,
+    color: m.result === "win" ? VERDE : m.result === "loss" ? ROJO : GRIS,
+    detail: `<b>${nombreDelResultado(m)} ${marcador(m)}</b> · ${m.rival}`,
+  }));
+}
+
 function Psicologia({ data }: { data: Club }) {
+  const { t } = useTranslation();
   const psi = data.psychology;
   const { from, to } = ventana(data);
   const { current } = data;
@@ -135,36 +162,32 @@ function Psicologia({ data }: { data: Club }) {
     at: m.playedAt,
     chip: m.attitudeLabel,
     color: m.attitude === -1 ? VERDE : m.attitude === 1 ? ROJO : GRIS,
-    detail: `<b>${m.attitudeLabel ?? "actitud no leída"}</b> · ${m.rival} ${marcador(m)}`,
+    detail: `<b>${m.attitudeLabel ?? t("club.actitudNoLeida", "actitud no leída")}</b> · ${m.rival} ${marcador(m)}`,
   }));
-  const porResultado: Suceso[] = psi.matches.map((m) => ({
-    at: m.playedAt,
-    chip: null,
-    color: m.result === "win" ? VERDE : m.result === "loss" ? ROJO : GRIS,
-    detail:
-      `<b>${m.result === "win" ? "Victoria" : m.result === "loss" ? "Derrota" : "Empate"} ` +
-      `${marcador(m)}</b> · ${m.rival}`,
-  }));
+  const porResultado = sucesosPorResultado(psi.matches);
 
   const pic = psi.matches.filter((m) => m.attitude === -1).length;
   const normal = psi.matches.filter((m) => m.attitude === 0).length;
   const mots = psi.matches.filter((m) => m.attitude === 1).length;
-  const ventas = psi.sellDays.reduce((t, d) => t + d.count, 0);
-  const compras = psi.buyDays.reduce((t, d) => t + d.count, 0);
+  const ventas = psi.sellDays.reduce((s, d) => s + d.count, 0);
+  const compras = psi.buyDays.reduce((s, d) => s + d.count, 0);
 
   return (
     <div className="space-y-4">
       <Panel
-        title="Espíritu"
-        meta="lo mueven la actitud del partido, el mercado y el % de entrenamiento"
+        title={t("club.espiritu", "Espíritu")}
+        meta={t(
+          "club.espirituMeta",
+          "lo mueven la actitud del partido, el mercado y el % de entrenamiento",
+        )}
       >
         <div className="flex flex-wrap items-baseline gap-4 border-b border-[var(--border)] px-4 py-3">
           <Kpi
-            label="Ahora"
+            label={t("comun.ahora", "Ahora")}
             value={
               current.spirit
                 ? `${current.spirit.label} (${current.spirit.level})`
-                : "Sin dato"
+                : t("comun.sinDato", "Sin dato")
             }
           />
         </div>
@@ -174,10 +197,13 @@ function Psicologia({ data }: { data: Club }) {
             movements={psi.spirit.movements}
             scale={psi.spirit.scale}
             equilibrium={psi.spirit.equilibrium}
-            equilibriumLabel="tiende aquí"
+            equilibriumLabel={t("club.tiendeAqui", "tiende aquí")}
             events={porActitud}
-            eventsLabel="partidos"
-            ariaLabel="Evolución del espíritu del equipo"
+            eventsLabel={t("club.partidos", "partidos")}
+            ariaLabel={t(
+              "club.espirituAria",
+              "Evolución del espíritu del equipo",
+            )}
             buyDays={psi.buyDays}
             sellDays={psi.sellDays}
             height={190}
@@ -187,29 +213,46 @@ function Psicologia({ data }: { data: Club }) {
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--border)] px-4 py-3 text-[11px] text-[var(--muted)]">
           <Punto color={VERDE} texto={`PIC · ${pic}`} />
-          <Punto color={GRIS} texto={`Normal · ${normal}`} />
+          <Punto
+            color={GRIS}
+            texto={`${t("club.normal", "Normal")} · ${normal}`}
+          />
           <Punto color={ROJO} texto={`MOTS · ${mots}`} />
-          <Punto color="var(--mercado-venta)" texto={`${ventas} ventas`} />
-          <Punto color="var(--mercado-compra)" texto={`${compras} compras`} />
+          <Punto
+            color="var(--mercado-venta)"
+            texto={t("club.nVentas", "{{n}} ventas", { n: ventas })}
+          />
+          <Punto
+            color="var(--mercado-compra)"
+            texto={t("club.nCompras", "{{n}} compras", { n: compras })}
+          />
           <span className="italic">
             {psi.intensityDrops.length === 0
-              ? "% de entrenamiento: sin bajarlo en el período"
-              : `% de entrenamiento: ${psi.intensityDrops.length} bajada(s)`}
+              ? t(
+                  "club.sinBajadas",
+                  "% de entrenamiento: sin bajarlo en el período",
+                )
+              : t("club.bajadas", "% de entrenamiento: {{n}} bajada(s)", {
+                  n: psi.intensityDrops.length,
+                })}
           </span>
         </div>
       </Panel>
 
       <Panel
-        title="Confianza"
-        meta="la mueven los resultados y los goles marcados"
+        title={t("dashboard.confianza", "Confianza")}
+        meta={t(
+          "club.confianzaMeta",
+          "la mueven los resultados y los goles marcados",
+        )}
       >
         <div className="flex flex-wrap items-baseline gap-4 border-b border-[var(--border)] px-4 py-3">
           <Kpi
-            label="Ahora"
+            label={t("comun.ahora", "Ahora")}
             value={
               current.confidence
                 ? `${current.confidence.label} (${current.confidence.level})`
-                : "Sin dato"
+                : t("comun.sinDato", "Sin dato")
             }
           />
         </div>
@@ -220,8 +263,11 @@ function Psicologia({ data }: { data: Club }) {
             scale={psi.confidence.scale}
             equilibrium={psi.confidence.equilibrium}
             events={porResultado}
-            eventsLabel="resultados"
-            ariaLabel="Evolución de la confianza del equipo"
+            eventsLabel={t("club.resultados", "resultados")}
+            ariaLabel={t(
+              "club.confianzaAria",
+              "Evolución de la confianza del equipo",
+            )}
             color="var(--mercado-venta)"
             height={165}
             from={from}
@@ -252,6 +298,7 @@ function CuerpoTecnico({
   data: Club;
   rango: ReturnType<typeof useDateRangeFilter>;
 }) {
+  const { t } = useTranslation();
   const { staff } = data;
   const hayHistorico = data.staffHistory.length > 1;
   const pick = <T,>(items: T[], indices: number[]) =>
@@ -261,15 +308,19 @@ function CuerpoTecnico({
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Kpi
-          label="Inversión juvenil"
+          label={t("club.inversionJuvenil", "Inversión juvenil")}
           value={
             staff?.youthInvestment != null
               ? `${number(staff.youthInvestment)} ${staff.youthInvestmentCurrency}`.trim()
-              : "Sin dato"
+              : t("comun.sinDato", "Sin dato")
           }
           hint={
             staff?.youthInvestment != null
-              ? `por semana · nivel juvenil ${staff.youthLevel}`
+              ? t(
+                  "club.porSemanaNivel",
+                  "por semana · nivel juvenil {{nivel}}",
+                  { nivel: staff.youthLevel },
+                )
               : undefined
           }
         />
@@ -277,8 +328,14 @@ function CuerpoTecnico({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,0.72fr)] [&>*]:min-w-0">
         <Panel
-          title="Cuerpo técnico"
-          meta={staff ? `lectura ${date(staff.capturedAt)}` : "sin dato"}
+          title={t("club.cuerpoTecnico", "Cuerpo técnico")}
+          meta={
+            staff
+              ? t("club.lectura", "lectura {{fecha}}", {
+                  fecha: date(staff.capturedAt),
+                })
+              : t("club.sinDatoMin", "sin dato")
+          }
         >
           {staff ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -288,20 +345,27 @@ function CuerpoTecnico({
             </div>
           ) : (
             <Note>
-              Sincroniza el club para ver el cuerpo técnico y su distribución.
+              {t(
+                "club.sincronizaStaff",
+                "Sincroniza el club para ver el cuerpo técnico y su distribución.",
+              )}
             </Note>
           )}
         </Panel>
 
-        <Panel title="Entrenador">
+        <Panel title={t("entrenamiento.entrenador", "Entrenador")}>
           {staff ? (
             <dl className="space-y-3 p-4 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-[var(--muted)]">Tipo</dt>
+                <dt className="text-[var(--muted)]">
+                  {t("club.tipo", "Tipo")}
+                </dt>
                 <dd>{staff.trainer.typeLabel}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-[var(--muted)]">Nivel</dt>
+                <dt className="text-[var(--muted)]">
+                  {t("club.nivel", "Nivel")}
+                </dt>
                 <dd
                   className={`font-semibold ${trainingStaffLevelColor(staff.trainer.skillLevel)}`}
                 >
@@ -309,7 +373,9 @@ function CuerpoTecnico({
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-[var(--muted)]">Liderazgo</dt>
+                <dt className="text-[var(--muted)]">
+                  {t("club.liderazgo", "Liderazgo")}
+                </dt>
                 <dd>
                   {skillLevelLabel(staff.trainer.leadership, true)} (
                   {staff.trainer.leadership})
@@ -317,7 +383,7 @@ function CuerpoTecnico({
               </div>
               <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-3">
                 <dt className="text-[var(--muted)]">
-                  Velocidad de entrenamiento
+                  {t("club.velocidad", "Velocidad de entrenamiento")}
                 </dt>
                 <dd className="font-medium text-[var(--positive)]">
                   {trainerTrainingSpeedPct(staff.trainer.skillLevel)}%
@@ -325,15 +391,19 @@ function CuerpoTecnico({
               </div>
             </dl>
           ) : (
-            <Note>Sin datos de entrenador todavía.</Note>
+            <Note>
+              {t("club.sinEntrenador", "Sin datos de entrenador todavía.")}
+            </Note>
           )}
         </Panel>
       </div>
 
       {hayHistorico && staff && (
         <Panel
-          title="Evolución del staff"
-          meta={`${data.staffHistory.length} lecturas`}
+          title={t("club.evolucionStaff", "Evolución del staff")}
+          meta={t("club.nLecturas", "{{n}} lecturas", {
+            n: data.staffHistory.length,
+          })}
         >
           <div className="border-b border-[var(--border)] px-4 py-2">
             <DateRangeFilter
@@ -344,7 +414,10 @@ function CuerpoTecnico({
             />
           </div>
           <Chart
-            ariaLabel="Evolución observada de niveles del cuerpo técnico, eje temporada-semana"
+            ariaLabel={t(
+              "club.staffAria",
+              "Evolución observada de niveles del cuerpo técnico, eje temporada-semana",
+            )}
             option={timelineOption(
               pick(
                 data.staffHistory.map(
@@ -371,6 +444,7 @@ function CuerpoTecnico({
 }
 
 function Socios({ data }: { data: Club }) {
+  const { t } = useTranslation();
   const { from, to } = ventana(data);
   const { current } = data;
   const historia = data.supporterHistory;
@@ -378,14 +452,7 @@ function Socios({ data }: { data: Club }) {
   // Misma gramática que Psicología, y por el mismo motivo: la afición
   // reacciona a lo que pasa en el campo, así que la banda de arriba son los
   // resultados. Sin ellos, la línea de socios es una cifra que sube sola.
-  const porResultado: Suceso[] = data.psychology.matches.map((m) => ({
-    at: m.playedAt,
-    chip: null,
-    color: m.result === "win" ? VERDE : m.result === "loss" ? ROJO : GRIS,
-    detail:
-      `<b>${m.result === "win" ? "Victoria" : m.result === "loss" ? "Derrota" : "Empate"} ` +
-      `${marcador(m)}</b> · ${m.rival}`,
-  }));
+  const porResultado = sucesosPorResultado(data.psychology.matches);
 
   const socios = historia.map((h) => ({
     at: h.capturedAt,
@@ -411,32 +478,36 @@ function Socios({ data }: { data: Club }) {
         cause: dentro.length
           ? dentro
               .map(
-                (m) =>
-                  `${m.result === "win" ? "victoria" : m.result === "loss" ? "derrota" : "empate"} ${marcador(m)}`,
+                (m) => `${nombreDelResultado(m).toLowerCase()} ${marcador(m)}`,
               )
               .join(", ")
               .replace(/^./, (c) => c.toUpperCase())
-          : "Sin partido en medio",
+          : t("club.sinPartidoEnMedio", "Sin partido en medio"),
       };
     });
 
   return (
     <div className="space-y-4">
       <Panel
-        title="Socios"
-        meta="la afición crece o se enfría con los resultados"
+        title={t("club.socios", "Socios")}
+        meta={t(
+          "club.sociosMeta",
+          "la afición crece o se enfría con los resultados",
+        )}
       >
         <div className="flex flex-wrap items-baseline gap-4 border-b border-[var(--border)] px-4 py-3">
           <Kpi
-            label="Ahora"
+            label={t("comun.ahora", "Ahora")}
             value={
               current.supporters?.fanClubSize != null
                 ? number(current.supporters.fanClubSize)
-                : "Sin dato"
+                : t("comun.sinDato", "Sin dato")
             }
             hint={
               current.supporters
-                ? `afición: ${current.supporters.popularityLabel}`
+                ? t("club.aficionHint", "afición: {{animo}}", {
+                    animo: current.supporters.popularityLabel,
+                  })
                 : undefined
             }
           />
@@ -448,31 +519,37 @@ function Socios({ data }: { data: Club }) {
               movements={movimientos(socios)}
               scale={null}
               events={porResultado}
-              eventsLabel="resultados"
-              ariaLabel="Evolución del número de socios"
+              eventsLabel={t("club.resultados", "resultados")}
+              ariaLabel={t("club.sociosAria", "Evolución del número de socios")}
               height={165}
               from={from}
               to={to}
             />
           </div>
         ) : (
-          <Empty>Sin histórico todavía.</Empty>
+          <Empty>{t("club.sinHistorico", "Sin histórico todavía.")}</Empty>
         )}
       </Panel>
 
       <Panel
-        title="Ánimo de la afición"
-        meta="escala completa · de muy baja a poemas de amor"
+        title={t("club.animoAficion", "Ánimo de la afición")}
+        meta={t(
+          "club.animoMeta",
+          "escala completa · de muy baja a poemas de amor",
+        )}
       >
         {historia.length > 1 ? (
           <div className="p-4">
             <SerieConCausas
               readings={animo}
               movements={movimientos(animo)}
-              scale={ESCALA_AFICION}
+              scale={escalaAficion()}
               events={porResultado}
-              eventsLabel="resultados"
-              ariaLabel="Evolución del ánimo de la afición"
+              eventsLabel={t("club.resultados", "resultados")}
+              ariaLabel={t(
+                "club.animoAria",
+                "Evolución del ánimo de la afición",
+              )}
               color="var(--mercado-compra)"
               height={175}
               from={from}
@@ -480,7 +557,7 @@ function Socios({ data }: { data: Club }) {
             />
           </div>
         ) : (
-          <Empty>Sin histórico todavía.</Empty>
+          <Empty>{t("club.sinHistorico", "Sin histórico todavía.")}</Empty>
         )}
       </Panel>
     </div>
@@ -488,7 +565,7 @@ function Socios({ data }: { data: Club }) {
 }
 
 /** Los diez peldaños de popularidad, con los nombres del juego. */
-const ESCALA_AFICION = [
+const ESCALA_AFICION: Peldano[] = [
   { level: 0, label: "muy baja" },
   { level: 1, label: "furiosos" },
   { level: 2, label: "irritados" },
@@ -500,3 +577,10 @@ const ESCALA_AFICION = [
   { level: 8, label: "bailando en las calles" },
   { level: 9, label: "poemas de amor" },
 ];
+
+function escalaAficion(): Peldano[] {
+  return ESCALA_AFICION.map((p) => ({
+    level: p.level,
+    label: i18n.t(`club.aficion.${p.level}`, p.label),
+  }));
+}

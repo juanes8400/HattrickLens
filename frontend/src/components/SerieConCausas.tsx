@@ -1,4 +1,6 @@
 import { useId, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { number } from "../hooks/useFormat";
 
 /**
@@ -122,6 +124,7 @@ export function SerieConCausas({
   /** Qué cuenta la gráfica, para quien no la ve. */
   ariaLabel: string;
 }) {
+  const { t } = useTranslation();
   const [tip, setTip] = useState<{ x: number; y: number; html: string } | null>(
     null,
   );
@@ -333,7 +336,11 @@ export function SerieConCausas({
                         `<b>${etiqueta(scale, a.level)} → ${etiqueta(scale, b.level)}</b> ` +
                         `<span style="color:var(--muted)">(${mv.delta > 0 ? "+" : ""}${mv.delta})</span><br>${mv.cause}` +
                         (mv.buys || mv.sales
-                          ? `<span style="display:block;margin-top:4px;padding-top:4px;border-top:1px solid var(--border);color:var(--muted)">En el tramo: ${mv.sales ?? 0} ventas, ${mv.buys ?? 0} compras. No se les atribuye la caída.</span>`
+                          ? `<span style="display:block;margin-top:4px;padding-top:4px;border-top:1px solid var(--border);color:var(--muted)">${t(
+                              "serie.enElTramo",
+                              "En el tramo: {{ventas}} ventas, {{compras}} compras. No se les atribuye la caída.",
+                              { ventas: mv.sales ?? 0, compras: mv.buys ?? 0 },
+                            )}</span>`
                           : ""),
                     })
                   }
@@ -372,7 +379,7 @@ export function SerieConCausas({
               fontSize="9"
               fill="var(--muted)"
             >
-              ventas
+              {t("serie.ventas", "ventas")}
             </text>
             <text
               x={L - 9}
@@ -381,7 +388,7 @@ export function SerieConCausas({
               fontSize="9"
               fill="var(--muted)"
             >
-              compras
+              {t("serie.compras", "compras")}
             </text>
             {(sellDays ?? []).map((d) => {
               const { visibles, resto } = apiladas(d.count, MAX_VENTAS);
@@ -483,13 +490,18 @@ export function SerieConCausas({
 function resumenHablado(readings: Lectura[], scale: Peldano[] | null): string {
   const primera = readings[0];
   const ultima = readings[readings.length - 1];
-  if (!primera || !ultima) return "sin lecturas";
+  if (!primera || !ultima) return i18n.t("serie.sinLecturas", "sin lecturas");
   const niveles = readings.map((r) => r.level);
-  return (
-    `${readings.length} lecturas. Empieza en ${etiqueta(scale, primera.level)} ` +
-    `y termina en ${etiqueta(scale, ultima.level)}. ` +
-    `Mínimo ${etiqueta(scale, Math.min(...niveles))}, ` +
-    `máximo ${etiqueta(scale, Math.max(...niveles))}.`
+  return i18n.t(
+    "serie.resumen",
+    "{{n}} lecturas. Empieza en {{inicio}} y termina en {{fin}}. Mínimo {{minimo}}, máximo {{maximo}}.",
+    {
+      n: readings.length,
+      inicio: etiqueta(scale, primera.level),
+      fin: etiqueta(scale, ultima.level),
+      minimo: etiqueta(scale, Math.min(...niveles)),
+      maximo: etiqueta(scale, Math.max(...niveles)),
+    },
   );
 }
 

@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { setActiveTeamId } from "../hooks/useTeam";
 
 /** Destino del callback CHPP: conserva el club elegido y abre la importación. */
 export function ConnectedPage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const teamId = Number(params.get("teamId"));
 
@@ -20,17 +22,19 @@ export function ConnectedPage() {
       <main className="grid min-h-screen place-items-center bg-[var(--bg)] p-6">
         <section className="max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
           <h1 className="text-xl font-semibold">
-            La conexión quedó incompleta
+            {t("conectado.incompleta", "La conexión quedó incompleta")}
           </h1>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            Hattrick no devolvió un club seleccionable. Puedes repetir la
-            autorización sin perder información previa.
+            {t(
+              "conectado.sinClub",
+              "Hattrick no devolvió un club seleccionable. Puedes repetir la autorización sin perder información previa.",
+            )}
           </p>
           <Link
             to="/welcome"
             className="mt-6 inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
           >
-            Volver a conectar
+            {t("setup.volverConectar", "Volver a conectar")}
           </Link>
         </section>
       </main>
@@ -43,9 +47,11 @@ export function ConnectedPage() {
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--positive)]/15 text-xl text-[var(--positive)]">
           ✓
         </div>
-        <div className="mt-4 font-semibold">Hattrick conectado</div>
+        <div className="mt-4 font-semibold">
+          {t("layout.conectado", "Hattrick conectado")}
+        </div>
         <div className="mt-1 text-sm text-[var(--muted)]">
-          Preparando la importación de tu club…
+          {t("conectado.preparando", "Preparando la importación de tu club…")}
         </div>
       </div>
     </main>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface DateRange {
   start: string | null;
@@ -47,11 +48,12 @@ export function DateRangeFilter({
   min: string | null;
   max: string | null;
 }) {
+  const { t } = useTranslation();
   if (!min || !max || min === max) return null;
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
       <label className="flex items-center gap-1.5">
-        Desde
+        {t("comun.desde", "Desde")}
         <input
           type="date"
           className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--text)]"
@@ -64,7 +66,7 @@ export function DateRangeFilter({
         />
       </label>
       <label className="flex items-center gap-1.5">
-        Hasta
+        {t("comun.hasta", "Hasta")}
         <input
           type="date"
           className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[var(--text)]"
@@ -80,7 +82,7 @@ export function DateRangeFilter({
           className="text-[var(--accent)] underline underline-offset-2"
           onClick={() => onChange(EMPTY_RANGE)}
         >
-          ver todo
+          {t("comun.verTodo", "ver todo")}
         </button>
       )}
     </div>

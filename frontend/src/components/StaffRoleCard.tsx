@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ClubStaffRole } from "../services/api";
 import {
   staffEffectLines,
@@ -5,6 +6,7 @@ import {
 } from "../utils/staffEffects";
 
 export function StaffRoleCard({ role }: { role: ClubStaffRole }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex items-baseline justify-between">
@@ -36,7 +38,7 @@ export function StaffRoleCard({ role }: { role: ClubStaffRole }) {
               : "text-[var(--muted)]"
           }`}
         >
-          Sin nadie en este puesto.
+          {t("staff.sinNadie", "Sin nadie en este puesto.")}
         </p>
       )}
       {role.level > 0 && role.effect && (
