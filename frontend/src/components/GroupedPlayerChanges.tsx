@@ -3,6 +3,7 @@ import { PlayerLink } from "./PlayerLink";
 import { Empty } from "./Panels";
 import { number, cifra } from "../hooks/useFormat";
 
+import { tx } from "../i18n/tx";
 /**
  * Formato "Hattrick Control" pedido 2026-08-10: jugador por jugador,
  * habilidad por habilidad, y luego un agregado del equipo desglosado POR
@@ -139,7 +140,7 @@ function AggregateCard({ metric }: { metric: AggregateMetric }) {
       <dl className="space-y-1 text-sm">
         {metric.upTotal > 0 && (
           <div className="flex items-center justify-between">
-            <dt className="text-[var(--muted)]">Subidas</dt>
+            <dt className="text-[var(--muted)]">{tx("Subidas")}</dt>
             <dd className="font-semibold tabular-nums text-[var(--positive)]">
               {number(metric.upTotal)}
             </dd>
@@ -147,14 +148,14 @@ function AggregateCard({ metric }: { metric: AggregateMetric }) {
         )}
         {metric.downTotal > 0 && (
           <div className="flex items-center justify-between">
-            <dt className="text-[var(--muted)]">Bajadas</dt>
+            <dt className="text-[var(--muted)]">{tx("Bajadas")}</dt>
             <dd className="font-semibold tabular-nums text-[var(--danger)]">
               {number(metric.downTotal)}
             </dd>
           </div>
         )}
         <div className="flex items-center justify-between border-t border-[var(--border)] pt-1">
-          <dt className="text-[var(--muted)]">Balance</dt>
+          <dt className="text-[var(--muted)]">{tx("Balance")}</dt>
           <dd
             className={clsx(
               "font-semibold tabular-nums",
@@ -198,7 +199,7 @@ export function GroupedPlayerChanges({
       {visibleAggregate.length > 0 && (
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Total equipo
+            {tx("Total equipo")}
           </h3>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {visibleAggregate.map((metric) => (

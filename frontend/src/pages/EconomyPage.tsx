@@ -25,6 +25,7 @@ import type {
   IncomeBreakdown,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
 type EconomySection = "resumen" | "proyeccion" | "detalles";
 type Horizon = "2" | "4" | "8" | "12" | "16";
@@ -48,18 +49,18 @@ export function EconomyPage() {
     <div className="space-y-4">
       <header className="space-y-3">
         <div>
-          <h1 className="text-xl font-semibold">Economía</h1>
+          <h1 className="text-xl font-semibold">{tx("Economía")}</h1>
           <p className="text-sm text-[var(--muted)]">
-            {data.weeksOfHistory} semana(s) de histórico
+            {data.weeksOfHistory} {tx("semana(s) de histórico")}
           </p>
           <EnlaceATransparencia seccion="economia" calculo="estructural" />
         </div>
         <Tabs
           grupo="economia"
           tabs={[
-            { key: "resumen", label: "Resumen" },
-            { key: "proyeccion", label: "Proyección" },
-            { key: "detalles", label: "Detalles" },
+            { key: "resumen", label: tx("Resumen") },
+            { key: "proyeccion", label: tx("Proyección") },
+            { key: "detalles", label: tx("Detalles") },
           ]}
           active={section}
           onChange={setSection}
@@ -80,24 +81,28 @@ export function EconomyPage() {
                   dice algo, porque la resta entre las dos ES el resultado
                   presupuestado de la semana. */}
               <Kpi
-                label="Caja actual"
+                label={tx("Caja actual")}
                 value={money(data.cash, data.currency)}
-                hint={`cerrará la semana en ${money(data.expectedCash, data.currency)}`}
+                hint={tx("cerrará la semana en {{v0}}", {
+                  v0: money(data.expectedCash, data.currency),
+                })}
               />
               {/* LAS TRES CIFRAS SEMANALES, JUNTAS Y CON SU NOMBRE (2026-09-13).
                   Salían en tres sitios con tres valores y ninguna pantalla decía
                   por qué no coincidían: lo que pasó, lo que va a pasar y el
                   fondo del club son preguntas distintas. */}
               <Kpi
-                label="Resultado de la semana pasada"
+                label={tx("Resultado de la semana pasada")}
                 value={money(data.weeklyBalance, data.currency)}
-                hint="semana cerrada, compraventa incluida"
+                hint={tx("semana cerrada, compraventa incluida")}
                 tone={data.weeklyBalance >= 0 ? "positive" : "danger"}
               />
               <Kpi
-                label="Presupuesto de esta semana"
+                label={tx("Presupuesto de esta semana")}
                 value={money(data.weeklyFinance.expectedBalance, data.currency)}
-                hint="lo que Hattrick prevé; la taquilla entra al jugar en casa"
+                hint={tx(
+                  "lo que Hattrick prevé; la taquilla entra al jugar en casa",
+                )}
                 tone={
                   data.weeklyFinance.expectedBalance >= 0
                     ? "positive"
@@ -108,15 +113,15 @@ export function EconomyPage() {
                 label={
                   data.balanceSinTransferencias != null &&
                   data.balanceSinTransferencias < 0
-                    ? "Déficit de fondo"
-                    : "Balance de fondo"
+                    ? tx("Déficit de fondo")
+                    : tx("Balance de fondo")
                 }
                 value={
                   data.balanceSinTransferencias == null
-                    ? "sin datos"
+                    ? tx("sin datos")
                     : money(data.balanceSinTransferencias, data.currency)
                 }
-                hint="media de las semanas cerradas, sin compraventa"
+                hint={tx("media de las semanas cerradas, sin compraventa")}
                 tone={
                   data.balanceSinTransferencias == null
                     ? undefined
@@ -134,8 +139,8 @@ export function EconomyPage() {
 
             {data.anomalies.length > 0 && (
               <Panel
-                title="Anomalías observadas"
-                meta="desviación robusta (MAD)"
+                title={tx("Anomalías observadas")}
+                meta={tx("desviación robusta (MAD)")}
               >
                 <ul className="space-y-1 p-4 text-xs text-[var(--muted)]">
                   {data.anomalies.map((anomaly, index) => (
@@ -168,7 +173,7 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
   const { weeklyFinance } = data;
 
   return (
-    <Panel title="Finanzas de esta semana">
+    <Panel title={tx("Finanzas de esta semana")}>
       {/* Eran DOS listas dentro de una sola tabla: ingresos y gastos puestos
           uno al lado del otro, con la cabecera «Valor» repetida y filas
           rellenadas con celdas vacías cuando una lista era más larga que la
@@ -183,7 +188,7 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
           en dos líneas (2026-09-13). */}
       <div className="grid gap-4 p-4 xl:grid-cols-2 [&>*]:min-w-0">
         <ListaDeMovimientos
-          titulo="Ingresos"
+          titulo={tx("Ingresos")}
           filas={weeklyFinance.income}
           total={weeklyFinance.incomeTotal}
           totalAnterior={weeklyFinance.previousIncomeTotal}
@@ -191,7 +196,7 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
           tono="var(--positive)"
         />
         <ListaDeMovimientos
-          titulo="Gastos"
+          titulo={tx("Gastos")}
           filas={weeklyFinance.costs}
           total={weeklyFinance.costsTotal}
           totalAnterior={weeklyFinance.previousCostsTotal}
@@ -202,7 +207,7 @@ function WeeklyFinanceTable({ data }: { data: Economy }) {
       </div>
 
       <div className="flex items-baseline justify-between gap-3 border-t-2 border-[var(--border)] px-4 py-3 text-sm font-semibold">
-        <span>Presupuesto de esta semana</span>
+        <span>{tx("Presupuesto de esta semana")}</span>
         <span
           className="tabular-nums"
           style={{
@@ -272,18 +277,21 @@ function ListaDeMovimientos({
       <thead className="text-xs text-[var(--muted)]">
         <tr>
           <th scope="col" className="pb-1 pr-3 text-left font-normal">
-            <span className="sr-only">Partida</span>
+            <span className="sr-only">{tx("Partida")}</span>
           </th>
           {/* La moneda en todos lados, cabeceras y celdas (2026-09-13, pedido
               del usuario). Las celdas no parten línea. */}
           <th scope="col" className="pb-1 pl-2 text-right font-normal">
-            Actual{moneda ? ` (${moneda})` : ""}
+            {tx("Actual")}
+            {moneda ? ` (${moneda})` : ""}
           </th>
           <th scope="col" className="pb-1 pl-2 text-right font-normal">
-            Pasada{moneda ? ` (${moneda})` : ""}
+            {tx("Pasada")}
+            {moneda ? ` (${moneda})` : ""}
           </th>
           <th scope="col" className="pb-1 pl-2 text-right font-normal">
-            Cambio{moneda ? ` (${moneda})` : ""}
+            {tx("Cambio")}
+            {moneda ? ` (${moneda})` : ""}
           </th>
         </tr>
       </thead>
@@ -311,7 +319,7 @@ function ListaDeMovimientos({
       <tfoot className="border-t-2 border-[var(--border)] font-semibold">
         <tr>
           <th scope="row" className="py-2 pr-3 text-left">
-            Total
+            {tx("Total")}
           </th>
           <td
             className="py-2 pl-2 text-right tabular-nums"
@@ -338,10 +346,13 @@ function HattrickFlow({ data }: { data: Economy }) {
 
   return (
     <Panel
-      title="Flujo"
+      title={tx("Flujo")}
       meta={
         flow && flow.weeksAvailable < flow.weeks
-          ? `sólo ${flow.weeksAvailable} de ${flow.weeks} semana(s) disponibles`
+          ? tx("sólo {{v0}} de {{v1}} semana(s) disponibles", {
+              v0: flow.weeksAvailable,
+              v1: flow.weeks,
+            })
           : undefined
       }
     >
@@ -353,10 +364,13 @@ function HattrickFlow({ data }: { data: Economy }) {
       <div className="border-b border-[var(--border)] px-4 py-2">
         <Tabs
           modo="filtro"
-          label="Ventana de tiempo del flujo"
+          label={tx("Ventana de tiempo del flujo")}
           tabs={data.sankeyWindows.map((w) => ({
             key: String(w.weeks),
-            label: w.weeks === 1 ? "esta semana" : `${w.weeks} semanas`,
+            label:
+              w.weeks === 1
+                ? tx("esta semana")
+                : tx("{{v0}} semanas", { v0: w.weeks }),
           }))}
           active={String(weeks)}
           onChange={(k) => setWeeks(Number(k))}
@@ -364,7 +378,10 @@ function HattrickFlow({ data }: { data: Economy }) {
       </div>
       {flow && (
         <Chart
-          ariaLabel={`Sankey de ingresos y gastos de las últimas ${flow.weeksAvailable} semana(s)`}
+          ariaLabel={tx(
+            "Sankey de ingresos y gastos de las últimas {{v0}} semana(s)",
+            { v0: flow.weeksAvailable },
+          )}
           option={economySankeyOption(flow.income, flow.costs, data.currency)}
           height={300}
         />
@@ -404,26 +421,26 @@ function ObservedHistory({ data }: { data: Economy }) {
   );
 
   return (
-    <Panel title="Economía">
+    <Panel title={tx("Economía")}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 text-xs">
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           <LayerToggle
-            label="Ingresos"
+            label={tx("Ingresos")}
             checked={visible.income}
             onChange={() => toggle("income")}
           />
           <LayerToggle
-            label="Gastos"
+            label={tx("Gastos")}
             checked={visible.costs}
             onChange={() => toggle("costs")}
           />
           <LayerToggle
-            label="Utilidad"
+            label={tx("Utilidad")}
             checked={visible.balance}
             onChange={() => toggle("balance")}
           />
           <LayerToggle
-            label="Efectivo disponible"
+            label={tx("Efectivo disponible")}
             checked={visible.cash}
             onChange={() => toggle("cash")}
           />
@@ -436,7 +453,9 @@ function ObservedHistory({ data }: { data: Economy }) {
         />
       </div>
       <Chart
-        ariaLabel="Evolución semanal de ingresos, gastos, utilidad y efectivo disponible"
+        ariaLabel={tx(
+          "Evolución semanal de ingresos, gastos, utilidad y efectivo disponible",
+        )}
         option={option}
         height={320}
       />
@@ -557,27 +576,27 @@ function observedEconomyOption(
 function BalanceWindowsTable({ data }: { data: Economy }) {
   return (
     <Panel
-      title="Balances acumulados"
-      meta="semanas cerradas reportadas por Hattrick"
+      title={tx("Balances acumulados")}
+      meta={tx("semanas cerradas reportadas por Hattrick")}
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
-                Periodo
+                {tx("Periodo")}
               </th>
               <th scope="col" className="px-4 py-3 text-right font-medium">
-                Ingresos
+                {tx("Ingresos")}
               </th>
               <th scope="col" className="px-4 py-3 text-right font-medium">
-                Gastos
+                {tx("Gastos")}
               </th>
               <th scope="col" className="px-4 py-3 text-right font-medium">
-                Balance
+                {tx("Balance")}
               </th>
               <th scope="col" className="px-4 py-3 text-right font-medium">
-                Balance sin transferencias
+                {tx("Balance sin transferencias")}
               </th>
             </tr>
           </thead>
@@ -590,8 +609,8 @@ function BalanceWindowsTable({ data }: { data: Economy }) {
                     <div>{window.label}</div>
                     {!complete && (
                       <div className="text-xs text-[var(--muted)]">
-                        faltan datos: {window.weeksAvailable}/
-                        {window.weeksRequested} semanas
+                        {tx("faltan datos:")} {window.weeksAvailable}/
+                        {window.weeksRequested} {tx("semanas")}
                       </div>
                     )}
                   </td>
@@ -655,11 +674,11 @@ function MoneyCell({
 }
 
 const HORIZON_OPTIONS: { key: Horizon; label: string }[] = [
-  { key: "2", label: "2 semanas" },
-  { key: "4", label: "4 semanas" },
-  { key: "8", label: "8 semanas" },
-  { key: "12", label: "12 semanas" },
-  { key: "16", label: "16 semanas" },
+  { key: "2", label: tx("2 semanas") },
+  { key: "4", label: tx("4 semanas") },
+  { key: "8", label: tx("8 semanas") },
+  { key: "12", label: tx("12 semanas") },
+  { key: "16", label: tx("16 semanas") },
 ];
 
 function ForecastPanel({
@@ -733,21 +752,22 @@ function ForecastPanel({
 
   return (
     <ProjectionPanel
-      title="Escenario de caja, no resultado real"
-      meta="sin compraventa"
+      title={tx("Escenario de caja, no resultado real")}
+      meta={tx("sin compraventa")}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-[var(--accent)] px-4 py-2">
         {/* El mismo número hace de DOS cosas y la etiqueta lo dice: mira N
             semanas cerradas hacia atrás para promediar, y proyecta N hacia
             adelante. Decir sólo «horizonte» contaba la mitad. */}
         <span className="text-xs text-[var(--muted)]">
-          {horizon} semanas: atrás para promediar, adelante para proyectar
+          {horizon}{" "}
+          {tx("semanas: atrás para promediar, adelante para proyectar")}
         </span>
         {/* No son secciones: las cinco enseñan el MISMO flujo con otra
             ventana de tiempo. */}
         <Tabs
           modo="filtro"
-          label="Ventana de tiempo del flujo"
+          label={tx("Ventana de tiempo del flujo")}
           tabs={HORIZON_OPTIONS}
           active={horizon}
           onChange={onHorizonChange}
@@ -758,20 +778,24 @@ function ForecastPanel({
           sostenerse comprando y vendiendo, o al revés. */}
       <div className="grid gap-4 border-b border-dashed border-[var(--accent)] p-4 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
         <Kpi
-          label="Autonomía sin transferencias"
+          label={tx("Autonomía sin transferencias")}
           value={
             sinTransferencias == null
-              ? "sin datos"
+              ? tx("sin datos")
               : sinTransferencias.sostenible
-                ? "se sostiene"
+                ? tx("se sostiene")
                 : plazo(sinTransferencias.semanas)
           }
           hint={
             sinTransferencias == null
-              ? "hace falta una semana cerrada con desglose"
+              ? tx("hace falta una semana cerrada con desglose")
               : sinTransferencias.sostenible
-                ? `gana ${dinero(sinTransferencias.balance)}/sem sin contar compraventa`
-                : `pierde ${dinero(Math.abs(sinTransferencias.balance))}/sem sin contar compraventa`
+                ? tx("gana {{v0}}/sem sin contar compraventa", {
+                    v0: dinero(sinTransferencias.balance),
+                  })
+                : tx("pierde {{v0}}/sem sin contar compraventa", {
+                    v0: dinero(Math.abs(sinTransferencias.balance)),
+                  })
           }
           tone={
             sinTransferencias == null
@@ -784,20 +808,24 @@ function ForecastPanel({
           }
         />
         <Kpi
-          label="Autonomía con transferencias"
+          label={tx("Autonomía con transferencias")}
           value={
             conTransferencias == null
-              ? "sin datos"
+              ? tx("sin datos")
               : conTransferencias.sostenible
-                ? "se sostiene"
+                ? tx("se sostiene")
                 : plazo(conTransferencias.semanas)
           }
           hint={
             conTransferencias == null
-              ? "hace falta una semana cerrada con desglose"
+              ? tx("hace falta una semana cerrada con desglose")
               : conTransferencias.sostenible
-                ? `gana ${dinero(conTransferencias.balance)}/sem contando compraventa`
-                : `pierde ${dinero(Math.abs(conTransferencias.balance))}/sem contando compraventa`
+                ? tx("gana {{v0}}/sem contando compraventa", {
+                    v0: dinero(conTransferencias.balance),
+                  })
+                : tx("pierde {{v0}}/sem contando compraventa", {
+                    v0: dinero(Math.abs(conTransferencias.balance)),
+                  })
           }
           tone={
             conTransferencias == null
@@ -810,7 +838,7 @@ function ForecastPanel({
           }
         />
         <Kpi
-          label={`Caja proyectada en +${horizon} semanas`}
+          label={tx("Caja proyectada en +{{v0}} semanas", { v0: horizon })}
           value={dinero(finalValue)}
           hint={
             `${deltaAbs >= 0 ? "+" : ""}${dinero(deltaAbs)} ` +
@@ -819,16 +847,18 @@ function ForecastPanel({
           tone={deltaAbs >= 0 ? "positive" : "danger"}
         />
         <Kpi
-          label="Coincidencia entre escenarios"
+          label={tx("Coincidencia entre escenarios")}
           value={
             modelsAgreePct != null
               ? `${modelsAgreePct.toFixed(0)}%`
-              : "no disponible"
+              : tx("no disponible")
           }
           hint={
             modelsAgreePct != null
-              ? "qué tan cerca terminan sin y con compraventa"
-              : "el escenario con compraventa aún no existe, ver el aviso abajo"
+              ? tx("qué tan cerca terminan sin y con compraventa")
+              : tx(
+                  "el escenario con compraventa aún no existe, ver el aviso abajo",
+                )
           }
           tone={
             modelsAgreePct != null && modelsAgreePct < 70 ? "danger" : undefined
@@ -838,13 +868,15 @@ function ForecastPanel({
       <div className="border-b border-dashed border-[var(--accent)] px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
         {/* Reescrito el 2026-09-13: el usuario no entendía «caja sin
             compraventa» ni «el otro escenario». Dicho con lo que es. */}
-        La línea discontinua es tu caja si desde hoy no compras ni vendes a
-        nadie: sueldos, estadio, patrocinio y taquilla, semana a semana.
+        {tx(
+          "La línea discontinua es tu caja si desde hoy no compras ni vendes a nadie: sueldos, estadio, patrocinio y taquilla, semana a semana.",
+        )}
         {data.timeseriesForecast && showBoth && (
           <>
             {" "}
-            La línea continua supone que sigues comprando y vendiendo al mismo
-            ritmo que en las últimas semanas.
+            {tx(
+              "La línea continua supone que sigues comprando y vendiendo al mismo ritmo que en las últimas semanas.",
+            )}
           </>
         )}
         {data.timeseriesForecast && (
@@ -853,13 +885,15 @@ function ForecastPanel({
             onClick={() => setShowBoth((current) => !current)}
           >
             {showBoth
-              ? "quitar la línea con compraventa"
-              : "comparar con tu ritmo de compraventa"}
+              ? tx("quitar la línea con compraventa")
+              : tx("comparar con tu ritmo de compraventa")}
           </button>
         )}
       </div>
       <Chart
-        ariaLabel="Caja real hasta hoy, seguida de la proyección con banda de incertidumbre"
+        ariaLabel={tx(
+          "Caja real hasta hoy, seguida de la proyección con banda de incertidumbre",
+        )}
         option={unifiedCashOption(data, preferred, showBoth)}
         height={340}
       />
@@ -883,7 +917,7 @@ function ProjectionTeaser({ data }: { data: Economy }) {
 
   return (
     <Panel
-      title="Viene un modelo más completo"
+      title={tx("Viene un modelo más completo")}
       meta={`${data.weeksOfHistory}/${data.minWeeksForTimeseries} semanas`}
     >
       <div className="space-y-3 p-4">
@@ -893,11 +927,13 @@ function ProjectionTeaser({ data }: { data: Economy }) {
               catorce, así que la lista dejó de caber y, sobre todo, dejó de
               importar: lo que hay que saber es que se elige por backtest
               contra tu propio historial, no cuáles compiten. */}
-          Con {data.minWeeksForTimeseries} semanas de histórico se activa una
-          segunda ruta, de series de tiempo: varios modelos compiten y se queda
-          el que mejor habría predicho tu propio historial, para contrastarlo
-          con la proyección estructural de arriba.
-          {remaining > 0 ? ` Faltan ${remaining} semana(s).` : ""}
+          {tx("Con")} {data.minWeeksForTimeseries}{" "}
+          {tx(
+            "semanas de histórico se activa una segunda ruta, de series de tiempo: varios modelos compiten y se queda el que mejor habría predicho tu propio historial, para contrastarlo con la proyección estructural de arriba.",
+          )}
+          {remaining > 0
+            ? tx(" Faltan {{v0}} semana(s).", { v0: remaining })
+            : ""}
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
           <div
@@ -1135,7 +1171,7 @@ function DetailsSection({ data }: { data: Economy }) {
         {row.seasonWeek ?? row.date}
         {row.isCurrent && (
           <span className="ml-1.5 rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]">
-            en curso
+            {tx("en curso")}
           </span>
         )}
       </span>
@@ -1145,25 +1181,28 @@ function DetailsSection({ data }: { data: Economy }) {
   }));
   const seasonRows = data.seasonBreakdownTotals.map((row) => ({
     key: String(row.season),
-    label: `Temporada ${row.season}`,
+    label: tx("Temporada {{v0}}", { v0: row.season }),
     income: row.income,
     costs: row.costs,
   }));
 
   return (
     <div className="space-y-4">
-      <Panel title="Ingresos por semana" meta="más reciente primero">
+      <Panel
+        title={tx("Ingresos por semana")}
+        meta={tx("más reciente primero")}
+      >
         <IncomeBreakdownTable rows={weeklyRows} currency={data.currency} />
       </Panel>
-      <Panel title="Gastos por semana" meta="más reciente primero">
+      <Panel title={tx("Gastos por semana")} meta={tx("más reciente primero")}>
         <CostsBreakdownTable rows={weeklyRows} currency={data.currency} />
       </Panel>
       {seasonRows.length > 0 && (
         <>
-          <Panel title="Total ingresos por temporada">
+          <Panel title={tx("Total ingresos por temporada")}>
             <IncomeBreakdownTable rows={seasonRows} currency={data.currency} />
           </Panel>
-          <Panel title="Total gastos por temporada">
+          <Panel title={tx("Total gastos por temporada")}>
             <CostsBreakdownTable rows={seasonRows} currency={data.currency} />
           </Panel>
         </>
@@ -1211,25 +1250,25 @@ function IncomeBreakdownTable({
         <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
           <tr>
             <th scope="col" className="px-3 py-3 font-medium">
-              Semana
+              {tx("Semana")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Aficionados
+              {tx("Aficionados")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Patrocinados
+              {tx("Patrocinados")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Financieros
+              {tx("Financieros")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              SubTotal
+              {tx("SubTotal")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Otros
+              {tx("Otros")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Total
+              {tx("Total")}
             </th>
           </tr>
         </thead>
@@ -1273,31 +1312,31 @@ function CostsBreakdownTable({
         <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
           <tr>
             <th scope="col" className="px-3 py-3 font-medium">
-              Semana
+              {tx("Semana")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Estadio
+              {tx("Estadio")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Jugadores
+              {tx("Jugadores")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Financieros
+              {tx("Financieros")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Empleados
+              {tx("Empleados")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Canteranos
+              {tx("Canteranos")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              SubTotal
+              {tx("SubTotal")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Otros
+              {tx("Otros")}
             </th>
             <th scope="col" className="px-3 py-3 text-right font-medium">
-              Total
+              {tx("Total")}
             </th>
           </tr>
         </thead>

@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TEAM_ID, hasActiveTeam } from "../hooks/useTeam";
 import { api } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Las formas de apoyar el proyecto.
  *
@@ -41,7 +42,7 @@ function Llave({ valor }: { valor: string }) {
         }}
         className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
       >
-        {copiada ? "Copiada" : "Copiar"}
+        {copiada ? tx("Copiada") : tx("Copiar")}
       </button>
     </div>
   );
@@ -71,7 +72,7 @@ function Via({ via, primera }: { via: ViaDeApoyo; primera: boolean }) {
               : "shrink-0 rounded-md border border-[var(--border)] px-4 py-2 text-center text-sm text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
           }
         >
-          Abrir
+          {tx("Abrir")}
         </a>
       )}
     </li>
@@ -102,8 +103,8 @@ export function ApoyarPage() {
   // sin sesión al panel sólo lo devolvería a la bienvenida por el camino
   // largo.
   const vuelta = conClub
-    ? { a: "/dashboard", texto: "Volver al panel" }
-    : { a: "/welcome", texto: "Volver" };
+    ? { a: "/dashboard", texto: tx("Volver al panel") }
+    : { a: "/welcome", texto: tx("Volver") };
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
@@ -114,21 +115,25 @@ export function ApoyarPage() {
         ← {vuelta.texto}
       </a>
       <header>
-        <h1 className="text-xl font-semibold">Apoyar el proyecto</h1>
+        <h1 className="text-xl font-semibold">{tx("Apoyar el proyecto")}</h1>
         <p className="prosa text-sm text-[var(--muted)]">
-          Cuatro formas de hacerlo. Elige la que te quede más cómoda.
+          {tx("Cuatro formas de hacerlo. Elige la que te quede más cómoda.")}
         </p>
       </header>
 
-      <Panel title="Por qué">
+      <Panel title={tx("Por qué")}>
         <div className="p-4">
           <MensajeDeApoyo />
         </div>
       </Panel>
 
       <Panel
-        title="Cómo"
-        meta={data?.leagueName ? `ordenadas para ${data.leagueName}` : ""}
+        title={tx("Cómo")}
+        meta={
+          data?.leagueName
+            ? tx("ordenadas para {{v0}}", { v0: data.leagueName })
+            : ""
+        }
       >
         <ul className="divide-y divide-[var(--border)]">
           {vias.map((v, i) => (
@@ -138,11 +143,11 @@ export function ApoyarPage() {
       </Panel>
 
       <p className="prosa text-sm text-[var(--muted)]">
-        Y si prefieres no poner dinero, escribe en el{" "}
+        {tx("Y si prefieres no poner dinero, escribe en el")}{" "}
         <a href="/libro" className="text-[var(--accent)] hover:underline">
-          libro de visitas
+          {tx("libro de visitas")}
         </a>
-        : saber qué te falta vale tanto como un café.
+        {tx(": saber qué te falta vale tanto como un café.")}
       </p>
     </div>
   );

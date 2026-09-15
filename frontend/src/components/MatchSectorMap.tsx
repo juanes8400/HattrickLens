@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { MatchDetail } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Mapa de sectores de un partido jugado, como una cancha.
  *
@@ -127,8 +128,8 @@ export function MatchSectorMap({ data }: { data: MatchDetail }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
       <div className="mb-3 flex items-center justify-between gap-2 text-xs text-[var(--muted)]">
-        <span>Mapa de sectores</span>
-        <span>tu defensa contra su ataque, y al revés</span>
+        <span>{tx("Mapa de sectores")}</span>
+        <span>{tx("tu defensa contra su ataque, y al revés")}</span>
       </div>
       <div className="mb-1.5 grid grid-cols-[1fr_0.7fr_1fr] gap-1.5 text-center text-[10px] uppercase text-[var(--muted)]">
         <div className="flex items-center justify-center gap-1.5">
@@ -136,11 +137,11 @@ export function MatchSectorMap({ data }: { data: MatchDetail }) {
             className="h-2 w-2 rounded-full"
             style={{ background: OWN_COLOR }}
           />
-          Tu campo
+          {tx("Tu campo")}
         </div>
-        <div>Medio</div>
+        <div>{tx("Medio")}</div>
         <div className="flex items-center justify-center gap-1.5">
-          Campo rival
+          {tx("Campo rival")}
           <span
             className="h-2 w-2 rounded-full"
             style={{ background: RIVAL_COLOR }}
@@ -167,8 +168,8 @@ export function MatchSectorMap({ data }: { data: MatchDetail }) {
         ))}
         <Celda
           duelo={medio}
-          etiqueta="Medio campo"
-          detalle="Tu medio campo contra el suyo"
+          etiqueta={tx("Medio campo")}
+          detalle={tx("Tu medio campo contra el suyo")}
           style={{ gridColumn: 2, gridRow: "1 / span 3" }}
         />
         {zonas.map((z, i) => (
@@ -184,7 +185,7 @@ export function MatchSectorMap({ data }: { data: MatchDetail }) {
       <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-[var(--muted)]">
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-4 rounded" style={{ background: OWN_COLOR }} />{" "}
-          Nosotros
+          {tx("Nosotros")}
         </span>
         <span className="inline-flex items-center gap-1">
           <span

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
+import { tx } from "../i18n/tx";
 /**
  * Un borrado que no se consuma al primer clic.
  *
@@ -51,7 +52,9 @@ export function BotonDeBorrado({
     <button
       type="button"
       disabled={disabled}
-      title={armado ? "Pulsa otra vez para borrar. Se desarma solo." : title}
+      title={
+        armado ? tx("Pulsa otra vez para borrar. Se desarma solo.") : title
+      }
       // El estado no puede vivir sólo en el texto y el color: se anuncia.
       aria-live="polite"
       onClick={() => {

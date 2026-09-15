@@ -30,6 +30,7 @@ import { api } from "../services/api";
 import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
 
+import { tx } from "../i18n/tx";
 const SKILL_LABELS: Record<string, string> = {
   keeper: "Portería",
   defending: "Defensa",
@@ -67,22 +68,22 @@ function skillLevel(level: number): string {
 // vez cada una.
 const RADAR_GROUPS: { title: string; axes: string[] }[] = [
   {
-    title: "Ataque y creación",
+    title: tx("Ataque y creación"),
     axes: ["scoring", "set_pieces", "passing", "playmaking"],
   },
-  { title: "Banda y defensa", axes: ["winger", "defending", "keeper"] },
+  { title: tx("Banda y defensa"), axes: ["winger", "defending", "keeper"] },
   {
-    title: "Base del jugador",
+    title: tx("Base del jugador"),
     axes: ["experience", "loyalty", "form", "stamina"],
   },
 ];
 
 const CAREER_STAGE_OPTIONS: { value: string; label: string }[] = [
-  { value: "promesa", label: "Promesa en desarrollo" },
-  { value: "pico", label: "En su pico" },
-  { value: "veterano", label: "Veterano estable" },
-  { value: "rotacion", label: "Pieza de rotación" },
-  { value: "declive", label: "En declive" },
+  { value: "promesa", label: tx("Promesa en desarrollo") },
+  { value: "pico", label: tx("En su pico") },
+  { value: "veterano", label: tx("Veterano estable") },
+  { value: "rotacion", label: tx("Pieza de rotación") },
+  { value: "declive", label: tx("En declive") },
 ];
 
 interface PositionRow {
@@ -163,7 +164,7 @@ export function PlayerPage() {
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
-  if (!data) return <Empty>Jugador no encontrado.</Empty>;
+  if (!data) return <Empty>{tx("Jugador no encontrado.")}</Empty>;
 
   // 2026-08-05, pedido explícitamente: un ex-jugador (venta real o
   // despido, `left_team_at` sin `sold_at`) no tiene el resto del
@@ -292,10 +293,15 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
     : null;
 
   const positionColumns: Column<PositionRow>[] = [
-    { key: "label", header: "Posición", align: "left", value: (r) => r.label },
+    {
+      key: "label",
+      header: tx("Posición"),
+      align: "left",
+      value: (r) => r.label,
+    },
     {
       key: "rating",
-      header: "Rating",
+      header: tx("Rating"),
       value: (r) => r.rating,
       render: (r) => (
         <b className="tabular-nums text-[var(--accent)]">
@@ -378,7 +384,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           to="/team"
           className="text-xs text-[var(--accent)] hover:underline"
         >
-          ← Jugadores
+          {tx("← Jugadores")}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-semibold">{data.name}</h1>
@@ -388,7 +394,8 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               "text-[var(--muted)] border-[var(--border)]"
             }`}
           >
-            {effectiveLabel} {confirmedOption ? "· confirmado" : "· sugerido"}
+            {effectiveLabel}{" "}
+            {confirmedOption ? tx("· confirmado") : tx("· sugerido")}
           </span>
         </div>
         <p className="text-sm text-[var(--muted)]">
@@ -397,7 +404,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             Number(data.age.split(".")[0]),
             Number(data.age.split(".")[1]),
           )}{" "}
-          años
+          {tx("años")}
           {bestPosition &&
             ` · ${bestPosition.label} (${bestPosition.rating.toFixed(2)})`}
           {data.nativeLeagueName && ` · ${data.nativeLeagueName}`}
@@ -405,29 +412,31 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
       </header>
 
       <Panel
-        title="Momento de la carrera"
-        meta={`sugerencia con confianza ${data.careerStage.confidence}`}
+        title={tx("Momento de la carrera")}
+        meta={tx("sugerencia con confianza {{v0}}", {
+          v0: data.careerStage.confidence,
+        })}
       >
         <div className="space-y-2 p-4">
           <p className="text-sm">{data.careerStage.rationale}</p>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--muted)]">
             <span>
-              Habilidades subiendo:{" "}
+              {tx("Habilidades subiendo:")}{" "}
               {String(data.careerStage.signals.skillsRising)}
             </span>
             <span>
-              Bajando: {String(data.careerStage.signals.skillsFalling)}
+              {tx("Bajando:")} {String(data.careerStage.signals.skillsFalling)}
             </span>
             <span>
-              Estables: {String(data.careerStage.signals.skillsStable)}
+              {tx("Estables:")} {String(data.careerStage.signals.skillsStable)}
             </span>
             <span>
-              Factor de edad:{" "}
+              {tx("Factor de edad:")}{" "}
               {Number(data.careerStage.signals.ageFactor).toFixed(3)}
             </span>
             {data.careerStage.signals.squadPercentile != null && (
               <span>
-                Percentil en plantilla:{" "}
+                {tx("Percentil en plantilla:")}{" "}
                 {Number(data.careerStage.signals.squadPercentile).toFixed(1)}
               </span>
             )}
@@ -437,7 +446,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               className="text-xs text-[var(--muted)]"
               htmlFor="career-stage-confirm"
             >
-              Tu confirmación:
+              {tx("Tu confirmación:")}
             </label>
             <select
               id="career-stage-confirm"
@@ -446,7 +455,9 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               disabled={confirmStage.isPending}
               onChange={(e) => confirmStage.mutate(e.target.value || null)}
             >
-              <option value="">Sin confirmar, usar sugerencia de la app</option>
+              <option value="">
+                {tx("Sin confirmar, usar sugerencia de la app")}
+              </option>
               {CAREER_STAGE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -459,18 +470,18 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)] [&>*]:min-w-0">
         <div className="space-y-4">
-          <Panel title="Ficha del jugador">
+          <Panel title={tx("Ficha del jugador")}>
             <dl className="grid gap-x-6 gap-y-2 p-4 text-sm sm:grid-cols-2">
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">PlayerID</dt>
+                <dt className="text-[var(--muted)]">{tx("PlayerID")}</dt>
                 <dd className="tabular-nums">{data.htPlayerId}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Edad</dt>
+                <dt className="text-[var(--muted)]">{tx("Edad")}</dt>
                 <dd>{htAgeTexto(data.age)}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Nacionalidad</dt>
+                <dt className="text-[var(--muted)]">{tx("Nacionalidad")}</dt>
                 <dd>
                   <CountryCell
                     code={data.countryCode}
@@ -481,13 +492,13 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Especialidad</dt>
+                <dt className="text-[var(--muted)]">{tx("Especialidad")}</dt>
                 <dd>
                   <Specialty specialty={data.specialty} />
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Carácter</dt>
+                <dt className="text-[var(--muted)]">{tx("Carácter")}</dt>
                 <dd>
                   {data.character
                     ? `${data.character.agreeabilityLabel} (${data.character.agreeability})`
@@ -495,7 +506,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Agresividad</dt>
+                <dt className="text-[var(--muted)]">{tx("Agresividad")}</dt>
                 <dd>
                   {data.character
                     ? `${data.character.aggressivenessLabel} (${data.character.aggressiveness})`
@@ -503,7 +514,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Honestidad</dt>
+                <dt className="text-[var(--muted)]">{tx("Honestidad")}</dt>
                 <dd>
                   {data.character
                     ? `${data.character.honestyLabel} (${data.character.honesty})`
@@ -511,7 +522,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Liderazgo</dt>
+                <dt className="text-[var(--muted)]">{tx("Liderazgo")}</dt>
                 <dd>
                   {skillLevel(data.leadership)} ({data.leadership})
                 </dd>
@@ -519,7 +530,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             </dl>
           </Panel>
 
-          <Panel title="Habilidades">
+          <Panel title={tx("Habilidades")}>
             <div className="grid gap-x-8 gap-y-4 p-4 sm:grid-cols-2">
               {DETAIL_SKILLS.map((skill) => {
                 const value =
@@ -546,8 +557,10 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
 
         <div className="space-y-4">
           <Panel
-            title="Estado y contrato"
-            meta={data.isTransferListed ? "en venta" : "no está en venta"}
+            title={tx("Estado y contrato")}
+            meta={
+              data.isTransferListed ? tx("en venta") : tx("no está en venta")
+            }
           >
             <dl className="space-y-2 p-4 text-sm">
               <div className="flex justify-between gap-3">
@@ -569,30 +582,32 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Salario</dt>
+                <dt className="text-[var(--muted)]">{tx("Salario")}</dt>
                 <dd className="font-semibold tabular-nums">
                   {money(data.salary)}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Precio compra</dt>
+                <dt className="text-[var(--muted)]">{tx("Precio compra")}</dt>
                 <dd>
                   {data.purchasePrice == null
-                    ? "no disponible"
+                    ? tx("no disponible")
                     : money(data.purchasePrice)}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Fecha compra</dt>
+                <dt className="text-[var(--muted)]">{tx("Fecha compra")}</dt>
                 <dd>
-                  {data.purchasedAt ? date(data.purchasedAt) : "no disponible"}
+                  {data.purchasedAt
+                    ? date(data.purchasedAt)
+                    : tx("no disponible")}
                 </dd>
               </div>
               {/* Nivel 0 es magullado y SÍ puede jugar: pintarlo en rojo como
                   una baja hacía pensar que estaba descartado. Solo desde 1
                   (semanas de baja) es una lesión de verdad. */}
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Lesión</dt>
+                <dt className="text-[var(--muted)]">{tx("Lesión")}</dt>
                 <dd
                   className={
                     data.injuryLevel >= 1
@@ -603,18 +618,18 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                   }
                 >
                   {data.injuryLevel >= 1
-                    ? `${data.injuryLevel} semana(s)`
+                    ? tx("{{v0}} semana(s)", { v0: data.injuryLevel })
                     : data.injuryLevel === 0
-                      ? "magullado"
-                      : "sin lesión"}
+                      ? tx("magullado")
+                      : tx("sin lesión")}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--muted)]">Último partido</dt>
+                <dt className="text-[var(--muted)]">{tx("Último partido")}</dt>
                 <dd className="text-right">
                   {data.lastMatch
                     ? `${data.lastMatch.position} · ${data.lastMatch.rating?.toFixed(1) ?? "-"}`
-                    : "sin detalle"}
+                    : tx("sin detalle")}
                 </dd>
               </div>
             </dl>
@@ -628,16 +643,22 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           value={number(data.tsi)}
           hint={
             tsiRank
-              ? `puesto ${tsiRank.rank} de ${tsiRank.total} en la plantilla`
+              ? tx("puesto {{v0}} de {{v1}} en la plantilla", {
+                  v0: tsiRank.rank,
+                  v1: tsiRank.total,
+                })
               : undefined
           }
         />
         <Kpi
-          label="Salario"
+          label={tx("Salario")}
           value={money(data.salary)}
           hint={
             salaryRank
-              ? `puesto ${salaryRank.rank} de ${salaryRank.total} en la plantilla`
+              ? tx("puesto {{v0}} de {{v1}} en la plantilla", {
+                  v0: salaryRank.rank,
+                  v1: salaryRank.total,
+                })
               : undefined
           }
         />
@@ -651,12 +672,14 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             meta={
               histDates.length > 1
                 ? `${oldestLabel} → ${latestLabel}`
-                : "sin historial suficiente"
+                : tx("sin historial suficiente")
             }
           >
             <div className="p-4">
               <Chart
-                ariaLabel={`Radar de ${group.title.toLowerCase()}`}
+                ariaLabel={tx("Radar de {{v0}}", {
+                  v0: group.title.toLowerCase(),
+                })}
                 height={260}
                 option={radarOption(
                   group.axes.map((k) => ({
@@ -671,20 +694,23 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         ))}
       </div>
 
-      <Panel title="Mejores posiciones" meta="top 10 de 19 + roles especiales">
+      <Panel
+        title={tx("Mejores posiciones")}
+        meta={tx("top 10 de 19 + roles especiales")}
+      >
         <DataTable
           rows={top10Positions}
           columns={positionColumns}
           rowKey={(r) => r.position}
           initialSort="rating"
           csvName={`${data.name}-posiciones`}
-          emptyMessage="Sin datos de posición."
+          emptyMessage={tx("Sin datos de posición.")}
         />
       </Panel>
 
       <Panel
-        title="Precio de compra"
-        meta="real, de tu libro de transferencias"
+        title={tx("Precio de compra")}
+        meta={tx("real, de tu libro de transferencias")}
       >
         {data.purchasePrice != null ? (
           <div className="space-y-1 p-4">
@@ -694,12 +720,12 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             <div className="text-xs text-[var(--muted)]">
               {data.purchasedAt
                 ? `${data.purchasedAtSeasonWeek ?? date(data.purchasedAt)}`
-                : "fecha no disponible"}
+                : tx("fecha no disponible")}
             </div>
           </div>
         ) : (
           <Empty>
-            Sin compra registrada en el historial reciente del equipo.
+            {tx("Sin compra registrada en el historial reciente del equipo.")}
           </Empty>
         )}
       </Panel>
@@ -710,10 +736,12 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
       <div className="rounded-lg border border-dashed border-[var(--border)] p-4">
         <div className="mb-3">
           <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-            Habilidades susceptibles a mejorar
+            {tx("Habilidades susceptibles a mejorar")}
           </span>
           <p className="mt-0.5 text-xs text-[var(--muted)]">
-            progreso real hacia el siguiente nivel de cada variable entrenable
+            {tx(
+              "progreso real hacia el siguiente nivel de cada variable entrenable",
+            )}
           </p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -724,66 +752,75 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             valueLabel={`${trainedSkillLevel} / ${trainedSkillMax}`}
             redFraction={trainedSkillRedFraction}
             redPlacement="append"
-            tooltip="Se entrena semana a semana con la fórmula del Manual No Escrito (ver Motor). El rojo es el ritmo semanal esperado, solo aparece si jugó un partido esta semana."
+            tooltip={tx(
+              "Se entrena semana a semana con la fórmula del Manual No Escrito (ver Motor). El rojo es el ritmo semanal esperado, solo aparece si jugó un partido esta semana.",
+            )}
           />
           <ProgressBar
-            label="Experiencia"
+            label={tx("Experiencia")}
             level={data.experience}
             max={20}
             valueLabel={`${expValueLabel} / 20`}
             redFraction={expRedFraction}
             redPlacement="append"
-            tooltip="Sube por partidos reales jugados (liga, copa, amistosos, selección…), cada uno pesa puntos distintos según su tipo. El rojo son los puntos ya acumulados hacia el siguiente nivel."
+            tooltip={tx(
+              "Sube por partidos reales jugados (liga, copa, amistosos, selección…), cada uno pesa puntos distintos según su tipo. El rojo son los puntos ya acumulados hacia el siguiente nivel.",
+            )}
           />
           <ProgressBar
-            label="Fidelidad"
+            label={tx("Fidelidad")}
             level={loyaltyLevel}
             max={20}
             valueLabel={`${loyaltyValueLabel} / 20`}
             redFraction={loyaltyRedFraction}
             redPlacement="append"
-            tooltip="Sube solo con tiempo en el club, Hattrick no publica la fórmula. Se calibra por observación propia, transición por transición (ver Motor). El rojo son los días ya transcurridos hacia la siguiente subida, cuando ya hay calibración."
+            tooltip={tx(
+              "Sube solo con tiempo en el club, Hattrick no publica la fórmula. Se calibra por observación propia, transición por transición (ver Motor). El rojo son los días ya transcurridos hacia la siguiente subida, cuando ya hay calibración.",
+            )}
           />
           <ProgressBar
-            label="Forma"
+            label={tx("Forma")}
             level={data.form}
             max={8}
             valueLabel={`${data.form} / 8`}
             dot={data.playedThisWeek}
-            tooltip="Fluctúa partido a partido según rendimiento, no tenemos fórmula propia, solo la observamos. El punto rojo indica que jugó un partido esta semana."
+            tooltip={tx(
+              "Fluctúa partido a partido según rendimiento, no tenemos fórmula propia, solo la observamos. El punto rojo indica que jugó un partido esta semana.",
+            )}
           />
           <ProgressBar
-            label="Resistencia"
+            label={tx("Resistencia")}
             level={data.stamina}
             max={9}
             valueLabel={`${data.stamina} / 9`}
             redFraction={Math.abs(staminaDiff)}
             redPlacement={staminaDiff < 0 ? "eat" : "append"}
-            tooltip="Sube o baja según el % real de entrenamiento dedicado a resistencia para tu edad (tabla Federación Ocerin, ver Motor). El rojo muestra si al ritmo actual se espera subir o bajar de nivel."
+            tooltip={tx(
+              "Sube o baja según el % real de entrenamiento dedicado a resistencia para tu edad (tabla Federación Ocerin, ver Motor). El rojo muestra si al ritmo actual se espera subir o bajar de nivel.",
+            )}
           />
         </div>
         {data.experienceProgress &&
           data.experienceProgress.unscoredNationalMatches > 0 && (
             <div className="mt-3 text-xs text-[var(--accent)]">
-              + {data.experienceProgress.unscoredNationalMatches} partido(s) de
-              selección detectado(s) desde entonces sin puntaje exacto, o es
-              competitivo (Hattrick no distingue Mundial/Copa continental/Copa
-              de Naciones con el mismo código) o subió el conteo de partidos con
-              la selección (Caps) sin que alcanzáramos a ver ese partido en
-              concreto (el club jugó después y lo tapó antes del siguiente
-              sync).
+              + {data.experienceProgress.unscoredNationalMatches}{" "}
+              {tx(
+                "partido(s) de selección detectado(s) desde entonces sin puntaje exacto, o es competitivo (Hattrick no distingue Mundial/Copa continental/Copa de Naciones con el mismo código) o subió el conteo de partidos con la selección (Caps) sin que alcanzáramos a ver ese partido en concreto (el club jugó después y lo tapó antes del siguiente sync).",
+              )}
             </div>
           )}
       </div>
 
       {data.character && (
         <Panel
-          title="Carácter"
-          meta="lejos del centro = rasgo deseable en los 3 ejes"
+          title={tx("Carácter")}
+          meta={tx("lejos del centro = rasgo deseable en los 3 ejes")}
         >
           <div className="p-4">
             <Chart
-              ariaLabel="Perfil de carácter: carácter, agresividad, honestidad"
+              ariaLabel={tx(
+                "Perfil de carácter: carácter, agresividad, honestidad",
+              )}
               height={280}
               option={radarOption(
                 [
@@ -821,7 +858,9 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           {Object.entries(data.topSkillDistributions).map(([skill, dist]) => (
             <PlayerDistributionPanel
               key={skill}
-              title={`${SKILL_LABELS[skill] ?? skill} en la plantilla`}
+              title={tx("{{v0}} en la plantilla", {
+                v0: SKILL_LABELS[skill] ?? skill,
+              })}
               xLabel={SKILL_LABELS[skill] ?? skill}
               playerName={data.name}
               distribution={dist}
@@ -834,21 +873,21 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
       {data.squadDistributions && (
         <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
           <PlayerDistributionPanel
-            title="TSI en la plantilla"
+            title={tx("TSI en la plantilla")}
             xLabel="TSI"
             playerName={data.name}
             distribution={data.squadDistributions.tsi}
             formatValue={(v) => number(v)}
           />
           <PlayerDistributionPanel
-            title="Salario en la plantilla"
-            xLabel="Salario"
+            title={tx("Salario en la plantilla")}
+            xLabel={tx("Salario")}
             playerName={data.name}
             distribution={data.squadDistributions.salary}
             formatValue={(v) => money(v)}
           />
           <PlayerDistributionPanel
-            title="$ por punto de TSI"
+            title={tx("$ por punto de TSI")}
             xLabel="$/TSI"
             playerName={data.name}
             distribution={data.squadDistributions.salaryPerTsi}
@@ -858,11 +897,11 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
       )}
 
       <Panel
-        title="Evolución de habilidades"
+        title={tx("Evolución de habilidades")}
         meta={
           skillsWeekly.labels.length > 1
-            ? "1 punto por semana ISO como mínimo"
-            : "historial corto todavía"
+            ? tx("1 punto por semana ISO como mínimo")
+            : tx("historial corto todavía")
         }
       >
         {skillsWeekly.labels.length > 1 ? (
@@ -876,7 +915,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               />
             </div>
             <Chart
-              ariaLabel="Evolución semanal de las habilidades del jugador"
+              ariaLabel={tx("Evolución semanal de las habilidades del jugador")}
               height={300}
               option={timelineOption(
                 pick(skillsWeekly.labels, skillsRange.indices),
@@ -889,15 +928,16 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           </div>
         ) : (
           <Empty>
-            Todavía no hay dos semanas distintas de historial real, esta gráfica
-            se llena a medida que se sincroniza.
+            {tx(
+              "Todavía no hay dos semanas distintas de historial real, esta gráfica se llena a medida que se sincroniza.",
+            )}
           </Empty>
         )}
       </Panel>
 
       <Panel
-        title="Evolución de TSI y salario"
-        meta="1 punto por semana ISO como mínimo"
+        title={tx("Evolución de TSI y salario")}
+        meta={tx("1 punto por semana ISO como mínimo")}
       >
         {tsiWeekly.labels.length > 1 ? (
           <div className="p-4">
@@ -910,7 +950,9 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               />
             </div>
             <Chart
-              ariaLabel="Evolución semanal del TSI y el salario del jugador"
+              ariaLabel={tx(
+                "Evolución semanal del TSI y el salario del jugador",
+              )}
               height={240}
               option={timelineOption(
                 pick(tsiWeekly.labels, tsiRange.indices),
@@ -923,15 +965,18 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           </div>
         ) : (
           <Empty>
-            Todavía no hay dos semanas distintas de historial real para trazar
-            una evolución.
+            {tx(
+              "Todavía no hay dos semanas distintas de historial real para trazar una evolución.",
+            )}
           </Empty>
         )}
       </Panel>
 
       <Panel
-        title="Evolución del HTMS"
-        meta="HTMS28 es una proyección con entrenamiento estándar, no una promesa"
+        title={tx("Evolución del HTMS")}
+        meta={tx(
+          "HTMS28 es una proyección con entrenamiento estándar, no una promesa",
+        )}
       >
         {htmsWeekly.labels.length > 1 ? (
           <div className="p-4">
@@ -944,7 +989,9 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               />
             </div>
             <Chart
-              ariaLabel="Evolución semanal del HTMS y el HTMS28 del jugador"
+              ariaLabel={tx(
+                "Evolución semanal del HTMS y el HTMS28 del jugador",
+              )}
               height={240}
               option={timelineOption(
                 pick(htmsWeekly.labels, htmsRange.indices),
@@ -957,18 +1004,21 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           </div>
         ) : (
           <Empty>
-            Todavía no hay dos semanas distintas de historial real para trazar
-            una evolución.
+            {tx(
+              "Todavía no hay dos semanas distintas de historial real para trazar una evolución.",
+            )}
           </Empty>
         )}
       </Panel>
 
       <Panel
-        title="Rating por partido"
+        title={tx("Rating por partido")}
         meta={
           matchRatingWeekly.labels.length > 0
-            ? `${matchRatingWeekly.labels.length} semana(s) real(es), 1 punto por semana`
-            : "sin partidos sincronizados todavía"
+            ? tx("{{v0}} semana(s) real(es), 1 punto por semana", {
+                v0: matchRatingWeekly.labels.length,
+              })
+            : tx("sin partidos sincronizados todavía")
         }
       >
         {matchRatingWeekly.labels.length > 0 ? (
@@ -982,7 +1032,9 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               />
             </div>
             <Chart
-              ariaLabel="Rating real del jugador por semana, un punto por partido más reciente"
+              ariaLabel={tx(
+                "Rating real del jugador por semana, un punto por partido más reciente",
+              )}
               height={220}
               option={timelineOption(
                 pick(matchRatingWeekly.labels, matchRatingRange.indices),
@@ -995,17 +1047,20 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
           </div>
         ) : (
           <Empty>
-            Se llena partido a partido al sincronizar, hoy no hay ninguno
-            todavía en esta cuenta.
+            {tx(
+              "Se llena partido a partido al sincronizar, hoy no hay ninguno todavía en esta cuenta.",
+            )}
           </Empty>
         )}
       </Panel>
 
       {ownAgeTsi && (
-        <Panel title="TSI vs. edad de la plantilla">
+        <Panel title={tx("TSI vs. edad de la plantilla")}>
           <div className="p-4">
             <Chart
-              ariaLabel="Dispersión de TSI contra edad de toda la plantilla, con este jugador resaltado"
+              ariaLabel={tx(
+                "Dispersión de TSI contra edad de toda la plantilla, con este jugador resaltado",
+              )}
               height={280}
               option={highlightedScatterOption(
                 data.squadAgeTsi.map((p) => ({
@@ -1053,70 +1108,80 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
           to="/transfers/balance"
           className="text-xs text-[var(--accent)] hover:underline"
         >
-          ← Transferencias
+          {tx("← Transferencias")}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-semibold">{data.name}</h1>
           <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-[var(--muted)] border-[var(--border)]">
-            Ex-jugador
+            {tx("Ex-jugador")}
           </span>
           {row?.isAcademyGraduate && (
             <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-[var(--positive)] border-[var(--positive)]">
-              Canterano
+              {tx("Canterano")}
             </span>
           )}
         </div>
         <p className="text-sm text-[var(--muted)]">
-          Ya no está en la plantilla, esta ficha solo trae las fechas y el
-          saldo, no el resto del análisis de plantilla.
+          {tx(
+            "Ya no está en la plantilla, esta ficha solo trae las fechas y el saldo, no el resto del análisis de plantilla.",
+          )}
         </p>
       </header>
 
-      <Panel title="Tiempo en el equipo">
+      <Panel title={tx("Tiempo en el equipo")}>
         <dl className="grid gap-x-6 gap-y-2 p-4 text-sm sm:grid-cols-2">
           <div className="flex justify-between gap-3">
-            <dt className="text-[var(--muted)]">Fecha de compra</dt>
+            <dt className="text-[var(--muted)]">{tx("Fecha de compra")}</dt>
             <dd className="tabular-nums">{date(data.purchasedAt)}</dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-[var(--muted)]">
               {row?.isDepartureWithoutSale
-                ? "Fecha de salida"
-                : "Fecha de venta"}
+                ? tx("Fecha de salida")
+                : tx("Fecha de venta")}
             </dt>
             <dd className="tabular-nums">
               {date(data.soldAt ?? data.leftTeamAt)}
               {row?.isDepartureWithoutSale && (
-                <span className="text-[var(--muted)]"> (despedido)</span>
+                <span className="text-[var(--muted)]">
+                  {" "}
+                  {tx("(despedido)")}
+                </span>
               )}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-[var(--muted)]">
-              Partidos jugados con nosotros
+              {tx("Partidos jugados con nosotros")}
             </dt>
             <dd className="tabular-nums">
               {data.gamesWithUs != null ? (
                 data.gamesWithUs
               ) : (
-                <span className="text-[var(--muted)]">sin contar</span>
+                <span className="text-[var(--muted)]">{tx("sin contar")}</span>
               )}
             </dd>
           </div>
           {data.resaleClosed && (
             <div className="flex justify-between gap-3">
-              <dt className="text-[var(--muted)]">Comisión futura</dt>
+              <dt className="text-[var(--muted)]">{tx("Comisión futura")}</dt>
               <dd
                 className="text-[var(--muted)]"
                 title={
                   data.resaleClosedReason === "revendido"
-                    ? "El club que te lo compró ya lo revendió: esa comisión se cobró y no habrá otra."
+                    ? tx(
+                        "El club que te lo compró ya lo revendió: esa comisión se cobró y no habrá otra.",
+                      )
                     : data.resaleClosedReason === "despedido"
-                      ? "Ya no existe en Hattrick, así que nadie volverá a venderlo."
-                      : "Salió sin comprador, así que nunca hubo club anterior al que pagarle."
+                      ? tx(
+                          "Ya no existe en Hattrick, así que nadie volverá a venderlo.",
+                        )
+                      : tx(
+                          "Salió sin comprador, así que nunca hubo club anterior al que pagarle.",
+                        )
                 }
               >
-                ya no
+                {tx("ya no")}
               </dd>
             </div>
           )}
@@ -1126,28 +1191,33 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
       {row ? (
         <>
           <Panel
-            title="Entrenamiento inferido al vender"
-            meta="primer snapshot contra último snapshot anterior a la venta"
+            title={tx("Entrenamiento inferido al vender")}
+            meta={tx(
+              "primer snapshot contra último snapshot anterior a la venta",
+            )}
           >
             <div className="grid gap-4 p-4 sm:grid-cols-3 [&>*]:min-w-0">
               <Kpi
-                label="Habilidad asignada"
-                value={row.derivedTrainingSkill ?? "Sin resolver"}
+                label={tx("Habilidad asignada")}
+                value={row.derivedTrainingSkill ?? tx("Sin resolver")}
               />
               <Kpi
-                label="Niveles subidos"
+                label={tx("Niveles subidos")}
                 value={
                   row.derivedTrainingLevels != null
                     ? number(row.derivedTrainingLevels)
                     : "-"
                 }
               />
-              <Kpi label="Método" value={row.derivedTrainingMethodLabel} />
+              <Kpi
+                label={tx("Método")}
+                value={row.derivedTrainingMethodLabel}
+              />
             </div>
           </Panel>
           <Panel
-            title="Cálculo del ROI"
-            meta="mismo desglose que Detalle en Transferencias"
+            title={tx("Cálculo del ROI")}
+            meta={tx("mismo desglose que Detalle en Transferencias")}
           >
             <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
               {/* De la cantera no se paga precio de mercado, se paga el
@@ -1156,8 +1226,8 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
               <Kpi
                 label={
                   row.isAcademyGraduate
-                    ? "Coste del ascenso"
-                    : "Precio de compra"
+                    ? tx("Coste del ascenso")
+                    : tx("Precio de compra")
                 }
                 value={
                   row.purchasePrice != null
@@ -1165,11 +1235,13 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                     : "?"
                 }
                 hint={
-                  row.isAcademyGraduate ? "subido desde tu cantera" : undefined
+                  row.isAcademyGraduate
+                    ? tx("subido desde tu cantera")
+                    : undefined
                 }
               />
               <Kpi
-                label="Salario acumulado"
+                label={tx("Salario acumulado")}
                 value={
                   row.salaryKnown
                     ? money(row.salaryTotal, balance!.currency)
@@ -1178,24 +1250,24 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                 hint={
                   row.salaryKnown
                     ? undefined
-                    : "Falta sincronizar el calendario económico de la liga"
+                    : tx("Falta sincronizar el calendario económico de la liga")
                 }
               />
               <Kpi
-                label="Costo de listados"
+                label={tx("Costo de listados")}
                 value={money(row.listingCost, balance!.currency)}
               />
               <Kpi
-                label="Precio de venta"
+                label={tx("Precio de venta")}
                 value={
                   row.salePrice != null
                     ? money(row.salePrice, balance!.currency)
                     : "-"
                 }
-                hint={row.isDepartureWithoutSale ? "despedido" : undefined}
+                hint={row.isDepartureWithoutSale ? tx("despedido") : undefined}
               />
               <Kpi
-                label="% agente"
+                label={tx("% agente")}
                 value={
                   row.agentPct != null
                     ? `${(row.agentPct * 100).toFixed(1)}%`
@@ -1208,7 +1280,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                 }
               />
               <Kpi
-                label="Venta neta"
+                label={tx("Venta neta")}
                 value={
                   row.salePrice != null && row.commissionAmount !== "?"
                     ? money(
@@ -1217,15 +1289,17 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                       )
                     : "?"
                 }
-                hint="precio de venta × (1 − % agente)"
+                hint={tx("precio de venta × (1 − % agente)")}
               />
               <Kpi
-                label="Club anterior"
+                label={tx("Club anterior")}
                 value={money(row.resaleBonusShare, balance!.currency)}
                 hint={
                   row.resaleBonusShare > 0
-                    ? "comisión exacta cobrada por reventa(s) confirmada(s)"
-                    : "el club al que se lo vendimos todavía no lo ha revendido"
+                    ? tx("comisión exacta cobrada por reventa(s) confirmada(s)")
+                    : tx(
+                        "el club al que se lo vendimos todavía no lo ha revendido",
+                      )
                 }
               />
               <Kpi
@@ -1243,11 +1317,26 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
           </Panel>
           {row.listingCount > 0 && (
             <Panel
-              title="Intentos de venta"
+              title={tx("Intentos de venta")}
               meta={
                 row.listingAttempts.length < row.listingCount
-                  ? `${number(row.listingCount)} en total · ${money(listingCostPerAttempt, balance!.currency)} por intento · ${money(row.listingCost, balance!.currency)} de costo total · solo los ${number(row.listingAttempts.length)} más recientes quedaron registrados con fecha`
-                  : `${number(row.listingCount)} en total · ${money(listingCostPerAttempt, balance!.currency)} por intento · ${money(row.listingCost, balance!.currency)} de costo total`
+                  ? tx(
+                      "{{v0}} en total · {{v1}} por intento · {{v2}} de costo total · solo los {{v3}} más recientes quedaron registrados con fecha",
+                      {
+                        v0: number(row.listingCount),
+                        v1: money(listingCostPerAttempt, balance!.currency),
+                        v2: money(row.listingCost, balance!.currency),
+                        v3: number(row.listingAttempts.length),
+                      },
+                    )
+                  : tx(
+                      "{{v0}} en total · {{v1}} por intento · {{v2}} de costo total",
+                      {
+                        v0: number(row.listingCount),
+                        v1: money(listingCostPerAttempt, balance!.currency),
+                        v2: money(row.listingCost, balance!.currency),
+                      },
+                    )
               }
             >
               <ul className="divide-y divide-[var(--border)] p-4 text-sm">
@@ -1257,20 +1346,22 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                       {date(attempt.detectedAt)}
                     </span>
                     <span className="tabular-nums font-medium">
-                      Costo: {money(listingCostPerAttempt, balance!.currency)}
+                      {tx("Costo:")}{" "}
+                      {money(listingCostPerAttempt, balance!.currency)}
                     </span>
                   </li>
                 ))}
                 {undatedListingCount > 0 && (
                   <li className="flex justify-between gap-3 py-1.5">
                     <span className="text-[var(--muted)]">
-                      {number(undatedListingCount)} intento
-                      {undatedListingCount === 1 ? "" : "s"} anterior
-                      {undatedListingCount === 1 ? "" : "es"} sin fecha
-                      registrada
+                      {number(undatedListingCount)} {tx("intento")}
+                      {undatedListingCount === 1 ? "" : tx("s")}{" "}
+                      {tx("anterior")}
+                      {undatedListingCount === 1 ? "" : tx("es")}{" "}
+                      {tx("sin fecha registrada")}
                     </span>
                     <span className="tabular-nums font-medium">
-                      Costo:{" "}
+                      {tx("Costo:")}{" "}
                       {money(
                         undatedListingCount * listingCostPerAttempt,
                         balance!.currency,
@@ -1283,14 +1374,15 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
           )}
           {row.salaryBreakdown.length > 0 && (
             <Panel
-              title="Desglose del salario"
-              meta="tramos de semanas consecutivas con el mismo sueldo"
+              title={tx("Desglose del salario")}
+              meta={tx("tramos de semanas consecutivas con el mismo sueldo")}
             >
               <ul className="divide-y divide-[var(--border)] p-4 text-sm">
                 {row.salaryBreakdown.map((segment, i) => (
                   <li key={i} className="flex justify-between gap-3 py-1.5">
                     <span className="text-[var(--muted)]">
-                      {segment.weeks} cobro{segment.weeks === 1 ? "" : "s"} en{" "}
+                      {segment.weeks} {tx("cobro")}
+                      {segment.weeks === 1 ? "" : tx("s")} {tx("en")}{" "}
                       {segment.season}
                     </span>
                     <span className="tabular-nums">
@@ -1304,7 +1396,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
               </ul>
             </Panel>
           )}
-          <Panel title="Ganancia">
+          <Panel title={tx("Ganancia")}>
             <div className="p-4">
               <div
                 className={
@@ -1321,7 +1413,7 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
           </Panel>
         </>
       ) : (
-        <Empty>Sin datos de saldo todavía para este jugador.</Empty>
+        <Empty>{tx("Sin datos de saldo todavía para este jugador.")}</Empty>
       )}
     </div>
   );

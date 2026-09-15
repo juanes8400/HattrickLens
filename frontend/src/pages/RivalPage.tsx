@@ -30,6 +30,7 @@ import type {
   RivalScouting,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 interface RosterRow {
   name: string;
   position: string | null;
@@ -94,10 +95,11 @@ export function RivalPage() {
     return (
       <div className="space-y-4" role="status" aria-busy="true">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
-          <b>Estudiando al rival…</b>{" "}
+          <b>{tx("Estudiando al rival…")}</b>{" "}
           <span className="text-[var(--muted)]">
-            Se le está pidiendo a Hattrick su plantilla y sus últimos partidos.
-            Suele tardar unos segundos: no son datos que estén guardados aquí.
+            {tx(
+              "Se le está pidiendo a Hattrick su plantilla y sus últimos partidos. Suele tardar unos segundos: no son datos que estén guardados aquí.",
+            )}
           </span>
         </div>
         <Loading />
@@ -105,7 +107,7 @@ export function RivalPage() {
     );
   }
   if (isError) return <ErrorState error={error} />;
-  if (!data) return <Empty>Rival no encontrado.</Empty>;
+  if (!data) return <Empty>{tx("Rival no encontrado.")}</Empty>;
 
   // Un identificador que no corresponde a ningún equipo devolvía un informe
   // ENTERO: nombre «Rival», cero partidos, TSI vacío y una proyección del
@@ -124,24 +126,27 @@ export function RivalPage() {
     return (
       <div className="space-y-4">
         <header>
-          <h1 className="text-xl font-semibold">Rival no encontrado</h1>
+          <h1 className="text-xl font-semibold">{tx("Rival no encontrado")}</h1>
           <p className="text-sm text-[var(--muted)]">
-            Hattrick no devolvió ningún equipo con el identificador {id}.
+            {tx("Hattrick no devolvió ningún equipo con el identificador")} {id}
+            .
           </p>
         </header>
-        <Panel title="Qué pudo pasar">
+        <Panel title={tx("Qué pudo pasar")}>
           <ul className="list-disc space-y-1.5 p-4 pl-8 text-sm text-[var(--muted)]">
-            <li>El identificador está mal escrito.</li>
-            <li>El equipo ya no existe: se disolvió o cambió de manager.</li>
+            <li>{tx("El identificador está mal escrito.")}</li>
             <li>
-              Si lo buscabas por el nombre, es más seguro elegirlo en{" "}
+              {tx("El equipo ya no existe: se disolvió o cambió de manager.")}
+            </li>
+            <li>
+              {tx("Si lo buscabas por el nombre, es más seguro elegirlo en")}{" "}
               <Link
                 to="/rivals"
                 className="text-[var(--accent)] hover:underline"
               >
-                la lista de rivales
+                {tx("la lista de rivales")}
               </Link>
-              , que sólo ofrece equipos que existen.
+              {tx(", que sólo ofrece equipos que existen.")}
             </li>
           </ul>
         </Panel>
@@ -199,10 +204,10 @@ export function RivalPage() {
     : " amistosos";
 
   const rosterColumns: Column<RosterRow>[] = [
-    { key: "name", header: "Jugador", align: "left", value: (r) => r.name },
+    { key: "name", header: tx("Jugador"), align: "left", value: (r) => r.name },
     {
       key: "position",
-      header: "Posición",
+      header: tx("Posición"),
       value: (r) => r.position ?? "",
       render: (r) =>
         r.position ? (
@@ -225,12 +230,16 @@ export function RivalPage() {
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">
-            {dashboard.data?.teamName ?? "Tu equipo"}{" "}
-            <span className="text-[var(--muted)]">vs.</span> {rivalLabel}
+            {dashboard.data?.teamName ?? tx("Tu equipo")}{" "}
+            <span className="text-[var(--muted)]">{tx("vs.")}</span>{" "}
+            {rivalLabel}
           </h1>
           <p className="text-sm text-[var(--muted)]">
             {data.matchesAnalysed > 0
-              ? `${data.matchesAnalysed} partido(s)${claseDePartidos} reciente(s) del rival analizado(s)`
+              ? tx(
+                  "{{v0}} partido(s){{v1}} reciente(s) del rival analizado(s)",
+                  { v0: data.matchesAnalysed, v1: claseDePartidos },
+                )
               : // Y se dice qué se cae con eso. Sin esta segunda mitad, media
                 // pantalla aparece vacía y parece que falla algo: su plantilla
                 // y su TSI siguen ahí, lo que no hay es de dónde sacar cómo
@@ -239,7 +248,10 @@ export function RivalPage() {
                 // y no ve nada quiere saber si falla la aplicación o si ese
                 // equipo no juega amistosos (2026-09-09, lo preguntó el
                 // usuario sobre un rival que de verdad no tiene ninguno).
-                `este rival no ha jugado partidos${claseDePartidosPlural} recientemente: su plantilla y su TSI siguen siendo suyos, pero once probable, marcaje, táctica, rotación, duelos y pronóstico se quedan vacíos`}
+                tx(
+                  "este rival no ha jugado partidos{{v0}} recientemente: su plantilla y su TSI siguen siendo suyos, pero once probable, marcaje, táctica, rotación, duelos y pronóstico se quedan vacíos",
+                  { v0: claseDePartidosPlural },
+                )}
           </p>
         </div>
         {/* Un selector, no dos casillas: van pegados y en un marco común
@@ -248,7 +260,7 @@ export function RivalPage() {
             y `aria-pressed` cuenta lo mismo a quien no ve el color. */}
         <div
           role="group"
-          aria-label="Qué partidos del rival se miran"
+          aria-label={tx("Qué partidos del rival se miran")}
           className="flex shrink-0 overflow-hidden rounded-md border border-[var(--border)]"
         >
           {(
@@ -267,8 +279,12 @@ export function RivalPage() {
                 disponible
                   ? undefined
                   : valor === "amistosos"
-                    ? "Este rival no tiene amistosos en la muestra que se mira"
-                    : "Este rival no tiene partidos oficiales en la muestra que se mira"
+                    ? tx(
+                        "Este rival no tiene amistosos en la muestra que se mira",
+                      )
+                    : tx(
+                        "Este rival no tiene partidos oficiales en la muestra que se mira",
+                      )
               }
               className={`px-3 py-1.5 text-xs ${
                 clase === valor
@@ -286,7 +302,7 @@ export function RivalPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
         <Kpi
-          label="Partidos analizados"
+          label={tx("Partidos analizados")}
           value={String(data.matchesAnalysed)}
           hint={
             data.matchesByCompetition.length > 0
@@ -297,11 +313,14 @@ export function RivalPage() {
           }
         />
         <Kpi
-          label="TSI medio del rival"
+          label={tx("TSI medio del rival")}
           value={rivalTsiAvg != null ? number(rivalTsiAvg) : "-"}
           hint={
             tsiRatio != null
-              ? `${tsiRatio.toFixed(2)}x el TSI de ${ownLabel}`
+              ? tx("{{v0}}x el TSI de {{v1}}", {
+                  v0: tsiRatio.toFixed(2),
+                  v1: ownLabel,
+                })
               : undefined
           }
         />
@@ -314,7 +333,7 @@ export function RivalPage() {
       />
 
       <TsiHistogramPanel
-        title="TSI: tu plantilla vs. el rival"
+        title={tx("TSI: tu plantilla vs. el rival")}
         rivalLabel={rivalLabel}
         histogram={h}
         logTsi={logTsi}
@@ -332,20 +351,20 @@ export function RivalPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Panel title="Sugerencia de marcaje al hombre">
+        <Panel title={tx("Sugerencia de marcaje al hombre")}>
           {data.manMarking ? (
             <div className="space-y-2 p-4">
               <p className="text-sm">{data.manMarking.rationale}</p>
               <div className="flex flex-wrap items-center gap-6 text-xs text-[var(--muted)]">
                 <span>
-                  Objetivo:{" "}
+                  {tx("Objetivo:")}{" "}
                   <b className="text-[var(--text)]">
                     {data.manMarking.targetName}
                   </b>{" "}
                   ({data.manMarking.targetPosition})
                 </span>
                 <span>
-                  Marcador:{" "}
+                  {tx("Marcador:")}{" "}
                   <b className="text-[var(--text)]">
                     {data.manMarking.markerName}
                   </b>{" "}
@@ -359,14 +378,14 @@ export function RivalPage() {
                   }`}
                 >
                   {data.manMarking.efficiency === "cerca"
-                    ? "Combinación óptima"
-                    : "Combinación lejos"}{" "}
+                    ? tx("Combinación óptima")
+                    : tx("Combinación lejos")}{" "}
                   (-{(data.manMarking.markerLossPct * 100).toFixed(0)}%)
                 </span>
               </div>
               <p className="text-xs text-[var(--muted)]">
-                Confianza: {data.manMarking.confidence}. Solo compensa si el
-                objetivo es una amenaza clara.
+                {tx("Confianza:")} {data.manMarking.confidence}
+                {tx(". Solo compensa si el objetivo es una amenaza clara.")}
               </p>
               <p className="text-xs text-[var(--muted)]">
                 {data.manMarking.riskNote}
@@ -374,30 +393,50 @@ export function RivalPage() {
             </div>
           ) : (
             <Empty>
-              Sin datos suficientes: ningún jugador rival marcable (delantero,
-              extremo o mediocentro) apareció en los partidos vistos con
-              posición conocida, o no tienes un jugador propio elegible para
-              marcarlo.
+              {tx(
+                "Sin datos suficientes: ningún jugador rival marcable (delantero, extremo o mediocentro) apareció en los partidos vistos con posición conocida, o no tienes un jugador propio elegible para marcarlo.",
+              )}
             </Empty>
           )}
         </Panel>
 
-        <Panel title="Rotación del ataque">
+        <Panel title={tx("Rotación del ataque")}>
           {data.sideRotation ? (
             <div className="space-y-3 p-4">
               <AttackLanes rotation={data.sideRotation} />
               <p className="text-xs text-[var(--muted)]">
                 {data.sideRotation.dominantPct === 100
-                  ? `Lado fuerte fijo, sin excepción: la ${data.sideRotation.strongSide} fue el carril más fuerte en los ${data.sideRotation.matchesAnalysed} de ${data.sideRotation.matchesAnalysed} partidos vistos.`
+                  ? tx(
+                      "Lado fuerte fijo, sin excepción: la {{v0}} fue el carril más fuerte en los {{v1}} de {{v2}} partidos vistos.",
+                      {
+                        v0: data.sideRotation.strongSide,
+                        v1: data.sideRotation.matchesAnalysed,
+                        v2: data.sideRotation.matchesAnalysed,
+                      },
+                    )
                   : data.sideRotation.rotates
-                    ? `Rota: ningún lado domina de forma consistente, el más fuerte cambió partido a partido en sus últimos ${data.sideRotation.matchesAnalysed} partido(s)${claseDePartidos}.`
-                    : `Lado fuerte habitual: la ${data.sideRotation.strongSide} fue el carril más fuerte en el ${data.sideRotation.dominantPct.toFixed(0)}% de sus últimos ${data.sideRotation.matchesAnalysed} partido(s), con variación partido a partido, no siempre por el mismo margen.`}
+                    ? tx(
+                        "Rota: ningún lado domina de forma consistente, el más fuerte cambió partido a partido en sus últimos {{v0}} partido(s){{v1}}.",
+                        {
+                          v0: data.sideRotation.matchesAnalysed,
+                          v1: claseDePartidos,
+                        },
+                      )
+                    : tx(
+                        "Lado fuerte habitual: la {{v0}} fue el carril más fuerte en el {{v1}}% de sus últimos {{v2}} partido(s), con variación partido a partido, no siempre por el mismo margen.",
+                        {
+                          v0: data.sideRotation.strongSide,
+                          v1: data.sideRotation.dominantPct.toFixed(0),
+                          v2: data.sideRotation.matchesAnalysed,
+                        },
+                      )}
               </p>
             </div>
           ) : (
             <Empty>
-              Sin partidos{claseDePartidosPlural} recientes del rival con datos
-              de sector.
+              {tx("Sin partidos")}
+              {claseDePartidosPlural}{" "}
+              {tx("recientes del rival con datos de sector.")}
             </Empty>
           )}
         </Panel>
@@ -425,31 +464,39 @@ export function RivalPage() {
       <ProjectionPanel
         title={
           data.prediction
-            ? `Pronóstico contra ${data.rivalName}`
-            : "Proyección de victoria por TSI"
+            ? tx("Pronóstico contra {{v0}}", { v0: data.rivalName })
+            : tx("Proyección de victoria por TSI")
         }
         meta={
           data.prediction
-            ? `${ETIQUETA_DE_METODO[data.prediction.metodoPropio] ?? data.prediction.metodoPropio} contra ${ETIQUETA_DE_METODO[data.prediction.metodoRival] ?? data.prediction.metodoRival}`
-            : "modelo simple por TSI, no calibrado"
+            ? tx("{{v0}} contra {{v1}}", {
+                v0:
+                  ETIQUETA_DE_METODO[data.prediction.metodoPropio] ??
+                  data.prediction.metodoPropio,
+                v1:
+                  ETIQUETA_DE_METODO[data.prediction.metodoRival] ??
+                  data.prediction.metodoRival,
+              })
+            : tx("modelo simple por TSI, no calibrado")
         }
       >
         {data.prediction ? (
           <div className="space-y-3 p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
               <span>
-                <span className="font-medium">Tu equipo</span>
-                <span className="mx-2 text-[var(--muted)]">vs</span>
+                <span className="font-medium">{tx("Tu equipo")}</span>
+                <span className="mx-2 text-[var(--muted)]">{tx("vs")}</span>
                 <span>{data.rivalName}</span>
               </span>
               <span className="text-xs text-[var(--muted)]">
-                goles esperados {data.prediction.expectedOwnGoals} –{" "}
-                {data.prediction.expectedRivalGoals} · resultado más probable{" "}
+                {tx("goles esperados")} {data.prediction.expectedOwnGoals} –{" "}
+                {data.prediction.expectedRivalGoals}{" "}
+                {tx("· resultado más probable")}{" "}
                 {data.prediction.mostLikelyScore}
               </span>
             </div>
             <BarraDePrediccion
-              tuLabel="Tu equipo"
+              tuLabel={tx("Tu equipo")}
               tuValor={data.prediction.ownProbability}
               rivalLabel={data.rivalName}
               rivalValor={data.prediction.rivalProbability}
@@ -463,8 +510,12 @@ export function RivalPage() {
             {(data.prediction.esCopa || !data.prediction.hayCruce) && (
               <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
                 {!data.prediction.hayCruce
-                  ? "No tenéis ningún cruce pendiente: es un partido hipotético."
-                  : "En Copa alguien tiene que pasar: el empate se reparte entre los dos."}
+                  ? tx(
+                      "No tenéis ningún cruce pendiente: es un partido hipotético.",
+                    )
+                  : tx(
+                      "En Copa alguien tiene que pasar: el empate se reparte entre los dos.",
+                    )}
               </p>
             )}
           </div>
@@ -484,16 +535,17 @@ export function RivalPage() {
               </div>
             </div>
             <Note>
-              Con lo que hay marcado arriba no salen los nueve duelos que el
-              modelo necesita, así que esto es el modelo por TSI.{" "}
+              {tx(
+                "Con lo que hay marcado arriba no salen los nueve duelos que el modelo necesita, así que esto es el modelo por TSI.",
+              )}{" "}
               {data.comparisonReference.ownSource === "submitted_orders"
-                ? "Tu alineación enviada"
-                : "Tus 11 probables"}{" "}
-              ({number(data.winProbability.ownTsiTotal)} TSI) contra{" "}
+                ? tx("Tu alineación enviada")
+                : tx("Tus 11 probables")}{" "}
+              ({number(data.winProbability.ownTsiTotal)} {tx("TSI) contra")}{" "}
               {data.comparisonReference.rivalSource ===
               "probable_recent_starters"
-                ? "el once probable del rival"
-                : "los 11 de mayor TSI del rival"}{" "}
+                ? tx("el once probable del rival")
+                : tx("los 11 de mayor TSI del rival")}{" "}
               ({number(data.winProbability.rivalTsiTotal)}).
             </Note>
           </div>
@@ -502,13 +554,17 @@ export function RivalPage() {
 
       {data.tacticHistory && (
         <Panel
-          title="Táctica habitual del rival"
-          meta={`${data.tacticHistory.matchesAnalysed} partido(s) con datos de sector`}
+          title={tx("Táctica habitual del rival")}
+          meta={tx("{{v0}} partido(s) con datos de sector", {
+            v0: data.tacticHistory.matchesAnalysed,
+          })}
         >
           <div className="grid gap-4 p-4 sm:grid-cols-2 [&>*]:min-w-0">
             <div>
               <Chart
-                ariaLabel="Reparto de las tácticas que ha usado el rival en los partidos vistos"
+                ariaLabel={tx(
+                  "Reparto de las tácticas que ha usado el rival en los partidos vistos",
+                )}
                 height={Math.max(200, data.tacticHistory.tactics.length * 30)}
                 option={sharePieOption(
                   data.tacticHistory.tactics.map((t) => ({
@@ -522,12 +578,12 @@ export function RivalPage() {
               {data.tacticHistory.mostCommonTactic && (
                 <div>
                   <div className="text-xs text-[var(--muted)]">
-                    Táctica más usada
+                    {tx("Táctica más usada")}
                   </div>
                   <div className="text-lg font-semibold">
                     {data.tacticHistory.mostCommonTactic.label}{" "}
                     <span className="text-sm font-normal text-[var(--muted)]">
-                      ({data.tacticHistory.mostCommonTactic.count} de{" "}
+                      ({data.tacticHistory.mostCommonTactic.count} {tx("de")}{" "}
                       {data.tacticHistory.matchesAnalysed} ·{" "}
                       {data.tacticHistory.mostCommonTactic.pct.toFixed(0)}%)
                     </span>
@@ -537,7 +593,7 @@ export function RivalPage() {
               {data.tacticHistory.avgTacticSkill != null && (
                 <div>
                   <div className="text-xs text-[var(--muted)]">
-                    Nivel medio de táctica
+                    {tx("Nivel medio de táctica")}
                   </div>
                   <div className="text-lg font-semibold tabular-nums">
                     {data.tacticHistory.avgTacticSkill.toFixed(1)}
@@ -547,12 +603,12 @@ export function RivalPage() {
               {data.tacticHistory.mostCommonFormation && (
                 <div>
                   <div className="text-xs text-[var(--muted)]">
-                    Formación más usada
+                    {tx("Formación más usada")}
                   </div>
                   <div className="text-lg font-semibold">
                     {data.tacticHistory.mostCommonFormation.formation}{" "}
                     <span className="text-sm font-normal text-[var(--muted)]">
-                      ({data.tacticHistory.mostCommonFormation.count} de{" "}
+                      ({data.tacticHistory.mostCommonFormation.count} {tx("de")}{" "}
                       {data.tacticHistory.matchesAnalysed} ·{" "}
                       {data.tacticHistory.mostCommonFormation.pct.toFixed(0)}%)
                     </span>
@@ -565,13 +621,17 @@ export function RivalPage() {
       )}
 
       <Panel
-        title="Jugadores del rival identificados"
-        meta={`top 5 por TSI, de sus últimos partidos${claseDePartidosPlural}, sea contra quien sea`}
+        title={tx("Jugadores del rival identificados")}
+        meta={tx(
+          "top 5 por TSI, de sus últimos partidos{{v0}}, sea contra quien sea",
+          { v0: claseDePartidosPlural },
+        )}
       >
         {data.rivalRosterSample.length === 0 ? (
           <Empty>
-            Aún no se ha visto a ningún jugador de este equipo en un partido
-            jugado.
+            {tx(
+              "Aún no se ha visto a ningún jugador de este equipo en un partido jugado.",
+            )}
           </Empty>
         ) : (
           <DataTable
@@ -580,7 +640,7 @@ export function RivalPage() {
             rowKey={(r) => r.name}
             initialSort="tsi"
             csvName={`${rivalLabel}-jugadores`}
-            emptyMessage="Sin jugadores identificados."
+            emptyMessage={tx("Sin jugadores identificados.")}
           />
         )}
       </Panel>
@@ -621,7 +681,7 @@ function AttackLanes({
   );
 
   if (partidos.length === 0) {
-    return <Empty>Sin partidos con datos de sector.</Empty>;
+    return <Empty>{tx("Sin partidos con datos de sector.")}</Empty>;
   }
 
   return (
@@ -639,7 +699,12 @@ function AttackLanes({
                 <div
                   key={i}
                   className="group relative flex flex-1 flex-col items-center justify-end"
-                  title={`${partido.label}: ${valor} en ${etiqueta}${gana ? " (su mejor carril ese día)" : ""}`}
+                  title={tx("{{v0}}: {{v1}} en {{v2}}{{v3}}", {
+                    v0: partido.label,
+                    v1: valor,
+                    v2: etiqueta,
+                    v3: gana ? " (su mejor carril ese día)" : "",
+                  })}
                 >
                   <div
                     className="w-full rounded-sm"
@@ -666,10 +731,10 @@ function AttackLanes({
       <div className="flex gap-2 text-[10px] text-[var(--muted)]">
         <div className="w-20 shrink-0" />
         <div className="flex flex-1 justify-between">
-          <span>más antiguo</span>
-          <span>más reciente</span>
+          <span>{tx("más antiguo")}</span>
+          <span>{tx("más reciente")}</span>
         </div>
-        <div className="w-24 shrink-0 text-right">media ± desv.</div>
+        <div className="w-24 shrink-0 text-right">{tx("media ± desv.")}</div>
       </div>
     </div>
   );
@@ -707,17 +772,17 @@ function ComparisonPanel({
       format: number,
     },
     {
-      label: "Forma",
+      label: tx("Forma"),
       own: data.comparison.form.own,
       rival: data.comparison.form.rival,
     },
     {
-      label: "Resistencia",
+      label: tx("Resistencia"),
       own: data.comparison.stamina.own,
       rival: data.comparison.stamina.rival,
     },
     {
-      label: "Experiencia",
+      label: tx("Experiencia"),
       own: data.comparison.experience.own,
       rival: data.comparison.experience.rival,
     },
@@ -727,10 +792,10 @@ function ComparisonPanel({
     <Panel
       title={
         data.comparisonReference.ownSource === "submitted_orders"
-          ? "Comparación para el partido"
-          : "Comparación de plantilla"
+          ? tx("Comparación para el partido")
+          : tx("Comparación de plantilla")
       }
-      meta={`${ownLabel} vs. ${rivalLabel}`}
+      meta={tx("{{v0}} vs. {{v1}}", { v0: ownLabel, v1: rivalLabel })}
     >
       <div className="space-y-5 p-4">
         <div className="flex items-center justify-center gap-6 text-xs">
@@ -753,7 +818,7 @@ function ComparisonPanel({
           <ComparisonRow key={m.label} {...m} />
         ))}
         <ComparisonRow
-          label="Liderazgo del entrenador"
+          label={tx("Liderazgo del entrenador")}
           own={data.comparison.trainerLeadership.own}
           rival={data.comparison.trainerLeadership.rival}
         />
@@ -828,7 +893,9 @@ function LastPurchaseRow({
         <span className="tabular-nums font-semibold text-[var(--text)]">
           {mio ? dentro(mio) : "-"}
         </span>
-        <span className="text-center text-[var(--muted)]">Último fichaje</span>
+        <span className="text-center text-[var(--muted)]">
+          {tx("Último fichaje")}
+        </span>
         <span className="text-right tabular-nums font-semibold text-[var(--text)]">
           {suyo ? dentro(suyo) : "-"}
         </span>
@@ -891,7 +958,7 @@ function LastConnectionRow({
   const rivalPct = lastConnectionWidth(rivalDays);
 
   return (
-    <div aria-label="Actividad reciente de los managers">
+    <div aria-label={tx("Actividad reciente de los managers")}>
       <div className="mb-1.5 flex items-center justify-between text-xs">
         <span className="tabular-nums font-semibold text-[var(--text)]">
           {lastConnectionLabel(ownDays)}
@@ -961,7 +1028,7 @@ function ComparisonRow({
         </span>
         <span className="text-[var(--muted)]">{label}</span>
         <span className="tabular-nums font-semibold text-[var(--text)]">
-          {rival != null ? format(rival) : "no disponible"}
+          {rival != null ? format(rival) : tx("no disponible")}
         </span>
       </div>
       <div className="flex h-2.5 items-center gap-1">
@@ -1078,8 +1145,9 @@ function DeQuePartidoHablamos({
     if (alineacionEnviada) return null;
     return (
       <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
-        Todavía no has mandado alineación, así que esto cae a tu resumen de lo
-        ya jugado.
+        {tx(
+          "Todavía no has mandado alineación, así que esto cae a tu resumen de lo ya jugado.",
+        )}
       </p>
     );
   }
@@ -1087,7 +1155,7 @@ function DeQuePartidoHablamos({
   if (!partido) {
     return (
       <p className="mt-1.5 text-[11px] text-[var(--muted)]">
-        No hay ningún partido en la muestra.
+        {tx("No hay ningún partido en la muestra.")}
       </p>
     );
   }
@@ -1137,7 +1205,7 @@ function PitchZoneDuelsPanel({
     : PITCH_ZONE_METHODS;
   if (!duels) {
     return (
-      <Panel title="Duelos por zona de la cancha">
+      <Panel title={tx("Duelos por zona de la cancha")}>
         <div className="p-4 pb-0">
           <PitchZoneMethodSelector
             method={methodRival}
@@ -1145,8 +1213,9 @@ function PitchZoneDuelsPanel({
           />
         </div>
         <Empty>
-          Falta alguno de los dos lados con partidos y datos de sector, sin eso
-          no hay duelo honesto que mostrar.
+          {tx(
+            "Falta alguno de los dos lados con partidos y datos de sector, sin eso no hay duelo honesto que mostrar.",
+          )}
         </Empty>
       </Panel>
     );
@@ -1163,12 +1232,14 @@ function PitchZoneDuelsPanel({
 
   return (
     <Panel
-      title="Duelos por zona de la cancha"
-      meta={`${
-        sources.own.kind === "submitted_chpp_prediction"
-          ? "la predicción de Hattrick"
-          : `tú: ${matchesAnalysed.own} partido(s)`
-      } · rival: ${matchesAnalysed.rival} partido(s)`}
+      title={tx("Duelos por zona de la cancha")}
+      meta={tx("{{v0}} · rival: {{v1}} partido(s)", {
+        v0:
+          sources.own.kind === "submitted_chpp_prediction"
+            ? "la predicción de Hattrick"
+            : `tú: ${matchesAnalysed.own} partido(s)`,
+        v1: matchesAnalysed.rival,
+      })}
     >
       <div className="grid gap-2 p-4 pb-2 sm:grid-cols-2">
         <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
@@ -1185,7 +1256,8 @@ function PitchZoneDuelsPanel({
               parece un dato y no lo es (lo vio el usuario, 2026-09-09). */}
           {methodOwn !== "submitted" && sources.own.tacticSkill != null && (
             <div className="mt-0.5 text-[11px] text-[var(--muted)]">
-              Táctica {sources.own.tacticType} · nivel {sources.own.tacticSkill}
+              {tx("Táctica")} {sources.own.tacticType} {tx("· nivel")}{" "}
+              {sources.own.tacticSkill}
             </div>
           )}
           {/* Lo mismo que dice el lado del rival (2026-09-13). Con la
@@ -1193,7 +1265,7 @@ function PitchZoneDuelsPanel({
               previsión de Hattrick. */}
           {methodOwn !== "submitted" && (
             <div className="mt-0.5 text-[11px] text-[var(--muted)]">
-              {sources.own.observations ?? 0} partido(s) vistos
+              {sources.own.observations ?? 0} {tx("partido(s) vistos")}
             </div>
           )}
           <PitchZoneMethodSelector
@@ -1213,7 +1285,7 @@ function PitchZoneDuelsPanel({
           </div>
           <div className="text-xs font-semibold">{sources.rival.label}</div>
           <div className="mt-0.5 text-[11px] text-[var(--muted)]">
-            {sources.rival.observations ?? 0} partido(s) vistos
+            {sources.rival.observations ?? 0} {tx("partido(s) vistos")}
           </div>
           <PitchZoneMethodSelector
             method={methodRival}
@@ -1229,11 +1301,11 @@ function PitchZoneDuelsPanel({
               className="h-2 w-2 rounded-full"
               style={{ background: OWN_COLOR }}
             />
-            Tu campo
+            {tx("Tu campo")}
           </div>
-          <div>Medio</div>
+          <div>{tx("Medio")}</div>
           <div className="flex items-center justify-center gap-1.5">
-            Campo rival
+            {tx("Campo rival")}
             <span
               className="h-2 w-2 rounded-full"
               style={{ background: RIVAL_COLOR }}
@@ -1261,7 +1333,7 @@ function PitchZoneDuelsPanel({
           ))}
           <DuelCell
             duel={midfield}
-            label="Medio campo"
+            label={tx("Medio campo")}
             style={{ gridColumn: 2, gridRow: "1 / span 3" }}
           />
           {rivalHalf.map(([zone, duel], i) => (

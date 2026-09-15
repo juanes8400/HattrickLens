@@ -20,6 +20,7 @@ import appEs from "./es.json";
 import appEn from "./en.json";
 import glosarioEs from "./glosario/es.json";
 import glosarioEn from "./glosario/en.json";
+import textosEn from "./textos/en.json";
 
 export const IDIOMAS = ["es", "en"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
@@ -42,24 +43,30 @@ function idiomaGuardado(): Idioma {
 void i18n.use(initReactI18next).init({
   resources: {
     es: { app: appEs, glosario: glosarioEs },
-    en: { app: appEn, glosario: glosarioEn },
+    en: { app: appEn, glosario: glosarioEn, textos: textosEn },
   },
   lng: idiomaGuardado(),
   fallbackLng: "es",
-  ns: ["app", "glosario"],
+  ns: ["app", "glosario", "textos"],
   defaultNS: "app",
   interpolation: { escapeValue: false },
   returnNull: false,
 });
 
-/** Cambia el idioma y lo recuerda en este navegador. */
+/** Cambia el idioma, lo recuerda en este navegador y recarga.
+ *
+ *  Recarga a propósito: muchas tablas y constantes se arman al cargar el
+ *  módulo, y sólo una carga nueva garantiza que TODO salga en el idioma
+ *  elegido y no media pantalla en uno y media en otro. */
 export function cambiarIdioma(idioma: Idioma): void {
   try {
     localStorage.setItem(CLAVE_GUARDADA, idioma);
   } catch {
-    // Almacenamiento bloqueado: se cambia igual, sin recordarlo.
+    // Almacenamiento bloqueado: se cambia sólo hasta la próxima carga.
+    void i18n.changeLanguage(idioma);
+    return;
   }
-  void i18n.changeLanguage(idioma);
+  window.location.reload();
 }
 
 export default i18n;

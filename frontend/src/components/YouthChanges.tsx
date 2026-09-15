@@ -11,6 +11,7 @@ import type {
   YouthSummary,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Los cambios de la academia, con el mismo formato que los de la plantilla
  * una tarjeta por chico, una línea por habilidad, porque el usuario los
@@ -35,7 +36,9 @@ function Techo({ change }: { change: YouthComparisonChange }) {
   if (change.max == null) {
     // Un techo que sigue oculto se dice, no se calla: es la diferencia entre
     // «no llega más alto» y «todavía no sabemos hasta dónde llega».
-    return <span className="text-[var(--muted)]">techo sin revelar</span>;
+    return (
+      <span className="text-[var(--muted)]">{tx("techo sin revelar")}</span>
+    );
   }
   return (
     <span
@@ -44,7 +47,7 @@ function Techo({ change }: { change: YouthComparisonChange }) {
         change.maxIsNew && "text-[var(--youth-known)]",
       )}
     >
-      techo {change.max}
+      {tx("techo")} {change.max}
       {change.maxIsNew && " ✦"}
     </span>
   );
@@ -54,14 +57,14 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   if (change.key === "arrival") {
     return (
       <span className="font-semibold text-[var(--positive)]">
-        Llegó a la academia
+        {tx("Llegó a la academia")}
       </span>
     );
   }
   if (change.key === "promotable") {
     return (
       <span className="font-semibold text-[var(--positive)]">
-        Ya puede ascender
+        {tx("Ya puede ascender")}
       </span>
     );
   }
@@ -71,7 +74,7 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   // igualado a su techo, y contar sólo lo segundo se come la noticia de que
   // por fin lo vemos.
   const topo = change.maxJustReached ? (
-    <span className="font-semibold text-[var(--muted)]"> · topó</span>
+    <span className="font-semibold text-[var(--muted)]"> {tx("· topó")}</span>
   ) : null;
 
   // Sólo se movió el techo: el nivel sigue sin saberse. Es el caso que no
@@ -80,7 +83,7 @@ function Linea({ change }: { change: YouthComparisonChange }) {
     return (
       <span className="tabular-nums">
         <span className="font-semibold text-[var(--youth-known)]">
-          techo descubierto: {change.max}
+          {tx("techo descubierto:")} {change.max}
         </span>
         {topo}
       </span>
@@ -91,7 +94,7 @@ function Linea({ change }: { change: YouthComparisonChange }) {
     return (
       <span className="tabular-nums">
         <span className="font-semibold text-[var(--youth-known)]">
-          descubierto: {change.current}
+          {tx("descubierto:")} {change.current}
         </span>{" "}
         <span className="text-[var(--muted)]">
           · <Techo change={change} />
@@ -104,7 +107,8 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   if (change.maxJustReached && change.delta == null) {
     return (
       <span className="font-semibold tabular-nums text-[var(--muted)]">
-        topó{change.current != null ? ` en ${change.current}` : ""}
+        {tx("topó")}
+        {change.current != null ? tx(" en {{v0}}", { v0: change.current }) : ""}
       </span>
     );
   }
@@ -156,13 +160,18 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
             >
               {fila.verdictBefore ? (
                 <>
-                  ahora es <b className="font-medium">{fila.verdict}</b>
+                  {tx("ahora es")} <b className="font-medium">{fila.verdict}</b>
                   {fila.verdictBefore !== fila.verdict && (
-                    <> · antes {fila.verdictBefore}</>
+                    <>
+                      {" "}
+                      {tx("· antes")} {fila.verdictBefore}
+                    </>
                   )}
                 </>
               ) : (
-                <>sigue siendo {fila.verdict}</>
+                <>
+                  {tx("sigue siendo")} {fila.verdict}
+                </>
               )}
             </span>
           </div>
@@ -253,7 +262,9 @@ export function YouthChanges({
 
   return (
     <Panel
-      title={teamName ? `${teamName} · Academia` : "La cantera"}
+      title={
+        teamName ? tx("{{v0}} · Academia", { v0: teamName }) : tx("La cantera")
+      }
       meta={
         hayAlgo
           ? `${revelaciones} ${revelaciones === 1 ? "revelación" : "revelaciones"}` +
@@ -261,8 +272,8 @@ export function YouthChanges({
               ? ` · ${salidas.length} se ${salidas.length === 1 ? "fue" : "fueron"}`
               : "")
           : ventana
-            ? "sin novedades en el último sync"
-            : "sin novedades"
+            ? tx("sin novedades en el último sync")
+            : tx("sin novedades")
       }
     >
       {/* LO QUE SIGNIFICA, antes que el detalle. Una lista de «Pases: techo 3»
@@ -276,12 +287,16 @@ export function YouthChanges({
               (revelaciones === 1 ? "techo nuevo " : "techos nuevos ") +
               (ventana ? ventana.etiqueta : "esta vez")
             }
-            hint="Habilidades cuyo nivel o techo se descubrió en este periodo"
+            hint={tx(
+              "Habilidades cuyo nivel o techo se descubrió en este periodo",
+            )}
           />
           <Cifra
             n={`${conocidos}/${lecturas}`}
-            de="techos conocidos"
-            hint="De todas las lecturas jugador × habilidad de la academia"
+            de={tx("techos conocidos")}
+            hint={tx(
+              "De todas las lecturas jugador × habilidad de la academia",
+            )}
             // El número es lo que se sabe HOY y no depende de la ventana: lo
             // que depende es cuánto ha crecido dentro de ella.
             nota={
@@ -293,11 +308,17 @@ export function YouthChanges({
           {aCiegas != null && (
             <Cifra
               n={`${aCiegas}%`}
-              de="sigue a ciegas"
-              hint="Mientras esto sea alto, «Individual» rinde más que cualquier habilidad concreta"
+              de={tx("sigue a ciegas")}
+              hint={tx(
+                "Mientras esto sea alto, «Individual» rinde más que cualquier habilidad concreta",
+              )}
               nota={
                 ventana && lecturas > 0 && conocidos > ventana.ceilingsBefore
-                  ? `eran ${Math.round((100 * (lecturas - ventana.ceilingsBefore)) / lecturas)}%`
+                  ? tx("eran {{v0}}%", {
+                      v0: Math.round(
+                        (100 * (lecturas - ventana.ceilingsBefore)) / lecturas,
+                      ),
+                    })
                   : undefined
               }
             />
@@ -307,10 +328,12 @@ export function YouthChanges({
               n={String(veredictos.length)}
               de={
                 veredictos.length === 1
-                  ? "cambió de veredicto"
-                  : "cambiaron de veredicto"
+                  ? tx("cambió de veredicto")
+                  : tx("cambiaron de veredicto")
               }
-              hint="El descubrimiento movió lo que se piensa del canterano"
+              hint={tx(
+                "El descubrimiento movió lo que se piensa del canterano",
+              )}
             />
           )}
         </div>
@@ -322,7 +345,10 @@ export function YouthChanges({
       {salidas.length > 0 && (
         <div className="border-b border-[var(--border)] px-4 py-3 text-sm">
           <span className="font-medium">
-            {salidas.length === 1 ? "Dejó la academia" : "Dejaron la academia"}:
+            {salidas.length === 1
+              ? tx("Dejó la academia")
+              : tx("Dejaron la academia")}
+            :
           </span>{" "}
           <span className="text-[var(--muted)]">
             {salidas.map((x) => x.name).join(" · ")}
@@ -337,7 +363,10 @@ export function YouthChanges({
         <GroupedPlayerChanges
           groups={grupos ?? []}
           aggregate={[]}
-          emptyMessage={`Ningún canterano se movió ${ventana.etiqueta}. En juveniles es lo normal: las habilidades tardan semanas en asomar.`}
+          emptyMessage={tx(
+            "Ningún canterano se movió {{v0}}. En juveniles es lo normal: las habilidades tardan semanas en asomar.",
+            { v0: ventana.etiqueta },
+          )}
         />
       ) : rows.length === 0 ? (
         <Empty>
@@ -345,10 +374,13 @@ export function YouthChanges({
               cifras de arriba sigan la ventana. Sin decirlo, la pantalla se
               contradecía sola: «5 techos nuevos en la última semana» encima
               de «ningún canterano se movió». */}
-          Ningún canterano se movió en la última sincronización. En juveniles es
-          lo normal: las habilidades tardan semanas en asomar.
+          {tx(
+            "Ningún canterano se movió en la última sincronización. En juveniles es lo normal: las habilidades tardan semanas en asomar.",
+          )}
           {ventana &&
-            " Lo que se movió en el periodo que estás mirando está arriba, en «Cambios por jugador»."}
+            tx(
+              " Lo que se movió en el periodo que estás mirando está arriba, en «Cambios por jugador».",
+            )}
         </Empty>
       ) : (
         <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">

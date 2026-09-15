@@ -16,6 +16,7 @@ import { useArena } from "../hooks/useTeam";
 import { money, number } from "../hooks/useFormat";
 import { ApiError, type Arena, type ArenaTipo } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Estadio. HL-060, HL-063, HL-064.
  *
@@ -45,24 +46,24 @@ export function ArenaPage() {
       return (
         <div className="space-y-4">
           <header>
-            <h1 className="text-xl font-semibold">Estadio</h1>
+            <h1 className="text-xl font-semibold">{tx("Estadio")}</h1>
             <p className="text-sm text-[var(--muted)]">
-              Aún no hay asistencias detalladas para analizar.
+              {tx("Aún no hay asistencias detalladas para analizar.")}
             </p>
           </header>
-          <Panel title="Preparar el análisis del estadio">
+          <Panel title={tx("Preparar el análisis del estadio")}>
             <div className="space-y-3 p-4 text-sm text-[var(--muted)]">
               <p>
-                La sincronización normal trae calendario y resultados. Para
-                medir la asistencia y la recaudación hay que pedir los reportes
-                detallados de tus partidos como local.
+                {tx(
+                  "La sincronización normal trae calendario y resultados. Para medir la asistencia y la recaudación hay que pedir los reportes detallados de tus partidos como local.",
+                )}
               </p>
               {/* 2026-08-15: la carga vive en Sincronización, junto al resto. */}
               <Link
                 to="/sync"
                 className="inline-block rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text)] hover:border-[var(--accent)]"
               >
-                Cargar detalles de partidos en Sincronización
+                {tx("Cargar detalles de partidos en Sincronización")}
               </Link>
             </div>
           </Panel>
@@ -89,13 +90,13 @@ export function ArenaPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Estadio</h1>
+        <h1 className="text-xl font-semibold">{tx("Estadio")}</h1>
         <p className="text-sm text-[var(--muted)]">
-          Cuánta gente entra en cada partido, y si compensa ampliar
+          {tx("Cuánta gente entra en cada partido, y si compensa ampliar")}
         </p>
         {data.capacityChangedOn && (
           <p className="text-xs text-[var(--muted)]">
-            El aforo cambió: se cuenta desde el partido del{" "}
+            {tx("El aforo cambió: se cuenta desde el partido del")}{" "}
             {data.capacityChangedOn}.
           </p>
         )}
@@ -106,49 +107,55 @@ export function ArenaPage() {
             se llena de otra manera, y mezclarlos esconde los que cuentan. */}
         <Tabs
           modo="filtro"
-          label="Qué partidos se miran"
+          label={tx("Qué partidos se miran")}
           tabs={[
-            { key: "todos", label: "Todos" },
-            { key: "oficiales", label: "Oficiales" },
-            { key: "amistosos", label: "Amistosos" },
+            { key: "todos", label: tx("Todos") },
+            { key: "oficiales", label: tx("Oficiales") },
+            { key: "amistosos", label: tx("Amistosos") },
           ]}
           active={tipo}
           onChange={(v) => setTipo(v as ArenaTipo)}
         />
         {/* Por temporada, el mismo selector que Partidos (2026-09-14). */}
         <select
-          aria-label="Filtrar el estadio por temporada"
+          aria-label={tx("Filtrar el estadio por temporada")}
           value={season ?? "all"}
           onChange={(e) =>
             setSeason(e.target.value === "all" ? null : Number(e.target.value))
           }
           className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)]"
         >
-          <option value="all">Todas las temporadas</option>
+          <option value="all">{tx("Todas las temporadas")}</option>
           {data.availableSeasons.map((s) => (
             <option key={s} value={s}>
               {s === data.currentSeason
-                ? `Temporada actual (${s})`
-                : `Temporada ${s}`}
+                ? tx("Temporada actual ({{v0}})", { v0: s })
+                : tx("Temporada {{v0}}", { v0: s })}
             </option>
           ))}
         </select>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
-        <Kpi label="Aforo" value={number(data.capacityTotal)} />
+        <Kpi label={tx("Aforo")} value={number(data.capacityTotal)} />
         <Kpi
-          label="Ocupación media"
+          label={tx("Ocupación media")}
           value={`${data.avgOccupancy.toFixed(1)}%`}
-          hint={`sobre ${data.matchesAnalysed} partidos`}
+          hint={tx("sobre {{v0}} partidos", { v0: data.matchesAnalysed })}
         />
         {recientes.length > 0 && (
           <Kpi
-            label={`Ocupación últimos ${recientes.length}`}
+            label={tx("Ocupación últimos {{v0}}", { v0: recientes.length })}
             value={`${ocupacionReciente.toFixed(1)}%`}
-            hint={`${llenosRecientes} de ${recientes.length} llenos · ${
-              diferencia >= 0 ? "+" : "−"
-            }${Math.abs(diferencia).toFixed(1)} pp sobre la media`}
+            hint={tx(
+              "{{v0}} de {{v1}} llenos · {{v2}}{{v3}} pp sobre la media",
+              {
+                v0: llenosRecientes,
+                v1: recientes.length,
+                v2: diferencia >= 0 ? "+" : "−",
+                v3: Math.abs(diferencia).toFixed(1),
+              },
+            )}
             tone={
               Math.abs(diferencia) < 0.05
                 ? undefined
@@ -156,7 +163,9 @@ export function ArenaPage() {
                   ? "positive"
                   : "danger"
             }
-            ayuda="El mismo porcentaje de ocupación que la media, pero sólo con los tres partidos en casa más recientes del filtro elegido. Sus barras van en ámbar en la gráfica."
+            ayuda={tx(
+              "El mismo porcentaje de ocupación que la media, pero sólo con los tres partidos en casa más recientes del filtro elegido. Sus barras van en ámbar en la gráfica.",
+            )}
           />
         )}
         {/* Aquí estaba «Ingresos». Se retiró el 2026-09-01 junto con el
@@ -167,23 +176,23 @@ export function ArenaPage() {
             lee como «no ingresaste nada» y es falso. Antes que un cero
             engañoso, nada. */}
         <Kpi
-          label="Partidos analizados"
+          label={tx("Partidos analizados")}
           value={String(data.matchesAnalysed)}
-          hint="oficiales y amistosos; fuera torneos y preparación"
+          hint={tx("oficiales y amistosos; fuera torneos y preparación")}
         />
         {/* Aquí estaba «Partidos con sector agotado». Se retiró el 2026-09-01
             con el resto del desglose: saber qué sector se llenó exige la
             asistencia por sector, que es función de HT Supporter. El asiento
             vacío medio sí se puede decir con totales. */}
         <Kpi
-          label="Asientos vacíos de media"
+          label={tx("Asientos vacíos de media")}
           value={number(
             Math.round(
               data.matches.reduce((t, m) => t + m.emptySeats, 0) /
                 (data.matches.length || 1),
             ),
           )}
-          hint="sobre el aforo total"
+          hint={tx("sobre el aforo total")}
         />
       </div>
 
@@ -192,11 +201,13 @@ export function ArenaPage() {
       ))}
 
       <Panel
-        title="Ocupación por partido"
-        meta={`media ${data.avgOccupancy.toFixed(1)}%`}
+        title={tx("Ocupación por partido")}
+        meta={tx("media {{v0}}%", { v0: data.avgOccupancy.toFixed(1) })}
       >
         <Chart
-          ariaLabel="Ocupación del estadio en cada partido como local, en porcentaje, por rival"
+          ariaLabel={tx(
+            "Ocupación del estadio en cada partido como local, en porcentaje, por rival",
+          )}
           option={{
             grid: {
               left: 8,
@@ -336,37 +347,48 @@ function CompensaAmpliar({ data }: { data: Arena }) {
   );
   const cur = data.currency;
   return (
-    <Panel title="Ampliación del estadio" meta="estimado con tu llenado medio">
+    <Panel
+      title={tx("Ampliación del estadio")}
+      meta={tx("estimado con tu llenado medio")}
+    >
       <p className="prosa px-4 pt-4 text-sm">
         {mejor ? (
           <>
-            <b>Sí, con matices:</b> {mejor.label} se amortizaría en unas{" "}
-            {mejor.paybackSeasons!.toFixed(1)} temporadas.
+            <b>{tx("Sí, con matices:")}</b> {mejor.label}{" "}
+            {tx("se amortizaría en unas")} {mejor.paybackSeasons!.toFixed(1)}{" "}
+            {tx("temporadas.")}
           </>
         ) : (
           <>
-            <b>No compensa ampliar.</b> Con un {data.avgOccupancy.toFixed(1)}%
-            de ocupación sobran {number(vacios)} asientos de media, y ninguna
-            ampliación paga siquiera su mantenimiento.
+            <b>{tx("No compensa ampliar.")}</b> {tx("Con un")}{" "}
+            {data.avgOccupancy.toFixed(1)}
+            {tx("% de ocupación sobran")} {number(vacios)}{" "}
+            {tx(
+              "asientos de media, y ninguna ampliación paga siquiera su mantenimiento.",
+            )}
           </>
         )}
       </p>
       {aforo > 0 && (
         <div className="overflow-x-auto px-4 pt-4">
           <h3 className="mb-1 text-xs font-medium text-[var(--muted)]">
-            Tu reparto de asientos frente al recomendado
+            {tx("Tu reparto de asientos frente al recomendado")}
           </h3>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-[var(--muted)]">
-                <th className="py-1 pr-3 font-medium">Sector</th>
-                <th className="py-1 pr-3 text-right font-medium">Asientos</th>
-                <th className="py-1 pr-3 text-right font-medium">Tu reparto</th>
+                <th className="py-1 pr-3 font-medium">{tx("Sector")}</th>
                 <th className="py-1 pr-3 text-right font-medium">
-                  Recomendado
+                  {tx("Asientos")}
                 </th>
                 <th className="py-1 pr-3 text-right font-medium">
-                  Para cuadrarlo
+                  {tx("Tu reparto")}
+                </th>
+                <th className="py-1 pr-3 text-right font-medium">
+                  {tx("Recomendado")}
+                </th>
+                <th className="py-1 pr-3 text-right font-medium">
+                  {tx("Para cuadrarlo")}
                 </th>
               </tr>
             </thead>
@@ -397,7 +419,7 @@ function CompensaAmpliar({ data }: { data: Arena }) {
                       }`}
                     >
                       {Math.abs(diferencia) < aforo * 0.01
-                        ? "en su sitio"
+                        ? tx("en su sitio")
                         : `${diferencia > 0 ? "+" : ""}${number(diferencia)}`}
                     </td>
                   </tr>
@@ -411,16 +433,16 @@ function CompensaAmpliar({ data }: { data: Arena }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-[var(--muted)]">
-              <th className="py-1 pr-3 font-medium">Opción</th>
-              <th className="py-1 pr-3 text-right font-medium">Obra</th>
+              <th className="py-1 pr-3 font-medium">{tx("Opción")}</th>
+              <th className="py-1 pr-3 text-right font-medium">{tx("Obra")}</th>
               <th className="py-1 pr-3 text-right font-medium">
-                Mantenimiento/sem
+                {tx("Mantenimiento/sem")}
               </th>
               <th className="py-1 pr-3 text-right font-medium">
-                Ingreso extra/partido
+                {tx("Ingreso extra/partido")}
               </th>
               <th className="py-1 pr-3 text-right font-medium">
-                Neto por temporada
+                {tx("Neto por temporada")}
               </th>
             </tr>
           </thead>

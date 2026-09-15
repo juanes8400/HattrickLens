@@ -1,6 +1,7 @@
 import { Chart } from "../charts/Chart";
 import { Empty, Note, Panel } from "./Panels";
 
+import { tx } from "../i18n/tx";
 const OWN_COLOR = "#4f7cff";
 const RIVAL_COLOR = "#e5484d";
 
@@ -56,7 +57,7 @@ export function TsiHistogramPanel({
             className={`px-3 py-1 ${logTsi ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
             onClick={() => onLogTsiChange(true)}
           >
-            Log(TSI+1)
+            {tx("Log(TSI+1)")}
           </button>
         </div>
         <div className="flex overflow-hidden rounded border border-[var(--border)] text-xs">
@@ -64,21 +65,21 @@ export function TsiHistogramPanel({
             className={`px-3 py-1 ${!top11 ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
             onClick={() => onTop11Change(false)}
           >
-            Plantilla completa
+            {tx("Plantilla completa")}
           </button>
           <button
             className={`px-3 py-1 ${top11 ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
             onClick={() => onTop11Change(true)}
           >
-            Los 11 mejores
+            {tx("Los 11 mejores")}
           </button>
         </div>
       </div>
       {h.ownValues.length === 0 && h.rivalValues.length === 0 ? (
-        <Empty>Sin jugadores para comparar.</Empty>
+        <Empty>{tx("Sin jugadores para comparar.")}</Empty>
       ) : (
         <Chart
-          ariaLabel="Distribución de TSI, propia vs. otra, superpuestas"
+          ariaLabel={tx("Distribución de TSI, propia vs. otra, superpuestas")}
           height={300}
           option={{
             legend: { data: ["Tu plantilla", rivalLabel], bottom: 0 },
@@ -150,9 +151,11 @@ export function TsiHistogramPanel({
         />
       )}
       <Note>
-        Las curvas están suavizadas; los puntos en la base son cada jugador
-        real: {h.ownValues.length} propios y {h.rivalValues.length} {noteSuffix}
-        .
+        {tx(
+          "Las curvas están suavizadas; los puntos en la base son cada jugador real:",
+        )}{" "}
+        {h.ownValues.length} {tx("propios y")} {h.rivalValues.length}{" "}
+        {noteSuffix}.
       </Note>
     </Panel>
   );

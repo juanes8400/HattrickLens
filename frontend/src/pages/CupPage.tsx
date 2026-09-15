@@ -30,6 +30,7 @@ import type {
   PitchZoneMethod,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 type CupSection = "resumen" | "preparacion" | "historial";
 
 export function CupPage() {
@@ -61,28 +62,30 @@ export function CupPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold">Copa</h1>
+            <h1 className="text-xl font-semibold">{tx("Copa")}</h1>
             <Badge tone={data.status.stillInCup ? "positive" : "muted"}>
               {data.status.stillInCup
-                ? "En competencia"
-                : "Participación cerrada"}
+                ? tx("En competencia")
+                : tx("Participación cerrada")}
             </Badge>
             <Badge>{data.status.scopeLabel}</Badge>
             <Badge>{data.status.tierLabel}</Badge>
           </div>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            {data.currentCupName ?? "Historial de Copa"}
+            {data.currentCupName ?? tx("Historial de Copa")}
           </p>
         </div>
         <div className="text-right text-xs text-[var(--muted)]">
           <div>
-            Estado:{" "}
+            {tx("Estado:")}{" "}
             {data.status.source === "teamdetails"
-              ? "confirmado por Hattrick"
-              : "calendario"}
+              ? tx("confirmado por Hattrick")
+              : tx("calendario")}
           </div>
           {data.status.nextCupMatchDate && (
-            <div>Jornada de Copa: {date(data.status.nextCupMatchDate)}</div>
+            <div>
+              {tx("Jornada de Copa:")} {date(data.status.nextCupMatchDate)}
+            </div>
           )}
         </div>
       </header>
@@ -90,9 +93,9 @@ export function CupPage() {
       <Tabs
         grupo="copa"
         tabs={[
-          { key: "resumen", label: "Resumen" },
-          { key: "preparacion", label: "Preparación" },
-          { key: "historial", label: "Historial" },
+          { key: "resumen", label: tx("Resumen") },
+          { key: "preparacion", label: tx("Preparación") },
+          { key: "historial", label: tx("Historial") },
         ]}
         active={section}
         onChange={setSection}
@@ -114,25 +117,29 @@ export function CupPage() {
               <>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
                   <Kpi
-                    label="Estado"
-                    value={data.status.stillInCup ? "Seguimos" : "Eliminado"}
-                    hint={data.status.cupName ?? "sin Copa activa"}
+                    label={tx("Estado")}
+                    value={
+                      data.status.stillInCup ? tx("Seguimos") : tx("Eliminado")
+                    }
+                    hint={data.status.cupName ?? tx("sin Copa activa")}
                     tone={statusTone}
                   />
                   <Kpi
-                    label="Instancia actual"
+                    label={tx("Instancia actual")}
                     value={data.status.stageLabel ?? "-"}
                     hint={
                       data.status.officialRound != null
-                        ? `ronda oficial ${data.status.officialRound}`
-                        : "ronda oficial pendiente de sincronizar"
+                        ? tx("ronda oficial {{v0}}", {
+                            v0: data.status.officialRound,
+                          })
+                        : tx("ronda oficial pendiente de sincronizar")
                     }
                   />
                   <Kpi
                     label={
                       data.status.stillInCup
-                        ? "Camino al título"
-                        : "Llegaste hasta"
+                        ? tx("Camino al título")
+                        : tx("Llegaste hasta")
                     }
                     value={
                       !data.status.stillInCup
@@ -143,46 +150,48 @@ export function CupPage() {
                     }
                     hint={
                       data.status.stillInCup
-                        ? "desde la instancia actual"
-                        : "la instancia donde se acabó"
+                        ? tx("desde la instancia actual")
+                        : tx("la instancia donde se acabó")
                     }
                   />
                   <Kpi
                     label={
                       data.status.stillInCup
-                        ? "Premio mínimo actual"
-                        : "Premio conseguido"
+                        ? tx("Premio mínimo actual")
+                        : tx("Premio conseguido")
                     }
                     value={
                       data.goal.trophyOnly
-                        ? "Trofeo"
+                        ? tx("Trofeo")
                         : data.goal.securedAmount > 0
                           ? money(data.goal.securedAmount, data.currency)
-                          : "Aún ninguno"
+                          : tx("Aún ninguno")
                     }
                     hint={
                       data.status.stillInCup
-                        ? "si la participación terminara en esta instancia"
-                        : "lo que dejó la participación"
+                        ? tx("si la participación terminara en esta instancia")
+                        : tx("lo que dejó la participación")
                     }
                   />
                   {/* Sin copa viva no hay «próximo cruce» que esperar: el hueco
                   se cambia por la fecha en que se acabó. */}
                   <Kpi
                     label={
-                      data.status.stillInCup ? "Próximo cruce" : "Participación"
+                      data.status.stillInCup
+                        ? tx("Próximo cruce")
+                        : tx("Participación")
                     }
                     value={
                       data.status.stillInCup
                         ? (next?.opponent ?? "-")
-                        : "Cerrada"
+                        : tx("Cerrada")
                     }
                     hint={
                       data.status.stillInCup
                         ? next
                           ? `${date(next.date)} · ${next.venueLabel}`
-                          : "sin partido programado"
-                        : "hasta la próxima temporada"
+                          : tx("sin partido programado")
+                        : tx("hasta la próxima temporada")
                     }
                   />
                 </div>
@@ -191,13 +200,13 @@ export function CupPage() {
                   <Panel
                     title={
                       data.status.stillInCup
-                        ? "Camino hacia la meta"
-                        : "El cuadro de premios"
+                        ? tx("Camino hacia la meta")
+                        : tx("El cuadro de premios")
                     }
                     meta={
                       data.status.stillInCup
                         ? undefined
-                        : "referencia: ya no hay nada que recorrer"
+                        : tx("referencia: ya no hay nada que recorrer")
                     }
                   >
                     <PrizeRoad
@@ -208,18 +217,20 @@ export function CupPage() {
                 )}
 
                 {data.scenarios && data.status.stillInCup && (
-                  <Panel title="Qué ocurre con el próximo resultado">
+                  <Panel title={tx("Qué ocurre con el próximo resultado")}>
                     <ResultRoutes data={data} />
                   </Panel>
                 )}
 
                 {nextOpponentId != null ? (
                   <ProjectionPanel
-                    title={`Probabilidad de avanzar vs. ${next?.opponent ?? "el rival"}`}
+                    title={tx("Probabilidad de avanzar vs. {{v0}}", {
+                      v0: next?.opponent ?? "el rival",
+                    })}
                     meta={
                       data.prediction
-                        ? "modelo de zonas · sin empate: hay prórroga"
-                        : "modelo simple por TSI, no calibrado"
+                        ? tx("modelo de zonas · sin empate: hay prórroga")
+                        : tx("modelo simple por TSI, no calibrado")
                     }
                   >
                     {data.prediction ? (
@@ -229,7 +240,7 @@ export function CupPage() {
                         <div className="grid gap-2 sm:grid-cols-2">
                           <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
                             <div className="text-[10px] uppercase text-[var(--muted)]">
-                              Tu fuente
+                              {tx("Tu fuente")}
                             </div>
                             <PitchZoneMethodSelector
                               method={data.prediction.metodoPropio}
@@ -242,7 +253,7 @@ export function CupPage() {
                           </div>
                           <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
                             <div className="text-[10px] uppercase text-[var(--muted)]">
-                              Fuente rival
+                              {tx("Fuente rival")}
                             </div>
                             <PitchZoneMethodSelector
                               method={data.prediction.metodoRival}
@@ -253,13 +264,17 @@ export function CupPage() {
                         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
                           <span>
                             <span className="font-medium">{data.teamName}</span>
-                            <span className="mx-2 text-[var(--muted)]">vs</span>
+                            <span className="mx-2 text-[var(--muted)]">
+                              {tx("vs")}
+                            </span>
                             <span>{next?.opponent}</span>
                           </span>
                           <span className="text-xs text-[var(--muted)]">
-                            goles esperados {data.prediction.expectedOwnGoals} –{" "}
-                            {data.prediction.expectedRivalGoals} · resultado más
-                            probable {data.prediction.mostLikelyScore}
+                            {tx("goles esperados")}{" "}
+                            {data.prediction.expectedOwnGoals} –{" "}
+                            {data.prediction.expectedRivalGoals}{" "}
+                            {tx("· resultado más probable")}{" "}
+                            {data.prediction.mostLikelyScore}
                           </span>
                         </div>
                         {/* Sin tramo de empate: en Copa hay prórroga y penaltis,
@@ -268,18 +283,21 @@ export function CupPage() {
                         <BarraDePrediccion
                           tuLabel={data.teamName}
                           tuValor={data.prediction.ownProbability}
-                          rivalLabel={next?.opponent ?? "el rival"}
+                          rivalLabel={next?.opponent ?? tx("el rival")}
                           rivalValor={data.prediction.rivalProbability}
                         />
                         <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
-                          Comparando zona por zona{" "}
+                          {tx("Comparando zona por zona")}{" "}
                           {data.prediction.indirectasPrestadas
-                            ? "tu alineación enviada"
-                            : `tus ${data.prediction.ownMatches} partido(s) de Copa de esta temporada`}{" "}
-                          contra sus {data.prediction.rivalMatches} partido(s).
-                          El empate se reparte entre los dos porque en Copa
-                          alguien tiene que pasar. Tiene en cuenta la táctica,
-                          estimada; no sabe de bajas.{" "}
+                            ? tx("tu alineación enviada")
+                            : tx(
+                                "tus {{v0}} partido(s) de Copa de esta temporada",
+                                { v0: data.prediction.ownMatches },
+                              )}{" "}
+                          {tx("contra sus")} {data.prediction.rivalMatches}{" "}
+                          {tx(
+                            "partido(s). El empate se reparte entre los dos porque en Copa alguien tiene que pasar. Tiene en cuenta la táctica, estimada; no sabe de bajas.",
+                          )}{" "}
                           <EnlaceATransparencia
                             seccion="pronostico"
                             calculo="pronostico-resumen"
@@ -290,24 +308,21 @@ export function CupPage() {
                         acciones indirectas a balón parado. */}
                         {data.prediction.indirectasPrestadas && (
                           <p className="prosa text-xs leading-relaxed text-[var(--warning)]">
-                            Hattrick no prevé las acciones indirectas a balón
-                            parado de una alineación enviada, así que esas dos
-                            van con tu promedio de Copa. Siete de los nueve
-                            duelos son la alineación que mandaste; dos son tu
-                            costumbre.
+                            {tx(
+                              "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de Copa. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.",
+                            )}
                           </p>
                         )}
                       </div>
                     ) : probability.isError ? (
                       <div className="p-4">
                         <div className="text-lg font-semibold">
-                          No disponible en esta sesión
+                          {tx("No disponible en esta sesión")}
                         </div>
                         <p className="prosa mt-2 text-xs leading-relaxed text-[var(--muted)]">
-                          El scouting del rival necesita una sesión de Hattrick
-                          activa. La fecha y el rival de arriba siguen siendo
-                          datos sincronizados; aquí no se sustituye la
-                          probabilidad faltante por un valor sintético.
+                          {tx(
+                            "El scouting del rival necesita una sesión de Hattrick activa. La fecha y el rival de arriba siguen siendo datos sincronizados; aquí no se sustituye la probabilidad faltante por un valor sintético.",
+                          )}
                         </p>
                       </div>
                     ) : probability.data ? (
@@ -333,12 +348,13 @@ export function CupPage() {
                         --su primera ronda-- el motor de zonas no puede decir
                         nada y se enseña el modelo viejo, diciendo cuál es. */}
                         <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
-                          Sin partidos de Copa suficientes de alguno de los dos,
-                          así que esto es el modelo por TSI. Estimación{" "}
-                          {probability.data.winProbability.confidence}. TSI de
-                          los dos onces de referencia:{" "}
+                          {tx(
+                            "Sin partidos de Copa suficientes de alguno de los dos, así que esto es el modelo por TSI. Estimación",
+                          )}{" "}
+                          {probability.data.winProbability.confidence}
+                          {tx(". TSI de los dos onces de referencia:")}{" "}
                           {number(probability.data.winProbability.ownTsiTotal)}{" "}
-                          contra{" "}
+                          {tx("contra")}{" "}
                           {number(
                             probability.data.winProbability.rivalTsiTotal,
                           )}
@@ -347,23 +363,27 @@ export function CupPage() {
                       </div>
                     ) : (
                       <p className="p-4 text-xs text-[var(--muted)]">
-                        Calculando…
+                        {tx("Calculando…")}
                       </p>
                     )}
                   </ProjectionPanel>
                 ) : (
                   <Panel
-                    title="Probabilidad de avanzar"
+                    title={tx("Probabilidad de avanzar")}
                     meta={
                       data.status.stillInCup
-                        ? "sin rival confirmado"
-                        : "participación cerrada"
+                        ? tx("sin rival confirmado")
+                        : tx("participación cerrada")
                     }
                   >
                     <Note>
                       {data.status.stillInCup
-                        ? "Se activará cuando Hattrick publique el próximo cruce."
-                        : "No hay más cruces: la participación terminó esta temporada."}
+                        ? tx(
+                            "Se activará cuando Hattrick publique el próximo cruce.",
+                          )
+                        : tx(
+                            "No hay más cruces: la participación terminó esta temporada.",
+                          )}
                     </Note>
                   </Panel>
                 )}
@@ -373,27 +393,31 @@ export function CupPage() {
             )}
 
             <Panel
-              title="Impacto del tipo de Copa"
-              meta="reglas aplicadas a esta competición"
+              title={tx("Impacto del tipo de Copa")}
+              meta={tx("reglas aplicadas a esta competición")}
             >
               <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3">
                 <ImpactFact
-                  label="Experiencia"
-                  value={`${data.impact.experienceMultiplierVsLeague}× Liga`}
-                  detail={`${data.impact.experiencePointsPer90} puntos por 90 minutos`}
+                  label={tx("Experiencia")}
+                  value={tx("{{v0}}× Liga", {
+                    v0: data.impact.experienceMultiplierVsLeague,
+                  })}
+                  detail={tx("{{v0}} puntos por 90 minutos", {
+                    v0: data.impact.experiencePointsPer90,
+                  })}
                 />
                 <ImpactFact
-                  label="Club"
+                  label={tx("Club")}
                   value={
                     data.impact.affectsClubMood
-                      ? "Efecto completo"
-                      : "Como amistoso"
+                      ? tx("Efecto completo")
+                      : tx("Como amistoso")
                   }
-                  detail="espíritu, confianza y aficionados"
+                  detail={tx("espíritu, confianza y aficionados")}
                 />
                 <ImpactFact
-                  label="Lesiones"
-                  value="Impacto completo"
+                  label={tx("Lesiones")}
+                  value={tx("Impacto completo")}
                   detail={data.impact.injuryEffect}
                 />
               </div>
@@ -404,8 +428,8 @@ export function CupPage() {
         {section === "preparacion" && (
           <>
             <Panel
-              title="Próximo partido"
-              meta="fecha y rival confirmados por Hattrick"
+              title={tx("Próximo partido")}
+              meta={tx("fecha y rival confirmados por Hattrick")}
             >
               <NextMatchesPanel matches={data.nextMatches} />
             </Panel>
@@ -418,35 +442,37 @@ export function CupPage() {
           <>
             <div className="grid items-start gap-4 xl:grid-cols-2">
               <Panel
-                title="Economía observada de Copa"
-                meta="asistencia real · ingreso derivado"
+                title={tx("Economía observada de Copa")}
+                meta={tx("asistencia real · ingreso derivado")}
               >
                 <div className="grid gap-3 p-4 sm:grid-cols-2">
                   <MiniMetric
-                    label="Taquilla bruta observada"
+                    label={tx("Taquilla bruta observada")}
                     value={money(data.economy.observedGrossGate, data.currency)}
-                    detail={`${data.economy.observedHomeMatches} partido(s) de local medidos`}
+                    detail={tx("{{v0}} partido(s) de local medidos", {
+                      v0: data.economy.observedHomeMatches,
+                    })}
                   />
                   <MiniMetric
-                    label="Participación histórica"
+                    label={tx("Participación histórica")}
                     value={money(
                       data.economy.estimatedHistoricalShare,
                       data.currency,
                     )}
-                    detail="67% de la taquilla bruta observada"
+                    detail={tx("67% de la taquilla bruta observada")}
                   />
                 </div>
                 <Note>{data.economy.qualityNote}</Note>
               </Panel>
 
               <ProjectionPanel
-                title="Ingreso del próximo partido"
-                meta="separado de la caja real"
+                title={tx("Ingreso del próximo partido")}
+                meta={tx("separado de la caja real")}
               >
                 <div className="p-4">
                   <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
                     {data.economy.nextGateProjection == null
-                      ? "No calculable"
+                      ? tx("No calculable")
                       : money(data.economy.nextGateProjection, data.currency)}
                   </div>
                   {data.economy.nextGateProjection != null &&
@@ -474,8 +500,8 @@ export function CupPage() {
 
             {data.ladder.length > 0 && (
               <Panel
-                title="Trayectoria de la temporada"
-                meta="copas y partidos realmente sincronizados"
+                title={tx("Trayectoria de la temporada")}
+                meta={tx("copas y partidos realmente sincronizados")}
               >
                 {/* El único aviso que sobrevive aquí: aparece sólo cuando la
                     ronda que dice Hattrick y la que sale de contar estos
@@ -486,10 +512,11 @@ export function CupPage() {
                   data.status.officialRound != null &&
                   data.status.countedRounds !== data.status.officialRound && (
                     <p className="prosa border-b border-[var(--border)] px-4 py-3 text-xs leading-relaxed text-[var(--warning)]">
-                      Vas por la ronda {data.status.officialRound} y aquí sólo
-                      hay {data.status.countedRounds}: faltan partidos por
-                      sincronizar y la trayectoria se queda corta hasta que la
-                      próxima sincronización los rescate.
+                      {tx("Vas por la ronda")} {data.status.officialRound}{" "}
+                      {tx("y aquí sólo hay")} {data.status.countedRounds}
+                      {tx(
+                        ": faltan partidos por sincronizar y la trayectoria se queda corta hasta que la próxima sincronización los rescate.",
+                      )}
                     </p>
                   )}
                 <Ladder steps={data.ladder} />
@@ -497,8 +524,10 @@ export function CupPage() {
             )}
 
             <Panel
-              title="Historial"
-              meta={`${data.history.length} partido(s) jugados esta temporada`}
+              title={tx("Historial")}
+              meta={tx("{{v0}} partido(s) jugados esta temporada", {
+                v0: data.history.length,
+              })}
             >
               <HistoryTable data={data} />
             </Panel>
@@ -560,17 +589,17 @@ function PrizeRoad({
                   className={`text-[10px] font-semibold uppercase tracking-wide ${current ? "text-[var(--accent)]" : passed ? "text-[var(--positive)]" : "text-[var(--muted)]"}`}
                 >
                   {current
-                    ? "Estás aquí"
+                    ? tx("Estás aquí")
                     : passed
-                      ? "Superado"
+                      ? tx("Superado")
                       : stage.winsNeeded != null
-                        ? `A ${stage.winsNeeded} victoria(s)`
-                        : "Meta"}
+                        ? tx("A {{v0}} victoria(s)", { v0: stage.winsNeeded })
+                        : tx("Meta")}
                 </div>
                 <div className="mt-1 text-sm font-semibold">{stage.stage}</div>
                 <div className="mt-2 text-xs tabular-nums text-[var(--muted)]">
                   {stage.trophyOnly
-                    ? "Trofeo · sin premio monetario"
+                    ? tx("Trofeo · sin premio monetario")
                     : money(stage.amount, currency)}
                 </div>
               </div>
@@ -591,38 +620,38 @@ function ResultRoutes({ data }: { data: Cup }) {
     <div className="grid gap-3 p-4 md:grid-cols-2">
       <div className="rounded-lg border border-[var(--positive)] bg-[color-mix(in_srgb,var(--positive)_7%,transparent)] p-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-[var(--positive)]">
-          Si ganamos
+          {tx("Si ganamos")}
         </div>
         <div className="mt-2 text-lg font-semibold">
-          {data.scenarios.win.nextStage ?? "Siguiente paso"}
+          {data.scenarios.win.nextStage ?? tx("Siguiente paso")}
         </div>
         <p className="mt-1 text-sm text-[var(--muted)]">
           {data.scenarios.win.description}
         </p>
         {data.scenarios.win.prizeAmount > 0 && (
           <div className="mt-3 text-xs tabular-nums text-[var(--positive)]">
-            Meta económica:{" "}
+            {tx("Meta económica:")}{" "}
             {money(data.scenarios.win.prizeAmount, data.currency)}
           </div>
         )}
       </div>
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Si perdemos
+          {tx("Si perdemos")}
         </div>
         <div className="mt-2 text-lg font-semibold">
           {data.scenarios.loss.continues === true
             ? data.scenarios.loss.destination
             : data.scenarios.loss.continues === false
-              ? "Fin de la trayectoria"
-              : "Ruta pendiente"}
+              ? tx("Fin de la trayectoria")
+              : tx("Ruta pendiente")}
         </div>
         <p className="mt-1 text-sm text-[var(--muted)]">
           {data.scenarios.loss.description}
         </p>
         {data.scenarios.loss.prizeAmount > 0 && (
           <div className="mt-3 text-xs tabular-nums text-[var(--muted)]">
-            Premio de esta instancia:{" "}
+            {tx("Premio de esta instancia:")}{" "}
             {money(data.scenarios.loss.prizeAmount, data.currency)}
           </div>
         )}
@@ -633,7 +662,7 @@ function ResultRoutes({ data }: { data: Cup }) {
 
 function NextMatchesPanel({ matches }: { matches: CupNextMatch[] }) {
   if (!matches.length)
-    return <Note>No hay ningún partido de Copa programado.</Note>;
+    return <Note>{tx("No hay ningún partido de Copa programado.")}</Note>;
   return (
     <ul className="divide-y divide-[var(--border)]">
       {matches.map((match) => (
@@ -652,14 +681,15 @@ function NextMatchesPanel({ matches }: { matches: CupNextMatch[] }) {
             </div>
             <div className="mt-1 text-xs text-[var(--muted)]">
               {date(match.date)} · {match.venueLabel}
-              {match.officialRound != null && ` · ronda ${match.officialRound}`}
+              {match.officialRound != null &&
+                tx(" · ronda {{v0}}", { v0: match.officialRound })}
             </div>
           </div>
           <Link
             to={`/rivals/${match.opponentHtTeamId}`}
             className="shrink-0 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
           >
-            Analizar rival
+            {tx("Analizar rival")}
           </Link>
         </li>
       ))}
@@ -718,13 +748,13 @@ function ReferenceElevenPanels({ data }: { data: Cup }) {
   return (
     <div className="grid items-start gap-4 xl:grid-cols-2">
       <ProjectionPanel
-        title="Preparación para 120 minutos"
-        meta="elige el once de referencia"
+        title={tx("Preparación para 120 minutos")}
+        meta={tx("elige el once de referencia")}
       >
         <StaminaReadiness data={data} mode={mode} onModeChange={setMode} />
       </ProjectionPanel>
       <ProjectionPanel
-        title="Orden orientativo de penaltis"
+        title={tx("Orden orientativo de penaltis")}
         meta={active ? active.label.toLowerCase() : ""}
       >
         <PenaltyOrder
@@ -753,7 +783,11 @@ function StaminaReadiness({
   const active = variants.find((v) => v.mode === mode) ?? variants[0];
   const colors = ["var(--danger)", "var(--warning)", "var(--positive)"];
   if (!active)
-    return <Note>No hay jugadores activos para calcular la preparación.</Note>;
+    return (
+      <Note>
+        {tx("No hay jugadores activos para calcular la preparación.")}
+      </Note>
+    );
   const total =
     active.staminaBands.reduce((sum, band) => sum + band.count, 0) || 1;
   return (
@@ -763,7 +797,7 @@ function StaminaReadiness({
       {variants.length > 1 && (
         <Tabs
           modo="filtro"
-          label="Referencia de la preparación"
+          label={tx("Referencia de la preparación")}
           tabs={variants.map((v) => ({ key: v.mode, label: v.label }))}
           active={mode}
           onChange={(v) => onModeChange(v as ReferenceMode)}
@@ -771,7 +805,9 @@ function StaminaReadiness({
       )}
       <div className="mt-4 flex items-end justify-between gap-3">
         <div>
-          <div className="text-xs text-[var(--muted)]">Resistencia media</div>
+          <div className="text-xs text-[var(--muted)]">
+            {tx("Resistencia media")}
+          </div>
           <div className="mt-1 text-3xl font-semibold tabular-nums">
             {active.averageStamina != null
               ? active.averageStamina.toFixed(1)
@@ -781,10 +817,12 @@ function StaminaReadiness({
         </div>
         <div className="text-right text-xs text-[var(--muted)]">
           {active.mode === "top_tsi" ? (
-            <>{active.startersCount} jugadores activos con mayor TSI</>
+            <>
+              {active.startersCount} {tx("jugadores activos con mayor TSI")}
+            </>
           ) : (
             <>
-              vs. {active.sourceOpponent}
+              {tx("vs.")} {active.sourceOpponent}
               {active.sourceDate ? (
                 <span className="block">{date(active.sourceDate)}</span>
               ) : null}
@@ -849,9 +887,9 @@ function PenaltyOrder({
                 {player.name}
               </Link>
               <div className="text-[10px] text-[var(--muted)]">
-                BP {player.setPieces} · Anotación {player.scoring} · Experiencia{" "}
-                {player.experience}
-                {player.technical && " · Técnico"}
+                BP {player.setPieces} {tx("· Anotación")} {player.scoring}{" "}
+                {tx("· Experiencia")} {player.experience}
+                {player.technical && tx(" · Técnico")}
               </div>
             </div>
             <span className="tabular-nums text-sm font-semibold">
@@ -862,14 +900,14 @@ function PenaltyOrder({
       </ol>
       {data.readiness.goalkeeper && (
         <div className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-          Portero de referencia:{" "}
+          {tx("Portero de referencia:")}{" "}
           <Link
             to={`/players/${data.readiness.goalkeeper.htPlayerId}`}
             className="font-medium text-[var(--text)] hover:text-[var(--accent)]"
           >
             {data.readiness.goalkeeper.name}
           </Link>
-          {` · Portería ${data.readiness.goalkeeper.keeper}`}
+          {tx(" · Portería {{v0}}", { v0: data.readiness.goalkeeper.keeper })}
         </div>
       )}
     </div>
@@ -887,14 +925,14 @@ function Ladder({ steps }: { steps: CupLadderStep[] }) {
           >
             <div className="w-48 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
               <div className="text-sm font-medium">
-                {step.cupName ?? `Nivel ${step.cupLevel}`}
+                {step.cupName ?? tx("Nivel {{v0}}", { v0: step.cupLevel })}
               </div>
               <div className="mt-1 text-xs text-[var(--muted)]">
                 {date(step.fromDate)}
                 {step.fromDate !== step.toDate && ` – ${date(step.toDate)}`}
               </div>
               <div className="text-xs text-[var(--muted)]">
-                {step.matches} partido(s)
+                {step.matches} {tx("partido(s)")}
               </div>
             </div>
             {index < steps.length - 1 && (
@@ -909,17 +947,21 @@ function Ladder({ steps }: { steps: CupLadderStep[] }) {
 
 function HistoryTable({ data }: { data: Cup }) {
   if (!data.history.length)
-    return <Note>Todavía no hay partidos de Copa jugados sincronizados.</Note>;
+    return (
+      <Note>
+        {tx("Todavía no hay partidos de Copa jugados sincronizados.")}
+      </Note>
+    );
   const columns: Column<CupHistoryRow>[] = [
     {
       key: "date",
-      header: "Fecha",
+      header: tx("Fecha"),
       value: (row) => row.date,
       render: (row) => date(row.date),
     },
     {
       key: "opponent",
-      header: "Rival",
+      header: tx("Rival"),
       value: (row) => row.opponent,
       render: (row) => (
         <Link
@@ -933,7 +975,7 @@ function HistoryTable({ data }: { data: Cup }) {
     },
     {
       key: "result",
-      header: "Resultado",
+      header: tx("Resultado"),
       value: (row) => `${row.goalsFor}-${row.goalsAgainst}`,
       render: (row) => (
         <span
@@ -951,7 +993,7 @@ function HistoryTable({ data }: { data: Cup }) {
     },
     {
       key: "hatstats",
-      header: "HatStats",
+      header: tx("HatStats"),
       align: "right",
       value: (row) => row.hatstats ?? -1,
       render: (row) =>
@@ -963,7 +1005,7 @@ function HistoryTable({ data }: { data: Cup }) {
     },
     {
       key: "round",
-      header: "Ronda",
+      header: tx("Ronda"),
       align: "right",
       value: (row) => row.round ?? -1,
       render: (row) =>
@@ -975,7 +1017,7 @@ function HistoryTable({ data }: { data: Cup }) {
     },
     {
       key: "cupName",
-      header: "Copa",
+      header: tx("Copa"),
       align: "left",
       value: (row) => row.cupName ?? "",
       render: (row) => (
@@ -985,12 +1027,12 @@ function HistoryTable({ data }: { data: Cup }) {
   ];
   return (
     <DataTable
-      emptyMessage="Todavía no hay partidos de copa jugados."
+      emptyMessage={tx("Todavía no hay partidos de copa jugados.")}
       rows={data.history}
       columns={columns}
       rowKey={(row) => row.htMatchId}
       csvName="copa"
-      filterPlaceholder="Filtrar por rival…"
+      filterPlaceholder={tx("Filtrar por rival…")}
     />
   );
 }
@@ -1005,25 +1047,31 @@ function TarjetaDeEliminacion({ data }: { data: Cup }) {
     .sort((a, b) => a.date.localeCompare(b.date));
   const ultimo = deEstaCopa[deEstaCopa.length - 1] ?? null;
   return (
-    <Panel title={`Eliminado de ${data.status.cupName ?? "la Copa"}`}>
+    <Panel
+      title={tx("Eliminado de {{v0}}", {
+        v0: data.status.cupName ?? "la Copa",
+      })}
+    >
       <div className="space-y-2 p-4 text-sm">
         {ultimo ? (
           <p>
-            Eliminado
+            {tx("Eliminado")}
             {ultimo.round != null
-              ? ` en la ronda ${ultimo.round}`
-              : ""} contra <b>{ultimo.opponent}</b>,{" "}
+              ? tx(" en la ronda {{v0}}", { v0: ultimo.round })
+              : ""}{" "}
+            {tx("contra")} <b>{ultimo.opponent}</b>,{" "}
             <b className="tabular-nums">
               {ultimo.goalsFor} - {ultimo.goalsAgainst}
             </b>{" "}
-            ({ultimo.isHome ? "en casa" : "fuera"}), el {date(ultimo.date)}.
+            ({ultimo.isHome ? tx("en casa") : tx("fuera")}
+            {tx("), el")} {date(ultimo.date)}.
           </p>
         ) : (
-          <p>No quedan cruces esta temporada.</p>
+          <p>{tx("No quedan cruces esta temporada.")}</p>
         )}
         {data.goal.securedAmount > 0 && (
           <p>
-            Premio conseguido:{" "}
+            {tx("Premio conseguido:")}{" "}
             <b className="tabular-nums">
               {money(data.goal.securedAmount, data.currency)}
             </b>
@@ -1031,8 +1079,9 @@ function TarjetaDeEliminacion({ data }: { data: Cup }) {
           </p>
         )}
         <p className="text-xs text-[var(--muted)]">
-          No quedan cruces esta temporada. Todos los partidos están en la
-          pestaña Historial.
+          {tx(
+            "No quedan cruces esta temporada. Todos los partidos están en la pestaña Historial.",
+          )}
         </p>
       </div>
     </Panel>

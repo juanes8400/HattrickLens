@@ -33,6 +33,7 @@ import { decimal, money, number, percent } from "../hooks/useFormat";
 import type { Insight } from "../services/api";
 import { estadoDeAlertas } from "../utils/alertas";
 
+import { tx } from "../i18n/tx";
 export function DashboardPage() {
   const { data, isLoading, isError, error } = useDashboard();
   const insights = useInsights();
@@ -54,7 +55,7 @@ export function DashboardPage() {
       <header>
         <h1 className="text-xl font-semibold">{data.teamName}</h1>
         <p className="text-sm text-[var(--muted)]">
-          {data.squad?.playerCount ?? 0} jugadores · edad media{" "}
+          {data.squad?.playerCount ?? 0} {tx("jugadores · edad media")}{" "}
           {data.squad?.avgAge ?? "-"}
         </p>
       </header>
@@ -68,11 +69,15 @@ export function DashboardPage() {
       <ClubRadar teamName={data.teamName} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-        <Kpi label="Caja" value={money(data.finance?.cash ?? 0)} hint={cur} />
+        <Kpi
+          label={tx("Caja")}
+          value={money(data.finance?.cash ?? 0)}
+          hint={cur}
+        />
         {/* Sin dos cierres no se pinta un 0: sería decir que el club no
             ingresó ni gastó nada. Mismo criterio que los salarios. */}
         <Kpi
-          label="Balance bisemanal"
+          label={tx("Balance bisemanal")}
           value={
             data.finance?.biweeklyBalance == null
               ? "-"
@@ -80,8 +85,8 @@ export function DashboardPage() {
           }
           hint={
             data.finance?.biweeklyBalance == null
-              ? "hacen falta dos cierres semanales"
-              : "las dos semanas cerradas"
+              ? tx("hacen falta dos cierres semanales")
+              : tx("las dos semanas cerradas")
           }
           tone={
             data.finance?.biweeklyBalance != null &&
@@ -93,7 +98,7 @@ export function DashboardPage() {
         {/* Sin el dato de la semana anterior no se pinta un 0: seria decir
             que no se pagaron salarios. Ver la migracion 0021. */}
         <Kpi
-          label="Salarios (2 semanas)"
+          label={tx("Salarios (2 semanas)")}
           value={
             data.finance?.biweeklySalaries == null
               ? "-"
@@ -101,23 +106,29 @@ export function DashboardPage() {
           }
           hint={
             data.finance?.salarySharePct == null
-              ? "falta la semana anterior"
-              : `${percent(data.finance.salarySharePct)} de los ingresos`
+              ? tx("falta la semana anterior")
+              : tx("{{v0}} de los ingresos", {
+                  v0: percent(data.finance.salarySharePct),
+                })
           }
         />
         <Kpi
-          label="TSI de los 11 mejores"
+          label={tx("TSI de los 11 mejores")}
           value={number(data.squad?.top11Tsi ?? 0)}
           // Cuánto de la plantilla cabe en once hombres. Un 92% dice que
           // detrás del once no hay recambio equivalente, y eso el TSI total
           // no lo enseñaba.
           hint={
             (data.squad?.totalTsi ?? 0) > 0
-              ? `${Math.round(
-                  ((data.squad?.top11Tsi ?? 0) / (data.squad?.totalTsi ?? 1)) *
-                    100,
-                )}% de ${number(data.squad?.totalTsi ?? 0)} en la plantilla`
-              : "sin plantilla sincronizada"
+              ? tx("{{v0}}% de {{v1}} en la plantilla", {
+                  v0: Math.round(
+                    ((data.squad?.top11Tsi ?? 0) /
+                      (data.squad?.totalTsi ?? 1)) *
+                      100,
+                  ),
+                  v1: number(data.squad?.totalTsi ?? 0),
+                })
+              : tx("sin plantilla sincronizada")
           }
         />
       </div>
@@ -125,16 +136,19 @@ export function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="lg:col-span-2">
           <Panel
-            title="Mejor once"
+            title={tx("Mejor once")}
             meta={
               lineup.data
-                ? `${lineup.data.formation} · índice ${lineup.data.totalRating}`
+                ? tx("{{v0}} · índice {{v1}}", {
+                    v0: lineup.data.formation,
+                    v1: lineup.data.totalRating,
+                  })
                 : ""
             }
           >
             <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-3">
               <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                Formación
+                {tx("Formación")}
                 <select
                   value={formacion}
                   onChange={(e) => {
@@ -144,7 +158,7 @@ export function DashboardPage() {
                   }}
                   className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm text-[var(--text)]"
                 >
-                  <option value="">Mejor formación</option>
+                  <option value="">{tx("Mejor formación")}</option>
                   {FORMATIONS.map((f) => (
                     <option key={f} value={f}>
                       {f}
@@ -158,13 +172,13 @@ export function DashboardPage() {
               {formacion && lineup.data && (
                 <>
                   <SplitSelector
-                    label="Defensa central"
+                    label={tx("Defensa central")}
                     value={lineup.data.centralDefenders}
                     options={lineup.data.centralDefenderOptions}
                     onChange={setCentrales}
                   />
                   <SplitSelector
-                    label="Medio central"
+                    label={tx("Medio central")}
                     value={lineup.data.innerMidfielders}
                     options={lineup.data.innerMidfielderOptions}
                     onChange={setInteriores}
@@ -178,7 +192,7 @@ export function DashboardPage() {
                 formation={lineup.data.formation}
               />
             ) : (
-              <Empty>Sincroniza para calcular la alineación.</Empty>
+              <Empty>{tx("Sincroniza para calcular la alineación.")}</Empty>
             )}
           </Panel>
         </div>
@@ -541,7 +555,7 @@ export function ClubRadar({ teamName }: { teamName: string }) {
 
   if (league.isLoading || comparison.isLoading) {
     return (
-      <Panel title="Radar de fuerza">
+      <Panel title={tx("Radar de fuerza")}>
         <div className="p-4">
           <Loading />
         </div>
@@ -556,8 +570,8 @@ export function ClubRadar({ teamName }: { teamName: string }) {
   const rank = comparison.data?.ownRank ?? 0;
   if (!own || !league.data || n < 2) {
     return (
-      <Panel title="Radar de fuerza">
-        <Empty>Todavía no hay clasificación de tu serie.</Empty>
+      <Panel title={tx("Radar de fuerza")}>
+        <Empty>{tx("Todavía no hay clasificación de tu serie.")}</Empty>
       </Panel>
     );
   }
@@ -581,17 +595,21 @@ export function ClubRadar({ teamName }: { teamName: string }) {
 
   return (
     <Panel
-      title="Radar de fuerza"
-      meta={`relativo a ${league.data.seriesName ?? "tu liga"}`}
+      title={tx("Radar de fuerza")}
+      meta={tx("relativo a {{v0}}", {
+        v0: league.data.seriesName ?? "tu liga",
+      })}
     >
       <Chart
-        ariaLabel="Radar de fuerza del equipo, relativo a la media de la liga"
+        ariaLabel={tx(
+          "Radar de fuerza del equipo, relativo a la media de la liga",
+        )}
         height={300}
         option={radarOption(indicators, [{ name: teamName, value: ejes }])}
       />
       <Note>
-        50 es la media de {league.data.seriesName}, 100 el mejor de la serie en
-        ese eje.
+        {tx("50 es la media de")} {league.data.seriesName}
+        {tx(", 100 el mejor de la serie en ese eje.")}
       </Note>
     </Panel>
   );

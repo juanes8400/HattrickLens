@@ -37,6 +37,7 @@ import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
 import { api, errorMessage } from "../services/api";
 import type { PlayerBalanceRow } from "../services/api";
 
+import { tx } from "../i18n/tx";
 const UNKNOWN_TRAINING = "Sin evidencia suficiente";
 const UNKNOWN_SEASON = "Temporada desconocida";
 const UNKNOWN_AGE = "Edad desconocida";
@@ -582,26 +583,28 @@ function EditarEtapa({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={`Editar ${fila.name}`}
+        aria-label={tx("Editar {{v0}}", { v0: fila.name })}
         tabIndex={-1}
       >
         <h2 className="text-base font-semibold">{fila.name}</h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Salió el {date(fila.soldAt)}. Lo que escribas aquí solo rellena lo que
-          está en «?»; si Hattrick devuelve el dato de verdad, manda el suyo.
+          {tx("Salió el")} {date(fila.soldAt)}
+          {tx(
+            ". Lo que escribas aquí solo rellena lo que está en «?»; si Hattrick devuelve el dato de verdad, manda el suyo.",
+          )}
         </p>
 
         <div className="mt-4 space-y-3 text-sm">
           <label className="block">
             <span className="text-xs text-[var(--muted)]">
-              Entrenamiento al salir
+              {tx("Entrenamiento al salir")}
             </span>
             <select
               value={entrenamiento}
               onChange={(e) => setEntrenamiento(e.target.value)}
               className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
             >
-              <option value="">Sin atribuir</option>
+              <option value="">{tx("Sin atribuir")}</option>
               {ENTRENAMIENTOS.map(([id, nombre]) => (
                 <option key={id} value={id}>
                   {nombre}
@@ -612,14 +615,14 @@ function EditarEtapa({
 
           <label className="block">
             <span className="text-xs text-[var(--muted)]">
-              Habilidad más alta
+              {tx("Habilidad más alta")}
             </span>
             <select
               value={habilidad}
               onChange={(e) => setHabilidad(e.target.value)}
               className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5"
             >
-              <option value="">Sin atribuir</option>
+              <option value="">{tx("Sin atribuir")}</option>
               {HABILIDADES.map(([clave, nombre]) => (
                 <option key={clave} value={clave}>
                   {nombre}
@@ -630,7 +633,9 @@ function EditarEtapa({
 
           <div className="flex gap-3">
             <label className="flex-1">
-              <span className="text-xs text-[var(--muted)]">Edad (años)</span>
+              <span className="text-xs text-[var(--muted)]">
+                {tx("Edad (años)")}
+              </span>
               <input
                 type="number"
                 min={15}
@@ -641,7 +646,7 @@ function EditarEtapa({
               />
             </label>
             <label className="flex-1">
-              <span className="text-xs text-[var(--muted)]">Días</span>
+              <span className="text-xs text-[var(--muted)]">{tx("Días")}</span>
               <input
                 type="number"
                 min={0}
@@ -661,9 +666,10 @@ function EditarEtapa({
               className="mt-0.5"
             />
             <span className="text-xs">
-              <b>Sacar de los cálculos.</b> Esta etapa deja de contar en los
-              totales, los desgloses y el ROI. Sigue estando en Hattrick; solo
-              desaparece de estas cuentas.
+              <b>{tx("Sacar de los cálculos.")}</b>{" "}
+              {tx(
+                "Esta etapa deja de contar en los totales, los desgloses y el ROI. Sigue estando en Hattrick; solo desaparece de estas cuentas.",
+              )}
             </span>
           </label>
 
@@ -675,14 +681,14 @@ function EditarEtapa({
             onClick={onCerrar}
             className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)]"
           >
-            Cancelar
+            {tx("Cancelar")}
           </button>
           <button
             onClick={() => guardar.mutate()}
             disabled={guardar.isPending}
             className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
           >
-            {guardar.isPending ? "Guardando…" : "Guardar"}
+            {guardar.isPending ? tx("Guardando…") : tx("Guardar")}
           </button>
         </div>
       </div>
@@ -1056,17 +1062,18 @@ export function PlayerBalancePage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Transferencias</h1>
+          <h1 className="text-xl font-semibold">{tx("Transferencias")}</h1>
           {/* La línea que presenta una pantalla tiene que decir para qué
               sirve. Aquí era la fórmula del ROI entera, denominador incluido:
               quien abría Transferencias aprendía a dividir antes de saber qué
               podía hacer. La fórmula vive ahora en Transparencia, que es su
               sitio, y se enlaza (2026-08-31). */}
           <p className="text-sm text-[var(--muted)]">
-            Qué te dejó cada jugador que pasó por el club, desde que llegó hasta
-            que se fue.{" "}
+            {tx(
+              "Qué te dejó cada jugador que pasó por el club, desde que llegó hasta que se fue.",
+            )}{" "}
             <EnlaceATransparencia seccion="transferencias" calculo="roi">
-              cómo se calcula el ROI
+              {tx("cómo se calcula el ROI")}
             </EnlaceATransparencia>
           </p>
         </div>
@@ -1076,7 +1083,7 @@ export function PlayerBalancePage() {
           to="/sync"
           className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
         >
-          Actualizar transferencias en Sincronización
+          {tx("Actualizar transferencias en Sincronización")}
         </Link>
       </header>
 
@@ -1086,16 +1093,18 @@ export function PlayerBalancePage() {
           className="rounded-lg border border-[var(--danger)] bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] px-4 py-3 text-sm"
         >
           <p className="font-medium text-[var(--danger)]">
-            Falta descargar tu historial de transferencias.
+            {tx("Falta descargar tu historial de transferencias.")}
           </p>
           <p className="mt-1 text-[var(--text)]">
-            Hattrick tiene {number(data.transferNumberSales)} ventas y{" "}
-            {number(data.transferNumberBuys)} compras tuyas, y esta pantalla no
-            las verá hasta que las traigas.{" "}
+            {tx("Hattrick tiene")} {number(data.transferNumberSales)}{" "}
+            {tx("ventas y")} {number(data.transferNumberBuys)}{" "}
+            {tx(
+              "compras tuyas, y esta pantalla no las verá hasta que las traigas.",
+            )}{" "}
             <Link to="/sync" className="font-medium underline">
-              Ve a Sincronización y pulsa «Transferencias»
+              {tx("Ve a Sincronización y pulsa «Transferencias»")}
             </Link>
-            . Es una sola vez y tarda un rato.
+            {tx(". Es una sola vez y tarda un rato.")}
           </p>
         </div>
       )}
@@ -1104,40 +1113,53 @@ export function PlayerBalancePage() {
         <Tabs
           grupo="balance"
           tabs={[
-            { key: "resumen", label: "Resumen" },
-            { key: "totales", label: "Totales" },
-            { key: "desgloses", label: "Desgloses absolutos" },
-            { key: "roi", label: "Desgloses ROI" },
+            { key: "resumen", label: tx("Resumen") },
+            { key: "totales", label: tx("Totales") },
+            { key: "desgloses", label: tx("Desgloses absolutos") },
+            { key: "roi", label: tx("Desgloses ROI") },
             ...(INTENTOS_DE_TRANSFERENCIA_VISIBLES
               ? ([
                   {
                     key: "intentos",
-                    label: `Intentos de transferencias (${intentos.data?.rows.length ?? 0})`,
+                    label: tx("Intentos de transferencias ({{v0}})", {
+                      v0: intentos.data?.rows.length ?? 0,
+                    }),
                   },
                 ] as { key: SectionKey; label: string }[])
               : []),
-            { key: "detalle", label: `Detalle (${detalleRows.length})` },
+            {
+              key: "detalle",
+              label: tx("Detalle ({{v0}})", { v0: detalleRows.length }),
+            },
           ]}
           active={section}
           onChange={setSection}
         />
-        <Ayuda texto="Resumen: cada venta como un punto. Totales: lo comprado y lo vendido. Desgloses absolutos: el saldo repartido por temporada, semana, edad y más. Desgloses ROI: lo mismo en porcentaje de lo invertido. Detalle: una fila por jugador." />
+        <Ayuda
+          texto={tx(
+            "Resumen: cada venta como un punto. Totales: lo comprado y lo vendido. Desgloses absolutos: el saldo repartido por temporada, semana, edad y más. Desgloses ROI: lo mismo en porcentaje de lo invertido. Detalle: una fila por jugador.",
+          )}
+        />
         {seasonOptions.length > 0 && (
           <div className="flex items-center gap-2">
             <label
               htmlFor="season-filter"
               className="text-xs text-[var(--muted)]"
             >
-              Temporada
+              {tx("Temporada")}
             </label>
-            <Ayuda texto="Deja sólo las ventas cerradas en esa temporada. Afecta a todas las pestañas." />
+            <Ayuda
+              texto={tx(
+                "Deja sólo las ventas cerradas en esa temporada. Afecta a todas las pestañas.",
+              )}
+            />
             <select
               id="season-filter"
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
               className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs"
             >
-              <option value="all">Todas</option>
+              <option value="all">{tx("Todas")}</option>
               {seasonOptions.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -1153,14 +1175,18 @@ export function PlayerBalancePage() {
           las tres secciones a la vez. */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          Habilidad entrenada
-          <Ayuda texto="Deja sólo a los jugadores cuya habilidad más subida mientras estuvieron contigo fue ésta." />
+          {tx("Habilidad entrenada")}
+          <Ayuda
+            texto={tx(
+              "Deja sólo a los jugadores cuya habilidad más subida mientras estuvieron contigo fue ésta.",
+            )}
+          />
           <select
             value={trainingFilter}
             onChange={(e) => setTrainingFilter(e.target.value)}
             className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
           >
-            <option value="all">Todos</option>
+            <option value="all">{tx("Todos")}</option>
             {trainingOptions.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -1169,8 +1195,12 @@ export function PlayerBalancePage() {
           </select>
         </label>
         <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          Origen
-          <Ayuda texto="Comprado: llegó por traspaso. Canterano: salió de tu academia. Sin origen conocido: Hattrick no dice cómo llegó." />
+          {tx("Origen")}
+          <Ayuda
+            texto={tx(
+              "Comprado: llegó por traspaso. Canterano: salió de tu academia. Sin origen conocido: Hattrick no dice cómo llegó.",
+            )}
+          />
           <select
             value={originFilter}
             onChange={(e) =>
@@ -1180,18 +1210,22 @@ export function PlayerBalancePage() {
             }
             className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
           >
-            <option value="all">Todos</option>
-            <option value="bought">Comprado</option>
-            <option value="academy">Canterano</option>
-            <option value="unknown">Sin origen conocido</option>
+            <option value="all">{tx("Todos")}</option>
+            <option value="bought">{tx("Comprado")}</option>
+            <option value="academy">{tx("Canterano")}</option>
+            <option value="unknown">{tx("Sin origen conocido")}</option>
           </select>
         </label>
         <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          Datos
-          <Ayuda texto="Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana." />
+          {tx("Datos")}
+          <Ayuda
+            texto={tx(
+              "Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana.",
+            )}
+          />
           <Tabs
             modo="filtro"
-            label="Qué datos se tienen en cuenta"
+            label={tx("Qué datos se tienen en cuenta")}
             active={materialDelSaldo}
             onChange={setMaterialDelSaldo}
             tabs={[
@@ -1206,18 +1240,22 @@ export function PlayerBalancePage() {
               // distinta, todos, sin algo, sólo un subconjunto, porque tres
               // etiquetas paralelas («Sin X», «Sin Y») se leen como filtros
               // independientes y no como los peldaños de una escalera.
-              { key: "todo", label: "Todos" },
-              { key: "sinDesconocidos", label: "Sin datos desconocidos" },
-              { key: "soloMedido", label: "Sólo lo medido" },
+              { key: "todo", label: tx("Todos") },
+              { key: "sinDesconocidos", label: tx("Sin datos desconocidos") },
+              { key: "soloMedido", label: tx("Sólo lo medido") },
             ]}
           />
         </span>
         <ToggleSwitch
           checked={ignoreFired}
           onChange={() => setIgnoreFired((v) => !v)}
-          label="Ignorar jugadores despedidos"
+          label={tx("Ignorar jugadores despedidos")}
         />
-        <Ayuda texto="Quita a los jugadores que salieron sin venta: no dejaron ingreso y bajan el ROI de su grupo." />
+        <Ayuda
+          texto={tx(
+            "Quita a los jugadores que salieron sin venta: no dejaron ingreso y bajan el ROI de su grupo.",
+          )}
+        />
       </div>
 
       {/* Primero POR QUÉ existe el control, luego qué hace la posición
@@ -1230,29 +1268,34 @@ export function PlayerBalancePage() {
       {(estimadas > 0 || sinSueldo > 0) && (
         <div className="space-y-1">
           <p className="prosa text-sm text-[var(--muted)]">
-            Lo que cobraba un jugador sólo se sabe si estaba en tu equipo
-            mientras HT Lens miraba. Del resto de tu historial hay que
-            calcularlo, y de una parte no se puede ni eso, así que{" "}
-            <b className="text-[var(--text)]">Datos</b> elige de qué te fías.
+            {tx(
+              "Lo que cobraba un jugador sólo se sabe si estaba en tu equipo mientras HT Lens miraba. Del resto de tu historial hay que calcularlo, y de una parte no se puede ni eso, así que",
+            )}{" "}
+            <b className="text-[var(--text)]">{tx("Datos")}</b>{" "}
+            {tx("elige de qué te fías.")}
           </p>
           <p className="prosa text-sm text-[var(--muted)]">
             {materialDelSaldo === "todo" && (
               <>
                 <b className="text-[var(--text)]">
-                  Las {baseRows.length} ventas.
+                  {tx("Las")} {baseRows.length} {tx("ventas.")}
                 </b>
                 {estimadas > 0 && (
                   <>
                     {" "}
-                    En {estimadas} el sueldo está calculado a partir del TSI y
-                    la edad, y va marcado con «≈».
+                    {tx("En")} {estimadas}{" "}
+                    {tx(
+                      "el sueldo está calculado a partir del TSI y la edad, y va marcado con «≈».",
+                    )}
                   </>
                 )}
                 {sinSueldo > 0 && (
                   <>
                     {" "}
-                    En {sinSueldo} no se sabe qué cobraban y entra como cero,
-                    así que el saldo sale mejor de lo que fue.
+                    {tx("En")} {sinSueldo}{" "}
+                    {tx(
+                      "no se sabe qué cobraban y entra como cero, así que el saldo sale mejor de lo que fue.",
+                    )}
                   </>
                 )}
               </>
@@ -1260,13 +1303,14 @@ export function PlayerBalancePage() {
             {materialDelSaldo === "sinDesconocidos" && (
               <>
                 <b className="text-[var(--text)]">
-                  Sólo las {filteredRows.length} ventas que tienen cifra de
-                  sueldo.
+                  {tx("Sólo las")} {filteredRows.length}{" "}
+                  {tx("ventas que tienen cifra de sueldo.")}
                 </b>
                 {sinSueldo > 0 && (
                   <>
                     {" "}
-                    Quedan fuera {sinSueldo} en las que no se sabe qué cobraban.
+                    {tx("Quedan fuera")} {sinSueldo}{" "}
+                    {tx("en las que no se sabe qué cobraban.")}
                   </>
                 )}
                 {estimadas > 0 && (
@@ -1276,9 +1320,11 @@ export function PlayerBalancePage() {
                       («las 43 ventas… de las que ves, 43») se lee como un
                       error de cuentas, aunque sea cierto. */}
                     {estimadas === filteredRows.length
-                      ? "Todas llevan"
-                      : `De las que ves, ${estimadas} llevan`}{" "}
-                    el sueldo calculado («≈»), no medido.
+                      ? tx("Todas llevan")
+                      : tx("De las que ves, {{v0}} llevan", {
+                          v0: estimadas,
+                        })}{" "}
+                    {tx("el sueldo calculado («≈»), no medido.")}
                   </>
                 )}
               </>
@@ -1291,21 +1337,22 @@ export function PlayerBalancePage() {
                 // frase hablando de una tabla vacía.
                 <>
                   <b className="text-[var(--text)]">
-                    De estas {baseRows.length} ventas, HT Lens no llegó a ver
-                    cobrar a ninguna.
+                    {tx("De estas")} {baseRows.length}{" "}
+                    {tx("ventas, HT Lens no llegó a ver cobrar a ninguna.")}
                   </b>{" "}
-                  Todas pasaron por el club sin que la aplicación tuviera tus
-                  datos, así que con este filtro no queda nada que enseñar.
+                  {tx(
+                    "Todas pasaron por el club sin que la aplicación tuviera tus datos, así que con este filtro no queda nada que enseñar.",
+                  )}
                 </>
               ) : (
                 <>
                   <b className="text-[var(--text)]">
-                    Sólo las {filteredRows.length} ventas cuyo sueldo vio HT
-                    Lens.
+                    {tx("Sólo las")} {filteredRows.length}{" "}
+                    {tx("ventas cuyo sueldo vio HT Lens.")}
                   </b>{" "}
-                  De ellas se leyó semana a semana lo que cobraban en tu equipo,
-                  así que aquí no hay ningún número calculado. Es lo que se ha
-                  podido medir desde que tus datos están en la aplicación.
+                  {tx(
+                    "De ellas se leyó semana a semana lo que cobraban en tu equipo, así que aquí no hay ningún número calculado. Es lo que se ha podido medir desde que tus datos están en la aplicación.",
+                  )}
                 </>
               ))}
           </p>
@@ -1317,14 +1364,22 @@ export function PlayerBalancePage() {
           <div className="space-y-4">
             {dotBase.length > 0 && (
               <Panel
-                title="Cada transferencia"
-                ayuda="Un punto por cada jugador vendido. El color es el ROI: rojo pérdida, verde ganancia. El círculo es un jugador comprado y el corazón un canterano. Pulsa un punto para abrir su ficha."
-                meta="color = ROI (rojo = pérdida, verde = ganancia) · ● comprado · ♥ canterano"
+                title={tx("Cada transferencia")}
+                ayuda={tx(
+                  "Un punto por cada jugador vendido. El color es el ROI: rojo pérdida, verde ganancia. El círculo es un jugador comprado y el corazón un canterano. Pulsa un punto para abrir su ficha.",
+                )}
+                meta={tx(
+                  "color = ROI (rojo = pérdida, verde = ganancia) · ● comprado · ♥ canterano",
+                )}
               >
                 <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-2">
                   <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-                    Ordenar por
-                    <Ayuda texto="Cambia el orden de los puntos. El color sigue siendo el ROI." />
+                    {tx("Ordenar por")}
+                    <Ayuda
+                      texto={tx(
+                        "Cambia el orden de los puntos. El color sigue siendo el ROI.",
+                      )}
+                    />
                     <select
                       value={dotSort}
                       onChange={(e) => setDotSort(e.target.value as DotSortKey)}
@@ -1340,12 +1395,14 @@ export function PlayerBalancePage() {
                 </div>
                 {dotRows.length === 0 ? (
                   <p className="px-4 py-6 text-center text-sm text-[var(--muted)]">
-                    Ningún jugador vendido coincide con estos filtros.
+                    {tx("Ningún jugador vendido coincide con estos filtros.")}
                   </p>
                 ) : (
                   <div className="relative">
                     <Chart
-                      ariaLabel="Diagrama de puntos: una bolita enlazada a la ficha de cada exjugador vendido, ordenadas según el criterio elegido, coloreadas por ROI de rojo (pérdida) a verde (ganancia), forma por origen (comprado o canterano)"
+                      ariaLabel={tx(
+                        "Diagrama de puntos: una bolita enlazada a la ficha de cada exjugador vendido, ordenadas según el criterio elegido, coloreadas por ROI de rojo (pérdida) a verde (ganancia), forma por origen (comprado o canterano)",
+                      )}
                       onEvents={{ click: openDotPlayer }}
                       option={{
                         grid: {
@@ -1443,8 +1500,14 @@ export function PlayerBalancePage() {
                         <Link
                           key={`${row.htPlayerId}-${row.soldAt ?? index}`}
                           to={`/players/${row.htPlayerId}`}
-                          aria-label={`Abrir ficha de ${row.name}`}
-                          title={`${row.name} · Venta: ${money(row.salePrice, data.currency)} · ROI: ${row.roiPct.toFixed(1)}%`}
+                          aria-label={tx("Abrir ficha de {{v0}}", {
+                            v0: row.name,
+                          })}
+                          title={tx("{{v0}} · Venta: {{v1}} · ROI: {{v2}}%", {
+                            v0: row.name,
+                            v1: money(row.salePrice, data.currency),
+                            v2: row.roiPct.toFixed(1),
+                          })}
                           className="pointer-events-auto h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]"
                           style={{
                             gridColumn: (index % DOT_COLS) + 2,
@@ -1465,28 +1528,34 @@ export function PlayerBalancePage() {
         {section === "totales" && (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
             <Kpi
-              label="Total de compras"
-              ayuda="Lo que pagaste por todos los jugadores que compraste."
+              label={tx("Total de compras")}
+              ayuda={tx(
+                "Lo que pagaste por todos los jugadores que compraste.",
+              )}
               value={money(data.transferTotalBuys, data.currency)}
             />
             <Kpi
-              label="Total de ventas"
-              ayuda="Lo que ingresaste por todos los jugadores que vendiste, antes de la comisión del agente."
+              label={tx("Total de ventas")}
+              ayuda={tx(
+                "Lo que ingresaste por todos los jugadores que vendiste, antes de la comisión del agente.",
+              )}
               value={money(data.transferTotalSales, data.currency)}
             />
             <Kpi
-              label="Número de compras"
-              ayuda="Cuántos jugadores compraste."
+              label={tx("Número de compras")}
+              ayuda={tx("Cuántos jugadores compraste.")}
               value={number(data.transferNumberBuys)}
             />
             <Kpi
-              label="Número de ventas"
-              ayuda="Cuántos jugadores vendiste."
+              label={tx("Número de ventas")}
+              ayuda={tx("Cuántos jugadores vendiste.")}
               value={number(data.transferNumberSales)}
             />
             <Kpi
-              label="Diferencia"
-              ayuda="Total de ventas menos total de compras. No descuenta sueldos ni comisiones: para eso están los desgloses."
+              label={tx("Diferencia")}
+              ayuda={tx(
+                "Total de ventas menos total de compras. No descuenta sueldos ni comisiones: para eso están los desgloses.",
+              )}
               value={money(
                 data.transferTotalSales - data.transferTotalBuys,
                 data.currency,
@@ -1503,10 +1572,17 @@ export function PlayerBalancePage() {
         {section === "desgloses" && (
           <div className="space-y-3">
             <WaterfallPanel
-              title="De la compra a la venta"
-              ayuda="Cómo se pasa del precio de compra al saldo final de todas las ventas cerradas: los sueldos y los intentos de venta restan, la venta suma y la comisión del agente resta."
-              meta={`${financialFlowRows.length} operaciones cerradas con datos completos · subtotal sin reventa estimada`}
-              ariaLabel="Cascada del ciclo financiero: gasto de compra, sueldos e intentos de venta como valores negativos; venta como valor positivo; y comisiones como valor negativo"
+              title={tx("De la compra a la venta")}
+              ayuda={tx(
+                "Cómo se pasa del precio de compra al saldo final de todas las ventas cerradas: los sueldos y los intentos de venta restan, la venta suma y la comisión del agente resta.",
+              )}
+              meta={tx(
+                "{{v0}} operaciones cerradas con datos completos · subtotal sin reventa estimada",
+                { v0: financialFlowRows.length },
+              )}
+              ariaLabel={tx(
+                "Cascada del ciclo financiero: gasto de compra, sueldos e intentos de venta como valores negativos; venta como valor positivo; y comisiones como valor negativo",
+              )}
               entries={financialFlowEntries}
               currency={data.currency}
               isDark={isDark}
@@ -1514,66 +1590,98 @@ export function PlayerBalancePage() {
             />
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <WaterfallPanel
-                title="Saldo por temporada"
-                ayuda="Suma el saldo de las ventas cerradas en cada temporada."
-                meta="temporada en la que se cerró cada venta"
-                ariaLabel="Cascada del saldo neto, repartido por la temporada de Hattrick en la que se vendió cada jugador"
+                title={tx("Saldo por temporada")}
+                ayuda={tx(
+                  "Suma el saldo de las ventas cerradas en cada temporada.",
+                )}
+                meta={tx("temporada en la que se cerró cada venta")}
+                ariaLabel={tx(
+                  "Cascada del saldo neto, repartido por la temporada de Hattrick en la que se vendió cada jugador",
+                )}
                 entries={seasonEntries}
                 currency={data.currency}
                 isDark={isDark}
               />
               <WaterfallPanel
-                title="Saldo por semana de venta"
-                ayuda="Suma el saldo según la semana de la temporada en que se vendió cada jugador, juntando todas las temporadas: dice en qué semanas vendes mejor."
-                meta="la semana de la temporada, sumando todas las temporadas"
-                ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se vendió cada jugador"
+                title={tx("Saldo por semana de venta")}
+                ayuda={tx(
+                  "Suma el saldo según la semana de la temporada en que se vendió cada jugador, juntando todas las temporadas: dice en qué semanas vendes mejor.",
+                )}
+                meta={tx(
+                  "la semana de la temporada, sumando todas las temporadas",
+                )}
+                ariaLabel={tx(
+                  "Cascada del saldo neto agrupado por la semana de temporada en la que se vendió cada jugador",
+                )}
                 entries={saleWeekEntries}
                 currency={data.currency}
                 isDark={isDark}
                 forceAllLabels
               />
               <WaterfallPanel
-                title="Saldo por semana de compra"
-                ayuda="Suma el saldo según la semana de la temporada en que se compró cada jugador, juntando todas las temporadas: dice en qué semanas compras mejor."
-                meta="la semana de la temporada, sumando todas las temporadas"
-                ariaLabel="Cascada del saldo neto agrupado por la semana de temporada en la que se compró cada jugador"
+                title={tx("Saldo por semana de compra")}
+                ayuda={tx(
+                  "Suma el saldo según la semana de la temporada en que se compró cada jugador, juntando todas las temporadas: dice en qué semanas compras mejor.",
+                )}
+                meta={tx(
+                  "la semana de la temporada, sumando todas las temporadas",
+                )}
+                ariaLabel={tx(
+                  "Cascada del saldo neto agrupado por la semana de temporada en la que se compró cada jugador",
+                )}
                 entries={purchaseWeekEntries}
                 currency={data.currency}
                 isDark={isDark}
                 forceAllLabels
               />
               <HorizontalBarPanel
-                title="Saldo por entrenamiento en el momento de la venta"
-                ayuda="Suma el saldo según la habilidad que más le subió al jugador mientras estuvo en tu equipo."
-                meta="habilidad individual inferida · ventas cerradas"
-                ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad que más aumentó en cada jugador antes de su venta"
+                title={tx("Saldo por entrenamiento en el momento de la venta")}
+                ayuda={tx(
+                  "Suma el saldo según la habilidad que más le subió al jugador mientras estuvo en tu equipo.",
+                )}
+                meta={tx("habilidad individual inferida · ventas cerradas")}
+                ariaLabel={tx(
+                  "Barras horizontales del saldo neto, repartido por la habilidad que más aumentó en cada jugador antes de su venta",
+                )}
                 entries={trainingEntries}
                 currency={data.currency}
                 isDark={isDark}
               />
               <WaterfallPanel
-                title="Saldo por edad en el momento de la venta"
-                ayuda="Suma el saldo según la edad que tenía el jugador cuando lo vendiste."
-                meta="ventas cerradas"
-                ariaLabel="Cascada del saldo neto, repartido por la edad del jugador cuando se vendió"
+                title={tx("Saldo por edad en el momento de la venta")}
+                ayuda={tx(
+                  "Suma el saldo según la edad que tenía el jugador cuando lo vendiste.",
+                )}
+                meta={tx("ventas cerradas")}
+                ariaLabel={tx(
+                  "Cascada del saldo neto, repartido por la edad del jugador cuando se vendió",
+                )}
                 entries={ageEntries}
                 currency={data.currency}
                 isDark={isDark}
               />
               <HorizontalBarPanel
-                title="Saldo por habilidad más alta"
-                ayuda="Suma el saldo según la mejor habilidad del jugador cuando lo vendiste."
-                meta="ventas cerradas"
-                ariaLabel="Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió"
+                title={tx("Saldo por habilidad más alta")}
+                ayuda={tx(
+                  "Suma el saldo según la mejor habilidad del jugador cuando lo vendiste.",
+                )}
+                meta={tx("ventas cerradas")}
+                ariaLabel={tx(
+                  "Barras horizontales del saldo neto, repartido por la habilidad más alta del jugador cuando se vendió",
+                )}
                 entries={topSkillEntries}
                 currency={data.currency}
                 isDark={isDark}
               />
               <WaterfallPanel
-                title="Saldo por hora de cierre de la puja"
-                ayuda="Suma el saldo según la hora, en tu reloj, a la que cerró la puja de venta, en bloques de dos horas."
-                meta="bloques de 2 horas, en tu hora"
-                ariaLabel="Cascada del saldo neto, repartido por el bloque de 2 horas, en la hora local de quien mira, en el que se cerró cada puja de venta"
+                title={tx("Saldo por hora de cierre de la puja")}
+                ayuda={tx(
+                  "Suma el saldo según la hora, en tu reloj, a la que cerró la puja de venta, en bloques de dos horas.",
+                )}
+                meta={tx("bloques de 2 horas, en tu hora")}
+                ariaLabel={tx(
+                  "Cascada del saldo neto, repartido por el bloque de 2 horas, en la hora local de quien mira, en el que se cerró cada puja de venta",
+                )}
                 entries={bidHourEntries}
                 currency={data.currency}
                 isDark={isDark}
@@ -1586,9 +1694,11 @@ export function PlayerBalancePage() {
           <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <RoiPanel
-                title="ROI por temporada"
-                ayuda="El saldo de cada temporada dividido entre lo que invertiste en esos jugadores: compra, sueldos e intentos de venta."
-                meta="por temporada de venta"
+                title={tx("ROI por temporada")}
+                ayuda={tx(
+                  "El saldo de cada temporada dividido entre lo que invertiste en esos jugadores: compra, sueldos e intentos de venta.",
+                )}
+                meta={tx("por temporada de venta")}
                 entries={Object.entries(roiPorTemporada).sort(
                   (a, b) =>
                     seasonSortKey(a[0])[0] - seasonSortKey(b[0])[0] ||
@@ -1597,36 +1707,46 @@ export function PlayerBalancePage() {
                 isDark={isDark}
               />
               <RoiPanel
-                title="ROI por semana de compra"
-                ayuda="El saldo dividido entre lo invertido, según la semana en que compraste a cada jugador."
-                meta="semana del calendario, no de la temporada"
+                title={tx("ROI por semana de compra")}
+                ayuda={tx(
+                  "El saldo dividido entre lo invertido, según la semana en que compraste a cada jugador.",
+                )}
+                meta={tx("semana del calendario, no de la temporada")}
                 entries={Object.entries(roiPorSemanaCompra).sort((a, b) =>
                   a[0].localeCompare(b[0], "es", { numeric: true }),
                 )}
                 isDark={isDark}
               />
               <RoiPanel
-                title="ROI por hora de cierre de la puja"
-                ayuda="El saldo dividido entre lo invertido, según la hora a la que cerró la puja de venta."
-                meta="bloques de 2 horas, en tu hora"
+                title={tx("ROI por hora de cierre de la puja")}
+                ayuda={tx(
+                  "El saldo dividido entre lo invertido, según la hora a la que cerró la puja de venta.",
+                )}
+                meta={tx("bloques de 2 horas, en tu hora")}
                 entries={Object.entries(roiPorHora).sort((a, b) =>
                   a[0].localeCompare(b[0], "es", { numeric: true }),
                 )}
                 isDark={isDark}
               />
               <RoiPanel
-                title="ROI por edad al vender"
-                ayuda="El saldo dividido entre lo invertido, por tramos de edad al vender."
-                meta="por tramos de edad"
+                title={tx("ROI por edad al vender")}
+                ayuda={tx(
+                  "El saldo dividido entre lo invertido, por tramos de edad al vender.",
+                )}
+                meta={tx("por tramos de edad")}
                 entries={Object.entries(roiPorEdad).sort((a, b) =>
                   a[0].localeCompare(b[0], "es", { numeric: true }),
                 )}
                 isDark={isDark}
               />
               <RoiPanel
-                title="ROI por entrenamiento al vender"
-                ayuda="El saldo dividido entre lo invertido, según la habilidad que más le subió mientras estuvo contigo."
-                meta="habilidad individual inferida · ordenado de mejor a peor"
+                title={tx("ROI por entrenamiento al vender")}
+                ayuda={tx(
+                  "El saldo dividido entre lo invertido, según la habilidad que más le subió mientras estuvo contigo.",
+                )}
+                meta={tx(
+                  "habilidad individual inferida · ordenado de mejor a peor",
+                )}
                 entries={Object.entries(roiPorEntrenamiento).sort(
                   (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
                 )}
@@ -1634,9 +1754,11 @@ export function PlayerBalancePage() {
                 isDark={isDark}
               />
               <RoiPanel
-                title="ROI por habilidad más alta"
-                ayuda="El saldo dividido entre lo invertido, según su mejor habilidad al venderlo."
-                meta="ordenado de mejor a peor"
+                title={tx("ROI por habilidad más alta")}
+                ayuda={tx(
+                  "El saldo dividido entre lo invertido, según su mejor habilidad al venderlo.",
+                )}
+                meta={tx("ordenado de mejor a peor")}
                 entries={Object.entries(roiPorHabilidad).sort(
                   (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
                 )}
@@ -1653,20 +1775,24 @@ export function PlayerBalancePage() {
 
         {section === "detalle" && (
           <Panel
-            title="Detalle por jugador"
-            ayuda="Una fila por cada jugador vendido o despedido: lo que costó, lo que cobró, por cuánto se vendió, las comisiones y el ROI. «?» es un dato que no se conoce, nunca un cero."
+            title={tx("Detalle por jugador")}
+            ayuda={tx(
+              "Una fila por cada jugador vendido o despedido: lo que costó, lo que cobró, por cuánto se vendió, las comisiones y el ROI. «?» es un dato que no se conoce, nunca un cero.",
+            )}
             meta={
               seasonFilter === "all"
-                ? `${detalleRows.length} vendidos o despedidos`
-                : `${detalleRows.length} vendidos o despedidos en ${seasonFilter}`
+                ? tx("{{v0}} vendidos o despedidos", { v0: detalleRows.length })
+                : tx("{{v0}} vendidos o despedidos en {{v1}}", {
+                    v0: detalleRows.length,
+                    v1: seasonFilter,
+                  })
             }
           >
             <BalanceTable data={detalleRows} currency={data.currency} />
             <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-              "Reventa" es la parte estimada de un ingreso que Hattrick reporta
-              agregado y sin decir de qué jugador viene, repartida proporcional
-              al precio de venta entre todo lo que has vendido, es una
-              aproximación, no un dato exacto.
+              {tx(
+                '"Reventa" es la parte estimada de un ingreso que Hattrick reporta agregado y sin decir de qué jugador viene, repartida proporcional al precio de venta entre todo lo que has vendido, es una aproximación, no un dato exacto.',
+              )}
             </p>
           </Panel>
         )}
@@ -1825,8 +1951,8 @@ function RoiPanel({
 
   if (conDato.length === 0) {
     return (
-      <Panel title={title} ayuda={ayuda} meta="sin ventas que repartir">
-        <Empty>Todavía no hay ventas con estos datos.</Empty>
+      <Panel title={title} ayuda={ayuda} meta={tx("sin ventas que repartir")}>
+        <Empty>{tx("Todavía no hay ventas con estos datos.")}</Empty>
       </Panel>
     );
   }
@@ -1841,13 +1967,18 @@ function RoiPanel({
         title={title}
         ayuda={ayuda}
         meta={
-          ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta
+          ventasSinDato > 0
+            ? tx("{{v0}} · {{v1}} sin dato fuera", {
+                v0: meta,
+                v1: ventasSinDato,
+              })
+            : meta
         }
       >
         <p className="px-4 py-6 text-sm text-[var(--muted)]">
-          Por ahora solo un grupo tiene el dato:{" "}
-          <span className="font-medium text-[var(--text)]">{clave}</span>, con
-          un ROI de{" "}
+          {tx("Por ahora solo un grupo tiene el dato:")}{" "}
+          <span className="font-medium text-[var(--text)]">{clave}</span>
+          {tx(", con un ROI de")}{" "}
           <span
             className="font-medium tabular-nums"
             style={{ color: roi >= 0 ? "var(--positive)" : "var(--danger)" }}
@@ -1855,7 +1986,8 @@ function RoiPanel({
             {roi >= 0 ? "" : "−"}
             {decimal(Math.abs(roi))}%
           </span>{" "}
-          en {unico.ventas} venta{unico.ventas === 1 ? "" : "s"}.
+          {tx("en")} {unico.ventas} {tx("venta")}
+          {unico.ventas === 1 ? "" : tx("s")}.
         </p>
       </Panel>
     );
@@ -1959,7 +2091,12 @@ function RoiPanel({
     <Panel
       title={title}
       meta={
-        ventasSinDato > 0 ? `${meta} · ${ventasSinDato} sin dato fuera` : meta
+        ventasSinDato > 0
+          ? tx("{{v0}} · {{v1}} sin dato fuera", {
+              v0: meta,
+              v1: ventasSinDato,
+            })
+          : meta
       }
     >
       <div className="p-4">
@@ -1969,10 +2106,14 @@ function RoiPanel({
           option={option}
         />
         <p className="mt-2 text-xs text-[var(--muted)]">
-          Los grupos con menos de {VENTAS_PARA_FIARSE} ventas salen apagados: su
-          porcentaje se mueve entero con una sola operación.
+          {tx("Los grupos con menos de")} {VENTAS_PARA_FIARSE}{" "}
+          {tx(
+            "ventas salen apagados: su porcentaje se mueve entero con una sola operación.",
+          )}
           {cortadas > 0 &&
-            " Las barras que se salen del eje van cortadas, con su cifra real dentro."}
+            tx(
+              " Las barras que se salen del eje van cortadas, con su cifra real dentro.",
+            )}
         </p>
       </div>
     </Panel>
@@ -2018,12 +2159,13 @@ function TransferAttemptsSection() {
   if (!data || data.rows.length === 0) {
     return (
       <Panel
-        title="Intentos de transferencias"
-        meta="empieza a contar desde hoy"
+        title={tx("Intentos de transferencias")}
+        meta={tx("empieza a contar desde hoy")}
       >
         <Empty>
-          Todavía no se ha detectado ningún intento de venta. El primero que
-          pongas en el mercado aparecerá aquí, con su plazo y su final.
+          {tx(
+            "Todavía no se ha detectado ningún intento de venta. El primero que pongas en el mercado aparecerá aquí, con su plazo y su final.",
+          )}
         </Empty>
       </Panel>
     );
@@ -2031,57 +2173,59 @@ function TransferAttemptsSection() {
 
   return (
     <Panel
-      title="Intentos de transferencias"
-      meta={`${data.rows.length} intento(s) desde que se empezó a contar`}
+      title={tx("Intentos de transferencias")}
+      meta={tx("{{v0}} intento(s) desde que se empezó a contar", {
+        v0: data.rows.length,
+      })}
     >
       <div className="overflow-x-auto">
         <table className="w-full whitespace-nowrap text-sm">
           <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
             <tr>
               <th scope="col" className="px-3 py-2">
-                Identificador
+                {tx("Identificador")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Jugador
+                {tx("Jugador")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Intento
+                {tx("Intento")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Cierre de la puja
+                {tx("Cierre de la puja")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Resultado
+                {tx("Resultado")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Precio pedido
+                {tx("Precio pedido")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Última puja
+                {tx("Última puja")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Precio de venta
+                {tx("Precio de venta")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                % agente
+                {tx("% agente")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Visitas
+                {tx("Visitas")}
               </th>
               <th scope="col" className="px-3 py-2">
-                País
+                {tx("País")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Especialidad
+                {tx("Especialidad")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Carácter
+                {tx("Carácter")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
                 TSI
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Edad
+                {tx("Edad")}
               </th>
               {SKILL_HEADERS.map(([clave, corto]) => (
                 <th
@@ -2094,25 +2238,25 @@ function TransferAttemptsSection() {
                 </th>
               ))}
               <th scope="col" className="px-3 py-2">
-                Canterano
+                {tx("Canterano")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Fecha de compra
+                {tx("Fecha de compra")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Edad de compra
+                {tx("Edad de compra")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Precio compra
+                {tx("Precio compra")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Días desde la compra
+                {tx("Días desde la compra")}
               </th>
               <th scope="col" className="px-3 py-2 text-right">
-                Salario acumulado
+                {tx("Salario acumulado")}
               </th>
               <th scope="col" className="px-3 py-2">
-                Entrenamiento
+                {tx("Entrenamiento")}
               </th>
               <th scope="col" className="px-3 py-2"></th>
             </tr>
@@ -2143,13 +2287,17 @@ function TransferAttemptsSection() {
                 </td>
                 <td className="px-3 py-2">
                   {r.open ? (
-                    <span className="text-[var(--muted)]">en el mercado</span>
+                    <span className="text-[var(--muted)]">
+                      {tx("en el mercado")}
+                    </span>
                   ) : r.sold ? (
                     <span className="font-medium text-[var(--positive)]">
-                      Vendido
+                      {tx("Vendido")}
                     </span>
                   ) : (
-                    <span className="text-[var(--muted)]">Se quedó</span>
+                    <span className="text-[var(--muted)]">
+                      {tx("Se quedó")}
+                    </span>
                   )}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
@@ -2192,7 +2340,9 @@ function TransferAttemptsSection() {
                   )}
                   title={
                     r.stale
-                      ? "La foto más cercana al cierre es de varios días antes: no la leas como exacta."
+                      ? tx(
+                          "La foto más cercana al cierre es de varios días antes: no la leas como exacta.",
+                        )
                       : undefined
                   }
                 >
@@ -2212,7 +2362,9 @@ function TransferAttemptsSection() {
                     {r.skills[clave] ?? "?"}
                   </td>
                 ))}
-                <td className="px-3 py-2">{r.fromAcademy ? "Sí" : "No"}</td>
+                <td className="px-3 py-2">
+                  {r.fromAcademy ? tx("Sí") : tx("No")}
+                </td>
                 <td className="px-3 py-2 tabular-nums">
                   {r.purchasedAt ? date(r.purchasedAt) : "?"}
                 </td>
@@ -2237,10 +2389,12 @@ function TransferAttemptsSection() {
                   <BotonDeBorrado
                     onConfirmar={() => borrar.mutate(r.id)}
                     disabled={borrar.isPending}
-                    title="Borrar este intento: como si nunca hubiera llegado a la lista"
+                    title={tx(
+                      "Borrar este intento: como si nunca hubiera llegado a la lista",
+                    )}
                     className="min-h-6 rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--negative)] hover:text-[var(--negative)] disabled:opacity-50"
                   >
-                    Borrar
+                    {tx("Borrar")}
                   </BotonDeBorrado>
                 </td>
               </tr>
@@ -2285,7 +2439,7 @@ function BalanceTable({
   const columns: Column<PlayerBalanceRow>[] = [
     {
       key: "soldAt",
-      header: "Fecha de venta",
+      header: tx("Fecha de venta"),
       align: "right",
       value: (r) => (r.soldAt ? new Date(r.soldAt).getTime() : -Infinity),
       render: (r) => <span className="tabular-nums">{date(r.soldAt)}</span>,
@@ -2305,7 +2459,7 @@ function BalanceTable({
     },
     {
       key: "name",
-      header: "Jugador",
+      header: tx("Jugador"),
       align: "left",
       value: (r) => r.name,
       // Sin ficha en Hattrick no hay adonde enlazar: el numero es el de la
@@ -2319,13 +2473,13 @@ function BalanceTable({
     },
     {
       key: "listingCount",
-      header: "Intentos venta",
+      header: tx("Intentos venta"),
       align: "right",
       value: (r) => r.listingCount,
     },
     {
       key: "nativeCountry",
-      header: "País origen",
+      header: tx("País origen"),
       align: "left",
       value: (r) => r.nativeCountry,
       render: (r) => (
@@ -2338,7 +2492,7 @@ function BalanceTable({
     },
     {
       key: "character",
-      header: "Carácter",
+      header: tx("Carácter"),
       align: "left",
       value: (r) => r.character,
     },
@@ -2405,7 +2559,7 @@ function BalanceTable({
     ),
     {
       key: "specialty",
-      header: "Especialidad",
+      header: tx("Especialidad"),
       align: "left",
       value: (r) => r.specialty,
       render: (r) => <Specialty specialty={r.specialty} />,
@@ -2418,7 +2572,7 @@ function BalanceTable({
     ),
     {
       key: "purchasedAt",
-      header: "Fecha de compra",
+      header: tx("Fecha de compra"),
       align: "right",
       value: (r) =>
         r.purchasedAt ? new Date(r.purchasedAt).getTime() : -Infinity,
@@ -2428,7 +2582,7 @@ function BalanceTable({
     },
     {
       key: "isAcademyGraduate",
-      header: "Origen",
+      header: tx("Origen"),
       align: "left",
       value: (r) =>
         r.originUnknown
@@ -2439,7 +2593,7 @@ function BalanceTable({
     },
     {
       key: "ageAtPurchase",
-      header: "Edad de compra",
+      header: tx("Edad de compra"),
       align: "right",
       value: (r) => (r.ageAtPurchase === "?" ? -Infinity : r.ageAtPurchase),
       render: (r) => (
@@ -2448,7 +2602,7 @@ function BalanceTable({
     },
     {
       key: "purchasePrice",
-      header: "Precio compra",
+      header: tx("Precio compra"),
       align: "right",
       value: (r) => r.purchasePrice ?? -1,
       render: (r) => {
@@ -2457,13 +2611,13 @@ function BalanceTable({
             <span className="tabular-nums">
               {money(r.purchasePrice, currency)}
               {r.isPurchasePriceManual && (
-                <span className="text-[var(--muted)]"> (manual)</span>
+                <span className="text-[var(--muted)]"> {tx("(manual)")}</span>
               )}
               {/* Un canterano no se compró: lo que se ve es lo que costó
                   subirlo al primer equipo. Decirlo evita leer esa cifra como
                   un fichaje que nunca hubo. */}
               {r.isAcademyGraduate && r.promotionCost > 0 && (
-                <span className="text-[var(--muted)]"> (ascenso)</span>
+                <span className="text-[var(--muted)]"> {tx("(ascenso)")}</span>
               )}
             </span>
           );
@@ -2484,7 +2638,7 @@ function BalanceTable({
             className="text-xs text-[var(--accent)] underline"
             onClick={() => setEditing(r.htPlayerId)}
           >
-            Escribir precio
+            {tx("Escribir precio")}
           </button>
         );
       },
@@ -2496,7 +2650,7 @@ function BalanceTable({
     ),
     {
       key: "agentPct",
-      header: "% agente",
+      header: tx("% agente"),
       align: "right",
       value: (r) => r.agentPct ?? -1,
       render: (r) => (
@@ -2520,15 +2674,17 @@ function BalanceTable({
               setEditando(r);
             }}
             className="rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--accent)]"
-            title="Atribuir a mano lo que falta, o sacar esta etapa de los cálculos"
+            title={tx(
+              "Atribuir a mano lo que falta, o sacar esta etapa de los cálculos",
+            )}
           >
-            Editar
+            {tx("Editar")}
           </button>
         ) : null,
     },
     {
       key: "gamesWithUs",
-      header: "Partidos con nosotros",
+      header: tx("Partidos con nosotros"),
       align: "right",
       // Fija la comisión que nos toca si alguien lo revende. "?" mientras el
       // censo no haya pasado por él: contarlo exige leer la alineación de
@@ -2540,7 +2696,9 @@ function BalanceTable({
         ) : (
           <span
             className="text-[var(--muted)]"
-            title="Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el identificador real del jugador, la fecha inicial o un recuento pendiente."
+            title={tx(
+              "Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el identificador real del jugador, la fecha inicial o un recuento pendiente.",
+            )}
           >
             ?
           </span>
@@ -2548,7 +2706,7 @@ function BalanceTable({
     },
     {
       key: "salaryTotal",
-      header: "Salario acum.",
+      header: tx("Salario acum."),
       align: "right",
       value: (r) => r.salaryTotal,
       // Tres estados, no dos (2026-09-04). Lo normal es tenerlo medido semana
@@ -2564,14 +2722,18 @@ function BalanceTable({
         ) : r.salarySource === "estimado" ? (
           <span
             className="tabular-nums text-[var(--muted)]"
-            title="Su etapa es anterior a HT Lens, así que nadie anotó lo que cobraba y Hattrick no lo publica hacia atrás. Esta cifra sale de su TSI y su edad. Con el selector «Sin estimaciones» puedes dejarlo fuera."
+            title={tx(
+              "Su etapa es anterior a HT Lens, así que nadie anotó lo que cobraba y Hattrick no lo publica hacia atrás. Esta cifra sale de su TSI y su edad. Con el selector «Sin estimaciones» puedes dejarlo fuera.",
+            )}
           >
             ≈ {money(r.salaryTotal, currency)}
           </span>
         ) : (
           <span
             className="text-[var(--muted)]"
-            title="De este jugador no se guardó ningún salario, Hattrick tampoco lo reporta y no hay TSI con el que calcularlo. Su coste no se puede saber, así que el saldo sale mejor de lo que fue."
+            title={tx(
+              "De este jugador no se guardó ningún salario, Hattrick tampoco lo reporta y no hay TSI con el que calcularlo. Su coste no se puede saber, así que el saldo sale mejor de lo que fue.",
+            )}
           >
             ?
           </span>
@@ -2579,28 +2741,28 @@ function BalanceTable({
     },
     {
       key: "salePrice",
-      header: "Precio venta",
+      header: tx("Precio venta"),
       align: "right",
       value: (r) => r.salePrice ?? -1,
       render: (r) => (
         <span className="tabular-nums">
           {r.salePrice != null ? money(r.salePrice, currency) : "-"}
           {r.isDepartureWithoutSale && (
-            <span className="text-[var(--muted)]"> (despedido)</span>
+            <span className="text-[var(--muted)]"> {tx("(despedido)")}</span>
           )}
         </span>
       ),
     },
     {
       key: "derivedTrainingSkill",
-      header: "Habilidad entrenada",
+      header: tx("Habilidad entrenada"),
       align: "left",
       value: (r) => r.derivedTrainingSkill ?? "",
-      render: (r) => r.derivedTrainingSkill ?? "Sin resolver",
+      render: (r) => r.derivedTrainingSkill ?? tx("Sin resolver"),
     },
     {
       key: "derivedTrainingLevels",
-      header: "Niveles subidos",
+      header: tx("Niveles subidos"),
       align: "right",
       value: (r) => r.derivedTrainingLevels ?? -1,
       render: (r) =>
@@ -2614,19 +2776,19 @@ function BalanceTable({
     },
     {
       key: "derivedTrainingMethod",
-      header: "Método de asignación",
+      header: tx("Método de asignación"),
       align: "left",
       value: (r) => r.derivedTrainingMethodLabel,
     },
     {
       key: "trainingAtSale",
-      header: "Entrenamiento del club en venta",
+      header: tx("Entrenamiento del club en venta"),
       align: "left",
       value: (r) => r.trainingAtSale ?? "",
     },
     {
       key: "commissionAmount",
-      header: "Comisiones",
+      header: tx("Comisiones"),
       align: "right",
       value: (r) => (r.commissionAmount === "?" ? -1 : r.commissionAmount),
       render: (r) => (
@@ -2639,7 +2801,7 @@ function BalanceTable({
     },
     {
       key: "saldo",
-      header: "Ganancia",
+      header: tx("Ganancia"),
       align: "right",
       value: (r) => r.saldo ?? 0,
       render: (r) => (
@@ -2658,7 +2820,7 @@ function BalanceTable({
     },
     {
       key: "saldoPerDeltaTsi",
-      header: "Ganancia / Δ TSI",
+      header: tx("Ganancia / Δ TSI"),
       align: "right",
       value: (r) =>
         r.saldoPerDeltaTsi === "?" ? -Infinity : r.saldoPerDeltaTsi,
@@ -2672,7 +2834,7 @@ function BalanceTable({
     },
     {
       key: "destinationCountry",
-      header: "País destino",
+      header: tx("País destino"),
       align: "left",
       value: (r) => (r.isSold ? r.destinationCountry : "Sin destino"),
       render: (r) =>
@@ -2684,7 +2846,7 @@ function BalanceTable({
           />
         ) : (
           <span className="whitespace-nowrap text-xs text-[var(--muted)]">
-            Sin destino · despedido
+            {tx("Sin destino · despedido")}
           </span>
         ),
     },
@@ -2693,7 +2855,7 @@ function BalanceTable({
   return (
     <>
       <DataTable
-        emptyMessage="Ninguna venta registrada todavía."
+        emptyMessage={tx("Ninguna venta registrada todavía.")}
         rows={data}
         columns={columns}
         // Por ETAPA, no por jugador: quien paso dos veces por el club tiene
@@ -2701,7 +2863,7 @@ function BalanceTable({
         rowKey={(r) => r.stintId ?? r.htPlayerId}
         initialSort="soldAt"
         csvName="saldo-por-jugador"
-        filterPlaceholder="Filtrar jugadores…"
+        filterPlaceholder={tx("Filtrar jugadores…")}
       />
       {editando && (
         <EditarEtapa
@@ -2736,7 +2898,7 @@ function ManualPriceForm({
         min={0}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="precio"
+        placeholder={tx("precio")}
         className="w-24 rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 py-0.5 text-right text-xs"
         autoFocus
       />
@@ -2745,10 +2907,10 @@ function ManualPriceForm({
         disabled={!isValid || saving}
         onClick={() => onSave(Math.round(parsed))}
       >
-        Guardar
+        {tx("Guardar")}
       </button>
       <button className="text-xs text-[var(--muted)]" onClick={onCancel}>
-        Cancelar
+        {tx("Cancelar")}
       </button>
     </div>
   );

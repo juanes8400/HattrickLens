@@ -7,6 +7,7 @@ import type {
   SyncSaleEconomics,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 const CATEGORY_LABELS: Record<string, string> = {
   jugadores: "Jugadores",
   entrenamiento: "Entrenamiento",
@@ -161,13 +162,13 @@ function SaldoDeLaVenta({ economia }: { economia: SyncSaleEconomics }) {
   return (
     <span className="col-span-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-[var(--muted)] sm:col-span-3">
       <span>
-        Ingresos{" "}
+        {tx("Ingresos")}{" "}
         <b className="tabular-nums text-[var(--text)]">
           {number(Math.round(economia.ingresos))}
         </b>
       </span>
       <span>
-        Gastos{" "}
+        {tx("Gastos")}{" "}
         <b className="tabular-nums text-[var(--text)]">
           {number(Math.round(economia.gastos))}
         </b>
@@ -190,8 +191,8 @@ function SaldoDeLaVenta({ economia }: { economia: SyncSaleEconomics }) {
       {economia.salarySource !== "observado" && (
         <span className="text-[var(--warning)]">
           {economia.salarySource === "estimado"
-            ? "sueldo estimado"
-            : "sin sueldo conocido"}
+            ? tx("sueldo estimado")
+            : tx("sin sueldo conocido")}
         </span>
       )}
     </span>
@@ -325,7 +326,7 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
   if (m) {
     const before = toNum(m[1] ?? "0");
     const after = toNum(m[2] ?? "0");
-    return { label: "Lesión", before, after, good: after < before };
+    return { label: tx("Lesión"), before, after, good: after < before };
   }
 
   m = detail.match(/^(.+?)\s+([\d,.]+)\s*->\s*([\d,.]+)\s*$/);
@@ -433,29 +434,31 @@ export function SyncChangesFeed({
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">
-            Qué cambió desde la última sincronización · {changes.length}
+            {tx("Qué cambió desde la última sincronización ·")} {changes.length}
           </h2>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Sólo se muestran diferencias reales contra la lectura anterior.
+            {tx(
+              "Sólo se muestran diferencias reales contra la lectura anterior.",
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {playerChanges.length > 0 && (
             <span className="rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs text-[var(--accent)]">
-              {playerChanges.length} cambios de jugadores
+              {playerChanges.length} {tx("cambios de jugadores")}
             </span>
           )}
           {skillPops > 0 && (
             <span className="rounded-full bg-[var(--positive)]/15 px-2 py-1 text-xs text-[var(--positive)]">
-              {skillPops} subida(s)
+              {skillPops} {tx("subida(s)")}
             </span>
           )}
           <button
             onClick={onDismiss}
-            aria-label="Descartar novedades"
+            aria-label={tx("Descartar novedades")}
             className="text-xs text-[var(--muted)] hover:text-[var(--text)]"
           >
-            Cerrar
+            {tx("Cerrar")}
           </button>
         </div>
       </div>
@@ -463,11 +466,11 @@ export function SyncChangesFeed({
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--bg)]">
           <div className="border-b border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--muted)]">
-            Jugadores
+            {tx("Jugadores")}
           </div>
           {playerChanges.length === 0 ? (
             <p className="p-3 text-sm text-[var(--muted)]">
-              Sin cambios de jugadores en esta sincronización.
+              {tx("Sin cambios de jugadores en esta sincronización.")}
             </p>
           ) : (
             <ul className="max-h-[32rem] divide-y divide-[var(--border)] overflow-y-auto overscroll-contain">

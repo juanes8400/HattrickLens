@@ -5,6 +5,7 @@ import { Empty, Loading, Note, Panel } from "./Panels";
 import { useLeague, useLeagueComparison } from "../hooks/useTeam";
 import { decimal, number } from "../hooks/useFormat";
 
+import { tx } from "../i18n/tx";
 /**
  * El radar de fuerza con un porqué en cada eje (2026-09-13, opción A + C).
  *
@@ -53,7 +54,7 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
 
   if (league.isLoading || comparison.isLoading) {
     return (
-      <Panel title="Radar de fuerza">
+      <Panel title={tx("Radar de fuerza")}>
         <div className="p-4">
           <Loading />
         </div>
@@ -66,8 +67,8 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
   const n = comparison.data?.teamsInSeries ?? data?.standings.length ?? 0;
   if (!data || !own || n < 2) {
     return (
-      <Panel title="Radar de fuerza">
-        <Empty>Todavía no hay clasificación de tu serie.</Empty>
+      <Panel title={tx("Radar de fuerza")}>
+        <Empty>{tx("Todavía no hay clasificación de tu serie.")}</Empty>
       </Panel>
     );
   }
@@ -227,12 +228,14 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
 
   return (
     <Panel
-      title="Radar de fuerza"
-      meta={`relativo a ${data.seriesName ?? "tu liga"}`}
+      title={tx("Radar de fuerza")}
+      meta={tx("relativo a {{v0}}", { v0: data.seriesName ?? "tu liga" })}
     >
       <div ref={caja} className="relative" onMouseLeave={() => setGlobo(null)}>
         <Chart
-          ariaLabel="Radar de fuerza del equipo, relativo a la media de la liga"
+          ariaLabel={tx(
+            "Radar de fuerza del equipo, relativo a la media de la liga",
+          )}
           height={ALTO}
           option={option}
           onEvents={{ mouseover: abrir, click: abrir }}
@@ -248,7 +251,8 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
           >
             <div className="mb-1 flex items-baseline justify-between font-semibold">
               <span>
-                {globo.eje} · {actual.puesto}º de {n}
+                {globo.eje} · {actual.puesto}
+                {tx("º de")} {n}
               </span>
               <span className="tabular-nums">{Math.round(actual.valor)}</span>
             </div>
@@ -285,8 +289,10 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
         )}
       </div>
       <Note>
-        50 es la media de {data.seriesName}, 100 el mejor de la serie en ese
-        eje. Pasa por el nombre de un eje para ver de dónde sale.
+        {tx("50 es la media de")} {data.seriesName}
+        {tx(
+          ", 100 el mejor de la serie en ese eje. Pasa por el nombre de un eje para ver de dónde sale.",
+        )}
       </Note>
     </Panel>
   );

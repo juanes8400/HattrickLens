@@ -4,6 +4,7 @@ import type { NationalMatchAppearance } from "../services/api";
 import { Empty, Panel } from "./Panels";
 import type { ClubComparisonChange } from "../services/api";
 
+import { tx } from "../i18n/tx";
 const ECONOMY_KEYS = [
   "cash",
   "income_sum",
@@ -36,7 +37,7 @@ function EconomyCard({ change }: { change: ClubComparisonChange }) {
       </div>
       <div className="mt-1 flex items-center justify-between gap-2 text-xs">
         <span className="text-[var(--muted)]">
-          antes: {change.beforeDisplay ?? "-"}
+          {tx("antes:")} {change.beforeDisplay ?? "-"}
         </span>
         {change.changed && change.delta != null && (
           <span
@@ -71,8 +72,8 @@ export function EconomySection({
   if (items.length === 0) return null;
   return (
     <Panel
-      title="Economía"
-      meta="antes → ahora, cierre semanal contra cierre semanal"
+      title={tx("Economía")}
+      meta={tx("antes → ahora, cierre semanal contra cierre semanal")}
     >
       <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
         {items.map((change) => (
@@ -115,13 +116,13 @@ function TarjetasDeCambio({ items }: { items: ClubComparisonChange[] }) {
                   : "bg-[var(--surface-2)] text-[var(--muted)]",
               )}
             >
-              {change.changed ? "Cambió" : "Igual"}
+              {change.changed ? tx("Cambió") : tx("Igual")}
             </span>
           </div>
           <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
-                Antes
+                {tx("Antes")}
               </div>
               <div className="mt-1 text-sm font-medium">
                 {change.beforeDisplay ?? "-"}
@@ -132,7 +133,7 @@ function TarjetasDeCambio({ items }: { items: ClubComparisonChange[] }) {
             </span>
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">
-                Ahora
+                {tx("Ahora")}
               </div>
               <div className="mt-1 text-sm font-semibold">
                 {change.currentDisplay ?? "-"}
@@ -154,9 +155,14 @@ export function TrainingSection({
     changes.find((c) => c.key === key),
   ).filter((c): c is ClubComparisonChange => c !== undefined);
   return (
-    <Panel title="Entrenamiento" meta="qué se entrena y con cuánta intensidad">
+    <Panel
+      title={tx("Entrenamiento")}
+      meta={tx("qué se entrena y con cuánta intensidad")}
+    >
       {items.length === 0 ? (
-        <Empty>Aún no hay dos semanas de entrenamiento que comparar.</Empty>
+        <Empty>
+          {tx("Aún no hay dos semanas de entrenamiento que comparar.")}
+        </Empty>
       ) : (
         <TarjetasDeCambio items={items} />
       )}
@@ -174,11 +180,13 @@ export function ClubMoraleSection({
   );
   return (
     <Panel
-      title="Moral del equipo"
-      meta="espíritu y confianza, cierre semanal contra cierre semanal"
+      title={tx("Moral del equipo")}
+      meta={tx("espíritu y confianza, cierre semanal contra cierre semanal")}
     >
       {items.length === 0 ? (
-        <Empty>Aún no hay dos estados del club que se puedan comparar.</Empty>
+        <Empty>
+          {tx("Aún no hay dos estados del club que se puedan comparar.")}
+        </Empty>
       ) : (
         <TarjetasDeCambio items={items} />
       )}
@@ -200,8 +208,11 @@ export function NationalTeamSection({
   if (appearances.length === 0) return null;
   return (
     <Panel
-      title="Con su selección"
-      meta={`${appearances.length} ${appearances.length === 1 ? "partido" : "partidos"} desde el informe anterior`}
+      title={tx("Con su selección")}
+      meta={tx("{{v0}} {{v1}} desde el informe anterior", {
+        v0: appearances.length,
+        v1: appearances.length === 1 ? "partido" : "partidos",
+      })}
     >
       <ul className="divide-y divide-[var(--border)]">
         {appearances.map((a) => (
@@ -209,13 +220,15 @@ export function NationalTeamSection({
             key={`${a.htPlayerId}-${a.playedAt}`}
             className="px-4 py-3 text-sm"
           >
-            <span className="font-medium">{a.name}</span> jugó{" "}
-            <span className="tabular-nums font-medium">{a.minutes} min</span> en{" "}
-            {a.match || a.competition}
+            <span className="font-medium">{a.name}</span> {tx("jugó")}{" "}
+            <span className="tabular-nums font-medium">
+              {a.minutes} {tx("min")}
+            </span>{" "}
+            {tx("en")} {a.match || a.competition}
             {a.rating ? (
               <span className="text-[var(--muted)]">
                 {" "}
-                · {a.rating} estrellas
+                · {a.rating} {tx("estrellas")}
               </span>
             ) : null}
           </li>

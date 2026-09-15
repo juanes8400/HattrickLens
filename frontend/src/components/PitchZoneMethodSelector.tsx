@@ -16,6 +16,7 @@ import type { PitchZoneMethod } from "../services/api";
 import type { ResumenDeZonas } from "./pitchZoneMethods";
 import { NOTA_DE_LOS_RESUMENES, PITCH_ZONE_METHODS } from "./pitchZoneMethods";
 
+import { tx } from "../i18n/tx";
 export function PitchZoneMethodSelector({
   method,
   onMethodChange,
@@ -52,7 +53,7 @@ export function PitchZoneMethodSelector({
           lleva dos de estos mandos uno al lado del otro. */}
       <details className="mt-1 text-[11px] text-[var(--muted)]">
         <summary className="cursor-pointer select-none">
-          cómo se saca cada número
+          {tx("cómo se saca cada número")}
         </summary>
         <dl className="prosa mt-1.5 space-y-1.5 leading-relaxed">
           {options.map((o) => (

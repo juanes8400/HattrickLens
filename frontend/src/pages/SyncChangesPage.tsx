@@ -36,6 +36,7 @@ import {
   type AvisoDelBarrido as AvisoDatos,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 function countPlayerPops(changes: SyncResult["changes"]): number {
   return changes.filter((c) => {
     const s = c.summary.toLowerCase();
@@ -86,55 +87,60 @@ function actionItems(changes: SyncResult["changes"]): {
 
   if (pops.length > 0) {
     items.push({
-      title: `${pops.length} subida(s) de habilidad`,
-      detail:
+      title: tx("{{v0}} subida(s) de habilidad", { v0: pops.length }),
+      detail: tx(
         "Revisa valor, ventana de venta y si conviene cambiar el plan de entrenamiento.",
+      ),
       tone: "positive",
     });
   }
   if (injuries.length > 0) {
     items.push({
-      title: `${injuries.length} cambio(s) de lesión`,
-      detail:
+      title: tx("{{v0}} cambio(s) de lesión", { v0: injuries.length }),
+      detail: tx(
         "Vuelve a calcular alineación y banquillo antes del próximo partido.",
+      ),
       tone: "danger",
     });
   }
   if (market.length > 0) {
     items.push({
-      title: `${market.length} movimiento(s) de mercado`,
-      detail:
+      title: tx("{{v0}} movimiento(s) de mercado", { v0: market.length }),
+      detail: tx(
         "Confirma si el jugador listado sigue encajando con tu economía y plan deportivo.",
+      ),
       tone: undefined,
     });
   }
   if (salary.length > 0) {
     items.push({
-      title: `${salary.length} cambio(s) de salario`,
-      detail: "Mira impacto en balance estructural y presión de caja.",
+      title: tx("{{v0}} cambio(s) de salario", { v0: salary.length }),
+      detail: tx("Mira impacto en balance estructural y presión de caja."),
       tone: undefined,
     });
   }
   if (finishedMatches.length > 0) {
     items.push({
-      title: `${finishedMatches.length} resultado(s) nuevo(s)`,
-      detail: "Abre Partidos para ver sectores, posesión y conversión.",
+      title: tx("{{v0}} resultado(s) nuevo(s)", { v0: finishedMatches.length }),
+      detail: tx("Abre Partidos para ver sectores, posesión y conversión."),
       tone: undefined,
     });
   }
   if (training.length > 0) {
     items.push({
-      title: "Cambio de entrenamiento detectado",
-      detail:
+      title: tx("Cambio de entrenamiento detectado"),
+      detail: tx(
         "Revisa Novedades y Entrenamiento para validar si el nuevo plan aprovecha los minutos jugados.",
+      ),
       tone: undefined,
     });
   }
   if (items.length === 0 && changes.length === 0) {
     items.push({
-      title: "Todo está al día",
-      detail:
+      title: tx("Todo está al día"),
+      detail: tx(
         "La sincronización no encontró diferencias reales contra el snapshot anterior.",
+      ),
       tone: "positive",
     });
   }
@@ -159,12 +165,20 @@ function SyncMetaSummary({
     <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className="font-medium uppercase tracking-wide text-[var(--muted)]">
-          Mecánica de la sincronización
+          {tx("Mecánica de la sincronización")}
         </span>
-        <span>última: {relative(data?.syncedAt ?? null)}</span>
-        <span>cambios nuevos: {changes.length}</span>
-        <span>jugadores comparados: {data?.playerRows.length ?? 0}</span>
-        <span>subidas de habilidad: {skillPops}</span>
+        <span>
+          {tx("última:")} {relative(data?.syncedAt ?? null)}
+        </span>
+        <span>
+          {tx("cambios nuevos:")} {changes.length}
+        </span>
+        <span>
+          {tx("jugadores comparados:")} {data?.playerRows.length ?? 0}
+        </span>
+        <span>
+          {tx("subidas de habilidad:")} {skillPops}
+        </span>
       </div>
     </div>
   );
@@ -187,7 +201,7 @@ function lastSyncGroups(data: LastSyncChanges): PlayerChangeGroup[] {
       if (row.salaryDelta) {
         changes.push({
           key: "salary",
-          label: "Salario",
+          label: tx("Salario"),
           before: row.salary - row.salaryDelta,
           current: row.salary,
           delta: row.salaryDelta,
@@ -322,16 +336,16 @@ function historyAggregate(data: ChangesHistory): AggregateMetric[] {
  *  por defecto: la vista de Cambios se pensó efímera, y las ventanas anchas
  *  hay que ir a buscarlas. */
 const HISTORY_WINDOWS = [
-  { key: "1", weeks: 1, label: "Última semana" },
-  { key: "2", weeks: 2, label: "Hace 2 semanas" },
-  { key: "4", weeks: 4, label: "Hace 4 semanas" },
-  { key: "8", weeks: 8, label: "Hace 8 semanas" },
-  { key: "16", weeks: 16, label: "Hace 16 semanas" },
+  { key: "1", weeks: 1, label: tx("Última semana") },
+  { key: "2", weeks: 2, label: tx("Hace 2 semanas") },
+  { key: "4", weeks: 4, label: tx("Hace 4 semanas") },
+  { key: "8", weeks: 8, label: tx("Hace 8 semanas") },
+  { key: "16", weeks: 16, label: tx("Hace 16 semanas") },
   // «Siempre» va al final y no es una ventana más larga: `weeks: 0` es el
   // centinela que le dice al motor que no ponga corte, y entonces cada
   // jugador se compara contra SU primer cierre guardado en vez de contra una
   // fecha común (2026-09-09, pedido del usuario).
-  { key: "siempre", weeks: 0, label: "Siempre" },
+  { key: "siempre", weeks: 0, label: tx("Siempre") },
 ] as const;
 
 type ChangesTab = "latest" | (typeof HISTORY_WINDOWS)[number]["key"];
@@ -395,14 +409,14 @@ function PreguntaDeVisitas() {
 
   return (
     <Panel
-      title="¿Cuántas veces lo vieron?"
-      meta="Hattrick solo lo dice al cerrarse la puja"
+      title={tx("¿Cuántas veces lo vieron?")}
+      meta={tx("Hattrick solo lo dice al cerrarse la puja")}
     >
       <div className="space-y-3 p-4">
         <p className="text-sm text-[var(--muted)]">
-          Se acaba de cerrar una puja. En la noticia de Hattrick aparece cuántas
-          veces miraron al jugador y a qué precio lo pedías. Ninguno de los dos
-          llega en la sincronización, así que si no los anotas ahora se pierden.
+          {tx(
+            "Se acaba de cerrar una puja. En la noticia de Hattrick aparece cuántas veces miraron al jugador y a qué precio lo pedías. Ninguno de los dos llega en la sincronización, así que si no los anotas ahora se pierden.",
+          )}
         </p>
         {pendientes.map((p) => (
           <div
@@ -411,12 +425,12 @@ function PreguntaDeVisitas() {
           >
             <span className="text-sm font-medium">{p.name}</span>
             <span className="text-xs text-[var(--muted)]">
-              cerró el {p.closedAt ? date(p.closedAt) : "?"}
+              {tx("cerró el")} {p.closedAt ? date(p.closedAt) : "?"}
             </span>
             <input
               type="number"
               min={0}
-              placeholder="precio pedido"
+              placeholder={tx("precio pedido")}
               value={precios[p.id] ?? ""}
               onChange={(e) =>
                 setPrecios((v) => ({ ...v, [p.id]: e.target.value }))
@@ -426,7 +440,7 @@ function PreguntaDeVisitas() {
             <input
               type="number"
               min={0}
-              placeholder="veces visto"
+              placeholder={tx("veces visto")}
               value={valores[p.id] ?? ""}
               onChange={(e) =>
                 setValores((v) => ({ ...v, [p.id]: e.target.value }))
@@ -444,22 +458,22 @@ function PreguntaDeVisitas() {
               disabled={!valores[p.id] && !precios[p.id]}
               className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
             >
-              Guardar
+              {tx("Guardar")}
             </button>
             <button
               onClick={() => responder.mutate({ id: p.id })}
-              title="No lo apunto ahora, pero el intento sigue contando"
+              title={tx("No lo apunto ahora, pero el intento sigue contando")}
               className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
             >
-              No sé
+              {tx("No sé")}
             </button>
             <BotonDeBorrado
               onConfirmar={() => borrar.mutate(p.id)}
-              title="Borrarlo: como si nunca hubiera llegado a la lista"
-              confirmacion="¿Seguro? No hay vuelta atrás"
+              title={tx("Borrarlo: como si nunca hubiera llegado a la lista")}
+              confirmacion={tx("¿Seguro? No hay vuelta atrás")}
               className="min-h-6 rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]"
             >
-              No tener en cuenta
+              {tx("No tener en cuenta")}
             </BotonDeBorrado>
           </div>
         ))}
@@ -571,10 +585,11 @@ export function SyncChangesPage() {
       )}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Cambios</h1>
+          <h1 className="text-xl font-semibold">{tx("Cambios")}</h1>
           <p className="text-sm text-[var(--muted)]">
-            Lo que movió la última sincronización, comparado contra el cierre
-            semanal anterior.
+            {tx(
+              "Lo que movió la última sincronización, comparado contra el cierre semanal anterior.",
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -584,7 +599,7 @@ export function SyncChangesPage() {
             to="/sync"
             className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
           >
-            Ir a Sincronización
+            {tx("Ir a Sincronización")}
           </Link>
         </div>
       </header>
@@ -603,8 +618,11 @@ export function SyncChangesPage() {
 
       {data && data.reportIsLatest && data.reportChanges.length === 0 && (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
-          <span className="font-medium text-[var(--text)]">Nada nuevo.</span> La
-          sincronización de {relative(data.syncedAt)} no encontró ningún cambio.
+          <span className="font-medium text-[var(--text)]">
+            {tx("Nada nuevo.")}
+          </span>{" "}
+          {tx("La sincronización de")} {relative(data.syncedAt)}{" "}
+          {tx("no encontró ningún cambio.")}
         </div>
       )}
 
@@ -628,15 +646,15 @@ export function SyncChangesPage() {
         (comparacion != null && vistas.includes(comparacion) ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-6 py-3">
             <span className="text-xs text-[var(--muted)]">
-              {changes.length} cambio(s) desde la última sincronización, ya
-              vistos.
+              {changes.length}{" "}
+              {tx("cambio(s) desde la última sincronización, ya vistos.")}
             </span>
             <button
               onClick={() => volverAAbrir(comparacion)}
               data-track="Cambios: volver a abrir"
               className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
             >
-              Volver a abrir
+              {tx("Volver a abrir")}
             </button>
           </div>
         ) : (
@@ -649,8 +667,8 @@ export function SyncChangesPage() {
 
       {actions.length > 0 && (
         <Panel
-          title="Qué haría ahora"
-          meta="lo accionable, ya con los cambios delante"
+          title={tx("Qué haría ahora")}
+          meta={tx("lo accionable, ya con los cambios delante")}
         >
           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
             {actions.map((item) => (
@@ -681,16 +699,16 @@ export function SyncChangesPage() {
       {/* El detalle, de lo que más cambia una decisión a lo que menos. Los
           jugadores primero: es lo que el usuario vino a ver. */}
       <Panel
-        title="Cambios por jugador"
-        meta="jugador por jugador, habilidad por habilidad"
+        title={tx("Cambios por jugador")}
+        meta={tx("jugador por jugador, habilidad por habilidad")}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           {/* Mismo feed, distinto tramo del histórico: es un filtro. */}
           <Tabs
             modo="filtro"
-            label="Tramo del histórico"
+            label={tx("Tramo del histórico")}
             tabs={[
-              { key: "latest", label: "Última lectura" },
+              { key: "latest", label: tx("Última lectura") },
               ...HISTORY_WINDOWS.map((w) => ({ key: w.key, label: w.label })),
             ]}
             active={changesTab}
@@ -698,24 +716,30 @@ export function SyncChangesPage() {
           />
           <span className="text-xs text-[var(--muted)]">
             {window == null
-              ? "última comparación semanal guardada"
+              ? tx("última comparación semanal guardada")
               : window.weeks === 0
                 ? // «Siempre» no tiene UNA fecha: cada jugador se compara
                   // contra su propio primer cierre, así que decir «contra el
                   // cierre del 26/07» sería falso para todo el que llegara
                   // después. Y «siempre» es desde que esta aplicación mira,
                   // no desde que el jugador existe: eso también se dice.
-                  "contra el primer dato guardado de cada jugador, que es desde cuando esta aplicación lo mira"
+                  tx(
+                    "contra el primer dato guardado de cada jugador, que es desde cuando esta aplicación lo mira",
+                  )
                 : history.data?.comparedFrom
-                  ? `neto contra el cierre del ${date(history.data.comparedFrom)}`
-                  : `cambio neto en ${window.weeks} semana(s)`}
+                  ? tx("neto contra el cierre del {{v0}}", {
+                      v0: date(history.data.comparedFrom),
+                    })
+                  : tx("cambio neto en {{v0}} semana(s)", { v0: window.weeks })}
           </span>
         </div>
         {changesTab === "latest" && data && (
           <GroupedPlayerChanges
             groups={lastSyncGroups(data)}
             aggregate={lastSyncAggregate(data)}
-            emptyMessage="No hubo variaciones de jugadores en la última comparación guardada."
+            emptyMessage={tx(
+              "No hubo variaciones de jugadores en la última comparación guardada.",
+            )}
           />
         )}
         {window != null && history.isError && (
@@ -780,9 +804,10 @@ export function SyncChangesPage() {
       {deRivales.length > 0 && (
         <details className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
           <summary className="cursor-pointer px-4 py-3 text-sm">
-            Movimientos de tus rivales{" "}
+            {tx("Movimientos de tus rivales")}{" "}
             <span className="text-[var(--muted)]">
-              ({deRivales.length}), no son cambios de tu club
+              ({deRivales.length}
+              {tx("), no son cambios de tu club")}
             </span>
           </summary>
           <ul className="space-y-1 border-t border-[var(--border)] px-4 py-3">

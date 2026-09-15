@@ -7,6 +7,7 @@ import { api } from "../services/api";
 import type { UsageSummary, UsageUser } from "../services/api";
 import { usePersistido } from "../hooks/usePersistido";
 
+import { tx } from "../i18n/tx";
 /** Qué usa la gente. Sólo la abre el administrador, la comprobación de verdad
  *  está en el servidor, en `require_admin`; esconder el enlace no protege nada.
  *
@@ -72,10 +73,10 @@ const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
 const td = "px-3 py-2 text-sm";
 
 const SECCIONES = [
-  { key: "resumen", label: "Resumen" },
-  { key: "personas", label: "Personas" },
-  { key: "adopcion", label: "Adopción" },
-  { key: "registro", label: "Registro" },
+  { key: "resumen", label: tx("Resumen") },
+  { key: "personas", label: tx("Personas") },
+  { key: "adopcion", label: tx("Adopción") },
+  { key: "registro", label: tx("Registro") },
 ] as const;
 type Seccion = (typeof SECCIONES)[number]["key"];
 
@@ -103,9 +104,11 @@ export function UsagePage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Uso de la aplicación</h1>
+          <h1 className="text-xl font-semibold">
+            {tx("Uso de la aplicación")}
+          </h1>
           <p className="text-sm text-[var(--muted)]">
-            Qué se usa de verdad, medido en tu propio servidor.
+            {tx("Qué se usa de verdad, medido en tu propio servidor.")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -121,7 +124,7 @@ export function UsagePage() {
                   : "border-[var(--border)] text-[var(--muted)]"
               }`}
             >
-              {p} días
+              {p} {tx("días")}
             </button>
           ))}
           <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
@@ -132,7 +135,7 @@ export function UsagePage() {
               data-track="Uso: excluirme"
               className="accent-[var(--accent)]"
             />
-            Sin mis visitas
+            {tx("Sin mis visitas")}
           </label>
           {/* Descarga directa, sin pasar por React: el navegador la resuelve
               solo. Es la salida de emergencia si la base se pierde, no tiene
@@ -142,18 +145,21 @@ export function UsagePage() {
             data-track="Uso: exportar CSV"
             className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)]"
           >
-            Exportar CSV
+            {tx("Exportar CSV")}
           </a>
         </div>
       </header>
 
-      {isLoading && <p className="text-sm text-[var(--muted)]">Cargando…</p>}
+      {isLoading && (
+        <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+      )}
 
       {data && data.totals.pages === 0 && (
-        <Panel title="Todavía no hay nada que enseñar">
+        <Panel title={tx("Todavía no hay nada que enseñar")}>
           <p className="p-4 text-sm text-[var(--muted)]">
-            La medición empieza el día que se despliega: no hay datos de antes.
-            Navega un poco y vuelve.
+            {tx(
+              "La medición empieza el día que se despliega: no hay datos de antes. Navega un poco y vuelve.",
+            )}
           </p>
         </Panel>
       )}
@@ -165,7 +171,7 @@ export function UsagePage() {
             active={seccion}
             onChange={setSeccion}
             grupo="uso"
-            label="Secciones de uso"
+            label={tx("Secciones de uso")}
           />
           <PanelDePestanas grupo="uso" activa={seccion} className="space-y-4">
             {seccion === "resumen" && <Resumen data={data} />}
@@ -190,48 +196,51 @@ function Resumen({ data }: { data: UsageSummary }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Cifra de="Sesiones" valor={cifra(data.totals.sessions)} />
-        <Cifra de="Páginas vistas" valor={cifra(data.totals.pages)} />
-        <Cifra de="Clics" valor={cifra(data.totals.clicks)} />
-        <Cifra de="Tiempo total" valor={desdeMinutos(data.totals.minutes)} />
+        <Cifra de={tx("Sesiones")} valor={cifra(data.totals.sessions)} />
+        <Cifra de={tx("Páginas vistas")} valor={cifra(data.totals.pages)} />
+        <Cifra de={tx("Clics")} valor={cifra(data.totals.clicks)} />
+        <Cifra
+          de={tx("Tiempo total")}
+          valor={desdeMinutos(data.totals.minutes)}
+        />
         {/* La MEDIANA, no la media: una pestaña olvidada dispara el
             promedio y deja de describir a nadie. */}
         <Cifra
-          de="Sesión típica"
+          de={tx("Sesión típica")}
           valor={duracion(data.totals.medianSessionSeconds)}
         />
         <Cifra
-          de="Clics por sesión"
+          de={tx("Clics por sesión")}
           valor={cifra(data.totals.clicksPerSession)}
         />
       </div>
 
-      <Panel title="Por módulo" meta="ordenado por tiempo dentro">
+      <Panel title={tx("Por módulo")} meta={tx("ordenado por tiempo dentro")}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[var(--surface-2)]">
               <tr>
                 <th scope="col" className={`${th} text-left`}>
-                  Módulo
+                  {tx("Módulo")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Visitas
+                  {tx("Visitas")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Clics
+                  {tx("Clics")}
                 </th>
                 <th
                   scope="col"
                   className={`${th} text-right`}
-                  title="con la pestaña de verdad visible"
+                  title={tx("con la pestaña de verdad visible")}
                 >
-                  Tiempo
+                  {tx("Tiempo")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Por visita
+                  {tx("Por visita")}
                 </th>
                 <th scope="col" className={`${th} text-left`}>
-                  Reparto
+                  {tx("Reparto")}
                 </th>
               </tr>
             </thead>
@@ -250,7 +259,7 @@ function Resumen({ data }: { data: UsageSummary }) {
                     }`}
                     title={
                       m.clicks === 0
-                        ? "se mira, pero no se toca nada"
+                        ? tx("se mira, pero no se toca nada")
                         : undefined
                     }
                   >
@@ -275,10 +284,13 @@ function Resumen({ data }: { data: UsageSummary }) {
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Panel title="Lo más pulsado" meta="qué se usa, no qué se mira">
+        <Panel
+          title={tx("Lo más pulsado")}
+          meta={tx("qué se usa, no qué se mira")}
+        >
           {data.topControls.length === 0 ? (
             <p className="p-4 text-sm text-[var(--muted)]">
-              Ningún clic todavía.
+              {tx("Ningún clic todavía.")}
             </p>
           ) : (
             <ul className="divide-y divide-[var(--border)]">
@@ -297,14 +309,14 @@ function Resumen({ data }: { data: UsageSummary }) {
           )}
         </Panel>
 
-        <Panel title="A qué horas" meta="hora del servidor, UTC">
+        <Panel title={tx("A qué horas")} meta={tx("hora del servidor, UTC")}>
           <div className="flex h-32 items-end gap-[2px] p-4">
             {Array.from({ length: 24 }, (_, h) => {
               const n = data.byHour[String(h)] ?? 0;
               return (
                 <span
                   key={h}
-                  title={`${h}:00 · ${n} eventos`}
+                  title={tx("{{v0}}:00 · {{v1}} eventos", { v0: h, v1: n })}
                   className="flex-1 rounded-t bg-[var(--accent)]"
                   style={{ height: `${Math.max(2, (n / maxHora) * 100)}%` }}
                 />
@@ -314,25 +326,25 @@ function Resumen({ data }: { data: UsageSummary }) {
         </Panel>
       </div>
 
-      <Panel title="Sesiones recientes" meta="las 25 últimas">
+      <Panel title={tx("Sesiones recientes")} meta={tx("las 25 últimas")}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[var(--surface-2)]">
               <tr>
                 <th scope="col" className={`${th} text-left`}>
-                  Empezó
+                  {tx("Empezó")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Duró
+                  {tx("Duró")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Páginas
+                  {tx("Páginas")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Clics
+                  {tx("Clics")}
                 </th>
                 <th scope="col" className={`${th} text-left`}>
-                  Por dónde pasó
+                  {tx("Por dónde pasó")}
                 </th>
               </tr>
             </thead>
@@ -372,16 +384,16 @@ function Personas({ data }: { data: UsageSummary }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Cifra de="Personas activas" valor={cifra(data.activeUsers)} />
-        <Cifra de="Registradas" valor={cifra(data.registeredUsers)} />
+        <Cifra de={tx("Personas activas")} valor={cifra(data.activeUsers)} />
+        <Cifra de={tx("Registradas")} valor={cifra(data.registeredUsers)} />
         {/* La cifra incómoda, y por eso está: quien se registró y no ha
             vuelto no aparece en ninguna tabla ordenada por uso. */}
         <Cifra
-          de="Sin aparecer en el plazo"
+          de={tx("Sin aparecer en el plazo")}
           valor={cifra(Math.max(0, callados))}
         />
         <Cifra
-          de="Páginas por persona"
+          de={tx("Páginas por persona")}
           valor={cifra(
             data.activeUsers > 0
               ? Math.round(data.totals.pages / data.activeUsers)
@@ -391,47 +403,49 @@ function Personas({ data }: { data: UsageSummary }) {
       </div>
 
       <Panel
-        title="Quién usa qué"
-        meta="pulsa una fila para ver su desglose por pantalla"
+        title={tx("Quién usa qué")}
+        meta={tx("pulsa una fila para ver su desglose por pantalla")}
       >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[var(--surface-2)]">
               <tr>
                 <th scope="col" className={`${th} text-left`}>
-                  Persona
+                  {tx("Persona")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Sesiones
+                  {tx("Sesiones")}
                 </th>
                 <th
                   scope="col"
                   className={`${th} text-right`}
-                  title="días distintos con actividad, no visitas"
+                  title={tx("días distintos con actividad, no visitas")}
                 >
-                  Días activos
+                  {tx("Días activos")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Páginas
+                  {tx("Páginas")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Clics
+                  {tx("Clics")}
                 </th>
                 <th
                   scope="col"
                   className={`${th} text-right`}
-                  title="mirar o trabajar: cuántas cosas toca cada vez que entra"
+                  title={tx(
+                    "mirar o trabajar: cuántas cosas toca cada vez que entra",
+                  )}
                 >
-                  Clics/página
+                  {tx("Clics/página")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Tiempo
+                  {tx("Tiempo")}
                 </th>
                 <th scope="col" className={`${th} text-left`}>
-                  Donde vive
+                  {tx("Donde vive")}
                 </th>
                 <th scope="col" className={`${th} text-left`}>
-                  Última vez
+                  {tx("Última vez")}
                 </th>
               </tr>
             </thead>
@@ -499,7 +513,9 @@ function FilaDePersona({
           className={`${td} text-right tabular-nums ${
             u.clicksPerPage === 0 ? "text-[var(--warning)]" : ""
           }`}
-          title={u.clicksPerPage === 0 ? "sólo mira, no toca nada" : undefined}
+          title={
+            u.clicksPerPage === 0 ? tx("sólo mira, no toca nada") : undefined
+          }
         >
           {u.clicksPerPage}
         </td>
@@ -521,22 +537,22 @@ function FilaDePersona({
               <thead>
                 <tr>
                   <th scope="col" className={`${th} text-left`}>
-                    Pantalla
+                    {tx("Pantalla")}
                   </th>
                   <th scope="col" className={`${th} text-right`}>
-                    Visitas
+                    {tx("Visitas")}
                   </th>
                   <th scope="col" className={`${th} text-right`}>
-                    Clics
+                    {tx("Clics")}
                   </th>
                   <th scope="col" className={`${th} text-right`}>
-                    Tiempo
+                    {tx("Tiempo")}
                   </th>
                   <th scope="col" className={`${th} text-right`}>
-                    Por visita
+                    {tx("Por visita")}
                   </th>
                   <th scope="col" className={`${th} text-left`}>
-                    Reparto
+                    {tx("Reparto")}
                   </th>
                 </tr>
               </thead>
@@ -578,48 +594,48 @@ function Adopcion({ data }: { data: UsageSummary }) {
   return (
     <>
       <Panel
-        title="A qué se vuelve"
-        meta="ordenado por cuánta gente distinta la abre"
+        title={tx("A qué se vuelve")}
+        meta={tx("ordenado por cuánta gente distinta la abre")}
       >
         {/* El único aviso de la pantalla, y hace falta: sin él, la tabla se
             lee como el ranking de siempre y no lo es. */}
         <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
-          Volumen y arraigo no son lo mismo. Una pantalla puede acumular horas
-          porque alguien la dejó abierta; otra tener pocas visitas pero de mucha
-          gente, y repetidas. Ésta ordena por lo segundo.
+          {tx(
+            "Volumen y arraigo no son lo mismo. Una pantalla puede acumular horas porque alguien la dejó abierta; otra tener pocas visitas pero de mucha gente, y repetidas. Ésta ordena por lo segundo.",
+          )}
         </p>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[var(--surface-2)]">
               <tr>
                 <th scope="col" className={`${th} text-left`}>
-                  Pantalla
+                  {tx("Pantalla")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Personas
+                  {tx("Personas")}
                 </th>
                 <th
                   scope="col"
                   className={`${th} text-left`}
-                  title="de las que aparecieron en el plazo"
+                  title={tx("de las que aparecieron en el plazo")}
                 >
-                  Alcance
+                  {tx("Alcance")}
                 </th>
                 <th
                   scope="col"
                   className={`${th} text-right`}
-                  title="abrirla una vez y no volver da 1"
+                  title={tx("abrirla una vez y no volver da 1")}
                 >
-                  Visitas/persona
+                  {tx("Visitas/persona")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Días
+                  {tx("Días")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Clics/visita
+                  {tx("Clics/visita")}
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Tiempo
+                  {tx("Tiempo")}
                 </th>
               </tr>
             </thead>
@@ -640,7 +656,7 @@ function Adopcion({ data }: { data: UsageSummary }) {
                     }`}
                     title={
                       a.visitsPerUser <= 1
-                        ? "se abre una vez y no se vuelve"
+                        ? tx("se abre una vez y no se vuelve")
                         : undefined
                     }
                   >
@@ -662,8 +678,8 @@ function Adopcion({ data }: { data: UsageSummary }) {
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Panel
-          title="Dentro de cada pantalla"
-          meta="lo más pulsado ahí, no en el ranking general"
+          title={tx("Dentro de cada pantalla")}
+          meta={tx("lo más pulsado ahí, no en el ranking general")}
         >
           <ul className="divide-y divide-[var(--border)]">
             {data.insideEach.map((s) => (
@@ -686,18 +702,19 @@ function Adopcion({ data }: { data: UsageSummary }) {
         </Panel>
 
         <Panel
-          title="Nadie las abrió"
-          meta={`en los últimos ${data.days} días`}
+          title={tx("Nadie las abrió")}
+          meta={tx("en los últimos {{v0}} días", { v0: data.days })}
         >
           {data.untouched.length === 0 ? (
             <p className="p-4 text-sm text-[var(--muted)]">
-              Todas las pantallas tuvieron al menos una visita.
+              {tx("Todas las pantallas tuvieron al menos una visita.")}
             </p>
           ) : (
             <>
               <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
-                Un ranking por uso deja el cero fuera del final, donde no se ve.
-                Una pantalla que nadie abre es una decisión pendiente.
+                {tx(
+                  "Un ranking por uso deja el cero fuera del final, donde no se ve. Una pantalla que nadie abre es una decisión pendiente.",
+                )}
               </p>
               <ul className="flex flex-wrap gap-2 p-4">
                 {data.untouched.map((m) => (
@@ -772,16 +789,20 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
 
   return (
     <Panel
-      title="Registro"
+      title={tx("Registro")}
       meta={
         data
-          ? `${data.total} eventos · viendo ${data.total === 0 ? 0 : desdeFila + 1}–${hasta}`
+          ? tx("{{v0}} eventos · viendo {{v1}}–{{v2}}", {
+              v0: data.total,
+              v1: data.total === 0 ? 0 : desdeFila + 1,
+              v2: hasta,
+            })
           : undefined
       }
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
         <label className="text-xs text-[var(--muted)]">
-          Persona
+          {tx("Persona")}
           <select
             value={usuario ?? ""}
             onChange={(e) =>
@@ -792,7 +813,7 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
             data-track="Uso: filtrar por persona"
             className={`ml-1.5 ${control}`}
           >
-            <option value="">Todas</option>
+            <option value="">{tx("Todas")}</option>
             {(data?.users ?? []).map((u) => (
               <option key={u.userId} value={u.userId}>
                 {u.name}
@@ -801,14 +822,14 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
           </select>
         </label>
         <label className="text-xs text-[var(--muted)]">
-          Pantalla
+          {tx("Pantalla")}
           <select
             value={modulo}
             onChange={(e) => filtrar(() => setModulo(e.target.value))}
             data-track="Uso: filtrar por pantalla"
             className={`ml-1.5 ${control}`}
           >
-            <option value="">Todas</option>
+            <option value="">{tx("Todas")}</option>
             {(data?.modules ?? []).map((m) => (
               <option key={m} value={m}>
                 {m}
@@ -817,7 +838,7 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
           </select>
         </label>
         <label className="text-xs text-[var(--muted)]">
-          Tipo
+          {tx("Tipo")}
           <select
             value={tipo}
             onChange={(e) =>
@@ -826,9 +847,9 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
             data-track="Uso: filtrar por tipo"
             className={`ml-1.5 ${control}`}
           >
-            <option value="">Todo</option>
-            <option value="page">Visitas</option>
-            <option value="click">Clics</option>
+            <option value="">{tx("Todo")}</option>
+            <option value="page">{tx("Visitas")}</option>
+            <option value="click">{tx("Clics")}</option>
           </select>
         </label>
         <form
@@ -841,8 +862,8 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
           <input
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            placeholder="Etiqueta del control…"
-            aria-label="Buscar por etiqueta del control"
+            placeholder={tx("Etiqueta del control…")}
+            aria-label={tx("Buscar por etiqueta del control")}
             className={control}
           />
           <button
@@ -850,11 +871,11 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
             data-track="Uso: buscar en el registro"
             className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)]"
           >
-            Buscar
+            {tx("Buscar")}
           </button>
         </form>
         {isFetching && (
-          <span className="text-xs text-[var(--muted)]">Cargando…</span>
+          <span className="text-xs text-[var(--muted)]">{tx("Cargando…")}</span>
         )}
       </div>
 
@@ -863,25 +884,25 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>
-                Cuándo
+                {tx("Cuándo")}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Persona
+                {tx("Persona")}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Qué
+                {tx("Qué")}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Pantalla
+                {tx("Pantalla")}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Control
+                {tx("Control")}
               </th>
               <th scope="col" className={`${th} text-right`}>
-                Visible
+                {tx("Visible")}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Sesión
+                {tx("Sesión")}
               </th>
             </tr>
           </thead>
@@ -893,7 +914,7 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
                 </td>
                 <td className={td}>{f.name}</td>
                 <td className={`${td} text-[var(--muted)]`}>
-                  {f.kind === "page" ? "Visita" : "Clic"}
+                  {f.kind === "page" ? tx("Visita") : tx("Clic")}
                 </td>
                 <td className={td}>{f.module}</td>
                 <td className={td}>{f.label ?? "-"}</td>
@@ -919,7 +940,7 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
 
       {data && data.total === 0 && (
         <p className="p-4 text-sm text-[var(--muted)]">
-          Nada que cumpla ese filtro.
+          {tx("Nada que cumpla ese filtro.")}
         </p>
       )}
 
@@ -931,10 +952,10 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
             data-track="Uso: registro anterior"
             className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-40"
           >
-            Anteriores
+            {tx("Anteriores")}
           </button>
           <span className="text-xs tabular-nums text-[var(--muted)]">
-            {desdeFila + 1}–{hasta} de {data.total}
+            {desdeFila + 1}–{hasta} {tx("de")} {data.total}
           </span>
           <button
             onClick={() => setDesdeFila(desdeFila + POR_PAGINA)}
@@ -942,7 +963,7 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
             data-track="Uso: registro siguiente"
             className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-40"
           >
-            Siguientes
+            {tx("Siguientes")}
           </button>
         </div>
       )}

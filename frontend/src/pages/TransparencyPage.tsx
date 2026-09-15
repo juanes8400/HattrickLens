@@ -19,6 +19,7 @@ import type {
   TrainingFormula,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Transparencia: como se calcula cada numero de la herramienta.
  *
@@ -71,9 +72,11 @@ export function TransparencyPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Transparencia</h1>
+        <h1 className="text-xl font-semibold">{tx("Transparencia")}</h1>
         <p className="text-sm text-[var(--muted)]">
-          Cómo se calcula cada número, con qué constantes y hasta dónde vale
+          {tx(
+            "Cómo se calcula cada número, con qué constantes y hasta dónde vale",
+          )}
         </p>
       </header>
 
@@ -85,7 +88,7 @@ export function TransparencyPage() {
             label: `${s.name} · ${s.calcs.length}`,
           }))}
           active={seccion.id}
-          label="Sección"
+          label={tx("Sección")}
           onChange={(id) => irA(id, null)}
         />
       </div>
@@ -103,7 +106,7 @@ export function TransparencyPage() {
             grupo="transparencia-calculo"
             tabs={seccion.calcs.map((c) => ({ key: c.id, label: c.name }))}
             active={calculo.id}
-            label={`Cálculos de ${seccion.name}`}
+            label={tx("Cálculos de {{v0}}", { v0: seccion.name })}
             onChange={(id) => irA(seccion.id, id)}
           />
         )}
@@ -197,7 +200,7 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
         {(calculo.sources ?? []).length > 0 && (
           <div>
             <h3 className="mb-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
-              De dónde sale cada dato
+              {tx("De dónde sale cada dato")}
             </h3>
             <table className="w-full text-xs">
               <tbody className="divide-y divide-[var(--border)]">
@@ -217,7 +220,7 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
         {(calculo.constants ?? []).length > 0 && (
           <div>
             <h3 className="mb-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
-              Las constantes, leídas del motor
+              {tx("Las constantes, leídas del motor")}
             </h3>
             <table className="w-full text-xs">
               <tbody className="divide-y divide-[var(--border)]">
@@ -244,7 +247,7 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
         {(calculo.steps ?? []).length > 0 && (
           <div>
             <h3 className="mb-2 text-[10px] tracking-wide text-[var(--muted)] uppercase">
-              La cuenta, paso a paso
+              {tx("La cuenta, paso a paso")}
             </h3>
             {/* Numerada de verdad (`ol`): el orden es la mitad del contenido,
                 y un lector de pantalla tiene que oir «paso 3 de 5». */}
@@ -264,7 +267,7 @@ function FichaDelCalculo({ calculo }: { calculo: Calculo }) {
         {(calculo.limits ?? []).length > 0 && (
           <div>
             <h3 className="mb-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
-              Hasta dónde vale
+              {tx("Hasta dónde vale")}
             </h3>
             <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-[var(--muted)]">
               {(calculo.limits ?? []).map((l) => (
@@ -363,41 +366,40 @@ function PositionsPanel({
 }) {
   if (isLoading)
     return (
-      <Panel title="La matriz">
+      <Panel title={tx("La matriz")}>
         <Loading />
       </Panel>
     );
   if (isError || !data)
     return (
-      <Panel title="La matriz">
-        <Note>La matriz de posiciones no está disponible.</Note>
+      <Panel title={tx("La matriz")}>
+        <Note>{tx("La matriz de posiciones no está disponible.")}</Note>
       </Panel>
     );
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-        <Kpi label="Posiciones" value={String(data.positions)} />
-        <Kpi label="Roles especiales" value={String(data.specialRoles)} />
+        <Kpi label={tx("Posiciones")} value={String(data.positions)} />
+        <Kpi label={tx("Roles especiales")} value={String(data.specialRoles)} />
         <Kpi
-          label="Matriz"
-          value="Manual no Escrito"
-          hint="aportes por posición y orden individual"
+          label={tx("Matriz")}
+          value={tx("Manual no Escrito")}
+          hint={tx("aportes por posición y orden individual")}
         />
         <Kpi
-          label="Índice"
-          value="Aporte total"
-          hint="a defensa, medio y ataque"
+          label={tx("Índice")}
+          value={tx("Aporte total")}
+          hint={tx("a defensa, medio y ataque")}
         />
       </div>
 
-      <Panel title="La matriz" meta={data.configPath}>
+      <Panel title={tx("La matriz")} meta={data.configPath}>
         <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
           <p>
-            <b className="text-[var(--text)]">{data.source}</b> aporta la matriz
-            numérica actual; los diecinueve roles y sus órdenes individuales
-            vienen de la práctica establecida de la comunidad. El resultado es
-            un índice de aporte a sectores, no una estrella ni un rating oficial
-            de Hattrick.
+            <b className="text-[var(--text)]">{data.source}</b>{" "}
+            {tx(
+              "aporta la matriz numérica actual; los diecinueve roles y sus órdenes individuales vienen de la práctica establecida de la comunidad. El resultado es un índice de aporte a sectores, no una estrella ni un rating oficial de Hattrick.",
+            )}
           </p>
           <a
             href={data.sourceUrl}
@@ -405,7 +407,7 @@ function PositionsPanel({
             rel="noreferrer"
             className="inline-flex text-[var(--accent)] underline underline-offset-2"
           >
-            Abrir la fuente del Manual
+            {tx("Abrir la fuente del Manual")}
           </a>
           <div className="grid gap-2 sm:grid-cols-2">
             {Object.entries(data.adjustments).map(([name, formula]) => (
@@ -464,8 +466,8 @@ function MatrizDePosiciones({ filas }: { filas: PositionMatrixRow[] }) {
 
   return (
     <Panel
-      title="La matriz, puesto por puesto"
-      meta={`${filas.length} puestos`}
+      title={tx("La matriz, puesto por puesto")}
+      meta={tx("{{v0}} puestos", { v0: filas.length })}
     >
       {/* Scroll propio: con cinco sectores la tabla no cabe en un móvil, y sin
           esto era la PÁGINA la que se movía de lado. */}
@@ -473,7 +475,9 @@ function MatrizDePosiciones({ filas }: { filas: PositionMatrixRow[] }) {
         <table className="w-full min-w-[46rem] text-xs">
           <thead>
             <tr className="border-b border-[var(--border)] text-[10px] uppercase tracking-wide text-[var(--muted)]">
-              <th className="px-4 py-2 text-left font-medium">Puesto</th>
+              <th className="px-4 py-2 text-left font-medium">
+                {tx("Puesto")}
+              </th>
               {sectores.map((s) => (
                 <th key={s.id} className="px-3 py-2 text-left font-medium">
                   {s.label}
@@ -514,9 +518,9 @@ function MatrizDePosiciones({ filas }: { filas: PositionMatrixRow[] }) {
         </table>
       </div>
       <p className="prosa border-t border-[var(--border)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
-        Cada número es lo que ese puesto aporta a ese sector por cada nivel de
-        esa habilidad. Un «·» significa que el puesto no aporta nada a ese
-        sector. Salen del fichero tal cual, sin redondear.
+        {tx(
+          "Cada número es lo que ese puesto aporta a ese sector por cada nivel de esa habilidad. Un «·» significa que el puesto no aporta nada a ese sector. Salen del fichero tal cual, sin redondear.",
+        )}
       </p>
     </Panel>
   );
@@ -526,11 +530,15 @@ function ReferenceNote({ reference }: { reference: CalculationReference }) {
   return (
     <div className="prosa rounded border border-[var(--border)] bg-[var(--surface-2)] p-3 text-[11px] leading-relaxed">
       <b className="text-[var(--text)]">
-        Referencia: {reference.implementation}
+        {tx("Referencia:")} {reference.implementation}
       </b>{" "}
       <span className="font-mono">[{reference.status}]</span>
-      <p className="mt-1">Recuperado: {reference.recovered}</p>
-      <p className="mt-1">Pendiente: {reference.pending}</p>
+      <p className="mt-1">
+        {tx("Recuperado:")} {reference.recovered}
+      </p>
+      <p className="mt-1">
+        {tx("Pendiente:")} {reference.pending}
+      </p>
     </div>
   );
 }
@@ -552,14 +560,14 @@ function ExperiencePanel({
 }) {
   if (isLoading)
     return (
-      <Panel title="Puntos de experiencia por nivel">
+      <Panel title={tx("Puntos de experiencia por nivel")}>
         <Loading />
       </Panel>
     );
   if (isError || !data) {
     return (
-      <Panel title="Puntos de experiencia por nivel">
-        <Note>No se pudo leer la calibración de experiencia.</Note>
+      <Panel title={tx("Puntos de experiencia por nivel")}>
+        <Note>{tx("No se pudo leer la calibración de experiencia.")}</Note>
       </Panel>
     );
   }
@@ -569,18 +577,22 @@ function ExperiencePanel({
 
   return (
     <Panel
-      title="Puntos de experiencia por nivel"
-      meta={measured ? "medido" : "valor configurado"}
+      title={tx("Puntos de experiencia por nivel")}
+      meta={measured ? tx("medido") : tx("valor configurado")}
     >
       <div className="grid gap-4 border-b border-[var(--border)] p-4 sm:grid-cols-3 [&>*]:min-w-0">
         <Kpi
-          label="Puntos por nivel"
+          label={tx("Puntos por nivel")}
           value={data.pointsPerLevel.toFixed(2)}
-          hint={measured ? "media observada" : "especificación, aún sin datos"}
+          hint={
+            measured
+              ? tx("media observada")
+              : tx("especificación, aún sin datos")
+          }
           tone={measured ? "positive" : undefined}
         />
         <Kpi
-          label="Desviación estándar"
+          label={tx("Desviación estándar")}
           value={
             data.standardDeviation === null
               ? "-"
@@ -588,17 +600,22 @@ function ExperiencePanel({
           }
           hint={
             interval
-              ? `intervalo 95%: ${interval[0].toFixed(2)} – ${interval[1].toFixed(2)}`
-              : "hace falta más de una observación"
+              ? tx("intervalo 95%: {{v0}} – {{v1}}", {
+                  v0: interval[0].toFixed(2),
+                  v1: interval[1].toFixed(2),
+                })
+              : tx("hace falta más de una observación")
           }
         />
         <Kpi
-          label="Subidas observadas"
+          label={tx("Subidas observadas")}
           value={String(data.observations)}
           hint={
             data.observationsNeeded > 0
-              ? `faltan ${data.observationsNeeded} para calibrar`
-              : "suficientes para calibrar"
+              ? tx("faltan {{v0}} para calibrar", {
+                  v0: data.observationsNeeded,
+                })
+              : tx("suficientes para calibrar")
           }
         />
       </div>
@@ -606,27 +623,33 @@ function ExperiencePanel({
       <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
         {measured ? (
           <p>
-            La cifra ya no viene de la especificación sino de tus jugadores: es
-            la media de los puntos de partidos reales acumulados entre dos
-            subidas observadas. El valor configurado era{" "}
-            {data.configuredPointsPerLevel}. La desviación estándar dice cuánto
-            vale fiarse de la media: si es pequeña, el número es real; si es
-            grande, las subidas no cuestan siempre lo mismo y conviene mirar el
-            desglose por nivel.
+            {tx(
+              "La cifra ya no viene de la especificación sino de tus jugadores: es la media de los puntos de partidos reales acumulados entre dos subidas observadas. El valor configurado era",
+            )}{" "}
+            {data.configuredPointsPerLevel}
+            {tx(
+              ". La desviación estándar dice cuánto vale fiarse de la media: si es pequeña, el número es real; si es grande, las subidas no cuestan siempre lo mismo y conviene mirar el desglose por nivel.",
+            )}
           </p>
         ) : (
           <p>
-            Todavía se usa el valor configurado, {data.configuredPointsPerLevel}
-            . Se sustituirá por la media observada en cuanto se registren{" "}
-            {data.observationsNeeded} subidas más. Una media sobre una o dos
-            observaciones no es evidencia, y presentarla como tal sería peor que
-            usar el valor de partida. Sincronizaciones vistas:{" "}
-            {data.distinctReadings} lecturas, {data.crossingsSeen} cruces de
-            nivel detectados
+            {tx("Todavía se usa el valor configurado,")}{" "}
+            {data.configuredPointsPerLevel}
+            {tx(
+              ". Se sustituirá por la media observada en cuanto se registren",
+            )}{" "}
+            {data.observationsNeeded}{" "}
+            {tx(
+              "subidas más. Una media sobre una o dos observaciones no es evidencia, y presentarla como tal sería peor que usar el valor de partida. Sincronizaciones vistas:",
+            )}{" "}
+            {data.distinctReadings} {tx("lecturas,")} {data.crossingsSeen}{" "}
+            {tx("cruces de nivel detectados")}
             {data.discardedCrossings > 0 && (
               <>
-                ; {data.discardedCrossings} sin un intervalo completo de
-                partidos y por eso excluidos.
+                ; {data.discardedCrossings}{" "}
+                {tx(
+                  "sin un intervalo completo de partidos y por eso excluidos.",
+                )}
               </>
             )}
           </p>
@@ -634,26 +657,31 @@ function ExperiencePanel({
 
         {Object.keys(data.byLevel).length > 0 && (
           <div>
-            <b className="text-[var(--text)]">Coste por nivel de partida</b>
+            <b className="text-[var(--text)]">
+              {tx("Coste por nivel de partida")}
+            </b>
             <div className="mt-2 flex flex-wrap gap-2">
               {Object.entries(data.byLevel).map(([level, value]) => (
                 <span
                   key={level}
                   className="rounded bg-[var(--surface-2)] px-2 py-1 font-mono text-[11px] text-[var(--text)]"
                 >
-                  nivel {level} → {value.toFixed(1)}
+                  {tx("nivel")} {level} → {value.toFixed(1)}
                 </span>
               ))}
             </div>
             <p className="mt-2">
-              Si estos valores se separan, el coste por nivel no es constante y
-              la media única deja de ser la respuesta correcta.
+              {tx(
+                "Si estos valores se separan, el coste por nivel no es constante y la media única deja de ser la respuesta correcta.",
+              )}
             </p>
           </div>
         )}
 
         <div>
-          <b className="text-[var(--text)]">Puntos por tipo de partido</b>
+          <b className="text-[var(--text)]">
+            {tx("Puntos por tipo de partido")}
+          </b>
           <div className="mt-2 flex flex-wrap gap-2">
             {Object.entries(data.matchPoints).map(([kind, value]) => (
               <span
@@ -669,10 +697,9 @@ function ExperiencePanel({
             ))}
           </div>
           <p className="mt-2">
-            Los valores resaltados están verificados: reconstruyen la columna
-            «Suma» de Hattrick Control para 19 jugadores con error cero. Los
-            demás vienen de la especificación y todavía no se han podido
-            comprobar.
+            {tx(
+              "Los valores resaltados están verificados: reconstruyen la columna «Suma» de Hattrick Control para 19 jugadores con error cero. Los demás vienen de la especificación y todavía no se han podido comprobar.",
+            )}
           </p>
         </div>
 
@@ -680,12 +707,12 @@ function ExperiencePanel({
 
         {data.levelUps.length > 0 && (
           <div>
-            <b className="text-[var(--text)]">Subidas registradas</b>
+            <b className="text-[var(--text)]">{tx("Subidas registradas")}</b>
             <ul className="mt-2 space-y-1 font-mono text-[11px]">
               {data.levelUps.map((lu, i) => (
                 <li key={i}>
-                  {lu.player}: {lu.fromLevel} → {lu.toLevel} con{" "}
-                  {lu.pointsAccumulated.toFixed(1)} puntos
+                  {lu.player}: {lu.fromLevel} → {lu.toLevel} {tx("con")}{" "}
+                  {lu.pointsAccumulated.toFixed(1)} {tx("puntos")}
                 </li>
               ))}
             </ul>
@@ -708,34 +735,40 @@ function LoyaltyPanel({
 }) {
   if (isLoading)
     return (
-      <Panel title="Fórmula de Fidelidad">
+      <Panel title={tx("Fórmula de Fidelidad")}>
         <Loading />
       </Panel>
     );
   if (isError || !data) {
     return (
-      <Panel title="Fórmula de Fidelidad">
-        <Note>No se pudo leer el modelo de fidelidad.</Note>
+      <Panel title={tx("Fórmula de Fidelidad")}>
+        <Note>{tx("No se pudo leer el modelo de fidelidad.")}</Note>
       </Panel>
     );
   }
 
   return (
     <Panel
-      title="Fórmula de Fidelidad"
-      meta={`${data.fullDays} días · ${data.seasons} temporadas`}
+      title={tx("Fórmula de Fidelidad")}
+      meta={tx("{{v0}} días · {{v1}} temporadas", {
+        v0: data.fullDays,
+        v1: data.seasons,
+      })}
     >
       <div className="grid gap-4 border-b border-[var(--border)] p-4 sm:grid-cols-3 [&>*]:min-w-0">
-        <Kpi label="Nivel máximo" value={String(data.maxLevel)} />
-        <Kpi label="Curva completa" value={`${data.fullDays} días`} />
-        <Kpi label="Equivalencia" value={`${data.seasons} temporadas`} />
+        <Kpi label={tx("Nivel máximo")} value={String(data.maxLevel)} />
+        <Kpi
+          label={tx("Curva completa")}
+          value={tx("{{v0}} días", { v0: data.fullDays })}
+        />
+        <Kpi label={tx("Equivalencia")} value={`${data.seasons} temporadas`} />
       </div>
 
       <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
         <p>
-          La única entrada es la diferencia en días calendario entre hoy y la
-          fecha de compra. No se usan pops, promedios ni transiciones
-          observadas.
+          {tx(
+            "La única entrada es la diferencia en días calendario entre hoy y la fecha de compra. No se usan pops, promedios ni transiciones observadas.",
+          )}
         </p>
 
         <code className="block rounded bg-[var(--surface-2)] p-3 font-mono text-[11px] text-[var(--text)]">
@@ -743,14 +776,15 @@ function LoyaltyPanel({
         </code>
 
         <div>
-          <b className="text-[var(--text)]">Primer día de cada nivel</b>
+          <b className="text-[var(--text)]">{tx("Primer día de cada nivel")}</b>
           <div className="mt-2 flex flex-wrap gap-2">
             {data.thresholds.map((threshold) => (
               <span
                 key={threshold.level}
                 className="rounded bg-[var(--surface-2)] px-2 py-1 font-mono text-[11px] text-[var(--text)]"
               >
-                N{threshold.level}: día {threshold.day}
+                N{threshold.level}
+                {tx(": día")} {threshold.day}
               </span>
             ))}
           </div>
@@ -787,16 +821,17 @@ function FormulaPanel({
 }) {
   if (isLoading)
     return (
-      <Panel title="Fórmula de entrenamiento">
+      <Panel title={tx("Fórmula de entrenamiento")}>
         <Loading />
       </Panel>
     );
   if (isError || !data)
     return (
-      <Panel title="Fórmula de entrenamiento">
+      <Panel title={tx("Fórmula de entrenamiento")}>
         <Note>
-          Sincroniza tu equipo (club, plantel, staff) para ver la fórmula con la
-          procedencia de cada valor.
+          {tx(
+            "Sincroniza tu equipo (club, plantel, staff) para ver la fórmula con la procedencia de cada valor.",
+          )}
         </Note>
       </Panel>
     );
@@ -804,11 +839,11 @@ function FormulaPanel({
   const v = data.validation;
   return (
     <Panel
-      title="Fórmula de entrenamiento"
+      title={tx("Fórmula de entrenamiento")}
       meta={
         data.allRead
-          ? "datos del club completos · fórmula HT-Tools"
-          : "faltan datos del club"
+          ? tx("datos del club completos · fórmula HT-Tools")
+          : tx("faltan datos del club")
       }
     >
       <div className="border-b border-[var(--border)] p-4">
@@ -820,8 +855,8 @@ function FormulaPanel({
           }
         >
           {data.allRead
-            ? "✓ valores del club leídos de Hattrick"
-            : "◐ faltan valores del club"}
+            ? tx("✓ valores del club leídos de Hattrick")
+            : tx("◐ faltan valores del club")}
         </div>
       </div>
 
@@ -841,7 +876,11 @@ function FormulaPanel({
                     ? "rounded bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--positive)]"
                     : "rounded px-2 py-0.5 font-mono text-[10px] text-[var(--muted)] ring-1 ring-[var(--border)]"
                 }
-                title={inp.isRead ? "leído de Hattrick" : "todavía un supuesto"}
+                title={
+                  inp.isRead
+                    ? tx("leído de Hattrick")
+                    : tx("todavía un supuesto")
+                }
               >
                 {inp.source}
               </span>
@@ -859,35 +898,38 @@ function FormulaPanel({
       <div className="border-t border-[var(--border)] p-4">
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-medium">
-            Contraste con subidas confirmadas
+            {tx("Contraste con subidas confirmadas")}
           </span>
           <span className="text-xs text-[var(--muted)]">
-            entrena: {data.trainedSkill}
+            {tx("entrena:")} {data.trainedSkill}
           </span>
         </div>
         {v.observations > 0 ? (
           <>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Kpi label="Subidas comparadas" value={String(v.observations)} />
               <Kpi
-                label="Error medio"
+                label={tx("Subidas comparadas")}
+                value={String(v.observations)}
+              />
+              <Kpi
+                label={tx("Error medio")}
                 value={
                   v.meanErrorWeeks == null ? "-" : `${v.meanErrorWeeks} sem`
                 }
                 tone="positive"
               />
               <Kpi
-                label="Error máximo"
+                label={tx("Error máximo")}
                 value={v.maxErrorWeeks == null ? "-" : `${v.maxErrorWeeks} sem`}
               />
             </div>
             <table className="mt-3 w-full text-xs">
               <thead className="text-[var(--muted)]">
                 <tr className="text-left">
-                  <th className="py-1">Subida</th>
-                  <th className="py-1 text-right">Observado</th>
-                  <th className="py-1 text-right">Predicho</th>
-                  <th className="py-1 text-right">Error</th>
+                  <th className="py-1">{tx("Subida")}</th>
+                  <th className="py-1 text-right">{tx("Observado")}</th>
+                  <th className="py-1 text-right">{tx("Predicho")}</th>
+                  <th className="py-1 text-right">{tx("Error")}</th>
                 </tr>
               </thead>
               <tbody className="tabular-nums">
@@ -896,8 +938,12 @@ function FormulaPanel({
                     <td className="py-1">
                       {s.from_level} → {s.to_level}
                     </td>
-                    <td className="py-1 text-right">{s.observed_weeks} sem</td>
-                    <td className="py-1 text-right">{s.predicted_weeks} sem</td>
+                    <td className="py-1 text-right">
+                      {s.observed_weeks} {tx("sem")}
+                    </td>
+                    <td className="py-1 text-right">
+                      {s.predicted_weeks} {tx("sem")}
+                    </td>
                     <td className="py-1 text-right">{s.error_weeks}</td>
                   </tr>
                 ))}
@@ -906,8 +952,9 @@ function FormulaPanel({
           </>
         ) : (
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Todavía no hay dos subidas consecutivas en la habilidad entrenada
-            para comparar. Cada sincronización con nuevas subidas la habilita.
+            {tx(
+              "Todavía no hay dos subidas consecutivas en la habilidad entrenada para comparar. Cada sincronización con nuevas subidas la habilita.",
+            )}
           </p>
         )}
       </div>

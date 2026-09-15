@@ -4,6 +4,7 @@ import { Column, DataTable } from "../components/DataTable";
 import { Empty, ErrorState, Loading, Note, Panel } from "../components/Panels";
 import { useCup, useLeague } from "../hooks/useTeam";
 
+import { tx } from "../i18n/tx";
 interface RivalRow {
   htTeamId: number;
   name: string;
@@ -71,7 +72,7 @@ export function RivalPickerPage() {
     .map((s) => ({
       htTeamId: s.htTeamId,
       name: s.name,
-      detail: `${s.points} pts · ${s.played} jugados`,
+      detail: tx("{{v0}} pts · {{v1}} jugados", { v0: s.points, v1: s.played }),
       position: s.position,
     }));
 
@@ -131,7 +132,7 @@ export function RivalPickerPage() {
                 ? "E"
                 : "D"
           })`
-        : "programado",
+        : tx("programado"),
     });
   }
 
@@ -152,7 +153,7 @@ export function RivalPickerPage() {
   }[] = [
     {
       key: "liga",
-      label: "Liga",
+      label: tx("Liga"),
       ordering: "table" as Ordering,
       rows: leagueRows,
     },
@@ -166,7 +167,7 @@ export function RivalPickerPage() {
     })),
     {
       key: "hattrick-masters",
-      label: "Hattrick Masters",
+      label: tx("Hattrick Masters"),
       ordering: "date" as Ordering,
       rows: [...mastersCandidates.values()],
     },
@@ -179,7 +180,7 @@ export function RivalPickerPage() {
   const columns: Column<RivalRow>[] = [
     {
       key: "name",
-      header: "Equipo",
+      header: tx("Equipo"),
       // Sin `align` la tabla asume columna numérica: alineaba los nombres a
       // la derecha y con cifras tabulares. Un nombre se lee por la izquierda.
       align: "left",
@@ -202,7 +203,7 @@ export function RivalPickerPage() {
     byTable
       ? {
           key: "position",
-          header: "Pos.",
+          header: tx("Pos."),
           align: "right" as const,
           value: (r: RivalRow) => r.position ?? Number.MAX_SAFE_INTEGER,
           render: (r: RivalRow) =>
@@ -210,11 +211,11 @@ export function RivalPickerPage() {
         }
       : {
           key: "date",
-          header: "Fecha",
+          header: tx("Fecha"),
           // ISO: ordenar el texto ya es ordenar cronológicamente.
           value: (r: RivalRow) => r.date ?? "",
         },
-    { key: "detail", header: "Detalle", value: (r) => r.detail },
+    { key: "detail", header: tx("Detalle"), value: (r) => r.detail },
     {
       key: "id",
       header: "ID",
@@ -228,14 +229,15 @@ export function RivalPickerPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Elegir rival</h1>
+        <h1 className="text-xl font-semibold">{tx("Elegir rival")}</h1>
         <p className="text-sm text-[var(--muted)]">
-          Liga y copas ya cruzadas o programadas esta temporada, o salta directo
-          con el ID.
+          {tx(
+            "Liga y copas ya cruzadas o programadas esta temporada, o salta directo con el ID.",
+          )}
         </p>
       </header>
 
-      <Panel title="Ir directo por ID de equipo">
+      <Panel title={tx("Ir directo por ID de equipo")}>
         <form
           className="flex items-center gap-2 p-4"
           onSubmit={(e) => {
@@ -248,29 +250,30 @@ export function RivalPickerPage() {
             type="number"
             value={manualId}
             onChange={(e) => setManualId(e.target.value)}
-            placeholder="ID de equipo (EquipoID)"
+            placeholder={tx("ID de equipo (EquipoID)")}
             className="w-56 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm"
           />
           <button
             type="submit"
             className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white"
           >
-            Ver scouting
+            {tx("Ver scouting")}
           </button>
         </form>
       </Panel>
 
       {categories.length === 0 ? (
-        <Panel title="Rivales">
+        <Panel title={tx("Rivales")}>
           <Empty>
-            Todavía no hay ningún rival de liga ni de copa sincronizado.
-            Sincroniza tu equipo o usa el ID directo de arriba.
+            {tx(
+              "Todavía no hay ningún rival de liga ni de copa sincronizado. Sincroniza tu equipo o usa el ID directo de arriba.",
+            )}
           </Empty>
         </Panel>
       ) : (
         <Panel
-          title="Rivales por competición"
-          meta={`${active?.rows.length ?? 0} equipo(s)`}
+          title={tx("Rivales por competición")}
+          meta={tx("{{v0}} equipo(s)", { v0: active?.rows.length ?? 0 })}
         >
           <div className="flex flex-wrap gap-1.5 border-b border-[var(--border)] p-4 pb-3">
             {categories.map((c) => (
@@ -302,14 +305,14 @@ export function RivalPickerPage() {
               rowKey={(r) => r.htTeamId}
               initialSort={byTable ? "position" : "date"}
               initialDescending={!byTable}
-              filterPlaceholder="Filtrar por equipo…"
-              emptyMessage="Sin equipos en esta categoría."
+              filterPlaceholder={tx("Filtrar por equipo…")}
+              emptyMessage={tx("Sin equipos en esta categoría.")}
             />
           )}
           <Note>
-            En copa y en el Hattrick Masters sólo aparece quien ya enfrentaste o
-            tienes programado: el cruce de una ronda no se conoce hasta que se
-            sortea.
+            {tx(
+              "En copa y en el Hattrick Masters sólo aparece quien ya enfrentaste o tienes programado: el cruce de una ronda no se conoce hasta que se sortea.",
+            )}
           </Note>
         </Panel>
       )}

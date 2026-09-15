@@ -2,6 +2,7 @@ import clsx from "clsx";
 import "flag-icons/css/flag-icons.min.css";
 import { countryCodeFromName, nombreDePais } from "../utils/countryCodes";
 
+import { tx } from "../i18n/tx";
 interface CountryFlagProps {
   code: string | null | undefined;
   country?: string | null;
@@ -15,13 +16,17 @@ export function CountryFlag({ code, country, className }: CountryFlagProps) {
   if (!normalized || !/^[a-z]{2}$/.test(normalized)) {
     return (
       <span
-        aria-label={nombre ? `País: ${nombre}` : "País sin identificar"}
+        aria-label={
+          nombre
+            ? tx("País: {{v0}}", { v0: nombre })
+            : tx("País sin identificar")
+        }
         className={clsx(
           "inline-flex h-3.5 w-5 shrink-0 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--surface-2)] text-[9px] text-[var(--muted)]",
           className,
         )}
         role="img"
-        title={nombre ?? "País sin identificar"}
+        title={nombre ?? tx("País sin identificar")}
       >
         ·
       </span>
@@ -30,7 +35,9 @@ export function CountryFlag({ code, country, className }: CountryFlagProps) {
 
   return (
     <span
-      aria-label={`Bandera de ${nombre ?? normalized.toUpperCase()}`}
+      aria-label={tx("Bandera de {{v0}}", {
+        v0: nombre ?? normalized.toUpperCase(),
+      })}
       className={clsx(
         "fi shrink-0 rounded-[2px] shadow-[0_0_0_1px_color-mix(in_srgb,var(--border)_75%,transparent)]",
         `fi-${normalized}`,

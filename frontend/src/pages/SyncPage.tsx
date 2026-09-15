@@ -7,6 +7,7 @@ import { TEAM_ID, useDashboard } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
 import { api, type SyncResult } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Sincronización, pantalla única, pedida explícitamente 2026-08-15:
  * "en una única pantalla, no se debe sincronizar en cualquier lado de la
@@ -73,44 +74,46 @@ export function SyncPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Sincronización</h1>
+        <h1 className="text-xl font-semibold">{tx("Sincronización")}</h1>
         <p className="prosa text-sm text-[var(--muted)]">
-          El único lugar desde donde se traen datos de Hattrick. Al terminar se
-          queda aquí y te dice qué encontró.
+          {tx(
+            "El único lugar desde donde se traen datos de Hattrick. Al terminar se queda aquí y te dice qué encontró.",
+          )}
         </p>
       </header>
 
       <Panel
-        title="Sincronizar con Hattrick"
-        meta={`última: ${relative(dashboard?.syncedAt ?? null)}`}
+        title={tx("Sincronizar con Hattrick")}
+        meta={tx("última: {{v0}}", {
+          v0: relative(dashboard?.syncedAt ?? null),
+        })}
       >
         <div className="space-y-3 p-4">
           <p className="prosa text-sm text-[var(--muted)]">
-            Trae todo: plantilla, fichas de cada jugador, entrenamiento,
-            economía, calendario, detalles y calificaciones de los partidos,
-            clasificación, club y cuerpo técnico. Lo que ya está guardado no se
-            vuelve a pedir, así que la primera vez tarda bastante más que las
-            siguientes.
+            {tx(
+              "Trae todo: plantilla, fichas de cada jugador, entrenamiento, economía, calendario, detalles y calificaciones de los partidos, clasificación, club y cuerpo técnico. Lo que ya está guardado no se vuelve a pedir, así que la primera vez tarda bastante más que las siguientes.",
+            )}
           </p>
           <p className="prosa text-sm text-[var(--muted)]">
             <b className="text-[var(--text)]">
-              Tus compras y tus ventas se traen aquí.
+              {tx("Tus compras y tus ventas se traen aquí.")}
             </b>{" "}
-            Cada vez que sincronizas se revisa tu libro de transferencias desde
-            lo último que ya tenías, así que cuesta una página cuando no hay
-            nada nuevo. También busca, poco a poco, las comisiones que te dejan
-            tus ex-jugadores cuando los revenden.
+            {tx(
+              "Cada vez que sincronizas se revisa tu libro de transferencias desde lo último que ya tenías, así que cuesta una página cuando no hay nada nuevo. También busca, poco a poco, las comisiones que te dejan tus ex-jugadores cuando los revenden.",
+            )}
           </p>
           <button
             onClick={() => fullSync.mutate()}
             disabled={running}
             className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
-            {fullSync.isPending ? "Sincronizando…" : "Sincronizar ahora"}
+            {fullSync.isPending
+              ? tx("Sincronizando…")
+              : tx("Sincronizar ahora")}
           </button>
           {dashboard?.stale && !fullSync.isPending && (
             <p className="text-xs text-[var(--warning)]">
-              Tus datos tienen más de un día.
+              {tx("Tus datos tienen más de un día.")}
             </p>
           )}
         </div>
@@ -121,7 +124,9 @@ export function SyncPage() {
       {fullSync.isError && <ErrorState error={fullSync.error} />}
 
       {result?.status === "partial" && (
-        <Note>Sincronización parcial: {result.errors.join(" · ")}</Note>
+        <Note>
+          {tx("Sincronización parcial:")} {result.errors.join(" · ")}
+        </Note>
       )}
 
       {result && !fullSync.isPending && (
@@ -152,14 +157,18 @@ function ResumenDeLaSincronizacion({ result }: { result: SyncResult }) {
 
   return (
     <Panel
-      title="Lo que encontró"
-      meta={`${result.snapshotsWritten} ficha(s) guardada(s) · ${result.unchanged} sin cambios`}
+      title={tx("Lo que encontró")}
+      meta={tx("{{v0}} ficha(s) guardada(s) · {{v1}} sin cambios", {
+        v0: result.snapshotsWritten,
+        v1: result.unchanged,
+      })}
     >
       <div className="space-y-3 p-4">
         {lineas.length === 0 ? (
           <p className="prosa text-sm text-[var(--muted)]">
-            Nada nuevo desde la última vez. No es un fallo: quiere decir que lo
-            que hay guardado ya estaba al día.
+            {tx(
+              "Nada nuevo desde la última vez. No es un fallo: quiere decir que lo que hay guardado ya estaba al día.",
+            )}
           </p>
         ) : (
           <>
@@ -175,8 +184,9 @@ function ResumenDeLaSincronizacion({ result }: { result: SyncResult }) {
               ))}
             </div>
             <p className="prosa text-sm text-[var(--muted)]">
-              El detalle --qué jugador, cuánto subió, qué dejó cada venta-- está
-              en Cambios, con sus ventanas de tiempo.
+              {tx(
+                "El detalle --qué jugador, cuánto subió, qué dejó cada venta-- está en Cambios, con sus ventanas de tiempo.",
+              )}
             </p>
           </>
         )}
@@ -184,7 +194,7 @@ function ResumenDeLaSincronizacion({ result }: { result: SyncResult }) {
           to="/news"
           className="inline-flex rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
-          Ver los cambios
+          {tx("Ver los cambios")}
         </Link>
       </div>
     </Panel>

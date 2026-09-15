@@ -19,6 +19,7 @@
 import { useEffect, useRef } from "react";
 import type { AvisoDelBarrido as Datos } from "../services/api";
 
+import { tx } from "../i18n/tx";
 const jugadores = (n: number) => `${n} jugador${n === 1 ? "" : "es"}`;
 
 /** «1 comisión», «3 comisiones». La tilde SE CAE en el plural: pegarle «es»
@@ -76,12 +77,12 @@ export function AvisoDelBarrido({
         <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <h2 id="aviso-barrido-titulo" className="text-sm font-semibold">
             {datos.stopped
-              ? "Lo que alcanzó a encontrar"
-              : "Esto encontró el barrido"}
+              ? tx("Lo que alcanzó a encontrar")
+              : tx("Esto encontró el barrido")}
           </h2>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={tx("Cerrar")}
             className="-mr-1 -mt-1 rounded px-2 py-0.5 text-lg leading-none text-[var(--muted)] hover:text-[var(--text)]"
           >
             ×
@@ -99,12 +100,18 @@ export function AvisoDelBarrido({
           </ul>
           <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
             {datos.commissions > 0
-              ? "Las comisiones ya están en Transferencias y en el saldo de cada jugador."
-              : "Reconstruir el historial no da dinero por sí solo: es lo que hace falta para poder calcular una comisión el día que a uno de ellos lo revendan."}{" "}
-            Siguen vivos {jugadores(datos.open)} que pueden dar comisión algún
-            día
+              ? tx(
+                  "Las comisiones ya están en Transferencias y en el saldo de cada jugador.",
+                )
+              : tx(
+                  "Reconstruir el historial no da dinero por sí solo: es lo que hace falta para poder calcular una comisión el día que a uno de ellos lo revendan.",
+                )}{" "}
+            {tx("Siguen vivos")} {jugadores(datos.open)}{" "}
+            {tx("que pueden dar comisión algún día")}
             {datos.closedTotal > 0
-              ? `, y ${jugadores(datos.closedTotal)} quedaron zanjados en esta pasada`
+              ? tx(", y {{v0}} quedaron zanjados en esta pasada", {
+                  v0: jugadores(datos.closedTotal),
+                })
               : ""}
             .
           </p>
@@ -112,7 +119,7 @@ export function AvisoDelBarrido({
             onClick={onClose}
             className="w-full rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
           >
-            Ver los cambios
+            {tx("Ver los cambios")}
           </button>
         </div>
       </div>

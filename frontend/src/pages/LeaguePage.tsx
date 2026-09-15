@@ -44,6 +44,7 @@ import type {
   TeamOfWeekRoleKey,
 } from "../services/api";
 
+import { tx } from "../i18n/tx";
 /**
  * Liga y predicciones. HL-080, HL-083, HL-090, HL-091, HL-094.
  *
@@ -57,17 +58,17 @@ import type {
 function leaderGap(data: League): { label: string; value: string } {
   const leader = data.standings.find((s) => s.position === 1);
   const own = data.standings.find((s) => s.isOwnTeam);
-  if (!leader || !own) return { label: "Brecha", value: "-" };
+  if (!leader || !own) return { label: tx("Brecha"), value: "-" };
   if (own.position === 1) {
     const second = data.standings.find((s) => s.position === 2);
-    if (!second) return { label: "Ventaja sobre el 2º", value: "-" };
+    if (!second) return { label: tx("Ventaja sobre el 2º"), value: "-" };
     return {
-      label: "Ventaja sobre el 2º",
+      label: tx("Ventaja sobre el 2º"),
       value: `+${own.points - second.points} pts`,
     };
   }
   return {
-    label: "Brecha frente al líder",
+    label: tx("Brecha frente al líder"),
     value: `-${leader.points - own.points} pts`,
   };
 }
@@ -111,19 +112,19 @@ export function LeaguePage() {
     <div className="space-y-4">
       <header className="space-y-3">
         <div>
-          <h1 className="text-xl font-semibold">Liga</h1>
+          <h1 className="text-xl font-semibold">{tx("Liga")}</h1>
           <p className="text-sm text-[var(--muted)]">
-            {data.seriesName} · temporada {data.season} · jornada{" "}
-            {data.roundsPlayed}
+            {data.seriesName} {tx("· temporada")} {data.season}{" "}
+            {tx("· jornada")} {data.roundsPlayed}
           </p>
           <EnlaceATransparencia seccion="liga" calculo="simulacion" />
         </div>
         <Tabs
           grupo="liga"
           tabs={[
-            { key: "resumen", label: "Resumen" },
-            { key: "proyeccion", label: "Proyección" },
-            { key: "comparativa", label: "Comparativa" },
+            { key: "resumen", label: tx("Resumen") },
+            { key: "proyeccion", label: tx("Proyección") },
+            { key: "comparativa", label: tx("Comparativa") },
           ]}
           active={section}
           onChange={setSection}
@@ -138,23 +139,29 @@ export function LeaguePage() {
             {own && (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
                 <Kpi
-                  label="Posición actual"
+                  label={tx("Posición actual")}
                   value={`${own.currentPosition}º`}
-                  hint={`${own.currentPoints} puntos · jornada ${data.roundsPlayed}`}
+                  hint={tx("{{v0}} puntos · jornada {{v1}}", {
+                    v0: own.currentPoints,
+                    v1: data.roundsPlayed,
+                  })}
                 />
                 <Kpi
-                  label="Puntos actuales"
+                  label={tx("Puntos actuales")}
                   value={String(own.currentPoints)}
                 />
                 <Kpi
                   label={gap.label}
                   value={gap.value}
-                  hint="frente a hoy, de la clasificación"
+                  hint={tx("frente a hoy, de la clasificación")}
                 />
               </div>
             )}
 
-            <Panel title="Clasificación" meta={`jornada ${data.roundsPlayed}`}>
+            <Panel
+              title={tx("Clasificación")}
+              meta={tx("jornada {{v0}}", { v0: data.roundsPlayed })}
+            >
               <StandingsTable data={data} />
             </Panel>
 
@@ -173,57 +180,62 @@ export function LeaguePage() {
                 role="alert"
                 className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"
               >
-                Confianza todavía baja: {data.roundsPlayed} jornada(s)
-                jugada(s); el prior pesa más que los resultados observados.
+                {tx("Confianza todavía baja:")} {data.roundsPlayed}{" "}
+                {tx(
+                  "jornada(s) jugada(s); el prior pesa más que los resultados observados.",
+                )}
               </div>
             )}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
               <Kpi
-                label="Posición esperada"
+                label={tx("Posición esperada")}
                 value={own.expectedPosition.toFixed(1)}
-                hint={`más probable: ${own.mostLikelyPosition}º`}
+                hint={tx("más probable: {{v0}}º", {
+                  v0: own.mostLikelyPosition,
+                })}
               />
               <Kpi
-                label="Probabilidad de terminar 1º"
+                label={tx("Probabilidad de terminar 1º")}
                 value={`${(own.titleProbability * 100).toFixed(0)}%`}
                 hint={
                   data.isTopDivision
-                    ? "ya estás en primera división"
-                    : "ascenso directo o promoción según el ranking nacional, no modelado"
+                    ? tx("ya estás en primera división")
+                    : tx(
+                        "ascenso directo o promoción según el ranking nacional, no modelado",
+                      )
                 }
                 tone={own.titleProbability > 0.5 ? "positive" : undefined}
               />
               <Kpi
-                label="Probabilidad de Top 4"
+                label={tx("Probabilidad de Top 4")}
                 value={`${((own.titleProbability + own.secondToFourthProbability) * 100).toFixed(0)}%`}
-                hint="1º-4º combinados"
+                hint={tx("1º-4º combinados")}
               />
               <Kpi
-                label="Puntos finales esperados"
+                label={tx("Puntos finales esperados")}
                 value={own.expectedPoints.toFixed(1)}
-                hint={`hoy: ${own.currentPoints}`}
+                hint={tx("hoy: {{v0}}", { v0: own.currentPoints })}
               />
             </div>
             <p className="text-xs text-[var(--muted)]">
-              Riesgo de promoción de permanencia y descenso directo: ver la
-              tabla "Pronóstico por equipo" más abajo, columnas 5º-6º y 7º-8º.
+              {tx(
+                'Riesgo de promoción de permanencia y descenso directo: ver la tabla "Pronóstico por equipo" más abajo, columnas 5º-6º y 7º-8º.',
+              )}
             </p>
 
             {/* Antes de las gráficas: es el mando que las mueve, y ponerlo
                 debajo obligaba a bajar, tocar y volver a subir para ver el
                 efecto. Sin «Alineación enviada» --de siete de los ocho
                 equipos no se pueden ver las órdenes--. */}
-            <Panel title="Cómo se resume cada equipo">
+            <Panel title={tx("Cómo se resume cada equipo")}>
               <div className="px-4 pb-4 pt-1">
                 {/* Qué MUEVE el mando va antes de los botones; qué SIGNIFICA
                     cada botón lo cuenta el propio selector, debajo. */}
                 <p className="prosa text-xs leading-relaxed text-[var(--muted)]">
-                  Cada equipo juega varios partidos y hay que quedarse con un
-                  número por zona. Esto elige con cuál, y vale para los ocho
-                  equipos: mueve los puntos esperados, la distribución de
-                  puestos y los límites. El próximo partido del Resumen no lo
-                  sigue: ahí va una alineación concreta por lado.
+                  {tx(
+                    "Cada equipo juega varios partidos y hay que quedarse con un número por zona. Esto elige con cuál, y vale para los ocho equipos: mueve los puntos esperados, la distribución de puestos y los límites. El próximo partido del Resumen no lo sigue: ahí va una alineación concreta por lado.",
+                  )}
                 </p>
                 <PitchZoneMethodSelector
                   method={data.pitchZoneMethod}
@@ -234,30 +246,36 @@ export function LeaguePage() {
             </Panel>
 
             <ProjectionPanel
-              title="Distribución de la posición final"
-              meta={`${number(data.simulationRuns)} simulaciones`}
+              title={tx("Distribución de la posición final")}
+              meta={tx("{{v0}} simulaciones", {
+                v0: number(data.simulationRuns),
+              })}
             >
               {data.change && (
                 <FranjaDeCambio>
-                  Tras la jornada {data.change.matchRound}{" "}
+                  {tx("Tras la jornada")} {data.change.matchRound}{" "}
                   {data.change.ownTitleAfter >= data.change.ownTitleBefore
-                    ? "subes"
-                    : "caes"}{" "}
-                  de {(data.change.ownTitleBefore * 100).toFixed(1)}% a{" "}
-                  {(data.change.ownTitleAfter * 100).toFixed(1)}% de ser
-                  campeón.
+                    ? tx("subes")
+                    : tx("caes")}{" "}
+                  {tx("de")} {(data.change.ownTitleBefore * 100).toFixed(1)}
+                  {tx("% a")} {(data.change.ownTitleAfter * 100).toFixed(1)}
+                  {tx("% de ser campeón.")}
                   {data.change.biggestGainer && (
                     <>
                       {" "}
-                      Quien más ganó fue {data.change.biggestGainer}, de{" "}
-                      {(data.change.biggestGainerBefore * 100).toFixed(1)}% a{" "}
+                      {tx("Quien más ganó fue")} {data.change.biggestGainer}
+                      {tx(", de")}{" "}
+                      {(data.change.biggestGainerBefore * 100).toFixed(1)}
+                      {tx("% a")}{" "}
                       {(data.change.biggestGainerAfter * 100).toFixed(1)}%.
                     </>
                   )}
                 </FranjaDeCambio>
               )}
               <Chart
-                ariaLabel="Distribución de probabilidad de la posición final"
+                ariaLabel={tx(
+                  "Distribución de probabilidad de la posición final",
+                )}
                 option={{
                   xAxis: {
                     type: "category",
@@ -298,17 +316,17 @@ export function LeaguePage() {
                 height={240}
               />
               <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-                Cada barra es la fracción de temporadas simuladas en las que
-                acabas en ese puesto. Si la distribución es ancha, la liga aún
-                no está decidida, y eso es lo que un único número escondería.
+                {tx(
+                  "Cada barra es la fracción de temporadas simuladas en las que acabas en ese puesto. Si la distribución es ancha, la liga aún no está decidida, y eso es lo que un único número escondería.",
+                )}
               </p>
             </ProjectionPanel>
 
             <BestWorstPanel data={data} />
 
             <ProjectionPanel
-              title="Pronóstico por equipo"
-              meta="ordenado por posición actual"
+              title={tx("Pronóstico por equipo")}
+              meta={tx("ordenado por posición actual")}
             >
               <OutlookTable data={data} />
             </ProjectionPanel>
@@ -339,7 +357,9 @@ function PartidoNombrado({ partido }: { partido: LeagueMatchRef }) {
         {partido.homeGoals} - {partido.awayGoals}
       </b>{" "}
       {partido.away}
-      {partido.round != null ? ` · jornada ${partido.round}` : ""}
+      {partido.round != null
+        ? tx(" · jornada {{v0}}", { v0: partido.round })
+        : ""}
     </>
   );
 }
@@ -371,7 +391,7 @@ function LadoDelProximo({
         </p>
       )}
       <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-        Táctica: {tactica}
+        {tx("Táctica:")} {tactica}
       </p>
       <p className="prosa mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
         {porque}
@@ -400,17 +420,18 @@ function NextMatch({ data }: { data: League }) {
       : "tu último partido contra el suyo";
 
   return (
-    <Panel title="Próximo partido" meta={meta}>
+    <Panel title={tx("Próximo partido")} meta={meta}>
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
           <span>
             <span className={nm.isHome ? "font-medium" : ""}>{nm.home}</span>
-            <span className="mx-2 text-[var(--muted)]">vs</span>
+            <span className="mx-2 text-[var(--muted)]">{tx("vs")}</span>
             <span className={!nm.isHome ? "font-medium" : ""}>{nm.away}</span>
           </span>
           <span className="text-xs text-[var(--muted)]">
-            goles esperados {nm.expectedHomeGoals} – {nm.expectedAwayGoals} ·
-            resultado más probable {nm.mostLikelyScore}
+            {tx("goles esperados")} {nm.expectedHomeGoals} –{" "}
+            {nm.expectedAwayGoals} {tx("· resultado más probable")}{" "}
+            {nm.mostLikelyScore}
           </span>
         </div>
 
@@ -434,21 +455,26 @@ function NextMatch({ data }: { data: League }) {
             equipo={tuNombre}
             fuente={
               fuentes.own.kind === "submitted"
-                ? "Alineación enviada"
-                : "Último partido"
+                ? tx("Alineación enviada")
+                : tx("Último partido")
             }
             partido={fuentes.own.match}
             tactica={fuentes.own.tactic}
             porque={
               fuentes.own.kind === "submitted"
-                ? "Ya mandaste las órdenes para este partido, así que no hay nada que adivinar: son los ratings que Hattrick prevé para esa alineación, con su táctica."
-                : "Todavía no mandaste alineación, y tu último once es lo más parecido a lo que vas a poner. En cuanto mandes las órdenes, este lado pasa a usarlas."
+                ? tx(
+                    "Ya mandaste las órdenes para este partido, así que no hay nada que adivinar: son los ratings que Hattrick prevé para esa alineación, con su táctica.",
+                  )
+                : tx(
+                    "Todavía no mandaste alineación, y tu último once es lo más parecido a lo que vas a poner. En cuanto mandes las órdenes, este lado pasa a usarlas.",
+                  )
             }
             nota={
               fuentes.own.kind === "submitted" && fuentes.own.setPiecesFrom ? (
                 <>
-                  Las acciones indirectas a balón parado Hattrick no las prevé
-                  para unas órdenes: salen de tu último partido,{" "}
+                  {tx(
+                    "Las acciones indirectas a balón parado Hattrick no las prevé para unas órdenes: salen de tu último partido,",
+                  )}{" "}
                   <PartidoNombrado partido={fuentes.own.setPiecesFrom} />.
                 </>
               ) : null
@@ -456,10 +482,12 @@ function NextMatch({ data }: { data: League }) {
           />
           <LadoDelProximo
             equipo={suNombre}
-            fuente="Último partido"
+            fuente={tx("Último partido")}
             partido={fuentes.rival.match}
             tactica={fuentes.rival.tactic}
-            porque="Sus órdenes son privadas hasta que se juega. Su último partido es lo más reciente que se sabe de él: recoge fichajes, lesiones y cambios de sistema antes que ningún resumen."
+            porque={tx(
+              "Sus órdenes son privadas hasta que se juega. Su último partido es lo más reciente que se sabe de él: recoge fichajes, lesiones y cambios de sistema antes que ningún resumen.",
+            )}
           />
         </div>
       )}
@@ -467,15 +495,17 @@ function NextMatch({ data }: { data: League }) {
         <span>
           {fuentes ? (
             <>
-              {nm.verdict}, con una alineación concreta por lado y la táctica de
-              cada una. Un solo partido es lo más al día y también lo más
-              frágil: si alguien rotó o jugó raro ese día, el pronóstico lo
-              hereda. Los resúmenes de varios partidos están en Proyección.
+              {nm.verdict}
+              {tx(
+                ", con una alineación concreta por lado y la táctica de cada una. Un solo partido es lo más al día y también lo más frágil: si alguien rotó o jugó raro ese día, el pronóstico lo hereda. Los resúmenes de varios partidos están en Proyección.",
+              )}
             </>
           ) : (
             <>
-              {nm.verdict}, con los goles a favor y en contra de la temporada:
-              todavía no hay ratings de los dos equipos.
+              {nm.verdict}
+              {tx(
+                ", con los goles a favor y en contra de la temporada: todavía no hay ratings de los dos equipos.",
+              )}
             </>
           )}{" "}
           {/* El capítulo entero del motor, no un resumen: quien pregunta «de
@@ -489,7 +519,7 @@ function NextMatch({ data }: { data: League }) {
           to="/rivals"
           className="shrink-0 whitespace-nowrap text-[var(--accent)] hover:underline"
         >
-          Estudiar al rival →
+          {tx("Estudiar al rival →")}
         </Link>
       </p>
     </Panel>
@@ -520,7 +550,7 @@ function StandingsTable({ data }: { data: League }) {
     { key: "position", header: "#", align: "right", value: (r) => r.position },
     {
       key: "name",
-      header: "Equipo",
+      header: tx("Equipo"),
       align: "left",
       value: (r) => r.name,
       render: (r) =>
@@ -565,7 +595,12 @@ function StandingsTable({ data }: { data: League }) {
         </span>
       ),
     },
-    { key: "points", header: "Pts", align: "right", value: (r) => r.points },
+    {
+      key: "points",
+      header: tx("Pts"),
+      align: "right",
+      value: (r) => r.points,
+    },
   ];
   return (
     <div className="space-y-3">
@@ -581,14 +616,16 @@ function StandingsTable({ data }: { data: League }) {
         ))}
       </div>
       <DataTable
-        emptyMessage="Sin clasificación: se llena cuando se sincronice la liga."
+        emptyMessage={tx(
+          "Sin clasificación: se llena cuando se sincronice la liga.",
+        )}
         rows={rows}
         columns={columns}
         rowKey={(r) => r.htTeamId}
         initialSort="position"
         initialDescending={false}
         csvName={`clasificacion-${mode}`}
-        filterPlaceholder="Filtrar equipos…"
+        filterPlaceholder={tx("Filtrar equipos…")}
       />
     </div>
   );
@@ -626,8 +663,8 @@ function HistoryPanel({ data }: { data: League }) {
   const realRounds = h.rounds.filter((r) => r !== 0).length;
   return (
     <Panel
-      title="Historial de la serie"
-      meta={`${realRounds} jornada(s) sincronizada(s)`}
+      title={tx("Historial de la serie")}
+      meta={tx("{{v0}} jornada(s) sincronizada(s)", { v0: realRounds })}
     >
       <div className="flex gap-3 border-b border-[var(--border)] px-4 py-3">
         <div className="flex overflow-hidden rounded border border-[var(--border)] text-xs">
@@ -635,18 +672,20 @@ function HistoryPanel({ data }: { data: League }) {
             className={`px-3 py-1 ${metric === "position" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
             onClick={() => setMetric("position")}
           >
-            Puesto
+            {tx("Puesto")}
           </button>
           <button
             className={`px-3 py-1 ${metric === "points" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
             onClick={() => setMetric("points")}
           >
-            Puntos
+            {tx("Puntos")}
           </button>
         </div>
       </div>
       <Chart
-        ariaLabel={`Historial de ${metric === "position" ? "posición" : "puntos"} por jornada`}
+        ariaLabel={tx("Historial de {{v0}} por jornada", {
+          v0: metric === "position" ? "posición" : "puntos",
+        })}
         option={{
           xAxis: {
             type: "category",
@@ -703,14 +742,13 @@ function HistoryPanel({ data }: { data: League }) {
         height={320}
       />
       <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        Cada punto es una jornada realmente jugada, sin datos de por medio, la
-        línea se corta en vez de interpolar. La jornada "0" es simbólica: 0
-        puntos para todos antes de jugar nada, no un dato sincronizado, por eso
-        el puesto ahí no se dibuja. Posición y puntos por jornada se calculan a
-        partir de los resultados reales de cada partido de la serie no de una
-        foto puntual de la clasificación, así que no dependen de cuándo hayas
-        sincronizado. Con solo {realRounds} jornada(s) jugada(s) el historial
-        todavía dice poco; se vuelve más útil según avanza la temporada.
+        {tx(
+          'Cada punto es una jornada realmente jugada, sin datos de por medio, la línea se corta en vez de interpolar. La jornada "0" es simbólica: 0 puntos para todos antes de jugar nada, no un dato sincronizado, por eso el puesto ahí no se dibuja. Posición y puntos por jornada se calculan a partir de los resultados reales de cada partido de la serie no de una foto puntual de la clasificación, así que no dependen de cuándo hayas sincronizado. Con solo',
+        )}{" "}
+        {realRounds}{" "}
+        {tx(
+          "jornada(s) jugada(s) el historial todavía dice poco; se vuelve más útil según avanza la temporada.",
+        )}
       </p>
     </Panel>
   );
@@ -756,7 +794,10 @@ function FixturesCalendar({ data }: { data: League }) {
   }
 
   return (
-    <Panel title="Calendario completo" meta={`${rounds.length} jornada(s)`}>
+    <Panel
+      title={tx("Calendario completo")}
+      meta={tx("{{v0}} jornada(s)", { v0: rounds.length })}
+    >
       <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {rounds.map((rnd) => {
           const matches = byRound.get(rnd)!;
@@ -766,7 +807,7 @@ function FixturesCalendar({ data }: { data: League }) {
               className="rounded-lg border border-[var(--border)] p-3 text-xs"
             >
               <div className="mb-2 border-b border-[var(--border)] pb-1.5 font-medium text-[var(--muted)]">
-                Jornada {rnd} · {matches[0]?.date ?? ""}
+                {tx("Jornada")} {rnd} · {matches[0]?.date ?? ""}
               </div>
               {/* Rejilla, no `flex justify-between`: así el marcador tiene
                   columna propia y cae siempre en la misma vertical. Con flex,
@@ -882,10 +923,11 @@ function BestWorstPanel({ data }: { data: League }) {
   const bw = data.bestWorst;
   if (!bw) {
     return (
-      <ProjectionPanel title="Límites matemáticos de posición">
+      <ProjectionPanel title={tx("Límites matemáticos de posición")}>
         <Note>
-          No hay calendario pendiente sincronizado: no queda nada que forzar a
-          un extremo.
+          {tx(
+            "No hay calendario pendiente sincronizado: no queda nada que forzar a un extremo.",
+          )}
         </Note>
       </ProjectionPanel>
     );
@@ -920,36 +962,44 @@ function BestWorstPanel({ data }: { data: League }) {
 
   return (
     <ProjectionPanel
-      title="Límites matemáticos de posición"
-      meta={`${bw.remainingMatches} partidos pendientes · ${number(data.simulationRuns)} simulaciones`}
+      title={tx("Límites matemáticos de posición")}
+      meta={tx("{{v0}} partidos pendientes · {{v1}} simulaciones", {
+        v0: bw.remainingMatches,
+        v1: number(data.simulationRuns),
+      })}
     >
       {cambioEnLimites && (
         <FranjaDeCambio>
-          La jornada {data.change?.matchRound} movió el peor caso:{" "}
+          {tx("La jornada")} {data.change?.matchRound}{" "}
+          {tx("movió el peor caso:")}{" "}
           {cambioEnLimites.sube !== null && (
             <>
-              acabar {cambioEnLimites.sube}º sube{" "}
-              {cambioEnLimites.subeCuanto.toFixed(1)} puntos
+              {tx("acabar")} {cambioEnLimites.sube}
+              {tx("º sube")} {cambioEnLimites.subeCuanto.toFixed(1)}{" "}
+              {tx("puntos")}
             </>
           )}
           {cambioEnLimites.sube !== null &&
             cambioEnLimites.baja !== null &&
-            " y "}
+            tx(" y ")}
           {cambioEnLimites.baja !== null && (
             <>
-              acabar {cambioEnLimites.baja}º baja{" "}
-              {cambioEnLimites.bajaCuanto.toFixed(1)}
+              {tx("acabar")} {cambioEnLimites.baja}
+              {tx("º baja")} {cambioEnLimites.bajaCuanto.toFixed(1)}
             </>
           )}
-          . El mejor caso no se mueve.
+          {tx(". El mejor caso no se mueve.")}
         </FranjaDeCambio>
       )}
       <p className="border-b border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        Escenarios extremos deliberadamente imposibles (goleada en cada partido
-        restante, en un sentido o en el otro); no son pronósticos.
+        {tx(
+          "Escenarios extremos deliberadamente imposibles (goleada en cada partido restante, en un sentido o en el otro); no son pronósticos.",
+        )}
       </p>
       <Chart
-        ariaLabel="Distribución de la posición final en el mejor y en el peor caso"
+        ariaLabel={tx(
+          "Distribución de la posición final en el mejor y en el peor caso",
+        )}
         option={{
           xAxis: { type: "category", data: positions, name: "puesto" },
           yAxis: { type: "value", axisLabel: { formatter: "{value}%" } },
@@ -1006,13 +1056,9 @@ function BestWorstPanel({ data }: { data: League }) {
         height={240}
       />
       <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        Mejor caso: en cada partido que te queda marcas de goleada y no encajas.
-        Peor caso: al revés. El resto de la liga se simula con el mismo modelo
-        que la gráfica de arriba, zona por zona, con el resumen que elegiste, ,
-        así que aun forzando tu propio resultado al extremo, tu puesto final
-        sigue siendo una distribución. Tus partidos van forzados y NO los toca
-        ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies
-        el resumen, y lo que se mueve es dónde acaban los demás.
+        {tx(
+          "Mejor caso: en cada partido que te queda marcas de goleada y no encajas. Peor caso: al revés. El resto de la liga se simula con el mismo modelo que la gráfica de arriba, zona por zona, con el resumen que elegiste, , así que aun forzando tu propio resultado al extremo, tu puesto final sigue siendo una distribución. Tus partidos van forzados y NO los toca ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies el resumen, y lo que se mueve es dónde acaban los demás.",
+        )}
       </p>
     </ProjectionPanel>
   );
@@ -1040,13 +1086,13 @@ function OutlookTable({ data }: { data: League }) {
   const columns: Column<OutlookRow>[] = [
     {
       key: "now",
-      header: "Ahora",
+      header: tx("Ahora"),
       align: "right",
       value: (r) => r.currentPosition,
     },
     {
       key: "name",
-      header: "Equipo",
+      header: tx("Equipo"),
       align: "left",
       value: (r) => r.name,
       render: (r) =>
@@ -1063,7 +1109,7 @@ function OutlookTable({ data }: { data: League }) {
     },
     {
       key: "expected",
-      header: "Puesto esperado",
+      header: tx("Puesto esperado"),
       align: "right",
       value: (r) => r.expectedPosition,
       render: (r) => (
@@ -1072,7 +1118,7 @@ function OutlookTable({ data }: { data: League }) {
     },
     {
       key: "points",
-      header: "Puntos esperados",
+      header: tx("Puntos esperados"),
       align: "right",
       value: (r) => r.expectedPoints,
       render: (r) => (
@@ -1081,7 +1127,7 @@ function OutlookTable({ data }: { data: League }) {
     },
     {
       key: "title",
-      header: "Título",
+      header: tx("Título"),
       align: "right",
       value: (r) => r.titleProbability,
       render: (r) => (
@@ -1147,14 +1193,16 @@ function OutlookTable({ data }: { data: League }) {
   return (
     <>
       <DataTable
-        emptyMessage="Sin proyección: hacen falta jornadas jugadas para estimarla."
+        emptyMessage={tx(
+          "Sin proyección: hacen falta jornadas jugadas para estimarla.",
+        )}
         rows={data.outlook}
         columns={columns}
         rowKey={(r) => r.htTeamId}
         initialSort="now"
         initialDescending={false}
         csvName="pronostico"
-        filterPlaceholder="Filtrar equipos…"
+        filterPlaceholder={tx("Filtrar equipos…")}
       />
     </>
   );
@@ -1182,16 +1230,17 @@ function LeagueTsiComparison() {
 
   if (isLoading)
     return (
-      <Panel title="Comparativa de liga">
+      <Panel title={tx("Comparativa de liga")}>
         <Loading />
       </Panel>
     );
   if (isError || !data) {
     return (
-      <Panel title="Comparativa de liga">
+      <Panel title={tx("Comparativa de liga")}>
         <Note>
-          No se pudo comparar contra la serie, hace falta una sesión de Hattrick
-          activa y la clasificación sincronizada.
+          {tx(
+            "No se pudo comparar contra la serie, hace falta una sesión de Hattrick activa y la clasificación sincronizada.",
+          )}
         </Note>
       </Panel>
     );
@@ -1201,7 +1250,7 @@ function LeagueTsiComparison() {
     { key: "rank", header: "#", align: "right", value: (r) => r.rank },
     {
       key: "teamName",
-      header: "Equipo",
+      header: tx("Equipo"),
       align: "left",
       value: (r) => r.teamName,
       render: (r) => (
@@ -1212,21 +1261,21 @@ function LeagueTsiComparison() {
     },
     {
       key: "totalTsi",
-      header: "TSI total",
+      header: tx("TSI total"),
       align: "right",
       value: (r) => r.totalTsi,
       render: (r) => <span className="tabular-nums">{number(r.totalTsi)}</span>,
     },
     {
       key: "avgTsi",
-      header: "TSI medio",
+      header: tx("TSI medio"),
       align: "right",
       value: (r) => r.avgTsi,
       render: (r) => <span className="tabular-nums">{number(r.avgTsi)}</span>,
     },
     {
       key: "playerCount",
-      header: "Jugadores",
+      header: tx("Jugadores"),
       align: "right",
       value: (r) => r.playerCount,
     },
@@ -1235,7 +1284,7 @@ function LeagueTsiComparison() {
     // medias de la plantilla comparada.
     {
       key: "topPlayerName",
-      header: "Mejor TSI (jugador)",
+      header: tx("Mejor TSI (jugador)"),
       align: "left",
       value: (r) => r.topPlayerName ?? "",
       // Se enseña el nombre, pero se ordena por su TSI (2026-09-14, pedido
@@ -1255,7 +1304,7 @@ function LeagueTsiComparison() {
     },
     {
       key: "topPlayerLastPosition",
-      header: "Última posición",
+      header: tx("Última posición"),
       align: "left",
       optional: true,
       value: (r) => r.topPlayerLastPosition ?? "",
@@ -1266,7 +1315,7 @@ function LeagueTsiComparison() {
     },
     {
       key: "avgForm",
-      header: "Forma",
+      header: tx("Forma"),
       align: "right",
       optional: true,
       value: (r) => r.avgForm ?? -1,
@@ -1279,7 +1328,7 @@ function LeagueTsiComparison() {
     },
     {
       key: "avgStamina",
-      header: "Resistencia",
+      header: tx("Resistencia"),
       align: "right",
       optional: true,
       value: (r) => r.avgStamina ?? -1,
@@ -1295,9 +1344,12 @@ function LeagueTsiComparison() {
   return (
     <>
       <TsiHistogramPanel
-        title="TSI: tu plantilla vs. el resto de la liga"
-        meta={`${data.teamsInSeries} equipos · puesto ${data.ownRank} por TSI`}
-        rivalLabel="Resto de la liga"
+        title={tx("TSI: tu plantilla vs. el resto de la liga")}
+        meta={tx("{{v0}} equipos · puesto {{v1}} por TSI", {
+          v0: data.teamsInSeries,
+          v1: data.ownRank,
+        })}
+        rivalLabel={tx("Resto de la liga")}
         histogram={data.tsiHistogram}
         logTsi={logTsi}
         onLogTsiChange={setLogTsi}
@@ -1311,9 +1363,11 @@ function LeagueTsiComparison() {
           ". El TSI de cada rival es real; sus habilidades exactas están ocultas por Hattrick"
         }
       />
-      <Panel title="Comparativa de rivales" meta={data.seriesName}>
+      <Panel title={tx("Comparativa de rivales")} meta={data.seriesName}>
         <DataTable
-          emptyMessage="Sin comparativa: hacen falta partidos de los rivales."
+          emptyMessage={tx(
+            "Sin comparativa: hacen falta partidos de los rivales.",
+          )}
           rows={data.ranking}
           columns={columns}
           rowKey={(r) => r.teamHtId}
@@ -1321,9 +1375,9 @@ function LeagueTsiComparison() {
           csvName="comparativa-rivales"
         />
         <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-          "Última posición" se consulta aparte, solo para el jugador de mayor
-          TSI de cada equipo; forma y resistencia promedian solo jugadores donde
-          Hattrick de verdad mostró el dato: un rival puede tenerlas ocultas.
+          {tx(
+            '"Última posición" se consulta aparte, solo para el jugador de mayor TSI de cada equipo; forma y resistencia promedian solo jugadores donde Hattrick de verdad mostró el dato: un rival puede tenerlas ocultas.',
+          )}
         </p>
       </Panel>
     </>
@@ -1380,25 +1434,25 @@ function TeamOfTheWeekPanel() {
     : undefined;
 
   return (
-    <Panel title="Mejor alineación" meta={meta}>
+    <Panel title={tx("Mejor alineación")} meta={meta}>
       <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-3">
         <div className="flex overflow-hidden rounded border border-[var(--border)] text-xs">
           <button
             onClick={() => setScope("week")}
             className={`px-3 py-1 ${scope === "week" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
           >
-            De la semana
+            {tx("De la semana")}
           </button>
           <button
             onClick={() => setScope("season")}
             className={`px-3 py-1 ${scope === "season" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
           >
-            De la temporada
+            {tx("De la temporada")}
           </button>
         </div>
         {scope === "week" && (
           <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-            Jornada
+            {tx("Jornada")}
             <select
               value={round ?? data?.matchRound ?? ""}
               onChange={(event) => setRound(Number(event.target.value))}
@@ -1415,7 +1469,7 @@ function TeamOfTheWeekPanel() {
           </label>
         )}
         <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-          Formación
+          {tx("Formación")}
           <select
             value={formation}
             onChange={(event) => {
@@ -1438,13 +1492,13 @@ function TeamOfTheWeekPanel() {
             admite un reparto (cinco defensas son siempre 3+2), el selector
             sale con una sola opción, igual que allí. */}
         <SplitSelector
-          label="Defensa central"
+          label={tx("Defensa central")}
           value={data?.centralDefenders}
           options={data?.centralDefenderOptions ?? []}
           onChange={setCentrales}
         />
         <SplitSelector
-          label="Medio central"
+          label={tx("Medio central")}
           value={data?.innerMidfielders}
           options={data?.innerMidfielderOptions ?? []}
           onChange={setInteriores}
@@ -1461,7 +1515,13 @@ function TeamOfTheWeekPanel() {
       {data && (
         <>
           <PitchField
-            ariaLabel={`Mejor alineación ${scope === "week" ? "de la jornada" : "de la temporada"}, formación ${formation}, por rating real`}
+            ariaLabel={tx(
+              "Mejor alineación {{v0}}, formación {{v1}}, por rating real",
+              {
+                v0: scope === "week" ? "de la jornada" : "de la temporada",
+                v1: formation,
+              },
+            )}
           >
             {/* La misma rejilla que Alineación y el Mejor once del Dashboard:
                 todas las canchas de la app se dibujan igual. Aquí el once
@@ -1500,13 +1560,13 @@ function TeamOfTheWeekPanel() {
               (group) => group.length === 0,
             ) && (
               <div className="flex items-center justify-center px-8 py-16 text-center text-sm text-white/70">
-                Sin alineaciones encontradas todavía para este rango.
+                {tx("Sin alineaciones encontradas todavía para este rango.")}
               </div>
             )}
           </PitchField>
           <div className="space-y-1 border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
             <p>
-              Total estrellas del once:{" "}
+              {tx("Total estrellas del once:")}{" "}
               <span className="font-medium text-[var(--text)]">
                 {data.totalStars}
               </span>

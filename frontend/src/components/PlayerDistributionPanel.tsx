@@ -2,6 +2,7 @@ import { Chart } from "../charts/Chart";
 import { metric, plural } from "../hooks/useFormat";
 import { Empty, Note, Panel } from "./Panels";
 
+import { tx } from "../i18n/tx";
 const CURVE_COLOR = "#4f7cff";
 const HIGHLIGHT_COLOR = "#e5484d";
 
@@ -37,7 +38,7 @@ export function PlayerDistributionPanel({
   if (d.values.length === 0) {
     return (
       <Panel title={title} meta={meta}>
-        <Empty>Sin jugadores en la plantilla para comparar.</Empty>
+        <Empty>{tx("Sin jugadores en la plantilla para comparar.")}</Empty>
       </Panel>
     );
   }
@@ -49,7 +50,10 @@ export function PlayerDistributionPanel({
   return (
     <Panel title={title} meta={meta}>
       <Chart
-        ariaLabel={`Distribución de ${xLabel} de la plantilla, con ${playerName} resaltado`}
+        ariaLabel={tx(
+          "Distribución de {{v0}} de la plantilla, con {{v1}} resaltado",
+          { v0: xLabel, v1: playerName },
+        )}
         height={260}
         option={{
           grid: {
@@ -116,9 +120,9 @@ export function PlayerDistributionPanel({
         }}
       />
       <Note>
-        {plural(d.values.length, "jugador", "jugadores")} de la plantilla
-        actual. {playerName} está en <b>{formatValue(d.ownValue)}</b> (franja
-        vertical roja).
+        {plural(d.values.length, "jugador", "jugadores")}{" "}
+        {tx("de la plantilla actual.")} {playerName} {tx("está en")}{" "}
+        <b>{formatValue(d.ownValue)}</b> {tx("(franja vertical roja).")}
       </Note>
     </Panel>
   );
