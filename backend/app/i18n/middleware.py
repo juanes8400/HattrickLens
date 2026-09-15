@@ -15,7 +15,7 @@ from typing import Any
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.i18n.traductor import idioma_de, traductor
+from app.i18n.traductor import Traductor, idioma_de, traductor
 
 
 class TraducirRespuestas:
@@ -43,20 +43,38 @@ class TraducirRespuestas:
 
         inicio: dict[str, Any] | None = None
         pasar_de_largo = False
+        por_lineas = False
+        resto = b""
         trozos: list[bytes] = []
 
         async def enviar(mensaje: Message) -> None:
-            nonlocal inicio, pasar_de_largo
+            nonlocal inicio, pasar_de_largo, por_lineas, resto
             if mensaje["type"] == "http.response.start":
                 tipo = next(
                     (v for k, v in mensaje.get("headers", []) if k.lower() == b"content-type"),
                     b"",
                 )
+                # La sincronización en vivo: una línea JSON por evento. Se
+                # traduce línea a línea según llega, sin juntar el cuerpo, para
+                # que el progreso siga viéndose en vivo.
+                if tipo.startswith(b"application/x-ndjson"):
+                    por_lineas = True
+                    await send({**mensaje, "headers": _con_vary(mensaje.get("headers", []))})
+                    return
                 if not tipo.startswith(b"application/json"):
                     pasar_de_largo = True
                     await send(mensaje)
                     return
                 inicio = dict(mensaje)
+                return
+            if por_lineas and mensaje["type"] == "http.response.body":
+                datos = resto + mensaje.get("body", b"")
+                *lineas, resto = datos.split(b"\n")
+                if not mensaje.get("more_body") and resto:
+                    lineas.append(resto)
+                    resto = b""
+                cuerpo = b"".join(_linea_traducida(tr, linea) + b"\n" for linea in lineas)
+                await send({**mensaje, "body": cuerpo})
                 return
             if mensaje["type"] != "http.response.body" or pasar_de_largo or inicio is None:
                 await send(mensaje)
@@ -80,6 +98,16 @@ class TraducirRespuestas:
             await send({"type": "http.response.body", "body": cuerpo})
 
         await self.app(scope, receive, enviar)
+
+
+def _linea_traducida(tr: Traductor, linea: bytes) -> bytes:
+    """Una línea de NDJSON traducida; si no es JSON, tal cual."""
+    if not linea.strip():
+        return linea
+    try:
+        return json.dumps(tr.json(json.loads(linea)), ensure_ascii=False).encode("utf-8")
+    except ValueError:
+        return linea
 
 
 def _con_vary(cabeceras: list[tuple[bytes, bytes]]) -> list[tuple[bytes, bytes]]:

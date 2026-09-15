@@ -1,6 +1,10 @@
 """El middleware traduce en inglés y marca Vary en los dos idiomas."""
 
+import json
+from collections.abc import Iterator
+
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
 from app.i18n.middleware import TraducirRespuestas, _con_vary
@@ -30,6 +34,26 @@ def test_espanol_intacto_pero_con_vary() -> None:
     r = _cliente().get("/api/v1/prueba", headers={"Accept-Language": "es"})
     assert r.json()["message"] == "Los datos no se sincronizan hace más de 12 horas."
     assert "Accept-Language" in r.headers["vary"]
+
+
+def test_stream_ndjson_se_traduce_linea_a_linea() -> None:
+    app = FastAPI()
+
+    @app.post("/api/v1/stream")
+    def stream() -> StreamingResponse:
+        def generar() -> Iterator[bytes]:
+            yield b'{"type":"progress","message":"Revisando tus compras y ventas..."}\n'
+            yield b'{"type":"error","message":"Hattrick no responde: tiempo"}\n'
+
+        return StreamingResponse(generar(), media_type="application/x-ndjson")
+
+    app.add_middleware(TraducirRespuestas)
+    r = TestClient(app).post("/api/v1/stream", headers={"Accept-Language": "en"})
+    lineas = [json.loads(x) for x in r.text.strip().split("\n")]
+    assert lineas == [
+        {"type": "progress", "message": "Checking your purchases and sales..."},
+        {"type": "error", "message": "Hattrick isn't responding: tiempo"},
+    ]
 
 
 def test_vary_conserva_lo_que_traia() -> None:
