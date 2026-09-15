@@ -41,7 +41,7 @@ export function lecturaDeNivel(
   const sabeAlgo = current != null || maximum != null;
   if (!sabeAlgo) {
     return {
-      palabra: "desconocido",
+      palabra: i18n.t("juveniles.desconocidoMin", "desconocido"),
       numeros: maxReached ? "" : "",
       ancho: 0,
       crece: !maxReached,

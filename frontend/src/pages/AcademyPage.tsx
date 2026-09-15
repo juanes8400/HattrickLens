@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
+import i18n from "../i18n";
 import { Column, DataTable } from "../components/DataTable";
 import { CountryFlag } from "../components/CountryFlag";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
-import { Specialty } from "../components/Specialty";
+import { Specialty, specialtyLabel } from "../components/Specialty";
 import { Tabs } from "../components/Tabs";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import {
@@ -46,6 +48,20 @@ const SKILL_NAMES: Record<string, string> = {
   scoring: "Anotación",
   set_pieces: "Balón parado",
 };
+
+/** Casi todo el texto de esta pantalla vive en constantes y funciones
+ *  sueltas: se traduce en el momento de pintarse, con el idioma puesto. */
+const t = i18n.t.bind(i18n);
+
+const nombreDeHabilidad = (clave: string) =>
+  t(`juveniles.habilidad.${clave}`, SKILL_NAMES[clave] ?? clave);
+
+/** «crack», «promesa»... llegan del servidor en español: son claves. */
+const nombreDeCategoria = (c: string) => t(`juveniles.categoria.${c}`, c);
+
+/** Con coma en español y con punto en los demás idiomas. */
+const conSeparador = (s: string) =>
+  i18n.language === "es" ? s.replace(".", ",") : s;
 
 /** Las habilidades juveniles llegan a 8 como mucho antes de la promoción, así
  *  que ésa es la escala de la barra, no la de 0-20 del primer equipo, que
@@ -130,6 +146,8 @@ const CATEGORY_TONE: Record<string, string> = {
  * evidencia.
  */
 export function AcademyPage() {
+  // Suscribe la pantalla al idioma: al cambiarlo se vuelve a pintar entera.
+  useTranslation();
   const { data, isLoading, isError, error } = useAcademy();
   const [view, setView] = useState<ViewKey>("squad");
 
@@ -159,10 +177,14 @@ export function AcademyPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Juveniles</h1>
+        <h1 className="text-xl font-semibold">
+          {t("nav.juveniles", "Juveniles")}
+        </h1>
         <p className="text-sm text-[var(--muted)]">
-          Quién merece plaza, quién se pierde pronto y si la academia sale a
-          cuenta
+          {t(
+            "juveniles.intro",
+            "Quién merece plaza, quién se pierde pronto y si la academia sale a cuenta",
+          )}
         </p>
       </header>
 
@@ -171,23 +193,36 @@ export function AcademyPage() {
           cuatro cifras arriba compiten con lo que sí importa allí. */}
       {view === "squad" && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-          <Kpi label="Canteranos" value={String(data.squadSize)} />
           <Kpi
-            label="Invertido"
+            label={t("juveniles.canteranos", "Canteranos")}
+            value={String(data.squadSize)}
+          />
+          <Kpi
+            label={t("juveniles.invertido", "Invertido")}
             value={money(data.invested, data.currency)}
-            hint={`${money(data.weeklyCost, data.currency)} por semana · ${
+            hint={`${t("juveniles.porSemana", "{{cifra}} por semana", {
+              cifra: money(data.weeklyCost, data.currency),
+            })} · ${
               data.seasons >= 1
-                ? `${data.seasons} temporada${data.seasons === 1 ? "" : "s"}`
-                : `${data.weeks} semana${data.weeks === 1 ? "" : "s"}`
+                ? data.seasons === 1
+                  ? t("juveniles.unaTemporada", "{{n}} temporada", {
+                      n: data.seasons,
+                    })
+                  : t("juveniles.nTemporadas", "{{n}} temporadas", {
+                      n: data.seasons,
+                    })
+                : data.weeks === 1
+                  ? t("juveniles.unaSemana", "{{n}} semana", { n: data.weeks })
+                  : t("juveniles.nSemanas", "{{n}} semanas", { n: data.weeks })
             }`}
           />
           <Kpi
-            label="Ingresado"
+            label={t("juveniles.ingresado", "Ingresado")}
             value={money(data.earned, data.currency)}
-            hint="ventas de canteranos"
+            hint={t("juveniles.ventasCanteranos", "ventas de canteranos")}
           />
           <Kpi
-            label="Neto"
+            label={t("juveniles.neto", "Neto")}
             value={money(data.net, data.currency)}
             hint={data.roiVerdict}
             tone={profitable ? "positive" : "danger"}
@@ -200,8 +235,11 @@ export function AcademyPage() {
         data.invested > 0 &&
         data.breakEvenSales > 0 && (
           <Note>
-            Harían falta {data.breakEvenSales} venta(s) más al precio medio para
-            equilibrar.
+            {t(
+              "juveniles.equilibrar",
+              "Harían falta {{n}} venta(s) más al precio medio para equilibrar.",
+              { n: data.breakEvenSales },
+            )}
           </Note>
         )}
 
@@ -212,23 +250,23 @@ export function AcademyPage() {
         <p className="text-sm text-[var(--muted)]">
           {view === "train" ? (
             <>
-              <b className="text-[var(--text)]">Selección de entrenamiento</b>{" "}
-              puntúa cada habilidad por lo que tu cantera puede ganar en ella, y
-              de ahí sale la pareja recomendada. Los mandos de abajo son tuyos:
-              mueve el corte del plazo o la separación entre peldaños y el
-              ranking se recalcula. El reparto adopta la recomendación solo,
-              hasta que elijas otra cosa a mano en la pestaña siguiente.
+              <b className="text-[var(--text)]">
+                {t("juveniles.vista.train", "Selección de entrenamiento")}
+              </b>{" "}
+              {t(
+                "juveniles.explicaTrain",
+                "puntúa cada habilidad por lo que tu cantera puede ganar en ella, y de ahí sale la pareja recomendada. Los mandos de abajo son tuyos: mueve el corte del plazo o la separación entre peldaños y el ranking se recalcula. El reparto adopta la recomendación solo, hasta que elijas otra cosa a mano en la pestaña siguiente.",
+              )}
             </>
           ) : (
             <>
-              <b className="text-[var(--text)]">Formación siguiente partido</b>{" "}
-              reparte los dos entrenamientos elegidos entre los once y el
-              banquillo. Cada entrenamiento llega a unos puestos y no a otros:
-              quien cae donde se cruzan los dos recibe ambos. Dentro de cada
-              tramo entran primero los mejores de la cola (peldaño, techo y
-              edad), así que cambiar el secundario cambia quién juega dónde. La
-              barra de «Puede llegar a» es su HTMS28: relleno lo que ya tiene, y
-              hasta dónde llega la barra, lo máximo que podría alcanzar.
+              <b className="text-[var(--text)]">
+                {t("juveniles.vista.who", "Formación siguiente partido")}
+              </b>{" "}
+              {t(
+                "juveniles.explicaWho",
+                "reparte los dos entrenamientos elegidos entre los once y el banquillo. Cada entrenamiento llega a unos puestos y no a otros: quien cae donde se cruzan los dos recibe ambos. Dentro de cada tramo entran primero los mejores de la cola (peldaño, techo y edad), así que cambiar el secundario cambia quién juega dónde. La barra de «Puede llegar a» es su HTMS28: relleno lo que ya tiene, y hasta dónde llega la barra, lo máximo que podría alcanzar.",
+              )}
             </>
           )}
         </p>
@@ -236,8 +274,11 @@ export function AcademyPage() {
 
       {data.urgent.length > 0 && (
         <Panel
-          title="Plazo a punto de vencer"
-          meta="lo urgente manda sobre lo importante"
+          title={t("juveniles.plazo", "Plazo a punto de vencer")}
+          meta={t(
+            "juveniles.plazoMeta",
+            "lo urgente manda sobre lo importante",
+          )}
         >
           <ul className="space-y-1 p-4 text-xs">
             {data.urgent.map((u, i) => (
@@ -268,14 +309,24 @@ export function AcademyPage() {
                 : "rounded-md px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
             }
           >
-            {v.label}
+            {t(`juveniles.vista.${v.key}`, v.label)}
           </button>
         ))}
       </div>
 
       {data.squadSize === 0 ? (
-        <Panel title={VIEWS.find((v) => v.key === view)?.label ?? ""}>
-          <Empty>Sin canteranos sincronizados todavía.</Empty>
+        <Panel
+          title={t(
+            `juveniles.vista.${view}`,
+            VIEWS.find((v) => v.key === view)?.label ?? "",
+          )}
+        >
+          <Empty>
+            {t(
+              "juveniles.sinCanteranos",
+              "Sin canteranos sincronizados todavía.",
+            )}
+          </Empty>
         </Panel>
       ) : view === "squad" ? (
         <SkillDetail data={data} />
@@ -287,16 +338,20 @@ export function AcademyPage() {
         <Ojeadores />
       ) : (data.allGraduates ?? []).length > 0 ? (
         <Panel
-          title="Antiguos canteranos"
-          meta={`${(data.allGraduates ?? []).length} han pasado por aquí`}
+          title={t("juveniles.vista.oldies", "Antiguos canteranos")}
+          meta={t("juveniles.hanPasado", "{{n}} han pasado por aquí", {
+            n: (data.allGraduates ?? []).length,
+          })}
         >
           <GraduatesTable data={data} />
         </Panel>
       ) : (
-        <Panel title="Antiguos canteranos">
+        <Panel title={t("juveniles.vista.oldies", "Antiguos canteranos")}>
           <Empty>
-            Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un
-            canterano al primer equipo.
+            {t(
+              "juveniles.sinAntiguos",
+              "Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un canterano al primer equipo.",
+            )}
           </Empty>
         </Panel>
       )}
@@ -482,7 +537,14 @@ function ConMovimiento({
                 ? "text-[var(--danger)]"
                 : "text-[var(--muted)]",
         )}
-        title={mudo ? undefined : "movimiento en la ventana elegida"}
+        title={
+          mudo
+            ? undefined
+            : t(
+                "juveniles.movimientoVentana",
+                "movimiento en la ventana elegida",
+              )
+        }
       >
         {mudo
           ? ""
@@ -502,13 +564,34 @@ function explicaElMovimiento(r: {
   arrivals: number;
 }): string {
   const partes: string[] = [];
-  if (r.skillsUp) partes.push(`${r.skillsUp} habilidad(es) subieron de nivel`);
+  if (r.skillsUp)
+    partes.push(
+      t("juveniles.subieron", "{{n}} habilidad(es) subieron de nivel", {
+        n: r.skillsUp,
+      }),
+    );
   if (r.ceilingsRevealed)
-    partes.push(`el ojeador reveló ${r.ceilingsRevealed} techo(s)`);
-  if (r.arrivals) partes.push(`llegaron ${r.arrivals} canterano(s)`);
+    partes.push(
+      t("juveniles.revelo", "el ojeador reveló {{n}} techo(s)", {
+        n: r.ceilingsRevealed,
+      }),
+    );
+  if (r.arrivals)
+    partes.push(
+      t("juveniles.llegaron", "llegaron {{n}} canterano(s)", { n: r.arrivals }),
+    );
   if (partes.length === 0)
-    return "Nada se movió en la academia en esa ventana.";
-  return `${partes.join(", ")}. Eso es lo que movió los puntajes.`;
+    return t(
+      "juveniles.nadaSeMovio",
+      "Nada se movió en la academia en esa ventana.",
+    );
+  return t(
+    "juveniles.esoMovio",
+    "{{partes}}. Eso es lo que movió los puntajes.",
+    {
+      partes: partes.join(", "),
+    },
+  );
 }
 
 function WhatToTrain({
@@ -639,22 +722,28 @@ function WhatToTrain({
 
   return (
     <Panel
-      title="Selección de entrenamiento"
+      title={t("juveniles.vista.train", "Selección de entrenamiento")}
       meta={
         <span className="flex items-center gap-2">
-          una habilidad, la reciben todos
+          {t("juveniles.laRecibenTodos", "una habilidad, la reciben todos")}
           <EnlaceATransparencia seccion="juveniles" calculo="puntaje" />
         </span>
       }
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
         <span className="text-xs text-[var(--muted)]">
-          Cuánto se movió cada puntaje desde
+          {t("juveniles.cuantoSeMovio", "Cuánto se movió cada puntaje desde")}
         </span>
         <Tabs
           modo="filtro"
-          label="Desde cuándo se compara el puntaje"
-          tabs={VENTANAS_JUVENILES}
+          label={t(
+            "juveniles.desdeCuando",
+            "Desde cuándo se compara el puntaje",
+          )}
+          tabs={VENTANAS_JUVENILES.map((v) => ({
+            key: v.key,
+            label: t(`juveniles.ventana.${v.key}`, v.label),
+          }))}
           active={ventana}
           onChange={setVentana}
         />
@@ -666,7 +755,12 @@ function WhatToTrain({
       {(sinBase || resumen) && (
         <div className="border-b border-[var(--border)] px-4 py-2 text-xs leading-relaxed text-[var(--muted)]">
           {sinBase ? (
-            <>No hay histórico tan atrás: los puntajes se enseñan quietos.</>
+            <>
+              {t(
+                "juveniles.sinHistorico",
+                "No hay histórico tan atrás: los puntajes se enseñan quietos.",
+              )}
+            </>
           ) : (
             <>{explicaElMovimiento(resumen!)}</>
           )}
@@ -676,9 +770,9 @@ function WhatToTrain({
       <div className="border-b border-[var(--border)] px-4 py-3 text-sm">
         {sugerencia ? (
           <>
-            Ahora mismo conviene entrenar{" "}
-            <b className="text-[var(--youth-known)]">{sugerencia.mainLabel}</b>,
-            y de secundario{" "}
+            {t("juveniles.conviene", "Ahora mismo conviene entrenar")}{" "}
+            <b className="text-[var(--youth-known)]">{sugerencia.mainLabel}</b>,{" "}
+            {t("juveniles.yDeSecundario", "y de secundario")}{" "}
             <b className="text-[var(--youth-known)]">
               {sugerencia.secondaryLabel}
             </b>
@@ -686,14 +780,27 @@ function WhatToTrain({
             {sugerencia.bothCount > 0 ? (
               <span className="text-[var(--muted)]">
                 {" "}
-                Así {sugerencia.bothCount}{" "}
-                {sugerencia.bothCount === 1 ? "recibe" : "reciben"} las dos
-                cosas.
+                {sugerencia.bothCount === 1
+                  ? t(
+                      "juveniles.recibeUno",
+                      "Así {{n}} recibe las dos cosas.",
+                      {
+                        n: sugerencia.bothCount,
+                      },
+                    )
+                  : t(
+                      "juveniles.recibenVarios",
+                      "Así {{n}} reciben las dos cosas.",
+                      { n: sugerencia.bothCount },
+                    )}
               </span>
             ) : (
               <span className="text-[var(--muted)]">
                 {" "}
-                No hay ningún puesto que reciba las dos.
+                {t(
+                  "juveniles.ningunPuesto",
+                  "No hay ningún puesto que reciba las dos.",
+                )}
               </span>
             )}
             {/* El botón va PEGADO a la recomendación, no en otra pantalla:
@@ -705,12 +812,12 @@ function WhatToTrain({
               data-track="Juveniles: llevar sugerencia a la formación"
               className="ml-2 rounded-md border border-[var(--accent)] px-2 py-1 text-xs font-medium text-[var(--accent)]"
             >
-              Llevar a la formación
+              {t("juveniles.llevar", "Llevar a la formación")}
             </button>
           </>
         ) : (
           <>
-            Ahora mismo conviene entrenar{" "}
+            {t("juveniles.conviene", "Ahora mismo conviene entrenar")}{" "}
             <b className="text-[var(--youth-known)]">{top.label}</b>.
           </>
         )}
@@ -722,26 +829,37 @@ function WhatToTrain({
         <table className="w-full text-xs">
           <thead>
             <tr className="text-[var(--muted)]">
-              <th className="px-4 py-2 text-left font-medium">Habilidad</th>
+              <th className="px-4 py-2 text-left font-medium">
+                {t("entrenamiento.habilidad", "Habilidad")}
+              </th>
               {BUCKETS.map(([key, short, long]) => (
                 <th
                   key={key}
                   className="px-2 py-2 text-right font-medium"
-                  title={long}
+                  title={t(`juveniles.cubo.${key}.largo`, long)}
                 >
                   <div className="tabular-nums text-[var(--youth-known)]">
                     {formatWeight(weights[key])}
                   </div>
-                  <div>{short}</div>
+                  <div>{t(`juveniles.cubo.${key}.corto`, short)}</div>
                 </th>
               ))}
               <th className="px-2 py-2 text-right font-medium">
                 <div className="tabular-nums text-[var(--youth-known)]">
                   {formatWeight(trainableWeight)}
                 </div>
-                <div title="Bonus personalizado">Bonus</div>
+                <div
+                  title={t(
+                    "juveniles.bonusPersonalizado",
+                    "Bonus personalizado",
+                  )}
+                >
+                  {t("juveniles.bonus", "Bonus")}
+                </div>
               </th>
-              <th className="px-4 py-2 text-right font-medium">Puntaje</th>
+              <th className="px-4 py-2 text-right font-medium">
+                {t("juveniles.puntaje", "Puntaje")}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -829,24 +947,31 @@ function WhatToTrain({
           si una fila no da esto, algo está mal. */}
       {resumen != null && resumen.rowDelta !== 0 && (
         <div className="border-t border-[var(--border)] px-4 py-2 text-[0.7rem] leading-relaxed text-[var(--muted)]">
-          Los movimientos de cada fila suman{" "}
+          {t("juveniles.filasSuman", "Los movimientos de cada fila suman")}{" "}
           <b className="text-[var(--text)]">
             {resumen.rowDelta > 0 ? "+" : "−"}
             {Math.abs(resumen.rowDelta)}
           </b>
           {/* Con un número exacto delante, «canterano(s)» chirría. */}
           {resumen.departures === 0
-            ? `, ${plural(resumen.arrivals, "el canterano que llegó", "los N canteranos que llegaron")}.`
+            ? `, ${plural(resumen.arrivals, t("juveniles.elQueLlego", "el canterano que llegó"), t("juveniles.losQueLlegaron", "los N canteranos que llegaron"))}.`
             : resumen.arrivals === 0
-              ? `, ${plural(resumen.departures, "el canterano que se fue", "los N canteranos que se fueron")}.`
-              : `: llegaron ${resumen.arrivals} y se fueron ${resumen.departures}.`}
+              ? `, ${plural(resumen.departures, t("juveniles.elQueSeFue", "el canterano que se fue"), t("juveniles.losQueSeFueron", "los N canteranos que se fueron"))}.`
+              : t(
+                  "juveniles.llegaronYSeFueron",
+                  ": llegaron {{llegaron}} y se fueron {{fueron}}.",
+                  {
+                    llegaron: resumen.arrivals,
+                    fueron: resumen.departures,
+                  },
+                )}
         </div>
       )}
 
       <div className="border-t border-[var(--border)] p-4">
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Parámetros
+            {t("juveniles.parametros", "Parámetros")}
           </span>
           {!isDefault && (
             <button
@@ -858,20 +983,29 @@ function WhatToTrain({
               }}
               className="text-xs text-[var(--accent)] hover:underline"
             >
-              Volver a los valores originales
+              {t(
+                "juveniles.valoresOriginales",
+                "Volver a los valores originales",
+              )}
             </button>
           )}
         </div>
         <label className="mb-4 block">
-          <div className="text-xs">De dónde sale el bonus</div>
+          <div className="text-xs">
+            {t("juveniles.deDondeBonus", "De dónde sale el bonus")}
+          </div>
           <select
             value={trainableMethod}
             onChange={(e) => setTrainableMethod(e.target.value)}
             className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)] md:w-auto"
           >
             {TRAINABLE_METHODS.map(([key, label, hint]) => (
-              <option key={key} value={key} title={hint}>
-                {label}
+              <option
+                key={key}
+                value={key}
+                title={t(`juveniles.metodo.${key}.pista`, hint)}
+              >
+                {t(`juveniles.metodo.${key}.nombre`, label)}
               </option>
             ))}
           </select>
@@ -880,11 +1014,11 @@ function WhatToTrain({
         <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
           <label className="block">
             <div className="text-xs">
-              Salen de menos de 17 años y{" "}
+              {t("juveniles.salenDeMenos", "Salen de menos de 17 años y")}{" "}
               <b className="tabular-nums text-[var(--youth-known)]">
                 {soonMaxDays}
               </b>{" "}
-              días
+              {t("juveniles.dias", "días")}
             </div>
             <input
               type="range"
@@ -898,7 +1032,9 @@ function WhatToTrain({
           </label>
           <label className="block">
             <div className="flex items-baseline justify-between text-xs">
-              <span>Separación entre peldaños</span>
+              <span>
+                {t("juveniles.separacion", "Separación entre peldaños")}
+              </span>
               <b className="tabular-nums">×{decimal(weightBase, 1)}</b>
             </div>
             <input
@@ -913,7 +1049,9 @@ function WhatToTrain({
           </label>
           <label className="block">
             <div className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate">Peso del bonus personalizado</span>
+              <span className="truncate">
+                {t("juveniles.pesoBonus", "Peso del bonus personalizado")}
+              </span>
               <b className="shrink-0 tabular-nums">
                 {formatWeight(trainableWeight)}
               </b>
@@ -932,14 +1070,21 @@ function WhatToTrain({
                 sugerencia a propósito. */}
             <div className="text-[10px] text-[var(--muted)]">
               {bonusEsElSugerido ? (
-                <>coincide con lo que sugiere la escalera</>
+                <>
+                  {t(
+                    "juveniles.coincideEscalera",
+                    "coincide con lo que sugiere la escalera",
+                  )}
+                </>
               ) : (
                 <button
                   type="button"
                   onClick={() => setBonusWeight(null)}
                   className="underline"
                 >
-                  usar el sugerido ({formatWeight(suggestedWeight)})
+                  {t("juveniles.usarSugerido", "usar el sugerido ({{v}})", {
+                    v: formatWeight(suggestedWeight),
+                  })}
                 </button>
               )}
             </div>
@@ -1004,7 +1149,11 @@ function NivelDeHabilidad({
       >
         <span className="w-3 shrink-0 text-center leading-none">
           {maxReached ? (
-            <span title="ya tocó techo: no sube más">🔒</span>
+            <span
+              title={t("juveniles.tocoTecho", "ya tocó techo: no sube más")}
+            >
+              🔒
+            </span>
           ) : null}
         </span>
         <span className="min-w-10 shrink-0 rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-[var(--text)]">
@@ -1027,7 +1176,11 @@ function NivelDeHabilidad({
           fila desplazaba el resto y las filas quedaban desalineadas entre sí,
           unas con candado y otras sin él. */}
       <span className="w-4 shrink-0 text-center leading-none">
-        {maxReached ? <span title="ya tocó techo: no sube más">🔒</span> : null}
+        {maxReached ? (
+          <span title={t("juveniles.tocoTecho", "ya tocó techo: no sube más")}>
+            🔒
+          </span>
+        ) : null}
       </span>
       <span className="w-24 shrink-0 text-sm">{palabra}</span>
       <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded bg-[var(--surface-2)]">
@@ -1081,15 +1234,22 @@ function WhoToTrain({ data }: { data: Academy }) {
 
   return (
     <Panel
-      title="La cola de cada habilidad"
-      meta={`${chosen.players.length} canteranos · ${chosen.label}`}
+      title={t("juveniles.cola", "La cola de cada habilidad")}
+      meta={t("juveniles.colaMeta", "{{n}} canteranos · {{habilidad}}", {
+        n: chosen.players.length,
+        habilidad: chosen.label,
+      })}
     >
       <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)]">
-        De aquí sale el reparto de arriba: se va tomando por orden hasta llenar
-        cada región.
+        {t(
+          "juveniles.colaExplica",
+          "De aquí sale el reparto de arriba: se va tomando por orden hasta llenar cada región.",
+        )}
       </p>
       <label className="block border-b border-[var(--border)] p-4">
-        <span className="text-xs text-[var(--muted)]">Habilidad</span>
+        <span className="text-xs text-[var(--muted)]">
+          {t("entrenamiento.habilidad", "Habilidad")}
+        </span>
         <select
           value={chosen.skill}
           onChange={(e) => setSkill(e.target.value)}
@@ -1116,14 +1276,19 @@ function WhoToTrain({ data }: { data: Academy }) {
               <span className="truncate">{p.name}</span>
               <span
                 className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]"
-                title={`Peldaño ${p.priority} de 9`}
+                title={t("juveniles.peldanoDe", "Peldaño {{n}} de 9", {
+                  n: p.priority,
+                })}
               >
-                {PELDAÑOS[p.priority] ?? "?"}
+                {t(
+                  `juveniles.peldano.${p.priority}`,
+                  PELDAÑOS[p.priority] ?? "?",
+                )}
               </span>
               {p.leavesSoon && (
                 <span
                   className="shrink-0 text-[10px] text-[var(--youth-known)]"
-                  title="sale con menos de 17;038"
+                  title={t("juveniles.saleJoven", "sale con menos de 17;038")}
                 >
                   ⏱
                 </span>
@@ -1154,12 +1319,12 @@ function WhoToTrain({ data }: { data: Academy }) {
               {/* La misma etiqueta que llevan los de la cola, para que la fila
                   mida lo mismo y la lista no dé un salto al llegar aquí. */}
               <span className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]">
-                al tope
+                {t("juveniles.alTope", "al tope")}
               </span>
               {p.leavesSoon && (
                 <span
                   className="shrink-0 text-[10px] text-[var(--youth-known)]"
-                  title="sale con menos de 17;038"
+                  title={t("juveniles.saleJoven", "sale con menos de 17;038")}
                 >
                   ⏱
                 </span>
@@ -1269,7 +1434,11 @@ function Horquilla({
   return (
     <span
       className="flex h-4 items-center justify-end gap-2"
-      title={`Entre ${min} y ${max} puntos HTMS28. Lo relleno es lo que ya tiene; el resto, lo que aún no se sabe de él.`}
+      title={t(
+        "juveniles.horquillaTitle",
+        "Entre {{min}} y {{max}} puntos HTMS28. Lo relleno es lo que ya tiene; el resto, lo que aún no se sabe de él.",
+        { min, max },
+      )}
     >
       <span className="tabular-nums text-[var(--muted)]">{min}</span>
       <span className="relative h-1.5 w-16 shrink-0">
@@ -1289,7 +1458,7 @@ function Horquilla({
 
 /** `66,7%`, con coma y sin decimal cuando es redondo. */
 function porcentaje(n: number): string {
-  return `${n % 1 === 0 ? n : n.toFixed(1).replace(".", ",")}%`;
+  return `${n % 1 === 0 ? n : conSeparador(n.toFixed(1))}%`;
 }
 
 /** Lo que recibe un canterano de UN entrenamiento: «Lateral: 100% ███».
@@ -1332,14 +1501,21 @@ function Celda({
       title={
         linea.base == null || linea.penalty == null || linea.penalty >= 1
           ? `${linea.label}: ${porcentaje(linea.rate)}`
-          : `${linea.label} rinde ${porcentaje(linea.base)} de principal; aquí, de ` +
-            `secundario, ${porcentaje(linea.rate)}`
+          : t(
+              "juveniles.rindeDe",
+              "{{etiqueta}} rinde {{base}} de principal; aquí, de secundario, {{rate}}",
+              {
+                etiqueta: linea.label,
+                base: porcentaje(linea.base),
+                rate: porcentaje(linea.rate),
+              },
+            )
       }
     >
       <Racion cuanto={linea.rate} etiqueta={linea.label} />
       {linea.probability != null && (
         <span className="shrink-0 text-[11px] tabular-nums text-[var(--muted)]">
-          (proba: {linea.probability}%)
+          {t("juveniles.proba", "(proba: {{n}}%)", { n: linea.probability })}
         </span>
       )}
     </span>
@@ -1410,37 +1586,72 @@ function PorQue({ m }: { m: VeredictoDeMetodo }) {
     </span>
   );
   const quitado = m.robustness.removedRung
-    ? (PELDANOS[m.robustness.removedRung] ?? m.robustness.removedRung)
+    ? t(
+        `juveniles.peldanoClave.${m.robustness.removedRung}`,
+        PELDANOS[m.robustness.removedRung] ?? m.robustness.removedRung,
+      )
     : null;
   return (
     <div className="mt-1 space-y-1">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
         {dato(
-          "puntaje",
+          t("juveniles.porque.puntaje", "puntaje"),
           m.main.score.toFixed(2),
-          "El de la habilidad principal",
+          t("juveniles.porque.puntajeAyuda", "El de la habilidad principal"),
         )}
         {dato(
-          "respaldo",
-          `${m.main.backed} en peldaño alto`,
-          "Canteranos en «aceptable joven» o mejor. Con cero, la habilidad cede el hueco a Individual",
+          t("juveniles.porque.respaldo", "respaldo"),
+          t("juveniles.porque.enPeldanoAlto", "{{n}} en peldaño alto", {
+            n: m.main.backed,
+          }),
+          t(
+            "juveniles.porque.respaldoAyuda",
+            "Canteranos en «aceptable joven» o mejor. Con cero, la habilidad cede el hueco a Individual",
+          ),
         )}
         {dato(
-          "no es respaldo",
+          t("juveniles.porque.noRespaldo", "no es respaldo"),
           pct(m.main.unbacked),
-          `Gente sin revelar más el bonus puesto a mano. Desde ${pct(m.threshold)} la habilidad queda descartada`,
+          t(
+            "juveniles.porque.noRespaldoAyuda",
+            "Gente sin revelar más el bonus puesto a mano. Desde {{umbral}} la habilidad queda descartada",
+            { umbral: pct(m.threshold) },
+          ),
         )}
         {quitado &&
           dato(
-            "sin su mejor",
-            `${m.robustness.scoreWithout.toFixed(2)} ${m.robustness.held ? "· aguanta" : `· lo adelanta ${m.robustness.overtakenBy ?? "otra"}`}`,
-            `Se le quita un «${quitado}» y se vuelve a ordenar. Si aguanta en cabeza su fuerza es un grupo y se dobla; si se cae, era un solo chico`,
+            t("juveniles.porque.sinSuMejor", "sin su mejor"),
+            `${m.robustness.scoreWithout.toFixed(2)} ${
+              m.robustness.held
+                ? t("juveniles.porque.aguanta", "· aguanta")
+                : t("juveniles.porque.loAdelanta", "· lo adelanta {{otra}}", {
+                    otra:
+                      m.robustness.overtakenBy ??
+                      t("juveniles.porque.otra", "otra"),
+                  })
+            }`,
+            t(
+              "juveniles.porque.sinSuMejorAyuda",
+              "Se le quita un «{{quitado}}» y se vuelve a ordenar. Si aguanta en cabeza su fuerza es un grupo y se dobla; si se cae, era un solo chico",
+              { quitado },
+            ),
           )}
         {m.second &&
           dato(
-            `2.ª (${m.second.label})`,
-            `${m.second.backed ?? 0} en peldaño alto${m.second.unbacked == null ? "" : ` · ${pct(m.second.unbacked)} no es respaldo`}`,
-            "La segunda del ranking: entra al hueco secundario solo si tiene respaldo",
+            t("juveniles.porque.segunda", "2.ª ({{habilidad}})", {
+              habilidad: m.second.label,
+            }),
+            `${t("juveniles.porque.enPeldanoAlto", "{{n}} en peldaño alto", {
+              n: m.second.backed ?? 0,
+            })}${
+              m.second.unbacked == null
+                ? ""
+                : ` · ${t("juveniles.porque.pctNoRespaldo", "{{pct}} no es respaldo", { pct: pct(m.second.unbacked) })}`
+            }`,
+            t(
+              "juveniles.porque.segundaAyuda",
+              "La segunda del ranking: entra al hueco secundario solo si tiene respaldo",
+            ),
           )}
       </div>
     </div>
@@ -1544,15 +1755,18 @@ function TablaDelReparto({
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>
-                Jugador
+                {t("jugadores.jugador", "Jugador")}
               </th>
               <th scope="col" className={`${th} text-right`}>
-                Edad
+                {t("jugadores.edad", "Edad")}
               </th>
               <th
                 scope="col"
                 className={`${th} text-right`}
-                title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener"
+                title={t(
+                  "juveniles.htms28Title",
+                  "en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener",
+                )}
               >
                 {/* La unidad va escrita, no solo en el `title`: la barra sola
                     no dice qué mide, y descubrirlo exige pasar el ratón por
@@ -1560,29 +1774,46 @@ function TablaDelReparto({
                 HTMS28
               </th>
               <th scope="col" className={`${th} text-left`} title={mainLabel}>
-                Entrenamiento habilidad primaria
+                {t(
+                  "juveniles.entrenoPrimaria",
+                  "Entrenamiento habilidad primaria",
+                )}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Nivel habilidad primaria
+                {t("juveniles.nivelPrimaria", "Nivel habilidad primaria")}
               </th>
               <th
                 scope="col"
                 className={`${th} border-l border-[var(--border)] pl-5 text-left`}
-                title={`${secondaryLabel}: los porcentajes ya llevan descontado el castigo del hueco secundario`}
+                title={t(
+                  "juveniles.secundariaTitle",
+                  "{{etiqueta}}: los porcentajes ya llevan descontado el castigo del hueco secundario",
+                  { etiqueta: secondaryLabel },
+                )}
               >
                 {/* El aviso de que el castigo ya está descontado vive solo en
                     el `title`: el mismo sorteo vale 42,5 % de principal y
                     28,3 % de secundario, así que hace falta decirlo, pero
                     repetirlo bajo la cabecera cargaba la tabla. */}
-                Entrenamiento habilidad secundaria
+                {t(
+                  "juveniles.entrenoSecundaria",
+                  "Entrenamiento habilidad secundaria",
+                )}
               </th>
               <th scope="col" className={`${th} pr-6 text-left`}>
-                Nivel habilidad secundaria
+                {t("juveniles.nivelSecundaria", "Nivel habilidad secundaria")}
               </th>
             </tr>
           </thead>
           <tbody>
-            {Object.entries(REGIONES).map(([clave, { titulo: t, pista }]) => {
+            {Object.entries(REGIONES).map(([clave, region]) => {
+              const nombreRegion = t(
+                `juveniles.region.${clave}.titulo`,
+                region.titulo,
+              );
+              const pista = region.pista
+                ? t(`juveniles.region.${clave}.pista`, region.pista)
+                : "";
               const suyas = filas.filter((a) => a.region === clave);
               if (suyas.length === 0) return null;
               return (
@@ -1593,7 +1824,7 @@ function TablaDelReparto({
                       colSpan={7}
                       className="border-t border-[var(--border)] px-3 pb-1 pt-3 text-left text-xs font-normal text-[var(--muted)]"
                     >
-                      {t}
+                      {nombreRegion}
                       {pista && ` · ${pista}`}
                     </th>
                   </tr>
@@ -1631,7 +1862,12 @@ function TablaDelReparto({
                                       {a.player}
                                     </span>
                                     <span className="block text-xs text-[var(--muted)]">
-                                      {PUESTOS[a.puesto] ?? a.puesto ?? ""}
+                                      {a.puesto
+                                        ? t(
+                                            `posiciones.orden.${a.puesto}`,
+                                            PUESTOS[a.puesto] ?? a.puesto,
+                                          )
+                                        : ""}
                                     </span>
                                   </>
                                 )}
@@ -1751,15 +1987,23 @@ function SinRevelar({
   return (
     <div className="mt-4 rounded-md border border-[var(--border)] p-3">
       <p className="text-sm text-[var(--text)]">
-        Sin revelar todavía{" "}
+        {t("juveniles.sinRevelarTodavia", "Sin revelar todavía")}{" "}
         <span className="text-[var(--muted)]">
-          · el ojeador no ha dicho nada de estos {nombres.length}
+          ·{" "}
+          {t(
+            "juveniles.ojeadorNoHaDicho",
+            "el ojeador no ha dicho nada de estos {{n}}",
+            { n: nombres.length },
+          )}
         </span>
       </p>
       {banquillo.length > 0 && (
         <>
           <p className="mt-2 text-xs text-[var(--muted)]">
-            No entrenan esta semana, así que siguen igual de oscuros
+            {t(
+              "juveniles.noEntrenan",
+              "No entrenan esta semana, así que siguen igual de oscuros",
+            )}
           </p>
           <div className="mt-1 flex flex-wrap gap-2">
             {banquillo.map((a) => chip(a, false))}
@@ -1769,7 +2013,10 @@ function SinRevelar({
       {once.length > 0 && (
         <>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            Entrenan, que es lo que hace que se revelen
+            {t(
+              "juveniles.entrenanRevelan",
+              "Entrenan, que es lo que hace que se revelen",
+            )}
           </p>
           <div className="mt-1 flex flex-wrap gap-2">
             {once.map((a) => chip(a, true))}
@@ -1882,59 +2129,68 @@ function TrainingPlan({
 
   return (
     <Panel
-      title="Cómo repartir los dos entrenamientos"
-      meta="principal y secundario"
+      title={t(
+        "juveniles.comoRepartir",
+        "Cómo repartir los dos entrenamientos",
+      )}
+      meta={t("juveniles.principalYSecundario", "principal y secundario")}
     >
       <div className="flex flex-wrap gap-3 border-b border-[var(--border)] p-4">
         {selector(
           principal,
           eligeAMano(setMain),
-          "Entrenamiento principal",
+          t("juveniles.entrenoPrincipal", "Entrenamiento principal"),
           "juveniles.principal",
         )}
         {selector(
           secundaria,
           eligeAMano(setSecondary),
-          "Entrenamiento secundario",
+          t("juveniles.entrenoSecundario", "Entrenamiento secundario"),
           "juveniles.secundario",
         )}
       </div>
 
       {plan.data?.repeatedTraining && (
         <div className="border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm text-[var(--text)]">
-          <span className="font-medium">Entrenamiento repetido:</span> 100%
-          principal + {porcentaje(plan.data.secondaryFactor * 100)} secundario
+          <span className="font-medium">
+            {t("juveniles.repetido", "Entrenamiento repetido:")}
+          </span>{" "}
+          {t("juveniles.repetidoSuma", "100% principal + {{sec}} secundario", {
+            sec: porcentaje(plan.data.secondaryFactor * 100),
+          })}
           {" = "}
-          <strong>{porcentaje(plan.data.combinedFactor * 100)}</strong> del
-          efecto de una sesión. El secundario normal de 66,7% recibe el castigo
-          por repetición.
+          <strong>{porcentaje(plan.data.combinedFactor * 100)}</strong>{" "}
+          {t(
+            "juveniles.repetidoExplica",
+            "del efecto de una sesión. El secundario normal de 66,7% recibe el castigo por repetición.",
+          )}
         </div>
       )}
 
       {plan.isError && (
         <p className="p-4 text-sm text-[var(--danger)]">
-          No se pudo calcular el reparto.
+          {t("juveniles.errorReparto", "No se pudo calcular el reparto.")}
         </p>
       )}
 
       {plan.data && (
         <div className="divide-y divide-[var(--border)]">
           <TablaDelReparto
-            titulo="El once"
+            titulo={t("juveniles.elOnce", "El once")}
             filas={plan.data.assignments}
             mainLabel={plan.data.mainLabel}
             secondaryLabel={plan.data.secondaryLabel}
           />
           <TablaDelReparto
-            titulo="El banquillo"
-            pie="lo que recibirían si entran"
+            titulo={t("juveniles.elBanquillo", "El banquillo")}
+            pie={t("juveniles.siEntran", "lo que recibirían si entran")}
             filas={plan.data.outside.filter((a) => a.puesto)}
             mainLabel={plan.data.mainLabel}
             secondaryLabel={plan.data.secondaryLabel}
           />
           {plan.data.outside.filter((a) => !a.puesto).length > 0 && (
             <p className="p-4 text-xs text-[var(--muted)]">
-              Sin sitio ni en el banquillo:{" "}
+              {t("juveniles.sinSitio", "Sin sitio ni en el banquillo:")}{" "}
               {plan.data.outside
                 .filter((a) => !a.puesto)
                 .map((a) => `${a.player} ${edadCorta(a.ageDaysTotal)}`)
@@ -1949,22 +2205,34 @@ function TrainingPlan({
                   <>
                     <b className="text-[var(--text)]">
                       {plan.data.doubleBlind === plan.data.doubleCount
-                        ? `Los ${plan.data.doubleCount}`
-                        : `${plan.data.doubleBlind} de los ${plan.data.doubleCount}`}
+                        ? t("juveniles.losN", "Los {{n}}", {
+                            n: plan.data.doubleCount,
+                          })
+                        : t("juveniles.aDeLosB", "{{a}} de los {{b}}", {
+                            a: plan.data.doubleBlind,
+                            b: plan.data.doubleCount,
+                          })}
                     </b>{" "}
-                    que reciben los dos entrenamientos van a entrenar una
-                    habilidad que el ojeador no ha revelado. Es a propósito:
-                    entrenarlos es lo que la revela.{" "}
+                    {t(
+                      "juveniles.dobleCiego",
+                      "que reciben los dos entrenamientos van a entrenar una habilidad que el ojeador no ha revelado. Es a propósito: entrenarlos es lo que la revela.",
+                    )}{" "}
                   </>
                 )}
-                El ojeador lleva {plan.data.scouting.known} lecturas de{" "}
-                {plan.data.scouting.total}
-                {plan.data.scouting.blankPlayers.length > 0 && (
-                  <>
-                    , y {plan.data.scouting.blankPlayers.length} canteranos sin
-                    nada revelado todavía
-                  </>
+                {t(
+                  "juveniles.lecturas",
+                  "El ojeador lleva {{a}} lecturas de {{b}}",
+                  {
+                    a: plan.data.scouting.known,
+                    b: plan.data.scouting.total,
+                  },
                 )}
+                {plan.data.scouting.blankPlayers.length > 0 &&
+                  t(
+                    "juveniles.sinNadaRevelado",
+                    ", y {{n}} canteranos sin nada revelado todavía",
+                    { n: plan.data.scouting.blankPlayers.length },
+                  )}
                 .
               </p>
             )}
@@ -2061,14 +2329,19 @@ function NivelConMovimiento({
 }) {
   const subio = movida?.before != null && current != null;
   const techoNuevo = movida?.maxNewlyKnown === true && maximum != null;
-  if (!subio && !techoNuevo) return <>{numeros || "Desconocido"}</>;
+  if (!subio && !techoNuevo)
+    return <>{numeros || t("juveniles.desconocido", "Desconocido")}</>;
 
   return (
     <span
       title={
         subio
-          ? `subió de ${movida!.before} a ${current} en la ventana elegida`
-          : "techo recién revelado por el ojeador"
+          ? t(
+              "juveniles.subioDe",
+              "subió de {{antes}} a {{ahora}} en la ventana elegida",
+              { antes: movida!.before, ahora: current },
+            )
+          : t("juveniles.techoRecien", "techo recién revelado por el ojeador")
       }
     >
       {subio && (
@@ -2096,7 +2369,7 @@ function columnasDeCanteranos(
   const columnas: Column<Canterano>[] = [
     {
       key: "nombre",
-      header: "Nombre",
+      header: t("entrenamiento.nombre", "Nombre"),
       align: "left",
       value: (p) => p.name,
       // La bandera es la MISMA para todos y va aquí, pegada al nombre, en vez
@@ -2113,7 +2386,7 @@ function columnasDeCanteranos(
     },
     {
       key: "edad",
-      header: "Edad",
+      header: t("jugadores.edad", "Edad"),
       align: "right",
       // `15;068`, como en el resto del módulo. `htAge` da «15.68», sin ceros,
       // y dos formatos de edad en la misma página se leen como dos datos
@@ -2123,7 +2396,7 @@ function columnasDeCanteranos(
     },
     {
       key: "clase",
-      header: "Clasificación",
+      header: t("juveniles.clasificacion", "Clasificación"),
       align: "left",
       // Ordena por RANGO, no por alfabeto: «vendible» antes que «crack» sería
       // un orden inútil. Que el buscador no encuentre «crack» escribiéndolo
@@ -2134,18 +2407,26 @@ function columnasDeCanteranos(
         <span
           className={`whitespace-nowrap ${CATEGORY_TONE[p.category] ?? ""}`}
         >
-          {p.category}
+          {nombreDeCategoria(p.category)}
           {/* El interrogante avisa de que el veredicto es provisional. Con
               «sin ojear» sobra: la etiqueta ya dice justo eso. */}
           {p.verdictIsProvisional && p.revealedSkills > 0 && (
-            <span title="pocos techos revelados: provisional"> ?</span>
+            <span
+              title={t(
+                "juveniles.provisional",
+                "pocos techos revelados: provisional",
+              )}
+            >
+              {" "}
+              ?
+            </span>
           )}
         </span>
       ),
     },
     {
       key: "especialidad",
-      header: "Especialidad",
+      header: t("jugadores.especialidad", "Especialidad"),
       align: "left",
       // Como en «Jugadores»: `value` en texto plano --es lo que ordena, lo que
       // filtra el buscador y lo que va al CSV-- y el icono sólo en `render`.
@@ -2162,25 +2443,30 @@ function columnasDeCanteranos(
     },
     {
       key: "puedeLlegar",
-      header: "Puede llegar a (HTMS28)",
+      header: t("juveniles.puedeLlegar", "Puede llegar a (HTMS28)"),
       align: "right",
       value: (p) => p.htms28Max,
       render: (p) => (
-        <span title="en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener">
+        <span
+          title={t(
+            "juveniles.htms28Title",
+            "en qué se puede convertir, en HTMS28: entre lo que ya tiene y lo que puede llegar a tener",
+          )}
+        >
           {number(p.htms28Min)} – {number(p.htms28Max)}
         </span>
       ),
     },
     {
       key: "yaTiene",
-      header: "Ya tiene (HTMS28)",
+      header: t("juveniles.yaTiene", "Ya tiene (HTMS28)"),
       align: "right",
       optional: true,
       value: (p) => p.htms28Min,
     },
     {
       key: "porSaber",
-      header: "Por saber (HTMS28)",
+      header: t("juveniles.porSaber", "Por saber (HTMS28)"),
       align: "right",
       optional: true,
       // La horquilla: cuánto depende todavía del ojeador.
@@ -2188,25 +2474,29 @@ function columnasDeCanteranos(
     },
     {
       key: "techos",
-      header: "Techos",
+      header: t("juveniles.techos", "Techos"),
       align: "right",
       value: (p) => p.revealedSkills,
       render: (p) => `${p.revealedSkills}/${p.skills.length}`,
     },
     {
       key: "mejorTecho",
-      header: "Mejor techo",
+      header: t("juveniles.mejorTecho", "Mejor techo"),
       align: "right",
       // Sin techo revelado no hay número que comparar: al final de la lista,
       // no al principio.
       value: (p) => p.bestSkillMax ?? -1,
-      render: (p) => (p.bestSkillMax == null ? "Desconocido" : p.bestSkillMax),
+      render: (p) =>
+        p.bestSkillMax == null
+          ? t("juveniles.desconocido", "Desconocido")
+          : p.bestSkillMax,
     },
   ];
 
   // Una columna por habilidad. Son el motivo de esta pantalla, así que salen
   // todas de entrada; lo accesorio es lo que va escondido.
-  for (const [clave, nombre] of Object.entries(SKILL_NAMES)) {
+  for (const clave of Object.keys(SKILL_NAMES)) {
+    const nombre = nombreDeHabilidad(clave);
     columnas.push({
       key: `skill-${clave}`,
       header: nombre,
@@ -2238,7 +2528,9 @@ function columnasDeCanteranos(
           return (
             <span
               className="text-[var(--muted)]"
-              title={`${nombre}: sin revelar`}
+              title={t("juveniles.sinRevelarDe", "{{habilidad}}: sin revelar", {
+                habilidad: nombre,
+              })}
             >
               ·
             </span>
@@ -2264,7 +2556,11 @@ function columnasDeCanteranos(
             }}
           >
             {s.maxReached && (
-              <span title="ya tocó techo: no sube más">🔒 </span>
+              <span
+                title={t("juveniles.tocoTecho", "ya tocó techo: no sube más")}
+              >
+                🔒{" "}
+              </span>
             )}
             <NivelConMovimiento
               current={s.current}
@@ -2281,7 +2577,7 @@ function columnasDeCanteranos(
   columnas.push(
     {
       key: "sube",
-      header: "Puede subir",
+      header: t("juveniles.puedeSubir", "Puede subir"),
       align: "right",
       // Los que ya pueden subir van primero: 0 días es lo más urgente, así que
       // se ordena de menos a más y quien no tiene fecha queda al final.
@@ -2290,7 +2586,7 @@ function columnasDeCanteranos(
     },
     {
       key: "edadAlSubir",
-      header: "Edad al subir",
+      header: t("juveniles.edadAlSubir", "Edad al subir"),
       align: "right",
       // Rescatada de «Siguiente promoción», que esta tabla sustituye. Dice
       // cuál de los dos relojes le frena: 17;000 es que le frena la EDAD --lo
@@ -2301,7 +2597,7 @@ function columnasDeCanteranos(
     },
     {
       key: "limite",
-      header: "Se va en",
+      header: t("juveniles.seVaEn", "Se va en"),
       align: "right",
       optional: true,
       value: (p) => p.daysUntilDeadline,
@@ -2309,23 +2605,25 @@ function columnasDeCanteranos(
     },
     {
       key: "minutos",
-      header: "Últ. partido",
+      header: t("jugadores.ultPartido", "Últ. partido"),
       align: "right",
       optional: true,
       value: (p) => p.minutesLastMatch,
       render: (p) =>
-        p.minutesLastMatch > 0 ? `${p.minutesLastMatch} min` : "No jugó",
+        p.minutesLastMatch > 0
+          ? `${p.minutesLastMatch} min`
+          : t("juveniles.noJugo", "No jugó"),
     },
     {
       key: "margen",
-      header: "Margen por ganar",
+      header: t("juveniles.margen", "Margen por ganar"),
       align: "right",
       optional: true,
       value: (p) => margenPorGanar(p),
     },
     {
       key: "consejo",
-      header: "Consejo",
+      header: t("juveniles.consejo", "Consejo"),
       align: "left",
       optional: true,
       value: (p) => p.promoteAdvice,
@@ -2507,11 +2805,14 @@ function SkillDetail({ data }: { data: Academy }) {
 
   return (
     <Panel
-      title="Plantilla juvenil"
+      title={t("juveniles.vista.squad", "Plantilla juvenil")}
       meta={
         <span className="flex items-center gap-2">
           {hayFiltro
-            ? `${filtrados.length} de ${data.players.length}`
+            ? t("comun.nDeTotal", "{{n}} de {{total}}", {
+                n: filtrados.length,
+                total: data.players.length,
+              })
             : `${data.players.length}`}
           {/* Tres columnas de esta tabla están en HTMS28, que no es un dato
               de Hattrick sino una cuenta nuestra. */}
@@ -2524,32 +2825,46 @@ function SkillDetail({ data }: { data: Academy }) {
           <Chip
             activo={soloRevelable}
             onClick={() => setSoloRevelable((v) => !v)}
-            title="al ojeador todavía le queda algo por revelarles; lo dice el juego, no lo suponemos"
+            title={t(
+              "juveniles.chip.revelarTitle",
+              "al ojeador todavía le queda algo por revelarles; lo dice el juego, no lo suponemos",
+            )}
           >
-            Puede revelar algo
+            {t("juveniles.chip.revelar", "Puede revelar algo")}
             {informes.data ? ` (${conRevelacion.size})` : ""}
           </Chip>
           <Chip
             activo={soloAlTope}
             onClick={() => setSoloAlTope((v) => !v)}
-            title="tienen alguna habilidad que ya no sube"
+            title={t(
+              "juveniles.chip.alTopeTitle",
+              "tienen alguna habilidad que ya no sube",
+            )}
           >
-            Con algo al tope (
+            {t("juveniles.chip.alTope", "Con algo al tope")} (
             {cuantos((p) => p.skills.some((x) => x.maxReached))})
           </Chip>
           <Chip
             activo={sinOjear}
             onClick={() => setSinOjear((v) => !v)}
-            title="ni una habilidad revelada: no hay nada que decidir sobre ellos hasta ojearlos"
+            title={t(
+              "juveniles.chip.sinOjearTitle",
+              "ni una habilidad revelada: no hay nada que decidir sobre ellos hasta ojearlos",
+            )}
           >
-            Sin ojear ({cuantos((p) => p.revealedSkills === 0)})
+            {t("juveniles.chip.sinOjear", "Sin ojear")} (
+            {cuantos((p) => p.revealedSkills === 0)})
           </Chip>
           <Chip
             activo={sinMargen}
             onClick={() => setSinMargen((v) => !v)}
-            title="no les queda nada por ganar en lo que ya se sabe de ellos; uno sin ojear no cuenta, su margen es desconocido, no cero"
+            title={t(
+              "juveniles.chip.sinMargenTitle",
+              "no les queda nada por ganar en lo que ya se sabe de ellos; uno sin ojear no cuenta, su margen es desconocido, no cero",
+            )}
           >
-            Sin margen de mejora ({cuantos(agotado)})
+            {t("juveniles.chip.sinMargen", "Sin margen de mejora")} (
+            {cuantos(agotado)})
           </Chip>
 
           <span className="mx-1 h-4 w-px bg-[var(--border)]" />
@@ -2557,17 +2872,24 @@ function SkillDetail({ data }: { data: Academy }) {
           <Chip
             activo={yaAsciende}
             onClick={() => setYaAsciende((v) => !v)}
-            title="ya cumplen las dos reglas de Hattrick: puedes subirlos hoy"
+            title={t(
+              "juveniles.chip.yaAscTitle",
+              "ya cumplen las dos reglas de Hattrick: puedes subirlos hoy",
+            )}
           >
-            Ya puede ascender (
+            {t("juveniles.chip.yaAsc", "Ya puede ascender")} (
             {cuantos((p) => (p.canBePromotedIn ?? 9999) <= 0)})
           </Chip>
           <Chip
             activo={ascPronto}
             onClick={() => setAscPronto((v) => !v)}
-            title={`podrán subir dentro de ${ASCIENDE_PRONTO_DIAS} días o menos`}
+            title={t(
+              "juveniles.chip.prontoTitle",
+              "podrán subir dentro de {{n}} días o menos",
+              { n: ASCIENDE_PRONTO_DIAS },
+            )}
           >
-            Puede ascender pronto (
+            {t("juveniles.chip.pronto", "Puede ascender pronto")} (
             {cuantos(
               (p) => (p.canBePromotedIn ?? 9999) <= ASCIENDE_PRONTO_DIAS,
             )}
@@ -2576,9 +2898,13 @@ function SkillDetail({ data }: { data: Academy }) {
           <Chip
             activo={jugoUltimo}
             onClick={() => setJugoUltimo((v) => !v)}
-            title="tuvieron minutos en el último partido juvenil"
+            title={t(
+              "juveniles.chip.jugoTitle",
+              "tuvieron minutos en el último partido juvenil",
+            )}
           >
-            Jugó el último partido ({cuantos((p) => p.minutesLastMatch > 0)})
+            {t("juveniles.chip.jugo", "Jugó el último partido")} (
+            {cuantos((p) => p.minutesLastMatch > 0)})
           </Chip>
 
           <span className="mx-1 h-4 w-px bg-[var(--border)]" />
@@ -2586,36 +2912,48 @@ function SkillDetail({ data }: { data: Academy }) {
           <Chip
             activo={conEspecialidad}
             onClick={() => setConEspecialidad((v) => !v)}
-            title="tienen alguna especialidad; se sabe desde el primer día, aunque no estén ojeados"
+            title={t(
+              "juveniles.chip.especialidadTitle",
+              "tienen alguna especialidad; se sabe desde el primer día, aunque no estén ojeados",
+            )}
           >
-            Con especialidad ({cuantos((p) => Boolean(p.specialty))})
+            {t("juveniles.chip.especialidad", "Con especialidad")} (
+            {cuantos((p) => Boolean(p.specialty))})
           </Chip>
           {/* Sólo si hay alguna: un desplegable vacío es un control que no
               hace nada, y en una academia sin especialidades no la hay. */}
           {especialidades.length > 0 ? (
             <select
-              aria-label="Filtrar los canteranos por especialidad"
+              aria-label={t(
+                "juveniles.filtroEspecialidad",
+                "Filtrar los canteranos por especialidad",
+              )}
               value={especialidad}
               onChange={(e) => setEspecialidad(e.target.value)}
               className={control}
             >
-              <option value="">Cualquier especialidad</option>
+              <option value="">
+                {t("juveniles.cualquierEspecialidad", "Cualquier especialidad")}
+              </option>
               {especialidades.map((e) => (
                 <option key={e} value={e}>
-                  {e}
+                  {specialtyLabel(e)}
                 </option>
               ))}
             </select>
           ) : null}
           <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
-            HTMS28 mínimo
+            {t("juveniles.htmsMinimo", "HTMS28 mínimo")}
             <input
               type="number"
               min={0}
               step={100}
               value={htmsMinimo}
               onChange={(e) => setHtmsMinimo(Number(e.target.value) || 0)}
-              title="sobre «puede llegar a»: el techo del canterano, no lo que ya tiene"
+              title={t(
+                "juveniles.htmsMinimoTitle",
+                "sobre «puede llegar a»: el techo del canterano, no lo que ya tiene",
+              )}
               className="w-20 rounded border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-right tabular-nums"
             />
           </label>
@@ -2623,21 +2961,28 @@ function SkillDetail({ data }: { data: Academy }) {
           <span className="mx-1 h-4 w-px bg-[var(--border)]" />
 
           <select
-            aria-label="Filtrar los canteranos por habilidad"
+            aria-label={t(
+              "juveniles.filtroHabilidad",
+              "Filtrar los canteranos por habilidad",
+            )}
             value={habilidad}
             onChange={(e) => setHabilidad(e.target.value)}
             className={control}
           >
-            <option value="">Cualquier habilidad</option>
-            {Object.entries(SKILL_NAMES).map(([clave, nombre]) => (
+            <option value="">
+              {t("juveniles.cualquierHabilidad", "Cualquier habilidad")}
+            </option>
+            {Object.keys(SKILL_NAMES).map((clave) => (
               <option key={clave} value={clave}>
-                Con algo en {nombre}
+                {t("juveniles.conAlgoEn", "Con algo en {{habilidad}}", {
+                  habilidad: nombreDeHabilidad(clave),
+                })}
               </option>
             ))}
           </select>
           {habilidad ? (
             <label className="flex items-center gap-1 text-xs text-[var(--muted)]">
-              techo mínimo
+              {t("juveniles.techoMinimo", "techo mínimo")}
               <input
                 type="number"
                 min={0}
@@ -2654,13 +2999,15 @@ function SkillDetail({ data }: { data: Academy }) {
               onClick={limpiarFiltros}
               className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
             >
-              Quitar filtros
+              {t("juveniles.quitarFiltros", "Quitar filtros")}
             </button>
           ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--muted)]">Clasificación</span>
+          <span className="text-xs text-[var(--muted)]">
+            {t("juveniles.clasificacion", "Clasificación")}
+          </span>
           {CLASIFICACIONES.map((c) => {
             const cuantos = data.players.filter((p) => p.category === c).length;
             if (cuantos === 0) return null;
@@ -2670,7 +3017,7 @@ function SkillDetail({ data }: { data: Academy }) {
                 activo={clases.includes(c)}
                 onClick={() => setClases(alterna(clases, c))}
               >
-                {c} ({cuantos})
+                {nombreDeCategoria(c)} ({cuantos})
               </Chip>
             );
           })}
@@ -2690,9 +3037,12 @@ function SkillDetail({ data }: { data: Academy }) {
         // Lo mismo que ordenaba antes por omisión el desplegable que había
         // aquí: en qué se puede convertir, de mayor a menor.
         initialSort="puedeLlegar"
-        filterPlaceholder="Buscar por nombre…"
+        filterPlaceholder={t("juveniles.buscarNombre", "Buscar por nombre…")}
         csvName="canteranos"
-        emptyMessage="Ningún canterano cumple ese filtro."
+        emptyMessage={t(
+          "juveniles.ningunoFiltro",
+          "Ningún canterano cumple ese filtro.",
+        )}
       />
     </Panel>
   );
@@ -2701,7 +3051,7 @@ function SkillDetail({ data }: { data: Academy }) {
 /** «en 88 días» / «hoy mismo», y la fecha entre paréntesis. */
 function enDias(dias: number | null): { texto: string; urgente: boolean } {
   if (dias == null) return { texto: "-", urgente: false };
-  if (dias <= 0) return { texto: "ya", urgente: false };
+  if (dias <= 0) return { texto: t("juveniles.ya", "ya"), urgente: false };
   return { texto: `${dias} d`, urgente: dias <= 21 };
 }
 
@@ -2776,10 +3126,14 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
 
   return (
     <Panel
-      title="La cuenta de cada ojeador"
+      title={t("juveniles.cuentaOjeadores", "La cuenta de cada ojeador")}
       meta={
         totals
-          ? `${totals.scouts} ojeadores · ${moneda(ledger.weeklyCost)}/semana cada uno`
+          ? t(
+              "juveniles.cuentaMeta",
+              "{{n}} ojeadores · {{cifra}}/semana cada uno",
+              { n: totals.scouts, cifra: moneda(ledger.weeklyCost) },
+            )
           : ""
       }
     >
@@ -2788,43 +3142,52 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>
-                Ojeador
+                {t("juveniles.ojeador", "Ojeador")}
               </th>
               <th scope="col" className={`${th} text-left`}>
-                Busca en
+                {t("juveniles.buscaEn", "Busca en")}
               </th>
               <th
                 scope="col"
                 className={`${th} text-right`}
-                title="semanas completas desde que lo contrataste"
+                title={t(
+                  "juveniles.semanasTitle",
+                  "semanas completas desde que lo contrataste",
+                )}
               >
-                Semanas
+                {t("entrenamiento.semanas", "Semanas")}
               </th>
               <th scope="col" className={`${th} text-right`}>
-                Ha costado
+                {t("juveniles.haCostado", "Ha costado")}
               </th>
               <th scope="col" className={`${th} text-right`}>
-                Trajo
+                {t("juveniles.trajo", "Trajo")}
               </th>
               <th
                 scope="col"
                 className={`${th} text-right`}
-                title="lo que te ha costado cada canterano que te trajo: es lo que compara a un ojeador con otro antes de que haya ninguna venta"
+                title={t(
+                  "juveniles.cadaUnoTitle",
+                  "lo que te ha costado cada canterano que te trajo: es lo que compara a un ojeador con otro antes de que haya ninguna venta",
+                )}
               >
-                Cada uno
+                {t("juveniles.cadaUno", "Cada uno")}
               </th>
               <th
                 scope="col"
                 className={`${th} text-right`}
-                title="días desde su último fichaje; si nunca trajo nada, desde que lo contrataste"
+                title={t(
+                  "juveniles.sinTraerTitle",
+                  "días desde su último fichaje; si nunca trajo nada, desde que lo contrataste",
+                )}
               >
-                Sin traer
+                {t("juveniles.sinTraer", "Sin traer")}
               </th>
               <th scope="col" className={`${th} text-right`}>
-                Ha dado
+                {t("juveniles.haDado", "Ha dado")}
               </th>
               <th scope="col" className={`${th} text-right`}>
-                Saldo
+                {t("juveniles.saldo", "Saldo")}
               </th>
             </tr>
           </thead>
@@ -2835,7 +3198,7 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   {o.name}
                   {!o.stillHired && (
                     <span className="ml-2 text-xs text-[var(--muted)]">
-                      despedido
+                      {t("juveniles.despedido", "despedido")}
                     </span>
                   )}
                 </td>
@@ -2853,7 +3216,8 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                   {o.sold > 0 && (
                     <span className="text-xs text-[var(--muted)]">
                       {" "}
-                      · {o.sold} vendidos
+                      ·{" "}
+                      {t("juveniles.vendidos", "{{n}} vendidos", { n: o.sold })}
                     </span>
                   )}
                 </td>
@@ -2881,7 +3245,9 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
                       {moneda(o.income)}
                     </span>
                   ) : (
-                    <span className="text-[var(--muted)]">todavía nada</span>
+                    <span className="text-[var(--muted)]">
+                      {t("juveniles.todaviaNada", "todavía nada")}
+                    </span>
                   )}
                 </td>
                 <td className={`${td} text-right`}>
@@ -2912,7 +3278,7 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
             <tfoot>
               <tr className="border-t-2 border-[var(--border)] font-medium">
                 <td className={td} colSpan={3}>
-                  Total
+                  {t("juveniles.total", "Total")}
                 </td>
                 <td
                   className={`${td} text-right tabular-nums text-[var(--danger)]`}
@@ -2942,8 +3308,11 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
       </div>
       {ledger.unlinked.length > 0 && (
         <p className="px-4 py-2 text-xs text-[var(--warning)]">
-          Sin enlazar con su ficha de mayores, así que su dinero no está en esta
-          cuenta: {ledger.unlinked.join(", ")}.
+          {t(
+            "juveniles.sinEnlazar",
+            "Sin enlazar con su ficha de mayores, así que su dinero no está en esta cuenta: {{nombres}}.",
+            { nombres: ledger.unlinked.join(", ") },
+          )}
         </p>
       )}
     </Panel>
@@ -2965,9 +3334,12 @@ function Ojeadores() {
   const data = informes.data;
   if (!data || data.players.length === 0) {
     return (
-      <Panel title="Ojeadores">
+      <Panel title={t("juveniles.vista.scouts", "Ojeadores")}>
         <Empty>
-          Sincroniza para traer el informe del ojeador de cada canterano.
+          {t(
+            "juveniles.sincronizaOjeadores",
+            "Sincroniza para traer el informe del ojeador de cada canterano.",
+          )}
         </Empty>
       </Panel>
     );
@@ -2991,8 +3363,16 @@ function Ojeadores() {
           de quién trajo a quién. */}
       {cuenta.data && <CuentaDeOjeadores ledger={cuenta.data} />}
       <Panel
-        title="Ojeadores"
-        meta={`${ojeadores.length} · ${traidos.length} de ${data.players.length} canteranos`}
+        title={t("juveniles.vista.scouts", "Ojeadores")}
+        meta={t(
+          "juveniles.ojeadoresMeta",
+          "{{n}} · {{a}} de {{b}} canteranos",
+          {
+            n: ojeadores.length,
+            a: traidos.length,
+            b: data.players.length,
+          },
+        )}
       >
         <div className="flex flex-wrap gap-3 p-4">
           {ojeadores.map((o) => (
@@ -3002,20 +3382,32 @@ function Ojeadores() {
             >
               <p className="text-sm font-medium">{o.scoutName}</p>
               <p className="text-xs text-[var(--muted)]">
-                {o.players} {o.players === 1 ? "canterano" : "canteranos"}
+                {o.players === 1
+                  ? t("juveniles.unCanterano", "{{n}} canterano", {
+                      n: o.players,
+                    })
+                  : t("juveniles.nCanteranos", "{{n}} canteranos", {
+                      n: o.players,
+                    })}
                 {regiones.get(o.scoutName)
                   ? ` · ${regiones.get(o.scoutName)}`
                   : o.regionIds.length > 0
-                    ? ` · región ${o.regionIds.join(", ")}`
+                    ? ` · ${t("juveniles.region.nombre", "región {{ids}}", { ids: o.regionIds.join(", ") })}`
                     : ""}
               </p>
             </div>
           ))}
           {deCasa.length > 0 && (
             <div className="rounded-lg border border-dashed border-[var(--border)] px-3 py-2">
-              <p className="text-sm">Vinieron con la academia</p>
+              <p className="text-sm">
+                {t("juveniles.vinieron", "Vinieron con la academia")}
+              </p>
               <p className="text-xs text-[var(--muted)]">
-                {deCasa.length} canteranos · nadie salió a buscarlos
+                {t(
+                  "juveniles.nadieBusco",
+                  "{{n}} canteranos · nadie salió a buscarlos",
+                  { n: deCasa.length },
+                )}
               </p>
             </div>
           )}
@@ -3024,8 +3416,15 @@ function Ojeadores() {
 
       {porRevelar.length > 0 && (
         <Panel
-          title="Todavía se les puede revelar algo"
-          meta={`${porRevelar.length} · lo dice el juego, no lo suponemos`}
+          title={t(
+            "juveniles.sePuedeRevelar",
+            "Todavía se les puede revelar algo",
+          )}
+          meta={t(
+            "juveniles.sePuedeRevelarMeta",
+            "{{n}} · lo dice el juego, no lo suponemos",
+            { n: porRevelar.length },
+          )}
         >
           <ul className="space-y-1 p-4 text-sm">
             {porRevelar.map((p) => (
@@ -3094,31 +3493,41 @@ function TablaDeContingencia({
   const td = "px-2 py-1.5 tabular-nums";
   return (
     <Panel
-      title="Ojeador y categoría"
-      meta={`${n} canteranos`}
-      ayuda="Cada celda cuenta cuántos canteranos de ese origen hay en esa categoría. Verde: más de los que tocarían si la categoría no dependiera de quién lo trajo; rojo: menos. La prueba chi-cuadrado dice si esas diferencias son de verdad o caben en el azar."
+      title={t("juveniles.ojeadorYCategoria", "Ojeador y categoría")}
+      meta={t("juveniles.nCanteranos", "{{n}} canteranos", { n })}
+      ayuda={t(
+        "juveniles.contingenciaAyuda",
+        "Cada celda cuenta cuántos canteranos de ese origen hay en esa categoría. Verde: más de los que tocarían si la categoría no dependiera de quién lo trajo; rojo: menos. La prueba chi-cuadrado dice si esas diferencias son de verdad o caben en el azar.",
+      )}
     >
       <div className="overflow-x-auto p-4">
         <table className="w-full min-w-[40rem] text-sm">
           <thead className="bg-[var(--surface-2)]">
             <tr>
               <th scope="col" className={`${th} text-left`}>
-                Origen
+                {t("juveniles.origen", "Origen")}
               </th>
-              {CATEGORIAS_CANTERA.map((c) => (
-                <th key={c} scope="col" className={`${th} text-right`}>
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </th>
-              ))}
+              {CATEGORIAS_CANTERA.map((c) => {
+                const nombre = nombreDeCategoria(c);
+                return (
+                  <th key={c} scope="col" className={`${th} text-right`}>
+                    {nombre.charAt(0).toUpperCase() + nombre.slice(1)}
+                  </th>
+                );
+              })}
               <th scope="col" className={`${th} text-right`}>
-                Total
+                {t("juveniles.total", "Total")}
               </th>
             </tr>
           </thead>
           <tbody>
             {grupos.map((g, i) => (
               <tr key={g} className="border-t border-[var(--border)]">
-                <td className={`${td} text-left`}>{g}</td>
+                <td className={`${td} text-left`}>
+                  {g === DE_LA_ACADEMIA
+                    ? t("juveniles.originales", DE_LA_ACADEMIA)
+                    : g}
+                </td>
                 {tabla[i]!.map((o, j) => {
                   const esperada = n
                     ? (totalFila[i]! * totalColumna[j]!) / n
@@ -3129,7 +3538,11 @@ function TablaDeContingencia({
                     <td
                       key={j}
                       className={`${td} text-right`}
-                      title={`esperados si no dependiera del origen: ${esperada.toFixed(1)}`}
+                      title={t(
+                        "juveniles.esperados",
+                        "esperados si no dependiera del origen: {{n}}",
+                        { n: esperada.toFixed(1) },
+                      )}
                       style={{
                         background:
                           residuo >= 1.5
@@ -3152,7 +3565,9 @@ function TablaDeContingencia({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-[var(--border)] font-medium">
-              <td className={`${td} text-left`}>Total</td>
+              <td className={`${td} text-left`}>
+                {t("juveniles.total", "Total")}
+              </td>
               {totalColumna.map((v, j) => (
                 <td key={j} className={`${td} text-right`}>
                   {v}
@@ -3168,30 +3583,46 @@ function TablaDeContingencia({
           <>
             <p>
               {prueba.p < 0.05 ? (
-                <b>La categoría sí depende de quién trajo al canterano.</b>
+                <b>
+                  {t(
+                    "juveniles.siDepende",
+                    "La categoría sí depende de quién trajo al canterano.",
+                  )}
+                </b>
               ) : (
                 <b>
-                  No hay pruebas de que la categoría dependa de quién lo trajo:
-                  las diferencias caben en el azar.
+                  {t(
+                    "juveniles.noDepende",
+                    "No hay pruebas de que la categoría dependa de quién lo trajo: las diferencias caben en el azar.",
+                  )}
                 </b>
               )}
             </p>
             <p className="mt-1 text-xs tabular-nums text-[var(--muted)]">
-              χ² = {prueba.chi2.toFixed(2).replace(".", ",")} ·{" "}
-              {prueba.gradosDeLibertad} grados de libertad · p ={" "}
+              χ² = {conSeparador(prueba.chi2.toFixed(2))} ·{" "}
+              {t("juveniles.gradosLibertad", "{{n}} grados de libertad", {
+                n: prueba.gradosDeLibertad,
+              })}{" "}
+              · p ={" "}
               {prueba.p < 0.001
-                ? "< 0,001"
-                : prueba.p.toFixed(3).replace(".", ",")}{" "}
-              · V de Cramér = {prueba.cramerV.toFixed(2).replace(".", ",")}
+                ? `< ${conSeparador("0.001")}`
+                : conSeparador(prueba.p.toFixed(3))}{" "}
+              · {t("juveniles.vCramer", "V de Cramér")} ={" "}
+              {conSeparador(prueba.cramerV.toFixed(2))}
               {prueba.celdasConPocoEsperado >
                 prueba.esperadas.length * prueba.esperadas[0]!.length * 0.2 &&
-                " · con tan pocos canteranos por celda la prueba tiene poca fuerza"}
+                t(
+                  "juveniles.pocaFuerza",
+                  " · con tan pocos canteranos por celda la prueba tiene poca fuerza",
+                )}
             </p>
           </>
         ) : (
           <p className="text-xs text-[var(--muted)]">
-            Hace falta más de un origen y más de una categoría con canteranos
-            para hacer la prueba.
+            {t(
+              "juveniles.faltaOrigen",
+              "Hace falta más de un origen y más de una categoría con canteranos para hacer la prueba.",
+            )}
           </p>
         )}
       </div>
@@ -3207,10 +3638,15 @@ function GraduatesTable({ data }: { data: Academy }) {
   // medias-- se ve una tabla vacia, no la pagina en blanco. Paso.
   const filas = data.allGraduates ?? [];
   const columns: Column<Row>[] = [
-    { key: "name", header: "Nombre", align: "left", value: (r) => r.name },
+    {
+      key: "name",
+      header: t("entrenamiento.nombre", "Nombre"),
+      align: "left",
+      value: (r) => r.name,
+    },
     {
       key: "arrived",
-      header: "En su club desde",
+      header: t("juveniles.enSuClub", "En su club desde"),
       // Se llamaba «Promocionado» y no lo era: guarda cuándo llegó al club
       // donde está HOY. Por eso salía después de la venta en las 43 filas.
       value: (r) =>
@@ -3221,13 +3657,13 @@ function GraduatesTable({ data }: { data: Academy }) {
     },
     {
       key: "sold",
-      header: "Vendido",
+      header: t("juveniles.vendido", "Vendido"),
       value: (r) => (r.soldAt ? new Date(r.soldAt).getTime() : -Infinity),
       render: (r) => date(r.soldAt),
     },
     {
       key: "price",
-      header: "Precio",
+      header: t("juveniles.precio", "Precio"),
       align: "right",
       value: (r) => r.soldFor ?? 0,
       render: (r) =>
@@ -3241,7 +3677,7 @@ function GraduatesTable({ data }: { data: Academy }) {
     },
     {
       key: "team",
-      header: "Equipo actual",
+      header: t("juveniles.equipoActual", "Equipo actual"),
       value: (r) => r.currentTeam ?? "-",
     },
     {
@@ -3255,12 +3691,15 @@ function GraduatesTable({ data }: { data: Academy }) {
   return (
     <>
       <DataTable
-        emptyMessage="Ningún canterano encaja con lo que has pedido."
+        emptyMessage={t(
+          "juveniles.ningunoEncaja",
+          "Ningún canterano encaja con lo que has pedido.",
+        )}
         rows={filas}
         columns={columns}
         rowKey={(r) => r.name}
         csvName="canteranos"
-        filterPlaceholder="Filtrar…"
+        filterPlaceholder={t("tabla.filtrar", "Filtrar…")}
       />
     </>
   );
