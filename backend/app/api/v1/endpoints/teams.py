@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
@@ -19,6 +20,7 @@ from app.api.rate_limit import limite
 from app.api.v1.endpoints.precalentar import lanzar_precalentado
 from app.application.commands.sync_team import (
     FILE_VERSIONS,
+    MENSAJE_BASE_CORTADA,
     SyncBackfillBatchCommand,
     SyncMatchDetailsCommand,
     SyncPlayerDetailsCommand,
@@ -27,6 +29,7 @@ from app.application.commands.sync_team import (
     SyncTeamHandler,
     SyncTransfersHistoryCommand,
     SyncTransfersPlayerCommand,
+    mensaje_de_error,
 )
 from app.application.dto.dashboard import DashboardResponse
 from app.application.dto.squad import PositionRatingDTO, SquadResponse
@@ -53,6 +56,10 @@ from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
 from app.infrastructure.security.tokens import decrypt_token
 
 router = APIRouter()
+
+#: Las sincronizaciones con stream que siguen corriendo. Sin la referencia el
+#: recolector podría llevarse una a medias si quien miraba cerró la pestaña.
+_en_curso: set[asyncio.Task[None]] = set()
 
 # Cuantos jugadores atiende cada pulsacion. 40 llamadas a Hattrick es un
 # lote que cabe de sobra en el tiempo de una peticion, incluso en un plan
@@ -135,6 +142,8 @@ async def trigger_sync(
         raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, MENSAJE_BASE_CORTADA) from exc
     finally:
         await client.aclose()
 
@@ -274,25 +283,31 @@ async def trigger_sync_stream(
             except CHPPUnavailableError as exc:
                 await queue.put(("error", f"Hattrick no responde: {exc}"))
             except Exception as exc:  # noqa: BLE001, el stream reporta, no revienta el proceso
-                await queue.put(("error", str(exc)))
+                await queue.put(("error", mensaje_de_error(exc)))
+            finally:
+                # El cliente se cierra cuando TERMINA la sincronización, no cuando
+                # se corta el stream (2026-09-15, visto en producción). Si quien
+                # miraba cerraba la pestaña, el cierre del stream cerraba también
+                # el cliente con la tarea todavía viva, y la revisión de
+                # comisiones fallaba con «the client has been closed».
+                await client.aclose()
 
         task = asyncio.create_task(run())
-        try:
-            while True:
-                kind, payload = await queue.get()
-                if kind == "progress":
-                    yield (json.dumps({"type": "progress", "message": payload}) + "\n").encode()
-                elif kind == "done":
-                    yield (
-                        json.dumps({"type": "done", "result": _result_payload(payload)}) + "\n"
-                    ).encode()
-                    break
-                else:  # "error"
-                    yield (json.dumps({"type": "error", "message": payload}) + "\n").encode()
-                    break
-            await task
-        finally:
-            await client.aclose()
+        _en_curso.add(task)
+        task.add_done_callback(_en_curso.discard)
+        while True:
+            kind, payload = await queue.get()
+            if kind == "progress":
+                yield (json.dumps({"type": "progress", "message": payload}) + "\n").encode()
+            elif kind == "done":
+                yield (
+                    json.dumps({"type": "done", "result": _result_payload(payload)}) + "\n"
+                ).encode()
+                break
+            else:  # "error"
+                yield (json.dumps({"type": "error", "message": payload}) + "\n").encode()
+                break
+        await task
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
@@ -1080,6 +1095,8 @@ async def backfill_run(
         raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, MENSAJE_BASE_CORTADA) from exc
     finally:
         await client.aclose()
 

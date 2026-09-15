@@ -955,6 +955,10 @@ async def build_sync_comparison(
     normal_sync_filter: Iterable[Any] = (
         m.Sync.team_id == team_id,
         m.Sync.kind.contains("players"),
+        # Sólo las terminadas (2026-09-15): la fila de una sincronización ahora
+        # se guarda al empezar, así que sin esto «Cambios» podía enseñar una que
+        # todavía está corriendo o una que falló a mitad.
+        m.Sync.status.in_(("completed", "partial")),
     )
     latest = await session.scalar(
         select(m.Sync).where(*normal_sync_filter).order_by(m.Sync.started_at.desc()).limit(1)

@@ -4,12 +4,15 @@ Pipeline por file: fetch → parse → diff (content_hash) → persist (append-o
 Descargas SECUENCIALES (requisito CHPP). Sync parcial si un file falla.
 """
 
+import contextlib
 import hashlib
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.domain.engines import caza_de_comisiones as caza
 from app.domain.engines import mapa_del_barrido
@@ -39,6 +42,35 @@ from app.domain.value_objects.skill import Age
 # otro caller (tests, comandos que no necesitan progreso) lo deja mudo, sin
 # tocar el resto del flujo.
 ProgressReporter = Callable[[str], Awaitable[None]]
+
+#: Lo que se le dice al usuario cuando la base corta la conexión a mitad de una
+#: sincronización, en vez del texto de SQLAlchemy (2026-09-15, reporte de un
+#: usuario: «This Session's transaction has been rolled back...»).
+MENSAJE_BASE_CORTADA = (
+    "Se cortó la conexión con la base de datos. Vuelve a sincronizar: lo ya descargado se conserva."
+)
+
+
+def mensaje_de_error(exc: BaseException) -> str:
+    """El error como se le enseña a quien sincroniza."""
+    return MENSAJE_BASE_CORTADA if isinstance(exc, SQLAlchemyError) else str(exc)
+
+
+async def _tras_fallo(uow: UnitOfWork, exc: BaseException) -> None:
+    """Deja la sesión usable si el paso que falló lo hizo por la base.
+
+    2026-09-15, visto en producción. Cada paso de la sincronización atrapa su
+    error y sigue con el siguiente, que está bien para Hattrick --un fichero
+    caído no tumba el resto-- pero no para la base: tras un corte la sesión
+    queda inservible, y todos los pasos siguientes fallaban con «This Session's
+    transaction has been rolled back». Deshacer aquí sólo pierde lo que ese
+    paso no llegó a guardar; lo anterior ya se confirmó por partes.
+    """
+    if not isinstance(exc, SQLAlchemyError):
+        return
+    with contextlib.suppress(Exception):
+        await uow.rollback()
+
 
 #: Cuantos ex-jugadores se miran por sincronizacion cuando NO hay dinero que
 #: perseguir. Es la red de seguridad --que nadie quede sin mirar nunca-- por
@@ -577,13 +609,31 @@ class SyncTeamHandler:
     def __init__(self, uow: UnitOfWork, chpp: CHPPGateway) -> None:
         self._uow = uow
         self._chpp = chpp
+        #: La fila de la sincronización en marcha, para cerrarla si algo revienta.
+        self._fila_en_curso: int | None = None
 
     async def execute(
+        self, cmd: SyncTeamCommand, on_progress: ProgressReporter | None = None
+    ) -> SyncResult:
+        """La sincronización completa; si revienta, su fila queda cerrada con el motivo."""
+        self._fila_en_curso = None
+        try:
+            return await self._execute(cmd, on_progress)
+        except Exception as exc:
+            await self._cerrar_como_fallida(exc)
+            raise
+
+    async def _execute(
         self, cmd: SyncTeamCommand, on_progress: ProgressReporter | None = None
     ) -> SyncResult:
         files = cmd.files or DEFAULT_FILES
         async with self._uow as uow:
             sync_id = await uow.syncs.create(cmd.user_id, cmd.team_id, kind=",".join(files))
+            # La fila se guarda YA (2026-09-15). Antes sólo se confirmaba al final,
+            # así que una sincronización que reventaba a mitad desaparecía sin
+            # rastro: en producción faltaban siete ids en `syncs`.
+            await uow.commit()
+            self._fila_en_curso = sync_id
             result = SyncResult(sync_id=sync_id, status="completed")
             captured_at = datetime.now(UTC)
 
@@ -623,9 +673,13 @@ class SyncTeamHandler:
                         captured_at,
                         result,
                     )
+                    # Por partes (2026-09-15): un corte de la base a mitad ya no
+                    # se lleva por delante los ficheros que ya se guardaron.
+                    await uow.commit()
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"{file}: {exc}")
                     result.status = "partial"
+                    await _tras_fallo(uow, exc)
 
             # `players.xml` trae CountryID y `worlddetails.xml` trae la
             # identidad oficial de ese país. Como worlddetails se descarga
@@ -759,6 +813,7 @@ class SyncTeamHandler:
                 )
                 await self._censar_partidos_de_seleccion(uow, cmd.team_id, captured_at, result)
                 await self._sync_training_events(uow, cmd.team_id, captured_at, result, on_progress)
+                await uow.commit()
             if "matches" in files:
                 await self._sync_match_history(
                     uow,
@@ -786,6 +841,7 @@ class SyncTeamHandler:
                 await self._guardar_partidos_de_rivales(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
+                await uow.commit()
 
             await self._marcar_salidas_de_vendidos(uow, cmd.team_id)
             await self._reparar_partidos_ajenos_sin_ficha(uow)
@@ -810,7 +866,36 @@ class SyncTeamHandler:
             await uow.commit()
         return result
 
+    async def _cerrar_como_fallida(self, exc: Exception) -> None:
+        """Deja la fila de la sincronización en «failed» con el motivo.
+
+        Con otra sesión: la de la sincronización puede ser justo la que se
+        rompió. Si la base sigue caída tampoco se puede anotar, y no se insiste.
+        """
+        sync_id = self._fila_en_curso
+        if sync_id is None:
+            return
+        with contextlib.suppress(Exception):
+            async with self._uow as uow:
+                await uow.syncs.finalize(
+                    sync_id, status="failed", error=mensaje_de_error(exc)[:2000] or None
+                )
+                await uow.commit()
+
     async def execute_backfill_batch(
+        self,
+        cmd: SyncBackfillBatchCommand,
+        on_progress: ProgressReporter | None = None,
+    ) -> SyncResult:
+        """Un lote del relleno; si revienta, su fila queda cerrada con el motivo."""
+        self._fila_en_curso = None
+        try:
+            return await self._execute_backfill_batch(cmd, on_progress)
+        except Exception as exc:
+            await self._cerrar_como_fallida(exc)
+            raise
+
+    async def _execute_backfill_batch(
         self,
         cmd: SyncBackfillBatchCommand,
         on_progress: ProgressReporter | None = None,
@@ -847,6 +932,8 @@ class SyncTeamHandler:
                 )
             if sync_id is None:
                 sync_id = await uow.syncs.create(cmd.user_id, cmd.team_id, kind="backfill_batch")
+                await uow.commit()
+            self._fila_en_curso = sync_id
             result = SyncResult(sync_id=sync_id, status="completed")
             fetched_at = datetime.now(UTC).replace(tzinfo=None)
 
@@ -1276,6 +1363,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
+                    await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in precio:
                 await _report(
@@ -1287,6 +1375,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
+                    await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in destino:
                 await _report(on_progress, f"Descargando país destino de {nombre}...")
@@ -1295,6 +1384,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"destination_country:{ht_player_id}: {exc}")
+                    await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in censo:
                 await _report(
@@ -1308,6 +1398,7 @@ class SyncTeamHandler:
                     historiales_construidos += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
+                    await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in reventa:
                 await _report(on_progress, f"Revisando reventas de {nombre}...")
@@ -1316,6 +1407,7 @@ class SyncTeamHandler:
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"reventa:{ht_player_id}: {exc}")
+                    await _tras_fallo(uow, exc)
                     result.status = "partial"
 
         # Los expedientes que se cerraron en ESTA tanda. Un jugador cerrado
@@ -1683,6 +1775,7 @@ class SyncTeamHandler:
             )
         except Exception as exc:  # noqa: BLE001, una comodidad no tumba el sync
             result.errors.append(f"partidos de rivales: {exc}")
+            await _tras_fallo(uow, exc)
             return
         result.errors.extend(resumen.errores)
         if resumen.partidos_nuevos:
@@ -1797,6 +1890,7 @@ class SyncTeamHandler:
                 )
             except Exception as exc:  # noqa: BLE001 - un rival caído no tumba el sync
                 result.errors.append(f"transfersteam:{rival_id}: {exc}")
+                await _tras_fallo(uow, exc)
                 continue
             nombre_club = payload.get("team_name") or str(rival_id)
             for compra in payload.get("transfers", []):
@@ -1986,6 +2080,7 @@ class SyncTeamHandler:
                     setattr(row, campo, valor)
         except Exception as exc:  # noqa: BLE001, el clima nunca tumba un sync
             result.errors.append(f"regiondetails: {exc}")
+            await _tras_fallo(uow, exc)
 
     async def _sync_upcoming_match_orders(
         self,
@@ -2141,6 +2236,7 @@ class SyncTeamHandler:
                         result.status = "partial"
                 except Exception as exc:  # noqa: BLE001, las órdenes siguen siendo útiles
                     result.errors.append(f"matchorders:predictratings:{match.ht_match_id}: {exc}")
+                    await _tras_fallo(uow, exc)
                     result.status = "partial"
 
                 if changed:
@@ -2149,6 +2245,7 @@ class SyncTeamHandler:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                 result.errors.append(f"matchorders:{match.ht_match_id}: {exc}")
+                await _tras_fallo(uow, exc)
                 result.status = "partial"
 
     async def _backfill_missing_match_details(
@@ -2254,6 +2351,7 @@ class SyncTeamHandler:
                 )
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                 result.errors.append(f"matchdetails:{ht_match_id}: {exc}")
+                await _tras_fallo(uow, exc)
                 result.status = "partial"
 
     async def _completar_detalles_historicos(
@@ -2386,6 +2484,7 @@ class SyncTeamHandler:
                 match.history_summary_only = False
             except Exception as exc:  # noqa: BLE001, sync parcial, se reintenta en el siguiente
                 result.errors.append(f"matchdetails:{match.ht_match_id}: {exc}")
+                await _tras_fallo(uow, exc)
                 result.status = "partial"
 
     async def _resolver_moneda(self, uow: UnitOfWork, team_id: int) -> None:
@@ -3172,6 +3271,7 @@ class SyncTeamHandler:
                 )
             except Exception as exc:  # noqa: BLE001 - un jugador no tumba el sync
                 result.errors.append(f"trainingevents:{ht_player_id}: {exc}")
+                await _tras_fallo(uow, exc)
                 continue
             await self._persist_skill_ups(uow, team_id, payload, captured_at, result)
 
@@ -3215,6 +3315,7 @@ class SyncTeamHandler:
                 result.snapshots_written += 1 if wrote else 0
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                 result.errors.append(f"playerdetails:{ht_player_id}: {exc}")
+                await _tras_fallo(uow, exc)
                 result.status = "partial"
 
     async def execute_player_details(self, cmd: SyncPlayerDetailsCommand) -> SyncResult:
