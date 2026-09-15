@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 /**
  * «¿De dónde sale este número?», resuelto en un clic.
@@ -26,7 +27,7 @@ import { Link } from "react-router-dom";
 export function EnlaceATransparencia({
   seccion,
   calculo,
-  children = "cómo se calcula",
+  children,
   className = "",
 }: {
   /** `id` de la sección en el catálogo de Transparencia. */
@@ -36,17 +37,22 @@ export function EnlaceATransparencia({
   children?: React.ReactNode;
   className?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <Link
       to={`/transparency?s=${seccion}&c=${calculo}`}
       // La etiqueta que se registra dice DE DÓNDE se salió, no a dónde se va:
       // el destino es siempre el mismo y saberlo no enseña nada; lo que hay
-      // que poder contar es qué cálculos generan la pregunta.
+      // que poder contar es qué cálculos generan la pregunta. No se traduce:
+      // es un nombre de la telemetría, no un texto de pantalla.
       data-track={`Transparencia desde ${seccion}/${calculo}`}
-      title="Ver en Transparencia cómo se calcula"
+      title={t(
+        "transparencia.enlaceTitle",
+        "Ver en Transparencia cómo se calcula",
+      )}
       className={`whitespace-nowrap text-xs font-normal text-[var(--muted)] underline decoration-dotted underline-offset-2 hover:text-[var(--accent)] ${className}`}
     >
-      {children}
+      {children ?? t("transparencia.enlace", "cómo se calcula")}
     </Link>
   );
 }

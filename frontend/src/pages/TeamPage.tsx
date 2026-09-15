@@ -1,31 +1,27 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
+import i18n from "../i18n";
 import { CountryCell } from "../components/CountryFlag";
 import { DataTable, type Column } from "../components/DataTable";
 import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Specialty } from "../components/Specialty";
 import { useSquad } from "../hooks/useTeam";
-import {
-  htAge,
-  money,
-  number,
-  plural,
-  relative,
-  dateTime,
-} from "../hooks/useFormat";
+import { htAge, money, number, relative, dateTime } from "../hooks/useFormat";
+import { abreviatura } from "../utils/abreviaturas";
 import type { SquadPlayer } from "../services/api";
 
-const SKILLS: [keyof SquadPlayer["skills"], string][] = [
-  ["keeper", "PO"],
-  ["defending", "DE"],
-  ["playmaking", "JU"],
-  ["winger", "LA"],
-  ["passing", "PA"],
-  ["scoring", "AN"],
-  ["set_pieces", "BP"],
-];
+const SKILLS = [
+  "keeper",
+  "defending",
+  "playmaking",
+  "winger",
+  "passing",
+  "scoring",
+  "set_pieces",
+] as const;
 
 const TRAINER_TYPES: Record<number, string> = {
   0: "defensivo",
@@ -36,6 +32,13 @@ const TRAINER_TYPES: Record<number, string> = {
 function signed(value: number | undefined): string {
   if (!value) return "";
   return `${value > 0 ? "+" : ""}${number(value)}`;
+}
+
+/** «1 jugador», «3 jugadores», en el idioma de la app. */
+function nJugadores(n: number): string {
+  return n === 1
+    ? i18n.t("comun.unJugador", "{{n}} jugador", { n: number(n) })
+    : i18n.t("comun.nJugadores", "{{n}} jugadores", { n: number(n) });
 }
 
 /** El valor y, pegado a su derecha, cuánto cambió desde el snapshot que se
@@ -72,7 +75,7 @@ function HistoryLabel({
   snapshots: number;
 }) {
   // Antes con `Intl` y locale propio; ahora el formato unico de la casa.
-  return `${dateTime(capturedAt)} · ${plural(snapshots, "jugador", "jugadores")}`;
+  return `${dateTime(capturedAt)} · ${nJugadores(snapshots)}`;
 }
 
 /**
@@ -81,6 +84,7 @@ function HistoryLabel({
  * dashboard de un jugador seleccionado.
  */
 export function TeamPage() {
+  const { t } = useTranslation();
   const [comparisonSyncId, setComparisonSyncId] = useState<number | null>(null);
   const squad = useSquad(undefined, comparisonSyncId);
 
@@ -96,7 +100,7 @@ export function TeamPage() {
   const columns: Column<SquadPlayer>[] = [
     {
       key: "name",
-      header: "Jugador",
+      header: t("jugadores.jugador", "Jugador"),
       align: "left",
       value: (player) => player.name,
       // Sin `nowrap` un nombre de dos palabras parte la fila en dos altos y
@@ -111,7 +115,7 @@ export function TeamPage() {
     {
       key: "origin",
       optional: true,
-      header: "Origen",
+      header: t("jugadores.origen", "Origen"),
       align: "left",
       value: (player) => player.nativeLeagueName ?? String(player.countryId),
       render: (player) => (
@@ -124,7 +128,7 @@ export function TeamPage() {
     },
     {
       key: "best",
-      header: "Mejor posición",
+      header: t("jugadores.mejorPosicion", "Mejor posición"),
       align: "left",
       value: (player) => player.bestPosition.rating,
       render: (player) => (
@@ -138,7 +142,7 @@ export function TeamPage() {
     },
     {
       key: "specialty",
-      header: "Especialidad",
+      header: t("jugadores.especialidad", "Especialidad"),
       align: "left",
       // `value` se queda en texto plano: es lo que ordena, lo que filtra el
       // buscador de la tabla y lo que sale al CSV. El icono vive sólo en
@@ -149,7 +153,7 @@ export function TeamPage() {
     {
       key: "lastMatch",
       optional: true,
-      header: "Últ. partido",
+      header: t("jugadores.ultPartido", "Últ. partido"),
       align: "left",
       value: (player) => player.lastMatchRating ?? -1,
       render: (player) =>
@@ -165,7 +169,7 @@ export function TeamPage() {
     {
       key: "market",
       optional: true,
-      header: "Mercado",
+      header: t("jugadores.mercado", "Mercado"),
       align: "left",
       value: (player) => Number(player.isTransferListed),
       render: (player) => (
@@ -177,7 +181,7 @@ export function TeamPage() {
               : "text-[var(--muted)]",
           )}
         >
-          {player.isTransferListed ? "en venta" : "-"}
+          {player.isTransferListed ? t("jugadores.enVenta", "en venta") : "-"}
         </span>
       ),
     },
@@ -186,13 +190,13 @@ export function TeamPage() {
     // de alineación que quedaban.
     {
       key: "age",
-      header: "Edad",
+      header: t("jugadores.edad", "Edad"),
       value: (player) => player.ageYears + player.ageDays / 112,
       render: (player) => htAge(player.ageYears, player.ageDays),
     },
     {
       key: "form",
-      header: "FO",
+      header: abreviatura("form"),
       value: (player) => player.form,
       render: (player) => (
         <MetricCell value={player.form} delta={player.deltas.form} />
@@ -200,7 +204,7 @@ export function TeamPage() {
     },
     {
       key: "experience",
-      header: "EX",
+      header: abreviatura("experience"),
       value: (player) => player.experience,
       render: (player) => (
         <MetricCell
@@ -211,7 +215,7 @@ export function TeamPage() {
     },
     {
       key: "stamina",
-      header: "RE",
+      header: abreviatura("stamina"),
       value: (player) => player.stamina,
       render: (player) => (
         <MetricCell value={player.stamina} delta={player.deltas.stamina} />
@@ -224,15 +228,15 @@ export function TeamPage() {
     // de sus vecinas y le faltaba la línea del delta, así que rompía la banda.
     {
       key: "loyalty",
-      header: "FI",
+      header: abreviatura("loyalty"),
       value: (player) => player.loyalty,
       render: (player) => (
         <MetricCell value={player.loyalty} delta={player.deltas.loyalty} />
       ),
     },
-    ...SKILLS.map(([key, short]): Column<SquadPlayer> => ({
+    ...SKILLS.map((key): Column<SquadPlayer> => ({
       key,
-      header: short,
+      header: abreviatura(key),
       value: (player) => player.skills[key] ?? 0,
       render: (player) => (
         <MetricCell
@@ -261,7 +265,7 @@ export function TeamPage() {
     {
       key: "salary",
       optional: true,
-      header: "Salario",
+      header: t("jugadores.salario", "Salario"),
       value: (player) => player.salary,
       render: (player) => (
         <MetricCell value={player.salary} delta={player.deltas.salary} />
@@ -270,7 +274,7 @@ export function TeamPage() {
     {
       key: "purchase",
       optional: true,
-      header: "Precio compra",
+      header: t("jugadores.precioCompra", "Precio compra"),
       value: (player) => player.purchasePrice ?? -1,
       render: (player) =>
         player.purchasePrice == null ? (
@@ -287,19 +291,19 @@ export function TeamPage() {
     {
       key: "leadership",
       optional: true,
-      header: "Liderazgo",
+      header: t("club.liderazgo", "Liderazgo"),
       value: (player) => player.leadership,
     },
     {
       key: "leagueGoals",
       optional: true,
-      header: "G. liga",
+      header: t("jugadores.golesLiga", "G. liga"),
       value: (player) => player.leagueGoals,
     },
     {
       key: "character",
       optional: true,
-      header: "Carácter",
+      header: t("jugadores.caracter", "Carácter"),
       align: "left",
       value: (player) => player.agreeability,
       render: (player) => player.agreeabilityLabel,
@@ -307,7 +311,7 @@ export function TeamPage() {
     {
       key: "aggressiveness",
       optional: true,
-      header: "Agresividad",
+      header: t("jugadores.agresividad", "Agresividad"),
       align: "left",
       value: (player) => player.aggressiveness,
       render: (player) => player.aggressivenessLabel,
@@ -315,7 +319,7 @@ export function TeamPage() {
     {
       key: "honesty",
       optional: true,
-      header: "Honestidad",
+      header: t("jugadores.honestidad", "Honestidad"),
       align: "left",
       value: (player) => player.honesty,
       render: (player) => player.honestyLabel,
@@ -323,12 +327,19 @@ export function TeamPage() {
     {
       key: "trainer",
       optional: true,
-      header: "Entrenador",
+      header: t("entrenamiento.entrenador", "Entrenador"),
       align: "left",
       value: (player) => player.playerTrainerSkillLevel,
       render: (player) =>
         player.playerTrainerSkillLevel > 0
-          ? `${player.playerTrainerSkillLevel}/5 · ${TRAINER_TYPES[player.playerTrainerType] ?? "?"}`
+          ? `${player.playerTrainerSkillLevel}/5 · ${
+              TRAINER_TYPES[player.playerTrainerType]
+                ? t(
+                    `jugadores.tipoEntrenador.${player.playerTrainerType}`,
+                    TRAINER_TYPES[player.playerTrainerType]!,
+                  )
+                : "?"
+            }`
           : "-",
     },
   ];
@@ -337,17 +348,22 @@ export function TeamPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Jugadores</h1>
+          <h1 className="text-xl font-semibold">
+            {t("nav.jugadores", "Jugadores")}
+          </h1>
           <p className="text-sm text-[var(--muted)]">
-            Tabla maestra de {data.teamName}. Abre un nombre para ver sus
-            detalles.
+            {t(
+              "jugadores.intro",
+              "Tabla maestra de {{club}}. Abre un nombre para ver sus detalles.",
+              { club: data.teamName },
+            )}
           </p>
           {/* Las columnas HTMS y HTMS28 son las únicas de esta tabla que no
               se leen de Hattrick sino que se calculan aquí. */}
           <EnlaceATransparencia seccion="htms" calculo="htms-ability" />
         </div>
         <label className="text-xs text-[var(--muted)]">
-          Diferencias semanales contra
+          {t("jugadores.diferenciasContra", "Diferencias semanales contra")}
           <select
             value={comparisonSyncId ?? "previous"}
             onChange={(event) =>
@@ -359,7 +375,9 @@ export function TeamPage() {
             }
             className="ml-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm text-[var(--text)]"
           >
-            <option value="previous">cierre semanal anterior</option>
+            <option value="previous">
+              {t("jugadores.cierreAnterior", "cierre semanal anterior")}
+            </option>
             {data.history.map((entry) => (
               <option key={entry.syncId} value={entry.syncId}>
                 {HistoryLabel(entry)}
@@ -370,21 +388,31 @@ export function TeamPage() {
       </header>
 
       <DataTable
-        emptyMessage="Sin jugadores en la plantilla. Sincroniza para traerlos."
+        emptyMessage={t(
+          "jugadores.vacia",
+          "Sin jugadores en la plantilla. Sincroniza para traerlos.",
+        )}
         rows={data.players}
         columns={columns}
         rowKey={(player) => player.htPlayerId}
         initialSort="tsi"
         csvName="jugadores"
-        filterPlaceholder="Filtrar por jugador, posición o habilidad…"
+        filterPlaceholder={t(
+          "jugadores.filtrar",
+          "Filtrar por jugador, posición o habilidad…",
+        )}
       />
 
       <p className="text-xs text-[var(--muted)]">
-        Variaciones basadas en cierres semanales de Hattrick. Referencia actual:{" "}
-        {data.comparison.baselineCapturedAt
-          ? relative(data.comparison.baselineCapturedAt)
-          : "cierre semanal anterior"}
-        . El valor estimado no es un dato oficial de Hattrick.
+        {t(
+          "jugadores.pie",
+          "Variaciones basadas en cierres semanales de Hattrick. Referencia actual: {{referencia}}. El valor estimado no es un dato oficial de Hattrick.",
+          {
+            referencia: data.comparison.baselineCapturedAt
+              ? relative(data.comparison.baselineCapturedAt)
+              : t("jugadores.cierreAnterior", "cierre semanal anterior"),
+          },
+        )}
       </p>
     </div>
   );

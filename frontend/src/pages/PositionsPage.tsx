@@ -1,5 +1,6 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
 import { ErrorState, Loading, Panel, SinDatos } from "../components/Panels";
@@ -7,6 +8,7 @@ import { PlayerLink } from "../components/PlayerLink";
 import { CountryFlag } from "../components/CountryFlag";
 import { useSquad } from "../hooks/useTeam";
 import { htAge } from "../hooks/useFormat";
+import { abreviatura } from "../utils/abreviaturas";
 import type { SquadPlayer } from "../services/api";
 
 type RoleTab = {
@@ -15,6 +17,8 @@ type RoleTab = {
   orders: { key: string; label: string }[];
 };
 
+/** Los nombres en español son el texto por defecto; cada idioma los lee de
+ *  `posiciones.familia.<id>` y `posiciones.orden.<key>`. */
 const ROLE_TABS: RoleTab[] = [
   {
     id: "keeper",
@@ -93,15 +97,15 @@ const ROLE_TABS: RoleTab[] = [
   },
 ];
 
-const SKILL_COLUMNS: [keyof SquadPlayer["skills"], string][] = [
-  ["playmaking", "JU"],
-  ["winger", "LA"],
-  ["scoring", "AN"],
-  ["keeper", "PO"],
-  ["passing", "PA"],
-  ["defending", "DE"],
-  ["set_pieces", "BP"],
-];
+const SKILL_COLUMNS = [
+  "playmaking",
+  "winger",
+  "scoring",
+  "keeper",
+  "passing",
+  "defending",
+  "set_pieces",
+] as const;
 
 function Rating({ value }: { value: number | null | undefined }) {
   return value == null ? (
@@ -118,6 +122,7 @@ function Rating({ value }: { value: number | null | undefined }) {
  * El cálculo sigue viviendo exclusivamente en position_engine.py.
  */
 export function PositionsPage() {
+  const { t } = useTranslation();
   const [roleId, setRoleId] = useState("central");
   const [orderKey, setOrderKey] = useState("central_defender");
   // Veteranos sin habilidades de campo: fuera por defecto (2026-09-13). En
@@ -128,6 +133,10 @@ export function PositionsPage() {
     activeTab.orders.find((order) => order.key === orderKey) ??
     activeTab.orders[0]!;
   const squad = useSquad(activeOrder.key);
+  const familia = (tab: RoleTab) =>
+    t(`posiciones.familia.${tab.id}`, tab.label);
+  const orden = (o: RoleTab["orders"][number]) =>
+    t(`posiciones.orden.${o.key}`, o.label);
 
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
@@ -140,7 +149,7 @@ export function PositionsPage() {
   const columns: Column<SquadPlayer>[] = [
     {
       key: "name",
-      header: "Jugador",
+      header: t("jugadores.jugador", "Jugador"),
       align: "left",
       value: (player) => player.name,
       render: (player) => (
@@ -155,7 +164,7 @@ export function PositionsPage() {
     },
     {
       key: "age",
-      header: "Edad",
+      header: t("jugadores.edad", "Edad"),
       value: (player) => player.ageYears + player.ageDays / 112,
       render: (player) => htAge(player.ageYears, player.ageDays),
     },
@@ -166,7 +175,7 @@ export function PositionsPage() {
       // año), así que "sin dato" aquí es honesto: o no hay partido
       // reciente, o no hay dato en absoluto.
       key: "lastMatch",
-      header: "Último partido",
+      header: t("posiciones.ultimoPartido", "Último partido"),
       align: "left",
       value: (player) => player.lastMatchRating ?? -1,
       render: (player) =>
@@ -175,24 +184,28 @@ export function PositionsPage() {
             {player.lastMatchPosition} <Rating value={player.lastMatchRating} />
           </span>
         ) : (
-          <span className="text-[var(--muted)]">sin dato</span>
+          <span className="text-[var(--muted)]">
+            {t("club.sinDatoMin", "sin dato")}
+          </span>
         ),
     },
     {
       key: "roleRating",
-      header: `${activeOrder.label} · aporte`,
+      header: t("posiciones.aporteDe", "{{orden}} · aporte", {
+        orden: orden(activeOrder),
+      }),
       align: "left",
       value: (player) => player.positionRating?.rating ?? -1,
       render: (player) => (
         <span className="whitespace-nowrap">
-          {player.positionRating?.label ?? activeOrder.label}{" "}
+          {player.positionRating?.label ?? orden(activeOrder)}{" "}
           <Rating value={player.positionRating?.rating} />
         </span>
       ),
     },
     {
       key: "best",
-      header: "Mayor aporte",
+      header: t("posiciones.mayorAporte", "Mayor aporte"),
       align: "left",
       value: (player) => player.bestPosition.rating,
       render: (player) => (
@@ -202,16 +215,36 @@ export function PositionsPage() {
         </span>
       ),
     },
-    { key: "form", header: "FO", value: (player) => player.form },
-    { key: "experience", header: "EX", value: (player) => player.experience },
-    { key: "stamina", header: "RE", value: (player) => player.stamina },
-    ...SKILL_COLUMNS.map(([key, label]): Column<SquadPlayer> => ({
+    {
+      key: "form",
+      header: abreviatura("form"),
+      value: (player) => player.form,
+    },
+    {
+      key: "experience",
+      header: abreviatura("experience"),
+      value: (player) => player.experience,
+    },
+    {
+      key: "stamina",
+      header: abreviatura("stamina"),
+      value: (player) => player.stamina,
+    },
+    ...SKILL_COLUMNS.map((key): Column<SquadPlayer> => ({
       key,
-      header: label,
+      header: abreviatura(key),
       value: (player) => player.skills[key] ?? 0,
     })),
-    { key: "loyalty", header: "FI", value: (player) => player.loyalty },
-    { key: "leadership", header: "LI", value: (player) => player.leadership },
+    {
+      key: "loyalty",
+      header: abreviatura("loyalty"),
+      value: (player) => player.loyalty,
+    },
+    {
+      key: "leadership",
+      header: abreviatura("leadership"),
+      value: (player) => player.leadership,
+    },
     {
       key: "tsi",
       header: "TSI",
@@ -228,15 +261,20 @@ export function PositionsPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Posiciones</h1>
+        <h1 className="text-xl font-semibold">
+          {t("nav.posiciones", "Posiciones")}
+        </h1>
         <p className="text-sm text-[var(--muted)]">
-          Compara toda la plantilla en una posición y orden individual.
+          {t(
+            "posiciones.intro",
+            "Compara toda la plantilla en una posición y orden individual.",
+          )}
         </p>
         <EnlaceATransparencia seccion="posiciones" calculo="aporte" />
       </header>
 
       <nav
-        aria-label="Familias de posición"
+        aria-label={t("posiciones.familias", "Familias de posición")}
         className="flex overflow-x-auto border-b border-[var(--border)]"
       >
         {ROLE_TABS.map((tab) => (
@@ -250,12 +288,15 @@ export function PositionsPage() {
                 : "border-transparent text-[var(--muted)] hover:text-[var(--text)]",
             )}
           >
-            {tab.label}
+            {familia(tab)}
           </button>
         ))}
       </nav>
 
-      <Panel title="Órdenes individuales" meta={activeTab.label}>
+      <Panel
+        title={t("posiciones.ordenes", "Órdenes individuales")}
+        meta={familia(activeTab)}
+      >
         <div className="flex flex-wrap gap-x-6 gap-y-3 p-4">
           {activeTab.orders.map((order) => (
             <label
@@ -269,7 +310,7 @@ export function PositionsPage() {
                 onChange={() => setOrderKey(order.key)}
                 className="accent-[var(--accent)]"
               />
-              {order.label}
+              {orden(order)}
             </label>
           ))}
         </div>
@@ -283,18 +324,24 @@ export function PositionsPage() {
             onChange={(e) => setMostrarVeteranos(e.target.checked)}
             className="accent-[var(--accent)]"
           />
-          Mostrar a todos ({veteranos.length} veteranos sin habilidades de
-          campo)
+          {t(
+            "posiciones.mostrarTodos",
+            "Mostrar a todos ({{n}} veteranos sin habilidades de campo)",
+            { n: veteranos.length },
+          )}
         </label>
       )}
       <DataTable
-        emptyMessage="Sin jugadores en la plantilla."
+        emptyMessage={t("posiciones.vacia", "Sin jugadores en la plantilla.")}
         rows={visibles}
         columns={columns}
         rowKey={(player) => player.htPlayerId}
         initialSort="roleRating"
         csvName={`posiciones-${activeOrder.key}`}
-        filterPlaceholder="Filtrar jugador o habilidad…"
+        filterPlaceholder={t(
+          "posiciones.filtrar",
+          "Filtrar jugador o habilidad…",
+        )}
       />
     </div>
   );

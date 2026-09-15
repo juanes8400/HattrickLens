@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { Chart } from "../charts/Chart";
 import { PitchField } from "../components/PitchField";
 import {
@@ -39,7 +41,13 @@ function formatValue(metric: TeamOverviewMetric, currency: string): string {
     case "number":
       return number(Math.round(metric.value));
     case "count":
-      return `${Math.round(metric.value)} jugador${metric.value === 1 ? "" : "es"}`;
+      return metric.value === 1
+        ? i18n.t("comun.unJugador", "{{n}} jugador", {
+            n: Math.round(metric.value),
+          })
+        : i18n.t("comun.nJugadores", "{{n}} jugadores", {
+            n: Math.round(metric.value),
+          });
     case "ratio":
       // Céntimos por punto de índice: con menos decimales todas las semanas
       // se verían iguales.
@@ -85,10 +93,14 @@ function MetricBars({
 }
 
 function GroupLines({ group }: { group: TeamOverviewGroup }) {
+  const { t } = useTranslation();
   if (group.weeks.length === 0) {
     return (
       <Empty>
-        Hace falta más de un cierre semanal para dibujar la evolución.
+        {t(
+          "equipo.faltaCierre",
+          "Hace falta más de un cierre semanal para dibujar la evolución.",
+        )}
       </Empty>
     );
   }
@@ -128,7 +140,11 @@ function GroupLines({ group }: { group: TeamOverviewGroup }) {
               </div>
             )}
             <Chart
-              ariaLabel={`${chart.title || group.label}, media de la plantilla por semana`}
+              ariaLabel={t(
+                "equipo.graficaAria",
+                "{{titulo}}, media de la plantilla por semana",
+                { titulo: chart.title || group.label },
+              )}
               height={group.charts.length > 1 ? 260 : 340}
               option={{
                 ...base,
@@ -153,6 +169,7 @@ function GroupLines({ group }: { group: TeamOverviewGroup }) {
 }
 
 function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
+  const { t } = useTranslation();
   const best = slot.bestRating;
   return (
     <div className="w-44 shrink-0 rounded-lg border border-white/20 bg-black/45 p-2 text-center shadow-xl backdrop-blur">
@@ -164,7 +181,9 @@ function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
         {slot.count}
       </div>
       <div className="text-[10px] text-white/50">
-        {slot.count === 1 ? "lo tiene como mejor" : "lo tienen como mejor"}
+        {slot.count === 1
+          ? t("equipo.loTiene", "lo tiene como mejor")
+          : t("equipo.loTienen", "lo tienen como mejor")}
       </div>
 
       {/* Debajo y en pequeño, el mejor de la línea medido sobre TODA la
@@ -172,7 +191,9 @@ function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
           línea divisoria. */}
       <div className="mt-1.5 space-y-0.5 border-t border-white/15 pt-1">
         {best == null ? (
-          <div className="text-[10px] text-white/40">sin rating</div>
+          <div className="text-[10px] text-white/40">
+            {t("equipo.sinRating", "sin rating")}
+          </div>
         ) : (
           <>
             {slot.topPlayer && (
@@ -184,9 +205,11 @@ function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
               </div>
             )}
             <div className="text-[10px] tabular-nums text-white/70">
-              máx {decimal(best, 2)}
+              {t("equipo.max", "máx {{v}}", { v: decimal(best, 2) })}
               {slot.averageRating != null &&
-                ` · media ${decimal(slot.averageRating, 2)}`}
+                ` · ${t("equipo.media", "media {{v}}", {
+                  v: decimal(slot.averageRating, 2),
+                })}`}
             </div>
             {slot.bestVariantLabel && (
               <div
@@ -207,11 +230,12 @@ function PitchSlotCard({ slot }: { slot: TeamOverviewPitchSlot }) {
  *  lado y con otro aspecto: son recomendaciones de rol, no puestos, y su
  *  puntuación usa otra fórmula, nada de la barra 0-20 de las posiciones. */
 function SpecialRoles({ roles }: { roles: TeamOverviewSpecialRole[] }) {
+  const { t } = useTranslation();
   if (roles.length === 0) return null;
   return (
     <div className="flex shrink-0 flex-col gap-2 sm:w-48">
       <div className="text-[11px] uppercase tracking-wide text-[var(--muted)]">
-        Roles del equipo
+        {t("equipo.roles", "Roles del equipo")}
       </div>
       {roles.map((role) => (
         <div
@@ -227,7 +251,9 @@ function SpecialRoles({ roles }: { roles: TeamOverviewSpecialRole[] }) {
           </div>
           {role.rating != null && (
             <div className="text-[10px] tabular-nums text-[var(--muted)]">
-              índice {decimal(role.rating, 1)}
+              {t("equipo.indice", "índice {{v}}", {
+                v: decimal(role.rating, 1),
+              })}
             </div>
           )}
         </div>
@@ -240,6 +266,7 @@ function SpecialRoles({ roles }: { roles: TeamOverviewSpecialRole[] }) {
  *  atacar. Extremo y Medio comparten fila, y Lateral con Defensa central,
  *  porque en el campo real ocupan la misma altura. */
 function PitchLayout({ group }: { group: TeamOverviewGroup }) {
+  const { t } = useTranslation();
   const byKey = new Map(group.pitch.map((slot) => [slot.key, slot]));
   const rows: string[][] = [
     ["forward"],
@@ -250,7 +277,10 @@ function PitchLayout({ group }: { group: TeamOverviewGroup }) {
   return (
     <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start">
       <PitchField
-        ariaLabel="Mejor posición de cada jugador sobre la cancha"
+        ariaLabel={t(
+          "equipo.canchaAria",
+          "Mejor posición de cada jugador sobre la cancha",
+        )}
         className="min-w-0 flex-1 rounded-xl"
       >
         <div className="relative flex flex-col gap-3 px-4 py-6">
@@ -273,6 +303,7 @@ function PitchLayout({ group }: { group: TeamOverviewGroup }) {
 }
 
 export function TeamOverviewPage() {
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = useTeamOverview();
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
@@ -280,17 +311,23 @@ export function TeamOverviewPage() {
   if (isError) return <ErrorState error={error} />;
   if (!data) return <SinDatos />;
 
+  const sincronizaMedias = t(
+    "equipo.sincronizaMedias",
+    "Sincroniza para calcular las medias de la plantilla.",
+  );
   const active = data.groups.find((g) => g.key === activeKey) ?? data.groups[0];
-  if (!active)
-    return <Empty>Sincroniza para calcular las medias de la plantilla.</Empty>;
+  if (!active) return <Empty>{sincronizaMedias}</Empty>;
 
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Equipo</h1>
+        <h1 className="text-xl font-semibold">{t("nav.equipo", "Equipo")}</h1>
         <p className="text-sm text-[var(--muted)]">
-          Media de los {data.playerCount} jugadores de {data.teamName}, semana a
-          semana.
+          {t(
+            "equipo.intro",
+            "Media de los {{n}} jugadores de {{club}}, semana a semana.",
+            { n: data.playerCount, club: data.teamName },
+          )}
         </p>
       </header>
 
@@ -314,20 +351,31 @@ export function TeamOverviewPage() {
         title={active.label}
         meta={
           active.chart === "pending"
-            ? "por definir"
+            ? t("equipo.porDefinir", "por definir")
             : active.chart === "line"
-              ? `${active.weeks.length} semana(s) · ${data.playerCount} jugadores`
-              : `${data.playerCount} jugadores`
+              ? t(
+                  "equipo.semanasJugadores",
+                  "{{semanas}} semana(s) · {{n}} jugadores",
+                  { semanas: active.weeks.length, n: data.playerCount },
+                )
+              : t("comun.nJugadores", "{{n}} jugadores", {
+                  n: data.playerCount,
+                })
         }
       >
         {active.chart === "pending" ? (
-          <Empty>Esta pestaña todavía no tiene contenido.</Empty>
+          <Empty>
+            {t(
+              "equipo.sinContenido",
+              "Esta pestaña todavía no tiene contenido.",
+            )}
+          </Empty>
         ) : active.chart === "line" ? (
           <GroupLines group={active} />
         ) : active.chart === "pitch" ? (
           <PitchLayout group={active} />
         ) : active.metrics.length === 0 ? (
-          <Empty>Sincroniza para calcular las medias de la plantilla.</Empty>
+          <Empty>{sincronizaMedias}</Empty>
         ) : (
           <MetricBars group={active} currency={data.currency} />
         )}

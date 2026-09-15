@@ -8,6 +8,8 @@
  * distinto ("" en plantilla, "Ninguna" en Saldo por jugador) y ambos tienen
  * que caer en el mismo hueco.
  */
+import i18n from "../i18n";
+
 const ICONS: Record<string, string> = {
   tecnico: "🎯", // precisión: define fino, no por fuerza
   rapido: "⚡", // velocidad
@@ -42,10 +44,36 @@ export function specialtyIcon(
   return ICONS[normalize(specialty)] ?? null;
 }
 
-/** Texto de la especialidad tal como debe leerse, con la ausencia resuelta. */
+/** El número oficial de cada especialidad, para leer su nombre del glosario. */
+const ID_OFICIAL: Record<string, string> = {
+  tecnico: "1",
+  rapido: "2",
+  potente: "3",
+  imprevisible: "4",
+  cabeceador: "5",
+  estoico: "6",
+  influyente: "8",
+};
+
+/** Texto de la especialidad tal como debe leerse, con la ausencia resuelta.
+ *
+ *  El servidor la manda en español. En español se enseña tal cual; en otro
+ *  idioma sale del glosario oficial de Hattrick. */
 export function specialtyLabel(specialty: string | null | undefined): string {
-  if (!specialty || NONE.has(normalize(specialty))) return "Sin especialidad";
-  return specialty;
+  const enEspanol = i18n.language === "es";
+  if (!specialty || NONE.has(normalize(specialty)))
+    return enEspanol
+      ? "Sin especialidad"
+      : i18n.t("especialidades.0", {
+          ns: "glosario",
+          defaultValue: "Sin especialidad",
+        });
+  const id = ID_OFICIAL[normalize(specialty)];
+  if (enEspanol || !id) return specialty;
+  return i18n.t(`especialidades.${id}`, {
+    ns: "glosario",
+    defaultValue: specialty,
+  });
 }
 
 /**

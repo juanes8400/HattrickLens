@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { number } from "../hooks/useFormat";
 import { nombreLargo } from "../utils/abreviaturas";
@@ -77,12 +78,14 @@ export function DataTable<T>({
   rowKey,
   initialSort,
   initialDescending = true,
-  filterPlaceholder = "Filtrar…",
+  filterPlaceholder: placeholderPedido,
   csvName = "export",
   emptyMessage,
   selectedRowKey,
   onRowClick,
 }: Props<T>) {
+  const { t } = useTranslation();
+  const filterPlaceholder = placeholderPedido ?? t("tabla.filtrar", "Filtrar…");
   const [sortKey, setSortKey] = useState(initialSort ?? columns[0]?.key);
   const [descending, setDescending] = useState(initialDescending);
   const [filter, setFilter] = useState("");
@@ -227,7 +230,10 @@ export function DataTable<T>({
           className="w-full min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm sm:w-auto sm:min-w-48"
         />
         <span className="text-xs text-[var(--muted)]">
-          {processed.length} de {rows.length}
+          {t("comun.nDeTotal", "{{n}} de {{total}}", {
+            n: processed.length,
+            total: rows.length,
+          })}
         </span>
         <button
           data-picker=""
@@ -235,7 +241,7 @@ export function DataTable<T>({
           className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
           aria-expanded={showPicker}
         >
-          Columnas
+          {t("tabla.columnas", "Columnas")}
         </button>
         <button
           onClick={exportCsv}
@@ -342,15 +348,17 @@ export function DataTable<T>({
                       borrar el filtro. Además no había salida a mano. */}
                   {filter.trim() && rows.length > 0 ? (
                     <>
-                      Ningún resultado para{" "}
-                      <b className="text-[var(--text)]">«{filter.trim()}»</b>,
-                      de {rows.length} en total.
+                      {t("tabla.ningunResultado", "Ningún resultado para")}{" "}
+                      <b className="text-[var(--text)]">«{filter.trim()}»</b>,{" "}
+                      {t("tabla.deTotal", "de {{n}} en total.", {
+                        n: rows.length,
+                      })}
                       <button
                         type="button"
                         onClick={() => setFilter("")}
                         className="ml-2 rounded border border-[var(--border)] px-2 py-0.5 text-xs hover:border-[var(--accent)] hover:text-[var(--text)]"
                       >
-                        Quitar el filtro
+                        {t("tabla.quitarFiltro", "Quitar el filtro")}
                       </button>
                     </>
                   ) : (
