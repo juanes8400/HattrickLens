@@ -1,6 +1,8 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import {
   useClub,
   usePlayerTrainingLevels,
@@ -74,9 +76,25 @@ const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
   youth_friendly: "Amistoso juvenil",
 };
 
-function countLabel(value: number, singular: string, plural: string): string {
-  return `${number(value)} ${value === 1 ? singular : plural}`;
-}
+/** Las tablas de esta pantalla se arman fuera de los componentes; leen el
+ *  idioma en el momento de pintarse, no al cargar el módulo. */
+const t = i18n.t.bind(i18n);
+
+/** «3 sem», «1 partido», «4 días», en el idioma de la app. */
+const semanas = (n: string | number) =>
+  t("entrenamiento.sem", "{{n}} sem", { n });
+const partidos = (n: number) =>
+  n === 1
+    ? t("entrenamiento.unPartido", "{{n}} partido", { n: number(n) })
+    : t("entrenamiento.nPartidos", "{{n}} partidos", { n: number(n) });
+const dias = (n: number) =>
+  n === 1
+    ? t("entrenamiento.unDia", "{{n}} día", { n: number(n) })
+    : t("entrenamiento.nDias", "{{n}} días", { n: number(n) });
+
+const sinReferencia = () => t("entrenamiento.sinReferencia", "Sin referencia");
+const maximoAlcanzado = () =>
+  t("entrenamiento.maximoAlcanzado", "Máximo alcanzado");
 
 function ProgressCell({
   value,
@@ -86,7 +104,7 @@ function ProgressCell({
   digits?: number;
 }) {
   if (value == null)
-    return <span className="text-[var(--muted)]">Sin referencia</span>;
+    return <span className="text-[var(--muted)]">{sinReferencia()}</span>;
   const bounded = Math.max(0, Math.min(100, value));
   return (
     <div className="flex min-w-28 items-center justify-end gap-2">
@@ -130,7 +148,16 @@ function StaminaProgressCell({ row }: { row: TrainingStaminaRow }) {
   return (
     <div
       className="flex min-w-32 items-center gap-2"
-      title={`Actual: ${row.levelName} (${row.level}). Esperado Ocerin: ${row.expectedLevelName ?? "sin dato"} (${expected}).`}
+      title={t(
+        "entrenamiento.actualEsperado",
+        "Actual: {{actual}} ({{nivel}}). Esperado Ocerin: {{esperado}} ({{nivelEsperado}}).",
+        {
+          actual: row.levelName,
+          nivel: row.level,
+          esperado: row.expectedLevelName ?? t("club.sinDatoMin", "sin dato"),
+          nivelEsperado: expected,
+        },
+      )}
     >
       <span className="min-w-14 whitespace-nowrap text-left text-xs tabular-nums">
         {row.level}{" "}
@@ -170,10 +197,14 @@ function scaledEffect(
 }
 
 function AssistantCards({ role }: { role: ClubStaffRole }) {
+  const { t } = useTranslation();
   if (role.members.length === 0) {
     return (
       <p className="p-4 text-sm font-medium text-[var(--danger)]">
-        Actualmente no hay asistentes de entrenador registrados.
+        {t(
+          "entrenamiento.sinAsistentes",
+          "Actualmente no hay asistentes de entrenador registrados.",
+        )}
       </p>
     );
   }
@@ -197,7 +228,9 @@ function AssistantCards({ role }: { role: ClubStaffRole }) {
                 <span
                   className={`shrink-0 text-xs font-semibold tabular-nums ${trainingStaffLevelColor(member.level)}`}
                 >
-                  Nivel {member.level}/5
+                  {t("entrenamiento.nivelDe5", "Nivel {{n}}/5", {
+                    n: member.level,
+                  })}
                 </span>
               </div>
               {lines.length > 0 && (
@@ -214,7 +247,11 @@ function AssistantCards({ role }: { role: ClubStaffRole }) {
       {role.effect && (
         <div className="rounded-md border border-[var(--border)] px-3 py-2">
           <p className="text-xs font-medium">
-            Aporte combinado · nivel {role.level}
+            {t(
+              "entrenamiento.aporteCombinado",
+              "Aporte combinado · nivel {{n}}",
+              { n: role.level },
+            )}
           </p>
           <ul className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--positive)]">
             {staffEffectLines(role.effect).map((line) => (
@@ -227,18 +264,27 @@ function AssistantCards({ role }: { role: ClubStaffRole }) {
   );
 }
 
-function squadColumns(): Column<TrainingSquadPlayerRow>[] {
+/** Las columnas que comparten las cuatro tablas por jugador. */
+function columnasDeJugador<
+  R extends {
+    htPlayerId: number;
+    name: string;
+    nativeCountry: string | null;
+    countryCode: string | null;
+    age: string;
+  },
+>(): Column<R>[] {
   return [
     {
       key: "player",
-      header: "Nombre",
+      header: t("entrenamiento.nombre", "Nombre"),
       align: "left",
       value: (r) => r.name,
       render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
     },
     {
       key: "nativeCountry",
-      header: "Nac.",
+      header: t("entrenamiento.nac", "Nac."),
       align: "left",
       value: (r) => r.nativeCountry ?? "",
       render: (r) => (
@@ -247,13 +293,48 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
     },
     {
       key: "age",
-      header: "Edad",
+      header: t("jugadores.edad", "Edad"),
       value: (r) => edadOrdenable(r.age),
       render: (r) => htAgeTexto(r.age),
     },
+  ];
+}
+
+function columnaUltimaMejora<
+  R extends { lastImprovement: string },
+>(): Column<R> {
+  // 2026-08-19: la semana de la última subida, en formato tt-ss. Vacía si no
+  // hay ninguna: un guion o un cero se leerían como "no mejoró", y lo que
+  // pasa es que no hay registro.
+  return {
+    key: "lastImprovement",
+    header: t("entrenamiento.ultimaMejora", "Última mejora"),
+    align: "left",
+    value: (r) => r.lastImprovement,
+    render: (r) => (
+      <span className="tabular-nums text-[var(--muted)]">
+        {r.lastImprovement}
+      </span>
+    ),
+  };
+}
+
+function columnaPlayerId<R extends { htPlayerId: number }>(): Column<R> {
+  return {
+    key: "htPlayerId",
+    header: "PlayerID",
+    raw: true,
+    value: (r) => r.htPlayerId,
+    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
+  };
+}
+
+function squadColumns(): Column<TrainingSquadPlayerRow>[] {
+  return [
+    ...columnasDeJugador<TrainingSquadPlayerRow>(),
     {
       key: "level",
-      header: "Nivel actual",
+      header: t("entrenamiento.nivelActual", "Nivel actual"),
       value: (r) => r.level,
       render: (r) => (
         <span className="whitespace-nowrap">
@@ -266,13 +347,13 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
     },
     {
       key: "progress",
-      header: "Progreso",
+      header: t("entrenamiento.progreso", "Progreso"),
       value: (r) => r.progressPct ?? -1,
       render: (r) => <ProgressCell value={r.progressPct} digits={1} />,
     },
     {
       key: "accumulated",
-      header: "Acumulado / meta",
+      header: t("entrenamiento.acumulado", "Acumulado / meta"),
       value: (r) => r.weeksElapsed ?? -1,
       render: (r) => (
         <span className="tabular-nums whitespace-nowrap">
@@ -283,14 +364,14 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
           )}
           <span className="text-[var(--muted)]">
             {" "}
-            / {decimal(r.weeksTotal, 1)} sem
+            / {semanas(decimal(r.weeksTotal, 1))}
           </span>
         </span>
       ),
     },
     {
       key: "remaining",
-      header: "Falta / próximo nivel",
+      header: t("entrenamiento.falta", "Falta / próximo nivel"),
       value: (r) =>
         r.hasReference && r.weeksElapsed != null
           ? Math.max(r.weeksTotal - r.weeksElapsed, 0)
@@ -298,19 +379,19 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
       render: (r) => {
         if (r.level >= 20)
           return (
-            <span className="text-[var(--positive)]">Máximo alcanzado</span>
+            <span className="text-[var(--positive)]">{maximoAlcanzado()}</span>
           );
         if (!r.hasReference || r.weeksElapsed == null) {
           return (
             <span className="whitespace-nowrap text-[var(--muted)]">
-              Sin punto de partida · {skillLevelLabel(r.level + 1)} (
-              {r.level + 1})
+              {t("entrenamiento.sinPuntoPartida", "Sin punto de partida")} ·{" "}
+              {skillLevelLabel(r.level + 1)} ({r.level + 1})
             </span>
           );
         }
         return (
           <span className="whitespace-nowrap">
-            {decimal(Math.max(r.weeksTotal - r.weeksElapsed, 0), 1)} sem
+            {semanas(decimal(Math.max(r.weeksTotal - r.weeksElapsed, 0), 1))}
             <span className="text-xs text-[var(--muted)]">
               {" "}
               · {skillLevelLabel(r.level + 1)} ({r.level + 1})
@@ -319,529 +400,460 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
         );
       },
     },
-    {
-      // 2026-08-19: la semana de la última subida, en formato tt-ss. Vacía si
-      // no hay ninguna: un guion o un cero se leerían como "no mejoró", y lo
-      // que pasa es que no hay registro.
-      key: "lastImprovement",
-      header: "Última mejora",
-      align: "left",
-      value: (r) => r.lastImprovement,
-      render: (r) => (
-        <span className="tabular-nums text-[var(--muted)]">
-          {r.lastImprovement}
-        </span>
-      ),
-    },
+    columnaUltimaMejora<TrainingSquadPlayerRow>(),
     {
       key: "evidence",
-      header: "Evidencia",
+      header: t("entrenamiento.evidencia", "Evidencia"),
       align: "left",
       value: (r) => r.currentWeekMinutes,
       render: (r) => {
         const week =
           r.currentWeekMinutes > 0
-            ? `${decimal(r.currentWeekMinutes, 0)}′ · ${decimal(r.currentWeekExposure, 3)} sem`
+            ? `${decimal(r.currentWeekMinutes, 0)}′ · ${semanas(decimal(r.currentWeekExposure, 3))}`
             : null;
         const label = r.hasHistoricalReference
           ? week
-            ? `Historial observado · ${week}`
-            : "Historial real observado"
+            ? t(
+                "entrenamiento.historialSemana",
+                "Historial observado · {{semana}}",
+                { semana: week },
+              )
+            : t("entrenamiento.historialReal", "Historial real observado")
           : week
-            ? `${week} · base anterior desconocida`
-            : "Sin punto de partida";
+            ? t(
+                "entrenamiento.baseDesconocida",
+                "{{semana}} · base anterior desconocida",
+                { semana: week },
+              )
+            : t("entrenamiento.sinPuntoPartida", "Sin punto de partida");
         return <span className="text-xs text-[var(--muted)]">{label}</span>;
       },
     },
+    columnaPlayerId<TrainingSquadPlayerRow>(),
+  ];
+}
+
+function experienceColumns(): Column<TrainingExperienceRow>[] {
+  return [
+    ...columnasDeJugador<TrainingExperienceRow>(),
     {
-      key: "htPlayerId",
-      header: "PlayerID",
-      raw: true,
-      value: (r) => r.htPlayerId,
+      key: "level",
+      header: t("entrenamiento.nivelActual", "Nivel actual"),
+      value: (r) => r.level,
       render: (r) => (
-        <span className="tabular-nums text-xs">{r.htPlayerId}</span>
+        <span className="whitespace-nowrap">
+          <span>{r.levelName}</span>{" "}
+          <span className="text-xs tabular-nums text-[var(--muted)]">
+            ({r.level})
+          </span>
+        </span>
       ),
+    },
+    {
+      key: "progress",
+      header: t("entrenamiento.progreso", "Progreso"),
+      value: (r) => r.progressPct ?? -1,
+      render: (r) => <ProgressCell value={r.progressPct} digits={1} />,
+    },
+    {
+      key: "accumulated",
+      header: t("entrenamiento.acumulado", "Acumulado / meta"),
+      value: (r) => r.points ?? -1,
+      render: (r) =>
+        r.points == null ? (
+          <span className="text-[var(--muted)]">-</span>
+        ) : (
+          <span className="whitespace-nowrap tabular-nums">
+            {decimal(r.points, 1)}{" "}
+            <span className="text-[var(--muted)]">
+              /{" "}
+              {t("entrenamiento.pts", "{{n}} pts", {
+                n: decimal(r.pointsPerLevel, 0),
+              })}
+            </span>
+          </span>
+        ),
+    },
+    {
+      key: "remaining",
+      header: t("entrenamiento.falta", "Falta / próximo nivel"),
+      value: (r) => r.remainingPoints ?? Number.MAX_SAFE_INTEGER,
+      render: (r) => {
+        if (r.level >= 20)
+          return (
+            <span className="text-[var(--positive)]">{maximoAlcanzado()}</span>
+          );
+        if (r.remainingPoints == null)
+          return <span className="text-[var(--muted)]">{sinReferencia()}</span>;
+        return (
+          <span className="whitespace-nowrap tabular-nums">
+            {t("entrenamiento.pts", "{{n}} pts", {
+              n: decimal(r.remainingPoints, 1),
+            })}
+            <span className="text-xs text-[var(--muted)]">
+              {" "}
+              · {skillLevelLabel(r.level + 1)} ({r.level + 1})
+            </span>
+          </span>
+        );
+      },
+    },
+    columnaUltimaMejora<TrainingExperienceRow>(),
+    {
+      key: "matchCounts",
+      header: t("entrenamiento.evidencia", "Evidencia"),
+      align: "left",
+      value: (r) =>
+        Object.values(r.matchCounts).reduce(
+          (sum, matches) => sum + matches,
+          0,
+        ) + r.unscoredNationalMatches,
+      render: (r) => {
+        const parts = Object.entries(r.matchCounts)
+          .filter(([, matches]) => matches > 0)
+          .map(
+            ([kind, matches]) =>
+              `${t(`entrenamiento.tipoPartido.${kind}`, EXPERIENCE_TYPE_LABELS[kind] ?? kind)}: ${partidos(matches)}`,
+          );
+        if (r.unscoredNationalMatches > 0) {
+          parts.push(
+            t(
+              "entrenamiento.seleccionSinPuntaje",
+              "Selección sin puntaje: {{partidos}}",
+              { partidos: partidos(r.unscoredNationalMatches) },
+            ),
+          );
+        }
+        return parts.length > 0 ? (
+          <span className="text-xs text-[var(--muted)]">
+            {parts.join(" · ")}
+          </span>
+        ) : (
+          <span className="text-xs text-[var(--muted)]">
+            {t(
+              "entrenamiento.sinPartidosObservados",
+              "Aún sin partidos observados",
+            )}
+          </span>
+        );
+      },
+    },
+    columnaPlayerId<TrainingExperienceRow>(),
+  ];
+}
+
+function loyaltyColumns(): Column<TrainingLoyaltyRow>[] {
+  return [
+    ...columnasDeJugador<TrainingLoyaltyRow>(),
+    {
+      key: "level",
+      header: t("entrenamiento.nivelActual", "Nivel actual"),
+      value: (r) => r.calculatedLevel ?? r.reportedLevel,
+      render: (r) => (
+        <span className="whitespace-nowrap">
+          <span>{r.levelName}</span>{" "}
+          <span className="text-xs tabular-nums text-[var(--muted)]">
+            ({r.calculatedLevel ?? r.reportedLevel})
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "progress",
+      header: t("entrenamiento.progreso", "Progreso"),
+      value: (r) => r.progressPct ?? -1,
+      render: (r) => <ProgressCell value={r.progressPct} digits={2} />,
+    },
+    {
+      key: "accumulated",
+      header: t("entrenamiento.acumulado", "Acumulado / meta"),
+      value: (r) => r.daysInClub ?? -1,
+      render: (r) => {
+        if (r.daysInClub == null)
+          return <span className="text-[var(--muted)]">{sinReferencia()}</span>;
+        if (r.daysToNextLevel == null) {
+          return (
+            <span className="whitespace-nowrap tabular-nums">
+              {t("entrenamiento.diasMaximo", "{{n}} días · máximo", {
+                n: number(r.daysInClub),
+              })}
+            </span>
+          );
+        }
+        return (
+          <span className="whitespace-nowrap tabular-nums">
+            {number(r.daysInClub)}{" "}
+            <span className="text-[var(--muted)]">
+              / {dias(r.daysInClub + r.daysToNextLevel)}
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      key: "remaining",
+      header: t("entrenamiento.falta", "Falta / próximo nivel"),
+      value: (r) => r.daysToNextLevel ?? Number.MAX_SAFE_INTEGER,
+      render: (r) => {
+        if (r.daysInClub == null)
+          return <span className="text-[var(--muted)]">{sinReferencia()}</span>;
+        if (r.nextLevel == null)
+          return (
+            <span className="text-[var(--positive)]">{maximoAlcanzado()}</span>
+          );
+        if (r.daysToNextLevel == null)
+          return <span className="text-[var(--muted)]">{sinReferencia()}</span>;
+        return (
+          <span className="whitespace-nowrap">
+            {dias(r.daysToNextLevel)}
+            <span className="text-xs text-[var(--muted)]">
+              {" "}
+              · {skillLevelLabel(r.nextLevel)} ({r.nextLevel})
+            </span>
+          </span>
+        );
+      },
+    },
+    columnaUltimaMejora<TrainingLoyaltyRow>(),
+    {
+      key: "source",
+      header: t("entrenamiento.evidencia", "Evidencia"),
+      align: "left",
+      value: (r) => r.daysInClub ?? -1,
+      render: (r) => (
+        <span className="text-xs text-[var(--muted)]">
+          {r.daysInClub == null
+            ? t("entrenamiento.sinFechaCompra", "Sin fecha de compra")
+            : t("entrenamiento.diasDesdeCompra", "{{n}} días desde compra", {
+                n: number(r.daysInClub),
+              })}
+        </span>
+      ),
+    },
+    columnaPlayerId<TrainingLoyaltyRow>(),
+  ];
+}
+
+function staminaColumns(): Column<TrainingStaminaRow>[] {
+  return [
+    ...columnasDeJugador<TrainingStaminaRow>(),
+    {
+      key: "level",
+      header: t("entrenamiento.nivelActual", "Nivel actual"),
+      value: (r) => r.level,
+      render: (r) => (
+        <span className="whitespace-nowrap">
+          <span>{r.levelName}</span>{" "}
+          <span className="text-xs tabular-nums text-[var(--muted)]">
+            ({r.level})
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "progress",
+      header: t("entrenamiento.actualGuia", "Actual → guía"),
+      value: (r) => r.expectedLevel ?? r.level,
+      render: (r) => <StaminaProgressCell row={r} />,
+    },
+    {
+      key: "effectiveTrainingPct",
+      header: t("entrenamiento.pctAplicado", "% aplicado"),
+      value: (r) => r.effectiveTrainingPct,
+      render: (r) => (
+        <span className="tabular-nums">
+          {decimal(r.effectiveTrainingPct, 1)}%
+        </span>
+      ),
+    },
+    {
+      key: "expectedLevel",
+      header: t("entrenamiento.esperadoOcerin", "Esperado Ocerin"),
+      value: (r) => r.expectedLevel ?? -1,
+      render: (r) =>
+        r.expectedLevel == null ? (
+          <span className="text-[var(--muted)]">
+            {t("comun.sinDato", "Sin dato")}
+          </span>
+        ) : (
+          <span className="whitespace-nowrap">
+            <span>{r.expectedLevelName}</span>{" "}
+            <span className="text-xs tabular-nums text-[var(--muted)]">
+              ({r.expectedLevel})
+            </span>
+          </span>
+        ),
+    },
+    // Condición no tiene columna de Evidencia, así que va detrás del
+    // progreso, que es su equivalente.
+    columnaUltimaMejora<TrainingStaminaRow>(),
+    columnaPlayerId<TrainingStaminaRow>(),
+  ];
+}
+
+function weeklyLogColumns(): Column<TrainingSquadWeeklyLogEntry>[] {
+  return [
+    {
+      key: "seasonWeek",
+      header: t("entrenamiento.ttss", "TT-ss"),
+      align: "left",
+      value: (r) => r.seasonWeek ?? "",
+    },
+    {
+      key: "date",
+      header: t("entrenamiento.fecha", "Fecha"),
+      align: "left",
+      value: (r) => r.date,
+    },
+    {
+      key: "trainingType",
+      header: t("club.tipo", "Tipo"),
+      align: "left",
+      value: (r) => r.trainingType,
+    },
+    {
+      key: "intensity",
+      header: t("entrenamiento.intensidad", "Intensidad"),
+      value: (r) => r.intensity,
+      render: (r) => `${r.intensity}%`,
+    },
+    {
+      key: "staminaShare",
+      header: t("flor.resistencia", "Resistencia"),
+      value: (r) => r.staminaShare,
+      render: (r) => `${r.staminaShare}%`,
+    },
+    {
+      key: "trainerName",
+      header: t("entrenamiento.entrenador", "Entrenador"),
+      align: "left",
+      value: (r) => r.trainerName,
     },
   ];
 }
 
-const experienceColumns: Column<TrainingExperienceRow>[] = [
-  {
-    key: "player",
-    header: "Nombre",
-    align: "left",
-    value: (r) => r.name,
-    render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
-  },
-  {
-    key: "nativeCountry",
-    header: "Nac.",
-    align: "left",
-    value: (r) => r.nativeCountry ?? "",
-    render: (r) => (
-      <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
-    ),
-  },
-  {
-    key: "age",
-    header: "Edad",
-    value: (r) => edadOrdenable(r.age),
-    render: (r) => htAgeTexto(r.age),
-  },
-  {
-    key: "level",
-    header: "Nivel actual",
-    value: (r) => r.level,
-    render: (r) => (
-      <span className="whitespace-nowrap">
-        <span>{r.levelName}</span>{" "}
-        <span className="text-xs tabular-nums text-[var(--muted)]">
-          ({r.level})
+function confirmedColumns(): Column<ConfirmedLevelUp>[] {
+  return [
+    {
+      key: "seasonWeek",
+      header: t("entrenamiento.ttss", "TT-ss"),
+      align: "left",
+      value: (r) => r.seasonWeek,
+    },
+    {
+      key: "change",
+      header: t("entrenamiento.subida", "Subida"),
+      align: "left",
+      value: (r) => `${r.fromLevelName} -> ${r.toLevelName}`,
+      render: (r) => (
+        <span>
+          {r.fromLevelName} <span className="text-[var(--muted)]">→</span>{" "}
+          <b>{r.toLevelName}</b>
         </span>
-      </span>
-    ),
-  },
-  {
-    key: "progress",
-    header: "Progreso",
-    value: (r) => r.progressPct ?? -1,
-    render: (r) => <ProgressCell value={r.progressPct} digits={1} />,
-  },
-  {
-    key: "accumulated",
-    header: "Acumulado / meta",
-    value: (r) => r.points ?? -1,
-    render: (r) =>
-      r.points == null ? (
-        <span className="text-[var(--muted)]">-</span>
-      ) : (
-        <span className="whitespace-nowrap tabular-nums">
-          {decimal(r.points, 1)}{" "}
+      ),
+    },
+    {
+      key: "weeksBetween",
+      header: t("entrenamiento.semanas", "Semanas"),
+      value: (r) => r.weeksBetween ?? -1,
+      render: (r) =>
+        r.weeksBetween == null ? (
           <span className="text-[var(--muted)]">
-            / {decimal(r.pointsPerLevel, 0)} pts
+            {t("entrenamiento.primeraRegistrada", "primera registrada")}
           </span>
+        ) : (
+          semanas(r.weeksBetween)
+        ),
+    },
+  ];
+}
+
+function forecastColumns(): Column<LevelForecastMilestone>[] {
+  return [
+    {
+      key: "level",
+      header: t("club.nivel", "Nivel"),
+      value: (r) => r.level,
+      render: (r) => `${r.level} · ${r.levelName}`,
+    },
+    {
+      key: "weeksFor",
+      header: t("entrenamiento.semanasNivel", "Semanas de este nivel"),
+      value: (r) => r.weeksForThisLevel,
+      render: (r) => r.weeksForThisLevel.toFixed(1),
+    },
+    {
+      key: "cumulative",
+      header: t("entrenamiento.semanasHoy", "Semanas desde hoy"),
+      value: (r) => r.weeksFromNow,
+      render: (r) => r.weeksFromNow.toFixed(1),
+    },
+    {
+      key: "seasonWeek",
+      header: t("entrenamiento.ttssEstimada", "TT-ss estimada"),
+      align: "left",
+      value: (r) => r.seasonWeek ?? "",
+    },
+    {
+      key: "age",
+      header: t("entrenamiento.edadProyectada", "Edad proyectada"),
+      value: (r) => edadOrdenable(r.age),
+      render: (r) => htAgeTexto(r.age),
+    },
+  ];
+}
+
+function optionColumns(): Column<PostMatchTrainingOption>[] {
+  return [
+    {
+      key: "name",
+      header: t("nav.entrenamiento", "Entrenamiento"),
+      align: "left",
+      value: (r) => r.name,
+      render: (r) => (
+        <span className={r.recommendable ? "" : "text-[var(--muted)]"}>
+          {r.name}
+          {!r.recommendable &&
+            ` · ${t("entrenamiento.referencia", "referencia")}`}
         </span>
       ),
-  },
-  {
-    key: "remaining",
-    header: "Falta / próximo nivel",
-    value: (r) => r.remainingPoints ?? Number.MAX_SAFE_INTEGER,
-    render: (r) => {
-      if (r.level >= 20)
-        return <span className="text-[var(--positive)]">Máximo alcanzado</span>;
-      if (r.remainingPoints == null)
-        return <span className="text-[var(--muted)]">Sin referencia</span>;
-      return (
-        <span className="whitespace-nowrap tabular-nums">
-          {decimal(r.remainingPoints, 1)} pts
-          <span className="text-xs text-[var(--muted)]">
-            {" "}
-            · {skillLevelLabel(r.level + 1)} ({r.level + 1})
-          </span>
-        </span>
-      );
     },
-  },
-  {
-    // 2026-08-19: la semana de la última subida, en formato tt-ss. Vacía si no
-    // hay ninguna: un guion o un cero se leerían como "no mejoró", y lo que
-    // pasa es que no hay registro.
-    key: "lastImprovement",
-    header: "Última mejora",
-    align: "left",
-    value: (r) => r.lastImprovement,
-    render: (r) => (
-      <span className="tabular-nums text-[var(--muted)]">
-        {r.lastImprovement}
-      </span>
-    ),
-  },
-  {
-    key: "matchCounts",
-    header: "Evidencia",
-    align: "left",
-    value: (r) =>
-      Object.values(r.matchCounts).reduce((sum, matches) => sum + matches, 0) +
-      r.unscoredNationalMatches,
-    render: (r) => {
-      const parts = Object.entries(r.matchCounts)
-        .filter(([, matches]) => matches > 0)
-        .map(
-          ([kind, matches]) =>
-            `${EXPERIENCE_TYPE_LABELS[kind] ?? kind}: ${countLabel(matches, "partido", "partidos")}`,
-        );
-      if (r.unscoredNationalMatches > 0) {
-        parts.push(
-          `Selección sin puntaje: ${countLabel(r.unscoredNationalMatches, "partido", "partidos")}`,
-        );
-      }
-      return parts.length > 0 ? (
-        <span className="text-xs text-[var(--muted)]">{parts.join(" · ")}</span>
-      ) : (
-        <span className="text-xs text-[var(--muted)]">
-          Aún sin partidos observados
-        </span>
-      );
-    },
-  },
-  {
-    key: "htPlayerId",
-    header: "PlayerID",
-    raw: true,
-    value: (r) => r.htPlayerId,
-    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
-  },
-];
-
-const loyaltyColumns: Column<TrainingLoyaltyRow>[] = [
-  {
-    key: "player",
-    header: "Nombre",
-    align: "left",
-    value: (r) => r.name,
-    render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
-  },
-  {
-    key: "nativeCountry",
-    header: "Nac.",
-    align: "left",
-    value: (r) => r.nativeCountry ?? "",
-    render: (r) => (
-      <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
-    ),
-  },
-  {
-    key: "age",
-    header: "Edad",
-    value: (r) => edadOrdenable(r.age),
-    render: (r) => htAgeTexto(r.age),
-  },
-  {
-    key: "level",
-    header: "Nivel actual",
-    value: (r) => r.calculatedLevel ?? r.reportedLevel,
-    render: (r) => (
-      <span className="whitespace-nowrap">
-        <span>{r.levelName}</span>{" "}
-        <span className="text-xs tabular-nums text-[var(--muted)]">
-          ({r.calculatedLevel ?? r.reportedLevel})
-        </span>
-      </span>
-    ),
-  },
-  {
-    key: "progress",
-    header: "Progreso",
-    value: (r) => r.progressPct ?? -1,
-    render: (r) => <ProgressCell value={r.progressPct} digits={2} />,
-  },
-  {
-    key: "accumulated",
-    header: "Acumulado / meta",
-    value: (r) => r.daysInClub ?? -1,
-    render: (r) => {
-      if (r.daysInClub == null)
-        return <span className="text-[var(--muted)]">Sin referencia</span>;
-      if (r.daysToNextLevel == null) {
-        return (
-          <span className="whitespace-nowrap tabular-nums">
-            {number(r.daysInClub)} días · máximo
-          </span>
-        );
-      }
-      return (
-        <span className="whitespace-nowrap tabular-nums">
-          {number(r.daysInClub)}{" "}
-          <span className="text-[var(--muted)]">
-            / {number(r.daysInClub + r.daysToNextLevel)} días
-          </span>
-        </span>
-      );
-    },
-  },
-  {
-    key: "remaining",
-    header: "Falta / próximo nivel",
-    value: (r) => r.daysToNextLevel ?? Number.MAX_SAFE_INTEGER,
-    render: (r) => {
-      if (r.daysInClub == null)
-        return <span className="text-[var(--muted)]">Sin referencia</span>;
-      if (r.nextLevel == null)
-        return <span className="text-[var(--positive)]">Máximo alcanzado</span>;
-      if (r.daysToNextLevel == null)
-        return <span className="text-[var(--muted)]">Sin referencia</span>;
-      return (
-        <span className="whitespace-nowrap">
-          {countLabel(r.daysToNextLevel, "día", "días")}
-          <span className="text-xs text-[var(--muted)]">
-            {" "}
-            · {skillLevelLabel(r.nextLevel)} ({r.nextLevel})
-          </span>
-        </span>
-      );
-    },
-  },
-  {
-    // 2026-08-19: la semana de la última subida, en formato tt-ss. Vacía si no
-    // hay ninguna: un guion o un cero se leerían como "no mejoró", y lo que
-    // pasa es que no hay registro.
-    key: "lastImprovement",
-    header: "Última mejora",
-    align: "left",
-    value: (r) => r.lastImprovement,
-    render: (r) => (
-      <span className="tabular-nums text-[var(--muted)]">
-        {r.lastImprovement}
-      </span>
-    ),
-  },
-  {
-    key: "source",
-    header: "Evidencia",
-    align: "left",
-    value: (r) => r.daysInClub ?? -1,
-    render: (r) => (
-      <span className="text-xs text-[var(--muted)]">
-        {r.daysInClub == null
-          ? "Sin fecha de compra"
-          : `${number(r.daysInClub)} días desde compra`}
-      </span>
-    ),
-  },
-  {
-    key: "htPlayerId",
-    header: "PlayerID",
-    raw: true,
-    value: (r) => r.htPlayerId,
-    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
-  },
-];
-
-const staminaColumns: Column<TrainingStaminaRow>[] = [
-  {
-    key: "player",
-    header: "Nombre",
-    align: "left",
-    value: (r) => r.name,
-    render: (r) => <PlayerLink htPlayerId={r.htPlayerId} name={r.name} />,
-  },
-  {
-    key: "nativeCountry",
-    header: "Nac.",
-    align: "left",
-    value: (r) => r.nativeCountry ?? "",
-    render: (r) => (
-      <CountryCell code={r.countryCode} country={r.nativeCountry} compact />
-    ),
-  },
-  {
-    key: "age",
-    header: "Edad",
-    value: (r) => edadOrdenable(r.age),
-    render: (r) => htAgeTexto(r.age),
-  },
-  {
-    key: "level",
-    header: "Nivel actual",
-    value: (r) => r.level,
-    render: (r) => (
-      <span className="whitespace-nowrap">
-        <span>{r.levelName}</span>{" "}
-        <span className="text-xs tabular-nums text-[var(--muted)]">
-          ({r.level})
-        </span>
-      </span>
-    ),
-  },
-  {
-    key: "progress",
-    header: "Actual → guía",
-    value: (r) => r.expectedLevel ?? r.level,
-    render: (r) => <StaminaProgressCell row={r} />,
-  },
-  {
-    key: "effectiveTrainingPct",
-    header: "% aplicado",
-    value: (r) => r.effectiveTrainingPct,
-    render: (r) => (
-      <span className="tabular-nums">
-        {decimal(r.effectiveTrainingPct, 1)}%
-      </span>
-    ),
-  },
-  {
-    key: "expectedLevel",
-    header: "Esperado Ocerin",
-    value: (r) => r.expectedLevel ?? -1,
-    render: (r) =>
-      r.expectedLevel == null ? (
-        <span className="text-[var(--muted)]">Sin dato</span>
-      ) : (
-        <span className="whitespace-nowrap">
-          <span>{r.expectedLevelName}</span>{" "}
-          <span className="text-xs tabular-nums text-[var(--muted)]">
-            ({r.expectedLevel})
-          </span>
+    {
+      // Lo que ordena desde el 2026-09-13: cuánto sube, por semana, el mejor
+      // aporte posicional de la plantilla. Sustituye a «Score», que contaba
+      // subidas y minutos y ponía primero a Balón parado.
+      key: "value",
+      header: t("entrenamiento.aporteSem", "Aporte/sem"),
+      value: (r) => r.value,
+      render: (r) => (
+        <span
+          title={t(
+            "entrenamiento.aporteSemTitle",
+            "cuánto sube por semana el mejor aporte posicional de la plantilla",
+          )}
+        >
+          +{r.value.toFixed(2)}
         </span>
       ),
-  },
-  {
-    // Condición no tiene columna de Evidencia, así que va detrás del
-    // progreso, que es su equivalente.
-    key: "lastImprovement",
-    header: "Última mejora",
-    align: "left",
-    value: (r) => r.lastImprovement,
-    render: (r) => (
-      <span className="tabular-nums text-[var(--muted)]">
-        {r.lastImprovement}
-      </span>
-    ),
-  },
-  {
-    key: "htPlayerId",
-    header: "PlayerID",
-    raw: true,
-    value: (r) => r.htPlayerId,
-    render: (r) => <span className="tabular-nums text-xs">{r.htPlayerId}</span>,
-  },
-];
-
-const weeklyLogColumns: Column<TrainingSquadWeeklyLogEntry>[] = [
-  {
-    key: "seasonWeek",
-    header: "TT-ss",
-    align: "left",
-    value: (r) => r.seasonWeek ?? "",
-  },
-  { key: "date", header: "Fecha", align: "left", value: (r) => r.date },
-  {
-    key: "trainingType",
-    header: "Tipo",
-    align: "left",
-    value: (r) => r.trainingType,
-  },
-  {
-    key: "intensity",
-    header: "Intensidad",
-    value: (r) => r.intensity,
-    render: (r) => `${r.intensity}%`,
-  },
-  {
-    key: "staminaShare",
-    header: "Resistencia",
-    value: (r) => r.staminaShare,
-    render: (r) => `${r.staminaShare}%`,
-  },
-  {
-    key: "trainerName",
-    header: "Entrenador",
-    align: "left",
-    value: (r) => r.trainerName,
-  },
-];
-
-const confirmedColumns: Column<ConfirmedLevelUp>[] = [
-  {
-    key: "seasonWeek",
-    header: "TT-ss",
-    align: "left",
-    value: (r) => r.seasonWeek,
-  },
-  {
-    key: "change",
-    header: "Subida",
-    align: "left",
-    value: (r) => `${r.fromLevelName} -> ${r.toLevelName}`,
-    render: (r) => (
-      <span>
-        {r.fromLevelName} <span className="text-[var(--muted)]">→</span>{" "}
-        <b>{r.toLevelName}</b>
-      </span>
-    ),
-  },
-  {
-    key: "weeksBetween",
-    header: "Semanas",
-    value: (r) => r.weeksBetween ?? -1,
-    render: (r) =>
-      r.weeksBetween == null ? (
-        <span className="text-[var(--muted)]">primera registrada</span>
-      ) : (
-        `${r.weeksBetween} sem`
-      ),
-  },
-];
-
-const forecastColumns: Column<LevelForecastMilestone>[] = [
-  {
-    key: "level",
-    header: "Nivel",
-    value: (r) => r.level,
-    render: (r) => `${r.level} · ${r.levelName}`,
-  },
-  {
-    key: "weeksFor",
-    header: "Semanas de este nivel",
-    value: (r) => r.weeksForThisLevel,
-    render: (r) => r.weeksForThisLevel.toFixed(1),
-  },
-  {
-    key: "cumulative",
-    header: "Semanas desde hoy",
-    value: (r) => r.weeksFromNow,
-    render: (r) => r.weeksFromNow.toFixed(1),
-  },
-  {
-    key: "seasonWeek",
-    header: "TT-ss estimada",
-    align: "left",
-    value: (r) => r.seasonWeek ?? "",
-  },
-  {
-    key: "age",
-    header: "Edad proyectada",
-    value: (r) => edadOrdenable(r.age),
-    render: (r) => htAgeTexto(r.age),
-  },
-];
-
-const optionColumns: Column<PostMatchTrainingOption>[] = [
-  {
-    key: "name",
-    header: "Entrenamiento",
-    align: "left",
-    value: (r) => r.name,
-    render: (r) => (
-      <span className={r.recommendable ? "" : "text-[var(--muted)]"}>
-        {r.name}
-        {!r.recommendable && " · referencia"}
-      </span>
-    ),
-  },
-  {
-    // Lo que ordena desde el 2026-09-13: cuánto sube, por semana, el mejor
-    // aporte posicional de la plantilla. Sustituye a «Score», que contaba
-    // subidas y minutos y ponía primero a Balón parado.
-    key: "value",
-    header: "Aporte/sem",
-    value: (r) => r.value,
-    render: (r) => (
-      <span title="cuánto sube por semana el mejor aporte posicional de la plantilla">
-        +{r.value.toFixed(2)}
-      </span>
-    ),
-  },
-  {
-    key: "minutes",
-    header: "Min. equivalentes",
-    value: (r) => r.equivalentMinutes,
-  },
-  { key: "players", header: "Jugadores", value: (r) => r.trainedPlayers },
-  { key: "full", header: "Full", value: (r) => r.fullTrainingPlayers },
-  { key: "pops", header: "Pops <=3s", value: (r) => r.popsSoon },
-];
+    },
+    {
+      key: "minutes",
+      header: t("entrenamiento.minEquivalentes", "Min. equivalentes"),
+      value: (r) => r.equivalentMinutes,
+    },
+    {
+      key: "players",
+      header: t("nav.jugadores", "Jugadores"),
+      value: (r) => r.trainedPlayers,
+    },
+    { key: "full", header: "Full", value: (r) => r.fullTrainingPlayers },
+    {
+      key: "pops",
+      header: t("entrenamiento.popsPronto", "Pops <=3s"),
+      value: (r) => r.popsSoon,
+    },
+  ];
+}
 
 /** La edad de Hattrick es «años.días», no un decimal.
  *
@@ -862,6 +874,7 @@ function edadOrdenable(edad: string): number {
 }
 
 export function TrainingPage() {
+  const { t } = useTranslation();
   // Abre en «Entrenamiento actual», no en «Datos Entrenamiento». Hasta el
   // 2026-08-30 la pestaña de entrada era la de la configuración --entrenador,
   // asistentes, intensidad--, que describe el AJUSTE y no el resultado: quien
@@ -894,7 +907,12 @@ export function TrainingPage() {
   const data = squad.data;
   const post = postMatch.data;
   const validation = formula.data?.validation;
-  if (!data) return <Empty>Sincroniza para ver el entrenamiento.</Empty>;
+  if (!data)
+    return (
+      <Empty>
+        {t("entrenamiento.sincroniza", "Sincroniza para ver el entrenamiento.")}
+      </Empty>
+    );
 
   const recommendation = post?.recommendation ?? null;
 
@@ -929,22 +947,32 @@ export function TrainingPage() {
     actual && recommendation
       ? recommendation.equivalentMinutes - actual.equivalentMinutes
       : null;
-  const currentName = post?.currentTraining?.name ?? "sin dato";
+  const sinDato = t("comun.sinDato", "Sin dato");
+  const currentName =
+    post?.currentTraining?.name ?? t("club.sinDatoMin", "sin dato");
   const staff = club.data?.staff ?? null;
   const assistantRole =
     staff?.roles.find((role) => role.key === "assistant_trainer_levels") ??
     null;
-  const trainerName = data.weeklyLog[0]?.trainerName || "Sin dato";
+  const trainerName = data.weeklyLog[0]?.trainerName || sinDato;
   const trainerSpeed = staff
     ? trainerTrainingSpeedPct(staff.trainer.skillLevel)
     : null;
+  const veteranos = data.players.filter((r) => r.withoutFieldSkills).length;
+  const tituloActual = t("entrenamiento.actual", "Entrenamiento actual");
 
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">Entrenamiento</h1>
+        <h1 className="text-xl font-semibold">
+          {t("nav.entrenamiento", "Entrenamiento")}
+        </h1>
         <p className="text-sm text-[var(--muted)]">
-          Entrenamiento actual: {currentName} · viendo {data.skillLabel}
+          {t(
+            "entrenamiento.cabecera",
+            "Entrenamiento actual: {{actual}} · viendo {{habilidad}}",
+            { actual: currentName, habilidad: data.skillLabel },
+          )}
         </p>
         <EnlaceATransparencia
           seccion="entrenamiento"
@@ -955,12 +983,21 @@ export function TrainingPage() {
       <Tabs
         grupo="entrenamiento"
         tabs={[
-          { key: "plantilla", label: "Entrenamiento actual" },
-          { key: "experiencia", label: "Experiencia" },
-          { key: "fidelidad", label: "Fidelidad" },
-          { key: "condicion", label: "Resistencia" },
-          { key: "posteriori", label: "A posteriori" },
-          { key: "datos", label: "Datos Entrenamiento" },
+          { key: "plantilla", label: tituloActual },
+          {
+            key: "experiencia",
+            label: t("abrev.largo.experience", "Experiencia"),
+          },
+          { key: "fidelidad", label: t("abrev.largo.loyalty", "Fidelidad") },
+          { key: "condicion", label: t("flor.resistencia", "Resistencia") },
+          {
+            key: "posteriori",
+            label: t("entrenamiento.aPosteriori", "A posteriori"),
+          },
+          {
+            key: "datos",
+            label: t("entrenamiento.datos", "Datos Entrenamiento"),
+          },
         ]}
         active={section}
         onChange={setSection}
@@ -974,53 +1011,70 @@ export function TrainingPage() {
         {section === "datos" && (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
-              <Kpi label="Entrenamiento" value={currentName} />
               <Kpi
-                label="% de entrenamiento"
+                label={t("nav.entrenamiento", "Entrenamiento")}
+                value={currentName}
+              />
+              <Kpi
+                label={t(
+                  "entrenamiento.pctEntrenamiento",
+                  "% de entrenamiento",
+                )}
                 value={`${data.setup.intensity}%`}
               />
               <Kpi
-                label="% resistencia"
+                label={t("entrenamiento.pctResistencia", "% resistencia")}
                 value={`${data.setup.staminaShare}%`}
               />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.5fr)] [&>*]:min-w-0">
-              <Panel title="Entrenador" meta="leído de Hattrick">
+              <Panel
+                title={t("entrenamiento.entrenador", "Entrenador")}
+                meta={t("entrenamiento.leidoHattrick", "leído de Hattrick")}
+              >
                 {club.isLoading ? (
                   <Loading />
                 ) : (
                   <dl className="space-y-3 p-4 text-sm">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-[var(--muted)]">Nombre</dt>
+                      <dt className="text-[var(--muted)]">
+                        {t("entrenamiento.nombre", "Nombre")}
+                      </dt>
                       <dd className="text-right font-medium">{trainerName}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
                       <dt className="text-[var(--muted)]">
-                        Nivel de entrenador
+                        {t(
+                          "entrenamiento.nivelEntrenador",
+                          "Nivel de entrenador",
+                        )}
                       </dt>
                       <dd
                         className={`font-semibold tabular-nums ${trainingStaffLevelColor(staff?.trainer.skillLevel)}`}
                       >
-                        {staff ? `${staff.trainer.skillLevel}/5` : "Sin dato"}
+                        {staff ? `${staff.trainer.skillLevel}/5` : sinDato}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
                       <dt className="text-[var(--muted)]">
-                        Nivel de liderazgo
+                        {t(
+                          "entrenamiento.nivelLiderazgo",
+                          "Nivel de liderazgo",
+                        )}
                       </dt>
                       <dd>
                         {staff
                           ? `${skillLevelLabel(staff.trainer.leadership, true)} (${staff.trainer.leadership})`
-                          : "Sin dato"}
+                          : sinDato}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-3">
                       <dt className="text-[var(--muted)]">
-                        Velocidad de entrenamiento
+                        {t("club.velocidad", "Velocidad de entrenamiento")}
                       </dt>
                       <dd className="tabular-nums font-medium text-[var(--positive)]">
-                        {trainerSpeed == null ? "Sin dato" : `${trainerSpeed}%`}
+                        {trainerSpeed == null ? sinDato : `${trainerSpeed}%`}
                       </dd>
                     </div>
                   </dl>
@@ -1028,22 +1082,40 @@ export function TrainingPage() {
               </Panel>
 
               <Panel
-                title="Asistentes de entrenador"
+                title={t(
+                  "entrenamiento.asistentesTitulo",
+                  "Asistentes de entrenador",
+                )}
                 meta={
                   assistantRole
-                    ? `${assistantRole.members.length} asistente(s) · nivel combinado ${assistantRole.level}`
-                    : "sin sincronizar"
+                    ? t(
+                        "entrenamiento.asistentesMeta",
+                        "{{n}} asistente(s) · nivel combinado {{nivel}}",
+                        {
+                          n: assistantRole.members.length,
+                          nivel: assistantRole.level,
+                        },
+                      )
+                    : t("entrenamiento.sinSincronizar", "sin sincronizar")
                 }
               >
                 {club.isLoading ? (
                   <Loading />
                 ) : club.isError ? (
-                  <Note>No pudimos cargar el cuerpo técnico.</Note>
+                  <Note>
+                    {t(
+                      "entrenamiento.errorStaff",
+                      "No pudimos cargar el cuerpo técnico.",
+                    )}
+                  </Note>
                 ) : assistantRole ? (
                   <AssistantCards role={assistantRole} />
                 ) : (
                   <Note>
-                    Sin datos de asistentes. Sincroniza para traerlos.
+                    {t(
+                      "entrenamiento.sinDatosAsistentes",
+                      "Sin datos de asistentes. Sincroniza para traerlos.",
+                    )}
                   </Note>
                 )}
               </Panel>
@@ -1054,16 +1126,22 @@ export function TrainingPage() {
         {section === "plantilla" && (
           <>
             <Panel
-              title="Entrenamiento actual"
-              meta={`${data.players.length} jugadores actuales · ordenados por progreso`}
+              title={tituloActual}
+              meta={t(
+                "entrenamiento.plantillaMeta",
+                "{{n}} jugadores actuales · ordenados por progreso",
+                { n: data.players.length },
+              )}
             >
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
                 <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                  Configuración de la vista
+                  {t("entrenamiento.configVista", "Configuración de la vista")}
                 </span>
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-2 text-sm">
-                    <span className="text-[var(--muted)]">Habilidad</span>
+                    <span className="text-[var(--muted)]">
+                      {t("entrenamiento.habilidad", "Habilidad")}
+                    </span>
                     <select
                       value={selectedSkill ?? data.skill}
                       onChange={(e) => setSelectedSkill(e.target.value)}
@@ -1082,18 +1160,23 @@ export function TrainingPage() {
                       checked={includeThisWeek}
                       onChange={(e) => setIncludeThisWeek(e.target.checked)}
                     />
-                    Incluir los partidos de esta semana
+                    {t(
+                      "entrenamiento.incluirSemana",
+                      "Incluir los partidos de esta semana",
+                    )}
                   </label>
-                  {data.players.some((r) => r.withoutFieldSkills) && (
+                  {veteranos > 0 && (
                     <label className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={mostrarVeteranos}
                         onChange={(e) => setMostrarVeteranos(e.target.checked)}
                       />
-                      Mostrar a todos (
-                      {data.players.filter((r) => r.withoutFieldSkills).length}{" "}
-                      veteranos sin habilidades de campo)
+                      {t(
+                        "posiciones.mostrarTodos",
+                        "Mostrar a todos ({{n}} veteranos sin habilidades de campo)",
+                        { n: veteranos },
+                      )}
                     </label>
                   )}
                 </div>
@@ -1111,20 +1194,33 @@ export function TrainingPage() {
                 csvName="entrenamiento-plantilla"
                 selectedRowKey={selectedPlayerId}
                 onRowClick={(r) => setSelectedPlayerId(r.htPlayerId)}
-                emptyMessage="Sin jugadores en la plantilla."
+                emptyMessage={t(
+                  "posiciones.vacia",
+                  "Sin jugadores en la plantilla.",
+                )}
               />
             </Panel>
             {data.notes.length > 0 && <Note>{data.notes.join(" ")}</Note>}
 
             {data.weeklyLog.length > 0 && (
               <Panel
-                title="Historial de configuración semanal"
-                meta={`${data.weeklyLog.length} cambio(s) aplicados en la actualización`}
+                title={t(
+                  "entrenamiento.historialConfig",
+                  "Historial de configuración semanal",
+                )}
+                meta={t(
+                  "entrenamiento.historialMeta",
+                  "{{n}} cambio(s) aplicados en la actualización",
+                  { n: data.weeklyLog.length },
+                )}
               >
                 <DataTable
-                  emptyMessage="Sin semanas de entrenamiento registradas todavía."
+                  emptyMessage={t(
+                    "entrenamiento.sinSemanas",
+                    "Sin semanas de entrenamiento registradas todavía.",
+                  )}
                   rows={data.weeklyLog}
-                  columns={weeklyLogColumns}
+                  columns={weeklyLogColumns()}
                   rowKey={(r) => r.date}
                   initialSort="date"
                   csvName="entrenamiento-historial-semanal"
@@ -1136,26 +1232,38 @@ export function TrainingPage() {
               <div className="prosa rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs text-[var(--muted)]">
                 {validation.observations > 0 ? (
                   <>
-                    Contraste con pops reales: diferencia media de{" "}
+                    {t(
+                      "entrenamiento.contraste",
+                      "Contraste con pops reales: diferencia media de",
+                    )}{" "}
                     <b className="text-[var(--text)]">
                       {validation.meanErrorWeeks == null
                         ? "-"
-                        : `${validation.meanErrorWeeks} sem`}
+                        : semanas(validation.meanErrorWeeks)}
                     </b>{" "}
-                    sobre {validation.observations} subida(s) confirmada(s) de{" "}
-                    {formula.data?.trainedSkill}.
+                    {t(
+                      "entrenamiento.sobreSubidas",
+                      "sobre {{n}} subida(s) confirmada(s) de {{habilidad}}.",
+                      {
+                        n: validation.observations,
+                        habilidad: formula.data?.trainedSkill,
+                      },
+                    )}
                   </>
                 ) : (
                   <>
-                    Todavía no hay dos subidas seguidas de{" "}
-                    {formula.data?.trainedSkill} para contrastar la fórmula.
+                    {t(
+                      "entrenamiento.sinDosSubidas",
+                      "Todavía no hay dos subidas seguidas de {{habilidad}} para contrastar la fórmula.",
+                      { habilidad: formula.data?.trainedSkill },
+                    )}
                   </>
                 )}{" "}
                 <Link
                   to="/engine"
                   className="underline hover:text-[var(--text)]"
                 >
-                  ver el detalle en Motor
+                  {t("entrenamiento.verMotor", "ver el detalle en Motor")}
                 </Link>
                 .
               </div>
@@ -1165,7 +1273,8 @@ export function TrainingPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold">
-                    {playerLevels.data?.name ?? "Cargando…"}
+                    {playerLevels.data?.name ??
+                      t("comun.cargando", "Cargando…")}
                     {playerLevels.data && (
                       <span className="text-[var(--muted)]">
                         {" "}
@@ -1177,16 +1286,22 @@ export function TrainingPage() {
                     onClick={() => setSelectedPlayerId(null)}
                     className="text-xs text-[var(--muted)] underline hover:text-[var(--text)]"
                   >
-                    Cerrar
+                    {t("entrenamiento.cerrar", "Cerrar")}
                   </button>
                 </div>
 
                 <Tabs
                   grupo="jugador-entrenamiento"
-                  label="Vistas del jugador"
+                  label={t("entrenamiento.vistasJugador", "Vistas del jugador")}
                   tabs={[
-                    { key: "mejoras", label: "Mejoras" },
-                    { key: "prevision", label: "Previsión subidas" },
+                    {
+                      key: "mejoras",
+                      label: t("entrenamiento.mejoras", "Mejoras"),
+                    },
+                    {
+                      key: "prevision",
+                      label: t("entrenamiento.prevision", "Previsión subidas"),
+                    },
                   ]}
                   active={playerTab}
                   onChange={setPlayerTab}
@@ -1205,21 +1320,33 @@ export function TrainingPage() {
                   {playerLevels.data && playerTab === "mejoras" && (
                     <>
                       <Panel
-                        title="Subidas confirmadas"
-                        meta="confirmadas por Hattrick"
+                        title={t(
+                          "entrenamiento.subidasConfirmadas",
+                          "Subidas confirmadas",
+                        )}
+                        meta={t(
+                          "entrenamiento.confirmadasHattrick",
+                          "confirmadas por Hattrick",
+                        )}
                       >
                         {playerLevels.data.confirmed.length === 0 && (
                           <Empty>
                             {playerLevels.data.notes.join(" ") ||
-                              "Sin subidas confirmadas todavía."}
+                              t(
+                                "entrenamiento.sinConfirmadas",
+                                "Sin subidas confirmadas todavía.",
+                              )}
                           </Empty>
                         )}
                       </Panel>
                       {playerLevels.data.confirmed.length > 0 && (
                         <DataTable
-                          emptyMessage="Ninguna subida confirmada todavía."
+                          emptyMessage={t(
+                            "entrenamiento.ningunaConfirmada",
+                            "Ninguna subida confirmada todavía.",
+                          )}
                           rows={playerLevels.data.confirmed}
-                          columns={confirmedColumns}
+                          columns={confirmedColumns()}
                           rowKey={(r) => r.seasonWeek}
                           initialSort="seasonWeek"
                           initialDescending={false}
@@ -1231,13 +1358,23 @@ export function TrainingPage() {
 
                   {playerLevels.data && playerTab === "prevision" && (
                     <ProjectionPanel
-                      title="Previsión de subidas"
-                      meta={`hasta nivel 20 · ${playerLevels.data.forecast.length} nivel(es)`}
+                      title={t(
+                        "entrenamiento.previsionTitulo",
+                        "Previsión de subidas",
+                      )}
+                      meta={t(
+                        "entrenamiento.previsionMeta",
+                        "hasta nivel 20 · {{n}} nivel(es)",
+                        { n: playerLevels.data.forecast.length },
+                      )}
                     >
                       <DataTable
-                        emptyMessage="Sin previsión: hace falta al menos una semana entrenada."
+                        emptyMessage={t(
+                          "entrenamiento.sinPrevision",
+                          "Sin previsión: hace falta al menos una semana entrenada.",
+                        )}
                         rows={playerLevels.data.forecast}
-                        columns={forecastColumns}
+                        columns={forecastColumns()}
                         rowKey={(r) => r.level}
                         initialSort="level"
                         initialDescending={false}
@@ -1258,16 +1395,23 @@ export function TrainingPage() {
             {development.data && (
               <>
                 <Panel
-                  title="Experiencia"
-                  meta={`${development.data.experience.length} jugadores · partidos y minutos reales`}
+                  title={t("abrev.largo.experience", "Experiencia")}
+                  meta={t(
+                    "entrenamiento.experienciaMeta",
+                    "{{n}} jugadores · partidos y minutos reales",
+                    { n: development.data.experience.length },
+                  )}
                 >
                   <DataTable
                     rows={development.data.experience}
-                    columns={experienceColumns}
+                    columns={experienceColumns()}
                     rowKey={(r) => r.htPlayerId}
                     initialSort="progress"
                     csvName="entrenamiento-experiencia"
-                    emptyMessage="Sin jugadores para calcular experiencia."
+                    emptyMessage={t(
+                      "entrenamiento.sinExperiencia",
+                      "Sin jugadores para calcular experiencia.",
+                    )}
                   />
                 </Panel>
               </>
@@ -1282,16 +1426,23 @@ export function TrainingPage() {
             {development.data && (
               <>
                 <Panel
-                  title="Fidelidad"
-                  meta={`${development.data.loyalty.length} jugadores · antigüedad real en el club`}
+                  title={t("abrev.largo.loyalty", "Fidelidad")}
+                  meta={t(
+                    "entrenamiento.fidelidadMeta",
+                    "{{n}} jugadores · antigüedad real en el club",
+                    { n: development.data.loyalty.length },
+                  )}
                 >
                   <DataTable
                     rows={development.data.loyalty}
-                    columns={loyaltyColumns}
+                    columns={loyaltyColumns()}
                     rowKey={(r) => r.htPlayerId}
                     initialSort="progress"
                     csvName="entrenamiento-fidelidad"
-                    emptyMessage="Sin jugadores para calcular fidelidad."
+                    emptyMessage={t(
+                      "entrenamiento.sinFidelidad",
+                      "Sin jugadores para calcular fidelidad.",
+                    )}
                   />
                 </Panel>
                 {development.data.notes.map((note) => (
@@ -1309,10 +1460,21 @@ export function TrainingPage() {
             {development.data && (
               <>
                 <Panel
-                  title="Resistencia"
+                  title={t("flor.resistencia", "Resistencia")}
                   meta={
                     <span className="flex items-center gap-2">
-                      {`${development.data.stamina.length} jugadores · ${decimal(development.data.stamina[0]?.effectiveTrainingPct ?? 0, 1)}% efectivo · guía Ocerin`}
+                      {t(
+                        "entrenamiento.resistenciaMeta",
+                        "{{n}} jugadores · {{pct}}% efectivo · guía Ocerin",
+                        {
+                          n: development.data.stamina.length,
+                          pct: decimal(
+                            development.data.stamina[0]?.effectiveTrainingPct ??
+                              0,
+                            1,
+                          ),
+                        },
+                      )}
                       <EnlaceATransparencia
                         seccion="entrenamiento"
                         calculo="condicion"
@@ -1322,11 +1484,14 @@ export function TrainingPage() {
                 >
                   <DataTable
                     rows={development.data.stamina}
-                    columns={staminaColumns}
+                    columns={staminaColumns()}
                     rowKey={(r) => r.htPlayerId}
                     initialSort="level"
                     csvName="entrenamiento-resistencia"
-                    emptyMessage="Sin jugadores para calcular resistencia."
+                    emptyMessage={t(
+                      "entrenamiento.sinResistencia",
+                      "Sin jugadores para calcular resistencia.",
+                    )}
                   />
                 </Panel>
                 {development.data.notes.map((note) => (
@@ -1346,41 +1511,84 @@ export function TrainingPage() {
                 me costó no haberla puesto» (2026-09-02). */}
             <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
               <Kpi
-                label="Pusiste"
+                label={t("entrenamiento.pusiste", "Pusiste")}
                 value={currentName}
                 hint={
                   actual
-                    ? `+${actual.value.toFixed(2)} de aporte/sem · ${actual.equivalentMinutes.toFixed(0)} min · ${puestoActual}.º de ${elegibles.length}`
-                    : "no está entre las opciones comparables"
+                    ? t(
+                        "entrenamiento.pusisteHint",
+                        "+{{aporte}} de aporte/sem · {{min}} min · {{puesto}}.º de {{total}}",
+                        {
+                          aporte: actual.value.toFixed(2),
+                          min: actual.equivalentMinutes.toFixed(0),
+                          puesto: puestoActual,
+                          total: elegibles.length,
+                        },
+                      )
+                    : t(
+                        "entrenamiento.noComparable",
+                        "no está entre las opciones comparables",
+                      )
                 }
               />
               <Kpi
-                label="Convenía"
-                value={recommendation?.name ?? "Sin datos"}
+                label={t("entrenamiento.convenia", "Convenía")}
+                value={
+                  recommendation?.name ??
+                  t("entrenamiento.sinDatos", "Sin datos")
+                }
                 hint={
                   recommendation
-                    ? `+${recommendation.value.toFixed(2)} de aporte/sem · ${recommendation.equivalentMinutes.toFixed(0)} min`
-                    : "sin minutos que repartir esta semana"
+                    ? t(
+                        "entrenamiento.conveniaHint",
+                        "+{{aporte}} de aporte/sem · {{min}} min",
+                        {
+                          aporte: recommendation.value.toFixed(2),
+                          min: recommendation.equivalentMinutes.toFixed(0),
+                        },
+                      )
+                    : t(
+                        "entrenamiento.sinMinutos",
+                        "sin minutos que repartir esta semana",
+                      )
                 }
               />
               {/* La cifra que da sentido a la pestaña: la diferencia en
                   APORTE (2026-09-13). Antes eran subidas, y una subida de
                   balón parado de 2 a 3 contaba igual que una de defensa. */}
               <Kpi
-                label={acerto ? "Acertaste" : "Lo que costó"}
+                label={
+                  acerto
+                    ? t("entrenamiento.acertaste", "Acertaste")
+                    : t("entrenamiento.loQueCosto", "Lo que costó")
+                }
                 value={
                   acerto
-                    ? "nada"
+                    ? t("habilidades.nada", "nada")
                     : aportePerdido == null
-                      ? "sin comparar"
-                      : `-${Math.abs(aportePerdido).toFixed(2)} de aporte/sem`
+                      ? t("entrenamiento.sinComparar", "sin comparar")
+                      : t(
+                          "entrenamiento.aportePerdido",
+                          "-{{aporte}} de aporte/sem",
+                          { aporte: Math.abs(aportePerdido).toFixed(2) },
+                        )
                 }
                 hint={
                   acerto
-                    ? "era la mejor opción con los minutos ya jugados"
+                    ? t(
+                        "entrenamiento.eraLaMejor",
+                        "era la mejor opción con los minutos ya jugados",
+                      )
                     : minutosPerdidos == null
-                      ? "el entrenamiento puesto no entra en la comparación"
-                      : `y ${Math.abs(minutosPerdidos).toFixed(0)} min equivalentes`
+                      ? t(
+                          "entrenamiento.noEntra",
+                          "el entrenamiento puesto no entra en la comparación",
+                        )
+                      : t(
+                          "entrenamiento.minPerdidos",
+                          "y {{min}} min equivalentes",
+                          { min: Math.abs(minutosPerdidos).toFixed(0) },
+                        )
                 }
                 tone={
                   acerto ? "positive" : aportePerdido ? "danger" : undefined
@@ -1389,31 +1597,48 @@ export function TrainingPage() {
             </div>
 
             <Panel
-              title="Entrenamiento decidido a posteriori"
-              meta="elige después de ver quién jugó y dónde"
+              title={t(
+                "entrenamiento.decidido",
+                "Entrenamiento decidido a posteriori",
+              )}
+              meta={t(
+                "entrenamiento.decididoMeta",
+                "elige después de ver quién jugó y dónde",
+              )}
             >
               <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
                 <Chart
-                  ariaLabel="Ranking de entrenamientos por aporte posicional ganado por semana"
+                  ariaLabel={t(
+                    "entrenamiento.rankingAria",
+                    "Ranking de entrenamientos por aporte posicional ganado por semana",
+                  )}
                   height={320}
                   option={barOption(
                     post.options.slice(0, 8).map((o) => o.name),
                     post.options.slice(0, 8).map((o) => o.value),
-                    "Aporte/sem",
+                    t("entrenamiento.aporteSem", "Aporte/sem"),
                   )}
                 />
                 <div className="rounded-lg border border-[var(--border)] p-4">
                   <h3 className="text-sm font-semibold">
                     {recommendation
-                      ? `Mejor opción: ${recommendation.name}`
-                      : "Sin recomendación"}
+                      ? t(
+                          "entrenamiento.mejorOpcion",
+                          "Mejor opción: {{nombre}}",
+                          {
+                            nombre: recommendation.name,
+                          },
+                        )
+                      : t(
+                          "entrenamiento.sinRecomendacion",
+                          "Sin recomendación",
+                        )}
                   </h3>
                   <p className="mt-2 text-sm text-[var(--muted)]">
-                    La app suma los minutos reales por posición y, para cada
-                    entrenamiento, cuánto subiría por semana el mejor aporte
-                    posicional de cada jugador. Gana el que más suma: una subida
-                    que no mejora a nadie en ningún puesto vale poco, aunque
-                    llegue rápido.
+                    {t(
+                      "entrenamiento.explicacionPosteriori",
+                      "La app suma los minutos reales por posición y, para cada entrenamiento, cuánto subiría por semana el mejor aporte posicional de cada jugador. Gana el que más suma: una subida que no mejora a nadie en ningún puesto vale poco, aunque llegue rápido.",
+                    )}
                   </p>
                   <ul className="mt-4 space-y-1 text-xs text-[var(--muted)]">
                     {(recommendation?.rationale ?? []).map((item) => (
@@ -1433,7 +1658,7 @@ export function TrainingPage() {
                             {(p.exposure * 100).toFixed(0)}% ·{" "}
                             {p.weeksToPop == null
                               ? "-"
-                              : `${p.weeksToPop.toFixed(1)} sem`}
+                              : semanas(p.weeksToPop.toFixed(1))}
                           </span>
                         </li>
                       ))}
@@ -1444,9 +1669,12 @@ export function TrainingPage() {
             </Panel>
 
             <DataTable
-              emptyMessage="Sin opciones que comparar para este partido."
+              emptyMessage={t(
+                "entrenamiento.sinOpciones",
+                "Sin opciones que comparar para este partido.",
+              )}
               rows={post.options}
-              columns={optionColumns}
+              columns={optionColumns()}
               rowKey={(r) => r.trainingType}
               initialSort="value"
               csvName="entrenamiento-a-posteriori"
