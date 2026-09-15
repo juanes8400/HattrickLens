@@ -1,6 +1,8 @@
 import { useFocoDeLista } from "../hooks/useFocoDeLista";
 import clsx from "clsx";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import type { Insight } from "../services/api";
 
 /**
@@ -21,11 +23,20 @@ export const INSIGHT_TONE = {
   info: "var(--muted)",
 } as const;
 
+/** Con getters: cada lectura sale en el idioma que esté puesto en ese momento. */
 export const SEVERITY_LABEL: Record<Insight["severity"], string> = {
-  danger: "Peligro",
-  warning: "Aviso",
-  opportunity: "Oportunidad",
-  info: "Info",
+  get danger() {
+    return i18n.t("alertas.severidad.danger", "Peligro");
+  },
+  get warning() {
+    return i18n.t("alertas.severidad.warning", "Aviso");
+  },
+  get opportunity() {
+    return i18n.t("alertas.severidad.opportunity", "Oportunidad");
+  },
+  get info() {
+    return i18n.t("alertas.severidad.info", "Info");
+  },
 };
 
 export const SEVERITIES: Insight["severity"][] = [
@@ -79,16 +90,18 @@ export function InsightRow({
   meta?: React.ReactNode;
   busy?: boolean;
 }) {
+  const { t } = useTranslation();
   const route = insightRoute(insight.module);
+  // El módulo llega del servidor en español («economía»); se enseña traducido.
+  const modulo = t(`alertas.modulo.${insight.module}`, insight.module);
   // Al archivar o restaurar desaparece la fila entera, y con ella el botón
-  // pulsado: sin esto el foco se cae al principio del documento.
+  // pulsado: sin esto el foco se cae al principio del documento. Se busca por
+  // atributo y no por `aria-label`, que cambia con el idioma.
   const alQuitar = useFocoDeLista(
     onRestore
       ? '[data-lista="alertas-archivadas"]'
       : '[data-lista="alertas-activas"]',
-    onRestore
-      ? "button[data-restaurar]"
-      : 'button[aria-label="Archivar alerta"]',
+    onRestore ? "button[data-restaurar]" : "button[data-archivar]",
   );
   return (
     <li className="flex gap-3 border-b border-[var(--border)] p-4 last:border-0">
@@ -117,12 +130,10 @@ export function InsightRow({
             to={route}
             className="text-[11px] text-[var(--muted)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
           >
-            {insight.module}
+            {modulo}
           </Link>
         ) : (
-          <span className="text-[11px] text-[var(--muted)]">
-            {insight.module}
-          </span>
+          <span className="text-[11px] text-[var(--muted)]">{modulo}</span>
         )}
         {onRestore && (
           <button
@@ -132,10 +143,10 @@ export function InsightRow({
               onRestore(insight.key);
             }}
             disabled={busy}
-            title="Devolver a las alertas activas"
+            title={t("alertas.devolver", "Devolver a las alertas activas")}
             className="-mt-1 rounded-md px-1.5 py-0.5 text-[11px] text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--accent)] disabled:opacity-40"
           >
-            Restaurar
+            {t("alertas.restaurar", "Restaurar")}
           </button>
         )}
         {onArchive && (
@@ -147,8 +158,9 @@ export function InsightRow({
               onArchive(insight.key);
             }}
             disabled={busy}
-            aria-label="Archivar alerta"
-            title="Archivar en el buzón"
+            data-archivar
+            aria-label={t("alertas.archivar", "Archivar alerta")}
+            title={t("alertas.archivarTitle", "Archivar en el buzón")}
             className="-mr-1.5 -mt-1.5 rounded-md px-2 py-1 text-sm leading-none text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-40"
           >
             ×
@@ -217,7 +229,17 @@ export function SeverityTally({
             // Es un conmutador: sin `aria-pressed` el que esté puesto o
             // quitado se transmite SÓLO por color y opacidad.
             aria-pressed={on}
-            aria-label={`${SEVERITY_LABEL[severity]}: ${n} ${n === 1 ? "alerta" : "alertas"}`}
+            aria-label={
+              n === 1
+                ? i18n.t("alertas.conteoUna", "{{severidad}}: {{n}} alerta", {
+                    severidad: SEVERITY_LABEL[severity],
+                    n,
+                  })
+                : i18n.t("alertas.conteo", "{{severidad}}: {{n}} alertas", {
+                    severidad: SEVERITY_LABEL[severity],
+                    n,
+                  })
+            }
             className={className}
           >
             {content}

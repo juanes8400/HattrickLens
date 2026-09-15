@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { Empty, Loading, Panel } from "./Panels";
 import {
   useLeague,
@@ -43,8 +45,10 @@ interface Equipo {
 
 /** «Copa Cocuy Rubí» tal cual; un nombre sin «Copa» delante, con ella. */
 function etiquetaDeCopa(copa: string | null | undefined): string {
-  if (!copa) return "Copa";
-  return /^copa\b/i.test(copa) ? copa : `Copa ${copa}`;
+  if (!copa) return i18n.t("flor.copa", "Copa");
+  return /^(copa|cup)\b/i.test(copa)
+    ? copa
+    : i18n.t("flor.copaDe", "Copa {{copa}}", { copa });
 }
 
 interface Petalo {
@@ -96,14 +100,16 @@ function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
 }
 
 export function FlorDeFuerza() {
+  const { t } = useTranslation();
   const league = useLeague(RUNS);
   const comparison = useLeagueComparison(false, true, true, true);
   const sectores = useSectoresRecientes();
   const [elegido, setElegido] = useState<string | null>(null);
+  const titulo = t("flor.titulo", "Fuerza en la serie");
 
   if (league.isLoading || comparison.isLoading || sectores.isLoading) {
     return (
-      <Panel title="Fuerza en la serie">
+      <Panel title={titulo}>
         <div className="p-4">
           <Loading />
         </div>
@@ -113,13 +119,18 @@ export function FlorDeFuerza() {
   const liga = league.data;
   if (!liga || liga.standings.length < 2) {
     return (
-      <Panel title="Fuerza en la serie">
-        <Empty>Todavía no hay clasificación de tu serie.</Empty>
+      <Panel title={titulo}>
+        <Empty>
+          {t(
+            "dashboard.sinClasificacion",
+            "Todavía no hay clasificación de tu serie.",
+          )}
+        </Empty>
       </Panel>
     );
   }
 
-  const serie = liga.seriesName ?? "la serie";
+  const serie = liga.seriesName ?? t("flor.laSerie", "la serie");
   const equipos: Equipo[] = liga.standings.map((s) => ({
     htTeamId: s.htTeamId,
     nombre: s.name,
@@ -184,65 +195,96 @@ export function FlorDeFuerza() {
   const petalos: Petalo[] = [
     {
       clave: "ataque",
-      nombre: "Ataque",
+      nombre: t("flor.ataque", "Ataque"),
       valores: deSectores("ataque"),
       formato: uno,
       frase: (mio, n) =>
-        `Tu ataque suma ${mio} de HatStats de media en tus últimos ${n} partidos oficiales.`,
+        t(
+          "flor.fraseAtaque",
+          "Tu ataque suma {{mio}} de HatStats de media en tus últimos {{n}} partidos oficiales.",
+          { mio, n },
+        ),
     },
     {
       clave: "defensa",
-      nombre: "Defensa",
+      nombre: t("flor.defensa", "Defensa"),
       valores: deSectores("defensa"),
       formato: uno,
       frase: (mio, n) =>
-        `Tu defensa suma ${mio} de HatStats de media en tus últimos ${n} partidos oficiales.`,
+        t(
+          "flor.fraseDefensa",
+          "Tu defensa suma {{mio}} de HatStats de media en tus últimos {{n}} partidos oficiales.",
+          { mio, n },
+        ),
     },
     {
       clave: "medio",
-      nombre: "Mediocampo",
+      nombre: t("flor.medio", "Mediocampo"),
       valores: deSectores("medio"),
       formato: uno,
       frase: (mio, n) =>
-        `Tu medio campo promedia ${mio} en tus últimos ${n} partidos oficiales.`,
+        t(
+          "flor.fraseMedio",
+          "Tu medio campo promedia {{mio}} en tus últimos {{n}} partidos oficiales.",
+          { mio, n },
+        ),
     },
     {
       clave: "tsi",
       nombre: "TSI",
-      valores: deComparativa((t) => t.totalTsi),
+      valores: deComparativa((c) => c.totalTsi),
       formato: (v) => number(v),
-      frase: (mio) => `Tus 11 mejores suman ${mio} de TSI.`,
+      frase: (mio) =>
+        t("flor.fraseTsi", "Tus 11 mejores suman {{mio}} de TSI.", { mio }),
     },
     {
       clave: "forma",
-      nombre: "Forma",
-      valores: deComparativa((t) => t.avgForm),
+      nombre: t("flor.forma", "Forma"),
+      valores: deComparativa((c) => c.avgForm),
       formato: uno,
-      frase: (mio) => `La forma media de tus 11 mejores es ${mio}.`,
+      frase: (mio) =>
+        t("flor.fraseForma", "La forma media de tus 11 mejores es {{mio}}.", {
+          mio,
+        }),
     },
     {
       clave: "experiencia",
-      nombre: "Experiencia",
-      valores: deComparativa((t) => t.avgExperience),
+      nombre: t("flor.experiencia", "Experiencia"),
+      valores: deComparativa((c) => c.avgExperience),
       formato: uno,
-      frase: (mio) => `La experiencia media de tus 11 mejores es ${mio}.`,
+      frase: (mio) =>
+        t(
+          "flor.fraseExperiencia",
+          "La experiencia media de tus 11 mejores es {{mio}}.",
+          { mio },
+        ),
     },
     {
       clave: "condicion",
-      nombre: "Resistencia",
-      valores: deComparativa((t) => t.avgStamina),
+      nombre: t("flor.resistencia", "Resistencia"),
+      valores: deComparativa((c) => c.avgStamina),
       formato: uno,
-      frase: (mio) => `La resistencia media de tus 11 mejores es ${mio}.`,
+      frase: (mio) =>
+        t(
+          "flor.fraseResistencia",
+          "La resistencia media de tus 11 mejores es {{mio}}.",
+          { mio },
+        ),
     },
     {
       clave: "posicion",
-      nombre: "Posición",
+      nombre: t("flor.posicion", "Posición"),
       valores: new Map(
         liga.outlook.map((o) => [o.htTeamId, o.expectedPosition]),
       ),
       menorEsMejor: true,
-      formato: (v) => `${decimal(v, 2)}º`,
-      frase: (mio) => `En la simulación de Liga acabas, de media, ${mio}.`,
+      formato: (v) => t("flor.puesto", "{{v}}º", { v: decimal(v, 2) }),
+      frase: (mio) =>
+        t(
+          "flor.frasePosicion",
+          "En la simulación de Liga acabas, de media, {{mio}}.",
+          { mio },
+        ),
     },
   ];
 
@@ -258,8 +300,12 @@ export function FlorDeFuerza() {
 
   return (
     <Panel
-      title="Fuerza en la serie"
-      meta={`0 = el peor de ${hayCopa ? `${serie} y tu rival de Copa` : serie} · 100 = el mejor`}
+      title={titulo}
+      meta={t("flor.meta", "0 = el peor de {{ambito}} · 100 = el mejor", {
+        ambito: hayCopa
+          ? t("flor.serieYCopa", "{{serie}} y tu rival de Copa", { serie })
+          : serie,
+      })}
     >
       <div className="grid items-center gap-4 p-4 md:grid-cols-[300px_1fr]">
         <Flor
@@ -291,6 +337,7 @@ function Flor({
   activo: string;
   onElegir: (clave: string) => void;
 }) {
+  const { t } = useTranslation();
   const cx = 150;
   const cy = 145;
   const R = 92;
@@ -304,7 +351,10 @@ function Flor({
       viewBox="0 0 300 290"
       className="mx-auto w-full max-w-[300px]"
       role="img"
-      aria-label="Flor de fuerza: un pétalo por medida, de 0 (el peor de la serie) a 100 (el mejor)"
+      aria-label={t(
+        "flor.aria",
+        "Flor de fuerza: un pétalo por medida, de 0 (el peor de la serie) a 100 (el mejor)",
+      )}
     >
       {[25, 50, 75, 100].map((v) => (
         <circle
@@ -389,33 +439,63 @@ function Porque({
   serie: string;
   partidos: number;
 }) {
+  const { t } = useTranslation();
   const mio = lista.find((x) => x.propio);
   if (!mio) {
     return (
       <div className="rounded-lg border border-[var(--border)] p-3 text-sm text-[var(--muted)]">
-        {petalo.nombre}: todavía no hay dato de tu equipo.
+        {t("flor.sinDato", "{{petalo}}: todavía no hay dato de tu equipo.", {
+          petalo: petalo.nombre,
+        })}
       </div>
     );
   }
   const puesto = lista.findIndex((x) => x.propio) + 1;
   const mejor = lista[0]!;
   const peor = lista[lista.length - 1]!;
-  const nombreDe = (x: Normalizado) => (x.propio ? "tú" : x.nombre);
+  const nombreDe = (x: Normalizado) =>
+    x.propio ? t("comun.tu", "tú") : x.nombre;
   // Con el rival de Copa dentro, «el mejor de la serie» ya no sería verdad.
   const ambito = lista.some((x) => x.copa)
-    ? `${serie} y tu rival de Copa`
+    ? t("flor.serieYCopa", "{{serie}} y tu rival de Copa", { serie })
     : serie;
   const extremos = mejor.propio
-    ? `Eres el mejor de ${ambito}; el peor es ${peor.nombre} (${petalo.formato(peor.crudo)}).`
+    ? t(
+        "flor.eresMejor",
+        "Eres el mejor de {{ambito}}; el peor es {{otro}} ({{v}}).",
+        {
+          ambito,
+          otro: peor.nombre,
+          v: petalo.formato(peor.crudo),
+        },
+      )
     : peor.propio
-      ? `Eres el peor de ${ambito}; el mejor es ${mejor.nombre} (${petalo.formato(mejor.crudo)}).`
-      : `El mejor de ${ambito} es ${nombreDe(mejor)} (${petalo.formato(mejor.crudo)}) y el peor, ${nombreDe(peor)} (${petalo.formato(peor.crudo)}).`;
+      ? t(
+          "flor.eresPeor",
+          "Eres el peor de {{ambito}}; el mejor es {{otro}} ({{v}}).",
+          { ambito, otro: mejor.nombre, v: petalo.formato(mejor.crudo) },
+        )
+      : t(
+          "flor.extremos",
+          "El mejor de {{ambito}} es {{mejor}} ({{vMejor}}) y el peor, {{peor}} ({{vPeor}}).",
+          {
+            ambito,
+            mejor: nombreDe(mejor),
+            vMejor: petalo.formato(mejor.crudo),
+            peor: nombreDe(peor),
+            vPeor: petalo.formato(peor.crudo),
+          },
+        );
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
       <div className="mb-1 flex items-baseline justify-between font-semibold">
         <span>
-          {petalo.nombre} · {puesto}º de {lista.length}
+          {t("flor.puestoDe", "{{petalo}} · {{puesto}}º de {{total}}", {
+            petalo: petalo.nombre,
+            puesto,
+            total: lista.length,
+          })}
         </span>
         <span className="tabular-nums">{mio.valor}</span>
       </div>
@@ -425,8 +505,8 @@ function Porque({
       <div className="mb-0.5 grid grid-cols-[7.5rem_1fr_4.5rem_2rem] gap-2 text-[11px] text-[var(--muted)]">
         <span />
         <span />
-        <span className="text-right">dato</span>
-        <span className="text-right">flor</span>
+        <span className="text-right">{t("flor.dato", "dato")}</span>
+        <span className="text-right">{t("flor.flor", "flor")}</span>
       </div>
       <ul className="space-y-0.5">
         {lista.map((x) => (

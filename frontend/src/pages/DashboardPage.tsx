@@ -8,6 +8,7 @@ import {
   useLineup,
 } from "../hooks/useTeam";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Empty,
   ErrorState,
@@ -204,6 +205,7 @@ export function BestElevenPitch({
   lineup: NonNullable<ReturnType<typeof useLineup>["data"]>["lineup"];
   formation: string;
 }) {
+  const { t } = useTranslation();
   const lineas = [
     lineup.filter((a) => a.position.startsWith("forward")),
     lineup.filter(
@@ -219,7 +221,13 @@ export function BestElevenPitch({
     lineup.filter((a) => a.position === "keeper"),
   ];
   return (
-    <PitchField ariaLabel={`Mejor once en formación ${formation}`}>
+    <PitchField
+      ariaLabel={t(
+        "dashboard.mejorOnceAria",
+        "Mejor once en formación {{formacion}}",
+        { formacion: formation },
+      )}
+    >
       <PitchGrid
         rows={lineas}
         // Gente de banda: extremos arriba y laterales atrás. Son los que
@@ -260,6 +268,7 @@ export function TrainingPanel({
 }: {
   training: NonNullable<Dashboard["training"]>;
 }) {
+  const { t } = useTranslation();
   const pct = Math.max(0, Math.min(100, training.efficiencyPct));
   const tono =
     pct >= 85
@@ -268,12 +277,15 @@ export function TrainingPanel({
         ? "var(--warning)"
         : "var(--danger)";
   return (
-    <Panel title="Entrenamiento" meta={training.typeName}>
+    <Panel
+      title={t("nav.entrenamiento", "Entrenamiento")}
+      meta={training.typeName}
+    >
       <div className="space-y-3 p-4">
         <div>
           <div className="flex items-baseline justify-between">
             <span className="text-xs text-[var(--muted)]">
-              Del máximo posible
+              {t("entrenamiento.delMaximo", "Del máximo posible")}
             </span>
             <span
               className="tabular-nums text-2xl font-semibold"
@@ -292,7 +304,9 @@ export function TrainingPanel({
 
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <dt className="text-[var(--muted)]">Entrenador</dt>
+            <dt className="text-[var(--muted)]">
+              {t("entrenamiento.entrenador", "Entrenador")}
+            </dt>
             {/* El motor trabaja en la escala 4-8 de la fórmula pública; en la
                 pantalla se muestra la de Hattrick, 1-5. */}
             <dd>
@@ -303,34 +317,50 @@ export function TrainingPanel({
             </dd>
           </div>
           <div>
-            <dt className="text-[var(--muted)]">Asistentes</dt>
+            <dt className="text-[var(--muted)]">
+              {t("entrenamiento.asistentes", "Asistentes")}
+            </dt>
             <dd>
               {training.assistantLevelSum}{" "}
-              <span className="text-xs text-[var(--muted)]">de 10</span>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[var(--muted)]">Intensidad</dt>
-            <dd>
-              {training.level}%{" "}
               <span className="text-xs text-[var(--muted)]">
-                · {training.staminaPart}% a resistencia
+                {t("entrenamiento.deDiez", "de 10")}
               </span>
             </dd>
           </div>
           <div>
-            <dt className="text-[var(--muted)]">Edad de los entrenados</dt>
+            <dt className="text-[var(--muted)]">
+              {t("entrenamiento.intensidad", "Intensidad")}
+            </dt>
+            <dd>
+              {training.level}%{" "}
+              <span className="text-xs text-[var(--muted)]">
+                ·{" "}
+                {t("entrenamiento.aResistencia", "{{pct}}% a resistencia", {
+                  pct: training.staminaPart,
+                })}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[var(--muted)]">
+              {t("entrenamiento.edadEntrenados", "Edad de los entrenados")}
+            </dt>
             <dd>
               {training.trainedAvgAge != null ? (
                 <>
-                  {decimal(training.trainedAvgAge, 1)} años{" "}
+                  {t("entrenamiento.anios", "{{edad}} años", {
+                    edad: decimal(training.trainedAvgAge, 1),
+                  })}{" "}
                   <span className="text-xs text-[var(--muted)]">
-                    · {training.trainedPlayers} jugadores
+                    ·{" "}
+                    {t("entrenamiento.nJugadores", "{{n}} jugadores", {
+                      n: training.trainedPlayers,
+                    })}
                   </span>
                 </>
               ) : (
                 <span className="text-[var(--muted)]">
-                  sin partidos esta semana
+                  {t("entrenamiento.sinPartidos", "sin partidos esta semana")}
                 </span>
               )}
             </dd>
@@ -362,6 +392,8 @@ export function AlertsBand({
   /** Se pidieron y no llegaron. NO es lo mismo que no haber ninguna. */
   failed: boolean;
 }) {
+  const { t } = useTranslation();
+  const titulo = t("alertas.atencion", "Qué requiere tu atención");
   // 2026-08-16, pedido explícito: cada alerta se quita con una X y queda
   // guardada en el buzón, que vive en el centro de alertas.
   const archive = useArchiveInsight();
@@ -387,7 +419,7 @@ export function AlertsBand({
   };
   if (loading) {
     return (
-      <Panel title="Qué requiere tu atención">
+      <Panel title={titulo}>
         <div className="p-4">
           <Loading />
         </div>
@@ -398,18 +430,22 @@ export function AlertsBand({
     estadoDeAlertas({ loading, failed, cuantas: insights.length }) === "fallo"
   ) {
     return (
-      <Panel title="Qué requiere tu atención">
+      <Panel title={titulo}>
         <Empty>
-          No se pudieron consultar las alertas.{" "}
-          <b className="text-[var(--text)]">Puede haber avisos sin ver.</b>
+          {t("alertas.noConsultadas", "No se pudieron consultar las alertas.")}{" "}
+          <b className="text-[var(--text)]">
+            {t("alertas.avisosSinVer", "Puede haber avisos sin ver.")}
+          </b>
         </Empty>
       </Panel>
     );
   }
   if (insights.length === 0) {
     return (
-      <Panel title="Qué requiere tu atención">
-        <Empty>Nada requiere tu atención ahora mismo.</Empty>
+      <Panel title={titulo}>
+        <Empty>
+          {t("alertas.nada", "Nada requiere tu atención ahora mismo.")}
+        </Empty>
       </Panel>
     );
   }
@@ -424,15 +460,23 @@ export function AlertsBand({
 
   return (
     <Panel
-      title="Qué requiere tu atención"
+      title={titulo}
       meta={
         <span className="flex items-center gap-3">
-          {insights.length} activa{insights.length === 1 ? "" : "s"}
+          {insights.length === 1
+            ? t("alertas.activa", "{{n}} activa", { n: 1 })
+            : t("alertas.activas", "{{n}} activas", { n: insights.length })}
           <button
             onClick={() => cerrarTodo(insights)}
             disabled={cerrandoTodo}
-            title="Archivarlas todas. Quedan en el buzón del centro de alertas y puedes devolverlas."
-            aria-label="Archivar todas las alertas"
+            title={t(
+              "alertas.archivarTodasTitle",
+              "Archivarlas todas. Quedan en el buzón del centro de alertas y puedes devolverlas.",
+            )}
+            aria-label={t(
+              "alertas.archivarTodas",
+              "Archivar todas las alertas",
+            )}
             className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-50"
           >
             {cerrandoTodo ? "…" : "✕"}
@@ -456,8 +500,12 @@ export function AlertsBand({
       <div className="px-4 py-3 text-xs">
         <Link to="/insights" className="text-[var(--accent)] hover:underline">
           {rest > 0
-            ? `Ver las ${rest} restantes en el centro de alertas →`
-            : "Abrir el centro de alertas →"}
+            ? t(
+                "alertas.verRestantes",
+                "Ver las {{n}} restantes en el centro de alertas →",
+                { n: rest },
+              )
+            : t("alertas.abrirCentro", "Abrir el centro de alertas →")}
         </Link>
       </div>
     </Panel>

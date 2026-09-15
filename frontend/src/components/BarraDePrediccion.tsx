@@ -15,6 +15,8 @@
  * pasa-- y pasar `empate` sin valor quita el tramo gris entero en vez de
  * pintarlo a cero, que dejaría un hueco raro con una etiqueta invisible.
  */
+import { useTranslation } from "react-i18next";
+
 export type TramoDePrediccion = {
   label: string;
   value: number;
@@ -36,13 +38,14 @@ export function BarraDePrediccion({
   /** Sin esto no se pinta tramo de empate, el caso de Copa. */
   empate?: number;
 }) {
+  const { t } = useTranslation();
   const tramos: TramoDePrediccion[] = [
     { label: tuLabel, value: tuValor, color: "var(--positive)", tuyo: true },
     ...(empate === undefined
       ? []
       : [
           {
-            label: "Empate",
+            label: t("comun.empate", "Empate"),
             value: empate,
             color: "var(--muted)",
             tuyo: false,
@@ -86,7 +89,12 @@ export function BarraDePrediccion({
             />
             <span className={b.tuyo ? "font-medium" : "text-[var(--muted)]"}>
               {b.label}
-              {b.tuyo && <span className="text-[var(--muted)]"> (tú)</span>}
+              {b.tuyo && (
+                <span className="text-[var(--muted)]">
+                  {" "}
+                  ({t("comun.tu", "tú")})
+                </span>
+              )}
             </span>
             <b className="tabular-nums">{(b.value * 100).toFixed(0)}%</b>
           </span>
