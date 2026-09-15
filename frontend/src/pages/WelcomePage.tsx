@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { ApiError, api } from "../services/api";
 import { setActiveTeamId, useSessionProfile } from "../hooks/useTeam";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
@@ -10,15 +12,22 @@ function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
     if (typeof error.detail === "string") return error.detail;
     if (error.status === 0 || error.status === 502) {
-      return "No se pudo contactar el servicio local. Comprueba que el backend esté en marcha.";
+      return i18n.t(
+        "bienvenida.errorServicio",
+        "No se pudo contactar el servicio local. Comprueba que el backend esté en marcha.",
+      );
     }
   }
-  return "No fue posible iniciar la conexión. Inténtalo de nuevo en unos segundos.";
+  return i18n.t(
+    "bienvenida.errorInicio",
+    "No fue posible iniciar la conexión. Inténtalo de nuevo en unos segundos.",
+  );
 }
 
 /** Primer punto de contacto. Ningún dato de Hattrick se solicita hasta que el
  * manager decide iniciar el flujo OAuth oficial. */
 export function WelcomePage() {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
   const sessionExpired = params.get("reason") === "session_expired";
@@ -62,8 +71,8 @@ export function WelcomePage() {
       <main className="grid min-h-screen place-items-center bg-[var(--bg)] px-6">
         <p className="text-sm text-[var(--muted)]">
           {equipoRecuperable
-            ? "Recuperando tu sesión…"
-            : "Comprobando si ya has conectado…"}
+            ? t("bienvenida.recuperando", "Recuperando tu sesión…")
+            : t("bienvenida.comprobando", "Comprobando si ya has conectado…")}
         </p>
       </main>
     );
@@ -79,21 +88,22 @@ export function WelcomePage() {
           <div>
             <p className="text-lg font-semibold">HT Lens</p>
             <p className="text-sm text-[var(--muted)]">
-              Tu centro de mando para Hattrick
+              {t("bienvenida.lema", "Tu centro de mando para Hattrick")}
             </p>
           </div>
         </div>
 
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
-          Empieza con tus datos reales
+          {t("bienvenida.empieza", "Empieza con tus datos reales")}
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Conecta tu club
+          {t("bienvenida.titulo", "Conecta tu club")}
         </h1>
         <p className="mt-3 max-w-md leading-6 text-[var(--muted)]">
-          Autoriza HT Lens mediante la conexión oficial de Hattrick. Después
-          podrás sincronizar tu plantilla, entrenamiento, finanzas y partidos
-          cuando tú lo decidas.
+          {t(
+            "bienvenida.intro",
+            "Autoriza HT Lens mediante la conexión oficial de Hattrick. Después podrás sincronizar tu plantilla, entrenamiento, finanzas y partidos cuando tú lo decidas.",
+          )}
         </p>
 
         {sessionExpired && (
@@ -101,8 +111,10 @@ export function WelcomePage() {
             role="status"
             className="mt-5 rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 p-3 text-sm text-[var(--warning)]"
           >
-            Tu sesión venció. Reconecta con Hattrick para continuar; tus datos
-            guardados no se perderán.
+            {t(
+              "bienvenida.sesionVencida",
+              "Tu sesión venció. Reconecta con Hattrick para continuar; tus datos guardados no se perderán.",
+            )}
           </p>
         )}
 
@@ -110,31 +122,39 @@ export function WelcomePage() {
           <div className="flex gap-3">
             <span className="font-semibold text-[var(--accent)]">01</span>
             <p>
-              <b>Inicia sesión en Hattrick.</b>
+              <b>{t("bienvenida.paso1Titulo", "Inicia sesión en Hattrick.")}</b>
               <br />
               <span className="text-[var(--muted)]">
-                La autorización se realiza en Hattrick.org.
+                {t(
+                  "bienvenida.paso1",
+                  "La autorización se realiza en Hattrick.org.",
+                )}
               </span>
             </p>
           </div>
           <div className="flex gap-3">
             <span className="font-semibold text-[var(--accent)]">02</span>
             <p>
-              <b>Confirma tu club.</b>
+              <b>{t("bienvenida.paso2Titulo", "Confirma tu club.")}</b>
               <br />
               <span className="text-[var(--muted)]">
-                Si administras más de uno, podrás escoger con cuál trabajar.
+                {t(
+                  "bienvenida.paso2",
+                  "Si administras más de uno, podrás escoger con cuál trabajar.",
+                )}
               </span>
             </p>
           </div>
           <div className="flex gap-3">
             <span className="font-semibold text-[var(--accent)]">03</span>
             <p>
-              <b>Importa bajo demanda.</b>
+              <b>{t("bienvenida.paso3Titulo", "Importa bajo demanda.")}</b>
               <br />
               <span className="text-[var(--muted)]">
-                HT Lens no hace una sincronización completa hasta que tú la
-                solicitas.
+                {t(
+                  "bienvenida.paso3",
+                  "HT Lens no hace una sincronización completa hasta que tú la solicitas.",
+                )}
               </span>
             </p>
           </div>
@@ -158,12 +178,15 @@ export function WelcomePage() {
           disabled={connect.isPending}
           className="mt-7 w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-70"
         >
-          {connect.isPending ? "Abriendo Hattrick…" : "Conectar con Hattrick"}
+          {connect.isPending
+            ? t("layout.abriendoHattrick", "Abriendo Hattrick…")
+            : t("bienvenida.boton", "Conectar con Hattrick")}
         </button>
         <p className="mt-4 text-center text-xs leading-5 text-[var(--muted)]">
-          HT Lens usa información de Hattrick.org con autorización de sus
-          propietarios. Tus credenciales de Hattrick nunca pasan por esta
-          aplicación.
+          {t(
+            "bienvenida.legal",
+            "HT Lens usa información de Hattrick.org con autorización de sus propietarios. Tus credenciales de Hattrick nunca pasan por esta aplicación.",
+          )}
         </p>
         {/* El apoyo va DEBAJO del botón de conectar y con la mitad de peso
             visual: quien llega aquí todavía no ha usado nada, así que esto no
@@ -172,7 +195,10 @@ export function WelcomePage() {
         {hayApoyo() && (
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-lg border border-[var(--border)] px-3 py-3 text-center">
             <span className="text-xs leading-5 text-[var(--muted)]">
-              HT Lens es gratis. El servidor lo pago yo, 7 US$ al mes.
+              {t(
+                "bienvenida.gratis",
+                "HT Lens es gratis. El servidor lo pago yo, 7 US$ al mes.",
+              )}
             </span>
             {/* `a` y no `Link`: la bienvenida vive FUERA del enrutador de la
                 aplicación, así que aquí un `Link` no tendría contexto. */}
@@ -181,7 +207,7 @@ export function WelcomePage() {
               className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
             >
               <span aria-hidden="true">☕</span>
-              Invítame a un café
+              {t("apoyo.boton", "Invítame a un café")}
             </a>
           </div>
         )}
@@ -192,7 +218,10 @@ export function WelcomePage() {
         <div className="mt-4 flex justify-center">
           <ImagenOpcional
             src={SELLO_PROVEEDOR}
-            alt="Proveedor certificado de productos Hattrick"
+            alt={t(
+              "layout.sello",
+              "Proveedor certificado de productos Hattrick",
+            )}
             width={160}
             height={64}
             className="h-14 w-auto object-contain"

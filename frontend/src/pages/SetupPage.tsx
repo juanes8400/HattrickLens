@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
 import {
@@ -26,10 +28,14 @@ function errorMessage(error: unknown): string {
   }
   return error instanceof Error
     ? error.message
-    : "No fue posible completar la importación.";
+    : i18n.t(
+        "setup.errorImportacion",
+        "No fue posible completar la importación.",
+      );
 }
 
 export function SetupPage() {
+  const { t } = useTranslation();
   const profile = useSessionProfile();
   const dashboard = useDashboard();
   const queryClient = useQueryClient();
@@ -110,16 +116,20 @@ export function SetupPage() {
     return (
       <FullScreen>
         <div className="max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8">
-          <h1 className="text-xl font-semibold">No encontramos un club</h1>
+          <h1 className="text-xl font-semibold">
+            {t("setup.sinClubTitulo", "No encontramos un club")}
+          </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Hattrick autenticó la cuenta, pero no devolvió ningún equipo
-            administrado.
+            {t(
+              "setup.sinClub",
+              "Hattrick autenticó la cuenta, pero no devolvió ningún equipo administrado.",
+            )}
           </p>
           <Link
             className="mt-6 inline-flex rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
             to="/welcome"
           >
-            Volver a conectar
+            {t("setup.volverConectar", "Volver a conectar")}
           </Link>
         </div>
       </FullScreen>
@@ -145,28 +155,32 @@ export function SetupPage() {
           <div>
             <div className="font-semibold">HT Lens</div>
             <div className="text-xs text-[var(--muted)]">
-              Configuración de tu club
+              {t("nav.configuracion", "Configuración de tu club")}
             </div>
           </div>
         </header>
 
         <ol
           className="grid gap-2 sm:grid-cols-3"
-          aria-label="Progreso de configuración"
+          aria-label={t("setup.progresoAria", "Progreso de configuración")}
         >
-          <SetupStep number="1" title="Hattrick conectado" state="done" />
+          <SetupStep
+            number="1"
+            title={t("layout.conectado", "Hattrick conectado")}
+            state="done"
+          />
           <SetupStep
             number="2"
             title={
               completed || alreadyImported
-                ? "Datos importados"
-                : "Importar datos"
+                ? t("setup.datosImportados", "Datos importados")
+                : t("setup.importarDatos", "Importar datos")
             }
             state={completed || alreadyImported ? "done" : "current"}
           />
           <SetupStep
             number="3"
-            title="Explorar HT Lens"
+            title={t("setup.explorar", "Explorar HT Lens")}
             state={completed || alreadyImported ? "current" : "pending"}
           />
         </ol>
@@ -174,30 +188,41 @@ export function SetupPage() {
         <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
           <div className="border-b border-[var(--border)] p-6 sm:p-8">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--positive)]">
-              Conexión con Hattrick activa
+              {t("layout.conexionActiva", "Conexión con Hattrick activa")}
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
               {completed
-                ? "Tu club está listo"
-                : `${selectedTeam.name} está conectado`}
+                ? t("setup.listo", "Tu club está listo")
+                : t("setup.clubConectado", "{{club}} está conectado", {
+                    club: selectedTeam.name,
+                  })}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
               {completed
-                ? "La información real de Hattrick ya está disponible. Ahora puedes revisar el equipo, preparar el próximo partido y seguir el entrenamiento."
+                ? t(
+                    "setup.textoListo",
+                    "La información real de Hattrick ya está disponible. Ahora puedes revisar el equipo, preparar el próximo partido y seguir el entrenamiento.",
+                  )
                 : alreadyImported
-                  ? "Este club ya tiene información importada. Puedes entrar directamente o actualizarla antes de continuar."
-                  : "Confirma el club y decide cuándo traer sus jugadores, partidos, entrenamiento y finanzas. Nada se importa hasta que pulses el botón."}
+                  ? t(
+                      "setup.textoYaImportado",
+                      "Este club ya tiene información importada. Puedes entrar directamente o actualizarla antes de continuar.",
+                    )
+                  : t(
+                      "setup.textoNuevo",
+                      "Confirma el club y decide cuándo traer sus jugadores, partidos, entrenamiento y finanzas. Nada se importa hasta que pulses el botón.",
+                    )}
             </p>
           </div>
 
           <div className="grid gap-5 p-6 sm:p-8 lg:grid-cols-[1fr_1.4fr]">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
               <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
-                Club seleccionado
+                {t("setup.clubSeleccionado", "Club seleccionado")}
               </div>
               {profile.data.teams.length > 1 ? (
                 <select
-                  aria-label="Club administrado"
+                  aria-label={t("setup.clubAdministrado", "Club administrado")}
                   className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 font-medium"
                   value={selectedTeam.id}
                   onChange={(event) => {
@@ -222,7 +247,11 @@ export function SetupPage() {
                   .join(" · ")}
               </div>
               <div className="mt-4 border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
-                Manager: {profile.data.user.loginName ?? "cuenta Hattrick"}
+                {t("setup.manager", "Manager: {{nombre}}", {
+                  nombre:
+                    profile.data.user.loginName ??
+                    t("setup.cuentaHattrick", "cuenta Hattrick"),
+                })}
               </div>
             </div>
 
@@ -234,24 +263,33 @@ export function SetupPage() {
                   <div className="font-semibold">
                     {partial
                       ? completed.initialImport
-                        ? "Importación inicial completada parcialmente"
-                        : "Sincronización completada parcialmente"
+                        ? t(
+                            "setup.parcialInicial",
+                            "Importación inicial completada parcialmente",
+                          )
+                        : t(
+                            "setup.parcialSync",
+                            "Sincronización completada parcialmente",
+                          )
                       : completed.initialImport
-                        ? "Importación inicial completada"
-                        : "Sincronización completada"}
+                        ? t(
+                            "setup.inicialCompleta",
+                            "Importación inicial completada",
+                          )
+                        : t("setup.syncCompleta", "Sincronización completada")}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                     <SummaryValue
                       value={completed.playerCount}
-                      label="jugadores"
+                      label={t("setup.jugadores", "jugadores")}
                     />
                     <SummaryValue
                       value={completed.result.snapshotsWritten}
-                      label="registros guardados"
+                      label={t("setup.registros", "registros guardados")}
                     />
                     <SummaryValue
                       value={completed.result.changes.length}
-                      label="cambios detectados"
+                      label={t("setup.cambios", "cambios detectados")}
                     />
                   </div>
                   {partial && (
@@ -264,20 +302,29 @@ export function SetupPage() {
                   className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white"
                   onClick={() => navigate("/dashboard")}
                 >
-                  Entrar al Dashboard
+                  {t("setup.entrarDashboard", "Entrar al Dashboard")}
                 </button>
               </div>
             ) : (
               <div className="flex flex-col justify-center">
                 <h2 className="font-semibold">
                   {alreadyImported
-                    ? "Tus datos ya están disponibles"
-                    : "Importación inicial"}
+                    ? t(
+                        "setup.datosDisponibles",
+                        "Tus datos ya están disponibles",
+                      )
+                    : t("setup.importacionInicial", "Importación inicial")}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
                   {alreadyImported
-                    ? "La próxima sincronización conservará el historial y mostrará únicamente las diferencias nuevas."
-                    : "La primera importación crea la base histórica. Por eso no presenta ausencias de cambios como un error."}
+                    ? t(
+                        "setup.textoProxima",
+                        "La próxima sincronización conservará el historial y mostrará únicamente las diferencias nuevas.",
+                      )
+                    : t(
+                        "setup.textoPrimera",
+                        "La primera importación crea la base histórica. Por eso no presenta ausencias de cambios como un error.",
+                      )}
                 </p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row">
                   <button
@@ -286,17 +333,17 @@ export function SetupPage() {
                     className="rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     {sync.isPending
-                      ? "Importando…"
+                      ? t("setup.importando", "Importando…")
                       : alreadyImported
-                        ? "Actualizar datos ahora"
-                        : "Importar datos del club"}
+                        ? t("setup.actualizar", "Actualizar datos ahora")
+                        : t("setup.importarClub", "Importar datos del club")}
                   </button>
                   {alreadyImported && (
                     <button
                       onClick={() => navigate("/dashboard")}
                       className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium"
                     >
-                      Ir al Dashboard
+                      {t("setup.irDashboard", "Ir al Dashboard")}
                     </button>
                   )}
                 </div>
@@ -336,6 +383,7 @@ function SetupStep({
   title: string;
   state: "done" | "current" | "pending";
 }) {
+  const { t } = useTranslation();
   const tone =
     state === "done"
       ? "border-[var(--positive)]/40 bg-[var(--positive)]/10 text-[var(--positive)]"
@@ -347,10 +395,10 @@ function SetupStep({
   // paso hecho del que queda por hacer (2026-08-31).
   const situacion =
     state === "done"
-      ? "Hecho: "
+      ? t("setup.hecho", "Hecho: ")
       : state === "current"
-        ? "Paso actual: "
-        : "Pendiente: ";
+        ? t("setup.pasoActual", "Paso actual: ")
+        : t("setup.pendiente", "Pendiente: ");
   return (
     <li
       aria-current={state === "current" ? "step" : undefined}
