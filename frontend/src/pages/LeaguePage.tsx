@@ -280,7 +280,7 @@ export function LeaguePage() {
                   xAxis: {
                     type: "category",
                     data: Object.keys(own.positionDistribution),
-                    name: "puesto",
+                    name: tx("puesto"),
                   },
                   yAxis: {
                     type: "value",
@@ -690,7 +690,7 @@ function HistoryPanel({ data }: { data: League }) {
           xAxis: {
             type: "category",
             data: h.rounds.map(String),
-            name: "jornada",
+            name: tx("jornada"),
           },
           yAxis:
             metric === "position"
@@ -700,9 +700,9 @@ function HistoryPanel({ data }: { data: League }) {
                   min: 1,
                   max: nTeams,
                   interval: 1,
-                  name: "puesto",
+                  name: tx("puesto"),
                 }
-              : { type: "value", name: "puntos" },
+              : { type: "value", name: tx("puntos") },
           legend: {
             data: h.teams.map((t) => t.name),
             bottom: 0,
@@ -1001,9 +1001,9 @@ function BestWorstPanel({ data }: { data: League }) {
           "Distribución de la posición final en el mejor y en el peor caso",
         )}
         option={{
-          xAxis: { type: "category", data: positions, name: "puesto" },
+          xAxis: { type: "category", data: positions, name: tx("puesto") },
           yAxis: { type: "value", axisLabel: { formatter: "{value}%" } },
-          legend: { data: ["Mejor caso", "Peor caso"], top: 0 },
+          legend: { data: [tx("Mejor caso"), tx("Peor caso")], top: 0 },
           tooltip: {
             trigger: "axis",
             formatter: (p: TooltipComponentFormatterCallbackParams) => {
@@ -1018,7 +1018,7 @@ function BestWorstPanel({ data }: { data: League }) {
           },
           series: [
             {
-              name: "Mejor caso",
+              name: tx("Mejor caso"),
               type: "bar",
               data: barrasConCambio(
                 Object.values(bw.bestCasePositionDistribution).map(
@@ -1035,7 +1035,7 @@ function BestWorstPanel({ data }: { data: League }) {
               },
             },
             {
-              name: "Peor caso",
+              name: tx("Peor caso"),
               type: "bar",
               data: barrasConCambio(
                 Object.values(bw.worstCasePositionDistribution).map(

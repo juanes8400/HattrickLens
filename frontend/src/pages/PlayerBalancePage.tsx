@@ -360,7 +360,7 @@ function buildWaterfallOption(
       name: currency,
       axisLabel: { formatter: (value: number) => number(value) },
     },
-    legend: { data: ["Ganancia", "Pérdida", "Subtotal"], bottom: 0 },
+    legend: { data: [tx("Ganancia"), tx("Pérdida"), tx("Subtotal")], bottom: 0 },
     tooltip: {
       trigger: "axis",
       formatter: (params) => {
@@ -373,7 +373,7 @@ function buildWaterfallOption(
     },
     series: [
       {
-        name: "Ganancia",
+        name: tx("Ganancia"),
         type: "custom",
         // Un series `custom` dibuja sus barras a mano en `renderItem`, así
         // que ECharts no tiene de dónde sacar el color del ícono de la
@@ -386,14 +386,14 @@ function buildWaterfallOption(
         data: gains,
       },
       {
-        name: "Pérdida",
+        name: tx("Pérdida"),
         type: "custom",
         itemStyle: { color: colors.danger },
         renderItem: waterfallBarRenderer(colors.danger),
         data: losses,
       },
       {
-        name: "Subtotal",
+        name: tx("Subtotal"),
         type: "custom",
         itemStyle: { color: colors.muted },
         renderItem: waterfallBarRenderer(colors.muted),

@@ -1,4 +1,5 @@
 import { dehydrate, hydrate, type QueryClient } from "@tanstack/react-query";
+import i18n from "../i18n";
 
 /**
  * La caché de las pantallas, guardada entre recargas (2026-09-14).
@@ -8,7 +9,9 @@ import { dehydrate, hydrate, type QueryClient } from "@tanstack/react-query";
  * el `staleTime` de la app), así que React Query los refresca solo.
  *
  * Se tira entera si cambia la versión de la app --una respuesta de otra versión
- * puede no tener la forma que espera la pantalla-- o si tiene más de un día.
+ * puede no tener la forma que espera la pantalla--, si tiene más de un día o si
+ * se guardó en otro idioma: el servidor traduce sus textos, y al cambiar a
+ * español se repintaba lo que se había guardado en inglés.
  * Nada de sesión ni de autenticación: eso se pregunta siempre.
  */
 
@@ -26,11 +29,13 @@ export function restaurarCache(qc: QueryClient): void {
     if (!crudo) return;
     const guardado = JSON.parse(crudo) as {
       version: string;
+      idioma?: string;
       guardado: number;
       estado: unknown;
     };
     if (
       guardado.version !== __VERSION__ ||
+      guardado.idioma !== i18n.language ||
       Date.now() - guardado.guardado > EDAD_MAXIMA_MS
     ) {
       localStorage.removeItem(CLAVE);
@@ -55,6 +60,7 @@ export function guardarCacheAlCambiar(qc: QueryClient): void {
           CLAVE,
           JSON.stringify({
             version: __VERSION__,
+            idioma: i18n.language,
             guardado: Date.now(),
             estado: dehydrate(qc, {
               shouldDehydrateQuery: (q) =>

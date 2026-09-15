@@ -261,7 +261,7 @@ export function ArenaPage() {
             },
             series: [
               {
-                name: "Ocupación",
+                name: tx("Ocupación"),
                 type: "bar",
                 // Antes se pintaba de otro color el partido con algún sector
                 // agotado, y eso era enseñar el desglose por sector con un

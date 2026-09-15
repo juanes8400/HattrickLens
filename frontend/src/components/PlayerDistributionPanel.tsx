@@ -82,7 +82,7 @@ export function PlayerDistributionPanel({
           },
           series: [
             {
-              name: "Plantilla",
+              name: tx("Plantilla"),
               type: "line",
               data: d.grid.map((x, i) => [x, d.density[i]]),
               smooth: true,
@@ -108,7 +108,7 @@ export function PlayerDistributionPanel({
               },
             },
             {
-              name: "Plantilla",
+              name: tx("Plantilla"),
               type: "scatter",
               data: others.map((v) => [v, rugY]),
               symbolSize: 6,

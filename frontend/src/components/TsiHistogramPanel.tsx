@@ -82,7 +82,7 @@ export function TsiHistogramPanel({
           ariaLabel={tx("Distribución de TSI, propia vs. otra, superpuestas")}
           height={300}
           option={{
-            legend: { data: ["Tu plantilla", rivalLabel], bottom: 0 },
+            legend: { data: [tx("Tu plantilla"), rivalLabel], bottom: 0 },
             grid: {
               left: 48,
               right: 16,
@@ -109,7 +109,7 @@ export function TsiHistogramPanel({
             },
             series: [
               {
-                name: "Tu plantilla",
+                name: tx("Tu plantilla"),
                 type: "line",
                 data: h.grid.map((x, i) => [x, h.ownDensity[i]]),
                 smooth: true,
@@ -129,7 +129,7 @@ export function TsiHistogramPanel({
                 z: 1,
               },
               {
-                name: "Tu plantilla",
+                name: tx("Tu plantilla"),
                 type: "scatter",
                 data: h.ownValues.map((v) => [v, rugY]),
                 symbolSize: 6,

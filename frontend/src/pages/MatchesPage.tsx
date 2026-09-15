@@ -425,7 +425,7 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
         // tramo recto como si hubiera datos intermedios.
         series: [
           {
-            name: "Mediocampo",
+            name: tx("Mediocampo"),
             type: "line",
             data: points.map((p) => p.midfield),
             smooth: true,
@@ -434,7 +434,7 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
             showSymbol: true,
           },
           {
-            name: "Defensa",
+            name: tx("Defensa"),
             type: "line",
             data: points.map((p) => p.defence),
             smooth: true,
@@ -443,7 +443,7 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
             showSymbol: true,
           },
           {
-            name: "Ataque",
+            name: tx("Ataque"),
             type: "line",
             data: points.map((p) => p.attack),
             smooth: true,
@@ -573,7 +573,7 @@ function MatchDetailPanel({ htMatchId }: { htMatchId: number }) {
           <Chart
             ariaLabel={tx("Comparativa de ratings por sector frente al rival")}
             option={radarOption(indicators, [
-              { name: "Nosotros", value: data.sectors.map((s) => s.own) },
+              { name: tx("Nosotros"), value: data.sectors.map((s) => s.own) },
               {
                 name: data.opponent,
                 value: data.sectors.map((s) => s.opponent),

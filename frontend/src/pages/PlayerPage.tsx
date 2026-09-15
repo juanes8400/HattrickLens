@@ -187,7 +187,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         data.history.dates,
         [
           { name: "TSI", values: data.history.tsi },
-          { name: "Salario", values: data.history.salary },
+          { name: tx("Salario"), values: data.history.salary },
         ],
         data.history.seasonWeeks,
       ),
@@ -222,7 +222,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         data.matchRatingHistory.map((m) => m.date),
         [
           {
-            name: "Rating",
+            name: tx("Rating"),
             values: data.matchRatingHistory.map((m) => m.rating),
           },
         ],

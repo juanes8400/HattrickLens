@@ -1,5 +1,6 @@
 import type { EChartsOption } from "echarts";
 import { metric, number } from "../hooks/useFormat";
+import { tx } from "../i18n/tx";
 
 /** Horizontal bars, the most common shape in this product. */
 export function barOption(
@@ -304,7 +305,7 @@ export function economySankeyOption(
           },
           ...positiveCosts.map((item) => ({ name: costNode(item.label) })),
           ...(balance !== 0
-            ? [{ name: "Caja", itemStyle: { color: CAJA_COLOR } }]
+            ? [{ name: tx("Caja"), itemStyle: { color: CAJA_COLOR } }]
             : []),
         ],
         links,
@@ -348,9 +349,9 @@ export function resultsPieOption(
         itemStyle: { borderColor: "transparent", borderWidth: 2 },
         label: { formatter: "{b}\n{c}" },
         data: [
-          { name: "Ganados", value: won, itemStyle: { color: "#2fbf71" } },
-          { name: "Empatados", value: drawn, itemStyle: { color: "#f5a524" } },
-          { name: "Perdidos", value: lost, itemStyle: { color: "#e5484d" } },
+          { name: tx("Ganados"), value: won, itemStyle: { color: "#2fbf71" } },
+          { name: tx("Empatados"), value: drawn, itemStyle: { color: "#f5a524" } },
+          { name: tx("Perdidos"), value: lost, itemStyle: { color: "#e5484d" } },
         ],
       },
     ],
@@ -476,7 +477,7 @@ export function highlightedScatterOption(
     },
     series: [
       {
-        name: "Plantilla",
+        name: tx("Plantilla"),
         type: "scatter",
         data: others.map((p) => [p.x, p.y, p.label]),
         symbolSize: 9,

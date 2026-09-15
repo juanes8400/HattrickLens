@@ -505,7 +505,7 @@ function observedEconomyOption(
 
   if (visible.income) {
     series.push({
-      name: "Ingresos",
+      name: tx("Ingresos"),
       type: "line",
       data: points.map((point) => point.income),
       symbol: "circle",
@@ -516,7 +516,7 @@ function observedEconomyOption(
   }
   if (visible.costs) {
     series.push({
-      name: "Gastos",
+      name: tx("Gastos"),
       type: "line",
       data: points.map((point) => point.costs),
       symbol: "circle",
@@ -527,7 +527,7 @@ function observedEconomyOption(
   }
   if (visible.balance) {
     series.push({
-      name: "Utilidad",
+      name: tx("Utilidad"),
       type: "line",
       data: points.map((point) => point.balance),
       symbol: "diamond",
@@ -538,7 +538,7 @@ function observedEconomyOption(
   }
   if (visible.cash) {
     series.push({
-      name: "Efectivo disponible",
+      name: tx("Efectivo disponible"),
       type: "line",
       data: points.map((point) => point.cash),
       symbol: "none",
@@ -1056,7 +1056,7 @@ function unifiedCashOption(
       symbol: "none",
     },
     {
-      name: "Proyección central",
+      name: tx("Proyección central"),
       type: "line",
       data: median,
       smooth: true,
@@ -1071,7 +1071,7 @@ function unifiedCashOption(
       },
     },
     {
-      name: "Caja real",
+      name: tx("Caja real"),
       type: "line",
       data: actual,
       symbol: "circle",
@@ -1089,7 +1089,7 @@ function unifiedCashOption(
 
   if (showBoth && data.timeseriesForecast) {
     series.push({
-      name: "Proyección con compraventa",
+      name: tx("Proyección con compraventa"),
       type: "line",
       smooth: true,
       symbol: "none",
