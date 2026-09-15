@@ -85,7 +85,10 @@ async def precalentar(team_id: int) -> None:
                 2,
                 (
                     "comparativa de liga",
-                    lambda: league_comparison(team_id, False, True, session, usuario),
+                    # La que pide la flor del Dashboard, con el rival de Copa.
+                    lambda: league_comparison(
+                        team_id, False, True, session, usuario, incluir_copa=True
+                    ),
                 ),
             )
             # Lo que pide la pestaña Comparativa de Liga al abrirse: la

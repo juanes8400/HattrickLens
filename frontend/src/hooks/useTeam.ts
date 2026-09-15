@@ -427,10 +427,11 @@ export const useLeagueComparison = (
   logTsi: boolean,
   top11: boolean,
   enabled = true,
+  incluirCopa = false,
 ) =>
   useQuery({
-    queryKey: ["league-comparison", TEAM_ID, logTsi, top11],
-    queryFn: () => api.leagueComparison(TEAM_ID, logTsi, top11),
+    queryKey: ["league-comparison", TEAM_ID, logTsi, top11, incluirCopa],
+    queryFn: () => api.leagueComparison(TEAM_ID, logTsi, top11, incluirCopa),
     enabled,
     // Los mandos de esta pantalla son post-proceso sobre los mismos XML: al
     // cambiarlos se conserva lo que ya está pintado mientras llega lo nuevo.

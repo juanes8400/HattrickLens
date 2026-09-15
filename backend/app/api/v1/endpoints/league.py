@@ -327,16 +327,25 @@ async def league_sectores_recientes(
 ) -> dict[str, Any]:
     """La media de los últimos cinco partidos oficiales de cada equipo, para
     la flor del Dashboard (2026-09-13). Sólo lee la base: nada de Hattrick."""
-    from app.application.queries.flor_de_fuerza import PARTIDOS, sectores_de_la_serie
+    from app.application.queries.flor_de_fuerza import (
+        PARTIDOS,
+        sectores_de_la_serie,
+        sectores_del_rival_de_copa,
+    )
 
     team = await session.get(m.Team, team_id)
     if team is None:
         raise HTTPException(404, f"team {team_id} not found")
     from app.api.cache_por_sync import por_sync
 
-    equipos = await por_sync(
-        session, team_id, "sectores-recientes", (), lambda: sectores_de_la_serie(session, team)
-    )
+    async def calcular() -> list[Any]:
+        # La serie y, detrás, el próximo rival de Copa si sigues en ella
+        # (2026-09-15, pedido del usuario).
+        filas = await sectores_de_la_serie(session, team)
+        copa = await sectores_del_rival_de_copa(session, team, {f.ht_team_id for f in filas})
+        return filas + ([copa] if copa is not None else [])
+
+    equipos = await por_sync(session, team_id, "sectores-recientes", (), calcular)
     return {
         "partidosPorEquipo": PARTIDOS,
         "equipos": [
@@ -348,6 +357,8 @@ async def league_sectores_recientes(
                 "medio": e.medio,
                 "defensa": e.defensa,
                 "ataque": e.ataque,
+                "esCopa": e.es_copa,
+                "copa": e.copa,
             }
             for e in equipos
         ],
@@ -368,19 +379,26 @@ async def league_comparison(
     top11: bool = False,
     session: AsyncSession = Depends(get_session),
     user: m.User = Depends(get_current_user),
+    incluir_copa: bool = False,
 ) -> dict[str, Any]:
     """La comparativa entera, calculada una vez por sync y por mandos
     (2026-09-14). Abrir la pestaña rehacía los rankings, la última posición
     del mejor de cada equipo y las curvas de densidad aunque nada hubiera
-    cambiado."""
+    cambiado.
+
+    `incluir_copa` lo pide sólo la flor del Dashboard (2026-09-15): añade la
+    plantilla del próximo rival de Copa en `cupRival`, FUERA del ranking, el
+    histograma y tu puesto, que siguen siendo de la serie."""
     from app.api.cache_por_sync import por_sync
 
     return await por_sync(
         session,
         team_id,
         "comparativa-de-liga",
-        (log_tsi, top11, user.id),
-        lambda: _league_comparison_sin_cache(team_id, log_tsi, top11, session, user),
+        (log_tsi, top11, user.id, incluir_copa),
+        lambda: _league_comparison_sin_cache(
+            team_id, log_tsi, top11, session, user, incluir_copa=incluir_copa
+        ),
     )
 
 
@@ -390,6 +408,7 @@ async def _league_comparison_sin_cache(
     top11: bool,
     session: AsyncSession,
     user: m.User,
+    incluir_copa: bool = False,
 ) -> dict[str, Any]:
     """No solo el próximo rival: dónde queda tu plantilla frente a TODA la
     serie. Mismo límite que la ficha de un rival, TSI real vía `players.xml`
@@ -430,6 +449,16 @@ async def _league_comparison_sin_cache(
     )
     rivals = [s for s in series_teams if s.team_ht_id != team.ht_team_id]
 
+    # El próximo rival de Copa, sólo si lo pide la flor. Si es de tu misma
+    # serie ya está entre los de arriba y no se pide dos veces.
+    copa = None
+    if incluir_copa:
+        from app.application.queries.flor_de_fuerza import rival_de_copa
+
+        copa = await rival_de_copa(session, team)
+        if copa is not None and copa.ht_team_id in {s.team_ht_id for s in series_teams}:
+            copa = None
+
     token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
     if token_row is None or token_row.status != "active":
         raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
@@ -446,11 +475,14 @@ async def _league_comparison_sin_cache(
         own_standing.season,
         own_standing.match_round,
         await ultimo_sync_terminado(session, team_id),
+        copa.ht_team_id if copa is not None else None,
     )
     cached = _roster_cache.get(cache_key)
     now = time.monotonic()
+    cup_players: list[dict[str, Any]] | None = None
     if cached is not None and now - cached[0] < _ROSTER_CACHE_TTL_SECONDS:
-        league_rosters: list[tuple[str, int, list[dict[str, Any]]]] = cached[1]
+        league_rosters: list[tuple[str, int, list[dict[str, Any]]]] = cached[1][0]
+        cup_players = cached[1][1]
     else:
         client = CHPPClient(
             decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
@@ -468,6 +500,17 @@ async def _league_comparison_sin_cache(
                 (st.team_name, st.team_ht_id, payload["players"])
                 for st, payload in zip(rivals, respuestas, strict=True)
             ]
+            if copa is not None:
+                # Aparte de los de la serie: si Hattrick no deja ver a este
+                # equipo, la flor sigue con la serie y nada más.
+                try:
+                    cup_players = (
+                        await client.fetch(
+                            "players", version=FILE_VERSIONS["players"], teamID=copa.ht_team_id
+                        )
+                    )["players"]
+                except (CHPPDeniedError, CHPPUnavailableError):
+                    cup_players = None
         except CHPPAuthError as exc:
             raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
         except CHPPDeniedError as exc:
@@ -478,7 +521,7 @@ async def _league_comparison_sin_cache(
             raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
         finally:
             await client.aclose()
-        _roster_cache[cache_key] = (now, league_rosters)
+        _roster_cache[cache_key] = (now, (league_rosters, cup_players))
 
     own_for_metrics = own_players
     if top11:
@@ -549,6 +592,16 @@ async def _league_comparison_sin_cache(
         s["rank"] = i + 1
     own_rank = next(s["rank"] for s in summaries if s["isOwn"])
 
+    # El rival de Copa, con el mismo resumen pero sin puesto en la serie ni
+    # «última posición» de su mejor jugador, que la flor no usa.
+    cup_rival = None
+    if copa is not None and cup_players:
+        cup_rival = summarize(copa.nombre, copa.ht_team_id, cup_players, False)
+        cup_rival.pop("topPlayerId", None)
+        cup_rival["topPlayerLastPosition"] = None
+        cup_rival["rank"] = None
+        cup_rival["cupName"] = copa.copa
+
     # "Última posición en partido oficial" del jugador de mayor TSI de cada
     # equipo, una llamada playerdetails.xml aparte, solo para ese jugador
     # (no toda la plantilla). Cliente propio: el de arriba puede no existir
@@ -618,6 +671,7 @@ async def _league_comparison_sin_cache(
                 "teams_in_series": len(summaries),
                 "own_rank": own_rank,
                 "ranking": summaries,
+                "cup_rival": cup_rival,
                 "tsi_histogram": {
                     "grid": histogram.grid,
                     "own_density": histogram.own_density,

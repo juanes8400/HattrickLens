@@ -27,12 +27,24 @@ import { decimal, number } from "../hooks/useFormat";
  *
  * Al lado va siempre abierto el porqué de un pétalo --al entrar, el más flojo--
  * y se cambia pasando el ratón o tocando otro.
+ *
+ * 2026-09-15, pedido del usuario: mientras sigas en la Copa, tu próximo rival
+ * de Copa entra en la flor como uno más --también en la escala-- con su nombre
+ * seguido de «(Copa …)». En Posición no aparece: es el puesto de tu Liga.
  */
 
 interface Equipo {
   htTeamId: number;
   nombre: string;
   propio: boolean;
+  /** El próximo rival de Copa. */
+  copa?: boolean;
+}
+
+/** «Copa Cocuy Rubí» tal cual; un nombre sin «Copa» delante, con ella. */
+function etiquetaDeCopa(copa: string | null | undefined): string {
+  if (!copa) return "Copa";
+  return /^copa\b/i.test(copa) ? copa : `Copa ${copa}`;
 }
 
 interface Petalo {
@@ -50,6 +62,7 @@ interface Normalizado {
   htTeamId: number;
   nombre: string;
   propio: boolean;
+  copa: boolean;
   crudo: number;
   valor: number;
 }
@@ -74,6 +87,7 @@ function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
         htTeamId: e.htTeamId,
         nombre: e.nombre,
         propio: e.propio,
+        copa: Boolean(e.copa),
         crudo: e.crudo,
         valor: Math.round((p.menorEsMejor ? 1 - t : t) * 100),
       };
@@ -83,7 +97,7 @@ function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
 
 export function FlorDeFuerza() {
   const league = useLeague(RUNS);
-  const comparison = useLeagueComparison(false, true);
+  const comparison = useLeagueComparison(false, true, true, true);
   const sectores = useSectoresRecientes();
   const [elegido, setElegido] = useState<string | null>(null);
 
@@ -111,8 +125,39 @@ export function FlorDeFuerza() {
     nombre: s.name,
     propio: s.isOwnTeam,
   }));
+  // El próximo rival de Copa: sus sectores y su plantilla llegan aparte, y
+  // basta con que llegue uno de los dos para que entre en la flor.
+  const copaSect = sectores.data?.equipos.find((e) => e.esCopa);
+  const copaComp = comparison.data?.cupRival ?? null;
+  const rivalDeCopa = copaSect
+    ? {
+        htTeamId: copaSect.htTeamId,
+        nombre: copaSect.nombre,
+        copa: copaSect.copa ?? null,
+      }
+    : copaComp
+      ? {
+          htTeamId: copaComp.teamHtId,
+          nombre: copaComp.teamName,
+          copa: copaComp.cupName,
+        }
+      : null;
+  if (
+    rivalDeCopa &&
+    !equipos.some((e) => e.htTeamId === rivalDeCopa.htTeamId)
+  ) {
+    equipos.push({
+      htTeamId: rivalDeCopa.htTeamId,
+      nombre: `${rivalDeCopa.nombre} (${etiquetaDeCopa(rivalDeCopa.copa)})`,
+      propio: false,
+      copa: true,
+    });
+  }
+  const hayCopa = equipos.some((e) => e.copa);
   const ranking = new Map(
-    (comparison.data?.ranking ?? []).map((t) => [t.teamHtId, t]),
+    [...(comparison.data?.ranking ?? []), ...(copaComp ? [copaComp] : [])].map(
+      (t) => [t.teamHtId, t],
+    ),
   );
   const sect = new Map(
     (sectores.data?.equipos ?? []).map((e) => [e.htTeamId, e]),
@@ -214,7 +259,7 @@ export function FlorDeFuerza() {
   return (
     <Panel
       title="Fuerza en la serie"
-      meta={`0 = el peor de ${serie} · 100 = el mejor`}
+      meta={`0 = el peor de ${hayCopa ? `${serie} y tu rival de Copa` : serie} · 100 = el mejor`}
     >
       <div className="grid items-center gap-4 p-4 md:grid-cols-[300px_1fr]">
         <Flor
@@ -356,11 +401,15 @@ function Porque({
   const mejor = lista[0]!;
   const peor = lista[lista.length - 1]!;
   const nombreDe = (x: Normalizado) => (x.propio ? "tú" : x.nombre);
+  // Con el rival de Copa dentro, «el mejor de la serie» ya no sería verdad.
+  const ambito = lista.some((x) => x.copa)
+    ? `${serie} y tu rival de Copa`
+    : serie;
   const extremos = mejor.propio
-    ? `Eres el mejor de ${serie}; el peor es ${peor.nombre} (${petalo.formato(peor.crudo)}).`
+    ? `Eres el mejor de ${ambito}; el peor es ${peor.nombre} (${petalo.formato(peor.crudo)}).`
     : peor.propio
-      ? `Eres el peor de ${serie}; el mejor es ${mejor.nombre} (${petalo.formato(mejor.crudo)}).`
-      : `El mejor de ${serie} es ${nombreDe(mejor)} (${petalo.formato(mejor.crudo)}) y el peor, ${nombreDe(peor)} (${petalo.formato(peor.crudo)}).`;
+      ? `Eres el peor de ${ambito}; el mejor es ${mejor.nombre} (${petalo.formato(mejor.crudo)}).`
+      : `El mejor de ${ambito} es ${nombreDe(mejor)} (${petalo.formato(mejor.crudo)}) y el peor, ${nombreDe(peor)} (${petalo.formato(peor.crudo)}).`;
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
@@ -387,7 +436,9 @@ function Porque({
               x.propio ? "font-semibold" : "text-[var(--muted)]"
             }`}
           >
-            <span className="truncate">{x.nombre}</span>
+            <span className="truncate" title={x.nombre}>
+              {x.nombre}
+            </span>
             <span className="h-1.5 overflow-hidden rounded bg-[var(--surface-2)]">
               <span
                 className="block h-full rounded"

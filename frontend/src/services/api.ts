@@ -591,10 +591,16 @@ export const api = {
         `&pitch_zone_method_own=${pitchZoneMethodOwn}` +
         `&pitch_zone_method_rival=${pitchZoneMethodRival}`,
     ),
-  leagueComparison: (teamId: number, logTsi: boolean, top11: boolean) =>
+  leagueComparison: (
+    teamId: number,
+    logTsi: boolean,
+    top11: boolean,
+    incluirCopa = false,
+  ) =>
     request<LeagueComparison>(
       `/teams/${teamId}/league/comparison` +
-        `?log_tsi=${logTsi}&top11=${top11}`,
+        `?log_tsi=${logTsi}&top11=${top11}` +
+        (incluirCopa ? "&incluir_copa=true" : ""),
     ),
   sectoresRecientes: (teamId: number) =>
     request<SectoresRecientes>(`/teams/${teamId}/league/sectores-recientes`),
@@ -3341,6 +3347,9 @@ export interface SectoresRecientes {
     medio: number | null;
     defensa: number | null;
     ataque: number | null;
+    /** El próximo rival de Copa, que no es de tu serie (2026-09-15). */
+    esCopa?: boolean;
+    copa?: string | null;
   }[];
 }
 
@@ -3349,6 +3358,13 @@ export interface LeagueComparison {
   teamsInSeries: number;
   ownRank: number;
   ranking: LeagueTeamSummary[];
+  /** Sólo con `incluir_copa`: tu próximo rival de Copa, fuera del ranking. */
+  cupRival?:
+    | (Omit<LeagueTeamSummary, "rank"> & {
+        rank: null;
+        cupName: string | null;
+      })
+    | null;
   tsiHistogram: {
     grid: number[];
     ownDensity: number[];

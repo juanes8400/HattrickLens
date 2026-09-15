@@ -10,12 +10,17 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
-from app.application.queries.flor_de_fuerza import sectores_de_la_serie
+from app.application.queries.flor_de_fuerza import (
+    rival_de_copa,
+    sectores_de_la_serie,
+    sectores_del_rival_de_copa,
+)
 from app.infrastructure.db import models as m
 from tests.conftest import HT_TEAM_ID, seeded_session
 
 SERIE = 34162
 RIVAL = 2512155
+RIVAL_DE_COPA = 3_300_001
 BASE = datetime(2026, 8, 1, tzinfo=UTC)
 
 
@@ -156,5 +161,101 @@ def test_sin_clasificacion_no_hay_serie() -> None:
         async with factory() as s:
             team = await s.get(m.Team, team_id)
             assert await sectores_de_la_serie(s, team) == []
+
+    _run(run())
+
+
+# ── El próximo rival de Copa (2026-09-15) ───────────────────────────────────
+
+
+async def _siembra_copa(factory, team_id: int, sigue: bool) -> None:  # type: ignore[no-untyped-def]
+    """Un cruce de Copa sin jugar y dos oficiales guardados del rival."""
+    async with factory() as s:
+        team = await s.get(m.Team, team_id)
+        team.still_in_cup = sigue
+        team.current_cup_name = "Copa Cocuy Rubí"
+        s.add(
+            m.Match(
+                ht_match_id=9_720_001,
+                # Antes que cualquier partido del fixture: es el próximo.
+                played_at=datetime(2000, 1, 1, tzinfo=UTC),
+                match_type=3,
+                status="UPCOMING",
+                home_team_ht_id=RIVAL_DE_COPA,
+                away_team_ht_id=HT_TEAM_ID,
+                home_team_name="Rival de Copa",
+                away_team_name="Pulgas Arrechas",
+                home_goals=-1,
+                away_goals=-1,
+            )
+        )
+        for i, medio in enumerate([20, 30]):
+            s.add(
+                m.RivalMatch(
+                    team_ht_id=RIVAL_DE_COPA,
+                    ht_match_id=9_730_000 + i,
+                    match_type=1,
+                    played_at=BASE + timedelta(days=7 * i),
+                    home_team_ht_id=RIVAL_DE_COPA,
+                    away_team_ht_id=4,
+                    home_team_name="Rival de Copa",
+                    away_team_name="Otro",
+                    home_goals=0,
+                    away_goals=0,
+                    captured_at=BASE,
+                    midfield=medio,
+                    left_def=7,
+                    central_def=7,
+                    right_def=7,
+                    left_att=2,
+                    central_att=2,
+                    right_att=2,
+                )
+            )
+        await s.commit()
+
+
+def test_el_proximo_rival_de_copa_entra_marcado_como_de_copa() -> None:
+    async def run() -> None:
+        factory, team_id = await seeded_session()
+        await _siembra_copa(factory, team_id, sigue=True)
+        async with factory() as s:
+            team = await s.get(m.Team, team_id)
+            copa = await rival_de_copa(s, team)
+            fila = await sectores_del_rival_de_copa(s, team, {HT_TEAM_ID})
+
+        assert copa is not None
+        assert copa.ht_team_id == RIVAL_DE_COPA
+        assert copa.nombre == "Rival de Copa"
+        assert copa.copa == "Copa Cocuy Rubí"
+        assert fila is not None and fila.es_copa and not fila.es_propio
+        assert fila.copa == "Copa Cocuy Rubí"
+        # La misma regla que un rival de liga: media de lo guardado.
+        assert fila.partidos == 2
+        assert fila.medio == 25.0 and fila.defensa == 21.0 and fila.ataque == 6.0
+
+    _run(run())
+
+
+def test_eliminado_de_la_copa_no_hay_rival_de_copa() -> None:
+    async def run() -> None:
+        factory, team_id = await seeded_session()
+        await _siembra_copa(factory, team_id, sigue=False)
+        async with factory() as s:
+            team = await s.get(m.Team, team_id)
+            assert await rival_de_copa(s, team) is None
+            assert await sectores_del_rival_de_copa(s, team, {HT_TEAM_ID}) is None
+
+    _run(run())
+
+
+def test_un_rival_de_copa_de_tu_serie_no_se_repite() -> None:
+    async def run() -> None:
+        factory, team_id = await seeded_session()
+        await _siembra_copa(factory, team_id, sigue=True)
+        async with factory() as s:
+            team = await s.get(m.Team, team_id)
+            de_la_serie = {HT_TEAM_ID, RIVAL_DE_COPA}
+            assert await sectores_del_rival_de_copa(s, team, de_la_serie) is None
 
     _run(run())

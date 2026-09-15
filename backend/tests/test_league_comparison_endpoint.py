@@ -29,6 +29,7 @@ SEASON = 84
 ROUND = 1
 
 RIVAL_A_ID, RIVAL_B_ID = 600001, 600002
+CUP_RIVAL_ID = 600003
 
 # TSI reales pero anónimos, como responde CHPP de verdad para un equipo ajeno.
 RIVAL_ROSTERS = {
@@ -47,6 +48,15 @@ RIVAL_ROSTERS = {
          "skills": {"keeper": 0, "defending": 0, "playmaking": 0, "winger": 0,
                     "passing": 0, "scoring": 0, "set_pieces": 0}}
         for i, tsi in enumerate([5000, 4000, 3000])
+    ],
+    CUP_RIVAL_ID: [
+        {"ht_player_id": 920000 + i, "first_name": "", "last_name": "", "age_years": 25,
+         "age_days": 0, "tsi": tsi, "form": 6, "stamina": 7, "experience": 4, "salary": 1000,
+         "specialty": 0, "injury_level": -1, "is_transfer_listed": False,
+         "form_is_read": True, "stamina_is_read": True, "experience_is_read": True,
+         "skills": {"keeper": 0, "defending": 0, "playmaking": 0, "winger": 0,
+                    "passing": 0, "scoring": 0, "set_pieces": 0}}
+        for i, tsi in enumerate([20000, 10000, 5000])
     ],
 }
 
@@ -188,3 +198,50 @@ def test_league_comparison_top11_restricts_own_and_rival_samples(
     assert own_row["playerCount"] == 11  # el once real, no la plantilla de 24
     rival_row = next(r for r in body["ranking"] if r["teamName"] == "Rival Fuerte")
     assert rival_row["playerCount"] == 3  # ya tenía menos de 11, top11 no lo cambia
+
+
+def test_league_comparison_adds_the_cup_rival_apart_only_when_asked(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """2026-09-15, para la flor del Dashboard: el próximo rival de Copa llega en
+    `cupRival`, fuera del ranking, del histograma y del puesto propio, que
+    siguen siendo de la serie. Sin `incluir_copa`, ni se pide."""
+    import asyncio
+
+    client, user_id, team_id, factory = seeded
+    client.cookies.set("htlens_session", create_session_token(user_id))
+
+    async def siembra_copa() -> None:
+        async with factory() as s:
+            team = await s.get(m.Team, team_id)
+            team.still_in_cup = True
+            team.current_cup_name = "Copa Cocuy Rubí"
+            s.add(m.Match(
+                ht_match_id=9_800_001, played_at=datetime(2000, 1, 1, tzinfo=UTC),
+                match_type=3, status="UPCOMING", home_team_ht_id=CUP_RIVAL_ID,
+                away_team_ht_id=OWN_HT_TEAM_ID, home_team_name="Rival de Copa",
+                away_team_name="Pulgas Arrechas", home_goals=-1, away_goals=-1,
+            ))
+            await s.commit()
+
+    asyncio.run(siembra_copa())
+
+    with patch("app.api.v1.endpoints.league.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
+        sin = client.get(f"/api/v1/teams/{team_id}/league/comparison?top11=true")
+        con = client.get(
+            f"/api/v1/teams/{team_id}/league/comparison?top11=true&incluir_copa=true"
+        )
+
+    assert sin.status_code == 200 and con.status_code == 200
+    assert sin.json()["cupRival"] is None
+
+    body = con.json()
+    assert body["teamsInSeries"] == 3
+    assert all(r["teamName"] != "Rival de Copa" for r in body["ranking"])
+    assert len(body["tsiHistogram"]["rivalValues"]) == 6  # sólo los de la serie
+    copa = body["cupRival"]
+    assert copa["teamName"] == "Rival de Copa"
+    assert copa["cupName"] == "Copa Cocuy Rubí"
+    assert copa["totalTsi"] == 35000
+    assert copa["avgForm"] == 6.0 and copa["avgStamina"] == 7.0
+    assert copa["rank"] is None

@@ -103,12 +103,19 @@ def fixtures_dir() -> Path:
 @pytest.fixture(autouse=True)
 def _cache_por_sync_vacia():
     """Cada prueba crea su base con los mismos ids: sin vaciar la caché, una
-    podría leer lo que calculó otra (2026-09-14)."""
+    podría leer lo que calculó otra (2026-09-14).
+
+    Y el límite por hora, por lo mismo (2026-09-15): la comparativa de liga y
+    la ficha de rival comparten cubo, y las pruebas de una gastaban el cupo de
+    la otra hasta que alguna recibía un 429 según el orden en que corrieran."""
     from app.api.cache_por_sync import limpiar
+    from app.api.rate_limit import reiniciar
 
     limpiar()
+    reiniciar()
     yield
     limpiar()
+    reiniciar()
 
 
 @pytest.fixture(autouse=True)
