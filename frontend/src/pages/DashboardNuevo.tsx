@@ -13,7 +13,6 @@ import {
 import {
   Empty,
   ErrorState,
-  Kpi,
   Loading,
   Panel,
   SinDatos,
@@ -22,7 +21,7 @@ import { BarraDePrediccion } from "../components/BarraDePrediccion";
 import { SplitSelector } from "../components/SplitSelector";
 import { FORMATIONS } from "../services/api";
 import type { Dashboard } from "../services/api";
-import { money, number, percent } from "../hooks/useFormat";
+import { money, percent } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { FlorDeFuerza } from "../components/FlorDeFuerza";
 import {
@@ -33,8 +32,9 @@ import {
 } from "./DashboardPage";
 
 /**
- * El Dashboard de la propuesta del 2026-09-13: lo que viene arriba (próximo
- * partido, liga, copa), las alertas en medio y el estado del club debajo.
+ * El Dashboard de la propuesta del 2026-09-13, reordenado el 2026-09-15:
+ * próximo partido; la flor con las alertas; forma, moral y caja; liga y copa;
+ * y el mejor once con el entrenamiento al final.
  *
  * Vive aparte de `DashboardPage` a propósito, para poder volver al de antes
  * cambiando una línea en `App.tsx`. Los paneles que no cambian (alertas, radar,
@@ -93,63 +93,35 @@ export function DashboardNuevo() {
 
       <ProximoPartido />
 
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <LigaResumida />
-        <CopaResumida />
+      {/* 2026-09-15, opción A elegida por el usuario: la flor y las alertas en
+          la primera pantalla. La mitad de las visitas duraba menos de 25
+          segundos y la flor iba en el quinto bloque, donde casi nadie llegaba.
+          La flor sustituyó al radar el 2026-09-13; el radar sigue en
+          components/RadarConPorque.tsx por si se quiere volver. */}
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+        <div className="lg:col-span-2">
+          <FlorDeFuerza />
+        </div>
+        <AlertsBand
+          insights={insights.data ?? []}
+          loading={insights.isLoading}
+          failed={insights.isError}
+        />
       </div>
-
-      <AlertsBand
-        insights={insights.data ?? []}
-        loading={insights.isLoading}
-        failed={insights.isError}
-      />
 
       <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
         <FormaDelEquipo />
         <MoralYConfianza training={data.training} />
-        <CajaProyectada />
+        {/* El Balance bisemanal vive dentro de Caja: los dos son dinero. El
+            TSI de los 11 mejores ya lo enseña un pétalo de la flor. */}
+        <CajaProyectada
+          balanceBisemanal={data.finance?.biweeklyBalance ?? null}
+        />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-        <div className="grid content-start gap-4">
-          <Kpi
-            label="Balance bisemanal"
-            value={
-              data.finance?.biweeklyBalance == null
-                ? "-"
-                : money(data.finance.biweeklyBalance)
-            }
-            hint={
-              data.finance?.biweeklyBalance == null
-                ? "hacen falta dos cierres semanales"
-                : "las dos semanas cerradas"
-            }
-            tone={
-              data.finance?.biweeklyBalance != null &&
-              data.finance.biweeklyBalance < 0
-                ? "danger"
-                : "positive"
-            }
-          />
-          <Kpi
-            label="TSI de los 11 mejores"
-            value={number(data.squad?.top11Tsi ?? 0)}
-            hint={
-              (data.squad?.totalTsi ?? 0) > 0
-                ? `${Math.round(
-                    ((data.squad?.top11Tsi ?? 0) /
-                      (data.squad?.totalTsi ?? 1)) *
-                      100,
-                  )}% de ${number(data.squad?.totalTsi ?? 0)} en la plantilla`
-                : "sin plantilla sincronizada"
-            }
-          />
-        </div>
-        <div className="lg:col-span-2">
-          {/* 2026-09-13: la flor sustituye al radar. El radar sigue en
-              components/RadarConPorque.tsx por si se quiere volver. */}
-          <FlorDeFuerza />
-        </div>
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        <LigaResumida />
+        <CopaResumida />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
@@ -609,7 +581,11 @@ function MoralYConfianza({ training }: { training: Dashboard["training"] }) {
 
 /** La caja de las semanas cerradas y, a continuación, la proyección SIN
  *  compraventa: la misma línea discontinua de Economía. */
-function CajaProyectada() {
+function CajaProyectada({
+  balanceBisemanal,
+}: {
+  balanceBisemanal: number | null;
+}) {
   // Sin la proyección por series de tiempo: aquí no se enseña y es lo más
   // caro de la consulta (2026-09-14).
   const economy = useEconomy(52, false);
@@ -649,6 +625,24 @@ function CajaProyectada() {
       <div className="space-y-2 p-4">
         <div className="text-2xl font-semibold tabular-nums">
           {money(data.cash)}
+        </div>
+        <div className="flex items-baseline justify-between gap-2 text-xs">
+          <span className="text-[var(--muted)]">Balance bisemanal</span>
+          <span
+            className="font-medium tabular-nums"
+            style={{
+              color:
+                balanceBisemanal == null
+                  ? "var(--muted)"
+                  : balanceBisemanal < 0
+                    ? "var(--danger)"
+                    : "var(--positive)",
+            }}
+          >
+            {balanceBisemanal == null
+              ? "hacen falta dos cierres semanales"
+              : money(balanceBisemanal)}
+          </span>
         </div>
         <svg
           viewBox="0 0 200 60"
