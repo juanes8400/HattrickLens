@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { ApiError, api } from "../services/api";
+import { SelectorDeIdioma } from "../components/SelectorDeIdioma";
 import { setActiveTeamId, useSessionProfile } from "../hooks/useTeam";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
 import { hayApoyo } from "../config/apoyo";
@@ -91,6 +92,9 @@ export function WelcomePage() {
               {t("bienvenida.lema", "Tu centro de mando para Hattrick")}
             </p>
           </div>
+          {/* El idioma, aquí y no sólo dentro de la app: quien llega por
+              primera vez tiene que poder cambiarlo antes de conectar nada. */}
+          <SelectorDeIdioma className="ml-auto" />
         </div>
 
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
