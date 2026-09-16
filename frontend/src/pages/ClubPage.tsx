@@ -29,6 +29,7 @@ import {
 import { skillLevelLabel } from "../utils/skillLevels";
 import { ventanaDeGraficas } from "../utils/ventanaDeGraficas";
 import type { Club, PsychologyMatch } from "../services/api";
+import { escalaOficial, nivelOficial } from "../i18n/glosario";
 
 /**
  * Club y cuerpo técnico, en tres pestañas.
@@ -186,7 +187,7 @@ function Psicologia({ data }: { data: Club }) {
             label={t("comun.ahora", "Ahora")}
             value={
               current.spirit
-                ? `${current.spirit.label} (${current.spirit.level})`
+                ? `${nivelOficial("espiritu", current.spirit.level) ?? current.spirit.label} (${current.spirit.level})`
                 : t("comun.sinDato", "Sin dato")
             }
           />
@@ -195,7 +196,7 @@ function Psicologia({ data }: { data: Club }) {
           <SerieConCausas
             readings={psi.spirit.readings}
             movements={psi.spirit.movements}
-            scale={psi.spirit.scale}
+            scale={escalaOficial("espiritu", psi.spirit.scale)}
             equilibrium={psi.spirit.equilibrium}
             equilibriumLabel={t("club.tiendeAqui", "tiende aquí")}
             events={porActitud}
@@ -251,7 +252,7 @@ function Psicologia({ data }: { data: Club }) {
             label={t("comun.ahora", "Ahora")}
             value={
               current.confidence
-                ? `${current.confidence.label} (${current.confidence.level})`
+                ? `${nivelOficial("confianza", current.confidence.level) ?? current.confidence.label} (${current.confidence.level})`
                 : t("comun.sinDato", "Sin dato")
             }
           />
@@ -260,7 +261,7 @@ function Psicologia({ data }: { data: Club }) {
           <SerieConCausas
             readings={psi.confidence.readings}
             movements={psi.confidence.movements}
-            scale={psi.confidence.scale}
+            scale={escalaOficial("confianza", psi.confidence.scale)}
             equilibrium={psi.confidence.equilibrium}
             events={porResultado}
             eventsLabel={t("club.resultados", "resultados")}
@@ -506,7 +507,9 @@ function Socios({ data }: { data: Club }) {
             hint={
               current.supporters
                 ? t("club.aficionHint", "afición: {{animo}}", {
-                    animo: current.supporters.popularityLabel,
+                    animo:
+                      nivelOficial("aficion", current.supporters.popularity) ??
+                      current.supporters.popularityLabel,
                   })
                 : undefined
             }
@@ -581,6 +584,8 @@ const ESCALA_AFICION: Peldano[] = [
 function escalaAficion(): Peldano[] {
   return ESCALA_AFICION.map((p) => ({
     level: p.level,
-    label: i18n.t(`club.aficion.${p.level}`, p.label),
+    label:
+      nivelOficial("aficion", p.level) ??
+      i18n.t(`club.aficion.${p.level}`, p.label),
   }));
 }

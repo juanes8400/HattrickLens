@@ -82,7 +82,7 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("Cómo está organizado el menú"),
         puntos: [
           tx(
-            "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Equipo, Jugadores, Habilidades (Profundidad), Posiciones y Alineación).",
+            "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Equipo, Posiciones y Alineación).",
           ),
           tx(
             "Desarrollo: cómo crece la plantilla (Entrenamiento, Juveniles y Transferencias).",
@@ -196,7 +196,7 @@ const ARTICULOS: Articulo[] = [
           tx("Rojo: un problema o un peligro."),
           tx("Azul: el color de acento, para selecciones y enlaces."),
           tx(
-            "En Habilidades (Profundidad) los estados llevan íconos: ✅ Cubierto, ⚠️ Cuidado y 🚨 Hueco.",
+            "En Equipo los estados llevan íconos: ✅ Cubierto, ⚠️ Cuidado y 🚨 Hueco.",
           ),
         ],
       },
@@ -299,7 +299,7 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("Cómo usarlo"),
         texto: [
           tx(
-            "Un pétalo corto en Mediocampo con pétalos largos en Defensa y Ataque suele decir que el equipo pierde la posesión aunque tenga buenos jugadores en los extremos del campo: es el primer sitio donde mirar en Habilidades (Profundidad), en su panel Cuello de botella. Al pasar el cursor por un pétalo, el globo explica por qué está en ese valor con los números reales.",
+            "Un pétalo corto en Mediocampo con pétalos largos en Defensa y Ataque suele decir que el equipo pierde la posesión aunque tenga buenos jugadores en los extremos del campo: es el primer sitio donde mirar en Equipo, en su panel Cuello de botella. Al pasar el cursor por un pétalo, el globo explica por qué está en ese valor con los números reales.",
           ),
         ],
       },
@@ -348,7 +348,7 @@ const ARTICULOS: Articulo[] = [
   {
     id: "equipo",
     grupo: tx("Club"),
-    titulo: tx("Equipo"),
+    titulo: tx("Habilidades"),
     ruta: "/overview",
     resumen: tx(
       "La media de la plantilla semana a semana: si el equipo mejora, envejece o se encarece.",
@@ -456,7 +456,7 @@ const ARTICULOS: Articulo[] = [
   {
     id: "habilidades",
     grupo: tx("Club"),
-    titulo: tx("Habilidades (Profundidad)"),
+    titulo: tx("Equipo"),
     ruta: "/skills",
     resumen: tx(
       "Qué tiene la plantilla habilidad por habilidad, qué hueco deja cada titular si falta y qué sector te frena frente a tu serie.",
@@ -609,7 +609,7 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("Cómo usarlo y hasta dónde vale"),
         texto: [
           tx(
-            "Es la herramienta para decidir quién juega dónde y para descubrir jugadores que rinden en un puesto que no es el suyo. El mismo número alimenta Alineación y Habilidades (Profundidad).",
+            "Es la herramienta para decidir quién juega dónde y para descubrir jugadores que rinden en un puesto que no es el suyo. El mismo número alimenta Alineación y Equipo.",
           ),
           tx(
             "La matriz de coeficientes es comunitaria, no oficial de Hattrick. Mide el aporte posicional, no predice los ratings exactos de un partido: no incluye espíritu, confianza, táctica ni actitud.",
@@ -1702,7 +1702,7 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("Rendimiento en el puesto"),
         texto: [
           tx(
-            "Cuánto aporta un jugador en un puesto y orden concretos, según la tabla de contribución del Manual no Escrito, con su experiencia y fidelidad, y ajustado por forma y resistencia. Lo usan Posiciones, Alineación y Habilidades (Profundidad).",
+            "Cuánto aporta un jugador en un puesto y orden concretos, según la tabla de contribución del Manual no Escrito, con su experiencia y fidelidad, y ajustado por forma y resistencia. Lo usan Posiciones, Alineación y Equipo.",
           ),
         ],
       },

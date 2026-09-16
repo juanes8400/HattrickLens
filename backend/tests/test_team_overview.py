@@ -5,6 +5,7 @@ reglas de diseño: tres grupos son series semanales con etiqueta TT-ss, y
 varias métricas solo pueden compartir eje cuando comparten escala. TSI contra
 salario no la comparte, un índice contra dinero, , así que van separados.
 """
+
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +34,8 @@ def seeded() -> tuple[TestClient, int]:
     import asyncio
 
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -43,16 +45,16 @@ def seeded() -> tuple[TestClient, int]:
             await conn.run_sync(m.Base.metadata.create_all)
         async with factory() as s:
             team = m.Team(
-                ht_team_id=537758, name="Pulgas Arrechas",
-                currency_rate=10.0, currency_name="US$",
+                ht_team_id=537758,
+                name="Pulgas Arrechas",
+                currency_rate=10.0,
+                currency_name="US$",
             )
             s.add(team)
             await s.commit()
             team_id = team.id
         handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), FakeCHPP())
-        await handler.execute(
-            SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758)
-        )
+        await handler.execute(SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758))
         return team_id
 
     team_id = asyncio.run(setup())
@@ -77,7 +79,11 @@ def test_the_groups_are_served_with_the_squad_average(
 
     assert body["playerCount"] > 0
     assert [g["label"] for g in body["groups"]] == [
-        "Habilidades", "Salario y TSI", "HTMS", "Mejor posición", "Clases de Jugador",
+        "Habilidades",
+        "Salario y TSI",
+        "HTMS",
+        "Mejor posición",
+        "Clases de Jugador",
     ]
     skills = body["groups"][0]
     # Las 7 habilidades + Experiencia, Fidelidad, Resistencia y Forma.
@@ -188,8 +194,7 @@ def test_a_week_without_loyalty_readings_is_never_a_zero(
     groups = {g["key"]: g for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]}
 
     fidelidad = [
-        s for ch in groups["skills"]["charts"] for s in ch["series"]
-        if s["label"] == "Fidelidad"
+        s for ch in groups["skills"]["charts"] for s in ch["series"] if s["label"] == "Fidelidad"
     ]
     assert fidelidad
     for series in fidelidad:
@@ -200,27 +205,36 @@ def test_a_week_without_loyalty_readings_is_never_a_zero(
 def test_skills_splits_the_long_scale_from_the_short_one(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """2026-08-16, pedido explícito: dos gráficas dentro de Habilidades.
+    """2026-09-15, pedido del usuario: las siete habilidades en tres gráficas.
 
-    Arriba lo que se mide de 0 a 20, las siete habilidades más Experiencia y
-    Fidelidad. Abajo Resistencia y Forma, en un eje 1-9. Juntas, una Forma
-    media de 5,6 se leería como baja en un eje que llega a 20."""
+    Ofensivas, defensivas y complementarias, por lo que miran y no por su
+    escala; después la edad media, que son años; y al final Resistencia y
+    Forma, en un eje 1-9. Juntas con las demás, una Forma media de 5,6 se
+    leería como baja en un eje que llega a 20."""
     client, team_id = seeded
     skills = {
         g["key"]: g for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
     }["skills"]
 
-    # Tres desde el 2026-08-19: entre ambas entró la edad media, que tampoco
-    # comparte eje con nada (son años, no niveles).
-    assert len(skills["charts"]) == 3
-    largo, edad, corto = skills["charts"]
+    assert [c["key"] for c in skills["charts"]] == [
+        "offensive",
+        "defensive",
+        "complementary",
+        "avg_age",
+        "short_scale",
+    ]
+    ofensivas, defensivas, complementarias, edad, corto = skills["charts"]
     assert [s["label"] for s in edad["series"]] == ["Edad promedio"]
 
-    assert [s["label"] for s in largo["series"]] == [
-        "Portería", "Defensa", "Jugadas", "Lateral", "Pases", "Anotación",
-        "Balón parado", "Experiencia", "Fidelidad",
+    assert [s["label"] for s in ofensivas["series"]] == ["Lateral", "Pases", "Anotación"]
+    assert [s["label"] for s in defensivas["series"]] == ["Portería", "Defensa", "Jugadas"]
+    assert [s["label"] for s in complementarias["series"]] == [
+        "Balón parado",
+        "Experiencia",
+        "Fidelidad",
     ]
-    assert (largo["scaleMin"], largo["scaleMax"]) == (0.0, 20.0)
+    for grafica in (ofensivas, defensivas, complementarias):
+        assert (grafica["scaleMin"], grafica["scaleMax"]) == (0.0, 20.0), grafica["key"]
 
     assert [s["label"] for s in corto["series"]] == ["Resistencia", "Forma"]
     assert (corto["scaleMin"], corto["scaleMax"]) == (1.0, 9.0)
@@ -256,7 +270,10 @@ def test_cost_per_tsi_ignores_players_without_tsi_but_the_means_do_not(
     por_clave = {ch["key"]: ch["series"][0]["values"] for ch in market["charts"]}
 
     for salario, tsi, ratio in zip(
-        por_clave["salary"], por_clave["tsi"], por_clave["cost_per_tsi"], strict=True,
+        por_clave["salary"],
+        por_clave["tsi"],
+        por_clave["cost_per_tsi"],
+        strict=True,
     ):
         if not tsi:
             continue
@@ -278,8 +295,12 @@ def test_the_pitch_folds_the_nineteen_variants_into_six_lines(
     best = next(g for g in body["groups"] if g["key"] == "best_position")
 
     assert [sl["key"] for sl in best["pitch"]] == [
-        "keeper", "central_defender", "wingback",
-        "inner_midfield", "winger", "forward",
+        "keeper",
+        "central_defender",
+        "wingback",
+        "inner_midfield",
+        "winger",
+        "forward",
     ]
     assert sum(sl["count"] for sl in best["pitch"]) == body["playerCount"]
 
@@ -314,9 +335,7 @@ def test_the_best_of_a_line_is_measured_over_the_whole_squad(
 
         linea = pitch_line_of(player["bestPosition"]["position"])
         if linea is not None:
-            naturales[linea] = max(
-                naturales.get(linea, 0.0), player["bestPosition"]["rating"]
-            )
+            naturales[linea] = max(naturales.get(linea, 0.0), player["bestPosition"]["rating"])
     for linea, mejor_natural in naturales.items():
         assert por_linea[linea] >= mejor_natural - 1e-6, linea
 
@@ -349,7 +368,8 @@ def test_every_market_chart_carries_the_top_eleven_line(
 
     for chart in market["charts"]:
         assert [sr["label"] for sr in chart["series"]] == [
-            "Plantilla completa", "11 mejores TSI",
+            "Plantilla completa",
+            "11 mejores TSI",
         ], chart["key"]
         completa, top = chart["series"]
         assert len(top["values"]) == len(completa["values"])
@@ -369,17 +389,25 @@ def test_rating_a_player_without_form_or_stamina_silently_yields_zero() -> None:
     from app.domain.engines.position_engine import rate_all
 
     base = {
-        "age_years": 25, "age_days": 0, "specialty": 0, "leadership": 3,
-        "loyalty": 5, "experience": 5,
+        "age_years": 25,
+        "age_days": 0,
+        "specialty": 0,
+        "leadership": 3,
+        "loyalty": 5,
+        "experience": 5,
         "skills": {
-            "keeper": 1, "defending": 5, "playmaking": 8, "winger": 6,
-            "passing": 10, "scoring": 18, "set_pieces": 3,
+            "keeper": 1,
+            "defending": 5,
+            "playmaking": 8,
+            "winger": 6,
+            "passing": 10,
+            "scoring": 18,
+            "set_pieces": 3,
         },
     }
     sin_forma = next(r for r in rate_all(base) if r.position == "forward")
     completo = next(
-        r for r in rate_all({**base, "form": 6, "stamina": 7})
-        if r.position == "forward"
+        r for r in rate_all({**base, "form": 6, "stamina": 7}) if r.position == "forward"
     )
     assert sin_forma.rating == 0.0
     assert completo.rating > 0
@@ -395,7 +423,8 @@ def test_the_line_average_belongs_to_the_natural_population_only(
     debajo de la media de los naturales."""
     client, team_id = seeded
     best = next(
-        g for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
+        g
+        for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
         if g["key"] == "best_position"
     )
 
@@ -419,12 +448,14 @@ def test_captain_and_free_kick_taker_are_roles_not_pitch_positions(
     """
     client, team_id = seeded
     best = next(
-        g for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
+        g
+        for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
         if g["key"] == "best_position"
     )
 
     assert [role["key"] for role in best["specialRoles"]] == [
-        "captain", "set_piece_taker",
+        "captain",
+        "set_piece_taker",
     ]
     # Ningún rol se cuela entre las líneas del campo.
     assert not {sl["key"] for sl in best["pitch"]} & {"captain", "set_piece_taker"}
@@ -448,7 +479,8 @@ def test_a_goalkeeper_is_never_recommended_to_take_free_kicks(
     roles = {r["key"]: r["topPlayer"] for r in best["specialRoles"]}
 
     porteros = {
-        p["name"] for p in client.get(f"/api/v1/teams/{team_id}/squad").json()["players"]
+        p["name"]
+        for p in client.get(f"/api/v1/teams/{team_id}/squad").json()["players"]
         if p["bestPosition"]["position"] == "keeper"
     }
     assert porteros, "el fixture debe tener al menos un portero para que esto pruebe algo"
@@ -466,7 +498,8 @@ def test_player_classes_is_only_a_tab_with_nothing_behind_it_yet(
     """
     client, team_id = seeded
     classes = next(
-        g for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
+        g
+        for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
         if g["key"] == "player_classes"
     )
 
@@ -494,7 +527,8 @@ def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:
 
     async def corre() -> None:
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -508,18 +542,37 @@ def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:
             usuario = m.User(ht_user_id=1, login_name="yo")
             s.add(usuario)
             await s.flush()
-            sync = m.Sync(user_id=usuario.id, team_id=equipo.id, kind="players",
-                          status="completed", started_at=datetime(2026, 8, 10))
+            sync = m.Sync(
+                user_id=usuario.id,
+                team_id=equipo.id,
+                kind="players",
+                status="completed",
+                started_at=datetime(2026, 8, 10),
+            )
             s.add(sync)
             await s.flush()
 
             def foto(pid: int, cuando: datetime) -> m.PlayerSnapshot:
                 return m.PlayerSnapshot(
-                    sync_id=sync.id, player_id=pid, captured_at=cuando,
-                    age_years=25, age_days=0, tsi=1000, form=5, stamina=7,
-                    experience=5, salary=1000, leadership=4, loyalty=1,
-                    keeper=1, defending=5, playmaking=5, winger=5,
-                    passing=5, scoring=5, set_pieces=5,
+                    sync_id=sync.id,
+                    player_id=pid,
+                    captured_at=cuando,
+                    age_years=25,
+                    age_days=0,
+                    tsi=1000,
+                    form=5,
+                    stamina=7,
+                    experience=5,
+                    salary=1000,
+                    leadership=4,
+                    loyalty=1,
+                    keeper=1,
+                    defending=5,
+                    playmaking=5,
+                    winger=5,
+                    passing=5,
+                    scoring=5,
+                    set_pieces=5,
                     content_hash=bytes([pid]) * 32,
                 )
 
@@ -527,8 +580,10 @@ def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:
             # segunda solo uno cambia algo.
             for i in (1, 2):
                 jugador = m.Player(
-                    team_id=equipo.id, ht_player_id=100 + i,
-                    first_name=f"J{i}", last_name="Prueba",
+                    team_id=equipo.id,
+                    ht_player_id=100 + i,
+                    first_name=f"J{i}",
+                    last_name="Prueba",
                 )
                 s.add(jugador)
                 await s.flush()

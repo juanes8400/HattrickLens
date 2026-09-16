@@ -62,10 +62,16 @@ SKILL_LABELS: dict[str, str] = {
     "scoring": "Anotación",
     "set_pieces": "Balón parado",
 }
-# 2026-08-16, pedido explícito: dentro de Habilidades pero repartidos en dos
+# 2026-08-16, pedido explícito: dentro de Habilidades pero repartidos en varias
 # gráficas. Experiencia y Fidelidad comparten la escala 0-20 con las siete
 # habilidades; Resistencia y Forma tienen escalas cortas y van aparte, en un
 # eje 1-9 fijado por el usuario.
+#
+# 2026-09-15, pedido del usuario: las siete se reparten por lo que miran, no por
+# su escala. Balón parado cierra con Experiencia y Fidelidad, que ya iban juntas.
+OFFENSIVE_COLS: tuple[str, ...] = ("winger", "passing", "scoring")
+DEFENSIVE_COLS: tuple[str, ...] = ("keeper", "defending", "playmaking")
+COMPLEMENTARY_COLS: tuple[str, ...] = ("set_pieces",)
 LEVEL_LABELS: dict[str, str] = {
     "experience": "Experiencia",
     "loyalty": "Fidelidad",
@@ -498,11 +504,25 @@ class TeamOverviewQueryService:
             weeks=weekly.weeks,
             charts=[
                 OverviewChart(
-                    key="levels",
-                    title="Habilidades, Experiencia y Fidelidad",
+                    key="offensive",
+                    title="Habilidades Ofensivas",
                     scale_min=0.0,
                     scale_max=SKILL_SCALE_MAX,
-                    series=[_series(col, SKILL_LABELS.get(col, col)) for col in SKILL_COLS]
+                    series=[_series(col, SKILL_LABELS[col]) for col in OFFENSIVE_COLS],
+                ),
+                OverviewChart(
+                    key="defensive",
+                    title="Habilidades Defensivas",
+                    scale_min=0.0,
+                    scale_max=SKILL_SCALE_MAX,
+                    series=[_series(col, SKILL_LABELS[col]) for col in DEFENSIVE_COLS],
+                ),
+                OverviewChart(
+                    key="complementary",
+                    title="Habilidades Complementarias",
+                    scale_min=0.0,
+                    scale_max=SKILL_SCALE_MAX,
+                    series=[_series(col, SKILL_LABELS[col]) for col in COMPLEMENTARY_COLS]
                     + [_series(col, label) for col, label in LEVEL_LABELS.items()],
                 ),
                 OverviewChart(
@@ -558,10 +578,10 @@ class TeamOverviewQueryService:
                 for col, label in SHORT_SCALE_LABELS.items()
             ],
             note=(
-                f"Arriba, todo lo que se mide de 0 a {SKILL_SCALE_MAX:.0f}. Abajo, "
-                f"Resistencia y Forma, que usan escalas mucho más cortas "
-                f"({SHORT_SCALE_MIN:.0f} a {SHORT_SCALE_MAX:.0f}): en el eje de "
-                "arriba quedarían pegadas al suelo como si fueran malas."
+                f"Las tres primeras miden de 0 a {SKILL_SCALE_MAX:.0f}. Resistencia y "
+                f"Forma van aparte porque usan escalas mucho más cortas "
+                f"({SHORT_SCALE_MIN:.0f} a {SHORT_SCALE_MAX:.0f}): en ese mismo eje "
+                "quedarían pegadas al suelo como si fueran malas."
             ),
         )
 

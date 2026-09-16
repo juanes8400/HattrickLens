@@ -28,6 +28,7 @@ import type {
 } from "../services/api";
 
 import { tx } from "../i18n/tx";
+import { terminoOficial } from "../i18n/glosario";
 function renderStatOrDash(v: number | null) {
   return v == null ? (
     <span className="text-[var(--muted)]">-</span>
@@ -425,7 +426,7 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
         // tramo recto como si hubiera datos intermedios.
         series: [
           {
-            name: tx("Mediocampo"),
+            name: terminoOficial("sectores", "Midfield", "Mediocampo"),
             type: "line",
             data: points.map((p) => p.midfield),
             smooth: true,
@@ -434,7 +435,7 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
             showSymbol: true,
           },
           {
-            name: tx("Defensa"),
+            name: terminoOficial("sectores", "Defense", "Defensa"),
             type: "line",
             data: points.map((p) => p.defence),
             smooth: true,
@@ -443,7 +444,7 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
             showSymbol: true,
           },
           {
-            name: tx("Ataque"),
+            name: terminoOficial("sectores", "Attack", "Ataque"),
             type: "line",
             data: points.map((p) => p.attack),
             smooth: true,

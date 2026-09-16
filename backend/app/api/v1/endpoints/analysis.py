@@ -2185,7 +2185,7 @@ async def post_match_training(
 
 @router.get(
     "/teams/{team_id}/overview",
-    summary="Equipo: la plantilla entera promediada por grupos",
+    summary="Habilidades: la plantilla entera promediada por grupos",
     dependencies=[Depends(require_team_owner)],
 )
 async def team_overview(

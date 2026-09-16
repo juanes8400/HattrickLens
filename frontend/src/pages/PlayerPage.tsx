@@ -31,19 +31,40 @@ import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
 
 import { tx } from "../i18n/tx";
+import { nivelOficial, terminoOficial } from "../i18n/glosario";
+/** El nombre de cada habilidad sale del glosario oficial de Hattrick, no del
+ *  diccionario: «Defensa» es la habilidad Defending y también el sector
+ *  Defence, y sólo la familia las distingue. Fidelidad no está en el glosario
+ *  del juego, así que ésa sí se traduce aquí. */
+const habilidad = (clave: string, respaldo: string) =>
+  terminoOficial("habilidades", clave, respaldo);
+
 const SKILL_LABELS: Record<string, string> = {
-  keeper: "Portería",
-  defending: "Defensa",
-  playmaking: "Jugadas",
-  winger: "Lateral",
-  passing: "Pases",
-  scoring: "Anotación",
-  set_pieces: "Balón parado",
-  experience: "Experiencia",
-  loyalty: "Fidelidad",
-  form: "Forma",
-  stamina: "Resistencia",
+  keeper: habilidad("keeper", "Portería"),
+  defending: habilidad("defending", "Defensa"),
+  playmaking: habilidad("playmaking", "Jugadas"),
+  winger: habilidad("winger", "Lateral"),
+  passing: habilidad("passing", "Pases"),
+  scoring: habilidad("scoring", "Anotación"),
+  set_pieces: habilidad("set_pieces", "Balón parado"),
+  experience: habilidad("experience", "Experiencia"),
+  loyalty: tx("Fidelidad"),
+  form: habilidad("form", "Forma"),
+  stamina: habilidad("stamina", "Resistencia"),
 };
+
+/** Las mismas familias que enseña la pantalla de Equipo, en el mismo orden:
+ *  una gráfica por familia en vez de once líneas juntas. Resistencia y Forma
+ *  van aparte porque su escala es mucho más corta. */
+const EVOLUCION_GRUPOS: { titulo: string; skills: string[] }[] = [
+  { titulo: tx("Habilidades Ofensivas"), skills: ["winger", "passing", "scoring"] },
+  { titulo: tx("Habilidades Defensivas"), skills: ["keeper", "defending", "playmaking"] },
+  {
+    titulo: tx("Habilidades Complementarias"),
+    skills: ["set_pieces", "experience", "loyalty"],
+  },
+  { titulo: tx("Resistencia y Forma"), skills: ["stamina", "form"] },
+];
 
 const DETAIL_SKILLS = [
   "experience",
@@ -501,7 +522,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 <dt className="text-[var(--muted)]">{tx("Carácter")}</dt>
                 <dd>
                   {data.character
-                    ? `${data.character.agreeabilityLabel} (${data.character.agreeability})`
+                    ? `${nivelOficial("simpatia", data.character.agreeability) ?? data.character.agreeabilityLabel} (${data.character.agreeability})`
                     : "-"}
                 </dd>
               </div>
@@ -509,7 +530,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 <dt className="text-[var(--muted)]">{tx("Agresividad")}</dt>
                 <dd>
                   {data.character
-                    ? `${data.character.aggressivenessLabel} (${data.character.aggressiveness})`
+                    ? `${nivelOficial("agresividad", data.character.aggressiveness) ?? data.character.aggressivenessLabel} (${data.character.aggressiveness})`
                     : "-"}
                 </dd>
               </div>
@@ -517,7 +538,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 <dt className="text-[var(--muted)]">{tx("Honestidad")}</dt>
                 <dd>
                   {data.character
-                    ? `${data.character.honestyLabel} (${data.character.honesty})`
+                    ? `${nivelOficial("honradez", data.character.honesty) ?? data.character.honestyLabel} (${data.character.honesty})`
                     : "-"}
                 </dd>
               </div>
@@ -825,15 +846,15 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               option={radarOption(
                 [
                   {
-                    name: `Carácter (${data.character.agreeabilityLabel})`,
+                    name: `${tx("Carácter")} (${nivelOficial("simpatia", data.character.agreeability) ?? data.character.agreeabilityLabel})`,
                     max: 5,
                   },
                   {
-                    name: `Agresividad (${data.character.aggressivenessLabel})`,
+                    name: `${tx("Agresividad")} (${nivelOficial("agresividad", data.character.aggressiveness) ?? data.character.aggressivenessLabel})`,
                     max: 5,
                   },
                   {
-                    name: `Honestidad (${data.character.honestyLabel})`,
+                    name: `${tx("Honestidad")} (${nivelOficial("honradez", data.character.honesty) ?? data.character.honestyLabel})`,
                     max: 5,
                   },
                 ],
@@ -914,17 +935,34 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 max={skillsRange.max}
               />
             </div>
-            <Chart
-              ariaLabel={tx("Evolución semanal de las habilidades del jugador")}
-              height={300}
-              option={timelineOption(
-                pick(skillsWeekly.labels, skillsRange.indices),
-                skillsWeekly.series.map((s) => ({
-                  name: s.name,
-                  values: pick(s.values, skillsRange.indices),
-                })),
-              )}
-            />
+            {EVOLUCION_GRUPOS.map((grupo) => {
+              const series = grupo.skills.flatMap((k) => {
+                const s = skillsWeekly.series.find(
+                  (x) => x.name === (SKILL_LABELS[k] ?? k),
+                );
+                return s
+                  ? [{ name: s.name, values: pick(s.values, skillsRange.indices) }]
+                  : [];
+              });
+              if (series.length === 0) return null;
+              return (
+                <div key={grupo.titulo} className="mt-5 first:mt-0">
+                  <h3 className="mb-1 text-xs font-medium text-[var(--text)]">
+                    {grupo.titulo}
+                  </h3>
+                  <Chart
+                    ariaLabel={tx("Evolución semanal de {{v0}}", {
+                      v0: grupo.titulo.toLowerCase(),
+                    })}
+                    height={240}
+                    option={timelineOption(
+                      pick(skillsWeekly.labels, skillsRange.indices),
+                      series,
+                    )}
+                  />
+                </div>
+              );
+            })}
           </div>
         ) : (
           <Empty>

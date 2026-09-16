@@ -16,7 +16,7 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
-import { money, number } from "../hooks/useFormat";
+import { decimal, money, number } from "../hooks/useFormat";
 import { useEconomy } from "../hooks/useTeam";
 import type {
   CostsBreakdown,
@@ -739,8 +739,10 @@ function ForecastPanel({
   // que un promedio de cinco cierres no tiene.
   const plazo = (semanas: number) =>
     semanas > 52
-      ? `${(semanas / 52).toFixed(1).replace(".", ",")} años`
-      : `${semanas} semana${semanas === 1 ? "" : "s"}`;
+      ? tx("{{v0}} años", { v0: decimal(semanas / 52, 1) })
+      : semanas === 1
+        ? tx("{{v0}} semana", { v0: semanas })
+        : tx("{{v0}} semanas", { v0: semanas });
   const finalValue =
     preferred.p50[preferred.p50.length - 1] ?? data.expectedCash;
   const deltaAbs = finalValue - data.expectedCash;

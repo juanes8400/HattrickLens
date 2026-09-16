@@ -26,6 +26,7 @@ import { money, percent } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { FlorDeFuerza } from "../components/FlorDeFuerza";
 import { AlertsBand, BestElevenPitch, TrainingPanel } from "./DashboardPage";
+import { nivelOficial } from "../i18n/glosario";
 
 /**
  * El Dashboard de la propuesta del 2026-09-13, reordenado el 2026-09-15:
@@ -605,14 +606,15 @@ function MoralYConfianza({ training }: { training: Dashboard["training"] }) {
     {
       clave: "espiritu",
       label: t("dashboard.espiritu", "Espíritu del equipo"),
-      nombre: training.moraleName,
+      nombre: nivelOficial("espiritu", training.morale) ?? training.moraleName,
       valor: training.morale,
       max: 10,
     },
     {
       clave: "confianza",
       label: t("dashboard.confianza", "Confianza"),
-      nombre: training.confidenceName,
+      nombre:
+        nivelOficial("confianza", training.confidence) ?? training.confidenceName,
       valor: training.confidence,
       max: 9,
     },

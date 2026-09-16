@@ -1,3 +1,4 @@
+import { terminoOficial } from "../i18n/glosario";
 import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -137,6 +138,16 @@ function intensidad(nivel: number) {
   return Math.round(Math.min(95, Math.max(6, (nivel / 18) * 100)));
 }
 
+/** «Defensa» como SECTOR es Defence, y como habilidad es Defending: cada
+ *  familia del glosario tiene su propia palabra. */
+const CLAVE_DE_SECTOR: Record<string, string> = {
+  defensa: "Defense",
+  mediocampo: "Midfield",
+  ataque: "Attack",
+};
+const sectorOficial = (clave: string, respaldo: string) =>
+  terminoOficial("sectores", CLAVE_DE_SECTOR[clave] ?? "", respaldo);
+
 export function SkillsPage() {
   const { t } = useTranslation();
   const [vista, setVista] = useState<Vista>("once");
@@ -214,7 +225,7 @@ export function SkillsPage() {
     <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold">
-          {t("habilidades.titulo", "Habilidades (Profundidad)")}
+          {t("habilidades.titulo", "Equipo")}
         </h1>
         <p className="text-sm text-[var(--muted)]">
           {t(
@@ -754,7 +765,9 @@ export function SkillsPage() {
                     }
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">{s.label}</span>
+                      <span className="text-sm font-medium">
+                        {sectorOficial(s.key, s.label)}
+                      </span>
                       <Pastilla tone={s.tone}>{s.verdict}</Pastilla>
                     </div>
                     <div className="mt-3 space-y-1.5 text-xs">

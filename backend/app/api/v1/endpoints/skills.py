@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get(
     "/teams/{team_id}/skills",
-    summary="Habilidades de la plantilla: mapa, profundidad y cuello de botella",
+    summary="Equipo: mapa de la plantilla, profundidad y cuello de botella",
     dependencies=[Depends(require_team_owner)],
 )
 async def skills(

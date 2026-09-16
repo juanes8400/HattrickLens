@@ -8,6 +8,7 @@ import type {
 } from "../services/api";
 
 import { tx } from "../i18n/tx";
+import { nivelOficial } from "../i18n/glosario";
 const CATEGORY_LABELS: Record<string, string> = {
   jugadores: "Jugadores",
   entrenamiento: "Entrenamiento",
@@ -240,6 +241,18 @@ function stripLabel(raw: string): string {
  * Devuelve `null` para eventos sin par numérico (llegó, se vendió, mercado),
  * que se muestran como frase.
  */
+/** Espíritu y confianza tienen nombre propio en el juego, y el oficial sale
+ *  del glosario por su número: el mismo texto en español vale para dos
+ *  familias distintas y en inglés no. */
+function nivelDeMetrica(
+  metrica: string | undefined,
+  nivel: number | undefined,
+): string | null {
+  if (metrica === "morale") return nivelOficial("espiritu", nivel);
+  if (metrica === "self_confidence") return nivelOficial("confianza", nivel);
+  return null;
+}
+
 function numericFromDetail(
   detail: SyncChangeDetail | null | undefined,
 ): NumericDelta | null {
@@ -260,7 +273,10 @@ function numericFromDetail(
     good: detail.good ?? null,
     // Un nivel con nombre propio (espíritu, confianza) muestra la etiqueta
     // además del número, igual que hacía el parser con `stateLabel`.
-    stateLabel: detail.kind === "level" ? detail.afterLabel : undefined,
+    stateLabel:
+      detail.kind === "level"
+        ? (nivelDeMetrica(detail.metric, detail.after) ?? detail.afterLabel)
+        : undefined,
   };
 }
 

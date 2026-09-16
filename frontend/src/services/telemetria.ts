@@ -14,7 +14,7 @@
 const MODULOS: [RegExp, string][] = [
   [/^\/academy/, "Juveniles"],
   [/^\/team$|^\/players\//, "Jugadores"],
-  [/^\/skills/, "Habilidades (Profundidad)"],
+  [/^\/skills/, "Equipo"],
   [/^\/transfers/, "Transferencias"],
   [/^\/sync/, "Sincronización"],
   [/^\/economy/, "Economía"],
@@ -27,7 +27,7 @@ const MODULOS: [RegExp, string][] = [
   [/^\/positions/, "Posiciones"],
   [/^\/arena/, "Estadio"],
   [/^\/club/, "Club y cuerpo técnico"],
-  [/^\/overview/, "Equipo"],
+  [/^\/overview/, "Habilidades"],
   [/^\/insights/, "Alertas"],
   [/^\/news/, "Cambios"],
   [/^\/dashboard/, "Dashboard"],

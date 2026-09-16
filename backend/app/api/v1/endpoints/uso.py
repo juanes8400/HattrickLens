@@ -102,9 +102,9 @@ MODULOS_CONOCIDOS: frozenset[str] = frozenset(
     {
         "Dashboard",
         "Club y cuerpo técnico",
-        "Equipo",
+        "Habilidades",
         "Jugadores",
-        "Habilidades (Profundidad)",
+        "Equipo",
         "Posiciones",
         "Alineación",
         "Entrenamiento",
