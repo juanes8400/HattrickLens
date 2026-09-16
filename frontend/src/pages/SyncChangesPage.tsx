@@ -758,8 +758,10 @@ export function SyncChangesPage() {
             groups={historyGroups(history.data)}
             aggregate={historyAggregate(history.data)}
             emptyMessage={
-              `Ningún jugador cambió nada en las últimas ${window.weeks} semana(s), ` +
-              "o todavía no hay dos cierres semanales distintos que comparar."
+              tx(
+                "Ningún jugador cambió nada en las últimas {{v0}} semana(s), o todavía no hay dos cierres semanales distintos que comparar.",
+                { v0: window.weeks },
+              )
             }
           />
         )}
@@ -790,10 +792,10 @@ export function SyncChangesPage() {
               ? {
                   etiqueta:
                     window.weeks === 0
-                      ? "en total"
+                      ? tx("en total")
                       : window.weeks === 1
-                        ? "en la última semana"
-                        : `en ${window.weeks} semanas`,
+                        ? tx("en la última semana")
+                        : tx("en {{v0}} semanas", { v0: window.weeks }),
                   ceilingsBefore: history.data.youthSummary.ceilingsBefore,
                 }
               : undefined

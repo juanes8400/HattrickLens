@@ -415,7 +415,11 @@ ${p.opponent.length > 14 ? `${p.opponent.slice(0, 13)}…` : p.opponent}`;
             return [
               `<b>${label} · vs ${p.opponent}</b>`,
               `${p.result} ${p.goalsFor}-${p.goalsAgainst} · ${p.date}`,
-              `Medio: ${p.midfield} · Defensa: ${p.defence} · Ataque: ${p.attack}`,
+              tx("Medio: {{v0}} · Defensa: {{v1}} · Ataque: {{v2}}", {
+                v0: p.midfield,
+                v1: p.defence,
+                v2: p.attack,
+              }),
               `HatStats: ${p.hatstats}`,
             ].join("<br/>");
           },

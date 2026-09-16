@@ -529,9 +529,9 @@ function NextMatch({ data }: { data: League }) {
 const STANDINGS_MODES: ["all", "home", "away"] = ["all", "home", "away"];
 const STANDINGS_MODE_LABELS: Record<(typeof STANDINGS_MODES)[number], string> =
   {
-    all: "Total",
-    home: "Local",
-    away: "Visitante",
+    all: tx("Total"),
+    home: tx("Local"),
+    away: tx("Visitante"),
   };
 
 function StandingsTable({ data }: { data: League }) {
@@ -741,15 +741,6 @@ function HistoryPanel({ data }: { data: League }) {
         }}
         height={320}
       />
-      <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
-        {tx(
-          'Cada punto es una jornada realmente jugada, sin datos de por medio, la línea se corta en vez de interpolar. La jornada "0" es simbólica: 0 puntos para todos antes de jugar nada, no un dato sincronizado, por eso el puesto ahí no se dibuja. Posición y puntos por jornada se calculan a partir de los resultados reales de cada partido de la serie no de una foto puntual de la clasificación, así que no dependen de cuándo hayas sincronizado. Con solo',
-        )}{" "}
-        {realRounds}{" "}
-        {tx(
-          "jornada(s) jugada(s) el historial todavía dice poco; se vuelve más útil según avanza la temporada.",
-        )}
-      </p>
     </Panel>
   );
 }

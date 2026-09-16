@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import i18nActual, { cambiarIdioma } from "../i18n";
 import clsx from "clsx";
+import "flag-icons/css/flag-icons.min.css";
 import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
@@ -11,6 +12,14 @@ import { ApoyarProyecto } from "../components/ApoyarProyecto";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
 import { NAV, USO, agrupar, nombreNav } from "./navegacion";
 import { SIGUIENTE_TEMA, useTema, type Tema } from "../hooks/useTheme";
+
+/** Cada idioma se nombra en su propio idioma: así lo reconoce quien no
+ *  entiende el otro. Por eso no pasa por el diccionario. */
+const NOMBRE_DE_IDIOMA = { es: "Español", en: "English" } as const;
+
+/** La bandera de cada idioma, con la variante que usa el glosario oficial
+ *  de Hattrick: «Español, España» y «English (UK)». */
+const BANDERA_DE_IDIOMA = { es: "fi-es", en: "fi-gb" } as const;
 
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   // Suscribe el menú al idioma: al cambiarlo se vuelve a pintar.
@@ -352,24 +361,52 @@ export function AppLayout() {
               al sistema, o el primer clic encierra al usuario fuera de su
               propia preferencia para siempre. El nombre accesible dice en
               cuál está, porque el estado no puede vivir sólo en el icono. */}
-          {/* Idioma (2026-09-15): dos idiomas, un botón que dice a cuál se
-              cambia. Recarga la página para que todo salga en el elegido. */}
-          <button
-            onClick={() =>
-              cambiarIdioma(i18nActual.language === "en" ? "es" : "en")
-            }
-            aria-label={t(
-              "layout.idiomaCambiar",
-              "Idioma: español. Cambiar a inglés",
-            )}
-            title={t(
-              "layout.idiomaCambiar",
-              "Idioma: español. Cambiar a inglés",
-            )}
-            className="rounded-md border border-[var(--border)] px-2 py-1.5 text-xs font-medium text-[var(--muted)]"
+          {/* IDIOMA (2026-09-15, más explícito el 2026-09-16): los dos a la
+              vista y el actual marcado. Un solo botón con «EN» no decía si
+              ése era el idioma puesto o al que se iba a cambiar. El nombre
+              de cada idioma va en su propio idioma, que es como se reconoce.
+              Al elegir recarga la página para que todo salga en el nuevo. */}
+          <div
+            role="group"
+            aria-label={t("layout.idioma", "Idioma")}
+            className="flex items-center overflow-hidden rounded-md border border-[var(--border)] text-xs font-medium"
           >
-            {i18nActual.language === "en" ? "ES" : "EN"}
-          </button>
+            {(["es", "en"] as const).map((codigo) => {
+              const actual = (i18nActual.language || "es").startsWith(codigo);
+              return (
+                <button
+                  key={codigo}
+                  onClick={() => !actual && cambiarIdioma(codigo)}
+                  aria-pressed={actual}
+                  aria-label={
+                    actual
+                      ? t("layout.idiomaActual", "{{nombre}}: idioma actual", {
+                          nombre: NOMBRE_DE_IDIOMA[codigo],
+                        })
+                      : t("layout.idiomaCambiarA", "Cambiar a {{nombre}}", {
+                          nombre: NOMBRE_DE_IDIOMA[codigo],
+                        })
+                  }
+                  title={NOMBRE_DE_IDIOMA[codigo]}
+                  className={clsx(
+                    "flex items-center gap-1.5 px-2 py-1.5",
+                    actual
+                      ? "bg-[var(--accent)] text-white"
+                      : "text-[var(--muted)] hover:text-[var(--text)]",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className={clsx(
+                      "fi rounded-[2px] shadow-[0_0_0_1px_color-mix(in_srgb,var(--border)_75%,transparent)]",
+                      BANDERA_DE_IDIOMA[codigo],
+                    )}
+                  />
+                  {codigo.toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
 
           <button
             onClick={() => cambiarTema(SIGUIENTE_TEMA[tema])}

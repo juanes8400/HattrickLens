@@ -362,7 +362,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const trainedSkill = data.training.trainedSkill;
   const trainedSkillLabel = trainedSkill
     ? (SKILL_LABELS[trainedSkill] ?? trainedSkill)
-    : "Sin entrenamiento";
+    : tx("Sin entrenamiento");
   const trainedSkillLevel =
     trainedSkill === "stamina"
       ? data.stamina
@@ -507,7 +507,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                   <CountryCell
                     code={data.countryCode}
                     country={data.nativeLeagueName}
-                    fallback={`País #${data.countryId}`}
+                    fallback={tx("País #{{v0}}", { v0: data.countryId })}
                     compact
                   />
                 </dd>

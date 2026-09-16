@@ -38,6 +38,7 @@ import { api, errorMessage } from "../services/api";
 import type { PlayerBalanceRow } from "../services/api";
 
 import { tx } from "../i18n/tx";
+import { terminoOficial } from "../i18n/glosario";
 const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
 const UNKNOWN_SEASON = tx("Temporada desconocida");
 const UNKNOWN_AGE = tx("Edad desconocida");
@@ -522,27 +523,27 @@ function HorizontalBarPanel({
 /** Los siete entrenamientos que Hattrick deja elegir hoy, con su nombre. Los
  *  obsoletos (0 y 1) no se ofrecen: nadie los entrena ya. */
 const ENTRENAMIENTOS: [number, string][] = [
-  [2, "Balón parado"],
-  [3, "Defensa"],
-  [4, "Anotación"],
-  [5, "Lateral"],
-  [6, "Anotación y balón parado"],
-  [7, "Pases"],
-  [8, "Jugadas"],
-  [9, "Portería"],
-  [10, "Pases (defensas y centrocampistas)"],
-  [11, "Defensa (porteros, defensas y centrocampistas)"],
-  [12, "Lateral (extremos y delanteros)"],
+  [2, terminoOficial("entrenamientos", "2", "Balón parado")],
+  [3, terminoOficial("entrenamientos", "3", "Defensa")],
+  [4, terminoOficial("entrenamientos", "4", "Anotación")],
+  [5, terminoOficial("entrenamientos", "5", "Lateral")],
+  [6, terminoOficial("entrenamientos", "6", "Anotación y balón parado")],
+  [7, terminoOficial("entrenamientos", "7", "Pases")],
+  [8, terminoOficial("entrenamientos", "8", "Jugadas")],
+  [9, terminoOficial("entrenamientos", "9", "Portería")],
+  [10, terminoOficial("entrenamientos", "10", "Pases (defensas y centrocampistas)")],
+  [11, terminoOficial("entrenamientos", "11", "Defensa (porteros, defensas y centrocampistas)")],
+  [12, terminoOficial("entrenamientos", "12", "Lateral (extremos y delanteros)")],
 ];
 
 const HABILIDADES: [string, string][] = [
-  ["keeper", "Portería"],
-  ["defending", "Defensa"],
-  ["playmaking", "Jugadas"],
-  ["winger", "Lateral"],
-  ["passing", "Pases"],
-  ["scoring", "Anotación"],
-  ["set_pieces", "Balón parado"],
+  ["keeper", terminoOficial("habilidades", "keeper", "Portería")],
+  ["defending", terminoOficial("habilidades", "defending", "Defensa")],
+  ["playmaking", terminoOficial("habilidades", "playmaking", "Jugadas")],
+  ["winger", terminoOficial("habilidades", "winger", "Lateral")],
+  ["passing", terminoOficial("habilidades", "passing", "Pases")],
+  ["scoring", terminoOficial("habilidades", "scoring", "Anotación")],
+  ["set_pieces", terminoOficial("habilidades", "set_pieces", "Balón parado")],
 ];
 
 /** Atribuir a mano lo que Hattrick ya no da de un ex-jugador, o sacar esa
@@ -989,29 +990,29 @@ export function PlayerBalancePage() {
     financialFlowRows.length > 0
       ? [
           [
-            "Compra",
+            tx("Compra"),
             -financialFlowRows.reduce(
               (total, r) => total + (r.purchasePrice ?? 0),
               0,
             ),
           ],
           [
-            "Sueldos",
+            tx("Sueldos"),
             -financialFlowRows.reduce((total, r) => total + r.salaryTotal, 0),
           ],
           [
-            "Intentos de venta",
+            tx("Intentos de venta"),
             -financialFlowRows.reduce((total, r) => total + r.listingCost, 0),
           ],
           [
-            "Venta",
+            tx("Venta"),
             financialFlowRows.reduce(
               (total, r) => total + (r.salePrice ?? 0),
               0,
             ),
           ],
           [
-            "Comisiones",
+            tx("Comisiones"),
             -financialFlowRows.reduce(
               (total, r) =>
                 total + (r.commissionAmount === "?" ? 0 : r.commissionAmount),
@@ -1454,7 +1455,7 @@ export function PlayerBalancePage() {
                                   CHART_COLORS.light.positive,
                                 ],
                           },
-                          text: ["Ganancia", "Pérdida"],
+                          text: [tx("Ganancia"), tx("Pérdida")],
                           textStyle: { color: isDark ? "#ededef" : "#18181b" },
                           orient: "horizontal",
                           left: "center",
@@ -1484,8 +1485,16 @@ export function PlayerBalancePage() {
                             if (!v) return "";
                             const [, , , roi, salePrice, soldAt, training] = v;
                             return (
-                              `${p?.name ?? ""}<br/>Venta: ${money(salePrice, data.currency)}<br/>` +
-                              `ROI: ${roi.toFixed(1)}%<br/>Fecha: ${date(soldAt)}<br/>Habilidad entrenada: ${training}<br/><b>Haz clic para abrir la ficha</b>`
+                              `${p?.name ?? ""}<br/>` +
+                              tx(
+                                "Venta: {{v0}}<br/>ROI: {{v1}}%<br/>Fecha: {{v2}}<br/>Habilidad entrenada: {{v3}}<br/><b>Haz clic para abrir la ficha</b>",
+                                {
+                                  v0: money(salePrice, data.currency),
+                                  v1: roi.toFixed(1),
+                                  v2: date(soldAt),
+                                  v3: training,
+                                },
+                              )
                             );
                           },
                         },
@@ -2034,7 +2043,10 @@ function RoiPanel({
         const lista = params as { dataIndex: number }[];
         const p = puntos[lista[0]?.dataIndex ?? 0];
         if (!p) return "";
-        return `${p.clave}<br/>ROI ${p.roi.toFixed(1)}%<br/>${p.ventas} venta(s)`;
+        return tx(
+          "{{v0}}<br/>ROI {{v1}}%<br/>{{v2}} venta(s)",
+          { v0: p.clave, v1: p.roi.toFixed(1), v2: p.ventas },
+        );
       },
     },
     xAxis: horizontal
@@ -2145,13 +2157,13 @@ function RoiPanel({
  */
 /** Las siete, con el mismo codigo corto que usa la tabla de Jugadores. */
 const SKILL_HEADERS: [string, [string, string]][] = [
-  ["keeper", ["PO", "Portería"]],
-  ["defending", ["DE", "Defensa"]],
-  ["playmaking", ["JU", "Jugadas"]],
-  ["winger", ["LA", "Lateral"]],
-  ["passing", ["PA", "Pases"]],
-  ["scoring", ["AN", "Anotación"]],
-  ["setPieces", ["BP", "Balón parado"]],
+  ["keeper", ["PO", terminoOficial("habilidades", "keeper", "Portería")]],
+  ["defending", ["DE", terminoOficial("habilidades", "defending", "Defensa")]],
+  ["playmaking", ["JU", terminoOficial("habilidades", "playmaking", "Jugadas")]],
+  ["winger", ["LA", terminoOficial("habilidades", "winger", "Lateral")]],
+  ["passing", ["PA", terminoOficial("habilidades", "passing", "Pases")]],
+  ["scoring", ["AN", terminoOficial("habilidades", "scoring", "Anotación")]],
+  ["setPieces", ["BP", terminoOficial("habilidades", "set_pieces", "Balón parado")]],
 ];
 
 function TransferAttemptsSection() {
@@ -2529,37 +2541,37 @@ function BalanceTable({
     ),
     skillCol(
       "keeper",
-      "Portería",
+      terminoOficial("habilidades", "keeper", "Portería"),
       (r) => r.keeperAtPurchase,
       (r) => r.keeperAtSale,
     ),
     skillCol(
       "defending",
-      "Defensa",
+      terminoOficial("habilidades", "defending", "Defensa"),
       (r) => r.defendingAtPurchase,
       (r) => r.defendingAtSale,
     ),
     skillCol(
       "playmaking",
-      "Jugadas",
+      terminoOficial("habilidades", "playmaking", "Jugadas"),
       (r) => r.playmakingAtPurchase,
       (r) => r.playmakingAtSale,
     ),
     skillCol(
       "winger",
-      "Lateral",
+      terminoOficial("habilidades", "winger", "Lateral"),
       (r) => r.wingerAtPurchase,
       (r) => r.wingerAtSale,
     ),
     skillCol(
       "passing",
-      "Pases",
+      terminoOficial("habilidades", "passing", "Pases"),
       (r) => r.passingAtPurchase,
       (r) => r.passingAtSale,
     ),
     skillCol(
       "scoring",
-      "Anotación",
+      terminoOficial("habilidades", "scoring", "Anotación"),
       (r) => r.scoringAtPurchase,
       (r) => r.scoringAtSale,
     ),
@@ -2598,7 +2610,7 @@ function BalanceTable({
       align: "left",
       value: (r) =>
         r.originUnknown
-          ? "Sin origen conocido"
+          ? tx("Sin origen conocido")
           : r.isAcademyGraduate
             ? "Canterano"
             : "Comprado",
@@ -2657,7 +2669,7 @@ function BalanceTable({
     },
     intCol(
       "daysSincePurchase",
-      "Días desde la compra",
+      tx("Días desde la compra"),
       (r) => r.daysSincePurchase,
     ),
     {
@@ -2849,7 +2861,7 @@ function BalanceTable({
       key: "destinationCountry",
       header: tx("País destino"),
       align: "left",
-      value: (r) => (r.isSold ? r.destinationCountry : "Sin destino"),
+      value: (r) => (r.isSold ? r.destinationCountry : tx("Sin destino")),
       render: (r) =>
         r.isSold ? (
           <CountryCell

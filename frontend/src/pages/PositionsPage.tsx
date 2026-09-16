@@ -10,6 +10,7 @@ import { useSquad } from "../hooks/useTeam";
 import { htAge } from "../hooks/useFormat";
 import { abreviatura } from "../utils/abreviaturas";
 import type { SquadPlayer } from "../services/api";
+import { tx } from "../i18n/tx";
 
 type RoleTab = {
   id: string;
@@ -22,61 +23,61 @@ type RoleTab = {
 const ROLE_TABS: RoleTab[] = [
   {
     id: "keeper",
-    label: "Portero",
-    orders: [{ key: "keeper", label: "Portero" }],
+    label: tx("Portero"),
+    orders: [{ key: "keeper", label: tx("Portero") }],
   },
   {
     id: "central",
-    label: "Defensa Central",
+    label: tx("Defensa Central"),
     orders: [
-      { key: "central_defender", label: "Defensa Central" },
+      { key: "central_defender", label: tx("Defensa Central") },
       {
         key: "central_defender_towards_wing",
-        label: "Defensa Central hacia Lateral",
+        label: tx("Defensa Central hacia Lateral"),
       },
-      { key: "central_defender_offensive", label: "Defensa Central Ofensivo" },
+      { key: "central_defender_offensive", label: tx("Defensa Central Ofensivo") },
     ],
   },
   {
     id: "wingback",
-    label: "Defensa Lateral",
+    label: tx("Defensa Lateral"),
     orders: [
-      { key: "wingback", label: "Defensa Lateral" },
-      { key: "wingback_towards_middle", label: "Defensa Lateral hacia Medio" },
-      { key: "wingback_offensive", label: "Defensa Lateral Ofensivo" },
-      { key: "wingback_defensive", label: "Defensa Lateral Defensivo" },
+      { key: "wingback", label: tx("Defensa Lateral") },
+      { key: "wingback_towards_middle", label: tx("Defensa Lateral hacia Medio") },
+      { key: "wingback_offensive", label: tx("Defensa Lateral Ofensivo") },
+      { key: "wingback_defensive", label: tx("Defensa Lateral Defensivo") },
     ],
   },
   {
     id: "midfield",
-    label: "Mediocentro",
+    label: tx("Mediocentro"),
     orders: [
-      { key: "inner_midfield", label: "Mediocentro" },
+      { key: "inner_midfield", label: tx("Mediocentro") },
       {
         key: "inner_midfield_towards_wing",
-        label: "Mediocentro hacia Lateral",
+        label: tx("Mediocentro hacia Lateral"),
       },
-      { key: "inner_midfield_offensive", label: "Mediocentro Ofensivo" },
-      { key: "inner_midfield_defensive", label: "Mediocentro Defensivo" },
+      { key: "inner_midfield_offensive", label: tx("Mediocentro Ofensivo") },
+      { key: "inner_midfield_defensive", label: tx("Mediocentro Defensivo") },
     ],
   },
   {
     id: "winger",
-    label: "Extremo",
+    label: tx("Extremo"),
     orders: [
-      { key: "winger", label: "Extremo" },
-      { key: "winger_towards_middle", label: "Extremo hacia Medio" },
-      { key: "winger_offensive", label: "Extremo Ofensivo" },
-      { key: "winger_defensive", label: "Extremo Defensivo" },
+      { key: "winger", label: tx("Extremo") },
+      { key: "winger_towards_middle", label: tx("Extremo hacia Medio") },
+      { key: "winger_offensive", label: tx("Extremo Ofensivo") },
+      { key: "winger_defensive", label: tx("Extremo Defensivo") },
     ],
   },
   {
     id: "forward",
-    label: "Delantero",
+    label: tx("Delantero"),
     orders: [
-      { key: "forward", label: "Delantero" },
-      { key: "forward_defensive", label: "Delantero Defensivo" },
-      { key: "forward_towards_wing", label: "Delantero hacia Lateral" },
+      { key: "forward", label: tx("Delantero") },
+      { key: "forward_defensive", label: tx("Delantero Defensivo") },
+      { key: "forward_towards_wing", label: tx("Delantero hacia Lateral") },
     ],
   },
   {
@@ -84,15 +85,15 @@ const ROLE_TABS: RoleTab[] = [
     // fusionados en una sola pestaña "Otros", todas son decisiones de
     // plantilla que no son una posición de campo.
     id: "other",
-    label: "Otros",
+    label: tx("Otros"),
     orders: [
-      { key: "captain", label: "Capitán" },
-      { key: "set_piece_taker", label: "Lanzador de faltas" },
+      { key: "captain", label: tx("Capitán") },
+      { key: "set_piece_taker", label: tx("Lanzador de faltas") },
       // 2026-08-09, pedido explícitamente tras verificar la fuente: orden
       // DISTINTA de "Lanzador de faltas" (TLD), en Hattrick real tienen
       // su propio código y fórmula (Experiencia + Anotación + Balón
       // Parado, ver positions.yaml), no son el mismo puesto.
-      { key: "penalty_taker", label: "Lanzador de penaltis" },
+      { key: "penalty_taker", label: tx("Lanzador de penaltis") },
     ],
   },
 ];

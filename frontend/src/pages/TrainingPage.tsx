@@ -45,6 +45,7 @@ import {
 } from "../utils/staffEffects";
 import { decimal, htAgeTexto, number } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
+import { tx } from "../i18n/tx";
 
 type TrainingSection =
   | "datos"
@@ -63,17 +64,17 @@ type PlayerTab = "mejoras" | "prevision";
 const STAMINA_MAX_LEVEL = 9;
 
 const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
-  league: "Liga",
-  cup: "Copa nacional",
-  cup_secondary: "Copa secundaria",
-  qualification: "Promoción",
-  friendly: "Amistoso",
-  friendly_international: "Amistoso internacional",
-  tournament: "Torneo",
-  masters: "Masters",
-  national_team_friendly: "Selección amistoso",
-  youth_league: "Liga juvenil",
-  youth_friendly: "Amistoso juvenil",
+  league: tx("Liga"),
+  cup: tx("Copa nacional"),
+  cup_secondary: tx("Copa secundaria"),
+  qualification: tx("Promoción"),
+  friendly: tx("Amistoso"),
+  friendly_international: tx("Amistoso internacional"),
+  tournament: tx("Torneo"),
+  masters: tx("Masters"),
+  national_team_friendly: tx("Selección amistoso"),
+  youth_league: tx("Liga juvenil"),
+  youth_friendly: tx("Amistoso juvenil"),
 };
 
 /** Las tablas de esta pantalla se arman fuera de los componentes; leen el

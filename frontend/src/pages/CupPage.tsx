@@ -145,7 +145,7 @@ export function CupPage() {
                       !data.status.stillInCup
                         ? (data.status.stageLabel ?? "-")
                         : data.goal.winsToTitle != null
-                          ? `${data.goal.winsToTitle} victorias`
+                          ? tx("{{v0}} victorias", { v0: data.goal.winsToTitle })
                           : "-"
                     }
                     hint={

@@ -54,6 +54,6 @@ export function terminoOficial(
   clave: string,
   respaldo: string,
 ): string {
-  if (!clave) return respaldo;
+  if (!clave || i18n.language === "es") return respaldo;
   return i18n.t(`${familia}.${clave}`, { ns: "glosario", defaultValue: respaldo });
 }

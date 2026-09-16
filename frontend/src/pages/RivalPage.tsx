@@ -54,11 +54,11 @@ interface RosterRow {
  *  junto a la página y no dentro del selector porque el pronóstico también lo
  *  usa, para decir de dónde salieron sus números. */
 const ETIQUETA_DE_METODO: Record<string, string> = {
-  average: "promedio",
-  max: "máximo",
-  max_parallel: "máximo por carril",
-  last: "último partido",
-  submitted: "alineación enviada",
+  average: tx("promedio"),
+  max: tx("máximo"),
+  max_parallel: tx("máximo por carril"),
+  last: tx("último partido"),
+  submitted: tx("alineación enviada"),
 };
 
 export function RivalPage() {
