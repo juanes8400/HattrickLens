@@ -2466,6 +2466,8 @@ export interface Skills {
     bestRivalValue: number;
     /** «Bordalás (Def 18) · Teano (Def 16)». */
     who: string;
+    /** Lo mismo sin juntar: la sigla llega traducida. */
+    whoItems: { player: string; sigla: string; nivel: number }[];
     tone: SkillsTone;
     verdict: string;
   }[];

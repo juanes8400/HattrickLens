@@ -51,6 +51,20 @@ HABILIDADES: tuple[tuple[str, str, str], ...] = (
 NOMBRE = {k: n for k, n, _ in HABILIDADES}
 SIGLA_DE_HABILIDAD = {k: s for k, _, s in HABILIDADES}
 
+
+@dataclass
+class QuienSostiene:
+    """Un jugador que sostiene un sector, en piezas.
+
+    La frase junta va en ``Sector.who`` y se queda; esto es lo mismo sin
+    juntar, para que la sigla se pueda traducir sola al salir.
+    """
+
+    player: str
+    sigla: str
+    nivel: int
+
+
 EXCELENTE = 8
 MAGNIFICO = 12
 #: Por debajo de débil en la habilidad principal no se es recambio del puesto.
@@ -219,6 +233,8 @@ class Sector:
     best_rival_value: float
     #: Quién sostiene el sector en el once, con la habilidad: «Bordalás (Def 18)».
     who: str
+    #: Lo mismo, sin juntar: la pantalla lo compone y la sigla se traduce.
+    who_items: list[QuienSostiene]
     tone: str
     verdict: str
 
@@ -446,20 +462,24 @@ def sectores(serie: list[SectoresDeEquipo], once: list[Jugador]) -> list[Sector]
         valores_rival[clave] = su_valor
     peor = min(ventajas, key=lambda k: ventajas[k])
 
-    def quien(grupos: dict[str, str]) -> str:
+    def quien_piezas(grupos: dict[str, str]) -> list[QuienSostiene]:
         # Con la habilidad delante del número: «Bordalás 18» no decía 18 de qué.
         filas = sorted(
             ((j, grupos[j.grupo]) for j in once if j.grupo in grupos),
             key=lambda par: -par[0].skills.get(par[1], 0),
         )
-        return " · ".join(
-            f"{j.short_name} ({SIGLA_DE_HABILIDAD[s]} {j.skills.get(s, 0)})" for j, s in filas[:4]
-        )
+        return [
+            QuienSostiene(j.short_name, SIGLA_DE_HABILIDAD[s], j.skills.get(s, 0))
+            for j, s in filas[:4]
+        ]
 
-    quien_por_sector = {
-        "defensa": quien({"central_defender": "defending", "wingback": "defending"}),
-        "mediocampo": quien({"inner_midfield": "playmaking", "winger": "playmaking"}),
-        "ataque": quien({"forward": "scoring", "winger": "winger"}),
+    def quien(piezas: list[QuienSostiene]) -> str:
+        return " · ".join(f"{p.player} ({p.sigla} {p.nivel})" for p in piezas)
+
+    piezas_por_sector = {
+        "defensa": quien_piezas({"central_defender": "defending", "wingback": "defending"}),
+        "mediocampo": quien_piezas({"inner_midfield": "playmaking", "winger": "playmaking"}),
+        "ataque": quien_piezas({"forward": "scoring", "winger": "winger"}),
     }
     salida: list[Sector] = []
     for clave, label in (
@@ -485,7 +505,8 @@ def sectores(serie: list[SectoresDeEquipo], once: list[Jugador]) -> list[Sector]
                 margin_pct=round(ventaja, 1),
                 best_rival=rivales[clave],
                 best_rival_value=round(valores_rival[clave], 1),
-                who=quien_por_sector[clave],
+                who=quien(piezas_por_sector[clave]),
+                who_items=piezas_por_sector[clave],
                 tone=tone,
                 verdict=verdict,
             )

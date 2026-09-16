@@ -818,7 +818,11 @@ export function SkillsPage() {
                           "habilidades.loSostienen",
                           "Lo sostienen: {{quien}}",
                           {
-                            quien: s.who,
+                            quien: (s.whoItems ?? []).length
+                              ? s.whoItems
+                                  .map((p) => `${p.player} (${p.sigla} ${p.nivel})`)
+                                  .join(" · ")
+                              : s.who,
                           },
                         )}
                       </div>
