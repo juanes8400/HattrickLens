@@ -130,6 +130,16 @@ class Traductor:
             if encaje:
                 huecos = [self.texto(g) for g in encaje.groups()]
                 return self._rellenar(destino, huecos)
+        # Varias cosas juntas en un hueco: «Técnico, Rápido» en una alerta o
+        # «Economía · Proyección» en Uso. Ninguna de las dos está en el
+        # diccionario, pero sus piezas sí. Sólo si TODAS encajan: media frase
+        # traducida se lee peor que la frase entera en español.
+        for separador in (", ", " · "):
+            if separador in valor:
+                partes = [p.strip() for p in valor.split(separador.strip())]
+                traducidas = [self._exactos.get(p) for p in partes]
+                if len(partes) > 1 and all(traducidas):
+                    return separador.join(p for p in traducidas if p)
         return valor
 
     @staticmethod

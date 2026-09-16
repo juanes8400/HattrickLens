@@ -844,7 +844,9 @@ function ForecastPanel({
           value={dinero(finalValue)}
           hint={
             `${deltaAbs >= 0 ? "+" : ""}${dinero(deltaAbs)} ` +
-            `(${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}%) · sin compraventa`
+            tx("({{v0}}%) · sin compraventa", {
+              v0: `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(0)}`,
+            })
           }
           tone={deltaAbs >= 0 ? "positive" : "danger"}
         />

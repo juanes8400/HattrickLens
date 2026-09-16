@@ -34,6 +34,16 @@ def test_plantilla_y_huecos_traducidos() -> None:
     assert tr.texto("Subió Pases en Bordalás") == "Bordalás: Passing went up"
 
 
+def test_lista_separada_por_comas() -> None:
+    """Un hueco con varias cosas dentro: «Técnico, Rápido» en una alerta."""
+    tr = Traductor(DICCIONARIO)
+    assert tr.texto("Encantados, Pases") == "satisfied, Passing"
+    # Si una pieza no está, se deja la lista entera en español.
+    assert tr.texto("Encantados, Pulgas Arrechas") == "Encantados, Pulgas Arrechas"
+    # El mismo caso con el separador de Uso: «módulo · sección».
+    assert tr.texto("Encantados · Pases") == "satisfied · Passing"
+
+
 def test_campos_intocables() -> None:
     tr = Traductor(DICCIONARIO)
     dato = {

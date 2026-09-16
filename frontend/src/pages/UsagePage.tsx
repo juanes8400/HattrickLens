@@ -246,8 +246,8 @@ function Resumen({ data }: { data: UsageSummary }) {
             </thead>
             <tbody>
               {data.modules.map((m) => (
-                <tr key={m.module} className="border-t border-[var(--border)]">
-                  <td className={`${td} font-medium`}>{m.module}</td>
+                <tr key={tx(m.module)} className="border-t border-[var(--border)]">
+                  <td className={`${td} font-medium`}>{tx(m.module)}</td>
                   <td className={`${td} text-right tabular-nums`}>
                     {m.visits}
                   </td>
@@ -558,8 +558,8 @@ function FilaDePersona({
               </thead>
               <tbody>
                 {u.modules.map((m) => (
-                  <tr key={m.module}>
-                    <td className={td}>{m.module}</td>
+                  <tr key={tx(m.module)}>
+                    <td className={td}>{tx(m.module)}</td>
                     <td className={`${td} text-right tabular-nums`}>
                       {m.visits}
                     </td>
@@ -641,8 +641,8 @@ function Adopcion({ data }: { data: UsageSummary }) {
             </thead>
             <tbody>
               {data.adoption.map((a) => (
-                <tr key={a.module} className="border-t border-[var(--border)]">
-                  <td className={`${td} font-medium`}>{a.module}</td>
+                <tr key={tx(a.module)} className="border-t border-[var(--border)]">
+                  <td className={`${td} font-medium`}>{tx(a.module)}</td>
                   <td className={`${td} text-right tabular-nums`}>{a.users}</td>
                   <td className={td}>
                     <span className="mb-1 block text-xs tabular-nums text-[var(--muted)]">

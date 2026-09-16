@@ -684,7 +684,7 @@ function HistoryPanel({ data }: { data: League }) {
       </div>
       <Chart
         ariaLabel={tx("Historial de {{v0}} por jornada", {
-          v0: metric === "position" ? "posición" : "puntos",
+          v0: metric === "position" ? tx("posición") : tx("puntos"),
         })}
         option={{
           xAxis: {
@@ -1356,11 +1356,11 @@ function LeagueTsiComparison() {
         top11={top11}
         onTop11Change={setTop11}
         noteSuffix={
-          "del resto de la serie (agregados)" +
+          tx("del resto de la serie (agregados)") +
           (top11
-            ? ", tu once real (motor de posiciones) contra los 11 de mayor TSI de cada rival"
+            ? tx(", tu once real (motor de posiciones) contra los 11 de mayor TSI de cada rival")
             : "") +
-          ". El TSI de cada rival es real; sus habilidades exactas están ocultas por Hattrick"
+          tx(". El TSI de cada rival es real; sus habilidades exactas están ocultas por Hattrick")
         }
       />
       <Panel title={tx("Comparativa de rivales")} meta={data.seriesName}>
@@ -1518,7 +1518,8 @@ function TeamOfTheWeekPanel() {
             ariaLabel={tx(
               "Mejor alineación {{v0}}, formación {{v1}}, por rating real",
               {
-                v0: scope === "week" ? "de la jornada" : "de la temporada",
+                v0:
+                  scope === "week" ? tx("de la jornada") : tx("de la temporada"),
                 v1: formation,
               },
             )}

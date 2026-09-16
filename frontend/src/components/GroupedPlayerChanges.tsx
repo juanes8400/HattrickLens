@@ -47,21 +47,27 @@ function signed(value: number): string {
 /** Casos sin un par before/current numérico limpio, se muestran como una
  * sola frase coloreada, sin el formato "antes ▲ ahora (delta)". */
 function specialChangeLine(change: NormalizedChange): string | null {
-  if (change.key === "arrival") return "Nuevo jugador";
+  if (change.key === "arrival") return tx("Nuevo jugador");
   // UN DESCUBRIMIENTO NO TIENE ANTES. Es de la cantera: el ojeador miró una
   // habilidad que estaba en blanco y ahora se sabe. Pintarlo con el formato
   // «antes ▲ ahora (+n)» obligaría a inventar un cero de partida y una
   // subida que nunca ocurrió, así que se dice lo único cierto: el número que
   // ahora se conoce.
   if (change.before == null && change.delta == null) {
-    return `descubierto: ${cifra(change.current)}`;
+    return tx("descubierto: {{v0}}", { v0: cifra(change.current) });
   }
   if (change.key === "market")
-    return change.current ? "Puesto en venta" : "Retirado del mercado";
+    return change.current
+      ? tx("Puesto en venta")
+      : tx("Retirado del mercado");
   if (change.key === "injury") {
-    if (change.current === -1) return "Recuperado";
-    if (change.before === -1) return `Lesión (nivel ${change.current})`;
-    return `Lesión ${change.before} → ${change.current}`;
+    if (change.current === -1) return tx("Recuperado");
+    if (change.before === -1)
+      return tx("Lesión (nivel {{v0}})", { v0: change.current });
+    return tx("Lesión {{v0}} → {{v1}}", {
+      v0: change.before,
+      v1: change.current,
+    });
   }
   return null;
 }
