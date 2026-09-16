@@ -11,8 +11,10 @@
  *     `translations.xml` con `backend/scripts/generar_glosario.py`. No se
  *     edita a mano.
  *
- * El inglés no se ofrece a nadie todavía: sólo se activa guardando el idioma
- * en este navegador, para revisarlo antes de abrirlo.
+ * Qué idioma sale al entrar (2026-09-16): manda lo que el usuario haya
+ * elegido en este navegador; si no ha elegido nunca, el idioma del navegador,
+ * y si ése no es español, inglés. Un club de Hattrick puede estar en
+ * cualquier país, así que el español no puede ser el defecto de todos.
  */
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
@@ -31,13 +33,37 @@ function esIdioma(valor: string | null): valor is Idioma {
   return valor != null && (IDIOMAS as readonly string[]).includes(valor);
 }
 
+/** El primero de la lista del navegador que la app hable; inglés si ninguno.
+ *
+ *  Se exporta para poder probarlo sin navegador. */
+export function idiomaPreferido(etiquetas: readonly string[]): Idioma {
+  for (const etiqueta of etiquetas) {
+    const codigo = (etiqueta ?? "").slice(0, 2).toLowerCase();
+    if (esIdioma(codigo)) return codigo;
+  }
+  return "en";
+}
+
+function idiomaDelNavegador(): Idioma {
+  try {
+    const lista = navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language];
+    return idiomaPreferido(lista);
+  } catch {
+    return "en";
+  }
+}
+
+/** Lo elegido en este navegador; la primera vez, lo que diga el navegador. */
 function idiomaGuardado(): Idioma {
   try {
     const valor = localStorage.getItem(CLAVE_GUARDADA);
-    return esIdioma(valor) ? valor : "es";
+    if (esIdioma(valor)) return valor;
   } catch {
-    return "es";
+    return idiomaDelNavegador();
   }
+  return idiomaDelNavegador();
 }
 
 void i18n.use(initReactI18next).init({
