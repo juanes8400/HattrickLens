@@ -40,7 +40,11 @@ class Settings(BaseSettings):
     #: `manage_youthplayers` es el que necesita `actionType=unlockskills`.
     #: Comprobado en vivo el 2026-08-26. Un token ya emitido no puede ganar
     #: permisos: cambiar esto obliga a reconectar.
-    chpp_scope: str = "manage_youthplayers"
+    #:
+    #: `set_matchorder` se añade el 2026-09-19 para el botón de enviar la
+    #: alineación. Quien ya esté conectado sigue funcionando igual en todo lo
+    #: demás; sólo enviar la alineación le pedirá reconectar una vez.
+    chpp_scope: str = "manage_youthplayers,set_matchorder"
 
     #: Tu ID de usuario de Hattrick, el mismo que sale en `<UserID>` de
     #: cualquier fichero CHPP. Abre la pantalla de uso, y NADA más.

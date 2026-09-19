@@ -148,4 +148,3 @@ export function MejorPosicion({ group }: { group: TeamOverviewGroup }) {
     </div>
   );
 }
-

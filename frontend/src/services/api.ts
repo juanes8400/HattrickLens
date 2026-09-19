@@ -205,6 +205,38 @@ export const api = {
     const qs = q.toString();
     return request<Lineup>(`/teams/${teamId}/lineup${qs ? `?${qs}` : ""}`);
   },
+  /** Manda el once a Hattrick. Con `ensayo` sólo pide la predicción: se
+   *  comprueba que Hattrick entiende la alineación sin guardarla. */
+  enviarAlineacion: (
+    teamId: number,
+    opciones: {
+      formation?: string;
+      centralDefenders?: number;
+      innerMidfielders?: number;
+      orders?: Record<number, string>;
+      exclude?: number[];
+      ensayo: boolean;
+    },
+  ) => {
+    const q = new URLSearchParams();
+    if (opciones.formation) q.set("formation", opciones.formation);
+    if (opciones.centralDefenders != null)
+      q.set("central_defenders", String(opciones.centralDefenders));
+    if (opciones.innerMidfielders != null)
+      q.set("inner_midfielders", String(opciones.innerMidfielders));
+    const fijadas = Object.entries(opciones.orders ?? {});
+    if (fijadas.length > 0) {
+      q.set("orders", fijadas.map(([slot, pos]) => `${slot}:${pos}`).join(","));
+    }
+    if (opciones.exclude && opciones.exclude.length > 0) {
+      q.set("exclude", opciones.exclude.join(","));
+    }
+    q.set("ensayo", opciones.ensayo ? "true" : "false");
+    return request<EnvioDeAlineacion>(
+      `/teams/${teamId}/lineup/enviar?${q.toString()}`,
+      { method: "POST" },
+    );
+  },
   lineupHindsight: (teamId: number) =>
     request<LineupHindsight>(`/teams/${teamId}/lineup/hindsight`),
   teamSpiritMultiplier: (teamId: number) =>
@@ -213,6 +245,8 @@ export const api = {
     request<TrainingForecast>(`/teams/${teamId}/training/forecast`),
   postMatchTraining: (teamId: number) =>
     request<PostMatchTraining>(`/teams/${teamId}/training/post-match`),
+  ultimoEntrenamiento: (teamId: number) =>
+    request<UltimoEntrenamiento>(`/teams/${teamId}/training/last`),
   teamOverview: (teamId: number) =>
     request<TeamOverview>(`/teams/${teamId}/overview`),
   insights: (teamId: number) => request<Insight[]>(`/teams/${teamId}/insights`),
@@ -814,6 +848,21 @@ export interface HindsightLine {
   proposedInstead: HindsightProposedPlayer[];
   usedCount: number;
   agreedCount: number;
+}
+
+/** La respuesta de enviar (o ensayar) una alineación en Hattrick. */
+export interface EnvioDeAlineacion {
+  ensayo: boolean;
+  htMatchId: number;
+  playedAt: string | null;
+  formation: string | null;
+  /** `true` sólo cuando Hattrick confirma que la guardó. */
+  guardada: boolean;
+  /** Lo que dijo Hattrick cuando no la guardó. */
+  motivo: string | null;
+  /** Los siete ratings que prevé para esta alineación, ya nombrados. */
+  prediccion: { sector: string; label: string; value: number }[] | null;
+  tactica: number | null;
 }
 
 export interface LineupHindsight {
@@ -1940,6 +1989,35 @@ export interface TeamOverviewGroup {
   weeks: string[];
   charts: TeamOverviewChart[];
   metrics: TeamOverviewMetric[];
+}
+
+/** El parte de la última actualización semanal de entrenamiento. */
+export interface UltimoEntrenamiento {
+  /** Instante oficial de la actualización. `null` si no se sabe la hora de
+   *  esta liga todavía. */
+  at: string | null;
+  seasonWeek: string | null;
+  trainingType: string | null;
+  intensity: number | null;
+  staminaShare: number | null;
+  trainerName: string | null;
+  ups: {
+    htPlayerId: number;
+    name: string;
+    skill: string;
+    skillLabel: string;
+    fromLevel: number;
+    toLevel: number;
+  }[];
+  previousAt: string | null;
+  previousSeasonWeek: string | null;
+  previousUps: number;
+  /** Cuando en la última no subió nadie, la última que sí movió algo. */
+  lastWithUps: string | null;
+  /** Hasta cuándo llegan los datos guardados. */
+  dataAt: string | null;
+  /** Los datos son anteriores al entrenamiento: todavía no se ha mirado. */
+  pendingSync: boolean;
 }
 
 export interface TeamOverview {

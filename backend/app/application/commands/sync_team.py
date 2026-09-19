@@ -4454,6 +4454,9 @@ class SyncTeamHandler:
                 team.ht_youth_team_id = payload["ht_youth_team_id"]
                 team.youth_team_name = payload.get("youth_team_name") or None
                 team.youth_academy_created_at = _parse_dt(payload.get("created_date"))
+                team.youth_next_training_match_at = _parse_dt(
+                    payload.get("next_training_match_date")
+                )
             if payload.get("has_scouts"):
                 await self._persist_ojeadores(uow, team_id, payload.get("scouts", []), captured_at)
             return

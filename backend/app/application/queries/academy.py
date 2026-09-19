@@ -366,11 +366,12 @@ class AcademyQueryService:
         pueda sembrar fotos en fechas fijas y que la ventana caiga siempre
         donde ella dice, no donde la deje el día en que se corra.
         """
-        desde = (
-            await self._momento_anterior(team_id)
-            if ventana == "cambio"
-            else (now or datetime.now(UTC)) - timedelta(weeks=int(ventana))
-        )
+        if ventana == "cambio":
+            desde = await self._momento_anterior(team_id)
+        elif ventana == "entrenamiento":
+            desde = await self._ultimo_entrenamiento_juvenil(team_id, now)
+        else:
+            desde = (now or datetime.now(UTC)) - timedelta(weeks=int(ventana))
         ahora = await self.skill_scores(
             team_id,
             soon_max_days=soon_max_days,
@@ -527,6 +528,29 @@ class AcademyQueryService:
         for snap, player in rows.all():
             latest[player.id] = (snap, player)  # el orden asc deja el último
         return list(latest.values())
+
+    async def _ultimo_entrenamiento_juvenil(
+        self, team_id: int, now: datetime | None = None
+    ) -> datetime | None:
+        """Cuándo entrenó la cantera por última vez.
+
+        No es la actualización semanal del primer equipo: los juveniles
+        entrenan DESPUÉS DE CADA PARTIDO suyo, y Hattrick publica la cita del
+        próximo en la ficha de la academia. Desde esa cita se retrocede de
+        siete en siete hasta el último que ya pasó.
+
+        `None` si esa fecha no está sincronizada todavía: sin ella habría que
+        estimarla, y una fecha inventada es peor que no dar ninguna.
+        """
+        team = await self._s.get(m.Team, team_id)
+        cita = team.youth_next_training_match_at if team is not None else None
+        if cita is None:
+            return None
+        ahora = now or datetime.now(UTC)
+        instante = cita if cita.tzinfo else cita.replace(tzinfo=UTC)
+        while instante > ahora:
+            instante -= timedelta(days=7)
+        return instante
 
     async def _momento_anterior(self, team_id: int) -> datetime | None:
         """El instante justo ANTES del último cambio de la academia.

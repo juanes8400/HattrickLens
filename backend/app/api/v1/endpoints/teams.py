@@ -312,6 +312,161 @@ async def trigger_sync_stream(
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
+async def _proximo_partido(session: AsyncSession, ht_team_id: int) -> m.Match | None:
+    """El partido al que todavía se le puede mandar alineación: el primero que
+    aún no se ha jugado.
+
+    La hora manda sobre el estado guardado. Un partido de anteayer puede
+    seguir figurando como «no terminado» si nadie ha sincronizado desde
+    entonces, y mandarle una alineación a un partido ya jugado no es un error
+    que Hattrick explique bien: simplemente no contesta nada útil.
+    """
+    from datetime import UTC, datetime
+
+    ahora = datetime.now(UTC).replace(tzinfo=None)
+    return await session.scalar(
+        select(m.Match)
+        .where(
+            (m.Match.home_team_ht_id == ht_team_id) | (m.Match.away_team_ht_id == ht_team_id),
+            ~m.Match.status.ilike("finished"),
+            m.Match.played_at > ahora,
+        )
+        .order_by(m.Match.played_at.asc())
+        .limit(1)
+    )
+
+
+@router.post(
+    "/{team_id}/lineup/enviar",
+    status_code=200,
+    dependencies=[
+        Depends(require_team_owner),
+        Depends(limite("enviar-alineacion", 10)),
+    ],
+)
+async def enviar_alineacion(
+    team_id: int,
+    formation: str | None = None,
+    central_defenders: int | None = None,
+    inner_midfielders: int | None = None,
+    orders: str | None = None,
+    exclude: str | None = None,
+    ensayo: bool = True,
+    session: AsyncSession = Depends(get_session),
+    user: m.User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Manda a Hattrick el once que propone la pantalla de Alineación.
+
+    Va en dos tiempos a propósito:
+
+    * `ensayo=true` (el de por defecto) pide a Hattrick la PREDICCIÓN de esa
+      alineación. Hattrick la lee entera, contesta los siete ratings y no
+      guarda nada. Es la forma de comprobar que el fichero es correcto sin
+      tocar las órdenes de verdad.
+    * `ensayo=false` la guarda. Sobrescribe lo que hubiera puesto, así que la
+      pantalla lo pregunta antes.
+
+    Lo que HT Lens no propone --táctica, actitud, capitán, lanzadores y los
+    cambios programados-- se lee de las órdenes actuales y se devuelve tal
+    cual: enviar el once no puede borrar el resto.
+    """
+    from app.api.v1.endpoints.analysis import _lineup_sin_cache
+    from app.application.commands.sync_team import FILE_VERSIONS
+    from app.domain.engines.match_analysis import SECTOR_LABELS
+    from app.domain.value_objects.alineacion_para_hattrick import (
+        AlineacionInvalidaError,
+        alineacion_para_hattrick,
+    )
+
+    team = await session.get(m.Team, team_id)
+    if team is None:
+        raise HTTPException(404, f"team {team_id} not found")
+    if team.owner_user_id != user.id:
+        raise HTTPException(403, "este equipo no está conectado a tu sesión")
+
+    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
+    if token_row is None or token_row.status != "active":
+        raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
+
+    partido = await _proximo_partido(session, team.ht_team_id)
+    if partido is None:
+        raise HTTPException(409, "no hay un partido pendiente al que mandarle alineación")
+
+    once = await _lineup_sin_cache(
+        team_id, formation, central_defenders, inner_midfielders, orders, exclude, session
+    )
+    if not once.get("lineup"):
+        raise HTTPException(409, once.get("warning") or "no hay once que enviar")
+
+    sistema = (partido.source_system or "hattrick").strip().lower()
+    if sistema not in {"hattrick", "youth", "htointegrated"}:
+        sistema = "hattrick"
+
+    client = CHPPClient(
+        decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
+    )
+    try:
+        # Lo que ya tiene puesto, para no pisárselo.
+        try:
+            actuales = await client.fetch(
+                "matchorders",
+                version=FILE_VERSIONS["matchorders"],
+                matchID=partido.ht_match_id,
+                sourceSystem=sistema,
+                actionType="view",
+            )
+        except Exception:  # noqa: BLE001, sin órdenes previas se manda sólo el once
+            actuales = {}
+
+        try:
+            payload = alineacion_para_hattrick(
+                once["lineup"], once.get("bench") or [], actuales=actuales
+            )
+        except AlineacionInvalidaError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+        respuesta = await client.enviar_alineacion(
+            partido.ht_match_id,
+            payload,
+            version=FILE_VERSIONS["matchorders"],
+            solo_prediccion=ensayo,
+            source_system=sistema,
+        )
+    except CHPPAuthError as exc:
+        token_row.status = "revoked"
+        await session.commit()
+        raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+    except CHPPDeniedError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except CHPPUnavailableError as exc:
+        raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
+    finally:
+        await client.aclose()
+
+    prediccion = respuesta.get("prediction") if isinstance(respuesta, dict) else None
+    # Lo que diga Hattrick cuando no salga bien, tal cual: un ensayo mudo sin
+    # explicación no se puede depurar desde la pantalla.
+    motivo = respuesta.get("reason") or respuesta.get("chpp_error") or None
+    return {
+        "ensayo": ensayo,
+        "htMatchId": partido.ht_match_id,
+        "playedAt": partido.played_at.isoformat() if partido.played_at else None,
+        "formation": once.get("formation"),
+        "guardada": (not ensayo) and bool(respuesta.get("orders_set")),
+        "motivo": motivo,
+        "prediccion": (
+            [
+                {"sector": nombre, "label": SECTOR_LABELS[nombre], "value": int(valor)}
+                for nombre, valor in ((prediccion or {}).get("ratings") or {}).items()
+                if nombre in SECTOR_LABELS and valor is not None
+            ]
+            if prediccion
+            else None
+        ),
+        "tactica": (prediccion or {}).get("tactic_type") if prediccion else None,
+    }
+
+
 @router.post(
     "/{team_id}/matches/details/sync",
     status_code=200,

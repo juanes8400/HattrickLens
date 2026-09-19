@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
-import { api, type LineupHindsight } from "../services/api";
+import {
+  api,
+  errorMessage,
+  type EnvioDeAlineacion,
+  type LineupHindsight,
+} from "../services/api";
 import { TEAM_ID, useLineup, useSquad } from "../hooks/useTeam";
 import {
   Empty,
@@ -22,7 +27,7 @@ import {
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { barOption } from "../charts/chartOptions";
-import { number } from "../hooks/useFormat";
+import { dateTime, number } from "../hooks/useFormat";
 import { LineupAvailabilityNotice } from "../components/LineupAvailabilityNotice";
 import {
   MINIMUM_LINEUP_PLAYERS,
@@ -47,6 +52,133 @@ const FORMATIONS = [
   "3-4-3",
   "2-5-3",
 ];
+/**
+ * Mandar el once a Hattrick (2026-09-19, pedido del usuario).
+ *
+ * Va en dos tiempos, y no por ceremonia: el primero, el ENSAYO, le manda la
+ * alineación a Hattrick pidiéndole la predicción en vez de guardarla. Si
+ * contesta los siete ratings, el fichero es correcto. Sólo entonces aparece
+ * el botón que la guarda de verdad.
+ *
+ * Guardar SOBREESCRIBE las órdenes que hubiera puestas, así que esa segunda
+ * pulsación es explícita y el texto dice a qué partido va. Lo que no propone
+ * HT Lens --táctica, actitud, capitán, lanzadores, cambios programados-- el
+ * servidor lo lee de Hattrick y lo devuelve tal cual.
+ */
+function EnviarAlineacion({
+  opciones,
+}: {
+  opciones: {
+    formation?: string;
+    centralDefenders?: number;
+    innerMidfielders?: number;
+    orders?: Record<number, string>;
+    exclude?: number[];
+  };
+}) {
+  const { t } = useTranslation();
+  const [estado, setEstado] = useState<"quieto" | "ensayando" | "enviando">(
+    "quieto",
+  );
+  const [ensayo, setEnsayo] = useState<EnvioDeAlineacion | null>(null);
+  const [enviado, setEnviado] = useState<EnvioDeAlineacion | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const pedir = async (esEnsayo: boolean) => {
+    setEstado(esEnsayo ? "ensayando" : "enviando");
+    setError(null);
+    try {
+      const r = await api.enviarAlineacion(TEAM_ID, {
+        ...opciones,
+        ensayo: esEnsayo,
+      });
+      if (esEnsayo) setEnsayo(r);
+      else setEnviado(r);
+    } catch (e) {
+      setError(errorMessage(e));
+      if (esEnsayo) setEnsayo(null);
+    } finally {
+      setEstado("quieto");
+    }
+  };
+
+  return (
+    <Panel title={t("alineacion.enviar", "Enviar alineación")}>
+      <div className="space-y-3 p-4 text-sm">
+        {enviado?.guardada ? (
+          <div className="text-[var(--positive)]">
+            {t(
+              "alineacion.enviada",
+              "Alineación enviada a Hattrick para el partido del {{fecha}}.",
+              { fecha: enviado.playedAt ? dateTime(enviado.playedAt) : "?" },
+            )}
+          </div>
+        ) : (
+          <>
+            <p className="text-[var(--muted)]">
+              {t(
+                "alineacion.enviarExplica",
+                "Primero se prueba: Hattrick lee esta alineación y devuelve los ratings que prevé, sin guardar nada. Si cuadra, el segundo botón la guarda y sustituye lo que tengas puesto.",
+              )}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => pedir(true)}
+                disabled={estado !== "quieto"}
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--surface-2)] disabled:opacity-50"
+              >
+                {estado === "ensayando"
+                  ? t("alineacion.probando", "Probando…")
+                  : t("alineacion.probar", "Probar en Hattrick")}
+              </button>
+              {ensayo && (
+                <button
+                  onClick={() => pedir(false)}
+                  disabled={estado !== "quieto"}
+                  className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {estado === "enviando"
+                    ? t("alineacion.enviando", "Enviando…")
+                    : t(
+                        "alineacion.enviarAhora",
+                        "Enviar y sustituir lo que tengo puesto",
+                      )}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {ensayo?.prediccion && !enviado && (
+          <div className="rounded-md bg-[var(--surface-2)] p-3 text-xs">
+            <div className="mb-1 font-medium">
+              {t(
+                "alineacion.prevePara",
+                "Hattrick prevé para esta alineación:",
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+              {ensayo.prediccion.map((s) => (
+                <span key={s.sector}>
+                  {s.label} <b>{s.value}</b>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {enviado && !enviado.guardada && (
+          <div className="text-[var(--danger)]">
+            {t("alineacion.noGuardada", "Hattrick no la guardó.")}{" "}
+            {enviado.motivo}
+          </div>
+        )}
+        {error && <div className="text-[var(--danger)]">{error}</div>}
+      </div>
+    </Panel>
+  );
+}
+
 export function LineupPage() {
   const { t } = useTranslation();
   const [formation, setFormation] = useState("");
@@ -402,6 +534,16 @@ export function LineupPage() {
           value={String(data.bench.length)}
         />
       </div>
+
+      <EnviarAlineacion
+        opciones={{
+          formation: formation || undefined,
+          centralDefenders: centrales,
+          innerMidfielders: interiores,
+          orders: ordenes,
+          exclude: fuera.map((f) => f.htPlayerId),
+        }}
+      />
 
       <Note>
         {formation

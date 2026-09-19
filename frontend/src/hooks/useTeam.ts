@@ -137,6 +137,17 @@ export const useTrainingForecast = () =>
     queryFn: () => api.trainingForecast(TEAM_ID),
   });
 
+/** El parte del último entrenamiento. Se pide sólo con su pestaña abierta:
+ *  es una pregunta puntual, no parte de la pantalla. */
+export const useUltimoEntrenamiento = (enabled = true) =>
+  useQuery({
+    queryKey: ["ultimo-entrenamiento", TEAM_ID],
+    queryFn: () => api.ultimoEntrenamiento(TEAM_ID),
+    enabled,
+    // Una sincronización desde otra pestaña cambia la respuesta.
+    refetchOnMount: "always",
+  });
+
 export const usePostMatchTraining = () =>
   useQuery({
     queryKey: ["post-match-training", TEAM_ID],

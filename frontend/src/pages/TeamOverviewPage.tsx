@@ -17,10 +17,7 @@ import {
 } from "../components/Panels";
 import { useTeamOverview } from "../hooks/useTeam";
 import { decimal, money, number } from "../hooks/useFormat";
-import type {
-  TeamOverviewGroup,
-  TeamOverviewMetric,
-} from "../services/api";
+import type { TeamOverviewGroup, TeamOverviewMetric } from "../services/api";
 
 /**
  * Equipo, la plantilla promediada, semana a semana.
@@ -192,7 +189,9 @@ export function TeamOverviewPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">{t("nav.equipo", "Habilidades")}</h1>
+        <h1 className="text-xl font-semibold">
+          {t("nav.equipo", "Habilidades")}
+        </h1>
         <p className="text-sm text-[var(--muted)]">
           {t(
             "equipo.intro",

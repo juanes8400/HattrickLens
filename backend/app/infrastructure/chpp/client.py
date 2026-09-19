@@ -87,6 +87,60 @@ class CHPPClient:
         resp.raise_for_status()
         return self._parse(parse_as or file, resp.content)  # bytes: el XML declara su encoding
 
+    async def enviar_alineacion(
+        self,
+        ht_match_id: int,
+        alineacion: dict[str, Any],
+        *,
+        version: str = "3.0",
+        solo_prediccion: bool = False,
+        source_system: str = "hattrick",
+    ) -> dict[str, Any]:
+        """Manda una alineación a Hattrick, o la prueba sin guardarla.
+
+        Es la única llamada de ESCRITURA sobre un partido, así que tiene dos
+        resguardos deliberados:
+
+        * `solo_prediccion=True` usa `predictratings`, que devuelve los siete
+          ratings de esa alineación SIN guardarla. Es el ensayo: si Hattrick
+          entiende el fichero y contesta ratings, el formato es correcto.
+        * no se reintenta. Reintentar una escritura que quizá sí llegó es
+          arriesgar un doble envío; un fallo se cuenta y lo decide quien llama.
+
+        Escribir de verdad necesita el permiso `set_matchorder` en el token.
+        Sin él Hattrick contesta 401 y eso sale como `CHPPDeniedError`: no es
+        una sesión muerta, es un permiso que falta, y se arregla reconectando
+        UNA vez, no volviendo a intentarlo.
+        """
+        import json as _json
+
+        url = f"{settings.chpp_base_url}/chppxml.ashx"
+        query = {
+            "file": "matchorders",
+            "version": version,
+            "actionType": "predictratings" if solo_prediccion else "setmatchorder",
+            "matchID": ht_match_id,
+            "sourceSystem": source_system,
+        }
+        try:
+            resp = await self._client.post(
+                url,
+                params=query,
+                content=_json.dumps(alineacion, separators=(",", ":")),
+                headers={"Content-Type": "application/json"},
+            )
+        except httpx.TransportError as exc:
+            raise CHPPUnavailableError(str(exc)) from exc
+        if resp.status_code == 401:
+            if await self._token_sigue_vivo():
+                raise CHPPDeniedError(
+                    "Hattrick no deja escribir la alineación con este token: "
+                    "falta el permiso, y se concede al reconectar"
+                )
+            raise CHPPAuthError("token revocado, requiere re-autorización")
+        resp.raise_for_status()
+        return self._parse("matchorders", resp.content)
+
     async def _get_con_reintentos(self, url: str, query: dict[str, Any]) -> httpx.Response:
         """Lo pasajero se reintenta antes de darlo por un fallo.
 

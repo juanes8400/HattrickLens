@@ -363,7 +363,15 @@
     "mejorOpcion": "Best option: {{nombre}}",
     "sinRecomendacion": "No recommendation",
     "explicacionPosteriori": "The app adds up the real minutes per position and, for each training type, how much each player's best positional contribution would rise per week. The one with the highest total wins: a skill-up that doesn't improve anyone in any position is worth little, even if it comes quickly.",
-    "sinOpciones": "No options to compare for this match."
+    "sinOpciones": "No options to compare for this match.",
+    "ultimo": "Last training",
+    "intensidadDe": "intensity {{v}}%",
+    "resistenciaDe": "stamina {{v}}%",
+    "sinHora": "this league's time isn't known yet",
+    "ultimoSinSincronizar": "Your data only goes up to {{fecha}}, before this training update. Sync to see who improved.",
+    "ultimoSinSubidas": "Nobody improved.",
+    "ultimaConSubidas": "The last time anyone improved was in {{semana}}.",
+    "ultimoAnterior": "The previous update ({{semana}}, {{fecha}}) confirmed {{n}} improvements."
   },
   "alertas": {
     "atencion": "What needs your attention",
@@ -780,7 +788,16 @@
     "lineaCoinciden": "{{a}}/{{b}} match",
     "optimizadorCoincide": "the optimiser agrees",
     "pondriaA": "The optimiser would put here {{jugadores}}",
-    "mismosJugadores": "The optimiser would have used the same players in every line."
+    "mismosJugadores": "The optimiser would have used the same players in every line.",
+    "enviar": "Send lineup",
+    "enviarExplica": "It gets tried out first: Hattrick reads this lineup and returns the ratings it predicts, without saving anything. If it looks right, the second button saves it and replaces whatever you have set.",
+    "probar": "Try it on Hattrick",
+    "probando": "Trying…",
+    "enviarAhora": "Send it and replace what I have set",
+    "enviando": "Sending…",
+    "enviada": "Lineup sent to Hattrick for the match on {{fecha}}.",
+    "prevePara": "Hattrick predicts for this lineup:",
+    "noGuardada": "Hattrick didn't save it."
   },
   "juveniles": {
     "intro": "Who deserves a place, who you'll lose soon and whether the academy pays off",
@@ -840,7 +857,10 @@
         "corto": "Solid ⏱",
         "largo": "rating 7, and leaves young"
       },
-      "buenoTarde": { "corto": "Solid", "largo": "rating 7, and leaves older" },
+      "buenoTarde": {
+        "corto": "Solid",
+        "largo": "rating 7, and leaves older"
+      },
       "aceptablePronto": {
         "corto": "Pass. ⏱",
         "largo": "rating 6, and leaves young"
@@ -965,9 +985,18 @@
     "nivelSecundaria": "Secondary skill level",
     "region": {
       "nombre": "region {{ids}}",
-      "ambos": { "titulo": "Get both trainings", "pista": "" },
-      "solo_principal": { "titulo": "Main only", "pista": "" },
-      "solo_secundaria": { "titulo": "Secondary only", "pista": "" },
+      "ambos": {
+        "titulo": "Get both trainings",
+        "pista": ""
+      },
+      "solo_principal": {
+        "titulo": "Main only",
+        "pista": ""
+      },
+      "solo_secundaria": {
+        "titulo": "Secondary only",
+        "pista": ""
+      },
       "sin_entrenamiento": {
         "titulo": "No training",
         "pista": "neither of the two reaches them"
@@ -1100,7 +1129,9 @@
       "vendible": "sellable",
       "fontanero": "filler",
       "sin ojear": "unscouted"
-    }
+    },
+    "desdeFecha": "{{fecha}}",
+    "sinCitaJuvenil": "We don't know yet when your youth squad trained: sync and the date of their next training match comes with it."
   },
   "apoyo": {
     "boton": "Buy me a coffee",

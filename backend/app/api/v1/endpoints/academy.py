@@ -1111,8 +1111,10 @@ async def academy_scouts_ledger(
 
 
 #: Las ventanas que ofrece el selector. «cambio» es el estado justo antes del
-#: último cambio de la academia; el resto, semanas.
-VENTANAS = ("cambio", "1", "2", "8")
+#: último cambio de la academia, «entrenamiento» el último partido de
+#: entrenamiento de la cantera (que es cuando entrena de verdad); el resto,
+#: semanas.
+VENTANAS = ("cambio", "entrenamiento", "1", "2", "8")
 
 
 @router.get(
@@ -1124,7 +1126,10 @@ async def academy_comparativa(
     team_id: int,
     ventana: str = Query(
         "cambio",
-        description="«cambio» (antes del último cambio) o semanas: 1, 2 u 8",
+        description=(
+            "«cambio» (antes del último cambio), «entrenamiento» (el último "
+            "partido de entrenamiento juvenil) o semanas: 1, 2 u 8"
+        ),
     ),
     soon_max_days: int = Query(yss.SOON_MAX_DAYS, ge=0, le=112),
     weight_base: float = Query(

@@ -614,7 +614,8 @@ function MoralYConfianza({ training }: { training: Dashboard["training"] }) {
       clave: "confianza",
       label: t("dashboard.confianza", "Confianza"),
       nombre:
-        nivelOficial("confianza", training.confidence) ?? training.confidenceName,
+        nivelOficial("confianza", training.confidence) ??
+        training.confidenceName,
       valor: training.confidence,
       max: 9,
     },

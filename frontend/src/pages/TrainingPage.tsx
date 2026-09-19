@@ -10,6 +10,7 @@ import {
   useTrainingDevelopment,
   useTrainingFormula,
   useTrainingSquad,
+  useUltimoEntrenamiento,
 } from "../hooks/useTeam";
 import { DataTable, type Column } from "../components/DataTable";
 import { CountryCell } from "../components/CountryFlag";
@@ -43,13 +44,20 @@ import {
   trainerTrainingSpeedPct,
   trainingStaffLevelColor,
 } from "../utils/staffEffects";
-import { decimal, htAgeTexto, number } from "../hooks/useFormat";
+import {
+  date,
+  dateTime,
+  decimal,
+  htAgeTexto,
+  number,
+} from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { tx } from "../i18n/tx";
 
 type TrainingSection =
   | "datos"
   | "plantilla"
+  | "ultimo"
   | "experiencia"
   | "fidelidad"
   | "condicion"
@@ -874,6 +882,111 @@ function edadOrdenable(edad: string): number {
   return Number(anios ?? 0) + Number(dias ?? 0) / DIAS_POR_TEMPORADA;
 }
 
+/**
+ * El parte de la última actualización semanal (2026-09-19, pedido del usuario).
+ *
+ * Lo que contesta es «qué pasó el último martes»: cuándo fue exactamente, con
+ * qué entrenamiento puesto y quién subió. El cuándo no se estima: Hattrick
+ * publica la hora de la actualización de cada liga.
+ *
+ * Y distingue dos silencios que se parecen mucho: que no subiera nadie, y que
+ * todavía no hayas sincronizado desde entonces. Decir «no subió nadie» cuando
+ * lo que pasa es que nadie ha mirado sería mentir con datos.
+ */
+function ParteDelUltimoEntrenamiento({ activa }: { activa: boolean }) {
+  const { t } = useTranslation();
+  const { data, isLoading, isError, error } = useUltimoEntrenamiento(activa);
+  if (isLoading) return <Loading />;
+  if (isError) return <ErrorState error={error} />;
+  if (!data) return null;
+
+  const cuando = data.at ? dateTime(data.at) : null;
+  const config = [
+    data.trainingType,
+    data.intensity != null
+      ? t("entrenamiento.intensidadDe", "intensidad {{v}}%", {
+          v: data.intensity,
+        })
+      : null,
+    data.staminaShare != null
+      ? t("entrenamiento.resistenciaDe", "resistencia {{v}}%", {
+          v: data.staminaShare,
+        })
+      : null,
+    data.trainerName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <Panel
+      title={t("entrenamiento.ultimo", "Último entrenamiento")}
+      meta={
+        cuando
+          ? `${cuando}${data.seasonWeek ? ` · ${data.seasonWeek}` : ""}`
+          : t("entrenamiento.sinHora", "sin la hora de esta liga todavía")
+      }
+    >
+      {config && (
+        <div className="border-b border-[var(--border)] px-4 py-2 text-sm">
+          {config}
+        </div>
+      )}
+
+      {data.pendingSync ? (
+        <Empty>
+          {t(
+            "entrenamiento.ultimoSinSincronizar",
+            "Tus datos llegan hasta el {{fecha}}, antes de este entrenamiento. Sincroniza para ver quién subió.",
+            { fecha: data.dataAt ? date(data.dataAt) : "?" },
+          )}
+        </Empty>
+      ) : data.ups.length === 0 ? (
+        <Empty>
+          {t("entrenamiento.ultimoSinSubidas", "No subió nadie.")}{" "}
+          {data.lastWithUps &&
+            t(
+              "entrenamiento.ultimaConSubidas",
+              "La última vez que alguien subió fue en {{semana}}.",
+              { semana: data.lastWithUps },
+            )}
+        </Empty>
+      ) : (
+        <ul className="divide-y divide-[var(--border)]">
+          {data.ups.map((u) => (
+            <li
+              key={`${u.htPlayerId}-${u.skill}-${u.toLevel}`}
+              className="flex items-baseline justify-between gap-2 px-4 py-2 text-sm"
+            >
+              <PlayerLink htPlayerId={u.htPlayerId} name={u.name} />
+              <span className="shrink-0 text-xs text-[var(--muted)]">
+                {u.skillLabel} ·{" "}
+                <span className="text-[var(--positive)]">
+                  {skillLevelLabel(u.fromLevel)} → {skillLevelLabel(u.toLevel)}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {data.previousSeasonWeek && (
+        <Note>
+          {t(
+            "entrenamiento.ultimoAnterior",
+            "La actualización anterior ({{semana}}, {{fecha}}) dejó {{n}} subidas confirmadas.",
+            {
+              semana: data.previousSeasonWeek,
+              fecha: data.previousAt ? date(data.previousAt) : "?",
+              n: data.previousUps,
+            },
+          )}
+        </Note>
+      )}
+    </Panel>
+  );
+}
+
 export function TrainingPage() {
   const { t } = useTranslation();
   // Abre en «Entrenamiento actual», no en «Datos Entrenamiento». Hasta el
@@ -986,6 +1099,10 @@ export function TrainingPage() {
         tabs={[
           { key: "plantilla", label: tituloActual },
           {
+            key: "ultimo",
+            label: t("entrenamiento.ultimo", "Último entrenamiento"),
+          },
+          {
             key: "experiencia",
             label: t("abrev.largo.experience", "Experiencia"),
           },
@@ -1009,6 +1126,10 @@ export function TrainingPage() {
         activa={section}
         className="space-y-4"
       >
+        {section === "ultimo" && (
+          <ParteDelUltimoEntrenamiento activa={section === "ultimo"} />
+        )}
+
         {section === "datos" && (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">

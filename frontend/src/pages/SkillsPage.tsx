@@ -868,7 +868,10 @@ export function SkillsPage() {
                           {
                             quien: (s.whoItems ?? []).length
                               ? s.whoItems
-                                  .map((p) => `${p.player} (${p.sigla} ${p.nivel})`)
+                                  .map(
+                                    (p) =>
+                                      `${p.player} (${p.sigla} ${p.nivel})`,
+                                  )
                                   .join(" · ")
                               : s.who,
                           },

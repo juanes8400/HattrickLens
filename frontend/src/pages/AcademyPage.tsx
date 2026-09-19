@@ -25,7 +25,7 @@ import {
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
-import { date, decimal, money, number } from "../hooks/useFormat";
+import { date, dateTime, decimal, money, number } from "../hooks/useFormat";
 import { chiCuadrado } from "../utils/chiCuadrado";
 import { useAsentado } from "../hooks/useAsentado";
 import { usePersistido } from "../hooks/usePersistido";
@@ -483,6 +483,10 @@ function usePersistidoTexto(clave: string) {
 /** Las cuatro ventanas del selector. «Último cambio» es el estado justo
  *  antes de que la academia se moviera por última vez; el resto son semanas. */
 const VENTANAS_JUVENILES = [
+  // La cantera entrena DESPUES DE CADA PARTIDO suyo, no con la actualizacion
+  // semanal del primer equipo. Hattrick publica la cita del proximo partido
+  // de entrenamiento y de ahi sale cuando fue el ultimo (2026-09-19).
+  { key: "entrenamiento", label: "Último entrenamiento" },
   { key: "cambio", label: "Último cambio" },
   { key: "1", label: "1 semana" },
   { key: "2", label: "2 semanas" },
@@ -750,7 +754,14 @@ function WhatToTrain({
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
         <span className="text-xs text-[var(--muted)]">
-          {t("juveniles.cuantoSeMovio", "Cuánto se movió cada puntaje desde")}
+          {t("juveniles.cuantoSeMovio", "Cuánto se movió cada puntaje desde")}{" "}
+          {movimiento.data?.since && (
+            <span className="ml-1 text-[var(--text)]">
+              {t("juveniles.desdeFecha", "el {{fecha}}", {
+                fecha: dateTime(movimiento.data.since),
+              })}
+            </span>
+          )}
         </span>
         <Tabs
           modo="filtro"
@@ -774,10 +785,18 @@ function WhatToTrain({
         <div className="border-b border-[var(--border)] px-4 py-2 text-xs leading-relaxed text-[var(--muted)]">
           {sinBase ? (
             <>
-              {t(
-                "juveniles.sinHistorico",
-                "No hay histórico tan atrás: los puntajes se enseñan quietos.",
-              )}
+              {/* Dos motivos distintos para el mismo silencio. Si lo que falta
+                  es la fecha del partido de entrenamiento juvenil, decir «no
+                  hay histórico tan atrás» manda a buscar donde no es. */}
+              {ventana === "entrenamiento" && !movimiento.data?.since
+                ? t(
+                    "juveniles.sinCitaJuvenil",
+                    "Todavía no se sabe cuándo entrenó la cantera: sincroniza y sale la fecha de su próximo partido de entrenamiento.",
+                  )
+                : t(
+                    "juveniles.sinHistorico",
+                    "No hay histórico tan atrás: los puntajes se enseñan quietos.",
+                  )}
             </>
           ) : (
             <>{explicaElMovimiento(resumen!)}</>
