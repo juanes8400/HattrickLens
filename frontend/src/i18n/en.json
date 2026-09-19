@@ -226,6 +226,8 @@
     "verEconomia": "See Finances →",
     "subidas": "Recent skill-ups",
     "ultimaSemana": "last week",
+    "subidasDeTotal": "{{vistas}} of {{total}}",
+    "verTodasLasSubidas": "see every skill-up",
     "sinSubidas": "No skill-ups this week."
   },
   "entrenamiento": {

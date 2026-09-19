@@ -27,6 +27,7 @@ import {
 } from "../hooks/useTeam";
 import { date, decimal, money, number } from "../hooks/useFormat";
 import { chiCuadrado } from "../utils/chiCuadrado";
+import { useAsentado } from "../hooks/useAsentado";
 import { usePersistido } from "../hooks/usePersistido";
 import type {
   Academy,
@@ -643,22 +644,30 @@ function WhatToTrain({
   // dos hablan de la misma ventana sin tener que subir el estado a la página
   // (2026-09-04, pedido del usuario).
   const [ventana, setVentana] = usePersistido("juveniles.ventana", "cambio");
+  // Los mandos se mueven al instante y la pregunta al servidor espera a que
+  // pares. Arrastrar una barra disparaba una peticion por pixel --ocho en dos
+  // segundos, cada una rehaciendo la tabla entera--, y con la respuesta lenta
+  // eso se siente como un mando que no responde (QA del 2026-09-19).
+  const soonAsentado = useAsentado(soonMaxDays);
+  const baseAsentada = useAsentado(weightBase);
+  const trainableAsentado = useAsentado(trainable);
+  const bonusAsentado = useAsentado(bonusWeight);
   const tuned = useAcademySkillScores({
-    soonMaxDays,
-    weightBase,
+    soonMaxDays: soonAsentado,
+    weightBase: baseAsentada,
     trainableMethod,
-    trainable,
-    trainableWeight: bonusWeight,
+    trainable: trainableAsentado,
+    trainableWeight: bonusAsentado,
   });
   // Los MISMOS parámetros: un puntaje de antes calculado con otra opinión no
   // se puede restar del de ahora.
   const movimiento = useAcademyComparativa({
     ventana,
-    soonMaxDays,
-    weightBase,
+    soonMaxDays: soonAsentado,
+    weightBase: baseAsentada,
     trainableMethod,
-    trainable,
-    trainableWeight: bonusWeight,
+    trainable: trainableAsentado,
+    trainableWeight: bonusAsentado,
   });
   const deltas = new Map(
     (movimiento.data?.scores ?? []).map((x) => [x.skill, x.delta]),
@@ -674,6 +683,12 @@ function WhatToTrain({
   const weights = tuned.data?.weights ?? {};
   const trainableWeight = tuned.data?.trainableWeight;
   const suggestedWeight = tuned.data?.suggestedTrainableWeight;
+  // Lo que marca el mando del bonus AHORA. Antes se leia del servidor, y como
+  // la respuesta tarda, la barra volvia sola al valor anterior mientras
+  // llegaba: al soltarla disparaba un cambio con el valor viejo, que se
+  // guardaba, y el mando quedaba clavado. Quien manda es el estado; el
+  // servidor solo confirma (2026-09-19, reproducido).
+  const pesoDelBonus = bonusWeight ?? trainableWeight ?? suggestedWeight ?? 0;
   const isManual = trainableMethod === "edit";
 
   // Mientras llega la primera respuesta se pinta lo que ya trajo /academy con
@@ -712,7 +727,10 @@ function WhatToTrain({
   const bonusEsElSugerido =
     bonusWeight === null ||
     suggestedWeight == null ||
-    Math.abs(bonusWeight - suggestedWeight) < 1e-6;
+    // Medio paso del mando: el deslizador solo llega a milesimas y el sugerido
+    // casi nunca lo es (0.1111...), asi que con 1e-6 decia "no coincide"
+    // aunque el mando estuviera en el punto mas cercano que puede marcar.
+    Math.abs(bonusWeight - suggestedWeight) < 5e-4;
   const isDefault =
     soonMaxDays === DEFAULT_SOON_MAX_DAYS &&
     weightBase === DEFAULT_WEIGHT_BASE &&
@@ -1053,7 +1071,7 @@ function WhatToTrain({
                 {t("juveniles.pesoBonus", "Peso del bonus personalizado")}
               </span>
               <b className="shrink-0 tabular-nums">
-                {formatWeight(trainableWeight)}
+                {formatWeight(pesoDelBonus)}
               </b>
             </div>
             <input
@@ -1061,7 +1079,7 @@ function WhatToTrain({
               min={0}
               max={1}
               step={0.001}
-              value={trainableWeight ?? 0}
+              value={pesoDelBonus}
               onChange={(e) => setBonusWeight(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--youth-known)]"
             />

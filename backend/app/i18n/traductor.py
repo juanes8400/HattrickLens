@@ -51,6 +51,8 @@ CAMPOS_INTOCABLES = frozenset(
         "display",
         "region",
         "code",
+        # El codigo ISO de la bandera: dos letras que no son una palabra.
+        "countryCode",
         "id",
         "live",
         "href",

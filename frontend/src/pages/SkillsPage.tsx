@@ -12,7 +12,9 @@ import {
   Panel,
   SinDatos,
 } from "../components/Panels";
-import { useSkills } from "../hooks/useTeam";
+import { useSkills, useTeamOverview } from "../hooks/useTeam";
+import { MejorPosicion } from "../components/MejorPosicion";
+import { CountryFlag } from "../components/CountryFlag";
 import { skillLevelLabel } from "../utils/skillLevels";
 import {
   Specialty,
@@ -160,11 +162,18 @@ export function SkillsPage() {
     centrales,
     medios,
   );
+  // La cancha de «Mejor posición» se calcula con las medias de la plantilla,
+  // que viven en otra consulta. Se pide aparte a propósito: si tarda o falla,
+  // el resto de la pantalla no espera ni se cae, simplemente no sale.
+  const overview = useTeamOverview();
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
   if (!data) return <SinDatos />;
 
+  const mejorPosicion = overview.data?.groups.find(
+    (g) => g.key === "best_position",
+  );
   const hayOnce = data.players.some((p) => p.inLineup);
   const vistaReal: Vista = vista === "once" && !hayOnce ? "todos" : vista;
   const jugadores = data.players.filter((p) =>
@@ -390,17 +399,27 @@ export function SkillsPage() {
                     )}
                     <tr className="group">
                       <td className="sticky left-0 z-10 truncate rounded bg-[var(--surface)] py-1 pl-2 pr-3 text-right group-hover:bg-[var(--accent-soft)]">
-                        <Link
-                          to={`/players/${p.htPlayerId}`}
-                          className="hover:underline"
-                        >
-                          {p.name}
-                        </Link>
-                        {p.injured && (
-                          <span className="ml-1.5 text-[var(--danger)]">
-                            {t("habilidades.lesionado", "lesionado")}
-                          </span>
-                        )}
+                        {/* La bandera va pegada a la izquierda del nombre
+                            (2026-09-19, pedido del usuario): la columna está
+                            alineada a la derecha, así que las dos cosas se
+                            quedan juntas contra la tabla. */}
+                        <span className="inline-flex items-center gap-1.5">
+                          <CountryFlag
+                            code={p.countryCode}
+                            country={p.nativeLeagueName}
+                          />
+                          <Link
+                            to={`/players/${p.htPlayerId}`}
+                            className="hover:underline"
+                          >
+                            {p.name}
+                          </Link>
+                          {p.injured && (
+                            <span className="text-[var(--danger)]">
+                              {t("habilidades.lesionado", "lesionado")}
+                            </span>
+                          )}
+                        </span>
                       </td>
                       {data.skills.map((s) => {
                         const nivel = p.skills[clave(s.key)] ?? 0;
@@ -458,6 +477,22 @@ export function SkillsPage() {
           </span>
         </div>
       </Panel>
+
+      {/* MEJOR POSICIÓN (2026-09-19, pedido del usuario): estaba en la
+          pantalla de Habilidades y su sitio es este. El mapa de arriba dice
+          qué niveles tiene cada jugador; la cancha dice para qué puesto
+          sirve, que es la misma pregunta vista desde el campo. */}
+      {mejorPosicion && (
+        <Panel
+          title={mejorPosicion.label}
+          meta={t("comun.nJugadores", "{{n}} jugadores", {
+            n: overview.data?.playerCount ?? data.players.length,
+          })}
+        >
+          <MejorPosicion group={mejorPosicion} />
+          {mejorPosicion.note && <Note>{mejorPosicion.note}</Note>}
+        </Panel>
+      )}
 
       {/* PROFUNDIDAD POR PUESTO (2026-09-14, pedido del usuario): no se
           compara al mejor con el segundo mejor --que suele ser titular

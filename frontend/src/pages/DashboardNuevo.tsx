@@ -797,6 +797,9 @@ function CajaProyectada({
   );
 }
 
+//: Cuantas subidas caben en la portada sin convertirla en una lista larga.
+const SUBIDAS_EN_PORTADA = 5;
+
 /** Las subidas de habilidad de la última semana, de más reciente a más vieja. */
 function SubidasRecientes() {
   const { t } = useTranslation();
@@ -811,12 +814,36 @@ function SubidasRecientes() {
       </Panel>
     );
   }
-  const subidas = (cambios.data?.skillChanges ?? [])
+  const todas = (cambios.data?.skillChanges ?? [])
     .filter((c) => (c.delta ?? 0) > 0 && !c.isYouth)
-    .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt))
-    .slice(0, 5);
+    .sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
+  const subidas = todas.slice(0, SUBIDAS_EN_PORTADA);
+  // Un entrenamiento normal deja bastante mas de cinco subidas --diecisiete
+  // en la semana del 15 de septiembre--, y el panel se quedaba con cinco sin
+  // decirlo: parecia que HT Lens solo traia parte de los cambios. Aqui caben
+  // cinco, pero el numero entero se dice y se enlaza (2026-09-19).
+  const hayMas = todas.length > subidas.length;
   return (
-    <Panel title={titulo} meta={t("dashboard.ultimaSemana", "última semana")}>
+    <Panel
+      title={titulo}
+      meta={
+        <span className="flex items-baseline gap-2">
+          {t("dashboard.ultimaSemana", "última semana")}
+          {hayMas && (
+            <Link
+              to="/sync"
+              className="text-[var(--accent)] hover:underline"
+              title={t("dashboard.verTodasLasSubidas", "ver todas las subidas")}
+            >
+              {t("dashboard.subidasDeTotal", "{{vistas}} de {{total}}", {
+                vistas: subidas.length,
+                total: todas.length,
+              })}
+            </Link>
+          )}
+        </span>
+      }
+    >
       {subidas.length === 0 ? (
         <Empty>
           {t("dashboard.sinSubidas", "Ninguna subida esta semana.")}

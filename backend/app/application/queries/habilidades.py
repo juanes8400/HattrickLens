@@ -163,6 +163,11 @@ class Jugador:
     position_code: int | None = None
     behaviour: int | None = None
     in_lineup: bool = False
+    #: De donde es, para la bandera de la tabla. El codigo sale del mundo
+    #: (`country_code`) y el nombre de la liga natal, de la ficha: son las dos
+    #: mismas fuentes que usa la pantalla de Posiciones.
+    country_code: str | None = None
+    native_league_name: str | None = None
     #: Lo que el motor de Posiciones usa además de las habilidades: forma,
     #: condición, experiencia, fidelidad, liderazgo y especialidad.
     motor: dict[str, Any] = field(default_factory=dict)
@@ -185,6 +190,8 @@ class FilaJugador:
     specialty: str
     injured: bool
     in_lineup: bool
+    country_code: str | None
+    native_league_name: str | None
 
 
 @dataclass
@@ -577,6 +584,8 @@ def fila(j: Jugador) -> FilaJugador:
         specialty=SPECIALTIES.get(j.specialty, "") if j.specialty else "",
         injured=j.injured,
         in_lineup=j.in_lineup,
+        country_code=j.country_code,
+        native_league_name=j.native_league_name,
     )
 
 
@@ -665,6 +674,18 @@ class HabilidadesQueryService:
             except (ValueError, TypeError, KeyError):
                 titulares = {}
 
+        # El codigo de pais de cada CountryID, igual que en la plantilla.
+        codigos_de_pais = {
+            int(country_id): str(country_code).upper()
+            for country_id, country_code in (
+                await self._s.execute(
+                    select(m.WorldContext.country_id, m.WorldContext.country_code).where(
+                        m.WorldContext.country_code != ""
+                    )
+                )
+            ).all()
+        }
+
         jugadores: list[Jugador] = []
         for snap, jugador in filas:
             titular = titulares.get(jugador.ht_player_id)
@@ -694,6 +715,8 @@ class HabilidadesQueryService:
                         else titular[1]
                     ),
                     in_lineup=titular is not None if titulares else jugo_el_ultimo,
+                    country_code=codigos_de_pais.get(snap.country_id),
+                    native_league_name=jugador.native_league_name,
                     motor={
                         "form": snap.form,
                         "stamina": snap.stamina,

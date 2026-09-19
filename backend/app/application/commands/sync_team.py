@@ -611,6 +611,9 @@ class SyncTeamHandler:
         self._chpp = chpp
         #: La fila de la sincronización en marcha, para cerrarla si algo revienta.
         self._fila_en_curso: int | None = None
+        # Se levanta si Hattrick contesta con la cantera de otro club: a
+        # partir de ahi los ficheros juveniles de ese sync no se tocan.
+        self._academia_ajena = False
 
     async def execute(
         self, cmd: SyncTeamCommand, on_progress: ProgressReporter | None = None
@@ -634,6 +637,7 @@ class SyncTeamHandler:
             # rastro: en producción faltaban siete ids en `syncs`.
             await uow.commit()
             self._fila_en_curso = sync_id
+            self._academia_ajena = False
             result = SyncResult(sync_id=sync_id, status="completed")
             captured_at = datetime.now(UTC)
 
@@ -643,23 +647,33 @@ class SyncTeamHandler:
                     params: dict[str, Any] = {"teamID": cmd.ht_team_id}
                     if file in ("leaguedetails", "leaguefixtures"):
                         params = {"leagueLevelUnitID": await self._series_ht_id(uow, cmd.team_id)}
-                    elif file == "youthplayerlist":
-                        # Sin `actionType=details` el fichero trae sólo las
-                        # identidades: ni niveles ni techos, y el motor de
-                        # academia se queda sin nada que evaluar. No lleva
-                        # teamID, CHPP resuelve el equipo juvenil del usuario.
-                        params = {"actionType": "details", "showLastMatch": "true"}
-                    elif file == "youthteamdetails":
-                        # Igual que el anterior: sin teamID, CHPP devuelve la
-                        # academia del usuario autenticado (verificado en vivo).
-                        #
-                        # `showScouts`: sin el, el fichero NO trae ojeadores en
-                        # ninguna version --comprobado de la 1.0 a la 1.3-- y
-                        # sin ellos no hay fecha de contratacion, que es lo que
-                        # sostiene la cuenta de cada uno.
-                        params = {"showScouts": "true"}
-                    if file == "youthplayerlist":
-                        await self._desbloquear_habilidades(result)
+                    elif file in ("youthteamdetails", "youthplayerlist"):
+                        # La cantera se pide POR SU ID. Una cuenta de Hattrick
+                        # puede llevar varios clubes y cada uno tiene la suya;
+                        # sin `youthTeamId` estos dos ficheros devuelven la del
+                        # club principal, y por eso los juveniles del primer
+                        # equipo salian tambien como los del segundo (lo
+                        # reporto un usuario, 2026-09-19).
+                        academia = await self._academia_del_equipo(uow, cmd.team_id)
+                        if self._academia_ajena:
+                            # La comprobacion de `youthteamdetails` fallo: lo
+                            # que contesta Hattrick no es de este club.
+                            continue
+                        if file == "youthplayerlist":
+                            # Sin `actionType=details` el fichero trae sólo las
+                            # identidades: ni niveles ni techos, y el motor de
+                            # academia se queda sin nada que evaluar.
+                            params = {"actionType": "details", "showLastMatch": "true"}
+                        else:
+                            # `showScouts`: sin el, el fichero NO trae ojeadores
+                            # en ninguna version --comprobado de la 1.0 a la
+                            # 1.3-- y sin ellos no hay fecha de contratacion,
+                            # que es lo que sostiene la cuenta de cada uno.
+                            params = {"showScouts": "true"}
+                        if academia:
+                            params["youthTeamId"] = academia
+                        if file == "youthplayerlist":
+                            await self._desbloquear_habilidades(result, academia)
                     payload = await self._chpp.fetch(
                         file, version=FILE_VERSIONS.get(file, "latest"), **params
                     )
@@ -4289,7 +4303,23 @@ class SyncTeamHandler:
             )
         return int(team.series_ht_id)
 
-    async def _desbloquear_habilidades(self, result: SyncResult) -> None:
+    async def _academia_del_equipo(self, uow: UnitOfWork, team_id: int) -> int | None:
+        """El id de la cantera de ESTE club, tal y como lo dio `teamdetails`.
+
+        `None` = todavia no se sabe (el club se sincronizo con una version
+        anterior de HT Lens); `0` = este club no tiene cantera; cualquier otro
+        numero es la suya. La diferencia importa: con `None` se pregunta como
+        siempre, y quien avisa de un cruce es la comprobacion del club dueno
+        al guardar `youthteamdetails`.
+        """
+        from app.infrastructure.db import models as m
+
+        team = await uow.session.get(m.Team, team_id)
+        return None if team is None else team.ht_youth_team_id
+
+    async def _desbloquear_habilidades(
+        self, result: SyncResult, academia: int | None = None
+    ) -> None:
         """Revela las habilidades de TODOS los juveniles, en una sola llamada.
 
         `actionType=unlockskills` no lleva `youthPlayerID`: destapa el equipo
@@ -4308,7 +4338,12 @@ class SyncTeamHandler:
         seria peor.
         """
         try:
-            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills")
+            # Con el id de la cantera: revelar es escribir, y sin el se
+            # escribiria sobre la academia del club principal.
+            extra = {"youthTeamId": academia} if academia else {}
+            await self._chpp.fetch(
+                "youthplayerlist", "latest", actionType="unlockskills", **extra
+            )
         except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
                 "unlockskills: no se pudieron revelar las habilidades juveniles "
@@ -4393,6 +4428,28 @@ class SyncTeamHandler:
             from app.infrastructure.db import models as m
 
             team = await uow.session.get(m.Team, team_id)
+            # De quien es la cantera que contesto Hattrick. Si no es la de
+            # este club no se guarda NADA: es justo el cruce que metia los
+            # juveniles del equipo principal en el segundo equipo, y vale mas
+            # un sync parcial y ruidoso que datos ajenos guardados en silencio.
+            madre = payload.get("mother_team_id") or 0
+            if madre and ht_team_id and madre != ht_team_id:
+                self._academia_ajena = True
+                if team is not None and team.ht_youth_team_id == 0:
+                    # Este club no tiene cantera y Hattrick contesta con la
+                    # del principal. Es lo esperado, no un fallo: se descarta
+                    # sin ensuciar el parte de la sincronizacion.
+                    return
+                # El aviso se escribe aqui, y no lanzando: asi es una frase
+                # entera --sin el nombre del fichero delante-- que se puede
+                # leer y traducir.
+                ajena = payload.get("mother_team_name") or ""
+                result.errors.append(
+                    "La cantera que contestó Hattrick es la de {}, no la de "
+                    "este club: no se guardó nada.".format(ajena or "otro club")
+                )
+                result.status = "partial"
+                return
             if team is not None and payload.get("ht_youth_team_id"):
                 team.ht_youth_team_id = payload["ht_youth_team_id"]
                 team.youth_team_name = payload.get("youth_team_name") or None
@@ -4877,6 +4934,10 @@ class SyncTeamHandler:
                 youth.specialty = row.get("specialty") or 0
                 # Si había salido y vuelve a aparecer, sigue en la academia.
                 youth.left_at = None
+                # Y si estaba apuntado a otro club de la cuenta, vuelve al
+                # suyo: el juvenil pertenece al club cuya lista lo trae. Asi
+                # se repara solo lo que sembro la cantera compartida.
+                youth.team_id = team_id
 
             values = {f: row.get(f) for f in self.YOUTH_SNAPSHOT_FIELDS}
             new_hash = hashlib.sha256(
@@ -5766,6 +5827,7 @@ class SyncTeamHandler:
             row.series_name,
             row.series_ht_id,
             row.ht_league_id,
+            row.ht_youth_team_id,
             row.still_in_cup,
             row.current_cup_id,
             row.current_cup_match_round,
@@ -5777,6 +5839,17 @@ class SyncTeamHandler:
         row.series_name = team.get("series_name") or row.series_name
         row.series_ht_id = team.get("series_ht_id") or row.series_ht_id
         row.ht_league_id = team.get("ht_league_id") or row.ht_league_id
+        # La cantera de ESTE club. Se guarda tambien el 0: "este club no tiene
+        # academia" es un dato, y es el que evita pedirla y recibir la del
+        # club principal. `None` = el fichero no lo trajo, no se toca nada.
+        cantera = team.get("ht_youth_team_id")
+        if cantera is not None:
+            row.ht_youth_team_id = cantera
+            if cantera:
+                row.youth_team_name = team.get("youth_team_name") or row.youth_team_name
+            else:
+                row.youth_team_name = None
+                row.youth_academy_created_at = None
         founded_at = _parse_dt(team.get("founded_at"))
         if founded_at is not None:
             current_founded = row.founded_at
@@ -5812,6 +5885,7 @@ class SyncTeamHandler:
             row.series_name,
             row.series_ht_id,
             row.ht_league_id,
+            row.ht_youth_team_id,
             row.still_in_cup,
             row.current_cup_id,
             row.current_cup_match_round,

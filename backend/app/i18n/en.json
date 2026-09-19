@@ -1711,5 +1711,7 @@
  "λ tuya = 0,902 + 0,666 = 1,567 goles esperados.": "Your λ = 0.902 + 0.666 = 1.567 expected goals.",
  "λ tuya = 1,633 y λ suya = 2,641, del paso anterior.": "Your λ = 1.633 and their λ = 2.641, from the previous step.",
  "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_home    = attack_i · defence_j · league_mean · home_advantage\nλ_away    = attack_j · defence_i · league_mean\n\nstrength_i = (goals_i + K · mean) ÷ (matches_i + K)\n\nP(position) ≈ Monte Carlo over the remaining rounds",
- "← el que se usa": "← the one used"
+ "← el que se usa": "← the one used",
+ "La cantera que contestó Hattrick es la de {}, no la de este club: no se guardó nada.": "The youth squad Hattrick answered with belongs to {}, not to this club: nothing was saved.",
+ "otro club": "another club"
 }
