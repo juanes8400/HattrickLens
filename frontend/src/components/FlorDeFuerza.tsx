@@ -7,7 +7,7 @@ import {
   useLeagueComparison,
   useSectoresRecientes,
 } from "../hooks/useTeam";
-import { decimal, number } from "../hooks/useFormat";
+import { decimal, number, ordinal } from "../hooks/useFormat";
 
 /**
  * La flor de fuerza del Dashboard (2026-09-13, sustituye al radar).
@@ -278,7 +278,7 @@ export function FlorDeFuerza() {
         liga.outlook.map((o) => [o.htTeamId, o.expectedPosition]),
       ),
       menorEsMejor: true,
-      formato: (v) => t("flor.puesto", "{{v}}º", { v: decimal(v, 2) }),
+      formato: (v) => t("flor.puesto", "{{v}}", { v: ordinal(decimal(v, 2)) }),
       frase: (mio) =>
         t(
           "flor.frasePosicion",
@@ -491,9 +491,9 @@ function Porque({
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
       <div className="mb-1 flex items-baseline justify-between font-semibold">
         <span>
-          {t("flor.puestoDe", "{{petalo}} · {{puesto}}º de {{total}}", {
+          {t("flor.puestoDe", "{{petalo}} · {{puesto}} de {{total}}", {
             petalo: petalo.nombre,
-            puesto,
+            puesto: ordinal(puesto),
             total: lista.length,
           })}
         </span>

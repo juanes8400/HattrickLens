@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.api.cache_por_sync import por_sync
+from app.domain.value_objects.formatting import idioma_de_la_peticion
 from app.infrastructure.db import models as m
 from tests.test_sync_flow import _setup
 
@@ -96,5 +97,34 @@ def test_un_fallo_no_se_guarda() -> None:
             with pytest.raises(RuntimeError):
                 await por_sync(u.session, team_id, "prueba", (), calcular)
             assert await por_sync(u.session, team_id, "prueba", (), calcular) == "bien"
+
+    asyncio.run(run())
+
+
+def test_cada_idioma_tiene_lo_suyo() -> None:
+    """Lo guardado lleva texto ya escrito: «453.910» o «453,910» según el
+    idioma de quien lo pidió. Compartir la entrada le dejaba a uno los
+    números del otro (2026-09-19)."""
+
+    async def run() -> None:
+        uow, _unused, team_id = await _setup()
+        await _sync(uow, team_id, "completed")
+        calculos = 0
+
+        async def calcular() -> str:
+            nonlocal calculos
+            calculos += 1
+            return idioma_de_la_peticion.get()
+
+        async with uow as u:
+            assert await por_sync(u.session, team_id, "prueba", (), calcular) == "es"
+            ficha = idioma_de_la_peticion.set("en")
+            try:
+                assert await por_sync(u.session, team_id, "prueba", (), calcular) == "en"
+            finally:
+                idioma_de_la_peticion.reset(ficha)
+            # Y el español sigue servido de su propia entrada, sin recalcular.
+            assert await por_sync(u.session, team_id, "prueba", (), calcular) == "es"
+        assert calculos == 2
 
     asyncio.run(run())

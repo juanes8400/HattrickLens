@@ -15,6 +15,7 @@ from typing import Any
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.domain.value_objects.formatting import idioma_de_la_peticion
 from app.i18n.traductor import Traductor, idioma_de, traductor
 
 
@@ -28,6 +29,9 @@ class TraducirRespuestas:
             return
         cabeceras = dict(scope.get("headers") or [])
         idioma = idioma_de(cabeceras.get(b"accept-language", b"").decode("latin-1"))
+        # Los números se escriben ANTES de traducir, así que el formateador
+        # tiene que saber en qué idioma se está respondiendo.
+        idioma_de_la_peticion.set(idioma)
         tr = traductor(idioma)
         if tr is None:
             # También en español se declara que la respuesta depende del

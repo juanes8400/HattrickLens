@@ -1,11 +1,30 @@
 import i18n from "../i18n";
 
-// Separador de miles único para toda la aplicación. No dependemos del locale
-// disponible en el navegador: el formato visible siempre es 1.234.567.
+// Separador de miles: punto en español y coma en inglés (2026-09-16, pedido
+// del usuario). No sale del locale del navegador sino del idioma elegido,
+// que es lo que el usuario está leyendo. Los decimales no cambian: punto
+// siempre, en los dos idiomas.
+const separadorDeMiles = () => (i18n.language?.startsWith("en") ? "," : ".");
+
 export const number = (v: number) =>
   Math.round(v)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    .replace(/\B(?=(\d{3})+(?!\d))/g, separadorDeMiles());
+
+/** El ordinal como se dice en cada idioma: «3º» y «3rd».
+ *
+ *  Un número con decimales no es un ordinal: «1.44º» en español es la
+ *  posición media de la simulación y se escribe así, pero «1.44th» no
+ *  existe en inglés, así que allí va el número solo. */
+export const ordinal = (v: number | string) => {
+  const n = Number(v);
+  if (!i18n.language?.startsWith("en")) return `${v}º`;
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return String(v);
+  const resto = Math.abs(n) % 100;
+  if (resto >= 11 && resto <= 13) return `${v}th`;
+  const sufijo = { 1: "st", 2: "nd", 3: "rd" }[Math.abs(n) % 10] ?? "th";
+  return `${v}${sufijo}`;
+};
 
 // Una cifra que puede llegar como número o como texto: un TSI es 207890 y un
 // nivel de confianza es «Excelente». Los enteros se formatean; el texto pasa

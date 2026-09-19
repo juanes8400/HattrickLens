@@ -25,7 +25,7 @@ import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
 import { PITCH_ZONE_METHODS } from "../components/pitchZoneMethods";
 import { TsiHistogramPanel } from "../components/TsiHistogramPanel";
-import { number } from "../hooks/useFormat";
+import { number, ordinal } from "../hooks/useFormat";
 import { useIsDarkTheme } from "../hooks/useTheme";
 import {
   useLeague,
@@ -140,7 +140,7 @@ export function LeaguePage() {
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
                 <Kpi
                   label={tx("Posición actual")}
-                  value={`${own.currentPosition}º`}
+                  value={ordinal(own.currentPosition)}
                   hint={tx("{{v0}} puntos · jornada {{v1}}", {
                     v0: own.currentPoints,
                     v1: data.roundsPlayed,
@@ -191,8 +191,8 @@ export function LeaguePage() {
               <Kpi
                 label={tx("Posición esperada")}
                 value={own.expectedPosition.toFixed(1)}
-                hint={tx("más probable: {{v0}}º", {
-                  v0: own.mostLikelyPosition,
+                hint={tx("más probable: {{v0}}", {
+                  v0: ordinal(own.mostLikelyPosition),
                 })}
               />
               <Kpi
@@ -291,7 +291,10 @@ export function LeaguePage() {
                     formatter: (p: TooltipComponentFormatterCallbackParams) => {
                       const item = Array.isArray(p) ? p[0] : p;
                       if (!item) return "";
-                      return `${item.name}º puesto: ${Number(item.value).toFixed(1)}%`;
+                      return tx("{{v0}} puesto: {{v1}}%", {
+                        v0: ordinal(String(item.name)),
+                        v1: Number(item.value).toFixed(1),
+                      });
                     },
                   },
                   series: [

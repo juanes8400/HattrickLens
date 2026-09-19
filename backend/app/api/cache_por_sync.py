@@ -15,6 +15,10 @@ Tres detalles que importan:
     piden la misma Liga--, se calcula UNA vez y la segunda espera.
   · La base de datos va en la clave. En producción hay una sola; en las
     pruebas cada una crea la suya con los mismos ids, y sin esto se pisarían.
+  · Y el idioma de la petición (2026-09-19). Lo guardado lleva texto ya
+    escrito, con sus números: «453.910» en español y «453,910» en inglés. Sin
+    el idioma en la clave, el primero que pidiera una pantalla le dejaba sus
+    números al otro.
 """
 
 import asyncio
@@ -25,6 +29,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.value_objects.formatting import idioma_de_la_peticion
 from app.infrastructure.db import models as m
 
 #: Tope de vida aunque no llegue un sync nuevo: lo que dependa de la fecha de
@@ -66,7 +71,14 @@ async def por_sync(
     if session is None:
         return await calcular()
     base = id(getattr(session, "bind", None))
-    clave = (base, nombre, team_id, await ultimo_sync_terminado(session, team_id), parametros)
+    clave = (
+        base,
+        nombre,
+        team_id,
+        await ultimo_sync_terminado(session, team_id),
+        parametros,
+        idioma_de_la_peticion.get(),
+    )
     guardado = _memoria.get(clave)
     if guardado is not None and time.monotonic() - guardado[0] < ttl:
         return guardado[1]

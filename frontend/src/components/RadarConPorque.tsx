@@ -3,7 +3,7 @@ import { Chart } from "../charts/Chart";
 import { radarOption } from "../charts/chartOptions";
 import { Empty, Loading, Note, Panel } from "./Panels";
 import { useLeague, useLeagueComparison } from "../hooks/useTeam";
-import { decimal, number } from "../hooks/useFormat";
+import { decimal, number, ordinal } from "../hooks/useFormat";
 
 import { tx } from "../i18n/tx";
 /**
@@ -117,7 +117,10 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
     .sort((a, b) => b.prob - a.prob)
     .slice(0, 2)
     .map((x) =>
-      tx("{{v0}}º en el {{v1}} %", { v0: x.p, v1: Math.round(x.prob * 100) }),
+      tx("{{v0}} en el {{v1}} %", {
+        v0: ordinal(x.p),
+        v1: Math.round(x.prob * 100),
+      }),
     );
 
   // ── TSI en la liga ────────────────────────────────────────────────────
@@ -282,8 +285,8 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
           >
             <div className="mb-1 flex items-baseline justify-between font-semibold">
               <span>
-                {tx(globo.eje)} · {actual.puesto}
-                {tx("º de")} {n}
+                {tx(globo.eje)} · {ordinal(actual.puesto)}{" "}
+                {tx("de")} {n}
               </span>
               <span className="tabular-nums">{Math.round(actual.valor)}</span>
             </div>

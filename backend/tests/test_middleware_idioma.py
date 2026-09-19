@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
+from app.domain.value_objects.formatting import thousands
 from app.i18n.middleware import TraducirRespuestas, _con_vary
 
 
@@ -60,3 +61,21 @@ def test_vary_conserva_lo_que_traia() -> None:
     cabeceras = _con_vary([(b"vary", b"Origin"), (b"content-type", b"application/json")])
     assert (b"vary", b"Origin, Accept-Language") in cabeceras
     assert _con_vary([(b"vary", b"accept-language")]) == [(b"vary", b"accept-language")]
+
+
+def test_los_numeros_los_escribe_el_idioma_de_la_peticion() -> None:
+    """El texto se traduce al salir, pero los números ya venían escritos."""
+    app = FastAPI()
+
+    @app.get("/api/v1/numero")
+    def numero() -> dict[str, str]:
+        return {"message": thousands(9870896)}
+
+    app.add_middleware(TraducirRespuestas)
+    cliente = TestClient(app)
+    assert cliente.get("/api/v1/numero", headers={"Accept-Language": "en"}).json() == {
+        "message": "9,870,896"
+    }
+    assert cliente.get("/api/v1/numero", headers={"Accept-Language": "es"}).json() == {
+        "message": "9.870.896"
+    }
