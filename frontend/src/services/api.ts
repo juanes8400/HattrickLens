@@ -205,38 +205,6 @@ export const api = {
     const qs = q.toString();
     return request<Lineup>(`/teams/${teamId}/lineup${qs ? `?${qs}` : ""}`);
   },
-  /** Manda el once a Hattrick. Con `ensayo` sólo pide la predicción: se
-   *  comprueba que Hattrick entiende la alineación sin guardarla. */
-  enviarAlineacion: (
-    teamId: number,
-    opciones: {
-      formation?: string;
-      centralDefenders?: number;
-      innerMidfielders?: number;
-      orders?: Record<number, string>;
-      exclude?: number[];
-      ensayo: boolean;
-    },
-  ) => {
-    const q = new URLSearchParams();
-    if (opciones.formation) q.set("formation", opciones.formation);
-    if (opciones.centralDefenders != null)
-      q.set("central_defenders", String(opciones.centralDefenders));
-    if (opciones.innerMidfielders != null)
-      q.set("inner_midfielders", String(opciones.innerMidfielders));
-    const fijadas = Object.entries(opciones.orders ?? {});
-    if (fijadas.length > 0) {
-      q.set("orders", fijadas.map(([slot, pos]) => `${slot}:${pos}`).join(","));
-    }
-    if (opciones.exclude && opciones.exclude.length > 0) {
-      q.set("exclude", opciones.exclude.join(","));
-    }
-    q.set("ensayo", opciones.ensayo ? "true" : "false");
-    return request<EnvioDeAlineacion>(
-      `/teams/${teamId}/lineup/enviar?${q.toString()}`,
-      { method: "POST" },
-    );
-  },
   lineupHindsight: (teamId: number) =>
     request<LineupHindsight>(`/teams/${teamId}/lineup/hindsight`),
   teamSpiritMultiplier: (teamId: number) =>
@@ -848,21 +816,6 @@ export interface HindsightLine {
   proposedInstead: HindsightProposedPlayer[];
   usedCount: number;
   agreedCount: number;
-}
-
-/** La respuesta de enviar (o ensayar) una alineación en Hattrick. */
-export interface EnvioDeAlineacion {
-  ensayo: boolean;
-  htMatchId: number;
-  playedAt: string | null;
-  formation: string | null;
-  /** `true` sólo cuando Hattrick confirma que la guardó. */
-  guardada: boolean;
-  /** Lo que dijo Hattrick cuando no la guardó. */
-  motivo: string | null;
-  /** Los siete ratings que prevé para esta alineación, ya nombrados. */
-  prediccion: { sector: string; label: string; value: number }[] | null;
-  tactica: number | null;
 }
 
 export interface LineupHindsight {

@@ -748,7 +748,10 @@
     "subida": "{{habilidad}} for {{jugador}}: {{de}} → {{a}}",
     "subeUn": "the eleven's {{sector}} goes up {{pct}} %",
     "mayorEfecto": "Biggest effect",
-    "efectoMedio": "Medium effect"
+    "efectoMedio": "Medium effect",
+    "comoSeMiran": "How the positions are looked at",
+    "mejorPosicion": "Best position",
+    "mejorPosicionVacia": "It shows up once there are squad averages synced."
   },
   "alineacion": {
     "noSePuede": "The eleven can't be calculated",
@@ -796,16 +799,7 @@
     "lineaCoinciden": "{{a}}/{{b}} match",
     "optimizadorCoincide": "the optimiser agrees",
     "pondriaA": "The optimiser would put here {{jugadores}}",
-    "mismosJugadores": "The optimiser would have used the same players in every line.",
-    "enviar": "Send lineup",
-    "enviarExplica": "It gets tried out first: Hattrick reads this lineup and returns the ratings it predicts, without saving anything. If it looks right, the second button saves it and replaces whatever you have set.",
-    "probar": "Try it on Hattrick",
-    "probando": "Trying…",
-    "enviarAhora": "Send it and replace what I have set",
-    "enviando": "Sending…",
-    "enviada": "Lineup sent to Hattrick for the match on {{fecha}}.",
-    "prevePara": "Hattrick predicts for this lineup:",
-    "noGuardada": "Hattrick didn't save it."
+    "mismosJugadores": "The optimiser would have used the same players in every line."
   },
   "juveniles": {
     "intro": "Who deserves a place, who you'll lose soon and whether the academy pays off",

@@ -727,54 +727,6 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
                 }
             )
 
-    # Lo que el usuario ya tiene puesto y HT Lens NO propone: capitan,
-    # lanzador de faltas, penaltis, banquillo y cambios programados. Se lee
-    # para poder DEVOLVERLO intacto al enviar una alineacion: escribir el once
-    # no puede llevarse por delante el resto de sus ordenes (2026-09-19).
-    def _jugador_de(tag: str) -> int:
-        nodo = match_data.find(tag) if match_data is not None else None
-        return _int(nodo, "PlayerID") if nodo is not None else 0
-
-    bench: list[int] = []
-    kickers: list[int] = []
-    if available and match_data is not None:
-        bench = [
-            _int(j, "PlayerID")
-            for j in match_data.iterfind("./Lineup/Bench/Player")
-            if _int(j, "PlayerID") > 0
-        ]
-        kickers = [
-            _int(j, "PlayerID")
-            for j in match_data.iterfind("./Lineup/Kickers/Player")
-            if _int(j, "PlayerID") > 0
-        ]
-
-    # Los cambios programados, ya en la forma con la que se vuelven a enviar.
-    # Se traducen aqui y no al enviar para que el que envia no tenga que
-    # conocer dos contratos a la vez.
-    substitutions: list[dict[str, str]] = []
-    if match_data is not None:
-        for orden in match_data.iterfind("./PlayerOrders/PlayerOrder"):
-            substitutions.append(
-                {
-                    "playerin": str(_int(orden, "ObjectPlayerID")),
-                    "playerout": str(_int(orden, "SubjectPlayerID")),
-                    "orderType": str(_int(orden, "OrderType")),
-                    "min": str(_int(orden, "MatchMinuteCriteria")),
-                    "pos": str(_int(orden, "NewPositionId")),
-                    "beh": str(_int(orden, "NewPositionBehaviour")),
-                    "card": str(_int(orden, "RedCardCriteria")),
-                    "standing": str(_int(orden, "GoalDiffCriteria")),
-                }
-            )
-
-    # La respuesta a un envio: si se guardo y, cuando no, por que. Solo
-    # vienen con `actionType=setmatchorder` (2026-09-19).
-    orders_set: bool | None = None
-    if match_data is not None and "OrdersSet" in match_data.attrib:
-        orders_set = match_data.attrib["OrdersSet"].strip().lower() in ("true", "1")
-    reason = _txt(match_data, "Reason", "") if match_data is not None else ""
-
     coach_modifier: int | None = None
     if match_data is not None:
         coach = match_data.find("CoachModifier")
@@ -818,13 +770,6 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
         "tactic_type": _int(match_data, "TacticType") if match_data is not None else None,
         "coach_modifier": coach_modifier,
         "positions": positions,
-        "bench": bench,
-        "kickers": kickers,
-        "captain": _jugador_de("./Lineup/Captain"),
-        "set_pieces": _jugador_de("./Lineup/SetPieces"),
-        "substitutions": substitutions,
-        "orders_set": orders_set,
-        "reason": reason,
         "prediction": prediction,
     }
 

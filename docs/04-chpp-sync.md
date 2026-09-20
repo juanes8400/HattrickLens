@@ -36,7 +36,7 @@ Notas de implementación:
 
 - Cliente OAuth: `authlib` (OAuth1Session) con firma HMAC-SHA1.
 - Los tokens CHPP **no expiran** por tiempo, pero el usuario puede revocarlos en HT → capturar 401, marcar `chpp_tokens.status='revoked'`, pedir re-auth. "Renovación automática" = re-lanzar el dance solo cuando falla, con aviso al usuario.
-- Scopes CHPP: se piden los dos que HT Lens necesita para escribir, separados por coma (`manage_youthplayers,set_matchorder`). El primero revela las habilidades juveniles; el segundo, desde 2026-09-19, manda la alineación. Todo lo demás es de lectura. Un token ya emitido NO gana permisos: quien se conectó antes tiene que reconectar una vez para poder enviar la alineación.
+- Scopes CHPP: sólo se pide `manage_youthplayers`, que es lo que necesita revelar las habilidades juveniles. Todo lo demás es de lectura. Escribir la alineación se probó y funciona (`set_matchorder`), pero se retiró el 2026-09-20 a petición del usuario; si se retoma, ver el commit 2c07e14. Un token ya emitido NO gana permisos: añadir uno obliga a reconectar una vez.
 - User-Agent obligatorio: `HattrickLens/x.y.z`.
 - Multi-equipo: `teamdetails` devuelve todos los equipos del usuario; se crean filas en `user_teams`.
 

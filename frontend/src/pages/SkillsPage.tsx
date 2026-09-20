@@ -3,7 +3,7 @@ import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
-import { Tabs } from "../components/Tabs";
+import { PanelDePestanas, Tabs } from "../components/Tabs";
 import {
   ErrorState,
   Kpi,
@@ -155,6 +155,9 @@ export function SkillsPage() {
   const [vista, setVista] = useState<Vista>("once");
   // La formación de Profundidad: vacía = la del último partido oficial.
   const [formacion, setFormacion] = useState("");
+  const [vistaDePuestos, setVistaDePuestos] = useState<"profundidad" | "mejor">(
+    "profundidad",
+  );
   const [centrales, setCentrales] = useState<number | undefined>(undefined);
   const [medios, setMedios] = useState<number | undefined>(undefined);
   const { data, isLoading, isError, error } = useSkills(
@@ -478,280 +481,347 @@ export function SkillsPage() {
         </div>
       </Panel>
 
-      {/* PROFUNDIDAD POR PUESTO (2026-09-14, pedido del usuario): no se
-          compara al mejor con el segundo mejor --que suele ser titular
-          también--, sino con el mejor del BANQUILLO en ese puesto, que es
-          quien entraría de verdad. Ordenados por rendimiento en el puesto. */}
-      <Panel
-        title={t("habilidades.profundidad", "Profundidad")}
-        meta={t("habilidades.sinContarLesionados", "sin contar lesionados")}
+      {/* PROFUNDIDAD y MEJOR POSICIÓN se turnan (2026-09-20, pedido del
+          usuario): las dos contestan «quién cubre cada puesto», una por el
+          recambio y otra sobre la cancha, así que comparten hueco en vez de
+          apilarse y obligar a bajar hasta el final para comparar. */}
+      <Tabs
+        grupo="equipo-puestos"
+        label={t("habilidades.comoSeMiran", "Cómo se miran los puestos")}
+        tabs={[
+          {
+            key: "profundidad",
+            label: t("habilidades.profundidad", "Profundidad"),
+          },
+          {
+            key: "mejor",
+            label:
+              mejorPosicion?.label ??
+              t("habilidades.mejorPosicion", "Mejor posición"),
+          },
+        ]}
+        active={vistaDePuestos}
+        onChange={setVistaDePuestos}
+      />
+
+      <PanelDePestanas
+        grupo="equipo-puestos"
+        activa={vistaDePuestos}
+        className="space-y-4"
       >
-        {profundidadVigente.length === 0 ? (
-          <Note>
-            {t(
-              "habilidades.profundidadVacia",
-              "Aparece cuando haya un partido oficial con su alineación: de ahí salen los puestos y cuántos jugaron de cada uno.",
-            )}
-          </Note>
+        {vistaDePuestos === "mejor" ? (
+          mejorPosicion ? (
+            <Panel
+              title={mejorPosicion.label}
+              meta={t("comun.nJugadores", "{{n}} jugadores", {
+                n: overview.data?.playerCount ?? data.players.length,
+              })}
+            >
+              <MejorPosicion group={mejorPosicion} />
+              {mejorPosicion.note && <Note>{mejorPosicion.note}</Note>}
+            </Panel>
+          ) : (
+            <Panel title={t("habilidades.mejorPosicion", "Mejor posición")}>
+              <Note>
+                {t(
+                  "habilidades.mejorPosicionVacia",
+                  "Aparece en cuanto haya medias de la plantilla sincronizadas.",
+                )}
+              </Note>
+            </Panel>
+          )
         ) : (
-          <>
-            {/* LA FORMACIÓN SE ESCOGE (2026-09-14, pedido del usuario), con
+          <Panel
+            title={t("habilidades.profundidad", "Profundidad")}
+            meta={t("habilidades.sinContarLesionados", "sin contar lesionados")}
+          >
+            {profundidadVigente.length === 0 ? (
+              <Note>
+                {t(
+                  "habilidades.profundidadVacia",
+                  "Aparece cuando haya un partido oficial con su alineación: de ahí salen los puestos y cuántos jugaron de cada uno.",
+                )}
+              </Note>
+            ) : (
+              <>
+                {/* LA FORMACIÓN SE ESCOGE (2026-09-14, pedido del usuario), con
                 los mismos mandos que Alineación. Arranca en la del último
                 partido oficial y siempre dice cuál fue. */}
-            <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-3">
-              {/* Los mismos mandos que el mejor once del Dashboard: rótulo
+                <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+                  {/* Los mismos mandos que el mejor once del Dashboard: rótulo
                   «Formación» con su lista y, al lado, cuántos por dentro. */}
-              <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                {t("dashboard.formacion", "Formación")}
-                <select
-                  aria-label={t(
-                    "habilidades.formacionAria",
-                    "Formación para calcular la profundidad",
-                  )}
-                  value={data.depthFormation ?? ""}
-                  onChange={(e) => {
-                    const elegida = e.target.value;
-                    setFormacion(elegida === data.formation ? "" : elegida);
-                    setCentrales(undefined);
-                    setMedios(undefined);
-                  }}
-                  className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm text-[var(--text)]"
-                >
-                  {FORMATIONS.map((f) => (
-                    <option key={f} value={f}>
-                      {f === data.formation
-                        ? t(
-                            "habilidades.laUltimaOficial",
-                            "{{f}} · la última oficial",
-                            {
-                              f,
-                            },
-                          )
-                        : f}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <SplitSelector
-                label={defensasCentrales}
-                value={data.depthCentralDefenders ?? undefined}
-                options={data.centralDefenderOptions ?? []}
-                onChange={(v) => {
-                  setFormacion(data.depthFormation ?? "");
-                  setCentrales(v);
-                  setMedios(data.depthInnerMidfielders ?? undefined);
-                }}
-              />
-              <SplitSelector
-                label={mediocentros}
-                value={data.depthInnerMidfielders ?? undefined}
-                options={data.innerMidfielderOptions ?? []}
-                onChange={(v) => {
-                  setFormacion(data.depthFormation ?? "");
-                  setCentrales(data.depthCentralDefenders ?? undefined);
-                  setMedios(v);
-                }}
-              />
-              {!esLaUltima && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormacion("");
-                    setCentrales(undefined);
-                    setMedios(undefined);
-                  }}
-                  className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:border-[var(--accent)]"
-                >
-                  {t("habilidades.volverUltima", "Volver a la última oficial")}
-                </button>
-              )}
-            </div>
-            {data.formation && (
-              <p className="px-4 pt-2 text-sm">
-                <span
-                  className={
-                    esLaUltima ? "text-[var(--accent)]" : "text-[var(--muted)]"
-                  }
-                >
-                  {esLaUltima
-                    ? t(
-                        "habilidades.estasViendoUltima",
-                        "Estás viendo tu última formación oficial",
-                      )
-                    : t("habilidades.tuUltima", "Tu última formación oficial")}
-                  {data.lastMatchDate ? ` (${data.lastMatchDate})` : ""}:{" "}
-                </span>
-                <b>{data.formation}</b>{" "}
-                {t("habilidades.conReparto", "con {{dc}} y {{mc}}", {
-                  dc: `${data.lastCentralDefenders} ${
-                    data.lastCentralDefenders === 1
-                      ? t("comun.defensaCentralMayus", "Defensa Central")
-                      : defensasCentrales
-                  }`,
-                  mc: `${data.lastInnerMidfielders} ${
-                    data.lastInnerMidfielders === 1
-                      ? t("comun.mediocentro", "Mediocentro")
-                      : mediocentros
-                  }`,
-                })}
-              </p>
-            )}
-            <p className="prosa px-4 pt-2 text-sm text-[var(--muted)]">
-              {t(
-                "habilidades.explicacion",
-                "Si falta el mejor titular de un puesto (por lesión, venta o sanción), quién del banquillo entraría y cuánto rendimiento perderías. El rendimiento es el mismo de la pantalla Posiciones: tiene en cuenta todas las habilidades del puesto, la forma y la experiencia.",
-              )}
-            </p>
-            <div className="overflow-x-auto px-4 pb-4 pt-2">
-              <table className="w-full min-w-[40rem] text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
-                    <th className="py-2 pr-3 font-normal">
-                      {t("habilidades.puesto", "Puesto")}
-                    </th>
-                    <th className="py-2 pr-3 font-normal">
-                      {t("habilidades.mejorTitular", "Mejor titular")}
-                    </th>
-                    <th className="py-2 pr-3 font-normal">
-                      {t(
-                        "habilidades.siFalta",
-                        "Si falta, entra del banquillo",
+                  <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                    {t("dashboard.formacion", "Formación")}
+                    <select
+                      aria-label={t(
+                        "habilidades.formacionAria",
+                        "Formación para calcular la profundidad",
                       )}
-                    </th>
-                    <th className="py-2 pr-3 text-right font-normal">
-                      {t("habilidades.pierdes", "Pierdes")}
-                    </th>
-                    <th className="py-2 font-normal">
-                      {t("habilidades.estado", "Estado")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {profundidadVigente.map((d) => (
-                    <tr key={d.key} className="align-top">
-                      <td className="py-2 pr-3">
-                        {d.label}
-                        {puestosDelCuello.has(d.key) && cuello && (
-                          <span
-                            className="ml-1.5"
-                            title={t(
-                              "habilidades.cuelloTitle",
-                              "Cuello de botella: el {{sector}} es el sector donde menos ventaja le sacas a tu serie",
-                              { sector: cuello.label.toLowerCase() },
-                            )}
-                            aria-label={cuelloDeBotella}
-                          >
-                            🍾
-                          </span>
-                        )}
-                        <span className="block text-xs text-[var(--muted)]">
-                          {d.starters === 1
-                            ? t("habilidades.unTitular", "{{n}} titular", {
-                                n: d.starters,
-                              })
-                            : t("habilidades.nTitulares", "{{n}} titulares", {
-                                n: d.starters,
-                              })}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <Nombrado candidato={d.best} habilidad={d.skillLabel} />
-                      </td>
-                      <td className="py-2 pr-3">
-                        <Nombrado
-                          candidato={d.substitute}
-                          habilidad={d.skillLabel}
-                        />
-                        {d.alsoCovers.length > 0 && (
-                          <span
-                            className="block text-xs text-[var(--warning)]"
-                            title={t(
-                              "habilidades.tambienTitle",
-                              "También es el primer recambio de: {{puestos}}",
-                              { puestos: d.alsoCovers.join(", ") },
-                            )}
-                          >
-                            {d.alsoCovers.length === 1
-                              ? t(
-                                  "habilidades.tambienUno",
-                                  "también es el recambio de {{puesto}}",
-                                  { puesto: d.alsoCovers[0] },
-                                )
-                              : t(
-                                  "habilidades.tambienVarios",
-                                  "y de {{n}} puestos más",
-                                  { n: d.alsoCovers.length },
-                                )}
-                          </span>
-                        )}
-                        {d.alsoCovers.length > 0 && d.nextSubstitute && (
-                          <span className="block text-xs text-[var(--muted)]">
-                            {t(
-                              "habilidades.siOcupado",
-                              "si ya está ocupado, entra {{jugador}} (rendimiento {{r}})",
-                              {
-                                jugador: d.nextSubstitute.name,
-                                r: decimal(d.nextSubstitute.rating),
-                              },
-                            )}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 pr-3 text-right tabular-nums">
-                        {d.dropPct == null
-                          ? "-"
-                          : d.dropPct < 0.5
-                            ? t("habilidades.nada", "nada")
-                            : `${Math.round(d.dropPct)} %`}
-                      </td>
-                      <td className="py-2">
-                        <span
-                          title={
-                            d.tone === "danger"
-                              ? t(
-                                  "habilidades.tonoDanger",
-                                  "Pierdes un 30 % o más, o no hay nadie en el banquillo.",
-                                )
-                              : d.tone === "warning"
-                                ? t(
-                                    "habilidades.tonoWarning",
-                                    "Pierdes entre un 15 y un 30 %.",
-                                  )
-                                : t(
-                                    "habilidades.tonoOk",
-                                    "Pierdes menos de un 15 %.",
-                                  )
-                          }
-                        >
-                          <Pastilla tone={d.tone}>
-                            {d.tone === "danger"
-                              ? t("habilidades.pastillaHueco", "🚨 Hueco")
-                              : d.tone === "warning"
-                                ? t("habilidades.pastillaCuidado", "⚠️ Cuidado")
-                                : t(
-                                    "habilidades.pastillaCubierto",
-                                    "✅ Cubierto",
-                                  )}
-                          </Pastilla>
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {cuello && puestosDelCuello.size > 0 && (
-                <p className="pt-2 text-xs text-[var(--muted)]">
+                      value={data.depthFormation ?? ""}
+                      onChange={(e) => {
+                        const elegida = e.target.value;
+                        setFormacion(elegida === data.formation ? "" : elegida);
+                        setCentrales(undefined);
+                        setMedios(undefined);
+                      }}
+                      className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm text-[var(--text)]"
+                    >
+                      {FORMATIONS.map((f) => (
+                        <option key={f} value={f}>
+                          {f === data.formation
+                            ? t(
+                                "habilidades.laUltimaOficial",
+                                "{{f}} · la última oficial",
+                                {
+                                  f,
+                                },
+                              )
+                            : f}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <SplitSelector
+                    label={defensasCentrales}
+                    value={data.depthCentralDefenders ?? undefined}
+                    options={data.centralDefenderOptions ?? []}
+                    onChange={(v) => {
+                      setFormacion(data.depthFormation ?? "");
+                      setCentrales(v);
+                      setMedios(data.depthInnerMidfielders ?? undefined);
+                    }}
+                  />
+                  <SplitSelector
+                    label={mediocentros}
+                    value={data.depthInnerMidfielders ?? undefined}
+                    options={data.innerMidfielderOptions ?? []}
+                    onChange={(v) => {
+                      setFormacion(data.depthFormation ?? "");
+                      setCentrales(data.depthCentralDefenders ?? undefined);
+                      setMedios(v);
+                    }}
+                  />
+                  {!esLaUltima && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormacion("");
+                        setCentrales(undefined);
+                        setMedios(undefined);
+                      }}
+                      className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:border-[var(--accent)]"
+                    >
+                      {t(
+                        "habilidades.volverUltima",
+                        "Volver a la última oficial",
+                      )}
+                    </button>
+                  )}
+                </div>
+                {data.formation && (
+                  <p className="px-4 pt-2 text-sm">
+                    <span
+                      className={
+                        esLaUltima
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--muted)]"
+                      }
+                    >
+                      {esLaUltima
+                        ? t(
+                            "habilidades.estasViendoUltima",
+                            "Estás viendo tu última formación oficial",
+                          )
+                        : t(
+                            "habilidades.tuUltima",
+                            "Tu última formación oficial",
+                          )}
+                      {data.lastMatchDate ? ` (${data.lastMatchDate})` : ""}
+                      :{" "}
+                    </span>
+                    <b>{data.formation}</b>{" "}
+                    {t("habilidades.conReparto", "con {{dc}} y {{mc}}", {
+                      dc: `${data.lastCentralDefenders} ${
+                        data.lastCentralDefenders === 1
+                          ? t("comun.defensaCentralMayus", "Defensa Central")
+                          : defensasCentrales
+                      }`,
+                      mc: `${data.lastInnerMidfielders} ${
+                        data.lastInnerMidfielders === 1
+                          ? t("comun.mediocentro", "Mediocentro")
+                          : mediocentros
+                      }`,
+                    })}
+                  </p>
+                )}
+                <p className="prosa px-4 pt-2 text-sm text-[var(--muted)]">
                   {t(
-                    "habilidades.cuelloPie",
-                    "🍾 cuello de botella: el {{sector}}, donde menos ventaja le sacas a tu serie",
-                    { sector: cuello.label.toLowerCase() },
+                    "habilidades.explicacion",
+                    "Si falta el mejor titular de un puesto (por lesión, venta o sanción), quién del banquillo entraría y cuánto rendimiento perderías. El rendimiento es el mismo de la pantalla Posiciones: tiene en cuenta todas las habilidades del puesto, la forma y la experiencia.",
                   )}
                 </p>
-              )}
-            </div>
-          </>
+                <div className="overflow-x-auto px-4 pb-4 pt-2">
+                  <table className="w-full min-w-[40rem] text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
+                        <th className="py-2 pr-3 font-normal">
+                          {t("habilidades.puesto", "Puesto")}
+                        </th>
+                        <th className="py-2 pr-3 font-normal">
+                          {t("habilidades.mejorTitular", "Mejor titular")}
+                        </th>
+                        <th className="py-2 pr-3 font-normal">
+                          {t(
+                            "habilidades.siFalta",
+                            "Si falta, entra del banquillo",
+                          )}
+                        </th>
+                        <th className="py-2 pr-3 text-right font-normal">
+                          {t("habilidades.pierdes", "Pierdes")}
+                        </th>
+                        <th className="py-2 font-normal">
+                          {t("habilidades.estado", "Estado")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border)]">
+                      {profundidadVigente.map((d) => (
+                        <tr key={d.key} className="align-top">
+                          <td className="py-2 pr-3">
+                            {d.label}
+                            {puestosDelCuello.has(d.key) && cuello && (
+                              <span
+                                className="ml-1.5"
+                                title={t(
+                                  "habilidades.cuelloTitle",
+                                  "Cuello de botella: el {{sector}} es el sector donde menos ventaja le sacas a tu serie",
+                                  { sector: cuello.label.toLowerCase() },
+                                )}
+                                aria-label={cuelloDeBotella}
+                              >
+                                🍾
+                              </span>
+                            )}
+                            <span className="block text-xs text-[var(--muted)]">
+                              {d.starters === 1
+                                ? t("habilidades.unTitular", "{{n}} titular", {
+                                    n: d.starters,
+                                  })
+                                : t(
+                                    "habilidades.nTitulares",
+                                    "{{n}} titulares",
+                                    {
+                                      n: d.starters,
+                                    },
+                                  )}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Nombrado
+                              candidato={d.best}
+                              habilidad={d.skillLabel}
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <Nombrado
+                              candidato={d.substitute}
+                              habilidad={d.skillLabel}
+                            />
+                            {d.alsoCovers.length > 0 && (
+                              <span
+                                className="block text-xs text-[var(--warning)]"
+                                title={t(
+                                  "habilidades.tambienTitle",
+                                  "También es el primer recambio de: {{puestos}}",
+                                  { puestos: d.alsoCovers.join(", ") },
+                                )}
+                              >
+                                {d.alsoCovers.length === 1
+                                  ? t(
+                                      "habilidades.tambienUno",
+                                      "también es el recambio de {{puesto}}",
+                                      { puesto: d.alsoCovers[0] },
+                                    )
+                                  : t(
+                                      "habilidades.tambienVarios",
+                                      "y de {{n}} puestos más",
+                                      { n: d.alsoCovers.length },
+                                    )}
+                              </span>
+                            )}
+                            {d.alsoCovers.length > 0 && d.nextSubstitute && (
+                              <span className="block text-xs text-[var(--muted)]">
+                                {t(
+                                  "habilidades.siOcupado",
+                                  "si ya está ocupado, entra {{jugador}} (rendimiento {{r}})",
+                                  {
+                                    jugador: d.nextSubstitute.name,
+                                    r: decimal(d.nextSubstitute.rating),
+                                  },
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-3 text-right tabular-nums">
+                            {d.dropPct == null
+                              ? "-"
+                              : d.dropPct < 0.5
+                                ? t("habilidades.nada", "nada")
+                                : `${Math.round(d.dropPct)} %`}
+                          </td>
+                          <td className="py-2">
+                            <span
+                              title={
+                                d.tone === "danger"
+                                  ? t(
+                                      "habilidades.tonoDanger",
+                                      "Pierdes un 30 % o más, o no hay nadie en el banquillo.",
+                                    )
+                                  : d.tone === "warning"
+                                    ? t(
+                                        "habilidades.tonoWarning",
+                                        "Pierdes entre un 15 y un 30 %.",
+                                      )
+                                    : t(
+                                        "habilidades.tonoOk",
+                                        "Pierdes menos de un 15 %.",
+                                      )
+                              }
+                            >
+                              <Pastilla tone={d.tone}>
+                                {d.tone === "danger"
+                                  ? t("habilidades.pastillaHueco", "🚨 Hueco")
+                                  : d.tone === "warning"
+                                    ? t(
+                                        "habilidades.pastillaCuidado",
+                                        "⚠️ Cuidado",
+                                      )
+                                    : t(
+                                        "habilidades.pastillaCubierto",
+                                        "✅ Cubierto",
+                                      )}
+                              </Pastilla>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {cuello && puestosDelCuello.size > 0 && (
+                    <p className="pt-2 text-xs text-[var(--muted)]">
+                      {t(
+                        "habilidades.cuelloPie",
+                        "🍾 cuello de botella: el {{sector}}, donde menos ventaja le sacas a tu serie",
+                        { sector: cuello.label.toLowerCase() },
+                      )}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </Panel>
         )}
-      </Panel>
+      </PanelDePestanas>
 
       <Panel title={cuelloDeBotella}>
         {data.sectors.length === 0 ? (
@@ -928,22 +998,6 @@ export function SkillsPage() {
           </div>
         )}
       </Panel>
-
-      {/* MEJOR POSICIÓN, al FINAL de la pantalla (2026-09-19, pedido del
-          usuario). Viene de la pantalla de Habilidades y cierra el recorrido:
-          arriba están los niveles y los huecos, y esto es la misma plantilla
-          vista desde el campo, para qué puesto sirve cada uno. */}
-      {mejorPosicion && (
-        <Panel
-          title={mejorPosicion.label}
-          meta={t("comun.nJugadores", "{{n}} jugadores", {
-            n: overview.data?.playerCount ?? data.players.length,
-          })}
-        >
-          <MejorPosicion group={mejorPosicion} />
-          {mejorPosicion.note && <Note>{mejorPosicion.note}</Note>}
-        </Panel>
-      )}
     </div>
   );
 }
