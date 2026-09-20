@@ -817,7 +817,8 @@
       "train": "Training selection",
       "who": "Next match formation",
       "scouts": "Scouts",
-      "oldies": "Former youth players"
+      "oldies": "Former youth players",
+      "ultimo": "Last training"
     },
     "explicaTrain": "scores each skill by what your academy can gain in it, and the recommended pair comes from that. The controls below are yours: move the deadline cut-off or the gap between rungs and the ranking is recalculated. The split adopts the recommendation on its own until you choose something else manually in the next tab.",
     "explicaWho": "distributes the two chosen trainings among the eleven and the bench. Each training reaches some positions and not others: whoever lands where the two overlap gets both. Within each group the best in the queue go first (rung, ceiling and age), so changing the secondary changes who plays where. The “Can reach” bar is their HTMS28: the filled part is what they already have, and how far the bar goes is the most they could reach.",
@@ -1131,7 +1132,18 @@
       "sin ojear": "unscouted"
     },
     "desdeFecha": "{{fecha}}",
-    "sinCitaJuvenil": "We don't know yet when your youth squad trained: sync and the date of their next training match comes with it."
+    "sinCitaJuvenil": "We don't know yet when your youth squad trained: sync and the date of their training match comes with it.",
+    "queSeMira": "What you're looking at in the academy",
+    "unaSubida": "one skill-up",
+    "variasSubidas": "N skill-ups",
+    "unTecho": "one ceiling revealed",
+    "variosTechos": "N ceilings revealed",
+    "unaLlegada": "one new youth player",
+    "variasLlegadas": "N new youth players",
+    "jugadoEl": "played on {{fecha}}",
+    "nadieSeMovio": "Nobody moved in this training.",
+    "recienLlegado": "just arrived",
+    "techoDescubierto": "ceiling {{v}}"
   },
   "apoyo": {
     "boton": "Buy me a coffee",

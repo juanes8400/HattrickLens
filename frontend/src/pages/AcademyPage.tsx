@@ -6,7 +6,7 @@ import { Column, DataTable } from "../components/DataTable";
 import { CountryFlag } from "../components/CountryFlag";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { Specialty, specialtyLabel } from "../components/Specialty";
-import { Tabs } from "../components/Tabs";
+import { PanelDePestanas, Tabs } from "../components/Tabs";
 import { lecturaDeNivel } from "../utils/skillLevels";
 import {
   Empty,
@@ -87,6 +87,11 @@ const formatWeight = (w: number | undefined) =>
  *  al lado de sus siete habilidades, que es lo que la sostiene. */
 const VIEWS = [
   { key: "squad", label: "Plantilla juvenil" },
+  // La cantera entrena DESPUÉS DE CADA PARTIDO suyo, así que «qué pasó en el
+  // último entrenamiento» es una vista propia y no una forma de mirar los
+  // puntajes: hasta hoy era una opción escondida dentro de Selección de
+  // entrenamiento, que es otra pregunta (2026-09-19, pedido del usuario).
+  { key: "ultimo", label: "Último entrenamiento" },
   { key: "train", label: "Selección de entrenamiento" },
   // "Formación" y no "A quién entrenar": esta pestaña YA no propone un
   // reparto teorico, decide la alineacion del proximo partido.
@@ -299,63 +304,62 @@ export function AcademyPage() {
           manerasquién es quién, qué entrenar, cuánto le queda a cada
           habilidad, no tres cosas distintas. Apiladas obligaban a bajar y
           bajar; en pestañas se comparan de un clic. */}
-      <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
-            onClick={() => setView(v.key)}
-            className={
-              v.key === view
-                ? "rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white"
-                : "rounded-md px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-            }
-          >
-            {t(`juveniles.vista.${v.key}`, v.label)}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        grupo="juveniles"
+        label={t("juveniles.queSeMira", "Qué se mira de la cantera")}
+        tabs={VIEWS.map((v) => ({
+          key: v.key,
+          label: t(`juveniles.vista.${v.key}`, v.label),
+        }))}
+        active={view}
+        onChange={setView}
+      />
 
-      {data.squadSize === 0 ? (
-        <Panel
-          title={t(
-            `juveniles.vista.${view}`,
-            VIEWS.find((v) => v.key === view)?.label ?? "",
-          )}
-        >
-          <Empty>
-            {t(
-              "juveniles.sinCanteranos",
-              "Sin canteranos sincronizados todavía.",
+      <PanelDePestanas grupo="juveniles" activa={view} className="space-y-4">
+        {data.squadSize === 0 ? (
+          <Panel
+            title={t(
+              `juveniles.vista.${view}`,
+              VIEWS.find((v) => v.key === view)?.label ?? "",
             )}
-          </Empty>
-        </Panel>
-      ) : view === "squad" ? (
-        <SkillDetail data={data} />
-      ) : view === "train" ? (
-        <WhatToTrain data={data} irALaFormacion={llevarALaFormacion} />
-      ) : view === "who" ? (
-        <QuienEntrena data={data} />
-      ) : view === "scouts" ? (
-        <Ojeadores />
-      ) : (data.allGraduates ?? []).length > 0 ? (
-        <Panel
-          title={t("juveniles.vista.oldies", "Antiguos canteranos")}
-          meta={t("juveniles.hanPasado", "{{n}} han pasado por aquí", {
-            n: (data.allGraduates ?? []).length,
-          })}
-        >
-          <GraduatesTable data={data} />
-        </Panel>
-      ) : (
-        <Panel title={t("juveniles.vista.oldies", "Antiguos canteranos")}>
-          <Empty>
-            {t(
-              "juveniles.sinAntiguos",
-              "Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un canterano al primer equipo.",
-            )}
-          </Empty>
-        </Panel>
-      )}
+          >
+            <Empty>
+              {t(
+                "juveniles.sinCanteranos",
+                "Sin canteranos sincronizados todavía.",
+              )}
+            </Empty>
+          </Panel>
+        ) : view === "squad" ? (
+          <SkillDetail data={data} />
+        ) : view === "ultimo" ? (
+          <UltimoEntrenamientoJuvenil />
+        ) : view === "train" ? (
+          <WhatToTrain data={data} irALaFormacion={llevarALaFormacion} />
+        ) : view === "who" ? (
+          <QuienEntrena data={data} />
+        ) : view === "scouts" ? (
+          <Ojeadores />
+        ) : (data.allGraduates ?? []).length > 0 ? (
+          <Panel
+            title={t("juveniles.vista.oldies", "Antiguos canteranos")}
+            meta={t("juveniles.hanPasado", "{{n}} han pasado por aquí", {
+              n: (data.allGraduates ?? []).length,
+            })}
+          >
+            <GraduatesTable data={data} />
+          </Panel>
+        ) : (
+          <Panel title={t("juveniles.vista.oldies", "Antiguos canteranos")}>
+            <Empty>
+              {t(
+                "juveniles.sinAntiguos",
+                "Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un canterano al primer equipo.",
+              )}
+            </Empty>
+          </Panel>
+        )}
+      </PanelDePestanas>
     </div>
   );
 }
@@ -482,11 +486,13 @@ function usePersistidoTexto(clave: string) {
 
 /** Las cuatro ventanas del selector. «Último cambio» es el estado justo
  *  antes de que la academia se moviera por última vez; el resto son semanas. */
+/** Una ventana guardada que ya no existe no puede dejar el control sin
+ *  ninguna opción marcada: «Último entrenamiento» fue una de ellas durante un
+ *  rato y quien la eligiera la tiene guardada (2026-09-19). */
+const ventanaValida = (v: string) =>
+  VENTANAS_JUVENILES.some((x) => x.key === v) ? v : "cambio";
+
 const VENTANAS_JUVENILES = [
-  // La cantera entrena DESPUES DE CADA PARTIDO suyo, no con la actualizacion
-  // semanal del primer equipo. Hattrick publica la cita del proximo partido
-  // de entrenamiento y de ahi sale cuando fue el ultimo (2026-09-19).
-  { key: "entrenamiento", label: "Último entrenamiento" },
   { key: "cambio", label: "Último cambio" },
   { key: "1", label: "1 semana" },
   { key: "2", label: "2 semanas" },
@@ -647,7 +653,8 @@ function WhatToTrain({
   // plantilla, que es otra pestaña y por tanto se remonta al abrirla: así las
   // dos hablan de la misma ventana sin tener que subir el estado a la página
   // (2026-09-04, pedido del usuario).
-  const [ventana, setVentana] = usePersistido("juveniles.ventana", "cambio");
+  const [guardada, setVentana] = usePersistido("juveniles.ventana", "cambio");
+  const ventana = ventanaValida(guardada);
   // Los mandos se mueven al instante y la pregunta al servidor espera a que
   // pares. Arrastrar una barra disparaba una peticion por pixel --ocho en dos
   // segundos, cada una rehaciendo la tabla entera--, y con la respuesta lenta
@@ -785,18 +792,10 @@ function WhatToTrain({
         <div className="border-b border-[var(--border)] px-4 py-2 text-xs leading-relaxed text-[var(--muted)]">
           {sinBase ? (
             <>
-              {/* Dos motivos distintos para el mismo silencio. Si lo que falta
-                  es la fecha del partido de entrenamiento juvenil, decir «no
-                  hay histórico tan atrás» manda a buscar donde no es. */}
-              {ventana === "entrenamiento" && !movimiento.data?.since
-                ? t(
-                    "juveniles.sinCitaJuvenil",
-                    "Todavía no se sabe cuándo entrenó la cantera: sincroniza y sale la fecha de su próximo partido de entrenamiento.",
-                  )
-                : t(
-                    "juveniles.sinHistorico",
-                    "No hay histórico tan atrás: los puntajes se enseñan quietos.",
-                  )}
+              {t(
+                "juveniles.sinHistorico",
+                "No hay histórico tan atrás: los puntajes se enseñan quietos.",
+              )}
             </>
           ) : (
             <>{explicaElMovimiento(resumen!)}</>
@@ -2717,7 +2716,8 @@ function SkillDetail({ data }: { data: Academy }) {
   // La MISMA ventana que eligió el usuario en «Selección de entrenamiento».
   // Las dos secciones son pestañas excluyentes, así que ésta se remonta al
   // abrirla y lee el valor recién guardado (2026-09-04).
-  const [ventana] = usePersistido("juveniles.ventana", "cambio");
+  const [guardada] = usePersistido("juveniles.ventana", "cambio");
+  const ventana = ventanaValida(guardada);
   // Sin parámetros de puntaje: aquí no se enseñan puntajes, sólo qué se movió
   // en cada canterano, y eso no depende de las opiniones de la fórmula.
   const movida = useAcademyComparativa({
@@ -3351,6 +3351,149 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
             { nombres: ledger.unlinked.join(", ") },
           )}
         </p>
+      )}
+    </Panel>
+  );
+}
+
+/**
+ * Qué pasó en el último entrenamiento de la cantera (2026-09-19).
+ *
+ * Vista propia y no una opción dentro de «Selección de entrenamiento»: esa
+ * pantalla decide QUÉ entrenar, y ésta cuenta qué dejó lo ya entrenado.
+ *
+ * El cuándo no se estima. Los juveniles entrenan después de cada partido
+ * suyo, Hattrick publica la cita del próximo, y desde ahí se retrocede una
+ * semana. Sin esa fecha no se enseña nada inventado: se dice que falta
+ * sincronizar, que es la verdad.
+ */
+function UltimoEntrenamientoJuvenil() {
+  // Sin parámetros de puntaje, igual que la tabla de la plantilla: aquí no se
+  // enseña ningún puntaje, sólo lo que se movió en cada canterano.
+  const movida = useAcademyComparativa({
+    ventana: "entrenamiento",
+    soonMaxDays: DEFAULT_SOON_MAX_DAYS,
+    weightBase: DEFAULT_WEIGHT_BASE,
+    trainableMethod: "edit",
+    trainable: {},
+  });
+
+  const titulo = t("juveniles.vista.ultimo", "Último entrenamiento");
+  if (movida.isLoading) {
+    return (
+      <Panel title={titulo}>
+        <div className="p-4">
+          <Loading />
+        </div>
+      </Panel>
+    );
+  }
+  const datos = movida.data;
+  if (!datos || !datos.since) {
+    return (
+      <Panel title={titulo}>
+        <Empty>
+          {t(
+            "juveniles.sinCitaJuvenil",
+            "Todavía no se sabe cuándo entrenó la cantera: sincroniza y sale la fecha de su partido de entrenamiento.",
+          )}
+        </Empty>
+      </Panel>
+    );
+  }
+
+  // Un canterano «se movió» si subió de nivel en algo o si el ojeador le
+  // reveló un techo. Llegar no es moverse, pero sí es noticia, y va aparte.
+  const movidos = datos.players
+    .map((j) => ({
+      id: j.htYouthPlayerId,
+      name: j.name,
+      isNew: j.isNew,
+      cambios: Object.entries(j.skills)
+        .filter(([, v]) => v.before != null || v.maxNewlyKnown)
+        .map(([clave, v]) => ({ clave, ...v })),
+    }))
+    .filter((j) => j.cambios.length > 0)
+    .sort((a, b) => b.cambios.length - a.cambios.length);
+
+  const resumen = datos.summary;
+  const piezas = [
+    resumen.skillsUp > 0
+      ? plural(
+          resumen.skillsUp,
+          t("juveniles.unaSubida", "una subida de nivel"),
+          t("juveniles.variasSubidas", "N subidas de nivel"),
+        )
+      : null,
+    resumen.ceilingsRevealed > 0
+      ? plural(
+          resumen.ceilingsRevealed,
+          t("juveniles.unTecho", "un techo revelado"),
+          t("juveniles.variosTechos", "N techos revelados"),
+        )
+      : null,
+    resumen.arrivals > 0
+      ? plural(
+          resumen.arrivals,
+          t("juveniles.unaLlegada", "un canterano nuevo"),
+          t("juveniles.variasLlegadas", "N canteranos nuevos"),
+        )
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <Panel
+      title={titulo}
+      meta={t("juveniles.jugadoEl", "jugado el {{fecha}}", {
+        fecha: dateTime(datos.since),
+      })}
+    >
+      {piezas.length > 0 && (
+        <div className="border-b border-[var(--border)] px-4 py-2 text-sm">
+          {piezas.join(" · ")}
+        </div>
+      )}
+      {movidos.length === 0 ? (
+        <Empty>
+          {t("juveniles.nadieSeMovio", "Nadie se movió en este entrenamiento.")}
+        </Empty>
+      ) : (
+        <ul className="divide-y divide-[var(--border)]">
+          {movidos.map((j) => (
+            <li key={j.id} className="px-4 py-2 text-sm">
+              <div className="flex items-baseline justify-between gap-2">
+                {/* Los juveniles van en texto plano: no tienen ficha propia
+                    y enlazarlos llevaría a ninguna parte. */}
+                <span className="font-medium">{j.name}</span>
+                {j.isNew && (
+                  <span className="shrink-0 text-xs text-[var(--muted)]">
+                    {t("juveniles.recienLlegado", "recién llegado")}
+                  </span>
+                )}
+              </div>
+              <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[var(--muted)]">
+                {j.cambios.map((c) => (
+                  <span key={c.clave}>
+                    {nombreDeHabilidad(c.clave)}:{" "}
+                    {c.before != null && c.current != null ? (
+                      <span className="tabular-nums text-[var(--positive)]">
+                        {c.before} ▲ {c.current}
+                      </span>
+                    ) : null}
+                    {c.maxNewlyKnown && c.max != null && (
+                      <span className="tabular-nums text-[var(--youth-known)]">
+                        {c.before != null ? " · " : ""}
+                        {t("juveniles.techoDescubierto", "techo {{v}}", {
+                          v: c.max,
+                        })}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </Panel>
   );
