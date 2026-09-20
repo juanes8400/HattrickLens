@@ -1162,11 +1162,11 @@ const ARTICULOS: Articulo[] = [
             "La respuesta a «¿en qué puesto acabo?» es una distribución. Se simula el resto de la temporada miles de veces y se cuenta en qué puesto acaba cada equipo. Quién gana cada partido pendiente lo decide el mismo motor de zonas del pronóstico de partido, con los ratings de los ocho equipos; el marcador con el que gana sale de la fuerza de ataque y defensa de la temporada. Así los dos paneles de Proyección y el pronóstico no pueden decir cosas distintas del mismo encuentro.",
           ),
           tx(
-            "El modelo de goles de la temporada queda de respaldo, para los cruces a los que les falten ratings de algún lado. Esa fuerza se encoge hacia la media de la liga con K = 5 para no fiarse de pocos partidos, y el local lleva una ventaja de 1,20 sobre sus goles esperados.",
+            "El marcador sale de la fuerza de ataque y defensa de la temporada, encogida hacia la media de la liga con K = 5 para no fiarse de pocos partidos, y con una ventaja de 1,20 para el local. Ese mismo modelo decidiría también quién gana en un cruce al que le faltaran ratings de algún lado, pero con la serie sincronizada eso no pasa: los ocho equipos tienen partidos públicos y todos los cruces pendientes pasan por el motor de zonas.",
           ),
         ],
         formula: tx(
-          "quién gana   terna del motor de zonas (ver «El pronóstico de partido»)\n\nsin ratings  λ local     = ataque_i × defensa_j × media de la liga × 1,20\n             λ visitante = ataque_j × defensa_i × media de la liga\n\nel marcador  fuerza = (goles + 5 × media) ÷ (partidos + 5)",
+          "quién gana    terna del motor de zonas (ver «El pronóstico de partido»)\n\ncon qué       fuerza = (goles + 5 × media) ÷ (partidos + 5)\nmarcador      λ local     = ataque_i × defensa_j × media de la liga × 1,20\n              λ visitante = ataque_j × defensa_i × media de la liga",
         ),
       },
       {

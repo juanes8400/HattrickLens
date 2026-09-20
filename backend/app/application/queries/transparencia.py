@@ -2624,12 +2624,10 @@ def catalogo() -> list[Seccion]:
                         "    la terna del motor de zonas, la misma del capítulo\n"
                         "    «Pronóstico de partido»\n"
                         "\n"
-                        "    y sólo si a un cruce le faltan ratings de algún lado:\n"
-                        "        λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\n"
-                        "        λ_visita  = ataque_j · defensa_i · media_liga\n"
-                        "\n"
-                        "EL MARCADOR, siempre por los goles de la temporada\n"
+                        "CON QUÉ MARCADOR gana\n"
                         "    fuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n"
+                        "    λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\n"
+                        "    λ_visita  = ataque_j · defensa_i · media_liga\n"
                         "\n"
                         "P(puesto) ≈ Monte Carlo sobre las jornadas que faltan"
                     ),
@@ -2651,9 +2649,12 @@ def catalogo() -> list[Seccion]:
                         "--que sí mira los ratings del último partido de cada equipo y "
                         "las tácticas que suele usar--, y el marcador con el que gana "
                         "sale de los goles agregados de la temporada.",
-                        "El modelo de goles agregados es el respaldo, y ése sí ignora "
-                        "alineaciones y tácticas: entra cuando a un cruce le faltan "
-                        "ratings de alguno de los dos lados.",
+                        "Con la serie sincronizada, el reparto de puestos NO usa los "
+                        "goles agregados para decidir ningún resultado: los ocho "
+                        "equipos tienen ratings de sus partidos públicos y todos los "
+                        "cruces pendientes pasan por el motor de zonas. La fórmula de "
+                        "ataque y defensa sólo tomaría el mando en un cruce al que le "
+                        "faltaran ratings de algún lado, que es el caso raro.",
                         "Ninguno de los dos conoce lesiones, sanciones ni las "
                         "alineaciones que se pondrán el domingo.",
                         "El puesto sale de simular miles de veces, no de una fórmula "

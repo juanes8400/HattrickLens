@@ -418,7 +418,15 @@ def test_la_simulacion_de_liga_no_se_atribuye_a_un_solo_motor() -> None:
     calc = _calculo("simulacion")
     limites = " ".join(calc.limits).lower()
     assert "motor de zonas" in calc.formula.lower() or "motor de zonas" in limites
-    assert "respaldo" in limites, "no dice que la Poisson de goles es el respaldo"
+    # 2026-09-20, segunda pasada: medido con la serie real, de 52 cruces
+    # pendientes los 52 los decide el motor de zonas y CERO caen a los goles
+    # agregados. Decir «respaldo» a secas se quedaba corto y sugeria un
+    # reparto; lo que hay que decir es que con la serie sincronizada ese
+    # modelo NO decide ningun resultado, solo pone el marcador.
+    assert "marcador" in limites, "no dice qué hace de verdad el modelo de goles"
+    assert "no usa los goles agregados para decidir" in limites, (
+        "no aclara que con la serie sincronizada el respaldo no entra"
+    )
     # Y la fuente de la que depende ese motor tiene que estar declarada: sin
     # ratings de los ocho equipos no hay ternas que meter en la simulacion.
     assert any("rating" in f.what.lower() for f in calc.sources)

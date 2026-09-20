@@ -1865,5 +1865,7 @@
   "Goles de {{v0}}": "{{v0}} goals",
   "Todavía es la clasificación de hoy: no has puesto ningún resultado.": "Still today's table: you haven't entered any result.",
   "Con {{v0}} resultado(s) puesto(s) de esta jornada.": "With {{v0}} result(s) entered for this round.",
-  "Simular jornada": "Simulate round"
+  "Simular jornada": "Simulate round",
+  "El marcador sale de la fuerza de ataque y defensa de la temporada, encogida hacia la media de la liga con K = 5 para no fiarse de pocos partidos, y con una ventaja de 1,20 para el local. Ese mismo modelo decidiría también quién gana en un cruce al que le faltaran ratings de algún lado, pero con la serie sincronizada eso no pasa: los ocho equipos tienen partidos públicos y todos los cruces pendientes pasan por el motor de zonas.": "The scoreline comes from the season's attack and defence strength, shrunk towards the league mean with K = 5 so as not to trust few matches, and with a 1.20 advantage for the home side. That same model would also decide who wins on a fixture missing ratings on one side, but with the series synced that doesn't happen: all eight teams have public matches and every pending fixture goes through the zone engine.",
+  "quién gana    terna del motor de zonas (ver «El pronóstico de partido»)\n\ncon qué       fuerza = (goles + 5 × media) ÷ (partidos + 5)\nmarcador      λ local     = ataque_i × defensa_j × media de la liga × 1,20\n              λ visitante = ataque_j × defensa_i × media de la liga": "who wins      triple from the zone engine (see “The match forecast”)\n\nby what       strength = (goals + 5 × mean) ÷ (matches + 5)\nscore         λ home = attack_i × defence_j × league mean × 1.20\n              λ away = attack_j × defence_i × league mean"
 }
