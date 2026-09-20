@@ -1864,5 +1864,6 @@
   "Borrar los resultados": "Clear the results",
   "Goles de {{v0}}": "{{v0}} goals",
   "Todavía es la clasificación de hoy: no has puesto ningún resultado.": "Still today's table: you haven't entered any result.",
-  "Con {{v0}} resultado(s) puesto(s) de esta jornada.": "With {{v0}} result(s) entered for this round."
+  "Con {{v0}} resultado(s) puesto(s) de esta jornada.": "With {{v0}} result(s) entered for this round.",
+  "Simular jornada": "Simulate round"
 }

@@ -74,7 +74,11 @@ function leaderGap(data: League): { label: string; value: string } {
   };
 }
 
-type LeagueSection = "resumen" | "proyeccion" | "comparativa";
+type LeagueSection =
+  | "resumen"
+  | "proyeccion"
+  | "simular"
+  | "comparativa";
 
 export function LeaguePage() {
   // UN SOLO RESUMEN PARA LA PROYECCIÓN (2026-09-09, pedido del usuario). El
@@ -125,6 +129,7 @@ export function LeaguePage() {
           tabs={[
             { key: "resumen", label: tx("Resumen") },
             { key: "proyeccion", label: tx("Proyección") },
+            { key: "simular", label: tx("Simular jornada") },
             { key: "comparativa", label: tx("Comparativa") },
           ]}
           active={section}
@@ -165,11 +170,6 @@ export function LeaguePage() {
             >
               <StandingsTable data={data} />
             </Panel>
-
-            {/* El «¿y si...?» de esta semana, justo debajo de la tabla de
-                verdad: se compara con lo que acaba de leerse, sin tener que
-                recordarlo (2026-09-20, idea del usuario). */}
-            <SimularJornada data={data} />
 
             {data.nextMatch && <NextMatch data={data} />}
 
@@ -345,6 +345,12 @@ export function LeaguePage() {
         {/* Las dos a la vez (2026-09-14, pedido del usuario): la mejor
             alineación vivía DENTRO de la comparativa, después de su «cargando»,
             así que no empezaba a pedirse hasta que la comparativa terminaba. */}
+        {/* El «¿y si...?» de esta semana. Vista propia y no un panel al
+            final del Resumen (2026-09-20, pedido del usuario): Resumen
+            enseña hechos --lo que Hattrick ya reportó-- y esto es lo
+            contrario, una pregunta que se contesta a mano. */}
+        {section === "simular" && <SimularJornada data={data} />}
+
         {section === "comparativa" && (
           <>
             <LeagueTsiComparison />
