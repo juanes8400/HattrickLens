@@ -309,7 +309,16 @@ async def trigger_sync_stream(
                 break
         await task
 
-    return StreamingResponse(generate(), media_type="application/x-ndjson")
+    # `identity` es la forma de decir «a éste no lo comprimas». Desde el
+    # 2026-09-20 las respuestas salen comprimidas, y un flujo comprimido se
+    # queda esperando a llenar el búfer: la barra de progreso no se movería
+    # hasta el final, que es justo cuando ya no sirve. Starlette respeta una
+    # cabecera de codificación que ya venga puesta, así que basta con ésta.
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={"Content-Encoding": "identity"},
+    )
 
 
 @router.post(

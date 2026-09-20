@@ -4,7 +4,7 @@ import hashlib
 import json
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
@@ -2224,9 +2224,25 @@ async def team_overview(
     todas sus métricas comparten escala, `bars` cuando cada una necesita su
     propio techo (ver `team_overview.py`).
     """
+    # Una vez por sync (2026-09-20). Es el promedio de la plantilla entera por
+    # grupos, con sus series semanales: 168 ms de cuentas que sólo cambian
+    # cuando llegan datos nuevos, y se pagaban en cada visita a Habilidades.
+    from app.api.cache_por_sync import por_sync
+
+    respuesta = await por_sync(
+        session, team_id, "habilidades", (), lambda: _team_overview_sin_cache(session, team_id)
+    )
+    if respuesta is None:
+        raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
+    return cast(dict[str, Any], respuesta)
+
+
+async def _team_overview_sin_cache(
+    session: AsyncSession, team_id: int
+) -> dict[str, Any] | None:
     data = await TeamOverviewQueryService(session).get(team_id)
     if data is None:
-        raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
+        return None
     return {
         "teamName": data.team_name,
         "playerCount": data.player_count,
