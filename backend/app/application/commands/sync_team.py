@@ -168,7 +168,41 @@ FILE_LABELS: dict[str, str] = {
     "matchorders": "alineación y órdenes enviadas",
     "youthplayerlist": "plantilla juvenil",
     "youthteamdetails": "academia juvenil",
+    # Los que se piden uno a uno. No salen en la barra de progreso, pero sí en
+    # el aviso de un sync a medias, que es donde se colaba la jerga.
+    "matchdetails": "detalle de un partido",
+    "matchesarchive": "archivo de partidos",
+    "playerdetails": "ficha de un jugador",
+    "transfersplayer": "transferencias de un jugador",
+    "arenadetails": "estadio",
+    "regiondetails": "clima de la región",
+    "youthplayerdetails": "ficha de un canterano",
+    "viewOldies": "antiguos canteranos",
+    # Y los trabajos que no son un fichero suelto sino un encargo entero.
+    "player_enrichment": "datos de jugadores vendidos",
+    "tsi_at_purchase": "TSI en el momento de la compra",
+    "destination_country": "país de destino de una venta",
+    "censo_partidos": "partidos jugados en cada etapa",
+    "reventa": "comisiones por reventa",
+    "previous_club_bonus": "comisiones de club de origen",
+    "transfers_history": "libro de transferencias",
 }
+
+
+def _nombre_legible(file: str) -> str:
+    """El nombre de una fuente tal como se le puede enseñar a alguien.
+
+    2026-09-20: el aviso de un sync a medias era lo último que enseñaba los
+    nombres internos de Hattrick («players: ...», «matchdetails:38291: ...»).
+    La regla de la casa es que la fuente se nombra por la pantalla de Hattrick
+    de la que sale, nunca por su fichero.
+
+    Lo que venga con un identificador detrás --«matchdetails:38291»-- conserva
+    el número: identifica CUÁL de todos falló, y eso sí es útil.
+    """
+    nombre, _, sufijo = file.partition(":")
+    legible = FILE_LABELS.get(nombre, nombre)
+    return f"{legible} {sufijo}".strip() if sufijo else legible
 
 #  HL-140: un sync normal debe poder mostrar el diff completo, posición en
 # liga y resultados incluidos, no solo plantilla/economía. `teamdetails` va
@@ -697,7 +731,7 @@ class SyncTeamHandler:
                     # se lleva por delante los ficheros que ya se guardaron.
                     await uow.commit()
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"{file}: {exc}")
+                    result.errors.append(f"{_nombre_legible(file)}: {exc}")
                     result.status = "partial"
                     await _tras_fallo(uow, exc)
 
@@ -1389,7 +1423,9 @@ class SyncTeamHandler:
                     wrote = await self._apply_player_enrichment(uow, ht_player_id, fetched_at)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('player_enrichment')} {ht_player_id}: {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in precio:
@@ -1401,7 +1437,9 @@ class SyncTeamHandler:
                     wrote = await self._apply_transfers_player_purchase(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('tsi_at_purchase')} {ht_player_id}: {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in destino:
@@ -1410,7 +1448,9 @@ class SyncTeamHandler:
                     wrote = await self._apply_destination_country(uow, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"destination_country:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('destination_country')} {ht_player_id}: {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in censo:
@@ -1424,7 +1464,9 @@ class SyncTeamHandler:
                     # Se cuenta para poder DECIRLO. Ver `Balance.historiales`.
                     historiales_construidos += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('censo_partidos')} {ht_player_id}: {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in reventa:
@@ -1433,7 +1475,7 @@ class SyncTeamHandler:
                     wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"reventa:{ht_player_id}: {exc}")
+                    result.errors.append(f"{_nombre_legible('reventa')} {ht_player_id}: {exc}")
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
 
@@ -1916,7 +1958,7 @@ class SyncTeamHandler:
                     pageIndex=1,
                 )
             except Exception as exc:  # noqa: BLE001 - un rival caído no tumba el sync
-                result.errors.append(f"transfersteam:{rival_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('transfersteam')} {rival_id}: {exc}")
                 await _tras_fallo(uow, exc)
                 continue
             nombre_club = payload.get("team_name") or str(rival_id)
@@ -2106,7 +2148,7 @@ class SyncTeamHandler:
                 for campo, valor in valores.items():
                     setattr(row, campo, valor)
         except Exception as exc:  # noqa: BLE001, el clima nunca tumba un sync
-            result.errors.append(f"regiondetails: {exc}")
+            result.errors.append(f"{_nombre_legible('regiondetails')}: {exc}")
             await _tras_fallo(uow, exc)
 
     async def _sync_upcoming_match_orders(
@@ -2257,12 +2299,14 @@ class SyncTeamHandler:
                         # pueda decir "no hay predicción" en vez de enseñar los
                         # viejos como si fueran los de este once.
                         result.errors.append(
-                            f"matchorders:predictratings:{match.ht_match_id}: "
+                            f"{_nombre_legible('matchorders')} {match.ht_match_id}: "
                             f"{predicted_payload['chpp_error']}"
                         )
                         result.status = "partial"
                 except Exception as exc:  # noqa: BLE001, las órdenes siguen siendo útiles
-                    result.errors.append(f"matchorders:predictratings:{match.ht_match_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('matchorders')} {match.ht_match_id}: {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
 
@@ -2271,7 +2315,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                result.errors.append(f"matchorders:{match.ht_match_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('matchorders')} {match.ht_match_id}: {exc}")
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -2337,7 +2381,7 @@ class SyncTeamHandler:
             )
             arena_capacity = arena.get("current_capacity")
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla solo el aforo
-            result.errors.append(f"arenadetails: {exc}")
+            result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
         for ht_match_id in pending:
             await _report(on_progress, f"Descargando detalles de partido {ht_match_id}...")
@@ -2377,7 +2421,7 @@ class SyncTeamHandler:
                     arena_capacity=arena_capacity,
                 )
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                result.errors.append(f"matchdetails:{ht_match_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('matchdetails')} {ht_match_id}: {exc}")
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -2446,7 +2490,7 @@ class SyncTeamHandler:
             )
             arena_capacity = arena.get("current_capacity")
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla sólo el aforo
-            result.errors.append(f"arenadetails: {exc}")
+            result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
         # Las llamadas van en paralelo; la base, en cambio, se toca en orden y
         # desde un solo sitio, porque la sesión no admite escrituras cruzadas.
@@ -2485,7 +2529,8 @@ class SyncTeamHandler:
                 if not payload.get("ht_match_id") or payload.get("chpp_error"):
                     match.history_summary_only = False
                     result.errors.append(
-                        f"matchdetails:{match.ht_match_id}: Hattrick no dio el detalle"
+                        f"{_nombre_legible('matchdetails')} {match.ht_match_id}: "
+                        "Hattrick no dio el detalle"
                     )
                     continue
                 if payload.get("ht_match_id") != match.ht_match_id:
@@ -2510,7 +2555,9 @@ class SyncTeamHandler:
                 )
                 match.history_summary_only = False
             except Exception as exc:  # noqa: BLE001, sync parcial, se reintenta en el siguiente
-                result.errors.append(f"matchdetails:{match.ht_match_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('matchdetails')} {match.ht_match_id}: {exc}"
+                )
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -2626,7 +2673,7 @@ class SyncTeamHandler:
                     arena_capacity=cmd.arena_capacity,
                 )
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute()
-                result.errors.append(f"matchdetails: {exc}")
+                result.errors.append(f"{_nombre_legible('matchdetails')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -3297,7 +3344,7 @@ class SyncTeamHandler:
                     playerID=ht_player_id,
                 )
             except Exception as exc:  # noqa: BLE001 - un jugador no tumba el sync
-                result.errors.append(f"trainingevents:{ht_player_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('trainingevents')} {ht_player_id}: {exc}")
                 await _tras_fallo(uow, exc)
                 continue
             await self._persist_skill_ups(uow, team_id, payload, captured_at, result)
@@ -3341,7 +3388,7 @@ class SyncTeamHandler:
                 wrote = await self._apply_player_details(uow, ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                result.errors.append(f"playerdetails:{ht_player_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('playerdetails')} {ht_player_id}: {exc}")
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -3361,7 +3408,7 @@ class SyncTeamHandler:
                 wrote = await self._apply_player_details(uow, cmd.ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_match_details
-                result.errors.append(f"playerdetails: {exc}")
+                result.errors.append(f"{_nombre_legible('playerdetails')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -3445,7 +3492,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_match_details
-                result.errors.append(f"transfersplayer: {exc}")
+                result.errors.append(f"{_nombre_legible('transfersplayer')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -3709,7 +3756,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
-                result.errors.append(f"previous_club_bonus: {exc}")
+                result.errors.append(f"{_nombre_legible('previous_club_bonus')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -4077,7 +4124,9 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, best effort, ver _backfill_sold_player_details
-                result.errors.append(f"previous_club_bonus:{ht_player_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('previous_club_bonus')} {ht_player_id}: {exc}"
+                )
             if cazando:
                 probados.add(ht_player_id)
 
@@ -4230,7 +4279,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
-                result.errors.append(f"player_enrichment: {exc}")
+                result.errors.append(f"{_nombre_legible('player_enrichment')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -4292,7 +4341,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
-                result.errors.append(f"destination_country: {exc}")
+                result.errors.append(f"{_nombre_legible('destination_country')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -4311,8 +4360,8 @@ class SyncTeamHandler:
         team = await uow.session.get(m.Team, team_id)
         if team is None or not team.series_ht_id:
             raise ValueError(
-                "no se conoce la serie del equipo: sincroniza 'teamdetails' antes "
-                "que 'leaguedetails'"
+                "no se conoce la serie del equipo: hay que traer los datos del "
+                "club antes que la clasificación"
             )
         return int(team.series_ht_id)
 
@@ -4814,7 +4863,7 @@ class SyncTeamHandler:
                 teamID=ht_team_id,
             )
         except Exception as exc:  # noqa: BLE001, best effort, se reintenta
-            result.errors.append(f"viewOldies: {exc}")
+            result.errors.append(f"{_nombre_legible('viewOldies')}: {exc}")
             return 0
 
         filas = payload.get("players", [])
@@ -5145,7 +5194,7 @@ class SyncTeamHandler:
         try:
             archived = await self._fetch_match_archive_range(ht_team_id, since, until, on_progress)
         except Exception as exc:  # noqa: BLE001, el resto del sync sigue siendo útil
-            result.errors.append(f"matchesarchive: {exc}")
+            result.errors.append(f"{_nombre_legible('matchesarchive')}: {exc}")
             result.status = "partial"
             return
 
@@ -5437,7 +5486,10 @@ class SyncTeamHandler:
                     **parametros,
                 )
             except Exception as exc:  # noqa: BLE001
-                result.errors.append(f"youthplayerdetails {juvenil.ht_youth_player_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('youthplayerdetails')} "
+                    f"{juvenil.ht_youth_player_id}: {exc}"
+                )
                 continue
             if not ficha:
                 continue
@@ -6758,7 +6810,7 @@ class SyncTeamHandler:
                 # también es haber llegado al final de la historia.
                 recorrido_entero = True
         except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-            result.errors.append(f"transfers_history: {exc}")
+            result.errors.append(f"{_nombre_legible('transfers_history')}: {exc}")
             result.status = "partial"
 
         # La marca solo avanza si el recorrido llegó de verdad al final y

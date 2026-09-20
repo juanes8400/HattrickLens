@@ -97,9 +97,11 @@ def test_un_corte_en_un_fichero_no_rompe_los_siguientes_ni_borra_lo_guardado() -
         )
 
         assert result.status == "partial"
-        assert any(e.startswith("training:") for e in result.errors)
+        # Por el nombre legible, no por el del fichero (2026-09-20): el aviso
+        # de un sync a medias se lee, no se descifra.
+        assert any(e.startswith("entrenamiento:") for e in result.errors)
         # Ni el paso siguiente arrastró la sesión rota ni se perdió lo anterior.
-        assert not any(e.startswith("economy:") for e in result.errors)
+        assert not any(e.startswith("economía:") for e in result.errors)
         async with factory() as s:
             assert (await s.scalar(select(func.count()).select_from(m.Player))) > 0
             assert (await s.scalar(select(func.count()).select_from(m.EconomySnapshot))) > 0

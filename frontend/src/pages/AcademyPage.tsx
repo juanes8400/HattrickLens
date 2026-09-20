@@ -3408,7 +3408,17 @@ function UltimoEntrenamientoJuvenil() {
   const filas = datos.players
     .flatMap((j) =>
       Object.entries(j.skills)
-        .filter(([, v]) => v.before != null || v.maxNewlyKnown)
+        .filter(
+          ([, v]) =>
+            v.before != null ||
+            v.maxNewlyKnown ||
+            // UN RECIÉN LLEGADO NO TIENE ANTES (2026-09-20). Sin esta línea
+            // el chico sólo salía nombrado en la frase de arriba y ni una
+            // línea más: se le veía llegar sin saber si traía algo. Lo que se
+            // lista no es lo que se movió, es lo que trae en la maleta, y por
+            // eso lleva su propia forma de escribirse.
+            (j.isNew && v.current != null),
+        )
         .map(([clave, v]) => ({
           id: `${j.htYouthPlayerId}-${clave}`,
           name: j.name,
@@ -3419,12 +3429,17 @@ function UltimoEntrenamientoJuvenil() {
           before: v.before,
           current: v.current,
           techo: v.maxNewlyKnown ? v.max : null,
+          /** Llegó con esto puesto: ni subida ni descubrimiento. */
+          llegaCon: j.isNew && v.before == null ? v.current : null,
         })),
     )
-    // Primero lo que se movió, y dentro, lo que más. Los techos revelados
-    // detrás: no tienen tamaño con el que competir.
+    // Primero lo que se movió, y dentro, lo que más. Después los techos
+    // revelados, que no tienen tamaño con el que competir, y al final lo que
+    // trae un recién llegado: es la noticia más fácil de situar --ya sabes
+    // que llegó, lo dice la frase de arriba-- y la que menos urge.
     .sort(
       (a, b) =>
+        Number(a.llegaCon != null) - Number(b.llegaCon != null) ||
         Number(b.subida != null) - Number(a.subida != null) ||
         (b.subida ?? 0) - (a.subida ?? 0) ||
         a.name.localeCompare(b.name),
@@ -3512,10 +3527,18 @@ function UltimoEntrenamientoJuvenil() {
                       ? f.subida > 0
                         ? "text-[var(--positive)]"
                         : "text-[var(--danger)]"
-                      : "text-[var(--youth-known)]"
+                      : f.llegaCon != null
+                        ? "text-[var(--muted)]"
+                        : "text-[var(--youth-known)]"
                   }
                 >
-                  {f.subida != null ? (f.subida > 0 ? "▲" : "▼") : "◆"}
+                  {f.subida != null
+                    ? f.subida > 0
+                      ? "▲"
+                      : "▼"
+                    : f.llegaCon != null
+                      ? "·"
+                      : "◆"}
                 </span>
                 {/* Los juveniles van en texto plano: su ficha no vive en
                     /players y enlazarlos no llevaría a ninguna parte. */}
@@ -3550,6 +3573,13 @@ function UltimoEntrenamientoJuvenil() {
                       ({f.current})
                     </span>
                   </>
+                ) : f.llegaCon != null ? (
+                  <span className="text-[var(--muted)]">
+                    {t("juveniles.llegaCon", "llega con {{v}}", {
+                      v: skillLevelLabel(f.llegaCon),
+                    })}{" "}
+                    <span className="tabular-nums">({f.llegaCon})</span>
+                  </span>
                 ) : (
                   <span className="font-medium text-[var(--youth-known)]">
                     {t("juveniles.techoDescubierto", "techo {{v}}", {
