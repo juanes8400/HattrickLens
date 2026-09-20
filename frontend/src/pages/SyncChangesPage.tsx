@@ -226,6 +226,13 @@ function lastSyncGroups(data: LastSyncChanges): PlayerChangeGroup[] {
           current: change.current,
           delta: change.delta,
           direction: change.direction,
+          // El alta viaja con su precio y su origen; el sueldo vive en la
+          // fila del jugador, no en el cambio, porque de un alta no hay
+          // sueldo ANTERIOR con el que compararlo.
+          arrivalPrice: change.arrivalPrice,
+          fromAcademy: change.fromAcademy,
+          arrivalSalary: change.key === "arrival" ? row.salary : undefined,
+          currency: change.currency,
         });
       }
       return { htPlayerId: row.htPlayerId, name: row.name, changes };

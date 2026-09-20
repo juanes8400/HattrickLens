@@ -625,6 +625,7 @@
  "La asistencia es real; la taquilla se deriva de entradas por sector con los cuatro precios confirmados por el usuario.": "Attendance is real; gate receipts are derived from tickets by section using the four prices confirmed by the user.",
  "La banda de calibración": "The calibration band",
  "La calificación por sector se calcula después sobre el once elegido: es un desglose diagnóstico y no interviene en la optimización.": "The rating by sector is calculated afterwards on the chosen eleven: it's a diagnostic breakdown and plays no part in the optimisation.",
+ "La cantera que contestó Hattrick es la de {}, no la de este club: no se guardó nada.": "The youth squad Hattrick answered with belongs to {}, not to this club: nothing was saved.",
  "La casilla del 1-2 vale 0,318 × 0,248 = 0,079, y resulta ser la más alta de toda la rejilla: ése es el «resultado más probable», con menos del 8 % de probabilidad.": "The 1-2 cell is worth 0.318 × 0.248 = 0.079, and it turns out to be the highest in the whole grid: that's the “most likely score”, with less than 8 % probability.",
  "La colinealidad del balón parado": "The set pieces collinearity",
  "La configuración real de tu división": "Your division's real setup",
@@ -1514,6 +1515,7 @@
  "oauth_token desconocido o ya usado": "unknown or already used oauth_token",
  "orden mal escrita: «{}» (se espera «casilla:posición»)": "misspelt order: “{}” (expected “slot:position”)",
  "origen móvil, 5 cortes, reajustando en cada uno:\n    ajusta con  [inicio ............ corte]\n    evalúa en             (corte ..... corte + tramo]\n\nlog-loss = − promedio de log P(lo que de verdad pasó)\n\ncalibración: |lo prometido − lo ocurrido|, comparado contra\n             el percentil 95 de 2.000 mundos simulados": "rolling origin, 5 cut-offs, refitting at each one:\n    fits on     [start ............ cut]\n    evaluates on          (cut ..... cut + segment]\n\nlog-loss = − average of log P(what really happened)\n\ncalibration: |promised − happened|, compared against\n             the 95th percentile of 2,000 simulated worlds",
+ "otro club": "another club",
  "p = A / (A + B)        A = tu rating,  B = el suyo\n\nlos nueve cruces:\n    tu medio campo        ↔  su medio campo\n    tu ataque izquierdo   ↔  su defensa DERECHA\n    tu ataque central     ↔  su defensa central\n    tu ataque derecho     ↔  su defensa IZQUIERDA\n    tu defensa izquierda  ↔  su ataque DERECHO\n    tu defensa central    ↔  su ataque central\n    tu defensa derecha    ↔  su ataque IZQUIERDO\n    tu balón parado ata.  ↔  su balón parado def.\n    tu balón parado def.  ↔  su balón parado ata.": "p = A / (A + B)        A = your rating,  B = theirs\n\nthe nine crossings:\n    your midfield         ↔  their midfield\n    your left attack      ↔  their RIGHT defence\n    your central attack   ↔  their central defence\n    your right attack     ↔  their LEFT defence\n    your left defence     ↔  their RIGHT attack\n    your central defence  ↔  their central attack\n    your right defence    ↔  their LEFT attack\n    your att. set pieces  ↔  their def. set pieces\n    your def. set pieces  ↔  their att. set pieces",
  "p(medio) = 9,5 / (9,5 + 14,5) = 0,3958. Te llevas el 40 % de ese duelo.": "p(midfield) = 9.5 / (9.5 + 14.5) = 0.3958. You take 40 % of that duel.",
  "p(x)  = duelo x, medido como A/(A+B)\n\nη     = {}\n        + {} × log p(medio)\n        + log [ 0,3 × p(ata.izq)^{}\n                + 0,4 × p(ata.cen)^{}\n                + 0,3 × p(ata.der)^{} ]\n\nη     ← min(η, {})        ← el tope del vértice\n\njuego abierto = exp( η {} × (η − {})² )\n\nbalón parado  = exp( {}\n                     + {} × log p(medio)\n                     + {} × log p(bal.parado ata.) )\n\nλ     = ( juego abierto + balón parado ) × f(táctica)\n\n        f(táctica) corrige lo que el rating no ve;\n        vale 1 si no se sabe qué se va a jugar.\n        Se explica en el paso siguiente.\n\n        (tope de seguridad: {})": "p(x)  = duel x, measured as A/(A+B)\n\nη     = {}\n        + {} × log p(midfield)\n        + log [ 0.3 × p(att.left)^{}\n                + 0.4 × p(att.cen)^{}\n                + 0.3 × p(att.right)^{} ]\n\nη     ← min(η, {})        ← the vertex cap\n\nopen play  = exp( η {} × (η − {})² )\n\nset pieces = exp( {}\n                  + {} × log p(midfield)\n                  + {} × log p(att. set pieces) )\n\nλ     = ( open play + set pieces ) × f(tactic)\n\n        f(tactic) corrects what the rating doesn't see;\n        it's 1 if what will be played isn't known.\n        Explained in the next step.\n\n        (safety cap: {})",
@@ -1655,6 +1657,11 @@
  "{} salió de la plantilla": "{} left the squad",
  "{} se lleva {} de la nómina": "{} takes {} of the payroll",
  "{} se unió a la plantilla": "{} joined the squad",
+ "{} se unió a la plantilla: comprado por {}": "{} joined the squad: bought for {}",
+ "{} se unió a la plantilla: comprado por {}, sueldo {}": "{} joined the squad: bought for {}, wage {}",
+ "{} se unió a la plantilla: sube de la cantera": "{} joined the squad: promoted from the academy",
+ "{} se unió a la plantilla: sube de la cantera, sueldo {}": "{} joined the squad: promoted from the academy, wage {}",
+ "{} se unió a la plantilla: sueldo {}": "{} joined the squad: wage {}",
  "{} se vendió por {} {}": "{} was sold for {} {}",
  "{} tiene {} años y necesita {} semanas por nivel. Un jugador de 20 tarda ~7,5.": "{} is {} years old and needs {} weeks per level. A 20-year-old takes ~7.5.",
  "{} {} de la posición {} a la {}": "{} {} from position {} to {}",
@@ -1711,7 +1718,5 @@
  "λ tuya = 0,902 + 0,666 = 1,567 goles esperados.": "Your λ = 0.902 + 0.666 = 1.567 expected goals.",
  "λ tuya = 1,633 y λ suya = 2,641, del paso anterior.": "Your λ = 1.633 and their λ = 2.641, from the previous step.",
  "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_home    = attack_i · defence_j · league_mean · home_advantage\nλ_away    = attack_j · defence_i · league_mean\n\nstrength_i = (goals_i + K · mean) ÷ (matches_i + K)\n\nP(position) ≈ Monte Carlo over the remaining rounds",
- "← el que se usa": "← the one used",
- "La cantera que contestó Hattrick es la de {}, no la de este club: no se guardó nada.": "The youth squad Hattrick answered with belongs to {}, not to this club: nothing was saved.",
- "otro club": "another club"
+ "← el que se usa": "← the one used"
 }

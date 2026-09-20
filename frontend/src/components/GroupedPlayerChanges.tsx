@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { PlayerLink } from "./PlayerLink";
 import { Empty } from "./Panels";
-import { number, cifra } from "../hooks/useFormat";
+import { number, cifra, money } from "../hooks/useFormat";
 
 import { tx } from "../i18n/tx";
 /**
@@ -20,6 +20,14 @@ export interface NormalizedChange {
   /** El canterano LLEGÓ con esto puesto. No es un descubrimiento del ojeador
    *  ni una subida: es lo que traía en la maleta. */
   isArrival?: boolean;
+  /** Sólo en el alta de un jugador del primer equipo: lo que costó, de dónde
+   *  salió y lo que cobra desde hoy. Un alta sin esto es media noticia --que
+   *  hay alguien nuevo-- sin la otra mitad, que es lo que vale y lo que pesa
+   *  en la nómina (2026-09-20, pedido del usuario). */
+  arrivalPrice?: number | null;
+  fromAcademy?: boolean;
+  arrivalSalary?: number | null;
+  currency?: string;
 }
 
 export interface PlayerChangeGroup {
@@ -53,7 +61,27 @@ function signed(value: number): string {
 /** Casos sin un par before/current numérico limpio, se muestran como una
  * sola frase coloreada, sin el formato "antes ▲ ahora (delta)". */
 function specialChangeLine(change: NormalizedChange): string | null {
-  if (change.key === "arrival") return tx("Nuevo jugador");
+  if (change.key === "arrival") {
+    const con: string[] = [];
+    if (change.arrivalPrice)
+      con.push(
+        tx("comprado por {{v0}}", {
+          v0: money(change.arrivalPrice, change.currency ?? ""),
+        }),
+      );
+    else if (change.fromAcademy) con.push(tx("sube de la cantera"));
+    if (change.arrivalSalary)
+      con.push(
+        tx("sueldo {{v0}}", {
+          v0: money(change.arrivalSalary, change.currency ?? ""),
+        }),
+      );
+    // Sin ninguna de las dos --un fichaje que el libro de transferencias aún
+    // no trae-- se queda como estaba. Inventar un cero diría «gratis».
+    return con.length > 0
+      ? `${tx("Nuevo jugador")}: ${con.join(", ")}`
+      : tx("Nuevo jugador");
+  }
   // UN DESCUBRIMIENTO NO TIENE ANTES. Es de la cantera: el ojeador miró una
   // habilidad que estaba en blanco y ahora se sabe. Pintarlo con el formato
   // «antes ▲ ahora (+n)» obligaría a inventar un cero de partida y una

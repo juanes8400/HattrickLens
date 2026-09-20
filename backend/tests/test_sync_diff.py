@@ -10,6 +10,7 @@ from app.domain.engines.sync_diff import (
     MatchState,
     diff_economy,
     diff_match,
+    diff_player_arrival,
     diff_player_departure,
     diff_player_skills,
     diff_standing,
@@ -37,8 +38,51 @@ PLAYER_OLD = {
 
 
 def test_new_player_is_announced_as_arrival() -> None:
+    """Un alta no es una lista de subidas desde cero: es una linea sola.
+
+    2026-09-20: esa linea ya no va pelada, lleva el sueldo con el que entra.
+    """
     out = diff_player_skills(None, PLAYER_OLD, "Raul Cobos")
-    assert summaries(out) == ["Raul Cobos se unió a la plantilla"]
+    assert summaries(out) == ["Raul Cobos se unió a la plantilla: sueldo 5.000"]
+
+
+def test_el_alta_dice_por_cuanto_se_compro_y_cuanto_cobra() -> None:
+    """Lo que se pidio el 2026-09-20: precio de compra Y sueldo al llegar."""
+    c = diff_player_arrival(
+        "Raul Cobos", salary=5_000, purchase_price=1_250_000, currency="COL$"
+    )
+    assert c.summary == (
+        "Raul Cobos se unió a la plantilla: comprado por 1.250.000 COL$, "
+        "sueldo 5.000 COL$"
+    )
+    # El precio viaja tambien como numero, para que la pantalla no lo parsee.
+    assert c.after == 1_250_000
+    assert c.kind == "money"
+
+
+def test_el_alta_de_un_canterano_dice_de_donde_sale_en_vez_del_precio() -> None:
+    """No tuvo precio, y callarse el origen lo dejaria como un fichaje mudo."""
+    c = diff_player_arrival("Raul Cobos", salary=900, from_academy=True, currency="COL$")
+    assert c.summary == "Raul Cobos se unió a la plantilla: sube de la cantera, sueldo 900 COL$"
+    assert c.after is None
+
+
+def test_una_compra_conocida_le_gana_al_bono_de_club_de_origen() -> None:
+    """Se puede comprar a un ex-canterano propio: conserva el bono y ademas
+    costo dinero. Decir «sube de la cantera» de un fichaje pagado seria falso."""
+    c = diff_player_arrival(
+        "Raul Cobos", salary=900, purchase_price=400_000, from_academy=True, currency="COL$"
+    )
+    assert "sube de la cantera" not in c.summary
+    assert "comprado por 400.000 COL$" in c.summary
+
+
+def test_sin_precio_ni_origen_el_alta_sigue_siendo_una_frase_entera() -> None:
+    """El libro de transferencias puede llegar en el sync siguiente. Entonces
+    no se inventa un cero: se dice lo que se sabe."""
+    c = diff_player_arrival("Raul Cobos")
+    assert c.summary == "Raul Cobos se unió a la plantilla"
+    assert c.kind == "event"
 
 
 def test_detects_skill_increase() -> None:

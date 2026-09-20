@@ -1851,5 +1851,9 @@
   "🛡️ Estoico: resiste mejor las lesiones.": "🛡️ Resilient: resists injuries better.",
   "🤝 Influyente: mejora a los compañeros de alrededor.": "🤝 Support: boosts the team-mates around him.",
   "acaba de llegar": "just arrived",
-  "llega con {{v0}}": "arrives with {{v0}}"
+  "llega con {{v0}}": "arrives with {{v0}}",
+  "comprado por {{v0}}": "bought for {{v0}}",
+  "sube de la cantera": "promoted from the academy",
+  "sueldo {{v0}}": "wage {{v0}}",
+  "desde que se mide": "since measuring began"
 }

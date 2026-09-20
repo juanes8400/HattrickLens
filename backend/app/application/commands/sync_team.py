@@ -23,6 +23,7 @@ from app.domain.engines.sync_diff import (
     diff_economy,
     diff_expedientes_cerrados,
     diff_match,
+    diff_player_arrival,
     diff_player_departure,
     diff_player_skills,
     diff_previous_club_bonus,
@@ -576,6 +577,11 @@ class SyncResult:
     # (si es parte de este sync) puede rellenar `sale_price` de un jugador
     # que ya salió del roster ANTES de que ese fichero se procese.
     departed_players: list[Any] = field(default_factory=list)
+    # Y lo mismo por el otro lado (2026-09-20): los que ENTRARON en la
+    # plantilla en este sync. La frase de alta lleva el precio de compra, y
+    # ese precio vive en el libro de transferencias, que puede procesarse
+    # después de `players`. Se guardan aquí y se anuncian al final.
+    arrived_players: list[Any] = field(default_factory=list)
     # HL-161, 2026-08-04: solo los usa `execute_transfers_history`, cuántas
     # páginas de transfersteam.xml se pidieron y cuántas transferencias se
     # vieron en total vs. cuántas eran nuevas de verdad.
@@ -756,6 +762,13 @@ class SyncTeamHandler:
                     equipo_libro,
                     result,
                 )
+
+            if result.arrived_players:
+                # Las altas, con lo que costaron y lo que cuestan. Se hace
+                # aquí por lo mismo que las bajas: `transfersteam` puede ir
+                # después de `players` y sólo tras procesarlo existe la compra
+                # que le pone precio al fichaje de esta misma semana.
+                await self._anunciar_altas(uow, cmd.team_id, result)
 
             if result.departed_players:
                 # HL-2xx, 2026-08-12: se anuncia aquí, no dentro de
@@ -4489,6 +4502,11 @@ class SyncTeamHandler:
             await uow.players.append_snapshot(sync_id, player_id, p, new_hash, captured_at)
             result.snapshots_written += 1
             name = f"{p['first_name']} {p['last_name']}".strip()
+            if old_values is None:
+                # Un alta. Su frase necesita el libro de transferencias, que
+                # puede no estar procesado todavía; se escribe al final.
+                result.arrived_players.append((name, p))
+                continue
             changes = diff_player_skills(old_values, p, name, tasa, moneda)
             result.changes.extend(_as_change_row(c) for c in changes)
 
@@ -5716,6 +5734,69 @@ class SyncTeamHandler:
         result.snapshots_written += await self._reparar_intentos_abiertos(
             uow, team_id, en_venta_ahora
         )
+
+    async def _anunciar_altas(self, uow: UnitOfWork, team_id: int, result: SyncResult) -> None:
+        """Escribe la frase de alta de cada jugador que entró en este sync.
+
+        Tres datos, y cada uno puede faltar sin que los otros dejen de darse:
+
+        - El PRECIO sale del libro de transferencias, buscando la compra más
+          reciente de ese jugador por este club. Si el fichaje se cerró y el
+          libro aún no lo trae, la frase sale sin precio y no vuelve a
+          intentarse: el texto se congela en la fila, como todo en «Cambios».
+        - LA CANTERA se reconoce por el bono de club de origen, que Hattrick
+          sólo pone a quien subió de la propia academia. Es el único origen
+          que se puede afirmar sin el libro.
+        - EL SUELDO viene en la propia ficha. Los dos dineros se dividen por
+          la tasa del país, como en el resto de la aplicación.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+        moneda = (equipo.currency_name if equipo else "") or ""
+
+        def _dinero(v: int | None) -> int | None:
+            if not v:
+                return None
+            return int(round(v / tasa)) if tasa else int(v)
+
+        ids = [p["ht_player_id"] for _, p in result.arrived_players]
+        compras: dict[int, int] = {}
+        if ids:
+            filas = (
+                (
+                    await uow.session.execute(
+                        select(m.TeamTransfer)
+                        .where(
+                            m.TeamTransfer.team_id == team_id,
+                            m.TeamTransfer.is_buy.is_(True),
+                            m.TeamTransfer.ht_player_id.in_(ids),
+                        )
+                        .order_by(m.TeamTransfer.deadline)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            # Ordenadas de vieja a nueva, así que la última que se escribe es
+            # la más reciente: quien vuelve al club por segunda vez sale con
+            # el precio de ESTA vuelta y no con el de la primera.
+            for f in filas:
+                compras[f.ht_player_id] = f.price
+
+        for nombre, p in result.arrived_players:
+            cambio = diff_player_arrival(
+                nombre,
+                salary=_dinero(p.get("salary")),
+                purchase_price=_dinero(compras.get(p["ht_player_id"])),
+                from_academy=bool(p.get("mother_club_bonus")),
+                currency=moneda,
+                ht_player_id=p["ht_player_id"],
+            )
+            result.changes.append(_as_change_row(cambio))
 
     async def _reparar_intentos_abiertos(
         self, uow: UnitOfWork, team_id: int, listados_ahora: set[int]

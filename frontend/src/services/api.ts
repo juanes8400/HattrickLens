@@ -912,6 +912,13 @@ export interface PlayerComparisonChange {
   current: number | boolean;
   delta: number | null;
   direction: "up" | "down" | "neutral";
+  /** Sólo en `key === "arrival"`: lo que costó el fichaje, ya en la moneda
+   *  del club. `null` cuando el libro de transferencias todavía no lo trae,
+   *  que no es lo mismo que gratis. */
+  arrivalPrice?: number | null;
+  /** El otro origen posible: subió de la propia cantera. */
+  fromAcademy?: boolean;
+  currency?: string;
 }
 
 /** Una linea de una celda de entrenamiento juvenil.
