@@ -25,15 +25,10 @@ from app.domain.engines import htms
 from app.domain.engines.economy_engine import HOME_MATCHES_PER_SEASON, SEASON_WEEKS
 from app.domain.engines.metodo_ocho import ESCALERA, UMBRAL_DE_DESCARTE
 from app.domain.engines.prediccion import (
-    BETA,
-    COMPARACIONES,
-    ETIQUETAS,
     FACTOR_POR_TACTICA,
     MAXIMO_GOLES_ESPERADOS,
     MINIMO_HISTORIA,
     OBSERVACIONES,
-    PESO_GOLES,
-    PESO_ORDINAL,
     POISSON_BP_BALON_PARADO,
     POISSON_BP_INTERCEPTO,
     POISSON_BP_MEDIO,
@@ -45,7 +40,6 @@ from app.domain.engines.prediccion import (
     POISSON_JUEGO_MEDIO,
     RAZON_MEDIO_CASA_FUERA,
     TOPE_DE_GOLES,
-    UMBRALES,
 )
 from app.domain.engines.season_simulator import HOME_ADVANTAGE, SHRINKAGE_K
 from app.domain.engines.training_engine import DAYS_PER_HT_YEAR, parametros
@@ -470,30 +464,6 @@ def _por_diez_puntos(coeficiente: float) -> str:
     return f"×{math.exp(coeficiente * 0.10):.2f}"
 
 
-def _tabla_de_duelos() -> Tabla:
-    """Los nueve duelos con su peso, de mayor a menor."""
-    filas = sorted(
-        (
-            (ETIQUETAS[clave], float(beta))
-            for (clave, _, _), beta in zip(COMPARACIONES, BETA, strict=True)
-        ),
-        key=lambda fila: -fila[1],
-    )
-    return Tabla(
-        title="Los nueve duelos, ordenados por lo que pesan",
-        columns=["Duelo", "Coeficiente", "Si te llevas 10 puntos más del duelo"],
-        rows=[[nombre, _exacto(beta), _por_diez_puntos(beta)] for nombre, beta in filas],
-        note=(
-            "Cada fila es un ENFRENTAMIENTO, no un rating tuyo. El coeficiente no "
-            "dice «subir mi ataque central multiplica por 1,45 mis opciones»: dice "
-            "que llevarte diez puntos porcentuales más de ESE DUELO las multiplica "
-            "por eso, y eso se consigue subiendo tú o bajando él. El medio campo "
-            "manda con diferencia sobre los otros ocho, que quedan agrupados entre "
-            "2,2 y 3,9. Las bandas van cruzadas porque el campo es así."
-        ),
-    )
-
-
 def _tabla_de_poisson() -> Tabla:
     """Los siete coeficientes de goles, con su lectura en castellano."""
     return Tabla(
@@ -637,29 +607,6 @@ def _tabla_de_resumenes() -> Tabla:
     )
 
 
-def _tabla_del_barrido() -> Tabla:
-    """El barrido de la mezcla, con la fila elegida marcada."""
-    pesos = ("0,00", "0,40", "0,60", "0,70", "0,80", "0,90", "1,00")
-    perdida = ("0,6445", "0,6350", "0,6333", "0,6329", "0,6328", "0,6329", "0,6334")
-    empate = ("calibrado",) * 5 + ("SE SALE", "SE SALE")
-    elegido = f"{PESO_GOLES:.2f}".replace(".", ",")
-    return Tabla(
-        title="Por qué 80 % y no otro número",
-        columns=["Peso de los goles", "Error (log-loss)", "Calibración del empate", ""],
-        rows=[
-            [p, e, c, "← el que se usa" if p == elegido else ""]
-            for p, e, c in zip(pesos, perdida, empate, strict=True)
-        ],
-        note=(
-            "Menos es mejor. La curva es planísima entre 0,60 y 0,90 --cuatro "
-            "diezmilésimas separan los cuatro-- así que el mínimo por sí solo no "
-            "decide nada. Lo que decide es la última columna: a partir de 0,90 la "
-            "probabilidad de EMPATE se sale de su banda de calibración, porque la "
-            "rejilla de marcadores conserva un resto de exceso de resultados bajos "
-            "y el modelo ordinal es lo que lo sujeta. 0,80 es a la vez el mínimo y "
-            "el último punto que todavía calibra: por eso se eligió ése."
-        ),
-    )
 
 
 def catalogo() -> list[Seccion]:
@@ -1330,7 +1277,7 @@ def catalogo() -> list[Seccion]:
                     body=[
                         "Cuando la aplicación dice «34 % de victoria, 28 % de empate, "
                         "38 % de derrota» no está opinando ni comparando presupuestos: "
-                        "está aplicando dos regresiones ajustadas sobre "
+                        "está aplicando una regresión ajustada sobre "
                         f"{_miles(OBSERVACIONES)} partidos de liga reales de 979 equipos "
                         "repartidos por cinco países. Este capítulo cuenta, sin "
                         "saltarse nada, cómo se llega de los ratings de un partido a "
@@ -1343,23 +1290,21 @@ def catalogo() -> list[Seccion]:
                         "uno, se puede estimar cuántos goles marcará cada equipo; y de "
                         "una estimación de goles sale, por aritmética, la probabilidad "
                         "de cada marcador y por tanto de cada resultado.",
-                        "El motor da dos respuestas a la misma pregunta y luego las "
-                        "promedia. La primera mira los GOLES: una regresión de Poisson "
-                        "estima cuántos marca cada lado y despliega esa estimación en "
-                        "una rejilla de marcadores. La segunda mira el RESULTADO: una "
-                        "regresión ordinal aprende directamente de quién ganó, sin "
-                        "pasar por los goles. Se equivocan en sitios distintos, así "
-                        f"que juntas --{PESO_GOLES:.0%} goles, {PESO_ORDINAL:.0%} "
-                        "resultado-- aciertan más que cualquiera de las dos por "
-                        "separado.",
+                        "El motor es UN modelo, y mira los GOLES: una regresión de "
+                        "Poisson estima cuántos marca cada lado y despliega esa "
+                        "estimación en una rejilla de marcadores, de la que salen las "
+                        "tres probabilidades. Hasta el 2026-09-20 hubo una segunda "
+                        "mitad que aprendía de quién ganó sin pasar por los goles y "
+                        "pesaba un 20 %; se retiró porque no cambiaba la puntería. Lo "
+                        "que sí sujetaba era la cifra del empate, y eso se paga: ver el "
+                        "paso 8.",
                         "Lo que sigue son siete pasos. De dónde sale la muestra (paso "
                         "2), cómo se mide un duelo (paso 3), cómo se convierten los "
                         "duelos en goles (paso 4), qué corrige la táctica que los "
                         "ratings no ven (paso 5), cómo se pasa de goles a marcadores y "
-                        "de marcadores a probabilidades (paso 6), por qué hay una "
-                        "segunda opinión y cuánto pesa (paso 7), y cómo se comprobó que "
-                        "todo esto funciona de verdad (paso 8). El paso 9 dice qué NO "
-                        "puede hacer, que es la parte que conviene leer dos veces.",
+                        "de marcadores a probabilidades (paso 6), y cómo se comprobó "
+                        "que todo esto funciona de verdad (paso 7). El paso 8 dice qué "
+                        "NO puede hacer, que es la parte que conviene leer dos veces.",
                     ],
                     formula=(
                         "duelo         p = A / (A + B)      A tuyo, B suyo, mismo carril\n"
@@ -1370,10 +1315,7 @@ def catalogo() -> list[Seccion]:
                         "\n"
                         "resultado     P(victoria) = suma de las casillas con i > j\n"
                         "              P(empate)   = suma de la diagonal\n"
-                        "              P(derrota)  = suma de las casillas con i < j\n"
-                        "\n"
-                        f"mezcla        final = {PESO_GOLES:.2f} × goles "
-                        f"+ {PESO_ORDINAL:.2f} × ordinal"
+                        "              P(derrota)  = suma de las casillas con i < j"
                     ),
                     sources=[
                         Fuente(
@@ -1383,7 +1325,7 @@ def catalogo() -> list[Seccion]:
                         ),
                         Fuente(
                             "Cuánto pesa cada zona",
-                            f"Dos regresiones sobre {_miles(OBSERVACIONES)} partidos de "
+                            f"Una regresión sobre {_miles(OBSERVACIONES)} partidos de "
                             "liga de 979 equipos de cinco países",
                         ),
                     ],
@@ -1392,16 +1334,6 @@ def catalogo() -> list[Seccion]:
                             "partidos del ajuste",
                             _miles(OBSERVACIONES),
                             "Sobre cuántos partidos reales se estimaron los coeficientes.",
-                        ),
-                        Constante(
-                            "peso de los goles",
-                            f"{PESO_GOLES:.2f}",
-                            "Cuánto manda la regresión de Poisson en la mezcla final.",
-                        ),
-                        Constante(
-                            "peso del resultado",
-                            f"{PESO_ORDINAL:.2f}",
-                            "Cuánto corrige la regresión ordinal.",
                         ),
                         Constante(
                             "partidos previos mínimos",
@@ -1422,11 +1354,7 @@ def catalogo() -> list[Seccion]:
                         "para el rival.",
                         "Con los dos números de goles se construye la rejilla de "
                         "marcadores y se suman sus casillas en tres montones: gano, "
-                        "empato, pierdo.",
-                        "Los nueve duelos, todos, entran además en la regresión "
-                        "ordinal, que da su propia terna sin mirar los goles.",
-                        f"Las dos ternas se promedian {PESO_GOLES:.0%} / "
-                        f"{PESO_ORDINAL:.0%} y eso es lo que se pinta en la barra.",
+                        "empato, pierdo. Eso es lo que se pinta en la barra.",
                     ],
                     limits=[
                         "Todo el capítulo describe un motor ESTADÍSTICO ajustado sobre "
@@ -1700,8 +1628,8 @@ def catalogo() -> list[Seccion]:
                         "en las seis familias a la vez. El efecto multiplicativo, si "
                         "existe, es tan flojo que la mejor aproximación es no tenerlo. "
                         "Tiene sentido: el medio campo ya entra por su propio "
-                        "coeficiente, que es con diferencia el mayor de los nueve, y "
-                        "eso ya recoge casi todo lo que la posesión explica.",
+                        "coeficiente, que es con diferencia el mayor de la ecuación de "
+                        "goles, y eso ya recoge casi todo lo que la posesión explica.",
                     ],
                     formula=(
                         "p = A / (A + B)        A = tu rating,  B = el suyo\n"
@@ -1728,14 +1656,14 @@ def catalogo() -> list[Seccion]:
                         ),
                         Fuente(
                             "El peso de cada duelo",
-                            f"Una regresión ordinal sobre {_miles(OBSERVACIONES)} partidos",
+                            f"La ecuación de goles del paso 4, ajustada sobre "
+                            f"{_miles(OBSERVACIONES)} partidos",
                         ),
                     ],
                     constants=[
                         Constante("p", "de 0 a 1", "Qué parte del duelo te llevas."),
                         Constante("p = 0,5", "igualdad", "Los dos ratings son iguales."),
                     ],
-                    tables=[_tabla_de_duelos()],
                     steps=[
                         "Tu medio campo (promedio) es 9,5; el suyo, 14,5.",
                         "p(medio) = 9,5 / (9,5 + 14,5) = 0,3958. Te llevas el 40 % de ese duelo.",
@@ -1745,8 +1673,11 @@ def catalogo() -> list[Seccion]:
                         "Tu ataque derecho 11,0 contra su defensa IZQUIERDA 12,0: p = 0,4783.",
                         "Tu balón parado ofensivo 8,0 contra su defensivo 7,0: "
                         "p = 0,5333. Es el único duelo que ganas.",
-                        "Y así los nueve. Ese vector de nueve proporciones es lo que "
-                        "entra en los dos modelos.",
+                        "Y así los nueve. De ellos, la ecuación de goles usa CINCO "
+                        "--medio campo, los tres ataques y el balón parado ofensivo-- y "
+                        "se calcula dos veces, una por equipo. Tu defensa no entra en tu "
+                        "lambda: entra en la SUYA, enfrentada a su ataque, que es donde "
+                        "tiene que entrar.",
                     ],
                     limits=[
                         "La proporción trata un 12 contra 6 igual que un 40 contra 20. "
@@ -2199,124 +2130,8 @@ def catalogo() -> list[Seccion]:
                     ],
                 ),
                 Calculo(
-                    id="pronostico-mezcla",
-                    name="7 · La segunda opinión, y cuánto pesa",
-                    answers=(
-                        "Por qué hay un segundo modelo mirando los mismos duelos, y por "
-                        "qué la mezcla es 80/20 y no otra cosa."
-                    ),
-                    body=[
-                        "El modelo de goles no es el único que mira estos duelos. Hay "
-                        "un segundo, una regresión logística ORDINAL, que aprende de "
-                        "otra cosa: no de cuántos goles se marcaron, sino de quién "
-                        "ganó. Recibe los NUEVE duelos --incluidos los tres defensivos, "
-                        "que el de goles no usa-- los combina en un solo número, y "
-                        "parte la recta en tres tramos con dos umbrales: por debajo del "
-                        "primero, derrota; entre los dos, empate; por encima del "
-                        "segundo, victoria.",
-                        "«Ordinal» significa que respeta el orden natural del "
-                        "resultado: derrota < empate < victoria. No son tres categorías "
-                        "sueltas, son tres tramos de una misma escala, y el modelo lo "
-                        "sabe. Por eso hay dos umbrales y no dos modelos separados, y "
-                        "por eso los coeficientes de la tabla del paso 3 son los de esa "
-                        "escala.",
-                        "Los dos modelos miran los mismos partidos y se equivocan en "
-                        "sitios distintos. El de goles discrimina un poco mejor y es el "
-                        "único que sabe de marcadores; el ordinal calibra mejor el "
-                        "empate y es el único que mira los duelos DEFENSIVOS de forma "
-                        "directa. Promediarlos es la forma más barata que existe de "
-                        "quedarse con lo mejor de cada uno, y funciona: juntos aciertan "
-                        "más que cualquiera de los dos por separado.",
-                        "El peso se eligió barriendo todos los valores y mirando dos "
-                        "cosas a la vez, no una. La primera es el error de predicción. "
-                        "La segunda, y es la que manda, es la CALIBRACIÓN del empate: "
-                        "que cuando el motor dice 25 % de empate, empaten cerca del "
-                        "25 % de las veces. La curva de error es planísima entre 0,60 y "
-                        "0,90 --cuatro diezmilésimas separan cuatro puntos-- así que el "
-                        "mínimo por sí solo no decidía nada; lo que decide es que a "
-                        "partir de 0,90 el empate se sale de su banda. 0,80 es a la vez "
-                        "el mínimo y el último punto que todavía calibra.",
-                        "Conviene decir de dónde viene ese 80. Estuvo en 75/25 y luego "
-                        "en 60/40, con el modelo de goles anterior. Subió hasta aquí "
-                        "porque el modelo de goles mejoró mucho al partirlo en dos "
-                        "componentes y descomprimirlo: pasó de 0,6559 a 0,6334 de "
-                        "error, mientras el ordinal se queda en 0,6445. El peso siguió "
-                        "a la mejora, no al revés.",
-                    ],
-                    formula=(
-                        "z = Σ βᵢ × pᵢ                    los NUEVE duelos\n"
-                        "\n"
-                        f"P(derrota)  = σ({_exacto(UMBRALES[0])} − z)\n"
-                        f"P(empate)   = σ({_exacto(UMBRALES[1])} − z) − P(derrota)\n"
-                        f"P(victoria) = 1 − σ({_exacto(UMBRALES[1])} − z)\n"
-                        "\n"
-                        "σ(t) = 1 / (1 + e^(−t))          la función logística\n"
-                        "\n"
-                        f"final = {PESO_GOLES:.2f} × (lo del paso 5) "
-                        f"+ {PESO_ORDINAL:.2f} × (lo de aquí)"
-                    ),
-                    sources=[
-                        Fuente(
-                            "Los nueve duelos",
-                            "El paso 3, esta vez los nueve y no sólo los ofensivos",
-                        ),
-                        Fuente(
-                            "Los nueve coeficientes y los dos umbrales",
-                            f"Una regresión ordinal sobre {_miles(OBSERVACIONES)} partidos de liga",
-                        ),
-                        Fuente(
-                            "El peso de la mezcla",
-                            "Un barrido completo, con la calibración del empate como corte",
-                        ),
-                    ],
-                    constants=[
-                        Constante(
-                            "umbral derrota / empate",
-                            _exacto(UMBRALES[0]),
-                            "Por debajo de este punto de la escala, derrota.",
-                        ),
-                        Constante(
-                            "umbral empate / victoria",
-                            _exacto(UMBRALES[1]),
-                            "Por encima de este punto, victoria.",
-                        ),
-                        Constante(
-                            "peso de los goles",
-                            f"{PESO_GOLES:.2f}",
-                            "Cuánto manda la Poisson del paso 5.",
-                        ),
-                        Constante(
-                            "peso del ordinal",
-                            f"{PESO_ORDINAL:.2f}",
-                            "Cuánto corrige la regresión de resultado.",
-                        ),
-                    ],
-                    tables=[_tabla_del_barrido()],
-                    steps=[
-                        "Con los nueve duelos del ejemplo, z = 17,9526.",
-                        "Ese número cae entre los dos umbrales (17,86 y 18,88): el "
-                        "ordinal ve un partido de la zona del empate.",
-                        "Sus tres probabilidades: victoria 28,4 %, empate 23,8 %, derrota 47,8 %.",
-                        "Las del modelo de goles eran 22,7 %, 18,0 % y 59,3 %.",
-                        "Victoria final = 0,80 × 22,7 % + 0,20 × 28,4 % = 23,9 %.",
-                        "Empate final = 0,80 × 18,0 % + 0,20 × 23,8 % = 19,1 %. "
-                        "Derrota, 57,0 %. Eso es lo que se pinta.",
-                    ],
-                    limits=[
-                        "El peso es una decisión, no un parámetro ajustado. Está "
-                        "medido, pero elegir 0,80 en vez de 0,70 fue una elección "
-                        "declarada.",
-                        "Los dos modelos comparten muestra y comparten variables, así "
-                        "que sus errores no son independientes: mezclarlos ayuda menos "
-                        "de lo que ayudaría combinar dos modelos de verdad distintos.",
-                        "El ordinal no sabe nada de goles. En la mezcla sólo corrige "
-                        "las tres probabilidades; los goles esperados y el marcador más "
-                        "probable que enseña la pantalla salen enteros del paso 5.",
-                    ],
-                ),
-                Calculo(
                     id="pronostico-validacion",
-                    name="8 · Cómo se comprobó que funciona",
+                    name="7 · Cómo se comprobó que funciona",
                     answers=(
                         "Qué se midió, contra qué se comparó y qué salió. Sin esto, "
                         "todo lo anterior son sólo fórmulas."
@@ -2335,20 +2150,34 @@ def catalogo() -> list[Seccion]:
                         "diciendo «90 %», y fallar diciendo «90 %» se paga carísimo. Es "
                         "la métrica correcta cuando lo que se publica son "
                         "probabilidades y no un pronóstico. Menos es mejor.",
-                        "El resultado: 0,6328 contra un suelo de 1,0986, que es lo que "
-                        "sacaría alguien que dijera siempre «un tercio, un tercio, un "
-                        "tercio». Traducido: acierta el 73 % de los partidos contra el "
-                        "50 % de acertar siempre lo más común. Y esa ganancia se repitió "
-                        "con cuatro esquemas de corte distintos, así que no es un "
-                        "artefacto de dónde se puso la raya.",
+                        "El resultado, con el modelo de goles solo y sus coeficientes "
+                        "tal como corren: 0,659 de log-loss y 71,3 % de acierto sobre "
+                        "los 5.232 partidos, contra el 50,7 % de acertar siempre lo más "
+                        "común. Y una advertencia que va pegada a esas dos cifras: los "
+                        "coeficientes salieron de estos mismos partidos, así que es "
+                        "preguntarle al modelo por un examen que ya vio y los números "
+                        "reales serán algo peores.",
+                        "POR QUÉ NO ESTÁN MEDIDAS CON ORIGEN MÓVIL, que sería lo suyo. "
+                        "El guion que reajusta en cada corte reajusta una versión "
+                        "ANTERIOR del modelo de goles, sin la descompresión ni el balón "
+                        "parado aparte, así que sus cifras describen otro motor. "
+                        "Rehacerlo bien exige repetir el ajuste no lineal en cada corte. "
+                        "Está escrito y pendiente, y hasta entonces lo honesto es decir "
+                        "de dónde salen las cifras que sí hay.",
                         "Pero acertar no basta: hay que estar CALIBRADO. Cuando la "
                         "pantalla dice 70 %, tiene que ocurrir cerca del 70 % de las "
                         "veces, o el número engaña aunque el ranking sea bueno. Se "
-                        "comprobó simulando: se generaron dos mil mundos donde el "
-                        "modelo es cierto por construcción, se midió cuánto se desvía "
-                        "la calibración en esos mundos por puro azar, y se exigió que "
-                        "la desviación real cayera dentro de esa banda. Las tres "
-                        "clases --victoria, empate y derrota-- pasan.",
+                        "comprueba simulando: se generan mundos donde el modelo es "
+                        "cierto por construcción, se mide cuánto se desvía la "
+                        "calibración en esos mundos por puro azar, y se exige que la "
+                        "desviación real caiga dentro de esa banda.",
+                        "VICTORIA Y DERROTA PASAN. EL EMPATE NO. El motor promete 806 "
+                        "empates y ocurren 733: un 10 % de más, y su desviación se sale "
+                        "de la banda del azar. Es el precio conocido de haber retirado "
+                        "la segunda mitad el 2026-09-20: era lo que sujetaba esa clase. "
+                        "Se dice aquí en vez de callarlo porque una probabilidad "
+                        "descalibrada que se enseña como porcentaje es un número que "
+                        "miente.",
                         "LA COPA SE VALIDÓ APARTE ANTES DE CABLEARLA, porque nada "
                         "garantizaba que un modelo ajustado con partidos de liga "
                         "sirviera allí. Sobre los cruces de copa recogidos: log-loss "
@@ -2418,13 +2247,14 @@ def catalogo() -> list[Seccion]:
                         Constante("cortes de origen móvil", "5", "Cuántas veces se reajustó."),
                         Constante(
                             "log-loss del motor",
-                            "0,6328",
-                            "Menos es mejor. El suelo de no saber nada es 1,0986.",
+                            "0,659",
+                            "Menos es mejor. El suelo de no saber nada es 1,0986. Con los "
+                            "coeficientes pegados, así que el real será algo peor.",
                         ),
                         Constante(
                             "acierto",
-                            "73 %",
-                            "Contra el 50 % de acertar siempre el resultado más común.",
+                            "71,3 %",
+                            "Contra el 50,7 % de acertar siempre el resultado más común.",
                         ),
                         Constante(
                             "error de goles",
@@ -2455,11 +2285,11 @@ def catalogo() -> list[Seccion]:
                         "Se apunta el error de cada predicción contra lo que de verdad pasó.",
                         "Se mueve el corte al 52 %, al 64 %, al 76 % y al 88 %, "
                         "reajustando cada vez.",
-                        "Se promedian los cinco tramos: log-loss 0,6328.",
+                        "Se promedian los cinco tramos.",
                         "Se repite el ejercicio con otros tres esquemas de corte. Gana "
                         "en los cuatro.",
                         "Aparte, se comprueba la calibración de las tres clases contra "
-                        "la banda simulada. Las tres pasan.",
+                        "la banda simulada. Victoria y derrota pasan; el empate no.",
                     ],
                     limits=[
                         "Todo se midió sobre partidos de LIGA de cinco países. Nada "
@@ -2469,10 +2299,14 @@ def catalogo() -> list[Seccion]:
                         "pero con un modelo ajustado en liga. Que funcione bien no "
                         "significa que la copa se comporte como la liga: significa que "
                         "los duelos siguen ordenando bien a los equipos.",
-                        "Un log-loss de 0,6328 es bueno para este problema, no es "
+                        "Un log-loss de 0,659 es bueno para este problema, no es "
                         "adivinación. Un tercio largo de los partidos sale distinto de "
                         "lo que el modelo consideraba más probable, y eso es normal en "
                         "un deporte con estos marcadores.",
+                        "La cifra principal está medida con los coeficientes pegados, "
+                        "sobre los partidos con los que se ajustaron. Es optimista, y "
+                        "cuánto no se sabrá hasta rehacer la evaluación con origen "
+                        "móvil para este modelo.",
                         "Lo que ve la pantalla se equivoca más que la cifra principal "
                         "--0,6924 contra 0,6177 en los mismos partidos-- porque predice "
                         "sin los ratings del partido. La sede se corrige con una razón "
@@ -2482,7 +2316,7 @@ def catalogo() -> list[Seccion]:
                 ),
                 Calculo(
                     id="pronostico-limites",
-                    name="9 · Hasta dónde vale",
+                    name="8 · Hasta dónde vale",
                     answers=(
                         "Lo que el modelo NO puede hacer, y las dos cosas que conviene "
                         "no leer de más."
@@ -2501,14 +2335,16 @@ def catalogo() -> list[Seccion]:
                         "que medía, que es la firma inconfundible de una variable "
                         "colineal. Se queda porque quitarlo empeora mucho la "
                         "predicción, no porque su número sea una lección de táctica.",
-                        "EL SEGUNDO AVISO es sobre el empate. El motor promete de media "
-                        "un 14,5 % de empates y en la muestra ocurren un 13,0 %. Está "
-                        "dentro de la banda de calibración, pero es un sesgo real y "
-                        "conocido: queda un resto del exceso de marcadores bajos que la "
-                        "descompresión no llegó a eliminar del todo. Si la barra dice "
-                        "que el empate es la opción más gorda, conviene descontarle "
-                        "algo mentalmente. Es además la razón por la que la mezcla no "
-                        "sube del 80 %: el modelo ordinal es lo que sujeta esa clase.",
+                        "EL SEGUNDO AVISO es sobre el empate, y desde el 2026-09-20 "
+                        "es más serio que antes. El motor promete un 10 % más de "
+                        "empates de los que ocurren --806 contra 733 en la muestra-- y "
+                        "esa desviación ya NO cabe dentro de lo que explicaría el azar: "
+                        "esa clase está descalibrada. Queda un resto del exceso de "
+                        "marcadores bajos que la descompresión no eliminó del todo, y "
+                        "hasta ese día había una segunda mitad del motor que lo "
+                        "sujetaba. Al retirarla se ganó simplicidad y no se perdió "
+                        "puntería, pero se perdió esto. En la práctica: si la barra "
+                        "dice que el empate es la opción más gorda, descuéntale algo.",
                         "Y luego está lo que el motor sencillamente no mira. No conoce "
                         "la alineación del domingo, ni la del rival. No sabe de "
                         "lesiones, sanciones, actitud ni órdenes individuales. No sabe "

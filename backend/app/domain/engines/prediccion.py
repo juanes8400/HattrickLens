@@ -12,41 +12,45 @@ Todo como PROPORCIÓN `A/(A+B)`, nunca como resta: los ratings van de 1 a 93 y
 una diferencia de 10 no significa lo mismo arriba que abajo, mientras que la
 proporción siempre dice «qué parte de este duelo es mía».
 
+UN SOLO MODELO, DESDE EL 2026-09-20
+-----------------------------------
+El motor es la regresión de Poisson sobre los goles: estima cuántos marca
+cada lado, despliega esa estimación en una rejilla de marcadores y suma la
+rejilla en tres montones. Decisión del usuario, tomada sobre el barrido
+entero (ver `PESO_GOLES`).
+
+Hubo una segunda mitad, una regresión ordinal que aprendía de quién ganó sin
+pasar por los goles, y pesaba un 20 %. Sigue en este fichero, apagada: el
+peso a cero salta su cuenta entera y volver a encenderla es cambiar un número.
+Lo que no se hace es enseñarla, porque ya no interviene en nada de lo que se
+ve.
+
 LO QUE DA, MEDIDO
 -----------------
-Sobre 5.232 partidos de liga de 979 equipos de cinco países, reajustando en
-cada corte para que nunca se mida contra un partido que el ajuste vio:
+Sobre los 5.232 partidos de liga de 979 equipos de cinco países, con los
+coeficientes que lleva pegados este fichero:
 
-    aciertos     73,0 %   (acertar siempre lo más común: 50,5 %)
-    log-loss     0,642    (no saber nada: 0,980)
-    AUC          0,892 victoria · 0,894 derrota · 0,705 empate
-    empates      calibrado: promete 452, ocurren 409 en 3.140 partidos
+    aciertos     71,3 %   (acertar siempre lo más común: 50,7 %)
+    log-loss     0,659
+    AUC          0,877 victoria
+    empates      promete 806, ocurren 733
 
-Dentro de cada país el empate queda calibrado por separado, y eso importa
-porque la tasa cambia mucho: del 11,4 % al 20,5 % según el bloque. El modelo
-no predice un 14 % plano en todos, sino que se adapta a través de los ratings
---en el país del 20,5 % predice 21,1 %--.
+Y las dos advertencias que van con esas cifras, porque sin ellas engañan:
 
-POR QUÉ ORDINAL Y NO TRES ETIQUETAS SUELTAS
--------------------------------------------
-Victoria, empate y derrota están ORDENADAS. Un modelo multinomial las trata
-como tres cosas sin relación y gasta dos juegos completos de coeficientes en
-redescubrir por su cuenta que el empate está en medio.
+1. Los coeficientes salieron de estos mismos partidos, así que es preguntarle
+   al modelo por un examen que ya vio: los números de verdad, contra partidos
+   nuevos, serán algo peores. Medirlo bien exige rehacer el ajuste no lineal
+   en cada corte; ver la cabecera de `scripts/evaluar_motor.py`.
 
-El ordinal lo da por sabido: un solo juego de nueve coeficientes que miden
-«cuánto favorece esto al local», y dos umbrales que parten esa recta en tres
-tramos. Medido con 1.031 partidos: el mismo ajuste con 11 parámetros que el
-multinomial con 20. Los nueve de más no compraban nada.
+2. EL EMPATE NO ESTÁ CALIBRADO. Promete un 10 % más de empates de los que
+   ocurren, y su error de calibración se sale de la banda que explicaría el
+   azar. Con la mitad ordinal puesta sí cabía dentro. Es el precio conocido
+   de esta decisión, no una sorpresa, y por eso está escrito aquí y no
+   escondido: donde la pantalla dice «28 % de empate», ocurre algo menos.
 
-Lo que cuesta, y hay que decirlo: la franja del empate sale estrecha, así que
-este modelo casi nunca dirá que un empate es lo más probable. No es un fallo
-de ajuste sino de la forma del modelo. Por eso lo que se enseña son las TRES
-probabilidades y de ellas salen los puntos esperados, en vez de un pronóstico
-que tiraría dos de las tres a la basura.
-
-La otra consecuencia de tener una sola pendiente es que el modelo se pasa de
-confiado en los extremos. Eso sí se corrige, y se corrige con un número: ver
-`ESCALA`.
+El acierto y el log-loss, en cambio, no se movieron: entre el 80 % y el 100 %
+la diferencia era de seis centésimas de por ciento, ruido. Lo que la ordinal
+sujetaba era la cifra del empate, no la puntería.
 
 DOS PROBLEMAS, NO UNO
 ---------------------
@@ -84,10 +88,22 @@ del local es un 19 % más alto que el del visitante --14,2 contra 12,0-- y en
 defensa y ataque la diferencia es del 2 % o menos. Sumarle encima un bono de
 local sería contarla dos veces.
 
-Con ratings idénticos en los dos lados el modelo da 42,1 % de victoria contra
-36,4 % de derrota. Esos cinco puntos y pico son lo que queda por encima de lo
-que los ratings ya explican, y salen solos de que la suma de los coeficientes
-(38,26) no coincida con la de los umbrales (37,95).
+Y DESDE EL 2026-09-20 NO SE SUMA NADA EN ABSOLUTO. Con ratings idénticos en
+los dos lados el modelo da ahora 40,97 % de victoria contra 40,97 % de
+derrota: exactamente simétrico. La Poisson calcula la lambda de cada lado con
+SUS duelos ofensivos, así que con ratings iguales las dos coinciden al último
+decimal.
+
+Hasta ese día quedaba un residuo de 5,7 puntos a favor del local (42,1 contra
+36,4), y no venía de ningún bono: salía de la mitad ordinal, de que la suma de
+sus coeficientes (38,26) no coincidiera con la de sus umbrales (37,95). Al
+apagar la ordinal se fue con ella.
+
+Es una consecuencia de la decisión, no un descuido. Lo que queda es la ventaja
+de campo que ya traen los ratings, que es la grande y la medida; lo que se ha
+perdido es esa corrección de encima. Se comprobó en su día que meter un
+término explícito de «juega en casa» en la Poisson no compensa: sale +0,0149
+con p = 0,33 y el AIC empeora.
 
 QUÉ NO ENTRA
 ------------
@@ -1098,34 +1114,38 @@ def marcador_mas_probable(
     return int(local), int(visitante)
 
 
-#: Cuánto pesa cada uno de los dos modelos propios al unirlos.
+#: Cuánto pesa cada modelo al unirlos. Desde el 2026-09-20: todo la Poisson.
 #:
-#: Los dos miran los MISMOS ratings y sacan conclusiones distintas: el ordinal
-#: aprende de quién ganó, la Poisson de cuántos goles se marcaron. Se
-#: equivocan en sitios distintos, y por eso juntos aciertan más que cualquiera
-#: de los dos por separado.
+#: DECISIÓN DEL USUARIO, tomada sobre el barrido entero con las dos mitades
+#: tal como corren (`scripts/barrido_de_la_mezcla.py`, 5.232 partidos):
 #:
-#: 80 % Poisson / 20 % ordinal, elegido por el usuario el 2026-09-08 sobre el
-#: barrido entero. Estuvo en 75/25 y en 60/40; sube hasta aquí porque la
-#: Poisson mejoró mucho ese día --de 0,6559 a 0,6334 de log-loss con la
-#: descompresión y el Balón Parado aparte-- mientras la ordinal sola se queda
-#: en 0,6445.
+#:     peso goles   0,00   0,20   0,60   0,80   0,90   1,00
+#:     log-loss   0,6703 0,6641 0,6591 0,6584 0,6585 0,6588
+#:     aciertos    0,711  0,712  0,712  0,713  0,713  0,713
+#:     AUC vic     0,873  0,875  0,876  0,877  0,877  0,877
+#:     empate         ok     ok     ok     ok     NO     NO
 #:
-#:     peso goles   0,00   0,40   0,60   0,70   0,80   0,90   1,00
-#:     log-loss   0,6445 0,6350 0,6333 0,6329 0,6328 0,6329 0,6334
-#:     empate            ok     ok     ok     ok     ok     NO     NO
+#: LO QUE DICE ESA TABLA, y conviene leerlo entero antes de tocar nada:
 #:
-#: 0,80 ES EL MÍNIMO Y ADEMÁS EL ÚLTIMO PUNTO CALIBRADO. A 0,90 y 1,00 el
-#: error de calibración del EMPATE se sale de su banda: la rejilla conserva un
-#: resto de exceso de marcadores bajos y la ordinal es lo que lo sujeta. Como
-#: la pantalla enseña porcentajes, esa clase tiene que estar calibrada.
+#: · En PUNTERÍA la ordinal no aportaba. Del 80 % al 100 % el log-loss sube
+#:   0,0004 --seis centésimas de por ciento-- y el acierto y el AUC no se
+#:   mueven a tres decimales. Quien esperara que quitarla empeorara las
+#:   predicciones, no: no las cambia.
 #:
-#: LO QUE APORTA CADA MITAD, medido: la Poisson discrimina un poco mejor (AUC
-#: de victoria 0,895 contra 0,892) y es la única que sabe de goles; la ordinal
-#: calibra mejor el empate y es la única que mira los duelos DEFENSIVOS
-#: directamente. Con 0,80 mandan los goles y la ordinal corrige.
-PESO_ORDINAL = 0.20
-PESO_GOLES = 0.80
+#: · En el EMPATE sí aportaba, y es lo que se ha perdido. A 1,00 el modelo
+#:   promete 806 empates y ocurren 733, y el error de calibración se sale de
+#:   la banda del azar. La rejilla de marcadores conserva un exceso de
+#:   resultados bajos y la ordinal era lo que lo sujetaba.
+#:
+#: · En pantalla el cambio es pequeño pero no nulo: la mediana de los
+#:   partidos se mueve 0,6 puntos porcentuales, el peor caso 10,3, y el
+#:   «resultado más probable» cambia en 58 de 5.232 partidos.
+#:
+#: VOLVER ATRÁS ES CAMBIAR ESTOS DOS NÚMEROS. La ordinal sigue entera unas
+#: líneas más arriba y `probabilidades_del_motor` la vuelve a llamar en cuanto
+#: el peso deje de ser cero.
+PESO_ORDINAL = 0.0
+PESO_GOLES = 1.0
 
 
 def probabilidades_del_motor(

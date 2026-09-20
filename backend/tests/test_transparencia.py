@@ -294,11 +294,15 @@ def test_el_htms_lleva_su_credito() -> None:
 
 #: ── El capítulo del pronóstico de partido ─────────────────────────────────
 #:
-#: Nueve fichas que son un artículo, no ocho cálculos: el usuario pidió el
+#: Ocho fichas que son un artículo, no ocho cálculos: el usuario pidió el
 #: 2026-09-08 «que explique paso a paso todo el proceso, como si alguien que
 #: no conoce se quisiera empapar del tema». Lo que se protege aquí abajo es
 #: que siga siendo eso --pasos completos, con prosa-- y sobre todo que sus
-#: veintitantos coeficientes se sigan LEYENDO del motor.
+#: coeficientes se sigan LEYENDO del motor.
+#:
+#: Eran nueve hasta el 2026-09-20. Se fue «La segunda opinión» al pasar la
+#: mezcla a 100 % Poisson: la ordinal sigue en el código, apagada, pero no se
+#: explica porque no interviene en nada de lo que se ve.
 PASOS_DEL_PRONOSTICO = (
     "pronostico-resumen",
     "pronostico-muestra",
@@ -306,7 +310,6 @@ PASOS_DEL_PRONOSTICO = (
     "pronostico-goles",
     "pronostico-tactica",
     "pronostico-rejilla",
-    "pronostico-mezcla",
     "pronostico-validacion",
     "pronostico-limites",
 )
@@ -332,7 +335,12 @@ def test_cada_paso_del_pronostico_se_explica_en_prosa() -> None:
 
 
 def test_los_coeficientes_del_pronostico_salen_del_motor() -> None:
-    """Los siete de goles, los nueve de duelos y los dos umbrales."""
+    """Los siete de la ecuación de goles, que desde el 2026-09-20 son todos.
+
+    Antes se comprobaban también los nueve del ordinal y sus dos umbrales. Ya
+    no se publican: publicarlos sería enseñar los pesos de un modelo que no
+    corre, que es justo lo que esta pantalla existe para no hacer.
+    """
     from app.domain.engines import prediccion
 
     formula = _calculo("pronostico-goles").formula
@@ -349,14 +357,15 @@ def test_los_coeficientes_del_pronostico_salen_del_motor() -> None:
     # El cuadrático viaja con su signo derivado, no con el menos pegado.
     assert repr(abs(prediccion.POISSON_JUEGO_CUADRATICO)) in formula
 
-    duelos = _calculo("pronostico-duelo").tables[0]
-    publicados = {fila[1] for fila in duelos.rows}
-    assert publicados == {repr(float(b)) for b in prediccion.BETA}
-    assert len(duelos.rows) == len(prediccion.COMPARACIONES)
-
-    mezcla = _calculo("pronostico-mezcla").formula
-    assert repr(prediccion.UMBRALES[0]) in mezcla
-    assert repr(prediccion.UMBRALES[1]) in mezcla
+    # Y NINGÚN coeficiente del ordinal, en ninguna ficha del capítulo.
+    todo = "\n".join(
+        c.formula + "\n".join(c.body) + "\n".join(t.title for t in c.tables)
+        for c in (_calculo(i) for i in PASOS_DEL_PRONOSTICO)
+    )
+    for beta in prediccion.BETA:
+        assert repr(float(beta)) not in todo, f"sigue publicado un coeficiente ordinal: {beta}"
+    for umbral in prediccion.UMBRALES:
+        assert repr(float(umbral)) not in todo, f"sigue publicado un umbral ordinal: {umbral}"
 
 
 def test_el_pronostico_sigue_al_motor_si_alguien_lo_reajusta() -> None:
