@@ -478,22 +478,6 @@ export function SkillsPage() {
         </div>
       </Panel>
 
-      {/* MEJOR POSICIÓN (2026-09-19, pedido del usuario): estaba en la
-          pantalla de Habilidades y su sitio es este. El mapa de arriba dice
-          qué niveles tiene cada jugador; la cancha dice para qué puesto
-          sirve, que es la misma pregunta vista desde el campo. */}
-      {mejorPosicion && (
-        <Panel
-          title={mejorPosicion.label}
-          meta={t("comun.nJugadores", "{{n}} jugadores", {
-            n: overview.data?.playerCount ?? data.players.length,
-          })}
-        >
-          <MejorPosicion group={mejorPosicion} />
-          {mejorPosicion.note && <Note>{mejorPosicion.note}</Note>}
-        </Panel>
-      )}
-
       {/* PROFUNDIDAD POR PUESTO (2026-09-14, pedido del usuario): no se
           compara al mejor con el segundo mejor --que suele ser titular
           también--, sino con el mejor del BANQUILLO en ese puesto, que es
@@ -944,6 +928,22 @@ export function SkillsPage() {
           </div>
         )}
       </Panel>
+
+      {/* MEJOR POSICIÓN, al FINAL de la pantalla (2026-09-19, pedido del
+          usuario). Viene de la pantalla de Habilidades y cierra el recorrido:
+          arriba están los niveles y los huecos, y esto es la misma plantilla
+          vista desde el campo, para qué puesto sirve cada uno. */}
+      {mejorPosicion && (
+        <Panel
+          title={mejorPosicion.label}
+          meta={t("comun.nJugadores", "{{n}} jugadores", {
+            n: overview.data?.playerCount ?? data.players.length,
+          })}
+        >
+          <MejorPosicion group={mejorPosicion} />
+          {mejorPosicion.note && <Note>{mejorPosicion.note}</Note>}
+        </Panel>
+      )}
     </div>
   );
 }

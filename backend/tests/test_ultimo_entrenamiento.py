@@ -201,3 +201,74 @@ def test_sin_la_cita_juvenil_no_se_estima_nada() -> None:
         return await AcademyQueryService(sesion)._ultimo_entrenamiento_juvenil(equipo.id, now=HOY)
 
     assert run(go()) is None
+
+
+def test_una_bajada_no_es_una_subida() -> None:
+    """Hattrick reporta las dos cosas en el mismo sitio.
+
+    Con datos reales de esta cuenta, tres de los cinco movimientos de la
+    semana eran CAÍDAS de Resistencia y de Lateral. Contarlas como subidas
+    convertía una mala semana en una buena noticia, así que el parte las
+    separa y cada una sabe hacia dónde fue.
+    """
+
+    async def go():
+        sesion = await _base()
+        team_id = await _equipo_con_mundo(sesion)
+        for ht_id, nombre in ((1, "Sube"), (2, "Baja")):
+            jugador = m.Player(
+                ht_player_id=ht_id, team_id=team_id, first_name=nombre, last_name="Prueba"
+            )
+            sesion.add(jugador)
+        await sesion.flush()
+        sesion.add(
+            m.PlayerSnapshot(
+                sync_id=1,
+                player_id=1,
+                captured_at=HOY,
+                age_years=25,
+                age_days=1,
+                tsi=1000,
+                form=5,
+                stamina=7,
+                experience=3,
+                salary=1000,
+                content_hash=b"x" * 32,
+            )
+        )
+        sesion.add(
+            m.SkillUp(
+                team_id=team_id,
+                ht_player_id=1,
+                skill_id=7,
+                old_level=6,
+                new_level=7,
+                season=83,
+                match_round=9,
+                day_number=3,
+            )
+        )
+        # La Resistencia se cae sola cuando el entrenamiento va por otro lado.
+        sesion.add(
+            m.SkillUp(
+                team_id=team_id,
+                ht_player_id=2,
+                skill_id=2,
+                old_level=8,
+                new_level=7,
+                season=83,
+                match_round=9,
+                day_number=3,
+            )
+        )
+        await sesion.commit()
+        return await UltimoEntrenamientoQueryService(sesion).get(team_id)
+
+    parte = run(go())
+    assert parte is not None
+    deltas = {u.name: u.delta for u in parte.ups}
+    assert deltas == {"Sube Prueba": 1, "Baja Prueba": -1}
+    # Y la que baja se llama por su nombre, no «stamina» en crudo.
+    assert [u.skill_label for u in parte.ups if u.delta < 0] == ["Resistencia"]
+    # Las subidas van primero.
+    assert parte.ups[0].delta > 0

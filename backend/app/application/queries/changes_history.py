@@ -133,6 +133,31 @@ YOUTH_METRICS: tuple[tuple[str, str], ...] = (
 )
 
 
+def _llegada(
+    actual: Any, juvenil: Any, nombre: str, campo: str, etiqueta: str
+) -> dict[str, Any]:
+    """Una habilidad con la que un canterano ENTRÓ por la puerta.
+
+    Sin «antes» y sin delta: nadie subió ni bajó. Y sin marcarla como
+    revelación del ojeador, que es otra cosa y tiene su propia cifra. Hasta el
+    2026-09-19 un recién llegado no aparecía en Cambios por ningún lado, y lo
+    que es noticia de él es justo con qué llega (pedido del usuario).
+    """
+    return {
+        "capturedAt": actual.captured_at.isoformat(),
+        "htPlayerId": juvenil.ht_youth_player_id,
+        "name": nombre,
+        "isYouth": True,
+        "key": campo,
+        "label": etiqueta,
+        "before": None,
+        "current": int(getattr(actual, campo)),
+        "delta": None,
+        "isReveal": False,
+        "isArrival": True,
+    }
+
+
 async def _cambios_de_cantera(
     session: AsyncSession, team_id: int, cutoff: datetime
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -184,12 +209,35 @@ async def _cambios_de_cantera(
     techos_ahora = techos_antes = lecturas = 0
     for entries in por_juvenil.values():
         cierres = latest_per_iso_week(entries, lambda item: item[0].captured_at)
-        if len(cierres) < 2:
-            continue
         actual, juvenil = cierres[-1]
+
+        # ¿Llegó DENTRO de la ventana? Entonces no hay «antes» contra el que
+        # comparar, y hasta hoy eso lo dejaba fuera de Cambios por completo:
+        # un chico nuevo no aparecía por ningún lado. Lo que es noticia de él
+        # es justo con qué llega (2026-09-19, pedido del usuario).
+        #
+        # Con la ventana «siempre» no hay recién llegados: el corte está en el
+        # principio del tiempo y cada chico se compara contra su propio primer
+        # cierre, así que TODOS saldrían como nuevos.
+        primero = cierres[0][0]
+        llego = cutoff > datetime.min and _naive(primero.captured_at) > cutoff
+
+        nombre = f"{juvenil.first_name} {juvenil.last_name}".strip()
+
+        # Con una sola lectura no hay movimiento que contar: lo único que se
+        # puede decir de él es con qué vino.
+        if len(cierres) < 2:
+            if llego:
+                for clave, etiqueta in YOUTH_METRICS:
+                    for campo, sufijo in ((clave, ""), (f"{clave}_max", " (techo)")):
+                        if getattr(actual, campo) is not None:
+                            eventos.append(
+                                _llegada(actual, juvenil, nombre, campo, etiqueta + sufijo)
+                            )
+            continue
         anteriores = [c for c in cierres[:-1] if _naive(c[0].captured_at) <= cutoff]
         previo = anteriores[-1][0] if anteriores else cierres[0][0]
-        nombre = f"{juvenil.first_name} {juvenil.last_name}".strip()
+        contados: set[str] = set()
         lecturas += len(YOUTH_METRICS)
         for clave, _etiqueta in YOUTH_METRICS:
             techos_ahora += getattr(actual, f"{clave}_max") is not None
@@ -217,6 +265,7 @@ async def _cambios_de_cantera(
                         antes = conocidos[0]
                 if antes == ahora:
                     continue
+                contados.add(campo)
                 eventos.append(
                     {
                         "capturedAt": actual.captured_at.isoformat(),
@@ -232,11 +281,22 @@ async def _cambios_de_cantera(
                         "current": int(ahora),
                         "delta": None if antes is None else int(ahora) - int(antes),
                         "isReveal": antes is None,
+                        "isArrival": llego,
                     }
                 )
+        if llego:
+            for clave, etiqueta in YOUTH_METRICS:
+                for campo, sufijo in ((clave, ""), (f"{clave}_max", " (techo)")):
+                    if campo in contados or getattr(actual, campo) is None:
+                        continue
+                    eventos.append(
+                        _llegada(actual, juvenil, nombre, campo, etiqueta + sufijo)
+                    )
     # Primero lo que más se movió; los descubrimientos, que no tienen tamaño,
     # detrás y por orden alfabético.
-    eventos.sort(key=lambda e: (e["delta"] is None, -abs(e["delta"] or 0), e["name"]))
+    eventos.sort(
+        key=lambda e: (e["delta"] is None, -abs(e["delta"] or 0), e["name"], e["key"])
+    )
     resumen = {
         "revelations": sum(1 for e in eventos if e["isReveal"]),
         "ceilingsNow": techos_ahora,

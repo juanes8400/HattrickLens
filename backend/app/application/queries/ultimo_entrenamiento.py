@@ -28,15 +28,43 @@ from app.domain.engines import training_engine as te
 from app.domain.value_objects.ht_constants import SKILL_LABELS, training_name
 from app.infrastructure.db import models as m
 
+#: Cómo se llama en pantalla cada cosa que Hattrick confirma como subida.
+#:
+#: Vive aquí y no en `SKILL_LABELS` porque aquella tabla son las SIETE
+#: habilidades de campo y hay código que la recorre entera para decidir qué es
+#: una subida; meterle Resistencia cambiaría lo que cuenta el diff de cada
+#: sincronización. Sin esta tabla, una subida de Resistencia salía escrita
+#: «stamina», en crudo y en inglés (2026-09-19, visto por el usuario).
+NOMBRES_DE_LO_QUE_SUBE: dict[str, str] = {
+    **SKILL_LABELS,
+    "stamina": "Resistencia",
+    "experience": "Experiencia",
+    "loyalty": "Fidelidad",
+    "leadership": "Liderazgo",
+    "trainer": "Entrenador",
+}
+
 
 @dataclass
-class SubidaConfirmada:
+class MovimientoConfirmado:
+    """Lo que Hattrick confirma de un jugador en una actualización.
+
+    No siempre es una subida: el mismo fichero reporta las BAJADAS, que en
+    esta cuenta son casi tantas como las subidas (la Resistencia se cae sola
+    cuando el entrenamiento va por otro lado). Llamarlas a todas «subidas» y
+    pintarlas de verde era decir lo contrario de lo que pasó.
+    """
+
     ht_player_id: int
     name: str
     skill: str
     skill_label: str
     from_level: int
     to_level: int
+
+    @property
+    def delta(self) -> int:
+        return self.to_level - self.from_level
 
 
 @dataclass
@@ -48,7 +76,7 @@ class ParteDeEntrenamiento:
     intensity: int | None
     stamina_share: int | None
     trainer_name: str | None
-    ups: list[SubidaConfirmada]
+    ups: list[MovimientoConfirmado]
     #: La actualización anterior, para tener con qué comparar.
     previous_at: datetime | None
     previous_season_week: str | None
@@ -60,6 +88,9 @@ class ParteDeEntrenamiento:
     #: mirado. La pantalla necesita poder decir esa diferencia.
     data_at: datetime | None
     pending_sync: bool
+    #: Cuándo toca el siguiente. Sale de la misma cita semanal, sumando siete
+    #: días al último: un parte que sólo mira atrás no invita a volver.
+    next_at: datetime | None
 
 
 def _utc(valor: datetime) -> datetime:
@@ -143,12 +174,12 @@ class UltimoEntrenamientoQueryService:
 
         cfg = te._config()
         mapa = {int(sid): str(nombre) for sid, nombre in cfg["skill_id_map"].items()}
-        etiquetas = SKILL_LABELS
+        etiquetas = NOMBRES_DE_LO_QUE_SUBE
 
-        def como_subida(fila: tuple[m.SkillUp, m.Player]) -> SubidaConfirmada:
+        def como_movimiento(fila: tuple[m.SkillUp, m.Player]) -> MovimientoConfirmado:
             up, jugador = fila
             clave = mapa.get(up.skill_id, str(up.skill_id))
-            return SubidaConfirmada(
+            return MovimientoConfirmado(
                 ht_player_id=up.ht_player_id,
                 name=f"{jugador.first_name or ''} {jugador.last_name or ''}".strip(),
                 skill=clave,
@@ -162,9 +193,10 @@ class UltimoEntrenamientoQueryService:
                 return []
             return [f for f in filas if f"{f[0].season:02d}-{f[0].match_round:02d}" == semana]
 
-        ups = [como_subida(f) for f in de_la_semana(etiqueta)]
-        # Primero quien más subió, y a igualdad por nombre: una lista estable.
-        ups.sort(key=lambda s: (-(s.to_level - s.from_level), s.name))
+        ups = [como_movimiento(f) for f in de_la_semana(etiqueta)]
+        # Las subidas primero y las bajadas después, cada grupo por tamaño y
+        # luego por nombre: una lista estable que se lee de mejor a peor.
+        ups.sort(key=lambda s: (-s.delta, s.name))
 
         # Hasta cuando llegan los datos: la ultima foto guardada de la
         # plantilla.
@@ -191,12 +223,17 @@ class UltimoEntrenamientoQueryService:
             ups=ups,
             previous_at=anterior,
             previous_season_week=etiqueta_anterior,
-            previous_ups=len(de_la_semana(etiqueta_anterior)),
+            # Sólo las subidas: la frase de la pantalla dice «subidas», y
+            # contar ahí las bajadas la convertiría en una cifra inflada.
+            previous_ups=sum(
+                1 for f, _ in de_la_semana(etiqueta_anterior) if f.new_level > f.old_level
+            ),
             last_with_ups=ultima_con_subidas,
             data_at=data_at,
             pending_sync=(
                 ultima is not None and (data_at is None or data_at < ultima)
             ),
+            next_at=ultima + timedelta(days=7) if ultima is not None else None,
         )
 
 
@@ -216,13 +253,19 @@ def como_json(parte: ParteDeEntrenamiento) -> dict[str, Any]:
                 "skillLabel": s.skill_label,
                 "fromLevel": s.from_level,
                 "toLevel": s.to_level,
+                # Positivo sube, negativo baja. La pantalla no tiene que
+                # deducirlo restando dos niveles.
+                "delta": s.delta,
             }
             for s in parte.ups
         ],
+        "upCount": sum(1 for s in parte.ups if s.delta > 0),
+        "downCount": sum(1 for s in parte.ups if s.delta < 0),
         "previousAt": parte.previous_at.isoformat() if parte.previous_at else None,
         "previousSeasonWeek": parte.previous_season_week,
         "previousUps": parte.previous_ups,
         "lastWithUps": parte.last_with_ups,
         "dataAt": parte.data_at.isoformat() if parte.data_at else None,
         "pendingSync": parte.pending_sync,
+        "nextAt": parte.next_at.isoformat() if parte.next_at else None,
     }

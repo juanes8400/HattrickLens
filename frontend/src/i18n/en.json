@@ -288,7 +288,7 @@
     "esperadoOcerin": "Expected by Ocerin",
     "ttss": "SS-ww",
     "fecha": "Date",
-    "subida": "Skill-up",
+    "subida": "improved",
     "semanas": "Weeks",
     "primeraRegistrada": "first recorded",
     "semanasNivel": "Weeks for this level",
@@ -371,7 +371,15 @@
     "ultimoSinSincronizar": "Your data only goes up to {{fecha}}, before this training update. Sync to see who improved.",
     "ultimoSinSubidas": "Nobody improved.",
     "ultimaConSubidas": "The last time anyone improved was in {{semana}}.",
-    "ultimoAnterior": "The previous update ({{semana}}, {{fecha}}) confirmed {{n}} improvements."
+    "ultimoAnterior": "The previous update ({{semana}}, {{fecha}}) confirmed {{n}} improvements.",
+    "subioUno": "One player improved.",
+    "subieronN": "{{n}} players improved.",
+    "bajoUno": "One player lost a skill level.",
+    "bajaronN": "{{n}} players lost a skill level.",
+    "subidas": "improved",
+    "sinTipo": "training not identified",
+    "irASincronizar": "go and sync",
+    "proximo": "The next one, on {{fecha}}."
   },
   "alertas": {
     "atencion": "What needs your attention",
@@ -1143,7 +1151,18 @@
     "jugadoEl": "played on {{fecha}}",
     "nadieSeMovio": "Nobody moved in this training.",
     "recienLlegado": "just arrived",
-    "techoDescubierto": "ceiling {{v}}"
+    "techoDescubierto": "ceiling {{v}}",
+    "subioUno": "One youth player improved.",
+    "subieronN": "{{n}} youth players improved.",
+    "unTechoFrase": "The scout revealed one ceiling.",
+    "variosTechosFrase": "The scout revealed {{n}} ceilings.",
+    "unaLlegadaFrase": "And one new lad arrived.",
+    "variasLlegadasFrase": "And {{n}} new lads arrived.",
+    "subida": "improved",
+    "subidas": "improved",
+    "partidoDeEntrenamiento": "Training match",
+    "entrenanTrasElPartido": "the academy trains after each of its own matches",
+    "cuandoElProximo": "The next one, after the academy's next match."
   },
   "apoyo": {
     "boton": "Buy me a coffee",

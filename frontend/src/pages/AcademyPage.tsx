@@ -7,7 +7,7 @@ import { CountryFlag } from "../components/CountryFlag";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { Specialty, specialtyLabel } from "../components/Specialty";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
-import { lecturaDeNivel } from "../utils/skillLevels";
+import { lecturaDeNivel, skillLevelLabel } from "../utils/skillLevels";
 import {
   Empty,
   ErrorState,
@@ -3402,44 +3402,59 @@ function UltimoEntrenamientoJuvenil() {
     );
   }
 
-  // Un canterano «se movió» si subió de nivel en algo o si el ojeador le
-  // reveló un techo. Llegar no es moverse, pero sí es noticia, y va aparte.
-  const movidos = datos.players
-    .map((j) => ({
-      id: j.htYouthPlayerId,
-      name: j.name,
-      isNew: j.isNew,
-      cambios: Object.entries(j.skills)
+  // Las mismas dos noticias que en el primer equipo, y por el mismo motivo:
+  // un techo revelado no es una subida, y contarlos juntos diría que la
+  // cantera mejoró cuando lo único que pasó es que ahora se sabe algo.
+  const filas = datos.players
+    .flatMap((j) =>
+      Object.entries(j.skills)
         .filter(([, v]) => v.before != null || v.maxNewlyKnown)
-        .map(([clave, v]) => ({ clave, ...v })),
-    }))
-    .filter((j) => j.cambios.length > 0)
-    .sort((a, b) => b.cambios.length - a.cambios.length);
+        .map(([clave, v]) => ({
+          id: `${j.htYouthPlayerId}-${clave}`,
+          name: j.name,
+          isNew: j.isNew,
+          clave,
+          subida:
+            v.before != null && v.current != null ? v.current - v.before : null,
+          before: v.before,
+          current: v.current,
+          techo: v.maxNewlyKnown ? v.max : null,
+        })),
+    )
+    // Primero lo que se movió, y dentro, lo que más. Los techos revelados
+    // detrás: no tienen tamaño con el que competir.
+    .sort(
+      (a, b) =>
+        Number(b.subida != null) - Number(a.subida != null) ||
+        (b.subida ?? 0) - (a.subida ?? 0) ||
+        a.name.localeCompare(b.name),
+    );
 
-  const resumen = datos.summary;
-  const piezas = [
-    resumen.skillsUp > 0
-      ? plural(
-          resumen.skillsUp,
-          t("juveniles.unaSubida", "una subida de nivel"),
-          t("juveniles.variasSubidas", "N subidas de nivel"),
-        )
+  const subidas = filas.filter((f) => (f.subida ?? 0) > 0).length;
+  const techos = filas.filter((f) => f.techo != null).length;
+  const frase = [
+    subidas === 1
+      ? t("juveniles.subioUno", "Subió un canterano.")
+      : subidas > 1
+        ? t("juveniles.subieronN", "Subieron {{n}} canteranos.", { n: subidas })
+        : t("juveniles.nadieSeMovio", "Nadie se movió en este entrenamiento."),
+    techos === 1
+      ? t("juveniles.unTechoFrase", "El ojeador reveló un techo.")
+      : techos > 1
+        ? t("juveniles.variosTechosFrase", "El ojeador reveló {{n}} techos.", {
+            n: techos,
+          })
+        : null,
+    datos.summary.arrivals > 0
+      ? datos.summary.arrivals === 1
+        ? t("juveniles.unaLlegadaFrase", "Y llegó uno nuevo.")
+        : t("juveniles.variasLlegadasFrase", "Y llegaron {{n}} nuevos.", {
+            n: datos.summary.arrivals,
+          })
       : null,
-    resumen.ceilingsRevealed > 0
-      ? plural(
-          resumen.ceilingsRevealed,
-          t("juveniles.unTecho", "un techo revelado"),
-          t("juveniles.variosTechos", "N techos revelados"),
-        )
-      : null,
-    resumen.arrivals > 0
-      ? plural(
-          resumen.arrivals,
-          t("juveniles.unaLlegada", "un canterano nuevo"),
-          t("juveniles.variasLlegadas", "N canteranos nuevos"),
-        )
-      : null,
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <Panel
@@ -3448,53 +3463,112 @@ function UltimoEntrenamientoJuvenil() {
         fecha: dateTime(datos.since),
       })}
     >
-      {piezas.length > 0 && (
-        <div className="border-b border-[var(--border)] px-4 py-2 text-sm">
-          {piezas.join(" · ")}
+      {/* La misma cabecera que el parte del primer equipo: la cifra de la
+          semana y, al lado, de qué entrenamiento se está hablando. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[var(--border)] px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={clsx(
+              "text-4xl font-semibold leading-none tabular-nums",
+              subidas > 0 ? "text-[var(--positive)]" : "text-[var(--text)]",
+            )}
+          >
+            {subidas}
+          </span>
+          <span className="text-xs uppercase tracking-wide text-[var(--muted)]">
+            {subidas === 1
+              ? t("juveniles.subida", "subida")
+              : t("juveniles.subidas", "subidas")}
+          </span>
         </div>
-      )}
-      {movidos.length === 0 ? (
-        <Empty>
-          {t("juveniles.nadieSeMovio", "Nadie se movió en este entrenamiento.")}
-        </Empty>
-      ) : (
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">
+            {t("juveniles.partidoDeEntrenamiento", "Partido de entrenamiento")}
+          </div>
+          <div className="truncate text-xs text-[var(--muted)]">
+            {t(
+              "juveniles.entrenanTrasElPartido",
+              "la cantera entrena después de cada partido suyo",
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-[var(--border)] px-4 py-2 text-sm">
+        {frase}
+      </div>
+
+      {filas.length > 0 && (
         <ul className="divide-y divide-[var(--border)]">
-          {movidos.map((j) => (
-            <li key={j.id} className="px-4 py-2 text-sm">
-              <div className="flex items-baseline justify-between gap-2">
-                {/* Los juveniles van en texto plano: no tienen ficha propia
-                    y enlazarlos llevaría a ninguna parte. */}
-                <span className="font-medium">{j.name}</span>
-                {j.isNew && (
-                  <span className="shrink-0 text-xs text-[var(--muted)]">
+          {filas.map((f) => (
+            <li
+              key={f.id}
+              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-baseline gap-2">
+                <span
+                  className={
+                    f.subida != null
+                      ? f.subida > 0
+                        ? "text-[var(--positive)]"
+                        : "text-[var(--danger)]"
+                      : "text-[var(--youth-known)]"
+                  }
+                >
+                  {f.subida != null ? (f.subida > 0 ? "▲" : "▼") : "◆"}
+                </span>
+                {/* Los juveniles van en texto plano: su ficha no vive en
+                    /players y enlazarlos no llevaría a ninguna parte. */}
+                <span>{f.name}</span>
+                {f.isNew && (
+                  <span className="text-xs text-[var(--muted)]">
                     {t("juveniles.recienLlegado", "recién llegado")}
                   </span>
                 )}
-              </div>
-              <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[var(--muted)]">
-                {j.cambios.map((c) => (
-                  <span key={c.clave}>
-                    {nombreDeHabilidad(c.clave)}:{" "}
-                    {c.before != null && c.current != null ? (
-                      <span className="tabular-nums text-[var(--positive)]">
-                        {c.before} ▲ {c.current}
-                      </span>
-                    ) : null}
-                    {c.maxNewlyKnown && c.max != null && (
-                      <span className="tabular-nums text-[var(--youth-known)]">
-                        {c.before != null ? " · " : ""}
-                        {t("juveniles.techoDescubierto", "techo {{v}}", {
-                          v: c.max,
-                        })}
-                      </span>
-                    )}
+              </span>
+              <span className="flex items-baseline gap-2 text-xs">
+                <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[var(--muted)]">
+                  {nombreDeHabilidad(f.clave)}
+                </span>
+                {f.subida != null && f.before != null && f.current != null ? (
+                  <>
+                    <span className="text-[var(--muted)]">
+                      {skillLevelLabel(f.before)}
+                    </span>
+                    <span className="text-[var(--muted)]">→</span>
+                    <span
+                      className={clsx(
+                        "font-medium",
+                        f.subida > 0
+                          ? "text-[var(--positive)]"
+                          : "text-[var(--danger)]",
+                      )}
+                    >
+                      {skillLevelLabel(f.current)}
+                    </span>
+                    <span className="tabular-nums text-[var(--muted)]">
+                      ({f.current})
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-medium text-[var(--youth-known)]">
+                    {t("juveniles.techoDescubierto", "techo {{v}}", {
+                      v: f.techo,
+                    })}
                   </span>
-                ))}
-              </div>
+                )}
+              </span>
             </li>
           ))}
         </ul>
       )}
+
+      <Note>
+        {t(
+          "juveniles.cuandoElProximo",
+          "El próximo, después del siguiente partido de la cantera.",
+        )}
+      </Note>
     </Panel>
   );
 }

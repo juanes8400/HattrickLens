@@ -2001,6 +2001,8 @@ export interface UltimoEntrenamiento {
   intensity: number | null;
   staminaShare: number | null;
   trainerName: string | null;
+  /** Lo que Hattrick confirmó: subidas Y bajadas, que el mismo fichero
+   *  reporta. `delta` positivo sube, negativo baja. */
   ups: {
     htPlayerId: number;
     name: string;
@@ -2008,7 +2010,10 @@ export interface UltimoEntrenamiento {
     skillLabel: string;
     fromLevel: number;
     toLevel: number;
+    delta: number;
   }[];
+  upCount: number;
+  downCount: number;
   previousAt: string | null;
   previousSeasonWeek: string | null;
   previousUps: number;
@@ -2018,6 +2023,8 @@ export interface UltimoEntrenamiento {
   dataAt: string | null;
   /** Los datos son anteriores al entrenamiento: todavía no se ha mirado. */
   pendingSync: boolean;
+  /** Cuándo toca el siguiente. */
+  nextAt: string | null;
 }
 
 export interface TeamOverview {
@@ -2214,6 +2221,9 @@ export interface HistoricalPlayerChange {
   delta: number | null;
   /** El cambio es una revelación del ojeador, no un movimiento. */
   isReveal?: boolean;
+  /** El canterano LLEGÓ dentro de la ventana: esto no es un movimiento suyo,
+   *  es con lo que entró por la puerta. */
+  isArrival?: boolean;
 }
 
 export interface ChangesHistory {

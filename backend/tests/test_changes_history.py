@@ -1023,3 +1023,85 @@ def test_las_cifras_de_la_academia_siguen_a_la_ventana() -> None:
         await engine.dispose()
 
     asyncio.run(scenario())
+
+
+def test_un_canterano_recien_llegado_sale_con_lo_que_trae() -> None:
+    """2026-09-19, pedido del usuario: «los nuevos juveniles también deben ir
+    reportados en Cambios con las habilidades con las que llegan».
+
+    Hasta hoy no salía por ningún lado: sin un cierre anterior no había nada
+    que comparar y el chico se saltaba entero. Lo que es noticia de él es
+    justo con qué llega, así que se enseña su nivel y su techo allí donde se
+    sepan, sin inventarle un «antes».
+    """
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        monday = datetime(2026, 5, 4, 9, tzinfo=UTC)
+        async with factory() as session:
+            team = m.Team(ht_team_id=1, name="Equipo")
+            session.add(team)
+            await session.flush()
+            veterano = m.YouthPlayer(
+                ht_youth_player_id=900, team_id=team.id, first_name="Ya", last_name="Estaba"
+            )
+            nuevo = m.YouthPlayer(
+                ht_youth_player_id=901, team_id=team.id, first_name="Recién", last_name="Llegado"
+            )
+            session.add_all([veterano, nuevo])
+            await session.flush()
+
+            for week in range(3):
+                at = monday + timedelta(weeks=week)
+                sync = m.Sync(
+                    user_id=1,
+                    team_id=team.id,
+                    kind="players",
+                    status="completed",
+                    started_at=at,
+                    finished_at=at,
+                )
+                session.add(sync)
+                await session.flush()
+                session.add(_youth_snapshot(sync.id, veterano.id, at, winger=4))
+                # El nuevo sólo aparece en la última foto: llegó esta semana.
+                if week == 2:
+                    session.add(
+                        _youth_snapshot(
+                            sync.id, nuevo.id, at, passing=3, passing_max=7, winger=2
+                        )
+                    )
+            await session.commit()
+
+            ahora = monday + timedelta(weeks=2, hours=1)
+            r = await build_changes_history(session, team.id, weeks=1, now=ahora)
+
+        llegada = [e for e in r["youthChanges"] if e.get("isArrival")]
+        assert {(e["label"], e["current"]) for e in llegada} == {
+            ("Pases", 3),
+            ("Pases (techo)", 7),
+            ("Lateral", 2),
+        }
+        # Sin «antes» inventado y sin contarse como revelación del ojeador:
+        # es lo que ya traía puesto.
+        assert all(e["before"] is None and e["delta"] is None for e in llegada)
+        assert all(not e["isReveal"] for e in llegada)
+        assert r["youthSummary"]["revelations"] == 0
+        # Y el que ya estaba no se convierte en recién llegado.
+        assert all(e["htPlayerId"] == 901 for e in llegada)
+
+        # A dos semanas el nuevo sigue siendo nuevo, pero el veterano no: su
+        # primer cierre es anterior al corte.
+        r2 = await build_changes_history(session, team.id, weeks=2, now=ahora)
+        assert {e["htPlayerId"] for e in r2["youthChanges"] if e.get("isArrival")} == {901}
+        await engine.dispose()
+
+    asyncio.run(scenario())

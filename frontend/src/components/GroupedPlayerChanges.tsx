@@ -17,6 +17,9 @@ export interface NormalizedChange {
   current: number | boolean | null;
   delta: number | null;
   direction: "up" | "down" | "neutral";
+  /** El canterano LLEGÓ con esto puesto. No es un descubrimiento del ojeador
+   *  ni una subida: es lo que traía en la maleta. */
+  isArrival?: boolean;
 }
 
 export interface PlayerChangeGroup {
@@ -27,6 +30,9 @@ export interface PlayerChangeGroup {
    *  /players-- y se rotula, porque un «Pases +1» de un chico de la academia
    *  no es la misma noticia que el de un titular. */
   isYouth?: boolean;
+  /** Acaba de llegar: lo que se lista no es lo que se movió, es lo que trae
+   *  puesto. Sin decirlo, sus habilidades parecerían subidas de la semana. */
+  isArrival?: boolean;
 }
 
 export interface AggregateMetric {
@@ -54,12 +60,14 @@ function specialChangeLine(change: NormalizedChange): string | null {
   // subida que nunca ocurrió, así que se dice lo único cierto: el número que
   // ahora se conoce.
   if (change.before == null && change.delta == null) {
-    return tx("descubierto: {{v0}}", { v0: cifra(change.current) });
+    // Un recién llegado no «descubre» nada: viene con lo que viene, y decirlo
+    // de la otra manera sugeriría que el ojeador acaba de mirarle algo.
+    return change.isArrival
+      ? tx("llega con {{v0}}", { v0: cifra(change.current) })
+      : tx("descubierto: {{v0}}", { v0: cifra(change.current) });
   }
   if (change.key === "market")
-    return change.current
-      ? tx("Puesto en venta")
-      : tx("Retirado del mercado");
+    return change.current ? tx("Puesto en venta") : tx("Retirado del mercado");
   if (change.key === "injury") {
     if (change.current === -1) return tx("Recuperado");
     if (change.before === -1)
@@ -106,6 +114,11 @@ function PlayerChangeCard({ group }: { group: PlayerChangeGroup }) {
           <span>{group.name}</span>
         ) : (
           <PlayerLink htPlayerId={group.htPlayerId} name={group.name} />
+        )}
+        {group.isArrival && (
+          <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--accent)]">
+            {tx("acaba de llegar")}
+          </span>
         )}
       </header>
       <ul className="space-y-1.5 text-xs">
