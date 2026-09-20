@@ -1051,7 +1051,7 @@ function BestWorstPanel({ data }: { data: League }) {
       />
       <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         {tx(
-          "Mejor caso: en cada partido que te queda marcas de goleada y no encajas. Peor caso: al revés. El resto de la liga se simula con el mismo modelo que la gráfica de arriba, zona por zona, con el resumen que elegiste, , así que aun forzando tu propio resultado al extremo, tu puesto final sigue siendo una distribución. Tus partidos van forzados y NO los toca ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies el resumen, y lo que se mueve es dónde acaban los demás.",
+          "Mejor caso: en cada partido que te queda marcas de goleada y no encajas. Peor caso: al revés. El resto de la liga se simula con el mismo modelo que la gráfica de arriba, zona por zona, con el resumen que elegiste, así que aun forzando tu propio resultado al extremo, tu puesto final sigue siendo una distribución. Tus partidos van forzados y NO los toca ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies el resumen, y lo que se mueve es dónde acaban los demás.",
         )}
       </p>
     </ProjectionPanel>

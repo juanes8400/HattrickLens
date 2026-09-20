@@ -7,6 +7,17 @@ siempre.
 
 EL MODELO
 ---------
+QUÉ PARTE DEL RESULTADO DECIDE ESTE MÓDULO
+------------------------------------------
+Desde que `simulate` acepta ternas por cruce, QUIÉN GANA cada partido
+pendiente lo decide el motor de zonas (`prediccion.py`), que mira los ratings
+de los partidos ya jugados. Este módulo pone el MARCADOR con el que se gana, y
+es el respaldo entero --resultado incluido-- para los cruces a los que les
+falten ratings de algún lado.
+
+Lo de abajo describe ese respaldo y esos marcadores. No describe, desde
+entonces, cómo se reparte la liga cuando hay ratings.
+
 Cada equipo tiene una fuerza de ataque y una de defensa. Los goles de un
 partido se sacan de dos Poisson independientes:
 
@@ -612,8 +623,22 @@ def forecast_match(
 
 
 def model_info() -> dict[str, object]:
+    """Lo que este motor dice de sí mismo, y que hay que leer con cuidado.
+
+    Describe ESTE módulo: la Poisson de goles agregados. Cuando `simulate`
+    recibe ternas, quién gana cada partido ya no lo decide esto sino el motor
+    de zonas, y entonces `doesNotModel` sólo vale para los cruces sin ratings
+    y para el marcador. Decirlo aquí, y no dar por hecho que quien lo lea lo
+    sabe, es la diferencia entre una ficha técnica y una ficha falsa
+    (2026-09-20).
+    """
     return {
         "model": "Poisson independiente con encogimiento bayesiano",
+        "scope": (
+            "el marcador de cada partido pendiente, y también quién gana en los "
+            "cruces a los que les falten ratings; con ratings, quién gana lo "
+            "decide el motor de zonas"
+        ),
         "shrinkageK": SHRINKAGE_K,
         "homeAdvantage": HOME_ADVANTAGE,
         "shrinkageFormula": "(goles + k × media_liga) / (partidos + k)",

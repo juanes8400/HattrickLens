@@ -403,3 +403,32 @@ def test_el_pronostico_ya_no_convive_con_el_calculo_viejo() -> None:
     ésta es justo la pantalla donde eso no puede pasar."""
     ids = {c.id for s in catalogo() for c in s.calcs}
     assert "prediccion_zonas" not in ids
+
+
+def test_la_simulacion_de_liga_no_se_atribuye_a_un_solo_motor() -> None:
+    """2026-09-20, auditoria pedida por el usuario.
+
+    El codigo dejo de decidir los partidos pendientes con la Poisson de goles
+    agregados --`simulate` recibe las ternas del motor de zonas-- pero el
+    catalogo seguia contando la version vieja, y con ella el limite «no conoce
+    lesiones, alineaciones ni tacticas», que ya era falso. Esta prueba fija lo
+    unico que hay que mantener cierto: que la pantalla nombra los dos motores
+    y dice cual decide que.
+    """
+    calc = _calculo("simulacion")
+    limites = " ".join(calc.limits).lower()
+    assert "motor de zonas" in calc.formula.lower() or "motor de zonas" in limites
+    assert "respaldo" in limites, "no dice que la Poisson de goles es el respaldo"
+    # Y la fuente de la que depende ese motor tiene que estar declarada: sin
+    # ratings de los ocho equipos no hay ternas que meter en la simulacion.
+    assert any("rating" in f.what.lower() for f in calc.sources)
+
+
+def test_el_pronostico_no_se_contradice_sobre_la_tactica() -> None:
+    """El paso 1 anunciaba un paso entero sobre la tactica y cerraba diciendo
+    que el motor no sabe nada de tacticas. Una de las dos frases sobraba, y la
+    que sobraba era la del limite: el factor de la tactica se aplica de verdad
+    (2026-09-20)."""
+    limites = " ".join(_calculo("pronostico-resumen").limits)
+    assert "no sabe nada de tácticas" not in limites
+    assert "táctica" in limites, "sigue sin decir qué hace con la táctica"

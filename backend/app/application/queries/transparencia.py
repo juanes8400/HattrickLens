@@ -803,7 +803,7 @@ def catalogo() -> list[Seccion]:
                     "puedes alcanzar. Explica qué pasa si ganas y qué pasa si "
                     "pierdes, incluido el movimiento entre niveles de copa donde "
                     "aplica. Con análisis del rival, una estimación de probabilidad "
-                    ", marcada como estimación, , los ingresos de copa observados, un "
+                    "(marcada como estimación), los ingresos de copa observados, un "
                     "escenario aparte de taquilla futura, preparación de "
                     "resistencia para 120 minutos y un orden indicativo de "
                     "lanzadores de penalti.",
@@ -1430,9 +1430,14 @@ def catalogo() -> list[Seccion]:
                     ],
                     limits=[
                         "Todo el capítulo describe un motor ESTADÍSTICO ajustado sobre "
-                        "partidos pasados. No simula el partido, no conoce tu "
-                        "alineación del domingo ni la del rival, y no sabe nada de "
-                        "tácticas, lesiones, tarjetas ni actitud.",
+                        "partidos pasados. No simula el partido y no conoce la "
+                        "alineación que se pondrá el domingo, ni la tuya ni la del "
+                        "rival: mide a cada equipo por los partidos que ya jugó.",
+                        "De la táctica sí sabe algo, y es el paso 5: la tuya se lee de "
+                        "las órdenes si ya las mandaste, y la del rival se pondera por "
+                        "las que ha usado. Lo que no entra es la actitud --Hattrick "
+                        "sólo la publica de tu propio equipo-- ni las lesiones, las "
+                        "sanciones o las tarjetas.",
                         "Los dos avisos que conviene no saltarse están en el paso 8: "
                         "el coeficiente del balón parado no se puede leer literalmente, "
                         "y el empate sale algo más alto de lo que ocurre.",
@@ -2600,6 +2605,10 @@ def catalogo() -> list[Seccion]:
                     id="simulacion",
                     sources=[
                         Fuente(
+                            "Los nueve ratings por zona de los ocho equipos",
+                            "Sus partidos ya jugados, con el resumen que elijas",
+                        ),
+                        Fuente(
                             "Goles a favor y en contra de cada equipo",
                             "Las jornadas ya jugadas de tu serie",
                         ),
@@ -2611,10 +2620,16 @@ def catalogo() -> list[Seccion]:
                     name="Simulación de temporada",
                     answers="Probabilidad de terminar en cada puesto.",
                     formula=(
-                        "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\n"
-                        "λ_visita  = ataque_j · defensa_i · media_liga\n"
+                        "QUIÉN GANA cada partido que falta\n"
+                        "    la terna del motor de zonas, la misma del capítulo\n"
+                        "    «Pronóstico de partido»\n"
                         "\n"
-                        "fuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n"
+                        "    y sólo si a un cruce le faltan ratings de algún lado:\n"
+                        "        λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\n"
+                        "        λ_visita  = ataque_j · defensa_i · media_liga\n"
+                        "\n"
+                        "EL MARCADOR, siempre por los goles de la temporada\n"
+                        "    fuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n"
                         "\n"
                         "P(puesto) ≈ Monte Carlo sobre las jornadas que faltan"
                     ),
@@ -2631,7 +2646,19 @@ def catalogo() -> list[Seccion]:
                         ),
                     ],
                     limits=[
-                        "Usa forma agregada: no conoce lesiones, alineaciones ni tácticas.",
+                        "Son DOS motores con dos trabajos, y conviene no confundirlos: "
+                        "quién gana cada partido pendiente lo decide el motor de zonas "
+                        "--que sí mira los ratings del último partido de cada equipo y "
+                        "las tácticas que suele usar--, y el marcador con el que gana "
+                        "sale de los goles agregados de la temporada.",
+                        "El modelo de goles agregados es el respaldo, y ése sí ignora "
+                        "alineaciones y tácticas: entra cuando a un cruce le faltan "
+                        "ratings de alguno de los dos lados.",
+                        "Ninguno de los dos conoce lesiones, sanciones ni las "
+                        "alineaciones que se pondrán el domingo.",
+                        "El puesto sale de simular miles de veces, no de una fórmula "
+                        "cerrada: dos consultas seguidas del mismo estado dan números "
+                        "casi iguales, no idénticos.",
                         "«Terminar 1º» no es ascender: eso depende del ranking nacional "
                         "de campeones, que Hattrick no publica.",
                     ],
