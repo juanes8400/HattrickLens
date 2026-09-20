@@ -1,6 +1,17 @@
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
-import "flag-icons/css/flag-icons.min.css";
+// Las DOS banderas del selector, cada una como su propio fichero.
+//
+// Antes esto traía la hoja de estilos entera de las banderas, 420 kB de
+// reglas para 260 países, y como el selector vive en la barra de arriba esa
+// hoja BLOQUEABA la primera pintura de todas las pantallas (medido el
+// 2026-09-20). Aquí sólo hacen falta dos, así que se piden dos y ya.
+//
+// Copiadas al proyecto a propósito: pedidas por su ruta dentro de la
+// librería, el pre-empaquetador de desarrollo intenta empaquetar un SVG como
+// si fuera código y se cae al arrancar.
+import banderaES from "../assets/banderas/es.svg";
+import banderaGB from "../assets/banderas/gb.svg";
 
 import i18nActual, { cambiarIdioma, IDIOMAS, type Idioma } from "../i18n";
 
@@ -14,8 +25,8 @@ const NOMBRE_DE_IDIOMA: Record<Idioma, string> = {
 /** La bandera de cada idioma, con la variante que usa el glosario oficial de
  *  Hattrick: «Español, España» y «English (UK)». */
 const BANDERA_DE_IDIOMA: Record<Idioma, string> = {
-  es: "fi-es",
-  en: "fi-gb",
+  es: banderaES,
+  en: banderaGB,
 };
 
 function idiomaActual(): Idioma {
@@ -46,12 +57,11 @@ export function SelectorDeIdioma({ className }: { className?: string }) {
         className,
       )}
     >
-      <span
+      <img
         aria-hidden
-        className={clsx(
-          "fi rounded-[2px] shadow-[0_0_0_1px_color-mix(in_srgb,var(--border)_75%,transparent)]",
-          BANDERA_DE_IDIOMA[actual],
-        )}
+        alt=""
+        src={BANDERA_DE_IDIOMA[actual]}
+        className="h-3 w-4 rounded-[2px] object-cover shadow-[0_0_0_1px_color-mix(in_srgb,var(--border)_75%,transparent)]"
       />
       <select
         value={actual}
