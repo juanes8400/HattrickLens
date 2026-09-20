@@ -21,6 +21,7 @@ import {
   PitchGrid,
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
+import { SimularJornada } from "./SimularJornada";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
 import { PITCH_ZONE_METHODS } from "../components/pitchZoneMethods";
@@ -164,6 +165,11 @@ export function LeaguePage() {
             >
               <StandingsTable data={data} />
             </Panel>
+
+            {/* El «¿y si...?» de esta semana, justo debajo de la tabla de
+                verdad: se compara con lo que acaba de leerse, sin tener que
+                recordarlo (2026-09-20, idea del usuario). */}
+            <SimularJornada data={data} />
 
             {data.nextMatch && <NextMatch data={data} />}
 
