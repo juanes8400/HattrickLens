@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Note, Panel } from "../components/Panels";
+import { Empty, Note, Panel } from "../components/Panels";
 import { tx } from "../i18n/tx";
 import type { League, LeagueStandingRow } from "../services/api";
 
@@ -103,22 +103,33 @@ function conLosResultados(
   return { filas: ordenar([...porNombre.values()]), aplicados };
 }
 
+/** La próxima jornada del calendario, o `null` si no queda ninguna.
+ *
+ *  Se busca como «la más temprana que aún no se ha jugado» y no como «la
+ *  jugada + 1» porque el calendario puede traer una jornada aplazada, y
+ *  entonces esos dos números no son el mismo.
+ *
+ *  Devuelve `null` en los dos momentos del año en que no hay nada que
+ *  simular: cuando ya se jugó la última jornada y mientras Hattrick no haya
+ *  publicado el calendario de la temporada nueva. Son estados normales, no
+ *  errores, y quien llame tiene que contarlos. */
+export function proximaJornada(
+  fixtures: League["fixtures"],
+): { numero: number; cruces: Cruce[] } | null {
+  const pendientes = fixtures.filter((f) => !f.played);
+  if (pendientes.length === 0) return null;
+  const numero = Math.min(...pendientes.map((f) => f.matchRound));
+  const cruces: Cruce[] = fixtures
+    .map((f, indice) => ({ f, indice }))
+    .filter(({ f }) => !f.played && f.matchRound === numero)
+    .map(({ f, indice }) => ({ indice, local: f.home, visitante: f.away }));
+  return { numero, cruces };
+}
+
 export function SimularJornada({ data }: { data: League }) {
   const [marcadores, setMarcadores] = useState<Marcadores>({});
 
-  // La SIGUIENTE jornada es la más temprana que aún no se ha jugado. Se busca
-  // así y no como «la jugada + 1» porque el calendario puede traer una
-  // jornada aplazada, y entonces esos dos números no son el mismo.
-  const jornada = useMemo(() => {
-    const pendientes = data.fixtures.filter((f) => !f.played);
-    if (pendientes.length === 0) return null;
-    const numero = Math.min(...pendientes.map((f) => f.matchRound));
-    const cruces: Cruce[] = data.fixtures
-      .map((f, indice) => ({ f, indice }))
-      .filter(({ f }) => !f.played && f.matchRound === numero)
-      .map(({ f, indice }) => ({ indice, local: f.home, visitante: f.away }));
-    return { numero, cruces };
-  }, [data.fixtures]);
+  const jornada = useMemo(() => proximaJornada(data.fixtures), [data.fixtures]);
 
   const antes = useMemo(
     () => new Map(data.standings.map((f) => [f.htTeamId, f.position])),
@@ -133,7 +144,32 @@ export function SimularJornada({ data }: { data: League }) {
     [data.standings, jornada, marcadores],
   );
 
-  if (!jornada) return null;
+  // NO SE DEVUELVE `null`. Esta vista es la única de su pestaña desde la
+  // 3.8.2, así que un `null` deja la pantalla en blanco y parece que la
+  // aplicación se rompió (2026-09-20, lo preguntó el usuario).
+  if (!jornada) {
+    const sinCalendario = data.fixtures.length === 0;
+    return (
+      <Panel title={tx("Simular la próxima jornada")}>
+        <Empty>
+          {sinCalendario
+            ? tx(
+                "Todavía no hay calendario de liga. En cuanto Hattrick publique el de la temporada nueva, aquí se podrán poner los resultados de la primera jornada.",
+              )
+            : tx(
+                "No queda ninguna jornada por jugar: la temporada terminó. Esto vuelve en cuanto empiece la siguiente.",
+              )}
+        </Empty>
+        {data.standings.length > 0 && (
+          <Note>
+            {tx(
+              "Mientras tanto, la clasificación final está en «Resumen».",
+            )}
+          </Note>
+        )}
+      </Panel>
+    );
+  }
 
   const escribir = (indice: number, lado: "local" | "visitante", v: string) =>
     setMarcadores((m) => ({

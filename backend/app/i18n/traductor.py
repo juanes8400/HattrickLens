@@ -92,7 +92,7 @@ def idioma_de(cabecera: str | None) -> str:
 class Traductor:
     def __init__(self, diccionario: dict[str, str]) -> None:
         self._exactos: dict[str, str] = {}
-        plantillas: list[tuple[re.Pattern[str], str, str]] = []
+        plantillas: list[tuple[re.Pattern[str], str, str, int]] = []
         for origen, destino in diccionario.items():
             if not destino:
                 continue
@@ -101,17 +101,30 @@ class Traductor:
             else:
                 self._exactos[origen] = destino
         # Las más largas primero: «{} de {} en total» antes que «{} de {}».
-        plantillas.sort(key=lambda p: len(p[2]), reverse=True)
-        self._plantillas = plantillas
+        #
+        # Y A IGUALDAD DE TROZO MÁS LARGO, la que tenga MÁS literal en total
+        # (2026-09-20). Ordenar sólo por el trozo más largo deja empatadas a
+        # dos plantillas que empiezan igual y se separan al final, y el empate
+        # lo rompía el orden del diccionario, o sea el azar. Pasó con el alta
+        # de un jugador: «{} se unió a la plantilla: comprado por {}» y
+        # «... comprado por {}, sueldo {}» comparten el trozo largo, ganaba la
+        # corta y el sueldo se quedaba en español dentro de una frase inglesa.
+        plantillas.sort(key=lambda p: (len(p[2]), p[3]), reverse=True)
+        self._plantillas = [(pa, de, pi) for pa, de, pi, _ in plantillas]
 
     @staticmethod
-    def _compilar(origen: str, destino: str) -> tuple[re.Pattern[str], str, str]:
+    def _compilar(origen: str, destino: str) -> tuple[re.Pattern[str], str, str, int]:
         literal = origen.replace("{{", "\x00").replace("}}", "\x01")
         trozos = literal.split("{}")
         patron = "(.+?)".join(
             re.escape(t.replace("\x00", "{").replace("\x01", "}")) for t in trozos
         )
-        return re.compile(f"^{patron}$", re.DOTALL), destino, max(trozos, key=len)
+        return (
+            re.compile(f"^{patron}$", re.DOTALL),
+            destino,
+            max(trozos, key=len),
+            sum(len(t) for t in trozos),
+        )
 
     def texto(self, valor: str) -> str:
         if not valor or not any(c.isalpha() for c in valor):

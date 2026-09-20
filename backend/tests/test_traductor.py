@@ -62,3 +62,30 @@ def test_objeto_bajo_campo_intocable_se_traduce_por_dentro() -> None:
     tr = Traductor(DICCIONARIO)
     dato = {"type": {"code": "Pases", "texto": "Pases"}, "status": ["Pases"]}
     assert tr.json(dato) == {"type": {"code": "Pases", "texto": "Passing"}, "status": ["Pases"]}
+
+
+def test_gana_la_plantilla_mas_especifica_cuando_empatan() -> None:
+    """Dos plantillas que empiezan igual y se separan al final.
+
+    2026-09-20, visto con el alta de un jugador: «{} se unió a la plantilla:
+    comprado por {}» y «... comprado por {}, sueldo {}» comparten su trozo
+    literal más largo, así que el orden las dejaba empatadas y el desempate
+    era el del diccionario, o sea el azar. Ganaba la corta y el sueldo se
+    quedaba en español dentro de una frase inglesa.
+    """
+    from app.i18n.traductor import Traductor
+
+    tr = Traductor(
+        {
+            "{} se unió a la plantilla: comprado por {}": "{} joined: bought for {}",
+            "{} se unió a la plantilla: comprado por {}, sueldo {}":
+                "{} joined: bought for {}, wage {}",
+        }
+    )
+    assert tr.texto("Fulano se unió a la plantilla: comprado por 100, sueldo 5") == (
+        "Fulano joined: bought for 100, wage 5"
+    )
+    # Y la corta sigue funcionando para lo suyo.
+    assert tr.texto("Fulano se unió a la plantilla: comprado por 100") == (
+        "Fulano joined: bought for 100"
+    )

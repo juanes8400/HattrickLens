@@ -462,9 +462,15 @@ def diff_expedientes_cerrados(conteo: dict[str, int]) -> Change | None:
         label="Expedientes cerrados",
         kind="count",
         after=total,
+        # DOS FRASES ENTERAS, no una con la «s» del plural metida en un hueco
+        # (2026-09-20). El traductor rellena los huecos POR POSICIÓN, así que
+        # una plantilla con «expediente{}» acababa dando «3 cases closeds» en
+        # inglés: el plural del español no cae en el mismo sitio que el del
+        # inglés. Con la frase entera cada idioma la escribe a su manera.
         summary=(
-            f"{total} expediente{'s' if total != 1 else ''} cerrado"
-            f"{'s' if total != 1 else ''}: {', '.join(partes)}"
+            f"{total} expedientes cerrados: {', '.join(partes)}"
+            if total != 1
+            else f"{total} expediente cerrado: {', '.join(partes)}"
         ),
     )
 

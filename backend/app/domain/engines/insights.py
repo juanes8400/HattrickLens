@@ -255,13 +255,18 @@ def income_concentration(
             key="economy.income_concentration",
             severity=Severity.INFO,
             title=f"{share:.0%} de tus ingresos vienen de {label.lower()}",
+            # LA FRASE VA ENTERA, no pegada de dos trozos (2026-09-20). Antes
+            # se concatenaba el importe con la coletilla del plazo, y el
+            # traductor del servidor casa la frase COMPLETA contra sus
+            # plantillas: una pegada a mano no coincide con ninguna y salía en
+            # español con la aplicación en inglés. Lo vio el usuario pidiendo
+            # que se revisaran los idiomas en todas las pantallas.
             detail=(
                 f"{thousands(value)} {currency} de {thousands(total)} {currency} "
-                + (
-                    f"en las últimas {semanas} semanas cerradas."
-                    if semanas and semanas > 1
-                    else "en la última semana cerrada."
-                )
+                f"en las últimas {semanas} semanas cerradas."
+                if semanas and semanas > 1
+                else f"{thousands(value)} {currency} de {thousands(total)} {currency} "
+                "en la última semana cerrada."
             ),
             action="Diversificar (patrocinios, afición) amortigua una mala racha de resultados.",
             module="economía",
