@@ -21,6 +21,19 @@ QUÉ SE COMPARA. Los dos modelos por separado y unidos, contra el listón de
 acertar siempre lo más común. Un modelo que no supere ese listón no ha
 aprendido nada por muy alto que suene su porcentaje.
 
+CUIDADO, Y ES IMPORTANTE (2026-09-20). La Poisson que se reajusta aquí NO es
+la que corre. Aquí se ajusta una Poisson LINEAL sobre los cinco duelos
+ofensivos, que es la que había hasta el 2026-09-08; la del motor lleva desde
+entonces el término cuadrático de descompresión, el tope del vértice, el
+exponente de carril y el Balón Parado como sumando aparte. Se nota en el
+número: lo que sale aquí para «goles solo» ronda 0,656 de log-loss, que es
+justo lo que el motor tenía ANTES de esos tres cambios.
+
+Así que este guion mide bien el ordinal y mide el modelo de goles VIEJO. Para
+comparar pesos de la mezcla con las dos mitades tal como corren, ver
+`barrido_de_la_mezcla.py`. Arreglar esto de raíz es rehacer el ajuste no
+lineal en cada corte, o sea repetir `descomprimir_goles.py` dentro del bucle.
+
 Uso:  python scripts/evaluar_motor.py
 """
 
