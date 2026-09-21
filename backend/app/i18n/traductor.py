@@ -31,6 +31,23 @@ from typing import Any
 
 _CARPETA = Path(__file__).resolve().parent
 
+#: Qué pinta tiene una CLAVE DE LÓGICA: minúsculas ASCII, sin espacios ni
+#: acentos. «keeper», «forward_defensive», «average».
+FORMA_DE_CLAVE = re.compile(r"^[a-z0-9_.\-]+$")
+
+#: Los campos que llevan LAS DOS COSAS según quién responda, y que por eso se
+#: deciden mirando la forma del valor en vez de por su nombre (2026-09-20).
+#:
+#: `position` vale «keeper» en el once del Panel, donde el frontend lo COMPARA
+#: y traducirlo rompería la pantalla, y vale «Mediocentro medio» en la
+#: plantilla de un rival, que es texto para leer y se quedaba en español.
+#:
+#: La lista se queda CORTA a propósito. `specialty` parece el mismo caso y no
+#: lo es: el frontend casa el nombre español contra el glosario oficial de
+#: Hattrick para sacar su icono, así que traducirlo aquí le quitaría el icono
+#: a todas las especialidades. Ahí la traducción la hace la pantalla, y bien.
+CAMPOS_SEGUN_LA_FORMA = frozenset({"position"})
+
 #: Campos cuyo valor es una clave de lógica, no un texto para leer.
 CAMPOS_INTOCABLES = frozenset(
     {
@@ -58,7 +75,6 @@ CAMPOS_INTOCABLES = frozenset(
         "href",
         "ruta",
         "url",
-        "position",
         "basePosition",
         "behaviour",
         "puesto",
@@ -66,7 +82,6 @@ CAMPOS_INTOCABLES = frozenset(
         "result",
         "seasonAtSale",
         "derivedTrainingSkill",
-        "topSkillAtSale",
         "teamName",
         "player",
         "opponent",
@@ -177,6 +192,10 @@ class Traductor:
         # Un campo intocable protege su TEXTO, no lo que cuelga de él: bajo
         # «type» o «status» puede venir un objeto con frases para leer.
         if isinstance(dato, str):
+            if campo in CAMPOS_SEGUN_LA_FORMA:
+                # Los de doble uso: se respetan sólo mientras el valor tenga
+                # pinta de clave. Si es una frase, es para leer.
+                return dato if FORMA_DE_CLAVE.match(dato) else self.texto(dato)
             return dato if campo in CAMPOS_INTOCABLES else self.texto(dato)
         if isinstance(dato, list):
             return [self.json(x, campo) for x in dato]
