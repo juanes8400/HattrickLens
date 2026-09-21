@@ -678,7 +678,6 @@
   "La cantera": "The academy",
   "La categoría sale del mejor techo REVELADO, en la escala juvenil:": "The rating comes from the best REVEALED ceiling, on the youth scale:",
   "La cifra ya no viene de la especificación sino de tus jugadores: es la media de los puntos de partidos reales acumulados entre dos subidas observadas. El valor configurado era": "The figure no longer comes from the specification but from your players: it's the average match points accumulated between two observed skill-ups. The configured value was",
-  "La comisión del agente depende de los días que el jugador estuvo en el club; los canteranos pagan una tarifa plana.": "The agent's commission depends on the days the player was at the club; youth graduates pay a flat rate.",
   "La comparación es contra el cierre semanal anterior, no contra la sincronización de hace unas horas: así una semana se lee entera y los cambios pequeños del día no tapan los importantes. Es la pantalla para abrir justo después de sincronizar.": "The comparison is against the previous weekly closing, not the sync from a few hours ago: that way a week reads as a whole and the day's small changes don't hide the important ones. It's the screen to open right after syncing.",
   "La copa principal puede ser nacional (con el nombre de tu país, por ejemplo «Copa Colombia») o divisional para las divisiones más bajas. Quien pierde en las primeras rondas no siempre queda fuera: pasa a una de las tres copas Desafío (Esmeralda, Rubí o Zafiro, según la ronda en que cayó) y, desde ellas, a la de Consuelo. Cada país pone nombre propio a sus copas, como «Copa Cocuy Rubí».": "The main cup can be national (named after your country, e.g. “Copa Colombia”) or divisional for the lower divisions. Losing in the early rounds doesn't always mean elimination: you move to one of the three Challenger cups (Emerald, Ruby or Sapphire, depending on the round you fell in) and from those to the Consolation cup. Each country gives its cups their own names, such as “Copa Cocuy Rubí”.",
   "La cuenta, paso a paso": "The calculation, step by step",
@@ -1886,5 +1885,6 @@
   "Oceanía": "Oceania",
   "Oceania": "Oceania",
   "Tahití": "Tahiti",
-  "Tahiti": "Tahiti"
+  "Tahiti": "Tahiti",
+  "La comisión del agente depende de los días que el jugador estuvo en el club, sin contar los tres que dura la subasta: cuenta hasta que lo pones en el mercado. Los canteranos pagan una tarifa plana.": "The agent's commission depends on the days the player spent at the club, not counting the three the auction lasts: it counts up to the moment you put him on the market. Academy players pay a flat fee."
 }

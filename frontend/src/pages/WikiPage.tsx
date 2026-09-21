@@ -888,7 +888,7 @@ const ARTICULOS: Articulo[] = [
         ),
         puntos: [
           tx(
-            "La comisión del agente depende de los días que el jugador estuvo en el club; los canteranos pagan una tarifa plana.",
+            "La comisión del agente depende de los días que el jugador estuvo en el club, sin contar los tres que dura la subasta: cuenta hasta que lo pones en el mercado. Los canteranos pagan una tarifa plana.",
           ),
           tx(
             "Reventa es la comisión que llega cuando el nuevo club de un ex jugador tuyo lo vuelve a vender.",

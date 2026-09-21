@@ -607,8 +607,6 @@ def _tabla_de_resumenes() -> Tabla:
     )
 
 
-
-
 def catalogo() -> list[Seccion]:
     """Todo lo que la herramienta calcula, sección por sección."""
     return [
@@ -2700,7 +2698,10 @@ def catalogo() -> list[Seccion]:
                         Fuente(
                             "Salario semanal", "Las lecturas guardadas mientras estuvo en plantilla"
                         ),
-                        Fuente("Porcentaje del agente", "El mismo libro de transferencias"),
+                        Fuente(
+                            "Porcentaje del agente",
+                            "La tabla oficial de Hattrick, por días en el club",
+                        ),
                     ],
                     name="ROI de una transferencia",
                     answers="Cuánto se ganó o se perdió con un jugador.",
@@ -2713,6 +2714,9 @@ def catalogo() -> list[Seccion]:
                     limits=[
                         "Sin salario guardado el coste queda incompleto: se marca, no se estima.",
                         "«Reventa» es la comisión que llega si su nuevo club lo vuelve a vender.",
+                        "Los tres días de la subasta no cuentan para el agente: la cuenta se para "
+                        "cuando lo pones en el mercado. Comprobado contra tres ventas reales, "
+                        "donde la comisión se sabe exacta porque entraron solas en su semana.",
                     ],
                 ),
             ],

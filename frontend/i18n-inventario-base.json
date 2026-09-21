@@ -959,7 +959,7 @@
   "La categoría sí depende de quién trajo al canterano.",
   "La cifra ya no viene de la especificación sino de tus jugadores: es la media de los puntos de partidos reales acumulados entre dos subidas observadas. El valor configurado era",
   "La cola de cada habilidad",
-  "La comisión del agente depende de los días que el jugador estuvo en el club; los canteranos pagan una tarifa plana.",
+  "La comisión del agente depende de los días que el jugador estuvo en el club, sin contar los tres que dura la subasta: cuenta hasta que lo pones en el mercado. Los canteranos pagan una tarifa plana.",
   "La comparación es contra el cierre semanal anterior, no contra la sincronización de hace unas horas: así una semana se lee entera y los cambios pequeños del día no tapan los importantes. Es la pantalla para abrir justo después de sincronizar.",
   "La conexión quedó incompleta",
   "La conexión requiere atención",

@@ -6,6 +6,7 @@ app), el contador de intentos de venta (currentbids.xml), el motor de
 dominio que calcula el saldo, y el servicio de consulta que junta todo. Se
 amplía según avanza la historia.
 """
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -30,6 +31,8 @@ from app.application.queries.player_balance import (
     _bid_hour_bucket,
 )
 from app.domain.engines.player_balance import (
+    AGENT_PCT_BREAKPOINTS,
+    ALWAYS_CHARGED_PCT,
     PlayerTransferRecord,
     SalarySnapshot,
     agent_commission_pct,
@@ -61,14 +64,13 @@ class FakeCHPP:
 
         if file == "transfersteam":
             return {"transfers": [], "pages": 1}
-        return get_parser(file)(
-            (FIXTURES_DIR / f"{file}.xml").read_bytes()
-        )
+        return get_parser(file)((FIXTURES_DIR / f"{file}.xml").read_bytes())
 
 
 async def _setup_with_player(ht_player_id: int) -> tuple[SqlAlchemyUnitOfWork, FakeCHPP, int, int]:
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     async with engine.begin() as conn:
@@ -81,8 +83,10 @@ async def _setup_with_player(ht_player_id: int) -> tuple[SqlAlchemyUnitOfWork, F
         await s.flush()
         team_id = team.id
         player = m.Player(
-            ht_player_id=ht_player_id, team_id=team_id,
-            first_name="Lander", last_name="Fripont",
+            ht_player_id=ht_player_id,
+            team_id=team_id,
+            first_name="Lander",
+            last_name="Fripont",
         )
         s.add(player)
         await s.commit()
@@ -95,6 +99,7 @@ def test_transfers_player_sync_finds_our_own_purchase() -> None:
     reciente nos tiene como VENDEDOR, la de en medio nos tiene como
     COMPRADOR (1.800.000, 2026-05-16), esa es la que debe quedar guardada
     como precio de compra, ignorando las otras dos (no somos parte)."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(495018863)
         handler = SyncTeamHandler(uow, chpp)
@@ -126,6 +131,7 @@ def test_transfers_player_sync_leaves_purchase_price_unset_when_never_the_buyer(
     `tsi_at_purchase_attempted` de todas formas, transfersplayer.xml ya
     trae TODA la historia, así que si no aparecimos como compradores ahora,
     nunca vamos a aparecer, y no debe volver a pedirse este fichero."""
+
     async def run() -> None:
         # ht_team_id distinto de cualquier Buyer/Seller del fixture real.
         uow, chpp, team_id, ht_player_id = await _setup_with_player(495018863)
@@ -158,6 +164,7 @@ def test_upsert_identity_clears_left_team_at_when_player_reappears_in_roster() -
     `players.xml` está de vuelta en la plantilla HOY, sin esto,
     `roster()`/`_latest()` lo seguiría excluyendo de "plantilla actual"
     para siempre, aunque un sync real ya lo vea otra vez."""
+
     async def run() -> None:
         uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
@@ -180,8 +187,9 @@ def test_upsert_identity_clears_left_team_at_when_player_reappears_in_roster() -
     asyncio.run(run())
 
 
-def test_player_enrichment_backfill_reconstructs_age_and_fills_country_character_specialty(
-) -> None:
+def test_player_enrichment_backfill_reconstructs_age_and_fills_country_character_specialty() -> (
+    None
+):
     """Pedido explícitamente por el usuario 2026-08-04, SIN botón: una sola
     llamada a playerdetails.xml rellena edad-en-la-venta, país, carácter y
     especialidad de un tirón. Fixture real (jugador 468921494): Age=30,
@@ -189,6 +197,7 @@ def test_player_enrichment_backfill_reconstructs_age_and_fills_country_character
     Con una venta hace exactamente 20 días, la edad en la venta debe ser
     30a 25d (45-20=25, sin cruzar el año), playerdetails.xml funciona
     aunque el jugador ya no esté en nuestro equipo."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         sold_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=20)
@@ -229,6 +238,7 @@ def test_player_balance_reads_skills_at_purchase_and_sale_from_real_snapshots() 
     propósito: uno ahí significaría que volvió a la plantilla (ver
     `test_player_balance_query_service_treats_returning_player_as_active_not_sold`),
     no algo que este test deba mezclar."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         purchased_at = datetime(2026, 1, 1, 12, 0)
@@ -241,45 +251,97 @@ def test_player_balance_reads_skills_at_purchase_and_sale_from_real_snapshots() 
             player.purchased_at = purchased_at
             player.sale_price = 2000000
             player.sold_at = sold_at
-            u.session.add(m.Sync(
-                id=1, user_id=1, team_id=team_id, kind="players",
-                status="completed", started_at=purchased_at,
-            ))
+            u.session.add(
+                m.Sync(
+                    id=1,
+                    user_id=1,
+                    team_id=team_id,
+                    kind="players",
+                    status="completed",
+                    started_at=purchased_at,
+                )
+            )
             await u.session.flush()
             # Snapshot ANTES de la compra: nunca debe usarse "al entrar"
             # (el jugador no era nuestro todavía).
-            u.session.add(m.PlayerSnapshot(
-                sync_id=1, player_id=player.id,
-                captured_at=purchased_at - timedelta(days=30),
-                age_years=20, age_days=0, tsi=100000, form=1, stamina=1,
-                experience=1, salary=1000, leadership=1,
-                keeper=1, defending=1, playmaking=1, winger=1,
-                passing=1, scoring=1, set_pieces=1,
-                injury_level=-1, content_hash=b"\x00" * 32,
-            ))
+            u.session.add(
+                m.PlayerSnapshot(
+                    sync_id=1,
+                    player_id=player.id,
+                    captured_at=purchased_at - timedelta(days=30),
+                    age_years=20,
+                    age_days=0,
+                    tsi=100000,
+                    form=1,
+                    stamina=1,
+                    experience=1,
+                    salary=1000,
+                    leadership=1,
+                    keeper=1,
+                    defending=1,
+                    playmaking=1,
+                    winger=1,
+                    passing=1,
+                    scoring=1,
+                    set_pieces=1,
+                    injury_level=-1,
+                    content_hash=b"\x00" * 32,
+                )
+            )
             # Snapshot correcto "al entrar" (primero EN O DESPUÉS de la compra).
-            u.session.add(m.PlayerSnapshot(
-                sync_id=1, player_id=player.id,
-                captured_at=purchased_at + timedelta(days=1),
-                age_years=20, age_days=1, tsi=110000, form=5, stamina=6,
-                experience=7, salary=1000, leadership=9,
-                keeper=10, defending=11, playmaking=12, winger=13,
-                passing=14, scoring=15, set_pieces=16,
-                injury_level=-1, content_hash=b"\x01" * 32,
-            ))
+            u.session.add(
+                m.PlayerSnapshot(
+                    sync_id=1,
+                    player_id=player.id,
+                    captured_at=purchased_at + timedelta(days=1),
+                    age_years=20,
+                    age_days=1,
+                    tsi=110000,
+                    form=5,
+                    stamina=6,
+                    experience=7,
+                    salary=1000,
+                    leadership=9,
+                    keeper=10,
+                    defending=11,
+                    playmaking=12,
+                    winger=13,
+                    passing=14,
+                    scoring=15,
+                    set_pieces=16,
+                    injury_level=-1,
+                    content_hash=b"\x01" * 32,
+                )
+            )
             # Snapshot correcto "al salir" (último EN O ANTES de la venta).
-            u.session.add(m.PlayerSnapshot(
-                sync_id=1, player_id=player.id,
-                captured_at=sold_at - timedelta(days=1),
-                age_years=20, age_days=59, tsi=150000, form=15, stamina=16,
-                experience=17, salary=1000, leadership=19,
-                keeper=20, defending=1, playmaking=2, winger=3,
-                passing=4, scoring=5, set_pieces=6,
-                injury_level=-1, content_hash=b"\x02" * 32,
-            ))
+            u.session.add(
+                m.PlayerSnapshot(
+                    sync_id=1,
+                    player_id=player.id,
+                    captured_at=sold_at - timedelta(days=1),
+                    age_years=20,
+                    age_days=59,
+                    tsi=150000,
+                    form=15,
+                    stamina=16,
+                    experience=17,
+                    salary=1000,
+                    leadership=19,
+                    keeper=20,
+                    defending=1,
+                    playmaking=2,
+                    winger=3,
+                    passing=4,
+                    scoring=5,
+                    set_pieces=6,
+                    injury_level=-1,
+                    content_hash=b"\x02" * 32,
+                )
+            )
             await u.session.commit()
 
         from app.application.queries.player_balance import PlayerBalanceQueryService
+
         async with uow as u:
             data = await PlayerBalanceQueryService(u.session).get(team_id)
 
@@ -300,6 +362,7 @@ def test_player_balance_treats_departure_without_sale_as_zero_price() -> None:
     plantilla, `left_team_at`, SIN que transfersteam.xml reporte nunca una
     venta real) debe contar como venta a $0, no como "sigue en la
     plantilla" ni "desconocido"."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         purchased_at = datetime(2026, 1, 1, 12, 0)
@@ -315,6 +378,7 @@ def test_player_balance_treats_departure_without_sale_as_zero_price() -> None:
             await u.session.commit()
 
         from app.application.queries.player_balance import PlayerBalanceQueryService
+
         async with uow as u:
             data = await PlayerBalanceQueryService(u.session).get(team_id)
 
@@ -350,6 +414,7 @@ def test_a_stamped_departure_date_is_not_used_to_estimate_wages() -> None:
     despues de la primera que guardamos: si estuvimos mirando la plantilla y
     nunca lo vimos, ya no estaba.
     """
+
     async def run() -> None:
         uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
         primera_foto = datetime(2026, 7, 26, 12, 0)
@@ -367,22 +432,40 @@ def test_a_stamped_departure_date_is_not_used_to_estimate_wages() -> None:
             # Otro jugador cualquiera da las lecturas con las que se ajusta la
             # curva, para que el modelo exista y la prueba demuestre que la
             # estimacion se OMITE, no que no habia con que estimar.
-            otro = m.Player(ht_player_id=999001, team_id=team_id, first_name="Con", last_name="Fotos")
+            otro = m.Player(
+                ht_player_id=999001, team_id=team_id, first_name="Con", last_name="Fotos"
+            )
             u.session.add(otro)
             await u.session.flush()
             for i in range(30):
-                u.session.add(m.PlayerSnapshot(
-                    sync_id=1, player_id=otro.id,
-                    captured_at=primera_foto + timedelta(days=i),
-                    age_years=20 + i % 10, age_days=0, tsi=5_000 + i * 4_000,
-                    form=5, stamina=5, experience=5, salary=2_000 + i * 900,
-                    leadership=5, keeper=5, defending=5, playmaking=5,
-                    winger=5, passing=5, scoring=5, set_pieces=5,
-                    injury_level=-1, content_hash=bytes([i]) * 32,
-                ))
+                u.session.add(
+                    m.PlayerSnapshot(
+                        sync_id=1,
+                        player_id=otro.id,
+                        captured_at=primera_foto + timedelta(days=i),
+                        age_years=20 + i % 10,
+                        age_days=0,
+                        tsi=5_000 + i * 4_000,
+                        form=5,
+                        stamina=5,
+                        experience=5,
+                        salary=2_000 + i * 900,
+                        leadership=5,
+                        keeper=5,
+                        defending=5,
+                        playmaking=5,
+                        winger=5,
+                        passing=5,
+                        scoring=5,
+                        set_pieces=5,
+                        injury_level=-1,
+                        content_hash=bytes([i]) * 32,
+                    )
+                )
             await u.session.commit()
 
         from app.application.queries.player_balance import PlayerBalanceQueryService
+
         async with uow as u:
             data = await PlayerBalanceQueryService(u.session).get(team_id)
 
@@ -396,7 +479,6 @@ def test_a_stamped_departure_date_is_not_used_to_estimate_wages() -> None:
         # El saldo sigue publicandose: es lo mejor que se puede saber, y va
         # marcado para que nadie lo confunda con una cifra medida.
         assert row.saldo == -1_000_000
-
 
     asyncio.run(run())
 
@@ -417,6 +499,7 @@ def test_player_enrichment_marks_enrichment_attempted_on_chpp_error() -> None:
     playerdetails.xml para estos ~105 jugadores en CADA sync, para
     siempre, CHPP nunca lanza un error HTTP para un playerID que ya no
     resuelve, solo un payload <Error>/<ErrorCode> con status 200."""
+
     async def run() -> None:
         uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
@@ -448,6 +531,7 @@ def test_destination_country_backfill_uses_teamdetails_of_the_buyer() -> None:
     """Pedido explícitamente 2026-08-04 ("País Destino" del Excel del
     usuario), `teamdetails.xml` funciona para equipos ajenos, no solo el
     propio, y trae `Country/CountryName` directo."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
@@ -487,6 +571,7 @@ def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
     horaria en vez de uno sin ella y reventaba con "can't subtract
     offset-naive and offset-aware datetimes" en cuanto había un vendido de
     verdad que rellenar."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
@@ -503,7 +588,10 @@ def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
         handler = SyncTeamHandler(uow, chpp)
         await handler.execute(
             SyncTeamCommand(
-                user_id=1, team_id=team_id, ht_team_id=537758, files=["transfersteam"],
+                user_id=1,
+                team_id=team_id,
+                ht_team_id=537758,
+                files=["transfersteam"],
             )
         )
         result = await handler.execute_backfill_batch(
@@ -515,9 +603,9 @@ def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
         # partidos y la vigilancia de reventas fallan aqui a proposito; lo que
         # se comprueba es que el resto del lote se hizo igual, que es la razon
         # de que cada paso capture su error por separado.
-        assert all(
-            e.startswith(("censo_partidos:", "reventa:")) for e in result.errors
-        ), result.errors
+        assert all(e.startswith(("censo_partidos:", "reventa:")) for e in result.errors), (
+            result.errors
+        )
 
         async with uow as u:
             player = await u.session.scalar(
@@ -536,19 +624,20 @@ def test_execute_sync_backfills_current_country_from_players_and_worlddetails() 
     El orden real descarga players antes que worlddetails, por eso el cruce
     debe funcionar al terminar el sync y también para snapshots anteriores.
     """
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
             # Equivale a una fila ya sincronizada desde el LeagueList
             # completo de worlddetails (el fixture reducido solo trae
             # Colombia).
-            u.session.add(m.WorldContext(
-                ht_league_id=35, country_id=35, country_name="España"
-            ))
+            u.session.add(m.WorldContext(ht_league_id=35, country_id=35, country_name="España"))
             await u.session.commit()
         result = await SyncTeamHandler(uow, chpp).execute(
             SyncTeamCommand(
-                user_id=1, team_id=team_id, ht_team_id=537758,
+                user_id=1,
+                team_id=team_id,
+                ht_team_id=537758,
                 files=["players"],
             )
         )
@@ -575,6 +664,7 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
     transfersteam.xml). Un jugador vendido con `listing_count=0` sube a 1;
     uno que YA tiene un conteo real (detectado vía currentbids.xml, puede
     ser >1 si se relistó) no se toca."""
+
     async def run() -> None:
         uow, chpp, team_id, ht_player_id = await _setup_with_player(468921494)
         async with uow as u:
@@ -586,8 +676,10 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
             # Segundo jugador vendido, ya con un conteo real (relistado dos
             # veces), no debe pisarse con el mínimo de 1.
             already_counted = m.Player(
-                ht_player_id=900000099, team_id=team_id,
-                first_name="Ya", last_name="Contado",
+                ht_player_id=900000099,
+                team_id=team_id,
+                first_name="Ya",
+                last_name="Contado",
                 sold_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3),
                 listing_count=2,
             )
@@ -599,7 +691,10 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
         handler = SyncTeamHandler(uow, chpp)
         result = await handler.execute(
             SyncTeamCommand(
-                user_id=1, team_id=team_id, ht_team_id=537758, files=["transfersteam"],
+                user_id=1,
+                team_id=team_id,
+                ht_team_id=537758,
+                files=["transfersteam"],
             )
         )
         assert result.status == "completed"
@@ -621,14 +716,17 @@ def test_execute_sync_backfills_mandatory_listing_count_for_sold_players() -> No
 
 # ── Backfill paginado completo, "Actualizar transferencias" (HL-161, 2026-08-04) ──
 
+
 class FakeTransfersHistoryCHPP:
     """2 páginas simuladas: page 1 trae 2 transferencias "nuevas", page 2
     trae 1 más vieja, ninguno de los 3 jugadores existe de antemano en la
     BD (el punto del backfill: crear la identidad mínima sobre la marcha)."""
 
     STATS = {
-        "total_sum_of_buys": 150000, "total_sum_of_sales": 200000,
-        "number_of_buys": 2, "number_of_sales": 1,
+        "total_sum_of_buys": 150000,
+        "total_sum_of_sales": 200000,
+        "number_of_buys": 2,
+        "number_of_sales": 1,
     }
 
     def __init__(self) -> None:
@@ -641,25 +739,40 @@ class FakeTransfersHistoryCHPP:
         if page == 1:
             transfers = [
                 {
-                    "ht_transfer_id": 300, "ht_player_id": 555,
-                    "player_name": "Foo Barbaz", "transfer_type": "B",
-                    "buyer_team_id": 537758, "seller_team_id": 1,
-                    "price": 100000, "deadline": "2026-01-10 10:00:00", "tsi": 500,
+                    "ht_transfer_id": 300,
+                    "ht_player_id": 555,
+                    "player_name": "Foo Barbaz",
+                    "transfer_type": "B",
+                    "buyer_team_id": 537758,
+                    "seller_team_id": 1,
+                    "price": 100000,
+                    "deadline": "2026-01-10 10:00:00",
+                    "tsi": 500,
                 },
                 {
-                    "ht_transfer_id": 200, "ht_player_id": 666,
-                    "player_name": "Qux Quux", "transfer_type": "S",
-                    "buyer_team_id": 999, "seller_team_id": 537758,
-                    "price": 200000, "deadline": "2026-02-15 12:00:00", "tsi": 800,
+                    "ht_transfer_id": 200,
+                    "ht_player_id": 666,
+                    "player_name": "Qux Quux",
+                    "transfer_type": "S",
+                    "buyer_team_id": 999,
+                    "seller_team_id": 537758,
+                    "price": 200000,
+                    "deadline": "2026-02-15 12:00:00",
+                    "tsi": 800,
                 },
             ]
         elif page == 2:
             transfers = [
                 {
-                    "ht_transfer_id": 100, "ht_player_id": 777,
-                    "player_name": "Old One", "transfer_type": "B",
-                    "buyer_team_id": 537758, "seller_team_id": 2,
-                    "price": 50000, "deadline": "2025-01-01 00:00:00", "tsi": 300,
+                    "ht_transfer_id": 100,
+                    "ht_player_id": 777,
+                    "player_name": "Old One",
+                    "transfer_type": "B",
+                    "buyer_team_id": 537758,
+                    "seller_team_id": 2,
+                    "price": 50000,
+                    "deadline": "2025-01-01 00:00:00",
+                    "tsi": 300,
                 },
             ]
         else:
@@ -674,6 +787,7 @@ def test_transfers_history_backfill_creates_players_never_seen_in_roster() -> No
     página que el sync normal ve) debe quedar creado igual, con lo que sí
     se puede saber (nombre partido de `PlayerName`, precio, TSI) y "?" en
     lo que no (skills, edad reconstruida aparte)."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
@@ -694,24 +808,18 @@ def test_transfers_history_backfill_creates_players_never_seen_in_roster() -> No
         assert chpp.calls == [1, 2]
 
         async with uow as u:
-            bought = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 555)
-            )
+            bought = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 555))
             assert bought.first_name == "Foo"
             assert bought.last_name == "Barbaz"
             assert bought.purchase_price == 100000
             assert bought.tsi_at_purchase == 500
 
-            sold = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 666)
-            )
+            sold = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 666))
             assert sold.last_name == "Quux"
             assert sold.sale_price == 200000
             assert sold.buyer_team_id == 999
 
-            old = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 777)
-            )
+            old = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 777))
             assert old.purchase_price == 50000
 
             team = await u.session.get(m.Team, team_id)
@@ -730,6 +838,7 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
 
     Desde 2026-08-21 hace falta además `transfers_history_complete`: una marca
     suelta ya no basta, porque podría venir de un recorrido que se cortó."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
@@ -743,10 +852,17 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
             # Desde 2026-08-22 la marca solo vale si el libro de movimientos
             # está lleno: sin él no hay etapas que reconstruir, y el recorrido
             # se rehace aunque la marca diga que estaba completo.
-            u.session.add(m.TeamTransfer(
-                team_id=team_id, ht_transfer_id=300, ht_player_id=1,
-                player_name="Ya", deadline=datetime(2026, 1, 1), price=1, is_buy=True,
-            ))
+            u.session.add(
+                m.TeamTransfer(
+                    team_id=team_id,
+                    ht_transfer_id=300,
+                    ht_player_id=1,
+                    player_name="Ya",
+                    deadline=datetime(2026, 1, 1),
+                    price=1,
+                    is_buy=True,
+                )
+            )
             await u.session.commit()
 
         chpp = FakeTransfersHistoryCHPP()
@@ -761,9 +877,7 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
 
         async with uow as u:
             # Ningún jugador de la página 1 (ya "conocida") se crea de nuevo.
-            missing = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 555)
-            )
+            missing = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 555))
             assert missing is None
 
     asyncio.run(run())
@@ -771,9 +885,11 @@ def test_transfers_history_backfill_stops_early_once_re_run() -> None:
 
 # ── Contador de intentos de venta (currentbids.xml) ─────────────────────────
 
+
 async def _setup_roster(ht_player_ids: list[int]) -> tuple[SqlAlchemyUnitOfWork, int]:
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     async with engine.begin() as conn:
@@ -786,10 +902,14 @@ async def _setup_roster(ht_player_ids: list[int]) -> tuple[SqlAlchemyUnitOfWork,
         await s.flush()
         team_id = team.id
         for i, pid in enumerate(ht_player_ids):
-            s.add(m.Player(
-                ht_player_id=pid, team_id=team_id,
-                first_name=f"Jugador{i}", last_name="Prueba",
-            ))
+            s.add(
+                m.Player(
+                    ht_player_id=pid,
+                    team_id=team_id,
+                    first_name=f"Jugador{i}",
+                    last_name="Prueba",
+                )
+            )
         await s.commit()
 
     return SqlAlchemyUnitOfWork(factory), team_id
@@ -800,10 +920,17 @@ def _foto_en_venta(
 ) -> "m.PlayerSnapshot":
     """La foto que deja el paso de plantilla: en venta, segun players.xml."""
     return m.PlayerSnapshot(
-        sync_id=sync_id, player_id=player_id,
+        sync_id=sync_id,
+        player_id=player_id,
         captured_at=cuando or datetime(2026, 8, 24, 11),
-        age_years=25, age_days=0, tsi=1000, form=5, stamina=7,
-        experience=5, salary=1000, is_transfer_listed=True,
+        age_years=25,
+        age_days=0,
+        tsi=1000,
+        form=5,
+        stamina=7,
+        experience=5,
+        salary=1000,
+        is_transfer_listed=True,
         content_hash=b"x" * 32,
     )
 
@@ -816,21 +943,25 @@ def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
 
     Una aparición nueva abre un intento; seguir listado no abre otro.
     """
+
     async def run() -> None:
         uow, team_id = await _setup_roster([111, 222])
         handler = SyncTeamHandler(uow, chpp=None)  # type: ignore[arg-type]
 
         async with uow as u:
             # Lo que haría el sync de plantilla antes de llegar aquí.
-            jugador = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 111)
-            )
+            jugador = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
             jugador.currently_listed = True
             # `_persist_currentbids` refresca la marca desde la ULTIMA foto
             # antes de decidir nada (2026-08-24), asi que la foto tiene que
             # existir: es lo que el paso de plantilla habria escrito.
-            sync = m.Sync(user_id=1, team_id=team_id, kind="players",
-                          status="completed", started_at=datetime(2026, 8, 24, 11))
+            sync = m.Sync(
+                user_id=1,
+                team_id=team_id,
+                kind="players",
+                status="completed",
+                started_at=datetime(2026, 8, 24, 11),
+            )
             u.session.add(sync)
             await u.session.flush()
             u.session.add(_foto_en_venta(jugador.id, sync_id=sync.id))
@@ -844,18 +975,19 @@ def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
             await u.commit()
 
         async with uow as u:
-            player = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 111)
-            )
+            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
             assert player.listing_count == 1
-            otro = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 222)
-            )
+            otro = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 222))
             assert otro.listing_count == 0
-            intentos = list((await u.session.execute(
-                select(m.PlayerListingAttempt)
-                .where(m.PlayerListingAttempt.player_id == player.id)
-            )).scalars())
+            intentos = list(
+                (
+                    await u.session.execute(
+                        select(m.PlayerListingAttempt).where(
+                            m.PlayerListingAttempt.player_id == player.id
+                        )
+                    )
+                ).scalars()
+            )
             assert len(intentos) == 1
             assert intentos[0].ended_at is None
 
@@ -868,14 +1000,17 @@ def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
             await u.commit()
 
         async with uow as u:
-            player = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 111)
-            )
+            player = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
             assert player.listing_count == 1
-            intentos = list((await u.session.execute(
-                select(m.PlayerListingAttempt)
-                .where(m.PlayerListingAttempt.player_id == player.id)
-            )).scalars())
+            intentos = list(
+                (
+                    await u.session.execute(
+                        select(m.PlayerListingAttempt).where(
+                            m.PlayerListingAttempt.player_id == player.id
+                        )
+                    )
+                ).scalars()
+            )
             assert len(intentos) == 1
 
     asyncio.run(run())
@@ -884,20 +1019,24 @@ def test_a_new_appearance_on_the_market_opens_one_attempt() -> None:
 def test_the_bids_file_only_enriches_the_open_attempt() -> None:
     """La puja más alta y el plazo sí salen de `currentbids.xml`: para eso
     está. Lo que no puede hacer es decidir quién está en venta."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([111])
         handler = SyncTeamHandler(uow, chpp=None)  # type: ignore[arg-type]
 
         async with uow as u:
-            jugador = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 111)
-            )
+            jugador = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
             jugador.currently_listed = True
             # `_persist_currentbids` refresca la marca desde la ULTIMA foto
             # antes de decidir nada (2026-08-24), asi que la foto tiene que
             # existir: es lo que el paso de plantilla habria escrito.
-            sync = m.Sync(user_id=1, team_id=team_id, kind="players",
-                          status="completed", started_at=datetime(2026, 8, 24, 11))
+            sync = m.Sync(
+                user_id=1,
+                team_id=team_id,
+                kind="players",
+                status="completed",
+                started_at=datetime(2026, 8, 24, 11),
+            )
             u.session.add(sync)
             await u.session.flush()
             u.session.add(_foto_en_venta(jugador.id, sync_id=sync.id))
@@ -906,8 +1045,11 @@ def test_the_bids_file_only_enriches_the_open_attempt() -> None:
         async with uow as u:
             payload = {
                 "listed_players": [
-                    {"ht_player_id": 111, "highest_bid": 1500000,
-                     "deadline": "2026-08-26 09:00:00"},
+                    {
+                        "ht_player_id": 111,
+                        "highest_bid": 1500000,
+                        "deadline": "2026-08-26 09:00:00",
+                    },
                 ]
             }
             await handler._persist_currentbids(
@@ -922,6 +1064,7 @@ def test_the_bids_file_only_enriches_the_open_attempt() -> None:
 
     asyncio.run(run())
 
+
 def _fresh_result():
     from app.application.commands.sync_team import SyncResult
 
@@ -933,6 +1076,7 @@ def _fresh_result():
 # Venta"), no solo contra números inventados, si esto pasa, el motor
 # reproduce exactamente lo que el usuario ya viene calculando a mano.
 
+
 def test_agent_commission_matches_the_official_hattrick_table() -> None:
     assert agent_commission_pct(0) == pytest.approx(0.12)
     assert agent_commission_pct(6) == pytest.approx(0.0883)
@@ -940,11 +1084,101 @@ def test_agent_commission_matches_the_official_hattrick_table() -> None:
     assert agent_commission_pct(2159) == pytest.approx(0.02)  # suelo, no sigue bajando
 
 
-def test_agent_commission_interpolates_daily_between_weekly_breakpoints() -> None:
-    """Hattrick publica un valor por SEMANA a partir del día 7, los días
-    intermedios se interpolan linealmente. Verificado contra la columna
-    "Porc_2" de la hoja real del usuario: día 8 = 0,08467142857."""
-    assert agent_commission_pct(8) == pytest.approx(0.08467142857, abs=1e-6)
+def test_agent_commission_curves_between_weekly_breakpoints() -> None:
+    """Entre dos valores semanales la curva NO es una recta (2026-09-21).
+
+    Hattrick publica un valor por semana a partir del día 7 y la tabla baja
+    FRENANDO, así que la recta entre dos semanas va por encima de la curva.
+    Hasta hoy se interpolaba recto --como la columna «Porc_2» de la hoja del
+    usuario-- y las tres comisiones que se pudieron medir de verdad salían
+    todas altas, entre 0,02 y 0,05 puntos, siempre hacia el mismo lado.
+
+    Lo que se fija aquí es la forma: la curva pasa EXACTA por cada valor
+    publicado, y entre dos de ellos va por debajo de la recta, nunca por
+    encima ni dando un rodeo hacia arriba.
+    """
+    for dia, publicado in AGENT_PCT_BREAKPOINTS:
+        assert agent_commission_pct(dia) == pytest.approx(publicado, abs=1e-12)
+
+    def recta(dia: float) -> float:
+        for (d0, p0), (d1, p1) in zip(
+            AGENT_PCT_BREAKPOINTS, AGENT_PCT_BREAKPOINTS[1:], strict=False
+        ):
+            if d0 <= dia <= d1:
+                return p0 + (dia - d0) / (d1 - d0) * (p1 - p0)
+        return AGENT_PCT_BREAKPOINTS[-1][1]
+
+    anterior = 1.0
+    for decimas in range(0, 1121):
+        dia = decimas / 10
+        valor = agent_commission_pct(dia)
+        assert valor <= anterior + 1e-12, f"la curva sube en el día {dia}"
+        assert valor <= recta(dia) + 1e-12, f"la curva pasa la recta en el día {dia}"
+        anterior = valor
+
+
+def test_agent_commission_does_not_count_the_three_days_of_the_auction() -> None:
+    """Los tres días que el jugador pasa en el mercado no cuentan.
+
+    2026-09-21, traído por el usuario: «no se cuenta todos los días que
+    estuvo en el equipo sino que se le restan 3 días... como si se congelaran
+    los días entre ponerlo en venta y venderlo». Es lo que dicen sus ventas
+    medidas (ver `DIAS_DE_SUBASTA`), y en el motor se ve así: veinticinco
+    días en el club se cobran como veintidós.
+    """
+    comprado = datetime(2026, 1, 1, tzinfo=UTC)
+    record = PlayerTransferRecord(
+        purchase_price=1_000_000,
+        purchased_at=comprado,
+        is_academy_graduate=False,
+        salary_history=[SalarySnapshot(captured_at=comprado, salary=0)],
+        listing_count=0,
+        sale_price=1_000_000,
+        sold_at=comprado + timedelta(days=25),
+        economy_date=comprado + timedelta(days=1),
+    )
+    assert compute_balance(record).agent_pct == pytest.approx(
+        agent_commission_pct(22) + ALWAYS_CHARGED_PCT
+    )
+
+
+def test_agent_commission_matches_the_three_sales_measured_in_the_economy() -> None:
+    """Las tres ventas reales del usuario, con la comisión que cobró Hattrick.
+
+    De dónde sale el dato: `economy.xml` guarda lo que de verdad entró por
+    ventas en la semana en curso, así que en una semana con UNA sola venta la
+    diferencia contra el precio es la comisión exacta. Estas tres semanas de
+    2026 tienen una venta cada una.
+
+    Es la prueba que de verdad manda sobre este motor: no reproduce una hoja
+    de cálculo ni una tabla leída, reproduce lo que el juego cobró.
+    """
+    ventas = [
+        # (precio, comisión cobrada, compra, venta)
+        (7_120_000, 944_824, datetime(2026, 8, 8, 12, 48), datetime(2026, 8, 20, 12, 40)),
+        (7_400_000, 842_120, datetime(2026, 8, 12, 13, 2), datetime(2026, 9, 9, 12, 32)),
+        (7_000_000, 837_900, datetime(2026, 8, 28, 17, 57), datetime(2026, 9, 19, 12, 48)),
+    ]
+    for precio, comision, comprado, vendido in ventas:
+        comprado, vendido = comprado.replace(tzinfo=UTC), vendido.replace(tzinfo=UTC)
+        record = PlayerTransferRecord(
+            purchase_price=1,
+            purchased_at=comprado,
+            is_academy_graduate=False,
+            salary_history=[SalarySnapshot(captured_at=comprado, salary=0)],
+            listing_count=0,
+            sale_price=precio,
+            sold_at=vendido,
+            economy_date=comprado + timedelta(days=1),
+        )
+        calculada = compute_balance(record).agent_pct
+        real = comision / precio
+        # Dos de las tres salen exactas; la tercera se queda a 0,02 puntos,
+        # que en una venta de siete millones son 1.400 US$. Antes de restar
+        # la subasta y curvar la tabla, el error llegaba a 18.600.
+        assert calculada == pytest.approx(real, abs=0.0003), (
+            f"{precio}: calculada {calculada:.4%}, real {real:.4%}"
+        )
 
 
 def test_compute_balance_matches_real_spreadsheet_row_a_quintana() -> None:
@@ -1001,8 +1235,13 @@ def test_compute_balance_is_none_when_purchase_price_is_truly_unknown() -> None:
     """Sin precio de compra (ni real ni manual) y sin ser canterano: el
     saldo es None, nunca 0 ni una cifra inventada."""
     record = PlayerTransferRecord(
-        purchase_price=None, purchased_at=None, is_academy_graduate=False,
-        salary_history=[], listing_count=0, sale_price=None, sold_at=None,
+        purchase_price=None,
+        purchased_at=None,
+        is_academy_graduate=False,
+        salary_history=[],
+        listing_count=0,
+        sale_price=None,
+        sold_at=None,
         economy_date=None,
     )
     balance = compute_balance(record)
@@ -1015,9 +1254,13 @@ def test_compute_balance_treats_academy_graduates_as_zero_cost_purchase() -> Non
     purchased_at = datetime(2025, 1, 1, tzinfo=UTC)
     sold_at = purchased_at + timedelta(weeks=5)
     record = PlayerTransferRecord(
-        purchase_price=None, purchased_at=purchased_at, is_academy_graduate=True,
+        purchase_price=None,
+        purchased_at=purchased_at,
+        is_academy_graduate=True,
         salary_history=[SalarySnapshot(captured_at=purchased_at, salary=1000)],
-        listing_count=1, sale_price=500000, sold_at=sold_at,
+        listing_count=1,
+        sale_price=500000,
+        sold_at=sold_at,
         economy_date=purchased_at + timedelta(days=2),
     )
     balance = compute_balance(record)
@@ -1034,12 +1277,16 @@ def test_salary_extrapolates_across_sync_gaps() -> None:
     purchased_at = datetime(2026, 1, 1, tzinfo=UTC)
     sold_at = purchased_at + timedelta(weeks=4)
     record = PlayerTransferRecord(
-        purchase_price=100000, purchased_at=purchased_at, is_academy_graduate=False,
+        purchase_price=100000,
+        purchased_at=purchased_at,
+        is_academy_graduate=False,
         salary_history=[
             SalarySnapshot(captured_at=purchased_at, salary=1000),
             SalarySnapshot(captured_at=purchased_at + timedelta(weeks=2), salary=1500),
         ],
-        listing_count=0, sale_price=None, sold_at=sold_at,
+        listing_count=0,
+        sale_price=None,
+        sold_at=sold_at,
         economy_date=purchased_at + timedelta(weeks=1),
     )
     balance = compute_balance(record)
@@ -1173,6 +1420,7 @@ def test_missing_economy_calendar_excludes_partial_balance_from_all_aggregates()
 
 # ── Servicio de consulta: end-to-end contra datos reales sincronizados ──────
 
+
 def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None:
     """`seeded_session()` sincroniza la plantilla REAL de la cuenta
     (players.xml, con historial de salario real) con `currency_rate=10.0`
@@ -1184,12 +1432,11 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
     usuario 2026-08-03: p.ej. compró a Humberto Granada en US$1000 real,
     pero CHPP devuelve 10000). No repite la validación numérica exacta del
     resto de la fórmula, que ya cubre `compute_balance` directamente."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
-            player = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
-            )
+            player = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
             # `seeded_session()` deja el snapshot fechado "ahora", hay que
             # moverlo antes de la venta simulada, o el nuevo chequeo de
             # "volvió a la plantilla" (2026-08-05) lo confundiría con un
@@ -1223,9 +1470,7 @@ def test_player_balance_query_service_computes_saldo_for_a_sold_player() -> None
     assert row.sale_price == 900000
     assert row.saldo is not None
     assert sum(segment.total for segment in row.salary_breakdown) == row.salary_total
-    assert all(
-        segment.total == segment.weeks * segment.salary for segment in row.salary_breakdown
-    )
+    assert all(segment.total == segment.weeks * segment.salary for segment in row.salary_breakdown)
     # El resto de la plantilla, sin compra conocida, debe quedar en None
     # nunca 0 ni una cifra inventada, y contar en unknown_purchase_count.
     others = [r for r in data.players if r.ht_player_id != ht_player_id]
@@ -1242,26 +1487,34 @@ def test_a_returning_player_shows_one_row_per_stint() -> None:
 
     Con una fila por etapa la ambigüedad desaparece: la etapa cerrada está
     vendida y la abierta está en curso, cada una con su propio saldo."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
-            player = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
+            player = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
+            s.add_all(
+                [
+                    m.PlayerStint(
+                        player_id=player.id,
+                        ht_player_id=player.ht_player_id,
+                        team_id=team_id,
+                        arrived_at=datetime(2021, 1, 1),
+                        arrival_price=1000000,
+                        arrival_transfer_id=1,
+                        left_at=datetime(2022, 1, 1),
+                        sale_price=9000000,
+                        sale_transfer_id=2,
+                    ),
+                    m.PlayerStint(
+                        player_id=player.id,
+                        ht_player_id=player.ht_player_id,
+                        team_id=team_id,
+                        arrived_at=datetime(2026, 1, 1),
+                        arrival_price=2000000,
+                        arrival_transfer_id=3,
+                    ),
+                ]
             )
-            s.add_all([
-                m.PlayerStint(
-                    player_id=player.id, ht_player_id=player.ht_player_id,
-                    team_id=team_id, arrived_at=datetime(2021, 1, 1),
-                    arrival_price=1000000, arrival_transfer_id=1,
-                    left_at=datetime(2022, 1, 1), sale_price=9000000,
-                    sale_transfer_id=2,
-                ),
-                m.PlayerStint(
-                    player_id=player.id, ht_player_id=player.ht_player_id,
-                    team_id=team_id, arrived_at=datetime(2026, 1, 1),
-                    arrival_price=2000000, arrival_transfer_id=3,
-                ),
-            ])
             ht_player_id = player.ht_player_id
             await s.commit()
 
@@ -1275,7 +1528,7 @@ def test_a_returning_player_shows_one_row_per_stint() -> None:
 
     vendida = next(r for r in filas if r.is_sold)
     abierta = next(r for r in filas if not r.is_sold)
-    assert vendida.sale_price == 900000      # 9.000.000 en moneda base
+    assert vendida.sale_price == 900000  # 9.000.000 en moneda base
     assert abierta.sale_price is None
     assert abierta.sold_at is None
     # Y ninguna dice haberse vendido antes de comprarse.
@@ -1286,6 +1539,7 @@ def test_salary_history_and_fallback_are_scoped_to_each_stint() -> None:
     """Una foto de la segunda vuelta no puede pagar la primera. La primera
     foto posterior a la compra SI sigue respaldando el cobro de su propia
     etapa, que es el comportamiento historico de `salary_at`."""
+
     async def go():
         uow, _, team_id, ht_player_id = await _setup_with_player(700_002)
         async with uow as u:
@@ -1377,6 +1631,7 @@ def test_salary_history_and_fallback_are_scoped_to_each_stint() -> None:
     assert data.unknown_purchase_count == 0
     assert sum(data.by_season.values()) == old.saldo + recent.saldo
 
+
 def test_player_balance_query_service_flags_academy_graduate_by_mother_club() -> None:
     """Pedido explícitamente 2026-08-04: "canterano" real =
     `MotherClub/TeamID` igual al `ht_team_id` de este equipo, NO si el
@@ -1387,23 +1642,20 @@ def test_player_balance_query_service_flags_academy_graduate_by_mother_club() ->
     coincide, y uno con precio de compra real, aunque comparta esa
     coincidencia por azar, NO debe confundirse con uno sin ningún dato de
     cantera."""
+
     async def go():
         uow, team_id = await _setup_roster([111, 222])
         async with uow as u:
             team = await u.session.get(m.Team, team_id)
             team.ht_team_id = 537758
 
-            graduate = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 111)
-            )
+            graduate = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 111))
             graduate.mother_club_team_id = 537758  # coincide con el club
             graduate.sale_price = 1000000
             graduate.sold_at = datetime(2026, 1, 1)
             graduate.listing_count = 1
 
-            bought = await u.session.scalar(
-                select(m.Player).where(m.Player.ht_player_id == 222)
-            )
+            bought = await u.session.scalar(select(m.Player).where(m.Player.ht_player_id == 222))
             bought.mother_club_team_id = 999999  # otro club, no es canterano
             bought.purchase_price = 500000
             bought.purchased_at = datetime(2025, 1, 1)
@@ -1440,7 +1692,7 @@ def test_bid_hour_bucket_formats_as_12_hour_ranges() -> None:
     medianoche."""
     cases = [
         (datetime(2026, 1, 1, 0, 30), "12:00 a 2:00 a.m."),
-        (datetime(2026, 1, 1, 10, 0), "10:00 a.m. a 12:00 p.m."),   # cruza mediodía
+        (datetime(2026, 1, 1, 10, 0), "10:00 a.m. a 12:00 p.m."),  # cruza mediodía
         (datetime(2026, 1, 1, 15, 30), "2:00 a 4:00 p.m."),
         (datetime(2026, 1, 1, 22, 0), "10:00 p.m. a 12:00 a.m."),  # cruza medianoche
     ]
@@ -1460,12 +1712,11 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
     propósito, aunque no sea el máximo en este caso igualmente). También
     cubre "por hora de cierre de puja" (pedido 2026-08-03, bloques de 2h en
     formato de 12 horas): vendido a las 15:30 → cubo "2:00 a 4:00 p.m."."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
-            player = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
-            )
+            player = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
             snap = await s.scalar(
                 select(m.PlayerSnapshot)
                 .where(m.PlayerSnapshot.player_id == player.id)
@@ -1507,20 +1758,20 @@ def test_player_balance_query_service_breaks_down_saldo_by_season_age_and_top_sk
     assert data.by_bid_hour == {"2:00 a 4:00 p.m.": pytest.approx(data.total_saldo)}
 
 
-def test_player_balance_query_service_labels_season_as_unknown_before_any_worlddetails_sync(
-) -> None:
+def test_player_balance_query_service_labels_season_as_unknown_before_any_worlddetails_sync() -> (
+    None
+):
     """Sin `worlddetails.xml` sincronizado nunca, una venta no tiene forma
     honesta de saber en qué temporada cayó, se etiqueta "Temporada
     desconocida" en vez de inventar un número. `seeded_session()` sí lo
     sincroniza por defecto (hace falta para la fórmula de entrenamiento), así
     que este test borra esa fila para simular una cuenta que nunca lo trajo."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
             await s.execute(delete(m.WorldContext))
-            player = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
-            )
+            player = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
             snap = await s.scalar(
                 select(m.PlayerSnapshot)
                 .where(m.PlayerSnapshot.player_id == player.id)
@@ -1556,12 +1807,11 @@ def test_player_balance_query_service_computes_season_by_elapsed_days_like_age()
     83, por vieja que sea, a diferencia del `Standing`-based `season_at`
     anterior, que la habría dejado en un único cubo "temporada anterior"
     sin distinguir cuántas temporadas atrás."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
-            player = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
-            )
+            player = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
             snap = await s.scalar(
                 select(m.PlayerSnapshot)
                 .where(m.PlayerSnapshot.player_id == player.id)
@@ -1594,6 +1844,7 @@ def test_player_balance_query_service_filters_by_season() -> None:
     pedir `season="Temporada 83"` deja SOLO ese jugador en "Detalle" y en
     los desgloses no-temporada (entrenamiento aquí), sin tocar el otro.
     Sin filtro (`season=None`), ambos aparecen."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
@@ -1603,9 +1854,7 @@ def test_player_balance_query_service_filters_by_season() -> None:
             team = await s.get(m.Team, team_id)
             team.ht_league_id = world.ht_league_id
 
-            older = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
-            )
+            older = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
             older_snap = await s.scalar(
                 select(m.PlayerSnapshot)
                 .where(m.PlayerSnapshot.player_id == older.id)
@@ -1620,11 +1869,16 @@ def test_player_balance_query_service_filters_by_season() -> None:
             older.listing_count = 1
 
             newer = m.Player(
-                ht_player_id=900000555, team_id=team_id,
-                first_name="Nuevo", last_name="Jugador",
-                purchase_price=1000000, purchased_at=datetime(2026, 5, 1),
-                sale_price=2000000, sold_at=datetime(2026, 6, 1),
-                listing_count=1, last_known_salary=1000,
+                ht_player_id=900000555,
+                team_id=team_id,
+                first_name="Nuevo",
+                last_name="Jugador",
+                purchase_price=1000000,
+                purchased_at=datetime(2026, 5, 1),
+                sale_price=2000000,
+                sold_at=datetime(2026, 6, 1),
+                listing_count=1,
+                last_known_salary=1000,
             )
             s.add(newer)
             await s.commit()
@@ -1639,7 +1893,8 @@ def test_player_balance_query_service_filters_by_season() -> None:
     assert unfiltered is not None and filtered is not None
 
     assert {r.name for r in unfiltered.players if r.is_sold} == {
-        "Alberto Gutiérrez Caviedes", "Nuevo Jugador",
+        "Alberto Gutiérrez Caviedes",
+        "Nuevo Jugador",
     }
     assert set(unfiltered.by_season) == {"Temporada 83", "Temporada 84"}
 
@@ -1656,12 +1911,11 @@ def test_player_balance_query_service_falls_back_to_backfilled_age_at_sale() -> 
     `player_snapshots` de antes de la venta, si `age_years_at_sale` ya fue
     reconstruido (ver `execute_player_enrichment_backfill`), se usa ese valor en
     vez de caer directo en "Edad desconocida"."""
+
     async def go():
         factory, team_id = await seeded_session()
         async with factory() as s:
-            player = await s.scalar(
-                select(m.Player).where(m.Player.team_id == team_id).limit(1)
-            )
+            player = await s.scalar(select(m.Player).where(m.Player.team_id == team_id).limit(1))
             # Venta ANTES de cualquier snapshot real sincronizado (que
             # `seeded_session()` deja fechado "ahora"), sin backfill,
             # `snapshot_at` no encontraría nada. Se borra ese snapshot en
@@ -1786,6 +2040,7 @@ def test_a_failed_first_history_run_does_not_mark_the_past_as_already_seen() -> 
     primera página, reconocía esa marca y concluía que ya estaba al día: el
     hueco de temporadas anteriores no se rellenaba nunca.
     """
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
@@ -1831,6 +2086,7 @@ def test_a_failed_first_history_run_does_not_mark_the_past_as_already_seen() -> 
 def test_the_watermark_is_only_trusted_once_the_history_is_known_to_be_whole() -> None:
     """Una marca de agua heredada de un recorrido incompleto no debe frenar
     nada: es justo el estado en el que quedaron los primeros usuarios."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
@@ -1874,11 +2130,18 @@ def test_a_player_who_came_and_went_between_syncs_still_costs_his_salary() -> No
     comprado = datetime(2026, 8, 8, 12, 48)
     vendido = datetime(2026, 8, 20, 12, 40)
 
-    sin_nada = compute_balance(PlayerTransferRecord(
-        purchase_price=512000, salary_history=[], listing_count=0,
-        sale_price=712000, purchased_at=comprado, sold_at=vendido,
-        is_academy_graduate=False, economy_date=datetime(2026, 8, 10),
-    ))
+    sin_nada = compute_balance(
+        PlayerTransferRecord(
+            purchase_price=512000,
+            salary_history=[],
+            listing_count=0,
+            sale_price=712000,
+            purchased_at=comprado,
+            sold_at=vendido,
+            is_academy_graduate=False,
+            economy_date=datetime(2026, 8, 10),
+        )
+    )
     assert sin_nada.salary_total == 0
     # Ni una lectura de sueldo: la etapa es anterior a la aplicación. Se marca
     # como desconocido y el saldo se publica igual, que es lo que pidió el
@@ -1886,12 +2149,19 @@ def test_a_player_who_came_and_went_between_syncs_still_costs_his_salary() -> No
     assert sin_nada.salary_known is False
     assert sin_nada.saldo is not None
 
-    con_salario = compute_balance(PlayerTransferRecord(
-        purchase_price=512000, salary_history=[], listing_count=0,
-        sale_price=712000, purchased_at=comprado, sold_at=vendido,
-        is_academy_graduate=False, fallback_salary=4740,
-        economy_date=datetime(2026, 8, 10),
-    ))
+    con_salario = compute_balance(
+        PlayerTransferRecord(
+            purchase_price=512000,
+            salary_history=[],
+            listing_count=0,
+            sale_price=712000,
+            purchased_at=comprado,
+            sold_at=vendido,
+            is_academy_graduate=False,
+            fallback_salary=4740,
+            economy_date=datetime(2026, 8, 10),
+        )
+    )
     # Compra + actualizaciones económicas del 10 y el 17: tres cobros.
     assert con_salario.salary_total == 4740 * 3
     assert con_salario.salary_known is True
@@ -1909,14 +2179,19 @@ def test_real_snapshots_always_win_over_the_last_known_salary() -> None:
     )
 
     comprado = datetime(2026, 8, 8, 12, 48)
-    r = compute_balance(PlayerTransferRecord(
-        purchase_price=512000,
-        salary_history=[SalarySnapshot(captured_at=comprado, salary=1000)],
-        listing_count=0, sale_price=712000, purchased_at=comprado,
-        sold_at=datetime(2026, 8, 20, 12, 40),
-        is_academy_graduate=False, fallback_salary=99999,
-        economy_date=datetime(2026, 8, 10),
-    ))
+    r = compute_balance(
+        PlayerTransferRecord(
+            purchase_price=512000,
+            salary_history=[SalarySnapshot(captured_at=comprado, salary=1000)],
+            listing_count=0,
+            sale_price=712000,
+            purchased_at=comprado,
+            sold_at=datetime(2026, 8, 20, 12, 40),
+            is_academy_graduate=False,
+            fallback_salary=99999,
+            economy_date=datetime(2026, 8, 10),
+        )
+    )
     assert r.salary_total == 3000
 
 
@@ -1931,6 +2206,7 @@ def test_players_known_only_from_the_transfer_history_stop_counting_as_squad() -
     entrenamiento: ~950 llamadas a Hattrick que en un plan gratuito no
     terminan nunca, y por eso ningún relleno del pasado avanzaba.
     """
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
@@ -1944,21 +2220,33 @@ def test_players_known_only_from_the_transfer_history_stop_counting_as_squad() -
         )
 
         async with uow as u:
-            vendidos = (await u.session.execute(
-                select(m.Player).where(
-                    m.Player.team_id == team_id, m.Player.sold_at.is_not(None)
+            vendidos = (
+                (
+                    await u.session.execute(
+                        select(m.Player).where(
+                            m.Player.team_id == team_id, m.Player.sold_at.is_not(None)
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             assert vendidos, "el fixture tiene al menos una venta"
             for p in vendidos:
                 assert p.left_team_at is not None, f"{p.last_name} sigue contando como plantilla"
                 assert p.left_team_at == p.sold_at
 
-            activos = (await u.session.execute(
-                select(m.Player).where(
-                    m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+            activos = (
+                (
+                    await u.session.execute(
+                        select(m.Player).where(
+                            m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             # Los comprados y nunca vendidos sí siguen siendo plantilla.
             assert all(p.sold_at is None for p in activos)
 
@@ -1968,6 +2256,7 @@ def test_players_known_only_from_the_transfer_history_stop_counting_as_squad() -
 def test_a_re_signed_player_is_not_marked_as_gone() -> None:
     """Si volvió a fichar por el club, sus lecturas posteriores a la venta lo
     demuestran y no se le puede dar por ido."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
@@ -1981,25 +2270,43 @@ def test_a_re_signed_player_is_not_marked_as_gone() -> None:
         )
 
         async with uow as u:
-            vendido = (await u.session.execute(
-                select(m.Player).where(
-                    m.Player.team_id == team_id, m.Player.sold_at.is_not(None)
+            vendido = (
+                (
+                    await u.session.execute(
+                        select(m.Player).where(
+                            m.Player.team_id == team_id, m.Player.sold_at.is_not(None)
+                        )
+                    )
                 )
-            )).scalars().first()
+                .scalars()
+                .first()
+            )
             # Vuelve al club: una lectura posterior a la venta.
             vendido.left_team_at = None
             sync = m.Sync(
-                user_id=1, team_id=team_id, kind="players", status="completed",
+                user_id=1,
+                team_id=team_id,
+                kind="players",
+                status="completed",
                 started_at=vendido.sold_at + timedelta(days=1),
             )
             u.session.add(sync)
             await u.session.flush()
-            u.session.add(m.PlayerSnapshot(
-                sync_id=sync.id, player_id=vendido.id,
-                captured_at=vendido.sold_at + timedelta(days=1),
-                age_years=25, age_days=0, tsi=1000, form=5, stamina=5,
-                experience=5, salary=1000, content_hash=b"x",
-            ))
+            u.session.add(
+                m.PlayerSnapshot(
+                    sync_id=sync.id,
+                    player_id=vendido.id,
+                    captured_at=vendido.sold_at + timedelta(days=1),
+                    age_years=25,
+                    age_days=0,
+                    tsi=1000,
+                    form=5,
+                    stamina=5,
+                    experience=5,
+                    salary=1000,
+                    content_hash=b"x",
+                )
+            )
             await u.session.commit()
 
         async with uow as u:
@@ -2009,6 +2316,7 @@ def test_a_re_signed_player_is_not_marked_as_gone() -> None:
         async with uow as u:
             de_nuevo = await u.session.get(m.Player, vendido.id)
             assert de_nuevo.left_team_at is None
+
     asyncio.run(run())
 
 
@@ -2024,6 +2332,7 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
     la pantalla no pararía nunca, pasó de verdad, con la barra marcando
     "55 de 11".
     """
+
     async def run() -> None:
         uow, chpp, team_id, _ = await _setup_with_player(468921494)
         async with uow as u:
@@ -2043,7 +2352,10 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
         vueltas = 0
         lote = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(
-                user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
+                user_id=1,
+                team_id=team_id,
+                limite=1,
+                revisar_desde=pulsacion,
             )
         )
         assert lote.pages_fetched == 0, "el libro no es cosa de este boton"
@@ -2053,7 +2365,10 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
             vueltas += 1
             lote = await handler.execute_backfill_batch(
                 SyncBackfillBatchCommand(
-                    user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
+                    user_id=1,
+                    team_id=team_id,
+                    limite=1,
+                    revisar_desde=pulsacion,
                 )
             )
         assert lote.players_pending == 0, "el trabajo se agota"
@@ -2062,7 +2377,10 @@ def test_the_backfill_goes_in_batches_until_there_is_nothing_left() -> None:
         # recorrer el historial: eso se hizo una vez y no se repite.
         sobrante = await handler.execute_backfill_batch(
             SyncBackfillBatchCommand(
-                user_id=1, team_id=team_id, limite=40, revisar_desde=pulsacion,
+                user_id=1,
+                team_id=team_id,
+                limite=40,
+                revisar_desde=pulsacion,
             )
         )
         assert sobrante.players_pending == 0
@@ -2076,6 +2394,7 @@ def test_a_whole_press_leaves_a_single_sync_row() -> None:
     lote llenaba el histórico de cientos de entradas vacías que no cuentan
     nada. El instante del clic, que ya viaja para acotar la vigilancia,
     identifica la pulsación: una fila, no una por jugador."""
+
     async def run() -> None:
         uow, chpp, team_id, _ = await _setup_with_player(468921494)
         async with uow as u:
@@ -2086,29 +2405,50 @@ def test_a_whole_press_leaves_a_single_sync_row() -> None:
         handler = SyncTeamHandler(uow, chpp)
         pulsacion = datetime.now(UTC).replace(tzinfo=None)
         for _ in range(4):
-            await handler.execute_backfill_batch(SyncBackfillBatchCommand(
-                user_id=1, team_id=team_id, limite=1, revisar_desde=pulsacion,
-            ))
+            await handler.execute_backfill_batch(
+                SyncBackfillBatchCommand(
+                    user_id=1,
+                    team_id=team_id,
+                    limite=1,
+                    revisar_desde=pulsacion,
+                )
+            )
 
         async with uow as u:
-            filas = (await u.session.execute(
-                select(m.Sync).where(
-                    m.Sync.team_id == team_id, m.Sync.kind == "backfill_batch"
+            filas = (
+                (
+                    await u.session.execute(
+                        select(m.Sync).where(
+                            m.Sync.team_id == team_id, m.Sync.kind == "backfill_batch"
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             assert len(filas) == 1, f"{len(filas)} filas para una sola pulsación"
 
         # Otra pulsación, otra fila: el histórico distingue las dos sesiones.
-        await handler.execute_backfill_batch(SyncBackfillBatchCommand(
-            user_id=1, team_id=team_id, limite=1,
-            revisar_desde=datetime.now(UTC).replace(tzinfo=None),
-        ))
+        await handler.execute_backfill_batch(
+            SyncBackfillBatchCommand(
+                user_id=1,
+                team_id=team_id,
+                limite=1,
+                revisar_desde=datetime.now(UTC).replace(tzinfo=None),
+            )
+        )
         async with uow as u:
-            filas = (await u.session.execute(
-                select(m.Sync).where(
-                    m.Sync.team_id == team_id, m.Sync.kind == "backfill_batch"
+            filas = (
+                (
+                    await u.session.execute(
+                        select(m.Sync).where(
+                            m.Sync.team_id == team_id, m.Sync.kind == "backfill_batch"
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
             assert len(filas) == 2
 
     asyncio.run(run())
@@ -2123,30 +2463,43 @@ def test_a_player_who_comes_back_gets_a_second_stint() -> None:
     Cada paso por el club es su propio registro, y se derivan del libro de
     transferencias: una compra abre etapa y la venta siguiente la cierra.
     """
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
             team = await u.session.get(m.Team, team_id)
             team.ht_team_id = 537758
-            u.session.add(m.Player(
-                ht_player_id=777, team_id=team_id, first_name="Ida", last_name="Vuelta",
-            ))
+            u.session.add(
+                m.Player(
+                    ht_player_id=777,
+                    team_id=team_id,
+                    first_name="Ida",
+                    last_name="Vuelta",
+                )
+            )
             await u.session.commit()
 
         def mov(tid: int, compra: bool, cuando: datetime, precio: int) -> m.TeamTransfer:
             return m.TeamTransfer(
-                team_id=team_id, ht_transfer_id=tid, ht_player_id=777,
-                player_name="Ida Vuelta", deadline=cuando, price=precio,
-                is_buy=compra, counterpart_team_id=999,
+                team_id=team_id,
+                ht_transfer_id=tid,
+                ht_player_id=777,
+                player_name="Ida Vuelta",
+                deadline=cuando,
+                price=precio,
+                is_buy=compra,
+                counterpart_team_id=999,
             )
 
         async with uow as u:
-            u.session.add_all([
-                mov(1, True, datetime(2020, 1, 1), 100000),
-                mov(2, False, datetime(2020, 6, 1), 150000),
-                mov(3, True, datetime(2024, 1, 1), 300000),
-                mov(4, False, datetime(2024, 9, 1), 500000),
-            ])
+            u.session.add_all(
+                [
+                    mov(1, True, datetime(2020, 1, 1), 100000),
+                    mov(2, False, datetime(2020, 6, 1), 150000),
+                    mov(3, True, datetime(2024, 1, 1), 300000),
+                    mov(4, False, datetime(2024, 9, 1), 500000),
+                ]
+            )
             await u.session.commit()
 
         handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
@@ -2155,11 +2508,17 @@ def test_a_player_who_comes_back_gets_a_second_stint() -> None:
             await u.commit()
 
         async with uow as u:
-            etapas = (await u.session.execute(
-                select(m.PlayerStint)
-                .where(m.PlayerStint.ht_player_id == 777)
-                .order_by(m.PlayerStint.arrived_at)
-            )).scalars().all()
+            etapas = (
+                (
+                    await u.session.execute(
+                        select(m.PlayerStint)
+                        .where(m.PlayerStint.ht_player_id == 777)
+                        .order_by(m.PlayerStint.arrived_at)
+                    )
+                )
+                .scalars()
+                .all()
+            )
             assert len(etapas) == 2
             assert etapas[0].arrival_price == 100000
             assert etapas[0].sale_price == 150000
@@ -2176,19 +2535,32 @@ def test_a_sale_without_a_purchase_is_an_academy_stint() -> None:
     """A un canterano no se le compra, así que su etapa no tiene compra
     delante. Abrirle etapa igual es lo que permite calcular su saldo y sus
     comisiones futuras."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
             team = await u.session.get(m.Team, team_id)
             team.ht_team_id = 537758
-            u.session.add(m.Player(
-                ht_player_id=888, team_id=team_id, first_name="De", last_name="Cantera",
-            ))
-            u.session.add(m.TeamTransfer(
-                team_id=team_id, ht_transfer_id=9, ht_player_id=888,
-                player_name="De Cantera", deadline=datetime(2022, 2, 25),
-                price=40000, is_buy=False, counterpart_team_id=1337055,
-            ))
+            u.session.add(
+                m.Player(
+                    ht_player_id=888,
+                    team_id=team_id,
+                    first_name="De",
+                    last_name="Cantera",
+                )
+            )
+            u.session.add(
+                m.TeamTransfer(
+                    team_id=team_id,
+                    ht_transfer_id=9,
+                    ht_player_id=888,
+                    player_name="De Cantera",
+                    deadline=datetime(2022, 2, 25),
+                    price=40000,
+                    is_buy=False,
+                    counterpart_team_id=1337055,
+                )
+            )
             await u.session.commit()
 
         handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
@@ -2213,26 +2585,42 @@ def test_rebuilding_stints_keeps_what_cannot_be_recalculated() -> None:
     derivar, los partidos ya censados, lo atribuido a mano, lo excluido, tiene
     que sobrevivir a la reconstrucción, o cada recorrido del historial borraría
     el trabajo del usuario."""
+
     async def run() -> None:
         uow, team_id = await _setup_roster([])
         async with uow as u:
             team = await u.session.get(m.Team, team_id)
             team.ht_team_id = 537758
-            u.session.add(m.Player(
-                ht_player_id=555, team_id=team_id, first_name="Con", last_name="Notas",
-            ))
-            u.session.add_all([
-                m.TeamTransfer(
-                    team_id=team_id, ht_transfer_id=11, ht_player_id=555,
-                    player_name="Con Notas", deadline=datetime(2021, 1, 1),
-                    price=1000, is_buy=True,
-                ),
-                m.TeamTransfer(
-                    team_id=team_id, ht_transfer_id=12, ht_player_id=555,
-                    player_name="Con Notas", deadline=datetime(2021, 5, 1),
-                    price=2000, is_buy=False,
-                ),
-            ])
+            u.session.add(
+                m.Player(
+                    ht_player_id=555,
+                    team_id=team_id,
+                    first_name="Con",
+                    last_name="Notas",
+                )
+            )
+            u.session.add_all(
+                [
+                    m.TeamTransfer(
+                        team_id=team_id,
+                        ht_transfer_id=11,
+                        ht_player_id=555,
+                        player_name="Con Notas",
+                        deadline=datetime(2021, 1, 1),
+                        price=1000,
+                        is_buy=True,
+                    ),
+                    m.TeamTransfer(
+                        team_id=team_id,
+                        ht_transfer_id=12,
+                        ht_player_id=555,
+                        player_name="Con Notas",
+                        deadline=datetime(2021, 5, 1),
+                        price=2000,
+                        is_buy=False,
+                    ),
+                ]
+            )
             await u.session.commit()
 
         handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
