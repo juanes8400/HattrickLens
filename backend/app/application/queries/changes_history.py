@@ -425,10 +425,8 @@ async def build_changes_history(
         # más viejo que de él se sabe.
         if len(entries) < 2:
             continue
-        previous = cierre_mas_cercano(
-            [_naive(item[0].captured_at) for item in entries[:-1]], cutoff
-        )
-        previous = next(item[0] for item in entries[:-1] if _naive(item[0].captured_at) == previous)
+        fecha = cierre_mas_cercano([_naive(item[0].captured_at) for item in entries[:-1]], cutoff)
+        previous = next(item[0] for item in entries[:-1] if _naive(item[0].captured_at) == fecha)
         # ¿La referencia de este jugador es una de las filas viejas a las que
         # les falta media lectura? Ver `INCOMPLETE_WITHOUT_LEADERSHIP`.
         incomplete = not (previous.leadership or 0) > 0

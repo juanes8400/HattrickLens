@@ -2237,9 +2237,7 @@ async def team_overview(
     return cast(dict[str, Any], respuesta)
 
 
-async def _team_overview_sin_cache(
-    session: AsyncSession, team_id: int
-) -> dict[str, Any] | None:
+async def _team_overview_sin_cache(session: AsyncSession, team_id: int) -> dict[str, Any] | None:
     data = await TeamOverviewQueryService(session).get(team_id)
     if data is None:
         return None

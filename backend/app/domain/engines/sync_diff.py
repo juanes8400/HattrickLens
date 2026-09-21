@@ -135,10 +135,11 @@ def diff_player_skills(
         # sin precio ni origen --quien llama desde el sync ya no pasa por este
         # camino, justamente porque el precio no se conoce todavía-- pero el
         # sueldo sí está a mano y vale la pena decirlo (2026-09-20).
+        sueldo = new.get("salary")
         return [
             diff_player_arrival(
                 player_name,
-                salary=_dinero(new.get("salary")) if new.get("salary") else None,
+                salary=_dinero(sueldo) if sueldo else None,
                 currency=currency,
                 ht_player_id=new.get("ht_player_id"),
             )

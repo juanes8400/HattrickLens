@@ -204,6 +204,7 @@ def _nombre_legible(file: str) -> str:
     legible = FILE_LABELS.get(nombre, nombre)
     return f"{legible} {sufijo}".strip() if sufijo else legible
 
+
 #  HL-140: un sync normal debe poder mostrar el diff completo, posición en
 # liga y resultados incluidos, no solo plantilla/economía. `teamdetails` va
 # antes que `leaguedetails` porque este último necesita `series_ht_id`.
@@ -4405,9 +4406,7 @@ class SyncTeamHandler:
             # Con el id de la cantera: revelar es escribir, y sin el se
             # escribiria sobre la academia del club principal.
             extra = {"youthTeamId": academia} if academia else {}
-            await self._chpp.fetch(
-                "youthplayerlist", "latest", actionType="unlockskills", **extra
-            )
+            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills", **extra)
         except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
                 "unlockskills: no se pudieron revelar las habilidades juveniles "
@@ -5489,8 +5488,7 @@ class SyncTeamHandler:
                 )
             except Exception as exc:  # noqa: BLE001
                 result.errors.append(
-                    f"{_nombre_legible('youthplayerdetails')} "
-                    f"{juvenil.ht_youth_player_id}: {exc}"
+                    f"{_nombre_legible('youthplayerdetails')} {juvenil.ht_youth_player_id}: {exc}"
                 )
                 continue
             if not ficha:

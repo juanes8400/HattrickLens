@@ -47,9 +47,9 @@ async def matches(
         )
         if datos is None:
             return None
-        return json.dumps(
-            _camel(asdict(datos)), ensure_ascii=False, separators=(",", ":")
-        ).encode("utf-8")
+        return json.dumps(_camel(asdict(datos)), ensure_ascii=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
 
     # Una vez por sync (2026-09-14): los partidos sólo cambian al sincronizar.
     #

@@ -158,8 +158,12 @@ class UltimoEntrenamientoQueryService:
                 .limit(1)
             )
 
-        filas = list(
-            (
+        # Tuplas de verdad y no las `Row` de SQLAlchemy: por dentro se
+        # comportan igual, pero lo que viaja por las funciones de abajo está
+        # anotado como `tuple[SkillUp, Player]` y así lo es.
+        filas: list[tuple[m.SkillUp, m.Player]] = [
+            (up, jugador)
+            for up, jugador in (
                 await self._s.execute(
                     select(m.SkillUp, m.Player)
                     .join(m.Player, m.Player.ht_player_id == m.SkillUp.ht_player_id)
@@ -170,7 +174,7 @@ class UltimoEntrenamientoQueryService:
                     )
                 )
             ).all()
-        )
+        ]
 
         cfg = te._config()
         mapa = {int(sid): str(nombre) for sid, nombre in cfg["skill_id_map"].items()}
@@ -230,9 +234,7 @@ class UltimoEntrenamientoQueryService:
             ),
             last_with_ups=ultima_con_subidas,
             data_at=data_at,
-            pending_sync=(
-                ultima is not None and (data_at is None or data_at < ultima)
-            ),
+            pending_sync=(ultima is not None and (data_at is None or data_at < ultima)),
             next_at=ultima + timedelta(days=7) if ultima is not None else None,
         )
 
