@@ -32,13 +32,6 @@ from app.domain.value_objects.ht_constants import (
 )
 from app.infrastructure.db import models as m
 
-SECTOR_LABELS = {
-    "general": "General",
-    "preferentes": "Preferentes",
-    "tribunas": "Tribunas",
-    "palcos": "Palcos",
-}
-
 # Coste de construcción por asiento y mantenimiento semanal. De la
 # especificación; no verificados contra la pantalla del club todavía.
 BUILD_COST_PER_SEAT = {"general": 450.0, "preferentes": 750.0, "tribunas": 1500.0, "palcos": 3000.0}
@@ -84,6 +77,8 @@ class MatchRow:
 
 @dataclass
 class ExpansionOption:
+    #: Sólo el nombre del tamaño: «Ampliación pequeña». El desglose de dónde
+    #: van los asientos lo compone la pantalla con `added_seats`.
     label: str
     added_seats: dict[str, int]
     build_cost: int
@@ -283,9 +278,15 @@ class ArenaQueryService:
         options = []
         for nombre, asientos in TAMANOS_DE_AMPLIACION:
             reparto = _hacia_el_reparto(composicion, asientos)
-            options.append(
-                _expansion(f"{nombre} ({_describir_reparto(reparto)})", reparto, effective_fill)
-            )
+            # LA ETIQUETA ES SÓLO EL NOMBRE DEL TAMAÑO (2026-09-20). Antes
+            # aquí se armaba la frase entera, «Ampliación pequeña (+1.000: 625
+            # general, 250 preferentes...)», con un número de trozos que
+            # cambia según cuántos sectores reciban asientos: no hay plantilla
+            # de traducción que pueda casar eso, así que la opción se quedaba
+            # en español con la aplicación en inglés. El desglose lo compone
+            # ahora la pantalla, que ya tiene `addedSeats` y los nombres de
+            # los cuatro sectores en el idioma que toque.
+            options.append(_expansion(nombre, reparto, effective_fill))
 
         notes: list[str] = [
             "Todas las ocupaciones se calculan con el aforo de HOY, porque no hay un "
@@ -342,19 +343,6 @@ def _expansion(label: str, seats: dict[str, int], fill: float) -> ExpansionOptio
         payback_seasons=round(a.payback_weeks / 16, 2) if a.payback_weeks else None,
         verdict=a.verdict,
     )
-
-
-def _describir_reparto(reparto: dict[str, int]) -> str:
-    """«+1.000: 800 general, 200 tribunas», en el orden de los sectores."""
-
-    def miles(n: int) -> str:
-        return f"{n:,}".replace(",", ".")
-
-    total = sum(reparto.values())
-    partes = [
-        f"{miles(reparto[s])} {SECTOR_LABELS[s].lower()}" for s in SECTOR_LABELS if reparto.get(s)
-    ]
-    return f"+{miles(total)}: {', '.join(partes)}"
 
 
 def _hacia_el_reparto(actual: dict[str, int], nuevos: int) -> dict[str, int]:

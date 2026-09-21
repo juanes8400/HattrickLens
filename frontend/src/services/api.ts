@@ -163,12 +163,11 @@ export const api = {
   squad: (
     teamId: number,
     position?: string,
-    comparisonSyncId?: number | null,
+    comparisonWindow?: VentanaDeComparacion,
   ) => {
     const query = new URLSearchParams();
     if (position) query.set("position", position);
-    if (comparisonSyncId != null)
-      query.set("comparison_sync_id", String(comparisonSyncId));
+    if (comparisonWindow) query.set("comparison_window", comparisonWindow);
     const suffix = query.toString();
     return request<Squad>(
       `/teams/${teamId}/squad${suffix ? `?${suffix}` : ""}`,
@@ -1577,9 +1576,18 @@ export interface Squad {
     baselineSyncId: number | null;
     baselineCapturedAt: string | null;
   };
+  /** Las ventanas de comparación, con la que no se puede usar todavía
+   *  marcada: el servidor resuelve contra qué cierre compara cada una, así
+   *  que la cuenta de fechas está en un solo sitio. */
+  comparisonWindows: { key: VentanaDeComparacion; available: boolean }[];
   history: { syncId: number; capturedAt: string; snapshots: number }[];
   players: SquadPlayer[];
 }
+
+/** Contra qué se miran las diferencias de la plantilla. `change` es el
+ *  último cambio de cada jugador; `all`, el cierre más antiguo guardado. */
+export type VentanaDeComparacion =
+  "change" | "w1" | "w2" | "w4" | "w8" | "w16" | "all";
 
 export interface Dashboard {
   teamId: number;
@@ -2462,6 +2470,8 @@ export interface Arena {
     emptySeats: number;
   }[];
   expansionOptions: {
+    /** Sólo el nombre del tamaño: «Ampliación pequeña». El desglose de dónde
+     *  van los asientos lo compone la pantalla con `addedSeats`. */
     label: string;
     addedSeats: Record<string, number>;
     buildCost: number;

@@ -261,7 +261,7 @@
     "nDias": "{{n}} days",
     "sinReferencia": "No reference",
     "maximoAlcanzado": "Maximum reached",
-    "actualEsperado": "Current: {{actual}} ({{nivel}}). Expected by Ocerin: {{esperado}} ({{nivelEsperado}}).",
+    "actualEsperado": "Current: {{actual}} ({{nivel}}). Expected: {{esperado}} ({{nivelEsperado}}).",
     "sinAsistentes": "There are currently no assistant coaches registered.",
     "nivelDe5": "Level {{n}}/5",
     "aporteCombinado": "Combined contribution · level {{n}}",
@@ -285,7 +285,6 @@
     "diasDesdeCompra": "{{n}} days since purchase",
     "actualGuia": "Current → guide",
     "pctAplicado": "% applied",
-    "esperadoOcerin": "Expected by Ocerin",
     "ttss": "SS-ww",
     "fecha": "Date",
     "subida": "improved",
@@ -341,7 +340,7 @@
     "sinExperiencia": "No players to calculate experience.",
     "fidelidadMeta": "{{n}} players · real time at the club",
     "sinFidelidad": "No players to calculate loyalty.",
-    "resistenciaMeta": "{{n}} players · {{pct}}% effective · Ocerin guide",
+    "resistenciaMeta": "{{n}} players · {{pct}}% effective",
     "sinResistencia": "No players to calculate stamina.",
     "pusiste": "You set",
     "pusisteHint": "+{{aporte}} contribution/wk · {{min}} min · {{puesto}} of {{total}}",
@@ -379,7 +378,8 @@
     "subidas": "improved",
     "sinTipo": "training not identified",
     "irASincronizar": "go and sync",
-    "proximo": "The next one, on {{fecha}}."
+    "proximo": "The next one, on {{fecha}}.",
+    "esperado": "Expected"
   },
   "alertas": {
     "atencion": "What needs your attention",
@@ -608,7 +608,15 @@
     "cierreAnterior": "previous weekly closing",
     "vacia": "No players in the squad. Sync to bring them in.",
     "filtrar": "Filter by player, position or skill…",
-    "pie": "Changes based on Hattrick's weekly closings. Current reference: {{referencia}}. The estimated value isn't official Hattrick data."
+    "pie": "Changes based on Hattrick's weekly closings. Current reference: {{referencia}}. The estimated value isn't official Hattrick data.",
+    "ventanaCambio": "Last change",
+    "ventana1": "Last week",
+    "ventana2": "Last 2 weeks",
+    "ventana4": "Last 4 weeks",
+    "ventana8": "Last 8 weeks",
+    "ventana16": "Last 16 weeks",
+    "ventanaSiempre": "All time",
+    "sinHistoria": "There are no weekly snapshots saved that far back yet."
   },
   "equipo": {
     "faltaCierre": "More than one weekly closing is needed to draw the trend.",

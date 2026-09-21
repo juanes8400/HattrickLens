@@ -2,16 +2,16 @@ import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
-import i18n from "../i18n";
 import { CountryCell } from "../components/CountryFlag";
 import { DataTable, type Column } from "../components/DataTable";
+import { Tabs } from "../components/Tabs";
 import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Specialty } from "../components/Specialty";
 import { useSquad } from "../hooks/useTeam";
-import { htAge, money, number, relative, dateTime } from "../hooks/useFormat";
+import { htAge, money, number, relative } from "../hooks/useFormat";
 import { abreviatura } from "../utils/abreviaturas";
-import type { SquadPlayer } from "../services/api";
+import type { SquadPlayer, VentanaDeComparacion } from "../services/api";
 
 const SKILLS = [
   "keeper",
@@ -32,13 +32,6 @@ const TRAINER_TYPES: Record<number, string> = {
 function signed(value: number | undefined): string {
   if (!value) return "";
   return `${value > 0 ? "+" : ""}${number(value)}`;
-}
-
-/** «1 jugador», «3 jugadores», en el idioma de la app. */
-function nJugadores(n: number): string {
-  return n === 1
-    ? i18n.t("comun.unJugador", "{{n}} jugador", { n: number(n) })
-    : i18n.t("comun.nJugadores", "{{n}} jugadores", { n: number(n) });
 }
 
 /** El valor y, pegado a su derecha, cuánto cambió desde el snapshot que se
@@ -67,16 +60,19 @@ function MetricCell({ value, delta }: { value: number; delta?: number }) {
   );
 }
 
-function HistoryLabel({
-  capturedAt,
-  snapshots,
-}: {
-  capturedAt: string;
-  snapshots: number;
-}) {
-  // Antes con `Intl` y locale propio; ahora el formato unico de la casa.
-  return `${dateTime(capturedAt)} · ${nJugadores(snapshots)}`;
-}
+/** Las ventanas contra las que se pueden mirar las diferencias, con el texto
+ *  de cada una. Cuál se puede usar y contra qué cierre compara lo decide el
+ *  servidor, que es quien tiene los cierres guardados. */
+const VENTANAS: { key: VentanaDeComparacion; clave: string; texto: string }[] =
+  [
+    { key: "change", clave: "jugadores.ventanaCambio", texto: "Último cambio" },
+    { key: "w1", clave: "jugadores.ventana1", texto: "Última semana" },
+    { key: "w2", clave: "jugadores.ventana2", texto: "Últimas 2 semanas" },
+    { key: "w4", clave: "jugadores.ventana4", texto: "Últimas 4 semanas" },
+    { key: "w8", clave: "jugadores.ventana8", texto: "Últimas 8 semanas" },
+    { key: "w16", clave: "jugadores.ventana16", texto: "Últimas 16 semanas" },
+    { key: "all", clave: "jugadores.ventanaSiempre", texto: "Siempre" },
+  ];
 
 /**
  * Jugadores es la tabla maestra. La ficha, posiciones y análisis individual
@@ -85,8 +81,12 @@ function HistoryLabel({
  */
 export function TeamPage() {
   const { t } = useTranslation();
-  const [comparisonSyncId, setComparisonSyncId] = useState<number | null>(null);
-  const squad = useSquad(undefined, comparisonSyncId);
+  // SE GUARDA LA VENTANA, NO EL CIERRE (2026-09-20). Un id de sincronización
+  // elegido a mano deja de existir en cuanto entra una semana nueva y sale la
+  // vigésima; «cuatro semanas» sigue queriendo decir lo mismo mañana. Contra
+  // qué cierre cae cada ventana lo resuelve el servidor.
+  const [ventana, setVentana] = useState<VentanaDeComparacion>("change");
+  const squad = useSquad(undefined, ventana);
 
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
@@ -362,29 +362,41 @@ export function TeamPage() {
               se leen de Hattrick sino que se calculan aquí. */}
           <EnlaceATransparencia seccion="htms" calculo="htms-ability" />
         </div>
-        <label className="text-xs text-[var(--muted)]">
-          {t("jugadores.diferenciasContra", "Diferencias semanales contra")}
-          <select
-            value={comparisonSyncId ?? "previous"}
-            onChange={(event) =>
-              setComparisonSyncId(
-                event.target.value === "previous"
-                  ? null
-                  : Number(event.target.value),
-              )
-            }
-            className="ml-2 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm text-[var(--text)]"
-          >
-            <option value="previous">
-              {t("jugadores.cierreAnterior", "cierre semanal anterior")}
-            </option>
-            {data.history.map((entry) => (
-              <option key={entry.syncId} value={entry.syncId}>
-                {HistoryLabel(entry)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-xs text-[var(--muted)]">
+            {t("jugadores.diferenciasContra", "Diferencias semanales contra")}
+          </span>
+          <Tabs
+            modo="filtro"
+            label={t(
+              "jugadores.diferenciasContra",
+              "Diferencias semanales contra",
+            )}
+            active={ventana}
+            onChange={setVentana}
+            tabs={VENTANAS.map((v) => {
+              // Apagada, no escondida: así la barra tiene las mismas siete
+              // opciones para todo el mundo y dice por qué una no se puede.
+              // Con `?? []` porque la caché guardada de una versión
+              // anterior no trae este campo: sin él la pantalla se caía
+              // entera mientras llegaba la respuesta nueva.
+              const sinHistoria = (data.comparisonWindows ?? []).some(
+                (w) => w.key === v.key && !w.available,
+              );
+              return {
+                key: v.key,
+                label: t(v.clave, v.texto),
+                disabled: sinHistoria,
+                title: sinHistoria
+                  ? t(
+                      "jugadores.sinHistoria",
+                      "Todavía no hay cierres semanales guardados que lleguen tan atrás.",
+                    )
+                  : undefined,
+              };
+            })}
+          />
+        </div>
       </header>
 
       <DataTable

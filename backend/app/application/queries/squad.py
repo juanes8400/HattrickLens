@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.dto.squad import (
+    ComparisonWindow,
     PositionRatingDTO,
     SquadComparison,
     SquadHistoryEntry,
@@ -46,6 +47,61 @@ SKILL_COLS = ("keeper", "defending", "playmaking", "winger", "passing", "scoring
 LAST_MATCH_RECENCY_WINDOW = timedelta(days=7)
 
 
+#: Contra qué se pueden mirar las diferencias de la plantilla, y cuántas
+#: semanas atrás mira cada una. `0` es «último cambio», que no elige cierre:
+#: cada jugador se compara con su propio snapshot anterior. `None` es
+#: «siempre», el cierre más antiguo que haya guardado.
+VENTANAS_DE_COMPARACION: tuple[tuple[str, int | None], ...] = (
+    ("change", 0),
+    ("w1", 1),
+    ("w2", 2),
+    ("w4", 4),
+    ("w8", 8),
+    ("w16", 16),
+    ("all", None),
+)
+
+#: Cuánto puede faltarle al cierre más antiguo para que una ventana siga
+#: valiendo. Sin margen, un equipo con ocho semanas justas se quedaba sin la
+#: ventana de ocho por unas horas de diferencia entre sincronizaciones.
+MARGEN_DE_VENTANA = timedelta(days=3, hours=12)
+
+
+def cierre_de_la_ventana(history: list[SquadHistoryEntry], ventana: str) -> int | None:
+    """Contra qué cierre compara una ventana, o `None` si no elige ninguno.
+
+    LA CUENTA DE FECHAS VIVE AQUÍ Y NO EN LA PANTALLA (2026-09-20). La barra
+    de Jugadores ofrece «4 semanas», no un identificador de sincronización:
+    un id elegido a mano deja de existir en cuanto entra una semana nueva y
+    sale la vigésima, y «cuatro semanas» sigue queriendo decir lo mismo.
+
+    El corte se mide desde el ÚLTIMO CIERRE GUARDADO y no desde hoy, porque
+    las diferencias se calculan contra esos datos. De los cierres que hay se
+    coge el más cercano al corte: una sincronización no cae a la misma hora
+    todas las semanas, y exigir «al menos tan viejo» dejaba fuera al cierre
+    correcto por unos minutos.
+
+    `history` llega del más reciente al más antiguo, y el primero es el
+    retrato de hoy: comparar contra él daría cero en todas las filas.
+    """
+    semanas = dict(VENTANAS_DE_COMPARACION)[ventana]
+    if semanas == 0:
+        return None
+    anteriores = history[1:]
+    if not anteriores:
+        return None
+    if semanas is None:
+        return anteriores[-1].sync_id
+    hoy = datetime.fromisoformat(history[0].captured_at)
+    corte = hoy - timedelta(weeks=semanas)
+    if datetime.fromisoformat(anteriores[-1].captured_at) > corte + MARGEN_DE_VENTANA:
+        return None
+    return min(
+        anteriores,
+        key=lambda entrada: abs(datetime.fromisoformat(entrada.captured_at) - corte),
+    ).sync_id
+
+
 class SquadQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -54,7 +110,7 @@ class SquadQueryService:
         self,
         team_id: int,
         position: str | None = None,
-        comparison_sync_id: int | None = None,
+        comparison_window: str | None = None,
     ) -> SquadResponse | None:
         team = await self._s.get(m.Team, team_id)
         if team is None:
@@ -69,6 +125,18 @@ class SquadQueryService:
 
         rows = await self._latest(team_id)
         history = await self._history(team_id)
+
+        ventana = comparison_window or "change"
+        if ventana not in dict(VENTANAS_DE_COMPARACION):
+            raise KeyError(f"ventana de comparación desconocida: {ventana}")
+        comparison_sync_id = cierre_de_la_ventana(history, ventana)
+        ventanas = [
+            ComparisonWindow(
+                key=clave,
+                available=clave == "change" or cierre_de_la_ventana(history, clave) is not None,
+            )
+            for clave, _ in VENTANAS_DE_COMPARACION
+        ]
 
         baseline_at: datetime | None = None
         if comparison_sync_id is not None:
@@ -270,6 +338,7 @@ class SquadQueryService:
             player_count=count,
             totals=totals,
             comparison=comparison,
+            comparison_windows=ventanas,
             history=history,
             players=players,
         )

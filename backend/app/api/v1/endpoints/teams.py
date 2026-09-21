@@ -948,14 +948,17 @@ async def squad(
         None,
         description="Si se indica, la plantilla se ordena por el rendimiento en esa posición",
     ),
-    comparison_sync_id: int | None = Query(
+    comparison_window: str | None = Query(
         None,
-        description="Snapshot histórico contra el cual comparar la plantilla actual",
+        description=(
+            "Contra qué se miran las diferencias: change (el último cambio de cada "
+            "jugador, por defecto), w1, w2, w4, w8, w16 o all"
+        ),
     ),
     svc: SquadQueryService = Depends(get_squad_service),
 ) -> SquadResponse:
     try:
-        data = await svc.get(team_id, position, comparison_sync_id)
+        data = await svc.get(team_id, position, comparison_window)
     except KeyError as exc:
         raise HTTPException(400, str(exc)) from exc
     if data is None:

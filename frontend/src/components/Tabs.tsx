@@ -73,7 +73,18 @@ export function Tabs<T extends string>({
   grupo,
   modo = "secciones",
 }: {
-  tabs: { key: T; label: string; icon?: ReactNode }[];
+  /** `disabled` apaga una opción sin quitarla: la ventana de comparación de
+   *  «16 semanas» existe siempre, pero un equipo con tres semanas guardadas
+   *  no puede usarla todavía. Quitarla de la barra cambiaría el número de
+   *  opciones según el equipo; apagarla dice qué hay y por qué no se puede
+   *  (2026-09-20). */
+  tabs: {
+    key: T;
+    label: string;
+    icon?: ReactNode;
+    disabled?: boolean;
+    title?: string;
+  }[];
   active: T;
   onChange: (key: T) => void;
   /** Qué distingue a ESTE grupo cuando hay varios en la misma pantalla. */
@@ -100,7 +111,7 @@ export function Tabs<T extends string>({
 
   const mover = (indice: number) => {
     const destino = tabs[indice];
-    if (!destino) return;
+    if (!destino || destino.disabled) return;
     onChange(destino.key);
     // El foco viaja con la selección: si se queda atrás, la siguiente flecha
     // se mueve desde donde estaba el foco y no desde lo que se ve marcado.
@@ -160,13 +171,17 @@ export function Tabs<T extends string>({
             // En un filtro, en cambio, todas son parada: no es un `tablist` y
             // nadie espera tener que usar las flechas para descubrirlas.
             tabIndex={esFiltro || active === t.key ? 0 : -1}
+            disabled={t.disabled}
+            title={t.title}
             onClick={() => onChange(t.key)}
             onKeyDown={(e) => alPulsar(e, i)}
             className={clsx(
               "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-              active === t.key
-                ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
-                : "text-[var(--muted)] hover:text-[var(--text)]",
+              t.disabled
+                ? "cursor-not-allowed text-[var(--muted)] opacity-40"
+                : active === t.key
+                  ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
+                  : "text-[var(--muted)] hover:text-[var(--text)]",
             )}
           >
             {t.icon}

@@ -1,5 +1,5 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import {
@@ -58,6 +58,28 @@ export function MatchesPage() {
     season,
   );
   const [selected, setSelected] = useState<number | null>(null);
+  // EL ANÁLISIS VIENE A BUSCARTE (2026-09-20, pedido del usuario). El panel
+  // de un partido se abre debajo del historial, así que pulsar una fila de
+  // arriba dejaba el análisis a una pantalla larga de distancia y parecía que
+  // no había pasado nada. Se puede tener el historial entero a la vista o el
+  // análisis pegado a la fila, no las dos cosas; lo que se elige es llevar la
+  // vista al análisis en cuanto se abre, que es lo que se acaba de pedir.
+  const analisis = useRef<HTMLDivElement>(null);
+  // Cuenta las pulsaciones, no sólo qué partido está abierto: volver a pulsar
+  // el que ya estaba abierto también tiene que llevar la vista al análisis.
+  const [pulsaciones, setPulsaciones] = useState(0);
+  const abrir = (htMatchId: number) => {
+    setSelected(htMatchId);
+    setPulsaciones((n) => n + 1);
+  };
+  useEffect(() => {
+    const panel = analisis.current;
+    if (selected == null || !panel) return;
+    // DE UN SALTO, SIN ANIMAR: animar un viaje de setecientos partidos no
+    // ayuda a nadie a seguir la vista, y así se respeta de paso a quien pide
+    // menos movimiento.
+    panel.scrollIntoView({ block: "start" });
+  }, [selected, pulsaciones]);
 
   const missingDetails =
     data?.matches.filter((r) => r.hatstats == null).length ?? 0;
@@ -191,10 +213,24 @@ export function MatchesPage() {
         title={tx("Historial")}
         meta={tx("pulsa un partido para analizarlo")}
       >
-        <MatchTable data={data} onSelect={setSelected} selected={selected} />
+        <MatchTable data={data} onSelect={abrir} selected={selected} />
       </Panel>
 
-      {selected != null && <MatchDetailPanel htMatchId={selected} />}
+      {selected != null && (
+        // `scroll-mt` deja un respiro entre el borde de arriba y el título
+        // del panel cuando la vista aterriza aquí.
+        //
+        // Y `min-h` PARA QUE EL SALTO LLEGUE. El panel nace con un
+        // «Cargando...» de dos líneas: al abrir un partido del final del
+        // historial la página ya estaba en su tope y no podía subir más, así
+        // que el análisis aterrizaba a media pantalla y al llegar el
+        // contenido se quedaba ahí. Reservando una pantalla de alto hay
+        // sitio desde el primer momento, y no hace falta recolocar nada
+        // después.
+        <div ref={analisis} className="min-h-[calc(100vh-5rem)] scroll-mt-4">
+          <MatchDetailPanel htMatchId={selected} />
+        </div>
+      )}
     </div>
   );
 }

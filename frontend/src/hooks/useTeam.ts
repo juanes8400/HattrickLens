@@ -12,6 +12,7 @@ import type {
   Cup,
   League,
   LeaguePitchZoneMethod,
+  VentanaDeComparacion,
 } from "../services/api";
 
 /** Conserva la vista anterior SÓLO si el sujeto no ha cambiado.
@@ -80,10 +81,13 @@ export const useDashboard = () =>
 export const useClub = () =>
   useQuery({ queryKey: ["club", TEAM_ID], queryFn: () => api.club(TEAM_ID) });
 
-export const useSquad = (position?: string, comparisonSyncId?: number | null) =>
+export const useSquad = (
+  position?: string,
+  comparisonWindow?: VentanaDeComparacion,
+) =>
   useQuery({
-    queryKey: ["squad", TEAM_ID, position, comparisonSyncId ?? null],
-    queryFn: () => api.squad(TEAM_ID, position, comparisonSyncId),
+    queryKey: ["squad", TEAM_ID, position, comparisonWindow ?? "change"],
+    queryFn: () => api.squad(TEAM_ID, position, comparisonWindow),
   });
 
 export const usePlayerDetail = (htPlayerId: number) =>

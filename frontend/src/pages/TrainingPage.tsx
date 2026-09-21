@@ -160,7 +160,7 @@ function StaminaProgressCell({ row }: { row: TrainingStaminaRow }) {
       className="flex min-w-32 items-center gap-2"
       title={t(
         "entrenamiento.actualEsperado",
-        "Actual: {{actual}} ({{nivel}}). Esperado Ocerin: {{esperado}} ({{nivelEsperado}}).",
+        "Actual: {{actual}} ({{nivel}}). Esperado: {{esperado}} ({{nivelEsperado}}).",
         {
           actual: row.levelName,
           nivel: row.level,
@@ -678,7 +678,7 @@ function staminaColumns(): Column<TrainingStaminaRow>[] {
     },
     {
       key: "expectedLevel",
-      header: t("entrenamiento.esperadoOcerin", "Esperado Ocerin"),
+      header: t("entrenamiento.esperado", "Esperado"),
       value: (r) => r.expectedLevel ?? -1,
       render: (r) =>
         r.expectedLevel == null ? (
@@ -1687,7 +1687,7 @@ export function TrainingPage() {
                     <span className="flex items-center gap-2">
                       {t(
                         "entrenamiento.resistenciaMeta",
-                        "{{n}} jugadores · {{pct}}% efectivo · guía Ocerin",
+                        "{{n}} jugadores · {{pct}}% efectivo",
                         {
                           n: development.data.stamina.length,
                           pct: decimal(

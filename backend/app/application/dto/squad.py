@@ -92,6 +92,18 @@ class SquadTotals(Base):
     total_salary: int
 
 
+class ComparisonWindow(Base):
+    """Una de las ventanas contra las que se pueden mirar las diferencias.
+
+    `available` es falso cuando no hay cierres semanales que lleguen tan
+    atrás: la pantalla la enseña apagada en vez de esconderla, para que la
+    barra tenga las mismas opciones para todo el mundo.
+    """
+
+    key: str
+    available: bool
+
+
 class SquadComparison(Base):
     mode: str
     baseline_sync_id: int | None = None
@@ -106,5 +118,6 @@ class SquadResponse(Base):
     player_count: int
     totals: SquadTotals
     comparison: SquadComparison
+    comparison_windows: list[ComparisonWindow] = []
     history: list[SquadHistoryEntry] = []
     players: list[SquadPlayer]
