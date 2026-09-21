@@ -505,7 +505,9 @@ def test_match_archive_error_does_not_seal_an_incomplete_history() -> None:
             assert team.matches_history_complete is False
             assert team.matches_history_synced_until is None
         assert result.status == "partial"
-        assert result.errors == ["matchesarchive: CHPP 42: Invalid date range"]
+        # Nombrado como lo ve el usuario, no como se llama el fichero
+        # (2026-09-20).
+        assert result.errors == ["archivo de partidos: CHPP 42: Invalid date range"]
 
     asyncio.run(run())
 
@@ -1053,6 +1055,11 @@ def test_sync_partial_on_chpp_failure() -> None:
             SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758)
         )
         assert result.status == "partial"
-        assert result.errors and "players" in result.errors[0]
+        # 2026-09-20: el aviso se lee, no se descifra. Antes decia
+        # «players: ...» y ahora nombra la pantalla de Hattrick de la que
+        # sale, que es la regla de la casa para todo lo que se ensena.
+        assert result.errors
+        assert "plantilla (jugadores)" in result.errors[0]
+        assert not any(e.startswith("players:") for e in result.errors)
 
     asyncio.run(run())

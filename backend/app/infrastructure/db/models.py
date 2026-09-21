@@ -127,6 +127,11 @@ class Team(Base):
     ht_youth_team_id: Mapped[int | None] = mapped_column(BigInteger)
     youth_team_name: Mapped[str | None] = mapped_column(String(128))
     youth_academy_created_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # El PROXIMO partido de entrenamiento de la cantera (2026-09-19). La
+    # academia no entrena con la actualizacion semanal del primer equipo, sino
+    # despues de cada partido suyo, y Hattrick publica esa cita. Retrocediendo
+    # de siete en siete se sabe cuando fue el ultimo, sin estimar nada.
+    youth_next_training_match_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # LeagueLevel de esta serie (1 = división más alta del país) y MaxLevel
     # (divisiones totales), de leaguedetails.xml. Hacen falta para saber si
     # el 1º puede ascender (no si ya es primera) y si el 7º-8º puede

@@ -169,17 +169,30 @@ async def _nombres_de_usuario(session: AsyncSession) -> dict[int, str]:
 #: al otro, que es lo que se quiere.
 EXCLUIRME = Query(False, description="Dejar fuera los eventos de quien pregunta")
 
+#: `dias=0` es «Siempre»: todo lo que haya guardado, sin corte por fecha.
+#: Va como cero y no como un número enorme porque no es un plazo más largo
+#: sino la ausencia de plazo, y restar 3.650 días daría una fecha de corte
+#: que hay que comparar fila a fila para nada.
+SIEMPRE = 0
+PLAZO = Query(30, ge=SIEMPRE, le=3650, description="Días hacia atrás; 0 = todo")
+
+
+def _corte(dias: int) -> list[Any]:
+    """La condición de fecha, o ninguna si se pidió «Siempre»."""
+    if dias <= SIEMPRE:
+        return []
+    return [m.UiEvent.at >= datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)]
+
 
 @router.get("/usage")
 async def resumen(
-    dias: int = Query(30, ge=1, le=365),
+    dias: int = PLAZO,
     excluirme: bool = EXCLUIRME,
     session: AsyncSession = Depends(get_session),
     admin: m.User = Depends(require_admin),
 ) -> dict[str, Any]:
-    """El resumen de uso de los últimos `dias`."""
-    desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
-    condiciones = [m.UiEvent.at >= desde]
+    """El resumen de uso de los últimos `dias`, o de todo si es cero."""
+    condiciones = _corte(dias)
     if excluirme:
         condiciones.append(m.UiEvent.user_id != admin.id)
     filas = (
@@ -375,7 +388,7 @@ async def exportar(
 
 @router.get("/usage/log")
 async def registro(
-    dias: int = Query(30, ge=1, le=365),
+    dias: int = PLAZO,
     usuario: int | None = Query(None, description="id de fila del usuario"),
     modulo: str | None = Query(None),
     tipo: str | None = Query(None, pattern="^(page|click)$"),
@@ -396,14 +409,17 @@ async def registro(
     decenas de miles de filas y el navegador no tiene por qué recibirlas todas
     para enseñar doscientas.
     """
-    desde = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=dias)
-    condiciones = [m.UiEvent.at >= desde]
+    condiciones = _corte(dias)
     if excluirme:
         condiciones.append(m.UiEvent.user_id != admin.id)
     if usuario is not None:
         condiciones.append(m.UiEvent.user_id == usuario)
     if modulo:
-        condiciones.append(m.UiEvent.module == modulo)
+        # Filtrar por el nombre de HOY tiene que alcanzar también a las filas
+        # guardadas con el nombre de ayer: si no, elegir «Liga» en el
+        # desplegable escondía justo las visitas anteriores al cambio.
+        viejos = [v for v, nuevo in RENOMBRADOS.items() if nuevo == modulo]
+        condiciones.append(m.UiEvent.module.in_([modulo, *viejos]))
     if tipo:
         condiciones.append(m.UiEvent.kind == tipo)
     if buscar:
@@ -444,7 +460,10 @@ async def registro(
                 "name": nombres.get(f.user_id, f"usuario {f.user_id}"),
                 "session": f.session_id,
                 "kind": f.kind,
-                "module": f.module,
+                # El mismo apaño que en el resumen: el histórico guarda el
+                # nombre que la pantalla tenía aquel día, y se traduce al
+                # leer. Sin esto el registro contradecía a los otros paneles.
+                "module": RENOMBRADOS.get(f.module, f.module),
                 "label": f.label,
                 "visibleMs": f.visible_ms or 0,
             }

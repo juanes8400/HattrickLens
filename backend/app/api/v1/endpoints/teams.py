@@ -309,7 +309,16 @@ async def trigger_sync_stream(
                 break
         await task
 
-    return StreamingResponse(generate(), media_type="application/x-ndjson")
+    # `identity` es la forma de decir «a éste no lo comprimas». Desde el
+    # 2026-09-20 las respuestas salen comprimidas, y un flujo comprimido se
+    # queda esperando a llenar el búfer: la barra de progreso no se movería
+    # hasta el final, que es justo cuando ya no sirve. Starlette respeta una
+    # cabecera de codificación que ya venga puesta, así que basta con ésta.
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={"Content-Encoding": "identity"},
+    )
 
 
 @router.post(
@@ -939,14 +948,17 @@ async def squad(
         None,
         description="Si se indica, la plantilla se ordena por el rendimiento en esa posición",
     ),
-    comparison_sync_id: int | None = Query(
+    comparison_window: str | None = Query(
         None,
-        description="Snapshot histórico contra el cual comparar la plantilla actual",
+        description=(
+            "Contra qué se miran las diferencias: change (el último cambio de cada "
+            "jugador, por defecto), w1, w2, w4, w8, w16 o all"
+        ),
     ),
     svc: SquadQueryService = Depends(get_squad_service),
 ) -> SquadResponse:
     try:
-        data = await svc.get(team_id, position, comparison_sync_id)
+        data = await svc.get(team_id, position, comparison_window)
     except KeyError as exc:
         raise HTTPException(400, str(exc)) from exc
     if data is None:

@@ -274,7 +274,12 @@ async def guardar_partidos_de_un_rival(
             "matches"
         ]
     except Exception as exc:  # noqa: BLE001, un rival caído no tumba el sync
-        resumen.errores.append(f"matches:{team_ht_id}: {exc}")
+        # Por el nombre legible, como todos los demás avisos (2026-09-20).
+        # Éste vivía en otro fichero y la prueba que recorre el sync no
+        # llegaba hasta aquí, así que se quedó diciendo «matches:».
+        from app.application.commands.sync_team import _nombre_legible
+
+        resumen.errores.append(f"{_nombre_legible('matches')} ({team_ht_id}): {exc}")
         return
 
     jugados = [

@@ -68,7 +68,11 @@ function Barra({ parte, de }: { parte: number; de: number }) {
   );
 }
 
-const PLAZOS = [7, 30, 90] as const;
+/** Los plazos del encabezado. El cero es «Siempre»: no es un plazo más
+ *  largo sino ninguno, y el servidor lo entiende así (se salta el corte por
+ *  fecha en vez de restar días). Va al final porque es el caso raro: quien
+ *  entra quiere saber qué pasa AHORA, no desde el principio de los tiempos. */
+const PLAZOS = [7, 30, 90, 0] as const;
 const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
 const td = "px-3 py-2 text-sm";
 
@@ -116,7 +120,7 @@ export function UsagePage() {
             <button
               key={p}
               onClick={() => setDias(p)}
-              data-track={`Uso: ${p} dias`}
+              data-track={p === 0 ? "Uso: siempre" : `Uso: ${p} dias`}
               aria-pressed={dias === p}
               className={`rounded-md border px-2 py-1 text-xs ${
                 dias === p
@@ -124,7 +128,7 @@ export function UsagePage() {
                   : "border-[var(--border)] text-[var(--muted)]"
               }`}
             >
-              {p} {tx("días")}
+              {p === 0 ? tx("Siempre") : `${p} ${tx("días")}`}
             </button>
           ))}
           <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
@@ -703,7 +707,11 @@ function Adopcion({ data }: { data: UsageSummary }) {
 
         <Panel
           title={tx("Nadie las abrió")}
-          meta={tx("en los últimos {{v0}} días", { v0: data.days })}
+          meta={
+            data.days === 0
+              ? tx("desde que se mide")
+              : tx("en los últimos {{v0}} días", { v0: data.days })
+          }
         >
           {data.untouched.length === 0 ? (
             <p className="p-4 text-sm text-[var(--muted)]">

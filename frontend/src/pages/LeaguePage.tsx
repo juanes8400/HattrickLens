@@ -21,6 +21,7 @@ import {
   PitchGrid,
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
+import { SimularJornada } from "./SimularJornada";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
 import { PITCH_ZONE_METHODS } from "../components/pitchZoneMethods";
@@ -73,7 +74,11 @@ function leaderGap(data: League): { label: string; value: string } {
   };
 }
 
-type LeagueSection = "resumen" | "proyeccion" | "comparativa";
+type LeagueSection =
+  | "resumen"
+  | "proyeccion"
+  | "simular"
+  | "comparativa";
 
 export function LeaguePage() {
   // UN SOLO RESUMEN PARA LA PROYECCIÓN (2026-09-09, pedido del usuario). El
@@ -124,6 +129,7 @@ export function LeaguePage() {
           tabs={[
             { key: "resumen", label: tx("Resumen") },
             { key: "proyeccion", label: tx("Proyección") },
+            { key: "simular", label: tx("Simular jornada") },
             { key: "comparativa", label: tx("Comparativa") },
           ]}
           active={section}
@@ -339,6 +345,12 @@ export function LeaguePage() {
         {/* Las dos a la vez (2026-09-14, pedido del usuario): la mejor
             alineación vivía DENTRO de la comparativa, después de su «cargando»,
             así que no empezaba a pedirse hasta que la comparativa terminaba. */}
+        {/* El «¿y si...?» de esta semana. Vista propia y no un panel al
+            final del Resumen (2026-09-20, pedido del usuario): Resumen
+            enseña hechos --lo que Hattrick ya reportó-- y esto es lo
+            contrario, una pregunta que se contesta a mano. */}
+        {section === "simular" && <SimularJornada data={data} />}
+
         {section === "comparativa" && (
           <>
             <LeagueTsiComparison />
@@ -1051,7 +1063,7 @@ function BestWorstPanel({ data }: { data: League }) {
       />
       <p className="prosa border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
         {tx(
-          "Mejor caso: en cada partido que te queda marcas de goleada y no encajas. Peor caso: al revés. El resto de la liga se simula con el mismo modelo que la gráfica de arriba, zona por zona, con el resumen que elegiste, , así que aun forzando tu propio resultado al extremo, tu puesto final sigue siendo una distribución. Tus partidos van forzados y NO los toca ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies el resumen, y lo que se mueve es dónde acaban los demás.",
+          "Mejor caso: en cada partido que te queda marcas de goleada y no encajas. Peor caso: al revés. El resto de la liga se simula con el mismo modelo que la gráfica de arriba, zona por zona, con el resumen que elegiste, así que aun forzando tu propio resultado al extremo, tu puesto final sigue siendo una distribución. Tus partidos van forzados y NO los toca ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies el resumen, y lo que se mueve es dónde acaban los demás.",
         )}
       </p>
     </ProjectionPanel>
@@ -1422,9 +1434,20 @@ function TeamOfTheWeekPanel() {
   );
 
   const meta = data
-    ? scope === "week"
-      ? `jornada ${data.matchRound ?? "?"} · ${data.lineupsFound}/${data.lineupsExpected} alineaciones encontradas`
-      : `${data.roundsCovered} jornada(s) · ${data.lineupsFound}/${data.lineupsExpected} alineaciones encontradas`
+    ? // Con `tx`, no una plantilla de texto pegada: estas dos líneas eran
+      // las únicas del panel que no pasaban por el diccionario y salían en
+      // español con la aplicación en inglés (2026-09-20, visto por el usuario).
+      scope === "week"
+      ? tx("jornada {{v0}} · {{v1}}/{{v2}} alineaciones encontradas", {
+          v0: data.matchRound ?? "?",
+          v1: data.lineupsFound,
+          v2: data.lineupsExpected,
+        })
+      : tx("{{v0}} jornada(s) · {{v1}}/{{v2}} alineaciones encontradas", {
+          v0: data.roundsCovered,
+          v1: data.lineupsFound,
+          v2: data.lineupsExpected,
+        })
     : undefined;
 
   return (

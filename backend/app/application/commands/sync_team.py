@@ -23,6 +23,7 @@ from app.domain.engines.sync_diff import (
     diff_economy,
     diff_expedientes_cerrados,
     diff_match,
+    diff_player_arrival,
     diff_player_departure,
     diff_player_skills,
     diff_previous_club_bonus,
@@ -167,7 +168,42 @@ FILE_LABELS: dict[str, str] = {
     "matchorders": "alineación y órdenes enviadas",
     "youthplayerlist": "plantilla juvenil",
     "youthteamdetails": "academia juvenil",
+    # Los que se piden uno a uno. No salen en la barra de progreso, pero sí en
+    # el aviso de un sync a medias, que es donde se colaba la jerga.
+    "matchdetails": "detalle de un partido",
+    "matchesarchive": "archivo de partidos",
+    "playerdetails": "ficha de un jugador",
+    "transfersplayer": "transferencias de un jugador",
+    "arenadetails": "estadio",
+    "regiondetails": "clima de la región",
+    "youthplayerdetails": "ficha de un canterano",
+    "viewOldies": "antiguos canteranos",
+    # Y los trabajos que no son un fichero suelto sino un encargo entero.
+    "player_enrichment": "datos de jugadores vendidos",
+    "tsi_at_purchase": "TSI en el momento de la compra",
+    "destination_country": "país de destino de una venta",
+    "censo_partidos": "partidos jugados en cada etapa",
+    "reventa": "comisiones por reventa",
+    "previous_club_bonus": "comisiones de club de origen",
+    "transfers_history": "libro de transferencias",
 }
+
+
+def _nombre_legible(file: str) -> str:
+    """El nombre de una fuente tal como se le puede enseñar a alguien.
+
+    2026-09-20: el aviso de un sync a medias era lo último que enseñaba los
+    nombres internos de Hattrick («players: ...», «matchdetails:38291: ...»).
+    La regla de la casa es que la fuente se nombra por la pantalla de Hattrick
+    de la que sale, nunca por su fichero.
+
+    Lo que venga con un identificador detrás --«matchdetails:38291»-- conserva
+    el número: identifica CUÁL de todos falló, y eso sí es útil.
+    """
+    nombre, _, sufijo = file.partition(":")
+    legible = FILE_LABELS.get(nombre, nombre)
+    return f"{legible} {sufijo}".strip() if sufijo else legible
+
 
 #  HL-140: un sync normal debe poder mostrar el diff completo, posición en
 # liga y resultados incluidos, no solo plantilla/economía. `teamdetails` va
@@ -576,6 +612,11 @@ class SyncResult:
     # (si es parte de este sync) puede rellenar `sale_price` de un jugador
     # que ya salió del roster ANTES de que ese fichero se procese.
     departed_players: list[Any] = field(default_factory=list)
+    # Y lo mismo por el otro lado (2026-09-20): los que ENTRARON en la
+    # plantilla en este sync. La frase de alta lleva el precio de compra, y
+    # ese precio vive en el libro de transferencias, que puede procesarse
+    # después de `players`. Se guardan aquí y se anuncian al final.
+    arrived_players: list[Any] = field(default_factory=list)
     # HL-161, 2026-08-04: solo los usa `execute_transfers_history`, cuántas
     # páginas de transfersteam.xml se pidieron y cuántas transferencias se
     # vieron en total vs. cuántas eran nuevas de verdad.
@@ -611,6 +652,9 @@ class SyncTeamHandler:
         self._chpp = chpp
         #: La fila de la sincronización en marcha, para cerrarla si algo revienta.
         self._fila_en_curso: int | None = None
+        # Se levanta si Hattrick contesta con la cantera de otro club: a
+        # partir de ahi los ficheros juveniles de ese sync no se tocan.
+        self._academia_ajena = False
 
     async def execute(
         self, cmd: SyncTeamCommand, on_progress: ProgressReporter | None = None
@@ -634,6 +678,7 @@ class SyncTeamHandler:
             # rastro: en producción faltaban siete ids en `syncs`.
             await uow.commit()
             self._fila_en_curso = sync_id
+            self._academia_ajena = False
             result = SyncResult(sync_id=sync_id, status="completed")
             captured_at = datetime.now(UTC)
 
@@ -643,23 +688,33 @@ class SyncTeamHandler:
                     params: dict[str, Any] = {"teamID": cmd.ht_team_id}
                     if file in ("leaguedetails", "leaguefixtures"):
                         params = {"leagueLevelUnitID": await self._series_ht_id(uow, cmd.team_id)}
-                    elif file == "youthplayerlist":
-                        # Sin `actionType=details` el fichero trae sólo las
-                        # identidades: ni niveles ni techos, y el motor de
-                        # academia se queda sin nada que evaluar. No lleva
-                        # teamID, CHPP resuelve el equipo juvenil del usuario.
-                        params = {"actionType": "details", "showLastMatch": "true"}
-                    elif file == "youthteamdetails":
-                        # Igual que el anterior: sin teamID, CHPP devuelve la
-                        # academia del usuario autenticado (verificado en vivo).
-                        #
-                        # `showScouts`: sin el, el fichero NO trae ojeadores en
-                        # ninguna version --comprobado de la 1.0 a la 1.3-- y
-                        # sin ellos no hay fecha de contratacion, que es lo que
-                        # sostiene la cuenta de cada uno.
-                        params = {"showScouts": "true"}
-                    if file == "youthplayerlist":
-                        await self._desbloquear_habilidades(result)
+                    elif file in ("youthteamdetails", "youthplayerlist"):
+                        # La cantera se pide POR SU ID. Una cuenta de Hattrick
+                        # puede llevar varios clubes y cada uno tiene la suya;
+                        # sin `youthTeamId` estos dos ficheros devuelven la del
+                        # club principal, y por eso los juveniles del primer
+                        # equipo salian tambien como los del segundo (lo
+                        # reporto un usuario, 2026-09-19).
+                        academia = await self._academia_del_equipo(uow, cmd.team_id)
+                        if self._academia_ajena:
+                            # La comprobacion de `youthteamdetails` fallo: lo
+                            # que contesta Hattrick no es de este club.
+                            continue
+                        if file == "youthplayerlist":
+                            # Sin `actionType=details` el fichero trae sólo las
+                            # identidades: ni niveles ni techos, y el motor de
+                            # academia se queda sin nada que evaluar.
+                            params = {"actionType": "details", "showLastMatch": "true"}
+                        else:
+                            # `showScouts`: sin el, el fichero NO trae ojeadores
+                            # en ninguna version --comprobado de la 1.0 a la
+                            # 1.3-- y sin ellos no hay fecha de contratacion,
+                            # que es lo que sostiene la cuenta de cada uno.
+                            params = {"showScouts": "true"}
+                        if academia:
+                            params["youthTeamId"] = academia
+                        if file == "youthplayerlist":
+                            await self._desbloquear_habilidades(result, academia)
                     payload = await self._chpp.fetch(
                         file, version=FILE_VERSIONS.get(file, "latest"), **params
                     )
@@ -677,7 +732,7 @@ class SyncTeamHandler:
                     # se lleva por delante los ficheros que ya se guardaron.
                     await uow.commit()
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"{file}: {exc}")
+                    result.errors.append(f"{_nombre_legible(file)}: {exc}")
                     result.status = "partial"
                     await _tras_fallo(uow, exc)
 
@@ -742,6 +797,13 @@ class SyncTeamHandler:
                     equipo_libro,
                     result,
                 )
+
+            if result.arrived_players:
+                # Las altas, con lo que costaron y lo que cuestan. Se hace
+                # aquí por lo mismo que las bajas: `transfersteam` puede ir
+                # después de `players` y sólo tras procesarlo existe la compra
+                # que le pone precio al fichaje de esta misma semana.
+                await self._anunciar_altas(uow, cmd.team_id, result)
 
             if result.departed_players:
                 # HL-2xx, 2026-08-12: se anuncia aquí, no dentro de
@@ -1362,7 +1424,9 @@ class SyncTeamHandler:
                     wrote = await self._apply_player_enrichment(uow, ht_player_id, fetched_at)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"player_enrichment:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('player_enrichment')} ({ht_player_id}): {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in precio:
@@ -1374,7 +1438,9 @@ class SyncTeamHandler:
                     wrote = await self._apply_transfers_player_purchase(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"tsi_at_purchase:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('tsi_at_purchase')} ({ht_player_id}): {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in destino:
@@ -1383,7 +1449,9 @@ class SyncTeamHandler:
                     wrote = await self._apply_destination_country(uow, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"destination_country:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('destination_country')} ({ht_player_id}): {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in censo:
@@ -1397,7 +1465,9 @@ class SyncTeamHandler:
                     # Se cuenta para poder DECIRLO. Ver `Balance.historiales`.
                     historiales_construidos += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"censo_partidos:{ht_player_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('censo_partidos')} ({ht_player_id}): {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in reventa:
@@ -1406,7 +1476,7 @@ class SyncTeamHandler:
                     wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                    result.errors.append(f"reventa:{ht_player_id}: {exc}")
+                    result.errors.append(f"{_nombre_legible('reventa')} ({ht_player_id}): {exc}")
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
 
@@ -1889,7 +1959,7 @@ class SyncTeamHandler:
                     pageIndex=1,
                 )
             except Exception as exc:  # noqa: BLE001 - un rival caído no tumba el sync
-                result.errors.append(f"transfersteam:{rival_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('transfersteam')} ({rival_id}): {exc}")
                 await _tras_fallo(uow, exc)
                 continue
             nombre_club = payload.get("team_name") or str(rival_id)
@@ -2079,7 +2149,7 @@ class SyncTeamHandler:
                 for campo, valor in valores.items():
                     setattr(row, campo, valor)
         except Exception as exc:  # noqa: BLE001, el clima nunca tumba un sync
-            result.errors.append(f"regiondetails: {exc}")
+            result.errors.append(f"{_nombre_legible('regiondetails')}: {exc}")
             await _tras_fallo(uow, exc)
 
     async def _sync_upcoming_match_orders(
@@ -2230,12 +2300,14 @@ class SyncTeamHandler:
                         # pueda decir "no hay predicción" en vez de enseñar los
                         # viejos como si fueran los de este once.
                         result.errors.append(
-                            f"matchorders:predictratings:{match.ht_match_id}: "
+                            f"{_nombre_legible('matchorders')} ({match.ht_match_id}): "
                             f"{predicted_payload['chpp_error']}"
                         )
                         result.status = "partial"
                 except Exception as exc:  # noqa: BLE001, las órdenes siguen siendo útiles
-                    result.errors.append(f"matchorders:predictratings:{match.ht_match_id}: {exc}")
+                    result.errors.append(
+                        f"{_nombre_legible('matchorders')} ({match.ht_match_id}): {exc}"
+                    )
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
 
@@ -2244,7 +2316,9 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                result.errors.append(f"matchorders:{match.ht_match_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('matchorders')} ({match.ht_match_id}): {exc}"
+                )
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -2310,7 +2384,7 @@ class SyncTeamHandler:
             )
             arena_capacity = arena.get("current_capacity")
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla solo el aforo
-            result.errors.append(f"arenadetails: {exc}")
+            result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
         for ht_match_id in pending:
             await _report(on_progress, f"Descargando detalles de partido {ht_match_id}...")
@@ -2350,7 +2424,7 @@ class SyncTeamHandler:
                     arena_capacity=arena_capacity,
                 )
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                result.errors.append(f"matchdetails:{ht_match_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('matchdetails')} ({ht_match_id}): {exc}")
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -2419,7 +2493,7 @@ class SyncTeamHandler:
             )
             arena_capacity = arena.get("current_capacity")
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla sólo el aforo
-            result.errors.append(f"arenadetails: {exc}")
+            result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
         # Las llamadas van en paralelo; la base, en cambio, se toca en orden y
         # desde un solo sitio, porque la sesión no admite escrituras cruzadas.
@@ -2458,7 +2532,8 @@ class SyncTeamHandler:
                 if not payload.get("ht_match_id") or payload.get("chpp_error"):
                     match.history_summary_only = False
                     result.errors.append(
-                        f"matchdetails:{match.ht_match_id}: Hattrick no dio el detalle"
+                        f"{_nombre_legible('matchdetails')} ({match.ht_match_id}): "
+                        "Hattrick no dio el detalle"
                     )
                     continue
                 if payload.get("ht_match_id") != match.ht_match_id:
@@ -2483,7 +2558,9 @@ class SyncTeamHandler:
                 )
                 match.history_summary_only = False
             except Exception as exc:  # noqa: BLE001, sync parcial, se reintenta en el siguiente
-                result.errors.append(f"matchdetails:{match.ht_match_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('matchdetails')} ({match.ht_match_id}): {exc}"
+                )
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -2599,7 +2676,7 @@ class SyncTeamHandler:
                     arena_capacity=cmd.arena_capacity,
                 )
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute()
-                result.errors.append(f"matchdetails: {exc}")
+                result.errors.append(f"{_nombre_legible('matchdetails')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -3270,7 +3347,7 @@ class SyncTeamHandler:
                     playerID=ht_player_id,
                 )
             except Exception as exc:  # noqa: BLE001 - un jugador no tumba el sync
-                result.errors.append(f"trainingevents:{ht_player_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('trainingevents')} ({ht_player_id}): {exc}")
                 await _tras_fallo(uow, exc)
                 continue
             await self._persist_skill_ups(uow, team_id, payload, captured_at, result)
@@ -3314,7 +3391,7 @@ class SyncTeamHandler:
                 wrote = await self._apply_player_details(uow, ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
             except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-                result.errors.append(f"playerdetails:{ht_player_id}: {exc}")
+                result.errors.append(f"{_nombre_legible('playerdetails')} ({ht_player_id}): {exc}")
                 await _tras_fallo(uow, exc)
                 result.status = "partial"
 
@@ -3334,7 +3411,7 @@ class SyncTeamHandler:
                 wrote = await self._apply_player_details(uow, cmd.ht_player_id, captured_at)
                 result.snapshots_written += 1 if wrote else 0
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_match_details
-                result.errors.append(f"playerdetails: {exc}")
+                result.errors.append(f"{_nombre_legible('playerdetails')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -3418,7 +3495,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_match_details
-                result.errors.append(f"transfersplayer: {exc}")
+                result.errors.append(f"{_nombre_legible('transfersplayer')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -3682,7 +3759,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
-                result.errors.append(f"previous_club_bonus: {exc}")
+                result.errors.append(f"{_nombre_legible('previous_club_bonus')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -4050,7 +4127,9 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, best effort, ver _backfill_sold_player_details
-                result.errors.append(f"previous_club_bonus:{ht_player_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('previous_club_bonus')} ({ht_player_id}): {exc}"
+                )
             if cazando:
                 probados.add(ht_player_id)
 
@@ -4203,7 +4282,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
-                result.errors.append(f"player_enrichment: {exc}")
+                result.errors.append(f"{_nombre_legible('player_enrichment')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -4265,7 +4344,7 @@ class SyncTeamHandler:
                 else:
                     result.unchanged += 1
             except Exception as exc:  # noqa: BLE001, mismo patrón que execute_transfers_player
-                result.errors.append(f"destination_country: {exc}")
+                result.errors.append(f"{_nombre_legible('destination_country')}: {exc}")
                 result.status = "partial"
 
             await uow.syncs.finalize(
@@ -4284,12 +4363,28 @@ class SyncTeamHandler:
         team = await uow.session.get(m.Team, team_id)
         if team is None or not team.series_ht_id:
             raise ValueError(
-                "no se conoce la serie del equipo: sincroniza 'teamdetails' antes "
-                "que 'leaguedetails'"
+                "no se conoce la serie del equipo: hay que traer los datos del "
+                "club antes que la clasificación"
             )
         return int(team.series_ht_id)
 
-    async def _desbloquear_habilidades(self, result: SyncResult) -> None:
+    async def _academia_del_equipo(self, uow: UnitOfWork, team_id: int) -> int | None:
+        """El id de la cantera de ESTE club, tal y como lo dio `teamdetails`.
+
+        `None` = todavia no se sabe (el club se sincronizo con una version
+        anterior de HT Lens); `0` = este club no tiene cantera; cualquier otro
+        numero es la suya. La diferencia importa: con `None` se pregunta como
+        siempre, y quien avisa de un cruce es la comprobacion del club dueno
+        al guardar `youthteamdetails`.
+        """
+        from app.infrastructure.db import models as m
+
+        team = await uow.session.get(m.Team, team_id)
+        return None if team is None else team.ht_youth_team_id
+
+    async def _desbloquear_habilidades(
+        self, result: SyncResult, academia: int | None = None
+    ) -> None:
         """Revela las habilidades de TODOS los juveniles, en una sola llamada.
 
         `actionType=unlockskills` no lleva `youthPlayerID`: destapa el equipo
@@ -4308,7 +4403,10 @@ class SyncTeamHandler:
         seria peor.
         """
         try:
-            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills")
+            # Con el id de la cantera: revelar es escribir, y sin el se
+            # escribiria sobre la academia del club principal.
+            extra = {"youthTeamId": academia} if academia else {}
+            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills", **extra)
         except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
                 "unlockskills: no se pudieron revelar las habilidades juveniles "
@@ -4393,10 +4491,35 @@ class SyncTeamHandler:
             from app.infrastructure.db import models as m
 
             team = await uow.session.get(m.Team, team_id)
+            # De quien es la cantera que contesto Hattrick. Si no es la de
+            # este club no se guarda NADA: es justo el cruce que metia los
+            # juveniles del equipo principal en el segundo equipo, y vale mas
+            # un sync parcial y ruidoso que datos ajenos guardados en silencio.
+            madre = payload.get("mother_team_id") or 0
+            if madre and ht_team_id and madre != ht_team_id:
+                self._academia_ajena = True
+                if team is not None and team.ht_youth_team_id == 0:
+                    # Este club no tiene cantera y Hattrick contesta con la
+                    # del principal. Es lo esperado, no un fallo: se descarta
+                    # sin ensuciar el parte de la sincronizacion.
+                    return
+                # El aviso se escribe aqui, y no lanzando: asi es una frase
+                # entera --sin el nombre del fichero delante-- que se puede
+                # leer y traducir.
+                ajena = payload.get("mother_team_name") or ""
+                result.errors.append(
+                    "La cantera que contestó Hattrick es la de {}, no la de "
+                    "este club: no se guardó nada.".format(ajena or "otro club")
+                )
+                result.status = "partial"
+                return
             if team is not None and payload.get("ht_youth_team_id"):
                 team.ht_youth_team_id = payload["ht_youth_team_id"]
                 team.youth_team_name = payload.get("youth_team_name") or None
                 team.youth_academy_created_at = _parse_dt(payload.get("created_date"))
+                team.youth_next_training_match_at = _parse_dt(
+                    payload.get("next_training_match_date")
+                )
             if payload.get("has_scouts"):
                 await self._persist_ojeadores(uow, team_id, payload.get("scouts", []), captured_at)
             return
@@ -4429,6 +4552,11 @@ class SyncTeamHandler:
             await uow.players.append_snapshot(sync_id, player_id, p, new_hash, captured_at)
             result.snapshots_written += 1
             name = f"{p['first_name']} {p['last_name']}".strip()
+            if old_values is None:
+                # Un alta. Su frase necesita el libro de transferencias, que
+                # puede no estar procesado todavía; se escribe al final.
+                result.arrived_players.append((name, p))
+                continue
             changes = diff_player_skills(old_values, p, name, tasa, moneda)
             result.changes.extend(_as_change_row(c) for c in changes)
 
@@ -4736,7 +4864,7 @@ class SyncTeamHandler:
                 teamID=ht_team_id,
             )
         except Exception as exc:  # noqa: BLE001, best effort, se reintenta
-            result.errors.append(f"viewOldies: {exc}")
+            result.errors.append(f"{_nombre_legible('viewOldies')}: {exc}")
             return 0
 
         filas = payload.get("players", [])
@@ -4877,6 +5005,10 @@ class SyncTeamHandler:
                 youth.specialty = row.get("specialty") or 0
                 # Si había salido y vuelve a aparecer, sigue en la academia.
                 youth.left_at = None
+                # Y si estaba apuntado a otro club de la cuenta, vuelve al
+                # suyo: el juvenil pertenece al club cuya lista lo trae. Asi
+                # se repara solo lo que sembro la cantera compartida.
+                youth.team_id = team_id
 
             values = {f: row.get(f) for f in self.YOUTH_SNAPSHOT_FIELDS}
             new_hash = hashlib.sha256(
@@ -5063,7 +5195,7 @@ class SyncTeamHandler:
         try:
             archived = await self._fetch_match_archive_range(ht_team_id, since, until, on_progress)
         except Exception as exc:  # noqa: BLE001, el resto del sync sigue siendo útil
-            result.errors.append(f"matchesarchive: {exc}")
+            result.errors.append(f"{_nombre_legible('matchesarchive')}: {exc}")
             result.status = "partial"
             return
 
@@ -5355,7 +5487,9 @@ class SyncTeamHandler:
                     **parametros,
                 )
             except Exception as exc:  # noqa: BLE001
-                result.errors.append(f"youthplayerdetails {juvenil.ht_youth_player_id}: {exc}")
+                result.errors.append(
+                    f"{_nombre_legible('youthplayerdetails')} {juvenil.ht_youth_player_id}: {exc}"
+                )
                 continue
             if not ficha:
                 continue
@@ -5653,6 +5787,69 @@ class SyncTeamHandler:
             uow, team_id, en_venta_ahora
         )
 
+    async def _anunciar_altas(self, uow: UnitOfWork, team_id: int, result: SyncResult) -> None:
+        """Escribe la frase de alta de cada jugador que entró en este sync.
+
+        Tres datos, y cada uno puede faltar sin que los otros dejen de darse:
+
+        - El PRECIO sale del libro de transferencias, buscando la compra más
+          reciente de ese jugador por este club. Si el fichaje se cerró y el
+          libro aún no lo trae, la frase sale sin precio y no vuelve a
+          intentarse: el texto se congela en la fila, como todo en «Cambios».
+        - LA CANTERA se reconoce por el bono de club de origen, que Hattrick
+          sólo pone a quien subió de la propia academia. Es el único origen
+          que se puede afirmar sin el libro.
+        - EL SUELDO viene en la propia ficha. Los dos dineros se dividen por
+          la tasa del país, como en el resto de la aplicación.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+        moneda = (equipo.currency_name if equipo else "") or ""
+
+        def _dinero(v: int | None) -> int | None:
+            if not v:
+                return None
+            return int(round(v / tasa)) if tasa else int(v)
+
+        ids = [p["ht_player_id"] for _, p in result.arrived_players]
+        compras: dict[int, int] = {}
+        if ids:
+            filas = (
+                (
+                    await uow.session.execute(
+                        select(m.TeamTransfer)
+                        .where(
+                            m.TeamTransfer.team_id == team_id,
+                            m.TeamTransfer.is_buy.is_(True),
+                            m.TeamTransfer.ht_player_id.in_(ids),
+                        )
+                        .order_by(m.TeamTransfer.deadline)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            # Ordenadas de vieja a nueva, así que la última que se escribe es
+            # la más reciente: quien vuelve al club por segunda vez sale con
+            # el precio de ESTA vuelta y no con el de la primera.
+            for f in filas:
+                compras[f.ht_player_id] = f.price
+
+        for nombre, p in result.arrived_players:
+            cambio = diff_player_arrival(
+                nombre,
+                salary=_dinero(p.get("salary")),
+                purchase_price=_dinero(compras.get(p["ht_player_id"])),
+                from_academy=bool(p.get("mother_club_bonus")),
+                currency=moneda,
+                ht_player_id=p["ht_player_id"],
+            )
+            result.changes.append(_as_change_row(cambio))
+
     async def _reparar_intentos_abiertos(
         self, uow: UnitOfWork, team_id: int, listados_ahora: set[int]
     ) -> int:
@@ -5766,6 +5963,7 @@ class SyncTeamHandler:
             row.series_name,
             row.series_ht_id,
             row.ht_league_id,
+            row.ht_youth_team_id,
             row.still_in_cup,
             row.current_cup_id,
             row.current_cup_match_round,
@@ -5777,6 +5975,17 @@ class SyncTeamHandler:
         row.series_name = team.get("series_name") or row.series_name
         row.series_ht_id = team.get("series_ht_id") or row.series_ht_id
         row.ht_league_id = team.get("ht_league_id") or row.ht_league_id
+        # La cantera de ESTE club. Se guarda tambien el 0: "este club no tiene
+        # academia" es un dato, y es el que evita pedirla y recibir la del
+        # club principal. `None` = el fichero no lo trajo, no se toca nada.
+        cantera = team.get("ht_youth_team_id")
+        if cantera is not None:
+            row.ht_youth_team_id = cantera
+            if cantera:
+                row.youth_team_name = team.get("youth_team_name") or row.youth_team_name
+            else:
+                row.youth_team_name = None
+                row.youth_academy_created_at = None
         founded_at = _parse_dt(team.get("founded_at"))
         if founded_at is not None:
             current_founded = row.founded_at
@@ -5812,6 +6021,7 @@ class SyncTeamHandler:
             row.series_name,
             row.series_ht_id,
             row.ht_league_id,
+            row.ht_youth_team_id,
             row.still_in_cup,
             row.current_cup_id,
             row.current_cup_match_round,
@@ -6600,7 +6810,7 @@ class SyncTeamHandler:
                 # también es haber llegado al final de la historia.
                 recorrido_entero = True
         except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
-            result.errors.append(f"transfers_history: {exc}")
+            result.errors.append(f"{_nombre_legible('transfers_history')}: {exc}")
             result.status = "partial"
 
         # La marca solo avanza si el recorrido llegó de verdad al final y

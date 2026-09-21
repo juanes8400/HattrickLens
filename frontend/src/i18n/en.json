@@ -226,6 +226,8 @@
     "verEconomia": "See Finances →",
     "subidas": "Recent skill-ups",
     "ultimaSemana": "last week",
+    "subidasDeTotal": "{{vistas}} of {{total}}",
+    "verTodasLasSubidas": "see every skill-up",
     "sinSubidas": "No skill-ups this week."
   },
   "entrenamiento": {
@@ -259,7 +261,7 @@
     "nDias": "{{n}} days",
     "sinReferencia": "No reference",
     "maximoAlcanzado": "Maximum reached",
-    "actualEsperado": "Current: {{actual}} ({{nivel}}). Expected by Ocerin: {{esperado}} ({{nivelEsperado}}).",
+    "actualEsperado": "Current: {{actual}} ({{nivel}}). Expected: {{esperado}} ({{nivelEsperado}}).",
     "sinAsistentes": "There are currently no assistant coaches registered.",
     "nivelDe5": "Level {{n}}/5",
     "aporteCombinado": "Combined contribution · level {{n}}",
@@ -283,10 +285,9 @@
     "diasDesdeCompra": "{{n}} days since purchase",
     "actualGuia": "Current → guide",
     "pctAplicado": "% applied",
-    "esperadoOcerin": "Expected by Ocerin",
     "ttss": "SS-ww",
     "fecha": "Date",
-    "subida": "Skill-up",
+    "subida": "improved",
     "semanas": "Weeks",
     "primeraRegistrada": "first recorded",
     "semanasNivel": "Weeks for this level",
@@ -339,7 +340,7 @@
     "sinExperiencia": "No players to calculate experience.",
     "fidelidadMeta": "{{n}} players · real time at the club",
     "sinFidelidad": "No players to calculate loyalty.",
-    "resistenciaMeta": "{{n}} players · {{pct}}% effective · Ocerin guide",
+    "resistenciaMeta": "{{n}} players · {{pct}}% effective",
     "sinResistencia": "No players to calculate stamina.",
     "pusiste": "You set",
     "pusisteHint": "+{{aporte}} contribution/wk · {{min}} min · {{puesto}} of {{total}}",
@@ -361,7 +362,24 @@
     "mejorOpcion": "Best option: {{nombre}}",
     "sinRecomendacion": "No recommendation",
     "explicacionPosteriori": "The app adds up the real minutes per position and, for each training type, how much each player's best positional contribution would rise per week. The one with the highest total wins: a skill-up that doesn't improve anyone in any position is worth little, even if it comes quickly.",
-    "sinOpciones": "No options to compare for this match."
+    "sinOpciones": "No options to compare for this match.",
+    "ultimo": "Last training",
+    "intensidadDe": "intensity {{v}}%",
+    "resistenciaDe": "stamina {{v}}%",
+    "sinHora": "this league's time isn't known yet",
+    "ultimoSinSincronizar": "Your data only goes up to {{fecha}}, before this training update. Sync to see who improved.",
+    "ultimoSinSubidas": "Nobody improved.",
+    "ultimaConSubidas": "The last time anyone improved was in {{semana}}.",
+    "ultimoAnterior": "The previous update ({{semana}}, {{fecha}}) confirmed {{n}} improvements.",
+    "subioUno": "One player improved.",
+    "subieronN": "{{n}} players improved.",
+    "bajoUno": "One player lost a skill level.",
+    "bajaronN": "{{n}} players lost a skill level.",
+    "subidas": "improved",
+    "sinTipo": "training not identified",
+    "irASincronizar": "go and sync",
+    "proximo": "The next one, on {{fecha}}.",
+    "esperado": "Expected"
   },
   "alertas": {
     "atencion": "What needs your attention",
@@ -590,7 +608,15 @@
     "cierreAnterior": "previous weekly closing",
     "vacia": "No players in the squad. Sync to bring them in.",
     "filtrar": "Filter by player, position or skill…",
-    "pie": "Changes based on Hattrick's weekly closings. Current reference: {{referencia}}. The estimated value isn't official Hattrick data."
+    "pie": "Changes based on Hattrick's weekly closings. Current reference: {{referencia}}. The estimated value isn't official Hattrick data.",
+    "ventanaCambio": "Last change",
+    "ventana1": "Last week",
+    "ventana2": "Last 2 weeks",
+    "ventana4": "Last 4 weeks",
+    "ventana8": "Last 8 weeks",
+    "ventana16": "Last 16 weeks",
+    "ventanaSiempre": "All time",
+    "sinHistoria": "There are no weekly snapshots saved that far back yet."
   },
   "equipo": {
     "faltaCierre": "More than one weekly closing is needed to draw the trend.",
@@ -730,7 +756,10 @@
     "subida": "{{habilidad}} for {{jugador}}: {{de}} → {{a}}",
     "subeUn": "the eleven's {{sector}} goes up {{pct}} %",
     "mayorEfecto": "Biggest effect",
-    "efectoMedio": "Medium effect"
+    "efectoMedio": "Medium effect",
+    "comoSeMiran": "How the positions are looked at",
+    "mejorPosicion": "Best position",
+    "mejorPosicionVacia": "It shows up once there are squad averages synced."
   },
   "alineacion": {
     "noSePuede": "The eleven can't be calculated",
@@ -798,7 +827,8 @@
       "train": "Training selection",
       "who": "Next match formation",
       "scouts": "Scouts",
-      "oldies": "Former youth players"
+      "oldies": "Former youth players",
+      "ultimo": "Last training"
     },
     "explicaTrain": "scores each skill by what your academy can gain in it, and the recommended pair comes from that. The controls below are yours: move the deadline cut-off or the gap between rungs and the ranking is recalculated. The split adopts the recommendation on its own until you choose something else manually in the next tab.",
     "explicaWho": "distributes the two chosen trainings among the eleven and the bench. Each training reaches some positions and not others: whoever lands where the two overlap gets both. Within each group the best in the queue go first (rung, ceiling and age), so changing the secondary changes who plays where. The “Can reach” bar is their HTMS28: the filled part is what they already have, and how far the bar goes is the most they could reach.",
@@ -838,7 +868,10 @@
         "corto": "Solid ⏱",
         "largo": "rating 7, and leaves young"
       },
-      "buenoTarde": { "corto": "Solid", "largo": "rating 7, and leaves older" },
+      "buenoTarde": {
+        "corto": "Solid",
+        "largo": "rating 7, and leaves older"
+      },
       "aceptablePronto": {
         "corto": "Pass. ⏱",
         "largo": "rating 6, and leaves young"
@@ -963,9 +996,18 @@
     "nivelSecundaria": "Secondary skill level",
     "region": {
       "nombre": "region {{ids}}",
-      "ambos": { "titulo": "Get both trainings", "pista": "" },
-      "solo_principal": { "titulo": "Main only", "pista": "" },
-      "solo_secundaria": { "titulo": "Secondary only", "pista": "" },
+      "ambos": {
+        "titulo": "Get both trainings",
+        "pista": ""
+      },
+      "solo_principal": {
+        "titulo": "Main only",
+        "pista": ""
+      },
+      "solo_secundaria": {
+        "titulo": "Secondary only",
+        "pista": ""
+      },
       "sin_entrenamiento": {
         "titulo": "No training",
         "pista": "neither of the two reaches them"
@@ -1098,7 +1140,32 @@
       "vendible": "sellable",
       "fontanero": "filler",
       "sin ojear": "unscouted"
-    }
+    },
+    "desdeFecha": "{{fecha}}",
+    "sinCitaJuvenil": "We don't know yet when your youth squad trained: sync and the date of their training match comes with it.",
+    "queSeMira": "What you're looking at in the academy",
+    "unaSubida": "one skill-up",
+    "variasSubidas": "N skill-ups",
+    "unTecho": "one ceiling revealed",
+    "variosTechos": "N ceilings revealed",
+    "unaLlegada": "one new youth player",
+    "variasLlegadas": "N new youth players",
+    "jugadoEl": "played on {{fecha}}",
+    "nadieSeMovio": "Nobody moved in this training.",
+    "llegaCon": "arrives with {{v}}",
+    "recienLlegado": "just arrived",
+    "techoDescubierto": "ceiling {{v}}",
+    "subioUno": "One youth player improved.",
+    "subieronN": "{{n}} youth players improved.",
+    "unTechoFrase": "The scout revealed one ceiling.",
+    "variosTechosFrase": "The scout revealed {{n}} ceilings.",
+    "unaLlegadaFrase": "And one new lad arrived.",
+    "variasLlegadasFrase": "And {{n}} new lads arrived.",
+    "subida": "improved",
+    "subidas": "improved",
+    "partidoDeEntrenamiento": "Training match",
+    "entrenanTrasElPartido": "the academy trains after each of its own matches",
+    "cuandoElProximo": "The next one, after the academy's next match."
   },
   "apoyo": {
     "boton": "Buy me a coffee",

@@ -294,11 +294,15 @@ def test_el_htms_lleva_su_credito() -> None:
 
 #: ── El capítulo del pronóstico de partido ─────────────────────────────────
 #:
-#: Nueve fichas que son un artículo, no ocho cálculos: el usuario pidió el
+#: Ocho fichas que son un artículo, no ocho cálculos: el usuario pidió el
 #: 2026-09-08 «que explique paso a paso todo el proceso, como si alguien que
 #: no conoce se quisiera empapar del tema». Lo que se protege aquí abajo es
 #: que siga siendo eso --pasos completos, con prosa-- y sobre todo que sus
-#: veintitantos coeficientes se sigan LEYENDO del motor.
+#: coeficientes se sigan LEYENDO del motor.
+#:
+#: Eran nueve hasta el 2026-09-20. Se fue «La segunda opinión» al pasar la
+#: mezcla a 100 % Poisson: la ordinal sigue en el código, apagada, pero no se
+#: explica porque no interviene en nada de lo que se ve.
 PASOS_DEL_PRONOSTICO = (
     "pronostico-resumen",
     "pronostico-muestra",
@@ -306,7 +310,6 @@ PASOS_DEL_PRONOSTICO = (
     "pronostico-goles",
     "pronostico-tactica",
     "pronostico-rejilla",
-    "pronostico-mezcla",
     "pronostico-validacion",
     "pronostico-limites",
 )
@@ -332,7 +335,12 @@ def test_cada_paso_del_pronostico_se_explica_en_prosa() -> None:
 
 
 def test_los_coeficientes_del_pronostico_salen_del_motor() -> None:
-    """Los siete de goles, los nueve de duelos y los dos umbrales."""
+    """Los siete de la ecuación de goles, que desde el 2026-09-20 son todos.
+
+    Antes se comprobaban también los nueve del ordinal y sus dos umbrales. Ya
+    no se publican: publicarlos sería enseñar los pesos de un modelo que no
+    corre, que es justo lo que esta pantalla existe para no hacer.
+    """
     from app.domain.engines import prediccion
 
     formula = _calculo("pronostico-goles").formula
@@ -349,14 +357,15 @@ def test_los_coeficientes_del_pronostico_salen_del_motor() -> None:
     # El cuadrático viaja con su signo derivado, no con el menos pegado.
     assert repr(abs(prediccion.POISSON_JUEGO_CUADRATICO)) in formula
 
-    duelos = _calculo("pronostico-duelo").tables[0]
-    publicados = {fila[1] for fila in duelos.rows}
-    assert publicados == {repr(float(b)) for b in prediccion.BETA}
-    assert len(duelos.rows) == len(prediccion.COMPARACIONES)
-
-    mezcla = _calculo("pronostico-mezcla").formula
-    assert repr(prediccion.UMBRALES[0]) in mezcla
-    assert repr(prediccion.UMBRALES[1]) in mezcla
+    # Y NINGÚN coeficiente del ordinal, en ninguna ficha del capítulo.
+    todo = "\n".join(
+        c.formula + "\n".join(c.body) + "\n".join(t.title for t in c.tables)
+        for c in (_calculo(i) for i in PASOS_DEL_PRONOSTICO)
+    )
+    for beta in prediccion.BETA:
+        assert repr(float(beta)) not in todo, f"sigue publicado un coeficiente ordinal: {beta}"
+    for umbral in prediccion.UMBRALES:
+        assert repr(float(umbral)) not in todo, f"sigue publicado un umbral ordinal: {umbral}"
 
 
 def test_el_pronostico_sigue_al_motor_si_alguien_lo_reajusta() -> None:
@@ -403,3 +412,40 @@ def test_el_pronostico_ya_no_convive_con_el_calculo_viejo() -> None:
     ésta es justo la pantalla donde eso no puede pasar."""
     ids = {c.id for s in catalogo() for c in s.calcs}
     assert "prediccion_zonas" not in ids
+
+
+def test_la_simulacion_de_liga_no_se_atribuye_a_un_solo_motor() -> None:
+    """2026-09-20, auditoria pedida por el usuario.
+
+    El codigo dejo de decidir los partidos pendientes con la Poisson de goles
+    agregados --`simulate` recibe las ternas del motor de zonas-- pero el
+    catalogo seguia contando la version vieja, y con ella el limite «no conoce
+    lesiones, alineaciones ni tacticas», que ya era falso. Esta prueba fija lo
+    unico que hay que mantener cierto: que la pantalla nombra los dos motores
+    y dice cual decide que.
+    """
+    calc = _calculo("simulacion")
+    limites = " ".join(calc.limits).lower()
+    assert "motor de zonas" in calc.formula.lower() or "motor de zonas" in limites
+    # 2026-09-20, segunda pasada: medido con la serie real, de 52 cruces
+    # pendientes los 52 los decide el motor de zonas y CERO caen a los goles
+    # agregados. Decir «respaldo» a secas se quedaba corto y sugeria un
+    # reparto; lo que hay que decir es que con la serie sincronizada ese
+    # modelo NO decide ningun resultado, solo pone el marcador.
+    assert "marcador" in limites, "no dice qué hace de verdad el modelo de goles"
+    assert "no usa los goles agregados para decidir" in limites, (
+        "no aclara que con la serie sincronizada el respaldo no entra"
+    )
+    # Y la fuente de la que depende ese motor tiene que estar declarada: sin
+    # ratings de los ocho equipos no hay ternas que meter en la simulacion.
+    assert any("rating" in f.what.lower() for f in calc.sources)
+
+
+def test_el_pronostico_no_se_contradice_sobre_la_tactica() -> None:
+    """El paso 1 anunciaba un paso entero sobre la tactica y cerraba diciendo
+    que el motor no sabe nada de tacticas. Una de las dos frases sobraba, y la
+    que sobraba era la del limite: el factor de la tactica se aplica de verdad
+    (2026-09-20)."""
+    limites = " ".join(_calculo("pronostico-resumen").limits)
+    assert "no sabe nada de tácticas" not in limites
+    assert "táctica" in limites, "sigue sin decir qué hace con la táctica"

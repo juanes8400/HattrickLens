@@ -23,11 +23,6 @@ export const NAV = [
   { section: "Desarrollo", clave: "seccion.desarrollo" },
   { to: "/training", label: "Entrenamiento", clave: "entrenamiento" },
   { to: "/academy", label: "Juveniles", clave: "juveniles" },
-  {
-    to: "/transfers/balance",
-    label: "Transferencias",
-    clave: "transferencias",
-  },
   { section: "Competición", clave: "seccion.competicion" },
   { to: "/matches", label: "Partidos", clave: "partidos" },
   { to: "/league", label: "Liga", clave: "liga" },
@@ -35,6 +30,15 @@ export const NAV = [
   { to: "/rivals", label: "Rivales", clave: "rivales" },
   { section: "Negocio", clave: "seccion.negocio" },
   { to: "/economy", label: "Economía", clave: "economia" },
+  // Transferencias baja aquí desde Desarrollo (2026-09-20, pedido del
+  // usuario): lo que enseña es dinero --coste de compra, sueldos acumulados,
+  // comisiones, beneficio y ROI-- y no el crecimiento de un jugador, así que
+  // vive entre las cuentas y el estadio, no junto a Entrenamiento.
+  {
+    to: "/transfers/balance",
+    label: "Transferencias",
+    clave: "transferencias",
+  },
   { to: "/arena", label: "Estadio", clave: "estadio" },
   { section: "Inteligencia", clave: "seccion.inteligencia" },
   // Sincronización va justo antes de Cambios: es el orden en que se usan

@@ -57,8 +57,14 @@ const SKILL_LABELS: Record<string, string> = {
  *  una gráfica por familia en vez de once líneas juntas. Resistencia y Forma
  *  van aparte porque su escala es mucho más corta. */
 const EVOLUCION_GRUPOS: { titulo: string; skills: string[] }[] = [
-  { titulo: tx("Habilidades Ofensivas"), skills: ["winger", "passing", "scoring"] },
-  { titulo: tx("Habilidades Defensivas"), skills: ["keeper", "defending", "playmaking"] },
+  {
+    titulo: tx("Habilidades Ofensivas"),
+    skills: ["winger", "passing", "scoring"],
+  },
+  {
+    titulo: tx("Habilidades Defensivas"),
+    skills: ["keeper", "defending", "playmaking"],
+  },
   {
     titulo: tx("Habilidades Complementarias"),
     skills: ["set_pieces", "experience", "loyalty"],
@@ -817,7 +823,7 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             redFraction={Math.abs(staminaDiff)}
             redPlacement={staminaDiff < 0 ? "eat" : "append"}
             tooltip={tx(
-              "Sube o baja según el % real de entrenamiento dedicado a resistencia para tu edad (tabla Federación Ocerin, ver Motor). El rojo muestra si al ritmo actual se espera subir o bajar de nivel.",
+              "Sube o baja según el % real de entrenamiento dedicado a resistencia para tu edad (la tabla de referencia está en Motor). El rojo muestra si al ritmo actual se espera subir o bajar de nivel.",
             )}
           />
         </div>
@@ -941,7 +947,12 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                   (x) => x.name === (SKILL_LABELS[k] ?? k),
                 );
                 return s
-                  ? [{ name: s.name, values: pick(s.values, skillsRange.indices) }]
+                  ? [
+                      {
+                        name: s.name,
+                        values: pick(s.values, skillsRange.indices),
+                      },
+                    ]
                   : [];
               });
               if (series.length === 0) return null;
@@ -1107,7 +1118,10 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                   label: p.name,
                 })),
                 { x: ownAgeTsi.age, y: ownAgeTsi.tsi, label: data.name },
-                "Edad",
+                // Con `tx`, no en crudo: el nombre del eje es texto de
+                // pantalla y se quedaba en español (2026-09-20, visto por el
+                // usuario). «TSI» no, que se llama igual en los dos idiomas.
+                tx("Edad"),
                 "TSI",
               )}
             />

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -41,6 +42,32 @@ app.add_middleware(
 # Los textos de la API salen en el idioma que pide el navegador; en español
 # no hace nada. Ver app/i18n/traductor.py.
 app.add_middleware(TraducirRespuestas)
+
+# Las respuestas viajan comprimidas (2026-09-20).
+#
+# MEDIDO: el listado de partidos pesaba 314.684 bytes y salía tal cual, sin una
+# sola cabecera de compresión. Es JSON, o sea texto con las mismas veinte
+# claves repetidas setecientas veces, que es el caso donde comprimir gana más:
+# ese mismo cuerpo baja a unas decenas de kilobytes. No cambia una sola cuenta
+# ni una sola respuesta, sólo lo que se manda por el cable.
+#
+# `minimum_size` deja en paz lo pequeño: comprimir dos kilobytes cuesta más
+# procesador del que ahorra en red.
+#
+# SE PONE DESPUÉS DE LA TRADUCCIÓN a propósito. El orden de `add_middleware` es
+# de dentro hacia fuera, así que ésta queda por FUERA y comprime el texto ya
+# traducido; al revés comprimiría y la traducción recibiría un cuerpo binario.
+#
+# Lo que NO se comprime es el chorro de progreso de la sincronización: va
+# marcado con `Content-Encoding: identity` en su propio endpoint, porque un
+# flujo comprimido se queda atascado en el búfer y la barra no se movería.
+#
+# `compresslevel=6` y no el 9 de la casa. Medido con el listado de partidos,
+# que es el cuerpo más gordo que sirve la aplicación: el 9 se lleva unos 100 ms
+# de procesador por respuesta y sólo gana un puñado de kilobytes sobre el 6. El
+# tiempo que el usuario espera es el de la cuenta MÁS el de comprimir, así que
+# apretar hasta el último byte se paga en la pantalla.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 app.include_router(api_router, prefix="/api/v1")
 

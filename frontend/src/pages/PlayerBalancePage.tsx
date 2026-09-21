@@ -361,7 +361,10 @@ function buildWaterfallOption(
       name: currency,
       axisLabel: { formatter: (value: number) => number(value) },
     },
-    legend: { data: [tx("Ganancia"), tx("Pérdida"), tx("Subtotal")], bottom: 0 },
+    legend: {
+      data: [tx("Ganancia"), tx("Pérdida"), tx("Subtotal")],
+      bottom: 0,
+    },
     tooltip: {
       trigger: "axis",
       formatter: (params) => {
@@ -531,9 +534,26 @@ const ENTRENAMIENTOS: [number, string][] = [
   [7, terminoOficial("entrenamientos", "7", "Pases")],
   [8, terminoOficial("entrenamientos", "8", "Jugadas")],
   [9, terminoOficial("entrenamientos", "9", "Portería")],
-  [10, terminoOficial("entrenamientos", "10", "Pases (defensas y centrocampistas)")],
-  [11, terminoOficial("entrenamientos", "11", "Defensa (porteros, defensas y centrocampistas)")],
-  [12, terminoOficial("entrenamientos", "12", "Lateral (extremos y delanteros)")],
+  [
+    10,
+    terminoOficial(
+      "entrenamientos",
+      "10",
+      "Pases (defensas y centrocampistas)",
+    ),
+  ],
+  [
+    11,
+    terminoOficial(
+      "entrenamientos",
+      "11",
+      "Defensa (porteros, defensas y centrocampistas)",
+    ),
+  ],
+  [
+    12,
+    terminoOficial("entrenamientos", "12", "Lateral (extremos y delanteros)"),
+  ],
 ];
 
 const HABILIDADES: [string, string][] = [
@@ -791,18 +811,14 @@ export function PlayerBalancePage() {
   const soldRowsInSeason =
     seasonFilter === "all"
       ? soldRows
-      : soldRows.filter(
-          (r) => (temporadaDe(r)) === seasonFilter,
-        );
+      : soldRows.filter((r) => temporadaDe(r) === seasonFilter);
 
   // Filtros compartidos (pedido explícitamente 2026-08-05, confirmado: un
   // solo lugar, no repetidos por sección), Resumen, Desgloses y Detalle
   // parten TODOS del mismo subconjunto filtrado, para que una fila
   // descartada aquí desaparezca de las tres a la vez.
   const trainingOptions = Array.from(
-    new Set(
-      soldRowsInSeason.map((r) => entrenamientoDe(r)),
-    ),
+    new Set(soldRowsInSeason.map((r) => entrenamientoDe(r))),
   ).sort();
   // Primero TODO lo que no es el control de Datos. Lo que queda aquí es la
   // base sobre la que se cuenta el aviso: sin esta separación, el «de 567»
@@ -810,9 +826,7 @@ export function PlayerBalancePage() {
   // siempre «567 de 567».
   let baseRows = soldRowsInSeason;
   if (trainingFilter !== "all") {
-    baseRows = baseRows.filter(
-      (r) => (entrenamientoDe(r)) === trainingFilter,
-    );
+    baseRows = baseRows.filter((r) => entrenamientoDe(r) === trainingFilter);
   }
   if (originFilter === "bought")
     baseRows = baseRows.filter((r) => !r.isAcademyGraduate && !r.originUnknown);
@@ -952,11 +966,7 @@ export function PlayerBalancePage() {
       r.weekAtPurchase != null ? weekLabel(r.weekAtPurchase) : UNKNOWN_WEEK,
       r,
     );
-    acumular(
-      roiPorEntrenamiento,
-      entrenamientoDe(r),
-      r,
-    );
+    acumular(roiPorEntrenamiento, entrenamientoDe(r), r);
     acumular(
       roiPorEdad,
       typeof r.ageAtSale === "number"
@@ -2043,10 +2053,11 @@ function RoiPanel({
         const lista = params as { dataIndex: number }[];
         const p = puntos[lista[0]?.dataIndex ?? 0];
         if (!p) return "";
-        return tx(
-          "{{v0}}<br/>ROI {{v1}}%<br/>{{v2}} venta(s)",
-          { v0: p.clave, v1: p.roi.toFixed(1), v2: p.ventas },
-        );
+        return tx("{{v0}}<br/>ROI {{v1}}%<br/>{{v2}} venta(s)", {
+          v0: p.clave,
+          v1: p.roi.toFixed(1),
+          v2: p.ventas,
+        });
       },
     },
     xAxis: horizontal
@@ -2159,11 +2170,17 @@ function RoiPanel({
 const SKILL_HEADERS: [string, [string, string]][] = [
   ["keeper", ["PO", terminoOficial("habilidades", "keeper", "Portería")]],
   ["defending", ["DE", terminoOficial("habilidades", "defending", "Defensa")]],
-  ["playmaking", ["JU", terminoOficial("habilidades", "playmaking", "Jugadas")]],
+  [
+    "playmaking",
+    ["JU", terminoOficial("habilidades", "playmaking", "Jugadas")],
+  ],
   ["winger", ["LA", terminoOficial("habilidades", "winger", "Lateral")]],
   ["passing", ["PA", terminoOficial("habilidades", "passing", "Pases")]],
   ["scoring", ["AN", terminoOficial("habilidades", "scoring", "Anotación")]],
-  ["setPieces", ["BP", terminoOficial("habilidades", "set_pieces", "Balón parado")]],
+  [
+    "setPieces",
+    ["BP", terminoOficial("habilidades", "set_pieces", "Balón parado")],
+  ],
 ];
 
 function TransferAttemptsSection() {
@@ -2340,7 +2357,9 @@ function TransferAttemptsSection() {
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.agentPct === "?"
                     ? "-"
-                    : `${(r.agentPct * 100).toFixed(1)}%`}
+                    : // Dos decimales: Hattrick cobra 11,97 % y con uno solo
+                      // se leia 12,0 %, que no se puede comparar con nada.
+                      `${(r.agentPct * 100).toFixed(2)}%`}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {r.timesSeen ?? "?"}
@@ -2679,7 +2698,7 @@ function BalanceTable({
       value: (r) => r.agentPct ?? -1,
       render: (r) => (
         <span className="tabular-nums">
-          {r.agentPct != null ? `${(r.agentPct * 100).toFixed(1)}%` : "-"}
+          {r.agentPct != null ? `${(r.agentPct * 100).toFixed(2)}%` : "-"}
         </span>
       ),
     },
@@ -2783,7 +2802,9 @@ function BalanceTable({
       align: "left",
       value: (r) => r.derivedTrainingSkill ?? "",
       render: (r) =>
-        r.derivedTrainingSkill ? tx(r.derivedTrainingSkill) : tx("Sin resolver"),
+        r.derivedTrainingSkill
+          ? tx(r.derivedTrainingSkill)
+          : tx("Sin resolver"),
     },
     {
       key: "derivedTrainingLevels",

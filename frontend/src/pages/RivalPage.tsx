@@ -410,7 +410,7 @@ export function RivalPage() {
                   ? tx(
                       "Lado fuerte fijo, sin excepción: la {{v0}} fue el carril más fuerte en los {{v1}} de {{v2}} partidos vistos.",
                       {
-                        v0: data.sideRotation.strongSide,
+                        v0: nombreDeCarril(data.sideRotation.strongSide),
                         v1: data.sideRotation.matchesAnalysed,
                         v2: data.sideRotation.matchesAnalysed,
                       },
@@ -426,7 +426,7 @@ export function RivalPage() {
                     : tx(
                         "Lado fuerte habitual: la {{v0}} fue el carril más fuerte en el {{v1}}% de sus últimos {{v2}} partido(s), con variación partido a partido, no siempre por el mismo margen.",
                         {
-                          v0: data.sideRotation.strongSide,
+                          v0: nombreDeCarril(data.sideRotation.strongSide),
                           v1: data.sideRotation.dominantPct.toFixed(0),
                           v2: data.sideRotation.matchesAnalysed,
                         },
@@ -661,6 +661,19 @@ export function RivalPage() {
  * A la derecha, el promedio con su barra de dispersión: un promedio alto con
  * mucha dispersión avisa de que ese lado depende del día.
  */
+/** El nombre de un carril para leerlo.
+ *
+ *  La CLAVE («izquierda») la manda el servidor y se usa para comparar; esto
+ *  es sólo lo que se pinta. Sin separarlos, traducir la etiqueta rompía la
+ *  comparación con `best` y se apagaba el punto del mejor carril del día
+ *  (2026-09-20). */
+function nombreDeCarril(clave: string): string {
+  if (clave === "izquierda") return tx("izquierda");
+  if (clave === "centro") return tx("centro");
+  if (clave === "derecha") return tx("derecha");
+  return clave;
+}
+
 function AttackLanes({
   rotation,
 }: {
@@ -690,7 +703,7 @@ function AttackLanes({
       {carriles.map(([etiqueta, clave, avg, std]) => (
         <div key={etiqueta} className="flex items-stretch gap-2">
           <div className="w-20 shrink-0 self-center text-[10px] uppercase text-[var(--muted)]">
-            {etiqueta}
+            {nombreDeCarril(etiqueta)}
           </div>
           <div className="flex flex-1 items-end gap-1">
             {partidos.map((partido, i) => {
@@ -703,7 +716,7 @@ function AttackLanes({
                   title={tx("{{v0}}: {{v1}} en {{v2}}{{v3}}", {
                     v0: partido.label,
                     v1: valor,
-                    v2: etiqueta,
+                    v2: nombreDeCarril(etiqueta),
                     v3: gana ? " (su mejor carril ese día)" : "",
                   })}
                 >
@@ -1064,9 +1077,9 @@ function ComparisonRow({
 // ── Duelos por zona de la cancha (cancha horizontal) ────────────────────────
 
 const DUEL_ROW_LABEL: Record<"left" | "central" | "right", string> = {
-  left: "Izquierda",
-  central: "Centro",
-  right: "Derecha",
+  left: tx("Izquierda"),
+  central: tx("Centro"),
+  right: tx("Derecha"),
 };
 
 /** Una celda del duelo: se reparte horizontalmente entre tu color y el del

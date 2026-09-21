@@ -22,7 +22,14 @@ import { useEffect, useState } from "react";
 export function usePersistido<T>(clave: string, porDefecto: T) {
   const [valor, setValor] = useState<T>(() => recordado(clave, porDefecto));
   useEffect(() => {
-    localStorage.setItem(clave, JSON.stringify(valor));
+    try {
+      localStorage.setItem(clave, JSON.stringify(valor));
+    } catch {
+      // Sin espacio, en privado o con los datos del sitio bloqueados, guardar
+      // lanza. Antes reventaba dentro del efecto y se llevaba por delante la
+      // pantalla entera: perder un ajuste al cerrar es molesto, quedarse sin
+      // pantalla por él es peor.
+    }
   }, [clave, valor]);
   return [valor, setValor] as const;
 }

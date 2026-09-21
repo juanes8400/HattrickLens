@@ -39,7 +39,33 @@ def test_un_nivel_bajo_con_el_techo_sin_revelar_no_es_un_techo_bajo() -> None:
     va donde van los desconocidos, no al fondo.
     """
     assert ys.skill_note(ys.YouthSkillReading(current=2, maximum=None)) is None
-    assert ys.skill_note(ys.YouthSkillReading(current=7, maximum=None)) is None
+    assert ys.skill_note(ys.YouthSkillReading(current=5, maximum=None)) is None
+
+
+def test_un_nivel_alto_sin_techo_ya_vale_lo_que_ese_nivel() -> None:
+    """2026-09-19, pedido del usuario: un «6/?» es como minimo un 6.
+
+    El techo no puede estar por debajo del nivel de hoy, asi que cuando el
+    nivel ya alcanza el corte de «aceptable» no hace falta esperar al ojeador
+    para saber que ese canterano vale al menos eso. El suelo solo promociona;
+    por debajo del corte no dice nada y se queda en «no se sabe».
+    """
+    assert ys.skill_note(ys.YouthSkillReading(current=6, maximum=None)) == 6
+    assert ys.skill_note(ys.YouthSkillReading(current=7, maximum=None)) == 7
+    assert ys.skill_note(ys.YouthSkillReading(current=9, maximum=None)) == 9
+    # Y un techo REVELADO sigue mandando sobre el nivel de hoy.
+    assert ys.skill_note(ys.YouthSkillReading(current=6, maximum=8)) == 8
+
+
+def test_un_seis_sin_techo_cae_en_aceptable_segun_la_edad() -> None:
+    """La pregunta exacta del usuario: ¿dónde se reporta un «6/?»?
+
+    En «aceptable», y el plazo decide en cuál de los dos: el que sale joven
+    pesa mas que el que todavia tiene margen.
+    """
+    nota = ys.skill_note(ys.YouthSkillReading(current=6, maximum=None))
+    assert ys.bucket_of(nota, leaves_soon=True) == ys.Bucket.ACCEPTABLE_SOON
+    assert ys.bucket_of(nota, leaves_soon=False) == ys.Bucket.ACCEPTABLE_LATER
 
 
 def test_a_capped_skill_scores_nothing_however_high_it_is() -> None:

@@ -36,7 +36,7 @@ Notas de implementación:
 
 - Cliente OAuth: `authlib` (OAuth1Session) con firma HMAC-SHA1.
 - Los tokens CHPP **no expiran** por tiempo, pero el usuario puede revocarlos en HT → capturar 401, marcar `chpp_tokens.status='revoked'`, pedir re-auth. "Renovación automática" = re-lanzar el dance solo cuando falla, con aviso al usuario.
-- Scopes CHPP (p.ej. `manage_challenges`, `set_matchorder`...) NO se solicitan: solo lectura por defecto → menor fricción de aprobación.
+- Scopes CHPP: sólo se pide `manage_youthplayers`, que es lo que necesita revelar las habilidades juveniles. Todo lo demás es de lectura. Escribir la alineación se probó y funciona (`set_matchorder`), pero se retiró el 2026-09-20 a petición del usuario; si se retoma, ver el commit 2c07e14. Un token ya emitido NO gana permisos: añadir uno obliga a reconectar una vez.
 - User-Agent obligatorio: `HattrickLens/x.y.z`.
 - Multi-equipo: `teamdetails` devuelve todos los equipos del usuario; se crean filas en `user_teams`.
 

@@ -331,12 +331,36 @@ function CompensaAmpliar({ data }: { data: Arena }) {
   const composicion = data.composition ?? {};
   const aforo = Object.values(composicion).reduce((a, b) => a + b, 0);
   if (opciones.length === 0 && aforo === 0) return null;
+  // Los nombres de Hattrick para las cuatro zonas, en el idioma que toque.
+  //
+  // NO salen del glosario oficial porque ese fichero no los trae: cubre
+  // habilidades, niveles, tácticas, puestos y calificaciones, y las zonas del
+  // estadio no están. Así que van aquí con los nombres que Hattrick usa en su
+  // propia pantalla de Estadio. Si algún día el glosario los incluye, este es
+  // el sitio donde cambiarlo (2026-09-20, señalado por el usuario).
   const sectores: [string, string][] = [
-    ["general", "General"],
-    ["preferentes", "Preferentes"],
-    ["tribunas", "Tribunas"],
-    ["palcos", "Palcos"],
+    ["general", tx("General")],
+    ["preferentes", tx("Preferentes")],
+    ["tribunas", tx("Tribunas")],
+    ["palcos", tx("Palcos")],
   ];
+  // EL DESGLOSE DE LA AMPLIACIÓN SE COMPONE AQUÍ (2026-09-20). El servidor
+  // mandaba la frase entera, «Ampliación pequeña (+1.000: 625 general, 250
+  // preferentes...)», con tantos trozos como sectores reciban asientos: un
+  // número variable de piezas que ninguna plantilla de traducción puede
+  // casar, así que la opción se quedaba en español con la aplicación en
+  // inglés. Ahora llega el nombre del tamaño por un lado y los asientos por
+  // otro, y cada pieza se traduce por su cuenta.
+  const reparto = (asientos: Record<string, number>) => {
+    const total = Object.values(asientos).reduce((a, b) => a + b, 0);
+    const partes = sectores
+      .filter(([clave]) => (asientos[clave] ?? 0) > 0)
+      .map(
+        ([clave, nombre]) =>
+          `${number(asientos[clave]!)} ${nombre.toLowerCase()}`,
+      );
+    return `+${number(total)}: ${partes.join(", ")}`;
+  };
   const viables = opciones
     .filter((o) => o.netPerSeason > 0 && o.paybackSeasons != null)
     .sort((a, b) => (a.paybackSeasons ?? 0) - (b.paybackSeasons ?? 0));
@@ -355,6 +379,9 @@ function CompensaAmpliar({ data }: { data: Arena }) {
         {mejor ? (
           <>
             <b>{tx("Sí, con matices:")}</b> {mejor.label}{" "}
+            <span className="text-[var(--muted)]">
+              ({reparto(mejor.addedSeats)})
+            </span>{" "}
             {tx("se amortizaría en unas")} {mejor.paybackSeasons!.toFixed(1)}{" "}
             {tx("temporadas.")}
           </>
@@ -449,7 +476,12 @@ function CompensaAmpliar({ data }: { data: Arena }) {
           <tbody>
             {opciones.map((o) => (
               <tr key={o.label} className="border-t border-[var(--border)]">
-                <td className="py-1.5 pr-3">{o.label}</td>
+                <td className="py-1.5 pr-3">
+                  {o.label}
+                  <span className="block text-xs text-[var(--muted)]">
+                    {reparto(o.addedSeats)}
+                  </span>
+                </td>
                 <td className="py-1.5 pr-3 text-right tabular-nums">
                   {money(o.buildCost, cur)}
                 </td>

@@ -261,3 +261,40 @@ def test_el_csv_tambien_lleva_candado(cliente, monkeypatch) -> None:
     la_app.dependency_overrides.pop(real, None)
     monkeypatch.setattr(settings, "admin_ht_user_id", 999_999)   # no es el 7
     assert client.get("/api/v1/usage/export.csv").status_code == 403
+
+
+def test_siempre_alcanza_lo_que_el_plazo_corto_deja_fuera(cliente) -> None:
+    """`dias=0` es «Siempre»: sin corte por fecha (2026-09-20, pedido).
+
+    Lo que fija esta prueba no es que el numero pase, sino que signifique
+    ALGO DISTINTO de un plazo largo: el evento viejo tiene que salir con cero
+    y no salir con siete, porque si cero se tratara como «hace cero dias» el
+    resumen saldria vacio, que es el fallo facil de cometer.
+    """
+    client, _ = cliente
+    viejo = (datetime.now(UTC) - timedelta(days=200)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = client.post("/api/v1/usage/events", json={"events": [_evento(at=viejo)]})
+    assert r.status_code == 204, r.text
+
+    assert client.get("/api/v1/usage?dias=7").json()["totals"]["pages"] == 0
+    de_siempre = client.get("/api/v1/usage?dias=0").json()
+    assert de_siempre["totals"]["pages"] == 1
+    assert de_siempre["days"] == 0
+
+    assert client.get("/api/v1/usage/log?dias=7").json()["total"] == 0
+    assert client.get("/api/v1/usage/log?dias=0").json()["total"] == 1
+
+
+def test_el_registro_enseña_el_nombre_de_hoy_y_lo_filtra(cliente) -> None:
+    """Una visita guardada con el nombre viejo sale con el nuevo, y el filtro
+    por el nombre nuevo la encuentra. Antes el registro contradecia al resumen,
+    que si traducia (2026-09-20)."""
+    client, _ = cliente
+    r = client.post("/api/v1/usage/events", json={
+        "events": [_evento(module="Otros (/liga)")]
+    })
+    assert r.status_code == 204, r.text
+
+    filas = client.get("/api/v1/usage/log?dias=0").json()["rows"]
+    assert [f["module"] for f in filas] == ["Liga"]
+    assert client.get("/api/v1/usage/log?dias=0&modulo=Liga").json()["total"] == 1

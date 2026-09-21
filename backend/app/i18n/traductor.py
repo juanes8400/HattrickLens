@@ -31,6 +31,23 @@ from typing import Any
 
 _CARPETA = Path(__file__).resolve().parent
 
+#: Qué pinta tiene una CLAVE DE LÓGICA: minúsculas ASCII, sin espacios ni
+#: acentos. «keeper», «forward_defensive», «average».
+FORMA_DE_CLAVE = re.compile(r"^[a-z0-9_.\-]+$")
+
+#: Los campos que llevan LAS DOS COSAS según quién responda, y que por eso se
+#: deciden mirando la forma del valor en vez de por su nombre (2026-09-20).
+#:
+#: `position` vale «keeper» en el once del Panel, donde el frontend lo COMPARA
+#: y traducirlo rompería la pantalla, y vale «Mediocentro medio» en la
+#: plantilla de un rival, que es texto para leer y se quedaba en español.
+#:
+#: La lista se queda CORTA a propósito. `specialty` parece el mismo caso y no
+#: lo es: el frontend casa el nombre español contra el glosario oficial de
+#: Hattrick para sacar su icono, así que traducirlo aquí le quitaría el icono
+#: a todas las especialidades. Ahí la traducción la hace la pantalla, y bien.
+CAMPOS_SEGUN_LA_FORMA = frozenset({"position"})
+
 #: Campos cuyo valor es una clave de lógica, no un texto para leer.
 CAMPOS_INTOCABLES = frozenset(
     {
@@ -51,12 +68,13 @@ CAMPOS_INTOCABLES = frozenset(
         "display",
         "region",
         "code",
+        # El codigo ISO de la bandera: dos letras que no son una palabra.
+        "countryCode",
         "id",
         "live",
         "href",
         "ruta",
         "url",
-        "position",
         "basePosition",
         "behaviour",
         "puesto",
@@ -64,7 +82,6 @@ CAMPOS_INTOCABLES = frozenset(
         "result",
         "seasonAtSale",
         "derivedTrainingSkill",
-        "topSkillAtSale",
         "teamName",
         "player",
         "opponent",
@@ -90,7 +107,7 @@ def idioma_de(cabecera: str | None) -> str:
 class Traductor:
     def __init__(self, diccionario: dict[str, str]) -> None:
         self._exactos: dict[str, str] = {}
-        plantillas: list[tuple[re.Pattern[str], str, str]] = []
+        plantillas: list[tuple[re.Pattern[str], str, str, int]] = []
         for origen, destino in diccionario.items():
             if not destino:
                 continue
@@ -99,17 +116,30 @@ class Traductor:
             else:
                 self._exactos[origen] = destino
         # Las más largas primero: «{} de {} en total» antes que «{} de {}».
-        plantillas.sort(key=lambda p: len(p[2]), reverse=True)
-        self._plantillas = plantillas
+        #
+        # Y A IGUALDAD DE TROZO MÁS LARGO, la que tenga MÁS literal en total
+        # (2026-09-20). Ordenar sólo por el trozo más largo deja empatadas a
+        # dos plantillas que empiezan igual y se separan al final, y el empate
+        # lo rompía el orden del diccionario, o sea el azar. Pasó con el alta
+        # de un jugador: «{} se unió a la plantilla: comprado por {}» y
+        # «... comprado por {}, sueldo {}» comparten el trozo largo, ganaba la
+        # corta y el sueldo se quedaba en español dentro de una frase inglesa.
+        plantillas.sort(key=lambda p: (len(p[2]), p[3]), reverse=True)
+        self._plantillas = [(pa, de, pi) for pa, de, pi, _ in plantillas]
 
     @staticmethod
-    def _compilar(origen: str, destino: str) -> tuple[re.Pattern[str], str, str]:
+    def _compilar(origen: str, destino: str) -> tuple[re.Pattern[str], str, str, int]:
         literal = origen.replace("{{", "\x00").replace("}}", "\x01")
         trozos = literal.split("{}")
         patron = "(.+?)".join(
             re.escape(t.replace("\x00", "{").replace("\x01", "}")) for t in trozos
         )
-        return re.compile(f"^{patron}$", re.DOTALL), destino, max(trozos, key=len)
+        return (
+            re.compile(f"^{patron}$", re.DOTALL),
+            destino,
+            max(trozos, key=len),
+            sum(len(t) for t in trozos),
+        )
 
     def texto(self, valor: str) -> str:
         if not valor or not any(c.isalpha() for c in valor):
@@ -162,6 +192,10 @@ class Traductor:
         # Un campo intocable protege su TEXTO, no lo que cuelga de él: bajo
         # «type» o «status» puede venir un objeto con frases para leer.
         if isinstance(dato, str):
+            if campo in CAMPOS_SEGUN_LA_FORMA:
+                # Los de doble uso: se respetan sólo mientras el valor tenga
+                # pinta de clave. Si es una frase, es para leer.
+                return dato if FORMA_DE_CLAVE.match(dato) else self.texto(dato)
             return dato if campo in CAMPOS_INTOCABLES else self.texto(dato)
         if isinstance(dato, list):
             return [self.json(x, campo) for x in dato]

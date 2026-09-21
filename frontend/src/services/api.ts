@@ -47,7 +47,29 @@ export function errorMessage(error: unknown): string {
 // simultáneos (varias queries pueden expirar a la vez), antes de reintentar
 // la petición original. Si el refresco también falla (sesión realmente
 // muerta), se deja pasar el 401 tal cual, la UI ya sabe pedir reconectar.
-let refreshing: Promise<boolean> | null = null;
+//: Lo que contesta un intento de renovar la sesion. Son TRES cosas, y la
+//: tercera es la que faltaba: que el servidor no conteste no significa que la
+//: sesion haya muerto. Reportado por el usuario: «se desconecta y se va para
+//: render a veces» (2026-09-19). El servidor se reinicia --un despliegue, un
+//: reinicio del proveedor--, la renovacion se va con el, y la aplicacion lo
+//: leia como «sesion muerta»: te echaba a /welcome, con recarga de pagina
+//: entera, justo en el peor momento para pedirle una pagina al servidor. De
+//: ahi la pantalla del proveedor. Se echa solo cuando el servidor DICE que no.
+type Renovacion = "viva" | "muerta" | "sin-respuesta";
+
+let refreshing: Promise<Renovacion> | null = null;
+
+/** Que significa el codigo con el que contesto la renovacion.
+ *
+ *  401 y 403 son el servidor negandose: la sesion esta muerta de verdad.
+ *  Cualquier otro fallo --un 502 del proveedor mientras reinicia, un 500, una
+ *  pagina de error que no es nuestra-- dice otra cosa: que ahora mismo no hay
+ *  con quien hablar. `null` es "ni siquiera hubo respuesta". */
+export function leerRenovacion(estado: number | null): Renovacion {
+  if (estado === null) return "sin-respuesta";
+  if (estado >= 200 && estado < 300) return "viva";
+  return estado === 401 || estado === 403 ? "muerta" : "sin-respuesta";
+}
 
 function expireLocalSession(): void {
   localStorage.removeItem("htlens_team_id");
@@ -56,14 +78,16 @@ function expireLocalSession(): void {
   }
 }
 
-function refreshSession(): Promise<boolean> {
+function refreshSession(): Promise<Renovacion> {
   if (!refreshing) {
     refreshing = fetch(`${BASE}/auth/chpp/refresh`, {
       method: "POST",
       credentials: "include",
     })
-      .then((res) => res.ok)
-      .catch(() => false)
+      .then((res): Renovacion => leerRenovacion(res.status))
+      // Sin red, servidor cayendose o peticion cortada. Tampoco es una sesion
+      // muerta; se reintentara sola en la siguiente peticion.
+      .catch((): Renovacion => "sin-respuesta")
       .finally(() => {
         refreshing = null;
       });
@@ -96,13 +120,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Hattrick rechazó NUESTRO token, que es otro problema y no se arregla
   // volviendo a entrar. Un hipo pasajero de Hattrick expulsaba de la
   // aplicación (2026-09-04, reportado en producción).
-  let sesionViva = true;
+  let renovacion: Renovacion = "viva";
   if (res.status === 401 && mayRefresh) {
-    sesionViva = await refreshSession();
-    if (sesionViva) res = await doFetch();
+    renovacion = await refreshSession();
+    if (renovacion === "viva") res = await doFetch();
   }
 
-  if (res.status === 401 && mayRefresh && !sesionViva) expireLocalSession();
+  // Solo «muerta» echa de la aplicacion. Con «sin-respuesta» el error sube a
+  // la pantalla, que lo enseña y lo reintenta, y la sesion se queda donde
+  // estaba: un servidor reiniciandose no es una sesion caducada.
+  if (res.status === 401 && mayRefresh && renovacion === "muerta") {
+    expireLocalSession();
+  }
 
   if (!res.ok) {
     // El cuerpo se lee UNA vez, como texto, y se intenta interpretar después.
@@ -134,12 +163,11 @@ export const api = {
   squad: (
     teamId: number,
     position?: string,
-    comparisonSyncId?: number | null,
+    comparisonWindow?: VentanaDeComparacion,
   ) => {
     const query = new URLSearchParams();
     if (position) query.set("position", position);
-    if (comparisonSyncId != null)
-      query.set("comparison_sync_id", String(comparisonSyncId));
+    if (comparisonWindow) query.set("comparison_window", comparisonWindow);
     const suffix = query.toString();
     return request<Squad>(
       `/teams/${teamId}/squad${suffix ? `?${suffix}` : ""}`,
@@ -184,6 +212,8 @@ export const api = {
     request<TrainingForecast>(`/teams/${teamId}/training/forecast`),
   postMatchTraining: (teamId: number) =>
     request<PostMatchTraining>(`/teams/${teamId}/training/post-match`),
+  ultimoEntrenamiento: (teamId: number) =>
+    request<UltimoEntrenamiento>(`/teams/${teamId}/training/last`),
   teamOverview: (teamId: number) =>
     request<TeamOverview>(`/teams/${teamId}/overview`),
   insights: (teamId: number) => request<Insight[]>(`/teams/${teamId}/insights`),
@@ -437,9 +467,9 @@ export const api = {
     // Mismo criterio que arriba: sólo se expulsa si el refresco no pudo
     // revivir la sesión.
     if (res.status === 401) {
-      const revivio = await refreshSession();
-      if (revivio) res = await doSync();
-      else expireLocalSession();
+      const renovacion = await refreshSession();
+      if (renovacion === "viva") res = await doSync();
+      else if (renovacion === "muerta") expireLocalSession();
     }
     if (!res.ok || !res.body) {
       let detail: unknown;
@@ -881,6 +911,13 @@ export interface PlayerComparisonChange {
   current: number | boolean;
   delta: number | null;
   direction: "up" | "down" | "neutral";
+  /** Sólo en `key === "arrival"`: lo que costó el fichaje, ya en la moneda
+   *  del club. `null` cuando el libro de transferencias todavía no lo trae,
+   *  que no es lo mismo que gratis. */
+  arrivalPrice?: number | null;
+  /** El otro origen posible: subió de la propia cantera. */
+  fromAcademy?: boolean;
+  currency?: string;
 }
 
 /** Una linea de una celda de entrenamiento juvenil.
@@ -1539,9 +1576,18 @@ export interface Squad {
     baselineSyncId: number | null;
     baselineCapturedAt: string | null;
   };
+  /** Las ventanas de comparación, con la que no se puede usar todavía
+   *  marcada: el servidor resuelve contra qué cierre compara cada una, así
+   *  que la cuenta de fechas está en un solo sitio. */
+  comparisonWindows: { key: VentanaDeComparacion; available: boolean }[];
   history: { syncId: number; capturedAt: string; snapshots: number }[];
   players: SquadPlayer[];
 }
+
+/** Contra qué se miran las diferencias de la plantilla. `change` es el
+ *  último cambio de cada jugador; `all`, el cierre más antiguo guardado. */
+export type VentanaDeComparacion =
+  "change" | "w1" | "w2" | "w4" | "w8" | "w16" | "all";
 
 export interface Dashboard {
   teamId: number;
@@ -1913,6 +1959,42 @@ export interface TeamOverviewGroup {
   metrics: TeamOverviewMetric[];
 }
 
+/** El parte de la última actualización semanal de entrenamiento. */
+export interface UltimoEntrenamiento {
+  /** Instante oficial de la actualización. `null` si no se sabe la hora de
+   *  esta liga todavía. */
+  at: string | null;
+  seasonWeek: string | null;
+  trainingType: string | null;
+  intensity: number | null;
+  staminaShare: number | null;
+  trainerName: string | null;
+  /** Lo que Hattrick confirmó: subidas Y bajadas, que el mismo fichero
+   *  reporta. `delta` positivo sube, negativo baja. */
+  ups: {
+    htPlayerId: number;
+    name: string;
+    skill: string;
+    skillLabel: string;
+    fromLevel: number;
+    toLevel: number;
+    delta: number;
+  }[];
+  upCount: number;
+  downCount: number;
+  previousAt: string | null;
+  previousSeasonWeek: string | null;
+  previousUps: number;
+  /** Cuando en la última no subió nadie, la última que sí movió algo. */
+  lastWithUps: string | null;
+  /** Hasta cuándo llegan los datos guardados. */
+  dataAt: string | null;
+  /** Los datos son anteriores al entrenamiento: todavía no se ha mirado. */
+  pendingSync: boolean;
+  /** Cuándo toca el siguiente. */
+  nextAt: string | null;
+}
+
 export interface TeamOverview {
   teamName: string;
   playerCount: number;
@@ -2107,6 +2189,9 @@ export interface HistoricalPlayerChange {
   delta: number | null;
   /** El cambio es una revelación del ojeador, no un movimiento. */
   isReveal?: boolean;
+  /** El canterano LLEGÓ dentro de la ventana: esto no es un movimiento suyo,
+   *  es con lo que entró por la puerta. */
+  isArrival?: boolean;
 }
 
 export interface ChangesHistory {
@@ -2385,6 +2470,8 @@ export interface Arena {
     emptySeats: number;
   }[];
   expansionOptions: {
+    /** Sólo el nombre del tamaño: «Ampliación pequeña». El desglose de dónde
+     *  van los asientos lo compone la pantalla con `addedSeats`. */
     label: string;
     addedSeats: Record<string, number>;
     buildCost: number;
@@ -2452,6 +2539,9 @@ export interface Skills {
     specialty: string;
     injured: boolean;
     inLineup: boolean;
+    /** Para la bandera, igual que en Posiciones. */
+    countryCode: string | null;
+    nativeLeagueName: string | null;
   }[];
   depth: SkillsDepth[];
   sectors: {

@@ -107,6 +107,13 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
                 "country_name": _txt(country, "CountryName", "") if country is not None else "",
                 "ht_region_id": _int(region, "RegionID") if region is not None else 0,
                 "region_name": _txt(region, "RegionName", "") if region is not None else "",
+                # La academia de ESTE equipo, 2026-09-19. Hattrick la nombra
+                # club por club, y es la unica forma de pedir la cantera
+                # correcta cuando la cuenta tiene mas de un equipo: los
+                # ficheros juveniles pedidos sin este id devuelven SIEMPRE la
+                # academia del equipo principal. `0` = este club no tiene.
+                "ht_youth_team_id": _int(t, "YouthTeamID"),
+                "youth_team_name": _txt(t, "YouthTeamName", ""),
                 # Estado oficial de la Copa actual. Si StillInCup=False, los
                 # demás campos pueden venir vacíos y deben limpiarse al persistir.
                 "still_in_cup": _bool(cup, "StillInCup") if cup is not None else None,
@@ -1279,10 +1286,17 @@ def parse_youthteamdetails(xml: bytes) -> dict[str, Any]:
         }
         for o in team.findall(".//Scout")
     ]
+    # De QUE equipo mayor es esta academia. Es lo que permite comprobar que
+    # Hattrick nos dio la cantera que pedimos y no la del club principal.
+    dueno = team.find("OwningTeam")
     return {
         "ht_youth_team_id": _int(team, "YouthTeamID"),
         "youth_team_name": _txt(team, "YouthTeamName", ""),
+        "mother_team_id": _int(dueno, "MotherTeamID") if dueno is not None else 0,
+        "mother_team_name": _txt(dueno, "MotherTeamName", "") if dueno is not None else "",
         "created_date": _txt(team, "CreatedDate", ""),
+        #: La cita del proximo partido de entrenamiento juvenil.
+        "next_training_match_date": _txt(team, "NextTrainingMatchDate", ""),
         "scouts": ojeadores,
         #: `False` = se pidio sin `showScouts`, asi que no se sabe nada de
         #: ellos. Distinto de "los pedimos y no hay ninguno".

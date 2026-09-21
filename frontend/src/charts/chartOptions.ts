@@ -231,7 +231,7 @@ export function economySankeyOption(
   // gasto sale por la derecha, y lo que sobra o falta en el medio es
   // exactamente el resultado de la semana, con nombre propio, no un "hub"
   // técnico sin significado.
-  const hub = "Saldo de la semana";
+  const hub = tx("Saldo de la semana");
   const incomeLabels = new Set(positiveIncome.map((item) => item.label));
   const costNode = (label: string) =>
     incomeLabels.has(label) ? `${label}${NODE_DEDUP_MARK}` : label;

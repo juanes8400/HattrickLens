@@ -413,27 +413,31 @@ def test_de_punta_a_punta_el_mejor_gana():
     assert p.victoria > 0.9
 
 
-def test_queda_una_ventaja_de_local_pequena_y_constante():
-    """Con ratings IGUALES el local sale algo favorecido, y poco.
+def test_con_ratings_iguales_la_terna_sale_simetrica():
+    """Con ratings IGUALES, victoria y derrota salen exactamente iguales.
 
     La ventaja de campo de Hattrick ya viene DENTRO de los ratings --el medio
-    campo del local es un 19 % más alto--. Esto es lo que queda POR ENCIMA de
-    eso, y sale sólo de la mitad ORDINAL: de que la suma de sus coeficientes
-    no coincida con la de sus umbrales.
+    campo del local es un 19 % más alto-- y el motor no le suma nada encima.
 
-    LA MITAD DE GOLES APORTA CERO A ESTE MARGEN, y no por casualidad: calcula
-    la lambda de cada lado con SUS duelos ofensivos, así que con ratings
-    iguales las dos coinciden exactamente. Se comprobó también metiéndole un
-    término de «juega en casa»: sale +0,0149 con p = 0,33 y el AIC empeora.
-    Por eso el margen es exactamente `PESO_ORDINAL` por el margen del ordinal,
-    y se escribe así en vez de contra un número fijo: el día que se mueva el
-    peso de la mezcla la prueba sigue siendo verdad.
+    HASTA EL 2026-09-20 NO ERA ASÍ: quedaba un residuo de unos 5,7 puntos a
+    favor del local, que no venía de ningún bono sino de la mitad ORDINAL, de
+    que la suma de sus coeficientes no coincidiera con la de sus umbrales. Con
+    la mezcla en 100-0 ese residuo se fue con ella, y la Poisson es simétrica
+    por construcción: calcula la lambda de cada lado con SUS duelos
+    ofensivos, así que con ratings iguales las dos coinciden al último
+    decimal.
 
-    Si empieza a fallar hacia arriba, la ventaja de campo se está contando dos
-    veces."""
+    La prueba se escribe contra el peso y no contra un número fijo: si alguien
+    vuelve a encender la ordinal, esto es lo primero que lo dice.
+
+    Si empieza a fallar hacia arriba con el peso en cero, la ventaja de campo
+    se está contando dos veces."""
     iguales = _lecturas(40)
     p = probabilidades_de_partido(iguales, iguales)
     assert p is not None
+    if PESO_ORDINAL == 0.0:
+        assert p.victoria == pytest.approx(p.derrota, abs=1e-12)
+        return
     solo_ordinal = modelo_ajustado().probabilidades(
         variables(resumen_de_lecturas(iguales), resumen_de_lecturas(iguales))
     )
@@ -442,18 +446,21 @@ def test_queda_una_ventaja_de_local_pequena_y_constante():
     assert 0.0 < p.victoria - p.derrota < 0.10
 
 
-def test_dar_la_vuelta_al_partido_da_casi_la_vuelta_a_la_terna():
-    """Casi, no exacto: lo que sobra es la ventaja de local del ordinal.
+def test_dar_la_vuelta_al_partido_da_la_vuelta_a_la_terna():
+    """Cambiar de campo a los dos equipos da la terna espejada.
 
-    La mitad de goles SÍ es exactamente simétrica --se comprobaría con
-    tolerancia de coma flotante si pesara el 100 %--; con un 20 % de ordinal
-    en la mezcla queda un residuo, y ese residuo siempre favorece al local."""
+    Desde el 2026-09-20 es EXACTO, no aproximado: con la mezcla en 100-0 sólo
+    queda la Poisson, que es simétrica por construcción. Mientras hubo un 20 %
+    de ordinal quedaba un residuo de coma decimal, y ese residuo siempre
+    favorecía al local."""
     ida = probabilidades_de_partido(_lecturas(60), _lecturas(20))
     vuelta = probabilidades_de_partido(_lecturas(20), _lecturas(60))
     assert ida is not None and vuelta is not None
-    assert ida.victoria == pytest.approx(vuelta.derrota, abs=0.01)
-    assert ida.empate == pytest.approx(vuelta.empate, abs=0.01)
-    assert ida.victoria > vuelta.derrota  # el local, por poco, siempre mejor
+    tolerancia = 1e-12 if PESO_ORDINAL == 0.0 else 0.01
+    assert ida.victoria == pytest.approx(vuelta.derrota, abs=tolerancia)
+    assert ida.empate == pytest.approx(vuelta.empate, abs=tolerancia)
+    if PESO_ORDINAL > 0.0:
+        assert ida.victoria > vuelta.derrota  # el local, por poco, siempre mejor
 
 
 def test_sin_historia_de_un_lado_no_se_predice():
@@ -597,19 +604,35 @@ def test_la_copa_respeta_quien_es_mejor():
     assert copa.victoria / copa.derrota == pytest.approx(liga.victoria / liga.derrota)
 
 
-def test_el_peso_de_la_mezcla_es_el_medido():
-    """80 % Poisson / 20 % ordinal, elegido por el usuario el 2026-09-08.
+def test_el_peso_de_la_mezcla_es_el_elegido():
+    """100 % Poisson, elegido por el usuario el 2026-09-20.
 
-    Estuvo en 75/25 y en 60/40; sube hasta aquí porque la Poisson mejoró mucho
-    ese día (0,6559 -> 0,6334 de log-loss) mientras la ordinal sola se queda
-    en 0,6445.
-
-    0,80 ES EL MÍNIMO DEL BARRIDO Y ADEMÁS EL ÚLTIMO PUNTO CALIBRADO: a 0,90 y
-    a 1,00 el error de calibración del EMPATE se sale de su banda.
+    Estuvo en 60/40, en 75/25 y en 80/20. Se va al 100 sobre el barrido
+    entero, que dice dos cosas: que del 80 % al 100 % la PUNTERÍA no se mueve
+    (log-loss 0,6584 -> 0,6588, acierto y AUC iguales a tres decimales) y que
+    el EMPATE sí, porque a 0,90 y a 1,00 su error de calibración se sale de la
+    banda del azar. El usuario eligió con las dos cosas delante.
 
     Si alguien lo cambia sin volver a medir, este test lo dice."""
     from app.domain.engines.prediccion import PESO_GOLES, PESO_ORDINAL
 
     assert PESO_ORDINAL + PESO_GOLES == 1.0
-    assert PESO_ORDINAL == 0.20
-    assert PESO_GOLES == 0.80
+    assert PESO_ORDINAL == 0.0
+    assert PESO_GOLES == 1.0
+
+
+def test_la_ordinal_sigue_entera_aunque_no_pese():
+    """Apagada, no borrada (2026-09-20).
+
+    Volver al 80/20 tiene que seguir siendo cambiar dos números, así que el
+    modelo ordinal y su camino de cálculo siguen aquí y siguen dando una terna
+    válida. Sin esta prueba, la primera limpieza de código muerto se lo lleva
+    por delante y la vuelta atrás deja de ser barata."""
+    from app.domain.engines.prediccion import modelo_ajustado, variables
+
+    iguales = _lecturas(40)
+    terna = modelo_ajustado().probabilidades(
+        variables(resumen_de_lecturas(iguales), resumen_de_lecturas(iguales))
+    )
+    assert terna.victoria + terna.empate + terna.derrota == pytest.approx(1.0)
+    assert terna.victoria > terna.derrota, "el ordinal traía su propia ventaja de local"

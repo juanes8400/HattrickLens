@@ -131,12 +131,17 @@ def diff_player_skills(
         return Change(category="jugadores", summary=summary, subject=player_name, **kw)
 
     if old is None:
+        # Una sola redacción del alta, en `diff_player_arrival`. Aquí se llega
+        # sin precio ni origen --quien llama desde el sync ya no pasa por este
+        # camino, justamente porque el precio no se conoce todavía-- pero el
+        # sueldo sí está a mano y vale la pena decirlo (2026-09-20).
+        sueldo = new.get("salary")
         return [
-            _player(
-                f"{player_name} se unió a la plantilla",
-                metric="arrival",
-                label="Alta",
-                kind="event",
+            diff_player_arrival(
+                player_name,
+                salary=_dinero(sueldo) if sueldo else None,
+                currency=currency,
+                ht_player_id=new.get("ht_player_id"),
             )
         ]
 
@@ -284,6 +289,68 @@ def diff_rival_purchase(
     )
 
 
+def diff_player_arrival(
+    player_name: str,
+    salary: int | None = None,
+    purchase_price: int | None = None,
+    from_academy: bool = False,
+    currency: str = "",
+    ht_player_id: int | None = None,
+) -> Change:
+    """Un alta de plantilla, contada con lo que costó y lo que cuesta.
+
+    2026-09-20, pedido explícitamente: «la llegada de un jugador al equipo
+    senior debe reportarse con precio de compra (o salida de la academia o
+    juveniles) y salario al llegar». Antes era una línea sin cifras --«se unió
+    a la plantilla»-- que obligaba a irse a otra pantalla a mirar las dos
+    cosas que de verdad se quieren saber de un fichaje.
+
+    Las tres piezas son independientes y cualquiera puede faltar:
+
+    - El PRECIO sólo existe si el libro de transferencias trae la compra. Un
+      canterano no tiene precio, y de un fichaje recién cerrado el libro puede
+      llegar en la sincronización siguiente. Se calla, no se inventa un cero.
+    - `from_academy` es el otro origen posible, y es exclusivo con el precio.
+    - El SUELDO viene de la propia ficha, así que casi siempre está. Llega ya
+      convertido a la moneda del club, como en el resto de este módulo: aquí
+      no se conoce la tasa.
+
+    `after` se reserva para el precio, que es el par numérico que el frontend
+    sabe pintar; el sueldo viaja aparte en el detalle para no competir con él.
+    """
+    # Las seis frases van ENTERAS y no montadas por trozos. Montarlas dejaria
+    # el texto sin traducir: el traductor del servidor casa la frase completa
+    # contra sus plantillas, y una frase pegada a mano no coincide con
+    # ninguna. Son seis porque cada dato puede faltar por su cuenta.
+    precio = f"{thousands(purchase_price)} {currency}".strip() if purchase_price else ""
+    sueldo = f"{thousands(salary)} {currency}".strip() if salary else ""
+    if precio and sueldo:
+        frase = f"{player_name} se unió a la plantilla: comprado por {precio}, sueldo {sueldo}"
+    elif precio:
+        frase = f"{player_name} se unió a la plantilla: comprado por {precio}"
+    elif from_academy and sueldo:
+        frase = f"{player_name} se unió a la plantilla: sube de la cantera, sueldo {sueldo}"
+    elif from_academy:
+        frase = f"{player_name} se unió a la plantilla: sube de la cantera"
+    elif sueldo:
+        frase = f"{player_name} se unió a la plantilla: sueldo {sueldo}"
+    else:
+        frase = f"{player_name} se unió a la plantilla"
+    return Change(
+        category="jugadores",
+        subject=player_name,
+        # Sigue siendo `arrival`: lo que cambia es lo que la frase cuenta, no
+        # qué clase de suceso es, y hay historial guardado con esta métrica.
+        metric="arrival",
+        label="Alta",
+        kind="money" if purchase_price else "event",
+        after=purchase_price or None,
+        currency=currency if purchase_price else "",
+        ht_player_id=ht_player_id,
+        summary=frase,
+    )
+
+
 def diff_player_departure(
     player_name: str,
     sale_price: int | None,
@@ -396,9 +463,15 @@ def diff_expedientes_cerrados(conteo: dict[str, int]) -> Change | None:
         label="Expedientes cerrados",
         kind="count",
         after=total,
+        # DOS FRASES ENTERAS, no una con la «s» del plural metida en un hueco
+        # (2026-09-20). El traductor rellena los huecos POR POSICIÓN, así que
+        # una plantilla con «expediente{}» acababa dando «3 cases closeds» en
+        # inglés: el plural del español no cae en el mismo sitio que el del
+        # inglés. Con la frase entera cada idioma la escribe a su manera.
         summary=(
-            f"{total} expediente{'s' if total != 1 else ''} cerrado"
-            f"{'s' if total != 1 else ''}: {', '.join(partes)}"
+            f"{total} expedientes cerrados: {', '.join(partes)}"
+            if total != 1
+            else f"{total} expediente cerrado: {', '.join(partes)}"
         ),
     )
 

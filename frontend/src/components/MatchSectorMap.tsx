@@ -28,9 +28,9 @@ const RIVAL_COLOR = "#8b5cf6";
 type Zona = "left" | "central" | "right";
 
 const ETIQUETA: Record<Zona, string> = {
-  left: "Izquierda",
-  central: "Centro",
-  right: "Derecha",
+  left: tx("Izquierda"),
+  central: tx("Centro"),
+  right: tx("Derecha"),
 };
 
 /** Qué sector propio se enfrenta a qué sector del rival. */

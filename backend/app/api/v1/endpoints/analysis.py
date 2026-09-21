@@ -4,7 +4,7 @@ import hashlib
 import json
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
@@ -26,6 +26,10 @@ from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.team_overview import TeamOverviewQueryService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
+from app.application.queries.ultimo_entrenamiento import (
+    UltimoEntrenamientoQueryService,
+    como_json,
+)
 from app.application.queries.weekly import season_week_for_datetime, season_week_label
 from app.domain.engines import htms as htms_motor
 from app.domain.engines import insights as ins
@@ -2184,6 +2188,28 @@ async def post_match_training(
 
 
 @router.get(
+    "/teams/{team_id}/training/last",
+    summary="El parte de la última actualización de entrenamiento",
+    dependencies=[Depends(require_team_owner)],
+)
+async def ultimo_entrenamiento(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Qué pasó en la última actualización semanal: cuándo fue, con qué
+    entrenamiento puesto y quién subió.
+
+    El «cuándo» no se adivina: Hattrick publica la hora de la actualización de
+    cada liga y se retrocede desde ahí. Las subidas son las que el propio
+    Hattrick confirma, no diferencias entre fotos.
+    """
+    parte = await UltimoEntrenamientoQueryService(session).get(team_id)
+    if parte is None:
+        raise HTTPException(404, f"team {team_id} not found")
+    return como_json(parte)
+
+
+@router.get(
     "/teams/{team_id}/overview",
     summary="Habilidades: la plantilla entera promediada por grupos",
     dependencies=[Depends(require_team_owner)],
@@ -2198,9 +2224,23 @@ async def team_overview(
     todas sus métricas comparten escala, `bars` cuando cada una necesita su
     propio techo (ver `team_overview.py`).
     """
+    # Una vez por sync (2026-09-20). Es el promedio de la plantilla entera por
+    # grupos, con sus series semanales: 168 ms de cuentas que sólo cambian
+    # cuando llegan datos nuevos, y se pagaban en cada visita a Habilidades.
+    from app.api.cache_por_sync import por_sync
+
+    respuesta = await por_sync(
+        session, team_id, "habilidades", (), lambda: _team_overview_sin_cache(session, team_id)
+    )
+    if respuesta is None:
+        raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
+    return cast(dict[str, Any], respuesta)
+
+
+async def _team_overview_sin_cache(session: AsyncSession, team_id: int) -> dict[str, Any] | None:
     data = await TeamOverviewQueryService(session).get(team_id)
     if data is None:
-        raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
+        return None
     return {
         "teamName": data.team_name,
         "playerCount": data.player_count,

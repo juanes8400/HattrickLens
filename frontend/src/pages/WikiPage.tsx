@@ -888,7 +888,7 @@ const ARTICULOS: Articulo[] = [
         ),
         puntos: [
           tx(
-            "La comisión del agente depende de los días que el jugador estuvo en el club; los canteranos pagan una tarifa plana.",
+            "La comisión del agente depende de los días enteros que el jugador estuvo en el club, sin contar los tres que dura la subasta: cuenta hasta que lo pones en el mercado. Los canteranos pagan una tarifa plana.",
           ),
           tx(
             "Reventa es la comisión que llega cuando el nuevo club de un ex jugador tuyo lo vuelve a vender.",
@@ -1004,7 +1004,7 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("En una frase"),
         texto: [
           tx(
-            "Un partido de Hattrick es un conjunto de duelos localizados. Si se mide qué parte de cada duelo se lleva cada equipo y se sabe cuánto pesa cada uno, se puede estimar cuántos goles marcará cada lado, y de ahí la probabilidad de cada marcador y de cada resultado. Los pesos salen de dos regresiones ajustadas sobre 5.232 partidos de liga reales de 979 equipos de cinco países.",
+            "Un partido de Hattrick es un conjunto de duelos localizados. Si se mide qué parte de cada duelo se lleva cada equipo y se sabe cuánto pesa cada uno, se puede estimar cuántos goles marcará cada lado, y de ahí la probabilidad de cada marcador y de cada resultado. Los pesos salen de una regresión de Poisson ajustada sobre 5.232 partidos de liga reales de 979 equipos de cinco países.",
           ),
         ],
       },
@@ -1076,39 +1076,28 @@ const ARTICULOS: Articulo[] = [
         ],
       },
       {
-        titulo: tx("7. La segunda opinión"),
-        texto: [
-          tx(
-            "Una regresión ordinal aprende directamente de quién ganó, con los nueve duelos (incluidos los defensivos). Los dos modelos se equivocan en sitios distintos, así que se mezclan: 80 % el de goles y 20 % el de resultado. El 80 % es el mínimo de error y el último punto donde el empate sigue calibrado.",
-          ),
-        ],
-      },
-      {
-        titulo: tx("8. Cómo se comprobó"),
+        titulo: tx("7. Cómo se comprobó"),
         puntos: [
           tx(
-            "Evaluación con origen móvil: se ajusta con los partidos anteriores a un corte y se predicen los siguientes, que el modelo no ha visto, en cinco cortes.",
+            "Log-loss 0,659 frente a 1,0986 de no saber nada; acierta el 71,3 % de los partidos frente al 50,7 % de acertar siempre lo más común.",
           ),
           tx(
-            "Log-loss 0,6328 frente a 1,0986 de no saber nada; acierta el 73 % de los partidos frente al 50 % de acertar siempre lo más común.",
-          ),
-          tx(
-            "Con el promedio de los partidos anteriores, que es lo que usa la pantalla: log-loss 0,6924 y 71,3 % de acierto. La diferencia es el precio de no conocer la alineación.",
+            "Esas dos cifras están medidas con los coeficientes que el motor lleva pegados, sobre los mismos partidos con los que se ajustaron: son optimistas. Medirlas con origen móvil exige rehacer el ajuste no lineal en cada corte, y está pendiente.",
           ),
           tx("Copa validada aparte: 88,4 % de acierto en quién pasa."),
           tx(
-            "Las tres probabilidades están calibradas: cuando dice 70 %, ocurre cerca del 70 % de las veces.",
+            "Victoria y derrota están calibradas: cuando dicen 70 %, ocurre cerca del 70 % de las veces. El empate no: promete un 10 % más de los que ocurren.",
           ),
         ],
       },
       {
-        titulo: tx("9. Hasta dónde vale"),
+        titulo: tx("8. Hasta dónde vale"),
         puntos: [
           tx(
             "No conoce la alineación del domingo del rival, lesiones, sanciones, actitud ni clima.",
           ),
           tx(
-            "Promete de media un 14,5 % de empates donde ocurren un 13,0 %: si el empate sale como opción más gorda, descuéntale algo.",
+            "El empate está descalibrado desde que el motor es sólo la Poisson: promete un 10 % más de empates de los que ocurren. Si el empate sale como opción más gorda, descuéntale algo.",
           ),
           tx(
             "El coeficiente del balón parado no se lee literal: comparte el 62 % de su varianza con los ataques, así que no justifica por sí solo fichar un especialista.",
@@ -1159,11 +1148,14 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("La simulación de temporada"),
         texto: [
           tx(
-            "La respuesta a «¿en qué puesto acabo?» es una distribución. Se simula el resto de la temporada miles de veces: cada partido pendiente se juega con goles aleatorios según la fuerza de ataque y defensa de cada equipo, y se cuenta en qué puesto acaba cada uno. La fuerza se encoge hacia la media de la liga con K = 5 para no fiarse de pocos partidos, y el local tiene una ventaja de 1,20 sobre sus goles esperados.",
+            "La respuesta a «¿en qué puesto acabo?» es una distribución. Se simula el resto de la temporada miles de veces y se cuenta en qué puesto acaba cada equipo. Quién gana cada partido pendiente lo decide el mismo motor de zonas del pronóstico de partido, con los ratings de los ocho equipos; el marcador con el que gana sale de la fuerza de ataque y defensa de la temporada. Así los dos paneles de Proyección y el pronóstico no pueden decir cosas distintas del mismo encuentro.",
+          ),
+          tx(
+            "El marcador sale de la fuerza de ataque y defensa de la temporada, encogida hacia la media de la liga con K = 5 para no fiarse de pocos partidos, y con una ventaja de 1,20 para el local. Ese mismo modelo decidiría también quién gana en un cruce al que le faltaran ratings de algún lado, pero con la serie sincronizada eso no pasa: los ocho equipos tienen partidos públicos y todos los cruces pendientes pasan por el motor de zonas.",
           ),
         ],
         formula: tx(
-          "λ local     = ataque_i × defensa_j × media de la liga × 1,20\nλ visitante = ataque_j × defensa_i × media de la liga\n\nfuerza = (goles + 5 × media) ÷ (partidos + 5)",
+          "quién gana    terna del motor de zonas (ver «El pronóstico de partido»)\n\ncon qué       fuerza = (goles + 5 × media) ÷ (partidos + 5)\nmarcador      λ local     = ataque_i × defensa_j × media de la liga × 1,20\n              λ visitante = ataque_j × defensa_i × media de la liga",
         ),
       },
       {

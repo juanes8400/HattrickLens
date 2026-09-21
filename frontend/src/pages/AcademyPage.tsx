@@ -6,8 +6,8 @@ import { Column, DataTable } from "../components/DataTable";
 import { CountryFlag } from "../components/CountryFlag";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { Specialty, specialtyLabel } from "../components/Specialty";
-import { Tabs } from "../components/Tabs";
-import { lecturaDeNivel } from "../utils/skillLevels";
+import { PanelDePestanas, Tabs } from "../components/Tabs";
+import { lecturaDeNivel, skillLevelLabel } from "../utils/skillLevels";
 import {
   Empty,
   ErrorState,
@@ -25,8 +25,9 @@ import {
   useAcademySkillScores,
   useAcademyTrainingPlan,
 } from "../hooks/useTeam";
-import { date, decimal, money, number } from "../hooks/useFormat";
+import { date, dateTime, decimal, money, number } from "../hooks/useFormat";
 import { chiCuadrado } from "../utils/chiCuadrado";
+import { useAsentado } from "../hooks/useAsentado";
 import { usePersistido } from "../hooks/usePersistido";
 import type {
   Academy,
@@ -86,6 +87,11 @@ const formatWeight = (w: number | undefined) =>
  *  al lado de sus siete habilidades, que es lo que la sostiene. */
 const VIEWS = [
   { key: "squad", label: "Plantilla juvenil" },
+  // La cantera entrena DESPUÉS DE CADA PARTIDO suyo, así que «qué pasó en el
+  // último entrenamiento» es una vista propia y no una forma de mirar los
+  // puntajes: hasta hoy era una opción escondida dentro de Selección de
+  // entrenamiento, que es otra pregunta (2026-09-19, pedido del usuario).
+  { key: "ultimo", label: "Último entrenamiento" },
   { key: "train", label: "Selección de entrenamiento" },
   // "Formación" y no "A quién entrenar": esta pestaña YA no propone un
   // reparto teorico, decide la alineacion del proximo partido.
@@ -298,63 +304,62 @@ export function AcademyPage() {
           manerasquién es quién, qué entrenar, cuánto le queda a cada
           habilidad, no tres cosas distintas. Apiladas obligaban a bajar y
           bajar; en pestañas se comparan de un clic. */}
-      <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
-            onClick={() => setView(v.key)}
-            className={
-              v.key === view
-                ? "rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white"
-                : "rounded-md px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-            }
-          >
-            {t(`juveniles.vista.${v.key}`, v.label)}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        grupo="juveniles"
+        label={t("juveniles.queSeMira", "Qué se mira de la cantera")}
+        tabs={VIEWS.map((v) => ({
+          key: v.key,
+          label: t(`juveniles.vista.${v.key}`, v.label),
+        }))}
+        active={view}
+        onChange={setView}
+      />
 
-      {data.squadSize === 0 ? (
-        <Panel
-          title={t(
-            `juveniles.vista.${view}`,
-            VIEWS.find((v) => v.key === view)?.label ?? "",
-          )}
-        >
-          <Empty>
-            {t(
-              "juveniles.sinCanteranos",
-              "Sin canteranos sincronizados todavía.",
+      <PanelDePestanas grupo="juveniles" activa={view} className="space-y-4">
+        {data.squadSize === 0 ? (
+          <Panel
+            title={t(
+              `juveniles.vista.${view}`,
+              VIEWS.find((v) => v.key === view)?.label ?? "",
             )}
-          </Empty>
-        </Panel>
-      ) : view === "squad" ? (
-        <SkillDetail data={data} />
-      ) : view === "train" ? (
-        <WhatToTrain data={data} irALaFormacion={llevarALaFormacion} />
-      ) : view === "who" ? (
-        <QuienEntrena data={data} />
-      ) : view === "scouts" ? (
-        <Ojeadores />
-      ) : (data.allGraduates ?? []).length > 0 ? (
-        <Panel
-          title={t("juveniles.vista.oldies", "Antiguos canteranos")}
-          meta={t("juveniles.hanPasado", "{{n}} han pasado por aquí", {
-            n: (data.allGraduates ?? []).length,
-          })}
-        >
-          <GraduatesTable data={data} />
-        </Panel>
-      ) : (
-        <Panel title={t("juveniles.vista.oldies", "Antiguos canteranos")}>
-          <Empty>
-            {t(
-              "juveniles.sinAntiguos",
-              "Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un canterano al primer equipo.",
-            )}
-          </Empty>
-        </Panel>
-      )}
+          >
+            <Empty>
+              {t(
+                "juveniles.sinCanteranos",
+                "Sin canteranos sincronizados todavía.",
+              )}
+            </Empty>
+          </Panel>
+        ) : view === "squad" ? (
+          <SkillDetail data={data} />
+        ) : view === "ultimo" ? (
+          <UltimoEntrenamientoJuvenil />
+        ) : view === "train" ? (
+          <WhatToTrain data={data} irALaFormacion={llevarALaFormacion} />
+        ) : view === "who" ? (
+          <QuienEntrena data={data} />
+        ) : view === "scouts" ? (
+          <Ojeadores />
+        ) : (data.allGraduates ?? []).length > 0 ? (
+          <Panel
+            title={t("juveniles.vista.oldies", "Antiguos canteranos")}
+            meta={t("juveniles.hanPasado", "{{n}} han pasado por aquí", {
+              n: (data.allGraduates ?? []).length,
+            })}
+          >
+            <GraduatesTable data={data} />
+          </Panel>
+        ) : (
+          <Panel title={t("juveniles.vista.oldies", "Antiguos canteranos")}>
+            <Empty>
+              {t(
+                "juveniles.sinAntiguos",
+                "Todavía no hay ninguno: aparecen aquí en cuanto asciendas a un canterano al primer equipo.",
+              )}
+            </Empty>
+          </Panel>
+        )}
+      </PanelDePestanas>
     </div>
   );
 }
@@ -481,6 +486,12 @@ function usePersistidoTexto(clave: string) {
 
 /** Las cuatro ventanas del selector. «Último cambio» es el estado justo
  *  antes de que la academia se moviera por última vez; el resto son semanas. */
+/** Una ventana guardada que ya no existe no puede dejar el control sin
+ *  ninguna opción marcada: «Último entrenamiento» fue una de ellas durante un
+ *  rato y quien la eligiera la tiene guardada (2026-09-19). */
+const ventanaValida = (v: string) =>
+  VENTANAS_JUVENILES.some((x) => x.key === v) ? v : "cambio";
+
 const VENTANAS_JUVENILES = [
   { key: "cambio", label: "Último cambio" },
   { key: "1", label: "1 semana" },
@@ -642,23 +653,32 @@ function WhatToTrain({
   // plantilla, que es otra pestaña y por tanto se remonta al abrirla: así las
   // dos hablan de la misma ventana sin tener que subir el estado a la página
   // (2026-09-04, pedido del usuario).
-  const [ventana, setVentana] = usePersistido("juveniles.ventana", "cambio");
+  const [guardada, setVentana] = usePersistido("juveniles.ventana", "cambio");
+  const ventana = ventanaValida(guardada);
+  // Los mandos se mueven al instante y la pregunta al servidor espera a que
+  // pares. Arrastrar una barra disparaba una peticion por pixel --ocho en dos
+  // segundos, cada una rehaciendo la tabla entera--, y con la respuesta lenta
+  // eso se siente como un mando que no responde (QA del 2026-09-19).
+  const soonAsentado = useAsentado(soonMaxDays);
+  const baseAsentada = useAsentado(weightBase);
+  const trainableAsentado = useAsentado(trainable);
+  const bonusAsentado = useAsentado(bonusWeight);
   const tuned = useAcademySkillScores({
-    soonMaxDays,
-    weightBase,
+    soonMaxDays: soonAsentado,
+    weightBase: baseAsentada,
     trainableMethod,
-    trainable,
-    trainableWeight: bonusWeight,
+    trainable: trainableAsentado,
+    trainableWeight: bonusAsentado,
   });
   // Los MISMOS parámetros: un puntaje de antes calculado con otra opinión no
   // se puede restar del de ahora.
   const movimiento = useAcademyComparativa({
     ventana,
-    soonMaxDays,
-    weightBase,
+    soonMaxDays: soonAsentado,
+    weightBase: baseAsentada,
     trainableMethod,
-    trainable,
-    trainableWeight: bonusWeight,
+    trainable: trainableAsentado,
+    trainableWeight: bonusAsentado,
   });
   const deltas = new Map(
     (movimiento.data?.scores ?? []).map((x) => [x.skill, x.delta]),
@@ -674,6 +694,12 @@ function WhatToTrain({
   const weights = tuned.data?.weights ?? {};
   const trainableWeight = tuned.data?.trainableWeight;
   const suggestedWeight = tuned.data?.suggestedTrainableWeight;
+  // Lo que marca el mando del bonus AHORA. Antes se leia del servidor, y como
+  // la respuesta tarda, la barra volvia sola al valor anterior mientras
+  // llegaba: al soltarla disparaba un cambio con el valor viejo, que se
+  // guardaba, y el mando quedaba clavado. Quien manda es el estado; el
+  // servidor solo confirma (2026-09-19, reproducido).
+  const pesoDelBonus = bonusWeight ?? trainableWeight ?? suggestedWeight ?? 0;
   const isManual = trainableMethod === "edit";
 
   // Mientras llega la primera respuesta se pinta lo que ya trajo /academy con
@@ -712,7 +738,10 @@ function WhatToTrain({
   const bonusEsElSugerido =
     bonusWeight === null ||
     suggestedWeight == null ||
-    Math.abs(bonusWeight - suggestedWeight) < 1e-6;
+    // Medio paso del mando: el deslizador solo llega a milesimas y el sugerido
+    // casi nunca lo es (0.1111...), asi que con 1e-6 decia "no coincide"
+    // aunque el mando estuviera en el punto mas cercano que puede marcar.
+    Math.abs(bonusWeight - suggestedWeight) < 5e-4;
   const isDefault =
     soonMaxDays === DEFAULT_SOON_MAX_DAYS &&
     weightBase === DEFAULT_WEIGHT_BASE &&
@@ -732,7 +761,14 @@ function WhatToTrain({
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2">
         <span className="text-xs text-[var(--muted)]">
-          {t("juveniles.cuantoSeMovio", "Cuánto se movió cada puntaje desde")}
+          {t("juveniles.cuantoSeMovio", "Cuánto se movió cada puntaje desde")}{" "}
+          {movimiento.data?.since && (
+            <span className="ml-1 text-[var(--text)]">
+              {t("juveniles.desdeFecha", "el {{fecha}}", {
+                fecha: dateTime(movimiento.data.since),
+              })}
+            </span>
+          )}
         </span>
         <Tabs
           modo="filtro"
@@ -1053,7 +1089,7 @@ function WhatToTrain({
                 {t("juveniles.pesoBonus", "Peso del bonus personalizado")}
               </span>
               <b className="shrink-0 tabular-nums">
-                {formatWeight(trainableWeight)}
+                {formatWeight(pesoDelBonus)}
               </b>
             </div>
             <input
@@ -1061,7 +1097,7 @@ function WhatToTrain({
               min={0}
               max={1}
               step={0.001}
-              value={trainableWeight ?? 0}
+              value={pesoDelBonus}
               onChange={(e) => setBonusWeight(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--youth-known)]"
             />
@@ -2680,7 +2716,8 @@ function SkillDetail({ data }: { data: Academy }) {
   // La MISMA ventana que eligió el usuario en «Selección de entrenamiento».
   // Las dos secciones son pestañas excluyentes, así que ésta se remonta al
   // abrirla y lee el valor recién guardado (2026-09-04).
-  const [ventana] = usePersistido("juveniles.ventana", "cambio");
+  const [guardada] = usePersistido("juveniles.ventana", "cambio");
+  const ventana = ventanaValida(guardada);
   // Sin parámetros de puntaje: aquí no se enseñan puntajes, sólo qué se movió
   // en cada canterano, y eso no depende de las opiniones de la fórmula.
   const movida = useAcademyComparativa({
@@ -3315,6 +3352,253 @@ function CuentaDeOjeadores({ ledger }: { ledger: ScoutsLedger }) {
           )}
         </p>
       )}
+    </Panel>
+  );
+}
+
+/**
+ * Qué pasó en el último entrenamiento de la cantera (2026-09-19).
+ *
+ * Vista propia y no una opción dentro de «Selección de entrenamiento»: esa
+ * pantalla decide QUÉ entrenar, y ésta cuenta qué dejó lo ya entrenado.
+ *
+ * El cuándo no se estima. Los juveniles entrenan después de cada partido
+ * suyo, Hattrick publica la cita del próximo, y desde ahí se retrocede una
+ * semana. Sin esa fecha no se enseña nada inventado: se dice que falta
+ * sincronizar, que es la verdad.
+ */
+function UltimoEntrenamientoJuvenil() {
+  // Sin parámetros de puntaje, igual que la tabla de la plantilla: aquí no se
+  // enseña ningún puntaje, sólo lo que se movió en cada canterano.
+  const movida = useAcademyComparativa({
+    ventana: "entrenamiento",
+    soonMaxDays: DEFAULT_SOON_MAX_DAYS,
+    weightBase: DEFAULT_WEIGHT_BASE,
+    trainableMethod: "edit",
+    trainable: {},
+  });
+
+  const titulo = t("juveniles.vista.ultimo", "Último entrenamiento");
+  if (movida.isLoading) {
+    return (
+      <Panel title={titulo}>
+        <div className="p-4">
+          <Loading />
+        </div>
+      </Panel>
+    );
+  }
+  const datos = movida.data;
+  if (!datos || !datos.since) {
+    return (
+      <Panel title={titulo}>
+        <Empty>
+          {t(
+            "juveniles.sinCitaJuvenil",
+            "Todavía no se sabe cuándo entrenó la cantera: sincroniza y sale la fecha de su partido de entrenamiento.",
+          )}
+        </Empty>
+      </Panel>
+    );
+  }
+
+  // Las mismas dos noticias que en el primer equipo, y por el mismo motivo:
+  // un techo revelado no es una subida, y contarlos juntos diría que la
+  // cantera mejoró cuando lo único que pasó es que ahora se sabe algo.
+  const filas = datos.players
+    .flatMap((j) =>
+      Object.entries(j.skills)
+        .filter(
+          ([, v]) =>
+            v.before != null ||
+            v.maxNewlyKnown ||
+            // UN RECIÉN LLEGADO NO TIENE ANTES (2026-09-20). Sin esta línea
+            // el chico sólo salía nombrado en la frase de arriba y ni una
+            // línea más: se le veía llegar sin saber si traía algo. Lo que se
+            // lista no es lo que se movió, es lo que trae en la maleta, y por
+            // eso lleva su propia forma de escribirse.
+            (j.isNew && v.current != null),
+        )
+        .map(([clave, v]) => ({
+          id: `${j.htYouthPlayerId}-${clave}`,
+          name: j.name,
+          isNew: j.isNew,
+          clave,
+          subida:
+            v.before != null && v.current != null ? v.current - v.before : null,
+          before: v.before,
+          current: v.current,
+          techo: v.maxNewlyKnown ? v.max : null,
+          /** Llegó con esto puesto: ni subida ni descubrimiento. */
+          llegaCon: j.isNew && v.before == null ? v.current : null,
+        })),
+    )
+    // Primero lo que se movió, y dentro, lo que más. Después los techos
+    // revelados, que no tienen tamaño con el que competir, y al final lo que
+    // trae un recién llegado: es la noticia más fácil de situar --ya sabes
+    // que llegó, lo dice la frase de arriba-- y la que menos urge.
+    .sort(
+      (a, b) =>
+        Number(a.llegaCon != null) - Number(b.llegaCon != null) ||
+        Number(b.subida != null) - Number(a.subida != null) ||
+        (b.subida ?? 0) - (a.subida ?? 0) ||
+        a.name.localeCompare(b.name),
+    );
+
+  const subidas = filas.filter((f) => (f.subida ?? 0) > 0).length;
+  const techos = filas.filter((f) => f.techo != null).length;
+  const frase = [
+    subidas === 1
+      ? t("juveniles.subioUno", "Subió un canterano.")
+      : subidas > 1
+        ? t("juveniles.subieronN", "Subieron {{n}} canteranos.", { n: subidas })
+        : t("juveniles.nadieSeMovio", "Nadie se movió en este entrenamiento."),
+    techos === 1
+      ? t("juveniles.unTechoFrase", "El ojeador reveló un techo.")
+      : techos > 1
+        ? t("juveniles.variosTechosFrase", "El ojeador reveló {{n}} techos.", {
+            n: techos,
+          })
+        : null,
+    datos.summary.arrivals > 0
+      ? datos.summary.arrivals === 1
+        ? t("juveniles.unaLlegadaFrase", "Y llegó uno nuevo.")
+        : t("juveniles.variasLlegadasFrase", "Y llegaron {{n}} nuevos.", {
+            n: datos.summary.arrivals,
+          })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <Panel
+      title={titulo}
+      meta={t("juveniles.jugadoEl", "jugado el {{fecha}}", {
+        fecha: dateTime(datos.since),
+      })}
+    >
+      {/* La misma cabecera que el parte del primer equipo: la cifra de la
+          semana y, al lado, de qué entrenamiento se está hablando. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[var(--border)] px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={clsx(
+              "text-4xl font-semibold leading-none tabular-nums",
+              subidas > 0 ? "text-[var(--positive)]" : "text-[var(--text)]",
+            )}
+          >
+            {subidas}
+          </span>
+          <span className="text-xs uppercase tracking-wide text-[var(--muted)]">
+            {subidas === 1
+              ? t("juveniles.subida", "subida")
+              : t("juveniles.subidas", "subidas")}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">
+            {t("juveniles.partidoDeEntrenamiento", "Partido de entrenamiento")}
+          </div>
+          <div className="truncate text-xs text-[var(--muted)]">
+            {t(
+              "juveniles.entrenanTrasElPartido",
+              "la cantera entrena después de cada partido suyo",
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-[var(--border)] px-4 py-2 text-sm">
+        {frase}
+      </div>
+
+      {filas.length > 0 && (
+        <ul className="divide-y divide-[var(--border)]">
+          {filas.map((f) => (
+            <li
+              key={f.id}
+              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-baseline gap-2">
+                <span
+                  className={
+                    f.subida != null
+                      ? f.subida > 0
+                        ? "text-[var(--positive)]"
+                        : "text-[var(--danger)]"
+                      : f.llegaCon != null
+                        ? "text-[var(--muted)]"
+                        : "text-[var(--youth-known)]"
+                  }
+                >
+                  {f.subida != null
+                    ? f.subida > 0
+                      ? "▲"
+                      : "▼"
+                    : f.llegaCon != null
+                      ? "·"
+                      : "◆"}
+                </span>
+                {/* Los juveniles van en texto plano: su ficha no vive en
+                    /players y enlazarlos no llevaría a ninguna parte. */}
+                <span>{f.name}</span>
+                {f.isNew && (
+                  <span className="text-xs text-[var(--muted)]">
+                    {t("juveniles.recienLlegado", "recién llegado")}
+                  </span>
+                )}
+              </span>
+              <span className="flex items-baseline gap-2 text-xs">
+                <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[var(--muted)]">
+                  {nombreDeHabilidad(f.clave)}
+                </span>
+                {f.subida != null && f.before != null && f.current != null ? (
+                  <>
+                    <span className="text-[var(--muted)]">
+                      {skillLevelLabel(f.before)}
+                    </span>
+                    <span className="text-[var(--muted)]">→</span>
+                    <span
+                      className={clsx(
+                        "font-medium",
+                        f.subida > 0
+                          ? "text-[var(--positive)]"
+                          : "text-[var(--danger)]",
+                      )}
+                    >
+                      {skillLevelLabel(f.current)}
+                    </span>
+                    <span className="tabular-nums text-[var(--muted)]">
+                      ({f.current})
+                    </span>
+                  </>
+                ) : f.llegaCon != null ? (
+                  <span className="text-[var(--muted)]">
+                    {t("juveniles.llegaCon", "llega con {{v}}", {
+                      v: skillLevelLabel(f.llegaCon),
+                    })}{" "}
+                    <span className="tabular-nums">({f.llegaCon})</span>
+                  </span>
+                ) : (
+                  <span className="font-medium text-[var(--youth-known)]">
+                    {t("juveniles.techoDescubierto", "techo {{v}}", {
+                      v: f.techo,
+                    })}
+                  </span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Note>
+        {t(
+          "juveniles.cuandoElProximo",
+          "El próximo, después del siguiente partido de la cantera.",
+        )}
+      </Note>
     </Panel>
   );
 }

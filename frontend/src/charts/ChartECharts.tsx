@@ -1,0 +1,278 @@
+// SÓLO LO QUE SE DIBUJA, no la librería entera (2026-09-20).
+//
+// `import * as echarts from "echarts"` trae los treinta y pico tipos de
+// gráfica que existen: mapas, árboles, velas, embudos, termómetros. HT Lens
+// dibuja siete. El trozo pesaba 1.054 kB por traer todo lo demás.
+//
+// La lista de abajo es la fuente de la verdad: una gráfica cuyo tipo o cuyo
+// componente NO esté registrado aquí sale EN BLANCO, sin error en consola.
+// Por eso va acompañada de `tiposRegistrados`, que sí avisa.
+import * as echarts from "echarts/core";
+import {
+  BarChart,
+  CustomChart,
+  LineChart,
+  PieChart,
+  RadarChart,
+  SankeyChart,
+  ScatterChart,
+} from "echarts/charts";
+import {
+  AriaComponent,
+  AxisPointerComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
+  DatasetComponent,
+  GraphicComponent,
+  GridComponent,
+  LegendComponent,
+  LegendScrollComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  MarkPointComponent,
+  RadarComponent,
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent,
+  TransformComponent,
+  VisualMapComponent,
+} from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
+import { useEffect, useRef } from "react";
+import type { EChartsOption } from "echarts";
+
+/** Los tipos de serie que esta aplicación sabe dibujar. Si alguien añade una
+ *  gráfica de un tipo nuevo y no lo registra arriba, `Chart` lo dice en vez
+ *  de pintar un rectángulo vacío. */
+const TIPOS_REGISTRADOS = new Set([
+  "bar",
+  "custom",
+  "line",
+  "pie",
+  "radar",
+  "sankey",
+  "scatter",
+]);
+
+echarts.use([
+  BarChart,
+  CustomChart,
+  LineChart,
+  PieChart,
+  RadarChart,
+  SankeyChart,
+  ScatterChart,
+  AriaComponent,
+  AxisPointerComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
+  DatasetComponent,
+  GraphicComponent,
+  GridComponent,
+  LegendComponent,
+  LegendScrollComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
+  MarkPointComponent,
+  RadarComponent,
+  TitleComponent,
+  ToolboxComponent,
+  TooltipComponent,
+  TransformComponent,
+  VisualMapComponent,
+  CanvasRenderer,
+]);
+import { useIsDarkTheme } from "../hooks/useTheme";
+import { number } from "../hooks/useFormat";
+
+/**
+ * Single ECharts wrapper. UI_GUIDELINES.md requires zoom, tooltips, PNG export
+ * and theme compatibility from every chart, so those defaults live here rather
+ * than being repeated at each call site.
+ *
+ * ECharts renders to <canvas>, which cannot resolve CSS custom properties
+ * `color: "var(--text)"` silently falls back to canvas's own default (~#333),
+ * which reads as near-invisible dark-on-dark text once merged with our dark
+ * theme's backgrounds. Individual chart options across the app mostly avoid
+ * setting text colors at all (relying on ECharts' own defaults), so the fix
+ * belongs in ONE place: two registered ECharts themes with the same literal
+ * hex values as index.css's --text/--muted/--border, applied globally via
+ * the `theme` prop below. A chart that explicitly sets its own color (e.g. a
+ * literal hex for a positive/negative line) still wins, themes only fill in
+ * what nothing else specified.
+ */
+/**
+ * La paleta de series, UNA POR TEMA.
+ *
+ * Era una sola lista para los dos, y sus valores eran los del tema oscuro:
+ * en modo claro el verde medía 2,38 de contraste, el ámbar 2,04 y el cian
+ * 2,43, todos por debajo del mínimo de 3:1 para elementos gráficos (medido el
+ * 2026-08-31). Es decir, la mitad de las series de cualquier gráfica con
+ * varias líneas se leían mal en el tema por defecto.
+ *
+ * Los cuatro primeros son los mismos tokens de `colors.ts`; el violeta y el
+ * cian son series extra y llevan su propia versión oscurecida para claro.
+ */
+const PALETTE_POR_TEMA: Record<"dark" | "light", string[]> = {
+  dark: ["#4f7cff", "#2fbf71", "#f5a524", "#e5484d", "#8b5cf6", "#06b6d4"],
+  light: ["#3b63e0", "#1a9e5c", "#bd8109", "#d1383d", "#7c4ddb", "#0e7490"],
+};
+
+const AXIS_THEME = {
+  dark: { text: "#ededef", muted: "#8b8b93", line: "#26262b" },
+  light: { text: "#18181b", muted: "#71717a", line: "#e4e4e7" },
+} as const;
+
+for (const [name, c] of Object.entries(AXIS_THEME)) {
+  echarts.registerTheme(`ht-${name}`, {
+    color: PALETTE_POR_TEMA[name as "dark" | "light"],
+    backgroundColor: "transparent",
+    textStyle: { color: c.text },
+    title: { textStyle: { color: c.text }, subtextStyle: { color: c.muted } },
+    legend: { textStyle: { color: c.text } },
+    categoryAxis: {
+      axisLine: { lineStyle: { color: c.line } },
+      axisTick: { lineStyle: { color: c.line } },
+      axisLabel: { color: c.muted },
+      splitLine: { lineStyle: { color: c.line } },
+    },
+    valueAxis: {
+      axisLine: { lineStyle: { color: c.line } },
+      axisTick: { lineStyle: { color: c.line } },
+      axisLabel: {
+        color: c.muted,
+        formatter: (value: number) => number(value),
+      },
+      splitLine: { lineStyle: { color: c.line } },
+    },
+  });
+}
+function baseOption(dark: boolean): EChartsOption {
+  return {
+    color: PALETTE_POR_TEMA[dark ? "dark" : "light"],
+    textStyle: { fontFamily: "Inter, system-ui, sans-serif", fontSize: 12 },
+    tooltip: { trigger: "axis", confine: true },
+    grid: { left: 48, right: 16, top: 28, bottom: 32, containLabel: true },
+    toolbox: {
+      right: 8,
+      feature: {
+        saveAsImage: { title: "PNG", pixelRatio: 2 },
+        dataZoom: { title: { zoom: "Zoom", back: "Reset" } },
+      },
+      iconStyle: {
+        borderColor: dark ? AXIS_THEME.dark.muted : AXIS_THEME.light.muted,
+      },
+    },
+    backgroundColor: "transparent",
+  };
+}
+
+export function ChartECharts({
+  option,
+  height = 280,
+  dark,
+  ariaLabel,
+  onEvents,
+}: {
+  option: EChartsOption;
+  height?: number;
+  /** Overrides theme auto-detection; normally left unset. */
+  dark?: boolean;
+  ariaLabel: string;
+  /** Event handlers passed to ECharts (for example, clickable data points). */
+  onEvents?: Record<string, (...args: unknown[]) => void>;
+}) {
+  const isDarkTheme = useIsDarkTheme();
+  const resolvedDark = dark ?? isDarkTheme;
+  const merged: EChartsOption = { ...baseOption(resolvedDark), ...option };
+  // Una serie de un tipo sin registrar no da error: deja el lienzo en blanco,
+  // que es la peor forma de fallar porque parece «no hay datos». Esto lo
+  // convierte en algo que se ve y se busca (2026-09-20).
+  const series = Array.isArray(option.series)
+    ? option.series
+    : option.series
+      ? [option.series]
+      : [];
+  const sinRegistrar = [
+    ...new Set(
+      series
+        .map((s) => (s as { type?: string }).type)
+        .filter((t): t is string => !!t && !TIPOS_REGISTRADOS.has(t)),
+    ),
+  ];
+  if (sinRegistrar.length > 0 && import.meta.env.DEV) {
+    throw new Error(
+      `Chart: tipo de serie sin registrar en ChartECharts.tsx: ${sinRegistrar.join(", ")}`,
+    );
+  }
+  return (
+    <div role="img" aria-label={ariaLabel}>
+      <Lienzo
+        option={merged}
+        tema={resolvedDark ? "ht-dark" : "ht-light"}
+        height={height}
+        onEvents={onEvents}
+      />
+    </div>
+  );
+}
+
+/**
+ * El puente entre React y la librería de gráficas, escrito aquí.
+ *
+ * Lo hacía `echarts-for-react`, y con la librería entera funcionaba. Con la
+ * librería a la carta NO: para medir el contenedor crea una gráfica
+ * provisional y espera su evento «finished» antes de pintar nada, y ese
+ * evento no llega cuando lo único registrado es lo que de verdad se usa.
+ * Resultado: la gráfica quedaba creada y VACÍA, sin lienzo y sin un solo
+ * error en consola (2026-09-20).
+ *
+ * Esto hace lo mismo en veinte líneas y sin el rodeo: crear, poner la opción,
+ * seguir el tamaño y destruir. Además quita una dependencia.
+ */
+function Lienzo({
+  option,
+  tema,
+  height,
+  onEvents,
+}: {
+  option: EChartsOption;
+  tema: string;
+  height: number;
+  onEvents?: Record<string, (...args: unknown[]) => void>;
+}) {
+  const hueco = useRef<HTMLDivElement>(null);
+  const grafica = useRef<echarts.ECharts | null>(null);
+
+  // El tema no se puede cambiar en caliente: obliga a rehacer la gráfica.
+  useEffect(() => {
+    if (!hueco.current) return undefined;
+    const g = echarts.init(hueco.current, tema, { renderer: "canvas" });
+    grafica.current = g;
+    // El contenedor puede cambiar de ancho sin que cambie la ventana: una
+    // columna que se pliega, un panel que se abre. Se vigila el hueco, no la
+    // ventana.
+    const vigia = new ResizeObserver(() => g.resize());
+    vigia.observe(hueco.current);
+    return () => {
+      vigia.disconnect();
+      g.dispose();
+      grafica.current = null;
+    };
+  }, [tema]);
+
+  useEffect(() => {
+    grafica.current?.setOption(option, { notMerge: true });
+  }, [option]);
+
+  useEffect(() => {
+    const g = grafica.current;
+    if (!g || !onEvents) return undefined;
+    for (const [nombre, mano] of Object.entries(onEvents)) g.on(nombre, mano);
+    return () => {
+      for (const [nombre, mano] of Object.entries(onEvents)) g.off(nombre, mano);
+    };
+  }, [onEvents]);
+
+  return <div ref={hueco} style={{ height, width: "100%" }} />;
+}

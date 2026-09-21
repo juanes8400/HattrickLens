@@ -2,6 +2,7 @@
 entrenamiento, liga y partidos, usando el mismo diffing append-only que ya
 existía, sin reconstruir nada a posteriori."""
 import asyncio
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -322,5 +323,54 @@ def test_standing_position_change_is_recorded() -> None:
         ]
         assert second.changes[0]["detail"]["before"] == 4
         assert second.changes[0]["detail"]["after"] == 2
+
+    asyncio.run(run())
+
+
+def test_el_alta_llega_con_su_precio_de_compra_y_su_sueldo() -> None:
+    """2026-09-20, pedido: «la llegada de un jugador al equipo senior debe
+    reportarse con precio de compra y salario al llegar».
+
+    Lo que de verdad fija esta prueba es el ORDEN. La frase se escribe al
+    final del sync, no al ver al jugador en la plantilla, porque el libro de
+    transferencias puede procesarse despues; si se escribiera en el sitio
+    obvio el fichaje de esta misma semana saldria sin precio.
+    """
+
+    async def run() -> None:
+        uow, team_id = await _setup()
+        base = get_parser("players")((FIXTURES / "players.xml").read_bytes())
+        p0 = base["players"][0]
+
+        async with uow:
+            equipo = await uow.session.get(m.Team, team_id)
+            equipo.currency_rate = 10.0  # Colombia: el dinero se divide por 10
+            uow.session.add(
+                m.TeamTransfer(
+                    team_id=team_id,
+                    ht_transfer_id=1,
+                    ht_player_id=p0["ht_player_id"],
+                    deadline=datetime(2026, 9, 1, tzinfo=UTC),
+                    price=12_500_000,
+                    is_buy=True,
+                )
+            )
+            await uow.commit()
+
+        chpp = ScriptedCHPP({"players": [base]})
+        handler = SyncTeamHandler(uow, chpp)
+        cmd = SyncTeamCommand(user_id=1, team_id=team_id, ht_team_id=537758, files=["players"])
+        resultado = await handler.execute(cmd)
+
+        nombre = f"{p0['first_name']} {p0['last_name']}".strip()
+        suya = next(c for c in resultado.changes if c["summary"].startswith(nombre))
+        assert "comprado por 1.250.000 US$" in suya["summary"]
+        assert "sueldo 72.312 US$" in suya["summary"]
+
+        # Y quien no tiene compra en el libro sigue saliendo, sin inventar un
+        # precio: es el caso normal en la primera sincronizacion de un club.
+        otro = next(c for c in resultado.changes if not c["summary"].startswith(nombre))
+        assert "se unió a la plantilla: sueldo" in otro["summary"]
+        assert "comprado por" not in otro["summary"]
 
     asyncio.run(run())

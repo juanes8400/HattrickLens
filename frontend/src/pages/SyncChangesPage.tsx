@@ -41,7 +41,8 @@ function countPlayerPops(changes: SyncResult["changes"]): number {
   return changes.filter((c) => {
     const s = c.summary.toLowerCase();
     return (
-      c.category === "jugadores" && (s.includes("subio") || s.includes("subió") || s.includes("went up"))
+      c.category === "jugadores" &&
+      (s.includes("subio") || s.includes("subió") || s.includes("went up"))
     );
   }).length;
 }
@@ -80,7 +81,8 @@ function actionItems(changes: SyncResult["changes"]): {
         c.text.includes("went up")),
   );
   const injuries = lower.filter(
-    (c) => c.text.includes("lesion") ||
+    (c) =>
+      c.text.includes("lesion") ||
       c.text.includes("lesión") ||
       c.text.includes("injur"),
   );
@@ -224,6 +226,13 @@ function lastSyncGroups(data: LastSyncChanges): PlayerChangeGroup[] {
           current: change.current,
           delta: change.delta,
           direction: change.direction,
+          // El alta viaja con su precio y su origen; el sueldo vive en la
+          // fila del jugador, no en el cambio, porque de un alta no hay
+          // sueldo ANTERIOR con el que compararlo.
+          arrivalPrice: change.arrivalPrice,
+          fromAcademy: change.fromAcademy,
+          arrivalSalary: change.key === "arrival" ? row.salary : undefined,
+          currency: change.currency,
         });
       }
       return { htPlayerId: row.htPlayerId, name: row.name, changes };
@@ -294,6 +303,7 @@ function historyYouthGroups(data: ChangesHistory): PlayerChangeGroup[] {
       htPlayerId: event.htPlayerId,
       name: event.name,
       isYouth: true,
+      isArrival: event.isArrival,
       changes: [],
     };
     group.changes.push({
@@ -302,6 +312,7 @@ function historyYouthGroups(data: ChangesHistory): PlayerChangeGroup[] {
       before: event.before,
       current: event.current,
       delta: event.delta,
+      isArrival: event.isArrival && event.before == null,
       direction:
         event.delta == null || event.delta > 0
           ? "up"
@@ -311,7 +322,13 @@ function historyYouthGroups(data: ChangesHistory): PlayerChangeGroup[] {
     });
     byPlayer.set(event.htPlayerId, group);
   }
-  return [...byPlayer.values()].sort((a, b) => a.name.localeCompare(b.name));
+  // Los recién llegados primero: son la noticia que no se puede deducir de
+  // ninguna otra fila (2026-09-19, pedido del usuario).
+  return [...byPlayer.values()].sort(
+    (a, b) =>
+      Number(Boolean(b.isArrival)) - Number(Boolean(a.isArrival)) ||
+      a.name.localeCompare(b.name),
+  );
 }
 
 function historyAggregate(data: ChangesHistory): AggregateMetric[] {
@@ -757,12 +774,10 @@ export function SyncChangesPage() {
           <GroupedPlayerChanges
             groups={historyGroups(history.data)}
             aggregate={historyAggregate(history.data)}
-            emptyMessage={
-              tx(
-                "Ningún jugador cambió nada en las últimas {{v0}} semana(s), o todavía no hay dos cierres semanales distintos que comparar.",
-                { v0: window.weeks },
-              )
-            }
+            emptyMessage={tx(
+              "Ningún jugador cambió nada en las últimas {{v0}} semana(s), o todavía no hay dos cierres semanales distintos que comparar.",
+              { v0: window.weeks },
+            )}
           />
         )}
       </Panel>

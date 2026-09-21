@@ -110,7 +110,7 @@ async def _previous_player_snapshot(
 
 
 async def _player_report(
-    session: AsyncSession, team_id: int, sync_id: int, currency_rate: float
+    session: AsyncSession, team_id: int, sync_id: int, currency_rate: float, currency: str = ""
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     result = await session.execute(
         select(m.PlayerSnapshot, m.Player)
@@ -127,6 +127,26 @@ async def _player_report(
     )
     summary = _metric_summary()
     rows: list[dict[str, Any]] = []
+
+    # Lo que costó cada uno, para poder contarlo en su alta. Se trae de una
+    # vez y no por jugador: son unas pocas decenas de filas y el alta es el
+    # caso raro, así que una consulta por recién llegado sería un lujo caro
+    # justo en el camino que más se recorre.
+    compras: dict[int, int] = {}
+    for compra in (
+        (
+            await session.execute(
+                select(m.TeamTransfer)
+                .where(m.TeamTransfer.team_id == team_id, m.TeamTransfer.is_buy.is_(True))
+                .order_by(m.TeamTransfer.deadline)
+            )
+        )
+        .scalars()
+        .all()
+    ):
+        # De vieja a nueva, así que quien volvió al club se queda con el
+        # precio de ESTA vuelta y no con el de la primera.
+        compras[compra.ht_player_id] = compra.price
 
     for current, player in result.all():
         previous = await _previous_player_snapshot(session, current)
@@ -149,6 +169,19 @@ async def _player_report(
                             "current": True,
                             "delta": None,
                             "direction": "up",
+                            # 2026-09-20, pedido: con qué llegó. El precio
+                            # sólo si hay compra en el libro; el bono de club
+                            # de origen es el único otro origen que se puede
+                            # afirmar. Faltando los dos, se calla: un cero
+                            # diría «gratis», que es otra cosa.
+                            "arrivalPrice": (
+                                int(round(compras[player.ht_player_id] / currency_rate))
+                                if compras.get(player.ht_player_id)
+                                else None
+                            ),
+                            "fromAcademy": bool(current.mother_club_bonus)
+                            and not compras.get(player.ht_player_id),
+                            "currency": currency,
                         }
                     ],
                 }
@@ -951,6 +984,7 @@ async def build_sync_comparison(
 
     team = await session.get(m.Team, team_id)
     currency_rate = (team.currency_rate or 1.0) if team else 1.0
+    currency = (team.currency_name if team else "") or ""
 
     normal_sync_filter: Iterable[Any] = (
         m.Sync.team_id == team_id,
@@ -1051,7 +1085,9 @@ async def build_sync_comparison(
             session, team_id, await _changes_for_sync(session, report_sync.id)
         )
     )
-    player_rows, summary = await _player_report(session, team_id, report_sync.id, currency_rate)
+    player_rows, summary = await _player_report(
+        session, team_id, report_sync.id, currency_rate, currency
+    )
     club_changes = await _club_report(session, team_id, report_sync, currency_rate)
     # El sync anterior a este, haya movido algo o no: si se tomara el anterior
     # CON cambios, los partidos de seleccion de la ventana intermedia se

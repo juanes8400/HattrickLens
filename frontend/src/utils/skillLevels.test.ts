@@ -19,8 +19,15 @@ describe("cómo se lee una habilidad juvenil", () => {
     });
   });
 
-  it("sabiendo sólo el nivel, el techo queda en interrogante", () => {
-    expect(lecturaDeNivel(5, null, false).numeros).toBe("5/?");
+  it("sabiendo sólo el nivel, el techo es al menos ese nivel", () => {
+    // 2026-09-19: antes decía «5/?», y el interrogante escondía lo que sí se
+    // sabe. Un techo nunca está por debajo del nivel de hoy.
+    expect(lecturaDeNivel(5, null, false).numeros).toBe("5/≥5");
+  });
+
+  it("sin nivel y sin techo el interrogante sigue siendo lo honesto", () => {
+    // Aquí no hay suelo que enseñar: no se sabe nada de esa habilidad.
+    expect(lecturaDeNivel(null, null, false).numeros).toBe("");
   });
 
   it("un 4 que ya no sube es un 4, no una barra llena", () => {

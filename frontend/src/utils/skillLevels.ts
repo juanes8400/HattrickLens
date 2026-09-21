@@ -48,9 +48,16 @@ export function lecturaDeNivel(
     };
   }
   const nivel = current ?? maximum ?? 0;
+  // Con el techo sin revelar, el nivel de hoy es un SUELO: un techo no puede
+  // estar por debajo de donde el chico ya juega, así que un «6/?» es en
+  // realidad «6/≥6». Se dice porque es lo que hace que ese canterano cuente
+  // como aceptable en la selección de entrenamiento, y con el interrogante
+  // esa promoción parecía salir de la nada (2026-09-19, pedido del usuario).
   const numeros = maxReached
     ? `${current ?? maximum}/${maximum ?? current}`
-    : `${current ?? "?"}/${maximum ?? "?"}`;
+    : maximum == null && current != null
+      ? `${current}/≥${current}`
+      : `${current ?? "?"}/${maximum ?? "?"}`;
   return {
     palabra: skillLevelLabel(nivel),
     numeros,

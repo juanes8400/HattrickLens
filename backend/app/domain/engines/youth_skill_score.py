@@ -312,7 +312,18 @@ def skill_note(reading: YouthSkillReading) -> int | None:
     """
     if reading.max_reached:
         return None
-    return reading.maximum or None
+    if reading.maximum:
+        return reading.maximum
+    # Techo sin revelar: lo que se sabe del nivel de hoy es un SUELO, no un
+    # limite. Un techo no puede estar por debajo del nivel actual, asi que un
+    # «6/?» ya es, como minimo, un 6 (2026-09-19, pedido del usuario).
+    #
+    # Solo promociona, nunca hunde: si el nivel de hoy no llega al corte de
+    # «aceptable», el suelo no dice nada util y se queda en «no se sabe». Lo
+    # contrario repetiria el fallo de agosto --Pases 2 con techo desconocido
+    # cayendo como si el 2 fuera su limite--, porque ese 2 puede acabar en 8.
+    actual = reading.current or 0
+    return actual if actual >= ACCEPTABLE_FROM else None
 
 
 def bucket_of(note: int | None, *, leaves_soon: bool, max_reached: bool = False) -> str:

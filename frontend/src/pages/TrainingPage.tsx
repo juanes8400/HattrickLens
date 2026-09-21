@@ -10,6 +10,7 @@ import {
   useTrainingDevelopment,
   useTrainingFormula,
   useTrainingSquad,
+  useUltimoEntrenamiento,
 } from "../hooks/useTeam";
 import { DataTable, type Column } from "../components/DataTable";
 import { CountryCell } from "../components/CountryFlag";
@@ -43,13 +44,21 @@ import {
   trainerTrainingSpeedPct,
   trainingStaffLevelColor,
 } from "../utils/staffEffects";
-import { decimal, htAgeTexto, number } from "../hooks/useFormat";
+import clsx from "clsx";
+import {
+  date,
+  dateTime,
+  decimal,
+  htAgeTexto,
+  number,
+} from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { tx } from "../i18n/tx";
 
 type TrainingSection =
   | "datos"
   | "plantilla"
+  | "ultimo"
   | "experiencia"
   | "fidelidad"
   | "condicion"
@@ -151,7 +160,7 @@ function StaminaProgressCell({ row }: { row: TrainingStaminaRow }) {
       className="flex min-w-32 items-center gap-2"
       title={t(
         "entrenamiento.actualEsperado",
-        "Actual: {{actual}} ({{nivel}}). Esperado Ocerin: {{esperado}} ({{nivelEsperado}}).",
+        "Actual: {{actual}} ({{nivel}}). Esperado: {{esperado}} ({{nivelEsperado}}).",
         {
           actual: row.levelName,
           nivel: row.level,
@@ -669,7 +678,7 @@ function staminaColumns(): Column<TrainingStaminaRow>[] {
     },
     {
       key: "expectedLevel",
-      header: t("entrenamiento.esperadoOcerin", "Esperado Ocerin"),
+      header: t("entrenamiento.esperado", "Esperado"),
       value: (r) => r.expectedLevel ?? -1,
       render: (r) =>
         r.expectedLevel == null ? (
@@ -874,6 +883,210 @@ function edadOrdenable(edad: string): number {
   return Number(anios ?? 0) + Number(dias ?? 0) / DIAS_POR_TEMPORADA;
 }
 
+/**
+ * El parte de la última actualización semanal (2026-09-19, pedido del usuario).
+ *
+ * Lo que contesta es «qué pasó el último martes»: cuándo fue exactamente, con
+ * qué entrenamiento puesto y quién subió. El cuándo no se estima: Hattrick
+ * publica la hora de la actualización de cada liga.
+ *
+ * Y distingue dos silencios que se parecen mucho: que no subiera nadie, y que
+ * todavía no hayas sincronizado desde entonces. Decir «no subió nadie» cuando
+ * lo que pasa es que nadie ha mirado sería mentir con datos.
+ */
+function ParteDelUltimoEntrenamiento({ activa }: { activa: boolean }) {
+  const { t } = useTranslation();
+  const { data, isLoading, isError, error } = useUltimoEntrenamiento(activa);
+  if (isLoading) return <Loading />;
+  if (isError) return <ErrorState error={error} />;
+  if (!data) return null;
+
+  const cuando = data.at ? dateTime(data.at) : null;
+  const ajustes = [
+    data.intensity != null
+      ? t("entrenamiento.intensidadDe", "intensidad {{v}}%", {
+          v: data.intensity,
+        })
+      : null,
+    data.staminaShare != null
+      ? t("entrenamiento.resistenciaDe", "resistencia {{v}}%", {
+          v: data.staminaShare,
+        })
+      : null,
+    data.trainerName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  // La cifra grande es la noticia de la semana: cuántos SUBIERON. Con los
+  // datos sin actualizar no hay cifra que dar, y poner un cero seria afirmar
+  // que no subio nadie.
+  //
+  // Las bajadas van aparte y no se suman: el mismo fichero de Hattrick
+  // reporta las dos cosas --la Resistencia se cae sola cuando el
+  // entrenamiento va por otro lado-- y contarlas juntas convertia un mal
+  // resultado en una buena noticia (2026-09-19, visto con datos reales).
+  const cifra = data.pendingSync ? "?" : String(data.upCount);
+  const pie = data.pendingSync
+    ? t(
+        "entrenamiento.ultimoSinSincronizar",
+        "Tus datos llegan hasta el {{fecha}}, antes de este entrenamiento. Sincroniza para ver quién subió.",
+        { fecha: data.dataAt ? date(data.dataAt) : "?" },
+      )
+    : data.upCount === 0 && data.downCount === 0
+      ? [
+          t("entrenamiento.ultimoSinSubidas", "No subió nadie."),
+          data.lastWithUps
+            ? t(
+                "entrenamiento.ultimaConSubidas",
+                "La última vez que alguien subió fue en {{semana}}.",
+                { semana: data.lastWithUps },
+              )
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : [
+          data.upCount === 1
+            ? t("entrenamiento.subioUno", "Subió un jugador.")
+            : t("entrenamiento.subieronN", "Subieron {{n}} jugadores.", {
+                n: data.upCount,
+              }),
+          data.downCount === 1
+            ? t("entrenamiento.bajoUno", "A uno se le cayó una habilidad.")
+            : data.downCount > 1
+              ? t(
+                  "entrenamiento.bajaronN",
+                  "A {{n}} se les cayó alguna habilidad.",
+                  { n: data.downCount },
+                )
+              : null,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+  return (
+    <Panel
+      title={t("entrenamiento.ultimo", "Último entrenamiento")}
+      meta={
+        cuando
+          ? `${cuando}${data.seasonWeek ? ` · ${data.seasonWeek}` : ""}`
+          : t("entrenamiento.sinHora", "sin la hora de esta liga todavía")
+      }
+    >
+      {/* La cabecera responde de un vistazo las dos preguntas de la semana:
+          cuántos subieron y con qué entrenamiento puesto. Antes eran dos
+          renglones grises y había que leerlos para enterarse de algo. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-[var(--border)] px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={clsx(
+              "text-4xl font-semibold leading-none tabular-nums",
+              data.pendingSync
+                ? "text-[var(--muted)]"
+                : data.upCount > 0
+                  ? "text-[var(--positive)]"
+                  : "text-[var(--text)]",
+            )}
+          >
+            {cifra}
+          </span>
+          <span className="text-xs uppercase tracking-wide text-[var(--muted)]">
+            {data.upCount === 1
+              ? t("entrenamiento.subida", "subida")
+              : t("entrenamiento.subidas", "subidas")}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">
+            {data.trainingType ??
+              t("entrenamiento.sinTipo", "entrenamiento sin identificar")}
+          </div>
+          {ajustes && (
+            <div className="truncate text-xs text-[var(--muted)]">
+              {ajustes}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="border-b border-[var(--border)] px-4 py-2 text-sm">
+        {pie}{" "}
+        {data.pendingSync && (
+          <Link to="/sync" className="text-[var(--accent)] hover:underline">
+            {t("entrenamiento.irASincronizar", "ir a sincronizar")}
+          </Link>
+        )}
+      </div>
+
+      {data.ups.length > 0 && (
+        <ul className="divide-y divide-[var(--border)]">
+          {data.ups.map((u) => (
+            <li
+              key={`${u.htPlayerId}-${u.skill}-${u.toLevel}`}
+              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-baseline gap-2">
+                <span
+                  className={
+                    u.delta > 0
+                      ? "text-[var(--positive)]"
+                      : "text-[var(--danger)]"
+                  }
+                >
+                  {u.delta > 0 ? "▲" : "▼"}
+                </span>
+                <PlayerLink htPlayerId={u.htPlayerId} name={u.name} />
+              </span>
+              <span className="flex items-baseline gap-2 text-xs">
+                <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[var(--muted)]">
+                  {u.skillLabel}
+                </span>
+                <span className="text-[var(--muted)]">
+                  {skillLevelLabel(u.fromLevel)}
+                </span>
+                <span className="text-[var(--muted)]">→</span>
+                <span
+                  className={clsx(
+                    "font-medium",
+                    u.delta > 0
+                      ? "text-[var(--positive)]"
+                      : "text-[var(--danger)]",
+                  )}
+                >
+                  {skillLevelLabel(u.toLevel)}
+                </span>
+                <span className="tabular-nums text-[var(--muted)]">
+                  ({u.toLevel})
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Mirar sólo hacia atrás no invita a volver: aquí está con qué
+          comparar y cuándo toca el siguiente. */}
+      <Note>
+        {data.previousSeasonWeek &&
+          t(
+            "entrenamiento.ultimoAnterior",
+            "La actualización anterior ({{semana}}, {{fecha}}) dejó {{n}} subidas confirmadas.",
+            {
+              semana: data.previousSeasonWeek,
+              fecha: data.previousAt ? date(data.previousAt) : "?",
+              n: data.previousUps,
+            },
+          )}{" "}
+        {data.nextAt &&
+          t("entrenamiento.proximo", "El próximo, el {{fecha}}.", {
+            fecha: dateTime(data.nextAt),
+          })}
+      </Note>
+    </Panel>
+  );
+}
+
 export function TrainingPage() {
   const { t } = useTranslation();
   // Abre en «Entrenamiento actual», no en «Datos Entrenamiento». Hasta el
@@ -986,6 +1199,10 @@ export function TrainingPage() {
         tabs={[
           { key: "plantilla", label: tituloActual },
           {
+            key: "ultimo",
+            label: t("entrenamiento.ultimo", "Último entrenamiento"),
+          },
+          {
             key: "experiencia",
             label: t("abrev.largo.experience", "Experiencia"),
           },
@@ -1009,6 +1226,10 @@ export function TrainingPage() {
         activa={section}
         className="space-y-4"
       >
+        {section === "ultimo" && (
+          <ParteDelUltimoEntrenamiento activa={section === "ultimo"} />
+        )}
+
         {section === "datos" && (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
@@ -1466,7 +1687,7 @@ export function TrainingPage() {
                     <span className="flex items-center gap-2">
                       {t(
                         "entrenamiento.resistenciaMeta",
-                        "{{n}} jugadores · {{pct}}% efectivo · guía Ocerin",
+                        "{{n}} jugadores · {{pct}}% efectivo",
                         {
                           n: development.data.stamina.length,
                           pct: decimal(
