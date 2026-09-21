@@ -1322,7 +1322,10 @@ function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
                 label={tx("% agente")}
                 value={
                   row.agentPct != null
-                    ? `${(row.agentPct * 100).toFixed(1)}%`
+                    ? // Dos decimales, como en Transferencias: Hattrick cobra
+                      // 11,97 % y con uno se leia 12,0 %, que no se puede
+                      // comparar con nada.
+                      `${(row.agentPct * 100).toFixed(2)}%`
                     : "-"
                 }
                 hint={
