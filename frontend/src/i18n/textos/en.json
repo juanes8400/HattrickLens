@@ -1868,5 +1868,18 @@
   "Mejor caso: en cada partido que te queda marcas de goleada y no encajas. Peor caso: al revés. El resto de la liga se simula con el mismo modelo que la gráfica de arriba, zona por zona, con el resumen que elegiste, así que aun forzando tu propio resultado al extremo, tu puesto final sigue siendo una distribución. Tus partidos van forzados y NO los toca ese modelo: por eso tus puntos de cada extremo no cambian aunque cambies el resumen, y lo que se mueve es dónde acaban los demás.": "Best case: in every match you have left you win by a landslide and concede nothing. Worst case: the other way round. The rest of the league is simulated with the same model as the chart above, zone by zone, with the summary you chose, so even forcing your own results to the extreme, your final position is still a distribution. Your matches are forced and that model does NOT touch them: that is why your points at each extreme do not change when you change the summary, and what moves is where everyone else ends up.",
   "Todavía no hay calendario de liga. En cuanto Hattrick publique el de la temporada nueva, aquí se podrán poner los resultados de la primera jornada.": "There is no league calendar yet. As soon as Hattrick publishes the new season's, you will be able to enter the first round's results here.",
   "No queda ninguna jornada por jugar: la temporada terminó. Esto vuelve en cuanto empiece la siguiente.": "There is no round left to play: the season is over. This comes back as soon as the next one starts.",
-  "Mientras tanto, la clasificación final está en «Resumen».": "In the meantime, the final table is in “Summary”."
+  "Mientras tanto, la clasificación final está en «Resumen».": "In the meantime, the final table is in “Summary”.",
+  "jornada {{v0}} · {{v1}}/{{v2}} alineaciones encontradas": "round {{v0}} · {{v1}}/{{v2}} lineups found",
+  "{{v0}} jornada(s) · {{v1}}/{{v2}} alineaciones encontradas": "{{v0}} round(s) · {{v1}}/{{v2}} lineups found",
+  "izquierda": "left",
+  "centro": "centre",
+  "derecha": "right",
+  "Izquierda": "Left",
+  "Centro": "Centre",
+  "Derecha": "Right",
+  "Saldo de la semana": "Week balance",
+  "General": "Terraces",
+  "Preferentes": "Basic seating",
+  "Tribunas": "Seats under roof",
+  "Palcos": "Executive boxes"
 }

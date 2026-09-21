@@ -1107,7 +1107,10 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                   label: p.name,
                 })),
                 { x: ownAgeTsi.age, y: ownAgeTsi.tsi, label: data.name },
-                "Edad",
+                // Con `tx`, no en crudo: el nombre del eje es texto de
+                // pantalla y se quedaba en español (2026-09-20, visto por el
+                // usuario). «TSI» no, que se llama igual en los dos idiomas.
+                tx("Edad"),
                 "TSI",
               )}
             />

@@ -630,7 +630,13 @@ async def _league_comparison_sin_cache(
                 includeMatchInfo="true",
             )
             last_match = payload.get("last_match")
-            pos_name = match_role_name(last_match["position_code"]) if last_match else None
+            # El código 0 es «no consta»: Hattrick tiene el partido pero no en
+            # qué puesto jugó. Sin este filtro salía por pantalla el texto de
+            # emergencia «posición 0 (sin traducir)», que es una nota para el
+            # programador, no una respuesta (2026-09-20, visto por el usuario).
+            # Un guión, como las demás filas sin dato.
+            codigo = last_match["position_code"] if last_match else 0
+            pos_name = match_role_name(codigo) if codigo else None
         except (CHPPAuthError, CHPPUnavailableError):
             pos_name = None
         _last_position_cache[pid] = (now2, pos_name)

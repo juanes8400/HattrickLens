@@ -85,6 +85,6 @@ describe("proximaJornada", () => {
       cruce(1, "C", "D", true),
       cruce(2, "A", "C"),
     ]);
-    expect(j?.cruces[0].indice).toBe(2);
+    expect(j?.cruces[0]?.indice).toBe(2);
   });
 });

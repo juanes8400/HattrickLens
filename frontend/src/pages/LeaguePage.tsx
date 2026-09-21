@@ -1434,9 +1434,20 @@ function TeamOfTheWeekPanel() {
   );
 
   const meta = data
-    ? scope === "week"
-      ? `jornada ${data.matchRound ?? "?"} · ${data.lineupsFound}/${data.lineupsExpected} alineaciones encontradas`
-      : `${data.roundsCovered} jornada(s) · ${data.lineupsFound}/${data.lineupsExpected} alineaciones encontradas`
+    ? // Con `tx`, no una plantilla de texto pegada: estas dos líneas eran
+      // las únicas del panel que no pasaban por el diccionario y salían en
+      // español con la aplicación en inglés (2026-09-20, visto por el usuario).
+      scope === "week"
+      ? tx("jornada {{v0}} · {{v1}}/{{v2}} alineaciones encontradas", {
+          v0: data.matchRound ?? "?",
+          v1: data.lineupsFound,
+          v2: data.lineupsExpected,
+        })
+      : tx("{{v0}} jornada(s) · {{v1}}/{{v2}} alineaciones encontradas", {
+          v0: data.roundsCovered,
+          v1: data.lineupsFound,
+          v2: data.lineupsExpected,
+        })
     : undefined;
 
   return (

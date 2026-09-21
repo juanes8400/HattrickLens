@@ -331,11 +331,18 @@ function CompensaAmpliar({ data }: { data: Arena }) {
   const composicion = data.composition ?? {};
   const aforo = Object.values(composicion).reduce((a, b) => a + b, 0);
   if (opciones.length === 0 && aforo === 0) return null;
+  // Los nombres de Hattrick para las cuatro zonas, en el idioma que toque.
+  //
+  // NO salen del glosario oficial porque ese fichero no los trae: cubre
+  // habilidades, niveles, tácticas, puestos y calificaciones, y las zonas del
+  // estadio no están. Así que van aquí con los nombres que Hattrick usa en su
+  // propia pantalla de Estadio. Si algún día el glosario los incluye, este es
+  // el sitio donde cambiarlo (2026-09-20, señalado por el usuario).
   const sectores: [string, string][] = [
-    ["general", "General"],
-    ["preferentes", "Preferentes"],
-    ["tribunas", "Tribunas"],
-    ["palcos", "Palcos"],
+    ["general", tx("General")],
+    ["preferentes", tx("Preferentes")],
+    ["tribunas", tx("Tribunas")],
+    ["palcos", tx("Palcos")],
   ];
   const viables = opciones
     .filter((o) => o.netPerSeason > 0 && o.paybackSeasons != null)
