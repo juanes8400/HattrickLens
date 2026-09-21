@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.application.queries.changes_history import SIEMPRE, build_changes_history
+from app.application.queries.weekly import cierre_mas_cercano
 from app.infrastructure.db import models as m
 
 
@@ -156,10 +157,7 @@ def test_changes_history_uses_only_the_last_snapshot_of_each_iso_week() -> None:
                 ]
             )
             await session.commit()
-            fixed_now = monday + timedelta(days=7, hours=1)
-            result = await build_changes_history(
-                session, team.id, player.ht_player_id, now=fixed_now
-            )
+            result = await build_changes_history(session, team.id, player.ht_player_id)
 
         # Week 31 closes at 7; week 32 closes at 8. The intra-week 5→6 and
         # 6→7 transitions remain auditable in storage but are not UI diffs.
@@ -262,15 +260,12 @@ def test_a_wider_window_reports_the_net_change_not_each_weekly_step() -> None:
                 session.add(_snapshot(sync.id, player.id, at, passing=5 + week))
             await session.commit()
 
-            now = monday + timedelta(weeks=4, hours=1)
-
             async def passing(weeks: int) -> list[tuple[int, int, int]]:
                 result = await build_changes_history(
                     session,
                     team.id,
                     player.ht_player_id,
                     weeks=weeks,
-                    now=now,
                 )
                 return [
                     (e["before"], e["current"], e["delta"])
@@ -291,7 +286,6 @@ def test_a_wider_window_reports_the_net_change_not_each_weekly_step() -> None:
                 team.id,
                 player.ht_player_id,
                 weeks=16,
-                now=now,
             )
             assert [
                 (e["before"], e["current"]) for e in wide["skillChanges"] if e["key"] == "passing"
@@ -347,7 +341,6 @@ def test_a_player_signed_mid_window_is_compared_against_his_own_first_close() ->
                 team.id,
                 nuevo.ht_player_id,
                 weeks=8,
-                now=monday + timedelta(weeks=3, hours=1),
             )
 
         assert [
@@ -407,7 +400,6 @@ def test_compared_from_is_the_teams_reference_not_a_newcomers() -> None:
                 session,
                 team.id,
                 weeks=2,
-                now=monday + timedelta(weeks=4, hours=1),
             )
 
         # Dos semanas atrás desde la semana 4 es la semana 2, no la 0, aunque
@@ -478,9 +470,8 @@ def test_loyalty_is_not_read_from_the_old_incomplete_snapshots() -> None:
                 )
             await session.commit()
 
-            now = monday + timedelta(weeks=2, hours=1)
-            wide = await build_changes_history(session, team.id, weeks=4, now=now)
-            narrow = await build_changes_history(session, team.id, weeks=1, now=now)
+            wide = await build_changes_history(session, team.id, weeks=4)
+            narrow = await build_changes_history(session, team.id, weeks=1)
 
         # La ventana ancha llega hasta la fila incompleta: nada de "0 → 20".
         assert wide["loyaltyChanges"] == []
@@ -556,7 +547,6 @@ def test_the_aggregate_covers_market_and_leadership_too() -> None:
                 session,
                 team.id,
                 weeks=1,
-                now=monday + timedelta(weeks=1, hours=1),
             )
 
         mercado = {e["key"]: e for e in result["marketChanges"]}
@@ -631,7 +621,6 @@ def test_players_who_left_the_club_are_out_of_changes_and_of_the_balances() -> N
                 session,
                 team.id,
                 weeks=1,
-                now=monday + timedelta(weeks=1, hours=1),
             )
 
         nombres = {e["name"] for e in result["skillChanges"]}
@@ -698,9 +687,8 @@ def test_siempre_compara_contra_el_primer_cierre_de_cada_jugador() -> None:
                     session.add(_snapshot(sync.id, nuevo.id, at, passing=10 + week))
             await session.commit()
 
-            ahora = monday + timedelta(weeks=4, hours=1)
-            siempre = await build_changes_history(session, team.id, weeks=SIEMPRE, now=ahora)
-            una_semana = await build_changes_history(session, team.id, weeks=1, now=ahora)
+            siempre = await build_changes_history(session, team.id, weeks=SIEMPRE)
+            una_semana = await build_changes_history(session, team.id, weeks=1)
 
         def pases(resultado):
             return {
@@ -772,9 +760,7 @@ def test_siempre_sigue_descartando_la_fidelidad_de_las_lecturas_incompletas() ->
                 session.add(_snapshot(sync.id, jugador.id, at, **extra))
             await session.commit()
 
-            resultado = await build_changes_history(
-                session, team.id, weeks=SIEMPRE, now=monday + timedelta(weeks=2, hours=1)
-            )
+            resultado = await build_changes_history(session, team.id, weeks=SIEMPRE)
 
         # Los Pases sí se cuentan desde el primer cierre.
         assert [
@@ -859,9 +845,8 @@ def test_la_cantera_entra_en_las_mismas_ventanas_que_la_plantilla() -> None:
                 session.add(_youth_snapshot(sync.id, chico.id, at, winger=winger))
             await session.commit()
 
-            ahora = monday + timedelta(weeks=3, hours=1)
-            siempre = await build_changes_history(session, team.id, weeks=SIEMPRE, now=ahora)
-            una_semana = await build_changes_history(session, team.id, weeks=1, now=ahora)
+            siempre = await build_changes_history(session, team.id, weeks=SIEMPRE)
+            una_semana = await build_changes_history(session, team.id, weeks=1)
 
         def lateral(r):
             return [
@@ -931,9 +916,7 @@ def test_un_descubrimiento_se_reporta_pero_sin_inventarle_un_antes() -> None:
                 session.add(_youth_snapshot(sync.id, chico.id, at, scoring=scoring))
             await session.commit()
 
-            resultado = await build_changes_history(
-                session, team.id, weeks=SIEMPRE, now=monday + timedelta(weeks=2, hours=1)
-            )
+            resultado = await build_changes_history(session, team.id, weeks=SIEMPRE)
 
         assert [
             (e["label"], e["before"], e["current"], e["delta"], e["isReveal"])
@@ -1006,9 +989,8 @@ def test_las_cifras_de_la_academia_siguen_a_la_ventana() -> None:
                 session.add(_youth_snapshot(sync.id, chico.id, at, **extra))
             await session.commit()
 
-            ahora = monday + timedelta(weeks=3, hours=1)
-            una = await build_changes_history(session, team.id, weeks=1, now=ahora)
-            siempre = await build_changes_history(session, team.id, weeks=SIEMPRE, now=ahora)
+            una = await build_changes_history(session, team.id, weeks=1)
+            siempre = await build_changes_history(session, team.id, weeks=SIEMPRE)
 
         # Siete habilidades por un canterano.
         assert una["youthSummary"]["readings"] == 7
@@ -1075,14 +1057,11 @@ def test_un_canterano_recien_llegado_sale_con_lo_que_trae() -> None:
                 # El nuevo sólo aparece en la última foto: llegó esta semana.
                 if week == 2:
                     session.add(
-                        _youth_snapshot(
-                            sync.id, nuevo.id, at, passing=3, passing_max=7, winger=2
-                        )
+                        _youth_snapshot(sync.id, nuevo.id, at, passing=3, passing_max=7, winger=2)
                     )
             await session.commit()
 
-            ahora = monday + timedelta(weeks=2, hours=1)
-            r = await build_changes_history(session, team.id, weeks=1, now=ahora)
+            r = await build_changes_history(session, team.id, weeks=1)
 
         llegada = [e for e in r["youthChanges"] if e.get("isArrival")]
         assert {(e["label"], e["current"]) for e in llegada} == {
@@ -1100,8 +1079,162 @@ def test_un_canterano_recien_llegado_sale_con_lo_que_trae() -> None:
 
         # A dos semanas el nuevo sigue siendo nuevo, pero el veterano no: su
         # primer cierre es anterior al corte.
-        r2 = await build_changes_history(session, team.id, weeks=2, now=ahora)
+        r2 = await build_changes_history(session, team.id, weeks=2)
         assert {e["htPlayerId"] for e in r2["youthChanges"] if e.get("isArrival")} == {901}
         await engine.dispose()
 
     asyncio.run(scenario())
+
+
+def test_una_sincronizacion_a_deshora_no_estira_la_ventana_a_dos_semanas() -> None:
+    """2026-09-21, medido sobre los cierres reales del usuario.
+
+    «Cuando yo pongo en Cambios Última Semana me aparecen un montón de
+    movimientos que ni por el putas son de una semana.» Y tenía razón: la
+    referencia era «el último cierre que ya existiera hace siete días», y una
+    sincronización no cae a la misma hora todas las semanas.
+
+    Sus cierres: domingo 13 a las 23:30 y domingo 20 a las 03:13. Al del 13
+    le faltaban veinte horas para tener siete días completos, así que caía
+    fuera del corte y la ventana se iba al cierre del 6: trece días de
+    fidelidad, de forma y de TSI en una lista que dice «última semana». Con
+    esos mismos cierres pasó tres veces en dos meses.
+
+    Las fechas van fijas y la prueba sale igual se ejecute el día que se
+    ejecute, que es justo la mitad del arreglo: la ventana ya no depende de
+    cuándo se mire, sólo de los cierres que hay. La otra mitad, coger el
+    cierre MÁS CERCANO al corte en vez del primero que sea al menos tan
+    viejo, está en `test_la_referencia_es_el_cierre_mas_cercano_al_corte`.
+    """
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        # Las horas son las de verdad, que son las que provocan el fallo.
+        fechas = [
+            datetime(2026, 9, 6, 11, 51, tzinfo=UTC),
+            datetime(2026, 9, 13, 23, 30, tzinfo=UTC),
+            datetime(2026, 9, 20, 3, 13, tzinfo=UTC),
+        ]
+        async with factory() as session:
+            team = m.Team(ht_team_id=1, name="Equipo")
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=11, team_id=team.id, first_name="Ana", last_name="Prueba"
+            )
+            session.add(player)
+            await session.flush()
+
+            # Una subida de fidelidad por semana, que es lo que de verdad
+            # hace la fidelidad y por eso delata la ventana estirada.
+            for at, loyalty in zip(fechas, (5, 6, 7), strict=True):
+                sync = m.Sync(
+                    user_id=1,
+                    team_id=team.id,
+                    kind="players",
+                    status="completed",
+                    started_at=at,
+                    finished_at=at,
+                )
+                session.add(sync)
+                await session.flush()
+                session.add(_snapshot(sync.id, player.id, at, loyalty=loyalty))
+            await session.commit()
+
+            r = await build_changes_history(session, team.id, weeks=1)
+
+        assert r["comparedFrom"] == fechas[1].replace(tzinfo=None).isoformat()
+        # Una semana es UNA subida de fidelidad, no dos.
+        assert [(e["before"], e["current"]) for e in r["loyaltyChanges"]] == [(6, 7)]
+
+    asyncio.run(scenario())
+
+
+def test_el_corte_se_mide_desde_la_ultima_lectura_y_no_desde_hoy() -> None:
+    """Mes y medio sin sincronizar y «última semana» sigue contestando.
+
+    Las diferencias se calculan contra los últimos datos guardados, así que
+    la ventana se mide desde ellos: «la última semana de la que hay
+    lecturas», y no la semana del calendario, que con los datos parados no
+    contiene ningún cierre. Es además lo que la pantalla enseña, porque dice
+    contra qué cierre está comparando.
+    """
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        # Cuatro cierres semanales que terminan hace mes y medio.
+        primero = datetime.now(UTC) - timedelta(weeks=9)
+        async with factory() as session:
+            team = m.Team(ht_team_id=1, name="Equipo")
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=11, team_id=team.id, first_name="Ana", last_name="Prueba"
+            )
+            session.add(player)
+            await session.flush()
+            for semana in range(4):
+                at = primero + timedelta(weeks=semana)
+                sync = m.Sync(
+                    user_id=1,
+                    team_id=team.id,
+                    kind="players",
+                    status="completed",
+                    started_at=at,
+                    finished_at=at,
+                )
+                session.add(sync)
+                await session.flush()
+                session.add(_snapshot(sync.id, player.id, at, loyalty=5 + semana))
+            await session.commit()
+
+            r = await build_changes_history(session, team.id, weeks=1)
+
+        # El penúltimo cierre, no el primero de todos.
+        esperado = (primero + timedelta(weeks=2)).replace(tzinfo=None)
+        assert r["comparedFrom"] == esperado.isoformat()
+        assert [(e["before"], e["current"]) for e in r["loyaltyChanges"]] == [(7, 8)]
+
+    asyncio.run(scenario())
+
+
+def test_la_referencia_es_el_cierre_mas_cercano_al_corte() -> None:
+    """La regla, sin base de datos de por medio.
+
+    Era «el último cierre que ya existiera al empezar la ventana», y por
+    veinte horas se saltaba una semana entera. Ahora se coge el más cercano
+    al corte, que con veinte horas de diferencia mueve la referencia veinte
+    horas.
+    """
+    domingo6 = datetime(2026, 9, 6, 11, 51)
+    domingo13 = datetime(2026, 9, 13, 23, 30)
+    domingo20 = datetime(2026, 9, 20, 3, 13)
+
+    corte = domingo20 - timedelta(weeks=1)
+    # La regla vieja: el último que ya existiera en el corte. Al del 13 le
+    # faltan veinte horas, así que caía al del 6.
+    assert [c for c in (domingo6, domingo13) if c <= corte][-1] == domingo6
+    # La nueva no tiene ese filo.
+    assert cierre_mas_cercano([domingo6, domingo13], corte) == domingo13
+
+    # Y sigue eligiendo el de antes cuando el corte cae de verdad más atrás.
+    assert cierre_mas_cercano([domingo6, domingo13], domingo20 - timedelta(weeks=2)) == domingo6
+
+    # «Siempre» pone el corte en el principio del tiempo: el primero de todos.
+    assert cierre_mas_cercano([domingo6, domingo13], datetime.min) == domingo6

@@ -1881,5 +1881,10 @@
   "Preferentes": "Basic seating",
   "Tribunas": "Seats under roof",
   "Palcos": "Executive boxes",
-  "Sube o baja según el % real de entrenamiento dedicado a resistencia para tu edad (la tabla de referencia está en Motor). El rojo muestra si al ritmo actual se espera subir o bajar de nivel.": "It rises or falls with the real % of training devoted to stamina for your age (the reference table is in Engine). Red shows whether, at the current rate, a level up or down is expected."
+  "Sube o baja según el % real de entrenamiento dedicado a resistencia para tu edad (la tabla de referencia está en Motor). El rojo muestra si al ritmo actual se espera subir o bajar de nivel.": "It rises or falls with the real % of training devoted to stamina for your age (the reference table is in Engine). Red shows whether, at the current rate, a level up or down is expected.",
+  "Inglaterra": "England",
+  "Oceanía": "Oceania",
+  "Oceania": "Oceania",
+  "Tahití": "Tahiti",
+  "Tahiti": "Tahiti"
 }

@@ -36,6 +36,28 @@ def latest_per_iso_week[T](items: Iterable[T], captured_at: Callable[[T], dateti
     return list(latest.values())
 
 
+def cierre_mas_cercano(cierres: Iterable[datetime], corte: datetime) -> datetime:
+    """De los cierres que hay, el MÁS CERCANO al corte de una ventana.
+
+    LA REGLA DE TODAS LAS VENTANAS DE COMPARACIÓN, en un solo sitio: la de
+    Cambios («última semana», «hace 4 semanas») y la de Jugadores. Las dos
+    preguntan lo mismo, «¿contra qué cierre se mira esto?», y las dos se
+    equivocaban igual cuando cada una lo resolvía por su cuenta.
+
+    ERA «EL ÚLTIMO CIERRE QUE YA EXISTIERA EN EL CORTE», Y SE SALTABA UNA
+    SEMANA ENTERA (2026-09-21, medido sobre los cierres reales del usuario).
+    Una sincronización no cae a la misma hora todas las semanas: con el
+    cierre del domingo 13 a las 23:30 y el del domingo 20 a las 03:13, al
+    del 13 le faltaban veinte horas para tener siete días, así que quedaba
+    fuera y «última semana» se comparaba contra el del 6, trece días atrás.
+    Dos semanas de fidelidad, de forma y de TSI bajo un título que dice una.
+
+    El más cercano no tiene ese filo: veinte horas de diferencia mueven la
+    referencia veinte horas, no siete días.
+    """
+    return min(cierres, key=lambda cierre: abs(cierre - corte))
+
+
 def changes_only(  # noqa: UP047
     items: Iterable[T],
     captured_at: Callable[[T], datetime],

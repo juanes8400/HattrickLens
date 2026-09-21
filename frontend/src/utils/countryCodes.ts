@@ -1,4 +1,6 @@
 import countries from "flag-icons/country.json";
+import i18n from "../i18n";
+import { tx } from "../i18n/tx";
 
 type CountryEntry = {
   code: string;
@@ -16,17 +18,32 @@ function normalizeCountryName(value: string): string {
 }
 
 const nameToCode = new Map<string, string>();
-const displayNames =
+
+const nombres = (idioma: string) =>
   typeof Intl.DisplayNames === "function"
-    ? new Intl.DisplayNames(["es"], { type: "region" })
+    ? new Intl.DisplayNames([idioma], { type: "region" })
     : null;
+
+/** Los nombres que SE ESCRIBEN, en el idioma de la aplicación (2026-09-21).
+ *
+ *  Estaba fijo en español y por eso la columna Origen decía «Alemania» con
+ *  la aplicación en inglés. El idioma se lee al cargar el módulo y no hace
+ *  falta más: cambiarlo recarga la página entera (ver `cambiarIdioma`). */
+const displayNames = nombres(i18n.language || "es");
+
+/** Los nombres que SE LEEN. El texto que guarda la aplicación viene de
+ *  Hattrick en español --«Alemania», «Madagasikara»--, así que reconocerlo
+ *  hay que hacerlo en español pase lo que pase con el idioma de pantalla. */
+const nombresLeidos = nombres("es");
 
 for (const country of countries as CountryEntry[]) {
   if (!country.iso || !/^[a-z]{2}$/.test(country.code)) continue;
   const code = country.code.toLowerCase();
   nameToCode.set(normalizeCountryName(country.name), code);
-  const spanishName = displayNames?.of(code.toUpperCase());
-  if (spanishName) nameToCode.set(normalizeCountryName(spanishName), code);
+  for (const fuente of new Set([nombresLeidos, displayNames])) {
+    const nombre = fuente?.of(code.toUpperCase());
+    if (nombre) nameToCode.set(normalizeCountryName(nombre), code);
+  }
 }
 
 // Nombres de ligas Hattrick que no son el nombre ISO mostrado por el
@@ -44,10 +61,14 @@ for (const [name, code] of Object.entries(HATTRICK_COUNTRY_ALIASES)) {
 }
 
 /** Ligas de Hattrick cuyo nombre NO es el del país ISO de su bandera:
- *  «Inglaterra» lleva la bandera británica, pero no se llama Reino Unido. */
+ *  «Inglaterra» lleva la bandera británica, pero no se llama Reino Unido.
+ *
+ *  Su nombre no se puede sacar del código, así que se traduce como cualquier
+ *  otro texto de la aplicación en vez de dejarlo en español (2026-09-21). */
 const CONSERVAR_NOMBRE = new Set(["inglaterra", "oceania", "tahiti"]);
 
-/** El nombre del país en español, sacado siempre del código (2026-09-13).
+/** El nombre del país, sacado siempre del código y en el idioma de la
+ *  aplicación (2026-09-13; el idioma, 2026-09-21).
  *
  *  Cada tabla lo tomaba de una fuente distinta y salía «Madagasikara» en
  *  Jugadores --el nombre de la liga en Hattrick-- y «Madagascar» en
@@ -61,7 +82,7 @@ export function nombreDePais(
   if (!c || !/^[a-z]{2}$/.test(c) || !displayNames) return country ?? null;
   if (country) {
     const n = normalizeCountryName(country);
-    if (CONSERVAR_NOMBRE.has(n)) return country;
+    if (CONSERVAR_NOMBRE.has(n)) return tx(country);
     const suyo = nameToCode.get(n);
     if (suyo != null && suyo !== c) return country;
   }

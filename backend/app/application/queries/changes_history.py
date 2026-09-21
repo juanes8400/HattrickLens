@@ -9,13 +9,13 @@ actually saved for the player.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.queries.weekly import latest_per_iso_week
+from app.application.queries.weekly import cierre_mas_cercano, latest_per_iso_week
 from app.infrastructure.db import models as m
 
 # 2026-08-05, pedido explícitamente: "los cambios de la página de cambios
@@ -133,9 +133,7 @@ YOUTH_METRICS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _llegada(
-    actual: Any, juvenil: Any, nombre: str, campo: str, etiqueta: str
-) -> dict[str, Any]:
+def _llegada(actual: Any, juvenil: Any, nombre: str, campo: str, etiqueta: str) -> dict[str, Any]:
     """Una habilidad con la que un canterano ENTRÓ por la puerta.
 
     Sin «antes» y sin delta: nadie subió ni bajó. Y sin marcarla como
@@ -235,8 +233,8 @@ async def _cambios_de_cantera(
                                 _llegada(actual, juvenil, nombre, campo, etiqueta + sufijo)
                             )
             continue
-        anteriores = [c for c in cierres[:-1] if _naive(c[0].captured_at) <= cutoff]
-        previo = anteriores[-1][0] if anteriores else cierres[0][0]
+        fecha = cierre_mas_cercano([_naive(c[0].captured_at) for c in cierres[:-1]], cutoff)
+        previo = next(c[0] for c in cierres[:-1] if _naive(c[0].captured_at) == fecha)
         contados: set[str] = set()
         lecturas += len(YOUTH_METRICS)
         for clave, _etiqueta in YOUTH_METRICS:
@@ -289,14 +287,10 @@ async def _cambios_de_cantera(
                 for campo, sufijo in ((clave, ""), (f"{clave}_max", " (techo)")):
                     if campo in contados or getattr(actual, campo) is None:
                         continue
-                    eventos.append(
-                        _llegada(actual, juvenil, nombre, campo, etiqueta + sufijo)
-                    )
+                    eventos.append(_llegada(actual, juvenil, nombre, campo, etiqueta + sufijo))
     # Primero lo que más se movió; los descubrimientos, que no tienen tamaño,
     # detrás y por orden alfabético.
-    eventos.sort(
-        key=lambda e: (e["delta"] is None, -abs(e["delta"] or 0), e["name"], e["key"])
-    )
+    eventos.sort(key=lambda e: (e["delta"] is None, -abs(e["delta"] or 0), e["name"], e["key"]))
     resumen = {
         "revelations": sum(1 for e in eventos if e["isReveal"]),
         "ceilingsNow": techos_ahora,
@@ -312,7 +306,6 @@ async def build_changes_history(
     player_ht_id: int | None = None,
     *,
     weeks: int = DEFAULT_WINDOW_WEEKS,
-    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Cuánto cambió cada jugador en las últimas `weeks` semanas.
 
@@ -371,26 +364,51 @@ async def build_changes_history(
     selected_player = player_ht_id if player_ht_id in snapshots else latest_player
 
     # `captured_at` de SQLite llega naive aunque la columna sea aware (mismo
-    # caso que `sold_at` en sync_team.py), el cutoff se calcula naive para
+    # caso que `sold_at` en sync_team.py), el corte se calcula naive para
     # comparar contra el mismo tipo.
-    cutoff = (
-        # Con «Siempre» no hay corte: nada es anterior a él, así que `older`
-        # sale vacío para todo el mundo y cada jugador cae en su propio primer
-        # cierre, que es exactamente lo que se pide.
-        datetime.min
-        if weeks == SIEMPRE
-        else ((now or datetime.now(UTC)) - timedelta(weeks=weeks)).replace(tzinfo=None)
+    closes = sorted({_naive(s.captured_at) for entries in snapshots.values() for s, _ in entries})
+
+    # El ancla es la última lectura que hay, venga de la plantilla o de la
+    # cantera: un equipo puede tener juveniles y ningún jugador, y entonces
+    # `closes` está vacío y la ventana se quedaría sin dónde apoyarse.
+    ultima_de_cantera = (
+        await session.execute(
+            select(func.max(m.YouthSnapshot.captured_at))
+            .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
+            .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
+        )
+    ).scalar()
+    ancla = max(
+        [
+            c
+            for c in (
+                closes[-1] if closes else None,
+                _naive(ultima_de_cantera) if ultima_de_cantera else None,
+            )
+            if c is not None
+        ],
+        default=None,
     )
 
-    # Contra qué cierre se compara EL EQUIPO: el más reciente que ya existía
-    # cuando empezó la ventana. Se calcula sobre todos los cierres juntos, no
-    # jugador a jugador, porque es la respuesta a "¿hace cuánto?" que se
-    # enseña en pantalla, un fichaje reciente, que abajo se compara contra su
-    # propio primer cierre, no puede arrastrar esa fecha hacia atrás y hacer
-    # creer que toda la tabla mira cuatro meses atrás.
-    closes = sorted({_naive(s.captured_at) for entries in snapshots.values() for s, _ in entries})
-    older_closes = [c for c in closes if c <= cutoff]
-    compared_from = older_closes[-1] if older_closes else (closes[0] if closes else None)
+    # EL CORTE SE MIDE DESDE EL ÚLTIMO CIERRE GUARDADO, NO DESDE HOY
+    # (2026-09-21). Las diferencias se calculan contra ESOS datos: si hace
+    # diez días que no sincronizas, «última semana» no puede ser la semana
+    # del calendario, es la última semana de la que hay lecturas. Midiéndolo
+    # desde hoy, un par de días sin sincronizar corrían el corte y la
+    # referencia se iba un cierre más atrás sin que nada lo dijera.
+    cutoff = (
+        # Con «Siempre» no hay corte: está en el principio del tiempo, así
+        # que el cierre más cercano a él es el primero de cada jugador, que
+        # es exactamente lo que se pide.
+        datetime.min if weeks == SIEMPRE or ancla is None else ancla - timedelta(weeks=weeks)
+    )
+
+    # Contra qué cierre se compara EL EQUIPO. Se calcula sobre todos los
+    # cierres juntos, no jugador a jugador, porque es la respuesta a "¿hace
+    # cuánto?" que se enseña en pantalla: un fichaje reciente, que abajo se
+    # compara contra su propio primer cierre, no puede arrastrar esa fecha
+    # hacia atrás y hacer creer que toda la tabla mira cuatro meses atrás.
+    compared_from = cierre_mas_cercano(closes[:-1], cutoff) if len(closes) > 1 else None
 
     grouped: dict[str, list[dict[str, Any]]] = {
         "skill": [],
@@ -401,14 +419,16 @@ async def build_changes_history(
     }
     for entries in snapshots.values():
         current, player = entries[-1]
-        # La referencia de cada jugador es su último cierre dentro de los que
-        # ya existían al empezar la ventana. Si llegó después no hay contra qué
-        # comparar y no se inventa un "antes": se usa su primer cierre, que es
-        # lo más viejo que de él se sabe.
-        older = [item for item in entries[:-1] if _naive(item[0].captured_at) <= cutoff]
-        previous = older[-1][0] if older else (entries[0][0] if len(entries) > 1 else None)
-        if previous is None:
+        # La referencia de cada jugador es SU cierre más cercano al corte. Si
+        # llegó después del corte no hay contra qué comparar y no se inventa
+        # un "antes": el más cercano acaba siendo su primer cierre, que es lo
+        # más viejo que de él se sabe.
+        if len(entries) < 2:
             continue
+        previous = cierre_mas_cercano(
+            [_naive(item[0].captured_at) for item in entries[:-1]], cutoff
+        )
+        previous = next(item[0] for item in entries[:-1] if _naive(item[0].captured_at) == previous)
         # ¿La referencia de este jugador es una de las filas viejas a las que
         # les falta media lectura? Ver `INCOMPLETE_WITHOUT_LEADERSHIP`.
         incomplete = not (previous.leadership or 0) > 0

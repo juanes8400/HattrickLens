@@ -14,7 +14,11 @@ from app.application.dto.squad import (
     SquadResponse,
     SquadTotals,
 )
-from app.application.queries.weekly import latest_per_iso_week, start_of_iso_week
+from app.application.queries.weekly import (
+    cierre_mas_cercano,
+    latest_per_iso_week,
+    start_of_iso_week,
+)
 from app.domain.engines import htms
 from app.domain.engines.position_engine import (
     best_position,
@@ -76,10 +80,10 @@ def cierre_de_la_ventana(history: list[SquadHistoryEntry], ventana: str) -> int 
     sale la vigésima, y «cuatro semanas» sigue queriendo decir lo mismo.
 
     El corte se mide desde el ÚLTIMO CIERRE GUARDADO y no desde hoy, porque
-    las diferencias se calculan contra esos datos. De los cierres que hay se
-    coge el más cercano al corte: una sincronización no cae a la misma hora
-    todas las semanas, y exigir «al menos tan viejo» dejaba fuera al cierre
-    correcto por unos minutos.
+    las diferencias se calculan contra esos datos. Cuál de los cierres cae
+    más cerca del corte lo decide `cierre_mas_cercano`, que es la misma
+    regla que usa Cambios y donde está contado por qué no vale «el último
+    que ya existiera en el corte».
 
     `history` llega del más reciente al más antiguo, y el primero es el
     retrato de hoy: comparar contra él daría cero en todas las filas.
@@ -94,12 +98,10 @@ def cierre_de_la_ventana(history: list[SquadHistoryEntry], ventana: str) -> int 
         return anteriores[-1].sync_id
     hoy = datetime.fromisoformat(history[0].captured_at)
     corte = hoy - timedelta(weeks=semanas)
-    if datetime.fromisoformat(anteriores[-1].captured_at) > corte + MARGEN_DE_VENTANA:
+    fechas = {datetime.fromisoformat(e.captured_at): e for e in anteriores}
+    if min(fechas) > corte + MARGEN_DE_VENTANA:
         return None
-    return min(
-        anteriores,
-        key=lambda entrada: abs(datetime.fromisoformat(entrada.captured_at) - corte),
-    ).sync_id
+    return fechas[cierre_mas_cercano(fechas, corte)].sync_id
 
 
 class SquadQueryService:
