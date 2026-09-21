@@ -64,6 +64,12 @@ ALWAYS_CHARGED_PCT = 0.05
 #:
 #: Con los tres días fuera, los días contados enteros (ver `dias_de_agente`)
 #: y la tabla curvada, las tres salen EXACTAS, hasta el último dólar.
+#:
+#: TRES DÍAS SIEMPRE, confirmado por el usuario el 2026-09-21. Se preguntó
+#: expresamente por el caso que lo rompería --una puja en los últimos minutos
+#: alarga el plazo de la subasta-- y la respuesta fue que no: la subasta dura
+#: tres días y punto. Si algún día apareciera una venta medida que no cuadra,
+#: éste es el primer supuesto que hay que mirar.
 DIAS_DE_SUBASTA = 3
 
 # Tabla oficial de Hattrick: % que se lleva el agente al vender, según los
@@ -172,6 +178,8 @@ def agent_commission_pct(days_owned: float) -> float:
     Y SE REDONDEA A DOS DECIMALES, como la tabla publicada y como cobra el
     juego: las tres comisiones medidas son un porcentaje exacto de dos
     decimales --13,27 %, 11,38 % y 11,97 %--, no un número con cola.
+    Confirmado por el usuario el 2026-09-21: el redondeo es siempre a dos
+    decimales, no es una casualidad de estas tres.
     """
     x = [float(d) for d, _ in AGENT_PCT_BREAKPOINTS]
     y = [p for _, p in AGENT_PCT_BREAKPOINTS]
