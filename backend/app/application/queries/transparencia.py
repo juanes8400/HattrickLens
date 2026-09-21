@@ -2714,9 +2714,10 @@ def catalogo() -> list[Seccion]:
                     limits=[
                         "Sin salario guardado el coste queda incompleto: se marca, no se estima.",
                         "«Reventa» es la comisión que llega si su nuevo club lo vuelve a vender.",
-                        "Los tres días de la subasta no cuentan para el agente: la cuenta se para "
-                        "cuando lo pones en el mercado. Comprobado contra tres ventas reales, "
-                        "donde la comisión se sabe exacta porque entraron solas en su semana.",
+                        "El agente cuenta días enteros de Hattrick y sin los tres de la subasta: "
+                        "la cuenta se para cuando lo pones en el mercado. Comprobado contra tres "
+                        "ventas reales, donde la comisión se sabe al dólar porque entraron solas "
+                        "en su semana: las tres salen exactas.",
                     ],
                 ),
             ],

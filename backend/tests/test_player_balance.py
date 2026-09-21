@@ -37,6 +37,7 @@ from app.domain.engines.player_balance import (
     SalarySnapshot,
     agent_commission_pct,
     compute_balance,
+    dias_de_agente,
     salary_payment_dates,
 )
 from app.infrastructure.chpp.parsers import get_parser
@@ -1108,13 +1109,45 @@ def test_agent_commission_curves_between_weekly_breakpoints() -> None:
                 return p0 + (dia - d0) / (d1 - d0) * (p1 - p0)
         return AGENT_PCT_BREAKPOINTS[-1][1]
 
+    # Media céntima de margen: el valor sale redondeado a dos decimales de
+    # porcentaje, como la tabla publicada, y ese redondeo puede subir un pelo.
+    redondeo = 0.00005
     anterior = 1.0
-    for decimas in range(0, 1121):
-        dia = decimas / 10
+    for dia in range(0, 113):
         valor = agent_commission_pct(dia)
         assert valor <= anterior + 1e-12, f"la curva sube en el día {dia}"
-        assert valor <= recta(dia) + 1e-12, f"la curva pasa la recta en el día {dia}"
+        assert valor <= recta(dia) + redondeo, f"la curva pasa la recta en el día {dia}"
         anterior = valor
+
+
+def test_the_agent_counts_whole_hattrick_days() -> None:
+    """Días de Hattrick, no horas divididas entre 24 (2026-09-21).
+
+    Un jugador cumple un día en la actualización diaria, así que lo que
+    cuenta es cuántas veces pasó la medianoche de Hattrick con él en el club.
+    Es lo que dicen las tres ventas medidas, y es lo que dice su edad:
+    Cartaxo entró con 23 años y 56 días y salió con 23 y 78, veintidós, con
+    21,79 días de reloj entre medias.
+    """
+    # Comprado a las 17:57 y vendido veintidós medianoches después, a las
+    # 12:48: 21,79 días de reloj, veintidós de Hattrick, diecinueve que cuentan.
+    compra = datetime(2026, 8, 28, 17, 57, tzinfo=UTC)
+    venta = datetime(2026, 9, 19, 12, 48, tzinfo=UTC)
+    assert dias_de_agente(compra, venta) == 19
+
+    # La medianoche que cuenta es la de Hattrick. Estas dos fechas están a
+    # menos de una hora, pero con la de Estocolmo en medio (23:30 allí son
+    # las 21:30 en UTC en verano).
+    assert (
+        dias_de_agente(
+            datetime(2026, 6, 1, 21, 15, tzinfo=UTC),
+            datetime(2026, 6, 1, 22, 15, tzinfo=UTC),
+        )
+        == 0
+    )
+
+    # Nunca negativo: vendido antes de que la subasta pueda haber terminado.
+    assert dias_de_agente(compra, compra + timedelta(days=1)) == 0
 
 
 def test_agent_commission_does_not_count_the_three_days_of_the_auction() -> None:
@@ -1173,12 +1206,13 @@ def test_agent_commission_matches_the_three_sales_measured_in_the_economy() -> N
         )
         calculada = compute_balance(record).agent_pct
         real = comision / precio
-        # Dos de las tres salen exactas; la tercera se queda a 0,02 puntos,
-        # que en una venta de siete millones son 1.400 US$. Antes de restar
-        # la subasta y curvar la tabla, el error llegaba a 18.600.
-        assert calculada == pytest.approx(real, abs=0.0003), (
+        # EXACTAS, las tres, hasta el último céntimo. Antes de restar la
+        # subasta, contar días enteros de Hattrick y curvar la tabla, el
+        # error llegaba a 18.600 US$ en una venta de siete millones.
+        assert calculada == pytest.approx(real, abs=1e-9), (
             f"{precio}: calculada {calculada:.4%}, real {real:.4%}"
         )
+        assert round(precio * calculada) == comision
 
 
 def test_compute_balance_matches_real_spreadsheet_row_a_quintana() -> None:

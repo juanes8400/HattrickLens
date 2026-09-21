@@ -56,13 +56,15 @@ ALWAYS_CHARGED_PCT = 0.05
 #:     Stănel Didoiu  7.400.000        27,979          11,38 %
 #:     A. J. Cartaxo  7.000.000        21,785          11,97 %
 #:
-#: Leyendo la tabla al revés, esas tres comisiones caen en el día 9,3, 25,2 y
-#: 19,1: entre 2,6 y 2,8 días MENOS de los que el jugador estuvo en el club,
-#: las tres. Barriendo la resta de 0 a 4,5 días, el mínimo está en 2,97, que
-#: son los tres días que dura una subasta en Hattrick. Lo que se congela es
-#: el momento en que lo pones en el mercado, que es cuando Hattrick te enseña
-#: cuánto conservarás.
-DIAS_DE_SUBASTA = 3.0
+#: Leyendo la tabla al revés, esas tres comisiones caen en el día 9,0, 25,0 y
+#: 19,0: tres días MENOS de los que el jugador estuvo en el club, las tres, y
+#: los tres son días enteros. Barriendo la resta de 0 a 4,5 días, el mínimo
+#: está en 2,97. Lo que se congela es el momento en que lo pones en el
+#: mercado, que es cuando Hattrick te enseña cuánto conservarás.
+#:
+#: Con los tres días fuera, los días contados enteros (ver `dias_de_agente`)
+#: y la tabla curvada, las tres salen EXACTAS, hasta el último dólar.
+DIAS_DE_SUBASTA = 3
 
 # Tabla oficial de Hattrick: % que se lleva el agente al vender, según los
 # días que llevas siendo dueño del jugador. Días 0-6 vienen día a día; de ahí
@@ -93,6 +95,29 @@ AGENT_PCT_BREAKPOINTS: list[tuple[int, float]] = [
     (105, 0.0203),
     (112, 0.02),
 ]
+
+
+def dias_de_agente(purchased_at: datetime, sold_at: datetime) -> int:
+    """Los días que cuenta el agente: los del club, enteros, menos la subasta.
+
+    SON DÍAS DE HATTRICK, NO HORAS DIVIDIDAS ENTRE 24 (2026-09-21). Un jugador
+    cumple un día en la actualización diaria, así que lo que cuenta es cuántas
+    veces pasó la medianoche de Hattrick con él en tu club. Se ve en su edad:
+    Cartaxo entró con 23 años y 56 días y salió con 23 y 78, veintidós días,
+    aunque entre las dos fechas sólo hubiera 21,79 de reloj.
+
+    Con eso y los tres de la subasta, las tres ventas medidas salen EXACTAS:
+    22 − 3 = 19 días para Cartaxo, 12 − 3 = 9 para Horst Angel y 28 − 3 = 25
+    para Stănel Didoiu. Contando horas se quedaba en 18,79 y la comisión de
+    Cartaxo salía dos céntimas alta.
+
+    La medianoche que cuenta es la de Hattrick, no la del reloj de quien mira:
+    una compra a las 23:30 de Estocolmo ya es del día siguiente en buena parte
+    del mundo, y el que manda es el reloj del juego.
+    """
+    compra = _utc(purchased_at).astimezone(HATTRICK_TZ).date()
+    venta = _utc(sold_at).astimezone(HATTRICK_TZ).date()
+    return max((venta - compra).days - DIAS_DE_SUBASTA, 0)
 
 
 def _pendientes() -> list[float]:
@@ -137,14 +162,16 @@ def agent_commission_pct(days_owned: float) -> float:
 
     `days_owned` son los días que contaban cuando lo pusiste en el mercado,
     no los que estuvo en el club: los tres de la subasta no cuentan (ver
-    `DIAS_DE_SUBASTA`). Y van con decimales, porque una compra de las 17:57 y
-    una venta de las 12:48 no dejan un número redondo de días.
+    `dias_de_agente`).
 
     ENTRE DOS VALORES SEMANALES LA CURVA NO ES UNA RECTA. La tabla baja
     frenando, así que la cuerda entre dos semanas va por encima de la curva y
     cobra de más: en las tres ventas medidas se pasaba entre 0,02 y 0,05
-    puntos, siempre hacia el mismo lado. Con la curva monótona dos de las
-    tres salen exactas y la tercera se queda a 0,02 puntos.
+    puntos, siempre hacia el mismo lado.
+
+    Y SE REDONDEA A DOS DECIMALES, como la tabla publicada y como cobra el
+    juego: las tres comisiones medidas son un porcentaje exacto de dos
+    decimales --13,27 %, 11,38 % y 11,97 %--, no un número con cola.
     """
     x = [float(d) for d, _ in AGENT_PCT_BREAKPOINTS]
     y = [p for _, p in AGENT_PCT_BREAKPOINTS]
@@ -157,11 +184,13 @@ def agent_commission_pct(days_owned: float) -> float:
             h = x[i + 1] - x[i]
             t = (days_owned - x[i]) / h
             t2, t3 = t * t, t * t * t
-            return (
+            return round(
                 (2 * t3 - 3 * t2 + 1) * y[i]
                 + (t3 - 2 * t2 + t) * h * _PENDIENTES[i]
                 + (-2 * t3 + 3 * t2) * y[i + 1]
-                + (t3 - t2) * h * _PENDIENTES[i + 1]
+                + (t3 - t2) * h * _PENDIENTES[i + 1],
+                # Cuatro decimales de fracción son dos de porcentaje.
+                4,
             )
     return y[-1]  # inalcanzable, guarda de tipo
 
@@ -380,10 +409,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
 
     is_sold = record.sale_price is not None
     if is_sold:
-        # Con decimales y sin los tres días de la subasta: ver
-        # `DIAS_DE_SUBASTA`, que lleva las tres ventas con las que se midió.
-        en_el_club = ((record.sold_at or end) - purchased_at).total_seconds() / 86400
-        days_owned = max(en_el_club - DIAS_DE_SUBASTA, 0.0)
+        days_owned = dias_de_agente(purchased_at, record.sold_at or end)
         # Canterano en su primera venta: solo el agente, plano. Cualquier
         # otra venta: tabla de agente + 5% siempre (ver ALWAYS_CHARGED_PCT
         # arriba, replica la hoja de cálculo real del usuario).
