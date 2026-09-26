@@ -4,6 +4,7 @@
 se pueda inundar la tabla, que una fecha imposible no ensucie los resumenes y
 que el resumen cuadre con lo que se mando.
 """
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -21,7 +22,8 @@ from app.main import app
 @pytest.fixture
 def cliente():
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -58,10 +60,22 @@ def cliente():
     app.dependency_overrides.clear()
 
 
+#: Una hora antes de AHORA, no una fecha escrita a mano (2026-09-26). El
+#: resumen mira los ultimos treinta dias, asi que un evento con fecha fija
+#: caduca solo: estas pruebas dejaron de pasar el dia que el 26 de agosto
+#: quedo fuera de la ventana, sin que nadie tocara el codigo.
+def _hace_un_rato() -> str:
+    return (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _evento(**cambios):
     base = {
-        "sessionId": "s1", "kind": "page", "module": "Juveniles",
-        "label": None, "at": "2026-08-26T10:00:00Z", "visibleMs": 60_000,
+        "sessionId": "s1",
+        "kind": "page",
+        "module": "Juveniles",
+        "label": None,
+        "at": _hace_un_rato(),
+        "visibleMs": 60_000,
     }
     base.update(cambios)
     return base
@@ -69,10 +83,15 @@ def _evento(**cambios):
 
 def test_una_tanda_se_guarda_y_sale_en_el_resumen(cliente) -> None:
     client, _ = cliente
-    r = client.post("/api/v1/usage/events", json={"events": [
-        _evento(),
-        _evento(kind="click", label="Qué entrenar", visibleMs=0),
-    ]})
+    r = client.post(
+        "/api/v1/usage/events",
+        json={
+            "events": [
+                _evento(),
+                _evento(kind="click", label="Qué entrenar", visibleMs=0),
+            ]
+        },
+    )
     assert r.status_code == 204, r.text
 
     d = client.get("/api/v1/usage").json()
@@ -87,18 +106,16 @@ def test_una_tanda_se_guarda_y_sale_en_el_resumen(cliente) -> None:
 def test_no_se_puede_inundar_la_tabla_de_una_vez(cliente) -> None:
     """Sin tope, una pestana con un fallo mandaria un millon de filas."""
     client, _ = cliente
-    r = client.post("/api/v1/usage/events", json={
-        "events": [_evento() for _ in range(51)]
-    })
+    r = client.post("/api/v1/usage/events", json={"events": [_evento() for _ in range(51)]})
     assert r.status_code == 422
 
 
 def test_una_etiqueta_larguisima_se_rechaza(cliente) -> None:
     """El limite es la puerta que impide que alguien meta ahi un texto entero."""
     client, _ = cliente
-    r = client.post("/api/v1/usage/events", json={
-        "events": [_evento(kind="click", label="x" * 500)]
-    })
+    r = client.post(
+        "/api/v1/usage/events", json={"events": [_evento(kind="click", label="x" * 500)]}
+    )
     assert r.status_code == 422
 
 
@@ -113,12 +130,14 @@ def test_una_fecha_futura_se_recorta_a_ahora(cliente) -> None:
     mal todo y dejaria sesiones que 'duran' semanas."""
     client, factory = cliente
     futuro = (datetime.now(UTC) + timedelta(days=400)).isoformat()
-    assert client.post(
-        "/api/v1/usage/events", json={"events": [_evento(at=futuro)]}
-    ).status_code == 204
+    assert (
+        client.post("/api/v1/usage/events", json={"events": [_evento(at=futuro)]}).status_code
+        == 204
+    )
 
     async def leer():
         from sqlalchemy import select
+
         async with factory() as s:
             return (await s.execute(select(m.UiEvent.at))).scalars().all()
 
@@ -129,9 +148,9 @@ def test_una_fecha_futura_se_recorta_a_ahora(cliente) -> None:
 def test_un_tiempo_visible_imposible_se_rechaza(cliente) -> None:
     """Mas de un dia en una sola pantalla no es un dato, es un fallo."""
     client, _ = cliente
-    r = client.post("/api/v1/usage/events", json={
-        "events": [_evento(visibleMs=99 * 60 * 60 * 1000)]
-    })
+    r = client.post(
+        "/api/v1/usage/events", json={"events": [_evento(visibleMs=99 * 60 * 60 * 1000)]}
+    )
     assert r.status_code == 422
 
 
@@ -150,16 +169,29 @@ def test_la_poda_borra_lo_viejo_y_respeta_lo_reciente(cliente) -> None:
 
     async def corre():
         from sqlalchemy import select
+
         ahora = datetime.now(UTC).replace(tzinfo=None)
         async with factory() as s:
-            s.add(m.UiEvent(
-                user_id=1, session_id="viejo", kind="page", module="Liga",
-                at=ahora - timedelta(days=DIAS_QUE_SE_GUARDA + 1), visible_ms=0,
-            ))
-            s.add(m.UiEvent(
-                user_id=1, session_id="nuevo", kind="page", module="Liga",
-                at=ahora - timedelta(days=1), visible_ms=0,
-            ))
+            s.add(
+                m.UiEvent(
+                    user_id=1,
+                    session_id="viejo",
+                    kind="page",
+                    module="Liga",
+                    at=ahora - timedelta(days=DIAS_QUE_SE_GUARDA + 1),
+                    visible_ms=0,
+                )
+            )
+            s.add(
+                m.UiEvent(
+                    user_id=1,
+                    session_id="nuevo",
+                    kind="page",
+                    module="Liga",
+                    at=ahora - timedelta(days=1),
+                    visible_ms=0,
+                )
+            )
             await s.commit()
         async with factory() as s:
             borrados = await podar_eventos_viejos(s)
@@ -174,6 +206,7 @@ def test_la_poda_borra_lo_viejo_y_respeta_lo_reciente(cliente) -> None:
 
 # ── El candado de administrador ─────────────────────────────────────────────
 
+
 def test_sin_administrador_configurado_no_entra_nadie(cliente, monkeypatch) -> None:
     """Falla CERRADO. Un despiste al configurar no puede acabar en que
     cualquier manager vea el uso de todos los demás.
@@ -187,7 +220,7 @@ def test_sin_administrador_configurado_no_entra_nadie(cliente, monkeypatch) -> N
     from app.core.config import settings
     from app.main import app as la_app
 
-    la_app.dependency_overrides.pop(real, None)   # el candado de verdad
+    la_app.dependency_overrides.pop(real, None)  # el candado de verdad
     monkeypatch.setattr(settings, "admin_ht_user_id", None)
     r = client.get("/api/v1/usage")
     assert r.status_code == 403
@@ -216,7 +249,7 @@ def test_el_admin_si_entra(cliente, monkeypatch) -> None:
     from app.main import app as la_app
 
     la_app.dependency_overrides.pop(real, None)
-    monkeypatch.setattr(settings, "admin_ht_user_id", 7)   # el del fixture
+    monkeypatch.setattr(settings, "admin_ht_user_id", 7)  # el del fixture
     assert client.get("/api/v1/usage").status_code == 200
 
 
@@ -228,20 +261,24 @@ def test_cualquiera_puede_MANDAR_sus_eventos(cliente) -> None:
     from app.main import app as la_app
 
     la_app.dependency_overrides.pop(real, None)
-    assert client.post(
-        "/api/v1/usage/events", json={"events": [_evento()]}
-    ).status_code == 204
+    assert client.post("/api/v1/usage/events", json={"events": [_evento()]}).status_code == 204
 
 
 # ── La exportacion ──────────────────────────────────────────────────────────
+
 
 def test_el_csv_sale_abrible_en_Excel(cliente) -> None:
     """Con coma y sin BOM, Excel en espanol mete la fila entera en una columna
     y destroza los acentos."""
     client, _ = cliente
-    client.post("/api/v1/usage/events", json={"events": [
-        _evento(kind="click", label="Qué entrenar", visibleMs=0),
-    ]})
+    client.post(
+        "/api/v1/usage/events",
+        json={
+            "events": [
+                _evento(kind="click", label="Qué entrenar", visibleMs=0),
+            ]
+        },
+    )
     r = client.get("/api/v1/usage/export.csv")
     assert r.status_code == 200
     texto = r.content.decode("utf-8")
@@ -259,7 +296,7 @@ def test_el_csv_tambien_lleva_candado(cliente, monkeypatch) -> None:
     from app.main import app as la_app
 
     la_app.dependency_overrides.pop(real, None)
-    monkeypatch.setattr(settings, "admin_ht_user_id", 999_999)   # no es el 7
+    monkeypatch.setattr(settings, "admin_ht_user_id", 999_999)  # no es el 7
     assert client.get("/api/v1/usage/export.csv").status_code == 403
 
 
@@ -290,9 +327,7 @@ def test_el_registro_enseña_el_nombre_de_hoy_y_lo_filtra(cliente) -> None:
     por el nombre nuevo la encuentra. Antes el registro contradecia al resumen,
     que si traducia (2026-09-20)."""
     client, _ = cliente
-    r = client.post("/api/v1/usage/events", json={
-        "events": [_evento(module="Otros (/liga)")]
-    })
+    r = client.post("/api/v1/usage/events", json={"events": [_evento(module="Otros (/liga)")]})
     assert r.status_code == 204, r.text
 
     filas = client.get("/api/v1/usage/log?dias=0").json()["rows"]

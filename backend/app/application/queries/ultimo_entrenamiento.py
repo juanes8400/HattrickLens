@@ -116,7 +116,9 @@ class UltimoEntrenamientoQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def get(self, team_id: int) -> ParteDeEntrenamiento | None:
+    async def get(
+        self, team_id: int, *, ahora: datetime | None = None
+    ) -> ParteDeEntrenamiento | None:
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
@@ -130,7 +132,12 @@ class UltimoEntrenamientoQueryService:
             if team.ht_league_id is not None
             else None
         )
-        ultima = momento_de_la_ultima(world.training_date if world else None)
+        # `ahora` sólo se pasa desde las pruebas. Esta cuenta MIRA EL RELOJ de
+        # verdad --cuál fue el último entrenamiento depende de qué hora es,
+        # no de los datos-- y sin poder fijarlo una prueba caduca sola: las de
+        # aquí montaban un mundo de septiembre y dejaron de pasar al cambiar
+        # la fecha (2026-09-26).
+        ultima = momento_de_la_ultima(world.training_date if world else None, ahora=ahora)
         anterior = ultima - timedelta(days=7) if ultima is not None else None
 
         etiqueta = (

@@ -400,8 +400,49 @@ class PlayerBalanceQueryService:
 
         # Todos los que han pasado por el club, sigan o no, append-only,
         # nunca se borran (ver `Player.left_team_at`).
+        # Las columnas que esta pantalla lee, no las 42 de la tabla
+        # (2026-09-26). `Player` guarda también el rastro del sync --fechas de
+        # comprobación, banderas de enriquecimiento, ids de transferencia-- que
+        # aquí no pinta nada. Con `raiseload` para que no se cuele un uso
+        # nuevo en silencio.
         players = list(
-            (await self._s.execute(select(m.Player).where(m.Player.team_id == team_id))).scalars()
+            (
+                await self._s.execute(
+                    select(m.Player)
+                    .where(m.Player.team_id == team_id)
+                    .options(
+                        load_only(
+                            m.Player.ht_player_id,
+                            m.Player.ht_player_id_is_transfer,
+                            m.Player.first_name,
+                            m.Player.last_name,
+                            m.Player.left_team_at,
+                            m.Player.purchase_price,
+                            m.Player.purchase_price_manual,
+                            m.Player.purchased_at,
+                            m.Player.purchased_at_manual,
+                            m.Player.sale_price,
+                            m.Player.sold_at,
+                            m.Player.listing_count,
+                            m.Player.last_known_salary,
+                            m.Player.tsi_at_purchase,
+                            m.Player.tsi_at_sale,
+                            m.Player.age_years_at_purchase,
+                            m.Player.age_days_at_purchase,
+                            m.Player.age_years_at_sale,
+                            m.Player.age_days_at_sale,
+                            m.Player.native_country,
+                            m.Player.destination_country,
+                            m.Player.buyer_team_id,
+                            m.Player.mother_club_team_id,
+                            m.Player.games_played_for_us,
+                            m.Player.specialty,
+                            m.Player.agreeability,
+                            raiseload=True,
+                        )
+                    )
+                )
+            ).scalars()
         )
         if not players:
             return PlayerBalanceResponse(
