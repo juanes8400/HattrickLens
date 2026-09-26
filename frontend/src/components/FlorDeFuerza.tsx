@@ -346,6 +346,19 @@ function Flor({
   const P = (a: number, r: number) =>
     [cx + Math.cos(a) * r, cy + Math.sin(a) * r] as const;
 
+  /** El radio que hace que el ÁREA valga lo que dice el número.
+   *
+   *  2026-09-26, pedido del usuario. El radio era el valor a secas, y el área
+   *  de un sector crece con el CUADRADO del radio: un 55 pintaba un 30 % del
+   *  pétalo y un 25 pintaba un 6 %. La vista compara manchas, no radios, así
+   *  que la flor decía que ibas bastante peor de lo que ibas.
+   *
+   *  Con la raíz, un 55 ocupa el 55 % del pétalo lleno. Y los anillos de
+   *  referencia pasan por la misma función a propósito: si el pétalo se mide
+   *  por área, el anillo de «50» tiene que encerrar la mitad del área, o la
+   *  rejilla contaría una cosa distinta de lo que pinta. */
+  const radio = (valor: number) => R * Math.sqrt(Math.max(valor, 0) / 100);
+
   return (
     <svg
       viewBox="0 0 300 290"
@@ -361,7 +374,7 @@ function Flor({
           key={v}
           cx={cx}
           cy={cy}
-          r={(R * v) / 100}
+          r={radio(v)}
           fill="none"
           stroke="var(--border)"
           strokeWidth={0.6}
@@ -372,7 +385,7 @@ function Flor({
         const a0 = centro - paso / 2 + 0.04;
         const a1 = centro + paso / 2 - 0.04;
         const valor = f.valor ?? 0;
-        const r = Math.max(R * 0.06, (R * valor) / 100);
+        const r = Math.max(R * 0.06, radio(valor));
         const [x0, y0] = P(a0, r);
         const [x1, y1] = P(a1, r);
         const on = f.clave === activo;
