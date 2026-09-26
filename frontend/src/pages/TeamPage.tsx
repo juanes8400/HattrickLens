@@ -60,6 +60,36 @@ function MetricCell({ value, delta }: { value: number; delta?: number }) {
   );
 }
 
+/** Un valor que se lee como palabra pero se mueve como número: el carácter,
+ *  la agresividad, la honradez, el nivel de entrenador.
+ *
+ *  Aquí un «+1» no dice nada --nadie sabe cuánto es un carácter más-- así que
+ *  la marca es una flecha: lo que importa es que SE MOVIÓ y hacia dónde. El
+ *  cuánto va en el título, para quien lo quiera (2026-09-26). */
+function EtiquetaConCambio({
+  texto,
+  delta,
+}: {
+  texto: React.ReactNode;
+  delta?: number;
+}) {
+  if (!delta) return <>{texto}</>;
+  return (
+    <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+      <span>{texto}</span>
+      <span
+        title={signed(delta)}
+        className={clsx(
+          "text-[10px] font-semibold",
+          delta > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
+        )}
+      >
+        {delta > 0 ? "▲" : "▼"}
+      </span>
+    </span>
+  );
+}
+
 /** Las ventanas contra las que se pueden mirar las diferencias, con el texto
  *  de cada una. Cuál se puede usar y contra qué cierre compara lo decide el
  *  servidor, que es quien tiene los cierres guardados. */
@@ -255,12 +285,22 @@ export function TeamPage() {
     },
     // HTMS junto a TSI: las tres son la misma pregunta ("cuanto vale"),
     // solo que TSI la responde con el mercado y HTMS con las habilidades.
-    { key: "htms", header: "HTMS", value: (player) => player.htms },
+    {
+      key: "htms",
+      header: "HTMS",
+      value: (player) => player.htms,
+      render: (player) => (
+        <MetricCell value={player.htms} delta={player.deltas.htms} />
+      ),
+    },
     {
       key: "htms28",
       optional: true,
       header: "HTMS28",
       value: (player) => player.htms28,
+      render: (player) => (
+        <MetricCell value={player.htms28} delta={player.deltas.htms28} />
+      ),
     },
     {
       key: "salary",
@@ -293,12 +333,24 @@ export function TeamPage() {
       optional: true,
       header: t("club.liderazgo", "Liderazgo"),
       value: (player) => player.leadership,
+      render: (player) => (
+        <MetricCell
+          value={player.leadership}
+          delta={player.deltas.leadership}
+        />
+      ),
     },
     {
       key: "leagueGoals",
       optional: true,
       header: t("jugadores.golesLiga", "G. liga"),
       value: (player) => player.leagueGoals,
+      render: (player) => (
+        <MetricCell
+          value={player.leagueGoals}
+          delta={player.deltas.league_goals}
+        />
+      ),
     },
     {
       key: "character",
@@ -306,7 +358,12 @@ export function TeamPage() {
       header: t("jugadores.caracter", "Carácter"),
       align: "left",
       value: (player) => player.agreeability,
-      render: (player) => player.agreeabilityLabel,
+      render: (player) => (
+        <EtiquetaConCambio
+          texto={player.agreeabilityLabel}
+          delta={player.deltas.agreeability}
+        />
+      ),
     },
     {
       key: "aggressiveness",
@@ -314,7 +371,12 @@ export function TeamPage() {
       header: t("jugadores.agresividad", "Agresividad"),
       align: "left",
       value: (player) => player.aggressiveness,
-      render: (player) => player.aggressivenessLabel,
+      render: (player) => (
+        <EtiquetaConCambio
+          texto={player.aggressivenessLabel}
+          delta={player.deltas.aggressiveness}
+        />
+      ),
     },
     {
       key: "honesty",
@@ -322,7 +384,12 @@ export function TeamPage() {
       header: t("jugadores.honestidad", "Honestidad"),
       align: "left",
       value: (player) => player.honesty,
-      render: (player) => player.honestyLabel,
+      render: (player) => (
+        <EtiquetaConCambio
+          texto={player.honestyLabel}
+          delta={player.deltas.honesty}
+        />
+      ),
     },
     {
       key: "trainer",
@@ -331,16 +398,21 @@ export function TeamPage() {
       align: "left",
       value: (player) => player.playerTrainerSkillLevel,
       render: (player) =>
-        player.playerTrainerSkillLevel > 0
-          ? `${player.playerTrainerSkillLevel}/5 · ${
+        player.playerTrainerSkillLevel > 0 ? (
+          <EtiquetaConCambio
+            texto={`${player.playerTrainerSkillLevel}/5 · ${
               TRAINER_TYPES[player.playerTrainerType]
                 ? t(
                     `jugadores.tipoEntrenador.${player.playerTrainerType}`,
                     TRAINER_TYPES[player.playerTrainerType]!,
                   )
                 : "?"
-            }`
-          : "-",
+            }`}
+            delta={player.deltas.player_trainer_skill_level}
+          />
+        ) : (
+          "-"
+        ),
     },
   ];
 

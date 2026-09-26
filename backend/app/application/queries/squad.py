@@ -484,7 +484,34 @@ class SquadQueryService:
         if previous is None:
             return {}
 
-        fields = ("tsi", "form", "stamina", "experience", *SKILL_COLS)
+        # TODO LO QUE LA TABLA ENSEÑA Y PUEDE CAMBIAR (2026-09-26, pedido del
+        # usuario). Antes eran once campos y la tabla tiene veintiuna
+        # columnas: Fidelidad se movía cada semana para todo el mundo y salía
+        # sin marca, y el frontend LLEVABA TIEMPO pidiendo `deltas.loyalty`
+        # contra un servidor que no lo calculaba nunca.
+        #
+        # El carácter, la agresividad y la honradez también se mueven en
+        # Hattrick, y un gol de liga nuevo es justo la clase de noticia que se
+        # viene a buscar aquí.
+        fields = (
+            "tsi",
+            "form",
+            "stamina",
+            "experience",
+            "loyalty",
+            "leadership",
+            "agreeability",
+            "aggressiveness",
+            "honesty",
+            "league_goals",
+            "cup_goals",
+            "friendlies_goals",
+            "career_goals",
+            "career_hattricks",
+            "career_assists",
+            "player_trainer_skill_level",
+            *SKILL_COLS,
+        )
         deltas: dict[str, int] = {}
         for field in fields:
             before, after = getattr(previous, field), getattr(current, field)
@@ -502,4 +529,24 @@ class SquadQueryService:
             deltas["market"] = 1 if current.is_transfer_listed else -1
         if previous.injury_level != current.injury_level:
             deltas["injury"] = current.injury_level - previous.injury_level
+
+        # HTMS Y HTMS28 NO SE LEEN, SE CALCULAN, así que su diferencia hay que
+        # calcularla también: se vuelve a pasar la foto anterior por el mismo
+        # motor. Son las dos columnas de esta tabla que no vienen de Hattrick,
+        # y eran las dos que nunca decían cuánto habían cambiado, que es
+        # precisamente donde más se nota (un HTMS se mueve de 200 en 200).
+        antes = htms.de_habilidades(
+            previous.age_years,
+            previous.age_days,
+            **{c: getattr(previous, c) for c in SKILL_COLS},
+        )
+        ahora = htms.de_habilidades(
+            current.age_years,
+            current.age_days,
+            **{c: getattr(current, c) for c in SKILL_COLS},
+        )
+        if ahora.ability != antes.ability:
+            deltas["htms"] = ahora.ability - antes.ability
+        if ahora.potential != antes.potential:
+            deltas["htms28"] = ahora.potential - antes.potential
         return deltas
