@@ -1147,6 +1147,13 @@ def marcador_mas_probable(
 PESO_ORDINAL = 0.0
 PESO_GOLES = 1.0
 
+#: Con qué versión del motor se dijo un pronóstico. Se guarda junto a cada
+#: predicción (ver `MatchPrediction.engine`) porque la mezcla cambió el
+#: 2026-09-20, de 80/20 con la ordinal a 100/0, y sin esto un acierto viejo
+#: se estaría juzgando contra un motor que no lo dijo. Se sube A MANO cuando
+#: cambie algo que mueva los números.
+VERSION_DEL_MOTOR = "poisson-100-0"
+
 
 def probabilidades_del_motor(
     mio: dict[str, float],

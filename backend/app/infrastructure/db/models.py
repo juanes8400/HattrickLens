@@ -1291,6 +1291,41 @@ class DismissedInsight(Base):
     __table_args__ = (UniqueConstraint("team_id", "key", name="uq_dismissed_insight"),)
 
 
+class MatchPrediction(Base):
+    """Lo que dijimos que iba a pasar, guardado ANTES de que pasara.
+
+    2026-09-26, pedido del usuario. Las predicciones se calculaban al vuelo
+    cada vez que alguien abria Liga y se tiraban, asi que despues del partido
+    no habia forma honesta de decir «esto es lo que te dijimos». Se podia
+    recalcular hacia atras, pero eso no es lo que dijimos: es lo que diriamos
+    hoy con los datos de entonces, que no es lo mismo y a veces ni se parece.
+
+    Una fila por partido, reescrita mientras el partido siga por jugarse: lo
+    que vale es lo ultimo que el usuario llego a ver antes del pitido. En
+    cuanto se juega deja de ser un cruce pendiente y nadie la vuelve a tocar.
+
+    `engine` NO ES DECORACION. La mezcla del motor cambio el 2026-09-20 (de
+    80/20 con la ordinal a 100/0). Sin saber que version dijo un numero, un
+    acierto de septiembre se estaria juzgando contra un motor que no lo dijo.
+    """
+
+    __tablename__ = "match_predictions"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    #: Desde el LOCAL, igual que las pinta la pantalla.
+    home_win: Mapped[float] = mapped_column(Float)
+    draw: Mapped[float] = mapped_column(Float)
+    away_win: Mapped[float] = mapped_column(Float)
+    expected_home_goals: Mapped[float] = mapped_column(Float)
+    expected_away_goals: Mapped[float] = mapped_column(Float)
+    most_likely_score: Mapped[str] = mapped_column(String(16), default="")
+    #: Con que se predijo: «zonas» (el motor de duelos) o «goles» (el respaldo
+    #: agregado de la temporada, que ignora alineaciones y tacticas).
+    source: Mapped[str] = mapped_column(String(16), default="")
+    engine: Mapped[str] = mapped_column(String(32), default="")
+    computed_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+
 class MatchWeather(Base):
     """Pronóstico del clima de la región donde se juega un partido, 2026-08-18.
 
