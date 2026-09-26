@@ -1,17 +1,19 @@
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
-// Las DOS banderas del selector, cada una como su propio fichero.
+// Las banderas del selector, cada una como su propio fichero.
 //
 // Antes esto traía la hoja de estilos entera de las banderas, 420 kB de
 // reglas para 260 países, y como el selector vive en la barra de arriba esa
 // hoja BLOQUEABA la primera pintura de todas las pantallas (medido el
-// 2026-09-20). Aquí sólo hacen falta dos, así que se piden dos y ya.
+// 2026-09-20). Aquí sólo hacen falta las de los idiomas que hay, así que se
+// piden esas y ya.
 //
 // Copiadas al proyecto a propósito: pedidas por su ruta dentro de la
 // librería, el pre-empaquetador de desarrollo intenta empaquetar un SVG como
 // si fuera código y se cae al arrancar.
 import banderaES from "../assets/banderas/es.svg";
 import banderaGB from "../assets/banderas/gb.svg";
+import banderaIT from "../assets/banderas/it.svg";
 
 import i18nActual, { cambiarIdioma, IDIOMAS, type Idioma } from "../i18n";
 
@@ -20,14 +22,27 @@ import i18nActual, { cambiarIdioma, IDIOMAS, type Idioma } from "../i18n";
 const NOMBRE_DE_IDIOMA: Record<Idioma, string> = {
   es: "Español",
   en: "English",
+  it: "Italiano",
 };
 
 /** La bandera de cada idioma, con la variante que usa el glosario oficial de
- *  Hattrick: «Español, España» y «English (UK)». */
+ *  Hattrick: «Español, España», «English (UK)» e «Italiano». */
 const BANDERA_DE_IDIOMA: Record<Idioma, string> = {
   es: banderaES,
   en: banderaGB,
+  it: banderaIT,
 };
+
+/** Los idiomas que SE OFRECEN, que no son todos los que la aplicación sabe
+ *  montar (2026-09-26).
+ *
+ *  El italiano está cableado entero --glosario oficial de Hattrick, banderas,
+ *  formato de números-- pero su diccionario va por la cuarta parte. La
+ *  aplicación lo enseñaría sin romperse, cayendo al español en lo que falta,
+ *  y eso es justo lo que no se quiere ofrecer: media pantalla en un idioma y
+ *  media en otro se lee peor que una pantalla entera en español. Entra en
+ *  esta lista el día que su diccionario esté completo. */
+const OFRECIDOS: readonly Idioma[] = ["es", "en"];
 
 function idiomaActual(): Idioma {
   const actual = i18nActual.language || "es";
@@ -73,7 +88,7 @@ export function SelectorDeIdioma({ className }: { className?: string }) {
         title={t("layout.idioma", "Idioma")}
         className="cursor-pointer bg-transparent text-xs font-medium text-[var(--text)] outline-none"
       >
-        {IDIOMAS.map((codigo) => (
+        {OFRECIDOS.map((codigo) => (
           <option key={codigo} value={codigo} className="text-[var(--text)]">
             {NOMBRE_DE_IDIOMA[codigo]}
           </option>

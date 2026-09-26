@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.player_balance import PlayerBalanceQueryService
@@ -516,17 +516,38 @@ class AcademyQueryService:
         vieja y hoy no está no aparece aquí, y su desaparición se nota en el
         puntaje, que es donde tiene que notarse.
         """
+        # LA ÚLTIMA FOTO SE ELIGE EN SQL, NO TRAYENDO EL HISTÓRICO ENTERO
+        # (2026-09-26). Esto se bajaba todas las fotos de todos los canteranos
+        # para quedarse con la última de cada uno, y se llama cuatro veces por
+        # visita a Juveniles: era el 8 % de los bytes que la base entregaba.
+        # Ahora baja una fila por chico.
+        condiciones = [m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None)]
+        if as_of is not None:
+            condiciones.append(m.YouthSnapshot.captured_at <= as_of)
+        ultima = (
+            select(
+                m.YouthSnapshot.youth_player_id.label("jid"),
+                func.max(m.YouthSnapshot.captured_at).label("cuando"),
+            )
+            .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
+            .where(*condiciones)
+            .group_by(m.YouthSnapshot.youth_player_id)
+            .subquery()
+        )
+
         consulta = (
             select(m.YouthSnapshot, m.YouthPlayer)
+            .join(
+                ultima,
+                (m.YouthSnapshot.youth_player_id == ultima.c.jid)
+                & (m.YouthSnapshot.captured_at == ultima.c.cuando),
+            )
             .join(m.YouthPlayer, m.YouthPlayer.id == m.YouthSnapshot.youth_player_id)
-            .where(m.YouthPlayer.team_id == team_id, m.YouthPlayer.left_at.is_(None))
         )
-        if as_of is not None:
-            consulta = consulta.where(m.YouthSnapshot.captured_at <= as_of)
-        rows = await self._s.execute(consulta.order_by(m.YouthSnapshot.captured_at))
+        rows = await self._s.execute(consulta)
         latest: dict[int, tuple[m.YouthSnapshot, m.YouthPlayer]] = {}
         for snap, player in rows.all():
-            latest[player.id] = (snap, player)  # el orden asc deja el último
+            latest[player.id] = (snap, player)
         return list(latest.values())
 
     async def _ultimo_entrenamiento_juvenil(

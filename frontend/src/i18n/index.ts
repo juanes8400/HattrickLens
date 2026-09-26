@@ -20,11 +20,14 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import appEs from "./es.json";
 import appEn from "./en.json";
+import appIt from "./it.json";
 import glosarioEs from "./glosario/es.json";
 import glosarioEn from "./glosario/en.json";
+import glosarioIt from "./glosario/it.json";
 import textosEn from "./textos/en.json";
+import textosIt from "./textos/it.json";
 
-export const IDIOMAS = ["es", "en"] as const;
+export const IDIOMAS = ["es", "en", "it"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
 
 const CLAVE_GUARDADA = "htlens.idioma";
@@ -70,6 +73,7 @@ void i18n.use(initReactI18next).init({
   resources: {
     es: { app: appEs, glosario: glosarioEs },
     en: { app: appEn, glosario: glosarioEn, textos: textosEn },
+    it: { app: appIt, glosario: glosarioIt, textos: textosIt },
   },
   lng: idiomaGuardado(),
   fallbackLng: "es",
