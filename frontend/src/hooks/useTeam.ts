@@ -541,6 +541,14 @@ export const useChangesHistory = (
     placeholderData: soloSiEsElMismo(2, playerId ?? null),
   });
 
+/** El parte del último partido jugado, contra lo que dijimos antes de jugarlo.
+ *  Encabeza Cambios. Devuelve `null` mientras no haya ningún partido jugado. */
+export const useLastMatchReport = () =>
+  useQuery({
+    queryKey: ["last-match-report", TEAM_ID],
+    queryFn: () => api.lastMatchReport(TEAM_ID),
+  });
+
 export const useCup = (
   pitchZoneMethodOwn: PitchZoneMethod = "submitted",
   pitchZoneMethodRival: PitchZoneMethod = "average",

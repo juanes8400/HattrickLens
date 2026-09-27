@@ -10,6 +10,7 @@ import {
 } from "../components/SyncComparisonReport";
 import { YouthChanges } from "../components/YouthChanges";
 import { AvisoDelBarrido } from "../components/AvisoDelBarrido";
+import { ParteDelPartido } from "../components/ParteDelPartido";
 import { SyncChangesFeed } from "../components/SyncChangesFeed";
 import { INTENTOS_DE_TRANSFERENCIA_VISIBLES } from "../config/flags";
 import {
@@ -23,6 +24,7 @@ import { Tabs } from "../components/Tabs";
 import {
   TEAM_ID,
   useChangesHistory,
+  useLastMatchReport,
   useSquad,
   useSyncChanges,
 } from "../hooks/useTeam";
@@ -578,6 +580,7 @@ export function SyncChangesPage() {
   // Sólo se pide histórico cuando hay una ventana activa: en "Último
   // snapshot" no hace falta y sería una consulta de más en cada visita.
   const history = useChangesHistory(null, window?.weeks, window != null);
+  const parte = useLastMatchReport();
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -628,6 +631,17 @@ export function SyncChangesPage() {
           </Link>
         </div>
       </header>
+
+      {/* ARRIBA DEL TODO (2026-09-27, pedido del usuario): el parte del
+          último partido, al lado de la terna que dábamos antes de jugarlo.
+          Va por delante de los cambios de la plantilla a propósito: es el
+          hecho del que cuelgan casi todos ellos (la forma, la experiencia,
+          las lesiones), y leerlo después es leerlo al revés.
+
+          Si todavía no ha llegado, aquí no se pinta nada: un hueco de carga
+          empujando la página entera hacia abajo en cada visita molesta más
+          que esperar medio segundo. */}
+      {parte.data != null && <ParteDelPartido parte={parte.data} />}
 
       {/* Un informe se lee una vez. Si el último sync no movió nada, aquí no
           hay nada: no se reenseña lo de antes. El archivo sigue accesible

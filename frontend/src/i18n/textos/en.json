@@ -1887,5 +1887,19 @@
   "Tahití": "Tahiti",
   "Tahiti": "Tahiti",
   "La comisión del agente depende de los días enteros que el jugador estuvo en el club, sin contar los tres que dura la subasta: cuenta hasta que lo pones en el mercado. Los canteranos pagan una tarifa plana.": "The agent's commission depends on the whole days the player spent at the club, not counting the three the auction lasts: it counts up to the moment you put him on the market. Academy players pay a flat fee.",
-  "Saldo": "Balance"
+  "Saldo": "Balance",
+  "Empate": "Draw",
+  "Parte del último partido": "Last match report",
+  "De este partido no guardamos ningún pronóstico, así que no hay nada que contrastar. Desde ahora se guarda lo que decimos de cada partido antes de que se juegue.": "We stored no prediction for this match, so there is nothing to compare it against. From now on, what we say about a match is stored before it is played.",
+  "Lo que dijimos antes de jugarlo": "What we said before it was played",
+  "lo que pasó": "what happened",
+  "Era lo más probable.": "It was the most likely outcome.",
+  "No era lo más probable.": "It was not the most likely outcome.",
+  "Lo que pasó": "What happened",
+  "Lo más probable era": "The most likely was",
+  "El marcador cantado fue justo éste.": "The predicted score was exactly this one.",
+  "Marcador cantado": "Predicted score",
+  "Goles esperados": "Expected goals",
+  "Salió de las alineaciones y tácticas de los dos lados.": "It came from both sides' line-ups and tactics.",
+  "Salió sólo de los goles de la temporada: no había alineaciones con las que contar, así que ignora tácticas.": "It came only from the season's goals: there were no line-ups to work with, so it ignores tactics."
 }

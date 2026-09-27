@@ -11,6 +11,7 @@ individual de los jugadores rivales.
 """
 
 import dataclasses
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -45,6 +46,8 @@ from app.domain.engines.season_simulator import (
 )
 from app.domain.value_objects.ht_constants import tactic_type_name
 from app.infrastructure.db import models as m
+
+_log = logging.getLogger(__name__)
 
 LEAGUE_MATCH_TYPE = 1
 
@@ -648,8 +651,12 @@ async def _guardar_lo_dicho(
                 for campo, valor in valores.items():
                     setattr(fila, campo, valor)
             await propia.commit()
-    except Exception:  # noqa: BLE001, S110, guardar lo dicho nunca tumba la pantalla
-        pass
+    except Exception:  # noqa: BLE001, guardar lo dicho nunca tumba la pantalla
+        # PERO SE DEJA DICHO. La primera version se lo callaba, y una clave
+        # primaria mal declarada en la migracion (`BIGINT` en vez de
+        # `PKBigInt`, que sqlite no autonumera) estuvo tirando cada INSERT
+        # sin que se notara: la pantalla salia bien y la tabla seguia vacia.
+        _log.warning("no se pudo guardar el pronostico del partido %s", ht_match_id, exc_info=True)
 
 
 class LeagueQueryService:

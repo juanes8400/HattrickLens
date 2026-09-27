@@ -11,6 +11,8 @@ Revision ID: 0089
 import sqlalchemy as sa
 from alembic import op
 
+from app.infrastructure.db.models import PKBigInt
+
 revision = "0089"
 down_revision = "0088"
 branch_labels = None
@@ -20,7 +22,10 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "match_predictions",
-        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        # PKBigInt, no BigInteger: sqlite solo autonumera `INTEGER PRIMARY
+        # KEY`, un `BIGINT PRIMARY KEY` no es alias de rowid y el INSERT
+        # muere con "NOT NULL constraint failed: match_predictions.id".
+        sa.Column("id", PKBigInt, primary_key=True, autoincrement=True),
         sa.Column("ht_match_id", sa.BigInteger(), nullable=False),
         sa.Column("home_win", sa.Float(), nullable=False),
         sa.Column("draw", sa.Float(), nullable=False),

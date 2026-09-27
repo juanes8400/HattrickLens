@@ -40,6 +40,7 @@ from app.application.queries.changes_history import (
 )
 from app.application.queries.club import ClubQueryService
 from app.application.queries.dashboard import DashboardQueryService
+from app.application.queries.parte_del_partido import build_parte_del_partido
 from app.application.queries.squad import SquadQueryService
 from app.application.queries.sync_comparison import build_sync_comparison
 from app.application.queries.transparencia import como_json as catalogo_de_calculos
@@ -852,6 +853,35 @@ async def last_sync_changes(
     Un id inválido o sin cambios cae a la última, no es un error del usuario
     pedir una fecha que ya no existe."""
     return await build_sync_comparison(session, team_id, sync_id)
+
+
+@router.get(
+    "/{team_id}/last-match-report",
+    summary="El ultimo partido jugado, contra lo que habiamos dicho de el",
+    dependencies=[Depends(require_team_owner)],
+)
+async def last_match_report(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any] | None:
+    """Encabeza Cambios: el resultado al lado de la terna que dabamos ANTES.
+
+    `null` mientras el equipo no tenga ningun partido jugado, y `prediction`
+    a `null` cuando de ese partido no guardamos nada, que es el caso de todo
+    partido anterior al 2026-09-26. La pantalla pinta los dos estados.
+
+    Una vez por sync: ni el resultado de un partido jugado ni lo que dijimos
+    antes de jugarlo vuelven a cambiar.
+    """
+    from app.api.cache_por_sync import por_sync
+
+    return await por_sync(
+        session,
+        team_id,
+        "parte-del-partido",
+        (),
+        lambda: build_parte_del_partido(session, team_id),
+    )
 
 
 @router.get(

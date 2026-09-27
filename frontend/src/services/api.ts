@@ -591,6 +591,8 @@ export const api = {
       `/teams/${teamId}/changes/history${query ? `?${query}` : ""}`,
     );
   },
+  lastMatchReport: (teamId: number) =>
+    request<LastMatchReport | null>(`/teams/${teamId}/last-match-report`),
   syncMatchDetails: (teamId: number) =>
     request<MatchDetailsSyncResult>(`/teams/${teamId}/matches/details/sync`, {
       method: "POST",
@@ -2192,6 +2194,40 @@ export interface HistoricalPlayerChange {
   /** El canterano LLEGÓ dentro de la ventana: esto no es un movimiento suyo,
    *  es con lo que entró por la puerta. */
   isArrival?: boolean;
+}
+
+/** El ultimo partido jugado, al lado de lo que dijimos antes de jugarlo.
+ *
+ *  Solo numeros y claves: quien era el favorito, si el marcador cantado cayo
+ *  y como le fue al equipo propio se derivan en la pantalla, que es donde se
+ *  escribe la frase y donde se puede traducir. */
+export interface LastMatchReport {
+  htMatchId: number;
+  playedAt: string | null;
+  competition: string;
+  round: number | null;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  isHome: boolean;
+  /** `null` cuando de ese partido no guardamos nada. Es el caso de todo
+   *  partido anterior al 2026-09-26, y no se rellena recalculandolo: eso
+   *  seria lo que diriamos hoy, no lo que dijimos. */
+  prediction: {
+    homeWin: number;
+    draw: number;
+    awayWin: number;
+    expectedHomeGoals: number;
+    expectedAwayGoals: number;
+    mostLikelyScore: string;
+    /** `zonas` mira alineaciones y tacticas; `goles` es el respaldo que solo
+     *  mira goles agregados de la temporada, y no se le puede pedir cuentas
+     *  igual. La pantalla lo dice. */
+    source: string;
+    engine: string;
+    computedAt: string | null;
+  } | null;
 }
 
 export interface ChangesHistory {
