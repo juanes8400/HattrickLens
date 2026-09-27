@@ -120,21 +120,57 @@ def test_se_pide_la_cantera_por_su_id() -> None:
     asyncio.run(run())
 
 
-def test_no_se_guarda_la_cantera_de_otro_club() -> None:
-    """El nucleo del fallo. Aunque Hattrick conteste con la academia ajena, no
-    entra ni un juvenil ni el nombre de esa academia."""
+def test_sin_saber_la_academia_no_se_pregunta_siquiera() -> None:
+    """2026-09-27: la primera barrera pasa a ser NO PREGUNTAR.
+
+    Antes se preguntaba a ciegas, Hattrick contestaba con la academia del club
+    principal y se descartaba al guardarla. Descartar funcionaba, pero dejaba
+    al segundo club sin forma de llegar a saber cual era la suya: preguntaba,
+    le contestaban lo ajeno y lo tiraba, una y otra vez. Ahora el id sale de
+    los datos del club, que si se piden por club, y hasta tenerlo no se manda
+    nada.
+    """
 
     async def run() -> None:
         uow, ids = await _base([(SCIENTISTA, None)])
         chpp = CHPPDeLaCuenta(madre=PULGAS)
         resultado = await _sincronizar(uow, chpp, ids[SCIENTISTA], SCIENTISTA)
 
+        for fichero in FICHEROS:
+            assert chpp.parametros(fichero) == [], f"«{fichero}» se pidio sin decir de que academia"
+        assert any("academia" in e for e in resultado.errors), resultado.errors
+        async with uow as sesion:
+            club = await sesion.session.get(m.Team, ids[SCIENTISTA])
+            assert club is not None
+            assert club.ht_youth_team_id is None
+            assert club.youth_team_name is None
+            juveniles = (await sesion.session.execute(select(m.YouthPlayer))).scalars().all()
+            assert juveniles == []
+
+    asyncio.run(run())
+
+
+def test_no_se_guarda_la_cantera_de_otro_club() -> None:
+    """La segunda barrera, que es la que de verdad protege.
+
+    Aunque se pida la academia por su id, si Hattrick contesta con otra no
+    entra ni un juvenil ni el nombre de esa academia. Esto aguanta aunque el
+    parametro cambie de nombre o Hattrick lo ignore, que es justo lo que no se
+    puede dar por hecho.
+    """
+
+    async def run() -> None:
+        # El club SI sabe cual es su academia, y aun asi le contestan la ajena.
+        uow, ids = await _base([(SCIENTISTA, 777777)])
+        chpp = CHPPDeLaCuenta(madre=PULGAS)
+        resultado = await _sincronizar(uow, chpp, ids[SCIENTISTA], SCIENTISTA)
+
+        assert chpp.parametros("youthteamdetails")[0]["youthTeamId"] == 777777
         assert resultado.status == "partial"
         assert any("no la de este club" in e for e in resultado.errors), resultado.errors
         async with uow as sesion:
             club = await sesion.session.get(m.Team, ids[SCIENTISTA])
             assert club is not None
-            assert club.ht_youth_team_id is None
             assert club.youth_team_name is None
             juveniles = (await sesion.session.execute(select(m.YouthPlayer))).scalars().all()
             assert juveniles == []

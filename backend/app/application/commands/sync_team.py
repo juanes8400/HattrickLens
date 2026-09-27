@@ -746,8 +746,27 @@ class SyncTeamHandler:
                             # 1.3-- y sin ellos no hay fecha de contratacion,
                             # que es lo que sostiene la cuenta de cada uno.
                             params = {"showScouts": "true"}
-                        if academia:
-                            params["youthTeamId"] = academia
+                        # TAMPOCO SE PIDE A CIEGAS (2026-09-27). Antes, sin
+                        # saber la academia se mandaba igual y Hattrick
+                        # contestaba con la del club principal; se guardaba solo
+                        # si resultaba ser la buena, asi que el segundo club
+                        # nunca llegaba a descubrir la suya y se quedaba sin
+                        # cantera para siempre. Ahora el id sale de
+                        # `teamdetails`, que se pide POR CLUB y lo trae gratis,
+                        # y va antes que estos dos en la lista.
+                        if not academia:
+                            # 0 es un dato, no una falta: este club no tiene
+                            # academia abierta y no hay nada que pedir. `None`
+                            # si es una falta: todavia no se ha leido el
+                            # `teamdetails` que la nombra.
+                            if academia is None:
+                                result.errors.append(
+                                    f"{_nombre_legible(file)}: todavia no se sabe cual es la "
+                                    "academia de este club; sincroniza sus datos de equipo "
+                                    "primero y vuelve a intentarlo"
+                                )
+                            continue
+                        params["youthTeamId"] = academia
                         if file == "youthplayerlist":
                             await self._desbloquear_habilidades(result, academia)
                     payload = await self._chpp.fetch(
@@ -2381,6 +2400,13 @@ class SyncTeamHandler:
                     "matchorders",
                     version=FILE_VERSIONS["matchorders"],
                     matchID=match.ht_match_id,
+                    # De QUE club son las ordenes. Sin esto lo decide el token,
+                    # y el token es la cuenta, no el club: con dos clubes en la
+                    # misma cuenta contesta el principal. Comprobado en vivo el
+                    # 2026-09-27: con el id del rival el fichero vuelve sin
+                    # posiciones y con el propio con las once, asi que lo
+                    # respeta y dejarlo fuera era pedirle que adivinara.
+                    teamId=ht_team_id,
                     sourceSystem=source_system,
                 )
                 if payload.get("ht_match_id") != match.ht_match_id:
@@ -2425,6 +2451,7 @@ class SyncTeamHandler:
                         "matchorders",
                         version=FILE_VERSIONS["matchorders"],
                         matchID=match.ht_match_id,
+                        teamId=ht_team_id,
                         sourceSystem=source_system,
                         actionType="predictratings",
                     )
@@ -4571,11 +4598,29 @@ class SyncTeamHandler:
         la revelacion es molesto; perder la sincronizacion entera por ella
         seria peor.
         """
+        # SIN EL ID DE LA CANTERA NO SE LLAMA (2026-09-27, instruccion del
+        # usuario: ninguna consulta se manda sin decir de que club es).
+        #
+        # Antes se mandaba igual, sin `youthTeamId`, y entonces Hattrick lo
+        # resuelve por el token: el club PRINCIPAL de la cuenta. Y esto no es
+        # una lectura, es una ESCRITURA: sincronizar el segundo club revelaba
+        # las habilidades de los juveniles del primero. Mejor no revelar --se
+        # revela en la siguiente, cuando ya se sepa cual es la academia-- que
+        # escribir en el club equivocado.
+        if not academia:
+            result.errors.append(
+                "unlockskills: no se revelaron las habilidades juveniles porque "
+                "todavia no se sabe cual es la academia de este club; se hara "
+                "en la proxima sincronizacion"
+            )
+            return
         try:
-            # Con el id de la cantera: revelar es escribir, y sin el se
-            # escribiria sobre la academia del club principal.
-            extra = {"youthTeamId": academia} if academia else {}
-            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills", **extra)
+            await self._chpp.fetch(
+                "youthplayerlist",
+                "latest",
+                actionType="unlockskills",
+                youthTeamId=academia,
+            )
         except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
                 "unlockskills: no se pudieron revelar las habilidades juveniles "

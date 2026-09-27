@@ -653,7 +653,9 @@ async def _prediccion_del_cruce(
         if quiere_enviada:
             cruce = await partido_pendiente_contra(session, team.ht_team_id, rival_ht_id)
             if cruce is not None:
-                enviada = prediccion_guardada(cruce) or await prediccion_en_vivo(client, cruce)
+                enviada = prediccion_guardada(cruce) or await prediccion_en_vivo(
+                    client, cruce, team.ht_team_id
+                )
                 # Tu táctica NO hay que adivinarla si ya mandaste órdenes.
                 tactica_propia = cruce.submitted_tactic_type
     except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):

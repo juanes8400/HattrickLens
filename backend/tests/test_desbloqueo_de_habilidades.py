@@ -27,11 +27,13 @@ class CHPPQueAnota:
 
     def __init__(self, falla_el_desbloqueo: bool = False) -> None:
         self.llamadas: list[tuple[str, str | None]] = []
+        self.parametros: list[dict[str, Any]] = []
         self._falla = falla_el_desbloqueo
 
     async def fetch(self, file: str, version: str = "latest", **params: Any) -> dict[str, Any]:
         accion = params.get("actionType")
         self.llamadas.append((file, accion))
+        self.parametros.append(dict(params))
         if accion == "unlockskills":
             if self._falla:
                 raise RuntimeError("401")
@@ -39,7 +41,11 @@ class CHPPQueAnota:
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
 
 
-async def _sincronizar(chpp: CHPPQueAnota) -> Any:
+#: La academia de este club. Sin ella no se pide nada: ver el ultimo test.
+ACADEMIA = 4242
+
+
+async def _sincronizar(chpp: CHPPQueAnota, academia: int | None = ACADEMIA) -> Any:
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
@@ -47,7 +53,7 @@ async def _sincronizar(chpp: CHPPQueAnota) -> Any:
         await conn.run_sync(m.Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as s:
-        equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+        equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas", ht_youth_team_id=academia)
         s.add(equipo)
         await s.commit()
         team_id = equipo.id
@@ -63,7 +69,9 @@ async def test_desbloquea_una_sola_vez_y_antes_de_leer():
     await _sincronizar(chpp)
 
     desbloqueos = [i for i, (f, a) in enumerate(chpp.llamadas) if a == "unlockskills"]
-    lecturas = [i for i, (f, a) in enumerate(chpp.llamadas) if f == "youthplayerlist" and a == "details"]
+    lecturas = [
+        i for i, (f, a) in enumerate(chpp.llamadas) if f == "youthplayerlist" and a == "details"
+    ]
 
     # Una sola: `unlockskills` destapa el equipo juvenil entero, no va por
     # canterano. Si algun dia se colara un bucle, esto lo caza.
@@ -104,3 +112,37 @@ async def test_un_fallo_de_permisos_no_tumba_la_sincronizacion():
     assert any("reconecta" in e.lower() for e in resultado.errors)
     # Y lo importante: se siguio leyendo.
     assert any(a == "details" for _, a in chpp.llamadas)
+
+
+@pytest.mark.asyncio
+async def test_el_desbloqueo_dice_de_que_academia_es():
+    """2026-09-27, instruccion del usuario: nada se pide sin decir de quien es.
+
+    Y esto NO es una lectura: `unlockskills` escribe. Sin `youthTeamId`,
+    Hattrick lo resuelve por el token --la cuenta, no el club-- y sincronizar
+    el segundo equipo revelaba las habilidades de los juveniles del primero.
+    """
+    chpp = CHPPQueAnota()
+    await _sincronizar(chpp)
+
+    desbloqueo = next(
+        params
+        for (f, a), params in zip(chpp.llamadas, chpp.parametros, strict=True)
+        if a == "unlockskills"
+    )
+    assert desbloqueo.get("youthTeamId") == ACADEMIA
+
+
+@pytest.mark.asyncio
+async def test_sin_academia_conocida_no_se_pide_ni_se_escribe_nada():
+    """Mejor no revelar que revelar en el club equivocado.
+
+    Un club recien conectado todavia no sabe cual es su academia --la nombra
+    `teamdetails`, que va antes en la lista--. Hasta entonces no se toca nada,
+    y queda dicho en el informe.
+    """
+    chpp = CHPPQueAnota()
+    resultado = await _sincronizar(chpp, academia=None)
+
+    assert chpp.llamadas == []
+    assert any("academia" in e for e in resultado.errors)

@@ -6,6 +6,7 @@ justo el código nuevo que hay que proteger: sin sesión, con sesión de otro
 usuario, y con sesión válida pero un token CHPP falso (mismo patrón de fixtures
 reales que usa el resto de la suite, nunca red de verdad).
 """
+
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,9 +36,7 @@ class FakeCHPPClient:
 
     async def fetch(self, file: str, version: str = "latest", **_params: Any) -> dict[str, Any]:
         if file == "matchorders" and _params.get("actionType") == "predictratings":
-            predicted = get_parser(file)(
-                (FIXTURES / "matchorders_predictratings.xml").read_bytes()
-            )
+            predicted = get_parser(file)((FIXTURES / "matchorders_predictratings.xml").read_bytes())
             predicted["ht_match_id"] = _params["matchID"]
             return predicted
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
@@ -51,7 +50,8 @@ def seeded() -> tuple[TestClient, int, int, async_sessionmaker]:
     import asyncio
 
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -64,15 +64,23 @@ def seeded() -> tuple[TestClient, int, int, async_sessionmaker]:
             s.add(user)
             await s.flush()
             team = m.Team(
-                ht_team_id=537758, name="Pulgas Arrechas", owner_user_id=user.id,
-                currency_rate=10.0, currency_name="US$",
+                ht_team_id=537758,
+                name="Pulgas Arrechas",
+                owner_user_id=user.id,
+                currency_rate=10.0,
+                currency_name="US$",
             )
             s.add(team)
             await s.flush()
-            s.add(m.CHPPToken(
-                user_id=user.id, oauth_token_enc=encrypt_token("tok"),
-                oauth_secret_enc=encrypt_token("sec"), status="active", ht_user_id=999,
-            ))
+            s.add(
+                m.CHPPToken(
+                    user_id=user.id,
+                    oauth_token_enc=encrypt_token("tok"),
+                    oauth_secret_enc=encrypt_token("sec"),
+                    status="active",
+                    ht_user_id=999,
+                )
+            )
             await s.commit()
             return user.id, team.id
 
@@ -155,7 +163,15 @@ def test_sync_runs_for_real_with_a_valid_session(
     # llamada por canterano y solo la primera vez.
     # Y de 100 a 102 el 2026-08-25: el sync normal recorre el libro de
     # compraventas, que es donde estan TUS compras y TUS ventas.
-    assert body["snapshotsWritten"] == 102
+    # Y de 102 a 98 el 2026-09-27, por la regla de no pedir nada sin decir de
+    # quien es: los dos ficheros juveniles se piden POR EL ID de la academia, y
+    # el `teamdetails` de este fixture es de julio, anterior a que este club
+    # abriera la suya (`YouthTeamID` viene a 0). Un club sin academia no tiene
+    # cantera que descargar, asi que se salta, y con ella se van sus dos
+    # canteranos y sus dos informes de ojeador. Que antes bajaran era el fallo:
+    # se pedia a ciegas y Hattrick contestaba con la academia del club
+    # principal de la cuenta.
+    assert body["snapshotsWritten"] == 98
     assert body["errors"] == []
     # primer sync: 24 fichajes nuevos, sin "antes" que comparar en economía/
     # training/liga/partidos (nada de eso anuncia nada en la primera vez)
