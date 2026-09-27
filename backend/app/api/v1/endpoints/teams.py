@@ -19,16 +19,17 @@ from app.api.deps import (
 from app.api.rate_limit import limite
 from app.api.v1.endpoints.precalentar import lanzar_precalentado
 from app.application.commands.sync_team import (
-    FILE_VERSIONS,
     MENSAJE_BASE_CORTADA,
     SyncBackfillBatchCommand,
     SyncMatchDetailsCommand,
     SyncPlayerDetailsCommand,
     SyncPreviousClubBonusCommand,
+    SyncResult,
     SyncTeamCommand,
     SyncTeamHandler,
     SyncTransfersHistoryCommand,
     SyncTransfersPlayerCommand,
+    aforo_del_estadio,
     mensaje_de_error,
 )
 from app.application.dto.dashboard import DashboardResponse
@@ -378,10 +379,11 @@ async def trigger_match_details_sync(
         handler = SyncTeamHandler(SqlAlchemyUnitOfWork(SessionLocal), client)
         arena_capacity: dict[str, int] | None = None
         try:
-            arena = await client.fetch(
-                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=team.ht_team_id
-            )
-            arena_capacity = arena.get("current_capacity")
+            # Comprobado que el estadio que contesta Hattrick es el de ESTE
+            # club: ver `aforo_del_estadio`.
+            informe = SyncResult(sync_id=0, status="completed")
+            arena_capacity = await aforo_del_estadio(client, team.ht_team_id, informe)
+            errors.extend(informe.errors)
         except (CHPPAuthError, CHPPUnavailableError):
             raise
         except Exception as exc:  # no invalida ratings si falla sólo el aforo

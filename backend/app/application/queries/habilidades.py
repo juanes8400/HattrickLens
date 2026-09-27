@@ -16,6 +16,7 @@ La lógica va en funciones puras, sin base de datos, para poder probarla sola.
 
 import json
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -23,6 +24,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.flor_de_fuerza import SectoresDeEquipo, sectores_de_la_serie
+from app.domain.engines.asignacion_optima import asignacion_maxima
 from app.domain.engines.position_engine import rate
 from app.domain.engines.team_rating_engine import (
     OVERCROWDING_PENALTY,
@@ -30,8 +32,11 @@ from app.domain.engines.team_rating_engine import (
 )
 from app.domain.value_objects.formations import (
     LINE_COUNTS,
+    MAX_CENTRAL_DEFENDERS,
+    MAX_INNER_MIDFIELDERS,
     central_defender_options,
     inner_midfielder_options,
+    line_splits,
     resolve_split,
     slots_for,
 )
@@ -278,9 +283,13 @@ class HabilidadesResponse:
     last_match_competition: str | None = None
     last_match_score: str | None = None
     last_match_is_home: bool | None = None
-    #: Cuántos jugadores se consiguió reunir de ese partido. Menos de once
-    #: quiere decir que falta gente, y entonces `formation` viene a `None`.
+    #: Cuántos jugadores tiene el once que se enseña. Menos de once quiere
+    #: decir que faltó gente y no se pudo rellenar, y entonces `formation`
+    #: viene a `None`: no se inventa una formación con lo que haya.
     lineup_players: int = 0
+    #: Cuántos de ellos NO jugaron ese partido: entraron a ocupar la plaza de
+    #: un titular que ya no está en la plantilla. Cero es lo normal.
+    lineup_replacements: int = 0
     #: De dónde salió: «ordenes» (la alineación enviada), «partido» (las fichas
     #: de ese partido, guardadas sin pisarse) o «fichas» (el último partido de
     #: cada jugador, que es lo más frágil). Es una clave, no un texto.
@@ -607,6 +616,118 @@ def _puesto_de(
     return snap.last_match_position_code
 
 
+def formacion_de_los_puestos(puestos: Iterable[int]) -> tuple[str, int, int] | None:
+    """La formación y su reparto, a partir de los once puestos del partido.
+
+    2026-09-27, pedido del usuario: la formación tiene que salir de LO QUE
+    HATTRICK DIJO del partido, no de contar los titulares que siguen en la
+    plantilla. Son cosas distintas en cuanto vendes a uno: el partido se jugó
+    con once y la plantilla de hoy puede tener diez de ellos, y entonces
+    contar daba un «3-5-0» que no existe.
+
+    Devuelve (nombre, centrales, mediocentros) o `None` si no son once puestos
+    reconocibles o el reparto no es legal. El reparto importa tanto como el
+    nombre: un 3-5-2 con un Defensa Central y dos Laterales es otro once que
+    uno con tres centrales, y las dos cosas se llaman igual.
+    """
+    grupos = Counter(GRUPO_DEL_PUESTO[p] for p in puestos if p in GRUPO_DEL_PUESTO)
+    if sum(grupos.values()) != 11 or grupos["keeper"] != 1:
+        return None
+    defensa = grupos["central_defender"] + grupos["wingback"]
+    medio = grupos["inner_midfield"] + grupos["winger"]
+    nombre = f"{defensa}-{medio}-{grupos['forward']}"
+    if nombre not in LINE_COUNTS:
+        return None
+    centrales, medios = grupos["central_defender"], grupos["inner_midfield"]
+    if centrales not in line_splits(defensa, MAX_CENTRAL_DEFENDERS):
+        return None
+    if medios not in line_splits(medio, MAX_INNER_MIDFIELDERS):
+        return None
+    return nombre, centrales, medios
+
+
+def completar_el_once(
+    jugadores: list[Jugador], puestos_jugados: list[tuple[int, int]]
+) -> list[Jugador]:
+    """Llena con la plantilla de HOY las plazas cuyo titular ya no está.
+
+    2026-09-27, pedido del usuario. La formación es un hecho del partido y no
+    cambia; quién puede ocuparla hoy, sí. Si vendiste a un delantero, el once
+    del partido sigue siendo un 3-5-2 y lo que falta es un delantero, no una
+    línea de ataque entera: antes desaparecía la plaza y salía un «3-5-0».
+
+    LAS PLAZAS LIBRES SE REPARTEN CON EL MÉTODO HÚNGARO, no eligiendo la mejor
+    pareja una y otra vez. Con dos huecos y dos candidatos, ir a lo mejor
+    primero puede dejar el segundo hueco a cero teniendo una combinación mejor
+    (el contraejemplo está en `asignacion_optima`).
+
+    Y CADA PLAZA CONSERVA SU ORDEN INDIVIDUAL. El que entra hereda la orden de
+    la plaza que ocupa, no la suya: si ese lateral jugó ofensivo, la plaza es
+    de lateral ofensivo, y eso es lo que mide los sectores. El titular que sí
+    sigue en la plantilla conserva la suya, que es la que de verdad llevó.
+
+    Devuelve los que entraron, para que la pantalla pueda decir que el once no
+    es entero el que jugó.
+    """
+    dentro = {j.ht_player_id: j for j in jugadores if j.in_lineup and j.grupo is not None}
+    plazas = [(rol, beh) for rol, beh in puestos_jugados if rol in GRUPO_DEL_PUESTO]
+
+    # De cada grupo, qué órdenes quedan sin dueño: las del partido menos las
+    # de los titulares que siguen aquí.
+    por_grupo: dict[str, Counter[int]] = defaultdict(Counter)
+    for rol, beh in plazas:
+        por_grupo[GRUPO_DEL_PUESTO[rol]][beh] += 1
+    for j in dentro.values():
+        grupo = j.grupo
+        if grupo is None:
+            continue
+        restantes = por_grupo[grupo]
+        suya = j.behaviour or 0
+        # Su propia orden si encaja; si no, cualquiera de las que queden: el
+        # jugador esta, la plaza esta, y cual de las tres es no se puede saber.
+        clave = (
+            suya if restantes[suya] > 0 else next((b for b, n in restantes.items() if n > 0), None)
+        )
+        if clave is not None:
+            restantes[clave] -= 1
+
+    libres: list[tuple[int, int]] = []
+    for rol, _ in plazas:
+        grupo = GRUPO_DEL_PUESTO[rol]
+        restantes = por_grupo[grupo]
+        libre = next((b for b, n in restantes.items() if n > 0), None)
+        if libre is None:
+            continue
+        beh = libre
+        restantes[beh] -= 1
+        libres.append((rol, beh))
+    if not libres:
+        return []
+
+    candidatos = [j for j in jugadores if not j.injured and j.ht_player_id not in dentro]
+    if not candidatos:
+        return []
+
+    def valor(j: Jugador, plaza: tuple[int, int]) -> float:
+        grupo = GRUPO_DEL_PUESTO[plaza[0]]
+        if j.skills.get(HABILIDAD_DEL_PUESTO[grupo], 0) < MINIMO_PARA_EL_PUESTO:
+            return 0.0
+        return rate(_para_el_motor(j), grupo).rating
+
+    entraron: list[Jugador] = []
+    for jugador, (rol, beh) in asignacion_maxima(candidatos, libres, valor):
+        # Por debajo de debil en la habilidad del puesto no se es recambio:
+        # mejor la plaza vacia que decir que ese chico la cubre.
+        grupo = GRUPO_DEL_PUESTO[rol]
+        if jugador.skills.get(HABILIDAD_DEL_PUESTO[grupo], 0) < MINIMO_PARA_EL_PUESTO:
+            continue
+        jugador.position_code = rol
+        jugador.behaviour = beh
+        jugador.in_lineup = True
+        entraron.append(jugador)
+    return entraron
+
+
 def formacion(once: list[Jugador]) -> str | None:
     """La formación del once, o `None` si el once no está completo.
 
@@ -864,13 +985,36 @@ class HabilidadesQueryService:
         jugadores.sort(key=orden_del_mapa)
         once = [j for j in jugadores if j.in_lineup and j.grupo is not None]
 
-        # LA FORMACIÓN DE PROFUNDIDAD (2026-09-14, pedido del usuario): la del
-        # último partido oficial, o la que se elija con su reparto. El cuello
-        # de botella sigue midiendo el once real, que es el que jugó.
+        # LA FORMACIÓN SALE DEL PARTIDO, NO DE CONTAR LOS QUE QUEDAN
+        # (2026-09-27, pedido del usuario). Es un hecho de esa tarde y no
+        # cambia; la plantilla de hoy sí. Con un delantero vendido, contar los
+        # titulares que siguen daba un «3-5-2» convertido en «3-5-0», que no
+        # existe. Se lee de lo que dijo Hattrick --o, en su defecto, de las
+        # órdenes enviadas-- y las plazas que quedaron sin dueño se rellenan
+        # con la plantilla de hoy: ver `completar_el_once`.
+        puestos_jugados = sorted(salieron.values()) or sorted(titulares.values())
+        del_partido = formacion_de_los_puestos(rol for rol, _ in puestos_jugados)
+        entraron: list[Jugador] = []
+        if del_partido is not None:
+            entraron = completar_el_once(jugadores, puestos_jugados)
+            if entraron:
+                jugadores.sort(key=orden_del_mapa)
+                once = [j for j in jugadores if j.in_lineup and j.grupo is not None]
+
         por_puesto = Counter(j.grupo for j in once)
-        ultima = formacion(once)
-        ultima_centrales = por_puesto["central_defender"] if once else None
-        ultima_medios = por_puesto["inner_midfield"] if once else None
+        ultima: str | None
+        ultima_centrales: int | None
+        ultima_medios: int | None
+        if del_partido is not None:
+            ultima, ultima_centrales, ultima_medios = del_partido
+        else:
+            # Sin alineación guardada del partido no queda más que contar, y
+            # `formacion` calla si el once no está entero.
+            ultima = formacion(once)
+            ultima_centrales = por_puesto["central_defender"] if once else None
+            ultima_medios = por_puesto["inner_midfield"] if once else None
+        centrales: int | None
+        medios: int | None
         if formation in LINE_COUNTS and once:
             centrales, medios = resolve_split(formation, central_defenders, inner_midfielders)
             once_profundidad = once_para_formacion(jugadores, once, formation, centrales, medios)
@@ -878,7 +1022,7 @@ class HabilidadesQueryService:
         else:
             once_profundidad = {j.ht_player_id: j.grupo for j in once if j.grupo}
             formacion_profundidad = ultima
-            centrales, medios = ultima_centrales, ultima_medios  # type: ignore[assignment]
+            centrales, medios = ultima_centrales, ultima_medios
         catalogada = formacion_profundidad in LINE_COUNTS
 
         los_sectores = sectores(await sectores_de_la_serie(self._s, team), once) if once else []
@@ -912,6 +1056,7 @@ class HabilidadesQueryService:
                 partido.home_team_ht_id == team.ht_team_id if partido and once else None
             ),
             lineup_players=len(once),
+            lineup_replacements=len(entraron),
             lineup_source=(
                 (
                     "hattrick"

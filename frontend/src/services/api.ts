@@ -2614,9 +2614,13 @@ export interface Skills {
   lastMatchCompetition: string | null;
   lastMatchScore: string | null;
   lastMatchIsHome: boolean | null;
-  /** Cuántos jugadores se consiguió reunir de ese partido. Menos de once
-   *  quiere decir que falta gente, y entonces `formation` viene a `null`. */
+  /** Cuántos jugadores tiene el once que se enseña. Menos de once quiere decir
+   *  que faltó gente y no se pudo rellenar, y entonces `formation` viene a
+   *  `null`: no se inventa una formación con lo que haya. */
   lineupPlayers: number;
+  /** Cuántos de ellos NO jugaron ese partido: entraron a ocupar la plaza de un
+   *  titular que ya no está en la plantilla. Cero es lo normal. */
+  lineupReplacements: number;
   /** De dónde salió el once, de más fiable a menos: `hattrick` (la alineación
    *  real del partido, pedida a Hattrick después de jugarse), `ordenes` (las
    *  órdenes que se enviaron), `partido` (las fichas de ese partido) o

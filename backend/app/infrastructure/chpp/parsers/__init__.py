@@ -903,7 +903,6 @@ def parse_arenadetails(xml: bytes) -> dict[str, Any]:
 # Roles especiales (no de campo): 17 balón parado, 18 capitán,
 # 19-21 "reemplazó al titular N" (suplente que entró).
 MATCHLINEUP_KEEPER_CODE = 1
-MATCHLINEUP_SPECIAL_ROLES = {17, 18, 19, 20, 21}
 
 
 @register("matchlineup")

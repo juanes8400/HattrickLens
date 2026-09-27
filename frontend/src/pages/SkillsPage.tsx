@@ -689,6 +689,22 @@ export function SkillsPage() {
                       })}
                     </p>
                   )}
+                  {/* EL ONCE PUEDE NO SER ENTERO EL QUE JUGÓ (2026-09-27).
+                      La formación es un hecho de ese partido y no cambia; si
+                      un titular ya no está en la plantilla, su plaza se llena
+                      con el mejor que hay hoy, conservando la orden individual
+                      de esa plaza. Pero eso se dice: el once que se está
+                      mirando ya no es exactamente el que saltó al campo. */}
+                  {data.lineupReplacements > 0 && (
+                    <p className="px-4 pt-2 text-sm text-[var(--muted)]">
+                      {t(
+                        "habilidades.onceRellenado",
+                        "{{n}} de estas plazas las dejó libre un titular que ya no está en la plantilla: las ocupa quien mejor rinde hoy, con la misma orden individual.",
+                        { n: data.lineupReplacements },
+                      )}
+                    </p>
+                  )}
+
                   {/* EL ONCE INCOMPLETO SE DICE, NO SE DISIMULA (2026-09-27,
                       caso del usuario). Antes, con ocho jugadores, esto
                       imprimía «3-5-0» como si fuera la formación del partido.

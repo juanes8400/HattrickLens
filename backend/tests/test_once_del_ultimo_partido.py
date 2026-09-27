@@ -32,6 +32,9 @@ JUGADO = datetime(2026, 3, 1, 21, 40, tzinfo=UTC)
 #: mediocentros y un delantero.
 PUESTOS = (100, 101, 105, 102, 103, 104, 106, 110, 107, 108, 111)
 
+#: La orden individual de cada plaza: el delantero jugo ofensivo (1).
+BEHAVIOURS = (0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1)
+
 
 async def _escenario():
     """La liga jugada, sus fichas guardadas, y un amistoso despues encima."""
@@ -312,3 +315,62 @@ def test_de_los_viejos_solo_se_pide_el_ultimo() -> None:
     llamadas = asyncio.run(caso())
     # Solo el mas reciente de los dos, que es el amistoso del 4 de marzo.
     assert [c["matchID"] for c in llamadas] == [AMISTOSO]
+
+
+async def _con_alineacion_guardada(quitar: int = 0):
+    """El partido con su once real guardado, y `quitar` titulares fuera del club."""
+    factory, team_id = await _escenario()
+    async with factory() as s:
+        jugadores = (await s.execute(select(m.Player).order_by(m.Player.id))).scalars().all()
+        titulares = jugadores[: len(PUESTOS)]
+        once = [
+            {"ht_player_id": j.ht_player_id, "role_id": rol, "behaviour": beh}
+            for j, rol, beh in zip(titulares, PUESTOS, BEHAVIOURS, strict=True)
+        ]
+        partido = await s.scalar(select(m.Match).where(m.Match.ht_match_id == LIGA))
+        partido.played_lineup_json = json.dumps(once)
+        # Los ultimos de la lista se van del club: ya no estan en la plantilla.
+        for j in titulares[len(PUESTOS) - quitar :] if quitar else []:
+            await s.delete(await s.scalar(select(m.Player).where(m.Player.id == j.id)))
+        await s.commit()
+    return factory, team_id
+
+
+def test_la_formacion_sale_del_partido_aunque_falte_un_titular() -> None:
+    """Vender a un delantero no convierte un 3-5-2 en un 3-5-0.
+
+    2026-09-27, pedido del usuario: la formacion es un hecho de esa tarde. Lo
+    que cambia es quien puede ocuparla hoy, y esa plaza se rellena.
+    """
+
+    async def caso(quitar):
+        factory, team_id = await _con_alineacion_guardada(quitar=quitar)
+        return await _once_de(factory, team_id)
+
+    entero = asyncio.run(caso(0))
+    assert entero.formation == "5-4-1"
+    assert entero.lineup_players == 11
+    assert entero.lineup_replacements == 0
+
+    # Se va el delantero (el ultimo de PUESTOS, el 111).
+    cojo = asyncio.run(caso(1))
+    assert cojo.formation == "5-4-1", "la formacion del partido no cambia"
+    assert cojo.lineup_players == 11, "la plaza se rellena con la plantilla de hoy"
+    assert cojo.lineup_replacements == 1
+
+
+def test_el_que_entra_hereda_la_orden_individual_de_la_plaza() -> None:
+    """Si ese delantero jugo ofensivo, la plaza es de delantero ofensivo.
+
+    Lo que mide los sectores es la orden de la PLAZA, no la del jugador: el
+    once que se enseña es el del partido con otro nombre en esa casilla.
+    """
+
+    async def caso():
+        factory, team_id = await _con_alineacion_guardada(quitar=1)
+        r = await _once_de(factory, team_id)
+        return [(p.position, p.name) for p in r.players if p.in_lineup]
+
+    once = asyncio.run(caso())
+    assert len(once) == 11
+    assert sum(1 for puesto, _ in once if puesto == "DEL") == 1

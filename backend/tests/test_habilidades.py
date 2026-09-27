@@ -6,6 +6,7 @@ from app.application.queries.flor_de_fuerza import SectoresDeEquipo
 from app.application.queries.habilidades import (
     Jugador,
     formacion,
+    formacion_de_los_puestos,
     profundidad,
     sectores,
     subidas,
@@ -209,3 +210,25 @@ def test_un_once_incompleto_no_tiene_formacion() -> None:
 
     completo = incompleto + [_j("E2", 110), _j("F1", 111), _j("F2", 113)]
     assert formacion(completo) == "3-5-2"
+
+
+def test_la_formacion_y_su_reparto_salen_de_los_puestos_del_partido() -> None:
+    """El caso real que lo motivo: el FC Villainy, partido 770393948.
+
+    Jugo un 3-5-2 con UN Defensa Central y dos Laterales. El nombre solo no lo
+    describe: un 3-5-2 con tres centrales es otro once y se llama igual.
+    """
+    villainy = (100, 101, 105, 103, 106, 110, 107, 108, 109, 111, 113)
+    assert formacion_de_los_puestos(villainy) == ("3-5-2", 1, 3)
+
+
+def test_sin_once_entero_no_hay_formacion_que_deducir() -> None:
+    assert formacion_de_los_puestos((100, 101, 105, 103)) is None
+    # Doce puestos tampoco: eso es `<Lineup>` con un suplente colado dentro.
+    assert formacion_de_los_puestos((100, 101, 105, 103, 106, 110, 107, 108, 109, 111, 113, 112)) is None
+
+
+def test_un_reparto_que_hattrick_no_permite_no_se_da_por_bueno() -> None:
+    """Cinco defensas con cero centrales serian cinco laterales, y solo caben dos."""
+    imposible = (100, 101, 105, 101, 105, 101, 106, 110, 107, 108, 111)
+    assert formacion_de_los_puestos(imposible) is None

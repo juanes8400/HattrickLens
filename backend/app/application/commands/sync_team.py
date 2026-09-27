@@ -33,11 +33,9 @@ from app.domain.engines.sync_diff import (
 from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.ports.repositories import UnitOfWork
+from app.domain.value_objects.ht_constants import MATCHLINEUP_SPECIAL_ROLES
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.value_objects.skill import Age
-from app.infrastructure.chpp.parsers import (
-    MATCHLINEUP_SPECIAL_ROLES as _MATCHLINEUP_SPECIAL_ROLES,
-)
 
 # 2026-08-05, pedido explícitamente: "la conexión" de Hattrick Control
 # muestra en vivo qué está descargando, un sync aquí ya no es una caja
@@ -364,11 +362,6 @@ FILE_VERSIONS = {
 # app/infrastructure/chpp/parsers/__init__.py.
 MATCHLINEUP_ROLE_VERSION = "2.1"
 
-#: Los RoleID que no son un puesto: el brazalete, los balones parados. Vienen
-#: como una fila mas del mismo jugador, asi que hay que quitarlos antes de
-#: contar el once. Se reexporta del parser para no repetir el conjunto.
-MATCHLINEUP_SPECIAL_ROLES = _MATCHLINEUP_SPECIAL_ROLES
-
 #: Version de las reglas con que se lee el libro de transferencias. Subirla
 #: obliga a releerlo entero una vez, para todos. Historial:
 #:   1 - compra o venta por los identificadores, no por la letra del tipo.
@@ -652,6 +645,40 @@ class SyncResult:
     # Como queda la vigilancia cuando el barrido para: cuantos siguen vivos,
     # cuantos faltan por mirar y que se zanjo, por motivo.
     queue_balance: mapa_del_barrido.Balance | None = None
+
+
+async def aforo_del_estadio(
+    chpp: CHPPGateway, ht_team_id: int, result: SyncResult
+) -> dict[str, int] | None:
+    """El aforo actual del estadio DE ESTE CLUB, comprobado.
+
+    2026-09-27, con el reporte de un usuario: «el Estadio saca los datos del
+    club principal, sea cual sea el club que estes mirando».
+
+    Es el mismo agujero que tuvo la cantera en septiembre: una cuenta de
+    Hattrick puede llevar varios clubes, y si el fichero que contesta no es el
+    que pediste, nadie se entera. Alli se arreglo comprobando que la academia
+    devuelta fuera la del club; aqui el lector ya venia leyendo de que club es
+    el estadio, y ese dato se tiraba sin mirarlo.
+
+    Asi que se mira. Si lo que contesta Hattrick es de otro club, no se usa: el
+    aforo se queda sin dato --las asistencias se guardan igual, con el minimo
+    observable-- y queda dicho en el informe del sync. Un aforo equivocado es
+    peor que ninguno, porque de el salen todas las ocupaciones y la cuenta de
+    si compensa ampliar.
+    """
+    arena = await chpp.fetch(
+        "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=ht_team_id
+    )
+    de_quien = int(arena.get("ht_team_id") or 0)
+    if de_quien and de_quien != ht_team_id:
+        result.errors.append(
+            f"{_nombre_legible('arenadetails')}: Hattrick contesto con el estadio del "
+            f"club {de_quien}, no el del {ht_team_id}; el aforo se deja sin dato"
+        )
+        return None
+    capacidad = arena.get("current_capacity")
+    return capacidad if isinstance(capacidad, dict) else None
 
 
 class SyncTeamHandler:
@@ -2527,12 +2554,7 @@ class SyncTeamHandler:
 
         arena_capacity: dict[str, int] | None = None
         try:
-            arena = await self._chpp.fetch(
-                "arenadetails",
-                version=FILE_VERSIONS["arenadetails"],
-                teamID=ht_team_id,
-            )
-            arena_capacity = arena.get("current_capacity")
+            arena_capacity = await aforo_del_estadio(self._chpp, ht_team_id, result)
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla solo el aforo
             result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
@@ -2638,10 +2660,7 @@ class SyncTeamHandler:
 
         arena_capacity: dict[str, int] | None = None
         try:
-            arena = await self._chpp.fetch(
-                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=ht_team_id
-            )
-            arena_capacity = arena.get("current_capacity")
+            arena_capacity = await aforo_del_estadio(self._chpp, ht_team_id, result)
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla sólo el aforo
             result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 

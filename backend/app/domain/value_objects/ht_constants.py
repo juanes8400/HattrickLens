@@ -467,6 +467,17 @@ MATCH_ROLE_NAMES: dict[int, str] = {
 }
 
 
+#: Los MatchRoleID que NO son un puesto en el campo: el brazalete, los balones
+#: parados, los penaltis, la expulsion. Vienen como una fila mas del mismo
+#: jugador en la alineacion, asi que hay que quitarlos antes de contar el once
+#: (2026-09-27: por no hacerlo, un lateral salia con el rol de balon parado).
+#:
+#: VIVE AQUI Y NO JUNTO AL LECTOR DE XML a proposito: el lector arrastra
+#: `defusedxml`, que no trae tipos, y cualquier modulo de `application` que lo
+#: importara metia a mypy en ese paquete y tiraba la comprobacion de CI.
+MATCHLINEUP_SPECIAL_ROLES: frozenset[int] = frozenset(range(17, 36))
+
+
 def match_role_name(code: int) -> str:
     return MATCH_ROLE_NAMES.get(code, f"posición {code} (sin traducir)")
 
