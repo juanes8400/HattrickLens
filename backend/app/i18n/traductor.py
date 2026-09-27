@@ -59,6 +59,8 @@ CAMPOS_INTOCABLES = frozenset(
         "direction",
         "salarySource",
         "source",
+        # De donde salio el once: «ordenes», «partido» o «fichas».
+        "lineupSource",
         "tone",
         "specialty",
         "impact",

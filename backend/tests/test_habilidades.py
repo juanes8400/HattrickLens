@@ -192,3 +192,20 @@ def test_la_formacion_sale_del_once() -> None:
     once = [_j("P", 100)] + [_j(f"D{i}", c) for i, c in enumerate((101, 102, 103, 104, 105))]
     once += [_j("I", 108), _j("E1", 106), _j("E2", 110), _j("F1", 111), _j("F2", 113)]
     assert formacion(once) == "5-3-2"
+
+
+def test_un_once_incompleto_no_tiene_formacion() -> None:
+    """Con ocho jugadores no hay formacion que decir, y decia «3-5-0».
+
+    2026-09-27, caso real del usuario: el partido 770393948 del FC Villainy
+    salia en Equipo con ocho jugadores y esa formacion, que no existe en
+    Hattrick. No era la formacion del partido: era la cuenta de los que se
+    habian conseguido reunir, presentada como un hecho.
+    """
+    incompleto = [_j("P", 100)] + [_j(f"D{i}", c) for i, c in enumerate((101, 102, 105))]
+    incompleto += [_j("I", 108), _j("I2", 107), _j("I3", 109), _j("E", 106)]
+    assert len(incompleto) == 8
+    assert formacion(incompleto) is None
+
+    completo = incompleto + [_j("E2", 110), _j("F1", 111), _j("F2", 113)]
+    assert formacion(completo) == "3-5-2"

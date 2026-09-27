@@ -2608,6 +2608,20 @@ export interface Skills {
     impact: "Alto" | "Medio";
   }[];
   lastMatchDate: string | null;
+  /** De qué partido salió el once. La fecha sola no lo identifica, y sin
+   *  identificarlo no hay forma de juzgar si el once tiene sentido. */
+  lastMatchOpponent: string | null;
+  lastMatchCompetition: string | null;
+  lastMatchScore: string | null;
+  lastMatchIsHome: boolean | null;
+  /** Cuántos jugadores se consiguió reunir de ese partido. Menos de once
+   *  quiere decir que falta gente, y entonces `formation` viene a `null`. */
+  lineupPlayers: number;
+  /** `ordenes` (la alineación enviada), `partido` (las fichas de ese partido)
+   *  o `fichas` (el último partido de cada jugador, lo más frágil). */
+  lineupSource: "ordenes" | "partido" | "fichas" | null;
+  /** `null` cuando el once no está completo: con ocho jugadores no hay
+   *  formación que decir, y decía «3-5-0», que no existe. */
   formation: string | null;
   /** El reparto de la última formación oficial. */
   lastCentralDefenders: number | null;

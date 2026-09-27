@@ -759,7 +759,10 @@
     "efectoMedio": "Medium effect",
     "comoSeMiran": "How the positions are looked at",
     "mejorPosicion": "Best position",
-    "mejorPosicionVacia": "It shows up once there are squad averages synced."
+    "mejorPosicionVacia": "It shows up once there are squad averages synced.",
+    "onceIncompleto": "We only have {{n}} of the eleven players from that match, so we can't say which formation you played. The depth below is worked out with the ones we have.",
+    "enCasaContra": "at home against",
+    "fueraContra": "away against"
   },
   "alineacion": {
     "noSePuede": "The eleven can't be calculated",

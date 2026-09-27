@@ -35,7 +35,11 @@ from app.domain.value_objects.formations import (
     resolve_split,
     slots_for,
 )
-from app.domain.value_objects.ht_constants import SPECIALTIES, is_competitive_match_type
+from app.domain.value_objects.ht_constants import (
+    SPECIALTIES,
+    is_competitive_match_type,
+    match_type_name,
+)
 from app.infrastructure.db import models as m
 
 #: Clave, nombre y sigla de cada habilidad, en el orden de la ficha de Hattrick.
@@ -267,6 +271,20 @@ class HabilidadesResponse:
     bottleneck: str | None = None
     upgrades: list[Subida] = field(default_factory=list)
     last_match_date: str | None = None
+    #: DE QUÉ PARTIDO SALIÓ EL ONCE (2026-09-27, pedido del usuario). La fecha
+    #: sola no basta para reconocerlo, y sin reconocerlo no hay forma de saber
+    #: si el once que se enseña tiene sentido.
+    last_match_opponent: str | None = None
+    last_match_competition: str | None = None
+    last_match_score: str | None = None
+    last_match_is_home: bool | None = None
+    #: Cuántos jugadores se consiguió reunir de ese partido. Menos de once
+    #: quiere decir que falta gente, y entonces `formation` viene a `None`.
+    lineup_players: int = 0
+    #: De dónde salió: «ordenes» (la alineación enviada), «partido» (las fichas
+    #: de ese partido, guardadas sin pisarse) o «fichas» (el último partido de
+    #: cada jugador, que es lo más frágil). Es una clave, no un texto.
+    lineup_source: str | None = None
     formation: str | None = None
     #: El reparto de la última formación oficial: cuántos jugaron por dentro.
     last_central_defenders: int | None = None
@@ -560,7 +578,41 @@ def subidas(once: list[Jugador], sector: str, cuantas: int = 3) -> list[Subida]:
     ]
 
 
+def _puesto_de(
+    snap: m.PlayerSnapshot,
+    titular: tuple[int, int] | None,
+    en_ese: tuple[int, int] | None,
+    jugo_el_ultimo: bool,
+) -> int | None:
+    """De dónde sale el puesto de un jugador en el once, por orden de fiabilidad.
+
+    Gana siempre lo que diga DEL PARTIDO EN CUESTIÓN, porque es donde jugó de
+    verdad: la ficha si sus campos `last_match_*` todavía hablan de él, y si no
+    su fila de `player_match_ratings`, que es la misma información guardada sin
+    pisarse. La alineación enviada va después: dice quién salió de inicio, pero
+    no dónde acabó jugando (puso de interiores a los dos que jugaron de
+    delanteros, 107/109 frente a 111/113, y salía un 5-5-0).
+    """
+    if jugo_el_ultimo:
+        return snap.last_match_position_code
+    if en_ese is not None:
+        return en_ese[0]
+    if titular is not None:
+        return titular[0]
+    return snap.last_match_position_code
+
+
 def formacion(once: list[Jugador]) -> str | None:
+    """La formación del once, o `None` si el once no está completo.
+
+    SIN ONCE COMPLETO NO HAY FORMACIÓN (2026-09-27, caso del usuario). Con
+    ocho jugadores esto devolvía «3-5-0», que no es una formación de Hattrick
+    ni de nada: era la cuenta de los que habíamos conseguido reunir, presentada
+    como un hecho del partido. Callarlo y que la pantalla diga cuántos hay es
+    más útil que inventar un número que parece cierto.
+    """
+    if len(once) != 11:
+        return None
     grupos = Counter(j.grupo for j in once)
     defensa = grupos["central_defender"] + grupos["wingback"]
     medio = grupos["inner_midfield"] + grupos["winger"]
@@ -674,6 +726,39 @@ class HabilidadesQueryService:
             except (ValueError, TypeError, KeyError):
                 titulares = {}
 
+        # QUIÉN JUGÓ ESE PARTIDO, DEL PARTIDO Y NO DE LA FICHA (2026-09-27,
+        # con un caso concreto del usuario: el partido 770393948 del FC
+        # Villainy salía con ocho jugadores y una formación 3-5-0, que no
+        # existe en Hattrick).
+        #
+        # `submitted_lineup_json` sólo se captura mientras el partido sigue
+        # PRÓXIMO y con órdenes dadas: si nadie sincronizó en esa ventana, ese
+        # partido se queda sin alineación enviada para siempre. Y entonces el
+        # once salía de `player_snapshots.last_match_*`, que guarda el ÚLTIMO
+        # partido de cada jugador y se pisa en cada sync: basta un amistoso
+        # después para que media plantilla deje de apuntar al partido de liga
+        # y el once se quede con los que no jugaron ese amistoso. De ahí ocho
+        # jugadores y una formación inventada.
+        #
+        # `player_match_ratings` es la misma información pero append-only, una
+        # fila por (jugador, partido): lo que se capturó una vez ya no se pisa.
+        # Puede faltar gente, nunca sobra, así que sólo puede mejorar el once.
+        jugaron_ese: dict[int, tuple[int, int]] = {}
+        if partido is not None:
+            jugaron_ese = {
+                int(pid): (int(codigo), int(minutos or 0))
+                for pid, codigo, minutos in (
+                    await self._s.execute(
+                        select(
+                            m.PlayerMatchRating.player_id,
+                            m.PlayerMatchRating.position_code,
+                            m.PlayerMatchRating.played_minutes,
+                        ).where(m.PlayerMatchRating.ht_match_id == partido.ht_match_id)
+                    )
+                ).all()
+                if int(codigo) in GRUPO_DEL_PUESTO
+            }
+
         # El codigo de pais de cada CountryID, igual que en la plantilla.
         codigos_de_pais = {
             int(country_id): str(country_code).upper()
@@ -687,8 +772,14 @@ class HabilidadesQueryService:
         }
 
         jugadores: list[Jugador] = []
+        minutos_de_ese: dict[int, int] = {}
         for snap, jugador in filas:
             titular = titulares.get(jugador.ht_player_id)
+            en_ese = jugaron_ese.get(jugador.id)
+            if en_ese is not None:
+                minutos_de_ese[jugador.ht_player_id] = en_ese[1]
+            # `last_match_*` sólo vale cuando habla DE ESTE partido. En cuanto
+            # el jugador juega otro, esos campos hablan del otro.
             jugo_el_ultimo = partido is not None and snap.last_match_ht_id == partido.ht_match_id
             jugadores.append(
                 Jugador(
@@ -704,17 +795,15 @@ class HabilidadesQueryService:
                     # orden, la ficha: la alineación enviada puso de interiores
                     # a los dos que jugaron de delanteros (107/109 frente a
                     # 111/113) y salía un 5-5-0.
-                    position_code=(
-                        snap.last_match_position_code
-                        if jugo_el_ultimo or not titular
-                        else titular[0]
-                    ),
+                    position_code=_puesto_de(snap, titular, en_ese, jugo_el_ultimo),
                     behaviour=(
                         snap.last_match_behaviour_code
                         if jugo_el_ultimo or not titular
                         else titular[1]
                     ),
-                    in_lineup=titular is not None if titulares else jugo_el_ultimo,
+                    in_lineup=(
+                        titular is not None if titulares else (jugo_el_ultimo or en_ese is not None)
+                    ),
                     country_code=codigos_de_pais.get(snap.country_id),
                     native_league_name=jugador.native_league_name,
                     motor={
@@ -728,9 +817,15 @@ class HabilidadesQueryService:
                 )
             )
         if not titulares:
-            # Sin alineación guardada: los once que más minutos jugaron.
+            # Sin alineación guardada: los once que más minutos jugaron. Los
+            # minutos salen de la fila de ESE partido cuando la hay, y de la
+            # ficha sólo si no la hay: la ficha puede estar contando ya los
+            # minutos de otro partido posterior.
             minutos = {
-                jugador.ht_player_id: snap.last_match_played_minutes or 0 for snap, jugador in filas
+                jugador.ht_player_id: minutos_de_ese.get(
+                    jugador.ht_player_id, snap.last_match_played_minutes or 0
+                )
+                for snap, jugador in filas
             }
             jugaron = sorted(
                 (j for j in jugadores if j.in_lineup),
@@ -768,6 +863,32 @@ class HabilidadesQueryService:
             bottleneck=peor.label if peor else None,
             upgrades=subidas(once, peor.key) if peor else [],
             last_match_date=partido.played_at.date().isoformat() if partido and once else None,
+            last_match_opponent=(
+                (
+                    partido.away_team_name
+                    if partido.home_team_ht_id == team.ht_team_id
+                    else partido.home_team_name
+                )
+                if partido and once
+                else None
+            ),
+            last_match_competition=(
+                match_type_name(partido.match_type) if partido and once else None
+            ),
+            last_match_score=(
+                f"{partido.home_goals}-{partido.away_goals}"
+                if partido and once and partido.home_goals >= 0
+                else None
+            ),
+            last_match_is_home=(
+                partido.home_team_ht_id == team.ht_team_id if partido and once else None
+            ),
+            lineup_players=len(once),
+            lineup_source=(
+                ("ordenes" if titulares else "partido" if jugaron_ese else "fichas")
+                if once
+                else None
+            ),
             formation=ultima,
             last_central_defenders=ultima_centrales,
             last_inner_midfielders=ultima_medios,
