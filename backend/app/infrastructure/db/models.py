@@ -915,6 +915,21 @@ class Match(Base):
     submitted_rating_central_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_rating_left_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_ratings_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # EL ONCE QUE DE VERDAD SALIO, leido de `matchlineup.xml` v2.1 despues del
+    # partido (2026-09-27, caso del usuario: el partido 770393948 del FC
+    # Villainy salia con ocho jugadores y un «3-5-0» inventado).
+    #
+    # No es lo mismo que `submitted_lineup_json`, que son las ORDENES y solo se
+    # pueden capturar mientras el partido sigue proximo: si nadie sincronizo en
+    # esa ventana, ese partido se queda sin ellas para siempre. Un partido ya
+    # jugado, en cambio, es un hecho publico y permanente que se puede pedir
+    # cuando sea. Se pide UNA vez por partido y no se vuelve a tocar.
+    #
+    # Guarda el once INICIAL (`StartingLineup` cruzado con los RoleID de
+    # `Lineup`), no el final: quien entro de cambio no es titular, y contarlo
+    # daba formaciones de catorce jugadores.
+    played_lineup_json: Mapped[str | None] = mapped_column(String(4000))
+    played_lineup_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class MatchRating(Base):

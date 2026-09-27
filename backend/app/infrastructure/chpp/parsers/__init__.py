@@ -961,8 +961,20 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     # El once inicial y los cambios: con esos dos, mas `<Lineup>`, los minutos
     # de cada jugador salen exactos. Hattrick no los publica en ningun campo.
     inicial = team.find("StartingLineup")
-    titulares = [
-        _int(p, "PlayerID") for p in (inicial.iterfind("Player") if inicial is not None else [])
+    filas_iniciales = list(inicial.iterfind("Player")) if inicial is not None else []
+    titulares = [_int(p, "PlayerID") for p in filas_iniciales]
+    # El once inicial CON SU PUESTO, que `<Lineup>` no siempre puede dar: a un
+    # titular sustituido, `<Lineup>` (estado final) solo le deja su fila de
+    # papel especial --capitan, balon parado-- porque el suplente le ocupo el
+    # puesto, asi que reconstruir el once desde ahi le perdia el puesto real
+    # (visto en vivo, matchID 770453142, RoleID 19 en vez de 101).
+    titulares_con_puesto = [
+        {
+            "ht_player_id": _int(p, "PlayerID"),
+            "role_id": _int(p, "RoleID"),
+            "behaviour": _int(p, "Behaviour"),
+        }
+        for p in filas_iniciales
     ]
     cambios = [
         {
@@ -978,6 +990,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
         "team_name": _txt(team, "TeamName", ""),
         "players": players,
         "starting_lineup": titulares,
+        "starting_players": titulares_con_puesto,
         "substitutions": cambios,
     }
 

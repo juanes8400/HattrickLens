@@ -2617,9 +2617,11 @@ export interface Skills {
   /** Cuántos jugadores se consiguió reunir de ese partido. Menos de once
    *  quiere decir que falta gente, y entonces `formation` viene a `null`. */
   lineupPlayers: number;
-  /** `ordenes` (la alineación enviada), `partido` (las fichas de ese partido)
-   *  o `fichas` (el último partido de cada jugador, lo más frágil). */
-  lineupSource: "ordenes" | "partido" | "fichas" | null;
+  /** De dónde salió el once, de más fiable a menos: `hattrick` (la alineación
+   *  real del partido, pedida a Hattrick después de jugarse), `ordenes` (las
+   *  órdenes que se enviaron), `partido` (las fichas de ese partido) o
+   *  `fichas` (el último partido de cada jugador, lo más frágil). */
+  lineupSource: "hattrick" | "ordenes" | "partido" | "fichas" | null;
   /** `null` cuando el once no está completo: con ocho jugadores no hay
    *  formación que decir, y decía «3-5-0», que no existe. */
   formation: string | null;

@@ -580,19 +580,24 @@ def subidas(once: list[Jugador], sector: str, cuantas: int = 3) -> list[Subida]:
 
 def _puesto_de(
     snap: m.PlayerSnapshot,
+    salio: tuple[int, int] | None,
     titular: tuple[int, int] | None,
     en_ese: tuple[int, int] | None,
     jugo_el_ultimo: bool,
 ) -> int | None:
     """De dónde sale el puesto de un jugador en el once, por orden de fiabilidad.
 
-    Gana siempre lo que diga DEL PARTIDO EN CUESTIÓN, porque es donde jugó de
-    verdad: la ficha si sus campos `last_match_*` todavía hablan de él, y si no
-    su fila de `player_match_ratings`, que es la misma información guardada sin
-    pisarse. La alineación enviada va después: dice quién salió de inicio, pero
-    no dónde acabó jugando (puso de interiores a los dos que jugaron de
-    delanteros, 107/109 frente a 111/113, y salía un 5-5-0).
+    Primero, la alineación REAL del partido (`matchlineup.xml`, guardada en
+    `played_lineup_json`): es el once que salió de inicio y su puesto, dicho
+    por Hattrick sobre un partido que ya es un hecho permanente. Después, lo
+    que diga la ficha si sus campos `last_match_*` todavía hablan de ESTE
+    partido, y si no su fila de `player_match_ratings`, que es lo mismo
+    guardado sin pisarse. La alineación enviada va la última: dice quién
+    saldría y dónde, pero no dónde acabó jugando (ponía de interiores a los
+    dos que jugaron de delanteros, 107/109 frente a 111/113, y salía un 5-5-0).
     """
+    if salio is not None:
+        return salio[0]
     if jugo_el_ultimo:
         return snap.last_match_position_code
     if en_ese is not None:
@@ -713,6 +718,25 @@ class HabilidadesQueryService:
         # último partido, pero ahí también está el que entró de cambio: salían
         # 14 y una formación 7-4-2. La alineación enviada trae los once
         # titulares con su puesto y su orden, así que manda ella.
+        # EL ONCE QUE DE VERDAD SALIÓ, pedido a Hattrick después del partido
+        # (`matchlineup.xml`, guardado en `played_lineup_json` por el sync).
+        # Manda sobre todo lo demás: es Hattrick diciendo quién salió de inicio
+        # y en qué puesto, sobre un partido que ya es un hecho permanente. No
+        # caduca, no se pisa, y no depende de que alguien hubiera sincronizado
+        # en la ventana correcta.
+        salieron: dict[int, tuple[int, int]] = {}
+        if partido is not None and partido.played_lineup_json:
+            try:
+                for item in json.loads(partido.played_lineup_json):
+                    rol = int(item.get("role_id") or 0)
+                    if rol in GRUPO_DEL_PUESTO:
+                        salieron[int(item["ht_player_id"])] = (
+                            rol,
+                            int(item.get("behaviour") or 0),
+                        )
+            except (ValueError, TypeError, KeyError):
+                salieron = {}
+
         titulares: dict[int, tuple[int, int]] = {}
         if partido is not None and partido.submitted_lineup_json:
             try:
@@ -774,6 +798,7 @@ class HabilidadesQueryService:
         jugadores: list[Jugador] = []
         minutos_de_ese: dict[int, int] = {}
         for snap, jugador in filas:
+            salio = salieron.get(jugador.ht_player_id)
             titular = titulares.get(jugador.ht_player_id)
             en_ese = jugaron_ese.get(jugador.id)
             if en_ese is not None:
@@ -791,18 +816,21 @@ class HabilidadesQueryService:
                     skills={k: getattr(snap, k) or 0 for k, _, _ in HABILIDADES},
                     specialty=snap.specialty or 0,
                     injured=(snap.injury_level or -1) >= 0,
-                    # La alineación dice QUIÉN salió de titular; el puesto y la
-                    # orden, la ficha: la alineación enviada puso de interiores
-                    # a los dos que jugaron de delanteros (107/109 frente a
-                    # 111/113) y salía un 5-5-0.
-                    position_code=_puesto_de(snap, titular, en_ese, jugo_el_ultimo),
+                    # De dónde sale cada cosa y por qué: ver `_puesto_de`.
+                    position_code=_puesto_de(snap, salio, titular, en_ese, jugo_el_ultimo),
                     behaviour=(
-                        snap.last_match_behaviour_code
+                        salio[1]
+                        if salio
+                        else snap.last_match_behaviour_code
                         if jugo_el_ultimo or not titular
                         else titular[1]
                     ),
                     in_lineup=(
-                        titular is not None if titulares else (jugo_el_ultimo or en_ese is not None)
+                        salio is not None
+                        if salieron
+                        else titular is not None
+                        if titulares
+                        else (jugo_el_ultimo or en_ese is not None)
                     ),
                     country_code=codigos_de_pais.get(snap.country_id),
                     native_league_name=jugador.native_league_name,
@@ -816,7 +844,7 @@ class HabilidadesQueryService:
                     },
                 )
             )
-        if not titulares:
+        if not salieron and not titulares:
             # Sin alineación guardada: los once que más minutos jugaron. Los
             # minutos salen de la fila de ESE partido cuando la hay, y de la
             # ficha sólo si no la hay: la ficha puede estar contando ya los
@@ -885,7 +913,15 @@ class HabilidadesQueryService:
             ),
             lineup_players=len(once),
             lineup_source=(
-                ("ordenes" if titulares else "partido" if jugaron_ese else "fichas")
+                (
+                    "hattrick"
+                    if salieron
+                    else "ordenes"
+                    if titulares
+                    else "partido"
+                    if jugaron_ese
+                    else "fichas"
+                )
                 if once
                 else None
             ),

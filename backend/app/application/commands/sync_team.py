@@ -35,6 +35,9 @@ from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.ports.repositories import UnitOfWork
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.value_objects.skill import Age
+from app.infrastructure.chpp.parsers import (
+    MATCHLINEUP_SPECIAL_ROLES as _MATCHLINEUP_SPECIAL_ROLES,
+)
 
 # 2026-08-05, pedido explícitamente: "la conexión" de Hattrick Control
 # muestra en vivo qué está descargando, un sync aquí ya no es una caja
@@ -360,6 +363,11 @@ FILE_VERSIONS = {
 # docstring de `parse_matchlineup` en
 # app/infrastructure/chpp/parsers/__init__.py.
 MATCHLINEUP_ROLE_VERSION = "2.1"
+
+#: Los RoleID que no son un puesto: el brazalete, los balones parados. Vienen
+#: como una fila mas del mismo jugador, asi que hay que quitarlos antes de
+#: contar el once. Se reexporta del parser para no repetir el conjunto.
+MATCHLINEUP_SPECIAL_ROLES = _MATCHLINEUP_SPECIAL_ROLES
 
 #: Version de las reglas con que se lee el libro de transferencias. Subirla
 #: obliga a releerlo entero una vez, para todos. Historial:
@@ -886,6 +894,9 @@ class SyncTeamHandler:
                     on_progress,
                 )
                 await self._sync_upcoming_match_orders(
+                    uow, cmd.ht_team_id, captured_at, result, on_progress
+                )
+                await self._sync_alineaciones_jugadas(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
                 )
                 await self._backfill_missing_match_details(
@@ -2046,6 +2057,145 @@ class SyncTeamHandler:
                 if nota > 0 and (mejor is None or nota > mejor):
                     mejor = nota
         return mejor
+
+    #: Cuantos partidos jugados sin alineacion se rescatan por sincronizacion.
+    #: Uno basta para la pantalla de Equipo, que solo mira el ultimo; el tope
+    #: existe para que un club con anos de historia no dispare cien llamadas
+    #: la primera vez. Van del mas reciente al mas viejo.
+    ALINEACIONES_POR_SYNC = 3
+
+    #: Y de los demas, solo los recientes. Sin corte, un club con doscientos
+    #: partidos viejos se pasaria sesenta sincronizaciones gastando tres
+    #: llamadas cada una en alineaciones que ninguna pantalla mira.
+    #:
+    #: EL MAS RECIENTE SE PIDE SIEMPRE, tenga la edad que tenga: es el que
+    #: enseña Equipo como «tu ultima formacion oficial», y dejarlo fuera por
+    #: viejo seria dejar rota justo la pantalla que motivo todo esto.
+    DIAS_DE_ALINEACIONES = 60
+
+    async def _sync_alineaciones_jugadas(
+        self,
+        uow: UnitOfWork,
+        ht_team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """El once que de verdad salio, pedido despues del partido.
+
+        2026-09-27, caso del usuario: el partido 770393948 del FC Villainy
+        salia en Equipo con ocho jugadores y una formacion «3-5-0».
+
+        `_sync_upcoming_match_orders` guarda las ORDENES, y solo puede hacerlo
+        mientras el partido sigue PROXIMO y con ordenes dadas: es una ventana
+        que se cierra y no vuelve. Un segundo equipo que se sincroniza cada
+        pocas semanas se queda sin ellas en casi todos sus partidos, y entonces
+        el once tenia que salir de las fichas de los jugadores, que se pisan en
+        cuanto juegan otro partido, aunque sea un amistoso.
+
+        Un partido ya jugado, en cambio, es un hecho publico y permanente:
+        `matchlineup.xml` lo sirve cuando sea. Se pide UNA vez por partido, se
+        guarda, y no se vuelve a pedir nunca.
+
+        SE GUARDA EL ONCE INICIAL, no el final: `<StartingLineup>`, que trae
+        los once que salieron con su puesto y su orden. `<Lineup>` no sirve
+        para esto aunque lo parezca, porque en la version 2.1 es el estado
+        TRAS los cambios (ver el comentario del bucle, con el caso real).
+        """
+        from sqlalchemy import or_, select
+
+        from app.infrastructure.db import models as m
+
+        pendientes = (
+            (
+                await uow.session.execute(
+                    select(m.Match)
+                    .where(
+                        or_(
+                            m.Match.home_team_ht_id == ht_team_id,
+                            m.Match.away_team_ht_id == ht_team_id,
+                        ),
+                        m.Match.status.ilike("finished"),
+                        m.Match.played_lineup_json.is_(None),
+                    )
+                    .order_by(m.Match.played_at.desc())
+                    .limit(self.ALINEACIONES_POR_SYNC)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        # Todo sin zona, que es como `UtcDateTime` devuelve las fechas: comparar
+        # una de la base contra un `datetime.now(UTC)` revienta con "can't
+        # subtract offset-naive and offset-aware datetimes".
+        corte = captured_at.astimezone(UTC).replace(tzinfo=None) - timedelta(
+            days=self.DIAS_DE_ALINEACIONES
+        )
+        pendientes = [
+            partido
+            for i, partido in enumerate(pendientes)
+            if i == 0
+            or (
+                partido.played_at.replace(tzinfo=None)
+                if partido.played_at.tzinfo
+                else partido.played_at
+            )
+            >= corte
+        ]
+
+        for match in pendientes:
+            await _report(
+                on_progress,
+                f"Descargando la alineación del partido {match.ht_match_id}...",
+            )
+            try:
+                payload = await self._chpp.fetch(
+                    "matchlineup",
+                    version=MATCHLINEUP_ROLE_VERSION,
+                    matchID=match.ht_match_id,
+                    matchType=match.match_type,
+                    teamID=ht_team_id,
+                )
+            except Exception as exc:  # noqa: BLE001
+                # Se anota y se sigue: un partido que Hattrick no sirva no
+                # puede tumbar la sincronizacion, pero tampoco se calla, que
+                # es como este mismo fichero se trago un NameError meses.
+                result.errors.append(f"alineación del partido {match.ht_match_id}: {exc}")
+                continue
+
+            # DE `<StartingLineup>` Y NO DE `<Lineup>`. La primera version de
+            # esto cruzaba `<Lineup>` con la lista de titulares, y en el primer
+            # partido real contra Hattrick (matchID 770453142) salio un once
+            # con RoleID 19 --papel de balon parado-- en vez del 101 del
+            # lateral: `<Lineup>` es el estado FINAL, asi que al titular
+            # sustituido le habia quitado su puesto para darselo al suplente
+            # que entro, y de el solo quedaba su fila de papel especial.
+            # `<StartingLineup>` trae PlayerID, RoleID y Behaviour del once que
+            # salio, que es exactamente lo que hace falta.
+            #
+            # Y fuera los papeles especiales. `<StartingLineup>` repite al
+            # titular que tira los balones parados o lleva el brazalete, con
+            # RoleID 17-21 y siempre despues de su fila real: en el partido de
+            # arriba venian doce filas para once jugadores.
+            once = [
+                {
+                    "ht_player_id": int(j["ht_player_id"]),
+                    "role_id": int(j.get("role_id") or 0),
+                    "behaviour": int(j.get("behaviour") or 0),
+                }
+                for j in payload.get("starting_players") or []
+                if j.get("ht_player_id")
+                and int(j.get("role_id") or 0) not in MATCHLINEUP_SPECIAL_ROLES
+            ]
+            # Sin `<StartingLineup>` (una version vieja, un partido raro) mejor
+            # no guardar nada que guardar algo que no es el once.
+            if len(once) < 9:
+                continue
+            match.played_lineup_json = json.dumps(
+                once, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            match.played_lineup_captured_at = captured_at
 
     async def _sync_next_match_weather(
         self,
