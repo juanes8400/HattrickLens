@@ -23,7 +23,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_admin
@@ -177,12 +177,10 @@ async def _paises_de_usuario(session: AsyncSession) -> dict[int, tuple[str, str]
         )
         .join(m.WorldContext, m.WorldContext.ht_league_id == m.Team.ht_league_id)
         .where(m.Team.owner_user_id.is_not(None))
-        .order_by(
-            # `None` es «no consta», y va por delante de un NO explícito.
-            case((m.Team.is_primary_club.is_(True), 0), else_=1),
-            m.Team.founded_at.asc().nulls_last(),
-            m.Team.id.asc(),
-        )
+        # La misma regla que usa la moneda, y por eso vive en `models`: es la
+        # misma pregunta («¿cuál de estos clubes es el suyo?») y escribirla dos
+        # veces acabó con una copia arreglada y la otra no (PR #7).
+        .order_by(*m.orden_del_club_principal())
     )
     de: dict[int, tuple[str, str]] = {}
     for fila in filas:

@@ -221,6 +221,53 @@ async def session_profile(
     }
 
 
+async def guardar_los_clubes(
+    session: AsyncSession,
+    user_id: int,
+    clubes: list[dict[str, Any]],
+) -> int | None:
+    """Da de alta los clubes del manager y devuelve el id del primero.
+
+    Esto es lo que hace especial al alta: los detalles del club se piden SIN
+    decir cuál, y Hattrick contesta con TODOS los del manager de una vez. Es el
+    único momento en que se sabe de todos a la vez, antes de sincronizar
+    ninguno, y de ahí salen las dos cosas que luego deciden a quién pertenece
+    qué: cuál es el principal y en qué país juega cada uno.
+
+    Está fuera de la ruta para poder probarlo: dentro haría falta montar el
+    baile de OAuth entero para comprobar qué campos se guardan, y lo que ha
+    fallado dos veces seguidas es justamente eso, qué campos se guardan.
+    """
+    primero: int | None = None
+    for t in clubes:
+        ht_team_id = t.get("ht_team_id", 0)
+        if not ht_team_id:
+            continue
+        team = await session.scalar(select(m.Team).where(m.Team.ht_team_id == ht_team_id))
+        if team is None:
+            team = m.Team(ht_team_id=ht_team_id, name=t.get("name", ""))
+            session.add(team)
+            await session.flush()  # asigna team.id
+        team.owner_user_id = user_id
+        team.name = t.get("name") or team.name
+        team.league_name = t.get("league_name") or team.league_name
+        team.series_name = t.get("series_name") or team.series_name
+        team.series_ht_id = t.get("series_ht_id") or team.series_ht_id
+        # El LeagueID del PAÍS. Se guardaba sólo al sincronizar cada club, y el
+        # mapa de Uso cruza por este campo para saber de dónde es la gente: sin
+        # él, un principal todavía sin sincronizar no cruzaba con ningún país y
+        # la persona salía en el del club secundario (revisión de la PR #7).
+        team.ht_league_id = t.get("ht_league_id") or team.ht_league_id
+        # Cuál es el principal. Sin esto habría que esperar a sincronizar cada
+        # uno, y un club de liga internacional sincronizado antes que el
+        # principal heredaba la moneda del que no era (revisión de la PR #6).
+        if t.get("is_primary_club") is not None:
+            team.is_primary_club = bool(t["is_primary_club"])
+        if primero is None:
+            primero = team.id
+    return primero
+
+
 @router.get("/callback")
 async def callback(
     oauth_token: str,
@@ -268,30 +315,7 @@ async def callback(
     token_row.status = "active"
     token_row.ht_user_id = ht_user_id
 
-    first_team_id: int | None = None
-    for t in details.get("teams", []):
-        ht_team_id = t.get("ht_team_id", 0)
-        if not ht_team_id:
-            continue
-        team = await session.scalar(select(m.Team).where(m.Team.ht_team_id == ht_team_id))
-        if team is None:
-            team = m.Team(ht_team_id=ht_team_id, name=t.get("name", ""))
-            session.add(team)
-            await session.flush()  # asigna team.id
-        team.owner_user_id = user.id
-        team.name = t.get("name") or team.name
-        team.league_name = t.get("league_name") or team.league_name
-        team.series_name = t.get("series_name") or team.series_name
-        team.series_ht_id = t.get("series_ht_id") or team.series_ht_id
-        # Cual es el principal, que aqui se sabe de TODOS a la vez: este
-        # fichero, pedido sin club, devuelve los del manager entero. Sin esto
-        # habria que esperar a sincronizar cada uno, y un club de liga
-        # internacional sincronizado antes que el principal heredaba la moneda
-        # del que no era (revision de la PR #6).
-        if t.get("is_primary_club") is not None:
-            team.is_primary_club = bool(t["is_primary_club"])
-        if first_team_id is None:
-            first_team_id = team.id
+    first_team_id = await guardar_los_clubes(session, user.id, details.get("teams", []))
 
     await session.commit()
 

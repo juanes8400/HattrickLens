@@ -155,10 +155,20 @@ def test_un_club_del_que_no_consta_si_es_principal_no_se_castiga() -> None:
     Un club dado de alta antes de que se guardara ese dato no puede quedar por
     detras de otro marcado explicitamente como NO principal: seria repetir el
     mismo fallo por otro camino.
+
+    2026-09-28, revision de la PR #7: esta prueba ya estaba, pero pasaba POR EL
+    MOTIVO EQUIVOCADO. El principal tenia fecha de fundacion y era el mas
+    antiguo, asi que ganaba por el desempate y no por el escalon de `None`; con
+    `None` y `False` empatados en la consulta, nadie lo notaba. Ahora el
+    principal va SIN FECHA --que es como nacen los clubes al conectar la
+    cuenta-- y el secundario con fecha: si `None` no va por delante de `False`,
+    esto falla.
     """
+    # El principal, sin fecha: solo el escalon de «no consta» puede salvarlo.
+    principal_sin_fecha = (PRINCIPAL[0], None, PRINCIPAL[2], PRINCIPAL[3])
 
     async def caso():
-        factory, team_id = await _base((PRINCIPAL, SEGUNDO))
+        factory, team_id = await _base((principal_sin_fecha, SEGUNDO))
         async with factory() as s:
             # Del principal no consta; del secundario consta que NO lo es.
             for equipo in (await s.execute(select(m.Team))).scalars():

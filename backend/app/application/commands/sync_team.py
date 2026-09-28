@@ -2909,7 +2909,7 @@ class SyncTeamHandler:
         Por eso se resuelve al final de cada sync y por tres vias, de la mas
         fiable a la menos.
         """
-        from sqlalchemy import case, select
+        from sqlalchemy import select
 
         from app.infrastructure.db import models as m
 
@@ -2967,14 +2967,11 @@ class SyncTeamHandler:
                     m.Team.currency_name != "",
                     m.Team.currency_name.is_not(None),
                 )
-                .order_by(
-                    # El que Hattrick marca como principal, primero; los que no
-                    # se sabe, antes que los marcados como NO principales: un
-                    # `None` es «no consta», y demotarlo repetiria el fallo.
-                    case((m.Team.is_primary_club.is_(True), 0), else_=1),
-                    m.Team.founded_at.asc().nulls_last(),
-                    m.Team.id.asc(),
-                )
+                # El que Hattrick marca como principal, primero; los que no se
+                # sabe, antes que los marcados como NO principales. La regla
+                # vive en `models` porque la comparte con el pais del mapa de
+                # Uso, y escrita dos veces se arreglo una sola (PR #7).
+                .order_by(*m.orden_del_club_principal())
                 .limit(1)
             )
             if primero is not None:

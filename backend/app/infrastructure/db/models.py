@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    case,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -1588,3 +1589,40 @@ class RivalMatch(Base):
     lineup_json: Mapped[str] = mapped_column(Text, default="[]")
 
     captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+
+def orden_del_club_principal() -> tuple[Any, ...]:
+    """Cómo se ordenan los clubes de un manager para elegir «el suyo».
+
+    Vive AQUÍ y no en cada consulta porque se usa en dos sitios que deciden
+    cosas distintas con la misma regla --la moneda que hereda un club de liga
+    internacional, y el país al que se atribuye a una persona-- y la primera
+    vez que se escribió dos veces, una de las dos copias se arregló y la otra
+    no. Un tercer sitio que la necesite tiene que llamar a esto.
+
+    Tres escalones, y el de en medio es el que importa:
+
+    1. El que Hattrick marca como principal (`IsPrimaryClub`).
+    2. Los que NO CONSTA si lo son (`NULL`).
+    3. Los marcados explícitamente como NO principales.
+
+    `NULL` no es «no es el principal», es «todavía no se ha leído de Hattrick»,
+    y un club dado de alta antes de que se guardara ese dato no puede quedar
+    por detrás de uno del que sí consta que no lo es. Dejar `NULL` y `False`
+    empatados fue justo el fallo que señaló la revisión de la PR #7: empatados,
+    desempata la fecha de fundación, y el principal puede perfectamente no
+    tenerla --los clubes nacen sin fecha al conectar la cuenta y sólo la
+    reciben al sincronizarse uno a uno--, así que ganaba el secundario.
+
+    Al final, la fecha y el id: para las cuentas antiguas, de cuando nada de
+    esto se guardaba, donde los tres escalones empatan.
+    """
+    return (
+        case(
+            (Team.is_primary_club.is_(True), 0),
+            (Team.is_primary_club.is_(None), 1),
+            else_=2,
+        ),
+        Team.founded_at.asc().nulls_last(),
+        Team.id.asc(),
+    )

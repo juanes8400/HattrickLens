@@ -180,6 +180,48 @@ def test_con_varios_clubes_manda_el_principal(cliente) -> None:
     assert [p["code"] for p in paises] == ["co"]
 
 
+def test_del_club_que_no_consta_si_es_principal_no_se_duda(cliente) -> None:
+    """`None` es «no consta», no «no es el principal» (revision de la PR #7).
+
+    Una cuenta antigua que todavia no ha vuelto a conectarse tiene el principal
+    en `None`, y si ya sincronizo un club secundario, ese si esta marcado como
+    `False` y CON fecha de fundacion. Empatando `None` con `False`, desempata
+    la fecha y la persona entera sale atribuida al pais que no es.
+    """
+    client, factory, user_id = cliente
+
+    async def guardar():
+        async with factory() as s:
+            # El secundario: consta que NO es el principal, y tiene fecha.
+            s.add(
+                m.Team(
+                    ht_team_id=2,
+                    name="el sueco",
+                    owner_user_id=user_id,
+                    ht_league_id=3,
+                    is_primary_club=False,
+                    founded_at=datetime(2024, 3, 1, tzinfo=UTC),
+                )
+            )
+            # El principal: no consta, y sin fecha, como nacen al conectar.
+            s.add(
+                m.Team(
+                    ht_team_id=1,
+                    name="el colombiano",
+                    owner_user_id=user_id,
+                    ht_league_id=19,
+                    is_primary_club=None,
+                )
+            )
+            await s.commit()
+
+    asyncio.run(guardar())
+    _mandar_un_clic(client)
+
+    paises = client.get("/api/v1/usage?dias=0").json()["byCountry"]
+    assert [p["code"] for p in paises] == ["co"]
+
+
 def test_sin_club_sincronizado_se_cuenta_pero_sin_sitio_en_el_mapa(cliente) -> None:
     client, _, _ = cliente
     _mandar_un_clic(client)
