@@ -488,19 +488,22 @@ class PostMatchTrainingService:
 
         segments: list[PlayedSegment] = []
         for fila in rows:
-            (
-                match_id,
-                fila_match_type,
-                fila_played_at,
-                fila_status,
-                ht_player_id,
-                first_name,
-                last_name,
-                ht_match_id,
-                position_code,
-                played_minutes,
-                rating_valor,
-            ) = fila
+            # POR NOMBRE Y NO POR POSICION. Desempaquetar once nombres de una
+            # fila obliga a que el orden de aqui y el del SELECT coincidan para
+            # siempre: mover una columna alla renombra las once calladamente.
+            # Y SQLAlchemy 2.1 ya no lo admite --tipa la fila como una tupla de
+            # largo variable-- asi que CI lo rechazaba.
+            match_id = fila.id
+            fila_match_type = fila.match_type
+            fila_played_at = fila.played_at
+            fila_status = fila.status
+            ht_player_id = fila.ht_player_id
+            first_name = fila.first_name
+            last_name = fila.last_name
+            ht_match_id = fila.ht_match_id
+            position_code = fila.position_code
+            played_minutes = fila.played_minutes
+            rating_valor = fila.rating
             if match_id is not None:
                 # Escaleras, Duelos, Torneos y Preparación no son partidos
                 # reales, pedido explícito 2026-08-11: no deben influir en

@@ -195,7 +195,11 @@ async def partido_pendiente_contra(
     `actionType=predictratings`, y esa llamada ya responde por sí sola si hay
     órdenes o no.
     """
-    return await session.scalar(  # type: ignore[no-any-return]
+    # El tipo declarado en vez de un `type: ignore`: con SQLAlchemy 2.0
+    # `scalar` devolvia `Any` y hacia falta callar a mypy; con la 2.1 ya
+    # devuelve el tipo bueno y el silencio sobraba, asi que CI lo rechazaba.
+    # Declarandolo aqui vale para las dos.
+    partido: m.Match | None = await session.scalar(
         select(m.Match)
         .where(
             or_(
@@ -213,3 +217,4 @@ async def partido_pendiente_contra(
         .order_by(m.Match.played_at.asc())
         .limit(1)
     )
+    return partido
