@@ -7,6 +7,7 @@ Descargas SECUENCIALES (requisito CHPP). Sync parcial si un file falla.
 import contextlib
 import hashlib
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -40,6 +41,8 @@ from app.domain.value_objects.ht_constants import (
 )
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.value_objects.skill import Age
+
+_log = logging.getLogger(__name__)
 
 # 2026-08-05, pedido explícitamente: "la conexión" de Hattrick Control
 # muestra en vivo qué está descargando, un sync aquí ya no es una caja
@@ -2932,21 +2935,46 @@ class SyncTeamHandler:
                 return
 
         # Ligas internacionales (Hattrick Femme y compañia): no tienen moneda
-        # propia, asi que se toma la de otro equipo del mismo manager, que es
-        # la de su pais y la que Hattrick le ensena.
+        # propia, asi que se toma la del PRIMER equipo del manager --su club
+        # principal-- que es la de su pais y la que Hattrick le ensena.
+        #
+        # EL PRIMERO, Y NO «EL PRIMERO QUE SALGA» (2026-09-28, decision del
+        # usuario). Hasta hoy esto era un `limit(1)` sin ordenar: con un solo
+        # club hermano acertaba de casualidad, y con dos en paises distintos el
+        # que saliera dependia del orden de la tabla, asi que el mismo club
+        # podia cambiar de moneda entre sincronizaciones. De ahi salen los
+        # «×10» que reporto un usuario: entre un pais de tasa 10 y otro de
+        # tasa 1 la diferencia es exactamente esa.
+        #
+        # Se ordena por FECHA DE FUNDACION, que es un hecho de Hattrick y no
+        # depende de en que orden sincronizamos nosotros. Sin ella --un club
+        # cuyo `founded_at` no llego todavia-- se cae al id, que al menos es
+        # estable dentro de esta base.
         if equipo.owner_user_id is not None:
-            hermano = await uow.session.scalar(
+            primero = await uow.session.scalar(
                 select(m.Team)
                 .where(
                     m.Team.owner_user_id == equipo.owner_user_id,
                     m.Team.id != equipo.id,
+                    # Nunca copiar un vacio: dejaria al club sin moneda igual,
+                    # pero habiendo gastado la ultima via que le quedaba.
                     m.Team.currency_name != "",
+                    m.Team.currency_name.is_not(None),
                 )
+                .order_by(m.Team.founded_at.asc().nulls_last(), m.Team.id.asc())
                 .limit(1)
             )
-            if hermano is not None:
-                equipo.currency_name = hermano.currency_name
-                equipo.currency_rate = hermano.currency_rate or 1.0
+            if primero is not None:
+                equipo.currency_name = primero.currency_name
+                equipo.currency_rate = primero.currency_rate or 1.0
+                # Dicho, para que un «×10» reportado no haya que adivinarlo.
+                _log.info(
+                    "moneda de %s copiada del club %s (%s, tasa %s)",
+                    equipo.ht_team_id,
+                    primero.ht_team_id,
+                    primero.currency_name,
+                    primero.currency_rate,
+                )
 
     async def execute_match_details(self, cmd: SyncMatchDetailsCommand) -> SyncResult:
         """Ratings por sector y eventos de un partido terminado. HL-071/072.
