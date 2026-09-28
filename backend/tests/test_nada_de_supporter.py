@@ -1,30 +1,42 @@
-"""Ni se pide, ni se guarda, ni se enseña la asistencia por sector.
+"""La asistencia por sector se lee y se guarda, pero NO SE ENSEÑA NUNCA.
 
-Las reglas de CHPP prohíben replicar o imitar las funciones de HT Supporter, y
-el desglose de asistencia por sector es una de ellas: `SoldTerraces`,
-`SoldBasic`, `SoldRoof` y `SoldVIP` de matchdetails (requisito del 2026-09-01).
+Dos decisiones, y la de ahora es una correccion de la de antes.
 
-Esto es una comprobación ESTÁTICA sobre el código, no sobre una respuesta
-concreta, porque lo que hay que impedir no es un valor sino una capacidad: que
-alguien vuelva a leer esos campos, a guardarlos o a derivar de ellos. Un test
-que sólo mirase el JSON de hoy no vería reaparecer el parser.
+2026-09-01: se dejo de leer, guardar y usar por completo. Las reglas de CHPP
+prohiben replicar o imitar las funciones de HT Supporter, y el desglose de
+asistencia por sector (`SoldTerraces`, `SoldBasic`, `SoldRoof`, `SoldVIP`) es
+una de ellas. Se borraron las columnas, el parser dejo de leerlas y la
+taquilla paso a salir de `revenue`.
 
-Lo que SÍ es público y no se toca:
-  * `SoldTotal`, Hattrick lo enseña en la página del partido.
-  * El aforo por sector, es la configuración de tu propio estadio y llega por
-    arenadetails.
+2026-09-28: se vuelve a leer y a guardar, y se mantiene lo de no enseñarla,
+con estas palabras del usuario: «guarda el desglose, calcula con el, y no lo
+enseñes nunca». El motivo es que `revenue` NUNCA se rellena --el fichero del
+partido no la trae-- asi que el panel de Copa llevaba un mes enseñando «0 US$»
+con sesenta y seis partidos jugados en casa, y no hay otra forma de tener la
+taquilla por partido: Hattrick la publica por semana y sumada, y los partidos
+de Copa comparten semana con los de liga casi siempre.
+
+O sea que la linea se movio de GUARDARLO a ENSEÑARLO, que es lo que de verdad
+imitaria la funcion. Este fichero es quien la vigila ahora: los cuatro nombres
+solo pueden aparecer donde se leen del fichero, se guardan y se suman. En
+cuanto uno se asoma a un endpoint, a un DTO o a una consulta que arma una
+respuesta, esto falla.
+
+Sigue siendo una comprobacion ESTATICA sobre el codigo y no sobre una
+respuesta concreta, porque lo que hay que impedir no es un valor sino una
+capacidad: un test que solo mirase el JSON de hoy no veria aparecer el campo
+manana.
 """
 
 from __future__ import annotations
 
-import io
-import re
 import tokenize
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1] / "app"
 
-#: Los cuatro campos del XML y las cuatro columnas que los guardaban.
+#: Los cuatro campos del fichero y las cuatro columnas que los guardan, en las
+#: dos formas en que podrian asomarse a una respuesta.
 PROHIBIDOS = (
     "SoldTerraces",
     "SoldBasic",
@@ -34,10 +46,24 @@ PROHIBIDOS = (
     "sold_basic",
     "sold_roof",
     "sold_vip",
+    "soldTerraces",
+    "soldBasic",
+    "soldRoof",
+    "soldVip",
 )
 
-#: Nombres de lo que se construía a partir de ellos. Si reaparecen es que
-#: volvió el cálculo, aunque los campos se llamen de otra forma.
+#: Los tres sitios donde SI pueden estar: donde se leen, donde se guardan y
+#: donde se convierten en dinero. Ni uno mas.
+PERMITIDOS = {
+    "parsers/__init__.py",  # se lee del fichero de Hattrick
+    "models.py",  # se guarda
+    "sync_team.py",  # se escribe y se rellena hacia atras
+    "taquilla.py",  # se convierte en el total, que es lo unico que viaja
+}
+
+#: Lo que se derivaba de ella y NO vuelve: eran la funcion de Supporter en si,
+#: no un total. Reconstruir la demanda real de un sector agotado, o decir que
+#: sectores se llenaron, es exactamente lo que no se puede imitar.
 DERIVADOS = ("estimate_true_demand", "analyse_match", "sold_out_sectors")
 
 
@@ -49,10 +75,8 @@ def _codigo(fichero: Path) -> list[tuple[int, str]]:
     """Los identificadores del CÓDIGO, sin comentarios ni cadenas.
 
     Se tokeniza en vez de leer líneas sueltas porque los comentarios y los
-    docstrings explican qué se quitó y por qué, y para eso tienen que poder
-    nombrar los campos. Nombrarlos no es usarlos: si no se descartaran, este
-    test obligaría a borrar justo la explicación que evita que alguien lo
-    reintroduzca.
+    docstrings explican qué se hace y por qué, y para eso tienen que poder
+    nombrar los campos. Nombrarlos no es usarlos.
     """
     piezas: list[tuple[int, str]] = []
     with open(fichero, "rb") as fh:
@@ -63,25 +87,37 @@ def _codigo(fichero: Path) -> list[tuple[int, str]]:
                 if tok.string:
                     piezas.append((tok.start[0], tok.string))
         except (tokenize.TokenError, SyntaxError):  # pragma: no cover
-            # Un fichero que no tokeniza no compila, y eso ya lo dice otro test.
             return []
     return piezas
 
 
-def test_nadie_lee_ni_guarda_la_asistencia_por_sector() -> None:
+def test_el_desglose_por_sector_no_sale_nunca() -> None:
+    """La condición con la que se aceptó volver a guardarlo."""
     culpables: list[str] = []
     for fichero in _fuentes():
+        if fichero.name in PERMITIDOS or f"{fichero.parent.name}/{fichero.name}" in PERMITIDOS:
+            continue
         for numero, pieza in _codigo(fichero):
             if pieza in PROHIBIDOS:
-                culpables.append(f"{fichero.name}:{numero} → {pieza}")
+                culpables.append(f"{fichero.relative_to(RAIZ).as_posix()}:{numero} → {pieza}")
 
     assert not culpables, (
-        "La asistencia por sector es una función de HT Supporter y las reglas "
-        "de CHPP prohíben replicarla. Reaparece en:\n  " + "\n  ".join(culpables)
+        "El desglose de asistencia por sector se guarda para CALCULAR y no "
+        "para enseñar (decisión del usuario, 2026-09-28). Aparece fuera de "
+        "donde se lee, se guarda y se suma:\n  "
+        + "\n  ".join(culpables)
+        + "\nLo que puede viajar es el TOTAL, y la suma vive en "
+        "`domain/engines/taquilla.py`."
     )
 
 
 def test_tampoco_vuelve_lo_que_se_derivaba_de_ella() -> None:
+    """Un total de taquilla no es la función de Supporter; esto sí lo era.
+
+    Decir cuánta gente HABRÍA entrado en un sector agotado, o cuáles se
+    llenaron, es reconstruir la función. Sumar entradas por precio para dar un
+    ingreso no: el ingreso es un número del club, no un desglose del público.
+    """
     culpables: list[str] = []
     for fichero in _fuentes():
         for numero, pieza in _codigo(fichero):
@@ -89,36 +125,6 @@ def test_tampoco_vuelve_lo_que_se_derivaba_de_ella() -> None:
                 culpables.append(f"{fichero.name}:{numero} → {pieza}")
 
     assert not culpables, (
-        "Esto se calculaba a partir de la asistencia por sector:\n  " + "\n  ".join(culpables)
+        "Volvió lo que reconstruía la asistencia por sector, que es la función "
+        "de HT Supporter en sí:\n  " + "\n  ".join(culpables)
     )
-
-
-def test_el_total_y_el_aforo_por_sector_siguen_permitidos() -> None:
-    """El test de arriba no puede llevarse por delante lo que sí es público."""
-    modelos = (RAIZ / "infrastructure" / "db" / "models.py").read_text(encoding="utf-8")
-    assert "sold_total" in modelos, "el total de espectadores es público y se guarda"
-    assert "capacity_terraces" in modelos, "el aforo por sector es tu configuración"
-
-
-def test_el_guardian_reconoce_el_patron_malo() -> None:
-    """Sirve de poco si no distingue el código de la explicación."""
-    fuente = io.StringIO(
-        '"""Aquí vivía sold_terraces, que era SoldTerraces."""\n'
-        "# tampoco cuenta sold_basic en un comentario\n"
-        "x = 1\n"
-    )
-    piezas = [
-        t.string
-        for t in tokenize.generate_tokens(fuente.readline)
-        if t.type not in (tokenize.COMMENT, tokenize.STRING) and t.string
-    ]
-    assert not [p for p in piezas if p in PROHIBIDOS], "una mención no es un uso"
-
-    fuente = io.StringIO("valor = fila.sold_terraces\n")
-    piezas = [
-        t.string
-        for t in tokenize.generate_tokens(fuente.readline)
-        if t.type not in (tokenize.COMMENT, tokenize.STRING) and t.string
-    ]
-    assert "sold_terraces" in piezas, "un uso real sí tiene que saltar"
-    assert re.match(r"^\w+$", "sold_terraces")

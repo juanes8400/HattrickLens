@@ -33,6 +33,11 @@ from app.domain.engines.sync_diff import (
 from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.ports.repositories import UnitOfWork
+from app.domain.value_objects.ht_constants import (
+    MATCH_TYPE_CUP,
+    MATCHLINEUP_SPECIAL_ROLES,
+    is_competitive_match_type,
+)
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.value_objects.skill import Age
 
@@ -646,6 +651,40 @@ class SyncResult:
     queue_balance: mapa_del_barrido.Balance | None = None
 
 
+async def aforo_del_estadio(
+    chpp: CHPPGateway, ht_team_id: int, result: SyncResult
+) -> dict[str, int] | None:
+    """El aforo actual del estadio DE ESTE CLUB, comprobado.
+
+    2026-09-27, con el reporte de un usuario: «el Estadio saca los datos del
+    club principal, sea cual sea el club que estes mirando».
+
+    Es el mismo agujero que tuvo la cantera en septiembre: una cuenta de
+    Hattrick puede llevar varios clubes, y si el fichero que contesta no es el
+    que pediste, nadie se entera. Alli se arreglo comprobando que la academia
+    devuelta fuera la del club; aqui el lector ya venia leyendo de que club es
+    el estadio, y ese dato se tiraba sin mirarlo.
+
+    Asi que se mira. Si lo que contesta Hattrick es de otro club, no se usa: el
+    aforo se queda sin dato --las asistencias se guardan igual, con el minimo
+    observable-- y queda dicho en el informe del sync. Un aforo equivocado es
+    peor que ninguno, porque de el salen todas las ocupaciones y la cuenta de
+    si compensa ampliar.
+    """
+    arena = await chpp.fetch(
+        "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=ht_team_id
+    )
+    de_quien = int(arena.get("ht_team_id") or 0)
+    if de_quien and de_quien != ht_team_id:
+        result.errors.append(
+            f"{_nombre_legible('arenadetails')}: Hattrick contesto con el estadio del "
+            f"club {de_quien}, no el del {ht_team_id}; el aforo se deja sin dato"
+        )
+        return None
+    capacidad = arena.get("current_capacity")
+    return capacidad if isinstance(capacidad, dict) else None
+
+
 class SyncTeamHandler:
     def __init__(self, uow: UnitOfWork, chpp: CHPPGateway) -> None:
         self._uow = uow
@@ -711,8 +750,27 @@ class SyncTeamHandler:
                             # 1.3-- y sin ellos no hay fecha de contratacion,
                             # que es lo que sostiene la cuenta de cada uno.
                             params = {"showScouts": "true"}
-                        if academia:
-                            params["youthTeamId"] = academia
+                        # TAMPOCO SE PIDE A CIEGAS (2026-09-27). Antes, sin
+                        # saber la academia se mandaba igual y Hattrick
+                        # contestaba con la del club principal; se guardaba solo
+                        # si resultaba ser la buena, asi que el segundo club
+                        # nunca llegaba a descubrir la suya y se quedaba sin
+                        # cantera para siempre. Ahora el id sale de
+                        # `teamdetails`, que se pide POR CLUB y lo trae gratis,
+                        # y va antes que estos dos en la lista.
+                        if not academia:
+                            # 0 es un dato, no una falta: este club no tiene
+                            # academia abierta y no hay nada que pedir. `None`
+                            # si es una falta: todavia no se ha leido el
+                            # `teamdetails` que la nombra.
+                            if academia is None:
+                                result.errors.append(
+                                    f"{_nombre_legible(file)}: todavia no se sabe cual es la "
+                                    "academia de este club; sincroniza sus datos de equipo "
+                                    "primero y vuelve a intentarlo"
+                                )
+                            continue
+                        params["youthTeamId"] = academia
                         if file == "youthplayerlist":
                             await self._desbloquear_habilidades(result, academia)
                     payload = await self._chpp.fetch(
@@ -887,6 +945,12 @@ class SyncTeamHandler:
                 )
                 await self._sync_upcoming_match_orders(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
+                )
+                await self._sync_alineaciones_jugadas(
+                    uow, cmd.ht_team_id, captured_at, result, on_progress
+                )
+                await self._completar_desglose_de_taquilla(
+                    uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
                 await self._backfill_missing_match_details(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
@@ -2047,6 +2111,266 @@ class SyncTeamHandler:
                     mejor = nota
         return mejor
 
+    #: Cuantos partidos jugados sin alineacion se rescatan por sincronizacion.
+    #: Uno basta para la pantalla de Equipo, que solo mira el ultimo; el tope
+    #: existe para que un club con anos de historia no dispare cien llamadas
+    #: la primera vez. Van del mas reciente al mas viejo.
+    ALINEACIONES_POR_SYNC = 3
+
+    #: Y de los demas, solo los recientes. Sin corte, un club con doscientos
+    #: partidos viejos se pasaria sesenta sincronizaciones gastando tres
+    #: llamadas cada una en alineaciones que ninguna pantalla mira.
+    #:
+    #: EL MAS RECIENTE SE PIDE SIEMPRE, tenga la edad que tenga: es el que
+    #: enseña Equipo como «tu ultima formacion oficial», y dejarlo fuera por
+    #: viejo seria dejar rota justo la pantalla que motivo todo esto.
+    DIAS_DE_ALINEACIONES = 60
+
+    #: Cuantos partidos se miran para elegir esos tres. Mas que los que se
+    #: piden, porque el que hace falta --el ultimo oficial-- puede tener
+    #: varios amistosos por delante.
+    CANDIDATOS_DE_ALINEACION = 40
+
+    async def _sync_alineaciones_jugadas(
+        self,
+        uow: UnitOfWork,
+        ht_team_id: int,
+        captured_at: datetime,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """El once que de verdad salio, pedido despues del partido.
+
+        2026-09-27, caso del usuario: el partido 770393948 del FC Villainy
+        salia en Equipo con ocho jugadores y una formacion «3-5-0».
+
+        `_sync_upcoming_match_orders` guarda las ORDENES, y solo puede hacerlo
+        mientras el partido sigue PROXIMO y con ordenes dadas: es una ventana
+        que se cierra y no vuelve. Un segundo equipo que se sincroniza cada
+        pocas semanas se queda sin ellas en casi todos sus partidos, y entonces
+        el once tenia que salir de las fichas de los jugadores, que se pisan en
+        cuanto juegan otro partido, aunque sea un amistoso.
+
+        Un partido ya jugado, en cambio, es un hecho publico y permanente:
+        `matchlineup.xml` lo sirve cuando sea. Se pide UNA vez por partido, se
+        guarda, y no se vuelve a pedir nunca.
+
+        SE GUARDA EL ONCE INICIAL, no el final: `<StartingLineup>`, que trae
+        los once que salieron con su puesto y su orden. `<Lineup>` no sirve
+        para esto aunque lo parezca, porque en la version 2.1 es el estado
+        TRAS los cambios (ver el comentario del bucle, con el caso real).
+        """
+        from sqlalchemy import or_, select
+
+        from app.infrastructure.db import models as m
+
+        pendientes = (
+            (
+                await uow.session.execute(
+                    select(m.Match)
+                    .where(
+                        or_(
+                            m.Match.home_team_ht_id == ht_team_id,
+                            m.Match.away_team_ht_id == ht_team_id,
+                        ),
+                        m.Match.status.ilike("finished"),
+                        m.Match.played_lineup_json.is_(None),
+                    )
+                    .order_by(m.Match.played_at.desc())
+                    # Un puñado de candidatos, no solo los que caben: el que
+                    # de verdad hace falta puede no ser el mas reciente, ver
+                    # abajo. El tope es para no traerse anos de archivo.
+                    .limit(self.CANDIDATOS_DE_ALINEACION)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        # Todo sin zona, que es como `UtcDateTime` devuelve las fechas: comparar
+        # una de la base contra un `datetime.now(UTC)` revienta con "can't
+        # subtract offset-naive and offset-aware datetimes".
+        def _cuando(partido: m.Match) -> datetime:
+            cuando: datetime = partido.played_at
+            return cuando.replace(tzinfo=None) if cuando.tzinfo else cuando
+
+        corte = captured_at.astimezone(UTC).replace(tzinfo=None) - timedelta(
+            days=self.DIAS_DE_ALINEACIONES
+        )
+
+        # EL OFICIAL MAS RECIENTE VA PRIMERO, y no el mas reciente a secas
+        # (2026-09-28, senalado en la revision de la PR). Equipo enseña «tu
+        # ultima formacion oficial», que es el ultimo partido COMPETITIVO: si
+        # despues de el hay tres amistosos o escaleras, ordenando solo por
+        # fecha el presupuesto de la sincronizacion se gastaba entero en esos
+        # tres y el que se enseña en pantalla no llegaba a pedirse nunca. Es
+        # decir, justo el partido por el que se escribio todo esto.
+        oficial = next((p for p in pendientes if is_competitive_match_type(p.match_type)), None)
+        resto = [p for p in pendientes if p is not oficial and _cuando(p) >= corte]
+        # El oficial se pide tenga la edad que tenga; los demas, SOLO si son
+        # recientes, sin excepciones. Antes el mas reciente a secas tambien se
+        # colaba siempre, y eso traia un amistoso de hace un ano por delante de
+        # nada. Si un club no tiene ningun partido oficial, aqui no se pide
+        # nada, que es correcto: Equipo tampoco tiene entonces que enseñar.
+        pendientes = ([oficial] if oficial is not None else []) + resto
+        pendientes = pendientes[: self.ALINEACIONES_POR_SYNC]
+
+        for match in pendientes:
+            await _report(
+                on_progress,
+                f"Descargando la alineación del partido {match.ht_match_id}...",
+            )
+            try:
+                payload = await self._chpp.fetch(
+                    "matchlineup",
+                    version=MATCHLINEUP_ROLE_VERSION,
+                    matchID=match.ht_match_id,
+                    matchType=match.match_type,
+                    teamID=ht_team_id,
+                )
+            except Exception as exc:  # noqa: BLE001
+                # Se anota y se sigue: un partido que Hattrick no sirva no
+                # puede tumbar la sincronizacion, pero tampoco se calla, que
+                # es como este mismo fichero se trago un NameError meses.
+                result.errors.append(f"alineación del partido {match.ht_match_id}: {exc}")
+                continue
+
+            # DE `<StartingLineup>` Y NO DE `<Lineup>`. La primera version de
+            # esto cruzaba `<Lineup>` con la lista de titulares, y en el primer
+            # partido real contra Hattrick (matchID 770453142) salio un once
+            # con RoleID 19 --papel de balon parado-- en vez del 101 del
+            # lateral: `<Lineup>` es el estado FINAL, asi que al titular
+            # sustituido le habia quitado su puesto para darselo al suplente
+            # que entro, y de el solo quedaba su fila de papel especial.
+            # `<StartingLineup>` trae PlayerID, RoleID y Behaviour del once que
+            # salio, que es exactamente lo que hace falta.
+            #
+            # Y fuera los papeles especiales. `<StartingLineup>` repite al
+            # titular que tira los balones parados o lleva el brazalete, con
+            # RoleID 17-21 y siempre despues de su fila real: en el partido de
+            # arriba venian doce filas para once jugadores.
+            once = [
+                {
+                    "ht_player_id": int(j["ht_player_id"]),
+                    "role_id": int(j.get("role_id") or 0),
+                    "behaviour": int(j.get("behaviour") or 0),
+                }
+                for j in payload.get("starting_players") or []
+                if j.get("ht_player_id")
+                and int(j.get("role_id") or 0) not in MATCHLINEUP_SPECIAL_ROLES
+            ]
+            # Sin `<StartingLineup>` (una version vieja, un partido raro) mejor
+            # no guardar nada que guardar algo que no es el once.
+            if len(once) < 9:
+                continue
+            match.played_lineup_json = json.dumps(
+                once, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            match.played_lineup_captured_at = captured_at
+
+    #: Cuantos partidos ya guardados recuperan su desglose por sincronizacion.
+    #: Van del mas reciente al mas viejo y cuando estan todos esto no pide
+    #: nada. Un club con anos de historia tardara varias sincronizaciones, que
+    #: es preferible a gastarle cien llamadas de golpe.
+    DESGLOSES_POR_SYNC = 10
+
+    async def _completar_desglose_de_taquilla(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_team_id: int,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """El publico de cada partido DE COPA, en casa y fuera.
+
+        2026-09-28. De ahi sale la taquilla exacta: entradas de cada sector por
+        su precio. En Copa el reparto es 67/33 entre local y visitante, asi que
+        un partido fuera tambien deja dinero --el 33 %-- y para calcularlo hace
+        falta el publico de ESE estadio, que el detalle del partido trae igual.
+
+        Solo COPA, que es la unica pantalla que usa este dato: pedirlo para los
+        de liga seria gastar llamadas en algo que nadie mira.
+
+        Las filas de fuera se marcan con `own_venue=False`. No son historial de
+        tu estadio y la pantalla de Estadio las descarta: contarlas falsearia
+        la ocupacion, que se mide contra TU aforo.
+        """
+        from sqlalchemy import or_, select
+
+        from app.infrastructure.db import models as m
+
+        # Los partidos de Copa del club a los que les falta el publico por
+        # sector: o no tienen fila de estadio, o la tienen sin desglose.
+        pendientes = (
+            (
+                await uow.session.execute(
+                    select(m.Match, m.StadiumHistory)
+                    .outerjoin(
+                        m.StadiumHistory,
+                        m.StadiumHistory.ht_match_id == m.Match.ht_match_id,
+                    )
+                    .where(
+                        or_(
+                            m.Match.home_team_ht_id == ht_team_id,
+                            m.Match.away_team_ht_id == ht_team_id,
+                        ),
+                        m.Match.match_type == MATCH_TYPE_CUP,
+                        m.Match.status.ilike("finished"),
+                        or_(
+                            m.StadiumHistory.id.is_(None),
+                            m.StadiumHistory.sold_terraces.is_(None),
+                        ),
+                    )
+                    .order_by(m.Match.played_at.desc())
+                    .limit(self.DESGLOSES_POR_SYNC)
+                )
+            )
+            .unique()
+            .all()
+        )
+        if not pendientes:
+            return
+
+        for partido, foto in pendientes:
+            await _report(
+                on_progress,
+                f"Completando la taquilla del partido {partido.ht_match_id}...",
+            )
+            try:
+                payload = await self._chpp.fetch(
+                    "matchdetails",
+                    version=FILE_VERSIONS["matchdetails"],
+                    matchID=partido.ht_match_id,
+                )
+            except Exception as exc:  # noqa: BLE001, un partido no tumba el sync
+                result.errors.append(f"taquilla del partido {partido.ht_match_id}: {exc}")
+                continue
+            arena = payload.get("arena") or {}
+            # Los cuatro o ninguno: con tres sectores no sale una taquilla,
+            # sale un numero mas bajo que parece uno bueno.
+            sectores = {
+                columna: arena.get(columna)
+                for columna in ("sold_terraces", "sold_basic", "sold_roof", "sold_vip")
+            }
+            if any(v is None for v in sectores.values()):
+                continue
+            en_casa = partido.home_team_ht_id == ht_team_id
+            if foto is None:
+                foto = m.StadiumHistory(
+                    team_id=team_id,
+                    ht_match_id=partido.ht_match_id,
+                    played_at=partido.played_at,
+                    match_type=partido.match_type,
+                    capacity_total=0,
+                    sold_total=int(arena.get("spectators") or 0),
+                )
+                uow.session.add(foto)
+            foto.own_venue = en_casa
+            for columna, valor in sectores.items():
+                setattr(foto, columna, valor)
+            result.snapshots_written += 1
+
     async def _sync_next_match_weather(
         self,
         uow: UnitOfWork,
@@ -2204,6 +2528,13 @@ class SyncTeamHandler:
                     "matchorders",
                     version=FILE_VERSIONS["matchorders"],
                     matchID=match.ht_match_id,
+                    # De QUE club son las ordenes. Sin esto lo decide el token,
+                    # y el token es la cuenta, no el club: con dos clubes en la
+                    # misma cuenta contesta el principal. Comprobado en vivo el
+                    # 2026-09-27: con el id del rival el fichero vuelve sin
+                    # posiciones y con el propio con las once, asi que lo
+                    # respeta y dejarlo fuera era pedirle que adivinara.
+                    teamId=ht_team_id,
                     sourceSystem=source_system,
                 )
                 if payload.get("ht_match_id") != match.ht_match_id:
@@ -2248,6 +2579,7 @@ class SyncTeamHandler:
                         "matchorders",
                         version=FILE_VERSIONS["matchorders"],
                         matchID=match.ht_match_id,
+                        teamId=ht_team_id,
                         sourceSystem=source_system,
                         actionType="predictratings",
                     )
@@ -2377,12 +2709,7 @@ class SyncTeamHandler:
 
         arena_capacity: dict[str, int] | None = None
         try:
-            arena = await self._chpp.fetch(
-                "arenadetails",
-                version=FILE_VERSIONS["arenadetails"],
-                teamID=ht_team_id,
-            )
-            arena_capacity = arena.get("current_capacity")
+            arena_capacity = await aforo_del_estadio(self._chpp, ht_team_id, result)
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla solo el aforo
             result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
@@ -2488,10 +2815,7 @@ class SyncTeamHandler:
 
         arena_capacity: dict[str, int] | None = None
         try:
-            arena = await self._chpp.fetch(
-                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=ht_team_id
-            )
-            arena_capacity = arena.get("current_capacity")
+            arena_capacity = await aforo_del_estadio(self._chpp, ht_team_id, result)
         except Exception as exc:  # noqa: BLE001, no invalida ratings si falla sólo el aforo
             result.errors.append(f"{_nombre_legible('arenadetails')}: {exc}")
 
@@ -2771,10 +3095,15 @@ class SyncTeamHandler:
                     capacity_basic=capacity.get("basic") or None,
                     capacity_roof=capacity.get("roof") or None,
                     capacity_vip=capacity.get("vip") or None,
-                    # Solo el TOTAL. El desglose por sector es funcion de HT
-                    # Supporter y las reglas de CHPP prohiben replicarla; ni
-                    # se lee del XML ni existe ya la columna (migracion 0076).
                     sold_total=sold_total,
+                    # El desglose por sector: se guarda para poder calcular la
+                    # taquilla exacta, y no sale por ninguna respuesta de la
+                    # API (2026-09-28, decision del usuario). `None` cuando el
+                    # fichero no lo trae, que no es lo mismo que cero.
+                    sold_terraces=arena.get("sold_terraces"),
+                    sold_basic=arena.get("sold_basic"),
+                    sold_roof=arena.get("sold_roof"),
+                    sold_vip=arena.get("sold_vip"),
                 )
             )
             result.snapshots_written += 1
@@ -4402,11 +4731,29 @@ class SyncTeamHandler:
         la revelacion es molesto; perder la sincronizacion entera por ella
         seria peor.
         """
+        # SIN EL ID DE LA CANTERA NO SE LLAMA (2026-09-27, instruccion del
+        # usuario: ninguna consulta se manda sin decir de que club es).
+        #
+        # Antes se mandaba igual, sin `youthTeamId`, y entonces Hattrick lo
+        # resuelve por el token: el club PRINCIPAL de la cuenta. Y esto no es
+        # una lectura, es una ESCRITURA: sincronizar el segundo club revelaba
+        # las habilidades de los juveniles del primero. Mejor no revelar --se
+        # revela en la siguiente, cuando ya se sepa cual es la academia-- que
+        # escribir en el club equivocado.
+        if not academia:
+            result.errors.append(
+                "unlockskills: no se revelaron las habilidades juveniles porque "
+                "todavia no se sabe cual es la academia de este club; se hara "
+                "en la proxima sincronizacion"
+            )
+            return
         try:
-            # Con el id de la cantera: revelar es escribir, y sin el se
-            # escribiria sobre la academia del club principal.
-            extra = {"youthTeamId": academia} if academia else {}
-            await self._chpp.fetch("youthplayerlist", "latest", actionType="unlockskills", **extra)
+            await self._chpp.fetch(
+                "youthplayerlist",
+                "latest",
+                actionType="unlockskills",
+                youthTeamId=academia,
+            )
         except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
                 "unlockskills: no se pudieron revelar las habilidades juveniles "

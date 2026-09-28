@@ -151,6 +151,12 @@ class ArenaQueryService:
         query = (
             select(m.StadiumHistory)
             .where(m.StadiumHistory.team_id == team_id)
+            # SOLO TU ESTADIO, dicho y no supuesto (2026-09-28). Desde hoy esta
+            # tabla guarda tambien los partidos de Copa jugados FUERA, porque
+            # de su publico sale el 33 % de taquilla que te corresponde como
+            # visitante. Esas filas no son historial de tu estadio: contarlas
+            # falsearia la ocupacion, que se mide contra TU aforo.
+            .where(m.StadiumHistory.own_venue.is_(True))
             .where(m.StadiumHistory.match_type.not_in(NON_OFFICIAL_MATCH_TYPES))
         )
         rows = list((await self._s.execute(query.order_by(m.StadiumHistory.played_at))).scalars())

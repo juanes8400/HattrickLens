@@ -455,9 +455,30 @@ class PostMatchTrainingService:
     async def _played_segments(
         self, team_id: int, since: datetime, deadline: datetime
     ) -> tuple[list[PlayedSegment], list[str]]:
+        # LAS DIEZ COLUMNAS QUE SE LEEN, NO LAS OCHENTA Y UNA DE LAS TRES
+        # ENTIDADES (2026-09-26). Pedir `PlayerMatchRating`, `Player` y
+        # `Match` enteros costaba casi un kilobyte por fila --el 8 % de los
+        # bytes que la base entregaba-- para leer el puesto, los minutos, el
+        # nombre y de qué partido era.
+        #
+        # `Match.id` viaja como señal de presencia: la unión es externa y sin
+        # una columna que sólo exista cuando hay partido no se distingue «no
+        # hay partido» de «partido con la fecha vacía».
         rows = (
             await self._s.execute(
-                select(m.PlayerMatchRating, m.Player, m.Match)
+                select(
+                    m.Match.id,
+                    m.Match.match_type,
+                    m.Match.played_at,
+                    m.Match.status,
+                    m.Player.ht_player_id,
+                    m.Player.first_name,
+                    m.Player.last_name,
+                    m.PlayerMatchRating.ht_match_id,
+                    m.PlayerMatchRating.position_code,
+                    m.PlayerMatchRating.played_minutes,
+                    m.PlayerMatchRating.rating,
+                )
                 .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
                 .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
                 .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
@@ -466,30 +487,46 @@ class PostMatchTrainingService:
         ).all()
 
         segments: list[PlayedSegment] = []
-        for rating, player, match in rows:
-            if match is not None:
+        for fila in rows:
+            # POR NOMBRE Y NO POR POSICION. Desempaquetar once nombres de una
+            # fila obliga a que el orden de aqui y el del SELECT coincidan para
+            # siempre: mover una columna alla renombra las once calladamente.
+            # Y SQLAlchemy 2.1 ya no lo admite --tipa la fila como una tupla de
+            # largo variable-- asi que CI lo rechazaba.
+            match_id = fila.id
+            fila_match_type = fila.match_type
+            fila_played_at = fila.played_at
+            fila_status = fila.status
+            ht_player_id = fila.ht_player_id
+            first_name = fila.first_name
+            last_name = fila.last_name
+            ht_match_id = fila.ht_match_id
+            position_code = fila.position_code
+            played_minutes = fila.played_minutes
+            rating_valor = fila.rating
+            if match_id is not None:
                 # Escaleras, Duelos, Torneos y Preparación no son partidos
                 # reales, pedido explícito 2026-08-11: no deben influir en
                 # qué entrenamiento conviene según los minutos jugados.
-                if match.match_type in NON_OFFICIAL_MATCH_TYPES:
+                if fila_match_type in NON_OFFICIAL_MATCH_TYPES:
                     continue
-                played_at = _aware(match.played_at)
+                played_at = _aware(fila_played_at)
                 if not (since <= played_at <= deadline):
                     continue
-                if match.status and match.status.lower() not in {"finished", "finished_available"}:
+                if fila_status and fila_status.lower() not in {"finished", "finished_available"}:
                     continue
-                match_type = match.match_type
+                match_type = fila_match_type
             else:
                 played_at = None
                 match_type = None
             segments.append(
                 PlayedSegment(
-                    ht_player_id=player.ht_player_id,
-                    player_name=f"{player.first_name} {player.last_name}",
-                    ht_match_id=rating.ht_match_id,
-                    position_code=rating.position_code,
-                    played_minutes=rating.played_minutes,
-                    rating=rating.rating,
+                    ht_player_id=ht_player_id,
+                    player_name=f"{first_name} {last_name}",
+                    ht_match_id=ht_match_id,
+                    position_code=position_code,
+                    played_minutes=played_minutes,
+                    rating=rating_valor,
                     played_at=played_at,
                     match_type=match_type,
                     source="playerdetails-history",

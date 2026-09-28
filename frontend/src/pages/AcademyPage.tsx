@@ -2383,10 +2383,18 @@ function NivelConMovimiento({
       {subio && (
         <>
           <span className="text-[var(--muted)]">{movida!.before}</span>{" "}
-          <span className="text-[var(--positive)]">▲</span>{" "}
+          {/* La flecha con cuerpo: en una tabla de 182 celdas, la que se movió
+              tiene que encontrarse sin buscarla (2026-09-26). */}
+          <span className="font-semibold text-[var(--positive)]">▲</span>{" "}
         </>
       )}
-      <span className={clsx(subio && "font-semibold")}>{current ?? "?"}</span>
+      <span
+        className={clsx(
+          subio && "text-[15px] font-semibold text-[var(--positive)]",
+        )}
+      >
+        {current ?? "?"}
+      </span>
       <span className="text-[var(--muted)]">{" / "}</span>
       <span className={clsx(techoNuevo && "font-semibold")}>
         {maximum ?? "?"}
@@ -3522,15 +3530,18 @@ function UltimoEntrenamientoJuvenil() {
             >
               <span className="flex items-baseline gap-2">
                 <span
-                  className={
+                  className={clsx(
+                    // La flecha es lo primero que busca el ojo al abrir el
+                    // parte: se le da cuerpo cuando hay movimiento de verdad.
+                    f.subida != null && "text-base font-semibold leading-none",
                     f.subida != null
                       ? f.subida > 0
                         ? "text-[var(--positive)]"
                         : "text-[var(--danger)]"
                       : f.llegaCon != null
                         ? "text-[var(--muted)]"
-                        : "text-[var(--youth-known)]"
-                  }
+                        : "text-[var(--youth-known)]",
+                  )}
                 >
                   {f.subida != null
                     ? f.subida > 0
@@ -3549,8 +3560,13 @@ function UltimoEntrenamientoJuvenil() {
                   </span>
                 )}
               </span>
-              <span className="flex items-baseline gap-2 text-xs">
-                <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[var(--muted)]">
+              {/* EL CAMBIO, AL TAMAÑO DE LA FILA (2026-09-26, pedido del
+                  usuario). Todo este lado iba en `text-xs`: el movimiento,
+                  que es la noticia, se leía más pequeño que el nombre del
+                  chico, que es el contexto. La etiqueta de la habilidad sí
+                  se queda pequeña, porque eso sí es contexto. */}
+              <span className="flex items-baseline gap-2 text-sm">
+                <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--muted)]">
                   {nombreDeHabilidad(f.clave)}
                 </span>
                 {f.subida != null && f.before != null && f.current != null ? (
@@ -3561,7 +3577,7 @@ function UltimoEntrenamientoJuvenil() {
                     <span className="text-[var(--muted)]">→</span>
                     <span
                       className={clsx(
-                        "font-medium",
+                        "font-semibold",
                         f.subida > 0
                           ? "text-[var(--positive)]"
                           : "text-[var(--danger)]",

@@ -242,10 +242,10 @@ async def _alineacion_enviada_propia(
     )
     if token is None:
         # Sin sesión todavía vale la que ya está sincronizada.
-        return await alineacion_enviada_de(None, proximo)
+        return await alineacion_enviada_de(None, proximo, team.ht_team_id)
     client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
     try:
-        enviada = await alineacion_enviada_de(client, proximo)
+        enviada = await alineacion_enviada_de(client, proximo, team.ht_team_id)
     finally:
         await client.aclose()
     _memoria_enviada[proximo.ht_match_id] = (time.monotonic(), enviada)

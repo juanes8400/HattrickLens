@@ -101,13 +101,22 @@ def prediccion_guardada(match: m.Match | None) -> dict[str, int] | None:
     return {key: int(value) for key, value in values.items() if value is not None}
 
 
-async def orden_en_vivo(client: Any, match: m.Match) -> tuple[dict[str, int], int | None] | None:
+async def orden_en_vivo(
+    client: Any, match: m.Match, ht_team_id: int
+) -> tuple[dict[str, int], int | None] | None:
     """La predicción de minuto 0 de las órdenes ya enviadas, y su táctica.
 
     `actionType=predictratings` es de solo lectura: Hattrick calcula los siete
     ratings para la alineación que YA está guardada, no envía ni modifica
     nada. Devuelve `None` si todavía no hay órdenes, y también si falla: no
     tener predicción no puede tumbar la pantalla.
+
+    `ht_team_id` NO ES OPCIONAL (2026-09-27, instrucción del usuario). Sin él,
+    Hattrick decide de qué club son las órdenes mirando el token, y eso es el
+    club principal de la cuenta. Comprobado en vivo ese mismo día: con el id
+    del rival, el fichero contesta sin posiciones; con el propio, con las
+    once. No lo ignora, lo respeta, así que dejarlo fuera era pedirle que
+    adivinara.
     """
     sistema = (match.source_system or "hattrick").strip().lower()
     if sistema not in {"hattrick", "youth", "htointegrated"}:
@@ -117,6 +126,9 @@ async def orden_en_vivo(client: Any, match: m.Match) -> tuple[dict[str, int], in
             "matchorders",
             version=FILE_VERSIONS["matchorders"],
             matchID=match.ht_match_id,
+            teamId=match.home_team_ht_id
+            if match.home_team_ht_id == ht_team_id
+            else match.away_team_ht_id,
             sourceSystem=sistema,
             actionType="predictratings",
         )
@@ -135,18 +147,20 @@ async def orden_en_vivo(client: Any, match: m.Match) -> tuple[dict[str, int], in
     )
 
 
-async def prediccion_en_vivo(client: Any, match: m.Match) -> dict[str, int] | None:
+async def prediccion_en_vivo(client: Any, match: m.Match, ht_team_id: int) -> dict[str, int] | None:
     """Sólo los siete ratings de `orden_en_vivo`, sin la táctica.
 
     Es lo que usan Copa y la ficha de rival, que pegan el resultado encima de
     un diccionario de ratings: devolverles también la táctica colaría una
     clave que no es un rating.
     """
-    orden = await orden_en_vivo(client, match)
+    orden = await orden_en_vivo(client, match, ht_team_id)
     return orden[0] if orden is not None else None
 
 
-async def alineacion_enviada_de(client: Any | None, match: m.Match) -> AlineacionEnviada | None:
+async def alineacion_enviada_de(
+    client: Any | None, match: m.Match, ht_team_id: int
+) -> AlineacionEnviada | None:
     """Tus órdenes para ese partido: las sincronizadas, o si no, en vivo.
 
     La MISMA regla que Copa --la guardada primero, la de en vivo si no hay--
@@ -162,7 +176,7 @@ async def alineacion_enviada_de(client: Any | None, match: m.Match) -> Alineacio
         return AlineacionEnviada(match.ht_match_id, guardada, match.submitted_tactic_type)
     if client is None:
         return None
-    orden = await orden_en_vivo(client, match)
+    orden = await orden_en_vivo(client, match, ht_team_id)
     if orden is None:
         return None
     return AlineacionEnviada(match.ht_match_id, orden[0], orden[1])
@@ -181,7 +195,11 @@ async def partido_pendiente_contra(
     `actionType=predictratings`, y esa llamada ya responde por sí sola si hay
     órdenes o no.
     """
-    return await session.scalar(  # type: ignore[no-any-return]
+    # El tipo declarado en vez de un `type: ignore`: con SQLAlchemy 2.0
+    # `scalar` devolvia `Any` y hacia falta callar a mypy; con la 2.1 ya
+    # devuelve el tipo bueno y el silencio sobraba, asi que CI lo rechazaba.
+    # Declarandolo aqui vale para las dos.
+    partido: m.Match | None = await session.scalar(
         select(m.Match)
         .where(
             or_(
@@ -199,3 +217,4 @@ async def partido_pendiente_contra(
         .order_by(m.Match.played_at.asc())
         .limit(1)
     )
+    return partido

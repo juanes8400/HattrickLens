@@ -848,12 +848,45 @@ class StadiumHistory(Base):
     capacity_basic: Mapped[int | None] = mapped_column(Integer)
     capacity_roof: Mapped[int | None] = mapped_column(Integer)
     capacity_vip: Mapped[int | None] = mapped_column(Integer)
-    # La asistencia va SOLO en total. El desglose por sector es una funcion de
-    # HT Supporter y las reglas de CHPP prohiben replicarla, asi que ni se
-    # recoge ni se guarda (migracion 0076). El total en cambio es publico:
-    # Hattrick lo enseña en la pagina del partido.
+    # DE QUIEN ES EL ESTADIO (2026-09-28, lo dijo el usuario: «los partidos de
+    # visitante de Copa tambien me dan taquilla»).
+    #
+    # Hasta hoy aqui solo entraban partidos propios EN CASA, y varias consultas
+    # lo daban por hecho sin decirlo. En Copa la taquilla se reparte 67/33
+    # entre local y visitante, asi que el 33 % de un partido fuera TAMBIEN es
+    # dinero del club, y para calcularlo hace falta el publico de ESE estadio.
+    #
+    # `False` = se jugo en el estadio del rival. Esas filas NO son historial de
+    # tu estadio y la pantalla de Estadio las descarta a proposito: contarlas
+    # falsearia la ocupacion, que se mide contra TU aforo.
+    own_venue: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    #: El total de publico, que es lo unico de aqui que se enseña.
     sold_total: Mapped[int] = mapped_column(Integer, default=0)
+    #: Taquilla que reporta Hattrick. Existe desde el principio y NUNCA se
+    #: rellena: el fichero del partido no la trae. Se conserva por si algun dia
+    #: llega, pero lo que se enseña sale de `taquilla_del_partido`.
     revenue: Mapped[int] = mapped_column(Integer, default=0)
+
+    # EL DESGLOSE POR SECTOR: SE GUARDA, SE CALCULA CON EL, NO SE ENSEÑA NUNCA
+    # (2026-09-28, decision del usuario, con esas palabras).
+    #
+    # De aqui sale la taquilla EXACTA de un partido --entradas de cada sector
+    # por su precio, los cuatro verificados-- que es el unico modo de tenerla:
+    # Hattrick no publica la taquilla por partido, y atribuirla por semanas
+    # cerradas no funciona porque los partidos de Copa comparten semana con los
+    # de liga.
+    #
+    # La migracion 0076 las habia borrado el 2026-09-01, por si enseñar el
+    # desglose imitaba una funcion de HT Supporter. La linea queda en ENSEÑARLO:
+    # estos cuatro numeros no salen por ninguna respuesta de la API, solo
+    # alimentan el total. Lo fija `test_el_desglose_por_sector_no_sale_nunca`,
+    # que recorre las respuestas y falla si alguno se asoma.
+    #
+    # `None` = ese partido se sincronizo antes de esto y le falta el desglose.
+    sold_terraces: Mapped[int | None] = mapped_column(Integer)
+    sold_basic: Mapped[int | None] = mapped_column(Integer)
+    sold_roof: Mapped[int | None] = mapped_column(Integer)
+    sold_vip: Mapped[int | None] = mapped_column(Integer)
 
 
 class Match(Base):
@@ -915,6 +948,21 @@ class Match(Base):
     submitted_rating_central_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_rating_left_att: Mapped[int | None] = mapped_column(SmallInteger)
     submitted_ratings_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # EL ONCE QUE DE VERDAD SALIO, leido de `matchlineup.xml` v2.1 despues del
+    # partido (2026-09-27, caso del usuario: el partido 770393948 del FC
+    # Villainy salia con ocho jugadores y un «3-5-0» inventado).
+    #
+    # No es lo mismo que `submitted_lineup_json`, que son las ORDENES y solo se
+    # pueden capturar mientras el partido sigue proximo: si nadie sincronizo en
+    # esa ventana, ese partido se queda sin ellas para siempre. Un partido ya
+    # jugado, en cambio, es un hecho publico y permanente que se puede pedir
+    # cuando sea. Se pide UNA vez por partido y no se vuelve a tocar.
+    #
+    # Guarda el once INICIAL (`StartingLineup` cruzado con los RoleID de
+    # `Lineup`), no el final: quien entro de cambio no es titular, y contarlo
+    # daba formaciones de catorce jugadores.
+    played_lineup_json: Mapped[str | None] = mapped_column(String(4000))
+    played_lineup_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class MatchRating(Base):
@@ -1289,6 +1337,54 @@ class DismissedInsight(Base):
     dismissed_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
     __table_args__ = (UniqueConstraint("team_id", "key", name="uq_dismissed_insight"),)
+
+
+class MatchPrediction(Base):
+    """Lo que dijimos que iba a pasar, guardado ANTES de que pasara.
+
+    2026-09-26, pedido del usuario. Las predicciones se calculaban al vuelo
+    cada vez que alguien abria Liga y se tiraban, asi que despues del partido
+    no habia forma honesta de decir «esto es lo que te dijimos». Se podia
+    recalcular hacia atras, pero eso no es lo que dijimos: es lo que diriamos
+    hoy con los datos de entonces, que no es lo mismo y a veces ni se parece.
+
+    Una fila por partido, reescrita mientras el partido siga por jugarse: lo
+    que vale es lo ultimo que el usuario llego a ver antes del pitido. En
+    cuanto se juega deja de ser un cruce pendiente y nadie la vuelve a tocar.
+
+    `engine` NO ES DECORACION. La mezcla del motor cambio el 2026-09-20 (de
+    80/20 con la ordinal a 100/0). Sin saber que version dijo un numero, un
+    acierto de septiembre se estaria juzgando contra un motor que no lo dijo.
+    """
+
+    __tablename__ = "match_predictions"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    ht_match_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    #: DE QUIEN ES ESTE PRONOSTICO (2026-09-28, senalado en la revision de la
+    #: PR). Un partido tiene dos lados, y los dos pueden estar conectados a HT
+    #: Lens: la misma cuenta con sus dos clubes, o dos managers distintos. Y el
+    #: pronostico NO es el mismo para los dos, porque el motor de zonas usa la
+    #: alineacion que ESE manager mando. Con la clave unica solo en el partido,
+    #: el segundo en abrir Liga pisaba la fila del primero, y despues del
+    #: partido su parte le enseñaba una terna que nunca vio. Que es justo lo
+    #: contrario de para lo que existe esta tabla.
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    #: Desde el LOCAL, igual que las pinta la pantalla.
+    home_win: Mapped[float] = mapped_column(Float)
+    draw: Mapped[float] = mapped_column(Float)
+    away_win: Mapped[float] = mapped_column(Float)
+    expected_home_goals: Mapped[float] = mapped_column(Float)
+    expected_away_goals: Mapped[float] = mapped_column(Float)
+    most_likely_score: Mapped[str] = mapped_column(String(16), default="")
+    #: Con que se predijo: «zonas» (el motor de duelos) o «goles» (el respaldo
+    #: agregado de la temporada, que ignora alineaciones y tacticas).
+    source: Mapped[str] = mapped_column(String(16), default="")
+    engine: Mapped[str] = mapped_column(String(32), default="")
+    computed_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+    __table_args__ = (
+        UniqueConstraint("ht_match_id", "team_id", name="uq_match_predictions_partido_equipo"),
+    )
 
 
 class MatchWeather(Base):

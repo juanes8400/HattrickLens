@@ -101,7 +101,7 @@ def test_el_parte_dice_que_los_datos_no_llegan_hasta_el_entrenamiento() -> None:
             )
         )
         await sesion.commit()
-        return await UltimoEntrenamientoQueryService(sesion).get(team_id)
+        return await UltimoEntrenamientoQueryService(sesion).get(team_id, ahora=HOY)
 
     parte = run(go())
     assert parte is not None
@@ -160,7 +160,7 @@ def test_el_parte_trae_las_subidas_de_esa_semana_y_no_las_de_otra() -> None:
             )
         )
         await sesion.commit()
-        return await UltimoEntrenamientoQueryService(sesion).get(team_id)
+        return await UltimoEntrenamientoQueryService(sesion).get(team_id, ahora=HOY)
 
     parte = run(go())
     assert parte is not None
@@ -262,7 +262,7 @@ def test_una_bajada_no_es_una_subida() -> None:
             )
         )
         await sesion.commit()
-        return await UltimoEntrenamientoQueryService(sesion).get(team_id)
+        return await UltimoEntrenamientoQueryService(sesion).get(team_id, ahora=HOY)
 
     parte = run(go())
     assert parte is not None

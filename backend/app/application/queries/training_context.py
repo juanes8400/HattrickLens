@@ -32,7 +32,7 @@ predice la fórmula alimentada con el contexto real.
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.engines import training_engine as te
@@ -303,18 +303,34 @@ class TrainingContextService:
         )
 
     async def _player_ages(self, team_id: int) -> dict[int, tuple[int, int]]:
+        """La edad de hoy de cada jugador: UNA fila por jugador.
+
+        Esto se bajaba el histórico entero ordenado del más nuevo al más
+        viejo para quedarse con la primera fila de cada uno, y Entrenamiento
+        lo llama cinco veces por visita: era el 7 % de los bytes que la base
+        entregaba (2026-09-26). La última foto se elige en SQL.
+        """
+        ultima = (
+            select(
+                m.PlayerSnapshot.player_id.label("pid"),
+                func.max(m.PlayerSnapshot.captured_at).label("cuando"),
+            )
+            .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
+            .where(m.Player.team_id == team_id)
+            .group_by(m.PlayerSnapshot.player_id)
+            .subquery()
+        )
         rows = await self._s.execute(
             select(
                 m.Player.ht_player_id,
                 m.PlayerSnapshot.age_years,
                 m.PlayerSnapshot.age_days,
-                m.PlayerSnapshot.captured_at,
+            )
+            .join(
+                ultima,
+                (m.PlayerSnapshot.player_id == ultima.c.pid)
+                & (m.PlayerSnapshot.captured_at == ultima.c.cuando),
             )
             .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
-            .where(m.Player.team_id == team_id)
-            .order_by(m.PlayerSnapshot.captured_at.desc())
         )
-        ages: dict[int, tuple[int, int]] = {}
-        for pid, yrs, days, _ in rows.all():
-            ages.setdefault(pid, (yrs, days))  # el primero es el más reciente
-        return ages
+        return {pid: (yrs, days) for pid, yrs, days in rows.all()}

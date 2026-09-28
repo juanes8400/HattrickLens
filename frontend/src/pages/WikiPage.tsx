@@ -1454,7 +1454,7 @@ const ARTICULOS: Articulo[] = [
     titulo: tx("Cambios"),
     ruta: "/news",
     resumen: tx(
-      "Lo que movió la última sincronización, comparado contra el cierre semanal anterior.",
+      "Lo que movió la última sincronización, comparado contra la lectura anterior de cada jugador.",
     ),
     secciones: [
       {
@@ -1475,7 +1475,7 @@ const ARTICULOS: Articulo[] = [
         titulo: tx("Cómo leerlo"),
         texto: [
           tx(
-            "La comparación es contra el cierre semanal anterior, no contra la sincronización de hace unas horas: así una semana se lee entera y los cambios pequeños del día no tapan los importantes. Es la pantalla para abrir justo después de sincronizar.",
+            "La comparación de cada jugador es contra su lectura anterior: lo que movió ESTA sincronización y nada más. Hasta el 27 de septiembre de 2026 se comparaba contra el lunes de la semana en curso, así que cada sincronización volvía a enseñar lo mismo hasta el domingo: un sábado podía sacar 58 filas habiendo movido 3. Las finanzas y el ánimo sí siguen comparándose de cierre semanal a cierre semanal, porque cierran por semana de verdad, y lo dicen en su propio rótulo. Es la pantalla para abrir justo después de sincronizar.",
           ),
         ],
       },

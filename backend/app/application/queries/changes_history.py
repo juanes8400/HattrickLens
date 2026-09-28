@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.application.queries.weekly import cierre_mas_cercano, latest_per_iso_week
 from app.infrastructure.db import models as m
@@ -330,12 +331,35 @@ async def build_changes_history(
     # Markoč y a media docena de vendidos, y sus cifras entraban además en los
     # balances del equipo. Lo que le pasó a un jugador antes de irse no es un
     # cambio de TU plantilla; para eso está Saldo por jugador.
+    # LAS COLUMNAS QUE SE MIDEN, NO LA FILA ENTERA (2026-09-26). Esta era la
+    # segunda consulta más cara de la aplicación, el 11 % de los bytes que la
+    # base entregaba. De la foto se comparan las catorce de `METRICS` y del
+    # jugador se lee el nombre; lo demás --goles de carrera, lesiones, el
+    # último partido, el hash de 32 bytes-- viajaba para nada.
+    #
+    # `raiseload=True` porque estas columnas se leen con `getattr` desde
+    # `METRICS`: si mañana entra una métrica nueva y nadie la añade aquí,
+    # revienta con un error claro en vez de pedirla en silencio.
     rows = (
         await session.execute(
             select(m.PlayerSnapshot, m.Player)
             .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
             .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
             .order_by(m.PlayerSnapshot.captured_at, m.PlayerSnapshot.id)
+            .options(
+                load_only(
+                    m.PlayerSnapshot.player_id,
+                    m.PlayerSnapshot.captured_at,
+                    *(getattr(m.PlayerSnapshot, clave) for clave, _, _ in METRICS),
+                    raiseload=True,
+                ),
+                load_only(
+                    m.Player.ht_player_id,
+                    m.Player.first_name,
+                    m.Player.last_name,
+                    raiseload=True,
+                ),
+            )
         )
     ).all()
 

@@ -59,6 +59,8 @@ CAMPOS_INTOCABLES = frozenset(
         "direction",
         "salarySource",
         "source",
+        # De donde salio el once: «ordenes», «partido» o «fichas».
+        "lineupSource",
         "tone",
         "specialty",
         "impact",
@@ -92,7 +94,7 @@ CAMPOS_INTOCABLES = frozenset(
     }
 )
 
-IDIOMAS = ("es", "en")
+IDIOMAS = ("es", "en", "it")
 
 
 def idioma_de(cabecera: str | None) -> str:

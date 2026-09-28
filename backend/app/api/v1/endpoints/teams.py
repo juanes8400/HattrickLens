@@ -19,16 +19,17 @@ from app.api.deps import (
 from app.api.rate_limit import limite
 from app.api.v1.endpoints.precalentar import lanzar_precalentado
 from app.application.commands.sync_team import (
-    FILE_VERSIONS,
     MENSAJE_BASE_CORTADA,
     SyncBackfillBatchCommand,
     SyncMatchDetailsCommand,
     SyncPlayerDetailsCommand,
     SyncPreviousClubBonusCommand,
+    SyncResult,
     SyncTeamCommand,
     SyncTeamHandler,
     SyncTransfersHistoryCommand,
     SyncTransfersPlayerCommand,
+    aforo_del_estadio,
     mensaje_de_error,
 )
 from app.application.dto.dashboard import DashboardResponse
@@ -40,6 +41,7 @@ from app.application.queries.changes_history import (
 )
 from app.application.queries.club import ClubQueryService
 from app.application.queries.dashboard import DashboardQueryService
+from app.application.queries.parte_del_partido import build_parte_del_partido
 from app.application.queries.squad import SquadQueryService
 from app.application.queries.sync_comparison import build_sync_comparison
 from app.application.queries.transparencia import como_json as catalogo_de_calculos
@@ -377,10 +379,11 @@ async def trigger_match_details_sync(
         handler = SyncTeamHandler(SqlAlchemyUnitOfWork(SessionLocal), client)
         arena_capacity: dict[str, int] | None = None
         try:
-            arena = await client.fetch(
-                "arenadetails", version=FILE_VERSIONS["arenadetails"], teamID=team.ht_team_id
-            )
-            arena_capacity = arena.get("current_capacity")
+            # Comprobado que el estadio que contesta Hattrick es el de ESTE
+            # club: ver `aforo_del_estadio`.
+            informe = SyncResult(sync_id=0, status="completed")
+            arena_capacity = await aforo_del_estadio(client, team.ht_team_id, informe)
+            errors.extend(informe.errors)
         except (CHPPAuthError, CHPPUnavailableError):
             raise
         except Exception as exc:  # no invalida ratings si falla sólo el aforo
@@ -852,6 +855,35 @@ async def last_sync_changes(
     Un id inválido o sin cambios cae a la última, no es un error del usuario
     pedir una fecha que ya no existe."""
     return await build_sync_comparison(session, team_id, sync_id)
+
+
+@router.get(
+    "/{team_id}/last-match-report",
+    summary="El ultimo partido jugado, contra lo que habiamos dicho de el",
+    dependencies=[Depends(require_team_owner)],
+)
+async def last_match_report(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any] | None:
+    """Encabeza Cambios: el resultado al lado de la terna que dabamos ANTES.
+
+    `null` mientras el equipo no tenga ningun partido jugado, y `prediction`
+    a `null` cuando de ese partido no guardamos nada, que es el caso de todo
+    partido anterior al 2026-09-26. La pantalla pinta los dos estados.
+
+    Una vez por sync: ni el resultado de un partido jugado ni lo que dijimos
+    antes de jugarlo vuelven a cambiar.
+    """
+    from app.api.cache_por_sync import por_sync
+
+    return await por_sync(
+        session,
+        team_id,
+        "parte-del-partido",
+        (),
+        lambda: build_parte_del_partido(session, team_id),
+    )
 
 
 @router.get(

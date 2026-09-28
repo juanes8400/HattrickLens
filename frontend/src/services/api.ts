@@ -591,6 +591,8 @@ export const api = {
       `/teams/${teamId}/changes/history${query ? `?${query}` : ""}`,
     );
   },
+  lastMatchReport: (teamId: number) =>
+    request<LastMatchReport | null>(`/teams/${teamId}/last-match-report`),
   syncMatchDetails: (teamId: number) =>
     request<MatchDetailsSyncResult>(`/teams/${teamId}/matches/details/sync`, {
       method: "POST",
@@ -2194,6 +2196,40 @@ export interface HistoricalPlayerChange {
   isArrival?: boolean;
 }
 
+/** El ultimo partido jugado, al lado de lo que dijimos antes de jugarlo.
+ *
+ *  Solo numeros y claves: quien era el favorito, si el marcador cantado cayo
+ *  y como le fue al equipo propio se derivan en la pantalla, que es donde se
+ *  escribe la frase y donde se puede traducir. */
+export interface LastMatchReport {
+  htMatchId: number;
+  playedAt: string | null;
+  competition: string;
+  round: number | null;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  isHome: boolean;
+  /** `null` cuando de ese partido no guardamos nada. Es el caso de todo
+   *  partido anterior al 2026-09-26, y no se rellena recalculandolo: eso
+   *  seria lo que diriamos hoy, no lo que dijimos. */
+  prediction: {
+    homeWin: number;
+    draw: number;
+    awayWin: number;
+    expectedHomeGoals: number;
+    expectedAwayGoals: number;
+    mostLikelyScore: string;
+    /** `zonas` mira alineaciones y tacticas; `goles` es el respaldo que solo
+     *  mira goles agregados de la temporada, y no se le puede pedir cuentas
+     *  igual. La pantalla lo dice. */
+    source: string;
+    engine: string;
+    computedAt: string | null;
+  } | null;
+}
+
 export interface ChangesHistory {
   /** Ventana pedida, en semanas. */
   weeks: number;
@@ -2572,6 +2608,26 @@ export interface Skills {
     impact: "Alto" | "Medio";
   }[];
   lastMatchDate: string | null;
+  /** De qué partido salió el once. La fecha sola no lo identifica, y sin
+   *  identificarlo no hay forma de juzgar si el once tiene sentido. */
+  lastMatchOpponent: string | null;
+  lastMatchCompetition: string | null;
+  lastMatchScore: string | null;
+  lastMatchIsHome: boolean | null;
+  /** Cuántos jugadores tiene el once que se enseña. Menos de once quiere decir
+   *  que faltó gente y no se pudo rellenar, y entonces `formation` viene a
+   *  `null`: no se inventa una formación con lo que haya. */
+  lineupPlayers: number;
+  /** Cuántos de ellos NO jugaron ese partido: entraron a ocupar la plaza de un
+   *  titular que ya no está en la plantilla. Cero es lo normal. */
+  lineupReplacements: number;
+  /** De dónde salió el once, de más fiable a menos: `hattrick` (la alineación
+   *  real del partido, pedida a Hattrick después de jugarse), `ordenes` (las
+   *  órdenes que se enviaron), `partido` (las fichas de ese partido) o
+   *  `fichas` (el último partido de cada jugador, lo más frágil). */
+  lineupSource: "hattrick" | "ordenes" | "partido" | "fichas" | null;
+  /** `null` cuando el once no está completo: con ocho jugadores no hay
+   *  formación que decir, y decía «3-5-0», que no existe. */
   formation: string | null;
   /** El reparto de la última formación oficial. */
   lastCentralDefenders: number | null;
@@ -3679,12 +3735,23 @@ export interface Cup {
   economy: {
     currency: string;
     observedHomeMatches: number;
+    /** Público, no dinero. La taquilla de UN partido no llega por ningún
+     *  sitio: ni Hattrick la publica por partido, ni se puede reconstruir sin
+     *  replicar la asistencia por sector, que es función de HT Supporter. */
+    observedAttendance: number;
+    bestAttendance: number;
+    averageAttendance: number;
+    /** Cuántos de esos partidos tienen taquilla calculada. Menos que los
+     *  medidos = faltan desgloses por completar, y la pantalla lo dice. */
+    matchesWithGate: number;
+    /** La suma de las taquillas calculadas, en bruto. */
     observedGrossGate: number;
-    estimatedHistoricalShare: number;
-    nextGateProjection: number | null;
-    nextSharePercent: number | null;
-    projectionBasis: string;
-    qualityNote: string;
+    /** Tu parte de esa suma: en Copa el local se queda el 67 %. */
+    observedShare: number;
+    sharePercent: number;
+    /** Cuántos de los partidos con taquilla se jugaron fuera: ésos entran al
+     *  33 %, no al 67 %. */
+    awayMatchesWithGate: number;
   };
   readiness: {
     referenceVariants: CupReadinessVariant[];

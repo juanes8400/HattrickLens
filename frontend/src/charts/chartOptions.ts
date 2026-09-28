@@ -240,6 +240,12 @@ export function economySankeyOption(
   // recibiendo el sobrante o cubriendo el déficit. Color propio y sólido, no
   // el degradado por defecto que comparte con los nodos de gasto.
   const CAJA_COLOR = "#f5a524";
+  // EL NOMBRE DE LA CAJA, UNA SOLA VEZ (2026-09-26). El nodo se creaba con
+  // `tx("Caja")` y los enlaces apuntaban al literal "Caja". En español los
+  // dos son la misma palabra y coincidían de casualidad; en inglés el nodo se
+  // llamaba «Cash» y el enlace buscaba «Caja», que no existe, así que el
+  // diagrama se rompía. Era el fallo que reportó el usuario.
+  const caja = tx("Caja");
   const cajaLinkStyle = { color: CAJA_COLOR, opacity: 0.55 };
   // Rojo si la semana pierde, verde si gana, gris si queda en cero.
   const colorDelSaldo =
@@ -260,7 +266,7 @@ export function economySankeyOption(
       ? [
           {
             source: hub,
-            target: "Caja",
+            target: caja,
             value: balance,
             lineStyle: cajaLinkStyle,
           },
@@ -268,7 +274,7 @@ export function economySankeyOption(
       : balance < 0
         ? [
             {
-              source: "Caja",
+              source: caja,
               target: hub,
               value: Math.abs(balance),
               lineStyle: cajaLinkStyle,
@@ -300,12 +306,12 @@ export function economySankeyOption(
               fontSize: 12,
               fontWeight: 600,
               formatter: () =>
-                `Saldo: ${balance > 0 ? "+" : balance < 0 ? "−" : ""}${number(Math.abs(balance))}${currency ? ` ${currency}` : ""}`,
+                `${tx("Saldo")}: ${balance > 0 ? "+" : balance < 0 ? "−" : ""}${number(Math.abs(balance))}${currency ? ` ${currency}` : ""}`,
             },
           },
           ...positiveCosts.map((item) => ({ name: costNode(item.label) })),
           ...(balance !== 0
-            ? [{ name: tx("Caja"), itemStyle: { color: CAJA_COLOR } }]
+            ? [{ name: caja, itemStyle: { color: CAJA_COLOR } }]
             : []),
         ],
         links,

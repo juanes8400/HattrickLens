@@ -857,10 +857,21 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
             "name": _txt(arena_el if arena_el is not None else mt, "ArenaName", ""),
             "spectators": _int(arena_el if arena_el is not None else mt, "SoldTotal"),
             "weather": _int(arena_el if arena_el is not None else mt, "WeatherID", -1),
-            # El desglose por sector (`SoldTerraces`, `SoldBasic`, `SoldRoof`,
-            # `SoldVIP`) NO se lee: es una función de HT Supporter y las
-            # reglas de CHPP prohíben replicarla. `SoldTotal`, de arriba, sí
-            # es público, Hattrick lo enseña en la página del partido.
+            # EL DESGLOSE POR SECTOR, PARA CALCULAR Y NO PARA ENSEÑAR
+            # (2026-09-28, decisión del usuario: «guarda el desglose, calcula
+            # con él, y no lo enseñes nunca»).
+            #
+            # El 2026-09-01 se dejó de leer entero, por si enseñarlo imitaba
+            # una función de HT Supporter. Pero de ahí sale la taquilla EXACTA
+            # --entradas de cada sector por su precio-- y sin él la pantalla de
+            # Copa llevaba un mes diciendo «0 US$» teniendo sesenta y seis
+            # partidos con público. La línea queda en enseñarlo: estos cuatro
+            # números no salen por ninguna respuesta de la API, sólo alimentan
+            # el total. Lo fija `test_el_desglose_por_sector_no_sale_nunca`.
+            "sold_terraces": _int(arena_el if arena_el is not None else mt, "SoldTerraces"),
+            "sold_basic": _int(arena_el if arena_el is not None else mt, "SoldBasic"),
+            "sold_roof": _int(arena_el if arena_el is not None else mt, "SoldRoof"),
+            "sold_vip": _int(arena_el if arena_el is not None else mt, "SoldVIP"),
         },
     }
 
@@ -903,7 +914,6 @@ def parse_arenadetails(xml: bytes) -> dict[str, Any]:
 # Roles especiales (no de campo): 17 balón parado, 18 capitán,
 # 19-21 "reemplazó al titular N" (suplente que entró).
 MATCHLINEUP_KEEPER_CODE = 1
-MATCHLINEUP_SPECIAL_ROLES = {17, 18, 19, 20, 21}
 
 
 @register("matchlineup")
@@ -961,8 +971,20 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
     # El once inicial y los cambios: con esos dos, mas `<Lineup>`, los minutos
     # de cada jugador salen exactos. Hattrick no los publica en ningun campo.
     inicial = team.find("StartingLineup")
-    titulares = [
-        _int(p, "PlayerID") for p in (inicial.iterfind("Player") if inicial is not None else [])
+    filas_iniciales = list(inicial.iterfind("Player")) if inicial is not None else []
+    titulares = [_int(p, "PlayerID") for p in filas_iniciales]
+    # El once inicial CON SU PUESTO, que `<Lineup>` no siempre puede dar: a un
+    # titular sustituido, `<Lineup>` (estado final) solo le deja su fila de
+    # papel especial --capitan, balon parado-- porque el suplente le ocupo el
+    # puesto, asi que reconstruir el once desde ahi le perdia el puesto real
+    # (visto en vivo, matchID 770453142, RoleID 19 en vez de 101).
+    titulares_con_puesto = [
+        {
+            "ht_player_id": _int(p, "PlayerID"),
+            "role_id": _int(p, "RoleID"),
+            "behaviour": _int(p, "Behaviour"),
+        }
+        for p in filas_iniciales
     ]
     cambios = [
         {
@@ -978,6 +1000,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
         "team_name": _txt(team, "TeamName", ""),
         "players": players,
         "starting_lineup": titulares,
+        "starting_players": titulares_con_puesto,
         "substitutions": cambios,
     }
 

@@ -23,7 +23,7 @@
     "copa": "Cup",
     "rivales": "Opponents",
     "economia": "Finances",
-    "estadio": "Arena",
+    "estadio": "Stadium",
     "sincronizacion": "Sync",
     "cambios": "Changes",
     "alertas": "Alerts",
@@ -383,7 +383,7 @@
   },
   "alertas": {
     "atencion": "What needs your attention",
-    "intro": "Business rules checked against your squad, league, cup, arena, youth academy and staff, sorted by urgency",
+    "intro": "Business rules checked against your squad, league, cup, stadium, youth academy and staff, sorted by urgency",
     "filtrarModulo": "Filter alerts by module",
     "todosModulos": "All modules ({{n}})",
     "centro": "Alert centre",
@@ -423,7 +423,7 @@
       "liga": "league",
       "copa": "cup",
       "academia": "youth academy",
-      "estadio": "arena",
+      "estadio": "stadium",
       "staff": "staff",
       "cuerpo técnico": "staff",
       "transferencias": "transfers",
@@ -759,7 +759,11 @@
     "efectoMedio": "Medium effect",
     "comoSeMiran": "How the positions are looked at",
     "mejorPosicion": "Best position",
-    "mejorPosicionVacia": "It shows up once there are squad averages synced."
+    "mejorPosicionVacia": "It shows up once there are squad averages synced.",
+    "onceIncompleto": "We only have {{n}} of the eleven players from that match, so we can't say which formation you played. The depth below is worked out with the ones we have.",
+    "enCasaContra": "at home against",
+    "fueraContra": "away against",
+    "onceRellenado": "{{n}} of these places were left open by a starter who is no longer in the squad: they are taken by whoever performs best today, with the same individual order."
   },
   "alineacion": {
     "noSePuede": "The eleven can't be calculated",

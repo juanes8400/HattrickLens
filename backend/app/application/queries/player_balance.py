@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.application.queries.weekly import season_for_datetime, season_week_for_datetime
 from app.domain.engines.player_balance import (
@@ -399,8 +400,49 @@ class PlayerBalanceQueryService:
 
         # Todos los que han pasado por el club, sigan o no, append-only,
         # nunca se borran (ver `Player.left_team_at`).
+        # Las columnas que esta pantalla lee, no las 42 de la tabla
+        # (2026-09-26). `Player` guarda también el rastro del sync --fechas de
+        # comprobación, banderas de enriquecimiento, ids de transferencia-- que
+        # aquí no pinta nada. Con `raiseload` para que no se cuele un uso
+        # nuevo en silencio.
         players = list(
-            (await self._s.execute(select(m.Player).where(m.Player.team_id == team_id))).scalars()
+            (
+                await self._s.execute(
+                    select(m.Player)
+                    .where(m.Player.team_id == team_id)
+                    .options(
+                        load_only(
+                            m.Player.ht_player_id,
+                            m.Player.ht_player_id_is_transfer,
+                            m.Player.first_name,
+                            m.Player.last_name,
+                            m.Player.left_team_at,
+                            m.Player.purchase_price,
+                            m.Player.purchase_price_manual,
+                            m.Player.purchased_at,
+                            m.Player.purchased_at_manual,
+                            m.Player.sale_price,
+                            m.Player.sold_at,
+                            m.Player.listing_count,
+                            m.Player.last_known_salary,
+                            m.Player.tsi_at_purchase,
+                            m.Player.tsi_at_sale,
+                            m.Player.age_years_at_purchase,
+                            m.Player.age_days_at_purchase,
+                            m.Player.age_years_at_sale,
+                            m.Player.age_days_at_sale,
+                            m.Player.native_country,
+                            m.Player.destination_country,
+                            m.Player.buyer_team_id,
+                            m.Player.mother_club_team_id,
+                            m.Player.games_played_for_us,
+                            m.Player.specialty,
+                            m.Player.agreeability,
+                            raiseload=True,
+                        )
+                    )
+                )
+            ).scalars()
         )
         if not players:
             return PlayerBalanceResponse(
@@ -497,12 +539,49 @@ class PlayerBalanceQueryService:
                 latest_stint_by_player[stint.player_id] = stint
 
         player_ids = [p.id for p in players]
+        # LAS SIETE COLUMNAS QUE SE USAN, NO LAS CUARENTA Y CINCO QUE HAY
+        # (2026-09-26). Esta era la consulta más cara de toda la aplicación:
+        # el 27 % de los bytes que la base entregaba, medido pantalla por
+        # pantalla, y la dispara tanto Transferencias como el Panel. Traía la
+        # fila entera --habilidades, goles, lesiones, el hash de 32 bytes--
+        # para leer el sueldo, el TSI, la edad y el país.
+        #
+        # `raiseload=True` es la parte que importa: si alguien añade mañana un
+        # uso de otra columna, revienta aquí con un error claro en vez de
+        # pedirla por lo bajo una vez por jugador.
         snapshots = list(
             (
                 await self._s.execute(
                     select(m.PlayerSnapshot)
                     .where(m.PlayerSnapshot.player_id.in_(player_ids))
                     .order_by(m.PlayerSnapshot.captured_at)
+                    .options(
+                        load_only(
+                            m.PlayerSnapshot.player_id,
+                            m.PlayerSnapshot.captured_at,
+                            m.PlayerSnapshot.salary,
+                            m.PlayerSnapshot.tsi,
+                            m.PlayerSnapshot.age_years,
+                            m.PlayerSnapshot.age_days,
+                            m.PlayerSnapshot.country_id,
+                            # Las once de «al entrar / al salir» y la habilidad
+                            # dominante, que se leen por `getattr` y por eso no
+                            # se ven buscando accesos a mano. Las encontró
+                            # `raiseload`, que para eso está.
+                            m.PlayerSnapshot.keeper,
+                            m.PlayerSnapshot.defending,
+                            m.PlayerSnapshot.playmaking,
+                            m.PlayerSnapshot.winger,
+                            m.PlayerSnapshot.passing,
+                            m.PlayerSnapshot.scoring,
+                            m.PlayerSnapshot.set_pieces,
+                            m.PlayerSnapshot.stamina,
+                            m.PlayerSnapshot.experience,
+                            m.PlayerSnapshot.leadership,
+                            m.PlayerSnapshot.form,
+                            raiseload=True,
+                        )
+                    )
                 )
             ).scalars()
         )

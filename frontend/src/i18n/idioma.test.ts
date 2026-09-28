@@ -21,3 +21,19 @@ describe("idiomaPreferido", () => {
     expect(idiomaPreferido(["fr", "en", "es"])).toBe("en");
   });
 });
+
+describe("los idiomas a medias no se le dan a nadie", () => {
+  it("un navegador en italiano recibe inglés, no el italiano a medias", () => {
+    // El italiano está traducido a medias A PROPÓSITO y escondido del
+    // selector. Escondido de la lista no basta: la detección automática
+    // miraba todos los idiomas con diccionario y se lo servía igual a quien
+    // tuviera el navegador en italiano, que es justo a quien se le quería
+    // ahorrar media pantalla en español.
+    expect(idiomaPreferido(["it-IT", "it"])).toBe("en");
+    expect(idiomaPreferido(["it"])).toBe("en");
+  });
+
+  it("el español sigue ganando aunque el italiano vaya delante", () => {
+    expect(idiomaPreferido(["it", "es"])).toBe("es");
+  });
+});

@@ -3,8 +3,24 @@ import i18n from "../i18n";
 // Separador de miles: punto en español y coma en inglés (2026-09-16, pedido
 // del usuario). No sale del locale del navegador sino del idioma elegido,
 // que es lo que el usuario está leyendo. Los decimales no cambian: punto
-// siempre, en los dos idiomas.
-const separadorDeMiles = () => (i18n.language?.startsWith("en") ? "," : ".");
+// siempre, en todos los idiomas.
+//
+// UNA ENTRADA POR IDIOMA, Y NO «SI EMPIEZA POR EN» (2026-09-21, al añadir el
+// italiano). Con dos idiomas la bifurcación acertaba, pero era una moneda al
+// aire: el italiano escribe como el español y habría acertado sola, mientras
+// que el francés o el sueco separan con un espacio fino y habrían salido mal
+// sin que nadie tocara nada. Cada idioma dice el suyo, y añadir uno obliga a
+// decidirlo.
+const MILES: Record<string, string> = { es: ".", en: ",", it: "." };
+const separadorDeMiles = () => MILES[idiomaDeLaApp()] ?? ".";
+
+/** El código del idioma elegido, a secas: «es-ES» y «es» son el mismo. */
+const idiomaDeLaApp = () => (i18n.language || "es").slice(0, 2);
+
+/** Los idiomas que escriben el ordinal con sufijo («3rd»). El resto lo
+ *  escriben con el indicador masculino («3º»), que vale en español y en
+ *  italiano. */
+const ORDINAL_CON_SUFIJO = new Set(["en"]);
 
 export const number = (v: number) =>
   Math.round(v)
@@ -18,7 +34,7 @@ export const number = (v: number) =>
  *  existe en inglés, así que allí va el número solo. */
 export const ordinal = (v: number | string) => {
   const n = Number(v);
-  if (!i18n.language?.startsWith("en")) return `${v}º`;
+  if (!ORDINAL_CON_SUFIJO.has(idiomaDeLaApp())) return `${v}º`;
   if (!Number.isFinite(n) || !Number.isInteger(n)) return String(v);
   const resto = Math.abs(n) % 100;
   if (resto >= 11 && resto <= 13) return `${v}th`;

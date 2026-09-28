@@ -97,11 +97,35 @@ def _record_delta(summary: dict[str, dict[str, Any]], key: str, delta: int) -> N
 async def _previous_player_snapshot(
     session: AsyncSession, current: m.PlayerSnapshot
 ) -> m.PlayerSnapshot | None:
+    """La foto ANTERIOR de ese jugador, sea de cuando sea.
+
+    2026-09-27, reporte del usuario: «Cambios trae un montón de cambios que no
+    correspondían al último delta; si al jugador X sólo le cambia fidelidad,
+    me muestras un montón de cosas».
+
+    Tenía razón, y medido: en una sincronización del sábado 12, esta pantalla
+    enseñaba 58 filas cuando ese sync había movido 3. El corte estaba en el
+    LUNES de la semana en curso, así que cada sincronización volvía a contar
+    todo lo que se había movido desde el lunes, una y otra vez hasta el
+    domingo. Un jugador al que ese sync no le toco nada aparecía igual con sus
+    tres cambios del martes.
+
+    El corte semanal venia del primer dia y defendia algo razonable --que
+    sincronizar dos veces seguidas no enseñara un informe vacío-- pero eso se
+    resolvio en otro sitio y de otra forma el 2026-08-24: el informe es el del
+    ULTIMO sync, movio algo o no, y la pantalla dice «Nada nuevo» cuando no
+    movio nada. Desde entonces las dos reglas se contradecian, y ganaba la
+    vieja: el aviso decia «3 cambios» y la tabla de abajo enseñaba cincuenta.
+
+    El cierre semanal SIGUE siendo lo correcto para el club y la economía,
+    que de verdad cierran por semana y asi lo dicen en pantalla. Para un
+    jugador no: lo que se pregunta aqui es que movio esta sincronizacion.
+    """
     anterior: m.PlayerSnapshot | None = await session.scalar(
         select(m.PlayerSnapshot)
         .where(
             m.PlayerSnapshot.player_id == current.player_id,
-            m.PlayerSnapshot.captured_at < start_of_iso_week(current.captured_at),
+            m.PlayerSnapshot.captured_at < current.captured_at,
         )
         .order_by(m.PlayerSnapshot.captured_at.desc(), m.PlayerSnapshot.id.desc())
         .limit(1)
@@ -271,17 +295,20 @@ YOUTH_METRICS: tuple[tuple[str, str, str], ...] = tuple(
 async def _previous_youth_snapshot(
     session: AsyncSession, current: m.YouthSnapshot
 ) -> m.YouthSnapshot | None:
-    """La foto anterior a la SEMANA de esta, igual que en mayores.
+    """La foto ANTERIOR de ese canterano, igual que en mayores.
 
-    El corte por semana ISO --y no «la foto de antes»-- es lo que evita que
-    sincronizar dos veces el mismo dia enseñe un informe vacio y se lleve por
-    delante el de verdad.
+    Llevaba el mismo corte por semana ISO y por el mismo motivo --que
+    sincronizar dos veces el mismo dia no enseñara un informe vacio-- y el
+    mismo defecto: repetia hasta el domingo lo que se habia movido el lunes.
+    Ese motivo dejo de valer el 2026-08-24, cuando el informe paso a ser el
+    del ultimo sync y la pantalla aprendio a decir «Nada nuevo». Ver el
+    comentario largo de `_previous_player_snapshot`.
     """
     anterior: m.YouthSnapshot | None = await session.scalar(
         select(m.YouthSnapshot)
         .where(
             m.YouthSnapshot.youth_player_id == current.youth_player_id,
-            m.YouthSnapshot.captured_at < start_of_iso_week(current.captured_at),
+            m.YouthSnapshot.captured_at < current.captured_at,
         )
         .order_by(m.YouthSnapshot.captured_at.desc(), m.YouthSnapshot.id.desc())
         .limit(1)

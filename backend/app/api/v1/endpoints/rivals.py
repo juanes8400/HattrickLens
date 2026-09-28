@@ -1031,7 +1031,9 @@ async def rival_scouting(
         # enviadas AHORA. Se pide antes que nada porque de ella depende que el
         # lado propio pueda ofrecer el modo "alineación enviada".
         if submitted_match is not None and submitted_prediction is None:
-            submitted_prediction = await prediccion_en_vivo(client, submitted_match)
+            submitted_prediction = await prediccion_en_vivo(
+                client, submitted_match, team.ht_team_id
+            )
             usa_enviada = (
                 pitch_zone_method_own == PitchZoneMethod.SUBMITTED
                 and submitted_prediction is not None

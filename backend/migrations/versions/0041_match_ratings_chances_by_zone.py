@@ -13,6 +13,8 @@ Revision ID: 0041
 import sqlalchemy as sa
 from alembic import op
 
+from app.infrastructure.db.models import PKBigInt
+
 revision = "0041"
 down_revision = "0040"
 branch_labels = None
@@ -36,7 +38,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.create_table(
         "match_events",
-        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        # PKBigInt y no BigInteger: sqlite solo autonumera `INTEGER PRIMARY
+        # KEY`. Con `BIGINT` la tabla nace y todo INSERT muere despues.
+        sa.Column("id", PKBigInt, primary_key=True, autoincrement=True),
         sa.Column("ht_match_id", sa.BigInteger(), index=True, nullable=False),
         sa.Column("minute", sa.SmallInteger(), nullable=False),
         sa.Column("event_type_id", sa.Integer(), nullable=False),

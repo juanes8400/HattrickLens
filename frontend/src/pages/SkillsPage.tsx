@@ -196,6 +196,19 @@ export function SkillsPage() {
   const profundidadVigente = (data.depth ?? []).filter(
     (d) => Array.isArray(d.alsoCovers) && typeof d.starters === "number",
   );
+  // DE QUE PARTIDO SALIO EL ONCE (2026-09-27, pedido del usuario): la fecha
+  // sola no identifica nada. Se arma aquí, no en el servidor, porque es una
+  // frase y las frases se traducen en la pantalla.
+  const partidoDelOnce = [
+    data.lastMatchCompetition,
+    data.lastMatchOpponent
+      ? `${data.lastMatchIsHome ? t("habilidades.enCasaContra", "en casa contra") : t("habilidades.fueraContra", "fuera contra")} ${data.lastMatchOpponent}`
+      : null,
+    data.lastMatchScore,
+    data.lastMatchDate,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const esLaUltima =
     data.depthFormation === data.formation &&
     data.depthCentralDefenders === data.lastCentralDefenders &&
@@ -659,8 +672,7 @@ export function SkillsPage() {
                               "habilidades.tuUltima",
                               "Tu última formación oficial",
                             )}
-                        {data.lastMatchDate ? ` (${data.lastMatchDate})` : ""}
-                        :{" "}
+                        {partidoDelOnce ? ` (${partidoDelOnce})` : ""}:{" "}
                       </span>
                       <b>{data.formation}</b>{" "}
                       {t("habilidades.conReparto", "con {{dc}} y {{mc}}", {
@@ -675,6 +687,37 @@ export function SkillsPage() {
                             : mediocentros
                         }`,
                       })}
+                    </p>
+                  )}
+                  {/* EL ONCE PUEDE NO SER ENTERO EL QUE JUGÓ (2026-09-27).
+                      La formación es un hecho de ese partido y no cambia; si
+                      un titular ya no está en la plantilla, su plaza se llena
+                      con el mejor que hay hoy, conservando la orden individual
+                      de esa plaza. Pero eso se dice: el once que se está
+                      mirando ya no es exactamente el que saltó al campo. */}
+                  {data.lineupReplacements > 0 && (
+                    <p className="px-4 pt-2 text-sm text-[var(--muted)]">
+                      {t(
+                        "habilidades.onceRellenado",
+                        "{{n}} de estas plazas las dejó libre un titular que ya no está en la plantilla: las ocupa quien mejor rinde hoy, con la misma orden individual.",
+                        { n: data.lineupReplacements },
+                      )}
+                    </p>
+                  )}
+
+                  {/* EL ONCE INCOMPLETO SE DICE, NO SE DISIMULA (2026-09-27,
+                      caso del usuario). Antes, con ocho jugadores, esto
+                      imprimía «3-5-0» como si fuera la formación del partido.
+                      Ahora el servidor manda `formation: null` y aquí se dice
+                      cuántos hay y de qué partido salieron. */}
+                  {!data.formation && data.lineupPlayers > 0 && (
+                    <p className="px-4 pt-2 text-sm text-[var(--warning)]">
+                      {t(
+                        "habilidades.onceIncompleto",
+                        "De ese partido sólo tenemos {{n}} de los once jugadores, así que no se puede decir con qué formación jugaste. La profundidad de abajo se calcula con los que hay.",
+                        { n: data.lineupPlayers },
+                      )}
+                      {partidoDelOnce ? ` (${partidoDelOnce})` : ""}
                     </p>
                   )}
                   <p className="prosa px-4 pt-2 text-sm text-[var(--muted)]">

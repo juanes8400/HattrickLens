@@ -31,8 +31,12 @@ from app.infrastructure.security.tokens import decrypt_token  # noqa: E402
 
 #: Código de la app → `LanguageID` de Hattrick (ver `worldlanguages.xml`).
 #: El español es el de España (6): es el que se copió a mano en su día y el que
-#: la app ya enseña, así que no cambia ni una palabra.
-IDIOMAS: dict[str, int] = {"es": 6, "en": 2}
+#: la app ya enseña, así que no cambia ni una palabra. El inglés es el británico
+#: (2) y no el de EE. UU. (151).
+#:
+#: Los números NO se inventan: salen de `worldlanguages.xml`, que es la lista
+#: que publica el propio juego. Para añadir un idioma, pídela y busca el suyo.
+IDIOMAS: dict[str, int] = {"es": 6, "en": 2, "it": 4}
 
 DESTINOS = [
     RAIZ.parent / "frontend" / "src" / "i18n" / "glosario",
@@ -62,7 +66,10 @@ async def main() -> None:
             texto = json.dumps(glosario, ensure_ascii=False, indent=2) + "\n"
             for destino in DESTINOS:
                 destino.mkdir(parents=True, exist_ok=True)
-                (destino / f"{codigo}.json").write_text(texto, encoding="utf-8")
+                # En bytes y no `write_text`: en Windows ese volteaba los
+                # saltos de linea a CRLF y el diff salia con los tres
+                # ficheros cambiados enteros sin cambiar una palabra.
+                (destino / f"{codigo}.json").write_bytes(texto.encode("utf-8"))
             print(f"{codigo}: {glosario['idioma']['nombre']} ({len(texto)} caracteres)")
     finally:
         await client.aclose()

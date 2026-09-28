@@ -8,7 +8,6 @@ Nacional/Divisional y CupLevel distingue Principal/Desafío/Consuelo.
 
 import json
 from datetime import UTC, datetime, timedelta
-from statistics import median
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -39,6 +38,7 @@ from app.domain.engines.prediccion import (
     resumen_de_lecturas,
 )
 from app.domain.engines.rival_scouting import PitchZoneMethod
+from app.domain.engines.taquilla import taquilla_de_varios
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
 from app.infrastructure.chpp.client import (
     CHPPAuthError,
@@ -489,13 +489,20 @@ async def _readiness(
     }
 
 
+#: Lo que se queda el equipo LOCAL de la taquilla de un partido de Copa; el
+#: 33 % restante va para el visitante. Estaba puesto a mano en dos sitios, con
+#: un 67 escrito en un texto y otro en una cuenta.
+CUOTA_LOCAL_DE_COPA = 0.67
+
+
 async def _cup_economy(
     session: AsyncSession,
     team: m.Team,
     next_match: m.Match | None,
     rounds_left: int | None,
+    world: m.WorldContext | None,
 ) -> dict[str, Any]:
-    rows = (
+    todos = (
         await session.execute(
             select(m.StadiumHistory, m.Match)
             .join(m.Match, m.Match.ht_match_id == m.StadiumHistory.ht_match_id)
@@ -503,52 +510,86 @@ async def _cup_economy(
             .order_by(m.StadiumHistory.played_at)
         )
     ).all()
-    # La taquilla REAL que reporta Hattrick, no una estimada.
+    # SOLO LA TEMPORADA EN CURSO (2026-09-28, instruccion del usuario: «la
+    # seccion Copa solo debe hablar de las copas de la temporada actual»).
     #
-    # Hasta el 2026-09-01 esto multiplicaba las entradas de cada sector por su
-    # precio para reconstruir el ingreso. Eso usaba la asistencia por sector,
-    # que es una función de HT Supporter y las reglas de CHPP prohíben
-    # replicar. El cambio además MEJORA la cifra: `revenue` es lo que Hattrick
-    # dice que se recaudó, no lo que nuestros precios estimaban.
+    # Esta pantalla es de LA copa que se esta jugando, no del palmares: sin el
+    # corte, la taquilla sumaba sesenta y seis partidos de varias temporadas y
+    # se leia como si fueran los de esta. La misma regla de temporada que usan
+    # Partidos y Estadio, para que una fecha no caiga en temporadas distintas
+    # segun la pantalla.
     #
-    # Los partidos sin recaudación reportada se quedan fuera en vez de
-    # rellenarse con un cálculo: es lo mismo que hace la pantalla de Estadio.
-    gross_values: list[int] = [int(stadium.revenue) for stadium, _match in rows if stadium.revenue]
+    # Sin `world` no hay ancla para saber de que temporada es una fecha, y
+    # entonces se prefiere no recortar a recortar mal: se cuentan todos y la
+    # pantalla lo dice por el numero de partidos.
+    temporada = world.season if world is not None else None
+    rows = (
+        [
+            (foto, partido)
+            for foto, partido in todos
+            if season_for_datetime(world, partido.played_at) == temporada
+        ]
+        if temporada is not None
+        else todos
+    )
+    # PUBLICO Y TAQUILLA, los dos reales (2026-09-28).
+    #
+    # El publico sale de `sold_total`, que Hattrick enseña en la pagina del
+    # partido. La taquilla sale de las entradas de cada sector por su precio,
+    # que es la unica forma de tenerla por partido: Hattrick la publica por
+    # semana y sumada, y los partidos de Copa comparten semana con los de liga
+    # casi siempre, asi que atribuirla por cierres no funciona (probado con los
+    # datos del usuario: de nueve cierres, uno solo tenia un unico partido en
+    # casa, y no era de Copa).
+    #
+    # EL DESGLOSE NO SALE DE AQUI. Se usa para sumar y se queda dentro: lo que
+    # viaja es el total. Decision del usuario, y lo fija
+    # `test_el_desglose_por_sector_no_sale_nunca`.
+    #
+    # Los partidos sincronizados entre el 2026-09-01 y hoy no tienen desglose y
+    # se quedan FUERA del dinero hasta que el sync lo complete. Siguen contando
+    # para el publico, que ese si esta guardado.
+    # EN CASA Y FUERA (2026-09-28, lo dijo el usuario: «los partidos de
+    # visitante de Copa tambien me dan taquilla»). El reparto de Copa es 67/33,
+    # asi que de un partido fuera te llega el 33 % de la taquilla de ESE
+    # estadio. El publico, en cambio, solo se cuenta en casa: es el de tu
+    # estadio, y mezclarlo con el del rival no describe nada.
+    en_casa = [foto for foto, _p in rows if foto.own_venue]
+    asistencias: list[int] = [int(f.sold_total) for f in en_casa if f.sold_total]
+    total_publico = sum(asistencias)
 
-    observed_gross = sum(gross_values)
-    estimated_share = int(round(observed_gross * 2 / 3))
-    neutral = rounds_left is not None and 0 < rounds_left <= 6
-    next_projection = None
-    share_percent = None
-    basis = "No hay taquillas propias de Copa suficientes para proyectar el siguiente partido."
-    if (
-        next_match is not None
-        and gross_values
-        and (next_match.home_team_ht_id == team.ht_team_id or neutral)
-    ):
-        share_percent = 50 if neutral else 67
-        next_projection = int(round(median(gross_values) * share_percent / 100))
-        basis = (
-            f"Mediana de {len(gross_values)} taquilla(s) propia(s) de Copa × "
-            f"{share_percent}% de participación."
-        )
-    elif next_match is not None and next_match.home_team_ht_id != team.ht_team_id:
-        basis = (
-            "Partido visitante: falta la demanda del estadio rival para una proyección responsable."
-        )
+    brutos_casa = taquilla_de_varios(en_casa)
+    brutos_fuera = taquilla_de_varios([foto for foto, _p in rows if not foto.own_venue])
+    taquillas = brutos_casa + brutos_fuera
+    bruto = sum(taquillas)
+    tuyo = sum(brutos_casa) * CUOTA_LOCAL_DE_COPA + sum(brutos_fuera) * (1 - CUOTA_LOCAL_DE_COPA)
 
     return {
         "currency": team.currency_name or "",
-        "observed_home_matches": len(gross_values),
-        "observed_gross_gate": observed_gross,
-        "estimated_historical_share": estimated_share,
-        "next_gate_projection": next_projection,
-        "next_share_percent": share_percent,
-        "projection_basis": basis,
-        "quality_note": (
-            "La asistencia es real; la taquilla se deriva de entradas por sector "
-            "con los cuatro precios confirmados por el usuario."
-        ),
+        "observed_home_matches": len(asistencias),
+        "observed_attendance": total_publico,
+        "best_attendance": max(asistencias) if asistencias else 0,
+        "average_attendance": int(round(total_publico / len(asistencias))) if asistencias else 0,
+        #: Cuantos de esos partidos tienen taquilla calculada. Menos que los
+        #: medidos = faltan desgloses por completar, y la pantalla lo dice.
+        "matches_with_gate": len(taquillas),
+        # LA SUMA DE TODOS, y despues el reparto (2026-09-28, pedido del
+        # usuario con estas palabras: «la suma de los partidos de Copa teniendo
+        # en cuenta el 67-33% de la suma de entradas por cada tipo de asiento»).
+        #
+        # SIN DIVIDIR POR LA TASA. Los cuatro precios ya estan en la moneda del
+        # club --se derivaron de los ingresos que Hattrick ENSEÑA, no de su
+        # moneda base-- igual que los usa el simulador de ampliacion, que
+        # tampoco convierte. Dividir aqui daria un 10 % de lo real en Colombia,
+        # que es justo el fallo que reporto un usuario con otro equipo.
+        "observed_gross_gate": bruto,
+        #: Tu parte: el 67 % de lo que se recaudo en tu estadio y el 33 % de lo
+        #: que se recaudo en el del rival.
+        "observed_share": int(round(tuyo)),
+        "share_percent": int(round(CUOTA_LOCAL_DE_COPA * 100)),
+        #: Cuantos de los partidos con taquilla se jugaron fuera, para que la
+        #: pantalla no diga «67 %» de una suma que lleva partidos al 33 %.
+        "away_matches_with_gate": len(brutos_fuera),
     }
 
 
@@ -653,7 +694,9 @@ async def _prediccion_del_cruce(
         if quiere_enviada:
             cruce = await partido_pendiente_contra(session, team.ht_team_id, rival_ht_id)
             if cruce is not None:
-                enviada = prediccion_guardada(cruce) or await prediccion_en_vivo(client, cruce)
+                enviada = prediccion_guardada(cruce) or await prediccion_en_vivo(
+                    client, cruce, team.ht_team_id
+                )
                 # Tu táctica NO hay que adivinarla si ya mandaste órdenes.
                 tactica_propia = cruce.submitted_tactic_type
     except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):
@@ -1102,7 +1145,7 @@ async def _cup_sin_cache(
             en_casa=None if is_neutral else side(next_match)[0],
         )
 
-    economy = await _cup_economy(session, team, next_match, rounds_left)
+    economy = await _cup_economy(session, team, next_match, rounds_left, world)
     experience_multiplier = 2.0 if classification["tier"] == "main" else 0.5
     impact = {
         "experience_multiplier_vs_league": experience_multiplier,

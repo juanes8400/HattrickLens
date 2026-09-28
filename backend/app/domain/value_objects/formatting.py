@@ -19,11 +19,20 @@ from contextvars import ContextVar
 idioma_de_la_peticion: ContextVar[str] = ContextVar("idioma_de_la_peticion", default="es")
 
 
+#: Cómo escribe los miles cada idioma. UNA ENTRADA POR IDIOMA Y NO «SI EMPIEZA
+#: POR EN» (2026-09-21, al añadir el italiano): con dos idiomas la bifurcación
+#: acertaba, pero el italiano habría acertado por casualidad y el francés o el
+#: sueco, que separan con un espacio fino, habrían salido mal sin que nadie
+#: tocara nada. Añadir un idioma obliga a decidirlo. Tiene que decir lo mismo
+#: que `MILES` en `frontend/src/hooks/useFormat.ts`.
+MILES = {"es": ".", "en": ",", "it": "."}
+
+
 def thousands(value: float, decimals: int = 0) -> str:
     """ "615000" -> "615.000" en español y "615,000" en inglés; con decimales,
     "1234567.89" -> "1.234.567,89" y "1,234,567.89". El mismo intercambio que
     hace el frontend (`money`/`number`)."""
     formatted = f"{value:,.{decimals}f}"
-    if idioma_de_la_peticion.get().startswith("en"):
+    if MILES.get(idioma_de_la_peticion.get()[:2], ".") == ",":
         return formatted
     return formatted.translate(str.maketrans(",.", ".,"))
