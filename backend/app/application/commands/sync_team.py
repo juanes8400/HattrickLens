@@ -2946,10 +2946,16 @@ class SyncTeamHandler:
         # «×10» que reporto un usuario: entre un pais de tasa 10 y otro de
         # tasa 1 la diferencia es exactamente esa.
         #
-        # Se ordena por FECHA DE FUNDACION, que es un hecho de Hattrick y no
-        # depende de en que orden sincronizamos nosotros. Sin ella --un club
-        # cuyo `founded_at` no llego todavia-- se cae al id, que al menos es
-        # estable dentro de esta base.
+        # QUIEN ES EL PRINCIPAL LO DICE HATTRICK (`is_primary_club`), y se
+        # sabe desde que se conecta la cuenta: el alta recorre todos los clubes
+        # del manager de una vez.
+        #
+        # Detras van la FECHA DE FUNDACION y el id, para los clubes dados de
+        # alta antes de que se guardara ese dato. Ordenar solo por fecha no
+        # basta, y ese fue el fallo que señalo la revision de la PR #6: al
+        # conectar la cuenta los clubes nacen SIN fecha y solo se rellena al
+        # sincronizar cada uno, asi que un secundario ya sincronizado le ganaba
+        # al principal por tener fecha cuando el principal no la tenia.
         if equipo.owner_user_id is not None:
             primero = await uow.session.scalar(
                 select(m.Team)
@@ -2961,7 +2967,11 @@ class SyncTeamHandler:
                     m.Team.currency_name != "",
                     m.Team.currency_name.is_not(None),
                 )
-                .order_by(m.Team.founded_at.asc().nulls_last(), m.Team.id.asc())
+                # El que Hattrick marca como principal, primero; los que no se
+                # sabe, antes que los marcados como NO principales. La regla
+                # vive en `models` porque la comparte con el pais del mapa de
+                # Uso, y escrita dos veces se arreglo una sola (PR #7).
+                .order_by(*m.orden_del_club_principal())
                 .limit(1)
             )
             if primero is not None:
@@ -6346,6 +6356,8 @@ class SyncTeamHandler:
         )
         founded_changed = False
         row.name = team.get("name") or row.name
+        if team.get("is_primary_club") is not None:
+            row.is_primary_club = bool(team["is_primary_club"])
         row.league_name = team.get("league_name") or row.league_name
         row.series_name = team.get("series_name") or row.series_name
         row.series_ht_id = team.get("series_ht_id") or row.series_ht_id

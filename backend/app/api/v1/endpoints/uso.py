@@ -157,6 +157,39 @@ async def _nombres_de_usuario(session: AsyncSession) -> dict[int, str]:
     return {fila.id: (fila.login_name or f"usuario {fila.id}") for fila in filas}
 
 
+async def _paises_de_usuario(session: AsyncSession) -> dict[int, tuple[str, str]]:
+    """De qué país es cada persona: código ISO de dos letras y nombre.
+
+    2026-09-28, pedido del usuario para el mapa. No se pregunta ni se mira de
+    dónde viene la conexión: sale de la liga del club, que Hattrick ya dice.
+
+    Con varios clubes manda EL PRINCIPAL, el que marca Hattrick, por el mismo
+    motivo que la moneda (ver `_resolver_moneda`): un manager colombiano con un
+    club en una liga internacional es colombiano, y la fecha de fundación no
+    sirve para desempatar porque los clubes nacen sin ella y sólo la reciben al
+    sincronizarse uno a uno.
+    """
+    filas = await session.execute(
+        select(
+            m.Team.owner_user_id,
+            m.WorldContext.country_code,
+            m.WorldContext.country_name,
+        )
+        .join(m.WorldContext, m.WorldContext.ht_league_id == m.Team.ht_league_id)
+        .where(m.Team.owner_user_id.is_not(None))
+        # La misma regla que usa la moneda, y por eso vive en `models`: es la
+        # misma pregunta («¿cuál de estos clubes es el suyo?») y escribirla dos
+        # veces acabó con una copia arreglada y la otra no (PR #7).
+        .order_by(*m.orden_del_club_principal())
+    )
+    de: dict[int, tuple[str, str]] = {}
+    for fila in filas:
+        if fila.owner_user_id in de or not fila.country_code:
+            continue
+        de[fila.owner_user_id] = (fila.country_code.lower(), fila.country_name or "")
+    return de
+
+
 #: Quitar al dueño de la instalación de sus propias estadísticas.
 #:
 #: Pedido el 2026-09-05. Mientras la aplicación tenga pocos usuarios, el que la
@@ -201,6 +234,7 @@ async def resumen(
         .all()
     )
     nombres = await _nombres_de_usuario(session)
+    paises = await _paises_de_usuario(session)
     eventos = [
         uso.Evento(
             sesion=f.session_id,
@@ -307,6 +341,20 @@ async def resumen(
         "insideEach": [
             {"module": mod, "controls": [{"label": e, "clicks": n} for e, n in top]}
             for mod, top in uso.dentro_de(eventos).items()
+        ],
+        # De dónde es la gente, para el mapa. El código vacío es «no consta»:
+        # quien no tenga club sincronizado sale ahí y no desaparece de la suma.
+        "byCountry": [
+            {
+                "code": p.codigo,
+                "name": p.nombre,
+                "users": p.usuarios,
+                "sessions": p.sesiones,
+                "pages": p.paginas,
+                "clicks": p.clics,
+                "minutes": p.minutos,
+            }
+            for p in uso.por_pais(eventos, paises)
         ],
         "activeUsers": activos,
         # Tampoco cuenta como registrado quien se excluyó: «3 de 12» con uno

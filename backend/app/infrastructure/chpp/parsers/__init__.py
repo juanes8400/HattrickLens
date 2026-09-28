@@ -88,6 +88,15 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
                 "ht_team_id": _int(t, "TeamID"),
                 "name": _txt(t, "TeamName", ""),
                 "short_name": _txt(t, "ShortTeamName", ""),
+                # CUAL ES EL CLUB PRINCIPAL, dicho por Hattrick (2026-09-28,
+                # senalado en la revision de la PR #6). Un manager con varios
+                # clubes tiene UNO principal, y de su pais sale la moneda que
+                # Hattrick le enseña en los que no tienen pais propio --las
+                # ligas internacionales--. Antes se adivinaba por fecha de
+                # fundacion, que no vale: al conectar la cuenta los clubes
+                # nacen SIN fecha y solo se rellena al sincronizar cada uno,
+                # asi que el principal podia quedar el ultimo por no tenerla.
+                "is_primary_club": _bool(t, "IsPrimaryClub"),
                 # Límite inferior exacto del archivo de partidos. Pedir desde
                 # una fecha inventada funciona, pero obliga a explorar años en
                 # los que el club todavía no existía durante la primera
