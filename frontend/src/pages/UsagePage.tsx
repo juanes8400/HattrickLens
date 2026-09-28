@@ -1,5 +1,5 @@
 import { dateTime, cifra } from "../hooks/useFormat";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
@@ -30,6 +30,13 @@ import { tx } from "../i18n/tx";
  *  Cada tramo se queda con dos unidades: pasado el minuto los segundos
  *  sueltos no se leen, y pasada la hora tampoco los segundos.
  */
+/** El mapa viaja aparte: la silueta de los países pesa unos 130 kB y sólo hace
+ *  falta al abrir «Personas». Sin esto lo descargaría también quien entra a
+ *  mirar el resumen y no pasa de ahí. */
+const MapaDeUso = lazy(() =>
+  import("../components/MapaDeUso").then((m) => ({ default: m.MapaDeUso })),
+);
+
 function duracion(segundos: number): string {
   if (segundos < 60) return `${segundos} s`;
   const m = Math.floor(segundos / 60);
@@ -70,9 +77,15 @@ function Barra({ parte, de }: { parte: number; de: number }) {
 
 /** Los plazos del encabezado. El cero es «Siempre»: no es un plazo más
  *  largo sino ninguno, y el servidor lo entiende así (se salta el corte por
- *  fecha en vez de restar días). Va al final porque es el caso raro: quien
- *  entra quiere saber qué pasa AHORA, no desde el principio de los tiempos. */
-const PLAZOS = [7, 30, 90, 0] as const;
+ *  fecha en vez de restar días).
+ *
+ *  2026-09-28, pedido del usuario: «Siempre» pasa a ser lo que sale al entrar,
+ *  y por eso encabeza la lista. Estaba al final, de cuando el plazo por defecto
+ *  eran 30 días: con doce personas y semanas entre visitas, un corte a treinta
+ *  días deja fuera a casi todo el mundo y la pantalla contesta «quién entró
+ *  este mes» en vez de «quién usa esto». */
+const PLAZOS = [0, 7, 30, 90] as const;
+const SIEMPRE = 0;
 const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
 const td = "px-3 py-2 text-sm";
 
@@ -85,7 +98,7 @@ const SECCIONES = [
 type Seccion = (typeof SECCIONES)[number]["key"];
 
 export function UsagePage() {
-  const [dias, setDias] = useState<number>(30);
+  const [dias, setDias] = useState<number>(SIEMPRE);
   const [seccion, setSeccion] = useState<Seccion>("resumen");
   // Quitarse a uno mismo del recuento. Mientras la aplicación tenga pocos
   // usuarios, el que la hizo es también el que más la usa: sus visitas ahogan
@@ -250,7 +263,10 @@ function Resumen({ data }: { data: UsageSummary }) {
             </thead>
             <tbody>
               {data.modules.map((m) => (
-                <tr key={tx(m.module)} className="border-t border-[var(--border)]">
+                <tr
+                  key={tx(m.module)}
+                  className="border-t border-[var(--border)]"
+                >
                   <td className={`${td} font-medium`}>{tx(m.module)}</td>
                   <td className={`${td} text-right tabular-nums`}>
                     {m.visits}
@@ -405,6 +421,14 @@ function Personas({ data }: { data: UsageSummary }) {
           )}
         />
       </div>
+
+      <Suspense
+        fallback={
+          <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+        }
+      >
+        <MapaDeUso paises={data.byCountry} />
+      </Suspense>
 
       <Panel
         title={tx("Quién usa qué")}
@@ -645,7 +669,10 @@ function Adopcion({ data }: { data: UsageSummary }) {
             </thead>
             <tbody>
               {data.adoption.map((a) => (
-                <tr key={tx(a.module)} className="border-t border-[var(--border)]">
+                <tr
+                  key={tx(a.module)}
+                  className="border-t border-[var(--border)]"
+                >
                   <td className={`${td} font-medium`}>{tx(a.module)}</td>
                   <td className={`${td} text-right tabular-nums`}>{a.users}</td>
                   <td className={td}>

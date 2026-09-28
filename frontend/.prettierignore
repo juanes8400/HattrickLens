@@ -1,0 +1,4 @@
+# La silueta de los países la escribe `scripts/mapa-del-mundo.mjs` en una sola
+# línea a propósito: son 130 kB de coordenadas y prettier las partiría en
+# decenas de miles de líneas, que ni se leen ni se revisan.
+src/data/paisesDelMundo.ts

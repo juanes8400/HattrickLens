@@ -339,8 +339,9 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message }),
     }),
-  /** El resumen de uso. Sólo lo abre el administrador. */
-  usage: (dias = 30, excluirme = false) =>
+  /** El resumen de uso. Sólo lo abre el administrador.
+   *  `dias = 0` es «Siempre», que es lo que la pantalla pide al entrar. */
+  usage: (dias = 0, excluirme = false) =>
     request<UsageSummary>(
       `/usage?dias=${dias}${excluirme ? "&excluirme=true" : ""}`,
     ),
@@ -1144,6 +1145,17 @@ export interface UsageSummary {
   }[];
   /** Pantallas que nadie abrió en el plazo. */
   untouched: string[];
+  /** De dónde es la gente, para el mapa. `code` vacío es «no consta»: quien
+   *  no tiene club sincronizado, o lo tiene en una liga internacional. */
+  byCountry: {
+    code: string;
+    name: string;
+    users: number;
+    sessions: number;
+    pages: number;
+    clicks: number;
+    minutes: number;
+  }[];
 }
 
 export interface UsageUserModule {

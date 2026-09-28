@@ -320,6 +320,64 @@ def adopcion(eventos: list[Evento]) -> list[Adopcion]:
     return sorted(salida, key=lambda a: (a.usuarios, a.visitas_por_usuario), reverse=True)
 
 
+# ── De dónde es la gente ─────────────────────────────────────────────────────
+
+
+@dataclass
+class UsoDePais:
+    """Un renglón por país, para el mapa.
+
+    2026-09-28, pedido del usuario. HT Lens se anuncia en foros de países muy
+    distintos y hasta ahora no había forma de saber a cuáles llegó: la tabla de
+    personas da nombres, no procedencias. El país no se pregunta ni se deduce de
+    la conexión, sale de la liga del club, que es un dato que Hattrick ya da.
+    """
+
+    codigo: str
+    nombre: str
+    usuarios: int = 0
+    sesiones: int = 0
+    paginas: int = 0
+    clics: int = 0
+    visible_ms: int = 0
+
+    @property
+    def minutos(self) -> float:
+        return round(self.visible_ms / 60_000, 1)
+
+
+def por_pais(eventos: list[Evento], pais_de: dict[int, tuple[str, str]]) -> list[UsoDePais]:
+    """Agrupa por país de origen, del que más clics acumula al que menos.
+
+    `pais_de` lleva el país de cada persona; quien no tenga --un club en una
+    liga internacional, o alguien que se registró y nunca sincronizó-- cae en
+    una fila de código vacío en vez de desaparecer. Sumar mal es peor que decir
+    «de éstos no se sabe».
+    """
+    paises: dict[str, UsoDePais] = {}
+    gente: dict[str, set[int]] = defaultdict(set)
+    sesiones_de: dict[str, set[str]] = defaultdict(set)
+
+    for e in eventos:
+        codigo, nombre = pais_de.get(e.usuario, ("", ""))
+        p = paises.setdefault(codigo, UsoDePais(codigo=codigo, nombre=nombre))
+        if nombre:
+            p.nombre = nombre
+        gente[codigo].add(e.usuario)
+        sesiones_de[codigo].add(e.sesion)
+        if e.tipo == "page":
+            p.paginas += 1
+            p.visible_ms += max(0, e.visible_ms)
+        elif e.tipo == "click":
+            p.clics += 1
+
+    for codigo, p in paises.items():
+        p.usuarios = len(gente[codigo])
+        p.sesiones = len(sesiones_de[codigo])
+    # Por clics, que es lo que colorea el mapa; a igualdad, por gente.
+    return sorted(paises.values(), key=lambda p: (p.clics, p.usuarios), reverse=True)
+
+
 def dentro_de(eventos: list[Evento], cuantos: int = 8) -> dict[str, list[tuple[str, int]]]:
     """Qué se pulsa DENTRO de cada pantalla, no en toda la aplicación.
 
