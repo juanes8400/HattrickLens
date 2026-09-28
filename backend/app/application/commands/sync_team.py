@@ -33,7 +33,10 @@ from app.domain.engines.sync_diff import (
 from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.ports.repositories import UnitOfWork
-from app.domain.value_objects.ht_constants import MATCHLINEUP_SPECIAL_ROLES
+from app.domain.value_objects.ht_constants import (
+    MATCHLINEUP_SPECIAL_ROLES,
+    is_competitive_match_type,
+)
 from app.domain.value_objects.ht_time import ht_to_utc, ht_to_utc_naive
 from app.domain.value_objects.skill import Age
 
@@ -2119,6 +2122,11 @@ class SyncTeamHandler:
     #: viejo seria dejar rota justo la pantalla que motivo todo esto.
     DIAS_DE_ALINEACIONES = 60
 
+    #: Cuantos partidos se miran para elegir esos tres. Mas que los que se
+    #: piden, porque el que hace falta --el ultimo oficial-- puede tener
+    #: varios amistosos por delante.
+    CANDIDATOS_DE_ALINEACION = 40
+
     async def _sync_alineaciones_jugadas(
         self,
         uow: UnitOfWork,
@@ -2165,7 +2173,10 @@ class SyncTeamHandler:
                         m.Match.played_lineup_json.is_(None),
                     )
                     .order_by(m.Match.played_at.desc())
-                    .limit(self.ALINEACIONES_POR_SYNC)
+                    # Un puñado de candidatos, no solo los que caben: el que
+                    # de verdad hace falta puede no ser el mas reciente, ver
+                    # abajo. El tope es para no traerse anos de archivo.
+                    .limit(self.CANDIDATOS_DE_ALINEACION)
                 )
             )
             .scalars()
@@ -2175,20 +2186,30 @@ class SyncTeamHandler:
         # Todo sin zona, que es como `UtcDateTime` devuelve las fechas: comparar
         # una de la base contra un `datetime.now(UTC)` revienta con "can't
         # subtract offset-naive and offset-aware datetimes".
+        def _cuando(partido: m.Match) -> datetime:
+            cuando: datetime = partido.played_at
+            return cuando.replace(tzinfo=None) if cuando.tzinfo else cuando
+
         corte = captured_at.astimezone(UTC).replace(tzinfo=None) - timedelta(
             days=self.DIAS_DE_ALINEACIONES
         )
-        pendientes = [
-            partido
-            for i, partido in enumerate(pendientes)
-            if i == 0
-            or (
-                partido.played_at.replace(tzinfo=None)
-                if partido.played_at.tzinfo
-                else partido.played_at
-            )
-            >= corte
-        ]
+
+        # EL OFICIAL MAS RECIENTE VA PRIMERO, y no el mas reciente a secas
+        # (2026-09-28, senalado en la revision de la PR). Equipo enseña «tu
+        # ultima formacion oficial», que es el ultimo partido COMPETITIVO: si
+        # despues de el hay tres amistosos o escaleras, ordenando solo por
+        # fecha el presupuesto de la sincronizacion se gastaba entero en esos
+        # tres y el que se enseña en pantalla no llegaba a pedirse nunca. Es
+        # decir, justo el partido por el que se escribio todo esto.
+        oficial = next((p for p in pendientes if is_competitive_match_type(p.match_type)), None)
+        resto = [p for p in pendientes if p is not oficial and _cuando(p) >= corte]
+        # El oficial se pide tenga la edad que tenga; los demas, SOLO si son
+        # recientes, sin excepciones. Antes el mas reciente a secas tambien se
+        # colaba siempre, y eso traia un amistoso de hace un ano por delante de
+        # nada. Si un club no tiene ningun partido oficial, aqui no se pide
+        # nada, que es correcto: Equipo tampoco tiene entonces que enseñar.
+        pendientes = ([oficial] if oficial is not None else []) + resto
+        pendientes = pendientes[: self.ALINEACIONES_POR_SYNC]
 
         for match in pendientes:
             await _report(

@@ -600,6 +600,7 @@ def _proximo_con_alineaciones(
 
 async def _guardar_lo_dicho(
     ht_match_id: int | None,
+    team_id: int,
     pronostico: dict[str, Any],
     fuente: str,
 ) -> None:
@@ -609,6 +610,13 @@ async def _guardar_lo_dicho(
     tiraban, así que después del partido no había forma honesta de decir
     «esto es lo que te dijimos»: recalcularlo hacia atrás da lo que diríamos
     HOY con los datos de entonces, que no es lo mismo.
+
+    UNA FILA POR PARTIDO **Y CLUB**: los dos lados de un partido pueden estar
+    conectados --la misma cuenta con sus dos clubes, o dos managers-- y el
+    pronóstico no es el mismo para los dos, porque el motor usa la alineación
+    que ESE manager envió. Sin el club en la clave, el segundo en abrir Liga
+    pisaba la fila del primero y después del partido le enseñaba una terna que
+    nunca vio.
 
     SE REESCRIBE MIENTRAS EL PARTIDO SIGA PENDIENTE, a propósito: lo que vale
     es lo último que el usuario llegó a ver antes del pitido, no lo primero.
@@ -643,10 +651,13 @@ async def _guardar_lo_dicho(
     try:
         async with SessionLocal() as propia:
             fila = await propia.scalar(
-                select(m.MatchPrediction).where(m.MatchPrediction.ht_match_id == ht_match_id)
+                select(m.MatchPrediction).where(
+                    m.MatchPrediction.ht_match_id == ht_match_id,
+                    m.MatchPrediction.team_id == team_id,
+                )
             )
             if fila is None:
-                propia.add(m.MatchPrediction(ht_match_id=ht_match_id, **valores))
+                propia.add(m.MatchPrediction(ht_match_id=ht_match_id, team_id=team_id, **valores))
             else:
                 for campo, valor in valores.items():
                     setattr(fila, campo, valor)
@@ -1174,6 +1185,7 @@ class LeagueQueryService:
             # pedir cuentas igual que al motor de zonas.
             await _guardar_lo_dicho(
                 cruce_pendiente.ht_match_id if cruce_pendiente is not None else None,
+                team.id,
                 next_match,
                 "zonas" if proximo is not None else "goles",
             )

@@ -74,8 +74,14 @@ async def build_parte_del_partido(session: AsyncSession, team_id: int) -> dict[s
     if partido is None:
         return None
 
+    # El pronóstico DE ESTE CLUB. Un partido tiene dos lados y los dos pueden
+    # estar conectados, con pronósticos distintos: el de enfrente no es «lo que
+    # te dijimos», y esta pantalla no sirve para otra cosa.
     dicho = await session.scalar(
-        select(m.MatchPrediction).where(m.MatchPrediction.ht_match_id == partido.ht_match_id)
+        select(m.MatchPrediction).where(
+            m.MatchPrediction.ht_match_id == partido.ht_match_id,
+            m.MatchPrediction.team_id == team_id,
+        )
     )
 
     return {

@@ -15,7 +15,12 @@ import banderaES from "../assets/banderas/es.svg";
 import banderaGB from "../assets/banderas/gb.svg";
 import banderaIT from "../assets/banderas/it.svg";
 
-import i18nActual, { cambiarIdioma, IDIOMAS, type Idioma } from "../i18n";
+import i18nActual, {
+  cambiarIdioma,
+  IDIOMAS,
+  OFRECIDOS,
+  type Idioma,
+} from "../i18n";
 
 /** Cada idioma se nombra en su propio idioma: así lo reconoce quien no
  *  entiende el otro. Por eso no pasa por el diccionario. */
@@ -42,8 +47,6 @@ const BANDERA_DE_IDIOMA: Record<Idioma, string> = {
  *  y eso es justo lo que no se quiere ofrecer: media pantalla en un idioma y
  *  media en otro se lee peor que una pantalla entera en español. Entra en
  *  esta lista el día que su diccionario esté completo. */
-const OFRECIDOS: readonly Idioma[] = ["es", "en"];
-
 function idiomaActual(): Idioma {
   const actual = i18nActual.language || "es";
   return IDIOMAS.find((codigo) => actual.startsWith(codigo)) ?? "es";

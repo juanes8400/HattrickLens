@@ -1326,7 +1326,16 @@ class MatchPrediction(Base):
 
     __tablename__ = "match_predictions"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
-    ht_match_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    ht_match_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    #: DE QUIEN ES ESTE PRONOSTICO (2026-09-28, senalado en la revision de la
+    #: PR). Un partido tiene dos lados, y los dos pueden estar conectados a HT
+    #: Lens: la misma cuenta con sus dos clubes, o dos managers distintos. Y el
+    #: pronostico NO es el mismo para los dos, porque el motor de zonas usa la
+    #: alineacion que ESE manager mando. Con la clave unica solo en el partido,
+    #: el segundo en abrir Liga pisaba la fila del primero, y despues del
+    #: partido su parte le enseñaba una terna que nunca vio. Que es justo lo
+    #: contrario de para lo que existe esta tabla.
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
     #: Desde el LOCAL, igual que las pinta la pantalla.
     home_win: Mapped[float] = mapped_column(Float)
     draw: Mapped[float] = mapped_column(Float)
@@ -1339,6 +1348,10 @@ class MatchPrediction(Base):
     source: Mapped[str] = mapped_column(String(16), default="")
     engine: Mapped[str] = mapped_column(String(32), default="")
     computed_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+    __table_args__ = (
+        UniqueConstraint("ht_match_id", "team_id", name="uq_match_predictions_partido_equipo"),
+    )
 
 
 class MatchWeather(Base):

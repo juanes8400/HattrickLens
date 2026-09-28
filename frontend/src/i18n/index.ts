@@ -27,8 +27,19 @@ import glosarioIt from "./glosario/it.json";
 import textosEn from "./textos/en.json";
 import textosIt from "./textos/it.json";
 
+/** Los idiomas que tienen diccionario en el paquete. NO son los que se
+ *  ofrecen: ver `OFRECIDOS`. */
 export const IDIOMAS = ["es", "en", "it"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
+
+/** Los idiomas TERMINADOS, que son los únicos que se le enseñan a nadie.
+ *
+ *  Vive aquí y no en el selector porque no basta con esconderlo de la lista:
+ *  el italiano está a medias a propósito, y un navegador puesto en italiano se
+ *  lo encontraba igual por la detección automática, que miraba `IDIOMAS`. Una
+ *  pantalla mitad en italiano y mitad en español es peor que una entera en
+ *  inglés. Cuando el italiano esté completo, se añade aquí y ya está. */
+export const OFRECIDOS: readonly Idioma[] = ["es", "en"];
 
 const CLAVE_GUARDADA = "htlens.idioma";
 
@@ -36,13 +47,17 @@ function esIdioma(valor: string | null): valor is Idioma {
   return valor != null && (IDIOMAS as readonly string[]).includes(valor);
 }
 
-/** El primero de la lista del navegador que la app hable; inglés si ninguno.
+function seOfrece(valor: string | null): valor is Idioma {
+  return esIdioma(valor) && OFRECIDOS.includes(valor);
+}
+
+/** El primero de la lista del navegador que la app OFREZCA; inglés si ninguno.
  *
  *  Se exporta para poder probarlo sin navegador. */
 export function idiomaPreferido(etiquetas: readonly string[]): Idioma {
   for (const etiqueta of etiquetas) {
     const codigo = (etiqueta ?? "").slice(0, 2).toLowerCase();
-    if (esIdioma(codigo)) return codigo;
+    if (seOfrece(codigo)) return codigo;
   }
   return "en";
 }
@@ -62,7 +77,9 @@ function idiomaDelNavegador(): Idioma {
 function idiomaGuardado(): Idioma {
   try {
     const valor = localStorage.getItem(CLAVE_GUARDADA);
-    if (esIdioma(valor)) return valor;
+    // Contra lo OFRECIDO y no contra lo que hay: un «it» guardado de cuando
+    // se probaba dejaria la pantalla a medias para siempre.
+    if (seOfrece(valor)) return valor;
   } catch {
     return idiomaDelNavegador();
   }

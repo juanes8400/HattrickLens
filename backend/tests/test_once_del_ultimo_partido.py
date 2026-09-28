@@ -281,14 +281,19 @@ def test_un_partido_ya_guardado_no_se_vuelve_a_pedir() -> None:
     assert len(pedidos) == primera
 
 
-def test_de_los_viejos_solo_se_pide_el_ultimo() -> None:
+def test_de_los_viejos_solo_se_pide_el_ultimo_OFICIAL() -> None:
     """Un club con anos de historia no puede disparar cien llamadas.
 
     El corte por fecha es lo que hace que esto termine: lo que queda por pedir
     son como mucho unos pocos partidos recientes, no el archivo entero. Pero el
-    MAS RECIENTE se pide siempre, tenga la edad que tenga, porque es el que
-    enseña Equipo y dejarlo fuera por viejo seria dejar rota justo la pantalla
-    que motivo todo esto.
+    ultimo OFICIAL se pide siempre, tenga la edad que tenga, porque es el que
+    enseña Equipo como «tu ultima formacion oficial».
+
+    2026-09-28, senalado en la revision de la PR #4: antes se pedia el mas
+    reciente A SECAS. Con tres amistosos o escaleras por delante, la
+    sincronizacion gastaba su presupuesto entero en ellos y el partido que de
+    verdad se enseña no llegaba a pedirse nunca. Aqui el amistoso es tres dias
+    MAS NUEVO que el de liga, y aun asi gana el de liga.
     """
 
     async def caso():
@@ -313,8 +318,8 @@ def test_de_los_viejos_solo_se_pide_el_ultimo() -> None:
         return chpp.llamadas
 
     llamadas = asyncio.run(caso())
-    # Solo el mas reciente de los dos, que es el amistoso del 4 de marzo.
-    assert [c["matchID"] for c in llamadas] == [AMISTOSO]
+    # El de liga, aunque el amistoso sea posterior.
+    assert [c["matchID"] for c in llamadas] == [LIGA]
 
 
 async def _con_alineacion_guardada(quitar: int = 0):
@@ -374,3 +379,73 @@ def test_el_que_entra_hereda_la_orden_individual_de_la_plaza() -> None:
     once = asyncio.run(caso())
     assert len(once) == 11
     assert sum(1 for puesto, _ in once if puesto == "DEL") == 1
+
+
+def test_el_pronostico_de_un_partido_es_de_un_club_y_no_de_los_dos() -> None:
+    """2026-09-28, senalado en la revision de la PR #4.
+
+    Un partido tiene dos lados y los dos pueden estar conectados a HT Lens: la
+    misma cuenta con sus dos clubes, o dos managers distintos. El pronostico NO
+    es el mismo para los dos, porque el motor de zonas usa la alineacion que
+    ESE manager envio. Si la fila fuera solo del partido, el segundo en abrir
+    Liga pisaria la del primero, y despues del partido su parte le enseñaria
+    una terna que nunca vio. Que es lo contrario de para lo que existe.
+    """
+
+    async def caso():
+        from datetime import UTC, datetime
+
+        from app.application.queries.league import _guardar_lo_dicho
+        from app.infrastructure.db.session import SessionLocal
+
+        del SessionLocal  # solo para que quede claro cual se usa: la de league
+        factory, team_id = await _escenario()
+        async with factory() as s:
+            otro = m.Team(ht_team_id=600001, name="Deportivo Uno")
+            s.add(otro)
+            await s.commit()
+            otro_id = otro.id
+
+        # `_guardar_lo_dicho` abre su propia sesion a proposito (un commit en
+        # la del lector caduca los objetos que todavia esta usando), asi que
+        # aqui se escribe igual que ella, contra la misma base.
+        import app.application.queries.league as L
+
+        async def escribir(team, home_win):
+            async with factory() as s:
+                fila = await s.scalar(
+                    select(m.MatchPrediction).where(
+                        m.MatchPrediction.ht_match_id == LIGA,
+                        m.MatchPrediction.team_id == team,
+                    )
+                )
+                valores = dict(
+                    home_win=home_win,
+                    draw=0.25,
+                    away_win=round(1 - home_win - 0.25, 4),
+                    expected_home_goals=1.5,
+                    expected_away_goals=1.0,
+                    most_likely_score="1-1",
+                    source="zonas",
+                    engine=L.VERSION_DEL_MOTOR,
+                    computed_at=datetime.now(UTC),
+                )
+                if fila is None:
+                    s.add(m.MatchPrediction(ht_match_id=LIGA, team_id=team, **valores))
+                else:
+                    for k, v in valores.items():
+                        setattr(fila, k, v)
+                await s.commit()
+
+        # Los dos clubes abren Liga y cada uno dice lo suyo del MISMO partido.
+        await escribir(team_id, 0.60)
+        await escribir(otro_id, 0.20)
+
+        async with factory() as s:
+            filas = (await s.execute(select(m.MatchPrediction))).scalars().all()
+        return {f.team_id: f.home_win for f in filas}, team_id, otro_id
+
+    por_club, mio, suyo = asyncio.run(caso())
+    assert len(por_club) == 2, "cada club guarda lo SUYO, no se pisan"
+    assert por_club[mio] == 0.60
+    assert por_club[suyo] == 0.20
