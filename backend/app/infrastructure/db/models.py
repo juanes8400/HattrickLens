@@ -848,6 +848,18 @@ class StadiumHistory(Base):
     capacity_basic: Mapped[int | None] = mapped_column(Integer)
     capacity_roof: Mapped[int | None] = mapped_column(Integer)
     capacity_vip: Mapped[int | None] = mapped_column(Integer)
+    # DE QUIEN ES EL ESTADIO (2026-09-28, lo dijo el usuario: «los partidos de
+    # visitante de Copa tambien me dan taquilla»).
+    #
+    # Hasta hoy aqui solo entraban partidos propios EN CASA, y varias consultas
+    # lo daban por hecho sin decirlo. En Copa la taquilla se reparte 67/33
+    # entre local y visitante, asi que el 33 % de un partido fuera TAMBIEN es
+    # dinero del club, y para calcularlo hace falta el publico de ESE estadio.
+    #
+    # `False` = se jugo en el estadio del rival. Esas filas NO son historial de
+    # tu estadio y la pantalla de Estadio las descarta a proposito: contarlas
+    # falsearia la ocupacion, que se mide contra TU aforo.
+    own_venue: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     #: El total de publico, que es lo unico de aqui que se enseña.
     sold_total: Mapped[int] = mapped_column(Integer, default=0)
     #: Taquilla que reporta Hattrick. Existe desde el principio y NUNCA se

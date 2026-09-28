@@ -154,3 +154,47 @@ def test_el_relleno_del_desglose_solo_pide_partidos_de_copa() -> None:
     pedidos = asyncio.run(caso())
     # Los dos de Copa (el de esta temporada y el viejo), nunca el amistoso.
     assert sorted(pedidos) == [900_001, 900_002]
+
+
+def test_los_partidos_de_fuera_tambien_dejan_taquilla() -> None:
+    """2026-09-28, lo dijo el usuario: «los partidos de visitante de Copa
+    tambien me dan taquilla».
+
+    El reparto de Copa es 67/33. De lo que se recauda en TU estadio te queda el
+    67 %; de lo que se recauda en el del rival, el 33 %. El publico, en cambio,
+    solo se cuenta en casa: mezclar el del rival no describe nada tuyo.
+    """
+
+    async def caso():
+        from sqlalchemy import select
+
+        factory, team_id = await _base()
+        async with factory() as s:
+            equipo = await s.get(m.Team, team_id)
+            world = await s.scalar(
+                select(m.WorldContext).where(m.WorldContext.ht_league_id == LIGA_DEL_PAIS)
+            )
+            # El segundo partido pasa a ser de ESTA temporada y jugado FUERA.
+            fuera = await s.scalar(select(m.Match).where(m.Match.ht_match_id == 900_002))
+            fuera.played_at = AHORA
+            fuera.home_team_ht_id, fuera.away_team_ht_id = 600_002, EQUIPO
+            for foto in (
+                await s.execute(select(m.StadiumHistory).order_by(m.StadiumHistory.id))
+            ).scalars():
+                for columna, valor in DESGLOSE.items():
+                    setattr(foto, columna, valor)
+                foto.played_at = AHORA
+                foto.own_venue = foto.ht_match_id == 900_001
+            await s.commit()
+            return await _cup_economy(s, equipo, None, None, world)
+
+    d = asyncio.run(caso())
+    assert d["matches_with_gate"] == 2
+    assert d["away_matches_with_gate"] == 1
+    # El publico sigue siendo solo el de casa.
+    assert d["observed_home_matches"] == 1
+    assert d["observed_attendance"] == sum(DESGLOSE.values())
+    # Bruto: las dos taquillas. Tuyo: el 67 % de la de casa y el 33 % de la de
+    # fuera.
+    assert d["observed_gross_gate"] == TAQUILLA * 2
+    assert d["observed_share"] == round(TAQUILLA * 0.67 + TAQUILLA * 0.33)

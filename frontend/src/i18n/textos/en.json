@@ -1909,9 +1909,9 @@
   "Partido visitante: la taquilla es del estadio del rival, no del tuyo.": "Away match: the gate belongs to the opponent's stadium, not yours.",
   "Sede neutral: la taquilla no sale de tu estadio.": "Neutral venue: the gate does not come from your stadium.",
   "Taquilla observada": "Observed gate",
-  "suma de {{v0}} de los {{v1}} partidos; el resto, por completar": "sum of {{v0}} of the {{v1}} matches; the rest still to complete",
-  "suma de los {{v0}} partidos": "sum of all {{v0}} matches",
   "Tu participación": "Your share",
-  "{{v0}}% de la taquilla; el resto es del visitante": "{{v0}}% of the gate; the rest goes to the visitors",
-  "Media de público": "Average crowd"
+  "Media de público": "Average crowd",
+  "{{v0}} partido(s), {{v1}} de ellos fuera": "{{v0}} match(es), {{v1}} of them away",
+  "{{v0}} partido(s) en casa": "{{v0}} home match(es)",
+  "{{v0}}% de lo tuyo en casa y {{v1}}% de lo del rival fuera": "{{v0}}% of yours at home and {{v1}}% of theirs away"
 }

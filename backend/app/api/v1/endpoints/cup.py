@@ -549,11 +549,20 @@ async def _cup_economy(
     # Los partidos sincronizados entre el 2026-09-01 y hoy no tienen desglose y
     # se quedan FUERA del dinero hasta que el sync lo complete. Siguen contando
     # para el publico, que ese si esta guardado.
-    fotos = [stadium for stadium, _match in rows]
-    asistencias: list[int] = [int(f.sold_total) for f in fotos if f.sold_total]
-    taquillas = taquilla_de_varios(fotos)
+    # EN CASA Y FUERA (2026-09-28, lo dijo el usuario: «los partidos de
+    # visitante de Copa tambien me dan taquilla»). El reparto de Copa es 67/33,
+    # asi que de un partido fuera te llega el 33 % de la taquilla de ESE
+    # estadio. El publico, en cambio, solo se cuenta en casa: es el de tu
+    # estadio, y mezclarlo con el del rival no describe nada.
+    en_casa = [foto for foto, _p in rows if foto.own_venue]
+    asistencias: list[int] = [int(f.sold_total) for f in en_casa if f.sold_total]
     total_publico = sum(asistencias)
+
+    brutos_casa = taquilla_de_varios(en_casa)
+    brutos_fuera = taquilla_de_varios([foto for foto, _p in rows if not foto.own_venue])
+    taquillas = brutos_casa + brutos_fuera
     bruto = sum(taquillas)
+    tuyo = sum(brutos_casa) * CUOTA_LOCAL_DE_COPA + sum(brutos_fuera) * (1 - CUOTA_LOCAL_DE_COPA)
 
     return {
         "currency": team.currency_name or "",
@@ -574,9 +583,13 @@ async def _cup_economy(
         # tampoco convierte. Dividir aqui daria un 10 % de lo real en Colombia,
         # que es justo el fallo que reporto un usuario con otro equipo.
         "observed_gross_gate": bruto,
-        #: Tu parte: en Copa el local se queda el 67 % y el visitante el 33 %.
-        "observed_share": int(round(bruto * CUOTA_LOCAL_DE_COPA)),
+        #: Tu parte: el 67 % de lo que se recaudo en tu estadio y el 33 % de lo
+        #: que se recaudo en el del rival.
+        "observed_share": int(round(tuyo)),
         "share_percent": int(round(CUOTA_LOCAL_DE_COPA * 100)),
+        #: Cuantos de los partidos con taquilla se jugaron fuera, para que la
+        #: pantalla no diga «67 %» de una suma que lleva partidos al 33 %.
+        "away_matches_with_gate": len(brutos_fuera),
     }
 
 

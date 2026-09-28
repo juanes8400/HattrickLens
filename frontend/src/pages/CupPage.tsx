@@ -459,16 +459,12 @@ export function CupPage() {
                     label={tx("Taquilla observada")}
                     value={money(data.economy.observedGrossGate, data.currency)}
                     detail={
-                      data.economy.matchesWithGate <
-                      data.economy.observedHomeMatches
-                        ? tx(
-                            "suma de {{v0}} de los {{v1}} partidos; el resto, por completar",
-                            {
-                              v0: data.economy.matchesWithGate,
-                              v1: data.economy.observedHomeMatches,
-                            },
-                          )
-                        : tx("suma de los {{v0}} partidos", {
+                      data.economy.awayMatchesWithGate > 0
+                        ? tx("{{v0}} partido(s), {{v1}} de ellos fuera", {
+                            v0: data.economy.matchesWithGate,
+                            v1: data.economy.awayMatchesWithGate,
+                          })
+                        : tx("{{v0}} partido(s) en casa", {
                             v0: data.economy.matchesWithGate,
                           })
                     }
@@ -477,8 +473,11 @@ export function CupPage() {
                     label={tx("Tu participación")}
                     value={money(data.economy.observedShare, data.currency)}
                     detail={tx(
-                      "{{v0}}% de la taquilla; el resto es del visitante",
-                      { v0: data.economy.sharePercent },
+                      "{{v0}}% de lo tuyo en casa y {{v1}}% de lo del rival fuera",
+                      {
+                        v0: data.economy.sharePercent,
+                        v1: 100 - data.economy.sharePercent,
+                      },
                     )}
                   />
                   <MiniMetric

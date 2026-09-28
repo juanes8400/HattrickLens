@@ -3749,6 +3749,9 @@ export interface Cup {
     /** Tu parte de esa suma: en Copa el local se queda el 67 %. */
     observedShare: number;
     sharePercent: number;
+    /** Cuántos de los partidos con taquilla se jugaron fuera: ésos entran al
+     *  33 %, no al 67 %. */
+    awayMatchesWithGate: number;
   };
   readiness: {
     referenceVariants: CupReadinessVariant[];

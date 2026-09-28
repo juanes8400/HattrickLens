@@ -2282,75 +2282,91 @@ class SyncTeamHandler:
         result: SyncResult,
         on_progress: ProgressReporter | None = None,
     ) -> None:
-        """Vuelve a pedir el detalle de los partidos DE COPA a los que les falta.
+        """El publico de cada partido DE COPA, en casa y fuera.
 
-        2026-09-28. El desglose por sector se dejo de guardar el 2026-09-01 y
-        se volvio a guardar hoy, asi que todo lo sincronizado en medio tiene
-        publico total pero no la taquilla. Sin esto, la Copa solo sabria
-        calcular la taquilla de los partidos NUEVOS y el historico se quedaria
-        mudo para siempre.
+        2026-09-28. De ahi sale la taquilla exacta: entradas de cada sector por
+        su precio. En Copa el reparto es 67/33 entre local y visitante, asi que
+        un partido fuera tambien deja dinero --el 33 %-- y para calcularlo hace
+        falta el publico de ESE estadio, que el detalle del partido trae igual.
 
-        Se piden solo los propios EN CASA --el desglose de un partido fuera es
-        del estadio del rival y ahi no se recauda nada tuyo-- y solo los de
-        COPA, que es la unica pantalla que usa este dato.
+        Solo COPA, que es la unica pantalla que usa este dato: pedirlo para los
+        de liga seria gastar llamadas en algo que nadie mira.
+
+        Las filas de fuera se marcan con `own_venue=False`. No son historial de
+        tu estadio y la pantalla de Estadio las descarta: contarlas falsearia
+        la ocupacion, que se mide contra TU aforo.
         """
-        from sqlalchemy import select
+        from sqlalchemy import or_, select
 
         from app.infrastructure.db import models as m
 
+        # Los partidos de Copa del club a los que les falta el publico por
+        # sector: o no tienen fila de estadio, o la tienen sin desglose.
         pendientes = (
             (
                 await uow.session.execute(
-                    select(m.StadiumHistory)
-                    .join(m.Match, m.Match.ht_match_id == m.StadiumHistory.ht_match_id)
-                    .where(
-                        m.StadiumHistory.team_id == team_id,
-                        m.Match.home_team_ht_id == ht_team_id,
-                        # SOLO COPA (2026-09-28, instruccion del usuario). El
-                        # desglose unicamente lo usa la pantalla de Copa, asi
-                        # que pedirlo para los demas seria gastar llamadas en
-                        # un dato que nadie mira: en este club son 65 partidos
-                        # de Copa frente a 720 en casa contando todo.
-                        #
-                        # Si algun dia otra pantalla lo necesita, se amplia
-                        # AQUI y se dice por que; mientras tanto esto se
-                        # termina solo y deja de pedir nada.
-                        m.Match.match_type == MATCH_TYPE_CUP,
-                        m.StadiumHistory.sold_terraces.is_(None),
+                    select(m.Match, m.StadiumHistory)
+                    .outerjoin(
+                        m.StadiumHistory,
+                        m.StadiumHistory.ht_match_id == m.Match.ht_match_id,
                     )
-                    .order_by(m.StadiumHistory.played_at.desc())
+                    .where(
+                        or_(
+                            m.Match.home_team_ht_id == ht_team_id,
+                            m.Match.away_team_ht_id == ht_team_id,
+                        ),
+                        m.Match.match_type == MATCH_TYPE_CUP,
+                        m.Match.status.ilike("finished"),
+                        or_(
+                            m.StadiumHistory.id.is_(None),
+                            m.StadiumHistory.sold_terraces.is_(None),
+                        ),
+                    )
+                    .order_by(m.Match.played_at.desc())
                     .limit(self.DESGLOSES_POR_SYNC)
                 )
             )
-            .scalars()
+            .unique()
             .all()
         )
         if not pendientes:
             return
 
-        for foto in pendientes:
+        for partido, foto in pendientes:
             await _report(
                 on_progress,
-                f"Completando la taquilla del partido {foto.ht_match_id}...",
+                f"Completando la taquilla del partido {partido.ht_match_id}...",
             )
             try:
                 payload = await self._chpp.fetch(
                     "matchdetails",
                     version=FILE_VERSIONS["matchdetails"],
-                    matchID=foto.ht_match_id,
+                    matchID=partido.ht_match_id,
                 )
             except Exception as exc:  # noqa: BLE001, un partido no tumba el sync
-                result.errors.append(f"taquilla del partido {foto.ht_match_id}: {exc}")
+                result.errors.append(f"taquilla del partido {partido.ht_match_id}: {exc}")
                 continue
             arena = payload.get("arena") or {}
-            # Los cuatro o ninguno: con tres sectores no sale una taquilla, sale
-            # un numero mas bajo que parece uno bueno.
+            # Los cuatro o ninguno: con tres sectores no sale una taquilla,
+            # sale un numero mas bajo que parece uno bueno.
             sectores = {
                 columna: arena.get(columna)
                 for columna in ("sold_terraces", "sold_basic", "sold_roof", "sold_vip")
             }
             if any(v is None for v in sectores.values()):
                 continue
+            en_casa = partido.home_team_ht_id == ht_team_id
+            if foto is None:
+                foto = m.StadiumHistory(
+                    team_id=team_id,
+                    ht_match_id=partido.ht_match_id,
+                    played_at=partido.played_at,
+                    match_type=partido.match_type,
+                    capacity_total=0,
+                    sold_total=int(arena.get("spectators") or 0),
+                )
+                uow.session.add(foto)
+            foto.own_venue = en_casa
             for columna, valor in sectores.items():
                 setattr(foto, columna, valor)
             result.snapshots_written += 1
