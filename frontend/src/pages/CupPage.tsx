@@ -444,8 +444,8 @@ export function CupPage() {
           <>
             <div className="grid items-start gap-4 xl:grid-cols-2">
               <Panel
-                title={tx("Público de Copa en casa")}
-                meta={tx("asistencia real, medida partido a partido")}
+                title={tx("Economía observada de Copa")}
+                meta={tx("público real · taquilla calculada")}
               >
                 <div className="grid gap-3 p-4 sm:grid-cols-2">
                   <MiniMetric
@@ -456,7 +456,33 @@ export function CupPage() {
                     })}
                   />
                   <MiniMetric
-                    label={tx("Media por partido")}
+                    label={tx("Taquilla observada")}
+                    value={money(data.economy.observedGrossGate, data.currency)}
+                    detail={
+                      data.economy.matchesWithGate <
+                      data.economy.observedHomeMatches
+                        ? tx(
+                            "suma de {{v0}} de los {{v1}} partidos; el resto, por completar",
+                            {
+                              v0: data.economy.matchesWithGate,
+                              v1: data.economy.observedHomeMatches,
+                            },
+                          )
+                        : tx("suma de los {{v0}} partidos", {
+                            v0: data.economy.matchesWithGate,
+                          })
+                    }
+                  />
+                  <MiniMetric
+                    label={tx("Tu participación")}
+                    value={money(data.economy.observedShare, data.currency)}
+                    detail={tx(
+                      "{{v0}}% de la taquilla; el resto es del visitante",
+                      { v0: data.economy.sharePercent },
+                    )}
+                  />
+                  <MiniMetric
+                    label={tx("Media de público")}
                     value={number(data.economy.averageAttendance)}
                     detail={tx("{{v0}} espectadores en total", {
                       v0: number(data.economy.observedAttendance),
@@ -464,38 +490,6 @@ export function CupPage() {
                   />
                 </div>
               </Panel>
-
-              <ProjectionPanel
-                title={tx("Público del próximo partido")}
-                meta={tx("la mediana de los tuyos")}
-              >
-                <div className="p-4">
-                  <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-                    {data.economy.nextAttendanceProjection == null
-                      ? tx("No calculable")
-                      : number(data.economy.nextAttendanceProjection)}
-                  </div>
-                  {data.economy.nextAttendanceProjection != null &&
-                    data.economy.bestAttendance > 0 && (
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                        <div
-                          className="h-full rounded-full bg-[var(--accent)]"
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              (data.economy.nextAttendanceProjection /
-                                data.economy.bestAttendance) *
-                                100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    )}
-                  <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
-                    {data.economy.projectionBasis}
-                  </p>
-                </div>
-              </ProjectionPanel>
             </div>
 
             {data.ladder.length > 0 && (

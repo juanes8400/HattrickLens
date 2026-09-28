@@ -3741,8 +3741,14 @@ export interface Cup {
     observedAttendance: number;
     bestAttendance: number;
     averageAttendance: number;
-    nextAttendanceProjection: number | null;
-    projectionBasis: string;
+    /** Cuántos de esos partidos tienen taquilla calculada. Menos que los
+     *  medidos = faltan desgloses por completar, y la pantalla lo dice. */
+    matchesWithGate: number;
+    /** La suma de las taquillas calculadas, en bruto. */
+    observedGrossGate: number;
+    /** Tu parte de esa suma: en Copa el local se queda el 67 %. */
+    observedShare: number;
+    sharePercent: number;
   };
   readiness: {
     referenceVariants: CupReadinessVariant[];

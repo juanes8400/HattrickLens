@@ -948,6 +948,9 @@ class SyncTeamHandler:
                 await self._sync_alineaciones_jugadas(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
                 )
+                await self._completar_desglose_de_taquilla(
+                    uow, cmd.team_id, cmd.ht_team_id, result, on_progress
+                )
                 await self._backfill_missing_match_details(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
@@ -2264,6 +2267,82 @@ class SyncTeamHandler:
             )
             match.played_lineup_captured_at = captured_at
 
+    #: Cuantos partidos ya guardados recuperan su desglose por sincronizacion.
+    #: Van del mas reciente al mas viejo y cuando estan todos esto no pide
+    #: nada. Un club con anos de historia tardara varias sincronizaciones, que
+    #: es preferible a gastarle cien llamadas de golpe.
+    DESGLOSES_POR_SYNC = 10
+
+    async def _completar_desglose_de_taquilla(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        ht_team_id: int,
+        result: SyncResult,
+        on_progress: ProgressReporter | None = None,
+    ) -> None:
+        """Vuelve a pedir el detalle de los partidos a los que les falta.
+
+        2026-09-28. El desglose por sector se dejo de guardar el 2026-09-01 y
+        se volvio a guardar hoy, asi que todo lo sincronizado en medio tiene
+        publico total pero no la taquilla. Sin esto, la Copa solo sabria
+        calcular la taquilla de los partidos NUEVOS y el historico se quedaria
+        mudo para siempre.
+
+        Se piden solo los propios EN CASA: el desglose de un partido fuera es
+        del estadio del rival y ahi no se recauda nada que sea tuyo.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        pendientes = (
+            (
+                await uow.session.execute(
+                    select(m.StadiumHistory)
+                    .join(m.Match, m.Match.ht_match_id == m.StadiumHistory.ht_match_id)
+                    .where(
+                        m.StadiumHistory.team_id == team_id,
+                        m.Match.home_team_ht_id == ht_team_id,
+                        m.StadiumHistory.sold_terraces.is_(None),
+                    )
+                    .order_by(m.StadiumHistory.played_at.desc())
+                    .limit(self.DESGLOSES_POR_SYNC)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not pendientes:
+            return
+
+        for foto in pendientes:
+            await _report(
+                on_progress,
+                f"Completando la taquilla del partido {foto.ht_match_id}...",
+            )
+            try:
+                payload = await self._chpp.fetch(
+                    "matchdetails",
+                    version=FILE_VERSIONS["matchdetails"],
+                    matchID=foto.ht_match_id,
+                )
+            except Exception as exc:  # noqa: BLE001, un partido no tumba el sync
+                result.errors.append(f"taquilla del partido {foto.ht_match_id}: {exc}")
+                continue
+            arena = payload.get("arena") or {}
+            # Los cuatro o ninguno: con tres sectores no sale una taquilla, sale
+            # un numero mas bajo que parece uno bueno.
+            sectores = {
+                columna: arena.get(columna)
+                for columna in ("sold_terraces", "sold_basic", "sold_roof", "sold_vip")
+            }
+            if any(v is None for v in sectores.values()):
+                continue
+            for columna, valor in sectores.items():
+                setattr(foto, columna, valor)
+            result.snapshots_written += 1
+
     async def _sync_next_match_weather(
         self,
         uow: UnitOfWork,
@@ -2988,10 +3067,15 @@ class SyncTeamHandler:
                     capacity_basic=capacity.get("basic") or None,
                     capacity_roof=capacity.get("roof") or None,
                     capacity_vip=capacity.get("vip") or None,
-                    # Solo el TOTAL. El desglose por sector es funcion de HT
-                    # Supporter y las reglas de CHPP prohiben replicarla; ni
-                    # se lee del XML ni existe ya la columna (migracion 0076).
                     sold_total=sold_total,
+                    # El desglose por sector: se guarda para poder calcular la
+                    # taquilla exacta, y no sale por ninguna respuesta de la
+                    # API (2026-09-28, decision del usuario). `None` cuando el
+                    # fichero no lo trae, que no es lo mismo que cero.
+                    sold_terraces=arena.get("sold_terraces"),
+                    sold_basic=arena.get("sold_basic"),
+                    sold_roof=arena.get("sold_roof"),
+                    sold_vip=arena.get("sold_vip"),
                 )
             )
             result.snapshots_written += 1

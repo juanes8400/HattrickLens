@@ -115,8 +115,18 @@ def test_parse_matchdetails_real_fixture() -> None:
     # Solo el TOTAL. El desglose por sector se dejo de leer el 2026-09-01: es
     # funcion de HT Supporter y las reglas de CHPP prohiben replicarla.
     assert d["arena"]["spectators"] == 54979
-    assert "sold_terraces" not in d["arena"]
-    assert "sold_vip" not in d["arena"]
+    # El desglose por sector SI se lee desde el 2026-09-28: de el sale la
+    # taquilla exacta del partido. Lo que no se hace es enseñarlo, y de eso se
+    # ocupa `test_nada_de_supporter.py`.
+    assert d["arena"]["sold_terraces"] is not None
+    assert d["arena"]["sold_vip"] is not None
+    assert (
+        d["arena"]["sold_terraces"]
+        + d["arena"]["sold_basic"]
+        + d["arena"]["sold_roof"]
+        + d["arena"]["sold_vip"]
+        == d["arena"]["spectators"]
+    ), "los cuatro sectores tienen que sumar el total que enseña Hattrick"
     # matchdetails.xml v3.1 real no trae `<Event>`/EventTypeID (verificado en
     # vivo), solo conteos de ocasiones por zona, por lado.
     assert home["chances"] == {"left": 3, "center": 0, "right": 1, "special": 0, "other": 0}

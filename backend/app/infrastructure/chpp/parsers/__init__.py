@@ -857,10 +857,21 @@ def parse_matchdetails(xml: bytes) -> dict[str, Any]:
             "name": _txt(arena_el if arena_el is not None else mt, "ArenaName", ""),
             "spectators": _int(arena_el if arena_el is not None else mt, "SoldTotal"),
             "weather": _int(arena_el if arena_el is not None else mt, "WeatherID", -1),
-            # El desglose por sector (`SoldTerraces`, `SoldBasic`, `SoldRoof`,
-            # `SoldVIP`) NO se lee: es una función de HT Supporter y las
-            # reglas de CHPP prohíben replicarla. `SoldTotal`, de arriba, sí
-            # es público, Hattrick lo enseña en la página del partido.
+            # EL DESGLOSE POR SECTOR, PARA CALCULAR Y NO PARA ENSEÑAR
+            # (2026-09-28, decisión del usuario: «guarda el desglose, calcula
+            # con él, y no lo enseñes nunca»).
+            #
+            # El 2026-09-01 se dejó de leer entero, por si enseñarlo imitaba
+            # una función de HT Supporter. Pero de ahí sale la taquilla EXACTA
+            # --entradas de cada sector por su precio-- y sin él la pantalla de
+            # Copa llevaba un mes diciendo «0 US$» teniendo sesenta y seis
+            # partidos con público. La línea queda en enseñarlo: estos cuatro
+            # números no salen por ninguna respuesta de la API, sólo alimentan
+            # el total. Lo fija `test_el_desglose_por_sector_no_sale_nunca`.
+            "sold_terraces": _int(arena_el if arena_el is not None else mt, "SoldTerraces"),
+            "sold_basic": _int(arena_el if arena_el is not None else mt, "SoldBasic"),
+            "sold_roof": _int(arena_el if arena_el is not None else mt, "SoldRoof"),
+            "sold_vip": _int(arena_el if arena_el is not None else mt, "SoldVIP"),
         },
     }
 

@@ -848,12 +848,33 @@ class StadiumHistory(Base):
     capacity_basic: Mapped[int | None] = mapped_column(Integer)
     capacity_roof: Mapped[int | None] = mapped_column(Integer)
     capacity_vip: Mapped[int | None] = mapped_column(Integer)
-    # La asistencia va SOLO en total. El desglose por sector es una funcion de
-    # HT Supporter y las reglas de CHPP prohiben replicarla, asi que ni se
-    # recoge ni se guarda (migracion 0076). El total en cambio es publico:
-    # Hattrick lo enseña en la pagina del partido.
+    #: El total de publico, que es lo unico de aqui que se enseña.
     sold_total: Mapped[int] = mapped_column(Integer, default=0)
+    #: Taquilla que reporta Hattrick. Existe desde el principio y NUNCA se
+    #: rellena: el fichero del partido no la trae. Se conserva por si algun dia
+    #: llega, pero lo que se enseña sale de `taquilla_del_partido`.
     revenue: Mapped[int] = mapped_column(Integer, default=0)
+
+    # EL DESGLOSE POR SECTOR: SE GUARDA, SE CALCULA CON EL, NO SE ENSEÑA NUNCA
+    # (2026-09-28, decision del usuario, con esas palabras).
+    #
+    # De aqui sale la taquilla EXACTA de un partido --entradas de cada sector
+    # por su precio, los cuatro verificados-- que es el unico modo de tenerla:
+    # Hattrick no publica la taquilla por partido, y atribuirla por semanas
+    # cerradas no funciona porque los partidos de Copa comparten semana con los
+    # de liga.
+    #
+    # La migracion 0076 las habia borrado el 2026-09-01, por si enseñar el
+    # desglose imitaba una funcion de HT Supporter. La linea queda en ENSEÑARLO:
+    # estos cuatro numeros no salen por ninguna respuesta de la API, solo
+    # alimentan el total. Lo fija `test_el_desglose_por_sector_no_sale_nunca`,
+    # que recorre las respuestas y falla si alguno se asoma.
+    #
+    # `None` = ese partido se sincronizo antes de esto y le falta el desglose.
+    sold_terraces: Mapped[int | None] = mapped_column(Integer)
+    sold_basic: Mapped[int | None] = mapped_column(Integer)
+    sold_roof: Mapped[int | None] = mapped_column(Integer)
+    sold_vip: Mapped[int | None] = mapped_column(Integer)
 
 
 class Match(Base):
