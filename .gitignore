@@ -25,6 +25,9 @@ comisiones-guardadas-*.json
 *.tsbuildinfo
 dist/
 coverage/
+# El fichero binario que deja `pytest --cov`. No es codigo ni informe:
+# es el estado intermedio de una medicion, y cambia en cada ejecucion.
+.coverage
 .claude/
 .idea/
 .vscode/

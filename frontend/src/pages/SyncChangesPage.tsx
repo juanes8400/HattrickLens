@@ -616,7 +616,7 @@ export function SyncChangesPage() {
           <h1 className="text-xl font-semibold">{tx("Cambios")}</h1>
           <p className="text-sm text-[var(--muted)]">
             {tx(
-              "Lo que movió la última sincronización, comparado contra el cierre semanal anterior.",
+              "Lo que movió la última sincronización, comparado contra la lectura anterior de cada jugador.",
             )}
           </p>
         </div>
