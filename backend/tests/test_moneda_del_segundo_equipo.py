@@ -41,7 +41,7 @@ SEGUNDO = (600001, datetime(2024, 3, 1, tzinfo=UTC), "€", 1.0)
 INTERNACIONAL = 700001
 
 
-async def _base(orden_de_insercion: tuple[tuple, ...]):
+async def _base(orden_de_insercion: tuple[tuple, ...], principal: int | None = None):
     """Los hermanos se insertan en el orden que se pida.
 
     El orden IMPORTA: es justo lo que hacia que la regla vieja acertara o
@@ -66,6 +66,7 @@ async def _base(orden_de_insercion: tuple[tuple, ...]):
                     founded_at=fundado,
                     currency_name=moneda,
                     currency_rate=tasa,
+                    is_primary_club=(None if principal is None else ht_team_id == principal),
                 )
             )
             await s.flush()
@@ -86,8 +87,8 @@ async def _base(orden_de_insercion: tuple[tuple, ...]):
         return factory, internacional.id
 
 
-async def _resolver(orden: tuple[tuple, ...]) -> m.Team:
-    factory, team_id = await _base(orden)
+async def _resolver(orden: tuple[tuple, ...], principal: int | None = None) -> m.Team:
+    factory, team_id = await _base(orden, principal)
     handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), None)
     async with SqlAlchemyUnitOfWork(factory) as uow:
         await handler._resolver_moneda(uow, team_id)
@@ -127,3 +128,49 @@ def test_sin_ningun_hermano_util_se_queda_como_estaba() -> None:
     equipo = asyncio.run(_resolver(()))
 
     assert equipo.currency_name == ""
+
+
+def test_el_principal_gana_aunque_no_tenga_fecha_de_fundacion() -> None:
+    """El caso que señalo la revision de la PR #6.
+
+    Al conectar la cuenta los clubes nacen SIN fecha de fundacion: solo se
+    rellena al sincronizar cada uno. Si se sincroniza antes un club secundario,
+    el principal se queda sin fecha y, ordenando solo por fecha, PIERDE la
+    eleccion: el internacional heredaba la moneda del secundario.
+
+    Hattrick dice cual es el principal (`IsPrimaryClub`), y eso se sabe desde
+    el alta, que recorre todos los clubes del manager de una vez.
+    """
+    # El principal, sin fecha. El secundario, con fecha y de otro pais.
+    principal_sin_fecha = (PRINCIPAL[0], None, PRINCIPAL[2], PRINCIPAL[3])
+
+    equipo = asyncio.run(_resolver((principal_sin_fecha, SEGUNDO), principal=PRINCIPAL[0]))
+    assert equipo.currency_name == "US$"
+    assert equipo.currency_rate == 10.0
+
+
+def test_un_club_del_que_no_consta_si_es_principal_no_se_castiga() -> None:
+    """`None` es «no consta», no «no es el principal».
+
+    Un club dado de alta antes de que se guardara ese dato no puede quedar por
+    detras de otro marcado explicitamente como NO principal: seria repetir el
+    mismo fallo por otro camino.
+    """
+
+    async def caso():
+        factory, team_id = await _base((PRINCIPAL, SEGUNDO))
+        async with factory() as s:
+            # Del principal no consta; del secundario consta que NO lo es.
+            for equipo in (await s.execute(select(m.Team))).scalars():
+                if equipo.ht_team_id == SEGUNDO[0]:
+                    equipo.is_primary_club = False
+            await s.commit()
+        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), None)
+        async with SqlAlchemyUnitOfWork(factory) as uow:
+            await handler._resolver_moneda(uow, team_id)
+            await uow.commit()
+        async with factory() as s:
+            return await s.scalar(select(m.Team).where(m.Team.id == team_id))
+
+    equipo = asyncio.run(caso())
+    assert equipo.currency_name == "US$"

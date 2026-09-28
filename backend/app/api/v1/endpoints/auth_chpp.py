@@ -283,6 +283,13 @@ async def callback(
         team.league_name = t.get("league_name") or team.league_name
         team.series_name = t.get("series_name") or team.series_name
         team.series_ht_id = t.get("series_ht_id") or team.series_ht_id
+        # Cual es el principal, que aqui se sabe de TODOS a la vez: este
+        # fichero, pedido sin club, devuelve los del manager entero. Sin esto
+        # habria que esperar a sincronizar cada uno, y un club de liga
+        # internacional sincronizado antes que el principal heredaba la moneda
+        # del que no era (revision de la PR #6).
+        if t.get("is_primary_club") is not None:
+            team.is_primary_club = bool(t["is_primary_club"])
         if first_team_id is None:
             first_team_id = team.id
 

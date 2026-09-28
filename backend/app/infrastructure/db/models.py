@@ -102,6 +102,11 @@ class Team(Base):
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     name: Mapped[str] = mapped_column(String(128))
+    # EL CLUB PRINCIPAL DEL MANAGER, dicho por Hattrick (`IsPrimaryClub`).
+    # Un manager puede llevar varios clubes y de su principal sale la moneda
+    # que Hattrick enseña en los que no tienen pais propio, las ligas
+    # internacionales. `None` = todavia no se ha leido de Hattrick.
+    is_primary_club: Mapped[bool | None] = mapped_column(Boolean)
     # Fecha real de fundación, de teamdetails.xml. Es el límite inferior del
     # backfill de partidos: no se recorren años en los que el club no existía.
     founded_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
