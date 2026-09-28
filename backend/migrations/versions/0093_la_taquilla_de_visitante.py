@@ -30,7 +30,16 @@ def upgrade() -> None:
     with op.batch_alter_table("stadium_history") as batch_op:
         batch_op.add_column(
             sa.Column(
-                "own_venue", sa.Boolean(), nullable=False, server_default=sa.text("1")
+                "own_venue",
+                sa.Boolean(),
+                nullable=False,
+                # `sa.true()` y NO `sa.text("1")`. `text` es SQL crudo: emite un
+                # `1` entero, que sqlite se traga --no tiene booleanos-- y
+                # Postgres rechaza con «column "own_venue" is of type boolean
+                # but default expression is of type integer». Reventó el
+                # despliegue del 2026-09-28. `sa.true()` lo escribe cada
+                # dialecto a su manera: `TRUE` alli, `1` aqui.
+                server_default=sa.true(),
             )
         )
 
