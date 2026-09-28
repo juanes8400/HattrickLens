@@ -34,6 +34,7 @@ from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
 from app.domain.ports.chpp_gateway import CHPPGateway
 from app.domain.ports.repositories import UnitOfWork
 from app.domain.value_objects.ht_constants import (
+    MATCH_TYPE_CUP,
     MATCHLINEUP_SPECIAL_ROLES,
     is_competitive_match_type,
 )
@@ -2281,7 +2282,7 @@ class SyncTeamHandler:
         result: SyncResult,
         on_progress: ProgressReporter | None = None,
     ) -> None:
-        """Vuelve a pedir el detalle de los partidos a los que les falta.
+        """Vuelve a pedir el detalle de los partidos DE COPA a los que les falta.
 
         2026-09-28. El desglose por sector se dejo de guardar el 2026-09-01 y
         se volvio a guardar hoy, asi que todo lo sincronizado en medio tiene
@@ -2289,8 +2290,9 @@ class SyncTeamHandler:
         calcular la taquilla de los partidos NUEVOS y el historico se quedaria
         mudo para siempre.
 
-        Se piden solo los propios EN CASA: el desglose de un partido fuera es
-        del estadio del rival y ahi no se recauda nada que sea tuyo.
+        Se piden solo los propios EN CASA --el desglose de un partido fuera es
+        del estadio del rival y ahi no se recauda nada tuyo-- y solo los de
+        COPA, que es la unica pantalla que usa este dato.
         """
         from sqlalchemy import select
 
@@ -2304,6 +2306,16 @@ class SyncTeamHandler:
                     .where(
                         m.StadiumHistory.team_id == team_id,
                         m.Match.home_team_ht_id == ht_team_id,
+                        # SOLO COPA (2026-09-28, instruccion del usuario). El
+                        # desglose unicamente lo usa la pantalla de Copa, asi
+                        # que pedirlo para los demas seria gastar llamadas en
+                        # un dato que nadie mira: en este club son 65 partidos
+                        # de Copa frente a 720 en casa contando todo.
+                        #
+                        # Si algun dia otra pantalla lo necesita, se amplia
+                        # AQUI y se dice por que; mientras tanto esto se
+                        # termina solo y deja de pedir nada.
+                        m.Match.match_type == MATCH_TYPE_CUP,
                         m.StadiumHistory.sold_terraces.is_(None),
                     )
                     .order_by(m.StadiumHistory.played_at.desc())

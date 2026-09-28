@@ -500,8 +500,9 @@ async def _cup_economy(
     team: m.Team,
     next_match: m.Match | None,
     rounds_left: int | None,
+    world: m.WorldContext | None,
 ) -> dict[str, Any]:
-    rows = (
+    todos = (
         await session.execute(
             select(m.StadiumHistory, m.Match)
             .join(m.Match, m.Match.ht_match_id == m.StadiumHistory.ht_match_id)
@@ -509,6 +510,28 @@ async def _cup_economy(
             .order_by(m.StadiumHistory.played_at)
         )
     ).all()
+    # SOLO LA TEMPORADA EN CURSO (2026-09-28, instruccion del usuario: «la
+    # seccion Copa solo debe hablar de las copas de la temporada actual»).
+    #
+    # Esta pantalla es de LA copa que se esta jugando, no del palmares: sin el
+    # corte, la taquilla sumaba sesenta y seis partidos de varias temporadas y
+    # se leia como si fueran los de esta. La misma regla de temporada que usan
+    # Partidos y Estadio, para que una fecha no caiga en temporadas distintas
+    # segun la pantalla.
+    #
+    # Sin `world` no hay ancla para saber de que temporada es una fecha, y
+    # entonces se prefiere no recortar a recortar mal: se cuentan todos y la
+    # pantalla lo dice por el numero de partidos.
+    temporada = world.season if world is not None else None
+    rows = (
+        [
+            (foto, partido)
+            for foto, partido in todos
+            if season_for_datetime(world, partido.played_at) == temporada
+        ]
+        if temporada is not None
+        else todos
+    )
     # PUBLICO Y TAQUILLA, los dos reales (2026-09-28).
     #
     # El publico sale de `sold_total`, que Hattrick enseña en la pagina del
@@ -1109,7 +1132,7 @@ async def _cup_sin_cache(
             en_casa=None if is_neutral else side(next_match)[0],
         )
 
-    economy = await _cup_economy(session, team, next_match, rounds_left)
+    economy = await _cup_economy(session, team, next_match, rounds_left, world)
     experience_multiplier = 2.0 if classification["tier"] == "main" else 0.5
     impact = {
         "experience_multiplier_vs_league": experience_multiplier,
