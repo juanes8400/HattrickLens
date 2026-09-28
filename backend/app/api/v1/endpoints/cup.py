@@ -503,52 +503,50 @@ async def _cup_economy(
             .order_by(m.StadiumHistory.played_at)
         )
     ).all()
-    # La taquilla REAL que reporta Hattrick, no una estimada.
+    # LA ASISTENCIA, QUE ES LO QUE HAY. La taquilla de UN partido no llega por
+    # ningún sitio (2026-09-28, lo vio el usuario: este panel llevaba semanas
+    # diciendo «0 US$» y «0 partidos medidos» teniendo trece con público real).
     #
-    # Hasta el 2026-09-01 esto multiplicaba las entradas de cada sector por su
-    # precio para reconstruir el ingreso. Eso usaba la asistencia por sector,
-    # que es una función de HT Supporter y las reglas de CHPP prohíben
-    # replicar. El cambio además MEJORA la cifra: `revenue` es lo que Hattrick
-    # dice que se recaudó, no lo que nuestros precios estimaban.
+    # Hasta el 2026-09-01 se reconstruía multiplicando las entradas de cada
+    # sector por su precio. Eso se quitó porque la asistencia POR SECTOR es una
+    # función de HT Supporter y las reglas de CHPP prohíben replicarla, y en su
+    # lugar se pasó a leer `revenue`... que existe en la tabla y NUNCA se
+    # rellena, cosa que la pantalla de Estadio ya tenía anotada. Así que el
+    # panel quedó mostrando ceros.
     #
-    # Los partidos sin recaudación reportada se quedan fuera en vez de
-    # rellenarse con un cálculo: es lo mismo que hace la pantalla de Estadio.
-    gross_values: list[int] = [int(stadium.revenue) for stadium, _match in rows if stadium.revenue]
-
-    observed_gross = sum(gross_values)
-    estimated_share = int(round(observed_gross * 2 / 3))
+    # Y no hay tercera vía. Se probó atribuir la taquilla por semanas: si en la
+    # semana que cerró hubo un solo partido en casa, la taquilla de ese cierre
+    # es la suya, que es la técnica que sirvió para la comisión del agente. Con
+    # los datos reales del usuario salen nueve cierres, uno solo con un único
+    # partido en casa, y ninguno de Copa: los partidos de Copa comparten semana
+    # con los de liga casi siempre.
+    #
+    # Lo honesto es enseñar lo que sí es real --cuánta gente entró-- y no
+    # ponerle precio.
+    asistencias: list[int] = [
+        int(stadium.sold_total) for stadium, _match in rows if stadium.sold_total
+    ]
+    total_publico = sum(asistencias)
     neutral = rounds_left is not None and 0 < rounds_left <= 6
-    next_projection = None
-    share_percent = None
-    basis = "No hay taquillas propias de Copa suficientes para proyectar el siguiente partido."
-    if (
-        next_match is not None
-        and gross_values
-        and (next_match.home_team_ht_id == team.ht_team_id or neutral)
-    ):
-        share_percent = 50 if neutral else 67
-        next_projection = int(round(median(gross_values) * share_percent / 100))
-        basis = (
-            f"Mediana de {len(gross_values)} taquilla(s) propia(s) de Copa × "
-            f"{share_percent}% de participación."
-        )
+
+    basis = "Todavía no hay partidos de Copa en casa con asistencia medida."
+    proyeccion_publico = None
+    if asistencias and (next_match is None or next_match.home_team_ht_id == team.ht_team_id):
+        proyeccion_publico = int(round(median(asistencias)))
+        basis = f"Mediana de {len(asistencias)} partido(s) de Copa en casa."
     elif next_match is not None and next_match.home_team_ht_id != team.ht_team_id:
-        basis = (
-            "Partido visitante: falta la demanda del estadio rival para una proyección responsable."
-        )
+        basis = "Partido visitante: el público lo pone el estadio del rival, no el tuyo."
+    elif neutral:
+        basis = "Sede neutral: el público no sale de tu estadio."
 
     return {
         "currency": team.currency_name or "",
-        "observed_home_matches": len(gross_values),
-        "observed_gross_gate": observed_gross,
-        "estimated_historical_share": estimated_share,
-        "next_gate_projection": next_projection,
-        "next_share_percent": share_percent,
+        "observed_home_matches": len(asistencias),
+        "observed_attendance": total_publico,
+        "best_attendance": max(asistencias) if asistencias else 0,
+        "average_attendance": int(round(total_publico / len(asistencias))) if asistencias else 0,
+        "next_attendance_projection": proyeccion_publico,
         "projection_basis": basis,
-        "quality_note": (
-            "La asistencia es real; la taquilla se deriva de entradas por sector "
-            "con los cuatro precios confirmados por el usuario."
-        ),
     }
 
 

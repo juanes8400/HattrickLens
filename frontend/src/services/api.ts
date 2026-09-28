@@ -3735,12 +3735,14 @@ export interface Cup {
   economy: {
     currency: string;
     observedHomeMatches: number;
-    observedGrossGate: number;
-    estimatedHistoricalShare: number;
-    nextGateProjection: number | null;
-    nextSharePercent: number | null;
+    /** Público, no dinero. La taquilla de UN partido no llega por ningún
+     *  sitio: ni Hattrick la publica por partido, ni se puede reconstruir sin
+     *  replicar la asistencia por sector, que es función de HT Supporter. */
+    observedAttendance: number;
+    bestAttendance: number;
+    averageAttendance: number;
+    nextAttendanceProjection: number | null;
     projectionBasis: string;
-    qualityNote: string;
   };
   readiness: {
     referenceVariants: CupReadinessVariant[];

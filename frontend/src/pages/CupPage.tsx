@@ -145,7 +145,9 @@ export function CupPage() {
                       !data.status.stillInCup
                         ? (data.status.stageLabel ?? "-")
                         : data.goal.winsToTitle != null
-                          ? tx("{{v0}} victorias", { v0: data.goal.winsToTitle })
+                          ? tx("{{v0}} victorias", {
+                              v0: data.goal.winsToTitle,
+                            })
                           : "-"
                     }
                     hint={
@@ -442,49 +444,47 @@ export function CupPage() {
           <>
             <div className="grid items-start gap-4 xl:grid-cols-2">
               <Panel
-                title={tx("Economía observada de Copa")}
-                meta={tx("asistencia real · ingreso derivado")}
+                title={tx("Público de Copa en casa")}
+                meta={tx("asistencia real, medida partido a partido")}
               >
                 <div className="grid gap-3 p-4 sm:grid-cols-2">
                   <MiniMetric
-                    label={tx("Taquilla bruta observada")}
-                    value={money(data.economy.observedGrossGate, data.currency)}
+                    label={tx("Mejor entrada")}
+                    value={number(data.economy.bestAttendance)}
                     detail={tx("{{v0}} partido(s) de local medidos", {
                       v0: data.economy.observedHomeMatches,
                     })}
                   />
                   <MiniMetric
-                    label={tx("Participación histórica")}
-                    value={money(
-                      data.economy.estimatedHistoricalShare,
-                      data.currency,
-                    )}
-                    detail={tx("67% de la taquilla bruta observada")}
+                    label={tx("Media por partido")}
+                    value={number(data.economy.averageAttendance)}
+                    detail={tx("{{v0}} espectadores en total", {
+                      v0: number(data.economy.observedAttendance),
+                    })}
                   />
                 </div>
-                <Note>{data.economy.qualityNote}</Note>
               </Panel>
 
               <ProjectionPanel
-                title={tx("Ingreso del próximo partido")}
-                meta={tx("separado de la caja real")}
+                title={tx("Público del próximo partido")}
+                meta={tx("la mediana de los tuyos")}
               >
                 <div className="p-4">
                   <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-                    {data.economy.nextGateProjection == null
+                    {data.economy.nextAttendanceProjection == null
                       ? tx("No calculable")
-                      : money(data.economy.nextGateProjection, data.currency)}
+                      : number(data.economy.nextAttendanceProjection)}
                   </div>
-                  {data.economy.nextGateProjection != null &&
-                    data.economy.estimatedHistoricalShare > 0 && (
+                  {data.economy.nextAttendanceProjection != null &&
+                    data.economy.bestAttendance > 0 && (
                       <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                         <div
                           className="h-full rounded-full bg-[var(--accent)]"
                           style={{
                             width: `${Math.min(
                               100,
-                              (data.economy.nextGateProjection /
-                                data.economy.estimatedHistoricalShare) *
+                              (data.economy.nextAttendanceProjection /
+                                data.economy.bestAttendance) *
                                 100,
                             )}%`,
                           }}
