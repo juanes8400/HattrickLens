@@ -57,6 +57,45 @@ def test_ninguna_migracion_asigna_0_o_1_a_un_booleano() -> None:
     )
 
 
+def test_ningun_booleano_nace_con_un_entero_de_valor_por_defecto() -> None:
+    """`server_default=sa.text("1")` en un booleano tumba el despliegue.
+
+    2026-09-28, paso de verdad. La migracion 0093 declaraba asi la columna
+    `own_venue` y el despliegue murio con:
+
+        column "own_venue" is of type boolean
+        but default expression is of type integer
+
+    `sa.text` es SQL CRUDO: lo que va dentro se escribe tal cual, asi que sale
+    un `1` entero. sqlite no tiene booleanos y se lo traga, por eso en local no
+    se veia; Postgres si los tiene y lo rechaza.
+
+    La prueba de arriba vigilaba los `col = 1` de un UPDATE, que es el mismo
+    fallo por el otro lado, y este hueco quedaba justo al lado sin cubrir.
+
+    Lo que SI vale: `sa.true()` / `sa.false()`, que los escribe cada dialecto a
+    su manera, o la cadena `"0"` / `"1"`, que Postgres convierte solo.
+    """
+    # `sa.text("1")` o `sa.text("0")`, con comillas de cualquier tipo.
+    patron = re.compile(r"server_default\s*=\s*sa\.text\(\s*['\"][01]['\"]\s*\)")
+
+    culpables = []
+    for fichero in sorted(MIGRACIONES.glob("*.py")):
+        texto = fichero.read_text(encoding="utf-8")
+        sin_comentarios = "\n".join(
+            l for l in texto.splitlines() if not l.lstrip().startswith("#")
+        )
+        for encaje in patron.finditer(sin_comentarios):
+            culpables.append(f"{fichero.name}: {encaje.group(0)}")
+
+    assert not culpables, (
+        "Un valor por defecto entero en una columna que puede ser booleana; "
+        "Postgres lo rechaza y el despliegue no arranca:\n  "
+        + "\n  ".join(culpables)
+        + "\nUsa sa.true() / sa.false(), que los escribe cada dialecto."
+    )
+
+
 def test_ninguna_clave_primaria_autonumerada_es_biginteger_a_secas() -> None:
     """`BigInteger` en una clave primaria autonumerada no funciona en SQLite.
 
