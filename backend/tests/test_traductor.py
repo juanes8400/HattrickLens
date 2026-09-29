@@ -15,7 +15,12 @@ DICCIONARIO = {
 def test_idioma_de_la_cabecera() -> None:
     assert idioma_de("en-GB,en;q=0.9") == "en"
     assert idioma_de("es-CO") == "es"
-    assert idioma_de("fr,de") == "es"
+    assert idioma_de("it-IT,it;q=0.9") == "it"
+    assert idioma_de("de-DE,de;q=0.9") == "de"
+    # Una cabecera sin NINGÚN idioma que el servidor hable: español. El
+    # ejemplo era «fr,de» hasta que el alemán entró (2026-09-29) y la prueba
+    # empezó a pedir lo contrario de lo que quería comprobar.
+    assert idioma_de("fr,nb") == "es"
     assert idioma_de(None) == "es"
 
 

@@ -11,31 +11,41 @@ import i18n from "../i18n";
 // que el francés o el sueco separan con un espacio fino y habrían salido mal
 // sin que nadie tocara nada. Cada idioma dice el suyo, y añadir uno obliga a
 // decidirlo.
-const MILES: Record<string, string> = { es: ".", en: ",", it: "." };
+const MILES: Record<string, string> = { es: ".", en: ",", it: ".", de: "." };
 const separadorDeMiles = () => MILES[idiomaDeLaApp()] ?? ".";
 
 /** El código del idioma elegido, a secas: «es-ES» y «es» son el mismo. */
 const idiomaDeLaApp = () => (i18n.language || "es").slice(0, 2);
 
-/** Los idiomas que escriben el ordinal con sufijo («3rd»). El resto lo
- *  escriben con el indicador masculino («3º»), que vale en español y en
- *  italiano. */
-const ORDINAL_CON_SUFIJO = new Set(["en"]);
+/** Cómo escribe cada idioma un ordinal. Tres formas distintas y ninguna
+ *  deducible de las otras: «3º» (español e italiano), «3rd» (inglés) y «3.»
+ *  (alemán, con punto y sin nada más). Por eso es una tabla y no un `if`:
+ *  el alemán entró en 2026-09-29 y habría salido «3º» sin que nadie lo
+ *  notara, porque no rompe nada, sólo está mal escrito. */
+const ORDINAL: Record<string, "masculino" | "sufijo" | "punto"> = {
+  es: "masculino",
+  it: "masculino",
+  en: "sufijo",
+  de: "punto",
+};
 
 export const number = (v: number) =>
   Math.round(v)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, separadorDeMiles());
 
-/** El ordinal como se dice en cada idioma: «3º» y «3rd».
+/** El ordinal como se dice en cada idioma: «3º», «3rd» y «3.».
  *
  *  Un número con decimales no es un ordinal: «1.44º» en español es la
  *  posición media de la simulación y se escribe así, pero «1.44th» no
- *  existe en inglés, así que allí va el número solo. */
+ *  existe en inglés, así que allí va el número solo. En alemán tampoco,
+ *  por lo mismo. */
 export const ordinal = (v: number | string) => {
   const n = Number(v);
-  if (!ORDINAL_CON_SUFIJO.has(idiomaDeLaApp())) return `${v}º`;
+  const forma = ORDINAL[idiomaDeLaApp()] ?? "masculino";
+  if (forma === "masculino") return `${v}º`;
   if (!Number.isFinite(n) || !Number.isInteger(n)) return String(v);
+  if (forma === "punto") return `${v}.`;
   const resto = Math.abs(n) % 100;
   if (resto >= 11 && resto <= 13) return `${v}th`;
   const sufijo = { 1: "st", 2: "nd", 3: "rd" }[Math.abs(n) % 10] ?? "th";

@@ -94,7 +94,7 @@ CAMPOS_INTOCABLES = frozenset(
     }
 )
 
-IDIOMAS = ("es", "en", "it")
+IDIOMAS = ("es", "en", "it", "de")
 
 
 def idioma_de(cabecera: str | None) -> str:
