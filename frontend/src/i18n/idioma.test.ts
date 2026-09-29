@@ -23,17 +23,31 @@ describe("idiomaPreferido", () => {
 });
 
 describe("los idiomas a medias no se le dan a nadie", () => {
-  it("un navegador en italiano recibe inglés, no el italiano a medias", () => {
-    // El italiano está traducido a medias A PROPÓSITO y escondido del
-    // selector. Escondido de la lista no basta: la detección automática
-    // miraba todos los idiomas con diccionario y se lo servía igual a quien
-    // tuviera el navegador en italiano, que es justo a quien se le quería
-    // ahorrar media pantalla en español.
-    expect(idiomaPreferido(["it-IT", "it"])).toBe("en");
-    expect(idiomaPreferido(["it"])).toBe("en");
+  it("un navegador en italiano recibe italiano", () => {
+    // 2026-09-28: el italiano se terminó y entró en OFRECIDOS, así que la
+    // detección automática ya se lo puede servir a quien lo tenga puesto.
+    //
+    // Hasta ese día esta prueba pedía lo contrario, y por un buen motivo:
+    // esconderlo del selector NO bastaba, porque la detección automática
+    // miraba todos los idiomas con diccionario y le servía media pantalla en
+    // español a quien tuviera el navegador en italiano. La regla que hacía
+    // falta --y que sigue aquí-- es que la detección mire lo OFRECIDO, no lo
+    // que hay traducido a medias.
+    expect(idiomaPreferido(["it-IT", "it"])).toBe("it");
+    expect(idiomaPreferido(["it"])).toBe("it");
+  });
+
+  it("un idioma sin diccionario sigue recibiendo inglés", () => {
+    // La regla de arriba se comprueba con un idioma que la app NO habla: si
+    // mañana alguien añade un diccionario a medias, esto tiene que seguir
+    // dando inglés hasta que entre en OFRECIDOS.
+    expect(idiomaPreferido(["pt-BR", "pt"])).toBe("en");
   });
 
   it("el español sigue ganando aunque el italiano vaya delante", () => {
-    expect(idiomaPreferido(["it", "es"])).toBe("es");
+    // Sólo porque el navegador los pida en ese orden: gana el primero de la
+    // lista que la app ofrezca, y aquí el italiano va antes.
+    expect(idiomaPreferido(["it", "es"])).toBe("it");
+    expect(idiomaPreferido(["es", "it"])).toBe("es");
   });
 });
