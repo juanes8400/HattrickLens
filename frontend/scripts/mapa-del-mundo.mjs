@@ -82,26 +82,63 @@ const y = (lat) =>
     (LAT_MAX - LAT_MIN)) *
   ALTO;
 
+/** Deshace los saltos de 360° dentro de un anillo.
+ *
+ *  Rusia y Fiyi tienen tierra a los dos lados del meridiano 180, y el fichero
+ *  de origen lo escribe saltando de +179 a -179. En un mapa plano ese salto se
+ *  dibuja como una LÍNEA RECTA de un extremo al otro, y eso son las dos rayas
+ *  horizontales que aparecieron cruzando el mapa entero: una a la altura de
+ *  Chukotka y otra a la de Fiyi.
+ *
+ *  Aquí cada punto se coloca en la vuelta que lo deja más cerca del anterior,
+ *  así que el anillo queda continuo aunque se salga del rango -180..180. Luego
+ *  se dibuja también desplazado una vuelta a cada lado, y el lienzo recorta lo
+ *  que sobra: así el trozo que está «al otro lado» aparece donde le toca.
+ */
+function desenrollar(puntos) {
+  const salida = [puntos[0]];
+  for (let i = 1; i < puntos.length; i++) {
+    let lon = puntos[i][0];
+    const anterior = salida[i - 1][0];
+    while (lon - anterior > 180) lon -= 360;
+    while (anterior - lon > 180) lon += 360;
+    salida.push([lon, puntos[i][1]]);
+  }
+  return salida;
+}
+
 function trazo(anillos) {
   const partes = [];
-  for (const puntos of anillos) {
-    const xs = puntos.map(([lon]) => x(lon));
-    const ys = puntos.map(([, lat]) => y(lat));
-    const ancho = Math.max(...xs) - Math.min(...xs);
-    const alto = Math.max(...ys) - Math.min(...ys);
-    // Las dos medidas, no el área: una isla estrecha pero larga sí se ve.
-    if (ancho < MINIMO_DIBUJABLE && alto < MINIMO_DIBUJABLE) continue;
-    let d = "";
-    let anterior = "";
-    for (let i = 0; i < puntos.length; i++) {
-      const par = `${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`;
-      // Redondear a un decimal deja puntos repetidos seguidos: quitarlos no
-      // cambia el dibujo y adelgaza el fichero a la mitad.
-      if (par === anterior) continue;
-      d += (d ? "L" : "M") + par;
-      anterior = par;
+  for (const crudo of anillos) {
+    const puntos = desenrollar(crudo);
+    const lats = puntos.map(([, lat]) => lat);
+    // Un anillo entero fuera de la franja que se dibuja no se recorta: se
+    // aplasta contra el borde y deja un churro. Fuera del todo.
+    if (Math.max(...lats) < LAT_MIN || Math.min(...lats) > LAT_MAX) continue;
+
+    const lons = puntos.map(([lon]) => lon);
+    const oeste = Math.min(...lons);
+    const este = Math.max(...lons);
+    for (let vuelta = -720; vuelta <= 720; vuelta += 360) {
+      if (oeste + vuelta >= 180 || este + vuelta <= -180) continue;
+      const xs = puntos.map(([lon]) => x(lon + vuelta));
+      const ys = puntos.map(([, lat]) => y(lat));
+      const ancho = Math.max(...xs) - Math.min(...xs);
+      const alto = Math.max(...ys) - Math.min(...ys);
+      // Las dos medidas, no el área: una isla estrecha pero larga sí se ve.
+      if (ancho < MINIMO_DIBUJABLE && alto < MINIMO_DIBUJABLE) continue;
+      let d = "";
+      let anterior = "";
+      for (let i = 0; i < puntos.length; i++) {
+        const par = `${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`;
+        // Redondear a un decimal deja puntos repetidos seguidos: quitarlos no
+        // cambia el dibujo y adelgaza el fichero a la mitad.
+        if (par === anterior) continue;
+        d += (d ? "L" : "M") + par;
+        anterior = par;
+      }
+      if (d) partes.push(`${d}Z`);
     }
-    if (d) partes.push(`${d}Z`);
   }
   return partes.join("");
 }
@@ -110,8 +147,14 @@ const [topo, paises] = await Promise.all([traer(MAPA), traer(CODIGOS)]);
 const arcos = arcosDe(topo);
 const porNumero = new Map(paises.map((p) => [p.ccn3, p]));
 
+//: La Antártida, por su id numérico ISO. Se deja fuera de verdad y no sólo
+//: recortada: es media pantalla donde no vive nadie, y recortarla la aplastaba
+//: contra el borde de abajo en una franja que cruzaba el mapa entero.
+const ANTARTIDA = "010";
+
 const filas = [];
 for (const g of topo.objects.countries.geometries) {
+  if (String(g.id).padStart(3, "0") === ANTARTIDA) continue;
   const anillos =
     g.type === "Polygon"
       ? g.arcs.map((r) => anillo(r, arcos))
