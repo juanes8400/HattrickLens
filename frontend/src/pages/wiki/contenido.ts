@@ -734,8 +734,12 @@ export const ARTICULOS: Articulo[] = [
             "La velocidad de entrenamiento de un jugador es el producto de todo lo que la afecta: el tipo de entrenamiento, el nivel del entrenador, los asistentes, la intensidad, la parte que se va a resistencia y la exposición (los minutos reales jugados en un puesto que entrena ese tipo, frente a un partido completo). El esfuerzo para pasar de un nivel al siguiente crece con el nivel según una curva en dos tramos, y la edad frena según un «reloj» que avanza más despacio cuanto mayor es el jugador.",
           ),
         ],
-        formula:
+        // Con `tx()` como cualquier otra fórmula de esta página. Era el único
+        // literal en crudo que quedaba, y se veía: en inglés y en italiano
+        // salía en español (2026-09-28).
+        formula: tx(
           "K = K_entrenamiento × K_entrenador × K_asistentes\n    × intensidad × (1 − %resistencia) × exposición\n\nsemanas = 16 × ( reloj⁻¹( reloj(edad) + [F(n+1) − F(n)] ÷ K ) − edad )",
+        ),
       },
       {
         titulo: tx("Cómo leer las constantes"),

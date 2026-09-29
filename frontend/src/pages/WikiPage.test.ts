@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { ARTICULOS, GRUPOS } from "./wiki/contenido";
 import en from "../i18n/textos/en.json";
+// El FUENTE del contenido, no los datos ya evaluados: en tiempo de ejecución
+// un literal en crudo y una cadena traducida son indistinguibles, y lo que
+// hay que cazar es justamente la llamada que falta.
+import fuente from "./wiki/contenido.ts?raw";
 
 /**
  * La Wiki tiene que salir entera en CUALQUIER idioma.
@@ -49,5 +53,31 @@ describe("los grupos de la Wiki se comparan por clave, no por texto", () => {
     // artículos», y sin contarlos una pérdida pasa desapercibida.
     expect(ARTICULOS).toHaveLength(30);
     expect(new Set(ARTICULOS.map((a) => a.id)).size).toBe(ARTICULOS.length);
+  });
+});
+
+describe("ningún texto de la Wiki se salta la traducción", () => {
+  it("ninguna fórmula ni texto queda como literal suelto", () => {
+    // 2026-09-28. `formula:` de «Semanas hasta el próximo nivel» era un
+    // literal sin `tx()`, así que salía en español con la app en inglés y en
+    // italiano. No lo cazaba ningún guardián de textos: los guardianes
+    // comprueban que cada `tx()` tenga traducción, y aquí lo que faltaba era
+    // el `tx()`.
+    const literales = [...fuente.matchAll(/(tx\(\s*)?"((?:[^"\\]|\\.)*)"/g)]
+      .filter(([, conTx]) => !conTx)
+      .map(([, , crudo]) => JSON.parse(`"${crudo}"`))
+      // Fuera lo que NO es texto de pantalla: la ruta del import, los `id` y
+      // las claves de grupo (minúsculas y guiones), y las rutas de la app.
+      .filter(
+        (s) =>
+          s.length >= 4 &&
+          !/^[a-z0-9-]+$/.test(s) &&
+          !s.startsWith("/") &&
+          !s.startsWith("../"),
+      )
+      // Nombres propios que se escriben igual en todos los idiomas.
+      .filter((s) => !/^HTMS(28)?$/.test(s));
+
+    expect(literales).toEqual([]);
   });
 });

@@ -35,11 +35,16 @@ export type Idioma = (typeof IDIOMAS)[number];
 /** Los idiomas TERMINADOS, que son los únicos que se le enseñan a nadie.
  *
  *  Vive aquí y no en el selector porque no basta con esconderlo de la lista:
- *  el italiano está a medias a propósito, y un navegador puesto en italiano se
- *  lo encontraba igual por la detección automática, que miraba `IDIOMAS`. Una
+ *  mientras el italiano estuvo a medias, un navegador puesto en italiano se lo
+ *  encontraba igual por la detección automática, que miraba `IDIOMAS`. Una
  *  pantalla mitad en italiano y mitad en español es peor que una entera en
- *  inglés. Cuando el italiano esté completo, se añade aquí y ya está. */
-export const OFRECIDOS: readonly Idioma[] = ["es", "en"];
+ *  inglés.
+ *
+ *  2026-09-28: el italiano entra. Las 3.616 cadenas están traducidas, y el
+ *  vocabulario del juego --niveles de habilidad, especialidades, carácter,
+ *  tácticas, puestos-- no se tradujo a ojo: sale del glosario oficial que
+ *  publica Hattrick, el mismo que usa el propio juego en italiano. */
+export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it"];
 
 const CLAVE_GUARDADA = "htlens.idioma";
 

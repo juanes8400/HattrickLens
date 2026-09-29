@@ -1925,5 +1925,6 @@
   "Media de público": "Average crowd",
   "{{v0}} partido(s), {{v1}} de ellos fuera": "{{v0}} match(es), {{v1}} of them away",
   "{{v0}} partido(s) en casa": "{{v0}} home match(es)",
-  "{{v0}}% de lo tuyo en casa y {{v1}}% de lo del rival fuera": "{{v0}}% of yours at home and {{v1}}% of theirs away"
+  "{{v0}}% de lo tuyo en casa y {{v1}}% de lo del rival fuera": "{{v0}}% of yours at home and {{v1}}% of theirs away",
+  "K = K_entrenamiento × K_entrenador × K_asistentes\n    × intensidad × (1 − %resistencia) × exposición\n\nsemanas = 16 × ( reloj⁻¹( reloj(edad) + [F(n+1) − F(n)] ÷ K ) − edad )": "K = K_training × K_coach × K_assistants\n    × intensity × (1 − %stamina) × exposure\n\nweeks = 16 × ( clock⁻¹( clock(age) + [F(n+1) − F(n)] ÷ K ) − age )"
 }
