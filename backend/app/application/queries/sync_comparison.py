@@ -19,7 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines import academy_engine as academy
-from app.domain.engines.sync_diff import Change, diff_training
+from app.domain.engines.sync_diff import (
+    Change,
+    detalle_de_resumen_viejo,
+    diff_training,
+)
 from app.domain.value_objects.formatting import thousands
 from app.domain.value_objects.ht_constants import (
     CONFIDENCE,
@@ -989,9 +993,15 @@ async def _changes_for_sync(session: AsyncSession, sync_id: int | None) -> list[
             {
                 "category": row.category,
                 "summary": row.summary,
-                # `None` en filas anteriores a 2026-08-15: el frontend cae a su
-                # parser de compatibilidad para esas, ver SyncChangesFeed.tsx.
-                "detail": json.loads(row.detail_json) if row.detail_json else None,
+                # Las filas anteriores a 2026-08-15 no lo guardaron, así que
+                # se lee de su frase, que en la base está EN ESPAÑOL. Antes
+                # iban con `detail` a `None` y el frontend les sacaba los
+                # números de la frase ya traducida, con una regex que sólo
+                # sabía español e inglés: en italiano y en alemán esas filas
+                # perdían el par formateado. Ver `detalle_de_resumen_viejo`.
+                "detail": json.loads(row.detail_json)
+                if row.detail_json
+                else detalle_de_resumen_viejo(row.summary),
             }
         )
     if rebuilt_training and not training_inserted:

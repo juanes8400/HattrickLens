@@ -1743,7 +1743,6 @@
   "{} se unió a la plantilla: sueldo {}": "{} è entrato in rosa: stipendio {}",
   "{} se vendió por {} {}": "{} è stato venduto per {} {}",
   "{} tiene {} años y necesita {} semanas por nivel. Un jugador de 20 tarda ~7,5.": "{} ha {} anni e ha bisogno di {} settimane per livello. Un ventenne ci mette ~7,5.",
-  "{} {} de la posición {} a la {}": "{} {} dalla posizione {} alla {}",
   "{} {} de {} {} en la última semana cerrada.": "{} {} su {} {} nell'ultima settimana chiusa.",
   "{} {} de {} {} en las últimas {} semanas cerradas.": "{} {} su {} {} nelle ultime {} settimane chiuse.",
   "{} {} por semana de un total de {} {}.": "{} {} a settimana su un totale di {} {}.",
@@ -1804,5 +1803,12 @@
   "La tabla oficial de Hattrick, por días en el club": "La tabella ufficiale di Hattrick, per giorni nel club",
   "El agente cuenta días enteros de Hattrick y sin los tres de la subasta: la cuenta se para cuando lo pones en el mercado. Comprobado contra tres ventas reales, donde la comisión se sabe al dólar porque entraron solas en su semana: las tres salen exactas.": "L'agente conta giorni interi di Hattrick e senza i tre dell'asta: il conteggio si ferma quando lo metti sul mercato. Verificato su tre vendite reali, dove la commissione si conosce al dollaro perché sono entrate da sole nella loro settimana: tutte e tre escono esatte.",
   "Intermedia": "Intermedia",
-  "Preparada": "Pronta"
+  "Preparada": "Pronta",
+  "Alta: bienvenida": "Iscrizione: benvenuto",
+  "Alta: conectado": "Iscrizione: connesso",
+  "(η − centro)²": "(η − centro)²",
+  "+0,56 goles": "+0,56 gol",
+  "+0,11 goles": "+0,11 gol",
+  "{} subió de la posición {} a la {}": "{} è salito dalla posizione {} alla {}",
+  "{} bajó de la posición {} a la {}": "{} è sceso dalla posizione {} alla {}"
 }

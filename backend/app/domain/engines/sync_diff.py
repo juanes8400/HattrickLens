@@ -13,6 +13,7 @@ daba 202,21 y la UI mostraba un TSI de "202". Ahora cada cambio viaja como
 fuente de la información.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -642,7 +643,18 @@ def diff_training(old: dict[str, Any] | None, new: dict[str, Any]) -> list[Chang
 def diff_standing(old_position: int | None, new_position: int, team_name: str) -> Change | None:
     if old_position is None or old_position == new_position:
         return None
-    verb = "subió" if new_position < old_position else "bajó"
+    subio = new_position < old_position
+    # El verbo va DENTRO del literal y no en un hueco. Con «{} {} de la
+    # posición {} a la {}» los dos primeros huecos quedan pegados, y el primero
+    # es perezoso: con «Pulgas Arrechas subió» el segundo se quedaba «Arrechas
+    # subió», que no está en ningún diccionario, así que en alemán salía «Pulgas
+    # Arrechas subió von Platz 3 auf 1». Con un nombre de UNA palabra funcionaba,
+    # que es por lo que no se vio antes.
+    summary = (
+        f"{team_name} subió de la posición {old_position} a la {new_position}"
+        if subio
+        else f"{team_name} bajó de la posición {old_position} a la {new_position}"
+    )
     return Change(
         category="liga",
         metric="position",
@@ -652,8 +664,8 @@ def diff_standing(old_position: int | None, new_position: int, team_name: str) -
         after=new_position,
         kind="count",
         # En una tabla, bajar de número es mejorar.
-        good=new_position < old_position,
-        summary=f"{team_name} {verb} de la posición {old_position} a la {new_position}",
+        good=subio,
+        summary=summary,
     )
 
 
@@ -695,3 +707,80 @@ def diff_match(
         after_label=f"{verdict} {own_goals}-{rival_goals}",
         summary=f"{verdict} {own_goals}-{rival_goals} vs {opponent}",
     )
+
+
+# ── Filas viejas: el número, sacado del español antes de traducir ───────────
+# 2026-09-29, revisión de la PR del alemán. Las filas de `sync_changes`
+# anteriores al 2026-08-15 no tienen `detail`, así que el frontend les saca los
+# números de la FRASE con una regex de compatibilidad. El problema: la frase le
+# llega ya TRADUCIDA, y esa regex sólo conoce el español y el inglés. Con la
+# app en italiano --desde que entró-- o en alemán, «Pases subió de 12 a 13» le
+# llegaba como «Passspiel ist von 12 auf 13 gestiegen» y no encajaba: la fila
+# perdía el par formateado, la flecha, el color y el signo.
+#
+# La salida no es enseñarle más idiomas a esa regex, que sería empezar de nuevo
+# con cada idioma que entre. Es leer la frase AQUÍ, donde todavía está en
+# español, y mandar el mismo `detail` que mandan las filas nuevas. Así el
+# frontend nunca tiene que entender un idioma.
+#
+# Sólo estas dos formas. Las demás («TSI 198.930 -> 202.210») llevan la flecha
+# y los dígitos, que no se traducen, así que el frontend las sigue leyendo bien
+# en cualquier idioma y no hace falta tocarlas.
+_VIEJO_HABILIDAD = re.compile(
+    r"^(?P<label>.+?)\s+(?P<verbo>subió|bajó)\s+de\s+(?P<antes>-?\d+)\s+a\s+(?P<despues>-?\d+)$"
+)
+_VIEJO_LESION = re.compile(
+    r"^lesión de nivel\s+(?P<antes>-?\d+)\s+a\s+(?P<despues>-?\d+)$", re.IGNORECASE
+)
+
+#: El nombre español de cada habilidad, de vuelta a su clave. Las filas nuevas
+#: guardan `metric` («passing»); las viejas sólo tienen la etiqueta.
+_CLAVE_DE_ETIQUETA = {etiqueta: clave for clave, etiqueta in SKILL_LABELS.items()}
+
+
+def detalle_de_resumen_viejo(summary: str) -> dict[str, Any] | None:
+    """El `detail` de una fila que no lo tiene, leído de su frase española.
+
+    `None` cuando la frase no es de las dos formas que lo necesitan: quien
+    llama deja entonces `detail` en `None`, como hasta ahora.
+    """
+    sujeto, _, resto = summary.partition(": ")
+    if not resto:
+        return None
+    resto = resto.strip()
+
+    encaje = _VIEJO_HABILIDAD.match(resto)
+    if encaje:
+        antes, despues = int(encaje["antes"]), int(encaje["despues"])
+        etiqueta = encaje["label"].strip()
+        return Change(
+            category="jugadores",
+            summary=summary,
+            metric=_CLAVE_DE_ETIQUETA.get(etiqueta, ""),
+            label=etiqueta,
+            subject=sujeto,
+            before=antes,
+            after=despues,
+            kind="skill",
+            # Del verbo y no de comparar los números: el propio verbo es lo que
+            # dijo el sync de aquel día.
+            good=encaje["verbo"] == "subió",
+        ).detail()
+
+    encaje = _VIEJO_LESION.match(resto)
+    if encaje:
+        antes, despues = int(encaje["antes"]), int(encaje["despues"])
+        return Change(
+            category="jugadores",
+            summary=summary,
+            metric="injury",
+            label="Lesión",
+            subject=sujeto,
+            before=antes,
+            after=despues,
+            kind="level",
+            # Bajar de nivel de lesión es mejorar.
+            good=despues < antes,
+        ).detail()
+
+    return None

@@ -1743,7 +1743,6 @@
   "{} se unió a la plantilla: sueldo {}": "{} joined the squad: wage {}",
   "{} se vendió por {} {}": "{} was sold for {} {}",
   "{} tiene {} años y necesita {} semanas por nivel. Un jugador de 20 tarda ~7,5.": "{} is {} years old and needs {} weeks per level. A 20-year-old takes ~7.5.",
-  "{} {} de la posición {} a la {}": "{} {} from position {} to {}",
   "{} {} de {} {} en la última semana cerrada.": "{} {} out of {} {} in the last closed week.",
   "{} {} de {} {} en las últimas {} semanas cerradas.": "{} {} out of {} {} in the last {} closed weeks.",
   "{} {} por semana de un total de {} {}.": "{} {} per week out of a total of {} {}.",
@@ -1804,5 +1803,12 @@
   "La tabla oficial de Hattrick, por días en el club": "Hattrick's official table, by days at the club",
   "El agente cuenta días enteros de Hattrick y sin los tres de la subasta: la cuenta se para cuando lo pones en el mercado. Comprobado contra tres ventas reales, donde la comisión se sabe al dólar porque entraron solas en su semana: las tres salen exactas.": "The agent counts whole Hattrick days and leaves out the three of the auction: the clock stops when you put him on the market. Checked against three real sales, where the commission is known to the dollar because each was the only one that week: all three come out exact.",
   "Intermedia": "Intermediate",
-  "Preparada": "Ready"
+  "Preparada": "Ready",
+  "Alta: bienvenida": "Joined: welcome",
+  "Alta: conectado": "Joined: connected",
+  "(η − centro)²": "(η − centre)²",
+  "+0,56 goles": "+0.56 goals",
+  "+0,11 goles": "+0.11 goals",
+  "{} subió de la posición {} a la {}": "{} went up from position {} to {}",
+  "{} bajó de la posición {} a la {}": "{} went down from position {} to {}"
 }
