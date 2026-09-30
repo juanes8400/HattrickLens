@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import banderaES from "../assets/banderas/es.svg";
 import banderaGB from "../assets/banderas/gb.svg";
 import banderaIT from "../assets/banderas/it.svg";
+import banderaDE from "../assets/banderas/de.svg";
 
 import i18nActual, {
   cambiarIdioma,
@@ -28,14 +29,16 @@ const NOMBRE_DE_IDIOMA: Record<Idioma, string> = {
   es: "Español",
   en: "English",
   it: "Italiano",
+  de: "Deutsch",
 };
 
 /** La bandera de cada idioma, con la variante que usa el glosario oficial de
- *  Hattrick: «Español, España», «English (UK)» e «Italiano». */
+ *  Hattrick: «Español, España», «English (UK)», «Italiano» y «Deutsch». */
 const BANDERA_DE_IDIOMA: Record<Idioma, string> = {
   es: banderaES,
   en: banderaGB,
   it: banderaIT,
+  de: banderaDE,
 };
 
 /** Los idiomas que SE OFRECEN, que no son todos los que la aplicación sabe

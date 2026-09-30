@@ -21,15 +21,18 @@ import { initReactI18next } from "react-i18next";
 import appEs from "./es.json";
 import appEn from "./en.json";
 import appIt from "./it.json";
+import appDe from "./de.json";
 import glosarioEs from "./glosario/es.json";
 import glosarioEn from "./glosario/en.json";
 import glosarioIt from "./glosario/it.json";
+import glosarioDe from "./glosario/de.json";
 import textosEn from "./textos/en.json";
 import textosIt from "./textos/it.json";
+import textosDe from "./textos/de.json";
 
 /** Los idiomas que tienen diccionario en el paquete. NO son los que se
  *  ofrecen: ver `OFRECIDOS`. */
-export const IDIOMAS = ["es", "en", "it"] as const;
+export const IDIOMAS = ["es", "en", "it", "de"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
 
 /** Los idiomas TERMINADOS, que son los únicos que se le enseñan a nadie.
@@ -43,8 +46,14 @@ export type Idioma = (typeof IDIOMAS)[number];
  *  2026-09-28: el italiano entra. Las 3.616 cadenas están traducidas, y el
  *  vocabulario del juego --niveles de habilidad, especialidades, carácter,
  *  tácticas, puestos-- no se tradujo a ojo: sale del glosario oficial que
- *  publica Hattrick, el mismo que usa el propio juego en italiano. */
-export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it"];
+ *  publica Hattrick, el mismo que usa el propio juego en italiano.
+ *
+ *  2026-09-29: el alemán entra igual, y con él se tapó un agujero que el
+ *  italiano tenía desde el primer día: 226 claves nombradas que ningún
+ *  guardián miraba porque no se escriben enteras en el código, se arman al
+ *  vuelo con una plantilla. Lo impide ahora `idioma.test.ts`, que le exige a
+ *  cada idioma OFRECIDO las mismas claves que al inglés. */
+export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it", "de"];
 
 const CLAVE_GUARDADA = "htlens.idioma";
 
@@ -96,6 +105,7 @@ void i18n.use(initReactI18next).init({
     es: { app: appEs, glosario: glosarioEs },
     en: { app: appEn, glosario: glosarioEn, textos: textosEn },
     it: { app: appIt, glosario: glosarioIt, textos: textosIt },
+    de: { app: appDe, glosario: glosarioDe, textos: textosDe },
   },
   lng: idiomaGuardado(),
   fallbackLng: "es",

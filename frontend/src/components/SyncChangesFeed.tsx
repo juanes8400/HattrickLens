@@ -322,6 +322,12 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
     }
   }
 
+  // Este ramo ya casi no se pisa, y conviene saber por qué: la frase llega
+  // TRADUCIDA, así que en italiano («è salito da») o en alemán («ist von … auf
+  // … gestiegen») nunca encajó. Desde el 2026-09-29 el servidor manda el
+  // `detail` también en las filas viejas, leyéndolo de su frase española (ver
+  // `detalle_de_resumen_viejo`), así que `numericFromDetail` las resuelve
+  // antes de llegar aquí. Se queda como red por si alguna no encaja allí.
   let m = detail.match(
     /^(.+?)\s+(subió|bajó|went up|went down)\s+(?:de|from)\s+([\d,.]+)\s+(?:a|to)\s+([\d,.]+)\s*$/i,
   );

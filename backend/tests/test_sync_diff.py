@@ -5,9 +5,11 @@ tests de redacción igual de legibles que antes; los tests nuevos al final
 verifican que los NÚMEROS viajan aparte de la frase, que es justo lo que
 faltaba cuando la UI mostró "TSI 202" por re-parsear el texto.
 """
+
 from app.domain.engines.sync_diff import (
     Change,
     MatchState,
+    detalle_de_resumen_viejo,
     diff_economy,
     diff_match,
     diff_player_arrival,
@@ -24,6 +26,7 @@ def summaries(changes: list[Change]) -> list[str]:
 
 def by_metric(changes: list[Change], metric: str) -> Change:
     return next(c for c in changes if c.metric == metric)
+
 
 PLAYER_OLD = {
     "tsi": 1000,
@@ -48,12 +51,9 @@ def test_new_player_is_announced_as_arrival() -> None:
 
 def test_el_alta_dice_por_cuanto_se_compro_y_cuanto_cobra() -> None:
     """Lo que se pidio el 2026-09-20: precio de compra Y sueldo al llegar."""
-    c = diff_player_arrival(
-        "Raul Cobos", salary=5_000, purchase_price=1_250_000, currency="COL$"
-    )
+    c = diff_player_arrival("Raul Cobos", salary=5_000, purchase_price=1_250_000, currency="COL$")
     assert c.summary == (
-        "Raul Cobos se unió a la plantilla: comprado por 1.250.000 COL$, "
-        "sueldo 5.000 COL$"
+        "Raul Cobos se unió a la plantilla: comprado por 1.250.000 COL$, sueldo 5.000 COL$"
     )
     # El precio viaja tambien como numero, para que la pantalla no lo parsee.
     assert c.after == 1_250_000
@@ -230,9 +230,7 @@ def test_detects_training_type_change() -> None:
     entiende nadie, y este aviso existe para leerse de un vistazo."""
     new = {**TRAINING_OLD, "training_type": 4}
     out = diff_training(TRAINING_OLD, new)
-    assert any(
-        "Pases (defensas y centrocampistas) -> Anotación" in c for c in summaries(out)
-    )
+    assert any("Pases (defensas y centrocampistas) -> Anotación" in c for c in summaries(out))
 
 
 def test_detects_new_trainer() -> None:
@@ -317,6 +315,7 @@ def test_match_still_upcoming_is_not_announced() -> None:
 # regex, y al cambiar el separador de miles a punto `Number("202.210")` pasó a
 # valer 202,21, se mostró "TSI 202" para un jugador de 202 mil.
 
+
 def test_big_numbers_survive_intact_next_to_the_formatted_phrase() -> None:
     new = {**PLAYER_OLD, "tsi": 202_210}
     change = by_metric(diff_player_skills({**PLAYER_OLD, "tsi": 198_930}, new, "Herilala"), "tsi")
@@ -360,15 +359,10 @@ def test_training_diff_ignores_temporary_psychology_placeholders() -> None:
     old = {**TRAINING_OLD, "morale": 6, "self_confidence": 5}
 
     # Ocultarse durante el partido no es bajar y reaparecer no es subir.
+    assert not any(c.metric == "morale" for c in diff_training(old, {**old, "morale": -1}))
+    assert not any(c.metric == "morale" for c in diff_training({**old, "morale": -1}, old))
     assert not any(
-        c.metric == "morale" for c in diff_training(old, {**old, "morale": -1})
-    )
-    assert not any(
-        c.metric == "morale" for c in diff_training({**old, "morale": -1}, old)
-    )
-    assert not any(
-        c.metric == "self_confidence"
-        for c in diff_training(old, {**old, "self_confidence": None})
+        c.metric == "self_confidence" for c in diff_training(old, {**old, "self_confidence": None})
     )
 
 
@@ -412,8 +406,12 @@ def test_a_signing_that_has_not_played_yet_says_so_instead_of_showing_a_zero() -
     from app.domain.engines.sync_diff import diff_rival_purchase
 
     cambio = diff_rival_purchase(
-        team_name="Cauca CF", player_name="Nuevo", tsi=100, price=1000,
-        competition="tu liga", best_rating=None,
+        team_name="Cauca CF",
+        player_name="Nuevo",
+        tsi=100,
+        price=1000,
+        competition="tu liga",
+        best_rating=None,
     )
     assert "todavía sin jugar" in cambio.summary
     assert "0,0" not in cambio.summary
@@ -431,7 +429,11 @@ def test_the_training_change_reaches_the_changes_screen() -> None:
     from app.domain.value_objects.ht_constants import TRAINING_TYPES
 
     fila = _club_item(
-        "training_type", "Tipo de entrenamiento", 10, 2, TRAINING_TYPES,
+        "training_type",
+        "Tipo de entrenamiento",
+        10,
+        2,
+        TRAINING_TYPES,
         solo_nombre=True,
     )
     assert fila["beforeDisplay"] == "Pases (defensas y centrocampistas)"
@@ -440,3 +442,93 @@ def test_the_training_change_reaches_the_changes_screen() -> None:
     # Un tipo de entrenamiento es una categoría, no una cantidad: restar 10
     # menos 2 daría un "-8" sin ningún significado.
     assert fila["delta"] is None
+
+
+# ── Filas viejas: el número sale del español, no de la frase traducida ──────
+# 2026-09-29, revisión de la PR del alemán. Las filas de `sync_changes`
+# anteriores al 2026-08-15 no guardaron `detail`, y el frontend les sacaba los
+# números de la frase con una regex que sólo conocía el español y el inglés. Con
+# la app en italiano o en alemán esas filas perdían el par formateado, la flecha
+# y el color. Ahora el `detail` se arma aquí, donde la frase sigue en español.
+
+
+def test_resumen_viejo_de_habilidad_da_el_mismo_detail_que_uno_nuevo() -> None:
+    detalle = detalle_de_resumen_viejo("Cándido Cacheiro: Pases subió de 12 a 13")
+    assert detalle is not None
+    assert detalle["subject"] == "Cándido Cacheiro"
+    assert detalle["label"] == "Pases"
+    # La clave, no sólo la etiqueta: es lo que guardan las filas nuevas.
+    assert detalle["metric"] == "passing"
+    assert (detalle["before"], detalle["after"]) == (12, 13)
+    assert detalle["kind"] == "skill"
+    assert detalle["good"] is True
+
+
+def test_resumen_viejo_de_bajada_marca_good_falso() -> None:
+    detalle = detalle_de_resumen_viejo("Iñaki Bordalás: Defensa bajó de 10 a 9")
+    assert detalle is not None
+    assert (detalle["before"], detalle["after"]) == (10, 9)
+    assert detalle["good"] is False
+
+
+def test_resumen_viejo_de_lesion() -> None:
+    detalle = detalle_de_resumen_viejo("Anders Ebbesen: lesión de nivel 0 a 2")
+    assert detalle is not None
+    assert detalle["metric"] == "injury"
+    assert detalle["kind"] == "level"
+    assert (detalle["before"], detalle["after"]) == (0, 2)
+    # Empeorar la lesión no es una buena noticia.
+    assert detalle["good"] is False
+
+
+def test_un_nombre_de_varias_palabras_no_se_come_el_verbo() -> None:
+    """El fallo exacto que traía la regex del frontend.
+
+    Su patrón era «{} {} de la posición…» con los dos huecos pegados, y el
+    primero es perezoso: con «Pulgas Arrechas subió» el segundo hueco se
+    quedaba «Arrechas subió». Aquí el nombre se corta por el «: », que es
+    donde de verdad termina, así que da igual cuántas palabras tenga.
+    """
+    detalle = detalle_de_resumen_viejo("Juan Pablo de la Cruz: Portería subió de 5 a 6")
+    assert detalle is not None
+    assert detalle["subject"] == "Juan Pablo de la Cruz"
+    assert detalle["label"] == "Portería"
+    assert (detalle["before"], detalle["after"]) == (5, 6)
+
+
+def test_las_frases_con_flecha_y_los_eventos_no_se_tocan() -> None:
+    """`None` a propósito: quien llama deja `detail` en `None`, como antes.
+
+    La flecha y los dígitos de «TSI 198.930 -> 202.210» no se traducen, así que
+    el frontend sigue leyendo esas filas en cualquier idioma sin ayuda. Y un
+    evento («se unió a la plantilla») no tiene par numérico que sacar.
+    """
+    assert detalle_de_resumen_viejo("Herilala: TSI 198.930 -> 202.210") is None
+    assert detalle_de_resumen_viejo("Klaus Bahlek: se unió a la plantilla") is None
+    assert detalle_de_resumen_viejo("sin dos puntos no hay sujeto") is None
+
+
+def test_el_cambio_de_puesto_se_traduce_entero_con_nombres_de_varias_palabras() -> None:
+    """La frase, no sólo el `detail`.
+
+    2026-09-29. Antes la frase se armaba como «{equipo} {verbo} de la posición
+    {a} a la {b}», y su plantilla en el diccionario empezaba con los dos huecos
+    pegados. El primero es perezoso, así que con «Pulgas Arrechas subió» el
+    segundo hueco se quedaba «Arrechas subió» y no encajaba con nada: en alemán
+    salía «Pulgas Arrechas subió von Platz 3 auf 1», mitad y mitad. Con un
+    equipo de UNA palabra funcionaba, que es por lo que nadie lo vio.
+    """
+    from app.i18n.traductor import traductor
+
+    for nombre in ("Kivaré", "Pulgas Arrechas", "San Andrés y Providencia Real"):
+        for antes, ahora in ((3, 1), (5, 7)):
+            cambio = diff_standing(antes, ahora, nombre)
+            assert cambio is not None
+            for idioma in ("en", "it", "de"):
+                frase = traductor(idioma).texto(cambio.summary)
+                # Ni el verbo ni la preposición españoles sobreviven.
+                assert "subió" not in frase, (idioma, nombre, frase)
+                assert "bajó" not in frase, (idioma, nombre, frase)
+                assert "de la posición" not in frase, (idioma, nombre, frase)
+                # Y el equipo sigue entero, no partido por la mitad.
+                assert nombre in frase, (idioma, nombre, frase)

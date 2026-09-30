@@ -91,7 +91,9 @@
     "paso3Titulo": "Importa su richiesta.",
     "recuperando": "Recupero la tua sessione…",
     "sesionVencida": "La tua sessione è scaduta. Ricollegati a Hattrick per continuare; i tuoi dati salvati non andranno persi.",
-    "titulo": "Collega il tuo club"
+    "titulo": "Collega il tuo club",
+    "errorInicio": "Non è stato possibile avviare la connessione. Riprova tra qualche secondo.",
+    "errorServicio": "Non è stato possibile contattare il servizio locale. Verifica che il backend sia in funzione."
   },
   "setup": {
     "errorImportacion": "Non è stato possibile completare l'importazione.",
@@ -162,7 +164,14 @@
     "sinDatosTitulo": "Qui non è arrivato niente",
     "tu": "tu",
     "unJugador": "{{n}} giocatore",
-    "verTodo": "vedi tutto"
+    "verTodo": "vedi tutto",
+    "derrota": "Sconfitta",
+    "victoria": "Vittoria",
+    "resultado": {
+      "D": "S",
+      "E": "P",
+      "V": "V"
+    }
   },
   "dashboard": {
     "asegurado": "Assicurato {{cifra}}",
@@ -357,7 +366,20 @@
     "unDia": "{{n}} giorno",
     "unPartido": "{{n}} partita",
     "verMotor": "vedi il dettaglio in Motore",
-    "vistasJugador": "Visite al giocatore"
+    "vistasJugador": "Visite al giocatore",
+    "tipoPartido": {
+      "cup": "Coppa nazionale",
+      "cup_secondary": "Coppa secondaria",
+      "friendly": "Amichevole",
+      "friendly_international": "Amichevole internazionale",
+      "league": "Campionato",
+      "masters": "Masters",
+      "national_team_friendly": "Amichevole di nazionale",
+      "qualification": "Spareggio",
+      "tournament": "Torneo",
+      "youth_friendly": "Amichevole giovanile",
+      "youth_league": "Campionato giovanile"
+    }
   },
   "alertas": {
     "abrirCentro": "Apri il centro avvisi →",
@@ -384,7 +406,30 @@
     "noConsultadas": "Non è stato possibile consultare gli avvisi.",
     "restaurar": "Ripristina",
     "todosModulos": "Tutti i moduli ({{n}})",
-    "verRestantes": "Vedi gli altri {{n}} nel centro avvisi →"
+    "verRestantes": "Vedi gli altri {{n}} nel centro avvisi →",
+    "conteo": "{{severidad}}: {{n}} avvisi",
+    "conteoUna": "{{severidad}}: {{n}} avviso",
+    "modulo": {
+      "academia": "settore giovanile",
+      "copa": "coppa",
+      "cuerpo técnico": "staff",
+      "economia": "finanze",
+      "economía": "finanze",
+      "entrenamiento": "allenamento",
+      "equipo": "squadra",
+      "estadio": "stadio",
+      "general": "generale",
+      "liga": "campionato",
+      "partidos": "partite",
+      "staff": "staff",
+      "transferencias": "trasferimenti"
+    },
+    "severidad": {
+      "danger": "Pericolo",
+      "info": "Info",
+      "opportunity": "Opportunità",
+      "warning": "Avvertenza"
+    }
   },
   "flor": {
     "aria": "Fiore di forza: un petalo per misura, da 0 (il peggiore della serie) a 100 (il migliore)",
@@ -414,7 +459,9 @@
     "resistencia": "Resistenza",
     "serieYCopa": "{{serie}} e il tuo avversario di Coppa",
     "sinDato": "{{petalo}}: non c'è ancora un dato della tua squadra.",
-    "titulo": "Forza nella serie"
+    "titulo": "Forza nella serie",
+    "copa": "Coppa",
+    "copaDe": "Coppa {{copa}}"
   },
   "conectado": {
     "incompleta": "Il collegamento è rimasto incompleto",
@@ -462,7 +509,19 @@
     "staffAria": "Andamento osservato dei livelli dello staff tecnico, asse stagione-settimana",
     "tiendeAqui": "tende qui",
     "tipo": "Tipo",
-    "velocidad": "Velocità di allenamento"
+    "velocidad": "Velocità di allenamento",
+    "aficion": {
+      "0": "bassissimo",
+      "1": "furiosi",
+      "2": "irritati",
+      "3": "calmi",
+      "4": "contenti",
+      "5": "soddisfatti",
+      "6": "in delirio",
+      "7": "altissimo",
+      "8": "danzano per le strade",
+      "9": "poesie d'amore"
+    }
   },
   "staff": {
     "sinNadie": "Nessuno in questo ruolo.",
@@ -488,8 +547,30 @@
   "abrev": {
     "largo": {
       "experience": "Esperienza",
-      "loyalty": "Fedeltà"
-    }
+      "loyalty": "Fedeltà",
+      "keeper": "Parate",
+      "defending": "Difesa",
+      "playmaking": "Regia",
+      "winger": "Cross",
+      "passing": "Passaggi",
+      "scoring": "Attacco",
+      "set_pieces": "Calci piazzati",
+      "form": "Forma",
+      "stamina": "Resistenza",
+      "leadership": "Carisma"
+    },
+    "keeper": "PR",
+    "defending": "DI",
+    "playmaking": "RG",
+    "winger": "CR",
+    "passing": "PA",
+    "scoring": "AT",
+    "set_pieces": "CP",
+    "form": "FO",
+    "experience": "ES",
+    "stamina": "RS",
+    "loyalty": "FE",
+    "leadership": "CA"
   },
   "tabla": {
     "filtrar": "Filtra…",
@@ -523,7 +604,19 @@
     "salario": "Stipendio",
     "sinHistoria": "Non ci sono ancora chiusure settimanali salvate che arrivino così indietro.",
     "ultPartido": "Ult. partita",
-    "vacia": "Nessun giocatore in rosa. Sincronizza per averli."
+    "vacia": "Nessun giocatore in rosa. Sincronizza per averli.",
+    "tipoEntrenador": {
+      "0": "difensivo",
+      "1": "offensivo",
+      "2": "equilibrato"
+    },
+    "ventana1": "Ultima settimana",
+    "ventana2": "Ultime 2 settimane",
+    "ventana4": "Ultime 4 settimane",
+    "ventana8": "Ultime 8 settimane",
+    "ventana16": "Ultime 16 settimane",
+    "ventanaCambio": "Ultimo cambiamento",
+    "ventanaSiempre": "Sempre"
   },
   "equipo": {
     "canchaAria": "Posizione migliore di ogni giocatore sul campo",
@@ -657,7 +750,20 @@
     "ultimoOnce": "Ultimo undici",
     "unTitular": "{{n}} titolare",
     "vasDetras": "Sei indietro del {{pct}} %",
-    "volverUltima": "Torna all'ultima ufficiale"
+    "volverUltima": "Torna all'ultima ufficiale",
+    "enCasaContra": "in casa contro",
+    "fueraContra": "fuori contro",
+    "grupo": {
+      "POR": "Portieri",
+      "DC": "Difensori centrali",
+      "LAT": "Terzini",
+      "INT": "Centrocampisti",
+      "EXT": "Ali",
+      "DEL": "Attaccanti"
+    },
+    "onceIncompleto": "Di quella partita abbiamo solo {{n}} degli undici giocatori, quindi non si può dire con quale modulo hai giocato. La profondità qui sotto è calcolata con quelli che ci sono.",
+    "onceRellenado": "{{n}} di questi posti li ha lasciati liberi un titolare che non è più in rosa: li occupa chi rende meglio oggi, con lo stesso ordine individuale.",
+    "sinPuesto": "Senza ruolo recente"
   },
   "alineacion": {
     "arrastraA": "Trascina {{jugador}} fuori dalla rosa, oppure premi la X",
@@ -704,7 +810,8 @@
     "seReanudara": "La pagina resta disponibile. L'ottimizzazione riprenderà quando ci saranno almeno {{minimo}} giocatori disponibili.",
     "sigues": "Resti con {{formacion}}: il vuoto lo copre un altro giocatore e l'indice passa da {{antes}} a {{ahora}}.",
     "sinEnviada": "Non hai inviato la formazione per nessuna partita in programma.",
-    "sinPlantilla": "Nessuna rosa sincronizzata."
+    "sinPlantilla": "Nessuna rosa sincronizzata.",
+    "noPuedesSacar": "Non puoi togliere {{jugador}}: restano solo 11 giocatori disponibili e la formazione ne richiede 11."
   },
   "juveniles": {
     "aDeLosB": "{{a}} dei {{b}}",
@@ -863,7 +970,23 @@
     "recibenVarios": "Così {{n}} ricevono entrambe le cose.",
     "recienLlegado": "appena arrivato",
     "region": {
-      "nombre": "zona {{ids}}"
+      "nombre": "zona {{ids}}",
+      "ambos": {
+        "pista": "",
+        "titulo": "Riceve entrambi gli allenamenti"
+      },
+      "sin_entrenamiento": {
+        "pista": "nessuno dei due li raggiunge",
+        "titulo": "Nessun allenamento"
+      },
+      "solo_principal": {
+        "pista": "",
+        "titulo": "Solo il principale"
+      },
+      "solo_secundaria": {
+        "pista": "",
+        "titulo": "Solo il secondario"
+      }
     },
     "repetido": "Allenamento ripetuto:",
     "repetidoExplica": "dell'effetto di una sessione. Il secondario normale del 66,7% riceve la penalità per ripetizione.",
@@ -876,9 +999,180 @@
     "sePuedeRevelar": "Si può ancora rivelare loro qualcosa",
     "sePuedeRevelarMeta": "{{n}} · lo dice il gioco, non lo supponiamo",
     "seVaEn": "Se ne va tra",
-    "secundariaTitle": "{{etiqueta}}: le percentuali hanno già scontato la penalità del posto secondario"
+    "secundariaTitle": "{{etiqueta}}: le percentuali hanno già scontato la penalità del posto secondario",
+    "categoria": {
+      "aceptable": "discreto",
+      "crack": "fuoriclasse",
+      "fontanero": "riempitivo",
+      "promesa": "promessa",
+      "sin ojear": "non osservato",
+      "vendible": "vendibile"
+    },
+    "cubo": {
+      "aceptablePronto": {
+        "corto": "Accettabile ⏱",
+        "largo": "voto 6, e se ne va giovane"
+      },
+      "aceptableTarde": {
+        "corto": "Accettabile",
+        "largo": "voto 6, e se ne va più grande"
+      },
+      "alTope": {
+        "corto": "Al massimo",
+        "largo": "già al suo massimo: allenarlo non alza niente"
+      },
+      "buenoPronto": {
+        "corto": "Buono ⏱",
+        "largo": "voto 7, e se ne va giovane"
+      },
+      "buenoTarde": {
+        "corto": "Buono",
+        "largo": "voto 7, e se ne va più grande"
+      },
+      "desconocidoPronto": {
+        "corto": "Sconosciuto ⏱",
+        "largo": "non rivelato, e se ne va giovane"
+      },
+      "desconocidoTarde": {
+        "corto": "Sconosciuto",
+        "largo": "non rivelato, e se ne va più grande"
+      },
+      "excelente": {
+        "corto": "Eccellente",
+        "largo": "voto 8 o più, conta anche se se ne va adesso"
+      },
+      "insuficiente": {
+        "corto": "≤ Insufficiente",
+        "largo": "tetto rivelato sotto l'accettabile"
+      }
+    },
+    "desconocidoMin": "sconosciuto",
+    "habilidad": {
+      "keeper": "Parate",
+      "defending": "Difesa",
+      "playmaking": "Regia",
+      "winger": "Cross",
+      "passing": "Passaggi",
+      "scoring": "Attacco",
+      "set_pieces": "Calci piazzati"
+    },
+    "metodo": {
+      "attack": {
+        "nombre": "Contributo all'attacco",
+        "pista": "quanto quell'abilità aggiunge all'attacco, con i coefficienti del Manuale"
+      },
+      "defence": {
+        "nombre": "Contributo alla difesa",
+        "pista": "quanto quell'abilità aggiunge alla difesa"
+      },
+      "edit": {
+        "nombre": "Modifica a mano",
+        "pista": "lo scrivi tu, abilità per abilità"
+      },
+      "midfield": {
+        "nombre": "Contributo al centrocampo",
+        "pista": "quanto quell'abilità aggiunge al centrocampo"
+      },
+      "senior": {
+        "nombre": "Come la prima squadra",
+        "pista": "16 per ciò che la prima squadra allena oggi, 0 per il resto"
+      },
+      "slots": {
+        "nombre": "Posti che allena",
+        "pista": "quante posizioni della formazione raggiunge quell'allenamento"
+      }
+    },
+    "originales": "Originali del settore giovanile",
+    "peldano": {
+      "1": "eccellente",
+      "2": "buono · se ne va giovane",
+      "3": "buono",
+      "4": "accettabile · se ne va giovane",
+      "5": "accettabile",
+      "6": "non rivelato · se ne va giovane",
+      "7": "non rivelato",
+      "8": "insufficiente",
+      "9": "debole o meno"
+    },
+    "peldanoClave": {
+      "aceptable_pronto": "accettabile giovane",
+      "aceptable_tarde": "accettabile",
+      "bueno_pronto": "buono giovane",
+      "bueno_tarde": "buono",
+      "desconocido_pronto": "non rivelato giovane",
+      "desconocido_tarde": "non rivelato",
+      "excelente": "eccellente"
+    },
+    "semanasTitle": "settimane intere da quando l'hai assunto",
+    "separacion": "Distanza tra i gradini",
+    "siDepende": "La categoria dipende davvero da chi ha portato il giovane.",
+    "siEntran": "quello che riceverebbero se entrano",
+    "sinAntiguos": "Non ce n'è ancora nessuno: compaiono qui appena promuovi un giovane alla prima squadra.",
+    "sinCanteranos": "Ancora nessun giovane sincronizzato.",
+    "sinCitaJuvenil": "Non si sa ancora quando si è allenato il settore giovanile: sincronizza e arriva la data della loro partita di allenamento.",
+    "sinEnlazar": "Senza collegamento con la scheda dei grandi, quindi i loro soldi non sono in questo conto: {{nombres}}.",
+    "sinHistorico": "Non c'è storico così indietro: i punteggi si mostrano fermi.",
+    "sinNadaRevelado": ", e {{n}} giovani senza ancora niente rivelato",
+    "sinRevelarDe": "{{habilidad}}: non rivelata",
+    "sinRevelarTodavia": "Non ancora rivelato",
+    "sinSitio": "Senza posto nemmeno in panchina:",
+    "sinTraer": "Senza portare nessuno",
+    "sinTraerTitle": "giorni dall'ultimo acquisto; se non ha mai portato nessuno, da quando l'hai assunto",
+    "sincronizaOjeadores": "Sincronizza per portare il rapporto dell'osservatore di ogni giovane.",
+    "subida": "salita",
+    "subidas": "salite",
+    "subieron": "{{n}} abilità sono salite di livello",
+    "subieronN": "Sono saliti {{n}} giovani.",
+    "subioDe": "è salito da {{antes}} a {{ahora}} nella finestra scelta",
+    "subioUno": "È salito un giovane.",
+    "techoDescubierto": "tetto {{v}}",
+    "techoMinimo": "tetto minimo",
+    "techoRecien": "tetto appena rivelato dall'osservatore",
+    "techos": "Tetti",
+    "tocoTecho": "ha già toccato il tetto: non sale più",
+    "todaviaNada": "ancora niente",
+    "total": "Totale",
+    "trajo": "Ha portato",
+    "unCanterano": "{{n}} giovane",
+    "unTecho": "un tetto rivelato",
+    "unTechoFrase": "L'osservatore ha rivelato un tetto.",
+    "unaLlegada": "un nuovo giovane",
+    "unaLlegadaFrase": "Ed è arrivato un ragazzo nuovo.",
+    "unaSemana": "{{n}} settimana",
+    "unaSubida": "una salita",
+    "unaTemporada": "{{n}} stagione",
+    "usarSugerido": "usa quello suggerito ({{v}})",
+    "vCramer": "V di Cramér",
+    "valoresOriginales": "Torna ai valori originali",
+    "variasLlegadas": "N nuovi giovani",
+    "variasLlegadasFrase": "E sono arrivati {{n}} ragazzi nuovi.",
+    "variasSubidas": "N salite",
+    "variosTechos": "N tetti rivelati",
+    "variosTechosFrase": "L'osservatore ha rivelato {{n}} tetti.",
+    "vendido": "Venduto",
+    "vendidos": "{{n}} venduti",
+    "ventana": {
+      "1": "1 settimana",
+      "2": "2 settimane",
+      "8": "8 settimane",
+      "cambio": "Ultimo cambiamento"
+    },
+    "ventasCanteranos": "vendite di giovani",
+    "vinieron": "Arrivati con il settore giovanile",
+    "vista": {
+      "oldies": "Ex giovani",
+      "scouts": "Osservatori",
+      "squad": "Rosa giovanile",
+      "train": "Scelta dell'allenamento",
+      "ultimo": "Ultimo allenamento",
+      "who": "Formazione della prossima partita"
+    },
+    "yDeSecundario": "e di secondario",
+    "ya": "ora",
+    "yaTiene": "Ha già (HTMS28)"
   },
   "apoyo": {
-    "boton": "Offrimi un caffè"
+    "boton": "Offrimi un caffè",
+    "mensaje": "Tenere online questa pagina mi costa <b>7 US$ al mese</b>, e li pago di tasca mia. Se ti è utile, sostienimi o scrivimi sul guestbook: possiamo lavorare insieme a nuove funzioni."
   }
 }

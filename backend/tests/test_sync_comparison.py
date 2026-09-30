@@ -560,3 +560,84 @@ def test_un_cambio_que_no_es_venta_no_arrastra_economia() -> None:
         assert all("economia" not in c for c in data["changes"])
 
     asyncio.run(scenario())
+
+
+def test_una_fila_vieja_sin_detail_sale_con_el_detail_puesto() -> None:
+    """El enganche, no sólo el parser.
+
+    2026-09-29, revisión de la PR del alemán. Las filas anteriores al
+    2026-08-15 salían con `detail` a `None`, y el frontend les sacaba los
+    números de la frase YA TRADUCIDA con una regex que sólo conocía el español
+    y el inglés: en italiano --desde que entró-- y en alemán esas filas perdían
+    el par formateado, la flecha y el color.
+
+    Esta prueba mira la respuesta que sale de la consulta, no el parser suelto:
+    cuando sólo existía la prueba del parser, quitar el enganche de
+    `sync_comparison` no rompía nada.
+    """
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        now = datetime.now(UTC)
+        async with factory() as session:
+            team = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
+            session.add(team)
+            await session.flush()
+
+            sync = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players",
+                status="completed",
+                started_at=now,
+                finished_at=now,
+            )
+            session.add(sync)
+            await session.flush()
+            session.add_all(
+                [
+                    # Tal como quedaron guardadas: la frase y nada más.
+                    m.SyncChange(
+                        sync_id=sync.id,
+                        team_id=team.id,
+                        category="jugadores",
+                        summary="Juan Pablo de la Cruz: Pases subió de 12 a 13",
+                        created_at=now,
+                    ),
+                    m.SyncChange(
+                        sync_id=sync.id,
+                        team_id=team.id,
+                        category="jugadores",
+                        summary="Juan Pablo de la Cruz: TSI 198.930 -> 202.210",
+                        created_at=now,
+                    ),
+                ]
+            )
+            await session.commit()
+
+            reporte = await build_sync_comparison(session, team.id)
+            por_frase = {c["summary"]: c for c in reporte["changes"]}
+
+            habilidad = por_frase["Juan Pablo de la Cruz: Pases subió de 12 a 13"]
+            assert habilidad["detail"] is not None
+            assert habilidad["detail"]["metric"] == "passing"
+            assert habilidad["detail"]["subject"] == "Juan Pablo de la Cruz"
+            assert (habilidad["detail"]["before"], habilidad["detail"]["after"]) == (12, 13)
+            assert habilidad["detail"]["good"] is True
+
+            # La de la flecha sigue con `detail` a `None` a propósito: la flecha
+            # y los dígitos no se traducen, así que el frontend la lee igual en
+            # cualquier idioma y no hace falta reconstruirla.
+            assert por_frase["Juan Pablo de la Cruz: TSI 198.930 -> 202.210"]["detail"] is None
+
+        await engine.dispose()
+
+    asyncio.run(scenario())

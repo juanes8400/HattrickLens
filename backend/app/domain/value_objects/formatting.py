@@ -25,7 +25,7 @@ idioma_de_la_peticion: ContextVar[str] = ContextVar("idioma_de_la_peticion", def
 #: sueco, que separan con un espacio fino, habrían salido mal sin que nadie
 #: tocara nada. Añadir un idioma obliga a decidirlo. Tiene que decir lo mismo
 #: que `MILES` en `frontend/src/hooks/useFormat.ts`.
-MILES = {"es": ".", "en": ",", "it": "."}
+MILES = {"es": ".", "en": ",", "it": ".", "de": "."}
 
 
 def thousands(value: float, decimals: int = 0) -> str:
