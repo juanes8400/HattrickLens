@@ -282,6 +282,15 @@ def normalizar(ruta: str) -> str:
 DECORADOR = re.compile(r"@router\.(get|post|put|patch|delete)\(\s*['\"]([^'\"]*)['\"]")
 
 
+def ficheros_de_endpoints() -> list[Path]:
+    """Los módulos de endpoints: los ficheros sueltos y los de cada paquete."""
+    base = BACK / "api" / "v1" / "endpoints"
+    salida = [p for p in sorted(base.glob("*.py")) if not p.stem.startswith("_")]
+    for carpeta in sorted(d for d in base.iterdir() if d.is_dir() and d.name != "__pycache__"):
+        salida += sorted(carpeta.glob("*.py"))
+    return salida
+
+
 def prefijos() -> dict[str, str]:
     """Módulo de endpoints -> prefijo con el que lo monta el router."""
     texto = leer(BACK / "api" / "v1" / "router.py")
@@ -395,6 +404,14 @@ def alcance_py(semillas: set[tuple[str, str]], tope: int = 4000) -> set[tuple[st
         defs = definiciones(modulo)
         nodo = defs.get(nombre)
         if nodo is None:
+            # No lo define: puede que lo reexporte, como hace el `__init__.py`
+            # de `endpoints/analysis/` con `roster`. Sin seguirlo, la cadena se
+            # corta ahí y `/league`, `/cup` y `/economy` perdían un motor y
+            # ocho tests sin que nada avisara: la misma ceguera que las
+            # fachadas del frontend, en Python.
+            origen = enlaces(modulo).get(nombre)
+            if origen and origen != par:
+                pendiente.append(origen)
             continue
         usados = nombres_usados(nodo)
         binds = enlaces(modulo)
@@ -425,21 +442,24 @@ def tests_por_simbolo() -> dict[tuple[str, str], set[str]]:
 # ------------------------------------------------------------------ main
 
 
-def recoger() -> dict:
-    rutas = rutas_de_app()
-    comp2f = fichero_de_componente()
-    api = api_a_rutas()
-    donde = miembro_a_fichero()
-    pref = prefijos()
-    t_por_sim = tests_por_simbolo()
+def rutas_declaradas() -> tuple[dict[str, dict[str, str]], dict[str, list[str]]]:
+    """Ruta HTTP -> quién la atiende, y las rutas de cada módulo montado.
 
-    # Ruta HTTP -> quién la atiende, con nombre y todo: la semilla del recorrido.
+    Vive aparte porque la usan dos: el índice, para seguir desde el manejador
+    hacia el dominio, y `test_indice.py`, para comprobar que toda ruta que el
+    frontend pide la declara alguien. Duplicarla fue un error: al partir
+    `analysis.py` en un paquete, el índice aprendió a entrar y el test no, y
+    falló por su propia copia vieja.
+    """
+    pref = prefijos()
     endpoints: dict[str, dict[str, str]] = {}
     por_modulo: dict[str, list[str]] = defaultdict(list)
-    for p in sorted((BACK / "api" / "v1" / "endpoints").glob("*.py")):
-        if p.stem.startswith("_"):
+    for p in ficheros_de_endpoints():
+        if p.stem.startswith("_") and p.name != "__init__.py":
             continue
         modulo = modulo_de(p)
+        corto = p.parent.name if p.name == "__init__.py" else p.stem
+        montado = p.parent.name if p.parent.name != "endpoints" else p.stem
         a = arbol(modulo)
         if a is None:
             continue
@@ -457,14 +477,32 @@ def recoger() -> dict:
                 arg = dec.args[0]
                 if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
                     continue
-                completa = pref.get(p.stem, "") + arg.value
+                completa = pref.get(montado, "") + arg.value
                 endpoints[normalizar(completa)] = {
-                    "modulo_corto": p.stem,
+                    "modulo_corto": corto,
                     "modulo": modulo,
+                    "fichero": p.relative_to(RAIZ).as_posix(),
                     "handler": n.name,
                     "metodo": fn.attr.upper(),
                 }
-                por_modulo[p.stem].append(f"{fn.attr.upper()} {completa}")
+                por_modulo[montado].append(f"{fn.attr.upper()} {completa}")
+    return endpoints, por_modulo
+
+
+def recoger() -> dict:
+    rutas = rutas_de_app()
+    comp2f = fichero_de_componente()
+    api = api_a_rutas()
+    donde = miembro_a_fichero()
+    t_por_sim = tests_por_simbolo()
+
+    # Ruta HTTP -> quién la atiende, con nombre y todo: la semilla del recorrido.
+    #
+    # Hay endpoints que son un fichero y otros que son un paquete --`analysis/`
+    # se partió por funcionalidad-- y hace falta entrar en los dos: si no, las
+    # rutas del paquete parecen no existir y las pantallas que las piden salen
+    # huérfanas.
+    endpoints, por_modulo = rutas_declaradas()
 
     # --- primera pasada: qué alcanza cada ruta
     crudo = []
@@ -484,7 +522,7 @@ def recoger() -> dict:
                 "api": sorted(fns & set(api)),
                 "cliente": sorted({donde[f] for f in fns if f in donde}),
                 "http": httpr,
-                "endpoints": sorted({e["modulo_corto"] for e in atendidas}),
+                "endpoints": sorted({e["fichero"] for e in atendidas}),
                 "pares": alcance_py({(e["modulo"], e["handler"]) for e in atendidas}),
                 "locales": sorted(
                     t.relative_to(RAIZ).as_posix() for t in tocados if t != f and FRONT in t.parents
@@ -584,7 +622,7 @@ def tabla(d: dict) -> list[str]:
     ]
     for r in d["rutas"]:
         pag = r["fichero"].replace("frontend/src/pages/", "")
-        ends = ", ".join(r["endpoints"]) or "-"
+        ends = ", ".join(Path(e).stem for e in r["endpoints"]) or "-"
         out.append(
             f"| `{r['ruta']}` | [{pag}]({ruta_rel(r['fichero'])}) | {r['lineas']} "
             f"| {ends} | {len(r['dominio'])} | {len(r['tests'])} |"
@@ -625,7 +663,7 @@ def bloques(d: dict) -> list[str]:
         ):
             if r.get(clave):
                 if clave == "endpoints":
-                    vals = [f"`backend/app/api/v1/endpoints/{m}.py`" for m in r[clave]]
+                    vals = [f"[{m}]({ruta_rel(m)})" for m in r[clave]]
                 else:
                     # El número avisa del radio: cambiar algo que usan 19 rutas
                     # no es lo mismo que cambiar algo que usa sólo ésta.
@@ -675,8 +713,7 @@ def costosos(d: dict) -> list[str]:
         if not r["http"]:
             continue
         ficheros = set(r["locales"]) | {r["fichero"]} | set(r.get("cliente", []))
-        for m in r["endpoints"]:
-            ficheros.add(f"backend/app/api/v1/endpoints/{m}.py")
+        ficheros |= set(r["endpoints"])
         for m in r["aplicacion"] + r["dominio"] + r["infraestructura"]:
             f = fichero_de_modulo(m)
             if f:
@@ -720,7 +757,8 @@ def main() -> None:
     )
     for r in d["rutas"]:
         print(
-            f"  {r['ruta']:<22} http={len(r['http']):<2} end={','.join(r['endpoints']) or '-':<26} "
+            f"  {r['ruta']:<22} http={len(r['http']):<2} "
+            f"end={','.join(Path(e).stem for e in r['endpoints']) or '-':<24} "
             f"apl={len(r['aplicacion']):<2} dom={len(r['dominio']):<2} tests={len(r['tests'])}"
         )
 

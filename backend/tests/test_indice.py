@@ -11,7 +11,6 @@ tests de cada lado por separado; se ve en producción, como un 404.
 
 from __future__ import annotations
 
-import ast
 import importlib
 import re
 from pathlib import Path
@@ -21,31 +20,16 @@ indice = importlib.import_module("scripts.indice")
 
 
 def test_toda_ruta_que_pide_el_frontend_la_sirve_el_backend() -> None:
-    pref = indice.prefijos()
-    declaradas: set[str] = set()
-    for p in sorted((indice.BACK / "api" / "v1" / "endpoints").glob("*.py")):
-        arbol = indice.arbol(indice.modulo_de(p))
-        if arbol is None:
-            continue
-        for nodo in arbol.body:
-            if not isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for dec in nodo.decorator_list:
-                if not isinstance(dec, ast.Call):
-                    continue
-                fn = dec.func
-                if not (isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name)):
-                    continue
-                if fn.value.id != "router" or not dec.args:
-                    continue
-                arg = dec.args[0]
-                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                    declaradas.add(indice.normalizar(pref.get(p.stem, "") + arg.value))
+    # La lista de rutas declaradas se le pide al indexador en vez de volver a
+    # recorrer los decoradores aquí: tener dos copias ya salió mal una vez, al
+    # partir `analysis.py` en un paquete el índice aprendió a entrar y esta
+    # copia no, y el test falló por su propia cuenta.
+    declaradas, _ = indice.rutas_declaradas()
 
     pedidas: set[str] = set()
     for rutas in indice.api_a_rutas().values():
         pedidas.update(indice.normalizar(ruta) for ruta in rutas)
-    huerfanas = sorted(pedidas - declaradas)
+    huerfanas = sorted(pedidas - set(declaradas))
     assert not huerfanas, (
         "services/api.ts pide rutas que ningún endpoint declara, o sea 404 en "
         f"producción: {huerfanas}"
