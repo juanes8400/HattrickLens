@@ -82,6 +82,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `connectChpp`, `sessionProfile`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/auth.ts](../frontend/src/services/api/auth.ts)
 - **Rutas HTTP:** `/auth/chpp/connect`, `/auth/chpp/session`
 - **Endpoints:** `backend/app/api/v1/endpoints/auth_chpp.py`
 - **Infraestructura:** `app.infrastructure.chpp.client` (8 rutas)
@@ -98,6 +99,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `dashboard`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts)
 - **Rutas HTTP:** `/teams/:x/dashboard`
 - **Endpoints:** `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.dashboard` (6 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -113,6 +115,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `dashboard`, `sessionProfile`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/auth.ts](../frontend/src/services/api/auth.ts), [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts)
 - **Rutas HTTP:** `/auth/chpp/session`, `/teams/:x/dashboard`
 - **Endpoints:** `backend/app/api/v1/endpoints/auth_chpp.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.dashboard` (6 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -139,6 +142,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/alertas.ts](../frontend/src/utils/alertas.ts)
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
 - **Pide a `api.`:** `archiveInsight`, `changesHistory`, `cup`, `dashboard`, `economy`, `insights`, `league`, `leagueComparison`, `lineup`, `matches`, `sectoresRecientes`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/alertas.ts](../frontend/src/services/api/alertas.ts), [frontend/src/services/api/alineacion.ts](../frontend/src/services/api/alineacion.ts), [frontend/src/services/api/copa.ts](../frontend/src/services/api/copa.ts), [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts), [frontend/src/services/api/economia.ts](../frontend/src/services/api/economia.ts), [frontend/src/services/api/liga.ts](../frontend/src/services/api/liga.ts), [frontend/src/services/api/partidos.ts](../frontend/src/services/api/partidos.ts), [frontend/src/services/api/sincronizacion.ts](../frontend/src/services/api/sincronizacion.ts)
 - **Rutas HTTP:** `/teams/:x/changes/history`, `/teams/:x/cup`, `/teams/:x/dashboard`, `/teams/:x/economy`, `/teams/:x/insights`, `/teams/:x/insights/:x/archive`, `/teams/:x/league`, `/teams/:x/league/comparison`, `/teams/:x/league/sectores-recientes`, `/teams/:x/lineup`, `/teams/:x/matches`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/cup.py`, `backend/app/api/v1/endpoints/economy.py`, `backend/app/api/v1/endpoints/league.py`, `backend/app/api/v1/endpoints/matches.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.commands.sync_team` (7 rutas), `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.academy`, `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.arena`, `app.application.queries.changes_history`, `app.application.queries.dashboard` (6 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.flor_de_fuerza`, `app.application.queries.league` (5 rutas), `app.application.queries.matches`, `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.player_balance` (7 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -164,6 +168,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/alertas.ts](../frontend/src/utils/alertas.ts)
 - **Pide a `api.`:** `archiveInsight`, `dashboard`, `insights`, `league`, `leagueComparison`, `lineup`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/alertas.ts](../frontend/src/services/api/alertas.ts), [frontend/src/services/api/alineacion.ts](../frontend/src/services/api/alineacion.ts), [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts), [frontend/src/services/api/liga.ts](../frontend/src/services/api/liga.ts)
 - **Rutas HTTP:** `/teams/:x/dashboard`, `/teams/:x/insights`, `/teams/:x/insights/:x/archive`, `/teams/:x/league`, `/teams/:x/league/comparison`, `/teams/:x/lineup`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/league.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.commands.sync_team` (7 rutas), `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.academy`, `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.arena`, `app.application.queries.dashboard` (6 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.flor_de_fuerza`, `app.application.queries.league` (5 rutas), `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.player_balance` (7 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -191,6 +196,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/staffEffects.ts](../frontend/src/utils/staffEffects.ts)
   - [frontend/src/utils/ventanaDeGraficas.ts](../frontend/src/utils/ventanaDeGraficas.ts)
 - **Pide a `api.`:** `club`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/club.ts](../frontend/src/services/api/club.ts)
 - **Rutas HTTP:** `/teams/:x/club`
 - **Endpoints:** `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.queries.club`, `app.application.queries.weekly` (25 rutas)
@@ -209,6 +215,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `teamOverview`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/resumen.ts](../frontend/src/services/api/resumen.ts)
 - **Rutas HTTP:** `/teams/:x/overview`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.team_overview`, `app.application.queries.weekly` (25 rutas)
@@ -233,6 +240,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
 - **Pide a `api.`:** `squad`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/plantilla.ts](../frontend/src/services/api/plantilla.ts)
 - **Rutas HTTP:** `/teams/:x/squad`
 - **Endpoints:** `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.weekly` (25 rutas)
@@ -258,6 +266,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
 - **Pide a `api.`:** `skills`, `teamOverview`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/habilidades.ts](../frontend/src/services/api/habilidades.ts), [frontend/src/services/api/resumen.ts](../frontend/src/services/api/resumen.ts)
 - **Rutas HTTP:** `/teams/:x/overview`, `/teams/:x/skills`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/skills.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.flor_de_fuerza`, `app.application.queries.habilidades`, `app.application.queries.squad` (19 rutas), `app.application.queries.team_overview`, `app.application.queries.weekly` (25 rutas)
@@ -286,6 +295,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
 - **Pide a `api.`:** `confirmCareerStage`, `playerBalance`, `playerDetail`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/jugadores.ts](../frontend/src/services/api/jugadores.ts), [frontend/src/services/api/transferencias.ts](../frontend/src/services/api/transferencias.ts)
 - **Rutas HTTP:** `/teams/:x/player-balance`, `/teams/:x/players/:x`, `/teams/:x/players/:x/career-stage`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/player_balance.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.player_balance` (7 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.weekly` (25 rutas)
@@ -309,6 +319,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
 - **Pide a `api.`:** `squad`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/plantilla.ts](../frontend/src/services/api/plantilla.ts)
 - **Rutas HTTP:** `/teams/:x/squad`
 - **Endpoints:** `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.weekly` (25 rutas)
@@ -333,6 +344,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/utils/lineupAvailability.ts](../frontend/src/utils/lineupAvailability.ts)
 - **Pide a `api.`:** `lineup`, `lineupHindsight`, `squad`, `teamSpiritMultiplier`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/alineacion.ts](../frontend/src/services/api/alineacion.ts), [frontend/src/services/api/plantilla.ts](../frontend/src/services/api/plantilla.ts)
 - **Rutas HTTP:** `/teams/:x/lineup`, `/teams/:x/lineup/hindsight`, `/teams/:x/lineup/team-spirit`, `/teams/:x/squad`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.weekly` (25 rutas)
@@ -361,6 +373,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
   - [frontend/src/utils/staffEffects.ts](../frontend/src/utils/staffEffects.ts)
 - **Pide a `api.`:** `club`, `playerTrainingLevels`, `postMatchTraining`, `trainingDevelopment`, `trainingFormula`, `trainingSquad`, `ultimoEntrenamiento`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/club.ts](../frontend/src/services/api/club.ts), [frontend/src/services/api/entrenamiento.ts](../frontend/src/services/api/entrenamiento.ts), [frontend/src/services/api/jugadores.ts](../frontend/src/services/api/jugadores.ts)
 - **Rutas HTTP:** `/teams/:x/club`, `/teams/:x/players/:x/training/levels`, `/teams/:x/training/development`, `/teams/:x/training/formula`, `/teams/:x/training/last`, `/teams/:x/training/post-match`, `/teams/:x/training/squad`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.club`, `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.ultimo_entrenamiento`, `app.application.queries.weekly` (25 rutas)
@@ -393,6 +406,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
 - **Pide a `api.`:** `deleteTransferAttempt`, `editStint`, `playerBalance`, `setManualPurchasePrice`, `transferAttempts`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/comun.ts](../frontend/src/services/api/comun.ts), [frontend/src/services/api/jugadores.ts](../frontend/src/services/api/jugadores.ts), [frontend/src/services/api/transferencias.ts](../frontend/src/services/api/transferencias.ts)
 - **Rutas HTTP:** `/teams/:x/player-balance`, `/teams/:x/players/:x/purchase-price`, `/teams/:x/stints/:x`, `/teams/:x/transfer-attempts`, `/teams/:x/transfer-attempts/:x`
 - **Endpoints:** `backend/app/api/v1/endpoints/player_balance.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.queries.player_balance` (7 rutas), `app.application.queries.transfer_attempts`, `app.application.queries.weekly` (25 rutas)
@@ -409,6 +423,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `guestbook`, `signGuestbook`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/libro.ts](../frontend/src/services/api/libro.ts)
 - **Rutas HTTP:** `/guestbook`
 - **Endpoints:** `backend/app/api/v1/endpoints/libro.py`
 - **Tests (1):** `tests/test_team_isolation.py`
@@ -435,6 +450,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
 - **Pide a `api.`:** `academy`, `academyComparativa`, `academyScouts`, `academyScoutsLedger`, `academySkillScores`, `academyTrainingPlan`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/juveniles.ts](../frontend/src/services/api/juveniles.ts)
 - **Rutas HTTP:** `/teams/:x/academy`, `/teams/:x/academy/comparativa`, `/teams/:x/academy/scouts`, `/teams/:x/academy/scouts-ledger`, `/teams/:x/academy/skill-scores`, `/teams/:x/academy/training-plan`
 - **Endpoints:** `backend/app/api/v1/endpoints/academy.py`
 - **Aplicación:** `app.application.queries.academy`, `app.application.queries.ojeadores`, `app.application.queries.player_balance` (7 rutas), `app.application.queries.team_overview`, `app.application.queries.weekly` (25 rutas)
@@ -459,6 +475,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
 - **Pide a `api.`:** `matchDetail`, `matches`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/partidos.ts](../frontend/src/services/api/partidos.ts)
 - **Rutas HTTP:** `/teams/:x/matches`, `/teams/:x/matches/:x`
 - **Endpoints:** `backend/app/api/v1/endpoints/matches.py`
 - **Aplicación:** `app.application.queries.matches`, `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.weekly` (25 rutas)
@@ -489,6 +506,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/pages/SimularJornada.tsx](../frontend/src/pages/SimularJornada.tsx)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
 - **Pide a `api.`:** `league`, `leagueComparison`, `leagueTeamOfWeek`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/liga.ts](../frontend/src/services/api/liga.ts)
 - **Rutas HTTP:** `/teams/:x/league`, `/teams/:x/league/comparison`, `/teams/:x/league/team-of-the-week`
 - **Endpoints:** `backend/app/api/v1/endpoints/league.py`
 - **Aplicación:** `app.application.commands.sync_team` (7 rutas), `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.flor_de_fuerza`, `app.application.queries.league` (5 rutas), `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.weekly` (25 rutas)
@@ -514,6 +532,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
 - **Pide a `api.`:** `cup`, `rivalScouting`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/copa.ts](../frontend/src/services/api/copa.ts), [frontend/src/services/api/rivales.ts](../frontend/src/services/api/rivales.ts)
 - **Rutas HTTP:** `/teams/:x/cup`, `/teams/:x/rivals/:x/scouting`
 - **Endpoints:** `backend/app/api/v1/endpoints/cup.py`, `backend/app/api/v1/endpoints/rivals.py`
 - **Aplicación:** `app.application.commands.partidos_de_rivales`, `app.application.commands.sync_team` (7 rutas), `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.weekly` (25 rutas)
@@ -534,6 +553,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
 - **Pide a `api.`:** `cup`, `league`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/copa.ts](../frontend/src/services/api/copa.ts), [frontend/src/services/api/liga.ts](../frontend/src/services/api/liga.ts)
 - **Rutas HTTP:** `/teams/:x/cup`, `/teams/:x/league`
 - **Endpoints:** `backend/app/api/v1/endpoints/cup.py`, `backend/app/api/v1/endpoints/league.py`
 - **Aplicación:** `app.application.commands.sync_team` (7 rutas), `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.league` (5 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -560,6 +580,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
 - **Pide a `api.`:** `dashboard`, `rivalScouting`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts), [frontend/src/services/api/rivales.ts](../frontend/src/services/api/rivales.ts)
 - **Rutas HTTP:** `/teams/:x/dashboard`, `/teams/:x/rivals/:x/scouting`
 - **Endpoints:** `backend/app/api/v1/endpoints/rivals.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.commands.partidos_de_rivales`, `app.application.commands.sync_team` (7 rutas), `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.dashboard` (6 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -583,6 +604,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `economy`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/economia.ts](../frontend/src/services/api/economia.ts)
 - **Rutas HTTP:** `/teams/:x/economy`
 - **Endpoints:** `backend/app/api/v1/endpoints/economy.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.weekly` (25 rutas)
@@ -604,6 +626,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `arena`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/estadio.ts](../frontend/src/services/api/estadio.ts)
 - **Rutas HTTP:** `/teams/:x/arena`
 - **Endpoints:** `backend/app/api/v1/endpoints/arena.py`
 - **Aplicación:** `app.application.queries.arena`, `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.weekly` (25 rutas)
@@ -622,6 +645,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `archiveInsight`, `archivedInsights`, `insights`, `restoreInsight`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/alertas.ts](../frontend/src/services/api/alertas.ts)
 - **Rutas HTTP:** `/teams/:x/insights`, `/teams/:x/insights/:x/archive`, `/teams/:x/insights/archived`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`
 - **Aplicación:** `app.application.commands.sync_team` (7 rutas), `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.academy`, `app.application.queries.alineacion_enviada` (7 rutas), `app.application.queries.arena`, `app.application.queries.economy` (8 rutas), `app.application.queries.league` (5 rutas), `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.player_balance` (7 rutas), `app.application.queries.prediccion_liga` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.weekly` (25 rutas)
@@ -641,6 +665,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `dashboard`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts)
 - **Rutas HTTP:** `/teams/:x/dashboard`
 - **Endpoints:** `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.dashboard` (6 rutas), `app.application.queries.economy` (8 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.post_match_training` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.training_squad` (7 rutas), `app.application.queries.weekly` (25 rutas)
@@ -668,6 +693,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `changesHistory`, `deleteTransferAttempt`, `lastMatchReport`, `setTimesSeen`, `squad`, `syncChanges`, `transferAttempts`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/partidos.ts](../frontend/src/services/api/partidos.ts), [frontend/src/services/api/plantilla.ts](../frontend/src/services/api/plantilla.ts), [frontend/src/services/api/sincronizacion.ts](../frontend/src/services/api/sincronizacion.ts), [frontend/src/services/api/transferencias.ts](../frontend/src/services/api/transferencias.ts)
 - **Rutas HTTP:** `/teams/:x/changes/history`, `/teams/:x/last-match-report`, `/teams/:x/squad`, `/teams/:x/sync/changes`, `/teams/:x/transfer-attempts`, `/teams/:x/transfer-attempts/:x`
 - **Endpoints:** `backend/app/api/v1/endpoints/player_balance.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.changes_history`, `app.application.queries.parte_del_partido`, `app.application.queries.player_balance` (7 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.sync_comparison`, `app.application.queries.transfer_attempts`, `app.application.queries.weekly` (25 rutas)
@@ -685,6 +711,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `calculos`, `experienceModel`, `loyaltyModel`, `positionModel`, `trainingFormula`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/entrenamiento.ts](../frontend/src/services/api/entrenamiento.ts), [frontend/src/services/api/jugadores.ts](../frontend/src/services/api/jugadores.ts), [frontend/src/services/api/modelos.ts](../frontend/src/services/api/modelos.ts)
 - **Rutas HTTP:** `/teams/:x/experience/calibration`, `/teams/:x/loyalty/model`, `/teams/:x/training/formula`, `/teams/calculos`, `/teams/positions/model`
 - **Endpoints:** `backend/app/api/v1/endpoints/analysis.py`, `backend/app/api/v1/endpoints/teams.py`
 - **Aplicación:** `app.application.dto.dashboard` (19 rutas), `app.application.dto.squad` (19 rutas), `app.application.queries.player_history` (9 rutas), `app.application.queries.squad` (19 rutas), `app.application.queries.training_context` (10 rutas), `app.application.queries.transparencia`, `app.application.queries.weekly` (25 rutas)
@@ -712,6 +739,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `usage`, `usageLog`
+- **Donde se escriben esas llamadas:** [frontend/src/services/api/uso.ts](../frontend/src/services/api/uso.ts)
 - **Rutas HTTP:** `/usage`, `/usage/log`
 - **Endpoints:** `backend/app/api/v1/endpoints/uso.py`
 - **Dominio:** `app.domain.engines` (22 rutas)
@@ -753,7 +781,6 @@ tamaño entero, así que son los candidatos a partirse por funcionalidad.
 | Líneas | Fichero |
 | --: | --- |
 | 7257 | [backend/app/application/commands/sync_team.py](../backend/app/application/commands/sync_team.py) |
-| 4147 | [frontend/src/services/api.ts](../frontend/src/services/api.ts) |
 | 4006 | [frontend/src/pages/AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) |
 | 2963 | [frontend/src/pages/PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) |
 | 2757 | [backend/app/application/queries/transparencia.py](../backend/app/application/queries/transparencia.py) |
@@ -772,3 +799,4 @@ tamaño entero, así que son los candidatos a partirse por funcionalidad.
 | 1252 | [backend/app/application/queries/player_balance.py](../backend/app/application/queries/player_balance.py) |
 | 1241 | [backend/app/application/queries/sync_comparison.py](../backend/app/application/queries/sync_comparison.py) |
 | 1231 | [backend/app/application/queries/league.py](../backend/app/application/queries/league.py) |
+| 1209 | [backend/app/domain/engines/prediccion.py](../backend/app/domain/engines/prediccion.py) |

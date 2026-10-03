@@ -88,29 +88,55 @@ def fichero_de_componente() -> dict[str, Path]:
     return mapa
 
 
-def api_a_rutas() -> dict[str, list[str]]:
-    """Miembro de `api` en services/api.ts -> rutas HTTP que pide.
+def ficheros_de_api() -> list[Path]:
+    """Dónde vive el cliente: `services/api/*.ts`, o el `api.ts` de antes."""
+    carpeta = FRONT / "services" / "api"
+    if carpeta.is_dir():
+        return sorted(p for p in carpeta.glob("*.ts") if p.name != "index.ts")
+    suelto = FRONT / "services" / "api.ts"
+    return [suelto] if suelto.exists() else []
 
-    `api` es un solo objeto con ~160 miembros, así que no vale con mirar qué
-    fichero importa el módulo: hay que trocearlo por miembro. Cada miembro
-    empieza con dos espacios de sangría y se queda con todo lo que venga
-    debajo hasta el siguiente.
+
+def miembro_a_fichero() -> dict[str, str]:
+    """Miembro de `api` -> fichero de `services/api/` donde se escribe.
+
+    Para no tener que buscarlo: añadir una llamada va al fichero de su
+    funcionalidad, nunca a la fachada.
     """
-    texto = leer(FRONT / "services" / "api.ts")
-    cuerpo = texto.split("export const api = {", 1)[-1]
-    cortes = [(m.start(), m.group(1)) for m in re.finditer(r"^  (\w+):", cuerpo, re.M)]
+    mapa: dict[str, str] = {}
+    for fichero in ficheros_de_api():
+        texto = leer(fichero)
+        for obj in re.finditer(r"^export const api\w* = \{\n(.*?)^\};", texto, re.S | re.M):
+            for m in re.finditer(r"^  (\w+):", obj.group(1), re.M):
+                mapa[m.group(1)] = fichero.relative_to(RAIZ).as_posix()
+    return mapa
+
+
+def api_a_rutas() -> dict[str, list[str]]:
+    """Miembro de `api` -> rutas HTTP que pide.
+
+    Los miembros viven repartidos en objetos `apiJuveniles`, `apiLiga`... uno
+    por funcionalidad, y la fachada los junta. Hay que trocear cada objeto por
+    miembro: no vale con mirar qué fichero lo importa, porque una página que
+    importa `api` importaría los 65.
+    """
     mapa: dict[str, list[str]] = {}
-    for i, (inicio, nombre) in enumerate(cortes):
-        fin = cortes[i + 1][0] if i + 1 < len(cortes) else len(cuerpo)
-        bloque = cuerpo[inicio:fin]
-        # El bloque entero, no línea a línea: hay miembros que arman la consulta
-        # primero y dejan el `request` cuatro líneas más abajo, partido en dos.
-        rutas = re.findall(
-            r"request<.*?>\(\s*[`'\"]([^`'\"$]*(?:\$\{[^}]*\}[^`'\"$]*)*)", bloque, re.S
-        )
-        rutas += re.findall(r"fetch\(\s*`\$\{BASE\}([^`]+)`", bloque, re.S)
-        if rutas:
-            mapa[nombre] = rutas
+    for fichero in ficheros_de_api():
+        texto = leer(fichero)
+        for obj in re.finditer(r"^export const api\w* = \{\n(.*?)^\};", texto, re.S | re.M):
+            cuerpo = obj.group(1)
+            cortes = [(m.start(), m.group(1)) for m in re.finditer(r"^  (\w+):", cuerpo, re.M)]
+            for i, (inicio, nombre) in enumerate(cortes):
+                fin = cortes[i + 1][0] if i + 1 < len(cortes) else len(cuerpo)
+                bloque = cuerpo[inicio:fin]
+                # El bloque entero, no línea a línea: hay miembros que arman la
+                # consulta primero y dejan el `request` cuatro líneas más abajo.
+                rutas = re.findall(
+                    r"request<.*?>\(\s*[`'\"]([^`'\"$]*(?:\$\{[^}]*\}[^`'\"$]*)*)", bloque, re.S
+                )
+                rutas += re.findall(r"fetch\(\s*`\$\{BASE\}([^`]+)`", bloque, re.S)
+                if rutas:
+                    mapa[nombre] = rutas
     return mapa
 
 
@@ -374,6 +400,7 @@ def recoger() -> dict:
     rutas = rutas_de_app()
     comp2f = fichero_de_componente()
     api = api_a_rutas()
+    donde = miembro_a_fichero()
     pref = prefijos()
     t_por_sim = tests_por_simbolo()
 
@@ -426,6 +453,7 @@ def recoger() -> dict:
                 "fichero": f.relative_to(RAIZ).as_posix(),
                 "lineas": lineas(f),
                 "api": sorted(fns & set(api)),
+                "cliente": sorted({donde[f] for f in fns if f in donde}),
                 "http": httpr,
                 "endpoints": sorted({e["modulo_corto"] for e in atendidas}),
                 "pares": alcance_py({(e["modulo"], e["handler"]) for e in atendidas}),
@@ -555,6 +583,9 @@ def bloques(d: dict) -> list[str]:
                 out.append(f"  - [{loc}]({ruta_rel(loc)})")
         if r["api"]:
             out.append(f"- **Pide a `api.`:** {', '.join('`' + a + '`' for a in r['api'])}")
+        if r.get("cliente"):
+            enlaces = ", ".join(f"[{c}]({ruta_rel(c)})" for c in r["cliente"])
+            out.append(f"- **Donde se escriben esas llamadas:** {enlaces}")
         if r["http"]:
             out.append(f"- **Rutas HTTP:** {', '.join('`' + h + '`' for h in r['http'])}")
         for titulo, clave in (
