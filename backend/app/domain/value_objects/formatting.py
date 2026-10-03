@@ -25,7 +25,11 @@ idioma_de_la_peticion: ContextVar[str] = ContextVar("idioma_de_la_peticion", def
 #: sueco, que separan con un espacio fino, habrían salido mal sin que nadie
 #: tocara nada. Añadir un idioma obliga a decidirlo. Tiene que decir lo mismo
 #: que `MILES` en `frontend/src/hooks/useFormat.ts`.
-MILES = {"es": ".", "en": ",", "it": ".", "de": "."}
+#: 2026-10-03, con el polaco: separa los miles con un espacio, y aquí va
+#: duro y no partible (U+00A0) para que una cifra no se rompa a final de
+#: renglón. Por eso `thousands` ya no puede limitarse a cambiar el punto
+#: por la coma.
+MILES = {"es": ".", "en": ",", "it": ".", "de": ".", "pl": "\u00a0"}
 
 
 def thousands(value: float, decimals: int = 0) -> str:
@@ -33,6 +37,11 @@ def thousands(value: float, decimals: int = 0) -> str:
     "1234567.89" -> "1.234.567,89" y "1,234,567.89". El mismo intercambio que
     hace el frontend (`money`/`number`)."""
     formatted = f"{value:,.{decimals}f}"
-    if MILES.get(idioma_de_la_peticion.get()[:2], ".") == ",":
+    miles = MILES.get(idioma_de_la_peticion.get()[:2], ".")
+    if miles == ",":
         return formatted
-    return formatted.translate(str.maketrans(",.", ".,"))
+    # Python escribe siempre coma de miles y punto decimal. Cualquier otro
+    # idioma quiere coma decimal y lo que diga `MILES` para los miles, que
+    # puede ser un punto o un espacio: el paso por el carácter de control
+    # evita que un separador de miles «.» se vuelva a leer como el decimal.
+    return formatted.translate(str.maketrans(",.", "\x00,")).replace("\x00", miles)

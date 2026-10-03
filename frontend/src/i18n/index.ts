@@ -22,17 +22,20 @@ import appEs from "./es.json";
 import appEn from "./en.json";
 import appIt from "./it.json";
 import appDe from "./de.json";
+import appPl from "./pl.json";
 import glosarioEs from "./glosario/es.json";
 import glosarioEn from "./glosario/en.json";
 import glosarioIt from "./glosario/it.json";
 import glosarioDe from "./glosario/de.json";
+import glosarioPl from "./glosario/pl.json";
 import textosEn from "./textos/en.json";
 import textosIt from "./textos/it.json";
 import textosDe from "./textos/de.json";
+import textosPl from "./textos/pl.json";
 
 /** Los idiomas que tienen diccionario en el paquete. NO son los que se
  *  ofrecen: ver `OFRECIDOS`. */
-export const IDIOMAS = ["es", "en", "it", "de"] as const;
+export const IDIOMAS = ["es", "en", "it", "de", "pl"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
 
 /** Los idiomas TERMINADOS, que son los únicos que se le enseñan a nadie.
@@ -52,8 +55,23 @@ export type Idioma = (typeof IDIOMAS)[number];
  *  italiano tenía desde el primer día: 226 claves nombradas que ningún
  *  guardián miraba porque no se escriben enteras en el código, se arman al
  *  vuelo con una plantilla. Lo impide ahora `idioma.test.ts`, que le exige a
- *  cada idioma OFRECIDO las mismas claves que al inglés. */
-export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it", "de"];
+ *  cada idioma OFRECIDO las mismas claves que al inglés.
+ *
+ *  2026-10-03: el polaco. 1.044 claves nombradas y los 3.624 textos, y el
+ *  vocabulario del juego --niveles, especialidades, carácter, agresividad,
+ *  honestidad, tácticas, puestos, sectores, entrenamientos, moral, confianza,
+ *  afición y expectativas-- sale del glosario oficial de Hattrick, no de
+ *  traducirlo a ojo. Dos cosas le pidió el idioma al código, y las dos están:
+ *  separa los miles con un espacio duro (`MILES` en `useFormat.ts` y en
+ *  `formatting.py`, que ya no sabía escribir otra cosa que punto o coma) y
+ *  escribe el ordinal con punto, «3.», como el alemán.
+ *
+ *  Lo que el polaco NO tiene todavía, y no es cosa de traducir: sus TRES
+ *  formas de plural --1, 2-4, 5 o más-- no caben en las claves de ahora, que
+ *  son dos («{n} jugador» y «{n} jugadores»). Donde la cifra manda sale la
+ *  forma de 2-4, que es la correcta en la mayoría de los casos y la menos
+ *  violenta en los demás. */
+export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it", "de", "pl"];
 
 const CLAVE_GUARDADA = "htlens.idioma";
 
@@ -106,6 +124,7 @@ void i18n.use(initReactI18next).init({
     en: { app: appEn, glosario: glosarioEn, textos: textosEn },
     it: { app: appIt, glosario: glosarioIt, textos: textosIt },
     de: { app: appDe, glosario: glosarioDe, textos: textosDe },
+    pl: { app: appPl, glosario: glosarioPl, textos: textosPl },
   },
   lng: idiomaGuardado(),
   fallbackLng: "es",
@@ -114,6 +133,25 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
   returnNull: false,
 });
+
+/** El `lang` del `<html>`, que se quedaba en «es» para todo el mundo.
+ *
+ *  2026-10-03, al entrar el polaco. No es decorativo: un lector de pantalla
+ *  lee con la fonética del idioma que declara la página --el polaco con
+ *  acento español es ininteligible-- y el navegador ofrece traducir una
+ *  página que ya está en el idioma de quien la mira. Va por el evento de
+ *  i18next y no en una línea suelta para que valga también cuando el idioma
+ *  cambie sin recargar. */
+function marcarIdiomaEnElHtml(idioma: string): void {
+  try {
+    document.documentElement.lang = idioma.slice(0, 2);
+  } catch {
+    // Sin DOM (una prueba, un render en servidor) no hay nada que marcar.
+  }
+}
+
+i18n.on("languageChanged", marcarIdiomaEnElHtml);
+marcarIdiomaEnElHtml(i18n.language || "es");
 
 /** Cambia el idioma, lo recuerda en este navegador y recarga.
  *

@@ -15,6 +15,7 @@ import banderaES from "../assets/banderas/es.svg";
 import banderaGB from "../assets/banderas/gb.svg";
 import banderaIT from "../assets/banderas/it.svg";
 import banderaDE from "../assets/banderas/de.svg";
+import banderaPL from "../assets/banderas/pl.svg";
 
 import i18nActual, {
   cambiarIdioma,
@@ -30,15 +31,17 @@ const NOMBRE_DE_IDIOMA: Record<Idioma, string> = {
   en: "English",
   it: "Italiano",
   de: "Deutsch",
+  pl: "Polski",
 };
 
 /** La bandera de cada idioma, con la variante que usa el glosario oficial de
- *  Hattrick: «Español, España», «English (UK)», «Italiano» y «Deutsch». */
+ *  Hattrick: «Español, España», «English (UK)», «Italiano», «Deutsch» y «Polski». */
 const BANDERA_DE_IDIOMA: Record<Idioma, string> = {
   es: banderaES,
   en: banderaGB,
   it: banderaIT,
   de: banderaDE,
+  pl: banderaPL,
 };
 
 /** Los idiomas que SE OFRECEN, que no son todos los que la aplicación sabe
