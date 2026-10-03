@@ -379,7 +379,10 @@
     "sinTipo": "training not identified",
     "irASincronizar": "go and sync",
     "proximo": "The next one, on {{fecha}}.",
-    "esperado": "Expected"
+    "esperado": "Expected",
+    "jugador": "Player",
+    "mejorasMeta": "confirmed skill-ups and forecast, player by player",
+    "mejorasSinJugador": "Pick a player to see their skill-ups and forecast."
   },
   "alertas": {
     "atencion": "What needs your attention",

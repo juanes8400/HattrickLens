@@ -379,7 +379,10 @@
       "tournament": "Torneo",
       "youth_friendly": "Amichevole giovanile",
       "youth_league": "Campionato giovanile"
-    }
+    },
+    "jugador": "Giocatore",
+    "mejorasMeta": "aumenti confermati e previsione, giocatore per giocatore",
+    "mejorasSinJugador": "Scegli un giocatore per vedere i suoi aumenti e la sua previsione."
   },
   "alertas": {
     "abrirCentro": "Apri il centro avvisi →",

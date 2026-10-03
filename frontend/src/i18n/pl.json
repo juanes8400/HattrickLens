@@ -451,7 +451,10 @@
     "unDia": "{{n}} dzień",
     "unPartido": "{{n}} mecz",
     "verMotor": "zobacz szczegóły w Silniku",
-    "vistasJugador": "Widoki zawodnika"
+    "vistasJugador": "Widoki zawodnika",
+    "jugador": "Zawodnik",
+    "mejorasMeta": "potwierdzone wzrosty i prognoza, zawodnik po zawodniku",
+    "mejorasSinJugador": "Wybierz zawodnika, aby zobaczyć jego wzrosty i prognozę."
   },
   "equipo": {
     "canchaAria": "Najlepsza pozycja każdego zawodnika na boisku",

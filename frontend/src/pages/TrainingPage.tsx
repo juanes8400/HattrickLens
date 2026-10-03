@@ -1,5 +1,5 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
@@ -32,6 +32,7 @@ import type {
   ClubStaffRoleEffect,
   ConfirmedLevelUp,
   LevelForecastMilestone,
+  PlayerTrainingLevels,
   PostMatchTrainingOption,
   TrainingExperienceRow,
   TrainingLoyaltyRow,
@@ -58,6 +59,7 @@ import { tx } from "../i18n/tx";
 type TrainingSection =
   | "datos"
   | "plantilla"
+  | "mejoras"
   | "ultimo"
   | "experiencia"
   | "fidelidad"
@@ -813,6 +815,76 @@ function forecastColumns(): Column<LevelForecastMilestone>[] {
   ];
 }
 
+/** Las subidas que Hattrick ya confirmó de un jugador.
+ *
+ *  Vive aparte desde el 2026-10-03 porque ahora se enseña en dos sitios: al
+ *  pinchar una fila de la plantilla, como siempre, y en la pestaña «Mejoras»,
+ *  donde se elige al jugador en un desplegable. Lo que se pintaba sólo al
+ *  pinchar no lo encontraba nadie que no supiera que había que pinchar. */
+function PanelDeSubidasConfirmadas({
+  datos,
+}: {
+  datos: PlayerTrainingLevels;
+}) {
+  return (
+    <>
+      <Panel
+        title={t("entrenamiento.subidasConfirmadas", "Subidas confirmadas")}
+        meta={t("entrenamiento.confirmadasHattrick", "confirmadas por Hattrick")}
+      >
+        {datos.confirmed.length === 0 && (
+          <Empty>
+            {datos.notes.join(" ") ||
+              t(
+                "entrenamiento.sinConfirmadas",
+                "Sin subidas confirmadas todavía.",
+              )}
+          </Empty>
+        )}
+      </Panel>
+      {datos.confirmed.length > 0 && (
+        <DataTable
+          emptyMessage={t(
+            "entrenamiento.ningunaConfirmada",
+            "Ninguna subida confirmada todavía.",
+          )}
+          rows={datos.confirmed}
+          columns={confirmedColumns()}
+          rowKey={(r) => r.seasonWeek}
+          initialSort="seasonWeek"
+          initialDescending={false}
+          csvName="entrenamiento-mejoras"
+        />
+      )}
+    </>
+  );
+}
+
+/** Cuándo llegarían los niveles que faltan, con la fórmula de la casa. */
+function PanelDePrevision({ datos }: { datos: PlayerTrainingLevels }) {
+  return (
+    <ProjectionPanel
+      title={t("entrenamiento.previsionTitulo", "Previsión de subidas")}
+      meta={t("entrenamiento.previsionMeta", "hasta nivel 20 · {{n}} nivel(es)", {
+        n: datos.forecast.length,
+      })}
+    >
+      <DataTable
+        emptyMessage={t(
+          "entrenamiento.sinPrevision",
+          "Sin previsión: hace falta al menos una semana entrenada.",
+        )}
+        rows={datos.forecast}
+        columns={forecastColumns()}
+        rowKey={(r) => r.level}
+        initialSort="level"
+        initialDescending={false}
+        csvName="entrenamiento-prevision"
+      />
+    </ProjectionPanel>
+  );
+}
+
 function optionColumns(): Column<PostMatchTrainingOption>[] {
   return [
     {
@@ -1102,6 +1174,14 @@ export function TrainingPage() {
   const [mostrarVeteranos, setMostrarVeteranos] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
   const [playerTab, setPlayerTab] = useState<PlayerTab>("mejoras");
+  // El jugador de la pestaña «Mejoras», que se elige en un desplegable y no
+  // pinchando una fila (2026-10-03, pedido del usuario). Es un estado APARTE
+  // del de la tabla a propósito: elegir aquí no debe mover la selección de la
+  // plantilla ni al revés, porque son dos maneras de llegar a lo mismo y cada
+  // una recuerda la suya.
+  const [jugadorDeMejoras, setJugadorDeMejoras] = useState<number | null>(null);
+  const [mostrarVeteranosEnMejoras, setMostrarVeteranosEnMejoras] =
+    useState(false);
 
   const squad = useTrainingSquad(selectedSkill, includeThisWeek);
   const postMatch = usePostMatchTraining();
@@ -1113,6 +1193,26 @@ export function TrainingPage() {
   const formula = useTrainingFormula();
   const club = useClub();
   const playerLevels = usePlayerTrainingLevels(selectedPlayerId, selectedSkill);
+  // La pestaña «Mejoras» abre con alguien puesto y no con el desplegable
+  // vacío: el jugador que está más cerca de subir, que es el que se viene a
+  // mirar. Si el usuario elige a otro, manda su elección.
+  const candidatosAMejoras = useMemo(
+    () =>
+      (squad.data?.players ?? []).filter(
+        (r) => mostrarVeteranosEnMejoras || !r.withoutFieldSkills,
+      ),
+    [squad.data, mostrarVeteranosEnMejoras],
+  );
+  const masCercaDeSubir = useMemo(
+    () =>
+      candidatosAMejoras
+        .slice()
+        .sort((a, b) => (b.progressPct ?? -1) - (a.progressPct ?? -1))[0]
+        ?.htPlayerId ?? null,
+    [candidatosAMejoras],
+  );
+  const jugadorMostrado = jugadorDeMejoras ?? masCercaDeSubir;
+  const mejoras = usePlayerTrainingLevels(jugadorMostrado, selectedSkill);
 
   if (squad.isLoading || postMatch.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
@@ -1198,6 +1298,7 @@ export function TrainingPage() {
         grupo="entrenamiento"
         tabs={[
           { key: "plantilla", label: tituloActual },
+          { key: "mejoras", label: t("entrenamiento.mejoras", "Mejoras") },
           {
             key: "ultimo",
             label: t("entrenamiento.ultimo", "Último entrenamiento"),
@@ -1228,6 +1329,115 @@ export function TrainingPage() {
       >
         {section === "ultimo" && (
           <ParteDelUltimoEntrenamiento activa={section === "ultimo"} />
+        )}
+
+        {/* «Mejoras», por su propia puerta (2026-10-03, pedido del usuario).
+            Las subidas confirmadas y la previsión existían desde antes, pero
+            sólo aparecían al pinchar una fila de la plantilla, y eso no lo
+            encuentra quien no sabe que hay que pinchar. Aquí se elige al
+            jugador en un desplegable y las dos cosas salen una debajo de la
+            otra, sin pestañas de segundo nivel: en esta pantalla no hay que
+            elegir entre lo que ya pasó y lo que viene, se quieren las dos. */}
+        {section === "mejoras" && (
+          <>
+            <Panel
+              title={t("entrenamiento.mejoras", "Mejoras")}
+              meta={t(
+                "entrenamiento.mejorasMeta",
+                "subidas confirmadas y previsión, jugador a jugador",
+              )}
+            >
+              <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-[var(--muted)]">
+                    {t("entrenamiento.jugador", "Jugador")}
+                  </span>
+                  <select
+                    value={jugadorMostrado ?? ""}
+                    onChange={(e) =>
+                      setJugadorDeMejoras(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm"
+                  >
+                    {candidatosAMejoras.length === 0 && (
+                      <option value="">
+                        {t("posiciones.vacia", "Sin jugadores en la plantilla.")}
+                      </option>
+                    )}
+                    {candidatosAMejoras
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((p) => (
+                        <option key={p.htPlayerId} value={p.htPlayerId}>
+                          {p.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-[var(--muted)]">
+                    {t("entrenamiento.habilidad", "Habilidad")}
+                  </span>
+                  <select
+                    value={selectedSkill ?? data.skill}
+                    onChange={(e) => setSelectedSkill(e.target.value)}
+                    className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm"
+                  >
+                    {data.availableSkills.map((s) => (
+                      <option key={s.skill} value={s.skill}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {veteranos > 0 && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={mostrarVeteranosEnMejoras}
+                      onChange={(e) =>
+                        setMostrarVeteranosEnMejoras(e.target.checked)
+                      }
+                    />
+                    {t(
+                      "posiciones.mostrarTodos",
+                      "Mostrar a todos ({{n}} veteranos sin habilidades de campo)",
+                      { n: veteranos },
+                    )}
+                  </label>
+                )}
+              </div>
+              {jugadorMostrado == null && (
+                <Empty>
+                  {t(
+                    "entrenamiento.mejorasSinJugador",
+                    "Elige un jugador para ver sus subidas y su previsión.",
+                  )}
+                </Empty>
+              )}
+            </Panel>
+
+            {jugadorMostrado != null && mejoras.isLoading && <Loading />}
+            {jugadorMostrado != null && mejoras.isError && (
+              <ErrorState error={mejoras.error} />
+            )}
+            {jugadorMostrado != null && mejoras.data && (
+              <>
+                <h2 className="text-sm font-semibold">
+                  {mejoras.data.name}
+                  <span className="text-[var(--muted)]">
+                    {" "}
+                    · {mejoras.data.skillLabel} · {mejoras.data.currentLevel} ·{" "}
+                    {mejoras.data.currentLevelName}
+                  </span>
+                </h2>
+                <PanelDeSubidasConfirmadas datos={mejoras.data} />
+                <PanelDePrevision datos={mejoras.data} />
+              </>
+            )}
+          </>
         )}
 
         {section === "datos" && (
@@ -1540,69 +1750,11 @@ export function TrainingPage() {
                   )}
 
                   {playerLevels.data && playerTab === "mejoras" && (
-                    <>
-                      <Panel
-                        title={t(
-                          "entrenamiento.subidasConfirmadas",
-                          "Subidas confirmadas",
-                        )}
-                        meta={t(
-                          "entrenamiento.confirmadasHattrick",
-                          "confirmadas por Hattrick",
-                        )}
-                      >
-                        {playerLevels.data.confirmed.length === 0 && (
-                          <Empty>
-                            {playerLevels.data.notes.join(" ") ||
-                              t(
-                                "entrenamiento.sinConfirmadas",
-                                "Sin subidas confirmadas todavía.",
-                              )}
-                          </Empty>
-                        )}
-                      </Panel>
-                      {playerLevels.data.confirmed.length > 0 && (
-                        <DataTable
-                          emptyMessage={t(
-                            "entrenamiento.ningunaConfirmada",
-                            "Ninguna subida confirmada todavía.",
-                          )}
-                          rows={playerLevels.data.confirmed}
-                          columns={confirmedColumns()}
-                          rowKey={(r) => r.seasonWeek}
-                          initialSort="seasonWeek"
-                          initialDescending={false}
-                          csvName="entrenamiento-mejoras"
-                        />
-                      )}
-                    </>
+                    <PanelDeSubidasConfirmadas datos={playerLevels.data} />
                   )}
 
                   {playerLevels.data && playerTab === "prevision" && (
-                    <ProjectionPanel
-                      title={t(
-                        "entrenamiento.previsionTitulo",
-                        "Previsión de subidas",
-                      )}
-                      meta={t(
-                        "entrenamiento.previsionMeta",
-                        "hasta nivel 20 · {{n}} nivel(es)",
-                        { n: playerLevels.data.forecast.length },
-                      )}
-                    >
-                      <DataTable
-                        emptyMessage={t(
-                          "entrenamiento.sinPrevision",
-                          "Sin previsión: hace falta al menos una semana entrenada.",
-                        )}
-                        rows={playerLevels.data.forecast}
-                        columns={forecastColumns()}
-                        rowKey={(r) => r.level}
-                        initialSort="level"
-                        initialDescending={false}
-                        csvName="entrenamiento-prevision"
-                      />
-                    </ProjectionPanel>
+                    <PanelDePrevision datos={playerLevels.data} />
                   )}
                 </PanelDePestanas>
               </div>

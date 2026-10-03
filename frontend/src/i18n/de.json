@@ -379,7 +379,10 @@
     "sinTipo": "Training nicht erkannt",
     "irASincronizar": "zum Synchronisieren gehen",
     "proximo": "Das nächste am {{fecha}}.",
-    "esperado": "Erwartet"
+    "esperado": "Erwartet",
+    "jugador": "Spieler",
+    "mejorasMeta": "bestätigte Steigerungen und Vorschau, Spieler für Spieler",
+    "mejorasSinJugador": "Wähl einen Spieler, um seine Steigerungen und seine Vorschau zu sehen."
   },
   "alertas": {
     "atencion": "Was deine Aufmerksamkeit braucht",
