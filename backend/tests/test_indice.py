@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import re
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -69,4 +70,40 @@ def test_el_indice_esta_al_dia() -> None:
     assert not faltan, (
         "hay pantallas que no están en docs/INDICE.md; correr "
         f"`python backend/scripts/indice.py`: {faltan}"
+    )
+
+
+def test_el_indice_ve_a_traves_de_las_fachadas() -> None:
+    """Si una pantalla usa la capa de datos, el indice tiene que verlo.
+
+    Al partir `services/api.ts` y `useTeam.ts` quedo una fachada que solo
+    reexporta --`export { useClub } from "./club"`--, y el recorrido se paraba
+    ahi: once pantallas pasaron a figurar como que no piden datos a nadie.
+    Compilaba, los tests pasaban y el indice mentia.
+    """
+    comp2f = indice.fichero_de_componente()
+    api = indice.api_a_rutas()
+    ciegas = []
+    for ruta, comp in indice.rutas_de_app():
+        f = comp2f.get(comp)
+        if not f or not f.exists():
+            continue
+        # Lo que delata que una pantalla PIDE datos es que importe un hook
+        # `use…` de useTeam o que llame a `api.`. `ConnectedPage` importa
+        # `setActiveTeamId`, que escribe en localStorage y no pide nada: no
+        # tiene por que figurar, y exigirselo seria exigir una mentira.
+        fuentes = indice.leer(f)
+        pide = bool(re.search(r"\bapi\.\w", fuentes)) or any(
+            re.search(r"\buse[A-Z]\w*", " ".join(nombres))
+            for nombres, modulo in indice.importaciones(fuentes)
+            if modulo.endswith(("hooks/useTeam", "services/api"))
+        )
+        if not pide:
+            continue
+        miembros, _ = indice.alcance(f)
+        if not (miembros & set(api)):
+            ciegas.append((ruta, f.name))
+    assert not ciegas, (
+        "pantallas que usan la capa de datos y el indice no ve que pidan nada; "
+        f"suele ser una fachada que reexporta y que `alcance` no sigue: {ciegas}"
     )

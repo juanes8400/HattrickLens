@@ -182,6 +182,29 @@ def segmentos(p: Path) -> dict[str, str]:
     return out
 
 
+REEXPORTES: dict[Path, dict[str, str]] = {}
+
+
+def reexportes(p: Path) -> dict[str, str]:
+    """Símbolo -> módulo del que lo reexporta una fachada.
+
+    `services/api/index.ts` y `hooks/useTeam/index.ts` no declaran nada: dicen
+    `export { useClub } from "./club"`. Sin esto el recorrido se para en la
+    fachada y la pantalla parece no pedir datos a nadie.
+    """
+    if p in REEXPORTES:
+        return REEXPORTES[p]
+    mapa: dict[str, str] = {}
+    patron = r"export\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['\"]([^'\"]+)['\"]"
+    for m in re.finditer(patron, leer(p), re.S):
+        for nombre in m.group(1).split(","):
+            limpio = nombre.strip().split(" as ")[-1].strip()
+            if limpio:
+                mapa[limpio] = m.group(2)
+    REEXPORTES[p] = mapa
+    return mapa
+
+
 def alcance(f: Path) -> tuple[set[str], set[Path]]:
     """Qué miembros de `api` acaba pidiendo una página, y por qué ficheros.
 
@@ -202,6 +225,12 @@ def alcance(f: Path) -> tuple[set[str], set[Path]]:
         segs = segmentos(fichero)
         cuerpo = leer(fichero) if simbolo is None else segs.get(simbolo, "")
         if simbolo is not None and not cuerpo:
+            # No lo declara: puede que lo reexporte, y entonces hay que seguir.
+            vecino = reexportes(fichero).get(simbolo)
+            if vecino and vecino.startswith("."):
+                destino = resolver((fichero.parent / vecino).resolve())
+                if destino:
+                    pendiente.append((destino, simbolo))
             continue
         api_usada |= set(re.findall(r"\bapi\.(\w+)", cuerpo))
         # Las importaciones son del fichero entero; sólo se siguen los nombres
@@ -634,26 +663,45 @@ def transversal(d: dict) -> list[str]:
     return out
 
 
-def costosos() -> list[str]:
-    """Los ficheros que más caro cuesta leer, que son los que hay que partir."""
-    cand: list[tuple[int, str]] = []
-    for base, patron in ((FRONT, "**/*.ts*"), (BACK, "**/*.py")):
-        for p in base.glob(patron):
-            if "__pycache__" in p.parts or p.name.endswith((".test.ts", ".test.tsx")):
-                continue
-            cand.append((lineas(p), p.relative_to(RAIZ).as_posix()))
-    cand.sort(reverse=True)
+def costosos(d: dict) -> list[str]:
+    """Qué conviene partir, medido: tamaño por número de rutas que lo abren.
+
+    El tamaño a secas engaña. `useTeam.ts` tiene 601 líneas y sale más caro
+    que ficheros de mil quinientas, porque lo abren 26 de las 31 pantallas;
+    y un fichero enorme que sólo lee una pantalla no estorba a nadie.
+    """
+    peso: Counter[str] = Counter()
+    for r in d["rutas"]:
+        if not r["http"]:
+            continue
+        ficheros = set(r["locales"]) | {r["fichero"]} | set(r.get("cliente", []))
+        for m in r["endpoints"]:
+            ficheros.add(f"backend/app/api/v1/endpoints/{m}.py")
+        for m in r["aplicacion"] + r["dominio"] + r["infraestructura"]:
+            f = fichero_de_modulo(m)
+            if f:
+                ficheros.add(f.relative_to(RAIZ).as_posix())
+        peso.update(ficheros)
+
+    filas = []
+    for f, n in peso.items():
+        largo = lineas(RAIZ / f)
+        filas.append((largo * n, largo, n, f))
+    filas.sort(reverse=True)
+
     out = [
-        "## Lo más caro de leer",
+        "## Qué conviene partir",
         "",
-        "Los veinte ficheros más largos. Cualquier cambio que los toque paga su",
-        "tamaño entero, así que son los candidatos a partirse por funcionalidad.",
+        "`coste` es las líneas por el número de pantallas que abren el fichero:",
+        "lo que cuesta de verdad no es lo grande que sea, sino lo grande por lo",
+        "a menudo que hay que leerlo. Un fichero enorme que sólo lee una",
+        "pantalla no estorba; uno mediano que leen veintiséis, sí.",
         "",
-        "| Líneas | Fichero |",
-        "| --: | --- |",
+        "| Coste | Líneas | Pantallas | Fichero |",
+        "| --: | --: | --: | --- |",
     ]
-    for n, p in cand[:20]:
-        out.append(f"| {n} | [{p}]({ruta_rel(p)}) |")
+    for coste, largo, n, f in filas[:20]:
+        out.append(f"| {coste} | {largo} | {n} | [{f}]({ruta_rel(f)}) |")
     out.append("")
     return out
 
@@ -664,7 +712,7 @@ def main() -> None:
         json.dumps(d, ensure_ascii=False, indent=1) + "\n",
         encoding="utf-8",
     )
-    texto = "\n".join(cabecera(d) + tabla(d) + bloques(d) + transversal(d) + costosos())
+    texto = "\n".join(cabecera(d) + tabla(d) + bloques(d) + transversal(d) + costosos(d))
     (RAIZ / "docs" / "INDICE.md").write_text(texto, encoding="utf-8")
     print(
         f"docs/INDICE.md · rutas {len(d['rutas'])} · endpoints {len(d['endpoints'])} "

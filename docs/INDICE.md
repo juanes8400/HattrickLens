@@ -68,18 +68,21 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/connected`
 
 - **Página:** [frontend/src/pages/ConnectedPage.tsx](../frontend/src/pages/ConnectedPage.tsx) (59 líneas)
-- **Componentes y hooks suyos (1):**
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+- **Componentes y hooks suyos (2):**
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
 - Sin datos del servidor: esta pantalla no pide nada al backend.
 
 ### `/welcome`
 
 - **Página:** [frontend/src/pages/WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) (237 líneas)
-- **Componentes y hooks suyos (5):**
+- **Componentes y hooks suyos (7):**
   - [frontend/src/components/ImagenOpcional.tsx](../frontend/src/components/ImagenOpcional.tsx)
   - [frontend/src/components/SelectorDeIdioma.tsx](../frontend/src/components/SelectorDeIdioma.tsx)
   - [frontend/src/config/apoyo.ts](../frontend/src/config/apoyo.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/auth.ts](../frontend/src/hooks/useTeam/auth.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `connectChpp`, `sessionProfile`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/auth.ts](../frontend/src/services/api/auth.ts)
@@ -90,12 +93,13 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/apoyar`
 
 - **Página:** [frontend/src/pages/ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) (154 líneas)
-- **Componentes y hooks suyos (7):**
+- **Componentes y hooks suyos (8):**
   - [frontend/src/components/ApoyarProyecto.tsx](../frontend/src/components/ApoyarProyecto.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/config/apoyo.ts](../frontend/src/config/apoyo.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `dashboard`
@@ -109,10 +113,13 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/setup`
 
 - **Página:** [frontend/src/pages/SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) (428 líneas)
-- **Componentes y hooks suyos (4):**
+- **Componentes y hooks suyos (7):**
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/SyncProgressPanel.tsx](../frontend/src/components/SyncProgressPanel.tsx)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/auth.ts](../frontend/src/hooks/useTeam/auth.ts)
+  - [frontend/src/hooks/useTeam/dashboard.ts](../frontend/src/hooks/useTeam/dashboard.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `dashboard`, `sessionProfile`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/auth.ts](../frontend/src/services/api/auth.ts), [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts)
@@ -125,7 +132,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/dashboard`
 
 - **Página:** [frontend/src/pages/DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) (876 líneas)
-- **Componentes y hooks suyos (15):**
+- **Componentes y hooks suyos (24):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BarraDePrediccion.tsx](../frontend/src/components/BarraDePrediccion.tsx)
   - [frontend/src/components/FlorDeFuerza.tsx](../frontend/src/components/FlorDeFuerza.tsx)
@@ -135,7 +142,16 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/SplitSelector.tsx](../frontend/src/components/SplitSelector.tsx)
   - [frontend/src/hooks/useFocoDeLista.ts](../frontend/src/hooks/useFocoDeLista.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/alertas.ts](../frontend/src/hooks/useTeam/alertas.ts)
+  - [frontend/src/hooks/useTeam/alineacion.ts](../frontend/src/hooks/useTeam/alineacion.ts)
+  - [frontend/src/hooks/useTeam/copa.ts](../frontend/src/hooks/useTeam/copa.ts)
+  - [frontend/src/hooks/useTeam/dashboard.ts](../frontend/src/hooks/useTeam/dashboard.ts)
+  - [frontend/src/hooks/useTeam/economia.ts](../frontend/src/hooks/useTeam/economia.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/liga.ts](../frontend/src/hooks/useTeam/liga.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/partidos.ts](../frontend/src/hooks/useTeam/partidos.ts)
+  - [frontend/src/hooks/useTeam/sincronizacion.ts](../frontend/src/hooks/useTeam/sincronizacion.ts)
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/pages/DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx)
@@ -153,7 +169,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/dashboard-anterior`
 
 - **Página:** [frontend/src/pages/DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) (616 líneas)
-- **Componentes y hooks suyos (13):**
+- **Componentes y hooks suyos (18):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -163,7 +179,12 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/SplitSelector.tsx](../frontend/src/components/SplitSelector.tsx)
   - [frontend/src/hooks/useFocoDeLista.ts](../frontend/src/hooks/useFocoDeLista.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/alertas.ts](../frontend/src/hooks/useTeam/alertas.ts)
+  - [frontend/src/hooks/useTeam/alineacion.ts](../frontend/src/hooks/useTeam/alineacion.ts)
+  - [frontend/src/hooks/useTeam/dashboard.ts](../frontend/src/hooks/useTeam/dashboard.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/liga.ts](../frontend/src/hooks/useTeam/liga.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/alertas.ts](../frontend/src/utils/alertas.ts)
@@ -179,7 +200,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/club`
 
 - **Página:** [frontend/src/pages/ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) (591 líneas)
-- **Componentes y hooks suyos (15):**
+- **Componentes y hooks suyos (17):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -189,7 +210,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/StaffRoleCard.tsx](../frontend/src/components/StaffRoleCard.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/club.ts](../frontend/src/hooks/useTeam/club.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
@@ -206,13 +229,15 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/overview`
 
 - **Página:** [frontend/src/pages/TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) (254 líneas)
-- **Componentes y hooks suyos (7):**
+- **Componentes y hooks suyos (9):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/resumen.ts](../frontend/src/hooks/useTeam/resumen.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `teamOverview`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/resumen.ts](../frontend/src/services/api/resumen.ts)
@@ -225,7 +250,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/team`
 
 - **Página:** [frontend/src/pages/TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) (503 líneas)
-- **Componentes y hooks suyos (13):**
+- **Componentes y hooks suyos (15):**
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
   - [frontend/src/components/EnlaceATransparencia.tsx](../frontend/src/components/EnlaceATransparencia.tsx)
@@ -234,7 +259,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/Specialty.tsx](../frontend/src/components/Specialty.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/plantilla.ts](../frontend/src/hooks/useTeam/plantilla.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -250,7 +277,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/skills`
 
 - **Página:** [frontend/src/pages/SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) (1079 líneas)
-- **Componentes y hooks suyos (14):**
+- **Componentes y hooks suyos (17):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
   - [frontend/src/components/MejorPosicion.tsx](../frontend/src/components/MejorPosicion.tsx)
@@ -259,7 +286,10 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/Specialty.tsx](../frontend/src/components/Specialty.tsx)
   - [frontend/src/components/SplitSelector.tsx](../frontend/src/components/SplitSelector.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/habilidades.ts](../frontend/src/hooks/useTeam/habilidades.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/resumen.ts](../frontend/src/hooks/useTeam/resumen.ts)
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
@@ -276,7 +306,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/players/:htPlayerId`
 
 - **Página:** [frontend/src/pages/PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) (1475 líneas)
-- **Componentes y hooks suyos (17):**
+- **Componentes y hooks suyos (20):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -287,7 +317,10 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/PlayerDistributionPanel.tsx](../frontend/src/components/PlayerDistributionPanel.tsx)
   - [frontend/src/components/Specialty.tsx](../frontend/src/components/Specialty.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/jugadores.ts](../frontend/src/hooks/useTeam/jugadores.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/transferencias.ts](../frontend/src/hooks/useTeam/transferencias.ts)
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
@@ -305,7 +338,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/positions`
 
 - **Página:** [frontend/src/pages/PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) (349 líneas)
-- **Componentes y hooks suyos (12):**
+- **Componentes y hooks suyos (14):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
@@ -313,7 +346,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/PlayerLink.tsx](../frontend/src/components/PlayerLink.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/plantilla.ts](../frontend/src/hooks/useTeam/plantilla.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -329,7 +364,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/lineup`
 
 - **Página:** [frontend/src/pages/LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) (825 líneas)
-- **Componentes y hooks suyos (13):**
+- **Componentes y hooks suyos (16):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -340,7 +375,10 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/PlayerLink.tsx](../frontend/src/components/PlayerLink.tsx)
   - [frontend/src/components/SplitSelector.tsx](../frontend/src/components/SplitSelector.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/alineacion.ts](../frontend/src/hooks/useTeam/alineacion.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/plantilla.ts](../frontend/src/hooks/useTeam/plantilla.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/utils/lineupAvailability.ts](../frontend/src/utils/lineupAvailability.ts)
 - **Pide a `api.`:** `lineup`, `lineupHindsight`, `squad`, `teamSpiritMultiplier`
@@ -354,7 +392,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/training`
 
 - **Página:** [frontend/src/pages/TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) (1912 líneas)
-- **Componentes y hooks suyos (17):**
+- **Componentes y hooks suyos (21):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -365,7 +403,11 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/PlayerLink.tsx](../frontend/src/components/PlayerLink.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/club.ts](../frontend/src/hooks/useTeam/club.ts)
+  - [frontend/src/hooks/useTeam/entrenamiento.ts](../frontend/src/hooks/useTeam/entrenamiento.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/jugadores.ts](../frontend/src/hooks/useTeam/jugadores.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -383,7 +425,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/transfers/balance`
 
 - **Página:** [frontend/src/pages/PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) (2963 líneas)
-- **Componentes y hooks suyos (21):**
+- **Componentes y hooks suyos (23):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/colors.ts](../frontend/src/charts/colors.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -398,7 +440,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/config/flags.ts](../frontend/src/config/flags.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
   - [frontend/src/hooks/useModal.ts](../frontend/src/hooks/useModal.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/transferencias.ts](../frontend/src/hooks/useTeam/transferencias.ts)
   - [frontend/src/hooks/useTheme.ts](../frontend/src/hooks/useTheme.ts)
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
@@ -431,7 +475,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/academy`
 
 - **Página:** [frontend/src/pages/AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) (4006 líneas)
-- **Componentes y hooks suyos (17):**
+- **Componentes y hooks suyos (19):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
@@ -442,7 +486,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/hooks/useAsentado.ts](../frontend/src/hooks/useAsentado.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
   - [frontend/src/hooks/usePersistido.ts](../frontend/src/hooks/usePersistido.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/juveniles.ts](../frontend/src/hooks/useTeam/juveniles.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -460,7 +506,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/matches`
 
 - **Página:** [frontend/src/pages/MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) (684 líneas)
-- **Componentes y hooks suyos (13):**
+- **Componentes y hooks suyos (15):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -469,7 +515,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/MatchSectorMap.tsx](../frontend/src/components/MatchSectorMap.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/partidos.ts](../frontend/src/hooks/useTeam/partidos.ts)
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
@@ -485,7 +533,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/league`
 
 - **Página:** [frontend/src/pages/LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) (1600 líneas)
-- **Componentes y hooks suyos (19):**
+- **Componentes y hooks suyos (21):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BarraDePrediccion.tsx](../frontend/src/components/BarraDePrediccion.tsx)
@@ -499,7 +547,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/TsiHistogramPanel.tsx](../frontend/src/components/TsiHistogramPanel.tsx)
   - [frontend/src/components/pitchZoneMethods.ts](../frontend/src/components/pitchZoneMethods.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/liga.ts](../frontend/src/hooks/useTeam/liga.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/hooks/useTheme.ts](../frontend/src/hooks/useTheme.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
@@ -517,7 +567,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/cup`
 
 - **Página:** [frontend/src/pages/CupPage.tsx](../frontend/src/pages/CupPage.tsx) (1082 líneas)
-- **Componentes y hooks suyos (13):**
+- **Componentes y hooks suyos (16):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BarraDePrediccion.tsx](../frontend/src/components/BarraDePrediccion.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
@@ -527,7 +577,10 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/components/pitchZoneMethods.ts](../frontend/src/components/pitchZoneMethods.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/copa.ts](../frontend/src/hooks/useTeam/copa.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/rivales.ts](../frontend/src/hooks/useTeam/rivales.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -543,12 +596,15 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/rivals`
 
 - **Página:** [frontend/src/pages/RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) (321 líneas)
-- **Componentes y hooks suyos (8):**
+- **Componentes y hooks suyos (11):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/copa.ts](../frontend/src/hooks/useTeam/copa.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/liga.ts](../frontend/src/hooks/useTeam/liga.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -564,7 +620,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/rivals/:rivalHtTeamId`
 
 - **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1365 líneas)
-- **Componentes y hooks suyos (14):**
+- **Componentes y hooks suyos (17):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -575,7 +631,10 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/TsiHistogramPanel.tsx](../frontend/src/components/TsiHistogramPanel.tsx)
   - [frontend/src/components/pitchZoneMethods.ts](../frontend/src/components/pitchZoneMethods.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/dashboard.ts](../frontend/src/hooks/useTeam/dashboard.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/rivales.ts](../frontend/src/hooks/useTeam/rivales.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
@@ -591,7 +650,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/economy`
 
 - **Página:** [frontend/src/pages/EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) (1374 líneas)
-- **Componentes y hooks suyos (11):**
+- **Componentes y hooks suyos (13):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -600,7 +659,9 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/economia.ts](../frontend/src/hooks/useTeam/economia.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `economy`
@@ -614,14 +675,16 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/arena`
 
 - **Página:** [frontend/src/pages/ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) (510 líneas)
-- **Componentes y hooks suyos (10):**
+- **Componentes y hooks suyos (12):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/colors.ts](../frontend/src/charts/colors.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/estadio.ts](../frontend/src/hooks/useTeam/estadio.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/hooks/useTheme.ts](../frontend/src/hooks/useTheme.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
@@ -636,13 +699,15 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/insights`
 
 - **Página:** [frontend/src/pages/InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) (200 líneas)
-- **Componentes y hooks suyos (7):**
+- **Componentes y hooks suyos (9):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Insights.tsx](../frontend/src/components/Insights.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/hooks/useFocoDeLista.ts](../frontend/src/hooks/useFocoDeLista.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/alertas.ts](../frontend/src/hooks/useTeam/alertas.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
 - **Pide a `api.`:** `archiveInsight`, `archivedInsights`, `insights`, `restoreInsight`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/alertas.ts](../frontend/src/services/api/alertas.ts)
@@ -656,12 +721,14 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/sync`
 
 - **Página:** [frontend/src/pages/SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) (202 líneas)
-- **Componentes y hooks suyos (7):**
+- **Componentes y hooks suyos (9):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/SyncProgressPanel.tsx](../frontend/src/components/SyncProgressPanel.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/dashboard.ts](../frontend/src/hooks/useTeam/dashboard.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `dashboard`
@@ -675,7 +742,7 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/news`
 
 - **Página:** [frontend/src/pages/SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) (868 líneas)
-- **Componentes y hooks suyos (16):**
+- **Componentes y hooks suyos (20):**
   - [frontend/src/components/AvisoDelBarrido.tsx](../frontend/src/components/AvisoDelBarrido.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BotonDeBorrado.tsx](../frontend/src/components/BotonDeBorrado.tsx)
@@ -689,7 +756,11 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
   - [frontend/src/components/YouthChanges.tsx](../frontend/src/components/YouthChanges.tsx)
   - [frontend/src/config/flags.ts](../frontend/src/config/flags.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
+  - [frontend/src/hooks/useTeam/partidos.ts](../frontend/src/hooks/useTeam/partidos.ts)
+  - [frontend/src/hooks/useTeam/plantilla.ts](../frontend/src/hooks/useTeam/plantilla.ts)
+  - [frontend/src/hooks/useTeam/sincronizacion.ts](../frontend/src/hooks/useTeam/sincronizacion.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `changesHistory`, `deleteTransferAttempt`, `lastMatchReport`, `setTimesSeen`, `squad`, `syncChanges`, `transferAttempts`
@@ -703,11 +774,15 @@ apartara, cada fila traería sesenta ficheros y no serviría de nada.
 ### `/transparency`
 
 - **Página:** [frontend/src/pages/TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) (980 líneas)
-- **Componentes y hooks suyos (6):**
+- **Componentes y hooks suyos (10):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
-  - [frontend/src/hooks/useTeam.ts](../frontend/src/hooks/useTeam.ts)
+  - [frontend/src/hooks/useTeam/entrenamiento.ts](../frontend/src/hooks/useTeam/entrenamiento.ts)
+  - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
+  - [frontend/src/hooks/useTeam/jugadores.ts](../frontend/src/hooks/useTeam/jugadores.ts)
+  - [frontend/src/hooks/useTeam/modelos.ts](../frontend/src/hooks/useTeam/modelos.ts)
+  - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `calculos`, `experienceModel`, `loyaltyModel`, `positionModel`, `trainingFormula`
@@ -773,30 +848,32 @@ ello, y correr los tests generales enteros.
 
 **Tests que cubren esa parte compartida (67):** correrlos al tocarla.
 
-## Lo más caro de leer
+## Qué conviene partir
 
-Los veinte ficheros más largos. Cualquier cambio que los toque paga su
-tamaño entero, así que son los candidatos a partirse por funcionalidad.
+`coste` es las líneas por el número de pantallas que abren el fichero:
+lo que cuesta de verdad no es lo grande que sea, sino lo grande por lo
+a menudo que hay que leerlo. Un fichero enorme que sólo lee una
+pantalla no estorba; uno mediano que leen veintiséis, sí.
 
-| Líneas | Fichero |
-| --: | --- |
-| 7257 | [backend/app/application/commands/sync_team.py](../backend/app/application/commands/sync_team.py) |
-| 4006 | [frontend/src/pages/AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) |
-| 2963 | [frontend/src/pages/PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) |
-| 2757 | [backend/app/application/queries/transparencia.py](../backend/app/application/queries/transparencia.py) |
-| 2309 | [backend/app/api/v1/endpoints/analysis.py](../backend/app/api/v1/endpoints/analysis.py) |
-| 1912 | [frontend/src/pages/TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) |
-| 1856 | [frontend/src/pages/wiki/contenido.ts](../frontend/src/pages/wiki/contenido.ts) |
-| 1702 | [backend/app/api/v1/endpoints/rivals.py](../backend/app/api/v1/endpoints/rivals.py) |
-| 1670 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
-| 1628 | [backend/app/infrastructure/db/models.py](../backend/app/infrastructure/db/models.py) |
-| 1600 | [frontend/src/pages/LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) |
-| 1546 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |
-| 1475 | [frontend/src/pages/PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) |
-| 1374 | [frontend/src/pages/EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) |
-| 1365 | [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) |
-| 1279 | [backend/app/api/v1/endpoints/cup.py](../backend/app/api/v1/endpoints/cup.py) |
-| 1252 | [backend/app/application/queries/player_balance.py](../backend/app/application/queries/player_balance.py) |
-| 1241 | [backend/app/application/queries/sync_comparison.py](../backend/app/application/queries/sync_comparison.py) |
-| 1231 | [backend/app/application/queries/league.py](../backend/app/application/queries/league.py) |
-| 1209 | [backend/app/domain/engines/prediccion.py](../backend/app/domain/engines/prediccion.py) |
+| Coste | Líneas | Pantallas | Fichero |
+| --: | --: | --: | --- |
+| 50799 | 7257 | 7 | [backend/app/application/commands/sync_team.py](../backend/app/application/commands/sync_team.py) |
+| 20781 | 2309 | 9 | [backend/app/api/v1/endpoints/analysis.py](../backend/app/api/v1/endpoints/analysis.py) |
+| 17685 | 1179 | 15 | [backend/app/api/v1/endpoints/teams.py](../backend/app/api/v1/endpoints/teams.py) |
+| 14225 | 569 | 25 | [backend/app/domain/value_objects/ht_constants.py](../backend/app/domain/value_objects/ht_constants.py) |
+| 12368 | 1546 | 8 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |
+| 11690 | 1670 | 7 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
+| 11097 | 411 | 27 | [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx) |
+| 10881 | 1209 | 9 | [backend/app/domain/engines/prediccion.py](../backend/app/domain/engines/prediccion.py) |
+| 10488 | 552 | 19 | [backend/app/application/queries/squad.py](../backend/app/application/queries/squad.py) |
+| 8764 | 1252 | 7 | [backend/app/application/queries/player_balance.py](../backend/app/application/queries/player_balance.py) |
+| 6531 | 311 | 21 | [backend/app/domain/engines/economy_engine.py](../backend/app/domain/engines/economy_engine.py) |
+| 6321 | 903 | 7 | [backend/app/application/queries/training_squad.py](../backend/app/application/queries/training_squad.py) |
+| 6155 | 1231 | 5 | [backend/app/application/queries/league.py](../backend/app/application/queries/league.py) |
+| 5380 | 269 | 20 | [backend/app/domain/engines/position_engine.py](../backend/app/domain/engines/position_engine.py) |
+| 5375 | 215 | 25 | [backend/app/application/queries/weekly.py](../backend/app/application/queries/weekly.py) |
+| 5355 | 765 | 7 | [backend/app/application/queries/post_match_training.py](../backend/app/application/queries/post_match_training.py) |
+| 5292 | 588 | 9 | [backend/app/application/queries/player_history.py](../backend/app/application/queries/player_history.py) |
+| 4830 | 483 | 10 | [backend/app/domain/engines/training_engine.py](../backend/app/domain/engines/training_engine.py) |
+| 4613 | 659 | 7 | [backend/app/domain/engines/rival_scouting.py](../backend/app/domain/engines/rival_scouting.py) |
+| 4527 | 503 | 9 | [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts) |
