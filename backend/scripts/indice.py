@@ -617,14 +617,19 @@ def tabla(d: dict) -> list[str]:
     out = [
         "## Las funcionalidades",
         "",
-        "| Ruta | Página | Líneas | Endpoints | Dominio | Tests |",
-        "| --- | --- | --: | --- | --: | --: |",
+        "`Leer` es el total de líneas de TODO lo que hay que abrir para tocar esa",
+        "pantalla: la página, sus componentes, su cliente, su endpoint, su",
+        "aplicación y sus motores. Es la cuenta que conviene ver bajar.",
+        "",
+        "| Ruta | Página | Líneas | Leer | Endpoints | Dominio | Tests |",
+        "| --- | --- | --: | --: | --- | --: | --: |",
     ]
     for r in d["rutas"]:
         pag = r["fichero"].replace("frontend/src/pages/", "")
         ends = ", ".join(Path(e).stem for e in r["endpoints"]) or "-"
         out.append(
             f"| `{r['ruta']}` | [{pag}]({ruta_rel(r['fichero'])}) | {r['lineas']} "
+            f"| {coste_de_ruta(r) if r['http'] else '-'} "
             f"| {ends} | {len(r['dominio'])} | {len(r['tests'])} |"
         )
     out.append("")
@@ -699,6 +704,20 @@ def transversal(d: dict) -> list[str]:
     )
     out.append("")
     return out
+
+
+def ficheros_de_ruta(r: dict) -> set[str]:
+    """Todo lo que hay que abrir para tocar una pantalla."""
+    out = set(r["locales"]) | {r["fichero"]} | set(r.get("cliente", [])) | set(r["endpoints"])
+    for m in r["aplicacion"] + r["dominio"] + r["infraestructura"]:
+        f = fichero_de_modulo(m)
+        if f:
+            out.add(f.relative_to(RAIZ).as_posix())
+    return out
+
+
+def coste_de_ruta(r: dict) -> int:
+    return sum(lineas(RAIZ / f) for f in ficheros_de_ruta(r))
 
 
 def costosos(d: dict) -> list[str]:
