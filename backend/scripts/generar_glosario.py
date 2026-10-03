@@ -37,8 +37,10 @@ from app.infrastructure.security.tokens import decrypt_token  # noqa: E402
 #: Los números NO se inventan: salen de `worldlanguages.xml`, que es la lista
 #: que publica el propio juego. Para añadir un idioma, pídela y busca el suyo.
 #: Así entró el alemán (3) el 2026-09-29: se descargó la lista y se leyó, en vez
-#: de suponer que el 3 le tocaba por orden alfabético o por tamaño del país.
-IDIOMAS: dict[str, int] = {"es": 6, "en": 2, "it": 4, "de": 3}
+#: de suponer que el 3 le tocaba por orden alfabético o por tamaño del país. El
+#: polaco (13) entró igual el mismo día, y su número no lo habría acertado nadie
+#: de memoria.
+IDIOMAS: dict[str, int] = {"es": 6, "en": 2, "it": 4, "de": 3, "pl": 13}
 
 DESTINOS = [
     RAIZ.parent / "frontend" / "src" / "i18n" / "glosario",
