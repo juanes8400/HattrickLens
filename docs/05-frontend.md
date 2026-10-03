@@ -1,5 +1,11 @@
 # 05 — Arquitectura Frontend
 
+> **Diseño, no estado actual.** Lo construido no coincide con esta
+> página: el frontend es Vite + react-router con `src/pages/`, no Next.js
+> con App Router, y no hay Celery, Redis ni Traefik. Para saber qué
+> ficheros forman cada pantalla, [`INDICE.md`](INDICE.md), que se genera
+> del código. Esta página se conserva por el razonamiento, no por el mapa.
+
 ## 1. Stack y estructura
 
 Next.js (App Router) + TypeScript estricto + TailwindCSS + shadcn/ui + React Query (server state) + Zustand (client state) + Recharts/D3 (visualización).
