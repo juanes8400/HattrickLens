@@ -1951,5 +1951,8 @@
   "De este jugador no se guardó ningún sueldo, así que el gasto sale más bajo de lo que fue y el ROI, mejor de lo que es.": "No wage was ever saved for this player, so the spending comes out lower than it was and the ROI better than it is.",
   "Simular su venta y ver el ROI →": "Simulate his sale and see the ROI →",
   "venta_neta = precio · (1 − %agente)\ncoste      = compra + salario + listados\n\nROI = (venta_neta − coste + reventa) ÷ coste · 100": "net_sale = price · (1 − %agent)\ncost     = purchase + wage + listings\n\nROI = (net_sale − cost + resale) ÷ cost · 100",
-  "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Type a sale price above and this is where the house's cut, what lands in the bank, the balance and the ROI will show up."
+  "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Type a sale price above and this is where the house's cut, what lands in the bank, the balance and the ROI will show up.",
+  "comprado": "bought",
+  "Ascendió al primer equipo": "Promoted to the senior squad",
+  "Salió de la academia": "Left the academy"
 }

@@ -147,8 +147,13 @@ export interface YouthSummary {
   ceilingsNow: number;
   readings: number;
   verdictChanges: { name: string; from: string | null; to: string }[];
-  /** Quien salio de la academia desde el informe anterior. */
-  left: { name: string; leftAt: string | null }[];
+  /** Quien salio de la academia EN ESTE sync.
+   *
+   *  `promoted` sólo va en true cuando se pudo comprobar que subió al primer
+   *  equipo: Hattrick no lo cuenta, se deduce de que aparezca en la plantilla
+   *  con tu club como club de origen. Si no coincide, se dice sólo que
+   *  salió, que es lo único que se sabe. */
+  left: { name: string; leftAt: string | null; promoted?: boolean }[];
 }
 
 export interface ChangeMetricSummary {

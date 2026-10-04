@@ -358,6 +358,20 @@ function SimulacionDePlantilla({
 
       {fila && simulacion && agentPct != null && (
         <>
+          {/* Su nombre, y enlazado: «todo lo enlazable se enlaza». El
+              desplegable sirve para elegir, no para ir a su ficha, y desde
+              aquí se quiere lo segundo tanto como lo primero (2026-10-04,
+              pedido del usuario). */}
+          <h2 className="text-sm font-semibold">
+            <PlayerLink htPlayerId={fila.htPlayerId} name={fila.name} />
+            <span className="font-normal text-[var(--muted)]">
+              {fila.isAcademyGraduate
+                ? ` · ${tx("Canterano")}`
+                : fila.purchasedAt
+                  ? ` · ${tx("comprado")} ${date(fila.purchasedAt)}`
+                  : ""}
+            </span>
+          </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 [&>*]:min-w-0">
             <Kpi
               label={tx("Lo que llevas gastado")}

@@ -1951,5 +1951,8 @@
   "De este jugador no se guardó ningún sueldo, así que el gasto sale más bajo de lo que fue y el ROI, mejor de lo que es.": "Z tego zawodnika nie zapisano żadnej pensji, więc wydatek wychodzi niższy, niż był, a ROI lepszy, niż jest.",
   "Simular su venta y ver el ROI →": "Zasymuluj jego sprzedaż i zobacz ROI →",
   "venta_neta = precio · (1 − %agente)\ncoste      = compra + salario + listados\n\nROI = (venta_neta − coste + reventa) ÷ coste · 100": "sprzedaż_netto = cena · (1 − %agenta)\nkoszt          = zakup + pensja + wystawienia\n\nROI = (sprzedaż_netto − koszt + odsprzedaż) ÷ koszt · 100",
-  "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Wpisz powyżej cenę sprzedaży, a tutaj pojawi się, ile zabiera dom, ile wpada do kasy, saldo i ROI."
+  "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Wpisz powyżej cenę sprzedaży, a tutaj pojawi się, ile zabiera dom, ile wpada do kasy, saldo i ROI.",
+  "comprado": "kupiony",
+  "Ascendió al primer equipo": "Awansował do pierwszej drużyny",
+  "Salió de la academia": "Odszedł z młodzieżówki"
 }
