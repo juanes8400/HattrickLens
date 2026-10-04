@@ -436,6 +436,16 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             ` · ${bestPosition.label} (${bestPosition.rating.toFixed(2)})`}
           {data.nativeLeagueName && ` · ${data.nativeLeagueName}`}
         </p>
+        {/* La segunda puerta a la misma simulación (2026-10-03, pedido del
+            usuario): desde aquí, con él ya elegido, y desde Transferencias
+            eligiéndolo en la lista. No se calcula nada en esta ficha, se
+            lleva a donde está la cuenta. */}
+        <Link
+          to={`/transfers/balance?simular=${data.htPlayerId}`}
+          className="mt-2 inline-block rounded-md border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+        >
+          {tx("Simular su venta y ver el ROI →")}
+        </Link>
       </header>
 
       <Panel

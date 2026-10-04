@@ -1,8 +1,8 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import clsx from "clsx";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import { Chart } from "../charts/Chart";
 import { colores } from "../charts/colors";
@@ -14,6 +14,7 @@ import {
   ErrorState,
   Kpi,
   Loading,
+  Note,
   Panel,
   SinDatos,
 } from "../components/Panels";
@@ -33,10 +34,11 @@ import {
 import { useDialogoModal } from "../hooks/useModal";
 import { BotonDeBorrado } from "../components/BotonDeBorrado";
 import { useIsDarkTheme } from "../hooks/useTheme";
-import { TEAM_ID, usePlayerBalance } from "../hooks/useTeam";
+import { TEAM_ID, usePlayerBalance, useSquad } from "../hooks/useTeam";
 import { api, errorMessage } from "../services/api";
 import type { PlayerBalanceRow } from "../services/api";
 
+import { simularVenta } from "../utils/simulacionDeVenta";
 import { tx } from "../i18n/tx";
 import { terminoOficial } from "../i18n/glosario";
 const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
@@ -224,7 +226,209 @@ function clampRoiForColor(roiPct: number): number {
 }
 
 type SectionKey =
-  "resumen" | "totales" | "desgloses" | "roi" | "intentos" | "detalle";
+  | "resumen"
+  | "totales"
+  | "desgloses"
+  | "roi"
+  | "intentos"
+  | "detalle"
+  | "plantilla";
+
+/** Qué dejaría vender HOY a alguien que sigue en el club.
+ *
+ *  2026-10-03, pedido por un usuario. El resto de esta pantalla mira hacia
+ *  atrás --lo comprado y lo vendido-- y esta pestaña mira hacia delante con
+ *  un precio que pone uno mismo. La cuenta es la de siempre, la de
+ *  `simularVenta`, con los MISMOS gastos que el libro de transferencias le
+ *  atribuye a ese jugador: lo que costó, los sueldos que se le han pagado y
+ *  los intentos de venta.
+ *
+ *  Lo que NO hace, a propósito: valorar al jugador. El precio lo pone el
+ *  usuario. Esta pantalla no sabe lo que vale nadie en el mercado, y fingir
+ *  que sí lo sabe sería inventarse la mitad de la respuesta.
+ */
+function SimulacionDePlantilla({
+  jugadores,
+  currency,
+  seleccionado,
+  onElegir,
+  precio,
+  onPrecio,
+}: {
+  jugadores: PlayerBalanceRow[];
+  currency: string;
+  seleccionado: number | null;
+  onElegir: (htPlayerId: number | null) => void;
+  precio: string;
+  onPrecio: (valor: string) => void;
+}) {
+  const fila = jugadores.find((p) => p.htPlayerId === seleccionado) ?? null;
+  const gastos = fila?.totalCost ?? 0;
+  const agentPct = fila?.agentPctIfSoldNow ?? null;
+  const pedido = Number(precio.replace(/[^\d]/g, ""));
+  // Sin precio escrito no se enseña ninguna venta. Con cero por defecto salía
+  // «saldo −3.833.432, ROI −100 %» nada más abrir la ficha de alguien, que es
+  // verdad --regalarlo cuesta todo lo que llevas puesto-- pero parece un
+  // veredicto sobre el jugador y no lo es: es que nadie ha puesto precio.
+  const hayPrecio = precio.trim() !== "" && Number.isFinite(pedido);
+  const simulacion =
+    fila && agentPct != null
+      ? simularVenta({
+          precio: Number.isFinite(pedido) ? pedido : 0,
+          agentPct,
+          gastos,
+          resaleBonusShare: fila.resaleBonusShare,
+        })
+      : null;
+  const invertido = (fila?.purchasePrice ?? 0) + (fila?.promotionCost ?? 0);
+
+  return (
+    <div className="space-y-4">
+      <Panel
+        title={tx("Plantilla actual")}
+        meta={tx("una venta que todavía no existe, al precio que tú pongas")}
+        ayuda={tx(
+          "Coge a alguien que sigue en tu plantilla, ponle un precio y mira qué dejaría: lo que se lleva la casa, lo que entra en caja y el ROI sobre lo que ya llevas gastado en él. Es la misma cuenta que hace el libro de transferencias con una venta de verdad; lo único inventado es el precio, que lo pones tú.",
+        )}
+      >
+        <div className="flex flex-wrap items-end gap-4 px-4 py-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs text-[var(--muted)]">{tx("Jugador")}</span>
+            <select
+              value={seleccionado ?? ""}
+              onChange={(e) =>
+                onElegir(e.target.value ? Number(e.target.value) : null)
+              }
+              className="rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm"
+            >
+              <option value="">{tx("Elige un jugador")}</option>
+              {jugadores
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((p) => (
+                  <option key={p.htPlayerId} value={p.htPlayerId}>
+                    {p.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs text-[var(--muted)]">
+              {tx("Precio de venta")} ({currency})
+            </span>
+            <input
+              inputMode="numeric"
+              value={precio}
+              onChange={(e) => onPrecio(e.target.value)}
+              placeholder={tx("escribe un precio")}
+              className="w-44 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm"
+            />
+          </label>
+          {simulacion?.precioDeEquilibrio != null && (
+            <button
+              type="button"
+              onClick={() =>
+                onPrecio(String(simulacion.precioDeEquilibrio ?? ""))
+              }
+              className="rounded-md border border-[var(--border)] px-2 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+            >
+              {tx("poner el precio de no perder")}:{" "}
+              {money(simulacion.precioDeEquilibrio, currency)}
+            </button>
+          )}
+        </div>
+        {fila == null && (
+          <Empty>
+            {jugadores.length === 0
+              ? tx(
+                  "Sin jugadores comprados o ascendidos en la plantilla de hoy.",
+                )
+              : tx("Elige un jugador para simular su venta.")}
+          </Empty>
+        )}
+      </Panel>
+
+      {fila && agentPct == null && (
+        <Note>
+          {tx(
+            "De este jugador no se sabe cuándo llegó, y la comisión del agente se cuenta por días en el club: sin esa fecha no hay simulación posible.",
+          )}
+        </Note>
+      )}
+
+      {fila && simulacion && agentPct != null && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 [&>*]:min-w-0">
+            <Kpi
+              label={tx("Lo que llevas gastado")}
+              value={money(gastos, currency)}
+              hint={`${money(invertido, currency)} ${tx("de llegada")} · ${money(fila.salaryTotal, currency)} ${tx("de sueldos")} · ${money(fila.listingCost, currency)} ${tx("de intentos")}`}
+            />
+            {!hayPrecio && (
+              <div className="rounded-lg border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted)] sm:col-span-2 lg:col-span-4">
+                {tx(
+                  "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.",
+                )}
+              </div>
+            )}
+            {hayPrecio && (
+              <>
+                <Kpi
+                  label={tx("Se lleva la casa")}
+                  value={`${decimal(agentPct * 100, 2)}%`}
+                  hint={
+                    fila.isAcademyGraduate
+                      ? tx("canterano en su primera venta: 5% plano")
+                      : tx(
+                          "tabla del agente por sus días en el club, más el 5%",
+                        )
+                  }
+                />
+                <Kpi
+                  label={tx("Entraría en caja")}
+                  value={money(simulacion.neto, currency)}
+                />
+                <Kpi
+                  label={tx("Saldo")}
+                  value={money(simulacion.saldo, currency)}
+                  tone={simulacion.saldo >= 0 ? "positive" : "danger"}
+                />
+                <Kpi
+                  label={tx("ROI")}
+                  value={
+                    simulacion.roiPct == null
+                      ? "?"
+                      : `${decimal(simulacion.roiPct, 2)}%`
+                  }
+                  tone={
+                    simulacion.roiPct != null && simulacion.roiPct >= 0
+                      ? "positive"
+                      : "danger"
+                  }
+                  ayuda={tx(
+                    "venta_neta = precio · (1 − %agente)\ncoste      = compra + salario + listados\n\nROI = (venta_neta − coste + reventa) ÷ coste · 100",
+                  )}
+                />
+              </>
+            )}
+          </div>
+
+          {fila.salarySource !== "observado" && (
+            <Note>
+              {fila.salarySource === "estimado"
+                ? tx(
+                    "Los sueldos de este jugador están calculados, no medidos: su etapa empezó antes de que HT Lens lo viera cobrar. El gasto es aproximado y el ROI también.",
+                  )
+                : tx(
+                    "De este jugador no se guardó ningún sueldo, así que el gasto sale más bajo de lo que fue y el ROI, mejor de lo que es.",
+                  )}
+            </Note>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 // Interruptor coqueto reutilizado por los 2 toggles compartidos (pedido
 // explícitamente 2026-08-04/05), antes duplicado inline en cada sección.
@@ -733,7 +937,37 @@ export function PlayerBalancePage() {
   const { data, isLoading, isError, error } = usePlayerBalance();
   const navigate = useNavigate();
   const isDark = useIsDarkTheme();
-  const [section, setSection] = useState<SectionKey>("resumen");
+  // La ficha de un jugador de hoy enlaza aquí con `?simular=<id>`: se abre
+  // directamente en «Plantilla actual» y con él elegido, que es lo que pidió
+  // el usuario (dos puertas, una sola pantalla).
+  const [searchParams] = useSearchParams();
+  const simularParam = searchParams.get("simular");
+  const [section, setSection] = useState<SectionKey>(
+    simularParam ? "plantilla" : "resumen",
+  );
+  const [jugadorSimulado, setJugadorSimulado] = useState<number | null>(
+    simularParam ? Number(simularParam) : null,
+  );
+  const [precioSimulado, setPrecioSimulado] = useState("");
+  // Para saber quién sigue DE VERDAD en la plantilla. El libro de
+  // transferencias tiene etapas abiertas de gente que ya no está --se fue sin
+  // que ninguna venta lo contara-- y ésos no son «plantilla actual».
+  const squad = useSquad();
+
+  // Los de «Plantilla actual»: etapa abierta Y presentes hoy en el roster.
+  // Las dos condiciones hacen falta. Sólo con la etapa abierta se colaban
+  // siete fantasmas --gente que se fue sin que ninguna venta lo contara-- y
+  // sólo con el roster no habría de dónde sacar lo que costaron. Sin filtro
+  // de temporada a propósito: aquí no se mira ninguna temporada pasada, se
+  // mira a quien está hoy.
+  const jugadoresDeHoy = useMemo(() => {
+    const enPlantilla = new Set(
+      (squad.data?.players ?? []).map((p) => p.htPlayerId),
+    );
+    return (data?.players ?? []).filter(
+      (p) => !p.isSold && enPlantilla.has(p.htPlayerId),
+    );
+  }, [data, squad.data]);
   const [seasonFilter, setSeasonFilter] = useState<string>("all");
   const [dotSort, setDotSort] = useState<DotSortKey>("date");
   // Solo para el contador de la pestaña; react-query comparte la respuesta
@@ -1137,6 +1371,12 @@ export function PlayerBalancePage() {
           grupo="balance"
           tabs={[
             { key: "resumen", label: tx("Resumen") },
+            {
+              key: "plantilla",
+              label: tx("Plantilla actual ({{v0}})", {
+                v0: jugadoresDeHoy.length,
+              }),
+            },
             { key: "totales", label: tx("Totales") },
             { key: "desgloses", label: tx("Desgloses absolutos") },
             { key: "roi", label: tx("Desgloses ROI") },
@@ -1163,7 +1403,11 @@ export function PlayerBalancePage() {
             "Resumen: cada venta como un punto. Totales: lo comprado y lo vendido. Desgloses absolutos: el saldo repartido por temporada, semana, edad y más. Desgloses ROI: lo mismo en porcentaje de lo invertido. Detalle: una fila por jugador.",
           )}
         />
-        {seasonOptions.length > 0 && (
+        {/* Los filtros compartidos no son de «Plantilla actual»: ahí no se
+            mira ninguna temporada pasada ni ninguna venta cerrada, se mira a
+            quien está hoy en el club. Enseñarlos encima de esa pestaña
+            sugería que recortaban algo, y no recortan nada. */}
+        {section !== "plantilla" && seasonOptions.length > 0 && (
           <div className="flex items-center gap-2">
             <label
               htmlFor="season-filter"
@@ -1195,91 +1439,94 @@ export function PlayerBalancePage() {
 
       {/* Filtros compartidos (pedido explícitamente 2026-08-05, confirmado:
           un solo lugar, no repetidos en Resumen/Desgloses/Detalle); afectan a
-          las tres secciones a la vez. */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
-        <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          {tx("Habilidad entrenada")}
+          las tres secciones a la vez. Menos a «Plantilla actual», que no mira
+          ninguna venta cerrada. */}
+      {section !== "plantilla" && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2">
+          <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+            {tx("Habilidad entrenada")}
+            <Ayuda
+              texto={tx(
+                "Deja sólo a los jugadores cuya habilidad más subida mientras estuvieron contigo fue ésta.",
+              )}
+            />
+            <select
+              value={trainingFilter}
+              onChange={(e) => setTrainingFilter(e.target.value)}
+              className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
+            >
+              <option value="all">{tx("Todos")}</option>
+              {trainingOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+            {tx("Origen")}
+            <Ayuda
+              texto={tx(
+                "Comprado: llegó por traspaso. Canterano: salió de tu academia. Sin origen conocido: Hattrick no dice cómo llegó.",
+              )}
+            />
+            <select
+              value={originFilter}
+              onChange={(e) =>
+                setOriginFilter(
+                  e.target.value as "all" | "bought" | "academy" | "unknown",
+                )
+              }
+              className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
+            >
+              <option value="all">{tx("Todos")}</option>
+              <option value="bought">{tx("Comprado")}</option>
+              <option value="academy">{tx("Canterano")}</option>
+              <option value="unknown">{tx("Sin origen conocido")}</option>
+            </select>
+          </label>
+          <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+            {tx("Datos")}
+            <Ayuda
+              texto={tx(
+                "Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana.",
+              )}
+            />
+            <Tabs
+              modo="filtro"
+              label={tx("Qué datos se tienen en cuenta")}
+              active={materialDelSaldo}
+              onChange={setMaterialDelSaldo}
+              tabs={[
+                // «Todos» y no «Todo» para concordar con los otros dos
+                // controles de la fila, que ya dicen «Todos». Y «Sin datos
+                // desconocidos» con la palabra «datos» dentro: «Sin
+                // desconocidos» se leía como «sin jugadores desconocidos».
+                //
+                // El peldaño estrecho NO lleva «completo» ni «todo» a
+                // propósito: esas palabras sugieren MÁS y aquí se enseña
+                // MENOS (13 ventas de 567). Y las tres tienen construcción
+                // distinta, todos, sin algo, sólo un subconjunto, porque tres
+                // etiquetas paralelas («Sin X», «Sin Y») se leen como filtros
+                // independientes y no como los peldaños de una escalera.
+                { key: "todo", label: tx("Todos") },
+                { key: "sinDesconocidos", label: tx("Sin datos desconocidos") },
+                { key: "soloMedido", label: tx("Sólo lo medido") },
+              ]}
+            />
+          </span>
+          <ToggleSwitch
+            checked={ignoreFired}
+            onChange={() => setIgnoreFired((v) => !v)}
+            label={tx("Ignorar jugadores despedidos")}
+          />
           <Ayuda
             texto={tx(
-              "Deja sólo a los jugadores cuya habilidad más subida mientras estuvieron contigo fue ésta.",
+              "Quita a los jugadores que salieron sin venta: no dejaron ingreso y bajan el ROI de su grupo.",
             )}
           />
-          <select
-            value={trainingFilter}
-            onChange={(e) => setTrainingFilter(e.target.value)}
-            className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
-          >
-            <option value="all">{tx("Todos")}</option>
-            {trainingOptions.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          {tx("Origen")}
-          <Ayuda
-            texto={tx(
-              "Comprado: llegó por traspaso. Canterano: salió de tu academia. Sin origen conocido: Hattrick no dice cómo llegó.",
-            )}
-          />
-          <select
-            value={originFilter}
-            onChange={(e) =>
-              setOriginFilter(
-                e.target.value as "all" | "bought" | "academy" | "unknown",
-              )
-            }
-            className="rounded border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--text)]"
-          >
-            <option value="all">{tx("Todos")}</option>
-            <option value="bought">{tx("Comprado")}</option>
-            <option value="academy">{tx("Canterano")}</option>
-            <option value="unknown">{tx("Sin origen conocido")}</option>
-          </select>
-        </label>
-        <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-          {tx("Datos")}
-          <Ayuda
-            texto={tx(
-              "Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana.",
-            )}
-          />
-          <Tabs
-            modo="filtro"
-            label={tx("Qué datos se tienen en cuenta")}
-            active={materialDelSaldo}
-            onChange={setMaterialDelSaldo}
-            tabs={[
-              // «Todos» y no «Todo» para concordar con los otros dos
-              // controles de la fila, que ya dicen «Todos». Y «Sin datos
-              // desconocidos» con la palabra «datos» dentro: «Sin
-              // desconocidos» se leía como «sin jugadores desconocidos».
-              //
-              // El peldaño estrecho NO lleva «completo» ni «todo» a
-              // propósito: esas palabras sugieren MÁS y aquí se enseña
-              // MENOS (13 ventas de 567). Y las tres tienen construcción
-              // distinta, todos, sin algo, sólo un subconjunto, porque tres
-              // etiquetas paralelas («Sin X», «Sin Y») se leen como filtros
-              // independientes y no como los peldaños de una escalera.
-              { key: "todo", label: tx("Todos") },
-              { key: "sinDesconocidos", label: tx("Sin datos desconocidos") },
-              { key: "soloMedido", label: tx("Sólo lo medido") },
-            ]}
-          />
-        </span>
-        <ToggleSwitch
-          checked={ignoreFired}
-          onChange={() => setIgnoreFired((v) => !v)}
-          label={tx("Ignorar jugadores despedidos")}
-        />
-        <Ayuda
-          texto={tx(
-            "Quita a los jugadores que salieron sin venta: no dejaron ingreso y bajan el ROI de su grupo.",
-          )}
-        />
-      </div>
+        </div>
+      )}
 
       {/* Primero POR QUÉ existe el control, luego qué hace la posición
           elegida. Sin la primera frase, las otras tres contestan a una
@@ -1288,7 +1535,7 @@ export function PlayerBalancePage() {
           Todo esto se enseña sólo si hay algo que advertir: con todos los
           sueldos vistos, el caso de quien empieza hoy, las tres posiciones
           dan lo mismo y no hay nada que explicar. */}
-      {(estimadas > 0 || sinSueldo > 0) && (
+      {section !== "plantilla" && (estimadas > 0 || sinSueldo > 0) && (
         <div className="space-y-1">
           <p className="prosa text-sm text-[var(--muted)]">
             {tx(
@@ -1383,6 +1630,17 @@ export function PlayerBalancePage() {
       )}
 
       <PanelDePestanas grupo="balance" activa={section} className="space-y-4">
+        {section === "plantilla" && (
+          <SimulacionDePlantilla
+            jugadores={jugadoresDeHoy}
+            currency={data.currency}
+            seleccionado={jugadorSimulado}
+            onElegir={setJugadorSimulado}
+            precio={precioSimulado}
+            onPrecio={setPrecioSimulado}
+          />
+        )}
+
         {section === "resumen" && (
           <div className="space-y-4">
             {dotBase.length > 0 && (

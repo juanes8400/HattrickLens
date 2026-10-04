@@ -107,6 +107,12 @@ export interface PlayerBalanceRow {
   listingAttempts: { highestBid: number | null; detectedAt: string }[];
   listingCost: number;
   agentPct: number | null;
+  /** Lo que se llevaría la casa si lo vendieras HOY, para quien sigue en el
+   *  club: la tabla del agente por los días que lleva, más el 5 % de
+   *  siempre, o el 5 % plano si es canterano en su primera venta. `null` en
+   *  cuanto la venta es real, que entonces manda `agentPct`. Lo calcula el
+   *  servidor con la misma función que cobra una venta de verdad. */
+  agentPctIfSoldNow: number | null;
   // HL-161, 2026-08-14: comisión de club anterior EXACTA (partidos reales
   // jugados con nosotros × tabla oficial de Hattrick), 0 si el club al
   // que se lo vendimos todavía no lo ha revendido. Reemplaza el reparto

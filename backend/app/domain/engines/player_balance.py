@@ -203,6 +203,29 @@ def agent_commission_pct(days_owned: float) -> float:
     return y[-1]  # inalcanzable, guarda de tipo
 
 
+def agent_pct_de_una_venta(
+    purchased_at: datetime,
+    sold_at: datetime,
+    *,
+    is_academy_graduate: bool,
+) -> float:
+    """Lo que se lleva la casa de una venta, la real y la que aún no existe.
+
+    Canterano en su primera venta: sólo el agente, plano. Cualquier otra
+    venta: la tabla del agente, que depende de los días, más el 5 % que se
+    cobra siempre (ver `ALWAYS_CHARGED_PCT`).
+
+    Vive aquí desde el 2026-10-03 porque ahora lo pregunta un segundo sitio:
+    «Plantilla actual» en Transferencias simula qué dejaría vender HOY a
+    alguien que sigue en el club, y ese porcentaje tiene que ser el MISMO que
+    cobrará la venta de verdad cuando ocurra. Dos definiciones del mismo
+    porcentaje acaban dando dos cifras distintas para la misma venta.
+    """
+    if is_academy_graduate:
+        return ACADEMY_FIRST_SALE_PCT
+    return agent_commission_pct(dias_de_agente(purchased_at, sold_at)) + ALWAYS_CHARGED_PCT
+
+
 @dataclass(frozen=True)
 class SalarySnapshot:
     captured_at: datetime
@@ -417,14 +440,10 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
 
     is_sold = record.sale_price is not None
     if is_sold:
-        days_owned = dias_de_agente(purchased_at, record.sold_at or end)
-        # Canterano en su primera venta: solo el agente, plano. Cualquier
-        # otra venta: tabla de agente + 5% siempre (ver ALWAYS_CHARGED_PCT
-        # arriba, replica la hoja de cálculo real del usuario).
-        agent_pct = (
-            ACADEMY_FIRST_SALE_PCT
-            if record.is_academy_graduate
-            else agent_commission_pct(days_owned) + ALWAYS_CHARGED_PCT
+        agent_pct = agent_pct_de_una_venta(
+            purchased_at,
+            record.sold_at or end,
+            is_academy_graduate=record.is_academy_graduate,
         )
         net_sale_proceeds = round((record.sale_price or 0) * (1 - agent_pct))
     else:
