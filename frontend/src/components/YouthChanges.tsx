@@ -25,7 +25,7 @@ import { tx } from "../i18n/tx";
  *   - subió de nivel            → entrenamiento dando fruto
  *   - se reveló el nivel        → no ha crecido; ahora lo vemos
  *   - se reveló el techo        → ya sabemos hasta dónde llega
- *   - topó                      → no crecerá más, aunque el techo siga oculto
+ *   - llegó al máximo           → no crecerá más, aunque el techo siga oculto
  *
  * Y una regla de color que importa: **descubrir no es mejorar**. Pintar de
  * verde una revelación diría que el chico progresó cuando lo único que cambió
@@ -97,12 +97,16 @@ function Linea({ change }: { change: YouthComparisonChange }) {
     );
   }
 
-  // «Topó» va de sufijo, nunca sustituyendo a la línea: un canterano puede
-  // revelarse Y topar en la misma comparación, pasa cuando el nivel aparece ya
+  // «Llegó al máximo» va de sufijo, nunca sustituyendo a la línea: un
+  // canterano puede revelarse Y llegar al máximo en la misma comparación,
+  // pasa cuando el nivel aparece ya
   // igualado a su techo, y contar sólo lo segundo se come la noticia de que
   // por fin lo vemos.
   const topo = change.maxJustReached ? (
-    <span className="font-semibold text-[var(--muted)]"> {tx("· topó")}</span>
+    <span className="font-semibold text-[var(--muted)]">
+      {" "}
+      {tx("· llegó al máximo")}
+    </span>
   ) : null;
 
   // Sólo se movió el techo: el nivel sigue sin saberse. Es el caso que no
@@ -135,7 +139,7 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   if (change.maxJustReached && change.delta == null) {
     return (
       <span className="font-semibold tabular-nums text-[var(--muted)]">
-        {tx("topó")}
+        {tx("llegó al máximo")}
         {change.current != null ? tx(" en {{v0}}", { v0: change.current }) : ""}
       </span>
     );

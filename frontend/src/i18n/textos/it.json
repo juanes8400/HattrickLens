@@ -48,7 +48,6 @@
   "· resultado más probable": "· risultato più probabile",
   "· sugerido": "· suggerito",
   "· temporada": "· stagione",
-  "· topó": "· al massimo",
   "\"Reventa\" es la parte estimada de un ingreso que Hattrick reporta agregado y sin decir de qué jugador viene, repartida proporcional al precio de venta entre todo lo que has vendido, es una aproximación, no un dato exacto.": "\"Rivendita\" è la parte stimata di un'entrata che Hattrick riporta aggregata e senza dire da quale giocatore viene, ripartita in proporzione al prezzo di vendita su tutto quello che hai venduto: è un'approssimazione, non un dato esatto.",
   "\"Última posición\" se consulta aparte, solo para el jugador de mayor TSI de cada equipo; forma y resistencia promedian solo jugadores donde Hattrick de verdad mostró el dato: un rival puede tenerlas ocultas.": "\"Ultima posizione\" si consulta a parte, solo per il giocatore con più TSI di ogni squadra; forma e resistenza mediano solo i giocatori per cui Hattrick ha davvero mostrato il dato: un avversario può averle nascoste.",
   "«¿Gano o pierdo dinero con el mercado?». El precio de venta menos el de compra engaña: durante el tiempo en el club el jugador cobró su sueldo, el listado costó y el agente se lleva una comisión. Esta pantalla lo suma todo.": "«Guadagno o perdo soldi con il mercato?». Il prezzo di vendita meno quello d'acquisto inganna: durante il tempo nel club il giocatore ha preso lo stipendio, l'annuncio è costato e l'agente si prende una commissione. Questa schermata somma tutto.",
@@ -1772,7 +1771,6 @@
   "Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana.": "Tutte: tutte le vendite, con lo stipendio calcolato dove non si è visto. Senza dati sconosciuti: toglie le vendite di cui non c'è nessuna cifra di stipendio. Solo il misurato: solo le vendite di cui HT Lens ha visto lo stipendio settimana per settimana.",
   "top 10 de 19 + roles especiales": "top 10 di 19 + ruoli speciali",
   "top 5 por TSI, de sus últimos partidos{{v0}}, sea contra quien sea": "top 5 per TSI, dalle loro ultime partite{{v0}}, contro chiunque",
-  "topó": "al massimo",
   "Torneo": "Torneo",
   "Torneos, duelos, escaleras y preparación no cuentan nunca.": "Tornei, duelli, scale e preparazione non contano mai.",
   "Total": "Totale",
@@ -1954,5 +1952,7 @@
   "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Scrivi sopra un prezzo di vendita e qui usciranno quanto si prende la casa, quanto entra in cassa, il saldo e il ROI.",
   "comprado": "comprato",
   "Ascendió al primer equipo": "Promosso in prima squadra",
-  "Salió de la academia": "Ha lasciato il vivaio"
+  "Salió de la academia": "Ha lasciato il vivaio",
+  "llegó al máximo": "al massimo",
+  "· llegó al máximo": "· al massimo"
 }

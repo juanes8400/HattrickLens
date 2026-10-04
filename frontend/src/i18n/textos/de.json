@@ -1709,7 +1709,6 @@
   "todavía un supuesto": "immer noch eine Annahme",
   "top 10 de 19 + roles especiales": "Top 10 von 19 + Sonderrollen",
   "top 5 por TSI, de sus últimos partidos{{v0}}, sea contra quien sea": "Top 5 nach TSI, aus seinen letzten Spielen{{v0}}, gegen wen auch immer",
-  "topó": "hat das Limit erreicht",
   "tramos de semanas consecutivas con el mismo sueldo": "Abschnitte aufeinanderfolgender Wochen mit demselben Gehalt",
   "tu alineación enviada": "deine abgeschickte Aufstellung",
   "tu alineación enviada contra su último partido": "deine abgeschickte Aufstellung gegen sein letztes Spiel",
@@ -1805,7 +1804,6 @@
   "· resultado más probable": "· wahrscheinlichstes Ergebnis",
   "· sugerido": "· vorgeschlagen",
   "· temporada": "· Saison",
-  "· topó": "· am Limit",
   "º baja": ". fällt",
   "º sube": ". steigt",
   "». Prueba con otra palabra.": "». Versuch ein anderes Wort.",
@@ -1954,5 +1952,7 @@
   "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Tipp oben einen Verkaufspreis ein, und hier erscheinen der Anteil des Hauses, was in die Kasse kommt, der Saldo und die Rendite.",
   "comprado": "gekauft",
   "Ascendió al primer equipo": "In die erste Mannschaft hochgezogen",
-  "Salió de la academia": "Hat die Jugendabteilung verlassen"
+  "Salió de la academia": "Hat die Jugendabteilung verlassen",
+  "llegó al máximo": "hat das Limit erreicht",
+  "· llegó al máximo": "· am Limit"
 }

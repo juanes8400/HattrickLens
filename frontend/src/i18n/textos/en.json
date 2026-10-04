@@ -1709,7 +1709,6 @@
   "todavía un supuesto": "still an assumption",
   "top 10 de 19 + roles especiales": "top 10 of 19 + special roles",
   "top 5 por TSI, de sus últimos partidos{{v0}}, sea contra quien sea": "top 5 by TSI, from their latest matches{{v0}}, whoever they were against",
-  "topó": "maxed out",
   "tramos de semanas consecutivas con el mismo sueldo": "runs of consecutive weeks with the same wage",
   "tu alineación enviada": "your submitted lineup",
   "tu alineación enviada contra su último partido": "your submitted lineup against their last match",
@@ -1805,7 +1804,6 @@
   "· resultado más probable": "· most likely score",
   "· sugerido": "· suggested",
   "· temporada": "· season",
-  "· topó": "· maxed out",
   "º baja": " drops",
   "º sube": " rises",
   "». Prueba con otra palabra.": "”. Try another word.",
@@ -1954,5 +1952,7 @@
   "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Type a sale price above and this is where the house's cut, what lands in the bank, the balance and the ROI will show up.",
   "comprado": "bought",
   "Ascendió al primer equipo": "Promoted to the senior squad",
-  "Salió de la academia": "Left the academy"
+  "Salió de la academia": "Left the academy",
+  "llegó al máximo": "maxed out",
+  "· llegó al máximo": "· maxed out"
 }

@@ -1785,7 +1785,6 @@
   "todavía un supuesto": "na razie założenie",
   "top 10 de 19 + roles especiales": "top 10 z 19 + role specjalne",
   "top 5 por TSI, de sus últimos partidos{{v0}}, sea contra quien sea": "top 5 według TSI, z jego ostatnich meczów{{v0}}, z kimkolwiek",
-  "topó": "osiągnął pułap",
   "tramos de semanas consecutivas con el mismo sueldo": "odcinki kolejnych tygodni z tą samą pensją",
   "tu alineación enviada": "twój wysłany skład",
   "tu alineación enviada contra su último partido": "twój wysłany skład wobec jego ostatniego meczu",
@@ -1890,7 +1889,6 @@
   "· resultado más probable": "· najbardziej prawdopodobny wynik",
   "· sugerido": "· sugerowane",
   "· temporada": "· sezon",
-  "· topó": "· osiągnął pułap",
   "º baja": ". spada",
   "º sube": ". awansuje",
   "». Prueba con otra palabra.": "». Spróbuj innym słowem.",
@@ -1954,5 +1952,7 @@
   "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.": "Wpisz powyżej cenę sprzedaży, a tutaj pojawi się, ile zabiera dom, ile wpada do kasy, saldo i ROI.",
   "comprado": "kupiony",
   "Ascendió al primer equipo": "Awansował do pierwszej drużyny",
-  "Salió de la academia": "Odszedł z młodzieżówki"
+  "Salió de la academia": "Odszedł z młodzieżówki",
+  "llegó al máximo": "osiągnął pułap",
+  "· llegó al máximo": "· osiągnął pułap"
 }
