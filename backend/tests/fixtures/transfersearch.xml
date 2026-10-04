@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ARMADO A MANO desde el esquema oficial, no capturado de una respuesta real:
+  docs/chpp-reference/transfersearch.txt. El resto de fixtures de esta carpeta
+  sí son respuestas reales de la cuenta; ésta no, porque el parser se escribió
+  antes de hacer la primera llamada de verdad. Si algún día se captura una,
+  ésta se tira y se usa aquélla.
+
+  Los tres casos que importan están aquí a propósito:
+    · uno con pujas y con su equipo pujador;
+    · uno sin pujas (HighestBid 0, sin BidderTeam) y lesionado;
+    · uno magullado (InjuryLevel 0), que no es lo mismo que sano (-1).
+-->
+<HattrickData>
+  <FileName>transfersearch.xml</FileName>
+  <Version>1.2</Version>
+  <UserID>10857807</UserID>
+  <FetchedDate>2026-10-04 10:15:00</FetchedDate>
+  <TransferSearch>
+    <ItemCount>-1</ItemCount>
+    <PageSize>3</PageSize>
+    <PageIndex>0</PageIndex>
+    <TransferResults>
+      <TransferResult>
+        <PlayerId>491002001</PlayerId>
+        <FirstName>Aurelio</FirstName>
+        <NickName></NickName>
+        <LastName>Barrantes</LastName>
+        <NativeCountryID>39</NativeCountryID>
+        <AskingPrice>4200000</AskingPrice>
+        <Deadline>2026-10-06 21:30:00</Deadline>
+        <HighestBid>4500000</HighestBid>
+        <BidderTeam>
+          <TeamID>1234567</TeamID>
+          <TeamName>Los Cartujos</TeamName>
+        </BidderTeam>
+        <Details>
+          <Age>24</Age>
+          <AgeDays>87</AgeDays>
+          <Salary>58000</Salary>
+          <TSI>182000</TSI>
+          <PlayerForm>7</PlayerForm>
+          <Experience>5</Experience>
+          <Leadership>4</Leadership>
+          <Specialty>2</Specialty>
+          <Cards>0</Cards>
+          <InjuryLevel>-1</InjuryLevel>
+          <StaminaSkill>8</StaminaSkill>
+          <KeeperSkill>1</KeeperSkill>
+          <PlaymakerSkill>9</PlaymakerSkill>
+          <ScorerSkill>5</ScorerSkill>
+          <PassingSkill>11</PassingSkill>
+          <WingerSkill>6</WingerSkill>
+          <DefenderSkill>4</DefenderSkill>
+          <SetPiecesSkill>3</SetPiecesSkill>
+          <SellerTeam>
+            <TeamID>7654321</TeamID>
+            <TeamName>Combo del Chavo</TeamName>
+            <LeagueId>92</LeagueId>
+          </SellerTeam>
+        </Details>
+      </TransferResult>
+      <TransferResult>
+        <PlayerId>491002002</PlayerId>
+        <FirstName>Teodoro</FirstName>
+        <NickName>El Mono</NickName>
+        <LastName>Quintanilla</LastName>
+        <NativeCountryID>39</NativeCountryID>
+        <AskingPrice>900000</AskingPrice>
+        <Deadline>2026-10-05 18:00:00</Deadline>
+        <HighestBid>0</HighestBid>
+        <Details>
+          <Age>31</Age>
+          <AgeDays>12</AgeDays>
+          <Salary>31000</Salary>
+          <TSI>41000</TSI>
+          <PlayerForm>4</PlayerForm>
+          <Experience>9</Experience>
+          <Leadership>6</Leadership>
+          <Specialty>0</Specialty>
+          <Cards>1</Cards>
+          <InjuryLevel>2</InjuryLevel>
+          <StaminaSkill>6</StaminaSkill>
+          <KeeperSkill>0</KeeperSkill>
+          <PlaymakerSkill>5</PlaymakerSkill>
+          <ScorerSkill>8</ScorerSkill>
+          <PassingSkill>7</PassingSkill>
+          <WingerSkill>4</WingerSkill>
+          <DefenderSkill>3</DefenderSkill>
+          <SetPiecesSkill>2</SetPiecesSkill>
+          <SellerTeam>
+            <TeamID>7654322</TeamID>
+            <TeamName>La Tandita</TeamName>
+            <LeagueId>92</LeagueId>
+          </SellerTeam>
+        </Details>
+      </TransferResult>
+      <TransferResult>
+        <PlayerId>491002003</PlayerId>
+        <FirstName>Nicolás</FirstName>
+        <NickName></NickName>
+        <LastName>Peñaranda</LastName>
+        <NativeCountryID>39</NativeCountryID>
+        <AskingPrice>2750000</AskingPrice>
+        <Deadline>2026-10-07 09:45:00</Deadline>
+        <HighestBid>0</HighestBid>
+        <Details>
+          <Age>19</Age>
+          <AgeDays>201</AgeDays>
+          <Salary>22000</Salary>
+          <TSI>96000</TSI>
+          <PlayerForm>6</PlayerForm>
+          <Experience>2</Experience>
+          <Leadership>3</Leadership>
+          <Specialty>5</Specialty>
+          <Cards>0</Cards>
+          <InjuryLevel>0</InjuryLevel>
+          <StaminaSkill>7</StaminaSkill>
+          <KeeperSkill>2</KeeperSkill>
+          <PlaymakerSkill>6</PlaymakerSkill>
+          <ScorerSkill>9</ScorerSkill>
+          <PassingSkill>5</PassingSkill>
+          <WingerSkill>8</WingerSkill>
+          <DefenderSkill>2</DefenderSkill>
+          <SetPiecesSkill>4</SetPiecesSkill>
+          <SellerTeam>
+            <TeamID>7654323</TeamID>
+            <TeamName>Leones de la Selva</TeamName>
+            <LeagueId>92</LeagueId>
+          </SellerTeam>
+        </Details>
+      </TransferResult>
+    </TransferResults>
+  </TransferSearch>
+</HattrickData>
