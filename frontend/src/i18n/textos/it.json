@@ -609,7 +609,6 @@
   "El plazo": "Il termine",
   "el promedio de los partidos vistos, zona por zona": "la media delle partite viste, zona per zona",
   "El pronóstico de partido": "La previsione della partita",
-  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya tocó techo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Il punteggio di ogni abilità somma, giovane per giovane, il peso del «gradino» su cui sta quel ragazzo per quell'abilità. I gradini vanno da eccellente a sconosciuto, e ognuno vale β = 3 volte il successivo, quindi un giovane eccellente pesa molto più di vari dubbi. Chi ha già toccato il tetto in quell'abilità pesa zero. Il totale si divide per 16, la dimensione massima di un vivaio, perché il punteggio non salga solo per avere pochi giovani.",
   "El registro más alto de esa zona entre todos los partidos vistos. No describe cómo suele jugar sino de lo que ha sido capaz alguna vez, y cada zona puede venir de un partido distinto: el techo de las siete zonas casi nunca ocurrió a la vez. Es el escenario pesimista cuando se mira a un rival.": "Il dato più alto di quella zona tra tutte le partite viste. Non descrive come gioca di solito ma di cosa è stata capace una volta, e ogni zona può venire da una partita diversa: il tetto delle sette zone non è quasi mai avvenuto insieme. È lo scenario pessimista quando si guarda un avversario.",
   "el rival": "l'avversario",
   "El saldo de cada temporada dividido entre lo que invertiste en esos jugadores: compra, sueldos e intentos de venta.": "Il saldo di ogni stagione diviso per quello che hai investito in quei giocatori: acquisto, stipendi e tentativi di vendita.",
@@ -1405,7 +1404,6 @@
   "Pulsa otra vez para borrar. Se desarma solo.": "Clicca di nuovo per eliminare. Si annulla da solo.",
   "pulsa un partido para analizarlo": "clicca una partita per analizzarla",
   "pulsa una fila para ver su desglose por pantalla": "clicca una riga per vedere il dettaglio per schermata",
-  "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal tope = 0": "punteggio(abilità) = Σ peso(gradino del giovane) ÷ 16\n\npeso di ogni gradino = 3 × peso del gradino successivo\nal tetto = 0",
   "puntos": "punti",
   "Puntos": "Punti",
   "Puntos actuales": "Punti attuali",
@@ -1954,5 +1952,7 @@
   "Ascendió al primer equipo": "Promosso in prima squadra",
   "Salió de la academia": "Ha lasciato il vivaio",
   "llegó al máximo": "al massimo",
-  "· llegó al máximo": "· al massimo"
+  "· llegó al máximo": "· al massimo",
+  "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal máximo = 0": "punteggio(abilità) = Σ peso(gradino del giovane) ÷ 16\n\npeso di ogni gradino = 3 × peso del gradino successivo\nal tetto = 0",
+  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Il punteggio di ogni abilità somma, giovane per giovane, il peso del «gradino» su cui sta quel ragazzo per quell'abilità. I gradini vanno da eccellente a sconosciuto, e ognuno vale β = 3 volte il successivo, quindi un giovane eccellente pesa molto più di vari dubbi. Chi ha già toccato il tetto in quell'abilità pesa zero. Il totale si divide per 16, la dimensione massima di un vivaio, perché il punteggio non salga solo per avere pochi giovani."
 }

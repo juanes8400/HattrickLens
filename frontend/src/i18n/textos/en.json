@@ -434,7 +434,6 @@
   "El país no se pregunta ni se deduce de la conexión: es el de la liga del club, que Hattrick ya publica. Quien lleva varios clubes cuenta por el principal.": "The country is neither asked for nor guessed from the connection: it is the one of the club's league, which Hattrick already publishes. Whoever runs several clubs counts under the primary one.",
   "El plazo": "The deadline",
   "El pronóstico de partido": "The match forecast",
-  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya tocó techo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Each skill's score adds up, youth player by youth player, the weight of the “rung” that player is on for that skill. The rungs go from excellent to unknown, and each is worth β = 3 times the next, so one excellent youth player weighs far more than several doubtful ones. Anyone already at their ceiling in that skill weighs zero. The total is divided by 16, the maximum academy size, so the score doesn't rise just from having few youth players.",
   "El registro más alto de esa zona entre todos los partidos vistos. No describe cómo suele jugar sino de lo que ha sido capaz alguna vez, y cada zona puede venir de un partido distinto: el techo de las siete zonas casi nunca ocurrió a la vez. Es el escenario pesimista cuando se mira a un rival.": "The highest reading for that zone across all matches seen. It doesn't describe how a team usually plays but what it has been capable of at some point, and each zone may come from a different match: the ceiling of all seven zones almost never happened at once. It's the pessimistic scenario when looking at an opponent.",
   "El saldo de cada temporada dividido entre lo que invertiste en esos jugadores: compra, sueldos e intentos de venta.": "Each season's balance divided by what you invested in those players: purchase, wages and sale attempts.",
   "El saldo dividido entre lo invertido, por tramos de edad al vender.": "The balance divided by what was invested, by age band at sale.",
@@ -1635,7 +1634,6 @@
   "puesto {{v0}} de {{v1}}.": "position {{v0}} of {{v1}}.",
   "pulsa un partido para analizarlo": "click a match to analyse it",
   "pulsa una fila para ver su desglose por pantalla": "click a row to see its breakdown by screen",
-  "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal tope = 0": "score(skill) = Σ weight(youth player's rung) ÷ 16\n\nweight of each rung = 3 × weight of the next rung\nmaxed out = 0",
   "puntos": "points",
   "pétalo = (tu valor − mínimo de la serie) ÷ (máximo de la serie − mínimo de la serie)": "petal = (your value − series minimum) ÷ (series maximum − series minimum)",
   "que pueden dar comisión algún día": "who may bring a commission one day",
@@ -1954,5 +1952,7 @@
   "Ascendió al primer equipo": "Promoted to the senior squad",
   "Salió de la academia": "Left the academy",
   "llegó al máximo": "maxed out",
-  "· llegó al máximo": "· maxed out"
+  "· llegó al máximo": "· maxed out",
+  "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal máximo = 0": "score(skill) = Σ weight(youth player's rung) ÷ 16\n\nweight of each rung = 3 × weight of the next rung\nmaxed out = 0",
+  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Each skill's score adds up, youth player by youth player, the weight of the “rung” that player is on for that skill. The rungs go from excellent to unknown, and each is worth β = 3 times the next, so one excellent youth player weighs far more than several doubtful ones. Anyone already at their ceiling in that skill weighs zero. The total is divided by 16, the maximum academy size, so the score doesn't rise just from having few youth players."
 }

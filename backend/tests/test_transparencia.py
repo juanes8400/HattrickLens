@@ -89,8 +89,12 @@ def test_la_escalera_de_juveniles_se_dibuja_con_los_pesos_reales() -> None:
     pesos = weights_for()
     for bucket, peso in pesos.items():
         if peso == 0:
-            # El que ya tocó techo no es un peldaño: pesa cero y se dice aparte.
-            assert "al_tope" in formula
+            # El que ya llegó al máximo no es un peldaño: pesa cero y se dice
+            # aparte. En la fórmula se escribe `al_máximo` desde el 2026-10-04,
+            # cuando se unificó la palabra en toda la aplicación; el cubo del
+            # motor sigue llamándose `al_tope`, que es un identificador y no
+            # algo que nadie lea.
+            assert "al_máximo" in formula
             continue
         assert str(bucket) in formula, bucket
     assert "81" in formula and "27" in formula, "faltan los peldaños altos"

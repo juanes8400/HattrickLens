@@ -1039,7 +1039,6 @@
   "QUÉ PASA CUANDO NO HAY INFORMACIÓN. Sin partidos previos del rival, el factor es 1 y el modelo se comporta exactamente como antes de que esto existiera. Una táctica que Hattrick añadiera mañana tampoco rompería nada: sin factor medido, factor 1.": "WHAT HAPPENS WITH NO INFORMATION. With no previous opponent matches, the factor is 1 and the model behaves exactly as before this existed. A tactic Hattrick added tomorrow wouldn't break anything either: no measured factor, factor 1.",
   "Que en copa no hay empate": "That there's no draw in the cup",
   "Querido compañero de equipo": "Beloved team member",
-  "Quien ya tocó techo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Whoever has already hit the ceiling weighs ZERO and isn't on the ladder: it's not a lower rung, it just doesn't count.",
   "Quién está lesionado": "Who's injured",
   "Quién trabaja para ti y cómo está el ambiente": "Who works for you and how the mood is",
   "Quién trajo a cada canterano y qué queda por revelarle": "Who brought each youth player and what's left to reveal",
@@ -1615,7 +1614,6 @@
   "posición {} (sin traducir)": "position {} (untranslated)",
   "promesa": "prospect",
   "puesto en": "listed on the",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_tope              siempre = 0": "score(h) =  Σ  weight(bucket) · count(bucket, h)  ÷ {}\n            buckets\n\nladder with β = {}:\n{}\n    at_ceiling           always = 0",
   "querido compañero de equipo": "beloved team member",
   "reconecta con Hattrick: no hay un token activo": "reconnect to Hattrick: there's no active token",
   "recorta ocasiones a los dos equipos": "cuts chances for both teams",
@@ -1810,5 +1808,7 @@
   "+0,56 goles": "+0.56 goals",
   "+0,11 goles": "+0.11 goals",
   "{} subió de la posición {} a la {}": "{} went up from position {} to {}",
-  "{} bajó de la posición {} a la {}": "{} went down from position {} to {}"
+  "{} bajó de la posición {} a la {}": "{} went down from position {} to {}",
+  "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Whoever has already hit the ceiling weighs ZERO and isn't on the ladder: it's not a lower rung, it just doesn't count.",
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "score(h) =  Σ  weight(bucket) · count(bucket, h)  ÷ {}\n            buckets\n\nladder with β = {}:\n{}\n    at_ceiling           always = 0"
 }

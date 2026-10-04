@@ -389,7 +389,7 @@ const BUCKETS: [string, string, string][] = [
   // perdía uno y ese uno no aparecía en ninguna parte. El puntaje bajaba y
   // nada en pantalla lo explicaba (pedido del usuario).
   ["insuficiente", "≤ Insuficiente", "techo revelado por debajo de aceptable"],
-  ["alTope", "Tocó techo", "ya llegó a su máximo: entrenarlo no sube nada"],
+  ["alTope", "Al máximo", "ya llegó a su máximo: entrenarlo no sube nada"],
 ];
 
 /**
@@ -1149,7 +1149,7 @@ const WEIGHT_BASE_POR_DEFECTO = 3;
  * Cuatro casos y un color cada uno. La barra va LIMPIA: la palabra del nivel
  * es texto aparte, nunca dentro de la barra.
  *
- *   ya tocó techo        la palabra del nivel · barra roja llena · `2/2`
+ *   ya llegó al máximo   la palabra del nivel · barra roja llena · `2/2`
  *   sé el actual         la palabra del actual · barra verde     · `5/?`
  *   sé sólo el techo     la palabra del techo  · barra vacía     · `?/4`
  *   no sé nada           «desconocido»         · barra vacía     ·
@@ -1186,7 +1186,7 @@ function NivelDeHabilidad({
         <span className="w-3 shrink-0 text-center leading-none">
           {maxReached ? (
             <span
-              title={t("juveniles.tocoTecho", "ya tocó techo: no sube más")}
+              title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}
             >
               🔒
             </span>
@@ -1213,7 +1213,7 @@ function NivelDeHabilidad({
           unas con candado y otras sin él. */}
       <span className="w-4 shrink-0 text-center leading-none">
         {maxReached ? (
-          <span title={t("juveniles.tocoTecho", "ya tocó techo: no sube más")}>
+          <span title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}>
             🔒
           </span>
         ) : null}
@@ -1355,7 +1355,7 @@ function WhoToTrain({ data }: { data: Academy }) {
               {/* La misma etiqueta que llevan los de la cola, para que la fila
                   mida lo mismo y la lista no dé un salto al llegar aquí. */}
               <span className="shrink-0 rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-sm text-[var(--text)]">
-                {t("juveniles.alTope", "al tope")}
+                {t("juveniles.alTope", "al máximo")}
               </span>
               {p.leavesSoon && (
                 <span
@@ -2601,7 +2601,7 @@ function columnasDeCanteranos(
           >
             {s.maxReached && (
               <span
-                title={t("juveniles.tocoTecho", "ya tocó techo: no sube más")}
+                title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}
               >
                 🔒{" "}
               </span>
@@ -2886,7 +2886,7 @@ function SkillDetail({ data }: { data: Academy }) {
               "tienen alguna habilidad que ya no sube",
             )}
           >
-            {t("juveniles.chip.alTope", "Con algo al tope")} (
+            {t("juveniles.chip.alTope", "Con algo al máximo")} (
             {cuantos((p) => p.skills.some((x) => x.maxReached))})
           </Chip>
           <Chip

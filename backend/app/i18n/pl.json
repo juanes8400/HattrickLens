@@ -1048,7 +1048,6 @@
   "QUÉ PASA CUANDO NO HAY INFORMACIÓN. Sin partidos previos del rival, el factor es 1 y el modelo se comporta exactamente como antes de que esto existiera. Una táctica que Hattrick añadiera mañana tampoco rompería nada: sin factor medido, factor 1.": "CO SIĘ DZIEJE, GDY NIE MA INFORMACJI. Bez wcześniejszych meczów przeciwnika współczynnik wynosi 1 i model zachowuje się dokładnie tak jak przed powstaniem tego mechanizmu. Taktyka, którą Hattrick dodałby jutro, też niczego nie zepsuje: bez zmierzonego współczynnika współczynnik 1.",
   "Que en copa no hay empate": "Że w pucharze nie ma remisu",
   "Querido compañero de equipo": "uwielbiany przez zespół",
-  "Quien ya tocó techo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Kto osiągnął już pułap, waży ZERO i nie stoi na drabince: to nie niższy szczebel, to zupełny brak liczenia się.",
   "Quién está lesionado": "Kto jest kontuzjowany",
   "Quién trabaja para ti y cómo está el ambiente": "Kto dla ciebie pracuje i jaka jest atmosfera",
   "Quién trajo a cada canterano y qué queda por revelarle": "Kto przyprowadził każdego juniora i co zostaje mu do odkrycia",
@@ -1624,7 +1623,6 @@
   "posición {} (sin traducir)": "pozycja {} (nieprzetłumaczona)",
   "promesa": "talent",
   "puesto en": "wystawiony na rynek",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_tope              siempre = 0": "punktacja(h) =  Σ  waga(kubełek) · ile(kubełek, h)  ÷ {}\n             kubełki\n\ndrabina z β = {}:\n{}\n    na_szczycie          zawsze = 0",
   "querido compañero de equipo": "uwielbiany przez zespół",
   "reconecta con Hattrick: no hay un token activo": "połącz się ponownie z Hattrickiem: brak aktywnego tokenu",
   "recorta ocasiones a los dos equipos": "ucina okazje obu drużynom",
@@ -1810,5 +1808,7 @@
   "λ tuya = 0,902 + 0,666 = 1,567 goles esperados.": "twoje λ = 0,902 + 0,666 = 1,567 oczekiwanych bramek.",
   "λ tuya = 1,633 y λ suya = 2,641, del paso anterior.": "twoje λ = 1,633, a jego λ = 2,641, z poprzedniego kroku.",
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_gospodarz = atak_i · obrona_j · średnia_ligi · przewaga_u_siebie\nλ_gość      = atak_j · obrona_i · średnia_ligi\n\nsiła_i  = (bramki_i + K · średnia) ÷ (mecze_i + K)\n\nP(miejsce) ≈ Monte Carlo po brakujących kolejkach",
-  "← el que se usa": "← ten, który jest używany"
+  "← el que se usa": "← ten, który jest używany",
+  "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Kto osiągnął już pułap, waży ZERO i nie stoi na drabince: to nie niższy szczebel, to zupełny brak liczenia się.",
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punktacja(h) =  Σ  waga(kubełek) · ile(kubełek, h)  ÷ {}\n             kubełki\n\ndrabina z β = {}:\n{}\n    na_szczycie          zawsze = 0"
 }

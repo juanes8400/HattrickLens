@@ -442,7 +442,6 @@
   "El país no se pregunta ni se deduce de la conexión: es el de la liga del club, que Hattrick ya publica. Quien lleva varios clubes cuenta por el principal.": "O kraj nie pytamy ani nie wnioskujemy go z połączenia: to kraj ligi klubu, który Hattrick i tak publikuje. Kto prowadzi kilka klubów, liczy się przy głównym.",
   "El plazo": "Termin",
   "El pronóstico de partido": "Prognoza meczu",
-  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya tocó techo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Ocena każdej umiejętności sumuje, junior po juniorze, wagę «szczebla», na którym stoi ten chłopak dla tej umiejętności. Szczeble idą od znakomitego do nieznanego, a każdy jest wart β = 3 razy tyle, co następny, więc znakomity junior waży znacznie więcej niż kilku wątpliwych. Kto osiągnął już pułap w tej umiejętności, waży zero. Sumę dzielimy przez 16, czyli maksymalną wielkość młodzieżówki, żeby ocena nie rosła tylko dlatego, że juniorów jest niewielu.",
   "El registro más alto de esa zona entre todos los partidos vistos. No describe cómo suele jugar sino de lo que ha sido capaz alguna vez, y cada zona puede venir de un partido distinto: el techo de las siete zonas casi nunca ocurrió a la vez. Es el escenario pesimista cuando se mira a un rival.": "Najwyższy odczyt tej strefy ze wszystkich obejrzanych meczów. Nie opisuje, jak drużyna zwykle gra, ale do czego kiedyś była zdolna, a każda strefa może pochodzić z innego meczu: pułap wszystkich siedmiu stref prawie nigdy nie wystąpił jednocześnie. Przy patrzeniu na przeciwnika to scenariusz pesymistyczny.",
   "El saldo de cada temporada dividido entre lo que invertiste en esos jugadores: compra, sueldos e intentos de venta.": "Saldo każdego sezonu podzielone przez to, co w tych zawodników zainwestowałeś: zakup, pensje i próby sprzedaży.",
   "El saldo dividido entre lo invertido, por tramos de edad al vender.": "Saldo podzielone przez zainwestowane, według przedziałów wieku przy sprzedaży.",
@@ -1706,7 +1705,6 @@
   "puesto {{v0}} de {{v1}}.": "miejsce {{v0}} z {{v1}}.",
   "pulsa un partido para analizarlo": "kliknij mecz, aby go przeanalizować",
   "pulsa una fila para ver su desglose por pantalla": "kliknij wiersz, aby zobaczyć jego rozbicie według ekranów",
-  "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal tope = 0": "punktacja(umiejętność) = Σ waga(szczebla wychowanka) ÷ 16\n\nwaga każdego szczebla = 3 × waga następnego szczebla\nna szczycie = 0",
   "puntos": "punkty",
   "pétalo = (tu valor − mínimo de la serie) ÷ (máximo de la serie − mínimo de la serie)": "płatek = (twoja wartość − minimum ligi) ÷ (maksimum ligi − minimum ligi)",
   "público real · taquilla calculada": "prawdziwa frekwencja · wyliczone wpływy",
@@ -1954,5 +1952,7 @@
   "Ascendió al primer equipo": "Awansował do pierwszej drużyny",
   "Salió de la academia": "Odszedł z młodzieżówki",
   "llegó al máximo": "osiągnął pułap",
-  "· llegó al máximo": "· osiągnął pułap"
+  "· llegó al máximo": "· osiągnął pułap",
+  "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal máximo = 0": "punktacja(umiejętność) = Σ waga(szczebla wychowanka) ÷ 16\n\nwaga każdego szczebla = 3 × waga następnego szczebla\nna szczycie = 0",
+  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Ocena każdej umiejętności sumuje, junior po juniorze, wagę «szczebla», na którym stoi ten chłopak dla tej umiejętności. Szczeble idą od znakomitego do nieznanego, a każdy jest wart β = 3 razy tyle, co następny, więc znakomity junior waży znacznie więcej niż kilku wątpliwych. Kto osiągnął już pułap w tej umiejętności, waży zero. Sumę dzielimy przez 16, czyli maksymalną wielkość młodzieżówki, żeby ocena nie rosła tylko dlatego, że juniorów jest niewielu."
 }

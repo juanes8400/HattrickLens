@@ -1039,7 +1039,6 @@
   "QUÉ PASA CUANDO NO HAY INFORMACIÓN. Sin partidos previos del rival, el factor es 1 y el modelo se comporta exactamente como antes de que esto existiera. Una táctica que Hattrick añadiera mañana tampoco rompería nada: sin factor medido, factor 1.": "WAS PASSIERT, WENN ES KEINE INFORMATION GIBT. Ohne vorherige Spiele des Gegners ist der Faktor 1, und das Modell verhält sich genau wie vor dieser Erweiterung. Eine Taktik, die Hattrick morgen hinzufügte, würde ebenfalls nichts kaputt machen: ohne gemessenen Faktor gilt Faktor 1.",
   "Que en copa no hay empate": "Dass es im Pokal kein Unentschieden gibt",
   "Querido compañero de equipo": "Eine Integrationsfigur",
-  "Quien ya tocó techo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Wer schon die Obergrenze erreicht hat, wiegt NULL und steht nicht auf der Leiter: es ist keine niedrigere Stufe, er zählt schlicht nicht.",
   "Quién está lesionado": "Wer verletzt ist",
   "Quién trabaja para ti y cómo está el ambiente": "Wer für dich arbeitet und wie die Stimmung ist",
   "Quién trajo a cada canterano y qué queda por revelarle": "Wer jeden Jugendspieler gebracht hat und was ihm noch aufzudecken bleibt",
@@ -1615,7 +1614,6 @@
   "posición {} (sin traducir)": "Position {} (nicht übersetzt)",
   "promesa": "Talent",
   "puesto en": "gelistet am",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_tope              siempre = 0": "Wert(h) =  Σ  Gewicht(Eimer) · wie viele(Eimer, h)  ÷ {}\n           Eimer\n\nLeiter mit β = {}:\n{}\n    am_Limit              immer = 0",
   "querido compañero de equipo": "eine Integrationsfigur",
   "reconecta con Hattrick: no hay un token activo": "verbind dich neu mit Hattrick: es gibt kein aktives Token",
   "recorta ocasiones a los dos equipos": "nimmt beiden Mannschaften Gelegenheiten",
@@ -1810,5 +1808,7 @@
   "+0,56 goles": "+0,56 Tore",
   "+0,11 goles": "+0,11 Tore",
   "{} subió de la posición {} a la {}": "{} stieg von Platz {} auf {}",
-  "{} bajó de la posición {} a la {}": "{} fiel von Platz {} auf {}"
+  "{} bajó de la posición {} a la {}": "{} fiel von Platz {} auf {}",
+  "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Wer schon die Obergrenze erreicht hat, wiegt NULL und steht nicht auf der Leiter: es ist keine niedrigere Stufe, er zählt schlicht nicht.",
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "Wert(h) =  Σ  Gewicht(Eimer) · wie viele(Eimer, h)  ÷ {}\n           Eimer\n\nLeiter mit β = {}:\n{}\n    am_Limit              immer = 0"
 }
