@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import i18n from "../i18n";
+import { cargarIdioma } from "../i18n";
 import { NAV, agrupar, nombreNav, tituloDeRuta } from "./navegacion";
 
 /** El menú se veía agrupado en cinco bloques y esa agrupación existía SÓLO en
@@ -68,6 +69,7 @@ describe("el menú en otro idioma", () => {
   });
 
   it("en inglés, pestañas y menú se nombran en inglés", async () => {
+    await cargarIdioma("en");
     await i18n.changeLanguage("en");
     expect(tituloDeRuta("/economy")).toBe("Finances · HT Lens");
     expect(tituloDeRuta("/players/123")).toBe("Player · HT Lens");
@@ -76,6 +78,7 @@ describe("el menú en otro idioma", () => {
   });
 
   it("cada entrada del menú tiene su traducción al inglés", async () => {
+    await cargarIdioma("en");
     await i18n.changeLanguage("en");
     for (const item of NAV) {
       const texto = "section" in item ? item.section : item.label;
@@ -84,6 +87,7 @@ describe("el menú en otro idioma", () => {
   });
 
   it("sin traducción, se ve el español y no la clave", async () => {
+    await cargarIdioma("en");
     await i18n.changeLanguage("en");
     expect(nombreNav("Pantalla nueva", "no.existe")).toBe("Pantalla nueva");
   });

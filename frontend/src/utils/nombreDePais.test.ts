@@ -27,6 +27,13 @@ async function nombreDePais(idioma: string) {
   // nuevo. Por eso se deja escrito antes de volver a importar.
   localStorage.setItem("htlens.idioma", idioma);
   vi.resetModules();
+  // Y el diccionario se trae antes de cargar el módulo, igual que hace
+  // `main.tsx`: desde el 2026-10-03 cada idioma viaja en su propio trozo y
+  // no está puesto hasta que se pide. Sin esto, la tabla de países se
+  // armaría en español aunque la pantalla esté en inglés, que es justo el
+  // fallo que esta prueba vigila.
+  const i18nModulo = await import("../i18n");
+  await i18nModulo.arrancarIdioma();
   const modulo = await import("./countryCodes");
   return modulo.nombreDePais;
 }

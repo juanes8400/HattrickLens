@@ -952,7 +952,11 @@ export function PlayerBalancePage() {
   // Para saber quién sigue DE VERDAD en la plantilla. El libro de
   // transferencias tiene etapas abiertas de gente que ya no está --se fue sin
   // que ninguna venta lo contara-- y ésos no son «plantilla actual».
-  const squad = useSquad();
+  // Sólo cuando hace falta: la plantilla de hoy es de «Plantilla actual», y
+  // esta pantalla ya es la más cara de la aplicación.
+  const squad = useSquad(undefined, undefined, {
+    enabled: section === "plantilla",
+  });
 
   // Los de «Plantilla actual»: etapa abierta Y presentes hoy en el roster.
   // Las dos condiciones hacen falta. Sólo con la etapa abierta se colaban
@@ -972,9 +976,15 @@ export function PlayerBalancePage() {
   const [dotSort, setDotSort] = useState<DotSortKey>("date");
   // Solo para el contador de la pestaña; react-query comparte la respuesta
   // con la sección, así que no cuesta una segunda petición.
+  //
+  // Y no se pide si la pestaña está apagada (2026-10-03): «Intentos de
+  // transferencias» lleva escondido desde septiembre y la petición seguía
+  // saliendo en cada visita a Transferencias, 164 ms y 35 kB para un
+  // contador que nadie ve.
   const intentos = useQuery({
     queryKey: ["transfer-attempts", TEAM_ID],
     queryFn: () => api.transferAttempts(TEAM_ID),
+    enabled: INTENTOS_DE_TRANSFERENCIA_VISIBLES,
   });
   // Filtros compartidos (pedido explícitamente 2026-08-05: en un solo lugar,
   // afectando Resumen, Desgloses y Detalle a la vez, en vez de

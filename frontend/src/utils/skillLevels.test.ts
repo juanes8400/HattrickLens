@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import i18n from "../i18n";
+import { cargarIdioma } from "../i18n";
 import { lecturaDeNivel, skillLevelLabel } from "./skillLevels";
 
 describe("cómo se lee una habilidad juvenil", () => {
@@ -94,6 +95,7 @@ describe("skillLevelLabel con el glosario oficial (2026-09-15)", () => {
   });
 
   it("en inglés usa las palabras de Hattrick", async () => {
+    await cargarIdioma("en");
     await i18n.changeLanguage("en");
     expect(skillLevelLabel(7)).toBe("solid");
     expect(skillLevelLabel(20)).toBe("divine");

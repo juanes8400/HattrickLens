@@ -152,6 +152,10 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     Vive aparte del endpoint porque archivar una alerta también necesita
     derivarlas: el texto que se guarda en el buzón se toma de aquí, del
     servidor, y no de lo que mande el cliente.
+
+    Devuelve sólo las que dependen de los DATOS. Las dos que dependen de la
+    hora están en `_insights_del_reloj`, y quien quiera la lista entera llama
+    a `_derive_todas`.
     """
     players, team = await roster(session, team_id)
     rate_ = team.currency_rate or 1.0
@@ -217,13 +221,6 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
         .order_by(m.StaffSnapshot.captured_at.desc())
         .limit(1)
     )
-    last_sync = await session.scalar(
-        select(m.Sync)
-        .where(m.Sync.team_id == team_id, m.Sync.status.in_(("completed", "partial")))
-        .order_by(m.Sync.started_at.desc())
-        .limit(1)
-    )
-
     groups: list[list[ins.Insight]] = [
         ins.injuries(players),
         ins.ageing_squad(players),
@@ -463,16 +460,39 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
             ins.assistant_trainers_below_reference(staff_dict),
         ]
 
-    # ── Clima del próximo partido ───────────────────────────────────────
-    groups.append(await _next_match_weather_insights(session, team))
+    return ins.collect(*groups)
 
-    # ── Sincronización ──────────────────────────────────────────────────
+
+async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.Insight]:
+    """Las dos alertas que no dependen del sync sino de la hora que sea.
+
+    El clima del próximo partido --que cambia de «hoy» a «mañana» sin que
+    nadie sincronice-- y el aviso de datos viejos, que cuenta las horas desde
+    la última sincronización.
+
+    Viven aparte desde el 2026-10-03 por lo que costaban las otras. La lista
+    entera se guardaba con un tope de QUINCE MINUTOS justamente por estas
+    dos, así que cada cuarto de hora la siguiente visita al Panel volvía a
+    derivarlo TODO: liga, academia, saldo de cada jugador, mejor once. Medido:
+    siete segundos. Ahora lo caro se guarda por sync, como el resto de la
+    aplicación, y esto --dos consultas pequeñas-- se calcula en cada
+    petición.
+    """
+    team = await session.get(m.Team, team_id)
+    if team is None:
+        return []
+    groups: list[list[ins.Insight]] = [await _next_match_weather_insights(session, team)]
+    last_sync = await session.scalar(
+        select(m.Sync)
+        .where(m.Sync.team_id == team_id, m.Sync.status.in_(("completed", "partial")))
+        .order_by(m.Sync.started_at.desc())
+        .limit(1)
+    )
     if last_sync:
         synced_at = last_sync.finished_at or last_sync.started_at
         ref = synced_at if synced_at.tzinfo else synced_at.replace(tzinfo=UTC)
         hours = (datetime.now(UTC) - ref).total_seconds() / 3600
         groups.append(ins.stale_data(hours))
-
     return ins.collect(*groups)
 
 
@@ -480,23 +500,29 @@ async def _insights_guardadas(session: AsyncSession, team_id: int) -> list[ins.I
     """Las alertas, calculadas una vez por sync (2026-09-14).
 
     Medido en producción: derivarlas tardaba 8 segundos en CADA visita al
-    Dashboard, con los datos sin cambiar. Se guardan con el sync en la clave y
-    un tope de 15 minutos, porque dos reglas miran el reloj (datos de más de un
-    día y el clima de hoy o mañana). Lo archivado en el buzón NO entra en la
-    caché: se filtra después, en cada petición, así que archivar se ve al
-    instante. La lista es compartida: quien la reciba no la modifica.
-    """
-    from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
+    Dashboard, con los datos sin cambiar. Se guardan con el sync en la clave.
+    Lo archivado en el buzón NO entra en la caché: se filtra después, en cada
+    petición, así que archivar se ve al instante. La lista es compartida:
+    quien la reciba no la modifica.
 
-    alertas: list[ins.Insight] = await por_sync(
+    2026-10-03: EL TOPE DE QUINCE MINUTOS SE FUE. Estaba por dos reglas que
+    miran el reloj --el clima del próximo partido y los datos viejos-- y
+    arrastraba a las otras treinta: cada cuarto de hora, la siguiente visita
+    al Panel volvía a derivarlo todo, siete segundos medidos. Esas dos viven
+    ahora en `_insights_del_reloj` y se calculan en cada petición, que son dos
+    consultas pequeñas; lo caro se guarda con el sync, como el resto de la
+    aplicación.
+    """
+    from app.api.cache_por_sync import por_sync
+
+    de_datos: list[ins.Insight] = await por_sync(
         session,
         team_id,
         "alertas",
         (),
         lambda: _derive_insights(session, team_id),
-        ttl=TTL_CON_RELOJ,
     )
-    return alertas
+    return ins.collect(de_datos, await _insights_del_reloj(session, team_id))
 
 
 def _fingerprint(insight: ins.Insight) -> str:

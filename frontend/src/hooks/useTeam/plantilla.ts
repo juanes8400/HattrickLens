@@ -12,8 +12,14 @@ import { TEAM_ID } from "./nucleo";
 export const useSquad = (
   position?: string,
   comparisonWindow?: VentanaDeComparacion,
+  // `enabled` para quien sólo necesita la plantilla en una de sus pestañas
+  // (2026-10-03). Transferencias la usa únicamente en «Plantilla actual», y
+  // pedirla al abrir la pantalla era media petición de más en la pantalla
+  // que ya era la más cara de la aplicación.
+  opciones?: { enabled?: boolean },
 ) =>
   useQuery({
     queryKey: ["squad", TEAM_ID, position, comparisonWindow ?? "change"],
     queryFn: () => api.squad(TEAM_ID, position, comparisonWindow),
+    enabled: opciones?.enabled ?? true,
   });
