@@ -484,16 +484,19 @@ function usePersistidoTexto(clave: string) {
   return [valor, setValor] as const;
 }
 
-/** Las cuatro ventanas del selector. «Último cambio» es el estado justo
- *  antes de que la academia se moviera por última vez; el resto son semanas. */
-/** Una ventana guardada que ya no existe no puede dejar el control sin
+/** Las tres ventanas del selector, todas en semanas.
+ *
+ *  Una ventana guardada que ya no existe no puede dejar el control sin
  *  ninguna opción marcada: «Último entrenamiento» fue una de ellas durante un
- *  rato y quien la eligiera la tiene guardada (2026-09-19). */
+ *  rato (2026-09-19) y «Último cambio» lo fue hasta que el usuario la quitó
+ *  (2026-10-04). Quien eligiera cualquiera de las dos la tiene guardada en su
+ *  navegador, así que pasa a la más corta de las que quedan. */
 const ventanaValida = (v: string) =>
-  VENTANAS_JUVENILES.some((x) => x.key === v) ? v : "cambio";
+  VENTANAS_JUVENILES.some((x) => x.key === v) ? v : VENTANA_POR_DEFECTO;
+
+const VENTANA_POR_DEFECTO = "1";
 
 const VENTANAS_JUVENILES = [
-  { key: "cambio", label: "Último cambio" },
   { key: "1", label: "1 semana" },
   { key: "2", label: "2 semanas" },
   { key: "8", label: "8 semanas" },
@@ -653,7 +656,10 @@ function WhatToTrain({
   // plantilla, que es otra pestaña y por tanto se remonta al abrirla: así las
   // dos hablan de la misma ventana sin tener que subir el estado a la página
   // (2026-09-04, pedido del usuario).
-  const [guardada, setVentana] = usePersistido("juveniles.ventana", "cambio");
+  const [guardada, setVentana] = usePersistido(
+    "juveniles.ventana",
+    VENTANA_POR_DEFECTO,
+  );
   const ventana = ventanaValida(guardada);
   // Los mandos se mueven al instante y la pregunta al servidor espera a que
   // pares. Arrastrar una barra disparaba una peticion por pixel --ocho en dos
@@ -1186,7 +1192,10 @@ function NivelDeHabilidad({
         <span className="w-3 shrink-0 text-center leading-none">
           {maxReached ? (
             <span
-              title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}
+              title={t(
+                "juveniles.tocoTecho",
+                "ya llegó al máximo: no sube más",
+              )}
             >
               🔒
             </span>
@@ -1213,7 +1222,9 @@ function NivelDeHabilidad({
           unas con candado y otras sin él. */}
       <span className="w-4 shrink-0 text-center leading-none">
         {maxReached ? (
-          <span title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}>
+          <span
+            title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}
+          >
             🔒
           </span>
         ) : null}
@@ -2601,7 +2612,10 @@ function columnasDeCanteranos(
           >
             {s.maxReached && (
               <span
-                title={t("juveniles.tocoTecho", "ya llegó al máximo: no sube más")}
+                title={t(
+                  "juveniles.tocoTecho",
+                  "ya llegó al máximo: no sube más",
+                )}
               >
                 🔒{" "}
               </span>
@@ -2724,7 +2738,7 @@ function SkillDetail({ data }: { data: Academy }) {
   // La MISMA ventana que eligió el usuario en «Selección de entrenamiento».
   // Las dos secciones son pestañas excluyentes, así que ésta se remonta al
   // abrirla y lee el valor recién guardado (2026-09-04).
-  const [guardada] = usePersistido("juveniles.ventana", "cambio");
+  const [guardada] = usePersistido("juveniles.ventana", VENTANA_POR_DEFECTO);
   const ventana = ventanaValida(guardada);
   // Sin parámetros de puntaje: aquí no se enseñan puntajes, sólo qué se movió
   // en cada canterano, y eso no depende de las opiniones de la fórmula.
