@@ -560,7 +560,19 @@ def parse_transfersearch(xml: bytes) -> dict[str, Any]:
     root = ElementTree.fromstring(xml)
     search = root.find(".//TransferSearch")
     if search is None or _is_chpp_error(root):
-        return {"item_count": 0, "page_size": 0, "page_index": 0, "results": []}
+        # El motivo VIAJA. Una busqueda vacia y una busqueda RECHAZADA se
+        # parecian demasiado: el 2026-10-05, probando contra el mercado de
+        # verdad, cuatro escalones de la escalera salieron a cero porque
+        # Hattrick rechazaba el rango pedido, y el recorrido los conto como
+        # "aqui no hay nadie". Quien pregunte al mercado tiene que poder
+        # distinguir las dos cosas.
+        return {
+            "error": _txt(root, "Error", "") or "respuesta sin TransferSearch",
+            "item_count": 0,
+            "page_size": 0,
+            "page_index": 0,
+            "results": [],
+        }
 
     results = []
     for node in search.iterfind(".//TransferResult"):
@@ -615,6 +627,7 @@ def parse_transfersearch(xml: bytes) -> dict[str, Any]:
         )
 
     return {
+        "error": None,
         # -1 = «más de 100», tal y como lo manda Hattrick.
         "item_count": _int(search, "ItemCount"),
         "page_size": _int(search, "PageSize"),

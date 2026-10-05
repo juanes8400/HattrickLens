@@ -69,6 +69,9 @@ SIN_SUJETO = {
     "nationalteammatches",
     # El diccionario oficial de terminos de Hattrick en un idioma.
     "translations",
+    # El mercado de transferencias. Se busca en el mercado ENTERO por edad y
+    # habilidades, no en los jugadores de un equipo: no hay a quien nombrar.
+    "transfersearch",
 }
 
 #: Las excepciones, una a una, con su motivo. Se identifican por fichero y

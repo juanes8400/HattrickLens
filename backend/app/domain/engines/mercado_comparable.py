@@ -136,15 +136,44 @@ ESCALERA: tuple[Escalon, ...] = (
 )
 
 
+# La escalera del MODO DUO, sin terciaria. Es la misma idea con una vuelta de
+# cuatro aperturas en vez de cinco: los dos escalones que abrian la terciaria
+# pasan a la secundaria, que ahora es el rasgo menos importante que queda.
+# Mismo suelo de 30 y mismos catorce escalones.
+ESCALERA_DUO: tuple[Escalon, ...] = (
+    Escalon(edad=0, primaria=0, secundaria=0, terciaria=0, peso=100),
+    Escalon(edad=0, primaria=0, secundaria=1, terciaria=0, peso=90),
+    Escalon(edad=0, primaria=0, secundaria=2, terciaria=0, peso=85),
+    Escalon(edad=1, primaria=0, secundaria=2, terciaria=0, peso=80),
+    Escalon(edad=1, primaria=1, secundaria=2, terciaria=0, peso=75),
+    # Segunda vuelta.
+    Escalon(edad=1, primaria=1, secundaria=3, terciaria=0, peso=70),
+    Escalon(edad=1, primaria=1, secundaria=4, terciaria=0, peso=65),
+    Escalon(edad=2, primaria=1, secundaria=4, terciaria=0, peso=60),
+    Escalon(edad=2, primaria=2, secundaria=4, terciaria=0, peso=55),
+    # Tercera vuelta.
+    Escalon(edad=2, primaria=2, secundaria=5, terciaria=0, peso=50),
+    Escalon(edad=2, primaria=2, secundaria=6, terciaria=0, peso=45),
+    Escalon(edad=3, primaria=2, secundaria=6, terciaria=0, peso=40),
+    Escalon(edad=3, primaria=3, secundaria=6, terciaria=0, peso=35),
+    Escalon(edad=3, primaria=3, secundaria=7, terciaria=0, peso=30),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class Objetivo:
-    """El jugador tuyo al que se le busca precio."""
+    """El jugador tuyo al que se le busca precio.
+
+    `terciaria` a `None` es el MODO DUO: se compara sólo por las dos primeras
+    habilidades. Afloja mucho lo que cuenta como parecido, y hay mercados
+    donde es la diferencia entre un precio y un «no hay nadie».
+    """
 
     ht_player_id: int
     edad: int
     primaria: Rasgo
     secundaria: Rasgo
-    terciaria: Rasgo
+    terciaria: Rasgo | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,7 +223,7 @@ class Ventana:
     edad_maxima: int
     primaria: Franja
     secundaria: Franja
-    terciaria: Franja
+    terciaria: Franja | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,7 +253,18 @@ def terna(skills: Mapping[str, int]) -> tuple[Rasgo, Rasgo, Rasgo] | None:
     return ordenados[0], ordenados[1], ordenados[2]
 
 
-def objetivo_de(ht_player_id: int, edad: int, skills: Mapping[str, int]) -> Objetivo | None:
+def escalera_de(objetivo: Objetivo) -> tuple[Escalon, ...]:
+    """La escalera que le toca a este objetivo segun su modo."""
+    return ESCALERA if objetivo.terciaria is not None else ESCALERA_DUO
+
+
+def objetivo_de(
+    ht_player_id: int,
+    edad: int,
+    skills: Mapping[str, int],
+    *,
+    con_terciaria: bool = True,
+) -> Objetivo | None:
     """El objetivo a partir de un jugador propio.
 
     `None` cuando no se le puede sacar una terna o no se sabe su edad: sin eso
@@ -240,7 +280,7 @@ def objetivo_de(ht_player_id: int, edad: int, skills: Mapping[str, int]) -> Obje
         edad=edad,
         primaria=primaria,
         secundaria=secundaria,
-        terciaria=terciaria,
+        terciaria=terciaria if con_terciaria else None,
     )
 
 
@@ -252,7 +292,11 @@ def ventana_de(objetivo: Objetivo, escalon: Escalon) -> Ventana:
         edad_maxima=objetivo.edad + escalon.edad,
         primaria=_franja(objetivo.primaria, escalon.primaria),
         secundaria=_franja(objetivo.secundaria, escalon.secundaria),
-        terciaria=_franja(objetivo.terciaria, escalon.terciaria),
+        terciaria=(
+            _franja(objetivo.terciaria, escalon.terciaria)
+            if objetivo.terciaria is not None
+            else None
+        ),
     )
 
 
@@ -263,7 +307,7 @@ def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:
     no antes de terminar un escalón: si el sexto y el séptimo se parecen
     igual, dejar fuera al séptimo por orden de llegada sería arbitrario.
     """
-    return tuple(ventana_de(objetivo, escalon) for escalon in ESCALERA)
+    return tuple(ventana_de(objetivo, escalon) for escalon in escalera_de(objetivo))
 
 
 def peso_de(candidato: Candidato, objetivo: Objetivo) -> int | None:
@@ -276,15 +320,20 @@ def peso_de(candidato: Candidato, objetivo: Objetivo) -> int | None:
     if (
         candidato.primaria.habilidad != objetivo.primaria.habilidad
         or candidato.secundaria.habilidad != objetivo.secundaria.habilidad
-        or candidato.terciaria.habilidad != objetivo.terciaria.habilidad
     ):
         return None
-    for escalon in ESCALERA:
+    tercera = objetivo.terciaria
+    if tercera is not None and candidato.terciaria.habilidad != tercera.habilidad:
+        return None
+    for escalon in escalera_de(objetivo):
         if (
             abs(candidato.edad - objetivo.edad) <= escalon.edad
             and abs(candidato.primaria.nivel - objetivo.primaria.nivel) <= escalon.primaria
             and abs(candidato.secundaria.nivel - objetivo.secundaria.nivel) <= escalon.secundaria
-            and abs(candidato.terciaria.nivel - objetivo.terciaria.nivel) <= escalon.terciaria
+            and (
+                tercera is None
+                or abs(candidato.terciaria.nivel - tercera.nivel) <= escalon.terciaria
+            )
         ):
             return escalon.peso
     return None

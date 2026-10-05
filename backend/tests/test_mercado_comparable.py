@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 from app.domain.engines.mercado_comparable import (
     EDAD_MINIMA,
     ESCALERA,
+    ESCALERA_DUO,
     MINIMO_DE_COMPARABLES,
     ORDEN_DE_DESEMPATE,
     SUELO_DE_PESO,
@@ -31,6 +32,7 @@ from app.domain.engines.mercado_comparable import (
     Comparable,
     Objetivo,
     candidato_de,
+    escalera_de,
     estimar,
     frontera_semanal,
     objetivo_de,
@@ -765,3 +767,89 @@ def test_dos_visitas_de_la_misma_semana_buscan_una_sola_vez() -> None:
     assert toca_buscar(hecha, _ht("2026-10-14 23:59:00")) is False
     assert toca_buscar(hecha, _ht("2026-10-16 19:59:00")) is False
     assert toca_buscar(hecha, _ht("2026-10-16 20:00:00")) is True
+
+
+# --------------------------------------------------------------------------
+# El modo dúo, sin terciaria
+# --------------------------------------------------------------------------
+
+
+def _duo() -> Objetivo:
+    hecho = objetivo_de(777, EDAD, ESPACIADO, con_terciaria=False)
+    assert hecho is not None
+    return hecho
+
+
+def test_sin_terciaria_el_objetivo_solo_guarda_dos_rasgos() -> None:
+    objetivo = _duo()
+    assert objetivo.primaria.habilidad == "playmaking"
+    assert objetivo.secundaria.habilidad == "passing"
+    assert objetivo.terciaria is None
+
+
+def test_la_escalera_del_duo_tambien_abre_siempre_y_baja_siempre() -> None:
+    pesos = [escalon.peso for escalon in ESCALERA_DUO]
+    assert pesos[0] == 100
+    assert pesos[-1] == SUELO_DE_PESO
+    assert pesos == sorted(pesos, reverse=True)
+    assert len(set(pesos)) == len(pesos)
+    for antes, despues in zip(ESCALERA_DUO, ESCALERA_DUO[1:], strict=False):
+        assert despues.edad >= antes.edad
+        assert despues.primaria >= antes.primaria
+        assert despues.secundaria >= antes.secundaria
+
+
+def test_la_vuelta_del_duo_tiene_cuatro_aperturas_en_vez_de_cinco() -> None:
+    """Los dos escalones que abrían la terciaria pasan a la secundaria, que
+    ahora es el rasgo menos importante que queda."""
+    cinco = ESCALERA_DUO[:5]
+    assert [escalon.peso for escalon in cinco] == [100, 90, 85, 80, 75]
+    assert [escalon.secundaria for escalon in cinco] == [0, 1, 2, 2, 2]
+    assert [escalon.edad for escalon in cinco] == [0, 0, 0, 1, 1]
+    assert [escalon.primaria for escalon in cinco] == [0, 0, 0, 0, 1]
+    assert all(escalon.terciaria == 0 for escalon in ESCALERA_DUO)
+
+
+def test_cada_modo_recorre_su_propia_escalera() -> None:
+    assert escalera_de(_espaciado()) is ESCALERA
+    assert escalera_de(_duo()) is ESCALERA_DUO
+    assert len(plan_de_busqueda(_duo())) == len(ESCALERA_DUO)
+
+
+def test_sin_terciaria_la_ventana_no_pide_una_tercera_habilidad() -> None:
+    """Si la pidiera, la búsqueda de verdad gastaría un filtro en un criterio
+    que luego nadie aplica."""
+    ventana = ventana_de(_duo(), ESCALERA_DUO[0])
+    assert ventana.terciaria is None
+    assert ventana.primaria.habilidad == "playmaking"
+    assert ventana.secundaria.habilidad == "passing"
+
+
+def test_sin_terciaria_entra_quien_con_terciaria_quedaba_fuera() -> None:
+    """Es justo lo que se compra al quitarla, y lo que se paga.
+
+    Este candidato tiene la primaria y la secundaria exactas, pero su tercera
+    habilidad es otra y está lejísimos. Con tres rasgos es otro jugador; con
+    dos, es comparable al 100%.
+    """
+    otro = _candidato(defending=0, scoring=9)
+    assert otro.terciaria.habilidad == "scoring"
+    assert peso_de(otro, _espaciado()) is None
+    assert peso_de(otro, _duo()) == 100
+
+
+def test_sin_terciaria_los_dos_primeros_rasgos_se_siguen_mirando_por_nombre() -> None:
+    """Quitar la terciaria afloja, no abre la puerta: un delantero con los
+    mismos dos números sigue siendo otro jugador."""
+    delantero = _candidato(playmaking=0, scoring=18)
+    assert delantero.primaria.habilidad == "scoring"
+    assert peso_de(delantero, _duo()) is None
+
+
+def test_sin_terciaria_los_niveles_de_los_dos_rasgos_siguen_pesando() -> None:
+    objetivo = _duo()
+    assert peso_de(_candidato(passing=13), objetivo) == 90
+    assert peso_de(_candidato(passing=12), objetivo) == 85
+    assert peso_de(_candidato(edad=25), objetivo) == 80
+    assert peso_de(_candidato(playmaking=19), objetivo) == 75
+    assert peso_de(_candidato(edad=28), objetivo) is None
