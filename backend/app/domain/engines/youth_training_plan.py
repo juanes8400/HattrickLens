@@ -768,7 +768,14 @@ def youth_training_plan(
         cola = cola_secundaria if region == REGION_SOLO_SECUNDARIA else cola_principal
         elegido = siguiente(_orden_de_cola(cola), vetados(region))
         if elegido is None:
-            break
+            # Esta silla no, pero las siguientes puede que si. Las sillas se
+            # recorren por region y cada region veta a quien ya toco techo en
+            # lo que ella entrena, asi que las de abajo vetan a menos gente y
+            # la ultima no veta a nadie. Cortar aqui dejaba fuera del
+            # banquillo justo a quien solo cabia mas abajo (2026-10-05,
+            # reportado por el usuario: canteranos que no salian ni de
+            # suplentes aunque cupieran).
+            continue
         ya_puestos.add(elegido.name)
         plan.fuera.append(
             Asignacion(
