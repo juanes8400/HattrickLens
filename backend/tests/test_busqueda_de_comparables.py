@@ -84,9 +84,12 @@ class _Mercado:
 
 
 async def test_si_lo_guardado_ya_basta_no_se_llama_al_mercado() -> None:
-    """La economía que importa: con la plantilla entera, los mercados de
-    jugadores parecidos se solapan y la mayoría de las semanas no hace falta
-    pedir nada nuevo."""
+    """Lo que esto ahorra es volver a preguntar por el MISMO jugador dentro de
+    la misma semana, que es el caso corriente: se abre su ficha el sábado y
+    otra vez el martes. Compartir entre jugadores distintos no ahorra casi
+    nada, 1,4% medido sobre la plantilla real, porque con escalones de nivel
+    exacto dos jugadores piden la misma búsqueda sólo si coinciden en
+    habilidad, nivel y edad."""
     mercado = _Mercado()
     resultado = await buscar_comparables(_objetivo(), mercado, guardadas=_seis(), ahora=AHORA)
     assert resultado.busquedas == 0

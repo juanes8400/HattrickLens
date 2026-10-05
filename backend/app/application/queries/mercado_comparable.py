@@ -10,9 +10,13 @@ De ahí las dos economías de este módulo:
 
 1. **Lo ya traído se mira primero.** Las filas que la búsqueda devolvió esta
    semana, para éste o para cualquier otro jugador, se filtran en local antes
-   de pedir nada. Los mercados de jugadores parecidos se solapan mucho, así
-   que la misma búsqueda sirve a varios de los tuyos y a menudo no hay que
-   llamar ni una vez.
+   de pedir nada. Lo que de verdad ahorra esto es REPETIR al mismo jugador en
+   la misma semana, no compartir entre jugadores distintos: medido sobre la
+   plantilla real el 2026-10-05, las 351 peticiones que necesitan veinticuatro
+   jugadores sólo bajan a 346 al compartirlas, un 1,4%. Con escalones de nivel
+   EXACTO dos jugadores tuyos piden la misma búsqueda sólo si coinciden en
+   habilidad, nivel y edad, y eso casi nunca pasa. (Con las ventanas anchas
+   del diseño anterior el solape era otra cosa; se midió y no lo era tanto.)
 2. **Se para en cuanto hay seis.** No se recorre la escalera entera por
    gusto: se abandona en el escalón que reúne el mínimo, y sólo se llega al
    suelo cuando de verdad no hay con quién comparar.
