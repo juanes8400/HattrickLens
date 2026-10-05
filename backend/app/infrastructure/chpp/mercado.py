@@ -23,10 +23,10 @@ misma prueba, pases 11-15 y creación 3-11 pasaron sin problema. Hattrick
 quiere una habilidad «principal» acotada que haga barata la búsqueda, y el
 resto son refinamientos.
 
-Como la escalera abre la primaria hasta tres niveles a cada lado, hay tramos
-que NO caben en una petición. La ventana no se recorta por eso, que sería
-mentir sobre lo que se buscó: se TROCEA en varias peticiones de cuatro
-niveles, y se juntan los resultados. Cuesta más llamadas y encuentra lo mismo.
+El troceado que hay más abajo existe por esa regla. Con la escalera actual no
+llega a saltar nunca, porque sus escalones piden niveles EXACTOS y un nivel
+exacto siempre cabe; se queda como red, para que ninguna escalera futura pueda
+volver a pedir un tramo que el servidor rechace sin que nadie se entere.
 
 LO QUE LA BÚSQUEDA SIGUE SIN SABER HACER, y por eso se filtra en casa:
 
@@ -100,10 +100,6 @@ def peticiones_de(ventana: Ventana, *, pagina: int = 0) -> list[dict[str, int]]:
     compara años, y pedir días estrecharía la búsqueda por un criterio que
     luego nadie aplica.
     """
-    secundarios = [ventana.secundaria]
-    if ventana.terciaria is not None:
-        secundarios.append(ventana.terciaria)
-
     comunes: dict[str, int] = {
         "ageMin": ventana.edad_minima,
         "ageMax": ventana.edad_maxima,
@@ -111,10 +107,9 @@ def peticiones_de(ventana: Ventana, *, pagina: int = 0) -> list[dict[str, int]]:
         "pageSize": PAGINA,
         "skillType1": ID_DE_HABILIDAD[ventana.primaria.habilidad],
     }
-    for numero, franja in enumerate(secundarios, start=2):
-        comunes[f"skillType{numero}"] = ID_DE_HABILIDAD[franja.habilidad]
-        comunes[f"minSkillValue{numero}"] = franja.minimo
-        comunes[f"maxSkillValue{numero}"] = franja.maximo
+    comunes["skillType2"] = ID_DE_HABILIDAD[ventana.secundaria.habilidad]
+    comunes["minSkillValue2"] = ventana.secundaria.minimo
+    comunes["maxSkillValue2"] = ventana.secundaria.maximo
 
     return [
         {**comunes, "minSkillValue1": desde, "maxSkillValue1": hasta}

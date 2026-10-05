@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from app.domain.engines.mercado_comparable import (
@@ -64,15 +65,20 @@ async def buscar_comparables(
     buscar: Buscador,
     *,
     guardadas: Iterable[Mapping[str, Any]] = (),
+    ahora: datetime | None = None,
 ) -> Resultado:
     """Reúne comparables hasta tener suficientes, y devuelve el precio.
+
+    `ahora` decide qué subastas están lo bastante cerca de cerrar como para
+    que su puja cuente, y se puede fijar desde fuera; sin él es la hora de
+    verdad.
 
     Si una búsqueda falla, la excepción sube: media escalera recorrida daría
     un precio peor que el que tocaba, y dar un precio peor sin avisar es justo
     lo que este módulo no debe hacer. Quien llame decide si reintenta o si
     deja al jugador sin precio esta semana.
     """
-    reunidos = recolectar(objetivo, guardadas)
+    reunidos = recolectar(objetivo, guardadas, ahora=ahora)
     estimacion = estimar(reunidos)
     busquedas = 0
     agotada = False
@@ -81,7 +87,7 @@ async def buscar_comparables(
         for ventana in plan:
             filas = await buscar(ventana)
             busquedas += 1
-            reunidos = recolectar(objetivo, filas, reunidos)
+            reunidos = recolectar(objetivo, filas, reunidos, ahora=ahora)
             estimacion = estimar(reunidos)
             if estimacion.suficiente:
                 break

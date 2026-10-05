@@ -1,16 +1,16 @@
 """Traducir una ventana a una búsqueda de verdad en el mercado.
 
-Esto es la frontera con una API ajena, y tiene una regla que no está escrita
-en ningún esquema: **el primer filtro de habilidad no admite un tramo de más
-de cuatro niveles**. Se descubrió el 2026-10-05 probando contra el servidor,
-y se descubrió TARDE porque el error no se veía: Hattrick contesta 200 con un
+Esto es la frontera con una API ajena, y tiene una regla que no está escrita en
+ningún esquema: **el primer filtro de habilidad no admite un tramo de más de
+cuatro niveles**. Se descubrió el 2026-10-05 probando contra el servidor, y se
+descubrió TARDE porque el error no se veía: Hattrick contesta 200 con un
 `chpperror`, el parser lo convertía en una búsqueda vacía, y cuatro escalones
 de la escalera pasaron por «aquí no hay nadie» cuando lo que había era un
 rechazo.
 
 Las dos pruebas que importan son por tanto:
 
-  · que NINGUNA petición de NINGÚN escalón se pase del tramo máximo, que es la
+  · que ninguna petición de ningún escalón se pase del tramo máximo, que es la
     que habría atrapado el fallo;
   · que una búsqueda rechazada se note, en vez de parecer una búsqueda vacía.
 """
@@ -19,12 +19,13 @@ from typing import Any
 
 import pytest
 
-from app.domain.engines.mercado_comparable import ESCALERA as ESCALERA_TRIO
 from app.domain.engines.mercado_comparable import (
     ORDEN_DE_DESEMPATE,
+    Franja,
+    Objetivo,
+    Ventana,
     objetivo_de,
     plan_de_busqueda,
-    ventana_de,
 )
 from app.infrastructure.chpp.mercado import (
     ID_DE_HABILIDAD,
@@ -48,10 +49,14 @@ def _hab(**niveles: int) -> dict[str, int]:
 SKILLS = _hab(scoring=18, passing=13, playmaking=7)
 
 
-def _objetivo(con_terciaria: bool = True):
-    hecho = objetivo_de(1, EDAD, SKILLS, con_terciaria=con_terciaria)
+def _objetivo() -> Objetivo:
+    hecho = objetivo_de(1, EDAD, SKILLS)
     assert hecho is not None
     return hecho
+
+
+def _primera() -> Ventana:
+    return plan_de_busqueda(_objetivo())[0]
 
 
 class _ClienteFalso:
@@ -69,7 +74,7 @@ class _ClienteFalso:
         return {"error": None, "item_count": 0, "page_size": PAGINA, "page_index": 0, "results": []}
 
 
-def _vacia(item_count: int = 0, cuantos: int = 0) -> dict[str, Any]:
+def _pagina(item_count: int = 0, cuantos: int = 0) -> dict[str, Any]:
     return {
         "error": None,
         "item_count": item_count,
@@ -84,51 +89,63 @@ def _vacia(item_count: int = 0, cuantos: int = 0) -> dict[str, Any]:
 # --------------------------------------------------------------------------
 
 
-def test_ninguna_peticion_de_ninguna_escalera_se_pasa_del_tramo_maximo() -> None:
+def test_ninguna_peticion_de_la_escalera_se_pasa_del_tramo_maximo() -> None:
     """LA prueba de este fichero.
 
     Hattrick rechaza con «No primary skill with min and max range has been
     specified» cualquier primer filtro de más de cuatro niveles, y el rechazo
-    llega disfrazado de búsqueda vacía. Esto recorre los dos modos enteros y
-    comprueba cada petición que se enviaría.
+    llega disfrazado de búsqueda vacía.
     """
-    for con_terciaria in (True, False):
-        objetivo = _objetivo(con_terciaria)
-        for ventana in plan_de_busqueda(objetivo):
-            for pedido in peticiones_de(ventana):
-                ancho = pedido["maxSkillValue1"] - pedido["minSkillValue1"] + 1
-                assert ancho <= TRAMO_MAXIMO_DEL_PRIMERO, (ventana.peso, pedido)
+    for ventana in plan_de_busqueda(_objetivo()):
+        for pedido in peticiones_de(ventana):
+            ancho = pedido["maxSkillValue1"] - pedido["minSkillValue1"] + 1
+            assert ancho <= TRAMO_MAXIMO_DEL_PRIMERO, (ventana.peso, pedido)
 
 
-def test_un_tramo_que_cabe_se_pide_de_una_sola_vez() -> None:
-    ventana = ventana_de(_objetivo(), ESCALERA_TRIO[0])
-    pedidos = peticiones_de(ventana)
-    assert len(pedidos) == 1
-    assert pedidos[0]["minSkillValue1"] == pedidos[0]["maxSkillValue1"] == 18
+def test_la_escalera_de_hoy_pide_niveles_exactos_y_no_llega_a_trocear() -> None:
+    """Sus escalones piden un nivel exacto, y uno exacto siempre cabe."""
+    for ventana in plan_de_busqueda(_objetivo()):
+        pedidos = peticiones_de(ventana)
+        assert len(pedidos) == 1
+        assert pedidos[0]["minSkillValue1"] == pedidos[0]["maxSkillValue1"]
+        assert pedidos[0]["minSkillValue2"] == pedidos[0]["maxSkillValue2"]
+        assert pedidos[0]["ageMin"] == pedidos[0]["ageMax"]
 
 
-def test_un_tramo_que_no_cabe_se_trocea_sin_dejar_huecos_ni_repetir() -> None:
-    """Se trocea, no se recorta: recortarlo sería mentir sobre lo que se
-    buscó y dejaría fuera a gente que el escalón sí admite."""
-    ancho = ventana_de(_objetivo(), ESCALERA_TRIO[-1])
+def test_un_tramo_ancho_se_trocearia_sin_dejar_huecos_ni_repetir() -> None:
+    """El troceado se queda como red, para que ninguna escalera futura pueda
+    pedir un tramo que el servidor rechace sin que nadie se entere. Se trocea,
+    no se recorta: recortar dejaría fuera a gente que el escalón sí admite.
+    """
+    ancho = Ventana(
+        peso=50,
+        edad_minima=EDAD,
+        edad_maxima=EDAD,
+        primaria=Franja("scoring", 10, 20),
+        secundaria=Franja("passing", 5, 18),
+    )
     pedidos = peticiones_de(ancho)
     assert len(pedidos) > 1
     cubierto: list[int] = []
     for pedido in pedidos:
+        trozo = pedido["maxSkillValue1"] - pedido["minSkillValue1"] + 1
+        assert trozo <= TRAMO_MAXIMO_DEL_PRIMERO
         cubierto.extend(range(pedido["minSkillValue1"], pedido["maxSkillValue1"] + 1))
-    assert cubierto == sorted(cubierto)
-    assert len(cubierto) == len(set(cubierto))
-    assert cubierto == list(range(ancho.primaria.minimo, ancho.primaria.maximo + 1))
+    assert cubierto == list(range(10, 21))
 
 
-def test_los_filtros_segundo_y_tercero_no_se_trocean() -> None:
-    """La regla es sólo del primero: en la prueba real, pases 11-15 y
-    creación 3-11 pasaron tal cual."""
-    ancho = ventana_de(_objetivo(), ESCALERA_TRIO[-1])
+def test_el_segundo_filtro_no_se_trocea() -> None:
+    """La regla es sólo del primero: en la prueba real, pases 11-15 y creación
+    3-11 pasaron tal cual."""
+    ancho = Ventana(
+        peso=50,
+        edad_minima=EDAD,
+        edad_maxima=EDAD,
+        primaria=Franja("scoring", 10, 20),
+        secundaria=Franja("passing", 5, 18),
+    )
     for pedido in peticiones_de(ancho):
-        assert pedido["minSkillValue2"] == ancho.secundaria.minimo
-        assert pedido["maxSkillValue2"] == ancho.secundaria.maximo
-        assert pedido["maxSkillValue3"] - pedido["minSkillValue3"] > TRAMO_MAXIMO_DEL_PRIMERO
+        assert (pedido["minSkillValue2"], pedido["maxSkillValue2"]) == (5, 18)
 
 
 # --------------------------------------------------------------------------
@@ -141,27 +158,34 @@ def test_cada_habilidad_viaja_con_su_numero_de_hattrick() -> None:
     assert ID_DE_HABILIDAD["scoring"] == 5
     assert ID_DE_HABILIDAD["passing"] == 7
     assert ID_DE_HABILIDAD["playmaking"] == 8
-    pedido = peticiones_de(ventana_de(_objetivo(), ESCALERA_TRIO[0]))[0]
+    pedido = peticiones_de(_primera())[0]
     assert pedido["skillType1"] == 5
+    assert pedido["minSkillValue1"] == pedido["maxSkillValue1"] == 18
     assert pedido["skillType2"] == 7
-    assert pedido["skillType3"] == 8
+    assert pedido["minSkillValue2"] == pedido["maxSkillValue2"] == 13
+
+
+def test_la_tercera_habilidad_no_gasta_un_filtro_porque_no_compara() -> None:
+    """Se calcula y se enseña, pero el parecido son dos habilidades."""
+    for ventana in plan_de_busqueda(_objetivo()):
+        for pedido in peticiones_de(ventana):
+            assert "skillType3" not in pedido
 
 
 def test_la_edad_viaja_en_anos_cumplidos_y_sin_dias() -> None:
     """Pedir días estrecharía la búsqueda por un criterio que el motor no
     aplica: compara años."""
-    pedido = peticiones_de(ventana_de(_objetivo(), ESCALERA_TRIO[0]))[0]
+    pedido = peticiones_de(_primera())[0]
     assert pedido["ageMin"] == pedido["ageMax"] == EDAD
     assert "ageDaysMin" not in pedido
     assert "ageDaysMax" not in pedido
 
 
-def test_sin_terciaria_no_se_gasta_el_tercer_filtro() -> None:
-    objetivo = _objetivo(con_terciaria=False)
-    pedido = peticiones_de(plan_de_busqueda(objetivo)[0])[0]
-    assert pedido["skillType1"] == 5
-    assert pedido["skillType2"] == 7
-    assert "skillType3" not in pedido
+def test_cada_escalon_pide_lo_suyo_y_no_lo_del_vecino() -> None:
+    """Los cuatro primeros escalones, traducidos a lo que sale por el cable."""
+    pedidos = [peticiones_de(v)[0] for v in plan_de_busqueda(_objetivo())[:5]]
+    leido = [(p["minSkillValue1"], p["minSkillValue2"], p["ageMin"]) for p in pedidos]
+    assert leido == [(18, 13, 31), (18, 12, 31), (17, 13, 31), (18, 13, 32), (18, 13, 30)]
 
 
 # --------------------------------------------------------------------------
@@ -176,39 +200,29 @@ async def test_una_busqueda_rechazada_no_pasa_por_una_busqueda_vacia() -> None:
     cliente = _ClienteFalso({"error": "Invalid parameter specified (10)", "results": []})
     buscador = BuscadorDeMercado(cliente)  # type: ignore[arg-type]
     with pytest.raises(BusquedaRechazadaError, match="Invalid parameter"):
-        await buscador(ventana_de(_objetivo(), ESCALERA_TRIO[0]))
-
-
-async def test_se_piden_todos_los_trozos_y_se_juntan_los_resultados() -> None:
-    ancho = ventana_de(_objetivo(), ESCALERA_TRIO[-1])
-    trozos = len(peticiones_de(ancho))
-    cliente = _ClienteFalso(*[_vacia(item_count=1, cuantos=1) for _ in range(trozos)])
-    buscador = BuscadorDeMercado(cliente)  # type: ignore[arg-type]
-    filas = await buscador(ancho)
-    assert buscador.peticiones == trozos
-    assert len(filas) == trozos
+        await buscador(_primera())
 
 
 async def test_no_se_pide_una_segunda_pagina_si_ya_vinieron_todos() -> None:
-    cliente = _ClienteFalso(_vacia(item_count=2, cuantos=2))
+    cliente = _ClienteFalso(_pagina(item_count=2, cuantos=2))
     buscador = BuscadorDeMercado(cliente)  # type: ignore[arg-type]
-    await buscador(ventana_de(_objetivo(), ESCALERA_TRIO[0]))
+    await buscador(_primera())
     assert buscador.peticiones == 1
 
 
 async def test_el_menos_uno_del_recuento_no_se_lee_como_haber_terminado() -> None:
     """-1 es «más de 100». Tratarlo como un recuento dejaría fuera todo lo que
     no cupo en la primera página."""
-    cliente = _ClienteFalso(_vacia(item_count=-1, cuantos=3), _vacia(item_count=-1, cuantos=3))
+    cliente = _ClienteFalso(_pagina(item_count=-1, cuantos=3), _pagina(item_count=-1, cuantos=3))
     buscador = BuscadorDeMercado(cliente, maximo_de_paginas=2)  # type: ignore[arg-type]
-    filas = await buscador(ventana_de(_objetivo(), ESCALERA_TRIO[0]))
+    filas = await buscador(_primera())
     assert buscador.peticiones == 2
     assert len(filas) == 6
     assert buscador.truncadas  # y queda constancia de que había más
 
 
 async def test_una_pagina_vacia_corta_aunque_el_recuento_diga_muchos() -> None:
-    cliente = _ClienteFalso(_vacia(item_count=-1, cuantos=0))
+    cliente = _ClienteFalso(_pagina(item_count=-1, cuantos=0))
     buscador = BuscadorDeMercado(cliente)  # type: ignore[arg-type]
-    assert await buscador(ventana_de(_objetivo(), ESCALERA_TRIO[0])) == []
+    assert await buscador(_primera()) == []
     assert buscador.peticiones == 1
