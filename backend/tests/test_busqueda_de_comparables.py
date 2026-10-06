@@ -1,8 +1,8 @@
 """El turno de un jugador, de punta a punta.
 
-Aquí se vigila el GASTO y el orden, que es lo que aporta esta capa: que no se
-llame a nadie cuando no hace falta, que se pare en el escalón que completa el
-fondo y no antes de terminarlo, y que los anuncios sin puja sean el último
+Aqui se vigila el GASTO y el orden, que es lo que aporta esta capa: que no se
+llame a nadie cuando no hace falta, que se pare en el escalon que completa el
+fondo y no antes de terminarlo, y que los anuncios sin puja sean el ultimo
 recurso y no el primero.
 """
 
@@ -21,7 +21,7 @@ from app.domain.engines.mercado_comparable import (
     Objetivo,
     Ventana,
     objetivo_de,
-    perfil_de,
+    terna,
 )
 
 AHORA = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
@@ -44,7 +44,7 @@ def _objetivo() -> Objetivo:
     return hecho
 
 
-def _fila(ident: int, *, puja: int = 4_000_000, **extra) -> dict[str, Any]:
+def _fila(ident: int, *, puja: int = 4_000_000, **extra: Any) -> dict[str, Any]:
     fila: dict[str, Any] = {
         "ht_player_id": ident,
         "first_name": "Jugador",
@@ -65,19 +65,24 @@ def _fila(ident: int, *, puja: int = 4_000_000, **extra) -> dict[str, Any]:
     return fila
 
 
-def _guardado(ident: int, *, semanas: float = 0, peso: int = 100) -> Guardado:
+def _venta(ident: int, *, semanas: float = 0) -> Guardado:
+    tres = terna(SKILLS)
+    assert tres is not None
     return Guardado(
         ht_player_id=ident,
         nombre=f"Viejo {ident}",
         precio=1_000_000,
-        peso=peso,
         firme=True,
         visto_el=AHORA - timedelta(weeks=semanas),
+        edad=EDAD,
+        primaria=tres[0],
+        secundaria=tres[1],
+        terciaria=tres[2],
     )
 
 
 class _Mercado:
-    """Un mercado de mentira que apunta qué se le pidió y en qué orden."""
+    """Un mercado de mentira que apunta que se le pidio y en que orden."""
 
     def __init__(self, *paginas: list[dict[str, Any]]) -> None:
         self.paginas = list(paginas)
@@ -94,37 +99,40 @@ async def _turno(mercado: Any, **kwargs: Any) -> Any:
 
 
 async def test_con_el_fondo_vivo_el_turno_no_gasta_ni_una_llamada() -> None:
-    """Es la economía principal: la mayoría de los turnos no tienen que hacer
-    nada, y hacer algo costaría cuota de la aplicación entera."""
+    """Es la economia principal: la mayoria de los turnos no tienen que hacer
+    nada, y hacer algo costaria cuota de la aplicacion entera."""
     mercado = _Mercado()
-    r = await _turno(mercado, guardados=[_guardado(i, semanas=1) for i in range(1, 7)])
+    r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 7)])
     assert r.busquedas == 0
     assert mercado.pedidas == []
     assert r.estimacion.suficiente is True
+    assert r.nuevas == ()
     assert r.por_resolver == ()
 
 
 async def test_desde_cero_se_para_en_el_escalon_que_completa_el_fondo() -> None:
-    """Dos en el exacto, cuatro en el siguiente: dos llamadas y ni una más,
+    """Dos en el exacto, cuatro en el siguiente: dos llamadas y ni una mas,
     aunque la escalera tenga cinco escalones."""
     mercado = _Mercado(
         [_fila(1), _fila(2)],
         [_fila(3), _fila(4), _fila(5), _fila(6)],
-        [_fila(90), _fila(91)],  # este escalón no debería pedirse nunca
+        [_fila(90), _fila(91)],  # este escalon no deberia pedirse nunca
     )
     r = await _turno(mercado)
     assert r.busquedas == 2
-    assert len(r.fondo) == OBJETIVO
+    assert len(r.nuevas) == OBJETIVO
     assert r.agotada is False
     assert [v.peso for v in mercado.pedidas] == [100, 90]
 
 
 async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
-    """Nadie se queda fuera por orden de llegada dentro de un mismo escalón."""
+    """Nadie se queda fuera por orden de llegada dentro de un mismo escalon, y
+    cuantos mas datos haya mejor se describe el mercado."""
     mercado = _Mercado([_fila(i) for i in range(1, 10)])
     r = await _turno(mercado)
     assert r.busquedas == 1
-    assert len(r.fondo) == 9
+    assert len(r.nuevas) == 9
+    assert r.estimacion.n == 9
 
 
 async def test_si_la_escalera_no_basta_queda_constancia() -> None:
@@ -132,42 +140,38 @@ async def test_si_la_escalera_no_basta_queda_constancia() -> None:
     r = await _turno(mercado)
     assert r.busquedas == len(ESCALERA)
     assert r.agotada is True
-    assert len(r.fondo) == 1
     assert r.estimacion.suficiente is False
     assert r.estimacion.media is None
 
 
-async def test_si_el_jugador_ya_no_es_el_mismo_se_tira_lo_guardado() -> None:
-    """Subir una habilidad o cumplir años convierte lo acumulado en datos de
-    otro jugador."""
-    mercado = _Mercado([_fila(i) for i in range(1, 7)])
-    r = await _turno(
-        mercado,
-        guardados=[_guardado(i, semanas=1) for i in range(1, 7)],
-        perfil_guardado=(EDAD - 1, "scoring", 18, "passing", 13, "playmaking", 7),
-    )
+async def test_lo_fresco_del_fondo_ahorra_escalones() -> None:
+    """El fondo es del equipo: lo que trajo la busqueda de otro jugador vale
+    para este si se le parece, y entonces basta con completar lo que falta."""
+    mercado = _Mercado([_fila(9)])
+    r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 6)])
     assert r.busquedas == 1
-    assert {g.ht_player_id for g in r.fondo} == set(range(1, 7))
+    assert r.estimacion.n == OBJETIVO
+    assert len(r.nuevas) == 1
 
 
-async def test_si_el_jugador_es_el_mismo_lo_guardado_se_respeta() -> None:
-    mercado = _Mercado()
-    r = await _turno(
-        mercado,
-        guardados=[_guardado(i, semanas=1) for i in range(1, 7)],
-        perfil_guardado=perfil_de(_objetivo()),
-    )
-    assert r.busquedas == 0
-    assert {g.ht_player_id for g in r.fondo} == set(range(1, 7))
+async def test_lo_caducado_cuenta_pero_no_detiene_la_busqueda() -> None:
+    """Las ventas viejas siguen dando numero, porque una venta vieja informa
+    mas que ninguna. Pero su turno se gasta entero buscando con que
+    sustituirlas, que es lo que el usuario pidio."""
+    mercado = _Mercado([_fila(9)])
+    r = await _turno(mercado, fondo=[_venta(i, semanas=9) for i in range(1, 6)])
+    assert r.busquedas == len(ESCALERA)
+    assert r.estimacion.n == OBJETIVO
+    assert len(r.nuevas) == 1
 
 
 async def test_los_sin_puja_son_el_ultimo_recurso_y_solo_si_son_bastantes() -> None:
-    """Cada uno cuesta una resolución para averiguar si llegó a venderse, así
+    """Cada uno cuesta una resolucion para averiguar si llego a venderse, asi
     que no se gastan por uno suelto."""
     mercado = _Mercado([_fila(1), _fila(2, puja=0), _fila(3, puja=0)])
     r = await _turno(mercado)
-    assert {g.ht_player_id for g in r.fondo} == {1, 2, 3}
-    # Y se recorrió la escalera entera antes de bajar a ellos.
+    assert {v.ht_player_id for v in r.nuevas} == {1, 2, 3}
+    # Y se recorrio la escalera entera antes de bajar a ellos.
     assert r.busquedas == len(ESCALERA)
 
 
@@ -175,49 +179,51 @@ async def test_un_solo_anuncio_sin_puja_no_merece_la_resolucion() -> None:
     mercado = _Mercado([_fila(1), _fila(2, puja=0)])
     r = await _turno(mercado)
     assert MINIMO_PARA_BAJAR_A_SIN_PUJA == 2
-    assert {g.ht_player_id for g in r.fondo} == {1}
+    assert {v.ht_player_id for v in r.nuevas} == {1}
 
 
 async def test_si_los_de_puja_bastan_no_se_toca_a_los_sin_puja() -> None:
     mercado = _Mercado([_fila(i) for i in range(1, 7)] + [_fila(80, puja=0), _fila(81, puja=0)])
     r = await _turno(mercado)
-    assert {g.ht_player_id for g in r.fondo} == set(range(1, 7))
+    assert {v.ht_player_id for v in r.nuevas} == set(range(1, 7))
 
 
 async def test_todo_lo_que_entra_queda_anotado_para_resolver() -> None:
-    """Mientras tanto vale su puja, que se queda corta: Valerio tenía 65
-    millones y cerró en 77,7."""
+    """Mientras tanto vale su puja, que se queda corta: Valerio tenia 65
+    millones y cerro en 77,7."""
     mercado = _Mercado([_fila(i) for i in range(1, 7)])
     r = await _turno(mercado)
     assert {p.ht_player_id for p in r.por_resolver} == set(range(1, 7))
     assert all(p.plazo == "2026-10-08 20:00:00" for p in r.por_resolver)
-    assert all(not g.firme for g in r.fondo)
+    assert all(not v.firme for v in r.nuevas)
     assert r.estimacion.provisionales == OBJETIVO
 
 
-async def test_lo_que_no_llego_a_entrar_no_se_resuelve() -> None:
-    """Gastar una resolución en alguien que no está en el fondo es tirar una
-    llamada."""
-    mercado = _Mercado([_guardar for _guardar in []] or [_fila(i) for i in range(1, 10)])
-    r = await _turno(mercado, guardados=[_guardado(i, semanas=1) for i in range(1, 7)])
-    # El fondo estaba vivo y completo: ni se busca ni se resuelve nada.
-    assert r.por_resolver == ()
+async def test_cada_venta_guarda_su_propio_perfil() -> None:
+    """Es lo que permite que el fondo sea del equipo: sin su edad y sus
+    habilidades, esta venta solo serviria para quien la encontro."""
+    mercado = _Mercado([_fila(1, age_years=30, skills=_hab(scoring=17, passing=13, playmaking=7))])
+    r = await _turno(mercado)
+    venta = r.nuevas[0]
+    assert venta.edad == 30
+    assert venta.primaria.habilidad == "scoring"
+    assert venta.primaria.nivel == 17
 
 
 async def test_tu_propio_jugador_no_entra_en_su_propio_calculo() -> None:
     mercado = _Mercado([_fila(777), _fila(1)])
     r = await _turno(mercado)
-    assert 777 not in {g.ht_player_id for g in r.fondo}
+    assert 777 not in {v.ht_player_id for v in r.nuevas}
 
 
 async def test_los_tuyos_en_venta_tampoco() -> None:
     mercado = _Mercado([_fila(1, seller_team_id=MI_EQUIPO), _fila(2)])
     r = await _turno(mercado)
-    assert {g.ht_player_id for g in r.fondo} == {2}
+    assert {v.ht_player_id for v in r.nuevas} == {2}
 
 
 async def test_si_el_mercado_falla_la_excepcion_sube() -> None:
-    """Media escalera recorrida daría un fondo peor que el que toca, y darlo
+    """Media escalera recorrida daria un fondo peor que el que toca, y darlo
     sin avisar es lo que no debe pasar."""
 
     async def roto(ventana: Ventana) -> list[dict[str, Any]]:

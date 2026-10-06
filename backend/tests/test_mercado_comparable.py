@@ -28,18 +28,16 @@ from app.domain.engines.mercado_comparable import (
     VIDA,
     Guardado,
     Objetivo,
-    admitir,
     candidato_de,
+    comparables_de,
     cosecha,
     estimar,
     frontera_semanal,
     hay_que_buscar,
     le_toca,
     objetivo_de,
-    perfil_de,
     peso_de,
     plan_de_busqueda,
-    quien_sale,
     reemplazable,
     terna,
 )
@@ -98,20 +96,31 @@ def _guardado(
     ident: int,
     *,
     precio: int = 1_000_000,
-    peso: int = 100,
     semanas: float = 0,
     firme: bool = True,
     especialidad: int = 0,
+    edad: int = EDAD,
+    **niveles: int,
 ) -> Guardado:
+    """Una venta del fondo. Por defecto es clavada al objetivo, o sea 100%."""
+    tres = terna(_hab(**niveles) if niveles else SKILLS)
+    assert tres is not None
     return Guardado(
         ht_player_id=ident,
         nombre=f"Comparable {ident}",
         precio=precio,
-        peso=peso,
         firme=firme,
         visto_el=AHORA - timedelta(weeks=semanas),
+        edad=edad,
+        primaria=tres[0],
+        secundaria=tres[1],
+        terciaria=tres[2],
         especialidad=especialidad,
     )
+
+
+def _medidos(*ventas: Guardado, objetivo: Objetivo | None = None):
+    return comparables_de(ventas, objetivo or _objetivo(), AHORA)
 
 
 # --------------------------------------------------------------------------
@@ -156,17 +165,6 @@ def test_sin_ninguna_habilidad_no_hay_terna_ni_objetivo() -> None:
     assert terna({"stamina": 20, "set_pieces": 20}) is None
     assert objetivo_de(1, EDAD, dict.fromkeys(ORDEN_DE_DESEMPATE, 0)) is None
     assert objetivo_de(1, 0, SKILLS) is None
-
-
-def test_el_perfil_cambia_con_la_edad_y_con_las_tres_habilidades() -> None:
-    """Es lo que decide cuándo hay que tirar lo acumulado."""
-    base = perfil_de(_objetivo())
-    assert perfil_de(_objetivo(edad=32)) != base
-    assert perfil_de(_objetivo(scoring=19, passing=13, playmaking=7)) != base
-    assert perfil_de(_objetivo(scoring=18, passing=14, playmaking=7)) != base
-    assert perfil_de(_objetivo(scoring=18, passing=13, playmaking=8)) != base
-    # La cuarta habilidad no entra en el perfil: no cambia a quién se parece.
-    assert perfil_de(_objetivo(scoring=18, passing=13, playmaking=7, winger=5)) == base
 
 
 # --------------------------------------------------------------------------
@@ -356,52 +354,56 @@ def test_cada_uno_viaja_con_el_peso_del_escalon_que_lo_admite() -> None:
 
 
 # --------------------------------------------------------------------------
-# Caducidad y reemplazo
+# El fondo del equipo
 # --------------------------------------------------------------------------
 
 
-def test_un_dato_vive_siete_semanas_y_luego_queda_reemplazable() -> None:
-    """Cumplir la vida no lo borra: un dato viejo informa más que ninguno, así
-    que espera a que algo mejor ocupe su sitio."""
+def test_una_venta_vive_siete_semanas_y_luego_queda_reemplazable() -> None:
+    """Cumplir la vida no la borra: una venta vieja informa mas que ninguna,
+    asi que espera a que algo mas fresco ocupe su sitio."""
     assert timedelta(weeks=7) == VIDA
     assert reemplazable(_guardado(1, semanas=6), AHORA) is False
     assert reemplazable(_guardado(1, semanas=7), AHORA) is True
-    assert reemplazable(_guardado(1, semanas=30), AHORA) is True
 
 
-def test_sale_el_mas_viejo() -> None:
-    sale = quien_sale(
-        [_guardado(1, semanas=8), _guardado(2, semanas=20), _guardado(3, semanas=9)],
-        _objetivo(),
-        AHORA,
-    )
-    assert sale is not None and sale.ht_player_id == 2
+def test_una_venta_se_vuelve_a_medir_contra_quien_pregunte() -> None:
+    """LA prueba del fondo compartido. La misma venta vale 100% para el jugador
+    al que se parece y 85% para otro con un nivel menos de anotacion, sin
+    gastar una sola llamada."""
+    venta = _guardado(1)
+    assert _medidos(venta)[0].peso == 100
+    otro = _objetivo(scoring=17, passing=13, playmaking=7)
+    assert _medidos(venta, objetivo=otro)[0].peso == 85
 
 
-def test_a_igual_edad_sale_el_de_menos_peso() -> None:
-    sale = quien_sale(
-        [_guardado(1, semanas=8, peso=100), _guardado(2, semanas=8, peso=75)],
-        _objetivo(),
-        AHORA,
-    )
-    assert sale is not None and sale.ht_player_id == 2
+def test_una_venta_que_no_se_parece_a_quien_pregunta_no_entra() -> None:
+    portero = _guardado(1, keeper=18, defending=13, scoring=7)
+    assert _medidos(portero) == ()
 
 
-def test_a_igual_edad_y_peso_sale_el_mas_barato() -> None:
-    sale = quien_sale(
-        [
-            _guardado(1, semanas=8, peso=90, precio=9_000_000),
-            _guardado(2, semanas=8, peso=90, precio=2_000_000),
-        ],
-        _objetivo(),
-        AHORA,
-    )
-    assert sale is not None and sale.ht_player_id == 2
+def test_el_peso_manda_por_encima_de_la_frescura() -> None:
+    """El usuario dijo que un comparable nunca se reemplaza por algo de menor
+    peso, asi que una venta caducada al 100% va por delante de una recien
+    encontrada al 85%."""
+    vieja = _guardado(1, semanas=20)
+    reciente = _guardado(2, semanas=0, scoring=17, passing=13, playmaking=7)
+    elegidos = _medidos(reciente, vieja)
+    assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
+    assert [c.peso for c in elegidos] == [100, 85]
+    assert elegidos[0].viejo is True
 
 
-def test_en_el_ultimo_empate_se_queda_el_de_la_misma_especialidad() -> None:
-    """Compartir especialidad con tu jugador hace al comparable más parecido,
-    así que es el último que se echa."""
+def test_a_igual_peso_va_antes_la_mas_reciente() -> None:
+    elegidos = _medidos(_guardado(1, semanas=5), _guardado(2, semanas=1))
+    assert [c.venta.ht_player_id for c in elegidos] == [2, 1]
+
+
+def test_a_igual_peso_y_fecha_va_antes_la_mas_cara() -> None:
+    elegidos = _medidos(_guardado(1, precio=2_000_000), _guardado(2, precio=9_000_000))
+    assert [c.venta.ht_player_id for c in elegidos] == [2, 1]
+
+
+def test_en_el_ultimo_empate_gana_la_misma_especialidad() -> None:
     objetivo = Objetivo(
         ht_player_id=777,
         edad=EDAD,
@@ -410,147 +412,103 @@ def test_en_el_ultimo_empate_se_queda_el_de_la_misma_especialidad() -> None:
         terciaria=_objetivo().terciaria,
         especialidad=2,
     )
-    sale = quien_sale(
-        [
-            _guardado(1, semanas=8, especialidad=2),
-            _guardado(2, semanas=8, especialidad=0),
-        ],
-        objetivo,
-        AHORA,
+    elegidos = comparables_de(
+        [_guardado(1, especialidad=0), _guardado(2, especialidad=2)], objetivo, AHORA
     )
-    assert sale is not None and sale.ht_player_id == 2
+    assert [c.venta.ht_player_id for c in elegidos] == [2, 1]
 
 
-def test_a_un_dato_vivo_no_se_le_echa() -> None:
-    assert (
-        quien_sale([_guardado(1, semanas=1), _guardado(2, semanas=3)], _objetivo(), AHORA) is None
-    )
+def test_se_devuelven_mas_de_seis_si_empatan_con_el_sexto() -> None:
+    """Cuantos mas datos haya mejor se describe el mercado: si un escalon trajo
+    diez comparables igual de buenos, cuentan los diez."""
+    assert len(_medidos(*(_guardado(i) for i in range(1, 11)))) == 10
 
 
-def test_mientras_no_haya_seis_entran_todos() -> None:
-    fondo: tuple[Guardado, ...] = ()
-    for ident in range(1, OBJETIVO + 1):
-        fondo = admitir(fondo, _guardado(ident), _objetivo(), AHORA)
-    assert len(fondo) == OBJETIVO
+def test_los_peores_se_quedan_fuera_cuando_hay_de_sobra() -> None:
+    buenos = [_guardado(i) for i in range(1, 7)]
+    flojo = _guardado(99, scoring=17, passing=13, playmaking=7)
+    elegidos = _medidos(*buenos, flojo)
+    assert 99 not in [c.venta.ht_player_id for c in elegidos]
+    assert len(elegidos) == OBJETIVO
 
 
-def test_el_fondo_no_tiene_tope_y_los_vivos_no_se_tocan() -> None:
-    """Si un escalón trae diez comparables se guardan los diez: cuantos más
-    datos, mejor describen el mercado. Y como ninguno caducó, el que entra no
-    echa a nadie."""
-    fondo = tuple(_guardado(i, semanas=1) for i in range(1, OBJETIVO + 1))
-    despues = admitir(fondo, _guardado(99, peso=100), _objetivo(), AHORA)
-    assert len(despues) == OBJETIVO + 1
-    assert set(g.ht_player_id for g in fondo) <= {g.ht_player_id for g in despues}
+def test_con_seis_vivos_su_turno_no_gasta_ni_una_llamada() -> None:
+    assert hay_que_buscar(_medidos(*(_guardado(i, semanas=1) for i in range(1, 7)))) is False
 
 
-def test_uno_peor_nunca_desplaza_a_uno_mejor() -> None:
-    """Aunque el viejo esté caducado: el objetivo es llegar a seis al 100%, y
-    retroceder en peso va justo en contra. El que llega se queda como dato de
-    más, pero sin echar a nadie."""
-    fondo = tuple(_guardado(i, semanas=10, peso=100) for i in range(1, OBJETIVO + 1))
-    despues = admitir(fondo, _guardado(99, peso=75), _objetivo(), AHORA)
-    assert {g.ht_player_id for g in fondo} <= {g.ht_player_id for g in despues}
-    assert len(despues) == OBJETIVO + 1
-
-
-def test_uno_igual_o_mejor_si_reemplaza_al_caducado() -> None:
-    fondo = (
-        _guardado(1, semanas=10, peso=75),
-        *(_guardado(i, semanas=1) for i in range(2, OBJETIVO + 1)),
-    )
-    despues = admitir(fondo, _guardado(99, peso=100), _objetivo(), AHORA)
-    assert 1 not in [g.ht_player_id for g in despues]
-    assert 99 in [g.ht_player_id for g in despues]
-    assert len(despues) == OBJETIVO
-
-
-def test_echar_a_un_caducado_nunca_deja_el_fondo_por_debajo_de_seis() -> None:
-    """Un dato viejo informa más que ninguno, así que no se le echa si al
-    hacerlo el jugador se quedaría sin número."""
-    fondo = tuple(_guardado(i, semanas=10) for i in range(1, OBJETIVO))
-    despues = admitir(fondo, _guardado(99), _objetivo(), AHORA)
-    assert len(despues) == OBJETIVO
-
-
-def test_el_mismo_jugador_no_entra_dos_veces() -> None:
-    fondo = (_guardado(1),)
-    assert admitir(fondo, _guardado(1, precio=9), _objetivo(), AHORA) == fondo
+def test_si_falta_alguno_o_hay_caducados_si_se_busca() -> None:
+    assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 6)))) is True
+    con_uno_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 7))]
+    assert hay_que_buscar(_medidos(*con_uno_viejo)) is True
 
 
 # --------------------------------------------------------------------------
-# El número
+# El numero
 # --------------------------------------------------------------------------
 
 
 def test_con_menos_de_seis_no_hay_numero_pero_si_lista() -> None:
-    e = estimar([_guardado(i) for i in range(1, OBJETIVO)])
+    e = estimar(_medidos(*(_guardado(i) for i in range(1, OBJETIVO))))
     assert e.media is None and e.mediana is None
     assert e.suficiente is False
     assert e.n == OBJETIVO - 1
-    assert len(e.comparables) == OBJETIVO - 1
 
 
 def test_con_seis_al_mismo_peso_la_media_es_la_de_siempre() -> None:
     precios = [1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_000_000]
-    e = estimar([_guardado(i, precio=p) for i, p in enumerate(precios, start=1)])
+    e = estimar(_medidos(*(_guardado(i, precio=p) for i, p in enumerate(precios, start=1))))
     assert e.suficiente is True
     assert e.media == 3_500_000
     assert e.mediana == 3_500_000
 
 
 def test_los_pesos_mueven_la_media_y_se_comprueba_a_mano() -> None:
+    flojo = {"scoring": 17, "passing": 13, "playmaking": 7}
     e = estimar(
-        [
-            _guardado(1, precio=10_000_000, peso=100),
-            _guardado(2, precio=10_000_000, peso=100),
-            _guardado(3, precio=20_000_000, peso=75),
-            _guardado(4, precio=20_000_000, peso=75),
-            _guardado(5, precio=20_000_000, peso=75),
-            _guardado(6, precio=20_000_000, peso=75),
-        ]
+        _medidos(
+            _guardado(1, precio=10_000_000),
+            _guardado(2, precio=10_000_000),
+            _guardado(3, precio=20_000_000, **flojo),
+            _guardado(4, precio=20_000_000, **flojo),
+            _guardado(5, precio=20_000_000, **flojo),
+            _guardado(6, precio=20_000_000, **flojo),
+        )
     )
-    # (2·100·10M + 4·75·20M) / (2·100 + 4·75) = 8.000M / 500 = 16M
-    assert e.media == 16_000_000
-    assert e.peso_minimo == 75
+    # (2*100*10M + 4*85*20M) / (2*100 + 4*85) = 8.800M / 540 = 16.296.296
+    assert e.media == 16_296_296
+    assert e.peso_minimo == 85
 
 
 def test_la_mediana_tambien_va_ponderada() -> None:
     """Con pesos iguales coincide con la de toda la vida; en cuanto difieren,
     el punto que parte la muestra por la mitad se mueve."""
-    pesados = [
-        _guardado(1, precio=10, peso=100),
-        _guardado(2, precio=20, peso=100),
-        _guardado(3, precio=30, peso=100),
-        _guardado(4, precio=40, peso=100),
-        _guardado(5, precio=50, peso=100),
-        _guardado(6, precio=60, peso=75),
-    ]
-    # Peso total 575, mitad 287,5. Acumulando por precio: 100, 200, 300 pasa
-    # de la mitad en el tercero, así que la mediana es 30 y no 35.
+    flojo = {"scoring": 17, "passing": 13, "playmaking": 7}
+    pesados = _medidos(
+        _guardado(1, precio=10),
+        _guardado(2, precio=20),
+        _guardado(3, precio=30),
+        _guardado(4, precio=40),
+        _guardado(5, precio=50),
+        _guardado(6, precio=60, **flojo),
+    )
+    # Peso total 585, mitad 292,5. Acumulando por precio: 100, 200, 300 pasa de
+    # la mitad en el tercero, asi que la mediana es 30 y no 35.
     assert estimar(pesados).mediana == 30
     assert estimar(pesados).media != 30
 
 
-def test_se_dice_cuantos_son_todavia_provisionales() -> None:
-    """Una puja se queda corta: Valerio tenía 65 millones y cerró en 77,7, un
-    16% más. La pantalla tiene que poder avisar."""
+def test_se_dice_cuantas_son_todavia_provisionales() -> None:
+    """Una puja se queda corta: Valerio tenia 65 millones y cerro en 77,7, un
+    16% mas. La pantalla tiene que poder avisar."""
     e = estimar(
-        [
+        _medidos(
             *(_guardado(i) for i in range(1, 5)),
             _guardado(5, firme=False),
             _guardado(6, firme=False),
-        ]
+        )
     )
     assert e.provisionales == 2
     assert e.suficiente is True
-
-
-def test_se_puede_guardar_mas_de_seis_y_todos_cuentan() -> None:
-    """El usuario lo pidió así: cuantos más datos, mejor."""
-    e = estimar([_guardado(i, precio=1_000_000 * i) for i in range(1, 11)])
-    assert e.n == 10
-    assert e.media == 5_500_000
 
 
 # --------------------------------------------------------------------------
@@ -607,20 +565,6 @@ def test_cada_semana_le_toca_a_un_solo_grupo() -> None:
     tocan = [i for i in range(20) if le_toca(i, frontera, ANCLA)]
     assert all(i % GRUPOS == tocan[0] % GRUPOS for i in tocan)
     assert len(tocan) == 4
-
-
-def test_con_seis_vivos_su_turno_no_gasta_ni_una_llamada() -> None:
-    fondo = [_guardado(i, semanas=1) for i in range(1, OBJETIVO + 1)]
-    assert hay_que_buscar(fondo, AHORA) is False
-
-
-def test_si_falta_alguno_o_hay_caducados_si_se_busca() -> None:
-    assert hay_que_buscar([_guardado(i) for i in range(1, OBJETIVO)], AHORA) is True
-    con_uno_viejo = [
-        _guardado(1, semanas=9),
-        *(_guardado(i, semanas=1) for i in range(2, OBJETIVO + 1)),
-    ]
-    assert hay_que_buscar(con_uno_viejo, AHORA) is True
 
 
 def test_el_nombre_de_la_primaria_se_comprueba_por_su_cuenta() -> None:

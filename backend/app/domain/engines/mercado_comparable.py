@@ -35,7 +35,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol
 
 # El orden de desempate, dictado por el usuario el 2026-10-04, y también la
 # lista entera de habilidades que cuentan: seis, sin resistencia ni balón
@@ -76,6 +76,37 @@ EDAD_MINIMA = 17
 #: Cuántos datos tiene que aportar la gente sin puja para que valga la pena
 #: anotarla. Con uno solo no se gastan resoluciones.
 MINIMO_PARA_BAJAR_A_SIN_PUJA = 2
+
+#: Lo que se espera tras el cierre de una subasta antes de preguntar por el
+#: precio. Hattrick tarda un poco en registrar el traspaso, y preguntar
+#: demasiado pronto gasta una llamada para no encontrar nada.
+MARGEN_TRAS_EL_PLAZO = timedelta(hours=2)
+
+#: Cuántas veces se reintenta una resolución que no encontró la venta. Con
+#: puja la venta está garantizada, así que no encontrarla es raro y casi
+#: siempre se arregla esperando; insistir más sería gastar llamadas en balde.
+REINTENTOS_DE_RESOLUCION = 1
+
+
+class Perfilado(Protocol):
+    """Cualquiera a quien se le pueda medir el parecido.
+
+    Lo cumplen el jugador del mercado recién leído y la venta ya guardada en
+    el fondo, que es justo lo que permite recalcular el peso de una venta
+    vieja contra un jugador nuevo.
+    """
+
+    @property
+    def edad(self) -> int: ...
+
+    @property
+    def primaria(self) -> Rasgo: ...
+
+    @property
+    def secundaria(self) -> Rasgo: ...
+
+    @property
+    def terciaria(self) -> Rasgo: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,7 +201,13 @@ class Ventana:
 
 @dataclass(frozen=True, slots=True)
 class Guardado:
-    """Un comparable ya en el fondo del equipo.
+    """Una venta del mercado, en el fondo del equipo.
+
+    Lleva SU PROPIO perfil (edad y las tres habilidades que cuentan) y no el
+    peso. El peso es relativo al jugador que pregunta, así que guardarlo haría
+    que esta venta sólo sirviera para aquel para quien se buscó; guardando el
+    perfil se recalcula contra cualquiera, que es lo que el usuario pidió al
+    decidir que el fondo se comparte en la plantilla.
 
     `precio` es la puja mientras `firme` sea falso, y el precio de venta real
     en cuanto se resuelve. `visto_el` es cuándo se encontró, que es lo que
@@ -180,10 +217,23 @@ class Guardado:
     ht_player_id: int
     nombre: str
     precio: int
-    peso: int
     firme: bool
     visto_el: datetime
+    edad: int
+    primaria: Rasgo
+    secundaria: Rasgo
+    terciaria: Rasgo
     especialidad: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class Comparable:
+    """Una venta del fondo, ya medida contra un jugador concreto."""
+
+    venta: Guardado
+    peso: int
+    #: Si ya cumplió su vida y sólo está ahí porque no hay nada más fresco.
+    viejo: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,7 +245,7 @@ class Estimacion:
     n: int
     peso_minimo: int
     provisionales: int
-    comparables: tuple[Guardado, ...]
+    comparables: tuple[Comparable, ...]
 
     @property
     def suficiente(self) -> bool:
@@ -288,7 +338,7 @@ def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:
     return tuple(v for v in ventanas if v is not None)
 
 
-def peso_de(candidato: Candidato, objetivo: Objetivo) -> int | None:
+def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     """Lo que vale este candidato, o `None` si no se le parece lo bastante.
 
     Las tres habilidades tienen que ser LAS MISMAS y en el mismo orden. Quien
@@ -397,119 +447,142 @@ def cosecha(
     return con_puja, sin_puja
 
 
-def reemplazable(guardado: Guardado, ahora: datetime) -> bool:
-    """Si ya cumplió su vida y puede ser sustituido.
+def reemplazable(venta: Guardado, ahora: datetime) -> bool:
+    """Si ya cumplió su vida y puede dejar paso a algo más fresco.
 
-    Cumplirla no lo borra. Un dato de hace dos meses sigue informando más que
-    ninguno, así que espera a que algo mejor ocupe su sitio.
+    Cumplirla no la borra. Una venta de hace dos meses sigue informando más
+    que ninguna, así que se queda mientras no haya con qué sustituirla.
     """
-    return _aware(ahora) - _aware(guardado.visto_el) >= VIDA
+    return _aware(ahora) - _aware(venta.visto_el) >= VIDA
 
 
-def quien_sale(
-    guardados: Sequence[Guardado], objetivo: Objetivo, ahora: datetime
-) -> Guardado | None:
-    """A quién le toca dejar el sitio cuando llega uno nuevo.
+def comparables_de(
+    fondo: Iterable[Guardado], objetivo: Objetivo, ahora: datetime
+) -> tuple[Comparable, ...]:
+    """Las ventas del fondo que sirven para este jugador, de mejor a peor.
 
-    El orden lo dictó el usuario: primero el más viejo, y si empatan el de
-    menos peso, y si empatan el más barato, y si empatan se queda el que
-    comparte especialidad con tu jugador. Sólo salen los que ya cumplieron su
-    vida: a un dato fresco no se le echa.
+    El fondo es del EQUIPO, así que aquí se vuelve a medir cada venta contra
+    el jugador que pregunta. Una venta encontrada buscando para un delantero
+    sirve para otro delantero parecido sin gastar una sola llamada.
+
+    El orden lo dictó el usuario, y manda el peso por encima de todo porque
+    dijo que un comparable «nunca será reemplazado por algo de menor peso».
+    Dentro del mismo peso va su regla de desempate, puesta del derecho: se
+    queda antes el más reciente, luego el más caro, y en el último empate el
+    que comparte especialidad con tu jugador.
+
+    Se devuelven los `OBJETIVO` mejores Y todos los que empaten en peso con el
+    último, porque cuantos más datos haya mejor se describe el mercado: si un
+    escalón trajo diez comparables igual de buenos, cuentan los diez.
     """
-    candidatos = [g for g in guardados if reemplazable(g, ahora)]
-    if not candidatos:
-        return None
-    return min(
-        candidatos,
-        key=lambda g: (
-            _aware(g.visto_el),
-            g.peso,
-            g.precio,
-            # Comparte especialidad -> 1, y como se ordena de menor a mayor,
-            # sale antes el que no la comparte.
-            1 if g.especialidad == objetivo.especialidad else 0,
-        ),
+    medidos: list[Comparable] = []
+    for venta in fondo:
+        peso = peso_de(venta, objetivo)
+        if peso is None:
+            continue
+        medidos.append(Comparable(venta=venta, peso=peso, viejo=reemplazable(venta, ahora)))
+    medidos.sort(
+        key=lambda c: (
+            -c.peso,
+            -_aware(c.venta.visto_el).timestamp(),
+            -c.venta.precio,
+            0 if c.venta.especialidad == objetivo.especialidad else 1,
+        )
     )
+    if len(medidos) <= OBJETIVO:
+        return tuple(medidos)
+    corte = medidos[OBJETIVO - 1].peso
+    return tuple(c for c in medidos if c.peso >= corte)
 
 
-def admitir(
-    guardados: Sequence[Guardado], nuevo: Guardado, objetivo: Objetivo, ahora: datetime
-) -> tuple[Guardado, ...]:
-    """Mete uno nuevo en el fondo y, si procede, echa a un caducado.
-
-    El fondo NO tiene tope: si un escalón trae diez comparables se guardan los
-    diez, porque cuantos más datos haya mejor describen al mercado. Lo que sí
-    pasa es que la llegada de datos frescos empuja fuera a los que ya
-    cumplieron su vida, y por eso el fondo no crece sin fin.
-
-    Dos reglas gobiernan quién sale, y las dos son del usuario:
-
-    · **Nunca se reemplaza por algo de menor peso.** Un comparable que se
-      parece menos no desplaza a uno que se parece más, por reciente que sea.
-      Cuando eso pasa, el nuevo se queda igualmente como dato de más, pero sin
-      echar a nadie.
-    · **Nunca se baja de `OBJETIVO`.** Echar a un caducado teniendo seis justos
-      dejaría al jugador sin número, y un dato viejo informa más que ninguno.
-    """
-    if any(g.ht_player_id == nuevo.ht_player_id for g in guardados):
-        return tuple(guardados)
-    con_el_nuevo = (*guardados, nuevo)
-    if len(con_el_nuevo) <= OBJETIVO:
-        return con_el_nuevo
-    sale = quien_sale(guardados, objetivo, ahora)
-    if sale is None or nuevo.peso < sale.peso:
-        return con_el_nuevo
-    return tuple(g for g in con_el_nuevo if g is not sale)
-
-
-def estimar(guardados: Sequence[Guardado]) -> Estimacion:
+def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     """La media y la mediana, las dos ponderadas por parecido.
 
     Con menos de `OBJETIVO` no hay número, pero sí lista: la pantalla tiene
     que poder enseñar lo que hay y decir que todavía no basta.
     """
-    comparables = tuple(sorted(guardados, key=lambda g: (-g.peso, g.ht_player_id)))
-    if len(comparables) < OBJETIVO:
+    elegidos = tuple(comparables)
+    if len(elegidos) < OBJETIVO:
         return Estimacion(
             media=None,
             mediana=None,
-            n=len(comparables),
-            peso_minimo=min((g.peso for g in comparables), default=0),
-            provisionales=sum(1 for g in comparables if not g.firme),
-            comparables=comparables,
+            n=len(elegidos),
+            peso_minimo=min((c.peso for c in elegidos), default=0),
+            provisionales=sum(1 for c in elegidos if not c.venta.firme),
+            comparables=elegidos,
         )
-    denominador = sum(g.peso for g in comparables)
-    numerador = sum(g.peso * g.precio for g in comparables)
+    denominador = sum(c.peso for c in elegidos)
+    numerador = sum(c.peso * c.venta.precio for c in elegidos)
     return Estimacion(
         # Redondeo al par, el mismo que usa la simulación de venta del front.
         media=round(numerador / denominador),
-        mediana=_mediana_ponderada(comparables),
-        n=len(comparables),
-        peso_minimo=min(g.peso for g in comparables),
-        provisionales=sum(1 for g in comparables if not g.firme),
-        comparables=comparables,
+        mediana=_mediana_ponderada(elegidos),
+        n=len(elegidos),
+        peso_minimo=min(c.peso for c in elegidos),
+        provisionales=sum(1 for c in elegidos if not c.venta.firme),
+        comparables=elegidos,
     )
 
 
-def _mediana_ponderada(guardados: Sequence[Guardado]) -> int:
+def _mediana_ponderada(comparables: Sequence[Comparable]) -> int:
     """El precio que parte el peso por la mitad.
 
     Se ordenan por precio y se va sumando peso hasta pasar de la mitad del
     total. Cuando la mitad cae justo en la frontera entre dos, se promedian
     los dos, como en la mediana de toda la vida con un número par de datos.
     """
-    por_precio = sorted(guardados, key=lambda g: g.precio)
-    total = sum(g.peso for g in por_precio)
+    por_precio = sorted(comparables, key=lambda c: c.venta.precio)
+    total = sum(c.peso for c in por_precio)
     mitad = total / 2
     acumulado = 0.0
-    for indice, guardado in enumerate(por_precio):
-        acumulado += guardado.peso
+    for indice, comparable in enumerate(por_precio):
+        acumulado += comparable.peso
         if acumulado > mitad:
-            return guardado.precio
+            return comparable.venta.precio
         if acumulado == mitad:
-            siguiente = por_precio[indice + 1] if indice + 1 < len(por_precio) else guardado
-            return round((guardado.precio + siguiente.precio) / 2)
-    return por_precio[-1].precio
+            siguiente = por_precio[indice + 1] if indice + 1 < len(por_precio) else comparable
+            return round((comparable.venta.precio + siguiente.venta.precio) / 2)
+    return por_precio[-1].venta.precio
+
+
+# --------------------------------------------------------------------------
+# De la puja al precio de verdad
+# --------------------------------------------------------------------------
+
+
+def se_puede_resolver(plazo: datetime | None, ahora: datetime) -> bool:
+    """Si ya ha cerrado la subasta y Hattrick ha tenido tiempo de anotarla.
+
+    Sin plazo no se puede saber, y preguntar a ciegas gastaría una llamada por
+    cada intento.
+    """
+    if plazo is None:
+        return False
+    return _aware(ahora) >= _aware(plazo) + MARGEN_TRAS_EL_PLAZO
+
+
+def precio_cerrado(
+    traspasos: Iterable[tuple[datetime, int]],
+    plazo: datetime,
+    *,
+    tolerancia: timedelta = timedelta(minutes=5),
+) -> int | None:
+    """Lo que se pagó en la subasta que estábamos siguiendo.
+
+    El historial de un jugador trae TODOS sus traspasos, así que hay que
+    quedarse con el que cierra en el plazo que anotamos. No vale coger el más
+    reciente sin más: si el jugador cambió de club otra vez entre medias, ése
+    sería otro traspaso y otro precio.
+
+    Devuelve `None` cuando ninguno encaja, que con una puja encima no debería
+    pasar. Cuando pasa no se inventa nada: se reintenta y, si sigue sin
+    aparecer, la venta se queda con su puja.
+    """
+    objetivo = _aware(plazo)
+    for cierre, precio in traspasos:
+        if abs(_aware(cierre) - objetivo) <= tolerancia:
+            return precio
+    return None
 
 
 # --------------------------------------------------------------------------
@@ -557,18 +630,16 @@ def le_toca(
     return ht_player_id % GRUPOS == semana_de(frontera, ancla) % GRUPOS
 
 
-def hay_que_buscar(
-    guardados: Sequence[Guardado],
-    ahora: datetime,
-) -> bool:
+def hay_que_buscar(comparables: Sequence[Comparable]) -> bool:
     """Si en su turno hay algo que hacer.
 
-    No lo hay cuando ya tiene sus seis y todos siguen vivos: gastar llamadas
-    en reemplazar lo que no caducó sería tirar cuota.
+    No lo hay cuando ya tiene sus seis y ninguno está ahí de prestado: gastar
+    llamadas en reemplazar lo que no caducó sería tirar cuota de la
+    aplicación entera.
     """
-    if len(guardados) < OBJETIVO:
+    if len(comparables) < OBJETIVO:
         return True
-    return any(reemplazable(g, ahora) for g in guardados)
+    return any(c.viejo for c in comparables)
 
 
 def _franja(rasgo: Rasgo, abajo: int, arriba: int) -> Franja:

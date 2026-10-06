@@ -10,12 +10,18 @@ módulo son las tres economías que el usuario pidió:
    séptimo por orden de llegada sería arbitrario. Por eso se traen todos los
    que haya en el escalón que cierra la cuenta.
 3. **Los anuncios sin puja son el último recurso.** Con puja la venta está
-   garantizada; sin ella hay que gastar una resolución para averiguar si
-   llegó a venderse, así que sólo se anotan cuando aportan lo bastante como
-   para que merezca la pena.
+   garantizada; sin ella hay que gastar una resolución para averiguar si llegó
+   a venderse, así que sólo se anotan cuando son bastantes para que merezca la
+   pena.
 
-LO QUE SE LLEVA EL QUE LLAMA. Además del fondo nuevo, la lista de a quién hay
-que preguntarle el precio real dentro de tres días. Mientras tanto vale su
+EL FONDO ES DEL EQUIPO, no del jugador. Cada venta guarda su propio perfil, así
+que se vuelve a medir contra quien pregunte: lo encontrado buscando para un
+delantero sirve para otro parecido sin gastar una llamada. De paso, cuando tu
+jugador sube una habilidad o cumple años no hay nada que borrar, porque sus
+comparables se recalculan solos y los que dejan de parecerse se caen.
+
+LO QUE SE LLEVA EL QUE LLAMA. Además del número, la lista de a quién hay que
+preguntarle el precio real cuando cierre su subasta. Mientras tanto vale su
 puja, que se queda corta: el 2026-10-05 Valerio Cataldi tenía 65.000.000 de
 puja y cerró en 77.720.000.
 """
@@ -34,11 +40,10 @@ from app.domain.engines.mercado_comparable import (
     Guardado,
     Objetivo,
     Ventana,
-    admitir,
+    comparables_de,
     cosecha,
     estimar,
     hay_que_buscar,
-    perfil_de,
     plan_de_busqueda,
 )
 
@@ -61,7 +66,8 @@ class PorResolver:
 class Resultado:
     """Cómo quedó el turno."""
 
-    fondo: tuple[Guardado, ...]
+    #: Las ventas nuevas, para añadir al fondo del equipo.
+    nuevas: tuple[Guardado, ...]
     estimacion: Estimacion
     por_resolver: tuple[PorResolver, ...]
     #: Peticiones gastadas. Cero significa que no hacía falta buscar.
@@ -74,30 +80,22 @@ async def correr_el_turno(
     objetivo: Objetivo,
     buscar: Buscador,
     *,
-    guardados: Sequence[Guardado] = (),
-    perfil_guardado: tuple[Any, ...] | None = None,
+    fondo: Sequence[Guardado] = (),
     mi_equipo: int,
     ahora: datetime,
 ) -> Resultado:
     """Lo que se hace cuando a un jugador le toca turno.
-
-    `perfil_guardado` es la huella que tenía el jugador la última vez. Si no
-    coincide con la de ahora, lo acumulado describe a otro jugador (subió una
-    habilidad, o cumplió años) y se tira entero: así lo decidió el usuario.
 
     Si una búsqueda falla, la excepción sube. Media escalera recorrida daría
     un fondo peor que el que tocaba, y dar un número peor sin avisar es justo
     lo que no debe pasar; quien llame decide si reintenta o si lo deja para la
     semana que viene.
     """
-    fondo: tuple[Guardado, ...] = tuple(guardados)
-    if perfil_guardado is not None and perfil_guardado != perfil_de(objetivo):
-        fondo = ()
-
-    if not hay_que_buscar(fondo, ahora):
+    acumulado = list(fondo)
+    if not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
         return Resultado(
-            fondo=fondo,
-            estimacion=estimar(fondo),
+            nuevas=(),
+            estimacion=estimar(comparables_de(acumulado, objetivo, ahora)),
             por_resolver=(),
             busquedas=0,
             agotada=False,
@@ -105,8 +103,11 @@ async def correr_el_turno(
 
     busquedas = 0
     agotada = True
+    nuevas: list[Guardado] = []
+    # El plazo no cabe en `Guardado` porque deja de importar en cuanto la venta
+    # se resuelve, así que los candidatos viajan en paralelo hasta el final.
     nuevos: list[Candidato] = []
-    descartados_sin_puja: list[tuple[Candidato, int]] = []
+    sin_puja_guardados: list[Candidato] = []
 
     for ventana in plan_de_busqueda(objetivo):
         filas = await buscar(ventana)
@@ -115,46 +116,51 @@ async def correr_el_turno(
             objetivo,
             filas,
             mi_equipo=mi_equipo,
-            ya_vistos=[g.ht_player_id for g in fondo] + [c.ht_player_id for c in nuevos],
+            ya_vistos=[v.ht_player_id for v in acumulado],
         )
-        descartados_sin_puja.extend(sin_puja)
-        for candidato, peso in con_puja:
-            fondo = admitir(fondo, _provisional(candidato, peso, ahora), objetivo, ahora)
+        sin_puja_guardados.extend(c for c, _ in sin_puja)
+        for candidato, _peso in con_puja:
+            venta = _provisional(candidato, ahora)
+            acumulado.append(venta)
+            nuevas.append(venta)
             nuevos.append(candidato)
-        if not hay_que_buscar(fondo, ahora):
+        if not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
             agotada = False
             break
 
     # Último recurso: los que nadie ha pujado todavía. Sólo si son bastantes
     # como para que las resoluciones que cuestan valgan la pena.
-    if hay_que_buscar(fondo, ahora) and len(descartados_sin_puja) >= MINIMO_PARA_BAJAR_A_SIN_PUJA:
-        for candidato, peso in descartados_sin_puja:
-            fondo = admitir(fondo, _provisional(candidato, peso, ahora), objetivo, ahora)
+    pendiente = hay_que_buscar(comparables_de(acumulado, objetivo, ahora))
+    if pendiente and len(sin_puja_guardados) >= MINIMO_PARA_BAJAR_A_SIN_PUJA:
+        for candidato in sin_puja_guardados:
+            venta = _provisional(candidato, ahora)
+            acumulado.append(venta)
+            nuevas.append(venta)
             nuevos.append(candidato)
 
-    dentro = {g.ht_player_id for g in fondo}
     return Resultado(
-        fondo=fondo,
-        estimacion=estimar(fondo),
+        nuevas=tuple(nuevas),
+        estimacion=estimar(comparables_de(acumulado, objetivo, ahora)),
         por_resolver=tuple(
-            PorResolver(ht_player_id=c.ht_player_id, plazo=c.plazo, visto_el=ahora)
-            for c in nuevos
-            if c.ht_player_id in dentro
+            PorResolver(ht_player_id=c.ht_player_id, plazo=c.plazo, visto_el=ahora) for c in nuevos
         ),
         busquedas=busquedas,
         agotada=agotada,
     )
 
 
-def _provisional(candidato: Candidato, peso: int, ahora: datetime) -> Guardado:
+def _provisional(candidato: Candidato, ahora: datetime) -> Guardado:
     """El comparable tal como entra, con la puja de precio hasta que se
     resuelva. `firme` queda en falso para que la pantalla pueda avisar."""
     return Guardado(
         ht_player_id=candidato.ht_player_id,
         nombre=candidato.nombre,
         precio=candidato.puja,
-        peso=peso,
         firme=False,
         visto_el=ahora,
+        edad=candidato.edad,
+        primaria=candidato.primaria,
+        secundaria=candidato.secundaria,
+        terciaria=candidato.terciaria,
         especialidad=candidato.especialidad,
     )

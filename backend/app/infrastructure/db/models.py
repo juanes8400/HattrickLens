@@ -108,6 +108,12 @@ class Team(Base):
     # que Hattrick enseña en los que no tienen pais propio, las ligas
     # internacionales. `None` = todavia no se ha leido de Hattrick.
     is_primary_club: Mapped[bool | None] = mapped_column(Boolean)
+    #: Cuándo corrió por última vez el paso semanal del mercado comparable.
+    #: El disparador es la actualización económica de la liga menos 24 horas,
+    #: y con este sello se sabe si la sincronización de ahora es la primera
+    #: posterior a ese instante. Uno por equipo basta: a todos los jugadores
+    #: del turno les toca a la vez.
+    market_run_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # Fecha real de fundación, de teamdetails.xml. Es el límite inferior del
     # backfill de partidos: no se recorren años en los que el club no existía.
     founded_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
@@ -1626,3 +1632,55 @@ def orden_del_club_principal() -> tuple[Any, ...]:
         Team.founded_at.asc().nulls_last(),
         Team.id.asc(),
     )
+
+
+class MarketSale(Base):
+    """Una venta del mercado que sirve de comparable, 2026-10-06.
+
+    EL FONDO ES DEL EQUIPO, no del jugador. Por eso cada fila guarda el perfil
+    del jugador VENDIDO (su edad y sus tres habilidades que cuentan) y no el
+    peso: el peso es relativo a quien pregunta, y guardándolo esta venta sólo
+    serviría para aquel para quien se buscó. Con el perfil se vuelve a medir
+    contra cualquiera, que es lo que el usuario pidió.
+
+    UNA FILA ES TAMBIÉN LA COLA DE PENDIENTES. Mientras `is_final` sea falso,
+    `price` es la puja en curso y hay que volver a preguntar por el precio de
+    verdad cuando pase `deadline`; cuando se resuelve, `price` pasa a ser lo
+    que se pagó. No son dos tablas porque son dos estados de la misma cosa.
+
+    Por qué importa resolver: el 2026-10-05 Valerio Cataldi tenía 65.000.000
+    de puja y cerró en 77.720.000, un 16% más. La puja no sólo es incierta, se
+    queda corta.
+    """
+
+    __tablename__ = "market_sales"
+    __table_args__ = (
+        UniqueConstraint("team_id", "ht_player_id", name="uq_market_sale_por_equipo"),
+        Index("ix_market_sales_pendientes", "team_id", "is_final", "deadline"),
+    )
+
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    #: El jugador VENDIDO, que no es de tu equipo.
+    ht_player_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    name: Mapped[str] = mapped_column(String(128), default="")
+    #: En la moneda base del juego, como todo lo que viene de CHPP.
+    price: Mapped[int] = mapped_column(BigInteger, default=0)
+    #: Falso mientras `price` sea una puja en curso.
+    is_final: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Cuándo cierra la subasta. Pasada esa fecha se puede preguntar el precio.
+    deadline: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: Cuándo se encontró. Gobierna la caducidad de siete semanas.
+    seen_at: Mapped[datetime] = mapped_column(UtcDateTime())
+    #: Cuántas veces se ha intentado resolver sin encontrar la venta.
+    resolve_attempts: Mapped[int] = mapped_column(Integer, default=0)
+
+    # ── Su perfil al venderse, que es lo que lo hace comparable ─────────
+    age_years: Mapped[int] = mapped_column(Integer, default=0)
+    primary_skill: Mapped[str] = mapped_column(String(24), default="")
+    primary_level: Mapped[int] = mapped_column(Integer, default=0)
+    secondary_skill: Mapped[str] = mapped_column(String(24), default="")
+    secondary_level: Mapped[int] = mapped_column(Integer, default=0)
+    tertiary_skill: Mapped[str] = mapped_column(String(24), default="")
+    tertiary_level: Mapped[int] = mapped_column(Integer, default=0)
+    specialty: Mapped[int] = mapped_column(Integer, default=0)
