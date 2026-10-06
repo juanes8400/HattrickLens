@@ -23,3 +23,15 @@ export const useSquad = (
     queryFn: () => api.squad(TEAM_ID, position, comparisonWindow),
     enabled: opciones?.enabled ?? true,
   });
+
+/** Lo que ha costado la gente parecida a un jugador. No pide nada a Hattrick,
+ *  así que se puede abrir y cerrar sin coste. */
+export const usePrecioComparable = (
+  htPlayerId: number | null,
+  opciones?: { enabled?: boolean },
+) =>
+  useQuery({
+    queryKey: ["precio-comparable", TEAM_ID, htPlayerId],
+    queryFn: () => api.precioComparable(TEAM_ID, htPlayerId as number),
+    enabled: (opciones?.enabled ?? true) && htPlayerId != null,
+  });

@@ -179,8 +179,10 @@ export type {
   YouthSummary,
 } from "./sincronizacion";
 export type {
+  ComparableDeMercado,
   PlayerBalance,
   PlayerBalanceRow,
+  PrecioComparable,
   TransferAttemptRow,
   TransferAttempts,
   TransfersHistorySyncResult,

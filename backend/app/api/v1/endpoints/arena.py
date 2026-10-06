@@ -68,6 +68,13 @@ def _camel(d: Any) -> Any:
         return {(_key(k) if isinstance(k, str) else k): _camel(v) for k, v in d.items()}
     if isinstance(d, list):
         return [_camel(v) for v in d]
+    # Las TUPLAS tambien, 2026-10-06. `asdict` deja en tupla los campos que se
+    # declararon como tales, y sin esto sus claves salian en snake_case
+    # mientras las del resto de la respuesta iban en camelCase. Se vio en el
+    # navegador: la lista de comparables llegaba con `ht_player_id` y el
+    # componente leia `htPlayerId`, asi que todas las filas salian sin clave.
+    if isinstance(d, tuple):
+        return [_camel(v) for v in d]
     return d
 
 

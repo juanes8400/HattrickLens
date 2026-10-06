@@ -56,7 +56,7 @@ export {
   setActiveTeamId,
 } from "./nucleo";
 export { useLastMatchReport, useMatchDetail, useMatches } from "./partidos";
-export { useSquad } from "./plantilla";
+export { usePrecioComparable, useSquad } from "./plantilla";
 export { useTeamOverview } from "./resumen";
 export { useRivalScouting } from "./rivales";
 export { useChangesHistory, useSyncChanges } from "./sincronizacion";

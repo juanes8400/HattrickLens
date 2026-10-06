@@ -7,12 +7,14 @@ claves enteras. `/league` siempre había devuelto 404 antes de conectar el
 sync de leaguedetails, así que este camino nunca se había ejecutado con datos
 reales, el primer 200 real con distribución de posiciones lo tumbó.
 """
+
 from app.api.v1.endpoints.arena import _camel
 
 
 def test_camel_converts_string_keys() -> None:
     assert _camel({"goals_for": 3, "home_team_name": "x"}) == {
-        "goalsFor": 3, "homeTeamName": "x",
+        "goalsFor": 3,
+        "homeTeamName": "x",
     }
 
 
@@ -29,5 +31,16 @@ def test_camel_recurses_into_nested_structures_with_mixed_keys() -> None:
 
 def test_camel_recurses_into_lists() -> None:
     assert _camel([{"team_name": "a"}, {"team_name": "b"}]) == [
-        {"teamName": "a"}, {"teamName": "b"},
+        {"teamName": "a"},
+        {"teamName": "b"},
     ]
+
+
+def test_las_tuplas_tambien_se_camelcasean() -> None:
+    """2026-10-06, visto en el navegador. `asdict` deja en tupla los campos
+    declarados como tales, y sin esto sus claves salian en snake_case mientras
+    el resto de la respuesta iba en camelCase: la lista de comparables llegaba
+    con `ht_player_id` y el componente leia `htPlayerId`, asi que todas las
+    filas se pintaban sin clave de React."""
+    dentro = ({"ht_player_id": 1, "peso_minimo": 2},)
+    assert _camel({"mis_filas": dentro}) == {"misFilas": [{"htPlayerId": 1, "pesoMinimo": 2}]}

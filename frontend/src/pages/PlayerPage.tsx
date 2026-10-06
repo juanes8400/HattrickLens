@@ -24,6 +24,7 @@ import {
   SkillBar,
 } from "../components/Panels";
 import { PlayerDistributionPanel } from "../components/PlayerDistributionPanel";
+import { PrecioPorComparables } from "../components/PrecioPorComparables";
 import { TEAM_ID, usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
 import { date, htAge, htAgeTexto, money, number } from "../hooks/useFormat";
 import { api } from "../services/api";
@@ -566,6 +567,11 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
               </div>
             </dl>
           </Panel>
+
+          {/* Debajo de la ficha y antes de las habilidades: es un dato DEL
+              jugador, no un analisis aparte, y se lee junto a su edad y su
+              perfil, que es lo que decide con quien se le compara. */}
+          <PrecioPorComparables htPlayerId={data.htPlayerId} />
 
           <Panel title={tx("Habilidades")}>
             <div className="grid gap-x-8 gap-y-4 p-4 sm:grid-cols-2">

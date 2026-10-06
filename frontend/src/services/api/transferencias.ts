@@ -209,6 +209,12 @@ export interface PlayerBalance {
 // ── Cierre de la fórmula de entrenamiento ────────────────────────────────────
 
 export const apiTransferencias = {
+  /** Lo que ha costado la gente parecida a este jugador. No gasta cuota de
+   *  Hattrick: sirve lo que dejo el paso semanal del mercado. */
+  precioComparable: (teamId: number, htPlayerId: number) =>
+    request<PrecioComparable>(
+      `/teams/${teamId}/players/${htPlayerId}/precio-comparable`,
+    ),
   playerBalance: (teamId: number, season?: string) => {
     const params = new URLSearchParams();
     if (season && season !== "all") params.set("season", season);
@@ -251,3 +257,37 @@ export const apiTransferencias = {
     ),
   /** Atribuye a mano lo que falta de una etapa cerrada, o la excluye. */
 };
+
+/** Un comparable: una venta del mercado que se parece a tu jugador. */
+export interface ComparableDeMercado {
+  htPlayerId: number;
+  nombre: string;
+  /** En moneda base del juego, como todo lo que viene de CHPP. */
+  precio: number;
+  /** Cuánto se parece, del 100% al 75%. */
+  peso: number;
+  /** Falso mientras sea una puja en curso y no una venta cerrada. */
+  firme: boolean;
+  /** Ya cumplió sus siete semanas y sigue por no haber nada mejor. */
+  viejo: boolean;
+  edad: number;
+  perfil: string;
+  semanas: number;
+}
+
+/** Lo que ha costado la gente parecida a un jugador tuyo. */
+export interface PrecioComparable {
+  /** `null` mientras no haya seis ventas. */
+  media: number | null;
+  mediana: number | null;
+  minimo: number | null;
+  maximo: number | null;
+  n: number;
+  faltan: number;
+  pesoMinimo: number;
+  /** Cuántas son todavía pujas en curso y no ventas cerradas. */
+  provisionales: number;
+  semanasDelMasViejo: number;
+  perfil: string;
+  comparables: ComparableDeMercado[];
+}

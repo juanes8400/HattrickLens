@@ -1954,5 +1954,20 @@
   "llegó al máximo": "al massimo",
   "· llegó al máximo": "· al massimo",
   "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal máximo = 0": "punteggio(abilità) = Σ peso(gradino del giovane) ÷ 16\n\npeso di ogni gradino = 3 × peso del gradino successivo\nal tetto = 0",
-  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Il punteggio di ogni abilità somma, giovane per giovane, il peso del «gradino» su cui sta quel ragazzo per quell'abilità. I gradini vanno da eccellente a sconosciuto, e ognuno vale β = 3 volte il successivo, quindi un giovane eccellente pesa molto più di vari dubbi. Chi ha già toccato il tetto in quell'abilità pesa zero. Il totale si divide per 16, la dimensione massima di un vivaio, perché il punteggio non salga solo per avere pochi giovani."
+  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Il punteggio di ogni abilità somma, giovane per giovane, il peso del «gradino» su cui sta quel ragazzo per quell'abilità. I gradini vanno da eccellente a sconosciuto, e ognuno vale β = 3 volte il successivo, quindi un giovane eccellente pesa molto più di vari dubbi. Chi ha già toccato il tetto in quell'abilità pesa zero. Il totale si divide per 16, la dimensione massima di un vivaio, perché il punteggio non salga solo per avere pochi giovani.",
+  "Lo que ha costado gente como él": "Quanto è costata gente come lui",
+  "Media": "Media",
+  "Mediana": "Mediana",
+  "De verdad se pagó entre": "Pagato davvero tra",
+  "De {{v0}} ventas de jugadores parecidos. El que menos se parece cuenta un {{v1}}%.": "Da {{v0}} vendite di giocatori simili. Il meno simile conta il {{v1}}%.",
+  "Todavía no hay bastantes ventas de jugadores parecidos: hay {{v0}} y hacen falta {{v1}} más.": "Non ci sono ancora abbastanza vendite di giocatori simili: ce ne sono {{v0}} e ne servono altre {{v1}}.",
+  "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.": "{{v0}} di queste sono aste ancora aperte, quindi contano con l'offerta attuale. Un'offerta resta bassa, e il numero salirà quando si chiuderanno.",
+  "La venta más antigua es de hace {{v0}} semanas: sigue contando porque no ha aparecido nada más reciente.": "La vendita più vecchia è di {{v0}} settimane fa: conta ancora perché non è comparso nulla di più recente.",
+  "Quién": "Chi",
+  "Se parece": "Somiglianza",
+  "Se pagó": "Pagato",
+  "puja": "offerta",
+  "hace {{v0}} semanas": "{{v0}} settimane fa",
+  "Sin datos todavía.": "Ancora nessun dato.",
+  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "Questo dice quanto si è pagato per altri, non quanto ti darebbero: non tiene conto della sua forma, della sua esperienza, della sua specialità né del bonus di club d'origine dell'acquirente."
 }

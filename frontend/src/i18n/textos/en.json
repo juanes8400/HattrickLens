@@ -1954,5 +1954,20 @@
   "llegó al máximo": "maxed out",
   "· llegó al máximo": "· maxed out",
   "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal máximo = 0": "score(skill) = Σ weight(youth player's rung) ÷ 16\n\nweight of each rung = 3 × weight of the next rung\nmaxed out = 0",
-  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Each skill's score adds up, youth player by youth player, the weight of the “rung” that player is on for that skill. The rungs go from excellent to unknown, and each is worth β = 3 times the next, so one excellent youth player weighs far more than several doubtful ones. Anyone already at their ceiling in that skill weighs zero. The total is divided by 16, the maximum academy size, so the score doesn't rise just from having few youth players."
+  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Each skill's score adds up, youth player by youth player, the weight of the “rung” that player is on for that skill. The rungs go from excellent to unknown, and each is worth β = 3 times the next, so one excellent youth player weighs far more than several doubtful ones. Anyone already at their ceiling in that skill weighs zero. The total is divided by 16, the maximum academy size, so the score doesn't rise just from having few youth players.",
+  "Lo que ha costado gente como él": "What players like him have cost",
+  "Media": "Average",
+  "Mediana": "Median",
+  "De verdad se pagó entre": "Actually paid between",
+  "De {{v0}} ventas de jugadores parecidos. El que menos se parece cuenta un {{v1}}%.": "From {{v0}} sales of similar players. The least similar one counts {{v1}}%.",
+  "Todavía no hay bastantes ventas de jugadores parecidos: hay {{v0}} y hacen falta {{v1}} más.": "There aren't enough sales of similar players yet: there are {{v0}} and {{v1}} more are needed.",
+  "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.": "{{v0}} of them are auctions that are still open, so they count with the current bid. A bid falls short, and the figure will rise once they close.",
+  "La venta más antigua es de hace {{v0}} semanas: sigue contando porque no ha aparecido nada más reciente.": "The oldest sale is {{v0}} weeks old: it still counts because nothing more recent has turned up.",
+  "Quién": "Who",
+  "Se parece": "Similarity",
+  "Se pagó": "Paid",
+  "puja": "bid",
+  "hace {{v0}} semanas": "{{v0}} weeks ago",
+  "Sin datos todavía.": "No data yet.",
+  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "This says what was paid for others, not what you would be given: it takes no account of his form, his experience, his specialty or the buyer's mother club bonus."
 }

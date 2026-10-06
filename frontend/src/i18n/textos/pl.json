@@ -1954,5 +1954,20 @@
   "llegó al máximo": "osiągnął pułap",
   "· llegó al máximo": "· osiągnął pułap",
   "puntaje(habilidad) = Σ peso(peldaño del canterano) ÷ 16\n\npeso de cada peldaño = 3 × peso del peldaño siguiente\nal máximo = 0": "punktacja(umiejętność) = Σ waga(szczebla wychowanka) ÷ 16\n\nwaga każdego szczebla = 3 × waga następnego szczebla\nna szczycie = 0",
-  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Ocena każdej umiejętności sumuje, junior po juniorze, wagę «szczebla», na którym stoi ten chłopak dla tej umiejętności. Szczeble idą od znakomitego do nieznanego, a każdy jest wart β = 3 razy tyle, co następny, więc znakomity junior waży znacznie więcej niż kilku wątpliwych. Kto osiągnął już pułap w tej umiejętności, waży zero. Sumę dzielimy przez 16, czyli maksymalną wielkość młodzieżówki, żeby ocena nie rosła tylko dlatego, że juniorów jest niewielu."
+  "El puntaje de cada habilidad suma, canterano por canterano, el peso del «peldaño» en que está ese chico para esa habilidad. Los peldaños van de excelente a desconocido, y cada uno vale β = 3 veces el siguiente, así que un canterano excelente pesa mucho más que varios dudosos. Quien ya llegó al máximo en esa habilidad pesa cero. El total se divide entre 16, el tamaño máximo de una academia, para que el puntaje no suba sólo por tener pocos canteranos.": "Ocena każdej umiejętności sumuje, junior po juniorze, wagę «szczebla», na którym stoi ten chłopak dla tej umiejętności. Szczeble idą od znakomitego do nieznanego, a każdy jest wart β = 3 razy tyle, co następny, więc znakomity junior waży znacznie więcej niż kilku wątpliwych. Kto osiągnął już pułap w tej umiejętności, waży zero. Sumę dzielimy przez 16, czyli maksymalną wielkość młodzieżówki, żeby ocena nie rosła tylko dlatego, że juniorów jest niewielu.",
+  "Lo que ha costado gente como él": "Ile kosztowali podobni zawodnicy",
+  "Media": "Średnia",
+  "Mediana": "Mediana",
+  "De verdad se pagó entre": "Naprawdę zapłacono między",
+  "De {{v0}} ventas de jugadores parecidos. El que menos se parece cuenta un {{v1}}%.": "Z {{v0}} sprzedaży podobnych zawodników. Najmniej podobny liczy się w {{v1}}%.",
+  "Todavía no hay bastantes ventas de jugadores parecidos: hay {{v0}} y hacen falta {{v1}} más.": "Wciąż za mało sprzedaży podobnych zawodników: jest {{v0}}, a potrzeba jeszcze {{v1}}.",
+  "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.": "{{v0}} z nich to wciąż otwarte aukcje, więc liczą się z obecną ofertą. Oferta zaniża wynik, a liczba wzrośnie po ich zamknięciu.",
+  "La venta más antigua es de hace {{v0}} semanas: sigue contando porque no ha aparecido nada más reciente.": "Najstarsza sprzedaż ma {{v0}} tygodni: wciąż się liczy, bo nie pojawiło się nic nowszego.",
+  "Quién": "Kto",
+  "Se parece": "Podobieństwo",
+  "Se pagó": "Zapłacono",
+  "puja": "oferta",
+  "hace {{v0}} semanas": "{{v0}} tygodni temu",
+  "Sin datos todavía.": "Jeszcze brak danych.",
+  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "To mówi, ile zapłacono za innych, a nie ile dostaniesz ty: nie uwzględnia jego formy, doświadczenia, specjalności ani bonusu klubu macierzystego kupującego."
 }
