@@ -385,6 +385,11 @@ class SyncTeamHandler(  # noqa: D101
 
             await backfill_sold_training_assignments(uow.session, cmd.team_id)
 
+            # El paso del mercado comparable va al final, cuando la plantilla y
+            # el mundo ya estan al dia: su disparador sale de la fecha
+            # economica de la liga, que este mismo sync acaba de refrescar.
+            await self._paso_del_mercado(uow, cmd.team_id, result, on_progress)
+
             await uow.syncs.finalize(
                 sync_id,
                 status=result.status,
@@ -392,6 +397,44 @@ class SyncTeamHandler(  # noqa: D101
             )
             await uow.commit()
         return result
+
+    async def _paso_del_mercado(
+        self,
+        uow: UnitOfWork,
+        team_id: int,
+        result: SyncResult,
+        on_progress: ProgressReporter | None,
+    ) -> None:
+        """Resuelve las pujas ya cerradas y, si toca, busca comparables.
+
+        Nunca tumba la sincronizacion. Es lo ultimo que se hace y lo menos
+        urgente: si el mercado no contesta, la plantilla y los partidos ya
+        estan guardados, y el paso se vuelve a intentar en la siguiente.
+        """
+        from app.application.commands.paso_del_mercado import correr_el_paso_semanal
+        from app.infrastructure.chpp.mercado import BuscadorDeMercado
+        from app.infrastructure.db import models as m
+
+        equipo = await uow.session.get(m.Team, team_id)
+        if equipo is None:
+            return
+        try:
+            buscador = BuscadorDeMercado(self._chpp)
+            await _report(on_progress, "Mirando el mercado de transferencias...")
+            paso = await correr_el_paso_semanal(
+                uow.session,
+                equipo,
+                buscar=buscador,
+                historial_de=lambda pid: self._chpp.fetch(
+                    "transfersplayer", FILE_VERSIONS.get("transfersplayer", "1.1"), playerID=pid
+                ),
+                ahora=datetime.now(UTC),
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"mercado comparable: {exc}")
+            return
+        if paso.se_busco or paso.resueltas:
+            await uow.commit()
 
     async def _persist(
         self,

@@ -47,7 +47,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.domain.engines.mercado_comparable import Franja, Ventana
-from app.infrastructure.chpp.client import CHPPClient
+from app.domain.ports.chpp_gateway import CHPPGateway
 
 #: Los mismos números que `skill_id_map` de `app/config/training.yaml`, que
 #: vienen de `trainingevents` y están contrastados con la tabla oficial de
@@ -130,7 +130,7 @@ class BuscadorDeMercado:
     entera, no de cada manager.
     """
 
-    def __init__(self, cliente: CHPPClient, *, maximo_de_paginas: int = 2) -> None:
+    def __init__(self, cliente: CHPPGateway, *, maximo_de_paginas: int = 2) -> None:
         self._cliente = cliente
         self._maximo_de_paginas = maximo_de_paginas
         #: Peticiones hechas, trozos y páginas incluidos.
@@ -147,9 +147,11 @@ class BuscadorDeMercado:
     async def _un_trozo(self, ventana: Ventana, base: dict[str, int]) -> list[dict[str, Any]]:
         filas: list[dict[str, Any]] = []
         for pagina in range(self._maximo_de_paginas):
-            datos = await self._cliente.fetch(
-                "transfersearch", version=VERSION, **{**base, "pageIndex": pagina}
-            )
+            # Anotado como `Any` a proposito: `fetch` tiene un parametro
+            # `parse_as` de solo-palabra-clave, y sin esto el comprobador no
+            # puede descartar que el diccionario lo traiga dentro.
+            parametros: dict[str, Any] = {**base, "pageIndex": pagina}
+            datos = await self._cliente.fetch("transfersearch", VERSION, **parametros)
             self.peticiones += 1
             if datos.get("error"):
                 raise BusquedaRechazadaError(f"{datos['error']} | pedido: {base}")
