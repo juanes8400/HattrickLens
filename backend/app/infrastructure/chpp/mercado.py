@@ -24,9 +24,13 @@ quiere una habilidad «principal» acotada que haga barata la búsqueda, y el
 resto son refinamientos.
 
 El troceado que hay más abajo existe por esa regla. Con la escalera actual no
-llega a saltar nunca, porque sus escalones piden niveles EXACTOS y un nivel
-exacto siempre cabe; se queda como red, para que ninguna escalera futura pueda
-volver a pedir un tramo que el servidor rechace sin que nadie se entere.
+llega a saltar nunca, porque lo más que se abre la primaria es un nivel a cada
+lado, o sea un tramo de tres; se queda como red, para que ninguna escalera
+futura pueda pedir un tramo que el servidor rechace sin que nadie se entere.
+
+Se gastan TRES de los cuatro filtros: la primaria, la secundaria y la
+terciaria. Queda uno libre por si algún día hacen falta los topes que el
+buscador del propio Hattrick le pone a las habilidades que no son la terna.
 
 LO QUE LA BÚSQUEDA SIGUE SIN SABER HACER, y por eso se filtra en casa:
 
@@ -107,9 +111,10 @@ def peticiones_de(ventana: Ventana, *, pagina: int = 0) -> list[dict[str, int]]:
         "pageSize": PAGINA,
         "skillType1": ID_DE_HABILIDAD[ventana.primaria.habilidad],
     }
-    comunes["skillType2"] = ID_DE_HABILIDAD[ventana.secundaria.habilidad]
-    comunes["minSkillValue2"] = ventana.secundaria.minimo
-    comunes["maxSkillValue2"] = ventana.secundaria.maximo
+    for numero, franja in enumerate((ventana.secundaria, ventana.terciaria), start=2):
+        comunes[f"skillType{numero}"] = ID_DE_HABILIDAD[franja.habilidad]
+        comunes[f"minSkillValue{numero}"] = franja.minimo
+        comunes[f"maxSkillValue{numero}"] = franja.maximo
 
     return [
         {**comunes, "minSkillValue1": desde, "maxSkillValue1": hasta}
