@@ -14,7 +14,6 @@ import pytest
 from app.application.queries.mercado_comparable import correr_el_turno
 from app.domain.engines.mercado_comparable import (
     ESCALERA,
-    MINIMO_PARA_BAJAR_A_SIN_PUJA,
     OBJETIVO,
     ORDEN_DE_DESEMPATE,
     Guardado,
@@ -166,27 +165,32 @@ async def test_lo_caducado_cuenta_pero_no_detiene_la_busqueda() -> None:
     assert len(r.nuevas) == 1
 
 
-async def test_los_sin_puja_son_el_ultimo_recurso_y_solo_si_son_bastantes() -> None:
-    """Cada uno cuesta una resolucion para averiguar si llego a venderse, asi
-    que no se gastan por uno suelto."""
+async def test_un_anuncio_sin_puja_no_se_anota_nunca() -> None:
+    """Un precio pedido es lo que una persona decidio pedir, no lo que el
+    mercado pago.
+
+    Hasta el 2026-10-07 se anotaban como ultimo recurso, para preguntarles el
+    precio dias despues. Se quito al medir lo que eran: de 25 anuncios
+    parecidos a un jugador, 19 no tenian ni una puja, y los que entraban por
+    esa puerta lo hacian con precio CERO, porque cero es lo que vale
+    `HighestBid` sin pujas.
+    """
     mercado = _Mercado([_fila(1), _fila(2, puja=0), _fila(3, puja=0)])
     r = await _turno(mercado)
-    assert {v.ht_player_id for v in r.nuevas} == {1, 2, 3}
-    # Y se recorrio la escalera entera antes de bajar a ellos.
+    assert {v.ht_player_id for v in r.nuevas} == {1}
+    # Y se recorrio la escalera entera buscando lo que si sirve.
     assert r.busquedas == len(ESCALERA)
 
 
-async def test_un_solo_anuncio_sin_puja_no_merece_la_resolucion() -> None:
-    mercado = _Mercado([_fila(1), _fila(2, puja=0)])
+async def test_un_mercado_entero_sin_pujas_no_deja_nada(_mercado=None) -> None:
+    """El caso de Kurt Schonhueb y el de Alberto: todo el mercado parecido
+    esta en venta y nadie ha pujado por ninguno. Lo correcto es quedarse sin
+    comparables, no llenarse de ceros."""
+    mercado = _Mercado([_fila(i, puja=0) for i in range(1, 9)])
     r = await _turno(mercado)
-    assert MINIMO_PARA_BAJAR_A_SIN_PUJA == 2
-    assert {v.ht_player_id for v in r.nuevas} == {1}
-
-
-async def test_si_los_de_puja_bastan_no_se_toca_a_los_sin_puja() -> None:
-    mercado = _Mercado([_fila(i) for i in range(1, 7)] + [_fila(80, puja=0), _fila(81, puja=0)])
-    r = await _turno(mercado)
-    assert {v.ht_player_id for v in r.nuevas} == set(range(1, 7))
+    assert r.nuevas == ()
+    assert r.por_resolver == ()
+    assert r.estimacion.media is None
 
 
 async def test_todo_lo_que_entra_queda_anotado_para_resolver() -> None:

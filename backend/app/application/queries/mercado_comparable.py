@@ -9,10 +9,13 @@ módulo son las tres economías que el usuario pidió:
    nunca a mitad: si el sexto y el séptimo se parecen igual, dejar fuera al
    séptimo por orden de llegada sería arbitrario. Por eso se traen todos los
    que haya en el escalón que cierra la cuenta.
-3. **Los anuncios sin puja son el último recurso.** Con puja la venta está
-   garantizada; sin ella hay que gastar una resolución para averiguar si llegó
-   a venderse, así que sólo se anotan cuando son bastantes para que merezca la
-   pena.
+3. **Sin puja no se anota nada.** Un precio pedido es lo que una persona
+   decidió pedir, no lo que el mercado pagó, y hasta que alguien puje no dice
+   nada. Hubo una temporada en que se anotaban como último recurso, para
+   preguntarles el precio días después; se quitó el 2026-10-07 cuando se
+   midió lo que eran de verdad: de 25 anuncios parecidos a un jugador, 19 no
+   tenían ni una puja, y los que entraban por esa puerta lo hacían con precio
+   cero.
 
 EL FONDO ES DEL EQUIPO, no del jugador. Cada venta guarda su propio perfil, así
 que se vuelve a medir contra quien pregunte: lo encontrado buscando para un
@@ -34,7 +37,6 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.engines.mercado_comparable import (
-    MINIMO_PARA_BAJAR_A_SIN_PUJA,
     Candidato,
     Estimacion,
     Guardado,
@@ -107,18 +109,16 @@ async def correr_el_turno(
     # El plazo no cabe en `Guardado` porque deja de importar en cuanto la venta
     # se resuelve, así que los candidatos viajan en paralelo hasta el final.
     nuevos: list[Candidato] = []
-    sin_puja_guardados: list[Candidato] = []
 
     for ventana in plan_de_busqueda(objetivo):
         filas = await buscar(ventana)
         busquedas += 1
-        con_puja, sin_puja = cosecha(
+        con_puja, _sin_puja = cosecha(
             objetivo,
             filas,
             mi_equipo=mi_equipo,
             ya_vistos=[v.ht_player_id for v in acumulado],
         )
-        sin_puja_guardados.extend(c for c, _ in sin_puja)
         for candidato, _peso in con_puja:
             venta = _provisional(candidato, ahora)
             acumulado.append(venta)
@@ -127,16 +127,6 @@ async def correr_el_turno(
         if not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
             agotada = False
             break
-
-    # Último recurso: los que nadie ha pujado todavía. Sólo si son bastantes
-    # como para que las resoluciones que cuestan valgan la pena.
-    pendiente = hay_que_buscar(comparables_de(acumulado, objetivo, ahora))
-    if pendiente and len(sin_puja_guardados) >= MINIMO_PARA_BAJAR_A_SIN_PUJA:
-        for candidato in sin_puja_guardados:
-            venta = _provisional(candidato, ahora)
-            acumulado.append(venta)
-            nuevas.append(venta)
-            nuevos.append(candidato)
 
     return Resultado(
         nuevas=tuple(nuevas),

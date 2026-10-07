@@ -73,10 +73,6 @@ ANTICIPO = timedelta(hours=24)
 #: Nadie juega en el primer equipo con menos de 17 años.
 EDAD_MINIMA = 17
 
-#: Cuántos datos tiene que aportar la gente sin puja para que valga la pena
-#: anotarla. Con uno solo no se gastan resoluciones.
-MINIMO_PARA_BAJAR_A_SIN_PUJA = 2
-
 #: Lo que se espera tras el cierre de una subasta antes de preguntar por el
 #: precio. Hattrick tarda un poco en registrar el traspaso, y preguntar
 #: demasiado pronto gasta una llamada para no encontrar nada.
@@ -443,8 +439,10 @@ def cosecha(
     """Separa lo que devuelve una búsqueda en dos montones, con su peso.
 
     El primero es el de los que tienen puja, cuya venta está garantizada. El
-    segundo es el de los que no, que sólo se anotan si hacen falta para
-    reunir lo bastante (ver `MINIMO_PARA_BAJAR_A_SIN_PUJA`).
+    segundo es el de los que no, y desde el 2026-10-07 NO SE ANOTA: se
+    devuelve para poder contarlo y enseñarlo --«de 25 parecidos, 19 sin una
+    sola puja» dice mucho del mercado de ese jugador-- pero no entra en el
+    fondo. Un precio pedido es lo que una persona decidió pedir.
 
     Quedan fuera, y cada exclusión tiene su motivo: tus propios jugadores en
     venta, porque su precio es justo el que queremos estimar y no un dato
