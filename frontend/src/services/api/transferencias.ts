@@ -258,6 +258,13 @@ export const apiTransferencias = {
   /** Atribuye a mano lo que falta de una etapa cerrada, o la excluye. */
 };
 
+/** Una habilidad y su nivel, sin formatear: el nombre viene con la clave
+ *  interna y lo traduce la pantalla con el glosario oficial. */
+export interface RasgoVisible {
+  habilidad: string;
+  nivel: number;
+}
+
 /** Un comparable: una venta del mercado que se parece a tu jugador. */
 export interface ComparableDeMercado {
   htPlayerId: number;
@@ -271,7 +278,7 @@ export interface ComparableDeMercado {
   /** Ya cumplió sus siete semanas y sigue por no haber nada mejor. */
   viejo: boolean;
   edad: number;
-  perfil: string;
+  perfil: RasgoVisible[];
   semanas: number;
 }
 
@@ -288,6 +295,6 @@ export interface PrecioComparable {
   /** Cuántas son todavía pujas en curso y no ventas cerradas. */
   provisionales: number;
   semanasDelMasViejo: number;
-  perfil: string;
+  perfil: RasgoVisible[];
   comparables: ComparableDeMercado[];
 }

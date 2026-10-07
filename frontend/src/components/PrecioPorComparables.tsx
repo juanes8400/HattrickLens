@@ -23,7 +23,35 @@ import { Panel } from "./Panels";
 import { money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
-import type { ComparableDeMercado } from "../services/api";
+import { terminoOficial } from "../i18n/glosario";
+import type { ComparableDeMercado, RasgoVisible } from "../services/api";
+
+/** El nombre en español de cada habilidad, que es el respaldo del glosario.
+ *  Sólo las seis que cuentan: la resistencia y el balón parado no entran en
+ *  el parecido. */
+const EN_ESPANOL: Record<string, string> = {
+  keeper: "Portería",
+  defending: "Defensa",
+  playmaking: "Jugadas",
+  winger: "Lateral",
+  passing: "Pases",
+  scoring: "Anotación",
+};
+
+/** «Anotación 18 · Pases 13 · Jugadas 7».
+ *
+ *  El nombre sale del glosario OFICIAL de Hattrick, no de una traducción
+ *  nuestra: así el jugador lee exactamente la misma palabra que ve en el
+ *  juego. Se calcula en el render y no en una constante del módulo para que
+ *  cambie al vuelo cuando se cambia de idioma. */
+function perfilLegible(perfil: RasgoVisible[]): string {
+  return perfil
+    .map(
+      (r) =>
+        `${terminoOficial("habilidades", r.habilidad, EN_ESPANOL[r.habilidad] ?? r.habilidad)} ${r.nivel}`,
+    )
+    .join(" · ");
+}
 
 /** El peso en color: el verde es un parecido de verdad. */
 function colorDelPeso(peso: number): string {
@@ -38,7 +66,7 @@ function Comparable({ fila }: { fila: ComparableDeMercado }) {
       <td className="py-1.5 pr-3">
         <div className="text-[var(--text)]">{fila.nombre}</div>
         <div className="text-xs text-[var(--muted)]">
-          {fila.edad} · {fila.perfil}
+          {fila.edad} · {perfilLegible(fila.perfil)}
         </div>
       </td>
       <td
@@ -87,7 +115,11 @@ export function PrecioPorComparables({
   return (
     <Panel
       title={tx("Lo que ha costado gente como él")}
-      meta={<span className="text-xs text-[var(--muted)]">{datos.perfil}</span>}
+      meta={
+        <span className="text-xs text-[var(--muted)]">
+          {perfilLegible(datos.perfil)}
+        </span>
+      }
     >
       <div className="px-4 py-3">
         {hayNumero ? (
@@ -137,10 +169,14 @@ export function PrecioPorComparables({
 
         {datos.provisionales > 0 && (
           <p className="mt-2 text-sm text-[var(--warn)]">
-            {tx(
-              "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.",
-              { v0: number(datos.provisionales) },
-            )}
+            {datos.provisionales === 1
+              ? tx(
+                  "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.",
+                )
+              : tx(
+                  "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.",
+                  { v0: number(datos.provisionales) },
+                )}
           </p>
         )}
 

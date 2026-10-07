@@ -30,6 +30,7 @@ from app.application.commands.mercado_comparable import a_guardado
 from app.domain.engines.mercado_comparable import (
     OBJETIVO,
     VIDA,
+    Guardado,
     Objetivo,
     comparables_de,
     estimar,
@@ -52,6 +53,21 @@ HABILIDADES = (
 
 
 @dataclass(frozen=True, slots=True)
+class RasgoVisible:
+    """Una habilidad y su nivel, SIN formatear.
+
+    El nombre sale con la clave interna a proposito: quien lo pinte tiene el
+    glosario oficial de Hattrick y sabe como se llama «scoring» en el idioma
+    de quien mira. Montar aqui la cadena obligaria a traducir en el servidor,
+    que no sabe el idioma, y fue justo el fallo que se vio en pantalla el
+    2026-10-06: el perfil salia como «scoring 18 - passing 13».
+    """
+
+    habilidad: str
+    nivel: int
+
+
+@dataclass(frozen=True, slots=True)
 class FilaDeComparable:
     """Una venta, tal como se enseña."""
 
@@ -62,7 +78,7 @@ class FilaDeComparable:
     firme: bool
     viejo: bool
     edad: int
-    perfil: str
+    perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
     semanas: int
 
 
@@ -83,7 +99,7 @@ class PrecioComparable:
     #: Semanas de la venta más vieja de las que cuentan.
     semanas_del_mas_viejo: int
     #: El perfil con el que se buscó, para que se vea contra qué se compara.
-    perfil: str
+    perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
     comparables: tuple[FilaDeComparable, ...]
 
 
@@ -128,11 +144,7 @@ async def precio_de(
                 firme=c.venta.firme,
                 viejo=c.viejo,
                 edad=c.venta.edad,
-                perfil=(
-                    f"{c.venta.primaria.habilidad} {c.venta.primaria.nivel} · "
-                    f"{c.venta.secundaria.habilidad} {c.venta.secundaria.nivel} · "
-                    f"{c.venta.terciaria.habilidad} {c.venta.terciaria.nivel}"
-                ),
+                perfil=_perfil(c.venta),
                 semanas=_semanas(c.venta.visto_el, momento),
             )
             for c in elegidos
@@ -170,11 +182,12 @@ async def _objetivo_del_jugador(
     )
 
 
-def _perfil(objetivo: Objetivo) -> str:
+def _perfil(quien: Objetivo | Guardado) -> tuple[RasgoVisible, RasgoVisible, RasgoVisible]:
+    """Las tres habilidades que deciden el parecido, sin formatear."""
     return (
-        f"{objetivo.primaria.habilidad} {objetivo.primaria.nivel} · "
-        f"{objetivo.secundaria.habilidad} {objetivo.secundaria.nivel} · "
-        f"{objetivo.terciaria.habilidad} {objetivo.terciaria.nivel}"
+        RasgoVisible(quien.primaria.habilidad, quien.primaria.nivel),
+        RasgoVisible(quien.secundaria.habilidad, quien.secundaria.nivel),
+        RasgoVisible(quien.terciaria.habilidad, quien.terciaria.nivel),
     )
 
 

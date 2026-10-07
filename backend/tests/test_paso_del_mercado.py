@@ -252,7 +252,15 @@ async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
     assert precio.peso_minimo == 100
     assert precio.minimo == precio.maximo == 10_000_000
     assert precio.faltan == 0
-    assert "scoring 18" in precio.perfil
+    # El perfil viaja SIN formatear: la pantalla lo nombra con el glosario
+    # oficial de Hattrick, que es el que sabe como se dice «scoring» en el
+    # idioma de quien mira.
+    assert [(r.habilidad, r.nivel) for r in precio.perfil] == [
+        ("scoring", 18),
+        ("passing", 13),
+        ("playmaking", 7),
+    ]
+    assert all(isinstance(r.habilidad, str) for c in precio.comparables for r in c.perfil)
 
 
 async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:
