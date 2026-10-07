@@ -316,11 +316,17 @@ export function PrecioPorComparables({
 
       {datos.comparables.length > 0 && (
         <div className="px-4 pb-3">
+          {/* Ordenada por parecido y no por precio (2026-10-07, pedido del
+              usuario). Es el orden en el que el número está hecho: arriba
+              los que más mandan en él. Dentro del mismo peso se conserva el
+              orden que trae el servidor --más reciente, más caro, y en el
+              último empate el que comparte especialidad-- porque la
+              ordenación de la tabla es estable. */}
           <DataTable
             rows={datos.comparables}
             columns={columnasDe(datos.perfil, datos.moneda)}
             rowKey={(f) => f.htPlayerId}
-            initialSort="precio"
+            initialSort="peso"
             csvName="comparables"
             emptyMessage={tx("Sin ventas de jugadores parecidos todavía.")}
           />
