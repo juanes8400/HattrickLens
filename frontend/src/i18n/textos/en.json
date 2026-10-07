@@ -1969,5 +1969,7 @@
   "puja": "bid",
   "hace {{v0}} semanas": "{{v0}} weeks ago",
   "Sin datos todavía.": "No data yet.",
-  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "This says what was paid for others, not what you would be given: it takes no account of his form, his experience, his specialty or the buyer's mother club bonus."
+  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "This says what was paid for others, not what you would be given: it takes no account of his form, his experience, his specialty or the buyer's mother club bonus.",
+  "Transferencias de este jugador": "This player's transfers",
+  "Comparador de transferencias": "Transfer comparator"
 }

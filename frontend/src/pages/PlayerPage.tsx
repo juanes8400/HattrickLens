@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { Chart } from "../charts/Chart";
@@ -25,6 +25,7 @@ import {
 } from "../components/Panels";
 import { PlayerDistributionPanel } from "../components/PlayerDistributionPanel";
 import { PrecioPorComparables } from "../components/PrecioPorComparables";
+import { PanelDePestanas, Tabs } from "../components/Tabs";
 import { TEAM_ID, usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
 import { date, htAge, htAgeTexto, money, number } from "../hooks/useFormat";
 import { api } from "../services/api";
@@ -208,6 +209,10 @@ export function PlayerPage() {
 function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const id = data.htPlayerId;
   const qc = useQueryClient();
+  // Abre por la compra, que es un hecho, y no por la estimacion.
+  const [transferencia, setTransferencia] = useState<"compra" | "comparador">(
+    "compra",
+  );
 
   const tsiWeekly = useMemo(
     () =>
@@ -568,11 +573,6 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             </dl>
           </Panel>
 
-          {/* Debajo de la ficha y antes de las habilidades: es un dato DEL
-              jugador, no un analisis aparte, y se lee junto a su edad y su
-              perfil, que es lo que decide con quien se le compara. */}
-          <PrecioPorComparables htPlayerId={data.htPlayerId} />
-
           <Panel title={tx("Habilidades")}>
             <div className="grid gap-x-8 gap-y-4 p-4 sm:grid-cols-2">
               {DETAIL_SKILLS.map((skill) => {
@@ -751,27 +751,54 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
         />
       </Panel>
 
-      <Panel
-        title={tx("Precio de compra")}
-        meta={tx("real, de tu libro de transferencias")}
-      >
-        {data.purchasePrice != null ? (
-          <div className="space-y-1 p-4">
-            <div className="text-2xl font-semibold tabular-nums">
-              {money(data.purchasePrice)}
-            </div>
-            <div className="text-xs text-[var(--muted)]">
-              {data.purchasedAt
-                ? `${data.purchasedAtSeasonWeek ?? date(data.purchasedAt)}`
-                : tx("fecha no disponible")}
-            </div>
-          </div>
-        ) : (
-          <Empty>
-            {tx("Sin compra registrada en el historial reciente del equipo.")}
-          </Empty>
+      {/* Las dos caras de la misma moneda: lo que costo y lo que costaria.
+          Estaban separadas por media pagina, y el comparador vivia arriba
+          del todo sin relacion con la compra (2026-10-06, pedido por el
+          usuario). */}
+      <Tabs
+        grupo="transferencia"
+        label={tx("Transferencias de este jugador")}
+        tabs={[
+          { key: "compra", label: tx("Precio de compra") },
+          { key: "comparador", label: tx("Comparador de transferencias") },
+        ]}
+        active={transferencia}
+        onChange={setTransferencia}
+      />
+
+      <PanelDePestanas grupo="transferencia" activa={transferencia}>
+        {transferencia === "compra" && (
+          <Panel
+            title={tx("Precio de compra")}
+            meta={tx("real, de tu libro de transferencias")}
+          >
+            {data.purchasePrice != null ? (
+              <div className="space-y-1 p-4">
+                <div className="text-2xl font-semibold tabular-nums">
+                  {money(data.purchasePrice)}
+                </div>
+                <div className="text-xs text-[var(--muted)]">
+                  {data.purchasedAt
+                    ? `${data.purchasedAtSeasonWeek ?? date(data.purchasedAt)}`
+                    : tx("fecha no disponible")}
+                </div>
+              </div>
+            ) : (
+              <Empty>
+                {tx(
+                  "Sin compra registrada en el historial reciente del equipo.",
+                )}
+              </Empty>
+            )}
+          </Panel>
         )}
-      </Panel>
+
+        {/* `activo` para no pedir el precio mientras la pestana esta cerrada:
+            es gratis en cuota de Hattrick, pero no en latencia. */}
+        {transferencia === "comparador" && (
+          <PrecioPorComparables htPlayerId={data.htPlayerId} />
+        )}
+      </PanelDePestanas>
 
       {/* Pedido explícito 2026-08-10: adenda, no panel principal, por eso
           NO usa <Panel> (borde sólido + título en negrita como el resto de

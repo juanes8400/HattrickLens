@@ -1969,5 +1969,7 @@
   "puja": "oferta",
   "hace {{v0}} semanas": "{{v0}} tygodni temu",
   "Sin datos todavía.": "Jeszcze brak danych.",
-  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "To mówi, ile zapłacono za innych, a nie ile dostaniesz ty: nie uwzględnia jego formy, doświadczenia, specjalności ani bonusu klubu macierzystego kupującego."
+  "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "To mówi, ile zapłacono za innych, a nie ile dostaniesz ty: nie uwzględnia jego formy, doświadczenia, specjalności ani bonusu klubu macierzystego kupującego.",
+  "Transferencias de este jugador": "Transfery tego zawodnika",
+  "Comparador de transferencias": "Porównywarka transferów"
 }
