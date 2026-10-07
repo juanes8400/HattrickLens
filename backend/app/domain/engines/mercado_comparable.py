@@ -73,10 +73,6 @@ ANTICIPO = timedelta(hours=24)
 #: Nadie juega en el primer equipo con menos de 17 años.
 EDAD_MINIMA = 17
 
-#: Cuántos datos tiene que aportar la gente sin puja para que valga la pena
-#: anotarla. Con uno solo no se gastan resoluciones.
-MINIMO_PARA_BAJAR_A_SIN_PUJA = 2
-
 #: Lo que se espera tras el cierre de una subasta antes de preguntar por el
 #: precio. Hattrick tarda un poco en registrar el traspaso, y preguntar
 #: demasiado pronto gasta una llamada para no encontrar nada.
@@ -443,8 +439,10 @@ def cosecha(
     """Separa lo que devuelve una búsqueda en dos montones, con su peso.
 
     El primero es el de los que tienen puja, cuya venta está garantizada. El
-    segundo es el de los que no, que sólo se anotan si hacen falta para
-    reunir lo bastante (ver `MINIMO_PARA_BAJAR_A_SIN_PUJA`).
+    segundo es el de los que no, y desde el 2026-10-07 NO SE ANOTA: se
+    devuelve para poder contarlo y enseñarlo --«de 25 parecidos, 19 sin una
+    sola puja» dice mucho del mercado de ese jugador-- pero no entra en el
+    fondo. Un precio pedido es lo que una persona decidió pedir.
 
     Quedan fuera, y cada exclusión tiene su motivo: tus propios jugadores en
     venta, porque su precio es justo el que queremos estimar y no un dato
@@ -540,12 +538,30 @@ def comparables_de(
 def cuenta_para_el_numero(venta: Guardado) -> bool:
     """Si esta venta puede entrar en la media.
 
-    Una venta cerrada siempre cuenta. Un provisional cuenta mientras le
-    queden intentos de resolución: su puja es un suelo que todavía va a
-    corregirse. Cuando se le agotan, su precio se queda congelado en una
-    puja que sabemos corta y ya no se promedia.
+    Una venta cerrada siempre cuenta.
+
+    UN ANUNCIO QUE NADIE HA PUJADO, NO. Entra en el fondo --el usuario lo
+    pidió el 2026-10-06: «coger lo que tenga HighestBid=0» cuando no haya
+    bastante con puja-- pero entra para VIGILARLO, no para promediarlo: lo
+    único que se sabe de él es que alguien lo puso a la venta. Su precio
+    llega a cero, porque cero es lo que vale `HighestBid` cuando no hay
+    pujas, y promediar ceros no describe ningún mercado.
+
+    Esto no es teórico. El 2026-10-07, mirando a Kurt Schönhueb --28 años,
+    lateral 15, defensa 13-- el mercado no tenía ni un comparable con puja y
+    sí ocho anuncios sin ella. Los ocho entraban a cero y la media de un
+    jugador de 249.030 de TSI salía CERO.
+
+    El resto de provisionales cuentan mientras les queden intentos de
+    resolución: su puja es un suelo que todavía va a corregirse. Cuando se
+    le agotan, su precio se queda congelado en una puja que sabemos corta y
+    deja de promediarse.
     """
-    return venta.firme or venta.intentos <= REINTENTOS_DE_RESOLUCION
+    if venta.firme:
+        return True
+    if venta.precio <= 0:
+        return False
+    return venta.intentos <= REINTENTOS_DE_RESOLUCION
 
 
 def estimar(comparables: Sequence[Comparable]) -> Estimacion:

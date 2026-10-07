@@ -130,7 +130,16 @@ function columnasDe(
           </span>
         ) : (
           <span className="text-xs text-[var(--warn)]">
-            {f.cuenta ? tx("sin cerrar") : tx("no se pudo confirmar")}
+            {/* Tres estados distintos, no dos. Un anuncio que nadie ha
+                pujado tampoco cuenta, pero no es que fallara al
+                confirmarse: es que todavía no hay precio que confirmar
+                (2026-10-07, al ver que a Kurt Schönhueb no le salía ni un
+                comparable con puja y sí ocho sin ella). */}
+            {f.puja <= 0
+              ? tx("nadie ha pujado")
+              : f.cuenta
+                ? tx("sin cerrar")
+                : tx("no se pudo confirmar")}
           </span>
         ),
     },

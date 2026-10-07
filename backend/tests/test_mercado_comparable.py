@@ -667,3 +667,50 @@ def test_con_un_abandonado_se_vuelve_a_salir_a_buscar() -> None:
     assert hay_que_buscar(_medidos(*cinco, tirada)) is True
     # Y con la sexta de verdad, ya no.
     assert hay_que_buscar(_medidos(*cinco, _guardado(6))) is False
+
+
+# ---------------------------------------------------------------------------
+# El anuncio que nadie ha pujado
+#
+# Entra en el fondo --el usuario lo pidio el 2026-10-06 cuando no hay bastante
+# con puja-- pero entra para VIGILARLO. Su precio llega a cero, porque cero es
+# lo que vale HighestBid sin pujas.
+#
+# EL CASO QUE LO DESTAPO, 2026-10-07: Kurt Schonhueb, 28 anos, lateral 15 y
+# defensa 13. El mercado no tenia ni un comparable con puja y si ocho anuncios
+# sin ella. Los ocho entraban a cero y la media de un jugador de 249.030 de
+# TSI salia CERO.
+# ---------------------------------------------------------------------------
+
+
+def test_un_anuncio_sin_puja_no_entra_en_la_media() -> None:
+    sin_puja = _guardado(1, precio=0, firme=False, puja=0)
+    assert cuenta_para_el_numero(sin_puja) is False
+
+
+def test_ocho_anuncios_a_cero_no_dan_una_media_de_cero() -> None:
+    """El caso de Kurt, en pequeno: ocho sin puja y ninguna venta de verdad.
+    Lo correcto es «todavia no hay bastantes», no «vale cero»."""
+    ninguno = [_guardado(i, precio=0, firme=False, puja=0) for i in range(1, 9)]
+    estimacion = estimar(_medidos(*ninguno))
+    assert estimacion.media is None
+    assert estimacion.n == 0
+    # Pero siguen en la lista: se anotaron para ver en cuanto se venden.
+    assert len(estimacion.comparables) == 8
+
+
+def test_un_cero_no_hunde_una_media_que_si_existe() -> None:
+    """Seis ventas de un millon y un anuncio sin puja. La media es un millon,
+    no 857.142, que es lo que daria metiendo el cero."""
+    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
+    sin_puja = _guardado(99, precio=0, firme=False, puja=0)
+    estimacion = estimar(_medidos(*buenas, sin_puja))
+    assert estimacion.media == 1_000_000
+    assert estimacion.n == 6
+
+
+def test_cuando_ese_anuncio_se_resuelve_ya_cuenta() -> None:
+    """Para eso se anotaba: dias despues se le pregunta cuanto se pago, y
+    entonces pasa a ser una venta como cualquier otra."""
+    resuelto = _guardado(1, precio=4_200_000, firme=True, puja=0)
+    assert cuenta_para_el_numero(resuelto) is True

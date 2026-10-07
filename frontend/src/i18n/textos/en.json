@@ -1985,5 +1985,6 @@
   "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.": "The two ends of the list, unweighted: the cheapest and the most expensive in it. It says how wide the market for this profile is.",
   "Puja detectada": "Bid when found",
   "sin cerrar": "not closed yet",
-  "no se pudo confirmar": "could not be confirmed"
+  "no se pudo confirmar": "could not be confirmed",
+  "nadie ha pujado": "nobody has bid"
 }
