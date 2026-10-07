@@ -55,7 +55,10 @@ def test_el_chorro_de_la_sincronizacion_se_declara_sin_comprimir() -> None:
     """
     import inspect
 
-    from app.api.v1.endpoints import teams
+    # El modulo concreto, no el paquete: `teams.py` se partio por
+    # funcionalidad y `inspect.getsource` de un paquete solo trae su
+    # `__init__.py`, donde este encabezado no esta.
+    from app.api.v1.endpoints.teams import sincronizacion
 
-    fuente = inspect.getsource(teams)
+    fuente = inspect.getsource(sincronizacion)
     assert '"Content-Encoding": "identity"' in fuente

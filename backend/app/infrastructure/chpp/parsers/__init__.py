@@ -525,6 +525,117 @@ def parse_transfersplayer(xml: bytes) -> dict[str, Any]:
     }
 
 
+@register("transfersearch")
+def parse_transfersearch(xml: bytes) -> dict[str, Any]:
+    """transfersearch.xml, el mercado de transferencias tal y como está AHORA.
+
+    Es el único fichero de CHPP que enseña jugadores que no son tuyos con sus
+    habilidades a la vista, y por eso sirve para lo que no sirve ninguno de
+    los otros: poner al lado de un jugador tuyo lo que se pide hoy por los que
+    se le parecen.
+
+    TRES COSAS QUE HAY QUE SABER ANTES DE USAR ESTO PARA HABLAR DE PRECIOS, y
+    que la pantalla que lo enseñe tendrá que decir:
+
+    · `AskingPrice` es lo que PIDE el vendedor, no lo que se paga. Un precio
+      pedido no es una venta: la mitad de lo que hay en el mercado no se vende
+      a ese precio, o no se vende.
+    · `HighestBid` es lo único que alguien ha ofrecido de verdad, y según la
+      documentación oficial vale 0 cuando no hay ninguna puja. Un cero
+      significa «nadie ha pujado», no «se ofreció cero», y por eso viaja
+      también `has_bids`: sumar ceros al calcular una media diría que el
+      mercado ofrece menos de lo que ofrece.
+    · Aquí NO hay ventas cerradas. El precio final de una subasta no está en
+      este fichero; lo que se cierra sólo se sabe después, y de nuestras
+      propias ventas, por `transfersteam`/`transfersplayer`.
+
+    `ItemCount` vale -1 cuando hay más de 100 resultados (es la forma que
+    tiene CHPP de decir «muchos»), así que se devuelve tal cual: convertirlo
+    en 0 o en 100 sería inventar un recuento.
+
+    El dinero viene en la MONEDA BASE del juego, como en el resto de ficheros
+    de CHPP, no en la del equipo que mira: quien lo enseñe divide por la tasa
+    del país, igual que ya hacen Transferencias y la plantilla.
+    """
+    root = ElementTree.fromstring(xml)
+    search = root.find(".//TransferSearch")
+    if search is None or _is_chpp_error(root):
+        # El motivo VIAJA. Una busqueda vacia y una busqueda RECHAZADA se
+        # parecian demasiado: el 2026-10-05, probando contra el mercado de
+        # verdad, cuatro escalones de la escalera salieron a cero porque
+        # Hattrick rechazaba el rango pedido, y el recorrido los conto como
+        # "aqui no hay nadie". Quien pregunte al mercado tiene que poder
+        # distinguir las dos cosas.
+        return {
+            "error": _txt(root, "Error", "") or "respuesta sin TransferSearch",
+            "item_count": 0,
+            "page_size": 0,
+            "page_index": 0,
+            "results": [],
+        }
+
+    results = []
+    for node in search.iterfind(".//TransferResult"):
+        detalle = node.find("Details")
+        vendedor = detalle.find("SellerTeam") if detalle is not None else None
+        pujador = node.find("BidderTeam")
+        puja = _int(node, "HighestBid")
+        results.append(
+            {
+                "ht_player_id": _int(node, "PlayerId"),
+                "first_name": _txt(node, "FirstName", ""),
+                "nick_name": _txt(node, "NickName", ""),
+                "last_name": _txt(node, "LastName", ""),
+                "native_country_id": _int(node, "NativeCountryID"),
+                "asking_price": _int(node, "AskingPrice"),
+                "deadline": _txt(node, "Deadline", ""),
+                "highest_bid": puja,
+                # Un 0 en `HighestBid` es «no hay pujas», no una oferta de
+                # cero: quien calcule medias tiene que poder dejarlo fuera.
+                "has_bids": puja > 0,
+                "bidder_team_id": _int(pujador, "TeamID") if pujador is not None else 0,
+                "bidder_team_name": _txt(pujador, "TeamName", "") if pujador is not None else "",
+                "seller_team_id": _int(vendedor, "TeamID") if vendedor is not None else 0,
+                "seller_team_name": _txt(vendedor, "TeamName", "") if vendedor is not None else "",
+                "seller_league_id": _int(vendedor, "LeagueId") if vendedor is not None else 0,
+                "age_years": _int(detalle, "Age") if detalle is not None else 0,
+                "age_days": _int(detalle, "AgeDays") if detalle is not None else 0,
+                "salary": _int(detalle, "Salary") if detalle is not None else 0,
+                "tsi": _int(detalle, "TSI") if detalle is not None else 0,
+                "form": _int(detalle, "PlayerForm") if detalle is not None else 0,
+                "experience": _int(detalle, "Experience") if detalle is not None else 0,
+                "leadership": _int(detalle, "Leadership") if detalle is not None else 0,
+                "specialty": _int(detalle, "Specialty") if detalle is not None else 0,
+                "cards": _int(detalle, "Cards") if detalle is not None else 0,
+                # -1 es sano y 0 es magullado, igual que en players.xml: el
+                # default NO puede ser 0 o todo el mercado saldría tocado.
+                "injury_level": _int(detalle, "InjuryLevel", -1) if detalle is not None else -1,
+                # Los mismos nombres internos que la plantilla propia, para
+                # que comparar a un jugador tuyo con el mercado no obligue a
+                # traducir las habilidades por el camino.
+                "skills": {
+                    "keeper": _int(detalle, "KeeperSkill") if detalle is not None else 0,
+                    "defending": _int(detalle, "DefenderSkill") if detalle is not None else 0,
+                    "playmaking": _int(detalle, "PlaymakerSkill") if detalle is not None else 0,
+                    "winger": _int(detalle, "WingerSkill") if detalle is not None else 0,
+                    "passing": _int(detalle, "PassingSkill") if detalle is not None else 0,
+                    "scoring": _int(detalle, "ScorerSkill") if detalle is not None else 0,
+                    "set_pieces": _int(detalle, "SetPiecesSkill") if detalle is not None else 0,
+                    "stamina": _int(detalle, "StaminaSkill") if detalle is not None else 0,
+                },
+            }
+        )
+
+    return {
+        "error": None,
+        # -1 = «más de 100», tal y como lo manda Hattrick.
+        "item_count": _int(search, "ItemCount"),
+        "page_size": _int(search, "PageSize"),
+        "page_index": _int(search, "PageIndex"),
+        "results": results,
+    }
+
+
 @register("currentbids")
 def parse_currentbids(xml: bytes) -> dict[str, Any]:
     """currentbids.xml, jugadores propios ACTUALMENTE en el mercado.

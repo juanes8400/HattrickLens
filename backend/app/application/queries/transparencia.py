@@ -2519,7 +2519,7 @@ def catalogo() -> list[Seccion]:
                         "\n"
                         f"escalera con β = {_fmt(DEFAULT_WEIGHT_BASE)}:\n"
                         f"{_escalera_de_juveniles()}\n"
-                        "    al_tope              siempre = 0"
+                        "    al_máximo            siempre = 0"
                     ),
                     constants=[
                         Constante(
@@ -2540,7 +2540,7 @@ def catalogo() -> list[Seccion]:
                         ),
                     ],
                     limits=[
-                        "Quien ya tocó techo pesa CERO y no está en la escalera: no es "
+                        "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es "
                         "un peldaño más bajo, es que no cuenta.",
                         "Revelar sólo puede SUBIR el mejor techo. Un veredicto bueno es "
                         "firme ya; uno condenatorio necesita las siete reveladas.",

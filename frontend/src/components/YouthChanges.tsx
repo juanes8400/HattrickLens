@@ -25,12 +25,21 @@ import { tx } from "../i18n/tx";
  *   - subió de nivel            → entrenamiento dando fruto
  *   - se reveló el nivel        → no ha crecido; ahora lo vemos
  *   - se reveló el techo        → ya sabemos hasta dónde llega
- *   - topó                      → no crecerá más, aunque el techo siga oculto
+ *   - llegó al máximo           → no crecerá más, aunque el techo siga oculto
  *
  * Y una regla de color que importa: **descubrir no es mejorar**. Pintar de
  * verde una revelación diría que el chico progresó cuando lo único que cambió
  * es lo que sabemos de él.
  */
+
+/** Lo que le pasa al chico ENTERO, no a una habilidad suya. Son los cambios
+ *  cuya frase ya se basta sola. */
+const SUCESOS_DEL_JUGADOR = new Set([
+  "arrival",
+  "promotable",
+  "promoted",
+  "departure",
+]);
 
 function Techo({ change }: { change: YouthComparisonChange }) {
   if (change.max == null) {
@@ -68,13 +77,36 @@ function Linea({ change }: { change: YouthComparisonChange }) {
       </span>
     );
   }
+  // Las dos maneras de dejar la academia (2026-10-04, pedido del usuario:
+  // echar a un juvenil no se veía). Van separadas porque no son la misma
+  // noticia: una suma un jugador al primer equipo y la otra libera una plaza
+  // de entrenamiento. Y sólo se dice «ascendió» cuando se puede comprobar;
+  // Hattrick no lo cuenta, se deduce de que aparezca en la plantilla.
+  if (change.key === "promoted") {
+    return (
+      <span className="font-semibold text-[var(--positive)]">
+        {tx("Ascendió al primer equipo")}
+      </span>
+    );
+  }
+  if (change.key === "departure") {
+    return (
+      <span className="font-semibold text-[var(--danger)]">
+        {tx("Salió de la academia")}
+      </span>
+    );
+  }
 
-  // «Topó» va de sufijo, nunca sustituyendo a la línea: un canterano puede
-  // revelarse Y topar en la misma comparación, pasa cuando el nivel aparece ya
+  // «Llegó al máximo» va de sufijo, nunca sustituyendo a la línea: un
+  // canterano puede revelarse Y llegar al máximo en la misma comparación,
+  // pasa cuando el nivel aparece ya
   // igualado a su techo, y contar sólo lo segundo se come la noticia de que
   // por fin lo vemos.
   const topo = change.maxJustReached ? (
-    <span className="font-semibold text-[var(--muted)]"> {tx("· topó")}</span>
+    <span className="font-semibold text-[var(--muted)]">
+      {" "}
+      {tx("· llegó al máximo")}
+    </span>
   ) : null;
 
   // Sólo se movió el techo: el nivel sigue sin saberse. Es el caso que no
@@ -107,7 +139,7 @@ function Linea({ change }: { change: YouthComparisonChange }) {
   if (change.maxJustReached && change.delta == null) {
     return (
       <span className="font-semibold tabular-nums text-[var(--muted)]">
-        {tx("topó")}
+        {tx("llegó al máximo")}
         {change.current != null ? tx(" en {{v0}}", { v0: change.current }) : ""}
       </span>
     );
@@ -119,9 +151,25 @@ function Linea({ change }: { change: YouthComparisonChange }) {
     change.direction === "down" && "text-[var(--danger)]",
     change.direction === "neutral" && "text-[var(--muted)]",
   );
+  // EL NIVEL QUE NO SE MOVIÓ SE ESCRIBE UNA VEZ (2026-10-04, visto por el
+  // usuario en Stefano Iriarte: «4 4 · techo 6 ✦»). La línea es «antes ahora»,
+  // y cuando la noticia es el techo el nivel sale idéntico a los dos lados:
+  // dos cifras pegadas que parecen un número partido y no dicen nada. Si no
+  // hay nada que comparar, se enseña el nivel y ya; lo que cambió --el
+  // techo-- viene detrás.
+  //
+  // Y si el «antes» no se sabe, va una raya: el hueco en blanco dejaba la
+  // línea empezando por un espacio suelto.
+  const sinMovimiento = change.before === change.current;
   return (
     <span className="tabular-nums">
-      <span className="text-[var(--text)]">{cifra(change.before)}</span>{" "}
+      {!sinMovimiento && (
+        <>
+          <span className="text-[var(--text)]">
+            {change.before == null ? "-" : cifra(change.before)}
+          </span>{" "}
+        </>
+      )}
       <span className={tono}>
         {change.direction === "up" && "▲ "}
         {change.direction === "down" && "▼ "}
@@ -183,7 +231,15 @@ function Tarjeta({ fila }: { fila: YouthComparisonRow }) {
             key={`${change.key}-${i}`}
             className="flex items-center justify-between gap-3"
           >
-            <span className="text-[var(--muted)]">{change.label}</span>
+            {/* La columna de la izquierda nombra la habilidad: «Pases», y a
+                la derecha lo que le pasó. Los sucesos del chico entero no
+                tienen habilidad que nombrar, y poner ahí su propia frase la
+                escribía dos veces seguidas: «Salió de la academia · Salió de
+                la academia» (2026-10-04; venía pasando igual con las
+                llegadas desde que existen). */}
+            {!SUCESOS_DEL_JUGADOR.has(change.key) && (
+              <span className="text-[var(--muted)]">{change.label}</span>
+            )}
             <Linea change={change} />
           </li>
         ))}

@@ -22,6 +22,7 @@ from app.domain.engines.player_balance import (
     PlayerBalance,
     PlayerTransferRecord,
     SalarySnapshot,
+    agent_pct_de_una_venta,
     compute_balance,
     salary_at,
     salary_payment_dates,
@@ -164,6 +165,12 @@ class PlayerBalanceRow:
     listing_attempts: list[ListingAttemptRow]
     listing_cost: int
     agent_pct: float | None
+    # Lo que se llevaría la casa si lo vendieras HOY, para quien sigue en el
+    # club (2026-10-03, «Plantilla actual»). `None` en cuanto la venta es
+    # real: entonces manda `agent_pct`, que es lo que de verdad se cobró.
+    # Sale del mismo sitio que el de una venta de verdad, `agent_pct_de_una_
+    # venta`, para que la simulación y la venta no digan cosas distintas.
+    agent_pct_if_sold_now: float | None
     # HL-161, 2026-08-14: comisión de club anterior EXACTA, suma de
     # `PreviousClubBonus.amount` (convertida) para este jugador, si el club
     # al que se lo vendimos ya lo revendió. 0.0 si todavía no hay ninguna
@@ -740,11 +747,26 @@ class PlayerBalanceQueryService:
             except ValueError:
                 return None
 
+        # La misma fecha se pregunta MILES de veces: cada cobro semanal de
+        # cada etapa quiere saber de qué temporada es, y los cobros caen todos
+        # en las mismas fechas. Medido el 2026-10-03 con 601 etapas: 31.448
+        # llamadas, y detrás de cada una un cálculo de semana ISO. Eran 450 ms
+        # de los 500 que tardaba la pantalla de Transferencias en responder.
+        # Con la respuesta guardada quedan unas pocas decenas de cálculos
+        # reales. El diccionario vive dentro de la petición y se tira con
+        # ella, así que no hay nada que invalidar.
+        cache_de_temporada: dict[datetime, str] = {}
+
         def season_at(when: datetime | None) -> str:
             if when is None:
                 return _UNKNOWN_SEASON
+            guardada = cache_de_temporada.get(when)
+            if guardada is not None:
+                return guardada
             season = season_for_datetime(world, when)
-            return _UNKNOWN_SEASON if season is None else f"Temporada {season}"
+            etiqueta = _UNKNOWN_SEASON if season is None else f"Temporada {season}"
+            cache_de_temporada[when] = etiqueta
+            return etiqueta
 
         # Comisión de club anterior EXACTA, HL-161, 2026-08-14. Reemplaza
         # por completo el reparto heurístico de "reventa futura de origen
@@ -1154,6 +1176,15 @@ class PlayerBalanceQueryService:
                     listing_attempts=listing_attempts_by_player.get(p.id, []),
                     listing_cost=balance.listing_cost,
                     agent_pct=balance.agent_pct if balance.is_sold else None,
+                    agent_pct_if_sold_now=(
+                        None
+                        if balance.is_sold or purchased_at is None
+                        else agent_pct_de_una_venta(
+                            purchased_at,
+                            as_of,
+                            is_academy_graduate=is_academy,
+                        )
+                    ),
                     resale_bonus_share=balance.resale_bonus_share,
                     saldo=balance.saldo,
                     ingresos=ingresos,

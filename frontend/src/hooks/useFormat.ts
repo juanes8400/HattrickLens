@@ -11,7 +11,16 @@ import i18n from "../i18n";
 // que el francés o el sueco separan con un espacio fino y habrían salido mal
 // sin que nadie tocara nada. Cada idioma dice el suyo, y añadir uno obliga a
 // decidirlo.
-const MILES: Record<string, string> = { es: ".", en: ",", it: ".", de: "." };
+// El polaco separa los miles con un espacio (2026-10-03). Va duro y no
+// partible (U+00A0) para que «1 234 567» no se corte a final de renglón
+// y se lea como dos cifras.
+const MILES: Record<string, string> = {
+  es: ".",
+  en: ",",
+  it: ".",
+  de: ".",
+  pl: "\u00a0",
+};
 const separadorDeMiles = () => MILES[idiomaDeLaApp()] ?? ".";
 
 /** El código del idioma elegido, a secas: «es-ES» y «es» son el mismo. */
@@ -27,6 +36,7 @@ const ORDINAL: Record<string, "masculino" | "sufijo" | "punto"> = {
   it: "masculino",
   en: "sufijo",
   de: "punto",
+  pl: "punto",
 };
 
 export const number = (v: number) =>

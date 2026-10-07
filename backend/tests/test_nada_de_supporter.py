@@ -57,7 +57,11 @@ PROHIBIDOS = (
 PERMITIDOS = {
     "parsers/__init__.py",  # se lee del fichero de Hattrick
     "models.py",  # se guarda
-    "sync_team.py",  # se escribe y se rellena hacia atras
+    # El sync, que es donde se escriben y se rellenan hacia atras. Son los
+    # dos ficheros del paquete que los tocan, no el paquete entero: antes
+    # valia `sync_team.py` a secas, o sea sus 7257 lineas de una vez.
+    "sync_team/economia.py",
+    "sync_team/partidos.py",
     "taquilla.py",  # se convierte en el total, que es lo unico que viaja
 }
 

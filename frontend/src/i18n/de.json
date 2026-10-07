@@ -379,7 +379,10 @@
     "sinTipo": "Training nicht erkannt",
     "irASincronizar": "zum Synchronisieren gehen",
     "proximo": "Das nächste am {{fecha}}.",
-    "esperado": "Erwartet"
+    "esperado": "Erwartet",
+    "jugador": "Spieler",
+    "mejorasMeta": "bestätigte Steigerungen und Vorschau, Spieler für Spieler",
+    "mejorasSinJugador": "Wähl einen Spieler, um seine Steigerungen und seine Vorschau zu sehen."
   },
   "alertas": {
     "atencion": "Was deine Aufmerksamkeit braucht",
@@ -851,7 +854,6 @@
     "cuantoSeMovio": "Wie stark sich jeder Wert bewegt hat seit",
     "desdeCuando": "Ab wann der Wert verglichen wird",
     "ventana": {
-      "cambio": "Letzte Änderung",
       "1": "1 Woche",
       "2": "2 Wochen",
       "8": "8 Wochen"

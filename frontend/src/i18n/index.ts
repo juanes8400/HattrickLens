@@ -19,20 +19,11 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import appEs from "./es.json";
-import appEn from "./en.json";
-import appIt from "./it.json";
-import appDe from "./de.json";
 import glosarioEs from "./glosario/es.json";
-import glosarioEn from "./glosario/en.json";
-import glosarioIt from "./glosario/it.json";
-import glosarioDe from "./glosario/de.json";
-import textosEn from "./textos/en.json";
-import textosIt from "./textos/it.json";
-import textosDe from "./textos/de.json";
 
 /** Los idiomas que tienen diccionario en el paquete. NO son los que se
  *  ofrecen: ver `OFRECIDOS`. */
-export const IDIOMAS = ["es", "en", "it", "de"] as const;
+export const IDIOMAS = ["es", "en", "it", "de", "pl"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
 
 /** Los idiomas TERMINADOS, que son los únicos que se le enseñan a nadie.
@@ -52,8 +43,23 @@ export type Idioma = (typeof IDIOMAS)[number];
  *  italiano tenía desde el primer día: 226 claves nombradas que ningún
  *  guardián miraba porque no se escriben enteras en el código, se arman al
  *  vuelo con una plantilla. Lo impide ahora `idioma.test.ts`, que le exige a
- *  cada idioma OFRECIDO las mismas claves que al inglés. */
-export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it", "de"];
+ *  cada idioma OFRECIDO las mismas claves que al inglés.
+ *
+ *  2026-10-03: el polaco. 1.044 claves nombradas y los 3.624 textos, y el
+ *  vocabulario del juego --niveles, especialidades, carácter, agresividad,
+ *  honestidad, tácticas, puestos, sectores, entrenamientos, moral, confianza,
+ *  afición y expectativas-- sale del glosario oficial de Hattrick, no de
+ *  traducirlo a ojo. Dos cosas le pidió el idioma al código, y las dos están:
+ *  separa los miles con un espacio duro (`MILES` en `useFormat.ts` y en
+ *  `formatting.py`, que ya no sabía escribir otra cosa que punto o coma) y
+ *  escribe el ordinal con punto, «3.», como el alemán.
+ *
+ *  Lo que el polaco NO tiene todavía, y no es cosa de traducir: sus TRES
+ *  formas de plural --1, 2-4, 5 o más-- no caben en las claves de ahora, que
+ *  son dos («{n} jugador» y «{n} jugadores»). Donde la cifra manda sale la
+ *  forma de 2-4, que es la correcta en la mayoría de los casos y la menos
+ *  violenta en los demás. */
+export const OFRECIDOS: readonly Idioma[] = ["es", "en", "it", "de", "pl"];
 
 const CLAVE_GUARDADA = "htlens.idioma";
 
@@ -100,20 +106,104 @@ function idiomaGuardado(): Idioma {
   return idiomaDelNavegador();
 }
 
+/** CADA IDIOMA SE TRAE SOLO CUANDO ES EL SUYO (2026-10-03).
+ *
+ *  Los cinco diccionarios juntos son 1,2 MB de JSON, y estaban todos dentro
+ *  del trozo principal: quien entraba en español descargaba inglés, italiano,
+ *  alemán y polaco para no leerlos nunca. Eran cuatro quintas partes del
+ *  arranque de TODAS las pantallas, que es justo lo que el usuario notaba
+ *  como «la app carga lento en muchas partes».
+ *
+ *  El español no se difiere: es el respaldo de todos los demás y su
+ *  diccionario es el pequeño (no tiene `textos`, porque el texto en español
+ *  ya está escrito en el propio código).
+ */
+const DICCIONARIOS: Record<
+  Exclude<Idioma, "es">,
+  () => Promise<{ app: object; glosario: object; textos: object }>
+> = {
+  en: async () => ({
+    app: (await import("./en.json")).default,
+    glosario: (await import("./glosario/en.json")).default,
+    textos: (await import("./textos/en.json")).default,
+  }),
+  it: async () => ({
+    app: (await import("./it.json")).default,
+    glosario: (await import("./glosario/it.json")).default,
+    textos: (await import("./textos/it.json")).default,
+  }),
+  de: async () => ({
+    app: (await import("./de.json")).default,
+    glosario: (await import("./glosario/de.json")).default,
+    textos: (await import("./textos/de.json")).default,
+  }),
+  pl: async () => ({
+    app: (await import("./pl.json")).default,
+    glosario: (await import("./glosario/pl.json")).default,
+    textos: (await import("./textos/pl.json")).default,
+  }),
+};
+
 void i18n.use(initReactI18next).init({
   resources: {
     es: { app: appEs, glosario: glosarioEs },
-    en: { app: appEn, glosario: glosarioEn, textos: textosEn },
-    it: { app: appIt, glosario: glosarioIt, textos: textosIt },
-    de: { app: appDe, glosario: glosarioDe, textos: textosDe },
   },
-  lng: idiomaGuardado(),
+  lng: "es",
   fallbackLng: "es",
   ns: ["app", "glosario", "textos"],
   defaultNS: "app",
   interpolation: { escapeValue: false },
   returnNull: false,
 });
+
+/** Trae el diccionario de un idioma y lo registra. Idempotente: si ya está,
+ *  no vuelve a pedirlo. Lo usan el arranque y las pruebas que comprueban cómo
+ *  queda la aplicación en otro idioma. */
+export async function cargarIdioma(idioma: Idioma): Promise<void> {
+  if (idioma === "es") return;
+  if (i18n.hasResourceBundle(idioma, "textos")) return;
+  const { app, glosario, textos } = await DICCIONARIOS[idioma]();
+  i18n.addResourceBundle(idioma, "app", app);
+  i18n.addResourceBundle(idioma, "glosario", glosario);
+  i18n.addResourceBundle(idioma, "textos", textos);
+}
+
+/** Trae el diccionario del idioma elegido y lo pone. HAY QUE ESPERARLO ANTES
+ *  DE CARGAR LA APLICACIÓN, no sólo antes de pintarla: media aplicación llama
+ *  a `tx("…")` al cargar su módulo, para armar constantes, y esas llamadas se
+ *  quedarían con el español para siempre. Por eso `main.tsx` lo espera antes
+ *  de importar `App`. */
+export async function arrancarIdioma(): Promise<Idioma> {
+  const elegido = idiomaGuardado();
+  if (elegido === "es") return elegido;
+  try {
+    await cargarIdioma(elegido);
+    await i18n.changeLanguage(elegido);
+  } catch {
+    // Un diccionario que no llega deja la aplicación en español, que es
+    // entera y correcta. Peor sería una pantalla a medio pintar.
+  }
+  return elegido;
+}
+
+/** El `lang` del `<html>`, que se quedaba en «es» para todo el mundo.
+ *
+ *  2026-10-03, al entrar el polaco. No es decorativo: un lector de pantalla
+ *  lee con la fonética del idioma que declara la página --el polaco con
+ *  acento español es ininteligible-- y el navegador ofrece traducir una
+ *  página que ya está en el idioma de quien la mira. Va por el evento de
+ *  i18next y no en una línea suelta para que valga también cuando el idioma
+ *  cambie sin recargar. */
+function marcarIdiomaEnElHtml(idioma: string): void {
+  try {
+    document.documentElement.lang = idioma.slice(0, 2);
+  } catch {
+    // Sin DOM (una prueba, un render en servidor) no hay nada que marcar.
+  }
+}
+
+i18n.on("languageChanged", marcarIdiomaEnElHtml);
+marcarIdiomaEnElHtml(i18n.language || "es");
 
 /** Cambia el idioma, lo recuerda en este navegador y recarga.
  *

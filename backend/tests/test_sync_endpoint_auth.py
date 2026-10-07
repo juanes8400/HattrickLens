@@ -121,8 +121,8 @@ def test_sync_runs_for_real_with_a_valid_session(
     client.cookies.set("htlens_session", create_session_token(user_id))
 
     with (
-        patch("app.api.v1.endpoints.teams.CHPPClient", FakeCHPPClient),
-        patch("app.api.v1.endpoints.teams.SessionLocal", factory),
+        patch("app.api.v1.endpoints.teams.sincronizacion.CHPPClient", FakeCHPPClient),
+        patch("app.api.v1.endpoints.teams.sincronizacion.SessionLocal", factory),
     ):
         resp = client.post(f"/api/v1/teams/{team_id}/sync")
 
@@ -185,8 +185,8 @@ def test_sync_response_includes_changes_and_get_endpoint_reflects_them(
     client.cookies.set("htlens_session", create_session_token(user_id))
 
     with (
-        patch("app.api.v1.endpoints.teams.CHPPClient", FakeCHPPClient),
-        patch("app.api.v1.endpoints.teams.SessionLocal", factory),
+        patch("app.api.v1.endpoints.teams.sincronizacion.CHPPClient", FakeCHPPClient),
+        patch("app.api.v1.endpoints.teams.sincronizacion.SessionLocal", factory),
     ):
         client.post(f"/api/v1/teams/{team_id}/sync")  # primer sync: siembra el "antes"
         second = client.post(f"/api/v1/teams/{team_id}/sync")
@@ -239,8 +239,8 @@ def test_match_details_sync_fills_in_the_pending_matches(
         # matchID pedido trae SU propio partido, necesario para que el
         # backfill automático, que pide varios matchID distintos en un
         # mismo sync, procese los 16 realmente (ver su docstring arriba).
-        patch("app.api.v1.endpoints.teams.CHPPClient", FakeMatchDetailsCHPP),
-        patch("app.api.v1.endpoints.teams.SessionLocal", factory),
+        patch("app.api.v1.endpoints.teams.sincronizacion.CHPPClient", FakeMatchDetailsCHPP),
+        patch("app.api.v1.endpoints.teams.sincronizacion.SessionLocal", factory),
     ):
         client.post(f"/api/v1/teams/{team_id}/sync")  # DEFAULT_FILES incluye "matches"
 
@@ -252,8 +252,8 @@ def test_match_details_sync_fills_in_the_pending_matches(
     assert asyncio.run(count_ratings()) == 34
 
     with (
-        patch("app.api.v1.endpoints.teams.CHPPClient", FakeMatchDetailsCHPP),
-        patch("app.api.v1.endpoints.teams.SessionLocal", factory),
+        patch("app.api.v1.endpoints.teams.sincronizacion.CHPPClient", FakeMatchDetailsCHPP),
+        patch("app.api.v1.endpoints.teams.sincronizacion.SessionLocal", factory),
     ):
         resp = client.post(f"/api/v1/teams/{team_id}/matches/details/sync")
 

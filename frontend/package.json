@@ -1,7 +1,7 @@
 {
   "name": "ht-lens-frontend",
   "private": true,
-  "version": "3.27.1",
+  "version": "3.46.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

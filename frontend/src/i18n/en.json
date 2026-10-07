@@ -379,7 +379,10 @@
     "sinTipo": "training not identified",
     "irASincronizar": "go and sync",
     "proximo": "The next one, on {{fecha}}.",
-    "esperado": "Expected"
+    "esperado": "Expected",
+    "jugador": "Player",
+    "mejorasMeta": "confirmed skill-ups and forecast, player by player",
+    "mejorasSinJugador": "Pick a player to see their skill-ups and forecast."
   },
   "alertas": {
     "atencion": "What needs your attention",
@@ -851,7 +854,6 @@
     "cuantoSeMovio": "How much each score moved since",
     "desdeCuando": "Since when the score is compared",
     "ventana": {
-      "cambio": "Last change",
       "1": "1 week",
       "2": "2 weeks",
       "8": "8 weeks"

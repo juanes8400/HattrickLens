@@ -213,6 +213,35 @@ class TransferAttemptsQueryService:
             )
         ).all()
 
+        # DE UNA VEZ Y NO UNA POR FILA (2026-10-03). Cada intento pedia por su
+        # cuenta el entrenamiento de la semana y su etapa, asi que 29 intentos
+        # eran casi un centenar de viajes a la base. Son dos tablas pequenas:
+        # se traen enteras y se busca en memoria, que es lo que ya hace
+        # Transferencias con las suyas.
+        entrenamientos = list(
+            (
+                await self._s.execute(
+                    select(m.TrainingSnapshot)
+                    .where(m.TrainingSnapshot.team_id == equipo.id)
+                    .order_by(m.TrainingSnapshot.captured_at)
+                )
+            ).scalars()
+        )
+        ids_de_jugador = {jugador.id for _, jugador in intentos}
+        etapas = list(
+            (
+                await self._s.execute(
+                    select(m.PlayerStint)
+                    .where(m.PlayerStint.player_id.in_(ids_de_jugador))
+                    .order_by(m.PlayerStint.arrived_at)
+                )
+            ).scalars()
+        )
+        etapa_por_id = {e.id: e for e in etapas}
+        etapas_por_jugador: dict[int, list[Any]] = {}
+        for e in etapas:
+            etapas_por_jugador.setdefault(e.player_id, []).append(e)
+
         # El numero de intento es por jugador y en orden: el primero es el 1.
         numero: dict[int, int] = {}
         salida: list[TransferAttemptRow] = []
@@ -226,6 +255,9 @@ class TransferAttemptsQueryService:
                     conv,
                     equipo,
                     economy_date,
+                    entrenamientos,
+                    etapa_por_id,
+                    etapas_por_jugador,
                 )
             )
 
@@ -248,6 +280,9 @@ class TransferAttemptsQueryService:
         conv: Callable[[int | None], int | None],
         equipo: Any,
         economy_date: datetime | None,
+        entrenamientos: list[Any],
+        etapa_por_id: dict[int, Any],
+        etapas_por_jugador: dict[int, list[Any]],
     ) -> TransferAttemptRow:
         cierre = intento.ended_at or intento.deadline
         # `UtcDateTime` entrega fechas naive cuyo significado es UTC. Usar la
@@ -264,30 +299,16 @@ class TransferAttemptsQueryService:
             .order_by(m.PlayerSnapshot.captured_at.desc())
             .limit(1)
         )
-        entrenamiento = await self._s.scalar(
-            select(m.TrainingSnapshot)
-            .where(
-                m.TrainingSnapshot.team_id == equipo.id,
-                m.TrainingSnapshot.captured_at <= corte,
-            )
-            .order_by(m.TrainingSnapshot.captured_at.desc())
-            .limit(1)
-        )
-        etapa = (
-            await self._s.get(m.PlayerStint, intento.stint_id)
-            if intento.stint_id is not None
-            else None
-        )
+        anteriores = [t for t in entrenamientos if t.captured_at <= corte]
+        entrenamiento = anteriores[-1] if anteriores else None
+        etapa = etapa_por_id.get(intento.stint_id) if intento.stint_id is not None else None
         if etapa is None:
-            etapa = await self._s.scalar(
-                select(m.PlayerStint)
-                .where(
-                    m.PlayerStint.player_id == jugador.id,
-                    m.PlayerStint.arrived_at <= intento.detected_at,
-                )
-                .order_by(m.PlayerStint.arrived_at.desc())
-                .limit(1)
-            )
+            previas = [
+                e
+                for e in etapas_por_jugador.get(jugador.id, [])
+                if e.arrived_at <= intento.detected_at
+            ]
+            etapa = previas[-1] if previas else None
 
         antiguedad = (corte - foto.captured_at).days if foto is not None else None
         llegada = etapa.arrived_at if etapa is not None else None

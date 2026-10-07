@@ -1,19 +1,24 @@
+"""Los disparadores de sincronizacion con Hattrick.
+
+Sale de partir `teams.py`, que tenia 1179 lineas y se abria
+entera para tocar cualquiera de sus rutas. El `__init__.py` del paquete
+monta `router` con todos estos, asi que las URL no cambian.
+"""
+
 import asyncio
 import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     get_current_user,
-    get_squad_service,
     require_team_owner,
 )
 from app.api.rate_limit import limite
@@ -32,20 +37,6 @@ from app.application.commands.sync_team import (
     aforo_del_estadio,
     mensaje_de_error,
 )
-from app.application.dto.dashboard import DashboardResponse
-from app.application.dto.squad import PositionRatingDTO, SquadResponse
-from app.application.queries.changes_history import (
-    ALLOWED_WINDOW_WEEKS,
-    DEFAULT_WINDOW_WEEKS,
-    build_changes_history,
-)
-from app.application.queries.club import ClubQueryService
-from app.application.queries.dashboard import DashboardQueryService
-from app.application.queries.parte_del_partido import build_parte_del_partido
-from app.application.queries.squad import SquadQueryService
-from app.application.queries.sync_comparison import build_sync_comparison
-from app.application.queries.transparencia import como_json as catalogo_de_calculos
-from app.domain.engines.position_engine import model_info
 from app.infrastructure.chpp.client import (
     CHPPAuthError,
     CHPPClient,
@@ -62,35 +53,6 @@ router = APIRouter()
 #: Las sincronizaciones con stream que siguen corriendo. Sin la referencia el
 #: recolector podría llevarse una a medias si quien miraba cerró la pestaña.
 _en_curso: set[asyncio.Task[None]] = set()
-
-# Cuantos jugadores atiende cada pulsacion. 40 llamadas a Hattrick es un
-# lote que cabe de sobra en el tiempo de una peticion, incluso en un plan
-# gratuito, y deja ver el avance sin que la espera canse.
-# Un jugador por peticion. El censo de partidos tarda ~20 segundos por
-# jugador, asi que un lote grande deja la barra quieta minutos enteros: con
-# uno, avanza cada vez que termina alguien y "Parar" responde al instante.
-BACKFILL_BATCH_SIZE = 1
-MAX_BACKFILL_BATCH = 100
-
-
-@router.get(
-    "/{team_id}/club",
-    summary="Estado, evolución y cuerpo técnico del club",
-    dependencies=[Depends(require_team_owner)],
-)
-async def club(
-    team_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Equivalente moderno de Club, Gráfico y Empleados de Hattrick Control.
-
-    Expone sólo observaciones CHPP y conserva las tres series separadas para
-    no convertir una lectura puntual en una tendencia ficticia.
-    """
-    data = await ClubQueryService(session).get(team_id)
-    if data is None:
-        raise HTTPException(404, f"team {team_id} not found")
-    return data
 
 
 @router.post(
@@ -155,6 +117,7 @@ async def trigger_sync(
 #: Cuántos ex-jugadores se revisan en busca de comisiones al final de cada
 #: sincronización, y cada cuánto vuelve a tocarle a uno ya revisado.
 LOTE_DE_COMISIONES_POR_SYNC = 10
+
 DIAS_ENTRE_REVISIONES = 7
 
 
@@ -176,9 +139,7 @@ async def _revisar_comisiones(
     NUNCA TUMBA LA SINCRONIZACIÓN. Lo que ya se descargó está guardado; si
     Hattrick falla aquí, se anota y la sincronización se da por buena.
     """
-    from datetime import UTC, datetime, timedelta
-
-    from app.application.commands.sync_team import SyncBackfillBatchCommand
+    from datetime import timedelta
 
     if on_progress is not None:
         await on_progress(
@@ -731,449 +692,4 @@ async def trigger_transfers_history_sync(
         "transfersNew": result.transfers_new,
         "snapshotsWritten": result.snapshots_written,
         "errors": result.errors,
-    }
-
-
-class SetManualPurchasePriceBody(BaseModel):
-    price: int
-    purchased_at: str | None = None
-
-
-@router.put(
-    "/{team_id}/players/{ht_player_id}/purchase-price",
-    status_code=200,
-    dependencies=[Depends(require_team_owner)],
-)
-async def set_manual_purchase_price(
-    team_id: int,
-    ht_player_id: int,
-    body: SetManualPurchasePriceBody,
-    session: AsyncSession = Depends(get_session),
-    user: m.User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """HL-161: precio de compra escrito a mano, solo para cuando ni
-    `transfersteam.xml` ni `transfersplayer.xml` traen una compra real
-    (jugador anterior a cualquier historial que CHPP guarde). Nunca
-    sobrescribe un precio real ya conocido, bórralo primero si de verdad
-    quieres reemplazarlo."""
-    team = await session.get(m.Team, team_id)
-    if team is None:
-        raise HTTPException(404, f"team {team_id} not found")
-    if team.owner_user_id != user.id:
-        raise HTTPException(403, "este equipo no está conectado a tu sesión")
-
-    player = await session.scalar(
-        select(m.Player).where(m.Player.ht_player_id == ht_player_id, m.Player.team_id == team_id)
-    )
-    if player is None:
-        raise HTTPException(404, f"player {ht_player_id} not found on team {team_id}")
-    if player.purchase_price is not None:
-        raise HTTPException(
-            409,
-            "ya hay un precio de compra real (transfersteam/transfersplayer), "
-            "no se puede sobrescribir con uno manual",
-        )
-
-    player.purchase_price_manual = body.price
-    if body.purchased_at:
-        player.purchased_at_manual = datetime.fromisoformat(body.purchased_at).replace(tzinfo=UTC)
-    await session.commit()
-    return {"htPlayerId": ht_player_id, "purchasePriceManual": body.price}
-
-
-CONFIRMABLE_CAREER_STAGES = {"promesa", "pico", "veterano", "rotacion", "declive"}
-
-
-class ConfirmCareerStageBody(BaseModel):
-    # None = borrar la confirmación y volver a mostrar la sugerencia de la app.
-    stage: str | None = None
-
-
-@router.post(
-    "/{team_id}/players/{ht_player_id}/career-stage",
-    summary="Confirmar (o borrar, el momento de carrera sugerido por la app, HL-15x #93",
-    dependencies=[Depends(require_team_owner)],
-)
-async def confirm_career_stage(
-    team_id: int,
-    ht_player_id: int,
-    body: ConfirmCareerStageBody,
-    session: AsyncSession = Depends(get_session),
-    user: m.User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """La app SUGIERE el momento de carrera (career_stage_engine, con sus
-    señales reales); el usuario CONFIRMA aquí, nunca se sobreescribe solo
-    en un sync posterior."""
-    team = await session.get(m.Team, team_id)
-    if team is None:
-        raise HTTPException(404, f"team {team_id} not found")
-    if team.owner_user_id != user.id:
-        raise HTTPException(403, "este equipo no está conectado a tu sesión")
-    if body.stage is not None and body.stage not in CONFIRMABLE_CAREER_STAGES:
-        raise HTTPException(
-            400, f"etapa desconocida: {body.stage}, válidas: {sorted(CONFIRMABLE_CAREER_STAGES)}"
-        )
-
-    player = await session.scalar(
-        select(m.Player).where(m.Player.ht_player_id == ht_player_id, m.Player.team_id == team_id)
-    )
-    if player is None:
-        raise HTTPException(404, f"player {ht_player_id} not found in team {team_id}")
-
-    player.confirmed_career_stage = body.stage
-    player.confirmed_career_stage_at = datetime.now(UTC) if body.stage is not None else None
-    await session.commit()
-
-    return {
-        "htPlayerId": ht_player_id,
-        "confirmedStage": player.confirmed_career_stage,
-        "confirmedAt": (
-            player.confirmed_career_stage_at.isoformat()
-            if player.confirmed_career_stage_at is not None
-            else None
-        ),
-    }
-
-
-@router.get(
-    "/{team_id}/sync/changes",
-    summary="Qué cambió en el último sync (HL-140)",
-    dependencies=[Depends(require_team_owner)],
-)
-async def last_sync_changes(
-    team_id: int,
-    sync_id: int | None = None,
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Al estilo Hattrick Control: qué cambió desde la vez anterior, no solo
-    el estado actual. Vive aparte de `POST /sync` para poder volver a verlo
-    tras recargar la página sin tener que sincronizar otra vez.
-
-    `sync_id` (2026-08-15, pedido explícito) permite navegar el archivo: la
-    respuesta trae en `availableReports` las fechas que SÍ tuvieron cambios,
-    y pedir una de ellas devuelve esa comparación en vez de la más reciente.
-    Un id inválido o sin cambios cae a la última, no es un error del usuario
-    pedir una fecha que ya no existe."""
-    return await build_sync_comparison(session, team_id, sync_id)
-
-
-@router.get(
-    "/{team_id}/last-match-report",
-    summary="El ultimo partido jugado, contra lo que habiamos dicho de el",
-    dependencies=[Depends(require_team_owner)],
-)
-async def last_match_report(
-    team_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any] | None:
-    """Encabeza Cambios: el resultado al lado de la terna que dabamos ANTES.
-
-    `null` mientras el equipo no tenga ningun partido jugado, y `prediction`
-    a `null` cuando de ese partido no guardamos nada, que es el caso de todo
-    partido anterior al 2026-09-26. La pantalla pinta los dos estados.
-
-    Una vez por sync: ni el resultado de un partido jugado ni lo que dijimos
-    antes de jugarlo vuelven a cambiar.
-    """
-    from app.api.cache_por_sync import por_sync
-
-    return await por_sync(
-        session,
-        team_id,
-        "parte-del-partido",
-        (),
-        lambda: build_parte_del_partido(session, team_id),
-    )
-
-
-@router.get(
-    "/{team_id}/changes/history",
-    summary="Histórico real de cambios de jugadores",
-    dependencies=[Depends(require_team_owner)],
-)
-async def changes_history(
-    team_id: int,
-    player_id: int | None = Query(None, description="Jugador a mostrar en la gráfica"),
-    weeks: int = Query(
-        DEFAULT_WINDOW_WEEKS,
-        description=(
-            "Semanas hacia atrás con las que comparar (1, 2, 4, 8 o 16). "
-            "0 = «siempre»: contra el primer cierre guardado de cada jugador."
-        ),
-    ),
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Archivo de Cambios: habilidades, forma, experiencia y serie de jugador.
-
-    Cada fila es la diferencia NETA contra el cierre semanal de hace `weeks`
-    semanas, salida de valores CHPP guardados; los syncs repetidos sin
-    variaciones no producen filas ficticias.
-    """
-    if weeks not in ALLOWED_WINDOW_WEEKS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"weeks debe ser uno de {', '.join(map(str, ALLOWED_WINDOW_WEEKS))}",
-        )
-    from app.api.cache_por_sync import por_sync
-
-    # Una vez por sync (2026-09-14): las fotos sólo cambian al sincronizar.
-    return await por_sync(
-        session,
-        team_id,
-        "historial-de-cambios",
-        (player_id, weeks),
-        lambda: build_changes_history(session, team_id, player_id, weeks=weeks),
-    )
-
-
-async def dashboard_guardado(session: AsyncSession, team_id: int) -> DashboardResponse | None:
-    """El Dashboard, calculado una vez por sync (2026-09-14).
-
-    Medido en producción: 5 segundos en cada visita aunque nada hubiera
-    cambiado. Tope de 15 minutos porque «datos desactualizados» mira el reloj.
-    Lo usan el endpoint y el precalentado del final del sync.
-    """
-    from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
-
-    data: DashboardResponse | None = await por_sync(
-        session,
-        team_id,
-        "dashboard",
-        (),
-        lambda: DashboardQueryService(session).get(team_id),
-        ttl=TTL_CON_RELOJ,
-    )
-    return data
-
-
-@router.get(
-    "/{team_id}/dashboard",
-    response_model=DashboardResponse,
-    response_model_by_alias=True,
-    dependencies=[Depends(require_team_owner)],
-)
-async def dashboard(
-    team_id: int,
-    response: Response,
-    session: AsyncSession = Depends(get_session),
-) -> DashboardResponse:
-    data = await dashboard_guardado(session, team_id)
-    if data is None:
-        raise HTTPException(404, f"team {team_id} not found")
-    # Cache barato: el payload solo cambia cuando cambia el sync (docs/04)
-    if data.sync_id is not None:
-        response.headers["ETag"] = f'W/"dash-{team_id}-{data.sync_id}"'
-        response.headers["Cache-Control"] = "private, max-age=30"
-    return data
-
-
-@router.get(
-    "/{team_id}/squad",
-    response_model=SquadResponse,
-    response_model_by_alias=True,
-    summary="Plantilla con rating de posición (HL-021, HL-022)",
-    dependencies=[Depends(require_team_owner)],
-)
-async def squad(
-    team_id: int,
-    position: str | None = Query(
-        None,
-        description="Si se indica, la plantilla se ordena por el rendimiento en esa posición",
-    ),
-    comparison_window: str | None = Query(
-        None,
-        description=(
-            "Contra qué se miran las diferencias: change (el último cambio de cada "
-            "jugador, por defecto), w1, w2, w4, w8, w16 o all"
-        ),
-    ),
-    svc: SquadQueryService = Depends(get_squad_service),
-) -> SquadResponse:
-    try:
-        data = await svc.get(team_id, position, comparison_window)
-    except KeyError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    if data is None:
-        raise HTTPException(404, f"team {team_id} not found")
-    return data
-
-
-@router.get(
-    "/players/{ht_player_id}/positions",
-    response_model=list[PositionRatingDTO],
-    response_model_by_alias=True,
-    summary="Las 19 variantes de posición de un jugador (HL-020)",
-)
-async def player_positions(
-    ht_player_id: int,
-    svc: SquadQueryService = Depends(get_squad_service),
-) -> list[PositionRatingDTO]:
-    data = await svc.player_positions(ht_player_id)
-    if data is None:
-        raise HTTPException(404, f"player {ht_player_id} not found")
-    return data
-
-
-@router.get("/calculos", summary="Catálogo de cálculos con su formulación y sus constantes")
-async def calculos() -> list[dict[str, Any]]:
-    """Qué calcula la herramienta, con qué fórmula y con qué constantes.
-
-    No lleva `team_id`: describe los MOTORES, que son los mismos para todos.
-    Los valores del club de cada uno llegan por los endpoints que ya existen
-    --la fórmula de entrenamiento, la matriz de posiciones-- y la pantalla los
-    engancha bajo su cálculo.
-    """
-    return catalogo_de_calculos()
-
-
-@router.get("/positions/model", summary="Modelo de posiciones basado en el Manual no Escrito")
-async def positions_model() -> dict[str, Any]:
-    """Procedencia, matriz y factores del motor de posiciones."""
-    return model_info()
-
-
-@router.get(
-    "/{team_id}/backfill",
-    summary="Cuántas fichas de jugador quedan por descargar",
-    dependencies=[Depends(require_team_owner)],
-)
-async def backfill_pending(
-    team_id: int,
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Lo que le falta al pasado, en jugadores.
-
-    Se responde sin llamar a Hattrick: son consultas a la base. Así la
-    pantalla puede decir "faltan 515 fichas" ANTES de que nadie pulse nada, y
-    no hay que gastar cuota para saber cuánto queda.
-    """
-    uow = SqlAlchemyUnitOfWork(SessionLocal)
-    # El contador no habla con Hattrick, solo con la base: el cliente CHPP no
-    # hace falta y por eso no se construye ninguno.
-    handler = SyncTeamHandler(uow, None)  # type: ignore[arg-type]
-    async with uow:
-        pendientes = await handler.pendientes_de_ficha(uow, team_id)
-    total: set[int] = set()
-    for cola in pendientes.values():
-        total |= set(cola)
-    return {
-        "pending": len(total),
-        "batchSize": BACKFILL_BATCH_SIZE,
-        "detail": {
-            "profile": len(pendientes["ficha"]),
-            "purchasePrice": len(pendientes["precio"]),
-            "destination": len(pendientes["destino"]),
-            # Los dos que el usuario pidió ver de frente: a cuántos hay que
-            # construirles el historial completo esta primera vez, y cuántos
-            # siguen pudiendo darnos comisión algún día.
-            "census": len(pendientes["censo"]),
-            "resaleWatch": len(pendientes["reventa"]),
-        },
-    }
-
-
-@router.post(
-    "/{team_id}/backfill/run",
-    status_code=200,
-    summary="Descargar un lote de fichas pendientes",
-    dependencies=[
-        Depends(require_team_owner),
-        # Cubo propio y holgado: cada peticion es UN jugador, asi que el
-        # tope real de gasto lo pone el numero de ex-jugadores, no este
-        # limite. Separado de "sync" para que rellenar el pasado no deje
-        # a nadie sin poder sincronizar.
-        Depends(limite("relleno", 1500)),
-    ],
-)
-async def backfill_run(
-    team_id: int,
-    session: AsyncSession = Depends(get_session),
-    user: m.User = Depends(get_current_user),
-    batch: int = Query(
-        BACKFILL_BATCH_SIZE,
-        ge=1,
-        le=MAX_BACKFILL_BATCH,
-        description="Cuántos jugadores atender en este lote",
-    ),
-    since: datetime | None = Query(
-        None,
-        description=(
-            "Momento en que el usuario pulsó. Acota la vigilancia de reventas "
-            "a una sola pasada: quien ya se revisó después de esa marca no "
-            "vuelve a la cola hasta la siguiente pulsación."
-        ),
-    ),
-) -> dict[str, Any]:
-    """Un lote y para. De cada jugador se descarga TODO lo que le falte antes
-    de pasar al siguiente, para que ninguna ficha quede a medias, y se
-    devuelve cuántos quedan para que la pantalla lo enseñe."""
-    team = await session.get(m.Team, team_id)
-    if team is None:
-        raise HTTPException(404, f"team {team_id} not found")
-
-    token_row = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
-    if token_row is None or token_row.status != "active":
-        raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
-
-    client = CHPPClient(
-        decrypt_token(token_row.oauth_token_enc), decrypt_token(token_row.oauth_secret_enc)
-    )
-    try:
-        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(SessionLocal), client)
-        result = await handler.execute_backfill_batch(
-            SyncBackfillBatchCommand(
-                user_id=user.id,
-                team_id=team_id,
-                limite=batch,
-                revisar_desde=since.replace(tzinfo=None) if since else None,
-            )
-        )
-    except CHPPAuthError as exc:
-        token_row.status = "revoked"
-        await session.commit()
-        raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
-    except CHPPDeniedError as exc:
-        # El token sigue vivo: sólo esta llamada estaba vedada. Ni se
-        # marca revocado ni se devuelve 401, que el frontend leería
-        # como sesión caducada y echaría al usuario (2026-09-04).
-        raise HTTPException(403, f"Hattrick no permite esta operación: {exc}") from exc
-    except CHPPUnavailableError as exc:
-        raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
-    except SQLAlchemyError as exc:
-        raise HTTPException(503, MENSAJE_BASE_CORTADA) from exc
-    finally:
-        await client.aclose()
-
-    return {
-        "status": result.status,
-        "done": result.players_done,
-        "pending": result.players_pending,
-        "players": result.players_named,
-        # El mapa del barrido: la barra lo pinta como un recorrido por la cola
-        # --frente por la izquierda, marcas donde cayo el azar-- en vez de
-        # como un porcentaje. Va entero en cada respuesta para que el
-        # navegador solo tenga que pintarlo.
-        "queue": (
-            {
-                "total": result.queue_map.total,
-                "done": result.queue_map.hechas,
-                "front": result.queue_map.frente,
-            }
-            if result.queue_map is not None
-            else None
-        ),
-        # El resumen del barrido, para enseñarlo al parar.
-        "balance": (
-            {
-                "open": result.queue_balance.abiertos,
-                "toCheck": result.queue_balance.por_mirar,
-                "closed": result.queue_balance.cerrados,
-                "closedTotal": result.queue_balance.total_cerrados,
-                "commissions": result.queue_balance.comisiones,
-                "histories": result.queue_balance.historiales,
-            }
-            if result.queue_balance is not None
-            else None
-        ),
-        "errors": result.errors[:5],
     }

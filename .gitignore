@@ -48,3 +48,6 @@ claves-render.txt
 # backend/scripts/migrar_local_a_produccion.py
 migracion-marcas.json
 backend/players_dump.txt
+
+# Intermedio del indexador: docs/INDICE.md es el artefacto, esto es su materia prima.
+docs/indice.json

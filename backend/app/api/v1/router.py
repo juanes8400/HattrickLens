@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     libro,
     matches,
     player_balance,
+    precio_comparable,
     rivals,
     skills,
     sync,
@@ -32,5 +33,6 @@ api_router.include_router(academy.router, tags=["juveniles"])
 api_router.include_router(rivals.router, tags=["scouting de rivales"])
 api_router.include_router(cup.router, tags=["copa"])
 api_router.include_router(player_balance.router, tags=["saldo neto por jugador"])
+api_router.include_router(precio_comparable.router, tags=["precio por comparables"])
 api_router.include_router(uso.router, tags=["uso de la app"])
 api_router.include_router(libro.router, tags=["libro de visitas"])

@@ -1039,7 +1039,6 @@
   "QUÉ PASA CUANDO NO HAY INFORMACIÓN. Sin partidos previos del rival, el factor es 1 y el modelo se comporta exactamente como antes de que esto existiera. Una táctica que Hattrick añadiera mañana tampoco rompería nada: sin factor medido, factor 1.": "COSA SUCCEDE QUANDO NON C'È INFORMAZIONE. Senza partite precedenti dell'avversario, il fattore è 1 e il modello si comporta esattamente come prima che questo esistesse. Una tattica che Hattrick aggiungesse domani non romperebbe nulla: senza fattore misurato, fattore 1.",
   "Que en copa no hay empate": "Che in coppa non c'è pareggio",
   "Querido compañero de equipo": "Amata",
-  "Quien ya tocó techo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Chi ha già toccato il tetto pesa ZERO e non è sulla scala: non è un gradino più basso, semplicemente non conta.",
   "Quién está lesionado": "Chi è infortunato",
   "Quién trabaja para ti y cómo está el ambiente": "Chi lavora per te e com'è il clima",
   "Quién trajo a cada canterano y qué queda por revelarle": "Chi ha portato ogni giovane e cosa resta da rivelargli",
@@ -1615,7 +1614,6 @@
   "posición {} (sin traducir)": "posizione {} (non tradotta)",
   "promesa": "promessa",
   "puesto en": "messo in",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_tope              siempre = 0": "punteggio(a) =  Σ  peso(secchio) · quanti(secchio, a)  ÷ {}\n               secchi\n\nscala con β = {}:\n{}\n    al_tetto              sempre = 0",
   "querido compañero de equipo": "amata",
   "reconecta con Hattrick: no hay un token activo": "ricollegati a Hattrick: non c'è un token attivo",
   "recorta ocasiones a los dos equipos": "taglia occasioni a entrambe le squadre",
@@ -1810,5 +1808,7 @@
   "+0,56 goles": "+0,56 gol",
   "+0,11 goles": "+0,11 gol",
   "{} subió de la posición {} a la {}": "{} è salito dalla posizione {} alla {}",
-  "{} bajó de la posición {} a la {}": "{} è sceso dalla posizione {} alla {}"
+  "{} bajó de la posición {} a la {}": "{} è sceso dalla posizione {} alla {}",
+  "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Chi ha già toccato il tetto pesa ZERO e non è sulla scala: non è un gradino più basso, semplicemente non conta.",
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punteggio(a) =  Σ  peso(secchio) · quanti(secchio, a)  ÷ {}\n               secchi\n\nscala con β = {}:\n{}\n    al_tetto              sempre = 0"
 }

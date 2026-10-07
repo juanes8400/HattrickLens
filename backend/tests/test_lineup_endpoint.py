@@ -16,7 +16,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
-from app.api.v1.endpoints import analysis as analysis_endpoint
+from app.api.v1.endpoints.analysis import alineacion as alineacion_endpoint
 from app.infrastructure.chpp.parsers import parse_players
 from app.infrastructure.db.session import get_session
 from app.main import app
@@ -46,7 +46,11 @@ def _client_with_roster(
     async def no_session() -> AsyncIterator[None]:
         yield None
 
-    monkeypatch.setattr(analysis_endpoint, "roster", fake_roster)
+    # El parche va sobre `alineacion`, no sobre el paquete: `analysis.py` se
+    # partio por funcionalidad y quien llama a `roster` desde la alineacion
+    # tiene su propia referencia, que no se entera de lo que se le haga al
+    # paquete de encima.
+    monkeypatch.setattr(alineacion_endpoint, "roster", fake_roster)
     app.dependency_overrides[get_session] = no_session
     try:
         with TestClient(app) as client:

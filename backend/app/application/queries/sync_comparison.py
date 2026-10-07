@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -403,8 +403,55 @@ def _cuantos_techos(foto: Any) -> int:
     return sum(1 for clave, _, _ in YOUTH_METRICS if getattr(foto, f"{clave}_max") is not None)
 
 
+async def _ascendio_al_primer_equipo(
+    session: AsyncSession, team_id: int, juvenil: m.YouthPlayer
+) -> bool:
+    """¿El canterano que se fue subió al primer equipo, o lo echaste?
+
+    Hattrick no lo dice: cuando un juvenil asciende, simplemente desaparece de
+    la lista de la academia, igual que cuando lo descartas o lo vendes, y su
+    identificador de juvenil no es el de su ficha de senior. No hay ningún
+    campo que los una, ni en `youthplayerlist` ni en los ficheros de jugador.
+
+    Lo que sí hay es el otro lado del movimiento: el mismo día aparece en la
+    plantilla principal un jugador con su nombre y con tu club como club de
+    origen. Se pide que coincidan las tres cosas --nombre, club de origen y
+    fecha-- y se da un margen de dos días, que es lo que puede separar la
+    llegada real de la sincronización que la ve.
+
+    Si no coinciden, NO se afirma nada: la tarjeta dice «salió de la academia»,
+    que es lo único que se sabe de verdad.
+    """
+    if juvenil.left_at is None:
+        return False
+    equipo = await session.get(m.Team, team_id)
+    if equipo is None:
+        return False
+    margen = timedelta(days=2)
+    desde = juvenil.left_at - margen
+    hasta = juvenil.left_at + margen
+    senior = await session.scalar(
+        select(m.Player.id)
+        .join(m.PlayerStint, m.PlayerStint.player_id == m.Player.id)
+        .where(
+            m.Player.team_id == team_id,
+            m.Player.first_name == juvenil.first_name,
+            m.Player.last_name == juvenil.last_name,
+            m.Player.mother_club_team_id == equipo.ht_team_id,
+            m.PlayerStint.arrived_at >= desde,
+            m.PlayerStint.arrived_at <= hasta,
+        )
+        .limit(1)
+    )
+    return senior is not None
+
+
 async def _youth_report(
-    session: AsyncSession, team_id: int, sync_id: int, desde: datetime | None = None
+    session: AsyncSession,
+    team_id: int,
+    sync_id: int,
+    desde: datetime | None = None,
+    desde_este_sync: datetime | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Que se movio en la academia, y QUE SIGNIFICA.
 
@@ -519,24 +566,60 @@ async def _youth_report(
     # 2026-08-30 esto no se decia en ningun sitio: un canterano ascendia o se
     # marchaba y la pantalla de Cambios callaba, que es justo el cambio mas
     # grande que le puede pasar a la cantera en una semana.
+    #
+    # LA VENTANA ES ESTE SYNC, NO «DESDE EL ANTERIOR» (2026-10-04). El corte
+    # era `left_at >= desde`, y `desde` es el ARRANQUE del sync anterior: una
+    # salida que el sync anterior ya contó cae dentro y se volvía a contar.
+    # Visto en vivo: el informe de hoy decía «Dejaron la academia: Alirio
+    # Asprilla · Raúl Gil de Atienza», y Raúl se había ido seis días antes.
+    # `left_at` lo escribe el sync que echa en falta al chico, así que lo de
+    # ESTE informe es lo marcado desde que este sync empezó.
     salidas: list[dict[str, Any]] = []
-    if desde is not None:
+    if desde_este_sync is not None:
         idos = (
             await session.execute(
                 select(m.YouthPlayer).where(
                     m.YouthPlayer.team_id == team_id,
                     m.YouthPlayer.left_at.is_not(None),
-                    m.YouthPlayer.left_at >= desde,
+                    m.YouthPlayer.left_at >= desde_este_sync,
                 )
             )
         ).scalars()
-        salidas = [
-            {
-                "name": f"{j.first_name} {j.last_name}".strip(),
-                "leftAt": j.left_at.isoformat() if j.left_at else None,
-            }
-            for j in idos
-        ]
+        for j in idos:
+            nombre_ido = f"{j.first_name} {j.last_name}".strip()
+            ascendido = await _ascendio_al_primer_equipo(session, team_id, j)
+            salidas.append(
+                {
+                    "name": nombre_ido,
+                    "leftAt": j.left_at.isoformat() if j.left_at else None,
+                    "promoted": ascendido,
+                }
+            )
+            # Y con su propia tarjeta, como cualquier otro cambio de la
+            # academia. La línea de resumen se perdía entre las demás: la
+            # salida de un canterano es el cambio más grande que le puede
+            # pasar a la cantera en una semana y se leía como una nota al pie.
+            filas.append(
+                {
+                    "htYouthPlayerId": j.ht_youth_player_id,
+                    "name": nombre_ido,
+                    "age": "",
+                    "isNew": False,
+                    "changes": [
+                        {
+                            "key": "promoted" if ascendido else "departure",
+                            "label": (
+                                "Ascendió al primer equipo" if ascendido else "Salió de la academia"
+                            ),
+                            "abbreviation": "ASC" if ascendido else "BAJA",
+                            "before": True,
+                            "current": None,
+                            "delta": None,
+                            "direction": "up" if ascendido else "down",
+                        }
+                    ],
+                }
+            )
 
     # Cuanta niebla queda en la academia entera. Es el numero que dice si
     # todavia merece la pena entrenar «Individual» o si ya se puede construir.
@@ -1136,7 +1219,11 @@ async def build_sync_comparison(
         .limit(1)
     )
     youth_rows, youth_summary = await _youth_report(
-        session, team_id, report_sync.id, anterior.started_at if anterior else None
+        session,
+        team_id,
+        report_sync.id,
+        anterior.started_at if anterior else None,
+        desde_este_sync=report_sync.started_at,
     )
     national_matches = await _partidos_de_seleccion(
         session,

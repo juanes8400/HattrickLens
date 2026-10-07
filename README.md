@@ -10,6 +10,13 @@ which eleven to field, and how much money the club will have a year from now.
 
 ## Documentation
 
+**Looking for where something lives in the code? Start with
+[INDICE](docs/INDICE.md).** It is generated from the code itself
+(`python backend/scripts/indice.py`) and gives, for every screen, the exact
+chain of files: page, components, API call, HTTP route, endpoint, application
+layer, domain engines and tests. The design documents below describe intent and
+history, and some of them describe a stack that was never built.
+
 The specification comes first; everything else records what was built and why.
 
 ### Specification

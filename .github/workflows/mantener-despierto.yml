@@ -1,0 +1,80 @@
+# Mantiene el servicio despierto en Render.
+#
+# EL PROBLEMA. El plan gratuito de Render duerme el servicio tras 15 minutos
+# sin tráfico, y la siguiente visita paga el arranque en frío: cerca de un
+# minuto mirando una pantalla en blanco. Como casi siempre la primera visita
+# del día es la del dueño, el arranque en frío se lo come él.
+#
+# LO QUE HACE. Llamar a `/health` cada diez minutos, que es lo más barato que
+# tiene la aplicación: no toca la base de datos ni gasta cuota de Hattrick.
+#
+# LO QUE NO GARANTIZA, y conviene saberlo antes de confiar en ello:
+#
+# · El reloj de GitHub es de "mejor esfuerzo". En horas de mucha carga retrasa
+#   los trabajos programados, a veces diez o quince minutos, y alguno lo salta
+#   entero. Con la ventana de 15 minutos de Render eso significa que de vez en
+#   cuando el servicio se dormirá igual. Para que no se duerma NUNCA hace
+#   falta un vigilante de verdad (cron-job.org, UptimeRobot) o el plan de pago
+#   de Render, que sencillamente no duerme.
+# · GitHub apaga los trabajos programados de un repositorio que pase 60 días
+#   sin actividad. Aquí se commitea a diario, así que no debería pasar.
+#
+# PARA QUE FUNCIONE hacen falta dos cosas, y sin ellas esto no hace nada y lo
+# dice en el registro:
+#
+#   1. La variable `URL_DE_RENDER` del repositorio, con la raíz del servicio.
+#      La barra final da igual, se le quita aquí. Se pone en
+#      Settings > Secrets and variables > Actions
+#      > Variables, o con:  gh variable set URL_DE_RENDER --body "https://..."
+#      Va como variable y no como secreto a propósito: es una URL pública, y
+#      de secreto no se podría leer en el registro para depurar.
+#   2. Que este fichero esté en la rama por defecto. GitHub sólo programa los
+#      trabajos de la rama principal: mientras viva en una rama de trabajo no
+#      se ejecuta nunca.
+
+name: Mantener despierto
+
+on:
+  schedule:
+    # Cada diez minutos. Por debajo de cinco GitHub lo rechaza, y por encima
+    # de diez la ventana de quince de Render se queda sin margen.
+    - cron: "*/10 * * * *"
+  # Para probarlo a mano desde la pestaña Actions sin esperar al reloj.
+  workflow_dispatch:
+
+# Ni un permiso: esto sólo hace una llamada HTTP saliente.
+permissions: {}
+
+concurrency:
+  # Si una llamada se queda esperando un arranque en frío, la siguiente no se
+  # amontona encima.
+  group: mantener-despierto
+  cancel-in-progress: false
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a /health
+        env:
+          RAIZ: ${{ vars.URL_DE_RENDER }}
+        run: |
+          if [ -z "$RAIZ" ]; then
+            echo "Falta la variable URL_DE_RENDER del repositorio."
+            echo "Sin ella no hay nada que despertar; el trabajo no falla por esto."
+            exit 0
+          fi
+          # Sin barra final, venga como venga escrita: con ella la llamada
+          # saldria a //health, que hoy funciona pero es casualidad.
+          RAIZ="${RAIZ%/}"
+          # --max-time 120 porque un arranque en frío de Render ronda el
+          # minuto, y cortar antes marcaría como caída una aplicación que sólo
+          # estaba levantándose, que es justo lo que este trabajo provoca.
+          codigo=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+                        --retry 2 --retry-delay 15 --max-time 120 \
+                        "$RAIZ/health")
+          echo "GET $RAIZ/health -> $codigo"
+          if [ "$codigo" != "200" ]; then
+            echo "La aplicación no contestó 200. Esto sí es un aviso de verdad."
+            exit 1
+          fi

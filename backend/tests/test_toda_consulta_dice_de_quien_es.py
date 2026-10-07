@@ -69,6 +69,9 @@ SIN_SUJETO = {
     "nationalteammatches",
     # El diccionario oficial de terminos de Hattrick en un idioma.
     "translations",
+    # El mercado de transferencias. Se busca en el mercado ENTERO por edad y
+    # habilidades, no en los jugadores de un equipo: no hay a quien nombrar.
+    "transfersearch",
 }
 
 #: Las excepciones, una a una, con su motivo. Se identifican por fichero y
@@ -85,7 +88,7 @@ PERDONADAS: dict[tuple[str, str], str] = {
 #: El AST no puede leerlas, asi que se revisan a mano y se anotan aqui. Cada
 #: una tiene que dejar claro EN SU PROPIO CODIGO de quien es lo que pide.
 CON_PARAMETROS_SUELTOS: dict[str, str] = {
-    "application/commands/sync_team.py": (
+    "application/commands/sync_team/__init__.py": (
         "El bucle de la sincronizacion. Arranca con `{'teamID': ht_team_id}` "
         "para todos, y los tres ficheros que se piden por otra llave (las dos "
         "de liga y las dos de cantera) lo sustituyen ahi mismo."

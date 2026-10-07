@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { idiomaPreferido, OFRECIDOS } from ".";
+import i18n, { idiomaPreferido, OFRECIDOS, type Idioma } from ".";
+import { number, ordinal } from "../hooks/useFormat";
 import appEn from "./en.json";
 import appIt from "./it.json";
 import appDe from "./de.json";
+import appPl from "./pl.json";
 import textosEn from "./textos/en.json";
 import textosIt from "./textos/it.json";
 import textosDe from "./textos/de.json";
+import textosPl from "./textos/pl.json";
 
 describe("idiomaPreferido", () => {
   it("respeta el español del navegador", () => {
@@ -85,6 +88,7 @@ describe("cada idioma ofrecido está completo", () => {
   const DICCIONARIOS: Record<string, [unknown, unknown]> = {
     it: [appIt, textosIt],
     de: [appDe, textosDe],
+    pl: [appPl, textosPl],
   };
 
   // El español no entra: es el idioma de origen, y su diccionario está vacío
@@ -111,6 +115,59 @@ describe("cada idioma ofrecido está completo", () => {
       expect(
         Object.keys(textosEn).filter((clave) => !suyos.has(clave)),
       ).toEqual([]);
+    });
+  }
+});
+
+/**
+ * Un idioma OFRECIDO también escribe sus números como los escribe él.
+ *
+ * 2026-10-03, al entrar el polaco. `MILES` y `ORDINAL` en
+ * `src/hooks/useFormat.ts` son tablas con una entrada por idioma a propósito,
+ * pero nada obligaba a rellenarlas: un idioma nuevo sin entrada cae al
+ * defecto español --«1.234.567» y «3º»-- y la pantalla no falla, sólo queda
+ * mal escrita. El polaco separa los miles con un espacio duro y pone el
+ * ordinal con punto, así que aquí se exige, idioma a idioma, lo que cada uno
+ * tiene que devolver.
+ */
+describe("cada idioma ofrecido escribe sus cifras", () => {
+  const ESPERADO: Record<Idioma, { miles: string; tercero: string }> = {
+    es: { miles: "1.234.567", tercero: "3º" },
+    it: { miles: "1.234.567", tercero: "3º" },
+    en: { miles: "1,234,567", tercero: "3rd" },
+    de: { miles: "1.234.567", tercero: "3." },
+    pl: { miles: "1\u00a0234\u00a0567", tercero: "3." },
+  };
+
+  it("se comprueban todos los que se ofrecen, no una lista escrita a mano", () => {
+    expect(OFRECIDOS.filter((codigo) => !(codigo in ESPERADO))).toEqual([]);
+  });
+
+  const html = { documentElement: { lang: "" } };
+
+  beforeAll(() => {
+    (globalThis as { document?: unknown }).document = html;
+  });
+
+  afterAll(() => {
+    delete (globalThis as { document?: unknown }).document;
+  });
+
+  for (const codigo of OFRECIDOS) {
+    it(`${codigo}: miles y ordinal`, async () => {
+      const previo = i18n.language;
+      try {
+        await i18n.changeLanguage(codigo);
+        expect(number(1234567)).toBe(ESPERADO[codigo].miles);
+        expect(ordinal(3)).toBe(ESPERADO[codigo].tercero);
+        // Y el <html> declara ese idioma: un lector de pantalla lee con la
+        // fonética que la página declare, y el polaco con acento español no
+        // se entiende. Estas pruebas corren sin DOM, así que el documento se
+        // finge: lo que se comprueba es que el idioma llegue al atributo.
+        expect(html.documentElement.lang).toBe(codigo);
+      } finally {
+        await i18n.changeLanguage(previo);
+      }
     });
   }
 });

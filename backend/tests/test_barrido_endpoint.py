@@ -82,14 +82,14 @@ def cliente(monkeypatch: pytest.MonkeyPatch):
             return await s.get(m.User, user_id)
 
     monkeypatch.setattr(
-        "app.api.v1.endpoints.teams.CHPPClient", CHPPMudo, raising=True
+        "app.api.v1.endpoints.teams.relleno.CHPPClient", CHPPMudo, raising=True
     )
     # IMPRESCINDIBLE: la ruta no usa la sesion inyectada para el trabajo largo,
     # construye el manejador con `SessionLocal` global. Sin sustituirlo, esta
     # prueba escribe en la base de desarrollo de verdad --paso: marco siete
     # ex-jugadores como revisados sin haberlos revisado--.
     monkeypatch.setattr(
-        "app.api.v1.endpoints.teams.SessionLocal", factory, raising=True
+        "app.api.v1.endpoints.teams.relleno.SessionLocal", factory, raising=True
     )
     app.dependency_overrides[get_session] = sesion
     app.dependency_overrides[get_current_user] = quien_soy
