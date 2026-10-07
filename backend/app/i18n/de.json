@@ -1810,5 +1810,6 @@
   "{} subió de la posición {} a la {}": "{} stieg von Platz {} auf {}",
   "{} bajó de la posición {} a la {}": "{} fiel von Platz {} auf {}",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Wer schon die Obergrenze erreicht hat, wiegt NULL und steht nicht auf der Leiter: es ist keine niedrigere Stufe, er zählt schlicht nicht.",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "Wert(h) =  Σ  Gewicht(Eimer) · wie viele(Eimer, h)  ÷ {}\n           Eimer\n\nLeiter mit β = {}:\n{}\n    am_Limit              immer = 0"
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "Wert(h) =  Σ  Gewicht(Eimer) · wie viele(Eimer, h)  ÷ {}\n           Eimer\n\nLeiter mit β = {}:\n{}\n    am_Limit              immer = 0",
+  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): deine Aufstellung hat {} Spieler und es werden elf gebraucht, daher kann Hattrick die Bewertungen nicht berechnen"
 }

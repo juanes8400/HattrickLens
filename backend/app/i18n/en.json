@@ -1810,5 +1810,6 @@
   "{} subió de la posición {} a la {}": "{} went up from position {} to {}",
   "{} bajó de la posición {} a la {}": "{} went down from position {} to {}",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Whoever has already hit the ceiling weighs ZERO and isn't on the ladder: it's not a lower rung, it just doesn't count.",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "score(h) =  Σ  weight(bucket) · count(bucket, h)  ÷ {}\n            buckets\n\nladder with β = {}:\n{}\n    at_ceiling           always = 0"
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "score(h) =  Σ  weight(bucket) · count(bucket, h)  ÷ {}\n            buckets\n\nladder with β = {}:\n{}\n    at_ceiling           always = 0",
+  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): your lineup has {} players and eleven are needed, so Hattrick cannot calculate the ratings"
 }
