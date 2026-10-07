@@ -212,7 +212,9 @@ export function ProgressBar({
     redWidth = Math.min(redPctRaw, Math.max(0, 100 - bluePctFull));
     redLeft = bluePctFull;
   }
-  const segmentGap = blueWidth > 0 && redWidth > 0 ? 2 : 0;
+  // Lo que ocupa la barra entera, azul y rojo juntos. El azul se pinta de
+  // ese largo y hace de base; el rojo se le monta encima en su extremo.
+  const relleno = blueWidth + redWidth;
 
   return (
     <div title={tooltip} className="cursor-help">
@@ -225,24 +227,30 @@ export function ProgressBar({
           {valueLabel}
         </span>
       </div>
-      {/* Cada tramo lleva sus propias esquinas y hay 2px de aire entre ellos.
-          Antes ninguno tenía radio propio: se apoyaban en el recorte de la
-          pista, así que el rojo salía como un rectángulo de bordes rectos
-          pegado a hueso contra el azul, y sólo se redondeaba por la derecha
-          si llegaba justo al 100%. El aire sólo aparece cuando hay los dos
-          tramos, si no, dejaría un hueco contra el borde de la pista. */}
+      {/* UN SOLO TRAZO, no dos pastillas sueltas. Hasta el 2026-10-06 cada
+          tramo era `rounded-full` con 2px de aire en medio: el azul acababa
+          en redondo y el rojo volvía a empezar en redondo, así que la barra
+          se leía partida («no conecta», lo vio el usuario en Resistencia).
+
+          Ahora el azul se pinta del largo de los dos y el rojo se le MONTA
+          encima en su extremo. Superponerlos, en vez de ponerlos a tope,
+          quita de raíz la costura de medio píxel que deja el redondeo de dos
+          porcentajes contiguos. Por eso el rojo va recto por la izquierda,
+          donde continúa al azul, y redondo por la derecha, donde acaba la
+          barra; si no hay azul delante, se redondea también por la izquierda
+          para no dejar ver el casquete azul de debajo. */}
       <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
         <div
           className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)]"
-          style={{ width: `${blueWidth}%` }}
+          style={{ width: `${relleno}%` }}
         />
         {redWidth > 0 && (
           <div
-            className="absolute inset-y-0 rounded-full bg-[var(--danger)]"
-            style={{
-              left: `calc(${redLeft}% + ${segmentGap}px)`,
-              width: `max(0px, calc(${redWidth}% - ${segmentGap}px))`,
-            }}
+            className={clsx(
+              "absolute inset-y-0 rounded-r-full bg-[var(--danger)]",
+              blueWidth <= 0 && "rounded-l-full",
+            )}
+            style={{ left: `${redLeft}%`, width: `${redWidth}%` }}
           />
         )}
       </div>

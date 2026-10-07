@@ -1970,7 +1970,8 @@
   "hace {{v0}} semanas": "{{v0}} weeks ago",
   "Sin datos todavía.": "No data yet.",
   "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "This says what was paid for others, not what you would be given: it takes no account of his form, his experience, his specialty or the buyer's mother club bonus.",
-  "Transferencias de este jugador": "This player's transfers",
   "Comparador de transferencias": "Transfer comparator",
-  "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.": "One of them is an auction that is still open, so it counts with the current bid. A bid falls short, and the figure will rise once it closes."
+  "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.": "One of them is an auction that is still open, so it counts with the current bid. A bid falls short, and the figure will rise once it closes.",
+  "Vista de jugador": "Player view",
+  "Secciones de este jugador": "Sections for this player"
 }

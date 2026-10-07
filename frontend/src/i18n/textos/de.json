@@ -1970,7 +1970,8 @@
   "hace {{v0}} semanas": "vor {{v0}} Wochen",
   "Sin datos todavía.": "Noch keine Daten.",
   "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.": "Das sagt, was für andere gezahlt wurde, nicht was du bekommen würdest: Form, Erfahrung, Spezialität und der Heimatvereinsbonus des Käufers bleiben außen vor.",
-  "Transferencias de este jugador": "Transfers dieses Spielers",
   "Comparador de transferencias": "Transfer-Vergleich",
-  "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.": "Eine davon ist eine noch laufende Auktion und zählt daher mit dem aktuellen Gebot. Ein Gebot bleibt darunter, und die Zahl steigt, sobald sie endet."
+  "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.": "Eine davon ist eine noch laufende Auktion und zählt daher mit dem aktuellen Gebot. Ein Gebot bleibt darunter, und die Zahl steigt, sobald sie endet.",
+  "Vista de jugador": "Spieleransicht",
+  "Secciones de este jugador": "Bereiche dieses Spielers"
 }
