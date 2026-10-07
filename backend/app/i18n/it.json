@@ -1810,5 +1810,6 @@
   "{} subió de la posición {} a la {}": "{} è salito dalla posizione {} alla {}",
   "{} bajó de la posición {} a la {}": "{} è sceso dalla posizione {} alla {}",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Chi ha già toccato il tetto pesa ZERO e non è sulla scala: non è un gradino più basso, semplicemente non conta.",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punteggio(a) =  Σ  peso(secchio) · quanti(secchio, a)  ÷ {}\n               secchi\n\nscala con β = {}:\n{}\n    al_tetto              sempre = 0"
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punteggio(a) =  Σ  peso(secchio) · quanti(secchio, a)  ÷ {}\n               secchi\n\nscala con β = {}:\n{}\n    al_tetto              sempre = 0",
+  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): la tua formazione ha {} giocatori e ne servono undici, quindi Hattrick non può calcolare i rating"
 }

@@ -24,6 +24,39 @@ from app.domain.value_objects.ht_constants import (
     is_competitive_match_type,
 )
 
+#: Los puestos del once en `MatchRoleID`: portero, defensas, medios y
+#: delanteros. Del 114 en adelante empieza el banquillo.
+ROLES_DEL_ONCE = range(100, 114)
+
+#: Cuántos tiene que haber para que Hattrick calcule los ratings.
+TITULARES = 11
+
+
+def _cubiertos_en_el_campo(posiciones: object) -> int:
+    """Cuántos puestos del once traen jugador.
+
+    Hattrick OMITE los vacíos en vez de mandarlos con el jugador a cero, así
+    que un hueco sólo se ve contando: la alineación llega con menos de once
+    entradas y sin decir cuál falta. Por eso el aviso habla del número y no
+    del puesto: decir «falta el mediocentro izquierdo» sería adivinar, porque
+    los identificadores que no aparecen pueden ser los que esa formación no
+    usa (2026-10-07).
+    """
+    if not isinstance(posiciones, list):
+        return 0
+    cubiertos = 0
+    for puesto in posiciones:
+        if not isinstance(puesto, dict):
+            continue
+        try:
+            rol = int(puesto.get("role_id") or 0)
+            jugador = int(puesto.get("ht_player_id") or 0)
+        except (TypeError, ValueError):
+            continue
+        if rol in ROLES_DEL_ONCE and jugador > 0:
+            cubiertos += 1
+    return cubiertos
+
 
 class AlineacionMixin(BaseDeSync):
     """Alineaciones, las jugadas y las ordenes del proximo."""
@@ -320,9 +353,25 @@ class AlineacionMixin(BaseDeSync):
                         # tocan, pero el fallo se registra para que la vista
                         # pueda decir "no hay predicción" en vez de enseñar los
                         # viejos como si fueran los de este once.
+                        #
+                        # Y SE DICE EN CRISTIANO CUANDO SE PUEDE. Con un once
+                        # incompleto Hattrick contesta «Sequence contains no
+                        # matching element», que es una excepción de .NET
+                        # escapándose de su servidor: no dice qué pasa ni qué
+                        # hacer. Las órdenes ya las tenemos delante, así que
+                        # se cuentan los puestos cubiertos y se explica
+                        # (2026-10-07, visto por el usuario en un amistoso con
+                        # diez jugadores en el campo).
+                        cubiertos = _cubiertos_en_el_campo(payload.get("positions"))
+                        if cubiertos < TITULARES:
+                            detalle = (
+                                f"tu alineación tiene {cubiertos} jugadores y hacen falta "
+                                f"once, así que Hattrick no puede calcular los ratings"
+                            )
+                        else:
+                            detalle = str(predicted_payload["chpp_error"])
                         result.errors.append(
-                            f"{_nombre_legible('matchorders')} ({match.ht_match_id}): "
-                            f"{predicted_payload['chpp_error']}"
+                            f"{_nombre_legible('matchorders')} ({match.ht_match_id}): {detalle}"
                         )
                         result.status = "partial"
                 except Exception as exc:  # noqa: BLE001, las órdenes siguen siendo útiles

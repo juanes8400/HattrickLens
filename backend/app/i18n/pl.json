@@ -1810,5 +1810,6 @@
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_gospodarz = atak_i · obrona_j · średnia_ligi · przewaga_u_siebie\nλ_gość      = atak_j · obrona_i · średnia_ligi\n\nsiła_i  = (bramki_i + K · średnia) ÷ (mecze_i + K)\n\nP(miejsce) ≈ Monte Carlo po brakujących kolejkach",
   "← el que se usa": "← ten, który jest używany",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Kto osiągnął już pułap, waży ZERO i nie stoi na drabince: to nie niższy szczebel, to zupełny brak liczenia się.",
-  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punktacja(h) =  Σ  waga(kubełek) · ile(kubełek, h)  ÷ {}\n             kubełki\n\ndrabina z β = {}:\n{}\n    na_szczycie          zawsze = 0"
+  "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punktacja(h) =  Σ  waga(kubełek) · ile(kubełek, h)  ÷ {}\n             kubełki\n\ndrabina z β = {}:\n{}\n    na_szczycie          zawsze = 0",
+  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): twój skład ma {} zawodników, a potrzeba jedenastu, więc Hattrick nie może obliczyć ocen"
 }
