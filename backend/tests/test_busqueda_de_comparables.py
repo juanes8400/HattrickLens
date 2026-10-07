@@ -73,6 +73,7 @@ def _venta(ident: int, *, semanas: float = 0) -> Guardado:
         nombre=f"Viejo {ident}",
         precio=1_000_000,
         firme=True,
+        puja=1_000_000,
         visto_el=AHORA - timedelta(weeks=semanas),
         edad=EDAD,
         primaria=tres[0],

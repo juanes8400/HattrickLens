@@ -1668,6 +1668,10 @@ class MarketSale(Base):
     price: Mapped[int] = mapped_column(BigInteger, default=0)
     #: Falso mientras `price` sea una puja en curso.
     is_final: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: La puja con la que entró, que NO se pisa al resolver. `price` pasa a
+    #: ser el precio de cierre; ésta se queda, y la diferencia entre las dos
+    #: es cuánto se quedaba corta la puja.
+    bid_price: Mapped[int] = mapped_column(BigInteger, default=0)
     #: Cuándo cierra la subasta. Pasada esa fecha se puede preguntar el precio.
     deadline: Mapped[datetime | None] = mapped_column(UtcDateTime())
     #: Cuándo se encontró. Gobierna la caducidad de siete semanas.

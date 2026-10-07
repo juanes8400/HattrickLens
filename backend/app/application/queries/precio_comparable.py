@@ -74,9 +74,15 @@ class FilaDeComparable:
 
     ht_player_id: int
     nombre: str
+    #: El precio que cuenta: el de cierre si ya se resolvio, la puja si no.
     precio: int
+    #: La puja con la que entro, siempre. Junto a `precio` y `firme` deja
+    #: ver cuanto se quedo corta.
+    puja: int
     peso: int
     firme: bool
+    #: Si entra en el numero. Falso solo para un provisional abandonado.
+    cuenta: bool
     viejo: bool
     edad: int
     perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
@@ -174,6 +180,8 @@ async def precio_de(
                 ht_player_id=c.venta.ht_player_id,
                 nombre=c.venta.nombre,
                 precio=convertido(c.venta.precio),
+                puja=convertido(c.venta.puja),
+                cuenta=c.cuenta,
                 peso=c.peso,
                 firme=c.venta.firme,
                 viejo=c.viejo,

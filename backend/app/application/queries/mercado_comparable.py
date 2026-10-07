@@ -157,6 +157,7 @@ def _provisional(candidato: Candidato, ahora: datetime) -> Guardado:
         nombre=candidato.nombre,
         precio=candidato.puja,
         firme=False,
+        puja=candidato.puja,
         visto_el=ahora,
         edad=candidato.edad,
         primaria=candidato.primaria,

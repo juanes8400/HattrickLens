@@ -20,7 +20,11 @@ from sqlalchemy.pool import StaticPool
 
 from app.application.commands.paso_del_mercado import correr_el_paso_semanal
 from app.application.queries.precio_comparable import precio_de
-from app.domain.engines.mercado_comparable import OBJETIVO, Ventana
+from app.domain.engines.mercado_comparable import (
+    OBJETIVO,
+    REINTENTOS_DE_RESOLUCION,
+    Ventana,
+)
 from app.infrastructure.db import models as m
 
 HT_TEAM = 537758
@@ -283,3 +287,47 @@ async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:
 async def test_un_jugador_de_otro_equipo_no_tiene_precio(base) -> None:
     session, equipo = base
     assert await precio_de(session, equipo.id, 123456, AHORA) is None
+
+
+async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
+    """Medido contra Hattrick el 2026-10-07: con puja HAY venta, hay traspaso
+    y el plazo casa --Guido Bernacki entro con 4.990.000 y plazo 11:01:13Z y
+    cerro en 5.090.000 con plazo 11:01:00Z--. O sea que el mercado no deja a
+    nadie colgado.
+
+    Lo que si lo dejaba colgado era esto: hasta ese dia un fallo de red
+    gastaba intento igual que un «pregunte y no estaba», y bastaban dos
+    seguidos para abandonar una venta que si existia. Los intentos miden lo
+    que sabemos de la venta; una llamada que no llego no sabe nada de ella.
+    """
+    session, equipo = base
+    await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900, puja=65_000_000)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+
+    async def se_cae(ht_player_id: int) -> dict[str, Any]:
+        raise RuntimeError("CHPP no contesta")
+
+    despues = AHORA + timedelta(days=2)
+    for _ in range(REINTENTOS_DE_RESOLUCION + 3):
+        paso = await correr_el_paso_semanal(
+            session, equipo, buscar=_MercadoFalso(), historial_de=se_cae, ahora=despues
+        )
+        assert paso.resueltas == ()
+
+    fila = (await session.execute(select(m.MarketSale))).scalar_one()
+    assert fila.resolve_attempts == 0, "un fallo de transporte no es un intento"
+    assert fila.is_final is False
+
+    # Y en cuanto CHPP vuelve, se resuelve: no se habia perdido nada.
+    async def historial(ht_player_id: int) -> dict[str, Any]:
+        return {"transfers": [{"deadline": PLAZO_HT, "price": 77_720_000}]}
+
+    paso = await correr_el_paso_semanal(
+        session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
+    )
+    assert [r.precio for r in paso.resueltas] == [77_720_000]

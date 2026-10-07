@@ -82,10 +82,18 @@ MINIMO_PARA_BAJAR_A_SIN_PUJA = 2
 #: demasiado pronto gasta una llamada para no encontrar nada.
 MARGEN_TRAS_EL_PLAZO = timedelta(hours=2)
 
-#: Cuántas veces se reintenta una resolución que no encontró la venta. Con
-#: puja la venta está garantizada, así que no encontrarla es raro y casi
-#: siempre se arregla esperando; insistir más sería gastar llamadas en balde.
-REINTENTOS_DE_RESOLUCION = 1
+#: Cuántas veces se reintenta una resolución que no encontró la venta.
+#:
+#: Eran dos intentos hasta el 2026-10-07, con el argumento de que insistir
+#: sería gastar llamadas en balde. El argumento estaba del revés: con puja
+#: la venta está GARANTIZADA, así que no encontrarla no significa que no
+#: exista, significa que todavía no la hemos visto. Insistir no gasta en
+#: balde, espera a que Hattrick la registre.
+#:
+#: Comprobado ese día con Guido Bernacki: entró con 4.990.000 de puja y
+#: plazo 11:01:13Z, cerró, y el traspaso apareció con plazo 11:01:00Z
+#: --trece segundos-- y precio 5.090.000.
+REINTENTOS_DE_RESOLUCION = 5
 
 
 class Perfilado(Protocol):
@@ -220,6 +228,9 @@ class Guardado:
     nombre: str
     precio: int
     firme: bool
+    #: La puja que vimos al encontrarla, que NO se pisa al resolver: es lo
+    #: que permite enseñar el salto de la puja al precio de verdad.
+    puja: int
     visto_el: datetime
     edad: int
     primaria: Rasgo
@@ -232,6 +243,9 @@ class Guardado:
     tsi: int = 0
     #: Su pais de nacimiento, para la bandera.
     pais: int = 0
+    #: Cuántas veces se preguntó por su precio sin encontrarlo. Sólo cuenta
+    #: el «pregunté y no estaba», no el «no pude preguntar».
+    intentos: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,6 +256,12 @@ class Comparable:
     peso: int
     #: Si ya cumplió su vida y sólo está ahí porque no hay nada más fresco.
     viejo: bool
+    #: Si entra en el número. Falso sólo para un provisional al que se le
+    #: agotaron los intentos de resolución: su precio es una puja que ya no
+    #: va a corregirse, así que se sigue enseñando pero no se promedia.
+    #: Con los reintentos de ahora esto no debería saltar nunca; está para
+    #: que, si salta, no se quede un número bajo contando en silencio.
+    cuenta: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -489,7 +509,14 @@ def comparables_de(
         peso = peso_de(venta, objetivo)
         if peso is None:
             continue
-        medidos.append(Comparable(venta=venta, peso=peso, viejo=reemplazable(venta, ahora)))
+        medidos.append(
+            Comparable(
+                venta=venta,
+                peso=peso,
+                viejo=reemplazable(venta, ahora),
+                cuenta=cuenta_para_el_numero(venta),
+            )
+        )
     medidos.sort(
         key=lambda c: (
             -c.peso,
@@ -498,10 +525,27 @@ def comparables_de(
             0 if c.venta.especialidad == objetivo.especialidad else 1,
         )
     )
-    if len(medidos) <= OBJETIVO:
-        return tuple(medidos)
-    corte = medidos[OBJETIVO - 1].peso
-    return tuple(c for c in medidos if c.peso >= corte)
+    # La selección se hace SÓLO entre las que cuentan, para que una
+    # abandonada no le quite el sitio a una buena ni engañe al recorrido
+    # haciéndole creer que ya tiene bastantes. Las que no cuentan se
+    # añaden al final: siguen enseñándose, marcadas.
+    cuentan = [c for c in medidos if c.cuenta]
+    sobran = [c for c in medidos if not c.cuenta]
+    if len(cuentan) > OBJETIVO:
+        corte = cuentan[OBJETIVO - 1].peso
+        cuentan = [c for c in cuentan if c.peso >= corte]
+    return (*cuentan, *sobran)
+
+
+def cuenta_para_el_numero(venta: Guardado) -> bool:
+    """Si esta venta puede entrar en la media.
+
+    Una venta cerrada siempre cuenta. Un provisional cuenta mientras le
+    queden intentos de resolución: su puja es un suelo que todavía va a
+    corregirse. Cuando se le agotan, su precio se queda congelado en una
+    puja que sabemos corta y ya no se promedia.
+    """
+    return venta.firme or venta.intentos <= REINTENTOS_DE_RESOLUCION
 
 
 def estimar(comparables: Sequence[Comparable]) -> Estimacion:
@@ -510,7 +554,10 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     Con menos de `OBJETIVO` no hay número, pero sí lista: la pantalla tiene
     que poder enseñar lo que hay y decir que todavía no basta.
     """
-    elegidos = tuple(comparables)
+    # `comparables` lleva TODAS, para que la pantalla pueda enseñarlas; el
+    # numero se hace solo con las que cuentan.
+    todas = tuple(comparables)
+    elegidos = tuple(c for c in todas if c.cuenta)
     if len(elegidos) < OBJETIVO:
         return Estimacion(
             media=None,
@@ -518,7 +565,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
             n=len(elegidos),
             peso_minimo=min((c.peso for c in elegidos), default=0),
             provisionales=sum(1 for c in elegidos if not c.venta.firme),
-            comparables=elegidos,
+            comparables=todas,
         )
     denominador = sum(c.peso for c in elegidos)
     numerador = sum(c.peso * c.venta.precio for c in elegidos)
@@ -529,7 +576,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
         n=len(elegidos),
         peso_minimo=min(c.peso for c in elegidos),
         provisionales=sum(1 for c in elegidos if not c.venta.firme),
-        comparables=elegidos,
+        comparables=todas,
     )
 
 
@@ -645,10 +692,15 @@ def hay_que_buscar(comparables: Sequence[Comparable]) -> bool:
     No lo hay cuando ya tiene sus seis y ninguno está ahí de prestado: gastar
     llamadas en reemplazar lo que no caducó sería tirar cuota de la
     aplicación entera.
+
+    Se miran sólo las que cuentan. Una abandonada no es un dato, es un hueco
+    con nombre, y dejar que ocupe plaza impediría salir a buscar lo que
+    de verdad falta.
     """
-    if len(comparables) < OBJETIVO:
+    utiles = [c for c in comparables if c.cuenta]
+    if len(utiles) < OBJETIVO:
         return True
-    return any(c.viejo for c in comparables)
+    return any(c.viejo for c in utiles)
 
 
 def _franja(rasgo: Rasgo, abajo: int, arriba: int) -> Franja:

@@ -23,6 +23,7 @@ una.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -43,6 +44,8 @@ from app.application.commands.mercado_comparable import (
 from app.application.queries.mercado_comparable import correr_el_turno
 from app.domain.engines.mercado_comparable import objetivo_de
 from app.infrastructure.db import models as m
+
+_log = logging.getLogger(__name__)
 
 #: Las habilidades que hay que leer del jugador propio. Las ocho, aunque sólo
 #: seis cuenten: `terna` se encarga de descartar resistencia y balón parado, y
@@ -149,13 +152,26 @@ async def _resolver(
     Un fallo al resolver NO tumba el paso: la venta se queda con su puja y se
     reintenta a la siguiente. Perder un precio real es una lástima; perder la
     búsqueda entera por ello sería peor.
+
+    Y NO SE GASTA INTENTO CUANDO NO SE PUDO PREGUNTAR (2026-10-07). Hasta ese
+    día un fallo de red o de cuota contaba igual que un «pregunté y no
+    estaba», y con dos intentos de presupuesto bastaba con que CHPP fallara
+    dos veces seguidas para abandonar una venta que sí existía y cuyo precio
+    sí estaba publicado. Los intentos miden lo que sabemos de la venta; una
+    llamada que no llegó no sabe nada de ella.
     """
     hechas: list[Resolucion] = []
     for fila in await pendientes_de_resolver(session, equipo.id, ahora):
         try:
             historial = await historial_de(fila.ht_player_id)
         except Exception:  # noqa: BLE001
-            fila.resolve_attempts += 1
+            # Se registra porque ya no deja ninguna otra huella: desde que
+            # no gasta intento, un CHPP caído sería invisible.
+            _log.warning(
+                "no se pudo preguntar el precio de %s; se reintenta",
+                fila.ht_player_id,
+                exc_info=True,
+            )
             continue
         hechas.append(aplicar_resolucion(fila, historial))
     if hechas:

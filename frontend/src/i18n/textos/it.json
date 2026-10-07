@@ -1982,5 +1982,8 @@
   "Ventas reales de jugadores con las mismas tres habilidades más altas, en el mismo orden, y una edad parecida. Cuanto más haya que abrir la búsqueda para encontrarlos, menos pesa cada uno.": "Vendite reali di giocatori con le stesse tre abilità più alte, nello stesso ordine, e un'età simile. Più la ricerca ha dovuto allargarsi per trovarli, meno pesa ciascuno.",
   "El promedio de lo que costaron, pero pesando a cada uno por lo que se parece: un gemelo cuenta el doble que un primo lejano. Sube cuando entra una venta cara de alguien muy parecido.": "La media di quanto sono costati, pesando ognuno per quanto somiglia: un gemello conta il doppio di un cugino lontano. Sale quando entra una vendita cara di qualcuno molto simile.",
   "El precio que parte la lista por la mitad, contando también el parecido. Si la media y la mediana se separan mucho, es que una sola venta muy cara o muy barata está tirando del promedio.": "Il prezzo che divide a metà la lista, contando anche la somiglianza. Se media e mediana si allontanano molto, è una sola vendita molto cara o molto economica a tirare la media.",
-  "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.": "I due estremi della lista, senza pesi: il più economico e il più caro. Dice quanto è ampio il mercato per questo profilo."
+  "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.": "I due estremi della lista, senza pesi: il più economico e il più caro. Dice quanto è ampio il mercato per questo profilo.",
+  "Puja detectada": "Offerta rilevata",
+  "sin cerrar": "non ancora chiusa",
+  "no se pudo confirmar": "non si è potuta confermare"
 }

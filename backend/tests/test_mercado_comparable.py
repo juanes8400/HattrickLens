@@ -23,6 +23,7 @@ from app.domain.engines.mercado_comparable import (
     GRUPOS,
     OBJETIVO,
     ORDEN_DE_DESEMPATE,
+    REINTENTOS_DE_RESOLUCION,
     TERCIARIA_ABAJO,
     TERCIARIA_ARRIBA,
     VIDA,
@@ -31,6 +32,7 @@ from app.domain.engines.mercado_comparable import (
     candidato_de,
     comparables_de,
     cosecha,
+    cuenta_para_el_numero,
     estimar,
     frontera_semanal,
     hay_que_buscar,
@@ -98,6 +100,8 @@ def _guardado(
     precio: int = 1_000_000,
     semanas: float = 0,
     firme: bool = True,
+    puja: int | None = None,
+    intentos: int = 0,
     especialidad: int = 0,
     edad: int = EDAD,
     **niveles: int,
@@ -110,12 +114,14 @@ def _guardado(
         nombre=f"Comparable {ident}",
         precio=precio,
         firme=firme,
+        puja=puja if puja is not None else precio,
         visto_el=AHORA - timedelta(weeks=semanas),
         edad=edad,
         primaria=tres[0],
         secundaria=tres[1],
         terciaria=tres[2],
         especialidad=especialidad,
+        intentos=intentos,
     )
 
 
@@ -594,3 +600,70 @@ def test_el_nombre_de_la_terciaria_se_comprueba_por_su_cuenta() -> None:
     otro = _candidato(scoring=18, passing=13, winger=7)
     assert otro.terciaria.habilidad == "winger"
     assert peso_de(otro, _objetivo()) is None
+
+
+# ---------------------------------------------------------------------------
+# El provisional abandonado
+#
+# Con puja hay venta: comprobado contra Hattrick el 2026-10-07 con Guido
+# Bernacki, que entro con 4.990.000 de puja y plazo 11:01:13Z y cerro en
+# 5.090.000 con plazo 11:01:00Z, trece segundos de desfase. O sea que el
+# mercado no deja a nadie colgado. Lo que si podia dejarlo colgado era
+# nuestro presupuesto de reintentos, y por eso existe esta red.
+# ---------------------------------------------------------------------------
+
+
+def test_un_provisional_con_intentos_de_sobra_sigue_contando() -> None:
+    """Mientras le queden intentos su puja es un suelo que va a corregirse."""
+    venta = _guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)
+    assert cuenta_para_el_numero(venta) is True
+
+
+def test_un_provisional_sin_intentos_deja_de_contar() -> None:
+    """Agotados los intentos, su precio se queda congelado en una puja que
+    sabemos corta: se enseña, pero no se promedia."""
+    venta = _guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
+    assert cuenta_para_el_numero(venta) is False
+
+
+def test_una_venta_cerrada_cuenta_aunque_fallaran_los_intentos() -> None:
+    """Los intentos solo hablan de la resolucion; si ya se resolvio, sobran."""
+    venta = _guardado(1, firme=True, intentos=99)
+    assert cuenta_para_el_numero(venta) is True
+
+
+def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
+    """Las seis buenas valen 1.000.000; la abandonada, 10. Si entrara en la
+    media la hundiria, y la media tiene que seguir siendo 1.000.000."""
+    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
+    tirada = _guardado(
+        99, precio=10, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1
+    )
+    medidos = _medidos(*buenas, tirada)
+
+    estimacion = estimar(medidos)
+    assert estimacion.media == 1_000_000
+    assert estimacion.n == 6
+    # Pero sigue en la lista, para que no desaparezca sin explicacion.
+    assert 99 in [c.venta.ht_player_id for c in estimacion.comparables]
+    assert [c.cuenta for c in estimacion.comparables if c.venta.ht_player_id == 99] == [False]
+
+
+def test_el_abandonado_no_le_quita_el_sitio_a_una_buena() -> None:
+    """Con seis buenas y una abandonada, las seis que cuentan son las buenas."""
+    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
+    tirada = _guardado(
+        99, precio=9_000_000, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1
+    )
+    medidos = _medidos(*buenas, tirada)
+    assert sorted(c.venta.ht_player_id for c in medidos if c.cuenta) == [1, 2, 3, 4, 5, 6]
+
+
+def test_con_un_abandonado_se_vuelve_a_salir_a_buscar() -> None:
+    """Cinco buenas y una abandonada no son seis: la abandonada es un hueco
+    con nombre, y dejarla ocupar plaza impediria buscar lo que falta."""
+    cinco = [_guardado(i) for i in range(1, 6)]
+    tirada = _guardado(99, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
+    assert hay_que_buscar(_medidos(*cinco, tirada)) is True
+    # Y con la sexta de verdad, ya no.
+    assert hay_que_buscar(_medidos(*cinco, _guardado(6))) is False

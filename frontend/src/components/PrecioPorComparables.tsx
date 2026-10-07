@@ -65,6 +65,15 @@ function colorDelPeso(peso: number): string {
   return "text-[var(--muted)]";
 }
 
+/** «+2,0%»: cuánto subió del momento en que la vimos al cierre.
+ *
+ *  Siempre sube, porque una puja no puede bajar y el precio de cierre ES la
+ *  puja ganadora. Por eso va en verde sin mirar el signo. */
+function salto(puja: number, precio: number): string {
+  const pct = ((precio / puja - 1) * 100).toFixed(1).replace(".", ",");
+  return `+${pct}%`;
+}
+
 /** El nombre oficial de una habilidad, para la cabecera de su columna. */
 function nombreDeHabilidad(clave: string): string {
   return terminoOficial("habilidades", clave, EN_ESPANOL[clave] ?? clave);
@@ -85,21 +94,45 @@ function columnasDe(
     // usuario (2026-10-07): es la respuesta de la tabla, y una tabla de
     // precios que empieza por el identificador entierra lo que se vino a
     // ver. El resto va exactamente como lo pidió.
+    // DOS COLUMNAS Y NO UNA (2026-10-07, pedido del usuario). Antes había
+    // un solo número que cambiaba de significado al resolverse --puja hasta
+    // que cerraba, precio de verdad después-- y el salto entre los dos se
+    // perdía. Ese salto es el dato que dice cuánto se queda corta una puja:
+    // Cataldi +16%, Bernacki +2%, siempre hacia arriba.
+    {
+      key: "puja",
+      header: tx("Puja detectada"),
+      align: "right",
+      value: (f) => f.puja,
+      render: (f) => (
+        <span className="tabular-nums text-[var(--muted)]">
+          {money(f.puja, moneda)}
+        </span>
+      ),
+    },
     {
       key: "precio",
       header: tx("Se pagó"),
       align: "right",
+      // Ordena por el precio que cuenta, que para un provisional es su
+      // puja: dejarlo en cero mandaría al fondo justo lo que todavía no
+      // se sabe, como si valiera menos que nada.
       value: (f) => f.precio,
-      render: (f) => (
-        <span className="tabular-nums">
-          {money(f.precio, moneda)}
-          {!f.firme && (
-            <span className="ml-1 text-xs text-[var(--warn)]">
-              {tx("puja")}
-            </span>
-          )}
-        </span>
-      ),
+      render: (f) =>
+        f.firme ? (
+          <span className="tabular-nums">
+            {money(f.precio, moneda)}
+            {f.puja > 0 && f.precio !== f.puja && (
+              <span className="ml-1 text-xs text-[var(--positive)]">
+                {salto(f.puja, f.precio)}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-xs text-[var(--warn)]">
+            {f.cuenta ? tx("sin cerrar") : tx("no se pudo confirmar")}
+          </span>
+        ),
     },
     {
       key: "htPlayerId",

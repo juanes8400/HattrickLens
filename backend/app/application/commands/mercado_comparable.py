@@ -108,6 +108,7 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         nombre=fila.name,
         precio=fila.price,
         firme=fila.is_final,
+        puja=fila.bid_price,
         visto_el=fila.seen_at,
         edad=fila.age_years,
         primaria=Rasgo(fila.primary_skill, fila.primary_level),
@@ -116,6 +117,7 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         especialidad=fila.specialty,
         tsi=fila.tsi,
         pais=fila.country_id,
+        intentos=fila.resolve_attempts,
     )
 
 
@@ -156,6 +158,7 @@ async def guardar(
         fila.name = venta.nombre
         fila.price = venta.precio
         fila.is_final = venta.firme
+        fila.bid_price = venta.puja
         fila.deadline = plazo
         fila.seen_at = venta.visto_el
         fila.resolve_attempts = 0

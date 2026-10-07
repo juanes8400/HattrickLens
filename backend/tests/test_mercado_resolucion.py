@@ -49,6 +49,7 @@ def _fila(**extra) -> m.MarketSale:
         ht_player_id=465780831,
         name="Valerio Cataldi",
         price=65_000_000,
+        bid_price=65_000_000,
         is_final=False,
         deadline=PLAZO,
         seen_at=PLAZO - timedelta(days=1),
@@ -246,3 +247,13 @@ def test_la_fila_guarda_el_perfil_para_poder_volver_a_medirla() -> None:
     assert (venta.terciaria.habilidad, venta.terciaria.nivel) == ("passing", 13)
     assert venta.firme is False
     assert venta.precio == 65_000_000
+
+
+def test_la_puja_sobrevive_a_la_resolucion() -> None:
+    """`price` pasa a ser el precio de cierre, pero la puja con la que entro
+    se queda: la diferencia entre las dos es lo que la pantalla ensena, y lo
+    que dice cuanto se queda corta una puja (Valerio +16%, Bernacki +2%)."""
+    fila = _fila()
+    aplicar_resolucion(fila, _historial((PLAZO_HT, 77_720_000)))
+    assert fila.price == 77_720_000
+    assert fila.bid_price == 65_000_000

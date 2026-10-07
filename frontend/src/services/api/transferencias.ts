@@ -269,8 +269,13 @@ export interface RasgoVisible {
 export interface ComparableDeMercado {
   htPlayerId: number;
   nombre: string;
-  /** En moneda base del juego, como todo lo que viene de CHPP. */
+  /** El precio que cuenta: el de cierre si ya se resolvió, la puja si no. */
   precio: number;
+  /** La puja con la que entró, siempre. Junto a `precio` y `firme` deja ver
+   *  cuánto se quedaba corta. */
+  puja: number;
+  /** Si entra en el número. Falso sólo para un provisional abandonado. */
+  cuenta: boolean;
   /** Cuánto se parece, del 100% al 75%. */
   peso: number;
   /** Falso mientras sea una puja en curso y no una venta cerrada. */
