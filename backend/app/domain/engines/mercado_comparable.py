@@ -540,12 +540,30 @@ def comparables_de(
 def cuenta_para_el_numero(venta: Guardado) -> bool:
     """Si esta venta puede entrar en la media.
 
-    Una venta cerrada siempre cuenta. Un provisional cuenta mientras le
-    queden intentos de resolución: su puja es un suelo que todavía va a
-    corregirse. Cuando se le agotan, su precio se queda congelado en una
-    puja que sabemos corta y ya no se promedia.
+    Una venta cerrada siempre cuenta.
+
+    UN ANUNCIO QUE NADIE HA PUJADO, NO. Entra en el fondo --el usuario lo
+    pidió el 2026-10-06: «coger lo que tenga HighestBid=0» cuando no haya
+    bastante con puja-- pero entra para VIGILARLO, no para promediarlo: lo
+    único que se sabe de él es que alguien lo puso a la venta. Su precio
+    llega a cero, porque cero es lo que vale `HighestBid` cuando no hay
+    pujas, y promediar ceros no describe ningún mercado.
+
+    Esto no es teórico. El 2026-10-07, mirando a Kurt Schönhueb --28 años,
+    lateral 15, defensa 13-- el mercado no tenía ni un comparable con puja y
+    sí ocho anuncios sin ella. Los ocho entraban a cero y la media de un
+    jugador de 249.030 de TSI salía CERO.
+
+    El resto de provisionales cuentan mientras les queden intentos de
+    resolución: su puja es un suelo que todavía va a corregirse. Cuando se
+    le agotan, su precio se queda congelado en una puja que sabemos corta y
+    deja de promediarse.
     """
-    return venta.firme or venta.intentos <= REINTENTOS_DE_RESOLUCION
+    if venta.firme:
+        return True
+    if venta.precio <= 0:
+        return False
+    return venta.intentos <= REINTENTOS_DE_RESOLUCION
 
 
 def estimar(comparables: Sequence[Comparable]) -> Estimacion:

@@ -1985,5 +1985,6 @@
   "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.": "Die beiden Enden der Liste, ungewichtet: das Billigste und das Teuerste darin. Es zeigt, wie breit der Markt für dieses Profil ist.",
   "Puja detectada": "Gebot beim Fund",
   "sin cerrar": "noch nicht beendet",
-  "no se pudo confirmar": "konnte nicht bestätigt werden"
+  "no se pudo confirmar": "konnte nicht bestätigt werden",
+  "nadie ha pujado": "niemand hat geboten"
 }
