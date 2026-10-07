@@ -1978,5 +1978,9 @@
   "Cierra": "Closes",
   "ya cerrada": "already closed",
   "Antigüedad": "Age of data",
-  "Sin ventas de jugadores parecidos todavía.": "No sales of similar players yet."
+  "Sin ventas de jugadores parecidos todavía.": "No sales of similar players yet.",
+  "Ventas reales de jugadores con las mismas tres habilidades más altas, en el mismo orden, y una edad parecida. Cuanto más haya que abrir la búsqueda para encontrarlos, menos pesa cada uno.": "Real sales of players with the same three highest skills, in the same order, and a similar age. The further the search had to open up to find them, the less each one weighs.",
+  "El promedio de lo que costaron, pero pesando a cada uno por lo que se parece: un gemelo cuenta el doble que un primo lejano. Sube cuando entra una venta cara de alguien muy parecido.": "The average of what they cost, weighting each by how similar it is: a twin counts twice what a distant cousin does. It rises when an expensive sale of someone very similar comes in.",
+  "El precio que parte la lista por la mitad, contando también el parecido. Si la media y la mediana se separan mucho, es que una sola venta muy cara o muy barata está tirando del promedio.": "The price that splits the list in half, also counting similarity. If the average and the median drift far apart, a single very expensive or very cheap sale is pulling the average.",
+  "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.": "The two ends of the list, unweighted: the cheapest and the most expensive in it. It says how wide the market for this profile is."
 }

@@ -114,6 +114,8 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         secundaria=Rasgo(fila.secondary_skill, fila.secondary_level),
         terciaria=Rasgo(fila.tertiary_skill, fila.tertiary_level),
         especialidad=fila.specialty,
+        tsi=fila.tsi,
+        pais=fila.country_id,
     )
 
 
@@ -165,6 +167,8 @@ async def guardar(
         fila.tertiary_skill = venta.terciaria.habilidad
         fila.tertiary_level = venta.terciaria.nivel
         fila.specialty = venta.especialidad
+        fila.tsi = venta.tsi
+        fila.country_id = venta.pais
     return nuevas
 
 

@@ -163,4 +163,6 @@ def _provisional(candidato: Candidato, ahora: datetime) -> Guardado:
         secundaria=candidato.secundaria,
         terciaria=candidato.terciaria,
         especialidad=candidato.especialidad,
+        tsi=candidato.tsi,
+        pais=candidato.pais,
     )

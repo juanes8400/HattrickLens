@@ -1684,3 +1684,7 @@ class MarketSale(Base):
     tertiary_skill: Mapped[str] = mapped_column(String(24), default="")
     tertiary_level: Mapped[int] = mapped_column(Integer, default=0)
     specialty: Mapped[int] = mapped_column(Integer, default=0)
+    #: Su TSI al encontrarlo. No decide el parecido; se enseña.
+    tsi: Mapped[int] = mapped_column(Integer, default=0)
+    #: El pais de nacimiento, para la bandera de la tabla.
+    country_id: Mapped[int] = mapped_column(Integer, default=0)

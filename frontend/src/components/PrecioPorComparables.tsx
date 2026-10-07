@@ -20,9 +20,11 @@
  *  que abrir y cerrar esto es gratis.
  */
 import { Panel } from "./Panels";
+import { Ayuda } from "./Ayuda";
 import { DataTable } from "./DataTable";
 import type { Column } from "./DataTable";
 import { Specialty } from "./Specialty";
+import { CountryCell } from "./CountryFlag";
 import { dateTime, money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
@@ -74,8 +76,15 @@ function nombreDeHabilidad(clave: string): string {
  *  anotación, pases y jugadas, y a un defensa otras tres. Como todos los
  *  comparables comparten la terna del objetivo --esa es la definición de
  *  comparable-- `perfil[i]` es la misma habilidad en todas las filas. */
-function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
+function columnasDe(
+  perfil: RasgoVisible[],
+  moneda: string,
+): Column<ComparableDeMercado>[] {
   return [
+    // El precio va primero aunque no estuviera en el orden que pidió el
+    // usuario (2026-10-07): es la respuesta de la tabla, y una tabla de
+    // precios que empieza por el identificador entierra lo que se vino a
+    // ver. El resto va exactamente como lo pidió.
     {
       key: "precio",
       header: tx("Se pagó"),
@@ -83,7 +92,7 @@ function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
       value: (f) => f.precio,
       render: (f) => (
         <span className="tabular-nums">
-          {money(f.precio)}
+          {money(f.precio, moneda)}
           {!f.firme && (
             <span className="ml-1 text-xs text-[var(--warn)]">
               {tx("puja")}
@@ -91,6 +100,30 @@ function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
           )}
         </span>
       ),
+    },
+    {
+      key: "htPlayerId",
+      header: "ID",
+      // En crudo: es un nombre escrito con dígitos, no una cantidad que
+      // nadie sume, así que no lleva separador de miles.
+      raw: true,
+      align: "right",
+      value: (f) => f.htPlayerId,
+    },
+    {
+      key: "pais",
+      header: tx("País"),
+      align: "left",
+      value: (f) => f.paisNombre || f.paisCodigo,
+      render: (f) => (
+        <CountryCell code={f.paisCodigo} country={f.paisNombre} compact />
+      ),
+    },
+    {
+      key: "nombre",
+      header: tx("Jugador"),
+      align: "left",
+      value: (f) => f.nombre,
     },
     {
       key: "peso",
@@ -102,21 +135,6 @@ function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
           {f.peso}%
         </span>
       ),
-    },
-    {
-      key: "nombre",
-      header: tx("Jugador"),
-      align: "left",
-      value: (f) => f.nombre,
-    },
-    {
-      key: "htPlayerId",
-      header: "ID",
-      // En crudo: es un nombre escrito con dígitos, no una cantidad que
-      // nadie sume, así que no lleva separador de miles.
-      raw: true,
-      align: "right",
-      value: (f) => f.htPlayerId,
     },
     {
       key: "edad",
@@ -138,6 +156,12 @@ function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
       render: (f) => <Specialty specialty={f.especialidad} />,
     },
     {
+      key: "tsi",
+      header: "TSI",
+      align: "right",
+      value: (f) => f.tsi,
+    },
+    {
       key: "cierra",
       header: tx("Cierra"),
       align: "right",
@@ -155,7 +179,6 @@ function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
       key: "semanas",
       header: tx("Antigüedad"),
       align: "right",
-      optional: true,
       value: (f) => f.semanas,
       render: (f) => (
         <span className={`tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}>
@@ -192,6 +215,9 @@ export function PrecioPorComparables({
   return (
     <Panel
       title={tx("Lo que ha costado gente como él")}
+      ayuda={tx(
+        "Ventas reales de jugadores con las mismas tres habilidades más altas, en el mismo orden, y una edad parecida. Cuanto más haya que abrir la búsqueda para encontrarlos, menos pesa cada uno.",
+      )}
       meta={
         <span className="text-xs text-[var(--muted)]">
           {perfilLegible(datos.perfil)}
@@ -203,23 +229,33 @@ export function PrecioPorComparables({
           <>
             <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
                   {tx("Media")}
+                  <Ayuda
+                    texto={tx(
+                      "El promedio de lo que costaron, pero pesando a cada uno por lo que se parece: un gemelo cuenta el doble que un primo lejano. Sube cuando entra una venta cara de alguien muy parecido.",
+                    )}
+                  />
                 </div>
                 <div className="text-2xl font-semibold tabular-nums text-[var(--text)]">
-                  {money(datos.media as number)}
+                  {money(datos.media as number, datos.moneda)}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
                   {tx("Mediana")}
+                  <Ayuda
+                    texto={tx(
+                      "El precio que parte la lista por la mitad, contando también el parecido. Si la media y la mediana se separan mucho, es que una sola venta muy cara o muy barata está tirando del promedio.",
+                    )}
+                  />
                 </div>
                 <div className="text-lg tabular-nums text-[var(--text)]">
-                  {money(datos.mediana as number)}
+                  {money(datos.mediana as number, datos.moneda)}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
                   {/* «Se pagó» sólo cuando de verdad se pagó. Con las seis
                       subastas abiertas el panel decía «DE VERDAD SE PAGÓ
                       ENTRE 10.000 – 13.260.000» mientras cada fila ponía
@@ -227,10 +263,15 @@ export function PrecioPorComparables({
                   {datos.provisionales > 0
                     ? tx("Ahora mismo, entre")
                     : tx("De verdad se pagó entre")}
+                  <Ayuda
+                    texto={tx(
+                      "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.",
+                    )}
+                  />
                 </div>
                 <div className="text-lg tabular-nums text-[var(--text)]">
-                  {money(datos.minimo as number)} –{" "}
-                  {money(datos.maximo as number)}
+                  {money(datos.minimo as number, datos.moneda)} –{" "}
+                  {money(datos.maximo as number, datos.moneda)}
                 </div>
               </div>
             </div>
@@ -277,7 +318,7 @@ export function PrecioPorComparables({
         <div className="px-4 pb-3">
           <DataTable
             rows={datos.comparables}
-            columns={columnasDe(datos.perfil)}
+            columns={columnasDe(datos.perfil, datos.moneda)}
             rowKey={(f) => f.htPlayerId}
             initialSort="precio"
             csvName="comparables"

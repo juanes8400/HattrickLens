@@ -284,6 +284,10 @@ export interface ComparableDeMercado {
   cierra: string | null;
   /** El nombre, ya resuelto por el servidor. Vacío si no tiene. */
   especialidad: string;
+  tsi: number;
+  /** Código de dos letras para la bandera. Vacío si no se guardó. */
+  paisCodigo: string;
+  paisNombre: string;
 }
 
 /** Lo que ha costado la gente parecida a un jugador tuyo. */
@@ -300,5 +304,8 @@ export interface PrecioComparable {
   provisionales: number;
   semanasDelMasViejo: number;
   perfil: RasgoVisible[];
+  /** Cómo se llama el dinero. Las cifras ya vienen en la moneda del
+   *  equipo, divididas por la tasa del país. */
+  moneda: string;
   comparables: ComparableDeMercado[];
 }

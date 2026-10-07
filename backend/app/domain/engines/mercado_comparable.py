@@ -173,6 +173,8 @@ class Candidato:
     lesion: int
     vendedor: int
     liga_del_vendedor: int
+    #: El pais de nacimiento, para poder enseñar su bandera.
+    pais: int
     primaria: Rasgo
     secundaria: Rasgo
     terciaria: Rasgo
@@ -224,6 +226,12 @@ class Guardado:
     secundaria: Rasgo
     terciaria: Rasgo
     especialidad: int = 0
+    #: Lo que valia para Hattrick al encontrarlo. No entra en el parecido
+    #: --el usuario comparo por habilidades, no por TSI-- pero se enseña,
+    #: porque es la medida que todo el mundo tiene en la cabeza.
+    tsi: int = 0
+    #: Su pais de nacimiento, para la bandera.
+    pais: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -398,6 +406,7 @@ def candidato_de(fila: Mapping[str, Any]) -> Candidato | None:
         lesion=int(fila["injury_level"]) if fila.get("injury_level") is not None else -1,
         vendedor=int(fila.get("seller_team_id", 0) or 0),
         liga_del_vendedor=int(fila.get("seller_league_id", 0) or 0),
+        pais=int(fila.get("native_country_id", 0) or 0),
         primaria=primaria,
         secundaria=secundaria,
         terciaria=terciaria,

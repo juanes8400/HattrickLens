@@ -1978,5 +1978,9 @@
   "Cierra": "Kończy się",
   "ya cerrada": "już zamknięta",
   "Antigüedad": "Wiek danych",
-  "Sin ventas de jugadores parecidos todavía.": "Jeszcze brak sprzedaży podobnych zawodników."
+  "Sin ventas de jugadores parecidos todavía.": "Jeszcze brak sprzedaży podobnych zawodników.",
+  "Ventas reales de jugadores con las mismas tres habilidades más altas, en el mismo orden, y una edad parecida. Cuanto más haya que abrir la búsqueda para encontrarlos, menos pesa cada uno.": "Prawdziwe sprzedaże zawodników o tych samych trzech najwyższych umiejętnościach, w tej samej kolejności, i podobnym wieku. Im szerzej trzeba było szukać, tym mniej liczy się każdy z nich.",
+  "El promedio de lo que costaron, pero pesando a cada uno por lo que se parece: un gemelo cuenta el doble que un primo lejano. Sube cuando entra una venta cara de alguien muy parecido.": "Średnia tego, ile kosztowali, ważona podobieństwem: bliźniak liczy się dwa razy bardziej niż daleki kuzyn. Rośnie, gdy pojawia się droga sprzedaż kogoś bardzo podobnego.",
+  "El precio que parte la lista por la mitad, contando también el parecido. Si la media y la mediana se separan mucho, es que una sola venta muy cara o muy barata está tirando del promedio.": "Cena dzieląca listę na pół, również z uwzględnieniem podobieństwa. Jeśli średnia i mediana mocno się rozjeżdżają, to jedna bardzo droga lub bardzo tania sprzedaż ciągnie średnią.",
+  "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.": "Dwa krańce listy, bez wag: najtańszy i najdroższy. Mówi, jak szeroki jest rynek dla tego profilu."
 }

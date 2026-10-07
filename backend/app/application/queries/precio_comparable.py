@@ -88,6 +88,11 @@ class FilaDeComparable:
     #: El NOMBRE, no el número: es lo que el resto de la aplicación manda y
     #: lo que el componente del icono sabe leer (`SPECIALTIES` del dominio).
     especialidad: str
+    tsi: int
+    #: El código de dos letras, que es lo que pinta la bandera. Vacío cuando
+    #: la venta se anotó antes de que se guardara el país.
+    pais_codigo: str
+    pais_nombre: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +113,9 @@ class PrecioComparable:
     semanas_del_mas_viejo: int
     #: El perfil con el que se buscó, para que se vea contra qué se compara.
     perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
+    #: Cómo se llama el dinero que se está enseñando. Todas las cifras de
+    #: aquí ya vienen divididas por la tasa del país.
+    moneda: str
     comparables: tuple[FilaDeComparable, ...]
 
 
@@ -123,6 +131,18 @@ async def precio_de(
     if objetivo is None:
         return None
 
+    # El dinero de CHPP viene en la moneda base del juego. Dividir por la
+    # tasa del país es lo que hace el resto de la aplicación, y este panel
+    # era el único que no lo hacía.
+    equipo = await session.get(m.Team, team_id)
+    tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+    moneda = (equipo.currency_name if equipo else "") or ""
+
+    def convertido(v: int) -> int:
+        return int(round(v / tasa)) if tasa else int(v)
+
+    paises = await _paises(session)
+
     filas = list(
         (
             await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == team_id))
@@ -136,10 +156,10 @@ async def precio_de(
     precios = [c.venta.precio for c in elegidos]
 
     return PrecioComparable(
-        media=estimacion.media,
-        mediana=estimacion.mediana,
-        minimo=min(precios) if estimacion.suficiente else None,
-        maximo=max(precios) if estimacion.suficiente else None,
+        media=convertido(estimacion.media) if estimacion.media is not None else None,
+        mediana=convertido(estimacion.mediana) if estimacion.mediana is not None else None,
+        minimo=convertido(min(precios)) if estimacion.suficiente else None,
+        maximo=convertido(max(precios)) if estimacion.suficiente else None,
         n=estimacion.n,
         faltan=max(0, OBJETIVO - estimacion.n),
         peso_minimo=estimacion.peso_minimo,
@@ -148,11 +168,12 @@ async def precio_de(
             (_semanas(c.venta.visto_el, momento) for c in elegidos), default=0
         ),
         perfil=_perfil(objetivo),
+        moneda=moneda,
         comparables=tuple(
             FilaDeComparable(
                 ht_player_id=c.venta.ht_player_id,
                 nombre=c.venta.nombre,
-                precio=c.venta.precio,
+                precio=convertido(c.venta.precio),
                 peso=c.peso,
                 firme=c.venta.firme,
                 viejo=c.viejo,
@@ -161,6 +182,9 @@ async def precio_de(
                 semanas=_semanas(c.venta.visto_el, momento),
                 cierra=plazos.get(c.venta.ht_player_id),
                 especialidad=SPECIALTIES.get(c.venta.especialidad, ""),
+                tsi=c.venta.tsi,
+                pais_codigo=paises.get(c.venta.pais, ("", ""))[0],
+                pais_nombre=paises.get(c.venta.pais, ("", ""))[1],
             )
             for c in elegidos
         ),
@@ -195,6 +219,25 @@ async def _objetivo_del_jugador(
         {h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
         especialidad=foto.specialty or 0,
     )
+
+
+async def _paises(session: AsyncSession) -> dict[int, tuple[str, str]]:
+    """El código y el nombre de cada país, por identificador de Hattrick.
+
+    Sale de `WorldContext`, que es de donde lo saca Saldo por jugador para
+    pintar la misma bandera; aquí se usa el mismo sitio para que las dos
+    tablas no puedan discrepar.
+    """
+    filas = (
+        await session.execute(
+            select(
+                m.WorldContext.country_id,
+                m.WorldContext.country_code,
+                m.WorldContext.country_name,
+            ).where(m.WorldContext.country_code != "")
+        )
+    ).all()
+    return {int(pais): (str(codigo).upper(), str(nombre or "")) for pais, codigo, nombre in filas}
 
 
 def _perfil(quien: Objetivo | Guardado) -> tuple[RasgoVisible, RasgoVisible, RasgoVisible]:
