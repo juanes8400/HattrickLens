@@ -280,6 +280,10 @@ export interface ComparableDeMercado {
   edad: number;
   perfil: RasgoVisible[];
   semanas: number;
+  /** Cuándo cierra su subasta, mientras sea una puja. Nulo si ya es firme. */
+  cierra: string | null;
+  /** El nombre, ya resuelto por el servidor. Vacío si no tiene. */
+  especialidad: string;
 }
 
 /** Lo que ha costado la gente parecida a un jugador tuyo. */

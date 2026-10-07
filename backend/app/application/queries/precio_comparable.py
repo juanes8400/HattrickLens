@@ -36,6 +36,7 @@ from app.domain.engines.mercado_comparable import (
     estimar,
     objetivo_de,
 )
+from app.domain.value_objects.ht_constants import SPECIALTIES
 from app.infrastructure.db import models as m
 
 #: Las ocho habilidades del jugador propio. `terna` descarta resistencia y
@@ -80,6 +81,13 @@ class FilaDeComparable:
     edad: int
     perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
     semanas: int
+    #: Cuándo cierra su subasta, mientras siga siendo una puja. Es lo que
+    #: dice cuánto le falta al número para ser de fiar, así que la pantalla
+    #: lo enseña en vez de dejarlo sólo en la cola de resolución.
+    cierra: datetime | None
+    #: El NOMBRE, no el número: es lo que el resto de la aplicación manda y
+    #: lo que el componente del icono sabe leer (`SPECIALTIES` del dominio).
+    especialidad: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,9 +123,14 @@ async def precio_de(
     if objetivo is None:
         return None
 
-    filas = (
-        await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == team_id))
-    ).scalars()
+    filas = list(
+        (
+            await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == team_id))
+        ).scalars()
+    )
+    # El plazo no viaja dentro de `Guardado` --deja de importar en cuanto la
+    # venta se resuelve-- así que se queda aquí al lado, por identificador.
+    plazos = {f.ht_player_id: f.deadline for f in filas}
     elegidos = comparables_de([a_guardado(f) for f in filas], objetivo, momento)
     estimacion = estimar(elegidos)
     precios = [c.venta.precio for c in elegidos]
@@ -146,6 +159,8 @@ async def precio_de(
                 edad=c.venta.edad,
                 perfil=_perfil(c.venta),
                 semanas=_semanas(c.venta.visto_el, momento),
+                cierra=plazos.get(c.venta.ht_player_id),
+                especialidad=SPECIALTIES.get(c.venta.especialidad, ""),
             )
             for c in elegidos
         ),

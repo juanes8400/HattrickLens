@@ -20,7 +20,10 @@
  *  que abrir y cerrar esto es gratis.
  */
 import { Panel } from "./Panels";
-import { money, number } from "../hooks/useFormat";
+import { DataTable } from "./DataTable";
+import type { Column } from "./DataTable";
+import { Specialty } from "./Specialty";
+import { dateTime, money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
 import { terminoOficial } from "../i18n/glosario";
@@ -60,33 +63,107 @@ function colorDelPeso(peso: number): string {
   return "text-[var(--muted)]";
 }
 
-function Comparable({ fila }: { fila: ComparableDeMercado }) {
-  return (
-    <tr className="border-t border-[var(--border)]">
-      <td className="py-1.5 pr-3">
-        <div className="text-[var(--text)]">{fila.nombre}</div>
-        <div className="text-xs text-[var(--muted)]">
-          {fila.edad} · {perfilLegible(fila.perfil)}
-        </div>
-      </td>
-      <td
-        className={`py-1.5 pr-3 text-right tabular-nums ${colorDelPeso(fila.peso)}`}
-      >
-        {fila.peso}%
-      </td>
-      <td className="py-1.5 text-right tabular-nums text-[var(--text)]">
-        {money(fila.precio)}
-        {!fila.firme && (
-          <span className="ml-1 text-xs text-[var(--warn)]">{tx("puja")}</span>
-        )}
-        {fila.viejo && (
-          <div className="text-xs text-[var(--muted)]">
-            {tx("hace {{v0}} semanas", { v0: fila.semanas })}
-          </div>
-        )}
-      </td>
-    </tr>
-  );
+/** El nombre oficial de una habilidad, para la cabecera de su columna. */
+function nombreDeHabilidad(clave: string): string {
+  return terminoOficial("habilidades", clave, EN_ESPANOL[clave] ?? clave);
+}
+
+/** Las columnas, armadas contra la terna del jugador que pregunta.
+ *
+ *  No son fijas porque la terna no lo es: a un delantero se le comparan
+ *  anotación, pases y jugadas, y a un defensa otras tres. Como todos los
+ *  comparables comparten la terna del objetivo --esa es la definición de
+ *  comparable-- `perfil[i]` es la misma habilidad en todas las filas. */
+function columnasDe(perfil: RasgoVisible[]): Column<ComparableDeMercado>[] {
+  return [
+    {
+      key: "precio",
+      header: tx("Se pagó"),
+      align: "right",
+      value: (f) => f.precio,
+      render: (f) => (
+        <span className="tabular-nums">
+          {money(f.precio)}
+          {!f.firme && (
+            <span className="ml-1 text-xs text-[var(--warn)]">
+              {tx("puja")}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "peso",
+      header: tx("Se parece"),
+      align: "right",
+      value: (f) => f.peso,
+      render: (f) => (
+        <span className={`tabular-nums ${colorDelPeso(f.peso)}`}>
+          {f.peso}%
+        </span>
+      ),
+    },
+    {
+      key: "nombre",
+      header: tx("Jugador"),
+      align: "left",
+      value: (f) => f.nombre,
+    },
+    {
+      key: "htPlayerId",
+      header: "ID",
+      // En crudo: es un nombre escrito con dígitos, no una cantidad que
+      // nadie sume, así que no lleva separador de miles.
+      raw: true,
+      align: "right",
+      value: (f) => f.htPlayerId,
+    },
+    {
+      key: "edad",
+      header: tx("Edad"),
+      align: "right",
+      value: (f) => f.edad,
+    },
+    ...perfil.map((rasgo, i) => ({
+      key: `habilidad${i}`,
+      header: nombreDeHabilidad(rasgo.habilidad),
+      align: "right" as const,
+      value: (f: ComparableDeMercado) => f.perfil[i]?.nivel ?? 0,
+    })),
+    {
+      key: "especialidad",
+      header: tx("Especialidad"),
+      align: "left",
+      value: (f) => f.especialidad,
+      render: (f) => <Specialty specialty={f.especialidad} />,
+    },
+    {
+      key: "cierra",
+      header: tx("Cierra"),
+      align: "right",
+      // Lo ya cerrado al final cuando se ordena por esta columna: un plazo
+      // que no existe no es «hace mucho», es que ya no aplica.
+      value: (f) => (f.cierra ? new Date(f.cierra).getTime() : Infinity),
+      render: (f) =>
+        f.cierra ? (
+          <span className="tabular-nums">{dateTime(f.cierra)}</span>
+        ) : (
+          <span className="text-[var(--muted)]">{tx("ya cerrada")}</span>
+        ),
+    },
+    {
+      key: "semanas",
+      header: tx("Antigüedad"),
+      align: "right",
+      optional: true,
+      value: (f) => f.semanas,
+      render: (f) => (
+        <span className={`tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}>
+          {tx("hace {{v0}} semanas", { v0: number(f.semanas) })}
+        </span>
+      ),
+    },
+  ];
 }
 
 export function PrecioPorComparables({
@@ -143,7 +220,13 @@ export function PrecioPorComparables({
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
-                  {tx("De verdad se pagó entre")}
+                  {/* «Se pagó» sólo cuando de verdad se pagó. Con las seis
+                      subastas abiertas el panel decía «DE VERDAD SE PAGÓ
+                      ENTRE 10.000 – 13.260.000» mientras cada fila ponía
+                      «puja» al lado del número (2026-10-07). */}
+                  {datos.provisionales > 0
+                    ? tx("Ahora mismo, entre")
+                    : tx("De verdad se pagó entre")}
                 </div>
                 <div className="text-lg tabular-nums text-[var(--text)]">
                   {money(datos.minimo as number)} –{" "}
@@ -191,24 +274,16 @@ export function PrecioPorComparables({
       </div>
 
       {datos.comparables.length > 0 && (
-        <table className="w-full px-4 text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
-              <th className="px-4 py-1 text-left font-medium">{tx("Quién")}</th>
-              <th className="py-1 pr-3 text-right font-medium">
-                {tx("Se parece")}
-              </th>
-              <th className="px-4 py-1 text-right font-medium">
-                {tx("Se pagó")}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="px-4">
-            {datos.comparables.map((fila) => (
-              <Comparable key={fila.htPlayerId} fila={fila} />
-            ))}
-          </tbody>
-        </table>
+        <div className="px-4 pb-3">
+          <DataTable
+            rows={datos.comparables}
+            columns={columnasDe(datos.perfil)}
+            rowKey={(f) => f.htPlayerId}
+            initialSort="precio"
+            csvName="comparables"
+            emptyMessage={tx("Sin ventas de jugadores parecidos todavía.")}
+          />
+        </div>
       )}
 
       <p className="px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">

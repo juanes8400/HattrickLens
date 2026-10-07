@@ -1973,5 +1973,10 @@
   "Comparador de transferencias": "Transfer-Vergleich",
   "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.": "Eine davon ist eine noch laufende Auktion und zählt daher mit dem aktuellen Gebot. Ein Gebot bleibt darunter, und die Zahl steigt, sobald sie endet.",
   "Vista de jugador": "Spieleransicht",
-  "Secciones de este jugador": "Bereiche dieses Spielers"
+  "Secciones de este jugador": "Bereiche dieses Spielers",
+  "Ahora mismo, entre": "Gerade jetzt, zwischen",
+  "Cierra": "Endet",
+  "ya cerrada": "bereits beendet",
+  "Antigüedad": "Alter der Daten",
+  "Sin ventas de jugadores parecidos todavía.": "Noch keine Verkäufe ähnlicher Spieler."
 }
