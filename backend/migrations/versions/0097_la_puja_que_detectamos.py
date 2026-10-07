@@ -32,7 +32,22 @@ def upgrade() -> None:
         sa.Column("bid_price", sa.BigInteger(), nullable=False, server_default="0"),
     )
     # Lo ya guardado es todo provisional, asi que su precio es su puja.
-    op.execute("UPDATE market_sales SET bid_price = price WHERE is_final = 0")
+    #
+    # EN EXPRESION Y NO EN SQL A MANO. La primera version decia
+    # `WHERE is_final = 0`, que es SQLite y nada mas: ahi un booleano es un
+    # entero, pero en Postgres --que es lo que corre en Render-- comparar
+    # boolean con integer es un error de tipos y tumba el despliegue. Paso
+    # local y fallo arriba el 2026-10-07. Dejando que SQLAlchemy lo escriba,
+    # cada dialecto pone su propia constante.
+    ventas = sa.table(
+        "market_sales",
+        sa.column("bid_price", sa.BigInteger),
+        sa.column("price", sa.BigInteger),
+        sa.column("is_final", sa.Boolean),
+    )
+    op.execute(
+        ventas.update().where(ventas.c.is_final.is_(False)).values(bid_price=ventas.c.price)
+    )
 
 
 def downgrade() -> None:
