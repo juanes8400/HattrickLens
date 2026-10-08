@@ -1634,6 +1634,46 @@ def orden_del_club_principal() -> tuple[Any, ...]:
     )
 
 
+class MarketEstimate(Base):
+    """Una lectura del precio por comparables, para poder dibujar la serie.
+
+    POR QUE HACE FALTA UNA TABLA. `market_sales` sabe como esta el fondo
+    AHORA, no como estuvo: cuando una venta se resuelve, su puja se pisa con
+    el precio de cierre y el valor anterior desaparece. Sin guardar la
+    lectura no hay forma de reconstruir que decia el numero la semana pasada.
+
+    UNA FILA POR CAMBIO, no por fecha. Se anota cuando la estimacion de ese
+    jugador cambia de verdad --porque le toco turno y entraron ventas, o
+    porque una subasta cerro y paso a precio real-- y no cuando pasa el
+    tiempo. Asi la serie cuenta tambien el ritmo: tramos planos donde no
+    ocurrio nada y escalones donde entro un dato.
+
+    `prices_json` lleva los precios que formaron ESA lectura, con su estado,
+    porque la grafica enseña la nube entera y no solo la media: la dispersion
+    es la mitad de lo que hay que juzgar. Son unas pocas decenas de numeros
+    por fila.
+    """
+
+    __tablename__ = "market_estimates"
+    __table_args__ = (Index("ix_market_estimates_serie", "team_id", "ht_player_id", "captured_at"),)
+
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    #: El jugador TUYO al que se le estimo el precio.
+    ht_player_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    captured_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+    #: En moneda base del juego, como todo lo que viene de CHPP. Nulos
+    #: mientras no hubiera bastantes ventas para dar numero.
+    mean_price: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    median_price: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    n: Mapped[int] = mapped_column(Integer, default=0)
+    min_weight: Mapped[int] = mapped_column(Integer, default=0)
+    provisional: Mapped[int] = mapped_column(Integer, default=0)
+    #: `[{"precio": 1234, "firme": false}, ...]`, los puntos de la nube.
+    prices_json: Mapped[str] = mapped_column(Text, default="[]")
+
+
 class MarketSale(Base):
     """Una venta del mercado que sirve de comparable, 2026-10-06.
 
