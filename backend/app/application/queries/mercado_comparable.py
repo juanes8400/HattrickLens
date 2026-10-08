@@ -85,6 +85,7 @@ async def correr_el_turno(
     fondo: Sequence[Guardado] = (),
     mi_equipo: int,
     ahora: datetime,
+    tambien_para: Sequence[Objetivo] = (),
 ) -> Resultado:
     """Lo que se hace cuando a un jugador le toca turno.
 
@@ -92,17 +93,13 @@ async def correr_el_turno(
     un fondo peor que el que tocaba, y dar un número peor sin avisar es justo
     lo que no debe pasar; quien llame decide si reintenta o si lo deja para la
     semana que viene.
+
+    `tambien_para` es el resto de la plantilla: se guarda lo que le sirva a
+    cualquiera de ellos, no sólo a quien disparó la búsqueda. No cambia
+    cuándo se para --eso lo sigue decidiendo el que pregunta, que es quien
+    tiene turno-- sólo qué se recoge por el camino.
     """
     acumulado = list(fondo)
-    if not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
-        return Resultado(
-            nuevas=(),
-            estimacion=estimar(comparables_de(acumulado, objetivo, ahora)),
-            por_resolver=(),
-            busquedas=0,
-            agotada=False,
-        )
-
     busquedas = 0
     agotada = True
     nuevas: list[Guardado] = []
@@ -110,7 +107,18 @@ async def correr_el_turno(
     # se resuelve, así que los candidatos viajan en paralelo hasta el final.
     nuevos: list[Candidato] = []
 
-    for ventana in plan_de_busqueda(objetivo):
+    for escalon, ventana in enumerate(plan_de_busqueda(objetivo)):
+        # EL ESCALON EXACTO SE RECORRE SIEMPRE, tenga el fondo lo que tenga
+        # (2026-10-07, regla del usuario). Un comparable al 100% --misma edad
+        # y las tres habilidades clavadas-- es el mejor dato que existe para
+        # este jugador, queda grabado y no caduca; seguir buscandolo cada
+        # turno es lo que hace que no envejezca de verdad.
+        #
+        # El precio es una peticion por jugador y turno, tambien cuando ya
+        # tiene sus seis. Antes ese caso no gastaba ninguna.
+        if escalon > 0 and not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
+            agotada = False
+            break
         filas = await buscar(ventana)
         busquedas += 1
         con_puja, _sin_puja = cosecha(
@@ -118,15 +126,13 @@ async def correr_el_turno(
             filas,
             mi_equipo=mi_equipo,
             ya_vistos=[v.ht_player_id for v in acumulado],
+            tambien_para=tambien_para,
         )
         for candidato, _peso in con_puja:
             venta = _provisional(candidato, ahora)
             acumulado.append(venta)
             nuevas.append(venta)
             nuevos.append(candidato)
-        if not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
-            agotada = False
-            break
 
     return Resultado(
         nuevas=tuple(nuevas),

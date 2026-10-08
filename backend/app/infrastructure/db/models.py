@@ -1678,6 +1678,10 @@ class MarketSale(Base):
     seen_at: Mapped[datetime] = mapped_column(UtcDateTime())
     #: Cuántas veces se ha intentado resolver sin encontrar la venta.
     resolve_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    #: El `TransferID` de Hattrick, en cuanto se resuelve. Cero mientras sea
+    #: una puja: el fichero del mercado no publica ese id, así que hasta que
+    #: la venta no ocurre no existe.
+    ht_transfer_id: Mapped[int] = mapped_column(BigInteger, default=0)
 
     # ── Su perfil al venderse, que es lo que lo hace comparable ─────────
     age_years: Mapped[int] = mapped_column(Integer, default=0)

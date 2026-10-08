@@ -396,7 +396,9 @@ def test_el_peso_manda_por_encima_de_la_frescura() -> None:
     elegidos = _medidos(reciente, vieja)
     assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
     assert [c.peso for c in elegidos] == [100, 85]
-    assert elegidos[0].viejo is True
+    # Y la de veinte semanas NO cuenta como vieja, porque es un 100%: desde
+    # el 2026-10-07 la caducidad solo alcanza a los parecidos.
+    assert elegidos[0].viejo is False
 
 
 def test_a_igual_peso_va_antes_la_mas_reciente() -> None:
@@ -444,8 +446,12 @@ def test_con_seis_vivos_su_turno_no_gasta_ni_una_llamada() -> None:
 
 def test_si_falta_alguno_o_hay_caducados_si_se_busca() -> None:
     assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 6)))) is True
-    con_uno_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 7))]
+    # Un PARECIDO caducado si manda a buscar. Uno exacto no, porque no caduca.
+    primo_viejo = _guardado(1, semanas=9, scoring=17, passing=13, playmaking=7)
+    con_uno_viejo = [primo_viejo, *(_guardado(i, semanas=1) for i in range(2, 7))]
     assert hay_que_buscar(_medidos(*con_uno_viejo)) is True
+    exacto_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 7))]
+    assert hay_que_buscar(_medidos(*exacto_viejo)) is False
 
 
 # --------------------------------------------------------------------------
@@ -714,3 +720,46 @@ def test_cuando_ese_anuncio_se_resuelve_ya_cuenta() -> None:
     entonces pasa a ser una venta como cualquier otra."""
     resuelto = _guardado(1, precio=4_200_000, firme=True, puja=0)
     assert cuenta_para_el_numero(resuelto) is True
+
+
+# ---------------------------------------------------------------------------
+# El 100% no caduca
+#
+# Regla del usuario, 2026-10-07: «la caducidad solo aplica para el parecido
+# que no es 100%». Un comparable exacto es el mejor dato que puede existir
+# para ese jugador y no hay nada mas fresco que pueda mejorarlo.
+# ---------------------------------------------------------------------------
+
+
+def test_un_comparable_exacto_no_envejece() -> None:
+    clavado = _guardado(1, semanas=20)
+    assert reemplazable(clavado, AHORA) is True, "la venta SI cumplio su vida"
+    medido = _medidos(clavado)[0]
+    assert medido.peso == 100
+    assert medido.viejo is False, "pero al 100% no cuenta como vieja"
+
+
+def test_un_parecido_si_envejece() -> None:
+    """La misma antiguedad, pero al 85%: ese si queda reemplazable."""
+    primo = _guardado(1, semanas=20, scoring=17, passing=13, playmaking=7)
+    medido = _medidos(primo)[0]
+    assert medido.peso < 100
+    assert medido.viejo is True
+
+
+def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
+    """El peso es relativo a quien pregunta, asi que la caducidad tambien.
+    Por eso se decide al medir y no al guardar."""
+    venta = _guardado(1, semanas=20)
+    para_el_clavado = _medidos(venta)[0]
+    otro = _objetivo(scoring=17, passing=13, playmaking=7)
+    para_el_primo = _medidos(venta, objetivo=otro)[0]
+    assert para_el_clavado.peso == 100 and para_el_clavado.viejo is False
+    assert para_el_primo.peso < 100 and para_el_primo.viejo is True
+
+
+def test_un_exacto_viejo_no_manda_a_buscar() -> None:
+    """Seis exactos de hace veinte semanas siguen siendo seis: su turno no
+    deberia gastar ni una peticion."""
+    seis = [_guardado(i, semanas=20) for i in range(1, 7)]
+    assert hay_que_buscar(_medidos(*seis)) is False

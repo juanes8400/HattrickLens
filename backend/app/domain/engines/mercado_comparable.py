@@ -239,6 +239,9 @@ class Guardado:
     tsi: int = 0
     #: Su pais de nacimiento, para la bandera.
     pais: int = 0
+    #: El identificador del traspaso en Hattrick, en cuanto se resuelve.
+    #: Cero mientras siga siendo una puja.
+    ht_transfer_id: int = 0
     #: Cuántas veces se preguntó por su precio sin encontrarlo. Sólo cuenta
     #: el «pregunté y no estaba», no el «no pude preguntar».
     intentos: int = 0
@@ -435,6 +438,7 @@ def cosecha(
     *,
     mi_equipo: int,
     ya_vistos: Iterable[int] = (),
+    tambien_para: Sequence[Objetivo] = (),
 ) -> tuple[list[tuple[Candidato, int]], list[tuple[Candidato, int]]]:
     """Separa lo que devuelve una búsqueda en dos montones, con su peso.
 
@@ -449,23 +453,40 @@ def cosecha(
     ajeno; y quien no se parece lo bastante. Los lesionados y los sancionados
     SÍ entran, por decisión del usuario del 2026-10-06. Las ligas extranjeras
     también.
+
+    `tambien_para` SON EL RESTO DE TU PLANTILLA, y vale lo que le sirva a
+    cualquiera de ellos (2026-10-07, pedido por el usuario). La búsqueda la
+    dispara uno, pero por delante pasa el mercado entero: medido sobre la de
+    İmam Ece, de 51 anuncios con puja 8 le servían a él y 4 más a otros dos
+    compañeros. Quedarse sólo con los suyos tiraba esos cuatro, que ya
+    estaban pagados.
+
+    El peso que se devuelve es el MEJOR de todos, no el del que preguntó: un
+    anuncio puede parecerse poco a quien disparó la búsqueda y mucho a otro.
+    Da igual para el fondo --`comparables_de` lo vuelve a medir contra quien
+    pregunte-- pero importa para decidir a quién se parece de verdad.
     """
     conocidos = set(ya_vistos)
+    interesados = (objetivo, *tambien_para)
+    # Ninguno de los tuyos, los pida quien los pida: su precio es justo el
+    # que queremos estimar y no un dato ajeno.
+    nuestros = {o.ht_player_id for o in interesados}
     con_puja: list[tuple[Candidato, int]] = []
     sin_puja: list[tuple[Candidato, int]] = []
     for fila in filas:
         candidato = candidato_de(fila)
         if candidato is None:
             continue
-        if candidato.ht_player_id == objetivo.ht_player_id:
+        if candidato.ht_player_id in nuestros:
             continue
         if candidato.vendedor and candidato.vendedor == mi_equipo:
             continue
         if candidato.ht_player_id in conocidos:
             continue
-        peso = peso_de(candidato, objetivo)
-        if peso is None:
+        pesos = [p for o in interesados if (p := peso_de(candidato, o)) is not None]
+        if not pesos:
             continue
+        peso = max(pesos)
         conocidos.add(candidato.ht_player_id)
         if candidato.tiene_puja and candidato.puja > 0:
             con_puja.append((candidato, peso))
@@ -511,7 +532,19 @@ def comparables_de(
             Comparable(
                 venta=venta,
                 peso=peso,
-                viejo=reemplazable(venta, ahora),
+                # EL 100% NO CADUCA NUNCA (2026-10-07, regla del usuario).
+                # Un comparable exacto --misma edad y las tres habilidades
+                # clavadas-- es el mejor dato que puede existir para este
+                # jugador, y no hay nada «más fresco» que pueda mejorarlo;
+                # dejarlo caducar seria tirar lo bueno esperando lo que no
+                # va a venir. La caducidad existe para los parecidos, que
+                # envejecen porque el mercado de su alrededor cambia.
+                #
+                # Se decide AQUI y no en `reemplazable` porque el peso es
+                # relativo a quien pregunta: la misma venta puede ser un
+                # 100% para uno y un 75% para su companero, y entonces
+                # caduca para el segundo y no para el primero.
+                viejo=peso < 100 and reemplazable(venta, ahora),
                 cuenta=cuenta_para_el_numero(venta),
             )
         )
@@ -633,28 +666,54 @@ def se_puede_resolver(plazo: datetime | None, ahora: datetime) -> bool:
     return _aware(ahora) >= _aware(plazo) + MARGEN_TRAS_EL_PLAZO
 
 
+@dataclass(frozen=True, slots=True)
+class Traspaso:
+    """Un cambio de club del historial de un jugador.
+
+    `ht_transfer_id` es el identificador de Hattrick, y SÓLO existe de este
+    lado. El fichero del mercado no lo publica --comprobado el 2026-10-07
+    listando las etiquetas de un anuncio: `PlayerId`, `AskingPrice`,
+    `Deadline`, `HighestBid`, `BidderTeam`, `SellerTeam` y `Details`, y nada
+    más-- y es lógico, porque mientras la subasta vive la transferencia
+    todavía no ha ocurrido. Por eso el emparejamiento sigue siendo por plazo:
+    es el único dato que está en los dos lados. El id entra en cuanto se
+    resuelve, y desde ahí la venta tiene identidad propia.
+    """
+
+    ht_transfer_id: int
+    cierre: datetime
+    precio: int
+
+
 def precio_cerrado(
-    traspasos: Iterable[tuple[datetime, int]],
+    traspasos: Iterable[Traspaso],
     plazo: datetime,
     *,
     tolerancia: timedelta = timedelta(minutes=5),
-) -> int | None:
-    """Lo que se pagó en la subasta que estábamos siguiendo.
+) -> Traspaso | None:
+    """El traspaso que cerró la subasta que estábamos siguiendo.
 
     El historial de un jugador trae TODOS sus traspasos, así que hay que
     quedarse con el que cierra en el plazo que anotamos. No vale coger el más
     reciente sin más: si el jugador cambió de club otra vez entre medias, ése
     sería otro traspaso y otro precio.
 
+    EL MÁS CERCANO, no el primero que encaje (2026-10-07). Dos traspasos
+    seguidos pueden caer los dos dentro de la tolerancia, y quedarse con el
+    primero que apareciera dejaba la elección al orden en que Hattrick los
+    mandara, o sea al azar. El desfase medido en un caso real fue de trece
+    segundos contra una tolerancia de cinco minutos, así que el margen para
+    equivocarse existe.
+
     Devuelve `None` cuando ninguno encaja, que con una puja encima no debería
     pasar. Cuando pasa no se inventa nada: se reintenta y, si sigue sin
     aparecer, la venta se queda con su puja.
     """
     objetivo = _aware(plazo)
-    for cierre, precio in traspasos:
-        if abs(_aware(cierre) - objetivo) <= tolerancia:
-            return precio
-    return None
+    dentro = [t for t in traspasos if abs(_aware(t.cierre) - objetivo) <= tolerancia]
+    if not dentro:
+        return None
+    return min(dentro, key=lambda t: abs(_aware(t.cierre) - objetivo))
 
 
 # --------------------------------------------------------------------------
