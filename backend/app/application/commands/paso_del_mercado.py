@@ -183,17 +183,13 @@ async def _resolver(
     return tuple(hechas)
 
 
-def _otros_objetivos(
-    plantilla: Sequence[_Jugador], menos_este: int
-) -> tuple[Objetivo, ...]:
+def _otros_objetivos(plantilla: Sequence[_Jugador], menos_este: int) -> tuple[Objetivo, ...]:
     """Los demás de la plantilla, como objetivos medibles."""
     salida = []
     for j in plantilla:
         if j.ht_player_id == menos_este:
             continue
-        otro = objetivo_de(
-            j.ht_player_id, j.edad, j.habilidades, especialidad=j.especialidad
-        )
+        otro = objetivo_de(j.ht_player_id, j.edad, j.habilidades, especialidad=j.especialidad)
         if otro is not None:
             salida.append(otro)
     return tuple(salida)
