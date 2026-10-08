@@ -14,6 +14,10 @@ export interface SessionTeam {
   seriesName: string | null;
   syncedAt: string | null;
   hasImportedData: boolean;
+  /** El club PRINCIPAL del manager, dicho por Hattrick (`IsPrimaryClub`). Los
+   *  clubes llegan con él delante, así que es también el «1º» del mando que
+   *  cambia de club. `null` = Hattrick todavía no lo ha dicho. */
+  isPrimaryClub: boolean | null;
 }
 
 export interface SessionProfile {

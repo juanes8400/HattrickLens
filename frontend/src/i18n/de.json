@@ -66,7 +66,9 @@
     "descartarAviso": "Hinweis verwerfen",
     "idioma": "Sprache",
     "idiomaActual": "{{nombre}}: aktuelle Sprache",
-    "idiomaCambiarA": "Zu {{nombre}} wechseln"
+    "idiomaCambiarA": "Zu {{nombre}} wechseln",
+    "club": "Verein",
+    "clubSinImportar": "nicht importiert"
   },
   "formato": {
     "nunca": "nie",

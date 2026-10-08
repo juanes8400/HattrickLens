@@ -175,6 +175,16 @@ async def session_profile(
             )
         ).all()
     )
+    # EL PRINCIPAL PRIMERO, y el resto por nombre. El orden de esta lista es lo
+    # que la pantalla numera --«1º», «2º», «3º»-- al ofrecer el cambio de club,
+    # y «primer equipo» en Hattrick no significa «el primero del alfabeto»:
+    # significa el club principal, el que dicta la moneda de los demás
+    # (`test_moneda_del_segundo_equipo`). Se ordena aquí, en Python, y no con un
+    # `ORDER BY is_primary_club DESC`: ese campo admite nulos --un club dado de
+    # alta antes de que se leyera-- y Postgres y SQLite no colocan los nulos en
+    # el mismo sitio. La ordenación es estable, así que dentro de cada grupo
+    # sigue mandando el nombre que puso el SQL.
+    teams.sort(key=lambda equipo: 0 if equipo.is_primary_club else 1)
 
     team_rows: list[dict[str, object]] = []
     for team in teams:
@@ -199,6 +209,10 @@ async def session_profile(
                 "seriesName": team.series_name,
                 "syncedAt": synced_at,
                 "hasImportedData": synced_at is not None,
+                # Para poder DECIR cuál es el principal, no sólo colocarlo
+                # primero: con tres clubes, «1º» a secas no explica por qué ese
+                # es el primero. `None` = Hattrick todavía no lo ha dicho.
+                "isPrimaryClub": team.is_primary_club,
             }
         )
 

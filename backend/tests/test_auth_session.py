@@ -199,3 +199,78 @@ def test_session_profile_requires_an_authenticated_manager(
     client, _user_id = seeded_user
     resp = client.get("/api/v1/auth/chpp/session")
     assert resp.status_code == 401
+
+
+@pytest.fixture
+def manager_con_tres_clubes() -> tuple[TestClient, int]:
+    """Un manager con tres clubes, y el principal NO es el primero del alfabeto.
+
+    Así la prueba distingue las dos ordenaciones posibles: por nombre --lo que
+    hacía el SQL-- y por club principal, que es lo que significa «primer
+    equipo» en Hattrick.
+    """
+    engine = create_async_engine(
+        "sqlite+aiosqlite://", poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def setup() -> int:
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        async with factory() as s:
+            user = m.User(ht_user_id=555, login_name="tester", created_at=datetime.now(UTC))
+            s.add(user)
+            await s.flush()
+            s.add_all([
+                m.Team(
+                    ht_team_id=1, owner_user_id=user.id, name="Arrechas de Zipaquirá",
+                    is_primary_club=False, league_name="Colombia",
+                ),
+                m.Team(
+                    ht_team_id=2, owner_user_id=user.id, name="Pulgas Arrechas",
+                    is_primary_club=True, league_name="Colombia",
+                ),
+                m.Team(
+                    ht_team_id=3, owner_user_id=user.id, name="Zorros del Tercero",
+                    is_primary_club=False, league_name="España",
+                ),
+            ])
+            await s.commit()
+            return user.id
+
+    import asyncio
+    user_id = asyncio.run(setup())
+
+    async def override_get_session():
+        async with factory() as s:
+            yield s
+
+    app.dependency_overrides[get_session] = override_get_session
+    client = TestClient(app)
+    yield client, user_id
+    app.dependency_overrides.clear()
+
+
+def test_session_profile_pone_el_club_principal_primero(
+    manager_con_tres_clubes: tuple[TestClient, int],
+) -> None:
+    """«1º» es el club PRINCIPAL, no el primero del alfabeto.
+
+    El mando de la barra lateral numera los clubes por su posición en esta
+    lista. Si el orden fuera alfabético, el «1º» de un manager con tres clubes
+    sería el que le tocó un nombre con A, y el principal --del que sale la
+    moneda que se enseña en los internacionales-- aparecería en medio.
+    """
+    client, user_id = manager_con_tres_clubes
+    client.cookies.set(COOKIE_NAME, create_session_token(user_id))
+
+    body = client.get("/api/v1/auth/chpp/session").json()
+
+    assert [equipo["name"] for equipo in body["teams"]] == [
+        "Pulgas Arrechas",
+        "Arrechas de Zipaquirá",
+        "Zorros del Tercero",
+    ]
+    # El principal se DICE, además de ir primero.
+    assert [equipo["isPrimaryClub"] for equipo in body["teams"]] == [True, False, False]

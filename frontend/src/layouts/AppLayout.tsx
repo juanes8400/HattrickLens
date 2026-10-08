@@ -7,6 +7,7 @@ import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
 import { ApoyarProyecto } from "../components/ApoyarProyecto";
+import { SelectorDeClub } from "../components/SelectorDeClub";
 import { SelectorDeIdioma } from "../components/SelectorDeIdioma";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
 import { NAV, USO, agrupar, nombreNav } from "./navegacion";
@@ -126,12 +127,17 @@ function ClubNavigation({
           {__COMMIT__ ? ` · ${__COMMIT__}` : ""}
         </span>
       </div>
-      <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+      <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
         <div className="text-sm">{teamName ?? "-"}</div>
         <div className="text-xs text-[var(--muted)]">
           {[seriesName, leagueName].filter(Boolean).join(" · ")}
         </div>
       </div>
+      {/* Con qué club se mira todo. Debajo del nombre, que es lo que acaba de
+          leerse, y encima del menú: la pregunta «¿de qué club es esto?» va
+          antes que cualquier pantalla. No se ve con un solo club, que es el
+          caso de casi todos los managers. */}
+      <SelectorDeClub />
       <NavigationLinks onNavigate={onNavigate} />
     </>
   );
