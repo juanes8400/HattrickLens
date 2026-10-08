@@ -1986,5 +1986,16 @@
   "Puja detectada": "Oferta przy znalezieniu",
   "sin cerrar": "jeszcze nie zamknięta",
   "no se pudo confirmar": "nie udało się potwierdzić",
-  "nadie ha pujado": "nikt nie licytował"
+  "nadie ha pujado": "nikt nie licytował",
+  "Media ponderada": "Średnia ważona",
+  "Subasta abierta": "Otwarta aukcja",
+  "Venta cerrada": "Zamknięta sprzedaż",
+  "Cómo ha ido cambiando el precio de sus comparables": "Jak zmieniała się cena jego porównywalnych",
+  "cerrada": "zamknięta",
+  "cerrando": "zamyka się",
+  "en {{v0}} h": "za {{v0}} h",
+  "en {{v0}} d": "za {{v0}} d",
+  "{{v0}} sem": "{{v0}} tyg",
+  "sin pujas": "brak ofert",
+  "sin confirmar": "niepotwierdzona"
 }

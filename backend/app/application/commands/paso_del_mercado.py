@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.commands.mercado_comparable import (
     Resolucion,
+    anotar_si_cambio,
     aplicar_resolucion,
     del_turno,
     fondo_del_equipo,
@@ -42,7 +43,12 @@ from app.application.commands.mercado_comparable import (
     toca_el_paso,
 )
 from app.application.queries.mercado_comparable import correr_el_turno
-from app.domain.engines.mercado_comparable import Objetivo, objetivo_de
+from app.domain.engines.mercado_comparable import (
+    Objetivo,
+    comparables_de,
+    estimar,
+    objetivo_de,
+)
 from app.infrastructure.db import models as m
 
 _log = logging.getLogger(__name__)
@@ -83,6 +89,8 @@ class PasoSemanal:
     busquedas: int
     #: Falso cuando no tocaba y sólo se resolvió lo pendiente.
     se_busco: bool
+    #: Cuantos jugadores cambiaron de numero y quedaron anotados en la serie.
+    puntos_anotados: int = 0
 
 
 async def correr_el_paso_semanal(
@@ -98,12 +106,17 @@ async def correr_el_paso_semanal(
 
     economica = await _fecha_economica(session, equipo)
     if not toca_el_paso(equipo, economica, ahora):
+        # Aunque no toque turno, una resolucion pudo cambiar el numero de
+        # varios jugadores a la vez: la venta que paso de puja a precio real
+        # es comparable de todo el que se le parezca.
+        puntos = await _anotar_la_serie(session, equipo, ahora) if resueltas else 0
         return PasoSemanal(
             resueltas=resueltas,
             jugadores_del_turno=(),
             ventas_nuevas=0,
             busquedas=0,
             se_busco=False,
+            puntos_anotados=puntos,
         )
 
     plantilla = await _plantilla(session, equipo.id)
@@ -138,11 +151,13 @@ async def correr_el_paso_semanal(
         nuevas += await guardar(session, equipo.id, resultado.nuevas, plazos)
         await session.flush()
 
+    puntos = await _anotar_la_serie(session, equipo, ahora)
     equipo.market_run_at = ahora
     return PasoSemanal(
         resueltas=resueltas,
         jugadores_del_turno=tuple(turno),
         ventas_nuevas=nuevas,
+        puntos_anotados=puntos,
         busquedas=busquedas,
         se_busco=True,
     )
@@ -183,6 +198,34 @@ async def _resolver(
     return tuple(hechas)
 
 
+async def _anotar_la_serie(session: AsyncSession, equipo: m.Team, ahora: datetime) -> int:
+    """Recorre la plantilla y anota un punto por cada estimacion que cambio.
+
+    Se hace para TODOS, no solo para los del turno: el fondo es del equipo,
+    asi que una venta nueva o una resolucion puede mover el numero de
+    cualquiera que se le parezca. Es aritmetica sobre lo ya guardado y no
+    gasta ni una peticion a Hattrick.
+    """
+    plantilla = await _plantilla(session, equipo.id)
+    fondo = await fondo_del_equipo(session, equipo.id)
+    puntos = 0
+    for jugador in plantilla:
+        objetivo = objetivo_de(
+            jugador.ht_player_id,
+            jugador.edad,
+            jugador.habilidades,
+            especialidad=jugador.especialidad,
+        )
+        if objetivo is None:
+            continue
+        estimacion = estimar(comparables_de(fondo, objetivo, ahora))
+        if await anotar_si_cambio(session, equipo.id, jugador.ht_player_id, estimacion, ahora):
+            puntos += 1
+    if puntos:
+        await session.flush()
+    return puntos
+
+
 def _otros_objetivos(plantilla: Sequence[_Jugador], menos_este: int) -> tuple[Objetivo, ...]:
     """Los demás de la plantilla, como objetivos medibles."""
     salida = []
@@ -204,9 +247,24 @@ class _Jugador:
 
 
 async def _plantilla(session: AsyncSession, team_id: int) -> list[_Jugador]:
-    """La plantilla de hoy, con la foto más reciente de cada jugador."""
+    """La plantilla de hoy, con la foto más reciente de cada jugador.
+
+    LOS QUE SE FUERON NO CUENTAN, y hasta el 2026-10-07 sí contaban. La
+    tabla guarda a todo el que pasó alguna vez por el club --555 filas con
+    este equipo, 530 de ellas de gente que ya salió-- y sin filtrar por
+    `left_team_at` el paso repartía turnos entre ex jugadores y gastaba
+    peticiones de CHPP buscándole comparables a quien ya no es tuyo.
+
+    Se vio al contar los puntos de la serie: salieron 48 jugadores donde la
+    plantilla tiene 25.
+    """
     jugadores = (
-        await session.execute(select(m.Player).where(m.Player.team_id == team_id))
+        await session.execute(
+            select(m.Player).where(
+                m.Player.team_id == team_id,
+                m.Player.left_team_at.is_(None),
+            )
+        )
     ).scalars()
     salida: list[_Jugador] = []
     for jugador in jugadores:

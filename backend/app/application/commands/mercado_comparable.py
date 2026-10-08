@@ -23,6 +23,7 @@ siguiente turno de su jugador dejaría el número provisional todo ese tiempo.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -34,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.engines.mercado_comparable import (
     GRUPOS,
     REINTENTOS_DE_RESOLUCION,
+    Estimacion,
     Guardado,
     Rasgo,
     Traspaso,
@@ -182,6 +184,83 @@ async def guardar(
 # --------------------------------------------------------------------------
 # De la puja al precio de verdad
 # --------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------
+# La serie: como ha ido cambiando el numero
+# --------------------------------------------------------------------------
+
+
+def _retrato(estimacion: Estimacion) -> str:
+    """Los precios que formaron esta lectura, en JSON.
+
+    Van los que CUENTAN, que son los que hacen el numero, cada uno con su
+    estado: la grafica dibuja relleno lo cerrado y hueco lo que sigue en
+    subasta, y esa distincion es la mitad de lo que hay que juzgar.
+    """
+    return json.dumps(
+        [
+            {"precio": c.venta.precio, "firme": c.venta.firme}
+            for c in estimacion.comparables
+            if c.cuenta
+        ],
+        separators=(",", ":"),
+    )
+
+
+async def anotar_si_cambio(
+    session: AsyncSession,
+    team_id: int,
+    ht_player_id: int,
+    estimacion: Estimacion,
+    ahora: datetime,
+) -> bool:
+    """Guarda una lectura, y solo si dice algo distinto de la anterior.
+
+    UN PUNTO POR CAMBIO Y NO POR FECHA. Si se anotara en cada sincronizacion
+    la serie seria una linea plana con cientos de puntos iguales, y el
+    tiempo entre dos puntos dejaria de significar nada. Anotando solo los
+    cambios, los tramos planos de la grafica cuentan que no paso nada, que
+    es informacion.
+
+    Devuelve si se anoto.
+    """
+    ultima = (
+        await session.execute(
+            select(m.MarketEstimate)
+            .where(
+                m.MarketEstimate.team_id == team_id,
+                m.MarketEstimate.ht_player_id == ht_player_id,
+            )
+            .order_by(m.MarketEstimate.captured_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    retrato = _retrato(estimacion)
+    if (
+        ultima is not None
+        and ultima.mean_price == estimacion.media
+        and ultima.median_price == estimacion.mediana
+        and ultima.n == estimacion.n
+        and ultima.prices_json == retrato
+    ):
+        return False
+
+    session.add(
+        m.MarketEstimate(
+            team_id=team_id,
+            ht_player_id=ht_player_id,
+            captured_at=ahora,
+            mean_price=estimacion.media,
+            median_price=estimacion.mediana,
+            n=estimacion.n,
+            min_weight=estimacion.peso_minimo,
+            provisional=estimacion.provisionales,
+            prices_json=retrato,
+        )
+    )
+    return True
 
 
 async def pendientes_de_resolver(

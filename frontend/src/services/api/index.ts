@@ -183,6 +183,7 @@ export type {
   PlayerBalance,
   PlayerBalanceRow,
   PrecioComparable,
+  PuntoDeLaSerie,
   RasgoVisible,
   TransferAttemptRow,
   TransferAttempts,

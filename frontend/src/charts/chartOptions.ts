@@ -356,8 +356,16 @@ export function resultsPieOption(
         label: { formatter: "{b}\n{c}" },
         data: [
           { name: tx("Ganados"), value: won, itemStyle: { color: "#2fbf71" } },
-          { name: tx("Empatados"), value: drawn, itemStyle: { color: "#f5a524" } },
-          { name: tx("Perdidos"), value: lost, itemStyle: { color: "#e5484d" } },
+          {
+            name: tx("Empatados"),
+            value: drawn,
+            itemStyle: { color: "#f5a524" },
+          },
+          {
+            name: tx("Perdidos"),
+            value: lost,
+            itemStyle: { color: "#e5484d" },
+          },
         ],
       },
     ],
@@ -499,5 +507,215 @@ export function highlightedScatterOption(
         z: 2,
       },
     ],
+  };
+}
+
+/** Una cifra de dinero en corto, para que quepa en un eje: «332 k», «1.3 M». */
+function corto(v: number): string {
+  if (Math.abs(v) >= 1_000_000) return `${metric(v / 1_000_000, 1)} M`;
+  if (Math.abs(v) >= 1_000) return `${Math.round(v / 1_000)} k`;
+  return number(Math.round(v));
+}
+
+/**
+ * La serie del precio como COLUMNAS DE PUNTOS, no como una línea sola.
+ *
+ * Cada lectura dibuja todas sus ventas sobre el eje de precio, y una línea
+ * une las medias. La línea sola decía «520.000» y callaba que sus seis
+ * ventas iban de 260.000 a 700.000, que es la mitad de lo que hay que
+ * juzgar.
+ *
+ * POR QUÉ PUNTOS Y NO UN VIOLÍN, que fue lo que se consideró: un violín
+ * dibuja una curva de densidad estimada, y con siete datos esa curva la
+ * decide el suavizado y no los datos. Un punto es una venta que existió.
+ * Cuando una lectura traiga veinte o treinta, el violín empezará a tener
+ * sentido y la nube a estorbar.
+ *
+ * Relleno es venta cerrada y hueco es subasta todavía abierta: el estado
+ * importa tanto como el número, porque una puja sólo puede subir.
+ */
+export function serieDePuntosOption(
+  lecturas: {
+    cuando: string;
+    media: number | null;
+    precios: [number, boolean][];
+  }[],
+  opciones: {
+    etiqueta: (iso: string) => string;
+    detalle: (v: number) => string;
+  },
+): EChartsOption {
+  const nube: [number, number][] = [];
+  const cerradas: [number, number][] = [];
+  lecturas.forEach((l, i) => {
+    for (const [precio, firme] of l.precios) {
+      (firme ? cerradas : nube).push([i, precio]);
+    }
+  });
+  const medias: (number | null)[] = lecturas.map((l) => l.media);
+
+  return {
+    grid: { left: 8, right: 14, top: 18, bottom: 28, containLabel: true },
+    xAxis: {
+      type: "category",
+      data: lecturas.map((l) => opciones.etiqueta(l.cuando)),
+      axisLabel: { fontSize: 10, hideOverlap: true },
+      axisTick: { show: false },
+      boundaryGap: true,
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: { fontSize: 10, formatter: (v: number) => corto(v) },
+      splitLine: { lineStyle: { opacity: 0.15 } },
+    },
+    series: [
+      {
+        type: "line",
+        name: tx("Media ponderada"),
+        data: medias,
+        symbol: "none",
+        lineStyle: { width: 2 },
+        connectNulls: false,
+        z: 1,
+      },
+      {
+        type: "scatter",
+        name: tx("Subasta abierta"),
+        data: nube,
+        symbolSize: 8,
+        symbol: "emptyCircle",
+        z: 2,
+      },
+      {
+        type: "scatter",
+        name: tx("Venta cerrada"),
+        data: cerradas,
+        symbolSize: 8,
+        z: 3,
+      },
+    ],
+    legend: { bottom: 0, itemHeight: 8, textStyle: { fontSize: 10 } },
+    tooltip: {
+      trigger: "item",
+      formatter: (p: unknown) => {
+        const d = p as { seriesType?: string; value?: unknown; name?: string };
+        if (d.seriesType === "line") {
+          return `${d.name}<br/>${opciones.detalle(Number(d.value ?? 0))}`;
+        }
+        const par = Array.isArray(d.value) ? d.value : [0, 0];
+        return opciones.detalle(Number(par[1] ?? 0));
+      },
+    },
+  };
+}
+
+/**
+ * El reparto de precios como UNA TIRA DE PUNTOS, no como barras.
+ *
+ * Cada punto es una venta sobre el eje de precio. Relleno es venta cerrada y
+ * hueco es subasta todavía abierta.
+ *
+ * POR QUÉ NO UN HISTOGRAMA, que fue lo primero que se construyó: con siete
+ * ventas los cubos salen de cuatro, y los tres precios bajos --1.000, 3.000 y
+ * 6.000-- caían los tres en la misma barra, indistinguibles. La tira los
+ * separa y además enseña dónde NO hay nada, que es la mitad de la forma.
+ * El histograma vuelve a tener sentido con quince o veinte ventas.
+ *
+ * Los que casi coinciden se APILAN en vez de taparse: sin eso, tres ventas
+ * pegadas al cero parecen una.
+ */
+export function tiraDePuntosOption(
+  precios: [number, boolean][],
+  opciones: {
+    media: number | null;
+    mediana: number | null;
+    detalle: (v: number) => string;
+    etiquetaMedia: string;
+    etiquetaMediana: string;
+  },
+): EChartsOption {
+  const orden = [...precios].sort((a, b) => a[0] - b[0]);
+  const minimo = orden.length ? orden[0]![0] : 0;
+  const maximo = orden.length ? orden[orden.length - 1]![0] : 1;
+  // Dos puntos a menos de un 2,5% del rango se pisan a este tamaño.
+  const juntos = Math.max((maximo - minimo) * 0.025, 1);
+
+  const abiertas: [number, number][] = [];
+  const cerradas: [number, number][] = [];
+  let anterior = -Infinity;
+  let piso = 0;
+  for (const [precio, firme] of orden) {
+    piso = precio - anterior <= juntos ? piso + 1 : 0;
+    anterior = precio;
+    (firme ? cerradas : abiertas).push([precio, piso]);
+  }
+  const alto = Math.max(piso, 2);
+
+  const marcas = [
+    opciones.media != null
+      ? { xAxis: opciones.media, name: opciones.etiquetaMedia }
+      : null,
+    opciones.mediana != null
+      ? { xAxis: opciones.mediana, name: opciones.etiquetaMediana }
+      : null,
+  ].filter(Boolean) as { xAxis: number; name: string }[];
+
+  return {
+    grid: { left: 8, right: 16, top: 26, bottom: 28, containLabel: true },
+    xAxis: {
+      type: "value",
+      min: minimo,
+      max: maximo,
+      axisLabel: { fontSize: 10, formatter: (v: number) => corto(v) },
+      splitLine: { lineStyle: { opacity: 0.12 } },
+    },
+    yAxis: {
+      type: "value",
+      min: -0.6,
+      max: alto + 0.6,
+      show: false,
+    },
+    series: [
+      {
+        type: "scatter",
+        name: tx("Subasta abierta"),
+        data: abiertas,
+        symbolSize: 11,
+        // Hueco de verdad: `emptyCircle` pinta el borde con el color de la
+        // serie. Con `color: transparent` y sin `borderColor` el punto
+        // salia INVISIBLE, y la grafica enseñaba ejes y marcas sin datos.
+        symbol: "emptyCircle",
+        markLine: {
+          symbol: "none",
+          silent: true,
+          lineStyle: { type: "dashed", opacity: 0.55 },
+          // `rotate: 0` porque ECharts gira la etiqueta de una linea
+          // VERTICAL por defecto, y «media» salia escrito de arriba
+          // abajo (2026-10-08).
+          label: {
+            fontSize: 10,
+            formatter: "{b}",
+            position: "insideEndTop",
+            rotate: 0,
+          },
+          data: marcas,
+        },
+      },
+      {
+        type: "scatter",
+        name: tx("Venta cerrada"),
+        data: cerradas,
+        symbolSize: 11,
+      },
+    ],
+    legend: { bottom: 0, itemHeight: 8, textStyle: { fontSize: 10 } },
+    tooltip: {
+      trigger: "item",
+      formatter: (p: unknown) => {
+        const d = p as { value?: unknown };
+        const par = Array.isArray(d.value) ? d.value : [0, 0];
+        return opciones.detalle(Number(par[0] ?? 0));
+      },
+    },
   };
 }
