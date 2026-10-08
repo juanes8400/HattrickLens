@@ -24,7 +24,7 @@ una.
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Mapping
+from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
@@ -42,7 +42,7 @@ from app.application.commands.mercado_comparable import (
     toca_el_paso,
 )
 from app.application.queries.mercado_comparable import correr_el_turno
-from app.domain.engines.mercado_comparable import objetivo_de
+from app.domain.engines.mercado_comparable import Objetivo, objetivo_de
 from app.infrastructure.db import models as m
 
 _log = logging.getLogger(__name__)
@@ -128,6 +128,10 @@ async def correr_el_paso_semanal(
             fondo=fondo,
             mi_equipo=equipo.ht_team_id,
             ahora=ahora,
+            # El resto de la plantilla viaja para quedarse con lo que les
+            # sirva a ellos: la búsqueda ya está pagada y por delante pasa
+            # el mercado entero, no sólo el de quien tiene turno.
+            tambien_para=_otros_objetivos(plantilla, jugador.ht_player_id),
         )
         busquedas += resultado.busquedas
         plazos = {p.ht_player_id: p.plazo for p in resultado.por_resolver}
@@ -177,6 +181,22 @@ async def _resolver(
     if hechas:
         await session.flush()
     return tuple(hechas)
+
+
+def _otros_objetivos(
+    plantilla: Sequence[_Jugador], menos_este: int
+) -> tuple[Objetivo, ...]:
+    """Los demás de la plantilla, como objetivos medibles."""
+    salida = []
+    for j in plantilla:
+        if j.ht_player_id == menos_este:
+            continue
+        otro = objetivo_de(
+            j.ht_player_id, j.edad, j.habilidades, especialidad=j.especialidad
+        )
+        if otro is not None:
+            salida.append(otro)
+    return tuple(salida)
 
 
 @dataclass(frozen=True, slots=True)

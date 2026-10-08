@@ -36,6 +36,7 @@ from app.domain.engines.mercado_comparable import (
     REINTENTOS_DE_RESOLUCION,
     Guardado,
     Rasgo,
+    Traspaso,
     frontera_semanal,
     le_toca,
     precio_cerrado,
@@ -59,6 +60,8 @@ class Resolucion:
     precio: int | None
     #: Si se agotaron los reintentos y se deja con su puja.
     abandonada: bool
+    #: El traspaso de Hattrick con el que se resolvió, cuando se resolvió.
+    ht_transfer_id: int = 0
 
 
 def toca_el_paso(equipo: m.Team, economy_date: datetime | None, ahora: datetime) -> bool:
@@ -118,6 +121,7 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         tsi=fila.tsi,
         pais=fila.country_id,
         intentos=fila.resolve_attempts,
+        ht_transfer_id=fila.ht_transfer_id,
     )
 
 
@@ -206,15 +210,27 @@ def aplicar_resolucion(fila: m.MarketSale, historial: Mapping[str, Any]) -> Reso
     sería gastar llamadas en balde.
     """
     traspasos = [
-        (cierre, int(t.get("price", 0) or 0))
+        Traspaso(
+            ht_transfer_id=int(t.get("ht_transfer_id", 0) or 0),
+            cierre=cierre,
+            precio=int(t.get("price", 0) or 0),
+        )
         for t in historial.get("transfers", [])
         if (cierre := ht_to_utc(str(t.get("deadline", "") or ""))) is not None
     ]
-    precio = precio_cerrado(traspasos, fila.deadline) if fila.deadline is not None else None
-    if precio is not None:
-        fila.price = precio
+    cerrado = precio_cerrado(traspasos, fila.deadline) if fila.deadline is not None else None
+    if cerrado is not None:
+        fila.price = cerrado.precio
         fila.is_final = True
-        return Resolucion(ht_player_id=fila.ht_player_id, precio=precio, abandonada=False)
+        # Desde aquí la venta tiene identidad propia de Hattrick, y no una
+        # marca de tiempo con tolerancia de cinco minutos.
+        fila.ht_transfer_id = cerrado.ht_transfer_id
+        return Resolucion(
+            ht_player_id=fila.ht_player_id,
+            precio=cerrado.precio,
+            abandonada=False,
+            ht_transfer_id=cerrado.ht_transfer_id,
+        )
     fila.resolve_attempts += 1
     return Resolucion(
         ht_player_id=fila.ht_player_id,

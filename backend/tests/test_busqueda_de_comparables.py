@@ -64,8 +64,17 @@ def _fila(ident: int, *, puja: int = 4_000_000, **extra: Any) -> dict[str, Any]:
     return fila
 
 
-def _venta(ident: int, *, semanas: float = 0) -> Guardado:
-    tres = terna(SKILLS)
+def _venta(ident: int, *, semanas: float = 0, exacta: bool = True) -> Guardado:
+    """Una venta del fondo.
+
+    `exacta=False` la baja un nivel en la primaria, o sea a un 85%. Hace
+    falta desde el 2026-10-07: un comparable al 100% ya NO caduca, asi que
+    para probar la caducidad hay que usar un parecido.
+    """
+    skills = dict(SKILLS)
+    if not exacta:
+        skills["scoring"] = skills["scoring"] - 1
+    tres = terna(skills)
     assert tres is not None
     return Guardado(
         ht_player_id=ident,
@@ -98,13 +107,21 @@ async def _turno(mercado: Any, **kwargs: Any) -> Any:
     return await correr_el_turno(_objetivo(), mercado, mi_equipo=MI_EQUIPO, ahora=AHORA, **kwargs)
 
 
-async def test_con_el_fondo_vivo_el_turno_no_gasta_ni_una_llamada() -> None:
-    """Es la economia principal: la mayoria de los turnos no tienen que hacer
-    nada, y hacer algo costaria cuota de la aplicacion entera."""
+async def test_con_el_fondo_vivo_el_turno_solo_gasta_el_escalon_exacto() -> None:
+    """La economia principal, con la excepcion que el usuario fijo el
+    2026-10-07: un turno con el fondo completo ya no hace NADA salvo el
+    escalon exacto, que se recorre siempre.
+
+    Hasta ese dia no gastaba ni una peticion. Ahora gasta una, porque un
+    comparable al 100% no caduca y queda grabado, y seguir buscandolo cada
+    turno es lo unico que hace que no envejezca de verdad.
+    """
     mercado = _Mercado()
     r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 7)])
-    assert r.busquedas == 0
-    assert mercado.pedidas == []
+    assert r.busquedas == 1
+    assert len(mercado.pedidas) == 1
+    exacta = mercado.pedidas[0]
+    assert exacta.peso == 100, "y es el escalon exacto, no otro"
     assert r.estimacion.suficiente is True
     assert r.nuevas == ()
     assert r.por_resolver == ()
@@ -159,7 +176,9 @@ async def test_lo_caducado_cuenta_pero_no_detiene_la_busqueda() -> None:
     mas que ninguna. Pero su turno se gasta entero buscando con que
     sustituirlas, que es lo que el usuario pidio."""
     mercado = _Mercado([_fila(9)])
-    r = await _turno(mercado, fondo=[_venta(i, semanas=9) for i in range(1, 6)])
+    # Cinco caducadas, y PARECIDAS: al 100% ya no caducarian.
+    fondo = [_venta(i, semanas=9, exacta=False) for i in range(1, 6)]
+    r = await _turno(mercado, fondo=fondo)
     assert r.busquedas == len(ESCALERA)
     assert r.estimacion.n == OBJETIVO
     assert len(r.nuevas) == 1

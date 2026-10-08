@@ -23,6 +23,7 @@ from app.domain.engines.mercado_comparable import (
     GRUPOS,
     MARGEN_TRAS_EL_PLAZO,
     REINTENTOS_DE_RESOLUCION,
+    Traspaso,
     precio_cerrado,
     se_puede_resolver,
 )
@@ -54,6 +55,9 @@ def _fila(**extra) -> m.MarketSale:
         deadline=PLAZO,
         seen_at=PLAZO - timedelta(days=1),
         resolve_attempts=0,
+        # Explicito porque los defaults de SQLAlchemy se aplican al INSERTAR,
+        # no al construir: sin esto el atributo vale None y no 0.
+        ht_transfer_id=0,
         age_years=32,
         primary_skill="scoring",
         primary_level=18,
@@ -69,10 +73,18 @@ def _fila(**extra) -> m.MarketSale:
 
 
 def _historial(*traspasos: tuple[str, int]) -> dict:
+    """El historial tal como lo manda `transfersplayer`, CON su TransferID.
+
+    El id es lo que distingue dos traspasos seguidos, y es el unico sitio
+    donde Hattrick lo publica: el fichero del mercado no lo trae.
+    """
     return {
         "ht_player_id": 465780831,
         "player_name": "Valerio Cataldi",
-        "transfers": [{"deadline": cuando, "price": precio} for cuando, precio in traspasos],
+        "transfers": [
+            {"ht_transfer_id": 9_000_001 + i, "deadline": cuando, "price": precio}
+            for i, (cuando, precio) in enumerate(traspasos)
+        ],
     }
 
 
@@ -106,24 +118,64 @@ def test_sin_plazo_no_se_pregunta() -> None:
 def test_se_coge_el_traspaso_de_NUESTRO_plazo_y_no_el_mas_reciente() -> None:
     """El historial trae TODOS los traspasos del jugador. Si volvio a cambiar
     de club despues, el mas reciente es otro traspaso y otro precio."""
-    precio = precio_cerrado(
+    cerrado = precio_cerrado(
         [
-            (PLAZO + timedelta(days=40), 90_000_000),
-            (PLAZO, 77_720_000),
-            (PLAZO - timedelta(days=1500), 70_369_800),
+            Traspaso(301, PLAZO + timedelta(days=40), 90_000_000),
+            Traspaso(302, PLAZO, 77_720_000),
+            Traspaso(303, PLAZO - timedelta(days=1500), 70_369_800),
         ],
         PLAZO,
     )
-    assert precio == 77_720_000
+    assert cerrado is not None
+    assert cerrado.precio == 77_720_000
+    assert cerrado.ht_transfer_id == 302
 
 
 def test_un_desfase_de_minutos_sigue_siendo_el_mismo_traspaso() -> None:
-    assert precio_cerrado([(PLAZO + timedelta(minutes=3), 77_720_000)], PLAZO) == 77_720_000
+    cerrado = precio_cerrado([Traspaso(302, PLAZO + timedelta(minutes=3), 77_720_000)], PLAZO)
+    assert cerrado is not None and cerrado.precio == 77_720_000
 
 
 def test_si_ninguno_encaja_no_se_inventa_un_precio() -> None:
-    assert precio_cerrado([(PLAZO + timedelta(days=9), 90_000_000)], PLAZO) is None
+    assert precio_cerrado([Traspaso(9, PLAZO + timedelta(days=9), 90_000_000)], PLAZO) is None
     assert precio_cerrado([], PLAZO) is None
+
+
+def test_con_dos_dentro_de_la_tolerancia_gana_el_mas_cercano() -> None:
+    """Dos traspasos seguidos pueden caer los dos en la ventana de cinco
+    minutos. Antes se cogia el primero que apareciera, o sea el que Hattrick
+    mandara antes; ahora gana el que de verdad cierra en nuestro plazo.
+
+    El caso real medido tenia trece segundos de desfase, asi que el margen
+    para equivocarse existe de sobra.
+    """
+    cerrado = precio_cerrado(
+        [
+            Traspaso(401, PLAZO + timedelta(minutes=4), 50_000_000),
+            Traspaso(402, PLAZO + timedelta(seconds=13), 77_720_000),
+        ],
+        PLAZO,
+    )
+    assert cerrado is not None
+    assert cerrado.ht_transfer_id == 402
+    assert cerrado.precio == 77_720_000
+
+
+def test_al_resolver_la_venta_se_queda_con_el_id_del_traspaso() -> None:
+    """Desde ahi deja de identificarse por una marca de tiempo."""
+    fila = _fila()
+    resultado = aplicar_resolucion(fila, _historial((PLAZO_HT, 77_720_000)))
+    assert resultado.ht_transfer_id > 0
+    assert fila.ht_transfer_id == resultado.ht_transfer_id
+
+
+def test_mientras_sea_puja_no_hay_id_que_guardar() -> None:
+    """El fichero del mercado no publica TransferID: mientras la subasta
+    vive, la transferencia no ha ocurrido y no tiene identificador."""
+    fila = _fila()
+    resultado = aplicar_resolucion(fila, _historial())
+    assert resultado.ht_transfer_id == 0
+    assert fila.ht_transfer_id == 0
 
 
 # --------------------------------------------------------------------------
