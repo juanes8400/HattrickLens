@@ -1986,5 +1986,16 @@
   "Puja detectada": "Bid when found",
   "sin cerrar": "not closed yet",
   "no se pudo confirmar": "could not be confirmed",
-  "nadie ha pujado": "nobody has bid"
+  "nadie ha pujado": "nobody has bid",
+  "Media ponderada": "Weighted average",
+  "Subasta abierta": "Open auction",
+  "Venta cerrada": "Closed sale",
+  "Cómo ha ido cambiando el precio de sus comparables": "How the price of his comparables has been changing",
+  "cerrada": "closed",
+  "cerrando": "closing",
+  "en {{v0}} h": "in {{v0}} h",
+  "en {{v0}} d": "in {{v0}} d",
+  "{{v0}} sem": "{{v0}} wk",
+  "sin pujas": "no bids",
+  "sin confirmar": "unconfirmed"
 }

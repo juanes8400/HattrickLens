@@ -10,6 +10,7 @@ El caso que gobierna todo esto es real: el 2026-10-05 Valerio Cataldi tenia
 65.000.000 de puja y cerro en 77.720.000, un 16% mas.
 """
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -331,3 +332,136 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
     assert [r.precio for r in paso.resueltas] == [77_720_000]
+
+
+async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
+    """`market_sales` sabe como esta el fondo AHORA, no como estuvo: al
+    resolver una venta su puja se pisa con el precio de cierre. Sin anotar
+    la lectura no hay forma de dibujar como fue cambiando."""
+    session, equipo = base
+    paso = await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    assert paso.puntos_anotados >= 1
+
+    puntos = (
+        (
+            await session.execute(
+                select(m.MarketEstimate).where(m.MarketEstimate.ht_player_id == ALBERTO)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(puntos) == 1
+    assert puntos[0].n == OBJETIVO
+    assert puntos[0].mean_price == 1_000_000
+    # Y lleva la nube, no solo la media: seis precios, los seis sin cerrar.
+    nube = json.loads(puntos[0].prices_json)
+    assert len(nube) == OBJETIVO
+    assert all(p["firme"] is False for p in nube)
+    assert {p["precio"] for p in nube} == {1_000_000}
+
+
+async def test_la_serie_no_repite_un_punto_que_no_dice_nada_nuevo(base) -> None:
+    """Un punto por CAMBIO y no por fecha. Anotando en cada sincronizacion,
+    la serie seria una linea plana con cientos de puntos iguales y el tiempo
+    entre dos puntos dejaria de significar algo."""
+    session, equipo = base
+    await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    antes = len((await session.execute(select(m.MarketEstimate))).scalars().all())
+
+    # Otra sincronizacion sin nada que resolver y sin turno: nada cambia.
+    paso = await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso(),
+        historial_de=_sin_historial,
+        ahora=AHORA + timedelta(hours=1),
+    )
+    assert paso.puntos_anotados == 0
+    despues = len((await session.execute(select(m.MarketEstimate))).scalars().all())
+    assert despues == antes
+
+
+async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
+    """El otro motivo por el que el numero se mueve: una subasta que cierra
+    y pasa de puja a precio real."""
+    session, equipo = base
+    await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900, puja=65_000_000)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+
+    async def historial(ht_player_id: int) -> dict[str, Any]:
+        return {
+            "transfers": [
+                {"ht_transfer_id": 77, "deadline": PLAZO_HT, "price": 77_720_000}
+            ]
+        }
+
+    despues = AHORA + timedelta(days=2)
+    paso = await correr_el_paso_semanal(
+        session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
+    )
+    assert [r.precio for r in paso.resueltas] == [77_720_000]
+    assert paso.puntos_anotados >= 1
+    nube = json.loads(
+        (
+            (
+                await session.execute(
+                    select(m.MarketEstimate)
+                    .where(m.MarketEstimate.ht_player_id == ALBERTO)
+                    .order_by(m.MarketEstimate.captured_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one()
+        ).prices_json
+    )
+    assert nube == [{"precio": 77_720_000, "firme": True}]
+
+
+async def test_a_un_ex_jugador_no_se_le_busca_precio(base) -> None:
+    """La tabla guarda a todo el que paso por el club: en la base real eran
+    555 filas de este equipo y 530 de gente que ya salio. Sin filtrar, el
+    paso les repartia turno y gastaba peticiones de CHPP buscandole
+    comparables a quien ya no es tuyo (2026-10-07)."""
+    session, equipo = base
+    ido = (
+        await session.execute(select(m.Player).where(m.Player.ht_player_id == GEMELO))
+    ).scalar_one()
+    ido.left_team_at = AHORA - timedelta(days=30)
+    await session.flush()
+
+    paso = await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    assert GEMELO not in paso.jugadores_del_turno
+    # Y tampoco se le anota un punto en la serie.
+    suyos = (
+        (
+            await session.execute(
+                select(m.MarketEstimate).where(m.MarketEstimate.ht_player_id == GEMELO)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert suyos == []

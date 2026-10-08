@@ -1017,7 +1017,9 @@
     "temaOscuro": "ciemny",
     "temaSistema": "systemowy",
     "version": "Wersja {{version}}",
-    "versionConCommit": "Wersja {{version}} · commit {{commit}}"
+    "versionConCommit": "Wersja {{version}} · commit {{commit}}",
+    "club": "Klub",
+    "clubSinImportar": "bez importu"
   },
   "nav": {
     "alertas": "Alerty",

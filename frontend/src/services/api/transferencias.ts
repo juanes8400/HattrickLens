@@ -296,6 +296,16 @@ export interface ComparableDeMercado {
 }
 
 /** Lo que ha costado la gente parecida a un jugador tuyo. */
+/** Una lectura pasada del precio, para dibujar cómo fue cambiando. */
+export interface PuntoDeLaSerie {
+  cuando: string;
+  media: number | null;
+  mediana: number | null;
+  n: number;
+  /** `[precio, firme]` por cada venta que formó esa lectura. */
+  precios: [number, boolean][];
+}
+
 export interface PrecioComparable {
   /** `null` mientras no haya seis ventas. */
   media: number | null;
@@ -313,4 +323,6 @@ export interface PrecioComparable {
    *  equipo, divididas por la tasa del país. */
   moneda: string;
   comparables: ComparableDeMercado[];
+  /** De la más vieja a la más nueva. Vacía mientras no haya historia. */
+  serie: PuntoDeLaSerie[];
 }

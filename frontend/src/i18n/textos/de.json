@@ -1986,5 +1986,16 @@
   "Puja detectada": "Gebot beim Fund",
   "sin cerrar": "noch nicht beendet",
   "no se pudo confirmar": "konnte nicht bestätigt werden",
-  "nadie ha pujado": "niemand hat geboten"
+  "nadie ha pujado": "niemand hat geboten",
+  "Media ponderada": "Gewichteter Durchschnitt",
+  "Subasta abierta": "Laufende Auktion",
+  "Venta cerrada": "Abgeschlossener Verkauf",
+  "Cómo ha ido cambiando el precio de sus comparables": "Wie sich der Preis seiner Vergleichsspieler verändert hat",
+  "cerrada": "beendet",
+  "cerrando": "endet gerade",
+  "en {{v0}} h": "in {{v0}} h",
+  "en {{v0}} d": "in {{v0}} T",
+  "{{v0}} sem": "{{v0}} Wo",
+  "sin pujas": "keine Gebote",
+  "sin confirmar": "unbestätigt"
 }

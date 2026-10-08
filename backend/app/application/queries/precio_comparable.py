@@ -20,6 +20,8 @@ Lo que la pantalla está obligada a decir, y por eso viaja aquí:
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -102,6 +104,24 @@ class FilaDeComparable:
 
 
 @dataclass(frozen=True, slots=True)
+class PuntoDeLaSerie:
+    """Una lectura pasada, para dibujar como fue cambiando.
+
+    `precios` es la nube entera de esa lectura, no sólo la media: la
+    dispersión es la mitad de lo que hay que juzgar. El 2026-10-07 un
+    jugador tenía media 438.701 y sus siete ventas iban de 1.000 a
+    1.326.000; decir sólo la media callaba eso.
+    """
+
+    cuando: datetime
+    media: int | None
+    mediana: int | None
+    n: int
+    #: `[(precio, firme), ...]` ya convertidos a la moneda del equipo.
+    precios: tuple[tuple[int, bool], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class PrecioComparable:
     """El número y todo lo que hace falta para no leerlo mal."""
 
@@ -123,6 +143,8 @@ class PrecioComparable:
     #: aquí ya vienen divididas por la tasa del país.
     moneda: str
     comparables: tuple[FilaDeComparable, ...]
+    #: De la más vieja a la más nueva. Vacía mientras no haya historia.
+    serie: tuple[PuntoDeLaSerie, ...]
 
 
 async def precio_de(
@@ -175,6 +197,7 @@ async def precio_de(
         ),
         perfil=_perfil(objetivo),
         moneda=moneda,
+        serie=await _serie(session, team_id, ht_player_id, convertido),
         comparables=tuple(
             FilaDeComparable(
                 ht_player_id=c.venta.ht_player_id,
@@ -227,6 +250,54 @@ async def _objetivo_del_jugador(
         {h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
         especialidad=foto.specialty or 0,
     )
+
+
+async def _serie(
+    session: AsyncSession,
+    team_id: int,
+    ht_player_id: int,
+    convertido: Callable[[int], int],
+) -> tuple[PuntoDeLaSerie, ...]:
+    """Las lecturas pasadas de este jugador, de la más vieja a la más nueva.
+
+    Sale de `market_estimates`, que guarda una fila por cada vez que su
+    número cambió. No se puede reconstruir del fondo: al resolver una venta,
+    su puja se pisa con el precio de cierre y el valor anterior desaparece.
+    """
+    filas = (
+        (
+            await session.execute(
+                select(m.MarketEstimate)
+                .where(
+                    m.MarketEstimate.team_id == team_id,
+                    m.MarketEstimate.ht_player_id == ht_player_id,
+                )
+                .order_by(m.MarketEstimate.captured_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    puntos = []
+    for fila in filas:
+        try:
+            nube = json.loads(fila.prices_json or "[]")
+        except ValueError:
+            nube = []
+        puntos.append(
+            PuntoDeLaSerie(
+                cuando=fila.captured_at,
+                media=convertido(fila.mean_price) if fila.mean_price is not None else None,
+                mediana=convertido(fila.median_price) if fila.median_price is not None else None,
+                n=fila.n,
+                precios=tuple(
+                    (convertido(int(p.get("precio", 0) or 0)), bool(p.get("firme")))
+                    for p in nube
+                    if isinstance(p, dict)
+                ),
+            )
+        )
+    return tuple(puntos)
 
 
 async def _paises(session: AsyncSession) -> dict[int, tuple[str, str]]:

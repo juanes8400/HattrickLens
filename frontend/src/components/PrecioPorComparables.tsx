@@ -25,7 +25,12 @@ import { DataTable } from "./DataTable";
 import type { Column } from "./DataTable";
 import { Specialty } from "./Specialty";
 import { CountryCell } from "./CountryFlag";
-import { dateTime, money, number } from "../hooks/useFormat";
+import { Chart } from "../charts/Chart";
+import {
+  serieDePuntosOption,
+  tiraDePuntosOption,
+} from "../charts/chartOptions";
+import { date, money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
 import { terminoOficial } from "../i18n/glosario";
@@ -58,6 +63,14 @@ function perfilLegible(perfil: RasgoVisible[]): string {
     .join(" · ");
 }
 
+/** Desde cuántas lecturas vale la pena dibujar la serie. Con una no hay
+ *  nada que unir. */
+const MINIMO_PARA_LA_SERIE = 2;
+
+/** Desde cuántas ventas vale la pena dibujar el reparto. Con dos o tres, la
+ *  tira no dice nada que la tabla no diga mejor. */
+const MINIMO_PARA_LA_TIRA = 4;
+
 /** El peso en color: el verde es un parecido de verdad. */
 function colorDelPeso(peso: number): string {
   if (peso >= 100) return "text-[var(--ok)]";
@@ -72,6 +85,21 @@ function colorDelPeso(peso: number): string {
 function salto(puja: number, precio: number): string {
   const pct = ((precio / puja - 1) * 100).toFixed(1).replace(".", ",");
   return `+${pct}%`;
+}
+
+/** «en 11 h», «cerrada».
+ *
+ *  La columna enseñaba el sello entero --«08/10/2026 12:37»-- y eso hacia
+ *  dos cosas malas: ocupaba el ancho que sacaba la tabla de su contenedor, y
+ *  obligaba a restar mentalmente para saber lo unico que importa, que es
+ *  cuanto le falta a esa puja para convertirse en precio (2026-10-08).
+ */
+function cuantoFalta(iso: string | null): string {
+  if (!iso) return tx("cerrada");
+  const horas = (new Date(iso).getTime() - Date.now()) / 3_600_000;
+  if (horas <= 0) return tx("cerrando");
+  if (horas < 48) return tx("en {{v0}} h", { v0: String(Math.round(horas)) });
+  return tx("en {{v0}} d", { v0: String(Math.round(horas / 24)) });
 }
 
 /** El nombre oficial de una habilidad, para la cabecera de su columna. */
@@ -129,17 +157,20 @@ function columnasDe(
             )}
           </span>
         ) : (
-          <span className="text-xs text-[var(--warn)]">
+          <span className="whitespace-nowrap text-xs text-[var(--warn)]">
             {/* Tres estados distintos, no dos. Un anuncio que nadie ha
                 pujado tampoco cuenta, pero no es que fallara al
                 confirmarse: es que todavía no hay precio que confirmar
                 (2026-10-07, al ver que a Kurt Schönhueb no le salía ni un
-                comparable con puja y sí ocho sin ella). */}
+                comparable con puja y sí ocho sin ella).
+
+                Cortos y de una pieza: partidos en dos lineas estiraban toda
+                la fila, porque el alto lo manda la celda mas alta. */}
             {f.puja <= 0
-              ? tx("nadie ha pujado")
+              ? tx("sin pujas")
               : f.cuenta
                 ? tx("sin cerrar")
-                : tx("no se pudo confirmar")}
+                : tx("sin confirmar")}
           </span>
         ),
     },
@@ -166,6 +197,7 @@ function columnasDe(
       header: tx("Jugador"),
       align: "left",
       value: (f) => f.nombre,
+      render: (f) => <span className="whitespace-nowrap">{f.nombre}</span>,
     },
     {
       key: "peso",
@@ -195,7 +227,13 @@ function columnasDe(
       header: tx("Especialidad"),
       align: "left",
       value: (f) => f.especialidad,
-      render: (f) => <Specialty specialty={f.especialidad} />,
+      // SOLO EL ICONO. Con el nombre al lado, «Sin especialidad» se partia
+      // en dos lineas y estiraba TODA la fila a 53 px --el alto lo manda la
+      // celda mas alta-- ademas de comerse 115 px de ancho (medido el
+      // 2026-10-08). El icono lleva el nombre en su `title` y en su
+      // etiqueta accesible, y quien no tiene especialidad no pinta nada,
+      // que es justo lo que hay que decir.
+      render: (f) => <Specialty specialty={f.especialidad} iconOnly />,
     },
     {
       key: "tsi",
@@ -210,12 +248,11 @@ function columnasDe(
       // Lo ya cerrado al final cuando se ordena por esta columna: un plazo
       // que no existe no es «hace mucho», es que ya no aplica.
       value: (f) => (f.cierra ? new Date(f.cierra).getTime() : Infinity),
-      render: (f) =>
-        f.cierra ? (
-          <span className="tabular-nums">{dateTime(f.cierra)}</span>
-        ) : (
-          <span className="text-[var(--muted)]">{tx("ya cerrada")}</span>
-        ),
+      render: (f) => (
+        <span className="whitespace-nowrap tabular-nums">
+          {cuantoFalta(f.cierra)}
+        </span>
+      ),
     },
     {
       key: "semanas",
@@ -223,8 +260,10 @@ function columnasDe(
       align: "right",
       value: (f) => f.semanas,
       render: (f) => (
-        <span className={`tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}>
-          {tx("hace {{v0}} semanas", { v0: number(f.semanas) })}
+        <span
+          className={`whitespace-nowrap tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}
+        >
+          {tx("{{v0}} sem", { v0: number(f.semanas) })}
         </span>
       ),
     },
@@ -269,8 +308,12 @@ export function PrecioPorComparables({
       <div className="px-4 py-3">
         {hayNumero ? (
           <>
-            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-              <div>
+            {/* TARJETAS Y NO UNA LINEA APRETADA. Las tres cifras compartian
+                renglon con sus rotulos minusculos encima, y a ancho de
+                escritorio quedaban perdidas contra el margen izquierdo
+                (2026-10-08, el usuario: «ese layout espantoso»). */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg bg-[var(--surface-2)] px-4 py-3">
                 <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
                   {tx("Media")}
                   <Ayuda
@@ -283,7 +326,7 @@ export function PrecioPorComparables({
                   {money(datos.media as number, datos.moneda)}
                 </div>
               </div>
-              <div>
+              <div className="rounded-lg bg-[var(--surface-2)] px-4 py-3">
                 <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
                   {tx("Mediana")}
                   <Ayuda
@@ -296,7 +339,7 @@ export function PrecioPorComparables({
                   {money(datos.mediana as number, datos.moneda)}
                 </div>
               </div>
-              <div>
+              <div className="rounded-lg bg-[var(--surface-2)] px-4 py-3">
                 <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
                   {/* «Se pagó» sólo cuando de verdad se pagó. Con las seis
                       subastas abiertas el panel decía «DE VERDAD SE PAGÓ
@@ -317,10 +360,28 @@ export function PrecioPorComparables({
                 </div>
               </div>
             </div>
-            <p className="mt-2 text-sm text-[var(--muted)]">
+            <p className="prosa mt-3 flex items-center gap-1 text-sm text-[var(--muted)]">
               {tx(
                 "De {{v0}} ventas de jugadores parecidos. El que menos se parece cuenta un {{v1}}%.",
                 { v0: number(datos.n), v1: datos.pesoMinimo },
+              )}
+              {/* En burbuja y no en un bloque amarillo (2026-10-08, pedido
+                  del usuario). El aviso no se pierde: cada fila de la tabla
+                  dice «sin cerrar» y cada punto hueco de la tira lo repite,
+                  asi que el bloque de color era la tercera vez. */}
+              {datos.provisionales > 0 && (
+                <Ayuda
+                  texto={
+                    datos.provisionales === 1
+                      ? tx(
+                          "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.",
+                        )
+                      : tx(
+                          "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.",
+                          { v0: number(datos.provisionales) },
+                        )
+                  }
+                />
               )}
             </p>
           </>
@@ -333,21 +394,8 @@ export function PrecioPorComparables({
           </p>
         )}
 
-        {datos.provisionales > 0 && (
-          <p className="mt-2 text-sm text-[var(--warn)]">
-            {datos.provisionales === 1
-              ? tx(
-                  "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.",
-                )
-              : tx(
-                  "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.",
-                  { v0: number(datos.provisionales) },
-                )}
-          </p>
-        )}
-
         {datos.semanasDelMasViejo >= 7 && (
-          <p className="mt-2 text-sm text-[var(--muted)]">
+          <p className="prosa mt-3 text-sm text-[var(--muted)]">
             {tx(
               "La venta más antigua es de hace {{v0}} semanas: sigue contando porque no ha aparecido nada más reciente.",
               { v0: number(datos.semanasDelMasViejo) },
@@ -355,6 +403,46 @@ export function PrecioPorComparables({
           </p>
         )}
       </div>
+
+      {/* EL REPARTO, justo debajo de las cifras. La media y la mediana
+          dicen dónde está el centro; esto dice si hay un centro. Con el
+          fondo de hoy se ve de golpe lo que cuesta leer en la tabla: un
+          grupo pegado al cero --subastas que nadie ha pujado-- y el
+          mercado de verdad mucho más arriba. */}
+      {datos.comparables.length >= MINIMO_PARA_LA_TIRA && (
+        <div className="px-4 pb-1">
+          <Chart
+            height={150}
+            ariaLabel={tx("Reparto de los precios de las ventas comparables")}
+            option={tiraDePuntosOption(
+              datos.comparables.map((f) => [f.precio, f.firme]),
+              {
+                media: datos.media,
+                mediana: datos.mediana,
+                detalle: (v) => money(v, datos.moneda),
+                etiquetaMedia: tx("Media"),
+                etiquetaMediana: tx("Mediana"),
+              },
+            )}
+          />
+        </div>
+      )}
+
+      {/* LA SERIE, entre el número y la tabla: es el puente. El número dice
+          cuánto; la tabla, de dónde sale; esto, si puedes fiarte todavía.
+          Desde dos lecturas, porque con una no hay nada que unir. */}
+      {datos.serie.length >= MINIMO_PARA_LA_SERIE && (
+        <div className="px-4 pb-2">
+          <Chart
+            height={200}
+            ariaLabel={tx("Cómo ha ido cambiando el precio de sus comparables")}
+            option={serieDePuntosOption(datos.serie, {
+              etiqueta: (iso) => date(iso),
+              detalle: (v) => money(v, datos.moneda),
+            })}
+          />
+        </div>
+      )}
 
       {datos.comparables.length > 0 && (
         <div className="px-4 pb-3">
@@ -375,7 +463,7 @@ export function PrecioPorComparables({
         </div>
       )}
 
-      <p className="px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
+      <p className="prosa px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
         {tx(
           "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.",
         )}

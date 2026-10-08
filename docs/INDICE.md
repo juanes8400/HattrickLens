@@ -36,35 +36,35 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | Ruta | Página | Líneas | Leer | Endpoints | Dominio | Tests |
 | --- | --- | --: | --: | --- | --: | --: |
 | `/connected` | [ConnectedPage.tsx](../frontend/src/pages/ConnectedPage.tsx) | 59 | - | - | 0 | 0 |
-| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 237 | 1538 | auth_chpp | 0 | 0 |
-| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 154 | 8748 | dashboard | 9 | 32 |
-| `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9271 | auth_chpp, dashboard | 9 | 32 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 876 | 32270 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 25 | 93 |
-| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 616 | 26890 | alertas, alineacion, league, dashboard | 23 | 87 |
-| `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 591 | 5223 | club | 4 | 7 |
-| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5075 | resumen | 5 | 18 |
-| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4523 | plantilla | 3 | 14 |
-| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9360 | resumen, skills | 9 | 27 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1491 | 13179 | jugadores, player_balance, precio_comparable, jugadores | 14 | 39 |
-| `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 349 | 4085 | plantilla | 3 | 14 |
-| `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 825 | 6641 | alineacion, plantilla | 8 | 19 |
-| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2064 | 12982 | entrenamiento, jugadores, club | 9 | 32 |
-| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3245 | 11822 | player_balance, jugadores, plantilla | 8 | 24 |
-| `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1174 | libro | 0 | 1 |
-| `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4020 | 15409 | academy | 12 | 26 |
-| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 5360 | matches | 4 | 12 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1600 | 16779 | league | 13 | 62 |
-| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1082 | 16395 | cup, rivals | 16 | 69 |
-| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 321 | 13852 | cup, league | 10 | 50 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1365 | 20545 | rivals, dashboard | 16 | 72 |
-| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1374 | 8424 | economy | 9 | 26 |
-| `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3791 | arena | 3 | 8 |
-| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20087 | alertas | 19 | 77 |
-| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 202 | 8837 | dashboard | 9 | 32 |
-| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 868 | 13101 | player_balance, cambios, partidos, plantilla | 10 | 34 |
-| `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 980 | 13870 | entrenamiento, modelos, modelos | 14 | 28 |
+| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 237 | 1585 | auth_chpp | 0 | 0 |
+| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 154 | 8785 | dashboard | 9 | 32 |
+| `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9326 | auth_chpp, dashboard | 9 | 32 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 876 | 32307 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 25 | 93 |
+| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 616 | 27145 | alertas, alineacion, league, dashboard | 23 | 87 |
+| `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 591 | 5478 | club | 4 | 7 |
+| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5330 | resumen | 5 | 18 |
+| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4560 | plantilla | 3 | 14 |
+| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9397 | resumen, skills | 9 | 27 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 14381 | jugadores, player_balance, precio_comparable, jugadores | 14 | 39 |
+| `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 349 | 4122 | plantilla | 3 | 14 |
+| `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 825 | 6896 | alineacion, plantilla | 8 | 19 |
+| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2064 | 13237 | entrenamiento, jugadores, club | 9 | 32 |
+| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3245 | 11894 | player_balance, jugadores, plantilla | 8 | 24 |
+| `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1182 | libro | 0 | 1 |
+| `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4020 | 15446 | academy | 12 | 26 |
+| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 5615 | matches | 4 | 12 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1600 | 16816 | league | 13 | 62 |
+| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1082 | 16432 | cup, rivals | 16 | 69 |
+| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 321 | 13889 | cup, league | 10 | 50 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1365 | 20800 | rivals, dashboard | 16 | 72 |
+| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1374 | 8679 | economy | 9 | 26 |
+| `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3828 | arena | 3 | 8 |
+| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20124 | alertas | 19 | 77 |
+| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 202 | 8874 | dashboard | 9 | 32 |
+| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 868 | 13173 | player_balance, cambios, partidos, plantilla | 10 | 34 |
+| `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 980 | 13907 | entrenamiento, modelos, modelos | 14 | 28 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
-| `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1007 | 2805 | uso | 1 | 4 |
+| `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1007 | 2813 | uso | 1 | 4 |
 | `/autor` | [AutorPage.tsx](../frontend/src/pages/AutorPage.tsx) | 331 | - | - | 0 | 0 |
 
 ## Ruta por ruta
@@ -309,8 +309,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/players/:htPlayerId`
 
-- **Página:** [frontend/src/pages/PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) (1491 líneas)
-- **Componentes y hooks suyos (22):**
+- **Página:** [frontend/src/pages/PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) (1533 líneas)
+- **Componentes y hooks suyos (23):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -321,6 +321,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/components/PlayerDistributionPanel.tsx](../frontend/src/components/PlayerDistributionPanel.tsx)
   - [frontend/src/components/PrecioPorComparables.tsx](../frontend/src/components/PrecioPorComparables.tsx)
   - [frontend/src/components/Specialty.tsx](../frontend/src/components/Specialty.tsx)
+  - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
   - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
   - [frontend/src/hooks/useTeam/jugadores.ts](../frontend/src/hooks/useTeam/jugadores.ts)
@@ -868,11 +869,12 @@ pantalla no estorba; uno mediano que leen veintiséis, sí.
 | 14225 | 569 | 25 | [backend/app/domain/value_objects/ht_constants.py](../backend/app/domain/value_objects/ht_constants.py) |
 | 12467 | 1781 | 7 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
 | 12368 | 1546 | 8 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |
-| 11097 | 411 | 27 | [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx) |
+| 11313 | 419 | 27 | [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx) |
 | 11040 | 552 | 20 | [backend/app/application/queries/squad.py](../backend/app/application/queries/squad.py) |
 | 10881 | 1209 | 9 | [backend/app/domain/engines/prediccion.py](../backend/app/domain/engines/prediccion.py) |
 | 8981 | 1283 | 7 | [backend/app/application/queries/player_balance.py](../backend/app/application/queries/player_balance.py) |
 | 6531 | 311 | 21 | [backend/app/domain/engines/economy_engine.py](../backend/app/domain/engines/economy_engine.py) |
+| 6489 | 721 | 9 | [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts) |
 | 6321 | 903 | 7 | [backend/app/application/queries/training_squad.py](../backend/app/application/queries/training_squad.py) |
 | 6272 | 224 | 28 | [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts) |
 | 6155 | 1231 | 5 | [backend/app/application/queries/league.py](../backend/app/application/queries/league.py) |
@@ -883,5 +885,4 @@ pantalla no estorba; uno mediano que leen veintiséis, sí.
 | 4830 | 483 | 10 | [backend/app/domain/engines/training_engine.py](../backend/app/domain/engines/training_engine.py) |
 | 4627 | 661 | 7 | [backend/app/application/commands/sync_team/comun.py](../backend/app/application/commands/sync_team/comun.py) |
 | 4613 | 659 | 7 | [backend/app/domain/engines/rival_scouting.py](../backend/app/domain/engines/rival_scouting.py) |
-| 4527 | 503 | 9 | [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts) |
 | 4466 | 638 | 7 | [backend/app/application/commands/sync_team/__init__.py](../backend/app/application/commands/sync_team/__init__.py) |

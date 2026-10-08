@@ -38,22 +38,51 @@ export const soloSiEsElMismo =
  */
 const TEAM_ID_STORAGE_KEY = "htlens_team_id";
 
-export const TEAM_ID = Number(localStorage.getItem(TEAM_ID_STORAGE_KEY)) || 1;
+/** `localStorage` no está siempre, y pedirlo a pelo tira el módulo entero.
+ *
+ *  Esto lo abren 26 pantallas, así que el fallo no es «no recuerda el club»:
+ *  es que no carga nada. Pasa en dos sitios reales. En los tests, que corren
+ *  en Node sin DOM: cualquier prueba de un componente que toque estos hooks se
+ *  caía con «localStorage.getItem is not a function» antes de ejecutar su
+ *  primera línea (2026-10-07). Y en un navegador con el almacenamiento del
+ *  sitio bloqueado, donde el acceso no devuelve vacío: LANZA.
+ *
+ *  Sin almacenamiento la aplicación sigue funcionando con el club por defecto;
+ *  lo único que se pierde es recordar cuál se eligió. */
+function guardado(clave: string): string | null {
+  try {
+    return typeof localStorage === "undefined"
+      ? null
+      : localStorage.getItem(clave);
+  } catch {
+    return null;
+  }
+}
+
+export const TEAM_ID = Number(guardado(TEAM_ID_STORAGE_KEY)) || 1;
 
 /** `TEAM_ID` conserva el fallback de desarrollo para no romper las consultas
  * existentes, pero la interfaz no debe intentar usarlas hasta que OAuth haya
  * elegido un equipo real. */
 export function hasActiveTeam(): boolean {
-  const teamId = Number(localStorage.getItem(TEAM_ID_STORAGE_KEY));
+  const teamId = Number(guardado(TEAM_ID_STORAGE_KEY));
   return Number.isInteger(teamId) && teamId > 0;
 }
 
 export function setActiveTeamId(teamId: number): void {
-  localStorage.setItem(TEAM_ID_STORAGE_KEY, String(teamId));
+  try {
+    localStorage.setItem(TEAM_ID_STORAGE_KEY, String(teamId));
+  } catch {
+    // Ver `guardado`: sin almacenamiento se sigue, con el club por defecto.
+  }
 }
 
 export function clearActiveTeamId(): void {
-  localStorage.removeItem(TEAM_ID_STORAGE_KEY);
+  try {
+    localStorage.removeItem(TEAM_ID_STORAGE_KEY);
+  } catch {
+    // Ídem.
+  }
 }
 
 /** Archivar y restaurar tocan las dos listas a la vez, una alerta que sale de
