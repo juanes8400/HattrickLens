@@ -975,6 +975,20 @@ class Match(Base):
     # daba formaciones de catorce jugadores.
     played_lineup_json: Mapped[str | None] = mapped_column(String(4000))
     played_lineup_captured_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # LO QUE PASO DESPUES DEL PITIDO INICIAL (2026-10-09): los cambios con su
+    # minuto y quien cobraba los tiros libres. Viene del mismo `matchlineup.xml`
+    # que el once, en la misma peticion, y hasta hoy se tiraba.
+    #
+    # Sin esto, los minutos de un jugador se leian de `playerdetails.xml`, que
+    # publica UN puesto --en el que acabo-- y el TOTAL de minutos. Un usuario lo
+    # reporto el 2026-10-08: su jugador 513909842 hizo 87 minutos de lateral y 3
+    # de extremo, llegaba como «extremo, 90 minutos», y con entrenamiento de
+    # Lateral cobraba el 100 % de la semana en vez del 51,7 % que le tocaba.
+    #
+    # `{"cambios": [{"minuto", "sale", "entra", "nuevo_puesto", "order_type"}],
+    #   "cobrador": ht_player_id}`. El cobrador va aqui y no entre los titulares
+    # porque no es un puesto sino un papel, y en Balon parado vale un 125 %.
+    played_events_json: Mapped[str | None] = mapped_column(String(4000))
 
 
 class MatchRating(Base):

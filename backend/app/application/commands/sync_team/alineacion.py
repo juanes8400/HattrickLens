@@ -196,6 +196,32 @@ class AlineacionMixin(BaseDeSync):
             match.played_lineup_json = json.dumps(
                 once, ensure_ascii=False, sort_keys=True, separators=(",", ":")
             )
+            # Y lo que paso DESPUES del pitido inicial, que venia en la misma
+            # respuesta y se tiraba (2026-10-09). Sin los cambios, un jugador
+            # que paso de lateral a extremo en el minuto 87 entraba al
+            # entrenamiento como extremo los noventa minutos.
+            #
+            # Se guarda aunque venga vacio --un partido sin cambios es una
+            # respuesta valida-- para distinguir «no hubo» de «no se ha pedido
+            # todavia», que es lo que decide si se puede repartir por puestos.
+            match.played_events_json = json.dumps(
+                {
+                    "cambios": [
+                        {
+                            "minuto": int(c.get("minuto") or 0),
+                            "sale": int(c.get("sale") or 0),
+                            "entra": int(c.get("entra") or 0),
+                            "nuevo_puesto": int(c.get("nuevo_puesto") or 0),
+                            "order_type": int(c.get("order_type") or 0),
+                        }
+                        for c in payload.get("substitutions") or []
+                    ],
+                    "cobrador": int(payload.get("set_pieces_taker") or 0),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
             match.played_lineup_captured_at = captured_at
 
     async def _sync_upcoming_match_orders(

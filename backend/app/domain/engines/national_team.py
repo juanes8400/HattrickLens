@@ -29,6 +29,13 @@ class Cambio:
     sale: int
     entra: int
     minuto: int
+    # Los dos que el lector empezo a traer el 2026-10-09 para repartir los
+    # minutos POR PUESTO (`minutos_del_partido`). Aqui no se usan --esto solo
+    # cuenta minutos-- pero viajan con valor por defecto porque el que arma
+    # estos cambios lo hace con `Cambio(**fila)` y, sin ellos, anadir un campo
+    # al lector rompia este motor desde lejos.
+    nuevo_puesto: int = 0
+    order_type: int = 0
 
     @property
     def es_cambio_de_verdad(self) -> bool:
