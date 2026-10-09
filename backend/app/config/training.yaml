@@ -26,21 +26,48 @@ reference:
 #   weeks = 16 × (inverse_age_clock(pop_clock) − age)
 #
 # Coefficient of each senior-team training mode in the public implementation.
+#
+# NO HAY AQUI UN PESO POR QUIEN JUEGA, y no debe haberlo (2026-10-09). Un
+# coeficiente dice lo rapido que avanza un ENTRENAMIENTO; cuanto de el recibe
+# cada jugador se decide en `position_training_share`, abajo. Mezclar las dos
+# cosas cobra el mismo descuento dos veces.
+#
+# Se quitaron tres que lo mezclaban, ninguno alcanzable por el codigo
+# --`training_mode` traduce tipo de entrenamiento a modo y no mira ni el
+# puesto ni el papel-- y los tres peligrosos el dia que alguien los conectara:
+#
+#   winger_partial     0.1575  = la mitad de winger      (0.315)
+#   playmaking_partial 0.110   = la mitad de playmaking  (0.220)
+#
+#     El medio entrenamiento del lateral en «Lateral» y del extremo en
+#     «Jugadas». Conectarlos habria cobrado el 50 % DOS VECES, una aqui y
+#     otra en la exposicion del puesto, dejando a ese lateral en el 25 %.
+#
+#   set_pieces_bonus   1.183   / set_pieces (0.941) = 1,2572
+#
+#     Ese 1,2572 es, con casi toda seguridad, el 125 % de Balon parado: el
+#     2026-10-09 el usuario dio la regla --portero y cobrador de tiros libres
+#     reciben el 125 %, el resto el 100 %--. El numero se conserva AQUI, en
+#     prosa, y no como coeficiente vivo: cuando se represente ese bonus ira en
+#     `position_training_share` y en ningun otro sitio, porque depende de QUIEN
+#     es el jugador y no de que se entrena. Dejarlo ademas como coeficiente
+#     habria puesto al portero en 1,25 x 1,2572 = 157 %.
+#
+# Y hara falta una cosa mas para ese 125 %: hoy la exposicion esta topada en
+# `min(..., 1.0)` en cuatro sitios de `queries/post_match_training.py`, asi que
+# cualquier peso por encima del completo se recorta en silencio.
 training_coefficients:
   goalkeeping: 0.335
   defending: 0.206
   defensive_positions: 0.094
   winger: 0.315
-  winger_partial: 0.1575
   wing_attacks: 0.219
   playmaking: 0.220
-  playmaking_partial: 0.110
   scoring: 0.218
   shooting: 0.097
   short_passes: 0.237
   through_passes: 0.178
   set_pieces: 0.941
-  set_pieces_bonus: 1.183
 
 # CHPP trainingType → public formula mode.
 training_type_to_mode:

@@ -174,16 +174,13 @@ NOMBRE_DEL_MODO: dict[str, str] = {
     "defending": "Defensa",
     "defensive_positions": "Defensa (porteros, defensas y centrocampistas)",
     "playmaking": "Jugadas",
-    "playmaking_partial": "Jugadas · puestos de aporte parcial",
     "winger": "Lateral",
-    "winger_partial": "Lateral · puestos de aporte parcial",
     "wing_attacks": "Lateral (extremos y delanteros)",
     "scoring": "Anotación",
     "shooting": "Anotación, dentro de «Anotación y balón parado»",
     "short_passes": "Pases",
     "through_passes": "Pases (defensas y centrocampistas)",
     "set_pieces": "Balón parado",
-    "set_pieces_bonus": "Balón parado, dentro de «Anotación y balón parado»",
 }
 
 
