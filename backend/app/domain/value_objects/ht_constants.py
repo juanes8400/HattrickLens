@@ -477,6 +477,12 @@ MATCH_ROLE_NAMES: dict[int, str] = {
 #: importara metia a mypy en ese paquete y tiraba la comprobacion de CI.
 MATCHLINEUP_SPECIAL_ROLES: frozenset[int] = frozenset(range(17, 36))
 
+#: El cobrador de tiros libres, dentro de esos papeles. Tiene nombre propio
+#: porque el entrenamiento de Balon parado le da el 125 % en vez del 100 %,
+#: juegue donde juegue (regla del usuario, 2026-10-09), asi que hay que
+#: reconocerlo y no solo descartarlo con los demas.
+MATCH_ROLE_SET_PIECES = 17
+
 
 def match_role_name(code: int) -> str:
     return MATCH_ROLE_NAMES.get(code, f"posición {code} (sin traducir)")

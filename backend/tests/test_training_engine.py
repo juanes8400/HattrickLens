@@ -13,6 +13,7 @@ from app.domain.engines.training_engine import (
     forecast_pops,
     inverse_age_clock,
     model_info,
+    parametros,
     skill_cost,
     training_coefficient,
     training_exposure,
@@ -206,3 +207,30 @@ def test_model_metadata_declares_source_and_limits() -> None:
     assert info["reference"]["status"] == "ported"
     assert "private-data fitting" in info["reference"]["numeric_profile"]
     assert any("subnivel" in limitation.lower() for limitation in info["limitations"])
+
+
+def test_ningun_coeficiente_de_entrenamiento_queda_inalcanzable() -> None:
+    """Un coeficiente al que no se llega es una trampa, no un sobrante.
+
+    2026-10-09. La tabla tenía tres que ningún código podía seleccionar:
+    `winger_partial` y `playmaking_partial` --la mitad exacta de su completo,
+    para los puestos que reciben medio entrenamiento-- y `set_pieces_bonus`
+    --1,2572 veces `set_pieces`, que es el 125 % del portero y del cobrador de
+    tiros libres--. Ninguno hacía nada, y ahí estaba el peligro: `training_mode`
+    traduce tipo de entrenamiento a modo y no mira el puesto, así que el día
+    que alguien los «arreglara» conectándolos, el descuento del puesto se
+    habría cobrado DOS VECES --el lateral de «Lateral» en el 25 % en vez del
+    50 %-- y el bonus también --el portero en el 157 %--.
+
+    Cuánto recibe cada jugador vive en `position_training_share`, en un solo
+    sitio. Esta prueba impide que vuelva a haber un segundo.
+    """
+    config = parametros()
+    alcanzables = set(config["training_type_to_mode"].values()) | set(
+        config["default_training_mode_by_skill"].values()
+    )
+    huerfanos = sorted(set(config["training_coefficients"]) - alcanzables)
+    assert huerfanos == [], (
+        f"estos coeficientes no los selecciona nadie: {huerfanos}. Si el peso es "
+        "por puesto o por papel del jugador, va en position_training_share."
+    )

@@ -14,7 +14,9 @@ It deliberately separates facts from judgement:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -23,11 +25,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.training_context import TrainingContextService
+from app.domain.engines.minutos_del_partido import (
+    MINUTOS_DEL_PARTIDO,
+    Orden,
+    Titular,
+    Tramo,
+    mejores_minutos,
+    tramos_del_partido,
+)
 from app.domain.engines.position_engine import rate_all
 from app.domain.engines.training_engine import (
     TrainingSetup,
     default_setup,
-    training_exposure,
     weeks_to_next_level,
 )
 from app.domain.value_objects.ht_constants import (
@@ -52,16 +61,49 @@ FIELD_PLAYERS = DEFENDERS | WINGERS | INNER_MIDS | FORWARDS
 ALL_POSITIONS = KEEPERS | FIELD_PLAYERS
 DEPRECATED_TRAINING_TYPES = frozenset({0, 1})
 
+#: El `trainingType` de Balon parado, el unico con un peso por encima del
+#: completo: su cobrador de tiros libres recibe el 125 %.
+TRAINING_SET_PIECES = 2
+PESO_DEL_COBRADOR = 1.25
+#: La etiqueta de `training.yaml`, en numero. Vive aqui porque elegir los
+#: mejores minutos obliga a COMPARAR pesos, y las etiquetas no se ordenan.
+PESOS: dict[str, float] = {"full": 1.0, "partial": 0.5, "none": 0.0}
+
 
 # The values are position share labels from training.yaml:
 # full = 100%, partial = 50%, none/missing = no training.
+#
+# QUIEN RECIBE CUANTO, Y SOLO ESO. Aqui no se modela que un entrenamiento sea
+# mas lento que otro: de eso se ocupa su coeficiente en `training.yaml`, y
+# escribirlo dos veces fue el fallo del tipo 6 que se corrigio el 2026-10-09
+# (ver abajo). `defender` son los centrales y `wingback` los laterales: son
+# grupos DISTINTOS, aunque Hattrick los llame a los dos «defensas».
+#
+# La tabla entera la dicto el usuario el 2026-10-09, entrenamiento por
+# entrenamiento, leyendola del juego. Tres casillas estaban mal:
+#
+#   · Defensa (3): faltaba el LATERAL. Un lateral que jugaba los noventa
+#     minutos recibia 0 %, y la pantalla le decia que no habia entrenado.
+#   · Defensa ampliada (11): faltaba el PORTERO, al que el propio nombre del
+#     entrenamiento nombra («Defending (Keepers, Defenders + All Midfielders)»).
+#   · Anotacion y balon parado (6): daba 50 % a todo el que no fuera delantero.
+#     Entrenan TODOS por igual; lo que es menor es el entrenamiento entero, y
+#     eso ya lo cobra su coeficiente (0,097 contra 0,218 de Anotacion, 2,25
+#     veces mas lento). Con el 50 % encima, un mediocentro salia 4,49 veces
+#     mas lento en vez de 2,25: el descuento, cobrado dos veces.
+#
+# PENDIENTE, y por eso el 2 no esta completo: en Balon parado el portero y
+# el cobrador de tiros libres reciben el 125 %, no el 100 % que hay aqui. No
+# cabe todavia --no hay peso por encima del completo, la exposicion esta
+# topada en 1.0, y quien cobra los tiros libres no se guarda en ninguna parte
+# porque la sincronizacion tira los papeles especiales de la alineacion--.
 TRAINING_POSITION_SHARES: dict[int, dict[str, str]] = {
     1: {"all": "full"},  # stamina
     2: {"all": "full"},  # set pieces
-    3: {"defender": "full"},
+    3: {"defender": "full", "wingback": "full"},
     4: {"forward": "full"},
     5: {"winger": "full", "wingback": "partial"},
-    6: {"forward": "full", "all": "partial"},  # scoring + set pieces
+    6: {"all": "full"},  # scoring, para todo el que juegue
     7: {"inner_mid": "full", "winger": "full", "forward": "full"},
     8: {"inner_mid": "full", "winger": "partial"},
     9: {"keeper": "full"},
@@ -69,7 +111,13 @@ TRAINING_POSITION_SHARES: dict[int, dict[str, str]] = {
     # incluye medios interiores y extremos. La pantalla oficial de minutos de
     # entrenamiento confirma los cuatro grupos para los tipos 10 y 11.
     10: {"defender": "full", "wingback": "full", "inner_mid": "full", "winger": "full"},
-    11: {"defender": "full", "wingback": "full", "inner_mid": "full", "winger": "full"},
+    11: {
+        "keeper": "full",
+        "defender": "full",
+        "wingback": "full",
+        "inner_mid": "full",
+        "winger": "full",
+    },
     12: {"winger": "full", "forward": "full"},
 }
 
@@ -85,6 +133,9 @@ class PlayedSegment:
     played_at: datetime | None
     match_type: int | None
     source: str
+    #: Si ese dia cobraba los tiros libres. En Balon parado vale un 125 % en
+    #: vez del 100 %, juegue donde juegue (regla del usuario, 2026-10-09).
+    cobrador: bool = False
 
 
 @dataclass(frozen=True)
@@ -299,17 +350,7 @@ class PostMatchTrainingService:
 
         result: dict[int, TrainingWeekExposure] = {}
         for ht_player_id, player_segments in by_player.items():
-            exposure = min(
-                sum(
-                    self._segment_exposure(
-                        training_type,
-                        segment.position_code,
-                        segment.played_minutes,
-                    )
-                    for segment in player_segments
-                ),
-                1.0,
-            )
+            exposure = self._exposicion(training_type, player_segments)
             if exposure <= 0:
                 continue
             result[ht_player_id] = TrainingWeekExposure(
@@ -420,17 +461,7 @@ class PostMatchTrainingService:
                     by_player.setdefault(segment.ht_player_id, []).append(segment)
 
             for ht_player_id, player_segments in by_player.items():
-                exposure = min(
-                    sum(
-                        self._segment_exposure(
-                            training.training_type,
-                            segment.position_code,
-                            segment.played_minutes,
-                        )
-                        for segment in player_segments
-                    ),
-                    1.0,
-                )
+                exposure = self._exposicion(training.training_type, player_segments)
                 if exposure <= 0:
                     continue
                 totals[ht_player_id] = totals.get(ht_player_id, 0.0) + exposure
@@ -478,6 +509,8 @@ class PostMatchTrainingService:
                     m.PlayerMatchRating.position_code,
                     m.PlayerMatchRating.played_minutes,
                     m.PlayerMatchRating.rating,
+                    m.Match.played_lineup_json,
+                    m.Match.played_events_json,
                 )
                 .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
                 .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
@@ -487,6 +520,8 @@ class PostMatchTrainingService:
         ).all()
 
         segments: list[PlayedSegment] = []
+        #: El once y los cambios de cada partido, para repartir los minutos.
+        alineaciones: dict[int, tuple[str | None, str | None]] = {}
         for fila in rows:
             # POR NOMBRE Y NO POR POSICION. Desempaquetar once nombres de una
             # fila obliga a que el orden de aqui y el del SELECT coincidan para
@@ -532,6 +567,9 @@ class PostMatchTrainingService:
                     source="playerdetails-history",
                 )
             )
+            alineaciones[ht_match_id] = (fila.played_lineup_json, fila.played_events_json)
+
+        segments = _repartidos_por_puesto(segments, alineaciones)
 
         notes: list[str] = []
         if segments:
@@ -603,13 +641,7 @@ class PostMatchTrainingService:
         for p in players:
             if trainer_ht_id and p["ht_player_id"] == trainer_ht_id:
                 continue
-            exposure = min(
-                sum(
-                    self._segment_exposure(training_type, seg.position_code, seg.played_minutes)
-                    for seg in by_player.get(p["ht_player_id"], [])
-                ),
-                1.0,
-            )
+            exposure = self._exposicion(training_type, by_player.get(p["ht_player_id"], []))
             if exposure <= 0 or skill is None:
                 continue
 
@@ -686,9 +718,31 @@ class PostMatchTrainingService:
             "topTrainees": trainees[:8],
         }
 
-    def _segment_exposure(self, training_type: int, position_code: int, minutes: int) -> float:
-        share = self._position_share(training_type, position_code)
-        return training_exposure(max(minutes, 0), share)
+    def _peso(self, training_type: int, segmento: PlayedSegment) -> float:
+        """Lo que vale un minuto de ese tramo, de 0 a 1,25."""
+        if training_type == TRAINING_SET_PIECES and segmento.cobrador:
+            return PESO_DEL_COBRADOR
+        return PESOS[self._position_share(training_type, segmento.position_code)]
+
+    def _exposicion(self, training_type: int, segmentos: Iterable[PlayedSegment]) -> float:
+        """La fraccion de semana que entrenan esos tramos, todos juntos.
+
+        REGLA DEL USUARIO, 2026-10-09. El cupo es de 90 minutos POR SEMANA, no
+        por partido, y no se llena por orden de reloj: se cogen primero los
+        minutos que mas entrenan. Con entrenamiento de Lateral, quien hizo 45
+        minutos de lateral y 75 de extremo entrena 75 al 100 % mas 15 al 50 %,
+        y no 45 al 50 % mas 45 al 100 %.
+
+        Esto sustituye al `min(suma, 1.0)` de antes, que sumaba sin elegir: una
+        semana con 45 minutos de extremo y 90 de lateral daba 0,5 + 0,5 = 100 %
+        de semana cuando lo que toca es el 75 %. Y de paso deja sitio para el
+        125 % del cobrador de tiros libres, que aquel tope recortaba en
+        silencio.
+        """
+        elegidos = mejores_minutos(
+            [(max(s.played_minutes, 0), self._peso(training_type, s)) for s in segmentos]
+        )
+        return sum(minutos * peso for minutos, peso in elegidos) / MINUTOS_DEL_PARTIDO
 
     def _position_share(self, training_type: int, position_code: int) -> str:
         role = position_role(position_code)
@@ -703,13 +757,7 @@ class PostMatchTrainingService:
     ) -> dict[str, Any]:
         exposure_by_type: dict[int, float] = {}
         for type_id in TRAINING_TARGET_SKILL:
-            exposure_by_type[type_id] = min(
-                sum(
-                    self._segment_exposure(type_id, s.position_code, s.played_minutes)
-                    for s in segments
-                ),
-                1.0,
-            )
+            exposure_by_type[type_id] = self._exposicion(type_id, segments)
         best = max(exposure_by_type.items(), key=lambda kv: kv[1], default=(0, 0.0))
         return {
             "htPlayerId": player["ht_player_id"],
@@ -763,3 +811,101 @@ def _aware(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _repartidos_por_puesto(
+    segmentos: list[PlayedSegment],
+    alineaciones: dict[int, tuple[str | None, str | None]],
+) -> list[PlayedSegment]:
+    """Parte la fila unica de cada partido en un tramo por puesto.
+
+    DE DONDE VIENE. `playerdetails.xml` publica UN puesto por partido --el que
+    el jugador ocupaba al final-- y el TOTAL de minutos, asi que hasta aqui
+    cada partido era una sola fila. Un usuario lo reporto el 2026-10-08: su
+    jugador hizo 87 minutos de lateral y 3 de extremo, llegaba como «extremo,
+    90 minutos», y cobraba el 100 % de la semana en vez del 51,7 %.
+
+    QUE SE HACE. Si de ese partido se guardo el once inicial y los cambios
+    --`matchlineup.xml`, que ya se descargaba para otra cosa-- se reconstruye
+    minuto a minuto quien estuvo donde, y la fila unica se sustituye por sus
+    tramos. El total que publica Hattrick se usa para cerrar al que se fue sin
+    que lo sustituyeran: el expulsado, el lesionado.
+
+    SI NO HAY ALINEACION, NO SE INVENTA NADA: ese partido se queda con su fila
+    de siempre. Es lo que pasa con los partidos anteriores a esto y con los que
+    la sincronizacion todavia no ha alcanzado --baja tres alineaciones por
+    vez-- asi que las dos formas conviven sin que la pantalla se quede vacia.
+    """
+    por_partido: dict[int, list[PlayedSegment]] = {}
+    for seg in segmentos:
+        por_partido.setdefault(seg.ht_match_id or 0, []).append(seg)
+
+    salida: list[PlayedSegment] = []
+    for ht_match_id, filas in por_partido.items():
+        once_json, eventos_json = alineaciones.get(ht_match_id, (None, None))
+        titulares, ordenes, cobrador = _leer_la_alineacion(once_json, eventos_json)
+        if not titulares:
+            salida.extend(filas)
+            continue
+        tramos = tramos_del_partido(
+            titulares,
+            ordenes,
+            minutos_totales={f.ht_player_id: f.played_minutes for f in filas},
+        )
+        de_cada_uno: dict[int, list[Tramo]] = {}
+        for tramo in tramos:
+            de_cada_uno.setdefault(tramo.ht_player_id, []).append(tramo)
+        for fila in filas:
+            suyos = de_cada_uno.get(fila.ht_player_id)
+            if not suyos:
+                # No sale en el once ni en ningun cambio: no hay nada que
+                # repartir, y su fila de siempre es lo mas fiel que hay.
+                salida.append(fila)
+                continue
+            es_cobrador = bool(cobrador) and fila.ht_player_id == cobrador
+            salida.extend(
+                replace(
+                    fila,
+                    position_code=tramo.position_code,
+                    played_minutes=tramo.minutos,
+                    cobrador=es_cobrador,
+                    source="matchlineup",
+                )
+                for tramo in suyos
+            )
+    return salida
+
+
+def _leer_la_alineacion(
+    once_json: str | None, eventos_json: str | None
+) -> tuple[list[Titular], list[Orden], int]:
+    """El once, los cambios y el cobrador, de lo guardado. Nunca lanza.
+
+    Un JSON roto o de una version anterior no puede tumbar la pantalla de
+    entrenamiento: se devuelve vacio y ese partido se queda con su fila unica.
+    """
+    titulares: list[Titular] = []
+    try:
+        for j in json.loads(once_json or "[]"):
+            if int(j.get("role_id") or 0) >= 100:
+                titulares.append(Titular(int(j["ht_player_id"]), int(j["role_id"])))
+    except (ValueError, TypeError, KeyError):
+        return [], [], 0
+
+    ordenes: list[Orden] = []
+    cobrador = 0
+    try:
+        eventos = json.loads(eventos_json or "{}")
+        cobrador = int(eventos.get("cobrador") or 0)
+        for c in eventos.get("cambios") or []:
+            ordenes.append(
+                Orden(
+                    minuto=int(c.get("minuto") or 0),
+                    sale=int(c.get("sale") or 0),
+                    entra=int(c.get("entra") or 0),
+                    nuevo_puesto=int(c.get("nuevo_puesto") or 0),
+                )
+            )
+    except (ValueError, TypeError):
+        return titulares, [], 0
+    return titulares, ordenes, cobrador

@@ -10,6 +10,12 @@ from xml.etree.ElementTree import Element  # noqa: S405, type only, parsing uses
 
 from defusedxml import ElementTree
 
+# La unica constante del dominio que este lector necesita: el papel del
+# cobrador de tiros libres. Va en una sola direccion --infraestructura mira al
+# dominio, nunca al reves-- asi que no arrastra `defusedxml` a ningun modulo
+# que mypy comprueba, que es lo que el comentario de `ht_constants` protege.
+from app.domain.value_objects.ht_constants import MATCH_ROLE_SET_PIECES
+
 Parser = Callable[[bytes], dict[str, Any]]
 
 _REGISTRY: dict[str, Parser] = {}
@@ -1106,14 +1112,37 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
         }
         for p in filas_iniciales
     ]
+    # `NewPositionId` es el puesto al que la orden manda al jugador, y sin el
+    # no hay forma de saber que un lateral paso a extremo en el minuto 87.
+    # `order_type` se guarda pero NO se interpreta: quien reconstruye los
+    # minutos decide por el estado del partido --si el jugador ya estaba
+    # jugando, se mueve; si no, entra-- que vale igual para las tres clases de
+    # orden de Hattrick (sustituir, reubicar a uno, intercambiar a dos) y no se
+    # rompe si manana aparece una cuarta.
     cambios = [
         {
             "sale": _int(c, "SubjectPlayerID"),
             "entra": _int(c, "ObjectPlayerID"),
             "minuto": _int(c, "MatchMinute"),
+            "nuevo_puesto": _int(c, "NewPositionId"),
+            "order_type": _int(c, "OrderType"),
         }
         for c in team.iterfind("Substitutions/Substitution")
     ]
+    # EL COBRADOR DE TIROS LIBRES, que no es un puesto sino un papel: viene
+    # como una fila MAS del mismo jugador, con RoleID 17. Hace falta porque en
+    # el entrenamiento de Balon parado el cobrador recibe el 125 % en vez del
+    # 100 %, juegue donde juegue (regla del usuario, 2026-10-09). Medido en los
+    # doce ultimos partidos: aparece en uno, porque casi nadie designa a uno,
+    # pero cuando se designa esta.
+    cobrador = next(
+        (
+            _int(p, "PlayerID")
+            for p in filas_iniciales
+            if _int(p, "RoleID") == MATCH_ROLE_SET_PIECES
+        ),
+        0,
+    )
     return {
         "ht_match_id": _int(root, "MatchID"),
         "ht_team_id": _int(team, "TeamID"),
@@ -1122,6 +1151,7 @@ def parse_matchlineup(xml: bytes) -> dict[str, Any]:
         "starting_lineup": titulares,
         "starting_players": titulares_con_puesto,
         "substitutions": cambios,
+        "set_pieces_taker": cobrador,
     }
 
 

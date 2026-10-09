@@ -222,7 +222,7 @@ def test_los_coeficientes_salen_con_todos_sus_decimales() -> None:
         assert repr(float(curva[clave])) in formula, clave
 
 
-def test_estan_los_catorce_coeficientes_de_entrenamiento() -> None:
+def test_estan_todos_los_coeficientes_de_entrenamiento() -> None:
     """Ninguno se queda fuera: el que falte es justo el que alguien busca."""
     tablas = {t.title: t for t in _calculo("semanas-al-pop").tables}
     coeficientes = training_engine.parametros()["training_coefficients"]
