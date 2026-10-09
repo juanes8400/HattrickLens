@@ -84,6 +84,22 @@ export function timelineOption(
  * datos: van fuera de la leyenda y fuera del tooltip. */
 const BAND_PREFIX = "__banda";
 
+/** Los colores del comparador de transferencias, compartidos por sus DOS
+ *  graficas (2026-10-09).
+ *
+ *  Van explicitos porque antes no lo estaban: ECharts reparte su paleta por
+ *  ORDEN DE SERIE, y la tira tiene dos series mientras la serie en el tiempo
+ *  tiene tres --la media va primero--. El resultado era que, en dos graficas
+ *  pegadas una encima de otra, el verde significaba «venta cerrada» arriba y
+ *  «subasta abierta» abajo. Nadie lo escribio: lo decidio un indice.
+ *
+ *  Azul para lo provisional y verde para lo firme, que es el orden en que se
+ *  leen: una puja todavia puede moverse, un precio pagado ya no. La media va
+ *  en gris a proposito, para no competir con los datos que resume. */
+const SUBASTA_ABIERTA = "#4f7cff";
+const VENTA_CERRADA = "#2fbf71";
+const LINEA_DE_LA_MEDIA = "#94a3b8";
+
 /** Sombrea el hueco entre dos líneas de la MISMA magnitud.
  *
  * ECharts no tiene una serie "banda", así que se apilan dos: una base
@@ -574,7 +590,8 @@ export function serieDePuntosOption(
         name: tx("Media ponderada"),
         data: medias,
         symbol: "none",
-        lineStyle: { width: 2 },
+        lineStyle: { width: 2, color: LINEA_DE_LA_MEDIA },
+        itemStyle: { color: LINEA_DE_LA_MEDIA },
         connectNulls: false,
         z: 1,
       },
@@ -584,6 +601,7 @@ export function serieDePuntosOption(
         data: nube,
         symbolSize: 8,
         symbol: "emptyCircle",
+        itemStyle: { color: SUBASTA_ABIERTA },
         z: 2,
       },
       {
@@ -591,6 +609,7 @@ export function serieDePuntosOption(
         name: tx("Venta cerrada"),
         data: cerradas,
         symbolSize: 8,
+        itemStyle: { color: VENTA_CERRADA },
         z: 3,
       },
     ],
@@ -681,6 +700,7 @@ export function tiraDePuntosOption(
         name: tx("Subasta abierta"),
         data: abiertas,
         symbolSize: 11,
+        itemStyle: { color: SUBASTA_ABIERTA },
         // Hueco de verdad: `emptyCircle` pinta el borde con el color de la
         // serie. Con `color: transparent` y sin `borderColor` el punto
         // salia INVISIBLE, y la grafica enseñaba ejes y marcas sin datos.
@@ -706,6 +726,7 @@ export function tiraDePuntosOption(
         name: tx("Venta cerrada"),
         data: cerradas,
         symbolSize: 11,
+        itemStyle: { color: VENTA_CERRADA },
       },
     ],
     legend: { bottom: 0, itemHeight: 8, textStyle: { fontSize: 10 } },

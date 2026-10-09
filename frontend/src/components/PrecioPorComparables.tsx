@@ -87,15 +87,22 @@ function salto(puja: number, precio: number): string {
   return `+${pct}%`;
 }
 
-/** «en 11 h», «cerrada».
+/** «en 11 h», «cerrando», «cerrada».
  *
  *  La columna enseñaba el sello entero --«08/10/2026 12:37»-- y eso hacia
  *  dos cosas malas: ocupaba el ancho que sacaba la tabla de su contenedor, y
  *  obligaba a restar mentalmente para saber lo unico que importa, que es
  *  cuanto le falta a esa puja para convertirse en precio (2026-10-08).
+ *
+ *  `firme` MANDA SOBRE EL PLAZO, y es el arreglo del 2026-10-09. El plazo no
+ *  se borra al resolver una venta, asi que una ya vendida tenia el plazo
+ *  pasado y salia «cerrando» --«todavia no he ido a mirar»-- al lado de su
+ *  precio real: la fila se contradecia a si misma. Mituta, 792.000 US$ y
+ *  «cerrando» en la misma linea. La rama de «cerrada» no se ejecutaba nunca,
+ *  porque esperaba un plazo vacio que no llega jamas.
  */
-function cuantoFalta(iso: string | null): string {
-  if (!iso) return tx("cerrada");
+function cuantoFalta(iso: string | null, firme: boolean): string {
+  if (firme || !iso) return tx("cerrada");
   const horas = (new Date(iso).getTime() - Date.now()) / 3_600_000;
   if (horas <= 0) return tx("cerrando");
   if (horas < 48) return tx("en {{v0}} h", { v0: String(Math.round(horas)) });
@@ -247,10 +254,12 @@ function columnasDe(
       align: "right",
       // Lo ya cerrado al final cuando se ordena por esta columna: un plazo
       // que no existe no es «hace mucho», es que ya no aplica.
-      value: (f) => (f.cierra ? new Date(f.cierra).getTime() : Infinity),
+      // Lo ya firme va al final tambien aqui: su plazo es historia, no una
+      // espera, y ordenar por el mezclaba lo cerrado entre lo que falta.
+      value: (f) => (f.firme || !f.cierra ? Infinity : new Date(f.cierra).getTime()),
       render: (f) => (
         <span className="whitespace-nowrap tabular-nums">
-          {cuantoFalta(f.cierra)}
+          {cuantoFalta(f.cierra, f.firme)}
         </span>
       ),
     },
