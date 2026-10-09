@@ -55,13 +55,38 @@ DEPRECATED_TRAINING_TYPES = frozenset({0, 1})
 
 # The values are position share labels from training.yaml:
 # full = 100%, partial = 50%, none/missing = no training.
+#
+# QUIEN RECIBE CUANTO, Y SOLO ESO. Aqui no se modela que un entrenamiento sea
+# mas lento que otro: de eso se ocupa su coeficiente en `training.yaml`, y
+# escribirlo dos veces fue el fallo del tipo 6 que se corrigio el 2026-10-09
+# (ver abajo). `defender` son los centrales y `wingback` los laterales: son
+# grupos DISTINTOS, aunque Hattrick los llame a los dos «defensas».
+#
+# La tabla entera la dicto el usuario el 2026-10-09, entrenamiento por
+# entrenamiento, leyendola del juego. Tres casillas estaban mal:
+#
+#   · Defensa (3): faltaba el LATERAL. Un lateral que jugaba los noventa
+#     minutos recibia 0 %, y la pantalla le decia que no habia entrenado.
+#   · Defensa ampliada (11): faltaba el PORTERO, al que el propio nombre del
+#     entrenamiento nombra («Defending (Keepers, Defenders + All Midfielders)»).
+#   · Anotacion y balon parado (6): daba 50 % a todo el que no fuera delantero.
+#     Entrenan TODOS por igual; lo que es menor es el entrenamiento entero, y
+#     eso ya lo cobra su coeficiente (0,097 contra 0,218 de Anotacion, 2,25
+#     veces mas lento). Con el 50 % encima, un mediocentro salia 4,49 veces
+#     mas lento en vez de 2,25: el descuento, cobrado dos veces.
+#
+# PENDIENTE, y por eso el 2 no esta completo: en Balon parado el portero y
+# el cobrador de tiros libres reciben el 125 %, no el 100 % que hay aqui. No
+# cabe todavia --no hay peso por encima del completo, la exposicion esta
+# topada en 1.0, y quien cobra los tiros libres no se guarda en ninguna parte
+# porque la sincronizacion tira los papeles especiales de la alineacion--.
 TRAINING_POSITION_SHARES: dict[int, dict[str, str]] = {
     1: {"all": "full"},  # stamina
     2: {"all": "full"},  # set pieces
-    3: {"defender": "full"},
+    3: {"defender": "full", "wingback": "full"},
     4: {"forward": "full"},
     5: {"winger": "full", "wingback": "partial"},
-    6: {"forward": "full", "all": "partial"},  # scoring + set pieces
+    6: {"all": "full"},  # scoring, para todo el que juegue
     7: {"inner_mid": "full", "winger": "full", "forward": "full"},
     8: {"inner_mid": "full", "winger": "partial"},
     9: {"keeper": "full"},
@@ -69,7 +94,13 @@ TRAINING_POSITION_SHARES: dict[int, dict[str, str]] = {
     # incluye medios interiores y extremos. La pantalla oficial de minutos de
     # entrenamiento confirma los cuatro grupos para los tipos 10 y 11.
     10: {"defender": "full", "wingback": "full", "inner_mid": "full", "winger": "full"},
-    11: {"defender": "full", "wingback": "full", "inner_mid": "full", "winger": "full"},
+    11: {
+        "keeper": "full",
+        "defender": "full",
+        "wingback": "full",
+        "inner_mid": "full",
+        "winger": "full",
+    },
     12: {"winger": "full", "forward": "full"},
 }
 

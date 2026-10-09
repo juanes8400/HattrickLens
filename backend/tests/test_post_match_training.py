@@ -3,7 +3,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from app.application.queries.post_match_training import PostMatchTrainingService
+from app.application.queries.post_match_training import (
+    PostMatchTrainingService,
+    position_name,
+)
+from app.domain.engines.training_engine import training_exposure
+from app.domain.value_objects.ht_constants import training_name
 from app.infrastructure.db import models as m
 
 from .conftest import seeded_session
@@ -92,3 +97,55 @@ async def test_post_match_training_counts_real_forward_minutes() -> None:
     assert row["exposureByTrainingType"]["4"] == 1.0
     assert "9" not in row["exposureByTrainingType"]
     assert row["segments"][0]["position"] == "Delantero medio"
+
+
+#: La tabla ENTERA, dictada por el usuario el 2026-10-09 leyéndola del juego,
+#: entrenamiento por entrenamiento. Filas: el tipo de CHPP. Columnas: el
+#: porcentaje que recibe un jugador por cada minuto en ese puesto.
+#:
+#: Se escribe aquí y no se deriva de `TRAINING_POSITION_SHARES`: una prueba que
+#: lee la misma tabla que prueba no comprueba nada. Esta es la fuente, y el
+#: código tiene que coincidir con ella.
+TABLA_DICTADA: dict[int, dict[int, int]] = {
+    # portero, central, lateral, medio interior, extremo, delantero
+    2: {100: 100, 103: 100, 101: 100, 108: 100, 106: 100, 112: 100},
+    3: {100: 0, 103: 100, 101: 100, 108: 0, 106: 0, 112: 0},
+    4: {100: 0, 103: 0, 101: 0, 108: 0, 106: 0, 112: 100},
+    5: {100: 0, 103: 0, 101: 50, 108: 0, 106: 100, 112: 0},
+    6: {100: 100, 103: 100, 101: 100, 108: 100, 106: 100, 112: 100},
+    7: {100: 0, 103: 0, 101: 0, 108: 100, 106: 100, 112: 100},
+    8: {100: 0, 103: 0, 101: 0, 108: 100, 106: 50, 112: 0},
+    9: {100: 100, 103: 0, 101: 0, 108: 0, 106: 0, 112: 0},
+    10: {100: 0, 103: 100, 101: 100, 108: 100, 106: 100, 112: 0},
+    11: {100: 100, 103: 100, 101: 100, 108: 100, 106: 100, 112: 0},
+    12: {100: 0, 103: 0, 101: 0, 108: 0, 106: 100, 112: 100},
+}
+
+
+@pytest.mark.parametrize("training_type", sorted(TABLA_DICTADA))
+def test_cada_puesto_recibe_lo_que_dicta_la_tabla_oficial(training_type: int) -> None:
+    """El reparto por puestos, contra la tabla que dio el usuario.
+
+    2026-10-09. Un usuario reportó que un jugador suyo con 87′ de lateral y 3′
+    de extremo recibía la semana entera de «Lateral». Al revisar el reparto
+    para contestarle salieron tres casillas mal, que esta tabla fija:
+
+    · «Defensa» no entrenaba al LATERAL. Noventa minutos y 0 %.
+    · «Defensa (porteros, defensas y centro del campo completo)» no entrenaba
+      al PORTERO, al que su propio nombre nombra.
+    · «Anotación y balón parado» daba 50 % a todo el que no fuera delantero,
+      duplicando la lentitud que ya cobra el coeficiente del entrenamiento.
+
+    Falta una, a propósito: en «Balón parado» el portero y el cobrador de
+    tiros libres reciben el 125 %, y el motor todavía no sabe expresar un peso
+    por encima del completo. Aquí van al 100 %, que es lo que hace hoy, y el
+    día que se represente esta tabla tiene que cambiar con el código.
+    """
+    service = PostMatchTrainingService(None)  # type: ignore[arg-type]
+    for position_code, esperado in TABLA_DICTADA[training_type].items():
+        share = service._position_share(training_type, position_code)
+        recibido = round(training_exposure(90, share) * 100)
+        assert recibido == esperado, (
+            f"entrenamiento {training_name(training_type)}, "
+            f"{position_name(position_code)}: {recibido} % y debería ser {esperado} %"
+        )
