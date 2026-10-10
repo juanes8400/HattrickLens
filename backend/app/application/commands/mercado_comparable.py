@@ -133,6 +133,24 @@ def numero_de_turno(economy_date: datetime | None, ahora: datetime) -> int | Non
 # --------------------------------------------------------------------------
 
 
+def _habilidades(crudo: str | None) -> dict[str, int]:
+    """Las siete habilidades de una venta, o vacio si la fila no las lleva.
+
+    Vacio NO es «todas a cero»: es «no las sabemos», y por eso esa venta no
+    puede llevar el sello de Hattrick. Si el JSON viniera roto se trata igual
+    que si no estuviera, que es lo unico que no miente.
+    """
+    if not crudo:
+        return {}
+    try:
+        leido = json.loads(crudo)
+    except ValueError:
+        return {}
+    if not isinstance(leido, dict):
+        return {}
+    return {str(k): int(v) for k, v in leido.items() if isinstance(v, int | float)}
+
+
 def a_guardado(fila: m.MarketSale) -> Guardado:
     """Una fila de la base como la ve el motor."""
     return Guardado(
@@ -146,6 +164,7 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         primaria=Rasgo(fila.primary_skill, fila.primary_level),
         secundaria=Rasgo(fila.secondary_skill, fila.secondary_level),
         terciaria=Rasgo(fila.tertiary_skill, fila.tertiary_level),
+        habilidades=_habilidades(fila.skills_json),
         especialidad=fila.specialty,
         tsi=fila.tsi,
         pais=fila.country_id,
@@ -205,6 +224,8 @@ async def guardar(
         fila.specialty = venta.especialidad
         fila.tsi = venta.tsi
         fila.country_id = venta.pais
+        if venta.habilidades:
+            fila.skills_json = json.dumps(dict(venta.habilidades), sort_keys=True)
     return nuevas
 
 

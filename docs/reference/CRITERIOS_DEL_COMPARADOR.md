@@ -208,3 +208,27 @@ caen y se vuelve a sondear.
 - [Hattrick History](https://www.hattrick.org/en/Help/History.aspx) — sitúa la actualización no documentada en la temporada 69.
 - [Transfer compare](https://wiki.hattrick.org/wiki/Transfer_compare) — la página general del wiki; no describe criterios.
 - El propio Comparador de Transferencias, sondeado el 2026-10-10.
+
+## Cuánto se separa nuestra escalera de la suya
+
+Medido sobre 33 793 pares sintéticos que **nuestra** escalera acepta, mirando
+cuántos llevaría el sello de Hattrick:
+
+| nuestro peso | pares | los enseñaría Hattrick |
+|---:|---:|---:|
+| 100 % | 10 579 | **84,5 %** |
+| 90 % | 3 885 | 61,7 % |
+| 85 % | 5 801 | **0,0 %** |
+| 80 % | 6 840 | 24,4 % |
+| 75 % | 6 688 | 25,1 % |
+
+**El escalón del 85 % no acierta ni uno**, y tiene explicación: es el escalón
+que abre la PRIMERA habilidad a ±1 manteniendo la edad clavada. Hattrick nunca
+mueve la primera. Así que todo lo que entra por ahí —y sólo por ahí— es gente
+que el juego no consideraría comparable en ningún caso.
+
+Los del 80 % y 75 % aciertan uno de cada cuatro porque son escalones de EDAD:
+abren el año pero muchos conservan la primaria clavada, y ésos sí pasan.
+
+Y del 100 % nuestro, uno de cada seis no pasaría: son los que tienen una cuarta
+habilidad alta, que nosotros ni miramos y a Hattrick le basta para descartarlos.

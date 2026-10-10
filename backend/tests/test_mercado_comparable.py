@@ -16,6 +16,7 @@ usuario el 2026-10-06, porque si alguien la "mejora" el motor sigue devolviendo
 un número y el número es otro.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from app.domain.engines.mercado_comparable import (
@@ -31,13 +32,14 @@ from app.domain.engines.mercado_comparable import (
     Objetivo,
     candidato_de,
     comparables_de,
-    demasiado_vieja,
     cosecha,
     cuenta_para_el_numero,
+    demasiado_vieja,
     estimar,
     frontera_semanal,
     hay_que_buscar,
     le_toca,
+    lo_ensenaria_hattrick,
     objetivo_de,
     peso_de,
     plan_de_busqueda,
@@ -658,7 +660,9 @@ def test_una_subasta_abierta_no_cuenta_por_muchos_intentos_que_le_queden() -> No
     +20.583 %. Un suelo asi no es un suelo.
     """
     assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=0)) is False
-    assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)) is False
+    assert (
+        cuenta_para_el_numero(_guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)) is False
+    )
 
 
 def test_un_provisional_sin_intentos_tampoco_cuenta() -> None:
@@ -677,9 +681,7 @@ def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
     """Las seis buenas valen 1.000.000; la abandonada, 10. Si entrara en la
     media la hundiria, y la media tiene que seguir siendo 1.000.000."""
     buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
-    tirada = _guardado(
-        99, precio=10, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1
-    )
+    tirada = _guardado(99, precio=10, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
     medidos = _medidos(*buenas, tirada)
 
     estimacion = estimar(medidos)
@@ -693,9 +695,7 @@ def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
 def test_el_abandonado_no_le_quita_el_sitio_a_una_buena() -> None:
     """Con seis buenas y una abandonada, las seis que cuentan son las buenas."""
     buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
-    tirada = _guardado(
-        99, precio=9_000_000, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1
-    )
+    tirada = _guardado(99, precio=9_000_000, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
     medidos = _medidos(*buenas, tirada)
     assert sorted(c.venta.ht_player_id for c in medidos if c.cuenta) == [1, 2, 3, 4, 5, 6]
 
@@ -824,3 +824,95 @@ def test_a_las_doce_semanas_se_va_hasta_el_exacto() -> None:
     # Y no entra ni a enseñarse: no hay fila, no hay numero, no ocupa plaza.
     assert len(_medidos(clavado_de_once)) == 1
     assert _medidos(clavado_de_trece) == ()
+
+
+# --- El sello de Hattrick (2026-10-10) --------------------------------------
+
+
+def _llauge() -> Objetivo:
+    """Moises Llauge tal cual, que es con quien se sondeo el Comparador.
+
+    Hattrick le pone estos criterios, leidos de su pantalla el 2026-10-10:
+        Edad 28-30 | Def=14 | Pas 12-14 | Lat>=11 | Jug<=5 | Ano<=5 | Por<=5
+    """
+    return objetivo_de(
+        474559832,
+        29,
+        {
+            "defending": 14,
+            "passing": 13,
+            "winger": 11,
+            "playmaking": 4,
+            "scoring": 2,
+            "keeper": 1,
+        },
+    )
+
+
+def _venta(habilidades: dict[str, int], edad: int = 29) -> Guardado:
+    tres = terna(habilidades)
+    assert tres is not None
+    return Guardado(
+        ht_player_id=1,
+        nombre="x",
+        precio=1,
+        firme=True,
+        puja=1,
+        visto_el=datetime(2026, 10, 10, tzinfo=UTC),
+        edad=edad,
+        primaria=tres[0],
+        secundaria=tres[1],
+        terciaria=tres[2],
+        habilidades=habilidades,
+    )
+
+
+def test_el_sello_lo_pone_la_regla_del_juego() -> None:
+    """Una venta que cumple los criterios que Hattrick ensena, lleva sello."""
+    dentro = _venta({"defending": 14, "passing": 13, "winger": 11, "playmaking": 3, "scoring": 1})
+    assert lo_ensenaria_hattrick(dentro, _llauge())
+    # La edad, fuera de su ventana de 28 a 30.
+    assert not lo_ensenaria_hattrick(
+        _venta({"defending": 14, "passing": 13, "winger": 11}, edad=31), _llauge()
+    )
+
+
+def test_una_cuarta_habilidad_alta_lo_tumba_aunque_nuestra_escalera_lo_apruebe() -> None:
+    """ESTE ES EL CASO QUE JUSTIFICA TODO EL SONDEO.
+
+    Un jugador con la misma edad y las mismas tres habilidades que Llauge,
+    pero con Jugadas 8, es para NUESTRA escalera un comparable perfecto: le da
+    el 100 %. Para Hattrick no es un comparable en absoluto, porque su criterio
+    pide «Jugadas <= insuficiente» y este tiene excelente.
+
+    Y tiene razon el: con Defensa 14, Pases 13, Lateral 11 y ADEMAS Jugadas 8,
+    eso ya no es el mismo jugador, es uno mas completo y mas caro.
+    """
+    con_jugadas = _venta(
+        {"defending": 14, "passing": 13, "winger": 11, "playmaking": 8, "scoring": 1}
+    )
+    objetivo = _llauge()
+    assert peso_de(con_jugadas, objetivo) == 100
+    assert not lo_ensenaria_hattrick(con_jugadas, objetivo)
+
+
+def test_sin_las_siete_habilidades_no_hay_sello() -> None:
+    """Las ventas guardadas antes de la columna no pueden llevarlo.
+
+    Y no es un fallo: responder a medias seria peor que no responder, porque
+    daria por bueno justo al jugador de la prueba de arriba.
+    """
+    sin_ellas = replace(_venta({"defending": 14, "passing": 13, "winger": 11}), habilidades={})
+    assert not lo_ensenaria_hattrick(sin_ellas, _llauge())
+    # Pero sigue midiendose con nuestra escalera, como siempre.
+    assert peso_de(sin_ellas, _llauge()) == 100
+
+
+def test_el_sello_viaja_en_el_comparable() -> None:
+    avalado = _venta({"defending": 14, "passing": 13, "winger": 11, "playmaking": 3, "scoring": 1})
+    crudo = _venta({"defending": 14, "passing": 13, "winger": 11, "playmaking": 8, "scoring": 1})
+    ahora = datetime(2026, 10, 10, tzinfo=UTC)
+    medidos = comparables_de([avalado, crudo], _llauge(), ahora)
+    assert [c.avalado_por_hattrick for c in medidos] == [True, False]
+    # El sello NO toca el peso: los dos siguen valiendo 100 para la escalera.
+    assert {c.peso for c in medidos} == {100}

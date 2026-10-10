@@ -28,14 +28,31 @@ medición.
 LA ESCALERA. Cinco escalones que se van abriendo, y se para en cuanto reúne
 seis. La terciaria lleva siempre la misma ventana, un nivel por arriba y dos
 por abajo.
+
+Y EL SELLO DE HATTRICK (2026-10-10). La escalera de arriba es nuestra. Desde
+que se sondeó el Comparador del propio juego --unas 600 consultas a su panel
+«Editar búsqueda»-- se puede además responder a «¿esta venta se la habría
+enseñado Hattrick?», y cada comparable sale marcado con esa respuesta. Es un
+SELLO, no un peso: no entra en la media ni cambia el orden, porque mover lo que
+significa el 100 % movería el color de la pantalla y el calendario del escalón
+exacto, y eso no se decide aquí.
+
+Sirve para dos cosas. Para poder decir «esto lo avalaría el juego», y para
+medir cuánto nos separamos de él: sobre 33 793 pares que nuestra escalera
+acepta, Hattrick enseñaría el 43 %, y el escalón del 85 % --el que abre la
+primaria-- no acierta ni uno, porque Hattrick nunca mueve la primera habilidad.
+La regla está en `criterios_hattrick`; la medición, en
+`docs/reference/CRITERIOS_DEL_COMPARADOR.md`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
+
+from app.domain.engines.criterios_hattrick import criterios_de
 
 # El orden de desempate, dictado por el usuario el 2026-10-04, y también la
 # lista entera de habilidades que cuentan: seis, sin resistencia ni balón
@@ -155,6 +172,9 @@ class Perfilado(Protocol):
     @property
     def terciaria(self) -> Rasgo: ...
 
+    @property
+    def habilidades(self) -> Mapping[str, int]: ...
+
 
 @dataclass(frozen=True, slots=True)
 class Rasgo:
@@ -202,6 +222,10 @@ class Objetivo:
     secundaria: Rasgo
     terciaria: Rasgo
     especialidad: int = 0
+    #: Las siete habilidades enteras. Hacen falta para preguntarle a la regla
+    #: de Hattrick, que mira la cuarta y pone tope a las demás; la terna sola
+    #: no basta. Vacío significa «no las tenemos», no «están a cero».
+    habilidades: Mapping[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +249,8 @@ class Candidato:
     primaria: Rasgo
     secundaria: Rasgo
     terciaria: Rasgo
+    #: Igual que en `Objetivo`: las siete, para poder aplicar la regla del juego.
+    habilidades: Mapping[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +302,9 @@ class Guardado:
     secundaria: Rasgo
     terciaria: Rasgo
     especialidad: int = 0
+    #: Las siete habilidades del vendido, si las tenemos. Las ventas anteriores
+    #: a la columna las traen vacias y por eso no pueden llegar al 100 %.
+    habilidades: Mapping[str, int] = field(default_factory=dict)
     #: Lo que valia para Hattrick al encontrarlo. No entra en el parecido
     #: --el usuario comparo por habilidades, no por TSI-- pero se enseña,
     #: porque es la medida que todo el mundo tiene en la cabeza.
@@ -302,6 +331,15 @@ class Comparable:
     #: cerradas: una puja no es un precio, y se vio cuánto no lo es --Edu
     #: Fuenllana pujaba 6.000 US$ y se vendió en 1.241.000--.
     cuenta: bool = True
+    #: Si el propio Hattrick ensenaria esta venta al comparar a este jugador,
+    #: comprobado contra su regla --ver `criterios_hattrick`--. Es un SELLO, no
+    #: un peso: no entra en la media ni cambia el orden. Sirve para poder decir
+    #: «esto lo avalaria el juego» y para medir cuanto se separa nuestra
+    #: escalera de la suya antes de decidir si la sustituimos.
+    #:
+    #: Falso tambien cuando no tenemos las siete habilidades de la venta, que
+    #: es el caso de todo lo guardado antes del 2026-10-10.
+    avalado_por_hattrick: bool = False
     #: Si ocupa una de las seis plazas del fondo. NO es lo mismo que contar:
     #: una subasta abierta con puja ocupa --se está vigilando y va a
     #: convertirse en venta-- pero no promedia hasta que cierre. Si fueran lo
@@ -356,6 +394,7 @@ def objetivo_de(
     return Objetivo(
         ht_player_id=ht_player_id,
         edad=edad,
+        habilidades=dict(skills),
         primaria=primaria,
         secundaria=secundaria,
         terciaria=terciaria,
@@ -412,8 +451,40 @@ def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:
     return tuple(v for v in ventanas if v is not None)
 
 
+def lo_ensenaria_hattrick(candidato: Perfilado, objetivo: Objetivo) -> bool:
+    """Si el propio Hattrick enseñaría esta venta al comparar a este jugador.
+
+    Le pregunta a `criterios_hattrick` qué criterios usaría el juego para
+    nuestro jugador y comprueba al candidato contra todos: la ventana de edad y
+    cada habilidad, incluidos los topes de las que no lo identifican.
+
+    DEVUELVE FALSO SI NO TENEMOS LAS SIETE HABILIDADES de alguno de los dos. La
+    regla mira la cuarta y pone tope a las demás, así que con la terna sola no
+    se puede responder, y responder a medias sería peor que no responder: daría
+    por bueno a un jugador que Hattrick descartaría por una cuarta alta.
+
+    Las ventas que se guardaron antes de que existiera la columna de
+    habilidades caen por aquí, y se quedan con el peso que les dé la escalera
+    nuestra. No se borran ni se inventan: envejecen y se reemplazan solas.
+    """
+    if not candidato.habilidades or not objetivo.habilidades:
+        return False
+    criterios = criterios_de(objetivo.edad, dict(objetivo.habilidades))
+    if not criterios.edad_minima <= candidato.edad <= criterios.edad_maxima:
+        return False
+    return all(
+        criterio.admite(max(0, candidato.habilidades.get(criterio.habilidad, 0)))
+        for criterio in criterios.habilidades
+    )
+
+
 def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     """Lo que vale este candidato, o `None` si no se le parece lo bastante.
+
+    EL PESO ES NUESTRO, no de Hattrick. Si esta venta es ademas de las que el
+    propio juego ensenaria lo dice `lo_ensenaria_hattrick`, que va aparte y no
+    toca este numero: cambiar lo que significa el 100 % mueve el color de la
+    pantalla y el calendario del escalon exacto, y eso no se decide aqui.
 
     Las tres habilidades tienen que ser LAS MISMAS y en el mismo orden. Quien
     tiene los niveles pedidos pero en otras habilidades, o a quien otra
@@ -473,6 +544,7 @@ def candidato_de(fila: Mapping[str, Any]) -> Candidato | None:
         vendedor=int(fila.get("seller_team_id", 0) or 0),
         liga_del_vendedor=int(fila.get("seller_league_id", 0) or 0),
         pais=int(fila.get("native_country_id", 0) or 0),
+        habilidades=dict(habilidades),
         primaria=primaria,
         secundaria=secundaria,
         terciaria=terciaria,
@@ -608,6 +680,7 @@ def comparables_de(
                 # 100% para uno y un 75% para su companero, y entonces
                 # caduca para el segundo y no para el primero.
                 viejo=peso < 100 and reemplazable(venta, ahora),
+                avalado_por_hattrick=lo_ensenaria_hattrick(venta, objetivo),
                 cuenta=cuenta_para_el_numero(venta),
                 ocupa=ocupa_plaza(venta),
             )

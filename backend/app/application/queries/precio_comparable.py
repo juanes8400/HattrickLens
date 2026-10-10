@@ -82,6 +82,11 @@ class FilaDeComparable:
     #: ver cuanto se quedo corta.
     puja: int
     peso: int
+    #: Si el propio Hattrick ensenaria esta venta al comparar a este jugador
+    #: (2026-10-10). Va aparte de `peso`, que es nuestro: sirve para poder
+    #: decir «esto lo avalaria el juego». Falso en las ventas guardadas antes
+    #: de que se empezaran a anotar las siete habilidades.
+    avalado_por_hattrick: bool
     firme: bool
     #: Si entra en el numero. Falso solo para un provisional abandonado.
     cuenta: bool
@@ -219,6 +224,7 @@ async def precio_de(
             precio=0,
             puja=0,
             peso=100,
+            avalado_por_hattrick=False,
             firme=False,
             cuenta=False,
             viejo=False,
@@ -240,6 +246,7 @@ async def precio_de(
                 puja=convertido(c.venta.puja),
                 cuenta=c.cuenta,
                 peso=c.peso,
+                avalado_por_hattrick=c.avalado_por_hattrick,
                 firme=c.venta.firme,
                 viejo=c.viejo,
                 edad=c.venta.edad,
