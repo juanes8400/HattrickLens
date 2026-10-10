@@ -19,7 +19,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.application.commands.paso_del_mercado import correr_el_paso_semanal
+from app.application.commands.mercado_comparable import del_turno, del_turno_exacto
+from app.application.commands.paso_del_mercado import (
+    _fecha_economica,
+    _plantilla,
+    correr_el_paso_semanal,
+)
 from app.application.queries.precio_comparable import precio_de
 from app.domain.engines.mercado_comparable import (
     OBJETIVO,
@@ -162,21 +167,35 @@ async def test_solo_le_toca_a_los_jugadores_del_turno(base) -> None:
     assert paso.jugadores_del_turno == (ALBERTO,)
 
 
-async def test_sin_fecha_economica_el_paso_no_corre(base) -> None:
-    """Es la unica fuente del disparador, y Hattrick la da por pais."""
+async def test_sin_fecha_economica_solo_corre_el_exacto(base) -> None:
+    """Los anchos necesitan la frontera semanal; el exacto no.
+
+    La fecha economica de la liga es la unica fuente del turno de cinco
+    semanas, asi que sin ella los escalones anchos no se pueden programar. El
+    exacto se reparte por dias sobre el identificador y no la necesita, asi
+    que un club recien importado empieza a juntar comparables exactos desde el
+    primer dia en vez de esperar a su primera foto de economia (2026-10-09).
+    """
     session, equipo = base
     contexto = (await session.execute(select(m.WorldContext))).scalar_one()
     contexto.economy_date = None
     await session.flush()
+    mercado = _MercadoFalso([_fila_de_mercado(900)])
     paso = await correr_el_paso_semanal(
-        session, equipo, buscar=_MercadoFalso(), historial_de=_sin_historial, ahora=AHORA
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
     )
-    assert paso.se_busco is False
-    assert equipo.market_run_at is None
+    # Una sola peticion por jugador del dia: el exacto y nada mas.
+    assert mercado.llamadas == len(paso.jugadores_del_turno)
+    assert equipo.market_run_at is not None
 
 
-async def test_una_vez_corrido_no_se_repite_en_la_misma_semana(base) -> None:
-    """La economia principal: casi todas las sincronizaciones no gastan nada."""
+async def test_una_vez_corrido_no_se_repite_el_mismo_dia(base) -> None:
+    """La economia principal: casi todas las sincronizaciones no gastan nada.
+
+    Era «en la misma semana» hasta el 2026-10-09: la puerta paso a ser diaria
+    porque el escalon exacto de cada jugador toca cada SEIS DIAS y con una
+    puerta semanal el reloj de los seis dias solo veria un dia de cada siete.
+    """
     session, equipo = base
     await correr_el_paso_semanal(
         session,
@@ -191,7 +210,8 @@ async def test_una_vez_corrido_no_se_repite_en_la_misma_semana(base) -> None:
         equipo,
         buscar=segundo,
         historial_de=_sin_historial,
-        ahora=AHORA + timedelta(hours=2),
+        # Dos horas despues pero el MISMO dia: AHORA son las 22:25 UTC.
+        ahora=AHORA + timedelta(minutes=30),
     )
     assert paso.se_busco is False
     assert segundo.llamadas == 0
@@ -212,7 +232,9 @@ async def test_la_puja_se_convierte_en_el_precio_de_verdad(base) -> None:
     async def historial(ht_player_id: int) -> dict[str, Any]:
         return {"transfers": [{"deadline": PLAZO_HT, "price": 77_720_000}]}
 
-    despues = AHORA + timedelta(days=2)
+    # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
+    # 2026-10-09, «cuando se sabe que debio terminar».
+    despues = AHORA + timedelta(days=4)
     paso = await correr_el_paso_semanal(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
@@ -237,8 +259,11 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
     for ht_id in (ALBERTO, GEMELO):
         precio = await precio_de(session, equipo.id, ht_id, AHORA)
         assert precio is not None
-        assert precio.n == OBJETIVO
-        assert precio.media == 10_000_000
+        # El mismo fondo sirve a los dos, que es lo que esta prueba
+        # defiende. Son anuncios, asi que dan lista y no media: desde el
+        # 2026-10-09 el numero sale solo de ventas cerradas.
+        assert len(precio.comparables) == OBJETIVO
+        assert precio.media is None
 
 
 async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
@@ -254,9 +279,10 @@ async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
     precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
     assert precio is not None
     assert precio.provisionales == OBJETIVO, "todas son pujas hasta que cierren"
-    assert precio.peso_minimo == 100
-    assert precio.minimo == precio.maximo == 10_000_000
-    assert precio.faltan == 0
+    # Y por eso mismo no hay extremos ni cuenta: una puja no es un precio
+    # (2026-10-09). Faltan las seis ventas cerradas.
+    assert precio.minimo is None and precio.maximo is None
+    assert precio.faltan == OBJETIVO
     # El perfil viaja SIN formatear: la pantalla lo nombra con el glosario
     # oficial de Hattrick, que es el que sabe como se dice «scoring» en el
     # idioma de quien mira.
@@ -280,8 +306,9 @@ async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:
     precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
     assert precio is not None
     assert precio.media is None
-    assert precio.n == 2
-    assert precio.faltan == OBJETIVO - 2
+    # Dos anuncios: lista de dos, cuenta de cero.
+    assert precio.n == 0
+    assert precio.faltan == OBJETIVO
     assert len(precio.comparables) == 2
 
 
@@ -313,7 +340,9 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
     async def se_cae(ht_player_id: int) -> dict[str, Any]:
         raise RuntimeError("CHPP no contesta")
 
-    despues = AHORA + timedelta(days=2)
+    # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
+    # 2026-10-09, «cuando se sabe que debio terminar».
+    despues = AHORA + timedelta(days=4)
     for _ in range(REINTENTOS_DE_RESOLUCION + 3):
         paso = await correr_el_paso_semanal(
             session, equipo, buscar=_MercadoFalso(), historial_de=se_cae, ahora=despues
@@ -358,8 +387,10 @@ async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
         .all()
     )
     assert len(puntos) == 1
-    assert puntos[0].n == OBJETIVO
-    assert puntos[0].mean_price == 1_000_000
+    # La lectura se anota aunque todavia no haya numero: lo que cambia es la
+    # nube, y es justo lo que luego dibuja la grafica.
+    assert puntos[0].n == 0
+    assert puntos[0].mean_price is None
     # Y lleva la nube, no solo la media: seis precios, los seis sin cerrar.
     nube = json.loads(puntos[0].prices_json)
     assert len(nube) == OBJETIVO
@@ -413,7 +444,9 @@ async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
             ]
         }
 
-    despues = AHORA + timedelta(days=2)
+    # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
+    # 2026-10-09, «cuando se sabe que debio terminar».
+    despues = AHORA + timedelta(days=4)
     paso = await correr_el_paso_semanal(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
@@ -431,7 +464,9 @@ async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
             ).scalar_one()
         ).prices_json
     )
-    assert nube == [{"precio": 77_720_000, "firme": True}]
+    # Con su peso desde el 2026-10-09: la grafica pinta mas pequeño y mas
+    # suave lo que se parece menos, y este es un 100 %.
+    assert nube == [{"precio": 77_720_000, "firme": True, "peso": 100}]
 
 
 async def test_a_un_ex_jugador_no_se_le_busca_precio(base) -> None:
@@ -465,3 +500,83 @@ async def test_a_un_ex_jugador_no_se_le_busca_precio(base) -> None:
         .all()
     )
     assert suyos == []
+
+
+async def test_al_que_solo_le_toca_el_exacto_gasta_una_sola_peticion(base) -> None:
+    """Los dos ritmos, vistos desde el paso completo (2026-10-09).
+
+    Al jugador del turno ANCHO se le recorre la escalera entera --hasta cinco
+    peticiones-- y al que solo le toca su exacto, una. Es lo que hace que el
+    coste no se multiplique por cinco al mirar el paso todos los dias.
+    """
+    session, equipo = base
+    plantilla = await _plantilla(session, equipo.id)
+    ids = [p.ht_player_id for p in plantilla]
+    economica = await _fecha_economica(session, equipo)
+
+    # Un dia en que a alguien le toque el exacto y a nadie los anchos.
+    for dia in range(1, 40):
+        cuando = AHORA + timedelta(days=dia)
+        anchos = del_turno(ids, economica, cuando)
+        exactos = del_turno_exacto(ids, cuando)
+        if exactos and not anchos:
+            break
+    else:
+        pytest.skip("no se encontro un dia con exacto y sin anchos")
+
+    mercado = _MercadoFalso([_fila_de_mercado(900)])
+    paso = await correr_el_paso_semanal(
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=cuando
+    )
+    assert paso.jugadores_del_turno == tuple(sorted(exactos))
+    # Una peticion por jugador y ni una mas: nadie recorrio la escalera.
+    assert mercado.llamadas == len(exactos)
+
+
+async def test_un_intento_al_dia_por_venta(base) -> None:
+    """Regla del usuario, 2026-10-09: «un intento al dia por venta, posterior
+    a la posible hora de cierre».
+
+    Hace falta desde que se pregunta EN CUANTO pasa el plazo, sin margen. La
+    resolucion corre en cada sincronizacion y la aplicacion permite seis por
+    hora: sin el freno, las cinco oportunidades de una venta se gastaban en la
+    primera hora tras el cierre --las cinco posteriores al cierre, las cinco
+    legitimas-- y se abandonaba antes de que Hattrick publicara el traspaso.
+    """
+    session, equipo = base
+    preguntas: list[int] = []
+
+    async def historial(ht_player_id: int) -> dict[str, Any]:
+        preguntas.append(ht_player_id)
+        return {"transfers": []}  # Hattrick todavia no la ha registrado
+
+    # Una venta en el fondo con la subasta ya cerrada.
+    await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    cerrada = datetime.fromisoformat(PLAZO_HT).replace(tzinfo=UTC) + timedelta(minutes=5)
+
+    # Cinco sincronizaciones el mismo dia: UNA sola pregunta.
+    for minuto in range(0, 50, 10):
+        await correr_el_paso_semanal(
+            session,
+            equipo,
+            buscar=_MercadoFalso(),
+            historial_de=historial,
+            ahora=cerrada + timedelta(minutes=minuto),
+        )
+    assert len(preguntas) == 1, preguntas
+
+    # Al dia siguiente, otra.
+    await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso(),
+        historial_de=historial,
+        ahora=cerrada + timedelta(days=1),
+    )
+    assert len(preguntas) == 2

@@ -96,6 +96,22 @@ const BAND_PREFIX = "__banda";
  *  Azul para lo provisional y verde para lo firme, que es el orden en que se
  *  leen: una puja todavia puede moverse, un precio pagado ya no. La media va
  *  en gris a proposito, para no competir con los datos que resume. */
+/** Un punto pintado segun cuanto se parece esa venta (2026-10-09, pedido del
+ *  usuario: «algun indicador de Se parece en la grafica, puede ser puntos mas
+ *  pequeños, colores mas suaves»).
+ *
+ *  Dos canales a la vez, tamaño y opacidad, porque uno solo no se lee: entre
+ *  un 85 % y un 100 % --el rango real que da el motor-- la diferencia de
+ *  tamaño sola es de tres pixeles. Juntos, un gemelo pesa en el ojo lo que
+ *  tiene que pesar y un primo lejano se queda de fondo.
+ *
+ *  El suelo es 75 porque por debajo el motor ya no acepta la venta; una
+ *  lectura vieja sin peso guardado llega como 100 y se pinta entera. */
+function segunElParecido(peso: number, base: number) {
+  const cuanto = Math.min(Math.max((peso - 75) / 25, 0), 1);
+  return { symbolSize: base - 4 + cuanto * 4, opacity: 0.45 + cuanto * 0.55 };
+}
+
 const SUBASTA_ABIERTA = "#4f7cff";
 const VENTA_CERRADA = "#2fbf71";
 const LINEA_DE_LA_MEDIA = "#94a3b8";
@@ -554,21 +570,68 @@ export function serieDePuntosOption(
   lecturas: {
     cuando: string;
     media: number | null;
-    precios: [number, boolean][];
+    precios: [number, boolean, number][];
   }[],
   opciones: {
     etiqueta: (iso: string) => string;
     detalle: (v: number) => string;
+    soloCerradas: boolean;
+    etiquetaMedia: string;
   },
 ): EChartsOption {
-  const nube: [number, number][] = [];
-  const cerradas: [number, number][] = [];
+  // LA LINEA DE TIEMPO SE DIBUJA CON VENTAS CERRADAS (2026-10-09, decision
+  // del usuario). Una puja no es un precio: ese mismo dia, en la tabla de
+  // Imam Ece, Edu Fuenllana figuraba con 6.000 US$ de puja y se vendio en
+  // 1.241.000, un +20.583 %. Una nube con pujas dentro cuenta como «lo que
+  // valen estos jugadores» algo que todavia no ha pasado.
+  //
+  // La excepcion, y por lectura, no para la serie entera: si una lectura NO
+  // TIENE ninguna venta cerrada, se enseñan sus pujas. Esconderlas dejaria la
+  // columna vacia, y una columna vacia se lee como «aquel dia no habia nada»,
+  // que es distinto de «aquel dia todo estaba sin cerrar».
+  type Punto = { value: [number, number]; symbolSize: number; itemStyle: { opacity: number } };
+  const punto = (i: number, precio: number, peso: number): Punto => {
+    const { symbolSize, opacity } = segunElParecido(peso ?? 100, 8);
+    return { value: [i, precio], symbolSize, itemStyle: { opacity } };
+  };
+  const nube: Punto[] = [];
+  const cerradas: Punto[] = [];
+  const medias: (number | null)[] = [];
   lecturas.forEach((l, i) => {
-    for (const [precio, firme] of l.precios) {
-      (firme ? cerradas : nube).push([i, precio]);
+    const firmes = opciones.soloCerradas
+      ? l.precios.filter(([, firme]) => firme)
+      : [];
+    if (!opciones.soloCerradas) {
+      // Con las pujas dentro se enseña todo, cada cosa con su forma, y la
+      // linea es la media de todo lo que se ve.
+      for (const [precio, firme, peso] of l.precios) {
+        (firme ? cerradas : nube).push(punto(i, precio, peso));
+      }
+      medias.push(
+        l.precios.length
+          ? l.precios.reduce((s, [precio]) => s + precio, 0) / l.precios.length
+          : null,
+      );
+      return;
     }
+    if (firmes.length > 0) {
+      for (const [precio, , peso] of firmes) cerradas.push(punto(i, precio, peso));
+      // LA LINEA ES LA MEDIA DE LO QUE SE VE (2026-10-09, decision del
+      // usuario). Antes era la media ponderada del panel --la cifra grande de
+      // arriba-- y al quitar las pujas de los puntos dejaba de describir el
+      // dibujo: en la ultima lectura de Imam Ece los tres puntos estaban en
+      // 595.000, 792.000 y 1.241.000 y la linea pasaba por 436.144, por debajo
+      // de los tres. Una media por debajo de todos los puntos se lee como un
+      // error aunque sea correcta.
+      medias.push(firmes.reduce((s, [precio]) => s + precio, 0) / firmes.length);
+      return;
+    }
+    for (const [precio, , peso] of l.precios) nube.push(punto(i, precio, peso));
+    // Sin ventas cerradas no hay media que dibujar: la linea se corta ahi en
+    // vez de inventar un punto con pujas, que es justo lo que se quiso quitar.
+    // `connectNulls: false` hace el hueco de verdad.
+    medias.push(null);
   });
-  const medias: (number | null)[] = lecturas.map((l) => l.media);
 
   return {
     grid: { left: 8, right: 14, top: 18, bottom: 28, containLabel: true },
@@ -587,7 +650,7 @@ export function serieDePuntosOption(
     series: [
       {
         type: "line",
-        name: tx("Media ponderada"),
+        name: opciones.etiquetaMedia,
         data: medias,
         symbol: "none",
         lineStyle: { width: 2, color: LINEA_DE_LA_MEDIA },
@@ -644,7 +707,7 @@ export function serieDePuntosOption(
  * pegadas al cero parecen una.
  */
 export function tiraDePuntosOption(
-  precios: [number, boolean][],
+  precios: [number, boolean, number][],
   opciones: {
     media: number | null;
     mediana: number | null;
@@ -656,17 +719,28 @@ export function tiraDePuntosOption(
   const orden = [...precios].sort((a, b) => a[0] - b[0]);
   const minimo = orden.length ? orden[0]![0] : 0;
   const maximo = orden.length ? orden[orden.length - 1]![0] : 1;
-  // Dos puntos a menos de un 2,5% del rango se pisan a este tamaño.
+  // Dos puntos a menos de un 2,5 % del rango se pisan a este tamaño. La
+  // cuenta tiene que hacerse EN EL EJE QUE SE DIBUJA: hubo un rato, el
+  // 2026-10-09, en que el eje era logarítmico y esta cuenta seguía siendo
+  // lineal, y entonces 1.000 y 3.000 se apilaban uno encima de otro aunque en
+  // pantalla quedaran a medio dedo. Hoy el eje es lineal y coinciden; si
+  // alguna vez vuelve a cambiar, esto cambia con él.
   const juntos = Math.max((maximo - minimo) * 0.025, 1);
 
-  const abiertas: [number, number][] = [];
-  const cerradas: [number, number][] = [];
+  type Punto = { value: [number, number]; symbolSize: number; itemStyle: { opacity: number } };
+  const abiertas: Punto[] = [];
+  const cerradas: Punto[] = [];
   let anterior = -Infinity;
   let piso = 0;
-  for (const [precio, firme] of orden) {
+  for (const [precio, firme, peso] of orden) {
     piso = precio - anterior <= juntos ? piso + 1 : 0;
     anterior = precio;
-    (firme ? cerradas : abiertas).push([precio, piso]);
+    const { symbolSize, opacity } = segunElParecido(peso ?? 100, 11);
+    (firme ? cerradas : abiertas).push({
+      value: [precio, piso],
+      symbolSize,
+      itemStyle: { opacity },
+    });
   }
   const alto = Math.max(piso, 2);
 

@@ -101,6 +101,11 @@ class FilaDeComparable:
     #: la venta se anotó antes de que se guardara el país.
     pais_codigo: str
     pais_nombre: str
+    #: Si esta fila es el jugador que pregunta, y no una venta. Va primera en
+    #: la tabla y sombreada, para comparar contra ella sin buscarla
+    #: (2026-10-09, pedido del usuario). No tiene precio ni plazo: no está en
+    #: venta, está de referencia.
+    propio: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,8 +122,11 @@ class PuntoDeLaSerie:
     media: int | None
     mediana: int | None
     n: int
-    #: `[(precio, firme), ...]` ya convertidos a la moneda del equipo.
-    precios: tuple[tuple[int, bool], ...]
+    #: `[(precio, firme, peso), ...]` ya convertidos a la moneda del equipo.
+    #: El peso es el «se parece» de esa venta, de 0 a 100: la grafica pinta
+    #: mas pequeño y mas suave lo que se parece menos. Las lecturas anotadas
+    #: antes del 2026-10-09 no lo guardaron y salen a 100.
+    precios: tuple[tuple[int, bool, int], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +153,9 @@ class PrecioComparable:
     comparables: tuple[FilaDeComparable, ...]
     #: De la más vieja a la más nueva. Vacía mientras no haya historia.
     serie: tuple[PuntoDeLaSerie, ...]
+    #: El jugador que pregunta, con la misma forma que una venta, para
+    #: encabezar la tabla. `None` sólo si falta su foto.
+    jugador: FilaDeComparable | None = None
 
 
 async def precio_de(
@@ -155,8 +166,8 @@ async def precio_de(
 ) -> PrecioComparable | None:
     """El precio de un jugador, o `None` si ese jugador no es de este equipo."""
     momento = ahora or datetime.now(UTC)
-    objetivo = await _objetivo_del_jugador(session, team_id, ht_player_id)
-    if objetivo is None:
+    objetivo, ficha, foto = await _objetivo_del_jugador(session, team_id, ht_player_id)
+    if objetivo is None or ficha is None or foto is None:
         return None
 
     # El dinero de CHPP viene en la moneda base del juego. Dividir por la
@@ -198,6 +209,29 @@ async def precio_de(
         perfil=_perfil(objetivo),
         moneda=moneda,
         serie=await _serie(session, team_id, ht_player_id, convertido),
+        # La fila de referencia: el propio jugador, con la misma forma que una
+        # venta para que la tabla no tenga que saber que es distinto. Se parece
+        # a si mismo un 100 %, y no tiene precio ni plazo porque no esta en
+        # venta.
+        jugador=FilaDeComparable(
+            ht_player_id=ht_player_id,
+            nombre=f"{ficha.first_name} {ficha.last_name}".strip(),
+            precio=0,
+            puja=0,
+            peso=100,
+            firme=False,
+            cuenta=False,
+            viejo=False,
+            edad=foto.age_years or 0,
+            perfil=_perfil(objetivo),
+            semanas=0,
+            cierra=None,
+            especialidad=SPECIALTIES.get(foto.specialty or 0, ""),
+            tsi=foto.tsi or 0,
+            pais_codigo=paises.get(foto.country_id or 0, ("", ""))[0],
+            pais_nombre=paises.get(foto.country_id or 0, ("", ""))[1],
+            propio=True,
+        ),
         comparables=tuple(
             FilaDeComparable(
                 ht_player_id=c.venta.ht_player_id,
@@ -224,7 +258,14 @@ async def precio_de(
 
 async def _objetivo_del_jugador(
     session: AsyncSession, team_id: int, ht_player_id: int
-) -> Objetivo | None:
+) -> tuple[Objetivo | None, m.Player | None, m.PlayerSnapshot | None]:
+    """El perfil con el que se busca, y de paso su ficha y su foto.
+
+    Devuelve las tres cosas porque la pantalla encabeza la tabla con el propio
+    jugador (2026-10-09) y necesita su nombre, su edad, su TSI, su país y su
+    especialidad. Pedirlas otra vez por separado seria repetir las mismas dos
+    consultas.
+    """
     jugador = (
         await session.execute(
             select(m.Player).where(
@@ -233,7 +274,7 @@ async def _objetivo_del_jugador(
         )
     ).scalar_one_or_none()
     if jugador is None:
-        return None
+        return None, None, None
     foto = (
         await session.execute(
             select(m.PlayerSnapshot)
@@ -243,12 +284,16 @@ async def _objetivo_del_jugador(
         )
     ).scalar_one_or_none()
     if foto is None:
-        return None
-    return objetivo_de(
-        ht_player_id,
-        foto.age_years or 0,
-        {h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
-        especialidad=foto.specialty or 0,
+        return None, jugador, None
+    return (
+        objetivo_de(
+            ht_player_id,
+            foto.age_years or 0,
+            {h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
+            especialidad=foto.specialty or 0,
+        ),
+        jugador,
+        foto,
     )
 
 
@@ -291,7 +336,11 @@ async def _serie(
                 mediana=convertido(fila.median_price) if fila.median_price is not None else None,
                 n=fila.n,
                 precios=tuple(
-                    (convertido(int(p.get("precio", 0) or 0)), bool(p.get("firme")))
+                    (
+                        convertido(int(p.get("precio", 0) or 0)),
+                        bool(p.get("firme")),
+                        int(p.get("peso", 100) or 100),
+                    )
                     for p in nube
                     if isinstance(p, dict)
                 ),

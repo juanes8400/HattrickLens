@@ -1732,6 +1732,16 @@ class MarketSale(Base):
     seen_at: Mapped[datetime] = mapped_column(UtcDateTime())
     #: Cuántas veces se ha intentado resolver sin encontrar la venta.
     resolve_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    #: Cuándo se preguntó por última vez. UN INTENTO AL DÍA POR VENTA
+    #: (2026-10-09, decisión del usuario).
+    #:
+    #: Hace falta desde que se pregunta en cuanto pasa el plazo, sin margen.
+    #: La resolución corre en CADA sincronización, y la aplicación permite seis
+    #: por hora: sin esto, las cinco oportunidades de una venta se gastaban en
+    #: la primera hora tras el cierre --todas posteriores al cierre, todas
+    #: legítimas-- y la venta se abandonaba antes de que Hattrick llegara a
+    #: publicar el traspaso. Con el sello, cinco intentos son cinco días.
+    resolve_asked_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     #: El `TransferID` de Hattrick, en cuanto se resuelve. Cero mientras sea
     #: una puja: el fichero del mercado no publica ese id, así que hasta que
     #: la venta no ocurre no existe.

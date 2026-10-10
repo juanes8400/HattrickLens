@@ -293,6 +293,9 @@ export interface ComparableDeMercado {
   /** Código de dos letras para la bandera. Vacío si no se guardó. */
   paisCodigo: string;
   paisNombre: string;
+  /** Si es la fila de referencia: tu propio jugador, no una venta. Va fijada
+   *  arriba y sombreada, y sus columnas de dinero y de plazo salen vacías. */
+  propio?: boolean;
 }
 
 /** Lo que ha costado la gente parecida a un jugador tuyo. */
@@ -303,7 +306,11 @@ export interface PuntoDeLaSerie {
   mediana: number | null;
   n: number;
   /** `[precio, firme]` por cada venta que formó esa lectura. */
-  precios: [number, boolean][];
+  /** `[precio, firme, peso]`. El peso es el «se parece» de esa venta, de 0 a
+   *  100: la gráfica pinta más pequeño y más suave lo que se parece menos.
+   *  Las lecturas anotadas antes del 2026-10-09 no lo guardaron y llegan
+   *  como 100. */
+  precios: [number, boolean, number][];
 }
 
 export interface PrecioComparable {
@@ -325,4 +332,7 @@ export interface PrecioComparable {
   comparables: ComparableDeMercado[];
   /** De la más vieja a la más nueva. Vacía mientras no haya historia. */
   serie: PuntoDeLaSerie[];
+  /** Tu propio jugador, con la misma forma que una venta, para encabezar la
+   *  tabla y leer las demás contra él. */
+  jugador: ComparableDeMercado | null;
 }

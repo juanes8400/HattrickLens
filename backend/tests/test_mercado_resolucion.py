@@ -16,6 +16,7 @@ from app.application.commands.mercado_comparable import (
     a_guardado,
     aplicar_resolucion,
     del_turno,
+    del_turno_exacto,
     numero_de_turno,
     toca_el_paso,
 )
@@ -96,13 +97,24 @@ def _historial(*traspasos: tuple[str, int]) -> dict:
 def test_no_se_pregunta_antes_de_que_cierre_la_subasta() -> None:
     """Preguntar pronto gasta una llamada para no encontrar nada."""
     assert se_puede_resolver(PLAZO, PLAZO - timedelta(hours=1)) is False
-    assert se_puede_resolver(PLAZO, PLAZO) is False
+    assert se_puede_resolver(PLAZO, PLAZO - timedelta(seconds=1)) is False
 
 
-def test_se_pregunta_pasado_el_margen_que_tarda_hattrick_en_anotarla() -> None:
-    assert timedelta(hours=2) == MARGEN_TRAS_EL_PLAZO
-    assert se_puede_resolver(PLAZO, PLAZO + MARGEN_TRAS_EL_PLAZO) is True
-    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=3)) is True
+def test_se_pregunta_EN_CUANTO_pasa_el_plazo_anotado() -> None:
+    """Sin margen, decision del usuario del 2026-10-09.
+
+    Fueron dos horas, y luego tres dias, hasta que se vio lo que costaban:
+    desde que la media solo cuenta ventas cerradas, cada hora de margen es una
+    hora que el precio del jugador no se mueve. «Busca en cuanto tengas
+    anotado que la subasta termina.»
+
+    El plazo no es una estimacion: viene en el anuncio de Hattrick. Si al
+    preguntar el traspaso todavia no esta registrado, para eso estan los
+    reintentos.
+    """
+    assert MARGEN_TRAS_EL_PLAZO == timedelta(0)
+    assert se_puede_resolver(PLAZO, PLAZO) is True
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(minutes=1)) is True
 
 
 def test_sin_plazo_no_se_pregunta() -> None:
@@ -242,24 +254,39 @@ def _equipo(sello: datetime | None) -> m.Team:
 
 
 def test_la_primera_vez_siempre_toca() -> None:
-    assert toca_el_paso(_equipo(None), ECONOMICA, DISPARADOR + timedelta(hours=1)) is True
+    assert toca_el_paso(_equipo(None), DISPARADOR + timedelta(hours=1)) is True
 
 
-def test_antes_del_disparador_no_toca_aunque_nunca_se_haya_corrido() -> None:
-    """La frontera de esa semana es la anterior, y el sello es mas nuevo."""
-    equipo = _equipo(DISPARADOR - timedelta(days=5))
-    assert toca_el_paso(equipo, ECONOMICA, DISPARADOR - timedelta(hours=1)) is False
+def test_el_paso_se_mira_una_vez_al_dia() -> None:
+    """La puerta paso de semanal a DIARIA el 2026-10-09.
+
+    Tenia que cambiar: el escalon exacto de cada jugador toca cada seis dias,
+    y con una puerta semanal el reloj de los seis dias solo habria visto un
+    dia de cada siete. Quien busca y que busca lo deciden los turnos, no esto.
+    """
+    nunca_corrido = _equipo(None)
+    assert toca_el_paso(nunca_corrido, DISPARADOR) is True
+
+    # Corrido hoy: no se repite, por muchas sincronizaciones que haya.
+    hoy = _equipo(DISPARADOR)
+    assert toca_el_paso(hoy, DISPARADOR + timedelta(minutes=5)) is False
+    assert toca_el_paso(hoy, DISPARADOR + timedelta(hours=2)) is False
+
+    # Corrido ayer: toca otra vez.
+    ayer = _equipo(DISPARADOR - timedelta(days=1))
+    assert toca_el_paso(ayer, DISPARADOR) is True
 
 
-def test_una_vez_corrido_no_se_repite_hasta_el_siguiente_disparador() -> None:
-    equipo = _equipo(DISPARADOR + timedelta(minutes=5))
-    assert toca_el_paso(equipo, ECONOMICA, DISPARADOR + timedelta(days=3)) is False
-    assert toca_el_paso(equipo, ECONOMICA, DISPARADOR + timedelta(days=8)) is True
+def test_sin_fecha_economica_el_paso_si_corre_pero_sin_turnos_anchos() -> None:
+    """La fecha economica ya no abre la puerta: solo reparte los anchos.
 
-
-def test_sin_fecha_economica_no_se_corre() -> None:
-    """Es la unica fuente del disparador, y Hattrick la da por pais."""
-    assert toca_el_paso(_equipo(None), None, DISPARADOR) is False
+    Es la unica fuente de la frontera semanal, asi que sin ella no hay turno
+    de cinco semanas que calcular. Pero el exacto se reparte por dias sobre el
+    identificador y no la necesita, asi que el paso corre igual y un club
+    recien importado empieza a juntar exactos desde el primer dia.
+    """
+    assert toca_el_paso(_equipo(None), DISPARADOR) is True
+    assert del_turno([1, 2, 3, 4, 5, 6], None, DISPARADOR) == []
 
 
 def test_el_turno_rota_de_cero_a_cuatro() -> None:
@@ -309,3 +336,40 @@ def test_la_puja_sobrevive_a_la_resolucion() -> None:
     aplicar_resolucion(fila, _historial((PLAZO_HT, 77_720_000)))
     assert fila.price == 77_720_000
     assert fila.bid_price == 65_000_000
+
+
+def test_el_exacto_le_toca_a_cada_jugador_uno_de_cada_seis_dias() -> None:
+    """Los dos ritmos que decidio el usuario el 2026-10-09.
+
+    El escalon exacto cada SEIS DIAS por jugador, los anchos cada cinco
+    semanas. Los dos salen del identificador, asi que no hay reloj guardado:
+    `ID % 6` contra el dia y `ID % 5` contra la semana.
+    """
+    plantilla = list(range(100, 125))  # veinticinco jugadores
+
+    # En seis dias consecutivos le toca a TODOS, y a cada uno una sola vez.
+    vistos: list[int] = []
+    for dia in range(6):
+        tocan = del_turno_exacto(plantilla, DISPARADOR + timedelta(days=dia))
+        vistos.extend(tocan)
+    assert sorted(vistos) == plantilla
+
+    # Y cada dia le toca a una sexta parte: cuatro o cinco de veinticinco.
+    for dia in range(12):
+        cuantos = len(del_turno_exacto(plantilla, DISPARADOR + timedelta(days=dia)))
+        assert 3 <= cuantos <= 5, dia
+
+
+def test_seis_dias_recorre_todos_los_dias_de_la_semana() -> None:
+    """Seis y no siete, a proposito.
+
+    Con siete, a cada jugador le tocaria siempre el mismo dia de la semana y
+    veria siempre el mismo trozo del mercado. Con seis su turno se adelanta un
+    dia cada semana.
+    """
+    dias_de_la_semana = {
+        (DISPARADOR + timedelta(days=dia)).weekday()
+        for dia in range(42)
+        if del_turno_exacto([102], DISPARADOR + timedelta(days=dia))
+    }
+    assert len(dias_de_la_semana) == 7
