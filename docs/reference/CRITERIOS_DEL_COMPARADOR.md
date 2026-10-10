@@ -91,7 +91,7 @@ nivel. Por eso un Pases 16 con todo lo demás a cero empieza por
 | **1º** | siempre **exacto** |
 | **2º** | **techo** por debajo de 3 (2 en el portero) · **exacto** hasta 9 (6 en el portero) · **banda `[v−1, v+1]`** desde 10 (7 en el portero) |
 | **3º** | cae a techo por debajo de 5 · **banda** de 5 a 10 · **suelo `≥ v`** desde 11 |
-| **4º** | sólo existe si llega a 5. Banda estrecha como el 3º por debajo de 8, y ancha `[v−2, v+3]` de 8 en adelante. Si empata con la **primera** --o sea, si las cuatro valen lo mismo-- se queda pegada por debajo: `[v−2, v]` |
+| **4º** | sólo existe si llega a 5. Banda estrecha como el 3º por debajo de 8, y ancha `[v−2, v+3]` de 8 en adelante, **cortada arriba por el nivel de la 1ª**: con Defensa 9 y las otras tres a 8 sale `Lat 6-9`, y subiendo sólo la Defensa a 10 sale `Lat 6-10`. Un cuarto puesto no puede pedir más de lo mejor que tiene el jugador |
 | **resto** | **techo** |
 
 La banda del 3º mide `[v−1, v+1]` con la búsqueda ajustada y `[v−1, v+2]` con la
@@ -125,7 +125,13 @@ holgado  ⟺  rareza ≥ umbral   o   v1 ≥ 17
 | Defensa | 25 |
 | Jugadas, Lateral, Pases, Anotación | 27 |
 
-**Con las dos primeras habilidades empatadas el umbral baja a 25**, sea el tipo
+**Un cuarto criterio de identidad baja el listón un punto**: un jugador con
+cuatro habilidades de verdad encaja en menos moldes que uno con tres. Medido
+con un delantero de Anotación 11, Pases 10, Lateral 9 y Jugadas 8 --rareza
+26-- que afloja, cuando el mismo tipo con sólo dos habilidades aguantaba
+hasta 27.
+
+**Y con las dos primeras habilidades empatadas el umbral baja a 25**, sea el tipo
 que sea. Un extremo con Lateral y Anotación a 12 y Pases 7 --rareza 25-- afloja,
 mientras que el mismo extremo con la segunda por debajo aguantaba hasta 27. Un
 jugador con dos habilidades iguales arriba encaja en menos moldes.
@@ -149,6 +155,8 @@ hasta 21  ->  clavada
 ```
 
 **A los 17, y sólo a los 17**, aparece además un tope de días (`Días <= 24`).
+El número es **fijo**: se pidió el mismo perfil de 17 años desde la ficha de un
+jugador de 2 días y desde la de uno de 20, y las dos veces salió 24.
 
 ## Lo que NO se compara
 
@@ -170,12 +178,11 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
-- **De dónde sale el `Días <= 24`** de los 17 años: el panel no tiene campo de
-  días, así que no se pudo mover.
-- **Qué hace un cuarto puesto de 8 o más con la búsqueda ajustada**: todos los
-  que se midieron ahí arriba cayeron del lado holgado.
-- **Por qué el empate arriba baja el umbral a 25 y no a otra cosa.** El número
-  está medido; el motivo es conjetura.
+- **Por qué el empate arriba baja el umbral a 25**, y por qué la cuarta lo baja
+  exactamente un punto. Los números están medidos; el motivo es conjetura.
+- **Qué pasa por encima de 20** en el balón parado del portero. Ebbesen tiene
+  22 anotado y la escala con nombre acaba en divino; el suelo fijo de 14 lo
+  tapa, pero no se pudo variar desde el panel.
 
 Nada de esto está extrapolado en el código: va marcado donde toca.
 

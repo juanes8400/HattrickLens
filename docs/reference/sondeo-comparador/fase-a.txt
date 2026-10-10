@@ -380,3 +380,30 @@ Encaja ademas con los dos perfiles planos: [10x4] rareza 28 holgado,
 
 ## SEGUNDA VALIDACION CIEGA (12 perfiles nuevos): 12 aciertos de 12.
 Total de la suite: 75 casos fijados, 27 de ellos predichos a ciegas y acertados.
+
+## FASE L - LOS HUECOS QUE QUEDABAN, cerrados el 2026-10-10
+
+### El tope de dias de los 17 es FIJO, no sale del jugador
+Mismo perfil (edad 17, Def12 Jug9) pedido desde dos fichas distintas:
+  puerta Llauge  (29a  2d) -> Edad = 17  Dias <= 24
+  puerta Ebbesen (28a 20d) -> Edad = 17  Dias <= 24
+El 24 es una constante del juego, no la edad en dias del jugador de la ficha.
+
+### El CUARTO puesto se corta en el nivel de la PRIMERA habilidad
+Def 9 Jug8 Pas8 Lat8 -> Def=9  | Pas 7-9 | Jug 7-9 | Lat 6-9
+Def10 Jug8 Pas8 Lat8 -> Def=10 | Pas 7-9 | Jug 7-9 | Lat 6-10   <-- sube el corte
+Def 9 Jug9 Pas8 Lat8 -> Def=9  | Jug 8-10 | Pas 7-9 | Lat 6-9
+=> banda = [v-2, min(v+3, v1)] cuando v>=8.
+Esto SUSTITUYE al parche de "si empata con la primera": los perfiles planos
+([10,10,10,10] -> Def 8-10 ; [9,9,9,9] -> Def 7-9) salen solos del corte.
+Tambien responde el otro hueco: con la busqueda AJUSTADA y la cuarta en 8, la
+banda es la misma formula; lo que la estrechaba era el corte, no el dial.
+
+### Un CUARTO criterio de identidad baja el umbral del dial un punto
+Delantero Ano11 Pas10 Lat9 Jug8: rareza 11+10+3+2 = 26 -> HOLGADO.
+El mismo tipo con solo dos habilidades aguantaba hasta 27 antes de aflojar.
+Comprobado que no rompe nada: [9,9,9,9] sigue ajustado (empate -> umbral 25,
+rareza 24) y [10,10,10,10] sigue holgado (rareza 28).
+
+## TERCERA VALIDACION CIEGA (6 perfiles nuevos): 5 de 6 antes de esta regla,
+## 6 de 6 despues. Total de la suite: 84 casos fijados.

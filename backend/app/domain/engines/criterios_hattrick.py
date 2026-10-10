@@ -159,8 +159,9 @@ HABILIDADES_QUE_CUENTAN = 4
 #: perfil ajustado, la edad sale 31-33 pero los techos siguen en 4 y la banda
 #: de la tercera sigue midiendo tres.
 EDAD_SIEMPRE_ABIERTA = 32
-#: A los 17, y sólo a los 17, Hattrick añade un tope de días. No se pudo
-#: estudiar: el panel no tiene campo de días. DESCONOCIDO de dónde sale el 24.
+#: A los 17, y sólo a los 17, Hattrick añade un tope de días. El número es
+#: FIJO, no sale del jugador: se pidió el mismo perfil de 17 años desde la
+#: ficha de uno de 2 días y desde la de uno de 20, y las dos veces salió 24.
 EDAD_CON_TOPE_DE_DIAS = 17
 TOPE_DE_DIAS_OBSERVADO = 24
 
@@ -260,6 +261,13 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     tipo = tipo or _tipo(niveles)
     v = sorted((max(0, niveles.get(h, 0)) for h in PLANTILLAS[tipo]), reverse=True)
     umbral = UMBRAL_POR_TIPO[tipo]
+    # Un CUARTO criterio de identidad baja el liston un punto: un jugador con
+    # cuatro habilidades de verdad encaja en menos moldes que uno con tres.
+    # Medido con un delantero de Anotacion 11, Pases 10, Lateral 9 y Jugadas 8
+    # --rareza 26-- que afloja, cuando el mismo tipo con solo dos habilidades
+    # aguantaba hasta 27.
+    if len(v) > 3 and v[3] >= ENTRADA_TERCERO:
+        umbral -= 1
     if len(v) > 1 and v[0] == v[1]:
         umbral = min(umbral, UMBRAL_CON_EMPATE_ARRIBA)
     return rareza(niveles, tipo) >= umbral or v[0] >= PRIMERA_QUE_AFLOJA_SOLA
@@ -442,20 +450,16 @@ def _cuarto(habilidad: str, nivel: int, primero: int, tercero: int, holgado: boo
     El salto está en OCHO, y no en alcanzar a la tercera: un cuarto puesto de 8
     recibe la banda ancha tanto con la tercera en 8 como con la tercera en 10.
 
-    Y cuando empata con la PRIMERA --o sea, cuando las cuatro valen lo mismo--
-    la banda se queda pegada por debajo: cuatro habilidades a 10 dan «Pas 9-12»
-    de tercera y «Def 8-10» de cuarta; cuatro a 9 dan «Pas 8-10» y «Def 7-9».
-    Con Defensa 16 y las otras tres a 8, en cambio, la cuarta recibe la banda
-    ancha: lo que importa es empatar con la primera, no con la segunda.
-
-    Las tres reglas reproducen las diez observaciones que hay. DESCONOCIDO qué
-    hace un cuarto puesto de 8 o más con la búsqueda ajustada: todos los que se
-    midieron ahí arriba cayeron del lado holgado.
+    Y LA BANDA SE CORTA EN LA PRIMERA HABILIDAD, que es lo que ata todo el
+    rincón. Con Defensa 9 y las otras tres a 8 sale «Lat 6-9»; subiendo sólo la
+    Defensa a 10 sale «Lat 6-10». El techo no es del cuarto puesto: es el nivel
+    del jugador. Tiene sentido --un cuarto puesto no puede ser mejor que lo
+    mejor que tiene-- y de paso explica los perfiles planos, que parecían un
+    caso aparte: cuatro habilidades a 10 dan «Def 8-10» y cuatro a 9 dan
+    «Def 7-9» simplemente porque ahí el corte cae encima.
     """
-    if nivel == primero:
-        return Criterio(habilidad, "banda", max(0, nivel - 2), nivel)
     if nivel >= CUARTO_CON_BANDA_ANCHA:
-        return Criterio(habilidad, "banda", max(0, nivel - 2), nivel + 3)
+        return Criterio(habilidad, "banda", max(0, nivel - 2), min(nivel + 3, primero))
     return _tercero(habilidad, nivel, holgado)
 
 

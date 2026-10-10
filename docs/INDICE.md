@@ -45,7 +45,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5431 | resumen | 5 | 18 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4609 | plantilla | 3 | 14 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9403 | resumen, skills | 9 | 27 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 15532 | jugadores, player_balance, precio_comparable, jugadores | 15 | 41 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 15536 | jugadores, player_balance, precio_comparable, jugadores | 15 | 41 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 349 | 4171 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 825 | 6997 | alineacion, plantilla | 8 | 19 |
 | `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2064 | 13735 | entrenamiento, jugadores, club | 10 | 33 |
