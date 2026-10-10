@@ -19,6 +19,8 @@
  *  No pide nada a Hattrick: todo sale del fondo que dejó el paso semanal, así
  *  que abrir y cerrar esto es gratis.
  */
+import { useState } from "react";
+
 import { Panel } from "./Panels";
 import { Ayuda } from "./Ayuda";
 import { DataTable } from "./DataTable";
@@ -139,11 +141,17 @@ function columnasDe(
       header: tx("Puja detectada"),
       align: "right",
       value: (f) => f.puja,
-      render: (f) => (
-        <span className="tabular-nums text-[var(--muted)]">
-          {money(f.puja, moneda)}
-        </span>
-      ),
+      // EN LA FILA PROPIA, NADA. Tu jugador no esta en venta: no tiene puja,
+      // ni precio, ni plazo, ni antiguedad. Un cero ahi se leeria como «vale
+      // cero», que es justo lo contrario de lo que dice.
+      render: (f) =>
+        f.propio ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span className="tabular-nums text-[var(--muted)]">
+            {money(f.puja, moneda)}
+          </span>
+        ),
     },
     {
       key: "precio",
@@ -154,7 +162,9 @@ function columnasDe(
       // se sabe, como si valiera menos que nada.
       value: (f) => f.precio,
       render: (f) =>
-        f.firme ? (
+        f.propio ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : f.firme ? (
           <span className="tabular-nums">
             {money(f.precio, moneda)}
             {f.puja > 0 && f.precio !== f.puja && (
@@ -234,13 +244,16 @@ function columnasDe(
       header: tx("Especialidad"),
       align: "left",
       value: (f) => f.especialidad,
-      // SOLO EL ICONO. Con el nombre al lado, «Sin especialidad» se partia
-      // en dos lineas y estiraba TODA la fila a 53 px --el alto lo manda la
-      // celda mas alta-- ademas de comerse 115 px de ancho (medido el
-      // 2026-10-08). El icono lleva el nombre en su `title` y en su
-      // etiqueta accesible, y quien no tiene especialidad no pinta nada,
-      // que es justo lo que hay que decir.
-      render: (f) => <Specialty specialty={f.especialidad} iconOnly />,
+      // EL NOMBRE Y EL ICONO (2026-10-09, pedido del usuario). Antes iba solo
+      // el icono, por sitio: con el nombre al lado, «Sin especialidad» se
+      // partia en dos lineas y estiraba TODA la fila, porque el alto lo manda
+      // la celda mas alta. `whitespace-nowrap` lo evita sin quitar la palabra,
+      // que es lo que el usuario queria leer sin pasar el raton por encima.
+      render: (f) => (
+        <span className="whitespace-nowrap">
+          <Specialty specialty={f.especialidad} />
+        </span>
+      ),
     },
     {
       key: "tsi",
@@ -257,24 +270,30 @@ function columnasDe(
       // Lo ya firme va al final tambien aqui: su plazo es historia, no una
       // espera, y ordenar por el mezclaba lo cerrado entre lo que falta.
       value: (f) => (f.firme || !f.cierra ? Infinity : new Date(f.cierra).getTime()),
-      render: (f) => (
-        <span className="whitespace-nowrap tabular-nums">
-          {cuantoFalta(f.cierra, f.firme)}
-        </span>
-      ),
+      render: (f) =>
+        f.propio ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span className="whitespace-nowrap tabular-nums">
+            {cuantoFalta(f.cierra, f.firme)}
+          </span>
+        ),
     },
     {
       key: "semanas",
       header: tx("Antigüedad"),
       align: "right",
       value: (f) => f.semanas,
-      render: (f) => (
-        <span
-          className={`whitespace-nowrap tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}
-        >
-          {tx("{{v0}} sem", { v0: number(f.semanas) })}
-        </span>
-      ),
+      render: (f) =>
+        f.propio ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span
+            className={`whitespace-nowrap tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}
+          >
+            {tx("{{v0}} sem", { v0: number(f.semanas) })}
+          </span>
+        ),
     },
   ];
 }
@@ -288,7 +307,29 @@ export function PrecioPorComparables({
   activo?: boolean;
 }) {
   const consulta = usePrecioComparable(htPlayerId, { enabled: activo });
+  // EL MANDO DE LAS GRÁFICAS (2026-10-09, pedido del usuario).
+  //
+  // Arranca por sólo ventas cerradas, que es de lo que sale la cifra de
+  // arriba. Con las pujas se ve más, pero se ve otra cosa: Edu Fuenllana
+  // pujaba 6.000 US$ y se vendió en 1.241.000.
+  //
+  // HUBO UN SEGUNDO MANDO, de escala lineal o logarítmica, y duró una tarde.
+  // La logarítmica resolvía que los tres precios baratos se amontonaran
+  // contra el margen izquierdo... y esos tres eran pujas abiertas. Al dejar
+  // las gráficas en sólo ventas cerradas, el rango se estrechó y el problema
+  // desapareció con él. El usuario lo quitó: era un arreglo para algo que ya
+  // no pasa, y la logarítmica tiene su propio precio --la distancia deja de
+  // ser dinero--.
+  const [soloCerradas, setSoloCerradas] = useState(true);
   const datos = consulta.data;
+  // Lo que pinta la tira. Si se pidieron sólo las cerradas y no hay ninguna,
+  // se enseñan todas: una gráfica vacía dice «aquí no hay nada», que no es
+  // lo mismo que «aquí no ha cerrado nada todavía».
+  const comparables = datos?.comparables ?? [];
+  const paraLaTira =
+    soloCerradas && comparables.some((f) => f.firme)
+      ? comparables.filter((f) => f.firme)
+      : comparables;
 
   if (consulta.isLoading || !datos) {
     return (
@@ -350,13 +391,14 @@ export function PrecioPorComparables({
               </div>
               <div className="rounded-lg bg-[var(--surface-2)] px-4 py-3">
                 <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
-                  {/* «Se pagó» sólo cuando de verdad se pagó. Con las seis
-                      subastas abiertas el panel decía «DE VERDAD SE PAGÓ
+                  {/* Ya siempre «se pagó», y es correcto desde el
+                      2026-10-09: los dos extremos salen de las que cuentan, y
+                      desde esa fecha sólo cuentan las ventas cerradas. El
+                      rótulo alternaba porque antes una puja podía ser el
+                      extremo, y entonces el panel decía «DE VERDAD SE PAGÓ
                       ENTRE 10.000 – 13.260.000» mientras cada fila ponía
                       «puja» al lado del número (2026-10-07). */}
-                  {datos.provisionales > 0
-                    ? tx("Ahora mismo, entre")
-                    : tx("De verdad se pagó entre")}
+                  {tx("De verdad se pagó entre")}
                   <Ayuda
                     texto={tx(
                       "Los dos extremos de la lista, sin ponderar: lo más barato y lo más caro que hay en ella. Dice cuánto se abre el mercado de este perfil.",
@@ -383,10 +425,10 @@ export function PrecioPorComparables({
                   texto={
                     datos.provisionales === 1
                       ? tx(
-                          "Una de ellas es una subasta todavía abierta, así que cuenta con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierre.",
+                          "Hay además una subasta abierta en la lista. No cuenta para el número hasta que cierre: una puja no es un precio.",
                         )
                       : tx(
-                          "{{v0}} de ellas son subastas todavía abiertas, así que cuentan con la puja de ahora. Una puja se queda corta, y el número subirá cuando se cierren.",
+                          "Hay además {{v0}} subastas abiertas en la lista. No cuentan para el número hasta que cierren: una puja no es un precio.",
                           { v0: number(datos.provisionales) },
                         )
                   }
@@ -420,11 +462,27 @@ export function PrecioPorComparables({
           mercado de verdad mucho más arriba. */}
       {datos.comparables.length >= MINIMO_PARA_LA_TIRA && (
         <div className="px-4 pb-1">
+          {/* EL MANDO, encima de las dos gráficas, porque gobierna a las dos.
+              No toca la cifra de arriba: ésa sale sólo de ventas cerradas y
+              es una decisión, no una vista (2026-10-09). */}
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <DosOpciones
+              label={tx("Qué se dibuja")}
+              valor={soloCerradas ? "cerradas" : "todo"}
+              opciones={[
+                ["cerradas", tx("Sólo ventas cerradas")],
+                ["todo", tx("También pujas abiertas")],
+              ]}
+              onCambio={(v) => setSoloCerradas(v === "cerradas")}
+            />
+          </div>
           <Chart
             height={150}
             ariaLabel={tx("Reparto de los precios de las ventas comparables")}
             option={tiraDePuntosOption(
-              datos.comparables.map((f) => [f.precio, f.firme]),
+              paraLaTira.map(
+                (f) => [f.precio, f.firme, f.peso] as [number, boolean, number],
+              ),
               {
                 media: datos.media,
                 mediana: datos.mediana,
@@ -448,6 +506,10 @@ export function PrecioPorComparables({
             option={serieDePuntosOption(datos.serie, {
               etiqueta: (iso) => date(iso),
               detalle: (v) => money(v, datos.moneda),
+              soloCerradas,
+              etiquetaMedia: soloCerradas
+                ? tx("Media de las ventas cerradas")
+                : tx("Media de todo lo de la lista"),
             })}
           />
         </div>
@@ -468,15 +530,58 @@ export function PrecioPorComparables({
             initialSort="peso"
             csvName="comparables"
             emptyMessage={tx("Sin ventas de jugadores parecidos todavía.")}
+            sinFiltro
+            filaFijada={datos.jugador}
           />
         </div>
       )}
 
       <p className="prosa px-4 py-3 text-xs leading-relaxed text-[var(--muted)]">
         {tx(
-          "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia, su especialidad ni el bono de club de origen del comprador.",
+          "Esto dice lo que se pagó por otros, no lo que te darían a ti: no tiene en cuenta su forma, su experiencia ni su especialidad.",
         )}
       </p>
     </Panel>
+  );
+}
+
+/** Un mando de dos posiciones, con la forma de los de Alineación.
+ *
+ *  No es `SplitSelector`: aquél sólo admite números --es el reparto de una
+ *  línea-- y aquí las opciones son palabras. Vive en este fichero mientras
+ *  sea el único que lo usa; el día que haga falta en otra pantalla, se muda.
+ */
+function DosOpciones({
+  label,
+  valor,
+  opciones,
+  onCambio,
+}: {
+  label: string;
+  valor: string;
+  opciones: [string, string][];
+  onCambio: (v: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+      {label}
+      <span className="flex overflow-hidden rounded border border-[var(--border)]">
+        {opciones.map(([clave, texto]) => (
+          <button
+            key={clave}
+            type="button"
+            onClick={() => onCambio(clave)}
+            aria-pressed={clave === valor}
+            className={`px-2.5 py-1 ${
+              clave === valor
+                ? "bg-[var(--accent)] text-white"
+                : "bg-[var(--surface)] text-[var(--text)]"
+            }`}
+          >
+            {texto}
+          </button>
+        ))}
+      </span>
+    </label>
   );
 }

@@ -54,6 +54,16 @@ interface Props<T> {
    * contrario: 1º arriba, no 8º. */
   initialDescending?: boolean;
   filterPlaceholder?: string;
+  /** Sin la caja de buscar. Para una tabla corta y ya ordenada --el comparador
+   *  enseña seis filas-- donde filtrar no ahorra nada y el hueco pesa. */
+  sinFiltro?: boolean;
+  /** Una fila de REFERENCIA, clavada arriba y sombreada.
+   *
+   *  No se ordena, no se filtra y no entra en el recuento: no es un dato de
+   *  la tabla, es contra qué se leen los demás. El comparador de
+   *  transferencias pone ahí tu propio jugador, para no tener que buscarlo
+   *  entre las ventas para compararlo (2026-10-09). */
+  filaFijada?: T | null;
   csvName?: string;
   /** Qué poner cuando no hay ni una fila. OBLIGATORIO a propósito.
    *
@@ -79,6 +89,8 @@ export function DataTable<T>({
   initialSort,
   initialDescending = true,
   filterPlaceholder: placeholderPedido,
+  sinFiltro = false,
+  filaFijada = null,
   csvName = "export",
   emptyMessage,
   selectedRowKey,
@@ -140,6 +152,13 @@ export function DataTable<T>({
     };
   }, [showPicker]);
   const [focused, setFocused] = useState(0);
+  // EL CURSOR SOLO SE PINTA CUANDO HAY TECLADO (2026-10-09). `focused`
+  // arranca en 0 y la fila 0 salia sombreada SIEMPRE, en todas las tablas de
+  // la aplicacion, desde el primer render: un cursor que nadie habia puesto.
+  // Pasaba desapercibido hasta que el comparador clavo arriba una fila de
+  // referencia, tambien sombreada, y el usuario pregunto por que habia dos.
+  // Con dos sombreados iguales no se sabe cual significa que.
+  const [conFoco, setConFoco] = useState(false);
 
   const visible = columns.filter((c) => !hidden.has(c.key));
 
@@ -222,14 +241,16 @@ export function DataTable<T>({
     // correcto y quita una de las causas posibles (2026-08-31).
     <div className="min-w-0 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder={filterPlaceholder}
-          aria-label={filterPlaceholder}
-          className="w-full min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm sm:w-auto sm:min-w-48"
-        />
-        <span className="text-xs text-[var(--muted)]">
+        {!sinFiltro && (
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={filterPlaceholder}
+            aria-label={filterPlaceholder}
+            className="w-full min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm sm:w-auto sm:min-w-48"
+          />
+        )}
+        <span className="mr-auto text-xs text-[var(--muted)]">
           {t("comun.nDeTotal", "{{n}} de {{total}}", {
             n: processed.length,
             total: rows.length,
@@ -333,7 +354,12 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody tabIndex={0} onKeyDown={onKeyDown}>
+          <tbody
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+            onFocus={() => setConFoco(true)}
+            onBlur={() => setConFoco(false)}
+          >
             {processed.length === 0 && (
               <tr>
                 <td
@@ -367,6 +393,23 @@ export function DataTable<T>({
                 </td>
               </tr>
             )}
+            {filaFijada != null && (
+              <tr
+                className="border-t border-[var(--border)] bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]"
+              >
+                {visible.map((c) => (
+                  <td
+                    key={c.key}
+                    className={clsx(
+                      "px-3 py-1.5 tabular-nums",
+                      c.align === "left" ? "text-left" : "text-right",
+                    )}
+                  >
+                    {c.render ? c.render(filaFijada) : celda(c, filaFijada)}
+                  </td>
+                ))}
+              </tr>
+            )}
             {processed.map((row, i) => (
               <tr
                 key={rowKey(row)}
@@ -374,7 +417,7 @@ export function DataTable<T>({
                 className={clsx(
                   "border-t border-[var(--border)]",
                   onRowClick && "cursor-pointer hover:bg-[var(--surface-2)]/70",
-                  i === focused && "bg-[var(--accent-soft)]",
+                  conFoco && i === focused && "bg-[var(--accent-soft)]",
                   selectedRowKey === rowKey(row) &&
                     "bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]",
                 )}
