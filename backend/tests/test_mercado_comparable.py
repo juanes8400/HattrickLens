@@ -444,12 +444,27 @@ def test_con_seis_vivos_su_turno_no_gasta_ni_una_llamada() -> None:
     assert hay_que_buscar(_medidos(*(_guardado(i, semanas=1) for i in range(1, 7)))) is False
 
 
-def test_si_falta_alguno_o_hay_caducados_si_se_busca() -> None:
+def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
+    """Decision del usuario, 2026-10-09: «cuando nos quedemos sin datos».
+
+    Antes un comparable caducado tambien mandaba a buscar, y el turno se
+    gastaba entero en sustituirlo. Ya no: el refresco lo lleva el calendario
+    --el exacto cada seis dias, los anchos cada cinco semanas-- y lo que
+    dispara la busqueda ancha es no tener bastantes.
+
+    El precio de la decision, y queda escrito aqui: un parecido puede cumplir
+    sus siete semanas y seguir usandose hasta que a su jugador le toquen los
+    anchos otra vez, hasta cinco semanas despues.
+    """
+    # Cinco de seis: falta uno, se busca.
     assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 6)))) is True
-    # Un PARECIDO caducado si manda a buscar. Uno exacto no, porque no caduca.
+
+    # Seis, con uno PARECIDO y caducado: ya no se busca por eso.
     primo_viejo = _guardado(1, semanas=9, scoring=17, passing=13, playmaking=7)
     con_uno_viejo = [primo_viejo, *(_guardado(i, semanas=1) for i in range(2, 7))]
-    assert hay_que_buscar(_medidos(*con_uno_viejo)) is True
+    assert hay_que_buscar(_medidos(*con_uno_viejo)) is False
+
+    # Y uno exacto caducado tampoco, que ya era asi: el 100 % no caduca.
     exacto_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 7))]
     assert hay_que_buscar(_medidos(*exacto_viejo)) is False
 
@@ -511,7 +526,12 @@ def test_la_mediana_tambien_va_ponderada() -> None:
 
 def test_se_dice_cuantas_son_todavia_provisionales() -> None:
     """Una puja se queda corta: Valerio tenia 65 millones y cerro en 77,7, un
-    16% mas. La pantalla tiene que poder avisar."""
+    16% mas. La pantalla tiene que poder avisar.
+
+    Desde el 2026-10-09 las abiertas NO cuentan para el numero, asi que estas
+    seis dan cuatro ventas y no bastan: `provisionales` se cuenta sobre todo
+    lo que se enseña, que es de lo que la pantalla tiene que avisar.
+    """
     e = estimar(
         _medidos(
             *(_guardado(i) for i in range(1, 5)),
@@ -520,6 +540,15 @@ def test_se_dice_cuantas_son_todavia_provisionales() -> None:
         )
     )
     assert e.provisionales == 2
+    assert e.n == 4
+    assert e.suficiente is False
+
+
+def test_con_seis_ventas_cerradas_si_basta() -> None:
+    """La contraparte del de arriba: seis cerradas y ninguna abierta."""
+    e = estimar(_medidos(*(_guardado(i) for i in range(1, 7))))
+    assert e.provisionales == 0
+    assert e.n == 6
     assert e.suficiente is True
 
 
@@ -619,15 +648,20 @@ def test_el_nombre_de_la_terciaria_se_comprueba_por_su_cuenta() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_un_provisional_con_intentos_de_sobra_sigue_contando() -> None:
-    """Mientras le queden intentos su puja es un suelo que va a corregirse."""
-    venta = _guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)
-    assert cuenta_para_el_numero(venta) is True
+def test_una_subasta_abierta_no_cuenta_por_muchos_intentos_que_le_queden() -> None:
+    """Decision del usuario, 2026-10-09: solo cuenta lo que ya se vendio.
+
+    Hasta ese dia una puja contaba mientras le quedaran intentos de
+    resolucion, como suelo que iba a corregirse. Lo que se vio es cuanto se
+    corrige: Edu Fuenllana pujaba 6.000 US$ y se vendio en 1.241.000, un
+    +20.583 %. Un suelo asi no es un suelo.
+    """
+    assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=0)) is False
+    assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)) is False
 
 
-def test_un_provisional_sin_intentos_deja_de_contar() -> None:
-    """Agotados los intentos, su precio se queda congelado en una puja que
-    sabemos corta: se enseña, pero no se promedia."""
+def test_un_provisional_sin_intentos_tampoco_cuenta() -> None:
+    """Agotados los intentos tampoco, igual que antes: se enseña, no promedia."""
     venta = _guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
     assert cuenta_para_el_numero(venta) is False
 

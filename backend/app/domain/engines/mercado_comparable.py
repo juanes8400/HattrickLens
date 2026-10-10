@@ -64,8 +64,22 @@ TERCIARIA_ABAJO = 2
 #: aparece nada se queda, porque un dato viejo informa más que ninguno.
 VIDA = timedelta(weeks=7)
 
-#: Cuántos grupos de rotación. Cada semana le toca a uno.
+#: Cuántos grupos de rotación de los escalones ANCHOS (<100 %). Cada semana le
+#: toca a uno, así que a cada jugador le toca cada cinco semanas.
 GRUPOS = 5
+
+#: Cada cuántos días se vuelve a buscar el escalón EXACTO de un jugador
+#: (2026-10-09, decisión del usuario). El exacto es el mejor dato que puede
+#: existir para él --misma edad y las tres habilidades clavadas-- y no caduca,
+#: así que refrescarlo seguido es lo que hace que el fondo no envejezca.
+#:
+#: SEIS Y NO SIETE a propósito: con siete, a cada jugador le tocaría siempre el
+#: mismo día de la semana y vería siempre el mismo trozo del mercado. Con seis,
+#: su turno se adelanta un día cada semana y acaba pasando por todos.
+#:
+#: El grupo sale del propio identificador, igual que el de los anchos: no hay
+#: reloj que guardar por jugador, ni que recolocar al fichar o vender.
+DIAS_DEL_EXACTO = 6
 
 #: Lo que se le resta a la actualización económica para fijar el disparador.
 ANTICIPO = timedelta(hours=24)
@@ -74,9 +88,20 @@ ANTICIPO = timedelta(hours=24)
 EDAD_MINIMA = 17
 
 #: Lo que se espera tras el cierre de una subasta antes de preguntar por el
-#: precio. Hattrick tarda un poco en registrar el traspaso, y preguntar
-#: demasiado pronto gasta una llamada para no encontrar nada.
-MARGEN_TRAS_EL_PLAZO = timedelta(hours=2)
+#: precio: NADA. Se pregunta en cuanto el plazo que tenemos anotado ha pasado.
+#:
+#: Fueron dos horas, y el 2026-10-09 tres dias --«cuando se sabe que debio
+#: terminar»-- hasta que se vio lo que costaban: desde que la media solo cuenta
+#: ventas cerradas, una venta no entra en ningun numero hasta que se resuelve,
+#: asi que cada hora de margen es una hora que el precio del jugador no se
+#: mueve. El usuario lo zanjo el mismo dia: «busca en cuanto tengas anotado que
+#: la subasta termina».
+#:
+#: El plazo es un dato de Hattrick, no una estimacion: viene en el anuncio. Si
+#: al preguntar el traspaso todavia no esta registrado, para eso estan los
+#: reintentos --medido el 2026-10-07 con Guido Bernacki: el traspaso aparecio
+#: con el plazo desviado trece segundos--.
+MARGEN_TRAS_EL_PLAZO = timedelta(0)
 
 #: Cuántas veces se reintenta una resolución que no encontró la venta.
 #:
@@ -255,12 +280,16 @@ class Comparable:
     peso: int
     #: Si ya cumplió su vida y sólo está ahí porque no hay nada más fresco.
     viejo: bool
-    #: Si entra en el número. Falso sólo para un provisional al que se le
-    #: agotaron los intentos de resolución: su precio es una puja que ya no
-    #: va a corregirse, así que se sigue enseñando pero no se promedia.
-    #: Con los reintentos de ahora esto no debería saltar nunca; está para
-    #: que, si salta, no se quede un número bajo contando en silencio.
+    #: Si entra en el número. Desde el 2026-10-09, sólo las ventas ya
+    #: cerradas: una puja no es un precio, y se vio cuánto no lo es --Edu
+    #: Fuenllana pujaba 6.000 US$ y se vendió en 1.241.000--.
     cuenta: bool = True
+    #: Si ocupa una de las seis plazas del fondo. NO es lo mismo que contar:
+    #: una subasta abierta con puja ocupa --se está vigilando y va a
+    #: convertirse en venta-- pero no promedia hasta que cierre. Si fueran lo
+    #: mismo, el fondo no se llenaría nunca buscando, porque una búsqueda
+    #: encuentra anuncios y no ventas cerradas.
+    ocupa: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -546,6 +575,7 @@ def comparables_de(
                 # caduca para el segundo y no para el primero.
                 viejo=peso < 100 and reemplazable(venta, ahora),
                 cuenta=cuenta_para_el_numero(venta),
+                ocupa=ocupa_plaza(venta),
             )
         )
     medidos.sort(
@@ -556,39 +586,49 @@ def comparables_de(
             0 if c.venta.especialidad == objetivo.especialidad else 1,
         )
     )
-    # La selección se hace SÓLO entre las que cuentan, para que una
+    # La selección se hace SÓLO entre las que OCUPAN PLAZA, para que una
     # abandonada no le quite el sitio a una buena ni engañe al recorrido
-    # haciéndole creer que ya tiene bastantes. Las que no cuentan se
-    # añaden al final: siguen enseñándose, marcadas.
-    cuentan = [c for c in medidos if c.cuenta]
-    sobran = [c for c in medidos if not c.cuenta]
-    if len(cuentan) > OBJETIVO:
-        corte = cuentan[OBJETIVO - 1].peso
-        cuentan = [c for c in cuentan if c.peso >= corte]
-    return (*cuentan, *sobran)
+    # haciéndole creer que ya tiene bastantes. Las demás se añaden al
+    # final: siguen enseñándose, marcadas.
+    #
+    # Ocupar plaza NO es contar para la media (2026-10-09). Una subasta
+    # abierta con puja ocupa --es material del fondo, se vigila, y va a
+    # convertirse en una venta-- pero no promedia hasta que cierre. Antes era
+    # lo mismo, y al separar las dos cosas hubo que separar los criterios: si
+    # la selección mirara sólo lo que cuenta, el fondo no se daría nunca por
+    # lleno --una búsqueda encuentra anuncios, nunca ventas cerradas-- y cada
+    # turno gastaría los cinco escalones de todos los jugadores para siempre.
+    ocupan = [c for c in medidos if c.ocupa]
+    sobran = [c for c in medidos if not c.ocupa]
+    if len(ocupan) > OBJETIVO:
+        corte = ocupan[OBJETIVO - 1].peso
+        ocupan = [c for c in ocupan if c.peso >= corte]
+    return (*ocupan, *sobran)
 
 
-def cuenta_para_el_numero(venta: Guardado) -> bool:
-    """Si esta venta puede entrar en la media.
+def ocupa_plaza(venta: Guardado) -> bool:
+    """Si esta venta es material util del fondo, cuente o no para la media.
 
-    Una venta cerrada siempre cuenta.
+    Separado de `cuenta_para_el_numero` el 2026-10-09, cuando la media paso a
+    ser solo de ventas cerradas. Son dos preguntas distintas:
 
-    UN ANUNCIO QUE NADIE HA PUJADO, NO. Entra en el fondo --el usuario lo
-    pidió el 2026-10-06: «coger lo que tenga HighestBid=0» cuando no haya
-    bastante con puja-- pero entra para VIGILARLO, no para promediarlo: lo
-    único que se sabe de él es que alguien lo puso a la venta. Su precio
-    llega a cero, porque cero es lo que vale `HighestBid` cuando no hay
-    pujas, y promediar ceros no describe ningún mercado.
+    · «¿Entra en el numero?»  -> solo si ya se vendio.
+    · «¿Ocupa una de las seis plazas, y por tanto evita salir a buscar mas?»
+      -> tambien una subasta abierta con puja, porque es material que se esta
+      vigilando y que va a convertirse en una venta.
 
-    Esto no es teórico. El 2026-10-07, mirando a Kurt Schönhueb --28 años,
-    lateral 15, defensa 13-- el mercado no tenía ni un comparable con puja y
-    sí ocho anuncios sin ella. Los ocho entraban a cero y la media de un
-    jugador de 249.030 de TSI salía CERO.
+    Si fueran la misma pregunta, el fondo no se daria por lleno NUNCA: una
+    busqueda en el mercado encuentra anuncios, no ventas cerradas, asi que
+    cada turno gastaria los cinco escalones de cada jugador indefinidamente.
 
-    El resto de provisionales cuentan mientras les queden intentos de
-    resolución: su puja es un suelo que todavía va a corregirse. Cuando se
-    le agotan, su precio se queda congelado en una puja que sabemos corta y
-    deja de promediarse.
+    UN ANUNCIO QUE NADIE HA PUJADO NO OCUPA NADA. Su precio llega a cero,
+    porque cero es lo que vale `HighestBid` sin pujas. El 2026-10-07, mirando
+    a Kurt Schonhueb, el mercado no tenia ni un comparable con puja y si ocho
+    anuncios sin ella; dejarles ocupar plaza habria impedido salir a buscar lo
+    que de verdad faltaba.
+
+    Y uno al que se le agotaron los intentos de resolucion tampoco: es un
+    hueco con nombre, y su plaza tiene que quedar libre.
     """
     if venta.firme:
         return True
@@ -597,11 +637,54 @@ def cuenta_para_el_numero(venta: Guardado) -> bool:
     return venta.intentos <= REINTENTOS_DE_RESOLUCION
 
 
+def cuenta_para_el_numero(venta: Guardado) -> bool:
+    """Si esta venta puede entrar en la media. SOLO SI YA SE VENDIO.
+
+    DECISION DEL USUARIO, 2026-10-09, y es un cambio de criterio: hasta hoy
+    una subasta abierta contaba con su puja mientras le quedaran intentos de
+    resolucion. Ya no cuenta ninguna.
+
+    POR QUE. Una puja no es un precio, y no por poco. Ese mismo dia, en la
+    tabla de Imam Ece, Edu Fuenllana figuraba con 6.000 US$ de puja y se
+    vendio en 1.241.000: un +20.583 %. En la misma tabla, de seis
+    comparables, tres eran pujas de 3.000, 1.000 y 1.000 US$, y esas tres
+    arrastraban la media del jugador de 876.000 a 436.144. La mitad de la
+    cifra la ponia gente que todavia no habia pagado nada.
+
+    Venia de antes: la grafica del tiempo ya se habia quedado solo con las
+    ventas cerradas, y la tarjeta seguia contando pujas. Dos numeros para lo
+    mismo, el doble uno del otro, en la misma pantalla.
+
+    LO QUE CUESTA, medido antes de hacerlo y aceptado: con el fondo del
+    2026-10-09, 23 de los 26 jugadores del club se quedan sin numero, y solo
+    uno llega a los seis comparables. No es un fallo, es la verdad --todavia
+    no se ha vendido nadie bastante parecido-- y se corrige solo: habia 16
+    ventas con el plazo pasado esperando resolucion, y cada paso del mercado
+    convierte varias en cerradas.
+
+    Y EMPUJA EN LA DIRECCION BUENA. Esto gobierna tambien `hay_que_buscar`:
+    con menos comparables contando, el turno sale a buscar para casi todos en
+    vez de darse por satisfecho, que es justo lo que llena el fondo de ventas
+    cerradas.
+
+    Las pujas NO se tiran: siguen en el fondo, se siguen vigilando y se
+    siguen enseñando en la tabla marcadas como lo que son. Lo unico que no
+    hacen es promediar.
+    """
+    return venta.firme
+
+
 def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     """La media y la mediana, las dos ponderadas por parecido.
 
     Con menos de `OBJETIVO` no hay número, pero sí lista: la pantalla tiene
     que poder enseñar lo que hay y decir que todavía no basta.
+
+    `provisionales` se cuenta sobre TODAS las que se enseñan, no sobre las que
+    cuentan (2026-10-09). Desde que sólo cuentan las ventas cerradas, sobre
+    las que cuentan valdría siempre cero, y un campo que no puede cambiar no
+    informa de nada. Sobre todas dice lo que la pantalla necesita: cuántas de
+    las que hay delante son subastas que todavía no han cerrado.
     """
     # `comparables` lleva TODAS, para que la pantalla pueda enseñarlas; el
     # numero se hace solo con las que cuentan.
@@ -613,7 +696,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
             mediana=None,
             n=len(elegidos),
             peso_minimo=min((c.peso for c in elegidos), default=0),
-            provisionales=sum(1 for c in elegidos if not c.venta.firme),
+            provisionales=sum(1 for c in todas if not c.venta.firme),
             comparables=todas,
         )
     denominador = sum(c.peso for c in elegidos)
@@ -624,7 +707,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
         mediana=_mediana_ponderada(elegidos),
         n=len(elegidos),
         peso_minimo=min(c.peso for c in elegidos),
-        provisionales=sum(1 for c in elegidos if not c.venta.firme),
+        provisionales=sum(1 for c in todas if not c.venta.firme),
         comparables=todas,
     )
 
@@ -753,7 +836,7 @@ def le_toca(
     frontera: datetime,
     ancla: datetime,
 ) -> bool:
-    """Si este jugador es de los que tocan esta semana.
+    """Si a este jugador le tocan los escalones ANCHOS esta semana.
 
     El grupo sale del propio identificador, así que no hay nada que guardar ni
     que recolocar al fichar o vender. El 0 rota a 1, 2, 3 y 4 cada semana.
@@ -761,21 +844,42 @@ def le_toca(
     return ht_player_id % GRUPOS == semana_de(frontera, ancla) % GRUPOS
 
 
+def dia_de(ahora: datetime, ancla: datetime) -> int:
+    """El número de día, para rotar el turno del escalón exacto."""
+    return (_aware(ahora) - _aware(ancla)).days
+
+
+def le_toca_el_exacto(ht_player_id: int, ahora: datetime, ancla: datetime) -> bool:
+    """Si a este jugador le toca HOY su escalón exacto.
+
+    El mismo truco que los anchos pero contando días en vez de semanas, así que
+    tampoco guarda nada: `ID % 6` contra el día. A cada jugador le toca uno de
+    cada seis días, y como seis no divide a siete su turno recorre todos los
+    días de la semana en vez de quedarse clavado en uno.
+    """
+    return ht_player_id % DIAS_DEL_EXACTO == dia_de(ahora, ancla) % DIAS_DEL_EXACTO
+
+
 def hay_que_buscar(comparables: Sequence[Comparable]) -> bool:
-    """Si en su turno hay algo que hacer.
+    """Si en su turno hay algo que hacer: CUANDO NOS QUEDAMOS SIN DATOS.
 
-    No lo hay cuando ya tiene sus seis y ninguno está ahí de prestado: gastar
-    llamadas en reemplazar lo que no caducó sería tirar cuota de la
-    aplicación entera.
+    Decisión del usuario, 2026-10-09. Antes esto devolvía `True` también
+    cuando alguno de los seis había caducado, y entonces el turno se gastaba
+    entero buscando con qué sustituirlo. Ya no: lo que dispara la búsqueda
+    ancha es no tener bastantes, y el refresco lo lleva el calendario --el
+    exacto cada seis días, los anchos cada cinco semanas--.
 
-    Se miran sólo las que cuentan. Una abandonada no es un dato, es un hueco
-    con nombre, y dejar que ocupe plaza impediría salir a buscar lo que
+    Lo que eso significa, y es el precio de la decisión: un comparable puede
+    cumplir sus siete semanas de vida y seguir usándose hasta que a su jugador
+    le toquen los anchos otra vez, hasta cinco semanas después. Un dato viejo
+    informa más que ninguno, que es la misma razón por la que no se borra al
+    caducar.
+
+    Se miran sólo las que OCUPAN PLAZA. Una abandonada no es un dato, es un
+    hueco con nombre, y dejar que ocupe plaza impediría salir a buscar lo que
     de verdad falta.
     """
-    utiles = [c for c in comparables if c.cuenta]
-    if len(utiles) < OBJETIVO:
-        return True
-    return any(c.viejo for c in utiles)
+    return sum(1 for c in comparables if c.ocupa) < OBJETIVO
 
 
 def _franja(rasgo: Rasgo, abajo: int, arriba: int) -> Franja:

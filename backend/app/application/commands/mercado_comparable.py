@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -41,6 +41,7 @@ from app.domain.engines.mercado_comparable import (
     Traspaso,
     frontera_semanal,
     le_toca,
+    le_toca_el_exacto,
     precio_cerrado,
     se_puede_resolver,
     semana_de,
@@ -66,17 +67,33 @@ class Resolucion:
     ht_transfer_id: int = 0
 
 
-def toca_el_paso(equipo: m.Team, economy_date: datetime | None, ahora: datetime) -> bool:
-    """Si esta sincronización es la primera posterior al disparador."""
-    frontera = frontera_semanal(economy_date, ahora)
-    if frontera is None:
-        return False
+def toca_el_paso(equipo: m.Team, ahora: datetime) -> bool:
+    """Si esta sincronización es la primera DEL DÍA.
+
+    Era «la primera posterior al disparador semanal» hasta el 2026-10-09.
+    Cambió porque los dos ritmos que decidió el usuario ya no son el mismo: el
+    escalón exacto de cada jugador toca cada SEIS DÍAS y los anchos cada cinco
+    semanas, así que el paso tiene que mirarse a diario para que el reloj de
+    los seis días pueda caer en cualquier día. Quién busca y qué busca lo
+    deciden `del_turno_exacto` y `del_turno`, no esta puerta.
+
+    Una vez al día y no en cada sincronización: dos sincronizaciones seguidas
+    no pueden gastar dos veces las mismas búsquedas. `market_run_at` sigue
+    siendo el sello, ahora comparado por día y no contra la frontera semanal,
+    así que no hay nada nuevo que guardar.
+
+    LA FECHA ECONOMICA YA NO ENTRA AQUI. Era el disparador --la actualización
+    de la liga menos 24 horas-- y se quedó sin papel al pasar la puerta a
+    diaria; la frontera semanal sigue viva, pero sólo donde hace falta: en
+    `del_turno`, que reparte los turnos anchos. Llevarla también aquí era un
+    parámetro que no decidía nada.
+    """
     if equipo.market_run_at is None:
         return True
     sello = equipo.market_run_at
     if sello.tzinfo is None:
         sello = sello.replace(tzinfo=UTC)
-    return sello < frontera
+    return sello.astimezone(UTC).date() < ahora.astimezone(UTC).date()
 
 
 def del_turno(
@@ -91,6 +108,15 @@ def del_turno(
     if frontera is None:
         return []
     return [p for p in ht_player_ids if le_toca(p, frontera, ANCLA)]
+
+
+def del_turno_exacto(ht_player_ids: Sequence[int], ahora: datetime) -> list[int]:
+    """Los jugadores a los que les toca HOY su escalón exacto.
+
+    Uno de cada seis días por jugador, sacado del identificador: nada que
+    guardar. Con veinticinco jugadores salen unos cuatro al día.
+    """
+    return [p for p in ht_player_ids if le_toca_el_exacto(p, ahora, ANCLA)]
 
 
 def numero_de_turno(economy_date: datetime | None, ahora: datetime) -> int | None:
@@ -194,15 +220,26 @@ async def guardar(
 def _retrato(estimacion: Estimacion) -> str:
     """Los precios que formaron esta lectura, en JSON.
 
-    Van los que CUENTAN, que son los que hacen el numero, cada uno con su
-    estado: la grafica dibuja relleno lo cerrado y hueco lo que sigue en
-    subasta, y esa distincion es la mitad de lo que hay que juzgar.
+    Van los que OCUPAN PLAZA, no solo los que cuentan (2026-10-09). Desde que
+    el numero sale unicamente de ventas cerradas, guardar solo lo que cuenta
+    dejaba la nube VACIA en cuanto un jugador no tenia ninguna cerrada --el
+    caso de 23 de los 26 jugadores del club ese dia-- y la grafica del tiempo
+    se quedaba sin nada que dibujar en esas lecturas.
+
+    Cada uno con su estado: la grafica enseña las cerradas, y si una lectura
+    no tiene ninguna enseña sus pujas, que es mejor que una columna vacia.
+
+    Y con su PESO, el «se parece» (2026-10-09, pedido del usuario): la
+    grafica pinta mas pequeño y mas suave lo que se parece menos, para que no
+    pese lo mismo en el ojo un gemelo que un primo lejano. Las lecturas
+    anteriores a hoy no lo llevan y se dibujan al 100 %, que es lo que se
+    suponia hasta ahora.
     """
     return json.dumps(
         [
-            {"precio": c.venta.precio, "firme": c.venta.firme}
+            {"precio": c.venta.precio, "firme": c.venta.firme, "peso": c.peso}
             for c in estimacion.comparables
-            if c.cuenta
+            if c.ocupa
         ],
         separators=(",", ":"),
     )
@@ -266,7 +303,21 @@ async def anotar_si_cambio(
 async def pendientes_de_resolver(
     session: AsyncSession, team_id: int, ahora: datetime
 ) -> list[m.MarketSale]:
-    """Las ventas cuya subasta ya cerró y siguen con la puja de precio."""
+    """Las ventas cuya subasta ya cerró, siguen con la puja, y hoy no se han
+    preguntado todavía.
+
+    DOS CONDICIONES, las dos del usuario (2026-10-09):
+
+    · **Posterior a la hora de cierre.** La pone `se_puede_resolver`, y es más
+      vieja que esta función: nunca se ha preguntado por una subasta abierta.
+    · **Un intento al día por venta.** Esta es nueva, y hace falta desde que no
+      hay margen tras el plazo. La resolución corre en cada sincronización, y
+      la aplicación permite seis por hora: sin el freno, las cinco
+      oportunidades de una venta se gastaban en la primera hora tras el cierre
+      y se abandonaba antes de que Hattrick publicara el traspaso.
+
+    El día se compara en UTC, que es el huso en el que viven todos los sellos.
+    """
     filas = (
         await session.execute(
             select(m.MarketSale).where(
@@ -276,10 +327,23 @@ async def pendientes_de_resolver(
             )
         )
     ).scalars()
-    return [f for f in filas if se_puede_resolver(f.deadline, ahora)]
+    hoy = ahora.astimezone(UTC).date()
+    return [f for f in filas if se_puede_resolver(f.deadline, ahora) and _preguntado_el(f) != hoy]
 
 
-def aplicar_resolucion(fila: m.MarketSale, historial: Mapping[str, Any]) -> Resolucion:
+def _preguntado_el(fila: m.MarketSale) -> date | None:
+    """El día en que se preguntó por última vez, o `None` si nunca."""
+    sello = fila.resolve_asked_at
+    if sello is None:
+        return None
+    if sello.tzinfo is None:
+        sello = sello.replace(tzinfo=UTC)
+    return sello.astimezone(UTC).date()
+
+
+def aplicar_resolucion(
+    fila: m.MarketSale, historial: Mapping[str, Any], ahora: datetime | None = None
+) -> Resolucion:
     """Cambia la puja por el precio real, si el historial lo trae.
 
     Cuando no lo trae se anota el intento. Con una puja encima la venta está
@@ -287,7 +351,13 @@ def aplicar_resolucion(fila: m.MarketSale, historial: Mapping[str, Any]) -> Reso
     había registrado, y se arregla esperando a la siguiente sincronización. Si
     tampoco entonces, se deja con su puja y se deja de preguntar: insistir
     sería gastar llamadas en balde.
+
+    `ahora` sella la pregunta para que no se repita hoy. Se sella SIEMPRE que
+    se llegó a preguntar, se encontrara o no: lo que el sello mide es que la
+    llamada se gastó. Una llamada que ni salió --CHPP caído-- no llega aquí.
     """
+    if ahora is not None:
+        fila.resolve_asked_at = ahora
     traspasos = [
         Traspaso(
             ht_transfer_id=int(t.get("ht_transfer_id", 0) or 0),
