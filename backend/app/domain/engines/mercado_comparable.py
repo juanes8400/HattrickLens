@@ -64,6 +64,24 @@ TERCIARIA_ABAJO = 2
 #: aparece nada se queda, porque un dato viejo informa más que ninguno.
 VIDA = timedelta(weeks=7)
 
+#: Y cuándo deja de informar del todo: SE BORRA, aunque no haya nada con qué
+#: sustituirlo y aunque eso deje al jugador sin cifra.
+#:
+#: La regla la trajo el usuario el 2026-10-09 contándome cómo lo hace el propio
+#: Hattrick en su Comparador de Transferencias: guarda las ventas de jugadores
+#: parecidos, las va reemplazando, y si no hay muestra las borra hacia las doce
+#: semanas. Si el juego, teniendo su base de traspasos entera, decide que a las
+#: doce semanas una venta ya no describe el mercado, nosotros --que vemos
+#: muchísimo menos-- no tenemos un motivo mejor para conservarla.
+#:
+#: Es el único sitio donde este módulo prefiere no saber a saber mal. La regla
+#: hermana --«un dato viejo informa más que ninguno»-- sigue valiendo entre las
+#: siete y las doce; a partir de ahí deja de valer.
+#:
+#: Se cuenta desde `visto_el`, igual que `VIDA`, para que las dos edades sean
+#: la misma y la que la pantalla enseña en «Antigüedad».
+VIDA_MAXIMA = timedelta(weeks=12)
+
 #: Cuántos grupos de rotación de los escalones ANCHOS (<100 %). Cada semana le
 #: toca a uno, así que a cada jugador le toca cada cinco semanas.
 GRUPOS = 5
@@ -528,9 +546,20 @@ def reemplazable(venta: Guardado, ahora: datetime) -> bool:
     """Si ya cumplió su vida y puede dejar paso a algo más fresco.
 
     Cumplirla no la borra. Una venta de hace dos meses sigue informando más
-    que ninguna, así que se queda mientras no haya con qué sustituirla.
+    que ninguna, así que se queda mientras no haya con qué sustituirla --hasta
+    `VIDA_MAXIMA`, donde eso deja de ser cierto y sí se borra--.
     """
     return _aware(ahora) - _aware(venta.visto_el) >= VIDA
+
+
+def demasiado_vieja(venta: Guardado, ahora: datetime) -> bool:
+    """Si ya no describe ningún mercado y hay que tirarla.
+
+    A diferencia de `reemplazable`, esto no espera a que aparezca un sustituto:
+    se va igual, y si eso deja al jugador sin número, que se quede sin número.
+    Es más honesto que enseñar una cifra de hace tres meses.
+    """
+    return _aware(ahora) - _aware(venta.visto_el) >= VIDA_MAXIMA
 
 
 def comparables_de(
@@ -554,6 +583,11 @@ def comparables_de(
     """
     medidos: list[Comparable] = []
     for venta in fondo:
+        # Lo pasado de `VIDA_MAXIMA` no entra ni a enseñarse. El barrido que
+        # lo borra corre una vez al día; esto es el cinturón, para que entre
+        # barrido y barrido no se cuele en ningún número.
+        if demasiado_vieja(venta, ahora):
+            continue
         peso = peso_de(venta, objetivo)
         if peso is None:
             continue

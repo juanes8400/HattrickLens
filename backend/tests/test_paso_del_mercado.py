@@ -438,11 +438,7 @@ async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
     )
 
     async def historial(ht_player_id: int) -> dict[str, Any]:
-        return {
-            "transfers": [
-                {"ht_transfer_id": 77, "deadline": PLAZO_HT, "price": 77_720_000}
-            ]
-        }
+        return {"transfers": [{"ht_transfer_id": 77, "deadline": PLAZO_HT, "price": 77_720_000}]}
 
     # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
     # 2026-10-09, «cuando se sabe que debio terminar».
@@ -580,3 +576,44 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
         ahora=cerrada + timedelta(days=1),
     )
     assert len(preguntas) == 2
+
+
+async def test_el_paso_barre_lo_de_mas_de_doce_semanas(base) -> None:
+    """El barrido borra de verdad, una vez al dia (2026-10-09).
+
+    Regla que el usuario trajo del Comparador de Transferencias de Hattrick:
+    si no hay muestra, las ventas se borran hacia las doce semanas. Aqui se
+    comprueba que se van de la TABLA, no solo del calculo: el fondo es
+    material de trabajo, y lo que se conserva para la historia son las
+    lecturas, que viven aparte en `market_estimates`.
+    """
+    session, equipo = base
+    await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    antes = (
+        (await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == equipo.id)))
+        .scalars()
+        .all()
+    )
+    assert len(antes) == 1
+
+    # Trece semanas despues: ni se busca para el, ni se queda.
+    paso = await correr_el_paso_semanal(
+        session,
+        equipo,
+        buscar=_MercadoFalso(),
+        historial_de=_sin_historial,
+        ahora=AHORA + timedelta(weeks=13),
+    )
+    assert paso.caducadas == 1
+    quedan = (
+        (await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == equipo.id)))
+        .scalars()
+        .all()
+    )
+    assert quedan == []

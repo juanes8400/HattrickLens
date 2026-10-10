@@ -31,6 +31,7 @@ from app.domain.engines.mercado_comparable import (
     Objetivo,
     candidato_de,
     comparables_de,
+    demasiado_vieja,
     cosecha,
     cuenta_para_el_numero,
     estimar,
@@ -391,7 +392,7 @@ def test_el_peso_manda_por_encima_de_la_frescura() -> None:
     """El usuario dijo que un comparable nunca se reemplaza por algo de menor
     peso, asi que una venta caducada al 100% va por delante de una recien
     encontrada al 85%."""
-    vieja = _guardado(1, semanas=20)
+    vieja = _guardado(1, semanas=9)
     reciente = _guardado(2, semanas=0, scoring=17, passing=13, playmaking=7)
     elegidos = _medidos(reciente, vieja)
     assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
@@ -766,7 +767,7 @@ def test_cuando_ese_anuncio_se_resuelve_ya_cuenta() -> None:
 
 
 def test_un_comparable_exacto_no_envejece() -> None:
-    clavado = _guardado(1, semanas=20)
+    clavado = _guardado(1, semanas=9)
     assert reemplazable(clavado, AHORA) is True, "la venta SI cumplio su vida"
     medido = _medidos(clavado)[0]
     assert medido.peso == 100
@@ -775,7 +776,7 @@ def test_un_comparable_exacto_no_envejece() -> None:
 
 def test_un_parecido_si_envejece() -> None:
     """La misma antiguedad, pero al 85%: ese si queda reemplazable."""
-    primo = _guardado(1, semanas=20, scoring=17, passing=13, playmaking=7)
+    primo = _guardado(1, semanas=9, scoring=17, passing=13, playmaking=7)
     medido = _medidos(primo)[0]
     assert medido.peso < 100
     assert medido.viejo is True
@@ -784,7 +785,7 @@ def test_un_parecido_si_envejece() -> None:
 def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
     """El peso es relativo a quien pregunta, asi que la caducidad tambien.
     Por eso se decide al medir y no al guardar."""
-    venta = _guardado(1, semanas=20)
+    venta = _guardado(1, semanas=9)
     para_el_clavado = _medidos(venta)[0]
     otro = _objetivo(scoring=17, passing=13, playmaking=7)
     para_el_primo = _medidos(venta, objetivo=otro)[0]
@@ -793,7 +794,33 @@ def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
 
 
 def test_un_exacto_viejo_no_manda_a_buscar() -> None:
-    """Seis exactos de hace veinte semanas siguen siendo seis: su turno no
+    """Seis exactos de hace nueve semanas siguen siendo seis: su turno no
     deberia gastar ni una peticion."""
-    seis = [_guardado(i, semanas=20) for i in range(1, 7)]
+    seis = [_guardado(i, semanas=9) for i in range(1, 7)]
     assert hay_que_buscar(_medidos(*seis)) is False
+
+
+def test_a_las_doce_semanas_se_va_hasta_el_exacto() -> None:
+    """La regla dura, que el usuario trajo del propio Hattrick (2026-10-09).
+
+    Su Comparador de Transferencias guarda las ventas parecidas, las va
+    reemplazando, y si no hay muestra las borra hacia las doce semanas. Si el
+    juego, con su base de traspasos entera, decide que a las doce semanas una
+    venta ya no describe el mercado, nosotros no tenemos un motivo mejor.
+
+    Y SE LLEVA TAMBIEN AL EXACTO, que es lo que esta regla cambia de verdad:
+    hasta hoy «el 100 % no caduca nunca». Sigue sin caducar --no se deja
+    reemplazar por nada de menor peso-- pero a las doce semanas se va igual,
+    porque lo que deja de ser cierto no es el parecido del jugador, es el
+    precio del mercado. Si su gemelo sigue vendiendose, el escalon exacto lo
+    vuelve a encontrar en menos de seis dias.
+    """
+    clavado_de_once = _guardado(1, semanas=11)
+    clavado_de_trece = _guardado(2, semanas=13)
+
+    assert demasiado_vieja(clavado_de_once, AHORA) is False
+    assert demasiado_vieja(clavado_de_trece, AHORA) is True
+
+    # Y no entra ni a enseñarse: no hay fila, no hay numero, no ocupa plaza.
+    assert len(_medidos(clavado_de_once)) == 1
+    assert _medidos(clavado_de_trece) == ()

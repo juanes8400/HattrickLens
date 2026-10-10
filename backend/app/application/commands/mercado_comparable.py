@@ -39,6 +39,7 @@ from app.domain.engines.mercado_comparable import (
     Guardado,
     Rasgo,
     Traspaso,
+    demasiado_vieja,
     frontera_semanal,
     le_toca,
     le_toca_el_exacto,
@@ -386,3 +387,32 @@ def aplicar_resolucion(
         precio=None,
         abandonada=fila.resolve_attempts > REINTENTOS_DE_RESOLUCION,
     )
+
+
+async def purgar_el_fondo(session: AsyncSession, team_id: int, ahora: datetime) -> int:
+    """Borra las ventas que ya no describen ningún mercado. Devuelve cuántas.
+
+    Doce semanas, contadas desde que se vieron, que es la misma edad que la
+    pantalla enseña en «Antigüedad». Regla que trajo el usuario el 2026-10-09
+    de cómo lo hace el propio Hattrick en su Comparador de Transferencias.
+
+    SE BORRAN DE VERDAD, no se marcan. El fondo es material de trabajo, no un
+    archivo: lo que hay que conservar para la historia son las LECTURAS, y
+    ésas viven aparte en `market_estimates` con su nube de precios. Dejar las
+    filas muertas haría crecer la tabla sin tope y obligaría a filtrarlas en
+    cada consulta.
+
+    Si esto deja a un jugador sin cifra, se queda sin cifra. Es lo que se
+    decidió: más honesto que enseñar una media de hace tres meses.
+    """
+    filas = (
+        await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == team_id))
+    ).scalars()
+    borradas = 0
+    for fila in filas:
+        if demasiado_vieja(a_guardado(fila), ahora):
+            await session.delete(fila)
+            borradas += 1
+    if borradas:
+        await session.flush()
+    return borradas
