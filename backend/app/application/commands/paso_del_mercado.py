@@ -41,6 +41,7 @@ from app.application.commands.mercado_comparable import (
     fondo_del_equipo,
     guardar,
     pendientes_de_resolver,
+    purgar_el_fondo,
     toca_el_paso,
 )
 from app.application.queries.mercado_comparable import correr_el_turno
@@ -92,6 +93,10 @@ class PasoSemanal:
     se_busco: bool
     #: Cuantos jugadores cambiaron de numero y quedaron anotados en la serie.
     puntos_anotados: int = 0
+    #: Cuántas ventas se tiraron por pasar de `VIDA_MAXIMA`. Va al final, con
+    #: los demás que llevan valor por defecto: uno de ellos delante de un
+    #: campo sin defecto no compila.
+    caducadas: int = 0
 
 
 async def correr_el_paso_semanal(
@@ -119,6 +124,12 @@ async def correr_el_paso_semanal(
             se_busco=False,
             puntos_anotados=puntos,
         )
+
+    # EL BARRIDO, antes de nada: lo de mas de doce semanas se borra aunque no
+    # haya con que sustituirlo (2026-10-09). Va aqui dentro --una vez al dia,
+    # no en cada sincronizacion-- y antes de buscar, para que el hueco que deja
+    # lo pueda llenar el turno de hoy en vez de esperar al siguiente.
+    borradas = await purgar_el_fondo(session, equipo.id, ahora)
 
     plantilla = await _plantilla(session, equipo.id)
     ids = [p.ht_player_id for p in plantilla]
@@ -169,6 +180,7 @@ async def correr_el_paso_semanal(
         resueltas=resueltas,
         jugadores_del_turno=tuple(turno),
         ventas_nuevas=nuevas,
+        caducadas=borradas,
         puntos_anotados=puntos,
         busquedas=busquedas,
         se_busco=True,
