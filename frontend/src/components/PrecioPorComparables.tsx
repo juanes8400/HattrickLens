@@ -11,7 +11,9 @@
  *    hasta que su subasta cierra, y la puja se queda corta: el 2026-10-05
  *    Valerio Cataldi tenía 65.000.000 de puja y cerró en 77.720.000, un 16%
  *    más. Un número hecho de pujas tira a bajo.
- *  · **Cuánto se parecen.** Del 100% (misma edad y mismas habilidades) al 75%.
+ *  · **Cuánto se parecen.** Del 100% al 75%. El 100% no lo decidimos nosotros:
+ *    es que el propio Hattrick enseñaría esa venta en su Comparador. El 95%
+ *    es nuestro exacto --misma edad y mismas habilidades-- que él no avalaría.
  *    No es lo mismo un número sacado de gemelos que de primos lejanos.
  *  · **De cuándo son.** Una venta sigue contando pasadas las siete semanas si
  *    no apareció nada mejor, y entonces habla de un mercado que pudo cambiar.
@@ -73,10 +75,15 @@ const MINIMO_PARA_LA_SERIE = 2;
  *  tira no dice nada que la tabla no diga mejor. */
 const MINIMO_PARA_LA_TIRA = 4;
 
-/** El peso en color: el verde es un parecido de verdad. */
+/** El peso en color: el verde es un parecido de verdad.
+ *
+ *  Desde el 2026-10-10 el 100 % significa que el propio Hattrick enseñaría esa
+ *  venta en su Comparador, así que el verde ya no es una opinión nuestra. El
+ *  95 es nuestro exacto: mismas habilidades y misma edad, pero el juego no lo
+ *  enseñaría, casi siempre por una cuarta habilidad que nosotros no miramos. */
 function colorDelPeso(peso: number): string {
   if (peso >= 100) return "text-[var(--ok)]";
-  if (peso >= 85) return "text-[var(--text)]";
+  if (peso >= 90) return "text-[var(--text)]";
   return "text-[var(--muted)]";
 }
 

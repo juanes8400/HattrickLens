@@ -232,3 +232,26 @@ abren el año pero muchos conservan la primaria clavada, y ésos sí pasan.
 
 Y del 100 % nuestro, uno de cada seis no pasaría: son los que tienen una cuarta
 habilidad alta, que nosotros ni miramos y a Hattrick le basta para descartarlos.
+
+
+## Qué se cambió con esto (2026-10-10, decisiones del usuario)
+
+**El 100 % es de Hattrick.** Un comparable vale 100 cuando el propio juego lo
+enseñaría, comprobado contra la regla de arriba. Nuestra escalera empieza en
+95: «clavado según nosotros, pero el juego no lo enseñaría», que es casi
+siempre por una cuarta habilidad alta.
+
+**Se cayó el escalón del 85 %** —edad clavada, primaria a ±1—. De 5 801 pares
+que entraban sólo por ahí, Hattrick no habría enseñado ninguno, porque él nunca
+mueve la primera habilidad. No era un escalón ancho: era ruido que además
+gastaba una petición de cuota cada vez.
+
+**La búsqueda empieza por su ventana.** `plan_de_busqueda` le pide al mercado lo
+mismo que pediría el juego, y sólo después recorre nuestra escalera.
+
+**Hacen falta ocho comparables**, no seis. Hattrick usa diez; ocho es el punto
+elegido entre parecerse a él y no disparar la cuota.
+
+**Y se levantó el borrado a las doce semanas.** Lo había desde el 2026-10-09,
+sobre la base de que el juego hace lo mismo. Su pantalla dice lo contrario, así
+que vuelve a mandar `VIDA` sola: cumplirla no borra, deja paso.
