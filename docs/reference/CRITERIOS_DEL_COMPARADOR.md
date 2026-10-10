@@ -262,3 +262,16 @@ elegido entre parecerse a él y no disparar la cuota.
 **Y se levantó el borrado a las doce semanas.** Lo había desde el 2026-10-09,
 sobre la base de que el juego hace lo mismo. Su pantalla dice lo contrario, así
 que vuelve a mandar `VIDA` sola: cumplirla no borra, deja paso.
+
+
+## Las ventas guardadas antes del sondeo
+
+Las que ya estaban en el fondo el 2026-10-10 no llevan las siete habilidades,
+así que **no pueden llevar el sello de Hattrick** y se miden sólo con nuestra
+escalera. Se renuevan solas según entran ventas nuevas.
+
+No se pueden rellenar. Haría falta saber qué habilidades tenía cada vendido **el
+día que se vendió**, y CHPP no lo publica: `transfersplayer` devuelve el
+identificador del traspaso, el plazo, comprador, vendedor, precio y TSI, y
+ninguna habilidad. Pedir `playerdetails` hoy daría las de hoy, que no son las de
+entonces. Rellenar con eso sería meter un dato falso justo donde más duele.

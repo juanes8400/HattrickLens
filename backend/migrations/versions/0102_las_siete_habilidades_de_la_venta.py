@@ -17,6 +17,14 @@ devuelve falso cuando faltan, así que esas ventas siguen midiéndose con nuestr
 escalera de siempre. No se borra ni se inventa nada: envejecen y se reemplazan
 solas según entran ventas nuevas.
 
+Y NO SE PUEDEN RELLENAR, que es la pregunta obvia. Haría falta saber qué
+habilidades tenía el vendido EL DÍA QUE SE VENDIÓ, y eso CHPP no lo publica:
+`transfersplayer` devuelve identificador del traspaso, plazo, comprador,
+vendedor, precio y TSI, y ninguna habilidad. Pedir `playerdetails` hoy daría
+las de hoy, que no son las de entonces, así que rellenar con eso sería meter un
+dato falso en el sitio donde más duele: el que decide si una venta lleva el
+sello del juego. Mejor vacío que mentiroso.
+
 Revision ID: 0102
 Revises: 0101
 """
