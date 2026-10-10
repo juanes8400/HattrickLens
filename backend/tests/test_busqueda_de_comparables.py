@@ -149,7 +149,10 @@ async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
     r = await _turno(mercado)
     assert r.busquedas == 1
     assert len(r.nuevas) == 9
-    assert r.estimacion.n == 9
+    # Las nueve se quedan y ocupan plaza. Ninguna entra en el numero: son
+    # anuncios, y desde el 2026-10-09 solo promedian las ventas cerradas.
+    assert sum(1 for c in r.estimacion.comparables if c.ocupa) == 9
+    assert r.estimacion.n == 0
 
 
 async def test_si_la_escalera_no_basta_queda_constancia() -> None:
@@ -167,20 +170,30 @@ async def test_lo_fresco_del_fondo_ahorra_escalones() -> None:
     mercado = _Mercado([_fila(9)])
     r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 6)])
     assert r.busquedas == 1
-    assert r.estimacion.n == OBJETIVO
+    # Cinco ventas cerradas del fondo mas el anuncio recien encontrado llenan
+    # las seis plazas, y por eso basta un escalon. En el NUMERO entran solo
+    # las cinco cerradas, que es otra cuenta (2026-10-09).
+    assert sum(1 for c in r.estimacion.comparables if c.ocupa) == OBJETIVO
+    assert r.estimacion.n == 5
     assert len(r.nuevas) == 1
 
 
-async def test_lo_caducado_cuenta_pero_no_detiene_la_busqueda() -> None:
+async def test_lo_caducado_cuenta_y_YA_NO_manda_a_buscar() -> None:
     """Las ventas viejas siguen dando numero, porque una venta vieja informa
-    mas que ninguna. Pero su turno se gasta entero buscando con que
-    sustituirlas, que es lo que el usuario pidio."""
+    mas que ninguna. Y desde el 2026-10-09 ya no gastan el turno buscando
+    sustituto: «se busca cuando nos quedemos sin datos», y el refresco lo
+    lleva el calendario."""
     mercado = _Mercado([_fila(9)])
-    # Cinco caducadas, y PARECIDAS: al 100% ya no caducarian.
-    fondo = [_venta(i, semanas=9, exacta=False) for i in range(1, 6)]
+    # Seis caducadas, y PARECIDAS: al 100% ya no caducarian. Seis y no cinco
+    # porque el numero sale solo de ventas cerradas desde el 2026-10-09, y lo
+    # que esta prueba defiende es que una venta vieja SIGUE dando numero.
+    fondo = [_venta(i, semanas=9, exacta=False) for i in range(1, 7)]
     r = await _turno(mercado, fondo=fondo)
-    assert r.busquedas == len(ESCALERA)
+    # Un solo escalon, el exacto, que se recorre siempre: con seis ocupando
+    # plaza no falta nada, caducadas o no.
+    assert r.busquedas == 1
     assert r.estimacion.n == OBJETIVO
+    assert r.estimacion.media is not None
     assert len(r.nuevas) == 1
 
 

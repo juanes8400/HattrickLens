@@ -86,6 +86,7 @@ async def correr_el_turno(
     mi_equipo: int,
     ahora: datetime,
     tambien_para: Sequence[Objetivo] = (),
+    solo_el_exacto: bool = False,
 ) -> Resultado:
     """Lo que se hace cuando a un jugador le toca turno.
 
@@ -98,6 +99,11 @@ async def correr_el_turno(
     cualquiera de ellos, no sólo a quien disparó la búsqueda. No cambia
     cuándo se para --eso lo sigue decidiendo el que pregunta, que es quien
     tiene turno-- sólo qué se recoge por el camino.
+
+    `solo_el_exacto` recorre ÚNICAMENTE el primer escalón, el del 100 %. Es el
+    turno de los seis días que decidió el usuario el 2026-10-09: al exacto le
+    toca a menudo porque no caduca y es el mejor dato posible, mientras los
+    anchos esperan su turno de cinco semanas. Una petición por jugador.
     """
     acumulado = list(fondo)
     busquedas = 0
@@ -116,7 +122,9 @@ async def correr_el_turno(
         #
         # El precio es una peticion por jugador y turno, tambien cuando ya
         # tiene sus seis. Antes ese caso no gastaba ninguna.
-        if escalon > 0 and not hay_que_buscar(comparables_de(acumulado, objetivo, ahora)):
+        if escalon > 0 and (
+            solo_el_exacto or not hay_que_buscar(comparables_de(acumulado, objetivo, ahora))
+        ):
             agotada = False
             break
         filas = await buscar(ventana)

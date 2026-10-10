@@ -37,6 +37,7 @@ from app.application.commands.mercado_comparable import (
     anotar_si_cambio,
     aplicar_resolucion,
     del_turno,
+    del_turno_exacto,
     fondo_del_equipo,
     guardar,
     pendientes_de_resolver,
@@ -105,7 +106,7 @@ async def correr_el_paso_semanal(
     resueltas = await _resolver(session, equipo, historial_de, ahora)
 
     economica = await _fecha_economica(session, equipo)
-    if not toca_el_paso(equipo, economica, ahora):
+    if not toca_el_paso(equipo, ahora):
         # Aunque no toque turno, una resolucion pudo cambiar el numero de
         # varios jugadores a la vez: la venta que paso de puja a precio real
         # es comparable de todo el que se le parezca.
@@ -120,7 +121,17 @@ async def correr_el_paso_semanal(
         )
 
     plantilla = await _plantilla(session, equipo.id)
-    turno = del_turno([p.ht_player_id for p in plantilla], economica, ahora)
+    ids = [p.ht_player_id for p in plantilla]
+    # LOS DOS RITMOS (2026-10-09, decision del usuario). Al escalon exacto de
+    # un jugador le toca cada SEIS DIAS; a sus escalones anchos, cada cinco
+    # semanas. Los dos grupos salen del identificador --`% 6` contra el dia y
+    # `% 5` contra la semana-- asi que no hay reloj guardado por jugador.
+    #
+    # Si hoy le tocan los anchos, se recorre la escalera entera: el exacto va
+    # primero de todos modos. Si solo le toca el exacto, una sola peticion.
+    anchos = set(del_turno(ids, economica, ahora))
+    exactos = set(del_turno_exacto(ids, ahora))
+    turno = sorted(anchos | exactos)
     nuevas = 0
     busquedas = 0
     for jugador in plantilla:
@@ -145,6 +156,7 @@ async def correr_el_paso_semanal(
             # sirva a ellos: la búsqueda ya está pagada y por delante pasa
             # el mercado entero, no sólo el de quien tiene turno.
             tambien_para=_otros_objetivos(plantilla, jugador.ht_player_id),
+            solo_el_exacto=jugador.ht_player_id not in anchos,
         )
         busquedas += resultado.busquedas
         plazos = {p.ht_player_id: p.plazo for p in resultado.por_resolver}
@@ -192,7 +204,7 @@ async def _resolver(
                 exc_info=True,
             )
             continue
-        hechas.append(aplicar_resolucion(fila, historial))
+        hechas.append(aplicar_resolucion(fila, historial, ahora))
     if hechas:
         await session.flush()
     return tuple(hechas)
