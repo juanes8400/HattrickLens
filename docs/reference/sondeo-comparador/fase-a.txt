@@ -1,0 +1,382 @@
+# Sondeo del Comparador de Transferencias de Hattrick - FASE A
+# Fecha: 2026-10-10 . Metodo: panel "Editar busqueda" (btnChangeSkills), POST directo.
+# Perfil enviado: [Porteria, Defensa, Jugadas, Lateral, Pases, Anotacion, BalonParado]
+# Edad enviada: 25 en los 24 sondeos.
+# Niveles en numero segun el glosario oficial (0 nulo .. 20 divino).
+
+## Regimen 5
+portero     [5,0,0,0,0,0,1]   Ed=25  Por=5   Def<=1   BP<=4    Lat<=4  Ano<=4  Jug<=4
+central     [0,5,1,0,0,0,0]   Ed=25  Def=5   Jug<=2   Pas<=4   Lat<=4  Ano<=4  Por<=4
+lateral     [0,5,0,4,2,0,0]   Ed=25  Def=5   Lat=4    Pas<=4   Jug<=4  Ano<=4  Por<=4
+mediocentro [0,1,5,0,3,0,0]   Ed=25  Jug=5   Pas=3    Def<=4   Lat<=4  Ano<=4  Por<=4
+extremo     [0,0,1,5,3,0,0]   Ed=25  Lat=5   Pas=3    Jug<=4   Def<=4  Ano<=4  Por<=4
+delantero   [0,0,0,1,2,5,0]   Ed=25  Ano=5   Pas<=2   Lat<=4   Jug<=4  Def<=4  Por<=4
+plano       [5,5,5,5,5,5,5]   Ed=25  Lat=5   Jug=5    Pas<=5   Def<=5  Ano<=6  Por<=6
+mono        [0,0,5,0,0,0,0]   Ed=25  Jug=5   Pas<=2   Def<=4   Lat<=4  Ano<=4  Por<=4
+
+## Regimen 10
+portero     [10,4,0,0,0,0,6]  Ed=25    Por=10  Def=4     BP 4-8    Lat<=4  Ano<=4  Jug<=4
+central     [0,10,6,0,5,0,0]  Ed=25    Def=10  Jug=6     Pas 4-6   Lat<=4  Ano<=4  Por<=4
+lateral     [0,10,0,9,7,0,0]  Ed=25    Def=10  Lat 8-10  Pas 6-8   Jug<=4  Ano<=4  Por<=4
+mediocentro [0,6,10,0,8,0,0]  Ed=25    Jug=10  Pas=8     Def 5-7   Lat<=4  Ano<=4  Por<=4
+extremo     [0,0,6,10,8,0,0]  Ed=25    Lat=10  Pas=8     Jug 5-7   Def<=4  Ano<=4  Por<=4
+delantero   [0,0,0,6,7,10,0]  Ed=25    Ano=10  Pas=7     Lat 5-7   Jug<=4  Def<=4  Por<=4
+plano       [10,10,10,10,10,10,10] Ed24-26 Lat=10 Jug 9-11 Pas 9-12 Def 8-10 Ano<=12 Por<=12
+mono        [0,0,10,0,0,0,0]  Ed=25    Jug=10  Pas<=2    Def<=4    Lat<=4  Ano<=4  Por<=4
+
+## Regimen 16
+portero     [16,10,0,0,0,0,12] Ed24-26 Por=16 Def 9-11   BP 9-15   Lat<=5  Ano<=5  Jug<=5
+central     [0,16,12,0,11,0,0] Ed24-26 Def=16 Jug 11-13  Pas>=11   Lat<=5  Ano<=5  Por<=5
+lateral     [0,16,0,15,13,0,0] Ed24-26 Def=16 Lat 14-16  Pas>=13   Jug<=5  Ano<=5  Por<=5
+mediocentro [0,12,16,0,14,0,0] Ed24-26 Jug=16 Pas 13-15  Def>=12   Lat<=5  Ano<=5  Por<=5
+extremo     [0,0,12,16,14,0,0] Ed24-26 Lat=16 Pas 13-15  Jug>=12   Def<=5  Ano<=5  Por<=5
+delantero   [0,0,0,12,13,16,0] Ed24-26 Ano=16 Pas 12-14  Lat>=12   Jug<=5  Def<=5  Por<=5
+plano       [16,16,16,16,16,16,16] Ed24-26 Lat=16 Jug 15-17 Pas>=16 Def 14-16 Ano<=18 Por<=18
+mono        [0,0,16,0,0,0,0]  Ed=25    Jug=16  Pas<=2    Def<=4    Lat<=4  Ano<=4  Por<=4
+
+## Paso 0 (control)
+0b medio  [1,7,12,5,10,3,2]  edad 24 -> Ed=24 Jug=12 Pas 9-11 Def 6-8 Lat<=6 Ano<=4 Por<=4
+0b arco   [16,9,2,1,3,1,11]  edad 31 -> Ed30-32 Por=16 Def 8-10 BP 8-14 Lat<=5 Ano<=5 Jug<=5
+   (identicos enviados desde la ficha de Llauge y desde la de Ebbesen: la puerta no influye)
+0a llauge [1,14,4,11,13,2,6] edad 29 -> Ed28-30 Def=14 Pas 12-14 Lat>=11 Jug<=5 Ano<=5 Por<=5
+0a idem con Lateral=8  -> Lat 7-10 (banda)
+0a idem con Lateral=18 -> Lat=18 primaria, Def 13-15, Pas>=13 (se reordenan los puestos)
+
+## FASE B1 - barrido de la 3a habilidad. Base: Def 16, Jug 12, Pases X, resto 0, edad 25
+Pas 0..4  -> Pas<=5                     (fuera de identidad: cae al monton de techos)
+Pas 5     -> Pas 4-7     3a banda [v-1,v+2]
+Pas 6     -> Pas 5-8     3a
+Pas 7     -> Pas 6-9     3a
+Pas 8     -> Pas 7-10    3a
+Pas 9     -> Pas 8-11    3a
+Pas 10    -> Pas 9-12    3a
+Pas 11    -> Pas>=11     3a SUELO
+Pas 12    -> Pas 11-13 como 2a, y Jugadas(12) baja a 3a con Jug>=12   <-- ASCENSO, empate a 12
+Pas 13..19-> Pas [v-1,v+1] como 2a, Jug>=12 como 3a
+Pas 20    -> "Pas 19-???" (el tope de la escala no lo mapeo mi tabla; revisar)
+En los 21: Def=16 exacta, sin excepcion.
+
+## FASE B2 - EL DIAL. Base: Def D, Jug D-4, Pases 5, resto 0, edad 25
+D= 8 Jug4  -> Ed=25    Def=8  Pas=5     Jug<=4   Lat<=4 Ano<=4 Por<=4
+D= 9 Jug5  -> Ed=25    Def=9  Pas=5     Jug 4-6  Lat<=4 Ano<=4 Por<=4
+D=10 Jug6  -> Ed=25    Def=10 Jug=6     Pas 4-6  Lat<=4 Ano<=4 Por<=4
+D=11 Jug7  -> Ed=25    Def=11 Jug=7     Pas 4-6  Lat<=4 Ano<=4 Por<=4
+D=12 Jug8  -> Ed=25    Def=12 Jug=8     Pas 4-6  Lat<=4 Ano<=4 Por<=4
+D=13 Jug9  -> Ed=25    Def=13 Jug=9     Pas 4-6  Lat<=4 Ano<=4 Por<=4
+D=14 Jug10 -> Ed=25    Def=14 Jug 9-11  Pas 4-6  Lat<=4 Ano<=4 Por<=4
+D=15 Jug11 -> Ed24-26  Def=15 Jug 10-12 Pas 4-7  Lat<=5 Ano<=5 Por<=5   <-- SALTA EL DIAL
+D=16 Jug12 -> Ed24-26  Def=16 Jug 11-13 Pas 4-7  Lat<=5 Ano<=5 Por<=5
+D=17 Jug13 -> Ed24-26  Def=17 Jug 12-14 Pas 4-7  Lat<=5 Ano<=5 Por<=5
+D=18 Jug14 -> Ed24-26  Def=18 Jug 13-15 Pas 4-7  Lat<=5 Ano<=5 Por<=5
+
+Entre D=14 y D=15 cambian A LA VEZ tres cosas: la edad (exacta -> +-1), la anchura
+de la banda de la 3a ([v-1,v+1] -> [v-1,v+2]) y los techos de sobrantes (<=4 -> <=5).
+Un solo dial, un solo umbral.
+
+## Restricciones del usuario (2026-10-10)
+- Solo importan edades 17 a 33.
+- Balon parado no importa salvo en porteros.
+
+## FASE B3 - la 2a habilidad: valor absoluto contra hueco a la 1a. Pases 0, resto 0, edad 25
+A Def=18 Jug= 8 (hueco 10) -> Jug=8      EXACTA
+A Def=18 Jug=10 (hueco  8) -> Jug 9-11   banda
+A Def=18 Jug=11 (hueco  7) -> Jug 10-12  banda
+A Def=18 Jug=12 (hueco  6) -> Jug 11-13  banda
+A Def=18 Jug=13 (hueco  5) -> Jug 12-14  banda
+B Def= 8 Jug= 7 (hueco  1) -> Jug=7      EXACTA
+B Def=11 Jug=10 (hueco  1) -> Jug 9-11   banda
+B Def=14 Jug=13 (hueco  1) -> Jug 12-14  banda
+B Def=18 Jug=17 (hueco  1) -> Jug 16-18  banda
+C Def=13 Jug=11 (hueco  2) -> Jug 10-12  banda
+C Def=13 Jug=10 (hueco  3) -> Jug  9-11  banda
+=> El hueco a la 1a NO influye: huecos de 1,2,3,5,6,7,8,10 dan lo mismo.
+
+## FASE B4 - que afloja la 2a: la 3a habilidad
+Def10 Lat9 Pas0 -> Ed=25   Def=10 Lat=9     Pas<=4  ... (2a EXACTA)
+Def10 Lat9 Pas5 -> Ed=25   Def=10 Lat=9     Pas 4-6 ... (2a EXACTA)
+Def10 Lat9 Pas7 -> Ed=25   Def=10 Lat 8-10  Pas 6-8 ... (2a BANDA)   <-- la 3a la abrio
+Def13 Jug9 Pas0 -> Ed=25   Def=13 Jug=9     Pas<=4  ... (2a EXACTA)
+Def13 Jug9 Pas7 -> Ed=25   Def=13 Jug 8-10  Pas 6-8 ... (2a BANDA)
+Def13 Jug9 Pas9 -> Ed24-26 Def=13 Pas 8-10  Jug 8-11 ... (dial arriba + Pases adelanta a Jugadas)
+
+=> La 2a no la decide ni su propio nivel ni el hueco a la 1a por separado: la decide
+   la RIQUEZA del perfil entero. Subir la 3a de 5 a 7 basta para abrirla.
+
+## DESEMPATES observados (Pases gana a Jugadas, 3 veces)
+Pas=12 vs Jug=12 -> Pases 2a, Jugadas 3a
+Pas= 5 vs Jug= 5 -> Pases 2a, Jugadas 3a
+Pas= 9 vs Jug= 9 -> Pases 2a, Jugadas 3a
+NUESTRO ORDEN_DE_DESEMPATE pone playmaking por delante de passing: esta al reves.
+
+## FASE B5 - umbral de la 2a (banda vs exacta). Def13 Jug9 Pas X / Def13 Jug8 Pas X / Def14 Jug10 Pas X
+(13,9,5) Jug=9 exacta   (13,9,6) Jug=9 exacta   (13,9,7) Jug 8-10 BANDA  (13,9,8) banda
+(13,8,5) Jug=8 exacta   (13,8,7) Jug 7-9 BANDA  (13,8,9) Pases adelanta
+(14,10,5) Jug 9-11 banda  (14,10,6) banda  (14,10,7) banda
+=> LEY: la 2a lleva banda si v2 >= 10 O v3 >= 7. Exacta en otro caso.
+   Comprobado contra las ~40 observaciones de todas las fases, sin excepcion.
+   Coincide con el texto de 2009: "lo mismo ocurre si la tercera es alta".
+
+## FASE B6 - fronteras del DIAL (holgura: edad +-1, techos <=5, 3a mas ancha)
+(14,8,0) ajustado  (15,8,0) ajustado  (16,8,0) ajustado  (17,8,0) HOLGADO
+(12,10,0) ajustado (12,12,0) ajustado (12,14,0) HOLGADO
+(11,11,0) ajustado (13,12,0) HOLGADO  (16,5,0) ajustado
+(14,10,6) ajustado (14,10,7) HOLGADO
+(13,9,8)  ajustado (13,9,9)  HOLGADO
+
+HIPOTESIS que encaja con TODAS las observaciones hasta ahora:
+  holgado  <=>  v1+v2 >= 25   O   v1+v2+v3 >= 31   O   v1+v2+v3+v4 >= 40
+Casos que la obligan: (17,8,0) la cumple por la primera; (14,10,7) y (13,9,9)
+solo por la segunda; el perfil plano a nivel 10 [10,10,10,10,10,10,10] solo por
+la tercera. SIN VALIDAR A CIEGAS todavia - es una hipotesis, no una ley.
+Huele a aproximacion de una funcion de valor mas suave (tipo TSI).
+
+## FASE D - VALIDACION CIEGA (22 perfiles nuevos, regla evaluada antes de sondear)
+Resultado: 19 aciertos, 3 fallos.
+
+FALLO 1  [18,6,0,0]    dial: predicho ajustado (v1+v2=24), observado HOLGADO
+         Pero [15,9]=24 ajustado, [16,8]=24 ajustado, [12,12]=24 ajustado.
+         => misma suma, resultado opuesto. LA FORMA LINEAL v1+v2 QUEDA FALSADA.
+            La medida es convexa en v1: una habilidad muy alta ya hace raro al jugador.
+FALLO 2  [8,8,6,0]     2a: predicha exacta (v2=8<10, v3=6<7), observada BANDA
+         Unico caso de EMPATE v1=v2 a nivel bajo. Probable clausula: empate -> banda.
+FALLO 3  [10,10,10,9]  dial: predicho ajustado (top4=39), observado HOLGADO
+         => el umbral 40 del top-4 es falso; 39 ya dispara. O tambien es el empate.
+
+Aciertos notables (fronteras finas): [15,10] holgado vs [15,9] ajustado;
+[12,11,8] holgado vs [12,11,7] ajustado; [11,10,10] holgado vs [11,10,9] ajustado;
+[10,10,10,10] holgado vs [9,9,9,9] ajustado; [12,9,7] banda vs [12,9,6] exacta;
+[17,14,12] y [14,11,11] con la 3a en suelo, acertados.
+
+CONCLUSION: la ley de la 2a aguanta 21 de 22 (solo falla el empate).
+La hipotesis del dial NO aguanta: acierta 20 de 22 pero esta falsada en su forma.
+
+## FASE E - LA FRONTERA DEL DIAL, MAPEADA
+Con v3=v4=0, minimo v2 que dispara el modo holgado:
+  v1=13 -> 12 | v1=14 -> 11 | v1=15 -> 10 | v1=16 -> 9    (v1+v2 = 25 exacto)
+  v1=11 y 12 -> ninguno (ni con v2=v1)
+  v1=17 -> dispara con v2=5 (y 17+5=22, se salta la recta)
+  v1=16 v2=0 -> ajustado ; v1=18 v2=0 -> HOLGADO ; v1=20 v2=0 -> HOLGADO
+Contribucion de la 3a, despejada de las parejas frontera: v3=6 ->0, 7 ->1, 8 ->2,
+9 ->3, 10 ->4.  Es (v3 - 6).
+
+LEY DEL DIAL (ordenar las habilidades de mayor a menor, SOLO LAS CUATRO PRIMERAS):
+    S = v1 + v2 + max(0, v3-6) + max(0, v4-6)
+    holgado  <=>  S >= 25   O   v1 >= 17
+Acierta en 69 de las ~70 observaciones de todas las fases.
+
+VALIDACION CIEGA DE ESTA LEY (10 perfiles nuevos): 8 aciertos.
+  OK  [16,8,6] S=24 aju | [16,8,7] S=25 hol | [13,10,8] S=25 hol | [13,10,7] S=24 aju
+  OK  [17] hol (por la clausula v1>=17) | [12,9,8,8] S=25 hol | [20,20] hol | [11,11,11] S=27 hol
+  FALLO [9,9,9,9,9,9] predicho hol, observado ajustado
+        -> arreglado limitando la suma a las CUATRO primeras (queda S=24, ajustado).
+           Con el tope, [10x7]=28 hol OK y [5x7]=10 aju OK.
+  FALLO [12,8,8,8] S=24 predicho ajustado, observado HOLGADO  <-- SIGUE ABIERTO
+        Comparar con [9,9,9,9] S=24 ajustado. Misma S, resultado opuesto.
+        Ambos tienen empates; no hay explicacion todavia.
+
+AGUJERO CONOCIDO: perfiles con empates multiples por debajo de la primera.
+
+## FASE F - LAS PLANTILLAS POR TIPO DE JUGADOR  (hallazgo estructural)
+La lista de criterios NO va ordenada por nivel de habilidad. Hattrick clasifica al
+jugador por su habilidad dominante y aplica una PLANTILLA ordenada fija.
+Comprobado dos veces: con el resto a 0 y con el resto a 10, sale el mismo orden.
+
+domina        1o     2o     3o     4o     5o     6o
+Porteria      Por    Def    BP     Lat    Ano    Jug
+Defensa       Def    Pas    Jug    Lat    Ano    Por
+Jugadas       Jug    Pas    Def    Lat    Ano    Por
+Lateral       Lat    Jug    Pas    Def    Ano    Por
+Pases         Lat    Pas    Jug    Def    Ano    Por     <-- NO empieza por Pases
+Anotacion     Ano    Pas    Lat    Jug    Def    Por
+
+LA PRUEBA QUE LO DEMUESTRA (Pases 16, todo lo demas 0):
+  Edad = 25 | Lateral = nulo | Pases entre titanico y mitico | Jugadas <= debil | ...
+  Lateral vale CERO y aun asi es el primer criterio, y exacto. Hattrick no tiene
+  puesto de "pasador": a quien domina en Pases lo clasifica como extremo y clava
+  Lateral para separar un pasador de un extremo de verdad.
+
+El portero es el unico tipo que mete Balon parado en la plantilla, en 3er lugar.
+
+Techos del 2o puesto cuando vale 0: Porteria->Def <=1 ; los demas -> <=2.
+Los puestos 4o a 6o a 0 van todos a <=4 (ajustado) / <=5 (holgado).
+
+## FASE G - LA EDAD (17 a 33), con perfil ajustado (Def12 Jug9) y holgado (Def16 Jug12)
+edad   ajustado        holgado
+17     = 17 Dias<=24   = 17 Dias<=24     <-- aparece criterio de DIAS, solo a los 17
+18     = 18            = 18
+19     = 19            = 19
+20     = 20            = 20
+21     (no medido)     = 21
+22     -               21-23             <-- aqui empieza a seguir al dial
+23     -               22-24
+24     -               23-25
+25     = 25            24-26
+29     = 29            -
+30     = 30            29-31
+31     = 31            -
+32     31-33           31-33             <-- aqui se abre SIEMPRE
+33     32-34           32-34
+
+LEY DE LA EDAD, tres zonas:
+  17 a 21  -> SIEMPRE exacta (y a los 17, ademas, un tope de dias)
+  22 a 31  -> sigue al dial (exacta si ajustado, +-1 si holgado)
+  32 y mas -> SIEMPRE +-1
+El formulario no tiene campo de dias, asi que el "Dias <= 24" de los 17 no se
+pudo variar: queda anotado como observado, no como entendido.
+
+## FASE H - BALON PARADO (solo porteros). Base Por15 Def8, barrido de BP
+BP 0..4  -> BP<=5  (cae al monton de sobrantes)
+BP 5..15 -> banda [v-3, v+3]   (5->2-8, 10->7-13, 15->12-18)
+BP 16..20-> BP>=14  (suelo fijo en 14, no depende de v)
+Ebbesen, con 22 anotado, da BP>=14: coherente.
+CONTROL: jugador de campo Def14 Jug10 con BP 0, 12 y 20 -> criterios IDENTICOS.
+El balon parado no influye en nada fuera del portero. Confirmado.
+
+## FASE I - TECHOS Y REPARTO DE PUESTOS
+Sobrantes (puestos 4o-6o) con valor 0..4: <=4 ajustado, <=5 holgado, fijo.
+Sobrantes con valor alto (holgado): Ano5->7, Ano8->10, Ano12->14  => v+2.
+   (en ajustado solo hay un punto: plano nivel 5 dio Ano<=6 => v+1)
+2o puesto: valor 0..2 -> techo <=2 ; valor >=3 -> exacto.
+REPARTO DE PUESTOS: los puestos se llenan POR VALOR descendente, y la plantilla
+del tipo sirve de DESEMPATE.
+  Def16 Jug8 Pas0 -> Def, Jug, Pas   (Jugadas gana por valor)
+  Def16 Jug0 Pas8 -> Def, Pas, Jug
+  Def16 Jug8 Pas8 -> Def, Pas, Jug   (empate: manda la plantilla, Pas antes que Jug)
+EXCEPCION: en el tipo Pases, Lateral va forzado al primer puesto aunque valga 0.
+
+## VALIDACION CIEGA DEL MODULO COMPLETO (15 perfiles nuevos) - 8 aciertos de 15
+Aciertos exactos: (24,Def11/Jug7/Pas5) (30,Jug15/Pas12/Def7) (26,Pas13/Lat7/Jug6)
+  (29,Lat11/Pas11/Ano11) (25,Por18/Def12/BP4) (17,Def8/Jug6) (31,Por11/Def9/BP12)
+  (25,Ano16/Lat13/Pas12/Jug4)
+FALLOS, y lo que destapa cada uno:
+
+1. EL DIAL DEPENDE DEL TIPO, no solo de portero-contra-campo.
+   (13,9,9) como DEFENSA -> holgado.  (13,9,9) como EXTREMO -> ajustado.
+   (14,10,8) como DEFENSA -> holgado. (14,10,8) como DELANTERO -> ajustado.
+   Mismos numeros, distinto tipo, distinto resultado.
+
+2. HAY UN MARGEN PARA ADELANTAR DE PUESTO, y yo lo habia dado por cero.
+   Def9 Lat8 Pas7 -> Hattrick lista Def, PAS, LAT: Lateral tiene mas nivel que
+   Pases y NO le adelanta. Pero Def16 Lat9 Pas0 si adelanta.
+   Es la regla de 2009: una habilidad solo adelanta si saca a la anterior mas
+   que la diferencia que tenian en el orden inicial. El margen no esta medido.
+
+3. LA BANDA DEL BALON PARADO TAMBIEN SIGUE AL DIAL.
+   sp=9 con Por15 Def8 (holgado) -> BP 6-12, o sea [v-3,v+3].
+   sp=9 con Por14 Def6 (ajustado) -> BP 7-11, o sea [v-2,v+2].
+
+4. LA CLAUSULA "v1>=17 afloja sola" ES FALSA tal como la escribi.
+   (17,3) -> ajustado.  (17,5) -> holgado.  (18,0) -> holgado.  (16,0) -> ajustado.
+
+5. EL DESEMPATE DEL TIPO a igualdad de nivel: Def12 = Jug12 -> Hattrick elige
+   DEFENSA. Mi ORDEN_LLANO pone Jugadas antes. Y Por11 = Def11 -> elige PORTERO.
+
+## FASE J - LO QUE CERRO EL SISTEMA (tras los fallos de la validacion ciega)
+
+### El margen para adelantar de puesto = la distancia en la plantilla
+Def16, Pases 7 fijo, barriendo Lateral (Lateral esta 2 puestos detras de Pases):
+  Lat 7 -> Pas, Lat    Lat 8 -> Pas, Lat    Lat 9 -> LAT, Pas   (necesita +2)
+Def16, Pases 7 fijo, barriendo Jugadas (Jugadas esta 1 puesto detras de Pases):
+  Jug 7 -> Pas, Jug    Jug 8 -> JUG, Pas                        (necesita +1)
+Def18, Pases 10: Lat 10 y 11 no adelantan, Lat 12 si.            (+2)
+Def16, Pases 3:  Lat 4 no adelanta, Lat 5 si.                    (+2)
+=> Se ordena por (nivel - posicion en la plantilla).
+
+### Desempate del TIPO a igualdad de nivel (por eliminacion, seis a 12)
+Lateral > Anotacion > Porteria > Defensa > Jugadas > Pases
+
+### Umbral del dial POR TIPO (primera clavada en 14, barriendo la segunda)
+extremo   (14,13)=27 HOLGADO, (14,12)=26 ajustado
+delantero (14,13)=27 HOLGADO, (14,12)=26 ajustado
+medio     (14,13)=27 HOLGADO, (14,12)=26 ajustado
+defensa   (14,11)=25 HOLGADO, (14,10)=24 ajustado   <-- con Jugadas Y con Pases
+pases     (14,13)=27 HOLGADO, (14,12)=26 ajustado
+portero   (15,6)=21 HOLGADO,  (15,5)=20 ajustado
+=> portero 21, defensa 25, los demas 27.
+
+### HASTA LOS 21 NO HAY DIAL. Def17 Jug3, mismo perfil, variando la edad:
+  19 -> Ed=19 techos<=4 | 20 -> Ed=20 techos<=4 | 21 -> Ed=21 techos<=4
+  22 -> Ed21-23 techos<=5 | 25 -> Ed24-26 techos<=5
+Comprobado tambien con Def16 Jug12: a los 20 y 21 techos <=4, a los 22 <=5.
+### Y de viejo SOLO se abre la edad. Def12 Jug9 Pas5 a los 32:
+  Ed31-33 pero Pas 4-6 (banda de 3, no de 4) y Porteria <=4. El dial sigue ajustado.
+
+### El balon parado del portero NO abre la segunda
+Por14 Def6 BP9 -> Def=6 CLAVADA (si BP contara como tercera, la abriria).
+### Y su banda sigue al dial: BP9 holgado -> 6-12 ; BP9 ajustado -> 7-11.
+
+### CUARTO PUESTO de identidad, si llega a 5
+Lat10 Pas9 Jug6 Def6 -> Lat=10 Pas 8-10 Jug 5-7 Def 5-7   (cuatro criterios)
+Empatado con el tercero, baja la banda: Pas9/Def9 -> Pas 8-10 y Def 7-9.
+Sin empate va como el tercero: Jug7/Def5 -> Jug 6-8 y Def 4-6.
+
+### El pasador se clasifica por su SEGUNDA mejor
+Pas15 Jug12 Lat9 -> empieza por "Jugadas = magnifico", no por Lateral.
+Pas16 con todo a 0 -> empieza por "Lateral = nulo" (extremo por defecto).
+
+## VALIDACION CIEGA FINAL: 15 perfiles nuevos, 15 aciertos exactos.
+Historial de la validacion ciega sobre perfiles no vistos:
+  8/15  con el modelo de los primeros barridos
+  10/15 al corregir el orden (nivel - posicion) y el desempate del tipo
+  13/15 al meter el umbral por tipo y el clamp de los jovenes
+  15/15 al meter el cuarto puesto y la excepcion del balon parado del portero
+  15/15 en una tanda COMPLETAMENTE NUEVA de quince perfiles
+
+## HALLAZGO QUE CONTRADICE EL 3.63.0 (las doce semanas)
+De la primera tanda de lecturas, con la sesion del usuario, el 2026-10-10:
+
+Anders Ebbesen: 10 ventas, de 07-10-2026 a 15-09-2026. La mas vieja, 24 dias.
+Moises Llauge:  10 ventas, de 23-09-2026 a 15-04-2026.
+                23-09, 30-08, 29-08, 03-08, 04-07, 02-07, 25-05, 18-05, 17-04, 15-04
+                LA MAS VIEJA TIENE ~25 SEMANAS. Y Hattrick la sigue usando.
+
+Promedio que da Hattrick para Ebbesen: 2 776 800 US$ . Mediana: 2 729 000 US$.
+Las dos pantallas listan DIEZ ventas y ofrecen un enlace "Mostrar mas transferencias",
+lo que confirma el "last 10 similar players" del post de 2009.
+Las ventas listadas tienen especialidades y formas distintas entre si, lo que
+confirma otra vez que ni la especialidad ni la forma se filtran.
+
+=> El 2026-10-09 implementamos un borrado DURO a las doce semanas (VIDA_MAXIMA),
+   sobre la base de que Hattrick borra "hacia las 12 semanas si no hay muestra".
+   La pantalla de Hattrick ensena lo contrario: cuando no tiene nada mas fresco,
+   SE QUEDA con una venta de hace seis meses antes que dejar al jugador sin cifra.
+   Nuestra regla es MAS ESTRICTA que la del juego. Pendiente de decision del usuario.
+
+## FASE K - LOS ULTIMOS HUECOS (con la sesion recuperada)
+NOTA: la sesion va atada al SERVIDOR. Si la pestana del usuario esta en www86,
+hay que pedir a www86; www84 devuelve la pantalla de entrar.
+
+### Techo de los sobrantes, barrido entero (quinto puesto con valor propio)
+HOLGADO  (Def16 Jug12 Pas10 Lat8, moviendo Anotacion):
+  Ano 0 ->5 | 3 ->5 | 5 ->7 | 7 ->9 | 9 ->11      => fijo en 5 por debajo de 5, luego v+2
+AJUSTADO (Def9 Jug8 Pas7 Lat7, moviendo Anotacion):
+  Ano 0 ->4 | 3 ->4 | 5 ->6 | 7 ->8               => fijo en 4 por debajo de 5, luego v+1
+
+### El clamp del joven aguanta con un perfil de elite
+Def19 Jug15 edad 20 -> Ed=20, techos <=4  (AJUSTADO, pese a Defensa 19)
+Def19 Jug15 edad 22 -> Ed21-23, techos <=5
+
+### La banda del CUARTO puesto. Def14 Jug10 Pas8, moviendo Lateral:
+  Lat 5 -> 4-7 | 6 -> 5-8 | 7 -> 6-9        (estrecha)
+  Lat 8 -> 6-11 | 9 -> 7-12                 (ancha)
+  Lat 10 -> adelanta y pasa a 3o; Pases cae a 4o con 6-11
+El salto esta en OCHO en valor absoluto, no en alcanzar a la tercera:
+  Def16 Jug12 Pas10 Lat8  -> Lat 6-11  (cuarta 8, tercera 10: ancha igual)
+  Def14 Jug10 Pas8  Lat10 -> Pas 6-11  (cuarta 8, tercera 10: ancha)
+EXCEPCION: si la cuarta empata con la PRIMERA (las cuatro iguales) se queda
+pegada por debajo: [10,10,10,10] -> Def 8-10 ; [9,9,9,9] -> Def 7-9.
+Pero Def16 con las otras tres a 8 da Lat 6-11: lo que cuenta es empatar con la
+primera, no con la segunda.
+
+### EMPATE ARRIBA: el umbral del dial baja a 25
+Lateral = Anotacion, moviendo el nivel y la tercera:
+  (12,12,Pas8) rareza 26 -> HOLGADO    (12,12,Pas7) rareza 25 -> HOLGADO
+  (12,12,Pas6) rareza 24 -> ajustado   (11,11,Pas8) rareza 24 -> ajustado
+  (13,13) 26 -> HOLGADO | (12,12) 24 -> ajustado | (11,11) 22 -> ajustado
+  (14,14) 28 -> HOLGADO
+El mismo extremo SIN empate aguantaba hasta 27. Con empate, 25.
+Encaja ademas con los dos perfiles planos: [10x4] rareza 28 holgado,
+[9x4] rareza 24 ajustado, y con Def12=Jug12 Pas8 rareza 26 holgado.
+
+## SEGUNDA VALIDACION CIEGA (12 perfiles nuevos): 12 aciertos de 12.
+Total de la suite: 75 casos fijados, 27 de ellos predichos a ciegas y acertados.
