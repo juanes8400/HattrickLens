@@ -277,3 +277,31 @@ día que se vendió**, y CHPP no lo publica: `transfersplayer` devuelve el
 identificador del traspaso, el plazo, comprador, vendedor, precio y TSI, y
 ninguna habilidad. Pedir `playerdetails` hoy daría las de hoy, que no son las de
 entonces. Rellenar con eso sería meter un dato falso justo donde más duele.
+
+
+## Hasta dónde llega esto, y por qué para ahí
+
+Conviene separar tres cosas que se confunden con facilidad.
+
+**Lo que está derivado y comprobado.** El *qué*: dado un jugador, qué criterios
+pone Hattrick. Eso está completo y fijado en 84 casos contra sus propias
+respuestas, 33 de ellos predichos a ciegas. Si el juego cambia, las pruebas
+caen y se vuelve a sondear.
+
+**Lo que no se puede derivar, ni ahora ni nunca, desde fuera.** El *por qué*
+de los números. Por qué el umbral del defensa es 25 y el del extremo 27; por
+qué un empate arriba lo baja a 25; por qué una cuarta habilidad lo baja un
+punto. Todo eso está **medido y fijado**, y la aplicación lo reproduce. Pero el
+motivo vive en el código de Hattrick, y sondear la pantalla no lo revela: sólo
+revela el resultado.
+
+Se podría conjeturar --que los puestos raros necesitan aflojar antes, que un
+jugador con cuatro habilidades encaja en menos moldes-- y suena razonable. No
+está escrito como hecho porque no lo es. **Un número medido vale; una
+explicación inventada para ese número no sólo no aporta, estorba**, porque la
+próxima persona que lea esto se la creerá.
+
+**Lo que depende de datos que no existen.** Las ventas guardadas antes del
+sondeo no pueden llevar el sello, y no es un pendiente: haría falta saber las
+habilidades del vendido el día de la venta, y CHPP no las publica. La respuesta
+correcta es que se renueven solas, y así está.
