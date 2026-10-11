@@ -286,12 +286,21 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     return rareza(niveles, tipo) >= umbral or v[0] >= PRIMERA_QUE_AFLOJA_SOLA
 
 
-def _ventana_de_edad(edad: int, holgado: bool) -> tuple[int, int]:
+def _ventana_de_edad(edad: int, holgado: bool, pasador: bool = False) -> tuple[int, int]:
+    """La ventana de edad.
+
+    EL PASADOR VA POR LIBRE, otra vez. A quien lo más alto que tiene son Pases
+    la edad NO se le abre a los 32: le aguanta clavada hasta los 34. Medido
+    contra su gemelo: con Pases 13 y Jugadas 7 sale «= 32», «= 33» y «= 34»,
+    y dándole la vuelta --Jugadas 13 y Pases 7-- sale «31-33», «32-34» y
+    «33-35». Es la misma excepción que le fuerza el primer criterio, asomando
+    por otro sitio.
+    """
     if edad <= EDAD_QUE_APRIETA_TODO:
         return edad, edad
     if not holgado and edad >= EDAD_DEL_SUELO_ABIERTO:
         return EDAD_DEL_SUELO_ABIERTO, EDAD_MAXIMA_DE_LA_ESCALA
-    if edad >= EDAD_SIEMPRE_ABIERTA or holgado:
+    if (edad >= EDAD_SIEMPRE_ABIERTA and not pasador) or holgado:
         return edad - 1, edad + 1
     return edad, edad
 
@@ -410,7 +419,8 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
         else:
             salida.append(Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado)))
 
-    minima, maxima = _ventana_de_edad(edad, holgado)
+    domina = min(ORDEN_LLANO, key=lambda h: (-max(0, niveles.get(h, 0)), ORDEN_LLANO.index(h)))
+    minima, maxima = _ventana_de_edad(edad, holgado, pasador=domina == "passing")
     return Criterios(
         edad_minima=minima,
         edad_maxima=maxima,

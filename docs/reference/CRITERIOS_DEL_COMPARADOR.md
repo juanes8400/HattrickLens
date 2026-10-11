@@ -153,8 +153,15 @@ los dos modos.
 ```
 hasta 21  ->  clavada
 22 a 31   ->  clavada si ajustado, ±1 si holgado
-32 y más  ->  ±1 SIEMPRE, aunque el resto de la búsqueda siga ajustada
+32 a 34   ->  ±1 SIEMPRE, aunque el resto siga ajustada
+35 y más  ->  «>= 35», un suelo sin tope, si la búsqueda va ajustada
 ```
+
+**Al PASADOR no se le abre a los 32**: a quien lo más alto que tiene son Pases
+la edad le aguanta clavada hasta los 34. Dándole la vuelta al mismo par de
+habilidades cambia el resultado --Pases 13 y Jugadas 7 da `= 33`, y Jugadas 13
+con Pases 7 da `32-34`--. Es la misma excepción que le fuerza el primer
+criterio, asomando por otro sitio.
 
 **A los 17, y sólo a los 17**, aparece además un tope de días (`Días <= 24`).
 El número es **fijo**: se pidió el mismo perfil de 17 años desde la ficha de un
@@ -180,6 +187,11 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
+- **Cuándo una habilidad de unos 5 se gana criterio propio.** Es el único hueco
+  de comportamiento que queda. Tres jugadores reales con Anotación 5: a dos
+  Hattrick les pone techo y al tercero le da banda, y a ése además le deja la
+  segunda clavada. Cinco observaciones, tres comportamientos. No da para una
+  regla y no se inventa una.
 - **Por qué el empate arriba baja el umbral a 25**, y por qué la cuarta lo baja
   exactamente un punto. Los números están medidos; el motivo es conjetura.
 - **Qué pasa por encima de 20** en el balón parado del portero. Ebbesen tiene

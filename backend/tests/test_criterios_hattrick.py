@@ -556,6 +556,19 @@ OBSERVADO: list[tuple[str, int, dict[str, int], str]] = [
     ("pero con la busqueda holgada sigue siendo ventana", 35,
      perfil(defending=16, playmaking=12),
      "Ed34-36 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
+    # --- Al pasador la edad no se le abre a los 32 (2026-10-11)
+    ("el perfil que mando el usuario, clavado", 23,
+     perfil(keeper=1, defending=10, playmaking=3, winger=4, passing=10, scoring=3, set_pieces=6),
+     "Ed=23 Def=10 Pas 9-11 Lat<=4 Jug<=4 Ano<=4 Por<=4"),
+    ("pasador de 33: edad clavada", 33, perfil(passing=13, playmaking=7, defending=5),
+     "Ed=33 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
+    ("pasador de 34: todavia clavada", 34, perfil(passing=13, playmaking=7, defending=5),
+     "Ed=34 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
+    ("pero al medio de 33 si se le abre", 33, perfil(playmaking=13, passing=7, defending=5),
+     "Ed32-34 Jug=13 Pas=7 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
+    ("y al pasador a los 35 tambien se le abre el suelo", 35,
+     perfil(passing=13, playmaking=7, defending=5),
+     "Ed35-99 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
 ]
 
 

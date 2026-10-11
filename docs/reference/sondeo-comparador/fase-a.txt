@@ -439,3 +439,34 @@ Pero 497733329 (Lat10 Pas7 Jug5 Ano5) si recibe banda en Anotacion.
 La diferencia parece estar en la POSICION DE PLANTILLA de la habilidad y en lo
 flojas que sean las tres de arriba, pero con cuatro observaciones no da para
 una regla. ABIERTO, y anotado como tal en vez de inventado.
+
+## FASE N - LA CAUSA 2, CERRADA: al PASADOR no se le abre la edad a los 32
+Siete perfiles de DEFENSA a los 33, con rarezas de 18 a 21: todos dan banda.
+No es la rareza. Y los cinco tipos (defensa, medio, extremo, delantero,
+portero) se comportan igual: 31 clavada, 32 banda, 33 banda. Tampoco es el tipo.
+
+Lo que lo distingue es que lo mas alto sean PASES, o sea el caso reclasificado:
+  Pas13 Jug7      -> ed32 «= 32»   ed33 «= 33»   ed34 «= 34»   ed35 «>= 35»
+  Pas12 Jug8      -> ed32 «= 32»   ed33 «= 33»   ed34 «= 34»   ed35 «>= 35»
+  Jug13 Pas7 Def5 -> ed32 «31-33»  ed33 «32-34»  ed34 «33-35»  ed35 «>= 35»
+Dandole la vuelta al mismo par de habilidades cambia el resultado. Es la misma
+excepcion del pasador que le fuerza el primer criterio, asomando por otro sitio.
+IMPLEMENTADO.
+
+## VALIDACION CONTRA LA PLANTILLA REAL, segunda pasada: 21 de 24 (eran 17).
+Los tres que quedan son TODOS la misma causa, la unica abierta:
+  475735542 (Ano 5, tercera en 11) -> HT le pone techo; el modulo le da banda.
+  498724298 (Ano 5, tercera en 6)  -> HT techo; el modulo banda.
+  497733329 (Ano 5, tercera en 5)  -> HT le da BANDA, y ademas deja la segunda
+                                      clavada donde el modulo la abre.
+Con el barrido de Def12 Jug9 Pas8 + Anotacion de 4 a 7 siempre salia techo.
+Cinco observaciones, tres comportamientos. NO da para una regla. Sigue abierta.
+
+## PREDICCION A CIEGAS DEL PERFIL QUE MANDO EL USUARIO (2026-10-11)
+Edad 23, Por1 Def10 Jug3 Lat4 Pas10 Ano3 BP6.
+Predicho: Ed=23 | Def=10 | Pas 9-11 | Lat<=4 | Jug<=4 | Ano<=4 | Por<=4
+Hattrick: identico, criterio por criterio y en el mismo orden.
+Lo dificil estaba en dos sitios: que solo hay DOS criterios de identidad --el
+Lateral se queda en 4 y el umbral de entrada al tercero es 5-- y que el Lateral
+va antes que Jugadas pese a ir dos puestos mas atras, porque empatan en
+«nivel - posicion» a 1 y desempata el nivel mas alto.
