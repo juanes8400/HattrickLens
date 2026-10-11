@@ -546,6 +546,16 @@ OBSERVADO: list[tuple[str, int, dict[str, int], str]] = [
      "Ed25-27 Def=14 Pas 11-13 Lat>=11 Jug 6-11 Ano<=5 Por<=5"),
     ("ciego3: chaval de 17", 17, perfil(defending=10, playmaking=8),
      "Ed=17 Def=10 Jug=8 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    # --- La edad de los mayores: suelo abierto, no ventana (2026-10-11)
+    ("a los 34 todavia es ventana", 34, perfil(defending=12, playmaking=9),
+     "Ed33-35 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("a los 35 se abre por arriba y no se cierra", 35, perfil(defending=12, playmaking=9),
+     "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("y a los 40 sigue siendo el mismo suelo", 40, perfil(defending=12, playmaking=9),
+     "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("pero con la busqueda holgada sigue siendo ventana", 35,
+     perfil(defending=16, playmaking=12),
+     "Ed34-36 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
 ]
 
 

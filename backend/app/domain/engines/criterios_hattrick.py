@@ -159,6 +159,15 @@ HABILIDADES_QUE_CUENTAN = 4
 #: perfil ajustado, la edad sale 31-33 pero los techos siguen en 4 y la banda
 #: de la tercera sigue midiendo tres.
 EDAD_SIEMPRE_ABIERTA = 32
+#: Y de aquí en adelante, si la búsqueda va ajustada, la edad deja de ser una
+#: ventana y pasa a ser un SUELO abierto: «Edad >= 35», sin tope por arriba.
+#: Medido con un perfil ajustado: 32→31-33, 33→32-34, 34→33-35 y 35, 36 y 40
+#: todos a «>= 35». Con un perfil holgado no pasa: 35→34-36 y 36→35-37.
+#:
+#: No se habia visto antes porque el sondeo se acoto a 17-33 anos por decision
+#: del usuario. Salio al validar contra su plantilla real, donde hay fichas de
+#: 41 y 43 anos.
+EDAD_DEL_SUELO_ABIERTO = 35
 #: A los 17, y sólo a los 17, Hattrick añade un tope de días. El número es
 #: FIJO, no sale del jugador: se pidió el mismo perfil de 17 años desde la
 #: ficha de uno de 2 días y desde la de uno de 20, y las dos veces salió 24.
@@ -202,6 +211,10 @@ class Criterios:
 
 
 MAXIMO_DE_LA_ESCALA = 20
+
+#: Lo que llega el desplegable de edad del panel. Se usa como tope del suelo
+#: abierto de los mayores, que no tiene maximo de verdad.
+EDAD_MAXIMA_DE_LA_ESCALA = 99
 
 
 def _tipo(niveles: dict[str, int]) -> str:
@@ -276,6 +289,8 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
 def _ventana_de_edad(edad: int, holgado: bool) -> tuple[int, int]:
     if edad <= EDAD_QUE_APRIETA_TODO:
         return edad, edad
+    if not holgado and edad >= EDAD_DEL_SUELO_ABIERTO:
+        return EDAD_DEL_SUELO_ABIERTO, EDAD_MAXIMA_DE_LA_ESCALA
     if edad >= EDAD_SIEMPRE_ABIERTA or holgado:
         return edad - 1, edad + 1
     return edad, edad

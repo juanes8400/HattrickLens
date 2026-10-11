@@ -407,3 +407,35 @@ rareza 24) y [10,10,10,10] sigue holgado (rareza 28).
 
 ## TERCERA VALIDACION CIEGA (6 perfiles nuevos): 5 de 6 antes de esta regla,
 ## 6 de 6 despues. Total de la suite: 84 casos fijados.
+
+## FASE M - VALIDACION CONTRA LA PLANTILLA REAL (2026-10-11)
+24 jugadores reales del usuario, predichos a ciegas y comparados con su pantalla.
+RESULTADO: 17 aciertos, 7 fallos. Los fallos se agrupan en TRES causas, y
+ninguna de las tres podia salir de los perfiles sinteticos.
+
+### CAUSA 1 (3 fallos) - La edad de los mayores es un SUELO ABIERTO
+Fichas de 41 y 43 anos daban "Edad >= 35" y el modulo predecia una ventana.
+Barrido posterior, perfil AJUSTADO (Def12 Jug9):
+  32 -> 31-33 | 33 -> 32-34 | 34 -> 33-35 | 35 -> >=35 | 36 -> >=35 | 40 -> >=35
+Perfil HOLGADO (Def16 Jug12), en cambio, sigue siendo ventana:
+  33 -> 32-34 | 34 -> 33-35 | 35 -> 34-36 | 36 -> 35-37
+=> ajustado y 35 o mas: "Edad >= 35", sin tope. Ya implementado.
+NO SE HABIA VISTO porque el sondeo se acoto a 17-33 por decision del usuario.
+
+### CAUSA 2 (1 fallo) - 461351045, de 34 anos
+HT: "Ed=34" exacta. El modulo decia 33-35.
+El barrido de arriba dice 34 -> 33-35 con perfil ajustado, asi que este jugador
+hace algo distinto. Su perfil es Pas13 Jug7 Def5, tipo "pases" --que se
+clasifica por la segunda mejor--. ABIERTO.
+
+### CAUSA 3 (3 fallos) - Cuando una habilidad llega a ser CUARTO criterio
+475735542: Ano~5 -> HT le pone techo (Ano<=7); el modulo le daba banda.
+498724298: Ano~5 -> HT techo (Ano<=6); el modulo banda.
+497733329: Ano~5 -> HT le da BANDA (Ano 4-6). Lo contrario que los dos de arriba.
+Barrido con Def12 Jug9 Pas8 y Anotacion de 4 a 7: SIEMPRE techo, nunca banda,
+ni siquiera con 7.
+  Ano 4 -> <=4 | Ano 5 -> <=6 | Ano 6 -> <=7 | Ano 7 -> <=8
+Pero 497733329 (Lat10 Pas7 Jug5 Ano5) si recibe banda en Anotacion.
+La diferencia parece estar en la POSICION DE PLANTILLA de la habilidad y en lo
+flojas que sean las tres de arriba, pero con cuatro observaciones no da para
+una regla. ABIERTO, y anotado como tal en vez de inventado.
