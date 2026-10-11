@@ -2,8 +2,10 @@
 
 **Fecha del sondeo:** 2026-10-10
 **Estado de la evidencia:** derivado del propio juego, preguntándoselo
-**Validación:** 55 casos fijados en `backend/tests/test_criterios_hattrick.py`,
-de los cuales 15 se predijeron a ciegas antes de consultarlos y acertaron los 15.
+**Validación:** 84 casos fijados en `backend/tests/test_criterios_hattrick.py`,
+de los cuales **33 se predijeron a ciegas** —la regla escrita primero, la
+consulta después— en tres tandas separadas de perfiles nunca vistos, y acertó
+los 33. La primera vez que se hizo esa prueba acertaba 8 de 15.
 
 ## Qué es esto
 
