@@ -1760,3 +1760,9 @@ class MarketSale(Base):
     tsi: Mapped[int] = mapped_column(Integer, default=0)
     #: El pais de nacimiento, para la bandera de la tabla.
     country_id: Mapped[int] = mapped_column(Integer, default=0)
+    #: Las SIETE habilidades, en JSON (2026-10-10). Las tres de arriba bastan
+    #: para nuestra escalera, pero no para la regla del propio Hattrick, que
+    #: mira tambien la cuarta y pone tope a las demas. Nulo en las ventas
+    #: anteriores a esta columna: esas no pueden llevar el sello del juego, y
+    #: se miden con nuestra escalera como siempre.
+    skills_json: Mapped[str | None] = mapped_column(String(512), nullable=True)

@@ -67,13 +67,17 @@ def _fila(ident: int, *, puja: int = 4_000_000, **extra: Any) -> dict[str, Any]:
 def _venta(ident: int, *, semanas: float = 0, exacta: bool = True) -> Guardado:
     """Una venta del fondo.
 
-    `exacta=False` la baja un nivel en la primaria, o sea a un 85%. Hace
-    falta desde el 2026-10-07: un comparable al 100% ya NO caduca, asi que
-    para probar la caducidad hay que usar un parecido.
+    `exacta=False` la baja un nivel en la SEGUNDA, o sea a un 90%. Hace falta
+    desde el 2026-10-07: un comparable que no caduca --el exacto y el que avala
+    Hattrick-- no sirve para probar la caducidad.
+
+    Era la primaria hasta el 2026-10-10. Dejo de valer cuando se cayo el
+    escalon de 85: con la primera desviada un nivel ya no hay comparable, ni
+    suyo ni nuestro.
     """
     skills = dict(SKILLS)
     if not exacta:
-        skills["scoring"] = skills["scoring"] - 1
+        skills["passing"] = skills["passing"] - 1
     tres = terna(skills)
     assert tres is not None
     return Guardado(
@@ -117,7 +121,7 @@ async def test_con_el_fondo_vivo_el_turno_solo_gasta_el_escalon_exacto() -> None
     turno es lo unico que hace que no envejezca de verdad.
     """
     mercado = _Mercado()
-    r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 7)])
+    r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 9)])
     assert r.busquedas == 1
     assert len(mercado.pedidas) == 1
     exacta = mercado.pedidas[0]
@@ -132,14 +136,15 @@ async def test_desde_cero_se_para_en_el_escalon_que_completa_el_fondo() -> None:
     aunque la escalera tenga cinco escalones."""
     mercado = _Mercado(
         [_fila(1), _fila(2)],
-        [_fila(3), _fila(4), _fila(5), _fila(6)],
+        [_fila(3), _fila(4), _fila(5), _fila(6), _fila(7), _fila(8)],
         [_fila(90), _fila(91)],  # este escalon no deberia pedirse nunca
     )
     r = await _turno(mercado)
     assert r.busquedas == 2
     assert len(r.nuevas) == OBJETIVO
     assert r.agotada is False
-    assert [v.peso for v in mercado.pedidas] == [100, 90]
+    # La primera pedida es la ventana de HATTRICK y la segunda nuestro exacto.
+    assert [v.peso for v in mercado.pedidas] == [100, 95]
 
 
 async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
@@ -158,7 +163,7 @@ async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
 async def test_si_la_escalera_no_basta_queda_constancia() -> None:
     mercado = _Mercado([_fila(1)])
     r = await _turno(mercado)
-    assert r.busquedas == len(ESCALERA)
+    assert r.busquedas == len(ESCALERA) + 1, "la escalera mas la ventana de Hattrick"
     assert r.agotada is True
     assert r.estimacion.suficiente is False
     assert r.estimacion.media is None
@@ -168,13 +173,13 @@ async def test_lo_fresco_del_fondo_ahorra_escalones() -> None:
     """El fondo es del equipo: lo que trajo la busqueda de otro jugador vale
     para este si se le parece, y entonces basta con completar lo que falta."""
     mercado = _Mercado([_fila(9)])
-    r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 6)])
+    r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 8)])
     assert r.busquedas == 1
-    # Cinco ventas cerradas del fondo mas el anuncio recien encontrado llenan
-    # las seis plazas, y por eso basta un escalon. En el NUMERO entran solo
-    # las cinco cerradas, que es otra cuenta (2026-10-09).
+    # Siete ventas cerradas del fondo mas el anuncio recien encontrado llenan
+    # las ocho plazas, y por eso basta un escalon. En el NUMERO entran solo
+    # las siete cerradas, que es otra cuenta (2026-10-09).
     assert sum(1 for c in r.estimacion.comparables if c.ocupa) == OBJETIVO
-    assert r.estimacion.n == 5
+    assert r.estimacion.n == 7
     assert len(r.nuevas) == 1
 
 
@@ -184,12 +189,12 @@ async def test_lo_caducado_cuenta_y_YA_NO_manda_a_buscar() -> None:
     sustituto: «se busca cuando nos quedemos sin datos», y el refresco lo
     lleva el calendario."""
     mercado = _Mercado([_fila(9)])
-    # Seis caducadas, y PARECIDAS: al 100% ya no caducarian. Seis y no cinco
+    # Ocho caducadas, y PARECIDAS: al 100% ya no caducarian. Ocho y no siete
     # porque el numero sale solo de ventas cerradas desde el 2026-10-09, y lo
     # que esta prueba defiende es que una venta vieja SIGUE dando numero.
-    fondo = [_venta(i, semanas=9, exacta=False) for i in range(1, 7)]
+    fondo = [_venta(i, semanas=9, exacta=False) for i in range(1, 9)]
     r = await _turno(mercado, fondo=fondo)
-    # Un solo escalon, el exacto, que se recorre siempre: con seis ocupando
+    # Un solo escalon, el exacto, que se recorre siempre: con ocho ocupando
     # plaza no falta nada, caducadas o no.
     assert r.busquedas == 1
     assert r.estimacion.n == OBJETIVO
@@ -211,7 +216,7 @@ async def test_un_anuncio_sin_puja_no_se_anota_nunca() -> None:
     r = await _turno(mercado)
     assert {v.ht_player_id for v in r.nuevas} == {1}
     # Y se recorrio la escalera entera buscando lo que si sirve.
-    assert r.busquedas == len(ESCALERA)
+    assert r.busquedas == len(ESCALERA) + 1
 
 
 async def test_un_mercado_entero_sin_pujas_no_deja_nada(_mercado=None) -> None:
@@ -228,9 +233,9 @@ async def test_un_mercado_entero_sin_pujas_no_deja_nada(_mercado=None) -> None:
 async def test_todo_lo_que_entra_queda_anotado_para_resolver() -> None:
     """Mientras tanto vale su puja, que se queda corta: Valerio tenia 65
     millones y cerro en 77,7."""
-    mercado = _Mercado([_fila(i) for i in range(1, 7)])
+    mercado = _Mercado([_fila(i) for i in range(1, 9)])
     r = await _turno(mercado)
-    assert {p.ht_player_id for p in r.por_resolver} == set(range(1, 7))
+    assert {p.ht_player_id for p in r.por_resolver} == set(range(1, 9))
     assert all(p.plazo == "2026-10-08 20:00:00" for p in r.por_resolver)
     assert all(not v.firme for v in r.nuevas)
     assert r.estimacion.provisionales == OBJETIVO

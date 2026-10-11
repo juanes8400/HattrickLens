@@ -391,9 +391,11 @@ async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
     # nube, y es justo lo que luego dibuja la grafica.
     assert puntos[0].n == 0
     assert puntos[0].mean_price is None
-    # Y lleva la nube, no solo la media: seis precios, los seis sin cerrar.
+    # Y lleva la nube, no solo la media: los seis precios que trajo la
+    # busqueda, los seis sin cerrar. Son menos que OBJETIVO --que desde el
+    # 2026-10-10 son ocho-- y por eso la lectura va sin numero.
     nube = json.loads(puntos[0].prices_json)
-    assert len(nube) == OBJETIVO
+    assert len(nube) == 6
     assert all(p["firme"] is False for p in nube)
     assert {p["precio"] for p in nube} == {1_000_000}
 
@@ -578,42 +580,3 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
     assert len(preguntas) == 2
 
 
-async def test_el_paso_barre_lo_de_mas_de_doce_semanas(base) -> None:
-    """El barrido borra de verdad, una vez al dia (2026-10-09).
-
-    Regla que el usuario trajo del Comparador de Transferencias de Hattrick:
-    si no hay muestra, las ventas se borran hacia las doce semanas. Aqui se
-    comprueba que se van de la TABLA, no solo del calculo: el fondo es
-    material de trabajo, y lo que se conserva para la historia son las
-    lecturas, que viven aparte en `market_estimates`.
-    """
-    session, equipo = base
-    await correr_el_paso_semanal(
-        session,
-        equipo,
-        buscar=_MercadoFalso([_fila_de_mercado(900)]),
-        historial_de=_sin_historial,
-        ahora=AHORA,
-    )
-    antes = (
-        (await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == equipo.id)))
-        .scalars()
-        .all()
-    )
-    assert len(antes) == 1
-
-    # Trece semanas despues: ni se busca para el, ni se queda.
-    paso = await correr_el_paso_semanal(
-        session,
-        equipo,
-        buscar=_MercadoFalso(),
-        historial_de=_sin_historial,
-        ahora=AHORA + timedelta(weeks=13),
-    )
-    assert paso.caducadas == 1
-    quedan = (
-        (await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == equipo.id)))
-        .scalars()
-        .all()
-    )
-    assert quedan == []

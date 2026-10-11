@@ -276,8 +276,13 @@ export interface ComparableDeMercado {
   puja: number;
   /** Si entra en el número. Falso sólo para un provisional abandonado. */
   cuenta: boolean;
-  /** Cuánto se parece, del 100% al 75%. */
+  /** Cuánto se parece, del 100% al 75%. Es NUESTRA medida. */
   peso: number;
+  /** Si el propio Hattrick enseñaría esta venta al comparar a este jugador,
+   *  comprobado contra la regla que se le sondeó el 2026-10-10. Va aparte del
+   *  peso y no lo cambia. Falso en las ventas guardadas antes de esa fecha,
+   *  de las que no se anotaron las siete habilidades. */
+  avaladoPorHattrick: boolean;
   /** Falso mientras sea una puja en curso y no una venta cerrada. */
   firme: boolean;
   /** Ya cumplió sus siete semanas y sigue por no haber nada mejor. */

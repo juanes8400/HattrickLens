@@ -16,6 +16,7 @@ usuario el 2026-10-06, porque si alguien la "mejora" el motor sigue devolviendo
 un número y el número es otro.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from app.domain.engines.mercado_comparable import (
@@ -31,18 +32,19 @@ from app.domain.engines.mercado_comparable import (
     Objetivo,
     candidato_de,
     comparables_de,
-    demasiado_vieja,
     cosecha,
     cuenta_para_el_numero,
     estimar,
     frontera_semanal,
     hay_que_buscar,
     le_toca,
+    lo_ensenaria_hattrick,
     objetivo_de,
     peso_de,
     plan_de_busqueda,
     reemplazable,
     terna,
+    ventana_de,
 )
 
 AHORA = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
@@ -180,22 +182,35 @@ def test_sin_ninguna_habilidad_no_hay_terna_ni_objetivo() -> None:
 
 
 def test_la_escalera_es_exactamente_la_que_dicto_el_usuario() -> None:
-    """Los cinco escalones, uno a uno, para que nadie los "mejore" sin hablar
-    con él. La terciaria no está aquí porque va igual en todos."""
+    """Los escalones, uno a uno, para que nadie los "mejore" sin hablar con él.
+    La terciaria no está aquí porque va igual en todos.
+
+    CAMBIO EL 2026-10-10, y lo decidió él: el 100 % dejó de ser nuestro y pasó
+    a significar «esto lo enseñaría Hattrick», asi que el primer escalon baja a
+    95. Y se cayo el de 85 --edad clavada, primaria a mas o menos uno--: de
+    5801 pares que entraban SOLO por ahi, el juego no habria ensenado ni uno,
+    porque el nunca mueve la primera habilidad.
+    """
     leida = [(e.edad_desde, e.edad_hasta, e.primaria, e.secundaria, e.peso) for e in ESCALERA]
     assert leida == [
-        (0, 0, 0, 0, 100),
+        (0, 0, 0, 0, 95),
         (0, 0, 0, 1, 90),
-        (0, 0, 1, 1, 85),
         (1, 1, 1, 1, 80),
         (-1, -1, 1, 1, 75),
     ]
 
 
 def test_la_terciaria_lleva_la_misma_ventana_en_todos_los_escalones() -> None:
-    """Un nivel por encima y dos por debajo, siempre."""
+    """Un nivel por encima y dos por debajo, siempre.
+
+    En NUESTROS escalones. La ventana de Hattrick, que desde el 2026-10-10 va
+    la primera del plan, tiene su propia regla para la tercera y no pasa por
+    aqui: ver `criterios_hattrick`.
+    """
     assert (TERCIARIA_ARRIBA, TERCIARIA_ABAJO) == (1, 2)
-    for ventana in plan_de_busqueda(_objetivo()):
+    for escalon in ESCALERA:
+        ventana = ventana_de(_objetivo(), escalon)
+        assert ventana is not None
         assert ventana.terciaria.minimo == 7 - TERCIARIA_ABAJO
         assert ventana.terciaria.maximo == 7 + TERCIARIA_ARRIBA
 
@@ -213,10 +228,13 @@ def test_las_ventanas_son_las_que_se_le_piden_al_mercado() -> None:
         )
         for v in plan_de_busqueda(_objetivo())
     ]
+    # La primera es la de HATTRICK (2026-10-10): su ventana de edad, su
+    # primera habilidad clavada y su banda para la segunda. Las demas son
+    # nuestra escalera, por debajo.
     assert leidas == [
-        (100, 31, 31, 18, 18, 13, 13),
+        (100, 30, 32, 18, 18, 12, 14),
+        (95, 31, 31, 18, 18, 13, 13),
         (90, 31, 31, 18, 18, 12, 14),
-        (85, 31, 31, 17, 19, 12, 14),
         (80, 32, 32, 17, 19, 12, 14),
         (75, 30, 30, 17, 19, 12, 14),
     ]
@@ -226,9 +244,9 @@ def test_un_escalon_que_pedira_menos_de_diecisiete_anos_no_se_pide() -> None:
     """Gastar una llamada en un tramo donde no hay nadie es tirar cuota."""
     plan = plan_de_busqueda(_objetivo(edad=17))
     assert all(v.edad_minima >= 17 for v in plan)
-    assert len(plan) == len(ESCALERA) - 1
+    assert len(plan) == len(ESCALERA)
     # Y los que quedan conservan su peso: no se renumeran.
-    assert [v.peso for v in plan] == [100, 90, 85, 80]
+    assert [v.peso for v in plan] == [100, 95, 90, 80]
 
 
 # --------------------------------------------------------------------------
@@ -239,12 +257,18 @@ def test_un_escalon_que_pedira_menos_de_diecisiete_anos_no_se_pide() -> None:
 def test_cada_escalon_cobra_lo_que_le_toca() -> None:
     objetivo = _objetivo()
     assert peso_de(_candidato(), objetivo) == 100
-    assert peso_de(_candidato(scoring=18, passing=14, playmaking=7), objetivo) == 90
-    assert peso_de(_candidato(scoring=18, passing=12, playmaking=7), objetivo) == 90
-    assert peso_de(_candidato(scoring=17, passing=13, playmaking=7), objetivo) == 85
-    assert peso_de(_candidato(scoring=19, passing=13, playmaking=7), objetivo) == 85
-    assert peso_de(_candidato(edad=32), objetivo) == 80
-    assert peso_de(_candidato(edad=30), objetivo) == 75
+    # La segunda a mas o menos uno: Hattrick tambien los ensenaria, porque su
+    # criterio para la segunda es una banda. Asi que cobran 100, no 90.
+    assert peso_de(_candidato(scoring=18, passing=14, playmaking=7), objetivo) == 100
+    assert peso_de(_candidato(scoring=18, passing=12, playmaking=7), objetivo) == 100
+    # La PRIMERA a mas o menos uno ya no vale nada (2026-10-10): era el escalon
+    # de 85 y se cayo, porque Hattrick nunca mueve la primera habilidad.
+    assert peso_de(_candidato(scoring=17, passing=13, playmaking=7), objetivo) is None
+    assert peso_de(_candidato(scoring=19, passing=13, playmaking=7), objetivo) is None
+    # Un ano arriba con las habilidades clavadas cae DENTRO de la ventana de
+    # Hattrick, que es de mas o menos un ano: se lleva el 100 % suyo.
+    assert peso_de(_candidato(edad=32), objetivo) == 100
+    assert peso_de(_candidato(edad=30), objetivo) == 100
 
 
 def test_fuera_de_la_escalera_no_hay_peso() -> None:
@@ -260,14 +284,27 @@ def test_la_terciaria_admite_uno_arriba_y_dos_abajo_y_ni_uno_mas() -> None:
     parte de "exactamente el mismo tipo de jugador"."""
     objetivo = _objetivo()
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=8), objetivo) == 100
-    assert peso_de(_candidato(scoring=18, passing=13, playmaking=5), objetivo) == 100
+    assert peso_de(_candidato(scoring=18, passing=13, playmaking=5), objetivo) == 95
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=9), objetivo) is None
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=4), objetivo) is None
 
 
-def test_dos_cosas_abiertas_a_la_vez_pagan_el_escalon_donde_las_dos_caben() -> None:
+def test_la_ventana_de_hattrick_se_traga_el_ano_y_la_segunda_pero_no_la_primera() -> None:
+    """Como queda el reparto desde el 2026-10-10.
+
+    Hattrick es MAS ANCHO que nosotros en la edad y en la segunda habilidad
+    --su ventana de edad es de mas o menos un ano y su segunda es una banda--,
+    asi que un candidato que abra esas dos a la vez se lleva el 100 % suyo en
+    vez de nuestro 80 %.
+
+    Y es MAS ESTRECHO en la primera, que el no mueve nunca. Ahi esta el muro:
+    con la primaria desviada un solo nivel ya no hay comparable, ni suyo ni
+    nuestro, porque nuestro escalon de 85 se cayo por inutil.
+    """
     objetivo = _objetivo()
-    assert peso_de(_candidato(edad=32, scoring=17, passing=12, playmaking=7), objetivo) == 80
+    assert peso_de(_candidato(edad=32, scoring=18, passing=12, playmaking=7), objetivo) == 100
+    # Pero con la primaria desviada ya no lo avala el: cae a NUESTRO escalon
+    # de edad, que si la admite a mas o menos uno.
     assert peso_de(_candidato(edad=30, scoring=19, passing=14, playmaking=7), objetivo) == 75
 
 
@@ -354,10 +391,10 @@ def test_nadie_se_cuenta_dos_veces() -> None:
 def test_cada_uno_viaja_con_el_peso_del_escalon_que_lo_admite() -> None:
     con, _ = cosecha(
         _objetivo(),
-        [_fila(1), _fila(2, skills=_hab(scoring=17, passing=13, playmaking=7))],
+        [_fila(1), _fila(2, skills=_hab(scoring=18, passing=12, playmaking=7))],
         mi_equipo=MI_EQUIPO,
     )
-    assert dict((c.ht_player_id, p) for c, p in con) == {1: 100, 2: 85}
+    assert dict((c.ht_player_id, p) for c, p in con) == {1: 100, 2: 100}
 
 
 # --------------------------------------------------------------------------
@@ -375,12 +412,12 @@ def test_una_venta_vive_siete_semanas_y_luego_queda_reemplazable() -> None:
 
 def test_una_venta_se_vuelve_a_medir_contra_quien_pregunte() -> None:
     """LA prueba del fondo compartido. La misma venta vale 100% para el jugador
-    al que se parece y 85% para otro con un nivel menos de anotacion, sin
+    al que se parece y 90% para otro con un nivel menos de pases, sin
     gastar una sola llamada."""
     venta = _guardado(1)
-    assert _medidos(venta)[0].peso == 100
-    otro = _objetivo(scoring=17, passing=13, playmaking=7)
-    assert _medidos(venta, objetivo=otro)[0].peso == 85
+    assert _medidos(venta)[0].peso == 95
+    otro = _objetivo(scoring=18, passing=12, playmaking=7)
+    assert _medidos(venta, objetivo=otro)[0].peso == 90
 
 
 def test_una_venta_que_no_se_parece_a_quien_pregunta_no_entra() -> None:
@@ -390,13 +427,13 @@ def test_una_venta_que_no_se_parece_a_quien_pregunta_no_entra() -> None:
 
 def test_el_peso_manda_por_encima_de_la_frescura() -> None:
     """El usuario dijo que un comparable nunca se reemplaza por algo de menor
-    peso, asi que una venta caducada al 100% va por delante de una recien
-    encontrada al 85%."""
+    peso, asi que una venta caducada al 95% va por delante de una recien
+    encontrada al 90%."""
     vieja = _guardado(1, semanas=9)
-    reciente = _guardado(2, semanas=0, scoring=17, passing=13, playmaking=7)
+    reciente = _guardado(2, semanas=0, scoring=18, passing=12, playmaking=7)
     elegidos = _medidos(reciente, vieja)
     assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
-    assert [c.peso for c in elegidos] == [100, 85]
+    assert [c.peso for c in elegidos] == [95, 90]
     # Y la de veinte semanas NO cuenta como vieja, porque es un 100%: desde
     # el 2026-10-07 la caducidad solo alcanza a los parecidos.
     assert elegidos[0].viejo is False
@@ -434,15 +471,15 @@ def test_se_devuelven_mas_de_seis_si_empatan_con_el_sexto() -> None:
 
 
 def test_los_peores_se_quedan_fuera_cuando_hay_de_sobra() -> None:
-    buenos = [_guardado(i) for i in range(1, 7)]
-    flojo = _guardado(99, scoring=17, passing=13, playmaking=7)
+    buenos = [_guardado(i) for i in range(1, 9)]
+    flojo = _guardado(99, scoring=18, passing=12, playmaking=7)
     elegidos = _medidos(*buenos, flojo)
     assert 99 not in [c.venta.ht_player_id for c in elegidos]
     assert len(elegidos) == OBJETIVO
 
 
 def test_con_seis_vivos_su_turno_no_gasta_ni_una_llamada() -> None:
-    assert hay_que_buscar(_medidos(*(_guardado(i, semanas=1) for i in range(1, 7)))) is False
+    assert hay_que_buscar(_medidos(*(_guardado(i, semanas=1) for i in range(1, 9)))) is False
 
 
 def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
@@ -458,15 +495,15 @@ def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
     anchos otra vez, hasta cinco semanas despues.
     """
     # Cinco de seis: falta uno, se busca.
-    assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 6)))) is True
+    assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 8)))) is True
 
     # Seis, con uno PARECIDO y caducado: ya no se busca por eso.
-    primo_viejo = _guardado(1, semanas=9, scoring=17, passing=13, playmaking=7)
-    con_uno_viejo = [primo_viejo, *(_guardado(i, semanas=1) for i in range(2, 7))]
+    primo_viejo = _guardado(1, semanas=9, scoring=18, passing=12, playmaking=7)
+    con_uno_viejo = [primo_viejo, *(_guardado(i, semanas=1) for i in range(2, 9))]
     assert hay_que_buscar(_medidos(*con_uno_viejo)) is False
 
     # Y uno exacto caducado tampoco, que ya era asi: el 100 % no caduca.
-    exacto_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 7))]
+    exacto_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 9))]
     assert hay_que_buscar(_medidos(*exacto_viejo)) is False
 
 
@@ -482,46 +519,40 @@ def test_con_menos_de_seis_no_hay_numero_pero_si_lista() -> None:
     assert e.n == OBJETIVO - 1
 
 
-def test_con_seis_al_mismo_peso_la_media_es_la_de_siempre() -> None:
-    precios = [1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_000_000]
+def test_con_ocho_al_mismo_peso_la_media_es_la_de_siempre() -> None:
+    precios = [1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_000_000,
+               7_000_000, 8_000_000]
     e = estimar(_medidos(*(_guardado(i, precio=p) for i, p in enumerate(precios, start=1))))
     assert e.suficiente is True
-    assert e.media == 3_500_000
-    assert e.mediana == 3_500_000
+    assert e.media == 4_500_000
+    assert e.mediana == 4_500_000
 
 
 def test_los_pesos_mueven_la_media_y_se_comprueba_a_mano() -> None:
-    flojo = {"scoring": 17, "passing": 13, "playmaking": 7}
+    flojo = {"scoring": 18, "passing": 12, "playmaking": 7}
     e = estimar(
         _medidos(
             _guardado(1, precio=10_000_000),
             _guardado(2, precio=10_000_000),
-            _guardado(3, precio=20_000_000, **flojo),
-            _guardado(4, precio=20_000_000, **flojo),
-            _guardado(5, precio=20_000_000, **flojo),
-            _guardado(6, precio=20_000_000, **flojo),
+            *(_guardado(i, precio=20_000_000, **flojo) for i in range(3, 9)),
         )
     )
-    # (2*100*10M + 4*85*20M) / (2*100 + 4*85) = 8.800M / 540 = 16.296.296
-    assert e.media == 16_296_296
-    assert e.peso_minimo == 85
+    # (2*95*10M + 6*90*20M) / (2*95 + 6*90) = 12.700M / 730 = 17.397.260
+    assert e.media == 17_397_260
+    assert e.peso_minimo == 90
 
 
 def test_la_mediana_tambien_va_ponderada() -> None:
     """Con pesos iguales coincide con la de toda la vida; en cuanto difieren,
     el punto que parte la muestra por la mitad se mueve."""
-    flojo = {"scoring": 17, "passing": 13, "playmaking": 7}
+    flojo = {"scoring": 18, "passing": 12, "playmaking": 7}
     pesados = _medidos(
-        _guardado(1, precio=10),
-        _guardado(2, precio=20),
-        _guardado(3, precio=30),
-        _guardado(4, precio=40),
-        _guardado(5, precio=50),
-        _guardado(6, precio=60, **flojo),
+        *(_guardado(i, precio=i * 10) for i in range(1, 8)),
+        _guardado(8, precio=80, **flojo),
     )
-    # Peso total 585, mitad 292,5. Acumulando por precio: 100, 200, 300 pasa de
-    # la mitad en el tercero, asi que la mediana es 30 y no 35.
-    assert estimar(pesados).mediana == 30
+    # Peso total 7*95 + 90 = 755, mitad 377,5. Acumulando por precio: 95, 190,
+    # 285, 380 pasa de la mitad en el cuarto, asi que la mediana es 40 y no 45.
+    assert estimar(pesados).mediana == 40
     assert estimar(pesados).media != 30
 
 
@@ -545,11 +576,11 @@ def test_se_dice_cuantas_son_todavia_provisionales() -> None:
     assert e.suficiente is False
 
 
-def test_con_seis_ventas_cerradas_si_basta() -> None:
-    """La contraparte del de arriba: seis cerradas y ninguna abierta."""
-    e = estimar(_medidos(*(_guardado(i) for i in range(1, 7))))
+def test_con_ocho_ventas_cerradas_si_basta() -> None:
+    """La contraparte del de arriba: ocho cerradas y ninguna abierta."""
+    e = estimar(_medidos(*(_guardado(i) for i in range(1, 9))))
     assert e.provisionales == 0
-    assert e.n == 6
+    assert e.n == 8
     assert e.suficiente is True
 
 
@@ -658,7 +689,9 @@ def test_una_subasta_abierta_no_cuenta_por_muchos_intentos_que_le_queden() -> No
     +20.583 %. Un suelo asi no es un suelo.
     """
     assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=0)) is False
-    assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)) is False
+    assert (
+        cuenta_para_el_numero(_guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)) is False
+    )
 
 
 def test_un_provisional_sin_intentos_tampoco_cuenta() -> None:
@@ -676,15 +709,13 @@ def test_una_venta_cerrada_cuenta_aunque_fallaran_los_intentos() -> None:
 def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
     """Las seis buenas valen 1.000.000; la abandonada, 10. Si entrara en la
     media la hundiria, y la media tiene que seguir siendo 1.000.000."""
-    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
-    tirada = _guardado(
-        99, precio=10, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1
-    )
+    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 9)]
+    tirada = _guardado(99, precio=10, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
     medidos = _medidos(*buenas, tirada)
 
     estimacion = estimar(medidos)
     assert estimacion.media == 1_000_000
-    assert estimacion.n == 6
+    assert estimacion.n == 8
     # Pero sigue en la lista, para que no desaparezca sin explicacion.
     assert 99 in [c.venta.ht_player_id for c in estimacion.comparables]
     assert [c.cuenta for c in estimacion.comparables if c.venta.ht_player_id == 99] == [False]
@@ -692,22 +723,20 @@ def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
 
 def test_el_abandonado_no_le_quita_el_sitio_a_una_buena() -> None:
     """Con seis buenas y una abandonada, las seis que cuentan son las buenas."""
-    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
-    tirada = _guardado(
-        99, precio=9_000_000, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1
-    )
+    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 9)]
+    tirada = _guardado(99, precio=9_000_000, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
     medidos = _medidos(*buenas, tirada)
-    assert sorted(c.venta.ht_player_id for c in medidos if c.cuenta) == [1, 2, 3, 4, 5, 6]
+    assert sorted(c.venta.ht_player_id for c in medidos if c.cuenta) == [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def test_con_un_abandonado_se_vuelve_a_salir_a_buscar() -> None:
     """Cinco buenas y una abandonada no son seis: la abandonada es un hueco
     con nombre, y dejarla ocupar plaza impediria buscar lo que falta."""
-    cinco = [_guardado(i) for i in range(1, 6)]
+    cinco = [_guardado(i) for i in range(1, 8)]
     tirada = _guardado(99, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
     assert hay_que_buscar(_medidos(*cinco, tirada)) is True
     # Y con la sexta de verdad, ya no.
-    assert hay_que_buscar(_medidos(*cinco, _guardado(6))) is False
+    assert hay_que_buscar(_medidos(*cinco, _guardado(8))) is False
 
 
 # ---------------------------------------------------------------------------
@@ -743,11 +772,11 @@ def test_ocho_anuncios_a_cero_no_dan_una_media_de_cero() -> None:
 def test_un_cero_no_hunde_una_media_que_si_existe() -> None:
     """Seis ventas de un millon y un anuncio sin puja. La media es un millon,
     no 857.142, que es lo que daria metiendo el cero."""
-    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 7)]
+    buenas = [_guardado(i, precio=1_000_000) for i in range(1, 9)]
     sin_puja = _guardado(99, precio=0, firme=False, puja=0)
     estimacion = estimar(_medidos(*buenas, sin_puja))
     assert estimacion.media == 1_000_000
-    assert estimacion.n == 6
+    assert estimacion.n == 8
 
 
 def test_cuando_ese_anuncio_se_resuelve_ya_cuenta() -> None:
@@ -770,13 +799,13 @@ def test_un_comparable_exacto_no_envejece() -> None:
     clavado = _guardado(1, semanas=9)
     assert reemplazable(clavado, AHORA) is True, "la venta SI cumplio su vida"
     medido = _medidos(clavado)[0]
-    assert medido.peso == 100
+    assert medido.peso == 95
     assert medido.viejo is False, "pero al 100% no cuenta como vieja"
 
 
 def test_un_parecido_si_envejece() -> None:
     """La misma antiguedad, pero al 85%: ese si queda reemplazable."""
-    primo = _guardado(1, semanas=9, scoring=17, passing=13, playmaking=7)
+    primo = _guardado(1, semanas=9, scoring=18, passing=12, playmaking=7)
     medido = _medidos(primo)[0]
     assert medido.peso < 100
     assert medido.viejo is True
@@ -787,40 +816,130 @@ def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
     Por eso se decide al medir y no al guardar."""
     venta = _guardado(1, semanas=9)
     para_el_clavado = _medidos(venta)[0]
-    otro = _objetivo(scoring=17, passing=13, playmaking=7)
+    otro = _objetivo(scoring=18, passing=12, playmaking=7)
     para_el_primo = _medidos(venta, objetivo=otro)[0]
-    assert para_el_clavado.peso == 100 and para_el_clavado.viejo is False
+    assert para_el_clavado.peso == 95 and para_el_clavado.viejo is False
     assert para_el_primo.peso < 100 and para_el_primo.viejo is True
 
 
 def test_un_exacto_viejo_no_manda_a_buscar() -> None:
     """Seis exactos de hace nueve semanas siguen siendo seis: su turno no
     deberia gastar ni una peticion."""
-    seis = [_guardado(i, semanas=9) for i in range(1, 7)]
+    seis = [_guardado(i, semanas=9) for i in range(1, 9)]
     assert hay_que_buscar(_medidos(*seis)) is False
 
 
-def test_a_las_doce_semanas_se_va_hasta_el_exacto() -> None:
-    """La regla dura, que el usuario trajo del propio Hattrick (2026-10-09).
+def test_una_venta_muy_vieja_se_queda_si_no_hay_nada_mejor() -> None:
+    """NO HAY LIMITE DURO (2026-10-10, decision del usuario).
 
-    Su Comparador de Transferencias guarda las ventas parecidas, las va
-    reemplazando, y si no hay muestra las borra hacia las doce semanas. Si el
-    juego, con su base de traspasos entera, decide que a las doce semanas una
-    venta ya no describe el mercado, nosotros no tenemos un motivo mejor.
+    Del 2026-10-09 al 2026-10-10 lo hubo: se borraba a las doce semanas, sobre
+    la base de que Hattrick hace lo mismo. Se le sondeo la pantalla y resulto
+    que no. Sus diez comparables para Moises Llauge, leidos el 2026-10-10, van
+    del 23 de septiembre al 15 de ABRIL: el mas viejo tiene unas veinticinco
+    semanas y lo sigue metiendo en su promedio.
 
-    Y SE LLEVA TAMBIEN AL EXACTO, que es lo que esta regla cambia de verdad:
-    hasta hoy «el 100 % no caduca nunca». Sigue sin caducar --no se deja
-    reemplazar por nada de menor peso-- pero a las doce semanas se va igual,
-    porque lo que deja de ser cierto no es el parecido del jugador, es el
-    precio del mercado. Si su gemelo sigue vendiendose, el escalon exacto lo
-    vuelve a encontrar en menos de seis dias.
+    Cuando no tiene nada mas fresco, el juego prefiere una venta de hace seis
+    meses a dejar al jugador sin cifra. Y tiene razon: una cifra vieja informa,
+    y ninguna cifra no informa nada. Asi que vuelve a mandar `VIDA` sola:
+    cumplirla no borra, deja paso.
     """
-    clavado_de_once = _guardado(1, semanas=11)
-    clavado_de_trece = _guardado(2, semanas=13)
+    de_veinticinco = _guardado(1, semanas=25, scoring=18, passing=12, playmaking=7)
 
-    assert demasiado_vieja(clavado_de_once, AHORA) is False
-    assert demasiado_vieja(clavado_de_trece, AHORA) is True
+    # Sigue contando, sigue ocupando plaza y sigue dando numero.
+    medidos = _medidos(de_veinticinco)
+    assert len(medidos) == 1
+    assert medidos[0].ocupa is True
 
-    # Y no entra ni a enseñarse: no hay fila, no hay numero, no ocupa plaza.
-    assert len(_medidos(clavado_de_once)) == 1
-    assert _medidos(clavado_de_trece) == ()
+    # Pero esta marcada como vieja, para que la pantalla lo pueda decir y para
+    # que cualquier cosa mas fresca la sustituya en cuanto aparezca.
+    assert medidos[0].viejo is True
+    assert reemplazable(de_veinticinco, AHORA) is True
+
+
+def _llauge() -> Objetivo:
+    """Moises Llauge tal cual, que es con quien se sondeo el Comparador.
+
+    Hattrick le pone estos criterios, leidos de su pantalla el 2026-10-10:
+        Edad 28-30 | Def=14 | Pas 12-14 | Lat>=11 | Jug<=5 | Ano<=5 | Por<=5
+    """
+    return objetivo_de(
+        474559832,
+        29,
+        {
+            "defending": 14,
+            "passing": 13,
+            "winger": 11,
+            "playmaking": 4,
+            "scoring": 2,
+            "keeper": 1,
+        },
+    )
+
+
+def _venta(habilidades: dict[str, int], edad: int = 29) -> Guardado:
+    tres = terna(habilidades)
+    assert tres is not None
+    return Guardado(
+        ht_player_id=1,
+        nombre="x",
+        precio=1,
+        firme=True,
+        puja=1,
+        visto_el=datetime(2026, 10, 10, tzinfo=UTC),
+        edad=edad,
+        primaria=tres[0],
+        secundaria=tres[1],
+        terciaria=tres[2],
+        habilidades=habilidades,
+    )
+
+
+def test_el_sello_lo_pone_la_regla_del_juego() -> None:
+    """Una venta que cumple los criterios que Hattrick ensena, lleva sello."""
+    dentro = _venta({"defending": 14, "passing": 13, "winger": 11, "playmaking": 3, "scoring": 1})
+    assert lo_ensenaria_hattrick(dentro, _llauge())
+    # La edad, fuera de su ventana de 28 a 30.
+    assert not lo_ensenaria_hattrick(
+        _venta({"defending": 14, "passing": 13, "winger": 11}, edad=31), _llauge()
+    )
+
+
+def test_una_cuarta_habilidad_alta_lo_tumba_aunque_nuestra_escalera_lo_apruebe() -> None:
+    """ESTE ES EL CASO QUE JUSTIFICA TODO EL SONDEO.
+
+    Un jugador con la misma edad y las mismas tres habilidades que Llauge,
+    pero con Jugadas 8, es para NUESTRA escalera un comparable perfecto: le da
+    el 100 %. Para Hattrick no es un comparable en absoluto, porque su criterio
+    pide «Jugadas <= insuficiente» y este tiene excelente.
+
+    Y tiene razon el: con Defensa 14, Pases 13, Lateral 11 y ADEMAS Jugadas 8,
+    eso ya no es el mismo jugador, es uno mas completo y mas caro.
+    """
+    con_jugadas = _venta(
+        {"defending": 14, "passing": 13, "winger": 11, "playmaking": 8, "scoring": 1}
+    )
+    objetivo = _llauge()
+    assert peso_de(con_jugadas, objetivo) == 95
+    assert not lo_ensenaria_hattrick(con_jugadas, objetivo)
+
+
+def test_sin_las_siete_habilidades_no_hay_sello() -> None:
+    """Las ventas guardadas antes de la columna no pueden llevarlo.
+
+    Y no es un fallo: responder a medias seria peor que no responder, porque
+    daria por bueno justo al jugador de la prueba de arriba.
+    """
+    sin_ellas = replace(_venta({"defending": 14, "passing": 13, "winger": 11}), habilidades={})
+    assert not lo_ensenaria_hattrick(sin_ellas, _llauge())
+    # Pero sigue midiendose con nuestra escalera, como siempre.
+    assert peso_de(sin_ellas, _llauge()) == 95
+
+
+def test_el_sello_viaja_en_el_comparable() -> None:
+    avalado = _venta({"defending": 14, "passing": 13, "winger": 11, "playmaking": 3, "scoring": 1})
+    crudo = _venta({"defending": 14, "passing": 13, "winger": 11, "playmaking": 8, "scoring": 1})
+    ahora = datetime(2026, 10, 10, tzinfo=UTC)
+    medidos = comparables_de([avalado, crudo], _llauge(), ahora)
+    assert [c.avalado_por_hattrick for c in medidos] == [True, False]
+    # El sello NO toca el peso: los dos siguen valiendo 100 para la escalera.
+    assert {c.peso for c in medidos} == {95, 100}

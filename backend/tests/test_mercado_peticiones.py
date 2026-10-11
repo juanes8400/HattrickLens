@@ -16,12 +16,14 @@ from typing import Any
 import pytest
 
 from app.domain.engines.mercado_comparable import (
+    ESCALERA,
     ORDEN_DE_DESEMPATE,
     Franja,
     Objetivo,
     Ventana,
     objetivo_de,
     plan_de_busqueda,
+    ventana_de,
 )
 from app.infrastructure.chpp.mercado import (
     ID_DE_HABILIDAD,
@@ -52,7 +54,18 @@ def _objetivo() -> Objetivo:
 
 
 def _primera() -> Ventana:
+    """La primera del plan, que desde el 2026-10-10 es la ventana de HATTRICK.
+
+    Antes era nuestro escalon exacto. Ahora le pedimos al mercado lo mismo que
+    pediria el juego, y nuestra escalera va detras.
+    """
     return plan_de_busqueda(_objetivo())[0]
+
+
+def _nuestras() -> list[Ventana]:
+    """Solo NUESTROS escalones, sin la ventana de Hattrick."""
+    hechas = [ventana_de(_objetivo(), e) for e in ESCALERA]
+    return [v for v in hechas if v is not None]
 
 
 class _ClienteFalso:
@@ -105,7 +118,6 @@ def test_la_escalera_de_hoy_no_llega_a_trocear() -> None:
     for ventana in plan_de_busqueda(_objetivo()):
         pedidos = peticiones_de(ventana)
         assert len(pedidos) == 1
-        assert pedidos[0]["ageMin"] == pedidos[0]["ageMax"]
 
 
 def test_un_tramo_ancho_se_trocearia_sin_dejar_huecos_ni_repetir() -> None:
@@ -147,11 +159,14 @@ def test_cada_habilidad_viaja_con_su_numero_de_hattrick() -> None:
     assert pedido["skillType1"] == 5
     assert pedido["minSkillValue1"] == pedido["maxSkillValue1"] == 18
     assert pedido["skillType2"] == 7
-    assert pedido["minSkillValue2"] == pedido["maxSkillValue2"] == 13
+    # La segunda de Hattrick es una BANDA, no un valor clavado: 12 a 14.
+    assert (pedido["minSkillValue2"], pedido["maxSkillValue2"]) == (12, 14)
 
 
 def test_la_terciaria_va_siempre_uno_arriba_y_dos_abajo() -> None:
-    for ventana in plan_de_busqueda(_objetivo()):
+    """En NUESTROS escalones. La ventana de Hattrick tiene su propia regla para
+    la tercera --aqui sale 6 a 9-- y no pasa por aqui."""
+    for ventana in _nuestras():
         pedido = peticiones_de(ventana)[0]
         assert pedido["skillType3"] == ID_DE_HABILIDAD["playmaking"]
         assert (pedido["minSkillValue3"], pedido["maxSkillValue3"]) == (5, 8)
@@ -169,7 +184,8 @@ def test_la_edad_viaja_en_anos_cumplidos_y_sin_dias() -> None:
     """Pedir días estrecharía la búsqueda por un criterio que el motor no
     aplica: compara años."""
     pedido = peticiones_de(_primera())[0]
-    assert pedido["ageMin"] == pedido["ageMax"] == EDAD
+    # La ventana de Hattrick abre un ano a cada lado, pero sigue sin dias.
+    assert (pedido["ageMin"], pedido["ageMax"]) == (EDAD - 1, EDAD + 1)
     assert "ageDaysMin" not in pedido
     assert "ageDaysMax" not in pedido
 
@@ -186,10 +202,12 @@ def test_la_escalera_entera_traducida_a_lo_que_sale_por_el_cable() -> None:
         )
         for p in pedidos
     ]
+    # La primera es la de HATTRICK; las demas, nuestra escalera. El escalon de
+    # 85 --edad clavada y primaria a mas o menos uno-- ya no esta.
     assert leido == [
+        (30, 18, 18, 12, 14),
         (31, 18, 18, 13, 13),
         (31, 18, 18, 12, 14),
-        (31, 17, 19, 12, 14),
         (32, 17, 19, 12, 14),
         (30, 17, 19, 12, 14),
     ]
