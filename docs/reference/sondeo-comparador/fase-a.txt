@@ -470,3 +470,76 @@ Lo dificil estaba en dos sitios: que solo hay DOS criterios de identidad --el
 Lateral se queda en 4 y el umbral de entrada al tercero es 5-- y que el Lateral
 va antes que Jugadas pese a ir dos puestos mas atras, porque empatan en
 «nivel - posicion» a 1 y desempata el nivel mas alto.
+
+## FASE O - EL ULTIMO HUECO, CERRADO: cada tipo tiene sus habilidades elegibles
+Levantando cada habilidad a 9 sobre una dominante de 12, y mirando si sale como
+criterio o como tope:
+
+  domina       pueden ser criterio                      NUNCA
+  Porteria     Defensa, Pases, Balon parado             Jugadas, Lateral, Anotacion
+  Defensa      Porteria, Jugadas, Lateral, Pases        Anotacion
+  Jugadas      Defensa, Lateral, Pases, Anotacion       Porteria
+  Lateral      Defensa, Jugadas, Pases, Anotacion       Porteria
+  Anotacion    Jugadas, Lateral, Pases                  Porteria, Defensa
+
+Tiene sentido futbolistico: a un central no se le compara por Anotacion, a un
+delantero no se le compara por Defensa, y a nadie de campo por Porteria.
+Es la lista de «secondary, tertiary and quartile skills chosen by player type»
+que flameron menciono en 2009 sin decir cual era.
+EXPLICA los tres jugadores con Anotacion 5 que recibian trato distinto: dos
+eran DEFENSAS (excluida) y el tercero EXTREMO (elegible). No era el nivel.
+
+### Y lo que no puede ser criterio tampoco cuenta para la rareza
+Defensa 12, Pases 10 y Anotacion 9 sigue saliendo AJUSTADO. Contando la
+Anotacion se pasaria de 25. A Hattrick un central goleador no le parece un
+jugador mas raro: le parece el mismo central.
+
+### La rejilla fina (tercera contra cuarta, Def12 Pas10 fijos)
+Entrada en 5 para las dos: con 4 van a tope, con 5 ya reciben banda.
+El orden entre ellas sigue la clave «nivel - posicion» y desempata el nivel.
+Y un CUARTO criterio baja el umbral del dial DOS puntos, desde 6:
+  (Jug6, Lat6) ajustado   (Jug6, Lat7) HOLGADO   -- un punto de rareza entre medias
+La cuarta abre la segunda tambien desde 6, no desde 5: un extremo de
+Lateral 10, Pases 7, Jugadas 5 y Anotacion 5 mantiene los Pases clavados.
+
+## QUEDA ABIERTO: el ORDEN de la cuarta cuando compite de cerca
+Extremo con Lateral 10 y Pases 7 fijos, moviendo Anotacion y Jugadas:
+  Jug5 Ano6 -> Lat, Pas, Jug, Ano
+  Jug5 Ano7 -> Lat, Pas, ANO, Jug
+  Jug5 Ano8 -> Lat, ANO, Pas, Jug
+  Jug6 Ano7 -> Lat, Pas, Jug, Ano
+Ni la clave «nivel - posicion» ni el nivel a secas reproducen los cuatro.
+Cuatro observaciones, cuatro ordenes. No se inventa una regla.
+Afecta solo al ORDEN en que se listan, no a los rangos.
+
+## VALIDACION FINAL CONTRA LA PLANTILLA REAL: 24 de 24.
+
+## FASE P - EL ORDEN DE LA CUARTA, CERRADO (2026-10-11)
+Rejilla 4x4 sobre un extremo con Lateral 10 y Pases 7 fijos, moviendo Jugadas
+y Anotacion de 5 a 8. Orden observado tras Lateral:
+
+  Jug\Ano    5            6            7            8
+    5      Pas Jug Ano  Pas Jug Ano  Pas ANO Jug  ANO Pas Jug
+    6      Pas Jug Ano  Pas Jug Ano  Pas Jug Ano  ANO Pas Jug
+    7      Jug Pas Ano  Jug Pas Ano  Jug Pas Ano  Jug ANO Pas
+    8      Jug Pas Ano  Jug Pas Ano  Jug Pas Ano  Jug ANO Pas
+
+Los dieciseis se reproducen poniendo a ANOTACION en la posicion 3 del orden de
+desempate del extremo, y ninguno con ella en la 4.
+
+PERO eso rompia a un extremo real --Lateral 15, Defensa 13, Jugadas 11-- donde
+Hattrick pone Defensa antes que Jugadas. Se reconcilia con que DEFENSA Y
+ANOTACION PESEN LO MISMO en el extremo, el tercer puesto, y entre ellas
+desempate el nivel:
+  Def13 (clave 10) contra Jug11 (clave 10) -> empate -> gana Defensa por nivel
+  Ano7  (clave 4)  contra Jug5  (clave 4)  -> empate -> gana Anotacion por nivel
+Las dos cosas a la vez, con el mismo peso compartido.
+
+OJO: el orden de los TOPES no es ese. Con todo a cero salen Def antes que Ano,
+que es el orden de la plantilla. El desempate de los criterios de identidad y
+la lista de topes usan ordenes distintos.
+
+DESCONOCIDO si los otros tipos tienen pesos compartidos parecidos. Solo se
+midio el extremo, que es donde la plantilla real lo destapo.
+
+## VALIDACION: plantilla real 24 de 24, y la rejilla del orden 16 de 16.

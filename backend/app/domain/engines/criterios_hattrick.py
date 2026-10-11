@@ -80,6 +80,59 @@ PLANTILLAS: dict[str, tuple[str, ...]] = {
 #: primer criterio es «Lateral = nulo». Clavar el Lateral es lo que separa a un
 #: pasador de un extremo de verdad.
 
+
+#: QUE HABILIDADES PUEDEN SER CRITERIO, por tipo. Las demas reciben tope
+#: siempre, valgan lo que valgan. Medido levantando cada habilidad a 9 sobre
+#: una dominante de 12 y mirando si sale como criterio o como tope:
+#:
+#:   portero    -> Defensa, Pases, Balon parado  (ni Jugadas, Lateral, Anotacion)
+#:   defensa    -> Porteria, Jugadas, Lateral, Pases   (nunca Anotacion)
+#:   jugadas    -> Defensa, Lateral, Pases, Anotacion  (nunca Porteria)
+#:   lateral    -> Defensa, Jugadas, Pases, Anotacion  (nunca Porteria)
+#:   anotacion  -> Jugadas, Lateral, Pases             (ni Porteria ni Defensa)
+#:
+#: Tiene sentido futbolistico: a un central no se le compara por Anotacion, a
+#: un delantero no se le compara por Defensa, y a nadie de campo por Porteria.
+#: Es la lista de «secondary, tertiary and quartile skills» que el post de 2009
+#: decia que se elegia por tipo de jugador, sin decir cual era.
+#:
+#: Explica el ultimo agujero que quedaba: tres jugadores reales con Anotacion 5
+#: a los que Hattrick trataba distinto. No era el nivel, era el tipo.
+
+#: EL ORDEN PARA DESEMPATAR NO ES EL MISMO QUE EL DE LA LISTA. En el extremo,
+#: Anotacion pesa como si fuera el cuarto puesto --por delante de Defensa--
+#: aunque en la lista de topes salga detras. Sale de una rejilla de 4x4 con
+#: Lateral 10 y Pases 7 fijos, moviendo Jugadas y Anotacion de 5 a 8: los
+#: dieciseis ordenes se reproducen con Anotacion en la posicion 3 y ninguno
+#: con ella en la 4.
+#:
+#: Donde no se midio se usa la plantilla tal cual. DESCONOCIDO si los otros
+#: tipos tienen la misma distincion.
+#: Se expresa como PESO por habilidad y no como lista, porque dos pueden pesar
+#: lo mismo: en el extremo, Defensa y Anotacion comparten el tercer puesto y
+#: entre ellas desempata el nivel. Eso reproduce a la vez la rejilla de 4x4
+#: --donde Anotacion adelanta a Jugadas-- y un extremo real de Lateral 15,
+#: Defensa 13 y Jugadas 11, donde Defensa adelanta a Jugadas.
+ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
+    "winger": {
+        "winger": 0,
+        "playmaking": 1,
+        "passing": 2,
+        "defending": 3,
+        "scoring": 3,
+        "keeper": 5,
+    },
+}
+
+EXCLUIDAS: dict[str, frozenset[str]] = {
+    "keeper": frozenset({"playmaking", "winger", "scoring"}),
+    "defending": frozenset({"scoring"}),
+    "playmaking": frozenset({"keeper"}),
+    "winger": frozenset({"keeper"}),
+    "passing": frozenset({"keeper"}),
+    "scoring": frozenset({"keeper", "defending"}),
+}
+
 #: Por debajo de esto, una habilidad no es criterio de identidad: cae al montón
 #: de los techos. El segundo puesto entra antes que el tercero, y el portero
 #: antes que nadie: a su Defensa le basta un 2 donde al resto le hacen falta 3.
@@ -102,6 +155,15 @@ SEGUNDO_CON_BANDA_PORTERO = 7
 #: ...o si el tercero llega aquí. Lo decía ya el texto de 2009: «lo mismo
 #: ocurre si la tercera es alta». El umbral son siete, y eso no lo decía.
 TERCERO_QUE_ABRE_AL_SEGUNDO = 7
+#: Y la CUARTA tambien, pero a partir de seis, no de cinco. Medido contra un
+#: extremo real --Lateral 10, Pases 7, Jugadas 5, Anotacion 5--: con la cuarta
+#: en 5 la segunda le sigue saliendo clavada, y con ella en 6 se abre.
+CUARTA_QUE_ABRE_AL_SEGUNDO = 6
+#: Y un cuarto criterio de identidad baja el umbral del dial DOS puntos. Sale
+#: de la rejilla fina de la tercera contra la cuarta: con Defensa 12 y Pases 10
+#: fijos, (Jug 6, Lat 6) sale ajustado y (Jug 6, Lat 7) holgado, y entre los
+#: dos solo hay un punto de rareza.
+REBAJA_POR_CUARTO_CRITERIO = 2
 
 #: Balón parado del portero: banda ancha hasta 15, y de 16 en adelante un suelo
 #: fijo que no depende del nivel. La anchura sigue al dial, como todo lo demás:
@@ -242,7 +304,11 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
     afloja y (12,12) no; (14,10,7) afloja y (14,10,6) no.
     """
     tipo = tipo or _tipo(niveles)
-    plantilla = PLANTILLAS[tipo]
+    # LO QUE NO PUEDE SER CRITERIO TAMPOCO CUENTA PARA LA RAREZA. Medido con un
+    # defensa de Defensa 12, Pases 10 y Anotacion 9: sigue saliendo ajustado,
+    # cuando contando la Anotacion se pasaria de 25. A Hattrick, un central
+    # golead­or no le parece un jugador mas raro: le parece el mismo central.
+    plantilla = [h for h in PLANTILLAS[tipo] if h not in EXCLUIDAS[tipo]]
     pesados = []
     for h in plantilla:
         nivel = max(0, niveles.get(h, 0))
@@ -279,8 +345,8 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     # Medido con un delantero de Anotacion 11, Pases 10, Lateral 9 y Jugadas 8
     # --rareza 26-- que afloja, cuando el mismo tipo con solo dos habilidades
     # aguantaba hasta 27.
-    if len(v) > 3 and v[3] >= ENTRADA_TERCERO:
-        umbral -= 1
+    if len(v) > 3 and v[3] >= CUARTA_QUE_ABRE_AL_SEGUNDO:
+        umbral -= REBAJA_POR_CUARTO_CRITERIO
     if len(v) > 1 and v[0] == v[1]:
         umbral = min(umbral, UMBRAL_CON_EMPATE_ARRIBA)
     return rareza(niveles, tipo) >= umbral or v[0] >= PRIMERA_QUE_AFLOJA_SOLA
@@ -335,6 +401,8 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
     if tipo == "keeper":
         return list(plantilla)
 
+    pesos = ORDEN_DE_IMPORTANCIA.get(tipo) or {h: i for i, h in enumerate(plantilla)}
+
     def clave(h: str) -> tuple[int, int, int]:
         # ADELANTAR CUESTA. Una habilidad sólo pasa por delante de otra si le
         # saca tantos niveles como puestos las separan en la plantilla. Medido:
@@ -344,10 +412,11 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         #
         # Es la regla que flameron describió en 2009 sin dar el número, y la
         # que a mí se me escapó: barriendo un eje cada vez nunca aparece.
-        pos = plantilla.index(h)
+        pos = pesos[h]
         return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), pos)
 
-    ordenadas = sorted(plantilla, key=clave)
+    fuera = EXCLUIDAS[tipo]
+    ordenadas = [h for h in sorted(plantilla, key=clave) if h not in fuera]
     cuantos = PUESTOS_DE_IDENTIDAD
     if len(ordenadas) > cuantos and niveles.get(ordenadas[cuantos], 0) >= ENTRADA_TERCERO:
         cuantos += 1
@@ -455,7 +524,7 @@ def _segundo(
     abre = (
         nivel >= con_banda
         or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO
-        or cuarto >= ENTRADA_TERCERO
+        or cuarto >= CUARTA_QUE_ABRE_AL_SEGUNDO
         or nivel == primero
     )
     if not abre:

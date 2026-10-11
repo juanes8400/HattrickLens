@@ -69,6 +69,27 @@ Cada tipo mira seis habilidades, en este orden:
 | Lateral | Lateral | Jugadas | Pases | Defensa | Anotación | Portería |
 | Anotación | Anotación | Pases | Lateral | Jugadas | Defensa | Portería |
 
+### 2b. Y no todas pueden ser criterio
+
+De las seis que mira cada tipo, **unas pueden ser criterio y otras sólo reciben
+tope**, valgan lo que valgan:
+
+| domina | puede ser criterio | **nunca** |
+|---|---|---|
+| Portería | Defensa, Pases, Balón parado | Jugadas, Lateral, Anotación |
+| Defensa | Portería, Jugadas, Lateral, Pases | **Anotación** |
+| Jugadas | Defensa, Lateral, Pases, Anotación | Portería |
+| Lateral | Defensa, Jugadas, Pases, Anotación | Portería |
+| Anotación | Jugadas, Lateral, Pases | Portería, **Defensa** |
+
+A un central no se le compara por Anotación ni con un 9; a un extremo sí, ya
+con un 5. Es la lista de *«secondary, tertiary and quartile skills chosen by
+player type»* que el post de 2009 decía que existía sin decir cuál era.
+
+**Y lo que no puede ser criterio tampoco cuenta para la rareza.** Un central de
+Defensa 12, Pases 10 y Anotación 9 sigue saliendo ajustado: a Hattrick un
+central goleador no le parece un jugador más raro, le parece el mismo central.
+
 El portero es el único que mira **balón parado**. En un jugador de campo no
 influye en nada: con Defensa 14 y Jugadas 10, un balón parado de 0, de 12 o de
 20 da exactamente los mismos criterios.
@@ -187,11 +208,12 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
-- **Cuándo una habilidad de unos 5 se gana criterio propio.** Es el único hueco
-  de comportamiento que queda. Tres jugadores reales con Anotación 5: a dos
-  Hattrick les pone techo y al tercero le da banda, y a ése además le deja la
-  segunda clavada. Cinco observaciones, tres comportamientos. No da para una
-  regla y no se inventa una.
+- **El ORDEN en que se listan la tercera y la cuarta cuando compiten de cerca.**
+  Con un extremo de Lateral 10 y Pases 7, moviendo Anotación de 6 a 8, Hattrick
+  la coloca en tres sitios distintos, y no lo reproduce ni la clave
+  `nivel − posición` ni el nivel a secas. Cuatro observaciones, cuatro órdenes.
+  Afecta sólo al orden de la lista, **no a los rangos**, que es lo que se usa
+  para buscar.
 - **Por qué el empate arriba baja el umbral a 25**, y por qué la cuarta lo baja
   exactamente un punto. Los números están medidos; el motivo es conjetura.
 - **Qué pasa por encima de 20** en el balón parado del portero. Ebbesen tiene

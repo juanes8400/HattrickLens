@@ -569,6 +569,33 @@ OBSERVADO: list[tuple[str, int, dict[str, int], str]] = [
     ("y al pasador a los 35 tambien se le abre el suelo", 35,
      perfil(passing=13, playmaking=7, defending=5),
      "Ed35-99 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
+    # --- Cada tipo tiene su juego de habilidades elegibles (2026-10-11)
+    ("al defensa NO se le compara por Anotacion, ni con 9", 25,
+     perfil(defending=12, passing=10, scoring=9),
+     "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=10 Por<=4"),
+    ("pero al extremo si, ya con 5", 25,
+     perfil(winger=10, passing=7, playmaking=5, scoring=5),
+     "Ed=25 Lat=10 Pas=7 Jug 4-6 Ano 4-6 Def<=4 Por<=4"),
+    # --- La rejilla fina de la tercera contra la cuarta
+    ("tercera y cuarta en 4: las dos a tope", 25,
+     perfil(defending=12, passing=10, playmaking=4, winger=4),
+     "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("las dos en 5: las dos con banda", 25,
+     perfil(defending=12, passing=10, playmaking=5, winger=5),
+     "Ed=25 Def=12 Pas 9-11 Jug 4-6 Lat 4-6 Ano<=4 Por<=4"),
+    ("la cuarta en 6 empuja el dial", 25,
+     perfil(defending=12, passing=10, playmaking=6, winger=7),
+     "Ed24-26 Def=12 Pas 9-11 Lat 6-9 Jug 5-8 Ano<=5 Por<=5"),
+    ("sin cuarta no lo empuja", 25,
+     perfil(defending=12, passing=10, playmaking=6, winger=6),
+     "Ed=25 Def=12 Pas 9-11 Jug 5-7 Lat 5-7 Ano<=4 Por<=4"),
+    ("lo que no puede ser criterio tampoco cuenta para la rareza", 25,
+     perfil(defending=12, passing=10, scoring=9),
+     "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=10 Por<=4"),
+    # --- En el extremo, Defensa y Anotacion pesan lo mismo (2026-10-11)
+    ("extremo real: Defensa adelanta a Jugadas por nivel", 29,
+     perfil(winger=15, defending=13, playmaking=11, passing=11),
+     "Ed28-30 Lat=15 Def 12-14 Jug>=11 Pas 9-14 Ano<=5 Por<=5"),
 ]
 
 
@@ -616,3 +643,45 @@ def test_el_portero_afloja_antes_que_el_jugador_de_campo() -> None:
     assert es_holgado(perfil(keeper=13, defending=8))
     assert not es_holgado(perfil(defending=16, playmaking=8))
     assert es_holgado(perfil(defending=16, playmaking=9))
+
+
+# --- El orden cuando la tercera y la cuarta compiten de cerca ---------------
+
+#: Rejilla de 4x4 sondeada el 2026-10-11 sobre un extremo con Lateral 10 y
+#: Pases 7 fijos, moviendo Jugadas y Anotacion de 5 a 8. Es la que obligo a
+#: darle al extremo un orden de desempate propio, con Anotacion por delante de
+#: Defensa: los dieciseis salen con ella en la posicion 3 y ninguno con la 4.
+REJILLA_DEL_ORDEN = {
+    (5, 5): "Lat Pas Jug Ano Def. Por.",
+    (5, 6): "Lat Pas Jug Ano Def. Por.",
+    (5, 7): "Lat Pas Ano Jug Def. Por.",
+    (5, 8): "Lat Ano Pas Jug Def. Por.",
+    (6, 5): "Lat Pas Jug Ano Def. Por.",
+    (6, 6): "Lat Pas Jug Ano Def. Por.",
+    (6, 7): "Lat Pas Jug Ano Def. Por.",
+    (6, 8): "Lat Ano Pas Jug Def. Por.",
+    (7, 5): "Lat Jug Pas Ano Def. Por.",
+    (7, 6): "Lat Jug Pas Ano Def. Por.",
+    (7, 7): "Lat Jug Pas Ano Def. Por.",
+    (7, 8): "Lat Jug Ano Pas Def. Por.",
+    (8, 5): "Lat Jug Pas Ano Def. Por.",
+    (8, 6): "Lat Jug Pas Ano Def. Por.",
+    (8, 7): "Lat Jug Pas Ano Def. Por.",
+    (8, 8): "Lat Jug Ano Pas Def. Por.",
+}
+
+
+@pytest.mark.parametrize(("par", "esperado"), sorted(REJILLA_DEL_ORDEN.items()))
+def test_el_orden_de_la_tercera_y_la_cuarta(par: tuple[int, int], esperado: str) -> None:
+    """IMPORTA PARA LA BUSQUEDA, no solo para la pantalla: `transfersearch`
+    acepta tres filtros de habilidad, asi que el orden decide CUALES TRES le
+    pedimos al mercado. Equivocarlo es pedir otra cosa."""
+    jugadas, anotacion = par
+    criterios = criterios_de(
+        25, perfil(winger=10, passing=7, playmaking=jugadas, scoring=anotacion)
+    )
+    leido = " ".join(
+        ABREVIATURA[c.habilidad] + ("." if c.operador == "<=" else "")
+        for c in criterios.habilidades
+    )
+    assert leido == esperado
