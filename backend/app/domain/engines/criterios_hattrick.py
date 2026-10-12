@@ -189,11 +189,37 @@ EXCLUIDAS: dict[str, frozenset[str]] = {
 DEFENSA_DEL_EXTREMO_PIDE_LA_ANOTACION = True
 
 
+#: EL LATERAL DEL MEDIOCENTRO PIDE MAS QUE LOS DEMAS. Entra como criterio con
+#: 7, o con 5 si la Anotacion llega a 5 y la Defensa no pasa de 4. Medido el
+#: 2026-10-12 en unas noventa celdas:
+#:
+#:   Jug 12,14,16,18,20 + Pas9, Lateral de 4 a 9  -> cinco filas iguales, 7
+#:   Jug16 + Def10,      Lateral de 4 a 8         -> 7
+#:   Jug16 + Ano10,      Lateral de 4 a 8         -> 5
+#:   Jug16 Lat5 Def0,  Anotacion de 4 a 9         -> entra desde Ano 5
+#:   Jug16 Lat5 Ano10, Defensa   de 4 a 9         -> deja de entrar en Def 5
+#:   Jug16 Lat5 Ano14, Defensa   de 4 a 9         -> igual
+#:
+#: El 5 de la Anotacion y el 4 de la Defensa son justo las fronteras de SER
+#: CRITERIO: el Lateral del mediocentro entra barato cuando la Anotacion es
+#: criterio y la Defensa no. Es la lectura de mediocentro OFENSIVO, y por eso
+#: se escribe, pero sigue siendo una regla local, no el mecanismo: el porque
+#: esta en la hipotesis de los PUESTOS, en CRITERIOS_DEL_COMPARADOR.md.
+LATERAL_DEL_MEDIO_SIN_AYUDA = 7
+
+
 def _fuera(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
     """Las habilidades que no pueden ser criterio para este jugador."""
     fuera = EXCLUIDAS[tipo]
     if tipo == "winger" and niveles.get("defending", 0) < niveles.get("scoring", 0):
         fuera |= {"defending"}
+    if tipo == "playmaking" and niveles.get("winger", 0) < LATERAL_DEL_MEDIO_SIN_AYUDA:
+        ofensivo = (
+            niveles.get("scoring", 0) >= ENTRADA_TERCERO
+            and niveles.get("defending", 0) < ENTRADA_TERCERO
+        )
+        if not ofensivo:
+            fuera |= {"winger"}
     return fuera
 
 

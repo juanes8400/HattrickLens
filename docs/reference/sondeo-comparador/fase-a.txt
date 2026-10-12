@@ -1094,3 +1094,39 @@ una hipotesis de dos casos, y el modelo que hay clava 191 pruebas contra el
 juego y acierta los tres filtros de `transfersearch` en los sesenta perfiles
 plausibles. La hipotesis queda escrita con sus datos; cambiar el cimiento se
 hace con la tabla medida en la mano, no antes.
+
+
+--- V4. LA HIPOTESIS SOBREVIVE, MI PREDICCION NO, Y SALE UNA REGLA --------
+
+La hipotesis de los puestos predice que el trato al Lateral cambia al cruzar
+la frontera entre mediocentro defensivo y ofensivo. Se puso a prueba con una
+rejilla de Defensa x Anotacion, mediocentro Jugadas 16 y Lateral 5 fijos:
+
+  Jug16 Lat5    Ano:  0   4   8  10  12
+  Def 0              no  no  SI  SI  SI
+  Def 4              no  no  SI  SI  SI
+  Def 8              no  no  no  no  no
+  Def10              no  no  no  no  no
+  Def12              no  no  no  no  no
+
+Yo habia predicho la frontera en «Anotacion > Defensa». ES FALSO: con Def8 y
+Ano12 no entra. La frontera verdadera, afinada:
+
+  Jug16 Lat5 Def0,  Anotacion 4..9 : 4no 5SI 6SI 7SI 8SI 9SI
+  Jug16 Lat5 Ano10, Defensa   4..9 : 4SI 5no 6no 7no 8no 9no
+  Jug16 Lat5 Ano14, Defensa   4..9 : 4SI 5no 6no 7no 8no 9no
+
+EL LATERAL DEL MEDIOCENTRO ENTRA CON 7, O CON 5 SI LA ANOTACION LLEGA A 5 Y LA
+DEFENSA NO PASA DE 4. Y el 5 y el 4 son justo las fronteras de SER CRITERIO:
+el Lateral entra barato cuando la Anotacion es criterio y la Defensa no.
+
+Eso es exactamente la lectura de mediocentro OFENSIVO, asi que la hipotesis de
+los puestos sale reforzada en forma aunque mi prediccion de donde cortaba
+fuera mala. Y da una regla implementable: 93 celdas medidas, 93 acertadas.
+
+Con ella, el primer tercio de la tanda dura pasa a 20/20 ENTEROS y 20/20 en
+los tres filtros, verificado en vivo. Era el ultimo fallo que costaba un
+filtro de los que se conocian.
+
+Sigue siendo una regla LOCAL, no el mecanismo: dice lo que hace el Lateral de
+un mediocentro y no por que. El por que sigue en la hipotesis de los puestos.

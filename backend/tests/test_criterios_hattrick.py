@@ -991,3 +991,76 @@ def test_la_frontera_del_dial_por_pareja(pareja: tuple[str, str], frontera: int)
 def test_una_sola_habilidad_afloja_en_17(habilidad: str) -> None:
     assert es_holgado(perfil(**{habilidad: 16}), None, 25) is False
     assert es_holgado(perfil(**{habilidad: 17}), None, 25) is True
+
+
+# --- El Lateral del mediocentro pide mas que los demas ---------------------
+
+#: Unas noventa celdas del 2026-10-12. Entra con 7, o con 5 si la Anotacion
+#: llega a 5 y la Defensa no pasa de 4 --que son justo las fronteras de SER
+#: criterio--. Es la lectura de mediocentro OFENSIVO.
+def _lateral_es_criterio(niveles: dict[str, int]) -> bool:
+    for c in criterios_de(25, niveles).habilidades:
+        if c.habilidad == "winger":
+            return c.operador != "<="
+    return False
+
+
+@pytest.mark.parametrize("dominante", [12, 14, 16, 18, 20])
+@pytest.mark.parametrize("lateral", [4, 5, 6, 7, 8, 9])
+def test_el_lateral_del_medio_sin_ayuda_pide_siete(dominante: int, lateral: int) -> None:
+    """Cinco filas identicas: el nivel de la dominante no lo mueve."""
+    niveles = perfil(playmaking=dominante, passing=9, winger=lateral)
+    assert _lateral_es_criterio(niveles) is (lateral >= 7)
+
+
+@pytest.mark.parametrize("lateral", [4, 5, 6, 7, 8])
+def test_con_defensa_al_lado_sigue_pidiendo_siete(lateral: int) -> None:
+    niveles = perfil(playmaking=16, defending=10, winger=lateral)
+    assert _lateral_es_criterio(niveles) is (lateral >= 7)
+
+
+@pytest.mark.parametrize("lateral", [4, 5, 6, 7, 8])
+def test_con_anotacion_al_lado_le_basta_cinco(lateral: int) -> None:
+    niveles = perfil(playmaking=16, scoring=10, winger=lateral)
+    assert _lateral_es_criterio(niveles) is (lateral >= 5)
+
+
+@pytest.mark.parametrize("anotacion", [4, 5, 6, 7, 8, 9])
+def test_la_frontera_de_la_anotacion_que_le_abre_el_lateral(anotacion: int) -> None:
+    niveles = perfil(playmaking=16, winger=5, scoring=anotacion)
+    assert _lateral_es_criterio(niveles) is (anotacion >= 5)
+
+
+@pytest.mark.parametrize("defensa", [4, 5, 6, 7, 8, 9])
+@pytest.mark.parametrize("anotacion", [10, 14])
+def test_la_defensa_le_vuelve_a_cerrar_el_lateral(defensa: int, anotacion: int) -> None:
+    niveles = perfil(playmaking=16, winger=5, scoring=anotacion, defending=defensa)
+    assert _lateral_es_criterio(niveles) is (defensa <= 4)
+
+
+#: Y las cadenas enteras de la rejilla, que es donde se ve que no es el dial:
+#: los dos primeros son holgados --topes de 5, bandas de [v-1, v+2]-- y uno le
+#: pone tope al Lateral y el otro criterio.
+REJILLA_DEL_LATERAL = [
+    (
+        perfil(playmaking=16, defending=10, winger=5),
+        "Ed24-26 Jug=16 Def 9-11 Pas<=5 Lat<=7 Ano<=5 Por<=5",
+    ),
+    (
+        perfil(playmaking=16, defending=10, winger=7),
+        "Ed24-26 Jug=16 Def 9-11 Lat 6-9 Pas<=5 Ano<=5 Por<=5",
+    ),
+    (
+        perfil(playmaking=16, scoring=10, winger=5),
+        "Ed24-26 Jug=16 Ano 9-11 Lat 4-7 Pas<=5 Def<=5 Por<=5",
+    ),
+    (
+        perfil(playmaking=16, passing=10, winger=5),
+        "Ed=25 Jug=16 Pas 9-11 Def<=4 Lat<=6 Ano<=4 Por<=4",
+    ),
+]
+
+
+@pytest.mark.parametrize(("niveles", "esperado"), REJILLA_DEL_LATERAL)
+def test_la_rejilla_del_lateral_entera(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, niveles)) == esperado

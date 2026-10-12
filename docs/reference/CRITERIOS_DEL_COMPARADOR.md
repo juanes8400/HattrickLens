@@ -290,11 +290,10 @@ por dónde falló importa tanto como la regla.
   tres habilidades le pedimos a `transfersearch`**, que acepta sólo tres.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
-- **Cuándo entra el TERCER criterio.** No es un nivel por habilidad, ni por
-  tipo, ni un hueco contra la segunda: las tres se caen con los datos. El
-  Lateral de un mediocentro entra con 7 teniendo los Pases de segunda y con 6
-  teniendo la Defensa; el de un extremo, la Defensa le entra con 5 teniendo los
-  Pases 13. El código usa 5, que es el valor que más acierta de los probados.
+- **Cuándo entra el TERCER criterio en general.** El caso del mediocentro ya
+  está medido y escrito --su Lateral entra con 7, o con 5 si la Anotación llega
+  a 5 y la Defensa no pasa de 4--, pero no se sabe si los demás tipos tienen
+  condiciones parecidas en otras habilidades. Lo no medido usa 5.
 - **La entrada y el techo del CUARTO criterio.** Con Anotación 10, Pases 8 y
   Lateral 6, una Jugadas 5 recibe techo donde el modelo le pone banda; y con
   Lateral 16, Pases 11, Anotación 11 y Jugadas 9, el techo de la banda sale un
@@ -402,7 +401,17 @@ cinco tipos-- se explican de golpe las cuatro cosas:
 - la tapadera de la Anotación sobre la Defensa sería la frontera entre dos
   puestos de banda.
 
-**Cómo se comprobaría:** sondear por puesto y no por habilidad. Generar
+**Primera prueba, y salió a favor en forma.** La hipótesis predice que el
+trato al Lateral cambia al cruzar la frontera entre mediocentro defensivo y
+ofensivo. Se barrió una rejilla de Defensa × Anotación con Jugadas 16 y Lateral
+5 fijos, y el Lateral entra **sólo con Defensa ≤ 4 y Anotación ≥ 5** --que son
+justo las fronteras de *ser criterio*--. La predicción concreta que yo había
+hecho, «Anotación > Defensa», era falsa: con Defensa 8 y Anotación 12 no entra.
+Pero la forma de la hipótesis aguanta: el Lateral cuenta cuando el perfil es de
+mediocentro **ofensivo**. De ahí salió una regla implementable, 93 celdas
+medidas y 93 acertadas, que sube el primer tercio de la tanda dura a 20/20.
+
+**Cómo se comprobaría del todo:** sondear por puesto y no por habilidad. Generar
 perfiles que caigan claramente en cada puesto conocido y ver si cada grupo da
 la misma plantilla --mismo conjunto y mismo orden-- con niveles distintos. Si
 es así, lo que hay que medir es una tabla de quince plantillas, no un sistema
