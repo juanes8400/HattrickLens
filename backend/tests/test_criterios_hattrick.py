@@ -780,3 +780,54 @@ def test_una_porteria_mas_alta_no_siempre_gana() -> None:
     """Con Lateral 17 y Defensa 16, una Porteria 16 no hace portero: el sesgo
     es contra la Defensa, y la Defensa ya habia perdido el reinado."""
     assert _tipo(perfil(winger=17, defending=16, keeper=16)) == "winger"
+
+
+# --- Lo que los perfiles plausibles del 2026-10-12 dejaron fijado -----------
+
+#: Sesenta perfiles realistas, generados con semilla fija y preguntados a
+#: Hattrick uno a uno. Estos son los que destaparon un fallo del motor; el
+#: recuento completo --53/60 la cadena entera, 59/60 los tres filtros-- esta en
+#: `CRITERIOS_DEL_COMPARADOR.md` y las medidas en fase-a.txt, FASE R.
+PLAUSIBLES = [
+    (
+        "la cuarta NO abre la segunda: extremo con Jugadas y Defensa a 6",
+        19,
+        perfil(keeper=4, defending=6, playmaking=6, winger=8, passing=7, scoring=4, set_pieces=5),
+        "Ed=19 Lat=8 Pas=7 Jug 5-7 Def 5-7 Ano<=4 Por<=4",
+    ),
+    (
+        "ni con la cuarta a 6 en un delantero",
+        21,
+        perfil(keeper=4, defending=4, playmaking=6, winger=6, passing=6, scoring=13, set_pieces=12),
+        "Ed=21 Ano=13 Pas=6 Lat 5-7 Jug 5-7 Def<=4 Por<=4",
+    ),
+    (
+        "al portero no se le hace criterio del Lateral",
+        33,
+        perfil(keeper=18, defending=15, playmaking=4, winger=5, passing=1, scoring=1),
+        "Ed32-34 Por=18 Def 14-16 BP<=5 Lat<=7 Ano<=5 Jug<=5",
+    ),
+    (
+        "ni abriendo la banda de su Defensa de rebote",
+        28,
+        perfil(keeper=10, defending=4, playmaking=0, winger=6, passing=1, scoring=6, set_pieces=8),
+        "Ed=28 Por=10 Def=4 BP 6-10 Lat<=7 Ano<=7 Jug<=4",
+    ),
+    (
+        "en el extremo el empate de Defensa y Anotacion lo gana ella",
+        32,
+        perfil(keeper=1, defending=11, playmaking=12, winger=15, passing=6, scoring=11, set_pieces=1),
+        "Ed31-33 Lat=15 Jug 11-13 Ano>=11 Def 9-14 Pas<=8 Por<=5",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("descripcion", "edad", "niveles", "esperado"),
+    PLAUSIBLES,
+    ids=[c[0] for c in PLAUSIBLES],
+)
+def test_los_perfiles_plausibles(
+    descripcion: str, edad: int, niveles: dict[str, int], esperado: str
+) -> None:
+    assert _pinta(criterios_de(edad, niveles)) == esperado

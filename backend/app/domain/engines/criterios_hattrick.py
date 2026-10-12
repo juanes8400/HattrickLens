@@ -161,10 +161,32 @@ EXCLUIDAS: dict[str, frozenset[str]] = {
     "scoring": frozenset({"keeper", "defending"}),
 }
 
+#: CUANDO DOS PESAN LO MISMO, QUIEN VA DELANTE. Solo hace falta donde dos
+#: habilidades comparten peso, y eso hoy solo pasa en el extremo, entre la
+#: Defensa y la Anotacion. Lo gana la Anotacion, y esta medido cuatro veces
+#: --con las dos a 6, a 8, a 10 y a 13 sobre un Lateral 16-- mas un quinto
+#: caso de perfil realista: Lateral 15, Jugadas 12, Defensa 11, Anotacion 11,
+#: que lista la Anotacion tercera y la Defensa cuarta.
+#:
+#: Ojo: en el mediocentro, donde la Anotacion tambien pesa como la Defensa, el
+#: empate lo gana la DEFENSA. Por eso esto va por tipo y no es una regla sola.
+DESEMPATE: dict[str, tuple[str, ...]] = {
+    "winger": ("winger", "playmaking", "passing", "scoring", "defending", "keeper"),
+}
+
 #: Por debajo de esto, una habilidad no es criterio de identidad: cae al montón
 #: de los techos. El segundo puesto entra antes que el tercero, y el portero
 #: antes que nadie: a su Defensa le basta un 2 donde al resto le hacen falta 3.
 #: El techo que le ponen mientras no entra es siempre la entrada menos uno.
+#:
+#: DESCONOCIDO: EL UMBRAL DEL TERCERO NO ES ABSOLUTO. Medido el 2026-10-12: con
+#: Lateral 16 y Anotación 14, una Defensa de 3 a 8 nunca llega a ser criterio
+#: --sólo le sube el techo-- y con Lateral 12 y Anotación 8 la Defensa entra
+#: justo al empatar con la segunda, en 8. Pero con Lateral 10 y Pases 7 la
+#: Jugadas 5 sí entra, dos niveles por debajo de la segunda. Depende de lo que
+#: tenga por encima, y la regla no se ha sacado. El 5 de aquí es el ajuste que
+#: mejor encaja: le cuesta 1 de 60 en los tres filtros de `transfersearch` y 4
+#: de 60 en la cadena entera. Las medidas están en fase-a.txt, FASE R.
 ENTRADA_SEGUNDO = 3
 ENTRADA_SEGUNDO_PORTERO = 2
 ENTRADA_TERCERO = 5
@@ -183,10 +205,16 @@ SEGUNDO_CON_BANDA_PORTERO = 7
 #: ...o si el tercero llega aquí. Lo decía ya el texto de 2009: «lo mismo
 #: ocurre si la tercera es alta». El umbral son siete, y eso no lo decía.
 TERCERO_QUE_ABRE_AL_SEGUNDO = 7
-#: Y la CUARTA tambien, pero a partir de seis, no de cinco. Medido contra un
-#: extremo real --Lateral 10, Pases 7, Jugadas 5, Anotacion 5--: con la cuarta
-#: en 5 la segunda le sigue saliendo clavada, y con ella en 6 se abre.
-CUARTA_QUE_ABRE_AL_SEGUNDO = 6
+#: LA CUARTA NO ABRE AL SEGUNDO: eso fue una lectura mal hecha. El 2026-10-12
+#: se barrio el eje entero --Lateral 10, Pases 7, Jugadas 5 y la Anotacion de
+#: 4 a 8-- y la segunda sigue clavada con la cuarta en 4, 5 y 6. Lo que la
+#: abre en 7 es que la Anotacion adelanta a Jugadas y pasa a ser TERCERA, que
+#: es la regla de arriba. Confirmado por segunda via con Lateral 8, Pases 7,
+#: Jugadas 6 y la Defensa de 4 a 7: clavada en los cuatro.
+#:
+#: El umbral se queda, pero solo para el dial: un CUARTO criterio de identidad
+#: baja el liston de la rareza un punto, y eso si esta medido aparte.
+CUARTA_QUE_BAJA_EL_LISTON = 6
 #: Y un cuarto criterio de identidad baja el umbral del dial DOS puntos. Sale
 #: de la rejilla fina de la tercera contra la cuarta: con Defensa 12 y Pases 10
 #: fijos, (Jug 6, Lat 6) sale ajustado y (Jug 6, Lat 7) holgado, y entre los
@@ -420,7 +448,7 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     # Medido con un delantero de Anotacion 11, Pases 10, Lateral 9 y Jugadas 8
     # --rareza 26-- que afloja, cuando el mismo tipo con solo dos habilidades
     # aguantaba hasta 27.
-    if len(v) > 3 and v[3] >= CUARTA_QUE_ABRE_AL_SEGUNDO:
+    if len(v) > 3 and v[3] >= CUARTA_QUE_BAJA_EL_LISTON:
         umbral -= REBAJA_POR_CUARTO_CRITERIO
     if len(v) > 1 and v[0] == v[1]:
         umbral = min(umbral, UMBRAL_CON_EMPATE_ARRIBA)
@@ -474,9 +502,16 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
     """
     plantilla = PLANTILLAS[tipo]
     if tipo == "keeper":
-        return list(plantilla)
+        # NO REORDENA, PERO SI EXCLUYE. Era un agujero: al portero se le
+        # colaba un cuarto criterio de Lateral --Porteria 18, Defensa 15 y
+        # Lateral 5 sacaba «Lateral entre debil y bueno»-- cuando Hattrick le
+        # pone tope. Sus Jugadas, Lateral y Anotacion nunca son criterio.
+        fuera_del_portero = EXCLUIDAS[tipo]
+        dentro = [h for h in plantilla if h not in fuera_del_portero]
+        return dentro + [h for h in plantilla if h in fuera_del_portero]
 
     pesos = ORDEN_DE_IMPORTANCIA.get(tipo) or {h: i for i, h in enumerate(plantilla)}
+    desempate = DESEMPATE.get(tipo) or plantilla
 
     def clave(h: str) -> tuple[int, int, int]:
         # ADELANTAR CUESTA. Una habilidad sólo pasa por delante de otra si le
@@ -491,7 +526,7 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         # Es la regla que flameron describió en 2009 sin dar el número, y la
         # que a mí se me escapó: barriendo un eje cada vez nunca aparece.
         pos = pesos[h]
-        return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), pos)
+        return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), desempate.index(h))
 
     fuera = EXCLUIDAS[tipo]
     ordenadas = [h for h in sorted(plantilla, key=clave) if h not in fuera]
@@ -544,7 +579,6 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
     # El tercer puesto decide si el segundo va clavado, así que hay que
     # conocerlo antes de resolver el segundo.
     tercero = valor[orden[2]] if len(orden) > 2 else 0
-    cuarto = valor[orden[3]] if len(orden) > 3 else 0
     # El balon parado del portero NO abre la segunda: con Porteria 14, Defensa 6
     # y balon parado 9, la Defensa sigue clavada. Por eso se anula aqui.
     if len(orden) > 2 and orden[2] == BALON_PARADO:
@@ -558,10 +592,14 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
         elif puesto == 0:
             salida.append(Criterio(habilidad, "=", nivel, nivel))
         elif puesto == 1:
-            salida.append(_segundo(habilidad, nivel, valor[orden[0]], tercero, cuarto, tipo))
+            salida.append(_segundo(habilidad, nivel, valor[orden[0]], tercero, tipo))
         elif puesto == 2:
             salida.append(_tercero(habilidad, nivel, holgado))
-        elif puesto == 3 and nivel >= ENTRADA_TERCERO:
+        # LO EXCLUIDO NO PUEDE SER EL CUARTO. Era un agujero del portero: con
+        # Porteria 18, Defensa 15 y Lateral 5 le salia «Lateral entre debil y
+        # bueno» cuando Hattrick le pone tope, y de rebote el Lateral abria la
+        # banda de la Defensa.
+        elif puesto == 3 and nivel >= ENTRADA_TERCERO and habilidad not in EXCLUIDAS[tipo]:
             salida.append(_cuarto(habilidad, nivel, valor[orden[0]], tercero, holgado))
         else:
             salida.append(Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado)))
@@ -577,9 +615,7 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
     )
 
 
-def _segundo(
-    habilidad: str, nivel: int, primero: int, tercero: int, cuarto: int, tipo: str
-) -> Criterio:
+def _segundo(habilidad: str, nivel: int, primero: int, tercero: int, tipo: str) -> Criterio:
     """El segundo puesto: techo si es bajísimo, clavado si es normal, banda si no.
 
     Lo de que el TERCERO abra al segundo no es un capricho: con Defensa 13 y
@@ -597,14 +633,7 @@ def _segundo(
     con_banda = SEGUNDO_CON_BANDA_PORTERO if portero else SEGUNDO_CON_BANDA
     if nivel < entrada:
         return Criterio(habilidad, "<=", 0, entrada - 1)
-    # Y la CUARTA tambien la abre, si existe. El texto de 2009 lo decia:
-    # «lo mismo ocurre si la tercera y la cuarta son bastante altas».
-    abre = (
-        nivel >= con_banda
-        or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO
-        or cuarto >= CUARTA_QUE_ABRE_AL_SEGUNDO
-        or nivel == primero
-    )
+    abre = nivel >= con_banda or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO or nivel == primero
     if not abre:
         return Criterio(habilidad, "=", nivel, nivel)
     return Criterio(habilidad, "banda", max(0, nivel - 1), nivel + 1)

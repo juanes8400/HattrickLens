@@ -670,3 +670,86 @@ habilidad. Lo que tenemos es el mejor ajuste conocido, y clava los 146 casos
 fijados --las 24 fichas reales incluidas-- pero no es el mecanismo. Queda
 escrito aqui para que nadie lo tome por ley, y para que quien encuentre el
 mecanismo tenga la familia de contraejemplos ya medida.
+
+
+================================================================================
+FASE R - 2026-10-12 - CUANTO CUESTA EL AGUJERO, Y TRES ARREGLOS
+================================================================================
+
+En vez de seguir persiguiendo el mecanismo del orden (FASE Q), se midio cuanto
+cuesta no tenerlo. Sesenta perfiles PLAUSIBLES generados con semilla fija
+--una dominante de 8 a 18, una a tres companeras del puesto, el resto bajo,
+edad 17 a 33-- comparando la cadena ENTERA de criterios y, aparte, los TRES
+filtros que se le mandarian a `transfersearch`, que es lo unico que decide la
+busqueda.
+
+  antes de los arreglos    49/60 enteros (82%)    57/60 tres filtros (95%)
+  despues                  53/60 enteros (88%)    59/60 tres filtros (98%)
+
+AVISO DE METODO: Hattrick empieza a estrangular a las ~300 peticiones y
+devuelve una pagina sin criterios. No da error: devuelve 200 con otra cosa.
+Hay que espaciar medio segundo y reintentar, y hay que COMPROBAR que la
+respuesta trae el H2 «Criterios de busqueda» antes de creersela. La primera
+pasada se perdio entera por esto.
+
+--- R1. LA CUARTA NO ABRE AL SEGUNDO. Era una lectura mia mal hecha. --------
+
+  Lat10 Pas7 Jug5 Ano4 : Lat=10 Pas=7  Jug 4-6
+  Lat10 Pas7 Jug5 Ano5 : Lat=10 Pas=7  Jug 4-6  Ano 4-6
+  Lat10 Pas7 Jug5 Ano6 : Lat=10 Pas=7  Jug 4-6  Ano 5-7
+  Lat10 Pas7 Jug5 Ano7 : Lat=10 Pas 6-8  Ano 6-8  Jug 4-6
+  Lat10 Pas7 Jug5 Ano8 : Lat=10 Ano 7-9  Pas 6-8  Jug 4-6
+
+Con la cuarta en 4, 5 y 6 la segunda sigue CLAVADA. Lo que la abre en 7 es que
+la Anotacion adelanta a Jugadas y pasa a ser TERCERA: la regla que ya estaba.
+Segunda via, Lat8 Pas7 Jug6 con la Defensa de 4 a 7: clavada en los cuatro.
+
+El umbral de 6 se queda solo para el dial, donde si esta medido aparte.
+
+--- R2. AL PORTERO TAMBIEN SE LE EXCLUYEN HABILIDADES ----------------------
+
+`_puestos` devolvia la plantilla del portero tal cual, sin aplicar EXCLUIDAS.
+Con Porteria 18, Defensa 15 y Lateral 5 salia «Lateral entre debil y bueno»
+donde Hattrick pone «Lateral <= bueno», y de rebote ese Lateral abria la banda
+de la Defensa. Dos de los sesenta perfiles.
+
+--- R3. EN EL EXTREMO, EL EMPATE ENTRE DEFENSA Y ANOTACION LO GANA ELLA -----
+
+Ya salia en FASE Q con las dos a 6, 8, 10 y 13 sobre un Lateral 16. Lo
+confirma un perfil plausible: Lateral 15, Jugadas 12, Defensa 11, Anotacion 11
+lista «Anotacion >= brillante» tercera y «Defensa entre formidable y
+sobrenatural» cuarta. Esto SI cambia los tres filtros.
+
+Ojo: en el mediocentro, donde la Anotacion tambien pesa como la Defensa, el
+empate lo gana la DEFENSA. Va por tipo.
+
+--- R4. LO QUE QUEDA, Y ES MAS GORDO DE LO QUE PARECIA ---------------------
+
+EL TERCER CRITERIO NO ENTRA CON 5. No entra con un nivel: entra en relacion a
+lo que tiene por encima, y no se ha sacado la regla.
+
+  Lat16 Ano14 Def3 : Lat=16 Ano 13-15   Def<=5
+  Lat16 Ano14 Def4 : Lat=16 Ano 13-15   Def<=5
+  Lat16 Ano14 Def5 : Lat=16 Ano 13-15   Def<=7
+  Lat16 Ano14 Def6 : Lat=16 Ano 13-15   Def<=8
+  Lat16 Ano14 Def7 : Lat=16 Ano 13-15   Def<=9
+  Lat16 Ano14 Def8 : Lat=16 Ano 13-15   Def<=10
+
+  Lat12 Ano8  Def5 : Lat=12 Ano=8       Def<=6
+  Lat12 Ano8  Def7 : Lat=12 Ano=8       Def<=8
+  Lat12 Ano8  Def8 : Lat=12 Ano 7-9  Def 7-9
+
+Con la primera en 16, una Defensa de hasta 8 NUNCA es criterio: solo sube el
+tope. Con la primera en 12 y la segunda en 8, la Defensa entra justo al
+empatar con la segunda. Y en cambio con Lat10 Pas7 la Jugadas 5 SI entra
+--dos niveles por debajo de la segunda--, y con Lat16 y Pases 9 la Defensa 9
+tambien.
+
+El modelo usa un umbral absoluto de 5 y por eso mete criterios que Hattrick no
+mete. Cuesta 1 de 60 en los tres filtros y 4 de 60 en la cadena entera.
+No se extrapola: queda aqui medido y marcado DESCONOCIDO en el codigo.
+
+Lo demas que falla son 3 de 60 de ORDEN DE LA COLA --habilidades que llevan
+tope y que nunca se le mandan a `transfersearch`-- y 1 de 60 del techo de la
+banda del cuarto: Lat16 Pas11 Ano11 Jug9 da «Jugadas entre bueno y brillante»
+y el modelo pone brillante+1. Ninguno de los dos cambia la busqueda.

@@ -264,6 +264,34 @@ por dónde falló importa tanto como la regla.
   tres habilidades le pedimos a `transfersearch`**, que acepta sólo tres.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
+- **Cuándo entra el TERCER criterio.** No es un nivel absoluto. Con Lateral 16
+  y Anotación 14, una Defensa de 3 a 8 nunca llega a ser criterio; con Lateral
+  12 y Anotación 8 entra justo al empatar con la segunda; y con Lateral 10 y
+  Pases 7 una Jugadas 5 entra estando dos por debajo. Depende de lo que tenga
+  encima. El código usa 5, que es el ajuste que mejor encaja.
+
+## Cuánto se le cree, medido en perfiles plausibles
+
+El 2026-10-12 se generaron **60 perfiles realistas** con semilla fija --una
+dominante de 8 a 18, una a tres compañeras del puesto, el resto bajo, edad 17
+a 33-- y se comparó contra Hattrick dos cosas distintas: la cadena entera de
+criterios, y los **tres filtros de habilidad** que es lo único que se le manda
+a `transfersearch`.
+
+| | cadena entera | tres filtros |
+|---|---|---|
+| antes de los arreglos del 12 | 49/60 (82 %) | 57/60 (95 %) |
+| después | **53/60 (88 %)** | **59/60 (98 %)** |
+
+De los siete que quedan, **tres son orden de la cola** --habilidades con techo,
+que nunca se mandan a buscar--, **uno es el techo de la banda del cuarto**, y
+**tres son el umbral del tercero** de arriba. Sólo uno de los siete cambia los
+filtros con los que se busca.
+
+Eso responde a la pregunta que importaba: el agujero de FASE Q, el del
+mecanismo del orden, **no se está pagando en la búsqueda**. Perseguirlo tiene
+el precio de muchas consultas y la posibilidad de que no se pueda sacar desde
+fuera; medirlo costaba 180 consultas y ya está hecho.
 - **Por qué el empate arriba baja el umbral a 25**, y por qué la cuarta lo baja
   exactamente un punto. Los números están medidos; el motivo es conjetura.
 - **Qué pasa por encima de 20** en el balón parado del portero. Ebbesen tiene
