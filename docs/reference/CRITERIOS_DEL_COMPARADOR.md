@@ -143,6 +143,12 @@ y Anotación 4, la Defensa 3 sí sale, porque una Anotación de 4 no compite.
 Defensa no pasa de 4** --es decir, si la Anotación es criterio y la Defensa no--.
 Es la lectura de mediocentro ofensivo, y está medida en unas noventa celdas.
 
+**Y ahí acaba la lista: el defensa y el delantero no tienen nada propio.** Se
+les barrió igual --el Lateral del defensa y las Jugadas del delantero, con la
+dominante sola y con cada posible segunda al lado-- y entran con 3 de segunda y
+5 de tercera, que es la regla general. El inventario de entradas queda cerrado
+para los cuatro tipos de campo.
+
 | perfil | Defensa |
 |---|---|
 | Lateral 18, Anotación 12, Defensa 7 a 11 | sólo le sube el techo |

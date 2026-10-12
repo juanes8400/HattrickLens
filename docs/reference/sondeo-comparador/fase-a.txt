@@ -1200,3 +1200,34 @@ y el modelo se la pone: la entrada del tercero otra vez.
 
 Ninguno es nuevo: los tres primeros son la familia del orden (FASE Q) y los
 otros dos las dos familias de FASE U. No se parchean a ciegas.
+
+
+--- W4. Y EL BARRIDO DE ENTRADAS CONDICIONALES QUEDA COMPLETO -------------
+
+La pregunta era: ¿tiene cada tipo una habilidad que entra condicionada, como el
+Lateral del mediocentro? Se le hizo a los dos tipos que faltaban, con la
+dominante sola y con cada posible segunda al lado:
+
+  DEF16 solo  Lat: 3SI 4SI 5SI 6SI 7SI 8SI     <- 3, como segunda
+  DEF16 Pas10 Lat: 3no 4no 5SI 6SI 7SI 8SI     <- 5, como tercera
+  DEF16 Jug10 Lat: 3no 4no 5SI 6SI 7SI 8SI
+
+  ANO16 solo  Jug: 3SI 4SI 5SI 6SI 7SI 8SI
+  ANO16 Pas10 Jug: 3no 4no 5SI 6SI 7SI 8SI
+  ANO16 Lat10 Jug: 3no 4no 5SI 6SI 7SI 8SI
+
+NI EL DEFENSA NI EL DELANTERO TIENEN NADA ESPECIAL: 3 de segunda y 5 de
+tercera, que es lo que ya dice el modelo. Son confirmaciones, no reglas nuevas.
+
+Asi que el inventario de entradas queda CERRADO para los cuatro tipos de campo:
+
+  - general:      3 de segunda, 5 de tercera en adelante
+  - Anotacion:    5 siempre, sea el puesto que sea (W1)
+  - Lateral del
+    mediocentro:  7, o 5 si la Anotacion es criterio y la Defensa no (V4)
+  - defensa y
+    delantero:    nada propio (W4)
+
+Eso responde la pregunta entera, no un trozo. Lo que sigue abierto es otra
+cosa: el ORDEN cuando varias empatan, que es la familia de FASE Q, y la
+hipotesis de los PUESTOS que la explicaria.

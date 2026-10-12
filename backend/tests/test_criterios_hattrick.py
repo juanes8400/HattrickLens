@@ -1149,3 +1149,34 @@ def test_el_orden_del_mediocentro(niveles: dict[str, int], esperado: str) -> Non
         ABREVIATURA[c.habilidad] for c in criterios.habilidades if c.operador != "<="
     )
     assert leido == esperado
+
+
+#: Y el inventario de entradas queda CERRADO: al defensa y al delantero se les
+#: barrio igual que al mediocentro y no tienen nada propio. 3 de segunda y 5 de
+#: tercera, la regla general. Son confirmaciones, no reglas nuevas, y estan aqui
+#: para que nadie vuelva a gastar las consultas.
+SIN_ENTRADA_PROPIA = [
+    ("defensa, Lateral de segunda", perfil(defending=16), "winger", 3),
+    ("defensa, Lateral de tercera con Pases", perfil(defending=16, passing=10), "winger", 5),
+    ("defensa, Lateral de tercera con Jugadas", perfil(defending=16, playmaking=10), "winger", 5),
+    ("delantero, Jugadas de segunda", perfil(scoring=16), "playmaking", 3),
+    ("delantero, Jugadas de tercera con Pases", perfil(scoring=16, passing=10), "playmaking", 5),
+    ("delantero, Jugadas de tercera con Lateral", perfil(scoring=16, winger=10), "playmaking", 5),
+]
+
+
+@pytest.mark.parametrize(
+    ("descripcion", "base", "habilidad", "entrada"),
+    SIN_ENTRADA_PROPIA,
+    ids=[c[0] for c in SIN_ENTRADA_PROPIA],
+)
+def test_el_defensa_y_el_delantero_no_tienen_entrada_propia(
+    descripcion: str, base: dict[str, int], habilidad: str, entrada: int
+) -> None:
+    for nivel in range(3, 9):
+        niveles = {**base, habilidad: nivel}
+        criterios = criterios_de(25, niveles)
+        es_criterio = any(
+            c.habilidad == habilidad and c.operador != "<=" for c in criterios.habilidades
+        )
+        assert es_criterio is (nivel >= entrada), f"{descripcion} con {nivel}"
