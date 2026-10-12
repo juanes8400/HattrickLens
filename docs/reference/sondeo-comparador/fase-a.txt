@@ -843,3 +843,148 @@ Lo que queda son 4 de 60 en la cadena entera y ninguno toca la busqueda:
 cuarto (Lat16 Pas11 Ano11 Jug9 da «Jugadas entre bueno y brillante» y el
 modelo pone brillante+1). Mas la entrada del cuarto en un caso: Ano10 Pas8
 Lat6 Jug5 le pone tope a Jugadas y el modelo le pone banda.
+
+
+================================================================================
+FASE T - 2026-10-12 - BARRIDO DE TAPADERAS, Y LA PORTERIA DEL DEFENSA
+================================================================================
+
+La tapadera del extremo --la Anotacion sobre la Defensa, FASE S-- pedia buscar
+las analogas. Se barrieron TODAS las parejas de habilidades elegibles de cada
+tipo: la dominante a 18, una a 12 y la otra a 9 (hueco 3), y luego con la otra
+a 11 (hueco 1). Si la segunda recibe tope en vez de criterio, hay tapadera.
+
+Salieron dos, y una no era tapadera sino otra cosa:
+
+  winger:    ano12 tapa a def9    <-- la de FASE S, confirmada
+  defending: pas12 tapa a por9
+  defending: jug12 tapa a por9
+  defending: lat12 tapa a por9
+
+Las tres del defensa son el mismo caso: la Porteria. Barrida sola:
+
+  Def18 Por5  : Def=18  Pas<=2 Jug<=5 Lat<=5 Ano<=5  Por<=7
+  Def18 Por6  : ...                                  Por<=8
+  Def18 Por7  : ...                                  Por<=9
+  Def18 Por8  : ...                                  Por<=10
+  Def18 Por9  : ...                                  Por<=11
+  Def18 Por10 : ...                                  Por<=12
+  Def18 Por11 : ...                                  Por<=13
+  Def18 Por12 : ...                                  Por<=14
+  Def18 Por13 : ...                                  Por<=15
+  Def12 Por5  : Def=12  Pas<=2 Jug<=4 Lat<=4 Ano<=4  Por<=6
+  Def12 Por7  : ...                                  Por<=8
+
+NO ES TAPADERA: LA PORTERIA NUNCA ES CRITERIO DE UN DEFENSA. Solo le sube el
+techo, de 5 a 13 con Defensa 18 y de 5 a 7 con Defensa 12. (Por encima de 13
+con Defensa 18 el jugador ya es portero, por el sesgo de FASE Q.)
+
+La primera medicion de las exclusiones daba la Porteria como elegible para el
+defensa y era FALSO. Con eso, a un defensa con algo de Porteria el motor le
+clavaba «Porteria = X» como SEGUNDO criterio:
+
+  antes   Def18 Por9 -> Def=18 Por=9   Pas<=5 Jug<=5 Lat<=5 Ano<=5
+  ahora   Def18 Por9 -> Def=18 Pas<=2  Jug<=5 Lat<=5 Ano<=5  Por<=11
+
+Es el error mas gordo que se podia cometer aqui, porque el segundo criterio SI
+se le manda a `transfersearch`. No aparecia en los sesenta perfiles plausibles
+--el generador le pone a los de campo una Porteria de 4 como maximo-- pero a un
+defensa real con Porteria 7 u 8 le pasaba.
+
+Con esto, «a nadie de campo se le compara por Porteria» es cierto para los
+cinco tipos de campo, no para cuatro.
+
+CON HUECO 1 NO TAPA NINGUNA OTRA PAREJA. El barrido queda cerrado: la del
+extremo es la unica tapadera que depende del nivel.
+
+--- T2. Y DE REBOTE, EL DIAL DEL DEFENSA -----------------------------------
+
+Si la Porteria no puede ser criterio, tampoco cuenta para la rareza. Se midio
+para confirmarlo, porque mueve la ventana de edad:
+
+  Def14 Pas10 Por0  : Ed=25     Def=14  Pas 9-11            ajustado
+  Def14 Pas10 Por9  : Ed=25     Def=14  Pas 9-11            ajustado  <--
+  Def16 Pas8  Por0  : Ed=25     Def=16  Pas=8               ajustado
+  Def16 Pas8  Por11 : Ed=25     Def=16  Pas=8               ajustado  <--
+  Def14 Pas11 Por0  : Ed24-26   Def=14  Pas 10-12           holgado
+  Def14 Pas11 Por9  : Ed24-26   Def=14  Pas 10-12           holgado
+
+Si la Porteria contara, Def14 Pas10 Por9 llegaria a rareza 27 y aflojaria.
+No afloja. Y Def14 Pas10 Por13 ya es PORTERO --el umbral de la Defensa 14 es
+10, FASE Q-- y le cambia la plantilla entera.
+
+
+================================================================================
+FASE U - 2026-10-12 - LA SEGUNDA TANDA, LA QUE BUSCA PUNTOS CIEGOS
+================================================================================
+
+La leccion de FASE T: el fallo mas gordo del dia lo encontre FUERA de los
+sesenta perfiles plausibles, porque aquel generador le pone a los de campo una
+Porteria de 4 como maximo. Un generador que nunca produce un caso no puede
+delatarlo. Asi que se hizo una segunda tanda --`perfiles_duros.py`-- que va a
+por lo que la otra no mira: Porteria alta en jugadores de campo, empates
+exactos, perfiles planos, perfiles de una sola habilidad y las edades de borde.
+
+Primera pasada: 49/60 enteros, 56/60 tres filtros. Cuatro familias de fallo, y
+tres eran arreglos de verdad.
+
+--- U1. EL DIAL TAMPOCO CUENTA LO INELEGIBLE -------------------------------
+
+`rareza` ya excluia lo que no puede ser criterio; `es_holgado` no. Resultado:
+
+  Jug14 Por13 Lat9 Pas8 Def5, 29 anos
+    real   Ed=29      (ajustado)
+    antes  Ed28-30    (holgado, porque le contaba la Porteria 13 de segunda)
+
+--- U2. ELEGIR Y LISTAR NO DESEMPATAN IGUAL -------------------------------
+
+Cuando la Defensa y la Anotacion empatan y SOLO CABE UNA, Hattrick se queda
+con la DEFENSA; cuando caben las dos, lista la ANOTACION delante.
+
+  Lat13 Pas15 Jug13 Ano13 Def13 -> Lat, Pas, Jug>=13, DEFENSA 11-13, Ano<=15
+  Lat7  Jug6  Pas6  Ano6  Def6  -> Lat, Jug, Pas 5-7, DEFENSA 5-7, Ano<=7
+  Lat18 Def12 Ano12             -> Lat, ANOTACION 11-13, Defensa>=12
+
+Asi que el corte usa el orden de la plantilla y la lista el desempate propio.
+
+--- U3. EL LISTON DEL DIAL ES POR PAREJA, NO POR TIPO ---------------------
+
+Un delantero de Anotacion 16 y Lateral 9 sale HOLGADO, y con Defensa y Porteria
+a cero tambien: el liston de 27 que tenia el delantero es falso para esa
+pareja. Barridas doce parejas con la primera en 16:
+
+  defensa     + Pases 9 / Jugadas 9 / Lateral 9   -> afloja en rareza 25
+  mediocentro + Pases 11                          -> 27
+  mediocentro + Defensa 10                        -> 26
+  mediocentro + Lateral 9 / Anotacion 9           -> 25
+  extremo     + Pases 11                          -> 27
+  delantero   + Pases 11 / Jugadas 11             -> 27
+  delantero   + Lateral 9                         -> 25
+  portero     + Defensa 5                         -> 21
+
+Se lee como una prima de raridad de la PAREJA: las naturales --el mediocentro
+que pasa, el extremo que pasa, el delantero que pasa-- piden 27, y las raras
+aflojan antes. El modelo acertaba 8 de 12; con la tabla medida, 12 de 12. Lo
+que no esta medido cae en el liston por tipo, que es lo que habia.
+
+De paso se comprobo que «una habilidad afloja sola» SI es 17 y no 16: barrido
+de 13 a 18 en Anotacion, Defensa y Porteria, los tres saltan en 17. El 16 nunca
+se habia probado y era la sospecha evidente; era falsa.
+
+--- U4. LO QUE QUEDA ABIERTO, Y UN AVISO ----------------------------------
+
+EL CORTE DE LA BANDA DE LA TERCERA. Mide distinto segun el nivel y no se saco:
+
+  Lat9 Jug9 Pas9 Def9       : Lat=9 Jug 8-10 Pas 8-10 Def 7-9
+  Lat6 Pas6 Jug6 Def6       : Lat=6 Jug=6   Pas 5-6  Def 5-6
+  Lat6 Pas7 Jug6 Def6       : Lat=6 Pas=7   Jug 5-6  Def 5-6
+  Lat9 Pas10 Jug9 Def9      : Lat=9 Pas 9-11 Jug 8-11 Def 7-9
+  Lat12 Pas12 Jug12 Def12   : Lat=12 Jug 11-13 Pas>=12 Def 10-12
+
+A 9 la banda de la tercera se sale de la primera (8-10 con la primera en 9); a
+6 se corta (5-6 con la primera en 6). Y de paso, «el empate con la primera
+abre la segunda» tampoco es general: a 9 la abre --Jug 8-10-- y a 6 no --Jug=6
+clavada--. El unico caso que habia medido de esa regla era a 8.
+
+AVISO: una llamada de sondeo con mas de ~40 consultas seguidas revienta el
+limite de 45 s de la herramienta. Hay que partirla.

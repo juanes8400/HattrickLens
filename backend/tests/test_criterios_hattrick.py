@@ -880,3 +880,114 @@ def test_al_mediocentro_y_al_defensa_no_les_pasa() -> None:
     assert _pinta(medio) == "Ed24-26 Jug=18 Ano 11-13 Def 8-11 Pas<=5 Lat<=5 Por<=5"
     defensa = criterios_de(25, perfil(defending=18, passing=12, winger=9))
     assert _pinta(defensa) == "Ed24-26 Def=18 Pas 11-13 Lat 8-11 Jug<=5 Ano<=5 Por<=5"
+
+
+# --- A nadie de campo se le compara por Porteria ---------------------------
+
+#: Barrido el 2026-10-12: la Porteria de un defensa nunca llega a ser criterio,
+#: solo le sube el techo. La primera medicion la daba como elegible y era
+#: falso; hacia que a un defensa con algo de Porteria se le clavara como
+#: SEGUNDO criterio, que es el error mas gordo posible aqui porque ese criterio
+#: si se le manda a `transfersearch`.
+PORTERIA_DEL_DEFENSA = [
+    (18, 5, "Ed24-26 Def=18 Pas<=2 Jug<=5 Lat<=5 Ano<=5 Por<=7"),
+    (18, 9, "Ed24-26 Def=18 Pas<=2 Jug<=5 Lat<=5 Ano<=5 Por<=11"),
+    (18, 13, "Ed24-26 Def=18 Pas<=2 Jug<=5 Lat<=5 Ano<=5 Por<=15"),
+    (12, 5, "Ed=25 Def=12 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=6"),
+    (12, 7, "Ed=25 Def=12 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=8"),
+]
+
+
+@pytest.mark.parametrize(("defensa", "porteria", "esperado"), PORTERIA_DEL_DEFENSA)
+def test_al_defensa_no_se_le_compara_por_porteria(
+    defensa: int, porteria: int, esperado: str
+) -> None:
+    criterios = criterios_de(25, perfil(defending=defensa, keeper=porteria))
+    assert _pinta(criterios) == esperado
+
+
+#: Y tampoco cuando tiene una segunda de verdad por delante: la Porteria 9 se
+#: queda en el monton de los techos sea quien sea la segunda.
+@pytest.mark.parametrize(
+    ("segunda", "esperado"),
+    [
+        ("passing", "Ed24-26 Def=18 Pas 11-13 Jug<=5 Lat<=5 Ano<=5 Por<=11"),
+        ("playmaking", "Ed24-26 Def=18 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=11"),
+        ("winger", "Ed24-26 Def=18 Lat 11-13 Pas<=5 Jug<=5 Ano<=5 Por<=11"),
+    ],
+)
+def test_la_porteria_del_defensa_se_queda_en_los_techos(segunda: str, esperado: str) -> None:
+    criterios = criterios_de(25, perfil(defending=18, keeper=9, **{segunda: 12}))
+    assert _pinta(criterios) == esperado
+
+
+#: Y de rebote, la Porteria tampoco cuenta para el DIAL del defensa. Si
+#: contara, un Defensa 14 con Pases 10 y Porteria 9 llegaria a rareza 27 y se
+#: aflojaria; medido, sigue clavando la edad en 25.
+DIAL_SIN_PORTERIA = [
+    (14, 10, 0, "Ed=25 Def=14 Pas 9-11 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    (14, 10, 9, "Ed=25 Def=14 Pas 9-11 Jug<=4 Lat<=4 Ano<=4 Por<=10"),
+    (16, 8, 0, "Ed=25 Def=16 Pas=8 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    (16, 8, 11, "Ed=25 Def=16 Pas=8 Jug<=4 Lat<=4 Ano<=4 Por<=12"),
+    (14, 11, 0, "Ed24-26 Def=14 Pas 10-12 Jug<=5 Lat<=5 Ano<=5 Por<=5"),
+    (14, 11, 9, "Ed24-26 Def=14 Pas 10-12 Jug<=5 Lat<=5 Ano<=5 Por<=11"),
+]
+
+
+@pytest.mark.parametrize(("defensa", "pases", "porteria", "esperado"), DIAL_SIN_PORTERIA)
+def test_la_porteria_no_mueve_el_dial_del_defensa(
+    defensa: int, pases: int, porteria: int, esperado: str
+) -> None:
+    criterios = criterios_de(
+        25, perfil(defending=defensa, passing=pases, keeper=porteria)
+    )
+    assert _pinta(criterios) == esperado
+
+
+def test_con_bastante_porteria_el_defensa_pasa_a_portero() -> None:
+    """Defensa 14 y Porteria 13: el umbral de la Defensa 14 es 10, asi que a
+    los 13 ya es portero y le cambia la plantilla entera."""
+    criterios = criterios_de(25, perfil(defending=14, passing=10, keeper=13))
+    assert _pinta(criterios) == "Ed24-26 Por=13 Def 13-15 BP<=5 Lat<=5 Ano<=5 Jug<=5"
+
+
+# --- El liston del dial es por PAREJA, no por tipo -------------------------
+
+#: Las doce fronteras barridas el 2026-10-12 con la primera en 16: la rareza a
+#: la que la pareja afloja. La primera medicion usaba una sola segunda por tipo
+#: y de ahi salio un liston por tipo, que es falso en cuatro de las doce.
+FRONTERAS_DEL_DIAL = {
+    ("defending", "passing"): 25,
+    ("defending", "playmaking"): 25,
+    ("defending", "winger"): 25,
+    ("playmaking", "passing"): 27,
+    ("playmaking", "defending"): 26,
+    ("playmaking", "winger"): 25,
+    ("playmaking", "scoring"): 25,
+    ("winger", "passing"): 27,
+    ("scoring", "passing"): 27,
+    ("scoring", "playmaking"): 27,
+    ("scoring", "winger"): 25,
+    ("keeper", "defending"): 21,
+}
+
+
+@pytest.mark.parametrize(
+    ("pareja", "frontera"),
+    sorted(FRONTERAS_DEL_DIAL.items()),
+    ids=[f"{a}+{b}" for a, b in sorted(FRONTERAS_DEL_DIAL)],
+)
+def test_la_frontera_del_dial_por_pareja(pareja: tuple[str, str], frontera: int) -> None:
+    """Justo en la frontera afloja, y un nivel por debajo no."""
+    dominante, segunda = pareja
+    segundo_nivel = frontera - 16
+    assert es_holgado(perfil(**{dominante: 16, segunda: segundo_nivel}), None, 25) is True
+    assert es_holgado(perfil(**{dominante: 16, segunda: segundo_nivel - 1}), None, 25) is False
+
+
+#: Y una habilidad sola afloja desde 17, no desde 16. Barrido de 13 a 18 en
+#: Anotacion, Defensa y Porteria: los tres saltan igual, en 17.
+@pytest.mark.parametrize("habilidad", ["scoring", "defending", "keeper"])
+def test_una_sola_habilidad_afloja_en_17(habilidad: str) -> None:
+    assert es_holgado(perfil(**{habilidad: 16}), None, 25) is False
+    assert es_holgado(perfil(**{habilidad: 17}), None, 25) is True

@@ -92,14 +92,19 @@ PLANTILLAS: dict[str, tuple[str, ...]] = {
 #: siempre, valgan lo que valgan. Medido levantando cada habilidad a 9 sobre
 #: una dominante de 12 y mirando si sale como criterio o como tope:
 #:
-#:   portero    -> Defensa, Pases, Balon parado  (ni Jugadas, Lateral, Anotacion)
-#:   defensa    -> Porteria, Jugadas, Lateral, Pases   (nunca Anotacion)
+#:   portero    -> Defensa, Balon parado     (ni Jugadas, Lateral, Anotacion)
+#:   defensa    -> Pases, Jugadas, Lateral    (ni Anotacion ni Porteria)
 #:   jugadas    -> Defensa, Lateral, Pases, Anotacion  (nunca Porteria)
 #:   lateral    -> Defensa, Jugadas, Pases, Anotacion  (nunca Porteria)
 #:   anotacion  -> Jugadas, Lateral, Pases             (ni Porteria ni Defensa)
 #:
 #: Tiene sentido futbolistico: a un central no se le compara por Anotacion, a
-#: un delantero no se le compara por Defensa, y a nadie de campo por Porteria.
+#: un delantero no se le compara por Defensa, y a NADIE de campo por Porteria.
+#: Lo del defensa se midio el 2026-10-12 barriendo su Porteria de 5 a 13 con
+#: Defensa 18 --y de 5 a 7 con Defensa 12--: nunca llega a ser criterio, solo
+#: le sube el techo. La primera medicion lo daba como elegible y era falso;
+#: hacia que al defensa con algo de Porteria se le clavara como SEGUNDO
+#: criterio, que es el error mas gordo que podia cometer aqui.
 #: Es la lista de «secondary, tertiary and quartile skills» que el post de 2009
 #: decia que se elegia por tipo de jugador, sin decir cual era.
 #:
@@ -154,7 +159,7 @@ ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
 
 EXCLUIDAS: dict[str, frozenset[str]] = {
     "keeper": frozenset({"playmaking", "winger", "scoring"}),
-    "defending": frozenset({"scoring"}),
+    "defending": frozenset({"scoring", "keeper"}),
     "playmaking": frozenset({"keeper"}),
     "winger": frozenset({"keeper"}),
     "passing": frozenset({"keeper"}),
@@ -457,6 +462,39 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
     return total
 
 
+#: EL LISTON NO ES POR TIPO: ES POR PAREJA. Se media con una sola segunda
+#: habilidad por tipo y de ahi salio `UMBRAL_POR_TIPO`. El 2026-10-12 se
+#: barrieron doce parejas con la primera en 16 y sale que depende de las DOS:
+#:
+#:   defensa     + Pases 9, Jugadas 9, Lateral 9     -> afloja en rareza 25
+#:   mediocentro + Pases 11                          -> 27
+#:   mediocentro + Defensa 10                        -> 26
+#:   mediocentro + Lateral 9, Anotacion 9            -> 25
+#:   extremo     + Pases 11                          -> 27
+#:   delantero   + Pases 11, Jugadas 11              -> 27
+#:   delantero   + Lateral 9                         -> 25
+#:   portero     + Defensa 5                         -> 21
+#:
+#: Se lee como una prima de raridad de la pareja: las parejas naturales --el
+#: mediocentro que pasa, el extremo que pasa, el delantero que pasa-- piden 27,
+#: y las raras aflojan antes. POR QUE no se sabe, y con doce celdas no se
+#: inventa la tabla entera: lo que no esta medido cae en `UMBRAL_POR_TIPO`.
+UMBRAL_POR_PAREJA: dict[tuple[str, str], int] = {
+    ("defending", "passing"): 25,
+    ("defending", "playmaking"): 25,
+    ("defending", "winger"): 25,
+    ("playmaking", "passing"): 27,
+    ("playmaking", "defending"): 26,
+    ("playmaking", "winger"): 25,
+    ("playmaking", "scoring"): 25,
+    ("winger", "passing"): 27,
+    ("scoring", "passing"): 27,
+    ("scoring", "playmaking"): 27,
+    ("scoring", "winger"): 25,
+    ("keeper", "defending"): 21,
+}
+
+
 def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | None = None) -> bool:
     """Si la búsqueda sale en modo ancho.
 
@@ -472,8 +510,16 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     if edad is not None and edad <= EDAD_QUE_APRIETA_TODO:
         return False
     tipo = tipo or _tipo(niveles)
-    v = sorted((max(0, niveles.get(h, 0)) for h in PLANTILLAS[tipo]), reverse=True)
-    umbral = UMBRAL_POR_TIPO[tipo]
+    # AQUI TAMBIEN CUENTAN SOLO LAS ELEGIBLES, igual que en `rareza`. Era un
+    # agujero: a un mediocentro de Jugadas 14 y Porteria 13 le contaba la
+    # Porteria como segunda y lo aflojaba --empate arriba y liston a 25--
+    # cuando Hattrick le clava la edad. Medido con Jugadas 14, Porteria 13,
+    # Lateral 9, Pases 8 y Defensa 5 a los 29 anos: sale ajustado.
+    elegibles = [h for h in PLANTILLAS[tipo] if h not in _fuera(tipo, niveles)]
+    v = sorted((max(0, niveles.get(h, 0)) for h in elegibles), reverse=True)
+    orden = _puestos(niveles, tipo)
+    segunda = orden[1] if len(orden) > 1 else ""
+    umbral = UMBRAL_POR_PAREJA.get((tipo, segunda), UMBRAL_POR_TIPO[tipo])
     # Un CUARTO criterio de identidad baja el liston un punto: un jugador con
     # cuatro habilidades de verdad encaja en menos moldes que uno con tres.
     # Medido con un delantero de Anotacion 11, Pases 10, Lateral 9 y Jugadas 8
@@ -559,12 +605,25 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         pos = pesos[h]
         return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), desempate.index(h))
 
+    def clave_de_corte(h: str) -> tuple[int, int, int]:
+        # ELEGIR Y LISTAR NO DESEMPATAN IGUAL. Cuando la Defensa y la Anotacion
+        # empatan y solo cabe una, Hattrick se queda con la DEFENSA; cuando
+        # caben las dos, lista la ANOTACION delante. Medido tres veces de cada:
+        #
+        #   Lat13 Pas15 Jug13 Ano13 Def13 -> Lat, Pas, Jug, DEFENSA (Ano al tope)
+        #   Lat7  Jug6  Pas6  Ano6  Def6  -> Lat, Jug, Pas, DEFENSA (Ano al tope)
+        #   Lat18 Def12 Ano12             -> Lat, ANOTACION, Defensa (las dos)
+        #
+        # Asi que el corte usa el orden de la plantilla y la lista el desempate.
+        pos = pesos[h]
+        return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), plantilla.index(h))
+
     fuera = _fuera(tipo, niveles)
-    ordenadas = [h for h in sorted(plantilla, key=clave) if h not in fuera]
+    ordenadas = [h for h in sorted(plantilla, key=clave_de_corte) if h not in fuera]
     cuantos = PUESTOS_DE_IDENTIDAD
     if len(ordenadas) > cuantos and niveles.get(ordenadas[cuantos], 0) >= ENTRADA_TERCERO:
         cuantos += 1
-    cabeza = ordenadas[:cuantos]
+    cabeza = sorted(ordenadas[:cuantos], key=clave)
     if cabeza[0] != tipo:
         if tipo in cabeza:
             cabeza.remove(tipo)

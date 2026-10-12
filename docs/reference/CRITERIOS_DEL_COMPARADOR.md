@@ -103,15 +103,22 @@ tope**, valgan lo que valgan:
 
 | domina | puede ser criterio | **nunca** |
 |---|---|---|
-| Portería | Defensa, Pases, Balón parado | Jugadas, Lateral, Anotación |
-| Defensa | Portería, Jugadas, Lateral, Pases | **Anotación** |
+| Portería | Defensa, Balón parado | Jugadas, Lateral, Anotación |
+| Defensa | Pases, Jugadas, Lateral | **Anotación**, Portería |
 | Jugadas | Defensa, Lateral, Pases, Anotación | Portería |
-| Lateral | Defensa, Jugadas, Pases, Anotación | Portería |
+| Lateral | Jugadas, Pases, Anotación, Defensa* | Portería |
 | Anotación | Jugadas, Lateral, Pases | Portería, **Defensa** |
 
 A un central no se le compara por Anotación ni con un 9; a un extremo sí, ya
-con un 5. Es la lista de *«secondary, tertiary and quartile skills chosen by
+con un 5. **A nadie de campo se le compara por Portería.** El asterisco del
+extremo es la exclusión condicional de más abajo. Es la lista de *«secondary, tertiary and quartile skills chosen by
 player type»* que el post de 2009 decía que existía sin decir cuál era.
+
+La Portería del defensa se barrió de 5 a 13 con Defensa 18 y de 5 a 7 con
+Defensa 12: sólo le sube el techo. La primera medición la daba como elegible y
+era falso --con eso, a un defensa con algo de Portería se le clavaba
+«Portería = X» como *segundo* criterio, que es lo peor que podía pasar aquí
+porque el segundo criterio sí se manda a buscar--.
 
 **Y lo que no puede ser criterio tampoco cuenta para la rareza.** Un central de
 Defensa 12, Pases 10 y Anotación 9 sigue saliendo ajustado: a Hattrick un
@@ -288,6 +295,31 @@ por dónde falló importa tanto como la regla.
   Lateral 16, Pases 11, Anotación 11 y Jugadas 9, el techo de la banda sale un
   nivel más bajo de lo que el modelo calcula. Dos de sesenta, ninguno cambia la
   búsqueda.
+
+## El listón del dial va por PAREJA, no por tipo
+
+Se medía con una sola segunda habilidad por tipo, y de ahí salió un listón por
+tipo. Es falso en cuatro de doce parejas barridas:
+
+| domina (16) | segunda | afloja en rareza |
+|---|---|---|
+| Defensa | Pases, Jugadas o Lateral 9 | 25 |
+| Jugadas | Pases 11 | 27 |
+| Jugadas | Defensa 10 | 26 |
+| Jugadas | Lateral 9, Anotación 9 | 25 |
+| Lateral | Pases 11 | 27 |
+| Anotación | Pases 11, Jugadas 11 | 27 |
+| Anotación | Lateral 9 | 25 |
+| Portería | Defensa 5 | 21 |
+
+Se lee como una **prima de rareza de la pareja**: las naturales --el
+mediocentro que pasa, el extremo que pasa, el delantero que pasa-- piden 27, y
+las raras aflojan antes. El *por qué* no se sabe, y con doce celdas no se
+inventa la tabla entera: lo que no está medido cae en el listón por tipo.
+
+También se confirmó que **una habilidad sola afloja desde 17, no desde 16**:
+barrido de 13 a 18 en Anotación, Defensa y Portería, los tres saltan en 17. El
+16 nunca se había probado y era la sospecha evidente; era falsa.
 
 ## Cuánto se le cree, medido en perfiles plausibles
 
