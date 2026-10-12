@@ -102,6 +102,17 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
                    scoring=3, set_pieces=1),
             "Ed=29 Jug=14 Pas 7-9 Lat 8-10 Def 4-6 Ano<=4 Por<=14",
         ),
+        (
+            31,
+            perfil(playmaking=10, keeper=9, passing=8, scoring=5, winger=4,
+                   defending=2, set_pieces=5),
+            "Ed=31 Jug=10 Pas=8 Ano 4-6 Lat<=4 Def<=4 Por<=10",
+        ),
+        (
+            27,
+            perfil(winger=5, passing=13, defending=5, keeper=3, set_pieces=3, scoring=1),
+            "Ed=27 Lat=5 Pas 12-14 Def<=5 Jug<=4 Ano<=4 Por<=4",
+        ),
     ]
     return casos
 
@@ -130,6 +141,32 @@ PENDIENTES: list[tuple[str, int, dict[str, int], str]] = [
 ]
 
 
+#: EL TIPO DE JUGADOR, que es otra clase de observacion y el banco no la miraba.
+#: Se noto el 2026-10-12 haciendo el estudio de cuanto sostiene cada regla: el
+#: sesgo del portero salia «sin sostener» cuando tiene veinte filas medidas,
+#: solo porque sus pruebas llaman a `_tipo` y no a `criterios_de`. Un banco que
+#: solo mira una salida no puede juzgar las reglas de las otras.
+def tipos() -> list[tuple[dict[str, int], str]]:
+    casos: list[tuple[dict[str, int], str]] = []
+    for defensa, porteria in T.FRONTERA_DEL_PORTERO.items():
+        casos.append((perfil(defending=defensa, keeper=porteria), "keeper"))
+        casos.append((perfil(defending=defensa, keeper=porteria - 1), "defending"))
+    for rival, gana in T.EMPATES_CON_LA_PORTERIA.items():
+        casos.append((perfil(keeper=10, **{rival: 10}), gana))
+    for defensa in (1, 2, 3):
+        casos.append((perfil(defending=defensa, keeper=defensa), "defending"))
+        casos.append((perfil(defending=defensa, keeper=4), "keeper"))
+    casos += [
+        (perfil(defending=16, keeper=12, winger=14), "keeper"),
+        (perfil(defending=16, keeper=11, winger=14), "defending"),
+        (perfil(winger=17, defending=16, keeper=16), "winger"),
+        (perfil(passing=16, defending=14, keeper=10), "keeper"),
+        (perfil(passing=16, defending=14, keeper=9), "defending"),
+        (perfil(defending=12, playmaking=12), "defending"),
+    ]
+    return casos
+
+
 def puntua(nombre: str) -> tuple[int, int]:
     cas, rej, ords = cadenas(), rejilla(), ordenes()
     bien = sum(1 for e, n, s in cas if T._pinta(C.criterios_de(e, dict(n))) == s)
@@ -152,7 +189,9 @@ def puntua(nombre: str) -> tuple[int, int]:
         )
         == s
     )
-    total = len(cas) + len(rej) + len(ords)
+    tps = tipos()
+    bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
+    total = len(cas) + len(rej) + len(ords) + len(tps)
     fallan = [d for d, e, n, s in PENDIENTES if T._pinta(C.criterios_de(e, dict(n))) != s]
     print(f"{nombre}")
     print(f"  medido     {bien}/{total}")

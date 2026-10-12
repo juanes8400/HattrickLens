@@ -1496,3 +1496,60 @@ EN CONTRA de atajos:
 
 SIN VALOR probatorio:
   - el recuento de ordenes de FASE Z. Retirado.
+
+
+================================================================================
+FASE AA - 2026-10-12 - CUANTO SOSTIENE CADA REGLA
+================================================================================
+
+El motor es un monton de reglas de mediciones distintas, y no todas pesan lo
+mismo. Se quitan de una en una y se cuenta lo que se rompe:
+`cuanto_sostiene_cada_regla.py`.
+
+  casos medidos: 236
+
+  sin el sesgo del portero sobre la defensa      se rompen  20/236
+  sin la Porteria quinta en el desempate          se rompen   0/236  <-- !!
+  sin las exclusiones por tipo                    se rompen 139/236
+  sin la tapadera de la Anotacion al extremo      se rompen   3/236
+  sin la regla del Lateral del mediocentro        se rompen   2/236
+  sin que la Anotacion pida cinco                 se rompen  14/236
+  sin los pesos del extremo                       se rompen   9/236
+  sin los pesos del mediocentro                   se rompen   7/236
+  sin el desempate propio del extremo             se rompen   4/236
+  sin la tabla del dial por pareja                se rompen   2/236
+  sin que una habilidad de 17 afloje sola         se rompen   5/236
+  sin que la primera en 5 no sostenga tercero     se rompen   1/236
+  sin que la tercera en 7 abra la segunda         se rompen  12/236
+
+--- AA1. Y EL BANCO VOLVIO A MENTIR, POR LA MISMA RAZON -------------------
+
+La primera pasada daba TRES reglas con 0 roto, incluido el sesgo del portero,
+que tiene veinte filas medidas. No era que no estuvieran sostenidas: el banco
+solo puntuaba `criterios_de`, y el sesgo del portero y el desempate se prueban
+llamando a `_tipo`. Un banco que solo mira UNA salida no puede juzgar las
+reglas de las otras.
+
+Metido el TIPO como otra clase de observacion --53 casos mas, del barrido del
+portero y de los empates-- el banco pasa de 183 a 236 y el sesgo del portero
+salta a 20. Es la SEGUNDA vez hoy que el banco me engana por datos a medias, y
+las dos veces el sintoma fue el mismo: un resultado demasiado limpio.
+
+--- AA2. LA UNICA REGLA QUE DE VERDAD NO SOSTIENE NADA --------------------
+
+La posicion de la Porteria en ORDEN_LLANO. Y no es que la medicion fuera mala:
+es que `_tipo` saca la Porteria de la lista y la compara APARTE, asi que su
+sitio en la tupla no lo lee nadie. Moverla de tercera a quinta no cambia un
+solo caso.
+
+Lo que la medicion SI sostiene es el `>` estricto de `_tipo`: con Jugadas 10 y
+Porteria 10 sale mediocentro. Eso queda dicho en el codigo, en vez de un
+comentario largo que insinuaba que la posicion importaba.
+
+--- AA3. PARA QUE SIRVE ESTO ---------------------------------------------
+
+Dice en que apoyarse y en que no. Las exclusiones por tipo sostienen 139 casos:
+tocarlas es tocar el motor entero. La tabla del dial por pareja sostiene dos:
+si manana una medicion la contradice, no hay que defenderla. Y «la primera en 5
+no sostiene tercero» sostiene uno, que es exactamente lo que su comentario dice
+--descansa en un caso-- ahora comprobado en vez de recordado.

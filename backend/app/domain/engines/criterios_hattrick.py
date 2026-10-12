@@ -53,8 +53,15 @@ from typing import Literal
 #: LA PRIMERA MEDIDA PUSO LA PORTERÍA TERCERA Y ERA FALSO. Salió de que con
 #: todo a 12 gana el portero y de que con Portería 11 y Defensa 11 también.
 #: Las dos cosas las explica el sesgo de `_umbral_de_portero`, no el desempate:
-#: medido de uno en uno, la Portería pierde el empate contra Jugadas. Va
-#: quinta, delante de Pases y detrás de todo lo demás.
+#: medido de uno en uno, la Portería pierde el empate contra Jugadas.
+#:
+#: Y SU SITIO EN ESTA TUPLA NO HACE NADA, que es distinto de que la medición no
+#: valga. `_tipo` saca la Portería de la lista y la compara aparte, así que
+#: moverla de tercera a quinta no cambia ni un caso de los 236 del banco --se
+#: comprobó quitándola, con `cuanto_sostiene_cada_regla.py`--. Lo que la
+#: medición sostiene es el `>` ESTRICTO de `_tipo`: con Jugadas 10 y Portería
+#: 10 sale mediocentro. Se deja quinta para que la tupla cuente el orden
+#: medido, no porque el código lo lea.
 ORDEN_LLANO: tuple[str, ...] = (
     "winger",
     "scoring",

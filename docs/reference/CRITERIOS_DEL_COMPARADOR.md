@@ -488,6 +488,41 @@ el corte del orden por plantilla y el corte condicional de la banda de la
 tercera. En los dos casos mi análisis a mano decía lo contrario de lo que dijo
 el banco, y tenía razón el banco.
 
+## Cuánto sostiene cada regla
+
+El motor es un montón de reglas sacadas de mediciones distintas, y no todas
+pesan lo mismo.
+[`cuanto_sostiene_cada_regla.py`](sondeo-comparador/cuanto_sostiene_cada_regla.py)
+las quita de una en una y cuenta cuántos de los 236 casos medidos dejan de
+salir:
+
+| al quitar | se rompen |
+|---|---|
+| las exclusiones por tipo | 139 |
+| el sesgo del portero sobre la defensa | 20 |
+| que la Anotación pida cinco | 14 |
+| que la tercera en 7 abra la segunda | 12 |
+| los pesos del extremo | 9 |
+| los pesos del mediocentro | 7 |
+| que una habilidad de 17 afloje sola | 5 |
+| el desempate propio del extremo | 4 |
+| la tapadera de la Anotación al extremo | 3 |
+| la regla del Lateral del mediocentro | 2 |
+| la tabla del dial por pareja | 2 |
+| que la primera en 5 no sostenga tercero | 1 |
+| **la posición de la Portería en el desempate** | **0** |
+
+**Para qué sirve:** dice en qué apoyarse y en qué no. Las exclusiones por tipo
+sostienen 139 casos --tocarlas es tocar el motor entero--; la tabla del dial
+por pareja sostiene dos, así que si una medición la contradice no hay que
+defenderla. Y la regla que su propio comentario dice que «descansa en un caso»
+sostiene exactamente uno, ahora comprobado en vez de recordado.
+
+**El único cero es información muerta, no una regla sin apoyo:** `_tipo` saca la
+Portería de la lista y la compara aparte, así que su sitio en la tupla no lo lee
+nadie. Lo que la medición sostiene es el `>` estricto --con Jugadas 10 y
+Portería 10 sale mediocentro-- y eso queda dicho donde toca.
+
 ## Si Hattrick lo cambia
 
 Ya pasó una vez sin avisar. El sondeo es repetible: el guion está descrito
