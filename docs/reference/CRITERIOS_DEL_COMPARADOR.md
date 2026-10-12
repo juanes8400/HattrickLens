@@ -372,6 +372,47 @@ Dos detalles más de esa misma lectura: la lista cuenta **ventas, no jugadores**
 comparables tienen especialidades y formas distintas entre sí, lo que confirma
 una vez más que ninguna de las dos se filtra.
 
+## La hipótesis que explicaría todo lo que queda abierto
+
+Los agujeros que quedan --el mecanismo del orden, la entrada del tercero, el
+listón del dial por pareja, la tapadera de la Anotación-- parecen cuatro cosas
+distintas, y puede que sean una sola. El contraejemplo más limpio del sondeo:
+
+| perfil | Lateral 5 |
+|---|---|
+| Jugadas 16, **Defensa** 10, Lateral 5 | `Lateral <= bueno` (tope) |
+| Jugadas 16, **Anotación** 10, Lateral 5 | `Lateral entre débil y bueno` (criterio) |
+
+Misma dominante, una segunda de nivel 10 con el **mismo peso medido** --Defensa
+y Anotación comparten peso en el mediocentro--, mismo tercero de nivel 5, y los
+dos perfiles holgados. Ninguna función de nivel y peso puede dar dos respuestas
+distintas a dos entradas que para ella son idénticas.
+
+**Lo que sí las distingue es el puesto.** Jugadas 16 con Defensa 10 es un
+mediocentro *defensivo*; con Anotación 10 es un mediocentro *ofensivo*. Si
+Hattrick saca los criterios del **puesto** --de su quincena de puestos, no de
+cinco tipos-- se explican de golpe las cuatro cosas:
+
+- el contraejemplo de arriba: son dos puestos, dos plantillas;
+- el listón del dial «por pareja» sería un listón **por puesto**, que es mucho
+  más natural que una tabla de parejas;
+- la intransitividad del orden: añadir una habilidad cambia el puesto, y con
+  él la plantilla --un `sorted` no puede permutar a otros dos, un cambio de
+  plantilla sí--;
+- la tapadera de la Anotación sobre la Defensa sería la frontera entre dos
+  puestos de banda.
+
+**Cómo se comprobaría:** sondear por puesto y no por habilidad. Generar
+perfiles que caigan claramente en cada puesto conocido y ver si cada grupo da
+la misma plantilla --mismo conjunto y mismo orden-- con niveles distintos. Si
+es así, lo que hay que medir es una tabla de quince plantillas, no un sistema
+de pesos.
+
+**Por qué no está implementado:** sería cambiar el cimiento del módulo con una
+hipótesis de dos casos, y lo que hay clava 191 pruebas contra el juego y
+acierta los tres filtros en los sesenta perfiles plausibles. El cimiento se
+cambia con la tabla medida en la mano, no antes.
+
 ## Si Hattrick lo cambia
 
 Ya pasó una vez sin avisar. El sondeo es repetible: el guion está descrito

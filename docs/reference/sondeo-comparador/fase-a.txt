@@ -1017,3 +1017,80 @@ Asi que la entrada del tercero no es un nivel por habilidad, ni un nivel por
 tipo, ni un hueco contra la segunda: las tres se caen con estos datos. Es la
 misma familia que el mecanismo del orden (FASE Q) y queda igual de abierta.
 No se toca el 5 del codigo: es el valor que mas acierta de los probados.
+
+
+================================================================================
+FASE V - 2026-10-12 - REJILLAS DE DOS EJES, Y UNA HIPOTESIS MEJOR
+================================================================================
+
+Barrer un eje a la vez es lo que esconde el mecanismo, asi que se barrieron dos.
+
+--- V1. EL NIVEL DE LA DOMINANTE NO INFLUYE -------------------------------
+
+Mediocentro, Pases 9 fijos, moviendo la dominante y el Lateral:
+
+  Jug12 Pas9 Lat: 4no 5no 6no 7SI 8SI 9SI
+  Jug14 Pas9 Lat: 4no 5no 6no 7SI 8SI 9SI
+  Jug16 Pas9 Lat: 4no 5no 6no 7SI 8SI 9SI
+  Jug18 Pas9 Lat: 4no 5no 6no 7SI 8SI 9SI
+  Jug20 Pas9 Lat: 4no 5no 6no 7SI 8SI 9SI
+
+Cinco filas identicas: la entrada del tercero no depende de la primera.
+
+--- V2. PERO SI DEPENDE DE QUIEN ES LA SEGUNDA ----------------------------
+
+  Jug16 Def10 Lat: 4no 5no 6no 7SI 8SI     <- el Lateral necesita 7
+  Jug16 Ano10 Lat: 4no 5SI 6SI 7SI 8SI     <- le basta 5
+  Jug16 Pas10 Def: 4no 5SI 6SI 7SI 8SI
+  Jug16 Pas10 Ano: 4no 5SI 6SI 7SI 8SI
+
+Y las cadenas enteras, para no fiarse del booleano:
+
+  Jug16 Def10 Lat5 : Jug=16 Def 9-11            Pas<=5 Lat<=7 Ano<=5 Por<=5
+  Jug16 Def10 Lat6 : Jug=16 Def 9-11            Pas<=5 Lat<=8 Ano<=5 Por<=5
+  Jug16 Def10 Lat7 : Jug=16 Def 9-11  Lat 6-9   Pas<=5 Ano<=5 Por<=5
+  Jug16 Ano10 Lat5 : Jug=16 Ano 9-11  Lat 4-7   Pas<=5 Def<=5 Por<=5
+  Jug16 Ano10 Lat6 : Jug=16 Ano 9-11  Lat 5-8   Pas<=5 Def<=5 Por<=5
+
+ESTE ES EL CONTRAEJEMPLO MAS LIMPIO DE TODO EL SONDEO. Los dos perfiles tienen
+la MISMA estructura: misma dominante (Jugadas 16), una segunda de nivel 10 con
+el MISMO peso medido --Defensa y Anotacion comparten peso 2 en el mediocentro,
+FASE Q-- y un tercero de nivel 5. Y Hattrick le da al Lateral un tope en uno y
+un criterio en el otro. Los dos son holgados --los topes de 5 y las bandas de
+[v-1, v+2] lo dicen-- asi que no es el dial.
+
+Ningun modelo de la forma «ordena por (nivel, peso) y corta» puede producir
+eso, porque las dos entradas son indistinguibles para cualquier funcion de
+nivel y peso. La diferencia esta en la IDENTIDAD de la segunda.
+
+--- V3. LA HIPOTESIS QUE ESTO SUGIERE ------------------------------------
+
+Y es mejor que la que tenemos. Hattrick no tiene cinco tipos de jugador: tiene
+una quincena de PUESTOS --central, lateral defensivo, lateral ofensivo,
+mediocentro defensivo, mediocentro ofensivo, extremo, delantero...-- y para
+cada jugador sabe cual es su mejor puesto. Si los criterios salen del PUESTO y
+no de la habilidad dominante, se explican de golpe las cuatro cosas que hoy
+quedan sin explicar:
+
+  - Jug16 Def10 es un mediocentro DEFENSIVO y Jug16 Ano10 uno OFENSIVO. Dos
+    puestos distintos, dos plantillas de criterios distintas. V2 resuelto.
+  - El liston del dial por PAREJA (FASE U) seria un liston por PUESTO, uno por
+    cada uno, que es mucho mas natural que una tabla de parejas.
+  - La intransitividad del orden (FASE Q): anadir una habilidad cambia el
+    puesto, y al cambiar el puesto cambia la plantilla. Un sorted no puede
+    permutar a otros dos, pero un cambio de plantilla si.
+  - La tapadera de la Anotacion sobre la Defensa en el extremo (FASE S) seria
+    la frontera entre dos puestos de banda.
+
+COMO SE COMPROBARIA. Hay que sondear por PUESTO y no por habilidad: generar
+perfiles que caigan claramente en cada puesto conocido de Hattrick y ver si
+cada grupo da la misma plantilla de criterios --mismo conjunto y mismo orden--
+independientemente de los niveles exactos. Si es asi, lo que hay que medir es
+una tabla de quince plantillas, no un sistema de pesos. Eso es un sondeo
+nuevo, no un parche al de hoy.
+
+POR QUE NO SE IMPLEMENTA HOY. Porque seria cambiar el cimiento del modulo con
+una hipotesis de dos casos, y el modelo que hay clava 191 pruebas contra el
+juego y acierta los tres filtros de `transfersearch` en los sesenta perfiles
+plausibles. La hipotesis queda escrita con sus datos; cambiar el cimiento se
+hace con la tabla medida en la mano, no antes.
