@@ -255,7 +255,16 @@ def _fuera(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
             niveles.get("scoring", 0) >= ENTRADA_TERCERO
             and niveles.get("defending", 0) < ENTRADA_TERCERO
         )
-        if not ofensivo:
+        # Y LA REGLA SOLO SE APLICA DONDE SE MIDIO: la rejilla tenia la
+        # dominante entre 12 y 20, o sea muy por encima del Lateral. Con un
+        # mediocentro plano --Jugadas 7 y Pases, Defensa, Lateral y Anotacion
+        # los cuatro a 6-- el Lateral SI es criterio, y ahi el Lateral no es
+        # una habilidad periferica: es codominante. Fuera del dominio medido no
+        # se excluye nada. Esto descansa en UN caso; comprobarlo de verdad pide
+        # rehacer la rejilla con el Lateral en 6 y 7 y las dos companeras
+        # puestas, y eso necesita cuota de consultas.
+        periferico = niveles.get("winger", 0) < niveles.get("playmaking", 0) - 1
+        if not ofensivo and periferico:
             fuera |= {"winger"}
     return fuera
 
@@ -677,9 +686,15 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         #   Lat7  Jug6  Pas6  Ano6  Def6  -> Lat, Jug, Pas, DEFENSA (Ano al tope)
         #   Lat18 Def12 Ano12             -> Lat, ANOTACION, Defensa (las dos)
         #
-        # Asi que el corte usa el orden de la plantilla y la lista el desempate.
-        pos = pesos[h]
-        return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), plantilla.index(h))
+        # Asi que el corte usa el orden de la PLANTILLA de punta a punta --peso
+        # y desempate-- y la lista usa los pesos medidos. Se probo contra todo
+        # lo medido con el banco de `docs/reference/sondeo-comparador`: el
+        # corte por plantilla mantiene los 177 casos y arregla uno mas, un
+        # mediocentro con Pases, Defensa, Lateral y Anotacion los cuatro a 11,
+        # donde Hattrick se queda con la Defensa y el LATERAL y deja fuera la
+        # Anotacion. Con los pesos medidos en el corte se quedaba la Anotacion.
+        pos = plantilla.index(h)
+        return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), pos)
 
     fuera = _fuera(tipo, niveles)
     ordenadas = [h for h in sorted(plantilla, key=clave_de_corte) if h not in fuera]
@@ -733,6 +748,10 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
     # El tercer puesto decide si el segundo va clavado, así que hay que
     # conocerlo antes de resolver el segundo.
     tercero = valor[orden[2]] if len(orden) > 2 else 0
+    # Y si la SEGUNDA supera a la primera, la banda de la tercera se corta en
+    # la primera. Lo explica el comentario de `_tercero`.
+    segundo_valor = valor[orden[1]] if len(orden) > 1 else 0
+    tope_de_banda = valor[orden[0]] if segundo_valor > valor[orden[0]] else None
     # El balon parado del portero NO abre la segunda: con Porteria 14, Defensa 6
     # y balon parado 9, la Defensa sigue clavada. Por eso se anula aqui.
     if len(orden) > 2 and orden[2] == BALON_PARADO:
@@ -748,13 +767,15 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
         elif puesto == 1:
             salida.append(_segundo(habilidad, nivel, valor[orden[0]], tercero, tipo))
         elif puesto == 2:
-            salida.append(_tercero(habilidad, nivel, holgado))
+            salida.append(_tercero(habilidad, nivel, holgado, tope_de_banda))
         # LO EXCLUIDO NO PUEDE SER EL CUARTO. Era un agujero del portero: con
         # Porteria 18, Defensa 15 y Lateral 5 le salia «Lateral entre debil y
         # bueno» cuando Hattrick le pone tope, y de rebote el Lateral abria la
         # banda de la Defensa.
         elif puesto == 3 and nivel >= ENTRADA_TERCERO and habilidad not in fuera:
-            salida.append(_cuarto(habilidad, nivel, valor[orden[0]], tercero, holgado))
+            salida.append(
+                _cuarto(habilidad, nivel, valor[orden[0]], tercero, holgado, tope_de_banda)
+            )
         else:
             salida.append(Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado)))
 
@@ -793,7 +814,14 @@ def _segundo(habilidad: str, nivel: int, primero: int, tercero: int, tipo: str) 
     return Criterio(habilidad, "banda", max(0, nivel - 1), nivel + 1)
 
 
-def _cuarto(habilidad: str, nivel: int, primero: int, tercero: int, holgado: bool) -> Criterio:
+def _cuarto(
+    habilidad: str,
+    nivel: int,
+    primero: int,
+    tercero: int,
+    holgado: bool,
+    tope: int | None = None,
+) -> Criterio:
     """El cuarto puesto, que sólo existe si llega al umbral de entrada.
 
     Barrido con Defensa 14, Jugadas 10 y Pases 8 de tercera, moviendo el
@@ -815,14 +843,29 @@ def _cuarto(habilidad: str, nivel: int, primero: int, tercero: int, holgado: boo
     """
     if nivel >= CUARTO_CON_BANDA_ANCHA:
         return Criterio(habilidad, "banda", max(0, nivel - 2), min(nivel + 3, primero))
-    return _tercero(habilidad, nivel, holgado)
+    return _tercero(habilidad, nivel, holgado, tope)
 
 
-def _tercero(habilidad: str, nivel: int, holgado: bool) -> Criterio:
-    """El tercer puesto: techo, banda o suelo según el nivel."""
+def _tercero(habilidad: str, nivel: int, holgado: bool, tope: int | None = None) -> Criterio:
+    """El tercer puesto: techo, banda o suelo según el nivel.
+
+    `tope` CORTA LA BANDA POR ARRIBA, y sólo llega con valor cuando la segunda
+    habilidad SUPERA a la primera. Es la unica forma que encaja con las dos
+    medidas que parecian contradecirse:
+
+        Lat9 Jug9 Pas9 Def9   -> «Pases entre excelente y destacado» (8-10)
+        Lat6 Pas7 Jug6 Def6   -> «Jugadas entre insuficiente y aceptable» (5-6)
+
+    En el primero la segunda IGUALA a la primera y la banda se sale de ella sin
+    problema; en el segundo la segunda la SUPERA y entonces la tercera se corta
+    en la primera. Cortar siempre pierde dos casos ya medidos, asi que la
+    condicion no es de adorno.
+    """
     if nivel < ENTRADA_TERCERO:
         return Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado))
     if nivel >= SUELO_DEL_TERCERO:
         return Criterio(habilidad, ">=", nivel, MAXIMO_DE_LA_ESCALA)
     arriba = nivel + (2 if holgado else 1)
+    if tope is not None:
+        arriba = min(arriba, tope)
     return Criterio(habilidad, "banda", max(0, nivel - 1), arriba)

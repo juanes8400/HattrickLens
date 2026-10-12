@@ -1231,3 +1231,71 @@ Asi que el inventario de entradas queda CERRADO para los cuatro tipos de campo:
 Eso responde la pregunta entera, no un trozo. Lo que sigue abierto es otra
 cosa: el ORDEN cuando varias empatan, que es la familia de FASE Q, y la
 hipotesis de los PUESTOS que la explicaria.
+
+
+================================================================================
+FASE X - 2026-10-12 - PROGRESO SIN GASTAR UNA CONSULTA
+================================================================================
+
+Hattrick se agoto: de cinco peticiones seguidas, UNA traia criterios y cuatro
+volvian vacias. Con la cuota asi, medir produce datos falsos, que es peor que
+no tener datos. Asi que se cambio de herramienta: se monto un BANCO que puntua
+el motor contra todo lo ya medido --`banco.py`, en esta misma carpeta-- y se
+probaron candidatos contra el, gratis.
+
+Regla del banco: un candidato solo vale si MANTIENE el total medido y sube los
+pendientes. Si baja aunque sea uno de los medidos, se descarta.
+
+--- X1. EL CORTE DEL ORDEN VA POR PLANTILLA, NO POR PESOS ------------------
+
+  motor con el corte por pesos      medido 177/177   pendientes 0/5
+  motor con el corte por plantilla  medido 177/177   pendientes 1/5
+
+Arregla un mediocentro con Pases, Defensa, Lateral y Anotacion los cuatro a 11,
+donde Hattrick se queda con la Defensa y el LATERAL y deja fuera la Anotacion.
+
+YO HABIA DESCARTADO ESTE CANDIDATO A MANO. Razone que rompia el caso de
+Jugadas 16, Lateral 5 y Anotacion 5, y me equivoque: se me paso que ahi entra
+un CUARTO puesto y la cuenta sale distinta. El banco no se equivoco.
+
+--- X2. LA BANDA DE LA TERCERA SE CORTA SI LA SEGUNDA SUPERA A LA PRIMERA --
+
+  no corta nunca                        medido 177/177   pendientes 1/5
+  corta siempre en la primera           medido 175/177   pendientes 2/5
+  corta si la segunda supera la primera medido 177/177   pendientes 2/5
+
+Las dos medidas que parecian contradecirse encajan asi:
+
+  Lat9 Jug9 Pas9 Def9  -> «Pases entre excelente y destacado» (8-10), sin cortar
+  Lat6 Pas7 Jug6 Def6  -> «Jugadas entre insuficiente y aceptable» (5-6), cortada
+
+En el primero la segunda IGUALA a la primera; en el segundo la SUPERA. Que
+«cortar siempre» pierda dos casos medidos es la prueba de que la condicion
+no es de adorno.
+
+--- X3. Y LA REGLA DEL LATERAL SE ACOTA A DONDE SE MIDIO ------------------
+
+La rejilla del Lateral tenia la dominante entre 12 y 20, o sea muy por encima.
+Un mediocentro PLANO --Jugadas 7 y Pases, Defensa, Lateral y Anotacion los
+cuatro a 6-- la contradice: el Lateral SI es criterio. Ahi el Lateral no es una
+habilidad periferica, es codominante.
+
+No se invento una clausula nueva: se acoto la regla a su dominio medido --solo
+excluye cuando el Lateral esta al menos dos por debajo de la dominante--. Las
+83 celdas siguen saliendo y el contraejemplo tambien. DESCANSA EN UN CASO:
+comprobarlo de verdad pide rehacer la rejilla con el Lateral en 6 y 7 y las dos
+companeras puestas, y eso necesita cuota.
+
+--- X4. DONDE QUEDA ------------------------------------------------------
+
+  medido      177/177
+  pendientes    3/5 arreglados sin consultas
+
+Los dos que siguen son un orden de la cola --dos topes intercambiados, nunca se
+mandan a buscar-- y una entrada del tercero con la primera tambien en 5, que es
+un perfil raro de pasador reclasificado y un solo caso. No se les hace una
+regla a medida.
+
+LA LECCION, que es la que vale: cuando la fuente se agota, el banco sustituye
+al sondeo. Y las dos veces que el banco contradijo mi razonamiento a mano,
+tenia razon el banco.

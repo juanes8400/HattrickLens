@@ -1180,3 +1180,51 @@ def test_el_defensa_y_el_delantero_no_tienen_entrada_propia(
             c.habilidad == habilidad and c.operador != "<=" for c in criterios.habilidades
         )
         assert es_criterio is (nivel >= entrada), f"{descripcion} con {nivel}"
+
+
+# --- Los dos que arreglo el banco, sin gastar una consulta -----------------
+
+#: Encontrados el 2026-10-12 con `docs/reference/sondeo-comparador/banco.py`,
+#: puntuando candidatos contra todo lo ya medido cuando Hattrick ya devolvia
+#: paginas vacias. En los dos casos mi analisis a mano decia lo contrario de lo
+#: que dijo el banco, asi que van fijados con su perfil entero.
+def test_el_corte_del_orden_va_por_plantilla() -> None:
+    """Mediocentro con Pases, Defensa, Lateral y Anotacion los cuatro a 11:
+    Hattrick se queda con la Defensa y el LATERAL y deja fuera la Anotacion.
+    Con los pesos medidos en el corte se quedaba la Anotacion."""
+    criterios = criterios_de(
+        17,
+        perfil(
+            playmaking=13, passing=11, defending=11, winger=11, scoring=11,
+            set_pieces=11, keeper=3,
+        ),
+    )
+    assert _pinta(criterios) == "Ed=17 Jug=13 Pas 10-12 Def>=11 Lat 9-13 Ano<=12 Por<=4"
+
+
+def test_la_banda_se_corta_si_la_segunda_supera_a_la_primera() -> None:
+    """Extremo de Lateral 6 con Pases 7: la banda de la tercera se corta en 6.
+    Con la segunda IGUALANDO a la primera no se corta --Lat9 Jug9 Pas9 Def9 da
+    «Pases 8-10»--, asi que la condicion no es de adorno."""
+    criterios = criterios_de(
+        17,
+        perfil(
+            winger=6, passing=7, playmaking=6, defending=6, scoring=6,
+            set_pieces=6, keeper=3,
+        ),
+    )
+    assert _pinta(criterios) == "Ed=17 Lat=6 Pas=7 Jug 5-6 Def 5-6 Ano<=7 Por<=4"
+
+
+def test_la_regla_del_lateral_no_se_aplica_a_un_medio_plano() -> None:
+    """La rejilla del Lateral se midio con la dominante entre 12 y 20. Con un
+    mediocentro plano --Jugadas 7 y las demas a 6-- el Lateral no es periferico
+    sino codominante, y SI es criterio. Descansa en un solo caso."""
+    criterios = criterios_de(
+        31,
+        perfil(
+            playmaking=7, passing=6, defending=6, winger=6, scoring=6,
+            set_pieces=6, keeper=3,
+        ),
+    )
+    assert _pinta(criterios) == "Ed=31 Jug=7 Pas=6 Def 5-7 Lat 5-7 Ano<=7 Por<=4"

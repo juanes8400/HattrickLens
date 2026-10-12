@@ -452,6 +452,22 @@ hipótesis de dos casos, y lo que hay clava 191 pruebas contra el juego y
 acierta los tres filtros en los sesenta perfiles plausibles. El cimiento se
 cambia con la tabla medida en la mano, no antes.
 
+## El banco: avanzar sin gastar consultas
+
+Hattrick estrangula a las ~300 consultas y a partir de ahí devuelve 200 con una
+página sin criterios. Con la cuota agotada, medir produce datos falsos, que es
+peor que no tener datos.
+
+Para eso está [`sondeo-comparador/banco.py`](sondeo-comparador/banco.py): junta
+las ~180 observaciones que las pruebas ya guardan y puntua el motor contra
+todas. Un candidato sólo vale si **mantiene el total medido y sube los
+pendientes**; si baja aunque sea uno, se descarta.
+
+El 2026-10-12 el banco encontró **dos arreglos reales con la cuota ya agotada**:
+el corte del orden por plantilla y el corte condicional de la banda de la
+tercera. En los dos casos mi análisis a mano decía lo contrario de lo que dijo
+el banco, y tenía razón el banco.
+
 ## Si Hattrick lo cambia
 
 Ya pasó una vez sin avisar. El sondeo es repetible: el guion está descrito
