@@ -142,6 +142,7 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
         (25, T.perfil(playmaking=16, **extra), s)
         for extra, s in T.LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO
     ]
+    casos += [(e, dict(n), s) for e, n, s in T.LAS_FICHAS_REALES]
     return casos
 
 

@@ -1947,3 +1947,21 @@ la tercera, clave con umbral, y la simetrica de la tapadera). Lo que se sabe:
 Los Pases son la habilidad mas reacia a entrar de cuarta, y la Anotacion la que
 entra mas facil en el extremo y la que menos en el mediocentro con Lateral. Si
 hay regla, pasa por la habilidad y no solo por el nivel.
+
+--- AF4. VALIDACION CONTRA LAS 25 FICHAS REALES, POR LA VIA NORMAL ----------
+
+Pedidas sin tocar el panel --`TransferCompare.aspx?playerId=X` a secas-- y con
+las habilidades leidas del panel de cada una, que viene rellenado con las del
+jugador. 25 consultas de pagina + 25 de panel.
+
+  25 de 25 reproducidas ENTERAS, cadena completa incluido el monton.
+
+Cubren de la edad 20 a la 45, los cinco tipos, un portero con balon parado 20 y
+tres jugadores por encima de los 35. Son perfiles que nadie diseno para probar
+nada, que es lo que las hace valer.
+
+ESTO ES COMPROBAR, NO AJUSTAR: ninguna constante del motor sale de aqui, y lo
+unico que la plantilla aporta es una muestra que no elegi yo. Quedan fijadas en
+`test_criterios_hattrick` como `LAS_FICHAS_REALES`.
+
+  banco: 333/333 -> 358/358

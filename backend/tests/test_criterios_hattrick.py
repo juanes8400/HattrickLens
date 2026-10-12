@@ -1703,3 +1703,46 @@ LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO: list[tuple[dict[str, int], str]] = [
 @pytest.mark.parametrize("extra,esperado", LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO)
 def test_la_anotacion_y_el_lateral_del_medio(extra: dict[str, int], esperado: str) -> None:
     assert _pinta(criterios_de(25, perfil(playmaking=16, **extra))) == esperado
+
+
+#: LAS VEINTICINCO FICHAS REALES DE LA PLANTILLA, pedidas por la VIA NORMAL
+#: --sin tocar el panel «Editar búsqueda»-- el 2026-10-12, después de los cuatro
+#: cambios de regla de ese día. Son perfiles que nadie diseñó para probar nada,
+#: que es lo que las hace valer: cubren de la edad 20 a la 45, los cinco tipos,
+#: un portero con balón parado 20 y tres jugadores por encima de los 35.
+#:
+#: Esto es COMPROBAR, no ajustar: ninguna constante del motor sale de aquí. Lo
+#: que la plantilla del propietario aporta es una muestra que no elegí yo.
+#: (edad, perfil, lo que contestó Hattrick)
+LAS_FICHAS_REALES: list[tuple[int, dict[str, int], str]] = [
+    (29, perfil(keeper=1, defending=15, playmaking=6, winger=13, passing=13, scoring=5, set_pieces=3), "Ed28-30 Def=15 Pas 12-14 Lat>=13 Jug 5-8 Ano<=7 Por<=5"),
+    (29, perfil(keeper=1, defending=18, playmaking=10, winger=4, passing=9, scoring=4, set_pieces=3), "Ed28-30 Def=18 Jug 9-11 Pas 8-11 Lat<=5 Ano<=5 Por<=5"),
+    (30, perfil(keeper=1, defending=12, playmaking=11, winger=17, passing=13, scoring=5, set_pieces=9), "Ed29-31 Lat=17 Pas 12-14 Jug>=11 Def 10-15 Ano<=7 Por<=5"),
+    (29, perfil(keeper=1, defending=13, playmaking=11, winger=15, passing=11, scoring=3, set_pieces=2), "Ed28-30 Lat=15 Def 12-14 Jug>=11 Pas 9-14 Ano<=5 Por<=5"),
+    (30, perfil(keeper=1, defending=5, playmaking=13, winger=6, passing=13, scoring=15, set_pieces=2), "Ed29-31 Ano=15 Pas 12-14 Jug>=13 Lat 5-8 Def<=7 Por<=5"),
+    (28, perfil(keeper=1, defending=16, playmaking=12, winger=4, passing=9, scoring=3, set_pieces=6), "Ed27-29 Def=16 Jug 11-13 Pas 8-11 Lat<=5 Ano<=5 Por<=5"),
+    (29, perfil(keeper=1, defending=11, playmaking=12, winger=3, passing=16, scoring=4, set_pieces=1), "Ed28-30 Jug=12 Pas 15-17 Def>=11 Lat<=5 Ano<=5 Por<=5"),
+    (31, perfil(keeper=1, defending=4, playmaking=7, winger=4, passing=13, scoring=18, set_pieces=9), "Ed30-32 Ano=18 Pas 12-14 Jug 6-9 Lat<=5 Def<=5 Por<=5"),
+    (29, perfil(keeper=1, defending=16, playmaking=10, winger=10, passing=10, scoring=4, set_pieces=3), "Ed28-30 Def=16 Pas 9-11 Jug 9-12 Lat 8-13 Ano<=5 Por<=5"),
+    (28, perfil(keeper=1, defending=13, playmaking=3, winger=11, passing=14, scoring=5, set_pieces=2), "Ed27-29 Def=13 Pas 13-15 Lat>=11 Jug<=5 Ano<=7 Por<=5"),
+    (29, perfil(keeper=1, defending=14, playmaking=4, winger=11, passing=13, scoring=2, set_pieces=6), "Ed28-30 Def=14 Pas 12-14 Lat>=11 Jug<=5 Ano<=5 Por<=5"),
+    (28, perfil(keeper=15, defending=8, playmaking=2, winger=1, passing=2, scoring=3, set_pieces=20), "Ed27-29 Por=15 Def 7-9 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+    (26, perfil(keeper=1, defending=11, playmaking=6, winger=4, passing=9, scoring=3, set_pieces=4), "Ed=26 Def=11 Pas=9 Jug 5-7 Lat<=4 Ano<=4 Por<=4"),
+    (23, perfil(keeper=1, defending=10, playmaking=3, winger=4, passing=10, scoring=3, set_pieces=6), "Ed=23 Def=10 Pas 9-11 Lat<=4 Jug<=4 Ano<=4 Por<=4"),
+    (20, perfil(keeper=1, defending=4, playmaking=3, winger=6, passing=10, scoring=10, set_pieces=5), "Ed=20 Ano=10 Pas 9-11 Lat 5-7 Jug<=4 Def<=4 Por<=4"),
+    (20, perfil(keeper=1, defending=12, playmaking=2, winger=3, passing=6, scoring=5, set_pieces=4), "Ed=20 Def=12 Pas=6 Lat<=4 Jug<=4 Ano<=6 Por<=4"),
+    (23, perfil(keeper=1, defending=11, playmaking=6, winger=4, passing=8, scoring=3, set_pieces=9), "Ed=23 Def=11 Pas=8 Jug 5-7 Lat<=4 Ano<=4 Por<=4"),
+    (21, perfil(keeper=1, defending=12, playmaking=6, winger=4, passing=4, scoring=3, set_pieces=1), "Ed=21 Def=12 Jug=6 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (21, perfil(keeper=1, defending=11, playmaking=4, winger=7, passing=7, scoring=2, set_pieces=4), "Ed=21 Def=11 Pas 6-8 Lat 6-8 Jug<=4 Ano<=4 Por<=4"),
+    (21, perfil(keeper=2, defending=3, playmaking=5, winger=10, passing=7, scoring=5, set_pieces=1), "Ed=21 Lat=10 Pas=7 Jug 4-6 Ano 4-6 Def<=4 Por<=4"),
+    (20, perfil(keeper=2, defending=10, playmaking=4, winger=3, passing=3, scoring=3, set_pieces=3), "Ed=20 Def=10 Jug=4 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (34, perfil(keeper=1, defending=5, playmaking=7, winger=2, passing=13, scoring=2, set_pieces=8), "Ed=34 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
+    (42, perfil(keeper=5, passing=1, set_pieces=11), "Ed35-99 Por=5 Def<=1 BP 9-13 Lat<=4 Ano<=4 Jug<=4"),
+    (43, perfil(playmaking=2), "Ed35-99 Jug=2 Pas<=2 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    (45, perfil(passing=1, set_pieces=6), "Ed35-99 Lat=0 Pas<=2 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("edad,niveles,esperado", LAS_FICHAS_REALES)
+def test_las_fichas_reales(edad: int, niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(edad, dict(niveles))) == esperado

@@ -400,6 +400,19 @@ Forma, resistencia, especialidad, experiencia, liderazgo, carácter,
 nacionalidad, TSI, y el balón parado de los jugadores de campo. Coincide con lo
 que declararon en 2009, y con lo que HT Lens ya excluía.
 
+## Validado contra las 25 fichas reales, por la vía normal
+
+El 2026-10-12, después de los cuatro cambios de regla de ese día, se pidieron
+las 25 fichas de la plantilla **sin tocar el panel «Editar búsqueda»** y se
+comparó la cadena entera:
+
+**25 de 25, enteras, incluido el montón.** Cubren de la edad 20 a la 45, los
+cinco tipos, un portero con balón parado 20 y tres jugadores por encima de los
+35. Son perfiles que nadie diseñó para probar nada, que es lo que las hace
+valer, y quedan fijadas como `LAS_FICHAS_REALES`.
+
+Esto es **comprobar, no ajustar**: ninguna constante del motor sale de ahí.
+
 ## Cuánto se le cree
 
 Las **75 pruebas** de `test_criterios_hattrick.py` fijan otros tantos casos
