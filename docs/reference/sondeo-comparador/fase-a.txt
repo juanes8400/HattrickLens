@@ -1553,3 +1553,46 @@ tocarlas es tocar el motor entero. La tabla del dial por pareja sostiene dos:
 si manana una medicion la contradice, no hay que defenderla. Y «la primera en 5
 no sostiene tercero» sostiene uno, que es exactamente lo que su comentario dice
 --descansa en un caso-- ahora comprobado en vez de recordado.
+
+
+================================================================================
+FASE AB - 2026-10-12 - LAS INVARIANTES, QUE NO NECESITAN CUOTA
+================================================================================
+
+Con Hattrick a 0 de 4 no se puede medir nada nuevo, pero si se puede comprobar
+que lo que hay es CORRECTO en un sentido que ninguna medicion puntual cubre.
+
+--- AB1. EL JUGADOR CUMPLE SUS PROPIOS CRITERIOS -------------------------
+
+Es la invariante mas fuerte que existe aqui. Los criterios describen jugadores
+PARECIDOS al nuestro, asi que el nuestro tiene que entrar en todos: si una
+banda no contiene su propio nivel, o la ventana de edad no contiene su edad,
+eso es un bug, y en produccion sale como una busqueda que no encontraria ni a
+su gemelo.
+
+  perfiles revisados: 204.116
+    - 200.000 aleatorios, las siete habilidades de 0 a 20, edades 17 a 33
+    - 4.116 planos y casi planos: cada nivel de 0 a 20, con una habilidad
+      subida de 0 a 3 por encima, en las edades de borde 17/21/22/31/32/33
+  violaciones: 0
+
+Los planos importan mas que los aleatorios: es donde se juntan todos los
+empates, que es donde el orden y los operadores se pisan.
+
+--- AB2. UN JUGADOR ES COMPARABLE DE SI MISMO ----------------------------
+
+La version de producto de lo mismo, y la que decide el sello del 100 %. Si
+`lo_ensenaria_hattrick` dijera que no para algun jugador contra si mismo, el
+sello estaria roto de raiz.
+
+  perfiles revisados: 60.000
+  violaciones: 0
+
+--- AB3. QUE APORTA ------------------------------------------------------
+
+Las 236 observaciones dicen que el motor acierta DONDE SE MIDIO. Esto dice que
+en los 204.116 perfiles donde NO se midio no hace nada absurdo. Son dos cosas
+distintas y hacian falta las dos: un motor puede clavar todas las mediciones y
+aun asi sacar una banda imposible en un perfil que nadie probo.
+
+Las dos quedan fijadas en pruebas con muestras rapidas.

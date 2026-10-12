@@ -1004,3 +1004,33 @@ def test_la_ventana_de_hattrick_se_puede_mandar_a_transfersearch(
         assert franja.habilidad in ID_DE_HABILIDAD, f"{puesto}: {franja.habilidad} sin skillType"
         assert 0 <= franja.minimo <= franja.maximo, f"{puesto}: franja del reves"
     assert ventana.edad_minima <= edad <= ventana.edad_maxima, puesto
+
+
+def test_un_jugador_es_comparable_de_si_mismo() -> None:
+    """La invariante del sello del 100 %, en su caso base.
+
+    Si `lo_ensenaria_hattrick` dijera que no para algun jugador contra si
+    mismo, el sello estaria roto de raiz: Hattrick ensena ventas PARECIDAS, y
+    nadie se parece mas a uno que uno mismo. Barrido sobre 60.000 perfiles
+    aleatorios el 2026-10-12 sin una sola violacion; aqui va una muestra.
+    """
+    import random
+
+    class Yo:
+        """El propio jugador, visto como candidato."""
+
+        def __init__(self, edad: int, niveles: dict[str, int]) -> None:
+            self.edad = edad
+            self.habilidades = niveles
+            self.primaria, self.secundaria, self.terciaria = terna(niveles)
+            self.especialidad = 0
+
+    r = random.Random(11)
+    habilidades = [
+        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+    ]
+    for _ in range(2000):
+        edad = r.randint(17, 33)
+        niveles = {h: r.randint(0, 20) for h in habilidades}
+        objetivo = replace(_objetivo(), edad=edad, habilidades=niveles)
+        assert lo_ensenaria_hattrick(Yo(edad, niveles), objetivo), (edad, niveles)

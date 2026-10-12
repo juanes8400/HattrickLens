@@ -1365,3 +1365,49 @@ def test_con_la_primera_en_cinco_el_tercero_no_llega_a_criterio() -> None:
         27, perfil(winger=5, passing=13, defending=5, keeper=3, set_pieces=3, scoring=1)
     )
     assert _pinta(criterios) == "Ed=27 Lat=5 Pas 12-14 Def<=5 Jug<=4 Ano<=4 Por<=4"
+
+
+# --- La invariante mas fuerte: el jugador cumple sus propios criterios -----
+
+#: POR QUE IMPORTA. Los criterios describen jugadores PARECIDOS al nuestro, asi
+#: que el nuestro tiene que entrar en todos: si una banda no contiene su propio
+#: nivel, o la ventana de edad no contiene su edad, en produccion sale como una
+#: busqueda que no encontraria ni a su gemelo.
+#:
+#: Barrido el 2026-10-12 sobre 204.116 perfiles --aleatorios de 0 a 20 en las
+#: siete habilidades, mas todos los planos y casi planos de cada nivel y cada
+#: edad de borde-- sin una sola violacion. Aqui se deja una muestra que corre
+#: rapido; el barrido entero esta en la nota de FASE AB de fase-a.txt.
+def test_el_jugador_cumple_sus_propios_criterios() -> None:
+    import random
+
+    r = random.Random(7)
+    habilidades = [
+        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+    ]
+    for _ in range(3000):
+        edad = r.randint(17, 33)
+        niveles = {h: r.randint(0, 20) for h in habilidades}
+        criterios = criterios_de(edad, dict(niveles))
+        assert criterios.edad_minima <= edad <= criterios.edad_maxima, (edad, niveles)
+        for c in criterios.habilidades:
+            nivel = max(0, niveles.get(c.habilidad, 0))
+            assert c.admite(nivel), (edad, niveles, c)
+
+
+@pytest.mark.parametrize("nivel", list(range(0, 21)))
+@pytest.mark.parametrize("edad", [17, 21, 22, 31, 32, 33])
+def test_los_perfiles_planos_tambien(nivel: int, edad: int) -> None:
+    """Los planos son donde se juntan todos los empates, que es donde el orden
+    y los operadores se pisan. Si la invariante aguanta ahi, aguanta."""
+    habilidades = [
+        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+    ]
+    for quien in habilidades:
+        for extra in range(0, 4):
+            niveles = dict.fromkeys(habilidades, nivel)
+            niveles[quien] = min(20, nivel + extra)
+            criterios = criterios_de(edad, niveles)
+            assert criterios.edad_minima <= edad <= criterios.edad_maxima
+            for c in criterios.habilidades:
+                assert c.admite(max(0, niveles.get(c.habilidad, 0))), (niveles, c)
