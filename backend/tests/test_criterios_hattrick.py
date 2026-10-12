@@ -521,83 +521,168 @@ OBSERVADO: list[tuple[str, int, dict[str, int], str]] = [
         "Ed26-28 Lat=14 Pas 12-14 Jug>=12 Def 9-14 Ano<=5 Por<=5",
     ),
     # --- El cuarto puesto se corta en la PRIMERA habilidad (2026-10-10)
-    ("4o cortado por la primera, en 9", 25,
-     perfil(defending=9, playmaking=8, passing=8, winger=8),
-     "Ed=25 Def=9 Pas 7-9 Jug 7-9 Lat 6-9 Ano<=4 Por<=4"),
-    ("y subiendo solo la primera a 10, el corte sube", 25,
-     perfil(defending=10, playmaking=8, passing=8, winger=8),
-     "Ed=25 Def=10 Pas 7-9 Jug 7-9 Lat 6-10 Ano<=4 Por<=4"),
-    ("con la segunda en 9 el reparto cambia pero el corte sigue", 25,
-     perfil(defending=9, playmaking=9, passing=8, winger=8),
-     "Ed=25 Def=9 Jug 8-10 Pas 7-9 Lat 6-9 Ano<=4 Por<=4"),
+    (
+        "4o cortado por la primera, en 9",
+        25,
+        perfil(defending=9, playmaking=8, passing=8, winger=8),
+        "Ed=25 Def=9 Pas 7-9 Jug 7-9 Lat 6-9 Ano<=4 Por<=4",
+    ),
+    (
+        "y subiendo solo la primera a 10, el corte sube",
+        25,
+        perfil(defending=10, playmaking=8, passing=8, winger=8),
+        "Ed=25 Def=10 Pas 7-9 Jug 7-9 Lat 6-10 Ano<=4 Por<=4",
+    ),
+    (
+        "con la segunda en 9 el reparto cambia pero el corte sigue",
+        25,
+        perfil(defending=9, playmaking=9, passing=8, winger=8),
+        "Ed=25 Def=9 Jug 8-10 Pas 7-9 Lat 6-9 Ano<=4 Por<=4",
+    ),
     # --- Un cuarto criterio de identidad baja el liston del dial (2026-10-10)
-    ("ciego3: delantero con cuatro habilidades", 28,
-     perfil(scoring=11, passing=10, winger=9, playmaking=8),
-     "Ed27-29 Ano=11 Pas 9-11 Lat 8-11 Jug 6-11 Def<=5 Por<=5"),
-    ("ciego3: defensa con cuatro a nueve", 25,
-     perfil(defending=11, playmaking=9, passing=9, winger=9),
-     "Ed24-26 Def=11 Pas 8-10 Jug 8-11 Lat 7-11 Ano<=5 Por<=5"),
-    ("ciego3: extremo completo", 25,
-     perfil(defending=8, playmaking=10, winger=12, passing=9),
-     "Ed24-26 Lat=12 Jug 9-11 Pas 8-11 Def 6-11 Ano<=5 Por<=5"),
-    ("ciego3: medio con cuatro", 24,
-     perfil(defending=9, playmaking=13, winger=8, passing=11),
-     "Ed23-25 Jug=13 Pas 10-12 Def 8-11 Lat 6-11 Ano<=5 Por<=5"),
-    ("ciego3: lateral con suelo en la tercera", 26,
-     perfil(defending=14, playmaking=8, winger=11, passing=12),
-     "Ed25-27 Def=14 Pas 11-13 Lat>=11 Jug 6-11 Ano<=5 Por<=5"),
-    ("ciego3: chaval de 17", 17, perfil(defending=10, playmaking=8),
-     "Ed=17 Def=10 Jug=8 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (
+        "ciego3: delantero con cuatro habilidades",
+        28,
+        perfil(scoring=11, passing=10, winger=9, playmaking=8),
+        "Ed27-29 Ano=11 Pas 9-11 Lat 8-11 Jug 6-11 Def<=5 Por<=5",
+    ),
+    (
+        "ciego3: defensa con cuatro a nueve",
+        25,
+        perfil(defending=11, playmaking=9, passing=9, winger=9),
+        "Ed24-26 Def=11 Pas 8-10 Jug 8-11 Lat 7-11 Ano<=5 Por<=5",
+    ),
+    (
+        "ciego3: extremo completo",
+        25,
+        perfil(defending=8, playmaking=10, winger=12, passing=9),
+        "Ed24-26 Lat=12 Jug 9-11 Pas 8-11 Def 6-11 Ano<=5 Por<=5",
+    ),
+    (
+        "ciego3: medio con cuatro",
+        24,
+        perfil(defending=9, playmaking=13, winger=8, passing=11),
+        "Ed23-25 Jug=13 Pas 10-12 Def 8-11 Lat 6-11 Ano<=5 Por<=5",
+    ),
+    (
+        "ciego3: lateral con suelo en la tercera",
+        26,
+        perfil(defending=14, playmaking=8, winger=11, passing=12),
+        "Ed25-27 Def=14 Pas 11-13 Lat>=11 Jug 6-11 Ano<=5 Por<=5",
+    ),
+    (
+        "ciego3: chaval de 17",
+        17,
+        perfil(defending=10, playmaking=8),
+        "Ed=17 Def=10 Jug=8 Pas<=4 Lat<=4 Ano<=4 Por<=4",
+    ),
     # --- La edad de los mayores: suelo abierto, no ventana (2026-10-11)
-    ("a los 34 todavia es ventana", 34, perfil(defending=12, playmaking=9),
-     "Ed33-35 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
-    ("a los 35 se abre por arriba y no se cierra", 35, perfil(defending=12, playmaking=9),
-     "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
-    ("y a los 40 sigue siendo el mismo suelo", 40, perfil(defending=12, playmaking=9),
-     "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
-    ("pero con la busqueda holgada sigue siendo ventana", 35,
-     perfil(defending=16, playmaking=12),
-     "Ed34-36 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
+    (
+        "a los 34 todavia es ventana",
+        34,
+        perfil(defending=12, playmaking=9),
+        "Ed33-35 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "a los 35 se abre por arriba y no se cierra",
+        35,
+        perfil(defending=12, playmaking=9),
+        "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "y a los 40 sigue siendo el mismo suelo",
+        40,
+        perfil(defending=12, playmaking=9),
+        "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "pero con la busqueda holgada sigue siendo ventana",
+        35,
+        perfil(defending=16, playmaking=12),
+        "Ed34-36 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5",
+    ),
     # --- Al pasador la edad no se le abre a los 32 (2026-10-11)
-    ("el perfil que mando el usuario, clavado", 23,
-     perfil(keeper=1, defending=10, playmaking=3, winger=4, passing=10, scoring=3, set_pieces=6),
-     "Ed=23 Def=10 Pas 9-11 Lat<=4 Jug<=4 Ano<=4 Por<=4"),
-    ("pasador de 33: edad clavada", 33, perfil(passing=13, playmaking=7, defending=5),
-     "Ed=33 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
-    ("pasador de 34: todavia clavada", 34, perfil(passing=13, playmaking=7, defending=5),
-     "Ed=34 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
-    ("pero al medio de 33 si se le abre", 33, perfil(playmaking=13, passing=7, defending=5),
-     "Ed32-34 Jug=13 Pas=7 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
-    ("y al pasador a los 35 tambien se le abre el suelo", 35,
-     perfil(passing=13, playmaking=7, defending=5),
-     "Ed35-99 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4"),
+    (
+        "el perfil que mando el usuario, clavado",
+        23,
+        perfil(keeper=1, defending=10, playmaking=3, winger=4, passing=10, scoring=3, set_pieces=6),
+        "Ed=23 Def=10 Pas 9-11 Lat<=4 Jug<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "pasador de 33: edad clavada",
+        33,
+        perfil(passing=13, playmaking=7, defending=5),
+        "Ed=33 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "pasador de 34: todavia clavada",
+        34,
+        perfil(passing=13, playmaking=7, defending=5),
+        "Ed=34 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "pero al medio de 33 si se le abre",
+        33,
+        perfil(playmaking=13, passing=7, defending=5),
+        "Ed32-34 Jug=13 Pas=7 Def 4-6 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "y al pasador a los 35 tambien se le abre el suelo",
+        35,
+        perfil(passing=13, playmaking=7, defending=5),
+        "Ed35-99 Jug=7 Pas 12-14 Def 4-6 Lat<=4 Ano<=4 Por<=4",
+    ),
     # --- Cada tipo tiene su juego de habilidades elegibles (2026-10-11)
-    ("al defensa NO se le compara por Anotacion, ni con 9", 25,
-     perfil(defending=12, passing=10, scoring=9),
-     "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=10 Por<=4"),
-    ("pero al extremo si, ya con 5", 25,
-     perfil(winger=10, passing=7, playmaking=5, scoring=5),
-     "Ed=25 Lat=10 Pas=7 Jug 4-6 Ano 4-6 Def<=4 Por<=4"),
+    (
+        "al defensa NO se le compara por Anotacion, ni con 9",
+        25,
+        perfil(defending=12, passing=10, scoring=9),
+        "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=10 Por<=4",
+    ),
+    (
+        "pero al extremo si, ya con 5",
+        25,
+        perfil(winger=10, passing=7, playmaking=5, scoring=5),
+        "Ed=25 Lat=10 Pas=7 Jug 4-6 Ano 4-6 Def<=4 Por<=4",
+    ),
     # --- La rejilla fina de la tercera contra la cuarta
-    ("tercera y cuarta en 4: las dos a tope", 25,
-     perfil(defending=12, passing=10, playmaking=4, winger=4),
-     "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
-    ("las dos en 5: las dos con banda", 25,
-     perfil(defending=12, passing=10, playmaking=5, winger=5),
-     "Ed=25 Def=12 Pas 9-11 Jug 4-6 Lat 4-6 Ano<=4 Por<=4"),
-    ("la cuarta en 6 empuja el dial", 25,
-     perfil(defending=12, passing=10, playmaking=6, winger=7),
-     "Ed24-26 Def=12 Pas 9-11 Lat 6-9 Jug 5-8 Ano<=5 Por<=5"),
-    ("sin cuarta no lo empuja", 25,
-     perfil(defending=12, passing=10, playmaking=6, winger=6),
-     "Ed=25 Def=12 Pas 9-11 Jug 5-7 Lat 5-7 Ano<=4 Por<=4"),
-    ("lo que no puede ser criterio tampoco cuenta para la rareza", 25,
-     perfil(defending=12, passing=10, scoring=9),
-     "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=10 Por<=4"),
+    (
+        "tercera y cuarta en 4: las dos a tope",
+        25,
+        perfil(defending=12, passing=10, playmaking=4, winger=4),
+        "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=4 Por<=4",
+    ),
+    (
+        "las dos en 5: las dos con banda",
+        25,
+        perfil(defending=12, passing=10, playmaking=5, winger=5),
+        "Ed=25 Def=12 Pas 9-11 Jug 4-6 Lat 4-6 Ano<=4 Por<=4",
+    ),
+    (
+        "la cuarta en 6 empuja el dial",
+        25,
+        perfil(defending=12, passing=10, playmaking=6, winger=7),
+        "Ed24-26 Def=12 Pas 9-11 Lat 6-9 Jug 5-8 Ano<=5 Por<=5",
+    ),
+    (
+        "sin cuarta no lo empuja",
+        25,
+        perfil(defending=12, passing=10, playmaking=6, winger=6),
+        "Ed=25 Def=12 Pas 9-11 Jug 5-7 Lat 5-7 Ano<=4 Por<=4",
+    ),
+    (
+        "lo que no puede ser criterio tampoco cuenta para la rareza",
+        25,
+        perfil(defending=12, passing=10, scoring=9),
+        "Ed=25 Def=12 Pas 9-11 Jug<=4 Lat<=4 Ano<=10 Por<=4",
+    ),
     # --- En el extremo, Defensa y Anotacion pesan lo mismo (2026-10-11)
-    ("extremo real: Defensa adelanta a Jugadas por nivel", 29,
-     perfil(winger=15, defending=13, playmaking=11, passing=11),
-     "Ed28-30 Lat=15 Def 12-14 Jug>=11 Pas 9-14 Ano<=5 Por<=5"),
+    (
+        "extremo real: Defensa adelanta a Jugadas por nivel",
+        29,
+        perfil(winger=15, defending=13, playmaking=11, passing=11),
+        "Ed28-30 Lat=15 Def 12-14 Jug>=11 Pas 9-14 Ano<=5 Por<=5",
+    ),
 ]
 
 
@@ -696,10 +781,23 @@ def test_el_orden_de_la_tercera_y_la_cuarta(par: tuple[int, int], esperado: str)
 #: portero. Hasta Defensa 3 no hay ninguna que valga --hace falta un 4-- y de
 #: Defensa 12 en adelante gana con cuatro niveles menos en vez de tres.
 FRONTERA_DEL_PORTERO = {
-    4: 4, 5: 4, 6: 4, 7: 4,
-    8: 5, 9: 6, 10: 7, 11: 8,
-    12: 8, 13: 9, 14: 10, 15: 11,
-    16: 12, 17: 13, 18: 14, 19: 15, 20: 16,
+    4: 4,
+    5: 4,
+    6: 4,
+    7: 4,
+    8: 5,
+    9: 6,
+    10: 7,
+    11: 8,
+    12: 8,
+    13: 9,
+    14: 10,
+    15: 11,
+    16: 12,
+    17: 13,
+    18: 14,
+    19: 15,
+    20: 16,
 }
 
 
@@ -816,7 +914,9 @@ PLAUSIBLES = [
     (
         "en el extremo el empate de Defensa y Anotacion lo gana ella",
         32,
-        perfil(keeper=1, defending=11, playmaking=12, winger=15, passing=6, scoring=11, set_pieces=1),
+        perfil(
+            keeper=1, defending=11, playmaking=12, winger=15, passing=6, scoring=11, set_pieces=1
+        ),
         "Ed31-33 Lat=15 Jug 11-13 Ano>=11 Def 9-14 Pas<=8 Por<=5",
     ),
 ]
@@ -852,9 +952,7 @@ ANOTACION_TAPA_LA_DEFENSA = [
 def test_la_anotacion_tapa_la_defensa_del_extremo(
     lateral: int, anotacion: int, defensa: int, esperado: str
 ) -> None:
-    criterios = criterios_de(
-        25, perfil(winger=lateral, scoring=anotacion, defending=defensa)
-    )
+    criterios = criterios_de(25, perfil(winger=lateral, scoring=anotacion, defending=defensa))
     assert _pinta(criterios) == esperado
 
 
@@ -938,9 +1036,7 @@ DIAL_SIN_PORTERIA = [
 def test_la_porteria_no_mueve_el_dial_del_defensa(
     defensa: int, pases: int, porteria: int, esperado: str
 ) -> None:
-    criterios = criterios_de(
-        25, perfil(defending=defensa, passing=pases, keeper=porteria)
-    )
+    criterios = criterios_de(25, perfil(defending=defensa, passing=pases, keeper=porteria))
     assert _pinta(criterios) == esperado
 
 
@@ -994,6 +1090,7 @@ def test_una_sola_habilidad_afloja_en_17(habilidad: str) -> None:
 
 
 # --- El Lateral del mediocentro pide mas que los demas ---------------------
+
 
 #: Unas noventa celdas del 2026-10-12. Entra con 7, o con 5 si la Anotacion
 #: llega a 5 y la Defensa no pasa de 4 --que son justo las fronteras de SER
@@ -1145,9 +1242,7 @@ ORDENES_DEL_MEDIOCENTRO = [
 @pytest.mark.parametrize(("niveles", "esperado"), ORDENES_DEL_MEDIOCENTRO)
 def test_el_orden_del_mediocentro(niveles: dict[str, int], esperado: str) -> None:
     criterios = criterios_de(25, niveles)
-    leido = ",".join(
-        ABREVIATURA[c.habilidad] for c in criterios.habilidades if c.operador != "<="
-    )
+    leido = ",".join(ABREVIATURA[c.habilidad] for c in criterios.habilidades if c.operador != "<=")
     assert leido == esperado
 
 
@@ -1184,6 +1279,7 @@ def test_el_defensa_y_el_delantero_no_tienen_entrada_propia(
 
 # --- Los dos que arreglo el banco, sin gastar una consulta -----------------
 
+
 #: Encontrados el 2026-10-12 con `docs/reference/sondeo-comparador/banco.py`,
 #: puntuando candidatos contra todo lo ya medido cuando Hattrick ya devolvia
 #: paginas vacias. En los dos casos mi analisis a mano decia lo contrario de lo
@@ -1195,8 +1291,13 @@ def test_el_corte_del_orden_va_por_plantilla() -> None:
     criterios = criterios_de(
         17,
         perfil(
-            playmaking=13, passing=11, defending=11, winger=11, scoring=11,
-            set_pieces=11, keeper=3,
+            playmaking=13,
+            passing=11,
+            defending=11,
+            winger=11,
+            scoring=11,
+            set_pieces=11,
+            keeper=3,
         ),
     )
     assert _pinta(criterios) == "Ed=17 Jug=13 Pas 10-12 Def>=11 Lat 9-13 Ano<=12 Por<=4"
@@ -1209,8 +1310,13 @@ def test_la_banda_se_corta_si_la_segunda_supera_a_la_primera() -> None:
     criterios = criterios_de(
         17,
         perfil(
-            winger=6, passing=7, playmaking=6, defending=6, scoring=6,
-            set_pieces=6, keeper=3,
+            winger=6,
+            passing=7,
+            playmaking=6,
+            defending=6,
+            scoring=6,
+            set_pieces=6,
+            keeper=3,
         ),
     )
     assert _pinta(criterios) == "Ed=17 Lat=6 Pas=7 Jug 5-6 Def 5-6 Ano<=7 Por<=4"
@@ -1223,8 +1329,13 @@ def test_la_regla_del_lateral_no_se_aplica_a_un_medio_plano() -> None:
     criterios = criterios_de(
         31,
         perfil(
-            playmaking=7, passing=6, defending=6, winger=6, scoring=6,
-            set_pieces=6, keeper=3,
+            playmaking=7,
+            passing=6,
+            defending=6,
+            winger=6,
+            scoring=6,
+            set_pieces=6,
+            keeper=3,
         ),
     )
     assert _pinta(criterios) == "Ed=31 Jug=7 Pas=6 Def 5-7 Lat 5-7 Ano<=7 Por<=4"

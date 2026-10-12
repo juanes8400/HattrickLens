@@ -19,6 +19,8 @@ un número y el número es otro.
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.domain.engines.mercado_comparable import (
     ESCALERA,
     GRUPOS,
@@ -45,7 +47,9 @@ from app.domain.engines.mercado_comparable import (
     reemplazable,
     terna,
     ventana_de,
+    ventana_de_hattrick,
 )
+from app.infrastructure.chpp.mercado import ID_DE_HABILIDAD
 
 AHORA = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
 MI_EQUIPO = 537758
@@ -520,8 +524,16 @@ def test_con_menos_de_seis_no_hay_numero_pero_si_lista() -> None:
 
 
 def test_con_ocho_al_mismo_peso_la_media_es_la_de_siempre() -> None:
-    precios = [1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_000_000,
-               7_000_000, 8_000_000]
+    precios = [
+        1_000_000,
+        2_000_000,
+        3_000_000,
+        4_000_000,
+        5_000_000,
+        6_000_000,
+        7_000_000,
+        8_000_000,
+    ]
     e = estimar(_medidos(*(_guardado(i, precio=p) for i, p in enumerate(precios, start=1))))
     assert e.suficiente is True
     assert e.media == 4_500_000
@@ -943,3 +955,52 @@ def test_el_sello_viaja_en_el_comparable() -> None:
     assert [c.avalado_por_hattrick for c in medidos] == [True, False]
     # El sello NO toca el peso: los dos siguen valiendo 100 para la escalera.
     assert {c.peso for c in medidos} == {95, 100}
+
+
+# --- Que lo que dice la regla se pueda MANDAR de verdad --------------------
+
+#: GUARDIA DE FRONTERA. `criterios_hattrick` es una regla de dominio y no sabe
+#: nada de la API; `transfersearch` acepta exactamente tres filtros de
+#: habilidad y solo conoce ocho `skillType`. Si alguien mete una habilidad
+#: nueva en una plantilla y cae entre las tres primeras, la peticion se iria
+#: roto sin que ninguna prueba de dominio se queje. Esto lo caza.
+UNO_DE_CADA_TIPO = [
+    ("portero", 29, {"keeper": 17, "defending": 14, "set_pieces": 12, "passing": 3}),
+    ("defensa", 27, {"defending": 16, "passing": 11, "playmaking": 8, "winger": 5, "keeper": 3}),
+    (
+        "extremo",
+        24,
+        {"winger": 15, "playmaking": 12, "passing": 11, "defending": 11, "scoring": 11},
+    ),
+    (
+        "mediocentro",
+        31,
+        {"playmaking": 14, "passing": 10, "defending": 8, "winger": 6, "scoring": 5},
+    ),
+    ("delantero", 22, {"scoring": 16, "passing": 11, "winger": 9, "playmaking": 7}),
+]
+
+
+@pytest.mark.parametrize(
+    ("puesto", "edad", "habilidades"), UNO_DE_CADA_TIPO, ids=[c[0] for c in UNO_DE_CADA_TIPO]
+)
+def test_la_ventana_de_hattrick_se_puede_mandar_a_transfersearch(
+    puesto: str, edad: int, habilidades: dict[str, int]
+) -> None:
+    """Las tres habilidades de cada tipo tienen que ser `skillType` validos.
+
+    El portero es el que lo pone a prueba: su tercer criterio es el BALON
+    PARADO, que no es una de las seis de campo. Si `transfersearch` no lo
+    aceptara, a los porteros se les iria una peticion invalida.
+    """
+    siete = {
+        h: habilidades.get(h, 0)
+        for h in ("keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces")
+    }
+    objetivo = replace(_objetivo(), edad=edad, habilidades=siete)
+    ventana = ventana_de_hattrick(objetivo)
+    assert ventana is not None, puesto
+    for franja in (ventana.primaria, ventana.secundaria, ventana.terciaria):
+        assert franja.habilidad in ID_DE_HABILIDAD, f"{puesto}: {franja.habilidad} sin skillType"
+        assert 0 <= franja.minimo <= franja.maximo, f"{puesto}: franja del reves"
+    assert ventana.edad_minima <= edad <= ventana.edad_maxima, puesto
