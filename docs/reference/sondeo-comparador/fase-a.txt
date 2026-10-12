@@ -1434,3 +1434,65 @@ LO QUE HAY QUE MEDIR, concretado por esto: los cinco grupos del defensa son el
 sitio por donde empezar, porque es donde hay mas estructura que explicar. Para
 cada grupo, generar perfiles que caigan claramente en uno de los siete puestos
 defensivos y ver si el grupo y el puesto coinciden.
+
+
+================================================================================
+FASE Z-BIS - 2026-10-12 - CORRECCION: LA PRUEBA DE FASE Z NO PROBABA ESO
+================================================================================
+
+FASE Z presento como prueba a favor de la hipotesis de los puestos que cada tipo
+necesita menos ORDENES de los que Hattrick tiene puestos en su zona. ESA PRUEBA
+NO VALE, y la corrección viene de seguir tirando del hilo media hora despues.
+
+--- QUE SALIO -------------------------------------------------------------
+
+Primero, una pregunta mas fina: ¿el orden depende solo del CONJUNTO de
+criterios? Si fuera asi, el mecanismo quedaria descrito: elegir el conjunto y
+ordenarlo con una tabla por (tipo, conjunto). REFUTADO: de 17 grupos (tipo,
+conjunto) con tres o mas criterios, SIETE salen en mas de un orden.
+
+El mas llamativo es el defensa con el conjunto {Def, Jug, Lat, Pas}, que sale en
+CINCO ordenes distintos: justo los cinco que FASE Z habia contado. Asi que se
+miro de que depende cada uno, y es de los NIVELES:
+
+  Def,Jug,Lat,Pas   companera mas alta Jug, con el Lateral igualado
+  Def,Jug,Pas,Lat   companera mas alta Jug
+  Def,Lat,Pas,Jug   companera mas alta Lat
+  Def,Pas,Jug,Lat   companera mas alta Pas
+  Def,Pas,Lat,Jug   companera mas alta Pas, con el Lateral por delante
+
+Son las companeras ordenadas por nivel, con los pesos del tipo desempatando. El
+motor actual las reproduce LAS CINCO: estan dentro de los 183/183 del banco.
+
+--- POR QUE LA PRUEBA DE FASE Z ERA MALA ----------------------------------
+
+Contaba cuantos ordenes hacen falta suponiendo que dos listas que ordenan
+distinto un par compartido exigen dos puestos. Y eso es FALSO cuando los
+niveles ya explican la diferencia: Jug10 Lat7 da «Jug, Lat» y Jug7 Lat10 da
+«Lat, Jug» sin que haya dos puestos por ningun lado, solo dos perfiles.
+
+O sea que lo que FASE Z media era CUANTOS PATRONES DE NIVEL aparecen en los
+datos, no cuantas plantillas hace falta suponer. Y que ese numero cupiera en
+los puestos de Hattrick no dice nada: con mas observaciones subiria.
+
+Es el mismo error de siempre, en version nueva: encontre un numero que encajaba
+con una historia y lo presente como apoyo. La historia puede seguir siendo
+cierta --sigue en pie el contraejemplo de FASE V, que si descarta un orden por
+peso-- pero ESTA prueba no la apoya. Se retira.
+
+--- QUE QUEDA EN PIE ------------------------------------------------------
+
+A FAVOR de la hipotesis de los puestos:
+  - el contraejemplo de FASE V: dos perfiles indistinguibles para cualquier
+    funcion de nivel y peso que Hattrick trata distinto. Eso sigue siendo
+    solido y sigue descartando el modelo de pesos como mecanismo.
+  - la frontera del Lateral del mediocentro (FASE V4), que cae justo donde la
+    Anotacion es criterio y la Defensa no: la lectura de «medio ofensivo».
+
+EN CONTRA de atajos:
+  - el orden NO es funcion del conjunto (arriba). Si los criterios salieran de
+    un puesto y el puesto del conjunto, lo seria. Luego el puesto, si existe,
+    depende tambien de los NIVELES.
+
+SIN VALOR probatorio:
+  - el recuento de ordenes de FASE Z. Retirado.
