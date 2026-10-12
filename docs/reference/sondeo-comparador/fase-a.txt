@@ -1734,3 +1734,110 @@ LA LECCION, otra vez la misma: generalizar de una medida sola. El corte de la
 banda lo vi con la primera en 6, escribi "se corta en la primera", y me costo
 cuatro casillas. Las tres reglas de hoy nacen con la frontera medida a los dos
 lados, que es lo unico que las separa de una corazonada que encaja.
+
+================================================================================
+FASE AE - 2026-10-12 - EL MECANISMO DEL ORDEN, Y FASE Q RESUELTA
+================================================================================
+
+LA FUENTE DE 2009 TENIA EL MECANISMO ESCRITO Y YO NO LO HABIA LEIDO BIEN.
+Literal, de flameron (HT), 29.1.2009:
+
+  "The main logic of the system is to check which player type is compared. Then
+   a set of secondary tertiary and quartile skills are chosen. If the third or
+   fourth skills are higher then the second they become secondary skills. In
+   short the list of skills is sorted by the initial order having importance
+   unless the skills are higher then the skill before them in the initial list
+   by more then the difference in the initial skills."
+
+Desmontado:
+
+  B adelanta a A  <=>  nivel(B) - nivel(A) > importancia(B) - importancia(A)
+
+que es exactamente ordenar por `nivel - importancia`, o sea la clave que el
+motor ya usaba. Y la frase anterior dice que la LISTA INICIAL es por TIPO.
+
+LO QUE EL TEXTO NO DICE ES CUANTAS LISTAS HAY. Ahi estaba el error: yo tenia
+cinco tipos y asumi cinco listas.
+
+--- AE1. FASE Q RESUELTA: EL EXTREMO TIENE DOS LISTAS -----------------------
+
+Barrido de la Defensa sobre el extremo, Lateral 16:
+
+  Pas9 Ano9 Def 4-8  -> Lat Pas Ano        (la Defensa al monton)
+  Pas9 Ano9 Def 9    -> Lat ANO PAS Def
+  Pas9 Ano9 Def 10   -> Lat Ano Def Pas
+  Pas9 Ano9 Def 11   -> Lat Def Ano Pas
+
+Y LA PREDICCION, que es lo que separa esto de un ajuste. Si lo que cambia la
+lista es que la Defensa ENTRE EN EL CONJUNTO --y no un nivel-- con la Anotacion
+en 7 el giro tiene que caer en 7, no en 9:
+
+  Pas7 Ano7 Def 4-6  -> Lat Pas Ano        (la Defensa al monton)
+  Pas7 Ano7 Def 7    -> Lat ANO PAS Def    <-- CUMPLIDA
+  Pas7 Ano7 Def 8    -> Lat Ano Def Pas
+  Pas7 Ano7 Def 9    -> Lat Def Ano Pas
+
+UNA SOLA lista alternativa reproduce los nueve ordenes:
+
+  extremo normal        Lat 0, Jug 1, Pas 2, Def 3, Ano 3
+  extremo con Defensa   Lat 0, Jug 1, Ano 2, Pas 3, Def 4
+
+Y CON ESO SALEN LOS QUINCE SUBCONJUNTOS DE FASE Q, los quince, incluidos los
+dos que llevaban dos dias "descartando cualquier orden por clave":
+
+  + PAS,ANO       -> Lat Pas Ano       (la Defensa fuera: lista normal)
+  + PAS,DEF,ANO   -> Lat Ano Pas Def   (las tres dentro: lista con Defensa)
+
+No era una lista que se contradice: eran DOS listas. La permutacion al anadir
+un elemento deja de ser imposible porque anadir el elemento cambia de lista.
+
+LA CONDICION NO ES "ENTRA LA DEFENSA" A SECAS. El banco lo tumbo: con esa
+condicion se rompen SIETE casos ya medidos --entre ellos Lat14 Pas13 Jug12 Def11
+y Lat18 Def12 Ano11-- y los siete tienen en comun que la ANOTACION no esta en
+el conjunto. La condicion es que esten las TRES: Pases, Defensa y Anotacion.
+Se puede comprobar antes de ordenar porque el corte usa la plantilla y no los
+pesos, asi que no hay circulo.
+
+  banco: 281/281 antes, 315/315 despues, CERO regresiones.
+
+--- AE2. LA CUARTA SI ABRE LA SEGUNDA. Mi refutacion medía otro rincón. ------
+
+El mismo texto de 2009: "The same happen if the third skill is high OR IF THE
+THIRD AND FOURTH SKILLS ARE QUITE HIGH AND SECONDARY IS HIGH". Yo habia barrido
+dos veces con la segunda en SIETE (FASE R1), y con la segunda en 7 la regla no
+se dispara. Rejilla, extremo de Lateral 16:
+
+  2a   4a=0        4a=4        4a=5        4a=6
+   6   clavada     -           clavada     -
+   7   clavada     -           clavada     clavada
+   8   clavada     clavada     BANDA       BANDA
+   9   clavada     clavada     BANDA       BANDA
+
+  => la cuarta abre la segunda si la cuarta llega a 5 Y la segunda a 8.
+     No depende de la primera: con la 2a en 8 y la 4a en 5 abre igual con la
+     primera en 12, en 16 y en 20.
+
+--- AE3. LO QUE QUEDA ABIERTO: LA ENTRADA DEL CUARTO ------------------------
+
+Extremo de Lateral 16 con la Defensa en 9:
+
+  Ano8  Pas 5,6,7  -> Lat Def Ano           (los Pases al monton)
+  Ano8  Pas 8      -> Lat Ano Def Pas
+  Ano8  Pas 9      -> Lat Pas Ano Def
+  Pas8  Ano 5,6,7  -> Lat Def Pas Ano       (la Anotacion SI entra, desde 5)
+
+La Anotacion entra en 5 y los Pases necesitan alcanzar a la Anotacion. El motor
+acierta 5 de las 8; las 3 que falla estan en PENDIENTES del banco.
+
+LA REGLA SIMETRICA OBVIA NO VALE. "La Anotacion tapa tambien a los Pases, igual
+que tapa a la Defensa" rompe un caso medido: Lat16 Pas8 Ano9 Def7, donde los
+Pases SI entran estando por debajo de la Anotacion. Alli la Defensa esta fuera.
+
+Y EL MEDIOCENTRO TIENE LA MISMA FORMA SIN RESOLVER: Jug16 Pas7 Def9 Ano8 sale
+"Jug Def Pas Ano" y el motor da "Jug Def Ano Pas". Le faltaria su segunda lista
+inicial, igual que al extremo. Remedido hoy desde cero, no es taquigrafia vieja.
+
+PARE AHI A PROPOSITO. Cada celda nueva de la entrada del cuarto exigia una
+sub-regla nueva, y eso es la firma de un ajuste, no de un mecanismo. Lo medido
+queda en el banco como deberes, con la contra-medida que descarta la regla
+facil, que es lo que le ahorra el camino al siguiente.

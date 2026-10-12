@@ -17,6 +17,7 @@ import pytest
 
 from app.domain.engines.criterios_hattrick import (
     Criterios,
+    _puestos,
     _tipo,
     _umbral_de_portero,
     criterios_de,
@@ -1510,3 +1511,138 @@ def test_el_diecisiete_que_no_es_la_primera_no_afloja(
     niveles: dict[str, int], esperado: str
 ) -> None:
     assert _pinta(criterios_de(25, dict(niveles))) == esperado
+
+
+#: LA CUARTA ABRE LA SEGUNDA, SI LA SEGUNDA ES ALTA. Lo decía la fuente de 2009
+#: --«The same happen if the third skill is high or if the third and fourth
+#: skills are quite high and secondary is high»-- y estuvo dos días dado por
+#: refutado porque los dos barridos que lo buscaban tenían la segunda en 7,
+#: justo por debajo de la frontera.
+#:
+#: Rejilla del 2026-10-12. Extremo con el Lateral de primera, los Pases de
+#: segunda, las Jugadas de tercera y la Defensa de cuarta.
+#: (lateral, pases, jugadas, defensa, lo que contestó Hattrick)
+LA_CUARTA_ABRE_AL_SEGUNDO: list[tuple[int, int, int, int, str]] = [
+    # la cuarta en 0 y en 4 no abre; en 5 y en 6 sí
+    (16, 8, 5, 0, "Ed=25 Lat=16 Pas=8 Jug 4-6 Def<=4 Ano<=4 Por<=4"),
+    (16, 8, 5, 4, "Ed=25 Lat=16 Pas=8 Jug 4-6 Def<=4 Ano<=4 Por<=4"),
+    (16, 8, 5, 5, "Ed=25 Lat=16 Pas 7-9 Jug 4-6 Def 4-6 Ano<=4 Por<=4"),
+    (16, 8, 5, 6, "Ed=25 Lat=16 Pas 7-9 Jug 4-6 Def 5-7 Ano<=4 Por<=4"),
+    (16, 8, 6, 0, "Ed=25 Lat=16 Pas=8 Jug 5-7 Def<=4 Ano<=4 Por<=4"),
+    (16, 8, 6, 4, "Ed=25 Lat=16 Pas=8 Jug 5-7 Def<=4 Ano<=4 Por<=4"),
+    (16, 8, 6, 5, "Ed=25 Lat=16 Pas 7-9 Jug 5-7 Def 4-6 Ano<=4 Por<=4"),
+    (16, 8, 6, 6, "Ed=25 Lat=16 Pas 7-9 Jug 5-7 Def 5-7 Ano<=4 Por<=4"),
+    (16, 9, 5, 0, "Ed=25 Lat=16 Pas=9 Jug 4-6 Def<=4 Ano<=4 Por<=4"),
+    (16, 9, 5, 4, "Ed=25 Lat=16 Pas=9 Jug 4-6 Def<=4 Ano<=4 Por<=4"),
+    (16, 9, 5, 5, "Ed=25 Lat=16 Pas 8-10 Jug 4-6 Def 4-6 Ano<=4 Por<=4"),
+    (16, 9, 5, 6, "Ed=25 Lat=16 Pas 8-10 Jug 4-6 Def 5-7 Ano<=4 Por<=4"),
+    (16, 9, 6, 0, "Ed=25 Lat=16 Pas=9 Jug 5-7 Def<=4 Ano<=4 Por<=4"),
+    (16, 9, 6, 4, "Ed=25 Lat=16 Pas=9 Jug 5-7 Def<=4 Ano<=4 Por<=4"),
+    (16, 9, 6, 5, "Ed=25 Lat=16 Pas 8-10 Jug 5-7 Def 4-6 Ano<=4 Por<=4"),
+    (16, 9, 6, 6, "Ed24-26 Lat=16 Pas 8-10 Jug 5-8 Def 5-8 Ano<=5 Por<=5"),
+    # ...y con la segunda en 6 y en 7 no abre ni con la cuarta en 6
+    (16, 7, 5, 5, "Ed=25 Lat=16 Pas=7 Jug 4-6 Def 4-6 Ano<=4 Por<=4"),
+    (16, 7, 6, 6, "Ed=25 Lat=16 Pas=7 Jug 5-7 Def 5-7 Ano<=4 Por<=4"),
+    (16, 6, 5, 5, "Ed=25 Lat=16 Pas=6 Jug 4-6 Def 4-6 Ano<=4 Por<=4"),
+    # no depende de la primera: 12, 16 y 20 abren igual
+    (12, 8, 5, 5, "Ed=25 Lat=12 Pas 7-9 Jug 4-6 Def 4-6 Ano<=4 Por<=4"),
+    (20, 8, 5, 5, "Ed24-26 Lat=20 Pas 7-9 Jug 4-7 Def 4-7 Ano<=5 Por<=5"),
+    # control: la segunda en 10 abre ella sola, sin cuarta
+    (16, 10, 5, 0, "Ed=25 Lat=16 Pas 9-11 Jug 4-6 Def<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("lateral,pases,jugadas,defensa,esperado", LA_CUARTA_ABRE_AL_SEGUNDO)
+def test_la_cuarta_abre_al_segundo(
+    lateral: int, pases: int, jugadas: int, defensa: int, esperado: str
+) -> None:
+    niveles = perfil(winger=lateral, passing=pases, playmaking=jugadas, defending=defensa)
+    assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: LAS DOS LISTAS INICIALES DEL EXTREMO. El 2026-10-12, con la fuente de 2009
+#: delante --«the list of skills is sorted by the initial order having
+#: importance unless the skills are higher then the skill before them in the
+#: initial list by more then the difference in the initial skills»-- se
+#: entendió que el mecanismo ES un orden total por `nivel − importancia`, y que
+#: lo que el texto no dice es CUÁNTAS listas iniciales hay.
+#:
+#: Un extremo con Pases, Defensa y Anotación los tres en el conjunto usa otra
+#: lista, y con eso la familia de FASE Q --que llevaba dos días «descartando
+#: cualquier orden por clave»-- sale entera.
+#: (defensa, el orden que contestó Hattrick)
+GIRO_DEL_EXTREMO_CON_DEFENSA: list[tuple[int, int, str]] = [
+    # Lateral 16, Pases 9 y Anotación 9 fijas, la Defensa barrida.
+    (9, 4, "Lat Pas Ano"),
+    (9, 5, "Lat Pas Ano"),
+    (9, 6, "Lat Pas Ano"),
+    (9, 7, "Lat Pas Ano"),
+    (9, 8, "Lat Pas Ano"),
+    (9, 9, "Lat Ano Pas Def"),
+    (9, 10, "Lat Ano Def Pas"),
+    (9, 11, "Lat Def Ano Pas"),
+    # Y LA PREDICCIÓN: con Pases 7 y Anotación 7 el giro no cae en 9 --no es un
+    # nivel-- sino en 7, que es donde la Defensa entra en el conjunto.
+    (7, 4, "Lat Pas Ano"),
+    (7, 5, "Lat Pas Ano"),
+    (7, 6, "Lat Pas Ano"),
+    (7, 7, "Lat Ano Pas Def"),
+    (7, 8, "Lat Ano Def Pas"),
+    (7, 9, "Lat Def Ano Pas"),
+]
+
+
+@pytest.mark.parametrize("par,defensa,esperado", GIRO_DEL_EXTREMO_CON_DEFENSA)
+def test_el_extremo_con_defensa_usa_otra_lista(par: int, defensa: int, esperado: str) -> None:
+    niveles = perfil(winger=16, passing=par, scoring=par, defending=defensa)
+    orden = _puestos(niveles, _tipo(niveles))
+    assert " ".join(ABREVIATURA[h] for h in orden[: len(esperado.split())]) == esperado
+
+
+#: Y LOS QUINCE SUBCONJUNTOS DE FASE Q, que son la prueba de verdad: un extremo
+#: de Lateral 16 con las demás a 9. La fila de `Pas,Ano` y la de `Pas,Def,Ano`
+#: ordenan la misma pareja al revés, y eso era lo que parecía imposible.
+#: (habilidades a 9, el orden que contestó Hattrick)
+QUINCE_SUBCONJUNTOS_DEL_EXTREMO: list[tuple[tuple[str, ...], str]] = [
+    (("playmaking",), "Lat Jug"),
+    (("passing",), "Lat Pas"),
+    (("defending",), "Lat Def"),
+    (("scoring",), "Lat Ano"),
+    (("playmaking", "passing"), "Lat Jug Pas"),
+    (("playmaking", "defending"), "Lat Jug Def"),
+    (("playmaking", "scoring"), "Lat Jug Ano"),
+    (("passing", "defending"), "Lat Pas Def"),
+    (("passing", "scoring"), "Lat Pas Ano"),
+    (("defending", "scoring"), "Lat Ano Def"),
+    (("playmaking", "passing", "defending"), "Lat Jug Pas Def"),
+    (("playmaking", "passing", "scoring"), "Lat Jug Pas Ano"),
+    (("playmaking", "defending", "scoring"), "Lat Jug Ano Def"),
+    (("passing", "defending", "scoring"), "Lat Ano Pas Def"),
+    (("playmaking", "passing", "defending", "scoring"), "Lat Jug Pas Def"),
+]
+
+
+@pytest.mark.parametrize("cuales,esperado", QUINCE_SUBCONJUNTOS_DEL_EXTREMO)
+def test_los_quince_subconjuntos_de_fase_q(cuales: tuple[str, ...], esperado: str) -> None:
+    niveles = perfil(winger=16, **{c: 9 for c in cuales})
+    orden = _puestos(niveles, _tipo(niveles))
+    assert " ".join(ABREVIATURA[h] for h in orden[: len(esperado.split())]) == esperado
+
+
+#: LA ENTRADA DEL CUARTO, medida y todavía sin regla. Extremo de Lateral 16 con
+#: la Defensa en 9. Lo que el motor SÍ reproduce de estas ocho celdas; las tres
+#: que no están en `PENDIENTES` del banco, con su medida.
+#: (pases, anotacion, lo que contestó Hattrick)
+ENTRADA_DEL_CUARTO: list[tuple[int, int, str]] = [
+    (8, 8, "Ed24-26 Lat=16 Ano 7-9 Def 8-11 Pas 6-11 Jug<=5 Por<=5"),
+    (9, 8, "Ed24-26 Lat=16 Pas 8-10 Ano 7-10 Def 7-12 Jug<=5 Por<=5"),
+    (8, 5, "Ed24-26 Lat=16 Def 8-10 Pas 7-10 Ano 4-7 Jug<=5 Por<=5"),
+    (8, 6, "Ed24-26 Lat=16 Def 8-10 Pas 7-10 Ano 5-8 Jug<=5 Por<=5"),
+    (8, 7, "Ed24-26 Lat=16 Def 8-10 Pas 7-10 Ano 6-9 Jug<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("pases,anotacion,esperado", ENTRADA_DEL_CUARTO)
+def test_la_entrada_del_cuarto(pases: int, anotacion: int, esperado: str) -> None:
+    niveles = perfil(winger=16, defending=9, passing=pases, scoring=anotacion)
+    assert _pinta(criterios_de(25, niveles)) == esperado

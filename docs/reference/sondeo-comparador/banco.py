@@ -126,6 +126,14 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
     ]
     casos += [(25, T.perfil(winger=n, defending=n), s) for n, s in T.EMPATE_DE_LA_SEGUNDA]
     casos += [(25, dict(n), s) for n, s in T.EL_DIECISIETE_QUE_NO_AFLOJA]
+    casos += [
+        (25, T.perfil(winger=lat, passing=pas, playmaking=jug, defending=defe), s)
+        for lat, pas, jug, defe, s in T.LA_CUARTA_ABRE_AL_SEGUNDO
+    ]
+    casos += [
+        (25, T.perfil(winger=16, defending=9, passing=pas, scoring=ano), s)
+        for pas, ano, s in T.ENTRADA_DEL_CUARTO
+    ]
     return casos
 
 
@@ -142,14 +150,62 @@ def ordenes() -> list[tuple[int, dict[str, int], str]]:
     return [(25, dict(n), s) for n, s in T.ORDENES_DEL_MEDIOCENTRO]
 
 
+#: LOS ORDENES DEL EXTREMO, que se puntuan por PREFIJO del orden y no por
+#: cadena, porque asi se midieron. Aqui estan los quince subconjuntos de FASE Q
+#: y los dos barridos de la Defensa del 2026-10-12: son la prueba de las dos
+#: listas iniciales, y un candidato que las rompa esta roto.
+def ordenes_del_extremo() -> list[tuple[dict[str, int], str]]:
+    casos = [
+        (perfil(winger=16, **{c: 9 for c in cuales}), esperado)
+        for cuales, esperado in T.QUINCE_SUBCONJUNTOS_DEL_EXTREMO
+    ]
+    casos += [
+        (perfil(winger=16, passing=par, scoring=par, defending=defe), esperado)
+        for par, defe, esperado in T.GIRO_DEL_EXTREMO_CON_DEFENSA
+    ]
+    return casos
+
+
 #: Lo que el motor TODAVIA no reproduce, de las tandas de perfiles. Se guarda
 #: aqui y no en las pruebas porque las pruebas fijan lo que ya funciona; esto
 #: es la lista de deberes, y cada entrada dice de que familia es.
 PENDIENTES: list[tuple[str, int, dict[str, int], str]] = [
-    # Vacio: el 2026-10-12 los dos que habia se arreglaron con el banco mismo,
-    # y los dos estan ya fijados en `test_criterios_hattrick`. Cuando una tanda
-    # de perfiles saque un fallo nuevo, va aqui con su familia, y se queda
-    # hasta que un candidato lo arregle SIN bajar el total medido.
+    # LA ENTRADA DEL CUARTO, medida el 2026-10-12 y sin regla. Extremo de
+    # Lateral 16 y Defensa 9: cuando los Pases quedan POR DEBAJO de la
+    # Anotacion, Hattrick los tira al monton y deja solo Defensa y Anotacion.
+    # El motor los mantiene como criterio y de paso reordena Def/Ano.
+    #
+    # La regla simetrica obvia --«la Anotacion tapa tambien a los Pases», como
+    # ya tapa a la Defensa-- ROMPE un caso medido: Lat16 Pas8 Ano9 Def7, donde
+    # los Pases SI entran estando por debajo de la Anotacion. La diferencia es
+    # que alli la Defensa esta fuera. No se ha sacado la regla.
+    (
+        "entrada del cuarto",
+        25,
+        perfil(winger=16, defending=9, passing=5, scoring=8),
+        "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=7 Por<=5",
+    ),
+    (
+        "entrada del cuarto",
+        25,
+        perfil(winger=16, defending=9, passing=6, scoring=8),
+        "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=8 Por<=5",
+    ),
+    (
+        "entrada del cuarto",
+        25,
+        perfil(winger=16, defending=9, passing=7, scoring=8),
+        "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=9 Por<=5",
+    ),
+    # Y EL MEDIOCENTRO GEMELO, misma forma y tampoco sale: Hattrick lista los
+    # Pases 7 antes que la Anotacion 8 y el motor al contrario. Al mediocentro
+    # le faltaria su segunda lista inicial, igual que al extremo.
+    (
+        "segunda lista del mediocentro",
+        25,
+        perfil(playmaking=16, defending=9, passing=7, scoring=8),
+        "Ed24-26 Jug=16 Def 8-10 Pas 6-9 Ano 6-11 Lat<=5 Por<=5",
+    ),
 ]
 
 
@@ -201,9 +257,18 @@ def puntua(nombre: str) -> tuple[int, int]:
         )
         == s
     )
+    ext = ordenes_del_extremo()
+    bien += sum(
+        1
+        for n, esperado in ext
+        if " ".join(
+            T.ABREVIATURA[h] for h in C._puestos(dict(n), C._tipo(dict(n)))[: len(esperado.split())]
+        )
+        == esperado
+    )
     tps = tipos()
     bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
-    total = len(cas) + len(rej) + len(ords) + len(tps)
+    total = len(cas) + len(rej) + len(ords) + len(ext) + len(tps)
     fallan = [d for d, e, n, s in PENDIENTES if T._pinta(C.criterios_de(e, dict(n))) != s]
     print(f"{nombre}")
     print(f"  medido     {bien}/{total}")

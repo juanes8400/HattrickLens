@@ -180,7 +180,64 @@ ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
         "winger": 3,
         "keeper": 5,
     },
+    # EL EXTREMO CON DEFENSA DE VERDAD USA OTRA LISTA, y esto es lo que cierra
+    # la familia de contraejemplos de FASE Q, que llevaba dos dias descartando
+    # «cualquier orden por clave».
+    #
+    # El texto de 2009 dice que el sistema «checks which player type is
+    # compared» y que entonces «a set of secondary tertiary and quartile skills
+    # are chosen», ordenado por «the initial order having importance». O sea:
+    # una lista inicial POR TIPO, y un orden total dentro de ella. Lo que no
+    # dice es cuantos tipos hay. Si un extremo con Defensa de verdad es un TIPO
+    # DISTINTO de un extremo sin ella, la permutacion deja de ser imposible:
+    # son dos listas, no una lista que se contradice.
+    #
+    # MEDIDO EL 2026-10-12, dos barridos de la Defensa sobre el extremo:
+    #
+    #   Lat16 Pas9 Ano9 Def 4-8  -> Lat Pas Ano   (la Defensa al monton)
+    #   Lat16 Pas9 Ano9 Def 9    -> Lat ANO PAS Def
+    #   Lat16 Pas9 Ano9 Def 10   -> Lat Ano Def Pas
+    #   Lat16 Pas9 Ano9 Def 11   -> Lat Def Ano Pas
+    #
+    #   Lat16 Pas7 Ano7 Def 4-6  -> Lat Pas Ano   (la Defensa al monton)
+    #   Lat16 Pas7 Ano7 Def 7    -> Lat ANO PAS Def
+    #   Lat16 Pas7 Ano7 Def 8    -> Lat Ano Def Pas
+    #   Lat16 Pas7 Ano7 Def 9    -> Lat Def Ano Pas
+    #
+    # EL SEGUNDO BARRIDO ES UNA PREDICCION CUMPLIDA, y es lo que separa esta
+    # explicacion de un ajuste: el giro no cae en un nivel fijo --no es «Def
+    # 9»-- sino justo donde la Defensa ENTRA EN EL CONJUNTO, que con Anotacion
+    # 7 es el 7 y con Anotacion 9 es el 9.
+    #
+    # Esta lista reproduce los nueve ordenes de arriba y las seis filas de
+    # FASE Q que se habian quedado sin explicar, incluida la que tira la
+    # Anotacion al monton con las cuatro candidatas presentes.
+    "winger_con_defensa": {
+        "winger": 0,
+        "playmaking": 1,
+        "scoring": 2,
+        "passing": 3,
+        "defending": 4,
+        "keeper": 5,
+    },
 }
+
+
+#: Las tres que tiene que haber elegido Hattrick para que al extremo le toque
+#: la otra lista. NO BASTA QUE ENTRE LA DEFENSA: el banco lo tumbo. Siete casos
+#: ya medidos --entre ellos «Lat14 Pas13 Jug12 Def11» y «Lat18 Def12 Ano11»--
+#: se rompen si la lista cambia con la Defensa a secas, y los siete tienen en
+#: comun que la ANOTACION no esta en el conjunto. Con las tres dentro, los
+#: siete vuelven y los nueve ordenes nuevos siguen saliendo.
+EXTREMO_COMPLETO = frozenset({"passing", "defending", "scoring"})
+
+
+def _lista_de_importancia(tipo: str, conjunto: list[str]) -> str:
+    """Cual de las listas iniciales le toca, con el conjunto ya elegido."""
+    if tipo == "winger" and set(conjunto) >= EXTREMO_COMPLETO:
+        return "winger_con_defensa"
+    return tipo
+
 
 EXCLUIDAS: dict[str, frozenset[str]] = {
     "keeper": frozenset({"playmaking", "winger", "scoring"}),
@@ -346,15 +403,26 @@ TERCERO_QUE_ABRE_AL_SEGUNDO = 7
 #: umbral y descansaba en un solo caso, el (8,8,6), que cae justo encima de la
 #: frontera y por eso no la enseñaba.
 EMPATE_QUE_ABRE_AL_SEGUNDO = 8
-#: LA CUARTA NO ABRE AL SEGUNDO: eso fue una lectura mal hecha. El 2026-10-12
-#: se barrio el eje entero --Lateral 10, Pases 7, Jugadas 5 y la Anotacion de
-#: 4 a 8-- y la segunda sigue clavada con la cuarta en 4, 5 y 6. Lo que la
-#: abre en 7 es que la Anotacion adelanta a Jugadas y pasa a ser TERCERA, que
-#: es la regla de arriba. Confirmado por segunda via con Lateral 8, Pases 7,
-#: Jugadas 6 y la Defensa de 4 a 7: clavada en los cuatro.
+#: ...Y LA CUARTA TAMBIEN LA ABRE, pero hace falta que la SEGUNDA sea alta.
+#: Esto lo dice la fuente de 2009, y yo lo habia dado por refutado midiendo el
+#: rincon equivocado: «The same happen if the third skill is high or if the
+#: third and fourth skills are quite high and secondary is high».
 #:
-#: El umbral se queda, pero solo para el dial: un CUARTO criterio de identidad
-#: baja el liston de la rareza un punto, y eso si esta medido aparte.
+#: Mis dos barridos de refutacion tenian la segunda en SIETE --Lateral 10,
+#: Pases 7, Jugadas 5, Anotacion de 4 a 8; y Lateral 8, Pases 7, Jugadas 6,
+#: Defensa de 4 a 7-- y con la segunda en 7 la regla no se dispara, asi que los
+#: dos salieron clavados y me parecio que la regla no existia.
+#:
+#: Rejilla del 2026-10-12 con Lateral 16 de primera: con la segunda en 8 y en 9
+#: la cuarta en 4 deja la segunda clavada y la cuarta en 5 la abre; con la
+#: segunda en 6 y en 7 no la abre ni con la cuarta en 6. Y no depende de la
+#: primera: con la segunda en 8 y la cuarta en 5 abre igual con la primera en
+#: 12, en 16 y en 20.
+CUARTA_QUE_ABRE_AL_SEGUNDO = 5
+SEGUNDO_ALTO_PARA_LA_CUARTA = 8
+
+#: El umbral de la cuarta para el DIAL es otro, y va aparte: un cuarto criterio
+#: de identidad baja el liston de la rareza dos puntos desde 6.
 CUARTA_QUE_BAJA_EL_LISTON = 6
 #: Y un cuarto criterio de identidad baja el umbral del dial DOS puntos. Sale
 #: de la rejilla fina de la tercera contra la cuarta: con Defensa 12 y Pases 10
@@ -713,7 +781,6 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         dentro = [h for h in plantilla if h not in fuera_del_portero]
         return dentro + [h for h in plantilla if h in fuera_del_portero]
 
-    pesos = ORDEN_DE_IMPORTANCIA.get(tipo) or {h: i for i, h in enumerate(plantilla)}
     desempate = DESEMPATE.get(tipo) or plantilla
 
     def clave(h: str) -> tuple[int, int, int]:
@@ -755,7 +822,13 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
     cuantos = PUESTOS_DE_IDENTIDAD
     if len(ordenadas) > cuantos and niveles.get(ordenadas[cuantos], 0) >= ENTRADA_TERCERO:
         cuantos += 1
-    cabeza = sorted(ordenadas[:cuantos], key=clave)
+    conjunto = ordenadas[:cuantos]
+    # LA LISTA INICIAL SE ELIGE CON EL CONJUNTO YA ELEGIDO, y se puede hacer
+    # porque el corte usa la plantilla y no los pesos: no hay circulo.
+    pesos = ORDEN_DE_IMPORTANCIA.get(_lista_de_importancia(tipo, conjunto)) or {
+        h: i for i, h in enumerate(plantilla)
+    }
+    cabeza = sorted(conjunto, key=clave)
     if cabeza[0] != tipo:
         if tipo in cabeza:
             cabeza.remove(tipo)
@@ -815,6 +888,11 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
     # Y si la SEGUNDA supera a la primera, la banda de la tercera se corta en
     # la primera. Lo explica el comentario de `_tercero`.
     segundo_valor = valor[orden[1]] if len(orden) > 1 else 0
+    # Y el CUARTO tambien abre el segundo, asi que tambien hay que conocerlo
+    # antes. Sólo cuenta si puede ser criterio: lo excluido no abre nada.
+    cuarto = 0
+    if len(orden) > 3 and orden[3] not in fuera and orden[3] != BALON_PARADO:
+        cuarto = valor[orden[3]]
     tope_de_banda = valor[orden[0]] if segundo_valor > valor[orden[0]] else None
     # El balon parado del portero NO abre la segunda: con Porteria 14, Defensa 6
     # y balon parado 9, la Defensa sigue clavada. Por eso se anula aqui.
@@ -829,7 +907,7 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
         elif puesto == 0:
             salida.append(Criterio(habilidad, "=", nivel, nivel))
         elif puesto == 1:
-            salida.append(_segundo(habilidad, nivel, valor[orden[0]], tercero, tipo))
+            salida.append(_segundo(habilidad, nivel, valor[orden[0]], tercero, tipo, cuarto))
         elif puesto == 2:
             salida.append(_tercero(habilidad, nivel, holgado, tope_de_banda))
         # LO EXCLUIDO NO PUEDE SER EL CUARTO. Era un agujero del portero: con
@@ -854,12 +932,19 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
     )
 
 
-def _segundo(habilidad: str, nivel: int, primero: int, tercero: int, tipo: str) -> Criterio:
+def _segundo(
+    habilidad: str, nivel: int, primero: int, tercero: int, tipo: str, cuarto: int = 0
+) -> Criterio:
     """El segundo puesto: techo si es bajísimo, clavado si es normal, banda si no.
 
     Lo de que el TERCERO abra al segundo no es un capricho: con Defensa 13 y
     Jugadas 9, Pases 6 deja Jugadas clavada y Pases 7 la abre. Lo decía ya el
     texto de 2009, sin dar el número.
+
+    Y LA CUARTA TAMBIEN, si el segundo llega a 8. Eso lo decía el mismo texto
+    --«if the third and fourth skills are quite high and secondary is high»-- y
+    yo lo había dado por refutado midiendo con el segundo en 7, que es justo
+    por debajo de la frontera. Los números están en las constantes.
 
     El empate con la primera también la abre, PERO SOLO DESDE 8. Tiene sentido
     --si valen lo mismo, cuál es la segunda es dudoso-- y ya no descansa en el
@@ -875,7 +960,10 @@ def _segundo(habilidad: str, nivel: int, primero: int, tercero: int, tipo: str) 
     if nivel < entrada:
         return Criterio(habilidad, "<=", 0, entrada - 1)
     empata = nivel == primero and nivel >= EMPATE_QUE_ABRE_AL_SEGUNDO
-    abre = nivel >= con_banda or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO or empata
+    # LA CUARTA ABRE AL SEGUNDO SI EL SEGUNDO ES ALTO. Las dos condiciones son
+    # necesarias, y cada una esta medida con la otra fija.
+    por_la_cuarta = nivel >= SEGUNDO_ALTO_PARA_LA_CUARTA and cuarto >= CUARTA_QUE_ABRE_AL_SEGUNDO
+    abre = nivel >= con_banda or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO or empata or por_la_cuarta
     if not abre:
         return Criterio(habilidad, "=", nivel, nivel)
     return Criterio(habilidad, "banda", max(0, nivel - 1), nivel + 1)

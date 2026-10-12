@@ -172,29 +172,52 @@ significa que **adelantar cuesta tantos niveles como puestos haya que subir**:
 con Pases en 7, Jugadas --que va justo detrás-- adelanta con 8, pero Lateral
 --dos puestos más atrás-- necesita 9.
 
-Es la regla que flameron describía en 2009 sin dar el número.
+**Y es el mecanismo, no un ajuste.** Lo dice la fuente de 2009, literal:
 
-**Pero esto es un ajuste, no la regla de Hattrick, y está demostrado que no lo
-es.** El 2026-10-11 se enumeraron los quince subconjuntos de un extremo con
-Lateral 16 y las demás a 9, y salió esto:
+> *«The main logic of the system is to check which player type is compared.
+> Then a set of secondary tertiary and quartile skills are chosen. (…) In short
+> the list of skills is sorted by the initial order having importance unless the
+> skills are higher then the skill before them in the initial list by more then
+> the difference in the initial skills.»*
 
-| perfil | orden |
+Desmontado: `B` adelanta a `A` ⟺ `nivel(B) − nivel(A) > importancia(B) −
+importancia(A)`, que es ordenar por `nivel − importancia`. Lo que el texto **no**
+dice es cuántas listas iniciales hay, y ahí estaba el error: yo tenía cinco
+tipos y asumí cinco listas.
+
+#### El extremo tiene dos listas
+
+| cuándo | lista |
 |---|---|
-| Pases 9, Anotación 9 | Lateral, **Pases, Anotación** |
-| Pases 9, Anotación 9, Defensa 9 | Lateral, **Anotación, Pases**, Defensa |
+| Pases, Defensa y Anotación **las tres** en el conjunto | `Lat 0, Jug 1, Ano 2, Pas 3, Def 4` |
+| cualquier otro caso | `Lat 0, Jug 1, Pas 2, Def 3, Ano 3` |
 
-Las mismas dos habilidades, los mismos niveles, y meter una tercera les da la
-vuelta al orden entre sí. Eso descarta a la vez cualquier orden por clave
---añadir un elemento no puede permutar a otros dos--, una lista de prioridad
-por puesto y una asignación a huecos. El mediocentro tiene la misma
-contradicción: con Pases 10 y Anotación 11 manda la Anotación, lo que exige
-que pese 2; con Pases 7, Defensa 9 y Anotación 8 mandan los Pases sobre la
-Anotación, lo que exige que pese 3.
+Con eso salen **los quince subconjuntos** del extremo de FASE Q, incluidos los
+dos que durante dos días parecieron demostrar que ningún orden por clave podía
+funcionar:
 
-Lo que tenemos clava los 146 casos fijados, las 24 fichas reales incluidas, y
-falla en una familia sintética --tres secundarias juntas entre 7 y 9, alguna a
-cero-- que está medida entera en `sondeo-comparador/fase-a.txt`, FASE Q. Se
-usa porque es lo mejor que hay, no porque sea el mecanismo.
+| perfil | orden | por qué |
+|---|---|---|
+| Pases 9, Anotación 9 | Lateral, **Pases, Anotación** | la Defensa está fuera → lista normal |
+| Pases 9, Anotación 9, Defensa 9 | Lateral, **Anotación, Pases**, Defensa | las tres dentro → la otra lista |
+
+No era una lista que se contradice: eran dos. Añadir un elemento sí puede
+permutar a otros dos **si añadirlo cambia de lista**.
+
+**Y hay una predicción cumplida**, que es lo que separa esto de un ajuste. Si lo
+que cambia la lista es que la Defensa *entre en el conjunto* --y no que llegue a
+un nivel-- entonces con la Anotación en 7 el giro debe caer en Defensa 7 y no en
+9. Cae en 7:
+
+| perfil | Def 4-6 | Def 7 | Def 8 | Def 9 |
+|---|---|---|---|---|
+| Lat 16, Pas 7, Ano 7 | Lat Pas Ano | **Lat Ano Pas Def** | Lat Ano Def Pas | Lat Def Ano Pas |
+| Lat 16, Pas 9, Ano 9 | Lat Pas Ano (hasta 8) | — | — | **Lat Ano Pas Def** (en 9) |
+
+**La condición no es «entra la Defensa» a secas.** Con esa condición se rompen
+siete casos ya medidos, y los siete tienen en común que la Anotación no está en
+el conjunto. Se puede comprobar antes de ordenar porque el corte usa la
+plantilla y no los pesos, así que no hay círculo.
 
 **La habilidad que da el tipo va siempre la primera**, aunque otra tenga más
 nivel. Por eso un Pases 16 con todo lo demás a cero empieza por
@@ -237,8 +260,16 @@ la 1ª en 6. Son dos reglas distintas para dos puestos, y no se ha encontrado la
 forma de unificarlas: la banda holgada del 3º con la 1ª en 10 sale `9-12`, que
 se pasa de la 1ª sin que nadie la corte.
 
-**La segunda se abre a banda antes de tiempo** si la tercera llega a 7, si hay
-una cuarta que llegue a 5, o si **empata con la primera y las dos llegan a 8**.
+**La segunda se abre a banda antes de tiempo** si la tercera llega a 7, si
+**la cuarta llega a 5 y la segunda a 8**, o si **empata con la primera y las dos
+llegan a 8**.
+
+Lo de la cuarta lo decía la misma fuente de 2009 --*«or if the third and fourth
+skills are quite high and secondary is high»*-- y estuvo dos días dado por
+refutado: los dos barridos que lo buscaban tenían la segunda en **7**, justo por
+debajo de la frontera, así que salían clavados los dos. Medido ahora con la
+segunda en 6, 7, 8 y 9 contra la cuarta en 0, 4, 5 y 6, y no depende de la
+primera (abre igual con la primera en 12, 16 y 20).
 Lo decía 2009: *«lo mismo ocurre si la tercera es alta»*; el umbral son siete, y
 eso no lo decía.
 
@@ -356,11 +387,19 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
-- **El MECANISMO del orden de los criterios.** No es un orden por peso de
-  habilidad: está demostrado arriba con un contraejemplo de dos filas. Lo que
-  hay es un ajuste que acierta todo lo medido salvo una familia sintética, y
-  se sabe exactamente cuál. Afecta al orden de la lista y, por tanto, **a qué
-  tres habilidades le pedimos a `transfersearch`**, que acepta sólo tres.
+- ~~**El MECANISMO del orden de los criterios.**~~ **Resuelto el 2026-10-12**:
+  es `nivel − importancia` sobre una lista inicial por tipo, y la fuente de
+  2009 lo dice. Lo que faltaba era que hay más listas que tipos. Queda **la
+  segunda lista del mediocentro**, que tiene la misma forma que la del extremo
+  y no se ha sacado: `Jug16 Pas7 Def9 Ano8` sale `Jug Def Pas Ano` y el motor
+  da `Jug Def Ano Pas`. Un caso de 315.
+- **La ENTRADA del cuarto criterio.** Medida en catorce celdas el 2026-10-12 y
+  sin regla. Con un extremo de Lateral 16 y Defensa 9, la Anotación entra desde
+  5 pero los Pases tienen que alcanzar a la Anotación: con Anotación 8, unos
+  Pases 7 van al montón. La regla simétrica obvia --«la Anotación tapa también a
+  los Pases»-- **rompe** un caso medido (`Lat16 Pas8 Ano9 Def7`, donde los Pases
+  sí entran), y la diferencia es que allí la Defensa está fuera. Tres casos de
+  315, en `PENDIENTES` del banco con su contra-medida.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
 - **Cuándo entra el TERCER criterio en general.** El caso del mediocentro ya
@@ -458,9 +497,18 @@ una vez más que ninguna de las dos se filtra.
 
 ## La hipótesis que explicaría todo lo que queda abierto
 
-Los agujeros que quedan --el mecanismo del orden, la entrada del tercero, el
-listón del dial por pareja, la tapadera de la Anotación-- parecen cuatro cosas
-distintas, y puede que sean una sola. El contraejemplo más limpio del sondeo:
+> **2026-10-12: esta hipótesis ya no es una hipótesis, es el mecanismo, y la
+> fuente de 2009 lo dice.** Hattrick ordena por `nivel − importancia` sobre una
+> **lista inicial por tipo**, y lo que faltaba era que hay **más listas que
+> tipos**: el extremo tiene dos, y con la segunda salen los quince subconjuntos
+> de FASE Q que esta sección presentaba como imposibles. Está contado arriba, en
+> «El orden de los criterios», con la predicción que se cumplió. Lo que sigue se
+> conserva porque el razonamiento es el que llevó allí, y porque la parte del
+> mediocentro **sigue abierta**: le faltaría su segunda lista.
+
+Los agujeros que quedan --la entrada del tercero y del cuarto, el listón del
+dial por pareja, la tapadera de la Anotación-- parecen cosas distintas, y puede
+que sean una sola. El contraejemplo más limpio del sondeo:
 
 | perfil | Lateral 5 |
 |---|---|
