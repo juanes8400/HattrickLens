@@ -1678,3 +1678,28 @@ LAS_DOS_LISTAS_DEL_MEDIOCENTRO: list[tuple[dict[str, int], str]] = [
 @pytest.mark.parametrize("extra,esperado", LAS_DOS_LISTAS_DEL_MEDIOCENTRO)
 def test_las_dos_listas_del_mediocentro(extra: dict[str, int], esperado: str) -> None:
     assert _pinta(criterios_de(25, perfil(playmaking=16, **extra))) == esperado
+
+
+#: LA ANOTACION DEL MEDIOCENTRO CON DEFENSA: la echa el LATERAL, no la lista.
+#: Discriminador del 2026-10-12. Dos lecturas explicaban los tres casos de los
+#: barridos --«con la lista de Defensa, el Lateral en el conjunto la echa» y
+#: «la echa si no supera al Lateral»-- y esta consulta las separa: con Lateral 5
+#: y Anotacion 9 la Anotacion SE QUEDA y el Lateral se va al monton. La primera
+#: lectura queda descartada.
+#:
+#: Y el ultimo caso corrigio la condicion de la lista: ahi la Defensa 5 no entra
+#: en el conjunto, y entonces vale la lista NORMAL aunque el umbral se cumpla.
+#: (habilidades sobre Jugadas 16, lo que contestó Hattrick)
+LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO: list[tuple[dict[str, int], str]] = [
+    (dict(winger=5, scoring=9, defending=6), "Ed24-26 Jug=16 Ano=9 Def 5-8 Pas<=5 Lat<=7 Por<=5"),
+    (dict(scoring=8, defending=5), "Ed=25 Jug=16 Ano=8 Def 4-6 Pas<=4 Lat<=4 Por<=4"),
+    (
+        dict(winger=8, scoring=8, passing=8, defending=5),
+        "Ed24-26 Jug=16 Pas 7-9 Ano 7-10 Lat 6-11 Def<=7 Por<=5",
+    ),
+]
+
+
+@pytest.mark.parametrize("extra,esperado", LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO)
+def test_la_anotacion_y_el_lateral_del_medio(extra: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(playmaking=16, **extra))) == esperado

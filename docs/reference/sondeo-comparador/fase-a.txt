@@ -1902,3 +1902,48 @@ son tres familias, y ninguna es el orden de los tres primeros:
    se queda, asi que no es «Def >= Ano».
 
 Los diez quedan en PENDIENTES del banco con su medida.
+
+--- AF3. EL DISCRIMINADOR DE LA ANOTACION, Y LA CONDICION CORREGIDA ---------
+
+Los tres casos de «la Anotacion expulsada» los explicaban DOS lecturas:
+
+  (a) con la lista de Defensa, el Lateral en el conjunto echa a la Anotacion
+  (b) la Anotacion se va si no supera al Lateral
+
+Consulta que las separa, Jug16 Lat5 Ano9 Def6:
+
+  -> Jug=16  Ano=9  Def 5-8  Pas<=5  Lat<=7
+
+La Anotacion SE QUEDA y el LATERAL se va al monton. (a) queda descartada.
+Control sin Lateral, Jug16 Ano8 Def5 -> la Anotacion se queda, como las dos
+predecian.
+
+Y UN CUARTO CASO CORRIGIO LA CONDICION DE LA LISTA. Jug16 Pas8 Lat8 Ano8 Def5:
+
+  -> Jug=16  Pas 7-9  Ano 7-10  Lat 6-11  Def<=7
+
+La Defensa 5 NO ENTRA en el conjunto, y entonces vale la lista NORMAL --Pases,
+Anotacion, Lateral-- aunque el umbral «Def >= max(5, Ano-3)» se cumpla. Asi que
+la condicion lleva ademas la PERTENENCIA, igual que en el extremo:
+
+  mediocentro con Defensa  <=>  la Defensa esta en el conjunto
+                                Y  Defensa >= max(5, Anotacion - 3)
+
+Con eso, 3 de los 4 salen. El cuarto --Jug16 Lat9 Ano6 Def5, donde la Anotacion
+6 no entra como cuarta-- es otra vez la ENTRADA DEL CUARTO, y ahi se ve lo
+arbitraria que parece: con Jug16 Pas5 Ano6 Def5, la Defensa 5 SI entra un nivel
+por debajo de la tercera. Mismo hueco, distinta habilidad.
+
+LA ENTRADA DEL CUARTO SIGUE SIN REGLA, y ya no es por falta de datos: hay
+catorce celdas medidas y cuatro hipotesis descartadas (nivel absoluto, hueco a
+la tercera, clave con umbral, y la simetrica de la tapadera). Lo que se sabe:
+
+  entra           Def6 con 3a Pas9 | Def6 con 3a Pas12 | Def5 con 3a Ano8
+                  Def5 con 3a Ano6 | Ano5 con 3a Pas8  | Pas8 con 3a Def9
+                  Lat8 con 3a Ano8 | Def6 con 3a Jug6
+  no entra        Pas5,6,7 con 3a Ano8 | Def5 con 3a Pas9 | Def5 con 3a Pas12
+                  Ano6 con 3a Lat9     | Ano8 con 3a Def5,6,7
+
+Los Pases son la habilidad mas reacia a entrar de cuarta, y la Anotacion la que
+entra mas facil en el extremo y la que menos en el mediocentro con Lateral. Si
+hay regla, pasa por la habilidad y no solo por el nivel.

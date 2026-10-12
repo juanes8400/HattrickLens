@@ -138,6 +138,10 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
         (25, T.perfil(playmaking=16, **extra), s)
         for extra, s in T.LAS_DOS_LISTAS_DEL_MEDIOCENTRO
     ]
+    casos += [
+        (25, T.perfil(playmaking=16, **extra), s)
+        for extra, s in T.LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO
+    ]
     return casos
 
 
@@ -209,6 +213,16 @@ PENDIENTES: list[tuple[str, int, dict[str, int], str]] = [
         25,
         perfil(playmaking=16, defending=9, passing=7, scoring=8),
         "Ed24-26 Jug=16 Def 8-10 Pas 6-9 Ano 6-11 Lat<=5 Por<=5",
+    ),
+    # Y UNO MAS DE LA MISMA FAMILIA: con «Jug16 Lat9 Ano6 Def5» la Anotacion 6
+    # no entra como cuarta, y el motor la mete. Mientras que con «Jug16 Pas5
+    # Ano6 Def5» la Defensa 5 SI entra como cuarta un nivel por debajo de la
+    # tercera. Mismo hueco, distinta habilidad, y sin regla.
+    (
+        "entrada del cuarto",
+        25,
+        perfil(playmaking=16, winger=9, scoring=6, defending=5),
+        "Ed24-26 Jug=16 Lat=9 Def 4-7 Pas<=5 Ano<=8 Por<=5",
     ),
     # LOS DIEZ DE LOS BARRIDOS DEL MEDIOCENTRO que la segunda lista NO arregla.
     # Tres familias: el orden del MONTON --Hattrick lista el Lateral antes que

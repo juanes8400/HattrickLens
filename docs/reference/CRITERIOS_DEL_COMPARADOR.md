@@ -223,7 +223,7 @@ plantilla y no los pesos, así que no hay círculo.
 
 | cuándo | lista |
 |---|---|
-| `Defensa ≥ max(5, Anotación − 3)` | `Jug 0, Pas 1, Def 2, Ano 3, Lat 3` |
+| la Defensa **está en el conjunto** y `Defensa ≥ max(5, Anotación − 3)` | `Jug 0, Pas 1, Def 2, Ano 3, Lat 3` |
 | cualquier otro caso | `Jug 0, Pas 1, Def 2, Ano 2, Lat 3` |
 
 Al extremo la Defensa le **sube** la Anotación; al mediocentro se la **baja**, que

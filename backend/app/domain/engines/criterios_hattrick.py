@@ -263,7 +263,12 @@ def _lista_de_importancia(tipo: str, conjunto: list[str], niveles: dict[str, int
     """Cual de las listas iniciales le toca, con el conjunto ya elegido."""
     if tipo == "winger" and set(conjunto) >= EXTREMO_COMPLETO:
         return "winger_con_defensa"
-    if tipo == "playmaking":
+    if tipo == "playmaking" and "defending" in conjunto:
+        # LA DEFENSA TIENE QUE ESTAR EN EL CONJUNTO, igual que en el extremo.
+        # Medido el 2026-10-12 con «Jug16 Pas8 Lat8 Ano8 Def5»: ahi la Defensa
+        # se va al monton --no la eligen-- y Hattrick lista «Pas, Ano, Lat», que
+        # es la lista NORMAL. Sin esta condicion el umbral se cumplia (5 >= 5) y
+        # salia la otra, con el Lateral delante de la Anotacion.
         defensa = max(0, niveles.get("defending", 0))
         anotacion = max(0, niveles.get("scoring", 0))
         # CON EL SUELO DE LA ENTRADA, que no es un parche: una Defensa de 4 no
