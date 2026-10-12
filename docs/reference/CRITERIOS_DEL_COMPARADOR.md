@@ -121,6 +121,25 @@ El portero es el único que mira **balón parado**. En un jugador de campo no
 influye en nada: con Defensa 14 y Jugadas 10, un balón parado de 0, de 12 o de
 20 da exactamente los mismos criterios.
 
+**Y hay una exclusión más que depende del nivel: al extremo, la Defensa no le
+es criterio si no llega al nivel de la Anotación.**
+
+| perfil | Defensa |
+|---|---|
+| Lateral 18, Anotación 12, Defensa 7 a 11 | sólo le sube el techo |
+| Lateral 18, Anotación 12, Defensa 12 | entra, y la Anotación le cede el segundo puesto |
+| Lateral 18, Anotación 9, Defensa 5 a 8 | sólo le sube el techo |
+| Lateral 18, Anotación 9, Defensa 9 | entra |
+
+**No es simétrico**: con la Defensa arriba, la Anotación entra siempre --con
+Lateral 18 y Defensa 12 entra con 9, 10, 11 y 12--. Y **no es general**: al
+mediocentro no le pasa (con Jugadas 18 y Anotación 12, una Defensa 9 sí es
+criterio) ni al defensa con su Lateral. Es del extremo y de esa pareja.
+
+Esto explica cuatro de los seis contraejemplos que habían quedado sin
+explicación en el orden de criterios, y sube los tres filtros de
+`transfersearch` a 60 de 60 en los perfiles plausibles.
+
 ### 3. El orden de los criterios
 
 Se ordenan por **`nivel − posición en la plantilla`**, de mayor a menor. Eso
@@ -264,11 +283,11 @@ por dónde falló importa tanto como la regla.
   tres habilidades le pedimos a `transfersearch`**, que acepta sólo tres.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
-- **Cuándo entra el TERCER criterio.** No es un nivel absoluto. Con Lateral 16
-  y Anotación 14, una Defensa de 3 a 8 nunca llega a ser criterio; con Lateral
-  12 y Anotación 8 entra justo al empatar con la segunda; y con Lateral 10 y
-  Pases 7 una Jugadas 5 entra estando dos por debajo. Depende de lo que tenga
-  encima. El código usa 5, que es el ajuste que mejor encaja.
+- **La entrada y el techo del CUARTO criterio.** Con Anotación 10, Pases 8 y
+  Lateral 6, una Jugadas 5 recibe techo donde el modelo le pone banda; y con
+  Lateral 16, Pases 11, Anotación 11 y Jugadas 9, el techo de la banda sale un
+  nivel más bajo de lo que el modelo calcula. Dos de sesenta, ninguno cambia la
+  búsqueda.
 
 ## Cuánto se le cree, medido en perfiles plausibles
 
@@ -281,17 +300,17 @@ a `transfersearch`.
 | | cadena entera | tres filtros |
 |---|---|---|
 | antes de los arreglos del 12 | 49/60 (82 %) | 57/60 (95 %) |
-| después | **53/60 (88 %)** | **59/60 (98 %)** |
+| con los tres primeros arreglos | 53/60 (88 %) | 59/60 (98 %) |
+| con la tapadera de la Anotación | **54/60 (90 %)** | **60/60 (100 %)** |
 
-De los siete que quedan, **tres son orden de la cola** --habilidades con techo,
-que nunca se mandan a buscar--, **uno es el techo de la banda del cuarto**, y
-**tres son el umbral del tercero** de arriba. Sólo uno de los siete cambia los
-filtros con los que se busca.
+**Los tres filtros que se le mandan a `transfersearch` salen bien en los
+sesenta.** De los seis que quedan en la cadena entera, **tres son orden de la
+cola** --habilidades con techo, que nunca se mandan a buscar--, **dos son la
+entrada y el techo de la banda del cuarto**, y **uno es el orden de la tercera
+y la cuarta**. Ninguno cambia con qué se busca.
 
 Eso responde a la pregunta que importaba: el agujero de FASE Q, el del
-mecanismo del orden, **no se está pagando en la búsqueda**. Perseguirlo tiene
-el precio de muchas consultas y la posibilidad de que no se pueda sacar desde
-fuera; medirlo costaba 180 consultas y ya está hecho.
+mecanismo del orden, **no se está pagando en la búsqueda**.
 - **Por qué el empate arriba baja el umbral a 25**, y por qué la cuarta lo baja
   exactamente un punto. Los números están medidos; el motivo es conjetura.
 - **Qué pasa por encima de 20** en el balón parado del portero. Ebbesen tiene

@@ -161,6 +161,37 @@ EXCLUIDAS: dict[str, frozenset[str]] = {
     "scoring": frozenset({"keeper", "defending"}),
 }
 
+#: Y UNA EXCLUSION QUE DEPENDE DEL NIVEL. Al extremo, la Defensa no le es
+#: criterio si no llega al nivel de la Anotacion. Medido el 2026-10-12 con
+#: Lateral 16 y 18:
+#:
+#:   Lat18 Ano12 Def 7..11  ->  la Defensa solo sube de techo, no entra
+#:   Lat18 Ano12 Def 12     ->  entra, y la Anotacion le cede el segundo puesto
+#:   Lat18 Ano9  Def 5..8   ->  no entra
+#:   Lat18 Ano9  Def 9      ->  entra
+#:
+#: Y NO es simetrico: con la Defensa arriba, la Anotacion entra siempre.
+#:
+#:   Lat18 Def12 Ano 9, 10, 11, 12  ->  la Anotacion entra en los cuatro
+#:
+#: Tampoco es general: al mediocentro --donde la Anotacion tambien comparte
+#: peso con la Defensa-- no le pasa; con Jugadas 18 y Anotacion 12, una Defensa
+#: 9 es criterio. Ni al defensa con su Lateral. Es del extremo y de esa pareja.
+#:
+#: Esto explica cuatro de los seis contraejemplos de FASE Q que se quedaron sin
+#: explicar: con Lateral 16, «Pases 9 Anotacion 8 Defensa 7» no saca criterio
+#: de la Defensa y «Pases 9 Anotacion 7 Defensa 8» si.
+DEFENSA_DEL_EXTREMO_PIDE_LA_ANOTACION = True
+
+
+def _fuera(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
+    """Las habilidades que no pueden ser criterio para este jugador."""
+    fuera = EXCLUIDAS[tipo]
+    if tipo == "winger" and niveles.get("defending", 0) < niveles.get("scoring", 0):
+        fuera |= {"defending"}
+    return fuera
+
+
 #: CUANDO DOS PESAN LO MISMO, QUIEN VA DELANTE. Solo hace falta donde dos
 #: habilidades comparten peso, y eso hoy solo pasa en el extremo, entre la
 #: Defensa y la Anotacion. Lo gana la Anotacion, y esta medido cuatro veces
@@ -506,7 +537,7 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         # colaba un cuarto criterio de Lateral --Porteria 18, Defensa 15 y
         # Lateral 5 sacaba «Lateral entre debil y bueno»-- cuando Hattrick le
         # pone tope. Sus Jugadas, Lateral y Anotacion nunca son criterio.
-        fuera_del_portero = EXCLUIDAS[tipo]
+        fuera_del_portero = _fuera(tipo, niveles)
         dentro = [h for h in plantilla if h not in fuera_del_portero]
         return dentro + [h for h in plantilla if h in fuera_del_portero]
 
@@ -528,7 +559,7 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         pos = pesos[h]
         return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), desempate.index(h))
 
-    fuera = EXCLUIDAS[tipo]
+    fuera = _fuera(tipo, niveles)
     ordenadas = [h for h in sorted(plantilla, key=clave) if h not in fuera]
     cuantos = PUESTOS_DE_IDENTIDAD
     if len(ordenadas) > cuantos and niveles.get(ordenadas[cuantos], 0) >= ENTRADA_TERCERO:
@@ -573,6 +604,7 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
     """
     tipo = _tipo(niveles)
     holgado = es_holgado(niveles, tipo, edad)
+    fuera = _fuera(tipo, niveles)
     orden = _puestos(niveles, tipo)
     valor = {h: max(0, niveles.get(h, 0)) for h in orden}
 
@@ -599,7 +631,7 @@ def criterios_de(edad: int, niveles: dict[str, int]) -> Criterios:
         # Porteria 18, Defensa 15 y Lateral 5 le salia «Lateral entre debil y
         # bueno» cuando Hattrick le pone tope, y de rebote el Lateral abria la
         # banda de la Defensa.
-        elif puesto == 3 and nivel >= ENTRADA_TERCERO and habilidad not in EXCLUIDAS[tipo]:
+        elif puesto == 3 and nivel >= ENTRADA_TERCERO and habilidad not in fuera:
             salida.append(_cuarto(habilidad, nivel, valor[orden[0]], tercero, holgado))
         else:
             salida.append(Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado)))

@@ -753,3 +753,93 @@ Lo demas que falla son 3 de 60 de ORDEN DE LA COLA --habilidades que llevan
 tope y que nunca se le mandan a `transfersearch`-- y 1 de 60 del techo de la
 banda del cuarto: Lat16 Pas11 Ano11 Jug9 da «Jugadas entre bueno y brillante»
 y el modelo pone brillante+1. Ninguno de los dos cambia la busqueda.
+
+
+================================================================================
+FASE S - 2026-10-12 - EL UMBRAL DEL TERCERO, Y LA REGLA QUE HABIA DEBAJO
+================================================================================
+
+FASE R dejo abierto que el tercer criterio no entra con un nivel absoluto, con
+este dato: Lat16 Ano14 y una Defensa de 3 a 8 nunca es criterio. Se fue a por
+ello y lo que habia debajo era otra cosa.
+
+--- S1. NO ES LA PRIMERA NI LA SEGUNDA -------------------------------------
+
+Con la tercera siendo Jugadas y la segunda Pases 7, moviendo la PRIMERA:
+
+  Lat8 Pas7 -> Jug entra en 5      Lat14 Pas7 -> Jug entra en 5
+  Lat10 Pas7 -> Jug entra en 5     Lat16 Pas7 -> Jug entra en 5
+  Lat12 Pas7 -> Jug entra en 5
+
+Con la primera fija en 18, moviendo la SEGUNDA:
+
+  Lat18 Pas7  -> Jug entra en 5    Lat18 Pas7  -> Def entra en 5
+  Lat18 Pas10 -> Jug entra en 5    Lat18 Pas10 -> Def entra en 5
+  Lat18 Pas13 -> Jug entra en 5    Lat18 Pas13 -> Def entra en 5
+  Lat18 Pas16 -> Jug entra en 5
+
+El umbral es 5 y es absoluto. Lo que bloqueaba a la Defensa no era el umbral.
+
+--- S2. LO QUE LA BLOQUEABA ERA LA ANOTACION ------------------------------
+
+  Lat18 Ano12 Def7  : Lat=18 Ano 11-13   Def<=9
+  Lat18 Ano12 Def8  : Lat=18 Ano 11-13   Def<=10
+  Lat18 Ano12 Def9  : Lat=18 Ano 11-13   Def<=11
+  Lat18 Ano12 Def10 : Lat=18 Ano 11-13   Def<=12
+  Lat18 Ano12 Def11 : Lat=18 Ano 11-13   Def<=13
+  Lat18 Ano12 Def12 : Lat=18 Ano 11-13   Def>=12      <-- entra al igualarla
+
+  Lat18 Ano9 Def5 : Lat=18 Ano=9   Def<=7
+  Lat18 Ano9 Def6 : Lat=18 Ano=9   Def<=8
+  Lat18 Ano9 Def7 : Lat=18 Ano=9   Def<=9
+  Lat18 Ano9 Def8 : Lat=18 Ano=9   Def<=10
+  Lat18 Ano9 Def9 : Lat=18 Ano 8-10  Def 8-11            <-- entra al igualarla
+
+AL EXTREMO, LA DEFENSA NO ES CRITERIO SI NO LLEGA AL NIVEL DE LA ANOTACION.
+
+--- S3. Y NO ES SIMETRICO -------------------------------------------------
+
+  Lat18 Def12 Ano9  : Lat=18 Def 11-13  Ano 8-11
+  Lat18 Def12 Ano10 : Lat=18 Def 11-13  Ano 9-12
+  Lat18 Def12 Ano11 : Lat=18 Def 11-13  Ano>=11
+  Lat18 Def12 Ano12 : Lat=18 Ano 11-13  Def>=12
+  Lat16 Def11 Ano9  : Lat=16 Def 10-12  Ano 8-11
+  Lat16 Def11 Ano10 : Lat=16 Def 10-12  Ano 9-12
+  Lat16 Def11 Ano11 : Lat=16 Ano 10-12  Def>=11
+
+Con la Defensa arriba, la Anotacion entra siempre. Y al empatar, el segundo
+puesto se lo queda la ANOTACION, que es el desempate ya medido en FASE Q.
+
+--- S4. TAMPOCO ES GENERAL ------------------------------------------------
+
+  MEDIOCENTRO Jug18 Ano12 Def9  : Jug=18 Ano 11-13  Def 8-11   <-- si entra
+  MEDIOCENTRO Jug18 Ano12 Def12 : Jug=18 Def 11-13  Ano>=12    <-- empate a Def
+  DEFENSA     Def18 Pas12 Lat9  : Def=18 Pas 11-13  Lat 8-11   <-- si entra
+
+Es del extremo y de esa pareja. Y confirma de paso que en el mediocentro el
+empate entre Defensa y Anotacion lo gana la DEFENSA, al contrario del extremo.
+
+--- S5. QUE ARREGLA -------------------------------------------------------
+
+Explica CUATRO de los seis contraejemplos de FASE Q que se quedaron sin
+explicacion, los de niveles distintos sobre un Lateral 16:
+
+  Pas9 Ano8 Def7 -> Lat Pas Ano       Def 7 < Ano 8, no entra   OK
+  Pas9 Ano7 Def8 -> Lat Pas Ano Def   Def 8 > Ano 7, entra      OK membresia
+  Pas8 Ano9 Def7 -> Lat Ano Pas       Def 7 < Ano 9, no entra   OK
+  Pas7 Ano9 Def8 -> Lat Ano Pas       Def 8 < Ano 9, no entra   OK
+
+Puntuacion de los sesenta perfiles plausibles de FASE R, medida otra vez:
+
+                   cadena entera      tres filtros
+  FASE R antes     49/60 (82%)        57/60 (95%)
+  FASE R despues   53/60 (88%)        59/60 (98%)
+  con esto         54/60 (90%)        60/60 (100%)
+
+LOS TRES FILTROS QUE SE LE MANDAN A `transfersearch` SALEN BIEN EN LOS SESENTA.
+
+Lo que queda son 4 de 60 en la cadena entera y ninguno toca la busqueda:
+3 de orden de la cola --habilidades con tope-- y 1 del techo de la banda del
+cuarto (Lat16 Pas11 Ano11 Jug9 da «Jugadas entre bueno y brillante» y el
+modelo pone brillante+1). Mas la entrada del cuarto en un caso: Ano10 Pas8
+Lat6 Jug5 le pone tope a Jugadas y el modelo le pone banda.

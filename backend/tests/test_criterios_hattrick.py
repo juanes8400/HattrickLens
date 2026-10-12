@@ -831,3 +831,52 @@ def test_los_perfiles_plausibles(
     descripcion: str, edad: int, niveles: dict[str, int], esperado: str
 ) -> None:
     assert _pinta(criterios_de(edad, niveles)) == esperado
+
+
+# --- Al extremo, la Defensa tiene que llegarle a la Anotacion ---------------
+
+#: Bisectado el 2026-10-12 sobre un extremo: con la Anotacion por encima, la
+#: Defensa no llega a ser criterio --solo le sube el techo-- hasta que la
+#: iguala. Al reves no pasa: con la Defensa arriba, la Anotacion entra siempre.
+#: Y no es general: ni el mediocentro ni el defensa lo hacen.
+ANOTACION_TAPA_LA_DEFENSA = [
+    (18, 12, 11, "Ed24-26 Lat=18 Ano 11-13 Jug<=5 Pas<=5 Def<=13 Por<=5"),
+    (18, 12, 12, "Ed24-26 Lat=18 Ano 11-13 Def>=12 Jug<=5 Pas<=5 Por<=5"),
+    (18, 9, 8, "Ed24-26 Lat=18 Ano=9 Jug<=5 Pas<=5 Def<=10 Por<=5"),
+    (18, 9, 9, "Ed24-26 Lat=18 Ano 8-10 Def 8-11 Jug<=5 Pas<=5 Por<=5"),
+    (16, 14, 8, "Ed24-26 Lat=16 Ano 13-15 Jug<=5 Pas<=5 Def<=10 Por<=5"),
+]
+
+
+@pytest.mark.parametrize(("lateral", "anotacion", "defensa", "esperado"), ANOTACION_TAPA_LA_DEFENSA)
+def test_la_anotacion_tapa_la_defensa_del_extremo(
+    lateral: int, anotacion: int, defensa: int, esperado: str
+) -> None:
+    criterios = criterios_de(
+        25, perfil(winger=lateral, scoring=anotacion, defending=defensa)
+    )
+    assert _pinta(criterios) == esperado
+
+
+#: Con la Defensa arriba la Anotacion entra siempre: cuatro niveles seguidos.
+AL_REVES_NO_TAPA = [
+    (9, "Ed24-26 Lat=18 Def 11-13 Ano 8-11 Jug<=5 Pas<=5 Por<=5"),
+    (10, "Ed24-26 Lat=18 Def 11-13 Ano 9-12 Jug<=5 Pas<=5 Por<=5"),
+    (11, "Ed24-26 Lat=18 Def 11-13 Ano>=11 Jug<=5 Pas<=5 Por<=5"),
+    (12, "Ed24-26 Lat=18 Ano 11-13 Def>=12 Jug<=5 Pas<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize(("anotacion", "esperado"), AL_REVES_NO_TAPA)
+def test_la_defensa_no_tapa_a_la_anotacion(anotacion: int, esperado: str) -> None:
+    criterios = criterios_de(25, perfil(winger=18, defending=12, scoring=anotacion))
+    assert _pinta(criterios) == esperado
+
+
+def test_al_mediocentro_y_al_defensa_no_les_pasa() -> None:
+    """La tapadera es del extremo. Con Jugadas 18 y Anotacion 12, una Defensa 9
+    si es criterio; y al defensa su Lateral tambien, con los Pases por encima."""
+    medio = criterios_de(25, perfil(playmaking=18, scoring=12, defending=9))
+    assert _pinta(medio) == "Ed24-26 Jug=18 Ano 11-13 Def 8-11 Pas<=5 Lat<=5 Por<=5"
+    defensa = criterios_de(25, perfil(defending=18, passing=12, winger=9))
+    assert _pinta(defensa) == "Ed24-26 Def=18 Pas 11-13 Lat 8-11 Jug<=5 Ano<=5 Por<=5"
