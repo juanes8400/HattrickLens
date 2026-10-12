@@ -1596,3 +1596,34 @@ distintas y hacian falta las dos: un motor puede clavar todas las mediciones y
 aun asi sacar una banda imposible en un perfil que nadie probo.
 
 Las dos quedan fijadas en pruebas con muestras rapidas.
+
+
+================================================================================
+FASE AC - 2026-10-12 - LA UNICA PARTE DE LA REGLA QUE NO SE APLICA
+================================================================================
+
+Revisando que todo lo medido llegue al producto salio una pieza suelta: el TOPE
+DE DIAS de los 17 anos --«Dias <= 24», medido el 2026-10-10-- se calcula, se
+prueba, y nadie lo consume.
+
+  `grep tope_de_dias` -> solo el dataclass que lo guarda y la prueba que lo fija
+
+LA BUSQUEDA no lo manda, y eso esta bien: `transfersearch` acepta anos y no
+dias, y pedir un superconjunto no hace dano.
+
+EL SELLO DEL 100 % tampoco lo comprueba, y ahi si importa: a un jugador de 17
+anos y 80 dias Hattrick NO lo ensenaria y nosotros le damos el sello.
+
+POR QUE NO SE ARREGLA HOY. Hace falta el dato y no lo guardamos: ni `Candidato`
+ni `market_sales` tienen los dias, aunque el parser de CHPP ya los lee
+(`age_days`). Arreglarlo es una columna y una migracion, como se hizo con
+`skills_json`. Y aplicarlo solo a los candidatos VIVOS seria peor que la
+inexactitud: la misma venta tendria sello antes de guardarse y no despues.
+
+Queda dicho en los dos sitios donde enganaria --el dataclass y
+`lo_ensenaria_hattrick`-- y en el documento de referencia. Afecta solo a
+comparables de 17 anos, y la decision de migrar es del producto, no mia.
+
+LA LECCION: el `grep` de «que esta medido pero no se usa» habria que pasarlo
+cada vez que se cierra una tanda de mediciones. Una constante medida y no
+consumida es peor que no tenerla, porque quien la lee supone que se aplica.

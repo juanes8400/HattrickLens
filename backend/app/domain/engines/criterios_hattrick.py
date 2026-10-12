@@ -444,6 +444,19 @@ class Criterios:
     #: por qué la búsqueda salió ancha, y eso hay que poder enseñarlo.
     holgado: bool
     #: El tope de días, sólo a los 17 años. `None` en cualquier otro caso.
+    #:
+    #: NADIE LO APLICA TODAVÍA, y conviene saberlo antes de fiarse. La búsqueda
+    #: no lo manda porque `transfersearch` no acepta días --sólo años-- y pedir
+    #: un superconjunto no hace daño. Pero `lo_ensenaria_hattrick` tampoco lo
+    #: comprueba, y ahí sí importa: a un jugador de 17 años y 80 días Hattrick
+    #: NO lo ensenaria y nosotros le damos el sello del 100 %.
+    #:
+    #: No se arregla aquí porque hace falta el dato: ni `Candidato` ni
+    #: `market_sales` guardan los días, aunque el parser de CHPP ya los lee
+    #: (`age_days`). Arreglarlo es una columna nueva y una migración, igual que
+    #: se hizo con `skills_json`, y aplicarlo sólo a los vivos dejaría a la
+    #: misma venta con sello antes de guardarse y sin sello después, que es peor
+    #: que la inexactitud. Afecta sólo a comparables de 17 años.
     tope_de_dias: int | None = None
 
 

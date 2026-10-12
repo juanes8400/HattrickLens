@@ -281,6 +281,24 @@ criterio, asomando por otro sitio.
 El número es **fijo**: se pidió el mismo perfil de 17 años desde la ficha de un
 jugador de 2 días y desde la de uno de 20, y las dos veces salió 24.
 
+## La única parte de la regla que no se aplica
+
+A los 17 años Hattrick añade un **tope de días**: `Días <= 24`. Está medido y
+está en `Criterios.tope_de_dias`, pero **nadie lo consume**.
+
+- La **búsqueda** no lo manda, y eso está bien: `transfersearch` acepta años y
+  no días, y pedir un superconjunto no hace daño.
+- El **sello del 100 %** tampoco lo comprueba, y ahí sí importa: a un jugador
+  de 17 años y 80 días Hattrick no lo enseñaría y nosotros le damos el sello.
+
+**Por qué no está arreglado:** hace falta el dato. Ni `Candidato` ni
+`market_sales` guardan los días, aunque el parser de CHPP ya los lee
+(`age_days`). Arreglarlo es una columna nueva y una migración --igual que se
+hizo con `skills_json`--, y aplicarlo sólo a los candidatos vivos dejaría a la
+misma venta con sello antes de guardarse y sin sello después, que es peor que la
+inexactitud. **Afecta sólo a comparables de 17 años**, y queda a decisión de
+quien lleve el producto.
+
 ## Lo que NO se compara
 
 Forma, resistencia, especialidad, experiencia, liderazgo, carácter,

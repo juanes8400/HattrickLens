@@ -522,6 +522,11 @@ def lo_ensenaria_hattrick(candidato: Perfilado, objetivo: Objetivo) -> bool:
     criterios = criterios_de(objetivo.edad, dict(objetivo.habilidades))
     if not criterios.edad_minima <= candidato.edad <= criterios.edad_maxima:
         return False
+    # EL TOPE DE DIAS DE LOS 17 NO SE COMPRUEBA, y es la unica parte de la regla
+    # que se nos queda fuera: a un jugador de 17 anos y 80 dias Hattrick no lo
+    # ensenaria y aqui se le da el sello. Hace falta guardar los dias para
+    # poder; esta explicado en `Criterios.tope_de_dias`. Solo afecta a
+    # comparables de 17 anos.
     return all(
         criterio.admite(max(0, candidato.habilidades.get(criterio.habilidad, 0)))
         for criterio in criterios.habilidades
