@@ -17,6 +17,8 @@ import pytest
 
 from app.domain.engines.criterios_hattrick import (
     Criterios,
+    _tipo,
+    _umbral_de_portero,
     criterios_de,
     es_holgado,
     rareza,
@@ -685,3 +687,96 @@ def test_el_orden_de_la_tercera_y_la_cuarta(par: tuple[int, int], esperado: str)
         for c in criterios.habilidades
     )
     assert leido == esperado
+
+
+# --- La Porteria no compite de igual a igual --------------------------------
+
+#: La frontera bisectada el 2026-10-11 para cada Defensa de 1 a 20, con el
+#: resto del perfil a cero: la Porteria minima que convierte al jugador en
+#: portero. Hasta Defensa 3 no hay ninguna que valga --hace falta un 4-- y de
+#: Defensa 12 en adelante gana con cuatro niveles menos en vez de tres.
+FRONTERA_DEL_PORTERO = {
+    4: 4, 5: 4, 6: 4, 7: 4,
+    8: 5, 9: 6, 10: 7, 11: 8,
+    12: 8, 13: 9, 14: 10, 15: 11,
+    16: 12, 17: 13, 18: 14, 19: 15, 20: 16,
+}
+
+
+@pytest.mark.parametrize(("defensa", "porteria"), sorted(FRONTERA_DEL_PORTERO.items()))
+def test_la_frontera_entre_portero_y_defensa(defensa: int, porteria: int) -> None:
+    """Un nivel menos y es defensa; ese nivel y ya es portero."""
+    assert _umbral_de_portero(defensa) == porteria
+    assert _tipo(perfil(defending=defensa, keeper=porteria)) == "keeper"
+    assert _tipo(perfil(defending=defensa, keeper=porteria - 1)) == "defending"
+
+
+@pytest.mark.parametrize("defensa", [1, 2, 3])
+def test_con_poca_defensa_no_basta_empatarla(defensa: int) -> None:
+    """Con Defensa 3 y Porteria 3 sale defensa: el suelo de 4 manda sobre el
+    sesgo. Fue el caso que delato que la Porteria tiene suelo propio."""
+    assert _tipo(perfil(defending=defensa, keeper=defensa)) == "defending"
+    assert _tipo(perfil(defending=defensa, keeper=4)) == "keeper"
+
+
+#: El empate de la Porteria contra cada una de las otras, medido de uno en uno.
+#: La Porteria PIERDE todos menos el de Pases. La primera medicion la puso
+#: tercera en el desempate y era falso: lo que parecia desempate era el sesgo
+#: contra la Defensa.
+EMPATES_CON_LA_PORTERIA = {
+    "winger": "winger",
+    "scoring": "scoring",
+    "playmaking": "playmaking",
+    "passing": "keeper",
+    "defending": "keeper",
+}
+
+
+@pytest.mark.parametrize(("rival", "gana"), sorted(EMPATES_CON_LA_PORTERIA.items()))
+def test_quien_gana_el_empate_a_la_porteria(rival: str, gana: str) -> None:
+    assert _tipo(perfil(keeper=10, **{rival: 10})) == gana
+
+
+#: Las treinta parejas con una habilidad a 16 y otra a 13. Solo una se sale de
+#: «manda la mas alta»: la Porteria 13 contra la Defensa 16.
+def test_solo_la_porteria_gana_desde_abajo() -> None:
+    hs = ["keeper", "defending", "playmaking", "winger", "passing", "scoring"]
+    sorpresas = []
+    for alta in hs:
+        for baja in hs:
+            if alta == baja:
+                continue
+            tipo = _tipo(perfil(**{alta: 16, baja: 13}))
+            # Un Pases 16 no hace pasador: manda la mejor de las demas.
+            esperado = baja if alta == "passing" else alta
+            if tipo != esperado:
+                sorpresas.append((alta, baja, tipo))
+    assert sorpresas == [("defending", "keeper", "keeper")]
+
+
+def test_el_sesgo_del_portero_no_lo_mueve_nada_mas() -> None:
+    """Con Defensa 16 la frontera sigue en 12 llene lo demas como quiera:
+    Pases, Lateral, Jugadas, Anotacion y balon parado no la tocan."""
+    for extra in [
+        {},
+        {"passing": 10},
+        {"winger": 14},
+        {"playmaking": 15},
+        {"scoring": 15},
+        {"set_pieces": 20},
+    ]:
+        assert _tipo(perfil(defending=16, keeper=12, **extra)) == "keeper"
+        assert _tipo(perfil(defending=16, keeper=11, **extra)) == "defending"
+
+
+def test_el_sesgo_se_aplica_a_la_defensa_que_gano_por_reclasificacion() -> None:
+    """Con Pases 16 y Defensa 14 el rey de campo es la Defensa, y la frontera
+    de la Porteria es la de la Defensa: 10, no la de los Pases."""
+    assert _tipo(perfil(passing=16, defending=14, keeper=10)) == "keeper"
+    assert _tipo(perfil(passing=16, defending=14, keeper=9)) == "defending"
+
+
+def test_una_porteria_mas_alta_no_siempre_gana() -> None:
+    """Con Lateral 17 y Defensa 16, una Porteria 16 no hace portero: el sesgo
+    es contra la Defensa, y la Defensa ya habia perdido el reinado."""
+    assert _tipo(perfil(winger=17, defending=16, keeper=16)) == "winger"

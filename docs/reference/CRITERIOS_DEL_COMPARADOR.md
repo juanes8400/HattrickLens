@@ -30,17 +30,22 @@ perfil cualquiera --edad y las siete habilidades, exista ese jugador o no-- y
 devuelve los criterios que Hattrick calcula para él. Es una máquina a la que se
 le puede preguntar.
 
-Se le hicieron **unas 520 consultas** con perfiles sintéticos, moviendo un eje
-cada vez y buscando las fronteras por bisección. Los datos en bruto, consulta a
-consulta, están en [`sondeo-comparador/`](sondeo-comparador/).
+Se le hicieron **unas 880 consultas** con perfiles sintéticos --520 el
+2026-10-10 y 360 más el 2026-10-11--, moviendo un eje cada vez y buscando las
+fronteras por bisección. Los datos en bruto, consulta a consulta, están en
+[`sondeo-comparador/`](sondeo-comparador/).
 
-Dos comprobaciones de control, antes de nada:
+Tres comprobaciones de control, antes de nada:
 
 - **La ficha desde la que se abre el panel no influye.** El mismo perfil
   inventado, enviado desde la ficha de un portero y desde la de un defensa,
   devuelve criterios idénticos.
 - **Hattrick recalcula de verdad.** Cambiar una sola habilidad cambia los
   criterios; el panel no se limita a reenviar lo que le metes.
+- **El panel añade un criterio que la página normal no tiene.** Al editar
+  habilidades aparece `Especialidad = ‹la del jugador base›`, y la página sin
+  editar no lo lleva: se comprobó en cinco fichas distintas. Es un artefacto
+  del panel, se descarta en los sondeos y **no va al producto**.
 
 Esto cumple [`AGENTS.md`](../../AGENTS.md): la regla no se ajustó contra la
 plantilla del propietario, se le preguntó al juego, que es la fuente general que
@@ -50,12 +55,34 @@ esa norma exige. Los perfiles sondeados son inventados.
 
 ### 1. El tipo de jugador
 
-Lo decide **la habilidad más alta**, con una excepción: **Hattrick no tiene
-puesto de pasador**. Si lo que más tiene es Pases, el tipo lo da la mejor de las
-demás. Un Pases 15 con Jugadas 12 se trata como mediocentro.
+Lo decide **la habilidad más alta**, con dos excepciones.
+
+**Hattrick no tiene puesto de pasador.** Si lo que más tiene es Pases, el tipo
+lo da la mejor de las demás. Un Pases 15 con Jugadas 12 se trata como
+mediocentro.
+
+**La Portería le gana a la Defensa desde cuatro niveles más abajo.** Con
+Defensa 16 y Portería 12, Hattrick saca criterios de portero. Se bisectó la
+frontera para cada Defensa de 1 a 20:
+
+| Defensa | 1–3 | 4–7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Portería mínima | — | 4 | 5 | 6 | 7 | 8 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+
+Es `max(4, Defensa − 3)` hasta Defensa 11 y `Defensa − 4` desde 12. Hace falta
+un 4 de Portería como mínimo: con Defensa 3 y Portería 3 sale defensa. No lo
+mueve ninguna otra habilidad --ni el balón parado-- y sí se aplica a una
+Defensa que ganó el reinado por la reclasificación del pasador. **El escalón
+en Defensa 12 está medido, no explicado.** Es la única excepción a «manda la
+más alta»: se comprobaron las treinta parejas con una a 16 y otra a 13.
 
 A igualdad de nivel el orden es
-**Lateral › Anotación › Portería › Defensa › Jugadas › Pases**.
+**Lateral › Anotación › Defensa › Jugadas › Portería › Pases**.
+
+La primera medición puso la Portería tercera, y era falso: salía de que con
+todo a 12 gana el portero y de que con Portería 11 y Defensa 11 también, dos
+casos que el sesgo de arriba explica. Medido empate a empate, con Jugadas 10 y
+Portería 10 sale mediocentro.
 
 ### 2. La plantilla de cada tipo
 
@@ -102,6 +129,28 @@ con Pases en 7, Jugadas --que va justo detrás-- adelanta con 8, pero Lateral
 --dos puestos más atrás-- necesita 9.
 
 Es la regla que flameron describía en 2009 sin dar el número.
+
+**Pero esto es un ajuste, no la regla de Hattrick, y está demostrado que no lo
+es.** El 2026-10-11 se enumeraron los quince subconjuntos de un extremo con
+Lateral 16 y las demás a 9, y salió esto:
+
+| perfil | orden |
+|---|---|
+| Pases 9, Anotación 9 | Lateral, **Pases, Anotación** |
+| Pases 9, Anotación 9, Defensa 9 | Lateral, **Anotación, Pases**, Defensa |
+
+Las mismas dos habilidades, los mismos niveles, y meter una tercera les da la
+vuelta al orden entre sí. Eso descarta a la vez cualquier orden por clave
+--añadir un elemento no puede permutar a otros dos--, una lista de prioridad
+por puesto y una asignación a huecos. El mediocentro tiene la misma
+contradicción: con Pases 10 y Anotación 11 manda la Anotación, lo que exige
+que pese 2; con Pases 7, Defensa 9 y Anotación 8 mandan los Pases sobre la
+Anotación, lo que exige que pese 3.
+
+Lo que tenemos clava los 146 casos fijados, las 24 fichas reales incluidas, y
+falla en una familia sintética --tres secundarias juntas entre 7 y 9, alguna a
+cero-- que está medida entera en `sondeo-comparador/fase-a.txt`, FASE Q. Se
+usa porque es lo mejor que hay, no porque sea el mecanismo.
 
 **La habilidad que da el tipo va siempre la primera**, aunque otra tenga más
 nivel. Por eso un Pases 16 con todo lo demás a cero empieza por
@@ -208,12 +257,13 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
-- **El ORDEN en que se listan la tercera y la cuarta cuando compiten de cerca.**
-  Con un extremo de Lateral 10 y Pases 7, moviendo Anotación de 6 a 8, Hattrick
-  la coloca en tres sitios distintos, y no lo reproduce ni la clave
-  `nivel − posición` ni el nivel a secas. Cuatro observaciones, cuatro órdenes.
-  Afecta sólo al orden de la lista, **no a los rangos**, que es lo que se usa
-  para buscar.
+- **El MECANISMO del orden de los criterios.** No es un orden por peso de
+  habilidad: está demostrado arriba con un contraejemplo de dos filas. Lo que
+  hay es un ajuste que acierta todo lo medido salvo una familia sintética, y
+  se sabe exactamente cuál. Afecta al orden de la lista y, por tanto, **a qué
+  tres habilidades le pedimos a `transfersearch`**, que acepta sólo tres.
+- **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
+  entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
 - **Por qué el empate arriba baja el umbral a 25**, y por qué la cuarta lo baja
   exactamente un punto. Los números están medidos; el motivo es conjetura.
 - **Qué pasa por encima de 20** en el balón parado del portero. Ebbesen tiene

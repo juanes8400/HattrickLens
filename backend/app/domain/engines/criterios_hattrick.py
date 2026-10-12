@@ -41,19 +41,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-#: Las seis habilidades de campo, en el orden en que Hattrick decide DE QUÉ
-#: TIPO es el jugador cuando dos valen lo mismo.
+#: Las seis habilidades, en el orden en que Hattrick decide DE QUÉ TIPO es el
+#: jugador cuando dos valen lo mismo.
 #:
-#: Se midió por eliminación: las seis a 12 y se mira cuál manda; se pone a cero
-#: la ganadora y se repite. Salió Lateral, Anotación, Portería, Defensa,
-#: Jugadas, Pases. Confirma dos casos sueltos que ya chirriaban: con Portería
-#: 11 y Defensa 11 elige portero, y con Defensa 12 y Jugadas 12 elige defensa.
+#: Se midió por eliminación --las seis a 12, se mira cuál manda, se pone a cero
+#: la ganadora y se repite-- y luego empate a empate, que es lo que vale: con
+#: Lateral 10 y Portería 10 sale extremo, con Anotación 10 y Portería 10 sale
+#: delantero, con Jugadas 10 y Portería 10 sale mediocentro, y con Defensa 12
+#: y Jugadas 12 sale defensa.
+#:
+#: LA PRIMERA MEDIDA PUSO LA PORTERÍA TERCERA Y ERA FALSO. Salió de que con
+#: todo a 12 gana el portero y de que con Portería 11 y Defensa 11 también.
+#: Las dos cosas las explica el sesgo de `_umbral_de_portero`, no el desempate:
+#: medido de uno en uno, la Portería pierde el empate contra Jugadas. Va
+#: quinta, delante de Pases y detrás de todo lo demás.
 ORDEN_LLANO: tuple[str, ...] = (
     "winger",
     "scoring",
-    "keeper",
     "defending",
     "playmaking",
+    "keeper",
     "passing",
 )
 
@@ -106,13 +113,34 @@ PLANTILLAS: dict[str, tuple[str, ...]] = {
 #: dieciseis ordenes se reproducen con Anotacion en la posicion 3 y ninguno
 #: con ella en la 4.
 #:
-#: Donde no se midio se usa la plantilla tal cual. DESCONOCIDO si los otros
-#: tipos tienen la misma distincion.
+#: Donde no se midio se usa la plantilla tal cual.
 #: Se expresa como PESO por habilidad y no como lista, porque dos pueden pesar
 #: lo mismo: en el extremo, Defensa y Anotacion comparten el tercer puesto y
 #: entre ellas desempata el nivel. Eso reproduce a la vez la rejilla de 4x4
 #: --donde Anotacion adelanta a Jugadas-- y un extremo real de Lateral 15,
 #: Defensa 13 y Jugadas 11, donde Defensa adelanta a Jugadas.
+#:
+#: ESTE ORDEN ES UN AJUSTE, NO LA REGLA DE HATTRICK, y eso esta demostrado.
+#: Ningun vector de pesos por habilidad puede reproducir lo medido el
+#: 2026-10-11, porque lo medido no es un orden: depende del conjunto.
+#:
+#:   Extremo con Lateral 16 y todo lo demas a 9
+#:     Pases, Anotacion            -> Pases, Anotacion
+#:     Pases, Anotacion, Defensa   -> ANOTACION, Pases, Defensa
+#:
+#: Las mismas dos habilidades, los mismos niveles, y meter una tercera le da
+#: la vuelta a su orden. Un `sorted` por clave no puede hacer eso, y tampoco
+#: una lista por puesto ni una asignacion a huecos: las tres fallan la misma
+#: pareja de casos. En el mediocentro pasa igual: con Jugadas 16, Pases 10 y
+#: Anotacion 11 manda la Anotacion --haria falta que pesara 2-- pero con
+#: Pases 7, Defensa 9 y Anotacion 8 manda Pases por delante de Anotacion
+#: --haria falta que pesara 3--.
+#:
+#: Que queda en pie: el ajuste clava los 146 casos de la prueba, incluidas
+#: las 24 fichas reales de la plantilla y la rejilla de 4x4. Falla en una
+#: familia sintetica --tres habilidades secundarias juntas entre 7 y 9, con
+#: alguna a cero-- que esta anotada entera en fase-a.txt, FASE Q. Mientras no
+#: aparezca el mecanismo de verdad, esto es lo que hay, dicho como lo que es.
 ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
     "winger": {
         "winger": 0,
@@ -279,20 +307,67 @@ MAXIMO_DE_LA_ESCALA = 20
 EDAD_MAXIMA_DE_LA_ESCALA = 99
 
 
+#: EL SUELO Y EL SESGO DEL PORTERO. La Portería no compite de igual a igual con
+#: la Defensa: le gana desde cuatro niveles más abajo. Se bisectó la frontera
+#: para cada Defensa de 1 a 20 --el resto del perfil a cero-- y salió la tabla
+#: entera, que es exactamente `max(4, d - 3)` hasta Defensa 11 y `d - 4` desde
+#: Defensa 12:
+#:
+#:   Defensa   1  2  3   4  5  6  7   8  9 10 11  12 13 14 15 16 17 18 19 20
+#:   Portería  -  -  -   4  4  4  4   5  6  7  8   8  9 10 11 12 13 14 15 16
+#:
+#: Es lo único que rompe «manda la habilidad más alta»: se comprobaron las
+#: treinta parejas con una a 16 y otra a 13 y ninguna otra se sale.
+#:
+#: No influye nada más: con Defensa 16 la frontera sigue en 12 con Pases 0 o
+#: 10, con Lateral 14, con Jugadas 15, con Anotación 15 y con balón parado 20.
+#: Y sí se aplica contra una Defensa que ganó por reclasificación: con Pases
+#: 16 y Defensa 14 la frontera es 10, la de la Defensa.
+#:
+#: POR QUÉ EL ESCALÓN EN 12 NO SE SABE. Sale medido, no deducido; la tabla es
+#: el dato y la fórmula sólo la escribe corto. Fuera de 1 a 20 no se sondeó.
+SUELO_DEL_PORTERO = 4
+VENTAJA_DEL_PORTERO = 3
+DEFENSA_QUE_DA_UN_NIVEL_MAS = 12
+
+
+def _umbral_de_portero(defensa: int) -> int:
+    """Cuánta Portería hace falta para que gane a esa Defensa."""
+    ventaja = VENTAJA_DEL_PORTERO + (1 if defensa >= DEFENSA_QUE_DA_UN_NIVEL_MAS else 0)
+    return max(SUELO_DEL_PORTERO, defensa - ventaja)
+
+
 def _tipo(niveles: dict[str, int]) -> str:
     """La habilidad dominante, que es la que elige la plantilla.
+
+    PRIMERO SE DECIDE EL REY DE CAMPO, sin contar la Portería, porque la
+    Portería no juega en esa liga: pelea aparte.
 
     CON UNA EXCEPCIÓN: Hattrick no tiene puesto de pasador. Cuando lo que más
     tiene el jugador son Pases, el tipo lo decide la MEJOR DE LAS DEMÁS --un
     Pases 15 con Jugadas 12 y Lateral 9 se trata como mediocentro, y sus
     criterios empiezan por «Jugadas = magnífico»--. Si no tiene ninguna otra,
     cae en extremo, que es el primero del desempate.
+
+    DESPUÉS ENTRA LA PORTERÍA. Contra la Defensa, con el sesgo medido en
+    `_umbral_de_portero`: Defensa 16 y Portería 12 es un portero. Contra todo
+    lo demás tiene que ganar de verdad, y el empate lo pierde: con Jugadas 10
+    y Portería 10 sale mediocentro.
     """
-    mejor = min(ORDEN_LLANO, key=lambda h: (-niveles.get(h, 0), ORDEN_LLANO.index(h)))
-    if mejor != "passing":
-        return mejor
-    resto = [h for h in ORDEN_LLANO if h != "passing"]
-    return min(resto, key=lambda h: (-niveles.get(h, 0), resto.index(h)))
+    campo = [h for h in ORDEN_LLANO if h != "keeper"]
+    rey = min(campo, key=lambda h: (-niveles.get(h, 0), campo.index(h)))
+    if rey == "passing":
+        resto = [h for h in campo if h != "passing"]
+        rey = min(resto, key=lambda h: (-niveles.get(h, 0), resto.index(h)))
+
+    porteria = niveles.get("keeper", 0)
+    if rey == "defending":
+        if porteria >= _umbral_de_portero(niveles.get("defending", 0)):
+            return "keeper"
+        return rey
+    if porteria > niveles.get(rey, 0):
+        return "keeper"
+    return rey
 
 
 def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
@@ -405,7 +480,10 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
 
     def clave(h: str) -> tuple[int, int, int]:
         # ADELANTAR CUESTA. Una habilidad sólo pasa por delante de otra si le
-        # saca tantos niveles como puestos las separan en la plantilla. Medido:
+        # saca tantos niveles como puestos las separan en la plantilla. Es un
+        # ajuste que clava todo lo medido salvo la familia de FASE Q; el
+        # comentario de `ORDEN_DE_IMPORTANCIA` dice por qué no es la regla.
+        # Medido:
         # con Pases 7, Jugadas --que va justo detrás-- adelanta con 8, pero
         # Lateral --dos puestos más atrás-- necesita 9. Con Pases 10, Lateral
         # necesita 12. Con Pases 3, Lateral necesita 5. Siempre la distancia.

@@ -543,3 +543,130 @@ DESCONOCIDO si los otros tipos tienen pesos compartidos parecidos. Solo se
 midio el extremo, que es donde la plantilla real lo destapo.
 
 ## VALIDACION: plantilla real 24 de 24, y la rejilla del orden 16 de 16.
+
+
+================================================================================
+FASE Q - 2026-10-11 - EL TIPO, EL ORDEN POR TIPO, Y DONDE SE ROMPE EL MODELO
+================================================================================
+
+Unas 180 consultas mas, todas por el panel «Editar busqueda» sobre la ficha de
+Moises Llauge (474559832). Perfiles sinteticos; edad 25 salvo donde se diga.
+
+--- Q0. AVISO SOBRE EL PANEL: LA LINEA «Especialidad» NO ES DE LA REGLA ------
+
+Al editar habilidades, Hattrick anade un criterio «Especialidad = Tecnico» que
+NO aparece por la via normal. Se comprobo pidiendo la pagina sin editar de
+474489188, 471552604, 474426586, 476719421 y 461351045: ninguna lo lleva. La
+especialidad del panel es la del jugador base y no se puede cambiar.
+
+  => en los sondeos se descarta esa linea. No va al producto.
+
+--- Q1. EL TIPO: LA PORTERIA LE GANA A LA DEFENSA DESDE CUATRO ABAJO --------
+
+Apareció solo: con Defensa 16 y Porteria 12 los criterios salen de PORTERO.
+Bisectada la frontera para cada Defensa de 1 a 20, resto del perfil a cero:
+
+  Defensa    1  2  3   4  5  6  7   8  9 10 11   12 13 14 15 16 17 18 19 20
+  Porteria   -  -  -   4  4  4  4   5  6  7  8    8  9 10 11 12 13 14 15 16
+
+  («-» = ninguna Porteria <= Defensa lo convierte; hace falta un 4.)
+
+  = max(4, Defensa-3) hasta 11, y Defensa-4 desde 12. El escalon en 12 esta
+    medido, no explicado.
+
+No lo mueve nada mas. Con Defensa 16 la frontera sigue en 12 con Pases 0 o 10,
+Lateral 14, Jugadas 15, Anotacion 15 o balon parado 20. Con Lateral 17 por
+encima, ya no hay sesgo: la Defensa habia perdido el reinado.
+Con Pases 16 y Defensa 14 la frontera es 10 = la de la Defensa: el sesgo se
+aplica tambien a la Defensa que gana por reclasificacion del pasador.
+
+Las treinta parejas (una a 16, otra a 13) confirman que es LA UNICA excepcion
+a «manda la mas alta».
+
+--- Q2. EL DESEMPATE DE LA PORTERIA ESTABA MAL ------------------------------
+
+  Lateral 10  / Porteria 10 -> extremo
+  Anotacion 10/ Porteria 10 -> delantero
+  Jugadas 10  / Porteria 10 -> MEDIOCENTRO   <-- el que delata el error
+  Pases 10    / Porteria 10 -> portero
+  Defensa 11  / Porteria 11 -> portero       <-- esto es el sesgo, no el empate
+  Defensa 3   / Porteria 3  -> defensa       <-- el suelo de 4 manda
+
+ORDEN_LLANO era (Lat, Ano, Por, Def, Jug, Pas) y la Porteria tercera salia de
+dos casos que el sesgo ya explica. El orden real es:
+
+  Lateral, Anotacion, Defensa, Jugadas, PORTERIA, Pases
+
+--- Q3. PESOS POR TIPO: LAS FRONTERAS DE ADELANTAMIENTO ---------------------
+
+Con la dominante a 12 o 16 y dos secundarias, se bisecto a que nivel adelanta
+la de detras. Hueco 1 = pesos consecutivos; hueco 2 = dos puestos.
+
+  DEFENSA     Pases 7 / Jugadas  -> adelanta con 8  (hueco 1)
+              Jugadas 7 / Lateral -> adelanta con 8  (hueco 1)
+              Pases 7 / Lateral  -> adelanta con 9  (hueco 2)
+              Pases 10 / Lateral -> adelanta con 12 (hueco 2)
+    => def 0, pas 1, jug 2, lat 3. La plantilla, tal cual.
+
+  DELANTERO   Pases 7 / Lateral  -> 8   (hueco 1)
+              Lateral 7 / Jugadas -> 8  (hueco 1)
+              Pases 10 / Jugadas -> 12  (hueco 2)
+    => ano 0, pas 1, lat 2, jug 3. La plantilla, tal cual.
+
+  MEDIOCENTRO Pases 7 / Defensa   -> 8
+              Defensa 7 / Lateral -> 8
+              Pases 10 / Lateral  -> 12  (hueco 2)
+              Pases 10 / Anotacion-> 11  (hueco 1)
+              Defensa 10 / Anotacion -> 11; empate a 10 -> gana Defensa
+    => jug 0, pas 1, def 2, ano 2, lat 3: la Anotacion pesa como la Defensa.
+
+  EXTREMO     Pases 10 / Defensa   -> 11 (hueco 1)
+              Pases 10 / Anotacion -> 11 (hueco 1)
+              Defensa v / Anotacion v, v = 6, 8, 10, 13 -> gana ANOTACION
+    => la Anotacion pesa como la Defensa aqui tambien, pero el empate lo gana
+       ella, al contrario que en el mediocentro.
+
+--- Q4. Y AQUI SE ROMPE: EL ORDEN NO ES UN ORDEN ----------------------------
+
+Extremo, Lateral 16, las demas a 9, los quince subconjuntos:
+
+  + JUG                 -> Lat Jug
+  + PAS                 -> Lat Pas
+  + DEF                 -> Lat Def
+  + ANO                 -> Lat Ano
+  + JUG,PAS             -> Lat Jug Pas
+  + JUG,DEF             -> Lat Jug Def
+  + JUG,ANO             -> Lat Jug Ano
+  + PAS,DEF             -> Lat Pas Def
+  + PAS,ANO             -> Lat PAS ANO        <-- compara con la de abajo
+  + DEF,ANO             -> Lat Ano Def
+  + JUG,PAS,DEF         -> Lat Jug Pas Def
+  + JUG,PAS,ANO         -> Lat Jug Pas Ano
+  + JUG,DEF,ANO         -> Lat Jug Ano Def
+  + PAS,DEF,ANO         -> Lat ANO PAS Def    <-- se da la vuelta
+  + JUG,PAS,DEF,ANO     -> Lat Jug Pas Def (Anotacion cae al monton)
+
+Pases y Anotacion, mismos niveles, y meter Defensa 9 les cambia el orden entre
+si. Eso descarta a la vez:
+  - cualquier `sorted` por clave (añadir un elemento no puede permutar otros),
+  - una lista de prioridad por puesto (daria PAS > ANO en los dos),
+  - una asignacion a huecos tipo hungaro (la desigualdad sale identica).
+
+Con niveles distintos pasa igual. Extremo, Lateral 16:
+  PAS 9 ANO 8 DEF 7 -> Lat Pas Ano          (Defensa 7 no entra)
+  PAS 9 ANO 7 DEF 8 -> Lat Pas ANO DEF      (Anotacion 7 por delante de Def 8)
+  PAS 8 ANO 9 DEF 7 -> Lat Ano Pas
+  PAS 7 ANO 9 DEF 8 -> Lat Ano PAS          (Pases 7 entra y Defensa 8 no)
+  PAS 8 ANO 7 DEF 9 -> Lat Def Pas Ano
+  PAS 7 ANO 8 DEF 9 -> Lat Def Ano
+
+Mediocentro, Jugadas 16: el ajuste acierta seis de siete, falla este:
+  PAS 7 DEF 9 ANO 8 -> real Jug Def PAS ANO; el modelo da Jug Def Ano Pas.
+Y para arreglarlo haria falta Anotacion con peso 3, que rompe
+  PAS 10 ANO 11 -> real Jug ANO Pas, que exige peso 2.
+
+CONCLUSION. El orden de criterios de Hattrick no es un orden por peso de
+habilidad. Lo que tenemos es el mejor ajuste conocido, y clava los 146 casos
+fijados --las 24 fichas reales incluidas-- pero no es el mecanismo. Queda
+escrito aqui para que nadie lo tome por ley, y para que quien encuentre el
+mecanismo tenga la familia de contraejemplos ya medida.
