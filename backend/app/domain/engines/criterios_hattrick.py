@@ -302,6 +302,10 @@ ENTRADA_TERCERO = 5
 #: A partir de aquí el tercer puesto deja de ser banda y pasa a ser suelo.
 SUELO_DEL_TERCERO = 11
 
+#: Y si la primera no pasa de aquí, un tercero que la alcance no llega a ser
+#: criterio: recibe techo. Lo explica `_tercero`, y descansa en un caso.
+PRIMERA_QUE_NO_SOSTIENE_TERCERO = 5
+
 #: Y a partir de aquí el CUARTO puesto cambia de banda estrecha a banda ancha.
 CUARTO_CON_BANDA_ANCHA = 8
 
@@ -708,7 +712,17 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         else:
             cabeza.pop()
         cabeza.insert(0, tipo)
-    return cabeza + [h for h in plantilla if h not in cabeza]
+    # LA COLA NO VA EN ORDEN DE PLANTILLA: va en lo que sobra del mismo orden
+    # del corte, y lo que no puede ser criterio al final. Encontrado el
+    # 2026-10-12 con el banco, probando seis colas candidatas contra todo lo
+    # medido: esta es la unica que mantiene los 177 casos y ademas arregla un
+    # mediocentro de Jugadas 10 y Porteria 9 donde Hattrick lista el Lateral 4
+    # antes que la Defensa 2. El orden de plantilla los daba al reves.
+    #
+    # Y tiene mejor pinta que lo que habia: la lista entera es UNA ordenacion,
+    # no una cabeza ordenada y una cola puesta a mano.
+    sobran = [h for h in ordenadas if h not in cabeza]
+    return cabeza + sobran + [h for h in plantilla if h not in cabeza and h not in sobran]
 
 
 def _techo_de_sobrante(nivel: int, holgado: bool) -> int:
@@ -863,6 +877,19 @@ def _tercero(habilidad: str, nivel: int, holgado: bool, tope: int | None = None)
     """
     if nivel < ENTRADA_TERCERO:
         return Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado))
+    # CON LA PRIMERA MUY BAJA, EL TERCERO NO LLEGA A SER CRITERIO. Un pasador
+    # reclasificado de Lateral 5, Pases 13 y Defensa 5 saca «Defensa <= 5», no
+    # una banda: la Defensa alcanza a la primera y la primera no pasa de 5.
+    #
+    # DESCANSA EN UN CASO. Se probaron cuatro candidatos en el banco contra los
+    # 183 medidos: «rechazar si alcanza la primera» a secas pierde uno --el
+    # extremo de Lateral 6 y Pases 7, donde la tercera iguala a la primera y SI
+    # es criterio-- y este no pierde ninguno. Lo que lo separaria de verdad es
+    # medir una tercera que iguale a la primera con la primera en 6 y la
+    # segunda muy por encima: Lat6 Pas13 Def6 contra Lat5 Pas13 Def5. Eso
+    # necesita cuota de consultas.
+    if tope is not None and nivel >= tope and tope <= PRIMERA_QUE_NO_SOSTIENE_TERCERO:
+        return Criterio(habilidad, "<=", 0, min(_techo_de_sobrante(nivel, holgado), tope))
     if nivel >= SUELO_DEL_TERCERO:
         return Criterio(habilidad, ">=", nivel, MAXIMO_DE_LA_ESCALA)
     arriba = nivel + (2 if holgado else 1)

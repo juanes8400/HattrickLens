@@ -1299,3 +1299,71 @@ regla a medida.
 LA LECCION, que es la que vale: cuando la fuente se agota, el banco sustituye
 al sondeo. Y las dos veces que el banco contradijo mi razonamiento a mano,
 tenia razon el banco.
+
+
+================================================================================
+FASE Y - 2026-10-12 - LOS DOS PENDIENTES, CERRADOS SIN RED
+================================================================================
+
+Hattrick seguia a 0 de 4, asi que otra vuelta de banco. Y de paso una
+correccion: habia dicho que probe candidatos de orden de cola EN EL BANCO, y no
+era cierto, los habia razonado a mano. Hechos de verdad, salio uno.
+
+--- Y1. LA COLA VA EN EL ORDEN DEL CORTE, NO DE LA PLANTILLA --------------
+
+Seis colas candidatas contra todo lo medido:
+
+  plantilla (lo que habia)                   medido 177/177   pendientes 0/2
+  nivel descendente, empate por plantilla    medido 161/177   pendientes 0/2
+  nivel ascendente, empate por plantilla     medido 160/177   pendientes 0/2
+  por la clave de listado                    medido 147/177   pendientes 0/2
+  por el desempate del tipo                  medido 168/177   pendientes 0/2
+  lo que sobra de ordenadas, luego lo excluido  medido 177/177   pendientes 1/2
+
+Arregla un mediocentro de Jugadas 10 y Porteria 9, donde Hattrick lista el
+Lateral 4 antes que la Defensa 2. Y tiene mejor pinta que lo que habia: la
+lista entera es UNA ordenacion, no una cabeza ordenada y una cola a mano.
+
+--- Y2. EL BANCO MINTIO, Y POR QUE ---------------------------------------
+
+Probando el ultimo pendiente, el banco dio por bueno un candidato --«rechaza si
+el tercero alcanza a la primera»-- con 177/177. Era falso: rompe el extremo de
+Lateral 6 y Pases 7, que es uno de los casos que yo mismo habia medido hoy.
+
+El banco no lo veia porque ese caso estaba en una prueba SUELTA y el banco solo
+recogia las listas. Un banco con datos a medias miente con mas aplomo que no
+tenerlo. Metidos los seis sueltos, el banco pasa de 177 a 183 casos y el
+candidato malo cae a 182/183, que es como tenia que haber salido.
+
+REGLA NUEVA DEL BANCO: si se anade una prueba de caso suelto, va tambien al
+banco. Queda escrito en su cabecera.
+
+--- Y3. CON LA PRIMERA EN CINCO, EL TERCERO NO LLEGA A CRITERIO ----------
+
+  Lat5 Pas13 Def5, 27 anos -> Lat=5  Pas 12-14  Def<=5
+
+La Defensa saca TECHO y no banda, y el techo sale 5, que es el corte en la
+primera. Contra los 183 medidos:
+
+  base (no rechaza nunca)                             183/183   pendientes 1/2
+  rechaza si la primera no pasa de 5                  183/183   pendientes 2/2
+  rechaza si alcanza la primera y la primera <= 5     183/183   pendientes 2/2
+  rechaza si alcanza la primera                       182/183   pendientes 2/2
+
+Los dos del medio son EQUIVALENTES en la practica: con la primera en 5, un
+tercero solo puede ser criterio desde 5, y eso ya es alcanzarla. Se escribio el
+explicito.
+
+DESCANSA EN UN CASO y queda dicho en el codigo. Lo que lo separaria de la
+regla amplia es medir la misma forma con la primera en 6: Lat6 Pas13 Def6
+contra Lat5 Pas13 Def5. Una consulta, cuando haya cuota.
+
+--- Y4. DONDE QUEDA ------------------------------------------------------
+
+  medido      183/183
+  pendientes    0/0
+
+El banco se queda sin deberes: los dos fallos que las tandas de perfiles habian
+dejado abiertos estan cerrados y fijados en pruebas. Lo que sigue sin
+entenderse es el MECANISMO --por que el orden depende del conjunto-- y para eso
+esta la hipotesis de los puestos, que es un sondeo nuevo y no un parche.

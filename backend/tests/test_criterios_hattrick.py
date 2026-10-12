@@ -1339,3 +1339,29 @@ def test_la_regla_del_lateral_no_se_aplica_a_un_medio_plano() -> None:
         ),
     )
     assert _pinta(criterios) == "Ed=31 Jug=7 Pas=6 Def 5-7 Lat 5-7 Ano<=7 Por<=4"
+
+
+def test_la_cola_va_en_el_orden_del_corte_y_no_de_la_plantilla() -> None:
+    """Mediocentro de Jugadas 10 y Porteria 9: Hattrick lista el Lateral 4
+    antes que la Defensa 2, y el orden de plantilla los daba al reves. La cola
+    es lo que sobra de la misma ordenacion, no una lista aparte."""
+    criterios = criterios_de(
+        31,
+        perfil(
+            playmaking=10, keeper=9, passing=8, scoring=5, winger=4,
+            defending=2, set_pieces=5,
+        ),
+    )
+    assert _pinta(criterios) == "Ed=31 Jug=10 Pas=8 Ano 4-6 Lat<=4 Def<=4 Por<=10"
+
+
+def test_con_la_primera_en_cinco_el_tercero_no_llega_a_criterio() -> None:
+    """Pasador reclasificado de Lateral 5, Pases 13 y Defensa 5: la Defensa
+    saca TECHO y no banda, y el techo sale 5 --el corte en la primera--.
+
+    Descansa en un caso. Lo que lo separaria de verdad de la regla mas amplia
+    es medir la misma forma con la primera en 6: Lat6 Pas13 Def6."""
+    criterios = criterios_de(
+        27, perfil(winger=5, passing=13, defending=5, keeper=3, set_pieces=3, scoring=1)
+    )
+    assert _pinta(criterios) == "Ed=27 Lat=5 Pas 12-14 Def<=5 Jug<=4 Ano<=4 Por<=4"
