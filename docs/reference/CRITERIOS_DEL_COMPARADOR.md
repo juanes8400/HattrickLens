@@ -128,8 +128,20 @@ El portero es el único que mira **balón parado**. En un jugador de campo no
 influye en nada: con Defensa 14 y Jugadas 10, un balón parado de 0, de 12 o de
 20 da exactamente los mismos criterios.
 
-**Y hay una exclusión más que depende del nivel: al extremo, la Defensa no le
-es criterio si no llega al nivel de la Anotación.**
+**La Anotación necesita 5 para ser criterio; a las demás les basta 3.** Con
+Lateral 16 y sólo una compañera, la Defensa, las Jugadas y los Pases salen como
+criterio con un 3, y la Anotación recibe tope con 3 y con 4. Es de la habilidad
+y no del tipo: pasa igual en el mediocentro.
+
+**Y hay dos exclusiones más que dependen del nivel.**
+
+**Al extremo, la Defensa no le es criterio si no llega al nivel de la
+Anotación** --y sólo cuando esa Anotación es criterio: con Lateral 16, Defensa 3
+y Anotación 4, la Defensa 3 sí sale, porque una Anotación de 4 no compite.
+
+**Al mediocentro, el Lateral le pide 7, o 5 si la Anotación llega a 5 y la
+Defensa no pasa de 4** --es decir, si la Anotación es criterio y la Defensa no--.
+Es la lectura de mediocentro ofensivo, y está medida en unas noventa celdas.
 
 | perfil | Defensa |
 |---|---|
@@ -333,11 +345,23 @@ a 33-- y se comparó contra Hattrick dos cosas distintas: la cadena entera de
 criterios, y los **tres filtros de habilidad** que es lo único que se le manda
 a `transfersearch`.
 
+**Perfiles plausibles** --una dominante, una a tres compañeras del puesto, el
+resto bajo--:
+
 | | cadena entera | tres filtros |
 |---|---|---|
 | antes de los arreglos del 12 | 49/60 (82 %) | 57/60 (95 %) |
 | con los tres primeros arreglos | 53/60 (88 %) | 59/60 (98 %) |
 | con la tapadera de la Anotación | **54/60 (90 %)** | **60/60 (100 %)** |
+
+**Perfiles duros** --los que buscan puntos ciegos: Portería alta en jugadores de
+campo, empates exactos, perfiles planos y de una sola habilidad, edades de
+borde--:
+
+| | cadena entera | tres filtros |
+|---|---|---|
+| al abrir la tanda | 49/60 (82 %) | 56/60 (93 %) |
+| ahora | **55/60 (92 %)** | **59/60 (98 %)** |
 
 **Los tres filtros que se le mandan a `transfersearch` salen bien en los
 sesenta.** De los seis que quedan en la cadena entera, **tres son orden de la

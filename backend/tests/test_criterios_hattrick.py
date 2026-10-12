@@ -1064,3 +1064,88 @@ REJILLA_DEL_LATERAL = [
 @pytest.mark.parametrize(("niveles", "esperado"), REJILLA_DEL_LATERAL)
 def test_la_rejilla_del_lateral_entera(niveles: dict[str, int], esperado: str) -> None:
     assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+# --- La Anotacion necesita cinco; a las demas les basta tres ---------------
+
+#: Medido el 2026-10-12 poniendole una sola companera a la dominante. Es de la
+#: habilidad y no del tipo: pasa igual en el extremo y en el mediocentro.
+ENTRA_CON_TRES = [
+    (perfil(winger=16, defending=3), "Ed=25 Lat=16 Def=3 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    (perfil(winger=16, defending=4), "Ed=25 Lat=16 Def=4 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    (perfil(winger=16, playmaking=3), "Ed=25 Lat=16 Jug=3 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (perfil(winger=16, passing=3), "Ed=25 Lat=16 Pas=3 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+    (perfil(scoring=16, winger=4), "Ed=25 Ano=16 Lat=4 Pas<=4 Jug<=4 Def<=4 Por<=4"),
+    (perfil(scoring=16, playmaking=4), "Ed=25 Ano=16 Jug=4 Pas<=4 Lat<=4 Def<=4 Por<=4"),
+    (perfil(defending=16, passing=4), "Ed=25 Def=16 Pas=4 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    (perfil(defending=16, playmaking=4), "Ed=25 Def=16 Jug=4 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize(("niveles", "esperado"), ENTRA_CON_TRES)
+def test_las_demas_entran_con_tres(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+ANOTACION_PIDE_CINCO = [
+    (perfil(winger=16, scoring=3), "Ed=25 Lat=16 Jug<=2 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (perfil(winger=16, scoring=4), "Ed=25 Lat=16 Jug<=2 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (perfil(winger=16, scoring=5), "Ed=25 Lat=16 Ano=5 Jug<=4 Pas<=4 Def<=4 Por<=4"),
+    (perfil(playmaking=16, scoring=4), "Ed=25 Jug=16 Pas<=2 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize(("niveles", "esperado"), ANOTACION_PIDE_CINCO)
+def test_la_anotacion_pide_cinco(niveles: dict[str, int], esperado: str) -> None:
+    """Con 3 y con 4 recibe tope, con 5 ya es criterio. Y cuando no entra, el
+    segundo puesto se lo queda otra --de ahi el tope de 2 en Jugadas."""
+    assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+def test_una_anotacion_que_no_entra_no_tapa_a_la_defensa() -> None:
+    """La tapadera del extremo solo muerde si la Anotacion es criterio: con
+    Lateral 16, Defensa 3 y Anotacion 4, la Defensa 3 si sale."""
+    for anotacion in (2, 4):
+        criterios = criterios_de(25, perfil(winger=16, defending=3, scoring=anotacion))
+        assert _pinta(criterios) == "Ed=25 Lat=16 Def=3 Jug<=4 Pas<=4 Ano<=4 Por<=4"
+
+
+# --- El mediocentro tambien le da a la Anotacion el peso de la Defensa -----
+
+#: Estaba medido desde el 2026-10-11 y se habia quedado sin escribir. Estos son
+#: los 23 ordenes medidos del mediocentro; el que lo destapo es el de Lateral 5
+#: y Anotacion 5, que lista la Anotacion segunda.
+ORDENES_DEL_MEDIOCENTRO = [
+    (perfil(playmaking=12, passing=7, defending=6), "Jug,Pas,Def"),
+    (perfil(playmaking=12, passing=7, defending=8), "Jug,Def,Pas"),
+    (perfil(playmaking=12, defending=7, winger=7), "Jug,Def,Lat"),
+    (perfil(playmaking=12, defending=7, winger=8), "Jug,Lat,Def"),
+    (perfil(playmaking=12, winger=7, scoring=6), "Jug,Lat,Ano"),
+    (perfil(playmaking=12, winger=7, scoring=7), "Jug,Ano,Lat"),
+    (perfil(playmaking=12, defending=7, scoring=7), "Jug,Def,Ano"),
+    (perfil(playmaking=12, defending=7, scoring=8), "Jug,Ano,Def"),
+    (perfil(playmaking=12, passing=7, scoring=7), "Jug,Pas,Ano"),
+    (perfil(playmaking=12, passing=7, scoring=8), "Jug,Ano,Pas"),
+    (perfil(playmaking=16, passing=10, scoring=10), "Jug,Pas,Ano"),
+    (perfil(playmaking=16, passing=10, scoring=11), "Jug,Ano,Pas"),
+    (perfil(playmaking=16, passing=10, winger=11), "Jug,Pas,Lat"),
+    (perfil(playmaking=16, passing=10, winger=12), "Jug,Lat,Pas"),
+    (perfil(playmaking=16, defending=10, scoring=10), "Jug,Def,Ano"),
+    (perfil(playmaking=16, defending=10, scoring=11), "Jug,Ano,Def"),
+    (perfil(playmaking=16, passing=9, defending=8, scoring=7), "Jug,Pas,Def,Ano"),
+    (perfil(playmaking=16, passing=7, defending=8, scoring=9), "Jug,Ano,Def,Pas"),
+    (perfil(playmaking=16, passing=8, defending=9, scoring=7), "Jug,Def,Pas,Ano"),
+    (perfil(playmaking=16, passing=9, defending=9, scoring=9), "Jug,Pas,Def,Ano"),
+    (perfil(playmaking=16, winger=5, scoring=5, defending=4), "Jug,Ano,Lat"),
+    (perfil(playmaking=18, scoring=12, defending=9), "Jug,Ano,Def"),
+    (perfil(playmaking=18, defending=12, scoring=12), "Jug,Def,Ano"),
+]
+
+
+@pytest.mark.parametrize(("niveles", "esperado"), ORDENES_DEL_MEDIOCENTRO)
+def test_el_orden_del_mediocentro(niveles: dict[str, int], esperado: str) -> None:
+    criterios = criterios_de(25, niveles)
+    leido = ",".join(
+        ABREVIATURA[c.habilidad] for c in criterios.habilidades if c.operador != "<="
+    )
+    assert leido == esperado

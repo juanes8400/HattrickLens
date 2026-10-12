@@ -1130,3 +1130,73 @@ filtro de los que se conocian.
 
 Sigue siendo una regla LOCAL, no el mecanismo: dice lo que hace el Lateral de
 un mediocentro y no por que. El por que sigue en la hipotesis de los puestos.
+
+
+================================================================================
+FASE W - 2026-10-12 - LA ANOTACION PIDE CINCO, Y LOS PESOS QUE FALTABAN
+================================================================================
+
+La rejilla de dos ejes es metodo, no anecdota: la misma pregunta --«entra esta
+habilidad mas barata cuando el perfil tira para un lado?»-- se le hace a cada
+tipo. Se le hizo al extremo y salieron dos cosas.
+
+--- W1. LA ANOTACION NECESITA CINCO; A LAS DEMAS LES BASTA TRES -----------
+
+Poniendole UNA sola companera a la dominante, que asi cae en el segundo puesto,
+donde la entrada era 3 para todas:
+
+  Lat16 Ano3 : Lat=16  Jug<=2 Pas<=4 Def<=4 Ano<=4     <- tope
+  Lat16 Ano4 : Lat=16  Jug<=2 Pas<=4 Def<=4 Ano<=4     <- tope
+  Lat16 Ano5 : Lat=16  Ano=5   Jug<=4 Pas<=4 Def<=4    <- criterio
+  Lat16 Def3 : Lat=16  Def=3   ...                      <- criterio con 3
+  Lat16 Def4 : Lat=16  Def=4   ...
+  Lat16 Jug3 : Lat=16  Jug=3   ...
+  Lat16 Pas3 : Lat=16  Pas=3   ...
+  Jug16 Ano4 : Jug=16  Pas<=2 Def<=4 Lat<=4 Ano<=4     <- tope
+  Jug16 Ano5 : Jug=16  Ano=5   ...                      <- criterio
+  Ano16 Lat4 : Ano=16  Lat=4   ...
+  Ano16 Jug4 : Ano=16  Jug=4   ...
+  Def16 Pas4 : Def=16  Pas=4   ...
+  Def16 Jug4 : Def=16  Jug=4   ...
+
+La Anotacion pide 5 para ser criterio, el resto 3. Es de la HABILIDAD y no del
+tipo: igual en el extremo y en el mediocentro. Y fijate en el «Jug<=2»: cuando
+la Anotacion no entra, el segundo puesto se lo queda otra, que es la prueba de
+que es exclusion y no otra cosa.
+
+Y DE REBOTE: LA TAPADERA DEL EXTREMO SOLO MUERDE SI LA ANOTACION ES CRITERIO.
+
+  Lat16 Def3 Ano4 : Lat=16 Def=3 ...   <- la Defensa 3 SI sale
+  Lat16 Def3 Ano2 : Lat=16 Def=3 ...
+  Lat16 Def4 Ano4 : Lat=16 Def=4 ...
+  Lat16 Def6 Ano4 : Lat=16 Def=6 ...
+
+Una Anotacion que no llega a 5 no tapa a nadie, que es lo coherente: no es
+criterio, luego no compite.
+
+--- W2. LOS PESOS DEL MEDIOCENTRO ESTABAN MEDIDOS Y SIN ESCRIBIR ----------
+
+Se destapo con Jugadas 16, Lateral 5 y Anotacion 5: Hattrick lista «Anotacion =
+insuficiente» SEGUNDA y el Lateral tercero, y el modelo lo daba al contrario
+porque `ORDEN_DE_IMPORTANCIA` solo tenia al extremo. La Anotacion del
+mediocentro comparte peso con la Defensa --FASE Q, 2026-10-11-- y eso se habia
+quedado sin encodar.
+
+Con los pesos puestos, los 23 ordenes medidos del mediocentro salen 23 de 23,
+incluido el «Jug16 Pas7 Def9 Ano8 -> Jug, Def, Pas, Ano» que antes fallaba.
+
+--- W3. PUNTUACION DE LA TANDA DURA, MEDIDA EN VIVO LOS TRES TERCIOS ------
+
+                      enteros        tres filtros
+  al abrir la tanda   49/60 (82%)    56/60 (93%)
+  ahora               55/60 (92%)    59/60 (98%)
+
+Los cinco que fallan en la cadena entera son: tres del CUARTO criterio cuando
+Defensa, Anotacion y Lateral empatan en el mediocentro --real se queda el
+Lateral, el modelo la Anotacion--, uno de orden de la cola y uno del corte de
+la banda de la tercera. El unico que cuesta un filtro es un extremo por
+reclasificacion con Lateral 5, Pases 13 y Defensa 5, donde la Defensa no entra
+y el modelo se la pone: la entrada del tercero otra vez.
+
+Ninguno es nuevo: los tres primeros son la familia del orden (FASE Q) y los
+otros dos las dos familias de FASE U. No se parchean a ciegas.

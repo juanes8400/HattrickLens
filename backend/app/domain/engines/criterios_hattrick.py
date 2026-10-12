@@ -155,6 +155,24 @@ ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
         "scoring": 3,
         "keeper": 5,
     },
+    # EL MEDIOCENTRO TAMBIEN LE DA A LA ANOTACION EL PESO DE LA DEFENSA, y eso
+    # estaba medido en FASE Q desde el 2026-10-11 y se habia quedado sin
+    # escribir. Se destapo con Jugadas 16, Lateral 5 y Anotacion 5: Hattrick
+    # lista «Anotacion = insuficiente» segunda y el Lateral tercero, y con la
+    # Anotacion en el cuarto puesto de la plantilla salia al contrario.
+    #
+    # Las fronteras que lo fijan: con Pases 10, la Anotacion adelanta con 11 y
+    # el Lateral necesita 12; con Lateral 7, la Anotacion empata y gana; con
+    # Defensa 7, el Lateral necesita 8. Al reves que en el extremo, aqui el
+    # empate entre Defensa y Anotacion lo gana la DEFENSA.
+    "playmaking": {
+        "playmaking": 0,
+        "passing": 1,
+        "defending": 2,
+        "scoring": 2,
+        "winger": 3,
+        "keeper": 5,
+    },
 }
 
 EXCLUIDAS: dict[str, frozenset[str]] = {
@@ -211,7 +229,26 @@ LATERAL_DEL_MEDIO_SIN_AYUDA = 7
 def _fuera(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
     """Las habilidades que no pueden ser criterio para este jugador."""
     fuera = EXCLUIDAS[tipo]
-    if tipo == "winger" and niveles.get("defending", 0) < niveles.get("scoring", 0):
+    # LA ANOTACION NECESITA CINCO; A LAS DEMAS LES BASTA TRES. Medido el
+    # 2026-10-12 poniendo una sola companera a la dominante:
+    #
+    #   Lat16 Ano3 / Ano4 -> tope ; Ano5 -> «Anotacion = insuficiente»
+    #   Jug16 Ano4        -> tope ; Ano5 -> criterio
+    #   Lat16 Def3, Def4, Jug3, Jug4, Pas3, Pas4 -> criterio los seis
+    #   Ano16 Lat4, Jug4 ; Def16 Pas4, Jug4      -> criterio los cuatro
+    #
+    # Es de la habilidad, no del tipo: pasa igual en el extremo y en el
+    # mediocentro, y es lo mismo que ya pedia de tercera.
+    if niveles.get("scoring", 0) < ENTRADA_TERCERO:
+        fuera |= {"scoring"}
+    # Y LA TAPADERA SOLO MUERDE SI LA ANOTACION ES CRITERIO. Con Lateral 16,
+    # Defensa 3 y Anotacion 4, la Defensa 3 SI es criterio: una Anotacion que
+    # no llega a 5 no tapa a nadie. Medido tambien con Ano2, Def4 y Def6.
+    if (
+        tipo == "winger"
+        and "scoring" not in fuera
+        and niveles.get("defending", 0) < niveles.get("scoring", 0)
+    ):
         fuera |= {"defending"}
     if tipo == "playmaking" and niveles.get("winger", 0) < LATERAL_DEL_MEDIO_SIN_AYUDA:
         ofensivo = (
