@@ -988,3 +988,32 @@ clavada--. El unico caso que habia medido de esa regla era a 8.
 
 AVISO: una llamada de sondeo con mas de ~40 consultas seguidas revienta el
 limite de 45 s de la herramienta. Hay que partirla.
+
+
+--- U5. SEGUNDA PASADA DE LA TANDA DURA, Y EL ULTIMO FALLO QUE COSTABA FILTRO
+
+Con los tres arreglos de FASE U dentro, el primer tercio de la tanda dura pasa
+de 18/20 a 19/20 enteros y de 19/20 a 19/20 en los tres filtros. El unico
+fallo que queda es un mediocentro de Jugadas 17, Pases 5 y Lateral 5 a los 17
+anos: el Lateral 5 no es criterio y el modelo se lo pone.
+
+Se fue a por el y es la misma espesura de la entrada del tercero:
+
+  Jug17 Pas5 Lat4 : Jug=17 Pas=5   Lat<=4     <- tope
+  Jug17 Pas5 Lat5 : Jug=17 Pas=5   Lat<=6     <- tope
+  Jug17 Pas5 Lat6 : Jug=17 Pas=5   Lat<=7     <- tope
+  Jug17 Pas5 Lat7 : Jug=17 Lat=7   Pas 4-6    <- entra, y adelanta
+  Jug17 Pas9 Lat4 : Jug=17 Pas=9   Lat<=4
+  Jug17 Pas9 Lat5 : Jug=17 Pas=9   Lat<=6
+  Jug17 Pas9 Lat6 : Jug=17 Pas=9   Lat<=7
+  Jug17 Pas9 Lat7 : Jug=17 Pas 8-10  Lat 6-8  <- entra de tercera
+
+El Lateral del mediocentro entra en 7, con la segunda en 5 o en 9. Pero en
+FASE Q ya se habia medido «Jug12 Def7 Lat6 -> Jug=, Def=, Lat banda»: ahi el
+Lateral 6 SI entra, con la Defensa de segunda. Y el Lateral del extremo entra
+con un 5 teniendo los Pases 13 de segunda.
+
+Asi que la entrada del tercero no es un nivel por habilidad, ni un nivel por
+tipo, ni un hueco contra la segunda: las tres se caen con estos datos. Es la
+misma familia que el mecanismo del orden (FASE Q) y queda igual de abierta.
+No se toca el 5 del codigo: es el valor que mas acierta de los probados.

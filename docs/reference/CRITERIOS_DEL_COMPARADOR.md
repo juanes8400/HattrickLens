@@ -290,6 +290,11 @@ por dónde falló importa tanto como la regla.
   tres habilidades le pedimos a `transfersearch`**, que acepta sólo tres.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
+- **Cuándo entra el TERCER criterio.** No es un nivel por habilidad, ni por
+  tipo, ni un hueco contra la segunda: las tres se caen con los datos. El
+  Lateral de un mediocentro entra con 7 teniendo los Pases de segunda y con 6
+  teniendo la Defensa; el de un extremo, la Defensa le entra con 5 teniendo los
+  Pases 13. El código usa 5, que es el valor que más acierta de los probados.
 - **La entrada y el techo del CUARTO criterio.** Con Anotación 10, Pases 8 y
   Lateral 6, una Jugadas 5 recibe techo donde el modelo le pone banda; y con
   Lateral 16, Pases 11, Anotación 11 y Jugadas 9, el techo de la banda sale un
