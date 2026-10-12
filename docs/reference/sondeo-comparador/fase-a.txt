@@ -1367,3 +1367,70 @@ El banco se queda sin deberes: los dos fallos que las tandas de perfiles habian
 dejado abiertos estan cerrados y fijados en pruebas. Lo que sigue sin
 entenderse es el MECANISMO --por que el orden depende del conjunto-- y para eso
 esta la hipotesis de los puestos, que es un sondeo nuevo y no un parche.
+
+
+================================================================================
+FASE Z - 2026-10-12 - LA HIPOTESIS DE LOS PUESTOS, PUESTA A PRUEBA SIN RED
+================================================================================
+
+Hattrick sigue a 0 de 4. Lo unico que queda abierto es el MECANISMO --por que el
+orden depende del conjunto-- y la hipotesis escrita en FASE V dice que los
+criterios salen del PUESTO del jugador y no de su habilidad dominante. Hasta
+ahora esa hipotesis tenia dos anecdotas. Se le puede dar una prueba
+CUANTITATIVA con lo ya medido, sin gastar una consulta.
+
+--- EL RAZONAMIENTO -------------------------------------------------------
+
+Cada lista de criterios observada es un PREFIJO del orden de prioridad de ese
+jugador. Si dos listas se contradicen --una pone Pases antes de Jugadas y la
+otra al contrario-- hacen falta DOS ordenes distintos, o sea DOS puestos. Asi
+que el numero minimo de ordenes por tipo es una cota inferior del numero de
+puestos que ese tipo necesita.
+
+Si la hipotesis es buena, ese numero tiene que caber en los puestos que
+Hattrick tiene de verdad en esa zona. Si a algun tipo le hicieran falta diez,
+la hipotesis estaria muerta.
+
+--- LO MEDIDO -------------------------------------------------------------
+
+De las 144 observaciones, las que tienen tres o mas criterios --las unicas que
+pueden contradecirse-- agrupadas en conjuntos mutuamente compatibles:
+
+  tipo          plantillas   choques   ordenes minimos
+  portero                1         0                 1
+  mediocentro            6         2                 2
+  delantero              3         2                 2
+  extremo                9        11                 3
+  defensa                9        22                 5
+
+Y los puestos que Hattrick tiene en cada zona, del propio editor de
+alineaciones del juego:
+
+  portero                                                        1
+  defensa  central, central hacia banda, central ofensivo,
+           lateral, lateral defensivo, lateral ofensivo,
+           lateral hacia dentro                                  7
+  medio    interior, interior defensivo, interior ofensivo,
+           interior hacia banda                                  4
+  extremo  extremo, defensivo, ofensivo, hacia dentro            4
+  delantero delantero, defensivo, hacia banda                    3
+
+CADA TIPO NECESITA MENOS ORDENES DE LOS QUE HATTRICK TIENE PUESTOS EN SU ZONA.
+Los cinco. Y ademas la zona con mas puestos --la defensa, con siete-- es
+justamente la que necesita mas ordenes --cinco--, y la que tiene uno solo --el
+portero-- necesita uno.
+
+--- QUE VALE Y QUE NO -----------------------------------------------------
+
+VALE: la hipotesis pasa una prueba que podia haber fallado. Si el defensa
+hubiera necesitado quince ordenes, o el portero tres, se cae. No pasa.
+
+NO VALE como demostracion. La cobertura se calcula con un voraz, que da una
+COTA SUPERIOR del minimo: el minimo real podria ser menor, nunca mayor. Y
+«caber en los puestos» es consistencia, no identidad: haria falta comprobar que
+cada grupo corresponde a UN puesto concreto, y eso pide el sondeo por puesto.
+
+LO QUE HAY QUE MEDIR, concretado por esto: los cinco grupos del defensa son el
+sitio por donde empezar, porque es donde hay mas estructura que explicar. Para
+cada grupo, generar perfiles que caigan claramente en uno de los siete puestos
+defensivos y ver si el grupo y el puesto coinciden.

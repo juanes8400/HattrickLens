@@ -441,6 +441,30 @@ Pero la forma de la hipótesis aguanta: el Lateral cuenta cuando el perfil es de
 mediocentro **ofensivo**. De ahí salió una regla implementable, 93 celdas
 medidas y 93 acertadas, que sube el primer tercio de la tanda dura a 20/20.
 
+**Segunda prueba, cuantitativa, y también a favor.** Cada lista de criterios
+observada es un *prefijo* del orden de prioridad de ese jugador. Si dos listas
+se contradicen, hacen falta dos órdenes, o sea dos puestos. Contando los
+órdenes mínimos necesarios en las 144 observaciones --con
+[`ordenes_por_tipo.py`](sondeo-comparador/ordenes_por_tipo.py)-- sale esto,
+junto a los puestos que Hattrick tiene de verdad en cada zona:
+
+| tipo | órdenes mínimos | puestos de Hattrick en esa zona |
+|---|---|---|
+| portero | 1 | 1 |
+| mediocentro | 2 | 4 |
+| delantero | 2 | 3 |
+| extremo | 3 | 4 |
+| defensa | 5 | 7 |
+
+**Cada tipo necesita menos órdenes de los que Hattrick tiene puestos en su
+zona**, los cinco. Y la zona con más puestos --la defensa-- es justo la que
+necesita más órdenes, y la que tiene uno solo necesita uno.
+
+Vale porque podía haber fallado: si al defensa le hicieran falta quince
+órdenes, o al portero tres, la hipótesis se cae. No pasa. No vale como
+demostración: la cobertura se calcula con un voraz, que da una cota superior
+del mínimo, y «caber» es consistencia, no identidad.
+
 **Cómo se comprobaría del todo:** sondear por puesto y no por habilidad. Generar
 perfiles que caigan claramente en cada puesto conocido y ver si cada grupo da
 la misma plantilla --mismo conjunto y mismo orden-- con niveles distintos. Si
