@@ -1627,3 +1627,110 @@ comparables de 17 anos, y la decision de migrar es del producto, no mia.
 LA LECCION: el `grep` de «que esta medido pero no se usa» habria que pasarlo
 cada vez que se cierra una tanda de mediciones. Una constante medida y no
 consumida es peor que no tenerla, porque quien la lee supone que se aplica.
+
+================================================================================
+FASE AD - 2026-10-12 - SESION NUEVA (www84). LA PRIMERA DEBIL, EL EMPATE DE LA
+SEGUNDA, Y UN 17 QUE NO AFLOJA
+================================================================================
+
+La sesion anterior habia CADUCADO --no era estrangulamiento, era caducidad-- y
+al reconectar el host cambio de www88 a www84. CONTROL antes de medir nada: el
+central del regimen 16, [0,16,12,0,11,0,0] a los 25, devolvio exactamente lo
+mismo que el 2026-10-10:
+
+  Ed24-26  Def=16  Jug 11-13  Pas>=11  Lat<=5  Ano<=5  Por<=5
+
+La maquina de sondeo reproduce en el host nuevo. 23 consultas en total.
+
+--- AD1. LA CONSULTA QUE SE DEBIA DESDE FASE R -------------------------------
+
+Pases 13 fijo como segunda (siempre por encima de la primera), barriendo el
+Lateral (primera) y la Defensa (tercera):
+
+  1a=3  3a=3   Lat=3   Pas 12-14   Def<=4     <- la tercera no entra, monton
+  1a=4  3a=4   Lat=4   Pas 12-14   Def<=4     <- idem
+  1a=5  3a=4   Lat=5   Pas 12-14   Def<=4     <- idem
+  1a=5  3a=5   Lat=5   Pas 12-14   Def<=5     <- TECHO, no banda
+  1a=5  3a=6   Def=6   Pas 12-14   Lat 4-6    <- se REORDENA: la 3a pasa a 1a
+  1a=6  3a=5   Lat=6   Pas 12-14   Def 4-6
+  1a=6  3a=6   Lat=6   Pas 12-14   Def 5-6    <- BANDA, cortada en la primera
+  1a=7  3a=7   Lat=7   Pas 12-14   Def 6-8    <- NO se corta: 8 > 7
+  1a=8  3a=8   Lat=8   Pas 12-14   Def 7-9    <- NO se corta
+  1a=9  3a=9   Lat=9   Pas 12-14   Def 8-10   <- NO se corta
+  1a=10 3a=10  Ed24-26 Lat=10 Pas 12-14 Def 9-12 Jug<=5 ...  <- holgado, [v-1,v+2]
+
+DOS COSAS, y la segunda refuta lo que tenia escrito:
+
+1. La regla "primera en 5 no sostiene tercero" QUEDA MEDIDA en sus cuatro
+   casillas vecinas, y resulta que su dominio es UNA SOLA, porque 3a > 1a no
+   puede darse sin que el orden cambie y 3a < 1a lo recoge la entrada del
+   tercero. La regla es, literalmente, "primera 5 y tercera 5".
+
+2. EL CORTE DE LA BANDA EN LA PRIMERA NO ES INCONDICIONAL. Yo lo aplicaba
+   siempre que la segunda superase a la primera. Con 7, 8, 9 y 10 la banda se
+   sale por encima de la primera sin problema. Solo corta con la primera en 6.
+   Cuatro medidas perdidas por generalizar de una.
+
+--- AD2. Y LA COMPRESION NO ES COSA DEL HUECO --------------------------------
+
+Lateral 6 y Defensa 6 fijos, moviendo la segunda:
+
+  Pas=5   ->  Lat=6  Def=6     Pas 4-6      <- la 2a no supera: la Defensa asciende
+  Pas=8   ->  Lat=6  Pas=8     Def 5-6
+  Pas=13  ->  Lat=6  Pas 12-14 Def 5-6
+  Pas=20  ->  Lat=6  Pas 19-21 Def 5-6      ("entre utopico y divino (+1)")
+
+La compresion es identica con la segunda en 8 y en 20. Depende de la PRIMERA,
+no de cuanto la supere la segunda.
+
+--- AD3. EL EMPATE DE LA SEGUNDA CON LA PRIMERA, con frontera -----------------
+
+Lateral y Defensa al mismo nivel y nada mas, para que no haya tercera que abra
+la segunda por su cuenta (eso ya se sabia: tercera >= 7 la abre):
+
+  6,6  ->  Lat=6  Def=6        CLAVADA
+  7,7  ->  Lat=7  Def=7        CLAVADA
+  8,8  ->  Lat=8  Def 7-9      BANDA
+  9,9  ->  Lat=9  Def 8-10     BANDA
+
+La frontera son los OCHO. El unico caso que sostenia la regla hasta hoy era el
+(8,8,6), que cae justo encima de la frontera; por eso parecia que el empate
+abria siempre.
+
+--- AD4. EL DIAL: UN 17 QUE NO ES LA PRIMERA NO AFLOJA NADA ------------------
+
+  Lat6 Def6 Pas20  ->  Ed=25    techos 4    AJUSTADO
+  Lat5 Def5 Pas18  ->  Ed=25    techos 4    AJUSTADO
+  Lat6      Pas17  ->  Ed=25    techos 4    AJUSTADO
+  Lat7 Def7 Pas20  ->  Ed24-26  techos 5    HOLGADO
+  Lat12 Def12 Pas20->  Ed24-26  techos 5    HOLGADO  (Def>=12, suelo)
+
+Yo tenia "una habilidad de 17 ya hace raro al jugador ella sola", medido con
+(17,5) y (18,0). En los dos el 17 ERA la primera. Con el 17 de segunda no
+afloja, y no hace falta excepcion ninguna: la rareza ya los separa sola.
+
+  Lat6 Def6 Pas20  ->  20 + 6 + max(0,6-6) = 26  <  27 del par (extremo,pases)
+  Lat7 Def7 Pas20  ->  20 + 7 + max(0,7-6) = 28  >= 27
+  Lat5 Def5 Pas18  ->  18 + 5 + 0          = 23  <  27
+  Lat6      Pas17  ->  17 + 6 + 0          = 23  <  27
+  Lat9 Def9 Pas13  ->  13 + 9 + 3          = 25  <  27   (medido ajustado)
+  Lat10Def10Pas13  ->  13 + 10 + 4         = 27  >= 27   (medido holgado)
+
+La formula de rareza acierta las seis sin ayuda. La excepcion se queda, pero
+atada a la PRIMERA, que es lo unico que estaba medido.
+
+--- RESULTADO ----------------------------------------------------------------
+
+Tres arreglos, los tres con frontera medida a los dos lados:
+
+  - el corte de la banda del tercero, solo con la primera en 6 o menos
+  - el empate que abre la segunda, solo desde 8
+  - el 17 que afloja solo, atado a la primera
+
+El banco pasa de 236/236 a 259/259 (23 observaciones nuevas) y la suite de
+criterios de 427 a 450 pruebas, cero rotas.
+
+LA LECCION, otra vez la misma: generalizar de una medida sola. El corte de la
+banda lo vi con la primera en 6, escribi "se corta en la primera", y me costo
+cuatro casillas. Las tres reglas de hoy nacen con la frontera medida a los dos
+lados, que es lo unico que las separa de una corazonada que encaja.

@@ -310,8 +310,24 @@ ENTRADA_TERCERO = 5
 SUELO_DEL_TERCERO = 11
 
 #: Y si la primera no pasa de aquí, un tercero que la alcance no llega a ser
-#: criterio: recibe techo. Lo explica `_tercero`, y descansa en un caso.
+#: criterio: recibe techo. Lo explica `_tercero`. Medido en las cuatro casillas
+#: que lo rodean el 2026-10-12: con la primera en 5 y la tercera en 5 sale
+#: techo; con las dos en 6 sale banda; con la primera en 5 y la tercera en 4 la
+#: tercera no entra siquiera; y con la primera en 5 y la tercera en 6 se
+#: reordenan los puestos y la tercera pasa a ser PRIMERA. Ese último caso dice
+#: algo más: el dominio de esta regla es UNA casilla, porque `nivel > tope` no
+#: puede darse sin que el orden cambie, y `nivel < tope` lo recoge la entrada
+#: del tercero. La regla es, en los hechos, «primera 5 y tercera 5».
 PRIMERA_QUE_NO_SOSTIENE_TERCERO = 5
+
+#: Y UN NIVEL MÁS ARRIBA LA PRIMERA NO LO DESTRUYE, SÓLO LO COMPRIME: con la
+#: primera en 6 la banda del tercero se corta en ella --«Defensa entre
+#: insuficiente y aceptable» con Lateral 6, Pases 13 y Defensa 6-- y de 7 en
+#: adelante no se corta en absoluto. Barrido el 2026-10-12 con la primera y la
+#: tercera igualadas en 6, 7, 8, 9, 10 y 12: sólo el 6 corta. Que la segunda
+#: esté en 8 o en 20 no cambia nada, así que esto depende de la PRIMERA y no
+#: del hueco que la segunda abre sobre ella.
+PRIMERA_QUE_CORTA_AL_TERCERO = 6
 
 #: Y a partir de aquí el CUARTO puesto cambia de banda estrecha a banda ancha.
 CUARTO_CON_BANDA_ANCHA = 8
@@ -324,6 +340,12 @@ SEGUNDO_CON_BANDA_PORTERO = 7
 #: ...o si el tercero llega aquí. Lo decía ya el texto de 2009: «lo mismo
 #: ocurre si la tercera es alta». El umbral son siete, y eso no lo decía.
 TERCERO_QUE_ABRE_AL_SEGUNDO = 7
+#: ...o si EMPATA CON LA PRIMERA, pero sólo desde aquí. Barrido el 2026-10-12
+#: con la primera y la segunda igualadas y sin tercera que estorbe: en 6 y en 7
+#: la segunda sale clavada, y en 8 y en 9 sale banda. Antes esto no tenía
+#: umbral y descansaba en un solo caso, el (8,8,6), que cae justo encima de la
+#: frontera y por eso no la enseñaba.
+EMPATE_QUE_ABRE_AL_SEGUNDO = 8
 #: LA CUARTA NO ABRE AL SEGUNDO: eso fue una lectura mal hecha. El 2026-10-12
 #: se barrio el eje entero --Lateral 10, Pases 7, Jugadas 5 y la Anotacion de
 #: 4 a 8-- y la segunda sigue clavada con la cuarta en 4, 5 y 6. Lo que la
@@ -625,7 +647,15 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
         umbral -= REBAJA_POR_CUARTO_CRITERIO
     if len(v) > 1 and v[0] == v[1]:
         umbral = min(umbral, UMBRAL_CON_EMPATE_ARRIBA)
-    return rareza(niveles, tipo) >= umbral or v[0] >= PRIMERA_QUE_AFLOJA_SOLA
+    # EL 17 QUE AFLOJA SOLO ES EL DE LA PRIMERA, no el nivel más alto que
+    # tenga el jugador. Medido el 2026-10-12 con Lateral 6, Defensa 6 y Pases
+    # 20, y otra vez con Lateral 5, Defensa 5 y Pases 18, y una tercera con
+    # Lateral 6 y Pases 17: los tres salen AJUSTADOS, con la edad clavada y los
+    # techos en 4, pese a llevar un 17 o más. La rareza ya los explica sin esta
+    # excepción --26, 23 y 23, por debajo del 27 de la pareja-- mientras que su
+    # gemelo de Lateral 7, Defensa 7 y Pases 20 llega a 28 y sí afloja.
+    primera = max(0, niveles.get(orden[0], 0)) if orden else 0
+    return rareza(niveles, tipo) >= umbral or primera >= PRIMERA_QUE_AFLOJA_SOLA
 
 
 def _ventana_de_edad(edad: int, holgado: bool, pasador: bool = False) -> tuple[int, int]:
@@ -831,9 +861,11 @@ def _segundo(habilidad: str, nivel: int, primero: int, tercero: int, tipo: str) 
     Jugadas 9, Pases 6 deja Jugadas clavada y Pases 7 la abre. Lo decía ya el
     texto de 2009, sin dar el número.
 
-    El empate con la primera también la abre: con (8,8,6) salió banda donde
-    todo lo demás pedía clavada. Tiene sentido --si valen lo mismo, cuál es la
-    segunda es dudoso-- pero es UN SOLO caso medido.
+    El empate con la primera también la abre, PERO SOLO DESDE 8. Tiene sentido
+    --si valen lo mismo, cuál es la segunda es dudoso-- y ya no descansa en el
+    (8,8,6) que lo sugirió: el 2026-10-12 se barrió el empate sin tercera que
+    estorbe y sale clavada en 6 y en 7, banda en 8 y en 9. El caso original cae
+    justo encima de la frontera, que es por lo que no la enseñaba.
 
     El portero va por libre en los dos umbrales, y por eso entra el tipo aquí.
     """
@@ -842,7 +874,8 @@ def _segundo(habilidad: str, nivel: int, primero: int, tercero: int, tipo: str) 
     con_banda = SEGUNDO_CON_BANDA_PORTERO if portero else SEGUNDO_CON_BANDA
     if nivel < entrada:
         return Criterio(habilidad, "<=", 0, entrada - 1)
-    abre = nivel >= con_banda or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO or nivel == primero
+    empata = nivel == primero and nivel >= EMPATE_QUE_ABRE_AL_SEGUNDO
+    abre = nivel >= con_banda or tercero >= TERCERO_QUE_ABRE_AL_SEGUNDO or empata
     if not abre:
         return Criterio(habilidad, "=", nivel, nivel)
     return Criterio(habilidad, "banda", max(0, nivel - 1), nivel + 1)
@@ -883,17 +916,24 @@ def _cuarto(
 def _tercero(habilidad: str, nivel: int, holgado: bool, tope: int | None = None) -> Criterio:
     """El tercer puesto: techo, banda o suelo según el nivel.
 
-    `tope` CORTA LA BANDA POR ARRIBA, y sólo llega con valor cuando la segunda
-    habilidad SUPERA a la primera. Es la unica forma que encaja con las dos
-    medidas que parecian contradecirse:
+    UNA PRIMERA DEBIL LE QUITA SITIO, y en dos escalones. Con la primera en 5 y
+    el tercero alcanzandola, el tercero no llega a ser criterio: recibe techo.
+    Con la primera en 6 si es criterio, pero su banda se corta en ella. Y de 7
+    en adelante la banda NO se corta, ni cuando se sale por encima de la
+    primera. Barrido el 2026-10-12 con la primera y la tercera igualadas: 6
+    corta («Def 5-6»), y 7 («Def 6-8»), 8 («Def 7-9»), 9 y 10 no cortan. El
+    corte era incondicional y eso perdia cuatro medidas.
+
+    `tope` llega con valor sólo cuando la segunda habilidad SUPERA a la primera,
+    que es el unico caso en que el corte se ha visto. Las dos medidas que
+    parecian contradecirse lo siguen explicando:
 
         Lat9 Jug9 Pas9 Def9   -> «Pases entre excelente y destacado» (8-10)
         Lat6 Pas7 Jug6 Def6   -> «Jugadas entre insuficiente y aceptable» (5-6)
 
-    En el primero la segunda IGUALA a la primera y la banda se sale de ella sin
-    problema; en el segundo la segunda la SUPERA y entonces la tercera se corta
-    en la primera. Cortar siempre pierde dos casos ya medidos, asi que la
-    condicion no es de adorno.
+    En el primero la segunda IGUALA a la primera --no hay tope-- y la banda se
+    sale sin problema; en el segundo la supera, y la primera es justo el 6 que
+    corta.
     """
     if nivel < ENTRADA_TERCERO:
         return Criterio(habilidad, "<=", 0, _techo_de_sobrante(nivel, holgado))
@@ -913,6 +953,6 @@ def _tercero(habilidad: str, nivel: int, holgado: bool, tope: int | None = None)
     if nivel >= SUELO_DEL_TERCERO:
         return Criterio(habilidad, ">=", nivel, MAXIMO_DE_LA_ESCALA)
     arriba = nivel + (2 if holgado else 1)
-    if tope is not None:
+    if tope is not None and tope <= PRIMERA_QUE_CORTA_AL_TERCERO:
         arriba = min(arriba, tope)
     return Criterio(habilidad, "banda", max(0, nivel - 1), arriba)

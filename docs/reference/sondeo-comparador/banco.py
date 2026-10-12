@@ -114,6 +114,18 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
             "Ed=27 Lat=5 Pas 12-14 Def<=5 Jug<=4 Ano<=4 Por<=4",
         ),
     ]
+    # LA TANDA DEL 2026-10-12 CON SESION NUEVA (www84): la primera debil contra
+    # la tercera, el empate de la segunda y el 17 que no afloja.
+    casos += [
+        (25, T.perfil(winger=lat, defending=defe, passing=13), s)
+        for lat, defe, s in T.PRIMERA_QUE_COMPRIME_AL_TERCERO
+    ]
+    casos += [
+        (25, T.perfil(winger=6, defending=6, passing=pas), s)
+        for pas, s in T.LA_SEGUNDA_NO_MUEVE_LA_COMPRESION
+    ]
+    casos += [(25, T.perfil(winger=n, defending=n), s) for n, s in T.EMPATE_DE_LA_SEGUNDA]
+    casos += [(25, dict(n), s) for n, s in T.EL_DIECISIETE_QUE_NO_AFLOJA]
     return casos
 
 

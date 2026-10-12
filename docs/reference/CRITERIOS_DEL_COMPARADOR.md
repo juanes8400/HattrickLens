@@ -206,16 +206,46 @@ nivel. Por eso un Pases 16 con todo lo demás a cero empieza por
 |---|---|
 | **1º** | siempre **exacto** |
 | **2º** | **techo** por debajo de 3 (2 en el portero) · **exacto** hasta 9 (6 en el portero) · **banda `[v−1, v+1]`** desde 10 (7 en el portero) |
-| **3º** | cae a techo por debajo de 5 · **banda** de 5 a 10 · **suelo `≥ v`** desde 11 |
+| **3º** | cae a techo por debajo de 5 · **banda** de 5 a 10 · **suelo `≥ v`** desde 11. Y **una 1ª débil le quita sitio**: ver abajo |
 | **4º** | sólo existe si llega a 5. Banda estrecha como el 3º por debajo de 8, y ancha `[v−2, v+3]` de 8 en adelante, **cortada arriba por el nivel de la 1ª**: con Defensa 9 y las otras tres a 8 sale `Lat 6-9`, y subiendo sólo la Defensa a 10 sale `Lat 6-10`. Un cuarto puesto no puede pedir más de lo mejor que tiene el jugador |
 | **resto** | **techo** |
 
 La banda del 3º mide `[v−1, v+1]` con la búsqueda ajustada y `[v−1, v+2]` con la
 búsqueda holgada.
 
+**Una primera débil le quita sitio al tercero, en dos escalones.** Sólo pasa
+cuando la 2ª habilidad SUPERA a la 1ª, que es el único caso en que se ha visto:
+
+| nivel de la 1ª | qué le pasa al 3º que la alcanza |
+|---|---|
+| ≤ 5 | **no llega a ser criterio**: recibe techo (`Lat5 Pas13 Def5` → `Def <= 5`) |
+| 6 | es criterio, pero su banda **se corta en la 1ª** (`Lat6 Pas13 Def6` → `Def 5-6`) |
+| ≥ 7 | **no se corta nada**, ni cuando la banda se sale por encima de la 1ª (`Lat7 Pas13 Def7` → `Def 6-8`) |
+
+Barrido el 2026-10-12 con la 1ª y la 3ª igualadas en 6, 7, 8, 9 y 10. Y la
+compresión **no depende del hueco**: con Lateral 6 y Defensa 6, la Defensa sale
+`5-6` tanto con los Pases en 8 como en 13 como en 20.
+
+El escalón de ≤ 5 tiene un dominio de **una sola casilla** (1ª en 5 y 3ª en 5),
+y no por falta de medidas: con la 3ª por encima de la 1ª se reordenan los
+puestos y la 3ª pasa a ser 1ª, y con la 3ª por debajo no llega al umbral de
+entrada. No hay más casillas que medir.
+
+**Asimetría medida, y sin explicar:** el **4º** puesto sí se corta en la 1ª
+siempre (medido con la 1ª en 9 y en 10), mientras que el 3º sólo se corta con
+la 1ª en 6. Son dos reglas distintas para dos puestos, y no se ha encontrado la
+forma de unificarlas: la banda holgada del 3º con la 1ª en 10 sale `9-12`, que
+se pasa de la 1ª sin que nadie la corte.
+
 **La segunda se abre a banda antes de tiempo** si la tercera llega a 7, si hay
-una cuarta que llegue a 5, o si empata con la primera. Lo decía 2009: *«lo mismo
-ocurre si la tercera es alta»*; el umbral son siete, y eso no lo decía.
+una cuarta que llegue a 5, o si **empata con la primera y las dos llegan a 8**.
+Lo decía 2009: *«lo mismo ocurre si la tercera es alta»*; el umbral son siete, y
+eso no lo decía.
+
+El del empate sí tiene frontera medida (2026-10-12, con la 1ª y la 2ª igualadas
+y sin tercera que estorbe): **clavada** en 6 y en 7, **banda** en 8 y en 9. El
+único caso que sostenía esta regla antes era el (8,8,6), que cae justo encima de
+la frontera, y por eso parecía que el empate abría siempre.
 
 **El balón parado del portero** va aparte: techo por debajo de 5, banda
 `[v−2, v+2]` ajustada o `[v−3, v+3]` holgada hasta 15, y de 16 en adelante un
@@ -232,8 +262,15 @@ rareza = v1 + v2 + max(0, v3 − 6) + max(0, v4 − 6)
          (sólo las cuatro primeras de su plantilla, ordenadas de mayor a menor;
           el balón parado del portero descuenta 10 en vez de 6)
 
-holgado  ⟺  rareza ≥ umbral   o   v1 ≥ 17
+holgado  ⟺  rareza ≥ umbral   o   nivel de la 1ª ≥ 17
 ```
+
+El `≥ 17` es **de la primera, no del nivel más alto que tenga el jugador**. Se
+midió con (17,5) y (18,0), y en los dos el 17 era la primera; generalizarlo a
+cualquier habilidad fallaba en tres medidas del 2026-10-12 --`Lat6 Def6 Pas20`,
+`Lat5 Def5 Pas18` y `Lat6 Pas17`, los tres **ajustados** pese a llevar un 17 o
+más--. La rareza ya los separa sola: dan 26, 23 y 23, por debajo del 27 de su
+pareja, mientras que `Lat7 Def7 Pas20` llega a 28 y sí afloja.
 
 | tipo | umbral |
 |---|---|
@@ -506,35 +543,52 @@ el corte del orden por plantilla y el corte condicional de la banda de la
 tercera. En los dos casos mi análisis a mano decía lo contrario de lo que dijo
 el banco, y tenía razón el banco.
 
+**Y el mismo día, con sesión nueva, el banco atrapó el límite de lo que puede
+hacer:** de los dos arreglos que encontró a ciegas, uno --el corte de la banda--
+estaba *mal generalizado*, y el banco lo dio por bueno porque las 236
+observaciones que tenía no contenían ninguna con la primera en 7 o más. Un banco
+sólo defiende lo que ya se midió; no sabe lo que falta. Las 23 consultas de FASE
+AD lo subieron a 259 y el corte pasó a tener frontera.
+
 ## Cuánto sostiene cada regla
 
 El motor es un montón de reglas sacadas de mediciones distintas, y no todas
 pesan lo mismo.
 [`cuanto_sostiene_cada_regla.py`](sondeo-comparador/cuanto_sostiene_cada_regla.py)
-las quita de una en una y cuenta cuántos de los 236 casos medidos dejan de
+las quita de una en una y cuenta cuántos de los 259 casos medidos dejan de
 salir:
 
 | al quitar | se rompen |
 |---|---|
-| las exclusiones por tipo | 139 |
+| las exclusiones por tipo | 162 |
 | el sesgo del portero sobre la defensa | 20 |
 | que la Anotación pida cinco | 14 |
 | que la tercera en 7 abra la segunda | 12 |
 | los pesos del extremo | 9 |
 | los pesos del mediocentro | 7 |
 | que una habilidad de 17 afloje sola | 5 |
+| que la primera en 6 corte la banda del tercero | 5 |
 | el desempate propio del extremo | 4 |
 | la tapadera de la Anotación al extremo | 3 |
+| que la primera en 5 no sostenga tercero | 3 |
 | la regla del Lateral del mediocentro | 2 |
 | la tabla del dial por pareja | 2 |
-| que la primera en 5 no sostenga tercero | 1 |
+| que el empate abra la segunda | 2 |
 | **la posición de la Portería en el desempate** | **0** |
 
+**Y las dos reglas con umbral se prueban también por el otro lado**, que es lo
+que separa un umbral medido de uno inventado:
+
+| al generalizar | se rompen |
+|---|---|
+| cortar la banda del tercero **siempre**, no sólo con la 1ª en 6 | 5 |
+| abrir la segunda **con cualquier empate**, no sólo desde 8 | 3 |
+
 **Para qué sirve:** dice en qué apoyarse y en qué no. Las exclusiones por tipo
-sostienen 139 casos --tocarlas es tocar el motor entero--; la tabla del dial
+sostienen 162 casos --tocarlas es tocar el motor entero--; la tabla del dial
 por pareja sostiene dos, así que si una medición la contradice no hay que
-defenderla. Y la regla que su propio comentario dice que «descansa en un caso»
-sostiene exactamente uno, ahora comprobado en vez de recordado.
+defenderla. Y la regla que durante dos días «descansaba en un caso» sostiene
+ahora tres, con sus cuatro casillas vecinas medidas.
 
 **El único cero es información muerta, no una regla sin apoyo:** `_tipo` saca la
 Portería de la lista y la compara aparte, así que su sitio en la tupla no lo lee

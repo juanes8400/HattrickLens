@@ -1411,3 +1411,102 @@ def test_los_perfiles_planos_tambien(nivel: int, edad: int) -> None:
             assert criterios.edad_minima <= edad <= criterios.edad_maxima
             for c in criterios.habilidades:
                 assert c.admite(max(0, niveles.get(c.habilidad, 0))), (niveles, c)
+
+
+#: LA PRIMERA DEBIL Y LA TERCERA, sondeo del 2026-10-12 con Pases 13 fijo como
+#: segunda --siempre por encima de la primera-- y el Lateral y la Defensa
+#: barridos. (lateral, defensa, lo que contestó Hattrick)
+#:
+#: Lo que enseña, de abajo arriba: hasta 4 la tercera no entra y cae al montón;
+#: con la primera en 5 y la tercera igualándola, la tercera recibe TECHO; con
+#: las dos en 6, BANDA cortada en la primera; y de 7 en adelante la banda ya no
+#: se corta. Con la primera en 5 y la tercera en 6 se reordenan los puestos: la
+#: Defensa pasa a ser primera y el Lateral tercero.
+PRIMERA_QUE_COMPRIME_AL_TERCERO: list[tuple[int, int, str]] = [
+    (3, 3, "Ed=25 Lat=3 Pas 12-14 Def<=4 Jug<=4 Ano<=4 Por<=4"),
+    (4, 4, "Ed=25 Lat=4 Pas 12-14 Def<=4 Jug<=4 Ano<=4 Por<=4"),
+    (5, 4, "Ed=25 Lat=5 Pas 12-14 Def<=4 Jug<=4 Ano<=4 Por<=4"),
+    (5, 5, "Ed=25 Lat=5 Pas 12-14 Def<=5 Jug<=4 Ano<=4 Por<=4"),
+    (5, 6, "Ed=25 Def=6 Pas 12-14 Lat 4-6 Jug<=4 Ano<=4 Por<=4"),
+    (6, 5, "Ed=25 Lat=6 Pas 12-14 Def 4-6 Jug<=4 Ano<=4 Por<=4"),
+    (6, 6, "Ed=25 Lat=6 Pas 12-14 Def 5-6 Jug<=4 Ano<=4 Por<=4"),
+    (7, 7, "Ed=25 Lat=7 Pas 12-14 Def 6-8 Jug<=4 Ano<=4 Por<=4"),
+    (8, 8, "Ed=25 Lat=8 Pas 12-14 Def 7-9 Jug<=4 Ano<=4 Por<=4"),
+    (9, 9, "Ed=25 Lat=9 Pas 12-14 Def 8-10 Jug<=4 Ano<=4 Por<=4"),
+    (10, 10, "Ed24-26 Lat=10 Pas 12-14 Def 9-12 Jug<=5 Ano<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("lateral,defensa,esperado", PRIMERA_QUE_COMPRIME_AL_TERCERO)
+def test_la_primera_debil_comprime_al_tercero(lateral: int, defensa: int, esperado: str) -> None:
+    niveles = perfil(winger=lateral, defending=defensa, passing=13)
+    assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: Y LA COMPRESION NO ES COSA DEL HUECO. Mismo Lateral 6 y Defensa 6, moviendo
+#: la segunda: la Defensa sale «5-6» con la segunda en 8, en 13 y en 20, y con
+#: la segunda POR DEBAJO (5) la Defensa asciende a segunda y se clava.
+#: (pases, lo que contestó Hattrick)
+LA_SEGUNDA_NO_MUEVE_LA_COMPRESION: list[tuple[int, str]] = [
+    (5, "Ed=25 Lat=6 Def=6 Pas 4-6 Jug<=4 Ano<=4 Por<=4"),
+    (8, "Ed=25 Lat=6 Pas=8 Def 5-6 Jug<=4 Ano<=4 Por<=4"),
+    (20, "Ed=25 Lat=6 Pas 19-21 Def 5-6 Jug<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("pases,esperado", LA_SEGUNDA_NO_MUEVE_LA_COMPRESION)
+def test_la_segunda_no_mueve_la_compresion(pases: int, esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(winger=6, defending=6, passing=pases))) == esperado
+
+
+#: EL EMPATE DE LA SEGUNDA CON LA PRIMERA, barrido el 2026-10-12 sin tercera
+#: que estorbe --Lateral y Defensa al mismo nivel y nada más--. Clavada en 6 y
+#: en 7, banda en 8 y en 9: la frontera son los OCHO, y el caso que sostenía
+#: antes la regla --el (8,8,6)-- cae justo encima y por eso no la enseñaba.
+#: (nivel de las dos, lo que contestó Hattrick)
+EMPATE_DE_LA_SEGUNDA: list[tuple[int, str]] = [
+    (6, "Ed=25 Lat=6 Def=6 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    (7, "Ed=25 Lat=7 Def=7 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    (8, "Ed=25 Lat=8 Def 7-9 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    (9, "Ed=25 Lat=9 Def 8-10 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("nivel,esperado", EMPATE_DE_LA_SEGUNDA)
+def test_el_empate_abre_la_segunda_desde_ocho(nivel: int, esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(winger=nivel, defending=nivel))) == esperado
+
+
+#: UN 17 QUE NO ES LA PRIMERA NO AFLOJA NADA. Los tres primeros llevan un 17 o
+#: más y salen AJUSTADOS --edad clavada, techos en 4--; el cuarto y el quinto
+#: son el contraste que sí afloja, y lo hace por rareza, no por el 17.
+#: (perfil, lo que contestó Hattrick)
+EL_DIECISIETE_QUE_NO_AFLOJA: list[tuple[dict[str, int], str]] = [
+    (
+        perfil(winger=5, defending=5, passing=18),
+        "Ed=25 Lat=5 Pas 17-19 Def<=5 Jug<=4 Ano<=4 Por<=4",
+    ),
+    (
+        perfil(winger=6, passing=17),
+        "Ed=25 Lat=6 Pas 16-18 Jug<=4 Def<=4 Ano<=4 Por<=4",
+    ),
+    (
+        perfil(winger=6, defending=6, passing=20),
+        "Ed=25 Lat=6 Pas 19-21 Def 5-6 Jug<=4 Ano<=4 Por<=4",
+    ),
+    (
+        perfil(winger=7, defending=7, passing=20),
+        "Ed24-26 Lat=7 Pas 19-21 Def 6-9 Jug<=5 Ano<=5 Por<=5",
+    ),
+    (
+        perfil(winger=12, defending=12, passing=20),
+        "Ed24-26 Lat=12 Pas 19-21 Def>=12 Jug<=5 Ano<=5 Por<=5",
+    ),
+]
+
+
+@pytest.mark.parametrize("niveles,esperado", EL_DIECISIETE_QUE_NO_AFLOJA)
+def test_el_diecisiete_que_no_es_la_primera_no_afloja(
+    niveles: dict[str, int], esperado: str
+) -> None:
+    assert _pinta(criterios_de(25, dict(niveles))) == esperado
