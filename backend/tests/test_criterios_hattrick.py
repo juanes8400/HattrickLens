@@ -1646,3 +1646,35 @@ ENTRADA_DEL_CUARTO: list[tuple[int, int, str]] = [
 def test_la_entrada_del_cuarto(pases: int, anotacion: int, esperado: str) -> None:
     niveles = perfil(winger=16, defending=9, passing=pases, scoring=anotacion)
     assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: LAS DOS LISTAS DEL MEDIOCENTRO. Igual que el extremo, pero al contrario: con
+#: Defensa de verdad la Anotación BAJA en vez de subir, que es lo que cabe
+#: esperar de un mediocentro defensivo. Umbral medido: Defensa >= Anotación − 3,
+#: con el suelo de la entrada.
+#:
+#: Barridos del 2026-10-12, con la frontera a los dos lados en cuatro de ellos.
+#: Aquí están los que el motor reproduce; los que no, en `PENDIENTES` del banco.
+#: (habilidades sobre Jugadas 16, lo que contestó Hattrick)
+LAS_DOS_LISTAS_DEL_MEDIOCENTRO: list[tuple[dict[str, int], str]] = [
+    (dict(passing=9, scoring=10, defending=6), "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Def 5-8 Lat<=5 Por<=5"),
+    (dict(passing=9, scoring=10, defending=7), "Ed24-26 Jug=16 Pas 8-10 Ano 9-12 Def 6-9 Lat<=5 Por<=5"),
+    (dict(passing=9, scoring=10, defending=9), "Ed24-26 Jug=16 Pas 8-10 Ano 9-12 Def 7-12 Lat<=5 Por<=5"),
+    (dict(passing=12, scoring=13, defending=6), "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Def 5-8 Lat<=5 Por<=5"),
+    (dict(passing=12, scoring=13, defending=7), "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Def 6-9 Lat<=5 Por<=5"),
+    (dict(passing=12, scoring=13, defending=8), "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Def 6-11 Lat<=5 Por<=5"),
+    (dict(passing=12, scoring=13, defending=9), "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Def 7-12 Lat<=5 Por<=5"),
+    (dict(passing=12, scoring=13, defending=10), "Ed24-26 Jug=16 Pas 11-13 Ano>=13 Def 8-13 Lat<=5 Por<=5"),
+    (dict(passing=12, scoring=13, defending=11), "Ed24-26 Jug=16 Pas 11-13 Ano>=13 Def 9-14 Lat<=5 Por<=5"),
+    (dict(passing=5, scoring=6, defending=5), "Ed=25 Jug=16 Pas=5 Ano 5-7 Def 4-6 Lat<=4 Por<=4"),
+    (dict(passing=5, scoring=6, defending=6), "Ed=25 Jug=16 Def=6 Pas 4-6 Ano 5-7 Lat<=4 Por<=4"),
+    (dict(passing=5, scoring=6, defending=7), "Ed=25 Jug=16 Def=7 Pas 4-6 Ano 5-7 Lat<=4 Por<=4"),
+    (dict(passing=7, scoring=8, defending=5), "Ed=25 Jug=16 Pas 6-8 Ano 7-9 Def 4-6 Lat<=4 Por<=4"),
+    (dict(passing=7, scoring=8, defending=9), "Ed24-26 Jug=16 Def 8-10 Pas 6-9 Ano 6-11 Lat<=5 Por<=5"),
+    (dict(winger=8, scoring=8, defending=0), "Ed24-26 Jug=16 Ano 7-9 Lat 7-10 Pas<=5 Def<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("extra,esperado", LAS_DOS_LISTAS_DEL_MEDIOCENTRO)
+def test_las_dos_listas_del_mediocentro(extra: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(playmaking=16, **extra))) == esperado

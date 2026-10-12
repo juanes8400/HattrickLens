@@ -220,7 +220,34 @@ ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
         "defending": 4,
         "keeper": 5,
     },
+    # Y EL MEDIOCENTRO TAMBIEN TIENE DOS, en el sentido contrario: con Defensa
+    # de verdad la Anotacion BAJA en vez de subir. Tiene sentido --un
+    # mediocentro con Defensa es defensivo, y a uno defensivo la Anotacion le
+    # importa menos-- y esta medido en cuatro barridos del 2026-10-12 con la
+    # frontera a los dos lados en tres de ellos:
+    #
+    #   Jug16 Pas7  Ano8  -> gira en Def 5   (4 da Ano Pas, 5 da Pas Ano)
+    #   Jug16 Pas9  Ano10 -> gira en Def 7   (6 da Ano Pas, 7 da Pas Ano)
+    #   Jug16 Pas12 Ano13 -> gira en Def 10  (9 da Ano Pas, 10 da Pas Ano)
+    #   Jug16 Lat8  Ano8  -> gira en Def 5
+    #
+    # EL UMBRAL ES «Defensa >= Anotacion - 3», y eso NO es un ajuste de los
+    # cuatro: en los tres primeros la Anotacion era Pases+1, asi que
+    # «Def >= Pases-2» encajaba igual de bien. El cuarto barrido los separa: sin
+    # Pases, «Pases-2» daria umbral -2 y giraria siempre, y Hattrick gira en 5.
+    "playmaking_con_defensa": {
+        "playmaking": 0,
+        "passing": 1,
+        "defending": 2,
+        "scoring": 3,
+        "winger": 3,
+        "keeper": 5,
+    },
 }
+
+#: Cuanto puede quedarse atras la Defensa del mediocentro y seguir mandando
+#: sobre la Anotacion. Medido en los cuatro barridos de arriba.
+DEFENSA_QUE_BAJA_LA_ANOTACION = 3
 
 
 #: Las tres que tiene que haber elegido Hattrick para que al extremo le toque
@@ -232,10 +259,19 @@ ORDEN_DE_IMPORTANCIA: dict[str, dict[str, int]] = {
 EXTREMO_COMPLETO = frozenset({"passing", "defending", "scoring"})
 
 
-def _lista_de_importancia(tipo: str, conjunto: list[str]) -> str:
+def _lista_de_importancia(tipo: str, conjunto: list[str], niveles: dict[str, int]) -> str:
     """Cual de las listas iniciales le toca, con el conjunto ya elegido."""
     if tipo == "winger" and set(conjunto) >= EXTREMO_COMPLETO:
         return "winger_con_defensa"
+    if tipo == "playmaking":
+        defensa = max(0, niveles.get("defending", 0))
+        anotacion = max(0, niveles.get("scoring", 0))
+        # CON EL SUELO DE LA ENTRADA, que no es un parche: una Defensa de 4 no
+        # es criterio de nada, y sin el suelo «Jug16 Def4 Lat5 Ano5» giraria
+        # --umbral 2-- cuando Hattrick lo deja en «Jug, Ano, Lat». Con el suelo
+        # salen los cinco perfiles medidos.
+        if defensa >= max(ENTRADA_TERCERO, anotacion - DEFENSA_QUE_BAJA_LA_ANOTACION):
+            return "playmaking_con_defensa"
     return tipo
 
 
@@ -825,7 +861,7 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
     conjunto = ordenadas[:cuantos]
     # LA LISTA INICIAL SE ELIGE CON EL CONJUNTO YA ELEGIDO, y se puede hacer
     # porque el corte usa la plantilla y no los pesos: no hay circulo.
-    pesos = ORDEN_DE_IMPORTANCIA.get(_lista_de_importancia(tipo, conjunto)) or {
+    pesos = ORDEN_DE_IMPORTANCIA.get(_lista_de_importancia(tipo, conjunto, niveles)) or {
         h: i for i, h in enumerate(plantilla)
     }
     cabeza = sorted(conjunto, key=clave)

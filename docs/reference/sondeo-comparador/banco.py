@@ -134,6 +134,10 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
         (25, T.perfil(winger=16, defending=9, passing=pas, scoring=ano), s)
         for pas, ano, s in T.ENTRADA_DEL_CUARTO
     ]
+    casos += [
+        (25, T.perfil(playmaking=16, **extra), s)
+        for extra, s in T.LAS_DOS_LISTAS_DEL_MEDIOCENTRO
+    ]
     return casos
 
 
@@ -205,6 +209,73 @@ PENDIENTES: list[tuple[str, int, dict[str, int], str]] = [
         25,
         perfil(playmaking=16, defending=9, passing=7, scoring=8),
         "Ed24-26 Jug=16 Def 8-10 Pas 6-9 Ano 6-11 Lat<=5 Por<=5",
+    ),
+    # LOS DIEZ DE LOS BARRIDOS DEL MEDIOCENTRO que la segunda lista NO arregla.
+    # Tres familias: el orden del MONTON --Hattrick lista el Lateral antes que
+    # la Defensa aunque la Defensa tenga mas nivel, y eso no viaja a la
+    # busqueda--; la ENTRADA DEL CUARTO otra vez, que aqui no abre con la
+    # Defensa en 5 y si en 6, al contrario que la Anotacion 5 del extremo; y la
+    # ANOTACION EXPULSADA del conjunto cuando entra la Defensa, que es la misma
+    # forma que la tapadera del extremo y sin regla.
+    (
+        "entrada del cuarto / orden del monton",
+        25,
+        perfil(playmaking=16, passing=9, scoring=10, defending=0),
+        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
+    ),
+    (
+        "entrada del cuarto / orden del monton",
+        25,
+        perfil(playmaking=16, passing=9, scoring=10, defending=3),
+        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
+    ),
+    (
+        "entrada del cuarto / orden del monton",
+        25,
+        perfil(playmaking=16, passing=9, scoring=10, defending=4),
+        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
+    ),
+    (
+        "entrada del cuarto / orden del monton",
+        25,
+        perfil(playmaking=16, passing=9, scoring=10, defending=5),
+        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=7 Por<=5",
+    ),
+    (
+        "entrada del cuarto / orden del monton",
+        25,
+        perfil(playmaking=16, passing=12, scoring=13, defending=5),
+        "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Lat<=5 Def<=7 Por<=5",
+    ),
+    (
+        "entrada del cuarto / orden del monton",
+        25,
+        perfil(playmaking=16, passing=7, scoring=8, defending=4),
+        "Ed24-26 Jug=16 Ano 7-9 Pas 6-9 Lat<=5 Def<=5 Por<=5",
+    ),
+    (
+        "la Anotacion fuera del conjunto del mediocentro",
+        25,
+        perfil(playmaking=16, winger=8, scoring=8, defending=4),
+        "Ed24-26 Jug=16 Ano 7-9 Lat 7-10 Pas<=5 Def<=5 Por<=5",
+    ),
+    (
+        "la Anotacion fuera del conjunto del mediocentro",
+        25,
+        perfil(playmaking=16, winger=8, scoring=8, defending=5),
+        "Ed=25 Jug=16 Lat=8 Def 4-6 Pas<=4 Ano<=9 Por<=4",
+    ),
+    (
+        "la Anotacion fuera del conjunto del mediocentro",
+        25,
+        perfil(playmaking=16, winger=8, scoring=8, defending=6),
+        "Ed=25 Jug=16 Lat=8 Def 5-8 Pas<=4 Ano<=9 Por<=4",
+    ),
+    (
+        "la Anotacion fuera del conjunto del mediocentro",
+        25,
+        perfil(playmaking=16, winger=8, scoring=8, defending=7),
+        "Ed24-26 Jug=16 Lat 7-9 Def 6-9 Pas<=5 Ano<=10 Por<=5",
     ),
 ]
 

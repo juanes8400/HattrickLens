@@ -219,6 +219,33 @@ siete casos ya medidos, y los siete tienen en común que la Anotación no está 
 el conjunto. Se puede comprobar antes de ordenar porque el corte usa la
 plantilla y no los pesos, así que no hay círculo.
 
+#### Y el mediocentro también, en el sentido contrario
+
+| cuándo | lista |
+|---|---|
+| `Defensa ≥ max(5, Anotación − 3)` | `Jug 0, Pas 1, Def 2, Ano 3, Lat 3` |
+| cualquier otro caso | `Jug 0, Pas 1, Def 2, Ano 2, Lat 3` |
+
+Al extremo la Defensa le **sube** la Anotación; al mediocentro se la **baja**, que
+es lo que cabe esperar de un mediocentro defensivo. Medido en cuatro barridos
+con la frontera a los dos lados:
+
+| perfil | gira en Defensa |
+|---|---|
+| Jug 16, Pas 7, Ano 8 | 5 |
+| Jug 16, Pas 9, Ano 10 | 7 |
+| Jug 16, Pas 12, Ano 13 | 10 |
+| Jug 16, Lat 8, Ano 8 | 5 |
+
+Los tres primeros **no bastan** para sacar el umbral: en los tres la Anotación
+era `Pases + 1`, así que `Def ≥ Pases − 2` encajaba igual de bien. El cuarto los
+separa, y se hizo por eso: sin Pases, `Pases − 2` daría umbral −2 y giraría
+siempre, y Hattrick gira en 5. Predicción hecha antes de medir, y cumplida.
+
+Esto arregla la otra contradicción de FASE Q --`Jug16 Pas7 Def9 Ano8` sale
+`Jug Def Pas Ano`-- que era la que exigía «Anotación con peso 3» rompiendo
+«Anotación con peso 2»: son dos listas, y cada una tiene su peso.
+
 **La habilidad que da el tipo va siempre la primera**, aunque otra tenga más
 nivel. Por eso un Pases 16 con todo lo demás a cero empieza por
 `Lateral = nulo`: clavar el Lateral es lo que separa a un pasador de un extremo.

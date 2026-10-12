@@ -1841,3 +1841,64 @@ PARE AHI A PROPOSITO. Cada celda nueva de la entrada del cuarto exigia una
 sub-regla nueva, y eso es la firma de un ajuste, no de un mecanismo. Lo medido
 queda en el banco como deberes, con la contra-medida que descarta la regla
 facil, que es lo que le ahorra el camino al siguiente.
+
+================================================================================
+FASE AF - 2026-10-12 - EL MEDIOCENTRO TAMBIEN TIENE DOS LISTAS
+================================================================================
+
+Si el extremo tiene dos listas iniciales, el mediocentro deberia tenerlas, y su
+contradiccion de FASE Q tiene la misma forma. La diferencia es el SENTIDO: al
+extremo, la Defensa le SUBE la Anotacion; al mediocentro se la BAJA. Tiene
+sentido: un mediocentro con Defensa es defensivo, y a un mediocentro defensivo
+la Anotacion le importa menos.
+
+  mediocentro normal        Jug 0, Pas 1, Def 2, Ano 2, Lat 3
+  mediocentro con Defensa   Jug 0, Pas 1, Def 2, Ano 3, Lat 3
+
+--- AF1. CUATRO BARRIDOS Y UNA FRONTERA ------------------------------------
+
+Jugadas 16, la Defensa barrida. El giro se ve solo cuando las dos listas
+discrepan, o sea con la Anotacion un nivel por encima de los Pases (empate en
+la normal, ganan los Pases en la otra):
+
+  Pas7  Ano8   ->  Def 4: Ano Pas    |  Def 5: PAS ANO Def     gira en 5
+  Pas9  Ano10  ->  Def 6: Ano Pas    |  Def 7: PAS ANO Def     gira en 7
+  Pas12 Ano13  ->  Def 9: Ano Pas    |  Def 10: PAS ANO Def    gira en 10
+  Lat8  Ano8   ->  Def 4: Ano Lat    |  Def 5: LAT Def         gira en 5
+
+  => Defensa >= Anotacion - 3, con el suelo de la entrada (5).
+
+LOS TRES PRIMEROS NO BASTAN para sacar el umbral: en los tres la Anotacion era
+Pases+1, asi que «Def >= Pases-2» encajaba igual de bien. El CUARTO los separa
+y por eso se hizo: sin Pases, «Pases-2» daria umbral -2 y giraria siempre, y
+Hattrick gira en 5 = 8-3. Prediccion hecha antes de medir, y cumplida.
+
+EL SUELO DE 5 TAMPOCO ES UN PARCHE: sin el, «Jug16 Def4 Lat5 Ano5» --que ya
+estaba medido-- giraria con umbral 2, y Hattrick lo deja en «Jug, Ano, Lat». Una
+Defensa de 4 no es criterio de nada.
+
+  banco: 315/315, cero regresiones, y arregla el pendiente del mediocentro
+  («Jug16 Pas7 Def9 Ano8 -> Jug Def Pas Ano») que venia de FASE Q.
+
+--- AF2. LO QUE ESTO NO ARREGLA: DIEZ DE LOS VEINTICINCO -------------------
+
+De los 25 perfiles de los barridos, el motor reproduce 15 enteros. Los otros 10
+son tres familias, y ninguna es el orden de los tres primeros:
+
+1. EL ORDEN DEL MONTON (5 casos). Hattrick lista «Lateral <= 5, Defensa <= 5»
+   y el motor al contrario, incluso con la Defensa en 4 y el Lateral en 0. La
+   cola en orden del corte --que se adopto el 2026-10-12 con un caso de Lat 4 y
+   Def 2-- no lo explica. No viaja a `transfersearch`: solo los tres primeros.
+
+2. LA ENTRADA DEL CUARTO, otra vez (2 casos). Con Jug16 Pas9 Ano10, una Defensa
+   5 va al monton y una Defensa 6 entra como cuarta. Pero en el extremo, con
+   Lat16 Def9 Pas8, una Anotacion 5 SI entra como cuarta. Mismo numero, distinto
+   resultado segun la habilidad.
+
+3. LA ANOTACION EXPULSADA (3 casos). Jug16 Lat8 Ano8 con Defensa 5, 6 o 7: la
+   Anotacion se va al monton y la busqueda se APRIETA (edad clavada, techos 4).
+   Es la misma forma que la tapadera de la Anotacion sobre la Defensa en el
+   extremo, en espejo, y no se ha sacado. Con Pas9 Ano10 Def7 la Anotacion SI
+   se queda, asi que no es «Def >= Ano».
+
+Los diez quedan en PENDIENTES del banco con su medida.
