@@ -2222,3 +2222,81 @@ Y de paso da la tanda mas barata que queda: cinco consultas que convierten cinco
 elecciones en cinco medidas. Con las diez del defensa (FASE AH) y las diez del
 delantero, son 25 consultas que cierran todo lo que hoy queda abierto salvo el
 mecanismo de las dos exclusiones.
+
+================================================================================
+FASE AK - 2026-10-12 - EL TEXTO DE 2009, CLAUSULA POR CLAUSULA
+================================================================================
+
+Hoy un parrafo de ese texto resulto ser EL MECANISMO del orden. Nunca habia
+contrastado el resto, asi que lo hago entero. Es la unica fuente general que
+existe, y conviene saber de ella que parte sigue viva.
+
+--- LO QUE SIGUE VIVO (la ESTRUCTURA) --------------------------------------
+
+  check which player type is compared                 -> `_tipo`
+  a set of secondary tertiary and quartile skills
+    are chosen                                        -> PLANTILLAS + _fuera
+  if the third or fourth skills are higher then the
+    second they become secondary skills               -> la ordenacion
+  sorted by the initial order having importance
+    unless the skills are higher then the skill
+    before them in the initial list by more then the
+    difference in the initial skills                  -> nivel - importancia
+  if secondary skills are very low or very high, we
+    use ranges instead of equal skills                -> ENTRADA_SEGUNDO 3
+                                                         SEGUNDO_CON_BANDA 10
+  the same happen if the third skill is high          -> TERCERO 7
+  ...or if the third and fourth skills are quite
+    high and secondary is high                        -> CUARTA 5 + SEGUNDA 8
+  the ranges are fixed but chosen in relation to
+    the player skills                                 -> [v-1,v+1] / [v-1,v+2]
+  stamina, not compared                               -> correcto
+  specialty, not added                                -> correcto
+  set pieces, not compared (jugadores de campo)       -> correcto
+  character, experience, leadership, nationality      -> correcto
+  keepers: both defending and set pieces compared     -> correcto
+  exact age seems to matter mainly for young players   -> el tope de Dias <= 24
+                                                         a los 17, medido el
+                                                         2026-10-10
+  scoring is included (and playmaking too) for
+    playmakers (forwards) if its high enough          -> pertenencia
+                                                         condicionada al nivel
+
+Catorce clausulas estructurales, catorce vivas. El texto describe el mecanismo
+que el motor implementa.
+
+--- LO QUE YA NO VALE (los NUMEROS) ---------------------------------------
+
+Tres contradicciones firmes, y las tres son de VALOR, no de forma:
+
+1. 2009: fifth and sixth skills are ALWAYS compared to be below weak, even if
+   in some cases they might be higher on the compared players.
+
+   Medido: los techos de las sobrantes son 4 (ajustado) o 5 (holgado) solo
+   mientras el jugador tenga menos de 5 en esa habilidad. De 5 en adelante
+   SIGUEN AL NIVEL: v+1 ajustado y v+2 holgado, barrido entero en los dos modos.
+
+2. 2009: third and fourth skills are ALWAYS compared within ranges.
+
+   Medido: de 11 en adelante el tercer puesto deja de ser banda y pasa a SUELO
+   --Pases >= brillante--. Un suelo no es un rango.
+
+3. 2009: set pieces skill is using ranges in ALL cases (porteros).
+
+   Medido: de 16 en adelante es un SUELO FIJO en 14, que ya no depende del
+   nivel. Y las anchuras tampoco son las de 2009: en el hilo, rostomat reporta
+   que un balon parado 9 y uno 11 daban los DOS 7 a 16, y uno de 7 daba menos
+   de 8. Hoy, 9 da 6-12 holgado y 7-11 ajustado; 11 da 8-14 y 9-13; y 7 da
+   4-10 y 5-9. Nada que ver.
+
+--- QUE SE SACA DE ESTO ----------------------------------------------------
+
+LA ESTRUCTURA DE 2009 SOBREVIVIO; LOS NUMEROS NO. La actualizacion no
+documentada de la temporada 69 reafino valores y no toco el mecanismo.
+
+Y de ahi la regla de uso del texto, que hoy funciono dos veces --con el orden y
+con la cuarta que abre la segunda--: VALE PARA LA FORMA DE UNA REGLA, NO PARA SU
+NUMERO. Cuando el texto dice que algo pasa si es alto, hay que creerle que pasa
+y medir el umbral; cuando da un numero o un ejemplo concreto, hay que
+desconfiar. Mis dos barridos fallidos de la cuarta no fallaron por leerle mal:
+fallaron por buscar su efecto con la segunda en 7 en vez de barrer el eje.

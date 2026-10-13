@@ -750,6 +750,34 @@ arriba, los datos crudos se conservan, y las 55 pruebas fijan los criterios
 observados contra una fuente ajena a nosotros. Si el juego cambia, las pruebas
 caen y se vuelve a sondear.
 
+## Qué parte del texto de 2009 sigue viva
+
+Es la única fuente general que existe, y el 2026-10-12 se contrastó entera
+(`sondeo-comparador/fase-a.txt`, FASE AK).
+
+**La estructura sobrevivió: catorce cláusulas, catorce vivas.** El tipo de
+jugador, el conjunto de habilidades elegido por tipo, la ordenación por
+`nivel − importancia`, los rangos de la segunda cuando es muy baja o muy alta,
+la tercera alta que la abre, la cuarta que la abre con la segunda alta, lo que
+no se compara, el portero con defensa y balón parado, y la edad exacta que
+importa en los jóvenes.
+
+**Los números no.** Tres contradicciones firmes, las tres de valor:
+
+| dice 2009 | está medido |
+|---|---|
+| la 5ª y la 6ª **siempre** por debajo de débil | los techos siguen al nivel desde 5: `v+1` ajustado, `v+2` holgado |
+| la 3ª y la 4ª **siempre** por rangos | de 11 en adelante la 3ª es un **suelo**, no un rango |
+| el balón parado del portero, rangos **en todos los casos** | de 16 en adelante es un suelo fijo en 14. Y las anchuras cambiaron: en 2009 un balón parado 9 y uno 11 daban los dos «7 a 16»; hoy dan 6-12 y 8-14 |
+
+La actualización no documentada de la temporada 69 **reafinó valores y no tocó
+el mecanismo**.
+
+**De ahí la regla de uso del texto**, que funcionó dos veces el mismo día: vale
+para **la forma** de una regla, no para su **número**. Cuando dice que algo pasa
+«si es alto», hay que creerle que pasa y medir el umbral; cuando da un número o
+un ejemplo concreto, hay que desconfiar.
+
 ## Fuentes
 
 - [HTs on Global/Transfer compare](https://wiki.hattrick.org/wiki/HTs_on_Global/Transfer_compare) — flameron (HT), 29-01-2009. La única explicación oficial del mecanismo.
