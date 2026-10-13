@@ -2677,3 +2677,36 @@ LOS CINCO PUNTOS CIEGOS, para que no haya un sexto:
   3. los ORDENES DEL EXTREMO, que le faltaban a la ablacion
   4. el LATERAL DEL MEDIOCENTRO, que se puntua por booleano y no por cadena
   5. el TOPE DE DIAS, que no sale en la cadena
+
+================================================================================
+FASE AO - 2026-10-13 - UN HUECO ENCONTRADO Y NO MEDIDO: LA DEFENSA DEL PORTERO
+================================================================================
+
+Repasando el motor aparecio un hueco que llevaba ahi desde el principio. El
+comentario de SEGUNDO_CON_BANDA_PORTERO dice, literal:
+
+  «su Defensa va clavada hasta 6 y con banda desde 7, barrido entero del 1 al 9»
+
+DEL 1 AL 9. De 10 arriba la Defensa del portero NO ESTA MEDIDA, y el motor le
+aplica la regla general del segundo puesto --banda [v-1, v+1]-- por extension,
+no por medida.
+
+El sondeo se intento y la sesion habia caducado (diagnosticado en la primera
+consulta: 200 con `redirected: true` y la portada publica). Queda escrito con su
+prediccion, que es lo que hace falta para gastar cinco consultas bien:
+
+  PERFIL   Porteria 18 --alta para que no reclasifique-- y la Defensa en
+           10, 12, 14, 16 y 18. Edad 25.
+
+  PREDICCION del motor: banda [v-1, v+1] en los cinco, o sea
+           Def10 -> 9-11    Def12 -> 11-13    Def14 -> 13-15
+           Def16 -> 15-17   Def18 -> 17-19
+
+  QUE LO HARIA INTERESANTE: que apareciese un SUELO, como le pasa al tercer
+  puesto desde 11 y al balon parado desde 16. Si la Defensa del portero se
+  convierte en «>= v» en algun punto, el motor falla ahi y nadie lo sabria,
+  porque un portero con Defensa 12 o mas es raro y no hay ninguno en las 25
+  fichas reales.
+
+Y LA MISMA PREGUNTA PARA EL BALON PARADO POR DEBAJO: esta medido de 7 arriba
+(FASE A y AM6) y en 0. De 1 a 6 solo hay el 3 de una ficha real.
