@@ -2908,3 +2908,23 @@ Parejas ADYACENTES de ese orden, empatadas, en 3 y en 18:
 El orden no depende del nivel. Ocho celdas, las ocho como el motor.
 
   banco 579/579 -> 587/587
+
+--- AP9. EL BALON PARADO DE CAMPO NO AFECTA AL DIAL ------------------------
+
+Que no aparece como criterio esta medido (AM7, con BP20 en un extremo y en un
+defensa). Faltaba la otra mitad: si contara para la RAREZA, aflojaria busquedas
+que ahora salen ajustadas, y eso no se habia comprobado nunca.
+
+Medido en la frontera. Un extremo de Lateral 16 y Pases 10 tiene rareza 26,
+justo por debajo del liston 27 de su pareja, asi que sale AJUSTADO:
+
+  Lat16 Pas10 BP0   ->  Ed=25  Lat=16  Pas 9-11  techos 4
+  Lat16 Pas10 BP20  ->  IDENTICA
+  Lat10 Pas8  BP0   ->  Ed=25  Lat=10  Pas=8     techos 4
+  Lat10 Pas8  BP20  ->  IDENTICA
+
+El balon parado de un jugador de campo no cuenta ni para los criterios ni para
+el dial. La clausula de 2009 --«set pieces, not compared»-- vale tambien para la
+parte que el texto no menciona.
+
+  banco 587/587 -> 591/591

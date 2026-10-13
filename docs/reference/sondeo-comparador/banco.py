@@ -200,6 +200,10 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
         for e, por, s in T.EL_TIPO_NO_DEPENDE_DE_LA_EDAD
     ]
     casos += [
+        (25, T.perfil(winger=lat, passing=pas, set_pieces=bp), s)
+        for lat, pas, bp, s in T.EL_BALON_PARADO_DE_CAMPO_NO_AFECTA_AL_DIAL
+    ]
+    casos += [
         (25, T.perfil(defending=16, playmaking=10, passing=9, winger=lat), s)
         for lat, s in T.EL_DEFENSA_NO_TIENE_SEGUNDA_LISTA
     ]

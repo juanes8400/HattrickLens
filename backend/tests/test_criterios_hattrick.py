@@ -2385,3 +2385,31 @@ EMPATES_DEL_ORDEN_LLANO: list[tuple[int, str, str]] = [
 @pytest.mark.parametrize("nivel,gana,pierde", EMPATES_DEL_ORDEN_LLANO)
 def test_empates_del_orden_llano(nivel: int, gana: str, pierde: str) -> None:
     assert _tipo(perfil(**{gana: nivel, pierde: nivel})) == gana
+
+
+#: EL BALÓN PARADO DE UN JUGADOR DE CAMPO NO AFECTA AL DIAL, que era la mitad de
+#: la pregunta que quedaba suelta. Que no aparece como criterio está medido
+#: (`EL_BALON_PARADO_Y_EL_TOPE_DE_DIAS`); si además contara para la **rareza**,
+#: aflojaría búsquedas que ahora salen ajustadas, y eso no se había comprobado.
+#:
+#: Medido el 2026-10-13 en la frontera: un extremo de Lateral 16 y Pases 10 tiene
+#: rareza 26, justo por debajo del listón 27 de su pareja, así que sale ajustado.
+#: Con balón parado 20 la cadena es **idéntica**, y lo mismo con un perfil más
+#: bajo. No cuenta ni para los criterios ni para el dial.
+#: (lateral, pases, balón parado, lo que contestó Hattrick)
+EL_BALON_PARADO_DE_CAMPO_NO_AFECTA_AL_DIAL: list[tuple[int, int, int, str]] = [
+    (16, 10, 0, "Ed=25 Lat=16 Pas 9-11 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+    (16, 10, 20, "Ed=25 Lat=16 Pas 9-11 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+    (10, 8, 0, "Ed=25 Lat=10 Pas=8 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+    (10, 8, 20, "Ed=25 Lat=10 Pas=8 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize(
+    "lateral,pases,balon_parado,esperado", EL_BALON_PARADO_DE_CAMPO_NO_AFECTA_AL_DIAL
+)
+def test_el_balon_parado_de_campo_no_afecta_al_dial(
+    lateral: int, pases: int, balon_parado: int, esperado: str
+) -> None:
+    niveles = perfil(winger=lateral, passing=pases, set_pieces=balon_parado)
+    assert _pinta(criterios_de(25, niveles)) == esperado
