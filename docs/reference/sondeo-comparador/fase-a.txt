@@ -2856,3 +2856,37 @@ Tres cosas que no se habian visto nunca:
 Las cinco salen tal cual. El motor ya aguantaba los extremos de la escala.
 
   banco 566/566 -> 571/571
+
+--- AP7. EL TIPO NO DEPENDE DE LA EDAD, y cuatro cosas de regalo ------------
+
+Suposicion del motor que nadie habia probado: `_tipo` mira SOLO los niveles. Si
+Hattrick lo hiciera distinto en jovenes o veteranos, nos equivocariamos en todos
+ellos y no se notaria, porque las fichas reales estan entre 20 y 45 pero el tipo
+nunca se midio contra la edad.
+
+Probado en la frontera mas fina que hay --el sesgo del portero sobre la defensa,
+que con Defensa 16 esta en Porteria 12-- a cuatro edades:
+
+  edad 17  Por11 -> DEFENSA     Por12 -> PORTERO
+  edad 25  Por11 -> DEFENSA     Por12 -> PORTERO
+  edad 33  Por11 -> DEFENSA     Por12 -> PORTERO
+  edad 40  Por11 -> DEFENSA     Por12 -> PORTERO
+
+LA FRONTERA NO SE MUEVE. El tipo es independiente de la edad.
+
+Y CUATRO COSAS DE REGALO, cada una confirmando una regla en su sitio:
+
+  1. el tope de dias de los 17 aparece SEA EL TIPO QUE SEA (sale en las dos
+     filas de la edad 17, en el defensa y en el portero);
+  2. a los 17 el portero sale AJUSTADO --techos en 4-- aunque su rareza pase
+     del liston de 21, porque hasta los 21 no hay dial;
+  3. a los 40, el defensa recibe el suelo abierto «>= 35» y el portero recibe
+     «39-41». No es incoherencia: el defensa va AJUSTADO porque a el la
+     Porteria no le cuenta para la rareza --esta en sus EXCLUIDAS-- y el suelo
+     abierto es solo del modo ajustado (FASE AM4);
+  4. la Porteria sobrante de un defensa tiene techo v+1 --«Porteria <=
+     magnifico» con Porteria 11-- y no el techo del monton.
+
+Las ocho salen tal cual.
+
+  banco 571/571 -> 579/579

@@ -55,6 +55,11 @@ esa norma exige. Los perfiles sondeados son inventados.
 
 ### 1. El tipo de jugador
 
+**El tipo no depende de la edad**, y eso era una suposición hasta el
+2026-10-13: se probó en la frontera más fina que hay --el sesgo del portero
+sobre la defensa, que con Defensa 16 está en Portería 12-- a los 17, 25, 33 y
+40 años, y no se mueve.
+
 Lo decide **la habilidad más alta**, con dos excepciones.
 
 **Hattrick no tiene puesto de pasador.** Si lo que más tiene es Pases, el tipo

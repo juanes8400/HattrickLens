@@ -2326,3 +2326,38 @@ def test_los_perfiles_planos_medidos(nivel: int, esperado: str) -> None:
         "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
     ]
     assert _pinta(criterios_de(25, dict.fromkeys(habilidades, nivel))) == esperado
+
+
+#: EL TIPO DE JUGADOR NO DEPENDE DE LA EDAD, que era una suposición del motor
+#: que nadie había probado: `_tipo` mira sólo los niveles. Si Hattrick lo hiciera
+#: distinto en jóvenes o veteranos, nos equivocaríamos en todos ellos.
+#:
+#: Medido el 2026-10-13 en la frontera más fina que hay --el sesgo del portero
+#: sobre la defensa, que con Defensa 16 está en Portería 12-- a cuatro edades:
+#: `Por11` sale defensa y `Por12` sale portero a los 17, 25, 33 y 40. La
+#: frontera no se mueve.
+#:
+#: Y de paso cuatro cosas más, cada una en su sitio: el tope de días de los 17
+#: aparece **sea el tipo que sea**; a los 17 el portero sale AJUSTADO aunque su
+#: rareza pase del listón, porque hasta los 21 no hay dial; a los 40 el defensa
+#: --ajustado, porque a él la Portería no le cuenta para la rareza-- recibe el
+#: suelo abierto `>= 35` y el portero --holgado-- recibe `39-41`; y la Portería
+#: sobrante de un defensa tiene techo `v+1`, no el del montón.
+#: (edad, portería, lo que contestó Hattrick)
+EL_TIPO_NO_DEPENDE_DE_LA_EDAD: list[tuple[int, int, str]] = [
+    (17, 11, "Ed=17 Def=16 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=12"),
+    (17, 12, "Ed=17 Por=12 Def 15-17 BP<=4 Lat<=4 Ano<=4 Jug<=4"),
+    (25, 11, "Ed=25 Def=16 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=12"),
+    (25, 12, "Ed24-26 Por=12 Def 15-17 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (33, 11, "Ed32-34 Def=16 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=12"),
+    (33, 12, "Ed32-34 Por=12 Def 15-17 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (40, 11, "Ed35-99 Def=16 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=12"),
+    (40, 12, "Ed39-41 Por=12 Def 15-17 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+]
+
+
+@pytest.mark.parametrize("edad,porteria,esperado", EL_TIPO_NO_DEPENDE_DE_LA_EDAD)
+def test_el_tipo_no_depende_de_la_edad(edad: int, porteria: int, esperado: str) -> None:
+    niveles = perfil(keeper=porteria, defending=16)
+    assert _pinta(criterios_de(edad, niveles)) == esperado
+    assert _tipo(niveles) == ("keeper" if porteria >= 12 else "defending")
