@@ -503,6 +503,25 @@ queda, `MAXIMO_DE_LA_ESCALA`, no es una regla: es el tope con el que se rellena
 el campo `maximo` de un criterio `>=`, y la cadena no lo enseña. Que no se pueda
 fijar midiendo es lo correcto.
 
+## El puente entre la regla y lo que se le pide al mercado
+
+El sondeo mide la **regla**; lo que llega al producto es la regla **consumida**
+por `ventana_de_hattrick` y `lo_ensenaria_hattrick`. Ese puente estaba probado en
+cinco posiciones elegidas a mano y en el caso base del sello.
+
+**Barrido el 2026-10-13 sobre 60 000 perfiles aleatorios, edades 17 a 45, con
+cero violaciones en cuatro invariantes:**
+
+1. los tres filtros tienen `skillType` válido y la franja no está del revés;
+2. **el jugador cae dentro de sus propios tres filtros**;
+3. su edad cae dentro de la ventana de edad;
+4. se gana su propio sello del 100 %.
+
+La segunda es la que importaba: si un jugador cayera *fuera* de su propia
+ventana, le pediríamos al mercado una búsqueda que no lo encontraría ni a él, y
+el escalón del 100 % saldría vacío sin que nada fallara. Con todas las reglas
+nuevas de estos dos días había sitio de sobra para romperla.
+
 ## Cuánto se le cree
 
 Las **75 pruebas** de `test_criterios_hattrick.py` fijan otros tantos casos
