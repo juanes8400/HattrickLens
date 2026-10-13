@@ -2361,3 +2361,27 @@ def test_el_tipo_no_depende_de_la_edad(edad: int, porteria: int, esperado: str) 
     niveles = perfil(keeper=porteria, defending=16)
     assert _pinta(criterios_de(edad, niveles)) == esperado
     assert _tipo(niveles) == ("keeper" if porteria >= 12 else "defending")
+
+
+#: EL DESEMPATE DEL TIPO, EN LOS DOS EXTREMOS DE LA ESCALA. El orden
+#: `Lateral → Anotación → Defensa → Jugadas → Portería → Pases` se midió en
+#: FASE Q con las dos habilidades empatadas en **10**, y nunca en otro nivel.
+#:
+#: Medido el 2026-10-13 con las parejas adyacentes de ese orden empatadas en 3 y
+#: en 18: gana siempre la misma, así que el orden no depende del nivel.
+#: (nivel, la que gana, la que pierde)
+EMPATES_DEL_ORDEN_LLANO: list[tuple[int, str, str]] = [
+    (3, "winger", "scoring"),
+    (3, "scoring", "defending"),
+    (3, "defending", "playmaking"),
+    (3, "playmaking", "passing"),
+    (18, "winger", "scoring"),
+    (18, "scoring", "defending"),
+    (18, "defending", "playmaking"),
+    (18, "playmaking", "passing"),
+]
+
+
+@pytest.mark.parametrize("nivel,gana,pierde", EMPATES_DEL_ORDEN_LLANO)
+def test_empates_del_orden_llano(nivel: int, gana: str, pierde: str) -> None:
+    assert _tipo(perfil(**{gana: nivel, pierde: nivel})) == gana

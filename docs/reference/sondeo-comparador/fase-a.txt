@@ -2890,3 +2890,21 @@ Y CUATRO COSAS DE REGALO, cada una confirmando una regla en su sitio:
 Las ocho salen tal cual.
 
   banco 571/571 -> 579/579
+
+--- AP8. EL DESEMPATE DEL TIPO, EN LOS DOS EXTREMOS ------------------------
+
+`ORDEN_LLANO` --Lateral, Anotacion, Defensa, Jugadas, Porteria, Pases-- decide
+el tipo cuando dos habilidades empatan arriba. Se midio en FASE Q con las dos
+en **10**, y nunca en otro nivel. Si el orden dependiese del nivel, el tipo
+saldria mal en los empates bajos y altos y no se notaria.
+
+Parejas ADYACENTES de ese orden, empatadas, en 3 y en 18:
+
+  Lat / Ano  ->  gana el LATERAL      en 3 y en 18
+  Ano / Def  ->  gana la ANOTACION    en 3 y en 18
+  Def / Jug  ->  gana la DEFENSA      en 3 y en 18
+  Jug / Pas  ->  gana las JUGADAS     en 3 y en 18
+
+El orden no depende del nivel. Ocho celdas, las ocho como el motor.
+
+  banco 579/579 -> 587/587

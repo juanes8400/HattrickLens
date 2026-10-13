@@ -304,6 +304,11 @@ def tipos() -> list[tuple[dict[str, int], str]]:
     for defensa, porteria in T.FRONTERA_DEL_PORTERO.items():
         casos.append((perfil(defending=defensa, keeper=porteria), "keeper"))
         casos.append((perfil(defending=defensa, keeper=porteria - 1), "defending"))
+    # y el desempate del orden llano en los dos extremos de la escala
+    casos += [
+        (perfil(**{gana: v, pierde: v}), gana)
+        for v, gana, pierde in T.EMPATES_DEL_ORDEN_LLANO
+    ]
     for rival, gana in T.EMPATES_CON_LA_PORTERIA.items():
         casos.append((perfil(keeper=10, **{rival: 10}), gana))
     for defensa in (1, 2, 3):
