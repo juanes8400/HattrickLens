@@ -30,6 +30,10 @@ import test_criterios_hattrick as T  # noqa: E402
 from app.domain.engines import criterios_hattrick as C  # noqa: E402
 
 
+#: Las siete, para los perfiles planos.
+ORDEN_PLANO = ("keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces")
+
+
 def perfil(**kwargs: int) -> dict[str, int]:
     base = dict(
         keeper=0, defending=0, playmaking=0, winger=0, passing=0, scoring=0, set_pieces=0
@@ -186,6 +190,10 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
     casos += [
         (25, T.perfil(winger=16, **{h: v}), s)
         for h, v, s in T.LAS_TRES_PAREJAS_DEL_DIAL
+    ]
+    casos += [
+        (25, dict.fromkeys(ORDEN_PLANO, v), s)
+        for v, s in T.LOS_PERFILES_PLANOS_MEDIDOS
     ]
     casos += [
         (25, T.perfil(defending=16, playmaking=10, passing=9, winger=lat), s)

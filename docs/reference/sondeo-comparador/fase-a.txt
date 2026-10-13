@@ -2831,3 +2831,28 @@ banco no lo nota: ninguna de las 566 observaciones anteriores pasaba por esas
 tres casillas.
 
   banco 554/554 -> 566/566
+
+--- AP6. LOS PERFILES PLANOS, de punta a punta de la escala -----------------
+
+Los planos son donde se amontonan TODOS los empates, o sea donde el orden y los
+operadores se pisan. FASE A los midio en 5, 10 y 16 y faltaba el resto.
+
+  plano 1   ->  Ed=25    Lat=1   Jug<=2   Pas<=4 Def<=4 Ano<=4 Por<=4
+  plano 3   ->  Ed=25    Lat=3   Jug=3    Pas<=4 Def<=4 Ano<=4 Por<=4
+  plano 8   ->  Ed=25    Lat=8   Jug 7-9  Pas 7-9  Def 6-8   Ano<=9  Por<=9
+  plano 13  ->  Ed24-26  Lat=13  Jug 12-14  Pas>=13  Def 11-13  Ano<=15 Por<=15
+  plano 20  ->  Ed24-26  Lat=20  Jug 19-21  Pas>=20  Def 18-20  Ano<=22 Por<=22
+
+Tres cosas que no se habian visto nunca:
+
+  1. EL PLANO 1 ensena el segundo puesto por DEBAJO de su entrada: «Jugadas <=
+     horrible» es 2, o sea ENTRADA_SEGUNDO - 1, y no el techo del monton (4).
+     Es la tercera vez que aparece esa marca y la primera en un plano.
+  2. EL PLANO 3 cae justo EN la entrada del segundo: «Jugadas = pobre», clavada.
+  3. EL PLANO 20 ensena como escribe Hattrick los sublniveles por encima del
+     tope: «divino (+1)» para 21 y «divino (+2)» para 22. Las cadenas del motor
+     --Jug 19-21, Ano<=22-- son coherentes con eso.
+
+Las cinco salen tal cual. El motor ya aguantaba los extremos de la escala.
+
+  banco 566/566 -> 571/571

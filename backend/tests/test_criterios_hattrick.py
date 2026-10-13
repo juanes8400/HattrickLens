@@ -2296,3 +2296,33 @@ LAS_TRES_PAREJAS_DEL_DIAL: list[tuple[str, int, str]] = [
 @pytest.mark.parametrize("habilidad,nivel,esperado", LAS_TRES_PAREJAS_DEL_DIAL)
 def test_las_tres_parejas_del_dial(habilidad: str, nivel: int, esperado: str) -> None:
     assert _pinta(criterios_de(25, perfil(winger=16, **{habilidad: nivel}))) == esperado
+
+
+#: LOS PERFILES PLANOS, que es donde se amontonan todos los empates y por tanto
+#: donde el orden y los operadores se pisan. FASE A los midió en 5, 10 y 16;
+#: faltaban los dos extremos de la escala y los tramos de en medio.
+#:
+#: Medidos el 2026-10-13 con las siete habilidades al mismo nivel:
+#:
+#:   plano 1  -> `Lat=1  Jug<=2`   el segundo puesto por debajo de la entrada
+#:   plano 3  -> `Lat=3  Jug=3`    justo en la entrada del segundo
+#:   plano 8  -> cuatro criterios, ajustado
+#:   plano 13 -> cuatro criterios, holgado, con suelo en los Pases
+#:   plano 20 -> el tope de la escala, que Hattrick escribe «divino (+1)» y
+#:               «divino (+2)» para los sublniveles por encima de 20
+#: (nivel de las siete, lo que contestó Hattrick)
+LOS_PERFILES_PLANOS_MEDIDOS: list[tuple[int, str]] = [
+    (1, "Ed=25 Lat=1 Jug<=2 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (3, "Ed=25 Lat=3 Jug=3 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (8, "Ed=25 Lat=8 Jug 7-9 Pas 7-9 Def 6-8 Ano<=9 Por<=9"),
+    (13, "Ed24-26 Lat=13 Jug 12-14 Pas>=13 Def 11-13 Ano<=15 Por<=15"),
+    (20, "Ed24-26 Lat=20 Jug 19-21 Pas>=20 Def 18-20 Ano<=22 Por<=22"),
+]
+
+
+@pytest.mark.parametrize("nivel,esperado", LOS_PERFILES_PLANOS_MEDIDOS)
+def test_los_perfiles_planos_medidos(nivel: int, esperado: str) -> None:
+    habilidades = [
+        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+    ]
+    assert _pinta(criterios_de(25, dict.fromkeys(habilidades, nivel))) == esperado
