@@ -2300,3 +2300,181 @@ NUMERO. Cuando el texto dice que algo pasa si es alto, hay que creerle que pasa
 y medir el umbral; cuando da un numero o un ejemplo concreto, hay que
 desconfiar. Mis dos barridos fallidos de la cuarta no fallaron por leerle mal:
 fallaron por buscar su efecto con la segunda en 7 en vez de barrer el eje.
+
+================================================================================
+FASE AL - 2026-10-12 - LAS 24 CONSULTAS QUE ESTABAN ESCRITAS. TRES NUMEROS MALOS
+================================================================================
+
+La sesion volvio (host www84 otra vez; mi `fetch` daba «Acceso denegado» por
+arrastrar la URL vieja con `browseIds`, y con la URL limpia funciona). Control
+reproducido antes de medir nada. Se ejecutaron las tandas que estaban disenadas.
+
+--- AL1. LOS CINCO NUMEROS QUE SOLO ESTABAN ACOTADOS -----------------------
+
+Una consulta cada uno, con la prediccion escrita de antemano en FASE AJ. TRES
+DE LOS CINCO ESTABAN MAL, y es exactamente para esto que se hizo la auditoria:
+
+  HABILIDADES_QUE_CUENTAN = 4      CONFIRMADO
+    Lat11 Jug8 Pas8 Def8 Ano8 -> Ed=25, Ano<=9, Por<=4. Si contase cinco seria
+    holgado. Cuentan cuatro.
+
+  BP_BANDA_MAXIMA = 15             CONFIRMADO
+    Por8 BP16 -> «Balon parado >= sobrenatural». Suelo, no banda.
+
+  LATERAL_DEL_MEDIO_SIN_AYUDA      era 7, ES 6
+    Jug8 Lat6 -> «Jugadas = excelente, LATERAL = ACEPTABLE». El Lateral 6 SI es
+    criterio del mediocentro sin ayuda. Con 7 el motor le ponia techo.
+
+  UMBRAL_CON_EMPATE_ARRIBA         era 25, ES 26
+    Lat12 Pas12 Ano7 -> Ed=25 y techos 4, o sea AJUSTADO con rareza 25. Con el
+    liston en 25 habria aflojado.
+
+  DESCUENTO_DEL_BALON_PARADO       era 10, ES 9
+    Por8 BP16 sale HOLGADO. Con descuento 10 el balon parado efectivo es 12 y la
+    rareza 20 (ajustado); con 9 es 13 y la rareza 21, que afloja. Y el otro
+    sondeo --Por8 BP11-- sale ajustado con los dos, asi que no lo contradice.
+
+--- AL2. Y UNA CUARTA COSA QUE NO BUSCABA ----------------------------------
+
+Con Def8 de cuarta salio «Defensa entre aceptable y destacado» = [6,10], y el
+motor daba [6,11]. LA BANDA ANCHA DEL CUARTO TAMBIEN SIGUE AL DIAL: v+3 holgado
+y v+2 ajustado, como todo lo demas.
+
+Eso explica ademas las cuatro medidas viejas del cuarto puesto sin tocarlas: las
+cuatro eran holgadas, y por eso parecia que el +3 era fijo.
+
+  Def14 Jug10 Pas8 Lat8  -> Lat 6-11   rareza 28, holgado   v+3
+  Def14 Jug10 Pas8 Lat9  -> Lat 7-12   holgado              v+3
+  Def9  + tres a 8       -> Lat 6-9    rareza 21, ajustado  v+2 y corte en la 1a
+  Def10 + tres a 8       -> Lat 6-10   ajustado             v+2 y corte en la 1a
+
+--- AL3. EL DEFENSA NO TIENE SEGUNDA LISTA ---------------------------------
+
+Barrido con Defensa 16, Jugadas 10 y Pases 9 --que EMPATAN en clave (10-2 =
+9-1 = 8), elegidos asi para que las dos listas hipoteticas discrepasen-- y el
+Lateral de 0 a 12:
+
+  Lat 0..10  ->  Def, Jug, Pas   (+ el Lateral de cuarto desde 5)
+  Lat 11, 12 ->  Def, LAT, Jug, Pas
+
+El orden Jug/Pas NO GIRA en ningun punto. El Lateral adelanta en 11, que es
+justo donde lo predicen los pesos normales: clave 11-3 = 8 contra 10-2 = 8,
+empatan y gana por nivel. UNA SOLA LISTA.
+
+--- AL4. Y AL DELANTERO LA DEFENSA NO LE ENTRA NUNCA -----------------------
+
+Barrido con Anotacion 16, Pases 9 y Lateral 10 --tambien empatados en clave-- y
+la Defensa de 0 a 11: se queda SIEMPRE en el monton, subiendo solo de techo, y
+el orden es invariablemente Ano, Lat, Pas. Es la exclusion por tipo que el motor
+ya tenia (EXCLUIDAS["scoring"] lleva "defending").
+
+--- QUE SE SACA DE AL3 Y AL4 ----------------------------------------------
+
+LAS DOS TANDAS SON NEGATIVAS, Y JUNTAS ACOTAN EL FENOMENO. La segunda lista
+inicial existe donde la Defensa PUEDE SER CRITERIO SIN SER LA HABILIDAD DEL
+PROPIO TIPO:
+
+  extremo       la Defensa es ajena y puede entrar   -> DOS listas
+  mediocentro   idem                                 -> DOS listas
+  defensa       la Defensa es LA SUYA                -> una
+  portero       la Defensa es su segunda fija        -> una
+  delantero     la Defensa no le entra nunca         -> una
+
+Eso cierra la pregunta que abrio FASE AI: las dos exclusiones en espejo NO se
+unifican, y ahora se sabe por que no hay mas que dos. No son dos casos de una
+regla general que se me escapa; son los dos unicos tipos donde la conmutacion
+puede ocurrir. Que haya una regla por tipo encaja con el texto de 2009, que
+habla de elegir un conjunto SEGUN EL TIPO.
+
+Las 19 observaciones de AL3 y AL4 las reproduce el motor TAL CUAL, sin tocar
+nada: la estructura ya era correcta.
+
+  banco 380/380 -> 404/404
+
+--- AL5. Y EL LATERAL DEL MEDIOCENTRO: LA FRONTERA ESTABA EN LA DOMINANTE ----
+
+La consulta de AL1 que decia «el umbral del Lateral es 6, no 7» era verdad en lo
+que medi y FALSA como regla, y el error estuvo en lo de siempre: generalizar de
+una casilla. Lo cazaron las pruebas sueltas, no el banco.
+
+  cambie LATERAL_DEL_MEDIO_SIN_AYUDA de 7 a 6
+  -> el banco dio 404/404, verde
+  -> y SEIS pruebas de la rejilla de FASE S fallaron: con «Jug16 Pas9 Lat6» el
+     Lateral NO es criterio, y noventa celdas lo dicen
+
+Las dos medidas no se contradicen: el dominio es distinto. La rejilla llevaba
+SIEMPRE una companera --Pases 9 o Defensa 10-- y la dominante entre 12 y 20. Mi
+consulta de hoy era «Jugadas 8, Lateral 6 y nada mas».
+
+SEGUNDO INTENTO: el hueco a la dominante en vez del umbral. `periferico` pasaba
+de `Lat < Jug - 1` a `Lat < Jug - 2`, y eso encajaba con las dos. El banco lo dio
+por bueno... y tambien daba 463/463 con el hueco en 3. Solo acotado.
+
+TERCER INTENTO, midiendo. Lateral 6 a solas, barriendo la dominante:
+
+  Jug  7, 8, 9, 10, 11  ->  «Lateral = aceptable»   ES CRITERIO
+  Jug 12, 13, 14, 16    ->  «Lateral <= bueno»      al monton
+  Jug 12, Lateral 7     ->  «Lateral = bueno»       ES CRITERIO
+  Jug 12, Lateral 5     ->  «Lateral <= aceptable»  al monton
+
+  => el hueco son CINCO niveles, con frontera a los dos lados.
+
+Y de paso explica por que no se habia visto nunca: la rejilla de FASE S tenia la
+dominante de 12 a 20 y este barrido la tiene de 7 a 16. LOS DOS CONJUNTOS DE
+MEDIDAS NO SE SOLAPABAN EN LA DOMINANTE. La frontera caia justo en el hueco
+entre ellos.
+
+--- AL6. EL BANCO TENIA UN PUNTO CIEGO, Y ERA EL CUARTO EN EL DIA ------------
+
+Las seis pruebas que cazaron el error eran PRUEBAS SUELTAS que el banco no
+cosechaba, porque puntuan un BOOLEANO --si el Lateral es criterio-- y no una
+cadena. El banco dio el visto bueno a un cambio que rompia noventa celdas.
+
+Ya esta arreglado: `laterales()` mete las 59 celdas en el banco, y se comprobo
+que ahora SI caza los dos cambios malos:
+
+  motor actual                         473/473
+  con el umbral en 6                   467/473
+  con el hueco en 1 (como estaba)      471/473
+
+Cuarta vez en el dia que un banco incompleto miente con aplomo. Las otras tres:
+los pendientes que no miraba, los tipos que no puntuaba, y los ordenes del
+extremo que le faltaban a la ablacion. LA REGLA, otra vez: si una prueba mide
+algo que el banco no cosecha, el banco no la protege.
+
+--- AL7. Y EL ULTIMO NUMERO QUE QUEDABA SIN FIJAR --------------------------
+
+Con el descuento corregido a 9, la auditoria volvio a correr y dejo SOLO UNO:
+DESCUENTO_DEL_BALON_PARADO valia 5..9. El perfil que lo separaba, Por8 BP12:
+
+  con 9 -> Ed=25    Por=8  Def<=1  BP 10-14  techos 4
+  con 5 -> Ed24-26  Por=8  Def<=1  BP 9-15   techos 5
+
+Medido: «Edad = 25, Porteria = excelente, Balon parado entre destacado y
+sobrenatural» = [10,14], techos 4. LA PREDICCION DE 9, EXACTA.
+
+  banco 476/476. De los 40 numeros del motor, 36 estan CLAVADOS y los otros
+  cuatro no son reglas: MAXIMO_DE_LA_ESCALA es de representacion y los dos del
+  tope de dias no se consumen.
+
+Y dos de regalo del mismo barrido, que el motor ya reproducia: BP13 -> [11,15]
+y BP14 -> [12,16].
+
+--- RESUMEN DEL 2026-10-12 Y 13 --------------------------------------------
+
+  banco           236/236  ->  476/476, pendientes vacio
+  numeros         sin auditar -> 36 de 40 clavados, 4 que no son reglas
+  mecanismo       sin explicar -> nivel menos importancia, de la fuente oficial
+  listas iniciales 5 supuestas -> 7 medidas (el extremo y el mediocentro, dos)
+  tipos acotados  -> el defensa, el portero y el delantero tienen UNA, y se sabe
+                     por que: la Defensa es la suya, su segunda fija, o no entra
+
+LO QUE SIGUE ABIERTO, y ya no es poco ni mucho sino concreto:
+
+  1. El tope de dias de los 17 esta medido y no se consume. Hace falta una
+     columna y una migracion, y es decision del producto (FASE AC).
+  2. Las dos exclusiones en espejo no se unifican, y FASE AI probo siete
+     candidatas. Pero AL3 y AL4 explican por que no hay mas que dos, asi que
+     puede que no HAYA una regla general: puede haber una por tipo, como dice
+     el texto de 2009.
+  3. Nada mas. No queda ninguna observacion sin reproducir.

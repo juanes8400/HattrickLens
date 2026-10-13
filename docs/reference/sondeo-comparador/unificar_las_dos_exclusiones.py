@@ -10,19 +10,37 @@ y una sola tendria mejor pinta. Si el mecanismo de Hattrick es uno, deberia
 haber una regla.
 
 QUE SALIO. Las siete candidatas pierden casos, y las dos mejores pierden SEIS
-cuando NO TENER REGLA pierde ocho. O sea: ninguna unificacion de esta familia
-aporta casi nada sobre no tener nada.
+cuando NO TENER REGLA pierde ocho. Reejecutado el 2026-10-13 con el banco en
+476 casos: la diferencia sigue siendo de dos.
 
-    dos reglas separadas (motor actual)                        380/380
-    C  cae la penultima si no alcanza a la ultima              374
-    G  cae la que no alcanza a la anterior en `con_defensa`    374
-    Z  NINGUNA EXCLUSION (control)                             372
-    F  cae la estrictamente mas baja de las dos ultimas        372
-    B  cae la mas baja de las dos ultimas, empate a la primera 367
-    H  como G, y el empate tambien cae                         367
-    D  cae la ultima si no supera a la penultima               365
-    E  cae la que no alcanza a la siguiente de la plantilla     316
+    dos reglas separadas (motor actual)                        476/476
+    C  cae la penultima si no alcanza a la ultima              470
+    G  cae la que no alcanza a la anterior en `con_defensa`    470
+    Z  NINGUNA EXCLUSION (control)                             468
+    F  cae la estrictamente mas baja de las dos ultimas        468
+    B  cae la mas baja de las dos ultimas, empate a la primera 463
+    H  como G, y el empate tambien cae                         462
+    D  cae la ultima si no supera a la penultima               461
+    E  cae la que no alcanza a la siguiente de la plantilla     402
 
+Y EL 2026-10-13 SE SUPO POR QUE NO HAY MAS QUE DOS, que es la mitad de la
+respuesta. Dos barridos --el defensa con el Lateral de 0 a 12, y el delantero
+con la Defensa de 0 a 11-- salieron NEGATIVOS: ninguno tiene segunda lista. La
+razon es estructural:
+
+    extremo      la Defensa le es AJENA y puede entrar  -> dos listas
+    mediocentro  idem                                   -> dos listas
+    defensa      la Defensa es LA SUYA                  -> una
+    portero      la Defensa es su segunda fija          -> una
+    delantero    la Defensa NO LE ENTRA NUNCA           -> una
+
+Asi que las dos exclusiones no son dos casos de una regla general que se nos
+escapa: son los dos UNICOS tipos donde la conmutacion puede ocurrir. Que haya
+una regla por tipo encaja con el texto de 2009, que habla de elegir un conjunto
+de habilidades SEGUN EL TIPO y no de una regla general.
+
+Eso no cierra la pregunta --podria haber una regla que diese las dos-- pero
+cambia el coste de buscarla: no hay un tercer tipo donde comprobarla.
 DONDE SE ATASCAN TODAS. En la fuerza del empate, que es distinta en cada tipo:
 
     extremo      Pas 8 = Ano 8  ->  los Pases SE QUEDAN   (hace falta >=)

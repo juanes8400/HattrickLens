@@ -1801,3 +1801,146 @@ def test_la_entrada_del_cuarto_cerrada(
     edad: int, niveles: dict[str, int], esperado: str
 ) -> None:
     assert _pinta(criterios_de(edad, dict(niveles))) == esperado
+
+
+#: LOS CINCO NÚMEROS QUE SÓLO ESTABAN ACOTADOS, medidos el 2026-10-12 con una
+#: consulta cada uno. La auditoría de `cuanto_esta_fijado_cada_numero.py` dijo
+#: que estos cinco caían dentro de un intervalo que el banco no distinguía, y
+#: sacó el perfil que los separaba. **Tres de los cinco estaban mal.**
+#:
+#:   HABILIDADES_QUE_CUENTAN = 4       confirmado
+#:   BP_BANDA_MAXIMA = 15              confirmado
+#:   LATERAL_DEL_MEDIO_SIN_AYUDA       era 7, es 6
+#:   UMBRAL_CON_EMPATE_ARRIBA          era 25, es 26
+#:   DESCUENTO_DEL_BALON_PARADO        era 10, es 9
+#:
+#: Y de paso, con `Def8` de cuarta salió `[6,10]` y no `[6,11]`: la banda ancha
+#: del cuarto TAMBIÉN sigue al dial, `v+3` holgado y `v+2` ajustado. Eso explica
+#: además las cuatro medidas viejas del cuarto puesto, que eran todas holgadas.
+#: (perfil, lo que contestó Hattrick)
+LOS_CINCO_NUMEROS_ACOTADOS: list[tuple[dict[str, int], str]] = [
+    (
+        dict(winger=11, playmaking=8, passing=8, defending=8, scoring=8),
+        "Ed=25 Lat=11 Jug 7-9 Pas 7-9 Def 6-10 Ano<=9 Por<=4",
+    ),
+    (dict(keeper=8, set_pieces=11), "Ed=25 Por=8 Def<=1 BP 9-13 Lat<=4 Ano<=4 Jug<=4"),
+    (dict(keeper=8, set_pieces=16), "Ed24-26 Por=8 Def<=1 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+    (dict(playmaking=8, winger=6), "Ed=25 Jug=8 Lat=6 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (
+        dict(winger=12, passing=12, scoring=7),
+        "Ed=25 Lat=12 Pas 11-13 Ano 6-8 Jug<=4 Def<=4 Por<=4",
+    ),
+]
+
+
+@pytest.mark.parametrize("niveles,esperado", LOS_CINCO_NUMEROS_ACOTADOS)
+def test_los_cinco_numeros_acotados(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(**niveles))) == esperado
+
+
+#: EL DEFENSA NO TIENE SEGUNDA LISTA. Barrido del 2026-10-12 con Defensa 16,
+#: Jugadas 10 y Pases 9 --que EMPATAN en clave, 10−2 = 9−1 = 8, para que las dos
+#: listas hipotéticas discrepasen-- y el Lateral de 0 a 12.
+#:
+#: El orden `Jug, Pas` NO GIRA en ningún punto. El Lateral adelanta en 11, que es
+#: exactamente donde lo predicen los pesos normales. Una sola lista.
+#: (lateral, lo que contestó Hattrick)
+EL_DEFENSA_NO_TIENE_SEGUNDA_LISTA: list[tuple[int, str]] = [
+    (0, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat<=5 Ano<=5 Por<=5"),
+    (4, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat<=5 Ano<=5 Por<=5"),
+    (5, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat 4-7 Ano<=5 Por<=5"),
+    (6, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat 5-8 Ano<=5 Por<=5"),
+    (7, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat 6-9 Ano<=5 Por<=5"),
+    (8, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat 6-11 Ano<=5 Por<=5"),
+    (9, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat 7-12 Ano<=5 Por<=5"),
+    (10, "Ed24-26 Def=16 Jug 9-11 Pas 8-11 Lat 8-13 Ano<=5 Por<=5"),
+    (11, "Ed24-26 Def=16 Lat 10-12 Jug 9-12 Pas 7-12 Ano<=5 Por<=5"),
+    (12, "Ed24-26 Def=16 Lat 11-13 Jug 9-12 Pas 7-12 Ano<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("lateral,esperado", EL_DEFENSA_NO_TIENE_SEGUNDA_LISTA)
+def test_el_defensa_no_tiene_segunda_lista(lateral: int, esperado: str) -> None:
+    niveles = perfil(defending=16, playmaking=10, passing=9, winger=lateral)
+    assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: Y AL DELANTERO LA DEFENSA NO LE ENTRA NUNCA. Barrido del 2026-10-12 con
+#: Anotación 16, Pases 9 y Lateral 10 --que empatan en clave-- y la Defensa de 0
+#: a 11: se queda SIEMPRE en el montón, y el orden es invariablemente
+#: `Ano, Lat, Pas`. Es la exclusión por tipo que el motor ya tenía.
+#:
+#: LAS DOS TANDAS JUNTAS ACOTAN EL FENOMENO: la segunda lista existe donde la
+#: Defensa PUEDE ser criterio sin ser la habilidad del propio tipo, o sea en el
+#: extremo y en el mediocentro. Al defensa es la suya, al portero su segunda, y
+#: al delantero no le entra.
+#: (defensa, lo que contestó Hattrick)
+AL_DELANTERO_NO_LE_ENTRA_LA_DEFENSA: list[tuple[int, str]] = [
+    (0, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=5 Por<=5"),
+    (4, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=5 Por<=5"),
+    (5, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=7 Por<=5"),
+    (6, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=8 Por<=5"),
+    (7, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=9 Por<=5"),
+    (8, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=10 Por<=5"),
+    (9, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=11 Por<=5"),
+    (10, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=12 Por<=5"),
+    (11, "Ed24-26 Ano=16 Lat 9-11 Pas 8-11 Jug<=5 Def<=13 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("defensa,esperado", AL_DELANTERO_NO_LE_ENTRA_LA_DEFENSA)
+def test_al_delantero_no_le_entra_la_defensa(defensa: int, esperado: str) -> None:
+    niveles = perfil(scoring=16, passing=9, winger=10, defending=defensa)
+    assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: EL LATERAL DEL MEDIOCENTRO, A SOLAS: la frontera está en la DOMINANTE.
+#:
+#: La rejilla de noventa celdas del 2026-10-11 tenía la dominante de 12 a 20 y
+#: una compañera (Pases 9 o Defensa 10) siempre puesta, y de ahí salió «el
+#: Lateral pide 7». El 2026-10-12, midiendo con el Lateral SOLO, resultó que
+#: entra con 6 hasta Jugadas 11 y se cae desde Jugadas 12: los dos conjuntos de
+#: medidas no se solapaban en la dominante, y por eso la frontera no se veía.
+#:
+#: Así que lo que decide no es el umbral del Lateral --que sigue siendo 7-- sino
+#: el HUECO a la dominante, y son cinco niveles. Primero probé cambiar el umbral
+#: a 6: el banco dio 404/404 y fueron las pruebas de la rejilla las que cazaron
+#: que eso rompía noventa celdas. Después probé el hueco en 2 y el banco también
+#: lo dio por bueno, porque 2 y 3 eran indistinguibles con lo que había. Sólo
+#: este barrido lo fija.
+#: (jugadas, lateral, si el Lateral es criterio)
+EL_LATERAL_A_SOLAS: list[tuple[int, int, bool]] = [
+    (7, 6, True),
+    (8, 6, True),
+    (9, 6, True),
+    (10, 6, True),
+    (11, 6, True),
+    (12, 6, False),
+    (13, 6, False),
+    (14, 6, False),
+    (16, 6, False),
+    (12, 5, False),
+    (12, 7, True),
+]
+
+
+@pytest.mark.parametrize("jugadas,lateral,es_criterio", EL_LATERAL_A_SOLAS)
+def test_el_lateral_a_solas(jugadas: int, lateral: int, es_criterio: bool) -> None:
+    niveles = perfil(playmaking=jugadas, winger=lateral)
+    assert _lateral_es_criterio(niveles) is es_criterio
+
+
+#: EL DESCUENTO DEL BALÓN PARADO, el último número que quedaba sin fijar. La
+#: auditoría lo dejó en 5..9 y `Por8 BP12` lo separa: sale `Ed=25` con la banda
+#: `10-14` y techos 4, que es la predicción de **9**. Con 5 habría aflojado.
+#: (balón parado, lo que contestó Hattrick)
+EL_DESCUENTO_DEL_BALON_PARADO: list[tuple[int, str]] = [
+    (12, "Ed=25 Por=8 Def<=1 BP 10-14 Lat<=4 Ano<=4 Jug<=4"),
+    (13, "Ed=25 Por=8 Def<=1 BP 11-15 Lat<=4 Ano<=4 Jug<=4"),
+    (14, "Ed=25 Por=8 Def<=1 BP 12-16 Lat<=4 Ano<=4 Jug<=4"),
+]
+
+
+@pytest.mark.parametrize("balon_parado,esperado", EL_DESCUENTO_DEL_BALON_PARADO)
+def test_el_descuento_del_balon_parado(balon_parado: int, esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(keeper=8, set_pieces=balon_parado))) == esperado

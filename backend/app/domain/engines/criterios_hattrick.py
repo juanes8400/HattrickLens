@@ -336,6 +336,12 @@ DEFENSA_DEL_EXTREMO_PIDE_LA_ANOTACION = True
 #: esta en la hipotesis de los PUESTOS, en CRITERIOS_DEL_COMPARADOR.md.
 LATERAL_DEL_MEDIO_SIN_AYUDA = 7
 
+#: Y cuanto hueco tiene que haber a la dominante para que el Lateral cuente
+#: como PERIFERICO. Son CINCO niveles, con la frontera medida a los dos lados
+#: el 2026-10-12: con el Lateral en 6 y nada mas, entra hasta Jugadas 11 y se
+#: cae desde Jugadas 12. Lo explica `_fuera`.
+HUECO_QUE_HACE_PERIFERICO = 5
+
 
 def _corta(tipo: str, niveles: dict[str, int]) -> tuple[frozenset[str], list[str], int]:
     """El corte: qué queda fuera, en qué orden quedan las demás y cuántas entran.
@@ -469,10 +475,22 @@ def _fuera(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
         # mediocentro plano --Jugadas 7 y Pases, Defensa, Lateral y Anotacion
         # los cuatro a 6-- el Lateral SI es criterio, y ahi el Lateral no es
         # una habilidad periferica: es codominante. Fuera del dominio medido no
-        # se excluye nada. Esto descansa en UN caso; comprobarlo de verdad pide
-        # rehacer la rejilla con el Lateral en 6 y 7 y las dos companeras
-        # puestas, y eso necesita cuota de consultas.
-        periferico = niveles.get("winger", 0) < niveles.get("playmaking", 0) - 1
+        # se excluye nada, y EL HUECO SON CINCO NIVELES, con la frontera medida
+        # a los dos lados el 2026-10-12: con el Lateral en 6 y NADA MAS, entra
+        # hasta Jugadas 11 y se cae desde Jugadas 12. Con Jugadas 12, un Lateral
+        # de 7 entra y uno de 5 no.
+        #
+        # NO ES EL UMBRAL DEL LATERAL, que sigue siendo 7. Cambiarlo a 6 rompe
+        # las noventa celdas de la rejilla de FASE S --«Jug16 Pas9 Lat6» NO le
+        # da criterio al Lateral-- y el banco lo dio por bueno porque no
+        # cosechaba esas pruebas. Lo cazaron ellas.
+        #
+        # Y POR QUE NO SE VEIA: la rejilla tenia la dominante de 12 a 20 y este
+        # barrido la tiene de 7 a 16. Los dos conjuntos de medidas no se
+        # solapaban en la dominante, y la frontera caia en el hueco entre ellos.
+
+        hueco = niveles.get("playmaking", 0) - HUECO_QUE_HACE_PERIFERICO
+        periferico = niveles.get("winger", 0) < hueco
         if not ofensivo and periferico:
             fuera |= {"winger"}
     return fuera
@@ -637,11 +655,11 @@ PRIMERA_QUE_AFLOJA_SOLA = 17
 #: Medido con Lateral y Anotación a la par: rareza 25 afloja y 24 no, mientras
 #: que el mismo extremo con la segunda por debajo necesitaba 27. Tiene sentido:
 #: un jugador con dos habilidades iguales arriba encaja en menos moldes.
-UMBRAL_CON_EMPATE_ARRIBA = 25
+UMBRAL_CON_EMPATE_ARRIBA = 26
 #: El balón parado del portero cuenta para la rareza, pero descontándole más
 #: que a una habilidad normal: con Portería 14 y Defensa 6, un balón parado de
 #: 9 deja la búsqueda ajustada y uno de 15 la abre.
-DESCUENTO_DEL_BALON_PARADO = 10
+DESCUENTO_DEL_BALON_PARADO = 9
 #: HASTA AQUÍ NO HAY DIAL QUE VALGA. El mismo perfil --Defensa 17, Jugadas 3--
 #: sale ajustado a los 19, 20 y 21 y holgado a los 22 y 25. No es que la edad
 #: tenga su propia regla: es que al jugador joven le aprietan TODA la búsqueda.
@@ -1186,7 +1204,8 @@ def _cuarto(
     «Def 7-9» simplemente porque ahí el corte cae encima.
     """
     if nivel >= CUARTO_CON_BANDA_ANCHA:
-        return Criterio(habilidad, "banda", max(0, nivel - 2), min(nivel + 3, primero))
+        arriba = nivel + (3 if holgado else 2)
+        return Criterio(habilidad, "banda", max(0, nivel - 2), min(arriba, primero))
     return _tercero(habilidad, nivel, holgado, tope)
 
 

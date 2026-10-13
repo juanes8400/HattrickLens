@@ -144,6 +144,16 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
     ]
     casos += [(e, dict(n), s) for e, n, s in T.LAS_FICHAS_REALES]
     casos += [(e, dict(n), s) for e, n, s in T.LA_ENTRADA_DEL_CUARTO]
+    casos += [(25, T.perfil(**n), s) for n, s in T.LOS_CINCO_NUMEROS_ACOTADOS]
+    casos += [(25, T.perfil(keeper=8, set_pieces=bp), s) for bp, s in T.EL_DESCUENTO_DEL_BALON_PARADO]
+    casos += [
+        (25, T.perfil(defending=16, playmaking=10, passing=9, winger=lat), s)
+        for lat, s in T.EL_DEFENSA_NO_TIENE_SEGUNDA_LISTA
+    ]
+    casos += [
+        (25, T.perfil(scoring=16, passing=9, winger=10, defending=defe), s)
+        for defe, s in T.AL_DELANTERO_NO_LE_ENTRA_LA_DEFENSA
+    ]
     return casos
 
 
@@ -153,6 +163,36 @@ def rejilla() -> list[tuple[int, dict[str, int], str]]:
         (25, T.perfil(winger=10, passing=7, playmaking=jug, scoring=ano), s)
         for (jug, ano), s in sorted(T.REJILLA_DEL_ORDEN.items())
     ]
+
+
+#: EL LATERAL DEL MEDIOCENTRO, que se puntua por un BOOLEANO --si es criterio
+#: o no-- y por eso el banco no lo miraba. Punto ciego real: el 2026-10-12 una
+#: medida nueva («Jugadas 8, Lateral 6 y nada mas») me hizo cambiar el umbral
+#: del Lateral de 7 a 6, el banco dio 404/404 y fueron las PRUEBAS SUELTAS las
+#: que cazaron que eso rompia las noventa celdas de la rejilla. Lo que estaba
+#: mal era el hueco a la dominante, no el umbral.
+#:
+#: Cuarta vez que un banco incompleto da el visto bueno a un cambio malo.
+def laterales() -> list[tuple[dict[str, int], bool]]:
+    casos: list[tuple[dict[str, int], bool]] = []
+    for dominante in (12, 14, 16, 18, 20):
+        for lat in (4, 5, 6, 7, 8, 9):
+            casos.append(
+                (perfil(playmaking=dominante, passing=9, winger=lat), lat >= 7)
+            )
+    for lat in (4, 5, 6, 7, 8):
+        casos.append((perfil(playmaking=16, defending=10, winger=lat), lat >= 7))
+        casos.append((perfil(playmaking=16, scoring=10, winger=lat), lat >= 5))
+    for ano in (4, 5, 6, 7, 8, 9):
+        casos.append((perfil(playmaking=16, winger=5, scoring=ano), ano >= 5))
+    for defe in (4, 5, 6, 7, 8, 9):
+        for ano in (10, 14):
+            casos.append(
+                (perfil(playmaking=16, winger=5, scoring=ano, defending=defe), defe <= 4)
+            )
+    # y el barrido del 2026-10-12 con el Lateral A SOLAS, que fija el hueco
+    casos += [(perfil(playmaking=j, winger=l), b) for j, l, b in T.EL_LATERAL_A_SOLAS]
+    return casos
 
 
 #: Los 23 ordenes medidos del mediocentro.
@@ -240,6 +280,7 @@ def puntua(nombre: str) -> tuple[int, int]:
         )
         == s
     )
+    lat = laterales()
     ext = ordenes_del_extremo()
     bien += sum(
         1
@@ -249,9 +290,17 @@ def puntua(nombre: str) -> tuple[int, int]:
         )
         == esperado
     )
+    bien += sum(
+        1
+        for n, esperado in lat
+        if any(
+            c.habilidad == "winger" and (c.operador != "<=") == esperado
+            for c in C.criterios_de(25, dict(n)).habilidades
+        )
+    )
     tps = tipos()
     bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
-    total = len(cas) + len(rej) + len(ords) + len(ext) + len(tps)
+    total = len(cas) + len(rej) + len(ords) + len(ext) + len(lat) + len(tps)
     fallan = [d for d, e, n, s in PENDIENTES if T._pinta(C.criterios_de(e, dict(n))) != s]
     print(f"{nombre}")
     print(f"  medido     {bien}/{total}")

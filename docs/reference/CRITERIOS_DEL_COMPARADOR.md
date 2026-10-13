@@ -226,6 +226,28 @@ plantilla y no los pesos, así que no hay círculo.
 | la Defensa **está en el conjunto** y `Defensa ≥ max(5, Anotación − 3)` | `Jug 0, Pas 1, Def 2, Ano 3, Lat 3` |
 | cualquier otro caso | `Jug 0, Pas 1, Def 2, Ano 2, Lat 3` |
 
+#### Y sólo esos dos tipos tienen dos listas
+
+| tipo | la Defensa es | listas |
+|---|---|---|
+| extremo | ajena, y puede entrar | **dos** |
+| mediocentro | ajena, y puede entrar | **dos** |
+| defensa | **la suya** | una |
+| portero | su segunda fija | una |
+| delantero | **no le entra nunca** (exclusión por tipo) | una |
+
+Medido el 2026-10-12 con dos barridos diseñados para que las dos listas
+hipotéticas discrepasen. En el **defensa** --`Def16 Jug10 Pas9` con el Lateral de
+0 a 12-- el orden `Jug, Pas` **no gira en ningún punto**, y el Lateral adelanta
+en 11, que es justo donde lo predicen los pesos normales. En el **delantero**
+--`Ano16 Pas9 Lat10` con la Defensa de 0 a 11-- la Defensa se queda **siempre**
+en el montón.
+
+Eso cierra la pregunta de por qué las dos exclusiones en espejo no se unifican:
+**no son dos casos de una regla general que se me escapa, son los dos únicos
+tipos donde la conmutación puede ocurrir.** Y que haya una regla por tipo encaja
+con el texto de 2009, que habla de elegir un conjunto *según el tipo*.
+
 Al extremo la Defensa le **sube** la Anotación; al mediocentro se la **baja**, que
 es lo que cabe esperar de un mediocentro defensivo. Medido en cuatro barridos
 con la frontera a los dos lados:
@@ -415,26 +437,48 @@ Esto es **comprobar, no ajustar**: ninguna constante del motor sale de ahí.
 
 ## Cuántos de sus números están de verdad medidos
 
-Que el banco esté en 380/380 tienta a creer que los 39 números del motor están
-medidos. No lo están todos: un número puede caer **dentro de un intervalo** que
-el banco no distingue.
+Que el banco esté verde tienta a creer que los números del motor están medidos.
+No lo están todos: un número puede caer **dentro de un intervalo** que el banco
+no distingue.
 [`cuanto_esta_fijado_cada_numero.py`](sondeo-comparador/cuanto_esta_fijado_cada_numero.py)
-barre cada constante y da el tramo que mantiene el banco intacto.
+barre cada constante y da el tramo que mantiene el banco intacto, y para los
+que sólo quedan acotados saca el perfil que los separaría.
 
-| | |
+**La auditoría del 2026-10-12 encontró cinco acotados, se midieron los cinco, y
+tres estaban mal:**
+
+| número | antes | medido |
+|---|---|---|
+| `HABILIDADES_QUE_CUENTAN` | 4 | **4** ✓ |
+| `BP_BANDA_MAXIMA` | 15 | **15** ✓ |
+| `LATERAL_DEL_MEDIO_SIN_AYUDA` | 7 | sigue 7, pero lo que estaba mal era **el hueco a la dominante**: ver abajo |
+| `UMBRAL_CON_EMPATE_ARRIBA` | 25 | **26** |
+| `DESCUENTO_DEL_BALON_PARADO` | 10 | **9** |
+
+Y de paso apareció una cuarta corrección que no se buscaba: con una cuarta de 8
+salió `[6,10]` y no `[6,11]`, así que **la banda ancha del cuarto también sigue
+al dial** (`v+3` holgado, `v+2` ajustado). Eso explica además las cuatro medidas
+viejas del cuarto puesto sin tocarlas: las cuatro eran holgadas.
+
+**El caso del Lateral merece contarse, porque es el error más instructivo del
+día.** La consulta decía «el umbral es 6, no 7», y era verdad en lo medido y
+falsa como regla:
+
+| perfil | Hattrick |
 |---|---|
-| **clavados** (un solo valor vale) | **31** |
-| sólo acotados | 8, y **tres no son reglas**: uno es de representación y dos son el tope de días, que no se consume |
+| `Jug16 Pas9 Lat6` (rejilla de 90 celdas, 2026-10-11) | el Lateral **no** entra |
+| `Jug8 Lat6`, nada más (2026-10-12) | el Lateral **sí** entra |
 
-Los **cinco** que son regla con el valor sin fijar tienen cada uno su consulta
-escrita, con la predicción calculada, en `sondeo-comparador/fase-a.txt`, FASE AJ:
-`HABILIDADES_QUE_CUENTAN` (4 o más), `DESCUENTO_DEL_BALON_PARADO` (4-14),
-`BP_BANDA_MAXIMA` (15-19), `LATERAL_DEL_MEDIO_SIN_AYUDA` (6 o 7) y
-`UMBRAL_CON_EMPATE_ARRIBA` (25 o 26). Son **cinco consultas** que convierten
-cinco elecciones en cinco medidas.
+No se contradicen: la rejilla llevaba **siempre** una compañera y la dominante
+entre 12 y 20; la consulta nueva no llevaba ninguna. Lo que decide es el **hueco
+a la dominante**, y son **cinco niveles**: con el Lateral en 6 y nada más, entra
+hasta Jugadas 11 y se cae desde Jugadas 12. Los dos conjuntos de medidas **no se
+solapaban en la dominante**, y la frontera caía justo en el hueco entre ellos.
 
-Todos los umbrales derivados el 2026-10-12 salen **clavados**, lo cual era de
-esperar: cada uno se midió con frontera a los dos lados.
+**Segunda pasada de la auditoría**, con los valores corregidos: quedaba un solo
+número de regla acotado, `DESCUENTO_DEL_BALON_PARADO` (5-9), y la consulta que lo
+separaba --`Por8 BP12`-- dio la predicción de **9** exacta. Así que de los 40
+números del motor, **36 están clavados** y los otros cuatro no son reglas.
 
 ## Cuánto se le cree
 
@@ -450,55 +494,28 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
-- ~~**El MECANISMO del orden de los criterios.**~~ **Resuelto el 2026-10-12**:
-  es `nivel − importancia` sobre una lista inicial por tipo, y la fuente de
-  2009 lo dice. Lo que faltaba era que hay más listas que tipos: el extremo
-  tiene dos y el mediocentro otras dos, las cuatro medidas con frontera a los
-  dos lados y con una predicción cumplida cada una.
-- ~~**La ENTRADA del cuarto criterio.**~~ **Cerrada el 2026-10-12** con 21
-  celdas medidas. Entra de 6 en adelante, y en 5 sólo si la **segunda habilidad
-  de la plantilla** no pasa de 7. Dos lecturas rivales cayeron midiendo: «el
-  hueco a la segunda» (con la Anotación 13 de segunda, una Defensa 5 entra
-  igual) y «el hueco a la tercera» (con Pases 8 y Anotación 8, hueco 3, no
-  entra). Y es la segunda de la **plantilla**, no «los Pases»: al extremo de
-  Lateral 16, Defensa 9 y Pases 8 le entra una Anotación de 5, porque la
-  segunda de su plantilla son las Jugadas y valen 0.
+**No queda ninguna observación sin reproducir**: el banco está en 476/476 con la
+lista de pendientes vacía. Eso no quiere decir que el motor sea el mecanismo de
+Hattrick; quiere decir que no hay contraejemplo conocido. Lo que sigue abierto
+es concreto y corto:
 
-  De paso salió que **el corte es por NIVEL**, no por `nivel − posición`: con
-  `Jug16 Pas8 Ano6 Def5` Hattrick se queda con la Anotación 6 y tira la Defensa
-  5, y la clave `nivel − posición` da lo contrario. El caso que había hecho
-  adoptar la otra forma --cuatro habilidades a 11, donde se queda con la
-  Defensa y el Lateral-- sale igual por nivel, porque allí los cuatro empatan y
-  manda la plantilla. El corte simple era el correcto, y lo complicó un empate.
-
-  Y **dos exclusiones en espejo**, las dos con la guarda de que la Defensa haya
-  entrado en el conjunto: el **extremo** pierde los Pases si no alcanzan a la
-  Anotación, y el **mediocentro** pierde la Anotación si no supera al Lateral.
-  La guarda está fijada por dos casos medidos --`Lat16 Pas8 Ano9 Def7`, donde
-  los Pases entran por debajo de la Anotación porque la Defensa está excluida,
-  y `Jug16 Pas8 Lat8 Ano8 Def5`, donde la Anotación se queda porque la Defensa
-  se cae del corte--. Son **dos reglas para dos tipos**, y una sola tendría
-  mejor pinta, y **se intentó**: siete candidatas a convertirlas en una, en
-  [`unificar_las_dos_exclusiones.py`](sondeo-comparador/unificar_las_dos_exclusiones.py).
-  Las siete pierden casos, y las dos mejores pierden **seis** cuando no tener
-  regla pierde **ocho**. Todas se atascan en lo mismo: la fuerza del empate es
-  distinta en cada tipo --con `Pas 8 = Ano 8` el extremo conserva los Pases, y
-  con `Ano 8 = Lat 8` el mediocentro tira la Anotación--, así que una regla con
-  una sola dirección de empate pierde uno de los dos. Para salir de ahí hacen
-  falta **más tipos**, no más análisis: el defensa y el delantero no se han
-  sondeado para esto, y el sondeo está diseñado (FASE AH, diez consultas).
+- **Si hay UNA regla detrás de las dos exclusiones en espejo, o una por tipo.**
+  Siete candidatas a unificarlas fallaron
+  ([`unificar_las_dos_exclusiones.py`](sondeo-comparador/unificar_las_dos_exclusiones.py)),
+  y todas se atascan en que la fuerza del empate difiere por tipo. Pero los dos
+  barridos del defensa y del delantero explican **por qué no hay más que dos**:
+  son los dos únicos tipos donde la Defensa puede ser criterio sin ser la
+  habilidad propia. Así que puede que no exista una regla general, y que sea una
+  por tipo, que es lo que dice el texto de 2009.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
-- **Cuándo entra el TERCER criterio en general.** El caso del mediocentro ya
-  está medido y escrito --su Lateral entra con 7, o con 5 si la Anotación llega
-  a 5 y la Defensa no pasa de 4--, pero no se sabe si los demás tipos tienen
-  condiciones parecidas en otras habilidades. Lo no medido usa 5.
-- **La entrada y el techo del CUARTO criterio.** Con Anotación 10, Pases 8 y
-  Lateral 6, una Jugadas 5 recibe techo donde el modelo le pone banda; y con
-  Lateral 16, Pases 11, Anotación 11 y Jugadas 9, el techo de la banda sale un
-  nivel más bajo de lo que el modelo calcula. Dos de sesenta, ninguno cambia la
-  búsqueda.
+- **El tope de días de los 17 está medido y no se consume.** Hace falta una
+  columna y una migración, y es decisión del producto. Está contado abajo, en «La
+  única parte de la regla que no se aplica».
 
+**Y de los 40 números del motor, 36 están clavados por las medidas.** Los otros
+cuatro no son reglas: uno es de representación y tres son del tope de días, que
+no se consume.
 ## El listón del dial va por PAREJA, no por tipo
 
 Se medía con una sola segunda habilidad por tipo, y de ahí salió un listón por
@@ -690,33 +707,36 @@ AD lo subieron a 259 y el corte pasó a tener frontera.
 El motor es un montón de reglas sacadas de mediciones distintas, y no todas
 pesan lo mismo.
 [`cuanto_sostiene_cada_regla.py`](sondeo-comparador/cuanto_sostiene_cada_regla.py)
-las quita de una en una y cuenta cuántos de los **380** casos medidos dejan de
+las quita de una en una y cuenta cuántos de los **476** casos medidos dejan de
 salir:
 
 | al quitar | se rompen |
 |---|---|
-| las exclusiones por tipo | 197 |
+| las exclusiones por tipo | 221 |
+| la regla del Lateral del mediocentro | 31 |
 | el sesgo del portero sobre la defensa | 20 |
+| que el cuarto entre solo desde 6 | 19 |
 | los pesos del mediocentro | 19 |
-| que el cuarto entre solo desde 6 | 18 |
 | que la tercera en 7 abra la segunda | 16 |
+| la tapadera de la Anotación al extremo | 14 |
+| que la Anotación pida cinco | 11 |
 | los pesos del extremo | 11 |
-| la tapadera de la Anotación al extremo | 9 |
-| la tabla del dial por pareja | 9 |
 | la segunda lista del extremo | 9 |
+| la tabla del dial por pareja | 9 |
 | la cola propia del mediocentro | 9 |
+| el descuento del balón parado | 8 |
 | las dos exclusiones en espejo | 8 |
-| que la Anotación pida cinco | 6 |
 | el desempate propio del extremo | 6 |
 | el umbral de la segunda lista del mediocentro | 6 |
 | que una habilidad de 17 afloje sola | 5 |
 | que la primera en 6 corte la banda del tercero | 5 |
 | la segunda lista del mediocentro | 5 |
+| el hueco de cinco que hace periférico al Lateral | 5 |
 | que el mediocentro pierda la Anotación bajo el Lateral | 5 |
 | que la primera en 5 no sostenga tercero | 3 |
-| la regla del Lateral del mediocentro | 3 |
 | que el extremo pierda los Pases bajo la Anotación | 3 |
 | que el empate abra la segunda | 2 |
+| el listón de 26 con las dos primeras empatadas | 1 |
 | **la posición de la Portería en el desempate** | **0** |
 
 **Y las reglas con umbral se prueban también por el otro lado**, que es lo que
@@ -728,12 +748,11 @@ separa un umbral medido de uno inventado:
 | que el cuarto entre **siempre desde 5**, sin mirar a la compañera | 4 |
 | abrir la segunda **con cualquier empate**, no sólo desde 8 | 3 |
 
-**La tabla se arregló el 2026-10-12, y por tercera vez por lo mismo:** le
-faltaban las 29 filas de órdenes del extremo, así que «sin la segunda lista del
-extremo» salía rompiendo 2 cuando rompe 9. Un banco incompleto miente con más
-aplomo que no tenerlo.
+**La tabla se ha arreglado dos veces, las dos por lo mismo:** le faltaban las
+29 filas de órdenes del extremo, y luego las 70 del Lateral del mediocentro.
+Un banco incompleto miente con más aplomo que no tenerlo.
 **Para qué sirve:** dice en qué apoyarse y en qué no. Las exclusiones por tipo
-sostienen 162 casos --tocarlas es tocar el motor entero--; la tabla del dial
+sostienen 221 casos --tocarlas es tocar el motor entero--; la tabla del dial
 por pareja sostiene dos, así que si una medición la contradice no hay que
 defenderla. Y la regla que durante dos días «descansaba en un caso» sostiene
 ahora tres, con sus cuatro casillas vecinas medidas.

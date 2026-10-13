@@ -30,6 +30,7 @@ def cuantos_bien() -> int:
     # incompleto miente con aplomo. Si se anade una familia al banco, va aqui.
     cas, rej, ords = banco.cadenas(), banco.rejilla(), banco.ordenes()
     ext, tps = banco.ordenes_del_extremo(), banco.tipos()
+    lat = banco.laterales()
     bien = sum(1 for e, n, s in cas if T._pinta(C.criterios_de(e, dict(n))) == s)
     bien += sum(
         1
@@ -59,6 +60,14 @@ def cuantos_bien() -> int:
         )
         == esperado
     )
+    bien += sum(
+        1
+        for n, esperado in lat
+        if any(
+            c.habilidad == "winger" and (c.operador != "<=") == esperado
+            for c in C.criterios_de(25, dict(n)).habilidades
+        )
+    )
     bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
     return bien
 
@@ -68,6 +77,7 @@ TOTAL = (
     + len(banco.rejilla())
     + len(banco.ordenes())
     + len(banco.ordenes_del_extremo())
+    + len(banco.laterales())
     + len(banco.tipos())
 )
 
@@ -203,6 +213,12 @@ pon = _guarda("COMPANERA_QUE_CIERRA_EL_CUARTO")
 sin("que la companera cierre el cuarto (entrar siempre desde 5)", pon, lambda: setattr(C, "COMPANERA_QUE_CIERRA_EL_CUARTO", 99))
 pon = _guarda("COLA_POR_TIPO")
 sin("la cola propia del mediocentro", pon, lambda: setattr(C, "COLA_POR_TIPO", {}))
+pon = _guarda("HUECO_QUE_HACE_PERIFERICO")
+sin("el hueco de cinco que hace periferico al Lateral", pon, lambda: setattr(C, "HUECO_QUE_HACE_PERIFERICO", 1))
+pon = _guarda("UMBRAL_CON_EMPATE_ARRIBA")
+sin("el liston de 26 con las dos primeras empatadas", pon, lambda: setattr(C, "UMBRAL_CON_EMPATE_ARRIBA", 99))
+pon = _guarda("DESCUENTO_DEL_BALON_PARADO")
+sin("el descuento del balon parado", pon, lambda: setattr(C, "DESCUENTO_DEL_BALON_PARADO", 0))
 
 # Las DOS EXCLUSIONES EN ESPEJO, juntas y por separado.
 _espejo = C._fuera_con_defensa
