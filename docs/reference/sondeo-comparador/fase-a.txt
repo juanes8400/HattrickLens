@@ -2609,3 +2609,27 @@ numeros corregidos y una regla de banda corregida, dos negativos que acotan el
 fenomeno de las dos listas, y 40 observaciones nuevas en los cuatro sitios que
 el sondeo tenia mas flojos --el monton, la edad por arriba, el pasador y el
 balon parado del portero-- que el motor ya reproducia y que ahora estan fijadas.
+
+--- AM7. EL TOPE DE DIAS, Y EL BALON PARADO DEL JUGADOR DE CAMPO ------------
+
+EL BALON PARADO DE UN JUGADOR DE CAMPO NO ENTRA NUNCA, ni con 20:
+
+  Lat16 Pas13 BP20  ->  Lat=16  Pas 12-14  Jug<=5 Def<=5 Ano<=5 Por<=5
+  Def16 BP20        ->  Def=16  Pas<=2  Jug<=4 Lat<=4 Ano<=4 Por<=4
+
+La clausula de 2009 --«since set pieces is so wide in range adding it to
+comparison might lead to too few results»-- sigue viva, y ahora con el extremo
+del rango medido y no supuesto.
+
+EL TOPE DE DIAS DE LOS 17 ESTABA MEDIDO UNA VEZ. Barrido:
+
+  17  ajustado  Def12 Jug9   ->  «Edad = 17  Dias <= 24»
+  17  holgado   Def16 Jug12  ->  «Edad = 17  Dias <= 24»   (la holgura NO lo ensancha)
+  17  extremo   Lat16        ->  «Edad = 17  Dias <= 24»
+  18  ajustado  Def12 Jug9   ->  «Edad = 18»  SIN TOPE
+
+ES UNA CONSTANTE: 24 a los 17 y nada en el resto. No hay formula que derivar,
+solo un numero que aplicar cuando se tenga el dato, y eso simplifica la decision
+de producto que quedo pendiente en FASE AC.
+
+  banco 515/515 -> 521/521

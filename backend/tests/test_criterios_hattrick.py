@@ -2105,3 +2105,42 @@ EL_SUELO_DEL_BALON_PARADO: list[tuple[int, str]] = [
 def test_el_suelo_del_balon_parado(balon_parado: int, esperado: str) -> None:
     niveles = perfil(keeper=13, defending=8, set_pieces=balon_parado)
     assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: EL BALÓN PARADO DE UN JUGADOR DE CAMPO NO ENTRA NUNCA, ni con 20. Lo decía la
+#: fuente de 2009 --«since set pieces is so wide in range adding it to comparison
+#: might lead to too few results»-- y es una de las cláusulas que sigue viva.
+#: Medido el 2026-10-13 en un extremo y en un defensa.
+#:
+#: Y EL TOPE DE DÍAS DE LOS 17, que sólo estaba medido una vez: sale `Días <= 24`
+#: en los tres perfiles y en los DOS modos del dial --la holgura no lo
+#: ensancha-- y a los 18 no hay tope. Es una constante, y eso simplifica la
+#: decisión de producto que queda pendiente.
+#: (edad, perfil, criterios, tope de días)
+EL_BALON_PARADO_Y_EL_TOPE_DE_DIAS: list[tuple[int, dict[str, int], str, int | None]] = [
+    (
+        25,
+        dict(winger=16, passing=13, set_pieces=20),
+        "Ed24-26 Lat=16 Pas 12-14 Jug<=5 Def<=5 Ano<=5 Por<=5",
+        None,
+    ),
+    (25, dict(defending=16, set_pieces=20), "Ed=25 Def=16 Pas<=2 Jug<=4 Lat<=4 Ano<=4 Por<=4", None),
+    (17, dict(defending=12, playmaking=9), "Ed=17 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4", 24),
+    (
+        17,
+        dict(defending=16, playmaking=12),
+        "Ed=17 Def=16 Jug 11-13 Pas<=4 Lat<=4 Ano<=4 Por<=4",
+        24,
+    ),
+    (17, dict(winger=16), "Ed=17 Lat=16 Jug<=2 Pas<=4 Def<=4 Ano<=4 Por<=4", 24),
+    (18, dict(defending=12, playmaking=9), "Ed=18 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4", None),
+]
+
+
+@pytest.mark.parametrize("edad,niveles,esperado,dias", EL_BALON_PARADO_Y_EL_TOPE_DE_DIAS)
+def test_el_balon_parado_y_el_tope_de_dias(
+    edad: int, niveles: dict[str, int], esperado: str, dias: int | None
+) -> None:
+    criterios = criterios_de(edad, perfil(**niveles))
+    assert _pinta(criterios) == esperado
+    assert criterios.tope_de_dias == dias

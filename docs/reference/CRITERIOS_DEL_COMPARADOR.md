@@ -405,8 +405,13 @@ jugador de 2 días y desde la de uno de 20, y las dos veces salió 24.
 
 ## La única parte de la regla que no se aplica
 
-A los 17 años Hattrick añade un **tope de días**: `Días <= 24`. Está medido y
-está en `Criterios.tope_de_dias`, pero **nadie lo consume**.
+A los 17 años Hattrick añade un **tope de días**: `Días <= 24`. Está en
+`Criterios.tope_de_dias`, pero **nadie lo consume**.
+
+**Y es una constante**, barrido el 2026-10-13: sale `Días <= 24` en tres perfiles
+distintos y en los **dos modos del dial** --la holgura no lo ensancha-- y a los
+18 años no hay tope ninguno. Eso simplifica la decisión: no hay fórmula que
+derivar, sólo un número que aplicar cuando se tenga el dato.
 
 - La **búsqueda** no lo manda, y eso está bien: `transfersearch` acepta años y
   no días, y pedir un superconjunto no hace daño.
