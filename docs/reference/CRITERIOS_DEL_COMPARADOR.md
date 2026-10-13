@@ -468,7 +468,7 @@ tres estaban mal:**
 | `HABILIDADES_QUE_CUENTAN` | 4 | **4** ✓ |
 | `BP_BANDA_MAXIMA` | 15 | **15** ✓ |
 | `LATERAL_DEL_MEDIO_SIN_AYUDA` | 7 | sigue 7, pero lo que estaba mal era **el hueco a la dominante**: ver abajo |
-| `UMBRAL_CON_EMPATE_ARRIBA` | 25 | **26** |
+| `UMBRAL_CON_EMPATE_ARRIBA` | 25 | **26**, y luego **retirada**: no era un tope sino una **resta de 1**, ver abajo |
 | `DESCUENTO_DEL_BALON_PARADO` | 10 | **9** |
 
 Y de paso apareció una cuarta corrección que no se buscaba: con una cuarta de 8

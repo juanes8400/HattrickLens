@@ -2971,3 +2971,36 @@ espejo, el corte por nivel, la entrada del cuarto-- habia sitio de sobra para
 romperla.
 
 Queda una muestra de 2.000 en `test_mercado_comparable` para que corra en CI.
+
+--- AP12. LAS DOS REBAJAS DEL DIAL NO SE ACUMULAN, Y LA DEL EMPATE ES RESTA --
+
+El liston de la pareja baja 2 con un cuarto criterio de identidad, y baja con
+las dos primeras empatadas. Nunca se habia medido que pasa CUANDO CONCURREN, ni
+si la del empate era una RESTA o un TOPE EN 26: con las medidas que habia, las
+dos lecturas daban lo mismo.
+
+  Lat12 Ano12 Pas7  rareza 25, afloja -> resta: 25-1 = 24 | tope: min(25,26) = 25
+  Lat12 Pas12 Ano7  rareza 25, ajusta -> resta: 27-1 = 26 | tope: min(27,26) = 26
+
+EL CASO QUE LAS SEPARA. Lat11 Ano11 Pas8 Jug5, rareza 24:
+
+  -> Ed24-26, techos 5: AFLOJA
+
+El liston de su pareja (extremo, Anotacion) ya es 25, asi que un tope en 26 lo
+dejaria AJUSTADO. Restando uno da 24 y afloja. ES UNA RESTA.
+
+Y AL CAMBIARLO SE ROMPIERON DOS MEDIDOS, que es lo que destapo la otra mitad:
+
+  Def9 Jug9 Lat9 Pas9 a los 28  -> AJUSTADO  (rareza 24)
+  Def9 Jug9 Lat8 Pas8 a los 25  -> AJUSTADO  (rareza 22)
+
+Los dos tienen empate arriba Y cuarto criterio. Sumando las dos rebajas
+aflojarian los dos. LAS REBAJAS NO SE ACUMULAN: MANDA LA MAYOR.
+
+  liston = liston de la pareja - max(2 si cuarto criterio, 1 si empate arriba)
+
+Y de paso `UMBRAL_CON_EMPATE_ARRIBA` desaparece: era un tope y ahora es una
+resta, asi que la constante se queda sin uso. Quitada, que una constante muerta
+es peor que no tenerla (la leccion de FASE AC).
+
+  banco 597/597 -> 600/600

@@ -212,6 +212,9 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
         for e, p, s in T.DONDE_TERMINA_LA_EXCEPCION_DEL_PASADOR
     ]
     casos += [
+        (25, T.perfil(**n), s) for n, s in T.LAS_DOS_REBAJAS_NO_SE_ACUMULAN
+    ]
+    casos += [
         (25, T.perfil(defending=16, playmaking=10, passing=9, winger=lat), s)
         for lat, s in T.EL_DEFENSA_NO_TIENE_SEGUNDA_LISTA
     ]

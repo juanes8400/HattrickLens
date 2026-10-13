@@ -655,7 +655,15 @@ PRIMERA_QUE_AFLOJA_SOLA = 17
 #: Medido con Lateral y Anotación a la par: rareza 25 afloja y 24 no, mientras
 #: que el mismo extremo con la segunda por debajo necesitaba 27. Tiene sentido:
 #: un jugador con dos habilidades iguales arriba encaja en menos moldes.
-UMBRAL_CON_EMPATE_ARRIBA = 26
+#: EL EMPATE ARRIBA RESTA UNO AL LISTON DE LA PAREJA; no lo capa en 26, que es
+#: lo que parecia con las medidas que habia. Lo separo «Lat11 Ano11 Pas8 Jug5»:
+#: rareza 24, afloja, y con un tope de 26 saldria ajustado --el liston de la
+#: pareja (extremo, anotacion) ya es 25--. Restando uno da 24 y afloja.
+#:
+#: Las dos medidas viejas salen igual con las dos lecturas, y por eso no se via:
+#:   Lat12 Ano12 Pas7  rareza 25, afloja -> 25-1 = 24, o min(25,26) = 25
+#:   Lat12 Pas12 Ano7  rareza 25, ajusta -> 27-1 = 26, o min(27,26) = 26
+REBAJA_POR_EMPATE_ARRIBA = 1
 #: El balón parado del portero cuenta para la rareza, pero descontándole más
 #: que a una habilidad normal: con Portería 14 y Defensa 6, un balón parado de
 #: 9 deja la búsqueda ajustada y uno de 15 la abre.
@@ -915,10 +923,23 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     # Medido con un delantero de Anotacion 11, Pases 10, Lateral 9 y Jugadas 8
     # --rareza 26-- que afloja, cuando el mismo tipo con solo dos habilidades
     # aguantaba hasta 27.
+    # LAS DOS REBAJAS NO SE ACUMULAN: MANDA LA MAYOR. Medido el 2026-10-13 con
+    # dos perfiles que tienen las dos --empate arriba Y cuarto criterio-- y que
+    # salen AJUSTADOS, cuando sumando las dos rebajas aflojarian:
+    #
+    #   Def9 Jug9 Lat9 Pas9 a los 28  -> rareza 24, liston 27-2 = 25, ajusta
+    #   Def9 Jug9 Lat8 Pas8 a los 25  -> rareza 22, liston 25-2 = 23, ajusta
+    #
+    # Sumando serian 24 y 22, y los dos aflojarian. Y el caso que destapo que la
+    # rebaja del empate es una RESTA y no un tope en 26 --«Lat11 Ano11 Pas8
+    # Jug5», rareza 24, afloja-- no tiene cuarto criterio, asi que le toca la
+    # del empate sola: 25-1 = 24.
+    rebaja = 0
     if len(v) > 3 and v[3] >= CUARTA_QUE_BAJA_EL_LISTON:
-        umbral -= REBAJA_POR_CUARTO_CRITERIO
+        rebaja = REBAJA_POR_CUARTO_CRITERIO
     if len(v) > 1 and v[0] == v[1]:
-        umbral = min(umbral, UMBRAL_CON_EMPATE_ARRIBA)
+        rebaja = max(rebaja, REBAJA_POR_EMPATE_ARRIBA)
+    umbral -= rebaja
     # EL 17 QUE AFLOJA SOLO ES EL DE LA PRIMERA, no el nivel más alto que
     # tenga el jugador. Medido el 2026-10-12 con Lateral 6, Defensa 6 y Pases
     # 20, y otra vez con Lateral 5, Defensa 5 y Pases 18, y una tercera con

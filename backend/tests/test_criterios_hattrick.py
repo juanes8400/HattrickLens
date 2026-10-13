@@ -2438,3 +2438,40 @@ DONDE_TERMINA_LA_EXCEPCION_DEL_PASADOR: list[tuple[int, bool, str]] = [
 def test_donde_termina_la_excepcion_del_pasador(edad: int, pasador: bool, esperado: str) -> None:
     niveles = perfil(passing=13, playmaking=7) if pasador else perfil(playmaking=13, passing=7)
     assert _pinta(criterios_de(edad, niveles)) == esperado
+
+
+#: LAS DOS REBAJAS DEL DIAL NO SE ACUMULAN, Y LA DEL EMPATE ES UNA RESTA. Dos
+#: hallazgos de la misma tanda, y el segundo corrigió una regla.
+#:
+#: El listón de la pareja baja **2** con un cuarto criterio de identidad y baja
+#: con las dos primeras empatadas. Lo que no se había medido es qué pasa cuando
+#: concurren, ni si la del empate era una resta o un tope en 26 --con las medidas
+#: que había, las dos lecturas daban lo mismo--.
+#:
+#: `Lat11 Ano11 Pas8 Jug5` las separa: rareza 24 y **afloja**. El listón de su
+#: pareja (extremo, Anotación) ya es 25, así que un tope en 26 lo dejaría
+#: ajustado; restando uno da 24 y afloja. **Es una resta.**
+#:
+#: Y NO SE ACUMULAN: `Def9 Jug9 Lat9 Pas9` a los 28 y `Def9 Jug9 Lat8 Pas8` a los
+#: 25 tienen las dos cosas --empate arriba y cuarto criterio-- y salen AJUSTADOS.
+#: Sumando las dos rebajas aflojarían los dos. Manda la mayor.
+#: (perfil, lo que contestó Hattrick)
+LAS_DOS_REBAJAS_NO_SE_ACUMULAN: list[tuple[dict[str, int], str]] = [
+    (
+        dict(winger=11, scoring=11, passing=8, playmaking=6),
+        "Ed24-26 Lat=11 Ano 10-12 Pas 7-10 Jug 5-8 Def<=5 Por<=5",
+    ),
+    (
+        dict(winger=11, scoring=11, passing=9, playmaking=6),
+        "Ed24-26 Lat=11 Ano 10-12 Pas 8-11 Jug 5-8 Def<=5 Por<=5",
+    ),
+    (
+        dict(winger=11, scoring=11, passing=8, playmaking=5),
+        "Ed24-26 Lat=11 Ano 10-12 Pas 7-10 Jug 4-7 Def<=5 Por<=5",
+    ),
+]
+
+
+@pytest.mark.parametrize("niveles,esperado", LAS_DOS_REBAJAS_NO_SE_ACUMULAN)
+def test_las_dos_rebajas_no_se_acumulan(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(**niveles))) == esperado
