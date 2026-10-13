@@ -2144,3 +2144,50 @@ def test_el_balon_parado_y_el_tope_de_dias(
     criterios = criterios_de(edad, perfil(**niveles))
     assert _pinta(criterios) == esperado
     assert criterios.tope_de_dias == dias
+
+
+#: LA DEFENSA DEL PORTERO POR ENCIMA DE 9, el hueco que FASE AO encontró y no
+#: pudo medir. Estaba barrida del 1 al 9 --clavada hasta 6, banda desde 7-- y de
+#: 10 arriba el motor le aplicaba la regla general del segundo puesto por
+#: EXTENSIÓN, no por medida.
+#:
+#: Medido el 2026-10-13: la banda `[v−1, v+1]` aguanta hasta 18, y **no aparece
+#: ningún suelo**. Que era la alternativa interesante: al tercer puesto le sale
+#: un suelo desde 11 y al balón parado desde 16, y si a la Defensa del portero le
+#: pasara lo mismo el motor fallaría ahí sin que se notara, porque ninguna de las
+#: 25 fichas reales tiene un portero con Defensa 12 o más.
+#: (defensa, lo que contestó Hattrick)
+LA_DEFENSA_DEL_PORTERO_ARRIBA: list[tuple[int, str]] = [
+    (10, "Ed24-26 Por=18 Def 9-11 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (11, "Ed24-26 Por=18 Def 10-12 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (12, "Ed24-26 Por=18 Def 11-13 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (14, "Ed24-26 Por=18 Def 13-15 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (16, "Ed24-26 Por=18 Def 15-17 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (18, "Ed24-26 Por=18 Def 17-19 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+]
+
+
+@pytest.mark.parametrize("defensa,esperado", LA_DEFENSA_DEL_PORTERO_ARRIBA)
+def test_la_defensa_del_portero_arriba(defensa: int, esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(keeper=18, defending=defensa))) == esperado
+
+
+#: EL BALÓN PARADO DEL PORTERO POR DEBAJO DE 7, el otro hueco de FASE AO: estaba
+#: medido de 7 arriba y en 0, y en medio sólo había un 3 de una ficha real.
+#: Medido el 2026-10-13: techo en 1, 2, 3 y 4, y banda `[v−3, v+3]` desde 5. La
+#: frontera es el mismo umbral de entrada de 5 que gobierna todo lo demás.
+#: (balón parado, lo que contestó Hattrick)
+EL_BALON_PARADO_ABAJO: list[tuple[int, str]] = [
+    (1, "Ed24-26 Por=13 Def 7-9 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (2, "Ed24-26 Por=13 Def 7-9 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (3, "Ed24-26 Por=13 Def 7-9 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (4, "Ed24-26 Por=13 Def 7-9 BP<=5 Lat<=5 Ano<=5 Jug<=5"),
+    (5, "Ed24-26 Por=13 Def 7-9 BP 2-8 Lat<=5 Ano<=5 Jug<=5"),
+    (6, "Ed24-26 Por=13 Def 7-9 BP 3-9 Lat<=5 Ano<=5 Jug<=5"),
+]
+
+
+@pytest.mark.parametrize("balon_parado,esperado", EL_BALON_PARADO_ABAJO)
+def test_el_balon_parado_abajo(balon_parado: int, esperado: str) -> None:
+    niveles = perfil(keeper=13, defending=8, set_pieces=balon_parado)
+    assert _pinta(criterios_de(25, niveles)) == esperado

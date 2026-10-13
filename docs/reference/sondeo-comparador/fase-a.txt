@@ -2710,3 +2710,50 @@ prediccion, que es lo que hace falta para gastar cinco consultas bien:
 
 Y LA MISMA PREGUNTA PARA EL BALON PARADO POR DEBAJO: esta medido de 7 arriba
 (FASE A y AM6) y en 0. De 1 a 6 solo hay el 3 de una ficha real.
+
+================================================================================
+FASE AP - 2026-10-13 - LOS DOS HUECOS DE FASE AO, CERRADOS
+================================================================================
+
+La sesion volvio --y el aviso de metodo es que esta vez la comprobacion dio un
+«Just a moment...» de Cloudflare primero y la portada publica despues, y solo al
+tercer intento salio viva. Ante un «sin criterios» hay que mirar el titulo
+SIEMPRE: hay tres estados distintos y se parecen.
+
+--- AP1. LA DEFENSA DEL PORTERO POR ENCIMA DE 9 ----------------------------
+
+Estaba barrida del 1 al 9 y de 10 arriba el motor extrapolaba. Porteria 18 para
+que no reclasifique:
+
+  Def 10 -> «entre formidable y brillante»       = [9,11]
+  Def 11 -> «entre destacado y magnifico»        = [10,12]
+  Def 12 -> «entre brillante y clase mundial»    = [11,13]
+  Def 14 -> «entre clase mundial y titanico»     = [13,15]
+  Def 16 -> «entre titanico y mitico»            = [15,17]
+  Def 18 -> «entre mitico y utopico»             = [17,19]
+
+LA BANDA [v-1, v+1] AGUANTA HASTA 18 Y NO APARECE NINGUN SUELO. Que era la
+alternativa interesante: al tercer puesto le sale suelo desde 11 y al balon
+parado desde 16, y si a la Defensa del portero le pasara lo mismo el motor
+fallaria ahi sin que se notara, porque ninguna de las 25 fichas reales tiene un
+portero con Defensa 12 o mas. La extrapolacion era correcta.
+
+--- AP2. Y EL BALON PARADO POR DEBAJO DE 7 ---------------------------------
+
+Medido de 7 arriba y en 0, con un 3 suelto en medio. Mismo portero:
+
+  BP 1, 2, 3, 4 -> «Balon parado <= insuficiente»   techo 5
+  BP 5          -> «entre horrible y excelente»     = [2,8]
+  BP 6          -> «entre pobre y formidable»       = [3,9]
+
+Techo por debajo y banda [v-3, v+3] desde 5. La frontera es el MISMO umbral de
+entrada de 5 que gobierna todo lo demas, no uno propio del balon parado.
+
+--- RESULTADO -------------------------------------------------------------
+
+  banco 527/527 -> 539/539
+  numeros clavados 39 de 40, y el que falta no es una regla
+
+Las doce observaciones salen tal cual: los dos huecos eran extrapolaciones
+CORRECTAS. Lo que cambia es que ahora estan medidas, y la diferencia importa
+justo en el caso en que una extrapolacion habria fallado sin testigo.

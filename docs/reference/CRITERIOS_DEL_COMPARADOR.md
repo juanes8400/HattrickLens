@@ -524,13 +524,6 @@ es concreto y corto:
   son los dos únicos tipos donde la Defensa puede ser criterio sin ser la
   habilidad propia. Así que puede que no exista una regla general, y que sea una
   por tipo, que es lo que dice el texto de 2009.
-- **La Defensa del portero por encima de 9.** Está barrida del 1 al 9 --clavada
-  hasta 6, banda desde 7-- y de 10 arriba el motor le aplica la regla general
-  del segundo puesto por extensión, no por medida. Lo interesante sería que
-  apareciese un **suelo**, como le pasa al tercer puesto desde 11 y al balón
-  parado desde 16; si lo hay, el motor falla ahí y no se notaría, porque un
-  portero con Defensa 12 o más es raro y no hay ninguno en las 25 fichas reales.
-  El sondeo está escrito con su predicción en FASE AO: cinco consultas.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
 - **El tope de días de los 17 está medido y no se consume.** Hace falta una
