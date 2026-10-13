@@ -455,7 +455,15 @@ por dónde falló importa tanto como la regla.
   los Pases entran por debajo de la Anotación porque la Defensa está excluida,
   y `Jug16 Pas8 Lat8 Ano8 Def5`, donde la Anotación se queda porque la Defensa
   se cae del corte--. Son **dos reglas para dos tipos**, y una sola tendría
-  mejor pinta: es por ahí por donde buscaría el siguiente.
+  mejor pinta, y **se intentó**: siete candidatas a convertirlas en una, en
+  [`unificar_las_dos_exclusiones.py`](sondeo-comparador/unificar_las_dos_exclusiones.py).
+  Las siete pierden casos, y las dos mejores pierden **seis** cuando no tener
+  regla pierde **ocho**. Todas se atascan en lo mismo: la fuerza del empate es
+  distinta en cada tipo --con `Pas 8 = Ano 8` el extremo conserva los Pases, y
+  con `Ano 8 = Lat 8` el mediocentro tira la Anotación--, así que una regla con
+  una sola dirección de empate pierde uno de los dos. Para salir de ahí hacen
+  falta **más tipos**, no más análisis: el defensa y el delantero no se han
+  sondeado para esto, y el sondeo está diseñado (FASE AH, diez consultas).
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
 - **Cuándo entra el TERCER criterio en general.** El caso del mediocentro ya

@@ -2115,3 +2115,50 @@ el banco tumbo dos candidatas que encajaban con todo lo que habia.
 
   DESPUES, lo mismo con el DELANTERO (ano 0, pas 1, lat 2, jug 3): un par que
   empate en clave es Pases 9 y Lateral 10, y el eje a barrer seria las Jugadas.
+
+================================================================================
+FASE AI - 2026-10-12 - SIETE INTENTOS DE UNIFICAR LAS DOS EXCLUSIONES. CERO
+================================================================================
+
+Sin sesion no se puede medir, pero esto no necesitaba medir: el banco tiene 380
+observaciones y puede juzgar una regla candidata gratis. Lo unico flojo que
+quedaba era que el motor tiene DOS reglas donde deberia haber una.
+
+  el EXTREMO pierde los PASES si no alcanzan a la Anotacion
+  el MEDIOCENTRO pierde la ANOTACION si no supera al Lateral
+
+Siete candidatas, en `unificar_las_dos_exclusiones.py`:
+
+  380/380  dos reglas separadas (motor actual)
+  374/380  C  cae la penultima si no alcanza a la ultima
+  374/380  G  cae la que no alcanza a la anterior de la lista con_defensa
+  372/380  Z  NINGUNA EXCLUSION (control)
+  372/380  F  cae la estrictamente mas baja de las dos ultimas
+  367/380  B  cae la mas baja de las dos ultimas, el empate a la primera
+  367/380  H  como G, y el empate tambien cae
+  365/380  D  cae la ultima si no supera a la penultima
+  316/380  E  cae la que no alcanza a la siguiente de la plantilla
+
+LAS DOS MEJORES PIERDEN SEIS, Y NO TENER REGLA PIERDE OCHO. O sea: ninguna
+unificacion de esta familia aporta casi nada sobre no tener nada. No es que se
+quede corta; es que no esta explicando lo mismo.
+
+DONDE SE ATASCAN TODAS, y es una sola cosa: la FUERZA DEL EMPATE, que es
+distinta en cada tipo.
+
+  extremo      Pas 8 = Ano 8  ->  los Pases SE QUEDAN   (hace falta >=)
+  mediocentro  Ano 8 = Lat 8  ->  la Anotacion SE VA    (hace falta >)
+
+Cualquier regla con una sola direccion de empate pierde uno de los dos casos.
+Se probo tambien resolver el empate por la clave `nivel - importancia` de la
+lista `con_defensa` --que es la que esta en vigor cuando la regla se dispara--
+y tampoco sale: ahi los Pases del extremo tienen PEOR clave que la Anotacion
+(8-3 = 5 contra 8-2 = 6) y tendrian que caer, y Hattrick los lista.
+
+QUE HARIA FALTA. No mas analisis: MAS TIPOS. El defensa y el delantero no se
+han sondeado para esto. Si cada uno tiene su propia exclusion, la forma de las
+cuatro juntas dira si hay una regla o si de verdad hay una por tipo --que
+tambien es una respuesta, y encaja con el texto de 2009, que habla de elegir
+«un conjunto de habilidades» SEGUN EL TIPO y no de una regla general--.
+
+El sondeo esta disenado en FASE AH y son diez consultas.
