@@ -235,6 +235,7 @@ plantilla y no los pesos, así que no hay círculo.
 | defensa | **la suya** | una |
 | portero | su segunda fija | una |
 | delantero | **no le entra nunca** (exclusión por tipo) | una |
+| pasador | ajena, pero **no puede tenerla**: basta una compañera en 1 para que deje de ser pasador | una |
 
 Medido el 2026-10-12 con dos barridos diseñados para que las dos listas
 hipotéticas discrepasen. En el **defensa** --`Def16 Jug10 Pas9` con el Lateral de
@@ -244,7 +245,7 @@ en 11, que es justo donde lo predicen los pesos normales. En el **delantero**
 en el montón.
 
 Eso cierra la pregunta de por qué las dos exclusiones en espejo no se unifican:
-**no son dos casos de una regla general que se me escapa, son los dos únicos
+**no son dos casos de una regla general que se escapa, son los dos únicos
 tipos donde la conmutación puede ocurrir.** Y que haya una regla por tipo encaja
 con el texto de 2009, que habla de elegir un conjunto *según el tipo*.
 

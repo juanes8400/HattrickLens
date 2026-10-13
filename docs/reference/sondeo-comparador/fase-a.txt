@@ -2776,3 +2776,30 @@ hace con las otras tres que el portero no usa-- estariamos rechazando
 comparables que Hattrick si ensena. No lo hace.
 
   banco 539/539 -> 543/543
+
+--- AP4. EL PASADOR PURO, Y EL CABO QUE CERRABA -----------------------------
+
+FASE AL dejo dicho que la segunda lista inicial aparece donde la Defensa puede
+ser criterio SIN SER la habilidad del propio tipo, y que por eso no habia un
+tercer tipo donde probar si las dos exclusiones en espejo son una regla o dos.
+FALTABA UN TIPO: el PASADOR, para quien la Defensa tambien es ajena.
+
+Con Pases 16 y una sola companera:
+
+  Def 0  ->  «Lateral = nulo, Pases 15-17, ...»   PASADOR PURO
+  Def 1  ->  «Defensa = desastroso, Pases 15-17»  ya es DEFENSA
+  Def 2, 3, 4, 5, 6, 8  ->  idem, defensa
+  Jug 1, 2, 3            ->  «Jugadas = ...», mediocentro
+
+BASTA UNA COMPANERA EN 1 PARA QUITARLE EL TIPO. El pasador puro --primer
+criterio «Lateral = nulo»-- solo se da con las otras seis EXACTAMENTE a cero.
+
+Asi que el pasador NUNCA puede tener la Defensa en su conjunto: en cuanto la
+tiene, deja de ser pasador. No hay un tercer tipo donde la conmutacion pueda
+ocurrir, y ahora esta MEDIDO en vez de supuesto.
+
+Lo que queda de esa pregunta no es un hueco de datos: es que con dos casos y
+ninguna forma de generar un tercero, «una regla o una por tipo» puede no ser
+decidible desde fuera.
+
+  banco 543/543 -> 554/554

@@ -2221,3 +2221,42 @@ def test_al_portero_los_pases_no_le_aparecen(pases: int, esperado: str) -> None:
     criterios = criterios_de(25, perfil(keeper=16, defending=10, set_pieces=10, passing=pases))
     assert _pinta(criterios) == esperado
     assert all(c.habilidad != "passing" for c in criterios.habilidades)
+
+
+#: EL PASADOR PURO EXISTE SÓLO CON TODAS LAS DEMÁS A CERO, y eso cierra el único
+#: cabo que quedaba de la pregunta de las dos listas.
+#:
+#: El razonamiento era: la segunda lista inicial aparece donde la Defensa puede
+#: ser criterio **sin ser la habilidad del propio tipo**, o sea en el extremo y el
+#: mediocentro, y de ahí que no hubiera un tercer tipo donde probar si las dos
+#: exclusiones en espejo son una regla o dos. Pero faltaba un tipo: el **pasador**,
+#: para quien la Defensa también es ajena.
+#:
+#: Medido el 2026-10-13: con Pases 16, basta una compañera en **1** para que le
+#: quite el tipo. `Pas16 Def1` sale «Defensa = desastroso» de primera, y
+#: `Pas16 Jug1` sale «Jugadas = desastroso». El pasador puro --primer criterio
+#: `Lateral = nulo`-- sólo se da con las otras seis exactamente a cero.
+#:
+#: Así que el pasador NUNCA puede tener la Defensa en su conjunto: en cuanto la
+#: tiene, deja de ser pasador. No hay un tercer tipo donde la conmutación pueda
+#: ocurrir, y ahora está medido en vez de supuesto.
+#: (habilidad de la compañera, nivel, lo que contestó Hattrick)
+EL_PASADOR_PURO: list[tuple[str, int, str]] = [
+    ("defending", 0, "Ed=25 Lat=0 Pas 15-17 Jug<=4 Def<=4 Ano<=4 Por<=4"),
+    ("defending", 1, "Ed=25 Def=1 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("defending", 2, "Ed=25 Def=2 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("defending", 3, "Ed=25 Def=3 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("defending", 4, "Ed=25 Def=4 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("defending", 5, "Ed=25 Def=5 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("defending", 6, "Ed=25 Def=6 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("defending", 8, "Ed=25 Def=8 Pas 15-17 Jug<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("playmaking", 1, "Ed=25 Jug=1 Pas 15-17 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("playmaking", 2, "Ed=25 Jug=2 Pas 15-17 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    ("playmaking", 3, "Ed=25 Jug=3 Pas 15-17 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("habilidad,nivel,esperado", EL_PASADOR_PURO)
+def test_el_pasador_puro(habilidad: str, nivel: int, esperado: str) -> None:
+    niveles = perfil(passing=16, **({habilidad: nivel} if nivel else {}))
+    assert _pinta(criterios_de(25, niveles)) == esperado
