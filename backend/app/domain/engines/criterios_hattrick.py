@@ -864,6 +864,20 @@ UMBRAL_POR_PAREJA: dict[tuple[str, str], int] = {
     ("playmaking", "winger"): 25,
     ("playmaking", "scoring"): 25,
     ("winger", "passing"): 27,
+    # LAS TRES QUE FALTABAN DEL EXTREMO, medidas el 2026-10-13. Caian en el 27
+    # por defecto y DOS NO ERAN 27. Lateral 16 con una segunda, que es rareza
+    # 16 + segunda, y el dial leido por sus dos marcas --edad clavada y techos
+    # en 4 para ajustado--:
+    #
+    #   con Jugadas    25 ajustado  26 ajustado  27 HOLGADO   -> liston 27
+    #   con Defensa    25 ajustado  26 HOLGADO                -> liston 26
+    #   con Anotacion  24 ajustado  25 HOLGADO                -> liston 25
+    #
+    # Las tres con frontera a los dos lados. La de la Anotacion se bisecto por
+    # abajo hasta 22, todas ajustadas.
+    ("winger", "playmaking"): 27,
+    ("winger", "defending"): 26,
+    ("winger", "scoring"): 25,
     ("scoring", "passing"): 27,
     ("scoring", "playmaking"): 27,
     ("scoring", "winger"): 25,

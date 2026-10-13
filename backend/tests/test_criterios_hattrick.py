@@ -2260,3 +2260,39 @@ EL_PASADOR_PURO: list[tuple[str, int, str]] = [
 def test_el_pasador_puro(habilidad: str, nivel: int, esperado: str) -> None:
     niveles = perfil(passing=16, **({habilidad: nivel} if nivel else {}))
     assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: LAS TRES PAREJAS DEL DIAL QUE FALTABAN, y dos no eran lo que el motor
+#: suponía. `UMBRAL_POR_PAREJA` tenía doce celdas medidas y el resto caía en
+#: `UMBRAL_POR_TIPO`; del extremo faltaban tres, que heredaban el 27.
+#:
+#: Medidas el 2026-10-13 con Lateral 16 y una sola segunda --rareza = 16 +
+#: segunda-- y el dial leído por sus **dos** marcas, la edad y los techos:
+#:
+#:   con Jugadas    25 ajustado · 26 ajustado · 27 HOLGADO   -> listón 27 ✓
+#:   con Defensa    25 ajustado · 26 HOLGADO                 -> listón 26
+#:   con Anotación  24 ajustado · 25 HOLGADO                 -> listón 25
+#:
+#: Las tres con frontera a los dos lados; la de la Anotación se bisecó por abajo
+#: hasta 22 y todas salen ajustadas. Medir el valor por defecto en vez de darlo
+#: por bueno es lo que destapó las dos.
+#: (habilidad de la segunda, nivel, lo que contestó Hattrick)
+LAS_TRES_PAREJAS_DEL_DIAL: list[tuple[str, int, str]] = [
+    ("playmaking", 9, "Ed=25 Lat=16 Jug=9 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    ("playmaking", 10, "Ed=25 Lat=16 Jug 9-11 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    ("playmaking", 11, "Ed24-26 Lat=16 Jug 10-12 Pas<=5 Def<=5 Ano<=5 Por<=5"),
+    ("defending", 9, "Ed=25 Lat=16 Def=9 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    ("defending", 10, "Ed24-26 Lat=16 Def 9-11 Jug<=5 Pas<=5 Ano<=5 Por<=5"),
+    ("defending", 11, "Ed24-26 Lat=16 Def 10-12 Jug<=5 Pas<=5 Ano<=5 Por<=5"),
+    ("scoring", 6, "Ed=25 Lat=16 Ano=6 Jug<=4 Pas<=4 Def<=4 Por<=4"),
+    ("scoring", 7, "Ed=25 Lat=16 Ano=7 Jug<=4 Pas<=4 Def<=4 Por<=4"),
+    ("scoring", 8, "Ed=25 Lat=16 Ano=8 Jug<=4 Pas<=4 Def<=4 Por<=4"),
+    ("scoring", 9, "Ed24-26 Lat=16 Ano=9 Jug<=5 Pas<=5 Def<=5 Por<=5"),
+    ("scoring", 10, "Ed24-26 Lat=16 Ano 9-11 Jug<=5 Pas<=5 Def<=5 Por<=5"),
+    ("scoring", 11, "Ed24-26 Lat=16 Ano 10-12 Jug<=5 Pas<=5 Def<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("habilidad,nivel,esperado", LAS_TRES_PAREJAS_DEL_DIAL)
+def test_las_tres_parejas_del_dial(habilidad: str, nivel: int, esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(winger=16, **{habilidad: nivel}))) == esperado

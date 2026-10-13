@@ -2803,3 +2803,31 @@ ninguna forma de generar un tercero, «una regla o una por tipo» puede no ser
 decidible desde fuera.
 
   banco 543/543 -> 554/554
+
+--- AP5. LAS TRES PAREJAS DEL DIAL QUE FALTABAN, Y DOS NO ERAN 27 ----------
+
+`UMBRAL_POR_PAREJA` tenia doce celdas medidas y el resto caia en
+`UMBRAL_POR_TIPO`. Enumerando que parejas son posibles salieron tres huecos del
+extremo --con Jugadas, con Defensa y con Anotacion de segunda-- que heredaban el
+27 sin que nadie lo hubiera comprobado. Las otras ausencias no son huecos: la
+segunda imposible por exclusion de tipo (la Anotacion del defensa, la Defensa
+del delantero) o inalcanzable (el portero no reordena, asi que su segunda es
+siempre la Defensa; y el pasador puro no tiene segunda, FASE AP4).
+
+Lateral 16 con una sola segunda, que es rareza 16 + segunda, leyendo el dial por
+sus DOS marcas --edad clavada y techos en 4 para ajustado--:
+
+  con Jugadas    rareza 25 ajustado   26 ajustado   27 HOLGADO   -> liston 27
+  con Defensa    rareza 25 ajustado   26 HOLGADO                 -> liston 26
+  con Anotacion  rareza 24 ajustado   25 HOLGADO                 -> liston 25
+
+DOS DE LAS TRES NO ERAN 27. La de la Anotacion se bisecto por abajo hasta 22 y
+todas salen ajustadas, asi que su 25 tiene frontera a los dos lados igual que
+las otras dos.
+
+LA LECCION: medir el valor por defecto en vez de darlo por bueno. Un `dict.get`
+con fallback esconde exactamente este fallo, porque el motor no se queja y el
+banco no lo nota: ninguna de las 566 observaciones anteriores pasaba por esas
+tres casillas.
+
+  banco 554/554 -> 566/566

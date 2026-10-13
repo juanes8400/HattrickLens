@@ -536,6 +536,14 @@ cuatro no son reglas: uno es de representación y tres son del tope de días, qu
 no se consume.
 ## El listón del dial va por PAREJA, no por tipo
 
+> **2026-10-13: la tabla está completa y dos celdas no eran lo que se suponía.**
+> Faltaban tres parejas del extremo, que heredaban el 27 por `dict.get`. Medidas:
+> con Jugadas el listón es 27, **con Defensa es 26 y con Anotación es 25**. Las
+> demás ausencias no son huecos: la segunda es imposible por exclusión de tipo o
+> inalcanzable --el portero no reordena y el pasador puro no tiene segunda--.
+> Un `get` con valor por defecto esconde justo este fallo: el motor no se queja
+> y el banco no lo nota, porque ninguna observación pasaba por esas casillas.
+
 Se medía con una sola segunda habilidad por tipo, y de ahí salió un listón por
 tipo. Es falso en cuatro de doce parejas barridas:
 
