@@ -2058,3 +2058,60 @@ Lo que NO significa que el motor sea el mecanismo de Hattrick: significa que no
 hay contraejemplo conocido. La diferencia importa, y las dos reglas en espejo de
 AG1 son el sitio por donde yo buscaria el siguiente: son dos reglas distintas
 para dos tipos, y una sola tendria mejor pinta.
+
+================================================================================
+FASE AH - 2026-10-12 - LO SIGUIENTE, YA DISENADO. Y LA SESION CADUCO OTRA VEZ
+================================================================================
+
+LA SESION CADUCO al intentar el primer sondeo de esta fase. COMPROBADO, no
+supuesto: la respuesta es 200 con `redirected: true`, titulo «Hattrick: el juego
+de manager de futbol | Unete a un mundo de futbol gratis» y sin panel de
+edicion. Es la pagina publica. NO es estrangulamiento --ese fue el error que me
+costo dos horas el 2026-10-11-- y no es el perfil.
+
+  REGLA: ante un «sin criterios», mirar SIEMPRE el titulo y `redirected`. Si el
+  titulo es el de la portada publica, la sesion esta cerrada y hay que pedirle
+  al propietario que reconecte. Nunca entrar a su cuenta.
+
+Hoy se gastaron ~190 consultas de sondeo y ~50 de paginas.
+
+--- AH1. LA PREGUNTA QUE TOCA ----------------------------------------------
+
+El banco esta en 380/380 sin pendientes, asi que no queda contraejemplo
+conocido. Eso NO quiere decir que el motor sea el mecanismo de Hattrick. El
+sitio por donde buscaria es este:
+
+  EL EXTREMO pierde los PASES si no alcanzan a la Anotacion.
+  EL MEDIOCENTRO pierde la ANOTACION si no supera al Lateral.
+
+Son dos reglas para dos tipos. Si el mecanismo es uno, deberia haber UNA regla,
+y entonces el DEFENSA y el DELANTERO tendrian que tener la suya --y una segunda
+lista inicial-- por el mismo motivo. Eso es una prediccion, y se puede medir.
+
+--- AH2. EL SONDEO DEL DEFENSA, LISTO PARA EJECUTAR -------------------------
+
+Pesos medidos del defensa (FASE Q): def 0, pas 1, jug 2, lat 3.
+
+Para que un cambio de lista se VEA hace falta un par que empate en clave bajo
+la lista normal, porque si no las dos listas dan lo mismo. Con Jugadas 10 y
+Pases 9 las claves son 10-2 = 8 y 9-1 = 8: empatan, y gana Jugadas por nivel.
+
+  PERFIL BASE   Defensa 16, Jugadas 10, Pases 9, edad 25
+  BARRIDO       Lateral 0, 4, 5, 6, 7, 8, 9, 10, 11, 12
+
+  Si el defensa NO tiene segunda lista -> «Def, Jug, Pas» en todo el barrido
+                                          (con el Lateral entrando de cuarto
+                                          cuando le toque)
+  Si la tiene y la dispara el Lateral  -> el orden gira a «Def, Pas, Jug» a
+                                          partir de algun Lateral, y ese punto
+                                          dice cual es la condicion
+
+Y SI GIRA, la frontera hay que medirla como las otras cuatro: con un segundo
+barrido en el que la condicion candidata y la rival se separen. En el extremo
+la condicion fue la PERTENENCIA de la Defensa al conjunto; en el mediocentro,
+«Defensa >= Anotacion - 3» con suelo en 5. Las dos se midieron a los dos lados
+y las dos tienen una prediccion cumplida. Menos que eso no vale: el 2026-10-12
+el banco tumbo dos candidatas que encajaban con todo lo que habia.
+
+  DESPUES, lo mismo con el DELANTERO (ano 0, pas 1, lat 2, jug 3): un par que
+  empate en clave es Pases 9 y Lateral 10, y el eje a barrer seria las Jugadas.
