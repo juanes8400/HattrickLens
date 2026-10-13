@@ -146,6 +146,23 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
     casos += [(e, dict(n), s) for e, n, s in T.LA_ENTRADA_DEL_CUARTO]
     casos += [(25, T.perfil(**n), s) for n, s in T.LOS_CINCO_NUMEROS_ACOTADOS]
     casos += [(25, T.perfil(keeper=8, set_pieces=bp), s) for bp, s in T.EL_DESCUENTO_DEL_BALON_PARADO]
+    casos += [(25, T.perfil(**n), s) for n, s in T.EL_MONTON_VA_POR_NIVEL]
+    casos += [(25, T.perfil(**n), s) for n, s in T.UN_ACOMPANANTE_EN_CUATRO]
+    casos += [
+        (
+            e,
+            T.perfil(defending=16, playmaking=12)
+            if h
+            else T.perfil(defending=12, playmaking=9),
+            s,
+        )
+        for e, h, s in T.LA_EDAD_POR_ENCIMA_DE_33
+    ]
+    casos += [(25, T.perfil(**n), s) for n, s in T.EL_PASADOR_SE_RECLASIFICA]
+    casos += [
+        (25, T.perfil(keeper=13, defending=8, set_pieces=bp), s)
+        for bp, s in T.EL_SUELO_DEL_BALON_PARADO
+    ]
     casos += [
         (25, T.perfil(defending=16, playmaking=10, passing=9, winger=lat), s)
         for lat, s in T.EL_DEFENSA_NO_TIENE_SEGUNDA_LISTA

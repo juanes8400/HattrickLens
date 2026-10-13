@@ -1944,3 +1944,164 @@ EL_DESCUENTO_DEL_BALON_PARADO: list[tuple[int, str]] = [
 @pytest.mark.parametrize("balon_parado,esperado", EL_DESCUENTO_DEL_BALON_PARADO)
 def test_el_descuento_del_balon_parado(balon_parado: int, esperado: str) -> None:
     assert _pinta(criterios_de(25, perfil(keeper=8, set_pieces=balon_parado))) == esperado
+
+
+#: EL MONTÓN VA POR NIVEL, y eso faltaba por comprobar en los tipos que no son
+#: el mediocentro. Barrido del 2026-10-13 con dos sobrantes por debajo de 3 --para
+#: que ninguno pueda ser criterio-- y los niveles cruzados:
+#:
+#:   extremo   Pas13, Jug0 Def2 -> «Def<=5 Jug<=5»   | Jug2 Def0 -> «Jug<=5 Def<=5»
+#:   defensa   Pas13, Jug0 Lat2 -> «Lat<=5 Jug<=5»   | Jug2 Lat0 -> «Jug<=5 Lat<=5»
+#:   delantero Pas13, Lat0 Jug2 -> «Jug<=5 Lat<=5»   | Lat2 Jug0 -> «Lat<=5 Jug<=5»
+#:
+#: Las seis en las dos direcciones: manda el nivel, no la plantilla.
+#:
+#: Y DOS LECCIONES DE METODO. La primera: un acompañante en 4 no es sobrante, es
+#: SEGUNDO CRITERIO --la entrada del segundo son 3-- y el primer diseño de este
+#: barrido se fue por ahí. La segunda: con «Jug16 Pas13 Def2» la Defensa parece
+#: ir delante del Lateral en el montón, y no es el montón: es el TERCER puesto
+#: con techo, porque 2 no llega a 5. Casi monto una regla sobre eso.
+#: (perfil, lo que contestó Hattrick)
+EL_MONTON_VA_POR_NIVEL: list[tuple[dict[str, int], str]] = [
+    (dict(winger=16, passing=13, defending=2), "Ed24-26 Lat=16 Pas 12-14 Def<=5 Jug<=5 Ano<=5 Por<=5"),
+    (dict(winger=16, passing=13, playmaking=2), "Ed24-26 Lat=16 Pas 12-14 Jug<=5 Def<=5 Ano<=5 Por<=5"),
+    (dict(defending=16, passing=13, winger=2), "Ed24-26 Def=16 Pas 12-14 Lat<=5 Jug<=5 Ano<=5 Por<=5"),
+    (dict(defending=16, passing=13, playmaking=2), "Ed24-26 Def=16 Pas 12-14 Jug<=5 Lat<=5 Ano<=5 Por<=5"),
+    (dict(scoring=16, passing=13, playmaking=2), "Ed24-26 Ano=16 Pas 12-14 Jug<=5 Lat<=5 Def<=5 Por<=5"),
+    (dict(scoring=16, passing=13, winger=2), "Ed24-26 Ano=16 Pas 12-14 Lat<=5 Jug<=5 Def<=5 Por<=5"),
+    # y los del mediocentro, donde la Defensa baja de 2 a 4 es TERCER PUESTO
+    (dict(playmaking=16, passing=13, defending=2), "Ed24-26 Jug=16 Pas 12-14 Def<=5 Lat<=5 Ano<=5 Por<=5"),
+    (dict(playmaking=16, passing=13, winger=2), "Ed24-26 Jug=16 Pas 12-14 Def<=5 Lat<=5 Ano<=5 Por<=5"),
+    (dict(playmaking=16, passing=13, defending=4), "Ed24-26 Jug=16 Pas 12-14 Def<=5 Lat<=5 Ano<=5 Por<=5"),
+    (dict(playmaking=16, passing=13, winger=4), "Ed24-26 Jug=16 Pas 12-14 Def<=5 Lat<=5 Ano<=5 Por<=5"),
+    (
+        dict(playmaking=16, passing=9, scoring=10, defending=4),
+        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
+    ),
+]
+
+
+@pytest.mark.parametrize("niveles,esperado", EL_MONTON_VA_POR_NIVEL)
+def test_el_monton_va_por_nivel(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(**niveles))) == esperado
+
+
+#: UN ACOMPAÑANTE EN 4 ES SEGUNDO CRITERIO, no sobrante. Las seis del
+#: 2026-10-13 que lo enseñaron, y una que destapa otra cosa: con `Lat16 Ano4` la
+#: Anotación no entra --necesita 5-- y el segundo puesto se lo queda las Jugadas
+#: a nivel 0, con techo 2, que es el techo del SEGUNDO cuando no llega a 3. No
+#: es el techo del montón, que sería 4.
+#: (perfil, lo que contestó Hattrick)
+UN_ACOMPANANTE_EN_CUATRO: list[tuple[dict[str, int], str]] = [
+    (dict(winger=16, defending=4), "Ed=25 Lat=16 Def=4 Jug<=4 Pas<=4 Ano<=4 Por<=4"),
+    (dict(winger=16, scoring=4), "Ed=25 Lat=16 Jug<=2 Pas<=4 Def<=4 Ano<=4 Por<=4"),
+    (dict(defending=16, winger=4), "Ed=25 Def=16 Lat=4 Pas<=4 Jug<=4 Ano<=4 Por<=4"),
+    (dict(defending=16, playmaking=4), "Ed=25 Def=16 Jug=4 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (dict(scoring=16, playmaking=4), "Ed=25 Ano=16 Jug=4 Pas<=4 Lat<=4 Def<=4 Por<=4"),
+    (dict(scoring=16, winger=4), "Ed=25 Ano=16 Lat=4 Pas<=4 Jug<=4 Def<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("niveles,esperado", UN_ACOMPANANTE_EN_CUATRO)
+def test_un_acompanante_en_cuatro(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(**niveles))) == esperado
+
+
+#: LA EDAD POR ENCIMA DE 33, que sólo tenía puntos sueltos de fichas reales.
+#: Barrido del 2026-10-13 con el mismo par de perfiles que usó FASE G: ajustado
+#: (Def12 Jug9) y holgado (Def16 Jug12).
+#:
+#: Y SALE UNA ASIMETRÍA: el suelo abierto de los 35 es **sólo del modo
+#: ajustado**. En holgado la edad sigue siendo ±1 a los 35 y a los 36.
+#:
+#:   ajustado  33 -> 32-34 | 34 -> 33-35 | 35, 36, 40 -> >= 35
+#:   holgado   33 -> 32-34 | 34 -> 33-35 | 35 -> 34-36 | 36 -> 35-37
+#:
+#: El motor ya lo hacía: la condición del suelo abierto lleva `not holgado`.
+#: (edad, holgado, lo que contestó Hattrick)
+LA_EDAD_POR_ENCIMA_DE_33: list[tuple[int, bool, str]] = [
+    (33, False, "Ed32-34 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (34, False, "Ed33-35 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (35, False, "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (36, False, "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (40, False, "Ed35-99 Def=12 Jug=9 Pas<=4 Lat<=4 Ano<=4 Por<=4"),
+    (33, True, "Ed32-34 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
+    (34, True, "Ed33-35 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
+    (35, True, "Ed34-36 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
+    (36, True, "Ed35-37 Def=16 Jug 11-13 Pas<=5 Lat<=5 Ano<=5 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("edad,holgado,esperado", LA_EDAD_POR_ENCIMA_DE_33)
+def test_la_edad_por_encima_de_33(edad: int, holgado: bool, esperado: str) -> None:
+    niveles = (
+        perfil(defending=16, playmaking=12) if holgado else perfil(defending=12, playmaking=9)
+    )
+    assert _pinta(criterios_de(edad, niveles)) == esperado
+
+
+#: EL PASADOR SE RECLASIFICA, y su orden nunca se había barrido como el de los
+#: otros cinco tipos. Barrido del 2026-10-13 con Pases 16 y dos compañeras:
+#: **el primer criterio es la compañera MÁS ALTA**, y los Pases bajan a segundo.
+#:
+#:   Pas16 Jug10 Def9  -> «Jugadas = destacado, Pases 15-17, Defensa 8-11»
+#:   Pas16 Jug9  Def10 -> «Defensa = destacado, Pases 15-17, Jugadas 8-11»
+#:   Pas16 Def9  Ano10 -> «Anotación = destacado, Pases 15-17»  (y AJUSTADO)
+#:
+#: El tipo sale de la compañera, no de los Pases, y eso es lo que separa a un
+#: pasador de un extremo: con Pases 16 y todo lo demás a cero el primer criterio
+#: es `Lateral = nulo`.
+#: (perfil, lo que contestó Hattrick)
+EL_PASADOR_SE_RECLASIFICA: list[tuple[dict[str, int], str]] = [
+    (
+        dict(passing=16, playmaking=10, defending=9),
+        "Ed24-26 Jug=10 Pas 15-17 Def 8-11 Lat<=5 Ano<=5 Por<=5",
+    ),
+    (
+        dict(passing=16, playmaking=9, defending=10),
+        "Ed24-26 Def=10 Pas 15-17 Jug 8-11 Lat<=5 Ano<=5 Por<=5",
+    ),
+    (
+        dict(passing=16, playmaking=10, winger=9),
+        "Ed24-26 Jug=10 Pas 15-17 Lat 8-11 Def<=5 Ano<=5 Por<=5",
+    ),
+    (
+        dict(passing=16, playmaking=9, winger=10),
+        "Ed24-26 Lat=10 Pas 15-17 Jug 8-11 Def<=5 Ano<=5 Por<=5",
+    ),
+    (
+        dict(passing=16, defending=10, scoring=9),
+        "Ed24-26 Def=10 Pas 15-17 Jug<=5 Lat<=5 Ano<=11 Por<=5",
+    ),
+    (
+        dict(passing=16, defending=9, scoring=10),
+        "Ed=25 Ano=10 Pas 15-17 Lat<=4 Jug<=4 Def<=10 Por<=4",
+    ),
+]
+
+
+@pytest.mark.parametrize("niveles,esperado", EL_PASADOR_SE_RECLASIFICA)
+def test_el_pasador_se_reclasifica(niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(25, perfil(**niveles))) == esperado
+
+
+#: EL SUELO FIJO DEL BALÓN PARADO, barrido entero. Sólo tenía dos puntos --16 y
+#: 20-- y el 20 venía de una ficha real. Barrido del 2026-10-13 con el mismo
+#: portero de 14 a 20: banda `[v−3, v+3]` hasta 15, y de 16 en adelante el suelo
+#: fijo en 14, que ya no depende del nivel. La frontera, a los dos lados.
+#: (balón parado, lo que contestó Hattrick)
+EL_SUELO_DEL_BALON_PARADO: list[tuple[int, str]] = [
+    (14, "Ed24-26 Por=13 Def 7-9 BP 11-17 Lat<=5 Ano<=5 Jug<=5"),
+    (15, "Ed24-26 Por=13 Def 7-9 BP 12-18 Lat<=5 Ano<=5 Jug<=5"),
+    (16, "Ed24-26 Por=13 Def 7-9 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+    (17, "Ed24-26 Por=13 Def 7-9 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+    (18, "Ed24-26 Por=13 Def 7-9 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+    (19, "Ed24-26 Por=13 Def 7-9 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+    (20, "Ed24-26 Por=13 Def 7-9 BP>=14 Lat<=5 Ano<=5 Jug<=5"),
+]
+
+
+@pytest.mark.parametrize("balon_parado,esperado", EL_SUELO_DEL_BALON_PARADO)
+def test_el_suelo_del_balon_parado(balon_parado: int, esperado: str) -> None:
+    niveles = perfil(keeper=13, defending=8, set_pieces=balon_parado)
+    assert _pinta(criterios_de(25, niveles)) == esperado

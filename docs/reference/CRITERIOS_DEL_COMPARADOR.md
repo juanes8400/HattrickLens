@@ -388,6 +388,11 @@ hasta 21  ->  clavada
 35 y más  ->  «>= 35», un suelo sin tope, si la búsqueda va ajustada
 ```
 
+**La asimetría de los 35 está barrida**, no es un punto suelto: el 2026-10-13 se
+midieron los dos perfiles de siempre a los 33, 34, 35, 36 y 40, y en **holgado**
+la edad sigue siendo ±1 a los 35 (`34-36`) y a los 36 (`35-37`). El suelo abierto
+es sólo del modo ajustado.
+
 **Al PASADOR no se le abre a los 32**: a quien lo más alto que tiene son Pases
 la edad le aguanta clavada hasta los 34. Dándole la vuelta al mismo par de
 habilidades cambia el resultado --Pases 13 y Jugadas 7 da `= 33`, y Jugadas 13

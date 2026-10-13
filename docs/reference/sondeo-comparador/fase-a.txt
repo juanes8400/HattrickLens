@@ -2478,3 +2478,134 @@ LO QUE SIGUE ABIERTO, y ya no es poco ni mucho sino concreto:
      puede que no HAYA una regla general: puede haber una por tipo, como dice
      el texto de 2009.
   3. Nada mas. No queda ninguna observacion sin reproducir.
+
+================================================================================
+FASE AM - 2026-10-13 - EL MONTON VA POR NIVEL, Y DOS TRAMPAS DE DISENO
+================================================================================
+
+El mediocentro resulto tener cola propia (FASE AG), asi que no se podia suponer
+que los demas tipos usasen el orden del corte. 17 consultas.
+
+--- AM1. DOS SOBRANTES CRUZADOS, EN LOS TRES TIPOS QUE FALTABAN -------------
+
+Con el tipo alto, una segunda de verdad (Pases 13) y dos sobrantes POR DEBAJO DE
+3 --para que ninguno pueda ser criterio-- cruzando los niveles:
+
+  extremo    Jug0 Def2 -> «Def<=5 Jug<=5»   |  Jug2 Def0 -> «Jug<=5 Def<=5»
+  defensa    Jug0 Lat2 -> «Lat<=5 Jug<=5»   |  Jug2 Lat0 -> «Jug<=5 Lat<=5»
+  delantero  Lat0 Jug2 -> «Jug<=5 Lat<=5»   |  Lat2 Jug0 -> «Lat<=5 Jug<=5»
+
+Las seis en las dos direcciones: EL MONTON VA POR NIVEL, no por plantilla. Que
+es lo que el corte por nivel de FASE AG ya hacia, asi que no hay nada que
+cambiar. Seis observaciones nuevas que el motor reproduce tal cual.
+
+--- AM2. PRIMERA TRAMPA: UN ACOMPANANTE EN 4 NO ES SOBRANTE -----------------
+
+El primer diseno de este barrido ponia un solo acompanante en 4 y esperaba
+verlo en el monton. No: ENTRADA_SEGUNDO SON 3, asi que un 4 es SEGUNDO CRITERIO.
+Las seis consultas se gastaron en eso, y de paso dieron seis observaciones:
+
+  Lat16 Def4 -> «Lateral = extraterrestre, Defensa = debil»  (criterio)
+  Def16 Lat4 -> «Defensa = extraterrestre, Lateral = debil»
+  ...
+
+Y UNA DE ELLAS ENSENA OTRA COSA. Con «Lat16 Ano4» la Anotacion NO entra --necesita
+5-- y el segundo puesto se lo queda las JUGADAS A NIVEL 0:
+
+  Lat16 Ano4 -> «Lateral = extraterrestre, Jugadas <= HORRIBLE, Pases <= debil,
+                 Defensa <= debil, Anotacion <= debil, Porteria <= debil»
+
+«Jugadas <= horrible» es 2, y el techo del monton seria 4. Es el techo del
+SEGUNDO PUESTO cuando no llega a la entrada: ENTRADA_SEGUNDO - 1. El motor ya lo
+hacia; nunca se habia visto en una medida.
+
+--- AM3. SEGUNDA TRAMPA, Y ESTA CASI ME CUESTA UNA REGLA INVENTADA ----------
+
+Con «Jug16 Pas13 Def2» la Defensa sale ANTES del Lateral, y con «Jug16 Pas9
+Ano10 Def4» sale DESPUES. Lei eso como «la cola del mediocentro gira segun el
+perfil» y empece a buscar la condicion.
+
+NO ERA EL MONTON. Con Pas13, la Defensa de 2 es el TERCER PUESTO con techo
+--porque 2 no llega a 5-- y el Lateral esta excluido, asi que van en sitios
+distintos de la lista por razones distintas. Las once observaciones las
+reproduce el motor sin tocar nada.
+
+  La comprobacion que lo destapo: imprimir `_fuera` y `_puestos` en vez de
+  razonar sobre la cadena. Dos minutos, contra la regla que estaba a punto de
+  escribir.
+
+LA LECCION DE AM2 Y AM3 ES LA MISMA: antes de leer una cadena como si fuera una
+regla, hay que saber QUE PUESTO ocupa cada habilidad. Un techo puede venir del
+segundo puesto, del tercero o del monton, y los tres se escriben igual.
+
+  banco 476/476 -> 493/493
+
+--- AM4. LA EDAD POR ENCIMA DE 33, Y UNA ASIMETRIA ------------------------
+
+La ley de la edad estaba barrida de 17 a 33 (FASE G) y de ahi arriba solo habia
+puntos sueltos de fichas reales (34, 42, 43, 45). Barrido con el mismo par de
+perfiles de FASE G:
+
+  ajustado (Def12 Jug9)      33 -> 32-34   34 -> 33-35   35, 36, 40 -> >= 35
+  holgado  (Def16 Jug12)     33 -> 32-34   34 -> 33-35   35 -> 34-36  36 -> 35-37
+
+EL SUELO ABIERTO DE LOS 35 ES SOLO DEL MODO AJUSTADO. En holgado la edad sigue
+siendo +-1 a los 35 y a los 36. El motor ya lo hacia --la condicion lleva `not
+holgado`-- pero eso venia de una sola ficha real de 42 anos y ahora esta barrido.
+
+  banco 493/493 -> 502/502
+
+--- AM5. EL PASADOR, cuyo orden nunca se habia barrido ---------------------
+
+De los seis tipos, el pasador era el unico sin barrido de orden. Pases 16 y dos
+companeras:
+
+  Pas16 Jug10 Def9   ->  Jug=10   Pas 15-17  Def 8-11  Lat<=5 Ano<=5 Por<=5
+  Pas16 Jug9  Def10  ->  Def=10   Pas 15-17  Jug 8-11
+  Pas16 Jug10 Lat9   ->  Jug=10   Pas 15-17  Lat 8-11
+  Pas16 Jug9  Lat10  ->  Lat=10   Pas 15-17  Jug 8-11
+  Pas16 Def10 Ano9   ->  Def=10   Pas 15-17  Jug<=5 Lat<=5 Ano<=11
+  Pas16 Def9  Ano10  ->  Ano=10   Pas 15-17  (y AJUSTADO, Ed=25)
+
+EL PRIMER CRITERIO ES LA COMPANERA MAS ALTA, y los Pases bajan a segundo. O sea
+que el tipo sale de la companera y no de los Pases, que es exactamente lo que
+separa a un pasador de un extremo: con Pases 16 y todo lo demas a cero, el
+primer criterio es «Lateral = nulo».
+
+El motor ya lo hacia, y las seis salen tal cual. Seis observaciones nuevas en el
+sitio del sondeo que estaba mas flojo.
+
+  banco 502/502 -> 508/508
+
+--- RESUMEN DE LA TANDA DEL 2026-10-13 -------------------------------------
+
+  consultas          ~45
+  banco              476/476 -> 508/508
+  numeros corregidos tres (umbral del empate, descuento del balon parado y el
+                     hueco del Lateral) mas la banda ancha del cuarto
+  negativos utiles   el defensa y el delantero no tienen segunda lista, y eso
+                     acota el fenomeno a los dos tipos donde puede ocurrir
+  sin cambios        el monton por nivel, la edad por encima de 33 y la
+                     reclasificacion del pasador: 26 observaciones que el motor
+                     ya reproducia, y que antes no estaban fijadas
+
+--- AM6. EL SUELO DEL BALON PARADO, barrido entero -------------------------
+
+Tenia dos puntos sueltos --16 y 20-- y el 20 venia de una ficha real. Mismo
+portero (Por13 Def8), balon parado de 14 a 20:
+
+  BP 14  ->  «Balon parado entre brillante y mitico»      = [11,17]  banda
+  BP 15  ->  «entre magnifico y magico»                   = [12,18]  banda
+  BP 16  ->  «>= sobrenatural»                            = suelo 14
+  BP 17, 18, 19, 20  ->  idem, suelo 14
+
+Banda [v-3, v+3] holgada hasta 15 y suelo fijo en 14 desde 16, que ya no depende
+del nivel. La frontera, a los dos lados, y el tramo entero por encima.
+
+  banco 508/508 -> 515/515
+
+LA TANDA DEL 2026-10-13, EN TOTAL: ~60 consultas, el banco de 476 a 515, tres
+numeros corregidos y una regla de banda corregida, dos negativos que acotan el
+fenomeno de las dos listas, y 40 observaciones nuevas en los cuatro sitios que
+el sondeo tenia mas flojos --el monton, la edad por arriba, el pasador y el
+balon parado del portero-- que el motor ya reproducia y que ahora estan fijadas.
