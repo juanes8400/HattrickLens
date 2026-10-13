@@ -2162,3 +2162,63 @@ tambien es una respuesta, y encaja con el texto de 2009, que habla de elegir
 «un conjunto de habilidades» SEGUN EL TIPO y no de una regla general--.
 
 El sondeo esta disenado en FASE AH y son diez consultas.
+
+================================================================================
+FASE AJ - 2026-10-12 - CUANTO ESTA FIJADO CADA NUMERO. 31 CLAVADOS, 8 ACOTADOS
+================================================================================
+
+Otra cosa que no necesitaba sesion. Que el banco este en 380/380 tienta a creer
+que los 39 numeros del motor estan medidos, y no es verdad: un numero puede
+estar DENTRO de un intervalo que el banco no distingue. Es el vicio del tope de
+dias de FASE AC visto por el otro lado --una constante que parece medida--.
+
+Herramienta nueva: `cuanto_esta_fijado_cada_numero.py`. Para cada constante
+entera barre 0..45 y da el tramo contiguo que mantiene el banco intacto; y para
+las que solo quedan acotadas, busca un PERFIL que separe el valor actual de otro
+del tramo, con las dos salidas calculadas. Ese perfil es la consulta que la
+fijaria.
+
+  CLAVADOS (31): un solo valor mantiene el banco. Entre ellos todos los umbrales
+  derivados hoy --COMPANERA_QUE_CIERRA_EL_CUARTO 7, CUARTO_QUE_ENTRA_SOLO 6,
+  EMPATE_QUE_ABRE_AL_SEGUNDO 8, PRIMERA_QUE_CORTA_AL_TERCERO 6,
+  SEGUNDO_ALTO_PARA_LA_CUARTA 8, DEFENSA_QUE_BAJA_LA_ANOTACION 3-- lo cual era
+  de esperar, porque cada uno se midio con frontera a los dos lados.
+
+  SOLO ACOTADOS (8). Tres NO SON REGLAS:
+    MAXIMO_DE_LA_ESCALA = 20        de representacion, no de regla
+    EDAD_CON_TOPE_DE_DIAS = 17      medido y no consumido (FASE AC)
+    TOPE_DE_DIAS_OBSERVADO = 24     idem
+
+  Los CINCO restantes son reglas con el valor sin fijar, y cada uno tiene ya su
+  consulta --una sola-- con la prediccion calculada:
+
+    HABILIDADES_QUE_CUENTAN = 4     vale 4 o mas  (contar mas no cambia nada)
+      Lat11 Jug8 Pas8 Def8 Ano8, edad 25
+        si solo cuentan CUATRO  -> Ed=25    Lat=11 Jug 7-9 Pas 7-9  Def 6-11 Ano<=9  Por<=4
+        si cuentan CINCO        -> Ed24-26  Lat=11 Jug 7-9 Pas 7-10 Def 6-11 Ano<=10 Por<=5
+
+    DESCUENTO_DEL_BALON_PARADO = 10  vale 4..14
+      Por8 BP11, edad 25
+        con 10 -> Ed=25    Por=8 Def<=1 BP 9-13 Lat<=4 Ano<=4 Jug<=4
+        con  4 -> Ed24-26  Por=8 Def<=1 BP 8-14 Lat<=5 Ano<=5 Jug<=5
+
+    BP_BANDA_MAXIMA = 15             vale 15..19
+      Por8 BP16, edad 25
+        con 15 -> BP>=14      (suelo fijo)
+        con 19 -> BP 14-18    (banda)
+
+    LATERAL_DEL_MEDIO_SIN_AYUDA = 7  vale 6 o 7
+      Jug8 Lat6, edad 25
+        con 7 -> Ed=25 Jug=8 Pas<=2 Def<=4 Lat<=7 Ano<=4 Por<=4
+        con 6 -> Ed=25 Jug=8 Lat=6 Pas<=4 Def<=4 Ano<=4 Por<=4
+
+    UMBRAL_CON_EMPATE_ARRIBA = 25    vale 25 o 26
+      Lat12 Pas12 Ano7, edad 25
+        con 25 -> Ed24-26  Lat=12 Pas 11-13 Ano 6-9 Jug<=5 Def<=5 Por<=5
+        con 26 -> Ed=25    Lat=12 Pas 11-13 Ano 6-8 Jug<=4 Def<=4 Por<=4
+
+PARA QUE SIRVE ESTO. Para no apoyarse en un numero creyendo que esta medido.
+Y de paso da la tanda mas barata que queda: cinco consultas que convierten cinco
+elecciones en cinco medidas. Con las diez del defensa (FASE AH) y las diez del
+delantero, son 25 consultas que cierran todo lo que hoy queda abierto salvo el
+mecanismo de las dos exclusiones.
