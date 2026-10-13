@@ -2928,3 +2928,20 @@ el dial. La clausula de 2009 --«set pieces, not compared»-- vale tambien para 
 parte que el texto no menciona.
 
   banco 587/587 -> 591/591
+
+--- AP10. DONDE TERMINA LA EXCEPCION DEL PASADOR ---------------------------
+
+A quien lo mas alto que tiene son Pases la edad NO se le abre a los 32: le
+aguanta clavada hasta los 34, medido contra su gemelo. Lo que nadie habia
+comprobado es que pasa en los 35, donde el modo ajustado recibe el suelo
+abierto: gana la excepcion o gana el suelo?
+
+  pasador  Pas13 Jug7   edad 34 -> «Edad = 34»      edad 35, 36 -> «>= 35»
+  gemelo   Jug13 Pas7   edad 34 -> «Edad 33-35»     edad 35, 36 -> «>= 35»
+
+GANA EL SUELO. La excepcion opera solo en la ventana 32-34, y desde los 35 los
+dos reciben el mismo suelo abierto. En el motor sale solo, porque la rama del
+suelo se comprueba ANTES que la del pasador; estaba bien por orden y no por
+medida, y ahora esta medido.
+
+  banco 591/591 -> 597/597

@@ -2413,3 +2413,28 @@ def test_el_balon_parado_de_campo_no_afecta_al_dial(
 ) -> None:
     niveles = perfil(winger=lateral, passing=pases, set_pieces=balon_parado)
     assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: DÓNDE TERMINA LA EXCEPCIÓN DEL PASADOR. A quien lo más alto que tiene son
+#: Pases la edad NO se le abre a los 32: le aguanta clavada hasta los 34, medido
+#: contra su gemelo. Lo que nadie había comprobado es qué pasa en los 35, donde
+#: el modo ajustado recibe el suelo abierto: ¿gana la excepción o el suelo?
+#:
+#: Medido el 2026-10-13: **gana el suelo**. A los 34 el pasador conserva la edad
+#: clavada (`Ed=34`) frente al `33-35` de su gemelo, y desde los 35 los dos
+#: reciben `>= 35`. La excepción opera sólo en la ventana 32-34.
+#: (edad, si es pasador, lo que contestó Hattrick)
+DONDE_TERMINA_LA_EXCEPCION_DEL_PASADOR: list[tuple[int, bool, str]] = [
+    (34, True, "Ed=34 Jug=7 Pas 12-14 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    (35, True, "Ed35-99 Jug=7 Pas 12-14 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    (36, True, "Ed35-99 Jug=7 Pas 12-14 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    (34, False, "Ed33-35 Jug=13 Pas=7 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    (35, False, "Ed35-99 Jug=13 Pas=7 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+    (36, False, "Ed35-99 Jug=13 Pas=7 Def<=4 Lat<=4 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("edad,pasador,esperado", DONDE_TERMINA_LA_EXCEPCION_DEL_PASADOR)
+def test_donde_termina_la_excepcion_del_pasador(edad: int, pasador: bool, esperado: str) -> None:
+    niveles = perfil(passing=13, playmaking=7) if pasador else perfil(playmaking=13, passing=7)
+    assert _pinta(criterios_de(edad, niveles)) == esperado
