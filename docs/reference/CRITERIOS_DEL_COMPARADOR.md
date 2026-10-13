@@ -413,6 +413,29 @@ valer, y quedan fijadas como `LAS_FICHAS_REALES`.
 
 Esto es **comprobar, no ajustar**: ninguna constante del motor sale de ahí.
 
+## Cuántos de sus números están de verdad medidos
+
+Que el banco esté en 380/380 tienta a creer que los 39 números del motor están
+medidos. No lo están todos: un número puede caer **dentro de un intervalo** que
+el banco no distingue.
+[`cuanto_esta_fijado_cada_numero.py`](sondeo-comparador/cuanto_esta_fijado_cada_numero.py)
+barre cada constante y da el tramo que mantiene el banco intacto.
+
+| | |
+|---|---|
+| **clavados** (un solo valor vale) | **31** |
+| sólo acotados | 8, y **tres no son reglas**: uno es de representación y dos son el tope de días, que no se consume |
+
+Los **cinco** que son regla con el valor sin fijar tienen cada uno su consulta
+escrita, con la predicción calculada, en `sondeo-comparador/fase-a.txt`, FASE AJ:
+`HABILIDADES_QUE_CUENTAN` (4 o más), `DESCUENTO_DEL_BALON_PARADO` (4-14),
+`BP_BANDA_MAXIMA` (15-19), `LATERAL_DEL_MEDIO_SIN_AYUDA` (6 o 7) y
+`UMBRAL_CON_EMPATE_ARRIBA` (25 o 26). Son **cinco consultas** que convierten
+cinco elecciones en cinco medidas.
+
+Todos los umbrales derivados el 2026-10-12 salen **clavados**, lo cual era de
+esperar: cada uno se midió con frontera a los dos lados.
+
 ## Cuánto se le cree
 
 Las **75 pruebas** de `test_criterios_hattrick.py` fijan otros tantos casos
