@@ -89,6 +89,12 @@ PLANTILLAS: dict[str, tuple[str, ...]] = {
     "scoring": ("scoring", "passing", "winger", "playmaking", "defending", "keeper"),
 }
 
+#: La cola --lo que recibe tope-- va en orden del corte salvo en el mediocentro,
+#: que tiene el suyo y manda la Defensa al final. Lo explica `_puestos`.
+COLA_POR_TIPO: dict[str, tuple[str, ...]] = {
+    "playmaking": ("passing", "winger", "defending", "scoring", "keeper", "playmaking"),
+}
+
 #: La habilidad que da el tipo va SIEMPRE la primera, aunque otra tenga más
 #: nivel. Sólo se nota en el pasador: con Pases 16 y todo lo demás a cero, el
 #: primer criterio es «Lateral = nulo». Clavar el Lateral es lo que separa a un
@@ -331,6 +337,104 @@ DEFENSA_DEL_EXTREMO_PIDE_LA_ANOTACION = True
 LATERAL_DEL_MEDIO_SIN_AYUDA = 7
 
 
+def _corta(tipo: str, niveles: dict[str, int]) -> tuple[frozenset[str], list[str], int]:
+    """El corte: qué queda fuera, en qué orden quedan las demás y cuántas entran.
+
+    Está aquí fuera y no dentro de `_puestos` porque el DIAL también lo necesita:
+    las exclusiones de segunda vuelta --las de `_fuera_con_defensa`-- cambian la
+    rareza, y si `rareza` no las ve cuenta una habilidad que Hattrick acaba de
+    tirar al montón. Se vio con «Jug16 Lat8 Ano8 Def5» y «Def6»: contando la
+    Anotación dan rareza 26 y salen holgados, y Hattrick los da AJUSTADOS. Sin
+    ella dan 24 y 24 contra un listón de 25, y con Def7 dan 25 y sí afloja, que
+    es justo lo medido.
+
+    El corte usa sólo la plantilla y los niveles, así que no depende del dial ni
+    de los pesos: puede llamarse desde los tres sitios sin recursión.
+    """
+    plantilla = PLANTILLAS[tipo]
+
+    def clave_de_corte(h: str) -> tuple[int, int]:
+        # EL CORTE ES POR NIVEL, y la plantilla solo desempata. Ensayado por
+        # `nivel - posicion` durante dos dias: coincidia en todo lo medido
+        # hasta «Jug16 Pas8 Ano6 Def5», donde Hattrick se queda con la
+        # Anotacion 6 y tira la Defensa 5 --por nivel sale asi, y por
+        # `nivel - posicion` sale al contrario, porque la Defensa va antes en
+        # la plantilla--. El caso que hizo adoptar el otro corte --un
+        # mediocentro con Pases, Defensa, Lateral y Anotacion los cuatro a 11,
+        # donde se queda con la Defensa y el Lateral-- sale igual por nivel,
+        # porque alli los cuatro EMPATAN y manda la plantilla.
+        return (-niveles.get(h, 0), plantilla.index(h))
+
+    def vuelta(fuera: frozenset[str]) -> tuple[list[str], int]:
+        ordenadas = [h for h in sorted(plantilla, key=clave_de_corte) if h not in fuera]
+        cuantos = PUESTOS_DE_IDENTIDAD
+        if len(ordenadas) > cuantos:
+            cuarto = max(0, niveles.get(ordenadas[cuantos], 0))
+            companera = max(0, niveles.get(plantilla[1], 0))
+            if cuarto >= CUARTO_QUE_ENTRA_SOLO or (
+                cuarto >= ENTRADA_TERCERO and companera <= COMPANERA_QUE_CIERRA_EL_CUARTO
+            ):
+                cuantos += 1
+        return ordenadas, cuantos
+
+    fuera = _fuera(tipo, niveles)
+    ordenadas, cuantos = vuelta(fuera)
+    # SEGUNDA VUELTA. Hay exclusiones que sólo valen si la Defensa ha ENTRADO en
+    # el conjunto, y eso no se sabe hasta haber cortado. Se corta otra vez con
+    # ellas puestas; no hay bucle porque la segunda vuelta nunca mete a nadie,
+    # sólo quita. Y «ha entrado» incluye el umbral de entrada: una Defensa de 4
+    # ocupa sitio pero sale con TOPE, no como criterio, y sin eso «Jug16 Def4
+    # Lat5 Ano5» --medido-- perdía la Anotación que Hattrick lista segunda.
+    entro = "defending" in ordenadas[:cuantos]
+    if entro and max(0, niveles.get("defending", 0)) >= ENTRADA_TERCERO:
+        extra = _fuera_con_defensa(tipo, niveles)
+        if extra - fuera:
+            fuera = fuera | extra
+            ordenadas, cuantos = vuelta(fuera)
+    return fuera, ordenadas, cuantos
+
+
+def _fuera_con_defensa(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
+    """Lo que se cae SOLO si la Defensa ha entrado en el conjunto.
+
+    Son dos reglas en espejo, y las dos salieron de releer las catorce celdas de
+    «la entrada del cuarto» por HABILIDAD en vez de por nivel. El nivel no las
+    explicaba: con Lat16 Def9, unos Pases 7 se caen y una Anotacion 5 entra, que
+    es al reves de cualquier umbral.
+
+    EL EXTREMO pierde los PASES si no alcanzan a la Anotacion:
+
+        Lat16 Def9 Ano8 Pas 5,6,7 -> «Def, Ano» y los Pases al monton
+        Lat16 Def9 Ano8 Pas 8,9   -> los Pases entran
+        Lat16 Pas8 Ano9 Def7      -> los Pases ENTRAN por debajo de la Anotacion
+
+    El tercero es el que ata la guarda: alli la Defensa esta excluida --7 < 9-- y
+    sin Defensa en el conjunto la regla no se dispara. Sin esa guarda, este caso
+    ya medido se rompe, y por eso la regla se habia descartado el mismo dia.
+
+    EL MEDIOCENTRO pierde la ANOTACION si no SUPERA al Lateral:
+
+        Jug16 Lat8 Ano8 Def 5,6,7 -> «Lat, Def» y la Anotacion al monton
+        Jug16 Lat9 Ano6 Def5      -> «Lat, Def», idem
+        Jug16 Lat5 Ano9 Def6      -> «Ano, Def» y el LATERAL al monton
+        Jug16 Def4 Lat5 Ano5      -> «Ano, Lat»: sin Defensa, no se dispara
+        Jug16 Pas8 Lat8 Ano8 Def5 -> «Pas, Ano, Lat»: la Defensa se cae del
+                                      corte, asi que tampoco se dispara
+
+    Los dos ultimos son los que exigen que la guarda sea la PERTENENCIA y no
+    «Defensa >= 5»: en el quinto la Defensa llega a 5 y no entra.
+    """
+    if tipo == "winger":
+        anotacion = max(0, niveles.get("scoring", 0))
+        if anotacion >= ENTRADA_TERCERO and max(0, niveles.get("passing", 0)) < anotacion:
+            return frozenset({"passing"})
+    if tipo == "playmaking" and max(0, niveles.get("scoring", 0)) <= max(
+        0, niveles.get("winger", 0)
+    ):
+        return frozenset({"scoring"})
+    return frozenset()
+
+
 def _fuera(tipo: str, niveles: dict[str, int]) -> frozenset[str]:
     """Las habilidades que no pueden ser criterio para este jugador."""
     fuera = EXCLUIDAS[tipo]
@@ -460,6 +564,28 @@ EMPATE_QUE_ABRE_AL_SEGUNDO = 8
 #: primera: con la segunda en 8 y la cuarta en 5 abre igual con la primera en
 #: 12, en 16 y en 20.
 CUARTA_QUE_ABRE_AL_SEGUNDO = 5
+
+#: LA ENTRADA DEL CUARTO PUESTO, que era lo ultimo que quedaba sin regla.
+#:
+#: De 6 en adelante entra siempre. EN 5 ENTRA SOLO SI LA SEGUNDA HABILIDAD DE
+#: LA PLANTILLA no pasa de 7. Medido el 2026-10-12 con un mediocentro de
+#: Jugadas 16 y Defensa 5 de cuarta, barriendo los Pases --que son la segunda
+#: de su plantilla--:
+#:
+#:   Pas 5, 7      -> la Defensa 5 ENTRA  (y tambien con Anotacion 10 o 13)
+#:   Pas 8, 9, 12  -> la Defensa 5 al monton
+#:   Def 6 o 7     -> entra con los Pases en 9 y en 12
+#:
+#: NO ES «la segunda de los criterios» NI «el hueco a la tercera»: las dos se
+#: midieron y las dos cayeron. Con la Anotacion 13 de segunda la Defensa 5
+#: entra igual, y con Pases 8 y Anotacion 8 --hueco 3 a la tercera-- no entra.
+#:
+#: Y ES LA SEGUNDA DE LA PLANTILLA, no «los Pases»: al extremo de Lateral 16,
+#: Defensa 9 y Pases 8 le entra una Anotacion de 5, y la segunda de su
+#: plantilla son las Jugadas, que valen 0. Si la regla mirase los Pases, esa
+#: Anotacion no entraria.
+CUARTO_QUE_ENTRA_SOLO = 6
+COMPANERA_QUE_CIERRA_EL_CUARTO = 7
 SEGUNDO_ALTO_PARA_LA_CUARTA = 8
 
 #: El umbral de la cuarta para el DIAL es otro, y va aparte: un cuarto criterio
@@ -674,7 +800,12 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
     # defensa de Defensa 12, Pases 10 y Anotacion 9: sigue saliendo ajustado,
     # cuando contando la Anotacion se pasaria de 25. A Hattrick, un central
     # golead­or no le parece un jugador mas raro: le parece el mismo central.
-    plantilla = [h for h in PLANTILLAS[tipo] if h not in EXCLUIDAS[tipo]]
+    # La primera vuelta ya la trae `EXCLUIDAS`; lo que faltaba era la SEGUNDA,
+    # que es la que tira la Anotacion del mediocentro con Defensa.
+    segunda_vuelta = _corta(tipo, niveles)[0] - _fuera(tipo, niveles)
+    plantilla = [
+        h for h in PLANTILLAS[tipo] if h not in EXCLUIDAS[tipo] and h not in segunda_vuelta
+    ]
     pesados = []
     for h in plantilla:
         nivel = max(0, niveles.get(h, 0))
@@ -742,7 +873,7 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     # Porteria como segunda y lo aflojaba --empate arriba y liston a 25--
     # cuando Hattrick le clava la edad. Medido con Jugadas 14, Porteria 13,
     # Lateral 9, Pases 8 y Defensa 5 a los 29 anos: sale ajustado.
-    elegibles = [h for h in PLANTILLAS[tipo] if h not in _fuera(tipo, niveles)]
+    elegibles = [h for h in PLANTILLAS[tipo] if h not in _corta(tipo, niveles)[0]]
     v = sorted((max(0, niveles.get(h, 0)) for h in elegibles), reverse=True)
     orden = _puestos(niveles, tipo)
     segunda = orden[1] if len(orden) > 1 else ""
@@ -858,11 +989,7 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
         pos = plantilla.index(h)
         return (-(niveles.get(h, 0) - pos), -niveles.get(h, 0), pos)
 
-    fuera = _fuera(tipo, niveles)
-    ordenadas = [h for h in sorted(plantilla, key=clave_de_corte) if h not in fuera]
-    cuantos = PUESTOS_DE_IDENTIDAD
-    if len(ordenadas) > cuantos and niveles.get(ordenadas[cuantos], 0) >= ENTRADA_TERCERO:
-        cuantos += 1
+    fuera, ordenadas, cuantos = _corta(tipo, niveles)
     conjunto = ordenadas[:cuantos]
     # LA LISTA INICIAL SE ELIGE CON EL CONJUNTO YA ELEGIDO, y se puede hacer
     # porque el corte usa la plantilla y no los pesos: no hay circulo.
@@ -886,7 +1013,28 @@ def _puestos(niveles: dict[str, int], tipo: str) -> list[str]:
     # Y tiene mejor pinta que lo que habia: la lista entera es UNA ordenacion,
     # no una cabeza ordenada y una cola puesta a mano.
     sobran = [h for h in ordenadas if h not in cabeza]
-    return cabeza + sobran + [h for h in plantilla if h not in cabeza and h not in sobran]
+    resto = [h for h in plantilla if h not in cabeza and h not in sobran]
+    # EL MEDIOCENTRO TIENE SU PROPIA COLA, y en ella la Defensa va AL FINAL,
+    # pase lo que pase con los niveles. Medido el 2026-10-12 en cinco perfiles:
+    #
+    #   Jug16 Pas9 Ano10 Def 0,3,4  -> «... Lat<=5  Def<=5  Por<=5»
+    #   Jug16 Pas7 Ano8  Def4       -> «... Lat<=5  Def<=5  Por<=5»
+    #   Jug16 Lat8 Ano8  Def4       -> «... Pas<=5  Def<=5  Por<=5»
+    #
+    # El Lateral va delante con nivel 0 contra una Defensa de 4, asi que no es
+    # el orden del corte ni el nivel. Y encaja tambien con el caso que hizo
+    # adoptar la cola del corte --Jugadas 10, Porteria 9, Lateral 4 y Defensa 2,
+    # donde el Lateral va delante-- porque ahi tambien va delante.
+    #
+    # Y LA DEFENSA VA DELANTE DE LA ANOTACION: «Jug12 Lat9 Pas15» a los 29
+    # saca «... Def<=5 Ano<=5 Por<=5». Asi que la cola es la plantilla con el
+    # Lateral y la Defensa cambiados de sitio, y las cuatro parejas medidas
+    # --Lat/Def, Pas/Def, Def/Ano y Lat/Ano-- salen todas.
+    cola = COLA_POR_TIPO.get(tipo)
+    if cola is not None:
+        atras = sorted(sobran + resto, key=cola.index)
+        return cabeza + atras
+    return cabeza + sobran + resto
 
 
 def _techo_de_sobrante(nivel: int, holgado: bool) -> int:

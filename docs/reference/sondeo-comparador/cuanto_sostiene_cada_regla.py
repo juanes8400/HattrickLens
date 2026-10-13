@@ -24,7 +24,12 @@ from app.domain.engines import criterios_hattrick as C  # noqa: E402
 
 def cuantos_bien() -> int:
     """Lo mismo que puntua el banco, en silencio."""
-    cas, rej, ords, tps = banco.cadenas(), banco.rejilla(), banco.ordenes(), banco.tipos()
+    # LOS ORDENES DEL EXTREMO TAMBIEN, y esto no es cosmetico: faltaban, y por
+    # eso «sin la segunda lista del extremo» salia rompiendo 2 cuando sostiene
+    # las 29 filas de FASE Q y los dos barridos. Es la tercera vez que un banco
+    # incompleto miente con aplomo. Si se anade una familia al banco, va aqui.
+    cas, rej, ords = banco.cadenas(), banco.rejilla(), banco.ordenes()
+    ext, tps = banco.ordenes_del_extremo(), banco.tipos()
     bien = sum(1 for e, n, s in cas if T._pinta(C.criterios_de(e, dict(n))) == s)
     bien += sum(
         1
@@ -45,12 +50,25 @@ def cuantos_bien() -> int:
         )
         == s
     )
+    bien += sum(
+        1
+        for n, esperado in ext
+        if " ".join(
+            T.ABREVIATURA[h]
+            for h in C._puestos(dict(n), C._tipo(dict(n)))[: len(esperado.split())]
+        )
+        == esperado
+    )
     bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
     return bien
 
 
 TOTAL = (
-    len(banco.cadenas()) + len(banco.rejilla()) + len(banco.ordenes()) + len(banco.tipos())
+    len(banco.cadenas())
+    + len(banco.rejilla())
+    + len(banco.ordenes())
+    + len(banco.ordenes_del_extremo())
+    + len(banco.tipos())
 )
 
 
@@ -170,3 +188,34 @@ sin("que el corte se limite a la primera en 6 (cortar siempre)", pon, lambda: se
 pon = _guarda("EMPATE_QUE_ABRE_AL_SEGUNDO")
 sin("que el empate abra la segunda solo desde 8 (abrir siempre)", pon, lambda: setattr(C, "EMPATE_QUE_ABRE_AL_SEGUNDO", 0))
 sin("que el empate abra la segunda", pon, lambda: setattr(C, "EMPATE_QUE_ABRE_AL_SEGUNDO", 99))
+
+# --- las dos listas iniciales, y lo que salio con ellas -------------------
+pon = _guarda("ORDEN_DE_IMPORTANCIA")
+sin("la segunda lista del extremo", pon, lambda: setattr(C, "ORDEN_DE_IMPORTANCIA", {k: v for k, v in C.ORDEN_DE_IMPORTANCIA.items() if k != "winger_con_defensa"}))
+sin("la segunda lista del mediocentro", pon, lambda: setattr(C, "ORDEN_DE_IMPORTANCIA", {k: v for k, v in C.ORDEN_DE_IMPORTANCIA.items() if k != "playmaking_con_defensa"}))
+pon = _guarda("DEFENSA_QUE_BAJA_LA_ANOTACION")
+sin("el umbral de la segunda lista del mediocentro", pon, lambda: setattr(C, "DEFENSA_QUE_BAJA_LA_ANOTACION", 99))
+
+# --- la entrada del cuarto -------------------------------------------------
+pon = _guarda("CUARTO_QUE_ENTRA_SOLO")
+sin("que el cuarto entre solo desde 6", pon, lambda: setattr(C, "CUARTO_QUE_ENTRA_SOLO", 99))
+pon = _guarda("COMPANERA_QUE_CIERRA_EL_CUARTO")
+sin("que la companera cierre el cuarto (entrar siempre desde 5)", pon, lambda: setattr(C, "COMPANERA_QUE_CIERRA_EL_CUARTO", 99))
+pon = _guarda("COLA_POR_TIPO")
+sin("la cola propia del mediocentro", pon, lambda: setattr(C, "COLA_POR_TIPO", {}))
+
+# Las DOS EXCLUSIONES EN ESPEJO, juntas y por separado.
+_espejo = C._fuera_con_defensa
+
+
+def _solo(tipos):
+    def envuelta(tipo, niveles):
+        return _espejo(tipo, niveles) if tipo in tipos else frozenset()
+
+    return envuelta
+
+
+pon = _guarda("_fuera_con_defensa")
+sin("las dos exclusiones en espejo", pon, lambda: setattr(C, "_fuera_con_defensa", lambda t, n: frozenset()))
+sin("que el extremo pierda los Pases bajo la Anotacion", pon, lambda: setattr(C, "_fuera_con_defensa", _solo({"playmaking"})))
+sin("que el mediocentro pierda la Anotacion bajo el Lateral", pon, lambda: setattr(C, "_fuera_con_defensa", _solo({"winger"})))

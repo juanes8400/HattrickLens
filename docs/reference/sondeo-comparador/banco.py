@@ -143,6 +143,7 @@ def cadenas() -> list[tuple[int, dict[str, int], str]]:
         for extra, s in T.LA_ANOTACION_Y_EL_LATERAL_DEL_MEDIO
     ]
     casos += [(e, dict(n), s) for e, n, s in T.LAS_FICHAS_REALES]
+    casos += [(e, dict(n), s) for e, n, s in T.LA_ENTRADA_DEL_CUARTO]
     return casos
 
 
@@ -179,119 +180,15 @@ def ordenes_del_extremo() -> list[tuple[dict[str, int], str]]:
 #: aqui y no en las pruebas porque las pruebas fijan lo que ya funciona; esto
 #: es la lista de deberes, y cada entrada dice de que familia es.
 PENDIENTES: list[tuple[str, int, dict[str, int], str]] = [
-    # LA ENTRADA DEL CUARTO, medida el 2026-10-12 y sin regla. Extremo de
-    # Lateral 16 y Defensa 9: cuando los Pases quedan POR DEBAJO de la
-    # Anotacion, Hattrick los tira al monton y deja solo Defensa y Anotacion.
-    # El motor los mantiene como criterio y de paso reordena Def/Ano.
+    # VACIO otra vez, y esta vez cerrando la ultima familia que quedaba: la
+    # ENTRADA DEL CUARTO. Los catorce que habia aqui se arreglaron el
+    # 2026-10-12 con dos piezas --el corte por NIVEL en vez de por
+    # `nivel - posicion`, y el cuarto puesto que en 5 pide que la segunda de
+    # la plantilla no pase de 7-- y estan fijados en
+    # `test_criterios_hattrick.LA_ENTRADA_DEL_CUARTO`.
     #
-    # La regla simetrica obvia --«la Anotacion tapa tambien a los Pases», como
-    # ya tapa a la Defensa-- ROMPE un caso medido: Lat16 Pas8 Ano9 Def7, donde
-    # los Pases SI entran estando por debajo de la Anotacion. La diferencia es
-    # que alli la Defensa esta fuera. No se ha sacado la regla.
-    (
-        "entrada del cuarto",
-        25,
-        perfil(winger=16, defending=9, passing=5, scoring=8),
-        "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=7 Por<=5",
-    ),
-    (
-        "entrada del cuarto",
-        25,
-        perfil(winger=16, defending=9, passing=6, scoring=8),
-        "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=8 Por<=5",
-    ),
-    (
-        "entrada del cuarto",
-        25,
-        perfil(winger=16, defending=9, passing=7, scoring=8),
-        "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=9 Por<=5",
-    ),
-    # Y EL MEDIOCENTRO GEMELO, misma forma y tampoco sale: Hattrick lista los
-    # Pases 7 antes que la Anotacion 8 y el motor al contrario. Al mediocentro
-    # le faltaria su segunda lista inicial, igual que al extremo.
-    (
-        "segunda lista del mediocentro",
-        25,
-        perfil(playmaking=16, defending=9, passing=7, scoring=8),
-        "Ed24-26 Jug=16 Def 8-10 Pas 6-9 Ano 6-11 Lat<=5 Por<=5",
-    ),
-    # Y UNO MAS DE LA MISMA FAMILIA: con «Jug16 Lat9 Ano6 Def5» la Anotacion 6
-    # no entra como cuarta, y el motor la mete. Mientras que con «Jug16 Pas5
-    # Ano6 Def5» la Defensa 5 SI entra como cuarta un nivel por debajo de la
-    # tercera. Mismo hueco, distinta habilidad, y sin regla.
-    (
-        "entrada del cuarto",
-        25,
-        perfil(playmaking=16, winger=9, scoring=6, defending=5),
-        "Ed24-26 Jug=16 Lat=9 Def 4-7 Pas<=5 Ano<=8 Por<=5",
-    ),
-    # LOS DIEZ DE LOS BARRIDOS DEL MEDIOCENTRO que la segunda lista NO arregla.
-    # Tres familias: el orden del MONTON --Hattrick lista el Lateral antes que
-    # la Defensa aunque la Defensa tenga mas nivel, y eso no viaja a la
-    # busqueda--; la ENTRADA DEL CUARTO otra vez, que aqui no abre con la
-    # Defensa en 5 y si en 6, al contrario que la Anotacion 5 del extremo; y la
-    # ANOTACION EXPULSADA del conjunto cuando entra la Defensa, que es la misma
-    # forma que la tapadera del extremo y sin regla.
-    (
-        "entrada del cuarto / orden del monton",
-        25,
-        perfil(playmaking=16, passing=9, scoring=10, defending=0),
-        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
-    ),
-    (
-        "entrada del cuarto / orden del monton",
-        25,
-        perfil(playmaking=16, passing=9, scoring=10, defending=3),
-        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
-    ),
-    (
-        "entrada del cuarto / orden del monton",
-        25,
-        perfil(playmaking=16, passing=9, scoring=10, defending=4),
-        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5",
-    ),
-    (
-        "entrada del cuarto / orden del monton",
-        25,
-        perfil(playmaking=16, passing=9, scoring=10, defending=5),
-        "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=7 Por<=5",
-    ),
-    (
-        "entrada del cuarto / orden del monton",
-        25,
-        perfil(playmaking=16, passing=12, scoring=13, defending=5),
-        "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Lat<=5 Def<=7 Por<=5",
-    ),
-    (
-        "entrada del cuarto / orden del monton",
-        25,
-        perfil(playmaking=16, passing=7, scoring=8, defending=4),
-        "Ed24-26 Jug=16 Ano 7-9 Pas 6-9 Lat<=5 Def<=5 Por<=5",
-    ),
-    (
-        "la Anotacion fuera del conjunto del mediocentro",
-        25,
-        perfil(playmaking=16, winger=8, scoring=8, defending=4),
-        "Ed24-26 Jug=16 Ano 7-9 Lat 7-10 Pas<=5 Def<=5 Por<=5",
-    ),
-    (
-        "la Anotacion fuera del conjunto del mediocentro",
-        25,
-        perfil(playmaking=16, winger=8, scoring=8, defending=5),
-        "Ed=25 Jug=16 Lat=8 Def 4-6 Pas<=4 Ano<=9 Por<=4",
-    ),
-    (
-        "la Anotacion fuera del conjunto del mediocentro",
-        25,
-        perfil(playmaking=16, winger=8, scoring=8, defending=6),
-        "Ed=25 Jug=16 Lat=8 Def 5-8 Pas<=4 Ano<=9 Por<=4",
-    ),
-    (
-        "la Anotacion fuera del conjunto del mediocentro",
-        25,
-        perfil(playmaking=16, winger=8, scoring=8, defending=7),
-        "Ed24-26 Jug=16 Lat 7-9 Def 6-9 Pas<=5 Ano<=10 Por<=5",
-    ),
+    # Cuando una tanda saque un fallo nuevo, va aqui con su familia, y se
+    # queda hasta que un candidato lo arregle SIN bajar el total medido.
 ]
 
 

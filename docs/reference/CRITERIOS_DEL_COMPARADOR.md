@@ -257,7 +257,7 @@ nivel. Por eso un Pases 16 con todo lo demás a cero empieza por
 | **1º** | siempre **exacto** |
 | **2º** | **techo** por debajo de 3 (2 en el portero) · **exacto** hasta 9 (6 en el portero) · **banda `[v−1, v+1]`** desde 10 (7 en el portero) |
 | **3º** | cae a techo por debajo de 5 · **banda** de 5 a 10 · **suelo `≥ v`** desde 11. Y **una 1ª débil le quita sitio**: ver abajo |
-| **4º** | sólo existe si llega a 5. Banda estrecha como el 3º por debajo de 8, y ancha `[v−2, v+3]` de 8 en adelante, **cortada arriba por el nivel de la 1ª**: con Defensa 9 y las otras tres a 8 sale `Lat 6-9`, y subiendo sólo la Defensa a 10 sale `Lat 6-10`. Un cuarto puesto no puede pedir más de lo mejor que tiene el jugador |
+| **4º** | existe de 6 en adelante, y en 5 sólo si la **2ª habilidad de la plantilla** no pasa de 7 (ver «Lo que queda desconocido»). Banda estrecha como el 3º por debajo de 8, y ancha `[v−2, v+3]` de 8 en adelante, **cortada arriba por el nivel de la 1ª**: con Defensa 9 y las otras tres a 8 sale `Lat 6-9`, y subiendo sólo la Defensa a 10 sale `Lat 6-10`. Un cuarto puesto no puede pedir más de lo mejor que tiene el jugador |
 | **resto** | **techo** |
 
 La banda del 3º mide `[v−1, v+1]` con la búsqueda ajustada y `[v−1, v+2]` con la
@@ -429,17 +429,33 @@ por dónde falló importa tanto como la regla.
 
 - ~~**El MECANISMO del orden de los criterios.**~~ **Resuelto el 2026-10-12**:
   es `nivel − importancia` sobre una lista inicial por tipo, y la fuente de
-  2009 lo dice. Lo que faltaba era que hay más listas que tipos. Queda **la
-  segunda lista del mediocentro**, que tiene la misma forma que la del extremo
-  y no se ha sacado: `Jug16 Pas7 Def9 Ano8` sale `Jug Def Pas Ano` y el motor
-  da `Jug Def Ano Pas`. Un caso de 315.
-- **La ENTRADA del cuarto criterio.** Medida en catorce celdas el 2026-10-12 y
-  sin regla. Con un extremo de Lateral 16 y Defensa 9, la Anotación entra desde
-  5 pero los Pases tienen que alcanzar a la Anotación: con Anotación 8, unos
-  Pases 7 van al montón. La regla simétrica obvia --«la Anotación tapa también a
-  los Pases»-- **rompe** un caso medido (`Lat16 Pas8 Ano9 Def7`, donde los Pases
-  sí entran), y la diferencia es que allí la Defensa está fuera. Tres casos de
-  315, en `PENDIENTES` del banco con su contra-medida.
+  2009 lo dice. Lo que faltaba era que hay más listas que tipos: el extremo
+  tiene dos y el mediocentro otras dos, las cuatro medidas con frontera a los
+  dos lados y con una predicción cumplida cada una.
+- ~~**La ENTRADA del cuarto criterio.**~~ **Cerrada el 2026-10-12** con 21
+  celdas medidas. Entra de 6 en adelante, y en 5 sólo si la **segunda habilidad
+  de la plantilla** no pasa de 7. Dos lecturas rivales cayeron midiendo: «el
+  hueco a la segunda» (con la Anotación 13 de segunda, una Defensa 5 entra
+  igual) y «el hueco a la tercera» (con Pases 8 y Anotación 8, hueco 3, no
+  entra). Y es la segunda de la **plantilla**, no «los Pases»: al extremo de
+  Lateral 16, Defensa 9 y Pases 8 le entra una Anotación de 5, porque la
+  segunda de su plantilla son las Jugadas y valen 0.
+
+  De paso salió que **el corte es por NIVEL**, no por `nivel − posición`: con
+  `Jug16 Pas8 Ano6 Def5` Hattrick se queda con la Anotación 6 y tira la Defensa
+  5, y la clave `nivel − posición` da lo contrario. El caso que había hecho
+  adoptar la otra forma --cuatro habilidades a 11, donde se queda con la
+  Defensa y el Lateral-- sale igual por nivel, porque allí los cuatro empatan y
+  manda la plantilla. El corte simple era el correcto, y lo complicó un empate.
+
+  Y **dos exclusiones en espejo**, las dos con la guarda de que la Defensa haya
+  entrado en el conjunto: el **extremo** pierde los Pases si no alcanzan a la
+  Anotación, y el **mediocentro** pierde la Anotación si no supera al Lateral.
+  La guarda está fijada por dos casos medidos --`Lat16 Pas8 Ano9 Def7`, donde
+  los Pases entran por debajo de la Anotación porque la Defensa está excluida,
+  y `Jug16 Pas8 Lat8 Ano8 Def5`, donde la Anotación se queda porque la Defensa
+  se cae del corte--. Son **dos reglas para dos tipos**, y una sola tendría
+  mejor pinta: es por ahí por donde buscaría el siguiente.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
 - **Cuándo entra el TERCER criterio en general.** El caso del mediocentro ya
@@ -643,35 +659,48 @@ AD lo subieron a 259 y el corte pasó a tener frontera.
 El motor es un montón de reglas sacadas de mediciones distintas, y no todas
 pesan lo mismo.
 [`cuanto_sostiene_cada_regla.py`](sondeo-comparador/cuanto_sostiene_cada_regla.py)
-las quita de una en una y cuenta cuántos de los 259 casos medidos dejan de
+las quita de una en una y cuenta cuántos de los **380** casos medidos dejan de
 salir:
 
 | al quitar | se rompen |
 |---|---|
-| las exclusiones por tipo | 162 |
+| las exclusiones por tipo | 197 |
 | el sesgo del portero sobre la defensa | 20 |
-| que la Anotación pida cinco | 14 |
-| que la tercera en 7 abra la segunda | 12 |
-| los pesos del extremo | 9 |
-| los pesos del mediocentro | 7 |
+| los pesos del mediocentro | 19 |
+| que el cuarto entre solo desde 6 | 18 |
+| que la tercera en 7 abra la segunda | 16 |
+| los pesos del extremo | 11 |
+| la tapadera de la Anotación al extremo | 9 |
+| la tabla del dial por pareja | 9 |
+| la segunda lista del extremo | 9 |
+| la cola propia del mediocentro | 9 |
+| las dos exclusiones en espejo | 8 |
+| que la Anotación pida cinco | 6 |
+| el desempate propio del extremo | 6 |
+| el umbral de la segunda lista del mediocentro | 6 |
 | que una habilidad de 17 afloje sola | 5 |
 | que la primera en 6 corte la banda del tercero | 5 |
-| el desempate propio del extremo | 4 |
-| la tapadera de la Anotación al extremo | 3 |
+| la segunda lista del mediocentro | 5 |
+| que el mediocentro pierda la Anotación bajo el Lateral | 5 |
 | que la primera en 5 no sostenga tercero | 3 |
-| la regla del Lateral del mediocentro | 2 |
-| la tabla del dial por pareja | 2 |
+| la regla del Lateral del mediocentro | 3 |
+| que el extremo pierda los Pases bajo la Anotación | 3 |
 | que el empate abra la segunda | 2 |
 | **la posición de la Portería en el desempate** | **0** |
 
-**Y las dos reglas con umbral se prueban también por el otro lado**, que es lo
-que separa un umbral medido de uno inventado:
+**Y las reglas con umbral se prueban también por el otro lado**, que es lo que
+separa un umbral medido de uno inventado:
 
 | al generalizar | se rompen |
 |---|---|
 | cortar la banda del tercero **siempre**, no sólo con la 1ª en 6 | 5 |
+| que el cuarto entre **siempre desde 5**, sin mirar a la compañera | 4 |
 | abrir la segunda **con cualquier empate**, no sólo desde 8 | 3 |
 
+**La tabla se arregló el 2026-10-12, y por tercera vez por lo mismo:** le
+faltaban las 29 filas de órdenes del extremo, así que «sin la segunda lista del
+extremo» salía rompiendo 2 cuando rompe 9. Un banco incompleto miente con más
+aplomo que no tenerlo.
 **Para qué sirve:** dice en qué apoyarse y en qué no. Las exclusiones por tipo
 sostienen 162 casos --tocarlas es tocar el motor entero--; la tabla del dial
 por pareja sostiene dos, así que si una medición la contradice no hay que

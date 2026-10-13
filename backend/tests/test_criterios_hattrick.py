@@ -1657,6 +1657,10 @@ def test_la_entrada_del_cuarto(pases: int, anotacion: int, esperado: str) -> Non
 #: Aquí están los que el motor reproduce; los que no, en `PENDIENTES` del banco.
 #: (habilidades sobre Jugadas 16, lo que contestó Hattrick)
 LAS_DOS_LISTAS_DEL_MEDIOCENTRO: list[tuple[dict[str, int], str]] = [
+    # «Defensa entre insuficiente y bueno» = [5,7], no [5,8]: bueno es 7 y
+    # excelente es 8. Lo transcribi mal el 2026-10-12 y se paso dos horas en
+    # PENDIENTES del banco como si el motor fallara. El motor daba [5,7].
+    (dict(winger=8, scoring=8, defending=6), "Ed=25 Jug=16 Lat=8 Def 5-7 Pas<=4 Ano<=9 Por<=4"),
     (dict(passing=9, scoring=10, defending=6), "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Def 5-8 Lat<=5 Por<=5"),
     (dict(passing=9, scoring=10, defending=7), "Ed24-26 Jug=16 Pas 8-10 Ano 9-12 Def 6-9 Lat<=5 Por<=5"),
     (dict(passing=9, scoring=10, defending=9), "Ed24-26 Jug=16 Pas 8-10 Ano 9-12 Def 7-12 Lat<=5 Por<=5"),
@@ -1745,4 +1749,55 @@ LAS_FICHAS_REALES: list[tuple[int, dict[str, int], str]] = [
 
 @pytest.mark.parametrize("edad,niveles,esperado", LAS_FICHAS_REALES)
 def test_las_fichas_reales(edad: int, niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(edad, dict(niveles))) == esperado
+
+
+#: LA ENTRADA DEL CUARTO, que era lo último que quedaba sin regla. Aquí están
+#: las celdas que la cierran, y las dos piezas que salieron de ellas:
+#:
+#: 1. EL CORTE ES POR NIVEL, y la plantilla sólo desempata. Durante dos días
+#:    fue `nivel − posición`, que coincidía en todo lo medido hasta
+#:    «Jug16 Pas8 Ano6 Def5»: ahí Hattrick se queda con la Anotación 6 y tira
+#:    la Defensa 5, y por `nivel − posición` sale al contrario.
+#:
+#: 2. EL CUARTO PUESTO entra de 6 en adelante, y en 5 sólo si la SEGUNDA
+#:    HABILIDAD DE LA PLANTILLA no pasa de 7. Barrido con Jugadas 16 y Defensa
+#:    5 de cuarta: con los Pases en 5 o 7 entra, y en 8, 9 o 12 no. Dos
+#:    lecturas rivales cayeron midiendo: «el hueco a la segunda» --con la
+#:    Anotación 13 de segunda la Defensa 5 entra igual-- y «el hueco a la
+#:    tercera» --con Pases 8 y Anotación 8, hueco 3, no entra--.
+#:
+#: Y es la segunda de la PLANTILLA, no «los Pases»: al extremo de Lateral 16,
+#: Defensa 9 y Pases 8 le entra una Anotación de 5, porque la segunda de su
+#: plantilla son las Jugadas y valen 0.
+#: (edad, perfil, lo que contestó Hattrick)
+LA_ENTRADA_DEL_CUARTO: list[tuple[int, dict[str, int], str]] = [
+    (25, perfil(defending=9, winger=16, passing=5, scoring=8), "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=7 Por<=5"),
+    (25, perfil(defending=9, winger=16, passing=6, scoring=8), "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=8 Por<=5"),
+    (25, perfil(defending=9, winger=16, passing=7, scoring=8), "Ed24-26 Lat=16 Def 8-10 Ano 7-10 Jug<=5 Pas<=9 Por<=5"),
+    (25, perfil(defending=9, playmaking=16, passing=7, scoring=8), "Ed24-26 Jug=16 Def 8-10 Pas 6-9 Ano 6-11 Lat<=5 Por<=5"),
+    (25, perfil(defending=5, playmaking=16, winger=9, scoring=6), "Ed24-26 Jug=16 Lat=9 Def 4-7 Pas<=5 Ano<=8 Por<=5"),
+    (25, perfil(playmaking=16, passing=9, scoring=10), "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5"),
+    (25, perfil(defending=3, playmaking=16, passing=9, scoring=10), "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5"),
+    (25, perfil(defending=4, playmaking=16, passing=9, scoring=10), "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=5 Por<=5"),
+    (25, perfil(defending=5, playmaking=16, passing=9, scoring=10), "Ed24-26 Jug=16 Ano 9-11 Pas 8-11 Lat<=5 Def<=7 Por<=5"),
+    (25, perfil(defending=5, playmaking=16, passing=12, scoring=13), "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Lat<=5 Def<=7 Por<=5"),
+    (25, perfil(defending=4, playmaking=16, passing=7, scoring=8), "Ed24-26 Jug=16 Ano 7-9 Pas 6-9 Lat<=5 Def<=5 Por<=5"),
+    (25, perfil(defending=4, playmaking=16, winger=8, scoring=8), "Ed24-26 Jug=16 Ano 7-9 Lat 7-10 Pas<=5 Def<=5 Por<=5"),
+    (25, perfil(defending=5, playmaking=16, winger=8, scoring=8), "Ed=25 Jug=16 Lat=8 Def 4-6 Pas<=4 Ano<=9 Por<=4"),
+    (25, perfil(defending=7, playmaking=16, winger=8, scoring=8), "Ed24-26 Jug=16 Lat 7-9 Def 6-9 Pas<=5 Ano<=10 Por<=5"),
+    (25, perfil(playmaking=16, passing=7, scoring=13, defending=5), "Ed24-26 Jug=16 Ano 12-14 Pas 6-9 Def 4-7 Lat<=5 Por<=5"),
+    (25, perfil(playmaking=16, passing=5, scoring=13, defending=5), "Ed24-26 Jug=16 Ano 12-14 Pas 4-7 Def 4-7 Lat<=5 Por<=5"),
+    (25, perfil(playmaking=16, passing=7, scoring=10, defending=5), "Ed24-26 Jug=16 Ano 9-11 Pas 6-9 Def 4-7 Lat<=5 Por<=5"),
+    (25, perfil(playmaking=16, passing=8, scoring=8, defending=5), "Ed=25 Jug=16 Pas 7-9 Ano 7-9 Lat<=4 Def<=6 Por<=4"),
+    (25, perfil(playmaking=16, passing=8, scoring=6, defending=5), "Ed=25 Jug=16 Pas=8 Ano 5-7 Lat<=4 Def<=6 Por<=4"),
+    (25, perfil(playmaking=16, passing=12, scoring=13, defending=7), "Ed24-26 Jug=16 Ano 12-14 Pas>=12 Def 6-9 Lat<=5 Por<=5"),
+    (25, perfil(playmaking=16, winger=9, scoring=6, defending=5), "Ed24-26 Jug=16 Lat=9 Def 4-7 Pas<=5 Ano<=8 Por<=5"),
+]
+
+
+@pytest.mark.parametrize("edad,niveles,esperado", LA_ENTRADA_DEL_CUARTO)
+def test_la_entrada_del_cuarto_cerrada(
+    edad: int, niveles: dict[str, int], esperado: str
+) -> None:
     assert _pinta(criterios_de(edad, dict(niveles))) == esperado

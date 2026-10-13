@@ -1965,3 +1965,96 @@ unico que la plantilla aporta es una muestra que no elegi yo. Quedan fijadas en
 `test_criterios_hattrick` como `LAS_FICHAS_REALES`.
 
   banco: 333/333 -> 358/358
+
+================================================================================
+FASE AG - 2026-10-12 - LA ENTRADA DEL CUARTO, CERRADA. Y EL CORTE ERA POR NIVEL
+================================================================================
+
+Era lo ultimo que quedaba sin regla, y salio al releer las catorce celdas por
+HABILIDAD en vez de por nivel. Dos reglas en espejo, mas dos piezas del corte.
+
+--- AG1. DOS EXCLUSIONES EN ESPEJO, con la misma guarda ---------------------
+
+  EL EXTREMO pierde los PASES si no alcanzan a la Anotacion.
+  EL MEDIOCENTRO pierde la ANOTACION si no SUPERA al Lateral.
+
+Las dos piden que la DEFENSA HAYA ENTRADO en el conjunto, y esa guarda no es
+adorno: son los dos casos que la fijan.
+
+  Lat16 Pas8 Ano9 Def7       -> los Pases ENTRAN por debajo de la Anotacion,
+                                porque alli la Defensa esta excluida (7 < 9).
+  Jug16 Pas8 Lat8 Ano8 Def5  -> la Anotacion se queda, porque la Defensa 5 se
+                                cae del corte.
+
+Por eso la primera version de la regla del extremo se descarto el mismo dia:
+sin la guarda, el primer caso se rompe. Y «ha entrado» incluye el umbral de
+entrada, porque una Defensa de 4 ocupa sitio en la lista pero sale con TOPE:
+sin eso, «Jug16 Def4 Lat5 Ano5» perdia la Anotacion que Hattrick lista segunda.
+
+Hubo que sacar el corte de `_puestos` a su propia funcion, porque el DIAL
+tambien lo necesita: `rareza` contaba la Anotacion que acababa de irse al
+monton y «Jug16 Lat8 Ano8 Def5» salia holgado cuando Hattrick lo da ajustado.
+Sin ella la rareza da 24 contra un liston de 25, y con Def7 da 25 y si afloja.
+
+--- AG2. EL CORTE ES POR NIVEL, no por `nivel - posicion` -------------------
+
+Dos dias con `nivel - posicion`. Coincidia en todo lo medido hasta esta:
+
+  Jug16 Pas8 Ano6 Def5  ->  Jug=16  Pas=8  Ano 5-7  Lat<=4  Def<=6
+
+Hattrick se queda con la Anotacion 6 y tira la Defensa 5. Por nivel sale asi;
+por `nivel - posicion` sale al contrario, porque la Defensa va antes en la
+plantilla (clave 3 contra 2).
+
+Y EL CASO QUE HIZO ADOPTAR EL OTRO CORTE SIGUE SALIENDO: un mediocentro con
+Pases, Defensa, Lateral y Anotacion los cuatro a 11, donde Hattrick se queda con
+la Defensa y el Lateral. Alli los cuatro EMPATAN en nivel y manda la plantilla,
+que es exactamente lo que hace el corte nuevo. El corte simple era el correcto
+y lo complique por un caso de empate.
+
+--- AG3. EL CUARTO PUESTO ---------------------------------------------------
+
+  De 6 en adelante entra siempre.
+  En 5 entra solo si la SEGUNDA HABILIDAD DE LA PLANTILLA no pasa de 7.
+
+Barrido con Jugadas 16 y Defensa 5 de cuarta, moviendo los Pases --que son la
+segunda de la plantilla del mediocentro--:
+
+  Pas 5, 7      -> la Defensa 5 ENTRA   (tambien con Anotacion 10 o 13)
+  Pas 8, 9, 12  -> la Defensa 5 al monton
+  Def 6, 7      -> entran con los Pases en 9 y en 12
+
+DOS LECTURAS RIVALES CAYERON MIDIENDO, y las dos consultas se hicieron para eso:
+
+  «el hueco a la SEGUNDA <= 3»  -> refutada: con Jug16 Pas7 Ano13 Def5, la
+                                   Anotacion 13 es la segunda --hueco 8-- y la
+                                   Defensa 5 entra igual.
+  «el hueco a la TERCERA <= 3»  -> refutada: con Jug16 Pas8 Ano8 Def5 el hueco
+                                   a la tercera es 3 y la Defensa NO entra.
+
+Y ES LA SEGUNDA DE LA PLANTILLA, no «los Pases»: al extremo de Lateral 16,
+Defensa 9 y Pases 8 le entra una Anotacion de 5, y la segunda de su plantilla
+son las Jugadas, que valen 0. Si la regla mirase los Pases, no entraria.
+
+--- AG4. LA COLA DEL MEDIOCENTRO -------------------------------------------
+
+Cinco perfiles mas que no eran del cuarto sino del MONTON: Hattrick lista
+«Lat<=5 Def<=5» y el motor al contrario, con el Lateral en 0 contra una Defensa
+de 4. No es el orden del corte ni el nivel. Y la Defensa va DELANTE de la
+Anotacion: «Jug12 Lat9 Pas15» a los 29 saca «... Def<=5 Ano<=5 Por<=5».
+
+  cola del mediocentro = Pases, Lateral, Defensa, Anotacion, Porteria
+
+o sea la plantilla con el Lateral y la Defensa cambiados de sitio. Las cuatro
+parejas medidas --Lat/Def, Pas/Def, Def/Ano y Lat/Ano-- salen todas. No viaja a
+`transfersearch`, que solo se lleva los tres primeros, pero es regla igual.
+
+--- RESULTADO ---------------------------------------------------------------
+
+  banco 359/359 -> 380/380, PENDIENTES VACIO.
+
+Es la primera vez en el sondeo que no queda ninguna observacion sin reproducir.
+Lo que NO significa que el motor sea el mecanismo de Hattrick: significa que no
+hay contraejemplo conocido. La diferencia importa, y las dos reglas en espejo de
+AG1 son el sitio por donde yo buscaria el siguiente: son dos reglas distintas
+para dos tipos, y una sola tendria mejor pinta.
