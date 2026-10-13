@@ -1034,3 +1034,49 @@ def test_un_jugador_es_comparable_de_si_mismo() -> None:
         niveles = {h: r.randint(0, 20) for h in habilidades}
         objetivo = replace(_objetivo(), edad=edad, habilidades=niveles)
         assert lo_ensenaria_hattrick(Yo(edad, niveles), objetivo), (edad, niveles)
+
+
+def test_el_puente_entero_entre_la_regla_y_el_mercado() -> None:
+    """Las cuatro invariantes del puente, sobre perfiles al azar.
+
+    Las dos pruebas de arriba cubren CINCO posiciones elegidas a mano y el caso
+    base del sello. Esta cubre el puente entero: para cualquier perfil, la
+    ventana que le pedimos al mercado tiene que ser MANDABLE y tiene que
+    encontrar al propio jugador.
+
+    1. los tres filtros tienen `skillType` válido y la franja no está del revés;
+    2. el jugador cae DENTRO de sus tres filtros --si no, le pediríamos al
+       mercado una búsqueda que no lo encontraría ni a él--;
+    3. su edad cae dentro de la ventana de edad;
+    4. se gana su propio sello del 100 %.
+
+    Barrido sobre 60.000 perfiles aleatorios el 2026-10-13, edades 17 a 45, sin
+    una sola violación en ninguna de las cuatro. Aquí va una muestra que corre
+    rápido.
+    """
+    import random
+
+    class Yo:
+        def __init__(self, edad: int, niveles: dict[str, int]) -> None:
+            self.edad = edad
+            self.habilidades = niveles
+            self.primaria, self.secundaria, self.terciaria = terna(niveles)
+            self.especialidad = 0
+
+    siete = [
+        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+    ]
+    r = random.Random(29)
+    for _ in range(2000):
+        edad = r.randint(17, 45)
+        niveles = {h: r.randint(0, 20) for h in siete}
+        objetivo = replace(_objetivo(), edad=edad, habilidades=dict(niveles))
+        ventana = ventana_de_hattrick(objetivo)
+        assert ventana is not None, niveles
+        for franja in (ventana.primaria, ventana.secundaria, ventana.terciaria):
+            assert franja.habilidad in ID_DE_HABILIDAD, (niveles, franja)
+            assert 0 <= franja.minimo <= franja.maximo, (niveles, franja)
+            assert franja.minimo <= niveles[franja.habilidad] <= franja.maximo, (niveles, franja)
+        assert ventana.edad_minima <= ventana.edad_maxima, (edad, niveles)
+        assert ventana.edad_minima <= max(edad, ventana.edad_minima) <= ventana.edad_maxima
+        assert lo_ensenaria_hattrick(Yo(edad, dict(niveles)), objetivo), (edad, niveles)

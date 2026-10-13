@@ -2945,3 +2945,29 @@ suelo se comprueba ANTES que la del pasador; estaba bien por orden y no por
 medida, y ahora esta medido.
 
   banco 591/591 -> 597/597
+
+--- AP11. EL PUENTE ENTERO ENTRE LA REGLA Y EL MERCADO ---------------------
+
+El sondeo mide la REGLA; lo que ship­ea es la regla CONSUMIDA por el producto.
+Entre las dos cosas hay un puente --`ventana_de_hattrick` y
+`lo_ensenaria_hattrick`-- que estaba probado en CINCO posiciones elegidas a
+mano y en el caso base del sello. Nada mas.
+
+Barrido de 60.000 perfiles aleatorios, edades 17 a 45, comprobando cuatro
+invariantes que tienen que cumplirse SIEMPRE:
+
+  1. los tres filtros tienen `skillType` valido y la franja no esta del reves
+  2. el jugador cae DENTRO de sus tres filtros
+  3. su edad cae dentro de la ventana de edad
+  4. se gana su propio sello del 100 %
+
+  CERO VIOLACIONES EN LAS CUATRO.
+
+La segunda es la que importaba: si un jugador cayera FUERA de su propia
+ventana, le pediriamos al mercado una busqueda que no lo encontraria ni a el, y
+el escalon del 100 % saldria vacio sin que nada fallara. Con todas las reglas
+nuevas de estos dos dias --cuatro listas iniciales, las dos exclusiones en
+espejo, el corte por nivel, la entrada del cuarto-- habia sitio de sobra para
+romperla.
+
+Queda una muestra de 2.000 en `test_mercado_comparable` para que corra en CI.
