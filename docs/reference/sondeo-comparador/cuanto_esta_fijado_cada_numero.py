@@ -62,6 +62,29 @@ def numeros() -> list[str]:
     )
 
 
+def se_nota(nombre: str, base: int) -> bool:
+    """Si mover la constante +-1 o +-2 cambia algo. PASADA BARATA.
+
+    Esta aqui porque sin ella la herramienta tarda media hora: barrer 0..45 en
+    las constantes que YA estan clavadas es tiempo tirado. Con esto, el barrido
+    completo se hace solo en las que esta pasada no nota.
+    """
+    actual = getattr(C, nombre)
+    try:
+        for d in (-1, 1, -2, 2):
+            if actual + d < 0:
+                continue
+            setattr(C, nombre, actual + d)
+            try:
+                if puntua() != base:
+                    return True
+            except Exception:  # noqa: BLE001
+                return True
+    finally:
+        setattr(C, nombre, actual)
+    return False
+
+
 def tramo(nombre: str, base: int) -> tuple[int, int]:
     """El tramo contiguo alrededor del valor actual que mantiene el banco."""
     actual = getattr(C, nombre)
@@ -130,6 +153,9 @@ def main() -> None:
     clavados, acotados = [], []
     for nombre in numeros():
         actual = getattr(C, nombre)
+        if se_nota(nombre, base):
+            clavados.append((nombre, actual, actual, actual))
+            continue
         lo, hi = tramo(nombre, base)
         (clavados if lo == hi else acotados).append((nombre, actual, lo, hi))
 

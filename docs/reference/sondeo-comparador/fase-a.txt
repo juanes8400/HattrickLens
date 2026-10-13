@@ -2633,3 +2633,47 @@ solo un numero que aplicar cuando se tenga el dato, y eso simplifica la decision
 de producto que quedo pendiente en FASE AC.
 
   banco 515/515 -> 521/521
+
+================================================================================
+FASE AN - 2026-10-13 - EL QUINTO PUNTO CIEGO, Y 39 DE 40 NUMEROS CLAVADOS
+================================================================================
+
+La auditoria volvio a correr con el banco en 521 y dio TRES sin fijar:
+
+  MAXIMO_DE_LA_ESCALA = 20
+  EDAD_CON_TOPE_DE_DIAS = 17
+  TOPE_DE_DIAS_OBSERVADO = 24
+
+Los dos del tope de dias estaban medidos en cuatro perfiles esa misma manana
+(FASE AM7). No es que no estuvieran medidos: ES QUE EL BANCO NO LOS MIRABA,
+porque el tope de dias no sale en la CADENA de criterios y el banco puntua
+cadenas. QUINTO punto ciego del mismo tipo en dos dias.
+
+  arreglado: `dias()` mete las seis observaciones del tope en el banco
+  banco 521/521 -> 527/527
+  numeros clavados 37 -> 39 de 40
+
+EL UNICO QUE QUEDA ES MAXIMO_DE_LA_ESCALA, y no es una regla: es el tope de la
+escala con el que se rellena el campo `maximo` de un criterio `>=`, y la cadena
+no lo ensena --un `>=` se escribe con su minimo--. Que no se pueda fijar
+midiendo es lo correcto.
+
+--- Y LA HERRAMIENTA TARDABA MEDIA HORA -----------------------------------
+
+Barria 0..45 en las 40 constantes, o sea 1.840 evaluaciones del banco, incluso
+en las 39 que ya estaban clavadas. Se le puso una PASADA BARATA delante: mover
++-1 y +-2, y hacer el barrido completo solo en las que esa pasada no note.
+
+  antes: ~30 minutos (hubo que matarla)
+  ahora: menos de un minuto
+
+LA LECCION, que es la misma de los otros cuatro puntos ciegos: un banco solo
+protege lo que puntua. Si una regla no se ve en la salida que el banco mira, el
+banco dira que nadie la sostiene, y eso es indistinguible de que sea falsa.
+
+LOS CINCO PUNTOS CIEGOS, para que no haya un sexto:
+  1. los PENDIENTES, que no se miraban
+  2. los TIPOS, que no se puntuaban
+  3. los ORDENES DEL EXTREMO, que le faltaban a la ablacion
+  4. el LATERAL DEL MEDIOCENTRO, que se puntua por booleano y no por cadena
+  5. el TOPE DE DIAS, que no sale en la cadena

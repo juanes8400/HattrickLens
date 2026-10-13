@@ -186,6 +186,15 @@ def rejilla() -> list[tuple[int, dict[str, int], str]]:
     ]
 
 
+#: EL TOPE DE DIAS, que no sale en la CADENA de criterios y por eso el banco no
+#: lo veia. QUINTO punto ciego del mismo tipo, y se destapo igual que los otros:
+#: la auditoria de `cuanto_esta_fijado_cada_numero.py` daba EDAD_CON_TOPE_DE_DIAS
+#: y TOPE_DE_DIAS_OBSERVADO como «sin fijar» cuando estan medidos en cuatro
+#: perfiles. No es que no estuvieran medidos: es que el banco no los miraba.
+def dias() -> list[tuple[int, dict[str, int], int | None]]:
+    return [(e, dict(n), d) for e, n, _s, d in T.EL_BALON_PARADO_Y_EL_TOPE_DE_DIAS]
+
+
 #: EL LATERAL DEL MEDIOCENTRO, que se puntua por un BOOLEANO --si es criterio
 #: o no-- y por eso el banco no lo miraba. Punto ciego real: el 2026-10-12 una
 #: medida nueva («Jugadas 8, Lateral 6 y nada mas») me hizo cambiar el umbral
@@ -302,6 +311,7 @@ def puntua(nombre: str) -> tuple[int, int]:
         == s
     )
     lat = laterales()
+    dia = dias()
     ext = ordenes_del_extremo()
     bien += sum(
         1
@@ -319,9 +329,12 @@ def puntua(nombre: str) -> tuple[int, int]:
             for c in C.criterios_de(25, dict(n)).habilidades
         )
     )
+    bien += sum(
+        1 for e, n, d in dia if C.criterios_de(e, dict(n)).tope_de_dias == d
+    )
     tps = tipos()
     bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
-    total = len(cas) + len(rej) + len(ords) + len(ext) + len(lat) + len(tps)
+    total = len(cas) + len(rej) + len(ords) + len(ext) + len(lat) + len(dia) + len(tps)
     fallan = [d for d, e, n, s in PENDIENTES if T._pinta(C.criterios_de(e, dict(n))) != s]
     print(f"{nombre}")
     print(f"  medido     {bien}/{total}")

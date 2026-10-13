@@ -485,10 +485,17 @@ a la dominante**, y son **cinco niveles**: con el Lateral en 6 y nada más, entr
 hasta Jugadas 11 y se cae desde Jugadas 12. Los dos conjuntos de medidas **no se
 solapaban en la dominante**, y la frontera caía justo en el hueco entre ellos.
 
-**Segunda pasada de la auditoría**, con los valores corregidos: quedaba un solo
-número de regla acotado, `DESCUENTO_DEL_BALON_PARADO` (5-9), y la consulta que lo
-separaba --`Por8 BP12`-- dio la predicción de **9** exacta. Así que de los 40
-números del motor, **36 están clavados** y los otros cuatro no son reglas.
+**Pasadas siguientes de la auditoría.** La segunda dejó un solo número de regla
+acotado, `DESCUENTO_DEL_BALON_PARADO` (5-9), y la consulta que lo separaba
+--`Por8 BP12`-- dio la predicción de **9** exacta. La tercera destapó el **quinto
+punto ciego del banco**: daba las dos constantes del tope de días como «sin
+fijar» cuando estaban medidas en cuatro perfiles esa misma mañana, porque el tope
+de días **no sale en la cadena de criterios** y el banco puntúa cadenas.
+
+Con eso dentro, **39 de los 40 números del motor están clavados**. El único que
+queda, `MAXIMO_DE_LA_ESCALA`, no es una regla: es el tope con el que se rellena
+el campo `maximo` de un criterio `>=`, y la cadena no lo enseña. Que no se pueda
+fijar midiendo es lo correcto.
 
 ## Cuánto se le cree
 
