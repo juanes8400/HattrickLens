@@ -2191,3 +2191,33 @@ EL_BALON_PARADO_ABAJO: list[tuple[int, str]] = [
 def test_el_balon_parado_abajo(balon_parado: int, esperado: str) -> None:
     niveles = perfil(keeper=13, defending=8, set_pieces=balon_parado)
     assert _pinta(criterios_de(25, niveles)) == esperado
+
+
+#: AL PORTERO LOS PASES NO LE APARECEN, ni como criterio ni como techo. Una
+#: pregunta que no se había hecho: `EXCLUIDAS["keeper"]` le quita Jugadas,
+#: Lateral y Anotación, pero los Pases no estaban en esa lista... porque **no
+#: están en su plantilla**, que es `Por, Def, BP, Lat, Ano, Jug`. Así que su
+#: cadena tiene SEIS entradas y los Pases no son una de ellas.
+#:
+#: Medido el 2026-10-13 con un portero de Portería 16, Defensa 10 y balón parado
+#: 10, moviendo los Pases de 0 a 16: la cadena no cambia en nada.
+#:
+#: IMPORTA PARA EL PRODUCTO: significa que una comparación de portero no
+#: restringe los Pases, así que un portero candidato con cualquier nivel de Pases
+#: puede ganarse el sello del 100 %. Si el motor les pusiera un techo --como hace
+#: con las otras tres que el portero no usa-- rechazaríamos comparables que
+#: Hattrick sí enseña.
+#: (pases, lo que contestó Hattrick)
+AL_PORTERO_LOS_PASES_NO_LE_APARECEN: list[tuple[int, str]] = [
+    (0, "Ed24-26 Por=16 Def 9-11 BP 7-13 Lat<=5 Ano<=5 Jug<=5"),
+    (8, "Ed24-26 Por=16 Def 9-11 BP 7-13 Lat<=5 Ano<=5 Jug<=5"),
+    (12, "Ed24-26 Por=16 Def 9-11 BP 7-13 Lat<=5 Ano<=5 Jug<=5"),
+    (16, "Ed24-26 Por=16 Def 9-11 BP 7-13 Lat<=5 Ano<=5 Jug<=5"),
+]
+
+
+@pytest.mark.parametrize("pases,esperado", AL_PORTERO_LOS_PASES_NO_LE_APARECEN)
+def test_al_portero_los_pases_no_le_aparecen(pases: int, esperado: str) -> None:
+    criterios = criterios_de(25, perfil(keeper=16, defending=10, set_pieces=10, passing=pases))
+    assert _pinta(criterios) == esperado
+    assert all(c.habilidad != "passing" for c in criterios.habilidades)

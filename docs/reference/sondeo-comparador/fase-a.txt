@@ -2757,3 +2757,22 @@ entrada de 5 que gobierna todo lo demas, no uno propio del balon parado.
 Las doce observaciones salen tal cual: los dos huecos eran extrapolaciones
 CORRECTAS. Lo que cambia es que ahora estan medidas, y la diferencia importa
 justo en el caso en que una extrapolacion habria fallado sin testigo.
+
+--- AP3. AL PORTERO LOS PASES NO LE APARECEN -------------------------------
+
+Pregunta que no se habia hecho nunca. `EXCLUIDAS["keeper"]` le quita Jugadas,
+Lateral y Anotacion, y los Pases NO estaban en esa lista. Resulta que no hacen
+falta: no estan en su PLANTILLA, que es Por, Def, BP, Lat, Ano, Jug. Su cadena
+tiene SEIS entradas y los Pases no son una.
+
+  Por16 Def10 BP10, con los Pases en 0, 8, 12 y 16:
+    «Porteria = extraterrestre, Defensa 9-11, Balon parado 7-13,
+     Lateral <= 5, Anotacion <= 5, Jugadas <= 5»   -- identica las cuatro veces
+
+IMPORTA PARA EL PRODUCTO, y es la razon de medirlo: una comparacion de portero
+NO RESTRINGE LOS PASES, asi que un portero candidato con cualquier nivel de
+Pases puede ganarse el sello del 100 %. Si el motor les pusiera techo --como
+hace con las otras tres que el portero no usa-- estariamos rechazando
+comparables que Hattrick si ensena. No lo hace.
+
+  banco 539/539 -> 543/543
