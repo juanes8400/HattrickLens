@@ -164,6 +164,7 @@ def _provisional(candidato: Candidato, ahora: datetime) -> Guardado:
         puja=candidato.puja,
         visto_el=ahora,
         edad=candidato.edad,
+        dias=candidato.dias,
         primaria=candidato.primaria,
         secundaria=candidato.secundaria,
         terciaria=candidato.terciaria,

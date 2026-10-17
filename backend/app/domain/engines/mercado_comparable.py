@@ -158,6 +158,12 @@ class Perfilado(Protocol):
     @property
     def edad(self) -> int: ...
 
+    #: LOS DIAS DE SU EDAD, para el tope de los 17. `-1` significa «no los
+    #: tenemos»: las ventas guardadas antes de la columna vienen asi, y el
+    #: tope no se les aplica --que es lo mismo que hacíamos con todas--.
+    @property
+    def dias(self) -> int: ...
+
     @property
     def primaria(self) -> Rasgo: ...
 
@@ -246,6 +252,8 @@ class Candidato:
     ht_player_id: int
     nombre: str
     edad: int
+    #: Los dias de su edad. Hacen falta para el tope de los 17.
+    dias: int
     puja: int
     precio_pedido: int
     tiene_puja: bool
@@ -313,6 +321,9 @@ class Guardado:
     secundaria: Rasgo
     terciaria: Rasgo
     especialidad: int = 0
+    #: Los dias de la edad del vendido. `-1` en las ventas guardadas antes de
+    #: la columna, y entonces el tope de los 17 no se les aplica.
+    dias: int = -1
     #: Las siete habilidades del vendido, si las tenemos. Las ventas anteriores
     #: a la columna las traen vacias y por eso no pueden llegar al 100 %.
     habilidades: Mapping[str, int] = field(default_factory=dict)
@@ -522,11 +533,19 @@ def lo_ensenaria_hattrick(candidato: Perfilado, objetivo: Objetivo) -> bool:
     criterios = criterios_de(objetivo.edad, dict(objetivo.habilidades))
     if not criterios.edad_minima <= candidato.edad <= criterios.edad_maxima:
         return False
-    # EL TOPE DE DIAS DE LOS 17 NO SE COMPRUEBA, y es la unica parte de la regla
-    # que se nos queda fuera: a un jugador de 17 anos y 80 dias Hattrick no lo
-    # ensenaria y aqui se le da el sello. Hace falta guardar los dias para
-    # poder; esta explicado en `Criterios.tope_de_dias`. Solo afecta a
-    # comparables de 17 anos.
+    # EL TOPE DE DIAS DE LOS 17, que es la ultima parte de la regla que faltaba
+    # por aplicar. A los 17 anos Hattrick anade «Dias <= 24», y es una CONSTANTE:
+    # el mismo perfil pedido desde dos fichas con dias distintos --29a 2d y
+    # 28a 20d-- da el mismo 24, asi que no sale de la edad del jugador (FASE L).
+    #
+    # SI NO SABEMOS LOS DIAS DEL CANDIDATO, el tope no se aplica. Las ventas
+    # guardadas antes de la columna traen `dias = -1` y se quedan como estaban:
+    # mejor eso que inventarles una fecha. No se pueden rellenar, porque haria
+    # falta saber los dias que tenia el vendido EL DIA DE LA VENTA y CHPP no lo
+    # publica, igual que con las habilidades (migracion 0102).
+    dias = getattr(candidato, "dias", -1)
+    if criterios.tope_de_dias is not None and dias >= 0 and dias > criterios.tope_de_dias:
+        return False
     return all(
         criterio.admite(max(0, candidato.habilidades.get(criterio.habilidad, 0)))
         for criterio in criterios.habilidades
@@ -595,6 +614,8 @@ def candidato_de(fila: Mapping[str, Any]) -> Candidato | None:
         ht_player_id=jugador,
         nombre=_nombre(fila),
         edad=int(fila.get("age_years", 0) or 0),
+        # `parse_transfersearch` ya los devuelve; antes se tiraban.
+        dias=int(fila.get("age_days", -1) if fila.get("age_days") is not None else -1),
         puja=puja,
         precio_pedido=int(fila.get("asking_price", 0) or 0),
         # La bandera del parser manda cuando viene: es la que distingue

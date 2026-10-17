@@ -409,29 +409,33 @@ criterio, asomando por otro sitio.
 El número es **fijo**: se pidió el mismo perfil de 17 años desde la ficha de un
 jugador de 2 días y desde la de uno de 20, y las dos veces salió 24.
 
-## La única parte de la regla que no se aplica
+## El tope de días de los 17, y cómo se aplica
 
-A los 17 años Hattrick añade un **tope de días**: `Días <= 24`. Está en
-`Criterios.tope_de_dias`, pero **nadie lo consume**.
+A los 17 años --y sólo a esa edad-- Hattrick añade un criterio más:
+`Días <= 24`. **Es una constante**, no sale del jugador: el mismo perfil pedido
+desde dos fichas con días distintos --29 años y 2 días, y 28 y 20-- devuelve el
+mismo 24 (FASE L), y barrido el 2026-10-13 en tres perfiles y en los dos modos
+del dial da siempre 24, y a los 18 no hay tope.
 
-**Y es una constante**, barrido el 2026-10-13: sale `Días <= 24` en tres perfiles
-distintos y en los **dos modos del dial** --la holgura no lo ensancha-- y a los
-18 años no hay tope ninguno. Eso simplifica la decisión: no hay fórmula que
-derivar, sólo un número que aplicar cuando se tenga el dato.
+**Durante una semana se calculó y no se consumió**, porque hacía falta el dato y
+no lo guardábamos. Se aplicó el 2026-10-17 con la migración `0103`:
 
-- La **búsqueda** no lo manda, y eso está bien: `transfersearch` acepta años y
-  no días, y pedir un superconjunto no hace daño.
-- El **sello del 100 %** tampoco lo comprueba, y ahí sí importa: a un jugador
-  de 17 años y 80 días Hattrick no lo enseñaría y nosotros le damos el sello.
+- **La búsqueda no lo manda, y eso está bien:** `transfersearch` acepta años y
+  no días, así que le pedimos un superconjunto y eso no hace daño.
+- **El sello del 100 % sí lo comprueba.** Un candidato de 17 años con más de 24
+  días pierde el sello, que es lo que haría el juego.
 
-**Por qué no está arreglado:** hace falta el dato. Ni `Candidato` ni
-`market_sales` guardan los días, aunque el parser de CHPP ya los lee
-(`age_days`). Arreglarlo es una columna nueva y una migración --igual que se
-hizo con `skills_json`--, y aplicarlo sólo a los candidatos vivos dejaría a la
-misma venta con sello antes de guardarse y sin sello después, que es peor que la
-inexactitud. **Afecta sólo a comparables de 17 años**, y queda a decisión de
-quien lleve el producto.
+**Por qué hizo falta una columna y no un parche.** Si el tope se aplicara sólo a
+los candidatos vivos del mercado --donde los días vienen en la respuesta de
+`transfersearch`-- la **misma** venta tendría sello antes de guardarse y lo
+perdería después. Una incoherencia que aparece y desaparece es peor que una
+inexactitud constante, así que o se aplica en los dos sitios o en ninguno.
 
+**`-1` significa «no los sabemos»**, no «cero días». Las ventas guardadas antes
+de la columna se quedan así y el tope no se les aplica: siguen midiéndose como
+hasta ahora. Y no se pueden rellenar, porque haría falta saber los días que
+tenía el vendido **el día de la venta** y CHPP no lo publica --la misma decisión
+que se tomó con `skills_json` en la migración `0102`--.
 ## Lo que NO se compara
 
 Forma, resistencia, especialidad, experiencia, liderazgo, carácter,
@@ -551,9 +555,9 @@ es concreto y corto:
   por tipo, que es lo que dice el texto de 2009.
 - **Por qué el escalón del sesgo del portero está en Defensa 12.** La tabla
   entera está medida de 1 a 20; el motivo, no. Por encima de 20 no se sondeó.
-- **El tope de días de los 17 está medido y no se consume.** Hace falta una
-  columna y una migración, y es decisión del producto. Está contado abajo, en «La
-  única parte de la regla que no se aplica».
+- ~~**El tope de días de los 17 está medido y no se consume.**~~ **Aplicado el
+  2026-10-17** con la migración `0103`. Está contado abajo, en «El tope de días
+  de los 17, y cómo se aplica».
 
 **Y de los 40 números del motor, 39 están clavados por las medidas.** El único
 que falta, `MAXIMO_DE_LA_ESCALA`, no es una regla: es el tope con el que se
@@ -575,9 +579,6 @@ es cuestión de medir más celdas:**
   para decidir si el jugador es *pasador* a efectos de la ventana de edad. Ahí
   su sitio en la tupla importa y no hay medida que lo fije.
 
-Los otros
-cuatro no son reglas: uno es de representación y tres son del tope de días, que
-no se consume.
 ## El listón del dial va por PAREJA, no por tipo
 
 > **2026-10-13: la tabla está completa y dos celdas no eran lo que se suponía.**

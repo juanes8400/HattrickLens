@@ -1080,3 +1080,43 @@ def test_el_puente_entero_entre_la_regla_y_el_mercado() -> None:
         assert ventana.edad_minima <= ventana.edad_maxima, (edad, niveles)
         assert ventana.edad_minima <= max(edad, ventana.edad_minima) <= ventana.edad_maxima
         assert lo_ensenaria_hattrick(Yo(edad, dict(niveles)), objetivo), (edad, niveles)
+
+
+#: EL TOPE DE DÍAS DE LOS 17, que es lo último de la regla que faltaba por
+#: aplicar. A los 17 años Hattrick añade «Días <= 24», y es una constante: el
+#: mismo perfil pedido desde dos fichas con días distintos --29a 2d y 28a 20d--
+#: devuelve el mismo 24 (FASE L), así que sólo hacen falta los días del
+#: candidato.
+#:
+#: `-1` significa «no los sabemos» y entonces el tope NO se aplica: las ventas
+#: guardadas antes de la columna `age_days` vienen así y se quedan midiéndose
+#: como hasta ahora. Mejor eso que inventarles una fecha.
+#: (días del candidato, si Hattrick lo enseñaría)
+EL_TOPE_DE_DIAS_EN_EL_SELLO: list[tuple[int, bool]] = [
+    (0, True),
+    (24, True),
+    (25, False),
+    (80, False),
+    (-1, True),
+]
+
+
+@pytest.mark.parametrize("dias,lo_ensenaria", EL_TOPE_DE_DIAS_EN_EL_SELLO)
+def test_el_tope_de_dias_en_el_sello(dias: int, lo_ensenaria: bool) -> None:
+    """A los 17, un candidato con más de 24 días pierde el sello del 100 %."""
+    niveles = _hab(defending=12, playmaking=9)
+    objetivo = replace(_objetivo(), edad=17, habilidades=niveles)
+    candidato = candidato_de(_fila(1, edad=17, age_days=dias, skills=dict(niveles)))
+    assert candidato is not None
+    assert candidato.dias == dias
+    assert lo_ensenaria_hattrick(candidato, objetivo) is lo_ensenaria
+
+
+@pytest.mark.parametrize("edad", [16, 18, 25, 33])
+def test_el_tope_de_dias_solo_es_de_los_17(edad: int) -> None:
+    """Fuera de los 17 no hay tope, así que los días no quitan el sello."""
+    niveles = _hab(defending=12, playmaking=9)
+    objetivo = replace(_objetivo(), edad=edad, habilidades=niveles)
+    candidato = candidato_de(_fila(2, edad=edad, age_days=200, skills=dict(niveles)))
+    assert candidato is not None
+    assert lo_ensenaria_hattrick(candidato, objetivo) is True

@@ -1749,6 +1749,11 @@ class MarketSale(Base):
 
     # ── Su perfil al venderse, que es lo que lo hace comparable ─────────
     age_years: Mapped[int] = mapped_column(Integer, default=0)
+    #: Los DIAS de su edad, para el tope de los 17 anos --«Dias <= 24»--, que
+    #: es la ultima parte de la regla de Hattrick que faltaba por aplicar.
+    #: `-1` significa «no los sabemos»: las ventas guardadas antes de esta
+    #: columna, a las que el tope no se les aplica. Lo explica la migracion 0103.
+    age_days: Mapped[int] = mapped_column(Integer, default=-1)
     primary_skill: Mapped[str] = mapped_column(String(24), default="")
     primary_level: Mapped[int] = mapped_column(Integer, default=0)
     secondary_skill: Mapped[str] = mapped_column(String(24), default="")

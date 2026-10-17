@@ -160,6 +160,7 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         puja=fila.bid_price,
         visto_el=fila.seen_at,
         edad=fila.age_years,
+        dias=fila.age_days,
         primaria=Rasgo(fila.primary_skill, fila.primary_level),
         secundaria=Rasgo(fila.secondary_skill, fila.secondary_level),
         terciaria=Rasgo(fila.tertiary_skill, fila.tertiary_level),
@@ -214,6 +215,7 @@ async def guardar(
         fila.seen_at = venta.visto_el
         fila.resolve_attempts = 0
         fila.age_years = venta.edad
+        fila.age_days = venta.dias
         fila.primary_skill = venta.primaria.habilidad
         fila.primary_level = venta.primaria.nivel
         fila.secondary_skill = venta.secundaria.habilidad
